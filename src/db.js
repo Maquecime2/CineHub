@@ -51,10 +51,18 @@ async function tx(mode, fn) {
   });
 }
 
-export const putPoster = (key, blob) => tx("readwrite", (s) => s.put(blob, key));
-export const getPoster = (key) => tx("readonly", (s) => s.get(key));
-export const deletePoster = (key) => tx("readwrite", (s) => s.delete(key));
-export const allPosterKeys = () => tx("readonly", (s) => s.getAllKeys());
+/* Le magasin s'appelle encore « posters » — il stocke désormais aussi les
+   captures d'écran, mais renommer casserait les bases déjà créées. */
+export const putImage = (key, blob) => tx("readwrite", (s) => s.put(blob, key));
+export const getImage = (key) => tx("readonly", (s) => s.get(key));
+export const deleteImage = (key) => tx("readwrite", (s) => s.delete(key));
+export const allImageKeys = () => tx("readonly", (s) => s.getAllKeys());
+
+// anciens noms, conservés pour les appels existants
+export const putPoster = putImage;
+export const getPoster = getImage;
+export const deletePoster = deleteImage;
+export const allPosterKeys = allImageKeys;
 
 /* Combien de place occupent réellement les affiches — affiché dans les
    réglages d'import, parce qu'un quota invisible est un quota qu'on dépasse. */
@@ -73,12 +81,23 @@ export async function posterStats() {
   return { count: keys.length, bytes, quota };
 }
 
-/* Efface les affiches devenues orphelines (films supprimés). */
+/* Toutes les clés d'images qu'une collection référence : affiches ET captures.
+   Oublier les captures ici les ferait effacer à la première purge. */
+export function referencedKeys(films) {
+  const keys = new Set();
+  for (const f of films) {
+    if (isIdbPoster(f.poster)) keys.add(idbKeyOf(f.poster));
+    for (const s of f.stills || []) if (s.key) keys.add(s.key);
+  }
+  return keys;
+}
+
+/* Efface les images devenues orphelines (films supprimés). */
 export async function pruneOrphans(films) {
-  const kept = new Set(films.filter((f) => isIdbPoster(f.poster)).map((f) => idbKeyOf(f.poster)));
-  const keys = await allPosterKeys();
+  const kept = referencedKeys(films);
+  const keys = await allImageKeys();
   const dead = keys.filter((k) => !kept.has(k));
-  for (const k of dead) await deletePoster(k);
+  for (const k of dead) await deleteImage(k);
   return dead.length;
 }
 
@@ -96,24 +115,25 @@ const blobToDataUrl = (blob) => new Promise((res, rej) => {
 const dataUrlToBlob = async (url) => (await fetch(url)).blob();
 
 export async function exportBackup({ films, notes }) {
-  const posters = {};
-  for (const f of films) {
-    if (!isIdbPoster(f.poster)) continue;
-    const blob = await getPoster(idbKeyOf(f.poster));
-    if (blob) posters[idbKeyOf(f.poster)] = await blobToDataUrl(blob);
+  const images = {};
+  for (const key of referencedKeys(films)) {
+    const blob = await getImage(key);
+    if (blob) images[key] = await blobToDataUrl(blob);
   }
   return {
     format: "cine-hub-backup",
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
-    films, notes, posters,
+    films, notes, images,
   };
 }
 
 export async function importBackup(data) {
   if (data?.format !== "cine-hub-backup") throw new Error("Ce fichier n'est pas une sauvegarde Ciné Hub.");
-  for (const [key, dataUrl] of Object.entries(data.posters || {})) {
-    await putPoster(key, await dataUrlToBlob(dataUrl));
+  // v1 ne connaissait que les affiches, sous la clé « posters »
+  const images = data.images || data.posters || {};
+  for (const [key, dataUrl] of Object.entries(images)) {
+    await putImage(key, await dataUrlToBlob(dataUrl));
   }
   return { films: data.films || [], notes: data.notes || [] };
 }

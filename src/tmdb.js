@@ -71,6 +71,31 @@ export async function getDetails(tmdbId, apiKey) {
   };
 }
 
+export const POSTER_THUMB = "https://image.tmdb.org/t/p/w185";
+
+/* Toutes les affiches connues pour un film — plusieurs pays, plusieurs
+   graphismes. On privilégie la langue d'origine et le français, puis les
+   affiches sans texte (`iso_639_1: null`), et on classe par popularité. */
+export async function listPosters({ tmdbId, title, year, apiKey }) {
+  let id = tmdbId;
+  if (!id) {
+    const hit = await searchMovie({ title, year, apiKey });
+    if (!hit) return { tmdbId: null, posters: [] };
+    id = hit.id;
+  }
+  const data = await get(`/movie/${id}/images`, { include_image_language: "fr,en,null" }, apiKey);
+  const posters = (data.posters || [])
+    .sort((a, b) => (b.vote_average || 0) - (a.vote_average || 0))
+    .slice(0, 24)
+    .map((p) => ({
+      thumb: `${POSTER_THUMB}${p.file_path}`,
+      full: `${POSTER_BASE}${p.file_path}`,
+      lang: p.iso_639_1 || "—",
+      ratio: p.aspect_ratio,
+    }));
+  return { tmdbId: id, posters };
+}
+
 /* Résout une ligne d'import ; null si le film reste introuvable. */
 async function resolveOne(row, apiKey, cache) {
   const key = cacheKeyOf(row.title, row.year);

@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Étagère — propositions visuelles</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,500&family=Lora:ital,wght@0,400;0,500;1,400&family=Caveat:wght@600;700&family=Special+Elite&display=swap');
+:root{
+  --paper:#EEE3CC; --paperDark:#E2D3AE; --card:#F6EFDE; --ink:#2B2620; --inkFaded:#6E6153;
+  --burgundy:#8C3A34; --ochre:#B9862E; --pine:#3E5B4B; --slate:#5C6B78; --line:#C9B98F;
+  --cobalt:#3A5C8C; --vermillion:#C4562E; --moss:#6E7A3A; --wood:#7A5B3A;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:Lora,Georgia,serif;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='matrix' values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.055 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");}
+.wrap{max-width:1080px;margin:0 auto;padding:28px 24px 80px}
+h1{font-family:'Playfair Display',serif;font-weight:700;font-size:30px;margin:0 0 2px}
+.sub{font-family:'Special Elite',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--inkFaded)}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:22px 0 8px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.bar .lbl{font-family:'Special Elite',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--inkFaded);margin-right:2px}
+button.chip{font-family:Lora,serif;font-size:13px;background:var(--card);border:1px solid var(--line);color:var(--ink);
+  padding:5px 12px;border-radius:2px;cursor:pointer;transition:.15s}
+button.chip:hover{background:var(--paperDark)}
+button.chip[aria-pressed="true"]{background:var(--ink);color:var(--card);border-color:var(--ink)}
+.spacer{flex:1}
+.shelfBlock{margin-top:30px}
+.shelfName{display:flex;align-items:baseline;gap:10px;margin-bottom:6px}
+.shelfName h2{font-family:'Playfair Display',serif;font-size:19px;font-weight:600;margin:0}
+.shelfName .count{font-family:'Special Elite',monospace;font-size:10px;color:var(--inkFaded);letter-spacing:.1em}
+.shelfName .tag{font-family:Caveat,cursive;font-size:17px;color:var(--burgundy);transform:rotate(-3deg)}
+.shelf{position:relative;padding:14px 10px 0;min-height:186px;display:flex;align-items:flex-end;gap:9px;flex-wrap:wrap}
+.shelf::after{content:"";position:absolute;left:0;right:0;bottom:0;height:12px;border-radius:1px;
+  background:linear-gradient(var(--wood),#5E442A);box-shadow:0 3px 0 rgba(0,0,0,.18)}
+.shelf.chevet{background:rgba(140,58,52,.05);border:1px dashed rgba(140,58,52,.35);border-bottom:none;border-radius:3px 3px 0 0}
+/* boîtier vu de tranche */
+.box{position:relative;width:94px;height:150px;margin-bottom:12px;cursor:pointer;flex:0 0 auto;
+  transform-origin:bottom center;transition:transform .18s ease, filter .18s}
+.box:hover{transform:translateY(-7px) rotate(-1.2deg)}
+.box .cover{position:absolute;inset:0;border-radius:2px 3px 3px 2px;overflow:hidden;
+  border:1px solid rgba(43,38,32,.35);box-shadow:2px 2px 0 rgba(43,38,32,.16)}
+.box .cover img{width:100%;height:100%;object-fit:cover;display:block;filter:saturate(.9) contrast(1.02)}
+.box .spine{position:absolute;left:0;top:0;bottom:0;width:9px;background:rgba(43,38,32,.55);
+  box-shadow:inset -2px 0 3px rgba(0,0,0,.35);z-index:2}
+.box .stars{position:absolute;bottom:0;left:9px;right:0;padding:3px 5px;background:rgba(43,38,32,.72);
+  color:#F6EFDE;font-size:10px;letter-spacing:1px;z-index:3;font-family:'Special Elite',monospace}
+.box .pin{position:absolute;top:-7px;right:-7px;width:17px;height:17px;border-radius:50%;
+  background:var(--burgundy);border:2px solid var(--card);z-index:4}
+.box .yr{position:absolute;top:4px;left:14px;background:rgba(246,239,222,.88);color:var(--ink);
+  font-family:'Special Elite',monospace;font-size:9px;padding:1px 4px;z-index:3}
+/* ouverture du boîtier */
+.stage{position:fixed;inset:0;background:rgba(43,38,32,.55);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
+.stage.on{display:flex}
+.case{width:min(760px,96vw);perspective:1400px}
+.caseInner{position:relative;display:flex;background:var(--card);border:1px solid var(--line);
+  border-radius:3px;box-shadow:0 18px 44px rgba(43,38,32,.4);overflow:hidden;min-height:330px}
+.lid{position:absolute;left:0;top:0;bottom:0;width:50%;background:var(--paperDark);z-index:5;
+  transform-origin:left center;transform:rotateY(0deg);border-right:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;backface-visibility:hidden;
+  animation:openLid .78s cubic-bezier(.22,.9,.25,1) forwards}
+.lid span{font-family:'Special Elite',monospace;font-size:11px;letter-spacing:.2em;color:var(--inkFaded);transform:rotate(-90deg)}
+@keyframes openLid{0%{transform:rotateY(0)}100%{transform:rotateY(-158deg)}}
+.slot{width:210px;flex:0 0 auto;background:var(--paperDark);display:flex;align-items:center;justify-content:center;padding:16px}
+.slot img{width:100%;border:1px solid rgba(43,38,32,.3);box-shadow:2px 3px 0 rgba(43,38,32,.18);
+  animation:slideOut .7s .25s cubic-bezier(.2,.85,.3,1) both}
+@keyframes slideOut{0%{transform:translateX(-34px) rotate(-4deg);opacity:0}100%{transform:none;opacity:1}}
+.meat{flex:1;padding:22px 26px;animation:fadeUp .5s .45s both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
+.meat h3{font-family:'Playfair Display',serif;font-size:25px;margin:0 0 2px}
+.meat .meta{font-size:13px;color:var(--inkFaded);font-style:italic;margin-bottom:12px}
+.meat p{font-size:14px;line-height:1.65}
+.meat .note{font-family:Caveat,cursive;font-size:19px;color:var(--burgundy)}
+.pillrow{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+.pill{font-family:'Special Elite',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;
+  border:1px solid var(--line);padding:3px 7px;color:var(--inkFaded)}
+.closeX{position:absolute;top:8px;right:10px;z-index:9;background:none;border:none;font-size:20px;cursor:pointer;color:var(--inkFaded)}
+.empty{font-style:italic;color:var(--inkFaded);font-size:13px;padding:40px 4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>L'étagère</h1>
+  <div class="sub">rayonnage · 12 boîtiers · maquette</div>
+
+  <div class="bar">
+    <span class="lbl">Ranger par</span>
+    <button class="chip" data-sort="added" aria-pressed="true">ajout</button>
+    <button class="chip" data-sort="title">titre</button>
+    <button class="chip" data-sort="year">année</button>
+    <button class="chip" data-sort="rating">note</button>
+    <button class="chip" data-sort="director">réalisateur</button>
+    <span class="spacer"></span>
+    <span class="lbl">Grouper</span>
+    <button class="chip" data-group="none" aria-pressed="true">non</button>
+    <button class="chip" data-group="decade">décennie</button>
+  </div>
+
+  <div id="shelves"></div>
+</div>
+
+<div class="stage" id="stage">
+  <div class="case">
+    <div class="caseInner" id="caseInner"></div>
+  </div>
+</div>
+
+<script>
+const P = (s,c)=>"data:image/svg+xml;utf8,"+encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='200' height='300'><rect width='200' height='300' fill='${c}'/><rect x='14' y='14' width='172' height='272' fill='none' stroke='rgba(246,239,222,.5)'/><text x='100' y='150' font-family='Georgia' font-size='19' fill='#F6EFDE' text-anchor='middle'>${s}</text></svg>`);
+const F=[
+ {t:"Le Samouraï",y:1967,d:"Melville",r:5,c:"#3A5C8C",g:["polar","épure"],n:"Le chapeau, le silence, la cage à oiseaux.",chevet:true},
+ {t:"In the Mood for Love",y:2000,d:"Wong Kar-wai",r:5,c:"#8C3A34",g:["romance"],n:"Les couloirs, la fumée, le ralenti.",chevet:true},
+ {t:"Stalker",y:1979,d:"Tarkovski",r:5,c:"#6E7A3A",g:["SF"],n:"Trois hommes et une flaque d'eau.",chevet:true},
+ {t:"Chungking Express",y:1994,d:"Wong Kar-wai",r:4,c:"#C4562E",g:["romance"]},
+ {t:"Playtime",y:1967,d:"Tati",r:4,c:"#B9862E",g:["comédie"]},
+ {t:"La Prisonnière du désert",y:1956,d:"Ford",r:4,c:"#7A5B3A",g:["western"]},
+ {t:"Solaris",y:1972,d:"Tarkovski",r:4,c:"#3E5B4B",g:["SF"]},
+ {t:"Mulholland Drive",y:2001,d:"Lynch",r:5,c:"#5C6B78",g:["onirique"]},
+ {t:"Voyage à Tokyo",y:1953,d:"Ozu",r:5,c:"#2B2620",g:["famille"]},
+ {t:"Le Mépris",y:1963,d:"Godard",r:4,c:"#8C3A34",g:["nouvelle vague"]},
+ {t:"Barry Lyndon",y:1975,d:"Kubrick",r:4,c:"#B9862E",g:["fresque"]},
+ {t:"Perfect Days",y:2023,d:"Wenders",r:4,c:"#3E5B4B",g:["contemplatif"]},
+].map((f,i)=>({...f,id:i,added:i}));
+
+let sort="added", group="none";
+const stars=n=>"★".repeat(n)+"☆".repeat(5-n);
+const cmp={added:(a,b)=>b.added-a.added,title:(a,b)=>a.t.localeCompare(b.t),
+  year:(a,b)=>a.y-b.y,rating:(a,b)=>b.r-a.r,director:(a,b)=>a.d.localeCompare(b.d)};
+
+function boxHTML(f){return `<div class="box" data-id="${f.id}">
+  <div class="cover"><img src="${P(f.t,f.c)}" alt=""></div>
+  <div class="spine"></div>
+  <div class="yr">${f.y}</div>
+  ${f.chevet?'<div class="pin"></div>':''}
+  <div class="stars">${stars(f.r)}</div></div>`;}
+
+function shelfHTML(name,tag,list,cls=""){return `<div class="shelfBlock">
+  <div class="shelfName"><h2>${name}</h2><span class="count">${list.length} film${list.length>1?'s':''}</span>
+  ${tag?`<span class="tag">${tag}</span>`:''}</div>
+  <div class="shelf ${cls}">${list.length?list.map(boxHTML).join(""):'<div class="empty">Rayon vide.</div>'}</div></div>`;}
+
+function render(){
+  const chevet=F.filter(f=>f.chevet).sort(cmp[sort]);
+  const rest=F.filter(f=>!f.chevet).sort(cmp[sort]);
+  let html=shelfHTML("Films de chevet","ceux qu'on revoit",chevet,"chevet");
+  if(group==="decade"){
+    const by={};rest.forEach(f=>{const k=Math.floor(f.y/10)*10;(by[k]=by[k]||[]).push(f)});
+    Object.keys(by).sort((a,b)=>a-b).forEach(k=>{html+=shelfHTML(k+"s","",by[k])});
+  } else html+=shelfHTML("La collection","",rest);
+  document.getElementById("shelves").innerHTML=html;
+}
+document.querySelectorAll("[data-sort]").forEach(b=>b.onclick=()=>{
+  sort=b.dataset.sort;document.querySelectorAll("[data-sort]").forEach(x=>x.setAttribute("aria-pressed",x===b));render();});
+document.querySelectorAll("[data-group]").forEach(b=>b.onclick=()=>{
+  group=b.dataset.group;document.querySelectorAll("[data-group]").forEach(x=>x.setAttribute("aria-pressed",x===b));render();});
+
+const stage=document.getElementById("stage");
+document.addEventListener("click",e=>{
+  const box=e.target.closest(".box");
+  if(box){const f=F[+box.dataset.id];open(f);return;}
+  if(e.target.closest(".caseInner"))return;
+  if(stage.classList.contains("on"))stage.classList.remove("on");
+});
+function open(f){
+  document.getElementById("caseInner").innerHTML=`
+    <button class="closeX" aria-label="Fermer">×</button>
+    <div class="lid"><span>OUVRIR LE BOÎTIER</span></div>
+    <div class="slot"><img src="${P(f.t,f.c)}" alt=""></div>
+    <div class="meat">
+      <h3>${f.t}</h3>
+      <div class="meta">${f.d} · ${f.y} · ${stars(f.r)}</div>
+      <div class="pillrow">${f.g.map(g=>`<span class="pill">${g}</span>`).join("")}
+      ${f.chevet?'<span class="pill" style="border-color:#8C3A34;color:#8C3A34">film de chevet</span>':''}</div>
+      <p>${f.n||"Pas encore de note. Le boîtier attend son feuillet."}</p>
+      <p class="note">${f.n?"— vu et revu":"— à écrire"}</p>
+    </div>`;
+  stage.classList.add("on");
+}
+render();
+</script>
+</body>
+</html>

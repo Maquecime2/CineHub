@@ -4,9 +4,9 @@ import {
   Star, BookOpen, Palette, Clapperboard, Sparkles, Link2,
 } from "lucide-react";
 import Papa from "papaparse";
-import { enrichRows, checkApiKey } from "./tmdb";
+import { enrichRows, checkApiKey, listPosters } from "./tmdb";
 import {
-  IDB_PREFIX, isIdbPoster, idbKeyOf, putPoster, deletePoster,
+  IDB_PREFIX, isIdbPoster, idbKeyOf, putImage, getImage, deleteImage,
   posterStats, pruneOrphans, exportBackup, importBackup, idbAvailable,
 } from "./db";
 
@@ -46,6 +46,14 @@ body { background: ${C.paper}; }
 @keyframes swayIn { from { opacity: 0; transform: translateY(10px) rotate(var(--tilt, 0deg)); } to { opacity: 1; transform: translateY(0) rotate(var(--tilt, 0deg)); } }
 
 input::placeholder, textarea::placeholder { color: ${C.inkFaded}88; font-style: italic; }
+
+/* le champ éditable n'a pas de placeholder natif : on le dessine */
+[contenteditable][data-placeholder]:empty::before {
+  content: attr(data-placeholder);
+  color: ${C.inkFaded}88;
+  font-style: italic;
+  pointer-events: none;
+}
 `;
 
 const GRAIN =
@@ -77,6 +85,7 @@ export const makeFilm = (partial = {}) => ({
   id: uid(),
   title: "", year: "", director: "",
   poster: "",          // URL TMDB, adresse collée, ou image réduite en data URI
+  stills: [],          // captures d'écran : { id, key (IndexedDB), caption }
   genres: [], themes: [],
   rating: 0, review: "", notes: "", linkedWorks: [],
   addedAt: Date.now(),
@@ -96,7 +105,7 @@ export const migrate = (films) =>
     ...f,
     year: f.year === "" || f.year == null ? "" : Number(f.year) || "",
     status: f.status === "watchlist" ? "watchlist" : "watched",
-    genres: f.genres || [], themes: f.themes || [], linkedWorks: f.linkedWorks || [],
+    genres: f.genres || [], themes: f.themes || [], linkedWorks: f.linkedWorks || [], stills: f.stills || [],
   }));
 
 /* ============================================================
@@ -430,6 +439,9 @@ const ruledTextarea = {
    Le grain et le bord déchiré restent par-dessus l'image : une
    affiche collée dans un carnet, pas une vignette de catalogue.
    ============================================================ */
+/* `height` ne vaut que pour l'émulsion de substitution, en paysage. Une vraie
+   affiche est en portrait 2:3 : la forcer dans une bande la réduirait à une
+   tranche. Quand il y en a une, la zone prend donc le format de l'affiche. */
 function PosterArt({ film, height, initials, clipSeed = 0 }) {
   const [broken, setBroken] = useState(false);
   const [blobUrl, setBlobUrl] = useState(null);
@@ -440,7 +452,7 @@ function PosterArt({ film, height, initials, clipSeed = 0 }) {
   useEffect(() => {
     if (!isIdbPoster(film.poster)) { setBlobUrl(null); return; }
     let url = null, alive = true;
-    import("./db").then(({ getPoster }) => getPoster(idbKeyOf(film.poster))).then((blob) => {
+    import("./db").then(({ getImage }) => getImage(idbKeyOf(film.poster))).then((blob) => {
       if (!alive || !blob) return;
       url = URL.createObjectURL(blob);
       setBlobUrl(url);
@@ -452,12 +464,17 @@ function PosterArt({ film, height, initials, clipSeed = 0 }) {
 
   const src = broken ? null : isIdbPoster(film.poster) ? blobUrl : film.poster || null;
   return (
-    <div style={{ position: "relative", height, clipPath: tornClip(film.id, clipSeed), overflow: "hidden" }}>
+    <div style={{
+      position: "relative", clipPath: tornClip(film.id, clipSeed), overflow: "hidden",
+      ...(src ? { aspectRatio: "2 / 3" } : { height }),
+    }}>
       {src ? (
         <img
           src={src} alt=""
           onError={() => setBroken(true)}
-          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: "saturate(0.88) contrast(1.04)" }}
+          // `contain` : une affiche au format inhabituel est montrée entière,
+          // jamais rognée — quitte à laisser un liseré sur les côtés
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", filter: "saturate(0.88) contrast(1.04)" }}
         />
       ) : (
         <>
@@ -663,12 +680,17 @@ const WALLS = {
   },
 };
 
-function LibraryView({ films, onOpen, wall = "watched" }) {
+function LibraryView({ films, onOpen, wall = "watched", ui, setUi }) {
   const cfg = WALLS[wall];
-  const [q, setQ] = useState("");
-  const [genreFilter, setGenreFilter] = useState("");
-  const [sortBy, setSortBy] = useState(cfg.defaultSort);
-  const [grouped, setGrouped] = useState(false);
+  /* Recherche, filtre et tri vivent dans App : ouvrir un film démonte cette
+     vue, et un état local serait perdu au retour au mur. */
+  const { q, genreFilter, sortBy, desc, grouped } = ui;
+  const set = (patch) => setUi({ ...ui, ...patch });
+  const setQ = (v) => set({ q: v });
+  const setGenreFilter = (v) => set({ genreFilter: v });
+  const setGrouped = (fn) => set({ grouped: typeof fn === "function" ? fn(grouped) : fn });
+  // recliquer le tri actif inverse simplement le sens
+  const pickSort = (k) => set(k === sortBy ? { desc: !desc } : { sortBy: k, desc: true });
 
   const allGenres = useMemo(() => Array.from(new Set(films.flatMap((f) => f.genres || []))).sort(), [films]);
 
@@ -679,15 +701,18 @@ function LibraryView({ films, onOpen, wall = "watched" }) {
       return mq && mg;
     });
     return [...list].sort((a, b) => {
-      if (sortBy === "title") return a.title.localeCompare(b.title);
-      if (sortBy === "year") return (b.year || 0) - (a.year || 0);
-      if (sortBy === "rating") return (b.rating || 0) - (a.rating || 0);
-      if (sortBy === "director") return (a.director || "zzz").localeCompare(b.director || "zzz") || a.title.localeCompare(b.title);
-      // les films jamais datés glissent en fin de liste plutôt qu'en tête
-      if (sortBy === "watched") return (b.watchedAt || "").localeCompare(a.watchedAt || "");
-      return (b.addedAt || 0) - (a.addedAt || 0);
+      const cmp =
+        // A–Z se lit dans l'ordre naturel : c'est `desc` qui l'inverse
+        sortBy === "title" ? -a.title.localeCompare(b.title)
+        : sortBy === "director" ? -((a.director || "zzz").localeCompare(b.director || "zzz") || a.title.localeCompare(b.title))
+        : sortBy === "year" ? (b.year || 0) - (a.year || 0)
+        : sortBy === "rating" ? (b.rating || 0) - (a.rating || 0)
+        // les films jamais datés glissent en fin de liste plutôt qu'en tête
+        : sortBy === "watched" ? (b.watchedAt || "").localeCompare(a.watchedAt || "")
+        : (b.addedAt || 0) - (a.addedAt || 0);
+      return desc ? cmp : -cmp;
     });
-  }, [films, q, genreFilter, sortBy]);
+  }, [films, q, genreFilter, sortBy, desc]);
 
   /* Le regroupement par réalisateur : une pile de fiches par cinéaste, les
      plus fréquentés d'abord — c'est là que se lisent les habitudes. */
@@ -740,7 +765,9 @@ function LibraryView({ films, onOpen, wall = "watched" }) {
           <Label>Trier</Label>
           <div style={{ display: "flex", gap: 14, fontFamily: "'Special Elite', monospace", fontSize: 11 }}>
             {cfg.sorts.map(([k, l]) => (
-              <span key={k} onClick={() => setSortBy(k)} style={{ cursor: "pointer", color: sortBy === k ? C.burgundy : C.inkFaded, textDecoration: sortBy === k ? "underline" : "none" }}>{l}</span>
+              <span key={k} onClick={() => pickSort(k)} title={sortBy === k ? "cliquer pour inverser" : ""} style={{ cursor: "pointer", color: sortBy === k ? C.burgundy : C.inkFaded, textDecoration: sortBy === k ? "underline" : "none" }}>
+                {l}{sortBy === k && <span style={{ marginLeft: 3 }}>{desc ? "↓" : "↑"}</span>}
+              </span>
             ))}
           </div>
         </div>
@@ -910,6 +937,453 @@ function ThreadBoard({ film, onRemove, films = [], onOpen }) {
 }
 
 /* ============================================================
+   CAPTURES D'ÉCRAN
+
+   Les images vivent dans IndexedDB ; la fiche ne retient qu'une clé.
+   Une capture peut être appelée dans le texte d'une critique par un
+   jeton [img:N] : dans la vue de lecture, ce jeton devient une vignette
+   minuscule, et la cliquer ouvre la vraie image dans le carrousel.
+   ============================================================ */
+
+/* Une image d'IndexedDB, servie en URL d'objet le temps de l'affichage. */
+function IdbImage({ imageKey, alt = "", style, onClick }) {
+  const [url, setUrl] = useState(null);
+  useEffect(() => {
+    let objectUrl = null, alive = true;
+    getImage(imageKey).then((blob) => {
+      if (!alive || !blob) return;
+      objectUrl = URL.createObjectURL(blob);
+      setUrl(objectUrl);
+    }).catch(console.error);
+    return () => { alive = false; if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [imageKey]);
+  if (!url) return <div style={{ ...style, background: C.paperDark }} />;
+  return <img src={url} alt={alt} onClick={onClick} style={style} />;
+}
+
+const STILL_TOKEN = /\[img:(\d+)\]/g;
+
+/* La visionneuse plein écran, avec navigation au clavier. */
+function StillLightbox({ stills, index, onClose, onIndex }) {
+  const still = stills[index];
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowRight") onIndex((index + 1) % stills.length);
+      if (e.key === "ArrowLeft") onIndex((index - 1 + stills.length) % stills.length);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [index, stills.length, onClose, onIndex]);
+  if (!still) return null;
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(20,15,10,0.88)", zIndex: 80, display: "flex", alignItems: "center", justifyContent: "center", padding: 30 }}>
+      <button onClick={onClose} style={{ all: "unset", position: "absolute", top: 20, right: 26, cursor: "pointer", color: C.paper }}><X size={22} /></button>
+      {stills.length > 1 && (
+        <>
+          <button onClick={(e) => { e.stopPropagation(); onIndex((index - 1 + stills.length) % stills.length); }} style={{ all: "unset", position: "absolute", left: 24, cursor: "pointer", color: C.paper, fontSize: 34, fontFamily: "'Playfair Display', serif" }}>‹</button>
+          <button onClick={(e) => { e.stopPropagation(); onIndex((index + 1) % stills.length); }} style={{ all: "unset", position: "absolute", right: 24, cursor: "pointer", color: C.paper, fontSize: 34, fontFamily: "'Playfair Display', serif" }}>›</button>
+        </>
+      )}
+      <div onClick={(e) => e.stopPropagation()} style={{ maxWidth: "90%", maxHeight: "90%", textAlign: "center" }}>
+        <div style={{ background: C.card, padding: 10, boxShadow: "0 14px 40px rgba(0,0,0,0.6)" }}>
+          <IdbImage imageKey={still.key} style={{ display: "block", maxWidth: "100%", maxHeight: "72vh", objectFit: "contain" }} />
+        </div>
+        <div style={{ fontFamily: "'Caveat', cursive", fontSize: 21, color: C.paper, marginTop: 12 }}>
+          {still.caption || `capture ${index + 1}`}
+          <span style={{ fontFamily: "'Special Elite', monospace", fontSize: 11, opacity: 0.7, marginLeft: 10 }}>{index + 1} / {stills.length}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* Les URL d'objet des captures, mutualisées : le même blob sert la bande,
+   les vignettes en ligne et la visionneuse. Révoquées au démontage. */
+function useStillUrls(stills) {
+  const [urls, setUrls] = useState({});
+  const keys = (stills || []).map((s) => s.key).join("|");
+  useEffect(() => {
+    let alive = true;
+    const made = [];
+    Promise.all((stills || []).map(async (s) => {
+      const blob = await getImage(s.key).catch(() => null);
+      if (!blob) return null;
+      const u = URL.createObjectURL(blob);
+      made.push(u);
+      return [s.key, u];
+    })).then((pairs) => {
+      if (!alive) { made.forEach(URL.revokeObjectURL); return; }
+      setUrls(Object.fromEntries(pairs.filter(Boolean)));
+    });
+    return () => { alive = false; made.forEach(URL.revokeObjectURL); };
+  }, [keys]);
+  return urls;
+}
+
+const escapeHtml = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+/* Texte (avec jetons) → HTML affichable. La vignette est un bloc atomique
+   non éditable : le curseur la franchit d'un coup, comme un caractère. */
+function textToHtml(text, stills, urls) {
+  STILL_TOKEN.lastIndex = 0;
+  return escapeHtml(text || "")
+    .replace(STILL_TOKEN, (full, n) => {
+      const still = stills[Number(n) - 1];
+      if (!still) return `<span data-missing="1" style="font-family:'Special Elite',monospace;font-size:11px;color:${C.burgundy}">[capture ${n} manquante]</span>`;
+      const src = urls[still.key] || "";
+      return `<img data-still="${n}" src="${src}" alt="" contenteditable="false" draggable="false"` +
+        ` style="display:inline-block;vertical-align:middle;height:64px;margin:2px 4px;` +
+        `border:1px solid ${C.burgundy};padding:2px;background:${C.card};` +
+        `box-shadow:1px 2px 5px rgba(30,20,10,0.3);transform:rotate(-1.2deg);cursor:zoom-in" />`;
+    })
+    .replace(/\n/g, "<br>");
+}
+
+/* HTML → texte (avec jetons). `stopAt` permet de mesurer la position du
+   curseur dans le texte sérialisé, pour y réinsérer proprement. */
+function htmlToText(root, stopAt) {
+  let out = "";
+  let done = false;
+  const walk = (node) => {
+    for (const n of node.childNodes) {
+      if (done) return;
+      if (stopAt && n === stopAt.node && n.nodeType === 3) { out += n.nodeValue.slice(0, stopAt.offset); done = true; return; }
+      if (n.nodeType === 3) out += n.nodeValue;
+      else if (n.nodeName === "IMG" && n.dataset.still) out += `[img:${n.dataset.still}]`;
+      else if (n.nodeName === "BR") out += "\n";
+      else {
+        if (/^(DIV|P)$/.test(n.nodeName) && out && !out.endsWith("\n")) out += "\n";
+        walk(n);
+        if (done) return;
+      }
+      if (stopAt && n === stopAt.node) { done = true; return; }
+    }
+  };
+  walk(root);
+  return out;
+}
+
+/* Place le curseur à une position exprimée en caractères du texte sérialisé. */
+function placeCaret(root, target) {
+  let seen = 0, placed = false;
+  const sel = window.getSelection();
+  const range = document.createRange();
+  const walk = (node) => {
+    for (const n of node.childNodes) {
+      if (placed) return;
+      if (n.nodeType === 3) {
+        const len = n.nodeValue.length;
+        if (seen + len >= target) { range.setStart(n, target - seen); placed = true; return; }
+        seen += len;
+      } else if (n.nodeName === "IMG" && n.dataset.still) {
+        seen += `[img:${n.dataset.still}]`.length;
+        if (seen >= target) { range.setStartAfter(n); placed = true; return; }
+      } else if (n.nodeName === "BR") {
+        seen += 1;
+        if (seen >= target) { range.setStartAfter(n); placed = true; return; }
+      } else walk(n);
+    }
+  };
+  walk(root);
+  if (!placed) range.selectNodeContents(root), range.collapse(false);
+  range.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+/* Le texte d'une critique, en lecture seule (sert encore au carnet). */
+function RichText({ text, stills, onOpenStill, placeholder }) {
+  if (!text?.trim()) return <div style={{ fontFamily: "'Caveat', cursive", fontSize: 19, color: C.inkFaded }}>{placeholder}</div>;
+
+  const parts = [];
+  let last = 0, m;
+  STILL_TOKEN.lastIndex = 0;
+  while ((m = STILL_TOKEN.exec(text)) !== null) {
+    if (m.index > last) parts.push({ kind: "text", value: text.slice(last, m.index) });
+    parts.push({ kind: "still", n: Number(m[1]) });
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) parts.push({ kind: "text", value: text.slice(last) });
+
+  return (
+    <div style={{ fontFamily: "'Caveat', cursive", fontSize: 20, lineHeight: "30px", color: C.ink, whiteSpace: "pre-wrap" }}>
+      {parts.map((p, i) => {
+        if (p.kind === "text") return <span key={i}>{p.value}</span>;
+        const still = stills[p.n - 1];
+        if (!still) return <span key={i} style={{ color: C.burgundy, fontFamily: "'Special Elite', monospace", fontSize: 11 }}>[capture {p.n} manquante]</span>;
+        return (
+          <button
+            key={i}
+            onClick={() => onOpenStill(p.n - 1)}
+            title={still.caption || `capture ${p.n}`}
+            style={{
+              all: "unset", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4,
+              verticalAlign: "middle", margin: "0 3px", padding: 2,
+              background: C.card, border: `1px solid ${C.burgundy}`,
+              boxShadow: "1px 2px 4px rgba(30,20,10,0.28)", transform: "rotate(-1.5deg)",
+            }}
+          >
+            <IdbImage imageKey={still.key} style={{ display: "block", height: 22, width: "auto", objectFit: "contain" }} />
+            <span style={{ fontFamily: "'Special Elite', monospace", fontSize: 9, color: C.burgundy, paddingRight: 3 }}>{p.n}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* Le champ d'écriture : on y tape normalement, et les captures insérées
+   s'y affichent en vignette au milieu des phrases. Un textarea ne peut
+   contenir que du texte brut — d'où un champ éditable riche, dont la
+   source de vérité reste la chaîne à jetons enregistrée dans la fiche. */
+function RichField({ label, value, onChange, stills, onOpenStill, onInsertToken, placeholder, minHeight = 120 }) {
+  const ref = useRef(null);
+  const lastEmitted = useRef(value);   // ce que le champ vient de produire
+  const pendingCaret = useRef(null);   // où replacer le curseur après un rendu
+  const urls = useStillUrls(stills);
+
+  /* Renvoie le texte augmenté du jeton, sans rien écrire : c'est l'appelant
+     qui décide quand enregistrer. Une fonction qui déclencherait elle-même
+     une sauvegarde écraserait les captures enregistrées juste avant. */
+  const withTokenAtCursor = (token) => {
+    const el = ref.current;
+    const sel = window.getSelection();
+    let at = value.length;
+    if (el && sel?.rangeCount && el.contains(sel.anchorNode)) {
+      at = htmlToText(el, { node: sel.anchorNode, offset: sel.anchorOffset }).length;
+    }
+    pendingCaret.current = at + token.length;
+    return `${value.slice(0, at)}${token}${value.slice(at)}`;
+  };
+  useEffect(() => { onInsertToken?.(withTokenAtCursor); });
+
+  /* On ne réécrit le contenu que si la valeur vient d'ailleurs (insertion,
+     chargement, suppression d'une capture) : réécrire à chaque frappe ferait
+     sauter le curseur. */
+  const lastSig = useRef("");
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    // les URL des blobs arrivent après coup : sans les suivre, les vignettes
+    // resteraient des images vides larges de quelques pixels
+    const sig = (stills || []).map((s) => urls[s.key] || "").join("|");
+    const textChanged = value !== lastEmitted.current;
+    const urlsChanged = sig !== lastSig.current;
+    if (!textChanged && !urlsChanged && el.dataset.ready === "1") return;
+
+    // un re-rendu déplace le curseur : on note où il était pour l'y remettre
+    const sel = window.getSelection();
+    const focused = document.activeElement === el;
+    const keep = pendingCaret.current != null ? pendingCaret.current
+      : focused && sel?.rangeCount && el.contains(sel.anchorNode)
+        ? htmlToText(el, { node: sel.anchorNode, offset: sel.anchorOffset }).length
+        : null;
+
+    el.innerHTML = textToHtml(value, stills, urls);
+    el.dataset.ready = "1";
+    lastEmitted.current = value;
+    lastSig.current = sig;
+
+    if (keep != null && (focused || pendingCaret.current != null)) {
+      el.focus();
+      placeCaret(el, keep);
+    }
+    pendingCaret.current = null;
+  }, [value, urls, stills]);
+
+  const emit = () => {
+    const text = htmlToText(ref.current);
+    lastEmitted.current = text;
+    onChange(text);
+  };
+
+  return (
+    <div>
+      <Label>{label}</Label>
+      <div
+        ref={ref}
+        contentEditable
+        suppressContentEditableWarning
+        onInput={emit}
+        onBlur={emit}
+        data-placeholder={placeholder}
+        onClick={(e) => {
+          // cliquer une vignette ouvre la capture, sans casser la saisie
+          const n = e.target?.dataset?.still;
+          if (n) { e.preventDefault(); onOpenStill(Number(n) - 1); }
+        }}
+        onPaste={(e) => {
+          // le collage d'images est traité plus haut ; ici on force le texte brut
+          const hasImage = [...(e.clipboardData?.items || [])].some((i) => i.kind === "file" && i.type.startsWith("image/"));
+          if (hasImage) return;
+          e.preventDefault();
+          document.execCommand("insertText", false, e.clipboardData.getData("text/plain"));
+        }}
+        style={{
+          ...ruledTextarea, minHeight, whiteSpace: "pre-wrap", overflowWrap: "anywhere",
+          cursor: "text", display: "block",
+        }}
+      />
+    </div>
+  );
+}
+
+/* La pellicule : toutes les captures du film, en bande. Chaque vignette
+   porte son numéro — celui qu'on écrit entre crochets dans le texte. */
+function StillsStrip({ film, onUpdate, onOpen, onInsert, highlight, onAddFiles, busy }) {
+  const [editing, setEditing] = useState(null);
+  const fileRef = useRef(null);
+  const stills = film.stills || [];
+
+  /* Retirer une capture décale les numéros : les jetons [img:N] du texte
+     sont réécrits pour continuer de désigner les bonnes images. */
+  const remove = async (idx) => {
+    const still = stills[idx];
+    const renumber = (t) => (t || "").replace(STILL_TOKEN, (full, n) => {
+      const k = Number(n);
+      if (k === idx + 1) return "";
+      return k > idx + 1 ? `[img:${k - 1}]` : full;
+    });
+    onUpdate({
+      ...film,
+      stills: stills.filter((_, i) => i !== idx),
+      review: renumber(film.review),
+      notes: renumber(film.notes),
+    });
+    await deleteImage(still.key).catch(console.error);
+  };
+
+  return (
+    <div style={{ marginTop: 34 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <Clapperboard size={15} color={C.burgundy} />
+        <div style={{ fontFamily: "'Playfair Display', serif", fontStyle: "italic", fontWeight: 700, fontSize: 24, color: C.ink }}>La pellicule</div>
+        <div style={{ flex: 1, borderBottom: `1px dashed ${C.line}`, transform: "translateY(-4px)" }} />
+        <input ref={fileRef} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={(e) => { onAddFiles(e.target.files); e.target.value = ""; }} />
+        <button onClick={() => fileRef.current.click()} style={{ all: "unset", cursor: "pointer", padding: "6px 13px", background: C.burgundy, color: C.card, fontFamily: "'Special Elite', monospace", fontSize: 10.5, display: "flex", alignItems: "center", gap: 5 }}>
+          <Plus size={12} /> {busy ? `${busy}…` : "AJOUTER DES CAPTURES"}
+        </button>
+      </div>
+      <div style={{ fontFamily: "'Caveat', cursive", fontSize: 17, color: C.inkFaded, marginTop: 2, marginBottom: 12 }}>
+        {stills.length === 0
+          ? "aucune capture — Ctrl+V colle directement une image du presse-papier"
+          : "Ctrl+V pour coller · « insérer » place la vignette à l'endroit du curseur"}
+      </div>
+
+      {stills.length > 0 && (
+        <div style={{ display: "flex", gap: 16, overflowX: "auto", paddingBottom: 12, alignItems: "flex-start" }}>
+          {stills.map((s, i) => {
+            const lit = highlight === i;
+            return (
+              <div key={s.id} style={{ flexShrink: 0, width: 190, background: C.card, padding: "9px 9px 10px", boxShadow: lit ? `0 0 0 2px ${C.burgundy}, 3px 7px 16px rgba(30,20,10,0.3)` : "2px 5px 12px rgba(30,20,10,0.24)", transform: `rotate(${tiltOf(s.id) / 3}deg)`, transition: "box-shadow .2s ease" }}>
+                <div style={{ position: "relative", cursor: "zoom-in" }} onClick={() => onOpen(i)}>
+                  {/* fond sombre : la capture garde son format, on ne la rogne pas */}
+                  <IdbImage imageKey={s.key} style={{ display: "block", width: "100%", height: 108, objectFit: "contain", background: "#1c1712" }} />
+                  <span style={{ position: "absolute", top: 5, left: 5, background: C.card, color: C.burgundy, fontFamily: "'Special Elite', monospace", fontSize: 10, padding: "1px 6px", border: `1px solid ${C.burgundy}` }}>{i + 1}</span>
+                </div>
+                {editing === s.id ? (
+                  <input
+                    autoFocus style={{ ...underlineInput, fontSize: 13, marginTop: 6 }} defaultValue={s.caption}
+                    onBlur={(e) => { onUpdate({ ...film, stills: stills.map((x) => (x.id === s.id ? { ...x, caption: e.target.value } : x)) }); setEditing(null); }}
+                    onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                  />
+                ) : (
+                  <div onClick={() => setEditing(s.id)} style={{ cursor: "text", fontFamily: "'Caveat', cursive", fontSize: 16, color: s.caption ? C.ink : C.inkFaded, marginTop: 5, minHeight: 22 }}>
+                    {s.caption || "légender…"}
+                  </div>
+                )}
+                <div style={{ display: "flex", gap: 10, marginTop: 4, fontFamily: "'Special Elite', monospace", fontSize: 9.5 }}>
+                  <button onClick={() => onInsert(i + 1)} style={{ all: "unset", cursor: "pointer", color: C.pine }}>insérer</button>
+                  <button onClick={() => remove(i)} style={{ all: "unset", cursor: "pointer", color: C.inkFaded, marginLeft: "auto" }}>retirer</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   MOTS-CLÉS — le champ `themes` du modèle, rendu vraiment utilisable.
+   Il existait depuis le début mais n'était saisissable qu'à la création,
+   en une ligne séparée par des virgules. Ici : ajout, suppression, et
+   suggestions tirées des mots-clés déjà employés ailleurs, pour éviter
+   qu'« Solitude » et « solitude » deviennent deux étiquettes distinctes.
+   ============================================================ */
+const tagInk = (t) => [C.pine, C.cobalt, C.vermillion, C.ochre, C.moss][Math.abs(hash(t)) % 5];
+
+function TagChip({ tag, onRemove, onClick, active, small }) {
+  const ink = tagInk(tag);
+  return (
+    <span
+      onClick={onClick}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 5,
+        fontFamily: "'Special Elite', monospace", fontSize: small ? 9.5 : 10.5,
+        border: `1px solid ${ink}`, borderRadius: 12, padding: small ? "2px 8px" : "3px 10px",
+        color: active ? C.card : ink, background: active ? ink : "transparent",
+        cursor: onClick ? "pointer" : "default",
+        transform: `rotate(${(Math.abs(hash(tag)) % 5) - 2}deg)`,
+      }}
+    >
+      {tag}
+      {onRemove && <button onClick={(e) => { e.stopPropagation(); onRemove(); }} style={{ all: "unset", cursor: "pointer", display: "flex" }}><X size={9} /></button>}
+    </span>
+  );
+}
+
+function TagEditor({ tags = [], allTags = [], onChange }) {
+  const [draft, setDraft] = useState("");
+  const clean = (s) => s.trim().replace(/\s+/g, " ");
+
+  const add = (raw) => {
+    const t = clean(raw);
+    if (!t) return;
+    // on réutilise la casse déjà en usage plutôt que d'en créer une variante
+    const existing = allTags.find((x) => x.toLowerCase() === t.toLowerCase());
+    const final = existing || t;
+    if (!tags.some((x) => x.toLowerCase() === final.toLowerCase())) onChange([...tags, final]);
+    setDraft("");
+  };
+
+  const suggestions = draft.trim()
+    ? allTags.filter((t) => t.toLowerCase().includes(draft.trim().toLowerCase()) && !tags.includes(t)).slice(0, 6)
+    : [];
+
+  return (
+    <div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 6 }}>
+        {tags.map((t) => <TagChip key={t} tag={t} onRemove={() => onChange(tags.filter((x) => x !== t))} />)}
+        {tags.length === 0 && <span style={{ fontFamily: "'Caveat', cursive", fontSize: 16, color: C.inkFaded }}>aucun mot-clé</span>}
+      </div>
+      <div style={{ position: "relative" }}>
+        <input
+          style={{ ...underlineInput, fontSize: 14 }}
+          value={draft}
+          placeholder="ajouter un mot-clé, puis Entrée"
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") { e.preventDefault(); add(draft); }
+            if (e.key === "Backspace" && !draft && tags.length) onChange(tags.slice(0, -1));
+          }}
+        />
+        {suggestions.length > 0 && (
+          <div style={{ position: "absolute", top: "100%", left: 0, zIndex: 10, background: C.card, border: `1px solid ${C.line}`, boxShadow: "2px 6px 14px rgba(30,20,10,0.3)", minWidth: 160 }}>
+            {suggestions.map((s) => (
+              <button key={s} onClick={() => add(s)} style={{ all: "unset", cursor: "pointer", display: "block", width: "100%", boxSizing: "border-box", padding: "6px 11px", fontFamily: "'Lora', serif", fontSize: 13, color: C.ink, borderBottom: `1px solid ${C.line}` }}>{s}</button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
    VUE — DOSSIER FILM
    ============================================================ */
 /* L'image est ramenée à une taille d'affiche avant d'être rangée. IndexedDB
@@ -939,15 +1413,43 @@ function PosterPicker({ film, onUpdate }) {
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
+  const [gallery, setGallery] = useState(null);   // affiches proposées par TMDB
+  const [galleryMsg, setGalleryMsg] = useState("");
   const ref = useRef(null);
+  const apiKey = store.get("tmdb-key", "");
+
+  /* La voie par défaut : TMDB connaît en général plusieurs affiches par film
+     (pays, rééditions, versions sans texte). Autant les proposer plutôt que
+     d'imposer la première venue. */
+  const loadGallery = async () => {
+    if (!apiKey) { setGalleryMsg("Aucune clé TMDB — renseignez-la dans l'onglet Import."); return; }
+    setGalleryMsg("recherche…"); setGallery(null);
+    try {
+      const { tmdbId, posters } = await listPosters({ tmdbId: film.tmdbId, title: film.title, year: film.year, apiKey });
+      if (tmdbId && !film.tmdbId) onUpdate({ ...film, tmdbId });
+      setGallery(posters);
+      setGalleryMsg(posters.length ? "" : "Aucune affiche trouvée pour ce film.");
+    } catch (e) {
+      setGalleryMsg(`TMDB indisponible (${e.message}).`);
+    }
+  };
+
+  const choose = async (posterUrl) => {
+    if (isIdbPoster(film.poster)) await deleteImage(idbKeyOf(film.poster));
+    onUpdate({ ...film, poster: posterUrl });
+    setOpen(false); setGallery(null);
+  };
+
+  // ouvrir le panneau propose directement les affiches TMDB
+  useEffect(() => { if (open && gallery === null && !galleryMsg && apiKey) loadGallery(); }, [open]);
 
   const fromFile = async (file) => {
     setBusy(true);
     try {
       const blob = await shrinkImage(file);
       const key = `${film.id}-${Date.now()}`;   // clé neuve : le cache d'image ne resservira pas l'ancienne
-      await putPoster(key, blob);
-      if (isIdbPoster(film.poster)) await deletePoster(idbKeyOf(film.poster));
+      await putImage(key, blob);
+      if (isIdbPoster(film.poster)) await deleteImage(idbKeyOf(film.poster));
       onUpdate({ ...film, poster: IDB_PREFIX + key });
     } catch (e) {
       console.error(e);
@@ -957,7 +1459,7 @@ function PosterPicker({ film, onUpdate }) {
   };
 
   const clear = async () => {
-    if (isIdbPoster(film.poster)) await deletePoster(idbKeyOf(film.poster));
+    if (isIdbPoster(film.poster)) await deleteImage(idbKeyOf(film.poster));
     onUpdate({ ...film, poster: "" });
     setOpen(false);
   };
@@ -971,13 +1473,35 @@ function PosterPicker({ film, onUpdate }) {
   }
   return (
     <div style={{ marginTop: 10, border: `1px solid ${C.line}`, background: C.paperDark, padding: "12px 14px" }}>
-      <Label>Adresse de l'image</Label>
+      {/* les affiches officielles d'abord : c'est le cas courant */}
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+        <Label>Affiches TMDB</Label>
+        <button onClick={loadGallery} style={{ all: "unset", cursor: "pointer", marginLeft: "auto", color: C.inkFaded, fontFamily: "'Special Elite', monospace", fontSize: 9.5 }}>
+          {gallery ? "relancer" : "chercher"}
+        </button>
+      </div>
+      {galleryMsg && <div style={{ fontFamily: "'Caveat', cursive", fontSize: 16, color: C.inkFaded, marginTop: 2 }}>{galleryMsg}</div>}
+      {gallery?.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(64px, 1fr))", gap: 7, marginTop: 8, maxHeight: 230, overflowY: "auto" }}>
+          {gallery.map((p) => (
+            <button
+              key={p.full} onClick={() => choose(p.full)} title={`langue : ${p.lang}`}
+              style={{ all: "unset", cursor: "pointer", border: film.poster === p.full ? `2px solid ${C.burgundy}` : `1px solid ${C.line}`, lineHeight: 0 }}
+            >
+              <img src={p.thumb} alt="" style={{ width: "100%", display: "block", height: "auto" }} />
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div style={{ height: 1, background: C.line, margin: "14px 0 10px" }} />
+      <Label>Ou une adresse d'image</Label>
       <input
         style={underlineInput} value={url} placeholder="https://…jpg"
         onChange={(e) => setUrl(e.target.value)}
         onKeyDown={async (e) => {
           if (e.key !== "Enter" || !url.trim()) return;
-          if (isIdbPoster(film.poster)) await deletePoster(idbKeyOf(film.poster));
+          if (isIdbPoster(film.poster)) await deleteImage(idbKeyOf(film.poster));
           onUpdate({ ...film, poster: url.trim() }); setUrl(""); setOpen(false);
         }}
       />
@@ -1006,6 +1530,69 @@ function DetailView({ film, onBack, onUpdate, onDelete, films = [], onLinkFilm, 
   const [linkNote, setLinkNote] = useState("");
   const [picked, setPicked] = useState(null);   // fiche existante retenue
   const hue = hueOf(film.id);
+  // le vocabulaire déjà employé dans la collection, pour ne pas le fragmenter
+  const allTags = useMemo(() => Array.from(new Set(films.flatMap((f) => f.themes || []))).sort(), [films]);
+
+  const stills = film.stills || [];
+  const [lightbox, setLightbox] = useState(null);          // index de la capture ouverte
+  const [focusField, setFocusField] = useState("review");  // champ où « insérer » écrit
+  const [busy, setBusy] = useState(0);
+  const inserters = useRef({});                            // insertion à la position du curseur
+  const insertToken = (n) => {
+    const next = inserters.current[focusField]?.(`[img:${n}]`);
+    if (next != null) onUpdate({ ...film, [focusField]: next });
+  };
+
+  /* Ranger des images dans la pellicule. `insert` sert au collage : coller
+     une capture pendant qu'on écrit doit aussi poser le jeton au curseur,
+     sinon il faudrait redescendre la chercher dans la bande. */
+  const addStills = async (files, { insert = false } = {}) => {
+    const list = [...files].filter((f) => f.type.startsWith("image/"));
+    if (!list.length) return;
+    setBusy(list.length);
+    const added = [];
+    for (const file of list) {
+      try {
+        // une capture mérite plus de définition qu'une affiche : on lit du texte dessus
+        const blob = await shrinkImage(file, 1280);
+        const key = `still-${film.id}-${uid()}`;
+        await putImage(key, blob);
+        added.push({ id: uid(), key, caption: "" });
+      } catch (e) { console.error(e); }
+      setBusy((b) => b - 1);
+    }
+    setBusy(0);
+    if (!added.length) return;
+
+    // une seule écriture : captures et texte partent ensemble, sinon la
+    // seconde mise à jour repartirait d'une fiche sans les captures
+    const patch = { ...film, stills: [...stills, ...added] };
+    if (insert) {
+      const tokens = added.map((_, i) => `[img:${stills.length + i + 1}]`).join("");
+      const next = inserters.current[focusField]?.(tokens);
+      if (next != null) patch[focusField] = next;
+    }
+    onUpdate(patch);
+  };
+
+  /* Le collage est écouté sur toute la fiche : selon les navigateurs, un
+     Ctrl+V hors champ de saisie ne remonte pas jusqu'à un conteneur. */
+  useEffect(() => {
+    const onPaste = (e) => {
+      const files = [...(e.clipboardData?.items || [])]
+        .filter((it) => it.kind === "file" && it.type.startsWith("image/"))
+        .map((it) => it.getAsFile())
+        .filter(Boolean);
+      if (!files.length) return;   // un collage de texte reste un collage de texte
+      e.preventDefault();
+      // le champ de critique est un div éditable, pas un textarea
+      const el = document.activeElement;
+      const inField = el?.isContentEditable || ["TEXTAREA", "INPUT"].includes(el?.tagName);
+      addStills(files, { insert: inField });
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [film, stills.length, focusField]);
 
   /* Quand on cherche un film, on propose ceux de la collection — vidéothèque
      et watchlist confondues. Rien n'oblige à en choisir un : le champ reste
@@ -1070,7 +1657,10 @@ function DetailView({ film, onBack, onUpdate, onDelete, films = [], onLinkFilm, 
             {film.watchedAt && <div style={{ fontFamily: "'Caveat', cursive", fontSize: 16, color: C.inkFaded, marginTop: 6 }}>vu le {film.watchedAt}</div>}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 10 }}>
               {(film.genres || []).map((g) => <span key={g} style={{ fontFamily: "'Special Elite', monospace", fontSize: 9.5, border: `1px solid ${C.burgundy}`, color: C.burgundy, borderRadius: 12, padding: "2px 8px" }}>{g}</span>)}
-              {(film.themes || []).map((t) => <span key={t} style={{ fontFamily: "'Special Elite', monospace", fontSize: 9.5, border: `1px solid ${C.pine}`, color: C.pine, borderRadius: 12, padding: "2px 8px" }}>{t}</span>)}
+            </div>
+            <div style={{ marginTop: 14, borderTop: `1px solid ${C.line}`, paddingTop: 10 }}>
+              <Label>Mots-clés</Label>
+              <TagEditor tags={film.themes || []} allTags={allTags} onChange={(themes) => onUpdate({ ...film, themes })} />
             </div>
             <button onClick={() => onDelete(film.id)} style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, color: C.inkFaded, fontFamily: "'Special Elite', monospace", fontSize: 10, marginTop: 16 }}>
               <Trash2 size={12} /> retirer du mur
@@ -1080,14 +1670,37 @@ function DetailView({ film, onBack, onUpdate, onDelete, films = [], onLinkFilm, 
 
         <div style={{ flex: 1, minWidth: 300, position: "relative" }}>
           <Paperclip size={26} color={C.inkFaded} style={{ position: "absolute", top: -14, left: -22, transform: "rotate(-25deg)", opacity: 0.7 }} />
-          <Label>Critique personnelle</Label>
-          <textarea style={{ ...ruledTextarea, minHeight: 120 }} value={film.review || ""} onChange={(e) => onUpdate({ ...film, review: e.target.value })} placeholder="Écrivez ici, à main levée…" />
-          <div style={{ marginTop: 22 }}>
-            <Label>Notes libres</Label>
-            <textarea style={{ ...ruledTextarea, minHeight: 70 }} value={film.notes || ""} onChange={(e) => onUpdate({ ...film, notes: e.target.value })} placeholder="Scènes, citations, fragments…" />
+          {/* le champ actif reçoit les captures qu'on insère */}
+          <div onFocusCapture={() => setFocusField("review")} style={{ outline: focusField === "review" && stills.length > 0 ? `1px dashed ${C.line}` : "none", outlineOffset: 8 }}>
+            <RichField
+              label="Critique personnelle" minHeight={120}
+              value={film.review || ""} onChange={(review) => onUpdate({ ...film, review })}
+              stills={stills} onOpenStill={setLightbox}
+              onInsertToken={(fn) => { inserters.current.review = fn; }}
+              placeholder="Écrivez ici, à main levée…"
+            />
+          </div>
+          <div onFocusCapture={() => setFocusField("notes")} style={{ marginTop: 22, outline: focusField === "notes" && stills.length > 0 ? `1px dashed ${C.line}` : "none", outlineOffset: 8 }}>
+            <RichField
+              label="Notes libres" minHeight={70}
+              value={film.notes || ""} onChange={(notes) => onUpdate({ ...film, notes })}
+              stills={stills} onOpenStill={setLightbox}
+              onInsertToken={(fn) => { inserters.current.notes = fn; }}
+              placeholder="Scènes, citations, fragments…"
+            />
           </div>
         </div>
       </div>
+
+      <StillsStrip
+        film={film} onUpdate={onUpdate}
+        onOpen={setLightbox} onInsert={insertToken}
+        highlight={lightbox}
+        onAddFiles={addStills} busy={busy}
+      />
+      {lightbox != null && (
+        <StillLightbox stills={stills} index={lightbox} onClose={() => setLightbox(null)} onIndex={setLightbox} />
+      )}
 
       <div style={{ marginTop: 50 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -1162,39 +1775,60 @@ const LINK_INK = { film: C.burgundy, book: C.cobalt, painting: C.moss, other: C.
 // clé de fusion : deux fois « Nighthawks / Hopper » = un seul astre
 const workKey = (w) => `${w.type}::${w.title.trim().toLowerCase()}::${(w.creator || "").trim().toLowerCase()}`;
 
-function buildSky(films) {
-  const nodes = [];
+/* Le ciel ne montre QUE ce que vous avez relié à la main.
+
+   La version précédente plaçait chaque film de la collection et chaînait
+   entre eux tous ceux d'un même réalisateur : à quelques centaines de fiches,
+   tout se retrouvait relié à tout et le graphe s'effondrait en une masse
+   illisible. Un graphe qui montre toutes les relations n'en montre aucune.
+   Ici : seuls les films portant au moins un fil rouge entrent dans la carte. */
+function buildSky(films, { tags = [], genres = [] } = {}) {
+  const keeps = (f) =>
+    (tags.length === 0 || tags.every((t) => (f.themes || []).includes(t))) &&
+    (genres.length === 0 || genres.some((g) => (f.genres || []).includes(g)));
+
+  const pool = films.filter(keeps);
+  const poolIds = new Set(pool.map((f) => f.id));
+
+  // un lien vers une fiche du mur devient une arête entre deux films ;
+  // une simple mention reste un astre distinct
+  const worksOf = (f) => (f.linkedWorks || []).filter((w) => !w.filmId);
+  const peersOf = (f) => (f.linkedWorks || []).filter((w) => w.filmId && poolIds.has(w.filmId));
+  const connected = pool.filter((f) => worksOf(f).length + peersOf(f).length > 0);
+
+  const nodes = connected.map((f) => ({
+    id: `f:${f.id}`, kind: "film", label: f.title,
+    sub: [f.year, f.director].filter(Boolean).join(" · "),
+    rating: f.rating || 0, filmId: f.id, degree: 0,
+  }));
+  const nodeIds = new Set(nodes.map((n) => n.id));
   const links = [];
   const byKey = new Map();
 
-  films.forEach((f) => {
-    nodes.push({ id: `f:${f.id}`, kind: "film", label: f.title, sub: [f.year, f.director].filter(Boolean).join(" · "), rating: f.rating || 0, filmId: f.id });
-  });
-
-  films.forEach((f) => {
-    (f.linkedWorks || []).forEach((w) => {
+  connected.forEach((f) => {
+    worksOf(f).forEach((w) => {
       const k = workKey(w);
       if (!byKey.has(k)) {
-        byKey.set(k, { id: `w:${k}`, kind: "work", type: w.type, label: w.title, sub: w.creator || "", refs: 0 });
+        byKey.set(k, { id: `w:${k}`, kind: "work", type: w.type, label: w.title, sub: w.creator || "", refs: 0, degree: 0 });
         nodes.push(byKey.get(k));
       }
-      const node = byKey.get(k);
-      node.refs += 1;
-      links.push({ a: `f:${f.id}`, b: node.id, kind: "cite" });
+      byKey.get(k).refs += 1;
+      links.push({ a: `f:${f.id}`, b: `w:${k}`, kind: "cite" });
+    });
+    // le lien est réciproque : une seule arête pour les deux moitiés
+    peersOf(f).forEach((w) => {
+      if (!nodeIds.has(`f:${w.filmId}`)) return;
+      const [a, b] = [f.id, w.filmId].sort();
+      if (!links.some((l) => l.a === `f:${a}` && l.b === `f:${b}`)) {
+        links.push({ a: `f:${a}`, b: `f:${b}`, kind: "peer" });
+      }
     });
   });
 
-  // les films d'un même cinéaste sont d'une même famille d'étoiles
-  const byDirector = new Map();
-  films.forEach((f) => {
-    const d = (f.director || "").trim().toLowerCase();
-    if (!d) return;
-    if (!byDirector.has(d)) byDirector.set(d, []);
-    byDirector.get(d).push(f);
-  });
-  byDirector.forEach((group) => {
-    for (let i = 1; i < group.length; i++) links.push({ a: `f:${group[i - 1].id}`, b: `f:${group[i].id}`, kind: "author" });
-  });
+  // le degré sert à doser la taille et à n'étiqueter que les astres qui comptent
+  const deg = new Map();
+  links.forEach((l) => { deg.set(l.a, (deg.get(l.a) || 0) + 1); deg.set(l.b, (deg.get(l.b) || 0) + 1); });
+  nodes.forEach((n) => { n.degree = deg.get(n.id) || 0; });
 
   return { nodes, links };
 }
@@ -1260,8 +1894,16 @@ function ConstellationView({ films, onOpen }) {
   // d'où le pointeur est parti : au-delà de quelques pixels, c'est un glissé, pas un clic
   const pressAt = useRef(null);
 
+  const [tags, setTags] = useState([]);
+  const [genres, setGenres] = useState([]);
+
+  const allTags = useMemo(() => Array.from(new Set(films.flatMap((f) => f.themes || []))).sort(), [films]);
+  const allGenres = useMemo(() => Array.from(new Set(films.flatMap((f) => f.genres || []))).sort(), [films]);
+  const toggle = (setter) => (v) => setter((cur) => (cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v]));
+
   const W = 1100, H = 760;
-  const { nodes, links } = useMemo(() => buildSky(films), [films]);
+  const { nodes, links } = useMemo(() => buildSky(films, { tags, genres }), [films, tags, genres]);
+  const linkedTotal = useMemo(() => films.filter((f) => (f.linkedWorks || []).length > 0).length, [films]);
   const placed = useMemo(() => relax(nodes, links, W, H), [nodes, links]);
 
   const pos = useCallback((p) => moved[p.id] || p, [moved]);
@@ -1289,19 +1931,59 @@ function ConstellationView({ films, onOpen }) {
       <div style={{ fontFamily: "'Playfair Display', serif", fontStyle: "italic", fontWeight: 700, fontSize: 46, color: C.ink, position: "relative", zIndex: 2 }}>La constellation</div>
       <InkUnderline width={300} />
       <div style={{ fontFamily: "'Caveat', cursive", fontSize: 22, color: C.inkFaded, marginTop: 2, position: "relative", zIndex: 2 }}>
-        tout ce qui se répond dans votre collection — attrapez une étoile pour la déplacer
+        seulement ce que vous avez relié à la main — attrapez une étoile pour la déplacer
       </div>
+
+      {/* filtres : mots-clés et genres. Ils réduisent le ciel, ils ne le peuplent pas. */}
+      {(allTags.length > 0 || allGenres.length > 0) && (
+        <div style={{ marginTop: 20, position: "relative", zIndex: 3, borderBottom: `1px dashed ${C.line}`, paddingBottom: 14 }}>
+          {allTags.length > 0 && (
+            <div style={{ marginBottom: 10 }}>
+              <Label>Mots-clés {tags.length > 0 && <span style={{ color: C.pine }}>· cumulatifs</span>}</Label>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
+                {allTags.map((t) => <TagChip key={t} tag={t} active={tags.includes(t)} onClick={() => toggle(setTags)(t)} />)}
+              </div>
+            </div>
+          )}
+          {allGenres.length > 0 && (
+            <div>
+              <Label>Genres</Label>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
+                {allGenres.map((g) => {
+                  const on = genres.includes(g);
+                  return (
+                    <button key={g} onClick={() => toggle(setGenres)(g)} style={{ all: "unset", cursor: "pointer", fontFamily: "'Special Elite', monospace", fontSize: 10, padding: "3px 10px", borderRadius: 12, border: `1px solid ${C.burgundy}`, color: on ? C.card : C.burgundy, background: on ? C.burgundy : "transparent" }}>{g}</button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {(tags.length > 0 || genres.length > 0) && (
+            <button onClick={() => { setTags([]); setGenres([]); }} style={{ all: "unset", cursor: "pointer", marginTop: 10, color: C.inkFaded, fontFamily: "'Special Elite', monospace", fontSize: 10 }}>tout afficher</button>
+          )}
+        </div>
+      )}
 
       {placed.length === 0 ? (
         <div style={{ textAlign: "center", padding: "80px 20px", color: C.inkFaded, position: "relative", zIndex: 2 }}>
           <Sparkles size={26} color={C.line} style={{ marginBottom: 10 }} />
-          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, color: C.ink, marginBottom: 6 }}>Le ciel est encore noir</div>
-          <div style={{ fontFamily: "'Caveat', cursive", fontSize: 19 }}>Épinglez des films, reliez-leur des œuvres — les constellations apparaîtront d'elles-mêmes.</div>
+          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, color: C.ink, marginBottom: 6 }}>
+            {tags.length || genres.length ? "Aucun fil sous ces filtres" : "Le ciel est encore noir"}
+          </div>
+          <div style={{ fontFamily: "'Caveat', cursive", fontSize: 19, maxWidth: 460, margin: "0 auto" }}>
+            {tags.length || genres.length
+              ? "Aucun des films reliés ne porte ces mots-clés — élargissez la sélection."
+              : "Ouvrez un film, descendez au « fil rouge » et reliez-lui un livre, une peinture ou un autre film. Seuls les films reliés apparaissent ici."}
+          </div>
         </div>
       ) : (
         <>
           {/* la légende, façon cartouche de carte ancienne */}
-          <div style={{ display: "flex", gap: 18, flexWrap: "wrap", marginTop: 22, marginBottom: 10, position: "relative", zIndex: 2 }}>
+          <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 10.5, color: C.inkFaded, marginTop: 18, letterSpacing: 1, position: "relative", zIndex: 2 }}>
+            {placed.filter((n) => n.kind === "film").length} FILM(S) RELIÉ(S) · {links.length} FIL(S)
+            {(tags.length || genres.length) > 0 && ` · ${linkedTotal} RELIÉ(S) AU TOTAL`}
+          </div>
+          <div style={{ display: "flex", gap: 18, flexWrap: "wrap", marginTop: 10, marginBottom: 10, position: "relative", zIndex: 2 }}>
             {[["film", "Film"], ["book", "Livre"], ["painting", "Peinture"], ["other", "Autre œuvre"]].map(([k, l]) => (
               <span key={k} style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: "'Special Elite', monospace", fontSize: 10, color: C.inkFaded, letterSpacing: 1 }}>
                 <span style={{ width: 9, height: 9, borderRadius: "50%", background: LINK_INK[k], boxShadow: `0 0 6px ${LINK_INK[k]}88` }} />
@@ -1340,17 +2022,18 @@ function ConstellationView({ films, onOpen }) {
                 if (!a || !b) return null;
                 const on = !lit || (lit.has(l.a) && lit.has(l.b));
                 const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2 + Math.abs(b.x - a.x) * 0.09 + 10;
-                const author = l.kind === "author";
+                // fiche à fiche : un trait plein, c'est le lien le plus fort
+                const peer = l.kind === "peer";
                 return (
                   <path
                     key={i}
                     d={`M ${a.x} ${a.y} Q ${mx} ${my}, ${b.x} ${b.y}`}
                     fill="none"
-                    stroke={author ? C.inkFaded : C.vermillion}
-                    strokeWidth={author ? 1 : 1.6}
-                    strokeDasharray={author ? "6 7" : "2.5 4"}
+                    stroke={peer ? C.burgundy : C.vermillion}
+                    strokeWidth={peer ? 2 : 1.4}
+                    strokeDasharray={peer ? "none" : "2.5 4"}
                     strokeLinecap="round"
-                    opacity={on ? (author ? 0.5 : 0.75) : 0.1}
+                    opacity={on ? (peer ? 0.8 : 0.6) : 0.08}
                     style={{ transition: "opacity .18s ease" }}
                   />
                 );
@@ -1870,6 +2553,13 @@ export default function App() {
   };
 
   const selectedFilm = films.find((f) => f.id === selectedId);
+  // l'état des deux murs survit à l'ouverture d'une fiche
+  const [wallUi, setWallUi] = useState({
+    watched: { q: "", genreFilter: "", sortBy: WALLS.watched.defaultSort, desc: true, grouped: false },
+    watchlist: { q: "", genreFilter: "", sortBy: WALLS.watchlist.defaultSort, desc: true, grouped: false },
+  });
+  const setUiFor = (wall) => (next) => setWallUi((s) => ({ ...s, [wall]: next }));
+
   const watched = useMemo(() => films.filter((f) => f.status !== "watchlist"), [films]);
   const watchlist = useMemo(() => films.filter((f) => f.status === "watchlist"), [films]);
   // le mur d'où l'on vient : « je l'ai vu » depuis la watchlist doit ramener au bon endroit
@@ -1898,8 +2588,8 @@ export default function App() {
       <PaperGrain />
       <FolderTabs view={view} setView={(v) => { setView(v); setSelectedId(null); }} onAdd={() => setShowModal(true)} />
       <div style={{ flex: 1, position: "relative", zIndex: 2 }}>
-        {view === "library" && !selectedId && <LibraryView wall="watched" films={watched} onOpen={(id) => { setSelectedId(id); setView("detail"); }} />}
-        {view === "watchlist" && !selectedId && <LibraryView wall="watchlist" films={watchlist} onOpen={(id) => { setSelectedId(id); setView("detail"); }} />}
+        {view === "library" && !selectedId && <LibraryView wall="watched" films={watched} ui={wallUi.watched} setUi={setUiFor("watched")} onOpen={(id) => { setSelectedId(id); setView("detail"); }} />}
+        {view === "watchlist" && !selectedId && <LibraryView wall="watchlist" films={watchlist} ui={wallUi.watchlist} setUi={setUiFor("watchlist")} onOpen={(id) => { setSelectedId(id); setView("detail"); }} />}
         {view === "detail" && selectedFilm && (
           <DetailView
             film={selectedFilm}
