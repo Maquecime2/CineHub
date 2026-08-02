@@ -2977,7 +2977,7 @@ const humanSize = (b) => (b > 1e6 ? `${(b / 1e6).toFixed(1)} Mo` : `${Math.round
 
 /* Le local est rapide et gratuit, mais un navigateur qu'on nettoie efface
    tout : la sauvegarde est le filet, pas une option décorative. */
-function BackupPanel({ films, notes, onRestore }) {
+function BackupPanel({ films, notes, dividers, onRestore }) {
   const [stats, setStats] = useState(null);
   const [msg, setMsg] = useState("");
   const ref = useRef(null);
@@ -2986,7 +2986,7 @@ function BackupPanel({ films, notes, onRestore }) {
 
   const download = async () => {
     setMsg("préparation…");
-    const data = await exportBackup({ films, notes });
+    const data = await exportBackup({ films, notes, dividers });
     const url = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: "application/json" }));
     const a = document.createElement("a");
     a.href = url;
@@ -2999,8 +2999,8 @@ function BackupPanel({ films, notes, onRestore }) {
   const restore = async (file) => {
     setMsg("lecture…");
     try {
-      const { films: f, notes: n } = await importBackup(JSON.parse(await file.text()));
-      setMsg(`${onRestore({ films: f, notes: n })} fiche(s) restaurée(s).`);
+      const { films: f, notes: n, dividers: d } = await importBackup(JSON.parse(await file.text()));
+      setMsg(`${onRestore({ films: f, notes: n, dividers: d })} fiche(s) restaurée(s).`);
     } catch (e) {
       setMsg(e.message || "Sauvegarde illisible.");
     }
@@ -3029,7 +3029,7 @@ function BackupPanel({ films, notes, onRestore }) {
   );
 }
 
-function ImportView({ films, onImport, notes, onRestore }) {
+function ImportView({ films, onImport, notes, dividers, onRestore }) {
   const [rows, setRows] = useState([]);          // lignes lues, éventuellement enrichies
   const [stats, setStats] = useState(null);      // ce que le fichier contenait
   const [importStatus, setImportStatus] = useState("watched"); // vus / à voir
@@ -3286,7 +3286,7 @@ function ImportView({ films, onImport, notes, onRestore }) {
         {films.length} film(s) déjà au catalogue — un réimport met à jour les fiches existantes au lieu de les dupliquer.
       </div>
 
-      <BackupPanel films={films} notes={notes} onRestore={onRestore} />
+      <BackupPanel films={films} notes={notes} dividers={dividers} onRestore={onRestore} />
     </div>
   );
 }
@@ -3603,10 +3603,11 @@ export default function App() {
     }));
   };
 
-  const restoreBackup = ({ films: f, notes: n }) => {
+  const restoreBackup = ({ films: f, notes: n, dividers: d }) => {
     const migrated = migrate(f);
     saveFilms(migrated);
     if (n?.length) saveNotes(n);
+    if (d?.length) saveDividers(d);
     return migrated.length;
   };
 
@@ -3689,7 +3690,7 @@ export default function App() {
         {view === "reco" && <RecoView films={films} onAddToWatchlist={addFilm} />}
         {view === "constellation" && <ConstellationView films={constellationFilms} onOpen={(id) => { setSelectedId(id); setView("detail"); }} />}
         {view === "notebook" && <NotebookView notes={notes} onAdd={(n) => saveNotes([n, ...notes])} onUpdate={(n) => saveNotes(notes.map((x) => (x.id === n.id ? n : x)))} onDelete={(id) => saveNotes(notes.filter((x) => x.id !== id))} />}
-        {view === "import" && <ImportView onImport={importFilms} films={films} notes={notes} onRestore={restoreBackup} />}
+        {view === "import" && <ImportView onImport={importFilms} films={films} notes={notes} dividers={dividers} onRestore={restoreBackup} />}
       </div>
       {showModal && <FilmModal onClose={() => setShowModal(false)} onSave={addFilm} />}
     </div>
