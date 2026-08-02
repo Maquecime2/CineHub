@@ -33,7 +33,14 @@ export interface LinkedWork {
 export interface Still {
   id: string;
   key: string;
+  /** Version réduite : inutile de décoder du 4K pour une vignette de 110 px. */
+  thumbKey?: string;
   caption: string;
+  /** Définition et poids d'origine, affichés sous la vignette. */
+  w?: number;
+  h?: number;
+  bytes?: number;
+  type?: string;
 }
 
 export interface Film {
