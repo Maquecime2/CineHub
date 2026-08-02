@@ -96,6 +96,132 @@ export async function listPosters({ tmdbId, title, year, apiKey }) {
   return { tmdbId: id, posters };
 }
 
+/* ============================================================
+   DÉCOUVERTE — les appels qui servent aux recommandations.
+   Ils ne résolvent pas un film connu : ils en cherchent d'inconnus.
+   ============================================================ */
+
+const DISC_KEY = "tmdb-disc";
+const DISC_TTL = 7 * 24 * 3600 * 1000;   // une semaine : assez frais, assez économe
+
+/* Un cache à péremption, distinct de `tmdb-cache` : celui-ci mémorise des
+   listes de candidats, qui vieillissent (un film sort, une note bouge), là où
+   l'appariement titre → tmdbId, lui, est définitif. */
+const readDisc = () => {
+  try { return JSON.parse(localStorage.getItem(DISC_KEY) || "{}"); } catch { return {}; }
+};
+const writeDisc = (c) => {
+  try { localStorage.setItem(DISC_KEY, JSON.stringify(c)); }
+  catch { try { localStorage.removeItem(DISC_KEY); } catch { /* tant pis */ } }
+};
+
+/* On ne met jamais en cache la réponse brute de TMDB : elle est dix fois plus
+   grosse que ce qu'on en garde, et le quota localStorage est déjà disputé par
+   les affiches. Seule la forme normalisée est stockée. */
+async function cachedList(cacheKey, fetcher) {
+  const cache = readDisc();
+  const hit = cache[cacheKey];
+  if (hit && Date.now() - hit.t < DISC_TTL) return hit.v;
+  const v = await fetcher();
+  cache[cacheKey] = { t: Date.now(), v };
+  // purge paresseuse : au-delà de 300 entrées on jette les plus vieilles
+  const keys = Object.keys(cache);
+  if (keys.length > 300) {
+    keys.sort((a, b) => cache[a].t - cache[b].t).slice(0, keys.length - 300).forEach((k) => delete cache[k]);
+  }
+  writeDisc(cache);
+  return v;
+}
+
+export const clearDiscoverCache = () => { try { localStorage.removeItem(DISC_KEY); } catch (e) { console.error(e); } };
+
+/* La forme minimale qui suffit à scorer ET à afficher une carte. `/discover`
+   et `/recommendations` renvoient déjà tout cela : aucun appel de détail
+   supplémentaire n'est nécessaire pour classer un candidat. */
+const toCandidate = (m) => ({
+  tmdbId: m.id,
+  title: m.title || m.original_title || "",
+  year: m.release_date ? Number(m.release_date.slice(0, 4)) || null : null,
+  poster: m.poster_path ? `${POSTER_BASE}${m.poster_path}` : "",
+  genreIds: m.genre_ids || (m.genres || []).map((g) => g.id) || [],
+  lang: m.original_language || "",
+  voteCount: m.vote_count || 0,
+  voteAverage: m.vote_average || 0,
+  popularity: m.popularity || 0,
+  // tronqué : multiplié par quelques centaines de candidats, le résumé
+  // complet suffirait à saturer le quota à lui seul
+  overview: (m.overview || "").slice(0, 240),
+});
+
+/* La table des genres : `/discover` veut des identifiants numériques, la
+   collection ne connaît que des noms. Sans langue explicite — comme
+   `getDetails`, qui a rempli les fiches — sinon les noms ne s'apparient plus. */
+export async function getGenreMap(apiKey) {
+  const list = await cachedList("genres", async () => {
+    const data = await get("/genre/movie/list", {}, apiKey);
+    return data.genres || [];
+  });
+  const byName = new Map(list.map((g) => [g.name.toLowerCase(), g.id]));
+  const byId = new Map(list.map((g) => [g.id, g.name]));
+  return { byName, byId, list };
+}
+
+/* `/discover` : le seul endpoint qui accepte « peu de votes mais bien noté »,
+   c'est-à-dire la définition opérationnelle d'une pépite. */
+export async function discover(params, apiKey) {
+  const key = `d:${JSON.stringify(params)}`;
+  return cachedList(key, async () => {
+    const data = await get("/discover/movie", { include_adult: "false", ...params }, apiKey);
+    return (data.results || []).map(toCandidate);
+  });
+}
+
+/* `/recommendations` plutôt que `/similar` : le premier s'appuie sur les
+   comportements réels, le second sur une simple intersection de genres. */
+export async function recommendationsFor(tmdbId, apiKey) {
+  return cachedList(`r:${tmdbId}`, async () => {
+    const data = await get(`/movie/${tmdbId}/recommendations`, {}, apiKey);
+    return (data.results || []).map(toCandidate);
+  });
+}
+
+export async function searchPerson(name, apiKey) {
+  return cachedList(`p:${name.toLowerCase()}`, async () => {
+    const data = await get("/search/person", { query: name }, apiKey);
+    const hit = data.results?.[0];
+    return hit ? { id: hit.id, name: hit.name } : null;
+  });
+}
+
+/* La filmographie de réalisateur·rice — uniquement le poste de réalisation :
+   un acteur qui a tourné dans trente films n'a pas signé trente films. */
+export async function directorFilmography(personId, apiKey) {
+  return cachedList(`pc:${personId}`, async () => {
+    const data = await get(`/person/${personId}/movie_credits`, {}, apiKey);
+    return (data.crew || [])
+      .filter((c) => c.job === "Director")
+      .map(toCandidate);
+  });
+}
+
+/* Exécute des tâches par petits paquets — même worker-pool que `enrichRows`,
+   mais générique, et qui avale les échecs : une requête perdue ne doit pas
+   annuler toute une recherche. */
+export async function pooled(tasks, { concurrency = 5, onProgress } = {}) {
+  const out = new Array(tasks.length).fill(null);
+  let done = 0;
+  const next = (() => { let i = 0; return () => i++; })();
+  const worker = async () => {
+    for (let i = next(); i < tasks.length; i = next()) {
+      try { out[i] = await tasks[i](); }
+      catch (e) { console.warn("TMDB", e.message || e); }
+      onProgress?.(++done, tasks.length);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(concurrency, tasks.length) }, worker));
+  return out;
+}
+
 /* Résout une ligne d'import ; null si le film reste introuvable. */
 async function resolveOne(row, apiKey, cache) {
   const key = cacheKeyOf(row.title, row.year);

@@ -2,9 +2,12 @@ import React, { useState, useEffect, useMemo, useRef, useLayoutEffect, useCallba
 import {
   Pin, Paperclip, Plus, X, Trash2, ArrowLeft, Upload,
   Star, BookOpen, Palette, Clapperboard, Sparkles, Link2,
+  LayoutGrid, Library, Archive, ArchiveRestore, Moon,
 } from "lucide-react";
 import Papa from "papaparse";
 import { enrichRows, checkApiKey, listPosters } from "./tmdb";
+import { buildTaste } from "./taste";
+import { gatherCandidates, rank, DEFAULT_QUERY } from "./reco";
 import {
   IDB_PREFIX, isIdbPoster, idbKeyOf, putImage, getImage, deleteImage,
   posterStats, pruneOrphans, exportBackup, importBackup, idbAvailable,
@@ -44,6 +47,17 @@ body { background: ${C.paper}; }
 ::-webkit-scrollbar-thumb:hover { background: ${C.inkFaded}; }
 
 @keyframes swayIn { from { opacity: 0; transform: translateY(10px) rotate(var(--tilt, 0deg)); } to { opacity: 1; transform: translateY(0) rotate(var(--tilt, 0deg)); } }
+
+/* l'ouverture du boîtier : le rabat pivote, l'affiche sort de son logement,
+   la fiche arrive en dernier — dans cet ordre, sinon rien ne se lit. */
+@keyframes openLid { from { transform: rotateY(0deg); } to { transform: rotateY(-158deg); } }
+@keyframes slideOut { from { opacity: 0; transform: translateX(-34px) rotate(-4deg); } to { opacity: 1; transform: none; } }
+@keyframes caseIn { from { opacity: 0; transform: translateY(14px) scale(0.97); } to { opacity: 1; transform: none; } }
+@keyframes sheetIn { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  [data-case] *, [data-case] { animation-duration: .01ms !important; animation-delay: 0ms !important; }
+}
 
 input::placeholder, textarea::placeholder { color: ${C.inkFaded}88; font-style: italic; }
 
@@ -90,6 +104,12 @@ export const makeFilm = (partial = {}) => ({
   rating: 0, review: "", notes: "", linkedWorks: [],
   addedAt: Date.now(),
   status: "watched",   // "watched" | "watchlist"
+  chevet: false,       // le rayon du haut : ceux qu'on revoit
+  /* Mis de côté : la fiche quitte le mur et la constellation sans être
+     détruite. C'est le contraire d'une suppression — elle reste entière,
+     rangée dans la réserve de l'étagère, et revient d'un glissement. */
+  archived: false,
+  order: null,         // rang manuel sur l'étagère ; null = jamais rangé à la main
   watchedAt: null,
   tmdbId: null,
   source: "manual",    // "manual" | "letterboxd"
@@ -105,6 +125,8 @@ export const migrate = (films) =>
     ...f,
     year: f.year === "" || f.year == null ? "" : Number(f.year) || "",
     status: f.status === "watchlist" ? "watchlist" : "watched",
+    chevet: !!f.chevet, archived: !!f.archived,
+    order: typeof f.order === "number" ? f.order : null,
     genres: f.genres || [], themes: f.themes || [], linkedWorks: f.linkedWorks || [], stills: f.stills || [],
   }));
 
@@ -442,7 +464,11 @@ const ruledTextarea = {
 /* `height` ne vaut que pour l'émulsion de substitution, en paysage. Une vraie
    affiche est en portrait 2:3 : la forcer dans une bande la réduirait à une
    tranche. Quand il y en a une, la zone prend donc le format de l'affiche. */
-function PosterArt({ film, height, initials, clipSeed = 0 }) {
+/* `plain` : la même affiche, mais dans un rectangle franc. Sur l'étagère, le
+   bord déchiré d'une découpe collée se battrait avec l'arête du boîtier ; la
+   fiche, elle, garde le déchiré. Tout le reste — IndexedDB, repli, grain —
+   est commun, et doit le rester. */
+function PosterArt({ film, height, initials, clipSeed = 0, plain = false }) {
   const [broken, setBroken] = useState(false);
   const [blobUrl, setBlobUrl] = useState(null);
   const hue = hueOf(film.id);
@@ -465,8 +491,11 @@ function PosterArt({ film, height, initials, clipSeed = 0 }) {
   const src = broken ? null : isIdbPoster(film.poster) ? blobUrl : film.poster || null;
   return (
     <div style={{
-      position: "relative", clipPath: tornClip(film.id, clipSeed), overflow: "hidden",
-      ...(src ? { aspectRatio: "2 / 3" } : { height }),
+      overflow: "hidden",
+      ...(plain
+        // le boîtier impose déjà ses dimensions : l'affiche s'y coule
+        ? { position: "absolute", inset: 0, background: "#1c1712" }
+        : { position: "relative", clipPath: tornClip(film.id, clipSeed), ...(src ? { aspectRatio: "2 / 3" } : { height }) }),
     }}>
       {src ? (
         <img
@@ -551,6 +580,7 @@ function FolderTabs({ view, setView, onAdd }) {
   const tabs = [
     { key: "library", label: "Vidéothèque", color: C.burgundy },
     { key: "watchlist", label: "À voir", color: C.ochre },
+    { key: "reco", label: "Découvertes", color: C.vermillion },
     { key: "constellation", label: "Constellation", color: C.cobalt },
     { key: "notebook", label: "Carnet", color: C.pine },
     { key: "import", label: "Import Letterboxd", color: C.slate },
@@ -680,11 +710,357 @@ const WALLS = {
   },
 };
 
-function LibraryView({ films, onOpen, wall = "watched", ui, setUi }) {
+/* ============================================================
+   VUE — ÉTAGÈRE
+
+   Le mur montre des fiches punaisées ; l'étagère montre des objets
+   rangés. Ce n'est pas le même geste : sur le mur on regarde, sur
+   l'étagère on range. D'où le glisser-déposer, et d'où les rayons
+   qui sont eux-mêmes des destinations — déposer un boîtier dans un
+   rayon, c'est lui donner son statut, pas seulement sa place.
+   ============================================================ */
+const SHELF_KIND = {
+  chevet:  { title: "Films de chevet", tag: "ceux qu'on revoit", patch: { chevet: true, archived: false }, tint: `${C.burgundy}0d`, border: C.burgundy },
+  main:    { title: "La collection",   tag: "",                  patch: { chevet: false, archived: false } },
+  reserve: { title: "Mis de côté",     tag: "gardés, pas jetés",  patch: { chevet: false, archived: true }, tint: "transparent", border: C.line },
+};
+
+const BOX_W = 96, BOX_H = 144;
+
+/* Un boîtier vu de tranche : le dos porte le titre, la face porte l'affiche. */
+function FilmBox({ film, onOpen, dragging, drop, onDragStart, onDragEnd, onDragOverBox }) {
+  const [hover, setHover] = useState(false);
+  const hue = hueOf(film.id);
+  const initials = film.title.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+  const stars = "★".repeat(film.rating || 0) + "☆".repeat(5 - (film.rating || 0));
+
+  return (
+    <div style={{ display: "flex", alignItems: "flex-end", flexShrink: 0 }}>
+      {/* la fente d'insertion : on voit où le boîtier va tomber */}
+      <div style={{ width: drop === "before" ? 12 : 0, height: BOX_H, background: `repeating-linear-gradient(180deg, ${C.burgundy}, ${C.burgundy} 5px, transparent 5px, transparent 10px)`, transition: "width .12s ease", marginBottom: 12 }} />
+      <button
+        draggable
+        onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", film.id); onDragStart(film.id); }}
+        onDragEnd={onDragEnd}
+        onDragOver={(e) => onDragOverBox(e, film.id)}
+        onClick={() => onOpen(film.id)}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        title={`${film.title}${film.year ? ` (${film.year})` : ""}`}
+        style={{
+          all: "unset", boxSizing: "border-box", cursor: "pointer", position: "relative",
+          width: BOX_W, height: BOX_H, marginBottom: 12, marginRight: 9, flexShrink: 0,
+          borderRadius: "2px 3px 3px 2px", overflow: "hidden",
+          border: `1px solid rgba(43,38,32,0.35)`,
+          boxShadow: hover ? `3px 5px 10px rgba(30,20,10,0.34)` : `2px 2px 0 rgba(43,38,32,0.16)`,
+          transform: hover ? "translateY(-7px) rotate(-1.2deg)" : "none",
+          transformOrigin: "bottom center",
+          opacity: dragging ? 0.35 : film.archived ? 0.62 : 1,
+          filter: film.archived ? "saturate(0.5)" : "none",
+          transition: "transform .18s ease, box-shadow .18s ease, opacity .15s ease",
+        }}
+      >
+        <PosterArt film={film} height={BOX_H} initials={initials} plain />
+        {/* le dos : c'est lui qui fait lire « boîtier » et non « vignette » */}
+        <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 11, background: hue, boxShadow: "inset -2px 0 4px rgba(0,0,0,0.4)", zIndex: 2, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+          <span style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", fontFamily: "'Special Elite', monospace", fontSize: 8, letterSpacing: "0.08em", color: "rgba(246,239,222,0.92)", whiteSpace: "nowrap" }}>{film.title}</span>
+        </span>
+        {film.year !== "" && film.year != null && (
+          <span style={{ position: "absolute", top: 4, left: 15, background: "rgba(246,239,222,0.88)", color: C.ink, fontFamily: "'Special Elite', monospace", fontSize: 9, padding: "1px 4px", zIndex: 3 }}>{film.year}</span>
+        )}
+        {film.chevet && <PushPin style={{ top: -5, right: -5, zIndex: 4 }} />}
+        {film.status !== "watchlist" && (
+          <span style={{ position: "absolute", bottom: 0, left: 11, right: 0, padding: "3px 5px", background: "rgba(43,38,32,0.72)", color: C.card, fontFamily: "'Special Elite', monospace", fontSize: 9.5, letterSpacing: 1, zIndex: 3 }}>{stars}</span>
+        )}
+      </button>
+      <div style={{ width: drop === "after" ? 12 : 0, height: BOX_H, background: `repeating-linear-gradient(180deg, ${C.burgundy}, ${C.burgundy} 5px, transparent 5px, transparent 10px)`, transition: "width .12s ease", marginBottom: 12 }} />
+    </div>
+  );
+}
+
+/* L'intercalaire : le carton debout qu'on glisse entre deux boîtiers pour
+   dire « à partir d'ici, autre chose ». Il se déplace comme un boîtier et
+   se renomme d'un clic — un séparateur qu'on ne peut pas nommer ne sépare
+   rien de nommable. */
+function ShelfDivider({ divider, dragging, drop, onDragStart, onDragEnd, onDragOverBox, onRename, onRemove }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(divider.label);
+  const [hover, setHover] = useState(false);
+  useEffect(() => { setDraft(divider.label); }, [divider.label]);
+
+  const commit = () => { setEditing(false); const v = draft.trim(); if (v && v !== divider.label) onRename(v); else setDraft(divider.label); };
+
+  return (
+    <div style={{ display: "flex", alignItems: "flex-end", flexShrink: 0 }}>
+      <div style={{ width: drop === "before" ? 12 : 0, height: BOX_H, background: `repeating-linear-gradient(180deg, ${C.burgundy}, ${C.burgundy} 5px, transparent 5px, transparent 10px)`, transition: "width .12s ease", marginBottom: 12 }} />
+      <div
+        draggable={!editing}
+        onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; onDragStart(); }}
+        onDragEnd={onDragEnd}
+        onDragOver={onDragOverBox}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        style={{
+          position: "relative", width: editing ? 150 : 30, height: BOX_H + 16, marginBottom: 12, marginRight: 9,
+          background: `linear-gradient(90deg, ${C.paperDark}, #D8C69C)`,
+          border: `1px solid ${C.line}`, borderBottom: "none", borderRadius: "3px 3px 0 0",
+          boxShadow: "2px 2px 0 rgba(43,38,32,0.14)", cursor: editing ? "text" : "grab",
+          opacity: dragging ? 0.35 : 1, display: "flex", alignItems: "center", justifyContent: "center",
+          transition: "width .18s ease, opacity .15s ease",
+        }}
+      >
+        {editing ? (
+          <input
+            autoFocus value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") { setDraft(divider.label); setEditing(false); } }}
+            style={{ all: "unset", boxSizing: "border-box", width: "100%", padding: "0 8px", fontFamily: "'Special Elite', monospace", fontSize: 11, color: C.ink, textAlign: "center" }}
+          />
+        ) : (
+          <button onClick={() => setEditing(true)} title="Renommer l'intercalaire" style={{ all: "unset", cursor: "text", writingMode: "vertical-rl", transform: "rotate(180deg)", fontFamily: "'Special Elite', monospace", fontSize: 10.5, letterSpacing: "0.12em", color: C.inkFaded, whiteSpace: "nowrap", overflow: "hidden", maxHeight: BOX_H }}>
+            {divider.label}
+          </button>
+        )}
+        {hover && !editing && (
+          <button onClick={onRemove} title="Retirer l'intercalaire" style={{ all: "unset", position: "absolute", top: -9, right: -8, cursor: "pointer", background: C.paper, border: `1px solid ${C.line}`, borderRadius: "50%", width: 17, height: 17, display: "flex", alignItems: "center", justifyContent: "center", color: C.inkFaded }}>
+            <X size={10} />
+          </button>
+        )}
+      </div>
+      <div style={{ width: drop === "after" ? 12 : 0, height: BOX_H, background: `repeating-linear-gradient(180deg, ${C.burgundy}, ${C.burgundy} 5px, transparent 5px, transparent 10px)`, transition: "width .12s ease", marginBottom: 12 }} />
+    </div>
+  );
+}
+
+/* Un rayon : une planche, et une zone de dépôt. */
+function Shelf({ kind, title, tag, items, count, onOpen, dnd, empty, perRow, onAddDivider, onRename, onRemoveDivider, manual }) {
+  const cfg = SHELF_KIND[kind];
+  const active = dnd.overShelf === kind && dnd.drag;
+  /* « n par ligne » se mesure en boîtiers : la planche est bornée à la
+     largeur de n boîtiers, et le retour à la ligne fait le reste. */
+  const width = perRow === "auto" ? "100%" : perRow * (BOX_W + 9) + 21;
+  return (
+    <div style={{ marginTop: 26 }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 4 }}>
+        <div style={{ fontFamily: "'Playfair Display', serif", fontWeight: 600, fontSize: 21, color: C.ink }}>{title ?? cfg.title}</div>
+        <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 10, color: C.inkFaded, letterSpacing: 1 }}>{count} film{count > 1 ? "s" : ""}</div>
+        {(tag ?? cfg.tag) && <div style={{ fontFamily: "'Caveat', cursive", fontSize: 17, color: C.burgundy, transform: "rotate(-3deg)" }}>{tag ?? cfg.tag}</div>}
+        <button onClick={() => onAddDivider(kind)} title={manual ? "Poser un intercalaire à la fin du rayon" : "Ranger « à la main » d'abord : un intercalaire a besoin d'un ordre stable"} style={{ all: "unset", cursor: "pointer", fontFamily: "'Special Elite', monospace", fontSize: 9.5, letterSpacing: 1, color: C.inkFaded, border: `1px dashed ${C.line}`, padding: "3px 8px" }}>
+          + INTERCALAIRE
+        </button>
+      </div>
+      <div
+        onDragOver={(e) => { e.preventDefault(); dnd.onShelfOver(kind); }}
+        onDrop={(e) => { e.preventDefault(); dnd.onDrop(kind); }}
+        style={{
+          position: "relative", display: "flex", flexWrap: "wrap", alignItems: "flex-end",
+          minHeight: BOX_H + 40, padding: "14px 10px 0", width, maxWidth: "100%", boxSizing: "content-box",
+          background: active ? `${C.ochre}22` : cfg.tint || "transparent",
+          border: cfg.border ? `1px ${kind === "reserve" ? "solid" : "dashed"} ${cfg.border}${kind === "reserve" ? "" : "59"}` : "none",
+          borderBottom: "none", borderRadius: cfg.border ? "3px 3px 0 0" : 0,
+          transition: "background .15s ease",
+        }}
+      >
+        {items.length === 0 && (
+          <div style={{ color: C.inkFaded, fontStyle: "italic", fontSize: 13, padding: "44px 4px" }}>{empty || "Rayon vide — glissez-y un boîtier."}</div>
+        )}
+        {items.map((it) => it.type === "divider" ? (
+          <ShelfDivider
+            key={it.id} divider={it.divider}
+            dragging={dnd.drag?.id === it.id}
+            drop={dnd.overId === it.id ? dnd.side : null}
+            onDragStart={() => dnd.onDragStart({ type: "divider", id: it.id })}
+            onDragEnd={dnd.onDragEnd}
+            onDragOverBox={(e) => dnd.onBoxOver(e, kind, it.id)}
+            onRename={(label) => onRename(it.id, label)}
+            onRemove={() => onRemoveDivider(it.id)}
+          />
+        ) : (
+          <FilmBox
+            key={it.id} film={it.film} onOpen={onOpen}
+            dragging={dnd.drag?.id === it.id}
+            drop={dnd.overId === it.id ? dnd.side : null}
+            onDragStart={(id) => dnd.onDragStart({ type: "film", id })}
+            onDragEnd={dnd.onDragEnd}
+            onDragOverBox={(e) => dnd.onBoxOver(e, kind, it.id)}
+          />
+        ))}
+        {/* la planche */}
+        <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 12, background: "linear-gradient(#7A5B3A, #5E442A)", boxShadow: "0 3px 0 rgba(0,0,0,0.18)" }} />
+      </div>
+    </div>
+  );
+}
+
+/* Le boîtier qu'on ouvre. Aperçu seulement : le dossier complet reste
+   la fiche, on y va d'un clic depuis ici. */
+function CasePreview({ film, onClose, onOpenFile }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const initials = film.title.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(20,15,10,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: 20 }}>
+      <div data-case onClick={(e) => e.stopPropagation()} style={{ width: "min(760px, 100%)", perspective: 1400, animation: "caseIn .3s ease both" }}>
+        <div style={{ position: "relative", display: "flex", background: C.card, border: `1px solid ${C.line}`, minHeight: 330, boxShadow: "6px 14px 40px rgba(0,0,0,0.42)", overflow: "hidden" }}>
+          <button onClick={onClose} style={{ all: "unset", position: "absolute", top: 10, right: 12, zIndex: 9, cursor: "pointer", color: C.inkFaded }}><X size={18} /></button>
+          {/* le rabat, qui s'ouvre vers la gauche */}
+          <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "50%", background: C.paperDark, borderRight: `1px solid ${C.line}`, transformOrigin: "left center", backfaceVisibility: "hidden", zIndex: 5, display: "flex", alignItems: "center", justifyContent: "center", animation: "openLid .78s cubic-bezier(.22,.9,.25,1) both" }}>
+            <span style={{ transform: "rotate(-90deg)", fontFamily: "'Special Elite', monospace", fontSize: 11, letterSpacing: "0.2em", color: C.inkFaded, whiteSpace: "nowrap" }}>N° {fileNoOf(film.id)}</span>
+          </div>
+          <div style={{ width: 210, flexShrink: 0, background: C.paperDark, display: "flex", alignItems: "center", padding: 16 }}>
+            <div style={{ position: "relative", width: "100%", aspectRatio: "2 / 3", border: "1px solid rgba(43,38,32,0.3)", boxShadow: "2px 3px 0 rgba(43,38,32,0.18)", animation: "slideOut .7s .25s cubic-bezier(.2,.85,.3,1) both" }}>
+              <PosterArt film={film} height={300} initials={initials} plain />
+            </div>
+          </div>
+          <div style={{ flex: 1, padding: "24px 28px", animation: "sheetIn .5s .45s both" }}>
+            <div style={{ fontFamily: "'Playfair Display', serif", fontWeight: 700, fontSize: 26, color: C.ink }}>{film.title}</div>
+            <div style={{ fontFamily: "'Lora', serif", fontStyle: "italic", fontSize: 13.5, color: C.inkFaded, marginTop: 2 }}>
+              {film.director || "anonyme"} · {film.year || "s.d."}
+            </div>
+            {film.status !== "watchlist" && <div style={{ marginTop: 8 }}><InkStars value={film.rating || 0} size={16} /></div>}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 12 }}>
+              {(film.genres || []).map((g) => <span key={g} style={{ fontFamily: "'Special Elite', monospace", fontSize: 9.5, border: `1px solid ${C.line}`, color: C.inkFaded, padding: "3px 7px" }}>{g}</span>)}
+              {film.chevet && <span style={{ fontFamily: "'Special Elite', monospace", fontSize: 9.5, border: `1px solid ${C.burgundy}`, color: C.burgundy, padding: "3px 7px" }}>FILM DE CHEVET</span>}
+              {film.archived && <span style={{ fontFamily: "'Special Elite', monospace", fontSize: 9.5, border: `1px solid ${C.slate}`, color: C.slate, padding: "3px 7px" }}>MIS DE CÔTÉ</span>}
+            </div>
+            <div style={{ fontFamily: "'Lora', serif", fontSize: 14, lineHeight: 1.65, color: C.ink, marginTop: 14, maxHeight: 120, overflow: "hidden" }}>
+              {film.review?.trim()
+                ? film.review.replace(/\[img:\d+\]/g, "").slice(0, 260)
+                : <span style={{ fontStyle: "italic", color: C.inkFaded }}>Pas encore de note. Le boîtier attend son feuillet.</span>}
+            </div>
+            <button onClick={() => onOpenFile(film.id)} style={{ all: "unset", cursor: "pointer", marginTop: 18, padding: "9px 16px", background: C.burgundy, color: C.card, fontFamily: "'Special Elite', monospace", fontSize: 11, letterSpacing: 1 }}>
+              OUVRIR LE DOSSIER
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* Le rangement à la main. Déposer écrit un `order` sur chaque boîtier du
+   rayon d'arrivée : sans numéro stable, l'ordre repartirait au tri par
+   défaut au prochain rendu. */
+function ShelfBoard({ films, dividers, onDividers, wall, onOpen, onUpdateMany, manual, onManual, perRow }) {
+  const [drag, setDrag] = useState(null);        // { type: "film" | "divider", id }
+  const [overShelf, setOverShelf] = useState(null);
+  const [overId, setOverId] = useState(null);
+  const [side, setSide] = useState(null);
+  const [preview, setPreview] = useState(null);
+
+  const rank = (o) => (o == null ? Number.MAX_SAFE_INTEGER : o);
+  const belongs = {
+    chevet: (f) => f.chevet && !f.archived,
+    main: (f) => !f.chevet && !f.archived,
+    reserve: (f) => f.archived,
+  };
+
+  /* Un rayon n'est plus une liste de films mais une liste d'objets rangés :
+     boîtiers et intercalaires partagent la même numérotation, sans quoi on
+     ne pourrait pas glisser un carton *entre* deux films. */
+  const shelves = useMemo(() => {
+    const mine = (dividers || []).filter((d) => d.wall === wall);
+    const build = (kind) => {
+      const boxes = films.filter(belongs[kind]).map((f) => ({ type: "film", id: f.id, film: f, order: rank(f.order), tie: -(f.addedAt || 0) }));
+      // hors rangement manuel, l'ordre affiché est celui du tri : un
+      // intercalaire n'y aurait pas de place définie, il attend son tour
+      if (!manual) return boxes;
+      const tabs = mine.filter((d) => d.shelf === kind).map((d) => ({ type: "divider", id: d.id, divider: d, order: rank(d.order), tie: 0 }));
+      return [...boxes, ...tabs].sort((a, b) => a.order - b.order || a.tie - b.tie);
+    };
+    return { chevet: build("chevet"), main: build("main"), reserve: build("reserve") };
+  }, [films, dividers, wall, manual]);
+
+  const reset = () => { setDrag(null); setOverShelf(null); setOverId(null); setSide(null); };
+
+  const onBoxOver = (e, kind, id) => {
+    if (!drag) return;
+    e.preventDefault(); e.stopPropagation();
+    const r = e.currentTarget.getBoundingClientRect();
+    setOverShelf(kind); setOverId(id);
+    setSide(e.clientX < r.left + r.width / 2 ? "before" : "after");
+  };
+
+  /* Écrire l'ordre d'arrivée. Les films partent dans une écriture groupée,
+     les intercalaires dans la leur : deux stockages, un seul rangement. */
+  const commit = (kind, next, movedId) => {
+    const patches = {};
+    const tabs = (dividers || []).filter((d) => !(d.wall === wall && next.some((it) => it.type === "divider" && it.id === d.id)));
+    const moved = [];
+    next.forEach((it, i) => {
+      if (it.type === "film") patches[it.id] = { order: i * 10 };
+      else moved.push({ ...it.divider, wall, shelf: kind, order: i * 10 });
+    });
+    if (movedId && patches[movedId]) patches[movedId] = { ...patches[movedId], ...SHELF_KIND[kind].patch };
+    if (Object.keys(patches).length) onUpdateMany(patches);
+    onDividers([...tabs, ...moved]);
+    onManual();   // ranger à la main, c'est choisir le rangement manuel
+    reset();
+  };
+
+  const drop = (kind) => {
+    if (!drag) return;
+    const target = shelves[kind].filter((it) => it.id !== drag.id);
+    const source = drag.type === "film"
+      ? { type: "film", id: drag.id, film: films.find((f) => f.id === drag.id) }
+      : { type: "divider", id: drag.id, divider: (dividers || []).find((d) => d.id === drag.id) };
+    if (!source.film && !source.divider) return reset();
+
+    let at = target.length;
+    if (overId && overId !== drag.id) {
+      const i = target.findIndex((it) => it.id === overId);
+      if (i >= 0) at = side === "after" ? i + 1 : i;
+    }
+    commit(kind, [...target.slice(0, at), source, ...target.slice(at)], drag.type === "film" ? drag.id : null);
+  };
+
+  const addDivider = (kind) => {
+    const tab = { id: uid(), wall, shelf: kind, label: "Intercalaire", order: null };
+    // posé en bout de rayon, puis renuméroté avec le reste
+    commit(kind, [...shelves[kind], { type: "divider", id: tab.id, divider: tab }], null);
+  };
+  const renameDivider = (id, label) => onDividers((dividers || []).map((d) => (d.id === id ? { ...d, label } : d)));
+  const removeDivider = (id) => onDividers((dividers || []).filter((d) => d.id !== id));
+
+  const dnd = {
+    drag, overShelf, overId, side,
+    onDragStart: setDrag, onDragEnd: reset,
+    onShelfOver: setOverShelf,
+    onBoxOver, onDrop: drop,
+  };
+  const shared = {
+    onOpen: setPreview, dnd, perRow, manual,
+    onAddDivider: addDivider, onRename: renameDivider, onRemoveDivider: removeDivider,
+  };
+  const countOf = (kind) => films.filter(belongs[kind]).length;
+
+  return (
+    <div onDragEnd={reset}>
+      <Shelf kind="chevet" items={shelves.chevet} count={countOf("chevet")} {...shared}
+        empty="Aucun film de chevet — glissez-en un ici." />
+      <Shelf kind="main" items={shelves.main} count={countOf("main")} {...shared}
+        empty="Le rayon est vide." />
+      <Shelf kind="reserve" items={shelves.reserve} count={countOf("reserve")} {...shared}
+        empty="Rien de côté. Glissez ici un film que vous ne voulez plus voir sur le mur — il reste intact." />
+      {preview && films.find((f) => f.id === preview) && (
+        <CasePreview film={films.find((f) => f.id === preview)} onClose={() => setPreview(null)} onOpenFile={onOpen} />
+      )}
+    </div>
+  );
+}
+
+function LibraryView({ films, onOpen, wall = "watched", ui, setUi, onUpdateMany, dividers, onDividers }) {
   const cfg = WALLS[wall];
   /* Recherche, filtre et tri vivent dans App : ouvrir un film démonte cette
      vue, et un état local serait perdu au retour au mur. */
   const { q, genreFilter, sortBy, desc, grouped } = ui;
+  const mode = ui.mode === "shelf" ? "shelf" : "wall";
+  const perRow = ui.perRow || "auto";
   const set = (patch) => setUi({ ...ui, ...patch });
   const setQ = (v) => set({ q: v });
   const setGenreFilter = (v) => set({ genreFilter: v });
@@ -694,8 +1070,13 @@ function LibraryView({ films, onOpen, wall = "watched", ui, setUi }) {
 
   const allGenres = useMemo(() => Array.from(new Set(films.flatMap((f) => f.genres || []))).sort(), [films]);
 
+  /* Un film mis de côté n'a rien à faire sur le mur : c'est justement ce
+     qu'on lui a demandé. Il reste visible sur l'étagère, dans son rayon. */
+  const scope = useMemo(() => (mode === "shelf" ? films : films.filter((f) => !f.archived)), [films, mode]);
+  const asideCount = useMemo(() => films.filter((f) => f.archived).length, [films]);
+
   const filtered = useMemo(() => {
-    let list = films.filter((f) => {
+    let list = scope.filter((f) => {
       const mq = !q || f.title.toLowerCase().includes(q.toLowerCase()) || (f.director || "").toLowerCase().includes(q.toLowerCase());
       const mg = !genreFilter || (f.genres || []).includes(genreFilter);
       return mq && mg;
@@ -712,7 +1093,7 @@ function LibraryView({ films, onOpen, wall = "watched", ui, setUi }) {
         : (b.addedAt || 0) - (a.addedAt || 0);
       return desc ? cmp : -cmp;
     });
-  }, [films, q, genreFilter, sortBy, desc]);
+  }, [scope, q, genreFilter, sortBy, desc]);
 
   /* Le regroupement par réalisateur : une pile de fiches par cinéaste, les
      plus fréquentés d'abord — c'est là que se lisent les habitudes. */
@@ -764,7 +1145,8 @@ function LibraryView({ films, onOpen, wall = "watched", ui, setUi }) {
         <div>
           <Label>Trier</Label>
           <div style={{ display: "flex", gap: 14, fontFamily: "'Special Elite', monospace", fontSize: 11 }}>
-            {cfg.sorts.map(([k, l]) => (
+            {/* le rangement à la main n'existe que là où l'on peut ranger */}
+            {(mode === "shelf" ? [...cfg.sorts, ["manual", "à la main"]] : cfg.sorts).map(([k, l]) => (
               <span key={k} onClick={() => pickSort(k)} title={sortBy === k ? "cliquer pour inverser" : ""} style={{ cursor: "pointer", color: sortBy === k ? C.burgundy : C.inkFaded, textDecoration: sortBy === k ? "underline" : "none" }}>
                 {l}{sortBy === k && <span style={{ marginLeft: 3 }}>{desc ? "↓" : "↑"}</span>}
               </span>
@@ -772,6 +1154,34 @@ function LibraryView({ films, onOpen, wall = "watched", ui, setUi }) {
           </div>
         </div>
         <div>
+          <Label>Présentation</Label>
+          <div style={{ display: "flex", marginTop: 2 }}>
+            {[{ k: "wall", l: "MUR", icon: LayoutGrid }, { k: "shelf", l: "ÉTAGÈRE", icon: Library }].map(({ k, l, icon: Icon }) => (
+              <button key={k} onClick={() => set({ mode: k })} style={{
+                all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, padding: "5px 12px",
+                fontFamily: "'Special Elite', monospace", fontSize: 10.5,
+                background: mode === k ? C.ink : "transparent", color: mode === k ? C.card : C.inkFaded,
+                border: `1px solid ${mode === k ? C.ink : C.line}`, marginLeft: k === "shelf" ? -1 : 0,
+              }}><Icon size={12} /> {l}</button>
+            ))}
+          </div>
+        </div>
+        {mode === "shelf" && (
+          <div>
+            <Label>Par ligne</Label>
+            <div style={{ display: "flex", marginTop: 2 }}>
+              {["auto", 4, 6, 8, 10, 12].map((n, i) => (
+                <button key={n} onClick={() => set({ perRow: n })} style={{
+                  all: "unset", cursor: "pointer", padding: "5px 9px", minWidth: 12, textAlign: "center",
+                  fontFamily: "'Special Elite', monospace", fontSize: 10.5,
+                  background: perRow === n ? C.ink : "transparent", color: perRow === n ? C.card : C.inkFaded,
+                  border: `1px solid ${perRow === n ? C.ink : C.line}`, marginLeft: i === 0 ? 0 : -1,
+                }}>{n === "auto" ? "AUTO" : n}</button>
+              ))}
+            </div>
+          </div>
+        )}
+        {mode === "wall" && <div>
           <Label>Classer</Label>
           <button
             onClick={() => setGrouped((g) => !g)}
@@ -782,10 +1192,31 @@ function LibraryView({ films, onOpen, wall = "watched", ui, setUi }) {
               border: `1px solid ${grouped ? C.pine : C.line}`,
             }}
           >PAR RÉALISATEUR</button>
-        </div>
+        </div>}
+        {mode === "wall" && asideCount > 0 && (
+          <div style={{ fontFamily: "'Caveat', cursive", fontSize: 18, color: C.inkFaded }}>
+            <button onClick={() => set({ mode: "shelf" })} style={{ all: "unset", cursor: "pointer", borderBottom: `1px dashed ${C.line}` }}>
+              {asideCount} film{asideCount > 1 ? "s" : ""} de côté — voir l'étagère
+            </button>
+          </div>
+        )}
       </div>
 
-      {filtered.length === 0 ? (
+      {mode === "shelf" ? (
+        <div style={{ position: "relative", zIndex: 2 }}>
+          {sortBy !== "manual" && (dividers || []).some((d) => d.wall === wall) && (
+            <div style={{ fontFamily: "'Caveat', cursive", fontSize: 18, color: C.inkFaded, marginTop: 8 }}>
+              Vos intercalaires réapparaissent avec le rangement « à la main » — un tri les déplacerait sans les respecter.
+            </div>
+          )}
+          <ShelfBoard
+            films={filtered} onOpen={onOpen} onUpdateMany={onUpdateMany}
+            dividers={dividers} onDividers={onDividers} wall={wall} perRow={perRow}
+            manual={sortBy === "manual"}
+            onManual={() => { if (sortBy !== "manual") set({ sortBy: "manual", desc: true }); }}
+          />
+        </div>
+      ) : filtered.length === 0 ? (
         <div style={{ textAlign: "center", padding: "60px 20px", color: C.inkFaded, position: "relative", zIndex: 2 }}>
           <Pin size={26} color={C.line} style={{ marginBottom: 10 }} />
           <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, color: C.ink, marginBottom: 6 }}>{films.length === 0 ? cfg.empty[0] : "Rien à afficher"}</div>
@@ -978,23 +1409,51 @@ function StillLightbox({ stills, index, onClose, onIndex }) {
   if (!still) return null;
 
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(20,15,10,0.88)", zIndex: 80, display: "flex", alignItems: "center", justifyContent: "center", padding: 30 }}>
-      <button onClick={onClose} style={{ all: "unset", position: "absolute", top: 20, right: 26, cursor: "pointer", color: C.paper }}><X size={22} /></button>
+    /* Fermer ne se déclenche que sur le fond lui-même (`e.target` = le voile),
+       jamais sur ce qu'il contient : viser à côté de l'image ne referme plus
+       la visionneuse par accident. */
+    <div
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      style={{ position: "fixed", inset: 0, background: "rgba(20,15,10,0.88)", zIndex: 80, display: "flex", alignItems: "stretch", justifyContent: "center" }}
+    >
+      {/* `all: unset` remet le bouton en inline : sans `flex`, le rembourrage
+          vertical ne compte pas et la cible reste une mince bande */}
+      <button onClick={onClose} title="fermer (Échap)" style={{ all: "unset", position: "absolute", top: 10, right: 14, cursor: "pointer", color: C.paper, padding: 16, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2 }}><X size={22} /></button>
+
+      {/* colonnes de navigation pleine hauteur : une cible large, pas un chevron */}
       {stills.length > 1 && (
-        <>
-          <button onClick={(e) => { e.stopPropagation(); onIndex((index - 1 + stills.length) % stills.length); }} style={{ all: "unset", position: "absolute", left: 24, cursor: "pointer", color: C.paper, fontSize: 34, fontFamily: "'Playfair Display', serif" }}>‹</button>
-          <button onClick={(e) => { e.stopPropagation(); onIndex((index + 1) % stills.length); }} style={{ all: "unset", position: "absolute", right: 24, cursor: "pointer", color: C.paper, fontSize: 34, fontFamily: "'Playfair Display', serif" }}>›</button>
-        </>
+        <button
+          onClick={() => onIndex((index - 1 + stills.length) % stills.length)}
+          title="précédente (←)"
+          style={{ all: "unset", cursor: "pointer", width: "16%", minWidth: 90, display: "flex", alignItems: "center", justifyContent: "center", color: `${C.paper}99`, fontSize: 44, fontFamily: "'Playfair Display', serif" }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = C.paper; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = `${C.paper}99`; }}
+        >‹</button>
       )}
-      <div onClick={(e) => e.stopPropagation()} style={{ maxWidth: "90%", maxHeight: "90%", textAlign: "center" }}>
-        <div style={{ background: C.card, padding: 10, boxShadow: "0 14px 40px rgba(0,0,0,0.6)" }}>
+
+      {/* la zone centrale est entièrement sûre, marges comprises */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "30px 10px", minWidth: 0 }}>
+        <div style={{ background: C.card, padding: 10, boxShadow: "0 14px 40px rgba(0,0,0,0.6)", maxWidth: "100%" }}>
           <IdbImage imageKey={still.key} style={{ display: "block", maxWidth: "100%", maxHeight: "72vh", objectFit: "contain" }} />
         </div>
-        <div style={{ fontFamily: "'Caveat', cursive", fontSize: 21, color: C.paper, marginTop: 12 }}>
+        <div style={{ fontFamily: "'Caveat', cursive", fontSize: 21, color: C.paper, marginTop: 12, textAlign: "center" }}>
           {still.caption || `capture ${index + 1}`}
           <span style={{ fontFamily: "'Special Elite', monospace", fontSize: 11, opacity: 0.7, marginLeft: 10 }}>{index + 1} / {stills.length}</span>
         </div>
+        <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 9.5, color: `${C.paper}66`, marginTop: 10, letterSpacing: 1 }}>
+          ÉCHAP POUR FERMER
+        </div>
       </div>
+
+      {stills.length > 1 && (
+        <button
+          onClick={() => onIndex((index + 1) % stills.length)}
+          title="suivante (→)"
+          style={{ all: "unset", cursor: "pointer", width: "16%", minWidth: 90, display: "flex", alignItems: "center", justifyContent: "center", color: `${C.paper}99`, fontSize: 44, fontFamily: "'Playfair Display', serif" }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = C.paper; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = `${C.paper}99`; }}
+        >›</button>
+      )}
     </div>
   );
 }
@@ -1008,7 +1467,9 @@ function useStillUrls(stills) {
     let alive = true;
     const made = [];
     Promise.all((stills || []).map(async (s) => {
-      const blob = await getImage(s.key).catch(() => null);
+      // vignette si elle existe : inutile de décoder du 4K pour 110 px
+      const blob = await getImage(s.thumbKey || s.key).catch(() => null)
+        || await getImage(s.key).catch(() => null);
       if (!blob) return null;
       const u = URL.createObjectURL(blob);
       made.push(u);
@@ -1125,7 +1586,7 @@ function RichText({ text, stills, onOpenStill, placeholder }) {
               boxShadow: "1px 2px 4px rgba(30,20,10,0.28)", transform: "rotate(-1.5deg)",
             }}
           >
-            <IdbImage imageKey={still.key} style={{ display: "block", height: 22, width: "auto", objectFit: "contain" }} />
+            <IdbImage imageKey={still.thumbKey || still.key} style={{ display: "block", height: 22, width: "auto", objectFit: "contain" }} />
             <span style={{ fontFamily: "'Special Elite', monospace", fontSize: 9, color: C.burgundy, paddingRight: 3 }}>{p.n}</span>
           </button>
         );
@@ -1253,6 +1714,7 @@ function StillsStrip({ film, onUpdate, onOpen, onInsert, highlight, onAddFiles, 
       notes: renumber(film.notes),
     });
     await deleteImage(still.key).catch(console.error);
+    if (still.thumbKey) await deleteImage(still.thumbKey).catch(console.error);
   };
 
   return (
@@ -1280,7 +1742,7 @@ function StillsStrip({ film, onUpdate, onOpen, onInsert, highlight, onAddFiles, 
               <div key={s.id} style={{ flexShrink: 0, width: 190, background: C.card, padding: "9px 9px 10px", boxShadow: lit ? `0 0 0 2px ${C.burgundy}, 3px 7px 16px rgba(30,20,10,0.3)` : "2px 5px 12px rgba(30,20,10,0.24)", transform: `rotate(${tiltOf(s.id) / 3}deg)`, transition: "box-shadow .2s ease" }}>
                 <div style={{ position: "relative", cursor: "zoom-in" }} onClick={() => onOpen(i)}>
                   {/* fond sombre : la capture garde son format, on ne la rogne pas */}
-                  <IdbImage imageKey={s.key} style={{ display: "block", width: "100%", height: 108, objectFit: "contain", background: "#1c1712" }} />
+                  <IdbImage imageKey={s.thumbKey || s.key} style={{ display: "block", width: "100%", height: 108, objectFit: "contain", background: "#1c1712" }} />
                   <span style={{ position: "absolute", top: 5, left: 5, background: C.card, color: C.burgundy, fontFamily: "'Special Elite', monospace", fontSize: 10, padding: "1px 6px", border: `1px solid ${C.burgundy}` }}>{i + 1}</span>
                 </div>
                 {editing === s.id ? (
@@ -1292,6 +1754,13 @@ function StillsStrip({ film, onUpdate, onOpen, onInsert, highlight, onAddFiles, 
                 ) : (
                   <div onClick={() => setEditing(s.id)} style={{ cursor: "text", fontFamily: "'Caveat', cursive", fontSize: 16, color: s.caption ? C.ink : C.inkFaded, marginTop: 5, minHeight: 22 }}>
                     {s.caption || "légender…"}
+                  </div>
+                )}
+                {/* ce qui est réellement stocké — définition et poids d'origine */}
+                {s.w > 0 && (
+                  <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 9, color: C.inkFaded, marginTop: 3 }}>
+                    {s.w}×{s.h} · {s.bytes > 1e6 ? `${(s.bytes / 1e6).toFixed(1)} Mo` : `${Math.round(s.bytes / 1024)} Ko`}
+                    {s.type === "image/png" && <span style={{ color: C.pine }}> · sans perte</span>}
                   </div>
                 )}
                 <div style={{ display: "flex", gap: 10, marginTop: 4, fontFamily: "'Special Elite', monospace", fontSize: 9.5 }}>
@@ -1389,6 +1858,16 @@ function TagEditor({ tags = [], allTags = [], onChange }) {
 /* L'image est ramenée à une taille d'affiche avant d'être rangée. IndexedDB
    pourrait encaisser l'original, mais 700 px suffisent largement au plus grand
    affichage : autant garder la base légère et le rendu instantané. */
+/* Dimensions réelles d'un fichier image, pour pouvoir afficher ce qui a
+   effectivement été conservé plutôt que de le promettre. */
+const imageSize = (file) => new Promise((resolve) => {
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => { resolve({ w: img.naturalWidth, h: img.naturalHeight }); URL.revokeObjectURL(url); };
+  img.onerror = () => { resolve({ w: 0, h: 0 }); URL.revokeObjectURL(url); };
+  img.src = url;
+});
+
 const shrinkImage = (file, maxW = 700) => new Promise((resolve, reject) => {
   const reader = new FileReader();
   reader.onerror = reject;
@@ -1446,9 +1925,9 @@ function PosterPicker({ film, onUpdate }) {
   const fromFile = async (file) => {
     setBusy(true);
     try {
-      const blob = await shrinkImage(file);
+      // l'affiche aussi est conservée telle quelle : pas de ré-encodage
       const key = `${film.id}-${Date.now()}`;   // clé neuve : le cache d'image ne resservira pas l'ancienne
-      await putImage(key, blob);
+      await putImage(key, file);
       if (isIdbPoster(film.poster)) await deleteImage(idbKeyOf(film.poster));
       onUpdate({ ...film, poster: IDB_PREFIX + key });
     } catch (e) {
@@ -1553,11 +2032,17 @@ function DetailView({ film, onBack, onUpdate, onDelete, films = [], onLinkFilm, 
     const added = [];
     for (const file of list) {
       try {
-        // une capture mérite plus de définition qu'une affiche : on lit du texte dessus
-        const blob = await shrinkImage(file, 1280);
+        /* Le fichier d'origine est stocké TEL QUEL : aucun redimensionnement,
+           aucun ré-encodage. Un PNG reste un PNG, pixel pour pixel. C'est la
+           visionneuse et la sauvegarde qui s'en servent.
+           À côté, une vignette légère sert la bande et le texte : afficher
+           une image 4K dans une case de 110 px serait ruineux pour rien. */
         const key = `still-${film.id}-${uid()}`;
-        await putImage(key, blob);
-        added.push({ id: uid(), key, caption: "" });
+        const thumbKey = `${key}-thumb`;
+        await putImage(key, file);
+        await putImage(thumbKey, await shrinkImage(file, 480));
+        const dim = await imageSize(file);
+        added.push({ id: uid(), key, thumbKey, caption: "", ...dim, bytes: file.size, type: file.type });
       } catch (e) { console.error(e); }
       setBusy((b) => b - 1);
     }
@@ -1662,8 +2147,24 @@ function DetailView({ film, onBack, onUpdate, onDelete, films = [], onLinkFilm, 
               <Label>Mots-clés</Label>
               <TagEditor tags={film.themes || []} allTags={allTags} onChange={(themes) => onUpdate({ ...film, themes })} />
             </div>
+            {/* Les deux rangements de l'étagère, atteignables sans y aller :
+                ils changent le rayon, pas la fiche. */}
+            <div style={{ marginTop: 14, borderTop: `1px solid ${C.line}`, paddingTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+              <button
+                onClick={() => onUpdate({ ...film, chevet: !film.chevet, archived: film.chevet ? film.archived : false })}
+                style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontFamily: "'Special Elite', monospace", fontSize: 10, color: film.chevet ? C.burgundy : C.inkFaded }}
+              >
+                <Moon size={12} /> {film.chevet ? "retirer des films de chevet" : "film de chevet"}
+              </button>
+              <button
+                onClick={() => onUpdate({ ...film, archived: !film.archived, chevet: film.archived ? film.chevet : false })}
+                style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontFamily: "'Special Elite', monospace", fontSize: 10, color: film.archived ? C.slate : C.inkFaded }}
+              >
+                {film.archived ? <><ArchiveRestore size={12} /> remettre en rayon</> : <><Archive size={12} /> mettre de côté</>}
+              </button>
+            </div>
             <button onClick={() => onDelete(film.id)} style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, color: C.inkFaded, fontFamily: "'Special Elite', monospace", fontSize: 10, marginTop: 16 }}>
-              <Trash2 size={12} /> retirer du mur
+              <Trash2 size={12} /> supprimer définitivement
             </button>
           </div>
         </div>
@@ -2198,7 +2699,7 @@ function BackupPanel({ films, notes, onRestore }) {
         </>
       )}
       <div style={{ fontFamily: "'Caveat', cursive", fontSize: 17, color: C.inkFaded, margin: "10px 0 12px", lineHeight: 1.35 }}>
-        Tout est stocké sur cette machine. Exportez de temps en temps : vider les données du navigateur effacerait la collection.
+        Tout est stocké sur cette machine, captures en qualité d'origine. Exportez de temps en temps : vider les données du navigateur effacerait la collection.
       </div>
       <input ref={ref} type="file" accept=".json" style={{ display: "none" }} onChange={(e) => e.target.files[0] && restore(e.target.files[0])} />
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -2475,9 +2976,252 @@ function ImportView({ films, onImport, notes, onRestore }) {
 /* ============================================================
    APP
    ============================================================ */
+/* ============================================================
+   VUE — RECOMMANDATIONS : un bulletin de commande adressé aux
+   archives. On y règle ce qu'on cherche — et surtout à quelle
+   profondeur — puis on dépouille ce qui remonte.
+   ============================================================ */
+
+/* Les langues proposées : celles qui reviennent le plus souvent quand on
+   sort du circuit anglophone. La liste n'a pas à être exhaustive, seulement
+   à éviter d'avoir à taper un code ISO de mémoire. */
+const RECO_LANGS = [
+  ["", "toutes"], ["ja", "japonais"], ["fr", "français"], ["ko", "coréen"], ["it", "italien"],
+  ["es", "espagnol"], ["de", "allemand"], ["zh", "chinois"], ["ru", "russe"], ["sv", "suédois"],
+  ["da", "danois"], ["fa", "persan"], ["hi", "hindi"], ["pt", "portugais"], ["pl", "polonais"], ["en", "anglais"],
+];
+
+/* Un curseur annoté à ses deux bouts : sans les étiquettes, personne ne sait
+   si pousser à droite rend le résultat plus pointu ou moins. */
+function Dial({ label, left, right, value, onChange, ink = C.burgundy }) {
+  return (
+    <div style={{ minWidth: 230, flex: 1 }}>
+      <Label>{label}</Label>
+      <input
+        type="range" min="0" max="1" step="0.05" value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        style={{ width: "100%", accentColor: ink, cursor: "pointer" }}
+      />
+      <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "'Caveat', cursive", fontSize: 15, color: C.inkFaded, marginTop: -2 }}>
+        <span>{left}</span><span>{right}</span>
+      </div>
+    </div>
+  );
+}
+
+function Chip({ label, on, onClick, ink = C.burgundy }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        all: "unset", cursor: "pointer", fontFamily: "'Special Elite', monospace", fontSize: 10.5,
+        padding: "3px 10px", borderRadius: 12, border: `1px solid ${on ? ink : C.line}`,
+        background: on ? ink : "transparent", color: on ? C.card : C.inkFaded,
+      }}
+    >{label}</button>
+  );
+}
+
+/* La carte de résultat : l'affiche du mur, telle quelle, augmentée du motif
+   de la recommandation et d'un bouton pour la ranger. La fiche film est un
+   `<button>` entier — le geste « mettre de côté » vit donc à côté, pas dedans. */
+function RecoCard({ c, onAdd, added }) {
+  const asFilm = useMemo(
+    () => makeFilm({ id: `tmdb-${c.tmdbId}`, title: c.title, year: c.year || "", poster: c.poster, genres: c.genres, rating: 0 }),
+    [c.tmdbId]
+  );
+  return (
+    <div>
+      <FilmPolaroid film={asFilm} onClick={() => window.open(`https://www.themoviedb.org/movie/${c.tmdbId}`, "_blank", "noopener")} />
+      <div style={{ marginTop: -22, marginBottom: 30, padding: "0 4px" }}>
+        <div style={{ fontFamily: "'Caveat', cursive", fontSize: 16, color: C.inkFaded, lineHeight: 1.25 }}>
+          {c.reasons.join(" · ")}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+          <span style={{ fontFamily: "'Special Elite', monospace", fontSize: 9.5, color: C.inkFaded }}>
+            TMDB {c.voteAverage.toFixed(1)} · niche {Math.round(c.niche * 100)}%
+          </span>
+          <button
+            onClick={() => onAdd(c)} disabled={added}
+            style={{
+              all: "unset", cursor: added ? "default" : "pointer", marginLeft: "auto",
+              fontFamily: "'Special Elite', monospace", fontSize: 10, letterSpacing: 0.5,
+              padding: "4px 10px", border: `1px solid ${added ? C.line : C.pine}`,
+              color: added ? C.inkFaded : C.card, background: added ? "transparent" : C.pine,
+            }}
+          >{added ? "mis de côté" : "mettre de côté"}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RecoView({ films, onAddToWatchlist }) {
+  const [query, setQuery] = useState(DEFAULT_QUERY);
+  const [raw, setRaw] = useState(null);        // candidats bruts, indépendants des curseurs
+  const [progress, setProgress] = useState(null);
+  const [error, setError] = useState("");
+  const [added, setAdded] = useState(() => new Set());
+  const set = (k, v) => setQuery((q) => ({ ...q, [k]: v }));
+
+  const apiKey = store.get("tmdb-key", "");
+  const taste = useMemo(() => buildTaste(films), [films]);
+  const allGenres = useMemo(() => Array.from(new Set(films.flatMap((f) => f.genres || []))).sort(), [films]);
+
+  /* Ce qui est déjà au mur ne doit jamais revenir en suggestion. Les fiches
+     anciennes n'ont pas de tmdbId : on retombe sur la clé titre + année, la
+     même que l'import utilise pour ne pas dupliquer. */
+  const isSeen = useMemo(() => {
+    const ids = new Set(films.filter((f) => (query.excludeWatchlist || f.status !== "watchlist")).map((f) => f.tmdbId).filter(Boolean));
+    const keys = new Set(films.filter((f) => (query.excludeWatchlist || f.status !== "watchlist")).map(filmKey));
+    return (c) => ids.has(c.tmdbId) || keys.has(filmKey({ title: c.title, year: c.year }));
+  }, [films, query.excludeWatchlist]);
+
+  const search = async () => {
+    if (!apiKey) return;
+    setError(""); setRaw(null); setProgress({ done: 0, total: 1 });
+    try {
+      const { candidates } = await gatherCandidates({
+        query, taste, films, apiKey, isSeen,
+        onProgress: (done, total) => setProgress({ done, total }),
+      });
+      setRaw(candidates);
+      if (!candidates.length) setError("Rien ne remonte avec ces réglages — élargissez les années ou baissez la note minimale.");
+    } catch (e) {
+      setError(`TMDB n'a pas répondu : ${e.message || e}`);
+    }
+    setProgress(null);
+  };
+
+  /* Le classement est pur : bouger un curseur reclasse la même récolte, sans
+     redemander quoi que ce soit au réseau. C'est ce qui rend les curseurs
+     lisibles — on voit l'effet du réglage, pas celui d'un nouveau tirage. */
+  const results = useMemo(() => (raw ? rank(raw, taste, query, 40) : null), [raw, taste, query]);
+
+  const addOne = (c) => {
+    onAddToWatchlist(makeFilm({
+      title: c.title, year: c.year || "", poster: c.poster, genres: c.genres,
+      status: "watchlist", tmdbId: c.tmdbId, source: "tmdb",
+    }));
+    setAdded((s) => new Set(s).add(c.tmdbId));
+  };
+
+  const toggleIn = (key) => (g) =>
+    set(key, query[key].includes(g) ? query[key].filter((x) => x !== g) : [...query[key], g]);
+
+  return (
+    <div style={{ padding: "34px 44px 60px", position: "relative", overflow: "hidden" }}>
+      <CoffeeRing style={{ top: 20, right: 160 }} rotate={-18} />
+      <StampCorner text="BULLETIN DE COMMANDE" />
+      <div style={{ fontFamily: "'Playfair Display', serif", fontStyle: "italic", fontWeight: 700, fontSize: 46, color: C.ink, position: "relative", zIndex: 2 }}>Le bureau des découvertes</div>
+      <InkUnderline width={370} />
+      <div style={{ fontFamily: "'Caveat', cursive", fontSize: 22, color: C.inkFaded, marginTop: 2, position: "relative", zIndex: 2 }}>
+        des films à voir, choisis d'après ce que dit votre collection
+      </div>
+
+      {!apiKey ? (
+        <div style={{ marginTop: 26, border: `1px dashed ${C.line}`, background: C.card, padding: "18px 22px", maxWidth: 560 }}>
+          <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 11, color: C.burgundy, letterSpacing: 1, marginBottom: 6 }}>CLÉ TMDB MANQUANTE</div>
+          <div style={{ fontFamily: "'Lora', serif", fontSize: 13.5, color: C.inkFaded, lineHeight: 1.5 }}>
+            Les recommandations viennent de TMDB. Rendez-vous dans l'onglet « Import Letterboxd »
+            pour y coller votre clé — elle reste dans ce navigateur et sert aussi à l'enrichissement des fiches.
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* ---- le bulletin ---- */}
+          <div style={{ marginTop: 24, border: `1px solid ${C.line}`, background: C.card, padding: "20px 24px", position: "relative", zIndex: 2 }}>
+            <div style={{ display: "flex", gap: 34, flexWrap: "wrap" }}>
+              <Dial label="Degré de niche" left="grand public" right="pépite" value={query.nichePref} onChange={(v) => set("nichePref", v)} />
+              <Dial label="Dépaysement" left="dans mes goûts" right="hors des sentiers" value={query.driftPref} onChange={(v) => set("driftPref", v)} ink={C.cobalt} />
+            </div>
+
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 16, alignItems: "center" }}>
+              <span style={{ fontFamily: "'Special Elite', monospace", fontSize: 10, color: C.inkFaded, letterSpacing: 1 }}>CE QUI FAIT LA NICHE</span>
+              {[["obscurity", "peu vu"], ["foreign", "non anglophone"], ["age", "ancien"]].map(([k, l]) => (
+                <Chip key={k} label={l} on={query.niche[k] !== false} onClick={() => set("niche", { ...query.niche, [k]: query.niche[k] === false })} />
+              ))}
+            </div>
+
+            <div style={{ height: 1, background: C.line, margin: "18px 0 16px" }} />
+
+            <div style={{ display: "flex", gap: 20, flexWrap: "wrap", alignItems: "flex-end" }}>
+              <div style={{ width: 92 }}><Label>De</Label><input style={underlineInput} value={query.yearFrom} onChange={(e) => set("yearFrom", e.target.value.replace(/\D/g, "").slice(0, 4))} placeholder="1920" /></div>
+              <div style={{ width: 92 }}><Label>À</Label><input style={underlineInput} value={query.yearTo} onChange={(e) => set("yearTo", e.target.value.replace(/\D/g, "").slice(0, 4))} placeholder="2026" /></div>
+              <div style={{ width: 150 }}>
+                <Label>Langue d'origine</Label>
+                <select value={query.language} onChange={(e) => set("language", e.target.value)} style={{ ...underlineInput, fontFamily: "'Special Elite', monospace", fontSize: 12 }}>
+                  {RECO_LANGS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+              </div>
+              <div style={{ width: 120 }}>
+                <Label>Note TMDB ≥</Label>
+                <input type="number" min="0" max="10" step="0.5" style={underlineInput} value={query.minRating} onChange={(e) => set("minRating", Number(e.target.value))} />
+              </div>
+              <div style={{ width: 120 }}>
+                <Label>Votes ≥</Label>
+                <input type="number" min="0" step="10" style={underlineInput} value={query.minVotes} onChange={(e) => set("minVotes", Number(e.target.value))} />
+              </div>
+            </div>
+            <div style={{ fontFamily: "'Caveat', cursive", fontSize: 15, color: C.inkFaded, marginTop: 6 }}>
+              le plancher de votes évite de confondre « confidentiel » et « oublié pour de bonnes raisons »
+            </div>
+
+            {allGenres.length > 0 && (
+              <>
+                <div style={{ marginTop: 16 }}>
+                  <Label>Genres recherchés</Label>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {allGenres.map((g) => <Chip key={g} label={g} on={query.withGenres.includes(g)} onClick={() => toggleIn("withGenres")(g)} />)}
+                  </div>
+                </div>
+                <div style={{ marginTop: 12 }}>
+                  <Label>Genres écartés</Label>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {allGenres.map((g) => <Chip key={g} label={g} ink={C.slate} on={query.withoutGenres.includes(g)} onClick={() => toggleIn("withoutGenres")(g)} />)}
+                  </div>
+                </div>
+              </>
+            )}
+
+            <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 20, flexWrap: "wrap" }}>
+              <button
+                onClick={search} disabled={!!progress}
+                style={{ all: "unset", cursor: progress ? "default" : "pointer", background: progress ? C.line : C.burgundy, color: C.card, padding: "10px 22px", fontFamily: "'Special Elite', monospace", fontSize: 12, letterSpacing: 1 }}
+              >{progress ? `CONSULTATION… ${progress.done}/${progress.total}` : "CHERCHER"}</button>
+              <Chip label="ignorer aussi ma watchlist" ink={C.pine} on={query.excludeWatchlist} onClick={() => set("excludeWatchlist", !query.excludeWatchlist)} />
+              {taste.isEmpty && (
+                <span style={{ fontFamily: "'Caveat', cursive", fontSize: 16, color: C.burgundy }}>
+                  collection trop mince pour un profil — seuls les filtres joueront
+                </span>
+              )}
+            </div>
+          </div>
+
+          {error && <div style={{ marginTop: 18, color: C.burgundy, fontFamily: "'Caveat', cursive", fontSize: 19 }}>{error}</div>}
+
+          {results && results.length > 0 && (
+            <>
+              <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 11, color: C.inkFaded, letterSpacing: 1, margin: "30px 0 18px" }}>
+                {results.length} PROPOSITIONS · {raw.length} CANDIDATS DÉPOUILLÉS
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: "0 34px", alignItems: "start", position: "relative", zIndex: 2 }}>
+                {results.map((c) => <RecoCard key={c.tmdbId} c={c} onAdd={addOne} added={added.has(c.tmdbId)} />)}
+              </div>
+            </>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function App() {
   const [films, setFilms] = useState([]);
   const [notes, setNotes] = useState([]);
+  /* Les intercalaires sont du mobilier, pas des fiches : ils vivent à côté
+     des films, repérés par le rayon et l'étagère où on les a posés. */
+  const [dividers, setDividers] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [view, setView] = useState("library");
   const [selectedId, setSelectedId] = useState(null);
@@ -2489,14 +3233,18 @@ export default function App() {
     setFilms(migrated);
     store.set("films", migrated);
     setNotes(store.get("notebook-notes", []));
+    setDividers(store.get("shelf-dividers", []));
     setLoaded(true);
   }, []);
 
   const saveFilms = (next) => { setFilms(next); store.set("films", next); };
   const saveNotes = (next) => { setNotes(next); store.set("notebook-notes", next); };
+  const saveDividers = (next) => { setDividers(next); store.set("shelf-dividers", next); };
 
   const addFilm = (film) => { saveFilms([film, ...films]); setShowModal(false); };
   const updateFilm = (film) => saveFilms(films.map((f) => (f.id === film.id ? film : f)));
+  /* Ranger un boîtier renumérote tout un rayon : une écriture, pas trente. */
+  const updateMany = (patches) => saveFilms(films.map((f) => (patches[f.id] ? { ...f, ...patches[f.id] } : f)));
   const deleteFilm = (id) => {
     const next = films.filter((f) => f.id !== id);
     saveFilms(next);
@@ -2554,14 +3302,32 @@ export default function App() {
 
   const selectedFilm = films.find((f) => f.id === selectedId);
   // l'état des deux murs survit à l'ouverture d'une fiche
-  const [wallUi, setWallUi] = useState({
-    watched: { q: "", genreFilter: "", sortBy: WALLS.watched.defaultSort, desc: true, grouped: false },
-    watchlist: { q: "", genreFilter: "", sortBy: WALLS.watchlist.defaultSort, desc: true, grouped: false },
+  /* Recherche et filtre sont de l'humeur du moment ; la présentation, le tri
+     et la largeur des rayons sont un rangement. Ranger son étagère puis la
+     retrouver en désordre au rechargement, ce serait ne pas l'avoir rangée —
+     ces trois-là sont donc gardés sur le disque. */
+  const [wallUi, setWallUi] = useState(() => {
+    const saved = store.get("wall-prefs", {});
+    const one = (wall) => ({
+      q: "", genreFilter: "", grouped: false,
+      sortBy: saved[wall]?.sortBy || WALLS[wall].defaultSort,
+      desc: saved[wall]?.desc ?? true,
+      mode: saved[wall]?.mode || "wall",
+      perRow: saved[wall]?.perRow || "auto",
+    });
+    return { watched: one("watched"), watchlist: one("watchlist") };
   });
-  const setUiFor = (wall) => (next) => setWallUi((s) => ({ ...s, [wall]: next }));
+  const setUiFor = (wall) => (next) => setWallUi((s) => {
+    const merged = { ...s, [wall]: next };
+    const keep = ({ mode, perRow, sortBy, desc }) => ({ mode, perRow, sortBy, desc });
+    store.set("wall-prefs", { watched: keep(merged.watched), watchlist: keep(merged.watchlist) });
+    return merged;
+  });
 
   const watched = useMemo(() => films.filter((f) => f.status !== "watchlist"), [films]);
   const watchlist = useMemo(() => films.filter((f) => f.status === "watchlist"), [films]);
+  // la carte du ciel ne relie que ce qui est en rayon
+  const constellationFilms = useMemo(() => watched.filter((f) => !f.archived), [watched]);
   // le mur d'où l'on vient : « je l'ai vu » depuis la watchlist doit ramener au bon endroit
   const backView = selectedFilm?.status === "watchlist" ? "watchlist" : "library";
 
@@ -2588,8 +3354,8 @@ export default function App() {
       <PaperGrain />
       <FolderTabs view={view} setView={(v) => { setView(v); setSelectedId(null); }} onAdd={() => setShowModal(true)} />
       <div style={{ flex: 1, position: "relative", zIndex: 2 }}>
-        {view === "library" && !selectedId && <LibraryView wall="watched" films={watched} ui={wallUi.watched} setUi={setUiFor("watched")} onOpen={(id) => { setSelectedId(id); setView("detail"); }} />}
-        {view === "watchlist" && !selectedId && <LibraryView wall="watchlist" films={watchlist} ui={wallUi.watchlist} setUi={setUiFor("watchlist")} onOpen={(id) => { setSelectedId(id); setView("detail"); }} />}
+        {view === "library" && !selectedId && <LibraryView wall="watched" films={watched} ui={wallUi.watched} setUi={setUiFor("watched")} onUpdateMany={updateMany} dividers={dividers} onDividers={saveDividers} onOpen={(id) => { setSelectedId(id); setView("detail"); }} />}
+        {view === "watchlist" && !selectedId && <LibraryView wall="watchlist" films={watchlist} ui={wallUi.watchlist} setUi={setUiFor("watchlist")} onUpdateMany={updateMany} dividers={dividers} onDividers={saveDividers} onOpen={(id) => { setSelectedId(id); setView("detail"); }} />}
         {view === "detail" && selectedFilm && (
           <DetailView
             film={selectedFilm}
@@ -2602,7 +3368,8 @@ export default function App() {
             onOpen={(id) => setSelectedId(id)}
           />
         )}
-        {view === "constellation" && <ConstellationView films={watched} onOpen={(id) => { setSelectedId(id); setView("detail"); }} />}
+        {view === "reco" && <RecoView films={films} onAddToWatchlist={addFilm} />}
+        {view === "constellation" && <ConstellationView films={constellationFilms} onOpen={(id) => { setSelectedId(id); setView("detail"); }} />}
         {view === "notebook" && <NotebookView notes={notes} onAdd={(n) => saveNotes([n, ...notes])} onUpdate={(n) => saveNotes(notes.map((x) => (x.id === n.id ? n : x)))} onDelete={(id) => saveNotes(notes.filter((x) => x.id !== id))} />}
         {view === "import" && <ImportView onImport={importFilms} films={films} notes={notes} onRestore={restoreBackup} />}
       </div>

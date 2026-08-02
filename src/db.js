@@ -87,7 +87,10 @@ export function referencedKeys(films) {
   const keys = new Set();
   for (const f of films) {
     if (isIdbPoster(f.poster)) keys.add(idbKeyOf(f.poster));
-    for (const s of f.stills || []) if (s.key) keys.add(s.key);
+    for (const s of f.stills || []) {
+      if (s.key) keys.add(s.key);
+      if (s.thumbKey) keys.add(s.thumbKey);   // la vignette est dérivée mais référencée
+    }
   }
   return keys;
 }
