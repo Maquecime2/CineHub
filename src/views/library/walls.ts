@@ -1,7 +1,24 @@
-import type { FilmStatus } from "../../types";
+import type { FilmStatus, PerRow } from "../../types";
 
 /** Les clés de tri proposées sous l'en-tête d'un mur. */
 export type SortKey = "watched" | "added" | "title" | "year" | "rating" | "director";
+
+/** `manual` n'existe que sur l'étagère : on ne range pas un mur à la main. */
+export type ShelfSortKey = SortKey | "manual";
+
+/**
+ * L'état de consultation d'un mur. Il vit dans `App` et non dans la vue :
+ * ouvrir un film démonte la vue, et un état local serait perdu au retour.
+ */
+export interface WallUi {
+  q: string;
+  genreFilter: string;
+  sortBy: ShelfSortKey;
+  desc: boolean;
+  grouped: boolean;
+  mode: "wall" | "shelf";
+  perRow: PerRow;
+}
 
 export interface WallConfig {
   stamp: string;
