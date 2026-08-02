@@ -2,12 +2,17 @@ import js from "@eslint/js";
 import globals from "globals";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
+import tseslint from "typescript-eslint";
 
 export default [
   { ignores: ["dist", "coverage", "etagere.html"] },
 
+  /* Le TypeScript arrive fichier par fichier pendant la migration : les deux
+     langages cohabitent dans src/ et partagent les mêmes règles React. */
+  ...tseslint.configs.recommended.map((c) => ({ ...c, files: ["**/*.{ts,tsx}"] })),
+
   {
-    files: ["**/*.{js,jsx}"],
+    files: ["**/*.{js,jsx,ts,tsx}"],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "module",
@@ -49,13 +54,26 @@ export default [
     },
   },
 
+  /* En TypeScript, la règle de base signale à tort les types importés et les
+     paramètres de génériques : c'est la version typée qui fait autorité. */
   {
-    files: ["**/*.test.js"],
-    languageOptions: { globals: globals.node },
+    files: ["**/*.{ts,tsx}"],
+    rules: {
+      "no-unused-vars": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrors: "none" },
+      ],
+    },
   },
 
   {
-    files: ["*.config.js"],
+    files: ["**/*.test.{js,jsx,ts,tsx}", "src/setupTests.ts"],
+    languageOptions: { globals: { ...globals.node, ...globals.vitest } },
+  },
+
+  {
+    files: ["*.config.{js,ts}"],
     languageOptions: { globals: globals.node },
   },
 ];
