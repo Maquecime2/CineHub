@@ -27,6 +27,10 @@ import {
 import { InkStars, Label } from "./components/ui";
 import { PosterArt } from "./components/film/PosterArt";
 import { FilmPolaroid } from "./components/film/FilmPolaroid";
+import { FilmModal } from "./components/film/FilmModal";
+import { FolderTabs } from "./components/layout/FolderTabs";
+import { FilmWall } from "./views/library/FilmWall";
+import { WALLS } from "./views/library/walls";
 
 /* Ces symboles vivaient ici avant le découpage ; d'autres modules les
    importent encore depuis ce fichier. Réexportés le temps de la migration. */
@@ -39,142 +43,6 @@ const LINK_TYPES = [
   { key: "film", label: "Film", icon: Clapperboard },
   { key: "other", label: "Autre œuvre", icon: Sparkles },
 ];
-/* ============================================================
-   NAVIGATION — onglets de classeur
-   ============================================================ */
-function FolderTabs({ view, setView, onAdd }) {
-  const tabs = [
-    { key: "library", label: "Vidéothèque", color: C.burgundy },
-    { key: "watchlist", label: "À voir", color: C.ochre },
-    { key: "reco", label: "Découvertes", color: C.vermillion },
-    { key: "constellation", label: "Constellation", color: C.cobalt },
-    { key: "notebook", label: "Carnet", color: C.pine },
-    { key: "import", label: "Import Letterboxd", color: C.slate },
-  ];
-  return (
-    <div style={{ width: 46, flexShrink: 0, position: "relative", zIndex: 2 }}>
-      {/* la tranche du classeur, contre laquelle les onglets butent */}
-      <div style={{ position: "fixed", top: 0, bottom: 0, left: 0, width: 5, background: `linear-gradient(90deg, #b9a67e, ${C.paperDark})`, boxShadow: "inset -2px 0 4px rgba(30,20,10,0.2)", zIndex: 0 }} />
-      <div style={{ position: "sticky", top: 0, paddingTop: 30, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 14 }}>
-        {tabs.map((t) => {
-          const active = view === t.key;
-          return (
-            <button
-              key={t.key}
-              onClick={() => setView(t.key)}
-              style={{
-                all: "unset", cursor: "pointer", writingMode: "vertical-rl", transform: "rotate(180deg)",
-                // carton teinté dans la masse, pas un aplat : reflet en haut, tranche sombre en bas
-                background: `linear-gradient(180deg, ${t.color}, ${t.color} 60%, ${t.color}cc)`,
-                filter: active ? "none" : "saturate(0.65) brightness(0.92)",
-                color: C.card, fontFamily: "'Special Elite', monospace",
-                fontSize: 11.5, letterSpacing: 1.5, padding: "18px 9px", borderRadius: "0 3px 3px 0",
-                boxShadow: active
-                  ? `4px 4px 10px rgba(0,0,0,0.35), inset -2px 0 0 ${t.color}, inset 0 1px 0 rgba(255,255,255,0.25)`
-                  : "2px 2px 6px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.15)",
-                marginLeft: active ? 0 : -6, transition: "margin .18s cubic-bezier(.2,.8,.3,1), filter .18s ease",
-                textShadow: "0 1px 1px rgba(0,0,0,0.3)",
-              }}
-              onMouseEnter={(e) => { if (!active) { e.currentTarget.style.marginLeft = "0px"; e.currentTarget.style.filter = "none"; } }}
-              onMouseLeave={(e) => { if (!active) { e.currentTarget.style.marginLeft = "-6px"; e.currentTarget.style.filter = "saturate(0.65) brightness(0.92)"; } }}
-            >
-              {t.label}
-            </button>
-          );
-        })}
-        <button onClick={onAdd} title="Épingler un nouveau film" style={{ all: "unset", cursor: "pointer", marginTop: 24, marginLeft: 4, width: 34, height: 34, borderRadius: "50%", background: `radial-gradient(circle at 32% 26%, #fff8, ${C.burgundy} 62%)`, color: C.card, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "2px 4px 7px rgba(0,0,0,0.4)", transition: "transform .18s ease" }}
-          onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.12) rotate(-12deg)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.transform = "none"; }}
-        >
-          <Pin size={16} />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/* ============================================================
-   FORMULAIRE — NOUVEAU FILM
-   ============================================================ */
-function FilmModal({ onClose, onSave }) {
-  const [f, setF] = useState(() => makeFilm());
-  const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(20,15,10,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 20 }} onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: C.card, width: "min(520px,100%)", maxHeight: "88vh", overflowY: "auto", padding: "30px 34px", position: "relative", boxShadow: "6px 10px 30px rgba(0,0,0,0.4)" }}>
-        <button onClick={onClose} style={{ all: "unset", position: "absolute", top: 18, right: 20, cursor: "pointer", color: C.inkFaded }}><X size={18} /></button>
-        <div style={{ fontFamily: "'Playfair Display', serif", fontStyle: "italic", fontWeight: 700, fontSize: 28, color: C.ink }}>Nouvelle fiche</div>
-        <div style={{ height: 1, background: C.line, margin: "14px 0 20px" }} />
-        <div style={{ display: "flex", gap: 16 }}>
-          <div style={{ flex: 2 }}><Label>Titre</Label><input style={underlineInput} value={f.title} onChange={(e) => set("title", e.target.value)} placeholder="Le titre du film" /></div>
-          <div style={{ flex: 1 }}><Label>Année</Label><input style={underlineInput} value={f.year} onChange={(e) => set("year", e.target.value)} placeholder="1975" /></div>
-        </div>
-        <div style={{ marginTop: 16 }}><Label>Réalisateur·rice</Label><input style={underlineInput} value={f.director} onChange={(e) => set("director", e.target.value)} placeholder="Nom" /></div>
-        <div style={{ marginTop: 16 }}><Label>Genres (virgules)</Label><input style={underlineInput} value={f.genres.join(", ")} onChange={(e) => set("genres", e.target.value.split(",").map((s) => s.trim()).filter(Boolean))} placeholder="Drame, Science-fiction" /></div>
-        <div style={{ marginTop: 16 }}><Label>Thèmes (virgules)</Label><input style={underlineInput} value={f.themes.join(", ")} onChange={(e) => set("themes", e.target.value.split(",").map((s) => s.trim()).filter(Boolean))} placeholder="Mémoire, Solitude" /></div>
-        <div style={{ marginTop: 18 }}>
-          <Label>Cette fiche</Label>
-          <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
-            {[{ k: "watched", l: "Film vu" }, { k: "watchlist", l: "À voir" }].map((o) => (
-              <button key={o.k} onClick={() => set("status", o.k)} style={{
-                all: "unset", cursor: "pointer", padding: "6px 14px",
-                fontFamily: "'Special Elite', monospace", fontSize: 11,
-                background: f.status === o.k ? C.pine : "transparent",
-                color: f.status === o.k ? C.card : C.inkFaded,
-                border: `1px solid ${f.status === o.k ? C.pine : C.line}`,
-              }}>{o.l}</button>
-            ))}
-          </div>
-        </div>
-        {f.status === "watched" && <div style={{ marginTop: 16 }}><Label>Votre note</Label><InkStars value={f.rating} onChange={(v) => set("rating", v)} size={22} /></div>}
-        <div style={{ marginTop: 16 }}><Label>Première impression</Label><textarea style={{ ...ruledTextarea, minHeight: 70 }} value={f.review} onChange={(e) => set("review", e.target.value)} placeholder="Ce que ce film vous a fait ressentir…" /></div>
-        <button onClick={() => f.title.trim() && onSave(f)} disabled={!f.title.trim()} style={{ all: "unset", marginTop: 24, width: "100%", textAlign: "center", padding: "12px 0", background: f.title.trim() ? C.burgundy : C.line, color: C.card, fontFamily: "'Special Elite', monospace", fontSize: 13, letterSpacing: 1, cursor: f.title.trim() ? "pointer" : "not-allowed", boxSizing: "border-box" }}>
-          ÉPINGLER CETTE FICHE AU MUR
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/* ============================================================
-   VUE — VIDÉOTHÈQUE (mur en désordre organique)
-   ============================================================ */
-/* Le mur des fiches.
-
-   Il utilisait des colonnes CSS, qui remplissent une colonne de haut en bas
-   avant de passer à la suivante : l'ordre trié devenait illisible pour un œil
-   qui lit de gauche à droite, au point de faire croire que le tri ne marchait
-   pas. Une grille ordonne les fiches ligne par ligne ; le décalage vertical de
-   chaque fiche (nudgeOf) suffit à garder le désordre voulu. */
-function FilmWall({ films, onOpen }) {
-  return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: "0 34px", alignItems: "start" }}>
-      {films.map((f) => <FilmPolaroid key={f.id} film={f} onClick={() => onOpen(f.id)} />)}
-    </div>
-  );
-}
-
-/* Le même mur sert la vidéothèque et la liste « à voir » : seules changent
-   l'en-tête, les tris proposés et l'invite quand il n'y a rien. */
-const WALLS = {
-  watched: {
-    stamp: "CATALOGUE", title: "Votre vidéothèque",
-    subtitle: "un mur d'affiches, de notes et de souvenirs de séances",
-    underline: 330,
-    // la dernière séance d'abord : c'est l'ordre dans lequel on se souvient
-    defaultSort: "watched",
-    sorts: [["watched", "vus récemment"], ["added", "ajoutés"], ["title", "A–Z"], ["year", "année"], ["rating", "note"], ["director", "réalisateur"]],
-    empty: ["Le mur est encore vide", "Épinglez votre premier film pour commencer la collection."],
-  },
-  watchlist: {
-    stamp: "À VOIR", title: "Le coin des envies",
-    subtitle: "les films mis de côté, en attente d'une séance",
-    underline: 300,
-    defaultSort: "added",
-    sorts: [["added", "ajoutés"], ["title", "A–Z"], ["year", "année"], ["director", "réalisateur"]],
-    empty: ["Aucune envie en attente", "Importez votre watchlist Letterboxd, ou épinglez un film « à voir »."],
-  },
-};
 
 /* ============================================================
    VUE — ÉTAGÈRE
