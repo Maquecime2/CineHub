@@ -726,6 +726,24 @@ const SHELF_KIND = {
 
 const BOX_W = 96, BOX_H = 144;
 
+/* Le repère de dépôt. Il est posé PAR-DESSUS, en absolu, et jamais inséré
+   dans la ligne : une fente qui s'ouvre en poussant ses voisins remettrait
+   en page tout le rayon à chaque frimousse de la souris — sur cent boîtiers
+   coiffés d'un grain en fondu, c'est ce qui faisait ramer le glissement. */
+function DropMark({ side }) {
+  if (!side) return null;
+  return (
+    <div
+      aria-hidden
+      style={{
+        position: "absolute", top: 0, bottom: 12, width: 4, zIndex: 6, pointerEvents: "none",
+        [side === "before" ? "left" : "right"]: -6,
+        background: `repeating-linear-gradient(180deg, ${C.burgundy}, ${C.burgundy} 5px, transparent 5px, transparent 10px)`,
+      }}
+    />
+  );
+}
+
 /* Un boîtier vu de tranche : le dos porte le titre, la face porte l'affiche.
 
    Mémoïsé, et ce n'est pas une optimisation de confort : `dragover` tire
@@ -740,9 +758,8 @@ const FilmBox = React.memo(function FilmBox({ film, kind, onOpen, dragging, drop
   const stars = "★".repeat(film.rating || 0) + "☆".repeat(5 - (film.rating || 0));
 
   return (
-    <div style={{ display: "flex", alignItems: "flex-end", flexShrink: 0 }}>
-      {/* la fente d'insertion : on voit où le boîtier va tomber */}
-      <div style={{ width: drop === "before" ? 12 : 0, height: BOX_H, background: `repeating-linear-gradient(180deg, ${C.burgundy}, ${C.burgundy} 5px, transparent 5px, transparent 10px)`, transition: "width .12s ease", marginBottom: 12 }} />
+    <div style={{ position: "relative", display: "flex", alignItems: "flex-end", flexShrink: 0 }}>
+      <DropMark side={drop} />
       <button
         draggable
         onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", film.id); onDragStart("film", film.id); }}
@@ -779,7 +796,6 @@ const FilmBox = React.memo(function FilmBox({ film, kind, onOpen, dragging, drop
           <span style={{ position: "absolute", bottom: 0, left: 11, right: 0, padding: "3px 5px", background: "rgba(43,38,32,0.72)", color: C.card, fontFamily: "'Special Elite', monospace", fontSize: 9.5, letterSpacing: 1, zIndex: 3 }}>{stars}</span>
         )}
       </button>
-      <div style={{ width: drop === "after" ? 12 : 0, height: BOX_H, background: `repeating-linear-gradient(180deg, ${C.burgundy}, ${C.burgundy} 5px, transparent 5px, transparent 10px)`, transition: "width .12s ease", marginBottom: 12 }} />
     </div>
   );
 });
@@ -797,8 +813,8 @@ const ShelfDivider = React.memo(function ShelfDivider({ divider, kind, dragging,
   const commit = () => { setEditing(false); const v = draft.trim(); if (v && v !== divider.label) onRename(divider.id, v); else setDraft(divider.label); };
 
   return (
-    <div style={{ display: "flex", alignItems: "flex-end", flexShrink: 0 }}>
-      <div style={{ width: drop === "before" ? 12 : 0, height: BOX_H, background: `repeating-linear-gradient(180deg, ${C.burgundy}, ${C.burgundy} 5px, transparent 5px, transparent 10px)`, transition: "width .12s ease", marginBottom: 12 }} />
+    <div style={{ position: "relative", display: "flex", alignItems: "flex-end", flexShrink: 0 }}>
+      <DropMark side={drop} />
       <div
         draggable={!editing}
         onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; onDragStart("divider", divider.id); }}
@@ -834,7 +850,6 @@ const ShelfDivider = React.memo(function ShelfDivider({ divider, kind, dragging,
           </button>
         )}
       </div>
-      <div style={{ width: drop === "after" ? 12 : 0, height: BOX_H, background: `repeating-linear-gradient(180deg, ${C.burgundy}, ${C.burgundy} 5px, transparent 5px, transparent 10px)`, transition: "width .12s ease", marginBottom: 12 }} />
     </div>
   );
 });
