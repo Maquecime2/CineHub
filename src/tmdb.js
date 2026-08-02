@@ -262,13 +262,42 @@ export async function pooled(tasks, { concurrency = 5, onProgress } = {}) {
   return out;
 }
 
-/* Résout une ligne d'import ; null si le film reste introuvable. */
+/* Un échec de recherche se périme : le catalogue TMDB s'étoffe, et un titre
+   introuvable aujourd'hui ne doit pas l'être pour toujours. Les succès, eux,
+   ne bougent pas — un film ne change ni de réalisateur ni d'année. */
+const MISS_TTL = 30 * 24 * 3600 * 1000;
+const missEntry = () => ({ miss: Date.now() });
+const isMiss = (v) => v != null && typeof v === "object" && typeof v.miss === "number";
+
+/* Ce que le cache a à dire sur une clé : `hit` distingue « rien de mémorisé »
+   d'un « mémorisé comme introuvable », que null seul confondait. */
+function cacheLookup(cache, key) {
+  if (!(key in cache)) return { hit: false };
+  const v = cache[key];
+  // les échecs des versions précédentes étaient stockés en null, sans date :
+  // impossible de les périmer, on préfère les retenter une fois.
+  if (v == null) {
+    delete cache[key];
+    return { hit: false };
+  }
+  if (isMiss(v)) {
+    if (Date.now() - v.miss < MISS_TTL) return { hit: true, info: null };
+    delete cache[key];
+    return { hit: false };
+  }
+  return { hit: true, info: v };
+}
+
+/* Résout une ligne d'import ; null si le film reste introuvable.
+   Une erreur (réseau, quota, clé) remonte telle quelle et n'est jamais
+   mémorisée : le réimport suivant doit pouvoir réussir. */
 async function resolveOne(row, apiKey, cache) {
   const key = cacheKeyOf(row.title, row.year);
-  if (key in cache) return cache[key];
+  const known = cacheLookup(cache, key);
+  if (known.hit) return known.info;
   const hit = await searchMovie({ title: row.title, year: row.year, apiKey });
   const info = hit ? await getDetails(hit.id, apiKey) : null;
-  cache[key] = info;
+  cache[key] = info || missEntry();
   return info;
 }
 
