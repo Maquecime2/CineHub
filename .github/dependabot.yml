@@ -10,6 +10,11 @@ updates:
       day: monday
     open-pull-requests-limit: 3
     groups:
+      # react et react-dom doivent monter ensemble : séparés, chacun casse la
+      # dépendance de pair de l'autre et les deux PR échouent à l'installation.
+      # Pas de `update-types` ici — c'est justement la majeure qu'il faut grouper.
+      react:
+        patterns: [react, react-dom, "@types/react", "@types/react-dom"]
       dev-dependencies:
         dependency-type: development
       production-dependencies:
