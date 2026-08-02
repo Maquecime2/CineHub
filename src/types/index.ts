@@ -74,15 +74,28 @@ export interface Note {
   createdAt: number;
 }
 
-/** Un séparateur posé à la main entre deux films d'un rayon. */
+/** Les trois rayons de l'étagère. */
+export type ShelfKind = "chevet" | "main" | "reserve";
+
+/** Un séparateur posé à la main entre deux boîtiers d'un rayon. */
 export interface Divider {
   id: string;
   label: string;
-  /** Le rayon concerné : "watched", "watchlist"… */
-  wall: string;
+  /** Le mur auquel il appartient : la vidéothèque ou la liste « à voir ». */
+  wall: FilmStatus;
+  /** Le rayon, à l'intérieur de ce mur. */
+  shelf: ShelfKind;
   /** Position dans le rayon, exprimée dans le même repère que `Film.order`. */
   order: number;
+  /**
+   * Nombre de boîtiers sur la ligne qu'il ouvre. `null` ou absent : on suit
+   * le réglage du rayon.
+   */
+  perRow?: number | null;
 }
+
+/** Le nombre de boîtiers par ligne : un chiffre, ou au fil de la largeur. */
+export type PerRow = number | "auto";
 
 /* ---------- Import ---------- */
 
