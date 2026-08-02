@@ -130,7 +130,7 @@ const blobToDataUrl = (blob) =>
 
 const dataUrlToBlob = async (url) => (await fetch(url)).blob();
 
-export async function exportBackup({ films, notes }) {
+export async function exportBackup({ films, notes, dividers = [] }) {
   const images = {};
   for (const key of referencedKeys(films)) {
     const blob = await getImage(key);
@@ -138,10 +138,13 @@ export async function exportBackup({ films, notes }) {
   }
   return {
     format: "cine-hub-backup",
-    version: 2,
+    // v3 ajoute les intercalaires de l'étagère : ce sont des données saisies
+    // à la main, pas des réglages, elles ont leur place dans la sauvegarde
+    version: 3,
     exportedAt: new Date().toISOString(),
     films,
     notes,
+    dividers,
     images,
   };
 }
@@ -154,5 +157,6 @@ export async function importBackup(data) {
   for (const [key, dataUrl] of Object.entries(images)) {
     await putImage(key, await dataUrlToBlob(dataUrl));
   }
-  return { films: data.films || [], notes: data.notes || [] };
+  // v1 et v2 ne connaissaient pas l'étagère : pas d'intercalaires à restaurer
+  return { films: data.films || [], notes: data.notes || [], dividers: data.dividers || [] };
 }

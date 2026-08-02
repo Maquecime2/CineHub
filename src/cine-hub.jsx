@@ -5,7 +5,7 @@ import {
   LayoutGrid, Library, Archive, ArchiveRestore, Moon,
 } from "lucide-react";
 import Papa from "papaparse";
-import { enrichRows, checkApiKey, listPosters } from "./tmdb";
+import { enrichRows, checkApiKey, listPosters, POSTER_BASE, POSTER_THUMB } from "./tmdb";
 import { buildTaste } from "./taste";
 import { gatherCandidates, rank, DEFAULT_QUERY } from "./reco";
 import {
@@ -54,6 +54,11 @@ body { background: ${C.paper}; }
 @keyframes slideOut { from { opacity: 0; transform: translateX(-34px) rotate(-4deg); } to { opacity: 1; transform: none; } }
 @keyframes caseIn { from { opacity: 0; transform: translateY(14px) scale(0.97); } to { opacity: 1; transform: none; } }
 @keyframes sheetIn { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: none; } }
+
+/* Pendant un glissement, la languette du tiroir s'annonce comme cible.
+   En CSS et non en état React : un setState ici re-rendrait tout le
+   rayon au moment précis où la souris commence à bouger. */
+html[data-dragging="1"] [data-drawer-tab] { background: ${C.ochre} !important; }
 
 @media (prefers-reduced-motion: reduce) {
   [data-case] *, [data-case] { animation-duration: .01ms !important; animation-delay: 0ms !important; }
@@ -489,6 +494,10 @@ const PosterArt = React.memo(function PosterArt({ film, height, initials, clipSe
   useEffect(() => { setBroken(false); }, [film.poster]);
 
   const src = broken ? null : isIdbPoster(film.poster) ? blobUrl : film.poster || null;
+  /* Un boîtier fait 96 px de large : y charger l'affiche en 342 px, c'est
+     décoder trois fois plus de pixels que ce qu'on montre. TMDB sert la
+     même image en plus petit, il suffit de le lui demander. */
+  const smallSrc = plain && src ? src.replace(POSTER_BASE, POSTER_THUMB) : src;
   return (
     <div style={{
       overflow: "hidden",
@@ -499,8 +508,14 @@ const PosterArt = React.memo(function PosterArt({ film, height, initials, clipSe
     }}>
       {src ? (
         <img
-          src={src} alt=""
+          src={smallSrc} alt=""
           onError={() => setBroken(true)}
+          /* Sur l'étagère, une affiche par boîtier : cent images à décoder,
+             à garder en mémoire et à rastériser. `lazy` n'en décode que ce
+             qui est à l'écran, `async` ne bloque pas le fil principal — et
+             c'est ce fil qui doit rester libre pour suivre la souris. */
+          loading={plain ? "lazy" : "eager"}
+          decoding="async"
           // `contain` : une affiche au format inhabituel est montrée entière,
           // jamais rognée — quitte à laisser un liseré sur les côtés
           style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", filter: "saturate(0.88) contrast(1.04)" }}
@@ -731,23 +746,24 @@ const SHELF_KIND = {
 
 const BOX_W = 96, BOX_H = 144;
 
-/* Le repère de dépôt. Il est posé PAR-DESSUS, en absolu, et jamais inséré
-   dans la ligne : une fente qui s'ouvre en poussant ses voisins remettrait
-   en page tout le rayon à chaque frimousse de la souris — sur cent boîtiers
-   coiffés d'un grain en fondu, c'est ce qui faisait ramer le glissement. */
-function DropMark({ side }) {
-  if (!side) return null;
-  return (
-    <div
-      aria-hidden
-      style={{
-        position: "absolute", top: 0, bottom: 12, width: 4, zIndex: 6, pointerEvents: "none",
-        [side === "before" ? "left" : "right"]: -6,
-        background: `repeating-linear-gradient(180deg, ${C.burgundy}, ${C.burgundy} 5px, transparent 5px, transparent 10px)`,
-      }}
-    />
-  );
-}
+/* Le repère se déplace en `transform` et jamais en `left`/`top` : une
+   translation est un travail de composition, alors qu'écrire une position
+   invalide la mise en page — que le `getBoundingClientRect` de l'événement
+   suivant oblige alors à recalculer en entier. Sur cent boîtiers, cet
+   aller-retour écriture/lecture coûtait plus cher que tout le reste. */
+const DROP_MARK_STYLE = {
+  position: "fixed", left: 0, top: 0, width: 4, height: BOX_H, zIndex: 60,
+  pointerEvents: "none", borderRadius: 2,
+  /* Aplat, et non plus dégradé répété : un dégradé se re-rastérise, un
+     aplat est peint une fois pour toutes. Le repère reste dans la page en
+     permanence, transparent, pour que sa couche soit prête AVANT le
+     glissement — sinon le navigateur la fabrique au premier mouvement,
+     et c'est ce retard qu'on voyait. Apparition et déplacement ne coûtent
+     alors plus qu'une composition : ni mise en page, ni dessin. */
+  background: C.burgundy,
+  opacity: 0, willChange: "transform, opacity", backfaceVisibility: "hidden",
+  transition: "opacity .1s linear",
+};
 
 /* Un boîtier vu de tranche : le dos porte le titre, la face porte l'affiche.
 
@@ -755,24 +771,55 @@ function DropMark({ side }) {
    plusieurs dizaines d'événements par seconde pendant tout le glissement.
    Sans cela, chaque événement reconstruit tous les boîtiers du rayon — et
    un rayon de cent films rame. Les fonctions reçues sont donc stables, et
-   `kind` voyage en prop plutôt que dans une fermeture. */
-const FilmBox = React.memo(function FilmBox({ film, kind, onOpen, dragging, drop, onDragStart, onDragEnd, onDragOverBox, quiet }) {
+   `kind` voyage en prop plutôt que dans une fermeture.
+
+   Le boîtier ne connaît PLUS le repère de dépôt : pendant un glissement
+   il ne reçoit aucune prop qui change, donc React ne le retouche jamais.
+   Le repère est un seul élément déplacé à la main, hors de React. */
+const FilmBox = React.memo(function FilmBox({ film, kind, onOpen, onDragStart, onDragEnd, onDragOverBox, onInsertDivider }) {
   const [hover, setHover] = useState(false);
   const hue = hueOf(film.id);
   const initials = film.title.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
   const stars = "★".repeat(film.rating || 0) + "☆".repeat(5 - (film.rating || 0));
 
   return (
-    <div style={{ position: "relative", display: "flex", alignItems: "flex-end", flexShrink: 0 }}>
-      <DropMark side={drop} />
+    <div
+      style={{
+        position: "relative", display: "flex", alignItems: "flex-end", flexShrink: 0,
+        /* Une étagère de cent films, c'est cent affiches à disposer et à
+           peindre alors qu'on n'en voit qu'une vingtaine. `content-visibility`
+           dit au navigateur de ne rien calculer pour ce qui est hors écran ;
+           la taille annoncée étant exactement celle d'un boîtier, la mise en
+           page reste juste et rien ne saute au défilement. */
+        contentVisibility: "auto",
+        containIntrinsicSize: `${BOX_W + 9}px ${BOX_H + 12}px`,
+      }}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+    >
+      {/* Poser un intercalaire ICI. Le bouton du haut de rayon oblige à
+          remonter chercher le carton puis à le redescendre à la main ;
+          au milieu d'une grande étagère, c'est intenable. */}
+      {hover && onInsertDivider && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onInsertDivider(kind, film.id); }}
+          title="Poser un intercalaire avant ce film"
+          style={{
+            all: "unset", position: "absolute", left: -12, bottom: 52, zIndex: 7, cursor: "pointer",
+            width: 18, height: 18, borderRadius: "50%", background: C.paper, border: `1px solid ${C.line}`,
+            display: "flex", alignItems: "center", justifyContent: "center", color: C.burgundy,
+            boxShadow: "1px 1px 3px rgba(30,20,10,0.25)",
+          }}
+        >
+          <Plus size={11} />
+        </button>
+      )}
       <button
         draggable
-        onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", film.id); onDragStart("film", film.id); }}
+        onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", film.id); onDragStart("film", film.id, e.currentTarget); }}
         onDragEnd={onDragEnd}
         onDragOver={(e) => onDragOverBox(e, kind, film.id)}
         onClick={() => onOpen(film.id)}
-        onMouseEnter={() => !quiet && setHover(true)}
-        onMouseLeave={() => setHover(false)}
         title={`${film.title}${film.year ? ` (${film.year})` : ""}`}
         style={{
           all: "unset", boxSizing: "border-box", cursor: "pointer", position: "relative",
@@ -784,10 +831,9 @@ const FilmBox = React.memo(function FilmBox({ film, kind, onOpen, dragging, drop
           boxShadow: hover ? `3px 5px 10px rgba(30,20,10,0.34)` : `2px 2px 0 rgba(43,38,32,0.16)`,
           transform: hover ? "translateY(-7px) rotate(-1.2deg)" : "none",
           transformOrigin: "bottom center",
-          opacity: dragging ? 0.35 : film.archived ? 0.62 : 1,
+          opacity: film.archived ? 0.62 : 1,
           filter: film.archived ? "saturate(0.5)" : "none",
-          // pendant un glissement, le survol ne doit ni soulever ni repeindre
-          transition: quiet ? "none" : "transform .18s ease, box-shadow .18s ease, opacity .15s ease",
+          transition: "transform .18s ease, box-shadow .18s ease, opacity .15s ease",
         }}
       >
         <PosterArt film={film} height={BOX_H} initials={initials} plain />
@@ -811,7 +857,7 @@ const FilmBox = React.memo(function FilmBox({ film, kind, onOpen, dragging, drop
    dire « à partir d'ici, autre chose ». Il se déplace comme un boîtier et
    se renomme d'un clic — un séparateur qu'on ne peut pas nommer ne sépare
    rien de nommable. */
-const ShelfDivider = React.memo(function ShelfDivider({ divider, kind, dragging, drop, onDragStart, onDragEnd, onDragOverBox, onRename, onRemove, onSetPerRow, shelfPerRow }) {
+const ShelfDivider = React.memo(function ShelfDivider({ divider, kind, onDragStart, onDragEnd, onDragOverBox, onRename, onRemove, onSetPerRow, shelfPerRow }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(divider.label);
   const [hover, setHover] = useState(false);
@@ -821,10 +867,9 @@ const ShelfDivider = React.memo(function ShelfDivider({ divider, kind, dragging,
 
   return (
     <div style={{ position: "relative", display: "flex", alignItems: "flex-end", flexShrink: 0 }}>
-      <DropMark side={drop} />
       <div
         draggable={!editing}
-        onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; onDragStart("divider", divider.id); }}
+        onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; onDragStart("divider", divider.id, e.currentTarget); }}
         onDragEnd={onDragEnd}
         onDragOver={(e) => onDragOverBox(e, kind, divider.id)}
         onMouseEnter={() => setHover(true)}
@@ -834,7 +879,7 @@ const ShelfDivider = React.memo(function ShelfDivider({ divider, kind, dragging,
           background: `linear-gradient(90deg, ${C.paperDark}, #D8C69C)`,
           border: `1px solid ${C.line}`, borderBottom: "none", borderRadius: "3px 3px 0 0",
           boxShadow: "2px 2px 0 rgba(43,38,32,0.14)", cursor: editing ? "text" : "grab",
-          opacity: dragging ? 0.35 : 1, display: "flex", alignItems: "center", justifyContent: "center",
+          display: "flex", alignItems: "center", justifyContent: "center",
           transition: "width .18s ease, opacity .15s ease",
         }}
       >
@@ -879,7 +924,7 @@ const ShelfDivider = React.memo(function ShelfDivider({ divider, kind, dragging,
 /* Ce qui est posé sur un rayon. Sorti de `Shelf` pour que le tiroir des mis
    de côté affiche exactement les mêmes objets, avec le même glisser-déposer :
    deux contenants, un seul contenu. */
-function ShelfItems({ items, kind, dnd, onOpen, onRename, onRemoveDivider, onSetPerRow, perRow }) {
+function ShelfItems({ items, kind, dnd, onOpen, onRename, onRemoveDivider, onSetPerRow, onInsertDivider, perRow }) {
   /* Le retour à la ligne n'est pas laissé au hasard de la largeur : on le
      pose nous-mêmes, tous les n boîtiers. `n` vaut le réglage du rayon, ou
      celui que porte l'intercalaire qui a ouvert la ligne — c'est ainsi que
@@ -907,25 +952,21 @@ function ShelfItems({ items, kind, dnd, onOpen, onRename, onRemoveDivider, onSet
     : r.it.type === "divider"
       ? <ShelfDivider
           key={r.key} divider={r.it.divider} kind={kind}
-          dragging={dnd.dragId === r.it.id}
-          drop={dnd.overId === r.it.id ? dnd.side : null}
           onDragStart={dnd.onDragStart} onDragEnd={dnd.onDragEnd} onDragOverBox={dnd.onBoxOver}
           onRename={onRename} onRemove={onRemoveDivider} onSetPerRow={onSetPerRow} shelfPerRow={perRow}
         />
       : <FilmBox
           key={r.key} film={r.it.film} kind={kind} onOpen={onOpen}
-          dragging={dnd.dragId === r.it.id}
-          drop={dnd.overId === r.it.id ? dnd.side : null}
-          quiet={!!dnd.dragId}
           onDragStart={dnd.onDragStart} onDragEnd={dnd.onDragEnd} onDragOverBox={dnd.onBoxOver}
+          onInsertDivider={onInsertDivider}
         />
   );
 }
 
 /* Un rayon : une planche, et une zone de dépôt. */
-function Shelf({ kind, title, tag, items, count, onOpen, dnd, empty, perRow, onAddDivider, onRename, onRemoveDivider, onSetPerRow, manual }) {
+function Shelf({ kind, title, tag, items, count, onOpen, dnd, empty, perRow, onAddDivider, onRename, onRemoveDivider, onSetPerRow, onInsertDivider, manual }) {
   const cfg = SHELF_KIND[kind];
-  const active = dnd.overShelf === kind && dnd.dragId;
+
   return (
     <div style={{ marginTop: 26 }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 4 }}>
@@ -942,7 +983,7 @@ function Shelf({ kind, title, tag, items, count, onOpen, dnd, empty, perRow, onA
         style={{
           position: "relative", display: "flex", flexWrap: "wrap", alignItems: "flex-end",
           minHeight: BOX_H + 40, padding: "14px 10px 0",
-          background: active ? `${C.ochre}22` : cfg.tint || "transparent",
+          background: cfg.tint || "transparent",
           border: cfg.border ? `1px ${kind === "reserve" ? "solid" : "dashed"} ${cfg.border}${kind === "reserve" ? "" : "59"}` : "none",
           borderBottom: "none", borderRadius: cfg.border ? "3px 3px 0 0" : 0,
           transition: "background .15s ease",
@@ -951,7 +992,7 @@ function Shelf({ kind, title, tag, items, count, onOpen, dnd, empty, perRow, onA
         {items.length === 0 && (
           <div style={{ color: C.inkFaded, fontStyle: "italic", fontSize: 13, padding: "44px 4px" }}>{empty || "Rayon vide — glissez-y un boîtier."}</div>
         )}
-        <ShelfItems items={items} kind={kind} dnd={dnd} onOpen={onOpen} onRename={onRename} onRemoveDivider={onRemoveDivider} onSetPerRow={onSetPerRow} perRow={perRow} />
+        <ShelfItems items={items} kind={kind} dnd={dnd} onOpen={onOpen} onRename={onRename} onRemoveDivider={onRemoveDivider} onSetPerRow={onSetPerRow} onInsertDivider={onInsertDivider} perRow={perRow} />
         {/* la planche */}
         <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 12, background: "linear-gradient(#7A5B3A, #5E442A)", boxShadow: "0 3px 0 rgba(0,0,0,0.18)" }} />
       </div>
@@ -968,14 +1009,14 @@ function Shelf({ kind, title, tag, items, count, onOpen, dnd, empty, perRow, onA
    glisser un boîtier sur sa languette l'ouvre tout seul. */
 const DRAWER_W = 250;
 
-function ReserveDrawer({ items, count, open, setOpen, dnd, onOpen, onRename, onRemoveDivider, onAddDivider, onSetPerRow, manual }) {
-  const dragging = !!dnd.dragId;
-  const targeted = dnd.overShelf === "reserve" && dragging;
+function ReserveDrawer({ items, count, open, setOpen, dnd, onOpen, onRename, onRemoveDivider, onAddDivider, onSetPerRow, onInsertDivider, manual }) {
+
 
   return (
     <>
       {/* la languette, toujours accrochée au bord */}
       <button
+        data-drawer-tab
         onClick={() => setOpen(!open)}
         onDragOver={(e) => { e.preventDefault(); dnd.onShelfOver("reserve"); if (!open) setOpen(true); }}
         onDrop={(e) => { e.preventDefault(); dnd.onDrop("reserve"); }}
@@ -984,7 +1025,7 @@ function ReserveDrawer({ items, count, open, setOpen, dnd, onOpen, onRename, onR
           all: "unset", boxSizing: "border-box", cursor: "pointer", position: "fixed",
           right: open ? DRAWER_W : 0, top: "50%", transform: "translateY(-50%)", zIndex: 41,
           writingMode: "vertical-rl", padding: "20px 9px", borderRadius: "4px 0 0 4px",
-          background: targeted ? C.ochre : `linear-gradient(180deg, ${C.slate}, ${C.slate}cc)`,
+          background: `linear-gradient(180deg, ${C.slate}, ${C.slate}cc)`,
           color: C.card, fontFamily: "'Special Elite', monospace", fontSize: 11, letterSpacing: 1.4,
           boxShadow: "-3px 3px 10px rgba(30,20,10,0.32)",
           transition: "right .26s cubic-bezier(.2,.8,.3,1), background .15s ease",
@@ -1000,7 +1041,7 @@ function ReserveDrawer({ items, count, open, setOpen, dnd, onOpen, onRename, onR
           position: "fixed", top: 0, right: 0, bottom: 0, width: DRAWER_W, zIndex: 40,
           transform: open ? "none" : `translateX(${DRAWER_W}px)`,
           transition: "transform .26s cubic-bezier(.2,.8,.3,1), background .15s ease",
-          background: targeted ? `${C.ochre}26` : C.paperDark,
+          background: C.paperDark,
           borderLeft: `1px solid ${C.line}`, boxShadow: open ? "-8px 0 24px rgba(30,20,10,0.22)" : "none",
           display: "flex", flexDirection: "column",
           // fermé, il ne doit intercepter ni clic ni survol
@@ -1026,7 +1067,7 @@ function ReserveDrawer({ items, count, open, setOpen, dnd, onOpen, onRename, onR
               Rien de côté. Glissez ici un film que vous ne voulez plus voir sur le mur — il reste entier, avec sa note et ses captures.
             </div>
           ) : (
-            <ShelfItems items={items} kind="reserve" dnd={dnd} onOpen={onOpen} onRename={onRename} onRemoveDivider={onRemoveDivider} onSetPerRow={onSetPerRow} perRow="auto" />
+            <ShelfItems items={items} kind="reserve" dnd={dnd} onOpen={onOpen} onRename={onRename} onRemoveDivider={onRemoveDivider} onSetPerRow={onSetPerRow} onInsertDivider={onInsertDivider} perRow="auto" />
           )}
         </div>
       </div>
@@ -1088,16 +1129,18 @@ function CasePreview({ film, onClose, onOpenFile }) {
    rayon d'arrivée : sans numéro stable, l'ordre repartirait au tri par
    défaut au prochain rendu. */
 function ShelfBoard({ films, dividers, onDividers, wall, onOpen, onUpdateMany, manual, onManual, perRow }) {
-  /* L'objet glissé est lu par les gestionnaires à chaque `dragover` : le
-     garder en ref permet à ces fonctions de ne jamais changer d'identité,
-     donc aux boîtiers mémoïsés de ne pas se reconstruire pour rien. Le
-     `useState` jumeau ne sert qu'à l'affichage (le boîtier pâli). */
-  const dragRef = useRef(null);                  // { type: "film" | "divider", id }
+  /* Un glissement ne change AUCUN état React. C'était le dernier retard
+     visible : `setDragId` au départ du glissement re-rendait le rayon, ce
+     qui salissait la mise en page — et le premier `getBoundingClientRect`
+     du premier survol devait alors la recalculer entièrement avant que le
+     repère puisse s'afficher. D'où un trait qui tardait à apparaître.
+
+     Tout ce qui bouge pendant un glissement est donc écrit à la main : le
+     boîtier pâli, le repère, et l'attribut `data-dragging` du document qui
+     sert aux quelques effets CSS (la languette du tiroir). */
+  const dragRef = useRef(null);                  // { type: "film" | "divider", id, node }
   const overRef = useRef({ id: null, side: null });
-  const [dragId, setDragId] = useState(null);
-  const [overShelf, setOverShelf] = useState(null);
-  const [overId, setOverId] = useState(null);
-  const [side, setSide] = useState(null);
+  const markRef = useRef(null);                  // le repère de dépôt, hors React
   const [preview, setPreview] = useState(null);
   const [drawer, setDrawer] = useState(false);
 
@@ -1124,30 +1167,45 @@ function ShelfBoard({ films, dividers, onDividers, wall, onOpen, onUpdateMany, m
     return { chevet: build("chevet"), main: build("main"), reserve: build("reserve") };
   }, [films, dividers, wall, manual]);
 
+  const hideMark = () => { if (markRef.current) markRef.current.style.opacity = "0"; };
+
   const reset = useCallback(() => {
+    const d = dragRef.current;
+    if (d?.node) d.node.style.opacity = "";
     dragRef.current = null; overRef.current = { id: null, side: null };
-    setDragId(null); setOverShelf(null); setOverId(null); setSide(null);
+    hideMark();
+    delete document.documentElement.dataset.dragging;
   }, []);
 
-  const onDragStart = useCallback((type, id) => { dragRef.current = { type, id }; setDragId(id); }, []);
+  const onDragStart = useCallback((type, id, node) => {
+    dragRef.current = { type, id, node };
+    if (node) node.style.opacity = "0.35";     // le boîtier soulevé, sans passer par React
+    document.documentElement.dataset.dragging = "1";
+  }, []);
 
   /* `dragover` tire en continu tant que la souris bouge, et même immobile.
-     Tant que le boîtier visé et le côté visé ne changent pas, il n'y a rien
-     de nouveau à afficher : on sort avant de toucher à l'état. */
+
+     Ce gestionnaire ne touche plus à l'état React : il déplace un unique
+     élément à la main. Faire passer le repère par un `setState`, c'était
+     redemander à React de reconstruire les cent boîtiers du rayon à chaque
+     frimousse de la souris — même mémoïsés, cent comparaisons de props par
+     événement, soixante fois par seconde. Ici, un déplacement de rectangle
+     et rien d'autre : React dort pendant tout le glissement. */
   const onBoxOver = useCallback((e, kind, id) => {
     if (!dragRef.current) return;
     e.preventDefault(); e.stopPropagation();
     const r = e.currentTarget.getBoundingClientRect();
     const s = e.clientX < r.left + r.width / 2 ? "before" : "after";
     if (overRef.current.id === id && overRef.current.side === s) return;
-    overRef.current = { id, side: s };
-    setOverShelf(kind); setOverId(id); setSide(s);
+    overRef.current = { id, side: s, kind };
+    const m = markRef.current;
+    if (m) {
+      m.style.transform = `translate3d(${Math.round(s === "before" ? r.left - 7 : r.right + 3)}px, ${Math.round(r.bottom - BOX_H)}px, 0)`;
+      if (m.style.opacity !== "1") m.style.opacity = "1";
+    }
   }, []);
 
-  const onShelfOver = useCallback((kind) => {
-    if (!dragRef.current) return;
-    setOverShelf((k) => (k === kind ? k : kind));
-  }, []);
+  const onShelfOver = useCallback(() => {}, []);   // le repère suffit à dire où l'on va
 
   /* Écrire l'ordre d'arrivée.
 
@@ -1261,23 +1319,39 @@ function ShelfBoard({ films, dividers, onDividers, wall, onOpen, onUpdateMany, m
     onManual();
     reset();
   };
+  /* Poser un carton juste avant un boîtier donné, sans passer par le haut
+     du rayon. C'est un rangement à la main : il prend l'ordre affiché. */
+  const insertDividerBefore = (kind, beforeId) => {
+    const list = shelves[kind];
+    const at = Math.max(0, list.findIndex((it) => it.id === beforeId));
+    const rest = list;
+    const order = manual ? gap(rest, at) : null;
+    const tab = { id: uid(), wall, shelf: kind, label: "Intercalaire", perRow: null, order: order == null ? 0 : order };
+    if (order == null) renumber(kind, [...rest.slice(0, at), { type: "divider", id: tab.id, divider: tab }, ...rest.slice(at)], null);
+    else onDividers([...(dividers || []), tab]);
+    onManual();
+    reset();
+  };
+
   const renameDivider = (id, label) => onDividers((dividers || []).map((d) => (d.id === id ? { ...d, label } : d)));
   const setDividerPerRow = (id, perRow) => onDividers((dividers || []).map((d) => (d.id === id ? { ...d, perRow } : d)));
   const removeDivider = (id) => onDividers((dividers || []).filter((d) => d.id !== id));
 
   const dnd = {
-    dragId, overShelf, overId, side,
     onDragStart, onDragEnd: reset, onShelfOver,
     onBoxOver, onDrop: drop,
   };
   const shared = {
     onOpen: setPreview, dnd, perRow, manual,
-    onAddDivider: addDivider, onRename: renameDivider, onRemoveDivider: removeDivider, onSetPerRow: setDividerPerRow,
+    onAddDivider: addDivider, onRename: renameDivider, onRemoveDivider: removeDivider,
+    onSetPerRow: setDividerPerRow, onInsertDivider: insertDividerBefore,
   };
   const countOf = (kind) => films.filter(belongs[kind]).length;
 
   return (
     <div onDragEnd={reset}>
+      {/* le repère de dépôt : un seul, déplacé à la main pendant le glissement */}
+      <div ref={markRef} aria-hidden style={DROP_MARK_STYLE} />
       <Shelf kind="chevet" items={shelves.chevet} count={countOf("chevet")} {...shared}
         empty="Aucun film de chevet — glissez-en un ici." />
       <Shelf kind="main" items={shelves.main} count={countOf("main")} {...shared}
@@ -1285,7 +1359,8 @@ function ShelfBoard({ films, dividers, onDividers, wall, onOpen, onUpdateMany, m
       <ReserveDrawer
         items={shelves.reserve} count={countOf("reserve")}
         open={drawer} setOpen={setDrawer} dnd={dnd} onOpen={setPreview}
-        onRename={renameDivider} onRemoveDivider={removeDivider} onAddDivider={addDivider} onSetPerRow={setDividerPerRow} manual={manual}
+        onRename={renameDivider} onRemoveDivider={removeDivider} onAddDivider={addDivider}
+        onSetPerRow={setDividerPerRow} onInsertDivider={insertDividerBefore} manual={manual}
       />
       {preview && films.find((f) => f.id === preview) && (
         <CasePreview film={films.find((f) => f.id === preview)} onClose={() => setPreview(null)} onOpenFile={onOpen} />
@@ -2902,7 +2977,7 @@ const humanSize = (b) => (b > 1e6 ? `${(b / 1e6).toFixed(1)} Mo` : `${Math.round
 
 /* Le local est rapide et gratuit, mais un navigateur qu'on nettoie efface
    tout : la sauvegarde est le filet, pas une option décorative. */
-function BackupPanel({ films, notes, onRestore }) {
+function BackupPanel({ films, notes, dividers, onRestore }) {
   const [stats, setStats] = useState(null);
   const [msg, setMsg] = useState("");
   const ref = useRef(null);
@@ -2911,7 +2986,7 @@ function BackupPanel({ films, notes, onRestore }) {
 
   const download = async () => {
     setMsg("préparation…");
-    const data = await exportBackup({ films, notes });
+    const data = await exportBackup({ films, notes, dividers });
     const url = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: "application/json" }));
     const a = document.createElement("a");
     a.href = url;
@@ -2924,8 +2999,8 @@ function BackupPanel({ films, notes, onRestore }) {
   const restore = async (file) => {
     setMsg("lecture…");
     try {
-      const { films: f, notes: n } = await importBackup(JSON.parse(await file.text()));
-      setMsg(`${onRestore({ films: f, notes: n })} fiche(s) restaurée(s).`);
+      const { films: f, notes: n, dividers: d } = await importBackup(JSON.parse(await file.text()));
+      setMsg(`${onRestore({ films: f, notes: n, dividers: d })} fiche(s) restaurée(s).`);
     } catch (e) {
       setMsg(e.message || "Sauvegarde illisible.");
     }
@@ -2954,7 +3029,7 @@ function BackupPanel({ films, notes, onRestore }) {
   );
 }
 
-function ImportView({ films, onImport, notes, onRestore }) {
+function ImportView({ films, onImport, notes, dividers, onRestore }) {
   const [rows, setRows] = useState([]);          // lignes lues, éventuellement enrichies
   const [stats, setStats] = useState(null);      // ce que le fichier contenait
   const [importStatus, setImportStatus] = useState("watched"); // vus / à voir
@@ -3211,7 +3286,7 @@ function ImportView({ films, onImport, notes, onRestore }) {
         {films.length} film(s) déjà au catalogue — un réimport met à jour les fiches existantes au lieu de les dupliquer.
       </div>
 
-      <BackupPanel films={films} notes={notes} onRestore={onRestore} />
+      <BackupPanel films={films} notes={notes} dividers={dividers} onRestore={onRestore} />
     </div>
   );
 }
@@ -3528,10 +3603,11 @@ export default function App() {
     }));
   };
 
-  const restoreBackup = ({ films: f, notes: n }) => {
+  const restoreBackup = ({ films: f, notes: n, dividers: d }) => {
     const migrated = migrate(f);
     saveFilms(migrated);
     if (n?.length) saveNotes(n);
+    if (d?.length) saveDividers(d);
     return migrated.length;
   };
 
@@ -3614,7 +3690,7 @@ export default function App() {
         {view === "reco" && <RecoView films={films} onAddToWatchlist={addFilm} />}
         {view === "constellation" && <ConstellationView films={constellationFilms} onOpen={(id) => { setSelectedId(id); setView("detail"); }} />}
         {view === "notebook" && <NotebookView notes={notes} onAdd={(n) => saveNotes([n, ...notes])} onUpdate={(n) => saveNotes(notes.map((x) => (x.id === n.id ? n : x)))} onDelete={(id) => saveNotes(notes.filter((x) => x.id !== id))} />}
-        {view === "import" && <ImportView onImport={importFilms} films={films} notes={notes} onRestore={restoreBackup} />}
+        {view === "import" && <ImportView onImport={importFilms} films={films} notes={notes} dividers={dividers} onRestore={restoreBackup} />}
       </div>
       {showModal && <FilmModal onClose={() => setShowModal(false)} onSave={addFilm} />}
     </div>
