@@ -23,7 +23,9 @@ const bump = (map, key, w) => {
    différentes produisent alors des scores comparables. */
 const normalize = (map) => {
   let max = 0;
-  map.forEach((v) => { max = Math.max(max, Math.abs(v)); });
+  map.forEach((v) => {
+    max = Math.max(max, Math.abs(v));
+  });
   if (!max) return map;
   const out = new Map();
   map.forEach((v, k) => out.set(k, v / max));
@@ -32,7 +34,10 @@ const normalize = (map) => {
 
 /* Un champ « réalisateur » peut porter plusieurs noms (« Coen, Coen »). */
 export const directorsOf = (f) =>
-  (f.director || "").split(",").map((s) => s.trim()).filter(Boolean);
+  (f.director || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 
 export const decadeOf = (year) => (year ? Math.floor(Number(year) / 10) * 10 : null);
 
@@ -52,7 +57,9 @@ export function buildTaste(films = []) {
   const decades = new Map();
   const languages = new Map();
 
-  let yearSum = 0, yearN = 0, ratedN = 0;
+  let yearSum = 0,
+    yearN = 0,
+    ratedN = 0;
 
   for (const f of watched) {
     const w = weightOf(f.rating);
@@ -66,12 +73,17 @@ export function buildTaste(films = []) {
     // absent des fiches importées jusqu'ici : le profil de langue reste
     // souvent vide, et le scoring doit s'en accommoder
     if (f.lang) bump(languages, f.lang, w);
-    if (f.year) { yearSum += Number(f.year); yearN++; }
+    if (f.year) {
+      yearSum += Number(f.year);
+      yearN++;
+    }
   }
 
   const meanYear = yearN ? yearSum / yearN : null;
   const spread = yearN
-    ? Math.sqrt(watched.reduce((a, f) => (f.year ? a + (Number(f.year) - meanYear) ** 2 : a), 0) / yearN)
+    ? Math.sqrt(
+        watched.reduce((a, f) => (f.year ? a + (Number(f.year) - meanYear) ** 2 : a), 0) / yearN
+      )
     : null;
 
   return {
@@ -85,7 +97,8 @@ export function buildTaste(films = []) {
     seenGenres: new Set(genres.keys()),
     seenDecades: new Set(decades.keys()),
     seenLanguages: new Set(languages.keys()),
-    meanYear, spread,
+    meanYear,
+    spread,
     total: watched.length,
     rated: ratedN,
     // au-dessous de quoi le profil ne dit rien de fiable
@@ -106,9 +119,11 @@ export function favorites(films = [], n = 12) {
    chevet : on demande soit plusieurs fiches, soit une adhésion très nette. */
 export function topDirectors(films = [], taste, n = 5) {
   const counts = new Map();
-  films.filter((f) => f.status !== "watchlist").forEach((f) => {
-    directorsOf(f).forEach((d) => counts.set(d, (counts.get(d) || 0) + 1));
-  });
+  films
+    .filter((f) => f.status !== "watchlist")
+    .forEach((f) => {
+      directorsOf(f).forEach((d) => counts.set(d, (counts.get(d) || 0) + 1));
+    });
   return [...taste.directors.entries()]
     .filter(([d, w]) => w > 0 && (counts.get(d) >= 2 || w > 0.75))
     .sort((a, b) => b[1] - a[1])

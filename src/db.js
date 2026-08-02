@@ -35,7 +35,12 @@ function openDb() {
 /* Le mode privé de certains navigateurs refuse IndexedDB : mieux vaut le
    savoir avant de proposer un stockage qui n'existe pas. */
 export async function idbAvailable() {
-  try { await openDb(); return true; } catch { return false; }
+  try {
+    await openDb();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function tx(mode, fn) {
@@ -44,7 +49,12 @@ async function tx(mode, fn) {
     const t = db.transaction(POSTERS, mode);
     const store = t.objectStore(POSTERS);
     let result;
-    try { result = fn(store); } catch (e) { reject(e); return; }
+    try {
+      result = fn(store);
+    } catch (e) {
+      reject(e);
+      return;
+    }
     t.oncomplete = () => resolve(result?.result !== undefined ? result.result : result);
     t.onerror = () => reject(t.error);
     t.onabort = () => reject(t.error);
@@ -77,7 +87,9 @@ export async function posterStats() {
   try {
     const est = await navigator.storage?.estimate?.();
     quota = est ? { usage: est.usage, quota: est.quota } : null;
-  } catch { /* estimate() n'est pas partout */ }
+  } catch {
+    /* estimate() n'est pas partout */
+  }
   return { count: keys.length, bytes, quota };
 }
 
@@ -89,7 +101,7 @@ export function referencedKeys(films) {
     if (isIdbPoster(f.poster)) keys.add(idbKeyOf(f.poster));
     for (const s of f.stills || []) {
       if (s.key) keys.add(s.key);
-      if (s.thumbKey) keys.add(s.thumbKey);   // la vignette est dérivée mais référencée
+      if (s.thumbKey) keys.add(s.thumbKey); // la vignette est dérivée mais référencée
     }
   }
   return keys;
@@ -108,12 +120,13 @@ export async function pruneOrphans(films) {
    Un seul fichier .json contenant fiches, notes et affiches encodées :
    de quoi repartir après un nettoyage du navigateur ou sur une autre machine. */
 
-const blobToDataUrl = (blob) => new Promise((res, rej) => {
-  const r = new FileReader();
-  r.onload = () => res(r.result);
-  r.onerror = rej;
-  r.readAsDataURL(blob);
-});
+const blobToDataUrl = (blob) =>
+  new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = rej;
+    r.readAsDataURL(blob);
+  });
 
 const dataUrlToBlob = async (url) => (await fetch(url)).blob();
 
@@ -127,12 +140,15 @@ export async function exportBackup({ films, notes }) {
     format: "cine-hub-backup",
     version: 2,
     exportedAt: new Date().toISOString(),
-    films, notes, images,
+    films,
+    notes,
+    images,
   };
 }
 
 export async function importBackup(data) {
-  if (data?.format !== "cine-hub-backup") throw new Error("Ce fichier n'est pas une sauvegarde Ciné Hub.");
+  if (data?.format !== "cine-hub-backup")
+    throw new Error("Ce fichier n'est pas une sauvegarde Ciné Hub.");
   // v1 ne connaissait que les affiches, sous la clé « posters »
   const images = data.images || data.posters || {};
   for (const [key, dataUrl] of Object.entries(images)) {

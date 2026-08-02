@@ -1,0 +1,13 @@
+dist
+coverage
+node_modules
+package-lock.json
+
+# Maquette de style autonome, mise en forme à la main.
+etagere.html
+
+# Le fichier est écrit dans un style dense assumé : une balise et ses styles
+# tiennent sur une ligne. Prettier les éclaterait sur ~3400 lignes, pour un
+# diff illisible et aucun gain. Les modules extraits (db, tmdb, taste, reco)
+# sont formatés, eux — et c'est là que va le code nouveau.
+src/cine-hub.jsx

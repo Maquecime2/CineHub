@@ -10,7 +10,7 @@ import { buildTaste } from "./taste";
 import { gatherCandidates, rank, DEFAULT_QUERY } from "./reco";
 import {
   IDB_PREFIX, isIdbPoster, idbKeyOf, putImage, getImage, deleteImage,
-  posterStats, pruneOrphans, exportBackup, importBackup, idbAvailable,
+  posterStats, pruneOrphans, exportBackup, importBackup,
 } from "./db";
 
 /* ============================================================
@@ -468,7 +468,7 @@ const ruledTextarea = {
    bord déchiré d'une découpe collée se battrait avec l'arête du boîtier ; la
    fiche, elle, garde le déchiré. Tout le reste — IndexedDB, repli, grain —
    est commun, et doit le rester. */
-function PosterArt({ film, height, initials, clipSeed = 0, plain = false }) {
+const PosterArt = React.memo(function PosterArt({ film, height, initials, clipSeed = 0, plain = false }) {
   const [broken, setBroken] = useState(false);
   const [blobUrl, setBlobUrl] = useState(null);
   const hue = hueOf(film.id);
@@ -517,7 +517,7 @@ function PosterArt({ film, height, initials, clipSeed = 0, plain = false }) {
       <div style={{ position: "absolute", inset: 0, backgroundImage: GRAIN, opacity: src ? 0.32 : 0.5, mixBlendMode: "overlay", pointerEvents: "none" }} />
     </div>
   );
-}
+});
 
 /* ============================================================
    POLAROID / FICHE FILM
@@ -525,7 +525,6 @@ function PosterArt({ film, height, initials, clipSeed = 0, plain = false }) {
 function FilmPolaroid({ film, onClick }) {
   const tilt = tiltOf(film.id);
   const tape = tapeColor(film.id);
-  const hue = hueOf(film.id);
   const pinned = usesPin(film.id);
   const initials = film.title.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
   const nudge = nudgeOf(film.id);
@@ -727,8 +726,14 @@ const SHELF_KIND = {
 
 const BOX_W = 96, BOX_H = 144;
 
-/* Un boîtier vu de tranche : le dos porte le titre, la face porte l'affiche. */
-function FilmBox({ film, onOpen, dragging, drop, onDragStart, onDragEnd, onDragOverBox }) {
+/* Un boîtier vu de tranche : le dos porte le titre, la face porte l'affiche.
+
+   Mémoïsé, et ce n'est pas une optimisation de confort : `dragover` tire
+   plusieurs dizaines d'événements par seconde pendant tout le glissement.
+   Sans cela, chaque événement reconstruit tous les boîtiers du rayon — et
+   un rayon de cent films rame. Les fonctions reçues sont donc stables, et
+   `kind` voyage en prop plutôt que dans une fermeture. */
+const FilmBox = React.memo(function FilmBox({ film, kind, onOpen, dragging, drop, onDragStart, onDragEnd, onDragOverBox, quiet }) {
   const [hover, setHover] = useState(false);
   const hue = hueOf(film.id);
   const initials = film.title.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
@@ -740,11 +745,11 @@ function FilmBox({ film, onOpen, dragging, drop, onDragStart, onDragEnd, onDragO
       <div style={{ width: drop === "before" ? 12 : 0, height: BOX_H, background: `repeating-linear-gradient(180deg, ${C.burgundy}, ${C.burgundy} 5px, transparent 5px, transparent 10px)`, transition: "width .12s ease", marginBottom: 12 }} />
       <button
         draggable
-        onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", film.id); onDragStart(film.id); }}
+        onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", film.id); onDragStart("film", film.id); }}
         onDragEnd={onDragEnd}
-        onDragOver={(e) => onDragOverBox(e, film.id)}
+        onDragOver={(e) => onDragOverBox(e, kind, film.id)}
         onClick={() => onOpen(film.id)}
-        onMouseEnter={() => setHover(true)}
+        onMouseEnter={() => !quiet && setHover(true)}
         onMouseLeave={() => setHover(false)}
         title={`${film.title}${film.year ? ` (${film.year})` : ""}`}
         style={{
@@ -757,7 +762,8 @@ function FilmBox({ film, onOpen, dragging, drop, onDragStart, onDragEnd, onDragO
           transformOrigin: "bottom center",
           opacity: dragging ? 0.35 : film.archived ? 0.62 : 1,
           filter: film.archived ? "saturate(0.5)" : "none",
-          transition: "transform .18s ease, box-shadow .18s ease, opacity .15s ease",
+          // pendant un glissement, le survol ne doit ni soulever ni repeindre
+          transition: quiet ? "none" : "transform .18s ease, box-shadow .18s ease, opacity .15s ease",
         }}
       >
         <PosterArt film={film} height={BOX_H} initials={initials} plain />
@@ -776,28 +782,28 @@ function FilmBox({ film, onOpen, dragging, drop, onDragStart, onDragEnd, onDragO
       <div style={{ width: drop === "after" ? 12 : 0, height: BOX_H, background: `repeating-linear-gradient(180deg, ${C.burgundy}, ${C.burgundy} 5px, transparent 5px, transparent 10px)`, transition: "width .12s ease", marginBottom: 12 }} />
     </div>
   );
-}
+});
 
 /* L'intercalaire : le carton debout qu'on glisse entre deux boîtiers pour
    dire « à partir d'ici, autre chose ». Il se déplace comme un boîtier et
    se renomme d'un clic — un séparateur qu'on ne peut pas nommer ne sépare
    rien de nommable. */
-function ShelfDivider({ divider, dragging, drop, onDragStart, onDragEnd, onDragOverBox, onRename, onRemove }) {
+const ShelfDivider = React.memo(function ShelfDivider({ divider, kind, dragging, drop, onDragStart, onDragEnd, onDragOverBox, onRename, onRemove }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(divider.label);
   const [hover, setHover] = useState(false);
   useEffect(() => { setDraft(divider.label); }, [divider.label]);
 
-  const commit = () => { setEditing(false); const v = draft.trim(); if (v && v !== divider.label) onRename(v); else setDraft(divider.label); };
+  const commit = () => { setEditing(false); const v = draft.trim(); if (v && v !== divider.label) onRename(divider.id, v); else setDraft(divider.label); };
 
   return (
     <div style={{ display: "flex", alignItems: "flex-end", flexShrink: 0 }}>
       <div style={{ width: drop === "before" ? 12 : 0, height: BOX_H, background: `repeating-linear-gradient(180deg, ${C.burgundy}, ${C.burgundy} 5px, transparent 5px, transparent 10px)`, transition: "width .12s ease", marginBottom: 12 }} />
       <div
         draggable={!editing}
-        onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; onDragStart(); }}
+        onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; onDragStart("divider", divider.id); }}
         onDragEnd={onDragEnd}
-        onDragOver={onDragOverBox}
+        onDragOver={(e) => onDragOverBox(e, kind, divider.id)}
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
         style={{
@@ -823,7 +829,7 @@ function ShelfDivider({ divider, dragging, drop, onDragStart, onDragEnd, onDragO
           </button>
         )}
         {hover && !editing && (
-          <button onClick={onRemove} title="Retirer l'intercalaire" style={{ all: "unset", position: "absolute", top: -9, right: -8, cursor: "pointer", background: C.paper, border: `1px solid ${C.line}`, borderRadius: "50%", width: 17, height: 17, display: "flex", alignItems: "center", justifyContent: "center", color: C.inkFaded }}>
+          <button onClick={() => onRemove(divider.id)} title="Retirer l'intercalaire" style={{ all: "unset", position: "absolute", top: -9, right: -8, cursor: "pointer", background: C.paper, border: `1px solid ${C.line}`, borderRadius: "50%", width: 17, height: 17, display: "flex", alignItems: "center", justifyContent: "center", color: C.inkFaded }}>
             <X size={10} />
           </button>
         )}
@@ -831,12 +837,12 @@ function ShelfDivider({ divider, dragging, drop, onDragStart, onDragEnd, onDragO
       <div style={{ width: drop === "after" ? 12 : 0, height: BOX_H, background: `repeating-linear-gradient(180deg, ${C.burgundy}, ${C.burgundy} 5px, transparent 5px, transparent 10px)`, transition: "width .12s ease", marginBottom: 12 }} />
     </div>
   );
-}
+});
 
 /* Un rayon : une planche, et une zone de dépôt. */
 function Shelf({ kind, title, tag, items, count, onOpen, dnd, empty, perRow, onAddDivider, onRename, onRemoveDivider, manual }) {
   const cfg = SHELF_KIND[kind];
-  const active = dnd.overShelf === kind && dnd.drag;
+  const active = dnd.overShelf === kind && dnd.dragId;
   /* « n par ligne » se mesure en boîtiers : la planche est bornée à la
      largeur de n boîtiers, et le retour à la ligne fait le reste. */
   const width = perRow === "auto" ? "100%" : perRow * (BOX_W + 9) + 21;
@@ -867,23 +873,19 @@ function Shelf({ kind, title, tag, items, count, onOpen, dnd, empty, perRow, onA
         )}
         {items.map((it) => it.type === "divider" ? (
           <ShelfDivider
-            key={it.id} divider={it.divider}
-            dragging={dnd.drag?.id === it.id}
+            key={it.id} divider={it.divider} kind={kind}
+            dragging={dnd.dragId === it.id}
             drop={dnd.overId === it.id ? dnd.side : null}
-            onDragStart={() => dnd.onDragStart({ type: "divider", id: it.id })}
-            onDragEnd={dnd.onDragEnd}
-            onDragOverBox={(e) => dnd.onBoxOver(e, kind, it.id)}
-            onRename={(label) => onRename(it.id, label)}
-            onRemove={() => onRemoveDivider(it.id)}
+            onDragStart={dnd.onDragStart} onDragEnd={dnd.onDragEnd} onDragOverBox={dnd.onBoxOver}
+            onRename={onRename} onRemove={onRemoveDivider}
           />
         ) : (
           <FilmBox
-            key={it.id} film={it.film} onOpen={onOpen}
-            dragging={dnd.drag?.id === it.id}
+            key={it.id} film={it.film} kind={kind} onOpen={onOpen}
+            dragging={dnd.dragId === it.id}
             drop={dnd.overId === it.id ? dnd.side : null}
-            onDragStart={(id) => dnd.onDragStart({ type: "film", id })}
-            onDragEnd={dnd.onDragEnd}
-            onDragOverBox={(e) => dnd.onBoxOver(e, kind, it.id)}
+            quiet={!!dnd.dragId}
+            onDragStart={dnd.onDragStart} onDragEnd={dnd.onDragEnd} onDragOverBox={dnd.onBoxOver}
           />
         ))}
         {/* la planche */}
@@ -947,7 +949,13 @@ function CasePreview({ film, onClose, onOpenFile }) {
    rayon d'arrivée : sans numéro stable, l'ordre repartirait au tri par
    défaut au prochain rendu. */
 function ShelfBoard({ films, dividers, onDividers, wall, onOpen, onUpdateMany, manual, onManual, perRow }) {
-  const [drag, setDrag] = useState(null);        // { type: "film" | "divider", id }
+  /* L'objet glissé est lu par les gestionnaires à chaque `dragover` : le
+     garder en ref permet à ces fonctions de ne jamais changer d'identité,
+     donc aux boîtiers mémoïsés de ne pas se reconstruire pour rien. Le
+     `useState` jumeau ne sert qu'à l'affichage (le boîtier pâli). */
+  const dragRef = useRef(null);                  // { type: "film" | "divider", id }
+  const overRef = useRef({ id: null, side: null });
+  const [dragId, setDragId] = useState(null);
   const [overShelf, setOverShelf] = useState(null);
   const [overId, setOverId] = useState(null);
   const [side, setSide] = useState(null);
@@ -976,15 +984,30 @@ function ShelfBoard({ films, dividers, onDividers, wall, onOpen, onUpdateMany, m
     return { chevet: build("chevet"), main: build("main"), reserve: build("reserve") };
   }, [films, dividers, wall, manual]);
 
-  const reset = () => { setDrag(null); setOverShelf(null); setOverId(null); setSide(null); };
+  const reset = useCallback(() => {
+    dragRef.current = null; overRef.current = { id: null, side: null };
+    setDragId(null); setOverShelf(null); setOverId(null); setSide(null);
+  }, []);
 
-  const onBoxOver = (e, kind, id) => {
-    if (!drag) return;
+  const onDragStart = useCallback((type, id) => { dragRef.current = { type, id }; setDragId(id); }, []);
+
+  /* `dragover` tire en continu tant que la souris bouge, et même immobile.
+     Tant que le boîtier visé et le côté visé ne changent pas, il n'y a rien
+     de nouveau à afficher : on sort avant de toucher à l'état. */
+  const onBoxOver = useCallback((e, kind, id) => {
+    if (!dragRef.current) return;
     e.preventDefault(); e.stopPropagation();
     const r = e.currentTarget.getBoundingClientRect();
-    setOverShelf(kind); setOverId(id);
-    setSide(e.clientX < r.left + r.width / 2 ? "before" : "after");
-  };
+    const s = e.clientX < r.left + r.width / 2 ? "before" : "after";
+    if (overRef.current.id === id && overRef.current.side === s) return;
+    overRef.current = { id, side: s };
+    setOverShelf(kind); setOverId(id); setSide(s);
+  }, []);
+
+  const onShelfOver = useCallback((kind) => {
+    if (!dragRef.current) return;
+    setOverShelf((k) => (k === kind ? k : kind));
+  }, []);
 
   /* Écrire l'ordre d'arrivée. Les films partent dans une écriture groupée,
      les intercalaires dans la leur : deux stockages, un seul rangement. */
@@ -1004,6 +1027,7 @@ function ShelfBoard({ films, dividers, onDividers, wall, onOpen, onUpdateMany, m
   };
 
   const drop = (kind) => {
+    const drag = dragRef.current;
     if (!drag) return;
     const target = shelves[kind].filter((it) => it.id !== drag.id);
     const source = drag.type === "film"
@@ -1011,10 +1035,11 @@ function ShelfBoard({ films, dividers, onDividers, wall, onOpen, onUpdateMany, m
       : { type: "divider", id: drag.id, divider: (dividers || []).find((d) => d.id === drag.id) };
     if (!source.film && !source.divider) return reset();
 
+    const { id: over, side: atSide } = overRef.current;
     let at = target.length;
-    if (overId && overId !== drag.id) {
-      const i = target.findIndex((it) => it.id === overId);
-      if (i >= 0) at = side === "after" ? i + 1 : i;
+    if (over && over !== drag.id) {
+      const i = target.findIndex((it) => it.id === over);
+      if (i >= 0) at = atSide === "after" ? i + 1 : i;
     }
     commit(kind, [...target.slice(0, at), source, ...target.slice(at)], drag.type === "film" ? drag.id : null);
   };
@@ -1028,9 +1053,8 @@ function ShelfBoard({ films, dividers, onDividers, wall, onOpen, onUpdateMany, m
   const removeDivider = (id) => onDividers((dividers || []).filter((d) => d.id !== id));
 
   const dnd = {
-    drag, overShelf, overId, side,
-    onDragStart: setDrag, onDragEnd: reset,
-    onShelfOver: setOverShelf,
+    dragId, overShelf, overId, side,
+    onDragStart, onDragEnd: reset, onShelfOver,
     onBoxOver, onDrop: drop,
   };
   const shared = {
@@ -1394,6 +1418,11 @@ function IdbImage({ imageKey, alt = "", style, onClick }) {
 
 const STILL_TOKEN = /\[img:(\d+)\]/g;
 
+/* Une regex globale porte un curseur (`lastIndex`) : la partager entre un
+   `exec` en boucle et un rendu React reviendrait à muter un état de module
+   pendant le rendu. Les parcours pas-à-pas prennent donc leur propre copie. */
+const stillTokenScanner = () => new RegExp(STILL_TOKEN.source, "g");
+
 /* La visionneuse plein écran, avec navigation au clavier. */
 function StillLightbox({ stills, index, onClose, onIndex }) {
   const still = stills[index];
@@ -1488,7 +1517,6 @@ const escapeHtml = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt
 /* Texte (avec jetons) → HTML affichable. La vignette est un bloc atomique
    non éditable : le curseur la franchit d'un coup, comme un caractère. */
 function textToHtml(text, stills, urls) {
-  STILL_TOKEN.lastIndex = 0;
   return escapeHtml(text || "")
     .replace(STILL_TOKEN, (full, n) => {
       const still = stills[Number(n) - 1];
@@ -1560,8 +1588,8 @@ function RichText({ text, stills, onOpenStill, placeholder }) {
 
   const parts = [];
   let last = 0, m;
-  STILL_TOKEN.lastIndex = 0;
-  while ((m = STILL_TOKEN.exec(text)) !== null) {
+  const scanner = stillTokenScanner();
+  while ((m = scanner.exec(text)) !== null) {
     if (m.index > last) parts.push({ kind: "text", value: text.slice(last, m.index) });
     parts.push({ kind: "still", n: Number(m[1]) });
     last = m.index + m[0].length;
@@ -2008,7 +2036,6 @@ function DetailView({ film, onBack, onUpdate, onDelete, films = [], onLinkFilm, 
   const [linkCreator, setLinkCreator] = useState("");
   const [linkNote, setLinkNote] = useState("");
   const [picked, setPicked] = useState(null);   // fiche existante retenue
-  const hue = hueOf(film.id);
   // le vocabulaire déjà employé dans la collection, pour ne pas le fragmenter
   const allTags = useMemo(() => Array.from(new Set(films.flatMap((f) => f.themes || []))).sort(), [films]);
 

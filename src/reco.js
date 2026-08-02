@@ -9,7 +9,14 @@
    un curseur, sans redemander quoi que ce soit au réseau.
    ============================================================ */
 
-import { discover, recommendationsFor, searchPerson, directorFilmography, getGenreMap, pooled } from "./tmdb";
+import {
+  discover,
+  recommendationsFor,
+  searchPerson,
+  directorFilmography,
+  getGenreMap,
+  pooled,
+} from "./tmdb";
 import { favorites, topDirectors, decadeOf } from "./taste";
 
 const clamp01 = (x) => Math.max(0, Math.min(1, x));
@@ -19,14 +26,15 @@ const clamp01 = (x) => Math.max(0, Math.min(1, x));
 export const DEFAULT_MIN_VOTES = 30;
 
 export const DEFAULT_QUERY = {
-  yearFrom: "", yearTo: "",
-  withGenres: [],        // noms, tels que stockés dans les fiches
+  yearFrom: "",
+  yearTo: "",
+  withGenres: [], // noms, tels que stockés dans les fiches
   withoutGenres: [],
-  language: "",          // code ISO ; "" = indifférent
+  language: "", // code ISO ; "" = indifférent
   minVotes: DEFAULT_MIN_VOTES,
-  minRating: 6,          // note TMDB plancher
-  nichePref: 0.5,        // 0 = grand public · 1 = pépite
-  driftPref: 0.5,        // 0 = dans mes goûts · 1 = hors des sentiers
+  minRating: 6, // note TMDB plancher
+  nichePref: 0.5, // 0 = grand public · 1 = pépite
+  driftPref: 0.5, // 0 = dans mes goûts · 1 = hors des sentiers
   excludeWatchlist: true,
   // les facteurs de niche que l'on veut réellement faire jouer
   niche: { obscurity: true, foreign: true, age: true },
@@ -58,7 +66,10 @@ function discoverPlans(query, taste, genreMap) {
 
   // à défaut de genres demandés, on part de ceux que la collection aime
   if (!withIds.length && !taste.isEmpty) {
-    const liked = [...taste.genres.entries()].filter(([, w]) => w > 0.35).sort((a, b) => b[1] - a[1]).slice(0, 3);
+    const liked = [...taste.genres.entries()]
+      .filter(([, w]) => w > 0.35)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3);
     const likedIds = ids(liked.map(([n]) => n));
     // `|` et non `,` : l'un OU l'autre, sinon l'intersection des trois est vide
     if (likedIds.length) base.with_genres = likedIds.join("|");
@@ -88,7 +99,14 @@ function discoverPlans(query, taste, genreMap) {
  *                                 qui seul connaît sa propre clé d'appariement
  * @returns {{ candidates: Array, genreMap, sourcesUsed }}
  */
-export async function gatherCandidates({ query, taste, films, apiKey, isSeen = () => false, onProgress }) {
+export async function gatherCandidates({
+  query,
+  taste,
+  films,
+  apiKey,
+  isSeen = () => false,
+  onProgress,
+}) {
   const genreMap = await getGenreMap(apiKey);
 
   const favs = taste.isEmpty ? [] : favorites(films, 12);
@@ -98,13 +116,18 @@ export async function gatherCandidates({ query, taste, films, apiKey, isSeen = (
   const tasks = [
     ...plans.map((p) => async () => ({ kind: "discover", list: await discover(p, apiKey) })),
     ...favs.map((f) => async () => ({
-      kind: "reco", from: { title: f.title, rating: f.rating },
+      kind: "reco",
+      from: { title: f.title, rating: f.rating },
       list: await recommendationsFor(f.tmdbId, apiKey),
     })),
     ...dirs.map((d) => async () => {
       const person = await searchPerson(d.name, apiKey);
       if (!person) return null;
-      return { kind: "director", director: d.name, list: await directorFilmography(person.id, apiKey) };
+      return {
+        kind: "director",
+        director: d.name,
+        list: await directorFilmography(person.id, apiKey),
+      };
     }),
   ];
 
@@ -118,7 +141,10 @@ export async function gatherCandidates({ query, taste, films, apiKey, isSeen = (
     for (const c of r.list) {
       if (!c.tmdbId || !c.title) continue;
       const prev = merged.get(c.tmdbId);
-      if (prev) { prev.sources.push(r); continue; }
+      if (prev) {
+        prev.sources.push(r);
+        continue;
+      }
       merged.set(c.tmdbId, { ...c, sources: [r] });
     }
   }
@@ -128,7 +154,11 @@ export async function gatherCandidates({ query, taste, films, apiKey, isSeen = (
     .filter((c) => c.voteCount >= (query.minVotes || 0))
     .map((c) => ({ ...c, genres: c.genreIds.map((id) => genreMap.byId.get(id)).filter(Boolean) }));
 
-  return { candidates, genreMap, sourcesUsed: { favs: favs.length, directors: dirs.length, plans: plans.length } };
+  return {
+    candidates,
+    genreMap,
+    sourcesUsed: { favs: favs.length, directors: dirs.length, plans: plans.length },
+  };
 }
 
 /* ============================================================
@@ -136,7 +166,7 @@ export async function gatherCandidates({ query, taste, films, apiKey, isSeen = (
    ============================================================ */
 
 export function affinity(c, taste) {
-  if (taste.isEmpty) return 0.5;   // sans profil, tout se vaut : c'est le filtre qui décide
+  if (taste.isEmpty) return 0.5; // sans profil, tout se vaut : c'est le filtre qui décide
 
   // moyenne des poids de genre, les genres inconnus comptant pour zéro et non
   // comme une pénalité : découvrir un genre absent n'est pas un défaut d'affinité
@@ -144,7 +174,7 @@ export function affinity(c, taste) {
   const genre = gs.length ? gs.reduce((a, b) => a + b, 0) / gs.length : 0;
 
   const dec = decadeOf(c.year);
-  const decade = dec ? (taste.decades.get(dec) || 0) : 0;
+  const decade = dec ? taste.decades.get(dec) || 0 : 0;
 
   // remonté par un film que vous avez aimé : le signal le plus direct dont
   // on dispose, et le seul qui repose sur autre chose que des étiquettes
@@ -157,8 +187,8 @@ export function affinity(c, taste) {
   // la note TMDB entre pour peu : elle dit la qualité perçue, pas l'accord
   const quality = clamp01((c.voteAverage - 5.5) / 3);
 
-  const raw = 0.34 * genre + 0.12 * decade + 0.24 * recoBonus + 0.20 * dirBonus + 0.10 * quality;
-  return clamp01((raw + 0.25) / 1.25);   // recentré : les poids négatifs peuvent tirer sous zéro
+  const raw = 0.34 * genre + 0.12 * decade + 0.24 * recoBonus + 0.2 * dirBonus + 0.1 * quality;
+  return clamp01((raw + 0.25) / 1.25); // recentré : les poids négatifs peuvent tirer sous zéro
 }
 
 /* ============================================================
@@ -199,10 +229,8 @@ export function nicheFactors(c, taste) {
      ferait dire au facteur, et à la justification affichée, plus que ce que
      les données permettent. */
   const knowsLangs = taste.seenLanguages.size > 0;
-  const foreign = !c.lang || c.lang === "en" ? 0
-    : !knowsLangs ? 0.7
-    : taste.seenLanguages.has(c.lang) ? 0.6
-    : 1;
+  const foreign =
+    !c.lang || c.lang === "en" ? 0 : !knowsLangs ? 0.7 : taste.seenLanguages.has(c.lang) ? 0.6 : 1;
 
   // 4. ancienneté — rampe sous 1980, doublée d'un « peu vu pour son époque »
   const old = !c.year ? 0 : clamp01((1985 - c.year) / 45);
@@ -221,7 +249,7 @@ export function nicheScore(factors, enabled = DEFAULT_QUERY.niche) {
   const parts = [];
   if (enabled.obscurity !== false) parts.push([factors.obscurity, 0.55]);
   if (enabled.foreign !== false) parts.push([factors.foreign, 0.25]);
-  if (enabled.age !== false) parts.push([factors.age, 0.20]);
+  if (enabled.age !== false) parts.push([factors.age, 0.2]);
   if (!parts.length) return 0;
   const total = parts.reduce((a, [, w]) => a + w, 0);
   return parts.reduce((a, [v, w]) => a + v * w, 0) / total;
@@ -251,9 +279,10 @@ export function rank(candidates, taste, query, limit = 40) {
        autant à vos goûts qu'un classique. D'où le terme de notoriété, qui ne
        pèse que du côté gauche du curseur. */
     const known = 1 - factors.obscurity;
-    const score = (1 - nichePref) * (0.75 * aff + 0.25 * known)
-      + nichePref * niche
-      + driftCoef * factors.drift * 0.6;
+    const score =
+      (1 - nichePref) * (0.75 * aff + 0.25 * known) +
+      nichePref * niche +
+      driftCoef * factors.drift * 0.6;
     return { ...c, affinity: aff, niche, factors, score, reasons: reasonsFor(c, factors, taste) };
   });
 
@@ -265,11 +294,15 @@ export function rank(candidates, taste, query, limit = 40) {
   const kept = [];
   const spill = [];
   for (const c of scored) {
-    const src = c.sources.find((s) => s.kind === "reco")?.from?.title
-      || c.sources.find((s) => s.kind === "director")?.director;
+    const src =
+      c.sources.find((s) => s.kind === "reco")?.from?.title ||
+      c.sources.find((s) => s.kind === "director")?.director;
     if (src) {
       const n = perSource.get(src) || 0;
-      if (n >= 2) { spill.push(c); continue; }
+      if (n >= 2) {
+        spill.push(c);
+        continue;
+      }
       perSource.set(src, n + 1);
     }
     kept.push(c);
@@ -283,11 +316,16 @@ export function rank(candidates, taste, query, limit = 40) {
 export function reasonsFor(c, factors, taste) {
   const out = [];
 
-  const liked = c.sources.filter((s) => s.kind === "reco").map((s) => s.from?.title).filter(Boolean);
+  const liked = c.sources
+    .filter((s) => s.kind === "reco")
+    .map((s) => s.from?.title)
+    .filter(Boolean);
   if (liked.length) {
-    out.push(liked.length === 1
-      ? `parce que vous avez aimé ${liked[0]}`
-      : `dans le sillage de ${liked[0]} et ${liked.length - 1} autre${liked.length > 2 ? "s" : ""}`);
+    out.push(
+      liked.length === 1
+        ? `parce que vous avez aimé ${liked[0]}`
+        : `dans le sillage de ${liked[0]} et ${liked.length - 1} autre${liked.length > 2 ? "s" : ""}`
+    );
   }
 
   const dir = c.sources.find((s) => s.kind === "director")?.director;

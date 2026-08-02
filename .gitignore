@@ -1,3 +1,31 @@
+# Dépendances
 node_modules
+
+# Build
 dist
+dist-ssr
+
+# Tests
+coverage
+
+# Environnement — aucune clé n'est nécessaire au build (la clé TMDB est saisie
+# dans l'app et vit dans le localStorage du navigateur), mais on ferme la porte.
+.env
+.env.*
+*.local
+
+# Éditeurs / OS
+.vscode
+.idea
 .DS_Store
+Thumbs.db
+*.sw?
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Outils locaux
+.claude/settings.local.json

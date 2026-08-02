@@ -11,15 +11,29 @@ const CACHE_KEY = "tmdb-cache";
 
 // le cache évite de reconsommer le quota à chaque réimport du même fichier
 const readCache = () => {
-  try { return JSON.parse(localStorage.getItem(CACHE_KEY) || "{}"); } catch { return {}; }
+  try {
+    return JSON.parse(localStorage.getItem(CACHE_KEY) || "{}");
+  } catch {
+    return {};
+  }
 };
 const writeCache = (c) => {
-  try { localStorage.setItem(CACHE_KEY, JSON.stringify(c)); } catch (e) { console.error(e); }
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(c));
+  } catch (e) {
+    console.error(e);
+  }
 };
 
 export const cacheKeyOf = (title, year) => `${(title || "").toLowerCase().trim()}|${year || ""}`;
 
-export const clearTmdbCache = () => { try { localStorage.removeItem(CACHE_KEY); } catch (e) { console.error(e); } };
+export const clearTmdbCache = () => {
+  try {
+    localStorage.removeItem(CACHE_KEY);
+  } catch (e) {
+    console.error(e);
+  }
+};
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -60,7 +74,9 @@ export async function searchMovie({ title, year, apiKey }) {
 /* Détail + équipe : c'est là que se trouve le réalisateur. */
 export async function getDetails(tmdbId, apiKey) {
   const data = await get(`/movie/${tmdbId}`, { append_to_response: "credits" }, apiKey);
-  const directors = (data.credits?.crew || []).filter((c) => c.job === "Director").map((c) => c.name);
+  const directors = (data.credits?.crew || [])
+    .filter((c) => c.job === "Director")
+    .map((c) => c.name);
   return {
     tmdbId: data.id,
     director: directors.join(", "),
@@ -102,17 +118,28 @@ export async function listPosters({ tmdbId, title, year, apiKey }) {
    ============================================================ */
 
 const DISC_KEY = "tmdb-disc";
-const DISC_TTL = 7 * 24 * 3600 * 1000;   // une semaine : assez frais, assez économe
+const DISC_TTL = 7 * 24 * 3600 * 1000; // une semaine : assez frais, assez économe
 
 /* Un cache à péremption, distinct de `tmdb-cache` : celui-ci mémorise des
    listes de candidats, qui vieillissent (un film sort, une note bouge), là où
    l'appariement titre → tmdbId, lui, est définitif. */
 const readDisc = () => {
-  try { return JSON.parse(localStorage.getItem(DISC_KEY) || "{}"); } catch { return {}; }
+  try {
+    return JSON.parse(localStorage.getItem(DISC_KEY) || "{}");
+  } catch {
+    return {};
+  }
 };
 const writeDisc = (c) => {
-  try { localStorage.setItem(DISC_KEY, JSON.stringify(c)); }
-  catch { try { localStorage.removeItem(DISC_KEY); } catch { /* tant pis */ } }
+  try {
+    localStorage.setItem(DISC_KEY, JSON.stringify(c));
+  } catch {
+    try {
+      localStorage.removeItem(DISC_KEY);
+    } catch {
+      /* tant pis */
+    }
+  }
 };
 
 /* On ne met jamais en cache la réponse brute de TMDB : elle est dix fois plus
@@ -127,13 +154,22 @@ async function cachedList(cacheKey, fetcher) {
   // purge paresseuse : au-delà de 300 entrées on jette les plus vieilles
   const keys = Object.keys(cache);
   if (keys.length > 300) {
-    keys.sort((a, b) => cache[a].t - cache[b].t).slice(0, keys.length - 300).forEach((k) => delete cache[k]);
+    keys
+      .sort((a, b) => cache[a].t - cache[b].t)
+      .slice(0, keys.length - 300)
+      .forEach((k) => delete cache[k]);
   }
   writeDisc(cache);
   return v;
 }
 
-export const clearDiscoverCache = () => { try { localStorage.removeItem(DISC_KEY); } catch (e) { console.error(e); } };
+export const clearDiscoverCache = () => {
+  try {
+    localStorage.removeItem(DISC_KEY);
+  } catch (e) {
+    console.error(e);
+  }
+};
 
 /* La forme minimale qui suffit à scorer ET à afficher une carte. `/discover`
    et `/recommendations` renvoient déjà tout cela : aucun appel de détail
@@ -198,9 +234,7 @@ export async function searchPerson(name, apiKey) {
 export async function directorFilmography(personId, apiKey) {
   return cachedList(`pc:${personId}`, async () => {
     const data = await get(`/person/${personId}/movie_credits`, {}, apiKey);
-    return (data.crew || [])
-      .filter((c) => c.job === "Director")
-      .map(toCandidate);
+    return (data.crew || []).filter((c) => c.job === "Director").map(toCandidate);
   });
 }
 
@@ -210,11 +244,17 @@ export async function directorFilmography(personId, apiKey) {
 export async function pooled(tasks, { concurrency = 5, onProgress } = {}) {
   const out = new Array(tasks.length).fill(null);
   let done = 0;
-  const next = (() => { let i = 0; return () => i++; })();
+  const next = (() => {
+    let i = 0;
+    return () => i++;
+  })();
   const worker = async () => {
     for (let i = next(); i < tasks.length; i = next()) {
-      try { out[i] = await tasks[i](); }
-      catch (e) { console.warn("TMDB", e.message || e); }
+      try {
+        out[i] = await tasks[i]();
+      } catch (e) {
+        console.warn("TMDB", e.message || e);
+      }
       onProgress?.(++done, tasks.length);
     }
   };
@@ -240,9 +280,14 @@ async function resolveOne(row, apiKey, cache) {
 export async function enrichRows(rows, apiKey, { onProgress, concurrency = 5 } = {}) {
   const cache = readCache();
   const out = rows.slice();
-  let done = 0, resolved = 0, failed = 0;
+  let done = 0,
+    resolved = 0,
+    failed = 0;
 
-  const next = (() => { let i = 0; return () => i++; })();
+  const next = (() => {
+    let i = 0;
+    return () => i++;
+  })();
 
   const worker = async () => {
     for (let i = next(); i < rows.length; i = next()) {
