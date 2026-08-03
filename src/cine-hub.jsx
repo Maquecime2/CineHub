@@ -60,8 +60,25 @@ body { background: ${C.paper}; }
    rayon au moment précis où la souris commence à bouger. */
 html[data-dragging="1"] [data-drawer-tab] { background: ${C.ochre} !important; }
 
+/* Le repère de dépôt respire : un trait d'encre parfaitement fixe se lit
+   comme un défaut d'affichage, un trait qui bat se lit comme une attente.
+   L'animation ne touche que l'opacité d'une couche déjà composée. */
+@keyframes inkBreathe { 0%, 100% { opacity: .76; } 50% { opacity: 1; } }
+
+/* Le repère se pose, il ne s'allume pas. Sa transition vit ICI et non dans
+   le style en ligne, et c'est délibéré : le code de glissement doit pouvoir
+   la couper le temps d'une trame (pour placer le repère sans qu'il traverse
+   l'étagère depuis sa place précédente) puis la rendre en effaçant
+   simplement la propriété en ligne — ce qui ne marcherait pas si la valeur
+   de repos venait, elle aussi, du style en ligne. */
+[data-drop-mark] {
+  transition: transform .24s cubic-bezier(.2,.88,.3,1), opacity .22s ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
   [data-case] *, [data-case] { animation-duration: .01ms !important; animation-delay: 0ms !important; }
+  [data-drop-mark] svg { animation: none !important; }
+  [data-drop-mark], [data-shelf-item] { transition: none !important; }
 }
 
 input::placeholder, textarea::placeholder { color: ${C.inkFaded}88; font-style: italic; }
@@ -751,19 +768,86 @@ const BOX_W = 96, BOX_H = 144;
    invalide la mise en page — que le `getBoundingClientRect` de l'événement
    suivant oblige alors à recalculer en entier. Sur cent boîtiers, cet
    aller-retour écriture/lecture coûtait plus cher que tout le reste. */
+/* Plus court que le boîtier, et centré sur lui : le repère n'a pas à
+   border toute la tranche pour désigner une fente. Une barre pleine
+   hauteur se lisait comme une bordure de rayon ; ce tronçon-là se lit
+   comme une marque posée entre deux choses. */
+const MARK_W = 26, MARK_H = BOX_H - 30;
+
 const DROP_MARK_STYLE = {
-  position: "fixed", left: 0, top: 0, width: 4, height: BOX_H, zIndex: 60,
-  pointerEvents: "none", borderRadius: 2,
-  /* Aplat, et non plus dégradé répété : un dégradé se re-rastérise, un
-     aplat est peint une fois pour toutes. Le repère reste dans la page en
-     permanence, transparent, pour que sa couche soit prête AVANT le
-     glissement — sinon le navigateur la fabrique au premier mouvement,
-     et c'est ce retard qu'on voyait. Apparition et déplacement ne coûtent
-     alors plus qu'une composition : ni mise en page, ni dessin. */
-  background: C.burgundy,
+  position: "fixed", left: 0, top: 0, width: MARK_W, height: MARK_H, zIndex: 60,
+  pointerEvents: "none",
+  /* Le repère reste dans la page en permanence, transparent, pour que sa
+     couche soit prête AVANT le glissement — sinon le navigateur la fabrique
+     au premier mouvement, et c'est ce retard qu'on voyait. Apparition et
+     déplacement ne coûtent alors plus qu'une composition.
+
+     Le dessin, lui, peut être aussi fouillé qu'on veut : il est peint une
+     seule fois dans la couche, à la naissance de la page, et plus jamais
+     — un aplat n'était pas une nécessité, seulement une prudence. */
   opacity: 0, willChange: "transform, opacity", backfaceVisibility: "hidden",
-  transition: "opacity .1s linear",
+  // il se pose sur la planche : c'est par le pied qu'il se déplie
+  transformOrigin: "bottom center",
+  // la transition est dans la feuille de styles — voir le commentaire là-bas
 };
+
+/* La couture. Pas une barre, pas une flèche : la ligne à gros pointillés
+   qu'on trace à main levée dans une marge pour dire « ça se coud ici ».
+
+   Elle casse au lieu d'onduler : des segments droits, des tirets taillés
+   net, et à chaque sommet un vrai angle. Mais un angle très ouvert — la
+   dent ne déborde que de quatre pixels de part et d'autre de l'axe pour
+   trente-huit de hauteur, soit une douzaine de degrés d'écart à la
+   verticale. C'est ce rapport-là qui fait tout : un zigzag franc à
+   quarante-cinq degrés sonnerait comme un pictogramme d'interface au
+   milieu du kraft, alors qu'une brisure de douze degrés se lit comme une
+   main qui trace vite. Cassante de près, presque droite de loin.
+
+   L'amplitude est serrée aussi par nécessité : le trou qui s'ouvre entre
+   les deux boîtiers fait une vingtaine de pixels, et un trait qui l'emplit
+   vient lécher les tranches au lieu de passer entre elles.
+
+   Elle porte son ombre sur le papier, décalée en bas à droite comme
+   toutes les ombres de la page : c'est ce qui la pose SUR l'étagère
+   plutôt que dedans.
+
+   Tout est en coordonnées relatives à `MARK_H` : la hauteur du boîtier
+   reste seule à décider. */
+const AXIS = 13, ZIG_AMP = 4, ZIG_STEP = 38;
+
+const ZIGZAG = (() => {
+  const top = 9, span = MARK_H - 18;
+  /* On fixe la HAUTEUR d'une dent, pas leur nombre : c'est le rapport de
+     cette hauteur à l'amplitude qui donne l'angle, et c'est lui qu'il faut
+     tenir. Compter les dents aurait fait varier l'angle avec la longueur
+     du repère — raccourcir la barre l'aurait rendue plus agressive. */
+  const teeth = Math.max(2, Math.round(span / ZIG_STEP));
+  const pts = [];
+  for (let i = 0; i <= teeth; i++) {
+    pts.push(`${(AXIS + (i % 2 ? ZIG_AMP : -ZIG_AMP)).toFixed(2)} ${(top + (span * i) / teeth).toFixed(2)}`);
+  }
+  return `M${pts[0]} L${pts.slice(1).join(" L")}`;
+})();
+
+/* Les deux passes partagent le même chemin et le même pointillé : l'ombre
+   n'est que la copie décalée du trait, elle ne peut pas dériver. Bouts
+   droits et angles vifs — un tiret arrondi rendrait au trait la mollesse
+   qu'on vient de lui retirer. */
+const STITCH = { strokeDasharray: "12 11", strokeLinecap: "butt", strokeLinejoin: "miter" };
+
+const DropMark = React.forwardRef(function DropMark(_props, ref) {
+  return (
+    <div ref={ref} data-drop-mark aria-hidden style={DROP_MARK_STYLE}>
+      <svg
+        width={MARK_W} height={MARK_H} viewBox={`0 0 ${MARK_W} ${MARK_H}`} fill="none"
+        style={{ display: "block", animation: "inkBreathe 1.9s ease-in-out infinite" }}
+      >
+        <path d={ZIGZAG} stroke="#1E140A" strokeWidth="4.6" opacity="0.2" transform="translate(1.6 1.8)" {...STITCH} />
+        <path d={ZIGZAG} stroke={C.burgundy} strokeWidth="3.8" {...STITCH} />
+      </svg>
+    </div>
+  );
+});
 
 /* Un boîtier vu de tranche : le dos porte le titre, la face porte l'affiche.
 
@@ -784,8 +868,17 @@ const FilmBox = React.memo(function FilmBox({ film, kind, onOpen, onDragStart, o
 
   return (
     <div
+      data-shelf-item
       style={{
         position: "relative", display: "flex", alignItems: "flex-end", flexShrink: 0,
+        /* Le seul style que le glissement écrit ici est un `transform` : la
+           transition et le pivot sont déclarés là, une fois, pour que
+           l'écartement des voisins s'anime sans que personne ait à toucher
+           au reste. Le boîtier bascule sur son pied, comme au survol, et la
+           courbe dépasse à peine avant de se poser : un carton qu'on écarte
+           revient toujours d'un cheveu — mais mollement, pas d'un claquement. */
+        transformOrigin: "bottom center",
+        transition: "transform .3s cubic-bezier(.32,1.16,.42,1)",
         /* Une étagère de cent films, c'est cent affiches à disposer et à
            peindre alors qu'on n'en voit qu'une vingtaine. `content-visibility`
            dit au navigateur de ne rien calculer pour ce qui est hors écran ;
@@ -823,11 +916,15 @@ const FilmBox = React.memo(function FilmBox({ film, kind, onOpen, onDragStart, o
         title={`${film.title}${film.year ? ` (${film.year})` : ""}`}
         style={{
           all: "unset", boxSizing: "border-box", cursor: "pointer", position: "relative",
-          /* `all: unset` a aussi effacé le `user-select: none` que porte un
-             bouton. Sans affiche, le boîtier montre ses initiales en grand :
-             on saisissait ce texte, et le navigateur lançait un glissement de
-             texte à la place de celui du boîtier — le dépôt ne rangeait rien.
-             Avec une affiche, l'image masquait le problème. */
+          /* `draggable` ne pose pas un drapeau : il applique `-webkit-user-drag:
+             element`, une simple déclaration de style — que `all: unset` efface
+             comme le reste. Le boîtier n'était donc pas saisissable ; ce qu'on
+             glissait, c'était l'affiche, que le navigateur rend saisissable
+             d'elle-même, et l'événement remontait jusqu'ici. Sans affiche, plus
+             rien à saisir : le rayon devenait immobile. On rétablit donc ce que
+             `all: unset` a emporté. */
+          WebkitUserDrag: "element",
+          // et le texte des initiales ne doit pas se sélectionner au glissement
           userSelect: "none", WebkitUserSelect: "none",
           width: BOX_W, height: BOX_H, marginBottom: 12, marginRight: 9, flexShrink: 0,
           borderRadius: "2px 3px 3px 2px", overflow: "hidden",
@@ -872,7 +969,7 @@ const ShelfDivider = React.memo(function ShelfDivider({ divider, kind, onDragSta
   const commit = () => { setEditing(false); const v = draft.trim(); if (v && v !== divider.label) onRename(divider.id, v); else setDraft(divider.label); };
 
   return (
-    <div style={{ position: "relative", display: "flex", alignItems: "flex-end", flexShrink: 0 }}>
+    <div data-shelf-item style={{ position: "relative", display: "flex", alignItems: "flex-end", flexShrink: 0, transformOrigin: "bottom center", transition: "transform .3s cubic-bezier(.32,1.16,.42,1)" }}>
       <div
         draggable={!editing}
         onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; onDragStart("divider", divider.id, e.currentTarget); }}
@@ -1150,6 +1247,7 @@ function ShelfBoard({ films, dividers, onDividers, wall, onOpen, onUpdateMany, m
   const dragRef = useRef(null);                  // { type: "film" | "divider", id, node }
   const overRef = useRef({ id: null, side: null });
   const markRef = useRef(null);                  // le repère de dépôt, hors React
+  const spreadRef = useRef([]);                  // les deux voisins écartés : [{ node, dx }]
   const [preview, setPreview] = useState(null);
   const [drawer, setDrawer] = useState(false);
 
@@ -1178,11 +1276,103 @@ function ShelfBoard({ films, dividers, onDividers, wall, onOpen, onUpdateMany, m
 
   const hideMark = () => { if (markRef.current) markRef.current.style.opacity = "0"; };
 
+  /* Poser le repère.
+
+     Une fois posé, il n'a plus qu'à glisser d'une fente à l'autre : on
+     écrit le `transform`, la transition de la feuille de styles fait le
+     reste, et il file d'un intervalle au suivant au lieu de sauter.
+
+     La PREMIÈRE pose est le cas délicat. Le repère est un élément unique
+     qui vit dans la page en permanence : il porte encore la position du
+     glissement d'avant. Le laisser glisser depuis là, c'est un trait qui
+     traverse l'étagère en biais avant de se poser. On coupe donc la
+     transition, on l'installe un peu au-dessus de sa place et un peu
+     écrasé, on force le navigateur à entériner cet état de départ, et
+     seulement alors on rend la transition et on vise la place juste : il
+     redescend de ses sept pixels en se dépliant, ce qui ressemble à
+     quelque chose qu'on dépose plutôt qu'à quelque chose qui s'allume.
+
+     C'est la lecture de rectangle qui force cette prise en compte, et
+     c'est délibérément elle plutôt qu'une attente de trame. Un double
+     `requestAnimationFrame` ferait le même travail sans rien coûter en
+     mise en page — mais il ferait dépendre l'apparition du repère de la
+     bonne volonté des trames PENDANT une boucle de glissement native, ce
+     que tous les navigateurs ne garantissent pas ; là où les trames sont
+     affamées, le repère ne naîtrait jamais. Le coût, lui, est nul à
+     l'échelle de ce fichier : une seule fois par glissement, quand le
+     survol d'un boîtier en lit déjà une à chaque événement.
+
+     Les deux gestes n'ont pas la même vitesse, et c'est voulu. La dépose
+     peut prendre son temps : elle n'a rien à rattraper, on la regarde.
+     Le glissement d'une fente à l'autre, lui, court après la souris — au
+     même tempo il traînerait derrière elle. D'où une durée longue écrite
+     en ligne pour la seule pose, que le premier déplacement efface pour
+     retomber sur le tempo vif de la feuille de styles. */
+  const SETTLE = "transform .36s cubic-bezier(.16,.86,.26,1), opacity .3s ease-out";
+
+  const placeMark = (x, y) => {
+    const m = markRef.current;
+    if (!m) return;
+    const at = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`;
+    if (m.style.opacity === "1") {
+      if (m.style.transition) m.style.transition = "";   // la pose est finie, on reprend le pas vif
+      m.style.transform = at;
+      return;
+    }
+
+    m.style.transition = "none";
+    m.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y) - 9}px, 0) scaleY(0.86)`;
+    m.getBoundingClientRect();
+    m.style.transition = SETTLE;
+    m.style.transform = at;
+    m.style.opacity = "1";
+  };
+
+  /* Les deux voisins du point de dépôt s'écartent pour faire la place :
+     c'est le geste des deux doigts qui ouvrent une rangée de boîtiers
+     avant d'y glisser le suivant. Ils ne glissent pas à plat — ils
+     BASCULENT, pivotant sur leur pied comme des boîtiers debout qu'on
+     couche l'un vers la gauche, l'autre vers la droite. C'est l'idiome
+     de toute la page : le survol d'un boîtier le fait déjà se pencher.
+
+     Comme le repère, cela s'écrit à la main sur les nœuds — un `setState`
+     ici rendrait à nouveau tout le rayon à chaque frémissement de souris,
+     ce que toute cette partie s'emploie à éviter. Le `transform` est le
+     seul style qu'on touche ; sa transition et son point de pivot sont
+     déclarés côté React, sur le boîtier lui-même. */
+  const SPREAD = 7, TILT = 1.4;
+
+  const clearSpread = () => {
+    spreadRef.current.forEach(({ node }) => { node.style.transform = ""; });
+    spreadRef.current = [];
+  };
+
+  const dxOf = (node) => spreadRef.current.find((s) => s.node === node)?.dx || 0;
+
+  const lean = (node, dir) => { node.style.transform = `translateX(${dir * SPREAD}px) rotate(${dir * TILT}deg)`; };
+
+  const setSpread = (left, right) => {
+    clearSpread();
+    const next = [];
+    if (left) { lean(left, -1); next.push({ node: left, dx: -SPREAD }); }
+    if (right) { lean(right, 1); next.push({ node: right, dx: SPREAD }); }
+    spreadRef.current = next;
+  };
+
+  /* Le voisin immédiat, et rien d'autre : un saut de ligne n'est pas un
+     objet rangé, et le boîtier d'après est sur la rangée suivante — l'en
+     écarter horizontalement ne voudrait rien dire. */
+  const neighbour = (wrap, dir) => {
+    const n = dir < 0 ? wrap.previousElementSibling : wrap.nextElementSibling;
+    return n && n.hasAttribute("data-shelf-item") ? n : null;
+  };
+
   const reset = useCallback(() => {
     const d = dragRef.current;
     if (d?.node) d.node.style.opacity = "";
     dragRef.current = null; overRef.current = { id: null, side: null };
     hideMark();
+    clearSpread();
     delete document.documentElement.dataset.dragging;
   }, []);
 
@@ -1203,14 +1393,35 @@ function ShelfBoard({ films, dividers, onDividers, wall, onOpen, onUpdateMany, m
   const onBoxOver = useCallback((e, kind, id) => {
     if (!dragRef.current) return;
     e.preventDefault(); e.stopPropagation();
+    const wrap = e.currentTarget.closest("[data-shelf-item]");
     const r = e.currentTarget.getBoundingClientRect();
-    const s = e.clientX < r.left + r.width / 2 ? "before" : "after";
+
+    /* Le boîtier survolé est peut-être DÉJÀ écarté d'un cran par le survol
+       précédent : son rectangle est donc décalé de ce qu'on lui a écrit.
+       On raisonne sur sa place au repos, sinon le repère dériverait d'un
+       écartement à chaque fois — et le partage en deux moitiés se mettrait
+       à osciller au gré de sa propre animation.
+
+       La bascule, elle, ne fausse rien du côté qui compte : le boîtier
+       penche en s'éloignant du point de dépôt, donc c'est le bord OPPOSÉ
+       que le rectangle englobant va chercher plus loin. Le bord qui borde
+       le trou reste juste au pixel près. Seule la largeur enfle (deux
+       petits degrés sur cent quarante pixels de haut) : le milieu se
+       trouve à un cheveu près, ce qui ne change ni la moitié choisie ni,
+       surtout, la stabilité — un boîtier penche toujours dans le sens
+       qui confirme la moitié qu'on vient de désigner. */
+    const dx = dxOf(wrap);
+    const left = r.left - dx, right = r.right - dx;
+    const s = e.clientX < left + r.width / 2 ? "before" : "after";
     if (overRef.current.id === id && overRef.current.side === s) return;
     overRef.current = { id, side: s, kind };
-    const m = markRef.current;
-    if (m) {
-      m.style.transform = `translate3d(${Math.round(s === "before" ? r.left - 7 : r.right + 3)}px, ${Math.round(r.bottom - BOX_H)}px, 0)`;
-      if (m.style.opacity !== "1") m.style.opacity = "1";
+
+    // le repère est centré dans l'espace qui s'ouvre entre les deux voisins
+    placeMark((s === "before" ? left - 5 : right + 5) - MARK_W / 2,
+              r.bottom - BOX_H - (MARK_H - BOX_H) / 2);
+    if (wrap) {
+      if (s === "before") setSpread(neighbour(wrap, -1), wrap);
+      else setSpread(wrap, neighbour(wrap, 1));
     }
   }, []);
 
@@ -1360,7 +1571,7 @@ function ShelfBoard({ films, dividers, onDividers, wall, onOpen, onUpdateMany, m
   return (
     <div onDragEnd={reset}>
       {/* le repère de dépôt : un seul, déplacé à la main pendant le glissement */}
-      <div ref={markRef} aria-hidden style={DROP_MARK_STYLE} />
+      <DropMark ref={markRef} />
       <Shelf kind="chevet" items={shelves.chevet} count={countOf("chevet")} {...shared}
         empty="Aucun film de chevet — glissez-en un ici." />
       <Shelf kind="main" items={shelves.main} count={countOf("main")} {...shared}
