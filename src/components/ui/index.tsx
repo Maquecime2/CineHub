@@ -66,3 +66,4 @@ export function Label({ children }: { children: ReactNode }) {
     </div>
   );
 }
+export { Tally } from "./Tally";

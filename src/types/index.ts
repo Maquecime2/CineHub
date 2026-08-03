@@ -110,6 +110,18 @@ export interface Divider {
   perRow?: number | null;
 }
 
+/**
+ * Les vues d'étagère, telles que `ensureViews` les tient en mémoire.
+ *
+ * Le contenu d'une vue — rangées, catégories, décors — vit dans
+ * `shelf-views.js`, encore en JavaScript : `unknown` dit honnêtement que
+ * ce module n'est pas typé plutôt que d'en inventer la forme ici.
+ */
+export interface ShelfViews {
+  byWall: Record<FilmStatus, string[]>;
+  docs: Record<string, unknown>;
+}
+
 /* ---------- Import ---------- */
 
 /** Une ligne de CSV, une fois nettoyée et éventuellement enrichie via TMDB. */
