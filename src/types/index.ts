@@ -5,8 +5,11 @@
 /** Une fiche vue, ou seulement mise de côté. */
 export type FilmStatus = "watched" | "watchlist";
 
-/** D'où vient la fiche : saisie à la main ou remontée d'un export CSV. */
-export type FilmSource = "manual" | "letterboxd";
+/**
+ * D'où vient la fiche : saisie à la main, remontée d'un export CSV, ou
+ * rangée depuis le bureau des découvertes.
+ */
+export type FilmSource = "manual" | "letterboxd" | "tmdb";
 
 /** Les quatre natures d'œuvre qu'on peut relier à un film. */
 export type LinkType = "book" | "painting" | "film" | "other";
