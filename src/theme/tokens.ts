@@ -46,8 +46,47 @@ body { background: ${C.paper}; }
    rayon au moment précis où la souris commence à bouger. */
 html[data-dragging="1"] [data-drawer-tab] { background: ${C.ochre} !important; }
 
+/* Un panneau ouvert pose un voile plein écran pour se refermer au premier
+   clic à côté. Mais on TIRE un objet du cabinet vers une planche : ce
+   voile recevrait le dépôt à la place du rayon. Pendant un glissement il
+   se retire donc du chemin, sans cesser d'exister. */
+html[data-dragging="1"] [data-veil] { pointer-events: none; }
+
+/* Le repère de dépôt respire : un trait d'encre parfaitement fixe se lit
+   comme un défaut d'affichage, un trait qui bat se lit comme une attente.
+   L'animation ne touche que l'opacité d'une couche déjà composée. */
+@keyframes inkBreathe { 0%, 100% { opacity: .76; } 50% { opacity: 1; } }
+
+/* Le repère se pose, il ne s'allume pas. Sa transition vit ICI et non dans
+   le style en ligne, et c'est délibéré : le code de glissement doit pouvoir
+   la couper le temps d'une trame (pour placer le repère sans qu'il traverse
+   l'étagère depuis sa place précédente) puis la rendre en effaçant
+   simplement la propriété en ligne — ce qui ne marcherait pas si la valeur
+   de repos venait, elle aussi, du style en ligne. */
+[data-drop-mark] {
+  transition: transform .24s cubic-bezier(.2,.88,.3,1), opacity .22s ease-out;
+}
+
+/* Les cibles de dépôt s'annoncent, elles aussi en CSS : une catégorie qui
+   va recevoir un film s'éclaire, une rangée vide se signale, une couture
+   entre deux rangées se creuse. Tout passe par un attribut écrit à la
+   main sur le nœud — c'est la même règle que la languette ci-dessus, et
+   pour la même raison. */
+[data-cat-over="1"] { background: var(--cat-open, ${C.ochre}22) !important; }
+[data-row-over="1"] { box-shadow: inset 0 0 0 1px ${C.ochre}66; }
+[data-seam-over="1"] { background: ${C.ochre}44; }
+[data-row-seam] { transition: background .12s ease, height .12s ease; }
+
+/* L'encre du repère de dépôt vient du thème de la vue. En variable CSS et
+   non en prop React : changer de thème ne doit toucher à rien de ce que
+   le glissement manipule. */
+[data-drop-mark] svg path { stroke: var(--mark-ink, ${C.burgundy}); }
+[data-drop-mark] svg path[fill] { fill: var(--mark-ink, ${C.burgundy}); }
+
 @media (prefers-reduced-motion: reduce) {
   [data-case] *, [data-case] { animation-duration: .01ms !important; animation-delay: 0ms !important; }
+  [data-drop-mark] svg { animation: none !important; }
+  [data-drop-mark], [data-lean], [data-row-seam] { transition: none !important; }
 }
 
 input::placeholder, textarea::placeholder { color: ${C.inkFaded}88; font-style: italic; }

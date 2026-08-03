@@ -130,7 +130,7 @@ const blobToDataUrl = (blob) =>
 
 const dataUrlToBlob = async (url) => (await fetch(url)).blob();
 
-export async function exportBackup({ films, notes, dividers = [] }) {
+export async function exportBackup({ films, notes, dividers = [], views = null }) {
   const images = {};
   for (const key of referencedKeys(films)) {
     const blob = await getImage(key);
@@ -138,13 +138,17 @@ export async function exportBackup({ films, notes, dividers = [] }) {
   }
   return {
     format: "cine-hub-backup",
-    // v3 ajoute les intercalaires de l'étagère : ce sont des données saisies
-    // à la main, pas des réglages, elles ont leur place dans la sauvegarde
-    version: 3,
+    /* v3 ajoutait les intercalaires de l'étagère : ce sont des données
+       saisies à la main, pas des réglages, elles ont leur place ici.
+       v4 leur succède avec les vues, qui portent désormais tout le
+       rangement. Les intercalaires continuent d'être émis : une v4
+       relue par une version antérieure y retrouve son étagère. */
+    version: 4,
     exportedAt: new Date().toISOString(),
     films,
     notes,
     dividers,
+    views,
     images,
   };
 }
@@ -157,6 +161,14 @@ export async function importBackup(data) {
   for (const [key, dataUrl] of Object.entries(images)) {
     await putImage(key, await dataUrlToBlob(dataUrl));
   }
-  // v1 et v2 ne connaissaient pas l'étagère : pas d'intercalaires à restaurer
-  return { films: data.films || [], notes: data.notes || [], dividers: data.dividers || [] };
+  /* v1 et v2 ne connaissaient pas l'étagère : pas d'intercalaires à
+     restaurer. v3 en a mais pas de vues — `views: null` dit à l'appelant
+     de les refabriquer depuis les intercalaires plutôt que de laisser
+     l'étagère vide. */
+  return {
+    films: data.films || [],
+    notes: data.notes || [],
+    dividers: data.dividers || [],
+    views: data.views?.byWall ? data.views : null,
+  };
 }
