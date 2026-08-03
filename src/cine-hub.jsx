@@ -1246,7 +1246,7 @@ const CategoryBox = React.memo(function CategoryBox({
             glissez-y des films
           </div>
         )}
-        {withBreaks(boxes, cat.perRow || rowCap)}
+        {withBreaks(boxes, cat.perRow || rowCap || DEFAULT_CAP)}
       </div>
     </div>
   );

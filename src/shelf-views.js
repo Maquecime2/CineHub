@@ -75,7 +75,31 @@ export function upgradeView(view) {
     // une rangée sans compte s'étirait sans fin : on lui en donne un
     shelves[kind] = { ...shelf, rows: shelf.rows.map((r) => (isUnplaced(r) || r.perRow ? r : { ...r, perRow: cap })) };
   }
-  return reflowView({ ...view, version: VIEW_VERSION, shelves });
+  return reflowView(drainUnplaced({ ...view, version: VIEW_VERSION, shelves }));
+}
+
+/* Un sas qui deborde n'est plus un sas, c'est un tas. Au-dela de ce qu'une
+   planche accepte, son contenu prend des planches — juste avant lui, pour
+   que l'ordre soit conserve. */
+export function drainUnplaced(view) {
+  const shelves = {};
+  let changed = false;
+  for (const kind of SHELF_KINDS) {
+    const shelf = view.shelves[kind];
+    const rows = shelf.rows;
+    const sas = rows[rows.length - 1];
+    const cap = capFor(kind);
+    if (!sas || !isUnplaced(sas) || sas.items.length <= cap) { shelves[kind] = shelf; continue; }
+    /* Les planches vides qui précèdent le sas sont des restes — celle que
+       la migration laissait devant un rayon entier tombé dans le tas. On
+       les reprend plutôt que de poser les nouvelles derrière elles. */
+    let keep = rows.slice(0, -1);
+    while (keep.length && !keep[keep.length - 1].items.length) keep = keep.slice(0, -1);
+    const born = chunk(sas.items, cap).map((part) => makeRow({ perRow: cap, items: part }));
+    shelves[kind] = { ...shelf, rows: [...keep, ...born, { ...sas, items: [] }] };
+    changed = true;
+  }
+  return changed ? { ...view, shelves } : view;
 }
 
 /* ------------------------------------------------------------
@@ -664,8 +688,16 @@ export function buildViewsFromLegacy({ films = [], dividers = [], wallPrefs = {}
         }
       }
       flushLoose();
+      /* Les films jamais rangés à la main n'ont pas de place VOULUE, mais
+         ils ont une place : c'est toute la collection de qui n'a jamais
+         touché au rangement manuel. Les verser dans le sas d'arrivée
+         faisait de l'étagère un rayon vide et un tas de cinquante
+         boîtiers sur une ligne sans fin. Ils prennent donc des planches,
+         comme les autres. Le sas ne sert qu'à ce qui ARRIVE ensuite. */
+      loose = never.map((f) => filmItem(f.id));
+      flushLoose();
       if (!rows.length) rows.push(makeRow({ perRow: cap }));
-      rows.push(makeRow({ kind: "unplaced", items: never.map((f) => filmItem(f.id)) }));
+      rows.push(makeRow({ kind: "unplaced" }));
 
       view.shelves[kind] = { rows };
     }

@@ -425,12 +425,37 @@ describe("buildViewsFromLegacy", () => {
     expect(rows[2].items[0].items.map((i) => i.id)).toEqual(["f4"]);
   });
 
-  it("les films jamais rangés vont à l'arrivée, pas dans la dernière catégorie", () => {
+  it("les films jamais rangés prennent des planches, sans tomber dans la dernière catégorie", () => {
     const view = build().find((v) => v.wall === "watched");
     // le point de correction : `order: null` valait MAX_SAFE_INTEGER dans
     // l'ancien tri, donc ils seraient tombés dans « Polars »
-    expect(idsIn(unplacedOf(view, "main"))).toEqual(["nul1", "nul2"]);
     expect(rowsOf(view, "main")[2].items[0].items.map((i) => i.id)).toEqual(["f4"]);
+    /* Et ils ne s'entassent pas non plus dans le sas : celui de qui n'a
+       jamais rangé à la main, c'est TOUTE sa collection — l'étagère
+       n'aurait alors montré qu'un rayon vide et une ligne sans fin. */
+    expect(idsIn(unplacedOf(view, "main"))).toEqual([]);
+    expect(idsIn(rowsOf(view, "main")[3])).toEqual(["nul1", "nul2"]);
+  });
+
+  it("une collection jamais rangée à la main s'étale en planches", () => {
+    const jamais = Array.from({ length: 25 }, (_, i) => film(`x${i}`, { order: null, addedAt: i }));
+    const view = buildViewsFromLegacy({ films: jamais }).find((v) => v.wall === "watched");
+    const rows = rowsOf(view, "main");
+    expect(rows.filter((r) => !isUnplaced(r)).map((r) => r.items.length)).toEqual([10, 10, 5]);
+    expect(idsIn(unplacedOf(view, "main"))).toEqual([]);
+  });
+
+  it("un sas déjà débordé se vide sur des planches, en gardant l'ordre", () => {
+    const view = makeView();
+    view.version = 1;
+    view.shelves.main.rows = [
+      makeRow({ perRow: 10, items: [] }),
+      makeRow({ kind: "unplaced", items: Array.from({ length: 23 }, (_, i) => filmItem(`s${i}`)) }),
+    ];
+    const rows = rowsOf(upgradeView(view), "main");
+    expect(rows.filter((r) => !isUnplaced(r)).map((r) => r.items.length)).toEqual([10, 10, 3]);
+    expect(idsIn(rows.at(-1))).toEqual([]);
+    expect(filmIdsOf(upgradeView(view))).toEqual(Array.from({ length: 23 }, (_, i) => `s${i}`));
   });
 
   it("donne des couleurs distinctes aux catégories voisines", () => {
