@@ -84,7 +84,13 @@ export interface Note {
 /** Les trois rayons de l'étagère. */
 export type ShelfKind = "chevet" | "main" | "reserve";
 
-/** Un séparateur posé à la main entre deux boîtiers d'un rayon. */
+/**
+ * Un séparateur posé à la main entre deux boîtiers d'un rayon.
+ *
+ * Les vues d'étagère ont pris la suite : les intercalaires ne sont plus
+ * créés, mais restent lus au chargement d'une collection ancienne, que
+ * `buildViewsFromLegacy` convertit en vue.
+ */
 export interface Divider {
   id: string;
   label: string;
@@ -100,9 +106,6 @@ export interface Divider {
    */
   perRow?: number | null;
 }
-
-/** Le nombre de boîtiers par ligne : un chiffre, ou au fil de la largeur. */
-export type PerRow = number | "auto";
 
 /* ---------- Import ---------- */
 
