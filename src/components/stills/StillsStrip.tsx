@@ -16,8 +16,8 @@ interface StillsStripProps {
   /** Index de la capture à mettre en avant, par exemple après insertion. */
   highlight?: number | null;
   onAddFiles: (files: FileList | null) => void;
-  /** Libellé d'attente pendant l'ajout, ou vide. */
-  busy?: string;
+  /** Nombre de captures encore en cours d'ajout ; 0 quand il n'y a rien à attendre. */
+  busy?: number;
 }
 
 /* La pellicule : toutes les captures du film, en bande. Chaque vignette
