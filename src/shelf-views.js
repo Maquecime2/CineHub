@@ -32,7 +32,16 @@ export const kindOf = (f) => (f.archived ? "reserve" : f.chevet ? "chevet" : "ma
 /* Les couleurs offertes aux catégories. On stocke la CLÉ et jamais
    l'hexadécimal : retoucher la palette repeint alors toutes les
    catégories déjà créées. */
-export const CAT_KEYS = ["burgundy", "ochre", "pine", "slate", "cobalt", "vermillion", "moss", "ink"];
+export const CAT_KEYS = [
+  "burgundy",
+  "ochre",
+  "pine",
+  "slate",
+  "cobalt",
+  "vermillion",
+  "moss",
+  "ink",
+];
 
 /* Les caps proposés par la gouttière. `null` = au fil de la largeur. */
 export const ROW_CAPS = [null, 3, 4, 5, 6, 8, 10, 12];
@@ -73,7 +82,10 @@ export function upgradeView(view) {
     const cap = capFor(kind);
     const shelf = view.shelves?.[kind] || makeShelf();
     // une rangée sans compte s'étirait sans fin : on lui en donne un
-    shelves[kind] = { ...shelf, rows: shelf.rows.map((r) => (isUnplaced(r) || r.perRow ? r : { ...r, perRow: cap })) };
+    shelves[kind] = {
+      ...shelf,
+      rows: shelf.rows.map((r) => (isUnplaced(r) || r.perRow ? r : { ...r, perRow: cap })),
+    };
   }
   return reflowView(drainUnplaced({ ...view, version: VIEW_VERSION, shelves }));
 }
@@ -89,7 +101,10 @@ export function drainUnplaced(view) {
     const rows = shelf.rows;
     const sas = rows[rows.length - 1];
     const cap = capFor(kind);
-    if (!sas || !isUnplaced(sas) || sas.items.length <= cap) { shelves[kind] = shelf; continue; }
+    if (!sas || !isUnplaced(sas) || sas.items.length <= cap) {
+      shelves[kind] = shelf;
+      continue;
+    }
     /* Les planches vides qui précèdent le sas sont des restes — celle que
        la migration laissait devant un rayon entier tombé dans le tas. On
        les reprend plutôt que de poser les nouvelles derrière elles. */
@@ -114,7 +129,13 @@ export const makeRow = ({ id, kind = "normal", perRow = null, label = "", items 
   items,
 });
 
-export const makeCat = ({ id, label = "Catégorie", color = CAT_KEYS[0], perRow = null, items = [] } = {}) => ({
+export const makeCat = ({
+  id,
+  label = "Catégorie",
+  color = CAT_KEYS[0],
+  perRow = null,
+  items = [],
+} = {}) => ({
   t: "c",
   id: id || `c_${uid()}`,
   label,
@@ -137,9 +158,17 @@ export const filmItem = (id) => ({ t: "f", id });
    recueille ce qu'on n'a pas encore placé. Cette dernière est une
    institution, pas un accident : sans elle, un film importé n'aurait
    nulle part où apparaître et deviendrait invisible. */
-export const makeShelf = () => ({ rows: [makeRow({ perRow: DEFAULT_CAP }), makeRow({ kind: "unplaced" })] });
+export const makeShelf = () => ({
+  rows: [makeRow({ perRow: DEFAULT_CAP }), makeRow({ kind: "unplaced" })],
+});
 
-export const makeView = ({ id, wall = "watched", name = "Nouvelle vue", theme = "kraft", now = 0 } = {}) => ({
+export const makeView = ({
+  id,
+  wall = "watched",
+  name = "Nouvelle vue",
+  theme = "kraft",
+  now = 0,
+} = {}) => ({
   id: id || `v_${uid()}`,
   version: VIEW_VERSION,
   wall,
@@ -233,7 +262,7 @@ export function reconcileView(view, films) {
           const sub = filterSame(it.items, (s) => s.t === "f" && keepFilm(s.id));
           return sub === it.items ? it : { ...it, items: sub };
         }),
-        (it) => (it.t === "f" ? keepFilm(it.id) : true),
+        (it) => (it.t === "f" ? keepFilm(it.id) : true)
       );
       return items === row.items ? row : { ...row, items };
     });
@@ -243,7 +272,11 @@ export function reconcileView(view, films) {
     /* Ce que la vue ignore encore. L'ordre d'arrivée est celui de la
        collection : c'est le seul dont on dispose ici. */
     const missing = [];
-    for (const f of films) if (belongs[kind](f) && !seen.has(f.id)) { seen.add(f.id); missing.push(f.id); }
+    for (const f of films)
+      if (belongs[kind](f) && !seen.has(f.id)) {
+        seen.add(f.id);
+        missing.push(f.id);
+      }
 
     if (missing.length) {
       const at = rows.length - 1;
@@ -305,7 +338,10 @@ export function moveItem(view, drag, target) {
   if (!created) {
     for (const kind of SHELF_KINDS) {
       const found = takeItem(shelves[kind], drag.id);
-      if (found) { moved = found.item; shelves[kind] = found.shelf; }
+      if (found) {
+        moved = found.item;
+        shelves[kind] = found.shelf;
+      }
     }
   }
   if (!moved) return view;
@@ -319,7 +355,10 @@ export function moveItem(view, drag, target) {
     const above = at >= 0 ? rows[at] : null;
     // la nouvelle rangée hérite du cap de celle du dessus : une ligne
     // ouverte sous une ligne de 6 veut presque toujours 6 elle aussi
-    const row = makeRow({ perRow: above && !isUnplaced(above) ? above.perRow : null, items: [moved] });
+    const row = makeRow({
+      perRow: above && !isUnplaced(above) ? above.perRow : null,
+      items: [moved],
+    });
     const insertAt = at >= 0 ? at + 1 : Math.max(0, rows.length - 1);
     rows = [...rows.slice(0, insertAt), row, ...rows.slice(insertAt)];
     return withRows(view, shelves, kind, rows);
@@ -343,11 +382,18 @@ export function moveItem(view, drag, target) {
     return withRows(view, shelves, kind, rows);
   }
 
-  rows = replaceRow(rows, rowAt, { ...row, items: insertAt(row.items, moved, target.overId, target.side) });
+  rows = replaceRow(rows, rowAt, {
+    ...row,
+    items: insertAt(row.items, moved, target.overId, target.side),
+  });
   return withRows(view, shelves, kind, rows);
 }
 
-const replaceRow = (rows, at, row) => { const out = [...rows]; out[at] = row; return out; };
+const replaceRow = (rows, at, row) => {
+  const out = [...rows];
+  out[at] = row;
+  return out;
+};
 
 const withRows = (view, shelves, kind, rows) => ({
   ...view,
@@ -405,7 +451,10 @@ const shelfOfRow = (view, rowId) =>
 
 const mapShelf = (view, kind, fn) => ({
   ...view,
-  shelves: { ...view.shelves, [kind]: { ...view.shelves[kind], rows: fn(view.shelves[kind].rows) } },
+  shelves: {
+    ...view.shelves,
+    [kind]: { ...view.shelves[kind], rows: fn(view.shelves[kind].rows) },
+  },
 });
 
 /* Rendre des films à la rangée d'arrivée du rayon. */
@@ -419,7 +468,9 @@ const toUnplaced = (rows, ids) => {
 
 /* Tous les films d'une rangée, catégories comprises. */
 const filmsInRow = (row) =>
-  row.items.flatMap((it) => (it.t === "f" ? [it.id] : it.t === "c" ? it.items.map((s) => s.id) : []));
+  row.items.flatMap((it) =>
+    it.t === "f" ? [it.id] : it.t === "c" ? it.items.map((s) => s.id) : []
+  );
 
 export function patchRow(view, rowId, patch) {
   const kind = shelfOfRow(view, rowId);
@@ -446,8 +497,13 @@ export function removeRow(view, rowId) {
   const kind = shelfOfRow(view, rowId);
   if (!kind) return view;
   const row = view.shelves[kind].rows.find((r) => r.id === rowId);
-  if (!row || isUnplaced(row)) return view;   // la rangée d'arrivée ne se supprime pas
-  return mapShelf(view, kind, (rows) => toUnplaced(rows.filter((r) => r.id !== rowId), filmsInRow(row)));
+  if (!row || isUnplaced(row)) return view; // la rangée d'arrivée ne se supprime pas
+  return mapShelf(view, kind, (rows) =>
+    toUnplaced(
+      rows.filter((r) => r.id !== rowId),
+      filmsInRow(row)
+    )
+  );
 }
 
 export function clearRow(view, rowId) {
@@ -456,20 +512,26 @@ export function clearRow(view, rowId) {
   const row = view.shelves[kind].rows.find((r) => r.id === rowId);
   if (!row) return view;
   return mapShelf(view, kind, (rows) =>
-    toUnplaced(rows.map((r) => (r.id === rowId ? { ...r, items: [] } : r)), filmsInRow(row)));
+    toUnplaced(
+      rows.map((r) => (r.id === rowId ? { ...r, items: [] } : r)),
+      filmsInRow(row)
+    )
+  );
 }
 
 export function addCat(view, rowId, cat) {
   const kind = shelfOfRow(view, rowId);
   if (!kind) return view;
   return mapShelf(view, kind, (rows) =>
-    rows.map((r) => (r.id === rowId ? { ...r, items: [...r.items, cat] } : r)));
+    rows.map((r) => (r.id === rowId ? { ...r, items: [...r.items, cat] } : r))
+  );
 }
 
 const findCat = (view, catId) => {
   for (const kind of SHELF_KINDS)
     for (const row of view.shelves[kind].rows)
-      for (const it of row.items) if (it.t === "c" && it.id === catId) return { kind, row, cat: it };
+      for (const it of row.items)
+        if (it.t === "c" && it.id === catId) return { kind, row, cat: it };
   return null;
 };
 
@@ -477,8 +539,12 @@ export function patchCat(view, catId, patch) {
   const found = findCat(view, catId);
   if (!found) return view;
   return mapShelf(view, found.kind, (rows) =>
-    rows.map((r) => (r.id !== found.row.id ? r
-      : { ...r, items: r.items.map((it) => (it.id === catId ? { ...it, ...patch } : it)) })));
+    rows.map((r) =>
+      r.id !== found.row.id
+        ? r
+        : { ...r, items: r.items.map((it) => (it.id === catId ? { ...it, ...patch } : it)) }
+    )
+  );
 }
 
 export function removeCat(view, catId) {
@@ -486,8 +552,13 @@ export function removeCat(view, catId) {
   if (!found) return view;
   const ids = found.cat.items.map((s) => s.id);
   return mapShelf(view, found.kind, (rows) =>
-    toUnplaced(rows.map((r) => (r.id !== found.row.id ? r
-      : { ...r, items: r.items.filter((it) => it.id !== catId) })), ids));
+    toUnplaced(
+      rows.map((r) =>
+        r.id !== found.row.id ? r : { ...r, items: r.items.filter((it) => it.id !== catId) }
+      ),
+      ids
+    )
+  );
 }
 
 /* Retirer un décor : c'est le seul objet qu'un geste supprime vraiment,
@@ -497,7 +568,10 @@ export function removeDecor(view, id) {
     for (const row of view.shelves[kind].rows) {
       if (row.items.some((it) => it.t === "d" && it.id === id))
         return mapShelf(view, kind, (rows) =>
-          rows.map((r) => (r.id !== row.id ? r : { ...r, items: r.items.filter((it) => it.id !== id) })));
+          rows.map((r) =>
+            r.id !== row.id ? r : { ...r, items: r.items.filter((it) => it.id !== id) }
+          )
+        );
     }
   }
   return view;
@@ -508,8 +582,12 @@ export function patchDecor(view, id, patch) {
     for (const row of view.shelves[kind].rows) {
       if (row.items.some((it) => it.t === "d" && it.id === id))
         return mapShelf(view, kind, (rows) =>
-          rows.map((r) => (r.id !== row.id ? r
-            : { ...r, items: r.items.map((it) => (it.id === id ? { ...it, ...patch } : it)) })));
+          rows.map((r) =>
+            r.id !== row.id
+              ? r
+              : { ...r, items: r.items.map((it) => (it.id === id ? { ...it, ...patch } : it)) }
+          )
+        );
     }
   }
   return view;
@@ -554,7 +632,10 @@ export function reflowShelf(view, kind) {
       items = items.slice(0, row.perRow);
     }
     if (items === row.items) out.push(row);
-    else { out.push({ ...row, items }); changed = true; }
+    else {
+      out.push({ ...row, items });
+      changed = true;
+    }
   }
 
   if (!changed) return view;
@@ -607,7 +688,9 @@ export function sortIntoRows(view, kind, compare) {
   const sorted = slots.map(([r, i]) => shelf.rows[r].items[i]).sort(compare);
 
   const rows = shelf.rows.map((row) => ({ ...row, items: [...row.items] }));
-  slots.forEach(([r, i], n) => { rows[r].items[i] = sorted[n]; });
+  slots.forEach(([r, i], n) => {
+    rows[r].items[i] = sorted[n];
+  });
   for (const row of rows) {
     for (let i = 0; i < row.items.length; i++) {
       const it = row.items[i];
@@ -651,13 +734,18 @@ export function buildViewsFromLegacy({ films = [], dividers = [], wallPrefs = {}
 
       const tabs = dividers.filter((d) => d.wall === wall && d.shelf === kind);
       const merged = [
-        ...placed.map((f) => ({ type: "film", id: f.id, order: LEGACY_RANK(f.order), tie: -(f.addedAt || 0) })),
+        ...placed.map((f) => ({
+          type: "film",
+          id: f.id,
+          order: LEGACY_RANK(f.order),
+          tie: -(f.addedAt || 0),
+        })),
         ...tabs.map((d) => ({ type: "divider", divider: d, order: LEGACY_RANK(d.order), tie: 0 })),
       ].sort((a, b) => a.order - b.order || a.tie - b.tie);
 
       const rows = [];
       let cap = shelfCap;
-      let loose = [];               // les films libres, en attente de planches
+      let loose = []; // les films libres, en attente de planches
       let cat = null;
 
       /* Les films libres ne tiennent pas tous sur une planche : on les
@@ -665,7 +753,8 @@ export function buildViewsFromLegacy({ films = [], dividers = [], wallPrefs = {}
          rangée était le défaut du premier jet — un rayon entier entassé
          sous une planche unique. */
       const flushLoose = () => {
-        for (const part of chunk(loose, cap)) if (part.length) rows.push(makeRow({ perRow: cap, items: part }));
+        for (const part of chunk(loose, cap))
+          if (part.length) rows.push(makeRow({ perRow: cap, items: part }));
         loose = [];
       };
 
@@ -718,12 +807,21 @@ export function duplicateView(view, { name, now = 0 } = {}) {
         ...row,
         id: `r_${uid()}`,
         items: row.items.map((it) =>
-          it.t === "f" ? it : it.t === "c"
-            ? { ...it, id: `c_${uid()}`, items: it.items.map((s) => ({ ...s })) }
-            : { ...it, id: `d_${uid()}` },
+          it.t === "f"
+            ? it
+            : it.t === "c"
+              ? { ...it, id: `c_${uid()}`, items: it.items.map((s) => ({ ...s })) }
+              : { ...it, id: `d_${uid()}` }
         ),
       })),
     };
   }
-  return { ...view, id: `v_${uid()}`, name: name || `${view.name} (copie)`, createdAt: now, updatedAt: now, shelves };
+  return {
+    ...view,
+    id: `v_${uid()}`,
+    name: name || `${view.name} (copie)`,
+    createdAt: now,
+    updatedAt: now,
+    shelves,
+  };
 }
