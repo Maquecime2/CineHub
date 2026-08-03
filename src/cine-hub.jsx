@@ -107,7 +107,7 @@ html[data-dragging="1"] [data-veil] { pointer-events: none; }
 @media (prefers-reduced-motion: reduce) {
   [data-case] *, [data-case] { animation-duration: .01ms !important; animation-delay: 0ms !important; }
   [data-drop-mark] svg { animation: none !important; }
-  [data-drop-mark], [data-shelf-item], [data-row-seam] { transition: none !important; }
+  [data-drop-mark], [data-lean], [data-row-seam] { transition: none !important; }
 }
 
 input::placeholder, textarea::placeholder { color: ${C.inkFaded}88; font-style: italic; }
@@ -1030,72 +1030,90 @@ const FilmBox = React.memo(function FilmBox({ film, ctx, onOpen, onDragStart, on
       onDragOver={(e) => onDragOverBox(e, ctx)}
       style={{
         position: "relative", display: "flex", alignItems: "flex-end", flexShrink: 0,
-        /* Le seul style que le glissement écrit ici est un `transform` : la
-           transition et le pivot sont déclarés là, une fois, pour que
-           l'écartement des voisins s'anime sans que personne ait à toucher
-           au reste. Le boîtier bascule sur son pied, comme au survol, et la
-           courbe dépasse à peine avant de se poser : un carton qu'on écarte
-           revient toujours d'un cheveu — mais mollement, pas d'un claquement. */
-        transformOrigin: "bottom center",
-        transition: "transform .3s cubic-bezier(.32,1.16,.42,1)",
         /* Une étagère de cent films, c'est cent affiches à disposer et à
            peindre alors qu'on n'en voit qu'une vingtaine. `content-visibility`
            dit au navigateur de ne rien calculer pour ce qui est hors écran ;
            la taille annoncée étant exactement celle d'un boîtier, la mise en
            page reste juste et rien ne saute au défilement. */
         contentVisibility: "auto",
-        containIntrinsicSize: `${BOX_W + 9}px ${BOX_H + 12}px`,
+        containIntrinsicSize: `${BOX_W + GAP_X}px ${BOX_H + GAP_Y}px`,
       }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
-      <button
-        draggable
-        onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", film.id); onDragStart("film", film.id, e.currentTarget); }}
-        onDragEnd={onDragEnd}
-        onClick={() => onOpen(film.id)}
-        title={`${film.title}${film.year ? ` (${film.year})` : ""}`}
+      {/* La couche qui bascule quand le voisin s'écarte. Elle est SOUS
+          l'enveloppe et non confondue avec elle : l'enveloppe est la
+          cible de dépôt, et une cible qui se dérobe sous le curseur fait
+          osciller le geste au lieu de l'accompagner.
+
+          Le seul style que le glissement écrit ici est un `transform` ;
+          la transition et le pivot sont déclarés une fois pour toutes,
+          pour que l'écartement s'anime sans que personne ait à toucher au
+          reste. Le boîtier bascule sur son pied, comme au survol, et la
+          courbe dépasse à peine avant de se poser : un carton qu'on
+          écarte revient toujours d'un cheveu — mais mollement, pas d'un
+          claquement.
+
+          Elle est distincte du boîtier lui-même parce que React tient
+          DÉJÀ le `transform` du boîtier, pour la bascule du survol : deux
+          mains sur la même propriété, et l'une efface le travail de
+          l'autre. */}
+      <div
+        data-lean
         style={{
-          all: "unset", boxSizing: "border-box", cursor: "pointer", position: "relative",
-          /* `draggable` ne pose pas un drapeau : il applique `-webkit-user-drag:
-             element`, une simple déclaration de style — que `all: unset` efface
-             comme le reste. Le boîtier n'était donc pas saisissable ; ce qu'on
-             glissait, c'était l'affiche, que le navigateur rend saisissable
-             d'elle-même, et l'événement remontait jusqu'ici. Sans affiche, plus
-             rien à saisir : le rayon devenait immobile. On rétablit donc ce que
-             `all: unset` a emporté. */
-          WebkitUserDrag: "element",
-          // et le texte des initiales ne doit pas se sélectionner au glissement
-          userSelect: "none", WebkitUserSelect: "none",
-          width: BOX_W, height: BOX_H, marginBottom: GAP_Y, marginRight: GAP_X, flexShrink: 0,
-          borderRadius: "2px 3px 3px 2px", overflow: "hidden",
-          // ce qui se repeint dans un boîtier ne concerne que ce boîtier
-          contain: "layout paint style",
-          border: `1px solid rgba(43,38,32,0.35)`,
-          boxShadow: hover ? `3px 5px 10px rgba(30,20,10,0.34)` : `2px 2px 0 rgba(43,38,32,0.16)`,
-          transform: hover ? "translateY(-7px) rotate(-1.2deg)" : "none",
+          display: "flex", alignItems: "flex-end",
           transformOrigin: "bottom center",
-          /* `dim` : la recherche, sur l'étagère, ne trie plus le rayon —
-             elle éteint ce qu'elle ne trouve pas. Filtrer démonterait
-             l'agencement à chaque lettre tapée. */
-          opacity: dim ? 0.26 : film.archived ? 0.62 : 1,
-          filter: dim ? "saturate(0.35)" : film.archived ? "saturate(0.5)" : "none",
-          transition: "transform .18s ease, box-shadow .18s ease, opacity .15s ease, filter .15s ease",
+          transition: "transform .3s cubic-bezier(.32,1.16,.42,1)",
         }}
       >
-        <PosterArt film={film} height={BOX_H} initials={initials} plain />
-        {/* le dos : c'est lui qui fait lire « boîtier » et non « vignette » */}
-        <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 11, background: hue, boxShadow: "inset -2px 0 4px rgba(0,0,0,0.4)", zIndex: 2, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
-          <span style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", fontFamily: "'Special Elite', monospace", fontSize: 8, letterSpacing: "0.08em", color: "rgba(246,239,222,0.92)", whiteSpace: "nowrap" }}>{film.title}</span>
-        </span>
-        {film.year !== "" && film.year != null && (
-          <span style={{ position: "absolute", top: 4, left: 15, background: "rgba(246,239,222,0.88)", color: C.ink, fontFamily: "'Special Elite', monospace", fontSize: 9, padding: "1px 4px", zIndex: 3 }}>{film.year}</span>
-        )}
-        {film.chevet && <PushPin style={{ top: -5, right: -5, zIndex: 4 }} />}
-        {film.status !== "watchlist" && (
-          <span style={{ position: "absolute", bottom: 0, left: 11, right: 0, padding: "3px 5px", background: "rgba(43,38,32,0.72)", color: C.card, fontFamily: "'Special Elite', monospace", fontSize: 9.5, letterSpacing: 1, zIndex: 3 }}>{stars}</span>
-        )}
-      </button>
+        <button
+          draggable
+          onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", film.id); onDragStart("film", film.id, e.currentTarget); }}
+          onDragEnd={onDragEnd}
+          onClick={() => onOpen(film.id)}
+          title={`${film.title}${film.year ? ` (${film.year})` : ""}`}
+          style={{
+            all: "unset", boxSizing: "border-box", cursor: "pointer", position: "relative",
+            /* `draggable` ne pose pas un drapeau : il applique `-webkit-user-drag:
+               element`, une simple déclaration de style — que `all: unset` efface
+               comme le reste. Le boîtier n'était donc pas saisissable ; ce qu'on
+               glissait, c'était l'affiche, que le navigateur rend saisissable
+               d'elle-même, et l'événement remontait jusqu'ici. Sans affiche, plus
+               rien à saisir : le rayon devenait immobile. On rétablit donc ce que
+               `all: unset` a emporté. */
+            WebkitUserDrag: "element",
+            // et le texte des initiales ne doit pas se sélectionner au glissement
+            userSelect: "none", WebkitUserSelect: "none",
+            width: BOX_W, height: BOX_H, marginBottom: GAP_Y, marginRight: GAP_X, flexShrink: 0,
+            borderRadius: "2px 3px 3px 2px", overflow: "hidden",
+            // ce qui se repeint dans un boîtier ne concerne que ce boîtier
+            contain: "layout paint style",
+            border: `1px solid rgba(43,38,32,0.35)`,
+            boxShadow: hover ? `3px 5px 10px rgba(30,20,10,0.34)` : `2px 2px 0 rgba(43,38,32,0.16)`,
+            transform: hover ? "translateY(-7px) rotate(-1.2deg)" : "none",
+            transformOrigin: "bottom center",
+            /* `dim` : la recherche, sur l'étagère, ne trie plus le rayon —
+               elle éteint ce qu'elle ne trouve pas. Filtrer démonterait
+               l'agencement à chaque lettre tapée. */
+            opacity: dim ? 0.26 : film.archived ? 0.62 : 1,
+            filter: dim ? "saturate(0.35)" : film.archived ? "saturate(0.5)" : "none",
+            transition: "transform .18s ease, box-shadow .18s ease, opacity .15s ease, filter .15s ease",
+          }}
+        >
+          <PosterArt film={film} height={BOX_H} initials={initials} plain />
+          {/* le dos : c'est lui qui fait lire « boîtier » et non « vignette » */}
+          <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 11, background: hue, boxShadow: "inset -2px 0 4px rgba(0,0,0,0.4)", zIndex: 2, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+            <span style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", fontFamily: "'Special Elite', monospace", fontSize: 8, letterSpacing: "0.08em", color: "rgba(246,239,222,0.92)", whiteSpace: "nowrap" }}>{film.title}</span>
+          </span>
+          {film.year !== "" && film.year != null && (
+            <span style={{ position: "absolute", top: 4, left: 15, background: "rgba(246,239,222,0.88)", color: C.ink, fontFamily: "'Special Elite', monospace", fontSize: 9, padding: "1px 4px", zIndex: 3 }}>{film.year}</span>
+          )}
+          {film.chevet && <PushPin style={{ top: -5, right: -5, zIndex: 4 }} />}
+          {film.status !== "watchlist" && (
+            <span style={{ position: "absolute", bottom: 0, left: 11, right: 0, padding: "3px 5px", background: "rgba(43,38,32,0.72)", color: C.card, fontFamily: "'Special Elite', monospace", fontSize: 9.5, letterSpacing: 1, zIndex: 3 }}>{stars}</span>
+          )}
+        </button>
+      </div>
     </div>
   );
 });
@@ -1127,26 +1145,29 @@ const DecorItem = React.memo(function DecorItem({ item, ctx, onDragStart, onDrag
     <div
       data-shelf-item={item.id}
       onDragOver={(e) => onDragOverBox(e, ctx)}
-      style={{ position: "relative", display: "flex", alignItems: "flex-end", flexShrink: 0, transformOrigin: "bottom center", transition: "transform .3s cubic-bezier(.32,1.16,.42,1)" }}
+      style={{ position: "relative", display: "flex", alignItems: "flex-end", flexShrink: 0 }}
     >
-      <div
-        draggable
-        onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; onDragStart("decor", item.id, e.currentTarget); }}
-        onDragEnd={onDragEnd}
-        onClick={() => onEdit(item.id)}
-        title={spec.label}
-        style={{
-          position: "relative", width: box, height: box, marginBottom: GAP_Y, marginRight: GAP_X, flexShrink: 0,
-          cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden",
-          /* Posé de guingois, mais toujours de la même façon : le hasard
-             stable de la maison, et non un réglage de plus à régler. */
-          transform: `rotate(${tiltOf(item.id)}deg)`,
-          userSelect: "none", WebkitUserSelect: "none",
-        }}
-      >
-        {Icon
-          ? <Icon size={Math.round(26 * s)} color={ink} />
-          : <Draw color={ink} width={box} w={box} style={{ position: "relative", width: box, height: box }} />}
+      {/* la couche qui bascule à l'écartement, sous la cible de dépôt */}
+      <div data-lean style={{ display: "flex", alignItems: "flex-end", transformOrigin: "bottom center", transition: "transform .3s cubic-bezier(.32,1.16,.42,1)" }}>
+        <div
+          draggable
+          onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; onDragStart("decor", item.id, e.currentTarget); }}
+          onDragEnd={onDragEnd}
+          onClick={() => onEdit(item.id)}
+          title={spec.label}
+          style={{
+            position: "relative", width: box, height: box, marginBottom: GAP_Y, marginRight: GAP_X, flexShrink: 0,
+            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden",
+            /* Posé de guingois, mais toujours de la même façon : le hasard
+               stable de la maison, et non un réglage de plus à régler. */
+            transform: `rotate(${tiltOf(item.id)}deg)`,
+            userSelect: "none", WebkitUserSelect: "none",
+          }}
+        >
+          {Icon
+            ? <Icon size={Math.round(26 * s)} color={ink} />
+            : <Draw color={ink} width={box} w={box} style={{ position: "relative", width: box, height: box }} />}
+        </div>
       </div>
     </div>
   );
@@ -1216,16 +1237,16 @@ const CategoryBox = React.memo(function CategoryBox({
       }}
       onDragEnd={onDragEnd}
       onDragOver={(e) => onCatOver(e, ctx)}
-      style={{
-        flexShrink: 0, display: "flex", alignItems: "flex-end",
-        transformOrigin: "bottom center", transition: "transform .3s cubic-bezier(.32,1.16,.42,1)",
-      }}
+      style={{ flexShrink: 0, display: "flex", alignItems: "flex-end" }}
     >
+      {/* Le carton EST la couche qui bascule : rien d'autre ne touche à
+          son `transform`, il n'a donc pas besoin d'une couche à lui. */}
       <div
-        data-cat-card
+        data-cat-card data-lean
         style={{
           position: "relative", flexShrink: 0, marginRight: GAP_X, marginBottom: GAP_Y,
           display: "flex", flexDirection: "column",
+          transformOrigin: "bottom center", transition: "transform .3s cubic-bezier(.32,1.16,.42,1)",
           /* C'est TOUJOURS un carton : même papier, même filet, même ombre
              portée sèche que l'intercalaire debout d'avant. Il a seulement
              cessé d'être une cloison pour devenir une pochette — ouverte en
@@ -1774,7 +1795,7 @@ function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) {
   const dragRef = useRef(null);          // { type, id, node, create? }
   const overRef = useRef({});            // { kind, rowId, catId, overId, side, afterRowId }
   const markRef = useRef(null);          // le repère de dépôt, hors React
-  const spreadRef = useRef([]);          // les voisins écartés : [{ node, dx }]
+  const spreadRef = useRef([]);          // les couches écartées, à remettre d'aplomb
   const litRef = useRef(null);           // la cible actuellement éclairée
   const [preview, setPreview] = useState(null);
   const [drawer, setDrawer] = useState(false);
@@ -1872,23 +1893,44 @@ function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) {
 
      Comme le repère, cela s'écrit à la main sur les nœuds — un `setState`
      ici rendrait à nouveau tout le rayon à chaque frémissement de souris,
-     ce que toute cette partie s'emploie à éviter. */
+     ce que toute cette partie s'emploie à éviter.
+
+     Le geste bascule une COUCHE À L'INTÉRIEUR de l'enveloppe, jamais
+     l'enveloppe elle-même, et c'est toute la différence entre un
+     écartement et un tremblement.
+
+     L'enveloppe est la cible de dépôt. La faire basculer, c'était
+     déplacer la cible sous le curseur : les deux voisins s'écartant de
+     sept pixels chacun, un trou de quatorze s'ouvrait entre eux — juste
+     là où la main visait. Le curseur y tombait, ne survolait plus aucun
+     boîtier, l'événement retombait sur la rangée qui rappelait tout le
+     monde à sa place, le curseur se retrouvait sur le boîtier, qui
+     rouvrait le trou. Vingt fois par seconde. Le geste se mordait la
+     queue parce qu'il effaçait sa propre condition.
+
+     Les cibles sont donc fixes pour toute la durée du glissement : elles
+     pavent la rangée et rien ne les bouge. Seule l'image bascule. C'est
+     aussi ce qui permet de mesurer les rectangles au repos sans avoir à
+     défalquer quoi que ce soit — l'écartement ne les touche plus. */
   const SPREAD = 7, TILT = 1.4;
 
+  /* La couche qui bascule, sous une enveloppe donnée. */
+  const leanLayer = (wrap) => wrap?.querySelector(":scope > [data-lean]") || null;
+
   const clearSpread = () => {
-    spreadRef.current.forEach(({ node }) => { node.style.transform = ""; });
+    spreadRef.current.forEach((node) => { node.style.transform = ""; });
     spreadRef.current = [];
   };
-
-  const dxOf = (node) => spreadRef.current.find((s) => s.node === node)?.dx || 0;
-
-  const lean = (node, dir) => { node.style.transform = `translateX(${dir * SPREAD}px) rotate(${dir * TILT}deg)`; };
 
   const setSpread = (left, right) => {
     clearSpread();
     const next = [];
-    if (left) { lean(left, -1); next.push({ node: left, dx: -SPREAD }); }
-    if (right) { lean(right, 1); next.push({ node: right, dx: SPREAD }); }
+    [[left, -1], [right, 1]].forEach(([wrap, dir]) => {
+      const layer = leanLayer(wrap);
+      if (!layer) return;
+      layer.style.transform = `translateX(${dir * SPREAD}px) rotate(${dir * TILT}deg)`;
+      next.push(layer);
+    });
     spreadRef.current = next;
   };
 
@@ -1966,16 +2008,32 @@ function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) {
      événement, soixante fois par seconde. */
   const aimBeside = (wrap, clientX, ctx) => {
     const id = wrap.dataset.shelfItem;
-    /* L'objet visé est peut-être DÉJÀ écarté d'un cran par le survol
-       précédent : son rectangle est donc décalé de ce qu'on lui a écrit.
-       On raisonne sur sa place au repos, sinon le repère dériverait d'un
-       écartement à chaque fois — et le partage en deux moitiés se mettrait
-       à osciller au gré de sa propre animation. */
-    const dx = dxOf(wrap);
+    /* Le rectangle d'une enveloppe est toujours celui du repos :
+       l'écartement bascule une couche à l'intérieur d'elle et ne la
+       déplace pas. Rien à défalquer, donc, et surtout rien qui puisse se
+       mettre à osciller au gré de sa propre animation. */
     const r = wrap.getBoundingClientRect();
-    const left = r.left - dx, right = r.right - dx - GAP_X;
-    const s = clientX < (left + right) / 2 ? "before" : "after";
+    const left = r.left, right = r.right - GAP_X;
     const o = overRef.current;
+
+    /* Le milieu du boîtier est une charnière, et une charnière franche
+       claque. À son aplomb, le moindre tremblement de la main renvoyait
+       le repère d'un bord à l'autre — deux fentes distantes de cent
+       pixels, désignées l'une après l'autre par un curseur qui n'a pas
+       bougé d'un cheveu, et les voisins qui s'écartaient dans un sens
+       puis dans l'autre à chaque aller.
+
+       On ne change donc d'avis qu'en dépassant FRANCHEMENT le milieu, et
+       seulement quand on tenait déjà ce boîtier : la bande morte ne
+       s'applique pas au premier survol, où il n'y a pas d'avis à garder
+       et où le partage en deux moitiés est le bon. */
+    const HYST = 6;
+    const mid = (left + right) / 2;
+    const held = o.overId === id ? o.side : null;
+    const s = held
+      ? (clientX < mid - HYST ? "before" : clientX > mid + HYST ? "after" : held)
+      : (clientX < mid ? "before" : "after");
+
     if (o.overId === id && o.side === s && (o.catId || null) === (ctx.catId || null)) return;
     overRef.current = { ...ctx, overId: id, side: s };
     light(null);
