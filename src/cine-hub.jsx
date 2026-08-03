@@ -16,7 +16,7 @@ import {
   SHELF_KINDS, CAT_KEYS, ROW_CAPS, VIEW_VERSION, belongs, isUnplaced,
   makeView, makeCat, makeDecor,
   reconcileView, moveItem, sortIntoRows, buildViewsFromLegacy, duplicateView,
-  reflowView, layoutView, DEFAULT_CAP, capFor,
+  reflowView, layoutView, upgradeView, DEFAULT_CAP, capFor,
   patchRow, addRow, removeRow, clearRow, addCat, patchCat, removeCat, patchDecor, removeDecor,
 } from "./shelf-views";
 
@@ -185,7 +185,17 @@ function ensureViews({ films, dividers, wallPrefs, force = false }) {
     if (idx) {
       const docs = {};
       for (const wall of Object.keys(idx.byWall)) {
-        for (const id of idx.byWall[wall]) { const v = loadView(id); if (v) docs[id] = v; }
+        for (const id of idx.byWall[wall]) {
+          const v = loadView(id);
+          if (!v) continue;
+          /* Une vue d'une version antérieure est reprise ICI, au
+             chargement, et réenregistrée. La laisser telle quelle, c'est
+             la laisser en une seule grosse ligne jusqu'à ce que
+             l'utilisateur y touche — autant dire jamais. */
+          const up = upgradeView(v);
+          if (up !== v) store.set(viewKey(id), up);
+          docs[id] = up;
+        }
       }
       // un index qui ne mène à rien vaut un index absent : on refabrique
       if (Object.keys(docs).length) return { byWall: idx.byWall, docs };

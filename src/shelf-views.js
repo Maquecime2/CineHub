@@ -60,7 +60,23 @@ const chunk = (arr, n) => {
   return out;
 };
 
-export const VIEW_VERSION = 1;
+/* v2 : les rangées ont un compte, et le surplus déborde sur la suivante.
+   Les vues de la v1 ont été fabriquées avec un rayon entier versé dans
+   une seule rangée — il faut les reprendre au chargement, sans quoi elles
+   restent une grosse ligne unique jusqu'à ce qu'on y touche. */
+export const VIEW_VERSION = 2;
+
+export function upgradeView(view) {
+  if ((view.version || 1) >= VIEW_VERSION) return view;
+  const shelves = {};
+  for (const kind of SHELF_KINDS) {
+    const cap = capFor(kind);
+    const shelf = view.shelves?.[kind] || makeShelf();
+    // une rangée sans compte s'étirait sans fin : on lui en donne un
+    shelves[kind] = { ...shelf, rows: shelf.rows.map((r) => (isUnplaced(r) || r.perRow ? r : { ...r, perRow: cap })) };
+  }
+  return reflowView({ ...view, version: VIEW_VERSION, shelves });
+}
 
 /* ------------------------------------------------------------
    Constructeurs

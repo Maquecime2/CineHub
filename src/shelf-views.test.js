@@ -4,7 +4,7 @@ import {
   makeView, makeRow, makeCat, makeDecor, filmItem, isUnplaced,
   reconcileView, moveItem, sortIntoRows, buildViewsFromLegacy, duplicateView, filmIdsOf,
   patchRow, addRow, removeRow, clearRow, addCat, patchCat, removeCat, patchDecor, removeDecor,
-  reflowShelf, layoutView, DEFAULT_CAP,
+  reflowShelf, layoutView, upgradeView, DEFAULT_CAP,
 } from "./shelf-views";
 
 /* Un film réduit à ce dont l'étagère a besoin. */
@@ -310,6 +310,46 @@ describe("le débordement", () => {
     expect(rows[0].items.map((i) => i.id)).toEqual(["a", "c1"]);
     expect(rows[1].items.map((i) => i.id)).toEqual(["b"]);
     expect(rows[0].items[1].items.map((i) => i.id)).toEqual(["x", "y"]);
+  });
+});
+
+describe("upgradeView — reprendre une vue deja enregistree", () => {
+  /* Le cas rencontre pour de vrai : une vue fabriquee par la v1, ou tout
+     un rayon avait ete verse dans UNE rangee sans compte. Sans reprise au
+     chargement, elle reste une seule grosse ligne. */
+  const v1 = () => {
+    const view = makeView();
+    view.version = 1;
+    view.shelves.main.rows = [
+      makeRow({ id: "r1", perRow: null, items: Array.from({ length: 25 }, (_, i) => filmItem(`f${i}`)) }),
+      makeRow({ id: "u", kind: "unplaced", items: [] }),
+    ];
+    return view;
+  };
+
+  it("donne un compte aux rangees qui n'en ont pas et fait deborder", () => {
+    const out = upgradeView(v1());
+    const rows = rowsOf(out, "main");
+    expect(out.version).toBe(2);
+    expect(rows.filter((r) => !isUnplaced(r)).map((r) => r.items.length)).toEqual([10, 10, 5]);
+    expect(rows.every((r) => isUnplaced(r) || r.perRow === DEFAULT_CAP)).toBe(true);
+  });
+
+  it("n'y touche plus une fois reprise", () => {
+    const once = upgradeView(v1());
+    expect(upgradeView(once)).toBe(once);
+  });
+
+  it("ne perd aucun film au passage", () => {
+    const before = filmIdsOf(v1()).sort();
+    expect(filmIdsOf(upgradeView(v1())).sort()).toEqual(before);
+  });
+
+  it("respecte un compte deja choisi par l'utilisateur", () => {
+    const view = v1();
+    view.shelves.main.rows[0].perRow = 4;
+    const rows = rowsOf(upgradeView(view), "main");
+    expect(rows.filter((r) => !isUnplaced(r)).map((r) => r.items.length)).toEqual([4, 4, 4, 4, 4, 4, 1]);
   });
 });
 
