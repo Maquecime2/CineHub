@@ -664,6 +664,81 @@ export function layoutView(view, films, cap = null) {
   return { ...view, shelves };
 }
 
+/* Le cinéaste d'un film, ou le nom qu'on donne à son absence. Le mur
+   regroupé emploie déjà exactement ce libellé : deux endroits qui
+   montrent la même chose doivent la nommer pareil. */
+export const UNKNOWN_DIRECTOR = "Réalisateur inconnu";
+
+export const directorOf = (film) => film.director?.trim() || UNKNOWN_DIRECTOR;
+
+/* UNE ÉTAGÈRE PAR CINÉASTE — une ligne par réalisateur, et sur cette
+   ligne une boîte à son nom qui tient ses films.
+
+   La boîte n'est pas une décoration : c'est elle qui rend la ligne
+   manipulable. Poser les films à même la rangée avec un simple libellé
+   dans la gouttière aurait donné le même dessin, mais le premier
+   glissement aurait mélangé deux cinéastes sans rien pour s'y opposer.
+   Une boîte se déplace pleine, se referme, et refuse ce qui n'est pas un
+   film — la ligne garde son sens toute seule.
+
+   L'ordre est celui du mur regroupé, repris à l'identique : les plus
+   fréquentés d'abord, puis l'alphabet, et les sans-nom en dernier. C'est
+   là que se lisent les habitudes.
+
+   Le résultat est une vue ORDINAIRE. Rien ne la marque, rien ne la
+   régénère : une fois posée, elle se réarrange à la main comme les
+   autres, et les films qui arrivent ensuite tombent dans la rangée
+   d'arrivée. Une vue qui se referait toute seule à chaque chargement
+   effacerait le rangement de l'utilisateur, ce que ce modèle refuse
+   partout ailleurs. */
+export function layoutByDirector(view, films, { cap = null } = {}) {
+  const shelves = {};
+  let colorAt = 0;
+
+  for (const kind of SHELF_KINDS) {
+    const n = cap || capFor(kind);
+
+    const by = new Map();
+    for (const f of films.filter(belongs[kind])) {
+      const key = directorOf(f);
+      if (!by.has(key)) by.set(key, []);
+      by.get(key).push(f);
+    }
+
+    const rows = [...by.entries()]
+      .sort(
+        (a, b) =>
+          b[1].length - a[1].length ||
+          (a[0] === UNKNOWN_DIRECTOR
+            ? 1
+            : b[0] === UNKNOWN_DIRECTOR
+              ? -1
+              : a[0].localeCompare(b[0]))
+      )
+      .map(([name, list]) =>
+        makeRow({
+          /* Le compte de la ligne est celui du rayon : c'est lui que la
+             boîte reprend pour savoir où replier ses boîtiers, une
+             filmographie de trente titres tenant alors en trois lignes
+             dans son carton plutôt qu'en une bande sans fin. */
+          perRow: n,
+          items: [
+            makeCat({
+              label: name,
+              color: CAT_KEYS[colorAt++ % CAT_KEYS.length],
+              items: list.map((f) => filmItem(f.id)),
+            }),
+          ],
+        })
+      );
+
+    if (!rows.length) rows.push(makeRow({ perRow: n }));
+    shelves[kind] = { rows: [...rows, makeRow({ kind: "unplaced" })] };
+  }
+
+  return { ...view, shelves };
+}
+
 /* ------------------------------------------------------------
    Ranger — le tri devenu un verbe
    ------------------------------------------------------------
@@ -791,6 +866,20 @@ export function buildViewsFromLegacy({ films = [], dividers = [], wallPrefs = {}
       view.shelves[kind] = { rows };
     }
     views.push(view);
+
+    /* Une seconde vue, offerte d'emblée : l'étagère par cinéaste. Elle
+       arrive APRÈS le rangement d'origine, qui reste donc la vue ouverte
+       par défaut — on propose un autre regard, on n'en impose pas un.
+       Un mur sans le moindre film n'en a pas besoin : deux étagères vides
+       à choisir ne sont pas un choix. */
+    if (pool.length) {
+      views.push(
+        /* Sans `cap` : chaque rayon garde le sien, et le tiroir sa
+           largeur de tiroir. Le compte hérité de l'ancien mur n'a de sens
+           que pour la vue qui reproduit ce mur. */
+        layoutByDirector(makeView({ wall, name: "Par réalisateur", theme: "kraft", now }), pool)
+      );
+    }
   }
   return views;
 }

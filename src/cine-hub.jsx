@@ -16,7 +16,7 @@ import {
   SHELF_KINDS, CAT_KEYS, ROW_CAPS, VIEW_VERSION, belongs, isUnplaced,
   makeView, makeCat, makeDecor,
   reconcileView, moveItem, sortIntoRows, buildViewsFromLegacy, duplicateView,
-  reflowView, layoutView, upgradeView, DEFAULT_CAP, capFor,
+  reflowView, layoutView, layoutByDirector, upgradeView, DEFAULT_CAP, capFor,
   patchRow, addRow, removeRow, clearRow, addCat, patchCat, removeCat, patchDecor, removeDecor,
 } from "./shelf-views";
 
@@ -2236,7 +2236,7 @@ const findDecorIn = (view, id) => {
    Les films sont les mêmes ; ce qui change, c'est la mise en scène :
    l'ordre, les catégories, la largeur des lignes, les objets posés et le
    bois des planches. On passe de l'une à l'autre sans rien déplacer. */
-function ViewSwitcher({ views, active, onPick, onCreate, onCopy, onDelete, onRename, onTheme }) {
+function ViewSwitcher({ views, active, onPick, onCreate, onCreateByDirector, onCopy, onDelete, onRename, onTheme }) {
   const [open, setOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState(active?.name || "");
@@ -2297,11 +2297,19 @@ function ViewSwitcher({ views, active, onPick, onCreate, onCopy, onDelete, onRen
               );
             })}
 
-            <button onClick={() => { onCreate(); setOpen(false); }} style={{
-              all: "unset", cursor: "pointer", display: "block", marginTop: 8, paddingTop: 8,
-              borderTop: `1px dashed ${C.line}`, width: "100%",
-              fontFamily: "'Special Elite', monospace", fontSize: 10, color: C.inkFaded,
-            }}>+ NOUVELLE VUE</button>
+            <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px dashed ${C.line}`, display: "flex", flexDirection: "column", gap: 3 }}>
+              <button onClick={() => { onCreate(); setOpen(false); }} style={{
+                all: "unset", cursor: "pointer",
+                fontFamily: "'Special Elite', monospace", fontSize: 10, color: C.inkFaded,
+              }}>+ NOUVELLE VUE</button>
+              {/* Une étagère par cinéaste : une ligne et une boîte par
+                  réalisateur. C'est une vue comme les autres une fois
+                  posée — on la range ensuite à la main si l'on veut. */}
+              <button onClick={() => { onCreateByDirector(); setOpen(false); }} title="Une ligne et une boîte par réalisateur" style={{
+                all: "unset", cursor: "pointer",
+                fontFamily: "'Special Elite', monospace", fontSize: 10, color: C.inkFaded,
+              }}>+ PAR RÉALISATEUR</button>
+            </div>
 
             <div style={{ fontFamily: "'Special Elite', monospace", fontSize: 8.5, letterSpacing: 1, color: C.inkFaded, margin: "12px 0 5px" }}>BOIS DE L'ÉTAGÈRE</div>
             <div style={{ display: "flex", gap: 5 }}>
@@ -2322,7 +2330,7 @@ function ViewSwitcher({ views, active, onPick, onCreate, onCopy, onDelete, onRen
 
 function LibraryView({
   films, onOpen, wall = "watched", ui, setUi, onUpdateMany,
-  shelfView, shelfViews, onShelfView, onPickView, onCreateView, onCopyView, onDeleteView,
+  shelfView, shelfViews, onShelfView, onPickView, onCreateView, onCreateDirectorView, onCopyView, onDeleteView,
 }) {
   const cfg = WALLS[wall];
   /* Recherche, filtre et tri vivent dans App : ouvrir un film démonte cette
@@ -2432,7 +2440,23 @@ function LibraryView({
       <InkUnderline width={cfg.underline} />
       <div style={{ fontFamily: "'Caveat', cursive", fontSize: 22, color: C.inkFaded, marginTop: 2, position: "relative", zIndex: 2 }}>{cfg.subtitle}</div>
 
-      <div style={{ display: "flex", gap: 24, flexWrap: "wrap", alignItems: "flex-end", marginTop: 26, marginBottom: 34, borderBottom: `1px dashed ${C.line}`, paddingBottom: 18, position: "relative", zIndex: 2 }}>
+      {/* Pas de `z-index` sur cette barre, et c'est délibéré.
+
+          Elle en portait un — le même 2 que le reste du contenu, pour
+          passer devant les taches de café. Mais un `z-index` sur un
+          élément positionné ouvre un CONTEXTE D'EMPILEMENT, et tout ce
+          qu'il contient s'y trouve enfermé : les 43 du menu des vues ne
+          valaient plus qu'à l'intérieur de la barre, laquelle restait à 2
+          parmi ses frères. L'étagère, elle aussi à 2 mais PLUS BAS dans le
+          document, passait donc devant le bas du menu déroulant — juste
+          là où se trouvent les pastilles de bois. Elles s'affichaient, et
+          le clic allait au rayon derrière.
+
+          Sans `z-index`, la barre n'enferme plus rien : le menu compare
+          son 43 au 2 de l'étagère dans un contexte commun, et gagne. Les
+          taches de café restent derrière sans qu'on ait à le demander —
+          elles sont AVANT dans le document et ne captent aucun clic. */}
+      <div style={{ display: "flex", gap: 24, flexWrap: "wrap", alignItems: "flex-end", marginTop: 26, marginBottom: 34, borderBottom: `1px dashed ${C.line}`, paddingBottom: 18, position: "relative" }}>
         <div style={{ minWidth: 200 }}>
           <Label>Chercher</Label>
           <input style={underlineInput} placeholder="un titre, un·e cinéaste…" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -2486,7 +2510,8 @@ function LibraryView({
         {mode === "shelf" && (
           <ViewSwitcher
             views={shelfViews} active={shelfView}
-            onPick={onPickView} onCreate={onCreateView} onCopy={onCopyView} onDelete={onDeleteView}
+            onPick={onPickView} onCreate={onCreateView} onCreateByDirector={onCreateDirectorView}
+            onCopy={onCopyView} onDelete={onDeleteView}
             onRename={(name) => onShelfView({ ...shelfView, name })}
             onTheme={(theme) => onShelfView({ ...shelfView, theme })}
           />
@@ -4592,6 +4617,17 @@ export default function App() {
     return doc.id;
   }, [addView, films]);
 
+  /* L'étagère par cinéaste. Elle naît rangée — une ligne et une boîte par
+     réalisateur — puis c'est une vue comme une autre : rien ne la refait
+     dans son dos, et ce qu'on y déplace y reste. */
+  const createDirectorView = useCallback((wall) => {
+    const blank = makeView({ wall, name: "Par réalisateur", now: Date.now() });
+    const pool = films.filter((f) => (f.status === "watchlist") === (wall === "watchlist"));
+    const doc = layoutByDirector(blank, pool);
+    addView(wall, doc);
+    return doc.id;
+  }, [addView, films]);
+
   const copyView = useCallback((id) => {
     const src = views.docs[id];
     if (!src) return null;
@@ -4737,6 +4773,7 @@ export default function App() {
       onShelfView: commitView,
       onPickView: (next) => setUiFor(wall)({ ...wallUi[wall], viewId: next }),
       onCreateView: (name) => setUiFor(wall)({ ...wallUi[wall], viewId: createView(wall, name) }),
+      onCreateDirectorView: () => setUiFor(wall)({ ...wallUi[wall], viewId: createDirectorView(wall) }),
       onCopyView: (from) => { const next = copyView(from); if (next) setUiFor(wall)({ ...wallUi[wall], viewId: next }); },
       onDeleteView: removeView,
     };

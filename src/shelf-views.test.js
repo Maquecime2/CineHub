@@ -27,6 +27,8 @@ import {
   removeDecor,
   reflowShelf,
   layoutView,
+  layoutByDirector,
+  UNKNOWN_DIRECTOR,
   upgradeView,
   DEFAULT_CAP,
 } from "./shelf-views";
@@ -482,6 +484,77 @@ describe("layoutView", () => {
   });
 });
 
+describe("layoutByDirector", () => {
+  const cast = [
+    film("a", { director: "Varda" }),
+    film("b", { director: "Varda" }),
+    film("c", { director: "Akerman" }),
+    film("d", { director: "  " }),
+    film("e", { director: "Varda" }),
+    film("f", { director: "Akerman" }),
+    film("g", { director: "Denis" }),
+  ];
+
+  const catsOf = (view, kind) =>
+    rowsOf(view, kind)
+      .filter((r) => !isUnplaced(r))
+      .flatMap((r) => r.items)
+      .filter((it) => it.t === "c");
+
+  it("donne une ligne et une boîte par réalisateur", () => {
+    const out = layoutByDirector(makeView(), cast);
+    const placed = rowsOf(out, "main").filter((r) => !isUnplaced(r));
+    expect(placed).toHaveLength(4);
+    // une ligne ne porte QUE sa boîte : c'est elle qui tient les films
+    expect(placed.every((r) => r.items.length === 1 && r.items[0].t === "c")).toBe(true);
+    expect(catsOf(out, "main").map((c) => c.label)).toEqual([
+      "Varda",
+      "Akerman",
+      "Denis",
+      UNKNOWN_DIRECTOR,
+    ]);
+  });
+
+  it("ordonne comme le mur regroupé : les plus fréquentés, puis l'alphabet, les sans-nom en dernier", () => {
+    const cats = catsOf(layoutByDirector(makeView(), cast), "main");
+    expect(cats.map((c) => c.items.length)).toEqual([3, 2, 1, 1]);
+    // Denis et l'inconnu ont un film chacun : l'inconnu passe apres
+    expect(cats.at(-1).label).toBe(UNKNOWN_DIRECTOR);
+  });
+
+  it("ne perd aucun film, et n'en laisse aucun dans la rangée d'arrivée", () => {
+    const out = layoutByDirector(makeView(), cast);
+    expect(filmIdsOf(out).sort()).toEqual(cast.map((f) => f.id).sort());
+    expect(idsIn(unplacedOf(out, "main"))).toEqual([]);
+  });
+
+  it("répartit selon les drapeaux, chaque rayon ayant ses propres cinéastes", () => {
+    const out = layoutByDirector(makeView(), [
+      film("a", { director: "Varda" }),
+      film("b", { director: "Varda", chevet: true }),
+      film("c", { director: "Akerman", archived: true }),
+    ]);
+    expect(catsOf(out, "main").map((c) => c.label)).toEqual(["Varda"]);
+    expect(catsOf(out, "chevet").map((c) => c.label)).toEqual(["Varda"]);
+    expect(catsOf(out, "reserve").map((c) => c.label)).toEqual(["Akerman"]);
+  });
+
+  it("d'un mur vide fait une étagère vide, jamais une vue sans rangée", () => {
+    const out = layoutByDirector(makeView(), []);
+    for (const kind of SHELF_KINDS) {
+      const rows = rowsOf(out, kind);
+      expect(rows.length).toBeGreaterThanOrEqual(2);
+      expect(isUnplaced(rows.at(-1))).toBe(true);
+    }
+  });
+
+  it("survit à reconcileView sans rien deplacer", () => {
+    const out = layoutByDirector(makeView(), cast);
+    // la vue est deja juste : la reconciliation ne doit rien avoir a dire
+    expect(reconcileView(out, cast)).toBe(out);
+  });
+});
+
 describe("sortIntoRows", () => {
   it("trie les films sans déplacer catégories ni décors", () => {
     const view = makeView();
@@ -576,9 +649,16 @@ describe("buildViewsFromLegacy", () => {
     expect(CAT_KEYS).toContain(rows[1].items[0].color);
   });
 
-  it("produit une vue par mur, chacune avec ses trois rayons", () => {
+  it("offre le rangement d'origine, puis l'étagère par cinéaste au mur qui a des films", () => {
     const views = build();
-    expect(views.map((v) => v.wall)).toEqual(["watched", "watchlist"]);
+    /* L'origine d'abord : c'est elle qui reste la vue ouverte par défaut,
+       et le second regard ne s'impose pas. Le mur watchlist est vide dans
+       ce jeu d'essai, et deux étagères vides ne sont pas un choix. */
+    expect(views.map((v) => `${v.wall} · ${v.name}`)).toEqual([
+      "watched · Rangement d'origine",
+      "watched · Par réalisateur",
+      "watchlist · Rangement d'origine",
+    ]);
     for (const v of views) expect(Object.keys(v.shelves).sort()).toEqual([...SHELF_KINDS].sort());
   });
 
@@ -587,10 +667,13 @@ describe("buildViewsFromLegacy", () => {
     expect(build().map(strip)).toEqual(build().map(strip));
   });
 
-  it("n'oublie aucun film — l'agencement migré couvre la collection", () => {
+  it("n'oublie aucun film — chaque vue couvre à elle seule la collection de son mur", () => {
+    const ids = films.map((f) => f.id).sort();
     const views = build();
-    const seen = views.flatMap(filmIdsOf).sort();
-    expect(seen).toEqual(films.map((f) => f.id).sort());
+    for (const v of views.filter((v) => v.wall === "watched"))
+      expect(filmIdsOf(v).sort()).toEqual(ids);
+    // et le mur d'en face ne revendique rien qui ne soit à lui
+    expect(views.filter((v) => v.wall === "watchlist").flatMap(filmIdsOf)).toEqual([]);
   });
 });
 
