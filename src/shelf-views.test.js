@@ -4,6 +4,7 @@ import {
   makeView, makeRow, makeCat, makeDecor, filmItem, isUnplaced,
   reconcileView, moveItem, sortIntoRows, buildViewsFromLegacy, duplicateView, filmIdsOf,
   patchRow, addRow, removeRow, clearRow, addCat, patchCat, removeCat, patchDecor, removeDecor,
+  reflowShelf, layoutView, DEFAULT_CAP,
 } from "./shelf-views";
 
 /* Un film réduit à ce dont l'étagère a besoin. */
@@ -256,6 +257,77 @@ describe("le mobilier", () => {
   it("redimensionne un décor", () => {
     const next = patchDecor(seed(), "d1", { size: 1.5, color: "cobalt" });
     expect(rowsOf(next, "main")[0].items[2]).toMatchObject({ size: 1.5, color: "cobalt" });
+  });
+});
+
+describe("le débordement", () => {
+  it("une planche pleine pousse le surplus sur la suivante", () => {
+    const view = makeView();
+    view.shelves.main.rows = [
+      makeRow({ id: "r1", perRow: 2, items: [filmItem("a"), filmItem("b"), filmItem("c"), filmItem("d")] }),
+      makeRow({ id: "r2", perRow: 2, items: [] }),
+      makeRow({ id: "r3", kind: "unplaced", items: [] }),
+    ];
+    const rows = rowsOf(reflowShelf(view, "main"), "main");
+    expect(rows.map(idsIn)).toEqual([["a", "b"], ["c", "d"], []]);
+  });
+
+  it("cascade, et ouvre des planches neuves avant le sas d'arrivée", () => {
+    const view = makeView();
+    view.shelves.main.rows = [
+      makeRow({ id: "r1", perRow: 2, items: ["a", "b", "c", "d", "e", "f", "g"].map(filmItem) }),
+      makeRow({ id: "r2", kind: "unplaced", items: [filmItem("z")] }),
+    ];
+    const rows = rowsOf(reflowShelf(view, "main"), "main");
+    expect(rows.map(idsIn)).toEqual([["a", "b"], ["c", "d"], ["e", "f"], ["g"], ["z"]]);
+    // le sas reste le sas : il n'a pas recueilli le surplus
+    expect(isUnplaced(rows.at(-1))).toBe(true);
+    expect(rows.filter(isUnplaced)).toHaveLength(1);
+  });
+
+  it("ne touche à rien quand tout tient déjà", () => {
+    const view = makeView();
+    view.shelves.main.rows = [makeRow({ perRow: 4, items: [filmItem("a")] }), makeRow({ kind: "unplaced" })];
+    expect(reflowShelf(view, "main")).toBe(view);
+  });
+
+  it("une rangée « auto » ne déborde pas — elle suit la largeur", () => {
+    const view = makeView();
+    view.shelves.main.rows = [
+      makeRow({ perRow: null, items: ["a", "b", "c"].map(filmItem) }),
+      makeRow({ kind: "unplaced" }),
+    ];
+    expect(reflowShelf(view, "main")).toBe(view);
+  });
+
+  it("une catégorie compte pour un objet, et n'est jamais coupée", () => {
+    const view = makeView();
+    view.shelves.main.rows = [
+      makeRow({ perRow: 2, items: [filmItem("a"), makeCat({ id: "c1", items: [filmItem("x"), filmItem("y")] }), filmItem("b")] }),
+      makeRow({ kind: "unplaced" }),
+    ];
+    const rows = rowsOf(reflowShelf(view, "main"), "main");
+    expect(rows[0].items.map((i) => i.id)).toEqual(["a", "c1"]);
+    expect(rows[1].items.map((i) => i.id)).toEqual(["b"]);
+    expect(rows[0].items[1].items.map((i) => i.id)).toEqual(["x", "y"]);
+  });
+});
+
+describe("layoutView", () => {
+  it("étale une collection en planches d'une dizaine", () => {
+    const films = Array.from({ length: 23 }, (_, i) => film(`f${i}`));
+    const out = layoutView(makeView(), films);
+    const rows = rowsOf(out, "main");
+    expect(rows.filter((r) => !isUnplaced(r)).map((r) => r.items.length)).toEqual([10, 10, 3]);
+    expect(idsIn(unplacedOf(out, "main"))).toEqual([]);
+    expect(rows.every((r) => isUnplaced(r) || r.perRow === DEFAULT_CAP)).toBe(true);
+  });
+
+  it("répartit selon les drapeaux du film", () => {
+    const out = layoutView(makeView(), [film("a"), film("b", { chevet: true }), film("c", { archived: true })]);
+    expect(idsIn(rowsOf(out, "main")[0])).toEqual(["a"]);
+    expect(idsIn(rowsOf(out, "chevet")[0])).toEqual(["b"]);
+    expect(idsIn(rowsOf(out, "reserve")[0])).toEqual(["c"]);
   });
 });
 

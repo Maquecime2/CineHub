@@ -16,6 +16,7 @@ import {
   SHELF_KINDS, CAT_KEYS, ROW_CAPS, VIEW_VERSION, belongs, isUnplaced,
   makeView, makeCat, makeDecor,
   reconcileView, moveItem, sortIntoRows, buildViewsFromLegacy, duplicateView,
+  reflowView, layoutView, DEFAULT_CAP, capFor,
   patchRow, addRow, removeRow, clearRow, addCat, patchCat, removeCat, patchDecor, removeDecor,
 } from "./shelf-views";
 
@@ -1340,7 +1341,7 @@ const RowGutter = React.memo(function RowGutter({ row, shown, acts, capMax }) {
    étagère, cela donne à la gouttière un objet contre quoi buter, et cela
    fait de la rangée une chose qu'on voit. */
 const ShelfRow = React.memo(function ShelfRow({
-  row, kind, films, theme, dim, dnd, acts, onOpen, onEditCat, onEditDecor, capMax, isLast,
+  row, kind, films, theme, dim, dnd, acts, onOpen, onEditCat, onEditDecor, capMax, isLast, bare,
 }) {
   const [shown, setShown] = useState(false);
   const ctx = useMemo(() => ({ kind, rowId: row.id, catId: null }), [kind, row.id]);
@@ -1385,7 +1386,7 @@ const ShelfRow = React.memo(function ShelfRow({
         onMouseEnter={() => setShown(true)}
         onMouseLeave={() => setShown(false)}
       >
-        {!hidden && <RowGutter row={row} shown={shown} acts={acts} capMax={capMax} />}
+        {!hidden && !bare && <RowGutter row={row} shown={shown} acts={acts} capMax={capMax} />}
         <div
           data-shelf-row
           onDragOver={(e) => dnd.onRowOver(e, ctx)}
@@ -1393,8 +1394,8 @@ const ShelfRow = React.memo(function ShelfRow({
           style={{
             position: "relative", flex: 1, display: "flex", flexWrap: "wrap", alignItems: "flex-end",
             minHeight: hidden ? 12 : BOX_H + 26,
-            padding: hidden ? 0 : "14px 10px 0",
-            marginLeft: hidden ? 26 : 0,
+            padding: hidden ? 0 : bare ? "14px 2px 0" : "14px 10px 0",
+            marginLeft: hidden && !bare ? 26 : 0,
           }}
         >
           {empty && !isUnplaced(row) && (
@@ -1415,7 +1416,7 @@ const ShelfRow = React.memo(function ShelfRow({
           data-row-seam
           onDragOver={(e) => dnd.onSeamOver(e, kind, row.id)}
           onDrop={(e) => { e.preventDefault(); dnd.onDrop(kind); }}
-          style={{ height: 10, marginLeft: 26 }}
+          style={{ height: 10, marginLeft: bare ? 0 : 26 }}
         />
       )}
     </>
@@ -1541,10 +1542,10 @@ function ReserveDrawer({ shelf, count, open, setOpen, dnd, acts, films, theme, d
               key={row.id} row={row} kind="reserve" films={films} theme={theme} dim={dim}
               dnd={dnd} acts={acts} onOpen={onOpen} onEditCat={onEditCat} onEditDecor={onEditDecor}
               isLast={i === rows.length - 1}
-              /* 250 px de large : au-delà de deux boîtiers par ligne, le
-                 tiroir déborderait. On ne propose donc pas ce qu'il ne
-                 peut pas tenir. */
-              capMax={2}
+              /* Dans un tiroir de 250 px, le réglage par ligne n'a rien à
+                 régler : la largeur décide. La rangée y va donc nue, ce
+                 qui rend les 26 px de gouttière aux boîtiers. */
+              bare capMax={2}
             />
           ))}
         </div>
@@ -4422,8 +4423,11 @@ export default function App() {
   /* Tous en `useCallback` : ce sont des gestes, jamais du rendu. Ils
      horodatent, et une fonction impure appelée pendant un rendu serait
      une faute — la règle vaut aussi pour le compilateur, qui la relève. */
+  /* Le débordement est un invariant, pas un geste : toute écriture y
+     passe. Sans quoi une rangée réglée à cinq garderait ses douze films
+     et se replierait en accordéon sous une planche unique. */
   const commitView = useCallback((next) => {
-    const stamped = { ...next, updatedAt: Date.now() };
+    const stamped = { ...reflowView(next), updatedAt: Date.now() };
     setViews((s) => ({ ...s, docs: { ...s.docs, [stamped.id]: stamped } }));
     saveView(stamped);
   }, []);
@@ -4438,10 +4442,14 @@ export default function App() {
   }, []);
 
   const createView = useCallback((wall, name) => {
-    const doc = makeView({ wall, name: name || "Nouvelle vue", now: Date.now() });
+    const blank = makeView({ wall, name: name || "Nouvelle vue", now: Date.now() });
+    /* Tout laisser dans le sas donnerait une étagère vide et un tas :
+       une vue neuve arrive déjà rangée, en planches d'une dizaine. */
+    const pool = films.filter((f) => (f.status === "watchlist") === (wall === "watchlist"));
+    const doc = layoutView(blank, pool);
     addView(wall, doc);
     return doc.id;
-  }, [addView]);
+  }, [addView, films]);
 
   const copyView = useCallback((id) => {
     const src = views.docs[id];

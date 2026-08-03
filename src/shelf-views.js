@@ -37,6 +37,29 @@ export const CAT_KEYS = ["burgundy", "ochre", "pine", "slate", "cobalt", "vermil
 /* Les caps proposés par la gouttière. `null` = au fil de la largeur. */
 export const ROW_CAPS = [null, 3, 4, 5, 6, 8, 10, 12];
 
+/* Ce qu'une planche tient par défaut. Une étagère se remplit par lignes
+   d'une dizaine de boîtiers ; laisser une rangée s'étirer sans fin, c'est
+   ne plus avoir de rangées du tout. */
+export const DEFAULT_CAP = 10;
+
+/* Le tiroir des mis de côté ne fait que 250 px de large : deux boîtiers y
+   tiennent, pas dix. Lui donner le compte de la collection le ferait
+   replier chaque rangée en colonne. */
+export const DRAWER_CAP = 2;
+
+/* Un compte n'est jamais un nombre imposé : c'est le MAXIMUM qu'une
+   planche accepte. Elle peut en porter moins — parce qu'il n'y a plus de
+   films, ou parce que la largeur disponible ne suit pas. Rien ne va
+   jamais rappeler un boîtier en arrière pour la remplir. */
+export const capFor = (kind) => (kind === "reserve" ? DRAWER_CAP : DEFAULT_CAP);
+
+const chunk = (arr, n) => {
+  if (!n || arr.length <= n) return [arr];
+  const out = [];
+  for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
+  return out;
+};
+
 export const VIEW_VERSION = 1;
 
 /* ------------------------------------------------------------
@@ -74,7 +97,7 @@ export const filmItem = (id) => ({ t: "f", id });
    recueille ce qu'on n'a pas encore placé. Cette dernière est une
    institution, pas un accident : sans elle, un film importé n'aurait
    nulle part où apparaître et deviendrait invisible. */
-export const makeShelf = () => ({ rows: [makeRow(), makeRow({ kind: "unplaced" })] });
+export const makeShelf = () => ({ rows: [makeRow({ perRow: DEFAULT_CAP }), makeRow({ kind: "unplaced" })] });
 
 export const makeView = ({ id, wall = "watched", name = "Nouvelle vue", theme = "kraft", now = 0 } = {}) => ({
   id: id || `v_${uid()}`,
@@ -453,6 +476,74 @@ export function patchDecor(view, id, patch) {
 }
 
 /* ------------------------------------------------------------
+   Le débordement — une planche pleine pousse sur la suivante
+   ------------------------------------------------------------
+
+   Le compte d'une rangée ne la REPLIE pas sur elle-même : il dit combien
+   de boîtiers elle TIENT. Poser douze films sur une planche de cinq ne
+   fabrique pas trois lignes sous une même planche — cela remplit la
+   planche, et le reste va sur celle d'en dessous, en cascade. C'est ce
+   que fait une étagère, et c'était le vrai défaut du premier jet :
+   régler une ligne à cinq entassait tout le rayon en accordéon.
+
+   Le surplus qui arrive au bout ouvre des rangées neuves AVANT la rangée
+   d'arrivée — celle-ci reste ce qu'elle est, un sas, jamais un rayon. */
+export function reflowShelf(view, kind) {
+  const rows = view.shelves[kind].rows;
+  const out = [];
+  let carry = [];
+  let lastCap = capFor(kind);
+  let changed = false;
+
+  for (const row of rows) {
+    if (isUnplaced(row)) {
+      // ce qui déborde encore prend des planches neuves, pas le sas
+      for (const part of carry.length ? chunk(carry, lastCap) : []) {
+        out.push(makeRow({ perRow: lastCap, items: part }));
+        changed = true;
+      }
+      carry = [];
+      out.push(row);
+      continue;
+    }
+    if (row.perRow) lastCap = row.perRow;
+    let items = carry.length ? [...carry, ...row.items] : row.items;
+    carry = [];
+    if (row.perRow && items.length > row.perRow) {
+      carry = items.slice(row.perRow);
+      items = items.slice(0, row.perRow);
+    }
+    if (items === row.items) out.push(row);
+    else { out.push({ ...row, items }); changed = true; }
+  }
+
+  if (!changed) return view;
+  return { ...view, shelves: { ...view.shelves, [kind]: { ...view.shelves[kind], rows: out } } };
+}
+
+export function reflowView(view) {
+  let next = view;
+  for (const kind of SHELF_KINDS) next = reflowShelf(next, kind);
+  return next;
+}
+
+/* Étaler une collection sur des planches neuves. Sert à une vue qu'on
+   vient de créer : la laisser entièrement dans le sas donnerait une
+   étagère vide et un tas, ce qui n'est pas un rangement. */
+export function layoutView(view, films, cap = null) {
+  const shelves = {};
+  for (const kind of SHELF_KINDS) {
+    const n = cap || capFor(kind);
+    const ids = films.filter(belongs[kind]).map((f) => f.id);
+    const rows = ids.length
+      ? chunk(ids, n).map((part) => makeRow({ perRow: n, items: part.map(filmItem) }))
+      : [makeRow({ perRow: n })];
+    shelves[kind] = { rows: [...rows, makeRow({ kind: "unplaced" })] };
+  }
+  return { ...view, shelves };
+}
+
+/* ------------------------------------------------------------
    Ranger — le tri devenu un verbe
    ------------------------------------------------------------
 
@@ -501,13 +592,14 @@ export function buildViewsFromLegacy({ films = [], dividers = [], wallPrefs = {}
     const pool = films.filter((f) => (f.status === "watchlist") === (wall === "watchlist"));
     const legacyCap = (() => {
       const p = wallPrefs[wall]?.perRow;
-      return p && p !== "auto" ? p : null;
+      return p && p !== "auto" ? p : DEFAULT_CAP;
     })();
 
     const view = makeView({ wall, name: "Rangement d'origine", theme: "kraft", now });
     let colorAt = 0;
 
     for (const kind of SHELF_KINDS) {
+      const shelfCap = kind === "reserve" ? DRAWER_CAP : legacyCap;
       const mine = pool.filter(belongs[kind]);
       /* Les films jamais rangés à la main portent `order: null`, que
          l'ancien tri repoussait en fin de rayon. Les fondre dans la
@@ -524,28 +616,39 @@ export function buildViewsFromLegacy({ films = [], dividers = [], wallPrefs = {}
       ].sort((a, b) => a.order - b.order || a.tie - b.tie);
 
       const rows = [];
-      let row = makeRow({ perRow: legacyCap });
+      let cap = shelfCap;
+      let loose = [];               // les films libres, en attente de planches
       let cat = null;
+
+      /* Les films libres ne tiennent pas tous sur une planche : on les
+         débite en rangées du compte courant. Tout mettre sur une seule
+         rangée était le défaut du premier jet — un rayon entier entassé
+         sous une planche unique. */
+      const flushLoose = () => {
+        for (const part of chunk(loose, cap)) if (part.length) rows.push(makeRow({ perRow: cap, items: part }));
+        loose = [];
+      };
 
       for (const it of merged) {
         if (it.type === "divider") {
-          /* Un intercalaire ouvrait une ligne et donnait son cap : il
-             devient donc une RANGÉE, et son libellé devient la
-             catégorie qui en occupe la tête et avale ce qui suivait. */
-          if (row.items.length) rows.push(row);
+          /* Un intercalaire ouvrait une ligne et donnait son compte : il
+             devient une RANGÉE, et son libellé la catégorie qui en occupe
+             la tête et avale ce qui suivait. */
+          flushLoose();
           cat = makeCat({
             label: it.divider.label || "Catégorie",
             color: CAT_KEYS[colorAt++ % CAT_KEYS.length],
           });
-          row = makeRow({ perRow: it.divider.perRow || legacyCap, items: [cat] });
+          cap = it.divider.perRow || shelfCap;
+          rows.push(makeRow({ perRow: cap, items: [cat] }));
         } else if (cat) {
           cat.items.push(filmItem(it.id));
         } else {
-          row.items.push(filmItem(it.id));
+          loose.push(filmItem(it.id));
         }
       }
-      if (row.items.length) rows.push(row);
-      if (!rows.length) rows.push(makeRow({ perRow: legacyCap }));
+      flushLoose();
+      if (!rows.length) rows.push(makeRow({ perRow: cap }));
       rows.push(makeRow({ kind: "unplaced", items: never.map((f) => filmItem(f.id)) }));
 
       view.shelves[kind] = { rows };
