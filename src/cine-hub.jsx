@@ -823,6 +823,12 @@ const FilmBox = React.memo(function FilmBox({ film, kind, onOpen, onDragStart, o
         title={`${film.title}${film.year ? ` (${film.year})` : ""}`}
         style={{
           all: "unset", boxSizing: "border-box", cursor: "pointer", position: "relative",
+          /* `all: unset` a aussi effacé le `user-select: none` que porte un
+             bouton. Sans affiche, le boîtier montre ses initiales en grand :
+             on saisissait ce texte, et le navigateur lançait un glissement de
+             texte à la place de celui du boîtier — le dépôt ne rangeait rien.
+             Avec une affiche, l'image masquait le problème. */
+          userSelect: "none", WebkitUserSelect: "none",
           width: BOX_W, height: BOX_H, marginBottom: 12, marginRight: 9, flexShrink: 0,
           borderRadius: "2px 3px 3px 2px", overflow: "hidden",
           // ce qui se repeint dans un boîtier ne concerne que ce boîtier
@@ -879,6 +885,9 @@ const ShelfDivider = React.memo(function ShelfDivider({ divider, kind, onDragSta
           background: `linear-gradient(90deg, ${C.paperDark}, #D8C69C)`,
           border: `1px solid ${C.line}`, borderBottom: "none", borderRadius: "3px 3px 0 0",
           boxShadow: "2px 2px 0 rgba(43,38,32,0.14)", cursor: editing ? "text" : "grab",
+          // fermé, le carton n'est que son nom : ce texte ne doit pas se
+          // saisir à la place du carton lui-même (cf. le boîtier sans affiche)
+          ...(editing ? null : { userSelect: "none", WebkitUserSelect: "none" }),
           display: "flex", alignItems: "center", justifyContent: "center",
           transition: "width .18s ease, opacity .15s ease",
         }}
