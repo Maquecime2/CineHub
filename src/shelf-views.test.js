@@ -1,16 +1,46 @@
 import { describe, it, expect } from "vitest";
 import {
-  SHELF_KINDS, CAT_KEYS, belongs, kindOf,
-  makeView, makeRow, makeCat, makeDecor, filmItem, isUnplaced,
-  reconcileView, moveItem, sortIntoRows, buildViewsFromLegacy, duplicateView, filmIdsOf,
-  patchRow, addRow, removeRow, clearRow, addCat, patchCat, removeCat, patchDecor, removeDecor,
-  reflowShelf, layoutView, upgradeView, DEFAULT_CAP,
+  SHELF_KINDS,
+  CAT_KEYS,
+  belongs,
+  kindOf,
+  makeView,
+  makeRow,
+  makeCat,
+  makeDecor,
+  filmItem,
+  isUnplaced,
+  reconcileView,
+  moveItem,
+  sortIntoRows,
+  buildViewsFromLegacy,
+  duplicateView,
+  filmIdsOf,
+  patchRow,
+  addRow,
+  removeRow,
+  clearRow,
+  addCat,
+  patchCat,
+  removeCat,
+  patchDecor,
+  removeDecor,
+  reflowShelf,
+  layoutView,
+  upgradeView,
+  DEFAULT_CAP,
 } from "./shelf-views";
 
 /* Un film réduit à ce dont l'étagère a besoin. */
 const film = (id, extra = {}) => ({
-  id, title: id, addedAt: 1000, status: "watched",
-  chevet: false, archived: false, order: null, ...extra,
+  id,
+  title: id,
+  addedAt: 1000,
+  status: "watched",
+  chevet: false,
+  archived: false,
+  order: null,
+  ...extra,
 });
 
 const unplacedOf = (view, kind) => view.shelves[kind].rows.at(-1);
@@ -95,7 +125,11 @@ describe("moveItem", () => {
   };
 
   it("réordonne dans une rangée", () => {
-    const next = moveItem(seed(), { id: "f2" }, { kind: "main", rowId: "r1", overId: "f1", side: "before" });
+    const next = moveItem(
+      seed(),
+      { id: "f2" },
+      { kind: "main", rowId: "r1", overId: "f1", side: "before" }
+    );
     expect(idsIn(rowsOf(next, "main")[0])).toEqual(["f2", "f1", "c1"]);
   });
 
@@ -113,7 +147,11 @@ describe("moveItem", () => {
   });
 
   it("fait ressortir un film d'une catégorie", () => {
-    const next = moveItem(seed(), { id: "f3" }, { kind: "main", rowId: "r1", overId: "f1", side: "before" });
+    const next = moveItem(
+      seed(),
+      { id: "f3" },
+      { kind: "main", rowId: "r1", overId: "f1", side: "before" }
+    );
     const cat = rowsOf(next, "main")[0].items.find((i) => i.id === "c1");
     expect(cat.items).toEqual([]);
     expect(idsIn(rowsOf(next, "main")[0])).toEqual(["f3", "f1", "f2", "c1"]);
@@ -123,6 +161,35 @@ describe("moveItem", () => {
     const view = seed();
     const next = moveItem(view, { id: "c1" }, { kind: "main", rowId: "r1", catId: "c1" });
     expect(next).toBe(view);
+  });
+
+  /* Ce que le refus ci-dessus oblige l'étagère à faire : ce qui ne peut
+     pas entrer dans une boîte se range À CÔTÉ d'elle. C'est le chemin que
+     la zone de dépôt emprunte désormais pour une catégorie ou un décor
+     promené au-dessus d'une catégorie — avant, elle visait le dedans, et
+     le lâcher ne faisait rien. */
+  it("range une catégorie à côté d'une autre, dans la rangée", () => {
+    const view = seed();
+    view.shelves.main.rows[0].items.push(makeCat({ id: "c2", items: [] }));
+    const next = moveItem(
+      view,
+      { id: "c2" },
+      { kind: "main", rowId: "r1", overId: "c1", side: "before" }
+    );
+    expect(idsIn(rowsOf(next, "main")[0])).toEqual(["f1", "f2", "c2", "c1"]);
+  });
+
+  it("range un décor à côté d'une catégorie, jamais dedans", () => {
+    const view = seed();
+    view.shelves.main.rows[0].items.push(makeDecor({ id: "d1", motif: "coffee" }));
+    const next = moveItem(
+      view,
+      { id: "d1" },
+      { kind: "main", rowId: "r1", overId: "c1", side: "after" }
+    );
+    expect(idsIn(rowsOf(next, "main")[0])).toEqual(["f1", "f2", "c1", "d1"]);
+    const cat = rowsOf(next, "main")[0].items.find((i) => i.id === "c1");
+    expect(cat.items.map((i) => i.id)).toEqual(["f3"]);
   });
 
   it("déplace une catégorie entière vers une autre rangée", () => {
@@ -150,7 +217,11 @@ describe("moveItem", () => {
 
   it("traverse les rayons", () => {
     const view = seed();
-    const next = moveItem(view, { id: "f1" }, { kind: "chevet", rowId: rowsOf(view, "chevet")[0].id });
+    const next = moveItem(
+      view,
+      { id: "f1" },
+      { kind: "chevet", rowId: rowsOf(view, "chevet")[0].id }
+    );
     expect(idsIn(rowsOf(next, "chevet")[0])).toEqual(["f1"]);
     expect(idsIn(rowsOf(next, "main")[0])).toEqual(["f2", "c1"]);
   });
@@ -165,7 +236,15 @@ describe("le mobilier", () => {
   const seed = () => {
     const view = makeView();
     view.shelves.main.rows = [
-      makeRow({ id: "r1", perRow: 6, items: [filmItem("f1"), makeCat({ id: "c1", items: [filmItem("f2")] }), makeDecor({ id: "d1", motif: "pin" })] }),
+      makeRow({
+        id: "r1",
+        perRow: 6,
+        items: [
+          filmItem("f1"),
+          makeCat({ id: "c1", items: [filmItem("f2")] }),
+          makeDecor({ id: "d1", motif: "pin" }),
+        ],
+      }),
       makeRow({ id: "r2", items: [] }),
       makeRow({ id: "r3", kind: "unplaced", items: [] }),
     ];
@@ -227,10 +306,18 @@ describe("le mobilier", () => {
     view = addCat(view, "r1", makeCat({ id: "c2", label: "Polars" }));
     view = addCat(view, "r1", makeCat({ id: "c3", label: "Westerns" }));
     const items = rowsOf(view, "main")[0].items;
-    expect(items.filter((i) => i.t === "c").map((i) => i.label)).toEqual(["Catégorie", "Polars", "Westerns"]);
+    expect(items.filter((i) => i.t === "c").map((i) => i.label)).toEqual([
+      "Catégorie",
+      "Polars",
+      "Westerns",
+    ]);
 
     // et elles se réordonnent librement, y compris devant un film
-    const moved = moveItem(view, { id: "c3" }, { kind: "main", rowId: "r1", overId: "f1", side: "before" });
+    const moved = moveItem(
+      view,
+      { id: "c3" },
+      { kind: "main", rowId: "r1", overId: "f1", side: "before" }
+    );
     expect(rowsOf(moved, "main")[0].items.map((i) => i.id)).toEqual(["c3", "f1", "c1", "d1", "c2"]);
   });
 
@@ -264,7 +351,11 @@ describe("le débordement", () => {
   it("une planche pleine pousse le surplus sur la suivante", () => {
     const view = makeView();
     view.shelves.main.rows = [
-      makeRow({ id: "r1", perRow: 2, items: [filmItem("a"), filmItem("b"), filmItem("c"), filmItem("d")] }),
+      makeRow({
+        id: "r1",
+        perRow: 2,
+        items: [filmItem("a"), filmItem("b"), filmItem("c"), filmItem("d")],
+      }),
       makeRow({ id: "r2", perRow: 2, items: [] }),
       makeRow({ id: "r3", kind: "unplaced", items: [] }),
     ];
@@ -287,7 +378,10 @@ describe("le débordement", () => {
 
   it("ne touche à rien quand tout tient déjà", () => {
     const view = makeView();
-    view.shelves.main.rows = [makeRow({ perRow: 4, items: [filmItem("a")] }), makeRow({ kind: "unplaced" })];
+    view.shelves.main.rows = [
+      makeRow({ perRow: 4, items: [filmItem("a")] }),
+      makeRow({ kind: "unplaced" }),
+    ];
     expect(reflowShelf(view, "main")).toBe(view);
   });
 
@@ -303,7 +397,14 @@ describe("le débordement", () => {
   it("une catégorie compte pour un objet, et n'est jamais coupée", () => {
     const view = makeView();
     view.shelves.main.rows = [
-      makeRow({ perRow: 2, items: [filmItem("a"), makeCat({ id: "c1", items: [filmItem("x"), filmItem("y")] }), filmItem("b")] }),
+      makeRow({
+        perRow: 2,
+        items: [
+          filmItem("a"),
+          makeCat({ id: "c1", items: [filmItem("x"), filmItem("y")] }),
+          filmItem("b"),
+        ],
+      }),
       makeRow({ kind: "unplaced" }),
     ];
     const rows = rowsOf(reflowShelf(view, "main"), "main");
@@ -321,7 +422,11 @@ describe("upgradeView — reprendre une vue deja enregistree", () => {
     const view = makeView();
     view.version = 1;
     view.shelves.main.rows = [
-      makeRow({ id: "r1", perRow: null, items: Array.from({ length: 25 }, (_, i) => filmItem(`f${i}`)) }),
+      makeRow({
+        id: "r1",
+        perRow: null,
+        items: Array.from({ length: 25 }, (_, i) => filmItem(`f${i}`)),
+      }),
       makeRow({ id: "u", kind: "unplaced", items: [] }),
     ];
     return view;
@@ -349,7 +454,9 @@ describe("upgradeView — reprendre une vue deja enregistree", () => {
     const view = v1();
     view.shelves.main.rows[0].perRow = 4;
     const rows = rowsOf(upgradeView(view), "main");
-    expect(rows.filter((r) => !isUnplaced(r)).map((r) => r.items.length)).toEqual([4, 4, 4, 4, 4, 4, 1]);
+    expect(rows.filter((r) => !isUnplaced(r)).map((r) => r.items.length)).toEqual([
+      4, 4, 4, 4, 4, 4, 1,
+    ]);
   });
 });
 
@@ -364,7 +471,11 @@ describe("layoutView", () => {
   });
 
   it("répartit selon les drapeaux du film", () => {
-    const out = layoutView(makeView(), [film("a"), film("b", { chevet: true }), film("c", { archived: true })]);
+    const out = layoutView(makeView(), [
+      film("a"),
+      film("b", { chevet: true }),
+      film("c", { archived: true }),
+    ]);
     expect(idsIn(rowsOf(out, "main")[0])).toEqual(["a"]);
     expect(idsIn(rowsOf(out, "chevet")[0])).toEqual(["b"]);
     expect(idsIn(rowsOf(out, "reserve")[0])).toEqual(["c"]);
@@ -486,7 +597,10 @@ describe("buildViewsFromLegacy", () => {
 describe("duplicateView", () => {
   it("renouvelle les identifiants d'agencement et garde ceux des films", () => {
     const view = makeView();
-    view.shelves.main.rows[0].items = [makeCat({ id: "c1", items: [filmItem("f1")] }), filmItem("f2")];
+    view.shelves.main.rows[0].items = [
+      makeCat({ id: "c1", items: [filmItem("f1")] }),
+      filmItem("f2"),
+    ];
     const copy = duplicateView(view);
 
     expect(copy.id).not.toBe(view.id);

@@ -858,6 +858,23 @@ const SHELF_KIND = {
 
 const BOX_W = 96, BOX_H = 144;
 
+/* L'écart entre deux boîtiers, et celui qui les sépare de la planche.
+   Ce n'est plus un chiffre recopié dans trois styles : le glissement a
+   besoin de le CONNAÎTRE.
+
+   L'écart vit maintenant DANS l'enveloppe de l'objet, et c'est tout le
+   remède à la nervosité du repère. Avant, la zone de dépôt d'un boîtier
+   s'arrêtait à sa tranche : les neuf pixels qui le séparaient du suivant
+   appartenaient à la rangée. Les traverser — ce qu'on fait à chaque
+   boîtier quand on balaie l'étagère — désignait donc la rangée entière,
+   et le repère filait au bout de la ligne avant de revenir. Une rangée
+   de dix boîtiers, c'était neuf allers-retours par balayage.
+
+   Les enveloppes pavent désormais la rangée sans un trou : à tout
+   instant on survole exactement un objet, ou le vide franc de la
+   rangée. */
+const GAP_X = 9, GAP_Y = 12;
+
 /* Les couleurs qu'une catégorie peut porter. La vue enregistre la CLÉ et
    jamais l'hexadécimal : retoucher la palette repeint alors d'un coup
    toutes les catégories déjà créées, au lieu de les figer à la teinte du
@@ -1006,7 +1023,11 @@ const FilmBox = React.memo(function FilmBox({ film, ctx, onOpen, onDragStart, on
 
   return (
     <div
-      data-shelf-item
+      /* L'enveloppe porte l'identité de l'objet ET sa zone de dépôt : le
+         code de glissement remonte toujours jusqu'ici, il peut donc lire
+         qui il vise sans qu'on le lui repasse en fermeture. */
+      data-shelf-item={film.id}
+      onDragOver={(e) => onDragOverBox(e, ctx)}
       style={{
         position: "relative", display: "flex", alignItems: "flex-end", flexShrink: 0,
         /* Le seul style que le glissement écrit ici est un `transform` : la
@@ -1032,7 +1053,6 @@ const FilmBox = React.memo(function FilmBox({ film, ctx, onOpen, onDragStart, on
         draggable
         onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", film.id); onDragStart("film", film.id, e.currentTarget); }}
         onDragEnd={onDragEnd}
-        onDragOver={(e) => onDragOverBox(e, ctx, film.id)}
         onClick={() => onOpen(film.id)}
         title={`${film.title}${film.year ? ` (${film.year})` : ""}`}
         style={{
@@ -1047,7 +1067,7 @@ const FilmBox = React.memo(function FilmBox({ film, ctx, onOpen, onDragStart, on
           WebkitUserDrag: "element",
           // et le texte des initiales ne doit pas se sélectionner au glissement
           userSelect: "none", WebkitUserSelect: "none",
-          width: BOX_W, height: BOX_H, marginBottom: 12, marginRight: 9, flexShrink: 0,
+          width: BOX_W, height: BOX_H, marginBottom: GAP_Y, marginRight: GAP_X, flexShrink: 0,
           borderRadius: "2px 3px 3px 2px", overflow: "hidden",
           // ce qui se repeint dans un boîtier ne concerne que ce boîtier
           contain: "layout paint style",
@@ -1105,18 +1125,18 @@ const DecorItem = React.memo(function DecorItem({ item, ctx, onDragStart, onDrag
   const Draw = spec.draw, Icon = spec.icon;
   return (
     <div
-      data-shelf-item
+      data-shelf-item={item.id}
+      onDragOver={(e) => onDragOverBox(e, ctx)}
       style={{ position: "relative", display: "flex", alignItems: "flex-end", flexShrink: 0, transformOrigin: "bottom center", transition: "transform .3s cubic-bezier(.32,1.16,.42,1)" }}
     >
       <div
         draggable
         onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; onDragStart("decor", item.id, e.currentTarget); }}
         onDragEnd={onDragEnd}
-        onDragOver={(e) => onDragOverBox(e, ctx, item.id)}
         onClick={() => onEdit(item.id)}
         title={spec.label}
         style={{
-          position: "relative", width: box, height: box, marginBottom: 12, marginRight: 9, flexShrink: 0,
+          position: "relative", width: box, height: box, marginBottom: GAP_Y, marginRight: GAP_X, flexShrink: 0,
           cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden",
           /* Posé de guingois, mais toujours de la même façon : le hasard
              stable de la maison, et non un réglage de plus à régler. */
@@ -1172,81 +1192,98 @@ const CategoryBox = React.memo(function CategoryBox({
     ));
 
   return (
+    /* Une boîte est bâtie comme un boîtier : une enveloppe qui porte
+       l'écart, l'identité et la zone de dépôt, et l'objet visible à
+       l'intérieur. C'est ce qui fait que les cibles pavent la rangée. */
     <div
-      data-shelf-item
+      data-shelf-item={cat.id}
       draggable={!editing}
       /* Une boîte contient des boîtiers, eux-mêmes saisissables : le
          `dragstart` d'un film REMONTE jusqu'ici. Sans cette garde, saisir
          un film dans une catégorie déplaçait la catégorie entière —
-         l'événement arrivait en second et écrasait le premier. */
+         l'événement arrivait en second et écrasait le premier.
+
+         On compare les ENVELOPPES et non plus les nœuds : `e.target ===
+         e.currentTarget` ne laissait saisir la boîte que par son propre
+         fond, jamais par son onglet — c'est-à-dire jamais par l'endroit
+         où la main va la chercher. Le glissement partait quand même, sans
+         que personne l'ait enregistré, et se terminait par un dépôt qui
+         ne faisait rien. */
       onDragStart={(e) => {
-        if (editing || e.target !== e.currentTarget) return;
+        if (editing || e.target.closest("[data-shelf-item]") !== e.currentTarget) return;
         e.dataTransfer.effectAllowed = "move";
         onDragStart("cat", cat.id, e.currentTarget);
       }}
       onDragEnd={onDragEnd}
       onDragOver={(e) => onCatOver(e, ctx)}
       style={{
-        position: "relative", flexShrink: 0, marginRight: 9, marginBottom: 12,
-        display: "flex", flexDirection: "column",
+        flexShrink: 0, display: "flex", alignItems: "flex-end",
         transformOrigin: "bottom center", transition: "transform .3s cubic-bezier(.32,1.16,.42,1)",
-        /* C'est TOUJOURS un carton : même papier, même filet, même ombre
-           portée sèche que l'intercalaire debout d'avant. Il a seulement
-           cessé d'être une cloison pour devenir une pochette — ouverte en
-           bas, pour que les boîtiers qu'elle tient posent sur la planche
-           du rayon comme les autres. Une pochette fermée les ferait
-           flotter, et l'étagère cesserait d'être une étagère. */
-        background: `linear-gradient(160deg, ${C.paperDark}, #D8C69C)`,
-        border: `1px solid ${C.line}`, borderBottom: "none", borderRadius: "3px 3px 0 0",
-        boxShadow: "2px 2px 0 rgba(43,38,32,0.14)",
-        "--cat-open": `${ink}22`,
       }}
     >
-      {/* L'onglet d'index : la couleur est une languette collée en tête de
-          carton, pas un aplat qui mangerait le kraft. C'est ainsi qu'on
-          repère un dossier dans une boîte d'archives. */}
-      <div style={{ height: 4, background: ink, borderRadius: "2px 2px 0 0", opacity: 0.9 }} />
       <div
-        onClick={() => setEditing(true)}
-        title={cat.label}
+        data-cat-card
         style={{
-          padding: "4px 8px", cursor: "text", color: ink,
-          fontFamily: "'Special Elite', monospace", fontSize: 10.5, letterSpacing: "0.06em",
-          borderBottom: `1px solid ${C.line}`,
-          display: "flex", alignItems: "center", gap: 8,
-          userSelect: "none", WebkitUserSelect: "none",
+          position: "relative", flexShrink: 0, marginRight: GAP_X, marginBottom: GAP_Y,
+          display: "flex", flexDirection: "column",
+          /* C'est TOUJOURS un carton : même papier, même filet, même ombre
+             portée sèche que l'intercalaire debout d'avant. Il a seulement
+             cessé d'être une cloison pour devenir une pochette — ouverte en
+             bas, pour que les boîtiers qu'elle tient posent sur la planche
+             du rayon comme les autres. Une pochette fermée les ferait
+             flotter, et l'étagère cesserait d'être une étagère. */
+          background: `linear-gradient(160deg, ${C.paperDark}, #D8C69C)`,
+          border: `1px solid ${C.line}`, borderBottom: "none", borderRadius: "3px 3px 0 0",
+          boxShadow: "2px 2px 0 rgba(43,38,32,0.14)",
+          "--cat-open": `${ink}22`,
         }}
       >
-        {editing ? (
-          <input
-            autoFocus value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={commit}
-            onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") { setDraft(cat.label); setEditing(false); } }}
-            style={{ all: "unset", flex: 1, minWidth: 60, fontFamily: "'Special Elite', monospace", fontSize: 10.5, color: C.ink, borderBottom: `1px solid ${C.line}` }}
-          />
-        ) : (
-          /* Horizontal, tronqué proprement, et l'infobulle porte le nom
-             entier. L'intercalaire d'avant l'écrivait à la verticale et le
-             coupait net à 144 px, sans ellipse ni recours. */
-          <span style={{ flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 220 }}>{cat.label}</span>
-        )}
-        <span style={{ color: C.inkFaded, fontSize: 9 }}>{cat.items.length}</span>
-        <button
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={(e) => { e.stopPropagation(); onEdit(cat.id); }}
-          title="Couleur de la catégorie"
-          style={{ all: "unset", cursor: "pointer", color: C.inkFaded, display: "flex" }}
-        ><Palette size={11} /></button>
-      </div>
+        {/* L'onglet d'index : la couleur est une languette collée en tête de
+            carton, pas un aplat qui mangerait le kraft. C'est ainsi qu'on
+            repère un dossier dans une boîte d'archives. */}
+        <div style={{ height: 4, background: ink, borderRadius: "2px 2px 0 0", opacity: 0.9 }} />
+        <div
+          onClick={() => setEditing(true)}
+          title={cat.label}
+          style={{
+            padding: "4px 8px", cursor: "text", color: ink,
+            fontFamily: "'Special Elite', monospace", fontSize: 10.5, letterSpacing: "0.06em",
+            borderBottom: `1px solid ${C.line}`,
+            display: "flex", alignItems: "center", gap: 8,
+            userSelect: "none", WebkitUserSelect: "none",
+          }}
+        >
+          {editing ? (
+            <input
+              autoFocus value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={commit}
+              onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") { setDraft(cat.label); setEditing(false); } }}
+              style={{ all: "unset", flex: 1, minWidth: 60, fontFamily: "'Special Elite', monospace", fontSize: 10.5, color: C.ink, borderBottom: `1px solid ${C.line}` }}
+            />
+          ) : (
+            /* Horizontal, tronqué proprement, et l'infobulle porte le nom
+               entier. L'intercalaire d'avant l'écrivait à la verticale et le
+               coupait net à 144 px, sans ellipse ni recours. */
+            <span style={{ flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 220 }}>{cat.label}</span>
+          )}
+          <span style={{ color: C.inkFaded, fontSize: 9 }}>{cat.items.length}</span>
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={(e) => { e.stopPropagation(); onEdit(cat.id); }}
+            title="Couleur de la catégorie"
+            style={{ all: "unset", cursor: "pointer", color: C.inkFaded, display: "flex" }}
+          ><Palette size={11} /></button>
+        </div>
 
-      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", padding: "8px 6px 0", minWidth: BOX_W + 12, minHeight: BOX_H + 8 }}>
-        {boxes.length === 0 && (
-          <div style={{ color: C.inkFaded, fontFamily: "'Caveat', cursive", fontSize: 15, padding: "0 6px 12px", alignSelf: "flex-end" }}>
-            glissez-y des films
-          </div>
-        )}
-        {withBreaks(boxes, cat.perRow || rowCap || DEFAULT_CAP)}
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", padding: "8px 6px 0", minWidth: BOX_W + 12, minHeight: BOX_H + 8 }}>
+          {boxes.length === 0 && (
+            <div style={{ color: C.inkFaded, fontFamily: "'Caveat', cursive", fontSize: 15, padding: "0 6px 12px", alignSelf: "flex-end" }}>
+              glissez-y des films
+            </div>
+          )}
+          {withBreaks(boxes, cat.perRow || rowCap || DEFAULT_CAP)}
+        </div>
       </div>
     </div>
   );
@@ -1906,54 +1943,89 @@ function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) {
     document.documentElement.dataset.dragging = "1";
   }, []);
 
-  /* `dragover` tire en continu tant que la souris bouge, et même immobile.
+  /* Une boîte ne contient que des films — `moveItem` le refuse net. Le
+     repère ne doit donc jamais INVITER autre chose à y entrer : une boîte
+     ou un décor qu'on promène au-dessus d'une catégorie voyait la fente
+     s'ouvrir devant lui, et le lâcher ne faisait rien. Un dépôt qui
+     s'annonce et n'arrive pas est pire que pas de cible du tout. Ce qui
+     ne peut pas entrer se range donc À CÔTÉ de la boîte. */
+  const goesInside = (drag) => drag.type === "film";
+
+  /* Viser la fente avant ou après un objet du rayon.
+
+     `wrap` est toujours une enveloppe [data-shelf-item] : elle porte
+     l'écart qui suit l'objet, jamais l'objet seul. On retire donc cet
+     écart pour retrouver la tranche — sinon le partage en deux moitiés se
+     ferait autour d'un milieu décalé, et le repère hésiterait sur le bord
+     au lieu de trancher.
 
      Ce gestionnaire ne touche pas à l'état React : il déplace un unique
      élément à la main. Faire passer le repère par un `setState`, c'était
      redemander à React de reconstruire les cent boîtiers du rayon à chaque
      frimousse de la souris — même mémoïsés, cent comparaisons de props par
      événement, soixante fois par seconde. */
-  const onBoxOver = useCallback((e, ctx, id) => {
-    if (!dragRef.current) return;
-    e.preventDefault(); e.stopPropagation();
-    const wrap = e.currentTarget.closest("[data-shelf-item]");
-    const r = e.currentTarget.getBoundingClientRect();
-
-    /* Le boîtier survolé est peut-être DÉJÀ écarté d'un cran par le survol
+  const aimBeside = (wrap, clientX, ctx) => {
+    const id = wrap.dataset.shelfItem;
+    /* L'objet visé est peut-être DÉJÀ écarté d'un cran par le survol
        précédent : son rectangle est donc décalé de ce qu'on lui a écrit.
        On raisonne sur sa place au repos, sinon le repère dériverait d'un
        écartement à chaque fois — et le partage en deux moitiés se mettrait
        à osciller au gré de sa propre animation. */
     const dx = dxOf(wrap);
-    const left = r.left - dx, right = r.right - dx;
-    const s = e.clientX < left + r.width / 2 ? "before" : "after";
+    const r = wrap.getBoundingClientRect();
+    const left = r.left - dx, right = r.right - dx - GAP_X;
+    const s = clientX < (left + right) / 2 ? "before" : "after";
     const o = overRef.current;
-    if (o.overId === id && o.side === s) return;
+    if (o.overId === id && o.side === s && (o.catId || null) === (ctx.catId || null)) return;
     overRef.current = { ...ctx, overId: id, side: s };
     light(null);
 
     // le repère est centré dans l'espace qui s'ouvre entre les deux voisins
     placeMark((s === "before" ? left - 5 : right + 5) - MARK_W / 2,
-              r.bottom - BOX_H - (MARK_H - BOX_H) / 2);
-    if (wrap) {
-      if (s === "before") setSpread(neighbour(wrap, -1), wrap);
-      else setSpread(wrap, neighbour(wrap, 1));
+              r.bottom - GAP_Y - BOX_H - (MARK_H - BOX_H) / 2);
+    if (s === "before") setSpread(neighbour(wrap, -1), wrap);
+    else setSpread(wrap, neighbour(wrap, 1));
+  };
+
+  /* `dragover` tire en continu tant que la souris bouge, et même immobile. */
+  const onBoxOver = useCallback((e, ctx) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    e.preventDefault(); e.stopPropagation();
+    const wrap = e.currentTarget;
+    /* Un boîtier DANS une boîte : si ce qu'on tire ne peut pas y entrer,
+       on ne vise pas la fente qu'on a sous les yeux — on remonte à la
+       boîte et on vise à côté d'elle, au niveau de la rangée. */
+    if (ctx.catId && !goesInside(drag)) {
+      const box = wrap.parentElement?.closest("[data-shelf-item]");
+      if (box) aimBeside(box, e.clientX, { kind: ctx.kind, rowId: ctx.rowId, catId: null });
+      return;
     }
+    aimBeside(wrap, e.clientX, ctx);
   }, []);
 
-  /* Le vide d'une catégorie : on entre DANS la boîte, à la suite. */
+  /* Le corps d'une catégorie : on entre DANS la boîte, à la suite. */
   const onCatOver = useCallback((e, ctx) => {
     const drag = dragRef.current;
-    // une boîte ne se range pas dans une boîte
-    if (!drag || drag.type === "cat") return;
+    if (!drag) return;
     e.preventDefault(); e.stopPropagation();
+    const wrap = e.currentTarget;
+    // une boîte ne se range pas dans une boîte : elle se range à côté
+    if (!goesInside(drag)) {
+      aimBeside(wrap, e.clientX, { kind: ctx.kind, rowId: ctx.rowId, catId: null });
+      return;
+    }
     const o = overRef.current;
     if (o.catId === ctx.catId && !o.overId) return;
     overRef.current = { ...ctx, overId: null, side: null };
     clearSpread();
-    light(e.currentTarget, "catOver");
-    const r = e.currentTarget.getBoundingClientRect();
-    placeMark(r.right - 5 - MARK_W / 2, r.bottom - BOX_H - (MARK_H - BOX_H) / 2);
+    /* C'est le CARTON qui s'éclaire, pas l'enveloppe : celle-ci n'est
+       qu'une zone, elle n'a ni papier ni bord à teinter. */
+    const card = wrap.querySelector("[data-cat-card]");
+    light(card, "catOver");
+    const r = (card || wrap).getBoundingClientRect();
+    // le pied des boîtiers d'une boîte est à un écart au-dessus de son bas
+    placeMark(r.right - 5 - MARK_W / 2, r.bottom - GAP_Y - BOX_H - (MARK_H - BOX_H) / 2);
   }, []);
 
   /* Le vide d'une rangée : à la suite de ce qui s'y trouve déjà. */
@@ -1973,8 +2045,9 @@ function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) {
        boîtier ; un rectangle vide n'apprendrait rien, on se rabat alors
        sur le bord de la rangée. */
     const lr = last?.getBoundingClientRect();
-    const x = lr && lr.width ? lr.right + 5 : r.left + 12;
-    const y = (lr && lr.height ? lr.bottom : r.bottom - 12) - BOX_H - (MARK_H - BOX_H) / 2;
+    // les rectangles d'enveloppe portent l'écart : on le retire pour viser la tranche
+    const x = lr && lr.width ? lr.right - GAP_X + 5 : r.left + GAP_Y;
+    const y = (lr && lr.height ? lr.bottom : r.bottom) - GAP_Y - BOX_H - (MARK_H - BOX_H) / 2;
     placeMark(x - MARK_W / 2, y);
   }, []);
 
