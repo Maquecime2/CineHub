@@ -23,6 +23,7 @@ import { TagEditor } from "../components/ui/TagEditor";
 import { StampCorner, Tape } from "../components/atmosphere";
 import { PosterArt } from "../components/film/PosterArt";
 import { PosterPicker } from "../components/film/PosterPicker";
+import { FilmIdentity } from "../components/film/FilmIdentity";
 import { ThreadBoard } from "../components/film/ThreadBoard";
 import { LINK_TYPES } from "../components/film/linkTypes";
 import { StillsStrip } from "../components/stills/StillsStrip";
@@ -245,27 +246,10 @@ export function DetailView({
             >
               FICHE CATALOGUE
             </div>
-            <div
-              style={{
-                fontFamily: "'Playfair Display', serif",
-                fontWeight: 700,
-                fontSize: 20,
-                color: C.ink,
-                marginTop: 4,
-              }}
-            >
-              {film.title}
-            </div>
-            <div
-              style={{
-                fontFamily: "'Special Elite', monospace",
-                fontSize: 11,
-                color: C.inkFaded,
-                marginTop: 3,
-              }}
-            >
-              {film.year || "s.d."} — {film.director || "anonyme"}
-            </div>
+            {/* Titre, année, réalisateur·rice et genres : en lecture ici, et
+                rattrapables d'un clic — c'est la seule façon de corriger une
+                fiche que l'import a mal identifiée. */}
+            <FilmIdentity film={film} onUpdate={onUpdate} />
             {film.status === "watchlist" ? (
               <button
                 onClick={() =>
