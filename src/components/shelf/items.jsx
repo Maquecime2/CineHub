@@ -17,11 +17,46 @@ import {
   DROP_MARK_STYLE,
   MARK_PATHS,
   MARK_INK,
-  DECOR_BY_KEY,
+  decorSpec,
   WALL_GRIP,
   wallBoxOf,
   catInk,
 } from "./constants";
+
+/* L'IMAGE QU'ON EMPORTE SOUS LE CURSEUR.
+
+   Le navigateur fabrique tout seul l'aperçu d'un glissement en
+   photographiant l'élément saisi. Mais le boîtier vit dans une enveloppe
+   en `content-visibility: auto` : la photo prise là-dedans déborde de
+   l'élément et rend une bande entière — on croit tirer la rangée alors
+   qu'on ne déplace bien qu'un film.
+
+   On lui donne donc la photo à emporter : un CALQUE du boîtier, posé
+   hors écran le temps du cliché, sans l'inclinaison ni la transparence
+   que le glissement lui applique par ailleurs. Il est saisi à l'endroit
+   exact où la main l'a pris, pour que rien ne saute au départ.
+
+   La copie s'efface au tour de boucle suivant : le cliché est pris
+   pendant `dragstart`, la retirer plus tôt ne laisserait rien à
+   photographier. On passe par un délai plutôt que par une trame
+   d'animation, parce qu'une trame ne vient pas quand la page ne se
+   compose pas — et la copie resterait alors dans le document. */
+export const carryGhost = (e, node) => {
+  const r = node.getBoundingClientRect();
+  const ghost = node.cloneNode(true);
+  ghost.style.position = "fixed";
+  ghost.style.top = "0px";
+  ghost.style.left = "-10000px";
+  ghost.style.margin = "0";
+  ghost.style.opacity = "1";
+  ghost.style.transform = "none";
+  ghost.style.contentVisibility = "visible";
+  ghost.style.width = `${r.width}px`;
+  ghost.style.height = `${r.height}px`;
+  document.body.appendChild(ghost);
+  e.dataTransfer.setDragImage(ghost, e.clientX - r.left, e.clientY - r.top);
+  setTimeout(() => ghost.remove(), 0);
+};
 
 export const DropMark = React.forwardRef(function DropMark(_props, ref) {
   return (
@@ -77,7 +112,19 @@ export const FilmBox = React.memo(function FilmBox({
     .map((w) => w[0])
     .join("")
     .toUpperCase();
-  const stars = "★".repeat(film.rating || 0) + "☆".repeat(5 - (film.rating || 0));
+  /* LA NOTE SUR LA TRANCHE.
+
+     On comptait les étoiles pleines et les creuses avec deux `repeat`.
+     Mais `repeat` tronque : une note de 3,5 rendait trois pleines et UNE
+     creuse — la demie disparaissait, et le film paraissait noté sur
+     quatre. Même juste, deux glyphes qui ne diffèrent que par leur
+     remplissage ne se distinguent plus à dix pixels de haut.
+
+     On empile donc deux fois les mêmes cinq étoiles : les éteintes
+     dessous, les allumées par-dessus, coupées net à la fraction de la
+     note. La demie est alors une étoile à moitié peinte — la seule
+     lecture qui ne demande pas de compter. */
+  const fill = `${Math.min(Math.max(film.rating || 0, 0), 5) * 20}%`;
 
   return (
     <div
@@ -133,6 +180,7 @@ export const FilmBox = React.memo(function FilmBox({
           onDragStart={(e) => {
             e.dataTransfer.effectAllowed = "move";
             e.dataTransfer.setData("text/plain", film.id);
+            carryGhost(e, e.currentTarget);
             onDragStart("film", film.id, e.currentTarget);
           }}
           onDragEnd={onDragEnd}
@@ -242,7 +290,34 @@ export const FilmBox = React.memo(function FilmBox({
                 zIndex: 3,
               }}
             >
-              {stars}
+              <span
+                aria-label={`${film.rating || 0} sur 5`}
+                style={{
+                  position: "relative",
+                  display: "inline-block",
+                  fontSize: 11,
+                  lineHeight: 1,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <span style={{ color: "rgba(246,239,222,0.3)" }}>★★★★★</span>
+                {/* La couche allumée se superpose exactement à l'éteinte :
+                    même texte, même chasse, donc les deux rangées se
+                    recouvrent au pixel et la coupure tombe où il faut. */}
+                <span
+                  aria-hidden
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    top: 0,
+                    width: fill,
+                    overflow: "hidden",
+                    color: C.card,
+                  }}
+                >
+                  ★★★★★
+                </span>
+              </span>
             </span>
           )}
         </button>
@@ -250,20 +325,6 @@ export const FilmBox = React.memo(function FilmBox({
     </div>
   );
 });
-
-/* Les sauts de ligne d'un conteneur. Le retour à la ligne n'est pas
-   laissé au hasard de la largeur : quand la rangée porte un compte, on
-   le pose nous-mêmes. Une catégorie compte pour un objet — c'en est un. */
-export const withBreaks = (nodes, cap) => {
-  if (!cap) return nodes;
-  const out = [];
-  nodes.forEach((n, i) => {
-    if (i > 0 && i % cap === 0)
-      out.push(<div key={`br-${i}`} style={{ flexBasis: "100%", height: 0 }} />);
-    out.push(n);
-  });
-  return out;
-};
 
 /* L'INCLINAISON D'UN CARTON DRESSÉ.
 
@@ -296,10 +357,118 @@ export const withBreaks = (nodes, cap) => {
 const LEAN_MIN = 1.2,
   LEAN_MAX = 2.2;
 
+/* LE CARTON, REPRIS POUR QU'ON LE VOIE.
+
+   Il portait le papier de la boîte : même kraft, même filet, un liseré
+   de couleur de trois pixels sur la tête. C'était juste — c'est bien le
+   même carton d'archives — mais entre douze boîtiers du même papier,
+   ce qui sépare avait exactement la couleur de ce qu'il sépare, et on ne
+   le trouvait qu'en le cherchant. Or un intercalaire ne sert à rien
+   d'autre qu'à être vu du bout de la rangée.
+
+   Trois changements, et tous vont dans le même sens : rendre le carton à
+   sa COULEUR au lieu de la réduire à un liseré.
+
+   1. L'ONGLET. Un vrai carton de fichier ne se signale pas par sa
+      tranche, mais par la languette de couleur qui dépasse en tête. Les
+      trois pixels de bordure deviennent donc une vraie tête pleine,
+      percée de son œillet — le trou de classeur, qui est ce qui fait
+      lire « carton de fichier » et non « trait vertical ».
+   2. LE CORPS. Un lavis de la même encre plutôt que le kraft commun :
+      assez pâle pour qu'on écrive dessus à l'encre sombre, assez teinté
+      pour qu'il ne se confonde plus avec les tranches voisines.
+   3. LA LARGEUR. Vingt-six pixels étaient la largeur d'une tranche ; le
+      carton en prend trente, parce qu'un séparateur qui a la chasse de
+      ce qu'il sépare ne sépare rien.
+
+   Le nom, lui, ne bouge pas : il se lit toujours à la verticale, de bas
+   en haut, et commence sous l'onglet — écrire dans la tête reviendrait à
+   écrire sur la languette, qui est justement la partie qu'on regarde. */
+export const DIVIDER_W = 30,
+  DIVIDER_HEAD = 18;
+
+/* Le carton et sa maquette au cabinet doivent se ressembler assez pour
+   qu'on reconnaisse dans la rangée ce qu'on a tiré du panneau : les deux
+   lisent donc leur habillage ici. */
+export const dividerSkin = (ink) => ({
+  background: `linear-gradient(160deg, ${ink}22, ${ink}3A)`,
+  border: `1px solid ${ink}99`,
+  borderBottom: "none",
+  borderRadius: "3px 3px 0 0",
+  boxShadow: "2px 2px 0 rgba(43,38,32,0.2)",
+});
+
+/* L'onglet : la tête pleine, et l'œillet dedans. */
+export const DividerHead = ({ ink, height }) => (
+  <div
+    aria-hidden
+    style={{
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      height,
+      background: ink,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      // le carton est un peu plus clair juste sous la tête, comme un pli
+      boxShadow: `0 1px 0 rgba(246,239,222,0.45)`,
+    }}
+  >
+    <span
+      style={{
+        width: Math.max(3, Math.round(height * 0.32)),
+        height: Math.max(3, Math.round(height * 0.32)),
+        borderRadius: "50%",
+        background: C.paper,
+        opacity: 0.85,
+      }}
+    />
+  </div>
+);
+
 export const leanOf = (id) => {
   const t = Number(tiltOf(id)) / 2;
   const side = t < 0 ? -1 : 1;
   return (side * Math.min(Math.max(Math.abs(t), LEAN_MIN), LEAN_MAX)).toFixed(1);
+};
+
+/* L'ANGLE D'UN OBJET — celui qu'on a réglé, sinon celui du hasard semé.
+
+   Le guingois vient de l'identifiant : c'est lui qui fait qu'une étagère
+   ressemble à une étagère et non à une planche de catalogue, et il n'y a
+   rien à régler tant qu'on ne le veut pas. Mais un cadre qu'on veut
+   droit, un lierre qui pend du mauvais côté, une image importée couchée
+   sur le flanc : à un moment la main doit pouvoir passer devant le
+   hasard.
+
+   `??` et non `||` : zéro degré est une réponse, et la plus demandée de
+   toutes — c'est « remets-le d'aplomb ». */
+export const angleOf = (item, tall = false) =>
+  item.rot ?? (tall ? leanOf(item.id) : tiltOf(item.id));
+
+/* LA PLACE QUE PREND UN OBJET TOURNÉ.
+
+   Une rotation CSS ne déplace rien : c'est une transformation, elle est
+   peinte après la mise en page et la boîte qu'elle occupe dans le flux
+   reste celle d'avant. Tant que les objets ne penchaient que de deux ou
+   trois degrés c'était le bon calcul — le guingois est un détail de
+   dessin, il n'a pas à écarter les tranches voisines.
+
+   Mais on peut désormais coucher un objet à quatre-vingt-dix degrés, et
+   là ce n'est plus un détail : le carton traversait les boîtiers d'à
+   côté en les recouvrant, parce qu'il continuait de ne réclamer que la
+   largeur qu'il avait debout. Ce qu'on voit doit être ce qui prend la
+   place.
+
+   La largeur d'une boîte tournée est celle de son cadre englobant :
+   |L·cos θ| + |H·sin θ|. On la donne à l'enveloppe — qui EST la cible de
+   dépôt, donc la place réclamée et la place visée restent la même chose
+   — et le dessin, lui, garde sa taille et se centre dedans. */
+export const footprintOf = (w, h, deg) => {
+  const r = (Number(deg) * Math.PI) / 180;
+  return Math.round(Math.abs(w * Math.cos(r)) + Math.abs(h * Math.sin(r)));
 };
 
 /* Un décor posé sur la planche : il se glisse, se déplace et s'enlève
@@ -314,7 +483,7 @@ export const DecorItem = React.memo(function DecorItem({
   onEdit,
   onLabel,
 }) {
-  const spec = DECOR_BY_KEY[item.motif];
+  const spec = decorSpec(item.motif);
   const [writing, setWriting] = useState(false);
   const [hover, setHover] = useState(false);
   const [draft, setDraft] = useState(item.label || "");
@@ -328,22 +497,53 @@ export const DecorItem = React.memo(function DecorItem({
   if (!spec) return null;
   const Draw = spec.draw;
 
+  /* L'ONGLET DU CARTON — la hauteur de tête qu'on voit de loin.
+     Voir le long passage sur la refonte, plus bas. */
+  const head = Math.round(DIVIDER_HEAD * s);
+
   /* Un carton se nomme SUR le carton. Le panneau savait déjà le faire,
      mais il fallait l'ouvrir pour le découvrir — et un carton vierge ne
      dit pas qu'il attend un nom. C'est le geste de la catégorie, dont on
      écrit l'onglet là où on le lit ; la palette reste à côté, pour ce
      qui n'est pas du texte. */
-  const writes = !!spec.writes && !!onLabel;
+  /* NOMMER RESTE UNE OFFRE, PAS UN PASSAGE OBLIGÉ.
+
+     Le carton s'écrivait sur lui-même : un clic ouvrait le champ, et un
+     carton vierge affichait « nommer » en italique. C'était juste pour
+     qui venait poser une catégorie, et pénible pour tous les autres —
+     beaucoup d'intercalaires ne servent qu'à marquer une coupure, et
+     n'ont rien à dire. Le clic tombait alors dans un champ dont il
+     fallait ressortir, et la couleur ou la taille se cachaient derrière
+     une icône qu'on ne trouvait qu'au survol.
+
+     On garde donc le geste, mais on le réserve aux cartons qui ONT un
+     nom : celui-là s'écrit là où on le lit. Un carton vierge, lui, ouvre
+     son panneau comme n'importe quel objet — et le panneau porte déjà un
+     champ NOM pour qui veut lui en donner un. */
+  const writes = !!spec.writes && !!onLabel && !!item.label;
   const commit = () => {
     setWriting(false);
     const v = draft.trim();
     if (v !== (item.label || "")) onLabel(item.id, v);
   };
+  const w = spec.tall ? Math.round(DIVIDER_W * s) : box;
+  const h = spec.tall ? Math.round(BOX_H * s) : box;
+  const angle = angleOf(item, spec.tall);
+  const footprint = footprintOf(w, h, angle);
+
   return (
     <div
       data-shelf-item={item.id}
       onDragOver={(e) => onDragOverBox(e, ctx)}
-      style={{ position: "relative", display: "flex", alignItems: "flex-end", flexShrink: 0 }}
+      style={{
+        position: "relative",
+        display: "flex",
+        alignItems: "flex-end",
+        justifyContent: "center",
+        flexShrink: 0,
+        // la place réclamée dans la rangée suit l'angle : voir `footprintOf`
+        width: footprint + GAP_X,
+      }}
     >
       {/* la couche qui bascule à l'écartement, sous la cible de dépôt */}
       <div
@@ -351,6 +551,8 @@ export const DecorItem = React.memo(function DecorItem({
         style={{
           display: "flex",
           alignItems: "flex-end",
+          justifyContent: "center",
+          width: "100%",
           transformOrigin: "bottom center",
           transition: "transform .3s cubic-bezier(.32,1.16,.42,1)",
         }}
@@ -377,35 +579,28 @@ export const DecorItem = React.memo(function DecorItem({
           }
           style={{
             position: "relative",
-            width: spec.tall ? Math.round(26 * s) : box,
-            height: spec.tall ? Math.round(BOX_H * s) : box,
+            width: w,
+            height: h,
             marginBottom: GAP_Y,
-            marginRight: GAP_X,
+            /* L'écart au voisin est passé à l'enveloppe, avec la place que
+               réclame l'angle : le laisser ici l'ajouterait une seconde
+               fois, et un objet tourné dériverait vers la droite. */
             flexShrink: 0,
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             overflow: "hidden",
-            transform: `rotate(${spec.tall ? leanOf(item.id) : tiltOf(item.id)}deg)`,
+            transform: `rotate(${angle}deg)`,
             transformOrigin: "bottom center",
             userSelect: "none",
             WebkitUserSelect: "none",
-            /* Le carton lui-même : même papier, même filet et même ombre
-               sèche que la boîte — c'est le même carton d'archives, l'un
-               ouvert, l'autre plein. */
-            ...(spec.tall
-              ? {
-                  background: `linear-gradient(160deg, ${C.paperDark}, #D8C69C)`,
-                  border: `1px solid ${C.line}`,
-                  borderBottom: "none",
-                  borderTop: `3px solid ${ink}`,
-                  borderRadius: "3px 3px 0 0",
-                  boxShadow: "2px 2px 0 rgba(43,38,32,0.14)",
-                }
-              : null),
+            // le carton lui-même : sa propre encre, tête comprise
+            ...(spec.tall ? dividerSkin(ink) : null),
           }}
         >
+          {spec.tall && <DividerHead ink={ink} height={head} />}
+
           {spec.tall ? (
             /* Le nom se lit à la verticale, de bas en haut : c'est ainsi
                qu'on lit une tranche dans une boîte d'archives, et la
@@ -437,7 +632,11 @@ export const DecorItem = React.memo(function DecorItem({
                   fontSize: Math.max(8, Math.round(10 * s)),
                   letterSpacing: "0.08em",
                   color: C.ink,
-                  height: "100%",
+                  /* Le champ commence SOUS l'onglet : écrire dans la tête
+                     reviendrait à écrire sur la languette de couleur,
+                     qui est précisément ce qu'on regarde de loin. */
+                  height: `calc(100% - ${head}px)`,
+                  marginTop: head,
                   padding: "6px 0",
                   // le filet du champ longe la tranche, comme un trait au crayon
                   borderLeft: `1px solid ${ink}`,
@@ -451,17 +650,21 @@ export const DecorItem = React.memo(function DecorItem({
                   fontFamily: "'Special Elite', monospace",
                   fontSize: Math.max(8, Math.round(10 * s)),
                   letterSpacing: "0.08em",
-                  color: ink,
+                  /* Le nom passe à l'encre sombre : sur un corps désormais
+                     teinté de sa propre couleur, l'écrire dans cette
+                     même couleur le rendait illisible. */
+                  color: C.ink,
                   whiteSpace: "nowrap",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
-                  maxHeight: "100%",
+                  maxHeight: `calc(100% - ${head}px)`,
+                  marginTop: head,
                   padding: "6px 0",
-                  // un carton vierge annonce qu'il attend un nom
-                  ...(writes && !item.label ? { opacity: 0.45, fontStyle: "italic" } : null),
                 }}
               >
-                {item.label || (writes ? "nommer" : "")}
+                {/* Un carton vierge reste vierge : il sépare, et séparer
+                    se passe très bien de mot. */}
+                {item.label}
               </span>
             )
           ) : (
@@ -519,7 +722,7 @@ export const DecorItem = React.memo(function DecorItem({
    plutôt que par-dessus, et c'est aussi ce qu'on attend d'un cadre
    accroché derrière une étagère. */
 export const WallItem = React.memo(function WallItem({ item, onDragStart, onDragEnd, onEdit }) {
-  const spec = DECOR_BY_KEY[item.motif];
+  const spec = decorSpec(item.motif);
   if (!spec) return null;
   const ink = catInk(item.color);
   // le dessin, plus la marge de prise qui en fait le tour
@@ -558,8 +761,8 @@ export const WallItem = React.memo(function WallItem({ item, onDragStart, onDrag
         cursor: "grab",
         // la couche du mur ne laisse passer le curseur que sur ses objets
         pointerEvents: "auto",
-        // accroché de travers, comme tout ce qu'on accroche
-        transform: `rotate(${tiltOf(item.id)}deg)`,
+        // accroché de travers, comme tout ce qu'on accroche — sauf si on l'a redressé
+        transform: `rotate(${angleOf(item)}deg)`,
         userSelect: "none",
         WebkitUserSelect: "none",
       }}
@@ -579,9 +782,21 @@ export const WallItem = React.memo(function WallItem({ item, onDragStart, onDrag
    Son nom se lit à l'horizontale, tronqué par des points de suspension et
    doublé d'une infobulle. Le carton d'avant l'écrivait à la verticale et
    le coupait net à la hauteur d'un boîtier, sans repli d'aucune sorte —
-   illisible dès qu'on nommait vraiment quelque chose. */
+   illisible dès qu'on nommait vraiment quelque chose.
+
+   ELLE SE COUPE EN SEGMENTS. Une boîte ne replie plus son contenu à
+   l'intérieur d'elle-même : elle grandissait alors en hauteur sans
+   qu'aucune planche ne vienne sous ses lignes, et le rayon cessait
+   d'être un rayon. Elle reçoit maintenant la seule TRANCHE qui tient sur
+   la ligne (`items`), et se répète telle quelle sur la ligne suivante —
+   c'est `splitRow` qui découpe (voir `lines.js`). `first` porte
+   l'en-tête, `last` ferme le carton à droite ; entre les deux, les bords
+   restent ouverts, et l'on voit que c'est la même boîte qui continue. */
 export const CategoryBox = React.memo(function CategoryBox({
   cat,
+  items,
+  first = true,
+  last = true,
   kind,
   rowId,
   films,
@@ -615,7 +830,7 @@ export const CategoryBox = React.memo(function CategoryBox({
   /* Une boîte tient des boîtiers ET du mobilier : un intercalaire glissé
      là-dedans est la sous-division dont on a besoin quand la
      filmographie déborde. Seule une autre boîte reste dehors. */
-  const boxes = cat.items
+  const boxes = (items || cat.items)
     .map((it) => {
       if (it.t === "d")
         return (
@@ -672,14 +887,13 @@ export const CategoryBox = React.memo(function CategoryBox({
       }}
       onDragEnd={onDragEnd}
       onDragOver={(e) => onCatOver(e, ctx)}
-      /* `maxWidth` est ce qui rend le mode auto tenable : sans compte, la
-         boîte prendrait la largeur de tous ses boîtiers mis bout à bout
-         et sortirait du rayon par la droite. Bornée à la rangée, elle
-         grandit jusque-là puis replie son contenu. */
+      /* Plus de `maxWidth` ni de repli : la tranche reçue tient sur la
+         ligne par construction, c'est `splitRow` qui s'en est assuré. La
+         boîte trop grande pour la ligne ne se replie pas sur elle-même,
+         elle DÉBORDE sur la ligne du dessous, qui a son bois. */
       style={{
         flexShrink: 0,
         minWidth: 0,
-        maxWidth: "100%",
         display: "flex",
         alignItems: "flex-end",
       }}
@@ -693,7 +907,6 @@ export const CategoryBox = React.memo(function CategoryBox({
           position: "relative",
           flexShrink: 0,
           minWidth: 0,
-          maxWidth: "100%",
           marginRight: GAP_X,
           marginBottom: GAP_Y,
           display: "flex",
@@ -709,93 +922,113 @@ export const CategoryBox = React.memo(function CategoryBox({
           background: `linear-gradient(160deg, ${C.paperDark}, #D8C69C)`,
           border: `1px solid ${C.line}`,
           borderBottom: "none",
-          borderRadius: "3px 3px 0 0",
-          boxShadow: "2px 2px 0 rgba(43,38,32,0.14)",
+          /* Une boîte coupée en deux garde ses bords là où elle commence
+             et là où elle finit, et les perd là où elle continue : c'est
+             le bord manquant qui dit « la suite est plus bas ». */
+          borderLeft: first ? `1px solid ${C.line}` : "none",
+          borderRight: last ? `1px solid ${C.line}` : "none",
+          borderRadius: `${first ? 3 : 0}px ${last ? 3 : 0}px 0 0`,
+          boxShadow: last ? "2px 2px 0 rgba(43,38,32,0.14)" : "0 2px 0 rgba(43,38,32,0.14)",
           "--cat-open": `${ink}22`,
         }}
       >
         {/* L'onglet d'index : la couleur est une languette collée en tête de
             carton, pas un aplat qui mangerait le kraft. C'est ainsi qu'on
             repère un dossier dans une boîte d'archives. */}
-        <div style={{ height: 4, background: ink, borderRadius: "2px 2px 0 0", opacity: 0.9 }} />
         <div
-          onClick={() => setEditing(true)}
-          title={cat.label}
           style={{
-            padding: "4px 8px",
-            cursor: "text",
-            color: ink,
-            fontFamily: "'Special Elite', monospace",
-            fontSize: 10.5,
-            letterSpacing: "0.06em",
-            borderBottom: `1px solid ${C.line}`,
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            userSelect: "none",
-            WebkitUserSelect: "none",
+            height: 4,
+            background: ink,
+            borderRadius: `${first ? 2 : 0}px ${last ? 2 : 0}px 0 0`,
+            opacity: 0.9,
           }}
-        >
-          {editing ? (
-            <input
-              autoFocus
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onBlur={commit}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") commit();
-                if (e.key === "Escape") {
-                  setDraft(cat.label);
-                  setEditing(false);
-                }
-              }}
-              style={{
-                all: "unset",
-                flex: 1,
-                minWidth: 60,
-                fontFamily: "'Special Elite', monospace",
-                fontSize: 10.5,
-                color: C.ink,
-                borderBottom: `1px solid ${C.line}`,
-              }}
-            />
-          ) : (
-            /* Horizontal, tronqué proprement, et l'infobulle porte le nom
+        />
+        {/* La suite d'une boîte ne reporte pas son nom : la languette de
+            couleur et le bord gauche ouvert suffisent à la reconnaître, et
+            un nom répété à chaque ligne se lirait comme trois boîtes. */}
+        {!first && <div style={{ height: 1, background: C.line, opacity: 0.5 }} />}
+        {first && (
+          <div
+            onClick={() => setEditing(true)}
+            title={cat.label}
+            style={{
+              padding: "4px 8px",
+              cursor: "text",
+              color: ink,
+              fontFamily: "'Special Elite', monospace",
+              fontSize: 10.5,
+              letterSpacing: "0.06em",
+              borderBottom: `1px solid ${C.line}`,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              userSelect: "none",
+              WebkitUserSelect: "none",
+            }}
+          >
+            {editing ? (
+              <input
+                autoFocus
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onBlur={commit}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") commit();
+                  if (e.key === "Escape") {
+                    setDraft(cat.label);
+                    setEditing(false);
+                  }
+                }}
+                style={{
+                  all: "unset",
+                  flex: 1,
+                  minWidth: 60,
+                  fontFamily: "'Special Elite', monospace",
+                  fontSize: 10.5,
+                  color: C.ink,
+                  borderBottom: `1px solid ${C.line}`,
+                }}
+              />
+            ) : (
+              /* Horizontal, tronqué proprement, et l'infobulle porte le nom
                entier. L'intercalaire d'avant l'écrivait à la verticale et le
                coupait net à 144 px, sans ellipse ni recours. */
-            <span
-              style={{
-                flex: 1,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                maxWidth: 220,
+              <span
+                style={{
+                  flex: 1,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  maxWidth: 220,
+                }}
+              >
+                {cat.label}
+              </span>
+            )}
+            <span style={{ color: C.inkFaded, fontSize: 9 }}>{cat.items.length}</span>
+            <button
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(cat.id);
               }}
+              title="Couleur de la catégorie"
+              style={{ all: "unset", cursor: "pointer", color: C.inkFaded, display: "flex" }}
             >
-              {cat.label}
-            </span>
-          )}
-          <span style={{ color: C.inkFaded, fontSize: 9 }}>{cat.items.length}</span>
-          <button
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(cat.id);
-            }}
-            title="Couleur de la catégorie"
-            style={{ all: "unset", cursor: "pointer", color: C.inkFaded, display: "flex" }}
-          >
-            <Palette size={11} />
-          </button>
-        </div>
+              <Palette size={11} />
+            </button>
+          </div>
+        )}
 
         <div
           style={{
             display: "flex",
-            flexWrap: "wrap",
+            /* Plus de repli ici : ce qui ne tient pas sur la ligne n'est
+               pas dans `items`, il est dans le segment d'en dessous. */
+            flexWrap: "nowrap",
             alignItems: "flex-end",
-            padding: "8px 6px 0",
-            minWidth: BOX_W + 12,
+            padding: `${first ? 8 : 4}px 6px 0`,
+            minWidth: boxes.length ? 0 : BOX_W + 12,
             minHeight: BOX_H + 8,
           }}
         >
@@ -812,13 +1045,7 @@ export const CategoryBox = React.memo(function CategoryBox({
               glissez-y des films
             </div>
           )}
-          {/* Le compte de la boîte, et rien d'autre. Il héritait de celui
-              de la rangée à défaut du sien, avec un repli sur dix : une
-              boîte réglée sur « auto » se retrouvait donc plafonnée sans
-              l'avoir demandé, et le réglage mentait. Sans compte, elle
-              grandit avec son contenu jusqu'à la largeur du rayon, où le
-              `flex-wrap` la replie de lui-même. */}
-          {withBreaks(boxes, cat.perRow)}
+          {boxes}
         </div>
       </div>
     </div>

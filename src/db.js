@@ -8,6 +8,14 @@
    localStorage : elles sont petites, et l'accès synchrone y est commode.
    ============================================================ */
 
+import {
+  listCustomDecor,
+  customDecorImageKeys,
+  setCustomDecor,
+  listHiddenDecor,
+  setHiddenDecor,
+} from "./services/customDecor";
+
 const DB_NAME = "cine-hub";
 const DB_VERSION = 1;
 const POSTERS = "posters";
@@ -107,9 +115,14 @@ export function referencedKeys(films) {
   return keys;
 }
 
-/* Efface les images devenues orphelines (films supprimés). */
+/* Efface les images devenues orphelines (films supprimés).
+
+   Les objets de déco importés vivent dans le même magasin sans qu'aucun
+   film ne les cite : sans cette ligne, la première purge emporterait tout
+   le cabinet de l'utilisateur. */
 export async function pruneOrphans(films) {
   const kept = referencedKeys(films);
+  for (const k of customDecorImageKeys()) kept.add(k);
   const keys = await allImageKeys();
   const dead = keys.filter((k) => !kept.has(k));
   for (const k of dead) await deleteImage(k);
@@ -132,18 +145,26 @@ const dataUrlToBlob = async (url) => (await fetch(url)).blob();
 
 export async function exportBackup({ films, notes, dividers = [], views = null }) {
   const images = {};
-  for (const key of referencedKeys(films)) {
+  const customDecor = listCustomDecor();
+  /* Les objets importés partent avec le reste : ce sont des images que
+     l'utilisateur a apportées, pas des réglages qu'on saurait refaire. */
+  for (const key of [...referencedKeys(films), ...customDecor.map((d) => d.imageKey)]) {
     const blob = await getImage(key);
     if (blob) images[key] = await blobToDataUrl(blob);
   }
   return {
     format: "cine-hub-backup",
+    customDecor,
+    // et le tri qu'on a fait dans le cabinet : ce sont des choix, pas des images
+    hiddenDecor: listHiddenDecor(),
     /* v3 ajoutait les intercalaires de l'étagère : ce sont des données
        saisies à la main, pas des réglages, elles ont leur place ici.
        v4 leur succède avec les vues, qui portent désormais tout le
        rangement. Les intercalaires continuent d'être émis : une v4
-       relue par une version antérieure y retrouve son étagère. */
-    version: 4,
+       relue par une version antérieure y retrouve son étagère.
+       v5 ajoute les objets de déco importés — le cabinet qu'on s'est
+       fait soi-même est aussi peu refaisable qu'une fiche. */
+    version: 5,
     exportedAt: new Date().toISOString(),
     films,
     notes,
@@ -161,6 +182,12 @@ export async function importBackup(data) {
   for (const [key, dataUrl] of Object.entries(images)) {
     await putImage(key, await dataUrlToBlob(dataUrl));
   }
+  /* Les objets importés remplacent le cabinet en place plutôt que de s'y
+     ajouter : une sauvegarde restaure un état, elle ne fusionne pas.
+     Antérieur à v5, le fichier n'en a pas — et le cabinet reste vide,
+     ce qu'il était de toute façon à cette époque-là. */
+  setCustomDecor(data.customDecor || []);
+  setHiddenDecor(data.hiddenDecor || []);
   /* v1 et v2 ne connaissaient pas l'étagère : pas d'intercalaires à
      restaurer. v3 en a mais pas de vues — `views: null` dit à l'appelant
      de les refabriquer depuis les intercalaires plutôt que de laisser

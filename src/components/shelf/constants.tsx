@@ -25,6 +25,14 @@ import {
   Pennant,
   Ivy,
 } from "./objects";
+import { CustomDraw } from "./CustomDraw";
+import {
+  customDecorByKey,
+  isCustomMotif,
+  isDecorHidden,
+  listCustomDecor,
+} from "../../services/customDecor";
+import type { CustomDecor } from "../../services/customDecor";
 import type { Film, ShelfKind } from "../../types";
 
 interface ShelfKindConfig {
@@ -125,9 +133,13 @@ export const themeOf = (key: string) => THEMES[key as keyof typeof THEMES] || TH
    debout sur une planche, au milieu des boîtiers ; ce qui s'ACCROCHE se
    punaise au fond du rayon, où l'on veut, et ne prend la place de
    personne. */
-interface DecorType {
+export interface DecorType {
   key: string;
   label: string;
+  /** Vient du disque de l'utilisateur, et non de `objects.jsx`. */
+  custom?: boolean;
+  /** Pour un motif importé : la couleur lui parle-t-elle encore ? */
+  tintable?: boolean;
   /* Un dessin de la maison. Les décors de `atmosphere` n'ont pas tous la
      même signature — l'un veut `width`, l'autre `w`, un troisième un
      `rotate` — et les lister ici ne ferait que recopier un contrat qui
@@ -186,10 +198,68 @@ export const DECOR_TYPES: DecorType[] = [
    deux intitulés, parce qu'on ne les pose pas du même geste. */
 export const SHELF_DECOR = DECOR_TYPES.filter((d) => !d.wall);
 export const WALL_DECOR = DECOR_TYPES.filter((d) => d.wall);
-export const isWallMotif = (motif: string): boolean => !!DECOR_BY_KEY[motif]?.wall;
 export const DECOR_BY_KEY: Record<string, DecorType> = Object.fromEntries(
   DECOR_TYPES.map((d) => [d.key, d])
 );
+
+/* LE CATALOGUE, MOTIFS IMPORTÉS COMPRIS.
+
+   `DECOR_BY_KEY` reste la table des motifs de la maison — figée, connue
+   à la compilation. Mais un objet posé sur l'étagère peut désormais
+   désigner un motif venu du disque, et chercher son dessin est devenu un
+   geste : c'est `decorSpec` qui le fait, et lui seul. Lire
+   `DECOR_BY_KEY` directement, c'est ne voir que la moitié du cabinet.
+
+   Le composant de dessin est mémorisé par clé : `decorSpec` est appelé
+   au rendu de chaque objet, et fabriquer un composant neuf à chaque
+   fois ferait remonter l'image entière à chaque survol. */
+const drawCache = new Map<string, ComponentType<{ color?: string; style?: CSSProperties }>>();
+
+const customDraw = (key: string) => {
+  let Draw = drawCache.get(key);
+  if (!Draw) {
+    Draw = (props) => <CustomDraw motif={key} {...props} />;
+    drawCache.set(key, Draw);
+  }
+  return Draw;
+};
+
+const specOf = (d: CustomDecor): DecorType => ({
+  key: d.key,
+  label: d.label,
+  wall: d.wall,
+  custom: true,
+  tintable: d.tintable,
+  draw: customDraw(d.key),
+});
+
+/** Le motif d'un objet, qu'il vienne de la maison ou d'un import. */
+export const decorSpec = (motif: string): DecorType | undefined => {
+  const house = DECOR_BY_KEY[motif];
+  if (house) return house;
+  const mine = isCustomMotif(motif) ? customDecorByKey(motif) : undefined;
+  return mine ? specOf(mine) : undefined;
+};
+
+/* Les deux familles du cabinet : motifs importés inclus, motifs masqués
+   exclus. Le filtre est ici et pas dans `decorSpec` — un motif masqué
+   sort du PANNEAU, il ne s'efface pas des étagères où il est déjà posé. */
+export const shelfDecorTypes = (): DecorType[] =>
+  [
+    ...SHELF_DECOR,
+    ...listCustomDecor()
+      .filter((d) => !d.wall)
+      .map(specOf),
+  ].filter((d) => !isDecorHidden(d.key));
+export const wallDecorTypes = (): DecorType[] =>
+  [
+    ...WALL_DECOR,
+    ...listCustomDecor()
+      .filter((d) => d.wall)
+      .map(specOf),
+  ].filter((d) => !isDecorHidden(d.key));
+
+export const isWallMotif = (motif: string): boolean => !!decorSpec(motif)?.wall;
 /* La taille d'un objet accroché, dessin et prise comprises.
 
    `WALL_GRIP` est la marge transparente qui fait le tour du dessin : un

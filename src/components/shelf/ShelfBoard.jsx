@@ -29,12 +29,20 @@ import {
   MARK_W,
   MARK_H,
   themeOf,
-  DECOR_BY_KEY,
+  decorSpec,
   isWallMotif,
   wallBoxOf,
 } from "./constants";
-import { DropMark } from "./items";
+import { DropMark, angleOf } from "./items";
 import { Shelf, ReserveDrawer, CasePreview, DecorCabinet, ItemPalette } from "./layout";
+
+/* Un motif dont la teinte ne change rien : une image importée qui n'est
+   pas du trait, ou un SVG dont on n'a pas su nommer l'encre. Les motifs
+   de la maison sont tous dessinés pour prendre une couleur. */
+const noTint = (motif) => {
+  const spec = decorSpec(motif);
+  return !!spec?.custom && !spec.tintable;
+};
 
 /* Ce qui s'accroche plutôt que de se poser — la question que se posent
    tous les gestionnaires de glissement avant de faire quoi que ce soit. */
@@ -579,7 +587,14 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
   useEffect(() => {
     dropRef.current = drop;
   });
-  const onDrop = useCallback((kind) => dropRef.current(kind), []);
+  /* La poignée passe TOUT ce qu'elle reçoit. Elle ne transmettait que le
+     rayon, et les deux arguments suivants tombaient en route : le dépôt
+     dans une rangée s'en accommodait, puisqu'il lit sa cible dans
+     `overRef` — mais le mur, lui, n'a que l'événement pour savoir où on
+     a lâché, et le drapeau pour savoir qu'on visait le fond du rayon et
+     non une fente entre deux tranches. Sans eux, `onWall` retombait sur
+     son défaut et rien ne s'accrochait plus nulle part. */
+  const onDrop = useCallback((...args) => dropRef.current(...args), []);
 
   const dnd = useMemo(
     () => ({
@@ -623,14 +638,20 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     <div onDragEnd={reset} style={{ "--mark-ink": theme.accent }}>
       {/* le repère de dépôt : un seul, déplacé à la main pendant le glissement */}
       <DropMark ref={markRef} />
-      <Shelf
-        kind="chevet"
-        shelf={view.shelves.chevet}
-        wall={view.shelves.chevet.wall}
-        count={countOf("chevet")}
-        onCabinet={setCabinet}
-        {...shared}
-      />
+      {/* « Films de chevet », c'est ceux qu'on revoit : le rayon n'a pas
+          lieu d'être sur le mur des films à voir, où il ne s'ouvrait que
+          pour rester vide. `belongs` range déjà là-bas les fiches
+          drapeautées, elles ne se perdent donc pas. */}
+      {view.wall !== "watchlist" && (
+        <Shelf
+          kind="chevet"
+          shelf={view.shelves.chevet}
+          wall={view.shelves.chevet.wall}
+          count={countOf("chevet")}
+          onCabinet={setCabinet}
+          {...shared}
+        />
+      )}
       <Shelf
         kind="main"
         shelf={view.shelves.main}
@@ -658,10 +679,8 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
         <ItemPalette
           title="CATÉGORIE"
           color={cat.color}
-          perRow={cat.perRow}
           removeLabel="défaire la catégorie"
           onColor={(k) => acts.setCat(cat.id, { color: k })}
-          onPerRow={(n) => acts.setCat(cat.id, { perRow: n })}
           onRemove={() => {
             acts.removeCat(cat.id);
             setEditCat(null);
@@ -677,11 +696,21 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
           /* Le champ n'apparaît que pour les motifs qui écrivent : passer
              `onLabel` à une punaise lui donnerait un nom que rien ne
              montrerait jamais. */
-          {...(DECOR_BY_KEY[decor.motif]?.writes
+          {...(decorSpec(decor.motif)?.writes
             ? { label: decor.label, onLabel: (v) => acts.setDecor(decor.id, { label: v }) }
             : null)}
           removeLabel="retirer l'objet"
-          onColor={(k) => acts.setDecor(decor.id, { color: k })}
+          /* L'orientation. `seededRot` donne l'angle que l'objet porte
+             tant que personne ne l'a réglé : sans lui, le panneau
+             annoncerait zéro sous un objet visiblement de travers. */
+          rot={decor.rot}
+          seededRot={angleOf({ id: decor.id }, decorSpec(decor.motif)?.tall)}
+          onRot={(deg) => acts.setDecor(decor.id, { rot: deg })}
+          /* Un motif importé qu'on ne sait pas teinter — un PNG, un SVG
+             sans trait nommé — n'a pas de couleur à choisir : la lui
+             proposer quand même serait offrir une rangée de boutons
+             morts. */
+          onColor={noTint(decor.motif) ? undefined : (k) => acts.setDecor(decor.id, { color: k })}
           onSize={(v) => acts.setDecor(decor.id, { size: v })}
           onRemove={() => {
             acts.removeDecor(decor.id);
