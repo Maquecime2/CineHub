@@ -1,23 +1,70 @@
 import React, { useState, useEffect, useMemo, useRef, useLayoutEffect, useCallback } from "react";
 import {
-  Pin, Paperclip, Plus, X, Trash2, ArrowLeft, Upload,
-  Star, BookOpen, Palette, Clapperboard, Sparkles, Link2,
-  LayoutGrid, Library, Archive, ArchiveRestore, Moon,
+  Pin,
+  Paperclip,
+  Plus,
+  X,
+  Trash2,
+  ArrowLeft,
+  Upload,
+  Star,
+  BookOpen,
+  Palette,
+  Clapperboard,
+  Sparkles,
+  Link2,
+  LayoutGrid,
+  Library,
+  Archive,
+  ArchiveRestore,
+  Moon,
 } from "lucide-react";
 import Papa from "papaparse";
 import { enrichRows, checkApiKey, listPosters, POSTER_BASE, POSTER_THUMB } from "./tmdb";
 import { buildTaste } from "./taste";
 import { gatherCandidates, rank, DEFAULT_QUERY } from "./reco";
 import {
-  IDB_PREFIX, isIdbPoster, idbKeyOf, putImage, getImage, deleteImage,
-  posterStats, pruneOrphans, exportBackup, importBackup,
+  IDB_PREFIX,
+  isIdbPoster,
+  idbKeyOf,
+  putImage,
+  getImage,
+  deleteImage,
+  posterStats,
+  pruneOrphans,
+  exportBackup,
+  importBackup,
 } from "./db";
 import {
-  SHELF_KINDS, CAT_KEYS, ROW_CAPS, VIEW_VERSION, belongs, isUnplaced,
-  makeView, makeCat, makeDecor,
-  reconcileView, moveItem, sortIntoRows, buildViewsFromLegacy, duplicateView,
-  reflowView, layoutView, layoutByDirector, upgradeView, DEFAULT_CAP, capFor,
-  patchRow, addRow, removeRow, clearRow, addCat, patchCat, removeCat, patchDecor, removeDecor,
+  SHELF_KINDS,
+  CAT_KEYS,
+  ROW_CAPS,
+  VIEW_VERSION,
+  belongs,
+  isUnplaced,
+  makeView,
+  makeCat,
+  makeDecor,
+  reconcileView,
+  moveItem,
+  sortIntoRows,
+  buildViewsFromLegacy,
+  duplicateView,
+  reflowView,
+  layoutView,
+  layoutByDirector,
+  upgradeView,
+  DEFAULT_CAP,
+  capFor,
+  patchRow,
+  addRow,
+  removeRow,
+  clearRow,
+  addCat,
+  patchCat,
+  removeCat,
+  patchDecor,
+  removeDecor,
 } from "./shelf-views";
 import { C, FONT_IMPORT, GRAIN } from "./theme/tokens";
 import { tapeColor, hueOf } from "./theme/ink";
@@ -29,8 +76,14 @@ import { store } from "./services/storage";
 import { underlineInput, ruledTextarea } from "./theme/styles";
 import { LINK_TYPES } from "./components/film/linkTypes";
 import {
-  PaperGrain, CoffeeRing, TapeResidue, InkUnderline, FileNumber,
-  Tape, PushPin, StampCorner,
+  PaperGrain,
+  CoffeeRing,
+  TapeResidue,
+  InkUnderline,
+  FileNumber,
+  Tape,
+  PushPin,
+  StampCorner,
 } from "./components/atmosphere";
 import { InkStars, Label } from "./components/ui";
 import { PosterArt } from "./components/film/PosterArt";
@@ -50,17 +103,42 @@ import { NotebookView } from "./views/NotebookView";
 import { RecoView } from "./views/RecoView";
 import { DetailView } from "./views/DetailView";
 import { ImportView } from "./views/import/ImportView";
-import { viewKey, saveViewIndex, saveView, deleteViewKey, ensureViews } from "./services/shelfViews";
 import {
-  SHELF_KIND, BOX_W, BOX_H, GAP_X, GAP_Y, CAT_COLORS, catInk, THEMES, themeOf,
-  DECOR_TYPES, DECOR_BY_KEY, DECOR_SIZES, MARK_W, MARK_H, DROP_MARK_STYLE,
-  AXIS, ZIG_AMP, ZIG_STEP, ZIGZAG, STITCH,
+  viewKey,
+  saveViewIndex,
+  saveView,
+  deleteViewKey,
+  ensureViews,
+} from "./services/shelfViews";
+import {
+  SHELF_KIND,
+  BOX_W,
+  BOX_H,
+  GAP_X,
+  GAP_Y,
+  CAT_COLORS,
+  catInk,
+  THEMES,
+  themeOf,
+  DECOR_TYPES,
+  DECOR_BY_KEY,
+  DECOR_SIZES,
+  MARK_W,
+  MARK_H,
+  DROP_MARK_STYLE,
+  AXIS,
+  ZIG_AMP,
+  ZIG_STEP,
+  ZIGZAG,
+  STITCH,
 } from "./components/shelf/constants";
 import { ConstellationView } from "./views/ConstellationView";
 import { TagChip, TagEditor } from "./components/ui/TagEditor";
 import { PosterPicker } from "./components/film/PosterPicker";
 import { imageSize, shrinkImage } from "./services/images";
 import { LibraryView } from "./views/library/LibraryView";
+import { useNotes } from "./hooks/useNotes";
+import { useShelfViews } from "./hooks/useShelfViews";
 
 /* Réexportés le temps de la migration : shelf-views et les tests les
    importent encore depuis ce fichier. */
@@ -68,14 +146,13 @@ export { makeFilm, migrate, slugOf, filmKey, parseRating, parseLetterboxdCsv, di
 
 export default function App() {
   const [films, setFilms] = useState([]);
-  const [notes, setNotes] = useState([]);
+  const notebook = useNotes();
+  const shelf = useShelfViews(films);
+  const { views, setViews } = shelf;
   /* Les intercalaires ne sont plus du mobilier vivant : la migration les a
      versés dans les vues. On les garde en mémoire pour pouvoir refabriquer
      une vue depuis une vieille sauvegarde, et on ne les réécrit jamais. */
   const [dividers, setDividers] = useState([]);
-  /* Le rangement de l'étagère : { byWall: { watched: [id…] }, docs: { id: vue } }.
-     Un document par vue, chacun dans sa propre clé. */
-  const [views, setViews] = useState({ byWall: { watched: [], watchlist: [] }, docs: {} });
   const [loaded, setLoaded] = useState(false);
   const [view, setView] = useState("library");
   const [selectedId, setSelectedId] = useState(null);
@@ -86,97 +163,37 @@ export default function App() {
     const migrated = migrate(store.get("films", []));
     setFilms(migrated);
     store.set("films", migrated);
-    setNotes(store.get("notebook-notes", []));
+    notebook.load();
     const tabs = store.get("shelf-dividers", []);
     setDividers(tabs);
     /* La migration lit `order` et `status`, que `migrate` vient de
        normaliser : elle doit donc passer après, et sur les fiches
        migrées — pas sur ce qui sort du disque. */
-    setViews(ensureViews({ films: migrated, dividers: tabs, wallPrefs: store.get("wall-prefs", {}) }));
+    setViews(
+      ensureViews({ films: migrated, dividers: tabs, wallPrefs: store.get("wall-prefs", {}) })
+    );
     setLoaded(true);
   }, []);
 
-  const saveFilms = (next) => { setFilms(next); store.set("films", next); };
-  const saveNotes = (next) => { setNotes(next); store.set("notebook-notes", next); };
+  const saveFilms = (next) => {
+    setFilms(next);
+    store.set("films", next);
+  };
 
-  /* ---- les vues ----------------------------------------------------
-     Écrire une vue ne touche qu'à sa clé : le reste de la bibliothèque
-     n'est pas re-sérialisé pour un boîtier déplacé. */
-  /* Tous en `useCallback` : ce sont des gestes, jamais du rendu. Ils
-     horodatent, et une fonction impure appelée pendant un rendu serait
-     une faute — la règle vaut aussi pour le compilateur, qui la relève. */
-  /* Le débordement est un invariant, pas un geste : toute écriture y
-     passe. Sans quoi une rangée réglée à cinq garderait ses douze films
-     et se replierait en accordéon sous une planche unique. */
-  const commitView = useCallback((next) => {
-    const stamped = { ...reflowView(next), updatedAt: Date.now() };
-    setViews((s) => ({ ...s, docs: { ...s.docs, [stamped.id]: stamped } }));
-    saveView(stamped);
-  }, []);
-
-  const addView = useCallback((wall, doc) => {
-    setViews((s) => {
-      const byWall = { ...s.byWall, [wall]: [...(s.byWall[wall] || []), doc.id] };
-      saveViewIndex(byWall);
-      return { byWall, docs: { ...s.docs, [doc.id]: doc } };
-    });
-    saveView(doc);
-  }, []);
-
-  const createView = useCallback((wall, name) => {
-    const blank = makeView({ wall, name: name || "Nouvelle vue", now: Date.now() });
-    /* Tout laisser dans le sas donnerait une étagère vide et un tas :
-       une vue neuve arrive déjà rangée, en planches d'une dizaine. */
-    const pool = films.filter((f) => (f.status === "watchlist") === (wall === "watchlist"));
-    const doc = layoutView(blank, pool);
-    addView(wall, doc);
-    return doc.id;
-  }, [addView, films]);
-
-  /* L'étagère par cinéaste. Elle naît rangée — une ligne et une boîte par
-     réalisateur — puis c'est une vue comme une autre : rien ne la refait
-     dans son dos, et ce qu'on y déplace y reste. */
-  const createDirectorView = useCallback((wall) => {
-    const blank = makeView({ wall, name: "Par réalisateur", now: Date.now() });
-    const pool = films.filter((f) => (f.status === "watchlist") === (wall === "watchlist"));
-    const doc = layoutByDirector(blank, pool);
-    addView(wall, doc);
-    return doc.id;
-  }, [addView, films]);
-
-  const copyView = useCallback((id) => {
-    const src = views.docs[id];
-    if (!src) return null;
-    const doc = duplicateView(src, { now: Date.now() });
-    addView(src.wall, doc);
-    return doc.id;
-  }, [views.docs, addView]);
-
-  /* Supprimer la dernière vue d'un mur laisserait l'étagère sans
-     rangement du tout : on refuse plutôt que d'en refabriquer une. */
-  const removeView = useCallback((id) => {
-    const doc = views.docs[id];
-    if (!doc || (views.byWall[doc.wall] || []).length <= 1) return false;
-    setViews((s) => {
-      const byWall = { ...s.byWall, [doc.wall]: s.byWall[doc.wall].filter((x) => x !== id) };
-      const docs = { ...s.docs };
-      delete docs[id];
-      saveViewIndex(byWall);
-      return { byWall, docs };
-    });
-    deleteViewKey(id);
-    return true;
-  }, [views]);
-
-  const addFilm = (film) => { saveFilms([film, ...films]); setShowModal(false); };
+  const addFilm = (film) => {
+    saveFilms([film, ...films]);
+    setShowModal(false);
+  };
   const updateFilm = (film) => saveFilms(films.map((f) => (f.id === film.id ? film : f)));
   /* Ranger un boîtier renumérote tout un rayon : une écriture, pas trente. */
-  const updateMany = (patches) => saveFilms(films.map((f) => (patches[f.id] ? { ...f, ...patches[f.id] } : f)));
+  const updateMany = (patches) =>
+    saveFilms(films.map((f) => (patches[f.id] ? { ...f, ...patches[f.id] } : f)));
   const deleteFilm = (id) => {
     const next = films.filter((f) => f.id !== id);
     saveFilms(next);
-    pruneOrphans(next).catch(console.error);  // l'affiche part avec la fiche
-    setView("library"); setSelectedId(null);
+    pruneOrphans(next).catch(console.error); // l'affiche part avec la fiche
+    setView("library");
+    setSelectedId(null);
   };
 
   /* Relier deux fiches, c'est écrire des deux côtés : ouvrir l'un ou l'autre
@@ -186,18 +203,27 @@ export default function App() {
     const a = films.find((f) => f.id === fromId);
     const b = films.find((f) => f.id === toId);
     if (!a || !b || a.id === b.id) return;
-    if ((a.linkedWorks || []).some((w) => w.filmId === b.id)) return;  // déjà relié
+    if ((a.linkedWorks || []).some((w) => w.filmId === b.id)) return; // déjà relié
 
     const pairId = uid();
     const card = (target) => ({
-      id: uid(), pairId, type: "film", filmId: target.id,
-      title: target.title, creator: target.director || "", note: note.trim(),
+      id: uid(),
+      pairId,
+      type: "film",
+      filmId: target.id,
+      title: target.title,
+      creator: target.director || "",
+      note: note.trim(),
     });
-    saveFilms(films.map((f) =>
-      f.id === a.id ? { ...f, linkedWorks: [...(f.linkedWorks || []), card(b)] }
-      : f.id === b.id ? { ...f, linkedWorks: [...(f.linkedWorks || []), card(a)] }
-      : f
-    ));
+    saveFilms(
+      films.map((f) =>
+        f.id === a.id
+          ? { ...f, linkedWorks: [...(f.linkedWorks || []), card(b)] }
+          : f.id === b.id
+            ? { ...f, linkedWorks: [...(f.linkedWorks || []), card(a)] }
+            : f
+      )
+    );
   };
 
   /* Défaire un lien : la moitié réciproque part avec lui. */
@@ -205,11 +231,18 @@ export default function App() {
     const owner = films.find((f) => f.id === ownerId);
     const work = (owner?.linkedWorks || []).find((w) => w.id === workId);
     if (!work) return;
-    saveFilms(films.map((f) => {
-      if (f.id === ownerId) return { ...f, linkedWorks: f.linkedWorks.filter((w) => w.id !== workId) };
-      if (work.pairId && f.id === work.filmId) return { ...f, linkedWorks: (f.linkedWorks || []).filter((w) => w.pairId !== work.pairId) };
-      return f;
-    }));
+    saveFilms(
+      films.map((f) => {
+        if (f.id === ownerId)
+          return { ...f, linkedWorks: f.linkedWorks.filter((w) => w.id !== workId) };
+        if (work.pairId && f.id === work.filmId)
+          return {
+            ...f,
+            linkedWorks: (f.linkedWorks || []).filter((w) => w.pairId !== work.pairId),
+          };
+        return f;
+      })
+    );
   };
 
   /* Restaurer, c'est remplacer l'état entier — y compris le rangement.
@@ -218,7 +251,7 @@ export default function App() {
   const restoreBackup = ({ films: f, notes: n, dividers: d, views: v }) => {
     const migrated = migrate(f);
     saveFilms(migrated);
-    if (n?.length) saveNotes(n);
+    if (n?.length) notebook.replaceAll(n);
     const tabs = d || [];
     setDividers(tabs);
     store.set("shelf-dividers", tabs);
@@ -228,8 +261,16 @@ export default function App() {
       saveViewIndex(v.byWall);
       setViews({ byWall: v.byWall, docs: v.docs });
     } else {
-      for (const wall of Object.keys(views.byWall)) for (const id of views.byWall[wall]) deleteViewKey(id);
-      setViews(ensureViews({ films: migrated, dividers: tabs, wallPrefs: store.get("wall-prefs", {}), force: true }));
+      for (const wall of Object.keys(views.byWall))
+        for (const id of views.byWall[wall]) deleteViewKey(id);
+      setViews(
+        ensureViews({
+          films: migrated,
+          dividers: tabs,
+          wallPrefs: store.get("wall-prefs", {}),
+          force: true,
+        })
+      );
     }
     return migrated.length;
   };
@@ -251,7 +292,9 @@ export default function App() {
   const [wallUi, setWallUi] = useState(() => {
     const saved = store.get("wall-prefs", {});
     const one = (wall) => ({
-      q: "", genreFilter: "", grouped: false,
+      q: "",
+      genreFilter: "",
+      grouped: false,
       sortBy: saved[wall]?.sortBy || WALLS[wall].defaultSort,
       desc: saved[wall]?.desc ?? true,
       mode: saved[wall]?.mode || "wall",
@@ -262,12 +305,13 @@ export default function App() {
     });
     return { watched: one("watched"), watchlist: one("watchlist") };
   });
-  const setUiFor = (wall) => (next) => setWallUi((s) => {
-    const merged = { ...s, [wall]: next };
-    const keep = ({ mode, sortBy, desc, viewId }) => ({ mode, sortBy, desc, viewId });
-    store.set("wall-prefs", { watched: keep(merged.watched), watchlist: keep(merged.watchlist) });
-    return merged;
-  });
+  const setUiFor = (wall) => (next) =>
+    setWallUi((s) => {
+      const merged = { ...s, [wall]: next };
+      const keep = ({ mode, sortBy, desc, viewId }) => ({ mode, sortBy, desc, viewId });
+      store.set("wall-prefs", { watched: keep(merged.watched), watchlist: keep(merged.watchlist) });
+      return merged;
+    });
 
   /* La vue active d'un mur : celle qu'on regardait, ou la première —
      l'identifiant gardé sur le disque peut désigner une vue supprimée
@@ -286,12 +330,16 @@ export default function App() {
     return {
       shelfView: id ? views.docs[id] : null,
       shelfViews: (views.byWall[wall] || []).map((x) => views.docs[x]).filter(Boolean),
-      onShelfView: commitView,
+      onShelfView: shelf.commit,
       onPickView: (next) => setUiFor(wall)({ ...wallUi[wall], viewId: next }),
-      onCreateView: (name) => setUiFor(wall)({ ...wallUi[wall], viewId: createView(wall, name) }),
-      onCreateDirectorView: () => setUiFor(wall)({ ...wallUi[wall], viewId: createDirectorView(wall) }),
-      onCopyView: (from) => { const next = copyView(from); if (next) setUiFor(wall)({ ...wallUi[wall], viewId: next }); },
-      onDeleteView: removeView,
+      onCreateView: (name) => setUiFor(wall)({ ...wallUi[wall], viewId: shelf.create(wall, name) }),
+      onCreateDirectorView: () =>
+        setUiFor(wall)({ ...wallUi[wall], viewId: shelf.createByDirector(wall) }),
+      onCopyView: (from) => {
+        const next = shelf.copy(from);
+        if (next) setUiFor(wall)({ ...wallUi[wall], viewId: next });
+      },
+      onDeleteView: shelf.remove,
     };
   };
 
@@ -304,7 +352,18 @@ export default function App() {
 
   if (!loaded) {
     return (
-      <div style={{ background: C.paper, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: C.inkFaded, fontFamily: "'Caveat', cursive", fontSize: 22 }}>
+      <div
+        style={{
+          background: C.paper,
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: C.inkFaded,
+          fontFamily: "'Caveat', cursive",
+          fontSize: 22,
+        }}
+      >
         <style>{FONT_IMPORT}</style>
         ouverture du classeur…
       </div>
@@ -312,26 +371,66 @@ export default function App() {
   }
 
   return (
-    <div style={{
-      minHeight: "100vh", display: "flex", position: "relative",
-      // le kraft n'est pas uniforme : des nappes plus claires là où la lumière tombe
-      background: `
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        position: "relative",
+        // le kraft n'est pas uniforme : des nappes plus claires là où la lumière tombe
+        background: `
         radial-gradient(circle at 18% 12%, #F5EDD8 0%, transparent 45%),
         radial-gradient(circle at 82% 68%, #F2E9D2 0%, transparent 40%),
         radial-gradient(circle at 55% 100%, #E5D6B4 0%, transparent 50%),
         ${C.paper}`,
-    }}>
+      }}
+    >
       <style>{FONT_IMPORT}</style>
       <PaperGrain />
-      <FolderTabs view={view} setView={(v) => { setView(v); setSelectedId(null); }} onAdd={() => setShowModal(true)} />
+      <FolderTabs
+        view={view}
+        setView={(v) => {
+          setView(v);
+          setSelectedId(null);
+        }}
+        onAdd={() => setShowModal(true)}
+      />
       <div style={{ flex: 1, position: "relative", zIndex: 2 }}>
-        {view === "library" && !selectedId && <LibraryView wall="watched" films={watched} ui={wallUi.watched} setUi={setUiFor("watched")} onUpdateMany={updateMany} {...viewProps("watched")} onOpen={(id) => { setSelectedId(id); setView("detail"); }} />}
-        {view === "watchlist" && !selectedId && <LibraryView wall="watchlist" films={watchlist} ui={wallUi.watchlist} setUi={setUiFor("watchlist")} onUpdateMany={updateMany} {...viewProps("watchlist")} onOpen={(id) => { setSelectedId(id); setView("detail"); }} />}
+        {view === "library" && !selectedId && (
+          <LibraryView
+            wall="watched"
+            films={watched}
+            ui={wallUi.watched}
+            setUi={setUiFor("watched")}
+            onUpdateMany={updateMany}
+            {...viewProps("watched")}
+            onOpen={(id) => {
+              setSelectedId(id);
+              setView("detail");
+            }}
+          />
+        )}
+        {view === "watchlist" && !selectedId && (
+          <LibraryView
+            wall="watchlist"
+            films={watchlist}
+            ui={wallUi.watchlist}
+            setUi={setUiFor("watchlist")}
+            onUpdateMany={updateMany}
+            {...viewProps("watchlist")}
+            onOpen={(id) => {
+              setSelectedId(id);
+              setView("detail");
+            }}
+          />
+        )}
         {view === "detail" && selectedFilm && (
           <DetailView
             film={selectedFilm}
             films={films}
-            onBack={() => { setView(backView); setSelectedId(null); }}
+            onBack={() => {
+              setView(backView);
+              setSelectedId(null);
+            }}
             onUpdate={updateFilm}
             onDelete={deleteFilm}
             onLinkFilm={linkFilms}
@@ -340,9 +439,33 @@ export default function App() {
           />
         )}
         {view === "reco" && <RecoView films={films} onAddToWatchlist={addFilm} />}
-        {view === "constellation" && <ConstellationView films={constellationFilms} onOpen={(id) => { setSelectedId(id); setView("detail"); }} />}
-        {view === "notebook" && <NotebookView notes={notes} onAdd={(n) => saveNotes([n, ...notes])} onUpdate={(n) => saveNotes(notes.map((x) => (x.id === n.id ? n : x)))} onDelete={(id) => saveNotes(notes.filter((x) => x.id !== id))} />}
-        {view === "import" && <ImportView onImport={importFilms} films={films} notes={notes} dividers={dividers} views={views} onRestore={restoreBackup} />}
+        {view === "constellation" && (
+          <ConstellationView
+            films={constellationFilms}
+            onOpen={(id) => {
+              setSelectedId(id);
+              setView("detail");
+            }}
+          />
+        )}
+        {view === "notebook" && (
+          <NotebookView
+            notes={notebook.notes}
+            onAdd={notebook.add}
+            onUpdate={notebook.update}
+            onDelete={notebook.remove}
+          />
+        )}
+        {view === "import" && (
+          <ImportView
+            onImport={importFilms}
+            films={films}
+            notes={notebook.notes}
+            dividers={dividers}
+            views={views}
+            onRestore={restoreBackup}
+          />
+        )}
       </div>
       {showModal && <FilmModal onClose={() => setShowModal(false)} onSave={addFilm} />}
     </div>
