@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { render } from "@testing-library/react";
-import { DecorItem, WallItem, angleOf, leanOf } from "./items";
+import { fireEvent, render } from "@testing-library/react";
+import { DecorItem, WallItem, angleOf, leanOf, rotatedBox } from "./items";
+import { GAP_X } from "./constants";
 import { tiltOf } from "../../domain/seeded";
 import { makeDecor, makeWallDecor } from "../../shelf-views";
 
@@ -47,7 +48,38 @@ describe("l'orientation d'un objet", () => {
   it("tourne un objet accroché", () => {
     const item = { ...makeWallDecor({ motif: "frame" }), rot: 90 };
     const { container } = render(<WallItem item={item} {...dnd} />);
-    expect(angleRendu(container.querySelector("[data-wall-item]"))).toBe(90);
+    expect(angleRendu(container.querySelector("[data-wall-item] > div"))).toBe(90);
+  });
+
+  /* Les objets accrochés cessent de recevoir le curseur le temps d'un
+     geste, pour ne pas voler les dépôts du rayon qu'ils débordent. Mais
+     un glissement dont la SOURCE cesse d'être testable est annulé net :
+     l'objet qu'on tient doit s'exclure de la règle, sans quoi on ne peut
+     plus reprendre un objet volant une fois posé. */
+  it("se marque comme celui qu'on tient, le temps du geste", () => {
+    const { container } = render(<WallItem item={makeWallDecor({ motif: "frame" })} {...dnd} />);
+    const el = container.querySelector("[data-wall-item]");
+    expect(el.dataset.dragSelf).toBeUndefined();
+
+    // jsdom n'attache pas de presse-papiers de glissement : on le fournit
+    fireEvent.dragStart(el, { dataTransfer: { effectAllowed: "" } });
+    expect(el.dataset.dragSelf).toBe("1");
+
+    fireEvent.dragEnd(el);
+    expect(el.dataset.dragSelf).toBeUndefined();
+  });
+
+  /* La prise faisait la taille du dessin debout : un objet couché se
+     voyait sur toute sa longueur mais ne s'attrapait qu'au milieu. */
+  it("donne à la prise d'un objet accroché la taille qu'il occupe vraiment", () => {
+    const prise = (rot) => {
+      const { container } = render(
+        <WallItem item={{ ...makeWallDecor({ motif: "frame" }), rot }} {...dnd} />
+      );
+      return Number.parseInt(container.querySelector("[data-wall-item]").style.width, 10);
+    };
+    expect(prise(45)).toBeGreaterThan(prise(0));
+    expect(prise(90)).toBe(prise(0));
   });
 
   it("laisse le carton s'appuyer quand rien n'est réglé", () => {
@@ -84,6 +116,46 @@ describe("la place que prend un objet tourné", () => {
 
   it("passe par un maximum à mi-chemin", () => {
     expect(largeur({ rot: 45 })).toBeGreaterThan(largeur({ rot: 90 }));
+  });
+
+  /* L'écart au voisin appartient tout entier à la DROITE : c'est un
+     `marginRight` qu'on a déménagé dans l'enveloppe. Centrer le carton
+     dedans le coupait en deux et ouvrait à gauche un trou que rien ne
+     tenait. */
+  it("ne laisse rien traîner à gauche du carton", () => {
+    const item = { ...makeDecor({ motif: "divider" }), rot: 2 };
+    const { container } = render(<DecorItem item={item} ctx={{}} onLabel={noop} {...dnd} />);
+    const env = container.querySelector("[data-shelf-item]");
+    const carton = container.querySelector("[draggable]");
+    const dx = Number(carton.style.transform.match(/translate\((-?\d+)px/)[1]);
+    const w = Number.parseInt(carton.style.width, 10);
+    const h = Number.parseInt(carton.style.height, 10);
+    const cadre = rotatedBox(w, h, 2);
+    // le carton est calé à gauche, pas centré
+    expect(dx).toBe(cadre.dx);
+    // et tout l'écart au voisin reste à droite
+    expect(Number.parseInt(env.style.width, 10) - cadre.width).toBe(GAP_X);
+  });
+
+  /* Le carton pivote sur son PIED : le cadre englobant part du côté vers
+     lequel la tête penche, et l'enveloppe qui le centrait sagement le
+     laissait sortir en haut, sur le boîtier d'à côté. */
+  it("réserve la place là où la tête penche, et pas ailleurs", () => {
+    const item = { ...makeDecor({ motif: "divider" }), rot: 30 };
+    const { container } = render(<DecorItem item={item} ctx={{}} onLabel={noop} {...dnd} />);
+    const carton = container.querySelector("[draggable]");
+    const [, dx] = carton.style.transform.match(/translate\((-?\d+)px, (-?\d+)px\)/) || [];
+    // penchée à droite, la tête déporte le cadre : le carton recule vers la gauche
+    expect(Number(dx)).toBeLessThan(0);
+  });
+
+  it("repose le pied sur la planche quand l'objet se couche", () => {
+    const item = { ...makeDecor({ motif: "plant" }), rot: 90 };
+    const { container } = render(<DecorItem item={item} ctx={{}} onLabel={noop} {...dnd} />);
+    const el = container.querySelector("[draggable]");
+    const dy = Number(el.style.transform.match(/translate\(-?\d+px, (-?\d+)px\)/)?.[1]);
+    // sans ce relèvement, le coin bas passait sous le bois
+    expect(dy).toBeLessThan(0);
   });
 
   it("mesure le carton sur sa hauteur, pas sur sa tranche", () => {

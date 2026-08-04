@@ -24,6 +24,7 @@ import {
   Garland,
   Pennant,
   Ivy,
+  Tape,
 } from "./objects";
 import { CustomDraw } from "./CustomDraw";
 import {
@@ -154,6 +155,8 @@ export interface DecorType {
   writes?: boolean;
   /** S'accroche au fond du rayon au lieu de se poser sur une planche. */
   wall?: boolean;
+  /** La taille qu'il prend en arrivant, quand `M` ne lui va pas. */
+  defaultSize?: number;
 }
 
 export const DECOR_TYPES: DecorType[] = [
@@ -192,6 +195,9 @@ export const DECOR_TYPES: DecorType[] = [
   { key: "garland", label: "Guirlande", draw: Garland, wall: true },
   { key: "pennant", label: "Fanions", draw: Pennant, wall: true },
   { key: "ivy", label: "Lierre suspendu", draw: Ivy, wall: true },
+  /* Il arrive en XS : un ruban à la taille des autres objets muraux
+     ferait une banderole, et personne ne colle une banderole. */
+  { key: "tape", label: "Ruban adhésif", draw: Tape, wall: true, defaultSize: 0.42 },
 ];
 
 /* Les deux familles, prêtes à afficher : le cabinet les présente sous
@@ -273,7 +279,12 @@ export const WALL_ART = 64,
   WALL_GRIP = 11;
 export const wallBoxOf = (size = 1): number => Math.round(WALL_ART * size) + 2 * WALL_GRIP;
 
+/* Les tailles. `XS` est venu avec le ruban adhésif : un bout de scotch
+   n'est pas un objet qu'on regarde, c'est une trace qu'on remarque, et
+   même le petit calibre en faisait une pancarte. Il sert aussi bien à
+   tout le reste — une punaise, une carte postale glissée dans un coin. */
 export const DECOR_SIZES: [string, number][] = [
+  ["XS", 0.42],
   ["S", 0.7],
   ["M", 1],
   ["L", 1.5],

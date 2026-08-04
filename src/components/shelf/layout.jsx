@@ -703,19 +703,25 @@ export function Shelf({
             rayon — que le dépôt mesure : les deux doivent compter dans la
             même boîte, sinon les dix pixels de marge du rayon décalent
             tout ce qu'on pose. */}
-        {/* `overflow: hidden` est la ceinture de la borne posée au dépôt :
-            un objet ne peut pas dépasser de son rayon, donc il ne peut
-            pas intercepter ce qu'on lâche sur le rayon voisin. Le calcul
-            seul suffirait pour ce qu'on pose aujourd'hui ; ceci vaut
-            aussi pour les objets déjà accrochés du temps où l'on bornait
-            en pourcentages. */}
+        {/* La couche ne rogne plus. `overflow: hidden` était la ceinture
+            de la borne posée au dépôt : un objet ne pouvant pas dépasser
+            de son rayon, il ne pouvait pas intercepter ce qu'on lâchait
+            sur le rayon voisin. Les deux sont tombés ensemble — on veut
+            désormais pouvoir punaiser dans un angle, quitte à ce que
+            l'objet morde sur le bord, et l'interception se règle
+            autrement (voir `tokens.ts` : le temps d'un glissement, un
+            objet accroché ne reçoit plus le curseur).
+
+            Elle reste `inset: 0` : c'est elle, et non le cadre du rayon,
+            que le dépôt mesure — les deux doivent compter dans la même
+            boîte, sinon les dix pixels de marge du rayon décalent tout ce
+            qu'on pose. */}
         <div
           data-wall-layer
           style={{
             position: "absolute",
             inset: 0,
             zIndex: 3,
-            overflow: "hidden",
             pointerEvents: "none",
           }}
         >

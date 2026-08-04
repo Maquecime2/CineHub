@@ -206,6 +206,37 @@ export const Pennant = ({ color, ...p }) => (
   </Sketch>
 );
 
+/* LE SCOTCH — le seul objet qui ne pende de rien.
+
+   Tous les autres muraux portent leur clou ou leur punaise : c'est le
+   dessin de l'attache qui dit qu'on les a plantés là. Un ruban n'a pas
+   d'attache, il EST l'attache — d'où pas de tête, pas de fil, et un
+   dessin qui occupe sa bande d'un bord à l'autre du carré.
+
+   Il traverse en oblique parce qu'un morceau de scotch posé à la main ne
+   tombe jamais d'équerre, et parce que c'est ce qui le distingue au
+   premier coup d'œil d'un trait de crayon. Qui le veut droit le redresse
+   dans son panneau — l'orientation se règle maintenant.
+
+   Deux lavis superposés et pas un aplat : un adhésif laisse voir à
+   travers, et c'est à ça qu'on le reconnaît. Les bouts sont dentelés
+   comme un ruban qu'on a coupé avec les doigts, jamais avec des ciseaux. */
+export const Tape = ({ color, ...p }) => (
+  <Sketch color={color} {...p}>
+    <g transform="rotate(-18 50 50)">
+      {/* la bande, vue à travers */}
+      <path d="M8 40 L92 40 L92 60 L8 60 Z" {...wash(color, 0.14)} />
+      {/* les deux bords, plus francs que les bouts */}
+      <path d="M8 40 L92 40 M8 60 L92 60" />
+      {/* les bouts déchirés */}
+      <path d="M8 40 L13 45 L8 50 L13 55 L8 60" strokeWidth="2.4" />
+      <path d="M92 40 L87 45 L92 50 L87 55 L92 60" strokeWidth="2.4" />
+      {/* le pli du milieu, qui attrape la lumière */}
+      <path d="M40 42 L34 58" strokeWidth="2" opacity="0.55" />
+    </g>
+  </Sketch>
+);
+
 export const Ivy = ({ color, ...p }) => (
   <Sketch color={color} {...p}>
     <path d="M30 10 L70 10 L64 30 L36 30 Z" {...wash(color, 0.2)} />
