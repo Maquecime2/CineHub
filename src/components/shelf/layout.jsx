@@ -4,7 +4,7 @@
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { X, Trash2, Upload, ChevronLeft, Eye, EyeOff, RotateCcw, RotateCw } from "lucide-react";
 import { C } from "../../theme/tokens";
-import { wallStyle } from "../../theme/surfaces";
+import { wallStyle, materialStyle, PLANK_SHADOW } from "../../theme/surfaces";
 import { hash, fileNoOf } from "../../domain/seeded";
 import { PosterArt } from "../film/PosterArt";
 import { InkStars } from "../ui";
@@ -355,8 +355,20 @@ const RowGutter = React.memo(function RowGutter({ row, shown, acts, capMax }) {
 
 /* LA PLANCHE — le bois d'UNE ligne. Il y en a autant que de lignes, et
    c'est tout le propos : une bande de boîtiers qui n'a rien dessous
-   n'est pas une étagère. */
-const Plank = React.memo(function Plank({ theme }) {
+   n'est pas une étagère.
+
+   Elle n'est plus forcément du bois. Mais tant que la vue n'a pas choisi
+   de matériau, elle est CE QU'ELLE ÉTAIT : les deux stops du thème, à
+   l'hexadécimal près, sans veinage ni reflet. Le matériau n'est pas une
+   reformulation de l'existant, c'est une porte à côté — et c'est ce qui
+   permet d'affirmer qu'une vue d'hier est identique au pixel. */
+const Plank = React.memo(function Plank({ theme, plank }) {
+  const skin = plank?.material
+    ? materialStyle(plank.material, plank.finish)
+    : {
+        background: `linear-gradient(${theme.wood[0]}, ${theme.wood[1]})`,
+        boxShadow: PLANK_SHADOW,
+      };
   return (
     <div
       aria-hidden
@@ -366,8 +378,7 @@ const Plank = React.memo(function Plank({ theme }) {
         right: 0,
         bottom: 0,
         height: 12,
-        background: `linear-gradient(${theme.wood[0]}, ${theme.wood[1]})`,
-        boxShadow: "0 3px 0 rgba(0,0,0,0.18)",
+        ...skin,
       }}
     />
   );
@@ -391,6 +402,7 @@ const ShelfRow = React.memo(function ShelfRow({
   kind,
   films,
   theme,
+  plank,
   dim,
   dnd,
   acts,
@@ -519,7 +531,7 @@ const ShelfRow = React.memo(function ShelfRow({
               )}
               {nodes}
               {/* la planche de CETTE ligne */}
-              {!hidden && <Plank theme={theme} />}
+              {!hidden && <Plank theme={theme} plank={plank} />}
             </div>
           ))}
         </div>
@@ -554,6 +566,7 @@ export function Shelf({
   acts,
   films,
   theme,
+  plankDecor,
   /* Le décor du MUR, tel que la vue l'a enregistré — ou rien, et le
      rayon reste celui d'avant les peintures. */
   wallDecor,
@@ -712,6 +725,7 @@ export function Shelf({
             kind={kind}
             films={films}
             theme={theme}
+            plank={plankDecor}
             dim={dim}
             dnd={dnd}
             acts={acts}
@@ -796,6 +810,7 @@ export function ReserveDrawer({
   acts,
   films,
   theme,
+  plankDecor,
   dim,
   onOpen,
   onEditCat,
@@ -952,6 +967,7 @@ export function ReserveDrawer({
                 kind="reserve"
                 films={films}
                 theme={theme}
+                plank={plankDecor}
                 dim={dim}
                 dnd={dnd}
                 acts={acts}

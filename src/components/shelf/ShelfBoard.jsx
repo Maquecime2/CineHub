@@ -21,6 +21,7 @@ import {
   patchDecor,
   removeDecor,
   wallDecorOf,
+  plankDecorOf,
 } from "../../shelf-views";
 import {
   SHELF_KIND,
@@ -652,6 +653,7 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     /* Le décor du mur, ou rien. Il est le même pour les deux rayons : ce
        qu'on peint, c'est la pièce, pas une planche. */
     wallDecor: wallDecorOf(view),
+    plankDecor: plankDecorOf(view),
     dim,
     onOpen: setPreview,
     onEditCat: setEditCat,
