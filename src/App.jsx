@@ -125,11 +125,6 @@ import {
   MARK_W,
   MARK_H,
   DROP_MARK_STYLE,
-  AXIS,
-  ZIG_AMP,
-  ZIG_STEP,
-  ZIGZAG,
-  STITCH,
 } from "./components/shelf/constants";
 import { ConstellationView } from "./views/ConstellationView";
 import { TagChip, TagEditor } from "./components/ui/TagEditor";

@@ -190,6 +190,19 @@ export const isWallMotif = (motif: string): boolean => !!DECOR_BY_KEY[motif]?.wa
 export const DECOR_BY_KEY: Record<string, DecorType> = Object.fromEntries(
   DECOR_TYPES.map((d) => [d.key, d])
 );
+/* La taille d'un objet accroché, dessin et prise comprises.
+
+   `WALL_GRIP` est la marge transparente qui fait le tour du dessin : un
+   lierre n'est qu'un trait d'encre, et viser le trait lui-même demandait
+   une précision qu'on n'a pas au milieu d'une étagère.
+
+   Elle vit ici et non dans le dessin parce que le DÉPÔT en a besoin
+   autant que l'affichage : c'est cette demi-largeur qui empêche un objet
+   de déborder sur le rayon voisin. */
+export const WALL_ART = 64,
+  WALL_GRIP = 11;
+export const wallBoxOf = (size = 1): number => Math.round(WALL_ART * size) + 2 * WALL_GRIP;
+
 export const DECOR_SIZES: [string, number][] = [
   ["S", 0.7],
   ["M", 1],
@@ -232,55 +245,44 @@ export const DROP_MARK_STYLE: CSSProperties = {
   // la transition est dans la feuille de styles — voir le commentaire là-bas
 };
 
-/* La couture. Pas une barre, pas une flèche : la ligne à gros pointillés
-   qu'on trace à main levée dans une marge pour dire « ça se coud ici ».
+/* LE REPÈRE DE DÉPÔT — un signe de typographe, pas un pointillé.
 
-   Elle casse au lieu d'onduler : des segments droits, des tirets taillés
-   net, et à chaque sommet un vrai angle. Mais un angle très ouvert — la
-   dent ne déborde que de quatre pixels de part et d'autre de l'axe pour
-   trente-huit de hauteur, soit une douzaine de degrés d'écart à la
-   verticale. C'est ce rapport-là qui fait tout : un zigzag franc à
-   quarante-cinq degrés sonnerait comme un pictogramme d'interface au
-   milieu du kraft, alors qu'une brisure de douze degrés se lit comme une
-   main qui trace vite. Cassante de près, presque droite de loin.
+   C'était une couture : une ligne à gros pointillés brisée, tracée comme
+   dans la marge d'un patron. L'intention était bonne — dire « ça
+   s'insère ici » d'une main plutôt que d'une flèche — mais un pointillé
+   qui clignote entre deux boîtiers finit par ressembler à un curseur de
+   traitement de texte, et il y avait beaucoup de dessin pour dire une
+   chose simple.
 
-   L'amplitude est serrée aussi par nécessité : le trou qui s'ouvre entre
-   les deux boîtiers fait une vingtaine de pixels, et un trait qui l'emplit
-   vient lécher les tranches au lieu de passer entre elles.
+   C'est maintenant le signe qu'un correcteur trace dans une épreuve pour
+   dire « ici, et pas ailleurs » : un filet d'encre plein, un empattement
+   qui le coiffe, et au pied un chevron d'insertion posé sur la planche.
+   Trois traits, aucun mouvement, aucune répétition. Il ne clignote plus
+   — il glisse d'une fente à l'autre, et c'est ce glissement qui montre
+   ce qu'on vise.
 
-   Elle porte son ombre sur le papier, décalée en bas à droite comme
-   toutes les ombres de la page : c'est ce qui la pose SUR l'étagère
-   plutôt que dedans.
+   Tout est relatif à `MARK_H` : la hauteur du boîtier reste seule à
+   décider. */
+export const AXIS = 13;
 
-   Tout est en coordonnées relatives à `MARK_H` : la hauteur du boîtier
-   reste seule à décider. */
-export const AXIS = 13,
-  ZIG_AMP = 4,
-  ZIG_STEP = 38;
+const HEAD = 9,
+  FOOT = MARK_H - 11,
+  SERIF = 4.5,
+  CARET = 6.5;
 
-export const ZIGZAG = (() => {
-  const top = 9,
-    span = MARK_H - 18;
-  /* On fixe la HAUTEUR d'une dent, pas leur nombre : c'est le rapport de
-     cette hauteur à l'amplitude qui donne l'angle, et c'est lui qu'il faut
-     tenir. Compter les dents aurait fait varier l'angle avec la longueur
-     du repère — raccourcir la barre l'aurait rendue plus agressive. */
-  const teeth = Math.max(2, Math.round(span / ZIG_STEP));
-  const pts = [];
-  for (let i = 0; i <= teeth; i++) {
-    pts.push(
-      `${(AXIS + (i % 2 ? ZIG_AMP : -ZIG_AMP)).toFixed(2)} ${(top + (span * i) / teeth).toFixed(2)}`
-    );
-  }
-  return `M${pts[0]} L${pts.slice(1).join(" L")}`;
-})();
+/* Le filet, l'empattement, le chevron. Trois chemins plutôt qu'un seul :
+   ils ne portent ni la même épaisseur ni la même fonction, et l'ombre
+   les reprend tous les trois sans avoir à les redessiner. */
+export const MARK_PATHS: { d: string; w: number }[] = [
+  { d: `M${AXIS} ${HEAD} L${AXIS} ${FOOT}`, w: 2.2 },
+  { d: `M${AXIS - SERIF} ${HEAD} L${AXIS + SERIF} ${HEAD}`, w: 2.2 },
+  { d: `M${AXIS - CARET} ${MARK_H - 2} L${AXIS} ${FOOT} L${AXIS + CARET} ${MARK_H - 2}`, w: 2.6 },
+];
 
-/* Les deux passes partagent le même chemin et le même pointillé : l'ombre
-   n'est que la copie décalée du trait, elle ne peut pas dériver. Bouts
-   droits et angles vifs — un tiret arrondi rendrait au trait la mollesse
-   qu'on vient de lui retirer. */
-export const STITCH: CSSProperties = {
-  strokeDasharray: "12 11",
-  strokeLinecap: "butt",
-  strokeLinejoin: "miter",
+/* L'ombre n'est que la copie décalée du trait, en bas à droite comme
+   toutes les ombres de la page : c'est ce qui pose le repère SUR
+   l'étagère plutôt que dedans. */
+export const MARK_INK: CSSProperties = {
+  strokeLinecap: "round",
+  strokeLinejoin: "round",
 };

@@ -31,6 +31,7 @@ import {
   themeOf,
   DECOR_BY_KEY,
   isWallMotif,
+  wallBoxOf,
 } from "./constants";
 import { DropMark } from "./items";
 import { Shelf, ReserveDrawer, CasePreview, DecorCabinet, ItemPalette } from "./layout";
@@ -242,8 +243,8 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     delete document.documentElement.dataset.dragging;
   }, []);
 
-  const onDragStart = useCallback((type, id, node) => {
-    dragRef.current = { type, id, node };
+  const onDragStart = useCallback((type, id, node, grab) => {
+    dragRef.current = { type, id, node, grab };
     if (node) node.style.opacity = "0.35"; // le boîtier soulevé, sans passer par React
     document.documentElement.dataset.dragging = "1";
   }, []);
@@ -434,14 +435,36 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
        réinitialise donc rien ici, le glissement n'est pas fini. */
     if (hangs(drag)) {
       if (!onWall) return;
-      const r = e.currentTarget.getBoundingClientRect();
-      /* En pourcentages, et bornés : le rayon change de hauteur dès
-         qu'on lui ajoute une ligne, et un objet accroché au bord finirait
-         par sortir du cadre. */
-      const pct = (v, span) => Math.max(3, Math.min(97, (v / span) * 100));
+      /* On mesure LA COUCHE DU MUR, jamais le cadre du rayon : c'est
+         elle qui sert de repère aux pourcentages une fois l'objet posé.
+         Mesurer le cadre revenait à compter dans une boîte plus grande
+         de ses dix pixels de marge, et tout ce qu'on posait se retrouvait
+         décalé vers le haut et la gauche. */
+      const layer = e.currentTarget.querySelector("[data-wall-layer]");
+      const r = (layer || e.currentTarget).getBoundingClientRect();
+      /* Et on rend l'objet à l'endroit où on le VOYAIT : le curseur ne
+         le tient pas par son centre mais par l'endroit où on l'a pris. */
+      const { dx = 0, dy = 0 } = drag.grab || {};
+
+      /* On borne en PIXELS, à la demi-largeur de l'objet, et non plus à
+         trois pour cent du rayon.
+
+         Un pourcentage ne sait pas de quelle taille est ce qu'il place :
+         un objet posé au bord débordait de sa moitié sur le rayon voisin,
+         et comme il reste saisissable là où il déborde, il interceptait
+         les dépôts destinés au rayon d'en dessous — d'où des objets qui
+         se posaient ailleurs qu'indiqué sur la première ligne de la
+         collection, juste sous les films de chevet. Bornés à leur demi-
+         largeur, ils tiennent entiers dans leur propre rayon.
+
+         Un rayon trop court pour l'objet n'a qu'une place à offrir : le
+         milieu. */
+      const half = wallBoxOf((drag.create || findDecorIn(view, drag.id) || {}).size) / 2;
+      const pct = (v, span) =>
+        span < 2 * half ? 50 : (Math.min(Math.max(v, half), span - half) / span) * 100;
       const next = pinToWall(view, kind, drag.create ? { create: drag.create } : { id: drag.id }, {
-        x: pct(e.clientX - r.left, r.width),
-        y: pct(e.clientY - r.top, r.height),
+        x: pct(e.clientX - dx - r.left, r.width),
+        y: pct(e.clientY - dy - r.top, r.height),
       });
       if (next !== view) onDoc(next);
       return reset();

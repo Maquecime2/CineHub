@@ -15,9 +15,11 @@ import {
   MARK_W,
   MARK_H,
   DROP_MARK_STYLE,
-  ZIGZAG,
-  STITCH,
+  MARK_PATHS,
+  MARK_INK,
   DECOR_BY_KEY,
+  WALL_GRIP,
+  wallBoxOf,
   catInk,
 } from "./constants";
 
@@ -29,17 +31,18 @@ export const DropMark = React.forwardRef(function DropMark(_props, ref) {
         height={MARK_H}
         viewBox={`0 0 ${MARK_W} ${MARK_H}`}
         fill="none"
-        style={{ display: "block", animation: "inkBreathe 1.9s ease-in-out infinite" }}
+        style={{ display: "block" }}
       >
-        <path
-          d={ZIGZAG}
-          stroke="#1E140A"
-          strokeWidth="4.6"
-          opacity="0.2"
-          transform="translate(1.6 1.8)"
-          {...STITCH}
-        />
-        <path d={ZIGZAG} stroke={C.burgundy} strokeWidth="3.8" {...STITCH} />
+        {/* l'ombre d'abord, en un seul groupe décalé : elle ne peut pas
+            dériver du trait puisqu'elle en reprend les mêmes chemins */}
+        <g transform="translate(1.2 1.4)" opacity="0.18">
+          {MARK_PATHS.map((p) => (
+            <path key={p.d} d={p.d} stroke="#1E140A" strokeWidth={p.w + 0.8} {...MARK_INK} />
+          ))}
+        </g>
+        {MARK_PATHS.map((p) => (
+          <path key={p.d} d={p.d} stroke={C.burgundy} strokeWidth={p.w} {...MARK_INK} />
+        ))}
       </svg>
     </div>
   );
@@ -519,14 +522,25 @@ export const WallItem = React.memo(function WallItem({ item, onDragStart, onDrag
   const spec = DECOR_BY_KEY[item.motif];
   if (!spec) return null;
   const ink = catInk(item.color);
-  const box = Math.round(64 * (item.size || 1));
+  // le dessin, plus la marge de prise qui en fait le tour
+  const box = wallBoxOf(item.size);
   const Draw = spec.draw;
   return (
     <div
+      data-wall-item
       draggable
       onDragStart={(e) => {
         e.dataTransfer.effectAllowed = "move";
-        onDragStart("wall", item.id, e.currentTarget);
+        /* OÙ l'a-t-on pris ? Sans cette mesure, l'objet se recentre sous
+           le curseur au dépôt : on le saisit par un coin, on le lâche là
+           où on croit le voir, et il saute d'une demi-largeur. On garde
+           donc l'écart entre le point de prise et le centre, pour le
+           défalquer à l'arrivée. */
+        const r = e.currentTarget.getBoundingClientRect();
+        onDragStart("wall", item.id, e.currentTarget, {
+          dx: e.clientX - (r.left + r.width / 2),
+          dy: e.clientY - (r.top + r.height / 2),
+        });
       }}
       onDragEnd={onDragEnd}
       onClick={() => onEdit(item.id)}
@@ -539,7 +553,11 @@ export const WallItem = React.memo(function WallItem({ item, onDragStart, onDrag
         height: box,
         marginLeft: -box / 2,
         marginTop: -box / 2,
-        cursor: "pointer",
+        padding: WALL_GRIP,
+        boxSizing: "border-box",
+        cursor: "grab",
+        // la couche du mur ne laisse passer le curseur que sur ses objets
+        pointerEvents: "auto",
         // accroché de travers, comme tout ce qu'on accroche
         transform: `rotate(${tiltOf(item.id)}deg)`,
         userSelect: "none",

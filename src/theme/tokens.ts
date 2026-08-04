@@ -52,11 +52,6 @@ html[data-dragging="1"] [data-drawer-tab] { background: ${C.ochre} !important; }
    se retire donc du chemin, sans cesser d'exister. */
 html[data-dragging="1"] [data-veil] { pointer-events: none; }
 
-/* Le repère de dépôt respire : un trait d'encre parfaitement fixe se lit
-   comme un défaut d'affichage, un trait qui bat se lit comme une attente.
-   L'animation ne touche que l'opacité d'une couche déjà composée. */
-@keyframes inkBreathe { 0%, 100% { opacity: .76; } 50% { opacity: 1; } }
-
 /* Le repère se pose, il ne s'allume pas. Sa transition vit ICI et non dans
    le style en ligne, et c'est délibéré : le code de glissement doit pouvoir
    la couper le temps d'une trame (pour placer le repère sans qu'il traverse
@@ -79,14 +74,25 @@ html[data-dragging="1"] [data-veil] { pointer-events: none; }
 
 /* L'encre du repère de dépôt vient du thème de la vue. En variable CSS et
    non en prop React : changer de thème ne doit toucher à rien de ce que
-   le glissement manipule. */
-[data-drop-mark] svg path { stroke: var(--mark-ink, ${C.burgundy}); }
-[data-drop-mark] svg path[fill] { fill: var(--mark-ink, ${C.burgundy}); }
+   le glissement manipule.
+
+   L'ombre en est exclue : elle est faite de ces mêmes chemins, décalés,
+   et les repeindre à l'encre du thème lui ôtait sa raison d'être — un
+   trait pâle sous le trait, de la même couleur, ne pose rien sur rien. */
+[data-drop-mark] svg > path { stroke: var(--mark-ink, ${C.burgundy}); }
+[data-drop-mark] svg > path[fill] { fill: var(--mark-ink, ${C.burgundy}); }
+
+/* Un objet accroché au mur se saisit : il le dit au survol, d'une ombre
+   portée et de rien d'autre. Aucune transformation ici — l'inclinaison
+   est écrite en ligne, et une seconde main sur la même propriété
+   effacerait le guingois de l'objet. */
+[data-wall-item] { transition: filter .16s ease; }
+[data-wall-item]:hover { filter: drop-shadow(2px 3px 3px rgba(30,20,10,0.3)); }
+[data-wall-item]:active { cursor: grabbing; }
 
 @media (prefers-reduced-motion: reduce) {
   [data-case] *, [data-case] { animation-duration: .01ms !important; animation-delay: 0ms !important; }
-  [data-drop-mark] svg { animation: none !important; }
-  [data-drop-mark], [data-lean], [data-row-seam] { transition: none !important; }
+  [data-drop-mark], [data-lean], [data-row-seam], [data-wall-item] { transition: none !important; }
 }
 
 input::placeholder, textarea::placeholder { color: ${C.inkFaded}88; font-style: italic; }

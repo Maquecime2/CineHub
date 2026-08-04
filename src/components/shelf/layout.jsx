@@ -608,18 +608,6 @@ export function Shelf({
             }}
           />
         )}
-        {/* Ce qui est accroché au fond, AVANT les rangées : les boîtiers
-            viennent ensuite dans le document et passent donc devant, sans
-            qu'aucun `z-index` ait à le dire. */}
-        {(wall || []).map((it) => (
-          <WallItem
-            key={it.id}
-            item={it}
-            onEdit={onEditDecor}
-            onDragStart={dnd.onDragStart}
-            onDragEnd={dnd.onDragEnd}
-          />
-        ))}
         {rows.map((row, i) => (
           <ShelfRow
             key={row.id}
@@ -637,6 +625,51 @@ export function Shelf({
             isLast={i === rows.length - 1}
           />
         ))}
+
+        {/* LE MUR — une couche à part, par-dessus les rangées.
+
+            Elle était d'abord AU FOND, ce qui était juste : un cadre est
+            accroché derrière l'étagère, pas devant. Mais une rangée occupe
+            toute la largeur du rayon et cent-soixante-dix pixels de haut ;
+            empilées, elles recouvraient le mur en entier. Les objets
+            accrochés étaient donc dessinés dessous et INJOIGNABLES — le
+            clic allait toujours à la rangée.
+
+            La couche passe donc devant, et ne laisse passer le curseur
+            que sur les objets eux-mêmes : le reste du mur reste une zone
+            de dépôt pour les rangées. C'est aussi ce qui rend ces objets
+            visibles, ce qu'ils n'étaient qu'à peine.
+
+            Elle est bornée par `inset: 0`, et c'est elle — pas le cadre du
+            rayon — que le dépôt mesure : les deux doivent compter dans la
+            même boîte, sinon les dix pixels de marge du rayon décalent
+            tout ce qu'on pose. */}
+        {/* `overflow: hidden` est la ceinture de la borne posée au dépôt :
+            un objet ne peut pas dépasser de son rayon, donc il ne peut
+            pas intercepter ce qu'on lâche sur le rayon voisin. Le calcul
+            seul suffirait pour ce qu'on pose aujourd'hui ; ceci vaut
+            aussi pour les objets déjà accrochés du temps où l'on bornait
+            en pourcentages. */}
+        <div
+          data-wall-layer
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 3,
+            overflow: "hidden",
+            pointerEvents: "none",
+          }}
+        >
+          {(wall || []).map((it) => (
+            <WallItem
+              key={it.id}
+              item={it}
+              onEdit={onEditDecor}
+              onDragStart={dnd.onDragStart}
+              onDragEnd={dnd.onDragEnd}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
