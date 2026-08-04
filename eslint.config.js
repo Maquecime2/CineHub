@@ -27,7 +27,7 @@ export default [
       ...js.configs.recommended.rules,
       ...reactHooks.configs.recommended.rules,
 
-      /* Le vrai garde-fou du projet : cine-hub.jsx concentre des milliers de
+      /* Le vrai garde-fou du projet : l'étagère concentre des centaines de
          lignes de hooks, et une dépendance oubliée y passe inaperçue. */
       "react-hooks/exhaustive-deps": "warn",
 

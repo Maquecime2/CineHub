@@ -76,24 +76,64 @@ exactement à faire ce trajet — et de sauvegarde.
 
 ## Sous le capot
 
-React 18 + Vite, sans routeur ni gestionnaire d'état : la navigation est un état
-de composant. Quatre modules sont sortis de l'interface, et ce sont eux que les
-tests couvrent :
+React 19 + Vite, sans routeur ni gestionnaire d'état : la navigation est un état
+de composant.
 
-| Fichier        | Rôle                                                              |
-| -------------- | ----------------------------------------------------------------- |
-| `src/db.js`    | IndexedDB : stockage des images, purge des orphelines, sauvegarde |
-| `src/tmdb.js`  | Client TMDB, avec cache et limite de concurrence                  |
-| `src/taste.js` | Profil de goût — pur, hors ligne                                  |
-| `src/reco.js`  | Récolte des candidats, puis classement — pur, hors ligne          |
+```
+src/
+  App.jsx              composition et routage de vue, rien d'autre
+  types/               les formes de données du projet, en un seul endroit
+  theme/               palette, polices, grain, styles partagés
+  domain/              le métier, sans React : film · importing · sky · seeded
+  services/            storage · images · shelfViews · (db · tmdb)
+  hooks/               useNotes · useShelfViews
+  components/          atmosphere · ui · film · stills · shelf · layout
+  views/               une vue par écran
+  taste.js  reco.js  shelf-views.js  db.js  tmdb.js
+```
+
+Trois règles tiennent le découpage : `domain/` et `services/` ne connaissent pas
+React ; `components/` ne connaît pas le stockage ; `views/` compose, `App` route.
+`domain/seeded.ts` ne renvoie que des nombres et des formes — les couleurs
+tirées au sort vivent dans `theme/ink.ts`, pour que le métier ignore la palette.
+
+Les modules purs sont ceux que les tests couvrent en priorité :
+
+| Fichier              | Rôle                                                              |
+| -------------------- | ----------------------------------------------------------------- |
+| `src/db.js`          | IndexedDB : stockage des images, purge des orphelines, sauvegarde |
+| `src/tmdb.js`        | Client TMDB, avec cache et limite de concurrence                  |
+| `src/taste.js`       | Profil de goût — pur, hors ligne                                  |
+| `src/reco.js`        | Récolte des candidats, puis classement — pur, hors ligne          |
+| `src/shelf-views.js` | Le rangement de l'étagère : rangées, catégories, décors           |
+| `src/domain/*.ts`    | Modèle, import CSV, constellation, aléatoire reproductible        |
 
 La séparation dans `reco.js` entre récolte réseau et scoring n'est pas
 décorative : elle permet de reclasser instantanément quand on bouge un curseur,
 sans redemander quoi que ce soit à TMDB — et de tester tout le classement sans
 réseau.
 
-`src/cine-hub.jsx` réunit l'interface. Le fichier est volumineux et écrit dans
-un style dense assumé ; il est exclu de Prettier pour cette raison.
+### Typage
+
+TypeScript en mode strict sur le métier, les services, les composants et la
+plupart des vues. Restent en JavaScript : les modules historiques (`db`, `tmdb`,
+`taste`, `reco`, `shelf-views`), `components/shelf/` et
+`views/library/LibraryView.jsx`.
+
+L'étagère est le morceau le plus mouvant du projet et son glisser-déposer ne se
+teste pas facilement : la typer suppose de pouvoir exercer le geste à la main.
+`allowJs` permet de le faire fichier par fichier, quand ce sera le moment.
+
+### Deux bugs connus, documentés sur place
+
+- **`slugOf`** (`src/domain/importing.ts`) mange une lettre de trop sur les
+  titres commençant par « Les » ou par « a ». L'appariement reste cohérent, mais
+  corriger la regex change la clé des fiches déjà enregistrées : il faut une
+  migration, pas seulement une retouche.
+- **Restauration d'une sauvegarde** (`src/views/import/BackupPanel.tsx`) : les
+  vues d'étagère sont bien dans le fichier et `importBackup` les renvoie, mais
+  elles ne sont pas transmises — le rangement est reconstruit depuis les anciens
+  intercalaires au lieu d'être rétabli.
 
 ## Licence
 
