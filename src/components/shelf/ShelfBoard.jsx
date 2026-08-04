@@ -19,7 +19,16 @@ import {
   patchDecor,
   removeDecor,
 } from "../../shelf-views";
-import { SHELF_KIND, BOX_H, GAP_X, GAP_Y, MARK_W, MARK_H, themeOf } from "./constants";
+import {
+  SHELF_KIND,
+  BOX_H,
+  GAP_X,
+  GAP_Y,
+  MARK_W,
+  MARK_H,
+  themeOf,
+  DECOR_BY_KEY,
+} from "./constants";
 import { DropMark } from "./items";
 import { Shelf, ReserveDrawer, CasePreview, DecorCabinet, ItemPalette } from "./layout";
 
@@ -239,13 +248,13 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     document.documentElement.dataset.dragging = "1";
   }, []);
 
-  /* Une boîte ne contient que des films — `moveItem` le refuse net. Le
-     repère ne doit donc jamais INVITER autre chose à y entrer : une boîte
-     ou un décor qu'on promène au-dessus d'une catégorie voyait la fente
-     s'ouvrir devant lui, et le lâcher ne faisait rien. Un dépôt qui
-     s'annonce et n'arrive pas est pire que pas de cible du tout. Ce qui
-     ne peut pas entrer se range donc À CÔTÉ de la boîte. */
-  const goesInside = (drag) => drag.type === "film";
+  /* Ce qu'une boîte accepte : tout sauf une autre boîte — `moveItem`
+     tient la règle, et celle-ci ne fait que la refléter. Les deux doivent
+     dire la même chose : un repère qui invite là où le modèle refusera
+     annonce un dépôt qui n'arrivera pas, et c'est pire que pas de cible
+     du tout. Une boîte promenée au-dessus d'une autre se vise donc À
+     CÔTÉ d'elle ; un décor, lui, entre. */
+  const goesInside = (drag) => drag.type !== "cat";
 
   /* Viser la fente avant ou après un objet du rayon.
 
@@ -494,8 +503,10 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
         <ItemPalette
           title="CATÉGORIE"
           color={cat.color}
+          perRow={cat.perRow}
           removeLabel="défaire la catégorie"
           onColor={(k) => acts.setCat(cat.id, { color: k })}
+          onPerRow={(n) => acts.setCat(cat.id, { perRow: n })}
           onRemove={() => {
             acts.removeCat(cat.id);
             setEditCat(null);
@@ -508,6 +519,12 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
           title="OBJET"
           color={decor.color}
           size={decor.size}
+          /* Le champ n'apparaît que pour les motifs qui écrivent : passer
+             `onLabel` à une punaise lui donnerait un nom que rien ne
+             montrerait jamais. */
+          {...(DECOR_BY_KEY[decor.motif]?.writes
+            ? { label: decor.label, onLabel: (v) => acts.setDecor(decor.id, { label: v }) }
+            : null)}
           removeLabel="retirer l'objet"
           onColor={(k) => acts.setDecor(decor.id, { color: k })}
           onSize={(v) => acts.setDecor(decor.id, { size: v })}

@@ -7,8 +7,9 @@
    qui sont eux-mêmes des destinations — déposer un boîtier dans un
    rayon, c'est lui donner son statut, pas seulement sa place.
    ============================================================ */
-import type { CSSProperties } from "react";
+import type { ComponentType, CSSProperties } from "react";
 import { Paperclip, Sparkles, Moon, Clapperboard, Archive } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { C } from "../../theme/tokens";
 import { CoffeeRing, Tape, TapeResidue, PushPin, InkUnderline } from "../atmosphere";
 import type { Film, ShelfKind } from "../../types";
@@ -101,7 +102,43 @@ export const themeOf = (key: string) => THEMES[key as keyof typeof THEMES] || TH
    des boîtiers. Six des dix motifs sont les décors que la maison dessine
    déjà ailleurs — d'où un rayon qui ne ressemble pas à une planche
    d'icônes rapportée. Les quatre autres viennent de lucide, déjà importé. */
-export const DECOR_TYPES = [
+interface DecorType {
+  key: string;
+  label: string;
+  /* Un dessin de la maison. Les décors de `atmosphere` n'ont pas tous la
+     même signature — l'un veut `width`, l'autre `w`, un troisième un
+     `rotate` — et les lister ici ne ferait que recopier un contrat qui
+     appartient à chaque dessin. `ComponentType` sans contrainte dit ce
+     qu'on sait vraiment : c'est un composant, et l'appelant lui passe ce
+     dont il dispose. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  draw?: ComponentType<any>;
+  /** Ou un pictogramme lucide, pour les motifs qu'on ne dessine pas. */
+  icon?: LucideIcon;
+  /** Se dresse à la hauteur d'un boîtier plutôt qu'en carré. */
+  tall?: boolean;
+  /** Porte un nom, et ouvre donc un champ texte dans son panneau. */
+  writes?: boolean;
+}
+
+export const DECOR_TYPES: DecorType[] = [
+  /* L'INTERCALAIRE — le carton dressé d'avant les catégories, revenu en
+     bibelot.
+
+     Il séparait sans rien contenir, et c'est précisément ce qui lui
+     manquait pour être une catégorie : impossible de « mettre un film
+     dans Polars », seulement de le poser après le carton et d'espérer
+     que l'ordre tienne. La boîte a pris ce rôle-là. Mais séparer sans
+     contenir reste un geste utile — dans une boîte qui a grossi, une
+     étagère par cinéaste où l'on veut marquer les décennies. Le carton
+     revient donc pour ce qu'il a toujours su faire, et rien de plus.
+
+     `tall` : il se dresse à la hauteur d'un boîtier au lieu du carré des
+     autres décors — c'est ce qui le fait lire comme une cloison plantée
+     entre deux tranches, et non comme un bibelot posé devant.
+     `writes` : seul motif à porter un nom, donc seul à ouvrir un champ
+     texte dans son panneau. */
+  { key: "divider", label: "Intercalaire", tall: true, writes: true },
   { key: "coffee", label: "Tache de café", draw: CoffeeRing },
   { key: "tape", label: "Bout de scotch", draw: Tape },
   { key: "residue", label: "Résidu de scotch", draw: TapeResidue },
@@ -113,7 +150,7 @@ export const DECOR_TYPES = [
   { key: "clap", label: "Clap", icon: Clapperboard },
   { key: "archive", label: "Carton", icon: Archive },
 ];
-export const DECOR_BY_KEY: Record<string, (typeof DECOR_TYPES)[number]> = Object.fromEntries(
+export const DECOR_BY_KEY: Record<string, DecorType> = Object.fromEntries(
   DECOR_TYPES.map((d) => [d.key, d])
 );
 export const DECOR_SIZES: [string, number][] = [

@@ -7,15 +7,7 @@ import { C } from "../../theme/tokens";
 import { hash, fileNoOf } from "../../domain/seeded";
 import { PosterArt } from "../film/PosterArt";
 import { InkStars } from "../ui";
-import {
-  isUnplaced,
-  ROW_CAPS,
-  CAT_KEYS,
-  addRow,
-  removeRow,
-  clearRow,
-  addCat,
-} from "../../shelf-views";
+import { isUnplaced, CAT_KEYS, addRow, removeRow, clearRow, addCat } from "../../shelf-views";
 import { SHELF_KIND, BOX_H, CAT_COLORS, DECOR_TYPES, DECOR_SIZES } from "./constants";
 import { FilmBox, DecorItem, CategoryBox, withBreaks } from "./items";
 
@@ -35,6 +27,110 @@ const GutterAct = ({ label, onClick, ink = C.inkFaded }) => (
   </button>
 );
 
+/* LE COMPTE PAR LIGNE — « auto », ou un nombre qu'on écrit.
+
+   C'était une rangée de boutons tirés d'une liste fermée : 3, 4, 5, 6, 8,
+   10, 12. Sept choix imposés, et rien pour qui en voulait sept, ou vingt.
+   Un champ ne ferme rien, et tient dans la moitié de la place.
+
+   « auto » n'est pas un nombre parmi les autres, c'est l'ABSENCE de
+   nombre : le conteneur grandit avec son contenu jusqu'à la largeur
+   disponible, où le repli naturel s'en charge. D'où un interrupteur à
+   côté du champ plutôt qu'une valeur de plus dedans — un zéro ou un
+   champ vide auraient dit « aucun film par ligne » aussi bien que
+   « autant qu'il en tient ».
+
+   Le brouillon est local et ne remonte qu'à la validation : écrire à
+   chaque frappe ferait passer par 1 avant 12, et le rayon se replierait
+   sous les doigts à chaque chiffre tapé. */
+export const PerRowField = React.memo(function PerRowField({ value, onChange, title, max }) {
+  const [draft, setDraft] = useState(value == null ? "" : String(value));
+  useEffect(() => {
+    setDraft(value == null ? "" : String(value));
+  }, [value]);
+
+  const auto = value == null;
+
+  const commit = () => {
+    const n = Math.round(Number(draft));
+    // un compte qui n'en est pas un rend la main à ce qui était réglé
+    if (!draft.trim() || !Number.isFinite(n) || n < 1) {
+      setDraft(value == null ? "" : String(value));
+      return;
+    }
+    /* Le tiroir des mis de côté ne fait que 250 px : deux boîtiers y
+       tiennent. On ramène donc au possible plutôt que de refuser — on
+       corrige la main qui vise trop grand, on ne la repousse pas. */
+    const kept = max ? Math.min(n, max) : n;
+    setDraft(String(kept));
+    if (kept !== value) onChange(kept);
+  };
+
+  return (
+    <>
+      <div
+        style={{
+          fontFamily: "'Special Elite', monospace",
+          fontSize: 8.5,
+          letterSpacing: 1,
+          color: C.inkFaded,
+          marginBottom: 5,
+        }}
+      >
+        {title}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <button
+          onClick={() => onChange(auto ? Math.min(Number(draft) || 6, max || Infinity) : null)}
+          title={auto ? "Fixer un nombre" : "Laisser remplir la largeur"}
+          style={{
+            all: "unset",
+            cursor: "pointer",
+            padding: "2px 8px",
+            fontFamily: "'Special Elite', monospace",
+            fontSize: 9.5,
+            background: auto ? C.ink : "transparent",
+            color: auto ? C.card : C.inkFaded,
+            border: `1px solid ${auto ? C.ink : C.line}`,
+          }}
+        >
+          auto
+        </button>
+        <input
+          type="number"
+          min="1"
+          max={max || undefined}
+          value={draft}
+          disabled={auto}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commit();
+            if (e.key === "Escape") setDraft(value == null ? "" : String(value));
+          }}
+          placeholder={auto ? "—" : ""}
+          aria-label={title}
+          style={{
+            all: "unset",
+            boxSizing: "border-box",
+            width: 54,
+            textAlign: "center",
+            borderBottom: `1px solid ${C.line}`,
+            paddingBottom: 2,
+            fontFamily: "'Special Elite', monospace",
+            fontSize: 12,
+            color: auto ? C.inkFaded : C.ink,
+            opacity: auto ? 0.5 : 1,
+          }}
+        />
+        <span style={{ fontFamily: "'Caveat', cursive", fontSize: 14, color: C.inkFaded }}>
+          {auto ? "au fil de la largeur" : "par ligne"}
+        </span>
+      </div>
+    </>
+  );
+});
+
 /* LA GOUTTIÈRE — le réglage d'une rangée, à sa gauche.
 
    Le nombre de films par ligne était un réglage de MUR, le même pour
@@ -47,7 +143,6 @@ const RowGutter = React.memo(function RowGutter({ row, shown, acts, capMax }) {
   useEffect(() => {
     setDraft(row.label || "");
   }, [row.label]);
-  const caps = ROW_CAPS.filter((n) => n === null || !capMax || n <= capMax);
 
   return (
     <div
@@ -133,40 +228,12 @@ const RowGutter = React.memo(function RowGutter({ row, shown, acts, capMax }) {
               boxShadow: "2px 6px 14px rgba(30,20,10,0.3)",
             }}
           >
-            <div
-              style={{
-                fontFamily: "'Special Elite', monospace",
-                fontSize: 8.5,
-                letterSpacing: 1,
-                color: C.inkFaded,
-                marginBottom: 5,
-              }}
-            >
-              FILMS SUR CETTE LIGNE
-            </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
-              {caps.map((n) => {
-                const on = (row.perRow || null) === n;
-                return (
-                  <button
-                    key={String(n)}
-                    onClick={() => acts.setRow(row.id, { perRow: n })}
-                    style={{
-                      all: "unset",
-                      cursor: "pointer",
-                      padding: "2px 7px",
-                      fontFamily: "'Special Elite', monospace",
-                      fontSize: 9.5,
-                      background: on ? C.ink : "transparent",
-                      color: on ? C.card : C.inkFaded,
-                      border: `1px solid ${on ? C.ink : C.line}`,
-                    }}
-                  >
-                    {n === null ? "auto" : n}
-                  </button>
-                );
-              })}
-            </div>
+            <PerRowField
+              title="OBJETS SUR CETTE LIGNE"
+              value={row.perRow ?? null}
+              max={capMax}
+              onChange={(n) => acts.setRow(row.id, { perRow: n })}
+            />
 
             <div
               style={{
@@ -296,12 +363,12 @@ const ShelfRow = React.memo(function ShelfRow({
             cat={it}
             kind={kind}
             rowId={row.id}
-            rowCap={row.perRow}
             films={films}
             dim={dim}
             acts={acts}
             onOpen={onOpen}
             onEdit={onEditCat}
+            onEditDecor={onEditDecor}
             onDragStart={dnd.onDragStart}
             onDragEnd={dnd.onDragEnd}
             onDragOverBox={dnd.onBoxOver}
@@ -1089,7 +1156,21 @@ export function ItemPalette({
   onRemove,
   onClose,
   removeLabel,
+  /* Le compte d'une boîte : elle range, elle a donc une largeur à régler,
+     là où un bibelot n'en a pas. */
+  perRow,
+  onPerRow,
+  /* Le nom d'un intercalaire. Seul motif à écrire, donc seul à ouvrir ce
+     champ — les autres décors n'ont rien à dire. */
+  label,
+  onLabel,
 }) {
+  const [draft, setDraft] = useState(label ?? "");
+  useEffect(() => {
+    setDraft(label ?? "");
+  }, [label]);
+  const commitLabel = () => onLabel?.(draft.trim());
+
   return (
     <>
       <div onClick={onClose} data-veil style={{ position: "fixed", inset: 0, zIndex: 44 }} />
@@ -1123,6 +1204,44 @@ export function ItemPalette({
           </button>
         </div>
 
+        {onLabel && (
+          <div style={{ marginBottom: 12 }}>
+            <div
+              style={{
+                fontFamily: "'Special Elite', monospace",
+                fontSize: 8.5,
+                letterSpacing: 1,
+                color: C.inkFaded,
+                marginBottom: 4,
+              }}
+            >
+              NOM
+            </div>
+            <input
+              autoFocus
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={commitLabel}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commitLabel();
+                if (e.key === "Escape") setDraft(label ?? "");
+              }}
+              placeholder="sans nom"
+              aria-label="Nom de l'intercalaire"
+              style={{
+                all: "unset",
+                boxSizing: "border-box",
+                width: "100%",
+                borderBottom: `1px solid ${C.line}`,
+                paddingBottom: 2,
+                fontFamily: "'Special Elite', monospace",
+                fontSize: 12,
+                color: C.ink,
+              }}
+            />
+          </div>
+        )}
+
         <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
           {CAT_KEYS.map((k) => (
             <button
@@ -1142,6 +1261,16 @@ export function ItemPalette({
             />
           ))}
         </div>
+
+        {onPerRow && (
+          <div style={{ marginTop: 14 }}>
+            <PerRowField
+              title="FILMS PAR LIGNE DANS LA BOÎTE"
+              value={perRow ?? null}
+              onChange={onPerRow}
+            />
+          </div>
+        )}
 
         {onSize && (
           <>

@@ -49,6 +49,12 @@ const unplacedOf = (view, kind) => view.shelves[kind].rows.at(-1);
 const rowsOf = (view, kind) => view.shelves[kind].rows;
 const idsIn = (row) => row.items.map((it) => it.id);
 
+/* Une boîte, où qu'elle soit posée dans la vue. */
+const catIn = (view, catId, kind = "main") =>
+  rowsOf(view, kind)
+    .flatMap((r) => r.items)
+    .find((it) => it.t === "c" && it.id === catId);
+
 describe("appartenance à un rayon", () => {
   it("les drapeaux du film, et eux seuls, décident du rayon", () => {
     expect(kindOf(film("a"))).toBe("main");
@@ -165,11 +171,8 @@ describe("moveItem", () => {
     expect(next).toBe(view);
   });
 
-  /* Ce que le refus ci-dessus oblige l'étagère à faire : ce qui ne peut
-     pas entrer dans une boîte se range À CÔTÉ d'elle. C'est le chemin que
-     la zone de dépôt emprunte désormais pour une catégorie ou un décor
-     promené au-dessus d'une catégorie — avant, elle visait le dedans, et
-     le lâcher ne faisait rien. */
+  /* Ce que le refus ci-dessus oblige l'étagère à faire : une boîte qu'on
+     promène au-dessus d'une autre se range À CÔTÉ d'elle. */
   it("range une catégorie à côté d'une autre, dans la rangée", () => {
     const view = seed();
     view.shelves.main.rows[0].items.push(makeCat({ id: "c2", items: [] }));
@@ -181,7 +184,28 @@ describe("moveItem", () => {
     expect(idsIn(rowsOf(next, "main")[0])).toEqual(["f1", "f2", "c2", "c1"]);
   });
 
-  it("range un décor à côté d'une catégorie, jamais dedans", () => {
+  /* Un décor, lui, ENTRE : c'est la sous-division dont on a besoin quand
+     une boîte grossit. Seule une boîte reste dehors. */
+  it("fait entrer un décor dans une catégorie", () => {
+    const view = seed();
+    view.shelves.main.rows[0].items.push(makeDecor({ id: "d1", motif: "coffee" }));
+    const next = moveItem(view, { id: "d1" }, { kind: "main", rowId: "r1", catId: "c1" });
+    expect(catIn(next, "c1").items.map((i) => i.id)).toEqual(["f3", "d1"]);
+    expect(idsIn(rowsOf(next, "main")[0])).toEqual(["f1", "f2", "c1"]);
+  });
+
+  it("le vise à la place voulue dans la boîte, comme un boîtier", () => {
+    const view = seed();
+    view.shelves.main.rows[0].items.push(makeDecor({ id: "d1", motif: "coffee" }));
+    const next = moveItem(
+      view,
+      { id: "d1" },
+      { kind: "main", rowId: "r1", catId: "c1", overId: "f3", side: "before" }
+    );
+    expect(catIn(next, "c1").items.map((i) => i.id)).toEqual(["d1", "f3"]);
+  });
+
+  it("le laisse aussi se ranger à côté de la boîte", () => {
     const view = seed();
     view.shelves.main.rows[0].items.push(makeDecor({ id: "d1", motif: "coffee" }));
     const next = moveItem(
@@ -190,8 +214,16 @@ describe("moveItem", () => {
       { kind: "main", rowId: "r1", overId: "c1", side: "after" }
     );
     expect(idsIn(rowsOf(next, "main")[0])).toEqual(["f1", "f2", "c1", "d1"]);
-    const cat = rowsOf(next, "main")[0].items.find((i) => i.id === "c1");
-    expect(cat.items.map((i) => i.id)).toEqual(["f3"]);
+    expect(catIn(next, "c1").items.map((i) => i.id)).toEqual(["f3"]);
+  });
+
+  it("ressort un décor d'une boîte sans toucher aux films qui restent", () => {
+    let view = seed();
+    view.shelves.main.rows[0].items.push(makeDecor({ id: "d1", motif: "coffee" }));
+    view = moveItem(view, { id: "d1" }, { kind: "main", rowId: "r1", catId: "c1" });
+    const out = moveItem(view, { id: "d1" }, { kind: "main", rowId: "r2" });
+    expect(catIn(out, "c1").items.map((i) => i.id)).toEqual(["f3"]);
+    expect(idsIn(rowsOf(out, "main")[1])).toEqual(["d1"]);
   });
 
   it("déplace une catégorie entière vers une autre rangée", () => {
@@ -481,6 +513,67 @@ describe("layoutView", () => {
     expect(idsIn(rowsOf(out, "main")[0])).toEqual(["a"]);
     expect(idsIn(rowsOf(out, "chevet")[0])).toEqual(["b"]);
     expect(idsIn(rowsOf(out, "reserve")[0])).toEqual(["c"]);
+  });
+});
+
+/* Un décor rangé DANS une boîte : plusieurs fonctions du modèle ne
+   savaient chercher qu'au premier niveau, et l'auraient perdu en
+   silence. */
+describe("un décor dans une catégorie", () => {
+  const seed = () => {
+    const view = makeView();
+    view.shelves.main.rows = [
+      makeRow({
+        id: "r1",
+        items: [
+          makeCat({
+            id: "c1",
+            items: [filmItem("f1"), makeDecor({ id: "d1", motif: "underline" }), filmItem("f2")],
+          }),
+        ],
+      }),
+      makeRow({ id: "r2", kind: "unplaced", items: [] }),
+    ];
+    return view;
+  };
+
+  it("survit à la réconciliation — rien dehors ne peut le démentir", () => {
+    const out = reconcileView(seed(), [film("f1"), film("f2")]);
+    expect(catIn(out, "c1").items.map((i) => i.id)).toEqual(["f1", "d1", "f2"]);
+  });
+
+  it("ne compte pas pour un film", () => {
+    expect(filmIdsOf(seed()).sort()).toEqual(["f1", "f2"]);
+  });
+
+  it("se retouche et se retire là où il est", () => {
+    expect(catIn(patchDecor(seed(), "d1", { label: "Polars" }), "c1").items[1].label).toBe(
+      "Polars"
+    );
+    expect(catIn(removeDecor(seed(), "d1"), "c1").items.map((i) => i.id)).toEqual(["f1", "f2"]);
+  });
+
+  it("ne bouge pas quand on range la boîte", () => {
+    const out = sortIntoRows(seed(), "main", (a, b) => a.id.localeCompare(b.id));
+    // le décor garde sa place ; seuls les films se redistribuent autour
+    expect(catIn(out, "c1").items.map((i) => i.id)).toEqual(["f1", "d1", "f2"]);
+  });
+
+  it("part avec la boîte qu'on défait, les films revenant au sas", () => {
+    const out = removeCat(seed(), "c1");
+    expect(idsIn(unplacedOf(out, "main")).sort()).toEqual(["f1", "f2"]);
+    expect(filmIdsOf(out).sort()).toEqual(["f1", "f2"]);
+    // le bibelot est du mobilier : il disparaît avec le meuble
+    expect(JSON.stringify(out)).not.toContain("d1");
+  });
+
+  it("reçoit un identifiant neuf quand la vue est dupliquée", () => {
+    const copy = duplicateView(seed(), { now: 1 });
+    const inner = copy.shelves.main.rows[0].items[0].items;
+    expect(inner.map((i) => i.t)).toEqual(["f", "d", "f"]);
+    // les films sont les mêmes films ; le bibelot, lui, est un autre bibelot
+    expect(inner[0].id).toBe("f1");
+    expect(inner[1].id).not.toBe("d1");
   });
 });
 

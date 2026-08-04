@@ -43,9 +43,6 @@ export const CAT_KEYS = [
   "ink",
 ];
 
-/* Les caps proposés par la gouttière. `null` = au fil de la largeur. */
-export const ROW_CAPS = [null, 3, 4, 5, 6, 8, 10, 12];
-
 /* Ce qu'une planche tient par défaut. Une étagère se remplit par lignes
    d'une dizaine de boîtiers ; laisser une rangée s'étirer sans fin, c'est
    ne plus avoir de rangées du tout. */
@@ -144,12 +141,17 @@ export const makeCat = ({
   items,
 });
 
-export const makeDecor = ({ id, motif, size = 1, color = "ochre" } = {}) => ({
+/* `label` ne sert qu'aux motifs qui écrivent — l'intercalaire, pour
+   l'instant. Les autres le portent vide et ne le montrent jamais : un
+   champ inerte sur un objet coûte moins cher qu'une seconde sorte de
+   décor à faire voyager partout. */
+export const makeDecor = ({ id, motif, size = 1, color = "ochre", label = "" } = {}) => ({
   t: "d",
   id: id || `d_${uid()}`,
   motif,
   size,
   color,
+  label,
 });
 
 export const filmItem = (id) => ({ t: "f", id });
@@ -259,7 +261,11 @@ export function reconcileView(view, films) {
       const items = filterSame(
         mapSame(row.items, (it) => {
           if (it.t !== "c") return it;
-          const sub = filterSame(it.items, (s) => s.t === "f" && keepFilm(s.id));
+          /* Seuls les films sont confrontés à la collection : un décor
+             posé dans une boîte n'existe que dans la vue, rien au-dehors
+             ne peut le démentir. Le filtrer comme un film le ferait
+             disparaître au premier rendu. */
+          const sub = filterSame(it.items, (s) => (s.t === "f" ? keepFilm(s.id) : true));
           return sub === it.items ? it : { ...it, items: sub };
         }),
         (it) => (it.t === "f" ? keepFilm(it.id) : true)
@@ -372,9 +378,13 @@ export function moveItem(view, drag, target) {
     const catAt = row.items.findIndex((it) => it.t === "c" && it.id === target.catId);
     if (catAt < 0) return view;
     const cat = row.items[catAt];
-    // une catégorie ne contient que des films : y lâcher autre chose
-    // reviendrait à emboîter des boîtes, ce que le modèle refuse
-    if (moved.t !== "f") return view;
+    /* Une boîte accepte tout, sauf une autre boîte : emboîter des
+       conteneurs donnerait un arbre là où le modèle tient à un rangement
+       plat, et il n'y a rien à y gagner qu'une profondeur de plus à
+       parcourir partout.
+       Les décors, eux, y entrent : un intercalaire dans une catégorie,
+       c'est la sous-division dont on a besoin quand la boîte grossit. */
+    if (moved.t === "c") return view;
     const items = insertAt(cat.items, moved, target.overId, target.side);
     const nextItems = [...row.items];
     nextItems[catAt] = { ...cat, items };
@@ -466,10 +476,20 @@ const toUnplaced = (rows, ids) => {
   return out;
 };
 
-/* Tous les films d'une rangée, catégories comprises. */
+/* Tous les FILMS d'une rangée, catégories comprises — et eux seuls.
+
+   C'est ce qui part vers la rangée d'arrivée quand on défait le meuble
+   qui les portait. Les décors n'y vont pas : un bibelot est du mobilier,
+   et le mobilier disparaît avec le meuble. C'était déjà le sort d'un
+   décor posé à même une rangée qu'on supprime ; ceux qui vivent
+   maintenant dans une boîte suivent la même règle. */
 const filmsInRow = (row) =>
   row.items.flatMap((it) =>
-    it.t === "f" ? [it.id] : it.t === "c" ? it.items.map((s) => s.id) : []
+    it.t === "f"
+      ? [it.id]
+      : it.t === "c"
+        ? it.items.filter((s) => s.t === "f").map((s) => s.id)
+        : []
   );
 
 export function patchRow(view, rowId, patch) {
@@ -550,7 +570,8 @@ export function patchCat(view, catId, patch) {
 export function removeCat(view, catId) {
   const found = findCat(view, catId);
   if (!found) return view;
-  const ids = found.cat.items.map((s) => s.id);
+  // seuls les films retombent dans le sas ; les décors partent avec la boîte
+  const ids = found.cat.items.filter((s) => s.t === "f").map((s) => s.id);
   return mapShelf(view, found.kind, (rows) =>
     toUnplaced(
       rows.map((r) =>
@@ -561,36 +582,55 @@ export function removeCat(view, catId) {
   );
 }
 
+/* Un décor vit à deux profondeurs depuis qu'il entre dans les boîtes :
+   posé sur la planche, ou rangé dans une catégorie. Ces deux fonctions
+   partagent donc la même descente — sans quoi retoucher un intercalaire
+   glissé dans une boîte ne trouverait rien et ne dirait rien.
+
+   `edit` rend le tableau d'items retouché, ou le MÊME tableau quand le
+   décor n'y est pas : c'est ce qui permet de savoir qu'on a trouvé sans
+   parcourir deux fois. */
+const mapDecorIn = (items, id, edit) => {
+  const top = edit(items);
+  if (top !== items) return top;
+  let found = false;
+  const out = items.map((it) => {
+    if (found || it.t !== "c") return it;
+    const sub = edit(it.items);
+    if (sub === it.items) return it;
+    found = true;
+    return { ...it, items: sub };
+  });
+  return found ? out : items;
+};
+
+const withDecor = (view, id, edit) => {
+  for (const kind of SHELF_KINDS) {
+    for (const row of view.shelves[kind].rows) {
+      const items = mapDecorIn(row.items, id, edit);
+      if (items === row.items) continue;
+      return mapShelf(view, kind, (rows) =>
+        rows.map((r) => (r.id !== row.id ? r : { ...r, items }))
+      );
+    }
+  }
+  return view;
+};
+
 /* Retirer un décor : c'est le seul objet qu'un geste supprime vraiment,
    parce qu'il ne contient rien qu'on puisse regretter. */
 export function removeDecor(view, id) {
-  for (const kind of SHELF_KINDS) {
-    for (const row of view.shelves[kind].rows) {
-      if (row.items.some((it) => it.t === "d" && it.id === id))
-        return mapShelf(view, kind, (rows) =>
-          rows.map((r) =>
-            r.id !== row.id ? r : { ...r, items: r.items.filter((it) => it.id !== id) }
-          )
-        );
-    }
-  }
-  return view;
+  return withDecor(view, id, (items) =>
+    items.some((it) => it.t === "d" && it.id === id) ? items.filter((it) => it.id !== id) : items
+  );
 }
 
 export function patchDecor(view, id, patch) {
-  for (const kind of SHELF_KINDS) {
-    for (const row of view.shelves[kind].rows) {
-      if (row.items.some((it) => it.t === "d" && it.id === id))
-        return mapShelf(view, kind, (rows) =>
-          rows.map((r) =>
-            r.id !== row.id
-              ? r
-              : { ...r, items: r.items.map((it) => (it.id === id ? { ...it, ...patch } : it)) }
-          )
-        );
-    }
-  }
-  return view;
+  return withDecor(view, id, (items) =>
+    items.some((it) => it.t === "d" && it.id === id)
+      ? items.map((it) => (it.id === id ? { ...it, ...patch } : it))
+      : items
+  );
 }
 
 /* ------------------------------------------------------------
@@ -766,10 +806,24 @@ export function sortIntoRows(view, kind, compare) {
   slots.forEach(([r, i], n) => {
     rows[r].items[i] = sorted[n];
   });
+  /* Dans une boîte, même règle qu'au premier niveau : les films se
+     redistribuent dans les emplacements qu'ils occupaient, et ce qui
+     n'est pas un film ne bouge pas. Trier le tableau entier passerait le
+     comparateur — écrit pour des films — sur des intercalaires, et les
+     ferait glisser au petit bonheur au milieu du classement. */
   for (const row of rows) {
     for (let i = 0; i < row.items.length; i++) {
       const it = row.items[i];
-      if (it.t === "c") row.items[i] = { ...it, items: [...it.items].sort(compare) };
+      if (it.t !== "c") continue;
+      const at = [];
+      for (let s = 0; s < it.items.length; s++) if (it.items[s].t === "f") at.push(s);
+      if (!at.length) continue;
+      const inner = at.map((s) => it.items[s]).sort(compare);
+      const items = [...it.items];
+      at.forEach((s, n) => {
+        items[s] = inner[n];
+      });
+      row.items[i] = { ...it, items };
     }
   }
   return { ...view, shelves: { ...view.shelves, [kind]: { ...shelf, rows } } };
@@ -899,7 +953,16 @@ export function duplicateView(view, { name, now = 0 } = {}) {
           it.t === "f"
             ? it
             : it.t === "c"
-              ? { ...it, id: `c_${uid()}`, items: it.items.map((s) => ({ ...s })) }
+              ? {
+                  ...it,
+                  id: `c_${uid()}`,
+                  /* Un décor rangé dans une boîte est du mobilier comme
+                     celui posé sur la planche : il lui faut un identifiant
+                     neuf, sans quoi les deux vues se partageraient le
+                     même bibelot et le retirer d'un côté le retirerait
+                     de l'autre. */
+                  items: it.items.map((s) => (s.t === "f" ? { ...s } : { ...s, id: `d_${uid()}` })),
+                }
               : { ...it, id: `d_${uid()}` }
         ),
       })),

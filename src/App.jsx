@@ -38,7 +38,6 @@ import {
 import {
   SHELF_KINDS,
   CAT_KEYS,
-  ROW_CAPS,
   VIEW_VERSION,
   belongs,
   isUnplaced,

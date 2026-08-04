@@ -7,7 +7,6 @@ import { tiltOf } from "../../domain/seeded";
 import { PosterArt } from "../film/PosterArt";
 import { PushPin } from "../atmosphere";
 import { Palette } from "lucide-react";
-import { DEFAULT_CAP } from "../../shelf-views";
 import {
   BOX_W,
   BOX_H,
@@ -305,11 +304,11 @@ export const DecorItem = React.memo(function DecorItem({
           }}
           onDragEnd={onDragEnd}
           onClick={() => onEdit(item.id)}
-          title={spec.label}
+          title={spec.writes && item.label ? item.label : spec.label}
           style={{
             position: "relative",
-            width: box,
-            height: box,
+            width: spec.tall ? Math.round(26 * s) : box,
+            height: spec.tall ? Math.round(BOX_H * s) : box,
             marginBottom: GAP_Y,
             marginRight: GAP_X,
             flexShrink: 0,
@@ -318,14 +317,51 @@ export const DecorItem = React.memo(function DecorItem({
             alignItems: "center",
             justifyContent: "center",
             overflow: "hidden",
-            /* Posé de guingois, mais toujours de la même façon : le hasard
-               stable de la maison, et non un réglage de plus à régler. */
-            transform: `rotate(${tiltOf(item.id)}deg)`,
+            /* Un carton planté ne gît pas de travers : il se DRESSE, et
+               c'est là tout ce qui le distingue d'un bibelot posé. On lui
+               laisse le quart du guingois des autres, assez pour qu'il
+               reste tracé à la main sans cesser de tenir debout. */
+            transform: `rotate(${spec.tall ? tiltOf(item.id) / 4 : tiltOf(item.id)}deg)`,
+            transformOrigin: "bottom center",
             userSelect: "none",
             WebkitUserSelect: "none",
+            /* Le carton lui-même : même papier, même filet et même ombre
+               sèche que la boîte — c'est le même carton d'archives, l'un
+               ouvert, l'autre plein. */
+            ...(spec.tall
+              ? {
+                  background: `linear-gradient(160deg, ${C.paperDark}, #D8C69C)`,
+                  border: `1px solid ${C.line}`,
+                  borderBottom: "none",
+                  borderTop: `3px solid ${ink}`,
+                  borderRadius: "3px 3px 0 0",
+                  boxShadow: "2px 2px 0 rgba(43,38,32,0.14)",
+                }
+              : null),
           }}
         >
-          {Icon ? (
+          {spec.tall ? (
+            /* Le nom se lit à la verticale, de bas en haut : c'est ainsi
+               qu'on lit une tranche dans une boîte d'archives, et la
+               seule façon d'écrire long sur vingt-six pixels de large. */
+            <span
+              style={{
+                writingMode: "vertical-rl",
+                transform: "rotate(180deg)",
+                fontFamily: "'Special Elite', monospace",
+                fontSize: Math.max(8, Math.round(10 * s)),
+                letterSpacing: "0.08em",
+                color: ink,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                maxHeight: "100%",
+                padding: "6px 0",
+              }}
+            >
+              {item.label}
+            </span>
+          ) : Icon ? (
             <Icon size={Math.round(26 * s)} color={ink} />
           ) : (
             <Draw
@@ -356,7 +392,6 @@ export const CategoryBox = React.memo(function CategoryBox({
   cat,
   kind,
   rowId,
-  rowCap,
   films,
   dim,
   onDragStart,
@@ -365,6 +400,7 @@ export const CategoryBox = React.memo(function CategoryBox({
   onCatOver,
   onOpen,
   onEdit,
+  onEditDecor,
   acts,
 }) {
   const [editing, setEditing] = useState(false);
@@ -383,21 +419,39 @@ export const CategoryBox = React.memo(function CategoryBox({
     else setDraft(cat.label);
   };
 
+  /* Une boîte tient des boîtiers ET du mobilier : un intercalaire glissé
+     là-dedans est la sous-division dont on a besoin quand la
+     filmographie déborde. Seule une autre boîte reste dehors. */
   const boxes = cat.items
-    .map((it) => films.get(it.id))
-    .filter(Boolean)
-    .map((f) => (
-      <FilmBox
-        key={f.id}
-        film={f}
-        ctx={ctx}
-        onOpen={onOpen}
-        dim={dim(f)}
-        onDragStart={onDragStart}
-        onDragEnd={onDragEnd}
-        onDragOverBox={onDragOverBox}
-      />
-    ));
+    .map((it) => {
+      if (it.t === "d")
+        return (
+          <DecorItem
+            key={it.id}
+            item={it}
+            ctx={ctx}
+            onEdit={onEditDecor}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+            onDragOverBox={onDragOverBox}
+          />
+        );
+      const f = films.get(it.id);
+      if (!f) return null;
+      return (
+        <FilmBox
+          key={f.id}
+          film={f}
+          ctx={ctx}
+          onOpen={onOpen}
+          dim={dim(f)}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+          onDragOverBox={onDragOverBox}
+        />
+      );
+    })
+    .filter(Boolean);
 
   return (
     /* Une boîte est bâtie comme un boîtier : une enveloppe qui porte
@@ -424,7 +478,17 @@ export const CategoryBox = React.memo(function CategoryBox({
       }}
       onDragEnd={onDragEnd}
       onDragOver={(e) => onCatOver(e, ctx)}
-      style={{ flexShrink: 0, display: "flex", alignItems: "flex-end" }}
+      /* `maxWidth` est ce qui rend le mode auto tenable : sans compte, la
+         boîte prendrait la largeur de tous ses boîtiers mis bout à bout
+         et sortirait du rayon par la droite. Bornée à la rangée, elle
+         grandit jusque-là puis replie son contenu. */
+      style={{
+        flexShrink: 0,
+        minWidth: 0,
+        maxWidth: "100%",
+        display: "flex",
+        alignItems: "flex-end",
+      }}
     >
       {/* Le carton EST la couche qui bascule : rien d'autre ne touche à
           son `transform`, il n'a donc pas besoin d'une couche à lui. */}
@@ -434,6 +498,8 @@ export const CategoryBox = React.memo(function CategoryBox({
         style={{
           position: "relative",
           flexShrink: 0,
+          minWidth: 0,
+          maxWidth: "100%",
           marginRight: GAP_X,
           marginBottom: GAP_Y,
           display: "flex",
@@ -552,7 +618,13 @@ export const CategoryBox = React.memo(function CategoryBox({
               glissez-y des films
             </div>
           )}
-          {withBreaks(boxes, cat.perRow || rowCap || DEFAULT_CAP)}
+          {/* Le compte de la boîte, et rien d'autre. Il héritait de celui
+              de la rangée à défaut du sien, avec un repli sur dix : une
+              boîte réglée sur « auto » se retrouvait donc plafonnée sans
+              l'avoir demandé, et le réglage mentait. Sans compte, elle
+              grandit avec son contenu jusqu'à la largeur du rayon, où le
+              `flex-wrap` la replie de lui-même. */}
+          {withBreaks(boxes, cat.perRow)}
         </div>
       </div>
     </div>
