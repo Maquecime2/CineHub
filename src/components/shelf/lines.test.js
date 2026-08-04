@@ -8,7 +8,11 @@ import { makeCat, makeDecor, filmItem } from "../../shelf-views";
    en cases, et une boîte par le nombre de films qu'elle y pose. */
 const shape = (lines) =>
   lines.map((line) =>
-    line.map((s) => (s.t === "c" ? `${s.cat.id}[${s.items.length}]${s.first ? "^" : ""}${s.last ? "$" : ""}` : s.it.id))
+    line.map((s) =>
+      s.t === "c"
+        ? `${s.cat.id}[${s.items.length}]${s.first ? "^" : ""}${s.last ? "$" : ""}`
+        : s.it.id
+    )
   );
 
 const films = (...ids) => ids.map(filmItem);
@@ -68,7 +72,9 @@ describe("splitRow — le découpage d'une rangée en lignes de bois", () => {
 
   it("garde des clés distinctes pour deux segments de la même boîte", () => {
     const cat = makeCat({ id: "c1", items: films("x", "y", "z") });
-    const keys = splitRow([cat], 2).flat().map((s) => s.key);
+    const keys = splitRow([cat], 2)
+      .flat()
+      .map((s) => s.key);
     expect(new Set(keys).size).toBe(keys.length);
   });
 });

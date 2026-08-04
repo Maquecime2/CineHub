@@ -87,6 +87,31 @@ html[data-dragging="1"] [data-veil] { pointer-events: none; }
    est écrite en ligne, et une seconde main sur la même propriété
    effacerait le guingois de l'objet. */
 [data-wall-item] { transition: filter .16s ease; }
+
+/* PENDANT UN GLISSEMENT, IL S'EFFACE DU CHEMIN.
+
+   Un objet accroché peut désormais déborder de son rayon, et ce qui
+   déborde restait saisissable : il recouvrait le rayon d'en dessous et
+   recevait à sa place les dépôts qu'on lui destinait. C'est ce défaut-là
+   qui justifiait de border les objets loin des bords ; on retire donc le
+   défaut plutôt que la liberté.
+
+   Même raisonnement que le voile juste au-dessus : le temps du geste, ce
+   qui n'est pas une cible cesse d'en être une.
+
+   SAUF CELUI QU'ON TIENT. Un glissement dont la source cesse d'être
+   testable au survol est un glissement que le navigateur annule net :
+   la règle, en s'appliquant aussi à l'objet empoigné, empêchait de
+   reprendre un objet volant une fois posé. Il se marque donc au départ
+   du geste (voir WallItem, dans items.jsx), et l'exception le laisse en
+   place.
+
+   Pas d'accent grave dans ce commentaire, ni ailleurs entre ces deux
+   accolades : tout ce bloc est une chaîne à gabarit, et un accent grave
+   la refermerait au milieu d'une phrase. */
+html[data-dragging="1"] [data-wall-item]:not([data-drag-self]) {
+  pointer-events: none !important;
+}
 [data-wall-item]:hover { filter: drop-shadow(2px 3px 3px rgba(30,20,10,0.3)); }
 [data-wall-item]:active { cursor: grabbing; }
 

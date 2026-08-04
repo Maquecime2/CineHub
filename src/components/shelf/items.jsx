@@ -448,27 +448,60 @@ export const leanOf = (id) => {
 export const angleOf = (item, tall = false) =>
   item.rot ?? (tall ? leanOf(item.id) : tiltOf(item.id));
 
-/* LA PLACE QUE PREND UN OBJET TOURNÉ.
+/* LA PLACE QUE PREND UN OBJET TOURNÉ — ET OÙ ELLE TOMBE.
 
-   Une rotation CSS ne déplace rien : c'est une transformation, elle est
-   peinte après la mise en page et la boîte qu'elle occupe dans le flux
-   reste celle d'avant. Tant que les objets ne penchaient que de deux ou
-   trois degrés c'était le bon calcul — le guingois est un détail de
-   dessin, il n'a pas à écarter les tranches voisines.
+   Premier essai : la largeur du cadre englobant, |L·cos θ| + |H·sin θ|,
+   donnée à l'enveloppe. Le compte était juste, et pourtant les boîtiers
+   collés au carton restaient dessous.
 
-   Mais on peut désormais coucher un objet à quatre-vingt-dix degrés, et
-   là ce n'est plus un détail : le carton traversait les boîtiers d'à
-   côté en les recouvrant, parce qu'il continuait de ne réclamer que la
-   largeur qu'il avait debout. Ce qu'on voit doit être ce qui prend la
-   place.
+   Parce qu'un objet ne tourne pas sur son milieu : il pivote sur son
+   PIED (`transformOrigin: bottom center`), comme un carton calé contre
+   les tranches voisines. Le cadre englobant a bien la largeur qu'on
+   calculait, mais il n'est plus centré sur l'objet — il part du côté vers
+   lequel la tête penche. L'enveloppe, elle, centrait sagement le carton
+   dedans : en bas tout allait bien, en haut le carton sortait de la place
+   qu'il avait réclamée et recouvrait son voisin. La hauteur avait le même
+   défaut, en pire : le coin bas passait SOUS la planche.
 
-   La largeur d'une boîte tournée est celle de son cadre englobant :
-   |L·cos θ| + |H·sin θ|. On la donne à l'enveloppe — qui EST la cible de
-   dépôt, donc la place réclamée et la place visée restent la même chose
-   — et le dessin, lui, garde sa taille et se centre dedans. */
-export const footprintOf = (w, h, deg) => {
+   On mesure donc les quatre coins après rotation autour du pied, et on
+   rend deux choses — la taille du cadre, et le décalage qui le remet à
+   cheval sur l'enveloppe. L'objet est ensuite translaté d'autant : ce
+   qu'on voit occupe exactement ce qui a été réservé, du pied à la tête. */
+export const rotatedBox = (w, h, deg) => {
   const r = (Number(deg) * Math.PI) / 180;
-  return Math.round(Math.abs(w * Math.cos(r)) + Math.abs(h * Math.sin(r)));
+  const cos = Math.cos(r),
+    sin = Math.sin(r);
+  /* Les coins, comptés depuis le pivot : le pied à l'ordonnée 0, la tête
+     à −h (l'axe des y descend, à l'écran comme en CSS). */
+  const xs = [],
+    ys = [];
+  for (const x of [-w / 2, w / 2])
+    for (const y of [0, -h]) {
+      xs.push(x * cos - y * sin);
+      ys.push(x * sin + y * cos);
+    }
+  const minX = Math.min(...xs),
+    maxX = Math.max(...xs);
+  const minY = Math.min(...ys),
+    maxY = Math.max(...ys);
+  return {
+    width: Math.round(maxX - minX),
+    height: Math.round(maxY - minY),
+    /* Le cadre se cale sur le BORD GAUCHE de l'enveloppe, et non en son
+       milieu. L'enveloppe vaut le cadre plus l'écart au voisin, et cet
+       écart appartient tout entier à la droite — c'est un `marginRight`
+       qu'on a déménagé, pas une marge à partager. Centré, il se coupait
+       en deux et le carton se retrouvait avec six pixels de trop à sa
+       gauche : un trou que rien ne justifiait, puisque de ce côté-là il
+       n'y a pas d'écart à tenir.
+
+       On vise donc le pied du cadre à l'abscisse zéro : le carton est
+       posé à gauche de l'enveloppe, son pivot est à `w/2`, et le coin le
+       plus à gauche du cadre tombé à `minX` de ce pivot. */
+    // `|| 0` : `Math.round` rend un zéro NÉGATIF, qui s'écrirait « -0px »
+    dx: Math.round(-(w / 2 + minX)) || 0,
+    dy: Math.round(-maxY) || 0,
+  };
 };
 
 /* Un décor posé sur la planche : il se glisse, se déplace et s'enlève
@@ -529,7 +562,7 @@ export const DecorItem = React.memo(function DecorItem({
   const w = spec.tall ? Math.round(DIVIDER_W * s) : box;
   const h = spec.tall ? Math.round(BOX_H * s) : box;
   const angle = angleOf(item, spec.tall);
-  const footprint = footprintOf(w, h, angle);
+  const frame = rotatedBox(w, h, angle);
 
   return (
     <div
@@ -539,10 +572,12 @@ export const DecorItem = React.memo(function DecorItem({
         position: "relative",
         display: "flex",
         alignItems: "flex-end",
-        justifyContent: "center",
         flexShrink: 0,
-        // la place réclamée dans la rangée suit l'angle : voir `footprintOf`
-        width: footprint + GAP_X,
+        /* La place réclamée dans la rangée suit l'angle, en largeur comme
+           en hauteur : voir `rotatedBox`. Une tête qui penche dépasse du
+           bois, et c'est la rangée qui doit s'en apercevoir. */
+        width: frame.width + GAP_X,
+        height: frame.height + GAP_Y,
       }}
     >
       {/* la couche qui bascule à l'écartement, sous la cible de dépôt */}
@@ -551,8 +586,6 @@ export const DecorItem = React.memo(function DecorItem({
         style={{
           display: "flex",
           alignItems: "flex-end",
-          justifyContent: "center",
-          width: "100%",
           transformOrigin: "bottom center",
           transition: "transform .3s cubic-bezier(.32,1.16,.42,1)",
         }}
@@ -581,6 +614,8 @@ export const DecorItem = React.memo(function DecorItem({
             position: "relative",
             width: w,
             height: h,
+            /* Le pied du carton se pose sur la planche, jamais dessous :
+               `dy` rattrape ce que la rotation lui a fait descendre. */
             marginBottom: GAP_Y,
             /* L'écart au voisin est passé à l'enveloppe, avec la place que
                réclame l'angle : le laisser ici l'ajouterait une seconde
@@ -591,7 +626,7 @@ export const DecorItem = React.memo(function DecorItem({
             alignItems: "center",
             justifyContent: "center",
             overflow: "hidden",
-            transform: `rotate(${angle}deg)`,
+            transform: `translate(${frame.dx}px, ${frame.dy}px) rotate(${angle}deg)`,
             transformOrigin: "bottom center",
             userSelect: "none",
             WebkitUserSelect: "none",
@@ -709,13 +744,32 @@ export const DecorItem = React.memo(function DecorItem({
   );
 });
 
-/* UN OBJET ACCROCHÉ — il ne pose sur rien.
+/* Le cadre englobant d'un objet ACCROCHÉ. Il pivote sur son milieu et
+   non sur son pied — rien ne le porte, il pend — d'où un `rotatedBox`
+   d'une boîte deux fois moins haute, recentrée : les décalages
+   s'annulent et il ne reste que la taille. C'est elle que réclame la
+   case, et elle aussi qui borne le dépôt au bord du rayon. */
+export const rotatedBoxOfWall = (item) => {
+  const b = wallBoxOf(item.size);
+  const { width, height } = rotatedBox(b, b, angleOf(item));
+  return { width, height };
+};
+
+/* UN OBJET ACCROCHÉ — il ne pose sur rien, mais il peut faire de l'ombre.
 
    Le décor posé vit dans le flux de sa rangée : il prend une place entre
    deux boîtiers, et l'écartement le pousse comme les autres. Celui-ci
    est punaisé au fond du rayon, à un point qu'on a choisi en le lâchant.
    Il n'a donc ni enveloppe, ni écart, ni zone de dépôt — rien ne se
    range à côté de lui.
+
+   Sauf s'il le RÉCLAME. Un cadre au fond d'un rayon plein disparaît
+   derrière les tranches, et il n'y avait rien à faire sinon le déplacer
+   là où il restait de la place. La case à cocher de son panneau lui
+   donne une emprise : les boîtiers de la ligne qu'il recouvre s'écartent
+   pour le laisser voir. C'est un choix par objet, et par défaut il ne
+   dérange personne — la plupart des punaises n'ont pas à repousser une
+   collection.
 
    Il est peint AVANT les rangées et sans `z-index` : les boîtiers, plus
    loin dans le document, passent devant. C'est ce qui le met au fond
@@ -727,6 +781,7 @@ export const WallItem = React.memo(function WallItem({ item, onDragStart, onDrag
   const ink = catInk(item.color);
   // le dessin, plus la marge de prise qui en fait le tour
   const box = wallBoxOf(item.size);
+  const frame = rotatedBoxOfWall(item);
   const Draw = spec.draw;
   return (
     <div
@@ -740,34 +795,68 @@ export const WallItem = React.memo(function WallItem({ item, onDragStart, onDrag
            donc l'écart entre le point de prise et le centre, pour le
            défalquer à l'arrivée. */
         const r = e.currentTarget.getBoundingClientRect();
+        /* CELUI-CI, ON LE TIENT.
+
+           Le temps d'un geste, les objets accrochés cessent de recevoir
+           le curseur : c'est ce qui les autorise à déborder de leur rayon
+           sans voler les dépôts du rayon voisin (voir `tokens.ts`). Mais
+           la règle attrapait aussi l'objet qu'on venait d'empoigner, et
+           un glissement dont la source cesse d'être testable au survol
+           est un glissement que le navigateur annule : une fois posé, un
+           objet volant ne se reprenait plus.
+
+           Il se marque donc comme étant celui qu'on tient, et la règle
+           l'épargne. Le marquage est écrit à la main sur le nœud, comme
+           tout ce qui bouge pendant un glissement — un état React ici
+           re-rendrait le rayon au pire moment. */
+        e.currentTarget.dataset.dragSelf = "1";
         onDragStart("wall", item.id, e.currentTarget, {
           dx: e.clientX - (r.left + r.width / 2),
           dy: e.clientY - (r.top + r.height / 2),
         });
       }}
-      onDragEnd={onDragEnd}
+      onDragEnd={(e) => {
+        delete e.currentTarget.dataset.dragSelf;
+        onDragEnd(e);
+      }}
       onClick={() => onEdit(item.id)}
       title={spec.label}
       style={{
         position: "absolute",
         left: `${item.x}%`,
         top: `${item.y}%`,
-        width: box,
-        height: box,
-        marginLeft: -box / 2,
-        marginTop: -box / 2,
-        padding: WALL_GRIP,
+        /* LA PRISE SUIT L'ANGLE. Elle faisait la taille du dessin DEBOUT,
+           et la rotation, qui ne déplace pas la mise en page, laissait
+           dépasser tout ce qui sortait de ce carré : un fanion couché se
+           voyait sur toute sa longueur mais ne s'attrapait qu'au milieu,
+           et le reste laissait passer le curseur vers les boîtiers. */
+        width: frame.width,
+        height: frame.height,
+        marginLeft: -frame.width / 2,
+        marginTop: -frame.height / 2,
         boxSizing: "border-box",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
         cursor: "grab",
         // la couche du mur ne laisse passer le curseur que sur ses objets
         pointerEvents: "auto",
-        // accroché de travers, comme tout ce qu'on accroche — sauf si on l'a redressé
-        transform: `rotate(${angleOf(item)}deg)`,
         userSelect: "none",
         WebkitUserSelect: "none",
       }}
     >
-      <Draw color={ink} style={{ width: "100%", height: "100%" }} />
+      <div
+        style={{
+          width: box,
+          height: box,
+          padding: WALL_GRIP,
+          boxSizing: "border-box",
+          // accroché de travers, comme tout ce qu'on accroche — sauf si on l'a redressé
+          transform: `rotate(${angleOf(item)}deg)`,
+        }}
+      >
+        <Draw color={ink} style={{ width: "100%", height: "100%" }} />
+      </div>
     </div>
   );
 });

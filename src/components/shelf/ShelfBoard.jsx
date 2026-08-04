@@ -20,6 +20,7 @@ import {
   removeCat,
   patchDecor,
   removeDecor,
+  wallDecorOf,
 } from "../../shelf-views";
 import {
   SHELF_KIND,
@@ -33,7 +34,7 @@ import {
   isWallMotif,
   wallBoxOf,
 } from "./constants";
-import { DropMark, angleOf } from "./items";
+import { DropMark, angleOf, rotatedBoxOfWall } from "./items";
 import { Shelf, ReserveDrawer, CasePreview, DecorCabinet, ItemPalette } from "./layout";
 
 /* Un motif dont la teinte ne change rien : une image importée qui n'est
@@ -299,6 +300,12 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
   const reset = useCallback(() => {
     const d = dragRef.current;
     if (d?.node && !d.create) d.node.style.opacity = "";
+    /* Le marquage de l'objet accroché qu'on tenait (voir `WallItem`) est
+       défait par son propre `dragend`. On l'efface quand même ici : ce
+       `dragend` n'arrive pas toujours — un nœud remplacé par le rendu du
+       dépôt ne le reçoit jamais — et un marquage oublié rendrait cet
+       objet-là seul capable de voler un dépôt au geste suivant. */
+    for (const el of document.querySelectorAll("[data-drag-self]")) delete el.dataset.dragSelf;
     dragRef.current = null;
     overRef.current = {};
     /* Les mesures ne valaient que pour CE glissement : le suivant trouvera
@@ -324,11 +331,13 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
      rayon. */
   const onDecorDragStart = useCallback((motif, node) => {
     const wall = isWallMotif(motif);
+    // certains motifs n'arrivent pas au calibre commun — le ruban adhésif
+    const size = decorSpec(motif)?.defaultSize;
     dragRef.current = {
       type: wall ? "wall" : "decor",
       id: null,
       node,
-      create: wall ? makeWallDecor({ motif }) : makeDecor({ motif }),
+      create: wall ? makeWallDecor({ motif, size }) : makeDecor({ motif, size }),
     };
     document.documentElement.dataset.dragging = "1";
   }, []);
@@ -513,22 +522,27 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
          le tient pas par son centre mais par l'endroit où on l'a pris. */
       const { dx = 0, dy = 0 } = drag.grab || {};
 
-      /* On borne en PIXELS, à la demi-largeur de l'objet, et non plus à
-         trois pour cent du rayon.
+      /* ON NE BORNE PLUS QU'À LA PAROI.
 
-         Un pourcentage ne sait pas de quelle taille est ce qu'il place :
-         un objet posé au bord débordait de sa moitié sur le rayon voisin,
-         et comme il reste saisissable là où il déborde, il interceptait
-         les dépôts destinés au rayon d'en dessous — d'où des objets qui
-         se posaient ailleurs qu'indiqué sur la première ligne de la
-         collection, juste sous les films de chevet. Bornés à leur demi-
-         largeur, ils tiennent entiers dans leur propre rayon.
+         L'objet était tenu à sa demi-largeur du bord, pour qu'il rentre
+         entier dans son rayon. C'était une précaution contre un vrai
+         défaut : un objet qui déborde reste saisissable là où il
+         déborde, et il interceptait alors les dépôts destinés au rayon
+         d'en dessous — on visait la collection, on posait dans les films
+         de chevet.
 
-         Un rayon trop court pour l'objet n'a qu'une place à offrir : le
-         milieu. */
-      const half = wallBoxOf((drag.create || findDecorIn(view, drag.id) || {}).size) / 2;
-      const pct = (v, span) =>
-        span < 2 * half ? 50 : (Math.min(Math.max(v, half), span - half) / span) * 100;
+         Mais la précaution coûtait plus que le défaut. Elle interdisait
+         de punaiser quoi que ce soit près d'un bord : une guirlande dans
+         un angle, un lierre qui pend d'un montant, tout revenait vers le
+         milieu sans qu'on comprenne pourquoi. Or le défaut, lui, se
+         règle à sa source — pendant un glissement, plus AUCUN objet
+         accroché ne reçoit le curseur (voir `tokens.ts`), et il ne peut
+         donc plus voler le dépôt de personne.
+
+         Reste la seule borne qui décrive quelque chose de réel : le
+         centre de l'objet demeure dans son rayon. Ce qui dépasse dépasse
+         — c'est ce qu'on veut d'un objet accroché à un montant. */
+      const pct = (v, span) => (Math.min(Math.max(v, 0), span) / span) * 100;
       const next = pinToWall(view, kind, drag.create ? { create: drag.create } : { id: drag.id }, {
         x: pct(e.clientX - dx - r.left, r.width),
         y: pct(e.clientY - dy - r.top, r.height),
@@ -610,6 +624,19 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     [onDragStart, reset, onShelfOver, onBoxOver, onCatOver, onRowOver, onSeamOver, onDrop]
   );
 
+  /* Nommer un carton se fait SUR le carton, sans ouvrir de panneau :
+     c'est une écriture directe, comme l'onglet d'une catégorie.
+
+     Elle est retenue, et ce n'est pas du confort. Elle descend jusqu'aux
+     RANGÉES, dont le `React.memo` est tout ce qui les empêche de se
+     refaire au milieu d'un geste — et une flèche réécrite à chaque rendu
+     est une prop qui change à chaque rendu. Le seul `setState` qu'un
+     glissement déclenche (le tiroir qui s'ouvre) suffisait alors à
+     refaire toutes les rangées, donc à remplacer les enveloppes que les
+     mesures du glissement désignaient. C'est le défaut que garde
+     `ShelfBoard.test.jsx`. */
+  const onDecorLabel = useCallback((id, label) => acts.setDecor(id, { label }), [acts]);
+
   const countOf = (kind) => films.filter(belongs[kind]).length;
 
   if (!view) return null;
@@ -622,13 +649,14 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     acts,
     films: filmsById,
     theme,
+    /* Le décor du mur, ou rien. Il est le même pour les deux rayons : ce
+       qu'on peint, c'est la pièce, pas une planche. */
+    wallDecor: wallDecorOf(view),
     dim,
     onOpen: setPreview,
     onEditCat: setEditCat,
     onEditDecor: setEditDecor,
-    /* Nommer un carton se fait SUR le carton, sans ouvrir de panneau :
-       c'est une écriture directe, comme l'onglet d'une catégorie. */
-    onDecorLabel: (id, label) => acts.setDecor(id, { label }),
+    onDecorLabel,
   };
 
   return (

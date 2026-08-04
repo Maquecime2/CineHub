@@ -215,8 +215,64 @@ export const makeView = ({
   theme,
   createdAt: now,
   updatedAt: now,
+  /* `decor` est VOLONTAIREMENT absent d'une vue neuve — voir plus bas. */
   shelves: { chevet: makeShelf(), main: makeShelf(), reserve: makeShelf() },
 });
+
+/* ------------------------------------------------------------
+   LE DÉCOR — ce dont la vue est faite, au-delà du thème
+   ------------------------------------------------------------
+
+   `theme` ne réglait que trois choses, et le mur n'avait aucune
+   peinture. Le décor ouvre le reste :
+
+     decor?: {
+       wall?:  { paint?, pattern?, patternInk?, texture? },
+       plank?: { material?, finish? },
+     }
+
+   TOUT Y EST FACULTATIF, ET LE CHAMP LUI-MÊME AUSSI. C'est la même règle
+   que `rot` sur un décor ou que `wall` sur un rayon : absent veut dire
+   « comme avant », et une vue enregistrée avant ce jour doit rester
+   identique au pixel. Rien n'écrit `decor` tant qu'une main n'a pas
+   réglé quelque chose ; `theme` reste la source par défaut, et l'efface
+   rend la vue à son thème.
+
+   Aucune migration à écrire pour autant : toutes les transformations de
+   ce module reconstruisent la vue par étalement (`{ ...view, ... }`), si
+   bien qu'un champ de plus voyage sans qu'on ait à le nommer nulle part.
+   Ce qui suit n'est donc que la façon de le LIRE et de l'ÉCRIRE, en un
+   seul endroit. */
+
+export const wallDecorOf = (view) => view.decor?.wall || null;
+export const plankDecorOf = (view) => view.decor?.plank || null;
+
+/* Retoucher une facette du décor. Une valeur nulle EFFACE le réglage —
+   c'est ainsi que « revenir au thème » se dit, et la vue se débarrasse
+   des objets vides au passage plutôt que de traîner un `decor: {}` qui
+   voudrait dire la même chose qu'une absence. */
+export function patchViewDecor(view, part, patch) {
+  const before = view.decor?.[part] || {};
+  const merged = { ...before, ...patch };
+  for (const k of Object.keys(merged)) if (merged[k] == null) delete merged[k];
+
+  const decor = { ...view.decor };
+  if (Object.keys(merged).length) decor[part] = merged;
+  else delete decor[part];
+
+  const next = { ...view };
+  if (Object.keys(decor).length) next.decor = decor;
+  else delete next.decor;
+  return next;
+}
+
+/* Rendre la vue à son thème : plus de décor du tout. */
+export function clearViewDecor(view) {
+  if (!view.decor) return view;
+  const next = { ...view };
+  delete next.decor;
+  return next;
+}
 
 /* ------------------------------------------------------------
    Petits outils de structure
