@@ -29,7 +29,7 @@ import { LINK_TYPES } from "../components/film/linkTypes";
 import { StillsStrip } from "../components/stills/StillsStrip";
 import { StillLightbox } from "../components/stills/StillLightbox";
 import { RichField } from "../components/stills/RichField";
-import type { Film, LinkType, Still } from "../types";
+import type { Film, LinkPatch, LinkType, Still } from "../types";
 
 /** Les deux champs de texte de la fiche, où une capture peut s'insérer. */
 type TextField = "review" | "notes";
@@ -43,6 +43,8 @@ interface DetailViewProps {
   /** Relie deux fiches du mur : le lien est posé des deux côtés. */
   onLinkFilm: (aId: string, bId: string, note: string) => void;
   onRemoveLink: (filmId: string, workId: string) => void;
+  /** Retouche un fil : le modele decide de ce qu il accepte. */
+  onEditLink: (filmId: string, workId: string, patch: LinkPatch) => void;
   onOpen: (id: string) => void;
 }
 
@@ -54,6 +56,7 @@ export function DetailView({
   films = [],
   onLinkFilm,
   onRemoveLink,
+  onEditLink,
   onOpen,
 }: DetailViewProps) {
   const [linkType, setLinkType] = useState<LinkType>("book");
@@ -184,6 +187,7 @@ export function DetailView({
     setLinkNote("");
   };
   const removeLink = (id: string) => onRemoveLink(film.id, id);
+  const editLink = (id: string, patch: LinkPatch) => onEditLink(film.id, id, patch);
 
   return (
     <div style={{ padding: "34px 44px 70px", maxWidth: 900, position: "relative" }}>
@@ -524,7 +528,13 @@ export function DetailView({
           les œuvres qui répondent à ce film — livres, peintures, autres films
         </div>
 
-        <ThreadBoard film={film} onRemove={removeLink} films={films} onOpen={onOpen} />
+        <ThreadBoard
+          film={film}
+          onRemove={removeLink}
+          onEdit={editLink}
+          films={films}
+          onOpen={onOpen}
+        />
 
         <div
           style={{

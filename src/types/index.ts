@@ -30,7 +30,19 @@ export interface LinkedWork {
   note: string;
   /** Renseigné quand le lien pointe vers un autre film de la collection. */
   filmId?: string | null;
+  /** Partagé par les deux moitiés d'un renvoi réciproque. */
+  pairId?: string;
 }
+
+/**
+ * Ce qu'on peut retoucher sur un fil déjà tendu.
+ *
+ * Un renvoi vers une fiche du mur n'accepte que `note` : son titre et son
+ * auteur appartiennent à CETTE fiche, et les réécrire ici ferait mentir la
+ * carte. C'est le modèle d'écriture, dans `App`, qui fait respecter la
+ * règle — le formulaire ne fait que ne pas la proposer.
+ */
+export type LinkPatch = Partial<Pick<LinkedWork, "type" | "title" | "creator" | "note">>;
 
 /** Une capture d'écran. L'image vit dans IndexedDB, la fiche n'en garde que la clé. */
 export interface Still {

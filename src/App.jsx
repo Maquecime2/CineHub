@@ -69,7 +69,7 @@ import {
 import { C, FONT_IMPORT, GRAIN } from "./theme/tokens";
 import { tapeColor, hueOf } from "./theme/ink";
 import { hash, seededRand, tiltOf, usesPin, nudgeOf, fileNoOf, tornClip } from "./domain/seeded";
-import { uid, makeFilm, migrate } from "./domain/film";
+import { uid, makeFilm, migrate, editLinkedWork } from "./domain/film";
 import { slugOf, filmKey, parseRating, parseLetterboxdCsv, diffImport } from "./domain/importing";
 import { workKey, buildSky, relax } from "./domain/sky";
 import { store } from "./services/storage";
@@ -225,6 +225,12 @@ export default function App() {
       )
     );
   };
+
+  /* Retoucher un fil déjà tendu. La règle — ce qu'un lien accepte qu'on
+     réécrive, et ce que sa moitié réciproque en reçoit — vit dans le
+     domaine, où elle se teste sans monter d'écran. */
+  const editLink = (ownerId, workId, patch) =>
+    saveFilms(editLinkedWork(films, ownerId, workId, patch));
 
   /* Défaire un lien : la moitié réciproque part avec lui. */
   const removeLink = (ownerId, workId) => {
@@ -435,6 +441,7 @@ export default function App() {
             onDelete={deleteFilm}
             onLinkFilm={linkFilms}
             onRemoveLink={removeLink}
+            onEditLink={editLink}
             onOpen={(id) => setSelectedId(id)}
           />
         )}
