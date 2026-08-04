@@ -7,8 +7,10 @@ import {
   belongs,
   makeCat,
   makeDecor,
+  makeWallDecor,
   reconcileView,
   moveItem,
+  pinToWall,
   patchRow,
   addRow,
   removeRow,
@@ -28,9 +30,14 @@ import {
   MARK_H,
   themeOf,
   DECOR_BY_KEY,
+  isWallMotif,
 } from "./constants";
 import { DropMark } from "./items";
 import { Shelf, ReserveDrawer, CasePreview, DecorCabinet, ItemPalette } from "./layout";
+
+/* Ce qui s'accroche plutôt que de se poser — la question que se posent
+   tous les gestionnaires de glissement avant de faire quoi que ce soit. */
+const hangs = (drag) => drag?.type === "wall";
 
 export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) {
   /* Un glissement ne change AUCUN état React. C'était le dernier retard
@@ -242,9 +249,18 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
   }, []);
 
   /* Sortir un décor du cabinet, c'est le FAIRE, pas le déplacer : il
-     n'existe nulle part tant qu'on ne l'a pas lâché. */
+     n'existe nulle part tant qu'on ne l'a pas lâché. Le motif décide de
+     sa famille, et sa famille décide de tout le reste : un objet mural
+     ignore les fentes entre les boîtiers et ne connaît que le fond du
+     rayon. */
   const onDecorDragStart = useCallback((motif, node) => {
-    dragRef.current = { type: "decor", id: null, node, create: makeDecor({ motif }) };
+    const wall = isWallMotif(motif);
+    dragRef.current = {
+      type: wall ? "wall" : "decor",
+      id: null,
+      node,
+      create: wall ? makeWallDecor({ motif }) : makeDecor({ motif }),
+    };
     document.documentElement.dataset.dragging = "1";
   }, []);
 
@@ -320,7 +336,7 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
   /* `dragover` tire en continu tant que la souris bouge, et même immobile. */
   const onBoxOver = useCallback((e, ctx) => {
     const drag = dragRef.current;
-    if (!drag) return;
+    if (!drag || hangs(drag)) return;
     e.preventDefault();
     e.stopPropagation();
     const wrap = e.currentTarget;
@@ -338,7 +354,7 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
   /* Le corps d'une catégorie : on entre DANS la boîte, à la suite. */
   const onCatOver = useCallback((e, ctx) => {
     const drag = dragRef.current;
-    if (!drag) return;
+    if (!drag || hangs(drag)) return;
     e.preventDefault();
     e.stopPropagation();
     const wrap = e.currentTarget;
@@ -362,7 +378,7 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
 
   /* Le vide d'une rangée : à la suite de ce qui s'y trouve déjà. */
   const onRowOver = useCallback((e, ctx) => {
-    if (!dragRef.current) return;
+    if (!dragRef.current || hangs(dragRef.current)) return;
     e.preventDefault();
     e.stopPropagation();
     const o = overRef.current;
@@ -387,7 +403,7 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
   /* La couture entre deux rangées : y lâcher quelque chose ouvre une
      rangée neuve. Le repère se couche pour le dire. */
   const onSeamOver = useCallback((e, kind, afterRowId) => {
-    if (!dragRef.current) return;
+    if (!dragRef.current || hangs(dragRef.current)) return;
     e.preventDefault();
     e.stopPropagation();
     if (overRef.current.afterRowId === afterRowId) return;
@@ -407,9 +423,30 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
      touche qu'un document — celui de la vue. Ce que le film garde en
      propre, ce sont ses drapeaux : ils disent SUR QUEL rayon il est, et
      ils valent pour toutes les vues à la fois. */
-  const drop = (kind) => {
+  const drop = (kind, e, onWall = false) => {
     const drag = dragRef.current;
     if (!drag || !view) return reset();
+
+    /* Un objet mural ne se dépose pas dans une rangée. Le `drop` d'une
+       rangée le voit passer d'abord — il est plus profond dans l'arbre —
+       et doit le LAISSER MONTER : sans ce retour, un cadre lâché juste
+       au-dessus d'un boîtier se rangerait entre deux tranches. On ne
+       réinitialise donc rien ici, le glissement n'est pas fini. */
+    if (hangs(drag)) {
+      if (!onWall) return;
+      const r = e.currentTarget.getBoundingClientRect();
+      /* En pourcentages, et bornés : le rayon change de hauteur dès
+         qu'on lui ajoute une ligne, et un objet accroché au bord finirait
+         par sortir du cadre. */
+      const pct = (v, span) => Math.max(3, Math.min(97, (v / span) * 100));
+      const next = pinToWall(view, kind, drag.create ? { create: drag.create } : { id: drag.id }, {
+        x: pct(e.clientX - r.left, r.width),
+        y: pct(e.clientY - r.top, r.height),
+      });
+      if (next !== view) onDoc(next);
+      return reset();
+    }
+
     const o = overRef.current;
 
     let target;
@@ -461,6 +498,9 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     onOpen: setPreview,
     onEditCat: setEditCat,
     onEditDecor: setEditDecor,
+    /* Nommer un carton se fait SUR le carton, sans ouvrir de panneau :
+       c'est une écriture directe, comme l'onglet d'une catégorie. */
+    onDecorLabel: (id, label) => acts.setDecor(id, { label }),
   };
 
   return (
@@ -473,6 +513,7 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
       <Shelf
         kind="chevet"
         shelf={view.shelves.chevet}
+        wall={view.shelves.chevet.wall}
         count={countOf("chevet")}
         onCabinet={setCabinet}
         {...shared}
@@ -480,6 +521,7 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
       <Shelf
         kind="main"
         shelf={view.shelves.main}
+        wall={view.shelves.main.wall}
         count={countOf("main")}
         onCabinet={setCabinet}
         {...shared}
@@ -559,9 +601,16 @@ const findCatIn = (view, id) => {
 };
 
 const findDecorIn = (view, id) => {
-  for (const k of SHELF_KINDS)
-    for (const row of view.shelves[k].rows)
-      for (const it of row.items) if (it.t === "d" && it.id === id) return it;
+  for (const k of SHELF_KINDS) {
+    for (const it of view.shelves[k].wall || []) if (it.id === id) return it;
+    for (const row of view.shelves[k].rows) {
+      for (const it of row.items) {
+        if (it.t === "d" && it.id === id) return it;
+        if (it.t === "c")
+          for (const sub of it.items) if (sub.t === "d" && sub.id === id) return sub;
+      }
+    }
+  }
   return null;
 };
 

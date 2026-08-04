@@ -271,6 +271,12 @@ function ViewSwitcher({
   );
 }
 
+/** La décennie d'un film — `null` quand l'année manque. */
+const decadeOf = (f) => {
+  const y = Number(f.year);
+  return Number.isFinite(y) && y > 0 ? Math.floor(y / 10) * 10 : null;
+};
+
 export function LibraryView({
   films,
   onOpen,
@@ -290,11 +296,12 @@ export function LibraryView({
   const cfg = WALLS[wall];
   /* Recherche, filtre et tri vivent dans App : ouvrir un film démonte cette
      vue, et un état local serait perdu au retour au mur. */
-  const { q, genreFilter, sortBy, desc, grouped } = ui;
+  const { q, genreFilter, decadeFilter = null, sortBy, desc, grouped } = ui;
   const mode = ui.mode === "shelf" ? "shelf" : "wall";
   const set = (patch) => setUi({ ...ui, ...patch });
   const setQ = (v) => set({ q: v });
   const setGenreFilter = (v) => set({ genreFilter: v });
+  const setDecadeFilter = (v) => set({ decadeFilter: v });
   const setGrouped = (fn) => set({ grouped: typeof fn === "function" ? fn(grouped) : fn });
   // recliquer le tri actif inverse simplement le sens
   const pickSort = (k) => set(k === sortBy ? { desc: !desc } : { sortBy: k, desc: true });
@@ -302,6 +309,24 @@ export function LibraryView({
   const allGenres = useMemo(
     () => Array.from(new Set(films.flatMap((f) => f.genres || []))).sort(),
     [films]
+  );
+
+  /* Les décennies ne sont pas une liste fixe : on n'offre que celles que
+     la collection contient réellement, de la plus ancienne à la plus
+     récente. Un film sans année n'en a aucune — il disparaît dès qu'on
+     choisit une décennie, et c'est bien ce qu'on demande. */
+  const allDecades = useMemo(
+    () => Array.from(new Set(films.map(decadeOf).filter((d) => d !== null))).sort((a, b) => a - b),
+    [films]
+  );
+
+  /* Genre et décennie se cumulent : ce sont deux tamis posés l'un sur
+     l'autre, et non deux boutons qui se disputent la liste. */
+  const passesFilters = useCallback(
+    (f) =>
+      (!genreFilter || (f.genres || []).includes(genreFilter)) &&
+      (decadeFilter === null || decadeOf(f) === decadeFilter),
+    [genreFilter, decadeFilter]
   );
 
   /* Un film mis de côté n'a rien à faire sur le mur : c'est justement ce
@@ -329,22 +354,25 @@ export function LibraryView({
   );
 
   const dimSet = useMemo(() => {
-    if (mode !== "shelf" || (!q && !genreFilter)) return null;
-    return new Set(
-      scope
-        .filter((f) => matches(f) && (!genreFilter || (f.genres || []).includes(genreFilter)))
-        .map((f) => f.id)
-    );
-  }, [mode, q, genreFilter, scope, matches]);
+    if (mode !== "shelf" || (!q && !genreFilter && decadeFilter === null)) return null;
+    return new Set(scope.filter((f) => matches(f) && passesFilters(f)).map((f) => f.id));
+  }, [mode, q, genreFilter, decadeFilter, scope, matches, passesFilters]);
 
   /* Ranger l'étagère d'un geste. Le tri n'est plus un état qui se battrait
      avec les catégories : c'est un verbe qui réécrit l'agencement une
      fois, puis s'efface. Les catégories et les objets posés gardent leur
      place ; seuls les films circulent. */
+  /* Un rangement se relit dans les deux sens : recliquer le même verbe
+     retourne la rangée plutôt que de la refaire à l'identique. */
+  const arrangedBy = ui.arrangedBy ?? null;
+  const arrangedDesc = ui.arrangedDesc !== false;
+
   const arrangeBy = (key) => {
     if (!shelfView) return;
+    const nextDesc = key === arrangedBy ? !arrangedDesc : true;
+    const sign = nextDesc ? 1 : -1;
     const by = new Map(films.map((f) => [f.id, f]));
-    const cmp = (x, y) => {
+    const base = (x, y) => {
       const a = by.get(x.id),
         b = by.get(y.id);
       if (!a || !b) return 0;
@@ -359,9 +387,11 @@ export function LibraryView({
               ? (b.rating || 0) - (a.rating || 0)
               : (b.addedAt || 0) - (a.addedAt || 0);
     };
+    const cmp = (x, y) => sign * base(x, y);
     let next = shelfView;
     for (const k of SHELF_KINDS) next = sortIntoRows(next, k, cmp);
     onShelfView(next);
+    set({ arrangedBy: key, arrangedDesc: nextDesc });
   };
 
   const ARRANGE = [
@@ -378,8 +408,7 @@ export function LibraryView({
         !q ||
         f.title.toLowerCase().includes(q.toLowerCase()) ||
         (f.director || "").toLowerCase().includes(q.toLowerCase());
-      const mg = !genreFilter || (f.genres || []).includes(genreFilter);
-      return mq && mg;
+      return mq && passesFilters(f);
     });
     return [...list].sort((a, b) => {
       const cmp =
@@ -401,7 +430,7 @@ export function LibraryView({
                   : (b.addedAt || 0) - (a.addedAt || 0);
       return desc ? cmp : -cmp;
     });
-  }, [scope, q, genreFilter, sortBy, desc]);
+  }, [scope, q, passesFilters, sortBy, desc]);
 
   /* Le regroupement par réalisateur : une pile de fiches par cinéaste, les
      plus fréquentés d'abord — c'est là que se lisent les habitudes. */
@@ -534,6 +563,35 @@ export function LibraryView({
             })}
           </div>
         </div>
+        {allDecades.length > 0 && (
+          <div>
+            <Label>Décennie</Label>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {allDecades.map((d) => {
+                const on = decadeFilter === d;
+                return (
+                  <button
+                    key={d}
+                    onClick={() => setDecadeFilter(on ? null : d)}
+                    style={{
+                      all: "unset",
+                      cursor: "pointer",
+                      fontFamily: "'Special Elite', monospace",
+                      fontSize: 10.5,
+                      padding: "4px 9px",
+                      border: `1px solid ${on ? C.ink : C.line}`,
+                      color: on ? C.card : C.inkFaded,
+                      background: on ? C.ink : "transparent",
+                      transform: `rotate(${(Math.abs(hash(String(d))) % 3) - 1}deg)`,
+                    }}
+                  >
+                    {d}s
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
         <div>
           {/* Sur le mur, trier est un état. Sur l'étagère, l'agencement EST
               l'état : ranger devient un geste qu'on donne une fois. */}
@@ -551,14 +609,21 @@ export function LibraryView({
                   <span
                     key={k}
                     onClick={() => arrangeBy(k)}
-                    title="Réécrit l'agencement de cette vue"
+                    title={
+                      arrangedBy === k
+                        ? "cliquer pour inverser"
+                        : "Réécrit l'agencement de cette vue"
+                    }
                     style={{
                       cursor: "pointer",
-                      color: C.inkFaded,
+                      color: arrangedBy === k ? C.burgundy : C.inkFaded,
                       borderBottom: `1px dashed ${C.line}`,
                     }}
                   >
                     {l}
+                    {arrangedBy === k && (
+                      <span style={{ marginLeft: 3 }}>{arrangedDesc ? "↓" : "↑"}</span>
+                    )}
                   </span>
                 ))
               : cfg.sorts.map(([k, l]) => (

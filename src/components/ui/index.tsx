@@ -1,7 +1,8 @@
 /* ============================================================
    PRIMITIVES — les petites pièces réemployées d'une vue à l'autre.
    ============================================================ */
-import type { ReactNode } from "react";
+import { useState } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { Star } from "lucide-react";
 import { C } from "../../theme/tokens";
 
@@ -66,4 +67,54 @@ export function Label({ children }: { children: ReactNode }) {
     </div>
   );
 }
+/* Un champ qui se lit comme une liste séparée par des virgules.
+
+   Naïvement, on rendait `value={liste.join(", ")}` et on renvoyait le
+   découpage à chaque frappe. Mais taper la virgule produit un dernier
+   morceau vide, que le découpage jette : le `join` recomposait aussitôt
+   la même chaîne SANS la virgule, et le curseur reculait d'un cran. Il
+   devenait impossible d'ouvrir un second genre.
+
+   On garde donc le TEXTE tel qu'il est tapé tant que le champ est vivant,
+   et on ne renvoie la liste que découpée à côté. La chaîne ne se
+   recompose depuis la liste que lorsque celle-ci change par ailleurs
+   (TMDB qui remplit la fiche, une remise à zéro du formulaire). */
+export function CommaInput({
+  value,
+  onChange,
+  style,
+  placeholder,
+}: {
+  value: string[];
+  onChange: (v: string[]) => void;
+  style?: CSSProperties;
+  placeholder?: string;
+}) {
+  const joined = value.join(", ");
+  const [text, setText] = useState(joined);
+  const [seen, setSeen] = useState(joined);
+  if (joined !== seen) {
+    setSeen(joined);
+    setText(joined);
+  }
+  return (
+    <input
+      style={style}
+      value={text}
+      placeholder={placeholder}
+      onChange={(e) => {
+        const raw = e.target.value;
+        setText(raw);
+        const list = raw
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        setSeen(list.join(", "));
+        onChange(list);
+      }}
+      onBlur={() => setText(value.join(", "))}
+    />
+  );
+}
+
 export { Tally } from "./Tally";

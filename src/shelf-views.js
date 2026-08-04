@@ -154,6 +154,17 @@ export const makeDecor = ({ id, motif, size = 1, color = "ochre", label = "" } =
   label,
 });
 
+/* Un décor ACCROCHÉ. Même objet qu'un décor posé, à deux nombres près :
+   il ne vit pas dans une rangée mais sur le fond du rayon, et il lui
+   faut donc une place à lui. `x` et `y` sont des POURCENTAGES du cadre
+   du rayon — un rayon qui gagne une ligne, une fenêtre qu'on rétrécit,
+   et l'objet garde sa place relative au lieu de sortir du cadre. */
+export const makeWallDecor = ({ id, motif, size = 1, color = "ochre", x = 50, y = 30 } = {}) => ({
+  ...makeDecor({ id, motif, size, color }),
+  x,
+  y,
+});
+
 export const filmItem = (id) => ({ t: "f", id });
 
 /* Un rayon neuf : une rangée pour ranger, et la rangée d'arrivée qui
@@ -162,6 +173,10 @@ export const filmItem = (id) => ({ t: "f", id });
    nulle part où apparaître et deviendrait invisible. */
 export const makeShelf = () => ({
   rows: [makeRow({ perRow: DEFAULT_CAP }), makeRow({ kind: "unplaced" })],
+  /* Ce qui est accroché au fond. Un rayon d'avant les objets muraux n'a
+     pas ce tableau : partout où on le lit, on lit `shelf.wall || []`
+     plutôt que d'aller réécrire toutes les vues déjà enregistrées. */
+  wall: [],
 });
 
 export const makeView = ({
@@ -399,6 +414,43 @@ export function moveItem(view, drag, target) {
   return withRows(view, shelves, kind, rows);
 }
 
+/* ACCROCHER — l'autre dépôt.
+
+   Un objet mural ne s'insère pas entre deux voisins : il n'a pas de
+   voisins. Il ne connaît qu'un rayon et un point, et c'est pourquoi il
+   ne passe pas par `moveItem` — l'index, la couture, la boîte, la
+   rangée d'arrivée, rien de tout cela n'a de sens pour lui. Le décrocher
+   d'un rayon pour le raccrocher à un autre reste possible : on le retire
+   de tous les murs avant de le poser sur le sien.
+
+   `drag` : { id } pour un déplacement, { create } pour un objet qui sort
+   du cabinet et n'existe pas encore. */
+export function pinToWall(view, kind, drag, at) {
+  const shelves = {};
+  let moved = drag.create || null;
+
+  for (const k of SHELF_KINDS) {
+    const shelf = view.shelves[k];
+    const wall = shelf.wall || [];
+    // un objet déjà accroché ne l'est qu'à un seul mur : le premier trouvé
+    const found = moved ? null : wall.find((it) => it.id === drag.id);
+    if (!found) {
+      shelves[k] = shelf;
+      continue;
+    }
+    moved = found;
+    shelves[k] = { ...shelf, wall: wall.filter((it) => it !== found) };
+  }
+  if (!moved) return view;
+
+  const target = shelves[kind];
+  const hung = { ...moved, x: at.x, y: at.y };
+  return {
+    ...view,
+    shelves: { ...shelves, [kind]: { ...target, wall: [...(target.wall || []), hung] } },
+  };
+}
+
 const replaceRow = (rows, at, row) => {
   const out = [...rows];
   out[at] = row;
@@ -606,6 +658,18 @@ const mapDecorIn = (items, id, edit) => {
 
 const withDecor = (view, id, edit) => {
   for (const kind of SHELF_KINDS) {
+    /* Le mur d'abord : c'est un tableau plat, et le même `edit` y
+       travaille sans rien savoir de plus. Sans cette passe, retoucher la
+       couleur d'un cadre accroché ne trouvait rien et ne disait rien. */
+    const shelf = view.shelves[kind];
+    const wall = shelf.wall || [];
+    const hung = edit(wall);
+    if (hung !== wall) {
+      return {
+        ...view,
+        shelves: { ...view.shelves, [kind]: { ...shelf, wall: hung } },
+      };
+    }
     for (const row of view.shelves[kind].rows) {
       const items = mapDecorIn(row.items, id, edit);
       if (items === row.items) continue;

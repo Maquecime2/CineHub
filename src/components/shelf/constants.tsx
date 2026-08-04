@@ -8,10 +8,23 @@
    rayon, c'est lui donner son statut, pas seulement sa place.
    ============================================================ */
 import type { ComponentType, CSSProperties } from "react";
-import { Paperclip, Sparkles, Moon, Clapperboard, Archive } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import { C } from "../../theme/tokens";
-import { CoffeeRing, Tape, TapeResidue, PushPin, InkUnderline } from "../atmosphere";
+import {
+  Plant,
+  Cactus,
+  Statuette,
+  Cat,
+  Candle,
+  Mug,
+  Clock,
+  Books,
+  Frame,
+  Postcard,
+  WallClock,
+  Garland,
+  Pennant,
+  Ivy,
+} from "./objects";
 import type { Film, ShelfKind } from "../../types";
 
 interface ShelfKindConfig {
@@ -98,10 +111,20 @@ export const THEMES = {
 };
 export const themeOf = (key: string) => THEMES[key as keyof typeof THEMES] || THEMES.kraft;
 
-/* Le cabinet de curiosités : ce qu'on peut poser sur une planche à côté
-   des boîtiers. Six des dix motifs sont les décors que la maison dessine
-   déjà ailleurs — d'où un rayon qui ne ressemble pas à une planche
-   d'icônes rapportée. Les quatre autres viennent de lucide, déjà importé. */
+/* LE CABINET DE CURIOSITÉS — ce qu'on met sur une étagère et qui n'est
+   pas un film.
+
+   Les premiers motifs étaient les décors que la maison dessine ailleurs
+   — tache de café, bout de scotch, punaise — et quatre pictogrammes
+   lucide. Les uns disaient « papeterie », les autres « planche
+   d'icônes », et aucun ne disait ce qu'on pose vraiment sur une
+   étagère. Ce sont maintenant des objets du quotidien, dessinés à la
+   main dans `objects.jsx`.
+
+   Deux familles, et c'est le motif qui décide : ce qui se POSE tient
+   debout sur une planche, au milieu des boîtiers ; ce qui s'ACCROCHE se
+   punaise au fond du rayon, où l'on veut, et ne prend la place de
+   personne. */
 interface DecorType {
   key: string;
   label: string;
@@ -113,12 +136,12 @@ interface DecorType {
      dont il dispose. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   draw?: ComponentType<any>;
-  /** Ou un pictogramme lucide, pour les motifs qu'on ne dessine pas. */
-  icon?: LucideIcon;
   /** Se dresse à la hauteur d'un boîtier plutôt qu'en carré. */
   tall?: boolean;
   /** Porte un nom, et ouvre donc un champ texte dans son panneau. */
   writes?: boolean;
+  /** S'accroche au fond du rayon au lieu de se poser sur une planche. */
+  wall?: boolean;
 }
 
 export const DECOR_TYPES: DecorType[] = [
@@ -139,17 +162,31 @@ export const DECOR_TYPES: DecorType[] = [
      `writes` : seul motif à porter un nom, donc seul à ouvrir un champ
      texte dans son panneau. */
   { key: "divider", label: "Intercalaire", tall: true, writes: true },
-  { key: "coffee", label: "Tache de café", draw: CoffeeRing },
-  { key: "tape", label: "Bout de scotch", draw: Tape },
-  { key: "residue", label: "Résidu de scotch", draw: TapeResidue },
-  { key: "pin", label: "Punaise", draw: PushPin },
-  { key: "underline", label: "Trait d'encre", draw: InkUnderline },
-  { key: "clip", label: "Trombone", icon: Paperclip },
-  { key: "star", label: "Étoile", icon: Sparkles },
-  { key: "moon", label: "Lune", icon: Moon },
-  { key: "clap", label: "Clap", icon: Clapperboard },
-  { key: "archive", label: "Carton", icon: Archive },
+
+  // ce qui se pose
+  { key: "plant", label: "Plante verte", draw: Plant },
+  { key: "cactus", label: "Cactus", draw: Cactus },
+  { key: "statuette", label: "Statuette", draw: Statuette },
+  { key: "cat", label: "Chat en céramique", draw: Cat },
+  { key: "candle", label: "Bougie", draw: Candle },
+  { key: "mug", label: "Tasse", draw: Mug },
+  { key: "clock", label: "Réveil", draw: Clock },
+  { key: "books", label: "Pile de livres", draw: Books },
+
+  // ce qui s'accroche
+  { key: "frame", label: "Cadre photo", draw: Frame, wall: true },
+  { key: "postcard", label: "Carte postale", draw: Postcard, wall: true },
+  { key: "wallclock", label: "Horloge", draw: WallClock, wall: true },
+  { key: "garland", label: "Guirlande", draw: Garland, wall: true },
+  { key: "pennant", label: "Fanions", draw: Pennant, wall: true },
+  { key: "ivy", label: "Lierre suspendu", draw: Ivy, wall: true },
 ];
+
+/* Les deux familles, prêtes à afficher : le cabinet les présente sous
+   deux intitulés, parce qu'on ne les pose pas du même geste. */
+export const SHELF_DECOR = DECOR_TYPES.filter((d) => !d.wall);
+export const WALL_DECOR = DECOR_TYPES.filter((d) => d.wall);
+export const isWallMotif = (motif: string): boolean => !!DECOR_BY_KEY[motif]?.wall;
 export const DECOR_BY_KEY: Record<string, DecorType> = Object.fromEntries(
   DECOR_TYPES.map((d) => [d.key, d])
 );

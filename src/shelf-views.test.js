@@ -8,6 +8,8 @@ import {
   makeRow,
   makeCat,
   makeDecor,
+  makeWallDecor,
+  pinToWall,
   filmItem,
   isUnplaced,
   reconcileView,
@@ -574,6 +576,54 @@ describe("un décor dans une catégorie", () => {
     // les films sont les mêmes films ; le bibelot, lui, est un autre bibelot
     expect(inner[0].id).toBe("f1");
     expect(inner[1].id).not.toBe("d1");
+  });
+});
+
+describe("les objets accrochés au mur", () => {
+  const wallOf = (view, kind = "main") => view.shelves[kind].wall || [];
+
+  it("accroche au point qu'on lui donne, sans toucher aux rangées", () => {
+    const v = makeView();
+    const before = rowsOf(v, "main");
+    const next = pinToWall(
+      v,
+      "main",
+      { create: makeWallDecor({ motif: "frame" }) },
+      { x: 20, y: 40 }
+    );
+    expect(wallOf(next)).toHaveLength(1);
+    expect(wallOf(next)[0]).toMatchObject({ motif: "frame", x: 20, y: 40 });
+    expect(rowsOf(next, "main")).toBe(before);
+  });
+
+  it("décroche d'un rayon pour raccrocher à l'autre, sans se dédoubler", () => {
+    let v = pinToWall(
+      makeView(),
+      "main",
+      { create: makeWallDecor({ id: "w1", motif: "frame" }) },
+      { x: 10, y: 10 }
+    );
+    v = pinToWall(v, "chevet", { id: "w1" }, { x: 80, y: 60 });
+    expect(wallOf(v, "main")).toHaveLength(0);
+    expect(wallOf(v, "chevet")).toEqual([expect.objectContaining({ id: "w1", x: 80, y: 60 })]);
+  });
+
+  it("se laisse retoucher et retirer comme un décor posé", () => {
+    let v = pinToWall(
+      makeView(),
+      "main",
+      { create: makeWallDecor({ id: "w1", motif: "frame" }) },
+      { x: 10, y: 10 }
+    );
+    v = patchDecor(v, "w1", { color: "cobalt" });
+    expect(wallOf(v)[0].color).toBe("cobalt");
+    v = removeDecor(v, "w1");
+    expect(wallOf(v)).toHaveLength(0);
+  });
+
+  it("ne bouge pas quand on lui donne un id qu'aucun mur ne porte", () => {
+    const v = makeView();
+    expect(pinToWall(v, "main", { id: "personne" }, { x: 5, y: 5 })).toBe(v);
   });
 });
 

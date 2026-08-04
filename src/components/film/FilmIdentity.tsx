@@ -7,16 +7,10 @@ import { useState } from "react";
 import { Check, Pencil, X } from "lucide-react";
 import { C } from "../../theme/tokens";
 import { underlineInput } from "../../theme/styles";
-import { Label } from "../ui";
+import { CommaInput, Label } from "../ui";
 import { store } from "../../services/storage";
 import { searchMovie, getDetails } from "../../tmdb";
 import type { Film, Year } from "../../types";
-
-const commaList = (v: string) =>
-  v
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
 
 const tinyButton = (ink: string) => ({
   all: "unset" as const,
@@ -181,10 +175,10 @@ export function FilmIdentity({ film, onUpdate }: { film: Film; onUpdate: (f: Fil
       </div>
       <div style={{ marginTop: 10 }}>
         <Label>Genres (virgules)</Label>
-        <input
+        <CommaInput
           style={underlineInput}
-          value={draft.genres.join(", ")}
-          onChange={(e) => set("genres", commaList(e.target.value))}
+          value={draft.genres}
+          onChange={(v) => set("genres", v)}
           placeholder="Drame, Science-fiction"
         />
       </div>

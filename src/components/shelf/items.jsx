@@ -262,6 +262,43 @@ export const withBreaks = (nodes, cap) => {
   return out;
 };
 
+/* L'INCLINAISON D'UN CARTON DRESSÉ.
+
+   Un carton planté ne gît pas de travers comme un bibelot posé : il
+   s'APPUIE. C'est ce qui le distingue d'une cloison d'imprimerie, et
+   c'est aussi ce qui le fait lire comme du carton plutôt que comme un
+   trait tracé à la règle.
+
+   Deux raisons de ne pas lui donner le guingois entier des autres
+   décors. La première tient à sa hauteur : ±4,5° sur quarante-six
+   pixels ne se remarque pas, mais sur cent quarante-quatre le sommet
+   part à onze pixels de son pied et le carton a l'air de tomber. La
+   seconde est qu'il sépare : ce qui sépare doit rester lisible comme une
+   verticale, sinon la rangée entière semble de guingois.
+
+   Mais la moitié du guingois ne suffisait pas non plus, parce que le
+   hasard est SEMÉ : `tiltOf` peut rendre une valeur voisine de zéro, et
+   ce carton-là se dressait parfaitement droit — c'est ce qu'on voyait.
+   On garde donc la variation, qui donne à chaque carton sa main propre,
+   mais on l'éloigne de zéro : au moins un degré et deux dixièmes, jamais
+   plus de deux et deux. Le sommet dérive de trois à six pixels — assez
+   pour qu'on voie qu'il s'appuie, trop peu pour qu'on croie qu'il glisse.
+
+   Les deux bornes tiennent sur une décimale, comme l'angle qu'on écrit :
+   une borne plus fine que l'arrondi serait franchie par l'arrondi
+   lui-même, et ne bornerait donc rien.
+
+   Il pivote sur son pied (`transformOrigin: bottom center`, plus bas),
+   comme un vrai carton calé contre les tranches voisines. */
+const LEAN_MIN = 1.2,
+  LEAN_MAX = 2.2;
+
+export const leanOf = (id) => {
+  const t = Number(tiltOf(id)) / 2;
+  const side = t < 0 ? -1 : 1;
+  return (side * Math.min(Math.max(Math.abs(t), LEAN_MIN), LEAN_MAX)).toFixed(1);
+};
+
 /* Un décor posé sur la planche : il se glisse, se déplace et s'enlève
    comme un boîtier, mais ne dit rien d'un film. Six des motifs sont les
    décors que la maison dessine déjà ailleurs ; le reste vient de lucide. */
@@ -272,14 +309,33 @@ export const DecorItem = React.memo(function DecorItem({
   onDragEnd,
   onDragOverBox,
   onEdit,
+  onLabel,
 }) {
   const spec = DECOR_BY_KEY[item.motif];
+  const [writing, setWriting] = useState(false);
+  const [hover, setHover] = useState(false);
+  const [draft, setDraft] = useState(item.label || "");
+  useEffect(() => {
+    setDraft(item.label || "");
+  }, [item.label]);
+
   const ink = catInk(item.color);
   const s = item.size || 1;
   const box = Math.round(46 * s);
   if (!spec) return null;
-  const Draw = spec.draw,
-    Icon = spec.icon;
+  const Draw = spec.draw;
+
+  /* Un carton se nomme SUR le carton. Le panneau savait déjà le faire,
+     mais il fallait l'ouvrir pour le découvrir — et un carton vierge ne
+     dit pas qu'il attend un nom. C'est le geste de la catégorie, dont on
+     écrit l'onglet là où on le lit ; la palette reste à côté, pour ce
+     qui n'est pas du texte. */
+  const writes = !!spec.writes && !!onLabel;
+  const commit = () => {
+    setWriting(false);
+    const v = draft.trim();
+    if (v !== (item.label || "")) onLabel(item.id, v);
+  };
   return (
     <div
       data-shelf-item={item.id}
@@ -297,14 +353,25 @@ export const DecorItem = React.memo(function DecorItem({
         }}
       >
         <div
-          draggable
+          /* Un carton qu'on est en train d'écrire ne se glisse pas : le
+             `draggable` d'un ancêtre avale la sélection du texte et le
+             double-clic dans le champ déclenche un glissement. */
+          draggable={!writing}
           onDragStart={(e) => {
             e.dataTransfer.effectAllowed = "move";
             onDragStart("decor", item.id, e.currentTarget);
           }}
           onDragEnd={onDragEnd}
-          onClick={() => onEdit(item.id)}
-          title={spec.writes && item.label ? item.label : spec.label}
+          onClick={() => (writes ? setWriting(true) : onEdit(item.id))}
+          onMouseEnter={() => setHover(true)}
+          onMouseLeave={() => setHover(false)}
+          title={
+            writes
+              ? item.label || "Cliquez pour nommer cet intercalaire"
+              : spec.writes && item.label
+                ? item.label
+                : spec.label
+          }
           style={{
             position: "relative",
             width: spec.tall ? Math.round(26 * s) : box,
@@ -317,11 +384,7 @@ export const DecorItem = React.memo(function DecorItem({
             alignItems: "center",
             justifyContent: "center",
             overflow: "hidden",
-            /* Un carton planté ne gît pas de travers : il se DRESSE, et
-               c'est là tout ce qui le distingue d'un bibelot posé. On lui
-               laisse le quart du guingois des autres, assez pour qu'il
-               reste tracé à la main sans cesser de tenir debout. */
-            transform: `rotate(${spec.tall ? tiltOf(item.id) / 4 : tiltOf(item.id)}deg)`,
+            transform: `rotate(${spec.tall ? leanOf(item.id) : tiltOf(item.id)}deg)`,
             transformOrigin: "bottom center",
             userSelect: "none",
             WebkitUserSelect: "none",
@@ -343,36 +406,147 @@ export const DecorItem = React.memo(function DecorItem({
           {spec.tall ? (
             /* Le nom se lit à la verticale, de bas en haut : c'est ainsi
                qu'on lit une tranche dans une boîte d'archives, et la
-               seule façon d'écrire long sur vingt-six pixels de large. */
-            <span
+               seule façon d'écrire long sur vingt-six pixels de large.
+               Le champ reprend exactement la même écriture, pour qu'on
+               n'ait pas l'impression que le texte saute de place quand on
+               se met à l'écrire. */
+            writing ? (
+              <input
+                autoFocus
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onBlur={commit}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") commit();
+                  if (e.key === "Escape") {
+                    setDraft(item.label || "");
+                    setWriting(false);
+                  }
+                }}
+                onClick={(e) => e.stopPropagation()}
+                aria-label="Nom de l'intercalaire"
+                style={{
+                  all: "unset",
+                  boxSizing: "border-box",
+                  writingMode: "vertical-rl",
+                  transform: "rotate(180deg)",
+                  fontFamily: "'Special Elite', monospace",
+                  fontSize: Math.max(8, Math.round(10 * s)),
+                  letterSpacing: "0.08em",
+                  color: C.ink,
+                  height: "100%",
+                  padding: "6px 0",
+                  // le filet du champ longe la tranche, comme un trait au crayon
+                  borderLeft: `1px solid ${ink}`,
+                }}
+              />
+            ) : (
+              <span
+                style={{
+                  writingMode: "vertical-rl",
+                  transform: "rotate(180deg)",
+                  fontFamily: "'Special Elite', monospace",
+                  fontSize: Math.max(8, Math.round(10 * s)),
+                  letterSpacing: "0.08em",
+                  color: ink,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  maxHeight: "100%",
+                  padding: "6px 0",
+                  // un carton vierge annonce qu'il attend un nom
+                  ...(writes && !item.label ? { opacity: 0.45, fontStyle: "italic" } : null),
+                }}
+              >
+                {item.label || (writes ? "nommer" : "")}
+              </span>
+            )
+          ) : (
+            <Draw color={ink} style={{ width: "100%", height: "100%" }} />
+          )}
+
+          {/* La palette reste joignable : écrire prend le clic, mais la
+              couleur, la taille et le retrait sont ailleurs. Au pied du
+              carton, et seulement au survol — c'est le geste de l'onglet
+              d'une catégorie, qui porte le même bouton à côté de son
+              nom. */}
+          {writes && !writing && (
+            <button
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(item.id);
+              }}
+              title="Couleur, taille, retrait"
+              aria-label={`Réglages de « ${item.label || "sans nom"} »`}
               style={{
-                writingMode: "vertical-rl",
-                transform: "rotate(180deg)",
-                fontFamily: "'Special Elite', monospace",
-                fontSize: Math.max(8, Math.round(10 * s)),
-                letterSpacing: "0.08em",
+                all: "unset",
+                cursor: "pointer",
+                position: "absolute",
+                left: 0,
+                right: 0,
+                bottom: 2,
+                display: "flex",
+                justifyContent: "center",
                 color: ink,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                maxHeight: "100%",
-                padding: "6px 0",
+                // il répond au survol du CARTON : sur le sien, il resterait introuvable
+                opacity: hover ? 0.75 : 0,
+                transition: "opacity .15s ease",
               }}
             >
-              {item.label}
-            </span>
-          ) : Icon ? (
-            <Icon size={Math.round(26 * s)} color={ink} />
-          ) : (
-            <Draw
-              color={ink}
-              width={box}
-              w={box}
-              style={{ position: "relative", width: box, height: box }}
-            />
+              <Palette size={10} />
+            </button>
           )}
         </div>
       </div>
+    </div>
+  );
+});
+
+/* UN OBJET ACCROCHÉ — il ne pose sur rien.
+
+   Le décor posé vit dans le flux de sa rangée : il prend une place entre
+   deux boîtiers, et l'écartement le pousse comme les autres. Celui-ci
+   est punaisé au fond du rayon, à un point qu'on a choisi en le lâchant.
+   Il n'a donc ni enveloppe, ni écart, ni zone de dépôt — rien ne se
+   range à côté de lui.
+
+   Il est peint AVANT les rangées et sans `z-index` : les boîtiers, plus
+   loin dans le document, passent devant. C'est ce qui le met au fond
+   plutôt que par-dessus, et c'est aussi ce qu'on attend d'un cadre
+   accroché derrière une étagère. */
+export const WallItem = React.memo(function WallItem({ item, onDragStart, onDragEnd, onEdit }) {
+  const spec = DECOR_BY_KEY[item.motif];
+  if (!spec) return null;
+  const ink = catInk(item.color);
+  const box = Math.round(64 * (item.size || 1));
+  const Draw = spec.draw;
+  return (
+    <div
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = "move";
+        onDragStart("wall", item.id, e.currentTarget);
+      }}
+      onDragEnd={onDragEnd}
+      onClick={() => onEdit(item.id)}
+      title={spec.label}
+      style={{
+        position: "absolute",
+        left: `${item.x}%`,
+        top: `${item.y}%`,
+        width: box,
+        height: box,
+        marginLeft: -box / 2,
+        marginTop: -box / 2,
+        cursor: "pointer",
+        // accroché de travers, comme tout ce qu'on accroche
+        transform: `rotate(${tiltOf(item.id)}deg)`,
+        userSelect: "none",
+        WebkitUserSelect: "none",
+      }}
+    >
+      <Draw color={ink} style={{ width: "100%", height: "100%" }} />
     </div>
   );
 });
@@ -401,6 +575,7 @@ export const CategoryBox = React.memo(function CategoryBox({
   onOpen,
   onEdit,
   onEditDecor,
+  onDecorLabel,
   acts,
 }) {
   const [editing, setEditing] = useState(false);
@@ -431,6 +606,7 @@ export const CategoryBox = React.memo(function CategoryBox({
             item={it}
             ctx={ctx}
             onEdit={onEditDecor}
+            onLabel={onDecorLabel}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
             onDragOverBox={onDragOverBox}

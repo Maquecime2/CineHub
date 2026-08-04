@@ -299,6 +299,7 @@ export default function App() {
     const one = (wall) => ({
       q: "",
       genreFilter: "",
+      decadeFilter: null,
       grouped: false,
       sortBy: saved[wall]?.sortBy || WALLS[wall].defaultSort,
       desc: saved[wall]?.desc ?? true,

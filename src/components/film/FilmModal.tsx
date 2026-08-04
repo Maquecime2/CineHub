@@ -5,7 +5,7 @@ import { useState } from "react";
 import { X } from "lucide-react";
 import { C } from "../../theme/tokens";
 import { underlineInput, ruledTextarea } from "../../theme/styles";
-import { InkStars, Label } from "../ui";
+import { CommaInput, InkStars, Label } from "../ui";
 import { makeFilm } from "../../domain/film";
 import type { Film, FilmStatus } from "../../types";
 
@@ -13,12 +13,6 @@ const STATUSES: { k: FilmStatus; l: string }[] = [
   { k: "watched", l: "Film vu" },
   { k: "watchlist", l: "À voir" },
 ];
-
-const commaList = (v: string) =>
-  v
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
 
 export function FilmModal({ onClose, onSave }: { onClose: () => void; onSave: (f: Film) => void }) {
   const [f, setF] = useState<Film>(() => makeFilm());
@@ -106,19 +100,19 @@ export function FilmModal({ onClose, onSave }: { onClose: () => void; onSave: (f
         </div>
         <div style={{ marginTop: 16 }}>
           <Label>Genres (virgules)</Label>
-          <input
+          <CommaInput
             style={underlineInput}
-            value={f.genres.join(", ")}
-            onChange={(e) => set("genres", commaList(e.target.value))}
+            value={f.genres}
+            onChange={(v) => set("genres", v)}
             placeholder="Drame, Science-fiction"
           />
         </div>
         <div style={{ marginTop: 16 }}>
           <Label>Thèmes (virgules)</Label>
-          <input
+          <CommaInput
             style={underlineInput}
-            value={f.themes.join(", ")}
-            onChange={(e) => set("themes", commaList(e.target.value))}
+            value={f.themes}
+            onChange={(v) => set("themes", v)}
             placeholder="Mémoire, Solitude"
           />
         </div>

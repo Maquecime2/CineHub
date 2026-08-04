@@ -8,8 +8,8 @@ import { hash, fileNoOf } from "../../domain/seeded";
 import { PosterArt } from "../film/PosterArt";
 import { InkStars } from "../ui";
 import { isUnplaced, CAT_KEYS, addRow, removeRow, clearRow, addCat } from "../../shelf-views";
-import { SHELF_KIND, BOX_H, CAT_COLORS, DECOR_TYPES, DECOR_SIZES } from "./constants";
-import { FilmBox, DecorItem, CategoryBox, withBreaks } from "./items";
+import { SHELF_KIND, BOX_H, CAT_COLORS, SHELF_DECOR, WALL_DECOR, DECOR_SIZES } from "./constants";
+import { FilmBox, DecorItem, WallItem, CategoryBox, withBreaks } from "./items";
 
 const GutterAct = ({ label, onClick, ink = C.inkFaded }) => (
   <button
@@ -347,6 +347,7 @@ const ShelfRow = React.memo(function ShelfRow({
   onOpen,
   onEditCat,
   onEditDecor,
+  onDecorLabel,
   capMax,
   isLast,
   bare,
@@ -369,6 +370,7 @@ const ShelfRow = React.memo(function ShelfRow({
             onOpen={onOpen}
             onEdit={onEditCat}
             onEditDecor={onEditDecor}
+            onDecorLabel={onDecorLabel}
             onDragStart={dnd.onDragStart}
             onDragEnd={dnd.onDragEnd}
             onDragOverBox={dnd.onBoxOver}
@@ -383,6 +385,7 @@ const ShelfRow = React.memo(function ShelfRow({
             item={it}
             ctx={ctx}
             onEdit={onEditDecor}
+            onLabel={onDecorLabel}
             onDragStart={dnd.onDragStart}
             onDragEnd={dnd.onDragEnd}
             onDragOverBox={dnd.onBoxOver}
@@ -423,7 +426,7 @@ const ShelfRow = React.memo(function ShelfRow({
           onDragOver={(e) => dnd.onRowOver(e, ctx)}
           onDrop={(e) => {
             e.preventDefault();
-            dnd.onDrop(kind);
+            dnd.onDrop(kind, e);
           }}
           style={{
             position: "relative",
@@ -467,7 +470,7 @@ const ShelfRow = React.memo(function ShelfRow({
           onDragOver={(e) => dnd.onSeamOver(e, kind, row.id)}
           onDrop={(e) => {
             e.preventDefault();
-            dnd.onDrop(kind);
+            dnd.onDrop(kind, e);
           }}
           style={{ height: 10, marginLeft: bare ? 0 : 26 }}
         />
@@ -483,6 +486,7 @@ export function Shelf({
   title,
   tag,
   shelf,
+  wall = [],
   count,
   onOpen,
   dnd,
@@ -492,6 +496,7 @@ export function Shelf({
   dim,
   onEditCat,
   onEditDecor,
+  onDecorLabel,
   onCabinet,
 }) {
   const cfg = SHELF_KIND[kind];
@@ -573,7 +578,9 @@ export function Shelf({
         }}
         onDrop={(e) => {
           e.preventDefault();
-          dnd.onDrop(kind);
+          /* Le seul dépôt qui sache OÙ, au pixel près : c'est le cadre du
+             rayon qui sert de repère aux objets accrochés. */
+          dnd.onDrop(kind, e, true);
         }}
         style={{
           position: "relative",
@@ -601,6 +608,18 @@ export function Shelf({
             }}
           />
         )}
+        {/* Ce qui est accroché au fond, AVANT les rangées : les boîtiers
+            viennent ensuite dans le document et passent donc devant, sans
+            qu'aucun `z-index` ait à le dire. */}
+        {(wall || []).map((it) => (
+          <WallItem
+            key={it.id}
+            item={it}
+            onEdit={onEditDecor}
+            onDragStart={dnd.onDragStart}
+            onDragEnd={dnd.onDragEnd}
+          />
+        ))}
         {rows.map((row, i) => (
           <ShelfRow
             key={row.id}
@@ -614,6 +633,7 @@ export function Shelf({
             onOpen={onOpen}
             onEditCat={onEditCat}
             onEditDecor={onEditDecor}
+            onDecorLabel={onDecorLabel}
             isLast={i === rows.length - 1}
           />
         ))}
@@ -644,6 +664,7 @@ export function ReserveDrawer({
   onOpen,
   onEditCat,
   onEditDecor,
+  onDecorLabel,
 }) {
   const rows = shelf?.rows || [];
   const filled = rows.some((r) => r.items.length);
@@ -661,7 +682,7 @@ export function ReserveDrawer({
         }}
         onDrop={(e) => {
           e.preventDefault();
-          dnd.onDrop("reserve");
+          dnd.onDrop("reserve", e);
         }}
         title={open ? "Fermer le tiroir" : "Ouvrir les films mis de côté"}
         style={{
@@ -695,7 +716,7 @@ export function ReserveDrawer({
         }}
         onDrop={(e) => {
           e.preventDefault();
-          dnd.onDrop("reserve");
+          dnd.onDrop("reserve", e);
         }}
         style={{
           position: "fixed",
@@ -801,6 +822,7 @@ export function ReserveDrawer({
                 onOpen={onOpen}
                 onEditCat={onEditCat}
                 onEditDecor={onEditDecor}
+                onDecorLabel={onDecorLabel}
                 isLast={i === rows.length - 1}
                 /* Dans un tiroir de 250 px, le réglage par ligne n'a rien à
                  régler : la largeur décide. La rangée y va donc nue, ce
@@ -1050,6 +1072,84 @@ export function CasePreview({ film, onClose, onOpenFile }) {
 /* Le cabinet de curiosités : ce qu'on peut poser sur une planche. Chaque
    motif s'en tire au glisser — et ce glissement-là ne DÉPLACE rien, il
    CRÉE : l'objet n'existe pas encore quand on l'empoigne. */
+/* Une famille du cabinet. Il y en a deux et elles ne se posent pas du
+   même geste : l'une se glisse sur une planche, entre deux boîtiers ;
+   l'autre au fond du rayon, où l'on veut. Les mêlanger dans une seule
+   grille laissait l'utilisateur découvrir la différence en ratant son
+   dépôt. */
+const DecorFamily = ({ title = "À POSER", hint, types, onDragStart, onDragEnd }) => (
+  <>
+    <div
+      style={{
+        fontFamily: "'Special Elite', monospace",
+        fontSize: 8.5,
+        letterSpacing: 1,
+        color: C.inkFaded,
+        margin: "10px 0 3px",
+      }}
+    >
+      {title}
+    </div>
+    <div
+      style={{ fontFamily: "'Caveat', cursive", fontSize: 14, color: C.inkFaded, marginBottom: 6 }}
+    >
+      {hint}
+    </div>
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+      {types.map((d) => {
+        const Draw = d.draw;
+        return (
+          <div
+            key={d.key}
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.effectAllowed = "copy";
+              onDragStart(d.key, e.currentTarget);
+            }}
+            onDragEnd={onDragEnd}
+            title={d.label}
+            style={{
+              width: 46,
+              height: 46,
+              cursor: "grab",
+              flexShrink: 0,
+              overflow: "hidden",
+              border: `1px solid ${C.line}`,
+              background: C.paper,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {/* Un motif qui se DRESSE n'a pas de dessin : il est fait de
+                papier et de bordures, comme la boîte. Le cabinet en montre
+                donc une maquette, au lieu de chercher un composant qui
+                n'existe pas. */}
+            {d.tall ? (
+              <div
+                style={{
+                  width: 13,
+                  height: 34,
+                  background: `linear-gradient(160deg, ${C.paperDark}, #D8C69C)`,
+                  border: `1px solid ${C.line}`,
+                  borderBottom: "none",
+                  borderTop: `2px solid ${C.ochre}`,
+                  borderRadius: "2px 2px 0 0",
+                  boxShadow: "1px 1px 0 rgba(43,38,32,0.14)",
+                  alignSelf: "flex-end",
+                  marginBottom: 6,
+                }}
+              />
+            ) : (
+              <Draw color={C.ochre} style={{ width: 38, height: 38 }} />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  </>
+);
+
 export function DecorCabinet({ kind, onDragStart, onDragEnd, onClose }) {
   return (
     <>
@@ -1083,78 +1183,26 @@ export function DecorCabinet({ kind, onDragStart, onDragEnd, onClose }) {
             <X size={13} />
           </button>
         </div>
+        <DecorFamily
+          hint="glissez-les sur une planche, entre deux boîtiers"
+          types={SHELF_DECOR}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+        />
+        <DecorFamily
+          title="À ACCROCHER"
+          hint="glissez-les au fond du rayon, où vous voulez"
+          types={WALL_DECOR}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+        />
         <div
           style={{
             fontFamily: "'Caveat', cursive",
-            fontSize: 15,
+            fontSize: 14,
             color: C.inkFaded,
-            marginBottom: 8,
+            marginTop: 10,
           }}
-        >
-          glissez un objet sur une planche
-        </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          {DECOR_TYPES.map((d) => {
-            const Draw = d.draw,
-              Icon = d.icon;
-            return (
-              <div
-                key={d.key}
-                draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.effectAllowed = "copy";
-                  onDragStart(d.key, e.currentTarget);
-                }}
-                onDragEnd={onDragEnd}
-                title={d.label}
-                style={{
-                  width: 46,
-                  height: 46,
-                  cursor: "grab",
-                  flexShrink: 0,
-                  overflow: "hidden",
-                  border: `1px solid ${C.line}`,
-                  background: C.paper,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                {/* Un motif qui se DRESSE n'a ni dessin ni pictogramme :
-                    il est fait de papier et de bordures, comme la boîte.
-                    Le cabinet en montre donc une maquette, au lieu de
-                    chercher un composant qui n'existe pas. */}
-                {d.tall ? (
-                  <div
-                    style={{
-                      width: 13,
-                      height: 34,
-                      background: `linear-gradient(160deg, ${C.paperDark}, #D8C69C)`,
-                      border: `1px solid ${C.line}`,
-                      borderBottom: "none",
-                      borderTop: `2px solid ${C.ochre}`,
-                      borderRadius: "2px 2px 0 0",
-                      boxShadow: "1px 1px 0 rgba(43,38,32,0.14)",
-                      alignSelf: "flex-end",
-                      marginBottom: 6,
-                    }}
-                  />
-                ) : Icon ? (
-                  <Icon size={20} color={C.inkFaded} />
-                ) : (
-                  <Draw
-                    color={C.ochre}
-                    width={40}
-                    w={40}
-                    style={{ position: "relative", width: 40, height: 40 }}
-                  />
-                )}
-              </div>
-            );
-          })}
-        </div>
-        <div
-          style={{ fontFamily: "'Caveat', cursive", fontSize: 14, color: C.inkFaded, marginTop: 8 }}
         >
           rayon visé : {SHELF_KIND[kind]?.title || kind}
         </div>
