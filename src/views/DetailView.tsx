@@ -354,27 +354,34 @@ export function DetailView({
                 gap: 8,
               }}
             >
-              <button
-                onClick={() =>
-                  onUpdate({
-                    ...film,
-                    chevet: !film.chevet,
-                    archived: film.chevet ? film.archived : false,
-                  })
-                }
-                style={{
-                  all: "unset",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  fontFamily: "'Special Elite', monospace",
-                  fontSize: 10,
-                  color: film.chevet ? C.burgundy : C.inkFaded,
-                }}
-              >
-                <Moon size={12} /> {film.chevet ? "retirer des films de chevet" : "film de chevet"}
-              </button>
+              {/* Pas de chevet pour un film qu'on n'a pas vu : le rayon
+                  est celui qu'on revoit, et l'étagère de la watchlist ne
+                  l'ouvre pas. Le bouton n'y aurait rien changé de
+                  visible. */}
+              {film.status !== "watchlist" && (
+                <button
+                  onClick={() =>
+                    onUpdate({
+                      ...film,
+                      chevet: !film.chevet,
+                      archived: film.chevet ? film.archived : false,
+                    })
+                  }
+                  style={{
+                    all: "unset",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontFamily: "'Special Elite', monospace",
+                    fontSize: 10,
+                    color: film.chevet ? C.burgundy : C.inkFaded,
+                  }}
+                >
+                  <Moon size={12} />{" "}
+                  {film.chevet ? "retirer des films de chevet" : "film de chevet"}
+                </button>
+              )}
               <button
                 onClick={() =>
                   onUpdate({

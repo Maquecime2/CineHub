@@ -20,14 +20,24 @@ const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(
 export const SHELF_KINDS = ["chevet", "main", "reserve"];
 
 /* À quel rayon un film appartient. Repris tel quel de `ShelfBoard` : ce
-   sont les drapeaux du film, et eux seuls, qui en décident. */
+   sont les drapeaux du film, et eux seuls, qui en décident.
+
+   Sauf un cas, qui n'est pas une exception mais la définition du rayon :
+   « films de chevet », c'est CEUX QU'ON REVOIT. Un film qu'on n'a pas
+   encore vu ne peut pas en être. Le drapeau reste inscrit sur la fiche —
+   on ne le perd pas en mettant un film à voir — mais tant qu'il est à
+   voir, il se range dans la collection. Sans quoi la watchlist ouvrait
+   un rayon « ceux qu'on revoit » qui ne veut rien dire, et ShelfBoard,
+   qui le masque, y aurait perdu des films. */
+const revu = (f) => f.status !== "watchlist";
+
 export const belongs = {
-  chevet: (f) => f.chevet && !f.archived,
-  main: (f) => !f.chevet && !f.archived,
+  chevet: (f) => f.chevet && revu(f) && !f.archived,
+  main: (f) => (!f.chevet || !revu(f)) && !f.archived,
   reserve: (f) => f.archived,
 };
 
-export const kindOf = (f) => (f.archived ? "reserve" : f.chevet ? "chevet" : "main");
+export const kindOf = (f) => (f.archived ? "reserve" : f.chevet && revu(f) ? "chevet" : "main");
 
 /* Les couleurs offertes aux catégories. On stocke la CLÉ et jamais
    l'hexadécimal : retoucher la palette repeint alors toutes les
@@ -43,9 +53,14 @@ export const CAT_KEYS = [
   "ink",
 ];
 
-/* Ce qu'une planche tient par défaut. Une étagère se remplit par lignes
-   d'une dizaine de boîtiers ; laisser une rangée s'étirer sans fin, c'est
-   ne plus avoir de rangées du tout. */
+/* De quoi on remplit une planche neuve. Ce n'est PLUS ce qu'elle affiche :
+   une rangée naît « auto » et prend le compte de sa largeur (voir
+   `useRowCap`, dans `components/shelf/lines.js`) — c'était l'ancien défaut
+   de dix qui se voyait, sur un écran large, comme une rangée à moitié vide
+   et un mystère dans la gouttière. Ce nombre-ci ne sert qu'à DÉBITER : une
+   collection versée d'un coup prend des planches par dizaines plutôt qu'une
+   seule sans fin. Ce qui est écrit dans la gouttière, lui, est toujours un
+   choix qu'on a fait. */
 export const DEFAULT_CAP = 10;
 
 /* Le tiroir des mis de côté ne fait que 250 px de large : deux boîtiers y
@@ -78,10 +93,20 @@ export function upgradeView(view) {
   for (const kind of SHELF_KINDS) {
     const cap = capFor(kind);
     const shelf = view.shelves?.[kind] || makeShelf();
-    // une rangée sans compte s'étirait sans fin : on lui en donne un
+    /* On ne stampe plus de compte sur les rangées qui n'en ont pas — une
+       rangée naît « auto » et prend celui de sa largeur. Mais un rayon
+       entier versé dans UNE rangée reste un tas : on le débite en
+       planches, qui resteront auto. Débiter et compter sont deux choses,
+       et c'est de les avoir confondues que venait le compte imposé. */
     shelves[kind] = {
       ...shelf,
-      rows: shelf.rows.map((r) => (isUnplaced(r) || r.perRow ? r : { ...r, perRow: cap })),
+      rows: shelf.rows.flatMap((r) =>
+        isUnplaced(r) || r.perRow || r.items.length <= cap
+          ? [r]
+          : chunk(r.items, cap).map((part, i) =>
+              i === 0 ? { ...r, items: part } : makeRow({ items: part })
+            )
+      ),
     };
   }
   return reflowView(drainUnplaced({ ...view, version: VIEW_VERSION, shelves }));
@@ -107,7 +132,7 @@ export function drainUnplaced(view) {
        les reprend plutôt que de poser les nouvelles derrière elles. */
     let keep = rows.slice(0, -1);
     while (keep.length && !keep[keep.length - 1].items.length) keep = keep.slice(0, -1);
-    const born = chunk(sas.items, cap).map((part) => makeRow({ perRow: cap, items: part }));
+    const born = chunk(sas.items, cap).map((part) => makeRow({ items: part }));
     shelves[kind] = { ...shelf, rows: [...keep, ...born, { ...sas, items: [] }] };
     changed = true;
   }
@@ -126,25 +151,32 @@ export const makeRow = ({ id, kind = "normal", perRow = null, label = "", items 
   items,
 });
 
-export const makeCat = ({
-  id,
-  label = "Catégorie",
-  color = CAT_KEYS[0],
-  perRow = null,
-  items = [],
-} = {}) => ({
+/* Une boîte n'a plus de compte à elle. Elle en avait un, et il en
+   existait donc deux, qui se contredisaient : celui de la rangée disait
+   combien d'objets tiennent sur la ligne, celui de la boîte combien de
+   films tiennent DANS la boîte, et la boîte se repliait sur elle-même
+   sans que rien ne vienne porter ses lignes du haut. Le compte est
+   maintenant celui de la ligne de bois, et il n'y en a qu'un : la boîte
+   prend les cases qui restent puis déborde sur la ligne du dessous. */
+export const makeCat = ({ id, label = "Catégorie", color = CAT_KEYS[0], items = [] } = {}) => ({
   t: "c",
   id: id || `c_${uid()}`,
   label,
   color,
-  perRow,
   items,
 });
 
 /* `label` ne sert qu'aux motifs qui écrivent — l'intercalaire, pour
    l'instant. Les autres le portent vide et ne le montrent jamais : un
    champ inerte sur un objet coûte moins cher qu'une seconde sorte de
-   décor à faire voyager partout. */
+   décor à faire voyager partout.
+
+   `rot` est ABSENT et non pas zéro, et la différence compte : sans lui,
+   l'objet prend le guingois semé de son identifiant — chaque bibelot de
+   travers à sa façon, ce qui est tout ce qui empêche une étagère de
+   ressembler à une planche de catalogue. Zéro veut dire « d'aplomb, et
+   je l'ai voulu ». On n'écrit donc ce champ que lorsqu'une main l'a
+   réglé, et une vue d'avant l'orientation reste identique au pixel. */
 export const makeDecor = ({ id, motif, size = 1, color = "ochre", label = "" } = {}) => ({
   t: "d",
   id: id || `d_${uid()}`,
@@ -172,7 +204,7 @@ export const filmItem = (id) => ({ t: "f", id });
    institution, pas un accident : sans elle, un film importé n'aurait
    nulle part où apparaître et deviendrait invisible. */
 export const makeShelf = () => ({
-  rows: [makeRow({ perRow: DEFAULT_CAP }), makeRow({ kind: "unplaced" })],
+  rows: [makeRow(), makeRow({ kind: "unplaced" })],
   /* Ce qui est accroché au fond. Un rayon d'avant les objets muraux n'a
      pas ce tableau : partout où on le lit, on lit `shelf.wall || []`
      plutôt que d'aller réécrire toutes les vues déjà enregistrées. */
@@ -721,7 +753,7 @@ export function reflowShelf(view, kind) {
     if (isUnplaced(row)) {
       // ce qui déborde encore prend des planches neuves, pas le sas
       for (const part of carry.length ? chunk(carry, lastCap) : []) {
-        out.push(makeRow({ perRow: lastCap, items: part }));
+        out.push(makeRow({ items: part }));
         changed = true;
       }
       carry = [];
@@ -754,15 +786,22 @@ export function reflowView(view) {
 
 /* Étaler une collection sur des planches neuves. Sert à une vue qu'on
    vient de créer : la laisser entièrement dans le sas donnerait une
-   étagère vide et un tas, ce qui n'est pas un rangement. */
+   étagère vide et un tas, ce qui n'est pas un rangement.
+
+   UNE rangée, et non plus des paquets de dix. Une rangée ne montre que ce
+   qu'elle CONTIENT : la débiter par dix, c'était poser dix boîtiers sur
+   une planche qui en tient quinze et laisser un tiers de bois nu — un
+   rayon neuf avait l'air à moitié vide sur un grand écran. Elle prend
+   donc tout, remplit la largeur et se replie en autant de lignes de bois
+   qu'il faut. On coupe ensuite là où l'on veut, en lâchant un boîtier sur
+   une couture. `cap` reste pour qui veut des paquets choisis. */
 export function layoutView(view, films, cap = null) {
   const shelves = {};
   for (const kind of SHELF_KINDS) {
-    const n = cap || capFor(kind);
     const ids = films.filter(belongs[kind]).map((f) => f.id);
     const rows = ids.length
-      ? chunk(ids, n).map((part) => makeRow({ perRow: n, items: part.map(filmItem) }))
-      : [makeRow({ perRow: n })];
+      ? chunk(ids, cap).map((part) => makeRow({ perRow: cap, items: part.map(filmItem) }))
+      : [makeRow({ perRow: cap })];
     shelves[kind] = { rows: [...rows, makeRow({ kind: "unplaced" })] };
   }
   return { ...view, shelves };
@@ -821,11 +860,10 @@ export function layoutByDirector(view, films, { cap = null } = {}) {
       )
       .map(([name, list]) =>
         makeRow({
-          /* Le compte de la ligne est celui du rayon : c'est lui que la
-             boîte reprend pour savoir où replier ses boîtiers, une
-             filmographie de trente titres tenant alors en trois lignes
-             dans son carton plutôt qu'en une bande sans fin. */
-          perRow: n,
+          /* Pas de compte écrit : la rangée prend celui de sa largeur, et
+             la boîte du cinéaste s'y coupe en autant de lignes de bois
+             qu'il faut — une filmographie de trente titres tient ainsi
+             dans son carton au lieu de partir en bande sans fin. */
           items: [
             makeCat({
               label: name,
@@ -836,7 +874,7 @@ export function layoutByDirector(view, films, { cap = null } = {}) {
         })
       );
 
-    if (!rows.length) rows.push(makeRow({ perRow: n }));
+    if (!rows.length) rows.push(makeRow());
     shelves[kind] = { rows: [...rows, makeRow({ kind: "unplaced" })] };
   }
 
@@ -906,10 +944,16 @@ export function buildViewsFromLegacy({ films = [], dividers = [], wallPrefs = {}
   const views = [];
   for (const wall of ["watched", "watchlist"]) {
     const pool = films.filter((f) => (f.status === "watchlist") === (wall === "watchlist"));
-    const legacyCap = (() => {
+    /* Le mur d'avant réglait son compte pour tout le rayon. Quand il en
+       avait un, c'était un CHOIX : on le reprend tel quel, écrit dans la
+       gouttière. Quand il était sur « auto », on ne lui en invente pas un
+       — les rangées naissent auto, et l'on débite seulement par dizaines
+       pour ne pas rendre un rayon d'une seule planche. */
+    const legacyPref = (() => {
       const p = wallPrefs[wall]?.perRow;
-      return p && p !== "auto" ? p : DEFAULT_CAP;
+      return p && p !== "auto" ? p : null;
     })();
+    const legacyCap = legacyPref || DEFAULT_CAP;
 
     const view = makeView({ wall, name: "Rangement d'origine", theme: "kraft", now });
     let colorAt = 0;
@@ -938,6 +982,8 @@ export function buildViewsFromLegacy({ films = [], dividers = [], wallPrefs = {}
 
       const rows = [];
       let cap = shelfCap;
+      // le compte ÉCRIT dans la gouttière : seulement s'il fut voulu
+      let want = kind === "reserve" ? null : legacyPref;
       let loose = []; // les films libres, en attente de planches
       let cat = null;
 
@@ -947,7 +993,7 @@ export function buildViewsFromLegacy({ films = [], dividers = [], wallPrefs = {}
          sous une planche unique. */
       const flushLoose = () => {
         for (const part of chunk(loose, cap))
-          if (part.length) rows.push(makeRow({ perRow: cap, items: part }));
+          if (part.length) rows.push(makeRow({ perRow: want, items: part }));
         loose = [];
       };
 
@@ -961,8 +1007,9 @@ export function buildViewsFromLegacy({ films = [], dividers = [], wallPrefs = {}
             label: it.divider.label || "Catégorie",
             color: CAT_KEYS[colorAt++ % CAT_KEYS.length],
           });
+          want = it.divider.perRow || want;
           cap = it.divider.perRow || shelfCap;
-          rows.push(makeRow({ perRow: cap, items: [cat] }));
+          rows.push(makeRow({ perRow: want, items: [cat] }));
         } else if (cat) {
           cat.items.push(filmItem(it.id));
         } else {
@@ -978,7 +1025,7 @@ export function buildViewsFromLegacy({ films = [], dividers = [], wallPrefs = {}
          comme les autres. Le sas ne sert qu'à ce qui ARRIVE ensuite. */
       loose = never.map((f) => filmItem(f.id));
       flushLoose();
-      if (!rows.length) rows.push(makeRow({ perRow: cap }));
+      if (!rows.length) rows.push(makeRow({ perRow: want }));
       rows.push(makeRow({ kind: "unplaced" }));
 
       view.shelves[kind] = { rows };

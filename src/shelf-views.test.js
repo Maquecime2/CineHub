@@ -66,6 +66,14 @@ describe("appartenance à un rayon", () => {
     expect(kindOf(film("a", { chevet: true, archived: true }))).toBe("reserve");
     expect(belongs.chevet(film("a", { chevet: true, archived: true }))).toBe(false);
   });
+
+  it("un film à voir n'est jamais de chevet : on ne revoit pas ce qu'on n'a pas vu", () => {
+    const aVoir = film("a", { chevet: true, status: "watchlist" });
+    expect(kindOf(aVoir)).toBe("main");
+    expect(belongs.chevet(aVoir)).toBe(false);
+    // et il ne disparaît pas pour autant : la collection le recueille
+    expect(belongs.main(aVoir)).toBe(true);
+  });
 });
 
 describe("reconcileView", () => {
@@ -468,12 +476,13 @@ describe("upgradeView — reprendre une vue deja enregistree", () => {
     return view;
   };
 
-  it("donne un compte aux rangees qui n'en ont pas et fait deborder", () => {
+  it("débite en planches un rayon versé d'un coup, et les laisse « auto »", () => {
     const out = upgradeView(v1());
     const rows = rowsOf(out, "main");
     expect(out.version).toBe(2);
     expect(rows.filter((r) => !isUnplaced(r)).map((r) => r.items.length)).toEqual([10, 10, 5]);
-    expect(rows.every((r) => isUnplaced(r) || r.perRow === DEFAULT_CAP)).toBe(true);
+    // débiter n'est pas régler : la gouttière reste sur « auto »
+    expect(rows.every((r) => r.perRow == null)).toBe(true);
   });
 
   it("n'y touche plus une fois reprise", () => {
@@ -503,7 +512,8 @@ describe("layoutView", () => {
     const rows = rowsOf(out, "main");
     expect(rows.filter((r) => !isUnplaced(r)).map((r) => r.items.length)).toEqual([10, 10, 3]);
     expect(idsIn(unplacedOf(out, "main"))).toEqual([]);
-    expect(rows.every((r) => isUnplaced(r) || r.perRow === DEFAULT_CAP)).toBe(true);
+    // des planches d'une dizaine, mais qui n'imposent rien : elles restent auto
+    expect(rows.every((r) => r.perRow == null)).toBe(true);
   });
 
   it("répartit selon les drapeaux du film", () => {

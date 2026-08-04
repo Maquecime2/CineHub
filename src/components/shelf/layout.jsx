@@ -1,15 +1,33 @@
 /* Les contenants : la gouttière de réglage d'une rangée, la rangée
    elle-même, le rayon, le tiroir des mis de côté, l'aperçu d'un boîtier
    ouvert, le cabinet de décors et la palette d'un objet. */
-import React, { useEffect, useMemo, useState } from "react";
-import { X } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { X, Trash2, Upload, ChevronLeft, Eye, EyeOff, RotateCcw, RotateCw } from "lucide-react";
 import { C } from "../../theme/tokens";
 import { hash, fileNoOf } from "../../domain/seeded";
 import { PosterArt } from "../film/PosterArt";
 import { InkStars } from "../ui";
 import { isUnplaced, CAT_KEYS, addRow, removeRow, clearRow, addCat } from "../../shelf-views";
-import { SHELF_KIND, BOX_H, CAT_COLORS, SHELF_DECOR, WALL_DECOR, DECOR_SIZES } from "./constants";
-import { FilmBox, DecorItem, WallItem, CategoryBox, withBreaks } from "./items";
+import {
+  SHELF_KIND,
+  BOX_H,
+  CAT_COLORS,
+  DECOR_SIZES,
+  DECOR_TYPES,
+  shelfDecorTypes,
+  wallDecorTypes,
+} from "./constants";
+import {
+  listCustomDecor,
+  listHiddenDecor,
+  toggleDecorHidden,
+  subscribeCustomDecor,
+  addCustomDecor,
+  removeCustomDecor,
+} from "../../services/customDecor";
+import { CustomDraw } from "./CustomDraw";
+import { FilmBox, DecorItem, WallItem, CategoryBox, dividerSkin, DividerHead } from "./items";
+import { splitRow, useRowCap } from "./lines";
 
 const GutterAct = ({ label, onClick, ink = C.inkFaded }) => (
   <button
@@ -34,10 +52,12 @@ const GutterAct = ({ label, onClick, ink = C.inkFaded }) => (
    Un champ ne ferme rien, et tient dans la moitié de la place.
 
    « auto » n'est pas un nombre parmi les autres, c'est l'ABSENCE de
-   nombre : le conteneur grandit avec son contenu jusqu'à la largeur
-   disponible, où le repli naturel s'en charge. D'où un interrupteur à
-   côté du champ plutôt qu'une valeur de plus dedans — un zéro ou un
-   champ vide auraient dit « aucun film par ligne » aussi bien que
+   nombre écrit : la rangée se mesure et prend le compte de sa largeur
+   (voir `useRowCap`, dans `lines.js`). Elle laissait auparavant replier
+   le navigateur, qui ne sait pas poser de bois sous ce qu'il replie.
+   D'où un interrupteur à côté du champ plutôt qu'une valeur de plus
+   dedans — un zéro ou un champ vide auraient dit « aucun film par
+   ligne » aussi bien que
    « autant qu'il en tient ».
 
    Le brouillon est local et ne remonte qu'à la validation : écrire à
@@ -229,7 +249,7 @@ const RowGutter = React.memo(function RowGutter({ row, shown, acts, capMax }) {
             }}
           >
             <PerRowField
-              title="OBJETS SUR CETTE LIGNE"
+              title="BOÎTIERS PAR LIGNE DE BOIS"
               value={row.perRow ?? null}
               max={capMax}
               onChange={(n) => acts.setRow(row.id, { perRow: n })}
@@ -331,11 +351,39 @@ const RowGutter = React.memo(function RowGutter({ row, shown, acts, capMax }) {
   );
 });
 
-/* UNE RANGÉE — sa gouttière, sa planche, et ce qui est posé dessus.
+/* LA PLANCHE — le bois d'UNE ligne. Il y en a autant que de lignes, et
+   c'est tout le propos : une bande de boîtiers qui n'a rien dessous
+   n'est pas une étagère. */
+const Plank = React.memo(function Plank({ theme }) {
+  return (
+    <div
+      aria-hidden
+      style={{
+        position: "absolute",
+        left: 0,
+        right: 0,
+        bottom: 0,
+        height: 12,
+        background: `linear-gradient(${theme.wood[0]}, ${theme.wood[1]})`,
+        boxShadow: "0 3px 0 rgba(0,0,0,0.18)",
+      }}
+    />
+  );
+});
+
+/* UNE RANGÉE — sa gouttière, ses planches, et ce qui est posé dessus.
 
    Une planche par rangée, et non plus une par rayon : c'est ce qu'est une
    étagère, cela donne à la gouttière un objet contre quoi buter, et cela
-   fait de la rangée une chose qu'on voit. */
+   fait de la rangée une chose qu'on voit.
+
+   Et maintenant une planche par LIGNE de la rangée. Le repli était laissé
+   au navigateur, qui ne sait pas poser du bois : dès qu'une rangée passait
+   à la ligne, les boîtiers du haut flottaient au-dessus du vide. La rangée
+   découpe donc elle-même son contenu en lignes (`splitRow`), et chaque
+   ligne est une bande à elle, avec sa planche. Une boîte trop grande ne se
+   replie plus à l'intérieur d'elle-même : elle déborde sur la ligne du
+   dessous, bois compris. */
 const ShelfRow = React.memo(function ShelfRow({
   row,
   kind,
@@ -355,61 +403,71 @@ const ShelfRow = React.memo(function ShelfRow({
   const [shown, setShown] = useState(false);
   const ctx = useMemo(() => ({ kind, rowId: row.id, catId: null }), [kind, row.id]);
 
-  const nodes = row.items
-    .map((it) => {
-      if (it.t === "c") {
-        return (
-          <CategoryBox
-            key={it.id}
-            cat={it}
-            kind={kind}
-            rowId={row.id}
-            films={films}
-            dim={dim}
-            acts={acts}
-            onOpen={onOpen}
-            onEdit={onEditCat}
-            onEditDecor={onEditDecor}
-            onDecorLabel={onDecorLabel}
-            onDragStart={dnd.onDragStart}
-            onDragEnd={dnd.onDragEnd}
-            onDragOverBox={dnd.onBoxOver}
-            onCatOver={dnd.onCatOver}
-          />
-        );
-      }
-      if (it.t === "d") {
-        return (
-          <DecorItem
-            key={it.id}
-            item={it}
-            ctx={ctx}
-            onEdit={onEditDecor}
-            onLabel={onDecorLabel}
-            onDragStart={dnd.onDragStart}
-            onDragEnd={dnd.onDragEnd}
-            onDragOverBox={dnd.onBoxOver}
-          />
-        );
-      }
-      const f = films.get(it.id);
-      if (!f) return null;
+  /* La mesure se prend sur l'enveloppe, qui n'a pas de marge intérieure :
+     ce sont les BANDES qui la portent, et on la retire donc à la main —
+     sinon la dernière case déborderait de sa planche. */
+  const measure = useRef(null);
+  const padX = bare ? 4 : 20;
+  const cap = useRowCap(measure, row.perRow, padX);
+  const lines = useMemo(() => splitRow(row.items, cap), [row.items, cap]);
+
+  const draw = (seg) => {
+    if (seg.t === "c") {
       return (
-        <FilmBox
-          key={f.id}
-          film={f}
-          ctx={ctx}
+        <CategoryBox
+          key={seg.key}
+          cat={seg.cat}
+          items={seg.items}
+          first={seg.first}
+          last={seg.last}
+          kind={kind}
+          rowId={row.id}
+          films={films}
+          dim={dim}
+          acts={acts}
           onOpen={onOpen}
-          dim={dim(f)}
+          onEdit={onEditCat}
+          onEditDecor={onEditDecor}
+          onDecorLabel={onDecorLabel}
+          onDragStart={dnd.onDragStart}
+          onDragEnd={dnd.onDragEnd}
+          onDragOverBox={dnd.onBoxOver}
+          onCatOver={dnd.onCatOver}
+        />
+      );
+    }
+    if (seg.t === "d") {
+      return (
+        <DecorItem
+          key={seg.key}
+          item={seg.it}
+          ctx={ctx}
+          onEdit={onEditDecor}
+          onLabel={onDecorLabel}
           onDragStart={dnd.onDragStart}
           onDragEnd={dnd.onDragEnd}
           onDragOverBox={dnd.onBoxOver}
         />
       );
-    })
-    .filter(Boolean);
+    }
+    const f = films.get(seg.it.id);
+    if (!f) return null;
+    return (
+      <FilmBox
+        key={f.id}
+        film={f}
+        ctx={ctx}
+        onOpen={onOpen}
+        dim={dim(f)}
+        onDragStart={dnd.onDragStart}
+        onDragEnd={dnd.onDragEnd}
+        onDragOverBox={dnd.onBoxOver}
+      />
+    );
+  };
 
-  const empty = nodes.length === 0;
+  const drawn = lines.map((line) => line.map(draw).filter(Boolean));
+  const empty = drawn.every((line) => line.length === 0);
   // la ligne d'arrivée vide ne se montre pas : elle n'a rien à dire
   const hidden = empty && isUnplaced(row);
 
@@ -421,46 +479,47 @@ const ShelfRow = React.memo(function ShelfRow({
         onMouseLeave={() => setShown(false)}
       >
         {!hidden && !bare && <RowGutter row={row} shown={shown} acts={acts} capMax={capMax} />}
-        <div
-          data-shelf-row
-          onDragOver={(e) => dnd.onRowOver(e, ctx)}
-          onDrop={(e) => {
-            e.preventDefault();
-            dnd.onDrop(kind, e);
-          }}
-          style={{
-            position: "relative",
-            flex: 1,
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "flex-end",
-            minHeight: hidden ? 12 : BOX_H + 26,
-            padding: hidden ? 0 : bare ? "14px 2px 0" : "14px 10px 0",
-            marginLeft: hidden && !bare ? 26 : 0,
-          }}
-        >
-          {empty && !isUnplaced(row) && (
+        <div ref={measure} style={{ flex: 1, minWidth: 0, marginLeft: hidden && !bare ? 26 : 0 }}>
+          {drawn.map((nodes, i) => (
             <div
-              style={{ color: C.inkFaded, fontStyle: "italic", fontSize: 13, padding: "44px 4px" }}
-            >
-              ligne vide — glissez-y un boîtier
-            </div>
-          )}
-          {withBreaks(nodes, row.perRow)}
-          {/* la planche de CETTE rangée */}
-          {!hidden && (
-            <div
-              style={{
-                position: "absolute",
-                left: 0,
-                right: 0,
-                bottom: 0,
-                height: 12,
-                background: `linear-gradient(${theme.wood[0]}, ${theme.wood[1]})`,
-                boxShadow: "0 3px 0 rgba(0,0,0,0.18)",
+              /* Chaque LIGNE est une rangée aux yeux du glissement : la
+                 cible se dit en voisin (`overId`) et non en numéro, donc
+                 découper la bande ne dérange rien — et lâcher dans le vide
+                 d'une ligne vise désormais la fin de CETTE ligne, ce qui
+                 est ce qu'on montrait du doigt. */
+              key={i}
+              data-shelf-row
+              onDragOver={(e) => dnd.onRowOver(e, ctx)}
+              onDrop={(e) => {
+                e.preventDefault();
+                dnd.onDrop(kind, e);
               }}
-            />
-          )}
+              style={{
+                position: "relative",
+                display: "flex",
+                flexWrap: "nowrap",
+                alignItems: "flex-end",
+                minHeight: hidden ? 12 : BOX_H + 26,
+                padding: hidden ? 0 : bare ? "14px 2px 0" : "14px 10px 0",
+              }}
+            >
+              {i === 0 && empty && !isUnplaced(row) && (
+                <div
+                  style={{
+                    color: C.inkFaded,
+                    fontStyle: "italic",
+                    fontSize: 13,
+                    padding: "44px 4px",
+                  }}
+                >
+                  ligne vide — glissez-y un boîtier
+                </div>
+              )}
+              {nodes}
+              {/* la planche de CETTE ligne */}
+              {!hidden && <Plank theme={theme} />}
+            </div>
+          ))}
         </div>
       </div>
       {/* la couture : y lâcher un boîtier ouvre une rangée neuve */}
@@ -1161,18 +1220,18 @@ const DecorFamily = ({ title = "À POSER", hint, types, onDragStart, onDragEnd }
             {d.tall ? (
               <div
                 style={{
-                  width: 13,
+                  position: "relative",
+                  width: 15,
                   height: 34,
-                  background: `linear-gradient(160deg, ${C.paperDark}, #D8C69C)`,
-                  border: `1px solid ${C.line}`,
-                  borderBottom: "none",
-                  borderTop: `2px solid ${C.ochre}`,
-                  borderRadius: "2px 2px 0 0",
-                  boxShadow: "1px 1px 0 rgba(43,38,32,0.14)",
+                  ...dividerSkin(C.ochre),
                   alignSelf: "flex-end",
                   marginBottom: 6,
                 }}
-              />
+              >
+                {/* la maquette porte le même onglet que le carton : c'est
+                    à lui qu'on le reconnaît une fois posé */}
+                <DividerHead ink={C.ochre} height={9} />
+              </div>
             ) : (
               <Draw color={C.ochre} style={{ width: 38, height: 38 }} />
             )}
@@ -1183,66 +1242,488 @@ const DecorFamily = ({ title = "À POSER", hint, types, onDragStart, onDragEnd }
   </>
 );
 
-export function DecorCabinet({ kind, onDragStart, onDragEnd, onClose }) {
+/* Le registre des motifs importés, lu comme une source extérieure : le
+   cabinet et l'atelier en montrent la même liste, et un import fait
+   depuis l'un doit apparaître dans l'autre sans qu'on les ait câblés
+   l'un à l'autre. */
+const useCustomDecor = () =>
+  useSyncExternalStore(subscribeCustomDecor, listCustomDecor, listCustomDecor);
+
+const useHiddenDecor = () =>
+  useSyncExternalStore(subscribeCustomDecor, listHiddenDecor, listHiddenDecor);
+
+const CABINET_BOX = {
+  position: "fixed",
+  right: 40,
+  top: 120,
+  zIndex: 45,
+  width: 240,
+  padding: "12px 14px",
+  background: C.card,
+  border: `1px solid ${C.line}`,
+  boxShadow: "2px 8px 20px rgba(30,20,10,0.34)",
+};
+
+const CabinetTitle = ({ children }) => (
+  <div
+    style={{
+      fontFamily: "'Special Elite', monospace",
+      fontSize: 9.5,
+      letterSpacing: 1,
+      color: C.inkFaded,
+    }}
+  >
+    {children}
+  </div>
+);
+
+const CabinetNote = ({ children, ...p }) => (
+  <div
+    style={{ fontFamily: "'Caveat', cursive", fontSize: 14, color: C.inkFaded, ...p.style }}
+    {...p}
+  >
+    {children}
+  </div>
+);
+
+/* L'ATELIER — ce qu'on apporte soi-même au cabinet.
+
+   Les quinze motifs de la maison sont dessinés dans le code : c'est un
+   fond de catalogue, il ne bouge pas et ne se supprime pas. Ici on
+   ajoute les siens, et on ne peut retirer que ceux-là.
+
+   La famille se choisit AVANT l'import, et non après : elle décide de la
+   façon dont le dessin s'appuie dans sa case — posé sur le bas, accroché
+   par le haut — et c'est écrit dans le fichier au moment où on le range. */
+function DecorWorkshop({ onBack }) {
+  const custom = useCustomDecor();
+  const hiddenKeys = useHiddenDecor();
+  const [wall, setWall] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const fileRef = useRef(null);
+
+  const take = async (files) => {
+    setError(null);
+    setBusy(true);
+    try {
+      /* Un fichier refusé n'annule pas les autres : on importe ce qui
+         passe et on ne rapporte que ce qui a échoué. */
+      const failed = [];
+      for (const file of Array.from(files)) {
+        try {
+          await addCustomDecor(file, { wall });
+        } catch (e) {
+          failed.push(e?.message || file.name);
+        }
+      }
+      if (failed.length) setError(failed[0]);
+    } finally {
+      setBusy(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
   return (
-    <>
-      <div onClick={onClose} data-veil style={{ position: "fixed", inset: 0, zIndex: 44 }} />
-      <div
-        style={{
-          position: "fixed",
-          right: 40,
-          top: 120,
-          zIndex: 45,
-          width: 240,
-          padding: "12px 14px",
-          background: C.card,
-          border: `1px solid ${C.line}`,
-          boxShadow: "2px 8px 20px rgba(30,20,10,0.34)",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
-          <div
+    <div style={CABINET_BOX}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+        <button
+          onClick={onBack}
+          title="Revenir au cabinet"
+          aria-label="Revenir au cabinet"
+          style={{ all: "unset", cursor: "pointer", color: C.inkFaded, display: "flex" }}
+        >
+          <ChevronLeft size={13} />
+        </button>
+        <CabinetTitle>MES OBJETS</CabinetTitle>
+      </div>
+
+      <CabinetNote style={{ marginBottom: 8 }}>
+        une image, et elle rejoint le cabinet — png, jpg ou svg
+      </CabinetNote>
+
+      {/* La famille d'abord : c'est elle qui décide où l'objet se posera,
+          et la choisir après coup voudrait dire réécrire le fichier. */}
+      <div style={{ display: "flex", marginBottom: 8 }}>
+        {[
+          [false, "à poser"],
+          [true, "à accrocher"],
+        ].map(([v, label], i) => (
+          <button
+            key={label}
+            onClick={() => setWall(v)}
             style={{
+              all: "unset",
+              cursor: "pointer",
+              flex: 1,
+              textAlign: "center",
+              padding: "3px 0",
               fontFamily: "'Special Elite', monospace",
               fontSize: 9.5,
-              letterSpacing: 1,
-              color: C.inkFaded,
+              background: wall === v ? C.ink : "transparent",
+              color: wall === v ? C.card : C.inkFaded,
+              border: `1px solid ${wall === v ? C.ink : C.line}`,
+              borderLeft: i ? "none" : undefined,
             }}
           >
-            CABINET DE CURIOSITÉS
-          </div>
-          <div style={{ flex: 1 }} />
-          <button onClick={onClose} style={{ all: "unset", cursor: "pointer", color: C.inkFaded }}>
-            <X size={13} />
+            {label}
           </button>
-        </div>
-        <DecorFamily
-          hint="glissez-les sur une planche, entre deux boîtiers"
-          types={SHELF_DECOR}
-          onDragStart={onDragStart}
-          onDragEnd={onDragEnd}
-        />
-        <DecorFamily
-          title="À ACCROCHER"
-          hint="glissez-les au fond du rayon, où vous voulez"
-          types={WALL_DECOR}
-          onDragStart={onDragStart}
-          onDragEnd={onDragEnd}
-        />
+        ))}
+      </div>
+
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*,.svg"
+        multiple
+        onChange={(e) => e.target.files?.length && take(e.target.files)}
+        style={{ display: "none" }}
+      />
+      <button
+        onClick={() => fileRef.current?.click()}
+        disabled={busy}
+        style={{
+          all: "unset",
+          boxSizing: "border-box",
+          cursor: busy ? "progress" : "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 6,
+          width: "100%",
+          padding: "7px 0",
+          background: C.burgundy,
+          color: C.card,
+          fontFamily: "'Special Elite', monospace",
+          fontSize: 10,
+          letterSpacing: 1,
+          opacity: busy ? 0.6 : 1,
+        }}
+      >
+        <Upload size={12} />
+        {busy ? "IMPORT…" : "IMPORTER UNE IMAGE"}
+      </button>
+
+      {error && (
         <div
+          role="alert"
           style={{
             fontFamily: "'Caveat', cursive",
             fontSize: 14,
-            color: C.inkFaded,
-            marginTop: 10,
+            color: C.burgundy,
+            marginTop: 6,
           }}
         >
-          rayon visé : {SHELF_KIND[kind]?.title || kind}
+          {error}
         </div>
+      )}
+
+      <div style={{ marginTop: 12, maxHeight: 300, overflowY: "auto" }}>
+        <WorkshopSection title="LES MIENS" />
+        {custom.length === 0 ? (
+          <CabinetNote>rien d'importé pour l'instant</CabinetNote>
+        ) : (
+          custom.map((d) => (
+            <DecorRow
+              key={d.key}
+              label={d.label}
+              note={`${d.wall ? "à accrocher" : "à poser"}${d.tintable ? "" : " · sans couleur"}`}
+              vignette={
+                <CustomDraw
+                  motif={d.key}
+                  color={C.ochre}
+                  style={{ width: "100%", height: "100%" }}
+                />
+              }
+              action={
+                <RowButton
+                  onClick={() => removeCustomDecor(d.key)}
+                  label={`Supprimer « ${d.label} »`}
+                >
+                  <Trash2 size={12} />
+                </RowButton>
+              }
+            />
+          ))
+        )}
+
+        {/* Les dessins de la maison ne se suppriment pas — ils sont dans
+            le code. Mais on n'a pas besoin des quinze, et le cabinet se
+            range en les retirant du panneau. */}
+        <WorkshopSection title="CEUX DE LA MAISON" />
+        {DECOR_TYPES.map((d) => {
+          const hidden = hiddenKeys.includes(d.key);
+          const Draw = d.draw;
+          return (
+            <DecorRow
+              key={d.key}
+              label={d.label}
+              note={d.wall ? "à accrocher" : "à poser"}
+              dim={hidden}
+              vignette={
+                d.tall ? (
+                  <div
+                    style={{
+                      position: "relative",
+                      width: 11,
+                      height: 26,
+                      ...dividerSkin(C.ochre),
+                      alignSelf: "flex-end",
+                    }}
+                  >
+                    <DividerHead ink={C.ochre} height={7} />
+                  </div>
+                ) : (
+                  <Draw color={C.ochre} style={{ width: 28, height: 28 }} />
+                )
+              }
+              action={
+                <RowButton
+                  onClick={() => toggleDecorHidden(d.key)}
+                  label={hidden ? `Remettre « ${d.label} »` : `Masquer « ${d.label} »`}
+                >
+                  {hidden ? <EyeOff size={12} /> : <Eye size={12} />}
+                </RowButton>
+              }
+            />
+          );
+        })}
       </div>
+
+      <CabinetNote style={{ marginTop: 8 }}>
+        {/* Deux gestes voisins qui ne font pas la même chose : le dire
+            une fois ici vaut mieux qu'une étagère qui se vide sans
+            prévenir. */}
+        masquer retire du cabinet sans toucher aux étagères ; supprimer retire des deux
+      </CabinetNote>
+    </div>
+  );
+}
+
+const WorkshopSection = ({ title }) => (
+  <div
+    style={{
+      fontFamily: "'Special Elite', monospace",
+      fontSize: 8.5,
+      letterSpacing: 1,
+      color: C.inkFaded,
+      margin: "10px 0 4px",
+      borderBottom: `1px solid ${C.line}`,
+      paddingBottom: 3,
+    }}
+  >
+    {title}
+  </div>
+);
+
+const RowButton = ({ onClick, label, children }) => (
+  <button
+    onClick={onClick}
+    title={label}
+    aria-label={label}
+    style={{ all: "unset", cursor: "pointer", color: C.inkFaded, display: "flex" }}
+  >
+    {children}
+  </button>
+);
+
+/* Une ligne de l'atelier : la vignette, le nom, et le geste qu'on peut
+   faire dessus. La même pour un objet importé et pour un dessin de la
+   maison — ils se lisent dans la même liste, ils doivent se ressembler. */
+const DecorRow = ({ label, note, vignette, action, dim }) => (
+  <div
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      padding: "4px 0",
+      // un motif masqué reste lisible, mais s'efface de moitié
+      opacity: dim ? 0.42 : 1,
+    }}
+  >
+    <div
+      style={{
+        width: 34,
+        height: 34,
+        flexShrink: 0,
+        overflow: "hidden",
+        border: `1px solid ${C.line}`,
+        background: C.paper,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      {vignette}
+    </div>
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div
+        title={label}
+        style={{
+          fontFamily: "'Special Elite', monospace",
+          fontSize: 10,
+          color: C.ink,
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          textDecoration: dim ? "line-through" : "none",
+        }}
+      >
+        {label}
+      </div>
+      <CabinetNote style={{ fontSize: 12 }}>{dim ? "masqué" : note}</CabinetNote>
+    </div>
+    {action}
+  </div>
+);
+
+export function DecorCabinet({ kind, onDragStart, onDragEnd, onClose }) {
+  const [managing, setManaging] = useState(false);
+  // le registre bouge sous le cabinet dès qu'on importe depuis l'atelier
+  useCustomDecor();
+
+  return (
+    <>
+      <div onClick={onClose} data-veil style={{ position: "fixed", inset: 0, zIndex: 44 }} />
+      {managing ? (
+        <DecorWorkshop onBack={() => setManaging(false)} />
+      ) : (
+        <div style={CABINET_BOX}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
+            <CabinetTitle>CABINET DE CURIOSITÉS</CabinetTitle>
+            <div style={{ flex: 1 }} />
+            <button
+              onClick={() => setManaging(true)}
+              title="Importer ou supprimer vos propres objets"
+              style={{
+                all: "unset",
+                cursor: "pointer",
+                fontFamily: "'Special Elite', monospace",
+                fontSize: 9,
+                letterSpacing: 0.5,
+                color: C.burgundy,
+              }}
+            >
+              GÉRER
+            </button>
+            <button
+              onClick={onClose}
+              style={{ all: "unset", cursor: "pointer", color: C.inkFaded }}
+            >
+              <X size={13} />
+            </button>
+          </div>
+          <DecorFamily
+            hint="glissez-les sur une planche, entre deux boîtiers"
+            types={shelfDecorTypes()}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+          />
+          <DecorFamily
+            title="À ACCROCHER"
+            hint="glissez-les au fond du rayon, où vous voulez"
+            types={wallDecorTypes()}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+          />
+          <CabinetNote style={{ marginTop: 10 }}>
+            rayon visé : {SHELF_KIND[kind]?.title || kind}
+          </CabinetNote>
+        </div>
+      )}
     </>
   );
 }
+
+/* L'ORIENTATION — de combien l'objet penche, et qui l'a décidé.
+
+   Tout ce qui se pose sur cette étagère est de travers, et c'est voulu :
+   le guingois vient de l'identifiant de l'objet, chacun le sien, et
+   c'est ce qui empêche une rangée de ressembler à une planche de
+   catalogue. Mais le hasard ne sait pas qu'un cadre doit parfois être
+   droit, ni qu'une image importée peut arriver couchée.
+
+   D'où trois gestes et pas un de plus : on tourne d'un cran à gauche, on
+   tourne d'un cran à droite, et on rend la main au hasard. Le cran fait
+   cinq degrés — assez pour qu'un clic se voie, assez peu pour viser le
+   droit sans s'y reprendre. Et tant qu'on n'a rien touché, le champ
+   affiche l'angle SEMÉ plutôt qu'un zéro : c'est celui qu'on a sous les
+   yeux, et l'écart entre les deux est exactement ce qu'on vient régler. */
+const ROT_STEP = 5;
+const clampRot = (deg) => (((deg % 360) + 540) % 360) - 180;
+
+const OrientField = ({ angle, seeded, onChange }) => {
+  const réglé = angle != null;
+  const shown = Math.round(Number(réglé ? angle : seeded) || 0);
+  const turn = (by) => onChange(clampRot(shown + by));
+
+  return (
+    <>
+      <div
+        style={{
+          fontFamily: "'Special Elite', monospace",
+          fontSize: 8.5,
+          letterSpacing: 1,
+          color: C.inkFaded,
+          margin: "12px 0 4px",
+        }}
+      >
+        ORIENTATION
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <button
+          onClick={() => turn(-ROT_STEP)}
+          title="Tourner vers la gauche"
+          aria-label="Tourner vers la gauche"
+          style={{ all: "unset", cursor: "pointer", color: C.inkFaded, display: "flex" }}
+        >
+          <RotateCcw size={14} />
+        </button>
+        <button
+          onClick={() => onChange(0)}
+          title="Remettre d'aplomb"
+          style={{
+            all: "unset",
+            cursor: "pointer",
+            minWidth: 46,
+            textAlign: "center",
+            padding: "2px 6px",
+            fontFamily: "'Special Elite', monospace",
+            fontSize: 11,
+            color: C.ink,
+            border: `1px solid ${C.line}`,
+          }}
+        >
+          {shown > 0 ? `+${shown}°` : `${shown}°`}
+        </button>
+        <button
+          onClick={() => turn(ROT_STEP)}
+          title="Tourner vers la droite"
+          aria-label="Tourner vers la droite"
+          style={{ all: "unset", cursor: "pointer", color: C.inkFaded, display: "flex" }}
+        >
+          <RotateCw size={14} />
+        </button>
+        {/* Rendre la main au hasard n'a de sens que si on la lui a prise. */}
+        {réglé && (
+          <button
+            onClick={() => onChange(null)}
+            title="Rendre à l'objet son guingois d'origine"
+            style={{
+              all: "unset",
+              cursor: "pointer",
+              fontFamily: "'Caveat', cursive",
+              fontSize: 14,
+              color: C.inkFaded,
+            }}
+          >
+            au hasard
+          </button>
+        )}
+      </div>
+    </>
+  );
+};
 
 /* Le petit panneau d'un objet posé — couleur, taille, retrait. Sert aux
    catégories comme aux décors : ce sont les deux seules choses de
@@ -1256,14 +1737,20 @@ export function ItemPalette({
   onRemove,
   onClose,
   removeLabel,
-  /* Le compte d'une boîte : elle range, elle a donc une largeur à régler,
-     là où un bibelot n'en a pas. */
-  perRow,
-  onPerRow,
+  /* Plus de compte ici : une boîte n'a pas de largeur à elle. Elle suit
+     celle de la ligne de bois, réglée dans la gouttière de la rangée —
+     un seul compte, à un seul endroit. */
   /* Le nom d'un intercalaire. Seul motif à écrire, donc seul à ouvrir ce
      champ — les autres décors n'ont rien à dire. */
   label,
   onLabel,
+  /* L'orientation. `rot` peut être absent : l'objet est alors au guingois
+     que son identifiant lui a semé, et `seededRot` dit lequel — le champ
+     doit pouvoir montrer l'angle qu'on VOIT, pas un zéro qui n'est vrai
+     nulle part. */
+  rot,
+  seededRot,
+  onRot,
 }) {
   const [draft, setDraft] = useState(label ?? "");
   useEffect(() => {
@@ -1342,33 +1829,28 @@ export function ItemPalette({
           </div>
         )}
 
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-          {CAT_KEYS.map((k) => (
-            <button
-              key={k}
-              onClick={() => onColor(k)}
-              title={k}
-              style={{
-                all: "unset",
-                cursor: "pointer",
-                width: 22,
-                height: 22,
-                borderRadius: "50%",
-                background: CAT_COLORS[k],
-                border: color === k ? `2px solid ${C.ink}` : `1px solid ${C.line}`,
-                transform: `rotate(${(hash(k) % 5) - 2}deg)`,
-              }}
-            />
-          ))}
-        </div>
-
-        {onPerRow && (
-          <div style={{ marginTop: 14 }}>
-            <PerRowField
-              title="FILMS PAR LIGNE DANS LA BOÎTE"
-              value={perRow ?? null}
-              onChange={onPerRow}
-            />
+        {/* Un objet importé qu'on ne sait pas teinter n'a pas de couleur :
+            sans `onColor`, la rangée de pastilles disparaît au lieu de
+            promettre un réglage qui ne ferait rien. */}
+        {onColor && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+            {CAT_KEYS.map((k) => (
+              <button
+                key={k}
+                onClick={() => onColor(k)}
+                title={k}
+                style={{
+                  all: "unset",
+                  cursor: "pointer",
+                  width: 22,
+                  height: 22,
+                  borderRadius: "50%",
+                  background: CAT_COLORS[k],
+                  border: color === k ? `2px solid ${C.ink}` : `1px solid ${C.line}`,
+                  transform: `rotate(${(hash(k) % 5) - 2}deg)`,
+                }}
+              />
+            ))}
           </div>
         )}
 
@@ -1408,6 +1890,8 @@ export function ItemPalette({
             </div>
           </>
         )}
+
+        {onRot && <OrientField angle={rot} seeded={seededRot} onChange={onRot} />}
 
         <button
           onClick={onRemove}
