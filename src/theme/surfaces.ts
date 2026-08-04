@@ -57,10 +57,14 @@ const noise = (id: string, freq: string, octaves: number, alpha: number, seed = 
 
 export type PaintKey = keyof typeof PAINTS;
 
+/* On garde l'IMAGE et non un `background` tout fait : la peinture n'est
+   qu'une couche parmi d'autres sur le cadre du rayon, et une couche se
+   compose, elle ne se substitue pas. `dark` dit à l'appelant que le fond
+   est sombre — de quoi éclaircir ce qui s'écrit dessus. */
 const wall = (label: string, top: string, bottom: string, dark = false) => ({
   label,
   dark,
-  background: `linear-gradient(#0000, #0000), linear-gradient(170deg, ${top}, ${bottom})`,
+  image: `linear-gradient(170deg, ${top}, ${bottom})`,
 });
 
 export const PAINTS = {
@@ -81,7 +85,7 @@ export const PAINTS = {
 export const paintOf = (key?: string) => PAINTS[key as PaintKey] || PAINTS.platre;
 
 export const paintStyle = (key?: string): CSSProperties => ({
-  background: paintOf(key).background,
+  backgroundImage: paintOf(key).image,
 });
 
 /* ------------------------------------------------------------
@@ -248,6 +252,58 @@ export const TEXTURES = {
 
 export const textureLayer = (key?: string): CSSProperties | null =>
   TEXTURES[key as TextureKey]?.style || null;
+
+/* ------------------------------------------------------------
+   LE MUR ASSEMBLÉ — les trois couches en un seul geste
+   ------------------------------------------------------------
+
+   Peinture et papier peint ne sont PAS des éléments de plus : ce sont
+   des couches de fond sur le cadre du rayon, qui en portait déjà une (la
+   teinte du rayon de chevet). C'est délibéré, et c'est la contrainte
+   qui compte ici : le dépôt d'un objet accroché mesure `data-wall-layer`
+   pour convertir un pixel en pourcentage, et tout enfant de plus dans ce
+   cadre risquerait de déplacer ce que ce rect vaut. Un fond ne déplace
+   rien.
+
+   Seule la texture reste un calque à elle : elle se fond en `multiply`,
+   ce qu'un fond ne sait pas faire tout seul.
+
+   L'ordre des couches est celui d'un empilement — le papier peint DEVANT
+   la peinture, donc écrit avant elle. Et `tint` en dernier, comme
+   couleur de fond : c'est la seule qui ne soit pas une image.
+
+   `ink` est une couleur résolue, jamais une clé. */
+export function wallStyle(
+  decor?: { paint?: string; pattern?: string; texture?: string } | null,
+  ink: string = C.inkFaded,
+  tint?: string | null
+): { frame: CSSProperties; texture: CSSProperties | null } {
+  const images: string[] = [];
+  const sizes: string[] = [];
+
+  const pattern = patternLayer(decor?.pattern, ink);
+  if (pattern) {
+    images.push(String(pattern.backgroundImage));
+    sizes.push(String(pattern.backgroundSize));
+  }
+  if (decor?.paint) {
+    images.push(paintOf(decor.paint).image);
+    /* `auto` et non `cover` : un dégradé n'a pas de dimensions propres et
+       remplit déjà sa boîte. La liste des tailles doit seulement rester
+       aussi longue que celle des images, sans quoi elle se répète et le
+       motif reprend la taille du dégradé. */
+    sizes.push("auto");
+  }
+
+  const frame: CSSProperties = { background: tint || "transparent" };
+  if (images.length) {
+    frame.backgroundImage = images.join(", ");
+    frame.backgroundSize = sizes.join(", ");
+    frame.backgroundRepeat = "repeat";
+  }
+
+  return { frame, texture: textureLayer(decor?.texture) };
+}
 
 /* ------------------------------------------------------------
    LES MATÉRIAUX — de quoi la planche est faite

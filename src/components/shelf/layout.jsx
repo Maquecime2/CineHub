@@ -4,6 +4,7 @@
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { X, Trash2, Upload, ChevronLeft, Eye, EyeOff, RotateCcw, RotateCw } from "lucide-react";
 import { C } from "../../theme/tokens";
+import { wallStyle } from "../../theme/surfaces";
 import { hash, fileNoOf } from "../../domain/seeded";
 import { PosterArt } from "../film/PosterArt";
 import { InkStars } from "../ui";
@@ -12,6 +13,7 @@ import {
   SHELF_KIND,
   BOX_H,
   CAT_COLORS,
+  catInk,
   DECOR_SIZES,
   DECOR_TYPES,
   shelfDecorTypes,
@@ -552,6 +554,9 @@ export function Shelf({
   acts,
   films,
   theme,
+  /* Le décor du MUR, tel que la vue l'a enregistré — ou rien, et le
+     rayon reste celui d'avant les peintures. */
+  wallDecor,
   dim,
   onEditCat,
   onEditDecor,
@@ -560,6 +565,23 @@ export function Shelf({
 }) {
   const cfg = SHELF_KIND[kind];
   const rows = shelf?.rows || [];
+
+  /* Le fond du rayon, teinte du rayon comprise : trois choses qui se
+     disputaient la même propriété se composent maintenant en un endroit.
+     Recalculé au changement de décor seulement — c'est un style qui vit
+     sur le nœud que le glissement survole cent fois par geste. */
+  const skin = useMemo(
+    /* Sans encre choisie, on n'en invente pas une : `catInk` rendrait du
+       bordeaux pour une clé absente, là où un papier peint sans consigne
+       veut la teinte discrète du module. */
+    () =>
+      wallStyle(
+        wallDecor,
+        wallDecor?.patternInk ? catInk(wallDecor.patternInk) : undefined,
+        cfg.tint
+      ),
+    [wallDecor, cfg.tint]
+  );
 
   return (
     <div style={{ marginTop: 26 }}>
@@ -643,7 +665,7 @@ export function Shelf({
         }}
         style={{
           position: "relative",
-          background: cfg.tint || "transparent",
+          ...skin.frame,
           border: cfg.border
             ? `1px ${kind === "reserve" ? "solid" : "dashed"} ${cfg.border}${kind === "reserve" ? "" : "59"}`
             : "none",
@@ -662,6 +684,22 @@ export function Shelf({
               inset: 0,
               background: theme.tint,
               mixBlendMode: "multiply",
+              pointerEvents: "none",
+              zIndex: 0,
+            }}
+          />
+        )}
+        {/* LA TEXTURE DU MUR — la seule des trois couches qui soit un
+            calque, parce qu'elle se fond et qu'un fond ne se fond pas.
+            Même façon d'être que la teinte juste au-dessus : au fond, en
+            multiply, et transparente au curseur. */}
+        {skin.texture && (
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              inset: 0,
+              ...skin.texture,
               pointerEvents: "none",
               zIndex: 0,
             }}
@@ -1873,21 +1911,25 @@ export function ItemPalette({
             >
               TAILLE
             </div>
-            <div style={{ display: "flex" }}>
-              {DECOR_SIZES.map(([l, v], i) => (
+            {/* Sept calibres ne tiennent plus sur une ligne de deux cent
+                vingt pixels : la bande se replie, et les boutons portent
+                alors leur propre filet plutôt que de se coller l'un à
+                l'autre — deux bords accolés d'un rang à l'autre feraient
+                un damier au lieu d'une réglette. */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+              {DECOR_SIZES.map(([l, v]) => (
                 <button
                   key={l}
                   onClick={() => onSize(v)}
                   style={{
                     all: "unset",
                     cursor: "pointer",
-                    padding: "3px 12px",
+                    padding: "3px 9px",
                     fontFamily: "'Special Elite', monospace",
                     fontSize: 10,
                     background: size === v ? C.ink : "transparent",
                     color: size === v ? C.card : C.inkFaded,
                     border: `1px solid ${size === v ? C.ink : C.line}`,
-                    marginLeft: i === 0 ? 0 : -1,
                   }}
                 >
                   {l}

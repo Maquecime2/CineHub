@@ -14,6 +14,7 @@ import {
   materialOf,
   paintOf,
   PLANK_SHADOW,
+  wallStyle,
 } from "./surfaces";
 
 /* Le contrat de ce module tient en trois phrases : toute clé du
@@ -23,7 +24,7 @@ import {
 describe("le catalogue", () => {
   it("donne un fond à chaque peinture", () => {
     for (const key of Object.keys(PAINTS)) {
-      expect(paintStyle(key).background).toBeTruthy();
+      expect(paintStyle(key).backgroundImage).toBeTruthy();
     }
   });
 
@@ -61,7 +62,7 @@ describe("une clé inconnue", () => {
   it("retombe sur le défaut sans jeter", () => {
     expect(paintOf("n'existe pas")).toBe(PAINTS.platre);
     expect(materialOf("n'existe pas")).toBe(MATERIALS.chene);
-    expect(paintStyle(undefined).background).toBeTruthy();
+    expect(paintStyle(undefined).backgroundImage).toBeTruthy();
     expect(materialStyle(undefined, "vernis inconnu").background).toBeTruthy();
   });
 
@@ -113,5 +114,48 @@ describe("les finitions", () => {
 
   it("connaît trois finitions", () => {
     expect(Object.keys(FINISHES)).toEqual(["mat", "satine", "laque"]);
+  });
+});
+
+describe("le mur assemblé", () => {
+  /* Le contrat de non-régression : sans décor, le rayon retrouve
+     exactement le style qu'il avait avant les peintures — un fond, la
+     teinte du rayon ou rien, et pas une couche de plus. */
+  it("sans décor, rend le rayon d'avant au caractère près", () => {
+    const nu = wallStyle(null, undefined, null);
+    expect(nu.frame).toEqual({ background: "transparent" });
+    expect(nu.texture).toBeNull();
+
+    const chevet = wallStyle(undefined, undefined, "#8C3A340D");
+    expect(chevet.frame).toEqual({ background: "#8C3A340D" });
+  });
+
+  it("empile le papier peint DEVANT la peinture", () => {
+    const { frame } = wallStyle({ paint: "sauge", pattern: "pois" }, "#3E5B4B");
+    const images = String(frame.backgroundImage);
+    // la première couche citée est celle du dessus
+    expect(images.indexOf("data:image/svg+xml")).toBeLessThan(images.indexOf("linear-gradient"));
+  });
+
+  /* Une liste de tailles plus courte que la liste d'images se RÉPÈTE en
+     CSS : le motif reprendrait alors la taille du dégradé et cesserait
+     de se répéter. Les deux listes doivent avoir la même longueur. */
+  it("donne autant de tailles que d'images", () => {
+    const { frame } = wallStyle({ paint: "nuit", pattern: "damier" });
+    const count = (s: string) => s.split(/,(?![^(]*\))/).length;
+    expect(count(String(frame.backgroundSize))).toBe(count(String(frame.backgroundImage)));
+  });
+
+  it("sort la texture à part, pour qu'elle se fonde", () => {
+    const { frame, texture } = wallStyle({ paint: "lin", texture: "crepi" });
+    expect(texture?.mixBlendMode).toBe("multiply");
+    // et elle n'a pas atterri dans le fond du cadre
+    expect(String(frame.backgroundImage)).not.toContain(String(texture?.backgroundImage));
+  });
+
+  it("garde la teinte du rayon sous la peinture", () => {
+    const { frame } = wallStyle({ paint: "craie" }, undefined, "#8C3A340D");
+    expect(frame.background).toBe("#8C3A340D");
+    expect(frame.backgroundImage).toBeTruthy();
   });
 });

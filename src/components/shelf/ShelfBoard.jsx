@@ -20,6 +20,7 @@ import {
   removeCat,
   patchDecor,
   removeDecor,
+  wallDecorOf,
 } from "../../shelf-views";
 import {
   SHELF_KIND,
@@ -623,6 +624,19 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     [onDragStart, reset, onShelfOver, onBoxOver, onCatOver, onRowOver, onSeamOver, onDrop]
   );
 
+  /* Nommer un carton se fait SUR le carton, sans ouvrir de panneau :
+     c'est une écriture directe, comme l'onglet d'une catégorie.
+
+     Elle est retenue, et ce n'est pas du confort. Elle descend jusqu'aux
+     RANGÉES, dont le `React.memo` est tout ce qui les empêche de se
+     refaire au milieu d'un geste — et une flèche réécrite à chaque rendu
+     est une prop qui change à chaque rendu. Le seul `setState` qu'un
+     glissement déclenche (le tiroir qui s'ouvre) suffisait alors à
+     refaire toutes les rangées, donc à remplacer les enveloppes que les
+     mesures du glissement désignaient. C'est le défaut que garde
+     `ShelfBoard.test.jsx`. */
+  const onDecorLabel = useCallback((id, label) => acts.setDecor(id, { label }), [acts]);
+
   const countOf = (kind) => films.filter(belongs[kind]).length;
 
   if (!view) return null;
@@ -635,13 +649,14 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     acts,
     films: filmsById,
     theme,
+    /* Le décor du mur, ou rien. Il est le même pour les deux rayons : ce
+       qu'on peint, c'est la pièce, pas une planche. */
+    wallDecor: wallDecorOf(view),
     dim,
     onOpen: setPreview,
     onEditCat: setEditCat,
     onEditDecor: setEditDecor,
-    /* Nommer un carton se fait SUR le carton, sans ouvrir de panneau :
-       c'est une écriture directe, comme l'onglet d'une catégorie. */
-    onDecorLabel: (id, label) => acts.setDecor(id, { label }),
+    onDecorLabel,
   };
 
   return (
