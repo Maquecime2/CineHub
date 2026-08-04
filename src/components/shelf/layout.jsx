@@ -1120,7 +1120,26 @@ export function DecorCabinet({ kind, onDragStart, onDragEnd, onClose }) {
                   justifyContent: "center",
                 }}
               >
-                {Icon ? (
+                {/* Un motif qui se DRESSE n'a ni dessin ni pictogramme :
+                    il est fait de papier et de bordures, comme la boîte.
+                    Le cabinet en montre donc une maquette, au lieu de
+                    chercher un composant qui n'existe pas. */}
+                {d.tall ? (
+                  <div
+                    style={{
+                      width: 13,
+                      height: 34,
+                      background: `linear-gradient(160deg, ${C.paperDark}, #D8C69C)`,
+                      border: `1px solid ${C.line}`,
+                      borderBottom: "none",
+                      borderTop: `2px solid ${C.ochre}`,
+                      borderRadius: "2px 2px 0 0",
+                      boxShadow: "1px 1px 0 rgba(43,38,32,0.14)",
+                      alignSelf: "flex-end",
+                      marginBottom: 6,
+                    }}
+                  />
+                ) : Icon ? (
                   <Icon size={20} color={C.inkFaded} />
                 ) : (
                   <Draw

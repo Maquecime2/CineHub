@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { PerRowField } from "./layout";
+import { PerRowField, DecorCabinet } from "./layout";
+import { DECOR_TYPES } from "./constants";
 
 const TITLE = "OBJETS SUR CETTE LIGNE";
 
@@ -110,5 +111,52 @@ describe("PerRowField — auto, ou un nombre qu'on écrit", () => {
     expect(input()).toHaveValue(4);
     rerender(null);
     expect(input()).toBeDisabled();
+  });
+});
+
+/* Le cabinet choisissait entre un pictogramme et un dessin, et supposait
+   que tout motif avait l'un ou l'autre. L'intercalaire n'a ni l'un ni
+   l'autre — il est fait de papier et de bordures — d'où un `<undefined />`
+   et un panneau qui ne s'ouvrait plus du tout.
+
+   Le vrai défaut n'était pas la vignette manquante mais l'absence de ce
+   test : rien ne rendait le cabinet, donc rien ne remarquait qu'un motif
+   n'y était pas montrable. On les parcourt donc tous, et un motif ajouté
+   demain sans de quoi se dessiner fera tomber ce test plutôt que la
+   page. */
+describe("DecorCabinet", () => {
+  const open = () =>
+    render(
+      <DecorCabinet kind="main" onDragStart={vi.fn()} onDragEnd={vi.fn()} onClose={vi.fn()} />
+    );
+
+  it("montre chaque motif du cabinet, quelle que soit sa façon de se dessiner", () => {
+    open();
+    for (const d of DECOR_TYPES) expect(screen.getByTitle(d.label)).toBeInTheDocument();
+  });
+
+  it("les rend tous saisissables", () => {
+    open();
+    for (const d of DECOR_TYPES)
+      expect(screen.getByTitle(d.label)).toHaveAttribute("draggable", "true");
+  });
+
+  it("sort un objet du cabinet par son motif", async () => {
+    const onDragStart = vi.fn();
+    render(
+      <DecorCabinet kind="main" onDragStart={onDragStart} onDragEnd={vi.fn()} onClose={vi.fn()} />
+    );
+    // le glissement natif ne se simule pas ; l'événement, si
+    screen.getByTitle("Intercalaire").dispatchEvent(
+      Object.assign(new Event("dragstart", { bubbles: true }), {
+        dataTransfer: { effectAllowed: "" },
+      })
+    );
+    expect(onDragStart).toHaveBeenCalledWith("divider", expect.anything());
+  });
+
+  it("dit sur quel rayon on vise", () => {
+    open();
+    expect(screen.getByText(/rayon visé/)).toHaveTextContent("La collection");
   });
 });
