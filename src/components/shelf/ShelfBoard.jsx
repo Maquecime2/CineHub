@@ -1,5 +1,5 @@
 /* Le rangement à la main : c'est ici que vit tout le glisser-déposer. */
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { C } from "../../theme/tokens";
 import {
   SHELF_KINDS,
@@ -55,6 +55,8 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
   const markRef = useRef(null); // le repère de dépôt, hors React
   const spreadRef = useRef([]); // les couches écartées, à remettre d'aplomb
   const litRef = useRef(null); // la cible actuellement éclairée
+  const measureRef = useRef(new WeakMap()); // les rectangles du glissement en cours
+  const tailRef = useRef(new WeakMap()); // le dernier objet de chaque rangée survolée
   const [preview, setPreview] = useState(null);
   const [drawer, setDrawer] = useState(false);
   const [cabinet, setCabinet] = useState(null);
@@ -87,6 +89,60 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     }),
     [view, onDoc]
   );
+
+  /* Mesurer une fois, pour tout le glissement.
+
+     `dragover` tire en continu, souris immobile comprise. Chaque
+     gestionnaire de survol avait besoin d'un rectangle, et le redemandait
+     à chaque événement — soixante fois par seconde pour un curseur qui ne
+     bouge pas.
+
+     Une lecture de rectangle n'est pas un renseignement qu'on consulte,
+     c'est une question à laquelle le navigateur doit répondre JUSTE : il
+     entérine donc toute mise en page en attente avant de répondre. Or les
+     enveloppes portent `content-visibility: auto` (voir `items.jsx`), qui
+     dit précisément au navigateur de NE PAS mettre en page ce qui est hors
+     écran. Lui réclamer un rectangle le forçait à calculer la rangée
+     entière qu'il venait délibérément de sauter, et qu'il sauterait de
+     nouveau aussitôt après. Cent boîtiers mis en page puis jetés, soixante
+     fois par seconde, sans jamais rendre la main : l'onglet ralentissait
+     jusqu'à mourir avec le boîtier encore en l'air.
+
+     On peut retenir ces mesures parce que le fichier s'interdit ailleurs de
+     bouger les cibles — voir le long passage sur l'écartement, plus bas :
+     seule une couche INTÉRIEURE bascule, l'enveloppe ne bouge pas d'un
+     cheveu de tout le glissement. Le cache repose entièrement sur cette
+     promesse. Si une transformation atterrit un jour sur l'enveloppe
+     elle-même, ces mesures deviennent fausses en même temps que le geste
+     redevient oscillant : c'est le même invariant qui tient les deux.
+
+     Un `WeakMap` neuf à chaque glissement, et rien à ranger : la page peut
+     changer entre deux gestes, elle ne changera pas pendant l'un d'eux. */
+  const rectOf = (node) => {
+    const seen = measureRef.current;
+    let r = seen.get(node);
+    if (!r) seen.set(node, (r = node.getBoundingClientRect()));
+    return r;
+  };
+
+  /* Le dernier objet d'une rangée. Même raisonnement, même durée de vie :
+     la rangée ne se remplit pas pendant qu'on la survole, et parcourir ses
+     enfants à chaque événement pour retrouver le même nœud n'apprenait
+     rien à personne. `null` est une réponse valable — on la retient donc
+     aussi, sinon une rangée vide serait reparcourue à chaque frimousse.
+
+     Son propre registre, et non celui des rectangles : une rangée est à la
+     fois quelque chose qu'on mesure et quelque chose dont on cherche le
+     dernier enfant, et un seul registre lui rendrait l'une des deux
+     réponses à la place de l'autre. */
+  const tailOf = (strip) => {
+    const seen = tailRef.current;
+    if (seen.has(strip)) return seen.get(strip);
+    const items = strip.querySelectorAll(":scope > [data-shelf-item]");
+    const last = items[items.length - 1] || null;
+    seen.set(strip, last);
+    return last;
+  };
 
   const hideMark = () => {
     if (markRef.current) markRef.current.style.opacity = "0";
@@ -237,6 +293,10 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     if (d?.node && !d.create) d.node.style.opacity = "";
     dragRef.current = null;
     overRef.current = {};
+    /* Les mesures ne valaient que pour CE glissement : le suivant trouvera
+       peut-être une étagère rangée autrement, et il la remesurera. */
+    measureRef.current = new WeakMap();
+    tailRef.current = new WeakMap();
     hideMark();
     clearSpread();
     light(null);
@@ -292,7 +352,7 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
        l'écartement bascule une couche à l'intérieur d'elle et ne la
        déplace pas. Rien à défalquer, donc, et surtout rien qui puisse se
        mettre à osciller au gré de sa propre animation. */
-    const r = wrap.getBoundingClientRect();
+    const r = rectOf(wrap);
     const left = r.left,
       right = r.right - GAP_X;
     const o = overRef.current;
@@ -372,7 +432,7 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
        qu'une zone, elle n'a ni papier ni bord à teinter. */
     const card = wrap.querySelector("[data-cat-card]");
     light(card, "catOver");
-    const r = (card || wrap).getBoundingClientRect();
+    const r = rectOf(card || wrap);
     // le pied des boîtiers d'une boîte est à un écart au-dessus de son bas
     placeMark(r.right - 5 - MARK_W / 2, r.bottom - GAP_Y - BOX_H - (MARK_H - BOX_H) / 2);
   }, []);
@@ -388,13 +448,12 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     clearSpread();
     light(e.currentTarget, "rowOver");
     const strip = e.currentTarget;
-    const items = strip.querySelectorAll(":scope > [data-shelf-item]");
-    const last = items[items.length - 1];
-    const r = strip.getBoundingClientRect();
+    const last = tailOf(strip);
+    const r = rectOf(strip);
     /* `content-visibility` peut avoir sauté la mise en page du dernier
        boîtier ; un rectangle vide n'apprendrait rien, on se rabat alors
        sur le bord de la rangée. */
-    const lr = last?.getBoundingClientRect();
+    const lr = last && rectOf(last);
     // les rectangles d'enveloppe portent l'écart : on le retire pour viser la tranche
     const x = lr && lr.width ? lr.right - GAP_X + 5 : r.left + GAP_Y;
     const y = (lr && lr.height ? lr.bottom : r.bottom) - GAP_Y - BOX_H - (MARK_H - BOX_H) / 2;
@@ -411,7 +470,7 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     overRef.current = { kind, afterRowId, rowId: null, catId: null, overId: null };
     clearSpread();
     light(e.currentTarget, "seamOver");
-    const r = e.currentTarget.getBoundingClientRect();
+    const r = rectOf(e.currentTarget);
     placeMark(r.left + r.width / 2 - MARK_W / 2, r.top + r.height / 2 - MARK_H / 2, 90);
   }, []);
 
@@ -491,6 +550,37 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     reset();
   };
 
+  /* `drop` lit la vue et la collection : elle est donc forcément refaite à
+     chaque rendu, et c'est très bien — elle ne sert qu'une fois, au lâcher.
+
+     Ce qui ne va pas, c'est de la faire voyager telle quelle. Le paquet
+     `dnd` descend en prop jusqu'aux RANGÉES ; une seule fonction neuve
+     dedans, et le paquet entier est neuf, si bien que le `React.memo` de
+     chaque rangée voit des props différentes et refait son travail — pour
+     une fonction qu'on n'a même pas appelée.
+
+     Les boîtiers, eux, y échappent : ils reçoivent les gestionnaires un par
+     un, et ceux-là sont déjà stables. La perte se limite donc aux rangées.
+     Elle vaut quand même d'être colmatée, parce qu'une rangée refaite
+     remplace ses enveloppes — et que les mesures retenues plus haut
+     désignaient précisément ces enveloppes-là. Le seul rendu qu'un
+     glissement déclenche (la languette du tiroir qui s'ouvre) suffirait
+     alors à jeter le cache au milieu du geste.
+
+     On range donc la fonction du jour derrière une poignée qui, elle, ne
+     change jamais. Le paquet devient constant pour toute la vie du
+     composant, et la promesse tient.
+
+     Le rangement se fait après coup plutôt qu'en plein rendu : un rendu
+     doit pouvoir être joué deux fois sans rien laisser derrière lui. Le
+     décalage est sans conséquence ici — la poignée n'est tirée qu'au
+     lâcher, longtemps après que l'écran s'est posé. */
+  const dropRef = useRef(drop);
+  useEffect(() => {
+    dropRef.current = drop;
+  });
+  const onDrop = useCallback((kind) => dropRef.current(kind), []);
+
   const dnd = useMemo(
     () => ({
       onDragStart,
@@ -500,9 +590,9 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
       onCatOver,
       onRowOver,
       onSeamOver,
-      onDrop: drop,
+      onDrop,
     }),
-    [onDragStart, reset, onShelfOver, onBoxOver, onCatOver, onRowOver, onSeamOver, drop]
+    [onDragStart, reset, onShelfOver, onBoxOver, onCatOver, onRowOver, onSeamOver, onDrop]
   );
 
   const countOf = (kind) => films.filter(belongs[kind]).length;
