@@ -1,8 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { PerRowField, DecorCabinet } from "./layout";
-import { DECOR_TYPES } from "./constants";
+import { PerRowField, DecorCabinet, ItemPalette } from "./layout";
+import { DECOR_TYPES, CAT_FAMILIES } from "./constants";
+import { CAT_KEYS } from "../../shelf-views";
 
 const TITLE = "OBJETS SUR CETTE LIGNE";
 
@@ -158,5 +159,46 @@ describe("DecorCabinet", () => {
   it("dit sur quel rayon on vise", () => {
     open();
     expect(screen.getByText(/rayon visé/)).toHaveTextContent("La collection");
+  });
+});
+
+/* ------------------------------------------------------------
+   ItemPalette — le nuancier, une fois élargi
+   ------------------------------------------------------------ */
+
+describe("ItemPalette — les couleurs offertes", () => {
+  const open = (props = {}) => {
+    const onColor = vi.fn();
+    render(
+      <ItemPalette title="OBJET" color="burgundy" onColor={onColor} onClose={vi.fn()} {...props} />
+    );
+    return { onColor, user: userEvent.setup() };
+  };
+
+  it("offre toute la palette, et chaque teinte une seule fois", () => {
+    open();
+    const swatches = CAT_KEYS.map((k) => screen.getByTitle(k));
+    expect(swatches).toHaveLength(CAT_KEYS.length);
+    expect(new Set(swatches).size).toBe(CAT_KEYS.length);
+  });
+
+  it("range les pastilles par famille", () => {
+    open();
+    for (const fam of CAT_FAMILIES) expect(screen.getByText(fam.label.toUpperCase())).toBeTruthy();
+  });
+
+  /* Ce qui remonte est la CLÉ, jamais l'hexadécimal : c'est l'invariant
+     qui permet de retoucher une teinte sans figer ce qui la porte. */
+  it("rend la clé de la teinte choisie", async () => {
+    const { onColor, user } = open();
+    await user.click(screen.getByTitle("canard"));
+    expect(onColor).toHaveBeenCalledWith("canard");
+  });
+
+  /* Un objet importé qu'on ne sait pas teinter n'a pas de couleur : la
+     grille disparaît au lieu de promettre un réglage sans effet. */
+  it("ne montre aucune pastille sans onColor", () => {
+    open({ onColor: undefined });
+    expect(screen.queryByTitle("burgundy")).toBeNull();
   });
 });

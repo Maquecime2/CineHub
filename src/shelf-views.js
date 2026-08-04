@@ -15,6 +15,8 @@
    C'est la couche où une erreur ne se voit pas à l'écran mais corrompt
    des données, d'où les tests qui l'accompagnent. */
 
+import { CAT_KEYS } from "./theme/palette";
+
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
 export const SHELF_KINDS = ["chevet", "main", "reserve"];
@@ -39,19 +41,11 @@ export const belongs = {
 
 export const kindOf = (f) => (f.archived ? "reserve" : f.chevet && revu(f) ? "chevet" : "main");
 
-/* Les couleurs offertes aux catégories. On stocke la CLÉ et jamais
-   l'hexadécimal : retoucher la palette repeint alors toutes les
-   catégories déjà créées. */
-export const CAT_KEYS = [
-  "burgundy",
-  "ochre",
-  "pine",
-  "slate",
-  "cobalt",
-  "vermillion",
-  "moss",
-  "ink",
-];
+/* Les couleurs offertes aux catégories. La liste n'est plus recopiée
+   ici : elle se DÉDUIT du nuancier (`theme/palette`), qui reste pur et
+   n'entraîne donc pas React dans ce module. On stocke toujours la CLÉ et
+   jamais l'hexadécimal. */
+export { CAT_KEYS };
 
 /* De quoi on remplit une planche neuve. Ce n'est PLUS ce qu'elle affiche :
    une rangée naît « auto » et prend le compte de sa largeur (voir

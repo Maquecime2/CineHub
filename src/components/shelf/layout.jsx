@@ -13,6 +13,7 @@ import {
   SHELF_KIND,
   BOX_H,
   CAT_COLORS,
+  CAT_FAMILIES,
   catInk,
   DECOR_SIZES,
   DECOR_TYPES,
@@ -1892,24 +1893,46 @@ export function ItemPalette({
         {/* Un objet importé qu'on ne sait pas teinter n'a pas de couleur :
             sans `onColor`, la rangée de pastilles disparaît au lieu de
             promettre un réglage qui ne ferait rien. */}
+        {/* Par familles, et non plus en une seule bande. Huit pastilles
+            se parcouraient du regard ; vingt-quatre alignées ne sont
+            plus un choix mais un nuancier, où l'on cherche « quelque
+            chose de chaud » sans le trouver. Les intitulés sont menus :
+            ils rangent, ils ne s'annoncent pas. */}
         {onColor && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-            {CAT_KEYS.map((k) => (
-              <button
-                key={k}
-                onClick={() => onColor(k)}
-                title={k}
-                style={{
-                  all: "unset",
-                  cursor: "pointer",
-                  width: 22,
-                  height: 22,
-                  borderRadius: "50%",
-                  background: CAT_COLORS[k],
-                  border: color === k ? `2px solid ${C.ink}` : `1px solid ${C.line}`,
-                  transform: `rotate(${(hash(k) % 5) - 2}deg)`,
-                }}
-              />
+          <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+            {CAT_FAMILIES.map((fam) => (
+              <div key={fam.label}>
+                <div
+                  style={{
+                    fontFamily: "'Special Elite', monospace",
+                    fontSize: 8,
+                    letterSpacing: 1,
+                    color: C.inkFaded,
+                    marginBottom: 4,
+                  }}
+                >
+                  {fam.label.toUpperCase()}
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                  {fam.keys.map((k) => (
+                    <button
+                      key={k}
+                      onClick={() => onColor(k)}
+                      title={k}
+                      style={{
+                        all: "unset",
+                        cursor: "pointer",
+                        width: 22,
+                        height: 22,
+                        borderRadius: "50%",
+                        background: CAT_COLORS[k],
+                        border: color === k ? `2px solid ${C.ink}` : `1px solid ${C.line}`,
+                        transform: `rotate(${(hash(k) % 5) - 2}deg)`,
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         )}
