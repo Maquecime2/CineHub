@@ -57,6 +57,46 @@ describe("l'orientation d'un objet", () => {
   });
 });
 
+/* Une rotation CSS ne déplace rien : l'objet couché traversait les
+   boîtiers voisins sans jamais leur demander la place. L'enveloppe — qui
+   est aussi la cible de dépôt — réclame donc la largeur du cadre
+   englobant, et ce qu'on voit redevient ce qui prend la place. */
+describe("la place que prend un objet tourné", () => {
+  const largeur = (over) => {
+    const item = { ...makeDecor({ motif: "plant" }), ...over };
+    const { container } = render(<DecorItem item={item} ctx={{}} onLabel={noop} {...dnd} />);
+    return Number.parseInt(container.querySelector("[data-shelf-item]").style.width, 10);
+  };
+
+  it("s'élargit quand l'objet penche", () => {
+    expect(largeur({ rot: 45 })).toBeGreaterThan(largeur({ rot: 0 }));
+  });
+
+  /* Un carré couché d'un quart de tour retombe sur lui-même : c'est le
+     même cadre englobant, et donc la même place. */
+  it("rend sa place au carré remis d'équerre", () => {
+    expect(largeur({ rot: 90 })).toBe(largeur({ rot: 0 }));
+  });
+
+  it("compte pareil à gauche et à droite", () => {
+    expect(largeur({ rot: -40 })).toBe(largeur({ rot: 40 }));
+  });
+
+  it("passe par un maximum à mi-chemin", () => {
+    expect(largeur({ rot: 45 })).toBeGreaterThan(largeur({ rot: 90 }));
+  });
+
+  it("mesure le carton sur sa hauteur, pas sur sa tranche", () => {
+    const carton = (rot) => {
+      const item = { ...makeDecor({ motif: "divider" }), rot };
+      const { container } = render(<DecorItem item={item} ctx={{}} onLabel={noop} {...dnd} />);
+      return Number.parseInt(container.querySelector("[data-shelf-item]").style.width, 10);
+    };
+    // couché, il réclame sa hauteur de boîtier au lieu de ses trente pixels
+    expect(carton(90)).toBeGreaterThan(carton(0) * 3);
+  });
+});
+
 describe("l'intercalaire, repris pour qu'on le voie", () => {
   const carton = (over = {}) => {
     const item = { ...makeDecor({ motif: "divider", color: "burgundy" }), ...over };

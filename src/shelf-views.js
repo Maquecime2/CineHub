@@ -91,23 +91,12 @@ export function upgradeView(view) {
   if ((view.version || 1) >= VIEW_VERSION) return view;
   const shelves = {};
   for (const kind of SHELF_KINDS) {
-    const cap = capFor(kind);
-    const shelf = view.shelves?.[kind] || makeShelf();
-    /* On ne stampe plus de compte sur les rangées qui n'en ont pas — une
-       rangée naît « auto » et prend celui de sa largeur. Mais un rayon
-       entier versé dans UNE rangée reste un tas : on le débite en
-       planches, qui resteront auto. Débiter et compter sont deux choses,
-       et c'est de les avoir confondues que venait le compte imposé. */
-    shelves[kind] = {
-      ...shelf,
-      rows: shelf.rows.flatMap((r) =>
-        isUnplaced(r) || r.perRow || r.items.length <= cap
-          ? [r]
-          : chunk(r.items, cap).map((part, i) =>
-              i === 0 ? { ...r, items: part } : makeRow({ items: part })
-            )
-      ),
-    };
+    /* On ne touche plus aux rangées. Une vue de la v1 versait son rayon
+       dans une seule rangée sans compte, et c'était le défaut : elle
+       s'étirait en une bande sans fin. Elle se replie maintenant en
+       lignes de bois, chacune avec sa planche — la grosse ligne unique
+       est devenue une étagère, il n'y a plus rien à reprendre. */
+    shelves[kind] = view.shelves?.[kind] || makeShelf();
   }
   return reflowView(drainUnplaced({ ...view, version: VIEW_VERSION, shelves }));
 }
@@ -132,7 +121,8 @@ export function drainUnplaced(view) {
        les reprend plutôt que de poser les nouvelles derrière elles. */
     let keep = rows.slice(0, -1);
     while (keep.length && !keep[keep.length - 1].items.length) keep = keep.slice(0, -1);
-    const born = chunk(sas.items, cap).map((part) => makeRow({ items: part }));
+    // une planche, qui remplira sa largeur — pas des paquets de dix
+    const born = [makeRow({ items: sas.items })];
     shelves[kind] = { ...shelf, rows: [...keep, ...born, { ...sas, items: [] }] };
     changed = true;
   }
@@ -947,19 +937,16 @@ export function buildViewsFromLegacy({ films = [], dividers = [], wallPrefs = {}
     /* Le mur d'avant réglait son compte pour tout le rayon. Quand il en
        avait un, c'était un CHOIX : on le reprend tel quel, écrit dans la
        gouttière. Quand il était sur « auto », on ne lui en invente pas un
-       — les rangées naissent auto, et l'on débite seulement par dizaines
-       pour ne pas rendre un rayon d'une seule planche. */
+       — les rangées naissent auto et remplissent leur largeur. */
     const legacyPref = (() => {
       const p = wallPrefs[wall]?.perRow;
       return p && p !== "auto" ? p : null;
     })();
-    const legacyCap = legacyPref || DEFAULT_CAP;
 
     const view = makeView({ wall, name: "Rangement d'origine", theme: "kraft", now });
     let colorAt = 0;
 
     for (const kind of SHELF_KINDS) {
-      const shelfCap = kind === "reserve" ? DRAWER_CAP : legacyCap;
       const mine = pool.filter(belongs[kind]);
       /* Les films jamais rangés à la main portent `order: null`, que
          l'ancien tri repoussait en fin de rayon. Les fondre dans la
@@ -981,18 +968,16 @@ export function buildViewsFromLegacy({ films = [], dividers = [], wallPrefs = {}
       ].sort((a, b) => a.order - b.order || a.tie - b.tie);
 
       const rows = [];
-      let cap = shelfCap;
       // le compte ÉCRIT dans la gouttière : seulement s'il fut voulu
       let want = kind === "reserve" ? null : legacyPref;
       let loose = []; // les films libres, en attente de planches
       let cat = null;
 
-      /* Les films libres ne tiennent pas tous sur une planche : on les
-         débite en rangées du compte courant. Tout mettre sur une seule
-         rangée était le défaut du premier jet — un rayon entier entassé
-         sous une planche unique. */
+      /* On débite au compte VOULU, et sur « auto » on ne débite pas : une
+         planche sans compte remplit sa largeur et se replie en lignes de
+         bois, la couper par dix la laisserait à moitié nue. */
       const flushLoose = () => {
-        for (const part of chunk(loose, cap))
+        for (const part of chunk(loose, want))
           if (part.length) rows.push(makeRow({ perRow: want, items: part }));
         loose = [];
       };
@@ -1008,7 +993,6 @@ export function buildViewsFromLegacy({ films = [], dividers = [], wallPrefs = {}
             color: CAT_KEYS[colorAt++ % CAT_KEYS.length],
           });
           want = it.divider.perRow || want;
-          cap = it.divider.perRow || shelfCap;
           rows.push(makeRow({ perRow: want, items: [cat] }));
         } else if (cat) {
           cat.items.push(filmItem(it.id));

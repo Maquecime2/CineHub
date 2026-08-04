@@ -216,9 +216,9 @@ describe("DecorItem — l'intercalaire", () => {
   });
 });
 
-/* Nommer un carton se fait SUR le carton. Le panneau savait déjà le
-   faire, mais il fallait l'ouvrir pour le découvrir — et un carton
-   vierge ne disait pas qu'il attendait un nom. */
+/* Nommer un carton se fait SUR le carton — mais seulement s'il porte
+   déjà un nom. Un carton vierge n'a rien à réclamer : il sépare, et
+   séparer se passe de mot. */
 describe("DecorItem — écrire sur l'intercalaire", () => {
   const board = (over = {}) => {
     const onLabel = vi.fn();
@@ -236,7 +236,7 @@ describe("DecorItem — écrire sur l'intercalaire", () => {
   };
 
   const champ = () => screen.getByLabelText("Nom de l'intercalaire");
-  const carton = () => screen.getByTitle(/Polars|nommer/);
+  const carton = () => screen.getByTitle(/Polars|Intercalaire/);
 
   it("ouvre un champ garni du nom, au clic sur le carton", async () => {
     const { user } = board();
@@ -282,12 +282,24 @@ describe("DecorItem — écrire sur l'intercalaire", () => {
     const before = carton();
     expect(before).toHaveAttribute("draggable", "true");
     await user.click(before);
-    expect(screen.getByTitle(/Polars|nommer/)).toHaveAttribute("draggable", "false");
+    expect(carton()).toHaveAttribute("draggable", "false");
   });
 
-  it("un carton vierge annonce qu'il attend un nom", () => {
+  /* Nommer est une offre et non un passage obligé : beaucoup de cartons
+     ne servent qu'à marquer une coupure. Un carton vierge reste donc
+     vierge, et son clic ouvre le panneau — où un champ NOM attend celui
+     qui en veut un — au lieu de tomber dans un champ dont il faut
+     ressortir. */
+  it("laisse un carton vierge sans rien réclamer", () => {
     board({ label: "" });
-    expect(screen.getByText("nommer")).toBeInTheDocument();
+    expect(screen.queryByText("nommer")).not.toBeInTheDocument();
+  });
+
+  it("un carton vierge ouvre son panneau plutôt qu'un champ", async () => {
+    const { user, onEdit } = board({ label: "" });
+    await user.click(carton());
+    expect(onEdit).toHaveBeenCalledExactlyOnceWith("d1");
+    expect(screen.queryByLabelText("Nom de l'intercalaire")).not.toBeInTheDocument();
   });
 
   it("laisse la palette joignable pour ce qui n'est pas du texte", async () => {

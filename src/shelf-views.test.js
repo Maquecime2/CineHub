@@ -476,12 +476,15 @@ describe("upgradeView — reprendre une vue deja enregistree", () => {
     return view;
   };
 
-  it("débite en planches un rayon versé d'un coup, et les laisse « auto »", () => {
+  /* La grosse ligne unique de la v1 n'est plus un défaut à réparer : sans
+     compte, elle se replie d'elle-même en lignes de bois, chacune avec sa
+     planche. On la laisse donc telle quelle plutôt que de la débiter par
+     dix, ce qui laisserait chaque planche à moitié nue. */
+  it("laisse en l'état un rayon versé d'un coup : il se replie tout seul", () => {
     const out = upgradeView(v1());
     const rows = rowsOf(out, "main");
     expect(out.version).toBe(2);
-    expect(rows.filter((r) => !isUnplaced(r)).map((r) => r.items.length)).toEqual([10, 10, 5]);
-    // débiter n'est pas régler : la gouttière reste sur « auto »
+    expect(rows.filter((r) => !isUnplaced(r)).map((r) => r.items.length)).toEqual([25]);
     expect(rows.every((r) => r.perRow == null)).toBe(true);
   });
 
@@ -506,13 +509,13 @@ describe("upgradeView — reprendre une vue deja enregistree", () => {
 });
 
 describe("layoutView", () => {
-  it("étale une collection en planches d'une dizaine", () => {
+  it("étale une collection sur une planche qui remplira sa largeur", () => {
     const films = Array.from({ length: 23 }, (_, i) => film(`f${i}`));
     const out = layoutView(makeView(), films);
     const rows = rowsOf(out, "main");
-    expect(rows.filter((r) => !isUnplaced(r)).map((r) => r.items.length)).toEqual([10, 10, 3]);
+    expect(rows.filter((r) => !isUnplaced(r)).map((r) => r.items.length)).toEqual([23]);
     expect(idsIn(unplacedOf(out, "main"))).toEqual([]);
-    // des planches d'une dizaine, mais qui n'imposent rien : elles restent auto
+    // rien d'imposé : la rangée prendra le compte de sa largeur
     expect(rows.every((r) => r.perRow == null)).toBe(true);
   });
 
@@ -774,12 +777,24 @@ describe("buildViewsFromLegacy", () => {
     expect(idsIn(rowsOf(view, "main")[3])).toEqual(["nul1", "nul2"]);
   });
 
-  it("une collection jamais rangée à la main s'étale en planches", () => {
+  it("une collection jamais rangée à la main prend une planche, pas le sas", () => {
     const jamais = Array.from({ length: 25 }, (_, i) => film(`x${i}`, { order: null, addedAt: i }));
     const view = buildViewsFromLegacy({ films: jamais }).find((v) => v.wall === "watched");
     const rows = rowsOf(view, "main");
-    expect(rows.filter((r) => !isUnplaced(r)).map((r) => r.items.length)).toEqual([10, 10, 5]);
+    // sans compte voulu, une seule rangée : elle remplira sa largeur
+    expect(rows.filter((r) => !isUnplaced(r)).map((r) => r.items.length)).toEqual([25]);
     expect(idsIn(unplacedOf(view, "main"))).toEqual([]);
+  });
+
+  it("débite en revanche au compte que le mur d'avant avait choisi", () => {
+    const jamais = Array.from({ length: 25 }, (_, i) => film(`x${i}`, { order: null, addedAt: i }));
+    const view = buildViewsFromLegacy({
+      films: jamais,
+      wallPrefs: { watched: { perRow: 6 } },
+    }).find((v) => v.wall === "watched");
+    const rows = rowsOf(view, "main").filter((r) => !isUnplaced(r));
+    expect(rows.map((r) => r.items.length)).toEqual([6, 6, 6, 6, 1]);
+    expect(rows.every((r) => r.perRow === 6)).toBe(true);
   });
 
   it("un sas déjà débordé se vide sur des planches, en gardant l'ordre", () => {
@@ -790,7 +805,7 @@ describe("buildViewsFromLegacy", () => {
       makeRow({ kind: "unplaced", items: Array.from({ length: 23 }, (_, i) => filmItem(`s${i}`)) }),
     ];
     const rows = rowsOf(upgradeView(view), "main");
-    expect(rows.filter((r) => !isUnplaced(r)).map((r) => r.items.length)).toEqual([10, 10, 3]);
+    expect(rows.filter((r) => !isUnplaced(r)).map((r) => r.items.length)).toEqual([23]);
     expect(idsIn(rows.at(-1))).toEqual([]);
     expect(filmIdsOf(upgradeView(view))).toEqual(Array.from({ length: 23 }, (_, i) => `s${i}`));
   });

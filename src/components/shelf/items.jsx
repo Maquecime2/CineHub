@@ -448,6 +448,29 @@ export const leanOf = (id) => {
 export const angleOf = (item, tall = false) =>
   item.rot ?? (tall ? leanOf(item.id) : tiltOf(item.id));
 
+/* LA PLACE QUE PREND UN OBJET TOURNÉ.
+
+   Une rotation CSS ne déplace rien : c'est une transformation, elle est
+   peinte après la mise en page et la boîte qu'elle occupe dans le flux
+   reste celle d'avant. Tant que les objets ne penchaient que de deux ou
+   trois degrés c'était le bon calcul — le guingois est un détail de
+   dessin, il n'a pas à écarter les tranches voisines.
+
+   Mais on peut désormais coucher un objet à quatre-vingt-dix degrés, et
+   là ce n'est plus un détail : le carton traversait les boîtiers d'à
+   côté en les recouvrant, parce qu'il continuait de ne réclamer que la
+   largeur qu'il avait debout. Ce qu'on voit doit être ce qui prend la
+   place.
+
+   La largeur d'une boîte tournée est celle de son cadre englobant :
+   |L·cos θ| + |H·sin θ|. On la donne à l'enveloppe — qui EST la cible de
+   dépôt, donc la place réclamée et la place visée restent la même chose
+   — et le dessin, lui, garde sa taille et se centre dedans. */
+export const footprintOf = (w, h, deg) => {
+  const r = (Number(deg) * Math.PI) / 180;
+  return Math.round(Math.abs(w * Math.cos(r)) + Math.abs(h * Math.sin(r)));
+};
+
 /* Un décor posé sur la planche : il se glisse, se déplace et s'enlève
    comme un boîtier, mais ne dit rien d'un film. Six des motifs sont les
    décors que la maison dessine déjà ailleurs ; le reste vient de lucide. */
@@ -483,17 +506,44 @@ export const DecorItem = React.memo(function DecorItem({
      dit pas qu'il attend un nom. C'est le geste de la catégorie, dont on
      écrit l'onglet là où on le lit ; la palette reste à côté, pour ce
      qui n'est pas du texte. */
-  const writes = !!spec.writes && !!onLabel;
+  /* NOMMER RESTE UNE OFFRE, PAS UN PASSAGE OBLIGÉ.
+
+     Le carton s'écrivait sur lui-même : un clic ouvrait le champ, et un
+     carton vierge affichait « nommer » en italique. C'était juste pour
+     qui venait poser une catégorie, et pénible pour tous les autres —
+     beaucoup d'intercalaires ne servent qu'à marquer une coupure, et
+     n'ont rien à dire. Le clic tombait alors dans un champ dont il
+     fallait ressortir, et la couleur ou la taille se cachaient derrière
+     une icône qu'on ne trouvait qu'au survol.
+
+     On garde donc le geste, mais on le réserve aux cartons qui ONT un
+     nom : celui-là s'écrit là où on le lit. Un carton vierge, lui, ouvre
+     son panneau comme n'importe quel objet — et le panneau porte déjà un
+     champ NOM pour qui veut lui en donner un. */
+  const writes = !!spec.writes && !!onLabel && !!item.label;
   const commit = () => {
     setWriting(false);
     const v = draft.trim();
     if (v !== (item.label || "")) onLabel(item.id, v);
   };
+  const w = spec.tall ? Math.round(DIVIDER_W * s) : box;
+  const h = spec.tall ? Math.round(BOX_H * s) : box;
+  const angle = angleOf(item, spec.tall);
+  const footprint = footprintOf(w, h, angle);
+
   return (
     <div
       data-shelf-item={item.id}
       onDragOver={(e) => onDragOverBox(e, ctx)}
-      style={{ position: "relative", display: "flex", alignItems: "flex-end", flexShrink: 0 }}
+      style={{
+        position: "relative",
+        display: "flex",
+        alignItems: "flex-end",
+        justifyContent: "center",
+        flexShrink: 0,
+        // la place réclamée dans la rangée suit l'angle : voir `footprintOf`
+        width: footprint + GAP_X,
+      }}
     >
       {/* la couche qui bascule à l'écartement, sous la cible de dépôt */}
       <div
@@ -501,6 +551,8 @@ export const DecorItem = React.memo(function DecorItem({
         style={{
           display: "flex",
           alignItems: "flex-end",
+          justifyContent: "center",
+          width: "100%",
           transformOrigin: "bottom center",
           transition: "transform .3s cubic-bezier(.32,1.16,.42,1)",
         }}
@@ -527,17 +579,19 @@ export const DecorItem = React.memo(function DecorItem({
           }
           style={{
             position: "relative",
-            width: spec.tall ? Math.round(DIVIDER_W * s) : box,
-            height: spec.tall ? Math.round(BOX_H * s) : box,
+            width: w,
+            height: h,
             marginBottom: GAP_Y,
-            marginRight: GAP_X,
+            /* L'écart au voisin est passé à l'enveloppe, avec la place que
+               réclame l'angle : le laisser ici l'ajouterait une seconde
+               fois, et un objet tourné dériverait vers la droite. */
             flexShrink: 0,
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             overflow: "hidden",
-            transform: `rotate(${angleOf(item, spec.tall)}deg)`,
+            transform: `rotate(${angle}deg)`,
             transformOrigin: "bottom center",
             userSelect: "none",
             WebkitUserSelect: "none",
@@ -606,11 +660,11 @@ export const DecorItem = React.memo(function DecorItem({
                   maxHeight: `calc(100% - ${head}px)`,
                   marginTop: head,
                   padding: "6px 0",
-                  // un carton vierge annonce qu'il attend un nom
-                  ...(writes && !item.label ? { opacity: 0.45, fontStyle: "italic" } : null),
                 }}
               >
-                {item.label || (writes ? "nommer" : "")}
+                {/* Un carton vierge reste vierge : il sépare, et séparer
+                    se passe très bien de mot. */}
+                {item.label}
               </span>
             )
           ) : (

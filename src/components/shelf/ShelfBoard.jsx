@@ -500,7 +500,6 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
        et doit le LAISSER MONTER : sans ce retour, un cadre lâché juste
        au-dessus d'un boîtier se rangerait entre deux tranches. On ne
        réinitialise donc rien ici, le glissement n'est pas fini. */
-    console.log("DROP " + JSON.stringify({ type: drag.type, onWall, kind, hasView: !!view }));
     if (hangs(drag)) {
       if (!onWall) return;
       /* On mesure LA COUCHE DU MUR, jamais le cadre du rayon : c'est
@@ -588,7 +587,14 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
   useEffect(() => {
     dropRef.current = drop;
   });
-  const onDrop = useCallback((kind) => dropRef.current(kind), []);
+  /* La poignée passe TOUT ce qu'elle reçoit. Elle ne transmettait que le
+     rayon, et les deux arguments suivants tombaient en route : le dépôt
+     dans une rangée s'en accommodait, puisqu'il lit sa cible dans
+     `overRef` — mais le mur, lui, n'a que l'événement pour savoir où on
+     a lâché, et le drapeau pour savoir qu'on visait le fond du rayon et
+     non une fente entre deux tranches. Sans eux, `onWall` retombait sur
+     son défaut et rien ne s'accrochait plus nulle part. */
+  const onDrop = useCallback((...args) => dropRef.current(...args), []);
 
   const dnd = useMemo(
     () => ({
