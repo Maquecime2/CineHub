@@ -32,6 +32,9 @@ jobs:
       - name: Formatage
         run: npm run format:check
 
+      - name: Typage
+        run: npm run typecheck
+
       - name: Tests
         run: npm test
 

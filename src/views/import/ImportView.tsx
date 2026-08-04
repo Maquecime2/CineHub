@@ -1,0 +1,725 @@
+/* ============================================================
+   VUE — IMPORT LETTERBOXD
+   ============================================================ */
+import { useMemo, useRef, useState } from "react";
+import { Upload } from "lucide-react";
+import { C } from "../../theme/tokens";
+import { underlineInput } from "../../theme/styles";
+import { Label, Tally, InkStars } from "../../components/ui";
+import { StampCorner } from "../../components/atmosphere";
+import { store } from "../../services/storage";
+import { parseLetterboxdCsv, diffImport } from "../../domain/importing";
+import { enrichRows, checkApiKey } from "../../tmdb";
+import { BackupPanel } from "./BackupPanel";
+import type {
+  Divider,
+  Film,
+  FilmStatus,
+  ImportDiff,
+  ImportRow,
+  ImportStats,
+  Note,
+  ShelfViews,
+} from "../../types";
+
+/** Les deux natures d'import proposées sous le relevé du fichier. */
+const IMPORT_STATUSES: { k: FilmStatus; l: string }[] = [
+  { k: "watched", l: "des films vus" },
+  { k: "watchlist", l: "à voir" },
+];
+
+interface ImportViewProps {
+  films: Film[];
+  onImport: (diff: ImportDiff) => void;
+  notes: Note[];
+  dividers: Divider[];
+  views: ShelfViews | null;
+  onRestore: (data: {
+    films: Film[];
+    notes: Note[];
+    dividers: Divider[];
+    views: ShelfViews | null;
+  }) => void;
+}
+
+export function ImportView({
+  films,
+  onImport,
+  notes,
+  dividers,
+  views,
+  onRestore,
+}: ImportViewProps) {
+  const [rows, setRows] = useState<ImportRow[]>([]); // lignes lues, éventuellement enrichies
+  const [stats, setStats] = useState<ImportStats | null>(null); // ce que le fichier contenait
+  const [importStatus, setImportStatus] = useState<FilmStatus>("watched"); // vus / à voir
+  const [fileName, setFileName] = useState("");
+  const [error, setError] = useState("");
+  const [done, setDone] = useState<{ created: number; updated: number; unchanged: number } | null>(
+    null
+  ); // bilan après écriture
+
+  const [apiKey, setApiKey] = useState(() => store.get("tmdb-key", ""));
+  const [useTmdb, setUseTmdb] = useState(() => !!store.get("tmdb-key", ""));
+  const [keyState, setKeyState] = useState("");
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null); // { done, total }
+  const [tmdbReport, setTmdbReport] = useState<{ resolved: number; failed: number } | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+
+  const reset = () => {
+    setRows([]);
+    setStats(null);
+    setFileName("");
+    setError("");
+    setTmdbReport(null);
+    setProgress(null);
+  };
+
+  const handleFile = async (file: File) => {
+    reset();
+    setDone(null);
+    setFileName(file.name);
+    try {
+      const { rows: parsed, stats: s, kind } = await parseLetterboxdCsv(file);
+      setRows(parsed);
+      setStats(s);
+      setImportStatus(kind);
+      if (parsed.length === 0) setError("Aucune ligne exploitable trouvée dans ce fichier.");
+    } catch {
+      setError("Impossible de lire ce fichier CSV.");
+    }
+  };
+
+  const testKey = async () => {
+    setKeyState("…");
+    const r = await checkApiKey(apiKey.trim());
+    setKeyState(r.ok ? "clé valide" : "clé refusée");
+  };
+
+  // Le réalisateur n'est pas dans le CSV : on va le chercher avant de comparer,
+  // pour que l'aperçu montre déjà les fiches telles qu'elles seront écrites.
+  const runTmdb = async () => {
+    const key = apiKey.trim();
+    if (!key) return;
+    store.set("tmdb-key", key);
+    setProgress({ done: 0, total: rows.length });
+    const res = await enrichRows(rows, key, {
+      onProgress: (d: number, t: number) => setProgress({ done: d, total: t }),
+    } as never);
+    setRows(res.rows);
+    setTmdbReport({ resolved: res.resolved, failed: res.failed });
+    setProgress(null);
+  };
+
+  // Rien n'est écrit tant que ce diff n'a pas été validé.
+  const diff = useMemo(
+    () => (rows.length ? diffImport(films, rows, importStatus) : null),
+    [films, rows, importStatus]
+  );
+
+  const confirm = () => {
+    if (!diff) return;
+    onImport(diff);
+    setDone({
+      created: diff.toCreate.length,
+      updated: diff.toUpdate.length,
+      unchanged: diff.unchanged.length,
+    });
+    reset();
+  };
+
+  const enriched = rows.filter((r) => r.director).length;
+
+  return (
+    <div style={{ padding: "34px 44px 70px", maxWidth: 680, position: "relative" }}>
+      <StampCorner text="ARCHIVES" />
+      <div
+        style={{
+          fontFamily: "'Playfair Display', serif",
+          fontStyle: "italic",
+          fontWeight: 700,
+          fontSize: 42,
+          color: C.ink,
+        }}
+      >
+        Bordereau d'import
+      </div>
+      <div
+        style={{
+          fontFamily: "'Caveat', cursive",
+          fontSize: 20,
+          color: C.inkFaded,
+          marginTop: -4,
+          marginBottom: 22,
+        }}
+      >
+        un fichier à la fois, dans l'ordre indiqué ci-dessous
+      </div>
+
+      {/* L'export Letterboxd est un zip de plusieurs CSV : chacun ne contient
+          qu'une partie de l'histoire, d'où l'ordre conseillé. */}
+      <div
+        style={{
+          border: `1px solid ${C.line}`,
+          background: C.card,
+          padding: "16px 20px",
+          marginBottom: 22,
+        }}
+      >
+        <div
+          style={{
+            fontFamily: "'Special Elite', monospace",
+            fontSize: 11,
+            color: C.inkFaded,
+            letterSpacing: 1,
+            marginBottom: 4,
+          }}
+        >
+          QUELS FICHIERS DÉPOSER
+        </div>
+        <div
+          style={{ fontFamily: "'Lora', serif", fontSize: 13, color: C.inkFaded, marginBottom: 12 }}
+        >
+          Letterboxd vous livre un zip : dézippez-le, puis déposez ces fichiers un par un.
+        </div>
+        {[
+          {
+            n: "watched.csv",
+            d: "tous les films vus — la base de la collection",
+            ink: C.pine,
+            ordre: "1",
+          },
+          {
+            n: "ratings.csv",
+            d: "vos notes ; complète les fiches déjà créées",
+            ink: C.burgundy,
+            ordre: "2",
+          },
+          {
+            n: "watchlist.csv",
+            d: "vos envies ; atterrit dans l'onglet « À voir »",
+            ink: C.cobalt,
+            ordre: "3",
+          },
+        ].map((f) => (
+          <div key={f.n} style={{ display: "flex", gap: 10, alignItems: "baseline", marginTop: 7 }}>
+            <span
+              style={{
+                fontFamily: "'Special Elite', monospace",
+                fontSize: 12,
+                color: C.card,
+                background: f.ink,
+                width: 18,
+                height: 18,
+                lineHeight: "18px",
+                textAlign: "center",
+                borderRadius: "50%",
+                flexShrink: 0,
+              }}
+            >
+              {f.ordre}
+            </span>
+            <span style={{ fontFamily: "'Special Elite', monospace", fontSize: 12, color: f.ink }}>
+              {f.n}
+            </span>
+            <span style={{ fontFamily: "'Lora', serif", fontSize: 12.5, color: C.inkFaded }}>
+              {f.d}
+            </span>
+          </div>
+        ))}
+        <div
+          style={{
+            fontFamily: "'Caveat', cursive",
+            fontSize: 17,
+            color: C.inkFaded,
+            marginTop: 12,
+            lineHeight: 1.35,
+          }}
+        >
+          L'ordre compte peu, mais watched.csv d'abord évite d'oublier les films vus sans note.
+          diary.csv est optionnel : il n'ajoute que les dates de séance. Rien n'est jamais dupliqué
+          — repassez les fichiers autant de fois que vous voulez.
+        </div>
+      </div>
+
+      <div
+        style={{
+          border: `2px dashed ${C.line}`,
+          padding: 34,
+          textAlign: "center",
+          background: C.paperDark,
+        }}
+      >
+        <Upload size={24} color={C.burgundy} style={{ marginBottom: 10 }} />
+        <div style={{ color: C.ink, fontFamily: "'Lora', serif", fontSize: 14, marginBottom: 14 }}>
+          letterboxd.com → Settings → Import &amp; Export → Export your data
+        </div>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".csv"
+          style={{ display: "none" }}
+          onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+        />
+        <button
+          onClick={() => fileRef.current?.click()}
+          style={{
+            all: "unset",
+            cursor: "pointer",
+            background: C.burgundy,
+            color: C.card,
+            padding: "9px 18px",
+            fontFamily: "'Special Elite', monospace",
+            fontSize: 11.5,
+          }}
+        >
+          CHOISIR UN FICHIER
+        </button>
+        {fileName && (
+          <div
+            style={{
+              color: C.inkFaded,
+              fontSize: 12,
+              marginTop: 10,
+              fontFamily: "'Special Elite', monospace",
+            }}
+          >
+            {fileName}
+          </div>
+        )}
+      </div>
+
+      {error && (
+        <div
+          style={{
+            marginTop: 16,
+            color: C.burgundy,
+            fontFamily: "'Caveat', cursive",
+            fontSize: 19,
+          }}
+        >
+          {error}
+        </div>
+      )}
+
+      {done && (
+        <div
+          style={{
+            marginTop: 20,
+            border: `1px solid ${C.pine}`,
+            background: C.card,
+            padding: "14px 18px",
+          }}
+        >
+          <div
+            style={{
+              fontFamily: "'Special Elite', monospace",
+              fontSize: 11,
+              color: C.pine,
+              letterSpacing: 1,
+              marginBottom: 8,
+            }}
+          >
+            IMPORT TERMINÉ
+          </div>
+          <Tally label="fiches créées" value={done.created} ink={C.pine} />
+          <Tally label="fiches mises à jour" value={done.updated} ink={C.ochre} />
+          <Tally label="déjà à jour, inchangées" value={done.unchanged} />
+        </div>
+      )}
+
+      {/* ---- vérification de la lecture du fichier ---- */}
+      {stats && (
+        <div
+          style={{
+            marginTop: 24,
+            border: `1px solid ${C.line}`,
+            background: C.card,
+            padding: "16px 20px",
+          }}
+        >
+          <div
+            style={{
+              fontFamily: "'Special Elite', monospace",
+              fontSize: 11,
+              color: C.inkFaded,
+              letterSpacing: 1,
+              marginBottom: 10,
+            }}
+          >
+            CE QUE CONTIENT LE FICHIER
+          </div>
+          <Tally label="lignes lues" value={stats.lines} />
+          <Tally label="films distincts" value={stats.total} />
+          <Tally
+            label="avec une note"
+            value={stats.withRating}
+            ink={stats.withRating ? C.pine : C.inkFaded}
+          />
+          <Tally label="sans note" value={stats.withoutRating} />
+          {stats.duplicatesInFile > 0 && (
+            <Tally label="revoyures regroupées" value={stats.duplicatesInFile} ink={C.ochre} />
+          )}
+          {stats.skippedNoTitle > 0 && (
+            <Tally
+              label="lignes sans titre, ignorées"
+              value={stats.skippedNoTitle}
+              ink={C.burgundy}
+            />
+          )}
+
+          <div style={{ marginTop: 16 }}>
+            <Label>Ces films sont</Label>
+            <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
+              {IMPORT_STATUSES.map((o) => (
+                <button
+                  key={o.k}
+                  onClick={() => setImportStatus(o.k)}
+                  style={{
+                    all: "unset",
+                    cursor: "pointer",
+                    padding: "6px 14px",
+                    fontFamily: "'Special Elite', monospace",
+                    fontSize: 11,
+                    background: importStatus === o.k ? C.cobalt : "transparent",
+                    color: importStatus === o.k ? C.card : C.inkFaded,
+                    border: `1px solid ${importStatus === o.k ? C.cobalt : C.line}`,
+                  }}
+                >
+                  {o.l}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---- réalisateurs via TMDB ---- */}
+      {rows.length > 0 && (
+        <div
+          style={{
+            marginTop: 20,
+            border: `1px solid ${C.line}`,
+            background: C.paperDark,
+            padding: "16px 20px",
+          }}
+        >
+          <div
+            style={{
+              fontFamily: "'Special Elite', monospace",
+              fontSize: 11,
+              color: C.inkFaded,
+              letterSpacing: 1,
+            }}
+          >
+            RÉALISATEUR·RICE, GENRES ET AFFICHES
+          </div>
+          <div
+            style={{
+              fontFamily: "'Lora', serif",
+              fontSize: 13,
+              color: C.inkFaded,
+              margin: "6px 0 12px",
+            }}
+          >
+            Letterboxd n'exporte ni le réalisateur ni les affiches. TMDB retrouve les deux (clé
+            gratuite sur themoviedb.org).
+          </div>
+          <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
+            <div style={{ flex: 1, minWidth: 220 }}>
+              <Label>Clé API TMDB</Label>
+              <input
+                style={underlineInput}
+                value={apiKey}
+                type="password"
+                placeholder="collez votre clé ici"
+                onChange={(e) => {
+                  setApiKey(e.target.value);
+                  setKeyState("");
+                  setUseTmdb(!!e.target.value.trim());
+                }}
+              />
+            </div>
+            <button
+              onClick={testKey}
+              disabled={!apiKey.trim()}
+              style={{
+                all: "unset",
+                cursor: apiKey.trim() ? "pointer" : "not-allowed",
+                padding: "7px 14px",
+                border: `1px solid ${C.line}`,
+                color: C.inkFaded,
+                fontFamily: "'Special Elite', monospace",
+                fontSize: 10.5,
+              }}
+            >
+              TESTER
+            </button>
+          </div>
+          {keyState && (
+            <div
+              style={{
+                fontFamily: "'Caveat', cursive",
+                fontSize: 17,
+                color: keyState === "clé valide" ? C.pine : C.burgundy,
+                marginTop: 6,
+              }}
+            >
+              {keyState}
+            </div>
+          )}
+
+          {progress ? (
+            <div style={{ marginTop: 14 }}>
+              <div style={{ height: 6, background: C.line, position: "relative" }}>
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    right: `${100 - (progress.done / progress.total) * 100}%`,
+                    background: C.ochre,
+                    transition: "right .2s linear",
+                  }}
+                />
+              </div>
+              <div
+                style={{
+                  fontFamily: "'Special Elite', monospace",
+                  fontSize: 10.5,
+                  color: C.inkFaded,
+                  marginTop: 6,
+                }}
+              >
+                {progress.done} / {progress.total} interrogés…
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={runTmdb}
+              disabled={!apiKey.trim() || !useTmdb}
+              style={{
+                all: "unset",
+                cursor: apiKey.trim() ? "pointer" : "not-allowed",
+                marginTop: 14,
+                background: apiKey.trim() ? C.ochre : C.line,
+                color: C.card,
+                padding: "9px 16px",
+                fontFamily: "'Special Elite', monospace",
+                fontSize: 11,
+              }}
+            >
+              COMPLÉTER LES {rows.length} FICHE(S)
+            </button>
+          )}
+
+          {tmdbReport && (
+            <div style={{ marginTop: 12 }}>
+              <Tally label="réalisateurs trouvés" value={tmdbReport.resolved} ink={C.pine} />
+              {tmdbReport.failed > 0 && (
+                <Tally label="films non identifiés" value={tmdbReport.failed} ink={C.burgundy} />
+              )}
+            </div>
+          )}
+          <div
+            style={{
+              fontFamily: "'Caveat', cursive",
+              fontSize: 16,
+              color: C.inkFaded,
+              marginTop: 10,
+            }}
+          >
+            L'import fonctionne aussi sans clé : les fiches seront simplement créées sans
+            réalisateur.
+          </div>
+        </div>
+      )}
+
+      {/* ---- diff avant écriture ---- */}
+      {diff && (
+        <div style={{ marginTop: 22 }}>
+          <Label>Ce qui va être écrit</Label>
+          <div
+            style={{
+              display: "flex",
+              gap: 26,
+              margin: "10px 0 14px",
+              fontFamily: "'Special Elite', monospace",
+            }}
+          >
+            {(
+              [
+                ["nouveaux", diff.toCreate.length, C.pine],
+                ["mis à jour", diff.toUpdate.length, C.ochre],
+                ["inchangés", diff.unchanged.length, C.inkFaded],
+              ] as [string, number, string][]
+            ).map(([l, n, ink]) => (
+              <div key={l} style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 30, color: ink }}>{n}</div>
+                <div style={{ fontSize: 10, color: C.inkFaded, letterSpacing: 1 }}>
+                  {l.toUpperCase()}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {diff.toUpdate.length > 0 && (
+            <div style={{ marginBottom: 14 }}>
+              <div
+                style={{
+                  fontFamily: "'Caveat', cursive",
+                  fontSize: 18,
+                  color: C.inkFaded,
+                  marginBottom: 4,
+                }}
+              >
+                fiches existantes retouchées (vos critiques et notes libres sont conservées)
+              </div>
+              <div
+                style={{
+                  maxHeight: 180,
+                  overflowY: "auto",
+                  border: `1px solid ${C.line}`,
+                  background: C.card,
+                }}
+              >
+                {diff.toUpdate.map(({ film, changes }) => (
+                  <div
+                    key={film.id}
+                    style={{
+                      padding: "7px 14px",
+                      borderBottom: `1px solid ${C.line}`,
+                      fontFamily: "'Lora', serif",
+                      fontSize: 13,
+                      color: C.ink,
+                    }}
+                  >
+                    {film.title}{" "}
+                    {film.year && <span style={{ color: C.inkFaded }}>({film.year})</span>}
+                    <span
+                      style={{
+                        color: C.ochre,
+                        fontFamily: "'Special Elite', monospace",
+                        fontSize: 10.5,
+                        marginLeft: 8,
+                      }}
+                    >
+                      {"rating" in changes && `note ${film.rating || 0} → ${changes.rating}`}
+                      {changes.director && ` · réalisateur : ${changes.director}`}
+                      {changes.watchedAt && ` · vu le ${changes.watchedAt}`}
+                      {changes.status && " · passe en « vu »"}
+                      {changes.genres && " · genres"}
+                      {changes.poster && " · affiche"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {diff.toCreate.length > 0 && (
+            <div
+              style={{
+                maxHeight: 220,
+                overflowY: "auto",
+                border: `1px solid ${C.line}`,
+                background: C.card,
+              }}
+            >
+              {diff.toCreate.slice(0, 60).map((f) => (
+                <div
+                  key={f.id}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 10,
+                    padding: "8px 14px",
+                    borderBottom: `1px solid ${C.line}`,
+                    fontFamily: "'Lora', serif",
+                    fontSize: 13,
+                    color: C.ink,
+                  }}
+                >
+                  <span>
+                    {f.title} {f.year && <span style={{ color: C.inkFaded }}>({f.year})</span>}
+                    {f.director && (
+                      <span
+                        style={{ fontFamily: "'Caveat', cursive", fontSize: 16, color: C.inkFaded }}
+                      >
+                        {" "}
+                        — {f.director}
+                      </span>
+                    )}
+                  </span>
+                  {importStatus === "watched" && f.rating > 0 && (
+                    <InkStars value={f.rating} size={11} />
+                  )}
+                </div>
+              ))}
+              {diff.toCreate.length > 60 && (
+                <div
+                  style={{
+                    padding: "8px 14px",
+                    fontFamily: "'Caveat', cursive",
+                    fontSize: 16,
+                    color: C.inkFaded,
+                  }}
+                >
+                  …et {diff.toCreate.length - 60} autres
+                </div>
+              )}
+            </div>
+          )}
+
+          {enriched === 0 && (
+            <div
+              style={{
+                marginTop: 10,
+                fontFamily: "'Caveat', cursive",
+                fontSize: 17,
+                color: C.burgundy,
+              }}
+            >
+              Aucun réalisateur pour l'instant — complétez via TMDB ci-dessus avant de valider,
+              sinon les fiches resteront « anonyme ».
+            </div>
+          )}
+
+          <button
+            onClick={confirm}
+            disabled={diff.toCreate.length === 0 && diff.toUpdate.length === 0}
+            style={{
+              all: "unset",
+              marginTop: 16,
+              padding: "11px 20px",
+              cursor: diff.toCreate.length || diff.toUpdate.length ? "pointer" : "not-allowed",
+              background: diff.toCreate.length || diff.toUpdate.length ? C.pine : C.line,
+              color: C.card,
+              fontFamily: "'Special Elite', monospace",
+              fontSize: 11.5,
+              letterSpacing: 1,
+            }}
+          >
+            {diff.toCreate.length || diff.toUpdate.length
+              ? `VALIDER — ${diff.toCreate.length} CRÉÉE(S), ${diff.toUpdate.length} MISE(S) À JOUR`
+              : "TOUT EST DÉJÀ À JOUR"}
+          </button>
+        </div>
+      )}
+
+      <div
+        style={{ marginTop: 26, fontFamily: "'Caveat', cursive", fontSize: 17, color: C.inkFaded }}
+      >
+        {films.length} film(s) déjà au catalogue — un réimport met à jour les fiches existantes au
+        lieu de les dupliquer.
+      </div>
+
+      <BackupPanel
+        films={films}
+        notes={notes}
+        dividers={dividers}
+        views={views}
+        onRestore={onRestore}
+      />
+    </div>
+  );
+}
