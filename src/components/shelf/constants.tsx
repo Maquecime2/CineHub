@@ -288,6 +288,9 @@ export const DECOR_SIZES: [string, number][] = [
   ["S", 0.7],
   ["M", 1],
   ["L", 1.5],
+  ["XL", 2.2],
+  ["XXL", 3.2],
+  ["XXXL", 4.6],
 ];
 
 /* Le repère se déplace en `transform` et jamais en `left`/`top` : une

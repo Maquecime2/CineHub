@@ -64,7 +64,12 @@ const films = Array.from({ length: 40 }, (_, i) => ({
    augmenté des seuls champs que le code lit. */
 const fire = (node, type, extra = {}) => {
   const e = new Event(type, { bubbles: true, cancelable: true });
-  Object.assign(e, { clientX: 0, clientY: 0, dataTransfer: { setData() {}, setDragImage() {} }, ...extra });
+  Object.assign(e, {
+    clientX: 0,
+    clientY: 0,
+    dataTransfer: { setData() {}, setDragImage() {} },
+    ...extra,
+  });
   node.dispatchEvent(e);
 };
 
