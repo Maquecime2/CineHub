@@ -33,6 +33,11 @@ import {
   UNKNOWN_DIRECTOR,
   upgradeView,
   DEFAULT_CAP,
+  reflowView,
+  wallDecorOf,
+  plankDecorOf,
+  patchViewDecor,
+  clearViewDecor,
 } from "./shelf-views";
 
 /* Un film réduit à ce dont l'étagère a besoin. */
@@ -860,5 +865,64 @@ describe("duplicateView", () => {
     expect(filmIdsOf(copy)).toEqual(filmIdsOf(view));
     // et l'original n'a pas bougé
     expect(view.shelves.main.rows[0].items[0].id).toBe("c1");
+  });
+});
+
+/* ------------------------------------------------------------
+   Le décor — un champ qui n'existe que si on y a touché
+   ------------------------------------------------------------ */
+
+describe("le décor de la vue", () => {
+  it("est absent d'une vue neuve", () => {
+    expect(makeView()).not.toHaveProperty("decor");
+    expect(wallDecorOf(makeView())).toBeNull();
+    expect(plankDecorOf(makeView())).toBeNull();
+  });
+
+  it("s'écrit facette par facette, sans toucher aux autres", () => {
+    let v = patchViewDecor(makeView(), "wall", { paint: "sauge" });
+    v = patchViewDecor(v, "plank", { material: "laiton" });
+    v = patchViewDecor(v, "wall", { pattern: "pois" });
+
+    expect(wallDecorOf(v)).toEqual({ paint: "sauge", pattern: "pois" });
+    expect(plankDecorOf(v)).toEqual({ material: "laiton" });
+  });
+
+  /* Un `decor: {}` et une absence de décor voudraient dire la même
+     chose ; deux façons de dire une chose, c'est une de trop, et c'est
+     celle qui se lit comme « il y a un décor » qu'on écarte. */
+  it("disparaît entièrement quand son dernier réglage s'efface", () => {
+    const v = patchViewDecor(makeView(), "wall", { paint: "nuit" });
+    expect(patchViewDecor(v, "wall", { paint: null })).not.toHaveProperty("decor");
+  });
+
+  it("s'efface d'un coup pour revenir au thème", () => {
+    let v = patchViewDecor(makeView(), "wall", { paint: "nuit" });
+    v = patchViewDecor(v, "plank", { material: "verre" });
+    const back = clearViewDecor(v);
+    expect(back).not.toHaveProperty("decor");
+    expect(back.theme).toBe("kraft");
+    // et l'original n'a pas bougé
+    expect(v.decor.wall.paint).toBe("nuit");
+  });
+
+  /* La raison pour laquelle il n'y a aucune migration à écrire : toutes
+     les transformations reconstruisent la vue par étalement. Si l'une
+     d'elles se mettait un jour à énumérer les champs à la main, c'est
+     ce test qui le dirait. */
+  it("survit aux transformations d'agencement", () => {
+    let v = patchViewDecor(makeView(), "wall", { paint: "terracotta", texture: "crepi" });
+    v.shelves.main.rows[0].items = [filmItem("f1")];
+
+    const films = [{ id: "f1", status: "watched" }];
+    for (const passe of [
+      (x) => upgradeView({ ...x, version: 1 }),
+      (x) => reflowView(x),
+      (x) => reconcileView(x, films),
+      (x) => duplicateView(x),
+      (x) => moveItem(x, { id: "f1" }, { kind: "chevet", rowId: x.shelves.chevet.rows[0].id }),
+    ]) {
+      expect(wallDecorOf(passe(v))).toEqual({ paint: "terracotta", texture: "crepi" });
+    }
   });
 });
