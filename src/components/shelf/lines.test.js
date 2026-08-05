@@ -77,6 +77,23 @@ describe("splitRow — le découpage d'une rangée en lignes de bois", () => {
     expect(shape(splitRow([filmItem("a"), gros, filmItem("b")], 3))).toEqual([["a", "d1"], ["b"]]);
   });
 
+  /* Le coût vaut aussi DANS une boîte. Il n'y valait pas, et c'est par
+     là que le débord revenait : la boîte tranchait son contenu au nombre
+     d'objets, un décor en XXXL y gonflait le carton bien au-delà de sa
+     planche, et le carton poussait la page. */
+  it("fait payer ses cases au gros mobilier rangé dans une boîte", () => {
+    const gros = makeDecor({ id: "d1", motif: "plant", size: 4.6 });
+    const cat = makeCat({ id: "c1", items: [...films("a", "b"), gros, filmItem("c")] });
+    // deux films, puis le décor seul sur sa ligne (trois cases), puis le reste
+    expect(shape(splitRow([cat], 3))).toEqual([["c1[2]^"], ["c1[1]"], ["c1[1]$"]]);
+  });
+
+  it("emporte au moins un objet par tranche de boîte, même démesuré", () => {
+    const gros = makeDecor({ id: "d1", motif: "plant", size: 4.6 });
+    const cat = makeCat({ id: "c1", items: [gros, filmItem("a")] });
+    expect(shape(splitRow([cat], 1))).toEqual([["c1[1]^"], ["c1[1]$"]]);
+  });
+
   /* Une planche trop étroite pour l'objet n'a rien de mieux à offrir que
      sa ligne entière : ouvrir une ligne vide devant lui ne ferait que
      repousser le problème d'un cran, indéfiniment. */

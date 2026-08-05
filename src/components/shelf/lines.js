@@ -72,8 +72,30 @@ export function splitRow(items, cap) {
       let at = 0;
       let first = true;
       while (at < total) {
-        if (free === 0) turn();
-        const end = at + Math.min(free, total - at);
+        /* On n'ouvre pas une tranche dans une place où le premier objet
+           ne tient déjà pas : c'est la même garde qu'au premier niveau,
+           et c'est elle qui envoie le gros décor à la ligne plutôt que de
+           le tasser dans la case qui restait. */
+        if (cur.length && free < costOf(it.items[at])) turn();
+        /* Combien de ce que la boîte tient encore entre dans les cases
+           qui restent. On comptait des OBJETS ; on compte maintenant leur
+           coût, comme au premier niveau — un décor en XXXL rangé dans une
+           boîte gonflait le carton bien au-delà de sa planche, et par lui
+           la page entière.
+
+           `taken > 0` : une tranche emporte toujours au moins un objet,
+           même s'il est à lui seul plus large que la ligne. Sans quoi une
+           boîte contenant un objet démesuré ne se découperait jamais. */
+        let taken = 0;
+        let used = 0;
+        while (at + taken < total) {
+          const c = costOf(it.items[at + taken]);
+          if (taken > 0 && used + c > free) break;
+          used += c;
+          taken += 1;
+          if (used >= free) break;
+        }
+        const end = at + taken;
         cur.push({
           t: "c",
           cat: it,
@@ -82,7 +104,7 @@ export function splitRow(items, cap) {
           last: end >= total,
           key: `${it.id}@${at}`,
         });
-        free -= end - at;
+        free = Math.max(0, free - used);
         at = end;
         first = false;
       }
