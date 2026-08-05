@@ -60,6 +60,37 @@ describe("splitRow — le découpage d'une rangée en lignes de bois", () => {
     expect(shape(splitRow([filmItem("a"), d, filmItem("b")], 2))).toEqual([["a", "d1"], ["b"]]);
   });
 
+  /* Un décor ne vaut une case que tant qu'il en fait la taille. Aux
+     grands calibres il en occupe deux ou trois, et n'en payer qu'une
+     faisait déborder la ligne de sa planche — le débord poussant la page
+     entière, barre de défilement horizontale comprise. */
+  it("fait payer au gros mobilier les cases qu'il occupe", () => {
+    const petit = makeDecor({ id: "d1", motif: "plant" });
+    const gros = makeDecor({ id: "d2", motif: "plant", size: 4.6 });
+    // au calibre M il laisse tenir deux boîtiers ; en XXXL il prend les trois cases
+    expect(shape(splitRow([petit, filmItem("a"), filmItem("b")], 3))).toEqual([["d1", "a", "b"]]);
+    expect(shape(splitRow([gros, filmItem("a"), filmItem("b")], 3))).toEqual([
+      ["d2"],
+      ["a", "b"],
+    ]);
+  });
+
+  it("renvoie à la ligne ce qu'un gros décor ne laisse plus tenir", () => {
+    const gros = makeDecor({ id: "d1", motif: "plant", size: 2.2 });
+    expect(shape(splitRow([filmItem("a"), gros, filmItem("b")], 3))).toEqual([
+      ["a", "d1"],
+      ["b"],
+    ]);
+  });
+
+  /* Une planche trop étroite pour l'objet n'a rien de mieux à offrir que
+     sa ligne entière : ouvrir une ligne vide devant lui ne ferait que
+     repousser le problème d'un cran, indéfiniment. */
+  it("donne la ligne entière à un décor plus large qu'elle", () => {
+    const énorme = makeDecor({ id: "d1", motif: "plant", size: 4.6 });
+    expect(shape(splitRow([énorme, filmItem("a")], 1))).toEqual([["d1"], ["a"]]);
+  });
+
   it("tient avec une seule case par ligne", () => {
     const cat = makeCat({ id: "c1", items: films("x", "y") });
     expect(shape(splitRow([cat], 1))).toEqual([["c1[1]^"], ["c1[1]$"]]);

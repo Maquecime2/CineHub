@@ -10,7 +10,8 @@ import { CoffeeRing, TapeResidue, StampCorner, InkUnderline } from "../../compon
 import { Label } from "../../components/ui";
 import { ShelfBoard } from "../../components/shelf/ShelfBoard";
 import { THEMES } from "../../components/shelf/constants";
-import { SHELF_KINDS, sortIntoRows } from "../../shelf-views";
+import { DecorStudio } from "../../components/shelf/DecorStudio";
+import { SHELF_KINDS, sortIntoRows, patchViewDecor, clearViewDecor } from "../../shelf-views";
 import { FilmWall } from "./FilmWall";
 import { WALLS } from "./walls";
 
@@ -24,6 +25,7 @@ function ViewSwitcher({
   onDelete,
   onRename,
   onTheme,
+  onDecor,
 }) {
   const [open, setOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
@@ -264,6 +266,29 @@ function ViewSwitcher({
                 />
               ))}
             </div>
+
+            {/* Le bois est le choix rapide ; l'atelier est la porte à
+                côté, pour qui veut peindre le mur et changer la matière
+                de la planche. Il vit ICI, avec les pastilles, parce que
+                le décor appartient à la VUE — pas à un rayon. */}
+            <button
+              onClick={() => {
+                onDecor();
+                setOpen(false);
+              }}
+              title="Peindre le mur, changer la matière des planches"
+              style={{
+                all: "unset",
+                cursor: "pointer",
+                marginTop: 10,
+                fontFamily: "'Special Elite', monospace",
+                fontSize: 10,
+                letterSpacing: 0.5,
+                color: C.burgundy,
+              }}
+            >
+              ATELIER DÉCO…
+            </button>
           </div>
         </>
       )}
@@ -319,6 +344,11 @@ export function LibraryView({
     () => Array.from(new Set(films.map(decadeOf).filter((d) => d !== null))).sort((a, b) => a - b),
     [films]
   );
+
+  /* L'atelier déco, ouvert par-dessus l'étagère plutôt que dans le menu
+     de vue : on y règle une surface et on veut VOIR le rayon changer
+     derrière, ce qu'un menu refermé sur lui-même interdit. */
+  const [studio, setStudio] = useState(false);
 
   /* Genre et décennie se cumulent : ce sont deux tamis posés l'un sur
      l'autre, et non deux boutons qui se disputent la liste. */
@@ -687,6 +717,7 @@ export function LibraryView({
             onDelete={onDeleteView}
             onRename={(name) => onShelfView({ ...shelfView, name })}
             onTheme={(theme) => onShelfView({ ...shelfView, theme })}
+            onDecor={() => setStudio(true)}
           />
         )}
         {mode === "wall" && (
@@ -735,6 +766,14 @@ export function LibraryView({
             onUpdateMany={onUpdateMany}
             dimSet={dimSet}
           />
+          {studio && shelfView && (
+            <DecorStudio
+              view={shelfView}
+              onChange={(part, patch) => onShelfView(patchViewDecor(shelfView, part, patch))}
+              onReset={() => onShelfView(clearViewDecor(shelfView))}
+              onClose={() => setStudio(false)}
+            />
+          )}
         </div>
       ) : filtered.length === 0 ? (
         <div

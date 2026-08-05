@@ -387,6 +387,11 @@ const LEAN_MIN = 1.2,
 export const DIVIDER_W = 30,
   DIVIDER_HEAD = 18;
 
+/* Le carré d'un décor posé, au calibre M. Il était écrit en dur à deux
+   endroits, dont l'un ne servait qu'à mesurer : deux chiffres qui doivent
+   rester égaux et que rien n'oblige à l'être. */
+export const DECOR_BOX = 46;
+
 /* Le carton et sa maquette au cabinet doivent se ressembler assez pour
    qu'on reconnaisse dans la rangée ce qu'on a tiré du panneau : les deux
    lisent donc leur habillage ici. */
@@ -504,6 +509,26 @@ export const rotatedBox = (w, h, deg) => {
   };
 };
 
+/* LA LARGEUR QU'UN DÉCOR RÉCLAME DANS SA RANGÉE, écart au voisin
+   compris — exactement ce que `DecorItem` pose sur son enveloppe.
+
+   Elle est ici, et non recalculée par le découpage en lignes, parce
+   qu'il n'y a qu'une place possible pour une mesure : celle qui la
+   dessine. Le jour où l'angle, le calibre ou la chasse du carton
+   changent, la ligne suivra sans qu'on y pense.
+
+   Un boîtier vaut une case, un décor en vaut autant qu'il en occupe :
+   c'est tout ce que `splitRow` a besoin de savoir pour ne plus laisser
+   un objet en XXL déborder de sa planche. */
+export const decorSpanOf = (item) => {
+  const spec = decorSpec(item.motif);
+  if (!spec) return 0;
+  const s = item.size || 1;
+  const w = Math.round((spec.tall ? DIVIDER_W : DECOR_BOX) * s);
+  const h = Math.round((spec.tall ? BOX_H : DECOR_BOX) * s);
+  return rotatedBox(w, h, angleOf(item, spec.tall)).width + GAP_X;
+};
+
 /* Un décor posé sur la planche : il se glisse, se déplace et s'enlève
    comme un boîtier, mais ne dit rien d'un film. Six des motifs sont les
    décors que la maison dessine déjà ailleurs ; le reste vient de lucide. */
@@ -526,7 +551,7 @@ export const DecorItem = React.memo(function DecorItem({
 
   const ink = catInk(item.color);
   const s = item.size || 1;
-  const box = Math.round(46 * s);
+  const box = Math.round(DECOR_BOX * s);
   if (!spec) return null;
   const Draw = spec.draw;
 

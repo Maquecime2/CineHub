@@ -13,6 +13,25 @@
    du fichier qui décide où l'on va à la ligne. */
 import { useEffect, useState } from "react";
 import { BOX_W, GAP_X } from "./constants";
+import { decorSpanOf } from "./items";
+
+/* La case : un boîtier et son écart au voisin. C'est l'unité de tout ce
+   fichier — la ligne en tient `cap`, et rien d'autre ne mesure ici. */
+const CASE = BOX_W + GAP_X;
+
+/* CE QU'UN OBJET COÛTE À SA LIGNE.
+
+   Un boîtier vaut une case, et c'était la règle pour tout le monde.
+   Elle a tenu tant que les décors faisaient la taille d'un boîtier ;
+   avec les grands calibres, un objet en XXL réclame deux ou trois cases
+   et n'en payait qu'une. La ligne dépassait alors de sa planche, et le
+   débord poussait la PAGE — une barre de défilement horizontale sur
+   toute l'étagère pour un bibelot posé trop gros.
+
+   Le décor paie donc sa largeur, arrondie à la case supérieure. Ce qui
+   ne rentre plus part à la ligne suivante, qui est ce qu'on veut : une
+   étagère se lit de haut en bas, jamais de gauche à droite. */
+const costOf = (it) => (it.t === "d" ? Math.max(1, Math.ceil(decorSpanOf(it) / CASE)) : 1);
 
 /* Ce qu'on tient quand on n'a encore rien mesuré, et ce qu'on tient si
    le navigateur ne sait pas mesurer. Dix, comme la rangée neuve. */
@@ -69,9 +88,14 @@ export function splitRow(items, cap) {
       }
       continue;
     }
-    if (free === 0) turn();
+    const cost = costOf(it);
+    /* `cur.length` avant tout : un objet plus large que la ligne entière
+       la prend telle quelle plutôt que d'ouvrir une ligne vide devant
+       lui — sans quoi un décor en XXXL sur une planche étroite tournerait
+       en rond, chaque nouvelle ligne étant aussi trop petite. */
+    if (cur.length && free < cost) turn();
     cur.push({ t: it.t, it, key: it.id });
-    free -= 1;
+    free = Math.max(0, free - cost);
   }
 
   if (cur.length || lines.length === 0) lines.push(cur);
