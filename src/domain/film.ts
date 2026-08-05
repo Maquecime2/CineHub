@@ -1,7 +1,7 @@
 /* ============================================================
    MODÈLE — une fiche film, une seule définition
    ============================================================ */
-import type { Film, LinkedWork, LinkPatch } from "../types";
+import type { Film, LinkedWork, LinkPatch, Watch } from "../types";
 
 export const uid = (): string => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
@@ -27,10 +27,81 @@ export const makeFilm = (partial: Partial<Film> = {}): Film => ({
   archived: false,
   order: null, // rang manuel sur l'étagère ; null = jamais rangé à la main
   watchedAt: null,
+  watches: [], // le journal des séances ; voir `withWatches`
   tmdbId: null,
   source: "manual",
   ...partial,
 });
+
+/* ------------------------------------------------------------
+   LE JOURNAL DES SÉANCES
+   ------------------------------------------------------------
+
+   Un film vu trois fois n'est pas un film vu. La fiche ne portait qu'une
+   date et qu'une note, et tout le reste était jeté à la lecture du CSV —
+   alors que `diary.csv` et le flux Letterboxd donnent, l'un comme
+   l'autre, une ligne par séance avec la note de ce jour-là.
+
+   `watches` est la VÉRITÉ, `watchedAt` en est le reflet. Les deux ne
+   peuvent pas diverger parce qu'on ne les écrit qu'ici. */
+
+/** De la plus récente à la plus ancienne. */
+export const sortWatches = (w: Watch[]): Watch[] =>
+  [...w].sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+
+export const watchCount = (film: Pick<Film, "watches">): number => (film.watches || []).length;
+
+/* UNE SÉANCE PAR DATE, ET C'EST CE QUI REND UN RÉIMPORT INOFFENSIF.
+
+   Repasser le même `diary.csv` trois fois ne doit pas donner un film vu
+   neuf fois. La date est donc la clé : deux entrées du même jour sont la
+   même séance, et la seconde ne fait que compléter la première — une
+   note retrouvée ne doit pas être effacée par une séance qui n'en porte
+   pas. C'est exactement le genre de dérive que personne ne remarque
+   avant six mois de réimports. */
+export const mergeWatches = (...lots: (Watch[] | undefined)[]): Watch[] => {
+  const byDate = new Map<string, Watch>();
+  for (const lot of lots)
+    for (const w of lot || []) {
+      if (!w?.date) continue;
+      const prev = byDate.get(w.date);
+      byDate.set(w.date, prev ? { ...prev, ...w, rating: w.rating ?? prev.rating } : w);
+    }
+  return sortWatches([...byDate.values()]);
+};
+
+/** Le seul chemin pour écrire des séances : il recale `watchedAt` avec. */
+export const withWatches = <T extends Partial<Film>>(film: T, watches: Watch[]): T => {
+  const merged = mergeWatches(watches);
+  return { ...film, watches: merged, watchedAt: merged[0]?.date ?? null };
+};
+
+/* La note a-t-elle bougé depuis la fois d'avant ? On compare à la
+   dernière séance NOTÉE, et non à la précédente : un revisionnage sans
+   note ne rompt pas la chaîne, il n'a simplement rien à en dire. */
+export const ratingDrift = (watches: Watch[]): (number | null)[] => {
+  const ordered = sortWatches(watches);
+  return ordered.map((w, i) => {
+    if (w.rating == null) return null;
+    const before = ordered.slice(i + 1).find((p) => p.rating != null);
+    return before ? w.rating - before.rating! : null;
+  });
+};
+
+/* D'une fiche d'avant le journal, on ne sait qu'une chose : elle a été
+   vue une fois, tel jour, et notée ainsi. On l'écrit — c'est vrai, et
+   c'est mieux que de laisser un compteur à zéro sous un film qui porte
+   une date de séance.
+
+   Le test porte sur `Array.isArray` et NON sur la longueur : un journal
+   que l'utilisateur a vidé à la main est un tableau vide, pas un champ
+   absent. Le confondre avec « jamais migré » ressusciterait la séance au
+   chargement suivant — et `migrate` réécrit aussitôt dans le
+   `localStorage`, donc la résurrection serait définitive. */
+const seedWatches = (f: Partial<Film>): Watch[] => {
+  if (Array.isArray(f.watches)) return f.watches;
+  return f.watchedAt ? [{ date: f.watchedAt, rating: f.rating || null }] : [];
+};
 
 /* Les fiches enregistrées avant ces champs sont complétées au chargement.
    On en profite pour ramener `year` à un nombre : le tri par année faisait
@@ -48,6 +119,7 @@ export const migrate = (films: Partial<Film>[] | null | undefined): Film[] =>
     themes: f.themes || [],
     linkedWorks: f.linkedWorks || [],
     stills: f.stills || [],
+    watches: sortWatches(seedWatches(f)),
   }));
 
 /* ------------------------------------------------------------

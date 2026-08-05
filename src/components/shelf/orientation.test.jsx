@@ -180,9 +180,13 @@ describe("l'intercalaire, repris pour qu'on le voie", () => {
      du même papier, ce qui sépare avait la couleur de ce qu'il sépare. */
   it("porte sa propre encre et non le papier des boîtiers", () => {
     const el = carton();
-    // le bordeaux de la vue, en lavis — et plus le kraft des tranches
-    expect(el.style.background).toContain("140, 58, 52");
-    expect(el.style.background).not.toContain("216, 198, 156");
+    /* Le lavis est un `backgroundImage` et non plus un `background`
+       composite : le carton a pris un fond opaque dessous pour que le mur
+       ne le traverse plus, et les deux ne tiennent pas dans la même
+       propriété. C'est le lavis qu'on interroge — le fond, lui, doit
+       justement être neutre. */
+    expect(el.style.backgroundImage).toContain("140, 58, 52");
+    expect(el.style.backgroundImage).not.toContain("216, 198, 156");
   });
 
   it("dresse un onglet plein en tête", () => {

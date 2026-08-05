@@ -27,6 +27,12 @@ const writeCache = (c) => {
 
 export const cacheKeyOf = (title, year) => `${(title || "").toLowerCase().trim()}|${year || ""}`;
 
+/* La clé d'un film qu'on connaît par son identifiant. Elle DOIT être
+   distincte de `titre|année` : deux films peuvent porter le même titre la
+   même année, et se partageraient alors une entrée — l'un prendrait le
+   réalisateur et l'affiche de l'autre. */
+export const cacheKeyOfId = (tmdbId) => `id:${tmdbId}`;
+
 export const clearTmdbCache = () => {
   try {
     localStorage.removeItem(CACHE_KEY);
@@ -292,9 +298,25 @@ function cacheLookup(cache, key) {
    Une erreur (réseau, quota, clé) remonte telle quelle et n'est jamais
    mémorisée : le réimport suivant doit pouvoir réussir. */
 async function resolveOne(row, apiKey, cache) {
-  const key = cacheKeyOf(row.title, row.year);
-  const known = cacheLookup(cache, key);
+  /* QUAND LA LIGNE SAIT DÉJÀ QUI ELLE EST, ON NE CHERCHE PAS.
+
+     Le flux Letterboxd porte l'identifiant TMDB de chaque séance. Le
+     chercher quand même coûterait un appel de plus, et surtout
+     `searchMovie` prend le PREMIER résultat sans comparer les titres :
+     c'est de là que viennent les faux positifs. Un identifiant ne se
+     trompe pas. */
+  const known = row.tmdbId
+    ? cacheLookup(cache, cacheKeyOfId(row.tmdbId))
+    : cacheLookup(cache, cacheKeyOf(row.title, row.year));
   if (known.hit) return known.info;
+
+  if (row.tmdbId) {
+    const info = await getDetails(row.tmdbId, apiKey);
+    cache[cacheKeyOfId(row.tmdbId)] = info || missEntry();
+    return info;
+  }
+
+  const key = cacheKeyOf(row.title, row.year);
   const hit = await searchMovie({ title: row.title, year: row.year, apiKey });
   const info = hit ? await getDetails(hit.id, apiKey) : null;
   cache[key] = info || missEntry();

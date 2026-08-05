@@ -9,7 +9,14 @@
    propose (`theme/surfaces`) : un aperçu qui se dessinerait autrement
    finirait par mentir, et c'est toujours l'aperçu qui aurait tort. */
 import { C, F } from "../../theme/tokens";
-import { PAINTS, PATTERNS, TEXTURES, paintStyle, patternLayer, textureLayer } from "../../theme/surfaces";
+import {
+  PAINTS,
+  PATTERNS,
+  TEXTURES,
+  paintStyle,
+  patternLayer,
+  textureLayer,
+} from "../../theme/surfaces";
 import { CAT_FAMILIES, catInk } from "../shelf/constants";
 
 /** Le format de panneau d'atelier : posé à droite, il laisse voir derrière. */

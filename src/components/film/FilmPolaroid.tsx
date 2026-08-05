@@ -12,6 +12,7 @@
 import { C, F } from "../../theme/tokens";
 import { tapeColor } from "../../theme/ink";
 import { hash, tiltOf, usesPin, nudgeOf, pickFrom } from "../../domain/seeded";
+import { watchCount } from "../../domain/film";
 import { PushPin, Tape, FileNumber } from "../atmosphere";
 import { InkStars } from "../ui";
 import { PosterArt } from "./PosterArt";
@@ -35,6 +36,7 @@ export function FilmPolaroid({
 }) {
   const f = scaleOf(look);
   const px = (n: number) => Math.round(n * f);
+  const vus = watchCount(film);
 
   /* Le désordre reste SEMÉ par l'identifiant — on ne fait que le doser.
      À « rangé », le facteur vaut zéro et le mur est au cordeau sans
@@ -132,7 +134,7 @@ export function FilmPolaroid({
             {film.year || "s.d."} · {film.director || "anonyme"}
           </div>
           {/* pas d'étoiles sur un film pas encore vu : rien à noter */}
-          <div style={{ marginTop: px(8) }}>
+          <div style={{ marginTop: px(8), display: "flex", alignItems: "center", gap: px(6) }}>
             {film.status === "watchlist" ? (
               <span
                 style={{
@@ -146,6 +148,30 @@ export function FilmPolaroid({
               </span>
             ) : (
               <InkStars value={film.rating || 0} size={px(12)} />
+            )}
+            {/* LE COMPTE DES SÉANCES, à partir de deux seulement — un
+                « ×1 » sous chaque vignette serait du bruit sur tout le mur.
+
+                Il se pose JUSTE APRÈS les étoiles et non poussé à droite :
+                le coin bas-droite appartient déjà au numéro de dossier et
+                au pli d'ombre, qui l'auraient recouvert. */}
+            {vus > 1 && (
+              <span
+                aria-label={`vu ${vus} fois`}
+                /* Il tenait la taille du « À VOIR » — dix pixels, celle
+                   d'une mention de service. Mais une fiche du mur se lit
+                   de loin, et le compte y est une INFORMATION, pas une
+                   étiquette : il se cale sur la légende manuscrite, à
+                   côté d'étoiles qui font déjà douze. */
+                style={{
+                  fontFamily: F.mono,
+                  fontSize: px(14),
+                  color: C.inkFaded,
+                  lineHeight: 1,
+                }}
+              >
+                ×{vus}
+              </span>
             )}
           </div>
         </div>

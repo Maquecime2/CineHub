@@ -92,3 +92,55 @@ describe("enrichRows — cache", () => {
     expect((await enrichRows(rows, "k")).resolved).toBe(1);
   });
 });
+
+/* Le flux Letterboxd donne l'identifiant TMDB de chaque séance. Le
+   chercher quand même serait un appel de trop, et surtout `searchMovie`
+   retient le PREMIER résultat sans comparer les titres — c'est de là que
+   viennent les faux positifs, et un identifiant n'en produit aucun. */
+describe("enrichRows — quand la ligne porte déjà son identifiant", () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(() => vi.unstubAllGlobals());
+
+  const parId = [{ title: "Le Samouraï", year: 1967, tmdbId: 42 }];
+
+  it("va droit au détail, sans passer par la recherche", async () => {
+    const fetchMock = okFetch();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const out = await enrichRows(parId, "k");
+    expect(out.resolved).toBe(1);
+    expect(out.rows[0].director).toBe("Jean-Pierre Melville");
+
+    const urls = fetchMock.mock.calls.map(([u]) => String(u));
+    expect(urls.some((u) => u.includes("/search/movie"))).toBe(false);
+    // un seul appel là où le titre en demandait deux
+    expect(urls).toHaveLength(1);
+    expect(urls[0]).toContain("/movie/42");
+  });
+
+  it("mémorise sous l'identifiant et ne redemande rien", async () => {
+    const fetchMock = okFetch();
+    vi.stubGlobal("fetch", fetchMock);
+    await enrichRows(parId, "k");
+    expect(Object.keys(cache())).toEqual(["id:42"]);
+
+    const calls = fetchMock.mock.calls.length;
+    await enrichRows(parId, "k");
+    expect(fetchMock.mock.calls.length).toBe(calls);
+  });
+
+  /* Deux films peuvent porter le même titre la même année. Sous une clé
+     de titre, le second prendrait le réalisateur et l'affiche du
+     premier — sans que rien ne le signale. */
+  it("ne confond pas deux homonymes de la même année", async () => {
+    vi.stubGlobal("fetch", okFetch());
+    await enrichRows(
+      [
+        { title: "Carrie", year: 1976, tmdbId: 11 },
+        { title: "Carrie", year: 1976, tmdbId: 22 },
+      ],
+      "k"
+    );
+    expect(Object.keys(cache()).sort()).toEqual(["id:11", "id:22"]);
+  });
+});

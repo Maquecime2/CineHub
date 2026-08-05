@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { C, F } from "../theme/tokens";
 import { underlineInput } from "../theme/styles";
-import { uid } from "../domain/film";
+import { uid, withWatches } from "../domain/film";
 import { putImage } from "../db";
 import { imageSize, shrinkImage } from "../services/images";
 import { Label, InkStars } from "../components/ui";
@@ -24,6 +24,7 @@ import { StampCorner, Tape } from "../components/atmosphere";
 import { PosterArt } from "../components/film/PosterArt";
 import { PosterPicker } from "../components/film/PosterPicker";
 import { FilmIdentity } from "../components/film/FilmIdentity";
+import { WatchLog } from "../components/film/WatchLog";
 import { ThreadBoard } from "../components/film/ThreadBoard";
 import { LINK_TYPES } from "../components/film/linkTypes";
 import { StillsStrip } from "../components/stills/StillsStrip";
@@ -256,12 +257,17 @@ export function DetailView({
             <FilmIdentity film={film} onUpdate={onUpdate} />
             {film.status === "watchlist" ? (
               <button
+                /* Il posait `watchedAt` tout seul. Depuis qu'un journal
+                   existe, cela ferait un film vu à telle date et vu zéro
+                   fois — deux affirmations contradictoires dès le premier
+                   clic. `withWatches` écrit les deux d'un coup. */
                 onClick={() =>
-                  onUpdate({
-                    ...film,
-                    status: "watched",
-                    watchedAt: new Date().toISOString().slice(0, 10),
-                  })
+                  onUpdate(
+                    withWatches({ ...film, status: "watched" }, [
+                      ...(film.watches || []),
+                      { date: new Date().toISOString().slice(0, 10), rating: film.rating || null },
+                    ])
+                  )
                 }
                 style={{
                   all: "unset",
@@ -305,18 +311,9 @@ export function DetailView({
                 </button>
               </>
             )}
-            {film.watchedAt && (
-              <div
-                style={{
-                  fontFamily: F.hand,
-                  fontSize: 16,
-                  color: C.inkFaded,
-                  marginTop: 6,
-                }}
-              >
-                vu le {film.watchedAt}
-              </div>
-            )}
+            {/* « vu le … » ne disait rien d'un film revu quatre fois : le
+                journal le remplace, et porte la même date en tête. */}
+            {film.status !== "watchlist" && <WatchLog film={film} onUpdate={onUpdate} />}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 10 }}>
               {(film.genres || []).map((g) => (
                 <span

@@ -1,5 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { editLinkedWork, makeFilm, migrate, uid } from "./film";
+import {
+  editLinkedWork,
+  makeFilm,
+  mergeWatches,
+  migrate,
+  ratingDrift,
+  uid,
+  watchCount,
+  withWatches,
+} from "./film";
 import type { Film, LinkedWork } from "../types";
 
 describe("uid", () => {
@@ -49,6 +58,107 @@ describe("migrate", () => {
     });
     expect(f!.stills).toEqual([]);
     expect(f!.linkedWorks).toEqual([]);
+  });
+
+  /* D'une fiche d'avant le journal on ne sait qu'une chose : elle a été
+     vue tel jour, et notée ainsi. L'écrire est plus juste que de laisser
+     un compteur à zéro sous un film qui porte une date de séance. */
+  it("bâtit une première séance à partir de la date déjà connue", () => {
+    const [f] = migrate([{ id: "x", title: "Stalker", rating: 4, watchedAt: "2019-03-02" }]);
+    expect(f!.watches).toEqual([{ date: "2019-03-02", rating: 4 }]);
+  });
+
+  it("n'invente aucune séance pour un film jamais daté", () => {
+    expect(migrate([{ id: "x", title: "Stalker" }])[0]!.watches).toEqual([]);
+  });
+
+  /* LE TEST QUI PROTÈGE DE LA RÉSURRECTION. Un journal vidé à la main est
+     un tableau VIDE, pas un champ absent : les confondre le remplirait à
+     nouveau au chargement suivant — et `migrate` réécrit aussitôt dans le
+     stockage, donc la séance reviendrait pour de bon. */
+  it("laisse vide un journal que l'on a vidé, même si la date demeure", () => {
+    const vidé = { id: "x", title: "Stalker", rating: 4, watchedAt: "2019-03-02", watches: [] };
+    expect(migrate([vidé])[0]!.watches).toEqual([]);
+    expect(migrate(migrate([vidé]))[0]!.watches).toEqual([]);
+  });
+
+  it("range le journal du plus récent au plus ancien", () => {
+    const [f] = migrate([
+      {
+        id: "x",
+        title: "Stalker",
+        watches: [
+          { date: "2019-03-02", rating: 4 },
+          { date: "2024-01-01", rating: 5 },
+        ],
+      },
+    ]);
+    expect(f!.watches.map((w) => w.date)).toEqual(["2024-01-01", "2019-03-02"]);
+  });
+});
+
+describe("le journal des séances", () => {
+  const w = (date: string, rating: number | null = null) => ({ date, rating });
+
+  /* La date est la clé, et c'est ce qui rend un réimport inoffensif :
+     repasser trois fois le même diary.csv ne fait pas un film vu neuf
+     fois. */
+  it("ne compte qu'une séance par date", () => {
+    expect(mergeWatches([w("2024-01-01", 4)], [w("2024-01-01", 4)])).toHaveLength(1);
+  });
+
+  it("complète une séance sans effacer une note déjà connue", () => {
+    expect(mergeWatches([w("2024-01-01", 4)], [w("2024-01-01", null)])).toEqual([
+      { date: "2024-01-01", rating: 4 },
+    ]);
+  });
+
+  it("laisse une note plus récente corriger la précédente", () => {
+    expect(mergeWatches([w("2024-01-01", 4)], [w("2024-01-01", 5)])).toEqual([
+      { date: "2024-01-01", rating: 5 },
+    ]);
+  });
+
+  /* `watchedAt` n'est plus la vérité mais le reflet du journal : les deux
+     ne peuvent pas diverger puisqu'on ne les écrit qu'ensemble. */
+  it("recale la date de dernière séance sur le journal", () => {
+    const f = withWatches(makeFilm({ watchedAt: "1999-01-01" }), [
+      w("2019-03-02", 4),
+      w("2024-01-01", 5),
+    ]);
+    expect(f.watchedAt).toBe("2024-01-01");
+    expect(watchCount(f)).toBe(2);
+  });
+
+  it("rend la date à null quand on retire la dernière séance", () => {
+    expect(withWatches(makeFilm({ watchedAt: "2024-01-01" }), []).watchedAt).toBeNull();
+  });
+
+  it("écarte une séance sans date, qui n'est pas une séance", () => {
+    expect(mergeWatches([{ date: "", rating: 4 }])).toEqual([]);
+  });
+});
+
+describe("la variation de note d'une séance à l'autre", () => {
+  it("mesure l'écart avec la fois d'avant", () => {
+    expect(
+      ratingDrift([
+        { date: "2024-01-01", rating: 5 },
+        { date: "2019-03-02", rating: 3.5 },
+      ])
+    ).toEqual([1.5, null]);
+  });
+
+  /* Une séance non notée n'a rien à dire : elle ne rompt pas la chaîne,
+     on compare à la dernière fois où l'on s'est prononcé. */
+  it("enjambe une séance qu'on n'a pas notée", () => {
+    expect(
+      ratingDrift([
+        { date: "2024-01-01", rating: 5 },
+        { date: "2022-01-01", rating: null },
+        { date: "2019-03-02", rating: 4 },
+      ])
+    ).toEqual([1, null, null]);
   });
 
   it("ramène l'année à un nombre", () => {

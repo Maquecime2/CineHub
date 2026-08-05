@@ -27,7 +27,10 @@
     "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true,
 
-    "types": ["node", "vitest/globals", "@testing-library/jest-dom"]
+    /* `vite/client` donne `import.meta.env` : sans lui, le seul endroit qui
+       demande « suis-je en développement ? » (le relais du flux Letterboxd)
+       ne compile pas. */
+    "types": ["node", "vite/client", "vitest/globals", "@testing-library/jest-dom"]
   },
   "include": ["src", "vite.config.ts"]
 }

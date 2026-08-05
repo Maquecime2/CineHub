@@ -59,12 +59,7 @@ function CardsTab({ look, set }) {
         value={look.mess}
         onPick={(mess) => set({ mess })}
       />
-      <Choice
-        title="ACCROCHE"
-        catalog={HANGS}
-        value={look.hang}
-        onPick={(hang) => set({ hang })}
-      />
+      <Choice title="ACCROCHE" catalog={HANGS} value={look.hang} onPick={(hang) => set({ hang })} />
     </>
   );
 }
