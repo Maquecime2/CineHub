@@ -35,6 +35,21 @@ export const makeFilm = (partial: Partial<Film> = {}): Film => ({
   ...partial,
 });
 
+/* Les initiales qui tiennent lieu d'affiche quand il n'y en a pas.
+
+   Le calcul vivait recopié dans `FilmPolaroid`, `shelf/items` et
+   `shelf/layout` — trois copies d'une même règle, qui ne demandent qu'à
+   diverger. L'export de l'almanach en aurait fait une quatrième : il est
+   posé ici, où le modèle est. */
+export const initialsOf = (title = ""): string =>
+  title
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase();
+
 /* ------------------------------------------------------------
    LE JOURNAL DES SÉANCES
    ------------------------------------------------------------

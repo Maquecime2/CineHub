@@ -21,6 +21,9 @@
    C'est la vue qui les résout et les passe — l'image sort donc dans la
    peau qu'on avait posée, ce qui est la moindre des choses. */
 import { getImage, isIdbPoster, idbKeyOf } from "../db";
+import { POSTER_BASE, POSTER_THUMB } from "../tmdb";
+import { initialsOf } from "../domain/film";
+import { hueOf } from "../theme/ink";
 import type { FilmOfYear } from "../domain/almanac";
 
 export interface BoxPalette {
@@ -48,38 +51,67 @@ export interface BoxData {
 
 /* CHARGER UNE AFFICHE, D'OÙ QU'ELLE VIENNE.
 
-   Trois provenances, et la troisième est un piège : une image d'un autre
-   domaine SOUILLE le canevas, et `toBlob` refuse alors de rendre quoi que
-   ce soit — sans erreur au dessin, seulement au moment de l'export.
-   `crossOrigin = "anonymous"` demande la permission avant de peindre ;
-   TMDB l'accorde. Une image qui la refuserait échoue au chargement, donc
-   ici, où on la remplace par un carton vide — plutôt qu'à la fin, où
-   elle emporterait l'image entière. */
+   TOUT PASSE PAR UN BLOB, Y COMPRIS CE QUI VIENT DU RÉSEAU. Une image
+   d'un autre domaine SOUILLE le canevas et `toBlob` refuse alors de
+   rendre quoi que ce soit — sans erreur au dessin, seulement à l'export.
+
+   La version précédente s'en remettait à `crossOrigin = "anonymous"` sur
+   un `<img>`, ce qui demande la permission avant de peindre. C'est
+   correct et TMDB l'accorde. On lui préfère `fetch` pour une raison plus
+   terre à terre : un `<img>` ne dit RIEN de la raison de son échec — pas
+   de code de statut, pas de message, un `onerror` nu. Une affiche qui ne
+   vient pas devient alors indistinguable d'une affiche absente, et
+   c'est exactement le genre de panne qu'on ne diagnostique qu'en
+   remontant tout le chemin à la main.
+
+   `fetch` rend un statut et un type. On peut donc écarter ce qui n'est
+   pas une image — TMDB sert ses erreurs en HTML, parfois sous un 200 —
+   au lieu de laisser le décodeur échouer sans un mot. Le blob devient
+   une URL d'objet, donc SAME-ORIGIN : le canevas n'a plus rien à
+   refuser, et il n'y a plus de `crossOrigin` nulle part.
+
+   Un échec (hors ligne, 404, adresse morte) rend `null`, et la case
+   reçoit l'émulsion de secours — la même que sur le mur. */
 async function chargerAffiche(poster: string): Promise<HTMLImageElement | null> {
   if (!poster) return null;
-  let src = poster;
-  let objectUrl: string | null = null;
 
+  let blob: Blob | null;
   if (isIdbPoster(poster)) {
-    const blob = await getImage(idbKeyOf(poster)).catch(() => null);
-    if (!blob) return null;
-    objectUrl = URL.createObjectURL(blob);
-    src = objectUrl;
+    blob = (await getImage(idbKeyOf(poster)).catch(() => null)) ?? null;
+  } else if (/^https?:/.test(poster)) {
+    /* L'étagère demande les vignettes en w185 pour ne pas décoder du
+       342 dans un boîtier de 96 px. Ici on compose une image de mille
+       pixels de large : c'est la grande qu'il faut, quelle que soit
+       celle que la fiche a retenue. */
+    const url = poster.replace(POSTER_THUMB, POSTER_BASE);
+    blob = await fetch(url)
+      .then((r) => (r.ok ? r.blob() : null))
+      .catch(() => null);
+    // une erreur de TMDB est une page HTML, servie avec un 200 parfois
+    if (blob && !blob.type.startsWith("image/")) blob = null;
+  } else {
+    /* Une adresse collée à la main, ou une image réduite en `data:` —
+       elles ne souillent pas le canevas et se chargent telles quelles. */
+    return await enImage(poster);
   }
 
+  if (!blob) return null;
+  const objectUrl = URL.createObjectURL(blob);
   try {
-    return await new Promise<HTMLImageElement>((resolve, reject) => {
-      const img = new Image();
-      if (!objectUrl && /^https?:/.test(src)) img.crossOrigin = "anonymous";
-      img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error("affiche illisible"));
-      img.src = src;
-    });
-  } catch {
-    return null;
+    return await enImage(objectUrl);
   } finally {
-    if (objectUrl) URL.revokeObjectURL(objectUrl);
+    URL.revokeObjectURL(objectUrl);
   }
+}
+
+/** Une adresse, décodée en image — ou `null` si elle ne se laisse pas lire. */
+function enImage(src: string): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
 }
 
 /** Coupe un texte trop long, à la lettre près pour la largeur donnée. */
@@ -246,25 +278,49 @@ export async function drawYearInBox(data: BoxData, p: BoxPalette): Promise<Blob>
       ctx.drawImage(img, (largeur - dw) / 2, (hauteur - dh) / 2, dw, dh);
       ctx.restore();
     } else {
-      // pas d'affiche : le titre s'écrit à la place, dans un carton nu
-      ctx.fillStyle = p.paper;
+      /* L'ÉMULSION DE SECOURS — la même que sur le mur.
+
+         Un film sans affiche n'est pas un trou : `PosterArt` lui fabrique
+         depuis toujours une émulsion virée, teinte tirée de son
+         identifiant, avec ses initiales dessus. Elle valait pour l'écran
+         et pas pour l'image, si bien qu'une année de films sans affiche
+         sortait en cartons blancs — alors qu'elle a une allure, et
+         qu'elle est reconnaissable.
+
+         `hueOf` est la source de vérité de cette teinte
+         (`theme/ink.ts`) : on la lit ici plutôt que de la redéfinir,
+         pour que les deux ne puissent pas diverger. Elle rend un
+         hexadécimal et non un jeton — c'est ce qui permet à un service
+         de s'en servir sans regarder le document. */
+      const teinte = hueOf(entrée.film.id);
+      const fond = ctx.createLinearGradient(0, 0, largeur * 0.5, hauteur);
+      fond.addColorStop(0, teinte);
+      fond.addColorStop(0.6, teinte);
+      fond.addColorStop(1, "#1c1712");
+      ctx.fillStyle = fond;
       ctx.fillRect(0, 0, largeur, hauteur);
-      ctx.fillStyle = p.inkFaded;
-      ctx.font = `italic 24px ${p.title}`;
+
+      // la lumière qui tombe en haut à gauche, comme sur le mur
+      const lueur = ctx.createRadialGradient(
+        largeur * 0.3,
+        hauteur * 0.22,
+        0,
+        largeur * 0.3,
+        hauteur * 0.22,
+        hauteur * 0.62
+      );
+      lueur.addColorStop(0, "rgba(255,240,210,0.28)");
+      lueur.addColorStop(1, "rgba(255,240,210,0)");
+      ctx.fillStyle = lueur;
+      ctx.fillRect(0, 0, largeur, hauteur);
+
+      ctx.fillStyle = "rgba(243,234,216,0.8)";
+      ctx.font = `italic ${Math.round(largeur * 0.32)}px ${p.title}`;
       ctx.textAlign = "center";
-      const mots = entrée.film.title.split(" ");
-      let ligne = "";
-      let y = hauteur / 2 - 12;
-      for (const mot of mots) {
-        const essai = ligne ? `${ligne} ${mot}` : mot;
-        if (ctx.measureText(essai).width > largeur - 24 && ligne) {
-          ctx.fillText(ligne, largeur / 2, y);
-          y += 28;
-          ligne = mot;
-        } else ligne = essai;
-      }
-      if (ligne) ctx.fillText(ligne, largeur / 2, y);
+      ctx.textBaseline = "middle";
+      ctx.fillText(initialsOf(entrée.film.title), largeur / 2, hauteur / 2);
       ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
     }
 
     ctx.strokeStyle = p.line;
