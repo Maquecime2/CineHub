@@ -1,7 +1,7 @@
 /* ============================================================
    NAVIGATION — onglets de classeur
    ============================================================ */
-import { Pin } from "lucide-react";
+import { Pin, Palette } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 
 /** Les vues joignables depuis les onglets. `detail` s'ouvre depuis une fiche. */
@@ -12,6 +12,8 @@ interface FolderTabsProps {
   view: View;
   setView: (v: View) => void;
   onAdd: () => void;
+  /** Ouvre le choix de la peau du site. */
+  onSkin: () => void;
 }
 
 const TABS: { key: View; label: string; color: string }[] = [
@@ -25,7 +27,7 @@ const TABS: { key: View; label: string; color: string }[] = [
 
 const DIMMED = "saturate(0.65) brightness(0.92)";
 
-export function FolderTabs({ view, setView, onAdd }: FolderTabsProps) {
+export function FolderTabs({ view, setView, onAdd, onSkin }: FolderTabsProps) {
   return (
     <div style={{ width: 46, flexShrink: 0, position: "relative", zIndex: 2 }}>
       {/* la tranche du classeur, contre laquelle les onglets butent */}
@@ -129,6 +131,43 @@ export function FolderTabs({ view, setView, onAdd }: FolderTabsProps) {
           }}
         >
           <Pin size={16} />
+        </button>
+
+        {/* LA PEAU DU SITE, au pied de la tranche du classeur.
+
+            Elle est ici et non dans une vue : ce n'est le reglage
+            d'aucune d'elles, c'est celui de tout. Discrete, parce qu'on
+            la choisit deux fois et qu'on la regarde ensuite tous les
+            jours. */}
+        <button
+          onClick={onSkin}
+          title="Changer la peau du site"
+          aria-label="Changer la peau du site"
+          style={{
+            all: "unset",
+            cursor: "pointer",
+            marginTop: 14,
+            marginLeft: 8,
+            width: 26,
+            height: 26,
+            borderRadius: "50%",
+            color: C.inkFaded,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            border: `1px solid ${C.line}`,
+            transition: "color .18s ease, border-color .18s ease",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = C.burgundy;
+            e.currentTarget.style.borderColor = C.burgundy;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = C.inkFaded;
+            e.currentTarget.style.borderColor = C.line;
+          }}
+        >
+          <Palette size={13} />
         </button>
       </div>
     </div>
