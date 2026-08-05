@@ -6,6 +6,29 @@
   box-sizing: border-box;
 }
 
+/* RIEN NE DÉFILE JAMAIS SUR LE CÔTÉ.
+
+   Une archive se feuillette de haut en bas ; une barre horizontale sous
+   la page est toujours un accident, jamais une intention. Il y en avait
+   deux sources, et aucune ne venait du contenu :
+
+   - le tiroir « Mis de côté », qui est un panneau `position: fixed`
+     rangé HORS de l'écran par un `translateX` quand il est fermé. Le
+     déplacement le sort du cadre mais le laisse peser sur la zone
+     défilable — deux cent cinquante pixels de vide, en permanence ;
+   - les décors posés en absolu qui débordent volontairement (anneaux de
+     café, rubans), et qu'on veut voir rognés, pas atteignables.
+
+   `clip` et NON `hidden` : `hidden` ferait de la racine un conteneur de
+   défilement, ce qui casserait `position: sticky` et rendrait le
+   défilement vertical à un autre élément. `clip` coupe sans rien créer.
+   C'est la même distinction que pour le rail des onglets, dans
+   `theme/tokens`. */
+html,
+body {
+  overflow-x: clip;
+}
+
 body {
   margin: 0;
   -webkit-font-smoothing: antialiased;

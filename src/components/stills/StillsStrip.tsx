@@ -119,10 +119,24 @@ export function StillsStrip({
 
       {stills.length > 0 && (
         <div
+          /* LES CAPTURES SE REPLIENT, ELLES NE DÉFILENT PLUS.
+
+             C'était une bande à défilement horizontal : au-delà de six
+             ou sept captures, la moitié de la planche vivait hors du
+             cadre, et rien ne le disait — une barre grise sous des
+             photos ne se lit pas comme « il y en a d'autres ». On ne
+             sait pas ce qu'on a sans traîner la souris dessus, ce qui
+             est le contraire de l'idée : des tirages posés sur une
+             table se voient tous à la fois.
+
+             `wrap` et rien d'autre. Les vignettes gardent leur calibre
+             — les rétrécir pour tout faire tenir sur une ligne les
+             rendrait illisibles, et une planche-contact assume ses
+             rangées. */
           style={{
             display: "flex",
+            flexWrap: "wrap",
             gap: 16,
-            overflowX: "auto",
             paddingBottom: 12,
             alignItems: "flex-start",
           }}
