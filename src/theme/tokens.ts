@@ -121,6 +121,14 @@ export const FONT_IMPORT = `
 
 body { background: ${C.paper}; }
 
+/* Le rail des onglets peut avoir a defiler dans une fenetre courte. Sa
+   barre n'apporte rien — la tranche d'un classeur n'en a pas — et elle
+   mangerait onze des quarante-six pixels de large du rail. On la retire
+   sans retirer le defilement : la molette et le clavier marchent
+   toujours. */
+[data-tab-rail] { scrollbar-width: none; }
+[data-tab-rail]::-webkit-scrollbar { width: 0; height: 0; }
+
 /* la molette fait défiler un dossier, pas une page web */
 ::-webkit-scrollbar { width: 11px; height: 11px; }
 ::-webkit-scrollbar-track { background: ${C.paperDark}; }
