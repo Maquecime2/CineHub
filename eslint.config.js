@@ -5,7 +5,12 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default [
-  { ignores: ["dist", "coverage", "etagere.html"] },
+  /* `.claude` abrite les copies de travail que les tâches de fond
+     ouvrent dans le dépôt lui-même. Ce sont des dépôts entiers : sans
+     cette exclusion, `npm run lint` se met à relire tout le projet une
+     seconde fois dès qu'une tâche tourne, et rend des centaines
+     d'erreurs qui n'appartiennent pas au code qu'on écrit. */
+  { ignores: ["dist", "coverage", "etagere.html", ".claude"] },
 
   /* Le TypeScript arrive fichier par fichier pendant la migration : les deux
      langages cohabitent dans src/ et partagent les mêmes règles React. */
