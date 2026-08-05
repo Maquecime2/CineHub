@@ -495,3 +495,46 @@ describe("diffImport — le casting", () => {
     expect(Object.keys(toUpdate[0]!.changes)).toEqual(["cast"]);
   });
 });
+
+describe("diffImport — durée, langue, pays, note du public", () => {
+  it("comble ce qui manque", () => {
+    const ancienne = makeFilm({ title: "Un film", year: 1975 });
+    const r = row({ runtime: 116, language: "fr", countries: ["FR"], tmdbRating: 7.8 });
+    expect(diffImport([ancienne], [r], "watched").toUpdate[0]!.changes).toMatchObject({
+      runtime: 116,
+      language: "fr",
+      countries: ["FR"],
+      tmdbRating: 7.8,
+    });
+  });
+
+  it("ne corrige jamais ce qui est déjà là", () => {
+    const ancienne = makeFilm({
+      title: "Un film",
+      year: 1975,
+      runtime: 100,
+      language: "ja",
+      countries: ["JP"],
+      tmdbRating: 6,
+    });
+    const r = row({ runtime: 116, language: "fr", countries: ["FR"], tmdbRating: 7.8 });
+    expect(diffImport([ancienne], [r], "watched").unchanged).toHaveLength(1);
+  });
+
+  /* Une durée inconnue vaut `null`, jamais 0 : un zéro entrerait dans
+     les moyennes de l'almanach et les fausserait en silence. */
+  it("n'écrit pas une durée absente", () => {
+    const ancienne = makeFilm({ title: "Un film", year: 1975 });
+    const { unchanged } = diffImport([ancienne], [row({ runtime: null })], "watched");
+    expect(unchanged).toHaveLength(1);
+  });
+
+  /* Le piège de `||` : une fiche notée 0 par le public est RENSEIGNÉE.
+     La réinterroger à chaque import la ferait sortir en « modifiés »
+     pour rien, indéfiniment. */
+  it("laisse tranquille une note du public qui vaut zéro", () => {
+    const ancienne = makeFilm({ title: "Un film", year: 1975, tmdbRating: 0 });
+    const { unchanged } = diffImport([ancienne], [row({ tmdbRating: 7.8 })], "watched");
+    expect(unchanged).toHaveLength(1);
+  });
+});

@@ -15,6 +15,10 @@ export const makeFilm = (partial: Partial<Film> = {}): Film => ({
   genres: [],
   cast: [], // les huit premiers rôles ; voir `types`
   crew: {}, // image · musique · scénario
+  runtime: null, // `null` et non 0 : une durée inconnue s'écarte des moyennes
+  language: "",
+  countries: [],
+  tmdbRating: null,
   themes: [],
   rating: 0,
   review: "",
@@ -49,6 +53,19 @@ export const initialsOf = (title = ""): string =>
     .map((w) => w[0])
     .join("")
     .toUpperCase();
+
+/* CE QU'EST UNE FICHE INCOMPLÈTE — au sens de ce que TMDB sait remplir.
+
+   Le casting est le meilleur témoin : TMDB en donne un pour presque tout
+   film de fiction, et son absence signale une fiche qui n'a jamais vu la
+   récolte. La durée le confirme.
+
+   On ne regarde PAS les pays ni la langue, et c'est délibéré : TMDB en
+   laisse légitimement sans pour un court-métrage obscur. Les prendre
+   pour un manque ferait réinterroger éternellement les mêmes fiches, à
+   chaque passage, sans que rien ne change jamais. */
+export const isIncomplete = (f: Pick<Film, "cast" | "runtime">): boolean =>
+  (f.cast || []).length === 0 || f.runtime == null;
 
 /* ------------------------------------------------------------
    LE JOURNAL DES SÉANCES
@@ -139,6 +156,18 @@ export const migrate = (films: Partial<Film>[] | null | undefined): Film[] =>
        montrera avant de l'écrire. */
     cast: f.cast || [],
     crew: f.crew || {},
+    /* Comme le casting : les fiches d'avant ne les portent pas, et on ne
+       va PAS les chercher ici — `migrate` tourne au chargement, hors
+       ligne et sans clé. C'est le bouton « compléter les fiches » de
+       l'onglet Import qui les remplit, diff à l'appui.
+
+       `?? null` et non `|| null` : une durée légitime ne peut pas valoir
+       zéro, mais la note TMDB d'un film inconnu, si — et `||`
+       l'écraserait sans distinguer « zéro » de « absent ». */
+    runtime: f.runtime ?? null,
+    language: f.language || "",
+    countries: f.countries || [],
+    tmdbRating: f.tmdbRating ?? null,
     themes: f.themes || [],
     linkedWorks: f.linkedWorks || [],
     stills: f.stills || [],

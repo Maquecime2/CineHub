@@ -221,3 +221,79 @@ describe("enrichRows — casting", () => {
     expect(out[0].crew).toEqual({});
   });
 });
+
+/* ------------------------------------------------------------
+   DURÉE, LANGUE, PAYS, NOTE DU PUBLIC
+   ------------------------------------------------------------ */
+const detailsFetch = (extra) =>
+  vi.fn(async (url) => ({
+    ok: true,
+    status: 200,
+    headers: new Headers(),
+    json: async () =>
+      String(url).includes("/search/movie")
+        ? { results: [{ id: 42 }] }
+        : {
+            id: 42,
+            genres: [],
+            release_date: "1967-10-25",
+            credits: { crew: [], cast: [] },
+            ...extra,
+          },
+  }));
+
+describe("enrichRows — durée, langue, pays, note", () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("récolte les quatre champs", async () => {
+    vi.stubGlobal(
+      "fetch",
+      detailsFetch({
+        runtime: 105,
+        original_language: "fr",
+        production_countries: [{ iso_3166_1: "FR" }, { iso_3166_1: "IT" }],
+        vote_average: 7.6,
+      })
+    );
+    const { rows: out } = await enrichRows([{ title: "Le Samouraï", year: 1967 }], "k");
+    expect(out[0]).toMatchObject({
+      runtime: 105,
+      language: "fr",
+      countries: ["FR", "IT"],
+      tmdbRating: 7.6,
+    });
+  });
+
+  it("ne garde que deux pays d'une coproduction qui en aligne six", async () => {
+    vi.stubGlobal(
+      "fetch",
+      detailsFetch({
+        production_countries: ["FR", "IT", "DE", "BE", "CH", "LU"].map((c) => ({ iso_3166_1: c })),
+      })
+    );
+    const { rows: out } = await enrichRows([{ title: "Le Samouraï", year: 1967 }], "k");
+    expect(out[0].countries).toEqual(["FR", "IT"]);
+  });
+
+  /* TMDB rend 0 pour une durée qu'il ignore. Le garder ferait entrer un
+     zéro dans les moyennes de l'almanach sans qu'on sache pourquoi. */
+  it("traduit une durée de zéro en « inconnue »", async () => {
+    vi.stubGlobal("fetch", detailsFetch({ runtime: 0, vote_average: 0 }));
+    const { rows: out } = await enrichRows([{ title: "Le Samouraï", year: 1967 }], "k");
+    expect(out[0].runtime).toBeNull();
+    expect(out[0].tmdbRating).toBeNull();
+  });
+
+  it("rend des formes vides pour une entrée mémorisée avant ces champs", async () => {
+    localStorage.setItem(
+      CACHE_KEY,
+      JSON.stringify({ "le samouraï|1967": { tmdbId: 42, director: "Melville", genres: [] } })
+    );
+    const fetchMock = detailsFetch({});
+    vi.stubGlobal("fetch", fetchMock);
+    const { rows: out } = await enrichRows([{ title: "Le Samouraï", year: 1967 }], "k");
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(out[0]).toMatchObject({ runtime: null, language: "", countries: [], tmdbRating: null });
+  });
+});

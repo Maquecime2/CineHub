@@ -180,6 +180,10 @@ export function diffImport(
         genres: r.genres || [],
         cast: r.cast || [],
         crew: r.crew || {},
+        runtime: r.runtime ?? null,
+        language: r.language || "",
+        countries: r.countries || [],
+        tmdbRating: r.tmdbRating ?? null,
         tmdbId: r.tmdbId || null,
         rating: r.rating ?? 0,
         status,
@@ -216,6 +220,15 @@ export function diffImport(
     if (r.cast?.length && !(match.cast || []).length) changes.cast = r.cast;
     if (r.crew && Object.keys(r.crew).length && !Object.keys(match.crew || {}).length)
       changes.crew = r.crew;
+    /* Durée, langue, pays, note du public : mêmes règles que ci-dessus —
+       on ne remplit que le vide. `== null` et non `!match.runtime` : une
+       fiche dont la durée est connue ne doit pas être réinterrogée, et
+       zéro n'est pas une durée absente mais une donnée fausse qu'on
+       n'écrit jamais (voir `getDetails`). */
+    if (r.runtime != null && match.runtime == null) changes.runtime = r.runtime;
+    if (r.language && !match.language) changes.language = r.language;
+    if (r.countries?.length && !(match.countries || []).length) changes.countries = r.countries;
+    if (r.tmdbRating != null && match.tmdbRating == null) changes.tmdbRating = r.tmdbRating;
     // une affiche choisie à la main n'est jamais remplacée par celle de TMDB
     if (r.poster && !match.poster) changes.poster = r.poster;
     if (r.year && !match.year) changes.year = r.year;

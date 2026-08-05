@@ -92,6 +92,18 @@ export interface Film {
    * pour rien.
    */
   crew: Record<string, string[]>;
+  /**
+   * Durée en minutes. `null` — et jamais 0 — quand elle est inconnue :
+   * un zéro entrerait dans les moyennes de l'almanach et les fausserait
+   * en silence, là où un `null` s'écarte.
+   */
+  runtime: number | null;
+  /** Langue d'origine, code ISO 639-1 (« fr », « ja »). Vide si inconnue. */
+  language: string;
+  /** Pays de production, deux au plus, codes ISO 3166-1 (« FR », « JP »). */
+  countries: string[];
+  /** La note du public TMDB sur 10 — de quoi mesurer son propre écart. */
+  tmdbRating: number | null;
   themes: string[];
   rating: number;
   review: string;
@@ -183,6 +195,10 @@ export interface ImportRow {
   genres?: string[];
   cast?: string[];
   crew?: Record<string, string[]>;
+  runtime?: number | null;
+  language?: string;
+  countries?: string[];
+  tmdbRating?: number | null;
   poster?: string;
   tmdbId?: number | string | null;
   /**

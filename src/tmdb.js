@@ -116,6 +116,19 @@ export async function getDetails(tmdbId, apiKey) {
     poster: data.poster_path ? `${POSTER_BASE}${data.poster_path}` : "",
     cast: (data.credits?.cast || []).slice(0, ROLES).map((c) => c.name),
     crew,
+    /* LA DURÉE, ET POURQUOI `null` PLUTÔT QUE ZÉRO. TMDB rend parfois 0
+       pour un film dont il ignore la durée. Le garder tel quel ferait
+       entrer un zéro dans les moyennes de l'almanach et tirerait « la
+       durée moyenne d'une séance » vers le bas sans qu'on sache
+       pourquoi. Une durée inconnue doit pouvoir être ÉCARTÉE d'un
+       calcul, ce qu'un zéro ne permet pas. */
+    runtime: data.runtime || null,
+    language: data.original_language || "",
+    /* Deux pays au plus : une coproduction en aligne parfois six, et le
+       sixième financier ne dit rien du film qu'on a vu. */
+    countries: (data.production_countries || []).slice(0, 2).map((c) => c.iso_3166_1),
+    // même raison que la durée : 0 veut dire « pas encore noté »
+    tmdbRating: data.vote_average || null,
   };
 }
 
@@ -383,6 +396,10 @@ export async function enrichRows(rows, apiKey, { onProgress, concurrency = 5 } =
                le diff et la fiche. */
             cast: info.cast || [],
             crew: info.crew || {},
+            runtime: info.runtime ?? null,
+            language: info.language || "",
+            countries: info.countries || [],
+            tmdbRating: info.tmdbRating ?? null,
             tmdbId: info.tmdbId,
             year: rows[i].year || info.year || "",
           };

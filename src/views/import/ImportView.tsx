@@ -18,6 +18,7 @@ import {
 } from "../../services/letterboxd";
 import { enrichRows, checkApiKey } from "../../tmdb";
 import { BackupPanel } from "./BackupPanel";
+import { CompletePanel } from "./CompletePanel";
 import type {
   Divider,
   Film,
@@ -1033,6 +1034,8 @@ export function ImportView({
         {films.length} film(s) déjà au catalogue — un réimport met à jour les fiches existantes au
         lieu de les dupliquer.
       </div>
+
+      <CompletePanel films={films} apiKey={apiKey} onImport={onImport} />
 
       <BackupPanel
         films={films}
