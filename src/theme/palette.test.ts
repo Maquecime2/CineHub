@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { CAT_COLORS, CAT_KEYS, CAT_FAMILIES, catInk } from "./palette";
-import { C } from "./tokens";
 
 describe("la palette", () => {
   /* LE TEST QUI COMPTE. `CAT_KEYS[0]` est la couleur d'une catégorie
@@ -20,14 +19,14 @@ describe("la palette", () => {
       "moss",
       "ink",
     ]);
-    expect(CAT_COLORS.burgundy).toBe(C.burgundy);
-    expect(CAT_COLORS.ochre).toBe(C.ochre);
-    expect(CAT_COLORS.pine).toBe(C.pine);
-    expect(CAT_COLORS.slate).toBe(C.slate);
-    expect(CAT_COLORS.cobalt).toBe(C.cobalt);
-    expect(CAT_COLORS.vermillion).toBe(C.vermillion);
-    expect(CAT_COLORS.moss).toBe(C.moss);
-    expect(CAT_COLORS.ink).toBe(C.ink);
+    expect(CAT_COLORS.burgundy).toBe("#8C3A34");
+    expect(CAT_COLORS.ochre).toBe("#B9862E");
+    expect(CAT_COLORS.pine).toBe("#3E5B4B");
+    expect(CAT_COLORS.slate).toBe("#5C6B78");
+    expect(CAT_COLORS.cobalt).toBe("#3A5C8C");
+    expect(CAT_COLORS.vermillion).toBe("#C4562E");
+    expect(CAT_COLORS.moss).toBe("#6E7A3A");
+    expect(CAT_COLORS.ink).toBe("#2B2620");
   });
 
   it("s'est vraiment élargie", () => {
@@ -40,7 +39,7 @@ describe("la palette", () => {
   });
 
   it("retombe sur le bordeaux pour une clé inconnue", () => {
-    expect(catInk("n'existe pas")).toBe(C.burgundy);
+    expect(catInk("n'existe pas")).toBe("#8C3A34");
   });
 
   /* Les familles ne sont qu'une VUE sur le nuancier. Une clé absente de

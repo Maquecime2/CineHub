@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { Dispatch, SetStateAction, PointerEvent as ReactPointerEvent } from "react";
 import { Sparkles } from "lucide-react";
-import { C } from "../theme/tokens";
+import { C, F, alpha } from "../theme/tokens";
 import { buildSky, relax } from "../domain/sky";
 import { CoffeeRing, StampCorner, InkUnderline } from "../components/atmosphere";
 import type { Film, LinkType, PlacedNode } from "../types";
@@ -92,7 +92,7 @@ export function ConstellationView({
       <CoffeeRing style={{ top: 150, right: 90 }} rotate={-25} />
       <div
         style={{
-          fontFamily: "'Playfair Display', serif",
+          fontFamily: F.title,
           fontStyle: "italic",
           fontWeight: 700,
           fontSize: 46,
@@ -106,7 +106,7 @@ export function ConstellationView({
       <InkUnderline width={300} />
       <div
         style={{
-          fontFamily: "'Caveat', cursive",
+          fontFamily: F.hand,
           fontSize: 22,
           color: C.inkFaded,
           marginTop: 2,
@@ -158,7 +158,7 @@ export function ConstellationView({
                       style={{
                         all: "unset",
                         cursor: "pointer",
-                        fontFamily: "'Special Elite', monospace",
+                        fontFamily: F.mono,
                         fontSize: 10,
                         padding: "3px 10px",
                         borderRadius: 12,
@@ -185,7 +185,7 @@ export function ConstellationView({
                 cursor: "pointer",
                 marginTop: 10,
                 color: C.inkFaded,
-                fontFamily: "'Special Elite', monospace",
+                fontFamily: F.mono,
                 fontSize: 10,
               }}
             >
@@ -208,7 +208,7 @@ export function ConstellationView({
           <Sparkles size={26} color={C.line} style={{ marginBottom: 10 }} />
           <div
             style={{
-              fontFamily: "'Playfair Display', serif",
+              fontFamily: F.title,
               fontSize: 20,
               color: C.ink,
               marginBottom: 6,
@@ -220,7 +220,7 @@ export function ConstellationView({
           </div>
           <div
             style={{
-              fontFamily: "'Caveat', cursive",
+              fontFamily: F.hand,
               fontSize: 19,
               maxWidth: 460,
               margin: "0 auto",
@@ -236,7 +236,7 @@ export function ConstellationView({
           {/* la légende, façon cartouche de carte ancienne */}
           <div
             style={{
-              fontFamily: "'Special Elite', monospace",
+              fontFamily: F.mono,
               fontSize: 10.5,
               color: C.inkFaded,
               marginTop: 18,
@@ -267,7 +267,7 @@ export function ConstellationView({
                   display: "flex",
                   alignItems: "center",
                   gap: 6,
-                  fontFamily: "'Special Elite', monospace",
+                  fontFamily: F.mono,
                   fontSize: 10,
                   color: C.inkFaded,
                   letterSpacing: 1,
@@ -291,7 +291,7 @@ export function ConstellationView({
             style={{
               position: "relative",
               zIndex: 2,
-              background: `radial-gradient(ellipse at 50% 45%, ${C.card}cc, transparent 72%)`,
+              background: `radial-gradient(ellipse at 50% 45%, ${alpha(C.card, 0.8)}, transparent 72%)`,
               border: `1px dashed ${C.line}`,
               boxShadow: "inset 0 0 40px rgba(30,20,10,0.06)",
             }}
@@ -437,7 +437,7 @@ export function ConstellationView({
                         y={r + 18}
                         textAnchor="middle"
                         style={{
-                          fontFamily: "'Caveat', cursive",
+                          fontFamily: F.hand,
                           fontSize: 16,
                           fill: C.inkFaded,
                           pointerEvents: "none",
@@ -463,7 +463,7 @@ export function ConstellationView({
               zIndex: 2,
             }}
           >
-            <span style={{ fontFamily: "'Caveat', cursive", fontSize: 18, color: C.inkFaded }}>
+            <span style={{ fontFamily: F.hand, fontSize: 18, color: C.inkFaded }}>
               {placed.filter((n) => n.kind === "film").length} film(s),{" "}
               {placed.filter((n) => n.kind === "work").length} œuvre(s) —{" "}
               {placed.filter((n) => (n.refs ?? 0) > 1).length} pont(s) entre deux films
@@ -474,7 +474,7 @@ export function ConstellationView({
                 style={{
                   all: "unset",
                   cursor: "pointer",
-                  fontFamily: "'Special Elite', monospace",
+                  fontFamily: F.mono,
                   fontSize: 10.5,
                   color: C.burgundy,
                   borderBottom: `1px solid ${C.burgundy}`,

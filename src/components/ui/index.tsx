@@ -4,7 +4,7 @@
 import { useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { Star } from "lucide-react";
-import { C } from "../../theme/tokens";
+import { C, F } from "../../theme/tokens";
 
 /** La note, en étoiles d'encre. Un clic sur une étoile déjà pleine la coupe en deux. */
 export function InkStars({
@@ -55,7 +55,7 @@ export function Label({ children }: { children: ReactNode }) {
   return (
     <div
       style={{
-        fontFamily: "'Special Elite', monospace",
+        fontFamily: F.mono,
         fontSize: 10.5,
         letterSpacing: 1.4,
         textTransform: "uppercase",

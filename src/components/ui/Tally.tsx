@@ -1,4 +1,4 @@
-import { C } from "../../theme/tokens";
+import { C, F } from "../../theme/tokens";
 
 /* une ligne de bordereau : intitulé à gauche, chiffre tamponné à droite */
 export function Tally({
@@ -16,7 +16,7 @@ export function Tally({
         display: "flex",
         alignItems: "baseline",
         gap: 8,
-        fontFamily: "'Lora', serif",
+        fontFamily: F.body,
         fontSize: 13.5,
         color: C.inkFaded,
       }}
@@ -25,9 +25,7 @@ export function Tally({
       <span
         style={{ flex: 1, borderBottom: `1px dotted ${C.line}`, transform: "translateY(-3px)" }}
       />
-      <span style={{ fontFamily: "'Special Elite', monospace", fontSize: 14, color: ink }}>
-        {value}
-      </span>
+      <span style={{ fontFamily: F.mono, fontSize: 14, color: ink }}>{value}</span>
     </div>
   );
 }

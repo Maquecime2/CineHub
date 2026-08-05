@@ -65,7 +65,7 @@ import {
   patchDecor,
   removeDecor,
 } from "./shelf-views";
-import { C, FONT_IMPORT, GRAIN } from "./theme/tokens";
+import { C, F, FONT_IMPORT, GRAIN } from "./theme/tokens";
 import { tapeColor, hueOf } from "./theme/ink";
 import { hash, seededRand, tiltOf, usesPin, nudgeOf, fileNoOf, tornClip } from "./domain/seeded";
 import { uid, makeFilm, migrate, editLinkedWork } from "./domain/film";
@@ -361,7 +361,7 @@ export default function App() {
           alignItems: "center",
           justifyContent: "center",
           color: C.inkFaded,
-          fontFamily: "'Caveat', cursive",
+          fontFamily: F.hand,
           fontSize: 22,
         }}
       >

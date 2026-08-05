@@ -142,7 +142,19 @@ describe("le mur assemblé", () => {
      de se répéter. Les deux listes doivent avoir la même longueur. */
   it("donne autant de tailles que d'images", () => {
     const { frame } = wallStyle({ paint: "nuit", pattern: "damier" });
-    const count = (s: string) => s.split(/,(?![^(]*\))/).length;
+    /* Compter les couches, et non les virgules : un dégradé en contient,
+       une adresse-données aussi, et une couleur composée encore. On ne
+       coupe donc qu'aux virgules de profondeur zéro. */
+    const count = (s: string) => {
+      let depth = 0,
+        n = 1;
+      for (const ch of s) {
+        if (ch === "(") depth++;
+        else if (ch === ")") depth--;
+        else if (ch === "," && depth === 0) n++;
+      }
+      return n;
+    };
     expect(count(String(frame.backgroundSize))).toBe(count(String(frame.backgroundImage)));
   });
 

@@ -2,7 +2,7 @@
    NAVIGATION — onglets de classeur
    ============================================================ */
 import { Pin } from "lucide-react";
-import { C } from "../../theme/tokens";
+import { C, F, alpha } from "../../theme/tokens";
 
 /** Les vues joignables depuis les onglets. `detail` s'ouvre depuis une fiche. */
 export type View =
@@ -36,7 +36,7 @@ export function FolderTabs({ view, setView, onAdd }: FolderTabsProps) {
           bottom: 0,
           left: 0,
           width: 5,
-          background: `linear-gradient(90deg, #b9a67e, ${C.paperDark})`,
+          background: `linear-gradient(90deg, ${alpha(C.ink, 0.28)}, ${C.paperDark})`,
           boxShadow: "inset -2px 0 4px rgba(30,20,10,0.2)",
           zIndex: 0,
         }}
@@ -64,14 +64,20 @@ export function FolderTabs({ view, setView, onAdd }: FolderTabsProps) {
                 writingMode: "vertical-rl",
                 transform: "rotate(180deg)",
                 // carton teinté dans la masse, pas un aplat : reflet en haut, tranche sombre en bas
-                background: `linear-gradient(180deg, ${t.color}, ${t.color} 60%, ${t.color}cc)`,
+                /* `${t.color}cc` collait un canal alpha derriere une
+                   couleur. Depuis que les jetons sont des renvois a des
+                   variables CSS, ce collage ne veut plus rien dire et le
+                   degrade entier etait rejete — les onglets perdaient
+                   leur relief sans un mot. */
+                background: `linear-gradient(180deg, ${t.color}, ${t.color} 60%, ${alpha(t.color, 0.8)})`,
                 filter: active ? "none" : DIMMED,
                 color: C.card,
-                fontFamily: "'Special Elite', monospace",
+                fontFamily: F.mono,
                 fontSize: 11.5,
-                letterSpacing: 1.5,
+                textTransform: "var(--tag-transform)" as never,
+                letterSpacing: "var(--tag-tracking)",
                 padding: "18px 9px",
-                borderRadius: "0 3px 3px 0",
+                borderRadius: "0 var(--tag-radius) var(--tag-radius) 0",
                 boxShadow: active
                   ? `4px 4px 10px rgba(0,0,0,0.35), inset -2px 0 0 ${t.color}, inset 0 1px 0 rgba(255,255,255,0.25)`
                   : "2px 2px 6px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.15)",

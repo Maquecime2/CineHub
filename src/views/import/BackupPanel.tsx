@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { C } from "../../theme/tokens";
+import { C, F } from "../../theme/tokens";
 import { Tally } from "../../components/ui";
 import { posterStats, exportBackup, importBackup } from "../../db";
 import type { Divider, Film, Note, ShelfViews } from "../../types";
@@ -79,7 +79,7 @@ export function BackupPanel({ films, notes, dividers, views, onRestore }: Backup
     >
       <div
         style={{
-          fontFamily: "'Special Elite', monospace",
+          fontFamily: F.mono,
           fontSize: 11,
           color: C.inkFaded,
           letterSpacing: 1,
@@ -103,7 +103,7 @@ export function BackupPanel({ films, notes, dividers, views, onRestore }: Backup
       )}
       <div
         style={{
-          fontFamily: "'Caveat', cursive",
+          fontFamily: F.hand,
           fontSize: 17,
           color: C.inkFaded,
           margin: "10px 0 12px",
@@ -129,7 +129,7 @@ export function BackupPanel({ films, notes, dividers, views, onRestore }: Backup
             padding: "8px 14px",
             background: C.pine,
             color: C.card,
-            fontFamily: "'Special Elite', monospace",
+            fontFamily: F.mono,
             fontSize: 10.5,
           }}
         >
@@ -143,7 +143,7 @@ export function BackupPanel({ films, notes, dividers, views, onRestore }: Backup
             padding: "8px 14px",
             border: `1px solid ${C.line}`,
             color: C.inkFaded,
-            fontFamily: "'Special Elite', monospace",
+            fontFamily: F.mono,
             fontSize: 10.5,
           }}
         >
@@ -151,11 +151,7 @@ export function BackupPanel({ films, notes, dividers, views, onRestore }: Backup
         </button>
       </div>
       {msg && (
-        <div
-          style={{ fontFamily: "'Caveat', cursive", fontSize: 18, color: C.pine, marginTop: 10 }}
-        >
-          {msg}
-        </div>
+        <div style={{ fontFamily: F.hand, fontSize: 18, color: C.pine, marginTop: 10 }}>{msg}</div>
       )}
     </div>
   );

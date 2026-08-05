@@ -6,7 +6,7 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
    portée, et `React.CSSProperties` y serait un identifiant inconnu. */
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { Check, Pencil, X } from "lucide-react";
-import { C } from "../../theme/tokens";
+import { C, F } from "../../theme/tokens";
 import { tapeColor } from "../../theme/ink";
 import { hash, seededRand, tiltOf, usesPin } from "../../domain/seeded";
 import { PushPin, Tape } from "../atmosphere";
@@ -78,7 +78,7 @@ function ThreadCardEditor({
            annote plutôt que de laisser un champ vide et muet. */
         <div
           style={{
-            fontFamily: "'Playfair Display', serif",
+            fontFamily: F.title,
             fontWeight: 700,
             fontSize: 15,
             color: C.inkFaded,
@@ -95,7 +95,7 @@ function ThreadCardEditor({
             aria-label="Nature de l'œuvre"
             style={{
               ...scribble,
-              fontFamily: "'Special Elite', monospace",
+              fontFamily: F.mono,
               fontSize: 9.5,
               color: C.inkFaded,
             }}
@@ -114,7 +114,7 @@ function ThreadCardEditor({
             placeholder="Titre"
             style={{
               ...scribble,
-              fontFamily: "'Playfair Display', serif",
+              fontFamily: F.title,
               fontWeight: 700,
               fontSize: 15,
             }}
@@ -124,7 +124,7 @@ function ThreadCardEditor({
             onChange={(e) => setCreator(e.target.value)}
             aria-label="Auteur·rice / artiste"
             placeholder="Auteur·rice"
-            style={{ ...scribble, fontFamily: "'Special Elite', monospace", fontSize: 9.5 }}
+            style={{ ...scribble, fontFamily: F.mono, fontSize: 9.5 }}
           />
         </>
       )}
@@ -134,7 +134,7 @@ function ThreadCardEditor({
         onChange={(e) => setNote(e.target.value)}
         aria-label="Pourquoi ce lien ?"
         placeholder="la résonance entre les deux"
-        style={{ ...scribble, fontFamily: "'Caveat', cursive", fontSize: 17, color: C.inkFaded }}
+        style={{ ...scribble, fontFamily: F.hand, fontSize: 17, color: C.inkFaded }}
       />
       <div style={{ display: "flex", gap: 10, marginTop: 2 }}>
         <button
@@ -146,7 +146,7 @@ function ThreadCardEditor({
             display: "flex",
             alignItems: "center",
             gap: 4,
-            fontFamily: "'Special Elite', monospace",
+            fontFamily: F.mono,
             fontSize: 9.5,
             color: C.burgundy,
           }}
@@ -159,7 +159,7 @@ function ThreadCardEditor({
           style={{
             all: "unset",
             cursor: "pointer",
-            fontFamily: "'Special Elite', monospace",
+            fontFamily: F.mono,
             fontSize: 9.5,
             color: C.inkFaded,
           }}
@@ -305,7 +305,7 @@ export function ThreadBoard({ film, onRemove, onEdit, films = [], onOpen }: Thre
         }}
       >
         <PushPin color={C.burgundy} style={{ position: "static", marginRight: 2 }} />
-        <span style={{ fontFamily: "'Special Elite', monospace", fontSize: 11, letterSpacing: 1 }}>
+        <span style={{ fontFamily: F.mono, fontSize: 11, letterSpacing: 1 }}>
           {film.title.toUpperCase()}
         </span>
       </div>
@@ -314,7 +314,7 @@ export function ThreadBoard({ film, onRemove, onEdit, films = [], onOpen }: Thre
         <div
           style={{
             color: C.inkFaded,
-            fontFamily: "'Caveat', cursive",
+            fontFamily: F.hand,
             fontSize: 19,
             marginTop: 26,
           }}
@@ -395,7 +395,7 @@ export function ThreadBoard({ film, onRemove, onEdit, films = [], onOpen }: Thre
                           style={{
                             all: "unset",
                             cursor: "pointer",
-                            fontFamily: "'Playfair Display', serif",
+                            fontFamily: F.title,
                             fontWeight: 700,
                             fontSize: 15,
                             color: C.burgundy,
@@ -410,7 +410,7 @@ export function ThreadBoard({ film, onRemove, onEdit, films = [], onOpen }: Thre
                       ) : (
                         <div
                           style={{
-                            fontFamily: "'Playfair Display', serif",
+                            fontFamily: F.title,
                             fontWeight: 700,
                             fontSize: 15,
                             color: C.ink,
@@ -422,7 +422,7 @@ export function ThreadBoard({ film, onRemove, onEdit, films = [], onOpen }: Thre
                       )}
                       <div
                         style={{
-                          fontFamily: "'Special Elite', monospace",
+                          fontFamily: F.mono,
                           fontSize: 9.5,
                           color: C.inkFaded,
                           marginTop: 3,
@@ -438,7 +438,7 @@ export function ThreadBoard({ film, onRemove, onEdit, films = [], onOpen }: Thre
                       {w.note && (
                         <div
                           style={{
-                            fontFamily: "'Caveat', cursive",
+                            fontFamily: F.hand,
                             fontSize: 17,
                             color: C.inkFaded,
                             marginTop: 5,

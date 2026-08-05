@@ -8,7 +8,7 @@
    rayon, c'est lui donner son statut, pas seulement sa place.
    ============================================================ */
 import type { ComponentType, CSSProperties } from "react";
-import { C } from "../../theme/tokens";
+import { C, alpha } from "../../theme/tokens";
 import {
   Plant,
   Cactus,
@@ -50,7 +50,7 @@ export const SHELF_KIND: Record<ShelfKind, ShelfKindConfig> = {
     title: "Films de chevet",
     tag: "ceux qu'on revoit",
     patch: { chevet: true, archived: false },
-    tint: `${C.burgundy}0d`,
+    tint: `${alpha(C.burgundy, 0.051)}`,
     border: C.burgundy,
   },
   main: { title: "La collection", tag: "", patch: { chevet: false, archived: false } },

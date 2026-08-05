@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
-import { C } from "../theme/tokens";
+import { C, F } from "../theme/tokens";
 import { underlineInput, ruledTextarea } from "../theme/styles";
 import { tiltOf } from "../domain/seeded";
 import { uid } from "../domain/film";
@@ -31,7 +31,7 @@ export function NotebookView({ notes, onAdd, onUpdate, onDelete }: NotebookViewP
       <StampCorner text="CARNET" />
       <div
         style={{
-          fontFamily: "'Playfair Display', serif",
+          fontFamily: F.title,
           fontStyle: "italic",
           fontWeight: 700,
           fontSize: 42,
@@ -42,7 +42,7 @@ export function NotebookView({ notes, onAdd, onUpdate, onDelete }: NotebookViewP
       </div>
       <div
         style={{
-          fontFamily: "'Caveat', cursive",
+          fontFamily: F.hand,
           fontSize: 20,
           color: C.inkFaded,
           marginTop: -4,
@@ -63,7 +63,7 @@ export function NotebookView({ notes, onAdd, onUpdate, onDelete }: NotebookViewP
         <input
           style={{
             ...underlineInput,
-            fontFamily: "'Playfair Display', serif",
+            fontFamily: F.title,
             fontStyle: "italic",
             fontSize: 19,
             fontWeight: 700,
@@ -87,7 +87,7 @@ export function NotebookView({ notes, onAdd, onUpdate, onDelete }: NotebookViewP
             background: C.pine,
             color: C.card,
             padding: "8px 16px",
-            fontFamily: "'Special Elite', monospace",
+            fontFamily: F.mono,
             fontSize: 11,
           }}
         >
@@ -97,7 +97,7 @@ export function NotebookView({ notes, onAdd, onUpdate, onDelete }: NotebookViewP
 
       <div style={{ display: "flex", flexDirection: "column", gap: 22, marginTop: 30 }}>
         {notes.length === 0 && (
-          <div style={{ fontFamily: "'Caveat', cursive", fontSize: 19, color: C.inkFaded }}>
+          <div style={{ fontFamily: F.hand, fontSize: 19, color: C.inkFaded }}>
             le carnet attend sa première page…
           </div>
         )}
@@ -130,7 +130,7 @@ export function NotebookView({ notes, onAdd, onUpdate, onDelete }: NotebookViewP
               <input
                 style={{
                   ...underlineInput,
-                  fontFamily: "'Playfair Display', serif",
+                  fontFamily: F.title,
                   fontStyle: "italic",
                   fontWeight: 700,
                   fontSize: 18,
@@ -146,7 +146,7 @@ export function NotebookView({ notes, onAdd, onUpdate, onDelete }: NotebookViewP
               />
               <div
                 style={{
-                  fontFamily: "'Special Elite', monospace",
+                  fontFamily: F.mono,
                   fontSize: 9.5,
                   color: C.inkFaded,
                   marginTop: 6,

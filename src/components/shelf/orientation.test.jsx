@@ -194,7 +194,7 @@ describe("l'intercalaire, repris pour qu'on le voie", () => {
   it("écrit son nom sous l'onglet, à l'encre sombre", () => {
     const el = carton({ label: "Polars" });
     const nom = [...el.querySelectorAll("span")].find((s) => s.textContent === "Polars");
-    expect(nom.style.color).toBe("rgb(43, 38, 32)");
+    expect(nom.style.color).toBe("var(--c-ink)");
     expect(Number.parseInt(nom.style.marginTop, 10)).toBeGreaterThan(0);
   });
 

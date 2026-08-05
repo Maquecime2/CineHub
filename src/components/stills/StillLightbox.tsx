@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { X } from "lucide-react";
-import { C } from "../../theme/tokens";
+import { C, F, alpha } from "../../theme/tokens";
 import { IdbImage } from "./IdbImage";
 import type { Still } from "../../types";
 
@@ -12,9 +12,9 @@ const ARROW_COL = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  color: `${C.paper}99`,
+  color: `${alpha(C.paper, 0.6)}`,
   fontSize: 44,
-  fontFamily: "'Playfair Display', serif",
+  fontFamily: F.title,
 } as const;
 
 /* La visionneuse plein écran, avec navigation au clavier. */
@@ -93,7 +93,7 @@ export function StillLightbox({
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.background = "transparent";
-            e.currentTarget.style.color = `${C.paper}99`;
+            e.currentTarget.style.color = `${alpha(C.paper, 0.6)}`;
           }}
         >
           ‹
@@ -132,7 +132,7 @@ export function StillLightbox({
         </div>
         <div
           style={{
-            fontFamily: "'Caveat', cursive",
+            fontFamily: F.hand,
             fontSize: 21,
             color: C.paper,
             marginTop: 12,
@@ -142,7 +142,7 @@ export function StillLightbox({
           {still.caption || `capture ${index + 1}`}
           <span
             style={{
-              fontFamily: "'Special Elite', monospace",
+              fontFamily: F.mono,
               fontSize: 11,
               opacity: 0.7,
               marginLeft: 10,
@@ -153,9 +153,9 @@ export function StillLightbox({
         </div>
         <div
           style={{
-            fontFamily: "'Special Elite', monospace",
+            fontFamily: F.mono,
             fontSize: 9.5,
-            color: `${C.paper}66`,
+            color: `${alpha(C.paper, 0.4)}`,
             marginTop: 10,
             letterSpacing: 1,
           }}
@@ -175,7 +175,7 @@ export function StillLightbox({
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.background = "transparent";
-            e.currentTarget.style.color = `${C.paper}99`;
+            e.currentTarget.style.color = `${alpha(C.paper, 0.6)}`;
           }}
         >
           ›

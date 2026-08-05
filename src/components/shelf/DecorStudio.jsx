@@ -20,7 +20,7 @@
    C'est cette porte de sortie qui rend toute l'exploration sans risque. */
 import { useState } from "react";
 import { X, RotateCcw } from "lucide-react";
-import { C } from "../../theme/tokens";
+import { C, F } from "../../theme/tokens";
 import {
   PAINTS,
   PATTERNS,
@@ -52,7 +52,7 @@ const STUDIO_BOX = {
 const Title = ({ children, top = 12 }) => (
   <div
     style={{
-      fontFamily: "'Special Elite', monospace",
+      fontFamily: F.mono,
       fontSize: 8.5,
       letterSpacing: 1,
       color: C.inkFaded,
@@ -103,7 +103,7 @@ const NoneSwatch = ({ on, onClick, label = "aucun" }) => (
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      fontFamily: "'Special Elite', monospace",
+      fontFamily: F.mono,
       fontSize: 8,
       color: C.inkFaded,
     }}
@@ -244,7 +244,7 @@ function PlankTab({ decor, set }) {
                     all: "unset",
                     cursor: "pointer",
                     padding: "2px 9px",
-                    fontFamily: "'Special Elite', monospace",
+                    fontFamily: F.mono,
                     fontSize: 9.5,
                     background: on ? C.ink : "transparent",
                     color: on ? C.card : C.inkFaded,
@@ -279,7 +279,7 @@ export function DecorStudio({ view, onChange, onReset, onClose }) {
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
           <div
             style={{
-              fontFamily: "'Special Elite', monospace",
+              fontFamily: F.mono,
               fontSize: 9.5,
               letterSpacing: 1,
               color: C.inkFaded,
@@ -298,7 +298,7 @@ export function DecorStudio({ view, onChange, onReset, onClose }) {
                 display: "flex",
                 alignItems: "center",
                 gap: 3,
-                fontFamily: "'Special Elite', monospace",
+                fontFamily: F.mono,
                 fontSize: 9,
                 color: C.burgundy,
               }}
@@ -320,7 +320,7 @@ export function DecorStudio({ view, onChange, onReset, onClose }) {
                 all: "unset",
                 cursor: "pointer",
                 padding: "2px 10px",
-                fontFamily: "'Special Elite', monospace",
+                fontFamily: F.mono,
                 fontSize: 9.5,
                 background: tab === t.key ? C.ink : "transparent",
                 color: tab === t.key ? C.card : C.inkFaded,
@@ -340,7 +340,7 @@ export function DecorStudio({ view, onChange, onReset, onClose }) {
 
         <div
           style={{
-            fontFamily: "'Caveat', cursive",
+            fontFamily: F.hand,
             fontSize: 14,
             color: C.inkFaded,
             marginTop: 10,

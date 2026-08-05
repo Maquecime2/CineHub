@@ -1,7 +1,7 @@
 /* Les objets qu'on pose sur une planche : le repère de dépôt, le boîtier,
    le décor et la catégorie. */
 import React, { useEffect, useMemo, useState } from "react";
-import { C } from "../../theme/tokens";
+import { C, F } from "../../theme/tokens";
 import { hueOf } from "../../theme/ink";
 import { tiltOf } from "../../domain/seeded";
 import { PosterArt } from "../film/PosterArt";
@@ -246,7 +246,7 @@ export const FilmBox = React.memo(function FilmBox({
               style={{
                 writingMode: "vertical-rl",
                 transform: "rotate(180deg)",
-                fontFamily: "'Special Elite', monospace",
+                fontFamily: F.mono,
                 fontSize: 8,
                 letterSpacing: "0.08em",
                 color: "rgba(246,239,222,0.92)",
@@ -264,7 +264,7 @@ export const FilmBox = React.memo(function FilmBox({
                 left: 15,
                 background: "rgba(246,239,222,0.88)",
                 color: C.ink,
-                fontFamily: "'Special Elite', monospace",
+                fontFamily: F.mono,
                 fontSize: 9,
                 padding: "1px 4px",
                 zIndex: 3,
@@ -284,7 +284,7 @@ export const FilmBox = React.memo(function FilmBox({
                 padding: "3px 5px",
                 background: "rgba(43,38,32,0.72)",
                 color: C.card,
-                fontFamily: "'Special Elite', monospace",
+                fontFamily: F.mono,
                 fontSize: 9.5,
                 letterSpacing: 1,
                 zIndex: 3,
@@ -688,7 +688,7 @@ export const DecorItem = React.memo(function DecorItem({
                   boxSizing: "border-box",
                   writingMode: "vertical-rl",
                   transform: "rotate(180deg)",
-                  fontFamily: "'Special Elite', monospace",
+                  fontFamily: F.mono,
                   fontSize: Math.max(8, Math.round(10 * s)),
                   letterSpacing: "0.08em",
                   color: C.ink,
@@ -707,7 +707,7 @@ export const DecorItem = React.memo(function DecorItem({
                 style={{
                   writingMode: "vertical-rl",
                   transform: "rotate(180deg)",
-                  fontFamily: "'Special Elite', monospace",
+                  fontFamily: F.mono,
                   fontSize: Math.max(8, Math.round(10 * s)),
                   letterSpacing: "0.08em",
                   /* Le nom passe à l'encre sombre : sur un corps désormais
@@ -1069,7 +1069,7 @@ export const CategoryBox = React.memo(function CategoryBox({
               padding: "4px 8px",
               cursor: "text",
               color: ink,
-              fontFamily: "'Special Elite', monospace",
+              fontFamily: F.mono,
               fontSize: 10.5,
               letterSpacing: "0.06em",
               borderBottom: `1px solid ${C.line}`,
@@ -1097,7 +1097,7 @@ export const CategoryBox = React.memo(function CategoryBox({
                   all: "unset",
                   flex: 1,
                   minWidth: 60,
-                  fontFamily: "'Special Elite', monospace",
+                  fontFamily: F.mono,
                   fontSize: 10.5,
                   color: C.ink,
                   borderBottom: `1px solid ${C.line}`,
@@ -1150,7 +1150,7 @@ export const CategoryBox = React.memo(function CategoryBox({
             <div
               style={{
                 color: C.inkFaded,
-                fontFamily: "'Caveat', cursive",
+                fontFamily: F.hand,
                 fontSize: 15,
                 padding: "0 6px 12px",
                 alignSelf: "flex-end",

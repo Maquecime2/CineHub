@@ -1,7 +1,7 @@
 /* ============================================================
    POLAROID / FICHE FILM
    ============================================================ */
-import { C } from "../../theme/tokens";
+import { C, F } from "../../theme/tokens";
 import { tapeColor } from "../../theme/ink";
 import { hash, tiltOf, usesPin, nudgeOf, pickFrom } from "../../domain/seeded";
 import { PushPin, Tape, FileNumber } from "../atmosphere";
@@ -68,7 +68,7 @@ export function FilmPolaroid({ film, onClick }: { film: Film; onClick: () => voi
         <div style={{ paddingTop: 14, textAlign: "left" }}>
           <div
             style={{
-              fontFamily: "'Playfair Display', serif",
+              fontFamily: F.title,
               fontWeight: 700,
               fontSize: 18,
               color: C.ink,
@@ -80,7 +80,7 @@ export function FilmPolaroid({ film, onClick }: { film: Film; onClick: () => voi
           {/* la légende manuscrite, écrite au dos puis recopiée devant */}
           <div
             style={{
-              fontFamily: "'Caveat', cursive",
+              fontFamily: F.hand,
               fontSize: 17,
               color: C.inkFaded,
               marginTop: 2,
@@ -94,7 +94,7 @@ export function FilmPolaroid({ film, onClick }: { film: Film; onClick: () => voi
             {film.status === "watchlist" ? (
               <span
                 style={{
-                  fontFamily: "'Special Elite', monospace",
+                  fontFamily: F.mono,
                   fontSize: 10,
                   color: C.cobalt,
                   letterSpacing: 1,

@@ -24,18 +24,36 @@
    après, quoi qu'il arrive. Le regroupement par famille, lui, ne sert
    qu'à l'affichage — voir `CAT_FAMILIES`. */
 
-import { C } from "./tokens";
+/* CE NUANCIER NE SUIT PAS LA PEAU DU SITE, ET C'EST DÉLIBÉRÉ.
 
+   Les huit premières teintes reprenaient les jetons de `tokens`, du
+   temps où ceux-ci étaient des hexadécimaux. Ils sont devenus des
+   renvois à des variables CSS, que la peau du jour réécrit — et une
+   couleur en renvoi ne peut PAS servir ici. Deux raisons, chacune
+   suffisante :
+
+   1. Ces teintes entrent dans des adresses-données SVG (les papiers
+      peints de `surfaces`, teintés par `catInk`). Un `var()` écrit dans
+      un document SVG embarqué ne résout rien : il n'a pas la racine du
+      document pour parent. Le motif serait simplement invisible.
+
+   2. On stocke la CLÉ. Un carton peint en `pine` doit rester le même
+      vert d'une peau à l'autre — c'est une décision de l'utilisateur sur
+      SON rangement, pas un élément de l'habillage du site. Une peau qui
+      repeindrait les cartons déplacerait ce qui ne lui appartient pas.
+
+   Les hexadécimaux sont donc écrits ici, en clair. Les huit premiers
+   sont ceux que `tokens` portait avant les peaux, au caractère près. */
 export const CAT_COLORS = {
   /* Les huit d'origine, à l'hexadécimal et au nom près. */
-  burgundy: C.burgundy,
-  ochre: C.ochre,
-  pine: C.pine,
-  slate: C.slate,
-  cobalt: C.cobalt,
-  vermillion: C.vermillion,
-  moss: C.moss,
-  ink: C.ink,
+  burgundy: "#8C3A34",
+  ochre: "#B9862E",
+  pine: "#3E5B4B",
+  slate: "#5C6B78",
+  cobalt: "#3A5C8C",
+  vermillion: "#C4562E",
+  moss: "#6E7A3A",
+  ink: "#2B2620",
 
   // chaudes
   brique: "#A24B3C",

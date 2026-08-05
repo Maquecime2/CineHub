@@ -3,7 +3,7 @@
    ============================================================ */
 import { useMemo, useRef, useState } from "react";
 import { Upload } from "lucide-react";
-import { C } from "../../theme/tokens";
+import { C, F } from "../../theme/tokens";
 import { underlineInput } from "../../theme/styles";
 import { Label, Tally, InkStars } from "../../components/ui";
 import { StampCorner } from "../../components/atmosphere";
@@ -135,7 +135,7 @@ export function ImportView({
       <StampCorner text="ARCHIVES" />
       <div
         style={{
-          fontFamily: "'Playfair Display', serif",
+          fontFamily: F.title,
           fontStyle: "italic",
           fontWeight: 700,
           fontSize: 42,
@@ -146,7 +146,7 @@ export function ImportView({
       </div>
       <div
         style={{
-          fontFamily: "'Caveat', cursive",
+          fontFamily: F.hand,
           fontSize: 20,
           color: C.inkFaded,
           marginTop: -4,
@@ -168,7 +168,7 @@ export function ImportView({
       >
         <div
           style={{
-            fontFamily: "'Special Elite', monospace",
+            fontFamily: F.mono,
             fontSize: 11,
             color: C.inkFaded,
             letterSpacing: 1,
@@ -177,9 +177,7 @@ export function ImportView({
         >
           QUELS FICHIERS DÉPOSER
         </div>
-        <div
-          style={{ fontFamily: "'Lora', serif", fontSize: 13, color: C.inkFaded, marginBottom: 12 }}
-        >
+        <div style={{ fontFamily: F.body, fontSize: 13, color: C.inkFaded, marginBottom: 12 }}>
           Letterboxd vous livre un zip : dézippez-le, puis déposez ces fichiers un par un.
         </div>
         {[
@@ -205,7 +203,7 @@ export function ImportView({
           <div key={f.n} style={{ display: "flex", gap: 10, alignItems: "baseline", marginTop: 7 }}>
             <span
               style={{
-                fontFamily: "'Special Elite', monospace",
+                fontFamily: F.mono,
                 fontSize: 12,
                 color: C.card,
                 background: f.ink,
@@ -219,17 +217,13 @@ export function ImportView({
             >
               {f.ordre}
             </span>
-            <span style={{ fontFamily: "'Special Elite', monospace", fontSize: 12, color: f.ink }}>
-              {f.n}
-            </span>
-            <span style={{ fontFamily: "'Lora', serif", fontSize: 12.5, color: C.inkFaded }}>
-              {f.d}
-            </span>
+            <span style={{ fontFamily: F.mono, fontSize: 12, color: f.ink }}>{f.n}</span>
+            <span style={{ fontFamily: F.body, fontSize: 12.5, color: C.inkFaded }}>{f.d}</span>
           </div>
         ))}
         <div
           style={{
-            fontFamily: "'Caveat', cursive",
+            fontFamily: F.hand,
             fontSize: 17,
             color: C.inkFaded,
             marginTop: 12,
@@ -251,7 +245,7 @@ export function ImportView({
         }}
       >
         <Upload size={24} color={C.burgundy} style={{ marginBottom: 10 }} />
-        <div style={{ color: C.ink, fontFamily: "'Lora', serif", fontSize: 14, marginBottom: 14 }}>
+        <div style={{ color: C.ink, fontFamily: F.body, fontSize: 14, marginBottom: 14 }}>
           letterboxd.com → Settings → Import &amp; Export → Export your data
         </div>
         <input
@@ -269,7 +263,7 @@ export function ImportView({
             background: C.burgundy,
             color: C.card,
             padding: "9px 18px",
-            fontFamily: "'Special Elite', monospace",
+            fontFamily: F.mono,
             fontSize: 11.5,
           }}
         >
@@ -281,7 +275,7 @@ export function ImportView({
               color: C.inkFaded,
               fontSize: 12,
               marginTop: 10,
-              fontFamily: "'Special Elite', monospace",
+              fontFamily: F.mono,
             }}
           >
             {fileName}
@@ -294,7 +288,7 @@ export function ImportView({
           style={{
             marginTop: 16,
             color: C.burgundy,
-            fontFamily: "'Caveat', cursive",
+            fontFamily: F.hand,
             fontSize: 19,
           }}
         >
@@ -313,7 +307,7 @@ export function ImportView({
         >
           <div
             style={{
-              fontFamily: "'Special Elite', monospace",
+              fontFamily: F.mono,
               fontSize: 11,
               color: C.pine,
               letterSpacing: 1,
@@ -340,7 +334,7 @@ export function ImportView({
         >
           <div
             style={{
-              fontFamily: "'Special Elite', monospace",
+              fontFamily: F.mono,
               fontSize: 11,
               color: C.inkFaded,
               letterSpacing: 1,
@@ -379,7 +373,7 @@ export function ImportView({
                     all: "unset",
                     cursor: "pointer",
                     padding: "6px 14px",
-                    fontFamily: "'Special Elite', monospace",
+                    fontFamily: F.mono,
                     fontSize: 11,
                     background: importStatus === o.k ? C.cobalt : "transparent",
                     color: importStatus === o.k ? C.card : C.inkFaded,
@@ -406,7 +400,7 @@ export function ImportView({
         >
           <div
             style={{
-              fontFamily: "'Special Elite', monospace",
+              fontFamily: F.mono,
               fontSize: 11,
               color: C.inkFaded,
               letterSpacing: 1,
@@ -416,7 +410,7 @@ export function ImportView({
           </div>
           <div
             style={{
-              fontFamily: "'Lora', serif",
+              fontFamily: F.body,
               fontSize: 13,
               color: C.inkFaded,
               margin: "6px 0 12px",
@@ -449,7 +443,7 @@ export function ImportView({
                 padding: "7px 14px",
                 border: `1px solid ${C.line}`,
                 color: C.inkFaded,
-                fontFamily: "'Special Elite', monospace",
+                fontFamily: F.mono,
                 fontSize: 10.5,
               }}
             >
@@ -459,7 +453,7 @@ export function ImportView({
           {keyState && (
             <div
               style={{
-                fontFamily: "'Caveat', cursive",
+                fontFamily: F.hand,
                 fontSize: 17,
                 color: keyState === "clé valide" ? C.pine : C.burgundy,
                 marginTop: 6,
@@ -484,7 +478,7 @@ export function ImportView({
               </div>
               <div
                 style={{
-                  fontFamily: "'Special Elite', monospace",
+                  fontFamily: F.mono,
                   fontSize: 10.5,
                   color: C.inkFaded,
                   marginTop: 6,
@@ -504,7 +498,7 @@ export function ImportView({
                 background: apiKey.trim() ? C.ochre : C.line,
                 color: C.card,
                 padding: "9px 16px",
-                fontFamily: "'Special Elite', monospace",
+                fontFamily: F.mono,
                 fontSize: 11,
               }}
             >
@@ -522,7 +516,7 @@ export function ImportView({
           )}
           <div
             style={{
-              fontFamily: "'Caveat', cursive",
+              fontFamily: F.hand,
               fontSize: 16,
               color: C.inkFaded,
               marginTop: 10,
@@ -543,7 +537,7 @@ export function ImportView({
               display: "flex",
               gap: 26,
               margin: "10px 0 14px",
-              fontFamily: "'Special Elite', monospace",
+              fontFamily: F.mono,
             }}
           >
             {(
@@ -566,7 +560,7 @@ export function ImportView({
             <div style={{ marginBottom: 14 }}>
               <div
                 style={{
-                  fontFamily: "'Caveat', cursive",
+                  fontFamily: F.hand,
                   fontSize: 18,
                   color: C.inkFaded,
                   marginBottom: 4,
@@ -588,7 +582,7 @@ export function ImportView({
                     style={{
                       padding: "7px 14px",
                       borderBottom: `1px solid ${C.line}`,
-                      fontFamily: "'Lora', serif",
+                      fontFamily: F.body,
                       fontSize: 13,
                       color: C.ink,
                     }}
@@ -598,7 +592,7 @@ export function ImportView({
                     <span
                       style={{
                         color: C.ochre,
-                        fontFamily: "'Special Elite', monospace",
+                        fontFamily: F.mono,
                         fontSize: 10.5,
                         marginLeft: 8,
                       }}
@@ -634,7 +628,7 @@ export function ImportView({
                     gap: 10,
                     padding: "8px 14px",
                     borderBottom: `1px solid ${C.line}`,
-                    fontFamily: "'Lora', serif",
+                    fontFamily: F.body,
                     fontSize: 13,
                     color: C.ink,
                   }}
@@ -642,9 +636,7 @@ export function ImportView({
                   <span>
                     {f.title} {f.year && <span style={{ color: C.inkFaded }}>({f.year})</span>}
                     {f.director && (
-                      <span
-                        style={{ fontFamily: "'Caveat', cursive", fontSize: 16, color: C.inkFaded }}
-                      >
+                      <span style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded }}>
                         {" "}
                         — {f.director}
                       </span>
@@ -659,7 +651,7 @@ export function ImportView({
                 <div
                   style={{
                     padding: "8px 14px",
-                    fontFamily: "'Caveat', cursive",
+                    fontFamily: F.hand,
                     fontSize: 16,
                     color: C.inkFaded,
                   }}
@@ -674,7 +666,7 @@ export function ImportView({
             <div
               style={{
                 marginTop: 10,
-                fontFamily: "'Caveat', cursive",
+                fontFamily: F.hand,
                 fontSize: 17,
                 color: C.burgundy,
               }}
@@ -694,7 +686,7 @@ export function ImportView({
               cursor: diff.toCreate.length || diff.toUpdate.length ? "pointer" : "not-allowed",
               background: diff.toCreate.length || diff.toUpdate.length ? C.pine : C.line,
               color: C.card,
-              fontFamily: "'Special Elite', monospace",
+              fontFamily: F.mono,
               fontSize: 11.5,
               letterSpacing: 1,
             }}
@@ -706,9 +698,7 @@ export function ImportView({
         </div>
       )}
 
-      <div
-        style={{ marginTop: 26, fontFamily: "'Caveat', cursive", fontSize: 17, color: C.inkFaded }}
-      >
+      <div style={{ marginTop: 26, fontFamily: F.hand, fontSize: 17, color: C.inkFaded }}>
         {films.length} film(s) déjà au catalogue — un réimport met à jour les fiches existantes au
         lieu de les dupliquer.
       </div>

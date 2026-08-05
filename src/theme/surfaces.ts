@@ -26,7 +26,7 @@
    palette des objets, et la palette ignore les surfaces. */
 
 import type { CSSProperties } from "react";
-import { C, GRAIN } from "./tokens";
+import { C, GRAIN, alpha } from "./tokens";
 
 /* L'adresse-données, faite une bonne fois. Le pourcent AVANT le dièse —
    l'ordre inverse ré-échapperait le pourcent qu'on vient d'écrire. Les
@@ -199,8 +199,21 @@ export const PATTERNS: Record<string, Pattern> = {
 
 export const PATTERN_KEYS = Object.keys(PATTERNS);
 
+/* L'ENCRE PAR DÉFAUT D'UNE TRAME, ET POURQUOI ELLE EST ÉCRITE EN DUR.
+
+   C'était `C.inkFaded`. Depuis que les jetons sont des renvois à des
+   variables CSS, ce n'en est plus une couleur utilisable ici : la trame
+   part dans une adresse-données SVG, et un `var()` écrit dans un
+   document SVG embarqué ne résout rien — il n'a pas la racine du
+   document pour parent. Le motif devenait invisible, sans un mot.
+
+   C'est la même contrainte que celle qui garde le nuancier des objets en
+   hexadécimaux (voir `theme/palette`) : tout ce qui entre dans un SVG
+   embarqué doit être une couleur, pas un renvoi vers une couleur. */
+const DEFAULT_INK = "#6E6153";
+
 /* `ink` est une couleur RÉSOLUE, jamais une clé — voir l'en-tête. */
-export const patternLayer = (key?: string, ink: string = C.inkFaded): CSSProperties | null => {
+export const patternLayer = (key?: string, ink: string = DEFAULT_INK): CSSProperties | null => {
   const p = PATTERNS[key as string];
   if (!p) return null;
   return {
@@ -236,8 +249,8 @@ export const TEXTURES = {
     label: "Toile",
     style: {
       backgroundImage:
-        `repeating-linear-gradient(0deg, ${C.ink}0C 0 1px, transparent 1px 4px), ` +
-        `repeating-linear-gradient(90deg, ${C.ink}0C 0 1px, transparent 1px 4px)`,
+        `repeating-linear-gradient(0deg, ${alpha(C.ink, 0.047)} 0 1px, transparent 1px 4px), ` +
+        `repeating-linear-gradient(90deg, ${alpha(C.ink, 0.047)} 0 1px, transparent 1px 4px)`,
       mixBlendMode: "multiply",
     } as CSSProperties,
   },
@@ -275,7 +288,7 @@ export const textureLayer = (key?: string): CSSProperties | null =>
    `ink` est une couleur résolue, jamais une clé. */
 export function wallStyle(
   decor?: { paint?: string; pattern?: string; texture?: string } | null,
-  ink: string = C.inkFaded,
+  ink: string = DEFAULT_INK,
   tint?: string | null
 ): { frame: CSSProperties; texture: CSSProperties | null } {
   const images: string[] = [];

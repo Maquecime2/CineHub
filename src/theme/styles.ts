@@ -3,7 +3,7 @@
    seul composant reste chez lui.
    ============================================================ */
 import type { CSSProperties } from "react";
-import { C } from "./tokens";
+import { C, F, alpha } from "./tokens";
 
 export const underlineInput: CSSProperties = {
   width: "100%",
@@ -12,7 +12,7 @@ export const underlineInput: CSSProperties = {
   borderBottom: `1px solid ${C.line}`,
   padding: "4px 2px",
   color: C.ink,
-  fontFamily: "'Lora', serif",
+  fontFamily: F.body,
   fontSize: 15,
   outline: "none",
   boxSizing: "border-box",
@@ -25,11 +25,11 @@ export const ruledTextarea: CSSProperties = {
   borderBottom: `1px solid ${C.line}`,
   padding: "6px 2px",
   color: C.ink,
-  fontFamily: "'Caveat', cursive",
+  fontFamily: F.hand,
   fontSize: 20,
   lineHeight: "30px",
   outline: "none",
   resize: "vertical",
   boxSizing: "border-box",
-  backgroundImage: `repeating-linear-gradient(transparent, transparent 29px, ${C.line}55 30px)`,
+  backgroundImage: `repeating-linear-gradient(transparent, transparent 29px, ${alpha(C.line, 0.333)} 30px)`,
 };

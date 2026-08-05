@@ -7,7 +7,7 @@
    ============================================================ */
 import { useState } from "react";
 import { X } from "lucide-react";
-import { C } from "../../theme/tokens";
+import { C, F } from "../../theme/tokens";
 import { underlineInput } from "../../theme/styles";
 import { hash, pickFrom } from "../../domain/seeded";
 
@@ -36,7 +36,7 @@ export function TagChip({
         display: "inline-flex",
         alignItems: "center",
         gap: 5,
-        fontFamily: "'Special Elite', monospace",
+        fontFamily: F.mono,
         fontSize: small ? 9.5 : 10.5,
         border: `1px solid ${ink}`,
         borderRadius: 12,
@@ -98,9 +98,7 @@ export function TagEditor({
           <TagChip key={t} tag={t} onRemove={() => onChange(tags.filter((x) => x !== t))} />
         ))}
         {tags.length === 0 && (
-          <span style={{ fontFamily: "'Caveat', cursive", fontSize: 16, color: C.inkFaded }}>
-            aucun mot-clé
-          </span>
+          <span style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded }}>aucun mot-clé</span>
         )}
       </div>
       <div style={{ position: "relative" }}>
@@ -141,7 +139,7 @@ export function TagEditor({
                   width: "100%",
                   boxSizing: "border-box",
                   padding: "6px 11px",
-                  fontFamily: "'Lora', serif",
+                  fontFamily: F.body,
                   fontSize: 13,
                   color: C.ink,
                   borderBottom: `1px solid ${C.line}`,
