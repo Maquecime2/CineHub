@@ -5,7 +5,7 @@
    ============================================================ */
 import { useState } from "react";
 import { Check, Pencil, X } from "lucide-react";
-import { C } from "../../theme/tokens";
+import { C, F } from "../../theme/tokens";
 import { underlineInput } from "../../theme/styles";
 import { CommaInput, Label } from "../ui";
 import { store } from "../../services/storage";
@@ -18,7 +18,7 @@ const tinyButton = (ink: string) => ({
   display: "flex",
   alignItems: "center",
   gap: 5,
-  fontFamily: "'Special Elite', monospace",
+  fontFamily: F.mono,
   fontSize: 10,
   color: ink,
 });
@@ -108,7 +108,7 @@ export function FilmIdentity({ film, onUpdate }: { film: Film; onUpdate: (f: Fil
       <>
         <div
           style={{
-            fontFamily: "'Playfair Display', serif",
+            fontFamily: F.title,
             fontWeight: 700,
             fontSize: 20,
             color: C.ink,
@@ -122,7 +122,7 @@ export function FilmIdentity({ film, onUpdate }: { film: Film; onUpdate: (f: Fil
             display: "flex",
             alignItems: "baseline",
             gap: 8,
-            fontFamily: "'Special Elite', monospace",
+            fontFamily: F.mono,
             fontSize: 11,
             color: C.inkFaded,
             marginTop: 3,
@@ -187,9 +187,7 @@ export function FilmIdentity({ film, onUpdate }: { film: Film; onUpdate: (f: Fil
         retrouver sur TMDB
       </button>
       {msg && (
-        <div
-          style={{ fontFamily: "'Caveat', cursive", fontSize: 16, color: C.inkFaded, marginTop: 4 }}
-        >
+        <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded, marginTop: 4 }}>
           {msg}
         </div>
       )}

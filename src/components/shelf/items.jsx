@@ -1,7 +1,7 @@
 /* Les objets qu'on pose sur une planche : le repère de dépôt, le boîtier,
    le décor et la catégorie. */
 import React, { useEffect, useMemo, useState } from "react";
-import { C } from "../../theme/tokens";
+import { C, F } from "../../theme/tokens";
 import { hueOf } from "../../theme/ink";
 import { tiltOf } from "../../domain/seeded";
 import { PosterArt } from "../film/PosterArt";
@@ -246,7 +246,7 @@ export const FilmBox = React.memo(function FilmBox({
               style={{
                 writingMode: "vertical-rl",
                 transform: "rotate(180deg)",
-                fontFamily: "'Special Elite', monospace",
+                fontFamily: F.mono,
                 fontSize: 8,
                 letterSpacing: "0.08em",
                 color: "rgba(246,239,222,0.92)",
@@ -264,7 +264,7 @@ export const FilmBox = React.memo(function FilmBox({
                 left: 15,
                 background: "rgba(246,239,222,0.88)",
                 color: C.ink,
-                fontFamily: "'Special Elite', monospace",
+                fontFamily: F.mono,
                 fontSize: 9,
                 padding: "1px 4px",
                 zIndex: 3,
@@ -284,7 +284,7 @@ export const FilmBox = React.memo(function FilmBox({
                 padding: "3px 5px",
                 background: "rgba(43,38,32,0.72)",
                 color: C.card,
-                fontFamily: "'Special Elite', monospace",
+                fontFamily: F.mono,
                 fontSize: 9.5,
                 letterSpacing: 1,
                 zIndex: 3,
@@ -386,6 +386,11 @@ const LEAN_MIN = 1.2,
    écrire sur la languette, qui est justement la partie qu'on regarde. */
 export const DIVIDER_W = 30,
   DIVIDER_HEAD = 18;
+
+/* Le carré d'un décor posé, au calibre M. Il était écrit en dur à deux
+   endroits, dont l'un ne servait qu'à mesurer : deux chiffres qui doivent
+   rester égaux et que rien n'oblige à l'être. */
+export const DECOR_BOX = 46;
 
 /* Le carton et sa maquette au cabinet doivent se ressembler assez pour
    qu'on reconnaisse dans la rangée ce qu'on a tiré du panneau : les deux
@@ -504,6 +509,26 @@ export const rotatedBox = (w, h, deg) => {
   };
 };
 
+/* LA LARGEUR QU'UN DÉCOR RÉCLAME DANS SA RANGÉE, écart au voisin
+   compris — exactement ce que `DecorItem` pose sur son enveloppe.
+
+   Elle est ici, et non recalculée par le découpage en lignes, parce
+   qu'il n'y a qu'une place possible pour une mesure : celle qui la
+   dessine. Le jour où l'angle, le calibre ou la chasse du carton
+   changent, la ligne suivra sans qu'on y pense.
+
+   Un boîtier vaut une case, un décor en vaut autant qu'il en occupe :
+   c'est tout ce que `splitRow` a besoin de savoir pour ne plus laisser
+   un objet en XXL déborder de sa planche. */
+export const decorSpanOf = (item) => {
+  const spec = decorSpec(item.motif);
+  if (!spec) return 0;
+  const s = item.size || 1;
+  const w = Math.round((spec.tall ? DIVIDER_W : DECOR_BOX) * s);
+  const h = Math.round((spec.tall ? BOX_H : DECOR_BOX) * s);
+  return rotatedBox(w, h, angleOf(item, spec.tall)).width + GAP_X;
+};
+
 /* Un décor posé sur la planche : il se glisse, se déplace et s'enlève
    comme un boîtier, mais ne dit rien d'un film. Six des motifs sont les
    décors que la maison dessine déjà ailleurs ; le reste vient de lucide. */
@@ -526,7 +551,7 @@ export const DecorItem = React.memo(function DecorItem({
 
   const ink = catInk(item.color);
   const s = item.size || 1;
-  const box = Math.round(46 * s);
+  const box = Math.round(DECOR_BOX * s);
   if (!spec) return null;
   const Draw = spec.draw;
 
@@ -663,7 +688,7 @@ export const DecorItem = React.memo(function DecorItem({
                   boxSizing: "border-box",
                   writingMode: "vertical-rl",
                   transform: "rotate(180deg)",
-                  fontFamily: "'Special Elite', monospace",
+                  fontFamily: F.mono,
                   fontSize: Math.max(8, Math.round(10 * s)),
                   letterSpacing: "0.08em",
                   color: C.ink,
@@ -682,7 +707,7 @@ export const DecorItem = React.memo(function DecorItem({
                 style={{
                   writingMode: "vertical-rl",
                   transform: "rotate(180deg)",
-                  fontFamily: "'Special Elite', monospace",
+                  fontFamily: F.mono,
                   fontSize: Math.max(8, Math.round(10 * s)),
                   letterSpacing: "0.08em",
                   /* Le nom passe à l'encre sombre : sur un corps désormais
@@ -1044,7 +1069,7 @@ export const CategoryBox = React.memo(function CategoryBox({
               padding: "4px 8px",
               cursor: "text",
               color: ink,
-              fontFamily: "'Special Elite', monospace",
+              fontFamily: F.mono,
               fontSize: 10.5,
               letterSpacing: "0.06em",
               borderBottom: `1px solid ${C.line}`,
@@ -1072,7 +1097,7 @@ export const CategoryBox = React.memo(function CategoryBox({
                   all: "unset",
                   flex: 1,
                   minWidth: 60,
-                  fontFamily: "'Special Elite', monospace",
+                  fontFamily: F.mono,
                   fontSize: 10.5,
                   color: C.ink,
                   borderBottom: `1px solid ${C.line}`,
@@ -1125,7 +1150,7 @@ export const CategoryBox = React.memo(function CategoryBox({
             <div
               style={{
                 color: C.inkFaded,
-                fontFamily: "'Caveat', cursive",
+                fontFamily: F.hand,
                 fontSize: 15,
                 padding: "0 6px 12px",
                 alignSelf: "flex-end",

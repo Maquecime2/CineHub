@@ -56,6 +56,22 @@ const unplacedOf = (view, kind) => view.shelves[kind].rows.at(-1);
 const rowsOf = (view, kind) => view.shelves[kind].rows;
 const idsIn = (row) => row.items.map((it) => it.id);
 
+/* TOUS les identifiants d'objets d'une vue, boîtes ouvertes comprises.
+
+   Il servait à écrire « ce bibelot n'est plus nulle part », et cela se
+   disait jusqu'ici en cherchant son id dans le JSON de la vue entière.
+   Mais une vue est pleine d'identifiants tirés au sort, et « d1 » finit
+   par tomber au milieu de l'un d'eux — `r_nd1p7is9…` — un jour sur
+   quelques dizaines. Le test échouait alors sans que rien ne soit cassé.
+
+   On regarde donc les identifiants comme des identifiants, et non comme
+   une sous-chaîne d'un gros texte. */
+const allItemIds = (view) =>
+  Object.values(view.shelves)
+    .flatMap((s) => s.rows)
+    .flatMap((r) => r.items)
+    .flatMap((it) => (it.t === "c" ? [it.id, ...(it.items || []).map((i) => i.id)] : [it.id]));
+
 /* Une boîte, où qu'elle soit posée dans la vue. */
 const catIn = (view, catId, kind = "main") =>
   rowsOf(view, kind)
@@ -584,7 +600,7 @@ describe("un décor dans une catégorie", () => {
     expect(idsIn(unplacedOf(out, "main")).sort()).toEqual(["f1", "f2"]);
     expect(filmIdsOf(out).sort()).toEqual(["f1", "f2"]);
     // le bibelot est du mobilier : il disparaît avec le meuble
-    expect(JSON.stringify(out)).not.toContain("d1");
+    expect(allItemIds(out)).not.toContain("d1");
   });
 
   it("reçoit un identifiant neuf quand la vue est dupliquée", () => {

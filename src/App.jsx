@@ -65,7 +65,18 @@ import {
   patchDecor,
   removeDecor,
 } from "./shelf-views";
-import { C, FONT_IMPORT, GRAIN } from "./theme/tokens";
+import { C, F, FONT_IMPORT, GRAIN } from "./theme/tokens";
+import { applySkin, loadSkinKey, saveSkinKey } from "./theme/applySkin";
+
+/* Le kraft d'origine, pour le tout premier rendu — avant qu'une peau
+   ait ete posee. La meme recette vit dans `theme/skins`, sous la peau
+   « carnet » : deux endroits pour une chose, mais l'un des deux doit
+   pouvoir servir sans qu'aucun module ait tourne. */
+const KRAFT_FALLBACK = `
+  radial-gradient(circle at 18% 12%, #F5EDD8 0%, transparent 45%),
+  radial-gradient(circle at 82% 68%, #F2E9D2 0%, transparent 40%),
+  radial-gradient(circle at 55% 100%, #E5D6B4 0%, transparent 50%),
+  #EEE3CC`;
 import { tapeColor, hueOf } from "./theme/ink";
 import { hash, seededRand, tiltOf, usesPin, nudgeOf, fileNoOf, tornClip } from "./domain/seeded";
 import { uid, makeFilm, migrate, editLinkedWork } from "./domain/film";
@@ -89,6 +100,7 @@ import { PosterArt } from "./components/film/PosterArt";
 import { FilmPolaroid } from "./components/film/FilmPolaroid";
 import { FilmModal } from "./components/film/FilmModal";
 import { FolderTabs } from "./components/layout/FolderTabs";
+import { SkinPicker } from "./components/layout/SkinPicker";
 import { FilmWall } from "./views/library/FilmWall";
 import { WALLS } from "./views/library/walls";
 import { ThreadBoard } from "./components/film/ThreadBoard";
@@ -151,6 +163,22 @@ export default function App() {
   const [view, setView] = useState("library");
   const [selectedId, setSelectedId] = useState(null);
   const [showModal, setShowModal] = useState(false);
+
+  /* LA PEAU DU SITE. Elle est ici en etat React pour une seule raison :
+     le selecteur doit savoir laquelle est posee pour la marquer. Ce
+     n'est PAS par elle que le site se repeint — c'est `applySkin` qui
+     ecrit des variables sur la racine du document, et les vingt-neuf
+     fichiers qui lisent les jetons n'en savent rien.
+
+     Posee en `useLayoutEffect` et non `useEffect` : entre les deux, le
+     navigateur peint une fois, et l'on verrait le kraft passer avant la
+     peau choisie a chaque chargement. */
+  const [skin, setSkin] = useState(loadSkinKey);
+  const [skinPicker, setSkinPicker] = useState(false);
+  useLayoutEffect(() => {
+    applySkin(skin);
+    saveSkinKey(skin);
+  }, [skin]);
 
   useEffect(() => {
     // les fiches d'avant les champs status/watchedAt/tmdbId sont complétées ici
@@ -361,7 +389,7 @@ export default function App() {
           alignItems: "center",
           justifyContent: "center",
           color: C.inkFaded,
-          fontFamily: "'Caveat', cursive",
+          fontFamily: F.hand,
           fontSize: 22,
         }}
       >
@@ -377,12 +405,12 @@ export default function App() {
         minHeight: "100vh",
         display: "flex",
         position: "relative",
-        // le kraft n'est pas uniforme : des nappes plus claires là où la lumière tombe
-        background: `
-        radial-gradient(circle at 18% 12%, #F5EDD8 0%, transparent 45%),
-        radial-gradient(circle at 82% 68%, #F2E9D2 0%, transparent 40%),
-        radial-gradient(circle at 55% 100%, #E5D6B4 0%, transparent 50%),
-        ${C.paper}`,
+        /* Le fond entier vient de la peau — ce n'est pas une couleur mais
+           une recette : le kraft a des nappes plus claires là où la
+           lumière tombe, un terminal a ses lignes de balayage, une peau
+           néon un halo. La valeur de repli est le kraft d'origine, pour
+           le premier rendu, avant qu'une peau soit posée. */
+        background: `var(--page-bg, ${KRAFT_FALLBACK})`,
       }}
     >
       <style>{FONT_IMPORT}</style>
@@ -394,8 +422,28 @@ export default function App() {
           setSelectedId(null);
         }}
         onAdd={() => setShowModal(true)}
+        onSkin={() => setSkinPicker(true)}
       />
-      <div style={{ flex: 1, position: "relative", zIndex: 2 }}>
+      {skinPicker && (
+        <SkinPicker skin={skin} onPick={setSkin} onClose={() => setSkinPicker(false)} />
+      )}
+      {/* LA COLONNE QUI DOIT POUVOIR RÉTRÉCIR.
+
+          `flex: 1` ne suffit pas : un objet flex garde `min-width: auto`,
+          c'est-à-dire qu'il refuse de descendre sous la largeur MINIMALE
+          de son contenu. Sur le mur, ce minimum est petit — les affiches
+          se replient. Sur l'étagère, c'est la plus longue rangée de
+          boîtiers, qui ne rétrécissent pas : la colonne se plantait donc
+          à mille deux cents pixels quelle que soit la fenêtre, et tout ce
+          qui dépassait devenait une barre de défilement horizontale sur
+          la page entière — dès l'ouverture de la vue, sans qu'aucun décor
+          y soit pour rien.
+
+          `minWidth: 0` lui rend le droit de rétrécir. La rangée mesure
+          alors la largeur qu'elle a VRAIMENT (voir `useRowCap`) et pose
+          le nombre de boîtiers qui y tiennent, au lieu d'en poser dix et
+          de pousser la fenêtre. */}
+      <div style={{ flex: 1, minWidth: 0, position: "relative", zIndex: 2 }}>
         {view === "library" && !selectedId && (
           <LibraryView
             wall="watched"

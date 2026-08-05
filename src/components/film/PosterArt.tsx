@@ -4,7 +4,7 @@
    affiche collée dans un carnet, pas une vignette de catalogue.
    ============================================================ */
 import React, { useEffect, useState } from "react";
-import { GRAIN } from "../../theme/tokens";
+import { F, GRAIN } from "../../theme/tokens";
 import { hueOf } from "../../theme/ink";
 import { tornClip } from "../../domain/seeded";
 import { isIdbPoster, idbKeyOf } from "../../db";
@@ -134,7 +134,7 @@ export const PosterArt = React.memo(function PosterArt({
           >
             <span
               style={{
-                fontFamily: "'Playfair Display', serif",
+                fontFamily: F.title,
                 fontStyle: "italic",
                 fontSize: height > 170 ? 50 : 40,
                 color: "#f3ead8cc",

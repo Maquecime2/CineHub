@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { C } from "../theme/tokens";
+import { C, F } from "../theme/tokens";
 import { underlineInput } from "../theme/styles";
 import { Label } from "../components/ui";
 import { StampCorner, InkUnderline, CoffeeRing } from "../components/atmosphere";
@@ -110,7 +110,7 @@ function Dial({
         style={{
           display: "flex",
           justifyContent: "space-between",
-          fontFamily: "'Caveat', cursive",
+          fontFamily: F.hand,
           fontSize: 15,
           color: C.inkFaded,
           marginTop: -2,
@@ -140,7 +140,7 @@ function Chip({
       style={{
         all: "unset",
         cursor: "pointer",
-        fontFamily: "'Special Elite', monospace",
+        fontFamily: F.mono,
         fontSize: 10.5,
         padding: "3px 10px",
         borderRadius: 12,
@@ -181,7 +181,7 @@ function RecoCard({ c, onAdd, added }: { c: Candidate; onAdd: () => void; added:
       <div style={{ marginTop: -22, marginBottom: 30, padding: "0 4px" }}>
         <div
           style={{
-            fontFamily: "'Caveat', cursive",
+            fontFamily: F.hand,
             fontSize: 16,
             color: C.inkFaded,
             lineHeight: 1.25,
@@ -190,9 +190,7 @@ function RecoCard({ c, onAdd, added }: { c: Candidate; onAdd: () => void; added:
           {c.reasons.join(" · ")}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
-          <span
-            style={{ fontFamily: "'Special Elite', monospace", fontSize: 9.5, color: C.inkFaded }}
-          >
+          <span style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}>
             TMDB {c.voteAverage.toFixed(1)} · niche {Math.round(c.niche * 100)}%
           </span>
           <button
@@ -202,7 +200,7 @@ function RecoCard({ c, onAdd, added }: { c: Candidate; onAdd: () => void; added:
               all: "unset",
               cursor: added ? "default" : "pointer",
               marginLeft: "auto",
-              fontFamily: "'Special Elite', monospace",
+              fontFamily: F.mono,
               fontSize: 10,
               letterSpacing: 0.5,
               padding: "4px 10px",
@@ -311,7 +309,7 @@ export function RecoView({
       <StampCorner text="BULLETIN DE COMMANDE" />
       <div
         style={{
-          fontFamily: "'Playfair Display', serif",
+          fontFamily: F.title,
           fontStyle: "italic",
           fontWeight: 700,
           fontSize: 46,
@@ -325,7 +323,7 @@ export function RecoView({
       <InkUnderline width={370} />
       <div
         style={{
-          fontFamily: "'Caveat', cursive",
+          fontFamily: F.hand,
           fontSize: 22,
           color: C.inkFaded,
           marginTop: 2,
@@ -348,7 +346,7 @@ export function RecoView({
         >
           <div
             style={{
-              fontFamily: "'Special Elite', monospace",
+              fontFamily: F.mono,
               fontSize: 11,
               color: C.burgundy,
               letterSpacing: 1,
@@ -359,7 +357,7 @@ export function RecoView({
           </div>
           <div
             style={{
-              fontFamily: "'Lora', serif",
+              fontFamily: F.body,
               fontSize: 13.5,
               color: C.inkFaded,
               lineHeight: 1.5,
@@ -412,7 +410,7 @@ export function RecoView({
             >
               <span
                 style={{
-                  fontFamily: "'Special Elite', monospace",
+                  fontFamily: F.mono,
                   fontSize: 10,
                   color: C.inkFaded,
                   letterSpacing: 1,
@@ -458,7 +456,7 @@ export function RecoView({
                   onChange={(e) => set("language", e.target.value)}
                   style={{
                     ...underlineInput,
-                    fontFamily: "'Special Elite', monospace",
+                    fontFamily: F.mono,
                     fontSize: 12,
                   }}
                 >
@@ -495,7 +493,7 @@ export function RecoView({
             </div>
             <div
               style={{
-                fontFamily: "'Caveat', cursive",
+                fontFamily: F.hand,
                 fontSize: 15,
                 color: C.inkFaded,
                 marginTop: 6,
@@ -555,7 +553,7 @@ export function RecoView({
                   background: progress ? C.line : C.burgundy,
                   color: C.card,
                   padding: "10px 22px",
-                  fontFamily: "'Special Elite', monospace",
+                  fontFamily: F.mono,
                   fontSize: 12,
                   letterSpacing: 1,
                 }}
@@ -569,7 +567,7 @@ export function RecoView({
                 onClick={() => set("excludeWatchlist", !query.excludeWatchlist)}
               />
               {taste.isEmpty && (
-                <span style={{ fontFamily: "'Caveat', cursive", fontSize: 16, color: C.burgundy }}>
+                <span style={{ fontFamily: F.hand, fontSize: 16, color: C.burgundy }}>
                   collection trop mince pour un profil — seuls les filtres joueront
                 </span>
               )}
@@ -581,7 +579,7 @@ export function RecoView({
               style={{
                 marginTop: 18,
                 color: C.burgundy,
-                fontFamily: "'Caveat', cursive",
+                fontFamily: F.hand,
                 fontSize: 19,
               }}
             >
@@ -593,7 +591,7 @@ export function RecoView({
             <>
               <div
                 style={{
-                  fontFamily: "'Special Elite', monospace",
+                  fontFamily: F.mono,
                   fontSize: 11,
                   color: C.inkFaded,
                   letterSpacing: 1,

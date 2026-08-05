@@ -13,7 +13,7 @@ import {
   ArchiveRestore,
   X,
 } from "lucide-react";
-import { C } from "../theme/tokens";
+import { C, F } from "../theme/tokens";
 import { underlineInput } from "../theme/styles";
 import { uid } from "../domain/film";
 import { putImage } from "../db";
@@ -201,7 +201,7 @@ export function DetailView({
           alignItems: "center",
           gap: 6,
           color: C.inkFaded,
-          fontFamily: "'Special Elite', monospace",
+          fontFamily: F.mono,
           fontSize: 11.5,
           marginBottom: 22,
         }}
@@ -242,7 +242,7 @@ export function DetailView({
           >
             <div
               style={{
-                fontFamily: "'Special Elite', monospace",
+                fontFamily: F.mono,
                 fontSize: 10,
                 color: C.inkFaded,
                 letterSpacing: 1,
@@ -272,7 +272,7 @@ export function DetailView({
                   padding: "8px 0",
                   background: C.pine,
                   color: C.card,
-                  fontFamily: "'Special Elite', monospace",
+                  fontFamily: F.mono,
                   fontSize: 10.5,
                   letterSpacing: 1,
                   boxSizing: "border-box",
@@ -297,7 +297,7 @@ export function DetailView({
                     cursor: "pointer",
                     marginTop: 8,
                     color: C.inkFaded,
-                    fontFamily: "'Special Elite', monospace",
+                    fontFamily: F.mono,
                     fontSize: 10,
                   }}
                 >
@@ -308,7 +308,7 @@ export function DetailView({
             {film.watchedAt && (
               <div
                 style={{
-                  fontFamily: "'Caveat', cursive",
+                  fontFamily: F.hand,
                   fontSize: 16,
                   color: C.inkFaded,
                   marginTop: 6,
@@ -322,7 +322,7 @@ export function DetailView({
                 <span
                   key={g}
                   style={{
-                    fontFamily: "'Special Elite', monospace",
+                    fontFamily: F.mono,
                     fontSize: 9.5,
                     border: `1px solid ${C.burgundy}`,
                     color: C.burgundy,
@@ -373,7 +373,7 @@ export function DetailView({
                     display: "flex",
                     alignItems: "center",
                     gap: 6,
-                    fontFamily: "'Special Elite', monospace",
+                    fontFamily: F.mono,
                     fontSize: 10,
                     color: film.chevet ? C.burgundy : C.inkFaded,
                   }}
@@ -396,7 +396,7 @@ export function DetailView({
                   display: "flex",
                   alignItems: "center",
                   gap: 6,
-                  fontFamily: "'Special Elite', monospace",
+                  fontFamily: F.mono,
                   fontSize: 10,
                   color: film.archived ? C.slate : C.inkFaded,
                 }}
@@ -421,7 +421,7 @@ export function DetailView({
                 alignItems: "center",
                 gap: 5,
                 color: C.inkFaded,
-                fontFamily: "'Special Elite', monospace",
+                fontFamily: F.mono,
                 fontSize: 10,
                 marginTop: 16,
               }}
@@ -513,7 +513,7 @@ export function DetailView({
           <Link2 size={15} color={C.burgundy} />
           <div
             style={{
-              fontFamily: "'Playfair Display', serif",
+              fontFamily: F.title,
               fontStyle: "italic",
               fontWeight: 700,
               fontSize: 24,
@@ -525,7 +525,7 @@ export function DetailView({
         </div>
         <div
           style={{
-            fontFamily: "'Caveat', cursive",
+            fontFamily: F.hand,
             fontSize: 18,
             color: C.inkFaded,
             marginTop: -2,
@@ -564,7 +564,7 @@ export function DetailView({
               }}
               style={{
                 ...underlineInput,
-                fontFamily: "'Special Elite', monospace",
+                fontFamily: F.mono,
                 fontSize: 12,
                 width: 120,
               }}
@@ -593,7 +593,7 @@ export function DetailView({
                 }}
               >
                 <Link2 size={13} color={C.burgundy} />
-                <span style={{ fontFamily: "'Lora', serif", fontSize: 14, color: C.ink }}>
+                <span style={{ fontFamily: F.body, fontSize: 14, color: C.ink }}>
                   {picked.title}
                   {picked.year ? ` (${picked.year})` : ""}
                 </span>
@@ -652,12 +652,12 @@ export function DetailView({
                       e.currentTarget.style.background = "transparent";
                     }}
                   >
-                    <span style={{ fontFamily: "'Lora', serif", fontSize: 13.5, color: C.ink }}>
+                    <span style={{ fontFamily: F.body, fontSize: 13.5, color: C.ink }}>
                       {s.title}
                     </span>
                     <span
                       style={{
-                        fontFamily: "'Special Elite', monospace",
+                        fontFamily: F.mono,
                         fontSize: 9.5,
                         color: C.inkFaded,
                         marginLeft: 6,
@@ -674,7 +674,7 @@ export function DetailView({
             {linkType === "film" && !picked && linkTitle.trim() && suggestions.length === 0 && (
               <div
                 style={{
-                  fontFamily: "'Caveat', cursive",
+                  fontFamily: F.hand,
                   fontSize: 15,
                   color: C.inkFaded,
                   marginTop: 3,
@@ -711,7 +711,7 @@ export function DetailView({
               background: C.burgundy,
               color: C.card,
               padding: "8px 16px",
-              fontFamily: "'Special Elite', monospace",
+              fontFamily: F.mono,
               fontSize: 11,
               display: "flex",
               alignItems: "center",

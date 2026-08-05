@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { C } from "../../theme/tokens";
+import { C, F } from "../../theme/tokens";
 import { underlineInput } from "../../theme/styles";
 import { Label } from "../ui";
 import { store } from "../../services/storage";
@@ -93,7 +93,7 @@ export function PosterPicker({ film, onUpdate }: { film: Film; onUpdate: (f: Fil
           display: "block",
           marginTop: 8,
           color: C.inkFaded,
-          fontFamily: "'Special Elite', monospace",
+          fontFamily: F.mono,
           fontSize: 10,
           letterSpacing: 0.5,
         }}
@@ -121,7 +121,7 @@ export function PosterPicker({ film, onUpdate }: { film: Film; onUpdate: (f: Fil
             cursor: "pointer",
             marginLeft: "auto",
             color: C.inkFaded,
-            fontFamily: "'Special Elite', monospace",
+            fontFamily: F.mono,
             fontSize: 9.5,
           }}
         >
@@ -131,7 +131,7 @@ export function PosterPicker({ film, onUpdate }: { film: Film; onUpdate: (f: Fil
       {galleryMsg && (
         <div
           style={{
-            fontFamily: "'Caveat', cursive",
+            fontFamily: F.hand,
             fontSize: 16,
             color: C.inkFaded,
             marginTop: 2,
@@ -188,9 +188,7 @@ export function PosterPicker({ film, onUpdate }: { film: Film; onUpdate: (f: Fil
           setOpen(false);
         }}
       />
-      <div
-        style={{ fontFamily: "'Caveat', cursive", fontSize: 15, color: C.inkFaded, marginTop: 4 }}
-      >
+      <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 4 }}>
         clic droit sur une affiche → « copier l'adresse de l'image », puis Entrée
       </div>
 
@@ -211,7 +209,7 @@ export function PosterPicker({ film, onUpdate }: { film: Film; onUpdate: (f: Fil
             padding: "6px 12px",
             border: `1px solid ${C.line}`,
             color: C.inkFaded,
-            fontFamily: "'Special Elite', monospace",
+            fontFamily: F.mono,
             fontSize: 10,
           }}
         >
@@ -226,7 +224,7 @@ export function PosterPicker({ film, onUpdate }: { film: Film; onUpdate: (f: Fil
               padding: "6px 12px",
               border: `1px solid ${C.burgundy}`,
               color: C.burgundy,
-              fontFamily: "'Special Elite', monospace",
+              fontFamily: F.mono,
               fontSize: 10,
             }}
           >
@@ -240,7 +238,7 @@ export function PosterPicker({ film, onUpdate }: { film: Film; onUpdate: (f: Fil
             cursor: "pointer",
             padding: "6px 12px",
             color: C.inkFaded,
-            fontFamily: "'Special Elite', monospace",
+            fontFamily: F.mono,
             fontSize: 10,
           }}
         >

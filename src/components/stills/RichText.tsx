@@ -1,4 +1,4 @@
-import { C } from "../../theme/tokens";
+import { C, F } from "../../theme/tokens";
 import { IdbImage } from "./IdbImage";
 import { stillTokenScanner } from "./tokens";
 import type { Still } from "../../types";
@@ -18,11 +18,7 @@ export function RichText({
   placeholder?: string;
 }) {
   if (!text?.trim())
-    return (
-      <div style={{ fontFamily: "'Caveat', cursive", fontSize: 19, color: C.inkFaded }}>
-        {placeholder}
-      </div>
-    );
+    return <div style={{ fontFamily: F.hand, fontSize: 19, color: C.inkFaded }}>{placeholder}</div>;
 
   const parts: Part[] = [];
   let last = 0,
@@ -38,7 +34,7 @@ export function RichText({
   return (
     <div
       style={{
-        fontFamily: "'Caveat', cursive",
+        fontFamily: F.hand,
         fontSize: 20,
         lineHeight: "30px",
         color: C.ink,
@@ -54,7 +50,7 @@ export function RichText({
               key={i}
               style={{
                 color: C.burgundy,
-                fontFamily: "'Special Elite', monospace",
+                fontFamily: F.mono,
                 fontSize: 11,
               }}
             >
@@ -87,7 +83,7 @@ export function RichText({
             />
             <span
               style={{
-                fontFamily: "'Special Elite', monospace",
+                fontFamily: F.mono,
                 fontSize: 9,
                 color: C.burgundy,
                 paddingRight: 3,

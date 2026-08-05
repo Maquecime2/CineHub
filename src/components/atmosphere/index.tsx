@@ -7,9 +7,18 @@
    quatre à la fois.
    ============================================================ */
 import type { CSSProperties } from "react";
-import { C, GRAIN } from "../../theme/tokens";
+import { C, F, GRAIN, alpha } from "../../theme/tokens";
 import { fileNoOf } from "../../domain/seeded";
 
+/* LE PAPIER LUI-MEME — fibres, grain, vignettage.
+
+   Les trois couches ne disparaissent pas, elles se FONDENT : leur
+   opacite est multipliee par un reglage de la peau. Une peau brutaliste
+   met zero et le papier n'existe plus ; une peau de nuit garde un tiers
+   de grain. Un booleen n'aurait pas permis le tiers.
+
+   La valeur de repli est 1 : sans peau posee — au tout premier rendu —
+   le papier est celui qu'il a toujours ete. */
 export function PaperGrain() {
   return (
     <>
@@ -20,9 +29,9 @@ export function PaperGrain() {
           inset: 0,
           pointerEvents: "none",
           zIndex: 1,
-          opacity: 0.5,
+          opacity: "calc(0.5 * var(--atm-grain, 1))",
           mixBlendMode: "multiply",
-          backgroundImage: `repeating-linear-gradient(94deg, ${C.line}22 0 1px, transparent 1px 5px), repeating-linear-gradient(3deg, ${C.line}18 0 1px, transparent 1px 9px)`,
+          backgroundImage: `repeating-linear-gradient(94deg, ${alpha(C.line, 0.133)} 0 1px, transparent 1px 5px), repeating-linear-gradient(3deg, ${alpha(C.line, 0.094)} 0 1px, transparent 1px 9px)`,
         }}
       />
       <div
@@ -32,7 +41,7 @@ export function PaperGrain() {
           pointerEvents: "none",
           backgroundImage: GRAIN,
           mixBlendMode: "multiply",
-          opacity: 0.7,
+          opacity: "calc(0.7 * var(--atm-grain, 1))",
           zIndex: 1,
         }}
       />
@@ -43,14 +52,21 @@ export function PaperGrain() {
           inset: 0,
           pointerEvents: "none",
           zIndex: 1,
+          opacity: "var(--atm-vignette, 1)",
           mixBlendMode: "multiply",
-          background: `radial-gradient(ellipse at 50% 42%, transparent 42%, ${C.paperDark}bb 88%, #b9a67e88 100%)`,
+          background: `radial-gradient(ellipse at 50% 42%, transparent 42%, ${alpha(C.paperDark, 0.733)} 88%, #b9a67e88 100%)`,
         }}
       />
     </>
   );
 }
 
+/* LES TACHES — rond de cafe, residu de scotch.
+
+   Elles disent « papeterie » plus fort que n'importe quelle couleur :
+   une peau brutaliste ou un terminal n'en veulent aucune, et ce n'est
+   pas leur teinte qui peut le dire. Elles se fondent donc, elles aussi,
+   par un reglage de la peau. */
 export function CoffeeRing({ style, rotate = 0 }: { style?: CSSProperties; rotate?: number }) {
   return (
     <svg
@@ -59,7 +75,7 @@ export function CoffeeRing({ style, rotate = 0 }: { style?: CSSProperties; rotat
       viewBox="0 0 150 150"
       style={{
         position: "absolute",
-        opacity: 0.4,
+        opacity: "calc(0.4 * var(--atm-stain, 1))",
         pointerEvents: "none",
         transform: `rotate(${rotate}deg)`,
         mixBlendMode: "multiply",
@@ -99,9 +115,9 @@ export function TapeResidue({
         width: w,
         height: 26,
         pointerEvents: "none",
-        opacity: 0.5,
+        opacity: "calc(0.5 * var(--atm-stain, 1))",
         transform: `rotate(${rotate}deg)`,
-        background: `linear-gradient(${C.card}88, ${C.paperDark}55)`,
+        background: `linear-gradient(${alpha(C.card, 0.533)}, ${alpha(C.paperDark, 0.333)})`,
         clipPath: "polygon(4% 0,96% 6%,100% 96%,2% 100%)",
         ...style,
       }}
@@ -152,7 +168,7 @@ export function FileNumber({ id, style }: { id: string; style?: CSSProperties })
     <div
       style={{
         position: "absolute",
-        fontFamily: "'Special Elite', monospace",
+        fontFamily: F.mono,
         fontSize: 8.5,
         letterSpacing: 1.2,
         color: C.inkFaded,
@@ -223,9 +239,9 @@ export function StampCorner({ text }: { text: string }) {
         right: 34,
         color: C.burgundy,
         border: `2.5px solid ${C.burgundy}`,
-        boxShadow: `inset 0 0 0 1px ${C.paper}, inset 0 0 0 3px ${C.burgundy}88`,
+        boxShadow: `inset 0 0 0 1px ${C.paper}, inset 0 0 0 3px ${alpha(C.burgundy, 0.533)}`,
         padding: "7px 13px",
-        fontFamily: "'Special Elite', monospace",
+        fontFamily: F.mono,
         fontSize: 11,
         letterSpacing: 1.8,
         transform: "rotate(-7deg)",

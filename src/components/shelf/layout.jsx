@@ -3,8 +3,8 @@
    ouvert, le cabinet de décors et la palette d'un objet. */
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { X, Trash2, Upload, ChevronLeft, Eye, EyeOff, RotateCcw, RotateCw } from "lucide-react";
-import { C } from "../../theme/tokens";
-import { wallStyle } from "../../theme/surfaces";
+import { C, F, alpha } from "../../theme/tokens";
+import { wallStyle, materialStyle, PLANK_SHADOW } from "../../theme/surfaces";
 import { hash, fileNoOf } from "../../domain/seeded";
 import { PosterArt } from "../film/PosterArt";
 import { InkStars } from "../ui";
@@ -13,6 +13,7 @@ import {
   SHELF_KIND,
   BOX_H,
   CAT_COLORS,
+  CAT_FAMILIES,
   catInk,
   DECOR_SIZES,
   DECOR_TYPES,
@@ -38,7 +39,7 @@ const GutterAct = ({ label, onClick, ink = C.inkFaded }) => (
       all: "unset",
       cursor: "pointer",
       padding: "3px 0",
-      fontFamily: "'Special Elite', monospace",
+      fontFamily: F.mono,
       fontSize: 10,
       color: ink,
     }}
@@ -92,7 +93,7 @@ export const PerRowField = React.memo(function PerRowField({ value, onChange, ti
     <>
       <div
         style={{
-          fontFamily: "'Special Elite', monospace",
+          fontFamily: F.mono,
           fontSize: 8.5,
           letterSpacing: 1,
           color: C.inkFaded,
@@ -109,7 +110,7 @@ export const PerRowField = React.memo(function PerRowField({ value, onChange, ti
             all: "unset",
             cursor: "pointer",
             padding: "2px 8px",
-            fontFamily: "'Special Elite', monospace",
+            fontFamily: F.mono,
             fontSize: 9.5,
             background: auto ? C.ink : "transparent",
             color: auto ? C.card : C.inkFaded,
@@ -139,13 +140,13 @@ export const PerRowField = React.memo(function PerRowField({ value, onChange, ti
             textAlign: "center",
             borderBottom: `1px solid ${C.line}`,
             paddingBottom: 2,
-            fontFamily: "'Special Elite', monospace",
+            fontFamily: F.mono,
             fontSize: 12,
             color: auto ? C.inkFaded : C.ink,
             opacity: auto ? 0.5 : 1,
           }}
         />
-        <span style={{ fontFamily: "'Caveat', cursive", fontSize: 14, color: C.inkFaded }}>
+        <span style={{ fontFamily: F.hand, fontSize: 14, color: C.inkFaded }}>
           {auto ? "au fil de la largeur" : "par ligne"}
         </span>
       </div>
@@ -196,7 +197,7 @@ const RowGutter = React.memo(function RowGutter({ row, shown, acts, capMax }) {
           borderRight: "none",
           borderRadius: "2px 0 0 2px",
           boxShadow: "1px 1px 0 rgba(43,38,32,0.14)",
-          fontFamily: "'Special Elite', monospace",
+          fontFamily: F.mono,
           fontSize: 9.5,
           color: C.inkFaded,
           // discrète tant qu'on ne s'occupe pas de la rangée
@@ -216,7 +217,7 @@ const RowGutter = React.memo(function RowGutter({ row, shown, acts, capMax }) {
             left: 0,
             width: 130,
             textAlign: "left",
-            fontFamily: "'Caveat', cursive",
+            fontFamily: F.hand,
             fontSize: 14,
             color: C.inkFaded,
             whiteSpace: "nowrap",
@@ -259,7 +260,7 @@ const RowGutter = React.memo(function RowGutter({ row, shown, acts, capMax }) {
 
             <div
               style={{
-                fontFamily: "'Special Elite', monospace",
+                fontFamily: F.mono,
                 fontSize: 8.5,
                 letterSpacing: 1,
                 color: C.inkFaded,
@@ -285,7 +286,7 @@ const RowGutter = React.memo(function RowGutter({ row, shown, acts, capMax }) {
                 width: "100%",
                 borderBottom: `1px solid ${C.line}`,
                 paddingBottom: 2,
-                fontFamily: "'Lora', serif",
+                fontFamily: F.body,
                 fontSize: 13,
                 color: C.ink,
               }}
@@ -336,7 +337,7 @@ const RowGutter = React.memo(function RowGutter({ row, shown, acts, capMax }) {
             {isUnplaced(row) && (
               <div
                 style={{
-                  fontFamily: "'Caveat', cursive",
+                  fontFamily: F.hand,
                   fontSize: 14,
                   color: C.inkFaded,
                   marginTop: 8,
@@ -355,8 +356,20 @@ const RowGutter = React.memo(function RowGutter({ row, shown, acts, capMax }) {
 
 /* LA PLANCHE — le bois d'UNE ligne. Il y en a autant que de lignes, et
    c'est tout le propos : une bande de boîtiers qui n'a rien dessous
-   n'est pas une étagère. */
-const Plank = React.memo(function Plank({ theme }) {
+   n'est pas une étagère.
+
+   Elle n'est plus forcément du bois. Mais tant que la vue n'a pas choisi
+   de matériau, elle est CE QU'ELLE ÉTAIT : les deux stops du thème, à
+   l'hexadécimal près, sans veinage ni reflet. Le matériau n'est pas une
+   reformulation de l'existant, c'est une porte à côté — et c'est ce qui
+   permet d'affirmer qu'une vue d'hier est identique au pixel. */
+const Plank = React.memo(function Plank({ theme, plank }) {
+  const skin = plank?.material
+    ? materialStyle(plank.material, plank.finish)
+    : {
+        background: `linear-gradient(${theme.wood[0]}, ${theme.wood[1]})`,
+        boxShadow: PLANK_SHADOW,
+      };
   return (
     <div
       aria-hidden
@@ -366,8 +379,7 @@ const Plank = React.memo(function Plank({ theme }) {
         right: 0,
         bottom: 0,
         height: 12,
-        background: `linear-gradient(${theme.wood[0]}, ${theme.wood[1]})`,
-        boxShadow: "0 3px 0 rgba(0,0,0,0.18)",
+        ...skin,
       }}
     />
   );
@@ -391,6 +403,7 @@ const ShelfRow = React.memo(function ShelfRow({
   kind,
   films,
   theme,
+  plank,
   dim,
   dnd,
   acts,
@@ -519,7 +532,7 @@ const ShelfRow = React.memo(function ShelfRow({
               )}
               {nodes}
               {/* la planche de CETTE ligne */}
-              {!hidden && <Plank theme={theme} />}
+              {!hidden && <Plank theme={theme} plank={plank} />}
             </div>
           ))}
         </div>
@@ -554,6 +567,7 @@ export function Shelf({
   acts,
   films,
   theme,
+  plankDecor,
   /* Le décor du MUR, tel que la vue l'a enregistré — ou rien, et le
      rayon reste celui d'avant les peintures. */
   wallDecor,
@@ -588,7 +602,7 @@ export function Shelf({
       <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 4 }}>
         <div
           style={{
-            fontFamily: "'Playfair Display', serif",
+            fontFamily: F.title,
             fontWeight: 600,
             fontSize: 21,
             color: C.ink,
@@ -598,7 +612,7 @@ export function Shelf({
         </div>
         <div
           style={{
-            fontFamily: "'Special Elite', monospace",
+            fontFamily: F.mono,
             fontSize: 10,
             color: C.inkFaded,
             letterSpacing: 1,
@@ -609,7 +623,7 @@ export function Shelf({
         {(tag ?? cfg.tag) && (
           <div
             style={{
-              fontFamily: "'Caveat', cursive",
+              fontFamily: F.hand,
               fontSize: 17,
               color: C.burgundy,
               transform: "rotate(-3deg)",
@@ -625,7 +639,7 @@ export function Shelf({
           style={{
             all: "unset",
             cursor: "pointer",
-            fontFamily: "'Special Elite', monospace",
+            fontFamily: F.mono,
             fontSize: 9.5,
             letterSpacing: 1,
             color: C.inkFaded,
@@ -641,7 +655,7 @@ export function Shelf({
           style={{
             all: "unset",
             cursor: "pointer",
-            fontFamily: "'Special Elite', monospace",
+            fontFamily: F.mono,
             fontSize: 9.5,
             letterSpacing: 1,
             color: C.inkFaded,
@@ -712,6 +726,7 @@ export function Shelf({
             kind={kind}
             films={films}
             theme={theme}
+            plank={plankDecor}
             dim={dim}
             dnd={dnd}
             acts={acts}
@@ -796,6 +811,7 @@ export function ReserveDrawer({
   acts,
   films,
   theme,
+  plankDecor,
   dim,
   onOpen,
   onEditCat,
@@ -833,9 +849,9 @@ export function ReserveDrawer({
           writingMode: "vertical-rl",
           padding: "20px 9px",
           borderRadius: "4px 0 0 4px",
-          background: `linear-gradient(180deg, ${C.slate}, ${C.slate}cc)`,
+          background: `linear-gradient(180deg, ${C.slate}, ${alpha(C.slate, 0.8)})`,
           color: C.card,
-          fontFamily: "'Special Elite', monospace",
+          fontFamily: F.mono,
           fontSize: 11,
           letterSpacing: 1.4,
           boxShadow: "-3px 3px 10px rgba(30,20,10,0.32)",
@@ -876,7 +892,7 @@ export function ReserveDrawer({
           <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
             <div
               style={{
-                fontFamily: "'Playfair Display', serif",
+                fontFamily: F.title,
                 fontWeight: 600,
                 fontSize: 19,
                 color: C.ink,
@@ -884,11 +900,7 @@ export function ReserveDrawer({
             >
               Mis de côté
             </div>
-            <div
-              style={{ fontFamily: "'Special Elite', monospace", fontSize: 10, color: C.inkFaded }}
-            >
-              {count}
-            </div>
+            <div style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>{count}</div>
             <div style={{ flex: 1 }} />
             <button
               onClick={() => setOpen(false)}
@@ -900,7 +912,7 @@ export function ReserveDrawer({
           </div>
           <div
             style={{
-              fontFamily: "'Caveat', cursive",
+              fontFamily: F.hand,
               fontSize: 16,
               color: C.inkFaded,
               marginTop: 2,
@@ -916,7 +928,7 @@ export function ReserveDrawer({
               cursor: "pointer",
               display: "inline-block",
               marginTop: 8,
-              fontFamily: "'Special Elite', monospace",
+              fontFamily: F.mono,
               fontSize: 9.5,
               letterSpacing: 1,
               color: C.inkFaded,
@@ -952,6 +964,7 @@ export function ReserveDrawer({
                 kind="reserve"
                 films={films}
                 theme={theme}
+                plank={plankDecor}
                 dim={dim}
                 dnd={dnd}
                 acts={acts}
@@ -1058,7 +1071,7 @@ export function CasePreview({ film, onClose, onOpenFile }) {
             <span
               style={{
                 transform: "rotate(-90deg)",
-                fontFamily: "'Special Elite', monospace",
+                fontFamily: F.mono,
                 fontSize: 11,
                 letterSpacing: "0.2em",
                 color: C.inkFaded,
@@ -1094,7 +1107,7 @@ export function CasePreview({ film, onClose, onOpenFile }) {
           <div style={{ flex: 1, padding: "24px 28px", animation: "sheetIn .5s .45s both" }}>
             <div
               style={{
-                fontFamily: "'Playfair Display', serif",
+                fontFamily: F.title,
                 fontWeight: 700,
                 fontSize: 26,
                 color: C.ink,
@@ -1104,7 +1117,7 @@ export function CasePreview({ film, onClose, onOpenFile }) {
             </div>
             <div
               style={{
-                fontFamily: "'Lora', serif",
+                fontFamily: F.body,
                 fontStyle: "italic",
                 fontSize: 13.5,
                 color: C.inkFaded,
@@ -1123,7 +1136,7 @@ export function CasePreview({ film, onClose, onOpenFile }) {
                 <span
                   key={g}
                   style={{
-                    fontFamily: "'Special Elite', monospace",
+                    fontFamily: F.mono,
                     fontSize: 9.5,
                     border: `1px solid ${C.line}`,
                     color: C.inkFaded,
@@ -1136,7 +1149,7 @@ export function CasePreview({ film, onClose, onOpenFile }) {
               {film.chevet && (
                 <span
                   style={{
-                    fontFamily: "'Special Elite', monospace",
+                    fontFamily: F.mono,
                     fontSize: 9.5,
                     border: `1px solid ${C.burgundy}`,
                     color: C.burgundy,
@@ -1149,7 +1162,7 @@ export function CasePreview({ film, onClose, onOpenFile }) {
               {film.archived && (
                 <span
                   style={{
-                    fontFamily: "'Special Elite', monospace",
+                    fontFamily: F.mono,
                     fontSize: 9.5,
                     border: `1px solid ${C.slate}`,
                     color: C.slate,
@@ -1162,7 +1175,7 @@ export function CasePreview({ film, onClose, onOpenFile }) {
             </div>
             <div
               style={{
-                fontFamily: "'Lora', serif",
+                fontFamily: F.body,
                 fontSize: 14,
                 lineHeight: 1.65,
                 color: C.ink,
@@ -1188,7 +1201,7 @@ export function CasePreview({ film, onClose, onOpenFile }) {
                 padding: "9px 16px",
                 background: C.burgundy,
                 color: C.card,
-                fontFamily: "'Special Elite', monospace",
+                fontFamily: F.mono,
                 fontSize: 11,
                 letterSpacing: 1,
               }}
@@ -1217,7 +1230,7 @@ const DecorFamily = ({ title = "À POSER", hint, types, onDragStart, onDragEnd }
   <>
     <div
       style={{
-        fontFamily: "'Special Elite', monospace",
+        fontFamily: F.mono,
         fontSize: 8.5,
         letterSpacing: 1,
         color: C.inkFaded,
@@ -1226,9 +1239,7 @@ const DecorFamily = ({ title = "À POSER", hint, types, onDragStart, onDragEnd }
     >
       {title}
     </div>
-    <div
-      style={{ fontFamily: "'Caveat', cursive", fontSize: 14, color: C.inkFaded, marginBottom: 6 }}
-    >
+    <div style={{ fontFamily: F.hand, fontSize: 14, color: C.inkFaded, marginBottom: 6 }}>
       {hint}
     </div>
     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
@@ -1311,7 +1322,7 @@ const CABINET_BOX = {
 const CabinetTitle = ({ children }) => (
   <div
     style={{
-      fontFamily: "'Special Elite', monospace",
+      fontFamily: F.mono,
       fontSize: 9.5,
       letterSpacing: 1,
       color: C.inkFaded,
@@ -1322,10 +1333,7 @@ const CabinetTitle = ({ children }) => (
 );
 
 const CabinetNote = ({ children, ...p }) => (
-  <div
-    style={{ fontFamily: "'Caveat', cursive", fontSize: 14, color: C.inkFaded, ...p.style }}
-    {...p}
-  >
+  <div style={{ fontFamily: F.hand, fontSize: 14, color: C.inkFaded, ...p.style }} {...p}>
     {children}
   </div>
 );
@@ -1402,7 +1410,7 @@ function DecorWorkshop({ onBack }) {
               flex: 1,
               textAlign: "center",
               padding: "3px 0",
-              fontFamily: "'Special Elite', monospace",
+              fontFamily: F.mono,
               fontSize: 9.5,
               background: wall === v ? C.ink : "transparent",
               color: wall === v ? C.card : C.inkFaded,
@@ -1438,7 +1446,7 @@ function DecorWorkshop({ onBack }) {
           padding: "7px 0",
           background: C.burgundy,
           color: C.card,
-          fontFamily: "'Special Elite', monospace",
+          fontFamily: F.mono,
           fontSize: 10,
           letterSpacing: 1,
           opacity: busy ? 0.6 : 1,
@@ -1452,7 +1460,7 @@ function DecorWorkshop({ onBack }) {
         <div
           role="alert"
           style={{
-            fontFamily: "'Caveat', cursive",
+            fontFamily: F.hand,
             fontSize: 14,
             color: C.burgundy,
             marginTop: 6,
@@ -1547,7 +1555,7 @@ function DecorWorkshop({ onBack }) {
 const WorkshopSection = ({ title }) => (
   <div
     style={{
-      fontFamily: "'Special Elite', monospace",
+      fontFamily: F.mono,
       fontSize: 8.5,
       letterSpacing: 1,
       color: C.inkFaded,
@@ -1604,7 +1612,7 @@ const DecorRow = ({ label, note, vignette, action, dim }) => (
       <div
         title={label}
         style={{
-          fontFamily: "'Special Elite', monospace",
+          fontFamily: F.mono,
           fontSize: 10,
           color: C.ink,
           whiteSpace: "nowrap",
@@ -1642,7 +1650,7 @@ export function DecorCabinet({ kind, onDragStart, onDragEnd, onClose }) {
               style={{
                 all: "unset",
                 cursor: "pointer",
-                fontFamily: "'Special Elite', monospace",
+                fontFamily: F.mono,
                 fontSize: 9,
                 letterSpacing: 0.5,
                 color: C.burgundy,
@@ -1705,7 +1713,7 @@ const OrientField = ({ angle, seeded, onChange }) => {
     <>
       <div
         style={{
-          fontFamily: "'Special Elite', monospace",
+          fontFamily: F.mono,
           fontSize: 8.5,
           letterSpacing: 1,
           color: C.inkFaded,
@@ -1732,7 +1740,7 @@ const OrientField = ({ angle, seeded, onChange }) => {
             minWidth: 46,
             textAlign: "center",
             padding: "2px 6px",
-            fontFamily: "'Special Elite', monospace",
+            fontFamily: F.mono,
             fontSize: 11,
             color: C.ink,
             border: `1px solid ${C.line}`,
@@ -1756,7 +1764,7 @@ const OrientField = ({ angle, seeded, onChange }) => {
             style={{
               all: "unset",
               cursor: "pointer",
-              fontFamily: "'Caveat', cursive",
+              fontFamily: F.hand,
               fontSize: 14,
               color: C.inkFaded,
             }}
@@ -1821,7 +1829,7 @@ export function ItemPalette({
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
           <div
             style={{
-              fontFamily: "'Special Elite', monospace",
+              fontFamily: F.mono,
               fontSize: 9.5,
               letterSpacing: 1,
               color: C.inkFaded,
@@ -1839,7 +1847,7 @@ export function ItemPalette({
           <div style={{ marginBottom: 12 }}>
             <div
               style={{
-                fontFamily: "'Special Elite', monospace",
+                fontFamily: F.mono,
                 fontSize: 8.5,
                 letterSpacing: 1,
                 color: C.inkFaded,
@@ -1865,7 +1873,7 @@ export function ItemPalette({
                 width: "100%",
                 borderBottom: `1px solid ${C.line}`,
                 paddingBottom: 2,
-                fontFamily: "'Special Elite', monospace",
+                fontFamily: F.mono,
                 fontSize: 12,
                 color: C.ink,
               }}
@@ -1876,24 +1884,46 @@ export function ItemPalette({
         {/* Un objet importé qu'on ne sait pas teinter n'a pas de couleur :
             sans `onColor`, la rangée de pastilles disparaît au lieu de
             promettre un réglage qui ne ferait rien. */}
+        {/* Par familles, et non plus en une seule bande. Huit pastilles
+            se parcouraient du regard ; vingt-quatre alignées ne sont
+            plus un choix mais un nuancier, où l'on cherche « quelque
+            chose de chaud » sans le trouver. Les intitulés sont menus :
+            ils rangent, ils ne s'annoncent pas. */}
         {onColor && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-            {CAT_KEYS.map((k) => (
-              <button
-                key={k}
-                onClick={() => onColor(k)}
-                title={k}
-                style={{
-                  all: "unset",
-                  cursor: "pointer",
-                  width: 22,
-                  height: 22,
-                  borderRadius: "50%",
-                  background: CAT_COLORS[k],
-                  border: color === k ? `2px solid ${C.ink}` : `1px solid ${C.line}`,
-                  transform: `rotate(${(hash(k) % 5) - 2}deg)`,
-                }}
-              />
+          <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+            {CAT_FAMILIES.map((fam) => (
+              <div key={fam.label}>
+                <div
+                  style={{
+                    fontFamily: F.mono,
+                    fontSize: 8,
+                    letterSpacing: 1,
+                    color: C.inkFaded,
+                    marginBottom: 4,
+                  }}
+                >
+                  {fam.label.toUpperCase()}
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                  {fam.keys.map((k) => (
+                    <button
+                      key={k}
+                      onClick={() => onColor(k)}
+                      title={k}
+                      style={{
+                        all: "unset",
+                        cursor: "pointer",
+                        width: 22,
+                        height: 22,
+                        borderRadius: "50%",
+                        background: CAT_COLORS[k],
+                        border: color === k ? `2px solid ${C.ink}` : `1px solid ${C.line}`,
+                        transform: `rotate(${(hash(k) % 5) - 2}deg)`,
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         )}
@@ -1902,7 +1932,7 @@ export function ItemPalette({
           <>
             <div
               style={{
-                fontFamily: "'Special Elite', monospace",
+                fontFamily: F.mono,
                 fontSize: 8.5,
                 letterSpacing: 1,
                 color: C.inkFaded,
@@ -1925,7 +1955,7 @@ export function ItemPalette({
                     all: "unset",
                     cursor: "pointer",
                     padding: "3px 9px",
-                    fontFamily: "'Special Elite', monospace",
+                    fontFamily: F.mono,
                     fontSize: 10,
                     background: size === v ? C.ink : "transparent",
                     color: size === v ? C.card : C.inkFaded,
@@ -1948,7 +1978,7 @@ export function ItemPalette({
             cursor: "pointer",
             display: "block",
             marginTop: 14,
-            fontFamily: "'Special Elite', monospace",
+            fontFamily: F.mono,
             fontSize: 10,
             color: C.burgundy,
           }}

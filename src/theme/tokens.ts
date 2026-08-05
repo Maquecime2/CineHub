@@ -1,30 +1,133 @@
 /* ============================================================
-   TOKENS — carnet d'archiviste : papier kraft, encre, fil rouge
-   ============================================================ */
+   TOKENS — ce dont le site est fait, et qui peut changer
+   ============================================================
+
+   `C` n'est plus une liste d'hexadécimaux mais une liste de RENVOIS. La
+   couleur elle-même vit dans une variable CSS écrite sur la racine du
+   document, et c'est une PEAU qui l'y écrit (voir `theme/skins.ts`).
+
+   Pourquoi ainsi, et pas un contexte React : `C` est importé par vingt-
+   neuf fichiers et lu six cent treize fois, presque toujours dans un
+   style en ligne. En faire un état de React aurait voulu dire un crochet
+   dans chacun de ces fichiers, et un re-rendu de l'application entière à
+   chaque changement. Une variable CSS ne demande rien à personne — on
+   l'écrit sur `documentElement`, et le navigateur repeint.
+
+   Le nom des clés ne bouge pas, et c'est délibéré : `burgundy` désigne
+   maintenant « la teinte chaude qui porte l'identité », pas le bordeaux.
+   Une peau de nuit y met un rouge sombre, une peau néon un magenta. Les
+   renommer toutes eût été plus juste et aurait touché six cent treize
+   lignes pour ne rien changer à ce qu'on voit.
+
+   Les valeurs par défaut — celles du carnet d'archiviste, papier kraft
+   et fil rouge — sont écrites dans `FONT_IMPORT` plus bas : la peau
+   « carnet » n'a donc rien à faire pour que le site soit ce qu'il a
+   toujours été. */
 
 export const C = {
-  paper: "#EEE3CC",
-  paperDark: "#E2D3AE",
-  card: "#F6EFDE",
-  ink: "#2B2620",
-  inkFaded: "#6E6153",
-  burgundy: "#8C3A34",
-  ochre: "#B9862E",
-  pine: "#3E5B4B",
-  slate: "#5C6B78",
-  line: "#C9B98F",
-  // accents — des touches plus vives qui percent le kraft
-  cobalt: "#3A5C8C",
-  vermillion: "#C4562E",
-  moss: "#6E7A3A",
+  paper: "var(--c-paper)",
+  paperDark: "var(--c-paper-dark)",
+  card: "var(--c-card)",
+  ink: "var(--c-ink)",
+  inkFaded: "var(--c-ink-faded)",
+  burgundy: "var(--c-burgundy)",
+  ochre: "var(--c-ochre)",
+  pine: "var(--c-pine)",
+  slate: "var(--c-slate)",
+  line: "var(--c-line)",
+  // accents — des touches plus vives qui percent le fond
+  cobalt: "var(--c-cobalt)",
+  vermillion: "var(--c-vermillion)",
+  moss: "var(--c-moss)",
 } as const;
 
-export const FONT_IMPORT = `
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,500;1,600&family=Lora:ital,wght@0,400;0,500;1,400&family=Caveat:wght@500;600;700&family=Special+Elite&display=swap');
+/* LES QUATRE RÔLES DE LA TYPOGRAPHIE.
 
-::selection { background: ${C.ochre}66; color: ${C.ink}; }
+   Il n'y avait pas de rôles : quatre familles nommées en toutes lettres,
+   recopiées deux cent vingt-neuf fois. Une peau qui change de police
+   devait donc réécrire deux cent vingt-neuf lignes.
+
+   Ce sont des rôles et non des polices : `mono` est « ce qui se tape à
+   la machine » — les étiquettes, les compteurs, les petites capitales —
+   et une peau peut y mettre une grotesque condensée sans que rien de ce
+   qui l'emploie ait à le savoir. */
+export const F = {
+  title: "var(--f-title)",
+  body: "var(--f-body)",
+  hand: "var(--f-hand)",
+  mono: "var(--f-mono)",
+} as const;
+
+/* UNE COULEUR, PLUS TRANSPARENTE.
+
+   On écrivait `${C.ink}22` — l'hexadécimal et son canal alpha collés
+   bout à bout. C'était juste tant que `C.ink` ÉTAIT un hexadécimal ;
+   `var(--c-ink)22` ne veut plus rien dire.
+
+   `color-mix` fait le même travail sans rien savoir de la forme de la
+   couleur : elle marche sur un renvoi comme sur un dièse, ce qui laisse
+   les teintes du nuancier (qui, elles, restent des hexadécimaux) passer
+   par le même chemin.
+
+   L'opacité s'écrit en clair — `alpha(C.ink, 0.13)` plutôt que `22` —
+   parce que personne ne lit `0x22` comme « treize pour cent ». */
+export const alpha = (color: string, a: number): string =>
+  `color-mix(in srgb, ${color} ${Math.round(a * 1000) / 10}%, transparent)`;
+
+export const FONT_IMPORT = `
+/* LA PEAU PAR DEFAUT — le carnet d'archiviste, papier kraft et fil
+   rouge. Elle est ici, en dur, et non dans le catalogue des peaux : le
+   site doit etre ce qu'il a toujours ete avant meme qu'une ligne de
+   JavaScript ait tourne. Une peau choisie reecrit ces memes variables
+   sur documentElement, ou elles gagnent contre celles-ci.
+
+   Les polices ne sont plus importees ici : chaque peau a les siennes, et
+   les charger toutes couterait une demi-douzaine de fichiers jamais
+   affiches. C'est applySkin qui pose le lien vers celles du jour.
+
+   Pas un seul accent grave dans ce bloc, ni ailleurs entre les deux
+   accolades de cette chaine a gabarit : il la refermerait au milieu
+   d'une phrase. Le meme avertissement est repete plus bas, la ou le
+   piege s'est deja referme une fois. */
+:root {
+  --c-paper: #EEE3CC;
+  --c-paper-dark: #E2D3AE;
+  --c-card: #F6EFDE;
+  --c-ink: #2B2620;
+  --c-ink-faded: #6E6153;
+  --c-burgundy: #8C3A34;
+  --c-ochre: #B9862E;
+  --c-pine: #3E5B4B;
+  --c-slate: #5C6B78;
+  --c-line: #C9B98F;
+  --c-cobalt: #3A5C8C;
+  --c-vermillion: #C4562E;
+  --c-moss: #6E7A3A;
+
+  --f-title: 'Playfair Display', serif;
+  --f-body: 'Lora', Georgia, serif;
+  --f-hand: 'Caveat', cursive;
+  --f-mono: 'Special Elite', monospace;
+
+  /* La FORME des choses, que la couleur seule ne dit pas : un onglet de
+     classeur n'a pas le même angle qu'une pastille pastel, et une peau
+     brutaliste ne veut aucun arrondi nulle part. */
+  --tag-radius: 3px;
+  --tag-tracking: 1.5px;
+  --tag-transform: none;
+}
+
+::selection { background: ${alpha(C.ochre, 0.4)}; color: ${C.ink}; }
 
 body { background: ${C.paper}; }
+
+/* Le rail des onglets peut avoir a defiler dans une fenetre courte. Sa
+   barre n'apporte rien — la tranche d'un classeur n'en a pas — et elle
+   mangerait onze des quarante-six pixels de large du rail. On la retire
+   sans retirer le defilement : la molette et le clavier marchent
+   toujours. */
+[data-tab-rail] { scrollbar-width: none; }
+[data-tab-rail]::-webkit-scrollbar { width: 0; height: 0; }
 
 /* la molette fait défiler un dossier, pas une page web */
 ::-webkit-scrollbar { width: 11px; height: 11px; }
@@ -67,9 +170,9 @@ html[data-dragging="1"] [data-veil] { pointer-events: none; }
    entre deux rangées se creuse. Tout passe par un attribut écrit à la
    main sur le nœud — c'est la même règle que la languette ci-dessus, et
    pour la même raison. */
-[data-cat-over="1"] { background: var(--cat-open, ${C.ochre}22) !important; }
-[data-row-over="1"] { box-shadow: inset 0 0 0 1px ${C.ochre}66; }
-[data-seam-over="1"] { background: ${C.ochre}44; }
+[data-cat-over="1"] { background: var(--cat-open, ${alpha(C.ochre, 0.13)}) !important; }
+[data-row-over="1"] { box-shadow: inset 0 0 0 1px ${alpha(C.ochre, 0.4)}; }
+[data-seam-over="1"] { background: ${alpha(C.ochre, 0.27)}; }
 [data-row-seam] { transition: background .12s ease, height .12s ease; }
 
 /* L'encre du repère de dépôt vient du thème de la vue. En variable CSS et
@@ -120,12 +223,12 @@ html[data-dragging="1"] [data-wall-item]:not([data-drag-self]) {
   [data-drop-mark], [data-lean], [data-row-seam], [data-wall-item] { transition: none !important; }
 }
 
-input::placeholder, textarea::placeholder { color: ${C.inkFaded}88; font-style: italic; }
+input::placeholder, textarea::placeholder { color: ${alpha(C.inkFaded, 0.53)}; font-style: italic; }
 
 /* le champ éditable n'a pas de placeholder natif : on le dessine */
 [contenteditable][data-placeholder]:empty::before {
   content: attr(data-placeholder);
-  color: ${C.inkFaded}88;
+  color: ${alpha(C.inkFaded, 0.53)};
   font-style: italic;
   pointer-events: none;
 }

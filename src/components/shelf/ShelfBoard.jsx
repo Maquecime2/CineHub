@@ -21,6 +21,7 @@ import {
   patchDecor,
   removeDecor,
   wallDecorOf,
+  plankDecorOf,
 } from "../../shelf-views";
 import {
   SHELF_KIND,
@@ -652,6 +653,7 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     /* Le décor du mur, ou rien. Il est le même pour les deux rayons : ce
        qu'on peint, c'est la pièce, pas une planche. */
     wallDecor: wallDecorOf(view),
+    plankDecor: plankDecorOf(view),
     dim,
     onOpen: setPreview,
     onEditCat: setEditCat,
@@ -663,7 +665,28 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     /* `--mark-ink` : l'encre du repère vient du thème de la vue, par
        variable CSS. Un changement de thème n'a ainsi rien à demander à
        React au milieu d'un glissement. */
-    <div onDragEnd={reset} style={{ "--mark-ink": theme.accent }}>
+    <div
+      onDragEnd={reset}
+      style={{
+        "--mark-ink": theme.accent,
+        /* RIEN NE POUSSE LA PAGE VERS LA DROITE.
+
+           Deux choses peuvent déborder d'un rayon : un décor plus large
+           que sa planche entière — le découpage en lignes fait payer sa
+           largeur à chaque objet, mais il reste le cas d'un seul objet
+           trop grand pour la ligne — et un objet accroché près d'un bord,
+           qu'on autorise justement à mordre dessus. Ni l'un ni l'autre ne
+           doit ouvrir une barre de défilement horizontale sur toute
+           l'étagère.
+
+           `clip` et non `hidden` : `hidden` ferait de ce bloc un
+           conteneur de défilement, ce qui coupe le `position: sticky` de
+           ce qu'il contient et permet un défilement par programme vers
+           une zone qu'on a justement décidé de ne pas montrer. `clip`
+           coupe, et c'est tout. */
+        overflowX: "clip",
+      }}
+    >
       {/* le repère de dépôt : un seul, déplacé à la main pendant le glissement */}
       <DropMark ref={markRef} />
       {/* « Films de chevet », c'est ceux qu'on revoit : le rayon n'a pas

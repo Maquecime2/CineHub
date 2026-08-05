@@ -8,7 +8,7 @@
    rayon, c'est lui donner son statut, pas seulement sa place.
    ============================================================ */
 import type { ComponentType, CSSProperties } from "react";
-import { C } from "../../theme/tokens";
+import { C, alpha } from "../../theme/tokens";
 import {
   Plant,
   Cactus,
@@ -50,7 +50,7 @@ export const SHELF_KIND: Record<ShelfKind, ShelfKindConfig> = {
     title: "Films de chevet",
     tag: "ceux qu'on revoit",
     patch: { chevet: true, archived: false },
-    tint: `${C.burgundy}0d`,
+    tint: `${alpha(C.burgundy, 0.051)}`,
     border: C.burgundy,
   },
   main: { title: "La collection", tag: "", patch: { chevet: false, archived: false } },
@@ -84,22 +84,12 @@ export const BOX_W = 96,
 export const GAP_X = 9,
   GAP_Y = 12;
 
-/* Les couleurs qu'une catégorie peut porter. La vue enregistre la CLÉ et
-   jamais l'hexadécimal : retoucher la palette repeint alors d'un coup
-   toutes les catégories déjà créées, au lieu de les figer à la teinte du
-   jour où on les a faites. */
-export const CAT_COLORS = {
-  burgundy: C.burgundy,
-  ochre: C.ochre,
-  pine: C.pine,
-  slate: C.slate,
-  cobalt: C.cobalt,
-  vermillion: C.vermillion,
-  moss: C.moss,
-  ink: C.ink,
-};
-export const catInk = (key: string): string =>
-  CAT_COLORS[key as keyof typeof CAT_COLORS] || C.burgundy;
+/* Les couleurs qu'une catégorie peut porter vivent dans `theme/palette`,
+   avec les clés qu'elles définissent — il y avait ici une seconde liste
+   à tenir à la main, et une clé oubliée d'un côté retombait sans un mot
+   sur le bordeaux. On les redonne au nom sous lequel ce fichier les
+   servait déjà. */
+export { CAT_COLORS, CAT_FAMILIES, catInk } from "../../theme/palette";
 
 /* Une vue peut changer de bois. Ne sont thématisés que trois choses : la
    planche, la teinte du papier du rayon, et l'encre d'accent — assez

@@ -144,13 +144,22 @@ describe("CategoryBox — un segment de boîte", () => {
     expect(within(c).getByText("6")).toBeInTheDocument();
   });
 
+  /* On lit la valeur DÉCLARÉE et non `borderLeftStyle`. Depuis que les
+     couleurs sont des renvois à des variables CSS, jsdom refuse le
+     raccourci `1px solid var(--c-line)` et n'en expose plus les
+     composantes — un navigateur, lui, le comprend. La déclaration reste
+     la seule chose que ce test avait à vérifier. */
   it("ouvre le bord par lequel elle continue", () => {
-    const card = (props) => seg(props).querySelector("[data-cat-card]").style;
-    expect(card({ first: true, last: false }).borderRightStyle).toBe("none");
-    expect(card({ first: false, last: true }).borderLeftStyle).toBe("none");
+    const card = (props) => seg(props).querySelector("[data-cat-card]").getAttribute("style");
+    /* jsdom rend « none » comme « medium » : l'absence de bordure ne se
+       lit donc que par l'absence du trait. C'est de toute facon ce que
+       le test veut dire — le bord ouvert n'a pas de trait, le bord
+       ferme en a un. */
+    expect(card({ first: true, last: false })).not.toMatch(/border-right:[^;]*solid/);
+    expect(card({ first: false, last: true })).not.toMatch(/border-left:[^;]*solid/);
     const seul = card({ first: true, last: true });
-    expect(seul.borderLeftStyle).toBe("solid");
-    expect(seul.borderRightStyle).toBe("solid");
+    expect(seul).toMatch(/border-left:[^;]*solid/);
+    expect(seul).toMatch(/border-right:[^;]*solid/);
   });
 });
 

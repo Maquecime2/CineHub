@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Clapperboard, Plus } from "lucide-react";
-import { C } from "../../theme/tokens";
+import { C, F } from "../../theme/tokens";
 import { underlineInput } from "../../theme/styles";
 import { tiltOf } from "../../domain/seeded";
 import { deleteImage } from "../../db";
@@ -62,7 +62,7 @@ export function StillsStrip({
         <Clapperboard size={15} color={C.burgundy} />
         <div
           style={{
-            fontFamily: "'Playfair Display', serif",
+            fontFamily: F.title,
             fontStyle: "italic",
             fontWeight: 700,
             fontSize: 24,
@@ -93,7 +93,7 @@ export function StillsStrip({
             padding: "6px 13px",
             background: C.burgundy,
             color: C.card,
-            fontFamily: "'Special Elite', monospace",
+            fontFamily: F.mono,
             fontSize: 10.5,
             display: "flex",
             alignItems: "center",
@@ -105,7 +105,7 @@ export function StillsStrip({
       </div>
       <div
         style={{
-          fontFamily: "'Caveat', cursive",
+          fontFamily: F.hand,
           fontSize: 17,
           color: C.inkFaded,
           marginTop: 2,
@@ -163,7 +163,7 @@ export function StillsStrip({
                       left: 5,
                       background: C.card,
                       color: C.burgundy,
-                      fontFamily: "'Special Elite', monospace",
+                      fontFamily: F.mono,
                       fontSize: 10,
                       padding: "1px 6px",
                       border: `1px solid ${C.burgundy}`,
@@ -195,7 +195,7 @@ export function StillsStrip({
                     onClick={() => setEditing(s.id)}
                     style={{
                       cursor: "text",
-                      fontFamily: "'Caveat', cursive",
+                      fontFamily: F.hand,
                       fontSize: 16,
                       color: s.caption ? C.ink : C.inkFaded,
                       marginTop: 5,
@@ -209,7 +209,7 @@ export function StillsStrip({
                 {(s.w ?? 0) > 0 && (
                   <div
                     style={{
-                      fontFamily: "'Special Elite', monospace",
+                      fontFamily: F.mono,
                       fontSize: 9,
                       color: C.inkFaded,
                       marginTop: 3,
@@ -227,7 +227,7 @@ export function StillsStrip({
                     display: "flex",
                     gap: 10,
                     marginTop: 4,
-                    fontFamily: "'Special Elite', monospace",
+                    fontFamily: F.mono,
                     fontSize: 9.5,
                   }}
                 >

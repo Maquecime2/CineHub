@@ -3,7 +3,7 @@
    ============================================================ */
 import { useState } from "react";
 import { X } from "lucide-react";
-import { C } from "../../theme/tokens";
+import { C, F } from "../../theme/tokens";
 import { underlineInput, ruledTextarea } from "../../theme/styles";
 import { CommaInput, InkStars, Label } from "../ui";
 import { makeFilm } from "../../domain/film";
@@ -59,7 +59,7 @@ export function FilmModal({ onClose, onSave }: { onClose: () => void; onSave: (f
         </button>
         <div
           style={{
-            fontFamily: "'Playfair Display', serif",
+            fontFamily: F.title,
             fontStyle: "italic",
             fontWeight: 700,
             fontSize: 28,
@@ -127,7 +127,7 @@ export function FilmModal({ onClose, onSave }: { onClose: () => void; onSave: (f
                   all: "unset",
                   cursor: "pointer",
                   padding: "6px 14px",
-                  fontFamily: "'Special Elite', monospace",
+                  fontFamily: F.mono,
                   fontSize: 11,
                   background: f.status === o.k ? C.pine : "transparent",
                   color: f.status === o.k ? C.card : C.inkFaded,
@@ -165,7 +165,7 @@ export function FilmModal({ onClose, onSave }: { onClose: () => void; onSave: (f
             padding: "12px 0",
             background: f.title.trim() ? C.burgundy : C.line,
             color: C.card,
-            fontFamily: "'Special Elite', monospace",
+            fontFamily: F.mono,
             fontSize: 13,
             letterSpacing: 1,
             cursor: f.title.trim() ? "pointer" : "not-allowed",
