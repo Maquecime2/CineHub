@@ -17,6 +17,14 @@
      - il n'existe pas de flux de watchlist (`/watchlist/rss/` répond
        403) : ce chemin ne rapporte que des films VUS.
 
+   LA WATCHLIST, ALORS. Faute de flux, on lit les pages publiques
+   `/{pseudo}/watchlist/page/N/` — du HTML, pas du XML, avec ce que ça
+   suppose de fragilité : Letterboxd peut remanier son gabarit sans
+   prévenir. D'où deux précautions ici, et une seule règle à retenir en
+   les lisant : MIEUX VAUT UNE ERREUR QU'UNE LISTE VIDE. Une page mal lue
+   qui rendrait « zéro film » se raconterait comme une watchlist vidée,
+   et l'écran signalerait toute la collection comme retirée.
+
    Le CSV n'est donc pas remplacé, il est complété.
 
    POURQUOI UN RELAIS. Letterboxd ne renvoie aucun en-tête
@@ -35,7 +43,7 @@
 import { store } from "./storage";
 import { filmKey, parseRating } from "../domain/importing";
 import { mergeWatches } from "../domain/film";
-import type { ImportRow, ParsedCsv } from "../types";
+import type { ImportRow, ParsedCsv, Year } from "../types";
 
 export const USER_KEY = "letterboxd-user";
 export const RELAY_KEY = "letterboxd-relay";
@@ -45,16 +53,25 @@ export const RELAY_KEY = "letterboxd-relay";
    transite — mais c'est aussi pourquoi l'adresse reste modifiable. */
 export const DEFAULT_RELAY = "https://corsproxy.io/?url={url}";
 
-const feedOf = (user: string) => `https://letterboxd.com/${encodeURIComponent(user)}/rss/`;
+const cleanUser = (user: string) => user.trim().replace(/^@/, "");
+
+/* Le chemin, une fois pour toutes : les deux adresses ci-dessous ne
+   diffèrent que par lui, et c'est la seule chose qui change entre le
+   serveur de dev, qui relaie lui-même, et le relais public. */
+const lbUrl = (path: string, relay?: string): string => {
+  if (import.meta.env.DEV) return `/lb-rss/${path}`;
+  const tpl = (relay ?? store.get(RELAY_KEY, DEFAULT_RELAY)).trim() || DEFAULT_RELAY;
+  return tpl.replace("{url}", encodeURIComponent(`https://letterboxd.com/${path}`));
+};
 
 /** L'adresse à appeler pour lire le flux de `user`, relais compris. */
 export function feedUrl(user: string, relay?: string): string {
-  const clean = user.trim().replace(/^@/, "");
-  /* En dev, le serveur Vite relaie : on lui parle en relatif, et le
-     gabarit de relais ne sert pas. */
-  if (import.meta.env.DEV) return `/lb-rss/${encodeURIComponent(clean)}/rss/`;
-  const tpl = (relay ?? store.get(RELAY_KEY, DEFAULT_RELAY)).trim() || DEFAULT_RELAY;
-  return tpl.replace("{url}", encodeURIComponent(feedOf(clean)));
+  return lbUrl(`${encodeURIComponent(cleanUser(user))}/rss/`, relay);
+}
+
+/** L'adresse d'une page de watchlist. Letterboxd les numérote à partir de 1. */
+export function watchlistUrl(user: string, page = 1, relay?: string): string {
+  return lbUrl(`${encodeURIComponent(cleanUser(user))}/watchlist/page/${page}/`, relay);
 }
 
 /* Un champ d'espace de noms se lit par son nom COMPLET, préfixe compris :
@@ -163,4 +180,170 @@ export async function fetchLetterboxdFeed(user: string, relay?: string): Promise
   }
   if (!res.ok) throw new Error(`Le flux a répondu ${res.status}. Le pseudo est-il le bon ?`);
   return parseLetterboxdRss(await res.text());
+}
+
+/* ============================================================
+   LA WATCHLIST — lue dans les pages, faute de flux
+   ============================================================ */
+
+/* Un film n'est pas décrit deux fois de la même façon selon l'âge du
+   gabarit : l'ancien pose les attributs sur `.film-poster`, le récent sur
+   un composant React, et le titre se cache tantôt dans un attribut,
+   tantôt dans l'`alt` de l'affiche. On lit donc la première valeur qui
+   se présente au lieu de parier sur une seule. */
+const attrOf = (el: Element, names: string[]): string => {
+  for (const n of names) {
+    const v = el.getAttribute(n)?.trim();
+    if (v) return v;
+  }
+  return "";
+};
+
+/* Le gabarit actuel ne donne pas l'année à part : elle est collée au
+   titre, « Rachel, Rachel (1968) ». On la détache — sinon elle entrerait
+   dans la clé d'appariement par le mauvais bout et un film déjà en
+   collection serait recréé au lieu d'être reconnu. */
+const splitYear = (name: string): { title: string; year: Year } => {
+  const m = name.match(/^(.*?)\s*\((\d{4})\)$/);
+  return m ? { title: m[1]!.trim(), year: Number(m[2]) } : { title: name, year: "" };
+};
+
+/** Ce qu'une page de watchlist apprend : ses films, et combien il y en a. */
+export interface WatchlistPage {
+  rows: ImportRow[];
+  lastPage: number;
+  skippedNoTitle: number;
+}
+
+/** Lit une page de watchlist. Lève plutôt que de rendre une liste vide douteuse. */
+export function parseWatchlistPage(html: string): WatchlistPage {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  const posters = [...doc.querySelectorAll("[data-film-slug], [data-item-slug]")];
+
+  /* Le garde-fou. Une watchlist réellement vide le DIT — Letterboxd pose
+     un « No films yet » dans `.empty-text` ; un relais en panne, un
+     profil privé ou un pseudo erroné rendent tout autre chose. Sans cette
+     distinction, les deux cas se ressembleraient, et le second se
+     raconterait comme le premier. */
+  if (!posters.length && !doc.querySelector(".empty-text, .empty-watchlist, ul.poster-list"))
+    throw new Error(
+      "Cette page n'a pas la forme d'une watchlist Letterboxd. Vérifiez le pseudo, que le profil est public, ou le relais si vous en avez réglé un."
+    );
+
+  let skippedNoTitle = 0;
+  const rows: ImportRow[] = [];
+  for (const el of posters) {
+    const name =
+      attrOf(el, ["data-item-name", "data-film-name", "data-film-title"]) ||
+      el.querySelector("img")?.getAttribute("alt")?.trim() ||
+      "";
+    if (!name) {
+      skippedNoTitle++;
+      continue;
+    }
+    /* L'année vient de l'attribut quand il existe (ancien gabarit), du
+       titre sinon (gabarit actuel). */
+    const yearRaw = attrOf(el, ["data-film-release-year", "data-item-release-year"]);
+    const named = splitYear(name);
+    const slug = attrOf(el, ["data-item-slug", "data-film-slug"]);
+    rows.push({
+      title: named.title,
+      year: yearRaw ? Number(yearRaw) || "" : named.year,
+      /* Une envie n'est ni notée ni vue. `null` et le journal vide ne
+         sont pas des trous à combler : ce sont les seules valeurs qui
+         empêchent `diffImport` d'écraser une note ou une séance déjà
+         inscrite sur une fiche du même film. */
+      rating: null,
+      watchedAt: null,
+      uri: slug ? `https://letterboxd.com/film/${slug}/` : null,
+      watches: [],
+    });
+  }
+
+  /* La pagination donne le nombre de pages d'un coup : mieux vaut le lire
+     que tâtonner jusqu'à la première page vide. Une watchlist courte n'a
+     pas de pagination du tout — c'est alors une page, et une seule. */
+  const pages = [...doc.querySelectorAll(".paginate-pages li")]
+    .map((li) => Number(li.textContent?.trim()))
+    .filter((n) => Number.isFinite(n) && n > 0);
+
+  return { rows, lastPage: Math.max(1, ...pages), skippedNoTitle };
+}
+
+/* Letterboxd sert 28 films par page : une watchlist de mille films en
+   ferait trente-six. Le plafond n'est pas une limite de goût, c'est une
+   assurance contre une pagination mal lue qui ferait tourner la boucle. */
+const MAX_PAGES = 40;
+
+interface WatchlistOptions {
+  /** Appelé après chaque page, pour que l'écran montre l'avancée. */
+  onProgress?: (done: number, total: number) => void;
+}
+
+async function fetchPage(url: string): Promise<string> {
+  let res: Response;
+  try {
+    res = await fetch(url);
+  } catch {
+    throw new Error("Le relais n'a pas répondu. Il est peut-être hors service — voyez « relais ».");
+  }
+  if (!res.ok)
+    throw new Error(
+      `La watchlist a répondu ${res.status}. Le pseudo est-il le bon, et le profil public ?`
+    );
+  return res.text();
+}
+
+/** Relève la watchlist d'un membre, page après page. Message affichable tel quel. */
+export async function fetchLetterboxdWatchlist(
+  user: string,
+  relay?: string,
+  { onProgress }: WatchlistOptions = {}
+): Promise<ParsedCsv> {
+  if (!user.trim()) throw new Error("Indiquez d'abord votre pseudo Letterboxd.");
+
+  const first = parseWatchlistPage(await fetchPage(watchlistUrl(user, 1, relay)));
+  const total = Math.min(first.lastPage, MAX_PAGES);
+  onProgress?.(1, total);
+
+  let lines = first.rows.length + first.skippedNoTitle;
+  let skippedNoTitle = first.skippedNoTitle;
+  const byKey = new Map<string, ImportRow>();
+  const keep = (rows: ImportRow[]) => rows.forEach((r) => byKey.set(filmKey(r), r));
+  keep(first.rows);
+
+  /* Les pages se lisent l'une APRÈS l'autre. En parallèle, on gagnerait
+     quelques secondes et on offrirait à un relais public une rafale de
+     trente requêtes — c'est le meilleur moyen de se faire refuser la
+     suivante. */
+  for (let p = 2; p <= total; p++) {
+    const page = parseWatchlistPage(await fetchPage(watchlistUrl(user, p, relay)));
+    keep(page.rows);
+    lines += page.rows.length + page.skippedNoTitle;
+    skippedNoTitle += page.skippedNoTitle;
+    onProgress?.(p, total);
+  }
+
+  /* L'ORDRE EST UNE DONNÉE. La page ne date aucune envie, mais elle les
+     sert dans l'ordre où elles ont été mises de côté, la plus récente
+     d'abord — c'est le tri « When Added / Newest First » que Letterboxd
+     applique par défaut à une watchlist. Sans ce report, les cinq cents
+     fiches d'un même relevé naîtraient à la même milliseconde et le tri
+     « par ajout » de l'étagère rendrait un ordre arbitraire. On espace
+     donc d'une minute, en remontant le temps depuis maintenant. */
+  const base = Date.now();
+  const rows = [...byKey.values()].map((r, i) => ({ ...r, addedAt: base - i * 60_000 }));
+  return {
+    rows,
+    kind: "watchlist",
+    stats: {
+      lines,
+      total: rows.length,
+      duplicatesInFile: lines - skippedNoTitle - rows.length,
+      // une envie n'est jamais notée : ces deux comptes sont là pour la forme
+      withRating: 0,
+      withoutRating: rows.length,
+      skippedNoTitle,
+    },
+  };
 }

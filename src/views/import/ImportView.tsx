@@ -8,8 +8,14 @@ import { underlineInput } from "../../theme/styles";
 import { Label, Tally, InkStars } from "../../components/ui";
 import { StampCorner } from "../../components/atmosphere";
 import { store } from "../../services/storage";
-import { parseLetterboxdCsv, diffImport } from "../../domain/importing";
-import { fetchLetterboxdFeed, DEFAULT_RELAY, USER_KEY, RELAY_KEY } from "../../services/letterboxd";
+import { parseLetterboxdCsv, diffImport, filmKey } from "../../domain/importing";
+import {
+  fetchLetterboxdFeed,
+  fetchLetterboxdWatchlist,
+  DEFAULT_RELAY,
+  USER_KEY,
+  RELAY_KEY,
+} from "../../services/letterboxd";
 import { enrichRows, checkApiKey } from "../../tmdb";
 import { BackupPanel } from "./BackupPanel";
 import type {
@@ -54,6 +60,9 @@ export function ImportView({
   const [rows, setRows] = useState<ImportRow[]>([]); // lignes lues, éventuellement enrichies
   const [stats, setStats] = useState<ImportStats | null>(null); // ce que le fichier contenait
   const [importStatus, setImportStatus] = useState<FilmStatus>("watched"); // vus / à voir
+  /* Décoché par défaut, et il faut que ça le reste : compléter ne perd
+     jamais rien, remplacer peut effacer des séances saisies à la main. */
+  const [autorite, setAutorite] = useState(false);
   const [fileName, setFileName] = useState("");
   const [error, setError] = useState("");
   const [done, setDone] = useState<{ created: number; updated: number; unchanged: number } | null>(
@@ -74,6 +83,13 @@ export function ImportView({
   const [relay, setRelay] = useState(() => store.get(RELAY_KEY, DEFAULT_RELAY));
   const [showRelay, setShowRelay] = useState(false);
   const [feeding, setFeeding] = useState(false);
+  /* Une watchlist se lit en plusieurs pages : le bouton dit laquelle,
+     sinon un profil de six cents films paraît figé une minute durant. */
+  const [pages, setPages] = useState<{ done: number; total: number } | null>(null);
+  /* Les fiches « à voir » venues de Letterboxd que la watchlist en ligne
+     ne porte plus. On les MONTRE sans y toucher : la watchlist relevée
+     dit ce qu'elle contient aujourd'hui, pas ce qu'il faut jeter. */
+  const [dropped, setDropped] = useState<Film[]>([]);
 
   const reset = () => {
     setRows([]);
@@ -82,10 +98,13 @@ export function ImportView({
     setError("");
     setTmdbReport(null);
     setProgress(null);
+    // un nouveau fichier ne fait pas autorité parce que le précédent l'a fait
+    setAutorite(false);
   };
 
   const handleFile = async (file: File) => {
     reset();
+    setDropped([]);
     setDone(null);
     setFileName(file.name);
     try {
@@ -104,6 +123,7 @@ export function ImportView({
      TMDB, le diff, la validation — ne sait pas d'où ça vient. */
   const runFeed = async () => {
     reset();
+    setDropped([]);
     setDone(null);
     setFeeding(true);
     try {
@@ -118,6 +138,50 @@ export function ImportView({
     } catch (e) {
       setError(String((e as Error)?.message || e));
     }
+    setFeeding(false);
+  };
+
+  /* Les envies qu'on a ici et que Letterboxd n'a plus. On ne regarde que
+     les fiches VENUES de Letterboxd : un film rangé depuis le bureau des
+     découvertes n'a jamais été sur ce compte, et l'annoncer comme retiré
+     serait un contresens. */
+  const absentFrom = (parsed: ImportRow[]): Film[] => {
+    const keys = new Set(parsed.map(filmKey));
+    const ids = new Set(parsed.filter((r) => r.tmdbId).map((r) => String(r.tmdbId)));
+    return films.filter(
+      (f) =>
+        f.status === "watchlist" &&
+        f.source === "letterboxd" &&
+        !keys.has(filmKey(f)) &&
+        !(f.tmdbId && ids.has(String(f.tmdbId)))
+    );
+  };
+
+  /* La watchlist n'a pas de flux : elle se lit dans les pages publiques
+     du profil. Le relevé ressemble en tout au précédent — c'est voulu :
+     l'aval ne doit toujours pas savoir d'où viennent les lignes. */
+  const runWatchlist = async () => {
+    reset();
+    setDropped([]);
+    setDone(null);
+    setFeeding(true);
+    const pseudo = lbUser.trim().replace(/^@/, "");
+    try {
+      const { rows: parsed, stats: s } = await fetchLetterboxdWatchlist(lbUser, relay, {
+        onProgress: (done, total) => setPages({ done, total }),
+      });
+      store.set(USER_KEY, pseudo);
+      store.set(RELAY_KEY, relay.trim() || DEFAULT_RELAY);
+      setRows(parsed);
+      setStats(s);
+      setImportStatus("watchlist");
+      setFileName(`watchlist de ${pseudo}`);
+      setDropped(absentFrom(parsed));
+      if (parsed.length === 0) setError("Cette watchlist est vide.");
+    } catch (e) {
+      setError(String((e as Error)?.message || e));
+    }
+    setPages(null);
     setFeeding(false);
   };
 
@@ -144,9 +208,16 @@ export function ImportView({
 
   // Rien n'est écrit tant que ce diff n'a pas été validé.
   const diff = useMemo(
-    () => (rows.length ? diffImport(films, rows, importStatus) : null),
-    [films, rows, importStatus]
+    () =>
+      rows.length
+        ? diffImport(films, rows, importStatus, { authoritativeWatches: autorite })
+        : null,
+    [films, rows, importStatus, autorite]
   );
+
+  /* Le choix « ce fichier fait autorité » n'a de sens que si le fichier
+     porte des séances : seul diary.csv et le flux en ont. */
+  const porteDesSeances = rows.some((r) => r.watches?.length);
 
   const confirm = () => {
     if (!diff) return;
@@ -294,12 +365,12 @@ export function ImportView({
             marginBottom: 4,
           }}
         >
-          OU RELEVER VOTRE FLUX
+          OU RELEVER VOTRE PROFIL
         </div>
         <div style={{ fontFamily: F.body, fontSize: 13, color: C.inkFaded, marginBottom: 12 }}>
-          Sans fichier, directement depuis votre profil public. Le flux ne rend que vos{" "}
-          <strong>cinquante dernières séances</strong> et <strong>pas votre watchlist</strong> :
-          c'est de quoi tenir la collection à jour, pas de quoi la bâtir.
+          Sans fichier, directement depuis votre profil public. <strong>Séances</strong> ne rend que
+          vos cinquante dernières : c'est de quoi tenir la collection à jour, pas de quoi la bâtir.{" "}
+          <strong>Watchlist</strong> la relève entière, page après page.
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
           <div style={{ flex: 1, minWidth: 220 }}>
@@ -314,21 +385,36 @@ export function ImportView({
               }}
             />
           </div>
-          <button
-            onClick={runFeed}
-            disabled={!lbUser.trim() || feeding}
-            style={{
-              all: "unset",
-              cursor: lbUser.trim() && !feeding ? "pointer" : "not-allowed",
-              padding: "7px 14px",
-              border: `1px solid ${C.line}`,
-              color: C.inkFaded,
-              fontFamily: F.mono,
-              fontSize: 10.5,
-            }}
-          >
-            {feeding ? "…" : "RELEVER"}
-          </button>
+          {/* Deux relevés, un seul pseudo : les séances viennent du flux,
+              la watchlist des pages du profil — mais c'est le même compte,
+              et ce serait le redemander pour rien. */}
+          {(
+            [
+              ["SÉANCES", runFeed, feeding ? "…" : "SÉANCES"],
+              [
+                "WATCHLIST",
+                runWatchlist,
+                feeding && pages ? `PAGE ${pages.done}/${pages.total}` : "WATCHLIST",
+              ],
+            ] as [string, () => void, string][]
+          ).map(([k, run, label]) => (
+            <button
+              key={k}
+              onClick={run}
+              disabled={!lbUser.trim() || feeding}
+              style={{
+                all: "unset",
+                cursor: lbUser.trim() && !feeding ? "pointer" : "not-allowed",
+                padding: "7px 14px",
+                border: `1px solid ${C.line}`,
+                color: C.inkFaded,
+                fontFamily: F.mono,
+                fontSize: 10.5,
+              }}
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
         {/* Le relais, replié. Letterboxd n'autorise pas la lecture de son
@@ -525,6 +611,53 @@ export function ImportView({
               ))}
             </div>
           </div>
+
+          {/* LA RÉPARATION DES JOURNAILS. Longtemps, une fiche déposée par
+              watched.csv récoltait une séance à la date où elle avait été
+              AJOUTÉE, et diary.csv en ajoutait une seconde à la date où le
+              film avait été vu : un « ×2 » sous un film vu une fois. Le
+              premier travers est corrigé à la lecture, mais les fiches déjà
+              écrites gardent leur séance en trop — et compléter ne sait pas
+              défaire. Cette case le peut, une fois. */}
+          {porteDesSeances && importStatus === "watched" && (
+            <div style={{ marginTop: 16 }}>
+              <label
+                style={{
+                  display: "flex",
+                  gap: 8,
+                  alignItems: "flex-start",
+                  cursor: "pointer",
+                  fontFamily: F.body,
+                  fontSize: 13,
+                  color: C.ink,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={autorite}
+                  onChange={(e) => setAutorite(e.target.checked)}
+                  style={{ marginTop: 3 }}
+                />
+                <span>
+                  Ce relevé fait autorité sur les séances
+                  <span
+                    style={{
+                      display: "block",
+                      fontFamily: F.hand,
+                      fontSize: 16,
+                      color: C.inkFaded,
+                      lineHeight: 1.35,
+                    }}
+                  >
+                    D&apos;ordinaire les journaux se complètent, et rien ne se perd. Coché, le
+                    journal des films cités est <strong>remplacé</strong> par celui-ci : c&apos;est
+                    ce qu&apos;il faut pour effacer une séance en trop, et c&apos;est aussi ce qui
+                    efface les séances ajoutées à la main.
+                  </span>
+                </span>
+              </label>
+            </div>
+          )}
         </div>
       )}
 
@@ -740,6 +873,8 @@ export function ImportView({
                       {"rating" in changes && `note ${film.rating || 0} → ${changes.rating}`}
                       {changes.director && ` · réalisateur : ${changes.director}`}
                       {changes.watchedAt && ` · vu le ${changes.watchedAt}`}
+                      {changes.watches &&
+                        ` · journal ${(film.watches || []).length} → ${changes.watches.length}`}
                       {changes.status && " · passe en « vu »"}
                       {changes.genres && " · genres"}
                       {changes.poster && " · affiche"}
@@ -835,6 +970,62 @@ export function ImportView({
               ? `VALIDER — ${diff.toCreate.length} CRÉÉE(S), ${diff.toUpdate.length} MISE(S) À JOUR`
               : "TOUT EST DÉJÀ À JOUR"}
           </button>
+        </div>
+      )}
+
+      {/* ---- ce que la watchlist en ligne ne porte plus ----
+          Un constat, et rien d'autre : aucun bouton, aucune écriture. Un
+          film retiré de la watchlist l'a parfois été parce qu'on l'a vu,
+          parfois par lassitude — l'appli n'a pas à trancher, et un mur
+          vidé tout seul serait la pire façon de l'apprendre. */}
+      {dropped.length > 0 && (
+        <div
+          style={{
+            marginTop: 22,
+            border: `1px solid ${C.line}`,
+            background: C.card,
+            padding: "14px 18px",
+          }}
+        >
+          <div
+            style={{
+              fontFamily: F.mono,
+              fontSize: 11,
+              color: C.inkFaded,
+              letterSpacing: 1,
+              marginBottom: 4,
+            }}
+          >
+            PLUS DANS VOTRE WATCHLIST LETTERBOXD
+          </div>
+          <div
+            style={{
+              fontFamily: F.hand,
+              fontSize: 17,
+              color: C.inkFaded,
+              marginBottom: 8,
+              lineHeight: 1.35,
+            }}
+          >
+            {dropped.length} fiche(s) « à voir » venues de Letterboxd n'y figurent plus. Rien n'est
+            retiré : à vous de les garder ou de les ranger.
+          </div>
+          <div style={{ maxHeight: 180, overflowY: "auto" }}>
+            {dropped.map((f) => (
+              <div
+                key={f.id}
+                style={{
+                  padding: "5px 0",
+                  borderBottom: `1px solid ${C.line}`,
+                  fontFamily: F.body,
+                  fontSize: 13,
+                  color: C.ink,
+                }}
+              >
+                {f.title} {f.year && <span style={{ color: C.inkFaded }}>({f.year})</span>}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
