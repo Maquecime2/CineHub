@@ -407,8 +407,8 @@ export default function App() {
         position: "relative",
         /* Le fond entier vient de la peau — ce n'est pas une couleur mais
            une recette : le kraft a des nappes plus claires là où la
-           lumière tombe, un terminal a ses lignes de balayage, une peau
-           néon un halo. La valeur de repli est le kraft d'origine, pour
+           lumière tombe, une nuit américaine a sa lune froide, une
+           affiche a sa trame. La valeur de repli est le kraft, pour
            le premier rendu, avant qu'une peau soit posée. */
         background: `var(--page-bg, ${KRAFT_FALLBACK})`,
       }}

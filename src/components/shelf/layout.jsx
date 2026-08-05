@@ -2,7 +2,7 @@
    elle-même, le rayon, le tiroir des mis de côté, l'aperçu d'un boîtier
    ouvert, le cabinet de décors et la palette d'un objet. */
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { X, Trash2, Upload, ChevronLeft, Eye, EyeOff, RotateCcw, RotateCw } from "lucide-react";
+import { X, Trash2, Upload, ChevronLeft, Eye, EyeOff } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { wallStyle, materialStyle, PLANK_SHADOW } from "../../theme/surfaces";
 import { hash, fileNoOf } from "../../domain/seeded";
@@ -196,7 +196,7 @@ const RowGutter = React.memo(function RowGutter({ row, shown, acts, capMax }) {
           border: `1px solid ${C.line}`,
           borderRight: "none",
           borderRadius: "2px 0 0 2px",
-          boxShadow: "1px 1px 0 rgba(43,38,32,0.14)",
+          boxShadow: `1px 1px 0 ${alpha(C.ink, 0.14)}`,
           fontFamily: F.mono,
           fontSize: 9.5,
           color: C.inkFaded,
@@ -1096,8 +1096,8 @@ export function CasePreview({ film, onClose, onOpenFile }) {
                 position: "relative",
                 width: "100%",
                 aspectRatio: "2 / 3",
-                border: "1px solid rgba(43,38,32,0.3)",
-                boxShadow: "2px 3px 0 rgba(43,38,32,0.18)",
+                border: `1px solid ${alpha(C.ink, 0.3)}`,
+                boxShadow: `2px 3px 0 ${alpha(C.ink, 0.18)}`,
                 animation: "slideOut .7s .25s cubic-bezier(.2,.85,.3,1) both",
               }}
             >
@@ -1695,19 +1695,25 @@ export function DecorCabinet({ kind, onDragStart, onDragEnd, onClose }) {
    catalogue. Mais le hasard ne sait pas qu'un cadre doit parfois être
    droit, ni qu'une image importée peut arriver couchée.
 
-   D'où trois gestes et pas un de plus : on tourne d'un cran à gauche, on
-   tourne d'un cran à droite, et on rend la main au hasard. Le cran fait
-   cinq degrés — assez pour qu'un clic se voie, assez peu pour viser le
-   droit sans s'y reprendre. Et tant qu'on n'a rien touché, le champ
-   affiche l'angle SEMÉ plutôt qu'un zéro : c'est celui qu'on a sous les
-   yeux, et l'écart entre les deux est exactement ce qu'on vient régler. */
-const ROT_STEP = 5;
+   D'où un CURSEUR, et deux recours à côté. Le curseur parce que
+   l'orientation est une grandeur continue : on la vise à l'œil, sur
+   l'objet, et le tour entier tient dans un geste. Les deux boutons d'un
+   cran de cinq degrés d'avant demandaient dix-huit clics pour coucher un
+   cadre — un réglage qu'on abandonne avant de l'atteindre. Le curseur
+   natif donne en prime les flèches du clavier, que les boutons n'avaient
+   jamais offertes.
+
+   Les recours sont ceux qu'un curseur ne sait pas donner : remettre
+   d'aplomb tombe pile sur zéro, que la main rate d'un degré ; rendre la
+   main au hasard sort de l'échelle, puisque « pas de réglage » n'est pas
+   un angle. Et tant qu'on n'a rien touché, le champ affiche l'angle SEMÉ
+   plutôt qu'un zéro : c'est celui qu'on a sous les yeux, et l'écart entre
+   les deux est exactement ce qu'on vient régler. */
 const clampRot = (deg) => (((deg % 360) + 540) % 360) - 180;
 
 const OrientField = ({ angle, seeded, onChange }) => {
   const réglé = angle != null;
-  const shown = Math.round(Number(réglé ? angle : seeded) || 0);
-  const turn = (by) => onChange(clampRot(shown + by));
+  const shown = Math.round(clampRot(Number(réglé ? angle : seeded) || 0));
 
   return (
     <>
@@ -1723,14 +1729,19 @@ const OrientField = ({ angle, seeded, onChange }) => {
         ORIENTATION
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <button
-          onClick={() => turn(-ROT_STEP)}
-          title="Tourner vers la gauche"
-          aria-label="Tourner vers la gauche"
-          style={{ all: "unset", cursor: "pointer", color: C.inkFaded, display: "flex" }}
-        >
-          <RotateCcw size={14} />
-        </button>
+        <input
+          type="range"
+          min={-180}
+          max={180}
+          step={1}
+          value={shown}
+          onChange={(e) => onChange(Number(e.target.value))}
+          aria-label="Orientation"
+          title="Faire tourner l'objet"
+          style={{ flex: 1, minWidth: 0, accentColor: C.ink, cursor: "pointer" }}
+        />
+        {/* Zéro se rate d'un degré à la main : le compte est aussi le
+            bouton qui y retombe. */}
         <button
           onClick={() => onChange(0)}
           title="Remettre d'aplomb"
@@ -1748,31 +1759,25 @@ const OrientField = ({ angle, seeded, onChange }) => {
         >
           {shown > 0 ? `+${shown}°` : `${shown}°`}
         </button>
-        <button
-          onClick={() => turn(ROT_STEP)}
-          title="Tourner vers la droite"
-          aria-label="Tourner vers la droite"
-          style={{ all: "unset", cursor: "pointer", color: C.inkFaded, display: "flex" }}
-        >
-          <RotateCw size={14} />
-        </button>
-        {/* Rendre la main au hasard n'a de sens que si on la lui a prise. */}
-        {réglé && (
-          <button
-            onClick={() => onChange(null)}
-            title="Rendre à l'objet son guingois d'origine"
-            style={{
-              all: "unset",
-              cursor: "pointer",
-              fontFamily: F.hand,
-              fontSize: 14,
-              color: C.inkFaded,
-            }}
-          >
-            au hasard
-          </button>
-        )}
       </div>
+      {/* Rendre la main au hasard n'a de sens que si on la lui a prise. */}
+      {réglé && (
+        <button
+          onClick={() => onChange(null)}
+          title="Rendre à l'objet son guingois d'origine"
+          style={{
+            all: "unset",
+            cursor: "pointer",
+            display: "block",
+            marginTop: 4,
+            fontFamily: F.hand,
+            fontSize: 14,
+            color: C.inkFaded,
+          }}
+        >
+          au hasard
+        </button>
+      )}
     </>
   );
 };

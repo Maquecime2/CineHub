@@ -13,9 +13,9 @@ import { fileNoOf } from "../../domain/seeded";
 /* LE PAPIER LUI-MEME — fibres, grain, vignettage.
 
    Les trois couches ne disparaissent pas, elles se FONDENT : leur
-   opacite est multipliee par un reglage de la peau. Une peau brutaliste
-   met zero et le papier n'existe plus ; une peau de nuit garde un tiers
-   de grain. Un booleen n'aurait pas permis le tiers.
+   opacite est multipliee par un reglage de la peau. Le Bauhaus met zero
+   et le papier n'existe plus ; une peau de nuit garde un tiers de grain.
+   Un booleen n'aurait pas permis le tiers.
 
    La valeur de repli est 1 : sans peau posee — au tout premier rendu —
    le papier est celui qu'il a toujours ete. */
@@ -64,7 +64,7 @@ export function PaperGrain() {
 /* LES TACHES — rond de cafe, residu de scotch.
 
    Elles disent « papeterie » plus fort que n'importe quelle couleur :
-   une peau brutaliste ou un terminal n'en veulent aucune, et ce n'est
+   le Bauhaus ou une affiche imprimee n'en veulent aucune, et ce n'est
    pas leur teinte qui peut le dire. Elles se fondent donc, elles aussi,
    par un reglage de la peau. */
 export function CoffeeRing({ style, rotate = 0 }: { style?: CSSProperties; rotate?: number }) {

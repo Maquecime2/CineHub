@@ -1,7 +1,7 @@
 /* Les objets qu'on pose sur une planche : le repère de dépôt, le boîtier,
    le décor et la catégorie. */
 import React, { useEffect, useMemo, useState } from "react";
-import { C, F } from "../../theme/tokens";
+import { C, F, alpha } from "../../theme/tokens";
 import { hueOf } from "../../theme/ink";
 import { tiltOf } from "../../domain/seeded";
 import { PosterArt } from "../film/PosterArt";
@@ -72,7 +72,7 @@ export const DropMark = React.forwardRef(function DropMark(_props, ref) {
             dériver du trait puisqu'elle en reprend les mêmes chemins */}
         <g transform="translate(1.2 1.4)" opacity="0.18">
           {MARK_PATHS.map((p) => (
-            <path key={p.d} d={p.d} stroke="#1E140A" strokeWidth={p.w + 0.8} {...MARK_INK} />
+            <path key={p.d} d={p.d} stroke={C.ink} strokeWidth={p.w + 0.8} {...MARK_INK} />
           ))}
         </g>
         {MARK_PATHS.map((p) => (
@@ -211,8 +211,14 @@ export const FilmBox = React.memo(function FilmBox({
             overflow: "hidden",
             // ce qui se repeint dans un boîtier ne concerne que ce boîtier
             contain: "layout paint style",
-            border: `1px solid rgba(43,38,32,0.35)`,
-            boxShadow: hover ? `3px 5px 10px rgba(30,20,10,0.34)` : `2px 2px 0 rgba(43,38,32,0.16)`,
+            /* Le filet et l'ombre sont de l'ENCRE de la peau, et non plus
+               le brun du carnet écrit en dur : sur un fond de nuit, un
+               trait brun-noir contre une tranche claire dessinait un
+               liseré sale au lieu de poser le boîtier. */
+            border: `1px solid ${alpha(C.ink, 0.35)}`,
+            boxShadow: hover
+              ? `3px 5px 10px ${alpha(C.ink, 0.34)}`
+              : `2px 2px 0 ${alpha(C.ink, 0.16)}`,
             transform: hover ? "translateY(-7px) rotate(-1.2deg)" : "none",
             transformOrigin: "bottom center",
             /* `dim` : la recherche, sur l'étagère, ne trie plus le rayon —
@@ -225,8 +231,18 @@ export const FilmBox = React.memo(function FilmBox({
           }}
         >
           <PosterArt film={film} height={BOX_H} initials={initials} plain />
-          {/* le dos : c'est lui qui fait lire « boîtier » et non « vignette » */}
+          {/* Le dos : c'est lui qui fait lire « boîtier » et non
+              « vignette ». Il ne porte PLUS le titre.
+
+              On l'écrivait à la verticale, en huit pixels, sur onze
+              pixels de large : la seule façon d'y faire tenir un titre
+              long, et une façon de ne le lire jamais. Un titre qu'on
+              doit pencher la tête pour déchiffrer, et qui se coupe au
+              tiers, ne renseigne personne — il salit une tranche de
+              couleur qui, elle, faisait très bien son travail. Le nom se
+              lit dans l'infobulle du boîtier, avec l'année, et en entier. */}
           <span
+            aria-hidden
             style={{
               position: "absolute",
               left: 0,
@@ -234,35 +250,18 @@ export const FilmBox = React.memo(function FilmBox({
               bottom: 0,
               width: 11,
               background: hue,
-              boxShadow: "inset -2px 0 4px rgba(0,0,0,0.4)",
+              boxShadow: `inset -2px 0 4px ${alpha(C.ink, 0.4)}`,
               zIndex: 2,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              overflow: "hidden",
             }}
-          >
-            <span
-              style={{
-                writingMode: "vertical-rl",
-                transform: "rotate(180deg)",
-                fontFamily: F.mono,
-                fontSize: 8,
-                letterSpacing: "0.08em",
-                color: "rgba(246,239,222,0.92)",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {film.title}
-            </span>
-          </span>
+          />
           {film.year !== "" && film.year != null && (
             <span
               style={{
                 position: "absolute",
                 top: 4,
                 left: 15,
-                background: "rgba(246,239,222,0.88)",
+                // l'étiquette est du papier de la peau, pas du kraft en dur
+                background: alpha(C.card, 0.88),
                 color: C.ink,
                 fontFamily: F.mono,
                 fontSize: 9,
@@ -282,7 +281,12 @@ export const FilmBox = React.memo(function FilmBox({
                 left: 11,
                 right: 0,
                 padding: "3px 5px",
-                background: "rgba(43,38,32,0.72)",
+                /* Le bandeau des étoiles : une bande d'encre de la peau,
+                   et les étoiles dans son papier. Le brun-noir en dur
+                   qu'il portait posait, sous une peau de nuit, une barre
+                   sombre sur un rayon clair — et les étoiles blanches
+                   dessus finissaient par ne plus se voir du tout. */
+                background: alpha(C.ink, 0.78),
                 color: C.card,
                 fontFamily: F.mono,
                 fontSize: 9.5,
@@ -300,7 +304,7 @@ export const FilmBox = React.memo(function FilmBox({
                   whiteSpace: "nowrap",
                 }}
               >
-                <span style={{ color: "rgba(246,239,222,0.3)" }}>★★★★★</span>
+                <span style={{ color: alpha(C.card, 0.32) }}>★★★★★</span>
                 {/* La couche allumée se superpose exactement à l'éteinte :
                     même texte, même chasse, donc les deux rangées se
                     recouvrent au pixel et la coupure tombe où il faut. */}
@@ -395,12 +399,22 @@ export const DECOR_BOX = 46;
 /* Le carton et sa maquette au cabinet doivent se ressembler assez pour
    qu'on reconnaisse dans la rangée ce qu'on a tiré du panneau : les deux
    lisent donc leur habillage ici. */
+/* LE LAVIS A ÉTÉ APPUYÉ. À treize pour cent d'encre, le carton était un
+   voile : ce qui sépare doit se voir de loin, sinon la rangée n'a plus
+   de coupures, seulement une nuance. On monte donc à un bon quart, et le
+   filet à trois quarts — assez pour tenir son bord contre douze tranches
+   de kraft, pas assez pour devenir un aplat qui volerait la vedette aux
+   boîtiers.
+
+   L'opacité s'écrit avec `alpha` et non plus en collant `22` derrière la
+   couleur : la teinte reste un hexadécimal aujourd'hui, mais l'ombre
+   portée, elle, doit suivre la peau — et `color-mix` prend les deux. */
 export const dividerSkin = (ink) => ({
-  background: `linear-gradient(160deg, ${ink}22, ${ink}3A)`,
-  border: `1px solid ${ink}99`,
+  background: `linear-gradient(160deg, ${alpha(ink, 0.26)}, ${alpha(ink, 0.44)})`,
+  border: `1px solid ${alpha(ink, 0.75)}`,
   borderBottom: "none",
   borderRadius: "3px 3px 0 0",
-  boxShadow: "2px 2px 0 rgba(43,38,32,0.2)",
+  boxShadow: `2px 2px 0 ${alpha(C.ink, 0.2)}`,
 });
 
 /* L'onglet : la tête pleine, et l'œillet dedans. */
@@ -418,7 +432,7 @@ export const DividerHead = ({ ink, height }) => (
       alignItems: "center",
       justifyContent: "center",
       // le carton est un peu plus clair juste sous la tête, comme un pli
-      boxShadow: `0 1px 0 rgba(246,239,222,0.45)`,
+      boxShadow: `0 1px 0 ${alpha(C.card, 0.45)}`,
     }}
   >
     <span
@@ -1033,7 +1047,14 @@ export const CategoryBox = React.memo(function CategoryBox({
              bas, pour que les boîtiers qu'elle tient posent sur la planche
              du rayon comme les autres. Une pochette fermée les ferait
              flotter, et l'étagère cesserait d'être une étagère. */
-          background: `linear-gradient(160deg, ${C.paperDark}, #D8C69C)`,
+          /* LE DÉGRADÉ SUIT LA PEAU. Il finissait sur un `#D8C69C` écrit
+             en dur — le kraft du carnet, et lui seul : sous une peau de
+             nuit, le carton s'éclaircissait vers un beige qui n'était
+             plus la couleur de rien. Les deux bouts sont maintenant des
+             jetons, et un lavis de l'encre du carton par-dessus le
+             rattache à sa catégorie sans le repeindre. */
+          background: `linear-gradient(160deg, ${alpha(ink, 0.1)}, ${alpha(ink, 0.16)}),
+            linear-gradient(160deg, ${C.card}, ${C.paperDark})`,
           border: `1px solid ${C.line}`,
           borderBottom: "none",
           /* Une boîte coupée en deux garde ses bords là où elle commence
@@ -1042,16 +1063,20 @@ export const CategoryBox = React.memo(function CategoryBox({
           borderLeft: first ? `1px solid ${C.line}` : "none",
           borderRight: last ? `1px solid ${C.line}` : "none",
           borderRadius: `${first ? 3 : 0}px ${last ? 3 : 0}px 0 0`,
-          boxShadow: last ? "2px 2px 0 rgba(43,38,32,0.14)" : "0 2px 0 rgba(43,38,32,0.14)",
+          boxShadow: last ? `2px 2px 0 ${alpha(C.ink, 0.14)}` : `0 2px 0 ${alpha(C.ink, 0.14)}`,
           "--cat-open": `${ink}22`,
         }}
       >
         {/* L'onglet d'index : la couleur est une languette collée en tête de
             carton, pas un aplat qui mangerait le kraft. C'est ainsi qu'on
-            repère un dossier dans une boîte d'archives. */}
+            repère un dossier dans une boîte d'archives.
+
+            Elle a épaissi : quatre pixels, c'était un cheveu qu'on ne
+            voyait plus dès qu'une rangée s'éloignait. Sept la font lire
+            comme une languette sans qu'elle devienne un bandeau. */}
         <div
           style={{
-            height: 4,
+            height: 7,
             background: ink,
             borderRadius: `${first ? 2 : 0}px ${last ? 2 : 0}px 0 0`,
             opacity: 0.9,
@@ -1065,12 +1090,15 @@ export const CategoryBox = React.memo(function CategoryBox({
           <div
             onClick={() => setEditing(true)}
             title={cat.label}
+            /* LE NOM SE LIT. À dix virgule cinq, c'était une mention en bas
+               de page sur l'objet qui donne son nom à toute la boîte. */
             style={{
-              padding: "4px 8px",
+              padding: "5px 10px",
               cursor: "text",
               color: ink,
               fontFamily: F.mono,
-              fontSize: 10.5,
+              fontSize: 12.5,
+              fontWeight: 600,
               letterSpacing: "0.06em",
               borderBottom: `1px solid ${C.line}`,
               display: "flex",
@@ -1098,7 +1126,9 @@ export const CategoryBox = React.memo(function CategoryBox({
                   flex: 1,
                   minWidth: 60,
                   fontFamily: F.mono,
-                  fontSize: 10.5,
+                  // la même écriture que le nom posé : le texte ne saute pas
+                  fontSize: 12.5,
+                  fontWeight: 600,
                   color: C.ink,
                   borderBottom: `1px solid ${C.line}`,
                 }}

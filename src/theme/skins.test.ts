@@ -72,7 +72,7 @@ describe("poser une peau", () => {
   });
 
   it("écrit chaque jeton là où le renvoi ira le chercher", () => {
-    const skin = applySkin("terminal");
+    const skin = applySkin("kodachrome");
     const root = document.documentElement.style;
     for (const [token, color] of Object.entries(skin.c)) {
       // le renvoi tel que `tokens` l'écrit, et la variable telle qu'on la pose
@@ -84,14 +84,14 @@ describe("poser une peau", () => {
   });
 
   it("pose le fond, la forme et l'atmosphère", () => {
-    applySkin("brutaliste");
+    applySkin("bauhaus");
     const root = document.documentElement.style;
-    expect(root.getPropertyValue("--page-bg")).toContain("#FFFFFF");
+    expect(root.getPropertyValue("--page-bg")).toContain("#F2F0EB");
     expect(root.getPropertyValue("--tag-radius")).toBe("0px");
-    // une peau brutaliste n'a ni grain ni tache
+    // le Bauhaus n'a ni grain ni tache : trois couleurs et rien dessus
     expect(root.getPropertyValue("--atm-grain")).toBe("0");
     expect(root.getPropertyValue("--atm-stain")).toBe("0");
-    expect(document.documentElement.dataset.skin).toBe("brutaliste");
+    expect(document.documentElement.dataset.skin).toBe("bauhaus");
   });
 
   /* Un seul élément de lien, réutilisé : en créer un par essai
@@ -99,7 +99,7 @@ describe("poser une peau", () => {
      essayées, et la dernière DÉCLARÉE gagnerait — pas la dernière
      choisie. */
   it("ne laisse qu'un seul lien de polices, quoi qu'on essaie", () => {
-    applySkin("neon");
+    applySkin("japon");
     const premier = document.getElementById("skin-fonts") as HTMLLinkElement;
     applySkin("pastel");
     expect(document.querySelectorAll("link[id='skin-fonts']")).toHaveLength(1);
