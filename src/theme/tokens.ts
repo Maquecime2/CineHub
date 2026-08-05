@@ -110,8 +110,8 @@ export const FONT_IMPORT = `
   --f-mono: 'Special Elite', monospace;
 
   /* La FORME des choses, que la couleur seule ne dit pas : un onglet de
-     classeur n'a pas le même angle qu'une pastille pastel, et une peau
-     brutaliste ne veut aucun arrondi nulle part. */
+     classeur n'a pas le même angle qu'une pastille pastel, et une
+     affiche imprimée ne veut aucun arrondi nulle part. */
   --tag-radius: 3px;
   --tag-tracking: 1.5px;
   --tag-transform: none;

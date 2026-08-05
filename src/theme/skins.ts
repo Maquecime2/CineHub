@@ -11,16 +11,17 @@
      - LES TEINTES — les treize jetons de `tokens`.
      - LA TYPOGRAPHIE — les quatre rôles, avec les familles à charger.
      - LE FOND DE PAGE — pas une couleur, une recette : le kraft a des
-       nappes plus claires là où la lumière tombe, un terminal n'a rien
-       du tout, une peau néon a un halo.
+       nappes plus claires là où la lumière tombe, une planche contact a
+       ses perforations, une nuit américaine a sa lune froide.
      - LA FORME ET L'ATMOSPHÈRE — l'angle d'un onglet, le grain du
-       papier, les ronds de café. Une peau brutaliste n'a pas d'arrondi
-       et pas de taches : ce n'est pas une couleur qui le dit.
+       papier, les ronds de café. Une affiche imprimée n'a pas de tache
+       de café : ce n'est pas une couleur qui le dit.
 
    LES NOMS DES JETONS NE VEULENT PLUS DIRE LEUR COULEUR. `burgundy`
-   désigne « la teinte chaude qui porte l'identité » — un magenta dans la
-   peau néon, un vert phosphore dans le terminal. Les renommer aurait
-   touché six cent treize lignes pour ne rien changer à ce qu'on voit.
+   désigne « la teinte chaude qui porte l'identité » — un indigo dans le
+   papier Japon, un orangé de diapositive dans le Kodachrome. Les
+   renommer aurait touché six cent treize lignes pour ne rien changer à
+   ce qu'on voit.
 
    Ce que les peaux NE touchent PAS :
      - le nuancier des objets rangés (`theme/palette`), qui appartient au
@@ -203,78 +204,100 @@ export const SKINS: Skin[] = [
     atm: { grain: 0, stain: 0, vignette: 0 },
   },
 
-  {
-    key: "terminal",
-    label: "Terminal",
-    note: "phosphore vert, quarante colonnes",
-    dark: true,
-    c: {
-      paper: "#0A0F0A",
-      paperDark: "#060906",
-      card: "#0F160F",
-      ink: "#7DF37D",
-      inkFaded: "#3E8C4E",
-      burgundy: "#39FF6A",
-      ochre: "#9BFF57",
-      pine: "#2FBF6B",
-      slate: "#4E9E7A",
-      line: "#1F3D26",
-      cobalt: "#38D9A9",
-      vermillion: "#B6FF3D",
-      moss: "#6BE86B",
-    },
-    fonts: {
-      title: "'VT323', monospace",
-      body: "'IBM Plex Mono', monospace",
-      hand: "'VT323', monospace",
-      mono: "'IBM Plex Mono', monospace",
-    },
-    google: ["VT323", "IBM+Plex+Mono:wght@400;500;600"],
-    page: `
-      repeating-linear-gradient(0deg, #0000 0 2px, #00ff6a08 2px 4px),
-      radial-gradient(ellipse at 50% 50%, #0E1A0E 0%, #060906 80%)`,
-    tag: { radius: "0px", tracking: "2px", transform: "uppercase" },
-    atm: { grain: 0.35, stain: 0, vignette: 1 },
-  },
+  /* LA NUIT AMÉRICAINE — le jour tourné pour la nuit.
 
+     Le procédé consiste à filmer en plein soleil, à sous-exposer et à
+     poser un filtre bleu : on obtient une nuit où tout garde ses ombres
+     de midi. La peau fait exactement cela — un fond bleu-gris qui n'est
+     pas noir, des ombres portées trop nettes pour l'heure qu'il prétend
+     être, et une seule chaleur, l'ambre du projecteur, pour rappeler que
+     le soleil est resté là. */
   {
-    key: "neon",
-    label: "Néon",
-    note: "une nuit de synthèse, magenta et cyan",
+    key: "nuit-americaine",
+    label: "Nuit américaine",
+    note: "le jour tourné pour la nuit, filtre bleu",
     dark: true,
     c: {
-      paper: "#140B29",
-      paperDark: "#0C0619",
-      card: "#1F1140",
-      ink: "#F2E9FF",
-      inkFaded: "#9B87C4",
-      burgundy: "#FF2E88",
-      ochre: "#FFB627",
-      pine: "#00E5A0",
-      slate: "#7C6BB5",
-      line: "#3D2A6B",
-      cobalt: "#22D3EE",
-      vermillion: "#FF6B35",
-      moss: "#9EF01A",
+      paper: "#16202B",
+      paperDark: "#101821",
+      card: "#1E2B39",
+      ink: "#DCE6EF",
+      inkFaded: "#8CA0B4",
+      burgundy: "#E0A458",
+      ochre: "#D9BC7A",
+      pine: "#6E9E92",
+      slate: "#7E93A8",
+      line: "#334657",
+      cobalt: "#6FA8D6",
+      vermillion: "#D98A5E",
+      moss: "#8FA87C",
     },
     fonts: {
-      title: "'Orbitron', sans-serif",
-      body: "'Rajdhani', sans-serif",
+      title: "'Bebas Neue', sans-serif",
+      body: "'Barlow', sans-serif",
       hand: "'Caveat', cursive",
-      mono: "'Share Tech Mono', monospace",
+      mono: "'Barlow Condensed', sans-serif",
     },
     google: [
-      "Orbitron:wght@500;700",
-      "Rajdhani:wght@400;500;600",
+      "Bebas+Neue",
+      "Barlow:wght@400;500;600",
       "Caveat:wght@500;600;700",
-      "Share+Tech+Mono",
+      "Barlow+Condensed:wght@400;600",
     ],
     page: `
-      radial-gradient(circle at 15% 8%, #FF2E8833 0%, transparent 45%),
-      radial-gradient(circle at 85% 75%, #22D3EE2E 0%, transparent 45%),
-      linear-gradient(180deg, #1B0F35, #0C0619)`,
-    tag: { radius: "0px", tracking: "3px", transform: "uppercase" },
-    atm: { grain: 0.25, stain: 0, vignette: 1 },
+      radial-gradient(ellipse at 72% -8%, #2C4155 0%, transparent 55%),
+      radial-gradient(circle at 20% 90%, #1B2938 0%, transparent 50%),
+      linear-gradient(170deg, #1B2836, #101821)`,
+    tag: { radius: "1px", tracking: "2px", transform: "uppercase" },
+    atm: { grain: 0.45, stain: 0, vignette: 1 },
+  },
+
+  /* LE KODACHROME — une diapositive oubliée dans sa boîte.
+
+     Ce qu'on regarde d'une diapositive, c'est d'abord son cadre : un
+     rectangle sombre qui isole l'image et fait paraître les couleurs
+     plus fortes qu'elles ne sont. D'où un fond presque noir mais tiré
+     vers le brun de la boîte, et des teintes qui ne se retiennent pas —
+     l'orangé et le cyan que ce film rendait mieux que tous les autres,
+     et qui ont fini par être la couleur de toute une décennie. */
+  {
+    key: "kodachrome",
+    label: "Kodachrome",
+    note: "diapositive oubliée dans sa boîte",
+    dark: true,
+    c: {
+      paper: "#1A1512",
+      paperDark: "#110E0C",
+      card: "#251E19",
+      ink: "#F4E7D6",
+      inkFaded: "#A08D78",
+      burgundy: "#E2612A",
+      ochre: "#E8A519",
+      pine: "#2E9E86",
+      slate: "#7F7264",
+      line: "#3E332B",
+      cobalt: "#2F9CC4",
+      vermillion: "#D93E1F",
+      moss: "#9A9E35",
+    },
+    fonts: {
+      title: "'Fjalla One', sans-serif",
+      body: "'Karla', sans-serif",
+      hand: "'Caveat', cursive",
+      mono: "'DM Mono', monospace",
+    },
+    google: [
+      "Fjalla+One",
+      "Karla:wght@400;500;700",
+      "Caveat:wght@500;600;700",
+      "DM+Mono:wght@400;500",
+    ],
+    page: `
+      radial-gradient(ellipse at 50% 0%, #35251B 0%, transparent 58%),
+      radial-gradient(circle at 88% 92%, #2A1D16 0%, transparent 45%),
+      #110E0C`,
+    tag: { radius: "0px", tracking: "2px", transform: "uppercase" },
+    atm: { grain: 0.7, stain: 0.2, vignette: 1 },
   },
 
   {
@@ -464,35 +487,49 @@ export const SKINS: Skin[] = [
     atm: { grain: 0, stain: 0, vignette: 0 },
   },
 
+  /* LE PAPIER JAPON — indigo, blanc cassé, un sceau rouge.
+
+     Une page qui laisse presque tout vide, et où le peu qui est écrit
+     porte d'autant plus. Deux encres suffisent : l'indigo, qui écrit, et
+     le vermillon du sceau, qui n'écrit rien mais dit à qui c'est. Les
+     autres jetons sont donc tenus bas — un nuancier bavard casserait le
+     silence sur lequel cette peau est bâtie. */
   {
-    key: "brutaliste",
-    label: "Brutaliste",
-    note: "aucun arrondi, aucune tache, aucune excuse",
+    key: "japon",
+    label: "Papier Japon",
+    note: "indigo, blanc cassé, un sceau rouge",
     c: {
-      paper: "#FFFFFF",
-      paperDark: "#EAEAEA",
-      card: "#FFFFFF",
-      ink: "#000000",
-      inkFaded: "#666666",
-      burgundy: "#000000",
-      ochre: "#000000",
-      pine: "#000000",
-      slate: "#000000",
-      line: "#000000",
-      cobalt: "#0000FF",
-      vermillion: "#FF0000",
-      moss: "#000000",
+      paper: "#F4F1E9",
+      paperDark: "#E4DFD2",
+      card: "#FBF9F3",
+      ink: "#1F2A3C",
+      inkFaded: "#6B7484",
+      burgundy: "#20355E",
+      ochre: "#A8813C",
+      pine: "#46655A",
+      slate: "#6E7B8B",
+      line: "#CFC8B6",
+      cobalt: "#2E5A8C",
+      vermillion: "#C2342A",
+      moss: "#6E7B4A",
     },
     fonts: {
-      title: "'Inter', sans-serif",
-      body: "'Inter', sans-serif",
-      hand: "'Inter', sans-serif",
-      mono: "'Inter', sans-serif",
+      title: "'Shippori Mincho', serif",
+      body: "'Zen Kaku Gothic New', sans-serif",
+      hand: "'Klee One', cursive",
+      mono: "'Zen Kaku Gothic New', sans-serif",
     },
-    google: ["Inter:wght@400;600;900"],
-    page: `#FFFFFF`,
-    tag: { radius: "0px", tracking: "0px", transform: "uppercase" },
-    atm: { grain: 0, stain: 0, vignette: 0 },
+    google: [
+      "Shippori+Mincho:wght@500;700",
+      "Zen+Kaku+Gothic+New:wght@400;500;700",
+      "Klee+One:wght@400;600",
+    ],
+    page: `
+      radial-gradient(circle at 30% 10%, #FBF8F1 0%, transparent 55%),
+      radial-gradient(circle at 80% 90%, #ECE7DA 0%, transparent 50%),
+      #F4F1E9`,
+    tag: { radius: "1px", tracking: "2px", transform: "none" },
+    atm: { grain: 0.9, stain: 0.2, vignette: 0.4 },
   },
 
   {
@@ -534,43 +571,46 @@ export const SKINS: Skin[] = [
     atm: { grain: 1, stain: 0.6, vignette: 1 },
   },
 
+  /* L'AFFICHE POLONAISE — papier grisâtre, aplats criards.
+
+     L'école polonaise d'affiche de cinéma n'avait ni photographie ni
+     budget : elle avait un mauvais papier, trois encres, et le droit de
+     dessiner le film au lieu de le photographier. D'où ce fond gris —
+     jamais blanc, le blanc coûtait cher — et des couleurs qui ne
+     cherchent pas à s'accorder entre elles : elles se cognent, et c'est
+     précisément le sujet. */
   {
-    key: "abysse",
-    label: "Abysse",
-    note: "très loin sous la surface",
-    dark: true,
+    key: "affiche",
+    label: "Affiche polonaise",
+    note: "papier grisâtre, trois encres qui se cognent",
     c: {
-      paper: "#0B1B22",
-      paperDark: "#07131A",
-      card: "#11262F",
-      ink: "#D6EEF2",
-      inkFaded: "#6E97A3",
-      burgundy: "#2FB6A8",
-      ochre: "#6FD3C0",
-      pine: "#2E8C7E",
-      slate: "#5E8CA0",
-      line: "#1E3D48",
-      cobalt: "#3E9BD1",
-      vermillion: "#4FD1C5",
-      moss: "#79B88C",
+      paper: "#DCD8CE",
+      paperDark: "#C7C2B6",
+      card: "#EAE7DF",
+      ink: "#1A1A18",
+      inkFaded: "#5F5C55",
+      burgundy: "#D0281E",
+      ochre: "#F0B412",
+      pine: "#1F7A4C",
+      slate: "#4A5568",
+      line: "#8F8A7D",
+      cobalt: "#1B3FA8",
+      vermillion: "#E8531B",
+      moss: "#7B8A1C",
     },
     fonts: {
-      title: "'Marcellus', serif",
-      body: "'Lato', sans-serif",
-      hand: "'Caveat', cursive",
-      mono: "'Barlow Condensed', sans-serif",
+      title: "'Bungee', sans-serif",
+      body: "'Rubik', sans-serif",
+      hand: "'Permanent Marker', cursive",
+      mono: "'Space Mono', monospace",
     },
-    google: [
-      "Marcellus",
-      "Lato:wght@400;700",
-      "Caveat:wght@500;600;700",
-      "Barlow+Condensed:wght@400;600",
-    ],
+    google: ["Bungee", "Rubik:wght@400;500;700", "Permanent+Marker", "Space+Mono:wght@400;700"],
     page: `
-      radial-gradient(ellipse at 50% -20%, #1B4A57 0%, transparent 60%),
-      linear-gradient(180deg, #0E2029, #07131A)`,
-    tag: { radius: "10px", tracking: "2px", transform: "none" },
-    atm: { grain: 0.3, stain: 0, vignette: 1 },
+      repeating-linear-gradient(45deg, #00000006 0 2px, transparent 2px 5px),
+      radial-gradient(circle at 70% 15%, #E4E0D6 0%, transparent 50%),
+      #DCD8CE`,
+    tag: { radius: "0px", tracking: "1.5px", transform: "uppercase" },
+    atm: { grain: 1, stain: 0.15, vignette: 0.3 },
   },
 ];
 
