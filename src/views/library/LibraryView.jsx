@@ -824,7 +824,9 @@ export function LibraryView({
            du contenu de vingt pixels pour que les fiches ne soient pas
            collées à l'arête, et la texture reste un calque à elle, qui
            se fond en `multiply` — un fond ne sait pas faire ça seul. */
-        <div style={{ position: "relative", zIndex: 2, padding: look.decor ? 20 : 0, ...skin.frame }}>
+        <div
+          style={{ position: "relative", zIndex: 2, padding: look.decor ? 20 : 0, ...skin.frame }}
+        >
           {skin.texture && (
             <div
               aria-hidden
