@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pin, Plus, Trash2, LayoutGrid, Library, Paperclip } from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { underlineInput } from "../../theme/styles";
-import { hash } from "../../domain/seeded";
+import { hash, tiltOf } from "../../domain/seeded";
 import { CoffeeRing, TapeResidue, StampCorner, InkUnderline } from "../../components/atmosphere";
 import { Label } from "../../components/ui";
 import { ShelfBoard } from "../../components/shelf/ShelfBoard";
@@ -871,14 +871,79 @@ export function LibraryView({
    tamis ne laisse rien passer. Ce sont deux vides différents, et ils ne
    se disent pas de la même façon. */
 function WallEmpty({ films, cfg }) {
+  const jamais = films.length === 0;
   return (
     <div
       style={{
         textAlign: "center",
-        padding: "60px 20px",
+        padding: "40px 20px 60px",
         color: C.inkFaded,
       }}
     >
+      {/* LES CADRES FANTÔMES.
+
+          Seulement quand la collection est VIDE POUR DE BON. Un tamis
+          qui ne laisse rien passer n'est pas un mur nu : montrer là des
+          emplacements à remplir laisserait croire qu'on a perdu des
+          fiches, alors qu'il suffit d'élargir la recherche.
+
+          Ils ne sont pas décoratifs : ils disent la FORME de ce qui
+          viendra — six affiches, punaisées de travers — et une invite
+          seule ne le dit pas. */}
+      {jamais && (
+        <div
+          aria-hidden
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            gap: 16,
+            flexWrap: "wrap",
+            marginBottom: 34,
+            opacity: 0.5,
+          }}
+        >
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <div
+              key={i}
+              style={{
+                width: 74,
+                height: 111,
+                border: `1.5px dashed ${C.line}`,
+                borderRadius: 2,
+                /* L'inclinaison vient de la même veine que tout le
+                   désordre du site : dérivée, jamais tirée au sort à
+                   chaque rendu — un mur qui gigote n'est pas un mur.
+
+                   L'INDICE EST DEVANT, ET C'EST NÉCESSAIRE. Le hachage
+                   du projet est un Horner : deux chaînes qui ne
+                   diffèrent que par leur DERNIER caractère ont deux
+                   hachages qui ne diffèrent que d'autant, et le modulo
+                   le conserve. `fantome-0` … `fantome-5` donnaient donc
+                   −2,0 −1,9 −1,8 … : une rampe régulière, c'est-à-dire
+                   exactement le contraire du désordre qu'on cherchait.
+                   Placé en tête, l'indice se propage dans tout le
+                   calcul et disperse. */
+                transform: `rotate(${tiltOf(`${i}-cadre-vide`)}deg)`,
+                position: "relative",
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  top: -5,
+                  left: "50%",
+                  marginLeft: -5,
+                  width: 10,
+                  height: 10,
+                  borderRadius: "50%",
+                  border: `1.5px dashed ${C.line}`,
+                }}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+
       <Pin size={26} color={C.line} style={{ marginBottom: 10 }} />
       <div
         style={{
@@ -888,10 +953,10 @@ function WallEmpty({ films, cfg }) {
           marginBottom: 6,
         }}
       >
-        {films.length === 0 ? cfg.empty[0] : "Rien à afficher"}
+        {jamais ? cfg.empty[0] : "Rien à afficher"}
       </div>
       <div style={{ fontFamily: F.hand, fontSize: 19 }}>
-        {films.length === 0 ? cfg.empty[1] : "Essayez une autre recherche."}
+        {jamais ? cfg.empty[1] : "Essayez une autre recherche."}
       </div>
     </div>
   );

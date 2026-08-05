@@ -75,6 +75,9 @@ function Carton({
   const punaise = Math.abs(hash(seed)) % 3 === 0;
   return (
     <div
+      /* Un carton ne se coupe pas en deux entre deux pages : voir
+         `theme/print.css`, qui s'accroche à cet attribut. */
+      data-print-block
       style={{
         position: "relative",
         background: C.card,

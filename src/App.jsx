@@ -450,7 +450,17 @@ export default function App() {
           alors la largeur qu'elle a VRAIMENT (voir `useRowCap`) et pose
           le nombre de boîtiers qui y tiennent, au lieu d'en poser dix et
           de pousser la fenêtre. */}
-      <div style={{ flex: 1, minWidth: 0, position: "relative", zIndex: 2 }}>
+      {/* `key` PLUTÔT QU'UNE CLASSE POSÉE À LA MAIN. Une animation ne se
+          rejoue que si le nœud est neuf : sans clé, React réemploie le
+          même conteneur d'une vue à l'autre et rien ne bouge après le
+          premier rendu. La clé porte aussi la fiche ouverte — passer
+          d'un film à un autre depuis le fil rouge est un changement de
+          page, et doit se lire comme tel. */}
+      <div
+        data-enters
+        key={`${view}:${selectedId || ""}`}
+        style={{ flex: 1, minWidth: 0, position: "relative", zIndex: 2 }}
+      >
         {view === "library" && !selectedId && (
           <LibraryView
             wall="watched"
