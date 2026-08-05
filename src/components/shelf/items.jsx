@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { C, F, alpha } from "../../theme/tokens";
 import { hueOf } from "../../theme/ink";
 import { tiltOf } from "../../domain/seeded";
-import { watchCount } from "../../domain/film";
+import { watchCount, initialsOf } from "../../domain/film";
 import { PosterArt } from "../film/PosterArt";
 import { PushPin } from "../atmosphere";
 import { Palette } from "lucide-react";
@@ -127,13 +127,7 @@ export const FilmBox = React.memo(function FilmBox({
   const pressAt = useRef(null);
   const dragged = useRef(false);
   const hue = hueOf(film.id);
-  const initials = film.title
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase();
+  const initials = initialsOf(film.title);
   /* LA NOTE SUR LA TRANCHE.
 
      On comptait les étoiles pleines et les creuses avec deux `repeat`.

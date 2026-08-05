@@ -6,6 +6,7 @@ import { X, Trash2, Upload, ChevronLeft, Eye, EyeOff } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { wallStyle, materialStyle, PLANK_SHADOW } from "../../theme/surfaces";
 import { hash, fileNoOf } from "../../domain/seeded";
+import { initialsOf } from "../../domain/film";
 import { PosterArt } from "../film/PosterArt";
 import { InkStars } from "../ui";
 import { isUnplaced, CAT_KEYS, addRow, removeRow, clearRow, addCat } from "../../shelf-views";
@@ -1002,13 +1003,7 @@ export function CasePreview({ film, onClose, onOpenFile }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const initials = film.title
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase();
+  const initials = initialsOf(film.title);
   return (
     <div
       onClick={onClose}

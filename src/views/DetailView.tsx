@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { C, F } from "../theme/tokens";
 import { underlineInput } from "../theme/styles";
-import { uid, withWatches } from "../domain/film";
+import { uid, withWatches, initialsOf } from "../domain/film";
 import { putImage } from "../db";
 import { imageSize, shrinkImage } from "../services/images";
 import { Label, InkStars } from "../components/ui";
@@ -225,12 +225,7 @@ export function DetailView({
               rotate={-5}
               style={{ top: -10, left: "50%", marginLeft: -35 }}
             />
-            <PosterArt
-              film={film}
-              height={290}
-              clipSeed={11}
-              initials={film.title.slice(0, 2).toUpperCase()}
-            />
+            <PosterArt film={film} height={290} clipSeed={11} initials={initialsOf(film.title)} />
           </div>
           <PosterPicker film={film} onUpdate={onUpdate} />
           <div

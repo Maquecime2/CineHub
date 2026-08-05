@@ -39,12 +39,17 @@ export const makeFilm = (partial: Partial<Film> = {}): Film => ({
   ...partial,
 });
 
-/* Les initiales qui tiennent lieu d'affiche quand il n'y en a pas.
+/* L'AFFICHE DE SECOURS — les initiales du titre.
 
-   Le calcul vivait recopié dans `FilmPolaroid`, `shelf/items` et
-   `shelf/layout` — trois copies d'une même règle, qui ne demandent qu'à
-   diverger. L'export de l'almanach en aurait fait une quatrième : il est
-   posé ici, où le modèle est. */
+   La règle est UNE : les premières lettres des deux premiers mots. Elle
+   était recopiée sous chaque endroit qui dessine un film — `FilmPolaroid`,
+   `shelf/items`, `shelf/layout` — et l'export de l'almanach en aurait
+   fait une quatrième copie.
+
+   Pire : la fiche en appliquait une AUTRE, `title.slice(0, 2)`. « Sans
+   toit ni loi » devenait « SN » au mur et « SA » sur sa propre fiche,
+   pour le même film. Deux images d'une même chose qui ne se ressemblent
+   pas, c'est la chose qu'on cesse de reconnaître. */
 export const initialsOf = (title = ""): string =>
   title
     .split(" ")
