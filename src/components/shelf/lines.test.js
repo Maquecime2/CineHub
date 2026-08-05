@@ -69,18 +69,12 @@ describe("splitRow — le découpage d'une rangée en lignes de bois", () => {
     const gros = makeDecor({ id: "d2", motif: "plant", size: 4.6 });
     // au calibre M il laisse tenir deux boîtiers ; en XXXL il prend les trois cases
     expect(shape(splitRow([petit, filmItem("a"), filmItem("b")], 3))).toEqual([["d1", "a", "b"]]);
-    expect(shape(splitRow([gros, filmItem("a"), filmItem("b")], 3))).toEqual([
-      ["d2"],
-      ["a", "b"],
-    ]);
+    expect(shape(splitRow([gros, filmItem("a"), filmItem("b")], 3))).toEqual([["d2"], ["a", "b"]]);
   });
 
   it("renvoie à la ligne ce qu'un gros décor ne laisse plus tenir", () => {
     const gros = makeDecor({ id: "d1", motif: "plant", size: 2.2 });
-    expect(shape(splitRow([filmItem("a"), gros, filmItem("b")], 3))).toEqual([
-      ["a", "d1"],
-      ["b"],
-    ]);
+    expect(shape(splitRow([filmItem("a"), gros, filmItem("b")], 3))).toEqual([["a", "d1"], ["b"]]);
   });
 
   /* Une planche trop étroite pour l'objet n'a rien de mieux à offrir que
