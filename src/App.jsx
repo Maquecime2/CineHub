@@ -427,7 +427,23 @@ export default function App() {
       {skinPicker && (
         <SkinPicker skin={skin} onPick={setSkin} onClose={() => setSkinPicker(false)} />
       )}
-      <div style={{ flex: 1, position: "relative", zIndex: 2 }}>
+      {/* LA COLONNE QUI DOIT POUVOIR RÉTRÉCIR.
+
+          `flex: 1` ne suffit pas : un objet flex garde `min-width: auto`,
+          c'est-à-dire qu'il refuse de descendre sous la largeur MINIMALE
+          de son contenu. Sur le mur, ce minimum est petit — les affiches
+          se replient. Sur l'étagère, c'est la plus longue rangée de
+          boîtiers, qui ne rétrécissent pas : la colonne se plantait donc
+          à mille deux cents pixels quelle que soit la fenêtre, et tout ce
+          qui dépassait devenait une barre de défilement horizontale sur
+          la page entière — dès l'ouverture de la vue, sans qu'aucun décor
+          y soit pour rien.
+
+          `minWidth: 0` lui rend le droit de rétrécir. La rangée mesure
+          alors la largeur qu'elle a VRAIMENT (voir `useRowCap`) et pose
+          le nombre de boîtiers qui y tiennent, au lieu d'en poser dix et
+          de pousser la fenêtre. */}
+      <div style={{ flex: 1, minWidth: 0, position: "relative", zIndex: 2 }}>
         {view === "library" && !selectedId && (
           <LibraryView
             wall="watched"
