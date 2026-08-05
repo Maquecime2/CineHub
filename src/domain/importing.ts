@@ -72,10 +72,16 @@ export function parseLetterboxdCsv(file: File): Promise<ParsedCsv> {
             continue;
           }
           const yearRaw = pick(r, ["Year", "year"]);
-          // « Watched Date » (diary) est la vraie date de séance. « Date » ne
-          // l'est pas toujours — dans ratings.csv c'est la date de notation —
-          // mais elle reste la meilleure approximation disponible ailleurs.
-          const watchedAt = pick(r, ["Watched Date", "Date", "date"]);
+          /* UNE DATE N'EST PAS UNE SÉANCE. « Watched Date » (diary) en est
+             une : elle dit le jour où le film a été vu. « Date » n'en est
+             jamais une — c'est le jour où la fiche a été ajoutée dans
+             watched.csv, celui où la note a été posée dans ratings.csv.
+             En faire une séance donnait à un film vu UNE fois deux
+             entrées au journal dès qu'on déposait watched.csv puis
+             diary.csv, et un « ×2 » sur une fiche que personne n'avait
+             revue. Elle reste bonne à dater la fiche, et à rien d'autre. */
+          const seance = pick(r, ["Watched Date"]);
+          const watchedAt = seance || pick(r, ["Date", "date"]);
           const rating = parseRating(pick(r, ["Rating", "rating"]) || null);
           const rewatch = /^(yes|true|1)$/i.test(pick(r, ["Rewatch", "rewatch"]));
           const row: ImportRow = {
@@ -84,10 +90,10 @@ export function parseLetterboxdCsv(file: File): Promise<ParsedCsv> {
             rating,
             watchedAt: watchedAt || null,
             uri: pick(r, ["Letterboxd URI"]) || null,
-            /* La séance que porte CETTE ligne. Sans date, il n'y a pas de
-               séance à consigner — ratings.csv note un film sans dire
-               quand il a été vu. */
-            watches: watchedAt ? [{ date: watchedAt, rating, ...(rewatch && { rewatch }) }] : [],
+            /* La séance que porte CETTE ligne — s'il y en a une. Seul
+               diary.csv en consigne ; watched.csv et ratings.csv disent
+               qu'un film a été vu et noté, jamais quand. */
+            watches: seance ? [{ date: seance, rating, ...(rewatch && { rewatch }) }] : [],
           };
           /* diary.csv a une ligne par visionnage. On les EMPILE désormais :
              elles ne se contredisent pas, elles se suivent. La fiche, elle,
@@ -134,9 +140,28 @@ export function parseLetterboxdCsv(file: File): Promise<ParsedCsv> {
   });
 }
 
+export interface DiffOptions {
+  /* LE FICHIER FAIT AUTORITÉ SUR LES SÉANCES : son journal REMPLACE
+     celui de la fiche au lieu de le compléter.
+
+     Par défaut on complète, et c'est la bonne règle : un `diary.csv`
+     apporte des séances anciennes qu'on n'avait pas, et rien ne doit se
+     perdre. Mais compléter ne sait pas défaire, et une fiche qui a
+     récolté une séance qui n'en était pas une la garde pour toujours.
+     Redéposer le diary en le déclarant SEUL MAÎTRE remet le journal
+     d'aplomb — c'est le seul chemin qui retire une séance sans qu'on
+     l'ait retirée à la main. */
+  authoritativeWatches?: boolean;
+}
+
 /* Compare le CSV à la vidéothèque sans rien écrire : c'est ce diff qui est
    montré à l'écran avant validation. */
-export function diffImport(existing: Film[], rows: ImportRow[], status: FilmStatus): ImportDiff {
+export function diffImport(
+  existing: Film[],
+  rows: ImportRow[],
+  status: FilmStatus,
+  { authoritativeWatches = false }: DiffOptions = {}
+): ImportDiff {
   const byTmdb = new Map(existing.filter((f) => f.tmdbId).map((f) => [String(f.tmdbId), f]));
   const byKey = new Map(existing.map((f) => [filmKey(f), f]));
 
@@ -157,11 +182,22 @@ export function diffImport(existing: Film[], rows: ImportRow[], status: FilmStat
         rating: r.rating ?? 0,
         status,
         source: "letterboxd",
+        /* Quand la source sait dans quel ordre les fiches ont été mises
+           de côté, on la croit : sinon les cinq cents films d'un même
+           relevé porteraient tous la même milliseconde, et le tri « par
+           ajout » rendrait un ordre au hasard. */
+        ...(r.addedAt ? { addedAt: r.addedAt } : null),
       });
       /* `withWatches` pose le journal ET la date : les écrire séparément
          serait le premier endroit où les deux pourraient diverger. Un film
          « à voir » n'a évidemment aucune séance. */
-      toCreate.push(status === "watched" ? withWatches(fresh, r.watches || []) : fresh);
+      const made = status === "watched" ? withWatches(fresh, r.watches || []) : fresh;
+      /* Une fiche sans séance peut quand même être datée : watched.csv
+         sait qu'on a vu le film, pas quand. La date approchée vaut mieux
+         qu'un vide — c'est elle qui range la vidéothèque — mais elle
+         n'entre pas au journal pour autant. */
+      if (status === "watched" && !made.watchedAt && r.watchedAt) made.watchedAt = r.watchedAt;
+      toCreate.push(made);
       continue;
     }
 
@@ -181,11 +217,21 @@ export function diffImport(existing: Film[], rows: ImportRow[], status: FilmStat
        On n'écrit que si le compte a bougé — sinon la fiche partirait dans
        « modifiés » pour rien à chaque réimport. */
     if (status === "watched" && r.watches?.length) {
-      const watches = mergeWatches(match.watches, r.watches);
-      if (watches.length !== (match.watches || []).length) {
+      const watches = authoritativeWatches
+        ? mergeWatches(r.watches)
+        : mergeWatches(match.watches, r.watches);
+      /* On compare les DATES et non le nombre : en mode autorité, un
+         journal peut se retrouver aussi long qu'avant tout en ayant
+         changé de séances. */
+      const dates = (w: { date: string }[]) => w.map((x) => x.date).join("|");
+      if (dates(watches) !== dates(match.watches || [])) {
         changes.watches = watches;
-        // la date suit le journal, elle ne se règle jamais toute seule
-        if ((watches[0]?.date || "") > (match.watchedAt || ""))
+        /* La date suit le journal, elle ne se règle jamais toute seule.
+           Elle avance seule d'ordinaire ; quand le fichier fait autorité,
+           elle recule aussi — sinon la fiche garderait la date d'une
+           séance qu'on vient justement d'effacer. */
+        if (authoritativeWatches) changes.watchedAt = watches[0]?.date ?? null;
+        else if ((watches[0]?.date || "") > (match.watchedAt || ""))
           changes.watchedAt = watches[0]!.date;
       }
     }

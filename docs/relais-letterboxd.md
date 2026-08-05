@@ -1,11 +1,16 @@
-# Votre propre relais pour le flux Letterboxd
+# Votre propre relais pour Letterboxd
 
 ## Pourquoi il en faut un
 
-Letterboxd ne renvoie aucun en-tête `Access-Control-Allow-Origin` sur son flux
-RSS. Le navigateur va donc chercher la réponse, la reçoit, et **refuse de la
-donner à la page** : c'est une règle du navigateur, aucune astuce côté
-application ne la contourne.
+Letterboxd ne renvoie aucun en-tête `Access-Control-Allow-Origin`, ni sur son
+flux RSS ni sur ses pages. Le navigateur va donc chercher la réponse, la
+reçoit, et **refuse de la donner à la page** : c'est une règle du navigateur,
+aucune astuce côté application ne la contourne.
+
+Le relais sert aux **deux** relevés de la page d'import : les séances, qui
+viennent du flux RSS, et la watchlist, qui n'a pas de flux et se lit dans les
+pages `/{pseudo}/watchlist/page/N/`. Le Worker ci-dessous accepte n'importe
+quel chemin de `letterboxd.com` : il couvre les deux sans un mot de plus.
 
 Il faut donc quelqu'un qui lise le flux à notre place et nous le repasse en
 autorisant la lecture. Deux cas :

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { slugOf, filmKey, parseRating, diffImport } from "./importing";
+import { slugOf, filmKey, parseRating, diffImport, parseLetterboxdCsv } from "./importing";
 import { makeFilm, withWatches } from "./film";
 import type { Film, ImportRow } from "../types";
 
@@ -108,6 +108,59 @@ describe("parseRating", () => {
   it("rejette ce qui n'est pas un nombre", () => {
     expect(parseRating("abc")).toBeNull();
     expect(parseRating(NaN)).toBeNull();
+  });
+});
+
+/* UNE DATE N'EST PAS UNE SÉANCE, et c'est de cette confusion que venait
+   le « ×2 » sous des films vus une seule fois : watched.csv datait la
+   fiche du jour où elle avait été AJOUTÉE, diary.csv du jour où le film
+   avait été vu, et la fiche récoltait les deux. */
+describe("parseLetterboxdCsv — ce qui compte pour une séance", () => {
+  const fichier = (nom: string, contenu: string) => new File([contenu], nom, { type: "text/csv" });
+
+  it("ne tire aucune séance de watched.csv, mais en date la fiche", async () => {
+    const { rows, kind } = await parseLetterboxdCsv(
+      fichier(
+        "watched.csv",
+        "Date,Name,Year,Letterboxd URI\n2021-04-12,Stalker,1979,https://boxd.it/x\n"
+      )
+    );
+    expect(kind).toBe("watched");
+    expect(rows[0]!.watches).toEqual([]);
+    expect(rows[0]!.watchedAt).toBe("2021-04-12");
+  });
+
+  it("ne tire aucune séance de ratings.csv non plus", async () => {
+    const { rows } = await parseLetterboxdCsv(
+      fichier("ratings.csv", "Date,Name,Year,Rating\n2021-04-12,Stalker,1979,4.5\n")
+    );
+    expect(rows[0]!.watches).toEqual([]);
+    expect(rows[0]!.rating).toBe(4.5);
+  });
+
+  it("tire la séance de diary.csv, qui seul dit QUAND", async () => {
+    const { rows } = await parseLetterboxdCsv(
+      fichier(
+        "diary.csv",
+        "Date,Name,Year,Rating,Rewatch,Watched Date\n2024-02-01,Stalker,1979,4.0,Yes,2024-01-30\n"
+      )
+    );
+    expect(rows[0]!.watches).toEqual([{ date: "2024-01-30", rating: 4, rewatch: true }]);
+    expect(rows[0]!.watchedAt).toBe("2024-01-30");
+  });
+
+  /* Le scénario exact du bug : les deux fichiers l'un après l'autre. La
+     fiche doit finir avec UNE séance, celle du diary. */
+  it("ne compte qu'une séance pour un film passé par watched.csv puis diary.csv", async () => {
+    const vus = await parseLetterboxdCsv(
+      fichier("watched.csv", "Date,Name,Year\n2021-04-12,Stalker,1979\n")
+    );
+    const journal = await parseLetterboxdCsv(
+      fichier("diary.csv", "Date,Name,Year,Watched Date\n2024-02-01,Stalker,1979,2024-01-30\n")
+    );
+    const créé = diffImport([], vus.rows, "watched").toCreate[0]!;
+    const { toUpdate } = diffImport([créé], journal.rows, "watched");
+    expect(toUpdate[0]!.changes.watches).toHaveLength(1);
   });
 });
 
@@ -237,6 +290,79 @@ describe("diffImport", () => {
     expect(toUpdate[0]!.changes.watches).toHaveLength(2);
     // une séance plus ancienne ne fait pas reculer la date de dernière séance
     expect(toUpdate[0]!.changes.watchedAt).toBeUndefined();
+  });
+
+  /* LA RÉPARATION. Compléter ne sait pas défaire : une fiche qui a
+     récolté une séance qui n'en était pas une la garderait pour toujours.
+     Déclarer le fichier SEUL MAÎTRE est le seul chemin qui retire une
+     séance sans qu'on l'ait retirée à la main. */
+  it("remplace le journal quand le fichier fait autorité", () => {
+    const existing = withWatches(makeFilm({ title: "Stalker", year: 1979 }), [
+      { date: "2021-04-12", rating: null }, // la séance fantôme, venue de watched.csv
+      { date: "2024-01-30", rating: 4 },
+    ]);
+    const { toUpdate } = diffImport(
+      [existing],
+      [
+        row({
+          title: "Stalker",
+          year: 1979,
+          watchedAt: "2024-01-30",
+          watches: [{ date: "2024-01-30", rating: 4 }],
+        }),
+      ],
+      "watched",
+      { authoritativeWatches: true }
+    );
+    expect(toUpdate[0]!.changes.watches).toEqual([{ date: "2024-01-30", rating: 4 }]);
+  });
+
+  /* Effacer la séance la plus récente doit faire RECULER la date de la
+     fiche : la laisser en place daterait le film d'une séance qu'on vient
+     justement de dire inexistante. */
+  it("fait reculer la date quand le fichier qui fait autorité efface la dernière séance", () => {
+    const existing = withWatches(makeFilm({ title: "Stalker", year: 1979 }), [
+      { date: "2019-03-02", rating: 3 },
+      { date: "2025-06-01", rating: null },
+    ]);
+    const { toUpdate } = diffImport(
+      [existing],
+      [
+        row({
+          title: "Stalker",
+          year: 1979,
+          watchedAt: "2019-03-02",
+          watches: [{ date: "2019-03-02", rating: 3 }],
+        }),
+      ],
+      "watched",
+      { authoritativeWatches: true }
+    );
+    expect(toUpdate[0]!.changes.watchedAt).toBe("2019-03-02");
+  });
+
+  it("ne touche à rien quand le fichier qui fait autorité dit la même chose", () => {
+    const séances = [{ date: "2024-01-30", rating: 4 }];
+    const existing = withWatches(makeFilm({ title: "Stalker", year: 1979, rating: 4 }), séances);
+    const { unchanged } = diffImport(
+      [existing],
+      [row({ title: "Stalker", year: 1979, rating: 4, watchedAt: "2024-01-30", watches: séances })],
+      "watched",
+      { authoritativeWatches: true }
+    );
+    expect(unchanged).toHaveLength(1);
+  });
+
+  it("reporte l'ordre d'ajout que la source connaît", () => {
+    const { toCreate } = diffImport(
+      [],
+      [
+        row({ title: "Récent", year: 2020, addedAt: 5_000 }),
+        row({ title: "Ancien", year: 1960, addedAt: 1_000 }),
+      ],
+      "watchlist"
+    );
+    expect(toCreate.map((f) => f.addedAt)).toEqual([5_000, 1_000]);
   });
 
   /* LE POINT D'IDEMPOTENCE. Repasser le même fichier ne doit rien

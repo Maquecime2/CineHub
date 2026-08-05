@@ -178,6 +178,13 @@ export interface ImportRow {
    * pas à changer de regard.
    */
   watches?: Watch[];
+  /**
+   * Quand la fiche a été mise de côté, si la source le sait. La watchlist
+   * relevée en ligne ne donne pas de date, mais elle donne un ORDRE — le
+   * plus récemment ajouté d'abord — et c'est de lui qu'on déduit ce
+   * champ, faute de mieux. Absent, `makeFilm` datera de maintenant.
+   */
+  addedAt?: number;
 }
 
 /** Ce que le fichier contenait réellement — affiché avant toute écriture. */

@@ -20,7 +20,8 @@ entre eux, et on se laisse recommander ce qu'on n'aurait pas trouvé seul.
   près de quoi.
 - **Le carnet** — des notes qui ne se rattachent à aucun film en particulier.
 - **L'import** — un export CSV Letterboxd, enrichi par TMDB (affiches,
-  réalisateurs, genres, années).
+  réalisateurs, genres, années). Sans fichier, un pseudo suffit à relever
+  ses dernières séances et sa watchlist entière depuis le profil public.
 - **Les recommandations** — deux curseurs plutôt qu'un bouton magique :
   _niche_ (du grand public à la pépite) et _écart_ (dans vos goûts, ou hors des
   sentiers). Chaque proposition est justifiée en une ligne.
