@@ -409,8 +409,13 @@ export const DECOR_BOX = 46;
    L'opacité s'écrit avec `alpha` et non plus en collant `22` derrière la
    couleur : la teinte reste un hexadécimal aujourd'hui, mais l'ombre
    portée, elle, doit suivre la peau — et `color-mix` prend les deux. */
+/* LE CARTON EST OPAQUE. Le lavis reste un lavis — un quart d'encre, pas
+   un aplat — mais il se pose désormais sur du carton, et non sur le vide :
+   sans fond dessous, le mur transparaissait à travers l'intercalaire, et
+   ses motifs traversaient ce qui est censé couper la rangée. */
 export const dividerSkin = (ink) => ({
-  background: `linear-gradient(160deg, ${alpha(ink, 0.26)}, ${alpha(ink, 0.44)})`,
+  backgroundColor: C.card,
+  backgroundImage: `linear-gradient(160deg, ${alpha(ink, 0.26)}, ${alpha(ink, 0.44)})`,
   border: `1px solid ${alpha(ink, 0.75)}`,
   borderBottom: "none",
   borderRadius: "3px 3px 0 0",
