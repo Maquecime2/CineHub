@@ -669,22 +669,16 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
       onDragEnd={reset}
       style={{
         "--mark-ink": theme.accent,
-        /* RIEN NE POUSSE LA PAGE VERS LA DROITE.
+        /* PAS DE ROGNAGE ICI.
 
-           Deux choses peuvent déborder d'un rayon : un décor plus large
-           que sa planche entière — le découpage en lignes fait payer sa
-           largeur à chaque objet, mais il reste le cas d'un seul objet
-           trop grand pour la ligne — et un objet accroché près d'un bord,
-           qu'on autorise justement à mordre dessus. Ni l'un ni l'autre ne
-           doit ouvrir une barre de défilement horizontale sur toute
-           l'étagère.
-
-           `clip` et non `hidden` : `hidden` ferait de ce bloc un
-           conteneur de défilement, ce qui coupe le `position: sticky` de
-           ce qu'il contient et permet un défilement par programme vers
-           une zone qu'on a justement décidé de ne pas montrer. `clip`
-           coupe, et c'est tout. */
-        overflowX: "clip",
+           Ce bloc contient le tiroir et la fiche d'un boîtier, qui sont
+           `position: fixed`. Un `overflow` autre que `visible` en ferait
+           une boîte de rognage : les deux resteraient accrochés à la
+           fenêtre mais ne se verraient qu'à travers un cadre qui, lui,
+           défile — un tiroir qu'il faut aller chercher en bas de page,
+           une fiche qui ne paraît pas du tout. Le débordement des décors
+           est rogné un cran plus bas, sur chaque rayon (`Shelf`), et la
+           fenêtre s'occupe du reste (`index.css`). */
       }}
     >
       {/* le repère de dépôt : un seul, déplacé à la main pendant le glissement */}

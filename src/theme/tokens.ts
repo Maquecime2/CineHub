@@ -245,8 +245,22 @@ html[data-dragging="1"] [data-wall-item]:not([data-drag-self]) {
 
    Porte par un attribut plutot qu'une classe : c'est le meme usage que
    les cibles de depot ci-dessus, et il se pose en une ligne sur
-   n'importe quel conteneur. */
-[data-enters] { animation: sheetIn var(--motion-slow) var(--motion-ease) both; }
+   n'importe quel conteneur.
+
+   BACKWARDS ET NON BOTH, ET C'EST LA MOITIE D'UN ECRAN QUI EN DEPEND.
+   Une animation qui touche la propriete transform fait de son element
+   un BLOC CONTENEUR pour tout ce qu'il contient en position fixed —
+   tant qu'elle est en effet. Le remplissage both la laisse en effet
+   POUR TOUJOURS une fois finie : le conteneur de vue devenait la
+   fenetre de tous les panneaux fixes qu'il porte, qui se mettaient
+   alors a defiler avec la page. La languette du tiroir qu'il fallait
+   aller chercher en bas, la fiche d'un boitier qui ne paraissait pas :
+   c'etait ca.
+
+   Le remplissage forwards n'apportait rien ici — l'image d'arrivee de
+   sheetIn est exactement l'etat naturel de l'element. Reste backwards,
+   le seul utile : pas de clignotement avant le premier pas. */
+[data-enters] { animation: sheetIn var(--motion-slow) var(--motion-ease) backwards; }
 
 @media (prefers-reduced-motion: reduce) {
   [data-case] *, [data-case] { animation-duration: .01ms !important; animation-delay: 0ms !important; }

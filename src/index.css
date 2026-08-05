@@ -23,9 +23,15 @@
    défilement, ce qui casserait `position: sticky` et rendrait le
    défilement vertical à un autre élément. `clip` coupe sans rien créer.
    C'est la même distinction que pour le rail des onglets, dans
-   `theme/tokens`. */
-html,
-body {
+   `theme/tokens`.
+
+   SUR `html` SEULEMENT, et c'est la règle entière. Le débordement de
+   l'élément racine se propage à la fenêtre : c'est ELLE qui rogne, et
+   aucun élément de la page ne devient une boîte de rognage. Le poser
+   aussi sur `body` en ferait un rogneur ordinaire, qui emporterait avec
+   lui tout ce qu'il contient de `position: fixed` — le tiroir, la fiche
+   d'un boîtier — dans un cadre qui, lui, défile avec la page. */
+html {
   overflow-x: clip;
 }
 

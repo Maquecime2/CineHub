@@ -39,6 +39,27 @@ export function StillLightbox({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [index, stills.length, onClose, onIndex]);
+
+  /* LA PAGE DERRIÈRE NE DÉFILE PAS.
+
+     La visionneuse prend tout l'écran, mais la fiche du film reste
+     dessous avec toute sa hauteur : la barre verticale continuait de
+     s'afficher sur le bord, et la molette faisait glisser une page
+     qu'on ne voit pas. Une image regardée en grand est un plein écran,
+     pas une fenêtre posée sur autre chose.
+
+     Sur `html` et non sur `body` : c'est le débordement de l'élément
+     racine qui se propage à la fenêtre. La valeur d'avant est remise
+     telle quelle — vide le plus souvent, et la feuille de styles
+     reprend la main. */
+  useEffect(() => {
+    const root = document.documentElement;
+    const before = root.style.overflowY;
+    root.style.overflowY = "hidden";
+    return () => {
+      root.style.overflowY = before;
+    };
+  }, []);
   if (!still) return null;
 
   return (

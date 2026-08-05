@@ -47,6 +47,16 @@ export interface BoxData {
   rewatches: number;
   ratingAvg: number | null;
   topDirector: string | null;
+  /* CE QUI TIENT DANS UN REGARD DE TROIS SECONDES, et rien de plus.
+     L'image reste une grille d'affiches : on enrichit le bandeau et le
+     pied, jamais le centre. Ce qui demande de lire deux fois appartient
+     à l'almanach. */
+  minutes: number;
+  /** La décennie la plus visitée — `null` si aucune fiche n'est datée. */
+  decade: number | null;
+  /** Le pays le plus vu, déjà traduit par la vue. */
+  country: string | null;
+  ageMoyen: number | null;
 }
 
 /* CHARGER UNE AFFICHE, D'OÙ QU'ELLE VIENNE.
@@ -225,6 +235,10 @@ export async function drawYearInBox(data: BoxData, p: BoxPalette): Promise<Blob>
     [String(data.rewatches), data.rewatches > 1 ? "revoyures" : "revoyure"],
   ];
   if (data.ratingAvg != null) lignes.push([data.ratingAvg.toFixed(1), "de moyenne"]);
+  /* Les heures de cinéma, quand on les connaît. C'est la statistique la
+     plus parlante du lot, et la seule qui demande d'avoir complété ses
+     fiches — une collection qui ne l'a pas faite ne voit rien manquer. */
+  if (data.minutes > 0) lignes.push([`${Math.round(data.minutes / 60)} h`, "de cinéma"]);
 
   let x = 560;
   for (const [n, mot] of lignes) {
@@ -344,16 +358,30 @@ export async function drawYearInBox(data: BoxData, p: BoxPalette): Promise<Blob>
     ctx.restore();
   });
 
-  /* ---- LA PHRASE DU BAS ---- */
+  /* ---- LE PIED ---- */
   const phrase = data.topDirector
     ? `Le plus revu cette année : ${data.topDirector}.`
     : "Une année de séances, tenue à la main.";
   ctx.fillStyle = p.inkFaded;
   ctx.font = `italic 27px ${p.body}`;
-  ctx.fillText(tronquer(ctx, phrase, W - MARGE * 2), MARGE, H - 74);
+  ctx.fillText(tronquer(ctx, phrase, W - MARGE * 2), MARGE, H - 82);
+
+  /* Le bandeau de portrait : la décennie, le pays, l'âge. Chaque mention
+     ne paraît que si on la connaît — un « — » à la place d'un pays dirait
+     seulement qu'on n'a pas rempli ses fiches, ce qui n'intéresse
+     personne sur une image qu'on montre. */
+  const mentions = [
+    data.decade != null ? `années ${String(data.decade).slice(2)}` : null,
+    data.country,
+    data.ageMoyen != null ? `${Math.round(data.ageMoyen)} ans de moyenne` : null,
+  ].filter(Boolean) as string[];
+  if (mentions.length) {
+    ctx.font = `21px ${p.mono}`;
+    ctx.fillText(tronquer(ctx, mentions.join("  ·  "), W - MARGE * 2), MARGE, H - 50);
+  }
 
   ctx.font = `19px ${p.mono}`;
-  ctx.fillText("CINÉ HUB · archive personnelle", MARGE, H - 40);
+  ctx.fillText("CINÉ HUB · archive personnelle", MARGE, H - 22);
 
   return await new Promise<Blob>((resolve, reject) =>
     canvas.toBlob(

@@ -1,5 +1,18 @@
 import { describe, it, expect } from "vitest";
-import { almanacFor, driftHighlights, filmsOfYear, longestStreak, yearsCovered } from "./almanac";
+import {
+  ageOfFilms,
+  almanacFor,
+  driftHighlights,
+  filmsOfYear,
+  geography,
+  longestStreak,
+  loyalties,
+  newDirectors,
+  ratingByDecade,
+  rhythm,
+  screenTime,
+  yearsCovered,
+} from "./almanac";
 import { makeFilm } from "./film";
 import type { Film, Watch } from "../types";
 
@@ -265,5 +278,172 @@ describe("driftHighlights", () => {
       ),
     ];
     expect(driftHighlights(films)).toEqual([]);
+  });
+});
+
+describe("ageOfFilms", () => {
+  it("mesure l'écart entre la sortie et la séance", () => {
+    const films = [vu("A", ["2024-01-01"], { year: 1990 })];
+    expect(ageOfFilms(films, 2024).moyen).toBe(34);
+  });
+
+  /* Un muet de 1920 décalerait la moyenne de dix ans à lui seul : la
+     médiane est là pour résister à ce genre de fiche. */
+  it("rend une médiane qui résiste à un film isolé très ancien", () => {
+    const films = [
+      vu("A", ["2024-01-01"], { year: 2020 }),
+      vu("B", ["2024-01-02"], { year: 2018 }),
+      vu("C", ["2024-01-03"], { year: 1920 }),
+    ];
+    const a = ageOfFilms(films, 2024);
+    expect(a.median).toBe(6);
+    expect(Math.round(a.moyen!)).toBe(38);
+  });
+
+  it("écarte les fiches sans année plutôt que de leur donner deux mille ans", () => {
+    const films = [vu("A", ["2024-01-01"], { year: 1990 }), vu("B", ["2024-01-02"], { year: "" })];
+    expect(ageOfFilms(films, 2024).moyen).toBe(34);
+  });
+
+  it("compte la part de patrimoine au-delà de vingt ans", () => {
+    const films = [
+      vu("A", ["2024-01-01"], { year: 1990 }),
+      vu("B", ["2024-01-02"], { year: 2020 }),
+    ];
+    expect(ageOfFilms(films, 2024).partPatrimoine).toBe(50);
+  });
+
+  it("ne rend rien d'une année vide", () => {
+    expect(ageOfFilms([], 2024)).toMatchObject({ moyen: null, median: null, plusAncien: null });
+  });
+});
+
+describe("ratingByDecade", () => {
+  it("moyenne les notes par décennie de sortie", () => {
+    const films = [
+      vu("A", [{ date: "2024-01-01", rating: 4 }], { year: 1975 }),
+      vu("B", [{ date: "2024-01-02", rating: 5 }], { year: 1979 }),
+      vu("C", [{ date: "2024-01-03", rating: 2 }], { year: 1985 }),
+    ];
+    expect(ratingByDecade(films, 2024)).toEqual([
+      { decade: 1970, avg: 4.5, n: 2 },
+      { decade: 1980, avg: 2, n: 1 },
+    ]);
+  });
+
+  it("n'invente pas une décennie qui n'a aucune séance notée", () => {
+    const films = [vu("A", [{ date: "2024-01-01", rating: null }], { year: 1975 })];
+    expect(ratingByDecade(films, 2024)).toEqual([]);
+  });
+});
+
+describe("newDirectors", () => {
+  it("ne retient que les cinéastes vus pour la PREMIÈRE fois cette année", () => {
+    const films = [
+      vu("A", ["2019-01-01"], { director: "Varda" }),
+      vu("B", ["2024-01-01"], { director: "Varda" }), // pas une découverte
+      vu("C", ["2024-01-02"], { director: "Akerman" }), // une découverte
+    ];
+    expect(newDirectors(films, 2024)).toEqual(["Akerman"]);
+  });
+
+  it("sépare une co-réalisation", () => {
+    const films = [vu("A", ["2024-01-01"], { director: "Powell, Pressburger" })];
+    expect(newDirectors(films, 2024)).toEqual(["Powell", "Pressburger"]);
+  });
+});
+
+describe("loyalties", () => {
+  it("ne nomme que ce qui revient au moins trois fois", () => {
+    const films = [
+      vu("A", ["2024-01-01"], { director: "Ozu", cast: ["Ryu"] }),
+      vu("B", ["2024-01-02"], { director: "Ozu", cast: ["Ryu"] }),
+      vu("C", ["2024-01-03"], { director: "Ozu", cast: ["Hara"] }),
+      vu("D", ["2024-01-04"], { director: "Naruse", cast: ["Hara"] }),
+    ];
+    const l = loyalties(films, 2024);
+    expect(l.directors).toEqual([{ nom: "Ozu", n: 3 }]);
+    expect(l.actors).toEqual([]); // Ryu 2, Hara 2 — sous le seuil
+  });
+});
+
+describe("rhythm", () => {
+  it("compte les jours distincts, pas les séances", () => {
+    const films = [vu("A", ["2024-03-01", "2024-03-01", "2024-03-05"])];
+    expect(rhythm(films, 2024).jours).toBe(2);
+  });
+
+  /* La disette se mesure ENTRE la première et la dernière séance : une
+     année commencée en mars n'a pas connu deux mois de disette, elle
+     n'avait pas commencé. */
+  it("ne compte pas les bords de l'année comme une disette", () => {
+    const films = [vu("A", ["2024-03-01", "2024-03-11"])];
+    expect(rhythm(films, 2024).disette).toBe(9);
+  });
+
+  it("connaît les années bissextiles pour la densité", () => {
+    const films = [vu("A", ["2024-03-01"])];
+    expect(rhythm(films, 2024).densite).toBeCloseTo((1 / 366) * 100, 6);
+    expect(rhythm([vu("A", ["2023-03-01"])], 2023).densite).toBeCloseTo((1 / 365) * 100, 6);
+  });
+
+  it("désigne le mois le plus dense, et rien si l'année est vide", () => {
+    const films = [vu("A", ["2024-05-01", "2024-05-02", "2024-09-09"])];
+    expect(rhythm(films, 2024).moisLePlusDense).toBe(5);
+    expect(rhythm([], 2024).moisLePlusDense).toBeNull();
+  });
+});
+
+describe("screenTime", () => {
+  it("cumule les durées et compte à part ce qu'il ignore", () => {
+    const films = [
+      vu("A", ["2024-01-01"], { runtime: 120 }),
+      vu("B", ["2024-01-02"], { runtime: 90 }),
+      vu("C", ["2024-01-03"], { runtime: null }),
+    ];
+    const s = screenTime(films, 2024);
+    expect(s.minutes).toBe(210);
+    expect(s.moyenne).toBe(105);
+    expect(s.sansDuree).toBe(1);
+    expect(s.plusLong?.runtime).toBe(120);
+  });
+
+  /* Une durée de zéro est une donnée fausse, pas un film de zéro
+     minute : elle ne doit pas tirer la moyenne vers le bas. */
+  it("traite une durée nulle comme inconnue", () => {
+    const films = [
+      vu("A", ["2024-01-01"], { runtime: 100 }),
+      vu("B", ["2024-01-02"], { runtime: 0 }),
+    ];
+    const s = screenTime(films, 2024);
+    expect(s.moyenne).toBe(100);
+    expect(s.sansDuree).toBe(1);
+  });
+
+  it("compte deux fois un film revu deux fois — on l'a bien regardé deux fois", () => {
+    const films = [vu("A", ["2024-01-01", "2024-06-06"], { runtime: 100 })];
+    expect(screenTime(films, 2024).minutes).toBe(200);
+  });
+
+  it("ne rend rien d'une année vide", () => {
+    expect(screenTime([], 2024)).toMatchObject({ minutes: 0, moyenne: null, sansDuree: 0 });
+  });
+});
+
+describe("geography", () => {
+  it("classe pays et langues, et compte les pays distincts", () => {
+    const films = [
+      vu("A", ["2024-01-01"], { countries: ["FR"], language: "fr" }),
+      vu("B", ["2024-01-02"], { countries: ["FR", "IT"], language: "it" }),
+      vu("C", ["2024-01-03"], { countries: ["JP"], language: "ja" }),
+    ];
+    const g = geography(films, 2024);
+    expect(g.pays[0]).toEqual({ nom: "FR", n: 2 });
+    expect(g.nbPays).toBe(3);
+    expect(g.langues).toHaveLength(3);
+  });
+
+  it("ne rend rien quand aucune fiche n'est renseignée", () => {
+    expect(geography([vu("A", ["2024-01-01"])], 2024)).toMatchObject({ nbPays: 0, pays: [] });
   });
 });
