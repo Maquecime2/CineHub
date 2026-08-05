@@ -50,30 +50,48 @@ function loadFonts(skin: Skin): void {
 const varName = (key: string): string =>
   `--c-${key.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)}`;
 
-export function applySkin(key?: string): Skin {
-  const skin = skinOf(key);
-  const root = document.documentElement.style;
+/* TOUT CE QU'UNE PEAU ÉCRIT, sous forme de paires — et non posé.
 
-  for (const [token, color] of Object.entries(skin.c)) root.setProperty(varName(token), color);
+   Séparé de la pose parce que la racine du document n'est pas le seul
+   endroit où une peau peut vivre : l'écran de contrôle en montre
+   quatorze À LA FOIS, chacune sur un fragment de page, et il lui faut
+   les mêmes variables sous forme de style. Les variables CSS cascadent —
+   un jeton lu comme `var(--c-paper)` remonte au plus proche ancêtre qui
+   la porte, que ce soit `documentElement` ou un simple `div`.
 
-  root.setProperty("--f-title", skin.fonts.title);
-  root.setProperty("--f-body", skin.fonts.body);
-  root.setProperty("--f-hand", skin.fonts.hand);
-  root.setProperty("--f-mono", skin.fonts.mono);
+   Une seule définition, donc, pour les deux usages : la correspondance
+   `paperDark` → `--c-paper-dark` ne se réécrit nulle part ailleurs. */
+export function skinVars(skin: Skin): Record<string, string> {
+  const vars: Record<string, string> = {};
+  for (const [token, color] of Object.entries(skin.c)) vars[varName(token)] = color;
 
-  root.setProperty("--page-bg", skin.page);
+  vars["--f-title"] = skin.fonts.title;
+  vars["--f-body"] = skin.fonts.body;
+  vars["--f-hand"] = skin.fonts.hand;
+  vars["--f-mono"] = skin.fonts.mono;
 
-  root.setProperty("--tag-radius", skin.tag.radius);
-  root.setProperty("--tag-tracking", skin.tag.tracking);
-  root.setProperty("--tag-transform", skin.tag.transform);
+  vars["--page-bg"] = skin.page;
+
+  vars["--tag-radius"] = skin.tag.radius;
+  vars["--tag-tracking"] = skin.tag.tracking;
+  vars["--tag-transform"] = skin.tag.transform;
 
   /* L'atmosphère en opacités : le grain du papier, les taches de café et
      le vignettage se fondent au lieu de disparaître d'un coup, et une
      peau peut n'en garder qu'un tiers. Les composants les lisent avec
      une valeur de repli à 1 — ils marchent donc sans peau posée. */
-  root.setProperty("--atm-grain", String(skin.atm.grain));
-  root.setProperty("--atm-stain", String(skin.atm.stain));
-  root.setProperty("--atm-vignette", String(skin.atm.vignette));
+  vars["--atm-grain"] = String(skin.atm.grain);
+  vars["--atm-stain"] = String(skin.atm.stain);
+  vars["--atm-vignette"] = String(skin.atm.vignette);
+
+  return vars;
+}
+
+export function applySkin(key?: string): Skin {
+  const skin = skinOf(key);
+  const root = document.documentElement.style;
+
+  for (const [name, value] of Object.entries(skinVars(skin))) root.setProperty(name, value);
 
   /* De quoi écrire une règle qui dépende du fond sans le mesurer. */
   document.documentElement.dataset.skin = skin.key;

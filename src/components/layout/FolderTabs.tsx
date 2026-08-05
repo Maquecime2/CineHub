@@ -6,7 +6,15 @@ import { C, F, alpha } from "../../theme/tokens";
 
 /** Les vues joignables depuis les onglets. `detail` s'ouvre depuis une fiche. */
 export type View =
-  "library" | "watchlist" | "reco" | "constellation" | "notebook" | "import" | "detail";
+  | "library"
+  | "watchlist"
+  | "reco"
+  | "constellation"
+  | "notebook"
+  | "import"
+  | "detail"
+  | "almanac"
+  | "skinlab";
 
 interface FolderTabsProps {
   view: View;
@@ -21,9 +29,20 @@ const TABS: { key: View; label: string; color: string }[] = [
   { key: "watchlist", label: "À voir", color: C.ochre },
   { key: "reco", label: "Découvertes", color: C.vermillion },
   { key: "constellation", label: "Constellation", color: C.cobalt },
+  { key: "almanac", label: "Almanach", color: C.moss },
   { key: "notebook", label: "Carnet", color: C.pine },
   { key: "import", label: "Import Letterboxd", color: C.slate },
 ];
+
+/* L'onglet de contrôle des peaux n'est pas une vue du produit : il ne
+   paraît qu'en développement, et le build de production ne l'emporte
+   même pas — la condition est statique, donc l'import de la planche
+   tombe au secouage d'arbre. */
+const DEV_TABS: { key: View; label: string; color: string }[] = import.meta.env.DEV
+  ? /* En encre et non dans l'une des sept teintes : les onglets du
+       produit sont pris, et un outil ne doit pas se déguiser en vue. */
+    [{ key: "skinlab", label: "Peaux ⚙", color: C.ink }]
+  : [];
 
 const DIMMED = "saturate(0.65) brightness(0.92)";
 
@@ -93,7 +112,7 @@ export function FolderTabs({ view, setView, onAdd, onSkin }: FolderTabsProps) {
             gap: 14,
           }}
         >
-          {TABS.map((t) => {
+          {[...TABS, ...DEV_TABS].map((t) => {
             const active = view === t.key;
             return (
               <button

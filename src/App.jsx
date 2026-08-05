@@ -143,6 +143,8 @@ import { TagChip, TagEditor } from "./components/ui/TagEditor";
 import { PosterPicker } from "./components/film/PosterPicker";
 import { imageSize, shrinkImage } from "./services/images";
 import { LibraryView } from "./views/library/LibraryView";
+import { AlmanacView } from "./views/AlmanacView";
+import { SkinLab } from "./views/dev/SkinLab";
 import { useNotes } from "./hooks/useNotes";
 import { useShelfViews } from "./hooks/useShelfViews";
 
@@ -511,6 +513,11 @@ export default function App() {
             onDelete={notebook.remove}
           />
         )}
+        {/* L'almanach lit le journal des séances : il regarde donc les
+            fiches VUES, y compris celles mises de côté dans la réserve —
+            les avoir archivées ne les rend pas non vues. */}
+        {view === "almanac" && <AlmanacView films={watched} />}
+        {view === "skinlab" && import.meta.env.DEV && <SkinLab />}
         {view === "import" && (
           <ImportView
             onImport={importFilms}
