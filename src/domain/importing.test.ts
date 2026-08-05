@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { slugOf, filmKey, parseRating, diffImport } from "./importing";
-import { makeFilm } from "./film";
+import { makeFilm, withWatches } from "./film";
 import type { Film, ImportRow } from "../types";
 
 const row = (partial: Partial<ImportRow> = {}): ImportRow => ({
@@ -213,6 +213,75 @@ describe("diffImport", () => {
       "watched"
     );
     expect(plusAncien.unchanged).toHaveLength(1);
+  });
+
+  /* LE JOURNAL SE COMPLÈTE, IL NE SE REMPLACE PAS : un diary.csv apporte
+     des séances anciennes qu'on n'avait pas, et elles doivent entrer sans
+     déloger celles qu'on avait déjà. */
+  it("ajoute au journal les séances que l'import apporte", () => {
+    const existing = withWatches(makeFilm({ title: "Stalker", year: 1979 }), [
+      { date: "2024-01-01", rating: 4 },
+    ]);
+    const { toUpdate } = diffImport(
+      [existing],
+      [
+        row({
+          title: "Stalker",
+          year: 1979,
+          watchedAt: "2019-03-02",
+          watches: [{ date: "2019-03-02", rating: 3 }],
+        }),
+      ],
+      "watched"
+    );
+    expect(toUpdate[0]!.changes.watches).toHaveLength(2);
+    // une séance plus ancienne ne fait pas reculer la date de dernière séance
+    expect(toUpdate[0]!.changes.watchedAt).toBeUndefined();
+  });
+
+  /* LE POINT D'IDEMPOTENCE. Repasser le même fichier ne doit rien
+     compter deux fois — sinon le compteur enfle à chaque réimport, et
+     personne ne s'en aperçoit avant six mois. */
+  it("ne compte rien deux fois quand on repasse le même fichier", () => {
+    const séances = [{ date: "2024-01-01", rating: 4 }];
+    const existing = withWatches(makeFilm({ title: "Stalker", year: 1979, rating: 4 }), séances);
+    const { toUpdate, unchanged } = diffImport(
+      [existing],
+      [row({ title: "Stalker", year: 1979, rating: 4, watchedAt: "2024-01-01", watches: séances })],
+      "watched"
+    );
+    expect(toUpdate).toHaveLength(0);
+    expect(unchanged).toHaveLength(1);
+  });
+
+  it("pose le journal sur un film qu'il vient de créer", () => {
+    const { toCreate } = diffImport(
+      [],
+      [
+        row({
+          title: "Stalker",
+          year: 1979,
+          watchedAt: "2024-01-01",
+          watches: [
+            { date: "2019-03-02", rating: 3 },
+            { date: "2024-01-01", rating: 4 },
+          ],
+        }),
+      ],
+      "watched"
+    );
+    expect(toCreate[0]!.watches).toHaveLength(2);
+    expect(toCreate[0]!.watchedAt).toBe("2024-01-01");
+  });
+
+  it("ne consigne aucune séance pour un film seulement « à voir »", () => {
+    const { toCreate } = diffImport(
+      [],
+      [row({ title: "Stalker", year: 1979, watches: [{ date: "2024-01-01", rating: 4 }] })],
+      "watchlist"
+    );
+    expect(toCreate[0]!.watches).toEqual([]);
+    expect(toCreate[0]!.watchedAt).toBeNull();
   });
 
   it("fait passer « à voir » en « vu » quand le film apparaît dans un export de films vus", () => {

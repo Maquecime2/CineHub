@@ -10,7 +10,22 @@ const base = process.env.GITHUB_ACTIONS ? "/CineHub/" : "/";
 export default defineConfig({
   base,
   plugins: [react()],
-  server: { port: 5173 },
+  server: {
+    port: 5173,
+    /* Le flux Letterboxd n'autorise pas la lecture depuis une autre
+       origine : le navigateur refuse la réponse. En développement, c'est
+       le serveur Vite qui va la chercher — il n'est pas un navigateur, la
+       règle ne le concerne pas. En ligne, le site est un GitHub Pages
+       statique et n'a personne pour faire ce travail : il passe par le
+       relais réglé dans `services/letterboxd`. */
+    proxy: {
+      "/lb-rss": {
+        target: "https://letterboxd.com",
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/lb-rss/, ""),
+      },
+    },
+  },
   test: {
     /* jsdom pour tout le monde : les modules purs (taste, reco) s'en accommodent
        sans rien changer, et les tests de composants en ont besoin. */

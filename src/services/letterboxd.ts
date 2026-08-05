@@ -34,6 +34,7 @@
        personne. */
 import { store } from "./storage";
 import { filmKey, parseRating } from "../domain/importing";
+import { mergeWatches } from "../domain/film";
 import type { ImportRow, ParsedCsv } from "../types";
 
 export const USER_KEY = "letterboxd-user";
@@ -80,6 +81,7 @@ export function parseLetterboxdRss(xml: string): ParsedCsv {
   const watches = items.filter((it) => tagOf(it, "guid").startsWith("letterboxd-watch-"));
 
   let skippedNoTitle = 0;
+  let extraWatches = 0;
   const byKey = new Map<string, ImportRow>();
 
   for (const it of watches) {
@@ -90,27 +92,44 @@ export function parseLetterboxdRss(xml: string): ParsedCsv {
     }
     const yearRaw = tagOf(it, "letterboxd:filmYear");
     const tmdbId = tagOf(it, "tmdb:movieId");
+    /* Un film peut être vu sans être noté : l'entrée n'a alors PAS de
+       `memberRating`, et `parseRating` rend null — ce qui ne veut pas
+       dire zéro, et n'écrasera donc aucune note existante. */
+    const rating = parseRating(tagOf(it, "letterboxd:memberRating") || null);
+    const date = tagOf(it, "letterboxd:watchedDate") || null;
+    const rewatch = /^yes$/i.test(tagOf(it, "letterboxd:rewatch"));
     const row: ImportRow = {
       title,
       year: yearRaw ? Number(yearRaw) || "" : "",
-      /* Un film peut être vu sans être noté : l'entrée n'a alors PAS de
-         `memberRating`, et `parseRating` rend null — ce qui ne veut pas
-         dire zéro, et n'écrasera donc aucune note existante. */
-      rating: parseRating(tagOf(it, "letterboxd:memberRating") || null),
-      watchedAt: tagOf(it, "letterboxd:watchedDate") || null,
+      rating,
+      watchedAt: date,
       uri: tagOf(it, "link") || null,
+      // une entrée du flux EST une séance, avec la note de ce jour-là
+      watches: date ? [{ date, rating, ...(rewatch && { rewatch }) }] : [],
       /* Le vrai cadeau du flux : plus rien à deviner par recherche de
          titre, ni pour TMDB ni pour l'appariement (`diffImport` teste
          l'identifiant AVANT le titre). */
       tmdbId: tmdbId ? Number(tmdbId) || tmdbId : null,
     };
-    /* Un revisionnage occupe deux entrées. Même règle que le diary du
-       CSV : on garde la séance la plus récente, et une note qui manque à
-       la plus récente ne doit pas effacer celle d'avant. */
+    /* Un revisionnage occupe deux entrées, et le flux donne la note de
+       CHACUNE — c'est de quoi voir un avis bouger sur dix ans. On les
+       empile donc, comme le diary du CSV : la fiche reste unique, c'est
+       le journal qui s'allonge. */
     const k = filmKey(row);
     const prev = byKey.get(k);
-    if (!prev || (row.watchedAt || "") >= (prev.watchedAt || ""))
-      byKey.set(k, prev ? { ...prev, ...row, rating: row.rating ?? prev.rating } : row);
+    if (!prev) {
+      byKey.set(k, row);
+      continue;
+    }
+    const watches = mergeWatches(prev.watches, row.watches);
+    extraWatches += Math.max(0, watches.length - (prev.watches?.length || 0));
+    const recent = (row.watchedAt || "") >= (prev.watchedAt || "");
+    byKey.set(k, {
+      ...prev,
+      ...(recent ? row : null),
+      rating: (recent ? row.rating : prev.rating) ?? prev.rating ?? row.rating,
+      watches,
+    });
   }
 
   const rows = [...byKey.values()];
@@ -121,7 +140,8 @@ export function parseLetterboxdRss(xml: string): ParsedCsv {
     stats: {
       lines: watches.length,
       total: rows.length,
-      duplicatesInFile: watches.length - skippedNoTitle - rows.length,
+      // une revoyure est une séance de plus, pas un rebut
+      duplicatesInFile: watches.length - skippedNoTitle - rows.length - extraWatches,
       withRating: rows.filter((r) => r.rating != null).length,
       withoutRating: rows.filter((r) => r.rating == null).length,
       skippedNoTitle,

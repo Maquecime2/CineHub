@@ -356,6 +356,40 @@ describe("FilmBox — la note sur la tranche", () => {
   });
 });
 
+describe("FilmBox — le compte des séances", () => {
+  const séances = (n) =>
+    Array.from({ length: n }, (_, i) => ({ date: `202${i}-01-01`, rating: null }));
+
+  const compteur = (n) => {
+    document.body.innerHTML = "";
+    render(
+      <FilmBox
+        film={film("f1", { rating: 3, watches: séances(n) })}
+        ctx={{}}
+        onOpen={noop}
+        dim={false}
+        {...dnd}
+      />
+    );
+    return screen.queryByLabelText(`vu ${n} fois`);
+  };
+
+  it("annonce un film qu'on a revu", () => {
+    expect(compteur(3)).toHaveTextContent("×3");
+  });
+
+  /* Un « ×1 » sur chaque tranche serait du bruit sur toute la
+     bibliothèque : ce qu'on cherche du regard, ce sont les films qu'on
+     revoit, et ils ne ressortent que si les autres se taisent. */
+  it("se tait pour un film vu une seule fois", () => {
+    expect(compteur(1)).toBeNull();
+  });
+
+  it("se tait pour un film dont on ne sait rien", () => {
+    expect(compteur(0)).toBeNull();
+  });
+});
+
 describe("carryGhost — ce qu'on emporte sous le curseur", () => {
   it("photographie une COPIE du seul objet saisi, puis la retire", () => {
     const node = document.createElement("div");

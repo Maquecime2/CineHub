@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { C, F, alpha } from "../../theme/tokens";
 import { hueOf } from "../../theme/ink";
 import { tiltOf } from "../../domain/seeded";
+import { watchCount } from "../../domain/film";
 import { PosterArt } from "../film/PosterArt";
 import { PushPin } from "../atmosphere";
 import { Palette } from "lucide-react";
@@ -125,6 +126,11 @@ export const FilmBox = React.memo(function FilmBox({
      note. La demie est alors une étoile à moitié peinte — la seule
      lecture qui ne demande pas de compter. */
   const fill = `${Math.min(Math.max(film.rating || 0, 0), 5) * 20}%`;
+  /* Le compte se DÉRIVE de la fiche, il n'arrive pas en prop : `FilmBox`
+     est mémoïsé parce que `dragover` le rejoue des dizaines de fois par
+     seconde, et une prop recalculée à chaque rendu annulerait la
+     mémoïsation pour toute la rangée. */
+  const vus = watchCount(film);
 
   return (
     <div
@@ -292,6 +298,12 @@ export const FilmBox = React.memo(function FilmBox({
                 fontSize: 9.5,
                 letterSpacing: 1,
                 zIndex: 3,
+                /* Les étoiles à gauche, le compte des séances à droite :
+                   la bande ne grandit pas, elle se partage. */
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 4,
               }}
             >
               <span
@@ -322,6 +334,18 @@ export const FilmBox = React.memo(function FilmBox({
                   ★★★★★
                 </span>
               </span>
+              {/* LE COMPTE DES SÉANCES, et seulement à partir de deux.
+                  Un « ×1 » sur chaque tranche serait du bruit sur toute
+                  la bibliothèque, et n'apprendrait rien à personne : ce
+                  qu'on cherche du regard, ce sont les films qu'on revoit. */}
+              {vus > 1 && (
+                <span
+                  aria-label={`vu ${vus} fois`}
+                  style={{ fontSize: 9, letterSpacing: 0, opacity: 0.85, flexShrink: 0 }}
+                >
+                  ×{vus}
+                </span>
+              )}
             </span>
           )}
         </button>

@@ -2,7 +2,7 @@
    IMPORT — lecture CSV, appariement, fusion
    ============================================================ */
 import Papa from "papaparse";
-import { makeFilm } from "./film";
+import { makeFilm, mergeWatches, withWatches } from "./film";
 import type { Film, FilmStatus, ImportDiff, ImportRow, ParsedCsv, Year } from "../types";
 
 /* Clé d'appariement : casse, accents, ponctuation et article initial
@@ -62,6 +62,7 @@ export function parseLetterboxdCsv(file: File): Promise<ParsedCsv> {
               : "watchlist";
 
         let skippedNoTitle = 0;
+        let extraWatches = 0; // les séances en plus, qui ne sont PAS des doublons
         const byKey = new Map<string, ImportRow>();
 
         for (const r of res.data) {
@@ -75,20 +76,40 @@ export function parseLetterboxdCsv(file: File): Promise<ParsedCsv> {
           // l'est pas toujours — dans ratings.csv c'est la date de notation —
           // mais elle reste la meilleure approximation disponible ailleurs.
           const watchedAt = pick(r, ["Watched Date", "Date", "date"]);
+          const rating = parseRating(pick(r, ["Rating", "rating"]) || null);
+          const rewatch = /^(yes|true|1)$/i.test(pick(r, ["Rewatch", "rewatch"]));
           const row: ImportRow = {
             title,
             year: yearRaw ? Number(yearRaw) || "" : "",
-            rating: parseRating(pick(r, ["Rating", "rating"]) || null),
+            rating,
             watchedAt: watchedAt || null,
             uri: pick(r, ["Letterboxd URI"]) || null,
+            /* La séance que porte CETTE ligne. Sans date, il n'y a pas de
+               séance à consigner — ratings.csv note un film sans dire
+               quand il a été vu. */
+            watches: watchedAt ? [{ date: watchedAt, rating, ...(rewatch && { rewatch }) }] : [],
           };
-          // diary.csv contient une ligne par visionnage : on ne garde que le
-          // plus récent, sinon chaque revoyure créerait une fiche de plus.
+          /* diary.csv a une ligne par visionnage. On les EMPILE désormais :
+             elles ne se contredisent pas, elles se suivent. La fiche, elle,
+             reste unique — c'est le journal qui s'allonge, pas la
+             vidéothèque. Les champs de tête (note, date) continuent de
+             refléter la séance la plus récente, pour que toute la fusion
+             d'aval garde le même regard qu'avant. */
           const k = filmKey(row);
           const prev = byKey.get(k);
-          if (!prev || (row.watchedAt || "") >= (prev.watchedAt || "")) {
-            byKey.set(k, prev ? { ...prev, ...row, rating: row.rating ?? prev.rating } : row);
+          if (!prev) {
+            byKey.set(k, row);
+            continue;
           }
+          const watches = mergeWatches(prev.watches, row.watches);
+          extraWatches += Math.max(0, watches.length - (prev.watches?.length || 0));
+          const recent = (row.watchedAt || "") >= (prev.watchedAt || "");
+          byKey.set(k, {
+            ...prev,
+            ...(recent ? row : null),
+            rating: (recent ? row.rating : prev.rating) ?? prev.rating ?? row.rating,
+            watches,
+          });
         }
 
         const rows = [...byKey.values()];
@@ -98,7 +119,10 @@ export function parseLetterboxdCsv(file: File): Promise<ParsedCsv> {
           stats: {
             lines: res.data.length,
             total: rows.length,
-            duplicatesInFile: res.data.length - skippedNoTitle - rows.length,
+            /* Une revoyure n'est pas un doublon : c'est une séance de plus,
+               et l'annoncer comme un rebut donnerait à croire qu'on a perdu
+               quelque chose alors qu'on vient justement de le garder. */
+            duplicatesInFile: res.data.length - skippedNoTitle - rows.length - extraWatches,
             withRating: rows.filter((r) => r.rating != null).length,
             withoutRating: rows.filter((r) => r.rating == null).length,
             skippedNoTitle,
@@ -123,20 +147,21 @@ export function diffImport(existing: Film[], rows: ImportRow[], status: FilmStat
   for (const r of rows) {
     const match = (r.tmdbId && byTmdb.get(String(r.tmdbId))) || byKey.get(filmKey(r));
     if (!match) {
-      toCreate.push(
-        makeFilm({
-          title: r.title,
-          year: r.year,
-          director: r.director || "",
-          poster: r.poster || "",
-          genres: r.genres || [],
-          tmdbId: r.tmdbId || null,
-          rating: r.rating ?? 0,
-          status,
-          watchedAt: status === "watched" ? r.watchedAt || null : null,
-          source: "letterboxd",
-        })
-      );
+      const fresh = makeFilm({
+        title: r.title,
+        year: r.year,
+        director: r.director || "",
+        poster: r.poster || "",
+        genres: r.genres || [],
+        tmdbId: r.tmdbId || null,
+        rating: r.rating ?? 0,
+        status,
+        source: "letterboxd",
+      });
+      /* `withWatches` pose le journal ET la date : les écrire séparément
+         serait le premier endroit où les deux pourraient diverger. Un film
+         « à voir » n'a évidemment aucune séance. */
+      toCreate.push(status === "watched" ? withWatches(fresh, r.watches || []) : fresh);
       continue;
     }
 
@@ -150,9 +175,26 @@ export function diffImport(existing: Film[], rows: ImportRow[], status: FilmStat
     if (r.poster && !match.poster) changes.poster = r.poster;
     if (r.year && !match.year) changes.year = r.year;
     if (r.tmdbId && !match.tmdbId) changes.tmdbId = r.tmdbId;
-    // La date de dernière séance doit AVANCER : un diary importé après un
-    // ratings.csv apporte des dates plus récentes, il faut qu'elles gagnent.
-    if (status === "watched" && r.watchedAt && r.watchedAt > (match.watchedAt || ""))
+    /* LE JOURNAL SE COMPLÈTE, IL NE SE REMPLACE PAS. Un `diary.csv`
+       apporte des séances anciennes qu'on n'avait pas ; la fusion se fait
+       par date, donc repasser le même fichier ne compte rien deux fois.
+       On n'écrit que si le compte a bougé — sinon la fiche partirait dans
+       « modifiés » pour rien à chaque réimport. */
+    if (status === "watched" && r.watches?.length) {
+      const watches = mergeWatches(match.watches, r.watches);
+      if (watches.length !== (match.watches || []).length) {
+        changes.watches = watches;
+        // la date suit le journal, elle ne se règle jamais toute seule
+        if ((watches[0]?.date || "") > (match.watchedAt || ""))
+          changes.watchedAt = watches[0]!.date;
+      }
+    }
+    // Une date sans séance consignée (ratings.csv) doit quand même AVANCER.
+    if (
+      status === "watched" &&
+      r.watchedAt &&
+      r.watchedAt > (changes.watchedAt || match.watchedAt || "")
+    )
       changes.watchedAt = r.watchedAt;
     // un film « à voir » qui apparaît dans un export de films vus a été vu
     if (status === "watched" && match.status !== "watched") changes.status = "watched";

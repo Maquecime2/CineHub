@@ -9,6 +9,7 @@ import { Label, Tally, InkStars } from "../../components/ui";
 import { StampCorner } from "../../components/atmosphere";
 import { store } from "../../services/storage";
 import { parseLetterboxdCsv, diffImport } from "../../domain/importing";
+import { fetchLetterboxdFeed, DEFAULT_RELAY, USER_KEY, RELAY_KEY } from "../../services/letterboxd";
 import { enrichRows, checkApiKey } from "../../tmdb";
 import { BackupPanel } from "./BackupPanel";
 import type {
@@ -66,6 +67,14 @@ export function ImportView({
   const [tmdbReport, setTmdbReport] = useState<{ resolved: number; failed: number } | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
+  /* Le flux Letterboxd. Le pseudo se retient d'une fois sur l'autre — on
+     ne relève pas le flux d'un autre par accident. Le relais, lui, reste
+     replié : personne ne devrait avoir à le regarder tant qu'il marche. */
+  const [lbUser, setLbUser] = useState(() => store.get(USER_KEY, ""));
+  const [relay, setRelay] = useState(() => store.get(RELAY_KEY, DEFAULT_RELAY));
+  const [showRelay, setShowRelay] = useState(false);
+  const [feeding, setFeeding] = useState(false);
+
   const reset = () => {
     setRows([]);
     setStats(null);
@@ -88,6 +97,28 @@ export function ImportView({
     } catch {
       setError("Impossible de lire ce fichier CSV.");
     }
+  };
+
+  /* Relever le flux revient exactement au même que déposer un fichier :
+     on remplit `rows` et `stats`, et tout l'aval — l'aperçu, le passage
+     TMDB, le diff, la validation — ne sait pas d'où ça vient. */
+  const runFeed = async () => {
+    reset();
+    setDone(null);
+    setFeeding(true);
+    try {
+      const { rows: parsed, stats: s, kind } = await fetchLetterboxdFeed(lbUser, relay);
+      store.set(USER_KEY, lbUser.trim().replace(/^@/, ""));
+      store.set(RELAY_KEY, relay.trim() || DEFAULT_RELAY);
+      setRows(parsed);
+      setStats(s);
+      setImportStatus(kind);
+      setFileName(`flux de ${lbUser.trim().replace(/^@/, "")}`);
+      if (parsed.length === 0) setError("Ce flux ne contient aucune séance.");
+    } catch (e) {
+      setError(String((e as Error)?.message || e));
+    }
+    setFeeding(false);
   };
 
   const testKey = async () => {
@@ -194,10 +225,16 @@ export function ImportView({
             ordre: "2",
           },
           {
+            n: "diary.csv",
+            d: "chaque séance, une par une : c'est lui qui compte les visionnages",
+            ink: C.ochre,
+            ordre: "3",
+          },
+          {
             n: "watchlist.csv",
             d: "vos envies ; atterrit dans l'onglet « À voir »",
             ink: C.cobalt,
-            ordre: "3",
+            ordre: "4",
           },
         ].map((f) => (
           <div key={f.n} style={{ display: "flex", gap: 10, alignItems: "baseline", marginTop: 7 }}>
@@ -231,9 +268,112 @@ export function ImportView({
           }}
         >
           L'ordre compte peu, mais watched.csv d'abord évite d'oublier les films vus sans note.
-          diary.csv est optionnel : il n'ajoute que les dates de séance. Rien n'est jamais dupliqué
-          — repassez les fichiers autant de fois que vous voulez.
+          diary.csv est le seul à porter une ligne par séance : c'est de lui que viennent le nombre
+          de visionnages et l'évolution de vos notes. Rien n'est jamais dupliqué — repassez les
+          fichiers autant de fois que vous voulez.
         </div>
+      </div>
+
+      {/* LE FLUX — pour la mise à jour, quand le zip est pour l'amorçage.
+          Il est placé APRÈS les fichiers et non avant : c'est le CSV qui
+          bâtit une vidéothèque, le flux ne fait que la tenir à jour. */}
+      <div
+        style={{
+          border: `1px solid ${C.line}`,
+          background: C.card,
+          padding: "16px 20px",
+          marginBottom: 22,
+        }}
+      >
+        <div
+          style={{
+            fontFamily: F.mono,
+            fontSize: 11,
+            color: C.inkFaded,
+            letterSpacing: 1,
+            marginBottom: 4,
+          }}
+        >
+          OU RELEVER VOTRE FLUX
+        </div>
+        <div style={{ fontFamily: F.body, fontSize: 13, color: C.inkFaded, marginBottom: 12 }}>
+          Sans fichier, directement depuis votre profil public. Le flux ne rend que vos{" "}
+          <strong>cinquante dernières séances</strong> et <strong>pas votre watchlist</strong> :
+          c'est de quoi tenir la collection à jour, pas de quoi la bâtir.
+        </div>
+        <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
+          <div style={{ flex: 1, minWidth: 220 }}>
+            <Label>Pseudo Letterboxd</Label>
+            <input
+              style={underlineInput}
+              value={lbUser}
+              placeholder="votre-pseudo"
+              onChange={(e) => setLbUser(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && lbUser.trim() && !feeding) runFeed();
+              }}
+            />
+          </div>
+          <button
+            onClick={runFeed}
+            disabled={!lbUser.trim() || feeding}
+            style={{
+              all: "unset",
+              cursor: lbUser.trim() && !feeding ? "pointer" : "not-allowed",
+              padding: "7px 14px",
+              border: `1px solid ${C.line}`,
+              color: C.inkFaded,
+              fontFamily: F.mono,
+              fontSize: 10.5,
+            }}
+          >
+            {feeding ? "…" : "RELEVER"}
+          </button>
+        </div>
+
+        {/* Le relais, replié. Letterboxd n'autorise pas la lecture de son
+            flux depuis un autre site : il faut un intermédiaire, et celui
+            par défaut est un service public. Qui préfère le sien le colle
+            ici — c'est expliqué dans docs/relais-letterboxd.md. */}
+        <button
+          onClick={() => setShowRelay((v) => !v)}
+          style={{
+            all: "unset",
+            cursor: "pointer",
+            marginTop: 10,
+            fontFamily: F.hand,
+            fontSize: 16,
+            color: C.inkFaded,
+            textDecoration: "underline",
+          }}
+        >
+          relais
+        </button>
+        {showRelay && (
+          <div style={{ marginTop: 8 }}>
+            <Label>Adresse du relais</Label>
+            <input
+              style={underlineInput}
+              value={relay}
+              placeholder={DEFAULT_RELAY}
+              onChange={(e) => setRelay(e.target.value)}
+            />
+            <div
+              style={{
+                fontFamily: F.hand,
+                fontSize: 16,
+                color: C.inkFaded,
+                marginTop: 6,
+                lineHeight: 1.35,
+              }}
+            >
+              Letterboxd interdit la lecture de son flux depuis un autre site : un intermédiaire va
+              le chercher à votre place. Celui par défaut est un service public — il peut ralentir
+              ou disparaître. <code>{"{url}"}</code> est remplacé par l'adresse du flux. En local,
+              ce réglage ne sert pas : le serveur de développement relaie lui-même.
+            </div>
+          </div>
+        )}
       </div>
 
       <div

@@ -58,6 +58,19 @@ export interface Still {
   type?: string;
 }
 
+/**
+ * Une séance. La note est celle donnée CE jour-là — un film qu'on revoit
+ * dix ans plus tard ne reçoit pas la même, et c'est justement ce qu'on
+ * veut pouvoir regarder. `null` veut dire « vu sans noter », ce qui n'est
+ * pas la même chose que zéro.
+ */
+export interface Watch {
+  /** `YYYY-MM-DD`, comme `watchedAt` : c'est aussi la clé d'unicité. */
+  date: string;
+  rating: number | null;
+  rewatch?: boolean;
+}
+
 export interface Film {
   id: string;
   title: string;
@@ -83,7 +96,17 @@ export interface Film {
   archived: boolean;
   /** Rang manuel sur l'étagère ; `null` = jamais rangé à la main. */
   order: number | null;
+  /**
+   * La dernière séance, en raccourci. Ce n'est PLUS la source de vérité :
+   * c'est `watches` qui l'est, et ce champ en est le reflet, recalé par
+   * `withWatches`. On le garde parce qu'une douzaine d'endroits demandent
+   * « quand l'ai-je vu pour la dernière fois » — le tri de la
+   * bibliothèque, la fusion d'import — et qu'aucun n'a besoin du journal
+   * entier pour répondre.
+   */
   watchedAt: string | null;
+  /** Le journal des séances, de la plus récente à la plus ancienne. */
+  watches: Watch[];
   tmdbId: number | string | null;
   source: FilmSource;
 }
@@ -148,6 +171,13 @@ export interface ImportRow {
   genres?: string[];
   poster?: string;
   tmdbId?: number | string | null;
+  /**
+   * Les séances que CE fichier apporte. `diary.csv` en a une par ligne,
+   * le flux Letterboxd une par entrée ; `rating` et `watchedAt` ci-dessus
+   * restent ceux de la plus récente, pour que la fusion d'import n'ait
+   * pas à changer de regard.
+   */
+  watches?: Watch[];
 }
 
 /** Ce que le fichier contenait réellement — affiché avant toute écriture. */
