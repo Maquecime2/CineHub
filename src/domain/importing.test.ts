@@ -448,3 +448,50 @@ describe("diffImport", () => {
     expect(unchanged).toHaveLength(1);
   });
 });
+
+describe("diffImport — le casting", () => {
+  it("pose casting et équipe sur une fiche créée", () => {
+    const r = row({ cast: ["Delon"], crew: { image: ["Decaë"] } });
+    const { toCreate } = diffImport([], [r], "watched");
+    expect(toCreate[0]).toMatchObject({ cast: ["Delon"], crew: { image: ["Decaë"] } });
+  });
+
+  it("laisse une fiche créée sans casting avec des formes vides, jamais undefined", () => {
+    const { toCreate } = diffImport([], [row()], "watched");
+    expect(toCreate[0]!.cast).toEqual([]);
+    expect(toCreate[0]!.crew).toEqual({});
+  });
+
+  it("comble le casting d'une fiche qui n'en avait pas", () => {
+    const ancienne = makeFilm({ title: "Un film", year: 1975, cast: [], crew: {} });
+    const r = row({ cast: ["Delon"], crew: { musique: ["Rubinstein"] } });
+    const { toUpdate } = diffImport([ancienne], [r], "watched");
+    expect(toUpdate[0]!.changes).toMatchObject({
+      cast: ["Delon"],
+      crew: { musique: ["Rubinstein"] },
+    });
+  });
+
+  it("ne remplace pas un casting déjà là", () => {
+    const ancienne = makeFilm({
+      title: "Un film",
+      year: 1975,
+      cast: ["Quelqu'un"],
+      crew: { image: ["Untel"] },
+    });
+    const r = row({ cast: ["Delon"], crew: { image: ["Decaë"] } });
+    const { toUpdate, unchanged } = diffImport([ancienne], [r], "watched");
+    expect(toUpdate).toEqual([]);
+    expect(unchanged).toHaveLength(1);
+  });
+
+  /* Le diff est ce qu'on montre AVANT d'écrire : un casting nouvellement
+     récolté doit y paraître comme une modification proposée, et non
+     s'écrire en douce. */
+  it("fait sortir en « modifiés » une fiche que seul le casting change", () => {
+    const ancienne = makeFilm({ title: "Un film", year: 1975 });
+    const { toUpdate, unchanged } = diffImport([ancienne], [row({ cast: ["Delon"] })], "watched");
+    expect(unchanged).toEqual([]);
+    expect(Object.keys(toUpdate[0]!.changes)).toEqual(["cast"]);
+  });
+});

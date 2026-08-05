@@ -499,6 +499,7 @@ export default function App() {
         {view === "constellation" && (
           <ConstellationView
             films={constellationFilms}
+            onLinkFilm={linkFilms}
             onOpen={(id) => {
               setSelectedId(id);
               setView("detail");

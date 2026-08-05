@@ -178,6 +178,8 @@ export function diffImport(
         director: r.director || "",
         poster: r.poster || "",
         genres: r.genres || [],
+        cast: r.cast || [],
+        crew: r.crew || {},
         tmdbId: r.tmdbId || null,
         rating: r.rating ?? 0,
         status,
@@ -207,6 +209,13 @@ export function diffImport(
     if (r.rating != null && r.rating !== match.rating) changes.rating = r.rating;
     if (r.director && !match.director) changes.director = r.director;
     if (r.genres?.length && !(match.genres || []).length) changes.genres = r.genres;
+    /* LE CASTING SE COMBLE, IL NE SE CORRIGE PAS. Comme les genres :
+       on ne remplit que le vide. Une fiche d'avant la récolte le reçoit
+       au premier réimport ; une fiche qui en a déjà un le garde, parce
+       qu'on ne sait pas si c'est TMDB ou la main qui l'a écrit. */
+    if (r.cast?.length && !(match.cast || []).length) changes.cast = r.cast;
+    if (r.crew && Object.keys(r.crew).length && !Object.keys(match.crew || {}).length)
+      changes.crew = r.crew;
     // une affiche choisie à la main n'est jamais remplacée par celle de TMDB
     if (r.poster && !match.poster) changes.poster = r.poster;
     if (r.year && !match.year) changes.year = r.year;

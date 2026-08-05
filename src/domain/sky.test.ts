@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildSky, relax, workKey } from "./sky";
+import { buildSky, buildSkyWithCrew, relax, suggestLinks, workKey } from "./sky";
 import { makeFilm } from "./film";
 import type { Film, LinkedWork } from "../types";
 
@@ -156,5 +156,100 @@ describe("relax", () => {
       expect(Number.isFinite(p.x)).toBe(true);
       expect(Number.isFinite(p.y)).toBe(true);
     }
+  });
+});
+
+describe("suggestLinks", () => {
+  it("relie deux films qui partagent un chef opérateur", () => {
+    const a = film("A", { crew: { image: ["Decaë"] } });
+    const b = film("B", { crew: { image: ["Decaë"] } });
+    const liens = suggestLinks([a, b]);
+    expect(liens).toHaveLength(1);
+    expect(liens[0]).toMatchObject({ kind: "crew", why: ["Decaë"] });
+  });
+
+  /* LE GARDE-FOU. Un acteur présent partout relierait tout à tout et
+     ramènerait la masse illisible que `buildSky` avait chassée. */
+  it("ignore une personne présente dans trop de films", () => {
+    const films = Array.from({ length: 6 }, (_, i) => film(`F${i}`, { cast: ["Omniprésent"] }));
+    expect(suggestLinks(films)).toEqual([]);
+  });
+
+  it("relie encore à la borne haute, plus au-delà", () => {
+    const trois = Array.from({ length: 3 }, (_, i) => film(`F${i}`, { cast: ["X"] }));
+    expect(suggestLinks(trois)).toHaveLength(3); // trois paires
+    expect(suggestLinks([...trois, film("F3", { cast: ["X"] })])).toEqual([]);
+  });
+
+  it("ne relie pas un film à lui-même, ni une personne seule", () => {
+    expect(suggestLinks([film("A", { cast: ["Delon", "Delon"] })])).toEqual([]);
+  });
+
+  it("ne tend qu'une arête pour deux raisons, mais les donne toutes", () => {
+    const a = film("A", { crew: { image: ["Decaë"], musique: ["Rubinstein"] } });
+    const b = film("B", { crew: { image: ["Decaë"], musique: ["Rubinstein"] } });
+    const liens = suggestLinks([a, b]);
+    expect(liens).toHaveLength(1);
+    expect(liens[0]!.why!.sort()).toEqual(["Decaë", "Rubinstein"]);
+  });
+
+  it("compte le réalisateur comme tout le monde, et sépare les co-réalisations", () => {
+    const a = film("A", { director: "Coen, Coen" });
+    const b = film("B", { director: "Coen" });
+    expect(suggestLinks([a, b])).toHaveLength(1);
+  });
+
+  it("ne se laisse pas prendre à la casse ni aux espaces", () => {
+    const a = film("A", { cast: [" delon "] });
+    const b = film("B", { cast: ["Delon"] });
+    expect(suggestLinks([a, b])).toHaveLength(1);
+  });
+
+  it("ne rend rien d'une collection sans générique", () => {
+    expect(suggestLinks([film("A"), film("B")])).toEqual([]);
+  });
+});
+
+describe("buildSkyWithCrew", () => {
+  it("laisse la carte à la main intacte quand rien ne se partage", () => {
+    const a = film("A", { linkedWorks: [nighthawks()] });
+    const base = buildSky([a]);
+    const avec = buildSkyWithCrew([a]);
+    expect(avec.nodes).toHaveLength(base.nodes.length);
+    expect(avec.links).toHaveLength(base.links.length);
+  });
+
+  /* Un film que SEULE une parenté relie n'est pas dans la carte de
+     base : sans ce nœud ajouté, l'arête pointerait dans le vide. */
+  it("fait entrer dans le ciel un film qu'aucun fil rouge ne tenait", () => {
+    const a = film("A", { crew: { image: ["Decaë"] } });
+    const b = film("B", { crew: { image: ["Decaë"] } });
+    expect(buildSky([a, b]).nodes).toEqual([]);
+    const avec = buildSkyWithCrew([a, b]);
+    expect(avec.nodes.map((n) => n.label).sort()).toEqual(["A", "B"]);
+    expect(avec.links).toHaveLength(1);
+  });
+
+  it("ne redouble pas un fil rouge déjà tendu entre les deux mêmes films", () => {
+    const a = film("A", { cast: ["Delon"] });
+    const b = film("B", { cast: ["Delon"] });
+    a.linkedWorks = [work({ type: "film", title: "B", filmId: b.id, id: "l1", pairId: "p" })];
+    b.linkedWorks = [work({ type: "film", title: "A", filmId: a.id, id: "l2", pairId: "p" })];
+    const avec = buildSkyWithCrew([a, b]);
+    expect(avec.links).toHaveLength(1);
+    expect(avec.links[0]!.kind).toBe("peer");
+  });
+
+  it("recompte le degré sur le graphe entier", () => {
+    const a = film("A", { crew: { image: ["Decaë"] } });
+    const b = film("B", { crew: { image: ["Decaë"] } });
+    const avec = buildSkyWithCrew([a, b]);
+    expect(avec.nodes.every((n) => n.degree === 1)).toBe(true);
+  });
+
+  it("respecte les filtres de la carte de base", () => {
+    const a = film("A", { crew: { image: ["Decaë"] }, genres: ["Policier"] });
+    const b = film("B", { crew: { image: ["Decaë"] }, genres: ["Comédie"] });
+    expect(buildSkyWithCrew([a, b], { genres: ["Policier"] }).links).toEqual([]);
   });
 });

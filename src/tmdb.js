@@ -77,12 +77,36 @@ export async function searchMovie({ title, year, apiKey }) {
   return data.results?.[0] || null;
 }
 
+/* LES TROIS MÉTIERS QU'ON RETIENT, et les intitulés TMDB qui les
+   désignent. Trois et pas trente : une équipe entière compte deux cents
+   noms, dont l'écrasante majorité ne relie jamais deux films entre eux
+   et pèserait pour rien dans le `localStorage`.
+
+   Ceux-là, si. Un chef opérateur suivi de film en film dit quelque chose
+   d'une collection ; le troisième assistant décorateur ne dit rien. */
+const MÉTIERS = {
+  image: ["Director of Photography", "Cinematography"],
+  musique: ["Original Music Composer", "Music"],
+  scénario: ["Screenplay", "Writer"],
+};
+
+/* Les huit premiers rôles, tels que TMDB les classe — c'est-à-dire par
+   ordre d'apparition au générique. Au-delà, on entre dans les silhouettes
+   et les voix de foule : du bruit, et du poids. */
+const ROLES = 8;
+
 /* Détail + équipe : c'est là que se trouve le réalisateur. */
 export async function getDetails(tmdbId, apiKey) {
   const data = await get(`/movie/${tmdbId}`, { append_to_response: "credits" }, apiKey);
-  const directors = (data.credits?.crew || [])
-    .filter((c) => c.job === "Director")
-    .map((c) => c.name);
+  const équipe = data.credits?.crew || [];
+  const directors = équipe.filter((c) => c.job === "Director").map((c) => c.name);
+
+  const crew = {};
+  for (const [métier, intitulés] of Object.entries(MÉTIERS)) {
+    const noms = [...new Set(équipe.filter((c) => intitulés.includes(c.job)).map((c) => c.name))];
+    if (noms.length) crew[métier] = noms;
+  }
+
   return {
     tmdbId: data.id,
     director: directors.join(", "),
@@ -90,6 +114,8 @@ export async function getDetails(tmdbId, apiKey) {
     year: data.release_date ? Number(data.release_date.slice(0, 4)) : null,
     // on ne stocke qu'un chemin (~30 octets) : l'image reste chez TMDB
     poster: data.poster_path ? `${POSTER_BASE}${data.poster_path}` : "",
+    cast: (data.credits?.cast || []).slice(0, ROLES).map((c) => c.name),
+    crew,
   };
 }
 
@@ -351,6 +377,12 @@ export async function enrichRows(rows, apiKey, { onProgress, concurrency = 5 } =
             director: info.director || "",
             genres: info.genres || [],
             poster: info.poster || "",
+            /* Les entrées mémorisées AVANT que le casting soit récolté
+               n'en portent pas : le repli est une liste vide, jamais
+               `undefined` — c'est cette valeur-là qui traverse ensuite
+               le diff et la fiche. */
+            cast: info.cast || [],
+            crew: info.crew || {},
             tmdbId: info.tmdbId,
             year: rows[i].year || info.year || "",
           };

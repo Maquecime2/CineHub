@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { Dispatch, SetStateAction, PointerEvent as ReactPointerEvent } from "react";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Users } from "lucide-react";
 import { C, F, alpha } from "../theme/tokens";
-import { buildSky, relax } from "../domain/sky";
+import { buildSky, buildSkyWithCrew, relax } from "../domain/sky";
 import { CoffeeRing, StampCorner, InkUnderline } from "../components/atmosphere";
 import type { Film, LinkType, PlacedNode } from "../types";
 import { Label } from "../components/ui";
@@ -30,9 +30,12 @@ const LINK_INK: Record<LinkType, string> = {
 export function ConstellationView({
   films,
   onOpen,
+  onLinkFilm,
 }: {
   films: Film[];
   onOpen: (id: string) => void;
+  /** Fixer une parenté suggérée : elle devient un vrai fil rouge, réciproque. */
+  onLinkFilm?: (fromId: string, toId: string, note?: string) => void;
 }) {
   const [hover, setHover] = useState<string | null>(null);
   const [drag, setDrag] = useState<string | null>(null);
@@ -55,9 +58,18 @@ export function ConstellationView({
   const toggle = (setter: Dispatch<SetStateAction<string[]>>) => (v: string) =>
     setter((cur) => (cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v]));
 
+  /* SUIVRE LES ÉQUIPES — éteint par défaut, et ce n'est pas de la
+     timidité : la carte à la main est la promesse de cet écran, et une
+     seconde couche allumée d'office ferait passer pour vôtre ce qui
+     vient de la machine. On l'allume quand on veut voir plus loin. */
+  const [équipes, setÉquipes] = useState(false);
+
   const W = 1100,
     H = 760;
-  const { nodes, links } = useMemo(() => buildSky(films, { tags, genres }), [films, tags, genres]);
+  const { nodes, links } = useMemo(
+    () => (équipes ? buildSkyWithCrew(films, { tags, genres }) : buildSky(films, { tags, genres })),
+    [films, tags, genres, équipes]
+  );
   const linkedTotal = useMemo(
     () => films.filter((f) => (f.linkedWorks || []).length > 0).length,
     [films]
@@ -114,8 +126,52 @@ export function ConstellationView({
           zIndex: 2,
         }}
       >
-        seulement ce que vous avez relié à la main — attrapez une étoile pour la déplacer
+        {équipes
+          ? "vos fils, et les parentés trouvées dans les génériques"
+          : "seulement ce que vous avez relié à la main — attrapez une étoile pour la déplacer"}
       </div>
+
+      {/* L'INTERRUPTEUR — la seconde couche, qu'on allume si on veut. */}
+      <button
+        onClick={() => setÉquipes((v) => !v)}
+        aria-pressed={équipes}
+        style={{
+          all: "unset",
+          cursor: "pointer",
+          marginTop: 14,
+          position: "relative",
+          zIndex: 3,
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 8,
+          fontFamily: F.mono,
+          fontSize: 10.5,
+          letterSpacing: "var(--tag-tracking)",
+          padding: "5px 11px",
+          color: équipes ? C.card : C.slate,
+          background: équipes ? C.slate : "transparent",
+          border: `1px solid ${C.slate}`,
+          borderRadius: "var(--tag-radius)",
+        }}
+      >
+        <Users size={13} />
+        SUIVRE LES ÉQUIPES
+      </button>
+      {équipes && (
+        <div
+          style={{
+            fontFamily: F.hand,
+            fontSize: 17,
+            color: C.inkFaded,
+            marginTop: 6,
+            position: "relative",
+            zIndex: 2,
+          }}
+        >
+          en pointillé : une personne partagée par deux ou trois films. Cliquez un pointillé pour le
+          fixer — il devient alors un vrai fil rouge.
+        </div>
+      )}
 
       {/* filtres : mots-clés et genres. Ils réduisent le ciel, ils ne le peuplent pas. */}
       {(allTags.length > 0 || allGenres.length > 0) && (
@@ -247,6 +303,7 @@ export function ConstellationView({
           >
             {placed.filter((n) => n.kind === "film").length} FILM(S) RELIÉ(S) · {links.length}{" "}
             FIL(S)
+            {équipes && ` · DONT ${links.filter((l) => l.kind === "crew").length} PAR LES ÉQUIPES`}
             {(tags.length || genres.length) > 0 && ` · ${linkedTotal} RELIÉ(S) AU TOTAL`}
           </div>
           <div
@@ -352,18 +409,44 @@ export function ConstellationView({
                   my = (a.y + b.y) / 2 + Math.abs(b.x - a.x) * 0.09 + 10;
                 // fiche à fiche : un trait plein, c'est le lien le plus fort
                 const peer = l.kind === "peer";
+                /* UNE PARENTÉ NE SE DESSINE PAS COMME UN FIL ROUGE.
+                   Pointillé long et pâle, à l'encre de l'ardoise : ce
+                   qui vient de la machine doit se distinguer de ce qui
+                   vient de vous sans qu'on ait à cliquer pour le savoir. */
+                const crew = l.kind === "crew";
+                const d = `M ${a.x} ${a.y} Q ${mx} ${my}, ${b.x} ${b.y}`;
+                const fixer =
+                  crew && onLinkFilm
+                    ? () => onLinkFilm(l.a.slice(2), l.b.slice(2), (l.why || []).join(", "))
+                    : undefined;
                 return (
-                  <path
-                    key={i}
-                    d={`M ${a.x} ${a.y} Q ${mx} ${my}, ${b.x} ${b.y}`}
-                    fill="none"
-                    stroke={peer ? C.burgundy : C.vermillion}
-                    strokeWidth={peer ? 2 : 1.4}
-                    strokeDasharray={peer ? "none" : "2.5 4"}
-                    strokeLinecap="round"
-                    opacity={on ? (peer ? 0.8 : 0.6) : 0.08}
-                    style={{ transition: "opacity .18s ease" }}
-                  />
+                  <g key={i}>
+                    <path
+                      d={d}
+                      fill="none"
+                      stroke={crew ? C.slate : peer ? C.burgundy : C.vermillion}
+                      strokeWidth={peer ? 2 : 1.4}
+                      strokeDasharray={peer ? "none" : crew ? "7 6" : "2.5 4"}
+                      strokeLinecap="round"
+                      opacity={on ? (peer ? 0.8 : crew ? 0.45 : 0.6) : 0.08}
+                      style={{ transition: "opacity .18s ease", pointerEvents: "none" }}
+                    />
+                    {/* Une parenté s'attrape : un trait de 1,4 pixel ne se
+                        vise pas, d'où ce chemin large et transparent
+                        posé dessus, qui ne sert qu'à recevoir le clic. */}
+                    {fixer && (
+                      <path
+                        d={d}
+                        fill="none"
+                        stroke="transparent"
+                        strokeWidth={14}
+                        style={{ cursor: "pointer" }}
+                        onClick={fixer}
+                      >
+                        <title>{`Fixer ce fil — ${(l.why || []).join(", ")}`}</title>
+                      </path>
+                    )}
+                  </g>
                 );
               })}
 
@@ -419,10 +502,10 @@ export function ConstellationView({
                       y={-r - 11}
                       textAnchor="middle"
                       style={{
-                        fontFamily:
-                          n.kind === "film"
-                            ? "'Playfair Display', serif"
-                            : "'Special Elite', monospace",
+                        /* Les rôles, et non deux polices nommées en
+                           clair : écrites ainsi, elles restaient celles
+                           du carnet sous les treize autres peaux. */
+                        fontFamily: n.kind === "film" ? F.title : F.mono,
                         fontSize: n.kind === "film" ? 15 : 10.5,
                         fontWeight: n.kind === "film" ? 700 : 400,
                         fill: C.ink,

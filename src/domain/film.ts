@@ -13,6 +13,8 @@ export const makeFilm = (partial: Partial<Film> = {}): Film => ({
   poster: "", // URL TMDB, adresse collée, ou image réduite en data URI
   stills: [], // captures d'écran : { id, key (IndexedDB), caption }
   genres: [],
+  cast: [], // les huit premiers rôles ; voir `types`
+  crew: {}, // image · musique · scénario
   themes: [],
   rating: 0,
   review: "",
@@ -116,6 +118,12 @@ export const migrate = (films: Partial<Film>[] | null | undefined): Film[] =>
     archived: !!f.archived,
     order: typeof f.order === "number" ? f.order : null,
     genres: f.genres || [],
+    /* Les fiches d'avant le casting n'en portent pas. On ne va PAS le
+       chercher ici : `migrate` tourne au chargement, hors ligne et sans
+       clé TMDB. C'est un réimport qui le remplira, et le diff le
+       montrera avant de l'écrire. */
+    cast: f.cast || [],
+    crew: f.crew || {},
     themes: f.themes || [],
     linkedWorks: f.linkedWorks || [],
     stills: f.stills || [],

@@ -144,3 +144,80 @@ describe("enrichRows — quand la ligne porte déjà son identifiant", () => {
     expect(Object.keys(cache()).sort()).toEqual(["id:11", "id:22"]);
   });
 });
+
+/* ------------------------------------------------------------
+   LA RÉCOLTE DU CASTING
+   ------------------------------------------------------------ */
+
+/* Une réponse complète : générique fourni, équipe mêlée de métiers
+   qu'on ne retient pas. */
+const castFetch = () =>
+  vi.fn(async (url) => ({
+    ok: true,
+    status: 200,
+    headers: new Headers(),
+    json: async () =>
+      String(url).includes("/search/movie")
+        ? { results: [{ id: 42 }] }
+        : {
+            id: 42,
+            genres: [],
+            release_date: "1967-10-25",
+            credits: {
+              crew: [
+                { job: "Director", name: "Melville" },
+                { job: "Director of Photography", name: "Decaë" },
+                { job: "Original Music Composer", name: "Rubinstein" },
+                { job: "Screenplay", name: "Melville" },
+                { job: "Third Assistant Editor", name: "Personne" },
+              ],
+              cast: Array.from({ length: 20 }, (_, i) => ({ name: `Acteur ${i}` })),
+            },
+          },
+  }));
+
+describe("enrichRows — casting", () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("ne retient que les huit premiers rôles", async () => {
+    vi.stubGlobal("fetch", castFetch());
+    const { rows: out } = await enrichRows([{ title: "Le Samouraï", year: 1967 }], "k");
+    expect(out[0].cast).toHaveLength(8);
+    expect(out[0].cast[0]).toBe("Acteur 0");
+    expect(out[0].cast[7]).toBe("Acteur 7");
+  });
+
+  it("range l'équipe par métier, et jette les métiers qu'on ne suit pas", async () => {
+    vi.stubGlobal("fetch", castFetch());
+    const { rows: out } = await enrichRows([{ title: "Le Samouraï", year: 1967 }], "k");
+    expect(out[0].crew).toEqual({
+      image: ["Decaë"],
+      musique: ["Rubinstein"],
+      scénario: ["Melville"],
+    });
+  });
+
+  /* Le cache d'avant la récolte ne porte ni `cast` ni `crew`. Il ne doit
+     pas laisser filtrer `undefined` jusqu'à la fiche : tout le reste du
+     code compte sur une liste, fût-elle vide. */
+  it("rend des listes vides pour une entrée mémorisée avant la récolte", async () => {
+    localStorage.setItem(
+      CACHE_KEY,
+      JSON.stringify({ "le samouraï|1967": { tmdbId: 42, director: "Melville", genres: [] } })
+    );
+    const fetchMock = castFetch();
+    vi.stubGlobal("fetch", fetchMock);
+    const { rows: out } = await enrichRows([{ title: "Le Samouraï", year: 1967 }], "k");
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(out[0].cast).toEqual([]);
+    expect(out[0].crew).toEqual({});
+  });
+
+  it("n'invente pas d'équipe quand TMDB n'en donne pas", async () => {
+    vi.stubGlobal("fetch", okFetch());
+    const { rows: out } = await enrichRows([{ title: "Le Samouraï", year: 1967 }], "k");
+    expect(out[0].cast).toEqual([]);
+    expect(out[0].crew).toEqual({});
+  });
+});
