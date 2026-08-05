@@ -13,6 +13,10 @@ import { THEMES } from "../../components/shelf/constants";
 import { DecorStudio } from "../../components/shelf/DecorStudio";
 import { SHELF_KINDS, sortIntoRows, patchViewDecor, clearViewDecor } from "../../shelf-views";
 import { FilmWall } from "./FilmWall";
+import { WallStudio } from "./WallStudio";
+import { wallLookOf, DEFAULT_WALL_LOOK } from "./wallLook";
+import { wallStyle } from "../../theme/surfaces";
+import { catInk } from "../../components/shelf/constants";
 import { WALLS } from "./walls";
 
 function ViewSwitcher({
@@ -349,6 +353,20 @@ export function LibraryView({
      de vue : on y règle une surface et on veut VOIR le rayon changer
      derrière, ce qu'un menu refermé sur lui-même interdit. */
   const [studio, setStudio] = useState(false);
+
+  /* L'atelier du mur, son exact pendant côté fiches. Deux états et non un
+     seul : les deux ateliers ne règlent pas la même chose et ne s'ouvrent
+     pas dans la même présentation. */
+  const [wallStudio, setWallStudio] = useState(false);
+
+  /* L'allure du mur vient du disque et peut manquer, ou avoir été écrite
+     par une autre version : `wallLookOf` la ramène toujours à une allure
+     complète, quitte à retomber sur les défauts. */
+  const look = useMemo(() => wallLookOf(ui.look), [ui.look]);
+  const skin = useMemo(
+    () => wallStyle(look.decor, look.decor?.patternInk ? catInk(look.decor.patternInk) : undefined),
+    [look.decor]
+  );
 
   /* Genre et décennie se cumulent : ce sont deux tamis posés l'un sur
      l'autre, et non deux boutons qui se disputent la liste. */
@@ -741,6 +759,29 @@ export function LibraryView({
             </button>
           </div>
         )}
+        {mode === "wall" && (
+          <div>
+            <Label>Décor</Label>
+            {/* En écho à « ATELIER DÉCO… » de l'étagère : le mur aussi se
+                peint, et ses fiches aussi ont un calibre. */}
+            <button
+              onClick={() => setWallStudio(true)}
+              title="Peindre le mur, régler la taille et le désordre des fiches"
+              style={{
+                all: "unset",
+                cursor: "pointer",
+                padding: "5px 12px",
+                marginTop: 2,
+                fontFamily: F.mono,
+                fontSize: 10.5,
+                color: C.burgundy,
+                border: `1px solid ${C.line}`,
+              }}
+            >
+              ATELIER DU MUR…
+            </button>
+          </div>
+        )}
         {mode === "wall" && asideCount > 0 && (
           <div style={{ fontFamily: F.hand, fontSize: 18, color: C.inkFaded }}>
             <button
@@ -775,73 +816,116 @@ export function LibraryView({
             />
           )}
         </div>
-      ) : filtered.length === 0 ? (
-        <div
-          style={{
-            textAlign: "center",
-            padding: "60px 20px",
-            color: C.inkFaded,
-            position: "relative",
-            zIndex: 2,
-          }}
-        >
-          <Pin size={26} color={C.line} style={{ marginBottom: 10 }} />
-          <div
-            style={{
-              fontFamily: F.title,
-              fontSize: 20,
-              color: C.ink,
-              marginBottom: 6,
-            }}
-          >
-            {films.length === 0 ? cfg.empty[0] : "Rien à afficher"}
-          </div>
-          <div style={{ fontFamily: F.hand, fontSize: 19 }}>
-            {films.length === 0 ? cfg.empty[1] : "Essayez une autre recherche."}
-          </div>
-        </div>
-      ) : grouped ? (
-        <div style={{ position: "relative", zIndex: 2 }}>
-          {groups.map(([director, list]) => (
-            <div key={director} style={{ marginBottom: 46 }}>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 6 }}>
-                <div
-                  style={{
-                    fontFamily: F.title,
-                    fontStyle: "italic",
-                    fontWeight: 700,
-                    fontSize: 26,
-                    color: C.ink,
-                  }}
-                >
-                  {director}
-                </div>
-                <div
-                  style={{
-                    flex: 1,
-                    borderBottom: `1px dashed ${C.line}`,
-                    transform: "translateY(-6px)",
-                  }}
-                />
-                <div
-                  style={{
-                    fontFamily: F.mono,
-                    fontSize: 11,
-                    color: C.inkFaded,
-                  }}
-                >
-                  {list.length} film{list.length > 1 ? "s" : ""}
-                </div>
-              </div>
-              <FilmWall films={list} onOpen={onOpen} />
-            </div>
-          ))}
-        </div>
       ) : (
-        <div style={{ position: "relative", zIndex: 2 }}>
-          <FilmWall films={filtered} onOpen={onOpen} />
+        /* LE MUR — la surface d'abord, les fiches dessus.
+
+           Le fond est peint par le MÊME moteur que celui des rayons
+           (`wallStyle`) : peinture, papier peint et texture. Il déborde
+           du contenu de vingt pixels pour que les fiches ne soient pas
+           collées à l'arête, et la texture reste un calque à elle, qui
+           se fond en `multiply` — un fond ne sait pas faire ça seul. */
+        <div style={{ position: "relative", zIndex: 2, padding: look.decor ? 20 : 0, ...skin.frame }}>
+          {skin.texture && (
+            <div
+              aria-hidden
+              style={{
+                position: "absolute",
+                inset: 0,
+                mixBlendMode: "multiply",
+                pointerEvents: "none",
+                ...skin.texture,
+              }}
+            />
+          )}
+          <div style={{ position: "relative" }}>
+            {filtered.length === 0 ? (
+              <WallEmpty films={films} cfg={cfg} />
+            ) : grouped ? (
+              groups.map(([director, list]) => (
+                <div key={director} style={{ marginBottom: 46 }}>
+                  <DirectorRule director={director} count={list.length} />
+                  <FilmWall films={list} onOpen={onOpen} look={look} />
+                </div>
+              ))
+            ) : (
+              <FilmWall films={filtered} onOpen={onOpen} look={look} />
+            )}
+          </div>
+          {wallStudio && (
+            <WallStudio
+              look={look}
+              onChange={(patch) => set({ look: { ...look, ...patch } })}
+              onReset={() => set({ look: DEFAULT_WALL_LOOK })}
+              onClose={() => setWallStudio(false)}
+            />
+          )}
         </div>
       )}
+    </div>
+  );
+}
+
+/* Ce qu'on voit quand le mur est vide — la collection l'est, ou bien le
+   tamis ne laisse rien passer. Ce sont deux vides différents, et ils ne
+   se disent pas de la même façon. */
+function WallEmpty({ films, cfg }) {
+  return (
+    <div
+      style={{
+        textAlign: "center",
+        padding: "60px 20px",
+        color: C.inkFaded,
+      }}
+    >
+      <Pin size={26} color={C.line} style={{ marginBottom: 10 }} />
+      <div
+        style={{
+          fontFamily: F.title,
+          fontSize: 20,
+          color: C.ink,
+          marginBottom: 6,
+        }}
+      >
+        {films.length === 0 ? cfg.empty[0] : "Rien à afficher"}
+      </div>
+      <div style={{ fontFamily: F.hand, fontSize: 19 }}>
+        {films.length === 0 ? cfg.empty[1] : "Essayez une autre recherche."}
+      </div>
+    </div>
+  );
+}
+
+/* Le filet qui sépare deux réalisateurs, quand le mur est classé. */
+function DirectorRule({ director, count }) {
+  return (
+    <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 6 }}>
+      <div
+        style={{
+          fontFamily: F.title,
+          fontStyle: "italic",
+          fontWeight: 700,
+          fontSize: 26,
+          color: C.ink,
+        }}
+      >
+        {director}
+      </div>
+      <div
+        style={{
+          flex: 1,
+          borderBottom: `1px dashed ${C.line}`,
+          transform: "translateY(-6px)",
+        }}
+      />
+      <div
+        style={{
+          fontFamily: F.mono,
+          fontSize: 11,
+          color: C.inkFaded,
+        }}
+      >
+        {count} film{count > 1 ? "s" : ""}
+      </div>
     </div>
   );
 }

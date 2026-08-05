@@ -1,18 +1,55 @@
 /* ============================================================
    POLAROID / FICHE FILM
-   ============================================================ */
+   ============================================================
+
+   Toutes les cotes étaient écrites en dur. Elles passent maintenant par
+   un facteur unique, lu dans l'allure du mur (`views/library/wallLook`) :
+   une fiche est un objet, elle grandit d'un bloc.
+
+   L'allure est FACULTATIVE, et son absence vaut « comme avant » : la
+   fiche sert aussi ailleurs qu'au mur (les découvertes), et ces
+   endroits-là n'ont rien demandé. */
 import { C, F } from "../../theme/tokens";
 import { tapeColor } from "../../theme/ink";
 import { hash, tiltOf, usesPin, nudgeOf, pickFrom } from "../../domain/seeded";
 import { PushPin, Tape, FileNumber } from "../atmosphere";
 import { InkStars } from "../ui";
 import { PosterArt } from "./PosterArt";
+import {
+  NEUTRAL_WALL_LOOK,
+  scaleOf,
+  messOf,
+  gapOf,
+  type WallLook,
+} from "../../views/library/wallLook";
 import type { Film } from "../../types";
 
-export function FilmPolaroid({ film, onClick }: { film: Film; onClick: () => void }) {
-  const tilt = tiltOf(film.id);
+export function FilmPolaroid({
+  film,
+  onClick,
+  look = NEUTRAL_WALL_LOOK,
+}: {
+  film: Film;
+  onClick: () => void;
+  look?: WallLook;
+}) {
+  const f = scaleOf(look);
+  const px = (n: number) => Math.round(n * f);
+
+  /* Le désordre reste SEMÉ par l'identifiant — on ne fait que le doser.
+     À « rangé », le facteur vaut zéro et le mur est au cordeau sans
+     qu'aucune fiche n'ait perdu son tirage : remonter d'un cran retrouve
+     exactement le mur qu'on avait. */
+  const mess = messOf(look);
+  const tilt = Number(tiltOf(film.id)) * mess;
+  const nudge = Math.round(nudgeOf(film.id) * mess * f);
+
   const tape = tapeColor(film.id);
-  const pinned = usesPin(film.id);
+  // « au hasard » consulte le tirage ; les autres modes tranchent pour tout le mur
+  const hang = look?.hang || "auto";
+  const pinned = hang === "auto" ? usesPin(film.id) : hang === "pin";
+  const bare = hang === "none";
+
   const initials = film.title
     .split(" ")
     .filter(Boolean)
@@ -20,20 +57,22 @@ export function FilmPolaroid({ film, onClick }: { film: Film; onClick: () => voi
     .map((w) => w[0])
     .join("")
     .toUpperCase();
-  const nudge = nudgeOf(film.id);
   // l'ombre tombe du côté opposé à l'inclinaison — la photo n'est pas plaquée à plat
-  const rest = `${Number(tilt) > 0 ? -3 : 3}px 7px 15px rgba(30,20,10,0.3), 0 1px 2px rgba(30,20,10,0.4)`;
-  const lift = `${Number(tilt) > 0 ? -6 : 6}px 18px 30px rgba(30,20,10,0.38), 0 2px 3px rgba(30,20,10,0.3)`;
+  const rest = `${tilt > 0 ? -3 : 3}px 7px 15px rgba(30,20,10,0.3), 0 1px 2px rgba(30,20,10,0.4)`;
+  const lift = `${tilt > 0 ? -6 : 6}px 18px 30px rgba(30,20,10,0.38), 0 2px 3px rgba(30,20,10,0.3)`;
 
+  /* L'écart au voisin du dessous est le MÊME que celui du voisin de droite
+     (`gapOf`) : la grille ne pose que l'horizontal, le vertical est ici, et
+     un mur serré doit l'être dans les deux sens. */
   return (
-    <div style={{ breakInside: "avoid", marginBottom: 34, paddingTop: nudge }}>
+    <div style={{ breakInside: "avoid", marginBottom: gapOf(look), paddingTop: nudge }}>
       <button
         onClick={onClick}
         style={{
           all: "unset",
           cursor: "pointer",
           width: "100%",
-          padding: "12px 12px 18px",
+          padding: `${px(12)}px ${px(12)}px ${px(18)}px`,
           position: "relative",
           background: `linear-gradient(158deg, #FBF6E9, ${C.card} 55%, ${C.paperDark})`,
           boxShadow: rest,
@@ -52,7 +91,10 @@ export function FilmPolaroid({ film, onClick }: { film: Film; onClick: () => voi
           e.currentTarget.style.zIndex = "auto";
         }}
       >
-        {pinned ? (
+        {/* La punaise et le ruban gardent leur taille : ce sont des objets
+            posés SUR la fiche, pas des morceaux d'elle. Seul leur point
+            d'accroche suit le bord, qui a bougé. */}
+        {bare ? null : pinned ? (
           <PushPin
             color={pickFrom([C.burgundy, C.cobalt, C.moss], Math.abs(hash(film.id)))}
             style={{ top: -7, left: "50%", marginLeft: -7 }}
@@ -60,17 +102,17 @@ export function FilmPolaroid({ film, onClick }: { film: Film; onClick: () => voi
         ) : (
           <Tape
             color={tape}
-            rotate={Number(tilt) > 0 ? -8 : 8}
+            rotate={tilt > 0 ? -8 : 8}
             style={{ top: -10, left: "50%", marginLeft: -35 }}
           />
         )}
-        <PosterArt film={film} height={150} initials={initials} />
-        <div style={{ paddingTop: 14, textAlign: "left" }}>
+        <PosterArt film={film} height={px(150)} initials={initials} />
+        <div style={{ paddingTop: px(14), textAlign: "left" }}>
           <div
             style={{
               fontFamily: F.title,
               fontWeight: 700,
-              fontSize: 18,
+              fontSize: px(18),
               color: C.ink,
               lineHeight: 1.15,
             }}
@@ -81,7 +123,7 @@ export function FilmPolaroid({ film, onClick }: { film: Film; onClick: () => voi
           <div
             style={{
               fontFamily: F.hand,
-              fontSize: 17,
+              fontSize: px(17),
               color: C.inkFaded,
               marginTop: 2,
               transform: "rotate(-0.8deg)",
@@ -90,12 +132,12 @@ export function FilmPolaroid({ film, onClick }: { film: Film; onClick: () => voi
             {film.year || "s.d."} · {film.director || "anonyme"}
           </div>
           {/* pas d'étoiles sur un film pas encore vu : rien à noter */}
-          <div style={{ marginTop: 8 }}>
+          <div style={{ marginTop: px(8) }}>
             {film.status === "watchlist" ? (
               <span
                 style={{
                   fontFamily: F.mono,
-                  fontSize: 10,
+                  fontSize: px(10),
                   color: C.cobalt,
                   letterSpacing: 1,
                 }}
@@ -103,7 +145,7 @@ export function FilmPolaroid({ film, onClick }: { film: Film; onClick: () => voi
                 À VOIR
               </span>
             ) : (
-              <InkStars value={film.rating || 0} size={12} />
+              <InkStars value={film.rating || 0} size={px(12)} />
             )}
           </div>
         </div>
@@ -114,8 +156,8 @@ export function FilmPolaroid({ film, onClick }: { film: Film; onClick: () => voi
             position: "absolute",
             bottom: 0,
             right: 0,
-            width: 22,
-            height: 22,
+            width: px(22),
+            height: px(22),
             background: `linear-gradient(135deg, transparent 50%, ${C.paperDark} 50%, #cbb894 100%)`,
             boxShadow: "-1px -1px 2px rgba(30,20,10,0.18)",
           }}

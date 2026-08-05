@@ -331,13 +331,18 @@ export default function App() {
          appartient à chaque rangée, dans la vue. Ne survit ici que la
          vue qu'on regardait. */
       viewId: saved[wall]?.viewId || null,
+      /* L'allure du mur — calibre des fiches, écartement, désordre,
+         accroche et décor de fond. Elle est gardée telle quelle : c'est
+         `wallLookOf` qui la ramène à quelque chose de sensé au moment de
+         s'en servir, y compris quand elle manque. */
+      look: saved[wall]?.look || null,
     });
     return { watched: one("watched"), watchlist: one("watchlist") };
   });
   const setUiFor = (wall) => (next) =>
     setWallUi((s) => {
       const merged = { ...s, [wall]: next };
-      const keep = ({ mode, sortBy, desc, viewId }) => ({ mode, sortBy, desc, viewId });
+      const keep = ({ mode, sortBy, desc, viewId, look }) => ({ mode, sortBy, desc, viewId, look });
       store.set("wall-prefs", { watched: keep(merged.watched), watchlist: keep(merged.watchlist) });
       return merged;
     });
