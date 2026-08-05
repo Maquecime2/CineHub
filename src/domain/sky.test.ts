@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildSky, buildSkyWithCrew, relax, suggestLinks, workKey } from "./sky";
+import { buildSky, buildSkyWithCrew, neighbourhood, relax, suggestLinks, workKey } from "./sky";
 import { makeFilm } from "./film";
 import type { Film, LinkedWork } from "../types";
 
@@ -165,7 +165,10 @@ describe("suggestLinks", () => {
     const b = film("B", { crew: { image: ["Decaë"] } });
     const liens = suggestLinks([a, b]);
     expect(liens).toHaveLength(1);
-    expect(liens[0]).toMatchObject({ kind: "crew", why: ["Decaë"] });
+    expect(liens[0]).toMatchObject({
+      kind: "crew",
+      why: [{ role: "image", nom: "Decaë" }],
+    });
   });
 
   /* LE GARDE-FOU. Un acteur présent partout relierait tout à tout et
@@ -190,7 +193,10 @@ describe("suggestLinks", () => {
     const b = film("B", { crew: { image: ["Decaë"], musique: ["Rubinstein"] } });
     const liens = suggestLinks([a, b]);
     expect(liens).toHaveLength(1);
-    expect(liens[0]!.why!.sort()).toEqual(["Decaë", "Rubinstein"]);
+    expect(liens[0]!.why!.map((w) => `${w.role}·${w.nom}`).sort()).toEqual([
+      "image·Decaë",
+      "musique·Rubinstein",
+    ]);
   });
 
   it("compte le réalisateur comme tout le monde, et sépare les co-réalisations", () => {
@@ -251,5 +257,96 @@ describe("buildSkyWithCrew", () => {
     const a = film("A", { crew: { image: ["Decaë"] }, genres: ["Policier"] });
     const b = film("B", { crew: { image: ["Decaë"] }, genres: ["Comédie"] });
     expect(buildSkyWithCrew([a, b], { genres: ["Policier"] }).links).toEqual([]);
+  });
+});
+
+describe("suggestLinks — la nature des parentés", () => {
+  it("nomme le métier, et pas seulement la personne", () => {
+    const a = film("A", { director: "Melville", cast: ["Delon"], crew: { musique: ["R"] } });
+    const b = film("B", { director: "Melville", cast: ["Delon"], crew: { musique: ["R"] } });
+    const roles = suggestLinks([a, b])[0]!
+      .why!.map((w) => w.role)
+      .sort();
+    expect(roles).toEqual(["interprétation", "musique", "réalisation"]);
+  });
+
+  /* Les mots-clés sont la seule parenté qui vienne de l'utilisateur et
+     non d'un générique. */
+  it("relie deux films par un mot-clé partagé", () => {
+    const a = film("A", { themes: ["solitude urbaine"] });
+    const b = film("B", { themes: ["solitude urbaine"] });
+    expect(suggestLinks([a, b])[0]!.why).toEqual([{ role: "thème", nom: "solitude urbaine" }]);
+  });
+
+  it("applique le même seuil aux mots-clés qu'aux personnes", () => {
+    const films = Array.from({ length: 6 }, (_, i) => film(`F${i}`, { themes: ["partout"] }));
+    expect(suggestLinks(films)).toEqual([]);
+  });
+
+  /* Un compositeur qui joue aussi dans les deux films est DEUX parentés :
+     les confondre en ferait disparaître une. */
+  it("ne confond pas deux rôles portés par le même nom", () => {
+    const a = film("A", { cast: ["Ozu"], crew: { scénario: ["Ozu"] } });
+    const b = film("B", { cast: ["Ozu"], crew: { scénario: ["Ozu"] } });
+    expect(suggestLinks([a, b])[0]!.why).toHaveLength(2);
+  });
+
+  it("ignore un métier d'équipe qu'on ne suit pas", () => {
+    const a = film("A", { crew: { montage: ["X"] } });
+    const b = film("B", { crew: { montage: ["X"] } });
+    expect(suggestLinks([a, b])).toEqual([]);
+  });
+});
+
+describe("neighbourhood", () => {
+  /* A — B — C — D, en chaîne. */
+  const chaine = () => {
+    const nodes = ["A", "B", "C", "D"].map((id) => ({
+      id: `f:${id}`,
+      kind: "film" as const,
+      label: id,
+      sub: "",
+      degree: 0,
+    }));
+    const links = [
+      { a: "f:A", b: "f:B", kind: "crew" as const },
+      { a: "f:B", b: "f:C", kind: "crew" as const },
+      { a: "f:C", b: "f:D", kind: "crew" as const },
+    ];
+    return { nodes, links };
+  };
+
+  it("ne rend que le foyer et ses voisins directs", () => {
+    const { nodes, links } = chaine();
+    const v = neighbourhood(nodes, links, "f:B", 1);
+    expect(v.nodes.map((n) => n.label).sort()).toEqual(["A", "B", "C"]);
+  });
+
+  it("élargit d'un pas de plus quand on le demande", () => {
+    const { nodes, links } = chaine();
+    expect(
+      neighbourhood(nodes, links, "f:A", 2)
+        .nodes.map((n) => n.label)
+        .sort()
+    ).toEqual(["A", "B", "C"]);
+  });
+
+  /* Un fil qui part vers un astre non affiché ne mène nulle part et
+     ferait croire à un voisin invisible. */
+  it("ne garde une arête que si ses DEUX bouts sont montrés", () => {
+    const { nodes, links } = chaine();
+    const v = neighbourhood(nodes, links, "f:B", 1);
+    expect(v.links).toHaveLength(2);
+    expect(v.links.every((l) => ["f:A", "f:B", "f:C"].includes(l.a))).toBe(true);
+  });
+
+  it("rend le foyer seul quand rien ne le relie", () => {
+    const { nodes } = chaine();
+    expect(neighbourhood(nodes, [], "f:A", 1).nodes.map((n) => n.label)).toEqual(["A"]);
+  });
+
+  it("ne rend rien d'un foyer qui n'existe pas", () => {
+    const { nodes, links } = chaine();
+    expect(neighbourhood(nodes, links, "f:ZZZ", 1)).toEqual({ nodes: [], links: [] });
   });
 });

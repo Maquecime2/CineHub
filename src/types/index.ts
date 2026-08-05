@@ -276,8 +276,24 @@ export interface SkyLink {
    * dire du premier coup d'œil ce qui vient de vous.
    */
   kind: "cite" | "peer" | "crew";
-  /** Les noms qui justifient un fil "crew" — de quoi l'expliquer en une ligne. */
-  why?: string[];
+  /** Les raisons qui justifient un fil "crew" — de quoi l'expliquer en une ligne. */
+  why?: Kinship[];
+}
+
+/**
+ * La NATURE d'une parenté, et non seulement son nom.
+ *
+ * « Decaë » ne dit pas grand-chose ; « image · Decaë » dit qu'on suit un
+ * chef opérateur. `thème` est la seule qui ne vienne pas d'un générique
+ * mais de vos propres mots-clés — elle mérite d'être distinguée des
+ * autres, parce qu'elle est de vous.
+ */
+export type KinshipRole =
+  "réalisation" | "interprétation" | "image" | "musique" | "scénario" | "thème";
+
+export interface Kinship {
+  role: KinshipRole;
+  nom: string;
 }
 
 /** Restreint la carte du ciel à un sous-ensemble de la collection. */
