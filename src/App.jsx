@@ -703,7 +703,16 @@ export default function App() {
             onAddToWatchlist={addFilm}
           />
         )}
-        {view === "reco" && <RecoView films={films} onAddToWatchlist={addFilm} />}
+        {view === "reco" && (
+          <RecoView
+            films={films}
+            onAddToWatchlist={addFilm}
+            onOpen={(id) => {
+              setSelectedId(id);
+              setView("detail");
+            }}
+          />
+        )}
         {view === "constellation" && (
           <ConstellationView
             films={constellationFilms}

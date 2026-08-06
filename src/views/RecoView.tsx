@@ -1,14 +1,16 @@
 import { useMemo, useState } from "react";
 import { C, F } from "../theme/tokens";
 import { underlineInput } from "../theme/styles";
-import { Label } from "../components/ui";
+import { Label, TitreSection, Consigne } from "../components/ui";
 import { StampCorner, InkUnderline, CoffeeRing } from "../components/atmosphere";
 import { store } from "../services/storage";
 import { buildTaste } from "../taste";
 import { gatherCandidates, rank, DEFAULT_QUERY } from "../reco";
-import { makeFilm } from "../domain/film";
+import { makeFilm, initialsOf } from "../domain/film";
 import { FilmPolaroid } from "../components/film/FilmPolaroid";
+import { PosterArt } from "../components/film/PosterArt";
 import { filmKey } from "../domain/importing";
+import { suggestionsMaison, type Nature } from "../domain/chezvous";
 import type { Film, Year } from "../types";
 
 /** Un film proposé par TMDB, une fois classé. */
@@ -217,12 +219,120 @@ function RecoCard({ c, onAdd, added }: { c: Candidate; onAdd: () => void; added:
   );
 }
 
+/* ------------------------------------------------------------
+   CHEZ VOUS — ce que la collection propose d'elle-même
+   ------------------------------------------------------------
+
+   Le bureau des découvertes ne savait regarder que dehors, et, sans clé
+   TMDB, il ne montrait RIEN : un titre, et un encadré expliquant
+   comment le rendre utile. Un onglet entier réduit à un mode d'emploi.
+
+   Ces propositions-ci ne demandent le réseau à personne. Elles passent
+   donc AVANT — et cet onglet a désormais quelque chose à dire dès la
+   première visite. */
+function ChezVous({
+  suggestions,
+  onOpen,
+}: {
+  suggestions: ReturnType<typeof suggestionsMaison>;
+  onOpen: (id: string) => void;
+}) {
+  return (
+    <div data-tour="reco-maison" style={{ marginTop: 26, position: "relative", zIndex: 2 }}>
+      <TitreSection>Chez vous</TitreSection>
+      <Consigne>
+        Deux cents fiches vues, et l'on tourne autour des douze dernières. Voici les autres — rien
+        d'ici ne sort du navigateur.
+      </Consigne>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))",
+          gap: 12,
+        }}
+      >
+        {suggestions.map((s) => (
+          <button key={s.clé} onClick={() => onOpen(s.film.id)} style={carteMaison}>
+            <div style={{ display: "flex", gap: 11 }}>
+              <div style={{ width: 54, flexShrink: 0 }}>
+                <PosterArt film={s.film} height={81} initials={initialsOf(s.film.title)} />
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    fontFamily: F.mono,
+                    fontSize: 8.5,
+                    letterSpacing: 0.7,
+                    textTransform: "uppercase",
+                    color: TEINTE[s.nature],
+                  }}
+                >
+                  {s.titre}
+                </div>
+                <div
+                  style={{
+                    fontFamily: F.title,
+                    fontWeight: 700,
+                    fontSize: 14,
+                    color: C.ink,
+                    marginTop: 2,
+                    lineHeight: 1.15,
+                  }}
+                >
+                  {s.film.title}
+                </div>
+                {/* LA RAISON EN CLAIR. Une proposition qui ne dit pas
+                    pourquoi n'est qu'un tirage au sort de plus. */}
+                <div
+                  style={{
+                    fontFamily: F.hand,
+                    fontSize: 14.5,
+                    color: C.inkFaded,
+                    marginTop: 4,
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {s.raison}
+                </div>
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* Une teinte par nature : on doit voir d'un coup d'œil que la liste
+   regarde la collection sous trois angles, et non qu'elle répète la
+   même chose six fois. */
+const TEINTE: Record<Nature, string> = {
+  revoir: C.burgundy,
+  motif: C.plum,
+  cinéaste: C.pine,
+};
+
+const carteMaison = {
+  all: "unset" as const,
+  cursor: "pointer",
+  display: "block",
+  background: C.card,
+  border: `1px solid ${C.line}`,
+  borderRadius: 2,
+  padding: "10px 12px",
+  boxShadow: "1px 2px 6px rgba(0,0,0,0.1)",
+  transition: "transform var(--motion-fast) var(--motion-ease)",
+};
+
 export function RecoView({
   films,
   onAddToWatchlist,
+  onOpen,
 }: {
   films: Film[];
   onAddToWatchlist: (f: Film) => void;
+  /** Ouvre une fiche de la collection — les propositions « chez vous ». */
+  onOpen?: (id: string) => void;
 }) {
   const [query, setQuery] = useState<Query>(DEFAULT_QUERY);
   const [raw, setRaw] = useState<Candidate[] | null>(null); // candidats bruts, indépendants des curseurs
@@ -233,6 +343,9 @@ export function RecoView({
 
   const apiKey = store.get("tmdb-key", "");
   const taste = useMemo(() => buildTaste(films), [films]);
+  /* Calculé ICI et non dans le bloc : le message de clé manquante doit
+     savoir s'il y a quelque chose au-dessus de lui pour en parler. */
+  const maison = useMemo(() => suggestionsMaison(films), [films]);
   const allGenres = useMemo(
     () => Array.from(new Set(films.flatMap((f) => f.genres || []))).sort(),
     [films]
@@ -334,6 +447,10 @@ export function RecoView({
         des films à voir, choisis d'après ce que dit votre collection
       </div>
 
+      {/* CHEZ VOUS, AVANT LE RESTE, et hors du test de clé : ces
+          propositions-là ne demandent rien au réseau. */}
+      {onOpen && maison.length > 0 && <ChezVous suggestions={maison} onOpen={onOpen} />}
+
       {!apiKey ? (
         <div
           style={{
@@ -363,9 +480,11 @@ export function RecoView({
               lineHeight: 1.5,
             }}
           >
-            Les recommandations viennent de TMDB. Rendez-vous dans l'onglet « Import Letterboxd »
-            pour y coller votre clé — elle reste dans ce navigateur et sert aussi à l'enrichissement
-            des fiches.
+            {maison.length > 0
+              ? "Les propositions ci-dessus viennent de votre collection et n'ont besoin de rien. Pour en chercher au-dehors, il faut une clé : "
+              : "Chercher des films au-dehors demande une clé : "}
+            rendez-vous dans l'onglet « Import Letterboxd » pour y coller la vôtre — elle reste
+            dans ce navigateur et sert aussi à l'enrichissement des fiches.
           </div>
         </div>
       ) : (

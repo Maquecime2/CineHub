@@ -197,6 +197,13 @@ const reco: Tour = {
   label: "Le bureau des découvertes",
   steps: [
     {
+      target: at("reco-maison"),
+      title: "Chez vous d'abord",
+      body: "Avant d'aller chercher dehors : ce que votre collection contient déjà et que vous avez laissé de côté. Un film que vous aviez adoré, un motif que plus rien ne vous a fait croiser, un cinéaste que vous n'avez plus ouvert. Rien de tout cela ne sort du navigateur, et aucune clé n'est nécessaire.",
+      placement: "bottom",
+      optional: true,
+    },
+    {
       target: at("reco-dials"),
       title: "Deux molettes",
       body: "« Degré de niche » va du grand public à la pépite. « Dépaysement » va de vos goûts avérés à ce qui en sort. Tout le reste du bulletin n'est qu'un affinage.",
@@ -352,7 +359,7 @@ const global: Tour = {
     ...from("library", library, "wall-search", "wall-mode", "wall-films"),
     ...from("watchlist", watchlist, "wall-films", "soir-ouvrir"),
     ...from("generique", generique, "generique-search", "generique-dossier"),
-    ...from("reco", reco, "reco-dials"),
+    ...from("reco", reco, "reco-maison", "reco-dials"),
     ...from("constellation", constellation, "constellation-start", "constellation-teams"),
     ...from("almanac", almanac, "almanac-year"),
     ...from("notebook", notebook, "notebook-new"),
