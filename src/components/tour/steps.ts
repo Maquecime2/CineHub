@@ -261,6 +261,13 @@ const importTour: Tour = {
       optional: true,
     },
     {
+      target: at("import-repair"),
+      title: "Rattraper une bascule",
+      body: "Ne paraît que s'il y a quelque chose à rattraper : les fiches « vues » qui n'ont ni séance, ni note, ni texte, et qui étaient probablement des envies. À cocher une par une — la liste propose, vous décidez.",
+      placement: "top",
+      optional: true,
+    },
+    {
       target: at("import-backup"),
       title: "La sauvegarde",
       body: "Tout vit dans ce navigateur, et rien d'autre. Vider les données du site efface la collection : la sauvegarde est le seul filet, emportez-la de temps en temps.",

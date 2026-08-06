@@ -19,6 +19,7 @@ import {
 import { enrichRows, checkApiKey } from "../../tmdb";
 import { BackupPanel } from "./BackupPanel";
 import { CompletePanel } from "./CompletePanel";
+import { RepairPanel } from "./RepairPanel";
 import type {
   Divider,
   Film,
@@ -1048,6 +1049,17 @@ export function ImportView({
       <div data-tour="import-complete">
         <CompletePanel films={films} apiKey={apiKey} onImport={onImport} />
       </div>
+
+      {/* Placé APRÈS « compléter » et avant la sauvegarde : c'est
+          « compléter » qui a causé le dégât, et la sauvegarde est le
+          geste à faire avant de réparer. L'ordre raconte la marche à
+          suivre. Le panneau disparaît de lui-même quand il n'a plus
+          rien à proposer. */}
+      {/* Pas d'enveloppe ici : c'est le panneau lui-même qui porte son
+          `data-tour`. Une enveloppe vide garde une largeur, donc reste
+          une cible mesurable, et la visite s'arrêtait sur une bande
+          invisible au lieu de sauter l'étape. */}
+      <RepairPanel films={films} onImport={onImport} />
 
       <div data-tour="import-backup">
         <BackupPanel

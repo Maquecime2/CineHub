@@ -36,7 +36,7 @@ export const porteUneTraceDeVisionnage = (f: Film): boolean =>
  * celles qu'un relevé de watchlist avait posées, et les plus probables —
  * puis par titre.
  */
-export const bascul√©esParErreur = (films: Film[]): Film[] =>
+export const basculéesParErreur = (films: Film[]): Film[] =>
   films
     .filter((f) => f.status === "watched" && !f.archived && !porteUneTraceDeVisionnage(f))
     .sort(

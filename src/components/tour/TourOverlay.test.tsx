@@ -133,4 +133,27 @@ describe("une cible absente ne bloque pas", () => {
       await screen.findByText("Trois planches", undefined, { timeout: 3000 })
     ).toBeInTheDocument();
   });
+
+  /* L'ENVERS DU DÉCOR, ET C'EST LUI QUI A CASSÉ. Le montreur reste monté
+     en permanence : hors visite il suit une cible nulle, donc « absente ».
+     Quand une visite s'ouvrait, sa première étape se rendait une fois avec
+     cet état-là encore en mémoire — et si elle était facultative, elle se
+     faisait escamoter avant qu'on ait seulement cherché sa cible. La
+     visite d'une fiche s'ouvrait sur son étape 2.
+
+     D'où le passage par `tourId={null}` : sans lui le montreur naît avec
+     la bonne visite, l'état vicié n'existe jamais, et le test passerait
+     même avec le bug. */
+  it("n'escamote pas la première étape quand sa cible est là", async () => {
+    poserLesCibles("detail");
+    const { rerender } = render(
+      <TourOverlay tourId={null} onClose={vi.fn()} onView={vi.fn()} />
+    );
+    rerender(<TourOverlay tourId="detail" onClose={vi.fn()} onView={vi.fn()} />);
+
+    const première = TOURS.detail!.steps[0]!;
+    expect(première.optional, "le test ne vaut que si l'étape est facultative").toBe(true);
+    expect(await screen.findByText(première.title)).toBeInTheDocument();
+    expect(screen.getByText(`1 / ${TOURS.detail!.steps.length}`)).toBeInTheDocument();
+  });
 });

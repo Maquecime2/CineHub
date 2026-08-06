@@ -17,6 +17,7 @@
    motif », et son cadre gris tombe au milieu du carnet comme un
    avertissement de navigateur — ce qu'il est. */
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { C, F } from "../../theme/tokens";
 import { Tape } from "../atmosphere";
 
@@ -57,7 +58,16 @@ export function Confirmation({
   if (!demande) return null;
   const encre = demande.grave ? C.burgundy : C.ink;
 
-  return (
+  /* MONTÉE SUR LE CORPS DE LA PAGE, PAS LÀ OÙ ON L'APPELLE.
+
+     Les vues vivent dans la colonne `[data-enters]`, qui porte une
+     transformation le temps de son animation d'entrée. Une
+     transformation fait de son élément le repère des `position: fixed`
+     qu'il contient : la fiche s'ancrait alors sur la colonne — donc sur
+     le haut du document — et une confirmation demandée en bas d'une
+     page longue s'ouvrait hors de l'écran. Le portail la sort de la
+     colonne, et elle retrouve la fenêtre. */
+  return createPortal(
     <div
       onClick={onClose}
       style={{
@@ -139,6 +149,7 @@ export function Confirmation({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
