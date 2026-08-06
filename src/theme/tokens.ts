@@ -39,6 +39,10 @@ export const C = {
   cobalt: "var(--c-cobalt)",
   vermillion: "var(--c-vermillion)",
   moss: "var(--c-moss)",
+  /* Le huitième onglet en avait besoin : les sept autres teintes étaient
+     prises, et deux onglets de la même couleur ne se distinguent plus
+     une fois le rail resserré en pastilles. */
+  plum: "var(--c-plum)",
 } as const;
 
 /* LES QUATRE RÔLES DE LA TYPOGRAPHIE.
@@ -103,6 +107,7 @@ export const FONT_IMPORT = `
   --c-cobalt: #3A5C8C;
   --c-vermillion: #C4562E;
   --c-moss: #6E7A3A;
+  --c-plum: #6B4560;
 
   --f-title: 'Playfair Display', serif;
   --f-body: 'Lora', Georgia, serif;

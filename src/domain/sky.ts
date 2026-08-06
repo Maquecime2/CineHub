@@ -35,8 +35,8 @@ export const workKey = (w: LinkedWork): string =>
    Les deux moitiés d'un fil portent des relations inverses : sans ce
    choix, le sens du trait dépendrait de l'ordre de parcours de la
    collection, et « fait suite à » se retournerait au hasard. */
-const parRelation = (films: Film[], aId: string, bId: string) =>
-  (films.find((f) => f.id === aId)?.linkedWorks || []).find((w) => w.filmId === bId)?.relation;
+const côtéÉcritDe = (films: Film[], aId: string, bId: string) =>
+  (films.find((f) => f.id === aId)?.linkedWorks || []).find((w) => w.filmId === bId);
 
 /* CE QUI ENTRE AU CIEL EN PLUS DES FILS ROUGES.
 
@@ -117,7 +117,11 @@ export function buildSky(
         nodes.push(node);
       }
       node.refs = (node.refs || 0) + 1;
-      links.push({ a: `f:${f.id}`, b: `w:${k}`, kind: "cite" });
+      /* La note voyage aussi sur un renvoi vers une œuvre : c'est là
+         qu'on a écrit POURQUOI le film et le livre se tiennent, et un
+         astre fusionné (même œuvre citée deux fois) ne peut pas la
+         porter — elle appartient au trait, pas à la cible. */
+      links.push({ a: `f:${f.id}`, b: `w:${k}`, kind: "cite", note: (w.note || "").trim() });
     });
     // le lien est réciproque : une seule arête pour les deux moitiés
     peersOf(f).forEach((w) => {
@@ -127,12 +131,16 @@ export function buildSky(
         /* L'arête est unique quand le fil, lui, est écrit des deux côtés
            en relations inverses. On garde donc celle du bout `a`, pour que
            « fait suite à » se lise toujours dans le sens du trait. */
-        const côtéA = a === f.id ? w.relation : parRelation(films, a as string, b as string);
+        const côtéA = a === f.id ? w : côtéÉcritDe(films, a as string, b as string);
         links.push({
           a: `f:${a}`,
           b: `f:${b}`,
           kind: "peer",
-          relation: côtéA,
+          relation: côtéA?.relation,
+          /* La note est ce qu'on a écrit soi-même sous le lien : c'est
+             elle qu'on veut lire au survol, avant le nom de la relation
+             qui, lui, se devine déjà au sens du trait. */
+          note: (côtéA?.note || w.note || "").trim(),
           force: forceDe(w.force),
         });
       }
@@ -210,13 +218,22 @@ export interface SuggestOptions {
    générique : ce sont vos propres mots-clés. Elle obéit au même seuil
    que les personnes — un mot posé sur quinze fiches ne relie rien de
    plus qu'un acteur omniprésent. */
-const CREW_ROLES: Record<string, KinshipRole> = {
+/* Les métiers de `Film.crew` traduits en rôles de parenté. La table est
+   exportée avec la fonction : elles vont ensemble, et le Générique a
+   besoin de savoir quels métiers existent pour en faire des tamis. */
+export const CREW_ROLES: Record<string, KinshipRole> = {
   image: "image",
   musique: "musique",
   scénario: "scénario",
 };
 
-const parentésDe = (f: Film): Kinship[] => {
+/* PUBLIQUE, et pour une raison : c'est la seule définition de « à quel
+   titre cette personne apparaît sur ce film ». Le Générique la relit pour
+   dresser son répertoire ; la recopier ferait diverger les deux vues au
+   premier métier qu'on ajouterait à `Film.crew`. Le rôle `thème` en sort
+   aussi — il n'est pas une personne, et c'est à l'appelant de l'écarter
+   s'il ne recense que des gens. */
+export const parentésDe = (f: Film): Kinship[] => {
   const out: Kinship[] = [];
   for (const nom of (f.director || "").split(","))
     if (nom.trim()) out.push({ role: "réalisation", nom: nom.trim() });

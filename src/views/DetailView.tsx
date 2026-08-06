@@ -47,6 +47,8 @@ type TextField = "review" | "notes";
 interface DetailViewProps {
   film: Film;
   onBack: () => void;
+  /** Ce que le bouton de retour annonce. Défaut : « RETOUR AU MUR ». */
+  retourVers?: string;
   onUpdate: (f: Film) => void;
   onDelete: (id: string) => void;
   films?: Film[];
@@ -57,6 +59,8 @@ interface DetailViewProps {
   /** Retouche un fil : le modele decide de ce qu il accepte. */
   onEditLink: (filmId: string, workId: string, patch: LinkPatch) => void;
   onOpen: (id: string) => void;
+  /** Ouvre le dossier de quelqu'un du générique, par son nom écrit. */
+  onOpenPerson?: (nom: string) => void;
   /** Faire d'un motif une question posée à toute la collection. */
   onFaireUnFil?: (motifId: string) => void;
   /** Le vocabulaire à vous : vos motifs, et ceux du catalogue écartés. */
@@ -70,6 +74,7 @@ interface DetailViewProps {
 export function DetailView({
   film,
   onBack,
+  retourVers,
   onUpdate,
   onDelete,
   films = [],
@@ -78,6 +83,7 @@ export function DetailView({
   onFaireUnFil,
   onEditLink,
   onOpen,
+  onOpenPerson,
   vocabulaire = { perso: [], masqués: [] },
   onCréerMotif,
   onSupprimerMotif,
@@ -270,7 +276,10 @@ export function DetailView({
           marginBottom: 22,
         }}
       >
-        <ArrowLeft size={14} /> RETOUR AU MUR
+        {/* Le bouton dit où il ramène. Une fiche ouverte depuis un
+            dossier de personne n'y renvoie pas au mur, et l'annoncer
+            ainsi serait un mensonge de plus. */}
+        <ArrowLeft size={14} /> {retourVers || "RETOUR AU MUR"}
       </button>
 
       {/* TROIS COLONNES, ET AUCUNE REQUÊTE MÉDIA.
@@ -307,7 +316,7 @@ export function DetailView({
             {/* Titre, année, réalisateur·rice et genres : en lecture ici, et
                 rattrapables d'un clic — c'est la seule façon de corriger une
                 fiche que l'import a mal identifiée. */}
-            <FilmIdentity film={film} onUpdate={onUpdate} />
+            <FilmIdentity film={film} onUpdate={onUpdate} onOpenPerson={onOpenPerson} />
             {film.status === "watchlist" ? (
               <button
                 /* Il posait `watchedAt` tout seul. Depuis qu'un journal
@@ -391,7 +400,7 @@ export function DetailView({
             {/* Tout ce que la récolte rapporte et qu'on ne lisait nulle
                 part : durée, pays, langue, équipe, casting. C'est là
                 qu'on voit ce qui manque, et qu'on le redemande. */}
-            <TmdbFacts film={film} onUpdate={onUpdate} />
+            <TmdbFacts film={film} onUpdate={onUpdate} onOpenPerson={onOpenPerson} />
           </Carton>
         </div>
 

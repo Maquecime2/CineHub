@@ -17,7 +17,11 @@
 import { motifById } from "./motifs";
 import type { Film } from "../types";
 
-const norm = (s: string): string =>
+/* Exportée sous son nom entier : le Générique s'en sert pour l'IDENTITÉ
+   d'une personne — « decae » et « Decaë » sont le même chef opérateur, et
+   la question « ces deux noms désignent-ils quelqu'un de commun » n'a pas
+   plus de raison d'avoir deux réponses que « ce film répond-il ». */
+export const normaliser = (s: string): string =>
   s
     .toLowerCase()
     /* Les accents sautent des deux côtés : on cherche « amelie » et on
@@ -49,12 +53,12 @@ const champs = (f: Film): { texte: string; rang: number }[] => [
 
 /** Le rang du meilleur champ touché, ou `null` si rien ne répond. */
 export const scoreFilm = (f: Film, q: string): number | null => {
-  const t = norm(q.trim());
+  const t = normaliser(q.trim());
   if (!t) return 0;
   let best: number | null = null;
   for (const { texte, rang } of champs(f)) {
     if (!texte) continue;
-    const n = norm(texte);
+    const n = normaliser(texte);
     if (!n.includes(t)) continue;
     /* Un titre qui COMMENCE par ce qu'on tape passe devant celui qui le
        contient au milieu : « Solaris » avant « Le Solaris de minuit ». */

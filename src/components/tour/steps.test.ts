@@ -16,6 +16,7 @@ import { TOURS, tourForView } from "./steps";
 const VUES = [
   "library",
   "watchlist",
+  "generique",
   "reco",
   "constellation",
   "notebook",

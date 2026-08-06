@@ -14,6 +14,7 @@ import { Label } from "../components/ui";
 import { TagChip } from "../components/ui/TagEditor";
 import { catInk } from "../theme/palette";
 import { relationDef, forceDe } from "../domain/relations";
+import { linkTypeOf } from "../components/film/linkTypes";
 import { motifById } from "../domain/motifs";
 import { searchFilms } from "../domain/search";
 import type { Fil } from "../domain/fils";
@@ -782,8 +783,24 @@ export function ConstellationView({
                 const raisons = filDeRassemblement
                   ? (byId.get(l.a)?.label ?? "")
                   : peer
-                    ? relationDef(l.relation)?.label || ""
-                    : (l.why || []).map((w) => `${w.role} · ${w.nom}`).join(", ");
+                    ? /* La relation nommée, puis CE QU'ON A ÉCRIT SOUS LE
+                         LIEN. Un fil peut n'avoir ni l'une ni l'autre :
+                         il reste un fil, et il doit le dire — sans ce
+                         repli, le trait le plus fort de la carte était le
+                         seul à se survoler en silence. */
+                      [relationDef(l.relation)?.label, l.note]
+                        .filter(Boolean)
+                        .join(" — ") || "fil écrit à la main"
+                    : /* UN RENVOI VERS UNE ŒUVRE PARLE, LUI AUSSI. La
+                         branche « équipe » ramassait aussi les citations,
+                         qui n'ont pas de `why` : le fil vers le livre
+                         était donc muet. Il dit ce qu'on a écrit sous le
+                         lien, et à défaut la nature de l'œuvre visée avec
+                         son auteur. */
+                      l.kind === "cite"
+                      ? l.note ||
+                        [linkTypeOf(nb.type || "other").label, nb.sub].filter(Boolean).join(" · ")
+                      : (l.why || []).map((w) => `${w.role} · ${w.nom}`).join(", ");
                 const fixer =
                   crew && onLinkFilm
                     ? () => onLinkFilm(l.a.slice(2), l.b.slice(2), raisons)
@@ -883,7 +900,14 @@ export function ConstellationView({
                       onPointerLeave={() => setHoverLink(null)}
                       onClick={fixer}
                     >
-                      {fixer && <title>{`Fixer ce fil — ${raisons}`}</title>}
+                      {/* L'infobulle du navigateur double l'étiquette
+                          dessinée : elle survit au fil qu'on vise en
+                          bord de ciel, et c'est elle que lisent les
+                          outils qui ne voient pas le SVG. Tout fil en a
+                          une, pas seulement celui qu'on peut fixer. */}
+                      {(fixer || raisons) && (
+                        <title>{fixer ? `Fixer ce fil — ${raisons}` : raisons}</title>
+                      )}
                     </path>
                   </g>
                 );
