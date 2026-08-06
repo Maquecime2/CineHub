@@ -15,6 +15,7 @@ import {
   NotebookPen,
   FolderInput,
   Settings,
+  Search,
 } from "lucide-react";
 import { C, alpha } from "../../theme/tokens";
 
@@ -35,6 +36,8 @@ interface FolderTabsProps {
   view: View;
   setView: (v: View) => void;
   onAdd: () => void;
+  /** Ouvre la recherche qui traverse tout le classeur. */
+  onSearch: () => void;
   /** Ouvre le choix de la peau du site. */
   onSkin: () => void;
   /** Ouvre le menu de la visite guidée. */
@@ -151,7 +154,14 @@ function Onglet({ t, active, onClick }: { t: Tab; active: boolean; onClick: () =
   );
 }
 
-export function FolderTabs({ view, setView, onAdd, onSkin, onHelp }: FolderTabsProps) {
+export function FolderTabs({
+  view,
+  setView,
+  onAdd,
+  onSearch,
+  onSkin,
+  onHelp,
+}: FolderTabsProps) {
   const tabs = [...TABS, ...DEV_TABS];
 
   return (
@@ -270,6 +280,44 @@ export function FolderTabs({ view, setView, onAdd, onSkin, onHelp }: FolderTabsP
             }}
           >
             <Pin size={16} />
+          </button>
+
+          {/* CHERCHER PARTOUT.
+
+            Juste sous l'épingle, et non dans une vue : la question ne
+            s'adresse à aucune d'elles en particulier. Chaque onglet a
+            bien son champ, mais aucun ne cherchait au-delà de ce qu'il
+            montre — il fallait donc savoir d'avance dans quel onglet se
+            trouvait ce qu'on cherchait, ce qui suppose de l'avoir déjà
+            trouvé. */}
+          <button
+            onClick={onSearch}
+            data-tour="search-all"
+            title="Chercher partout (Ctrl+K)"
+            aria-label="Chercher partout"
+            style={{
+              all: "unset",
+              cursor: "pointer",
+              marginLeft: 6,
+              width: 30,
+              height: 30,
+              borderRadius: "50%",
+              color: C.card,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: C.ink,
+              boxShadow: "2px 3px 6px rgba(0,0,0,0.32)",
+              transition: "transform var(--motion-fast) ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "scale(1.1)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "none";
+            }}
+          >
+            <Search size={14} />
           </button>
 
           {/* LA PEAU DU SITE, au pied de la tranche du classeur.
