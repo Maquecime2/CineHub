@@ -193,6 +193,23 @@ export async function listPosters({ tmdbId, title, year, apiKey }) {
   return { tmdbId: id, posters };
 }
 
+/* LES MOTS-CLÉS D'UN FILM, tels que TMDB les porte.
+
+   Ils ne sont pas rapatriés par `getDetails` et c'est délibéré : ils ne
+   se rangent nulle part sur la fiche. Ils ne servent qu'à PROPOSER des
+   motifs (`domain/motifs`), qu'un clic valide ou non — on ne stocke donc
+   que ce qui a été relu. */
+export async function fetchKeywords(tmdbId, apiKey) {
+  if (!tmdbId || !apiKey) return [];
+  try {
+    const data = await get(`/movie/${tmdbId}/keywords`, {}, apiKey);
+    return data.keywords || [];
+  } catch {
+    // un mot-clé manquant n'est pas une panne : la fiche s'ouvre sans
+    return [];
+  }
+}
+
 /* ============================================================
    DÉCOUVERTE — les appels qui servent aux recommandations.
    Ils ne résolvent pas un film connu : ils en cherchent d'inconnus.

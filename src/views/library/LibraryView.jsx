@@ -6,6 +6,7 @@ import { Pin, Plus, Trash2, LayoutGrid, Library, Paperclip } from "lucide-react"
 import { C, F } from "../../theme/tokens";
 import { underlineInput } from "../../theme/styles";
 import { hash, tiltOf } from "../../domain/seeded";
+import { matchFilm } from "../../domain/search";
 import { CoffeeRing, TapeResidue, StampCorner, InkUnderline } from "../../components/atmosphere";
 import { Label } from "../../components/ui";
 import { ShelfBoard } from "../../components/shelf/ShelfBoard";
@@ -392,14 +393,7 @@ export function LibraryView({
      six qui n'en montre plus qu'un. On garde donc tout en place et on
      ÉTEINT ce qui ne répond pas : la collection reste lisible comme une
      étagère, et ce qu'on cherche s'y détache. */
-  const matches = useCallback(
-    (f) => {
-      if (!q) return true;
-      const s = q.toLowerCase();
-      return f.title.toLowerCase().includes(s) || (f.director || "").toLowerCase().includes(s);
-    },
-    [q]
-  );
+  const matches = useCallback((f) => !q || matchFilm(f, q), [q]);
 
   const dimSet = useMemo(() => {
     if (mode !== "shelf" || (!q && !genreFilter && decadeFilter === null)) return null;
@@ -451,13 +445,7 @@ export function LibraryView({
   ];
 
   const filtered = useMemo(() => {
-    let list = scope.filter((f) => {
-      const mq =
-        !q ||
-        f.title.toLowerCase().includes(q.toLowerCase()) ||
-        (f.director || "").toLowerCase().includes(q.toLowerCase());
-      return mq && passesFilters(f);
-    });
+    let list = scope.filter((f) => (!q || matchFilm(f, q)) && passesFilters(f));
     return [...list].sort((a, b) => {
       const cmp =
         // A–Z se lit dans l'ordre naturel : c'est `desc` qui l'inverse

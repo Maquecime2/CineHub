@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildSky, buildSkyWithCrew, neighbourhood, relax, suggestLinks, workKey } from "./sky";
 import { makeFilm } from "./film";
+import { makeFil } from "./fils";
 import type { Film, LinkedWork } from "../types";
 
 let n = 0;
@@ -348,5 +349,77 @@ describe("neighbourhood", () => {
   it("ne rend rien d'un foyer qui n'existe pas", () => {
     const { nodes, links } = chaine();
     expect(neighbourhood(nodes, links, "f:ZZZ", 1)).toEqual({ nodes: [], links: [] });
+  });
+});
+
+describe("les fils au ciel", () => {
+  it("fait entrer les membres d'un fil, même sans aucun fil rouge tendu", () => {
+    const a = film("A", { motifs: ["heros-meurt"] });
+    const b = film("B", { motifs: ["heros-meurt"] });
+    const fil = makeFil({ label: "Le héros meurt", motif: "heros-meurt" });
+    const { nodes, links } = buildSky([a, b], {}, { fils: [fil] });
+
+    expect(nodes.filter((n) => n.kind === "film")).toHaveLength(2);
+    const astre = nodes.find((n) => n.kind === "fil");
+    expect(astre?.label).toBe("Le héros meurt");
+    expect(links.filter((l) => l.kind === "fil")).toHaveLength(2);
+  });
+
+  it("n'accroche pas au ciel un fil que personne ne porte", () => {
+    const fil = makeFil({ label: "Vide", motif: "heros-meurt" });
+    const { nodes } = buildSky([film("A")], {}, { fils: [fil] });
+    expect(nodes).toEqual([]);
+  });
+
+  it("ne dédouble pas un film à la fois relié et membre d'un fil", () => {
+    const a = film("A", { linkedWorks: [nighthawks()], motifs: ["heros-meurt"] });
+    const fil = makeFil({ label: "x", motif: "heros-meurt" });
+    const { nodes } = buildSky([a], {}, { fils: [fil] });
+    expect(nodes.filter((n) => n.filmId === a.id)).toHaveLength(1);
+  });
+});
+
+describe("les épingles", () => {
+  it("fait entrer au ciel un film qui n'est relié à rien", () => {
+    const a = film("A");
+    const { nodes } = buildSky([a, film("B")], {}, { pinned: [a.id] });
+    expect(nodes.map((n) => n.filmId)).toEqual([a.id]);
+    expect(nodes[0]?.épinglé).toBe(true);
+  });
+
+  it("ne marque pas comme épinglé un film que ses propres fils tiennent déjà", () => {
+    const a = film("A", { linkedWorks: [nighthawks()] });
+    const { nodes } = buildSky([a], {}, { pinned: [a.id] });
+    expect(nodes.find((n) => n.filmId === a.id)?.épinglé).toBe(false);
+  });
+
+  it("ignore une épingle qui ne désigne aucune fiche", () => {
+    expect(buildSky([film("A")], {}, { pinned: ["fantôme"] }).nodes).toEqual([]);
+  });
+});
+
+describe("la relation portée par une arête", () => {
+  it("se lit dans le sens du trait", () => {
+    const a = makeFilm({ id: "a1", title: "A" });
+    const b = makeFilm({ id: "b2", title: "B" });
+    const lié = [
+      {
+        ...a,
+        linkedWorks: [
+          work({ type: "film", filmId: b.id, pairId: "p", relation: "suite-de", force: 3 }),
+        ],
+      },
+      {
+        ...b,
+        linkedWorks: [
+          work({ type: "film", filmId: a.id, pairId: "p", relation: "précède", force: 3 }),
+        ],
+      },
+    ];
+    const arête = buildSky(lié).links.find((l) => l.kind === "peer");
+    // « a1 » trie avant « b2 » : l'arête part de A, et porte donc ce que A dit
+    expect(arête?.a).toBe(`f:${a.id}`);
+    expect(arête?.relation).toBe("suite-de");
+    expect(arête?.force).toBe(3);
   });
 });

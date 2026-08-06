@@ -1,6 +1,7 @@
 /* ============================================================
    MODÈLE — une fiche film, une seule définition
    ============================================================ */
+import { inverseDe } from "./relations";
 import type { Film, LinkedWork, LinkPatch, Watch } from "../types";
 
 export const uid = (): string => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
@@ -20,6 +21,7 @@ export const makeFilm = (partial: Partial<Film> = {}): Film => ({
   countries: [],
   tmdbRating: null,
   themes: [],
+  motifs: [], // le vocabulaire commun ; voir `domain/motifs`
   rating: 0,
   review: "",
   notes: "",
@@ -174,6 +176,7 @@ export const migrate = (films: Partial<Film>[] | null | undefined): Film[] =>
     countries: f.countries || [],
     tmdbRating: f.tmdbRating ?? null,
     themes: f.themes || [],
+    motifs: f.motifs || [],
     linkedWorks: f.linkedWorks || [],
     stills: f.stills || [],
     watches: sortWatches(seedWatches(f)),
@@ -212,8 +215,15 @@ export const editLinkedWork = (
   // un fil sans titre n'aurait plus rien à dire : on laisse tout en place
   if (!work.filmId && !title) return films;
 
+  /* La relation et la force appartiennent au lien, comme la note : elles
+     disent ce qui se passe ENTRE les deux fiches. Elles valent donc des
+     deux côtés — mais la relation s'y renverse (voir `inverseDe`), sans
+     quoi chaque film se déclarerait la suite de l'autre. */
+  const relation = patch.relation ?? work.relation;
+  const force = patch.force ?? work.force;
+
   const next: Partial<LinkedWork> = work.filmId
-    ? { note }
+    ? { note, relation, force }
     : {
         type: patch.type ?? work.type,
         title,
@@ -227,12 +237,12 @@ export const editLinkedWork = (
         ...f,
         linkedWorks: (f.linkedWorks || []).map((w) => (w.id === workId ? { ...w, ...next } : w)),
       };
-    // la moitié d'en face : elle ne reçoit que la note, jamais le reste
+    // la moitié d'en face : la note, la force, la relation inversée — jamais le reste
     if (work.pairId && f.id === work.filmId)
       return {
         ...f,
         linkedWorks: (f.linkedWorks || []).map((w) =>
-          w.pairId === work.pairId ? { ...w, note } : w
+          w.pairId === work.pairId ? { ...w, note, force, relation: inverseDe(relation) } : w
         ),
       };
     return f;
