@@ -157,3 +157,54 @@ describe("une cible absente ne bloque pas", () => {
     expect(screen.getByText(`1 / ${TOURS.detail!.steps.length}`)).toBeInTheDocument();
   });
 });
+
+/* ============================================================
+   L'ÉCHAPPATOIRE, DANS L'AUTRE SENS
+
+   Un test veillait déjà à ce qu'une étape facultative dont la cible EST
+   là ne soit pas escamotée. Rien ne vérifiait la promesse inverse, que
+   `steps.ts` écrit pourtant noir sur blanc : « cible absente ⇒ étape
+   sautée sans bruit ».
+
+   Elle n'était jusqu'ici qu'une commodité pour les classeurs vides.
+   Elle est devenue une règle du produit le jour où « l'année en boîte »
+   a cessé de paraître sur la période « toujours » — l'image est bâtie
+   autour d'un millésime, et il n'y en a pas. Sans ce saut, la visite de
+   l'almanach s'arrêterait sur une bulle qui ne pointe rien.
+   ============================================================ */
+describe("une cible absente ne bloque pas la visite", () => {
+  /** Les mêmes cibles, moins une — celle qu'on veut voir manquer. */
+  function poserSauf(tourId: string, absente: string) {
+    for (const s of TOURS[tourId]!.steps) {
+      const m = s.target?.match(/^\[data-tour="(.+)"\]$/);
+      if (!m || m[1] === absente) continue;
+      const n = document.createElement("div");
+      n.setAttribute("data-tour", m[1]!);
+      document.body.appendChild(n);
+    }
+  }
+
+  it("saute l'étape facultative dont la cible manque", async () => {
+    const étapes = TOURS.almanac!.steps;
+    const boîte = étapes.find((s) => s.target === '[data-tour="almanac-export"]')!;
+    expect(boîte.optional, "le test ne vaut que si l'étape est facultative").toBe(true);
+
+    poserSauf("almanac", "almanac-export");
+    const onClose = vi.fn();
+    render(<TourOverlay tourId="almanac" onClose={onClose} onView={vi.fn()} />);
+
+    // on arrive bien à l'avant-dernière…
+    const avant = étapes[étapes.length - 2]!;
+    expect(await screen.findByText(avant.title)).toBeInTheDocument();
+    await userEvent.click(screen.getByText(/suivant|terminer/i));
+
+    /* …et la dernière, privée de cible, ne retient pas la visite : elle
+       se termine à sa place.
+
+       On vérifie l'APPEL et non la disparition de la bulle : ici
+       `onClose` est un mock, et c'est l'appelant qui démonte le
+       montreur en vrai. Exiger que le texte s'efface testerait le
+       double, pas le composant. */
+    await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
+  });
+});
