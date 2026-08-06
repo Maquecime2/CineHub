@@ -7,6 +7,7 @@ export const KEYS = {
   films: "films",
   notes: "notebook-notes",
   dividers: "shelf-dividers",
+  onboarding: "onboarding",
 } as const;
 
 export const store = {

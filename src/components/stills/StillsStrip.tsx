@@ -4,6 +4,7 @@ import { C, F } from "../../theme/tokens";
 import { underlineInput } from "../../theme/styles";
 import { tiltOf } from "../../domain/seeded";
 import { deleteImage } from "../../db";
+import { Carton, Consigne, TitreSection } from "../ui";
 import { IdbImage } from "./IdbImage";
 import { STILL_TOKEN } from "./tokens";
 import type { Film } from "../../types";
@@ -57,65 +58,50 @@ export function StillsStrip({
   };
 
   return (
-    <div style={{ marginTop: 34 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <Clapperboard size={15} color={C.burgundy} />
-        <div
-          style={{
-            fontFamily: F.title,
-            fontStyle: "italic",
-            fontWeight: 700,
-            fontSize: 24,
-            color: C.ink,
-          }}
-        >
-          La pellicule
-        </div>
-        <div
-          style={{ flex: 1, borderBottom: `1px dashed ${C.line}`, transform: "translateY(-4px)" }}
-        />
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          multiple
-          style={{ display: "none" }}
-          onChange={(e) => {
-            onAddFiles(e.target.files);
-            e.target.value = "";
-          }}
-        />
-        <button
-          onClick={() => fileRef.current?.click()}
-          style={{
-            all: "unset",
-            cursor: "pointer",
-            padding: "6px 13px",
-            background: C.burgundy,
-            color: C.card,
-            fontFamily: F.mono,
-            fontSize: 10.5,
-            display: "flex",
-            alignItems: "center",
-            gap: 5,
-          }}
-        >
-          <Plus size={12} /> {busy ? `${busy}…` : "AJOUTER DES CAPTURES"}
-        </button>
-      </div>
-      <div
-        style={{
-          fontFamily: F.hand,
-          fontSize: 17,
-          color: C.inkFaded,
-          marginTop: 2,
-          marginBottom: 12,
-        }}
+    <Carton>
+      <TitreSection
+        icon={<Clapperboard size={15} color={C.burgundy} />}
+        action={
+          <>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              multiple
+              style={{ display: "none" }}
+              onChange={(e) => {
+                onAddFiles(e.target.files);
+                e.target.value = "";
+              }}
+            />
+            <button
+              onClick={() => fileRef.current?.click()}
+              style={{
+                all: "unset",
+                cursor: "pointer",
+                padding: "5px 11px",
+                background: C.burgundy,
+                color: C.card,
+                fontFamily: F.mono,
+                fontSize: 10,
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+                whiteSpace: "nowrap",
+              }}
+            >
+              <Plus size={12} /> {busy ? `${busy}…` : "AJOUTER"}
+            </button>
+          </>
+        }
       >
+        La pellicule
+      </TitreSection>
+      <Consigne>
         {stills.length === 0
           ? "aucune capture — Ctrl+V colle directement une image du presse-papier"
           : "Ctrl+V pour coller · « insérer » place la vignette à l'endroit du curseur"}
-      </div>
+      </Consigne>
 
       {stills.length > 0 && (
         <div
@@ -268,6 +254,6 @@ export function StillsStrip({
           })}
         </div>
       )}
-    </div>
+    </Carton>
   );
 }

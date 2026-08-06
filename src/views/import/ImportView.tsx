@@ -30,6 +30,7 @@ import type {
   ShelfViews,
 } from "../../types";
 import type { Fil } from "../../domain/fils";
+import type { VocabulaireStocké as Vocabulaire } from "../../domain/motifs";
 
 /** Les deux natures d'import proposées sous le relevé du fichier. */
 const IMPORT_STATUSES: { k: FilmStatus; l: string }[] = [
@@ -44,12 +45,14 @@ interface ImportViewProps {
   dividers: Divider[];
   views: ShelfViews | null;
   fils: Fil[];
+  motifs: Vocabulaire;
   onRestore: (data: {
     films: Film[];
     notes: Note[];
     dividers: Divider[];
     views: ShelfViews | null;
     fils: Fil[];
+    motifs: Vocabulaire;
   }) => void;
 }
 
@@ -60,6 +63,7 @@ export function ImportView({
   dividers,
   views,
   fils,
+  motifs,
   onRestore,
 }: ImportViewProps) {
   const [rows, setRows] = useState<ImportRow[]>([]); // lignes lues, éventuellement enrichies
@@ -354,6 +358,7 @@ export function ImportView({
           Il est placé APRÈS les fichiers et non avant : c'est le CSV qui
           bâtit une vidéothèque, le flux ne fait que la tenir à jour. */}
       <div
+        data-tour="import-feed"
         style={{
           border: `1px solid ${C.line}`,
           background: C.card,
@@ -468,6 +473,7 @@ export function ImportView({
       </div>
 
       <div
+        data-tour="import-drop"
         style={{
           border: `2px dashed ${C.line}`,
           padding: 34,
@@ -1039,16 +1045,21 @@ export function ImportView({
         lieu de les dupliquer.
       </div>
 
-      <CompletePanel films={films} apiKey={apiKey} onImport={onImport} />
+      <div data-tour="import-complete">
+        <CompletePanel films={films} apiKey={apiKey} onImport={onImport} />
+      </div>
 
-      <BackupPanel
-        films={films}
-        notes={notes}
-        dividers={dividers}
-        views={views}
-        fils={fils}
-        onRestore={onRestore}
-      />
+      <div data-tour="import-backup">
+        <BackupPanel
+          films={films}
+          notes={notes}
+          dividers={dividers}
+          views={views}
+          fils={fils}
+          motifs={motifs}
+          onRestore={onRestore}
+        />
+      </div>
     </div>
   );
 }

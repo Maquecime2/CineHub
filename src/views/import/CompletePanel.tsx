@@ -76,10 +76,18 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
         onProgress: (d: number, t: number) => setProgress({ done: d, total: t }),
       } as never);
 
-      /* `diffImport` a besoin d'un statut pour les fiches qu'il crée.
-         On n'en crée aucune (voir plus haut), donc celui-ci ne sert
-         jamais — mais il faut bien en passer un. */
-      const brut = diffImport(films, res.rows as ImportRow[], "watched");
+      /* `garderStatut` N'EST PAS UNE PRÉCAUTION, C'EST LE SUJET.
+
+         Ce panneau va chercher une durée et un casting : il n'a rien
+         appris sur ce que vous avez vu. Le statut passé ici ne servait
+         qu'aux fiches créées — et comme on n'en crée aucune, on l'a cru
+         inerte. Il ne l'était pas : `diffImport` s'en sert aussi pour
+         faire passer « à voir » → « vu » les fiches existantes, et
+         compléter sa collection vidait la watchlist dans la
+         vidéothèque. */
+      const brut = diffImport(films, res.rows as ImportRow[], "watched", {
+        garderStatut: true,
+      });
       setDiff(brut);
       if (brut.toCreate.length)
         console.warn(

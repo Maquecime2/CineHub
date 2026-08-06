@@ -36,6 +36,13 @@ export function TagChip({
         display: "inline-flex",
         alignItems: "center",
         gap: 5,
+        /* Une puce est un enfant de rangée souple, et un enfant souple ne
+           descend jamais sous la largeur de son contenu : un mot-clé plus
+           long que sa colonne poussait donc la page entière vers la
+           droite. On la laisse aller à la ligne DANS la puce plutôt que
+           de rogner le mot ou d'écrêter la vue. */
+        maxWidth: "100%",
+        whiteSpace: "normal",
         fontFamily: F.mono,
         fontSize: small ? 9.5 : 10.5,
         border: `1px solid ${ink}`,

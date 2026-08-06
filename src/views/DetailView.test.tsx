@@ -1,0 +1,162 @@
+import { describe, it, expect, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { DetailView } from "./DetailView";
+import { makeFilm } from "../domain/film";
+import { makeMotifPerso, poserVocabulaire } from "../domain/motifs";
+
+/* Le déménagement des blocs vers le rail d'annotation est une affaire de
+   mise en page — mais rien de ce qui s'y trouvait ne doit avoir disparu en
+   chemin, et c'est le genre de perte qu'on ne voit qu'en cherchant un
+   bouton six semaines plus tard. */
+const monter = (extra = {}, props = {}) => {
+  const onDelete = vi.fn();
+  const onUpdate = vi.fn();
+  const film = makeFilm({
+    id: "f",
+    title: "Le Samouraï",
+    status: "watched",
+    themes: ["solitude"],
+    motifs: ["heros-meurt"],
+    ...extra,
+  });
+  render(
+    <DetailView
+      film={film}
+      onBack={vi.fn()}
+      onUpdate={onUpdate}
+      onDelete={onDelete}
+      films={[film]}
+      onLinkFilm={vi.fn()}
+      onRemoveLink={vi.fn()}
+      onEditLink={vi.fn()}
+      onOpen={vi.fn()}
+      {...props}
+    />
+  );
+  return { film, onDelete, onUpdate };
+};
+
+describe("la fiche film, après le passage en trois colonnes", () => {
+  it("garde ce que le rail d'annotation a repris", () => {
+    monter();
+    expect(screen.getByText("Mots-clés")).toBeInTheDocument();
+    expect(screen.getByText("Motifs")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /film de chevet/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /mettre de côté/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /supprimer définitivement/ })).toBeInTheDocument();
+  });
+
+  it("garde la pellicule, montée près du texte qu'elle illustre", () => {
+    monter();
+    expect(screen.getByText("La pellicule")).toBeInTheDocument();
+  });
+
+  it("garde à gauche ce qui décrit le film", () => {
+    monter();
+    // le titre est mis en capitales par la feuille, pas dans le texte
+    expect(screen.getByText("Fiche catalogue")).toBeInTheDocument();
+    expect(screen.getByText("Le fil rouge")).toBeInTheDocument();
+  });
+
+  it("montre les mots-clés et les motifs déjà posés", () => {
+    monter();
+    expect(screen.getByText("solitude")).toBeInTheDocument();
+    // « Le héros meurt » raconte la fin : il reste gratté jusqu'au clic
+    expect(screen.getByText("motif de fin")).toBeInTheDocument();
+    expect(screen.queryByText("Le héros meurt")).not.toBeInTheDocument();
+  });
+
+  /* Pas de chevet pour un film qu'on n'a pas vu : le rayon est celui qu'on
+     revoit, et la watchlist ne l'ouvre pas. */
+  it("n'offre pas le chevet à un film jamais vu", () => {
+    monter({ status: "watchlist" });
+    expect(screen.queryByRole("button", { name: /film de chevet/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /supprimer définitivement/ })).toBeInTheDocument();
+  });
+});
+
+/* Les deux gestes qui ne se ressemblent que de loin : l'un range, l'autre
+   efface. La demande de confirmation est ce qui les sépare. */
+describe("les gestes qu'on peut regretter", () => {
+  it("ne supprime pas au premier clic, mais le demande", async () => {
+    const user = userEvent.setup();
+    const { onDelete } = monter();
+    await user.click(screen.getByRole("button", { name: /supprimer définitivement/ }));
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "SUPPRIMER" }));
+    expect(onDelete).toHaveBeenCalledWith("f");
+  });
+
+  it("renonce sans rien faire", async () => {
+    const user = userEvent.setup();
+    const { onDelete } = monter();
+    await user.click(screen.getByRole("button", { name: /supprimer définitivement/ }));
+    await user.click(screen.getByRole("button", { name: "RENONCER" }));
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("demande aussi avant de mettre de côté", async () => {
+    const user = userEvent.setup();
+    const { onUpdate } = monter();
+    await user.click(screen.getByRole("button", { name: /mettre de côté/ }));
+    expect(onUpdate).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "METTRE DE CÔTÉ" }));
+    expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ archived: true }));
+  });
+
+  /* Remettre en rayon défait le geste précédent : le faire confirmer
+     n'apprendrait qu'à cliquer sans lire. */
+  it("remet en rayon sans rien demander", async () => {
+    const user = userEvent.setup();
+    const { onUpdate } = monter({ archived: true });
+    await user.click(screen.getByRole("button", { name: /remettre en rayon/ }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ archived: false }));
+  });
+});
+
+describe("gérer le vocabulaire depuis la fiche", () => {
+  const ouvrirLaListe = async () => {
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: /CHOISIR DES MOTIFS/ }));
+    return user;
+  };
+
+  it("écrit un motif et le pose aussitôt sur la fiche", async () => {
+    const onCréerMotif = vi.fn(() => "il-pleut-sans-arret");
+    const { onUpdate } = monter({}, { onCréerMotif });
+    const user = await ouvrirLaListe();
+    await user.type(screen.getByLabelText("Nouveau motif"), "Il pleut sans arrêt{Enter}");
+    expect(onCréerMotif).toHaveBeenCalledWith("Il pleut sans arrêt", "récit", false);
+    // créer et poser sont un seul geste
+    expect(onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ motifs: ["heros-meurt", "il-pleut-sans-arret"] })
+    );
+  });
+
+  it("écarte un motif du catalogue sans rien demander", async () => {
+    const onMasquerMotif = vi.fn();
+    monter({}, { onMasquerMotif });
+    const user = await ouvrirLaListe();
+    await user.click(screen.getByLabelText("Écarter le motif Huis clos"));
+    expect(onMasquerMotif).toHaveBeenCalledWith("huis-clos", true);
+  });
+
+  /* Supprimer un motif à soi retire aussi son identifiant des fiches : la
+     confirmation annonce donc combien en sont porteuses. */
+  it("annonce les fiches touchées avant de supprimer un motif", async () => {
+    poserVocabulaire({ perso: [makeMotifPerso("Il pleut", "monde")], masqués: [] });
+    const onSupprimerMotif = vi.fn();
+    monter({ motifs: ["il-pleut"] }, { onSupprimerMotif });
+    const user = await ouvrirLaListe();
+    await user.click(screen.getByLabelText("Supprimer le motif Il pleut"));
+    expect(screen.getByText(/1 fiche/)).toBeInTheDocument();
+    expect(onSupprimerMotif).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "SUPPRIMER LE MOTIF" }));
+    expect(onSupprimerMotif).toHaveBeenCalledWith("il-pleut");
+    poserVocabulaire({ perso: [], masqués: [] });
+  });
+});

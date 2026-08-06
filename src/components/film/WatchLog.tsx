@@ -61,6 +61,7 @@ export function WatchLog({ film, onUpdate }: { film: Film; onUpdate: (film: Film
           style={{
             display: "flex",
             alignItems: "center",
+            flexWrap: "wrap",
             gap: 8,
             marginTop: 6,
             fontFamily: F.hand,

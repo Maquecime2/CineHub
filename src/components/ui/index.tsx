@@ -50,6 +50,95 @@ export function InkStars({
   );
 }
 
+/* ============================================================
+   LE CARTON — le contenant commun des blocs d'une fiche
+   ============================================================
+
+   Chaque bloc s'était fait sa propre boîte au fil du temps : la fiche
+   catalogue avait un filet et un fond, la pellicule et le fil rouge
+   n'avaient rien du tout, et les champs de texte flottaient sur le
+   papier. Mis côte à côte en colonnes, ça ne se lisait plus comme une
+   fiche mais comme quatre pages différentes posées ensemble.
+
+   Un seul contenant, donc. Ce qu'il porte garde SON registre — le titre
+   italique d'une grande section n'est pas l'intitulé d'un champ, et les
+   confondre effacerait ce qui distingue « La pellicule » de « Mots-clés ».
+   On unifie la boîte, pas ce qu'on écrit dessus. */
+export function Carton({
+  children,
+  style,
+  onFocusCapture,
+  tour,
+}: {
+  children: ReactNode;
+  style?: CSSProperties;
+  /** Le carton d'un champ sert aussi à savoir où l'on écrit. */
+  onFocusCapture?: () => void;
+  /** Nom de l'ancre que la visite guidée vient chercher ici. */
+  tour?: string;
+}) {
+  return (
+    <div
+      onFocusCapture={onFocusCapture}
+      data-tour={tour}
+      style={{
+        border: `1px solid ${C.line}`,
+        background: C.paperDark,
+        padding: "13px 15px 15px",
+        transition: "border-color .2s ease",
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/* Le titre d'une grande section : l'icône, le nom à la plume, le filet
+   qui court jusqu'au bout, et de quoi poser un bouton au bord. C'était la
+   mise en tête de la pellicule ; le fil rouge en avait une presque
+   pareille, à un filet près. Une seule maintenant. */
+export function TitreSection({
+  icon,
+  children,
+  action,
+}: {
+  icon?: ReactNode;
+  children: ReactNode;
+  action?: ReactNode;
+}) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 2 }}>
+      {icon}
+      <div
+        style={{
+          fontFamily: F.title,
+          fontStyle: "italic",
+          fontWeight: 700,
+          fontSize: 21,
+          color: C.ink,
+          whiteSpace: "nowrap",
+        }}
+      >
+        {children}
+      </div>
+      <div
+        style={{ flex: 1, borderBottom: `1px dashed ${C.line}`, transform: "translateY(-4px)" }}
+      />
+      {action}
+    </div>
+  );
+}
+
+/** La ligne de conduite sous un titre de section, à main levée. */
+export function Consigne({ children }: { children: ReactNode }) {
+  return (
+    <div style={{ fontFamily: F.hand, fontSize: 17, color: C.inkFaded, margin: "0 0 12px" }}>
+      {children}
+    </div>
+  );
+}
+
 /** L'intitulé d'un champ, tapé à la machine. */
 export function Label({ children }: { children: ReactNode }) {
   return (
@@ -118,3 +207,5 @@ export function CommaInput({
 }
 
 export { Tally } from "./Tally";
+export { Confirmation } from "./Confirmation";
+export type { DemandeConfirmation } from "./Confirmation";

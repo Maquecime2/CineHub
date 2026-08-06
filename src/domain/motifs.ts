@@ -363,9 +363,93 @@ export const MOTIFS: Motif[] = [
   },
 ];
 
+/* ============================================================
+   VOS MOTIFS À VOUS
+   ============================================================
+
+   Le catalogue ci-dessus reste dans le code, et c'est ce qui permet à une
+   mise à jour de l'application d'enrichir le vocabulaire de tout le monde
+   sans rien écraser. Mais il ne peut pas tout prévoir : personne d'autre
+   que vous ne sait que vous suivez « les films où il pleut sans arrêt ».
+
+   Deux gestes, donc, et deux seulement :
+   — AJOUTER les vôtres, qui vivent à côté, dans vos données ;
+   — MASQUER ceux du catalogue qui ne vous servent pas. Masquer et non
+     supprimer : un motif fourni n'est pas à vous, et le faire disparaître
+     de vos données le ferait revenir à la prochaine mise à jour, ce qui
+     serait pire que de ne pas l'avoir enlevé.
+
+   LE REGISTRE EST GLOBAL, ET C'EST UN CHOIX ASSUMÉ. `motifById` est
+   appelé depuis la recherche, la carte du ciel et la fiche — faire
+   descendre le catalogue en propriété jusqu'à chacun traverserait la
+   moitié de l'application pour une liste qui ne change qu'à la main.
+   `App` charge le disque au démarrage et pose le registre ici ; c'est le
+   seul endroit qui écrit. */
+let PERSO: Motif[] = [];
+let MASQUÉS = new Set<string>();
+
+export interface VocabulaireStocké {
+  perso: Motif[];
+  masqués: string[];
+}
+
+export const poserVocabulaire = ({
+  perso = [],
+  masqués = [],
+}: Partial<VocabulaireStocké>): void => {
+  PERSO = perso;
+  MASQUÉS = new Set(masqués);
+};
+
+export const motifsPerso = (): Motif[] => PERSO;
+export const estMasqué = (id: string): boolean => MASQUÉS.has(id);
+export const estPerso = (id: string): boolean => PERSO.some((m) => m.id === id);
+
+/** Le vocabulaire en usage : le catalogue moins les masqués, plus les vôtres. */
+export const tousLesMotifs = (): Motif[] => [...MOTIFS.filter((m) => !MASQUÉS.has(m.id)), ...PERSO];
+
+/* Un identifiant se DÉDUIT du libellé, et ne bouge plus jamais ensuite :
+   c'est lui qui est écrit sur les fiches. Renommer « Il pleut » en « Il
+   pleut sans arrêt » ne doit pas décrocher le motif des douze films qui
+   le portent. */
+export const idDepuisLabel = (label: string, pris: string[] = []): string => {
+  const base =
+    label
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 40) || "motif";
+  if (!pris.includes(base)) return base;
+  let n = 2;
+  while (pris.includes(`${base}-${n}`)) n++;
+  return `${base}-${n}`;
+};
+
+export const makeMotifPerso = (
+  label: string,
+  famille: MotifFamille = "récit",
+  spoiler = false
+): Motif => ({
+  id: idDepuisLabel(label, [...MOTIFS.map((m) => m.id), ...PERSO.map((m) => m.id)]),
+  label: label.trim(),
+  famille,
+  ...(spoiler ? { spoiler: true } : {}),
+});
+
 const PAR_ID = new Map(MOTIFS.map((m) => [m.id, m]));
 
-export const motifById = (id: string): Motif | undefined => PAR_ID.get(id);
+/* On regarde les vôtres D'ABORD : si un identifiant existait des deux
+   côtés — un motif du catalogue ajouté après coup sous le même nom que
+   l'un des vôtres — c'est le vôtre qui doit gagner, puisque c'est celui
+   que vous avez écrit.
+
+   Un motif masqué reste trouvable ici : les fiches qui le portent doivent
+   continuer de l'afficher, sans quoi masquer effacerait en silence. */
+export const motifById = (id: string): Motif | undefined =>
+  PERSO.find((m) => m.id === id) || PAR_ID.get(id);
 
 /** Les motifs d'une fiche, dans l'ordre du catalogue et non celui de la pose.
  *
@@ -373,20 +457,22 @@ export const motifById = (id: string): Motif | undefined => PAR_ID.get(id);
  *  ignoré à l'affichage plutôt qu'effacé de la fiche : le retirer des
  *  données demanderait une migration pour une liste qui bouge encore. */
 export const motifsDe = (film: Pick<Film, "motifs">): Motif[] =>
-  MOTIFS.filter((m) => (film.motifs || []).includes(m.id));
+  (film.motifs || []).map((id) => motifById(id)).filter((m): m is Motif => !!m);
 
-export const parFamille = (): { famille: MotifFamille; label: string; motifs: Motif[] }[] =>
-  FAMILLES.map((f) => ({
+export const parFamille = (): { famille: MotifFamille; label: string; motifs: Motif[] }[] => {
+  const usage = tousLesMotifs();
+  return FAMILLES.map((f) => ({
     famille: f.id,
     label: f.label,
-    motifs: MOTIFS.filter((m) => m.famille === f.id),
-  }));
+    motifs: usage.filter((m) => m.famille === f.id),
+  })).filter((f) => f.motifs.length > 0);
+};
 
 /** Recherche dans le catalogue, sur le label ET la famille. */
 export const chercheMotifs = (q: string): Motif[] => {
   const t = q.trim().toLowerCase();
   if (!t) return [];
-  return MOTIFS.filter(
+  return tousLesMotifs().filter(
     (m) =>
       m.label.toLowerCase().includes(t) ||
       (FAMILLES.find((f) => f.id === m.famille)

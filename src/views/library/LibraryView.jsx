@@ -48,7 +48,7 @@ function ViewSwitcher({
   };
 
   return (
-    <div style={{ position: "relative" }}>
+    <div data-tour="wall-views" style={{ position: "relative" }}>
       <Label>Vue</Label>
       <button
         onClick={() => setOpen((o) => !o)}
@@ -553,7 +553,7 @@ export function LibraryView({
           position: "relative",
         }}
       >
-        <div style={{ minWidth: 200 }}>
+        <div data-tour="wall-search" style={{ minWidth: 200 }}>
           <Label>Chercher</Label>
           <input
             style={underlineInput}
@@ -562,7 +562,7 @@ export function LibraryView({
             onChange={(e) => setQ(e.target.value)}
           />
         </div>
-        <div>
+        <div data-tour="wall-filters">
           <Label>Genre</Label>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {allGenres.length === 0 && (
@@ -628,7 +628,7 @@ export function LibraryView({
             </div>
           </div>
         )}
-        <div>
+        <div data-tour="wall-sort">
           {/* Sur le mur, trier est un état. Sur l'étagère, l'agencement EST
               l'état : ranger devient un geste qu'on donne une fois. */}
           <Label>{mode === "shelf" ? "Ranger" : "Trier"}</Label>
@@ -679,7 +679,7 @@ export function LibraryView({
                 ))}
           </div>
         </div>
-        <div>
+        <div data-tour="wall-mode">
           <Label>Présentation</Label>
           <div style={{ display: "flex", marginTop: 2 }}>
             {[
@@ -748,7 +748,7 @@ export function LibraryView({
           </div>
         )}
         {mode === "wall" && (
-          <div>
+          <div data-tour="wall-decor">
             <Label>Décor</Label>
             {/* En écho à « ATELIER DÉCO… » de l'étagère : le mur aussi se
                 peint, et ses fiches aussi ont un calibre. */}
@@ -783,7 +783,7 @@ export function LibraryView({
       </div>
 
       {mode === "shelf" ? (
-        <div style={{ position: "relative", zIndex: 2 }}>
+        <div data-tour="wall-films" style={{ position: "relative", zIndex: 2 }}>
           {/* L'étagère reçoit la collection ENTIÈRE du mur, jamais la liste
               filtrée : c'est l'agencement qui commande l'ordre, et la
               recherche ne fait qu'éteindre ce qu'elle ne trouve pas. */}
@@ -813,6 +813,7 @@ export function LibraryView({
            collées à l'arête, et la texture reste un calque à elle, qui
            se fond en `multiply` — un fond ne sait pas faire ça seul. */
         <div
+          data-tour="wall-films"
           style={{ position: "relative", zIndex: 2, padding: look.decor ? 20 : 0, ...skin.frame }}
         >
           {skin.texture && (
