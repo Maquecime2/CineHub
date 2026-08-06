@@ -61,51 +61,80 @@ export interface BoxData {
 
 /* CHARGER UNE AFFICHE, D'OÙ QU'ELLE VIENNE.
 
-   TOUT PASSE PAR UN BLOB, Y COMPRIS CE QUI VIENT DU RÉSEAU. Une image
-   d'un autre domaine SOUILLE le canevas et `toBlob` refuse alors de
-   rendre quoi que ce soit — sans erreur au dessin, seulement à l'export.
+   LE PROBLÈME DE FOND, ET IL NE VIENT PAS DE TMDB. Une image d'un autre
+   domaine SOUILLE le canevas, et `toBlob` refuse alors de rendre quoi
+   que ce soit — sans erreur au dessin, seulement à l'export. Il faut
+   donc obtenir l'affiche par une requête CORS, que TMDB honore
+   volontiers (`access-control-allow-origin: *`).
 
-   La version précédente s'en remettait à `crossOrigin = "anonymous"` sur
-   un `<img>`, ce qui demande la permission avant de peindre. C'est
-   correct et TMDB l'accorde. On lui préfère `fetch` pour une raison plus
-   terre à terre : un `<img>` ne dit RIEN de la raison de son échec — pas
-   de code de statut, pas de message, un `onerror` nu. Une affiche qui ne
-   vient pas devient alors indistinguable d'une affiche absente, et
-   c'est exactement le genre de panne qu'on ne diagnostique qu'en
-   remontant tout le chemin à la main.
+   SEULEMENT VOILÀ : LE MUR EST PASSÉ AVANT. `PosterArt` affiche ces
+   mêmes adresses par un `<img>` ordinaire, SANS `crossOrigin`. Le cache
+   HTTP en garde une réponse obtenue en mode « no-cors », et le
+   navigateur REFUSE de la réutiliser pour une requête CORS. Mesuré ici,
+   sur une adresse d'abord chargée comme le fait le mur :
 
-   `fetch` rend un statut et un type. On peut donc écarter ce qui n'est
-   pas une image — TMDB sert ses erreurs en HTML, parfois sous un 200 —
-   au lieu de laisser le décodeur échouer sans un mot. Le blob devient
-   une URL d'objet, donc SAME-ORIGIN : le canevas n'a plus rien à
-   refuser, et il n'y a plus de `crossOrigin` nulle part.
+     <img crossOrigin>          → échec
+     fetch                      → échec
+     fetch { cache: "reload" }  → ok
+     <img crossOrigin> + ?cors  → ok
 
-   Un échec (hors ligne, 404, adresse morte) rend `null`, et la case
-   reçoit l'émulsion de secours — la même que sur le mur. */
+   Ce n'est donc ni le CDN ni le protocole qui manquent : c'est UNE
+   ENTRÉE DE CACHE de notre propre fait. Les deux chemins ci-dessous
+   sont donc écrits pour ne jamais la rencontrer.
+
+   `fetch` d'abord, avec `cache: "reload"` qui force la revalidation :
+   il rend un statut et un type, donc il peut écarter ce qui n'est pas
+   une image — TMDB sert ses erreurs en HTML, parfois sous un 200.
+
+   La balise ensuite, avec un paramètre d'URL qui lui donne sa propre
+   entrée : elle rattrape les environnements où un `fetch` CORS vers un
+   CDN d'images est barré alors qu'une image passe (extensions de vie
+   privée, panneaux intégrés).
+
+   `canvasAccepte` tranche pour la balise : plutôt que de deviner si le
+   canevas est souillé, on le lui DEMANDE — un pixel peint, un pixel
+   relu. C'est la seule vérification qui ne suppose rien du navigateur,
+   et elle évite de composer mille trois cent cinquante pixels de haut
+   pour découvrir l'échec à la toute fin.
+
+   Les deux échouant, la case reçoit l'émulsion de secours — la même que
+   sur le mur. */
 async function chargerAffiche(poster: string): Promise<HTMLImageElement | null> {
   if (!poster) return null;
 
-  let blob: Blob | null;
+  /* Ce qui vient d'IndexedDB ou d'un `data:` ne sort pas du domaine :
+     aucune de ces précautions ne le concerne. */
   if (isIdbPoster(poster)) {
-    blob = (await getImage(idbKeyOf(poster)).catch(() => null)) ?? null;
-  } else if (/^https?:/.test(poster)) {
-    /* L'étagère demande les vignettes en w185 pour ne pas décoder du
-       342 dans un boîtier de 96 px. Ici on compose une image de mille
-       pixels de large : c'est la grande qu'il faut, quelle que soit
-       celle que la fiche a retenue. */
-    const url = poster.replace(POSTER_THUMB, POSTER_BASE);
-    blob = await fetch(url)
-      .then((r) => (r.ok ? r.blob() : null))
-      .catch(() => null);
-    // une erreur de TMDB est une page HTML, servie avec un 200 parfois
-    if (blob && !blob.type.startsWith("image/")) blob = null;
-  } else {
-    /* Une adresse collée à la main, ou une image réduite en `data:` —
-       elles ne souillent pas le canevas et se chargent telles quelles. */
-    return await enImage(poster);
+    const blob = await getImage(idbKeyOf(poster)).catch(() => null);
+    if (!blob) return null;
+    return await depuisBlob(blob);
+  }
+  if (!/^https?:/.test(poster)) return await enImage(poster);
+
+  /* L'étagère demande les vignettes en w185 pour ne pas décoder du 342
+     dans un boîtier de 96 px. Ici on compose une image de mille pixels
+     de large : c'est la grande qu'il faut, quelle que soit celle que la
+     fiche a retenue. */
+  const url = poster.replace(POSTER_THUMB, POSTER_BASE);
+
+  const blob = await fetch(url, { cache: "reload" })
+    .then((r) => (r.ok ? r.blob() : null))
+    .catch(() => null);
+  // une erreur de TMDB est une page HTML, servie avec un 200 parfois
+  if (blob?.type.startsWith("image/")) {
+    const img = await depuisBlob(blob);
+    if (img) return img;
   }
 
-  if (!blob) return null;
+  /* Le filet : une entrée de cache bien à elle, que le mur n'a pas pu
+     salir. Le séparateur tient compte d'une adresse qui porterait déjà
+     une requête — une affiche collée à la main peut en avoir une. */
+  const àPart = `${url}${url.includes("?") ? "&" : "?"}cors=1`;
+  const parBalise = await enImage(àPart, "anonymous");
+  return parBalise && canvasAccepte(parBalise) ? parBalise : null;
+}
+
+async function depuisBlob(blob: Blob): Promise<HTMLImageElement | null> {
   const objectUrl = URL.createObjectURL(blob);
   try {
     return await enImage(objectUrl);
@@ -115,13 +144,36 @@ async function chargerAffiche(poster: string): Promise<HTMLImageElement | null> 
 }
 
 /** Une adresse, décodée en image — ou `null` si elle ne se laisse pas lire. */
-function enImage(src: string): Promise<HTMLImageElement | null> {
+function enImage(src: string, crossOrigin?: string): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
     const img = new Image();
+    if (crossOrigin) img.crossOrigin = crossOrigin;
     img.onload = () => resolve(img);
     img.onerror = () => resolve(null);
     img.src = src;
   });
+}
+
+/* CETTE IMAGE PEUT-ELLE ÊTRE EXPORTÉE ?
+
+   On ne le devine pas, on le demande : un canevas d'un pixel, l'image
+   dessus, et une tentative de relecture. Si l'image a souillé le
+   canevas, `getImageData` lève — et l'on sait AVANT d'avoir composé
+   mille trois cent cinquante pixels de haut, plutôt qu'à la toute fin,
+   quand l'échec emporterait l'image entière. */
+function canvasAccepte(img: HTMLImageElement): boolean {
+  try {
+    const c = document.createElement("canvas");
+    c.width = 1;
+    c.height = 1;
+    const ctx = c.getContext("2d");
+    if (!ctx) return false;
+    ctx.drawImage(img, 0, 0, 1, 1);
+    ctx.getImageData(0, 0, 1, 1);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Coupe un texte trop long, à la lettre près pour la largeur donnée. */
@@ -240,16 +292,48 @@ export async function drawYearInBox(data: BoxData, p: BoxPalette): Promise<Blob>
      fiches — une collection qui ne l'a pas faite ne voit rien manquer. */
   if (data.minutes > 0) lignes.push([`${Math.round(data.minutes / 60)} h`, "de cinéma"]);
 
-  let x = 560;
-  for (const [n, mot] of lignes) {
+  /* LE BANDEAU SE MESURE AVANT DE S'ÉCRIRE, ET C'EST TOUT LE CORRECTIF.
+
+     Il avançait d'un pas fixe — la largeur du mot, ou cent dix-huit
+     pixels, le plus grand des deux — sans jamais regarder où finit le
+     cadre. Quatre colonnes tenaient ; la cinquième, « x h de cinéma »,
+     qui n'apparaît que sur une collection aux fiches complétées,
+     partait au-delà du bord droit et sortait tronquée de l'image.
+     Autrement dit : plus la collection était renseignée, plus l'image
+     était abîmée.
+
+     On mesure donc les cinq colonnes d'abord, et on en déduit
+     l'échelle qui les fait tenir entre l'année et la marge. Les
+     largeurs d'un texte étant proportionnelles à sa taille, un seul
+     relevé suffit à la calculer — pas de tâtonnement.
+
+     Réduire plutôt qu'écarter : chacune de ces mentions a été jugée
+     digne du regard de trois secondes, et une image qui rétrécit ses
+     chiffres de quinze pour cent reste lisible là où une image qui en
+     escamote un ment sur l'année. */
+  const X0 = 470;
+  const ÉCART = 26;
+  const dispo = W - MARGE - X0;
+
+  ctx.font = `bold 56px ${p.title}`;
+  const largeursN = lignes.map(([n]) => ctx.measureText(n).width);
+  ctx.font = `21px ${p.mono}`;
+  const largeursM = lignes.map(([, mot]) => ctx.measureText(mot).width);
+  const colonnes = lignes.map((_, i) => Math.max(largeursN[i]!, largeursM[i]!));
+  const voulu = colonnes.reduce((a, b) => a + b, 0) + ÉCART * (lignes.length - 1);
+  // jamais d'agrandissement : la composition a été réglée à l'échelle 1
+  const éch = Math.min(1, dispo / voulu);
+
+  let x = X0;
+  lignes.forEach(([n, mot], i) => {
     ctx.fillStyle = p.ink;
-    ctx.font = `bold 56px ${p.title}`;
+    ctx.font = `bold ${Math.round(56 * éch)}px ${p.title}`;
     ctx.fillText(n, x, 196);
     ctx.fillStyle = p.inkFaded;
-    ctx.font = `21px ${p.mono}`;
-    ctx.fillText(mot, x, 226);
-    x += Math.max(ctx.measureText(mot).width + 34, 118);
-  }
+    ctx.font = `${Math.round(21 * éch)}px ${p.mono}`;
+    ctx.fillText(mot, x, 196 + Math.round(30 * éch));
+    x += colonnes[i]! * éch + ÉCART * éch;
+  });
 
   /* ---- LA GRILLE D'AFFICHES ---- */
   const douze = data.films.slice(0, MAX);
