@@ -726,7 +726,7 @@ export default function App() {
         {/* L'almanach lit le journal des séances : il regarde donc les
             fiches VUES, y compris celles mises de côté dans la réserve —
             les avoir archivées ne les rend pas non vues. */}
-        {view === "almanac" && <AlmanacView films={watched} />}
+        {view === "almanac" && <AlmanacView films={watched} onOpenPerson={ouvrirPersonne} />}
         {view === "skinlab" && import.meta.env.DEV && <SkinLab />}
         {view === "import" && (
           <ImportView

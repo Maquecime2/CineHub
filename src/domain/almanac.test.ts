@@ -12,6 +12,8 @@ import {
   rhythm,
   screenTime,
   yearsCovered,
+  écartAuPublic,
+  parAnnée,
 } from "./almanac";
 import { makeFilm } from "./film";
 import type { Film, Watch } from "../types";
@@ -445,5 +447,137 @@ describe("geography", () => {
 
   it("ne rend rien quand aucune fiche n'est renseignée", () => {
     expect(geography([vu("A", ["2024-01-01"])], 2024)).toMatchObject({ nbPays: 0, pays: [] });
+  });
+});
+
+/* ============================================================
+   LA PÉRIODE « TOUJOURS »
+
+   L'almanach ne savait répondre que par année. Ces tests tiennent la
+   promesse de la généralisation : ce qui se comptait sur douze mois se
+   compte sur sept ans sans qu'aucune fonction ait à le savoir, et le
+   peu qui résiste — la densité, les découvertes — le dit franchement.
+   ============================================================ */
+describe("toujours", () => {
+  const collection = () => [
+    vu("A", ["2022-01-10", "2024-01-10"], { year: 1990, rating: 4 }),
+    vu("B", ["2023-06-15"], { year: 2000 }),
+    vu("C", ["2024-03-20"], { year: 1960 }),
+  ];
+
+  it("compte toutes les séances, toutes années confondues", () => {
+    const a = almanacFor(collection(), "toujours");
+    expect(a.count).toBe(4);
+    expect(a.titles).toBe(3);
+    expect(a.période).toBe("toujours");
+  });
+
+  it("compte la revoyure comme telle même à deux ans d'écart", () => {
+    expect(almanacFor(collection(), "toujours").rewatches).toBe(1);
+  });
+
+  it("rend une case par année couverte, la plus ancienne d'abord", () => {
+    const a = almanacFor(collection(), "toujours");
+    expect(a.byYear.map((y) => y.year)).toEqual([2022, 2023, 2024]);
+    expect(a.byYear.map((y) => y.séances)).toEqual([1, 1, 2]);
+  });
+
+  it("ne dessine pas les années sur une période annuelle", () => {
+    // `byMonth` y répond déjà : la même information deux fois n'en fait pas une de plus
+    expect(almanacFor(collection(), 2024).byYear).toEqual([]);
+  });
+
+  it("écarte la question des cinéastes découverts", () => {
+    // tout le monde a bien été découvert un jour : la réponse serait la liste entière
+    expect(newDirectors(collection(), "toujours")).toEqual([]);
+  });
+
+  it("rapporte la densité à l'étendue vraiment couverte, non à l'année civile", () => {
+    /* Deux séances à un an d'écart : 2 jours sur 367, et non 2 sur 365
+       — sur sept ans, un dénominateur d'année civile passerait les 100 %. */
+    const r = rhythm([vu("A", ["2023-01-01", "2024-01-02"])], "toujours");
+    expect(r.jours).toBe(2);
+    expect(r.densite).toBeLessThan(1);
+    expect(r.densite).toBeGreaterThan(0);
+  });
+
+  it("compte l'âge d'un film depuis l'année de SA séance", () => {
+    /* Un film de 1990 vu en 2000 avait dix ans ce soir-là, pas trente.
+       Prendre une année fixe sur toute une pratique serait faux. */
+    const a = ageOfFilms([vu("A", ["2000-01-01", "2020-01-01"], { year: 1990 })], "toujours");
+    expect(a.moyen).toBe(20); // (10 + 30) / 2
+  });
+
+  it("relève le seuil de fidélité : trois fois en sept ans n'est pas une traversée", () => {
+    const films = [
+      vu("A", ["2019-01-01", "2020-01-01", "2021-01-01"], { director: "Ozu" }),
+    ];
+    expect(almanacFor(films, "toujours").loyalties.directors).toEqual([]);
+  });
+});
+
+describe("écartAuPublic", () => {
+  it("ramène les deux notes sur la même échelle avant de soustraire", () => {
+    // 4/5 vaut 8/10 : deux points au-dessus d'un public à 6
+    const e = écartAuPublic([vu("A", [{ date: "2024-01-01", rating: 4 }], { tmdbRating: 6 })], 2024);
+    expect(e.vous).toBe(8);
+    expect(e.public).toBe(6);
+    expect(e.écart).toBe(2);
+    expect(e.n).toBe(1);
+  });
+
+  it("n'entre que les séances où les DEUX notes existent", () => {
+    const films = [
+      vu("Notée", [{ date: "2024-01-01", rating: 4 }], { tmdbRating: 6 }),
+      vu("Sans public", [{ date: "2024-01-02", rating: 5 }], { tmdbRating: null }),
+      vu("Sans vous", ["2024-01-03"], { tmdbRating: 9 }),
+    ];
+    expect(écartAuPublic(films, 2024).n).toBe(1);
+  });
+
+  it("range d'un côté ce qu'on aime plus que la foule, de l'autre le contraire", () => {
+    const films = [
+      vu("Adoré", [{ date: "2024-01-01", rating: 5 }], { tmdbRating: 5 }),
+      vu("Détesté", [{ date: "2024-01-02", rating: 1 }], { tmdbRating: 8 }),
+    ];
+    const e = écartAuPublic(films, 2024);
+    expect(e.plusTendre[0]?.film.title).toBe("Adoré");
+    expect(e.plusSévère[0]?.film.title).toBe("Détesté");
+  });
+
+  it("ne fait peser un film revu qu'une fois dans les palmarès", () => {
+    const films = [
+      vu("Revu", [
+        { date: "2024-01-01", rating: 5 },
+        { date: "2024-02-01", rating: 4 },
+      ], { tmdbRating: 5 }),
+    ];
+    expect(écartAuPublic(films, 2024).plusTendre).toHaveLength(1);
+  });
+
+  it("reste vide plutôt que de rendre zéro quand rien n'est comparable", () => {
+    const e = écartAuPublic([vu("A", ["2024-01-01"])], 2024);
+    expect(e).toMatchObject({ vous: null, public: null, écart: null, n: 0 });
+  });
+});
+
+describe("parAnnée", () => {
+  it("rend séances, titres et note moyenne par année", () => {
+    const films = [
+      vu("A", [{ date: "2023-01-01", rating: 4 }, { date: "2023-02-01", rating: 2 }]),
+      vu("B", [{ date: "2024-01-01", rating: 5 }]),
+    ];
+    expect(parAnnée(films)).toEqual([
+      { year: 2023, séances: 2, titres: 1, note: 3 },
+      { year: 2024, séances: 1, titres: 1, note: 5 },
+    ]);
+  });
+
+  it("laisse la note vide sur une année sans aucune séance notée", () => {
+    expect(parAnnée([vu("A", ["2024-01-01"])])[0]?.note).toBeNull();
+  });
+
+  it("ne rend rien d'une collection sans séance", () => {
+    expect(parAnnée([])).toEqual([]);
   });
 });

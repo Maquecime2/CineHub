@@ -244,22 +244,22 @@ const almanac: Tour = {
   steps: [
     {
       target: at("almanac-year"),
-      title: "Une année",
-      body: "L'almanach lit le journal des séances : il ne compte que les vraies séances, à leur date, et non la date d'ajout des fiches.",
+      title: "Une année, ou toujours",
+      body: "L'almanach lit le journal des séances : il ne compte que les vraies séances, à leur date, et non la date d'ajout des fiches. « TOUJOURS », en tête, ouvre le même bilan sur toute votre pratique — les douze mois y deviennent vos années.",
       placement: "bottom",
       optional: true,
     },
     {
       target: at("almanac-plates"),
       title: "Trois planches",
-      body: "Le compte, les goûts, les gens. Les flèches du clavier feuillettent.",
+      body: "Le compte, les goûts, les gens. Les flèches du clavier feuillettent. Sous vos notes se lit votre écart à la note publique — où vous êtes plus tendre, où vous êtes plus sévère que la foule.",
       placement: "bottom",
       optional: true,
     },
     {
       target: at("almanac-export"),
       title: "L'année en boîte",
-      body: "Une image de l'année, à garder ou à montrer. C'est la seule chose d'ici qui sorte du navigateur.",
+      body: "Une image de l'année, à garder ou à montrer. C'est la seule chose d'ici qui sorte du navigateur. Elle est bâtie autour d'un millésime : sur « toujours », le bouton s'efface.",
       placement: "left",
       optional: true,
     },
