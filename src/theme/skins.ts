@@ -35,7 +35,13 @@ export type Skin = {
   label: string;
   /** Une ligne pour dire ce qu'on regarde. Elle s'affiche au choix. */
   note: string;
-  /** Le fond est-il sombre ? Sert à l'aperçu, et à rien d'autre. */
+  /**
+   * Le fond est-il sombre ? Sert à l'aperçu, et à `color-scheme` : c'est
+   * ce drapeau qui, via l'attribut `data-dark`, dit au navigateur sur
+   * quel fond il dessine ce qu'il dessine lui-même — listes déroulantes
+   * ouvertes, cases à cocher, barres de défilement. Le mentir rend ces
+   * morceaux-là illisibles, et eux seuls.
+   */
   dark?: boolean;
   c: Record<string, string>;
   fonts: { title: string; body: string; hand: string; mono: string };

@@ -272,6 +272,39 @@ html[data-dragging="1"] [data-wall-item]:not([data-drag-self]) {
   [data-enters] { animation: none !important; }
 }
 
+/* CE QUE LE NAVIGATEUR DESSINE A NOTRE PLACE.
+
+   Une liste deroulante ouverte, une case a cocher, une barre de
+   defilement : ces morceaux-la ne sont pas peints par la page mais par
+   le navigateur, et il les peint CLAIRS tant qu'on ne lui a pas dit le
+   contraire. Sur les cinq peaux sombres, la liste d'un select tombait
+   en gris sur fond sombre — illisible, et hors d'atteinte du CSS
+   puisque ce menu n'est pas dans le document.
+
+   color-scheme est la seule prise qu'on ait dessus. Elle se lit sur
+   data-dark, que applySkin ecrit deja, et elle SE TRANSMET aux
+   descendants : le banc d'essai, qui montre quatorze peaux a la fois
+   sur des fragments, porte le meme attribut et obtient le meme
+   resultat sans une ligne de plus. */
+[data-dark="1"] { color-scheme: dark; }
+[data-dark="0"] { color-scheme: light; }
+
+/* LA OU color-scheme NE SUFFIT PAS. Les entrees d'une liste heritent du
+   fond transparent de leur select, que le navigateur resout alors sur
+   SA toile a lui et non sur le carton de la peau. On leur donne donc un
+   fond opaque, pris aux jetons comme tout le reste. */
+select option { background: ${C.card}; color: ${C.ink}; }
+
+/* Le bleu d'une case cochee est celui du navigateur, et il ne va avec
+   aucune des quatorze peaux. Le fil rouge, lui, va avec toutes. */
+input[type="checkbox"], input[type="radio"] { accent-color: ${C.burgundy}; }
+
+/* DERNIER RECOURS POUR LES CHAMPS QUE PERSONNE N'A HABILLES. Un style
+   en ligne gagne toujours contre cette regle, qui ne rattrape donc que
+   ceux qui n'en ont pas : ceux-la retombaient sur le noir du
+   navigateur, invisible sur une peau sombre. */
+input, select, textarea { color: ${C.ink}; }
+
 input::placeholder, textarea::placeholder { color: ${alpha(C.inkFaded, 0.53)}; font-style: italic; }
 
 /* le champ éditable n'a pas de placeholder natif : on le dessine */
