@@ -198,12 +198,26 @@ export async function listPosters({ tmdbId, title, year, apiKey }) {
    Ils ne sont pas rapatriés par `getDetails` et c'est délibéré : ils ne
    se rangent nulle part sur la fiche. Ils ne servent qu'à PROPOSER des
    motifs (`domain/motifs`), qu'un clic valide ou non — on ne stocke donc
-   que ce qui a été relu. */
+   que ce qui a été relu.
+
+   MIS EN CACHE, comme tous ses voisins. Tant qu'une seule fiche ouverte
+   les demandait, refrapper TMDB à chaque ouverture ne coûtait qu'un
+   aller-retour. « Lequel ce soir ? » en demande des dizaines d'un coup
+   pour deviner le ton de films qu'on n'a pas vus, et sans cache la même
+   watchlist les redemanderait tous à chaque question posée.
+
+   Le `try` est DEHORS, et c'est ce qui compte : une panne ne doit pas
+   entrer dans le cache. `cachedList` n'écrit que ce que le fetcher a
+   rendu — si l'appel jette, rien n'est rangé, et l'on retente la
+   prochaine fois. Une liste vide, elle, est une vraie réponse : il
+   existe des films dont TMDB ne sait aucun mot. */
 export async function fetchKeywords(tmdbId, apiKey) {
   if (!tmdbId || !apiKey) return [];
   try {
-    const data = await get(`/movie/${tmdbId}/keywords`, {}, apiKey);
-    return data.keywords || [];
+    return await cachedList(`kw:${tmdbId}`, async () => {
+      const data = await get(`/movie/${tmdbId}/keywords`, {}, apiKey);
+      return data.keywords || [];
+    });
   } catch {
     // un mot-clé manquant n'est pas une panne : la fiche s'ouvre sans
     return [];
