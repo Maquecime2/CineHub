@@ -198,10 +198,12 @@ describe("enrichRows — casting", () => {
     });
   });
 
-  /* Le cache d'avant la récolte ne porte ni `cast` ni `crew`. Il ne doit
-     pas laisser filtrer `undefined` jusqu'à la fiche : tout le reste du
-     code compte sur une liste, fût-elle vide. */
-  it("rend des listes vides pour une entrée mémorisée avant la récolte", async () => {
+  /* Le cache d'avant la récolte ne porte ni `cast` ni `crew`. Il était
+     servi tel quel, et la fiche ressortait aussi vide qu'elle était
+     entrée — d'où « compléter les fiches ne fait rien » : l'appel avait
+     bien lieu, mais il revenait du `localStorage`. Une entrée d'une
+     forme périmée n'est pas une réponse : on la jette et on redemande. */
+  it("redemande une entrée mémorisée avant la récolte, au lieu de la servir tronquée", async () => {
     localStorage.setItem(
       CACHE_KEY,
       JSON.stringify({ "le samouraï|1967": { tmdbId: 42, director: "Melville", genres: [] } })
@@ -209,9 +211,9 @@ describe("enrichRows — casting", () => {
     const fetchMock = castFetch();
     vi.stubGlobal("fetch", fetchMock);
     const { rows: out } = await enrichRows([{ title: "Le Samouraï", year: 1967 }], "k");
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(out[0].cast).toEqual([]);
-    expect(out[0].crew).toEqual({});
+    expect(fetchMock).toHaveBeenCalled();
+    expect(out[0].cast).toHaveLength(8);
+    expect(out[0].crew).toMatchObject({ image: ["Decaë"] });
   });
 
   it("n'invente pas d'équipe quand TMDB n'en donne pas", async () => {
@@ -285,15 +287,41 @@ describe("enrichRows — durée, langue, pays, note", () => {
     expect(out[0].tmdbRating).toBeNull();
   });
 
-  it("rend des formes vides pour une entrée mémorisée avant ces champs", async () => {
+  /* Le pays manquait sur presque toute la collection pour cette seule
+     raison : ces champs sont arrivés après les entrées qui les
+     attendaient, et le cache servait les vieilles réponses sans savoir
+     qu'il était en retard. */
+  it("redemande une entrée mémorisée avant ces champs", async () => {
     localStorage.setItem(
       CACHE_KEY,
       JSON.stringify({ "le samouraï|1967": { tmdbId: 42, director: "Melville", genres: [] } })
     );
-    const fetchMock = detailsFetch({});
+    const fetchMock = detailsFetch({
+      runtime: 105,
+      original_language: "fr",
+      production_countries: [{ iso_3166_1: "FR" }],
+      vote_average: 8.2,
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { rows: out } = await enrichRows([{ title: "Le Samouraï", year: 1967 }], "k");
+    expect(fetchMock).toHaveBeenCalled();
+    expect(out[0]).toMatchObject({
+      runtime: 105,
+      language: "fr",
+      countries: ["FR"],
+      tmdbRating: 8.2,
+    });
+  });
+
+  /* Une entrée de la forme courante, elle, reste servie sans un appel :
+     le cache garde sa raison d'être. */
+  it("sert sans redemander une entrée de la forme courante", async () => {
+    vi.stubGlobal("fetch", detailsFetch({ runtime: 105 }));
+    await enrichRows([{ title: "Le Samouraï", year: 1967 }], "k");
+    const fetchMock = detailsFetch({ runtime: 105 });
     vi.stubGlobal("fetch", fetchMock);
     const { rows: out } = await enrichRows([{ title: "Le Samouraï", year: 1967 }], "k");
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(out[0]).toMatchObject({ runtime: null, language: "", countries: [], tmdbRating: null });
+    expect(out[0].runtime).toBe(105);
   });
 });

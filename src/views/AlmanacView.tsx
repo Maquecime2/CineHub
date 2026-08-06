@@ -51,6 +51,7 @@ import { drawYearInBox, telecharger, type BoxPalette } from "../services/yearInB
 import { hash, seededRand, tiltOf } from "../domain/seeded";
 import { CoffeeRing, InkUnderline, PushPin, StampCorner, Tape } from "../components/atmosphere";
 import { InkStars, Label, Tally } from "../components/ui";
+import { nomLangue, nomPays } from "../noms";
 import type { Film } from "../types";
 
 const MOIS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
@@ -83,31 +84,9 @@ const enHeures = (minutes: number): string => {
   return m ? `${h} h ${String(m).padStart(2, "0")}` : `${h} h`;
 };
 
-/* LES NOMS DE PAYS ET DE LANGUES SE TRADUISENT ICI, ET NON DANS LE
-   DOMAINE. `geography` rend des codes ISO parce qu'il ne sait pas dans
-   quelle langue on le lira ; c'est la vue qui le sait.
-
-   `Intl.DisplayNames` fait le travail sans la moindre table à tenir à
-   jour — deux cent cinquante pays et sept mille langues vivent déjà dans
-   le navigateur. Le repli est le code lui-même : mieux vaut lire « ZZ »
-   qu'un vide. */
-const nomDe = (type: "region" | "language") => {
-  let dn: Intl.DisplayNames | null = null;
-  try {
-    dn = new Intl.DisplayNames(["fr"], { type });
-  } catch {
-    dn = null;
-  }
-  return (code: string): string => {
-    try {
-      return dn?.of(code) || code;
-    } catch {
-      return code;
-    }
-  };
-};
-const nomPays = nomDe("region");
-const nomLangue = nomDe("language");
+/* Les noms de pays et de langues se traduisent dans `noms`, et non dans
+   le domaine : `geography` rend des codes ISO parce qu'il ne sait pas
+   dans quelle langue on le lira. La fiche s'en sert aussi. */
 
 /* ------------------------------------------------------------
    LE CARTON — la pièce que toutes les planches réemploient

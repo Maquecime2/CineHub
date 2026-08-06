@@ -9,6 +9,26 @@ const BASE = "https://api.themoviedb.org/3";
 export const POSTER_BASE = "https://image.tmdb.org/t/p/w342";
 const CACHE_KEY = "tmdb-cache";
 
+/* LA FORME DE CE QU'ON MÉMORISE, ET POURQUOI ELLE PORTE UN NUMÉRO.
+
+   Le cache est éternel par dessein : un film ne change ni de
+   réalisateur ni d'année, et le réinterroger brûlerait le quota pour
+   rien. Mais ce raisonnement ne vaut que pour les champs qu'on
+   demandait DÉJÀ. Le jour où `getDetails` s'est mis à rapporter la
+   durée, le pays et la langue, les entrées mémorisées la veille sont
+   devenues des réponses tronquées — et le cache, qui ne sait pas qu'il
+   est en retard, les servait comme des réponses complètes.
+
+   C'est de là que venait « compléter les fiches ne fait rien » : la
+   fiche était bien reconnue incomplète, l'appel était bien lancé, et il
+   revenait du `localStorage` aussi vide qu'il était parti. Aucune
+   erreur, aucun compte à zéro, rien à quoi se raccrocher.
+
+   Le numéro règle cela une fois pour toutes : une entrée d'une autre
+   forme n'est pas une réponse, c'est une absence. On la jette et on
+   redemande. À INCRÉMENTER dès qu'un champ s'ajoute à `getDetails`. */
+const SHAPE = 2;
+
 // le cache évite de reconsommer le quota à chaque réimport du même fichier
 const readCache = () => {
   try {
@@ -101,6 +121,21 @@ export async function getDetails(tmdbId, apiKey) {
   const équipe = data.credits?.crew || [];
   const directors = équipe.filter((c) => c.job === "Director").map((c) => c.name);
 
+  /* L'ANNOTATION CI-DESSOUS EST NÉCESSAIRE, ET ELLE VAUT POUR TOUS LES
+     APPELANTS.
+
+     Ce module est en JavaScript, et TypeScript infère le type d'un objet
+     à sa DÉCLARATION : un `{}` rempli plus loin, clé par clé, reste un
+     `{}` à ses yeux. `getDetails` annonçait donc un `crew` sans aucune
+     clé possible, et chaque appelant devait rétablir la vérité par une
+     assertion de son côté — une par point d'appel, à recopier à chaque
+     nouveau, et fausse le jour où la forme changerait ici.
+
+     Une ligne à la source évite toutes les autres. Elle est dans un
+     bloc `/**` bien à elle : TypeScript ne lit QUE ceux-là, et un `@type`
+     noyé dans un commentaire ordinaire est ignoré sans un mot — ce qui
+     est exactement ce qui vient d'arriver en écrivant ces lignes. */
+  /** @type {Record<string, string[]>} */
   const crew = {};
   for (const [métier, intitulés] of Object.entries(MÉTIERS)) {
     const noms = [...new Set(équipe.filter((c) => intitulés.includes(c.job)).map((c) => c.name))];
@@ -108,6 +143,7 @@ export async function getDetails(tmdbId, apiKey) {
   }
 
   return {
+    v: SHAPE,
     tmdbId: data.id,
     director: directors.join(", "),
     genres: (data.genres || []).map((g) => g.name),
@@ -327,6 +363,13 @@ function cacheLookup(cache, key) {
   }
   if (isMiss(v)) {
     if (Date.now() - v.miss < MISS_TTL) return { hit: true, info: null };
+    delete cache[key];
+    return { hit: false };
+  }
+  /* Une réponse d'une forme périmée n'est pas une réponse : elle ne
+     porte pas les champs qu'on vient chercher. On la traite comme une
+     absence — voir `SHAPE`. */
+  if (v.v !== SHAPE) {
     delete cache[key];
     return { hit: false };
   }

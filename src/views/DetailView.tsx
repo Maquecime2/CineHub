@@ -24,6 +24,7 @@ import { StampCorner, Tape } from "../components/atmosphere";
 import { PosterArt } from "../components/film/PosterArt";
 import { PosterPicker } from "../components/film/PosterPicker";
 import { FilmIdentity } from "../components/film/FilmIdentity";
+import { TmdbFacts } from "../components/film/TmdbFacts";
 import { WatchLog } from "../components/film/WatchLog";
 import { ThreadBoard } from "../components/film/ThreadBoard";
 import { LINK_TYPES } from "../components/film/linkTypes";
@@ -326,6 +327,10 @@ export function DetailView({
                 </span>
               ))}
             </div>
+            {/* Tout ce que la récolte rapporte et qu'on ne lisait nulle
+                part : durée, pays, langue, équipe, casting. C'est là
+                qu'on voit ce qui manque, et qu'on le redemande. */}
+            <TmdbFacts film={film} onUpdate={onUpdate} />
             <div style={{ marginTop: 14, borderTop: `1px solid ${C.line}`, paddingTop: 10 }}>
               <Label>Mots-clés</Label>
               <TagEditor
