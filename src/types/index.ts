@@ -309,6 +309,8 @@ export interface SkyLink {
   why?: Kinship[];
   /** "peer" seulement : la nature du lien, telle qu'écrite du côté `a`. */
   relation?: Relation;
+  /** Ce qu'on a écrit sous le lien — côté `a` pour un "peer". */
+  note?: string;
   force?: Force;
 }
 
