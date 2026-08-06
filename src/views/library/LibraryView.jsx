@@ -2,7 +2,7 @@
    VUE — VIDÉOTHÈQUE : le mur, ou l'étagère et ses vues.
    ============================================================ */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pin, Plus, Trash2, LayoutGrid, Library, Paperclip } from "lucide-react";
+import { Pin, Plus, Trash2, LayoutGrid, Library, Paperclip, Dice5 } from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { underlineInput } from "../../theme/styles";
 import { hash, tiltOf } from "../../domain/seeded";
@@ -14,6 +14,7 @@ import { THEMES } from "../../components/shelf/constants";
 import { DecorStudio } from "../../components/shelf/DecorStudio";
 import { SHELF_KINDS, sortIntoRows, patchViewDecor, clearViewDecor } from "../../shelf-views";
 import { FilmWall } from "./FilmWall";
+import { SoirDrawer } from "./SoirDrawer";
 import { WallStudio } from "./WallStudio";
 import { wallLookOf, DEFAULT_WALL_LOOK } from "./wallLook";
 import { wallStyle } from "../../theme/surfaces";
@@ -309,6 +310,10 @@ const decadeOf = (f) => {
 
 export function LibraryView({
   films,
+  /* TOUTE la collection, et non le seul mur affiché : le tiroir de la
+     soirée bâtit un profil de goût, et un profil se lit sur les films
+     VUS — que la liste « à voir » ne contient précisément pas. */
+  tousLesFilms = [],
   onOpen,
   wall = "watched",
   ui,
@@ -359,6 +364,11 @@ export function LibraryView({
      seul : les deux ateliers ne règlent pas la même chose et ne s'ouvrent
      pas dans la même présentation. */
   const [wallStudio, setWallStudio] = useState(false);
+
+  /* Le tiroir de la soirée. Local à la vue et non dans `ui` : ce n'est
+     pas un réglage du mur qu'on retrouve en revenant, c'est une question
+     qu'on pose une fois. */
+  const [soir, setSoir] = useState(false);
 
   /* L'allure du mur vient du disque et peut manquer, ou avoir été écrite
      par une autre version : `wallLookOf` la ramène toujours à une allure
@@ -726,6 +736,36 @@ export function LibraryView({
             onDecor={() => setStudio(true)}
           />
         )}
+        {/* LA QUESTION DU SOIR — sur la liste « à voir », et là seulement.
+
+            La vidéothèque n'a pas à la poser : ce qu'elle contient est
+            déjà vu. C'est la pile des intentions qui, elle, ne savait
+            que s'empiler. */}
+        {wall === "watchlist" && (
+          <div data-tour="soir-ouvrir">
+            <Label>Ce soir</Label>
+            <button
+              onClick={() => setSoir(true)}
+              title="Trouver quoi regarder ce soir"
+              style={{
+                all: "unset",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "5px 12px",
+                marginTop: 2,
+                fontFamily: F.mono,
+                fontSize: 10.5,
+                color: C.card,
+                background: C.burgundy,
+                border: `1px solid ${C.burgundy}`,
+              }}
+            >
+              <Dice5 size={12} /> LEQUEL CE SOIR ?
+            </button>
+          </div>
+        )}
         {mode === "wall" && (
           <div>
             <Label>Classer</Label>
@@ -851,6 +891,15 @@ export function LibraryView({
             />
           )}
         </div>
+      )}
+      {/* Le tiroir est monté hors des deux présentations : la question du
+          soir ne change pas selon qu'on regarde un mur ou une étagère. */}
+      {soir && (
+        <SoirDrawer
+          films={tousLesFilms.length ? tousLesFilms : films}
+          onClose={() => setSoir(false)}
+          onOpen={onOpen}
+        />
       )}
     </div>
   );

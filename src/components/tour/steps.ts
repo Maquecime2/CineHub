@@ -104,6 +104,13 @@ const watchlist: Tour = {
       optional: true,
     },
     {
+      target: at("soir-ouvrir"),
+      title: "Lequel ce soir ?",
+      body: "La question que la pile ne savait pas entendre. Dites le temps dont vous disposez et dans quel état vous êtes : le classeur tranche, dit pourquoi, et « une autre » descend d'un cran. Ce bouton n'existe que sur cette liste — la vidéothèque, elle, est déjà vue.",
+      placement: "bottom",
+      optional: true,
+    },
+    {
       target: at("wall-mode"),
       title: "Les mêmes outils",
       body: "Recherche, tamis, tri, étagère et décor : cette liste se travaille exactement comme la vidéothèque, et garde ses propres réglages.",
@@ -343,7 +350,7 @@ const global: Tour = {
       view: "library",
     },
     ...from("library", library, "wall-search", "wall-mode", "wall-films"),
-    ...from("watchlist", watchlist, "wall-films"),
+    ...from("watchlist", watchlist, "wall-films", "soir-ouvrir"),
     ...from("generique", generique, "generique-search", "generique-dossier"),
     ...from("reco", reco, "reco-dials"),
     ...from("constellation", constellation, "constellation-start", "constellation-teams"),

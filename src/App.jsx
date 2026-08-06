@@ -657,6 +657,7 @@ export default function App() {
           <LibraryView
             wall="watchlist"
             films={watchlist}
+            tousLesFilms={films}
             ui={wallUi.watchlist}
             setUi={setUiFor("watchlist")}
             onUpdateMany={updateMany}

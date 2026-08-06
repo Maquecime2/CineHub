@@ -165,6 +165,17 @@ body { background: ${C.paper}; }
 @keyframes slideOut { from { opacity: 0; transform: translateX(-34px) rotate(-4deg); } to { opacity: 1; transform: none; } }
 @keyframes caseIn { from { opacity: 0; transform: translateY(14px) scale(0.97); } to { opacity: 1; transform: none; } }
 @keyframes sheetIn { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: none; } }
+/* UN TIROIR ENTRE PAR SON CÔTÉ, ET DROIT.
+
+   slideOut faisait l'affaire pour une page — elle vient de la gauche et
+   s'incline de quatre degrés, ce qui donne à une feuille l'air d'avoir
+   été posée à la main. Sur un panneau ancré à droite et haut de toute la
+   fenêtre, la même inclinaison le fait déborder par les deux bouts le
+   temps de l'animation : une feuille se pose de travers, un tiroir non.
+
+   (Pas d'accent grave dans ce commentaire : il vit DANS un littéral de
+   gabarit, et le premier refermerait la feuille de styles entière.) */
+@keyframes drawerIn { from { opacity: 0; transform: translateX(26px); } to { opacity: 1; transform: none; } }
 
 /* Pendant un glissement, la languette du tiroir s'annonce comme cible.
    En CSS et non en état React : un setState ici re-rendrait tout le
