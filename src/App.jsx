@@ -82,6 +82,7 @@ import { hash, seededRand, tiltOf, usesPin, nudgeOf, fileNoOf, tornClip } from "
 import { uid, makeFilm, migrate, editLinkedWork } from "./domain/film";
 import { slugOf, filmKey, parseRating, parseLetterboxdCsv, diffImport } from "./domain/importing";
 import { workKey, buildSky, relax } from "./domain/sky";
+import { normaliser } from "./domain/search";
 import { inverseDe, forceDe } from "./domain/relations";
 import { makeFil, normalizeFils } from "./domain/fils";
 import { motifById, makeMotifPerso, motifsPerso } from "./domain/motifs";
@@ -116,6 +117,7 @@ import { RichField } from "./components/stills/RichField";
 import { StillsStrip } from "./components/stills/StillsStrip";
 import { STILL_TOKEN } from "./components/stills/tokens";
 import { NotebookView } from "./views/NotebookView";
+import { GeneriqueView } from "./views/GeneriqueView";
 import { RecoView } from "./views/RecoView";
 import { DetailView } from "./views/DetailView";
 import { ImportView } from "./views/import/ImportView";
@@ -179,6 +181,10 @@ export default function App() {
   const [loaded, setLoaded] = useState(false);
   const [view, setView] = useState("library");
   const [selectedId, setSelectedId] = useState(null);
+  /* La personne ouverte au Générique, par sa clé normalisée. À côté de
+     `selectedId` et non à sa place : on ouvre une personne DEPUIS une
+     fiche, et revenir à la fiche ne doit pas avoir oublié laquelle. */
+  const [personne, setPersonne] = useState(null);
   const [showModal, setShowModal] = useState(false);
 
   /* LA PEAU DU SITE. Elle est ici en etat React pour une seule raison :
@@ -325,6 +331,14 @@ export default function App() {
   const addFilm = (film) => {
     saveFilms([film, ...films]);
     setShowModal(false);
+  };
+
+  /* Ouvrir quelqu'un depuis une fiche. La clé est normalisée ICI et une
+     seule fois : le Générique range ses dossiers sous la même, et deux
+     façons de l'écrire feraient deux personnes. */
+  const ouvrirPersonne = (nom) => {
+    setPersonne(normaliser(nom));
+    setView("generique");
   };
   const updateFilm = (film) => saveFilms(films.map((f) => (f.id === film.id ? film : f)));
   /* Ranger un boîtier renumérote tout un rayon : une écriture, pas trente. */
@@ -537,7 +551,14 @@ export default function App() {
   // la carte du ciel ne relie que ce qui est en rayon
   const constellationFilms = useMemo(() => watched.filter((f) => !f.archived), [watched]);
   // le mur d'où l'on vient : « je l'ai vu » depuis la watchlist doit ramener au bon endroit
-  const backView = selectedFilm?.status === "watchlist" ? "watchlist" : "library";
+  /* On revient d'où l'on vient. Une fiche ouverte depuis un dossier de
+     personne ramène à ce dossier — sans quoi, suivre un chef opérateur
+     de film en film demanderait de le retrouver à chaque fois. */
+  const backView = personne
+    ? "generique"
+    : selectedFilm?.status === "watchlist"
+      ? "watchlist"
+      : "library";
 
   if (!loaded) {
     return (
@@ -580,6 +601,9 @@ export default function App() {
         setView={(v) => {
           setView(v);
           setSelectedId(null);
+          /* Un onglet est un départ, pas un retour : cliquer « Générique »
+             ouvre le répertoire, et non le dernier nom consulté. */
+          setPersonne(null);
         }}
         onAdd={() => setShowModal(true)}
         onSkin={() => setSkinPicker(true)}
@@ -612,7 +636,7 @@ export default function App() {
           page, et doit se lire comme tel. */}
       <div
         data-enters
-        key={`${view}:${selectedId || ""}`}
+        key={`${view}:${selectedId || personne || ""}`}
         style={{ flex: 1, minWidth: 0, position: "relative", zIndex: 2 }}
       >
         {view === "library" && !selectedId && (
@@ -651,6 +675,7 @@ export default function App() {
               setView(backView);
               setSelectedId(null);
             }}
+            retourVers={personne ? "RETOUR AU GÉNÉRIQUE" : undefined}
             onUpdate={updateFilm}
             onDelete={deleteFilm}
             onLinkFilm={linkFilms}
@@ -662,6 +687,19 @@ export default function App() {
             onSupprimerMotif={supprimerMotif}
             onMasquerMotif={masquerMotif}
             onOpen={(id) => setSelectedId(id)}
+            onOpenPerson={ouvrirPersonne}
+          />
+        )}
+        {view === "generique" && (
+          <GeneriqueView
+            films={films}
+            personne={personne}
+            onOpenPersonne={setPersonne}
+            onOpen={(id) => {
+              setSelectedId(id);
+              setView("detail");
+            }}
+            onAddToWatchlist={addFilm}
           />
         )}
         {view === "reco" && <RecoView films={films} onAddToWatchlist={addFilm} />}

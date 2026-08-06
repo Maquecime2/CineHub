@@ -26,7 +26,7 @@ describe("le catalogue de peaux", () => {
   /* Un jeton oublié n'est pas rattrapé par la peau par défaut : les
      variables sont écrites sur la racine et y RESTENT d'une peau à
      l'autre. Il garderait donc la valeur de la peau précédente. */
-  it("donne les treize jetons, sans en inventer un de plus", () => {
+  it("donne les quatorze jetons, sans en inventer un de plus", () => {
     for (const skin of SKINS) expect(Object.keys(skin.c).sort()).toEqual([...TOKENS].sort());
   });
 

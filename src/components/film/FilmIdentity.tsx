@@ -25,7 +25,16 @@ const tinyButton = (ink: string) => ({
 
 type Draft = { title: string; year: Year; director: string; genres: string[] };
 
-export function FilmIdentity({ film, onUpdate }: { film: Film; onUpdate: (f: Film) => void }) {
+export function FilmIdentity({
+  film,
+  onUpdate,
+  onOpenPerson,
+}: {
+  film: Film;
+  onUpdate: (f: Film) => void;
+  /** Absent : la réalisation reste du texte. */
+  onOpenPerson?: (nom: string) => void;
+}) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Draft>(() => ({
     title: film.title,
@@ -129,7 +138,43 @@ export function FilmIdentity({ film, onUpdate }: { film: Film; onUpdate: (f: Fil
           }}
         >
           <span>
-            {film.year || "s.d."} — {film.director || "anonyme"}
+            {film.year || "s.d."} —{" "}
+            {/* La réalisation peut être à plusieurs mains : on découpe
+                sur la virgule comme le fait `parentésDe`, sans quoi
+                « Coen, Coen » ouvrirait un dossier fantôme à deux noms. */}
+            {film.director
+              ? film.director.split(",").map((nom, i) => {
+                  const propre = nom.trim();
+                  if (!propre) return null;
+                  return (
+                    <span key={`${propre}-${i}`}>
+                      {i > 0 && ", "}
+                      {onOpenPerson ? (
+                        <button
+                          onClick={() => onOpenPerson(propre)}
+                          title={`Ce que j'ai de ${propre}`}
+                          style={{
+                            all: "unset",
+                            cursor: "pointer",
+                            borderBottom: `1px dotted ${C.inkFaded}`,
+                            transition: "color var(--motion-fast) ease",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.color = C.burgundy;
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.color = "";
+                          }}
+                        >
+                          {propre}
+                        </button>
+                      ) : (
+                        propre
+                      )}
+                    </span>
+                  );
+                })
+              : "anonyme"}
           </span>
           <button onClick={open} style={{ ...tinyButton(C.inkFaded), marginLeft: "auto" }}>
             <Pencil size={11} /> corriger

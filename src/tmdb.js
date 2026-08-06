@@ -327,13 +327,41 @@ export async function searchPerson(name, apiKey) {
   });
 }
 
-/* La filmographie de réalisateur·rice — uniquement le poste de réalisation :
-   un acteur qui a tourné dans trente films n'a pas signé trente films. */
-export async function directorFilmography(personId, apiKey) {
-  return cachedList(`pc:${personId}`, async () => {
+/* LES POSTES, TELS QUE TMDB LES NOMME, pour chaque rôle de parenté.
+
+   Un acteur qui a tourné dans trente films n'a pas signé trente films :
+   demander « sa filmographie » sans dire à quel titre mélangerait les
+   deux, et le Générique montrerait à un chef opérateur des films qu'il
+   n'a pas éclairés. Le rôle fait donc partie de la question.
+
+   `scénario` en réunit deux : TMDB distingue « Screenplay » de
+   « Writer » selon les fiches, sans règle qu'on puisse deviner. */
+const POSTES = {
+  image: ["Director of Photography"],
+  musique: ["Original Music Composer"],
+  scénario: ["Screenplay", "Writer"],
+  réalisation: ["Director"],
+};
+
+/**
+ * Ce que cette personne a fait, à ce titre-là.
+ *
+ * La clé de cache porte le rôle : les crédits d'interprétation et ceux
+ * de réalisation d'une même personne sont deux réponses différentes, et
+ * les ranger sous la même clé ferait servir l'une pour l'autre.
+ */
+export async function personFilmography(personId, apiKey, { role = "réalisation" } = {}) {
+  return cachedList(`pc:${personId}:${role}`, async () => {
     const data = await get(`/person/${personId}/movie_credits`, {}, apiKey);
-    return (data.crew || []).filter((c) => c.job === "Director").map(toCandidate);
+    if (role === "interprétation") return (data.cast || []).map(toCandidate);
+    const postes = POSTES[role] || POSTES.réalisation;
+    return (data.crew || []).filter((c) => postes.includes(c.job)).map(toCandidate);
   });
+}
+
+/* Le cas de loin le plus fréquent, et celui que `reco` appelle. */
+export async function directorFilmography(personId, apiKey) {
+  return personFilmography(personId, apiKey, { role: "réalisation" });
 }
 
 /* Exécute des tâches par petits paquets — même worker-pool que `enrichRows`,

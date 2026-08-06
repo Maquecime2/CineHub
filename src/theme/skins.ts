@@ -8,7 +8,7 @@
    carnet d'archiviste bleu. Une peau change donc quatre choses à la
    fois, et c'est ce qui fait qu'on passe vraiment d'un monde à l'autre :
 
-     - LES TEINTES — les treize jetons de `tokens`.
+     - LES TEINTES — les quatorze jetons de `tokens`.
      - LA TYPOGRAPHIE — les quatre rôles, avec les familles à charger.
      - LE FOND DE PAGE — pas une couleur, une recette : le kraft a des
        nappes plus claires là où la lumière tombe, une planche contact a
@@ -81,6 +81,7 @@ export const SKINS: Skin[] = [
       cobalt: "#3A5C8C",
       vermillion: "#C4562E",
       moss: "#6E7A3A",
+      plum: "#6B4560",
     },
     fonts: {
       title: "'Playfair Display', serif",
@@ -118,6 +119,7 @@ export const SKINS: Skin[] = [
       cobalt: "#7A9AC8",
       vermillion: "#E08154",
       moss: "#A3B06A",
+      plum: "#B07FA8",
     },
     fonts: {
       title: "'Playfair Display', serif",
@@ -158,6 +160,7 @@ export const SKINS: Skin[] = [
       cobalt: "#5B6E9E",
       vermillion: "#D9542B",
       moss: "#8C8443",
+      plum: "#9E5A86",
     },
     fonts: {
       title: "'Poiret One', cursive",
@@ -197,6 +200,7 @@ export const SKINS: Skin[] = [
       cobalt: "#1954A6",
       vermillion: "#E8541E",
       moss: "#7A8B1F",
+      plum: "#7B2D8E",
     },
     fonts: {
       title: "'Archivo Black', sans-serif",
@@ -237,6 +241,7 @@ export const SKINS: Skin[] = [
       cobalt: "#6FA8D6",
       vermillion: "#D98A5E",
       moss: "#8FA87C",
+      plum: "#A87FA0",
     },
     fonts: {
       title: "'Bebas Neue', sans-serif",
@@ -285,6 +290,7 @@ export const SKINS: Skin[] = [
       cobalt: "#2F9CC4",
       vermillion: "#D93E1F",
       moss: "#9A9E35",
+      plum: "#B2569B",
     },
     fonts: {
       title: "'Fjalla One', sans-serif",
@@ -324,6 +330,7 @@ export const SKINS: Skin[] = [
       cobalt: "#4F6E82",
       vermillion: "#B26340",
       moss: "#77854A",
+      plum: "#7A5A75",
     },
     fonts: {
       title: "'EB Garamond', serif",
@@ -363,6 +370,7 @@ export const SKINS: Skin[] = [
       cobalt: "#63B3ED",
       vermillion: "#FF7A45",
       moss: "#A8D06A",
+      plum: "#C89BE8",
     },
     fonts: {
       title: "'Saira Condensed', sans-serif",
@@ -402,6 +410,7 @@ export const SKINS: Skin[] = [
       cobalt: "#2F5C7A",
       vermillion: "#E2521C",
       moss: "#8A8B2C",
+      plum: "#8E3A6B",
     },
     fonts: {
       title: "'Alfa Slab One', cursive",
@@ -441,6 +450,7 @@ export const SKINS: Skin[] = [
       cobalt: "#3A3A3A",
       vermillion: "#E01B24",
       moss: "#6A6A6A",
+      plum: "#8A8A8A",
     },
     fonts: {
       title: "'Anton', sans-serif",
@@ -477,6 +487,7 @@ export const SKINS: Skin[] = [
       cobalt: "#8FB8E8",
       vermillion: "#F2A08B",
       moss: "#B7D48E",
+      plum: "#D3A8DC",
     },
     fonts: {
       title: "'Quicksand', sans-serif",
@@ -518,6 +529,7 @@ export const SKINS: Skin[] = [
       cobalt: "#2E5A8C",
       vermillion: "#C2342A",
       moss: "#6E7B4A",
+      plum: "#5A3E6B",
     },
     fonts: {
       title: "'Shippori Mincho', serif",
@@ -556,6 +568,7 @@ export const SKINS: Skin[] = [
       cobalt: "#6E6A55",
       vermillion: "#9E6640",
       moss: "#87804F",
+      plum: "#7A5F63",
     },
     fonts: {
       title: "'Cormorant Garamond', serif",
@@ -603,6 +616,7 @@ export const SKINS: Skin[] = [
       cobalt: "#1B3FA8",
       vermillion: "#E8531B",
       moss: "#7B8A1C",
+      plum: "#8E2C8E",
     },
     fonts: {
       title: "'Bungee', sans-serif",

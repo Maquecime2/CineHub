@@ -112,13 +112,46 @@ const watchlist: Tour = {
   ],
 };
 
+const generique: Tour = {
+  label: "Le générique",
+  steps: [
+    {
+      target: at("generique-search"),
+      title: "Les noms que vous avez déjà",
+      body: "Réalisation, interprétation, image, musique, scénario : ces noms dorment dans vos fiches depuis le premier import. Ici, ils forment un répertoire — et chacun mène à ce que vous avez de cette personne.",
+      placement: "bottom",
+    },
+    {
+      target: at("generique-roles"),
+      title: "À quel titre",
+      body: "Les tamis se cumulent, comme sur le mur. Par défaut le répertoire ne montre que celles et ceux qu'on croise au moins deux fois — les autres sont à un clic, sous « de passage ».",
+      placement: "bottom",
+      optional: true,
+    },
+    {
+      target: at("generique-dossier"),
+      title: "Ce que quelqu'un vaut chez vous",
+      body: "Votre note moyenne sur ses films, et votre écart à la note publique : où vous êtes plus tendre, où vous êtes plus sévère que la foule. Puis ses films, ce qui revient chez lui, et depuis quand.",
+      placement: "right",
+      optional: true,
+    },
+    {
+      target: at("generique-tmdb"),
+      title: "Ce qu'il me manque",
+      body: "Sa filmographie complète, moins ce que vous avez : de quoi envoyer les absents dans « À voir » d'un clic. Ne paraît qu'avec une clé TMDB posée, depuis l'onglet Import.",
+      placement: "top",
+      optional: true,
+    },
+  ],
+};
+
 const detail: Tour = {
   label: "Un dossier film",
   steps: [
     {
       target: at("detail-catalog"),
       title: "La fiche catalogue",
-      body: "Ce que le film est : titre, année, réalisation, genres, et tout ce que TMDB rapporte. Chaque champ se corrige d'un clic — c'est la seule façon de rattraper un import mal identifié.",
+      body: "Ce que le film est : titre, année, réalisation, genres, et tout ce que TMDB rapporte. Chaque champ se corrige d'un clic — c'est la seule façon de rattraper un import mal identifié. Les noms soulignés d'un pointillé ouvrent leur dossier au générique.",
       placement: "right",
       optional: true,
     },
@@ -305,12 +338,13 @@ const global: Tour = {
     {
       target: "[data-tab-rail]",
       title: "La tranche du classeur",
-      body: "Sept onglets, toujours là, à gauche. Chacun est une façon différente de regarder la même collection.",
+      body: "Huit pastilles, toujours là, à gauche. Chacune est une façon différente de regarder la même collection ; survolez-en une pour lire son nom.",
       placement: "right",
       view: "library",
     },
     ...from("library", library, "wall-search", "wall-mode", "wall-films"),
     ...from("watchlist", watchlist, "wall-films"),
+    ...from("generique", generique, "generique-search", "generique-dossier"),
     ...from("reco", reco, "reco-dials"),
     ...from("constellation", constellation, "constellation-start", "constellation-teams"),
     ...from("almanac", almanac, "almanac-year"),
@@ -346,6 +380,7 @@ export const TOURS: Record<string, Tour> = {
   global,
   library,
   watchlist,
+  generique,
   detail,
   reco,
   constellation,

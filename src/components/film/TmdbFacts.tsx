@@ -75,7 +75,69 @@ const MÉTIERS: [key: string, nom: string][] = [
   ["scénario", "SCÉNARIO"],
 ];
 
-export function TmdbFacts({ film, onUpdate }: { film: Film; onUpdate: (f: Film) => void }) {
+/* UNE LISTE DE NOMS QUI MÈNE QUELQUE PART.
+
+   Ces noms étaient du texte joint par des virgules : on lisait « Henri
+   Decaë » sans pouvoir demander ce qu'on avait d'autre de lui, alors que
+   la collection le savait depuis le début. Chacun ouvre désormais son
+   dossier au Générique.
+
+   Un pointillé d'encre, et non un bleu de lien : la direction artistique
+   est un carnet, et un carnet ne souligne pas en bleu ce qu'on peut
+   suivre — il l'écrit à la plume. */
+function Noms({
+  noms,
+  sépare = ", ",
+  onOpenPerson,
+}: {
+  noms: string[];
+  sépare?: string;
+  onOpenPerson?: (nom: string) => void;
+}) {
+  if (!noms.length) return VIDE;
+  return (
+    <>
+      {noms.map((nom, i) => (
+        <span key={`${nom}-${i}`}>
+          {i > 0 && sépare}
+          {onOpenPerson ? (
+            <button
+              onClick={() => onOpenPerson(nom)}
+              title={`Ce que j'ai de ${nom}`}
+              style={{
+                all: "unset",
+                cursor: "pointer",
+                borderBottom: `1px dotted ${C.inkFaded}`,
+                transition: "color var(--motion-fast) ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = C.burgundy;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = "";
+              }}
+            >
+              {nom}
+            </button>
+          ) : (
+            nom
+          )}
+        </span>
+      ))}
+    </>
+  );
+}
+
+export function TmdbFacts({
+  film,
+  onUpdate,
+  onOpenPerson,
+}: {
+  film: Film;
+  onUpdate: (f: Film) => void;
+  /** Absent : les noms restent du texte. La fiche ne sait pas naviguer. */
+  onOpenPerson?: (nom: string) => void;
+}) {
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -178,10 +240,12 @@ export function TmdbFacts({ film, onUpdate }: { film: Film; onUpdate: (f: Film) 
       </Fait>
       {MÉTIERS.map(([key, nom]) => (
         <Fait key={key} nom={nom}>
-          {crew[key]?.length ? crew[key].join(", ") : VIDE}
+          <Noms noms={crew[key] || []} onOpenPerson={onOpenPerson} />
         </Fait>
       ))}
-      <Fait nom="CASTING">{cast.length ? cast.join(" · ") : VIDE}</Fait>
+      <Fait nom="CASTING">
+        <Noms noms={cast} sépare=" · " onOpenPerson={onOpenPerson} />
+      </Fait>
       <Fait nom="ID TMDB">{film.tmdbId ?? VIDE}</Fait>
 
       {msg && (

@@ -1,13 +1,28 @@
 /* ============================================================
    NAVIGATION — onglets de classeur
    ============================================================ */
-import { Pin, Palette, HelpCircle } from "lucide-react";
-import { C, F, alpha } from "../../theme/tokens";
+import { type ComponentType } from "react";
+import {
+  Pin,
+  Palette,
+  HelpCircle,
+  Clapperboard,
+  Bookmark,
+  Users,
+  Compass,
+  Sparkles,
+  CalendarDays,
+  NotebookPen,
+  FolderInput,
+  Settings,
+} from "lucide-react";
+import { C, alpha } from "../../theme/tokens";
 
 /** Les vues joignables depuis les onglets. `detail` s'ouvre depuis une fiche. */
 export type View =
   | "library"
   | "watchlist"
+  | "generique"
   | "reco"
   | "constellation"
   | "notebook"
@@ -26,29 +41,119 @@ interface FolderTabsProps {
   onHelp: () => void;
 }
 
-const TABS: { key: View; label: string; color: string }[] = [
-  { key: "library", label: "Vidéothèque", color: C.burgundy },
-  { key: "watchlist", label: "À voir", color: C.ochre },
-  { key: "reco", label: "Découvertes", color: C.vermillion },
-  { key: "constellation", label: "Constellation", color: C.cobalt },
-  { key: "almanac", label: "Almanach", color: C.moss },
-  { key: "notebook", label: "Carnet", color: C.pine },
-  { key: "import", label: "Import Letterboxd", color: C.slate },
+/* L'ICÔNE N'EST PAS UN ORNEMENT : c'est ce qui reste de l'onglet quand
+   la fenêtre est trop basse pour ses mots. Elle doit donc se lire seule,
+   et désigner la vue et non sa jolie métaphore. */
+const TABS: { key: View; label: string; color: string; icon: ComponentType<{ size?: number }> }[] = [
+  { key: "library", label: "Vidéothèque", color: C.burgundy, icon: Clapperboard },
+  { key: "watchlist", label: "À voir", color: C.ochre, icon: Bookmark },
+  /* Le Générique regarde la même collection sous un autre angle : il est
+     du groupe du fonds, à côté des deux murs, et non des outils. */
+  { key: "generique", label: "Générique", color: C.plum, icon: Users },
+  { key: "reco", label: "Découvertes", color: C.vermillion, icon: Compass },
+  { key: "constellation", label: "Constellation", color: C.cobalt, icon: Sparkles },
+  { key: "almanac", label: "Almanach", color: C.moss, icon: CalendarDays },
+  { key: "notebook", label: "Carnet", color: C.pine, icon: NotebookPen },
+  { key: "import", label: "Import Letterboxd", color: C.slate, icon: FolderInput },
 ];
 
 /* L'onglet de contrôle des peaux n'est pas une vue du produit : il ne
    paraît qu'en développement, et le build de production ne l'emporte
    même pas — la condition est statique, donc l'import de la planche
    tombe au secouage d'arbre. */
-const DEV_TABS: { key: View; label: string; color: string }[] = import.meta.env.DEV
-  ? /* En encre et non dans l'une des sept teintes : les onglets du
+const DEV_TABS: typeof TABS = import.meta.env.DEV
+  ? /* En encre et non dans l'une des huit teintes : les onglets du
        produit sont pris, et un outil ne doit pas se déguiser en vue. */
-    [{ key: "skinlab", label: "Peaux ⚙", color: C.ink }]
+    [{ key: "skinlab", label: "Peaux ⚙", color: C.ink, icon: Settings }]
   : [];
 
 const DIMMED = "saturate(0.65) brightness(0.92)";
 
+type Tab = (typeof TABS)[number];
+
+/* UN ONGLET — UNE PASTILLE À ICÔNE.
+
+   Les onglets portaient leur nom, écrit à la verticale. Huit noms font
+   plus de neuf cents pixels, une peau en capitales à chasse allongée les
+   rallonge encore, et le rail se mettait à défiler : une barre de
+   défilement sur une tranche de classeur, ce qui ne ressemble à rien.
+
+   L'icône règle la question au lieu de la repousser : huit pastilles
+   font moins de trois cents pixels, elles tiennent dans n'importe quelle
+   fenêtre, et aucune peau ne peut les rallonger. Le nom n'est pas perdu
+   — il passe dans l'infobulle et dans `aria-label`, sans quoi le rail
+   entier deviendrait muet pour un lecteur d'écran. */
+function Onglet({ t, active, onClick }: { t: Tab; active: boolean; onClick: () => void }) {
+  const Icon = t.icon;
+  return (
+    <button
+      data-tour={`tab-${t.key}`}
+      data-tab-onglet
+      onClick={onClick}
+      title={t.label}
+      aria-label={t.label}
+      aria-current={active ? "page" : undefined}
+      style={{
+        all: "unset",
+        cursor: "pointer",
+        boxSizing: "border-box",
+        width: 32,
+        height: 32,
+        /* ET QUI SE TASSENT PLUTÔT QUE DE DÉBORDER.
+
+           Huit pastilles tiennent dans toute fenêtre raisonnable, mais
+           « raisonnable » n'est pas une garantie : sous une certaine
+           hauteur, la dernière passerait sous le bord, et `overflow:
+           clip` la couperait en silence — un onglet invisible et
+           injoignable, ce qui est pire qu'un onglet serré.
+
+           En colonne flexible, un objet se rétracte de lui-même quand la
+           place manque. Le plancher est l'icône elle-même : on ne
+           descend pas sous ce qui se lit. */
+        flexShrink: 1,
+        minHeight: 18,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        // carton teinté dans la masse, pas un aplat : reflet en haut, tranche sombre en bas
+        /* `${t.color}cc` collait un canal alpha derriere une
+           couleur. Depuis que les jetons sont des renvois a des
+           variables CSS, ce collage ne veut plus rien dire et le
+           degrade entier etait rejete — les onglets perdaient
+           leur relief sans un mot. */
+        background: `linear-gradient(180deg, ${t.color}, ${t.color} 60%, ${alpha(t.color, 0.8)})`,
+        filter: active ? "none" : DIMMED,
+        color: C.card,
+        borderRadius: "0 var(--tag-radius) var(--tag-radius) 0",
+        boxShadow: active
+          ? `4px 4px 10px rgba(0,0,0,0.35), inset -2px 0 0 ${t.color}, inset 0 1px 0 rgba(255,255,255,0.25)`
+          : "2px 2px 6px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.15)",
+        marginLeft: active ? 0 : -6,
+        /* Les durées passent par les jetons de mouvement : le bloc
+           `prefers-reduced-motion` les met à zéro tout seul. */
+        transition: "margin var(--motion-fast) var(--motion-ease), filter var(--motion-fast) ease",
+      }}
+      onMouseEnter={(e) => {
+        if (!active) {
+          e.currentTarget.style.marginLeft = "0px";
+          e.currentTarget.style.filter = "none";
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!active) {
+          e.currentTarget.style.marginLeft = "-6px";
+          e.currentTarget.style.filter = DIMMED;
+        }
+      }}
+    >
+      <Icon size={16} />
+    </button>
+  );
+}
+
 export function FolderTabs({ view, setView, onAdd, onSkin, onHelp }: FolderTabsProps) {
+  const tabs = [...TABS, ...DEV_TABS];
+
   return (
     <div style={{ width: 46, flexShrink: 0, position: "relative", zIndex: 2 }}>
       {/* la tranche du classeur, contre laquelle les onglets butent */}
@@ -74,10 +179,14 @@ export function FolderTabs({ view, setView, onAdd, onSkin, onHelp }: FolderTabsP
           avec l'habillage, ce qui est le signe qu'il n'etait pas dans
           l'habillage.
 
-          Le rail occupe donc toute la hauteur, et ce qui deborde est la
-          LISTE des onglets, pas le rail. Les actions sont ancrees en
-          bas : elles restent atteignables quels que soient le nombre
-          d'onglets, la longueur de leurs noms et la peau posee. */}
+          Le rail occupe donc toute la hauteur, et les actions sont
+          ancrees en bas : elles restent atteignables quels que soient le
+          nombre d'onglets, la longueur de leurs noms et la peau posee.
+
+          RIEN NE DEBORDE PLUS. Ce qui debordait, c'etait la LISTE, et
+          elle defilait. Les onglets ne portent plus leurs noms ecrits
+          mais une icone : huit pastilles tiennent partout, et se tassent
+          plutot que de passer sous le bord — voir `Onglet`. */}
       <div
         style={{
           position: "fixed",
@@ -98,73 +207,29 @@ export function FolderTabs({ view, setView, onAdd, onSkin, onHelp }: FolderTabsP
           style={{
             /* `minHeight: 0` est ce qui autorise vraiment le retrait :
                sans lui, un enfant flexible refuse de descendre sous la
-               taille de son contenu et la liste deborderait quand meme. */
+               taille de son contenu. */
             flex: "1 1 auto",
             minHeight: 0,
-            overflowY: "auto",
-            /* `clip` et non `hidden` : on ne veut pas d'un second axe de
+            /* `clip` et non `hidden` : on ne veut aucun axe de
                defilement, seulement que rien ne bave a droite. Les
                onglets glissent de six pixels au survol et portent une
                ombre — d'ou la marge, pour ne rogner ni l'un ni l'autre. */
-            overflowX: "clip",
+            overflow: "clip",
             paddingRight: 12,
             display: "flex",
             flexDirection: "column",
             alignItems: "flex-start",
-            gap: 14,
+            gap: 6,
           }}
         >
-          {[...TABS, ...DEV_TABS].map((t) => {
-            const active = view === t.key;
-            return (
-              <button
-                key={t.key}
-                data-tour={`tab-${t.key}`}
-                onClick={() => setView(t.key)}
-                style={{
-                  all: "unset",
-                  cursor: "pointer",
-                  writingMode: "vertical-rl",
-                  transform: "rotate(180deg)",
-                  // carton teinté dans la masse, pas un aplat : reflet en haut, tranche sombre en bas
-                  /* `${t.color}cc` collait un canal alpha derriere une
-                   couleur. Depuis que les jetons sont des renvois a des
-                   variables CSS, ce collage ne veut plus rien dire et le
-                   degrade entier etait rejete — les onglets perdaient
-                   leur relief sans un mot. */
-                  background: `linear-gradient(180deg, ${t.color}, ${t.color} 60%, ${alpha(t.color, 0.8)})`,
-                  filter: active ? "none" : DIMMED,
-                  color: C.card,
-                  fontFamily: F.mono,
-                  fontSize: 11.5,
-                  textTransform: "var(--tag-transform)" as never,
-                  letterSpacing: "var(--tag-tracking)",
-                  padding: "18px 9px",
-                  borderRadius: "0 var(--tag-radius) var(--tag-radius) 0",
-                  boxShadow: active
-                    ? `4px 4px 10px rgba(0,0,0,0.35), inset -2px 0 0 ${t.color}, inset 0 1px 0 rgba(255,255,255,0.25)`
-                    : "2px 2px 6px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.15)",
-                  marginLeft: active ? 0 : -6,
-                  transition: "margin .18s cubic-bezier(.2,.8,.3,1), filter .18s ease",
-                  textShadow: "0 1px 1px rgba(0,0,0,0.3)",
-                }}
-                onMouseEnter={(e) => {
-                  if (!active) {
-                    e.currentTarget.style.marginLeft = "0px";
-                    e.currentTarget.style.filter = "none";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!active) {
-                    e.currentTarget.style.marginLeft = "-6px";
-                    e.currentTarget.style.filter = DIMMED;
-                  }
-                }}
-              >
-                {t.label}
-              </button>
-            );
-          })}
+          {tabs.map((t) => (
+            <Onglet
+              key={t.key}
+              t={t}
+              active={view === t.key}
+              onClick={() => setView(t.key)}
+            />
+          ))}
         </div>
 
         {/* LES ACTIONS — toujours au pied du rail, toujours visibles. */}
