@@ -835,7 +835,10 @@ export function AlmanacView({ films }: { films: Film[] }) {
       <div style={{ flexShrink: 0, height: ENTETE, boxSizing: "border-box" }}>
         <Titre />
 
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12 }}>
+        <div
+          data-tour="almanac-year"
+          style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12 }}
+        >
           <button
             onClick={() => allerAnnée(1)}
             disabled={rang >= années.length - 1}
@@ -882,6 +885,7 @@ export function AlmanacView({ films }: { films: Film[] }) {
           {/* L'ANNÉE EN BOÎTE — la seule chose d'ici qui sorte du navigateur */}
           <button
             onClick={emporter}
+            data-tour="almanac-export"
             disabled={boîte === "en cours"}
             title="Une image de cette année, à garder ou à montrer"
             style={{
@@ -912,7 +916,10 @@ export function AlmanacView({ films }: { films: Film[] }) {
         </div>
 
         {/* ---- LE FEUILLETAGE ---- */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14 }}>
+        <div
+          data-tour="almanac-plates"
+          style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14 }}
+        >
           <button
             onClick={() => setPlanche((p) => Math.max(p - 1, 0))}
             disabled={planche === 0}

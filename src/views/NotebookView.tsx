@@ -53,6 +53,7 @@ export function NotebookView({ notes, onAdd, onUpdate, onDelete }: NotebookViewP
       </div>
 
       <div
+        data-tour="notebook-new"
         style={{
           background: C.card,
           padding: 20,

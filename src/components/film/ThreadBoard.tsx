@@ -101,12 +101,22 @@ function ThreadCardEditor({
            toutes seules, à l'autre bout. On garde tout de même celle du
            fil si c'en est une, sinon le champ afficherait autre chose que
            ce qui est écrit. */
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <select
             value={relation}
             onChange={(e) => setRelation(e.target.value as Relation | "")}
             aria-label="Nature du lien"
-            style={{ ...scribble, flex: 1, fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}
+            style={{
+              ...scribble,
+              /* Deux sélecteurs côte à côte dans un carton de deux cents
+                 pixels : sans base souple ni `minWidth: 0`, ils refusent de
+                 rétrécir et débordent. Ils s'empilent quand il le faut. */
+              flex: "1 1 120px",
+              minWidth: 0,
+              fontFamily: F.mono,
+              fontSize: 9.5,
+              color: C.inkFaded,
+            }}
           >
             <option value="">— sans plus de précision —</option>
             {RELATIONS.filter((r) => !r.dérivée || r.id === work.relation).map((r) => (
@@ -121,7 +131,8 @@ function ThreadCardEditor({
             aria-label="Force du lien"
             style={{
               ...scribble,
-              width: 130,
+              flex: "1 1 120px",
+              minWidth: 0,
               fontFamily: F.mono,
               fontSize: 9.5,
               color: C.inkFaded,

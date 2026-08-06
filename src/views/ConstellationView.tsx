@@ -270,6 +270,7 @@ export function ConstellationView({
       {/* L'INTERRUPTEUR — la seconde couche, qu'on allume si on veut. */}
       <button
         onClick={() => setÉquipes((v) => !v)}
+        data-tour="constellation-teams"
         aria-pressed={équipes}
         style={{
           all: "unset",
@@ -314,7 +315,10 @@ export function ConstellationView({
           qui permet de demander « les films où le héros meurt » et de
           l'obtenir dessiné, plutôt que de fouiller une liste. */}
       {fils.length > 0 && (
-        <div style={{ marginTop: 16, position: "relative", zIndex: 3 }}>
+        <div
+          data-tour="constellation-fils"
+          style={{ marginTop: 16, position: "relative", zIndex: 3 }}
+        >
           <Label>Fils</Label>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
             {fils.map((fil) => {
@@ -441,6 +445,7 @@ export function ConstellationView({
           lesquels on ira le plus loin. */}
       {foyer == null && complet.nodes.length > 0 && (
         <div
+          data-tour="constellation-start"
           style={{
             marginTop: 18,
             padding: "16px 18px",

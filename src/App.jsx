@@ -84,8 +84,9 @@ import { slugOf, filmKey, parseRating, parseLetterboxdCsv, diffImport } from "./
 import { workKey, buildSky, relax } from "./domain/sky";
 import { inverseDe, forceDe } from "./domain/relations";
 import { makeFil, normalizeFils } from "./domain/fils";
-import { motifById } from "./domain/motifs";
+import { motifById, makeMotifPerso, motifsPerso } from "./domain/motifs";
 import { loadFils, saveFils as saveFilsToDisk } from "./services/fils";
+import { loadVocabulaire, saveVocabulaire, normalizeVocabulaire } from "./services/motifs";
 import { store } from "./services/storage";
 import { underlineInput, ruledTextarea } from "./theme/styles";
 import { LINK_TYPES } from "./components/film/linkTypes";
@@ -151,6 +152,8 @@ import { AlmanacView } from "./views/AlmanacView";
 import { SkinLab } from "./views/dev/SkinLab";
 import { useNotes } from "./hooks/useNotes";
 import { useShelfViews } from "./hooks/useShelfViews";
+import { TourOverlay, TourHint, TourMenu } from "./components/tour";
+import { isFirstRun, shouldHint } from "./services/onboarding";
 
 /* Réexportés le temps de la migration : shelf-views et les tests les
    importent encore depuis ce fichier. */
@@ -168,6 +171,11 @@ export default function App() {
   /* Les fils de la constellation : des questions posées à la collection,
      qui doivent rester posées d'une session à l'autre. */
   const [fils, setFils] = useState([]);
+  /* Le vocabulaire : les motifs que vous avez écrits, et ceux du catalogue
+     que vous avez écartés. Le catalogue lui-même vit dans le code — voir
+     `domain/motifs`. L'état React ne sert qu'à redessiner : c'est le
+     registre du domaine qui répond à `motifById`, partout ailleurs. */
+  const [vocabulaire, setVocabulaire] = useState({ perso: [], masqués: [] });
   const [loaded, setLoaded] = useState(false);
   const [view, setView] = useState("library");
   const [selectedId, setSelectedId] = useState(null);
@@ -198,6 +206,7 @@ export default function App() {
     const tabs = store.get("shelf-dividers", []);
     setDividers(tabs);
     setFils(loadFils());
+    setVocabulaire(loadVocabulaire());
     /* La migration lit `order` et `status`, que `migrate` vient de
        normaliser : elle doit donc passer après, et sur les fiches
        migrées — pas sur ce qui sort du disque. */
@@ -205,6 +214,45 @@ export default function App() {
       ensureViews({ films: migrated, dividers: tabs, wallPrefs: store.get("wall-prefs", {}) })
     );
     setLoaded(true);
+  }, []);
+
+  /* LA VISITE GUIDÉE. Trois états seulement : la visite en cours, le
+     menu d'aide, et la fiche de rappel. Tout le reste — quelles étapes,
+     dans quel ordre, ce qui a déjà été vu — vit ailleurs.
+
+     Elle est montée ICI et non dans une vue : elle traverse les vues, et
+     ne serait plus là au premier changement d'onglet. */
+  const [tourId, setTourId] = useState(null);
+  const [tourMenu, setTourMenu] = useState(false);
+  const [hint, setHint] = useState(false);
+
+  /* La première ouverture lance la visite complète — mais APRÈS le
+     chargement, sinon elle pointe des cibles que le classeur n'a pas
+     encore posées et n'ouvre qu'un voile sur l'écran d'attente. */
+  useEffect(() => {
+    if (!loaded) return;
+    if (isFirstRun()) setTourId("global");
+    else if (shouldHint()) setHint(true);
+  }, [loaded]);
+
+  const jouerVisite = (id) => {
+    setTourMenu(false);
+    setHint(false);
+    setTourId(id);
+  };
+
+  /* Écarter la visite ne fait rien paraître tout de suite : la fiche de
+     rappel arriverait sur le geste même qui vient de la refuser. Elle
+     attend la prochaine ouverture, où elle a une chance d'être lue. */
+  const fermerVisite = () => setTourId(null);
+
+  /* Stable d'un rendu à l'autre : la visite s'en sert dans un effet, et
+     une fonction refaite à chaque passage le relancerait sans fin.
+     Reposer la vue déjà ouverte ne coûte rien — React abandonne la mise
+     à jour quand la valeur ne change pas, et l'effet se tait. */
+  const visiteOuvreVue = useCallback((v) => {
+    setView(v);
+    setSelectedId(null);
   }, []);
 
   const saveFilms = (next) => {
@@ -216,6 +264,63 @@ export default function App() {
     setFils(next);
     saveFilsToDisk(next);
   };
+
+  const commitVocabulaire = (next) => {
+    setVocabulaire(next);
+    saveVocabulaire(next);
+  };
+
+  /* Écrire un motif à soi. Le rendre aussitôt POSÉ sur la fiche ouverte :
+     on ne le crée jamais dans l'abstrait, mais parce qu'on vient de voir
+     ce film-là et qu'aucun mot ne le disait. */
+  const créerMotif = (label, famille, spoiler) => {
+    const propre = (label || "").trim();
+    if (!propre) return null;
+    const existant = [...motifsPerso()].find((m) => m.label.toLowerCase() === propre.toLowerCase());
+    if (existant) return existant.id;
+    const motif = makeMotifPerso(propre, famille, spoiler);
+    commitVocabulaire({ ...vocabulaire, perso: [...vocabulaire.perso, motif] });
+    return motif.id;
+  };
+
+  /* SUPPRIMER UN MOTIF, C'EST AUSSI LE RETIRER DES FICHES.
+
+     Le laisser dormir sur douze fiches donnerait un identifiant que plus
+     rien ne sait lire : invisible à l'écran, bien présent dans les
+     données, et de retour intact le jour où l'on recrée un motif du même
+     nom. On nettoie donc, et c'est pour cela que la confirmation annonce
+     le nombre de fiches concernées.
+
+     Les fils bâtis dessus perdent leur source et gardent leurs membres
+     posés à la main : un fil n'est pas détruit par la disparition de son
+     motif, il redevient une liste. */
+  const supprimerMotif = (motifId) => {
+    commitVocabulaire({
+      ...vocabulaire,
+      perso: vocabulaire.perso.filter((m) => m.id !== motifId),
+    });
+    saveFilms(
+      films.map((f) =>
+        (f.motifs || []).includes(motifId)
+          ? { ...f, motifs: f.motifs.filter((id) => id !== motifId) }
+          : f
+      )
+    );
+    const touchés = fils.filter((f) => f.motif === motifId);
+    if (touchés.length)
+      commitFils(fils.map((f) => (f.motif === motifId ? { ...f, motif: null } : f)));
+  };
+
+  /* Écarter, et non supprimer : un motif du catalogue n'est pas à vous, et
+     l'effacer de vos données le verrait revenir à la mise à jour suivante.
+     Les fiches qui le portent le gardent — masquer ne réécrit rien. */
+  const masquerMotif = (motifId, masqué) =>
+    commitVocabulaire({
+      ...vocabulaire,
+      masqués: masqué
+        ? [...new Set([...vocabulaire.masqués, motifId])]
+        : vocabulaire.masqués.filter((id) => id !== motifId),
+    });
 
   const addFilm = (film) => {
     saveFilms([film, ...films]);
@@ -324,10 +429,11 @@ export default function App() {
   /* Restaurer, c'est remplacer l'état entier — y compris le rangement.
      Une sauvegarde d'avant les vues (v ≤ 3) n'en contient pas : on les
      refabrique alors depuis ses intercalaires, ce à quoi sert `force`. */
-  const restoreBackup = ({ films: f, notes: n, dividers: d, views: v, fils: fl }) => {
+  const restoreBackup = ({ films: f, notes: n, dividers: d, views: v, fils: fl, motifs: mo }) => {
     const migrated = migrate(f);
     saveFilms(migrated);
     commitFils(normalizeFils(fl || []));
+    commitVocabulaire(normalizeVocabulaire(mo || {}));
     if (n?.length) notebook.replaceAll(n);
     const tabs = d || [];
     setDividers(tabs);
@@ -477,6 +583,7 @@ export default function App() {
         }}
         onAdd={() => setShowModal(true)}
         onSkin={() => setSkinPicker(true)}
+        onHelp={() => setTourMenu((o) => !o)}
       />
       {skinPicker && (
         <SkinPicker skin={skin} onPick={setSkin} onClose={() => setSkinPicker(false)} />
@@ -550,6 +657,10 @@ export default function App() {
             onRemoveLink={removeLink}
             onEditLink={editLink}
             onFaireUnFil={faireUnFilDuMotif}
+            vocabulaire={vocabulaire}
+            onCréerMotif={créerMotif}
+            onSupprimerMotif={supprimerMotif}
+            onMasquerMotif={masquerMotif}
             onOpen={(id) => setSelectedId(id)}
           />
         )}
@@ -586,11 +697,25 @@ export default function App() {
             dividers={dividers}
             views={views}
             fils={fils}
+            motifs={vocabulaire}
             onRestore={restoreBackup}
           />
         )}
       </div>
       {showModal && <FilmModal onClose={() => setShowModal(false)} onSave={addFilm} />}
+
+      {/* LA VISITE, hors de la colonne animée.
+
+          `[data-enters]` porte une transformation le temps de son
+          entrée, et un ancêtre transformé devient le bloc conteneur de
+          tout `position: fixed` qu'il contient : le voile s'y serait
+          ancré sur la colonne au lieu de la fenêtre, et le trou aurait
+          visé à côté à chaque changement de vue. */}
+      {tourMenu && <TourMenu view={view} onPlay={jouerVisite} onClose={() => setTourMenu(false)} />}
+      <TourOverlay tourId={tourId} onClose={fermerVisite} onView={visiteOuvreVue} />
+      {hint && !tourId && (
+        <TourHint onReplay={() => jouerVisite("global")} onDismiss={() => setHint(false)} />
+      )}
     </div>
   );
 }

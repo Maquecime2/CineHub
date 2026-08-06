@@ -32,7 +32,18 @@ import type { Film } from "../../types";
 /** Une ligne « intitulé → valeur », ou rien du tout si on ne sait pas. */
 function Fait({ nom, children }: { nom: string; children: ReactNode }) {
   return (
-    <div style={{ display: "flex", gap: 10, alignItems: "baseline", padding: "2px 0" }}>
+    /* `flexWrap` : l'intitulé réserve 74 px et la valeur ne sait pas
+       descendre sous son contenu — dans une colonne étroite, la ligne
+       débordait. Elle s'empile désormais. */
+    <div
+      style={{
+        display: "flex",
+        gap: 10,
+        alignItems: "baseline",
+        padding: "2px 0",
+        flexWrap: "wrap",
+      }}
+    >
       <span
         style={{
           fontFamily: F.mono,
@@ -44,7 +55,11 @@ function Fait({ nom, children }: { nom: string; children: ReactNode }) {
       >
         {nom}
       </span>
-      <span style={{ fontFamily: F.body, fontSize: 12.5, color: C.ink, flex: 1 }}>{children}</span>
+      <span
+        style={{ fontFamily: F.body, fontSize: 12.5, color: C.ink, flex: "1 1 120px", minWidth: 0 }}
+      >
+        {children}
+      </span>
     </div>
   );
 }

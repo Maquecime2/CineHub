@@ -1,7 +1,7 @@
 /* ============================================================
    NAVIGATION — onglets de classeur
    ============================================================ */
-import { Pin, Palette } from "lucide-react";
+import { Pin, Palette, HelpCircle } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 
 /** Les vues joignables depuis les onglets. `detail` s'ouvre depuis une fiche. */
@@ -22,6 +22,8 @@ interface FolderTabsProps {
   onAdd: () => void;
   /** Ouvre le choix de la peau du site. */
   onSkin: () => void;
+  /** Ouvre le menu de la visite guidée. */
+  onHelp: () => void;
 }
 
 const TABS: { key: View; label: string; color: string }[] = [
@@ -46,7 +48,7 @@ const DEV_TABS: { key: View; label: string; color: string }[] = import.meta.env.
 
 const DIMMED = "saturate(0.65) brightness(0.92)";
 
-export function FolderTabs({ view, setView, onAdd, onSkin }: FolderTabsProps) {
+export function FolderTabs({ view, setView, onAdd, onSkin, onHelp }: FolderTabsProps) {
   return (
     <div style={{ width: 46, flexShrink: 0, position: "relative", zIndex: 2 }}>
       {/* la tranche du classeur, contre laquelle les onglets butent */}
@@ -117,6 +119,7 @@ export function FolderTabs({ view, setView, onAdd, onSkin }: FolderTabsProps) {
             return (
               <button
                 key={t.key}
+                data-tour={`tab-${t.key}`}
                 onClick={() => setView(t.key)}
                 style={{
                   all: "unset",
@@ -177,6 +180,7 @@ export function FolderTabs({ view, setView, onAdd, onSkin }: FolderTabsProps) {
         >
           <button
             onClick={onAdd}
+            data-tour="add-film"
             title="Épingler un nouveau film"
             style={{
               all: "unset",
@@ -211,6 +215,7 @@ export function FolderTabs({ view, setView, onAdd, onSkin }: FolderTabsProps) {
             jours. */}
           <button
             onClick={onSkin}
+            data-tour="skin"
             title="Changer la peau du site"
             aria-label="Changer la peau du site"
             style={{
@@ -237,6 +242,45 @@ export function FolderTabs({ view, setView, onAdd, onSkin }: FolderTabsProps) {
             }}
           >
             <Palette size={13} />
+          </button>
+
+          {/* LA VISITE, au dernier cran du rail.
+
+            Une seule ancre, et toujours la même : c'est ce que la fiche
+            de rappel désigne quand on écarte la visite, et ce qu'on
+            cherche six mois plus tard en se demandant à quoi servait
+            l'étagère. Sous la peau parce qu'on la consulte encore moins
+            souvent — mais jamais ailleurs, jamais rangée dans une vue :
+            l'aide d'un outil ne se cache pas dans l'outil. */}
+          <button
+            onClick={onHelp}
+            data-tour="help"
+            title="La visite guidée"
+            aria-label="La visite guidée"
+            style={{
+              all: "unset",
+              cursor: "pointer",
+              marginLeft: 8,
+              width: 26,
+              height: 26,
+              borderRadius: "50%",
+              color: C.inkFaded,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              border: `1px solid ${C.line}`,
+              transition: "color .18s ease, border-color .18s ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = C.burgundy;
+              e.currentTarget.style.borderColor = C.burgundy;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = C.inkFaded;
+              e.currentTarget.style.borderColor = C.line;
+            }}
+          >
+            <HelpCircle size={13} />
           </button>
         </div>
       </div>

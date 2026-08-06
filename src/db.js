@@ -143,7 +143,14 @@ const blobToDataUrl = (blob) =>
 
 const dataUrlToBlob = async (url) => (await fetch(url)).blob();
 
-export async function exportBackup({ films, notes, dividers = [], views = null, fils = [] }) {
+export async function exportBackup({
+  films,
+  notes,
+  dividers = [],
+  views = null,
+  fils = [],
+  motifs = null,
+}) {
   const images = {};
   const customDecor = listCustomDecor();
   /* Les objets importés partent avec le reste : ce sont des images que
@@ -165,14 +172,18 @@ export async function exportBackup({ films, notes, dividers = [], views = null, 
        v5 ajoute les objets de déco importés — le cabinet qu'on s'est
        fait soi-même est aussi peu refaisable qu'une fiche.
        v6 ajoute les fils de la constellation : un fil est une question
-       qu'on a posée à sa collection, et rien ne saurait la reposer. */
-    version: 6,
+       qu'on a posée à sa collection, et rien ne saurait la reposer.
+       v7 ajoute le vocabulaire : les motifs qu'on s'est écrits, et ceux du
+       catalogue qu'on a écartés. Le catalogue, lui, n'y est pas — il vit
+       dans le code, et le recopier ici figerait la version du jour. */
+    version: 7,
     exportedAt: new Date().toISOString(),
     films,
     notes,
     dividers,
     views,
     fils,
+    motifs,
     images,
   };
 }
@@ -202,5 +213,7 @@ export async function importBackup(data) {
     views: data.views?.byWall ? data.views : null,
     // antérieur à v6 : pas de fils, et il n'y en avait pas à cette époque
     fils: data.fils || [],
+    // idem pour le vocabulaire, arrivé en v7
+    motifs: data.motifs || null,
   };
 }

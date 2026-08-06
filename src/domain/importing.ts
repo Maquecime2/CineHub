@@ -152,6 +152,23 @@ export interface DiffOptions {
      d'aplomb — c'est le seul chemin qui retire une séance sans qu'on
      l'ait retirée à la main. */
   authoritativeWatches?: boolean;
+  /* NE PAS TOUCHER AU STATUT DES FICHES EXISTANTES.
+
+     `status` sert deux choses très différentes : il décide du rayon des
+     fiches CRÉÉES, et il fait passer « à voir » → « vu » les fiches
+     existantes qu'un export de films vus mentionne. La seconde est juste
+     quand on dépose un diary — c'est même tout l'intérêt.
+
+     Elle est catastrophique quand l'appelant ne parle pas de visionnage.
+     « Compléter les fiches » enrichit depuis TMDB et passait `"watched"`
+     faute de mieux, en croyant ce statut inerte puisqu'il ne crée rien :
+     il a vidé des watchlists entières dans la vidéothèque, d'un seul
+     bouton, sur les fiches les plus incomplètes — c'est-à-dire justement
+     celles qu'on n'a pas vues.
+
+     D'où cet interrupteur, et son nom : ce que l'appelant refuse de
+     décider doit s'écrire, pas se déduire. */
+  garderStatut?: boolean;
 }
 
 /* Compare le CSV à la vidéothèque sans rien écrire : c'est ce diff qui est
@@ -160,7 +177,7 @@ export function diffImport(
   existing: Film[],
   rows: ImportRow[],
   status: FilmStatus,
-  { authoritativeWatches = false }: DiffOptions = {}
+  { authoritativeWatches = false, garderStatut = false }: DiffOptions = {}
 ): ImportDiff {
   const byTmdb = new Map(existing.filter((f) => f.tmdbId).map((f) => [String(f.tmdbId), f]));
   const byKey = new Map(existing.map((f) => [filmKey(f), f]));
@@ -265,7 +282,8 @@ export function diffImport(
     )
       changes.watchedAt = r.watchedAt;
     // un film « à voir » qui apparaît dans un export de films vus a été vu
-    if (status === "watched" && match.status !== "watched") changes.status = "watched";
+    if (!garderStatut && status === "watched" && match.status !== "watched")
+      changes.status = "watched";
 
     if (Object.keys(changes).length) toUpdate.push({ film: match, changes });
     else unchanged.push(match);

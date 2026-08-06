@@ -372,6 +372,7 @@ export function RecoView({
         <>
           {/* ---- le bulletin ---- */}
           <div
+            data-tour="reco-bulletin"
             style={{
               marginTop: 24,
               border: `1px solid ${C.line}`,
@@ -381,7 +382,7 @@ export function RecoView({
               zIndex: 2,
             }}
           >
-            <div style={{ display: "flex", gap: 34, flexWrap: "wrap" }}>
+            <div data-tour="reco-dials" style={{ display: "flex", gap: 34, flexWrap: "wrap" }}>
               <Dial
                 label="Degré de niche"
                 left="grand public"
