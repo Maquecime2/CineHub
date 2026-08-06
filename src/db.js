@@ -143,7 +143,7 @@ const blobToDataUrl = (blob) =>
 
 const dataUrlToBlob = async (url) => (await fetch(url)).blob();
 
-export async function exportBackup({ films, notes, dividers = [], views = null }) {
+export async function exportBackup({ films, notes, dividers = [], views = null, fils = [] }) {
   const images = {};
   const customDecor = listCustomDecor();
   /* Les objets importés partent avec le reste : ce sont des images que
@@ -163,13 +163,16 @@ export async function exportBackup({ films, notes, dividers = [], views = null }
        rangement. Les intercalaires continuent d'être émis : une v4
        relue par une version antérieure y retrouve son étagère.
        v5 ajoute les objets de déco importés — le cabinet qu'on s'est
-       fait soi-même est aussi peu refaisable qu'une fiche. */
-    version: 5,
+       fait soi-même est aussi peu refaisable qu'une fiche.
+       v6 ajoute les fils de la constellation : un fil est une question
+       qu'on a posée à sa collection, et rien ne saurait la reposer. */
+    version: 6,
     exportedAt: new Date().toISOString(),
     films,
     notes,
     dividers,
     views,
+    fils,
     images,
   };
 }
@@ -197,5 +200,7 @@ export async function importBackup(data) {
     notes: data.notes || [],
     dividers: data.dividers || [],
     views: data.views?.byWall ? data.views : null,
+    // antérieur à v6 : pas de fils, et il n'y en avait pas à cette époque
+    fils: data.fils || [],
   };
 }

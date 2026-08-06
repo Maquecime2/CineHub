@@ -1,6 +1,9 @@
 /* ============================================================
    Les formes de données du projet, en un seul endroit.
    ============================================================ */
+import type { Force, Relation } from "../domain/relations";
+
+export type { Force, Relation };
 
 /** Une fiche vue, ou seulement mise de côté. */
 export type FilmStatus = "watched" | "watchlist";
@@ -32,6 +35,15 @@ export interface LinkedWork {
   filmId?: string | null;
   /** Partagé par les deux moitiés d'un renvoi réciproque. */
   pairId?: string;
+  /**
+   * La nature du lien (`domain/relations`) — ce que la note disait en
+   * français et que la carte ne savait pas lire. N'a de sens que sur un
+   * renvoi vers une fiche : une mention libre n'est reliée qu'à elle-même.
+   * Les deux moitiés portent des relations INVERSES, pas la même.
+   */
+  relation?: Relation;
+  /** Trois crans ; voir `domain/relations`. Vaut 2 quand rien n'est dit. */
+  force?: Force;
 }
 
 /**
@@ -42,7 +54,9 @@ export interface LinkedWork {
  * carte. C'est le modèle d'écriture, dans `App`, qui fait respecter la
  * règle — le formulaire ne fait que ne pas la proposer.
  */
-export type LinkPatch = Partial<Pick<LinkedWork, "type" | "title" | "creator" | "note">>;
+export type LinkPatch = Partial<
+  Pick<LinkedWork, "type" | "title" | "creator" | "note" | "relation" | "force">
+>;
 
 /** Une capture d'écran. L'image vit dans IndexedDB, la fiche n'en garde que la clé. */
 export interface Still {
@@ -105,6 +119,15 @@ export interface Film {
   /** La note du public TMDB sur 10 — de quoi mesurer son propre écart. */
   tmdbRating: number | null;
   themes: string[];
+  /**
+   * Les motifs du catalogue (`domain/motifs`), par `id`. À côté de
+   * `themes` et jamais à sa place : `themes` est votre vocabulaire, libre
+   * et orthographié comme vous voulez ; `motifs` est le vocabulaire commun,
+   * figé, celui sur lequel une question comme « où le héros meurt » peut
+   * porter. Un `id` inconnu du catalogue est ignoré à l'affichage, pas
+   * effacé de la fiche.
+   */
+  motifs: string[];
   rating: number;
   review: string;
   notes: string;
@@ -250,7 +273,8 @@ export interface ImportDiff {
 
 export interface SkyNode {
   id: string;
-  kind: "film" | "work";
+  /** `fil` : un rassemblement nommé, qui n'est ni un film ni une œuvre. */
+  kind: "film" | "work" | "fil";
   label: string;
   sub: string;
   /** Nombre d'arêtes : dose la taille de l'astre et décide s'il est étiqueté. */
@@ -261,6 +285,11 @@ export interface SkyNode {
   /** Œuvres seulement — au-delà de 1, l'astre est un pont entre deux films. */
   type?: LinkType;
   refs?: number;
+  /** Fils seulement : la clé de teinte du fil, et le motif qui l'alimente. */
+  couleur?: string;
+  motif?: string | null;
+  /** Vrai quand l'astre ne tient au ciel que parce qu'on l'y a épinglé. */
+  épinglé?: boolean;
 }
 
 /** Un nœud une fois placé par la relaxation. */
@@ -275,9 +304,12 @@ export interface SkyLink {
    * les génériques — elle se dessine autrement, parce que la carte doit
    * dire du premier coup d'œil ce qui vient de vous.
    */
-  kind: "cite" | "peer" | "crew";
+  kind: "cite" | "peer" | "crew" | "fil";
   /** Les raisons qui justifient un fil "crew" — de quoi l'expliquer en une ligne. */
   why?: Kinship[];
+  /** "peer" seulement : la nature du lien, telle qu'écrite du côté `a`. */
+  relation?: Relation;
+  force?: Force;
 }
 
 /**

@@ -11,7 +11,8 @@ import { tapeColor } from "../../theme/ink";
 import { hash, seededRand, tiltOf, usesPin } from "../../domain/seeded";
 import { PushPin, Tape } from "../atmosphere";
 import { LINK_TYPES, linkTypeOf } from "./linkTypes";
-import type { Film, LinkedWork, LinkPatch, LinkType } from "../../types";
+import { FORCES, RELATIONS, forceDe, relationDef } from "../../domain/relations";
+import type { Film, Force, LinkedWork, LinkPatch, LinkType, Relation } from "../../types";
 
 interface ThreadBoardProps {
   film: Film;
@@ -49,10 +50,14 @@ function ThreadCardEditor({
   const [title, setTitle] = useState(work.title);
   const [creator, setCreator] = useState(work.creator || "");
   const [note, setNote] = useState(work.note || "");
+  const [relation, setRelation] = useState<Relation | "">(work.relation || "");
+  const [force, setForce] = useState<Force>(forceDe(work.force));
 
   const commit = () => {
     if (!locked && !title.trim()) return onCancel();
-    onCommit(locked ? { note } : { type, title, creator, note });
+    onCommit(
+      locked ? { note, relation: relation || undefined, force } : { type, title, creator, note }
+    );
   };
 
   /* Entrée valide, Échap renonce — dans un carton de deux cents pixels,
@@ -87,7 +92,50 @@ function ThreadCardEditor({
         >
           {work.title}
         </div>
-      ) : (
+      ) : null}
+      {locked && (
+        /* La nature du fil ne se propose QUE sur un renvoi : une mention
+           libre n'est reliée qu'à elle-même, et « fait suite à » n'y
+           voudrait rien dire. Les relations dérivées — « précède », « a
+           été refait par » — ne sont pas dans la liste : elles s'écrivent
+           toutes seules, à l'autre bout. On garde tout de même celle du
+           fil si c'en est une, sinon le champ afficherait autre chose que
+           ce qui est écrit. */
+        <div style={{ display: "flex", gap: 8 }}>
+          <select
+            value={relation}
+            onChange={(e) => setRelation(e.target.value as Relation | "")}
+            aria-label="Nature du lien"
+            style={{ ...scribble, flex: 1, fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}
+          >
+            <option value="">— sans plus de précision —</option>
+            {RELATIONS.filter((r) => !r.dérivée || r.id === work.relation).map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.label}
+              </option>
+            ))}
+          </select>
+          <select
+            value={force}
+            onChange={(e) => setForce(forceDe(Number(e.target.value)))}
+            aria-label="Force du lien"
+            style={{
+              ...scribble,
+              width: 130,
+              fontFamily: F.mono,
+              fontSize: 9.5,
+              color: C.inkFaded,
+            }}
+          >
+            {FORCES.map((f) => (
+              <option key={f.valeur} value={f.valeur}>
+                {f.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+      {!locked && (
         <>
           <select
             value={type}
@@ -128,6 +176,7 @@ function ThreadCardEditor({
           />
         </>
       )}
+
       <input
         autoFocus={locked}
         value={note}
@@ -430,7 +479,15 @@ export function ThreadBoard({ film, onRemove, onEdit, films = [], onOpen }: Thre
                       >
                         {type.label}
                         {w.creator ? ` — ${w.creator}` : ""}
-                        {linked && <span style={{ color: C.burgundy }}> · fiche liée</span>}
+                        {/* La nature du fil se lit du côté où l'on est :
+                            « fait suite à » ici, « précède » là-bas. */}
+                        {linked && (
+                          <span style={{ color: C.burgundy }}>
+                            {" · "}
+                            {relationDef(w.relation)?.label ?? "fiche liée"}
+                            {" " + "·".repeat(forceDe(w.force))}
+                          </span>
+                        )}
                         {w.filmId && !linked && (
                           <span style={{ color: C.inkFaded }}> · fiche supprimée</span>
                         )}

@@ -97,6 +97,19 @@ describe("migrate", () => {
   });
 });
 
+describe("les motifs, sur une fiche d'avant", () => {
+  it("apparaissent vides sans rien effacer d'autre", () => {
+    const [f] = migrate([{ title: "Playtime", themes: ["ville"] }]);
+    expect(f?.motifs).toEqual([]);
+    expect(f?.themes).toEqual(["ville"]);
+  });
+
+  it("ne réécrivent pas ceux déjà posés", () => {
+    const [f] = migrate([{ title: "x", motifs: ["heros-meurt"] }]);
+    expect(f?.motifs).toEqual(["heros-meurt"]);
+  });
+});
+
 describe("le journal des séances", () => {
   const w = (date: string, rating: number | null = null) => ({ date, rating });
 
@@ -279,6 +292,21 @@ describe("editLinkedWork", () => {
       expect(firstOf(out, "a")).toMatchObject({ title: "B", creator: "Duras", type: "film" });
       // et la moitié d'en face garde le sien, qui n'a jamais été en cause
       expect(firstOf(out, "b")).toMatchObject({ title: "A", type: "film", note: "n" });
+    });
+
+    /* La relation appartient au lien, comme la note — mais elle se
+       RENVERSE d'un bout à l'autre. Écrire la même des deux côtés ferait
+       dire à chaque film qu'il est la suite de l'autre, ce qui ne se voit
+       qu'en ouvrant la seconde fiche. */
+    it("renverse la relation sur la moitié d'en face", () => {
+      const out = editLinkedWork(base(), "a", "wa", { relation: "suite-de", force: 3 });
+      expect(firstOf(out, "a")).toMatchObject({ relation: "suite-de", force: 3 });
+      expect(firstOf(out, "b")).toMatchObject({ relation: "précède", force: 3 });
+    });
+
+    it("garde une relation symétrique telle quelle", () => {
+      const out = editLinkedWork(base(), "a", "wa", { relation: "diptyque" });
+      expect(firstOf(out, "b").relation).toBe("diptyque");
     });
 
     it("ne touche pas aux fils des autres fiches", () => {

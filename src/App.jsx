@@ -82,6 +82,10 @@ import { hash, seededRand, tiltOf, usesPin, nudgeOf, fileNoOf, tornClip } from "
 import { uid, makeFilm, migrate, editLinkedWork } from "./domain/film";
 import { slugOf, filmKey, parseRating, parseLetterboxdCsv, diffImport } from "./domain/importing";
 import { workKey, buildSky, relax } from "./domain/sky";
+import { inverseDe, forceDe } from "./domain/relations";
+import { makeFil, normalizeFils } from "./domain/fils";
+import { motifById } from "./domain/motifs";
+import { loadFils, saveFils as saveFilsToDisk } from "./services/fils";
 import { store } from "./services/storage";
 import { underlineInput, ruledTextarea } from "./theme/styles";
 import { LINK_TYPES } from "./components/film/linkTypes";
@@ -161,6 +165,9 @@ export default function App() {
      versés dans les vues. On les garde en mémoire pour pouvoir refabriquer
      une vue depuis une vieille sauvegarde, et on ne les réécrit jamais. */
   const [dividers, setDividers] = useState([]);
+  /* Les fils de la constellation : des questions posées à la collection,
+     qui doivent rester posées d'une session à l'autre. */
+  const [fils, setFils] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [view, setView] = useState("library");
   const [selectedId, setSelectedId] = useState(null);
@@ -190,6 +197,7 @@ export default function App() {
     notebook.load();
     const tabs = store.get("shelf-dividers", []);
     setDividers(tabs);
+    setFils(loadFils());
     /* La migration lit `order` et `status`, que `migrate` vient de
        normaliser : elle doit donc passer après, et sur les fiches
        migrées — pas sur ce qui sort du disque. */
@@ -202,6 +210,11 @@ export default function App() {
   const saveFilms = (next) => {
     setFilms(next);
     store.set("films", next);
+  };
+
+  const commitFils = (next) => {
+    setFils(next);
+    saveFilsToDisk(next);
   };
 
   const addFilm = (film) => {
@@ -223,14 +236,17 @@ export default function App() {
   /* Relier deux fiches, c'est écrire des deux côtés : ouvrir l'un ou l'autre
      doit montrer le même fil. Les deux moitiés partagent un pairId, ce qui
      permet de les défaire ensemble. */
-  const linkFilms = (fromId, toId, note = "") => {
+  /* La relation, elle, se RENVERSE d'un bout à l'autre : « fait suite à »
+     d'un côté se lit « précède » de l'autre. Écrire la même des deux
+     côtés ferait dire à chaque film qu'il est la suite de l'autre. */
+  const linkFilms = (fromId, toId, note = "", relation, force) => {
     const a = films.find((f) => f.id === fromId);
     const b = films.find((f) => f.id === toId);
     if (!a || !b || a.id === b.id) return;
     if ((a.linkedWorks || []).some((w) => w.filmId === b.id)) return; // déjà relié
 
     const pairId = uid();
-    const card = (target) => ({
+    const card = (target, rel) => ({
       id: uid(),
       pairId,
       type: "film",
@@ -238,16 +254,46 @@ export default function App() {
       title: target.title,
       creator: target.director || "",
       note: note.trim(),
+      relation: rel,
+      force: force ? forceDe(force) : undefined,
     });
     saveFilms(
       films.map((f) =>
         f.id === a.id
-          ? { ...f, linkedWorks: [...(f.linkedWorks || []), card(b)] }
+          ? { ...f, linkedWorks: [...(f.linkedWorks || []), card(b, relation)] }
           : f.id === b.id
-            ? { ...f, linkedWorks: [...(f.linkedWorks || []), card(a)] }
+            ? { ...f, linkedWorks: [...(f.linkedWorks || []), card(a, inverseDe(relation))] }
             : f
       )
     );
+  };
+
+  /* Faire d'un motif une question posée à toute la collection.
+
+     Le fil n'énumère PAS les films au moment où on le crée : il retient le
+     motif, et se recompose à chaque lecture. C'est ce qui fait qu'une fiche
+     taguée demain y entre sans qu'on y revienne — un fil figé serait faux
+     au bout d'une semaine.
+
+     Reposer le même motif ne crée pas un doublon : on rouvre celui qui
+     existe déjà. */
+  const faireUnFilDuMotif = (motifId) => {
+    const déjà = fils.find((f) => f.motif === motifId);
+    if (déjà) {
+      setView("constellation");
+      return;
+    }
+    const motif = motifById(motifId);
+    if (!motif) return;
+    commitFils([
+      ...fils,
+      makeFil({
+        label: motif.label,
+        motif: motifId,
+        couleur: CAT_KEYS[fils.length % CAT_KEYS.length],
+      }),
+    ]);
+    setView("constellation");
   };
 
   /* Retoucher un fil déjà tendu. La règle — ce qu'un lien accepte qu'on
@@ -278,9 +324,10 @@ export default function App() {
   /* Restaurer, c'est remplacer l'état entier — y compris le rangement.
      Une sauvegarde d'avant les vues (v ≤ 3) n'en contient pas : on les
      refabrique alors depuis ses intercalaires, ce à quoi sert `force`. */
-  const restoreBackup = ({ films: f, notes: n, dividers: d, views: v }) => {
+  const restoreBackup = ({ films: f, notes: n, dividers: d, views: v, fils: fl }) => {
     const migrated = migrate(f);
     saveFilms(migrated);
+    commitFils(normalizeFils(fl || []));
     if (n?.length) notebook.replaceAll(n);
     const tabs = d || [];
     setDividers(tabs);
@@ -502,6 +549,7 @@ export default function App() {
             onLinkFilm={linkFilms}
             onRemoveLink={removeLink}
             onEditLink={editLink}
+            onFaireUnFil={faireUnFilDuMotif}
             onOpen={(id) => setSelectedId(id)}
           />
         )}
@@ -509,6 +557,7 @@ export default function App() {
         {view === "constellation" && (
           <ConstellationView
             films={constellationFilms}
+            fils={fils}
             onLinkFilm={linkFilms}
             onOpen={(id) => {
               setSelectedId(id);
@@ -536,6 +585,7 @@ export default function App() {
             notes={notebook.notes}
             dividers={dividers}
             views={views}
+            fils={fils}
             onRestore={restoreBackup}
           />
         )}

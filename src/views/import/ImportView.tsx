@@ -29,6 +29,7 @@ import type {
   Note,
   ShelfViews,
 } from "../../types";
+import type { Fil } from "../../domain/fils";
 
 /** Les deux natures d'import proposées sous le relevé du fichier. */
 const IMPORT_STATUSES: { k: FilmStatus; l: string }[] = [
@@ -42,11 +43,13 @@ interface ImportViewProps {
   notes: Note[];
   dividers: Divider[];
   views: ShelfViews | null;
+  fils: Fil[];
   onRestore: (data: {
     films: Film[];
     notes: Note[];
     dividers: Divider[];
     views: ShelfViews | null;
+    fils: Fil[];
   }) => void;
 }
 
@@ -56,6 +59,7 @@ export function ImportView({
   notes,
   dividers,
   views,
+  fils,
   onRestore,
 }: ImportViewProps) {
   const [rows, setRows] = useState<ImportRow[]>([]); // lignes lues, éventuellement enrichies
@@ -1042,6 +1046,7 @@ export function ImportView({
         notes={notes}
         dividers={dividers}
         views={views}
+        fils={fils}
         onRestore={onRestore}
       />
     </div>

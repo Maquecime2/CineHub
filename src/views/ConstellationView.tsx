@@ -5,13 +5,18 @@ import type {
   SetStateAction,
   PointerEvent as ReactPointerEvent,
 } from "react";
-import { Sparkles, Users } from "lucide-react";
+import { Sparkles, Users, Spool } from "lucide-react";
 import { C, F, alpha } from "../theme/tokens";
 import { buildSky, buildSkyWithCrew, neighbourhood, relax } from "../domain/sky";
 import { CoffeeRing, StampCorner, InkUnderline } from "../components/atmosphere";
-import type { Film, KinshipRole, LinkType, PlacedNode, SkyLink } from "../types";
+import type { Film, KinshipRole, LinkType, PlacedNode, SkyLink, SkyNode } from "../types";
 import { Label } from "../components/ui";
 import { TagChip } from "../components/ui/TagEditor";
+import { catInk } from "../theme/palette";
+import { relationDef, forceDe } from "../domain/relations";
+import { motifById } from "../domain/motifs";
+import { searchFilms } from "../domain/search";
+import type { Fil } from "../domain/fils";
 
 /* ============================================================
    VUE — CONSTELLATION : une carte du ciel tracée à l'encre.
@@ -55,11 +60,14 @@ export function ConstellationView({
   films,
   onOpen,
   onLinkFilm,
+  fils = [],
 }: {
   films: Film[];
   onOpen: (id: string) => void;
   /** Fixer une parenté suggérée : elle devient un vrai fil rouge, réciproque. */
   onLinkFilm?: (fromId: string, toId: string, note?: string) => void;
+  /** Les rassemblements nommés — « les films où le héros meurt ». */
+  fils?: Fil[];
 }) {
   const [hover, setHover] = useState<string | null>(null);
   /** Le fil visé, par son rang — de quoi l'épaissir et l'étiqueter. */
@@ -106,11 +114,31 @@ export function ConstellationView({
   const [chemin, setChemin] = useState<string[]>([]);
   const [cherche, setCherche] = useState("");
 
+  /* LES ÉPINGLES — les films qu'on est allé chercher soi-même.
+
+     Ils ne tiennent au ciel par aucun fil : c'est la recherche qui les y
+     a posés, et c'est très bien ainsi — on cherche justement un film
+     qu'on n'a pas encore relié, pour voir ce qu'il pourrait rejoindre.
+     Comme les positions attrapées à la souris, ils ne survivent pas à la
+     page : ce sont des gestes, pas des données. */
+  const [épingles, setÉpingles] = useState<string[]>([]);
+  /* Les fils qu'on a éteints. On garde les ÉTEINTS et non les allumés :
+     un fil qu'on vient de créer doit apparaître sans qu'on ait à
+     l'allumer. */
+  const [filsÉteints, setFilsÉteints] = useState<string[]>([]);
+  const filsActifs = useMemo(
+    () => fils.filter((f) => !filsÉteints.includes(f.id)),
+    [fils, filsÉteints]
+  );
+
   const W = 1100,
     H = 760;
   const complet = useMemo(
-    () => (équipes ? buildSkyWithCrew(films, { tags, genres }) : buildSky(films, { tags, genres })),
-    [films, tags, genres, équipes]
+    () =>
+      équipes
+        ? buildSkyWithCrew(films, { tags, genres }, {}, { fils: filsActifs, pinned: épingles })
+        : buildSky(films, { tags, genres }, { fils: filsActifs, pinned: épingles }),
+    [films, tags, genres, équipes, filsActifs, épingles]
   );
   /* La découpe se fait APRÈS la construction : la carte entière existe
      toujours, on n'en montre qu'une part. */
@@ -135,6 +163,32 @@ export function ConstellationView({
         .slice(0, 40),
     [complet.nodes]
   );
+
+  /* CHERCHER DANS TOUTE LA COLLECTION, ET PAS SEULEMENT AU CIEL.
+
+     La recherche ne regardait que les astres déjà placés — c'est-à-dire
+     les films déjà reliés. Or on cherche presque toujours l'inverse : un
+     film auquel on pense, dont on ne sait plus s'il est relié, et qu'on
+     voudrait justement raccrocher à quelque chose. Ne rien trouver
+     laissait croire qu'il n'était pas dans la collection.
+
+     Un résultat hors carte s'épingle donc d'un clic : il entre au ciel,
+     seul, et devient le foyer — d'où l'on voit ce qu'il pourrait
+     rejoindre. */
+  const auCiel = useMemo(
+    () => new Set(complet.nodes.filter((n) => n.kind === "film").map((n) => n.filmId as string)),
+    [complet.nodes]
+  );
+  const résultats = useMemo(
+    () => (cherche.trim() ? searchFilms(films, cherche, 12) : []),
+    [films, cherche]
+  );
+
+  const épingler = (filmId: string) => {
+    setÉpingles((cur) => (cur.includes(filmId) ? cur : [...cur, filmId]));
+    poserFoyer(`f:${filmId}`);
+    setCherche("");
+  };
 
   const poserFoyer = (id: string) => {
     setFoyer((actuel) => {
@@ -172,7 +226,13 @@ export function ConstellationView({
   };
 
   const radiusOf = (n: PlacedNode) =>
-    n.kind === "film" ? 7 + (n.rating || 0) * 1.6 : 4 + Math.min(n.refs ?? 0, 4);
+    n.kind === "film"
+      ? 7 + (n.rating || 0) * 1.6
+      : /* Un fil est plus gros que ses membres : il en est le centre, et
+           sa taille dit combien il en rassemble. */
+        n.kind === "fil"
+        ? 11 + Math.min(n.degree, 10)
+        : 4 + Math.min(n.refs ?? 0, 4);
 
   return (
     <div style={{ padding: "34px 44px 60px", position: "relative", overflow: "hidden" }}>
@@ -246,6 +306,51 @@ export function ConstellationView({
         >
           en pointillé : une personne partagée par deux ou trois films. Cliquez un pointillé pour le
           fixer — il devient alors un vrai fil rouge.
+        </div>
+      )}
+
+      {/* LES FILS. À la différence des filtres ci-dessous, ils PEUPLENT le
+          ciel : un fil y fait entrer ses membres, reliés ou non. C'est ce
+          qui permet de demander « les films où le héros meurt » et de
+          l'obtenir dessiné, plutôt que de fouiller une liste. */}
+      {fils.length > 0 && (
+        <div style={{ marginTop: 16, position: "relative", zIndex: 3 }}>
+          <Label>Fils</Label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
+            {fils.map((fil) => {
+              const on = !filsÉteints.includes(fil.id);
+              const encre = catInk(fil.couleur);
+              const motif = fil.motif ? motifById(fil.motif) : undefined;
+              return (
+                <button
+                  key={fil.id}
+                  onClick={() =>
+                    setFilsÉteints((cur) =>
+                      cur.includes(fil.id) ? cur.filter((x) => x !== fil.id) : [...cur, fil.id]
+                    )
+                  }
+                  title={motif ? `alimenté par « ${motif.label} »` : "fil composé à la main"}
+                  style={{
+                    all: "unset",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontFamily: F.mono,
+                    fontSize: 10,
+                    padding: "3px 10px",
+                    borderRadius: "var(--tag-radius)",
+                    border: `1px solid ${encre}`,
+                    color: on ? C.card : encre,
+                    background: on ? encre : "transparent",
+                  }}
+                >
+                  <Spool size={11} />
+                  {fil.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -355,7 +460,7 @@ export function ConstellationView({
           <input
             value={cherche}
             onChange={(e) => setCherche(e.target.value)}
-            placeholder="chercher un titre…"
+            placeholder="chercher dans toute la collection…"
             style={{
               width: "100%",
               maxWidth: 320,
@@ -371,17 +476,14 @@ export function ConstellationView({
               marginBottom: 10,
             }}
           />
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {departs
-              .filter((n) => n.label.toLowerCase().includes(cherche.trim().toLowerCase()))
-              .slice(0, 12)
-              .map((n) => (
-                <button key={n.id} onClick={() => poserFoyer(n.id)} style={departStyle}>
-                  {n.label}
-                  <span style={{ opacity: 0.6, marginLeft: 6 }}>{n.degree}</span>
-                </button>
-              ))}
-          </div>
+          <Résultats
+            cherche={cherche}
+            résultats={résultats}
+            departs={departs}
+            auCiel={auCiel}
+            onFoyer={poserFoyer}
+            onÉpingler={épingler}
+          />
           <button
             onClick={() => setFoyer(null)}
             style={{
@@ -440,6 +542,46 @@ export function ConstellationView({
           <span style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded }}>
             un clic déplace le foyer · un double-clic ouvre la fiche
           </span>
+        </div>
+      )}
+
+      {/* LA RECHERCHE RESTE À PORTÉE UNE FOIS LE FOYER POSÉ.
+
+          Elle ne servait qu'à choisir un départ et disparaissait ensuite —
+          or c'est en explorant qu'on pense à un film, et il fallait
+          revenir en arrière pour l'atteindre. C'est aussi le seul moyen de
+          sauter d'un bout du ciel à l'autre sans repasser par les voisins. */}
+      {foyer != null && (
+        <div style={{ marginTop: 12, position: "relative", zIndex: 3 }}>
+          <input
+            value={cherche}
+            onChange={(e) => setCherche(e.target.value)}
+            placeholder="sauter à un autre film…"
+            style={{
+              width: "100%",
+              maxWidth: 320,
+              boxSizing: "border-box",
+              background: "transparent",
+              border: "none",
+              borderBottom: `1px solid ${C.line}`,
+              outline: "none",
+              fontFamily: F.body,
+              fontSize: 14,
+              color: C.ink,
+              padding: "4px 2px",
+              marginBottom: 8,
+            }}
+          />
+          {cherche.trim() && (
+            <Résultats
+              cherche={cherche}
+              résultats={résultats}
+              departs={departs}
+              auCiel={auCiel}
+              onFoyer={poserFoyer}
+              onÉpingler={épingler}
+            />
+          )}
         </div>
       )}
 
@@ -624,14 +766,30 @@ export function ConstellationView({
                    qui vient de la machine doit se distinguer de ce qui
                    vient de vous sans qu'on ait à cliquer pour le savoir. */
                 const crew = l.kind === "crew";
+                /* Un fil (le rassemblement) n'est pas une parenté : il se
+                   trace à la teinte du fil, en trait continu mais fin —
+                   il rassemble sans prétendre relier deux à deux. */
+                const filDeRassemblement = l.kind === "fil";
                 const d = `M ${a.x} ${a.y} Q ${mx} ${my}, ${b.x} ${b.y}`;
-                const raisons = (l.why || []).map((w) => `${w.role} · ${w.nom}`).join(", ");
+                /* Ce que le fil raconte quand on le vise : la parenté
+                   trouvée par la machine, ou la relation qu'on a écrite
+                   soi-même — laquelle se lit dans le sens du trait. */
+                const raisons = filDeRassemblement
+                  ? (byId.get(l.a)?.label ?? "")
+                  : peer
+                    ? relationDef(l.relation)?.label || ""
+                    : (l.why || []).map((w) => `${w.role} · ${w.nom}`).join(", ");
                 const fixer =
                   crew && onLinkFilm
                     ? () => onLinkFilm(l.a.slice(2), l.b.slice(2), raisons)
                     : undefined;
                 const vise = hoverLink === i;
-                const encre = crew ? inkOf(l) : peer ? C.burgundy : C.vermillion;
+                const teinteDuFil = filDeRassemblement
+                  ? catInk(byId.get(l.a)?.couleur || "burgundy")
+                  : null;
+                const encre = teinteDuFil ?? (crew ? inkOf(l) : peer ? C.burgundy : C.vermillion);
+                // un lien fort épaissit le trait : c'est la seule chose qu'il ait à dire ici
+                const épaisseurPeer = 1.4 + forceDe(l.force) * 0.6;
                 return (
                   <g key={i}>
                     <path
@@ -642,10 +800,32 @@ export function ConstellationView({
                          qu'on clique : au survol il s'épaissit et
                          s'assombrit, ce qu'aucune infobulle ne fait
                          assez vite. */
-                      strokeWidth={vise ? (peer ? 3 : 2.6) : peer ? 2 : 1.4}
-                      strokeDasharray={peer ? "none" : crew ? "7 6" : "2.5 4"}
+                      strokeWidth={
+                        vise
+                          ? (peer ? épaisseurPeer : 1.4) + 1.2
+                          : peer
+                            ? épaisseurPeer
+                            : filDeRassemblement
+                              ? 1.2
+                              : 1.4
+                      }
+                      strokeDasharray={
+                        peer ? "none" : crew ? "7 6" : filDeRassemblement ? "1 5" : "2.5 4"
+                      }
                       strokeLinecap="round"
-                      opacity={on ? (vise ? 1 : peer ? 0.8 : crew ? 0.5 : 0.6) : 0.08}
+                      opacity={
+                        on
+                          ? vise
+                            ? 1
+                            : peer
+                              ? 0.8
+                              : crew
+                                ? 0.5
+                                : filDeRassemblement
+                                  ? 0.55
+                                  : 0.6
+                          : 0.08
+                      }
                       style={{
                         transition: "opacity .18s ease, stroke-width .12s ease",
                         pointerEvents: "none",
@@ -707,15 +887,27 @@ export function ConstellationView({
               {placed.map((n) => {
                 const p = pos(n);
                 const r = radiusOf(n);
-                const ink = n.kind === "film" ? C.burgundy : n.type ? LINK_INK[n.type] : C.ochre;
                 const on = !lit || lit.has(n.id);
                 const isHover = hover === n.id;
+                const ink =
+                  n.kind === "fil"
+                    ? catInk(n.couleur || "burgundy")
+                    : n.kind === "film"
+                      ? C.burgundy
+                      : n.type
+                        ? LINK_INK[n.type]
+                        : C.ochre;
+                /* Un motif qui raconte la fin ne s'affiche pas en clair
+                   sur une carte qu'on parcourt : le nom du fil reste
+                   gratté tant qu'on ne l'a pas dévoilé d'un survol. */
+                const gratté =
+                  n.kind === "fil" && !!n.motif && !!motifById(n.motif)?.spoiler && !isHover;
                 return (
                   <g
                     key={n.id}
                     transform={`translate(${p.x},${p.y})`}
                     style={{
-                      cursor: n.kind === "film" ? "pointer" : "grab",
+                      cursor: n.kind === "work" ? "grab" : "pointer",
                       opacity: on ? 1 : 0.22,
                       transition: "opacity .18s ease",
                     }}
@@ -739,10 +931,14 @@ export function ConstellationView({
                        dessus n'aurait rien à recentrer, alors il
                        ouvre. */
                     onClick={(e) => {
-                      if (n.kind !== "film") return;
+                      if (n.kind === "work") return;
                       const s = pressAt.current;
                       if (s && Math.hypot(e.clientX - s.x, e.clientY - s.y) > 4) return; // c'était un glissé
-                      if (n.id === foyer) onOpen(n.filmId as string);
+                      /* Un fil ne s'ouvre pas — il n'a pas de fiche : le
+                         prendre pour foyer montre tout ce qu'il rassemble,
+                         et c'est exactement la question qu'on lui pose. */
+                      if (n.kind === "fil") poserFoyer(n.id);
+                      else if (n.id === foyer) onOpen(n.filmId as string);
                       else poserFoyer(n.id);
                     }}
                     onDoubleClick={() => n.kind === "film" && onOpen(n.filmId as string)}
@@ -754,7 +950,23 @@ export function ConstellationView({
                       opacity={isHover ? 0.22 : 0.1}
                       filter="url(#halo)"
                     />
-                    <circle r={r} fill={ink} stroke={C.card} strokeWidth="1.6" />
+                    <circle
+                      r={r}
+                      fill={n.kind === "fil" ? alpha(ink, 0.28) : ink}
+                      stroke={n.kind === "fil" ? ink : C.card}
+                      strokeWidth={n.kind === "fil" ? 2 : 1.6}
+                    />
+                    {/* L'astre épinglé se distingue : rien ne le retient au
+                        ciel qu'un geste, et le cercle en pointillé le dit. */}
+                    {n.épinglé && (
+                      <circle
+                        r={r + 8}
+                        fill="none"
+                        stroke={C.slate}
+                        strokeWidth="0.9"
+                        strokeDasharray="1 4"
+                      />
+                    )}
                     {n.kind === "film" && (
                       <circle
                         r={r + 4.5}
@@ -773,14 +985,19 @@ export function ConstellationView({
                         /* Les rôles, et non deux polices nommées en
                            clair : écrites ainsi, elles restaient celles
                            du carnet sous les treize autres peaux. */
-                        fontFamily: n.kind === "film" ? F.title : F.mono,
-                        fontSize: n.kind === "film" ? 15 : 10.5,
-                        fontWeight: n.kind === "film" ? 700 : 400,
+                        fontFamily: n.kind === "work" ? F.mono : F.title,
+                        fontSize: n.kind === "work" ? 10.5 : n.kind === "fil" ? 16 : 15,
+                        fontWeight: n.kind === "work" ? 400 : 700,
+                        fontStyle: n.kind === "fil" ? "italic" : "normal",
                         fill: C.ink,
                         pointerEvents: "none",
                       }}
                     >
-                      {n.label.length > 30 ? n.label.slice(0, 29) + "…" : n.label}
+                      {gratté
+                        ? "•".repeat(Math.min(n.label.length, 14))
+                        : n.label.length > 30
+                          ? n.label.slice(0, 29) + "…"
+                          : n.label}
                     </text>
                     {isHover && n.sub && (
                       <text
@@ -819,9 +1036,16 @@ export function ConstellationView({
               {placed.filter((n) => n.kind === "work").length} œuvre(s) —{" "}
               {placed.filter((n) => (n.refs ?? 0) > 1).length} pont(s) entre deux films
             </span>
-            {Object.keys(moved).length > 0 && (
+            {(Object.keys(moved).length > 0 || épingles.length > 0) && (
               <button
-                onClick={() => setMoved({})}
+                /* Remettre le ciel en place, c'est aussi retirer les
+                   épingles : ce sont deux gestes de la même main, et les
+                   laisser survivre au balayage donnerait un ciel « remis
+                   en place » qui ne l'est pas. */
+                onClick={() => {
+                  setMoved({});
+                  setÉpingles([]);
+                }}
                 style={{
                   all: "unset",
                   cursor: "pointer",
@@ -837,6 +1061,73 @@ export function ConstellationView({
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+/* LA LISTE DES DÉPARTS, ET CE QU'ELLE MONTRE QUAND ON CHERCHE.
+
+   Sans recherche : les films les plus reliés, ceux depuis lesquels on ira
+   le plus loin. Avec : la collection ENTIÈRE, chaque résultat marqué selon
+   qu'il est déjà au ciel ou non. Un film hors carte ne se grise pas — il
+   se propose, parce que l'épingler est justement ce qu'on est venu
+   faire. */
+function Résultats({
+  cherche,
+  résultats,
+  departs,
+  auCiel,
+  onFoyer,
+  onÉpingler,
+}: {
+  cherche: string;
+  résultats: Film[];
+  departs: PlacedNode[] | SkyNode[];
+  auCiel: Set<string>;
+  onFoyer: (nodeId: string) => void;
+  onÉpingler: (filmId: string) => void;
+}) {
+  if (!cherche.trim())
+    return (
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        {departs.slice(0, 12).map((n) => (
+          <button key={n.id} onClick={() => onFoyer(n.id)} style={departStyle}>
+            {n.label}
+            <span style={{ opacity: 0.6, marginLeft: 6 }}>{n.degree}</span>
+          </button>
+        ))}
+      </div>
+    );
+
+  if (résultats.length === 0)
+    return (
+      <div style={{ fontFamily: F.hand, fontSize: 17, color: C.inkFaded }}>
+        rien de ce nom dans la collection.
+      </div>
+    );
+
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+      {résultats.map((f) => {
+        const placé = auCiel.has(f.id);
+        return (
+          <button
+            key={f.id}
+            onClick={() => (placé ? onFoyer(`f:${f.id}`) : onÉpingler(f.id))}
+            title={placé ? "Prendre pour foyer" : "L'épingler au ciel et partir de lui"}
+            style={{
+              ...departStyle,
+              borderStyle: placé ? "solid" : "dashed",
+              color: placé ? C.ink : C.inkFaded,
+            }}
+          >
+            {f.title}
+            <span style={{ opacity: 0.6, marginLeft: 6, fontFamily: F.mono, fontSize: 9.5 }}>
+              {placé ? "au ciel" : "épingler"}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }

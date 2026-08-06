@@ -138,13 +138,17 @@ describe("ThreadBoard — retoucher un fil", () => {
         films: [film("f2", { title: "Les Statues meurent aussi" })],
       });
 
-    it("n'offre à réécrire que la note", async () => {
+    it("n'offre à réécrire que ce qui appartient au lien", async () => {
       linked();
       await openEditor("Les Statues meurent aussi");
+      // le titre et l'auteur appartiennent à la fiche d'en face
       expect(screen.queryByLabelText("Titre de l'œuvre")).not.toBeInTheDocument();
       expect(screen.queryByLabelText("Auteur·rice / artiste")).not.toBeInTheDocument();
       expect(screen.queryByLabelText("Nature de l'œuvre")).not.toBeInTheDocument();
+      // la note, la nature du lien et sa force disent ce qui se passe ENTRE les deux
       expect(screen.getByLabelText("Pourquoi ce lien ?")).toBeInTheDocument();
+      expect(screen.getByLabelText("Nature du lien")).toBeInTheDocument();
+      expect(screen.getByLabelText("Force du lien")).toBeInTheDocument();
     });
 
     it("montre quand même de quoi on parle", async () => {
@@ -153,13 +157,28 @@ describe("ThreadBoard — retoucher un fil", () => {
       expect(screen.getByText("Les Statues meurent aussi")).toBeInTheDocument();
     });
 
-    it("n'envoie que la note", async () => {
+    it("n'envoie que ce qui appartient au lien", async () => {
       const { onEdit } = linked();
       const user = await openEditor("Les Statues meurent aussi");
       await user.clear(screen.getByLabelText("Pourquoi ce lien ?"));
       await user.type(screen.getByLabelText("Pourquoi ce lien ?"), "deux regards sur un musée");
       await user.click(screen.getByRole("button", { name: /NOTER/ }));
-      expect(onEdit).toHaveBeenCalledWith("w1", { note: "deux regards sur un musée" });
+      expect(onEdit).toHaveBeenCalledWith("w1", {
+        note: "deux regards sur un musée",
+        relation: undefined,
+        force: 2,
+      });
+    });
+
+    it("envoie la nature du lien qu'on vient de choisir", async () => {
+      const { onEdit } = linked();
+      const user = await openEditor("Les Statues meurent aussi");
+      await user.selectOptions(screen.getByLabelText("Nature du lien"), "suite-de");
+      await user.click(screen.getByRole("button", { name: /NOTER/ }));
+      expect(onEdit).toHaveBeenCalledWith(
+        "w1",
+        expect.objectContaining({ relation: "suite-de", force: 2 })
+      );
     });
   });
 

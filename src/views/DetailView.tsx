@@ -16,10 +16,16 @@ import {
 import { C, F } from "../theme/tokens";
 import { underlineInput } from "../theme/styles";
 import { uid, withWatches, initialsOf } from "../domain/film";
+import { searchFilms } from "../domain/search";
 import { putImage } from "../db";
 import { imageSize, shrinkImage } from "../services/images";
 import { Label, InkStars } from "../components/ui";
 import { TagEditor } from "../components/ui/TagEditor";
+import { MotifPicker } from "../components/film/MotifPicker";
+import { suggestMotifs } from "../domain/motifs";
+import type { Motif } from "../domain/motifs";
+import { fetchKeywords } from "../tmdb";
+import { store } from "../services/storage";
 import { StampCorner, Tape } from "../components/atmosphere";
 import { PosterArt } from "../components/film/PosterArt";
 import { PosterPicker } from "../components/film/PosterPicker";
@@ -28,10 +34,11 @@ import { TmdbFacts } from "../components/film/TmdbFacts";
 import { WatchLog } from "../components/film/WatchLog";
 import { ThreadBoard } from "../components/film/ThreadBoard";
 import { LINK_TYPES } from "../components/film/linkTypes";
+import { FORCES, RELATIONS_SAISISSABLES, forceDe } from "../domain/relations";
 import { StillsStrip } from "../components/stills/StillsStrip";
 import { StillLightbox } from "../components/stills/StillLightbox";
 import { RichField } from "../components/stills/RichField";
-import type { Film, LinkPatch, LinkType, Still } from "../types";
+import type { Film, Force, LinkPatch, LinkType, Relation, Still } from "../types";
 
 /** Les deux champs de texte de la fiche, où une capture peut s'insérer. */
 type TextField = "review" | "notes";
@@ -42,12 +49,15 @@ interface DetailViewProps {
   onUpdate: (f: Film) => void;
   onDelete: (id: string) => void;
   films?: Film[];
-  /** Relie deux fiches du mur : le lien est posé des deux côtés. */
-  onLinkFilm: (aId: string, bId: string, note: string) => void;
+  /** Relie deux fiches du mur : le lien est posé des deux côtés, la
+   *  relation renversée à l'autre bout. */
+  onLinkFilm: (aId: string, bId: string, note: string, relation?: Relation, force?: Force) => void;
   onRemoveLink: (filmId: string, workId: string) => void;
   /** Retouche un fil : le modele decide de ce qu il accepte. */
   onEditLink: (filmId: string, workId: string, patch: LinkPatch) => void;
   onOpen: (id: string) => void;
+  /** Faire d'un motif une question posée à toute la collection. */
+  onFaireUnFil?: (motifId: string) => void;
 }
 
 export function DetailView({
@@ -58,6 +68,7 @@ export function DetailView({
   films = [],
   onLinkFilm,
   onRemoveLink,
+  onFaireUnFil,
   onEditLink,
   onOpen,
 }: DetailViewProps) {
@@ -65,6 +76,8 @@ export function DetailView({
   const [linkTitle, setLinkTitle] = useState("");
   const [linkCreator, setLinkCreator] = useState("");
   const [linkNote, setLinkNote] = useState("");
+  const [linkRelation, setLinkRelation] = useState<Relation | "">("");
+  const [linkForce, setLinkForce] = useState<Force>(2);
   const [picked, setPicked] = useState<Film | null>(null); // fiche existante retenue
   // le vocabulaire déjà employé dans la collection, pour ne pas le fragmenter
   const allTags = useMemo(
@@ -155,24 +168,44 @@ export function DetailView({
   const already = new Set((film.linkedWorks || []).map((w) => w.filmId).filter(Boolean));
   const suggestions = useMemo(() => {
     if (linkType !== "film") return [];
-    const q = linkTitle.trim().toLowerCase();
+    const q = linkTitle.trim();
     if (!q) return [];
-    return films
-      .filter((f) => f.id !== film.id && !already.has(f.id))
-      .filter(
-        (f) => f.title.toLowerCase().includes(q) || (f.director || "").toLowerCase().includes(q)
-      )
-      .slice(0, 6);
+    return searchFilms(
+      films.filter((f) => f.id !== film.id && !already.has(f.id)),
+      q,
+      6
+    );
   }, [films, film.id, linkTitle, linkType, film.linkedWorks]);
+
+  /* CE QUE TMDB PROPOSE — demandé à l'ouverture de la fiche, et seulement
+     si l'on a une clé et un identifiant. Un seul appel, jamais en masse :
+     ce sont des propositions à relire, pas une récolte. */
+  const [proposés, setProposés] = useState<Motif[]>([]);
+  useEffect(() => {
+    let vivant = true;
+    setProposés([]);
+    const apiKey = store.get("tmdb-key", "");
+    if (!film.tmdbId || !apiKey) return;
+    fetchKeywords(film.tmdbId, apiKey)
+      .then((mots: { id?: number; name?: string }[]) => {
+        if (vivant) setProposés(suggestMotifs(mots));
+      })
+      .catch(() => {});
+    return () => {
+      vivant = false;
+    };
+  }, [film.id, film.tmdbId]);
 
   const addLink = () => {
     // une fiche retenue devient un vrai lien réciproque, pas une étiquette
     if (picked) {
-      onLinkFilm(film.id, picked.id, linkNote);
+      onLinkFilm(film.id, picked.id, linkNote, linkRelation || undefined, linkForce);
       setPicked(null);
       setLinkTitle("");
       setLinkCreator("");
       setLinkNote("");
+      setLinkRelation("");
+      setLinkForce(2);
       return;
     }
     if (!linkTitle.trim()) return;
@@ -337,6 +370,18 @@ export function DetailView({
                 tags={film.themes || []}
                 allTags={allTags}
                 onChange={(themes) => onUpdate({ ...film, themes })}
+              />
+            </div>
+            {/* Les motifs, sous les mots-clés et non à leur place : les uns
+                sont vos mots, les autres le vocabulaire commun sur lequel
+                une question peut porter. */}
+            <div style={{ marginTop: 14, borderTop: `1px solid ${C.line}`, paddingTop: 10 }}>
+              <Label>Motifs</Label>
+              <MotifPicker
+                motifs={film.motifs || []}
+                suggestions={proposés}
+                onChange={(motifs) => onUpdate({ ...film, motifs })}
+                onFaireUnFil={onFaireUnFil}
               />
             </div>
             {/* Les deux rangements de l'étagère, atteignables sans y aller :
@@ -691,6 +736,42 @@ export function DetailView({
               disabled={!!picked}
             />
           </div>
+          {/* La nature du fil n'a de sens qu'entre deux fiches : une
+              mention libre n'est reliée qu'à elle-même. Le champ n'apparaît
+              donc qu'une fois la fiche retenue. */}
+          {picked && (
+            <>
+              <div style={{ minWidth: 160 }}>
+                <Label>Nature du lien</Label>
+                <select
+                  value={linkRelation}
+                  onChange={(e) => setLinkRelation(e.target.value as Relation | "")}
+                  style={{ ...underlineInput, fontFamily: F.mono, fontSize: 12 }}
+                >
+                  <option value="">— sans plus de précision —</option>
+                  {RELATIONS_SAISISSABLES.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ minWidth: 150 }}>
+                <Label>Force</Label>
+                <select
+                  value={linkForce}
+                  onChange={(e) => setLinkForce(forceDe(Number(e.target.value)))}
+                  style={{ ...underlineInput, fontFamily: F.mono, fontSize: 12 }}
+                >
+                  {FORCES.map((f) => (
+                    <option key={f.valeur} value={f.valeur}>
+                      {f.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
           <div style={{ flex: 1.4, minWidth: 180 }}>
             <Label>Pourquoi ce lien ?</Label>
             <input

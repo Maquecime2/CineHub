@@ -3,6 +3,7 @@ import { C, F } from "../../theme/tokens";
 import { Tally } from "../../components/ui";
 import { posterStats, exportBackup, importBackup } from "../../db";
 import type { Divider, Film, Note, ShelfViews } from "../../types";
+import type { Fil } from "../../domain/fils";
 
 /** Ce que `posterStats` rapporte de la base d'images. */
 interface PosterStats {
@@ -19,15 +20,17 @@ interface BackupPanelProps {
   notes: Note[];
   dividers: Divider[];
   views: ShelfViews | null;
+  fils: Fil[];
   onRestore: (data: {
     films: Film[];
     notes: Note[];
     dividers: Divider[];
     views: ShelfViews | null;
+    fils: Fil[];
   }) => void;
 }
 
-export function BackupPanel({ films, notes, dividers, views, onRestore }: BackupPanelProps) {
+export function BackupPanel({ films, notes, dividers, views, fils, onRestore }: BackupPanelProps) {
   const [stats, setStats] = useState<PosterStats | null>(null);
   const [msg, setMsg] = useState("");
   const ref = useRef<HTMLInputElement | null>(null);
@@ -41,7 +44,7 @@ export function BackupPanel({ films, notes, dividers, views, onRestore }: Backup
   const download = async () => {
     setMsg("préparation…");
     // db.js est encore en JavaScript : ses paramètres n'ont pas de type déclaré
-    const data = await exportBackup({ films, notes, dividers, views } as never);
+    const data = await exportBackup({ films, notes, dividers, views, fils } as never);
     const url = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: "application/json" }));
     const a = document.createElement("a");
     a.href = url;
@@ -54,14 +57,25 @@ export function BackupPanel({ films, notes, dividers, views, onRestore }: Backup
   const restore = async (file: File) => {
     setMsg("lecture…");
     try {
-      const { films: f, notes: n, dividers: d } = await importBackup(JSON.parse(await file.text()));
+      const {
+        films: f,
+        notes: n,
+        dividers: d,
+        fils: fl,
+      } = await importBackup(JSON.parse(await file.text()));
       /* BUG CONNU, comportement conservé tel quel par le refactor : la
          sauvegarde v4 contient les vues d'étagère et `importBackup` les
          renvoie, mais elles ne sont pas transmises ici. À la restauration,
          App retombe donc sur la reconstruction depuis les intercalaires et
          le rangement enregistré est perdu. */
       setMsg(
-        `${onRestore({ films: f as Film[], notes: n as Note[], dividers: d as Divider[], views: null })} fiche(s) restaurée(s).`
+        `${onRestore({
+          films: f as Film[],
+          notes: n as Note[],
+          dividers: d as Divider[],
+          views: null,
+          fils: (fl || []) as Fil[],
+        })} fiche(s) restaurée(s).`
       );
     } catch (e) {
       setMsg((e as Error).message || "Sauvegarde illisible.");

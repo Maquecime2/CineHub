@@ -5,6 +5,10 @@
    là que les constellations se forment.
    ============================================================ */
 import { hash, seededRand } from "./seeded";
+import { forceDe } from "./relations";
+import { membresDuFil } from "./fils";
+import type { Fil } from "./fils";
+import type { Force } from "./relations";
 import type {
   Film,
   Kinship,
@@ -27,9 +31,36 @@ export const workKey = (w: LinkedWork): string =>
    tout se retrouvait relié à tout et le graphe s'effondrait en une masse
    illisible. Un graphe qui montre toutes les relations n'en montre aucune.
    Ici : seuls les films portant au moins un fil rouge entrent dans la carte. */
+/* La relation telle qu'elle est écrite du côté `a`, en allant vers `b`.
+   Les deux moitiés d'un fil portent des relations inverses : sans ce
+   choix, le sens du trait dépendrait de l'ordre de parcours de la
+   collection, et « fait suite à » se retournerait au hasard. */
+const parRelation = (films: Film[], aId: string, bId: string) =>
+  (films.find((f) => f.id === aId)?.linkedWorks || []).find((w) => w.filmId === bId)?.relation;
+
+/* CE QUI ENTRE AU CIEL EN PLUS DES FILS ROUGES.
+
+   La règle de `buildSky` — seuls les films reliés à la main — reste la
+   garde qui empêche le graphe de s'effondrer. Mais elle laissait deux
+   choses dehors, et ce sont justement les deux qu'on venait chercher :
+
+   — les FILS, qui sont un rassemblement nommé (« les films où le héros
+     meurt »). Un fil relie ses membres par construction : ils entrent
+     donc au ciel même sans qu'aucun fil rouge n'ait été tendu, sans quoi
+     poser la question ne montrerait rien ;
+   — les ÉPINGLES, un film qu'on est allé chercher à la main dans la
+     recherche. Un astre isolé, oui — mais posé exprès, par un geste, et
+     qui repart au premier coup de balai. */
+export interface SkyExtras {
+  fils?: Fil[];
+  /** Identifiants de films à faire entrer au ciel quoi qu'il arrive. */
+  pinned?: string[];
+}
+
 export function buildSky(
   films: Film[],
-  { tags = [], genres = [] }: SkyFilters = {}
+  { tags = [], genres = [] }: SkyFilters = {},
+  { fils = [], pinned = [] }: SkyExtras = {}
 ): { nodes: SkyNode[]; links: SkyLink[] } {
   const keeps = (f: Film) =>
     (tags.length === 0 || tags.every((t) => (f.themes || []).includes(t))) &&
@@ -43,7 +74,16 @@ export function buildSky(
   const worksOf = (f: Film) => (f.linkedWorks || []).filter((w) => !w.filmId);
   const peersOf = (f: Film) =>
     (f.linkedWorks || []).filter((w) => w.filmId && poolIds.has(w.filmId));
-  const connected = pool.filter((f) => worksOf(f).length + peersOf(f).length > 0);
+  /* Les membres des fils et les épinglés entrent avec les reliés. On les
+     réunit AVANT de construire les nœuds : un film peut être les deux à
+     la fois, et le dédoublerait sinon. */
+  const parLesFils = new Set<string>();
+  for (const fil of fils) for (const id of membresDuFil(fil, pool)) parLesFils.add(id);
+  const épinglés = new Set(pinned.filter((id) => poolIds.has(id)));
+
+  const connected = pool.filter(
+    (f) => worksOf(f).length + peersOf(f).length > 0 || parLesFils.has(f.id) || épinglés.has(f.id)
+  );
 
   const nodes: SkyNode[] = connected.map((f) => ({
     id: `f:${f.id}`,
@@ -53,6 +93,7 @@ export function buildSky(
     rating: f.rating || 0,
     filmId: f.id,
     degree: 0,
+    épinglé: épinglés.has(f.id) && worksOf(f).length + peersOf(f).length === 0,
   }));
   const nodeIds = new Set(nodes.map((n) => n.id));
   const links: SkyLink[] = [];
@@ -83,10 +124,40 @@ export function buildSky(
       if (!nodeIds.has(`f:${w.filmId}`)) return;
       const [a, b] = [f.id, w.filmId as string].sort();
       if (!links.some((l) => l.a === `f:${a}` && l.b === `f:${b}`)) {
-        links.push({ a: `f:${a}`, b: `f:${b}`, kind: "peer" });
+        /* L'arête est unique quand le fil, lui, est écrit des deux côtés
+           en relations inverses. On garde donc celle du bout `a`, pour que
+           « fait suite à » se lise toujours dans le sens du trait. */
+        const côtéA = a === f.id ? w.relation : parRelation(films, a as string, b as string);
+        links.push({
+          a: `f:${a}`,
+          b: `f:${b}`,
+          kind: "peer",
+          relation: côtéA,
+          force: forceDe(w.force),
+        });
       }
     });
   });
+
+  /* Un fil est un astre à part entière plutôt qu'une couleur posée sur
+     ses membres : il porte un nom, on peut le prendre pour foyer, et ses
+     membres se rassemblent visiblement autour de lui. Un fil vide n'entre
+     pas — un nom seul au milieu du ciel ne dit rien. */
+  for (const fil of fils) {
+    const membres = membresDuFil(fil, connected);
+    if (membres.length === 0) continue;
+    const id = `t:${fil.id}`;
+    nodes.push({
+      id,
+      kind: "fil",
+      label: fil.label,
+      sub: `${membres.length} film${membres.length > 1 ? "s" : ""}`,
+      couleur: fil.couleur,
+      motif: fil.motif ?? null,
+      degree: 0,
+    });
+    for (const filmId of membres) links.push({ a: id, b: `f:${filmId}`, kind: "fil" });
+  }
 
   // le degré sert à doser la taille et à n'étiqueter que les astres qui comptent
   const deg = new Map<string, number>();
@@ -271,9 +342,10 @@ export function neighbourhood(
 export function buildSkyWithCrew(
   films: Film[],
   filters: SkyFilters = {},
-  options: SuggestOptions = {}
+  options: SuggestOptions = {},
+  extras: SkyExtras = {}
 ): { nodes: SkyNode[]; links: SkyLink[] } {
-  const base = buildSky(films, filters);
+  const base = buildSky(films, filters, extras);
 
   /* Les mêmes filtres que la carte de base : suggérer par-dessus un
      ciel restreint aux documentaires ne doit pas ramener le reste. */
@@ -338,9 +410,10 @@ export function relax(nodes: SkyNode[], links: SkyLink[], W: number, H: number):
   });
   const index = new Map(P.map((p, i) => [p.id, i]));
   const edges = links
-    .map((l) => ({ i: index.get(l.a), j: index.get(l.b), kind: l.kind }))
+    .map((l) => ({ i: index.get(l.a), j: index.get(l.b), kind: l.kind, force: l.force }))
     .filter(
-      (e): e is { i: number; j: number; kind: SkyLink["kind"] } => e.i != null && e.j != null
+      (e): e is { i: number; j: number; kind: SkyLink["kind"]; force: Force | undefined } =>
+        e.i != null && e.j != null
     );
 
   for (let step = 0; step < 320; step++) {
@@ -367,7 +440,12 @@ export function relax(nodes: SkyNode[], links: SkyLink[], W: number, H: number):
     edges.forEach((e) => {
       const a = P[e.i] as PlacedNode;
       const b = P[e.j] as PlacedNode;
-      const rest = e.kind === "peer" ? 210 : 128;
+      /* Un lien fort rapproche : c'est la seule chose que la carte sache
+         faire d'une force, et c'est déjà la bonne — deux films qu'on tient
+         pour le même film à deux reprises doivent se toucher. Un fil tient
+         ses membres en grappe autour de son nom, un peu plus lâche qu'une
+         œuvre citée pour laisser la place aux étiquettes. */
+      const rest = e.kind === "peer" ? 260 - forceDe(e.force) * 40 : e.kind === "fil" ? 170 : 128;
       const dx = b.x - a.x,
         dy = b.y - a.y;
       const d = Math.sqrt(dx * dx + dy * dy) || 0.01;
