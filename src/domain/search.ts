@@ -35,7 +35,20 @@ export const normaliser = (s: string): string =>
    Le titre et le réalisateur d'abord — c'est ce qu'on tape neuf fois sur
    dix. Puis l'année, le casting, vos mots-clés et les motifs : ce sont
    des chemins de traverse, mais ils ne coûtent rien et ils rattrapent les
-   fois où l'on ne se souvient QUE de ça. Le rang sert au tri. */
+   fois où l'on ne se souvient QUE de ça. Le rang sert au tri.
+
+   VOS PROPRES MOTS VIENNENT EN DERNIER, ET ILS MANQUAIENT.
+
+   La visite guidée promettait depuis le début « un titre, un·e cinéaste,
+   UN MOT DE VOS NOTES » — et la critique comme les notes libres étaient
+   les deux seuls champs sur lesquels on ne cherchait pas. On pouvait
+   écrire trois pages sur un film et ne jamais le retrouver par ce qu'on
+   en avait dit.
+
+   Bon dernier au classement, et c'est voulu : quelqu'un qui tape
+   « Kurosawa » veut le cinéaste, pas les douze fiches où son nom est
+   cité en passant. Mais il veut les trouver quand rien d'autre ne
+   répond. */
 const champs = (f: Film): { texte: string; rang: number }[] => [
   { texte: f.title || "", rang: 0 },
   { texte: f.director || "", rang: 1 },
@@ -49,7 +62,23 @@ const champs = (f: Film): { texte: string; rang: number }[] => [
       .join(" "),
     rang: 4,
   },
+  { texte: sansJetons(f.review), rang: 5 },
+  { texte: sansJetons(f.notes), rang: 5 },
 ];
+
+/* LES PHOTOGRAMMES NE SONT PAS DES MOTS.
+
+   Une critique porte ses captures sous la forme `[img:3]`, insérées au
+   fil du texte. Les laisser entrer dans la recherche ferait répondre
+   toute fiche illustrée à « img », ce qui n'est pas une réponse.
+
+   La forme du jeton est recopiée ici plutôt qu'importée de
+   `components/stills/tokens` : le domaine ne dépend d'aucun composant,
+   et c'est cette règle-là qui lui permet d'être testé sans React. Si
+   elle change là-bas, elle doit changer ici — ces deux lignes sont le
+   prix de l'indépendance. */
+const JETON_CAPTURE = /\[img:\d+\]/g;
+const sansJetons = (s: string | undefined): string => (s || "").replace(JETON_CAPTURE, " ");
 
 /** Le rang du meilleur champ touché, ou `null` si rien ne répond. */
 export const scoreFilm = (f: Film, q: string): number | null => {

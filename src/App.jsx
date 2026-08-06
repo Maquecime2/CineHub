@@ -107,6 +107,7 @@ import { FilmPolaroid } from "./components/film/FilmPolaroid";
 import { FilmModal } from "./components/film/FilmModal";
 import { FolderTabs } from "./components/layout/FolderTabs";
 import { SkinPicker } from "./components/layout/SkinPicker";
+import { SearchDrawer } from "./components/layout/SearchDrawer";
 import { FilmWall } from "./views/library/FilmWall";
 import { WALLS } from "./views/library/walls";
 import { ThreadBoard } from "./components/film/ThreadBoard";
@@ -186,6 +187,10 @@ export default function App() {
      fiche, et revenir à la fiche ne doit pas avoir oublié laquelle. */
   const [personne, setPersonne] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  /* La recherche qui traverse tout. Un état et non une vue : elle ne
+     remplace aucun onglet, elle passe par-dessus et referme derrière
+     elle. */
+  const [recherche, setRecherche] = useState(false);
 
   /* LA PEAU DU SITE. Elle est ici en etat React pour une seule raison :
      le selecteur doit savoir laquelle est posee pour la marquer. Ce
@@ -196,6 +201,25 @@ export default function App() {
      Posee en `useLayoutEffect` et non `useEffect` : entre les deux, le
      navigateur peint une fois, et l'on verrait le kraft passer avant la
      peau choisie a chaque chargement. */
+  /* CTRL+K OUVRE LA RECHERCHE, ET ON NE VOLE RIEN À PERSONNE.
+
+     Le raccourci est celui que tout le monde connaît, mais il ne se
+     devine pas : la loupe du pied de rail reste le chemin visible, et
+     c'est elle qui l'annonce dans son infobulle.
+
+     `metaKey` autant que `ctrlKey` — sur un Mac, Ctrl+K efface la fin
+     de ligne dans un champ, et c'est Cmd qui commande. */
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key?.toLowerCase() === "k" && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        setRecherche((o) => !o);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   const [skin, setSkin] = useState(loadSkinKey);
   const [skinPicker, setSkinPicker] = useState(false);
   useLayoutEffect(() => {
@@ -339,6 +363,31 @@ export default function App() {
   const ouvrirPersonne = (nom) => {
     setPersonne(normaliser(nom));
     setView("generique");
+  };
+
+  /* CE QU'ON FAIT D'UNE TROUVAILLE, selon sa nature.
+
+     Un motif n'a pas de vue à lui : on ouvre donc la vidéothèque avec sa
+     recherche posée sur le libellé. Ce n'est pas un pis-aller — le mur
+     cherche DÉJÀ dans les motifs (`domain/search`), et le résultat est
+     exactement « les fiches qui portent ce motif », écrit avec les
+     outils qui existent plutôt qu'avec un filtre de plus. */
+  const ouvrirTrouvaille = {
+    film: (id) => {
+      setSelectedId(id);
+      setView("detail");
+    },
+    personne: (clé) => {
+      setPersonne(clé);
+      setView("generique");
+    },
+    page: () => setView("notebook"),
+    motif: (label) => {
+      setSelectedId(null);
+      setUiFor("watched")({ ...wallUi.watched, q: label });
+      setView("library");
+    },
+    fil: () => setView("constellation"),
   };
   const updateFilm = (film) => saveFilms(films.map((f) => (f.id === film.id ? film : f)));
   /* Ranger un boîtier renumérote tout un rayon : une écriture, pas trente. */
@@ -606,11 +655,21 @@ export default function App() {
           setPersonne(null);
         }}
         onAdd={() => setShowModal(true)}
+        onSearch={() => setRecherche(true)}
         onSkin={() => setSkinPicker(true)}
         onHelp={() => setTourMenu((o) => !o)}
       />
       {skinPicker && (
         <SkinPicker skin={skin} onPick={setSkin} onClose={() => setSkinPicker(false)} />
+      )}
+      {recherche && (
+        <SearchDrawer
+          films={films}
+          notes={notebook.notes}
+          fils={fils}
+          onClose={() => setRecherche(false)}
+          ouvrir={ouvrirTrouvaille}
+        />
       )}
       {/* LA COLONNE QUI DOIT POUVOIR RÉTRÉCIR.
 

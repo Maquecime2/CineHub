@@ -47,7 +47,7 @@ const library: Tour = {
     {
       target: at("wall-search"),
       title: "Chercher",
-      body: "Un titre, un·e cinéaste, un mot de vos notes. Sur le mur, la recherche filtre ; sur l'étagère, elle éteint ce qu'elle ne trouve pas et laisse l'agencement en place.",
+      body: "Un titre, un·e cinéaste, un mot de votre critique. Sur le mur, la recherche filtre ; sur l'étagère, elle éteint ce qu'elle ne trouve pas et laisse l'agencement en place. Pour chercher au-delà des films — les gens, les motifs, les fils, le carnet — la loupe du pied de rail interroge tout d'un coup.",
       placement: "bottom",
     },
     {
@@ -368,6 +368,13 @@ const global: Tour = {
       target: at("add-film"),
       title: "Épingler un film",
       body: "À la main, sans passer par l'import : le bouton du pied de rail ouvre une fiche vierge.",
+      placement: "right",
+      view: "library",
+    },
+    {
+      target: at("search-all"),
+      title: "Chercher partout",
+      body: "Une question posée à tout le classeur d'un coup : les films, les gens des génériques, les motifs, les fils et les pages du carnet. Elle cherche jusque dans vos critiques, et vous montre le passage. Ctrl+K l'ouvre aussi.",
       placement: "right",
       view: "library",
     },
