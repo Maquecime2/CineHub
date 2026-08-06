@@ -57,6 +57,45 @@ describe("le catalogue de peaux", () => {
     }
   });
 
+  /* ---------- ce que le navigateur dessine lui-même ---------- */
+
+  /* Le contraste WCAG, en clair : deux luminances relatives, la plus
+     claire au numérateur. 1 pour deux couleurs identiques, 21 pour le
+     noir sur le blanc. */
+  const canal = (v: number) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+  const luminance = (hex: string): number => {
+    const n = parseInt(hex.slice(1), 16);
+    const [r, v, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => canal(c / 255));
+    return 0.2126 * r! + 0.7152 * v! + 0.0722 * b!;
+  };
+  const contraste = (a: string, b: string): number => {
+    const [clair, sombre] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+    return (clair! + 0.05) / (sombre! + 0.05);
+  };
+
+  /* Une liste déroulante ouverte est peinte par le navigateur, hors du
+     document : aucune règle ne viendra rattraper après coup deux
+     couleurs trop proches. On les vérifie donc ici, à la source, sur les
+     deux jetons que la règle `select option` emploie. */
+  it("garde les listes déroulantes lisibles, sur les quatorze peaux", () => {
+    for (const skin of SKINS)
+      expect(
+        contraste(skin.c.ink!, skin.c.card!),
+        `${skin.key} : encre sur carton, c'est le fond d'une liste ouverte`
+      ).toBeGreaterThanOrEqual(4.5);
+  });
+
+  /* LE DRAPEAU DOIT DIRE VRAI, et c'est tout ce qui tient `color-scheme`.
+     Une peau sombre qui s'annonce claire garde les cases à cocher et les
+     listes en clair sur son fond noir — le défaut est invisible au test
+     de rendu, puisque ces morceaux-là ne sont pas dans le document. */
+  it("ne se trompe pas sur la couleur de son propre fond", () => {
+    for (const skin of SKINS) {
+      const sombre = contraste(skin.c.card!, "#FFFFFF") > contraste(skin.c.card!, "#000000");
+      expect(!!skin.dark, `${skin.key} : carton ${skin.c.card}`).toBe(sombre);
+    }
+  });
+
   it("retombe sur le carnet pour une clé inconnue", () => {
     expect(skinOf("n'existe pas").key).toBe(DEFAULT_SKIN);
     expect(skinOf(undefined).key).toBe(DEFAULT_SKIN);

@@ -195,7 +195,15 @@ const CARD: CSSProperties = {
 
 function SkinPanel({ skin }: { skin: Skin }) {
   return (
-    <div style={{ ...CARD, ...skinVars(skin), background: skin.page } as CSSProperties}>
+    /* Le même attribut que sur la racine, et pour la même règle : c'est
+       lui qui dit au navigateur sur quel fond il dessine ses propres
+       morceaux. Sans lui, un fragment sombre garderait ici les listes et
+       les cases claires — soit exactement le défaut qu'on vient
+       inspecter. */
+    <div
+      data-dark={skin.dark ? "1" : "0"}
+      style={{ ...CARD, ...skinVars(skin), background: skin.page } as CSSProperties}
+    >
       {/* L'EN-TÊTE EST HORS DE LA PEAU. Il doit rester lisible même quand
           la peau qu'il annonce est, elle, en défaut — c'est justement ce
           cas-là qu'on vient chercher ici. D'où des valeurs en dur, les
