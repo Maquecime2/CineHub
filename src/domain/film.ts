@@ -13,6 +13,12 @@ export const makeFilm = (partial: Partial<Film> = {}): Film => ({
   poster: "", // URL TMDB, adresse collée, ou image réduite en data URI
   stills: [], // captures d'écran : { id, key (IndexedDB), caption }
   genres: [],
+  cast: [], // les huit premiers rôles ; voir `types`
+  crew: {}, // image · musique · scénario
+  runtime: null, // `null` et non 0 : une durée inconnue s'écarte des moyennes
+  language: "",
+  countries: [],
+  tmdbRating: null,
   themes: [],
   rating: 0,
   review: "",
@@ -32,6 +38,39 @@ export const makeFilm = (partial: Partial<Film> = {}): Film => ({
   source: "manual",
   ...partial,
 });
+
+/* L'AFFICHE DE SECOURS — les initiales du titre.
+
+   La règle est UNE : les premières lettres des deux premiers mots. Elle
+   était recopiée sous chaque endroit qui dessine un film — `FilmPolaroid`,
+   `shelf/items`, `shelf/layout` — et l'export de l'almanach en aurait
+   fait une quatrième copie.
+
+   Pire : la fiche en appliquait une AUTRE, `title.slice(0, 2)`. « Sans
+   toit ni loi » devenait « SN » au mur et « SA » sur sa propre fiche,
+   pour le même film. Deux images d'une même chose qui ne se ressemblent
+   pas, c'est la chose qu'on cesse de reconnaître. */
+export const initialsOf = (title = ""): string =>
+  title
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase();
+
+/* CE QU'EST UNE FICHE INCOMPLÈTE — au sens de ce que TMDB sait remplir.
+
+   Le casting est le meilleur témoin : TMDB en donne un pour presque tout
+   film de fiction, et son absence signale une fiche qui n'a jamais vu la
+   récolte. La durée le confirme.
+
+   On ne regarde PAS les pays ni la langue, et c'est délibéré : TMDB en
+   laisse légitimement sans pour un court-métrage obscur. Les prendre
+   pour un manque ferait réinterroger éternellement les mêmes fiches, à
+   chaque passage, sans que rien ne change jamais. */
+export const isIncomplete = (f: Pick<Film, "cast" | "runtime">): boolean =>
+  (f.cast || []).length === 0 || f.runtime == null;
 
 /* ------------------------------------------------------------
    LE JOURNAL DES SÉANCES
@@ -116,6 +155,24 @@ export const migrate = (films: Partial<Film>[] | null | undefined): Film[] =>
     archived: !!f.archived,
     order: typeof f.order === "number" ? f.order : null,
     genres: f.genres || [],
+    /* Les fiches d'avant le casting n'en portent pas. On ne va PAS le
+       chercher ici : `migrate` tourne au chargement, hors ligne et sans
+       clé TMDB. C'est un réimport qui le remplira, et le diff le
+       montrera avant de l'écrire. */
+    cast: f.cast || [],
+    crew: f.crew || {},
+    /* Comme le casting : les fiches d'avant ne les portent pas, et on ne
+       va PAS les chercher ici — `migrate` tourne au chargement, hors
+       ligne et sans clé. C'est le bouton « compléter les fiches » de
+       l'onglet Import qui les remplit, diff à l'appui.
+
+       `?? null` et non `|| null` : une durée légitime ne peut pas valoir
+       zéro, mais la note TMDB d'un film inconnu, si — et `||`
+       l'écraserait sans distinguer « zéro » de « absent ». */
+    runtime: f.runtime ?? null,
+    language: f.language || "",
+    countries: f.countries || [],
+    tmdbRating: f.tmdbRating ?? null,
     themes: f.themes || [],
     linkedWorks: f.linkedWorks || [],
     stills: f.stills || [],

@@ -80,6 +80,30 @@ export interface Film {
   poster: string;
   stills: Still[];
   genres: string[];
+  /**
+   * Les huit premiers rôles, dans l'ordre du générique. Huit et pas le
+   * générique entier : au-delà on entre dans les silhouettes, qui ne
+   * relient jamais deux films et pèsent dans le `localStorage`.
+   */
+  cast: string[];
+  /**
+   * L'équipe, par métier : `image`, `musique`, `scénario`. Les clés
+   * absentes valent « pas renseigné » — jamais une liste vide écrite
+   * pour rien.
+   */
+  crew: Record<string, string[]>;
+  /**
+   * Durée en minutes. `null` — et jamais 0 — quand elle est inconnue :
+   * un zéro entrerait dans les moyennes de l'almanach et les fausserait
+   * en silence, là où un `null` s'écarte.
+   */
+  runtime: number | null;
+  /** Langue d'origine, code ISO 639-1 (« fr », « ja »). Vide si inconnue. */
+  language: string;
+  /** Pays de production, deux au plus, codes ISO 3166-1 (« FR », « JP »). */
+  countries: string[];
+  /** La note du public TMDB sur 10 — de quoi mesurer son propre écart. */
+  tmdbRating: number | null;
   themes: string[];
   rating: number;
   review: string;
@@ -169,6 +193,12 @@ export interface ImportRow {
   uri: string | null;
   director?: string;
   genres?: string[];
+  cast?: string[];
+  crew?: Record<string, string[]>;
+  runtime?: number | null;
+  language?: string;
+  countries?: string[];
+  tmdbRating?: number | null;
   poster?: string;
   tmdbId?: number | string | null;
   /**
@@ -239,8 +269,31 @@ export type PlacedNode = SkyNode & { x: number; y: number };
 export interface SkyLink {
   a: string;
   b: string;
-  /** "cite" : un film renvoie à une œuvre. "peer" : deux fiches du mur reliées. */
-  kind: "cite" | "peer";
+  /**
+   * "cite" : un film renvoie à une œuvre. "peer" : deux fiches du mur
+   * reliées à la main. "crew" : une parenté trouvée par la machine dans
+   * les génériques — elle se dessine autrement, parce que la carte doit
+   * dire du premier coup d'œil ce qui vient de vous.
+   */
+  kind: "cite" | "peer" | "crew";
+  /** Les raisons qui justifient un fil "crew" — de quoi l'expliquer en une ligne. */
+  why?: Kinship[];
+}
+
+/**
+ * La NATURE d'une parenté, et non seulement son nom.
+ *
+ * « Decaë » ne dit pas grand-chose ; « image · Decaë » dit qu'on suit un
+ * chef opérateur. `thème` est la seule qui ne vienne pas d'un générique
+ * mais de vos propres mots-clés — elle mérite d'être distinguée des
+ * autres, parce qu'elle est de vous.
+ */
+export type KinshipRole =
+  "réalisation" | "interprétation" | "image" | "musique" | "scénario" | "thème";
+
+export interface Kinship {
+  role: KinshipRole;
+  nom: string;
 }
 
 /** Restreint la carte du ciel à un sous-ensemble de la collection. */

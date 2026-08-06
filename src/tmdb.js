@@ -9,6 +9,26 @@ const BASE = "https://api.themoviedb.org/3";
 export const POSTER_BASE = "https://image.tmdb.org/t/p/w342";
 const CACHE_KEY = "tmdb-cache";
 
+/* LA FORME DE CE QU'ON MÉMORISE, ET POURQUOI ELLE PORTE UN NUMÉRO.
+
+   Le cache est éternel par dessein : un film ne change ni de
+   réalisateur ni d'année, et le réinterroger brûlerait le quota pour
+   rien. Mais ce raisonnement ne vaut que pour les champs qu'on
+   demandait DÉJÀ. Le jour où `getDetails` s'est mis à rapporter la
+   durée, le pays et la langue, les entrées mémorisées la veille sont
+   devenues des réponses tronquées — et le cache, qui ne sait pas qu'il
+   est en retard, les servait comme des réponses complètes.
+
+   C'est de là que venait « compléter les fiches ne fait rien » : la
+   fiche était bien reconnue incomplète, l'appel était bien lancé, et il
+   revenait du `localStorage` aussi vide qu'il était parti. Aucune
+   erreur, aucun compte à zéro, rien à quoi se raccrocher.
+
+   Le numéro règle cela une fois pour toutes : une entrée d'une autre
+   forme n'est pas une réponse, c'est une absence. On la jette et on
+   redemande. À INCRÉMENTER dès qu'un champ s'ajoute à `getDetails`. */
+const SHAPE = 2;
+
 // le cache évite de reconsommer le quota à chaque réimport du même fichier
 const readCache = () => {
   try {
@@ -77,19 +97,74 @@ export async function searchMovie({ title, year, apiKey }) {
   return data.results?.[0] || null;
 }
 
+/* LES TROIS MÉTIERS QU'ON RETIENT, et les intitulés TMDB qui les
+   désignent. Trois et pas trente : une équipe entière compte deux cents
+   noms, dont l'écrasante majorité ne relie jamais deux films entre eux
+   et pèserait pour rien dans le `localStorage`.
+
+   Ceux-là, si. Un chef opérateur suivi de film en film dit quelque chose
+   d'une collection ; le troisième assistant décorateur ne dit rien. */
+const MÉTIERS = {
+  image: ["Director of Photography", "Cinematography"],
+  musique: ["Original Music Composer", "Music"],
+  scénario: ["Screenplay", "Writer"],
+};
+
+/* Les huit premiers rôles, tels que TMDB les classe — c'est-à-dire par
+   ordre d'apparition au générique. Au-delà, on entre dans les silhouettes
+   et les voix de foule : du bruit, et du poids. */
+const ROLES = 8;
+
 /* Détail + équipe : c'est là que se trouve le réalisateur. */
 export async function getDetails(tmdbId, apiKey) {
   const data = await get(`/movie/${tmdbId}`, { append_to_response: "credits" }, apiKey);
-  const directors = (data.credits?.crew || [])
-    .filter((c) => c.job === "Director")
-    .map((c) => c.name);
+  const équipe = data.credits?.crew || [];
+  const directors = équipe.filter((c) => c.job === "Director").map((c) => c.name);
+
+  /* L'ANNOTATION CI-DESSOUS EST NÉCESSAIRE, ET ELLE VAUT POUR TOUS LES
+     APPELANTS.
+
+     Ce module est en JavaScript, et TypeScript infère le type d'un objet
+     à sa DÉCLARATION : un `{}` rempli plus loin, clé par clé, reste un
+     `{}` à ses yeux. `getDetails` annonçait donc un `crew` sans aucune
+     clé possible, et chaque appelant devait rétablir la vérité par une
+     assertion de son côté — une par point d'appel, à recopier à chaque
+     nouveau, et fausse le jour où la forme changerait ici.
+
+     Une ligne à la source évite toutes les autres. Elle est dans un
+     bloc `/**` bien à elle : TypeScript ne lit QUE ceux-là, et un `@type`
+     noyé dans un commentaire ordinaire est ignoré sans un mot — ce qui
+     est exactement ce qui vient d'arriver en écrivant ces lignes. */
+  /** @type {Record<string, string[]>} */
+  const crew = {};
+  for (const [métier, intitulés] of Object.entries(MÉTIERS)) {
+    const noms = [...new Set(équipe.filter((c) => intitulés.includes(c.job)).map((c) => c.name))];
+    if (noms.length) crew[métier] = noms;
+  }
+
   return {
+    v: SHAPE,
     tmdbId: data.id,
     director: directors.join(", "),
     genres: (data.genres || []).map((g) => g.name),
     year: data.release_date ? Number(data.release_date.slice(0, 4)) : null,
     // on ne stocke qu'un chemin (~30 octets) : l'image reste chez TMDB
     poster: data.poster_path ? `${POSTER_BASE}${data.poster_path}` : "",
+    cast: (data.credits?.cast || []).slice(0, ROLES).map((c) => c.name),
+    crew,
+    /* LA DURÉE, ET POURQUOI `null` PLUTÔT QUE ZÉRO. TMDB rend parfois 0
+       pour un film dont il ignore la durée. Le garder tel quel ferait
+       entrer un zéro dans les moyennes de l'almanach et tirerait « la
+       durée moyenne d'une séance » vers le bas sans qu'on sache
+       pourquoi. Une durée inconnue doit pouvoir être ÉCARTÉE d'un
+       calcul, ce qu'un zéro ne permet pas. */
+    runtime: data.runtime || null,
+    language: data.original_language || "",
+    /* Deux pays au plus : une coproduction en aligne parfois six, et le
+       sixième financier ne dit rien du film qu'on a vu. */
+    countries: (data.production_countries || []).slice(0, 2).map((c) => c.iso_3166_1),
+    // même raison que la durée : 0 veut dire « pas encore noté »
+    tmdbRating: data.vote_average || null,
   };
 }
 
@@ -291,6 +366,13 @@ function cacheLookup(cache, key) {
     delete cache[key];
     return { hit: false };
   }
+  /* Une réponse d'une forme périmée n'est pas une réponse : elle ne
+     porte pas les champs qu'on vient chercher. On la traite comme une
+     absence — voir `SHAPE`. */
+  if (v.v !== SHAPE) {
+    delete cache[key];
+    return { hit: false };
+  }
   return { hit: true, info: v };
 }
 
@@ -351,6 +433,16 @@ export async function enrichRows(rows, apiKey, { onProgress, concurrency = 5 } =
             director: info.director || "",
             genres: info.genres || [],
             poster: info.poster || "",
+            /* Les entrées mémorisées AVANT que le casting soit récolté
+               n'en portent pas : le repli est une liste vide, jamais
+               `undefined` — c'est cette valeur-là qui traverse ensuite
+               le diff et la fiche. */
+            cast: info.cast || [],
+            crew: info.crew || {},
+            runtime: info.runtime ?? null,
+            language: info.language || "",
+            countries: info.countries || [],
+            tmdbRating: info.tmdbRating ?? null,
             tmdbId: info.tmdbId,
             year: rows[i].year || info.year || "",
           };

@@ -448,3 +448,93 @@ describe("diffImport", () => {
     expect(unchanged).toHaveLength(1);
   });
 });
+
+describe("diffImport — le casting", () => {
+  it("pose casting et équipe sur une fiche créée", () => {
+    const r = row({ cast: ["Delon"], crew: { image: ["Decaë"] } });
+    const { toCreate } = diffImport([], [r], "watched");
+    expect(toCreate[0]).toMatchObject({ cast: ["Delon"], crew: { image: ["Decaë"] } });
+  });
+
+  it("laisse une fiche créée sans casting avec des formes vides, jamais undefined", () => {
+    const { toCreate } = diffImport([], [row()], "watched");
+    expect(toCreate[0]!.cast).toEqual([]);
+    expect(toCreate[0]!.crew).toEqual({});
+  });
+
+  it("comble le casting d'une fiche qui n'en avait pas", () => {
+    const ancienne = makeFilm({ title: "Un film", year: 1975, cast: [], crew: {} });
+    const r = row({ cast: ["Delon"], crew: { musique: ["Rubinstein"] } });
+    const { toUpdate } = diffImport([ancienne], [r], "watched");
+    expect(toUpdate[0]!.changes).toMatchObject({
+      cast: ["Delon"],
+      crew: { musique: ["Rubinstein"] },
+    });
+  });
+
+  it("ne remplace pas un casting déjà là", () => {
+    const ancienne = makeFilm({
+      title: "Un film",
+      year: 1975,
+      cast: ["Quelqu'un"],
+      crew: { image: ["Untel"] },
+    });
+    const r = row({ cast: ["Delon"], crew: { image: ["Decaë"] } });
+    const { toUpdate, unchanged } = diffImport([ancienne], [r], "watched");
+    expect(toUpdate).toEqual([]);
+    expect(unchanged).toHaveLength(1);
+  });
+
+  /* Le diff est ce qu'on montre AVANT d'écrire : un casting nouvellement
+     récolté doit y paraître comme une modification proposée, et non
+     s'écrire en douce. */
+  it("fait sortir en « modifiés » une fiche que seul le casting change", () => {
+    const ancienne = makeFilm({ title: "Un film", year: 1975 });
+    const { toUpdate, unchanged } = diffImport([ancienne], [row({ cast: ["Delon"] })], "watched");
+    expect(unchanged).toEqual([]);
+    expect(Object.keys(toUpdate[0]!.changes)).toEqual(["cast"]);
+  });
+});
+
+describe("diffImport — durée, langue, pays, note du public", () => {
+  it("comble ce qui manque", () => {
+    const ancienne = makeFilm({ title: "Un film", year: 1975 });
+    const r = row({ runtime: 116, language: "fr", countries: ["FR"], tmdbRating: 7.8 });
+    expect(diffImport([ancienne], [r], "watched").toUpdate[0]!.changes).toMatchObject({
+      runtime: 116,
+      language: "fr",
+      countries: ["FR"],
+      tmdbRating: 7.8,
+    });
+  });
+
+  it("ne corrige jamais ce qui est déjà là", () => {
+    const ancienne = makeFilm({
+      title: "Un film",
+      year: 1975,
+      runtime: 100,
+      language: "ja",
+      countries: ["JP"],
+      tmdbRating: 6,
+    });
+    const r = row({ runtime: 116, language: "fr", countries: ["FR"], tmdbRating: 7.8 });
+    expect(diffImport([ancienne], [r], "watched").unchanged).toHaveLength(1);
+  });
+
+  /* Une durée inconnue vaut `null`, jamais 0 : un zéro entrerait dans
+     les moyennes de l'almanach et les fausserait en silence. */
+  it("n'écrit pas une durée absente", () => {
+    const ancienne = makeFilm({ title: "Un film", year: 1975 });
+    const { unchanged } = diffImport([ancienne], [row({ runtime: null })], "watched");
+    expect(unchanged).toHaveLength(1);
+  });
+
+  /* Le piège de `||` : une fiche notée 0 par le public est RENSEIGNÉE.
+     La réinterroger à chaque import la ferait sortir en « modifiés »
+     pour rien, indéfiniment. */
+  it("laisse tranquille une note du public qui vaut zéro", () => {
+    const ancienne = makeFilm({ title: "Un film", year: 1975, tmdbRating: 0 });
+    const { unchanged } = diffImport([ancienne], [row({ tmdbRating: 7.8 })], "watched");
+    expect(unchanged).toHaveLength(1);
+  });
+});

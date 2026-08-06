@@ -1,7 +1,38 @@
+@import "./theme/print.css";
+
 *,
 *::before,
 *::after {
   box-sizing: border-box;
+}
+
+/* RIEN NE DÉFILE JAMAIS SUR LE CÔTÉ.
+
+   Une archive se feuillette de haut en bas ; une barre horizontale sous
+   la page est toujours un accident, jamais une intention. Il y en avait
+   deux sources, et aucune ne venait du contenu :
+
+   - le tiroir « Mis de côté », qui est un panneau `position: fixed`
+     rangé HORS de l'écran par un `translateX` quand il est fermé. Le
+     déplacement le sort du cadre mais le laisse peser sur la zone
+     défilable — deux cent cinquante pixels de vide, en permanence ;
+   - les décors posés en absolu qui débordent volontairement (anneaux de
+     café, rubans), et qu'on veut voir rognés, pas atteignables.
+
+   `clip` et NON `hidden` : `hidden` ferait de la racine un conteneur de
+   défilement, ce qui casserait `position: sticky` et rendrait le
+   défilement vertical à un autre élément. `clip` coupe sans rien créer.
+   C'est la même distinction que pour le rail des onglets, dans
+   `theme/tokens`.
+
+   SUR `html` SEULEMENT, et c'est la règle entière. Le débordement de
+   l'élément racine se propage à la fenêtre : c'est ELLE qui rogne, et
+   aucun élément de la page ne devient une boîte de rognage. Le poser
+   aussi sur `body` en ferait un rogneur ordinaire, qui emporterait avec
+   lui tout ce qu'il contient de `position: fixed` — le tiroir, la fiche
+   d'un boîtier — dans un cadre qui, lui, défile avec la page. */
+html {
+  overflow-x: clip;
 }
 
 body {

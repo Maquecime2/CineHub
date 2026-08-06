@@ -115,6 +115,23 @@ export const FONT_IMPORT = `
   --tag-radius: 3px;
   --tag-tracking: 1.5px;
   --tag-transform: none;
+
+  /* LE MOUVEMENT, EN DEUX DUREES ET PAS TRENTE.
+
+     Elles sont ici, et non recopiees dans chaque composant, pour une
+     raison qui n'est pas la coquetterie : le bloc « mouvement reduit »
+     plus bas les ramene a zero EN UN SEUL ENDROIT. Une duree ecrite en
+     ligne dans un style React ne peut pas etre annulee par une feuille
+     de styles — elle gagne toujours — et chaque animation ecrite ainsi
+     serait une promesse rompue a qui a demande a son systeme de ne pas
+     bouger.
+
+     Un carnet n'a pas de fondu enchaine : ce qui bouge ici se DEPLACE,
+     et la courbe le dit — elle part vite et se pose, comme un objet
+     qu'on repose sur une table. */
+  --motion-fast: .16s;
+  --motion-slow: .34s;
+  --motion-ease: cubic-bezier(.2,.8,.3,1);
 }
 
 ::selection { background: ${alpha(C.ochre, 0.4)}; color: ${C.ink}; }
@@ -218,9 +235,41 @@ html[data-dragging="1"] [data-wall-item]:not([data-drag-self]) {
 [data-wall-item]:hover { filter: drop-shadow(2px 3px 3px rgba(30,20,10,0.3)); }
 [data-wall-item]:active { cursor: grabbing; }
 
+/* CE QUI ARRIVE ARRIVE EN GLISSANT.
+
+   Une vue qui se substitue a une autre sans un mot ne se lit pas comme
+   un dossier qu'on ouvre : elle clignote. Neuf pixels et un souffle
+   suffisent a dire « ceci vient de remplacer cela » — au-dela on
+   attend, et une application qu'on ouvre trente fois par jour ne doit
+   jamais faire attendre.
+
+   Porte par un attribut plutot qu'une classe : c'est le meme usage que
+   les cibles de depot ci-dessus, et il se pose en une ligne sur
+   n'importe quel conteneur.
+
+   BACKWARDS ET NON BOTH, ET C'EST LA MOITIE D'UN ECRAN QUI EN DEPEND.
+   Une animation qui touche la propriete transform fait de son element
+   un BLOC CONTENEUR pour tout ce qu'il contient en position fixed —
+   tant qu'elle est en effet. Le remplissage both la laisse en effet
+   POUR TOUJOURS une fois finie : le conteneur de vue devenait la
+   fenetre de tous les panneaux fixes qu'il porte, qui se mettaient
+   alors a defiler avec la page. La languette du tiroir qu'il fallait
+   aller chercher en bas, la fiche d'un boitier qui ne paraissait pas :
+   c'etait ca.
+
+   Le remplissage forwards n'apportait rien ici — l'image d'arrivee de
+   sheetIn est exactement l'etat naturel de l'element. Reste backwards,
+   le seul utile : pas de clignotement avant le premier pas. */
+[data-enters] { animation: sheetIn var(--motion-slow) var(--motion-ease) backwards; }
+
 @media (prefers-reduced-motion: reduce) {
   [data-case] *, [data-case] { animation-duration: .01ms !important; animation-delay: 0ms !important; }
   [data-drop-mark], [data-lean], [data-row-seam], [data-wall-item] { transition: none !important; }
+  /* LA OU LES DEUX DUREES S'ETEIGNENT — une fois pour toutes celles qui
+     passent par les jetons. Tout ce qui est ecrit en ligne echappe a
+     cette regle : c'est pourquoi les nouvelles durees n'y sont pas. */
+  :root { --motion-fast: 0s; --motion-slow: 0s; }
+  [data-enters] { animation: none !important; }
 }
 
 input::placeholder, textarea::placeholder { color: ${alpha(C.inkFaded, 0.53)}; font-style: italic; }

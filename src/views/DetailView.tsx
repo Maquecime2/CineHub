@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { C, F } from "../theme/tokens";
 import { underlineInput } from "../theme/styles";
-import { uid, withWatches } from "../domain/film";
+import { uid, withWatches, initialsOf } from "../domain/film";
 import { putImage } from "../db";
 import { imageSize, shrinkImage } from "../services/images";
 import { Label, InkStars } from "../components/ui";
@@ -24,6 +24,7 @@ import { StampCorner, Tape } from "../components/atmosphere";
 import { PosterArt } from "../components/film/PosterArt";
 import { PosterPicker } from "../components/film/PosterPicker";
 import { FilmIdentity } from "../components/film/FilmIdentity";
+import { TmdbFacts } from "../components/film/TmdbFacts";
 import { WatchLog } from "../components/film/WatchLog";
 import { ThreadBoard } from "../components/film/ThreadBoard";
 import { LINK_TYPES } from "../components/film/linkTypes";
@@ -225,12 +226,7 @@ export function DetailView({
               rotate={-5}
               style={{ top: -10, left: "50%", marginLeft: -35 }}
             />
-            <PosterArt
-              film={film}
-              height={290}
-              clipSeed={11}
-              initials={film.title.slice(0, 2).toUpperCase()}
-            />
+            <PosterArt film={film} height={290} clipSeed={11} initials={initialsOf(film.title)} />
           </div>
           <PosterPicker film={film} onUpdate={onUpdate} />
           <div
@@ -331,6 +327,10 @@ export function DetailView({
                 </span>
               ))}
             </div>
+            {/* Tout ce que la récolte rapporte et qu'on ne lisait nulle
+                part : durée, pays, langue, équipe, casting. C'est là
+                qu'on voit ce qui manque, et qu'on le redemande. */}
+            <TmdbFacts film={film} onUpdate={onUpdate} />
             <div style={{ marginTop: 14, borderTop: `1px solid ${C.line}`, paddingTop: 10 }}>
               <Label>Mots-clés</Label>
               <TagEditor

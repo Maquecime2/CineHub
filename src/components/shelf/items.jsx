@@ -1,10 +1,10 @@
 /* Les objets qu'on pose sur une planche : le repère de dépôt, le boîtier,
    le décor et la catégorie. */
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { C, F, alpha } from "../../theme/tokens";
 import { hueOf } from "../../theme/ink";
 import { tiltOf } from "../../domain/seeded";
-import { watchCount } from "../../domain/film";
+import { watchCount, initialsOf } from "../../domain/film";
 import { PosterArt } from "../film/PosterArt";
 import { PushPin } from "../atmosphere";
 import { Palette } from "lucide-react";
@@ -105,14 +105,29 @@ export const FilmBox = React.memo(function FilmBox({
   dim,
 }) {
   const [hover, setHover] = useState(false);
+  /* OUVRIR UN BOÎTIER MALGRÉ LE GLISSER-DÉPOSER.
+
+     `onClick` ne suffit pas sur un élément `draggable`, et c'est le
+     navigateur qui en décide : dès que le pointeur bouge de deux ou
+     trois pixels entre l'appui et le relâchement, il considère qu'un
+     glissement a commencé et N'ÉMET JAMAIS le clic. Sur un boîtier de
+     quatre-vingt-seize pixels qu'on vise à la souris, ce tremblement est
+     la règle plutôt que l'exception — d'où un rayon qui ne s'ouvrait
+     qu'une fois sur deux, sans qu'aucune erreur ne paraisse.
+
+     On ouvre donc au RELÂCHEMENT du pointeur, en jugeant nous-mêmes ce
+     qui est un clic : pas de glissement commencé, et moins de cinq
+     pixels parcourus. Le seuil est le même que dans la constellation,
+     pour que le geste ait partout la même tolérance.
+
+     `onClick` reste, mais pour le CLAVIER seulement. Entrée et Espace
+     sur un bouton émettent un clic dont `detail` vaut zéro — aucun
+     pointeur ne l'a produit. C'est le seul moyen de garder le rayon
+     accessible sans ouvrir deux fois à la souris. */
+  const pressAt = useRef(null);
+  const dragged = useRef(false);
   const hue = hueOf(film.id);
-  const initials = film.title
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase();
+  const initials = initialsOf(film.title);
   /* LA NOTE SUR LA TRANCHE.
 
      On comptait les étoiles pleines et les creuses avec deux `repeat`.
@@ -184,13 +199,31 @@ export const FilmBox = React.memo(function FilmBox({
         <button
           draggable
           onDragStart={(e) => {
+            dragged.current = true;
             e.dataTransfer.effectAllowed = "move";
             e.dataTransfer.setData("text/plain", film.id);
             carryGhost(e, e.currentTarget);
             onDragStart("film", film.id, e.currentTarget);
           }}
-          onDragEnd={onDragEnd}
-          onClick={() => onOpen(film.id)}
+          onDragEnd={(e) => {
+            dragged.current = false;
+            onDragEnd(e);
+          }}
+          onPointerDown={(e) => {
+            dragged.current = false;
+            pressAt.current = { x: e.clientX, y: e.clientY };
+          }}
+          onPointerUp={(e) => {
+            const s = pressAt.current;
+            pressAt.current = null;
+            if (!s || dragged.current) return;
+            if (Math.hypot(e.clientX - s.x, e.clientY - s.y) > 5) return; // c'était un glissé
+            onOpen(film.id);
+          }}
+          // le clavier seulement : un clic de souris a déjà été traité au relâchement
+          onClick={(e) => {
+            if (e.detail === 0) onOpen(film.id);
+          }}
           title={`${film.title}${film.year ? ` (${film.year})` : ""}`}
           style={{
             all: "unset",

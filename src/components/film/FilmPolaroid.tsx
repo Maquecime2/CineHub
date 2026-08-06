@@ -12,7 +12,7 @@
 import { C, F } from "../../theme/tokens";
 import { tapeColor } from "../../theme/ink";
 import { hash, tiltOf, usesPin, nudgeOf, pickFrom } from "../../domain/seeded";
-import { watchCount } from "../../domain/film";
+import { watchCount, initialsOf } from "../../domain/film";
 import { PushPin, Tape, FileNumber } from "../atmosphere";
 import { InkStars } from "../ui";
 import { PosterArt } from "./PosterArt";
@@ -52,13 +52,7 @@ export function FilmPolaroid({
   const pinned = hang === "auto" ? usesPin(film.id) : hang === "pin";
   const bare = hang === "none";
 
-  const initials = film.title
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase();
+  const initials = initialsOf(film.title);
   // l'ombre tombe du côté opposé à l'inclinaison — la photo n'est pas plaquée à plat
   const rest = `${tilt > 0 ? -3 : 3}px 7px 15px rgba(30,20,10,0.3), 0 1px 2px rgba(30,20,10,0.4)`;
   const lift = `${tilt > 0 ? -6 : 6}px 18px 30px rgba(30,20,10,0.38), 0 2px 3px rgba(30,20,10,0.3)`;

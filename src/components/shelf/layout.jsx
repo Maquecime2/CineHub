@@ -6,6 +6,7 @@ import { X, Trash2, Upload, ChevronLeft, Eye, EyeOff } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { wallStyle, materialStyle, PLANK_SHADOW } from "../../theme/surfaces";
 import { hash, fileNoOf } from "../../domain/seeded";
+import { initialsOf } from "../../domain/film";
 import { PosterArt } from "../film/PosterArt";
 import { InkStars } from "../ui";
 import { isUnplaced, CAT_KEYS, addRow, removeRow, clearRow, addCat } from "../../shelf-views";
@@ -598,7 +599,11 @@ export function Shelf({
   );
 
   return (
-    <div style={{ marginTop: 26 }}>
+    /* Le débordement volontaire des décors — un anneau de café, un ruban
+       qui mord sur le bord — est rogné ici, au plus près : sur le rayon
+       lui-même, qui ne contient rien de `position: fixed`. `clip` et non
+       `hidden`, qui ferait de ce bloc un conteneur de défilement. */
+    <div style={{ marginTop: 26, overflowX: "clip" }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 4 }}>
         <div
           style={{
@@ -998,13 +1003,7 @@ export function CasePreview({ film, onClose, onOpenFile }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const initials = film.title
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase();
+  const initials = initialsOf(film.title);
   return (
     <div
       onClick={onClose}

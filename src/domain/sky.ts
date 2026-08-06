@@ -5,7 +5,16 @@
    là que les constellations se forment.
    ============================================================ */
 import { hash, seededRand } from "./seeded";
-import type { Film, LinkedWork, PlacedNode, SkyFilters, SkyLink, SkyNode } from "../types";
+import type {
+  Film,
+  Kinship,
+  KinshipRole,
+  LinkedWork,
+  PlacedNode,
+  SkyFilters,
+  SkyLink,
+  SkyNode,
+} from "../types";
 
 // clé de fusion : deux fois « Nighthawks / Hopper » = un seul astre
 export const workKey = (w: LinkedWork): string =>
@@ -80,6 +89,230 @@ export function buildSky(
   });
 
   // le degré sert à doser la taille et à n'étiqueter que les astres qui comptent
+  const deg = new Map<string, number>();
+  links.forEach((l) => {
+    deg.set(l.a, (deg.get(l.a) || 0) + 1);
+    deg.set(l.b, (deg.get(l.b) || 0) + 1);
+  });
+  nodes.forEach((n) => {
+    n.degree = deg.get(n.id) || 0;
+  });
+
+  return { nodes, links };
+}
+
+/* ============================================================
+   LES PARENTÉS TROUVÉES DANS LES GÉNÉRIQUES
+   ============================================================
+
+   `buildSky` ne montre que ce qu'on a relié à la main, et cette règle
+   reste intacte : c'est elle qui empêche le ciel de s'effondrer. Mais
+   elle a un coût — une collection neuve donne un onglet vide, et il faut
+   des heures de saisie avant que la carte ait quoi que ce soit à dire.
+
+   D'où ceci, À CÔTÉ et jamais à la place : des fils tirés du générique,
+   dessinés autrement, éteints par défaut.
+
+   LE SEUIL EST TOUT LE SUJET. Une personne présente dans deux ou trois
+   films dit quelque chose : un chef opérateur qu'on suit, un acteur
+   qu'on retrouve. Présente dans quinze, elle ne dit plus rien — elle
+   relierait tout à tout et ramènerait exactement la masse illisible que
+   la règle de `buildSky` avait chassée. Au-delà du seuil, la personne est
+   donc IGNORÉE, et non tracée en plus pâle : un fil qui ne veut rien dire
+   ne se rattrape pas à l'opacité. */
+export interface SuggestOptions {
+  /** En deçà, ce n'est pas une parenté. */
+  min?: number;
+  /** Au-delà, la personne est trop commune pour relier quoi que ce soit. */
+  max?: number;
+}
+
+/* TOUT CE QUI PEUT APPARENTER DEUX FICHES, avec sa NATURE.
+
+   La version précédente aplatissait tout en une liste de noms, et
+   perdait le métier au passage : la carte pouvait dire « Decaë » mais
+   pas « image · Decaë ». Or c'est le métier qui donne son sens au fil —
+   suivre un chef opérateur et retrouver un acteur ne sont pas la même
+   curiosité.
+
+   `thème` est une source NOUVELLE, et la seule qui ne vienne pas d'un
+   générique : ce sont vos propres mots-clés. Elle obéit au même seuil
+   que les personnes — un mot posé sur quinze fiches ne relie rien de
+   plus qu'un acteur omniprésent. */
+const CREW_ROLES: Record<string, KinshipRole> = {
+  image: "image",
+  musique: "musique",
+  scénario: "scénario",
+};
+
+const parentésDe = (f: Film): Kinship[] => {
+  const out: Kinship[] = [];
+  for (const nom of (f.director || "").split(","))
+    if (nom.trim()) out.push({ role: "réalisation", nom: nom.trim() });
+  for (const nom of f.cast || []) if (nom.trim()) out.push({ role: "interprétation", nom });
+  for (const [métier, noms] of Object.entries(f.crew || {})) {
+    const role = CREW_ROLES[métier];
+    if (!role) continue;
+    for (const nom of noms) if (nom.trim()) out.push({ role, nom });
+  }
+  for (const t of f.themes || []) if (t.trim()) out.push({ role: "thème", nom: t });
+  return out;
+};
+
+/* La clé d'unicité inclut le RÔLE : un compositeur qui joue aussi dans
+   deux films est deux parentés différentes, et les confondre ferait
+   disparaître l'une des deux. */
+const cléDe = (k: Kinship): string => `${k.role}::${k.nom.trim().toLowerCase()}`;
+
+export function suggestLinks(films: Film[], { min = 2, max = 3 }: SuggestOptions = {}): SkyLink[] {
+  const parParenté = new Map<string, Set<string>>();
+  const lisible = new Map<string, Kinship>();
+
+  for (const f of films) {
+    for (const k of parentésDe(f)) {
+      const clé = cléDe(k);
+      if (clé.endsWith("::")) continue;
+      let lot = parParenté.get(clé);
+      if (!lot) parParenté.set(clé, (lot = new Set()));
+      lot.add(f.id);
+      if (!lisible.has(clé)) lisible.set(clé, { role: k.role, nom: k.nom.trim() });
+    }
+  }
+
+  /* Une arête par PAIRE, quel qu'en soit le nombre de raisons : deux
+     films qui partagent un chef opérateur ET un compositeur sont reliés
+     une fois, par un fil qui en donne deux. */
+  const arêtes = new Map<string, SkyLink>();
+
+  for (const [clé, lot] of parParenté) {
+    if (lot.size < min || lot.size > max) continue;
+    const raison = lisible.get(clé) as Kinship;
+    const ids = [...lot].sort();
+    for (let i = 0; i < ids.length; i++)
+      for (let j = i + 1; j < ids.length; j++) {
+        const paire = `${ids[i]}|${ids[j]}`;
+        const déjà = arêtes.get(paire);
+        if (déjà) déjà.why?.push(raison);
+        else
+          arêtes.set(paire, {
+            a: `f:${ids[i]}`,
+            b: `f:${ids[j]}`,
+            kind: "crew",
+            why: [raison],
+          });
+      }
+  }
+
+  return [...arêtes.values()];
+}
+
+/* ============================================================
+   LE VOISINAGE — ce qu'on montre quand on n'affiche pas tout
+   ============================================================
+
+   Le remède au fouillis n'est pas un meilleur placement : c'est de NE
+   PAS TOUT MONTRER. Un graphe de deux cents astres ne se lit à aucune
+   disposition, et le lecteur n'a de toute façon qu'une question à la
+   fois — « qu'est-ce qui tient près de CELUI-CI ».
+
+   On part donc d'un foyer et l'on rend ce qui est à `depth` pas de lui,
+   par un parcours en largeur sur les arêtes déjà construites. Rien à
+   changer dans `buildSky` ni `buildSkyWithCrew` : le sous-graphe se
+   taille APRÈS, ce qui laisse la carte entière disponible pour qui la
+   veut. */
+export function neighbourhood(
+  nodes: SkyNode[],
+  links: SkyLink[],
+  focusId: string,
+  depth = 1
+): { nodes: SkyNode[]; links: SkyLink[] } {
+  const existe = new Set(nodes.map((n) => n.id));
+  if (!existe.has(focusId)) return { nodes: [], links: [] };
+
+  const voisins = new Map<string, string[]>();
+  for (const l of links) {
+    if (!voisins.has(l.a)) voisins.set(l.a, []);
+    if (!voisins.has(l.b)) voisins.set(l.b, []);
+    voisins.get(l.a)?.push(l.b);
+    voisins.get(l.b)?.push(l.a);
+  }
+
+  const gardés = new Set([focusId]);
+  let front = [focusId];
+  for (let d = 0; d < depth; d++) {
+    const suivant: string[] = [];
+    for (const id of front)
+      for (const v of voisins.get(id) || [])
+        if (!gardés.has(v)) {
+          gardés.add(v);
+          suivant.push(v);
+        }
+    front = suivant;
+  }
+
+  return {
+    nodes: nodes.filter((n) => gardés.has(n.id)),
+    /* Une arête n'est gardée que si SES DEUX BOUTS le sont : un fil qui
+       part vers un astre qu'on n'affiche pas ne mène nulle part et fait
+       croire à un voisin invisible. */
+    links: links.filter((l) => gardés.has(l.a) && gardés.has(l.b)),
+  };
+}
+
+/* LE CIEL, PARENTÉS COMPRISES.
+
+   Composé plutôt qu'inséré dans `buildSky` : la carte à la main reste
+   exactement ce qu'elle était, et l'ajout se lit comme ce qu'il est —
+   une couche par-dessus, qu'on retire en éteignant un interrupteur.
+
+   Un film que SEULE une parenté relie n'est pas dans les nœuds de la
+   carte de base : on l'y ajoute ici, sans quoi l'arête pointerait dans
+   le vide. */
+export function buildSkyWithCrew(
+  films: Film[],
+  filters: SkyFilters = {},
+  options: SuggestOptions = {}
+): { nodes: SkyNode[]; links: SkyLink[] } {
+  const base = buildSky(films, filters);
+
+  /* Les mêmes filtres que la carte de base : suggérer par-dessus un
+     ciel restreint aux documentaires ne doit pas ramener le reste. */
+  const { tags = [], genres = [] } = filters;
+  const pool = films.filter(
+    (f) =>
+      (tags.length === 0 || tags.every((t) => (f.themes || []).includes(t))) &&
+      (genres.length === 0 || genres.some((g) => (f.genres || []).includes(g)))
+  );
+  const parId = new Map(pool.map((f) => [f.id, f]));
+
+  const nodes = [...base.nodes];
+  const présents = new Set(nodes.map((n) => n.id));
+  const links = [...base.links];
+
+  for (const lien of suggestLinks(pool, options)) {
+    /* Une paire déjà tendue à la main n'a pas besoin qu'on la redouble :
+       le fil rouge dit déjà tout, et mieux. */
+    if (links.some((l) => l.kind === "peer" && l.a === lien.a && l.b === lien.b)) continue;
+    links.push(lien);
+
+    for (const id of [lien.a, lien.b]) {
+      if (présents.has(id)) continue;
+      const f = parId.get(id.slice(2));
+      if (!f) continue;
+      présents.add(id);
+      nodes.push({
+        id,
+        kind: "film",
+        label: f.title,
+        sub: [f.year, f.director].filter(Boolean).join(" · "),
+        rating: f.rating || 0,
+        filmId: f.id,
+        degree: 0,
+      });
+    }
+  }
+
+  // le degré se recompte sur le graphe entier : il dose la taille des astres
   const deg = new Map<string, number>();
   links.forEach((l) => {
     deg.set(l.a, (deg.get(l.a) || 0) + 1);
