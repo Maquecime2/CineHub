@@ -13,8 +13,7 @@ const ilYA = (jours: number): string =>
 const vu = (title: string, watches: Watch[], extra: Partial<Film> = {}): Film =>
   makeFilm({ title, status: "watched", watches, ...extra });
 
-const suggestions = (films: Film[], combien = 6) =>
-  suggestionsMaison(films, AUJOURD_HUI, combien);
+const suggestions = (films: Film[], combien = 6) => suggestionsMaison(films, AUJOURD_HUI, combien);
 
 const titres = (films: Film[], combien = 6) => suggestions(films, combien).map((s) => s.film.title);
 
@@ -89,10 +88,7 @@ describe("un motif délaissé", () => {
     vu(`Film ${n}`, [{ date: ilYA(jours), rating: note }], { rating: note, motifs });
 
   it("signale une veine qu'on n'a plus croisée", () => {
-    const films = [
-      avecMotif(1, 900, 3, ["melancolie"]),
-      avecMotif(2, 800, 3.5, ["melancolie"]),
-    ];
+    const films = [avecMotif(1, 900, 3, ["melancolie"]), avecMotif(2, 800, 3.5, ["melancolie"])];
     const s = suggestions(films).find((x) => x.nature === "motif");
     expect(s).toBeDefined();
     expect(s!.titre).toBe("Mélancolie");
@@ -119,10 +115,7 @@ describe("un motif délaissé", () => {
   });
 
   it("propose le mieux noté de la veine, non le plus poussiéreux", () => {
-    const films = [
-      avecMotif(1, 1200, 2, ["melancolie"]),
-      avecMotif(2, 900, 5, ["melancolie"]),
-    ];
+    const films = [avecMotif(1, 1200, 2, ["melancolie"]), avecMotif(2, 900, 5, ["melancolie"])];
     const s = suggestions(films).find((x) => x.nature === "motif");
     expect(s!.film.title).toBe("Film 2");
   });
@@ -181,10 +174,26 @@ describe("l'assemblage", () => {
 
   it("entrelace les natures plutôt que de les mettre bout à bout", () => {
     const films = [
-      vu("A", [{ date: ilYA(1000), rating: 5 }], { rating: 5, director: "Ozu", motifs: ["melancolie"] }),
-      vu("B", [{ date: ilYA(900), rating: 5 }], { rating: 5, director: "Ozu", motifs: ["melancolie"] }),
-      vu("C", [{ date: ilYA(950), rating: 4.5 }], { rating: 4.5, director: "Varda", motifs: ["contemplatif"] }),
-      vu("D", [{ date: ilYA(920), rating: 4.5 }], { rating: 4.5, director: "Varda", motifs: ["contemplatif"] }),
+      vu("A", [{ date: ilYA(1000), rating: 5 }], {
+        rating: 5,
+        director: "Ozu",
+        motifs: ["melancolie"],
+      }),
+      vu("B", [{ date: ilYA(900), rating: 5 }], {
+        rating: 5,
+        director: "Ozu",
+        motifs: ["melancolie"],
+      }),
+      vu("C", [{ date: ilYA(950), rating: 4.5 }], {
+        rating: 4.5,
+        director: "Varda",
+        motifs: ["contemplatif"],
+      }),
+      vu("D", [{ date: ilYA(920), rating: 4.5 }], {
+        rating: 4.5,
+        director: "Varda",
+        motifs: ["contemplatif"],
+      }),
     ];
     const natures = suggestions(films).map((s) => s.nature);
     // les trois angles paraissent, plutôt que trois « à revoir » d'affilée
@@ -202,8 +211,16 @@ describe("l'assemblage", () => {
        d'un cinéaste délaissé. Il ne doit pas paraître sous la raison la
        plus pauvre des trois. */
     const films = [
-      vu("A", [{ date: ilYA(1000), rating: 5 }], { rating: 5, director: "Ozu", motifs: ["melancolie"] }),
-      vu("B", [{ date: ilYA(900), rating: 5 }], { rating: 5, director: "Ozu", motifs: ["melancolie"] }),
+      vu("A", [{ date: ilYA(1000), rating: 5 }], {
+        rating: 5,
+        director: "Ozu",
+        motifs: ["melancolie"],
+      }),
+      vu("B", [{ date: ilYA(900), rating: 5 }], {
+        rating: 5,
+        director: "Ozu",
+        motifs: ["melancolie"],
+      }),
     ];
     const pourA = suggestions(films).find((s) => s.film.title === "A")!;
     expect(pourA.nature).toBe("motif");
@@ -225,8 +242,16 @@ describe("l'assemblage", () => {
 
   it("rend des clés distinctes, utilisables comme identité", () => {
     const films = [
-      vu("A", [{ date: ilYA(1000), rating: 5 }], { rating: 5, director: "Ozu", motifs: ["melancolie"] }),
-      vu("B", [{ date: ilYA(900), rating: 5 }], { rating: 5, director: "Ozu", motifs: ["melancolie"] }),
+      vu("A", [{ date: ilYA(1000), rating: 5 }], {
+        rating: 5,
+        director: "Ozu",
+        motifs: ["melancolie"],
+      }),
+      vu("B", [{ date: ilYA(900), rating: 5 }], {
+        rating: 5,
+        director: "Ozu",
+        motifs: ["melancolie"],
+      }),
     ];
     const clés = suggestions(films).map((s) => s.clé);
     expect(new Set(clés).size).toBe(clés.length);

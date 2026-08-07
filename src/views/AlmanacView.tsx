@@ -864,8 +864,7 @@ export function AlmanacView({
      encore — supprimer la dernière séance d'une année la fait
      disparaître de la liste, et on ne doit pas rester sur une page qui
      n'existe plus. */
-  const période =
-    choisie != null && périodes.includes(choisie) ? choisie : (périodes[0] ?? null);
+  const période = choisie != null && périodes.includes(choisie) ? choisie : (périodes[0] ?? null);
 
   const [planche, setPlanche] = useState(0);
 
@@ -1037,36 +1036,36 @@ export function AlmanacView({
               navigateur, et qui n'existe que pour une année : l'image
               est bâtie autour d'un millésime écrit en gros. */}
           {!toujours && (
-          <button
-            onClick={emporter}
-            data-tour="almanac-export"
-            disabled={boîte === "en cours"}
-            title="Une image de cette année, à garder ou à montrer"
-            style={{
-              all: "unset",
-              cursor: boîte === "en cours" ? "progress" : "pointer",
-              marginLeft: "auto",
-              display: "flex",
-              alignItems: "center",
-              gap: 7,
-              padding: "7px 13px",
-              fontFamily: F.mono,
-              fontSize: 11,
-              letterSpacing: "var(--tag-tracking)",
-              color: C.card,
-              background: C.burgundy,
-              borderRadius: "var(--tag-radius)",
-              boxShadow: "2px 3px 7px rgba(0,0,0,0.28)",
-              opacity: boîte === "en cours" ? 0.6 : 1,
-            }}
-          >
-            <Download size={14} />
-            {boîte === "en cours"
-              ? "on développe…"
-              : boîte === "raté"
-                ? "raté — réessayer"
-                : "l'année en boîte"}
-          </button>
+            <button
+              onClick={emporter}
+              data-tour="almanac-export"
+              disabled={boîte === "en cours"}
+              title="Une image de cette année, à garder ou à montrer"
+              style={{
+                all: "unset",
+                cursor: boîte === "en cours" ? "progress" : "pointer",
+                marginLeft: "auto",
+                display: "flex",
+                alignItems: "center",
+                gap: 7,
+                padding: "7px 13px",
+                fontFamily: F.mono,
+                fontSize: 11,
+                letterSpacing: "var(--tag-tracking)",
+                color: C.card,
+                background: C.burgundy,
+                borderRadius: "var(--tag-radius)",
+                boxShadow: "2px 3px 7px rgba(0,0,0,0.28)",
+                opacity: boîte === "en cours" ? 0.6 : 1,
+              }}
+            >
+              <Download size={14} />
+              {boîte === "en cours"
+                ? "on développe…"
+                : boîte === "raté"
+                  ? "raté — réessayer"
+                  : "l'année en boîte"}
+            </button>
           )}
         </div>
 

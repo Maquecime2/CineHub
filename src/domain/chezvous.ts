@@ -65,8 +65,7 @@ const dernièreSéance = (f: Film): number | null => {
   return Number.isFinite(t) ? t : null;
 };
 
-const joursDepuis = (t: number, maintenant: number): number =>
-  Math.floor((maintenant - t) / JOUR);
+const joursDepuis = (t: number, maintenant: number): number => Math.floor((maintenant - t) / JOUR);
 
 /* « il y a deux ans » se lit ; « il y a 913 jours » demande un calcul.
    Sous un an on garde les mois, qui restent parlants. */
@@ -257,7 +256,8 @@ export function suggestionsMaison(
      film qu'elles seules savent nommer. */
   const attribué = new Map<string, Nature>();
   for (const nature of SPÉCIFICITÉ)
-    for (const s of parNature[nature]) if (!attribué.has(s.film.id)) attribué.set(s.film.id, nature);
+    for (const s of parNature[nature])
+      if (!attribué.has(s.film.id)) attribué.set(s.film.id, nature);
 
   const files = SPÉCIFICITÉ.map((nature) =>
     parNature[nature].filter((s) => attribué.get(s.film.id) === nature)

@@ -218,9 +218,7 @@ export function SearchDrawer({
                           >
                             {t.titre}
                           </span>
-                          <span
-                            style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}
-                          >
+                          <span style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}>
                             {t.sous}
                           </span>
                         </div>

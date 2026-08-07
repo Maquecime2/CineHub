@@ -152,7 +152,10 @@ export function classerLaSoirée(
         critères.push({ poids: 0.34, valeur: SANS_DURÉE });
       } else {
         dépassement = Math.max(0, durée! - envie.minutes);
-        critères.push({ poids: 0.34, valeur: dépassement === 0 ? 1 : clamp01(1 - dépassement / MARGE) });
+        critères.push({
+          poids: 0.34,
+          valeur: dépassement === 0 ? 1 : clamp01(1 - dépassement / MARGE),
+        });
         if (dépassement === 0) raisons.push(`${durée} min — ça tient`);
         else raisons.push(`${durée} min, soit ${dépassement} de trop`);
       }

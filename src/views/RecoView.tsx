@@ -483,8 +483,8 @@ export function RecoView({
             {maison.length > 0
               ? "Les propositions ci-dessus viennent de votre collection et n'ont besoin de rien. Pour en chercher au-dehors, il faut une clé : "
               : "Chercher des films au-dehors demande une clé : "}
-            rendez-vous dans l'onglet « Import Letterboxd » pour y coller la vôtre — elle reste
-            dans ce navigateur et sert aussi à l'enrichissement des fiches.
+            rendez-vous dans l'onglet « Import Letterboxd » pour y coller la vôtre — elle reste dans
+            ce navigateur et sert aussi à l'enrichissement des fiches.
           </div>
         </div>
       ) : (
