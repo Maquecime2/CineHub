@@ -509,9 +509,7 @@ describe("toujours", () => {
   });
 
   it("relève le seuil de fidélité : trois fois en sept ans n'est pas une traversée", () => {
-    const films = [
-      vu("A", ["2019-01-01", "2020-01-01", "2021-01-01"], { director: "Ozu" }),
-    ];
+    const films = [vu("A", ["2019-01-01", "2020-01-01", "2021-01-01"], { director: "Ozu" })];
     expect(almanacFor(films, "toujours").loyalties.directors).toEqual([]);
   });
 });
@@ -519,7 +517,10 @@ describe("toujours", () => {
 describe("écartAuPublic", () => {
   it("ramène les deux notes sur la même échelle avant de soustraire", () => {
     // 4/5 vaut 8/10 : deux points au-dessus d'un public à 6
-    const e = écartAuPublic([vu("A", [{ date: "2024-01-01", rating: 4 }], { tmdbRating: 6 })], 2024);
+    const e = écartAuPublic(
+      [vu("A", [{ date: "2024-01-01", rating: 4 }], { tmdbRating: 6 })],
+      2024
+    );
     expect(e.vous).toBe(8);
     expect(e.public).toBe(6);
     expect(e.écart).toBe(2);
@@ -547,10 +548,14 @@ describe("écartAuPublic", () => {
 
   it("ne fait peser un film revu qu'une fois dans les palmarès", () => {
     const films = [
-      vu("Revu", [
-        { date: "2024-01-01", rating: 5 },
-        { date: "2024-02-01", rating: 4 },
-      ], { tmdbRating: 5 }),
+      vu(
+        "Revu",
+        [
+          { date: "2024-01-01", rating: 5 },
+          { date: "2024-02-01", rating: 4 },
+        ],
+        { tmdbRating: 5 }
+      ),
     ];
     expect(écartAuPublic(films, 2024).plusTendre).toHaveLength(1);
   });
@@ -564,7 +569,10 @@ describe("écartAuPublic", () => {
 describe("parAnnée", () => {
   it("rend séances, titres et note moyenne par année", () => {
     const films = [
-      vu("A", [{ date: "2023-01-01", rating: 4 }, { date: "2023-02-01", rating: 2 }]),
+      vu("A", [
+        { date: "2023-01-01", rating: 4 },
+        { date: "2023-02-01", rating: 2 },
+      ]),
       vu("B", [{ date: "2024-01-01", rating: 5 }]),
     ];
     expect(parAnnée(films)).toEqual([
