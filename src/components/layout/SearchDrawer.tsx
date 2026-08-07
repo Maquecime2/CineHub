@@ -11,6 +11,7 @@
    chose à qui l'ignore et clique.
    ============================================================ */
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Search, Film as FilmIcon, User, Tag, Spline, NotebookPen } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
@@ -84,7 +85,7 @@ export function SearchDrawer({
     onClose();
   };
 
-  const auClavier = (e: React.KeyboardEvent) => {
+  const auClavier = (e: KeyboardEvent) => {
     if (e.key === "Escape") return onClose();
     if (plate.length === 0) return;
     if (e.key === "ArrowDown") {
@@ -256,7 +257,7 @@ export function SearchDrawer({
   );
 }
 
-function Mot({ children }: { children: React.ReactNode }) {
+function Mot({ children }: { children: ReactNode }) {
   return (
     <div
       style={{

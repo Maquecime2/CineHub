@@ -10,6 +10,7 @@
    regarde ce qu'on a de lui.
    ============================================================ */
 import { useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import { ArrowLeft, Users, Search, Download, Loader2 } from "lucide-react";
 import { C, F, alpha } from "../theme/tokens";
 import { underlineInput } from "../theme/styles";
@@ -403,7 +404,7 @@ const retour = {
   marginBottom: 16,
 };
 
-function Chiffre({ nom, children }: { nom: string; children: React.ReactNode }) {
+function Chiffre({ nom, children }: { nom: string; children: ReactNode }) {
   return (
     <div>
       <Label>{nom}</Label>
