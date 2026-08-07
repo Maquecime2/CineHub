@@ -137,7 +137,11 @@ export function chercherPartout(
       rang,
     });
   }
-  out.push(...parFilm.sort((a, b) => a.rang - b.rang || a.titre.localeCompare(b.titre, "fr")).slice(0, parGenre));
+  out.push(
+    ...parFilm
+      .sort((a, b) => a.rang - b.rang || a.titre.localeCompare(b.titre, "fr"))
+      .slice(0, parGenre)
+  );
 
   /* ---- les pages du carnet ---- */
   const parPage: Trouvaille[] = [];
@@ -194,10 +198,7 @@ export function chercherPartout(
       genre: "fil",
       clé: `fil:${fil.id}`,
       titre: fil.label,
-      sous: [
-        `${n} film${n > 1 ? "s" : ""}`,
-        fil.motif ? motifById(fil.motif)?.label : null,
-      ]
+      sous: [`${n} film${n > 1 ? "s" : ""}`, fil.motif ? motifById(fil.motif)?.label : null]
         .filter(Boolean)
         .join(" · "),
       extrait: extraitAutour(fil.note || "", q),

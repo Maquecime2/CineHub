@@ -50,11 +50,16 @@ là pour que la règle ne dépende pas de la seule bonne volonté.
 
 ## Vérifier
 
-`npm run dev`, `npm test`, **`npm run lint`**, `npm run build`.
+`npm run dev`, `npm test`, **`npm run lint`**, **`npx prettier --check .`**,
+`npm run build`.
 
-Le lint manquait à cette liste, et l'intégration continue, elle, le fait
-échouer : trois `React.ReactNode` écrits sans importer `React` sont passés
-jusque dans `main` sans que personne les voie. Les 197 avertissements
-existants sont tolérés ; ce sont les ERREURS qui arrêtent tout. Écrire
-`import type { ReactNode } from "react"` plutôt que le préfixe `React.` —
-c'est la convention du reste du projet.
+Les deux contrôles en gras manquaient à cette liste, et l'intégration
+continue, elle, les fait échouer — trois `React.ReactNode` écrits sans
+importer `React`, et dix-neuf fichiers mal formatés, sont passés jusque
+dans `main` sans que personne les voie. Un contrôle absent de la liste
+des contrôles est un contrôle qu'on ne fait pas.
+
+- Les 197 avertissements du lint sont tolérés ; ce sont les ERREURS qui
+  arrêtent tout. On écrit `import type { ReactNode } from "react"` et
+  jamais le préfixe `React.` — c'est la convention du reste du projet.
+- `npm run format` réécrit, `--check` se contente de dire.

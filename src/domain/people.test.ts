@@ -5,8 +5,7 @@ import type { Film } from "../types";
 
 const film = (title: string, partial: Partial<Film> = {}) => makeFilm({ title, ...partial });
 
-const par = (gens: ReturnType<typeof recenser>, nom: string) =>
-  gens.find((p) => p.nom === nom);
+const par = (gens: ReturnType<typeof recenser>, nom: string) => gens.find((p) => p.nom === nom);
 
 describe("recenser", () => {
   it("ne rend rien d'une collection vide", () => {
@@ -56,7 +55,10 @@ describe("recenser", () => {
       film("A", {
         director: "Varda",
         status: "watched",
-        watches: [{ date: "2024-01-02", rating: 4 }, { date: "2020-05-05", rating: 4 }],
+        watches: [
+          { date: "2024-01-02", rating: 4 },
+          { date: "2020-05-05", rating: 4 },
+        ],
       }),
       film("B", { director: "Varda", status: "watchlist" }),
     ]);

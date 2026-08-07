@@ -523,7 +523,10 @@ export function écartAuPublic(films: Film[], période: Période, combien = 3): 
 export function parAnnée(
   films: Film[]
 ): { year: number; séances: number; titres: number; note: number | null }[] {
-  const par = new Map<number, { séances: number; films: Set<string>; somme: number; notées: number }>();
+  const par = new Map<
+    number,
+    { séances: number; films: Set<string>; somme: number; notées: number }
+  >();
   for (const { film, watch } of séancesDe(films)) {
     const an = anneeDe(watch.date);
     if (an == null) continue;

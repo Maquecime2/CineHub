@@ -13,7 +13,9 @@ const page = (title: string, body: string, createdAt = 1_700_000_000_000): Note 
   createdAt,
 });
 
-const fonds = (o: { films?: Film[]; notes?: Note[]; fils?: ReturnType<typeof makeFil>[] } = {}) => ({
+const fonds = (
+  o: { films?: Film[]; notes?: Note[]; fils?: ReturnType<typeof makeFil>[] } = {}
+) => ({
   films: o.films || [],
   notes: o.notes || [],
   fils: o.fils || [],
@@ -53,10 +55,7 @@ describe("les films", () => {
   });
 
   it("place le titre avant la critique", () => {
-    const films = [
-      film("Quelqu'un cite Solaris", { review: "" }),
-      film("Solaris", { review: "" }),
-    ];
+    const films = [film("Quelqu'un cite Solaris", { review: "" }), film("Solaris", { review: "" })];
     expect(chercherPartout("solaris", fonds({ films }))[0]!.titre).toBe("Solaris");
   });
 
@@ -81,7 +80,10 @@ describe("les pages du carnet", () => {
   });
 
   it("trouve par le corps, et en rapporte le passage", () => {
-    const t = chercherPartout("Rohmer", fonds({ notes: [page("Notes", "revoir du Rohmer cet été")] }));
+    const t = chercherPartout(
+      "Rohmer",
+      fonds({ notes: [page("Notes", "revoir du Rohmer cet été")] })
+    );
     expect(t[0]!.extrait).toContain("Rohmer");
   });
 
@@ -96,7 +98,11 @@ describe("les motifs", () => {
     const films = [film("A", { motifs: ["melancolie"] }), film("B", { motifs: ["melancolie"] })];
     const t = chercherPartout("mélanco", fonds({ films }));
     const m = t.find((x) => x.genre === "motif");
-    expect(m).toMatchObject({ titre: "Mélancolie", sous: "2 fiches le portent", motifId: "melancolie" });
+    expect(m).toMatchObject({
+      titre: "Mélancolie",
+      sous: "2 fiches le portent",
+      motifId: "melancolie",
+    });
   });
 
   it("dit franchement qu'un motif n'est posé nulle part", () => {
@@ -140,7 +146,9 @@ describe("les gens", () => {
 
 describe("la traversée", () => {
   it("montre plusieurs natures d'un coup", () => {
-    const films = [film("Mélancolie du départ", { motifs: ["melancolie"], director: "Mélanie Ozu" })];
+    const films = [
+      film("Mélancolie du départ", { motifs: ["melancolie"], director: "Mélanie Ozu" }),
+    ];
     const notes = [page("Mélancolie", "une page")];
     const t = chercherPartout("mélanc", fonds({ films, notes }));
     expect(genres(t)).toEqual(expect.arrayContaining(["film", "page", "motif"]));
