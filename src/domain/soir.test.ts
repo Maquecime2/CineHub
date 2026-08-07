@@ -100,7 +100,11 @@ describe("l'humeur", () => {
     /* Un film qu'on n'a pas vu ne porte pas de motifs : c'est tout
        l'objet de la devinette par mots-clés TMDB. */
     const f = àVoir("Deviné");
-    const out = classerLaSoirée([f, àVoir("Rien")], { ...SANS_ENVIE, humeur: ["melancolie"] }, new Map([[f.id, ["melancolie"]]]));
+    const out = classerLaSoirée(
+      [f, àVoir("Rien")],
+      { ...SANS_ENVIE, humeur: ["melancolie"] },
+      new Map([[f.id, ["melancolie"]]])
+    );
     expect(ordre(out)[0]).toBe("Deviné");
   });
 

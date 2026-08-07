@@ -196,8 +196,7 @@ export const chercherPersonnes = (gens: Personne[], q: string): Personne[] => {
      ne se prend pas sur le nom entier comme pour un titre de film
      (`domain/search`) : on tape presque toujours le patronyme, qui est
      le dernier mot, et « ozu » doit trouver Ozu avant Kurozu. */
-  const parMot = (clé: string) =>
-    clé.split(/[\s-]+/).some((mot) => mot.startsWith(t)) ? 0 : 1;
+  const parMot = (clé: string) => (clé.split(/[\s-]+/).some((mot) => mot.startsWith(t)) ? 0 : 1);
   return touche.sort(
     (a, b) =>
       parMot(a.clé) - parMot(b.clé) ||
