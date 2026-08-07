@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { C, F } from "../theme/tokens";
 import { underlineInput } from "../theme/styles";
 import { Label, TitreSection, Consigne } from "../components/ui";
@@ -6,6 +6,7 @@ import { StampCorner, InkUnderline, CoffeeRing } from "../components/atmosphere"
 import { store } from "../services/storage";
 import { buildTaste } from "../taste";
 import { gatherCandidates, rank, DEFAULT_QUERY } from "../reco";
+import { directorOf, pooled } from "../tmdb";
 import { makeFilm, initialsOf } from "../domain/film";
 import { FilmPolaroid } from "../components/film/FilmPolaroid";
 import { PosterArt } from "../components/film/PosterArt";
@@ -159,7 +160,22 @@ function Chip({
 /* La carte de résultat : l'affiche du mur, telle quelle, augmentée du motif
    de la recommandation et d'un bouton pour la ranger. La fiche film est un
    `<button>` entier — le geste « mettre de côté » vit donc à côté, pas dedans. */
-function RecoCard({ c, onAdd, added }: { c: Candidate; onAdd: () => void; added: boolean }) {
+function RecoCard({
+  c,
+  director,
+  onAdd,
+  added,
+}: {
+  c: Candidate;
+  /* Rapporté après coup (voir `useDirectors`), d'où les TROIS états : un
+     nom, la chaîne vide quand TMDB n'en connaît pas — la fiche dira
+     « anonyme » —, et `undefined` tant que la réponse n'est pas là. Les
+     confondre ferait annoncer « anonyme » à chaque affiche pendant une
+     seconde, c'est-à-dire dire faux le temps du chargement. */
+  director?: string;
+  onAdd: () => void;
+  added: boolean;
+}) {
   const asFilm = useMemo(
     () =>
       makeFilm({
@@ -168,9 +184,10 @@ function RecoCard({ c, onAdd, added }: { c: Candidate; onAdd: () => void; added:
         year: c.year || "",
         poster: c.poster,
         genres: c.genres,
+        director: director === undefined ? "…" : director,
         rating: 0,
       }),
-    [c.tmdbId]
+    [c.tmdbId, director]
   );
   return (
     <div>
@@ -217,6 +234,47 @@ function RecoCard({ c, onAdd, added }: { c: Candidate; onAdd: () => void; added:
       </div>
     </div>
   );
+}
+
+/* LES RÉALISATEURS DES PROPOSITIONS, rapportés APRÈS le classement.
+
+   `/discover` rend des films sans équipe : le nom demande un appel de
+   plus, par film. Le faire à la récolte le paierait pour des centaines
+   de candidats dont trente-neuf sur quarante seront écartés ; le faire
+   ici ne le paie que pour ce qui est affiché, et le cache d'une semaine
+   fait le reste quand deux recherches se recoupent.
+
+   Un seul état, cumulatif : bouger un curseur reclasse la même récolte,
+   et les noms déjà connus doivent survivre au reclassement. */
+function useDirectors(results: Candidate[] | null, apiKey: string) {
+  const [noms, setNoms] = useState<Record<number, string>>({});
+
+  const ids = (results || []).map((c) => c.tmdbId);
+  // la clé de l'effet est la LISTE, pas le tableau : `results` est un
+  // nouvel objet à chaque coup de curseur, la liste des identifiants non
+  const clé = ids.join(",");
+
+  useEffect(() => {
+    if (!apiKey || !ids.length) return;
+    let vivant = true;
+    const manquants = ids.filter((id) => !(id in noms));
+    if (!manquants.length) return;
+    pooled(
+      manquants.map((id) => async () => {
+        const nom = await directorOf(id, apiKey);
+        // on publie au fil de l'eau : quarante affiches ne doivent pas
+        // attendre la dernière réponse pour se nommer toutes ensemble
+        if (vivant) setNoms((n) => (id in n ? n : { ...n, [id]: nom }));
+      }),
+      { concurrency: 5 }
+    );
+    return () => {
+      vivant = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clé, apiKey]);
+
+  return noms;
 }
 
 /* ------------------------------------------------------------
@@ -397,6 +455,7 @@ export function RecoView({
      redemander quoi que ce soit au réseau. C'est ce qui rend les curseurs
      lisibles — on voit l'effet du réglage, pas celui d'un nouveau tirage. */
   const results = useMemo(() => (raw ? rank(raw, taste, query, 40) : null), [raw, taste, query]);
+  const directors = useDirectors(results, apiKey);
 
   const addOne = (c: Candidate) => {
     onAddToWatchlist(
@@ -405,6 +464,9 @@ export function RecoView({
         year: c.year || "",
         poster: c.poster,
         genres: c.genres,
+        // on le connaît maintenant : la fiche rangée part nommée, au lieu
+        // d'attendre un « compléter les fiches » pour redemander la même chose
+        director: directors[c.tmdbId] || "",
         status: "watchlist",
         tmdbId: c.tmdbId,
         source: "tmdb",
@@ -734,6 +796,7 @@ export function RecoView({
                   <RecoCard
                     key={c.tmdbId}
                     c={c}
+                    director={directors[c.tmdbId]}
                     onAdd={() => addOne(c)}
                     added={added.has(c.tmdbId)}
                   />

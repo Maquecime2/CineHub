@@ -53,7 +53,7 @@ describe("à revoir", () => {
   });
 
   it("laisse tranquille un film vu récemment", () => {
-    // en deçà de deux ans, le proposer ressemble à de l'insistance
+    // le proposer ressemblerait à de l'insistance
     expect(titres([vu("Frais", [{ date: ilYA(100), rating: 5 }], { rating: 5 })])).toEqual([]);
   });
 
@@ -156,6 +156,55 @@ describe("un cinéaste délaissé", () => {
       .filter((x) => x.nature === "cinéaste")
       .map((x) => x.titre);
     expect(noms).toEqual(["Coen"]);
+  });
+});
+
+/* ============================================================
+   LES SEUILS SUIVENT LA PRATIQUE
+
+   CES TESTS ONT DÉJÀ SERVI. Le premier jet écrivait « deux ans » et
+   « dix-huit mois » en dur — des durées raisonnables pour une
+   collection tenue depuis dix ans, et qui disqualifiaient TOUT sur un
+   classeur ouvert il y a dix-huit mois. La section entière restait
+   vide, sans que rien ne dise pourquoi. Un seuil absolu ne mesure pas
+   l'oubli : il mesure l'ancienneté du classeur.
+   ============================================================ */
+describe("les seuils suivent l'étendue de la pratique", () => {
+  it("propose sur un classeur jeune, là où deux ans en dur ne rendaient rien", () => {
+    /* Dix-huit mois de pratique : le tiers fait six mois. Un film adoré
+       et pas revu depuis treize mois est bien un oubli — pour cette
+       collection-là. */
+    const films = [
+      vu("Le plus ancien", [{ date: ilYA(540), rating: 3 }], { rating: 3 }),
+      vu("Adoré et oublié", [{ date: ilYA(400), rating: 5 }], { rating: 5 }),
+      vu("Vu hier", [{ date: ilYA(1), rating: 4 }], { rating: 4 }),
+    ];
+    expect(titres(films)).toContain("Adoré et oublié");
+  });
+
+  it("garde un plancher : un classeur tout neuf n'a rien d'oublié", () => {
+    /* Trois semaines de pratique : le tiers ferait sept jours, ce qui
+       n'est pas un oubli mais un rappel intempestif. Le plancher tient,
+       et la section reste vide — ce qui est la bonne réponse. */
+    const films = [
+      vu("A", [{ date: ilYA(21), rating: 5 }], { rating: 5 }),
+      vu("B", [{ date: ilYA(1), rating: 5 }], { rating: 5 }),
+    ];
+    expect(titres(films)).toEqual([]);
+  });
+
+  it("garde le plafond de deux ans sur une longue pratique", () => {
+    /* Quinze ans de journal : le tiers ferait cinq ans, et l'on ne
+       verrait plus rien de la dernière décennie. Au-delà de quelques
+       années, deux ans est bien la bonne mesure de l'oubli. */
+    const films = [
+      vu("Antique", [{ date: ilYA(5475), rating: 3 }], { rating: 3 }),
+      vu("Il y a trois ans", [{ date: ilYA(1100), rating: 5 }], { rating: 5 }),
+      vu("L'an dernier", [{ date: ilYA(365), rating: 5 }], { rating: 5 }),
+    ];
+    const t = titres(films);
+    expect(t).toContain("Il y a trois ans");
+    expect(t).not.toContain("L'an dernier");
   });
 });
 
