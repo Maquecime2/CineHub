@@ -333,6 +333,33 @@ export async function recommendationsFor(tmdbId, apiKey) {
   });
 }
 
+/* LE RÉALISATEUR D'UN CANDIDAT, et lui seul.
+
+   `/discover` et `/recommendations` ne le disent pas : ils rendent des
+   films, pas des équipes. La fiche du bureau des découvertes affichait
+   donc « anonyme » sous chaque affiche, là où le mur, lui, nomme.
+
+   `/movie/{id}/credits` et non `getDetails` : on ne veut qu'un nom, et
+   passer par le détail complet rapporterait durée, pays, note et huit
+   noms au générique pour les jeter aussitôt — le tout dans l'autre
+   cache, celui des fiches définitives, où un candidat n'a rien à faire.
+
+   Mis en cache comme ses voisins de section : quarante propositions font
+   quarante appels, et deux recherches se recoupent toujours beaucoup. */
+export async function directorOf(tmdbId, apiKey) {
+  if (!tmdbId || !apiKey) return "";
+  try {
+    return await cachedList(`dir:${tmdbId}`, async () => {
+      const data = await get(`/movie/${tmdbId}/credits`, {}, apiKey);
+      const noms = (data.crew || []).filter((c) => c.job === "Director").map((c) => c.name);
+      return [...new Set(noms)].join(", ");
+    });
+  } catch {
+    // un nom manquant n'est pas une panne : la proposition reste lisible
+    return "";
+  }
+}
+
 export async function searchPerson(name, apiKey) {
   return cachedList(`p:${name.toLowerCase()}`, async () => {
     const data = await get("/search/person", { query: name }, apiKey);

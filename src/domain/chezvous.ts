@@ -44,14 +44,46 @@ export interface Suggestion {
 
 const JOUR = 24 * 3600 * 1000;
 
-/* LES SEUILS, ET POURQUOI CEUX-LÀ.
+/* LES SEUILS SE DÉDUISENT DE VOTRE PRATIQUE, ILS NE SONT PAS ÉCRITS
+   D'AVANCE.
 
-   Deux ans pour une revoyure : en deçà, le film est encore frais et le
-   proposer ressemble à de l'insistance. Dix-huit mois pour un motif ou
-   un cinéaste, parce qu'on y revient par petites touches et qu'une
-   absence plus courte se remarque déjà. */
-const OUBLI_FILM = 730;
-const OUBLI_THÈME = 540;
+   Le premier jet posait deux ans pour une revoyure et dix-huit mois pour
+   un motif. Des nombres raisonnables — pour une collection tenue depuis
+   dix ans. Sur un classeur ouvert il y a dix-huit mois, ils
+   disqualifiaient TOUT : la section entière restait vide, et rien ne
+   disait pourquoi. Un seuil absolu ne mesure pas l'oubli, il mesure
+   l'ancienneté du classeur.
+
+   Ce qu'on veut dire est relatif : « il y a longtemps, POUR VOUS ». On
+   prend donc une fraction de l'étendue réellement couverte, de la
+   première séance à la dernière.
+
+   Bornée des deux côtés, et les deux bornes comptent.
+
+   Le PLANCHER est à cinq mois, et non à quelques semaines : on ne
+   redécouvre pas un film qu'on a adoré trois mois plus tôt, et une
+   collection ouverte le mois dernier n'a rien d'oublié — elle doit
+   pouvoir ne rien proposer du tout plutôt que d'insister.
+
+   Le PLAFOND garde le comportement d'origine dès que la pratique
+   dépasse quelques années : au-delà, deux ans est bien la bonne mesure
+   de l'oubli, là où le tiers de quinze ans effacerait toute la
+   dernière décennie. */
+const OUBLI_FILM = { part: 1 / 3, min: 150, max: 730 };
+const OUBLI_THÈME = { part: 1 / 4, min: 120, max: 540 };
+
+interface Seuils {
+  film: number;
+  thème: number;
+}
+
+const borne = (n: number, min: number, max: number): number =>
+  Math.round(Math.max(min, Math.min(max, n)));
+
+const seuilsPour = (étendue: number): Seuils => ({
+  film: borne(étendue * OUBLI_FILM.part, OUBLI_FILM.min, OUBLI_FILM.max),
+  thème: borne(étendue * OUBLI_THÈME.part, OUBLI_THÈME.min, OUBLI_THÈME.max),
+});
 
 /** Ce qui vaut la peine d'être revu : on ne rappelle pas une déception. */
 const AIMÉ = 4;
@@ -106,9 +138,9 @@ const datées = (films: Film[], maintenant: number): Datée[] => {
 /* ------------------------------------------------------------
    1. À REVOIR — ce que vous aviez aimé et laissé de côté
    ------------------------------------------------------------ */
-function àRevoir(pool: Datée[]): Suggestion[] {
+function àRevoir(pool: Datée[], seuil: number): Suggestion[] {
   return pool
-    .filter((d) => d.jours >= OUBLI_FILM && meilleureNote(d.film) >= AIMÉ)
+    .filter((d) => d.jours >= seuil && meilleureNote(d.film) >= AIMÉ)
     .sort((a, b) => meilleureNote(b.film) - meilleureNote(a.film) || b.jours - a.jours)
     .map(({ film, jours }) => ({
       nature: "revoir" as const,
@@ -130,7 +162,7 @@ function àRevoir(pool: Datée[]): Suggestion[] {
 
    Un motif posé sur une seule fiche ne dit rien : c'est un accident, pas
    une veine qu'on aurait délaissée. */
-function motifsDélaissés(pool: Datée[]): Suggestion[] {
+function motifsDélaissés(pool: Datée[], seuil: number): Suggestion[] {
   const par = new Map<string, Datée[]>();
   for (const d of pool)
     for (const id of d.film.motifs || []) {
@@ -149,7 +181,7 @@ function motifsDélaissés(pool: Datée[]): Suggestion[] {
     /* La date du motif est celle de sa séance LA PLUS RÉCENTE : c'est
        depuis là qu'on ne l'a plus croisé. */
     const jours = Math.min(...lot.map((d) => d.jours));
-    if (jours < OUBLI_THÈME) continue;
+    if (jours < seuil) continue;
     /* On propose le mieux noté de la veine, et non le plus vieux : il
        s'agit de rouvrir une porte, pas de solder un fond de tiroir. */
     const choix = [...lot].sort(
@@ -174,7 +206,7 @@ function motifsDélaissés(pool: Datée[]): Suggestion[] {
    plus ouvert depuis longtemps. On exige DEUX films et une moyenne
    franche : un seul film noté cinq étoiles ne fait pas un cinéaste
    qu'on suit, et le rappeler serait deviner à la place de l'autre. */
-function cinéastesDélaissés(pool: Datée[]): Suggestion[] {
+function cinéastesDélaissés(pool: Datée[], seuil: number): Suggestion[] {
   const par = new Map<string, Datée[]>();
   for (const d of pool)
     for (const nom of directorsOf(d.film) as string[]) {
@@ -191,7 +223,7 @@ function cinéastesDélaissés(pool: Datée[]): Suggestion[] {
     const moyenne = notes.reduce((s, n) => s + n, 0) / notes.length;
     if (moyenne < AIMÉ_MOYEN) continue;
     const jours = Math.min(...lot.map((d) => d.jours));
-    if (jours < OUBLI_THÈME) continue;
+    if (jours < seuil) continue;
     const choix = [...lot].sort(
       (a, b) => meilleureNote(b.film) - meilleureNote(a.film) || b.jours - a.jours
     )[0]!;
@@ -246,10 +278,19 @@ export function suggestionsMaison(
   const pool = datées(films, maintenant);
   if (pool.length === 0) return [];
 
+  /* L'ÉTENDUE DE LA PRATIQUE : de la séance la plus ancienne à la plus
+     récente. C'est elle qui donne l'échelle de « il y a longtemps ».
+
+     On part de la plus VIEILLE séance et non de la plus récente : ce
+     qu'on mesure est depuis quand le classeur est tenu, pas depuis
+     quand on ne l'a pas ouvert. */
+  const étendue = Math.max(...pool.map((d) => d.jours)) - Math.min(...pool.map((d) => d.jours));
+  const seuils = seuilsPour(étendue);
+
   const parNature: Record<Nature, Suggestion[]> = {
-    revoir: àRevoir(pool),
-    motif: motifsDélaissés(pool),
-    cinéaste: cinéastesDélaissés(pool),
+    revoir: àRevoir(pool, seuils.film),
+    motif: motifsDélaissés(pool, seuils.thème),
+    cinéaste: cinéastesDélaissés(pool, seuils.thème),
   };
 
   /* Chaque film n'est retenu que par la nature la plus spécifique qui le
