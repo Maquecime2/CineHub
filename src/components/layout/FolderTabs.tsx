@@ -44,18 +44,19 @@ interface FolderTabsProps {
 /* L'ICÔNE N'EST PAS UN ORNEMENT : c'est ce qui reste de l'onglet quand
    la fenêtre est trop basse pour ses mots. Elle doit donc se lire seule,
    et désigner la vue et non sa jolie métaphore. */
-const TABS: { key: View; label: string; color: string; icon: ComponentType<{ size?: number }> }[] = [
-  { key: "library", label: "Vidéothèque", color: C.burgundy, icon: Clapperboard },
-  { key: "watchlist", label: "À voir", color: C.ochre, icon: Bookmark },
-  /* Le Générique regarde la même collection sous un autre angle : il est
+const TABS: { key: View; label: string; color: string; icon: ComponentType<{ size?: number }> }[] =
+  [
+    { key: "library", label: "Vidéothèque", color: C.burgundy, icon: Clapperboard },
+    { key: "watchlist", label: "À voir", color: C.ochre, icon: Bookmark },
+    /* Le Générique regarde la même collection sous un autre angle : il est
      du groupe du fonds, à côté des deux murs, et non des outils. */
-  { key: "generique", label: "Générique", color: C.plum, icon: Users },
-  { key: "reco", label: "Découvertes", color: C.vermillion, icon: Compass },
-  { key: "constellation", label: "Constellation", color: C.cobalt, icon: Sparkles },
-  { key: "almanac", label: "Almanach", color: C.moss, icon: CalendarDays },
-  { key: "notebook", label: "Carnet", color: C.pine, icon: NotebookPen },
-  { key: "import", label: "Import Letterboxd", color: C.slate, icon: FolderInput },
-];
+    { key: "generique", label: "Générique", color: C.plum, icon: Users },
+    { key: "reco", label: "Découvertes", color: C.vermillion, icon: Compass },
+    { key: "constellation", label: "Constellation", color: C.cobalt, icon: Sparkles },
+    { key: "almanac", label: "Almanach", color: C.moss, icon: CalendarDays },
+    { key: "notebook", label: "Carnet", color: C.pine, icon: NotebookPen },
+    { key: "import", label: "Import Letterboxd", color: C.slate, icon: FolderInput },
+  ];
 
 /* L'onglet de contrôle des peaux n'est pas une vue du produit : il ne
    paraît qu'en développement, et le build de production ne l'emporte
@@ -223,12 +224,7 @@ export function FolderTabs({ view, setView, onAdd, onSkin, onHelp }: FolderTabsP
           }}
         >
           {tabs.map((t) => (
-            <Onglet
-              key={t.key}
-              t={t}
-              active={view === t.key}
-              onClick={() => setView(t.key)}
-            />
+            <Onglet key={t.key} t={t} active={view === t.key} onClick={() => setView(t.key)} />
           ))}
         </div>
 

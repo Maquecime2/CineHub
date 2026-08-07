@@ -32,8 +32,7 @@ describe("porteUneTraceDeVisionnage", () => {
 });
 
 describe("basculéesParErreur", () => {
-  const nue = (title: string, p: Partial<Film> = {}) =>
-    film({ title, status: "watched", ...p });
+  const nue = (title: string, p: Partial<Film> = {}) => film({ title, status: "watched", ...p });
 
   it("ne désigne que des fiches « vues » sans trace", () => {
     const suspecte = nue("Solaris");
@@ -47,11 +46,7 @@ describe("basculéesParErreur", () => {
   });
 
   it("montre d'abord celles venues de Letterboxd, puis par titre", () => {
-    const films = [
-      nue("Zerkalo"),
-      nue("Andreï Roublev"),
-      nue("Solaris", { source: "letterboxd" }),
-    ];
+    const films = [nue("Zerkalo"), nue("Andreï Roublev"), nue("Solaris", { source: "letterboxd" })];
     expect(basculéesParErreur(films).map((f) => f.title)).toEqual([
       "Solaris",
       "Andreï Roublev",

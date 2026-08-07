@@ -49,7 +49,9 @@ export function RepairPanel({ films, onImport }: RepairPanelProps) {
     });
 
   const toutes = () =>
-    setChoisies((s) => (s.size === suspectes.length ? new Set() : new Set(suspectes.map((f) => f.id))));
+    setChoisies((s) =>
+      s.size === suspectes.length ? new Set() : new Set(suspectes.map((f) => f.id))
+    );
 
   /* On repasse par `onImport` plutôt que par un chemin d'écriture à soi :
      c'est la même fusion champ par champ que l'import, et un seul endroit
@@ -97,7 +99,11 @@ export function RepairPanel({ films, onImport }: RepairPanelProps) {
         RETROUVER DES FICHES BASCULÉES PAR ERREUR
       </div>
 
-      <Tally label="fiches « vues » sans aucune trace de visionnage" value={suspectes.length} ink={C.ochre} />
+      <Tally
+        label="fiches « vues » sans aucune trace de visionnage"
+        value={suspectes.length}
+        ink={C.ochre}
+      />
       <Tally label="cochées" value={choisies.size} ink={choisies.size ? C.pine : C.inkFaded} />
 
       <div
