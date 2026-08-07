@@ -146,9 +146,7 @@ describe("une cible absente ne bloque pas", () => {
      même avec le bug. */
   it("n'escamote pas la première étape quand sa cible est là", async () => {
     poserLesCibles("detail");
-    const { rerender } = render(
-      <TourOverlay tourId={null} onClose={vi.fn()} onView={vi.fn()} />
-    );
+    const { rerender } = render(<TourOverlay tourId={null} onClose={vi.fn()} onView={vi.fn()} />);
     rerender(<TourOverlay tourId="detail" onClose={vi.fn()} onView={vi.fn()} />);
 
     const première = TOURS.detail!.steps[0]!;

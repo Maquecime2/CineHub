@@ -788,9 +788,8 @@ export function ConstellationView({
                          il reste un fil, et il doit le dire — sans ce
                          repli, le trait le plus fort de la carte était le
                          seul à se survoler en silence. */
-                      [relationDef(l.relation)?.label, l.note]
-                        .filter(Boolean)
-                        .join(" — ") || "fil écrit à la main"
+                      [relationDef(l.relation)?.label, l.note].filter(Boolean).join(" — ") ||
+                      "fil écrit à la main"
                     : /* UN RENVOI VERS UNE ŒUVRE PARLE, LUI AUSSI. La
                          branche « équipe » ramassait aussi les citations,
                          qui n'ont pas de `why` : le fil vers le livre

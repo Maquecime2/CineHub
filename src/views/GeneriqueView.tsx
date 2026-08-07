@@ -10,13 +10,20 @@
    regarde ce qu'on a de lui.
    ============================================================ */
 import { useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import { ArrowLeft, Users, Search, Download, Loader2 } from "lucide-react";
 import { C, F, alpha } from "../theme/tokens";
 import { underlineInput } from "../theme/styles";
 import { StampCorner, PushPin } from "../components/atmosphere";
 import { Carton, TitreSection, Consigne, Label, InkStars } from "../components/ui";
 import { PosterArt } from "../components/film/PosterArt";
-import { recenser, chercherPersonnes, rôlesSurLeFilm, RÔLES, type Personne } from "../domain/people";
+import {
+  recenser,
+  chercherPersonnes,
+  rôlesSurLeFilm,
+  RÔLES,
+  type Personne,
+} from "../domain/people";
 import { initialsOf, makeFilm } from "../domain/film";
 import { filmKey } from "../domain/importing";
 import { motifById } from "../domain/motifs";
@@ -254,7 +261,9 @@ function Fiche({ p, onClick }: { p: Personne; onClick: () => void }) {
       }}
     >
       <PushPin color={C.plum} style={{ position: "absolute", top: -7, left: 12 }} />
-      <div style={{ fontFamily: F.title, fontWeight: 700, fontSize: 17, color: C.ink }}>{p.nom}</div>
+      <div style={{ fontFamily: F.title, fontWeight: 700, fontSize: 17, color: C.ink }}>
+        {p.nom}
+      </div>
       <div
         style={{
           fontFamily: F.mono,
@@ -264,7 +273,10 @@ function Fiche({ p, onClick }: { p: Personne; onClick: () => void }) {
           margin: "4px 0 8px",
         }}
       >
-        {p.rôles.map((r) => ROLE_COURT[r]).join(" · ").toUpperCase()}
+        {p.rôles
+          .map((r) => ROLE_COURT[r])
+          .join(" · ")
+          .toUpperCase()}
       </div>
       <div
         style={{
@@ -403,7 +415,7 @@ const retour = {
   marginBottom: 16,
 };
 
-function Chiffre({ nom, children }: { nom: string; children: React.ReactNode }) {
+function Chiffre({ nom, children }: { nom: string; children: ReactNode }) {
   return (
     <div>
       <Label>{nom}</Label>
@@ -578,7 +590,12 @@ function CeQuiManque({
       /* Ce qu'on a déjà, par identifiant TMDB d'abord — le plus sûr — puis
          par la clé titre+année de l'import, qui neutralise déjà accents
          et articles. */
-      const parTmdb = new Set(films.map((f) => f.tmdbId).filter(Boolean).map(String));
+      const parTmdb = new Set(
+        films
+          .map((f) => f.tmdbId)
+          .filter(Boolean)
+          .map(String)
+      );
       const parTitre = new Set(films.map((f) => filmKey(f)));
 
       const reste = (tout as Manquant[])
@@ -618,7 +635,11 @@ function CeQuiManque({
     <div data-tour="generique-tmdb" style={{ marginTop: 34 }}>
       <TitreSection
         action={
-          <button onClick={chercher} disabled={état === "en-cours"} style={étiquette(false, C.pine)}>
+          <button
+            onClick={chercher}
+            disabled={état === "en-cours"}
+            style={étiquette(false, C.pine)}
+          >
             {état === "en-cours" ? <Loader2 size={11} /> : <Download size={11} />} demander à TMDB
           </button>
         }
@@ -674,7 +695,9 @@ function CeQuiManque({
               >
                 {c.title}
               </div>
-              <div style={{ fontFamily: F.mono, fontSize: 9, color: C.inkFaded, margin: "3px 0 7px" }}>
+              <div
+                style={{ fontFamily: F.mono, fontSize: 9, color: C.inkFaded, margin: "3px 0 7px" }}
+              >
                 {c.year || "année inconnue"}
                 {c.voteAverage ? ` · ${c.voteAverage.toFixed(1)}/10` : ""}
               </div>
