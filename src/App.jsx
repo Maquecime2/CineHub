@@ -106,6 +106,8 @@ import { PosterArt } from "./components/film/PosterArt";
 import { FilmPolaroid } from "./components/film/FilmPolaroid";
 import { FilmModal } from "./components/film/FilmModal";
 import { FolderTabs } from "./components/layout/FolderTabs";
+import { useViewport } from "./hooks/useViewport";
+import { usePointerDrag } from "./hooks/usePointerDrag";
 import { SkinPicker } from "./components/layout/SkinPicker";
 import { SearchDrawer } from "./components/layout/SearchDrawer";
 import { FilmWall } from "./views/library/FilmWall";
@@ -255,6 +257,21 @@ export default function App() {
   const [tourId, setTourId] = useState(null);
   const [tourMenu, setTourMenu] = useState(false);
   const [hint, setHint] = useState(false);
+
+  /* LE GLISSEMENT AU DOIGT — monté ici, une fois, pour toute
+     l'application.
+
+     Il n'appartient à aucune vue : ce qu'il traduit, ce sont les
+     événements de glisser-déposer que le navigateur tactile n'émet pas,
+     et cela vaut partout où quelque chose se saisit — l'étagère, le mur,
+     le cabinet de décors. Le monter dans l'étagère aurait voulu dire le
+     remonter dans chaque vue qui glisse un jour.
+
+     Il ne s'installe que sous un pointeur grossier. Ce n'est pas une
+     économie : à la souris, les vrais événements arrivent déjà, et un
+     pont qui en émettrait une seconde série les doublerait. */
+  const { coarse } = useViewport();
+  usePointerDrag(coarse);
 
   /* La première ouverture lance la visite complète — mais APRÈS le
      chargement, sinon elle pointe des cibles que le classeur n'a pas

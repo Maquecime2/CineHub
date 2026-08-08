@@ -47,7 +47,7 @@ const library: Tour = {
     {
       target: at("wall-search"),
       title: "Chercher",
-      body: "Un titre, un·e cinéaste, un mot de votre critique. Sur le mur, la recherche filtre ; sur l'étagère, elle éteint ce qu'elle ne trouve pas et laisse l'agencement en place. Pour chercher au-delà des films — les gens, les motifs, les fils, le carnet — la loupe du pied de rail interroge tout d'un coup.",
+      body: "Un titre, un·e cinéaste, un mot de votre critique. Sur le mur, la recherche filtre ; sur l'étagère, elle éteint ce qu'elle ne trouve pas et laisse l'agencement en place. Pour chercher au-delà des films — les gens, les motifs, les fils, le carnet — la loupe, au pied du rail ou au bout de la barre du bas, interroge tout d'un coup.",
       placement: "bottom",
     },
     {
@@ -87,6 +87,21 @@ const library: Tour = {
       target: at("wall-films"),
       title: "Une fiche s'ouvre",
       body: "Cliquez une affiche pour ouvrir son dossier : c'est là que se tiennent la critique, les motifs et le fil rouge.",
+      placement: "top",
+      optional: true,
+    },
+    /* LE GESTE QUI NE SE DEVINE PAS, et qui n'existait pas avant que
+       l'application se tienne dans une main. Au doigt, un balayage fait
+       défiler : la saisie doit donc s'annoncer autrement, et c'est
+       l'appui maintenu qui s'en charge. Personne ne le trouve tout seul.
+
+       `optional` comme les autres étapes qui visent du contenu : un
+       classeur vide n'a pas d'affiche à montrer, et doit pouvoir jouer
+       la visite en entier. */
+    {
+      target: at("wall-films"),
+      title: "Ranger au doigt",
+      body: "Sur l'étagère et sur le mur, on déplace en glissant. Au doigt, gardez l'objet appuyé un instant : il se saisit, et le balayage cesse de faire défiler. Un repère montre la fente où il tombera.",
       placement: "top",
       optional: true,
     },
@@ -352,7 +367,7 @@ const global: Tour = {
     {
       target: "[data-tab-rail]",
       title: "La tranche du classeur",
-      body: "Huit pastilles, toujours là, à gauche. Chacune est une façon différente de regarder la même collection ; survolez-en une pour lire son nom.",
+      body: "Huit pastilles, toujours là : sur la tranche gauche au bureau, couchées au bas de l'écran sur un téléphone, où le pouce les atteint. Chacune est une façon différente de regarder la même collection ; survolez-en une — ou appuyez longuement — pour lire son nom.",
       placement: "right",
       view: "library",
     },
@@ -367,7 +382,7 @@ const global: Tour = {
     {
       target: at("add-film"),
       title: "Épingler un film",
-      body: "À la main, sans passer par l'import : le bouton du pied de rail ouvre une fiche vierge.",
+      body: "À la main, sans passer par l'import : l'épingle ouvre une fiche vierge. Elle est au pied du rail au bureau, au bout de la barre du bas sur un téléphone.",
       placement: "right",
       view: "library",
     },

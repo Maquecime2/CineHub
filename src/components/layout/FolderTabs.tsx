@@ -18,6 +18,7 @@ import {
   Search,
 } from "lucide-react";
 import { C, alpha } from "../../theme/tokens";
+import { useViewport } from "../../hooks/useViewport";
 
 /** Les vues joignables depuis les onglets. `detail` s'ouvre depuis une fiche. */
 export type View =
@@ -87,7 +88,30 @@ type Tab = (typeof TABS)[number];
    fenêtre, et aucune peau ne peut les rallonger. Le nom n'est pas perdu
    — il passe dans l'infobulle et dans `aria-label`, sans quoi le rail
    entier deviendrait muet pour un lecteur d'écran. */
-function Onglet({ t, active, onClick }: { t: Tab; active: boolean; onClick: () => void }) {
+function Onglet({
+  t,
+  active,
+  onClick,
+  phone,
+}: {
+  t: Tab;
+  active: boolean;
+  onClick: () => void;
+  /* AU TELEPHONE, CE N'EST PLUS UN ONGLET DE CLASSEUR.
+
+     La pastille tire son dessin de la tranche contre laquelle elle bute :
+     arrondie a droite seulement, decalee de six pixels vers la gauche
+     quand elle dort, et qui avance quand on la choisit. Couchee au bas
+     de l'ecran, cette grammaire ne veut plus rien dire — il n'y a plus
+     de tranche a gauche, et le decalage lit alors comme un defaut
+     d'alignement.
+
+     Elle redevient donc ce qu'elle est vraiment a cet endroit : un
+     jeton, arrondi de partout, assez large pour un pouce. Quarante
+     pixels et non trente-deux : c'est le plancher en dessous duquel une
+     cible se rate une fois sur trois. */
+  phone: boolean;
+}) {
   const Icon = t.icon;
   return (
     <button
@@ -101,8 +125,8 @@ function Onglet({ t, active, onClick }: { t: Tab; active: boolean; onClick: () =
         all: "unset",
         cursor: "pointer",
         boxSizing: "border-box",
-        width: 32,
-        height: 32,
+        width: phone ? 40 : 32,
+        height: phone ? 40 : 32,
         /* ET QUI SE TASSENT PLUTÔT QUE DE DÉBORDER.
 
            Huit pastilles tiennent dans toute fenêtre raisonnable, mais
@@ -114,8 +138,8 @@ function Onglet({ t, active, onClick }: { t: Tab; active: boolean; onClick: () =
            En colonne flexible, un objet se rétracte de lui-même quand la
            place manque. Le plancher est l'icône elle-même : on ne
            descend pas sous ce qui se lit. */
-        flexShrink: 1,
-        minHeight: 18,
+        flexShrink: phone ? 0 : 1,
+        minHeight: phone ? 40 : 18,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -128,23 +152,34 @@ function Onglet({ t, active, onClick }: { t: Tab; active: boolean; onClick: () =
         background: `linear-gradient(180deg, ${t.color}, ${t.color} 60%, ${alpha(t.color, 0.8)})`,
         filter: active ? "none" : DIMMED,
         color: C.card,
-        borderRadius: "0 var(--tag-radius) var(--tag-radius) 0",
+        borderRadius: phone ? "var(--tag-radius)" : "0 var(--tag-radius) var(--tag-radius) 0",
+        /* L'onglet choisi avance vers la droite, sur le rail. Couche en
+           bas il ne peut plus avancer : il se cerne alors d'un filet de
+           carton clair, qui le detache de la barre sans changer sa
+           couleur — c'est la meme chose que dit l'avancee, dite
+           autrement. */
         boxShadow: active
-          ? `4px 4px 10px rgba(0,0,0,0.35), inset -2px 0 0 ${t.color}, inset 0 1px 0 rgba(255,255,255,0.25)`
+          ? phone
+            ? `0 0 0 2px ${C.card}, 0 2px 8px rgba(0,0,0,0.35)`
+            : `4px 4px 10px rgba(0,0,0,0.35), inset -2px 0 0 ${t.color}, inset 0 1px 0 rgba(255,255,255,0.25)`
           : "2px 2px 6px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.15)",
-        marginLeft: active ? 0 : -6,
+        marginLeft: phone || active ? 0 : -6,
         /* Les durées passent par les jetons de mouvement : le bloc
            `prefers-reduced-motion` les met à zéro tout seul. */
         transition: "margin var(--motion-fast) var(--motion-ease), filter var(--motion-fast) ease",
       }}
+      /* LE SURVOL N'EXISTE PAS SOUS UN DOIGT, MAIS LE NAVIGATEUR FAIT
+         SEMBLANT : il emet un survol au moment du contact, et l'onglet
+         restait ensuite avance et rallume jusqu'au prochain contact
+         ailleurs — huit onglets tous eclaires, plus aucun choisi. */
       onMouseEnter={(e) => {
-        if (!active) {
+        if (!active && !phone) {
           e.currentTarget.style.marginLeft = "0px";
           e.currentTarget.style.filter = "none";
         }
       }}
       onMouseLeave={(e) => {
-        if (!active) {
+        if (!active && !phone) {
           e.currentTarget.style.marginLeft = "-6px";
           e.currentTarget.style.filter = DIMMED;
         }
@@ -155,24 +190,57 @@ function Onglet({ t, active, onClick }: { t: Tab; active: boolean; onClick: () =
   );
 }
 
+/* LA HAUTEUR DE LA BARRE DU BAS, hors encoche. Le meme chiffre est
+   repris dans `FONT_IMPORT` pour creuser le pied de la colonne de vue :
+   une media query n'accepte pas de `var()`, et le doublon est le prix de
+   cette limite. Si l'un change, l'autre change. */
+const BAR_H = 58;
+
 export function FolderTabs({ view, setView, onAdd, onSearch, onSkin, onHelp }: FolderTabsProps) {
   const tabs = [...TABS, ...DEV_TABS];
+  /* LE RAIL SE COUCHE PLUTOT QU'IL NE DISPARAIT.
+
+     Sur la tranche gauche d'un classeur, huit pastilles empilees et
+     quatre actions au pied tiennent dans quarante-six pixels de large.
+     Sur un telephone tenu d'une main, cette colonne mange un huitieme
+     de la largeur et se termine la ou le pouce n'arrive pas — le haut
+     de l'ecran. La meme liste, couchee au bas de la fenetre, tombe
+     exactement sous le pouce.
+
+     RIEN NE DISPARAIT DANS L'AFFAIRE, et ce n'est pas un scrupule :
+     chacun de ces boutons porte un `data-tour`, et une visite guidee
+     dont la cible n'existe pas dans le document est une visite qui saute
+     l'etape en silence. Les douze cibles restent donc montees ; ce sont
+     l'axe et les mesures qui changent. */
+  const { phone } = useViewport();
 
   return (
-    <div style={{ width: 46, flexShrink: 0, position: "relative", zIndex: 2 }}>
-      {/* la tranche du classeur, contre laquelle les onglets butent */}
-      <div
-        style={{
-          position: "fixed",
-          top: 0,
-          bottom: 0,
-          left: 0,
-          width: 5,
-          background: `linear-gradient(90deg, ${alpha(C.ink, 0.28)}, ${C.paperDark})`,
-          boxShadow: "inset -2px 0 4px rgba(30,20,10,0.2)",
-          zIndex: 0,
-        }}
-      />
+    <div
+      style={{
+        width: phone ? 0 : 46,
+        flexShrink: 0,
+        position: "relative",
+        zIndex: 2,
+      }}
+    >
+      {/* la tranche du classeur, contre laquelle les onglets butent.
+          Elle ne suit pas la barre en bas : ce qu'elle dessine, c'est le
+          dos d'un classeur pose debout, et un dos couche n'est plus un
+          dos. */}
+      {!phone && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            bottom: 0,
+            left: 0,
+            width: 5,
+            background: `linear-gradient(90deg, ${alpha(C.ink, 0.28)}, ${C.paperDark})`,
+            boxShadow: "inset -2px 0 4px rgba(30,20,10,0.2)",
+            zIndex: 0,
+          }}
+        />
+      )}
       {/* LE RAIL — pleine hauteur, et non plus « colle en haut ».
 
           Il etait `sticky` et poussait vers le bas : six onglets ecrits
@@ -194,16 +262,36 @@ export function FolderTabs({ view, setView, onAdd, onSearch, onSkin, onHelp }: F
       <div
         style={{
           position: "fixed",
-          top: 0,
-          bottom: 0,
           left: 0,
-          width: 46,
           boxSizing: "border-box",
-          paddingTop: 30,
-          paddingBottom: 14,
           display: "flex",
-          flexDirection: "column",
-          alignItems: "flex-start",
+          ...(phone
+            ? {
+                /* LA BARRE DU BAS. Elle est OPAQUE, et c'est necessaire :
+                   le mur defile dessous, et une barre transparente
+                   laisserait passer des affiches sous les onglets. */
+                right: 0,
+                bottom: 0,
+                paddingBottom: "var(--safe-bottom)",
+                paddingLeft: "max(8px, var(--safe-left))",
+                paddingRight: "max(8px, var(--safe-right))",
+                height: `calc(${BAR_H}px + var(--safe-bottom))`,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 8,
+                background: C.paperDark,
+                borderTop: `1px solid ${C.line}`,
+                boxShadow: `0 -3px 10px ${alpha(C.ink, 0.16)}`,
+              }
+            : {
+                top: 0,
+                bottom: 0,
+                width: 46,
+                paddingTop: 30,
+                paddingBottom: 14,
+                flexDirection: "column",
+                alignItems: "flex-start",
+              }),
         }}
       >
         <div
@@ -214,32 +302,71 @@ export function FolderTabs({ view, setView, onAdd, onSearch, onSkin, onHelp }: F
                taille de son contenu. */
             flex: "1 1 auto",
             minHeight: 0,
-            /* `clip` et non `hidden` : on ne veut aucun axe de
-               defilement, seulement que rien ne bave a droite. Les
-               onglets glissent de six pixels au survol et portent une
-               ombre — d'ou la marge, pour ne rogner ni l'un ni l'autre. */
-            overflow: "clip",
-            paddingRight: 12,
+            minWidth: 0,
             display: "flex",
-            flexDirection: "column",
-            alignItems: "flex-start",
             gap: 6,
+            ...(phone
+              ? {
+                  /* ICI, ON DEFILE — ET C'EST L'INVERSE DU RAIL.
+
+                     Sur la tranche, rien ne devait deborder : une barre
+                     de defilement sur le dos d'un classeur ne ressemble
+                     a rien, et huit pastilles empilees tiennent dans
+                     toute fenetre. Couchees, huit pastilles de quarante
+                     pixels font trois cent soixante-huit, et les quatre
+                     actions en prennent deux cents de plus : sur une
+                     fenetre de trois cent quatre-vingt-dix, ca ne tient
+                     pas, et ca ne tiendra jamais.
+
+                     Le rangement horizontal a, lui, un geste evident au
+                     doigt — on balaie. Sa barre reste cachee
+                     (`[data-tab-rail]`, plus haut dans les jetons), le
+                     balayage non. */
+                  overflowX: "auto",
+                  overflowY: "hidden",
+                  flexDirection: "row",
+                  alignItems: "center",
+                }
+              : {
+                  /* `clip` et non `hidden` : on ne veut aucun axe de
+                     defilement, seulement que rien ne bave a droite. Les
+                     onglets glissent de six pixels au survol et portent
+                     une ombre — d'ou la marge, pour ne rogner ni l'un ni
+                     l'autre. */
+                  overflow: "clip",
+                  paddingRight: 12,
+                  flexDirection: "column",
+                  alignItems: "flex-start",
+                }),
           }}
         >
           {tabs.map((t) => (
-            <Onglet key={t.key} t={t} active={view === t.key} onClick={() => setView(t.key)} />
+            <Onglet
+              key={t.key}
+              t={t}
+              active={view === t.key}
+              phone={phone}
+              onClick={() => setView(t.key)}
+            />
           ))}
         </div>
 
-        {/* LES ACTIONS — toujours au pied du rail, toujours visibles. */}
+        {/* LES ACTIONS — toujours au pied du rail, toujours visibles.
+            Au telephone, « au pied » veut dire au bout : elles se rangent
+            a droite de la barre, hors du balayage des onglets, pour que
+            le pouce ne les perde pas en faisant defiler la liste. */}
         <div
           style={{
             flexShrink: 0,
-            paddingTop: 16,
             display: "flex",
-            flexDirection: "column",
-            alignItems: "flex-start",
-            gap: 10,
+            ...(phone
+              ? { flexDirection: "row", alignItems: "center", gap: 2 }
+              : {
+                  paddingTop: 16,
+                  flexDirection: "column",
+                  alignItems: "flex-start",
+                  gap: 10,
+                }),
           }}
         >
           <button
@@ -249,9 +376,15 @@ export function FolderTabs({ view, setView, onAdd, onSearch, onSkin, onHelp }: F
             style={{
               all: "unset",
               cursor: "pointer",
-              marginLeft: 4,
-              width: 34,
-              height: 34,
+              /* LES QUATRE ACTIONS DESCENDENT EN TAILLE SUR LE RAIL —
+                 trente-quatre, trente, vingt-six, vingt-six — et cette
+                 degression dit leur ordre d'importance. Sous un doigt
+                 elle ne dit plus rien du tout : elle rend simplement les
+                 deux dernieres difficiles a viser. Quarante partout,
+                 donc, en dessous de quoi une cible se rate. */
+              marginLeft: phone ? 0 : 4,
+              width: phone ? 40 : 34,
+              height: phone ? 40 : 34,
               borderRadius: "50%",
               background: `radial-gradient(circle at 32% 26%, #fff8, ${C.burgundy} 62%)`,
               color: C.card,
@@ -287,9 +420,9 @@ export function FolderTabs({ view, setView, onAdd, onSearch, onSkin, onHelp }: F
             style={{
               all: "unset",
               cursor: "pointer",
-              marginLeft: 6,
-              width: 30,
-              height: 30,
+              marginLeft: phone ? 0 : 6,
+              width: phone ? 40 : 30,
+              height: phone ? 40 : 30,
               borderRadius: "50%",
               color: C.card,
               display: "flex",
@@ -323,9 +456,9 @@ export function FolderTabs({ view, setView, onAdd, onSearch, onSkin, onHelp }: F
             style={{
               all: "unset",
               cursor: "pointer",
-              marginLeft: 8,
-              width: 26,
-              height: 26,
+              marginLeft: phone ? 0 : 8,
+              width: phone ? 40 : 26,
+              height: phone ? 40 : 26,
               borderRadius: "50%",
               color: C.inkFaded,
               display: "flex",
@@ -362,9 +495,9 @@ export function FolderTabs({ view, setView, onAdd, onSearch, onSkin, onHelp }: F
             style={{
               all: "unset",
               cursor: "pointer",
-              marginLeft: 8,
-              width: 26,
-              height: 26,
+              marginLeft: phone ? 0 : 8,
+              width: phone ? 40 : 26,
+              height: phone ? 40 : 26,
               borderRadius: "50%",
               color: C.inkFaded,
               display: "flex",

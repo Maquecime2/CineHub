@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import { C, F, alpha } from "../../theme/tokens";
+import { useViewport } from "../../hooks/useViewport";
 import { tiltOf } from "../../domain/seeded";
 import { Tape } from "../atmosphere";
 import { markDone, markSkipped } from "../../services/onboarding";
@@ -27,7 +28,7 @@ const Z = 200;
 /** Marge du trou autour de la cible — l'objet montré respire. */
 const PAD = 8;
 
-const BULLE_W = 300;
+const BULLE_BASE = 300;
 /** Distance entre le bord du trou et la fiche. */
 const GAP = 16;
 
@@ -219,7 +220,15 @@ function Bulle({
   onSkip: () => void;
   label: string;
 }) {
-  const pos = placer(hole, step.placement);
+  /* AUCUN CÔTÉ N'EST LIBRE SUR UN TÉLÉPHONE.
+
+     Une fiche de trois cents pixels posée « à droite » d'une cible, dans
+     une fenêtre de trois cent quatre-vingt-dix, n'a pas de droite : le
+     bornage la ramenait sur la cible, et la visite montrait alors une
+     chose en la cachant. Au centre, elle ne cache que le voile — et le
+     trou, lui, continue de désigner. */
+  const { phone } = useViewport();
+  const pos = placer(hole, phone ? "center" : step.placement);
   /* L'inclinaison est semée sur le rang de l'étape : la même fiche
      penche toujours pareil, comme tout le désordre du site. */
   const tilt = Number(tiltOf(`bulle-${index}`)) / 2.4;
@@ -230,7 +239,10 @@ function Bulle({
       aria-live="polite"
       style={{
         position: "fixed",
-        width: BULLE_W,
+        /* Elle ne rétrécit qu'au besoin : sur un bureau, c'est la même
+           fiche qu'avant, au pixel. */
+        width: `min(${BULLE_BASE}px, calc(100vw - 24px))`,
+        maxWidth: "100%",
         boxSizing: "border-box",
         padding: "18px 20px 14px",
         background: C.card,
@@ -340,6 +352,9 @@ const lien: CSSProperties = {
 function placer(hole: Rect | null, placement: TourStep["placement"]): CSSProperties {
   const W = window.innerWidth;
   const H = window.innerHeight;
+  /* La fiche se rétrécit avec la fenêtre : la mesure qui sert à la
+     placer doit dire la même chose que celle qui la dessine. */
+  const BULLE_W = Math.min(BULLE_BASE, W - 24);
   /* Hauteur inconnue avant mesure : on prend une borne haute prudente
      plutôt que de faire un aller-retour de rendu pour un pixel. */
   const HAUT = 230;

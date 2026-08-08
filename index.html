@@ -2,7 +2,12 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover : sans lui, `env(safe-area-inset-*)` vaut zéro
+         partout et la barre d'onglets du téléphone se range sous la barre
+         d'accueil d'iOS. maximum-scale n'y est pas, délibérément : brider
+         le zoom d'un site plein de petites affiches, c'est le rendre
+         inutilisable à qui en a besoin. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Ciné Hub</title>
   </head>
   <body>

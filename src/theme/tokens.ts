@@ -78,6 +78,26 @@ export const F = {
 export const alpha = (color: string, a: number): string =>
   `color-mix(in srgb, ${color} ${Math.round(a * 1000) / 10}%, transparent)`;
 
+/* LES DEUX SEUILS, ET PAS TRENTE.
+
+   Ils sont ici, avec les couleurs et les polices, parce qu'ils sont de
+   la même espèce : ce dont le site est fait et qui peut changer. Une
+   valeur écrite à la main dans une media query d'un côté et dans un
+   `matchMedia` de l'autre, c'est deux vérités qui divergent au premier
+   ajustement — et le rail se retrouve horizontal pendant que la vue le
+   croit encore vertical.
+
+   Deux seuils seulement, et ils désignent des GESTES plutôt que des
+   appareils : sous `phone`, on tient l'objet d'une main et le pouce ne
+   remonte pas en haut de l'écran ; sous `tablet`, la fenêtre est trop
+   étroite pour deux colonnes mais garde ses bords. Au-dessus, c'est le
+   classeur tel qu'il a été dessiné.
+
+   `src/hooks/useViewport.ts` en fait des requêtes ; les `--bp-*`
+   ci-dessous servent la poignee d'endroits qui n'ont pas de composant
+   pour poser la question. */
+export const BP = { phone: 640, tablet: 1024 } as const;
+
 export const FONT_IMPORT = `
 /* LA PEAU PAR DEFAUT — le carnet d'archiviste, papier kraft et fil
    rouge. Elle est ici, en dur, et non dans le catalogue des peaux : le
@@ -137,6 +157,28 @@ export const FONT_IMPORT = `
   --motion-fast: .16s;
   --motion-slow: .34s;
   --motion-ease: cubic-bezier(.2,.8,.3,1);
+
+  /* LES DEUX SEUILS, DU COTE CSS. Ils doublent BP dans tokens.ts, et le
+     doublon est assume : une media query n'accepte pas de var(), donc
+     les regles plus bas reecrivent le chiffre. Ces jetons servent aux
+     styles qui veulent le CONNAITRE sans en faire une condition. */
+  --bp-phone: 640px;
+  --bp-tablet: 1024px;
+
+  /* CE QUE L'ECRAN NE MONTRE PAS.
+
+     Une encoche, une barre d'accueil, un coin arrondi : sur un telephone
+     la fenetre est plus grande que la surface reellement visible. Ces
+     quatre jetons disent de combien, et valent zero partout ailleurs —
+     un navigateur de bureau resout env() a sa valeur de repli.
+
+     Ils sont pris ici plutot qu'ecrits en ligne parce que trois couches
+     en ont besoin et qu'aucune ne doit deviner : la barre d'onglets du
+     bas, le tiroir de recherche, et la feuille de la fiche. */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
 }
 
 ::selection { background: ${alpha(C.ochre, 0.4)}; color: ${C.ink}; }
@@ -286,6 +328,61 @@ html[data-dragging="1"] [data-wall-item]:not([data-drag-self]) {
      cette regle : c'est pourquoi les nouvelles durees n'y sont pas. */
   :root { --motion-fast: 0s; --motion-slow: 0s; }
   [data-enters] { animation: none !important; }
+}
+
+/* ============================================================
+   LE TELEPHONE
+   ============================================================
+
+   Le classeur a ete dessine pour un bureau. Ce bloc ne le redessine
+   pas : il retire les quelques choses qui, sur un ecran tenu a la main,
+   empechent d'atteindre le reste.
+
+   La mise en page, elle, ne passe pas par ici. Elle est en styles en
+   ligne comme tout le reste du projet, et c'est useViewport qui la
+   decide — une media query ne peut pas dire a React de rendre une barre
+   plutot qu'un rail. Ce qui reste ici, ce sont les reglages que le CSS
+   est SEUL a savoir faire.
+
+   (Aucun accent grave dans tout ce bloc : il vit DANS une chaine a
+   gabarit, et le premier la refermerait au milieu d'une phrase. Le
+   piege s'est referme une fois de plus en ecrivant ces lignes.) */
+
+/* Le geste de defilement ne doit pas devenir un rechargement de page ni
+   entrainer la fenetre entiere quand une liste arrive au bout. */
+html, body { overscroll-behavior-y: contain; }
+
+/* Un glissement au doigt sur un objet saisissable ne doit pas etre lu
+   comme un defilement. usePointerDrag pose l'attribut au moment ou il
+   prend la main, et pas avant : le poser d'emblee sur tous les boitiers
+   rendrait l'etagere impossible a faire defiler. */
+[data-pointer-drag="1"] { touch-action: none; }
+
+/* Ce qu'on tient au doigt ne doit pas, en plus, se selectionner ni
+   ouvrir le menu long-appui d'iOS. */
+[data-pointer-drag="1"], html[data-dragging="1"] {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+@media (max-width: 639px) {
+  /* LA BARRE DE DEFILEMENT DESSINEE A LA MAIN N'A PAS DE SENS ICI. Onze
+     pixels de large sur une fenetre de trois cent quatre-vingt-dix, pour
+     une barre que le systeme fait deja glisser toute seule et qu'aucun
+     doigt n'attrape. */
+  ::-webkit-scrollbar { width: 0; height: 0; }
+
+  /* Un champ dont le texte fait moins de seize pixels declenche un zoom
+     automatique a la mise au point sur iOS, et la page ne revient jamais
+     a sa taille. C'est la seule raison de cette regle — elle n'a rien
+     d'une preference typographique. */
+  input, select, textarea { font-size: max(16px, 1em); }
+
+  /* La colonne de la vue laisse la place a la barre du bas, encoche
+     comprise. En CSS plutot qu'en ligne : la barre n'existe qu'au
+     telephone, et la colonne n'a pas a savoir qu'elle existe. */
+  [data-enters] { padding-bottom: calc(58px + var(--safe-bottom)); }
 }
 
 /* CE QUE LE NAVIGATEUR DESSINE A NOTRE PLACE.
