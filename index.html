@@ -9,6 +9,22 @@
          inutilisable à qui en a besoin. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Ciné Hub</title>
+
+    <!-- CE QUE LE MANIFESTE NE DIT PAS À IOS.
+
+         Safari ignore le manifeste pour l'icône, le nom et le plein
+         écran : il lit ces balises-là, et elles seules. Sans elles, un
+         classeur posé sur l'écran d'accueil d'un iPhone prend une
+         capture de la page en guise d'icône, s'appelle « Ciné Hub » en
+         entier sous l'icône, et rouvre une barre d'adresse. -->
+    <link rel="apple-touch-icon" href="/icone-pomme-180.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Ciné Hub" />
+    <!-- La barre d'état prend le carton du carnet plutôt que le blanc du
+         navigateur. `theme-color` vaut pour Android et le bureau. -->
+    <meta name="theme-color" content="#EEE3CC" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   </head>
   <body>
     <div id="root"></div>

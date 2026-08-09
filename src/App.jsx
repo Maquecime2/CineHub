@@ -109,6 +109,11 @@ import { FolderTabs } from "./components/layout/FolderTabs";
 import { useViewport } from "./hooks/useViewport";
 import { usePointerDrag } from "./hooks/usePointerDrag";
 import { SkinPicker } from "./components/layout/SkinPicker";
+import { Installation, MiseÀJour } from "./components/layout/Installation";
+import { useInstallation } from "./hooks/useInstallation";
+/* Le module n'existe qu'à la construction : c'est le greffon qui le
+   fabrique, avec l'adresse du service worker qu'il vient d'écrire. */
+import { useRegisterSW } from "virtual:pwa-register/react";
 import { SearchDrawer } from "./components/layout/SearchDrawer";
 import { FilmWall } from "./views/library/FilmWall";
 import { WALLS } from "./views/library/walls";
@@ -272,6 +277,18 @@ export default function App() {
      pont qui en émettrait une seconde série les doublerait. */
   const { coarse } = useViewport();
   usePointerDrag(coarse);
+
+  /* LE CLASSEUR S'INSTALLE, ET SE MET À JOUR QUAND ON LE DIT.
+
+     Deux fiches, jamais ensemble : l'invitation à poser l'application
+     sur l'écran d'accueil, et l'annonce d'une version neuve. La seconde
+     passe devant — on ne propose pas d'installer une version qu'on sait
+     déjà périmée. */
+  const installation = useInstallation();
+  const {
+    needRefresh: [majPrête],
+    updateServiceWorker,
+  } = useRegisterSW();
 
   /* La première ouverture lance la visite complète — mais APRÈS le
      chargement, sinon elle pointe des cibles que le classeur n'a pas
@@ -835,6 +852,18 @@ export default function App() {
           tout `position: fixed` qu'il contient : le voile s'y serait
           ancré sur la colonne au lieu de la fenêtre, et le trou aurait
           visé à côté à chaque changement de vue. */}
+      {majPrête ? (
+        <MiseÀJour onRecharger={() => updateServiceWorker(true)} />
+      ) : (
+        installation.invite && (
+          <Installation
+            pomme={installation.pomme}
+            onInstaller={installation.installer}
+            onÉcarter={installation.écarter}
+          />
+        )
+      )}
+
       {tourMenu && <TourMenu view={view} onPlay={jouerVisite} onClose={() => setTourMenu(false)} />}
       <TourOverlay tourId={tourId} onClose={fermerVisite} onView={visiteOuvreVue} />
       {hint && !tourId && (

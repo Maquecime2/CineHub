@@ -30,7 +30,16 @@
     /* `vite/client` donne `import.meta.env` : sans lui, le seul endroit qui
        demande « suis-je en développement ? » (le relais du flux Letterboxd)
        ne compile pas. */
-    "types": ["node", "vite/client", "vitest/globals", "@testing-library/jest-dom"]
+    /* `vite-plugin-pwa/react` déclare le module virtuel `virtual:pwa-register/react`,
+       qui n'existe qu'au moment de la construction : sans lui, le bandeau de
+       mise à jour ne compile pas. */
+    "types": [
+      "node",
+      "vite/client",
+      "vitest/globals",
+      "@testing-library/jest-dom",
+      "vite-plugin-pwa/react"
+    ]
   },
   "include": ["src", "vite.config.ts"]
 }

@@ -400,6 +400,19 @@ const global: Tour = {
       placement: "right",
       view: "library",
     },
+    /* LE CLASSEUR S'INSTALLE — et la fiche qui le propose ne paraît pas
+       toujours : le navigateur décide seul qu'un site est installable,
+       et elle disparaît dès qu'on l'a écartée deux fois ou qu'elle est
+       déjà posée. `optional`, donc, comme tout ce qui dépend de ce
+       qu'on a sous les yeux. */
+    {
+      target: at("installer"),
+      title: "Le poser sur l'écran d'accueil",
+      body: "Installé, le classeur s'ouvre en plein écran, sans barre d'adresse, et fonctionne sans réseau — vos films sont chez vous, pas sur un serveur. Sur iPhone, c'est Partager puis « Sur l'écran d'accueil ».",
+      placement: "top",
+      view: "library",
+      optional: true,
+    },
     {
       target: at("help"),
       title: "Rejouer la visite",
