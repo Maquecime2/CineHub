@@ -109,6 +109,43 @@ describe("usePointerDrag", () => {
     expect(heard).toHaveLength(0);
   });
 
+  it("au bord de l'ecran, l'etagere defile et le repere suit", () => {
+    /* Un conteneur qui a de quoi defiler : jsdom ne met rien en page, donc
+       les hauteurs se posent a la main. */
+    const box = document.createElement("div");
+    box.style.overflowY = "auto";
+    box.append(target);
+    document.body.append(box);
+    Object.defineProperty(box, "scrollHeight", { value: 2000 });
+    Object.defineProperty(box, "clientHeight", { value: 400 });
+    let top = 0;
+    Object.defineProperty(box, "scrollTop", {
+      get: () => top,
+      set: (v: number) => {
+        top = Math.max(0, Math.min(1600, v));
+      },
+    });
+
+    render(<Bridge />);
+    pointer("pointerdown", 10, 10, source);
+    act(() => void vi.advanceTimersByTime(300));
+
+    /* Le doigt entre dans la bande basse, puis ne bouge plus. */
+    pointer("pointermove", 120, window.innerHeight - 5);
+    heard = [];
+    act(() => void vi.advanceTimersByTime(64));
+
+    expect(top).toBeGreaterThan(0);
+    /* Le doigt est immobile : sans la trame, aucun `dragover` de plus, et
+       le repere resterait sur la fente d'avant le defilement. */
+    expect(heard.filter((h) => h.type === "dragover").length).toBeGreaterThan(0);
+
+    pointer("pointerup", 120, window.innerHeight - 5);
+    const settled = top;
+    act(() => void vi.advanceTimersByTime(64));
+    expect(top).toBe(settled);
+  });
+
   it("a la souris, le pont ne s'installe pas", () => {
     render(<Bridge on={false} />);
     pointer("pointerdown", 10, 10, source);

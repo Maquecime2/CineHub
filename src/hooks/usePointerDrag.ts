@@ -61,6 +61,50 @@ const HOLD_MS = 260;
    l'appui maintenu est abandonne au profit du defilement. */
 const SLOP = 10;
 
+/* LE BORD QUI DEFILE.
+
+   Sur un telephone, une rangee tient trois boitiers : la fente visee est
+   presque toujours hors de l'ecran. A la souris on a la molette ; au
+   doigt on n'a rien, puisque le doigt est deja pris par le geste. Sans
+   ce qui suit, deplacer un film au-dela de ce que l'ecran montre est
+   simplement impossible.
+
+   Quatre-vingts pixels de bande, dix-huit pixels par trame au plus fort
+   — soit environ mille par seconde, le temps de traverser une page sans
+   qu'on ait le sentiment de fuir. La vitesse suit l'enfoncement dans la
+   bande : effleurer la bande avance a peine, coller au bord file.
+
+   `prefers-reduced-motion` NE COUPE PAS ce defilement. Ce n'est pas un
+   ornement qui bouge tout seul : c'est le seul chemin vers une cible
+   hors champ, et le supprimer rendrait le geste inachevable. */
+const EDGE = 80;
+const SPEED = 18;
+
+/* Le conteneur qui defile sous ce qu'on survole. On remonte a la main
+   plutot qu'avec `closest()` : le selecteur ne sait rien du style
+   calcule, et un conteneur qui n'a rien a defiler ne doit pas capter le
+   geste a la place de la page. */
+const scroller = (node: Element | null): Element => {
+  for (let el = node; el; el = el.parentElement) {
+    if (!(el instanceof HTMLElement)) continue;
+    const { overflowY } = getComputedStyle(el);
+    if ((overflowY === "auto" || overflowY === "scroll") && el.scrollHeight > el.clientHeight) {
+      return el;
+    }
+  }
+  return document.scrollingElement ?? document.documentElement;
+};
+
+/* Le pas d'une trame, en pixels, signe : negatif vers le haut. Zero tant
+   que le doigt n'est dans aucune des deux bandes. */
+const pace = (y: number): number => {
+  const top = EDGE - y;
+  if (top > 0) return -SPEED * Math.min(1, top / EDGE);
+  const bottom = y - (window.innerHeight - EDGE);
+  if (bottom > 0) return SPEED * Math.min(1, bottom / EDGE);
+  return 0;
+};
+
 /* CE QUE `dataTransfer` DOIT ÊTRE POUR QUE PERSONNE NE S'EN APERÇOIVE.
 
    Un `DragEvent` construit à la main naît avec `dataTransfer` à `null`,
@@ -121,6 +165,10 @@ interface Gesture {
   live: boolean;
   /** Le dernier nœud survolé, pour lui dire qu'on le quitte. */
   over: Element | null;
+  /** La trame de défilement en cours, s'il y en a une. */
+  raf: number | null;
+  /** Le pas de défilement, en pixels par trame ; zéro hors des bandes. */
+  pan: number;
 }
 
 /** Traduit le doigt en glisser-déposer, pour tout `[draggable="true"]`. */
@@ -147,6 +195,7 @@ export function usePointerDrag(enabled: boolean): void {
       const done = g;
       g = null;
       clearTimerOf(done);
+      stopPan(done);
       if (!live) return;
       if (drop) {
         const target = under(drop.x, drop.y, source);
@@ -161,6 +210,47 @@ export function usePointerDrag(enabled: boolean): void {
     const clearTimerOf = (x: Gesture) => {
       if (x.timer != null) window.clearTimeout(x.timer);
       x.timer = null;
+    };
+
+    const stopPan = (x: Gesture) => {
+      if (x.raf != null) cancelAnimationFrame(x.raf);
+      x.raf = null;
+      x.pan = 0;
+    };
+
+    /* Ce que le survol produit : le changement de cible, puis le
+       `dragover` qui place le repere. Appele par le doigt qui bouge, et
+       par chaque trame de defilement — car sous un doigt immobile, c'est
+       l'etagere qui bouge, et la cible change tout autant. */
+    const hover = (x: number, y: number) => {
+      if (!g) return;
+      const target = under(x, y, g.source);
+      if (target !== g.over) {
+        if (g.over) emit(g.over, "dragleave", x, y, g.dt);
+        if (target) emit(target, "dragenter", x, y, g.dt);
+        g.over = target;
+      }
+      /* `dragover` tire en continu tant que la souris bouge : c'est lui
+         qui place le repère, et c'est donc lui qu'il faut répéter. */
+      emit(target, "dragover", x, y, g.dt);
+    };
+
+    /* Une trame de defilement : on pousse le conteneur, on regarde ce
+       qui est passe sous le doigt, on redemande une trame. Si le
+       conteneur n'a pas bouge, on est en butee et la boucle s'arrete —
+       la rejouer a vide ne ferait que rejouer le meme `dragover`. */
+    const frame = () => {
+      if (!g?.live || !g.pan) return;
+      g.raf = null;
+      const el = scroller(g.over ?? under(g.x, g.y, g.source));
+      const before = el.scrollTop;
+      el.scrollTop = before + g.pan;
+      if (el.scrollTop === before) {
+        g.pan = 0;
+        return;
+      }
+      hover(g.x, g.y);
+      if (g?.live && g.pan) g.raf = requestAnimationFrame(frame);
     };
 
     const begin = () => {
@@ -193,6 +283,8 @@ export function usePointerDrag(enabled: boolean): void {
         timer: window.setTimeout(begin, HOLD_MS),
         live: false,
         over: null,
+        raf: null,
+        pan: 0,
       };
     };
 
@@ -213,15 +305,13 @@ export function usePointerDrag(enabled: boolean): void {
       e.preventDefault();
       g.x = e.clientX;
       g.y = e.clientY;
-      const target = under(e.clientX, e.clientY, g.source);
-      if (target !== g.over) {
-        if (g.over) emit(g.over, "dragleave", e.clientX, e.clientY, g.dt);
-        if (target) emit(target, "dragenter", e.clientX, e.clientY, g.dt);
-        g.over = target;
-      }
-      /* `dragover` tire en continu tant que la souris bouge : c'est lui
-         qui place le repère, et c'est donc lui qu'il faut répéter. */
-      emit(target, "dragover", e.clientX, e.clientY, g.dt);
+      hover(e.clientX, e.clientY);
+      /* Entrer dans une bande allume la boucle, en sortir l'eteint ;
+         entre les deux, on se contente de corriger la vitesse. */
+      if (!g) return;
+      g.pan = pace(e.clientY);
+      if (g.pan && g.raf == null) g.raf = requestAnimationFrame(frame);
+      else if (!g.pan) stopPan(g);
     };
 
     const onUp = (e: PointerEvent) => {
