@@ -35,7 +35,17 @@ import { useEffect } from "react";
 
 /* CE QU'ON N'ATTRAPE PAS EN GLISSANT. Un boîtier saisissable porte des
    boutons — ouvrir la fiche, renommer un carton. Un appui long sur l'un
-   d'eux doit rester un appui sur ce bouton. */
+   d'eux doit rester un appui sur ce bouton.
+
+   MAIS LA CHOSE TENUE EST ELLE-MEME UN BOUTON, ET C'EST TOUT LE PIEGE.
+   Un boîtier de l'étagère s'écrit `<button draggable="true">` : il
+   s'ouvre au clavier autant qu'à la souris, et c'est bien. Ecarter tout
+   appui « dans un bouton » l'écartait donc lui, et le glissement au
+   doigt ne demarrait JAMAIS sur un rayon — la seule chose que ce pont
+   existait pour rendre possible.
+
+   On ne regarde donc pas si l'appui tombe dans un bouton, mais s'il
+   tombe dans un bouton SITUE A L'INTERIEUR de la chose saisissable. */
 const INERT = "button, a, input, textarea, select, [contenteditable]";
 
 /* LE TEMPS QU'IL FAUT POUR DIRE « JE PRENDS » PLUTOT QUE « JE FAIS
@@ -271,9 +281,15 @@ export function usePointerDrag(enabled: boolean): void {
     const onDown = (e: PointerEvent) => {
       if (g || e.button !== 0) return;
       const el = e.target as Element | null;
-      if (!el || el.closest(INERT)) return;
+      if (!el) return;
       const source = el.closest<HTMLElement>('[draggable="true"]');
       if (!source) return;
+      /* Le premier élément interactif au-dessus du doigt. S'il EST la
+         chose tenue, il n'y a pas d'obstacle : c'est elle qu'on prend.
+         S'il est en dessous d'elle, c'est un bouton posé sur elle, et il
+         garde son geste. */
+      const inert = el.closest(INERT);
+      if (inert && inert !== source && source.contains(inert)) return;
       g = {
         id: e.pointerId,
         source,

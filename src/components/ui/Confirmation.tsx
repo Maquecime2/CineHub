@@ -17,7 +17,7 @@
    motif », et son cadre gris tombe au milieu du carnet comme un
    avertissement de navigateur — ce qu'il est. */
 import { useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
+import { Calque } from "./Calque";
 import { C, F } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { Tape } from "../atmosphere";
@@ -68,91 +68,92 @@ export function Confirmation({
      le haut du document — et une confirmation demandée en bas d'une
      page longue s'ouvrait hors de l'écran. Le portail la sort de la
      colonne, et elle retrouve la fenêtre. */
-  return createPortal(
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 60,
-        background: "rgba(20,14,8,0.55)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 20,
-      }}
-    >
+  return (
+    <Calque>
       <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={demande.titre}
-        onClick={(e) => e.stopPropagation()}
+        onClick={onClose}
         style={{
-          position: "relative",
-          background: C.card,
-          border: `1px solid ${C.line}`,
-          boxShadow: "4px 10px 30px rgba(20,14,8,0.5)",
-          padding: "22px 26px 20px",
-          maxWidth: 420,
-          width: "100%",
-          transform: "rotate(-0.4deg)",
+          position: "fixed",
+          inset: 0,
+          zIndex: 60,
+          background: "rgba(20,14,8,0.55)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 20,
         }}
       >
-        <Tape color={encre} rotate={-6} width={64} style={{ top: -11, left: 22 }} />
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={demande.titre}
+          onClick={(e) => e.stopPropagation()}
           style={{
-            fontFamily: F.title,
-            fontStyle: "italic",
-            fontWeight: 700,
-            fontSize: 21,
-            color: C.ink,
-            marginBottom: 6,
+            position: "relative",
+            background: C.card,
+            border: `1px solid ${C.line}`,
+            boxShadow: "4px 10px 30px rgba(20,14,8,0.5)",
+            padding: "22px 26px 20px",
+            maxWidth: 420,
+            width: "100%",
+            transform: "rotate(-0.4deg)",
           }}
         >
-          {demande.titre}
-        </div>
-        {demande.corps && (
-          <div style={{ fontFamily: F.hand, fontSize: 18, color: C.inkFaded, marginBottom: 16 }}>
-            {demande.corps}
+          <Tape color={encre} rotate={-6} width={64} style={{ top: -11, left: 22 }} />
+          <div
+            style={{
+              fontFamily: F.title,
+              fontStyle: "italic",
+              fontWeight: 700,
+              fontSize: 21,
+              color: C.ink,
+              marginBottom: 6,
+            }}
+          >
+            {demande.titre}
           </div>
-        )}
-        <div style={{ display: "flex", gap: 14, alignItems: "center", marginTop: 4 }}>
-          <button
-            ref={boutonRef}
-            onClick={() => {
-              demande.onConfirm();
-              onClose();
-            }}
-            style={{
-              all: "unset",
-              ...tap,
-              cursor: "pointer",
-              padding: "7px 15px",
-              background: encre,
-              color: C.card,
-              fontFamily: F.mono,
-              fontSize: 10.5,
-              letterSpacing: 1,
-            }}
-          >
-            {demande.action.toUpperCase()}
-          </button>
-          <button
-            onClick={onClose}
-            style={{
-              all: "unset",
-              ...tap,
-              cursor: "pointer",
-              fontFamily: F.mono,
-              fontSize: 10.5,
-              color: C.inkFaded,
-            }}
-          >
-            RENONCER
-          </button>
+          {demande.corps && (
+            <div style={{ fontFamily: F.hand, fontSize: 18, color: C.inkFaded, marginBottom: 16 }}>
+              {demande.corps}
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 14, alignItems: "center", marginTop: 4 }}>
+            <button
+              ref={boutonRef}
+              onClick={() => {
+                demande.onConfirm();
+                onClose();
+              }}
+              style={{
+                all: "unset",
+                ...tap,
+                cursor: "pointer",
+                padding: "7px 15px",
+                background: encre,
+                color: C.card,
+                fontFamily: F.mono,
+                fontSize: 10.5,
+                letterSpacing: 1,
+              }}
+            >
+              {demande.action.toUpperCase()}
+            </button>
+            <button
+              onClick={onClose}
+              style={{
+                all: "unset",
+                ...tap,
+                cursor: "pointer",
+                fontFamily: F.mono,
+                fontSize: 10.5,
+                color: C.inkFaded,
+              }}
+            >
+              RENONCER
+            </button>
+          </div>
         </div>
       </div>
-    </div>,
-    document.body
+    </Calque>
   );
 }

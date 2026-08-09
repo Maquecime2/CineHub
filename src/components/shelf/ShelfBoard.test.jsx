@@ -181,7 +181,11 @@ describe("ShelfBoard — le coût d'un glissement", () => {
        chaque rendu, leur `React.memo` ne retient plus rien et les rangées se
        refont — avec elles, les enveloppes que les mesures retenues plus haut
        désignaient. C'est là que les deux correctifs se rejoignent. */
-    const tab = container.querySelector("[data-drawer-tab]");
+    /* Le tiroir se rend dans le CORPS du document et non dans le conteneur
+       de rendu : c'est un `Calque`, pour que ses coordonnées d'écran ne
+       dépendent pas de la colonne de vue et de sa transformation. On le
+       cherche donc où il est vraiment. */
+    const tab = document.querySelector("[data-drawer-tab]");
     expect(tab).toBeTruthy();
     // `act` : sans lui le rendu déclenché resterait en attente et le compte mentirait
     act(() => {

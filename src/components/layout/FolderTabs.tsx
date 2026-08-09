@@ -220,7 +220,21 @@ export function FolderTabs({ view, setView, onAdd, onSearch, onSkin, onHelp }: F
         width: phone ? 0 : 46,
         flexShrink: 0,
         position: "relative",
-        zIndex: 2,
+        /* LA BARRE DU BAS PERDAIT SON EGALITE, ET UNE EGALITE SE PERD
+           TOUJOURS DU MEME COTE.
+
+           Le rail et la colonne de vue etaient tous deux a 2. A valeur
+           egale, c'est le DERNIER du document qui se peint dessus — et
+           le rail est ecrit avant. Sur la tranche gauche, cela ne se
+           voyait pas : le rail et la colonne ne se recouvrent nulle
+           part. Couchee en bas, la barre passe SOUS la colonne qu'elle
+           doit border, et tout ce qui deborde de la colonne se peint
+           dessus.
+
+           Vingt : au-dessus de la page (2), au-dessous des panneaux
+           (30–45) et de tout ce qui suit — un tiroir ouvert recouvre la
+           barre, la page jamais. */
+        zIndex: phone ? 20 : 2,
       }}
     >
       {/* la tranche du classeur, contre laquelle les onglets butent.

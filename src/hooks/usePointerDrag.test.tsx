@@ -41,7 +41,13 @@ describe("usePointerDrag", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     heard = [];
-    source = document.createElement("div");
+    /* UN BOUTON, ET PAS UN `div` — c'est ce que l'etagere rend vraiment.
+       Un boitier s'ecrit `<button draggable="true">` pour s'ouvrir au
+       clavier autant qu'a la souris. Ce test montait un `div`, et il a
+       donc laisse passer un pont qui ecartait tout appui commence dans
+       un bouton : au doigt, aucun boitier de rayon ne se prenait. Un
+       banc d'essai qui ne ressemble pas au produit ne prouve rien. */
+    source = document.createElement("button");
     source.setAttribute("draggable", "true");
     source.innerHTML = '<button type="button">ouvrir</button>';
     target = document.createElement("div");

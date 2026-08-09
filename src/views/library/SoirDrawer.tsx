@@ -11,7 +11,7 @@
    du sens.
    ============================================================ */
 import { useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
+import { Calque } from "../../components/ui/Calque";
 import { X, Dice5, ArrowRight, Loader2 } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
@@ -142,151 +142,154 @@ export function SoirDrawer({
      haut du document, et s'ouvrirait hors de l'écran quand on le
      demande depuis le bas d'un long mur. Le piège a déjà mordu une
      fois, sur la demande de confirmation. */
-  return createPortal(
-    <>
-      <div
-        onClick={onClose}
-        style={{ position: "fixed", inset: 0, zIndex: 59, background: "rgba(20,14,8,0.5)" }}
-      />
-      <div
-        role="dialog"
-        aria-label="Lequel ce soir ?"
-        style={{
-          position: "fixed",
-          top: 0,
-          right: 0,
-          bottom: 0,
-          width: "min(430px, 92vw)",
-          zIndex: 60,
-          background: C.paper,
-          borderLeft: `1px solid ${C.line}`,
-          boxShadow: "-6px 0 24px rgba(0,0,0,0.28)",
-          overflowY: "auto",
-          padding: "26px 26px 40px",
-          animation: "drawerIn var(--motion-slow) var(--motion-ease) backwards",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-          <div
-            style={{
-              fontFamily: F.title,
-              fontStyle: "italic",
-              fontWeight: 700,
-              fontSize: 27,
-              color: C.ink,
-            }}
-          >
-            Lequel ce soir ?
-          </div>
-          <button onClick={onClose} aria-label="Fermer" style={{ ...nu, marginLeft: "auto" }}>
-            <X size={16} color={C.inkFaded} />
-          </button>
-        </div>
-        <div style={{ fontFamily: F.hand, fontSize: 17, color: C.inkFaded, margin: "2px 0 20px" }}>
-          Dites le temps que vous avez, et dans quel état vous êtes.
-        </div>
-
-        {/* ---- le temps ---- */}
-        <div data-tour="soir-temps" style={{ marginBottom: 18 }}>
-          <Label>J'ai</Label>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            <button onClick={() => setMinutes(null)} style={puce(minutes === null)}>
-              peu importe
-            </button>
-            {CRÉNEAUX.map((c) => (
-              <button
-                key={c.minutes}
-                onClick={() => setMinutes(c.minutes)}
-                style={puce(minutes === c.minutes)}
-              >
-                {c.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* ---- l'humeur ---- */}
-        <div data-tour="soir-humeur" style={{ marginBottom: 18 }}>
-          <Label>Je suis d'humeur</Label>
-          {!apiKey && (
-            /* Sans clé, les motifs d'une fiche non vue n'existent pas et
-               rien ne peut les deviner. On le dit plutôt que de laisser
-               une molette qui ne répond à rien. */
-            <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginBottom: 6 }}>
-              Sans clé TMDB, l'humeur ne se lit que sur les fiches que vous avez déjà annotées. La
-              clé se pose depuis l'onglet Import.
+  return (
+    <Calque>
+      <>
+        <div
+          onClick={onClose}
+          style={{ position: "fixed", inset: 0, zIndex: 59, background: "rgba(20,14,8,0.5)" }}
+        />
+        <div
+          role="dialog"
+          aria-label="Lequel ce soir ?"
+          style={{
+            position: "fixed",
+            top: 0,
+            right: 0,
+            bottom: 0,
+            width: "min(430px, 92vw)",
+            zIndex: 60,
+            background: C.paper,
+            borderLeft: `1px solid ${C.line}`,
+            boxShadow: "-6px 0 24px rgba(0,0,0,0.28)",
+            overflowY: "auto",
+            padding: "26px 26px 40px",
+            animation: "drawerIn var(--motion-slow) var(--motion-ease) backwards",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+            <div
+              style={{
+                fontFamily: F.title,
+                fontStyle: "italic",
+                fontWeight: 700,
+                fontSize: 27,
+                color: C.ink,
+              }}
+            >
+              Lequel ce soir ?
             </div>
-          )}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {HUMEURS.map((m) => (
-              <button
-                key={m.id}
-                onClick={() => setHumeur((h) => bascule(h, m.id))}
-                style={puce(humeur.includes(m.id), C.cobalt)}
-              >
-                {m.label}
-              </button>
-            ))}
+            <button onClick={onClose} aria-label="Fermer" style={{ ...nu, marginLeft: "auto" }}>
+              <X size={16} color={C.inkFaded} />
+            </button>
           </div>
-        </div>
+          <div
+            style={{ fontFamily: F.hand, fontSize: 17, color: C.inkFaded, margin: "2px 0 20px" }}
+          >
+            Dites le temps que vous avez, et dans quel état vous êtes.
+          </div>
 
-        {/* ---- la langue, s'il y a de quoi choisir ---- */}
-        {dispo.length > 1 && (
-          <div style={{ marginBottom: 22 }}>
-            <Label>En</Label>
+          {/* ---- le temps ---- */}
+          <div data-tour="soir-temps" style={{ marginBottom: 18 }}>
+            <Label>J'ai</Label>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {dispo.slice(0, 8).map(({ code, n }) => (
+              <button onClick={() => setMinutes(null)} style={puce(minutes === null)}>
+                peu importe
+              </button>
+              {CRÉNEAUX.map((c) => (
                 <button
-                  key={code}
-                  onClick={() => setLangues((l) => bascule(l, code))}
-                  style={puce(langues.includes(code), C.moss)}
+                  key={c.minutes}
+                  onClick={() => setMinutes(c.minutes)}
+                  style={puce(minutes === c.minutes)}
                 >
-                  {nomLangue(code)} · {n}
+                  {c.label}
                 </button>
               ))}
             </div>
           </div>
-        )}
 
-        <div style={{ borderTop: `1px dashed ${C.line}`, paddingTop: 18 }}>
-          {cherche && (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 7,
-                fontFamily: F.mono,
-                fontSize: 10,
-                color: C.inkFaded,
-                marginBottom: 10,
-              }}
-            >
-              <Loader2 size={12} /> on lit ce que TMDB dit de ces films…
+          {/* ---- l'humeur ---- */}
+          <div data-tour="soir-humeur" style={{ marginBottom: 18 }}>
+            <Label>Je suis d'humeur</Label>
+            {!apiKey && (
+              /* Sans clé, les motifs d'une fiche non vue n'existent pas et
+               rien ne peut les deviner. On le dit plutôt que de laisser
+               une molette qui ne répond à rien. */
+              <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginBottom: 6 }}>
+                Sans clé TMDB, l'humeur ne se lit que sur les fiches que vous avez déjà annotées. La
+                clé se pose depuis l'onglet Import.
+              </div>
+            )}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {HUMEURS.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => setHumeur((h) => bascule(h, m.id))}
+                  style={puce(humeur.includes(m.id), C.cobalt)}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ---- la langue, s'il y a de quoi choisir ---- */}
+          {dispo.length > 1 && (
+            <div style={{ marginBottom: 22 }}>
+              <Label>En</Label>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {dispo.slice(0, 8).map(({ code, n }) => (
+                  <button
+                    key={code}
+                    onClick={() => setLangues((l) => bascule(l, code))}
+                    style={puce(langues.includes(code), C.moss)}
+                  >
+                    {nomLangue(code)} · {n}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
-          {!choix ? (
-            <div style={{ fontFamily: F.hand, fontSize: 18, color: C.inkFaded }}>
-              {propositions.length === 0
-                ? "Rien dans « à voir » ne répond — ou la liste est vide."
-                : "Vous les avez tous passés en revue."}
-            </div>
-          ) : (
-            <Carte
-              choix={choix}
-              rang={rang}
-              total={propositions.length}
-              onAutre={() => setRang((r) => r + 1)}
-              onOuvrir={() => {
-                onOpen(choix.film.id);
-                onClose();
-              }}
-            />
-          )}
+          <div style={{ borderTop: `1px dashed ${C.line}`, paddingTop: 18 }}>
+            {cherche && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 7,
+                  fontFamily: F.mono,
+                  fontSize: 10,
+                  color: C.inkFaded,
+                  marginBottom: 10,
+                }}
+              >
+                <Loader2 size={12} /> on lit ce que TMDB dit de ces films…
+              </div>
+            )}
+
+            {!choix ? (
+              <div style={{ fontFamily: F.hand, fontSize: 18, color: C.inkFaded }}>
+                {propositions.length === 0
+                  ? "Rien dans « à voir » ne répond — ou la liste est vide."
+                  : "Vous les avez tous passés en revue."}
+              </div>
+            ) : (
+              <Carte
+                choix={choix}
+                rang={rang}
+                total={propositions.length}
+                onAutre={() => setRang((r) => r + 1)}
+                onOuvrir={() => {
+                  onOpen(choix.film.id);
+                  onClose();
+                }}
+              />
+            )}
+          </div>
         </div>
-      </div>
-    </>,
-    document.body
+      </>
+    </Calque>
   );
 }
 
