@@ -133,6 +133,20 @@ export interface Film {
   notes: string;
   linkedWorks: LinkedWork[];
   addedAt: number;
+  /**
+   * La dernière fois que CETTE fiche a changé, en millisecondes.
+   *
+   * Ce n'est pas une curiosité d'affichage : c'est l'arbitre du jour où
+   * deux appareils tiendront la même collection. Quand la même fiche a
+   * été touchée des deux côtés, c'est la plus récente qui gagne, et
+   * sans cette date il n'y a rien à comparer — on ne saurait que dire
+   * « elles diffèrent ».
+   *
+   * Posé par le dépôt (`services/collection`) au moment d'écrire, et
+   * jamais à la main : une date que chaque appelant se rappellerait de
+   * mettre à jour est une date qu'un appelant oubliera.
+   */
+  updatedAt: number;
   status: FilmStatus;
   /** Le rayon du haut : ceux qu'on revoit. */
   chevet: boolean;

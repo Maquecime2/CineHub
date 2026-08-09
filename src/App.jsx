@@ -89,6 +89,7 @@ import { motifById, makeMotifPerso, motifsPerso } from "./domain/motifs";
 import { loadFils, saveFils as saveFilsToDisk } from "./services/fils";
 import { loadVocabulaire, saveVocabulaire, normalizeVocabulaire } from "./services/motifs";
 import { store } from "./services/storage";
+import { chargerFilms, enregistrerFilms, oublierLeCache } from "./services/collection";
 import { underlineInput, ruledTextarea } from "./theme/styles";
 import { LINK_TYPES } from "./components/film/linkTypes";
 import {
@@ -234,23 +235,33 @@ export default function App() {
     saveSkinKey(skin);
   }, [skin]);
 
+  /* LE CHARGEMENT EST DEVENU ASYNCHRONE, et c'est le prix du coffre.
+     La collection descend dans IndexedDB — plusieurs gigaoctets au lieu
+     des cinq mégaoctets du `localStorage`, qui prévenait déjà qu'il
+     débordait. Le dépôt (`services/collection`) sait d'où lire, y
+     déménage ce qu'il trouve en haut, et complète les fiches d'avant
+     les champs status/watchedAt/tmdbId au passage. */
   useEffect(() => {
-    // les fiches d'avant les champs status/watchedAt/tmdbId sont complétées ici
-    const migrated = migrate(store.get("films", []));
-    setFilms(migrated);
-    store.set("films", migrated);
-    notebook.load();
-    const tabs = store.get("shelf-dividers", []);
-    setDividers(tabs);
-    setFils(loadFils());
-    setVocabulaire(loadVocabulaire());
-    /* La migration lit `order` et `status`, que `migrate` vient de
-       normaliser : elle doit donc passer après, et sur les fiches
-       migrées — pas sur ce qui sort du disque. */
-    setViews(
-      ensureViews({ films: migrated, dividers: tabs, wallPrefs: store.get("wall-prefs", {}) })
-    );
-    setLoaded(true);
+    let vivant = true;
+    chargerFilms().then((migrated) => {
+      if (!vivant) return;
+      setFilms(migrated);
+      notebook.load();
+      const tabs = store.get("shelf-dividers", []);
+      setDividers(tabs);
+      setFils(loadFils());
+      setVocabulaire(loadVocabulaire());
+      /* La migration lit `order` et `status`, que le dépôt vient de
+         normaliser : elle doit donc passer après, et sur les fiches
+         migrées — pas sur ce qui sort du disque. */
+      setViews(
+        ensureViews({ films: migrated, dividers: tabs, wallPrefs: store.get("wall-prefs", {}) })
+      );
+      setLoaded(true);
+    });
+    return () => {
+      vivant = false;
+    };
   }, []);
 
   /* LA VISITE GUIDÉE. Trois états seulement : la visite en cours, le
@@ -319,9 +330,16 @@ export default function App() {
     setSelectedId(null);
   }, []);
 
+  /* L'ÉCRAN D'ABORD, LE DISQUE ENSUITE. On pose l'état tout de suite —
+     une frappe ne doit pas attendre une écriture — puis le dépôt rend
+     les fiches DATÉES, et c'est cette version-là qu'on garde : elle
+     seule porte les `updatedAt` qui diront demain quoi synchroniser.
+
+     Le second `setFilms` ne coûte rien quand rien n'a changé : le dépôt
+     rend alors les mêmes objets, et React abandonne la mise à jour. */
   const saveFilms = (next) => {
     setFilms(next);
-    store.set("films", next);
+    enregistrerFilms(next).then((datés) => setFilms(datés));
   };
 
   const commitFils = (next) => {
@@ -528,6 +546,13 @@ export default function App() {
      refabrique alors depuis ses intercalaires, ce à quoi sert `force`. */
   const restoreBackup = ({ films: f, notes: n, dividers: d, views: v, fils: fl, motifs: mo }) => {
     const migrated = migrate(f);
+    /* UNE RESTAURATION N'EST PAS UNE MODIFICATION. Sans cette ligne, le
+       dépôt comparerait la sauvegarde à la collection qu'elle remplace,
+       trouverait mille différences et daterait tout de maintenant : les
+       fiches perdraient la date qu'elles portent dans le fichier, qui
+       est précisément ce qu'on restaure. On repart donc de la
+       sauvegarde elle-même comme état connu. */
+    oublierLeCache(migrated);
     saveFilms(migrated);
     commitFils(normalizeFils(fl || []));
     commitVocabulaire(normalizeVocabulaire(mo || {}));

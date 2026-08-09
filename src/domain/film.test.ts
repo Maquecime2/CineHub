@@ -1,9 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
+  aChangé,
   editLinkedWork,
+  horodater,
   makeFilm,
   mergeWatches,
   migrate,
+  partiePublique,
   ratingDrift,
   uid,
   watchCount,
@@ -15,6 +18,99 @@ describe("uid", () => {
   it("ne se répète pas", () => {
     const ids = new Set(Array.from({ length: 500 }, () => uid()));
     expect(ids.size).toBe(500);
+  });
+
+  it("se trie dans l'ordre des naissances, y compris dans la même milliseconde", () => {
+    /* C'est la moitié de l'intérêt d'un UUID v7 : un index de base de
+       données qui reçoit des clés croissantes ne se fragmente pas.
+
+       Deux cents fiches d'un même import naissent dans la MÊME
+       milliseconde : sans compteur, leur ordre retombe sur le hasard, et
+       la promesse ne vaut plus là où elle sert le plus. */
+    const ids = Array.from({ length: 200 }, () => uid());
+    expect([...ids].sort()).toEqual(ids);
+    expect(new Set(ids).size).toBe(200);
+  });
+
+  it("annonce sa version, pour qui la lira de l'autre côté", () => {
+    expect(uid()).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+  });
+
+  it("sans générateur cryptographique, on écrit quand même la fiche", () => {
+    const vrai = crypto.randomUUID;
+    // @ts-expect-error — on simule un navigateur qui ne l'a pas
+    crypto.randomUUID = undefined;
+    try {
+      expect(uid().length).toBeGreaterThan(8);
+    } finally {
+      crypto.randomUUID = vrai;
+    }
+  });
+});
+
+describe("dater ce qui a changé", () => {
+  const base = (p: Partial<Film> = {}): Film => makeFilm({ id: "a", updatedAt: 1000, ...p });
+
+  it("une recopie à l'identique n'est pas un changement", () => {
+    const f = base();
+    expect(aChangé(f, { ...f })).toBe(false);
+  });
+
+  it("une valeur composée qui bouge en est un", () => {
+    const f = base();
+    expect(aChangé(f, { ...f, motifs: ["pluie"] })).toBe(true);
+    expect(aChangé(f, { ...f, watches: [{ date: "2020-01-01", rating: 4 }] })).toBe(true);
+  });
+
+  it("la date de modification elle-même ne compte pas comme un changement", () => {
+    /* Sinon toute écriture en provoquerait une autre, indéfiniment. */
+    const f = base();
+    expect(aChangé(f, { ...f, updatedAt: 9999 })).toBe(false);
+  });
+
+  it("horodater ne touche que ce qui a bougé, et rend le reste intact", () => {
+    const a = base({ id: "a" });
+    const b = base({ id: "b" });
+    const suite = horodater([a, b], [{ ...a, rating: 5 }, { ...b }], 5000);
+    expect(suite[0]!.updatedAt).toBe(5000);
+    expect(suite[1]).toBe(b);
+  });
+
+  it("rien n'a bougé : c'est le tableau reçu qui revient", () => {
+    const a = base();
+    const reçu = [a];
+    expect(horodater([a], reçu, 5000)).toBe(reçu);
+  });
+
+  it("une fiche jamais vue est une fiche qui a changé", () => {
+    const neuve = base({ id: "neuf" });
+    expect(horodater([], [neuve], 5000)[0]!.updatedAt).toBe(5000);
+  });
+});
+
+describe("ce qui se partage", () => {
+  it("le carnet intime et le journal des séances ne sortent pas", () => {
+    const f = makeFilm({
+      title: "Beau travail",
+      notes: "à revoir avec P.",
+      watches: [{ date: "2021-03-02", rating: 5 }],
+      review: "la danse de la fin",
+      rating: 5,
+    });
+    const publié = partiePublique(f) as Record<string, unknown>;
+    expect("notes" in publié).toBe(false);
+    expect("watches" in publié).toBe(false);
+    /* Ce qu'on publie quand on publie : c'est le propos d'une
+       vidéothèque partagée. */
+    expect(publié.review).toBe("la danse de la fin");
+    expect(publié.rating).toBe(5);
+    expect(publié.title).toBe("Beau travail");
+  });
+
+  it("un champ ajouté demain part avec le reste, plutôt que d'être oublié", () => {
+    /* C'est pour cela qu'on nomme ce qu'on ÉCARTE, et non ce qu'on garde. */
+    const f = { ...makeFilm({ title: "Elephant" }), nouveauChamp: "présent" } as unknown as Film;
+    expect((partiePublique(f) as Record<string, unknown>).nouveauChamp).toBe("présent");
   });
 });
 
