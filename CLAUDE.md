@@ -59,6 +59,25 @@ là pour que la règle ne dépende pas de la seule bonne volonté.
   Exception assumée : un menu ancré à son bouton (`position: absolute` sous
   lui, avec son voile) reste dans la colonne — le sortir romprait l'ancrage.
 
+## Le serveur vit à côté, et le classeur vit sans lui
+
+`server/` est un second paquet, avec ses propres dépendances et ses
+propres contrôles (`cd server && npm test && npm run typecheck`). Il n'est
+pas dans la liste ci-dessous : le client ne l'appelle pas encore, et il
+doit continuer de fonctionner entièrement hors ligne.
+
+- Le schéma est du **SQL qu'on lit** (`server/sql/001_socle.sql`), pas la
+  sortie d'un ORM. Les requêtes vivent toutes dans `server/src/depot.ts`,
+  en paramètres numérotés — une valeur passée en `$1` ne peut jamais
+  devenir de la syntaxe.
+- Les tests du serveur parlent à un **vrai Postgres** compilé en
+  WebAssembly (PGlite) : pas de Docker à lancer, et les contraintes
+  éprouvées sont celles de la production.
+- Ce qui protège quelqu'un est dans le SCHÉMA quand c'est possible —
+  unicité, forme du pseudonyme, cascade d'effacement, refus d'une
+  version périmée. Une règle écrite dans une route se contourne par la
+  route suivante.
+
 ## Vérifier
 
 `npm run dev`, `npm test`, **`npm run lint`**, **`npx prettier --check .`**,

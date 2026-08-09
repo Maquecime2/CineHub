@@ -1,0 +1,29 @@
+# Le Postgres de développement, et rien d'autre. Le serveur, lui, tourne
+# en clair sur la machine : on veut le voir redémarrer à chaque frappe.
+#
+#   docker compose up -d
+#   npm run dev
+#
+# Les identifiants sont volontairement les mêmes que dans `.env.exemple` :
+# cette base n'écoute que sur la machine et ne contient que des essais.
+services:
+  base:
+    image: postgres:17-alpine
+    container_name: cinehub-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cinehub
+      POSTGRES_PASSWORD: cinehub
+      POSTGRES_DB: cinehub
+    ports:
+      - "5432:5432"
+    volumes:
+      - donnees:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cinehub"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  donnees:
