@@ -16,6 +16,7 @@
    n'a simplement rien à en dire. */
 import { X, Plus } from "lucide-react";
 import { C, F } from "../../theme/tokens";
+import { tap } from "../../theme/styles";
 import { Tally, InkStars } from "../ui";
 import { ratingDrift, sortWatches, withWatches } from "../../domain/film";
 import type { Film } from "../../types";
@@ -106,6 +107,7 @@ export function WatchLog({ film, onUpdate }: { film: Film; onUpdate: (film: Film
         onClick={revu}
         style={{
           all: "unset",
+          ...tap,
           cursor: "pointer",
           marginTop: 8,
           display: "flex",

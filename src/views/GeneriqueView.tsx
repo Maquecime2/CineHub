@@ -13,7 +13,7 @@ import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { ArrowLeft, Users, Search, Download, Loader2 } from "lucide-react";
 import { C, F, alpha } from "../theme/tokens";
-import { underlineInput } from "../theme/styles";
+import { underlineInput, tap } from "../theme/styles";
 import { StampCorner, PushPin } from "../components/atmosphere";
 import { Carton, TitreSection, Consigne, Label, InkStars } from "../components/ui";
 import { PosterArt } from "../components/film/PosterArt";
@@ -219,6 +219,7 @@ function Répertoire({
 
 const étiquette = (on: boolean, teinte: string = C.burgundy) => ({
   all: "unset" as const,
+  ...tap,
   cursor: "pointer",
   fontFamily: F.mono,
   fontSize: 9.5,
@@ -241,6 +242,7 @@ function Fiche({ p, onClick }: { p: Personne; onClick: () => void }) {
       aria-label={`${p.nom} — ${p.films.length} film${p.films.length > 1 ? "s" : ""}`}
       style={{
         all: "unset",
+        ...tap,
         cursor: "pointer",
         display: "block",
         position: "relative",
@@ -404,6 +406,7 @@ function Dossier({
 
 const retour = {
   all: "unset" as const,
+  ...tap,
   cursor: "pointer",
   display: "inline-flex",
   alignItems: "center",
@@ -491,6 +494,7 @@ function Rayon({
 
 const vignette = {
   all: "unset" as const,
+  ...tap,
   cursor: "pointer",
   width: 110,
   display: "block",

@@ -6,7 +6,7 @@
 import { useState } from "react";
 import { Check, Pencil, X } from "lucide-react";
 import { C, F } from "../../theme/tokens";
-import { underlineInput } from "../../theme/styles";
+import { underlineInput, tap } from "../../theme/styles";
 import { CommaInput, Label } from "../ui";
 import { store } from "../../services/storage";
 import { searchMovie, getDetails } from "../../tmdb";
@@ -14,6 +14,7 @@ import type { Film, Year } from "../../types";
 
 const tinyButton = (ink: string) => ({
   all: "unset" as const,
+  ...tap,
   cursor: "pointer",
   display: "flex",
   alignItems: "center",
@@ -155,6 +156,7 @@ export function FilmIdentity({
                           title={`Ce que j'ai de ${propre}`}
                           style={{
                             all: "unset",
+                            ...tap,
                             cursor: "pointer",
                             borderBottom: `1px dotted ${C.inkFaded}`,
                             transition: "color var(--motion-fast) ease",

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { C, F } from "../../theme/tokens";
+import { tap } from "../../theme/styles";
 import { Tally } from "../../components/ui";
 import { posterStats, exportBackup, importBackup } from "../../db";
 import type { Divider, Film, Note, ShelfViews } from "../../types";
@@ -152,6 +153,7 @@ export function BackupPanel({
           onClick={download}
           style={{
             all: "unset",
+            ...tap,
             cursor: "pointer",
             padding: "8px 14px",
             background: C.pine,
@@ -166,6 +168,7 @@ export function BackupPanel({
           onClick={() => ref.current?.click()}
           style={{
             all: "unset",
+            ...tap,
             cursor: "pointer",
             padding: "8px 14px",
             border: `1px solid ${C.line}`,

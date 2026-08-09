@@ -4,7 +4,7 @@
 import { useMemo, useRef, useState } from "react";
 import { Upload } from "lucide-react";
 import { C, F } from "../../theme/tokens";
-import { underlineInput } from "../../theme/styles";
+import { underlineInput, tap } from "../../theme/styles";
 import { Label, Tally, InkStars } from "../../components/ui";
 import { StampCorner } from "../../components/atmosphere";
 import { store } from "../../services/storage";
@@ -415,6 +415,7 @@ export function ImportView({
               disabled={!lbUser.trim() || feeding}
               style={{
                 all: "unset",
+                ...tap,
                 cursor: lbUser.trim() && !feeding ? "pointer" : "not-allowed",
                 padding: "7px 14px",
                 border: `1px solid ${C.line}`,
@@ -436,6 +437,7 @@ export function ImportView({
           onClick={() => setShowRelay((v) => !v)}
           style={{
             all: "unset",
+            ...tap,
             cursor: "pointer",
             marginTop: 10,
             fontFamily: F.hand,
@@ -497,6 +499,7 @@ export function ImportView({
           onClick={() => fileRef.current?.click()}
           style={{
             all: "unset",
+            ...tap,
             cursor: "pointer",
             background: C.burgundy,
             color: C.card,
@@ -609,6 +612,7 @@ export function ImportView({
                   onClick={() => setImportStatus(o.k)}
                   style={{
                     all: "unset",
+                    ...tap,
                     cursor: "pointer",
                     padding: "6px 14px",
                     fontFamily: F.mono,
@@ -724,6 +728,7 @@ export function ImportView({
               disabled={!apiKey.trim()}
               style={{
                 all: "unset",
+                ...tap,
                 cursor: apiKey.trim() ? "pointer" : "not-allowed",
                 padding: "7px 14px",
                 border: `1px solid ${C.line}`,
@@ -778,6 +783,7 @@ export function ImportView({
               disabled={!apiKey.trim() || !useTmdb}
               style={{
                 all: "unset",
+                ...tap,
                 cursor: apiKey.trim() ? "pointer" : "not-allowed",
                 marginTop: 14,
                 background: apiKey.trim() ? C.ochre : C.line,
@@ -968,6 +974,7 @@ export function ImportView({
             disabled={diff.toCreate.length === 0 && diff.toUpdate.length === 0}
             style={{
               all: "unset",
+              ...tap,
               marginTop: 16,
               padding: "11px 20px",
               cursor: diff.toCreate.length || diff.toUpdate.length ? "pointer" : "not-allowed",

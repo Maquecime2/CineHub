@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { C, F } from "../../theme/tokens";
-import { underlineInput } from "../../theme/styles";
+import { underlineInput, tap } from "../../theme/styles";
 import { Label } from "../ui";
 import { store } from "../../services/storage";
 import { IDB_PREFIX, isIdbPoster, idbKeyOf, putImage, deleteImage } from "../../db";
@@ -89,6 +89,7 @@ export function PosterPicker({ film, onUpdate }: { film: Film; onUpdate: (f: Fil
         onClick={() => setOpen(true)}
         style={{
           all: "unset",
+          ...tap,
           cursor: "pointer",
           display: "block",
           marginTop: 8,
@@ -118,6 +119,7 @@ export function PosterPicker({ film, onUpdate }: { film: Film; onUpdate: (f: Fil
           onClick={loadGallery}
           style={{
             all: "unset",
+            ...tap,
             cursor: "pointer",
             marginLeft: "auto",
             color: C.inkFaded,
@@ -158,6 +160,7 @@ export function PosterPicker({ film, onUpdate }: { film: Film; onUpdate: (f: Fil
               title={`langue : ${p.lang}`}
               style={{
                 all: "unset",
+                ...tap,
                 cursor: "pointer",
                 border: film.poster === p.full ? `2px solid ${C.burgundy}` : `1px solid ${C.line}`,
                 lineHeight: 0,
@@ -205,6 +208,7 @@ export function PosterPicker({ film, onUpdate }: { film: Film; onUpdate: (f: Fil
           disabled={busy}
           style={{
             all: "unset",
+            ...tap,
             cursor: "pointer",
             padding: "6px 12px",
             border: `1px solid ${C.line}`,
@@ -220,6 +224,7 @@ export function PosterPicker({ film, onUpdate }: { film: Film; onUpdate: (f: Fil
             onClick={clear}
             style={{
               all: "unset",
+              ...tap,
               cursor: "pointer",
               padding: "6px 12px",
               border: `1px solid ${C.burgundy}`,
@@ -235,6 +240,7 @@ export function PosterPicker({ film, onUpdate }: { film: Film; onUpdate: (f: Fil
           onClick={() => setOpen(false)}
           style={{
             all: "unset",
+            ...tap,
             cursor: "pointer",
             padding: "6px 12px",
             color: C.inkFaded,

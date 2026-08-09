@@ -14,6 +14,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, Dice5, ArrowRight, Loader2 } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
+import { tap } from "../../theme/styles";
 import { PosterArt } from "../../components/film/PosterArt";
 import { Label } from "../../components/ui";
 import { initialsOf } from "../../domain/film";
@@ -363,10 +364,17 @@ function Carte({
   );
 }
 
-const nu = { all: "unset" as const, cursor: "pointer", display: "flex", alignItems: "center" };
+const nu = {
+  all: "unset" as const,
+  ...tap,
+  cursor: "pointer",
+  display: "flex",
+  alignItems: "center",
+};
 
 const puce = (on: boolean, teinte: string = C.burgundy) => ({
   all: "unset" as const,
+  ...tap,
   cursor: "pointer",
   display: "inline-flex",
   alignItems: "center",

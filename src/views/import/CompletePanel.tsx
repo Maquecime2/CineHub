@@ -33,6 +33,7 @@
 import { useState } from "react";
 import { Sparkles } from "lucide-react";
 import { C, F } from "../../theme/tokens";
+import { tap } from "../../theme/styles";
 import { Tally } from "../../components/ui";
 import { enrichRows } from "../../tmdb";
 import { diffImport } from "../../domain/importing";
@@ -209,6 +210,7 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
           disabled={!apiKey.trim() || àFaire.length === 0 || !!progress}
           style={{
             all: "unset",
+            ...tap,
             cursor: !apiKey.trim() || àFaire.length === 0 || progress ? "default" : "pointer",
             opacity: !apiKey.trim() || àFaire.length === 0 || progress ? 0.45 : 1,
             display: "flex",
@@ -230,6 +232,7 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
             onClick={écrire}
             style={{
               all: "unset",
+              ...tap,
               cursor: "pointer",
               padding: "8px 14px",
               background: C.burgundy,

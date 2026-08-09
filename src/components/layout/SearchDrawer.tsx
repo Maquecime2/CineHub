@@ -15,6 +15,7 @@ import type { KeyboardEvent, ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Search, Film as FilmIcon, User, Tag, Spline, NotebookPen } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
+import { tap } from "../../theme/styles";
 import { chercherPartout, parGenres, type Genre, type Trouvaille } from "../../domain/partout";
 import type { Fil } from "../../domain/fils";
 import type { Film, Note } from "../../types";
@@ -159,6 +160,7 @@ export function SearchDrawer({
             aria-label="Chercher dans tout le classeur"
             style={{
               all: "unset",
+              ...tap,
               flex: 1,
               fontFamily: F.body,
               fontSize: 17,
@@ -207,6 +209,7 @@ export function SearchDrawer({
                         aria-current={visé ? "true" : undefined}
                         style={{
                           all: "unset",
+                          ...tap,
                           cursor: "pointer",
                           display: "block",
                           width: "100%",

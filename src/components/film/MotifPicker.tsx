@@ -16,7 +16,7 @@
 import { useMemo, useState } from "react";
 import { Eye, EyeOff, Plus, Spool, Trash2, X } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
-import { underlineInput } from "../../theme/styles";
+import { underlineInput, tap } from "../../theme/styles";
 import {
   FAMILLES,
   chercheMotifs,
@@ -37,6 +37,7 @@ const rubrique = {
 
 const chipStyle = (encre: string, actif: boolean) => ({
   all: "unset" as const,
+  ...tap,
   cursor: "pointer",
   display: "inline-flex",
   alignItems: "center",
@@ -202,6 +203,7 @@ export function MotifPicker({
         onClick={() => setOuvert((v) => !v)}
         style={{
           all: "unset",
+          ...tap,
           cursor: "pointer",
           fontFamily: F.mono,
           fontSize: 10,
@@ -295,6 +297,7 @@ export function MotifPicker({
                           aria-label={"Supprimer le motif " + m.label}
                           style={{
                             all: "unset",
+                            ...tap,
                             cursor: "pointer",
                             color: C.inkFaded,
                             display: "flex",
@@ -309,6 +312,7 @@ export function MotifPicker({
                           aria-label={"Écarter le motif " + m.label}
                           style={{
                             all: "unset",
+                            ...tap,
                             cursor: "pointer",
                             color: C.inkFaded,
                             display: "flex",

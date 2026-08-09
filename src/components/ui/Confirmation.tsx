@@ -19,6 +19,7 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { C, F } from "../../theme/tokens";
+import { tap } from "../../theme/styles";
 import { Tape } from "../atmosphere";
 
 export interface DemandeConfirmation {
@@ -124,6 +125,7 @@ export function Confirmation({
             }}
             style={{
               all: "unset",
+              ...tap,
               cursor: "pointer",
               padding: "7px 15px",
               background: encre,
@@ -139,6 +141,7 @@ export function Confirmation({
             onClick={onClose}
             style={{
               all: "unset",
+              ...tap,
               cursor: "pointer",
               fontFamily: F.mono,
               fontSize: 10.5,

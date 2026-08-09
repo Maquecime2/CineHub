@@ -39,6 +39,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { C, F, alpha } from "../theme/tokens";
+import { tap, tapSquare } from "../theme/styles";
 import {
   almanacFor,
   driftHighlights,
@@ -313,6 +314,7 @@ function Palmares({
                 title={`Ce que j'ai de ${it.nom}`}
                 style={{
                   all: "unset",
+                  ...tap,
                   cursor: "pointer",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
@@ -1043,6 +1045,7 @@ export function AlmanacView({
               title="Une image de cette année, à garder ou à montrer"
               style={{
                 all: "unset",
+                ...tap,
                 cursor: boîte === "en cours" ? "progress" : "pointer",
                 marginLeft: "auto",
                 display: "flex",
@@ -1169,6 +1172,7 @@ function peauPosée(): BoxPalette {
 
 const flecheStyle = (actif: boolean): CSSProperties => ({
   all: "unset",
+  ...tapSquare,
   cursor: actif ? "pointer" : "default",
   opacity: actif ? 1 : 0.28,
   color: C.inkFaded,
@@ -1184,6 +1188,7 @@ const flecheStyle = (actif: boolean): CSSProperties => ({
 
 const anneeStyle = (actif: boolean): CSSProperties => ({
   all: "unset",
+  ...tap,
   cursor: "pointer",
   fontFamily: F.mono,
   fontSize: 10.5,
@@ -1197,6 +1202,7 @@ const anneeStyle = (actif: boolean): CSSProperties => ({
 
 const plancheStyle = (actif: boolean): CSSProperties => ({
   all: "unset",
+  ...tap,
   cursor: "pointer",
   fontFamily: F.mono,
   fontSize: 10,

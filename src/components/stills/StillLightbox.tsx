@@ -1,11 +1,13 @@
 import { useEffect } from "react";
 import { X } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
+import { tap } from "../../theme/styles";
 import { IdbImage } from "./IdbImage";
 import type { Still } from "../../types";
 
 const ARROW_COL = {
   all: "unset",
+  ...tap,
   cursor: "pointer",
   width: "16%",
   minWidth: 90,
@@ -87,6 +89,7 @@ export function StillLightbox({
         title="fermer (Échap)"
         style={{
           all: "unset",
+          ...tap,
           position: "absolute",
           top: 10,
           right: 14,

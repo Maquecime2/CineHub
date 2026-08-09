@@ -4,6 +4,7 @@
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { X, Trash2, Upload, ChevronLeft, Eye, EyeOff } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
+import { tap, tapSquare, COARSE, TAP } from "../../theme/styles";
 import { wallStyle, materialStyle, PLANK_SHADOW } from "../../theme/surfaces";
 import { hash, fileNoOf } from "../../domain/seeded";
 import { initialsOf } from "../../domain/film";
@@ -38,6 +39,7 @@ const GutterAct = ({ label, onClick, ink = C.inkFaded }) => (
     onClick={onClick}
     style={{
       all: "unset",
+      ...tap,
       cursor: "pointer",
       padding: "3px 0",
       fontFamily: F.mono,
@@ -109,6 +111,7 @@ export const PerRowField = React.memo(function PerRowField({ value, onChange, ti
           title={auto ? "Fixer un nombre" : "Laisser remplir la largeur"}
           style={{
             all: "unset",
+            ...tap,
             cursor: "pointer",
             padding: "2px 8px",
             fontFamily: F.mono,
@@ -172,7 +175,14 @@ const RowGutter = React.memo(function RowGutter({ row, shown, acts, capMax }) {
     <div
       style={{
         position: "relative",
-        width: 26,
+        /* LA GOUTTIÈRE S'ÉLARGIT AU DOIGT, ET C'EST LE SEUL ENDROIT OÙ
+           ELLE LE FAIT. Sa languette est la porte des réglages de la
+           rangée — nommer la ligne, fixer le nombre de boîtiers. Vingt-
+           deux pixels de côté se visent à la souris ; au doigt, la
+           languette se manque, et avec elle tout ce qu'elle ouvre. On
+           paie dix-huit pixels de largeur de rayon, sur une bande qui
+           défile déjà horizontalement. */
+        width: COARSE ? TAP : 26,
         flexShrink: 0,
         display: "flex",
         flexDirection: "column",
@@ -188,8 +198,8 @@ const RowGutter = React.memo(function RowGutter({ row, shown, acts, capMax }) {
           all: "unset",
           cursor: "pointer",
           boxSizing: "border-box",
-          width: 22,
-          height: 22,
+          width: COARSE ? TAP : 22,
+          height: COARSE ? TAP : 22,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -643,6 +653,7 @@ export function Shelf({
           title="Ajouter une ligne à la fin du rayon"
           style={{
             all: "unset",
+            ...tap,
             cursor: "pointer",
             fontFamily: F.mono,
             fontSize: 9.5,
@@ -659,6 +670,7 @@ export function Shelf({
           title="Poser un objet sur une planche"
           style={{
             all: "unset",
+            ...tap,
             cursor: "pointer",
             fontFamily: F.mono,
             fontSize: 9.5,
@@ -910,7 +922,7 @@ export function ReserveDrawer({
             <button
               onClick={() => setOpen(false)}
               title="Fermer"
-              style={{ all: "unset", cursor: "pointer", color: C.inkFaded }}
+              style={{ all: "unset", ...tapSquare, cursor: "pointer", color: C.inkFaded }}
             >
               <X size={16} />
             </button>
@@ -930,6 +942,7 @@ export function ReserveDrawer({
             title="Ajouter une ligne"
             style={{
               all: "unset",
+              ...tap,
               cursor: "pointer",
               display: "inline-block",
               marginTop: 8,
@@ -1038,6 +1051,7 @@ export function CasePreview({ film, onClose, onOpenFile }) {
             onClick={onClose}
             style={{
               all: "unset",
+              ...tapSquare,
               position: "absolute",
               top: 10,
               right: 12,
@@ -1195,6 +1209,7 @@ export function CasePreview({ film, onClose, onOpenFile }) {
               onClick={() => onOpenFile(film.id)}
               style={{
                 all: "unset",
+                ...tap,
                 cursor: "pointer",
                 marginTop: 18,
                 padding: "9px 16px",

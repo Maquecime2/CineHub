@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { C, F } from "../theme/tokens";
-import { underlineInput } from "../theme/styles";
+import { underlineInput, tap } from "../theme/styles";
 import { Label, TitreSection, Consigne } from "../components/ui";
 import { StampCorner, InkUnderline, CoffeeRing } from "../components/atmosphere";
 import { store } from "../services/storage";
@@ -142,6 +142,7 @@ function Chip({
       onClick={onClick}
       style={{
         all: "unset",
+        ...tap,
         cursor: "pointer",
         fontFamily: F.mono,
         fontSize: 10.5,
@@ -217,6 +218,7 @@ function RecoCard({
             disabled={added}
             style={{
               all: "unset",
+              ...tap,
               cursor: added ? "default" : "pointer",
               marginLeft: "auto",
               fontFamily: F.mono,
@@ -372,6 +374,7 @@ const TEINTE: Record<Nature, string> = {
 
 const carteMaison = {
   all: "unset" as const,
+  ...tap,
   cursor: "pointer",
   display: "block",
   background: C.card,
@@ -731,6 +734,7 @@ export function RecoView({
                 disabled={!!progress}
                 style={{
                   all: "unset",
+                  ...tap,
                   cursor: progress ? "default" : "pointer",
                   background: progress ? C.line : C.burgundy,
                   color: C.card,

@@ -7,6 +7,7 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { Check, Pencil, X } from "lucide-react";
 import { C, F } from "../../theme/tokens";
+import { tap } from "../../theme/styles";
 import { tapeColor } from "../../theme/ink";
 import { hash, seededRand, tiltOf, usesPin } from "../../domain/seeded";
 import { PushPin, Tape } from "../atmosphere";
@@ -26,6 +27,7 @@ interface ThreadBoardProps {
    SUR le carton, on ne remplit pas un formulaire posé par-dessus. */
 const scribble: CSSProperties = {
   all: "unset",
+  ...tap,
   boxSizing: "border-box",
   width: "100%",
   borderBottom: `1px solid ${C.line}`,
@@ -202,6 +204,7 @@ function ThreadCardEditor({
           title="Enregistrer (Entrée)"
           style={{
             all: "unset",
+            ...tap,
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
@@ -218,6 +221,7 @@ function ThreadCardEditor({
           title="Renoncer (Échap)"
           style={{
             all: "unset",
+            ...tap,
             cursor: "pointer",
             fontFamily: F.mono,
             fontSize: 9.5,
@@ -454,6 +458,7 @@ export function ThreadBoard({ film, onRemove, onEdit, films = [], onOpen }: Thre
                           onClick={() => onOpen(w.filmId as string)}
                           style={{
                             all: "unset",
+                            ...tap,
                             cursor: "pointer",
                             fontFamily: F.title,
                             fontWeight: 700,

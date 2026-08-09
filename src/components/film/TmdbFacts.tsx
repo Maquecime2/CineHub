@@ -24,6 +24,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { RefreshCw } from "lucide-react";
 import { C, F } from "../../theme/tokens";
+import { tap } from "../../theme/styles";
 import { store } from "../../services/storage";
 import { getDetails, searchMovie } from "../../tmdb";
 import { nomLangue, nomPays } from "../../noms";
@@ -106,6 +107,7 @@ function Noms({
               title={`Ce que j'ai de ${nom}`}
               style={{
                 all: "unset",
+                ...tap,
                 cursor: "pointer",
                 borderBottom: `1px dotted ${C.inkFaded}`,
                 transition: "color var(--motion-fast) ease",
@@ -217,6 +219,7 @@ export function TmdbFacts({
           title="redemander cette fiche à TMDB"
           style={{
             all: "unset",
+            ...tap,
             cursor: busy ? "default" : "pointer",
             opacity: busy ? 0.45 : 1,
             marginLeft: "auto",

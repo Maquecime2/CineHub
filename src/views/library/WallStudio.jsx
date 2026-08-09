@@ -11,6 +11,7 @@
 import { useState } from "react";
 import { X, RotateCcw } from "lucide-react";
 import { C, F } from "../../theme/tokens";
+import { tap } from "../../theme/styles";
 import { STUDIO_BOX, Title, OptionButton, SurfaceTab } from "../../components/ui/Swatches";
 import { CARD_SIZES, SPREADS, MESSES, HANGS, DEFAULT_WALL_LOOK } from "./wallLook";
 
@@ -95,6 +96,7 @@ export function WallStudio({ look, onChange, onReset, onClose }) {
             title="Revenir au mur d'origine"
             style={{
               all: "unset",
+              ...tap,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",

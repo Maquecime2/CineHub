@@ -14,7 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { C, F } from "../theme/tokens";
-import { underlineInput } from "../theme/styles";
+import { underlineInput, tap } from "../theme/styles";
 import { uid, withWatches, initialsOf } from "../domain/film";
 import { searchFilms } from "../domain/search";
 import { putImage } from "../db";
@@ -266,6 +266,7 @@ export function DetailView({
         onClick={onBack}
         style={{
           all: "unset",
+          ...tap,
           cursor: "pointer",
           display: "flex",
           alignItems: "center",
@@ -333,6 +334,7 @@ export function DetailView({
                 }
                 style={{
                   all: "unset",
+                  ...tap,
                   cursor: "pointer",
                   marginTop: 12,
                   display: "block",
@@ -362,6 +364,7 @@ export function DetailView({
                   onClick={() => onUpdate({ ...film, status: "watchlist" })}
                   style={{
                     all: "unset",
+                    ...tap,
                     cursor: "pointer",
                     marginTop: 8,
                     color: C.inkFaded,
@@ -571,6 +574,7 @@ export function DetailView({
                 }
                 style={{
                   all: "unset",
+                  ...tap,
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
@@ -600,6 +604,7 @@ export function DetailView({
               }}
               style={{
                 all: "unset",
+                ...tap,
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
@@ -635,6 +640,7 @@ export function DetailView({
               }
               style={{
                 all: "unset",
+                ...tap,
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
@@ -735,6 +741,7 @@ export function DetailView({
                       onClick={() => setPicked(null)}
                       style={{
                         all: "unset",
+                        ...tap,
                         cursor: "pointer",
                         color: C.inkFaded,
                         marginLeft: "auto",
@@ -777,6 +784,7 @@ export function DetailView({
                         }}
                         style={{
                           all: "unset",
+                          ...tap,
                           cursor: "pointer",
                           display: "block",
                           width: "100%",
@@ -882,6 +890,7 @@ export function DetailView({
                 onClick={addLink}
                 style={{
                   all: "unset",
+                  ...tap,
                   cursor: "pointer",
                   background: C.burgundy,
                   color: C.card,

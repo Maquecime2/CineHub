@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { C, F } from "../../theme/tokens";
-import { underlineInput, ruledTextarea } from "../../theme/styles";
+import { underlineInput, ruledTextarea, tap, tapSquare } from "../../theme/styles";
 import { CommaInput, InkStars, Label } from "../ui";
 import { makeFilm } from "../../domain/film";
 import type { Film, FilmStatus } from "../../types";
@@ -65,6 +65,7 @@ export function FilmModal({ onClose, onSave }: { onClose: () => void; onSave: (f
           onClick={onClose}
           style={{
             all: "unset",
+            ...tapSquare,
             position: "absolute",
             top: 18,
             right: 20,
@@ -142,6 +143,7 @@ export function FilmModal({ onClose, onSave }: { onClose: () => void; onSave: (f
                 onClick={() => set("status", o.k)}
                 style={{
                   all: "unset",
+                  ...tap,
                   cursor: "pointer",
                   padding: "6px 14px",
                   fontFamily: F.mono,
@@ -176,6 +178,7 @@ export function FilmModal({ onClose, onSave }: { onClose: () => void; onSave: (f
           disabled={!f.title.trim()}
           style={{
             all: "unset",
+            ...tap,
             marginTop: 24,
             width: "100%",
             textAlign: "center",
