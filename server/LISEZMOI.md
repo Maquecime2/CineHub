@@ -133,5 +133,12 @@ déploiement. Le client, lui, **parle désormais à ce serveur** : il tire,
 fusionne et pousse sa collection dès qu'un compte est ouvert, et
 continue de fonctionner entièrement sans.
 
+**Les images ne se synchronisent pas**, et c'est un choix assumé pour
+l'instant : les captures et les affiches importées d'un disque sont des
+blobs dans IndexedDB, et les faire suivre demande un stockage d'objets
+— une dépense et un compte de plus, pour un serveur qui tourne encore
+sur une machine de bureau. Un second appareil affiche donc un cadre qui
+dit « restée sur l'autre appareil » plutôt qu'un rectangle muet.
+
 La table des signalements existe déjà, vide : celle-là n'arrive jamais à
 temps si on l'ajoute après coup.
