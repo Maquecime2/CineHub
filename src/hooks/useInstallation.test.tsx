@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { render, act, cleanup } from "@testing-library/react";
+import { renderHook, act, cleanup } from "@testing-library/react";
 import { useInstallation, type Installation } from "./useInstallation";
 import { lireInstallation } from "../services/installation";
 
@@ -8,11 +8,10 @@ import { lireInstallation } from "../services/installation";
    PAS une fois passé. Tout le hook tient dans cette retenue-là, et rien
    de tout cela ne se voit à la relecture. */
 
-let vu: Installation;
-const Sonde = () => {
-  vu = useInstallation();
-  return null;
-};
+/* `renderHook` monte le hook seul et rend sa dernière valeur : c'est
+   fait pour ça, et un composant-sonde qui écrirait dans une variable du
+   dessus est justement ce que les règles de React interdisent. */
+let sonde: { current: Installation };
 
 /** L'événement du navigateur, avec ce qu'il porte de promesses. */
 const inviter = (réponse: "accepted" | "dismissed" = "accepted") => {
@@ -45,69 +44,69 @@ afterEach(() => {
 
 describe("useInstallation", () => {
   it("se tait tant que le navigateur n'a rien proposé", () => {
-    render(<Sonde />);
-    expect(vu.invite).toBe(false);
+    sonde = renderHook(() => useInstallation()).result;
+    expect(sonde.current.invite).toBe(false);
   });
 
   it("attrape l'événement, et empêche la bannière du navigateur", () => {
-    render(<Sonde />);
+    sonde = renderHook(() => useInstallation()).result;
     const ev = inviter();
-    expect(vu.invite).toBe(true);
+    expect(sonde.current.invite).toBe(true);
     expect(ev.defaultPrevented).toBe(true);
   });
 
   it("installer ouvre la boîte du système et retient que c'est fait", async () => {
-    render(<Sonde />);
+    sonde = renderHook(() => useInstallation()).result;
     const ev = inviter("accepted");
     await act(async () => {
-      await vu.installer();
+      await sonde.current.installer();
     });
     expect(ev.prompt).toHaveBeenCalled();
     expect(lireInstallation().posée).toBe(true);
-    expect(vu.invite).toBe(false);
+    expect(sonde.current.invite).toBe(false);
   });
 
   it("refuser la boîte compte comme « pas maintenant », pas comme un oui", async () => {
-    render(<Sonde />);
+    sonde = renderHook(() => useInstallation()).result;
     inviter("dismissed");
     await act(async () => {
-      await vu.installer();
+      await sonde.current.installer();
     });
     expect(lireInstallation()).toEqual({ refus: 1, posée: false });
   });
 
   it("écarter compte le refus, et deux refus ferment le sujet", () => {
-    const { unmount } = render(<Sonde />);
+    sonde = renderHook(() => useInstallation()).result;
     inviter();
-    act(() => vu.écarter());
-    expect(vu.invite).toBe(false);
+    act(() => sonde.current.écarter());
+    expect(sonde.current.invite).toBe(false);
     expect(lireInstallation().refus).toBe(1);
 
-    unmount();
-    const deux = render(<Sonde />);
+    cleanup();
+    sonde = renderHook(() => useInstallation()).result;
     inviter();
-    act(() => vu.écarter());
+    act(() => sonde.current.écarter());
     expect(lireInstallation().refus).toBe(2);
-    deux.unmount();
+    cleanup();
 
     /* Troisième ouverture : plus personne n'écoute, et l'événement du
        navigateur ne réveille plus rien. */
-    render(<Sonde />);
+    sonde = renderHook(() => useInstallation()).result;
     inviter();
-    expect(vu.invite).toBe(false);
+    expect(sonde.current.invite).toBe(false);
   });
 
   it("sur iOS, personne n'émettra jamais rien : on explique de nous-mêmes", () => {
     vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)" });
-    render(<Sonde />);
-    expect(vu.pomme).toBe(true);
-    expect(vu.invite).toBe(true);
+    sonde = renderHook(() => useInstallation()).result;
+    expect(sonde.current.pomme).toBe(true);
+    expect(sonde.current.invite).toBe(true);
   });
 
   it("déjà posée sur l'écran d'accueil : on n'en parle plus", () => {
     vi.stubGlobal("matchMedia", (q: string) => ({ matches: q.includes("standalone"), media: q }));
-    render(<Sonde />);
+    sonde = renderHook(() => useInstallation()).result;
     inviter();
-    expect(vu.invite).toBe(false);
+    expect(sonde.current.invite).toBe(false);
   });
 });

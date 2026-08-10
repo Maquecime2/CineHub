@@ -103,11 +103,28 @@ CREATE INDEX IF NOT EXISTS session_personne ON session(personne_id);
 -- savoir, il le sort en colonnes — l'identité de l'œuvre et la
 -- visibilité, parce que ce sont les deux seules choses sur lesquelles il
 -- devra filtrer.
+-- DEUX HORLOGES, ET DEUX RÔLES QU'IL NE FAUT PAS CONFONDRE.
+--
+-- `maj_le` vient du CLIENT : c'est lui qui dit quand la fiche a été
+-- touchée, et c'est ce qui arbitre entre deux versions.
+--
+-- `seq` vient du SERVEUR : un numéro d'ordre d'arrivée, croissant, qui
+-- ne dépend d'aucune horloge. C'est LUI que la synchronisation suit
+-- pour savoir où elle en est.
+--
+-- Confondre les deux paraissait économique et ne l'était pas : un
+-- téléphone en retard d'une heure pousse des fiches datées d'une heure
+-- plus tôt, et l'autre appareil, qui demande « ce qui a bougé depuis
+-- maintenant », ne les verrait JAMAIS. Elles seraient rangées sur le
+-- serveur, invisibles à tous, sans qu'aucune erreur ne le dise.
+CREATE SEQUENCE IF NOT EXISTS fiche_seq;
+
 CREATE TABLE IF NOT EXISTS fiche (
   personne_id   uuid NOT NULL REFERENCES personne(id) ON DELETE CASCADE,
   -- L'identifiant vient du client (UUID v7) : c'est LUI qui nomme ses
   -- fiches, le serveur ne fait que les ranger sous un compte.
   id            text NOT NULL,
+  seq           bigint NOT NULL DEFAULT nextval('fiche_seq'),
   tmdb_id       text,
   visibilite    text NOT NULL DEFAULT 'privee'
                 CHECK (visibilite IN ('privee', 'lien', 'publique')),
@@ -120,7 +137,23 @@ CREATE TABLE IF NOT EXISTS fiche (
   PRIMARY KEY (personne_id, id)
 );
 
-CREATE INDEX IF NOT EXISTS fiche_maj ON fiche(personne_id, maj_le);
+-- CE QUE `CREATE TABLE IF NOT EXISTS` NE FAIT PAS.
+--
+-- Sur une base où la table existe déjà, il ne fait RIEN — pas même
+-- ajouter une colonne apparue depuis. Le socle décrivait donc le schéma
+-- voulu tout en laissant les bases existantes en arrière, et le serveur
+-- refusait de démarrer sur la seule qui contenait quelque chose.
+--
+-- Les tests ne pouvaient pas le voir : ils partent d'une base vide, où
+-- la création couvre tout. Il a fallu démarrer sur une vraie base déjà
+-- peuplée. Chaque colonne ajoutée après coup se pose donc ici, en
+-- ALTER, aussi conditionnel que le reste.
+ALTER TABLE IF EXISTS fiche
+  ADD COLUMN IF NOT EXISTS seq bigint NOT NULL DEFAULT nextval('fiche_seq');
+
+-- L'index de la synchronisation : « ce qui a bougé depuis », dans
+-- l'ordre où le serveur l'a reçu.
+CREATE INDEX IF NOT EXISTS fiche_suite ON fiche(personne_id, seq);
 CREATE INDEX IF NOT EXISTS fiche_publique ON fiche(tmdb_id) WHERE visibilite = 'publique';
 
 -- ------------------------------------------------------------

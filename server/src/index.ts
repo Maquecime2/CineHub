@@ -45,6 +45,10 @@ const app = await construireApp({
   /* Elle n'est pas obligatoire : sans elle, le relais se déclare
      indisponible et chacun garde la sienne, comme aujourd'hui. */
   cleTmdb: process.env.TMDB_KEY,
+  /* DEUX VERROUS, ET LE PREMIER NE S'OUVRE PAS DE L'EXTÉRIEUR. La porte
+     de service n'existe que hors production ET sur demande explicite :
+     poser `PORTE_DEV=1` sur un serveur en production ne suffit pas. */
+  porteDev: developpement && process.env.PORTE_DEV === "1",
   /* Un cookie de session sans `Secure` sur un site en HTTPS voyage en
      clair au premier lien en http:// : c'est exactement ce contre quoi
      l'attribut existe. */

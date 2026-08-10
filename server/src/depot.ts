@@ -180,6 +180,7 @@ export async function fermerSession(base: Base, secret: string): Promise<void> {
 
 export interface FicheRangee {
   id: string;
+  seq: string | number;
   tmdb_id: string | null;
   visibilite: string;
   donnees: Record<string, unknown>;
@@ -188,19 +189,28 @@ export interface FicheRangee {
 }
 
 /**
- * Ce qui a bougé depuis une date. C'est la seule lecture dont la
- * synchronisation aura besoin, et l'index `fiche_maj` est fait pour elle.
+ * Ce qui a bougé depuis un rang, dans l'ordre d'arrivée au serveur.
+ *
+ * PAS DEPUIS UNE DATE : les dates viennent des clients, dont les
+ * horloges divergent. Un appareil en retard rangerait ses fiches
+ * « avant » le curseur des autres, qui ne les verraient jamais. Le rang,
+ * lui, est donné par le serveur et ne recule pas.
+ *
+ * Le plafond est là parce qu'une première synchronisation peut ramener
+ * une collection entière : mieux vaut plusieurs pages qu'une réponse de
+ * trente mégaoctets qui expire en chemin.
  */
 export async function fichesDepuis(
   base: Base,
   personneId: string,
-  depuis: Date
+  depuis: bigint | number,
+  plafond = 500
 ): Promise<FicheRangee[]> {
   return base.requete<FicheRangee>(
-    `SELECT id, tmdb_id, visibilite, donnees, maj_le, supprimee
-       FROM fiche WHERE personne_id = $1 AND maj_le > $2
-      ORDER BY maj_le ASC`,
-    [personneId, depuis]
+    `SELECT id, seq, tmdb_id, visibilite, donnees, maj_le, supprimee
+       FROM fiche WHERE personne_id = $1 AND seq > $2
+      ORDER BY seq ASC LIMIT $3`,
+    [personneId, String(depuis), plafond]
   );
 }
 
@@ -252,9 +262,13 @@ export async function rangerFiche(
             visibilite = EXCLUDED.visibilite,
             donnees = EXCLUDED.donnees,
             maj_le = EXCLUDED.maj_le,
-            supprimee = EXCLUDED.supprimee
+            supprimee = EXCLUDED.supprimee,
+            /* UN RANG NEUF À CHAQUE ÉCRITURE, sans quoi la fiche
+               modifiée garderait sa place dans la file et les autres
+               appareils, déjà passés par là, ne la reverraient jamais. */
+            seq = nextval('fiche_seq')
       WHERE fiche.maj_le < EXCLUDED.maj_le
-     RETURNING 1 AS ecrite`,
+     RETURNING seq`,
     [
       personneId,
       f.id,

@@ -413,6 +413,17 @@ const global: Tour = {
       view: "library",
       optional: true,
     },
+    /* LE COMPTE — `optional` parce que l'action n'est montée que si un
+       serveur est réglé. Sans serveur, il n'y a rien à montrer et la
+       visite passe outre sans le dire. */
+    {
+      target: at("compte"),
+      title: "Retrouver sa collection ailleurs",
+      body: "Un compte relie ce classeur à vos autres appareils : ce que vous rangez ici s'y retrouve, et inversement. Sans mot de passe — c'est votre téléphone ou votre ordinateur qui signe. Vos notes et votre journal de séances, eux, ne partent jamais.",
+      placement: "right",
+      view: "library",
+      optional: true,
+    },
     {
       target: at("help"),
       title: "Rejouer la visite",

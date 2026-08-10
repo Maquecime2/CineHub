@@ -111,6 +111,8 @@ import { useViewport } from "./hooks/useViewport";
 import { usePointerDrag } from "./hooks/usePointerDrag";
 import { SkinPicker } from "./components/layout/SkinPicker";
 import { Installation, MiseÀJour } from "./components/layout/Installation";
+import { CompteDrawer } from "./components/layout/CompteDrawer";
+import { useSynchro } from "./hooks/useSynchro";
 import { useInstallation } from "./hooks/useInstallation";
 /* Le module n'existe qu'à la construction : c'est le greffon qui le
    fabrique, avec l'adresse du service worker qu'il vient d'écrire. */
@@ -295,6 +297,13 @@ export default function App() {
      sur l'écran d'accueil, et l'annonce d'une version neuve. La seconde
      passe devant — on ne propose pas d'installer une version qu'on sait
      déjà périmée. */
+  /* LA SYNCHRONISATION — montée ici parce qu'elle touche la collection
+     entière, et nulle part ailleurs. Elle ne part qu'une fois le
+     classeur chargé : synchroniser une collection vide qu'on n'a pas
+     encore lue effacerait tout au premier envoi. */
+  const [compteOuvert, setCompteOuvert] = useState(false);
+  const { bilan: synchro, synchroniser: relancerSynchro } = useSynchro(loaded, setFilms);
+
   const installation = useInstallation();
   const {
     needRefresh: [majPrête],
@@ -717,7 +726,20 @@ export default function App() {
         onSearch={() => setRecherche(true)}
         onSkin={() => setSkinPicker(true)}
         onHelp={() => setTourMenu((o) => !o)}
+        onCompte={() => setCompteOuvert(true)}
+        synchro={synchro.état}
       />
+      {compteOuvert && (
+        <CompteDrawer
+          bilan={synchro}
+          onFermer={() => setCompteOuvert(false)}
+          onSynchroniser={relancerSynchro}
+          onChangement={() => {
+            setCompteOuvert(false);
+            relancerSynchro();
+          }}
+        />
+      )}
       {skinPicker && (
         <SkinPicker skin={skin} onPick={setSkin} onClose={() => setSkinPicker(false)} />
       )}

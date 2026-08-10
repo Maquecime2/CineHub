@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import { baseDEssai } from "./aide.ts";
 import * as depot from "../src/depot.ts";
 import type { Base } from "../src/base.ts";
@@ -19,6 +21,46 @@ beforeEach(async () => {
 });
 afterEach(async () => {
   await base.fermer();
+});
+
+describe("poser le socle sur une base qui a déjà vécu", () => {
+  it("ajoute ce qui manque au lieu de laisser la table en arrière", async () => {
+    /* CE TEST EXISTE PARCE QUE LE SERVEUR A REFUSÉ DE DÉMARRER.
+       `CREATE TABLE IF NOT EXISTS` ne fait rien du tout quand la table
+       est là — pas même ajouter une colonne apparue depuis. Une suite
+       qui part toujours d'une base vide ne peut pas s'en apercevoir :
+       il faut refaire l'ancienne forme, puis reposer le socle. */
+    const vierge = await baseDEssai();
+    await vierge.executer("DROP TABLE IF EXISTS fiche;");
+    await vierge.executer(`
+      CREATE TABLE fiche (
+        personne_id uuid NOT NULL REFERENCES personne(id) ON DELETE CASCADE,
+        id text NOT NULL,
+        tmdb_id text,
+        visibilite text NOT NULL DEFAULT 'privee',
+        donnees jsonb NOT NULL,
+        maj_le timestamptz NOT NULL,
+        supprimee boolean NOT NULL DEFAULT false,
+        PRIMARY KEY (personne_id, id)
+      );`);
+
+    const socle = await readFile(
+      fileURLToPath(new URL("../sql/001_socle.sql", import.meta.url)),
+      "utf8"
+    );
+    await vierge.executer(socle);
+
+    const colonnes = await vierge.requete<{ column_name: string }>(
+      "SELECT column_name FROM information_schema.columns WHERE table_name = 'fiche'"
+    );
+    expect(colonnes.map((c) => c.column_name)).toContain("seq");
+
+    /* Et la table marche vraiment, pas seulement à l'inspection. */
+    const p = await depot.creerPersonne(vierge, "rivette");
+    await depot.rangerFiche(vierge, p.id, { id: "f1", donnees: {}, majLe: new Date(1) });
+    expect((await depot.fichesDepuis(vierge, p.id, 0))[0]!.seq).toBeTruthy();
+    await vierge.fermer();
+  });
 });
 
 describe("le pseudonyme", () => {
@@ -119,18 +161,56 @@ describe("ranger une fiche", () => {
       majLe: new Date(1000),
     });
 
-    const fiches = await depot.fichesDepuis(base, p.id, new Date(0));
+    const fiches = await depot.fichesDepuis(base, p.id, 0);
     expect(fiches).toHaveLength(1);
     expect(fiches[0]!.donnees).toMatchObject({ title: "récent" });
   });
 
-  it("ne rend que ce qui a bougé depuis la date demandée", async () => {
+  it("ne rend que ce qui a bougé depuis le rang demandé", async () => {
     const p = await depot.creerPersonne(base, "ozu");
-    await depot.rangerFiche(base, p.id, { id: "vieille", donnees: {}, majLe: new Date(1000) });
-    await depot.rangerFiche(base, p.id, { id: "neuve", donnees: {}, majLe: new Date(5000) });
+    await depot.rangerFiche(base, p.id, { id: "premiere", donnees: {}, majLe: new Date(1000) });
+    const tout = await depot.fichesDepuis(base, p.id, 0);
+    const curseur = Number(tout[0]!.seq);
 
-    const bougé = await depot.fichesDepuis(base, p.id, new Date(2000));
-    expect(bougé.map((f) => f.id)).toEqual(["neuve"]);
+    await depot.rangerFiche(base, p.id, { id: "seconde", donnees: {}, majLe: new Date(5000) });
+    const bougé = await depot.fichesDepuis(base, p.id, curseur);
+    expect(bougé.map((f) => f.id)).toEqual(["seconde"]);
+  });
+
+  it("une fiche modifiée reprend un rang neuf, et repasse devant", async () => {
+    /* Sans cela, elle garderait sa place dans la file et les appareils
+       déjà passés par là ne la reverraient jamais. */
+    const p = await depot.creerPersonne(base, "bresson");
+    await depot.rangerFiche(base, p.id, { id: "f1", donnees: {}, majLe: new Date(1000) });
+    await depot.rangerFiche(base, p.id, { id: "f2", donnees: {}, majLe: new Date(2000) });
+    const apres = Number((await depot.fichesDepuis(base, p.id, 0)).at(-1)!.seq);
+
+    await depot.rangerFiche(base, p.id, {
+      id: "f1",
+      donnees: { note: "retouchée" },
+      majLe: new Date(9000),
+    });
+    const suite = await depot.fichesDepuis(base, p.id, apres);
+    expect(suite.map((f) => f.id)).toEqual(["f1"]);
+  });
+
+  it("le rang ignore les horloges des appareils, et c'est sa raison d'être", async () => {
+    /* UN TÉLÉPHONE EN RETARD D'UNE HEURE. Sa fiche porte une date plus
+       ancienne que tout ce qui précède ; suivre les dates la rendrait
+       invisible aux autres appareils, rangée sur le serveur et vue de
+       personne. Le rang, lui, est donné à l'arrivée. */
+    const p = await depot.creerPersonne(base, "wenders");
+    await depot.rangerFiche(base, p.id, {
+      id: "a-l-heure",
+      donnees: {},
+      majLe: new Date(9_000_000),
+    });
+    const curseur = Number((await depot.fichesDepuis(base, p.id, 0)).at(-1)!.seq);
+
+    await depot.rangerFiche(base, p.id, { id: "en-retard", donnees: {}, majLe: new Date(1000) });
+
+    const vus = await depot.fichesDepuis(base, p.id, curseur);
+    expect(vus.map((f) => f.id)).toEqual(["en-retard"]);
   });
 
   it("une suppression se synchronise au lieu de disparaître", async () => {
@@ -145,7 +225,7 @@ describe("ranger une fiche", () => {
       supprimee: true,
     });
 
-    const fiches = await depot.fichesDepuis(base, p.id, new Date(0));
+    const fiches = await depot.fichesDepuis(base, p.id, 0);
     expect(fiches[0]!.supprimee).toBe(true);
     expect(await depot.compterFiches(base, p.id)).toBe(0);
   });
@@ -171,7 +251,7 @@ describe("ranger une fiche", () => {
     );
     expect(t[0]!.type).toBe("object");
 
-    const relue = await depot.fichesDepuis(base, p.id, new Date(0));
+    const relue = await depot.fichesDepuis(base, p.id, 0);
     expect(relue[0]!.donnees).toEqual({ title: "La Jetée", rating: 5 });
   });
 
@@ -183,7 +263,7 @@ describe("ranger une fiche", () => {
     await depot.rangerFiche(base, a.id, { id: "même", donnees: { chez: "a" }, majLe: new Date(1) });
     await depot.rangerFiche(base, b.id, { id: "même", donnees: { chez: "b" }, majLe: new Date(1) });
 
-    expect((await depot.fichesDepuis(base, a.id, new Date(0)))[0]!.donnees).toMatchObject({
+    expect((await depot.fichesDepuis(base, a.id, 0))[0]!.donnees).toMatchObject({
       chez: "a",
     });
   });

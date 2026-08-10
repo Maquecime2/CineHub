@@ -165,9 +165,26 @@ describe("la chaîne, de bout en bout", () => {
       donnees: { title: "Cléo de 5 à 7" },
     });
 
+    /* LE CURSEUR EST UN RANG DU SERVEUR, pas une heure : le client le
+       renvoie tel quel et n'a aucune horloge à comparer. */
+    const curseur = tout.json().jusqua;
+    const rien = await app.inject({
+      method: "GET",
+      url: `/collection?depuis=${curseur}`,
+      headers: { cookie },
+    });
+    expect(rien.json().fiches).toEqual([]);
+    expect(rien.json().jusqua).toBe(curseur);
+
+    await app.inject({
+      method: "PUT",
+      url: "/collection",
+      headers: { cookie },
+      payload: { fiches: [{ id: "f2", majLe: 9000, donnees: { title: "Le Bonheur, revu" } }] },
+    });
     const depuis = await app.inject({
       method: "GET",
-      url: "/collection?depuis=2000",
+      url: `/collection?depuis=${curseur}`,
       headers: { cookie },
     });
     expect(depuis.json().fiches.map((f: { id: string }) => f.id)).toEqual(["f2"]);

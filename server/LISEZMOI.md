@@ -80,12 +80,34 @@ sans compte garde donc la clé saisie chez lui — ce qu'il fait déjà. Et
 seuls onze chemins sont relayés, écrits en toutes lettres : un relais qui
 transmet n'importe quoi prête sa clé, son adresse et sa facture.
 
+## Le curseur est un rang, jamais une heure
+
+`GET /collection?depuis=` prend le **numéro d'ordre** de la dernière
+fiche vue, pas une date. Le serveur numérote ce qu'il reçoit (`seq`), et
+renumérote une fiche à chaque modification.
+
+Suivre les dates paraissait économique et ne l'était pas : un téléphone
+en retard d'une heure pousse des fiches datées d'une heure plus tôt, et
+l'autre appareil — qui demande « ce qui a bougé depuis maintenant » — ne
+les verrait **jamais**. Elles seraient rangées sur le serveur, invisibles
+à tous, sans qu'aucune erreur ne le dise.
+
+Les dates du client (`maj_le`) gardent leur rôle : arbitrer entre deux
+versions d'une même fiche. Les deux ne se confondent pas.
+
+## La porte de service
+
+`POST /dev/session` ouvre une session sans clé d'accès. Elle n'existe que
+si `NODE_ENV` n'est pas `production` **et** que `PORTE_DEV=1` est posé à
+la main. Elle sert à éprouver la synchronisation de bout en bout dans un
+navigateur piloté, où aucune empreinte ni aucun visage n'existe.
+
 ## Ce qui n'est pas encore là
 
-Les profils publics, les abonnements, les avis, les listes, la
-synchronisation côté client — et le déploiement. **Le client ne parle
-pas encore à ce serveur** : il continue d'aller chez TMDB avec sa propre
-clé, et de garder sa collection chez lui.
+Les profils publics, les abonnements, les avis, les listes — et le
+déploiement. Le client, lui, **parle désormais à ce serveur** : il tire,
+fusionne et pousse sa collection dès qu'un compte est ouvert, et
+continue de fonctionner entièrement sans.
 
 La table des signalements existe déjà, vide : celle-là n'arrive jamais à
 temps si on l'ajoute après coup.

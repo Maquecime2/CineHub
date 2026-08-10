@@ -43,6 +43,11 @@ export interface Reglages {
    * condition d'usage.
    */
   cleTmdb?: string;
+  /**
+   * Ouvre `POST /dev/session`, qui crée un compte et une session sans
+   * clé d'accès. Jamais vrai en production — voir `index.ts`.
+   */
+  porteDev?: boolean;
 }
 
 const COOKIE = "session";
@@ -63,6 +68,13 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
     /* Sans cela le navigateur n'enverrait pas le cookie de session : une
        requête d'une origine à l'autre est anonyme par défaut. */
     credentials: true,
+    /* LES MÉTHODES S'ÉNUMÈRENT, ET L'OUBLI NE SE VOIT PAS EN TEST.
+       Par défaut, le préflet n'autorise que GET, HEAD et POST : le
+       navigateur refusait donc le PUT de la collection AVANT de
+       l'envoyer, et le serveur n'en voyait pas la trace. Les tests non
+       plus — `inject` appelle la route directement, sans préflet, donc
+       sans jamais poser la question qui échouait. */
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   });
   /* CENT REQUÊTES PAR MINUTE ET PAR ADRESSE. Ce n'est pas contre une
      attaque sérieuse — il faudrait un pare-feu devant — mais contre la
@@ -241,16 +253,24 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
   app.get("/collection", async (req, reply) => {
     const personne = await exigerUnCompte(req);
     const { depuis } = req.query as { depuis?: string };
-    const date = depuis ? new Date(Number(depuis) || Date.parse(depuis)) : new Date(0);
-    if (Number.isNaN(date.getTime())) {
-      return reply.code(400).send({ erreur: "Date de départ illisible." });
+    const rang = depuis ? Number(depuis) : 0;
+    if (!Number.isFinite(rang) || rang < 0) {
+      return reply.code(400).send({ erreur: "Rang de départ illisible." });
     }
-    const fiches = await depot.fichesDepuis(base, personne.id, date);
+
+    const fiches = await depot.fichesDepuis(base, personne.id, rang);
+    /* `jusqua` EST UN RANG, PAS UNE HEURE. C'est le numéro d'ordre de la
+       dernière fiche rendue : le client le renvoie tel quel au prochain
+       tirage, et n'a aucune horloge à comparer avec le serveur.
+
+       Sans fiche, on rend le rang demandé — surtout pas zéro, qui
+       ferait tout retélécharger au prochain passage. */
+    const jusqua = fiches.length ? Number(fiches[fiches.length - 1]!.seq) : rang;
     return {
-      /* L'horloge du SERVEUR, et non celle du client : c'est elle qui
-         ordonne les versions, et deux téléphones ne sont jamais à
-         l'heure ensemble. */
-      jusqua: Date.now(),
+      jusqua,
+      /* Il en reste : le client rappellera avec le nouveau rang plutôt
+         que de croire qu'il a tout. */
+      encore: fiches.length === 500,
       fiches: fiches.map((f) => ({
         id: f.id,
         tmdbId: f.tmdb_id,
@@ -303,7 +323,11 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
       if (ecrite) rangees += 1;
       else perimees += 1;
     }
-    return { rangees, perimees, illisibles, jusqua: Date.now() };
+    /* PAS DE `jusqua` ICI : un envoi ne dit pas où en est la lecture.
+       Le rang du client n'avance qu'au tirage, qui seul sait ce qu'il a
+       vraiment reçu — et repasser par là fait entrer les fiches des
+       autres appareils au passage. */
+    return { rangees, perimees, illisibles };
   });
 
   /* ------------------------------------------------------------
@@ -317,7 +341,7 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
        la moindre des choses. */
     return {
       personne,
-      fiches: await depot.fichesDepuis(base, personne.id, new Date(0)),
+      fiches: await depot.fichesDepuis(base, personne.id, 0, 100000),
     };
   });
 
@@ -329,6 +353,38 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
   });
 
   app.get("/sante", async () => ({ debout: true }));
+
+  /* ------------------------------------------------------------
+     LA PORTE DE SERVICE — fermée à double tour, et pour de bonnes
+     raisons
+     ------------------------------------------------------------
+
+     Une clé d'accès se signe avec une empreinte, un visage ou une clé
+     physique. Rien de tout cela n'existe dans un navigateur piloté, ce
+     qui rendait la synchronisation invérifiable de bout en bout : on
+     pouvait éprouver le serveur seul, le client seul, et jamais les
+     deux ensemble.
+
+     Cette route ouvre une session sans cérémonie — exactement ce que la
+     cérémonie aurait produit. C'est une porte dérobée, et elle est
+     traitée comme telle : il faut ET ne pas être en production, ET
+     avoir posé `PORTE_DEV=1` à la main. Les deux conditions sont lues
+     au démarrage, pas à la requête : une variable d'environnement
+     changée en douce ne la rouvre pas.
+
+     Si vous lisez ceci en vous demandant si elle peut être active en
+     ligne : non, `index.ts` ne la propose jamais quand
+     `NODE_ENV=production`. */
+  if (reglages.porteDev) {
+    app.post("/dev/session", async (req, reply) => {
+      const { pseudo } = (req.body ?? {}) as { pseudo?: string };
+      const nom = (pseudo || `dev-${Date.now().toString(36)}`).toLowerCase();
+      const personne =
+        (await depot.trouverParPseudo(base, nom)) ?? (await depot.creerPersonne(base, nom));
+      poserLeCookie(reply, await depot.ouvrirSession(base, personne.id));
+      return { personne, avertissement: "porte de développement" };
+    });
+  }
 
   /* ------------------------------------------------------------
      LES RELAIS — la clé TMDB quitte le bundle
@@ -359,9 +415,17 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
     reply.setCookie(COOKIE, secret, {
       path: "/",
       httpOnly: true,
-      /* `lax` et non `strict` : le classeur reviendra d'un lien de
-         partage, et `strict` couperait la session à ce moment-là. */
-      sameSite: "lax",
+      /* EN DÉVELOPPEMENT, `lax` SUFFIT ET EN LIGNE IL CASSE TOUT.
+
+         Le client et le serveur partagent `localhost` en local : deux
+         ports d'un même hôte sont le même « site », et le cookie voyage.
+         En ligne, le classeur vit sur un domaine de pages statiques et
+         l'API sur un autre : la requête devient inter-sites, et `lax`
+         retient le cookie — la session existe et n'est jamais envoyée.
+
+         `none` l'autorise, et n'a de sens qu'avec `Secure` : les deux
+         vont donc ensemble, et se règlent d'un seul interrupteur. */
+      sameSite: reglages.securise ? "none" : "lax",
       secure: reglages.securise ?? false,
       maxAge: 30 * 24 * 60 * 60,
     });

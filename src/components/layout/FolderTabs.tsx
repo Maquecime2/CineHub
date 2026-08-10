@@ -5,6 +5,7 @@ import { type ComponentType } from "react";
 import {
   Pin,
   Palette,
+  UserRound,
   HelpCircle,
   Clapperboard,
   Bookmark,
@@ -43,6 +44,13 @@ interface FolderTabsProps {
   onSkin: () => void;
   /** Ouvre le menu de la visite guidée. */
   onHelp: () => void;
+  /** Le tiroir du compte et de la synchronisation. */
+  onCompte: () => void;
+  /**
+   * L'état de la synchronisation, pour le pastiller. `null` quand il
+   * n'y a pas de serveur : l'action n'est alors même pas montée.
+   */
+  synchro: "à-jour" | "en-cours" | "en-attente" | "erreur" | "hors-compte" | "absent";
 }
 
 /* L'ICÔNE N'EST PAS UN ORNEMENT : c'est ce qui reste de l'onglet quand
@@ -196,7 +204,16 @@ function Onglet({
    cette limite. Si l'un change, l'autre change. */
 const BAR_H = 58;
 
-export function FolderTabs({ view, setView, onAdd, onSearch, onSkin, onHelp }: FolderTabsProps) {
+export function FolderTabs({
+  view,
+  setView,
+  onAdd,
+  onSearch,
+  onSkin,
+  onHelp,
+  onCompte,
+  synchro,
+}: FolderTabsProps) {
   const tabs = [...TABS, ...DEV_TABS];
   /* LE RAIL SE COUCHE PLUTOT QU'IL NE DISPARAIT.
 
@@ -492,6 +509,52 @@ export function FolderTabs({ view, setView, onAdd, onSearch, onSkin, onHelp }: F
           >
             <Palette size={13} />
           </button>
+
+          {/* LE COMPTE ET SA PASTILLE.
+
+            Elle ne paraît que si un serveur est réglé : un bouton qui
+            ouvre un tiroir vide est pire qu'un bouton absent. La
+            pastille dit d'un coup d'œil ce qui attend — c'est la seule
+            chose qu'on veut savoir sans ouvrir. */}
+          {synchro !== "absent" && (
+            <button
+              onClick={onCompte}
+              data-tour="compte"
+              title="Votre compte et la synchronisation"
+              aria-label="Votre compte et la synchronisation"
+              style={{
+                all: "unset",
+                cursor: "pointer",
+                position: "relative",
+                marginLeft: phone ? 0 : 8,
+                width: phone ? 40 : 26,
+                height: phone ? 40 : 26,
+                borderRadius: "50%",
+                color: C.inkFaded,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                border: `1px solid ${C.line}`,
+                transition: "color .18s ease, border-color .18s ease",
+              }}
+            >
+              <UserRound size={13} />
+              {(synchro === "en-attente" || synchro === "erreur") && (
+                <span
+                  aria-hidden
+                  style={{
+                    position: "absolute",
+                    top: phone ? 6 : 1,
+                    right: phone ? 6 : 1,
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    background: synchro === "erreur" ? C.burgundy : C.inkFaded,
+                  }}
+                />
+              )}
+            </button>
+          )}
 
           {/* LA VISITE, au dernier cran du rail.
 
