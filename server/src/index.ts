@@ -57,7 +57,22 @@ const app = await construireApp({
 
 const port = Number(process.env.PORT || 8787);
 await app.listen({ port, host: "0.0.0.0" });
-console.log(`Ciné Hub — serveur debout sur ${port}, pour ${origine}`);
+/* LES ORIGINES SE LISENT AU DÉMARRAGE, ET CE N'EST PAS DE LA POLITESSE.
+
+   Un client dont l'origine n'est pas dans cette liste ne reçoit pas une
+   erreur : le navigateur refuse la réponse AVANT de la lui donner, et
+   l'application affiche « le serveur ne répond pas » alors qu'il répond
+   très bien. Le seul endroit où la vérité est lisible, c'est ici. */
+console.log(`Ciné Hub — serveur debout sur ${port}`);
+for (const o of origine
+  .split(",")
+  .map((x) => x.trim())
+  .filter(Boolean)) {
+  console.log(`  origine acceptée : ${o}`);
+}
+if (process.env.PORTE_DEV === "1" && developpement) {
+  console.log("  ⚠ porte de développement ouverte : POST /dev/session");
+}
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, async () => {

@@ -167,10 +167,16 @@ export function CompteDrawer({
             {bilan.état === "hors-compte" && "Tout reste ici."}
             {bilan.état === "en-cours" && "En cours…"}
             {bilan.état === "à-jour" && `À jour, ${quandDit(bilan.le)}.`}
+            {/* « 0 FICHE ATTEND LE RÉSEAU » NE VEUT RIEN DIRE, et c'est
+                pourtant ce qui s'affichait quand le serveur était
+                injoignable sans qu'on ait rien modifié : un compte à
+                rebours vide au lieu de la seule information utile. */}
             {bilan.état === "en-attente" &&
-              `${bilan.enAttente} fiche${bilan.enAttente > 1 ? "s" : ""} attend${
-                bilan.enAttente > 1 ? "ent" : ""
-              } le réseau.`}
+              (bilan.enAttente === 0
+                ? "Serveur injoignable. Rien à envoyer, rien de perdu."
+                : `${bilan.enAttente} fiche${bilan.enAttente > 1 ? "s" : ""} attend${
+                    bilan.enAttente > 1 ? "ent" : ""
+                  } le réseau.`)}
             {bilan.état === "erreur" && (bilan.message || "Le serveur a refusé.")}
           </span>
           {connecté && (

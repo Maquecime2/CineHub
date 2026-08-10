@@ -21,6 +21,9 @@ export const ADRESSE: string =
 
 export const serveurConfigure = (): boolean => ADRESSE !== "";
 
+/** D'où cette page parle — c'est ce que le serveur doit autoriser. */
+export const origineDIci = (): string => (typeof location === "undefined" ? "?" : location.origin);
+
 export interface Personne {
   id: string;
   pseudo: string;
@@ -68,11 +71,23 @@ async function appeler<T>(chemin: string, options: Envoi = {}): Promise<T> {
       },
     });
   } catch {
-    /* Hors ligne, serveur éteint, DNS qui ne répond pas : la requête
-       n'est jamais partie. Le zéro dit exactement cela, et permet à
-       l'appelant de distinguer « je n'ai pas pu demander » de « on m'a
-       répondu non ». */
-    throw new ErreurServeur("Le serveur ne répond pas.", 0);
+    /* LE NAVIGATEUR NE DIT PAS POURQUOI, ET C'EST DÉLIBÉRÉ DE SA PART.
+
+       Hors ligne, serveur éteint, DNS muet — mais AUSSI : serveur bien
+       vivant qui n'autorise pas cette origine-ci. Dans les quatre cas,
+       `fetch` jette la même chose, sans un mot de plus : révéler la
+       différence renseignerait un site malveillant sur ce qui existe
+       ailleurs. Le zéro dit donc « la requête n'est jamais partie », et
+       rien de plus.
+
+       Le message, lui, nomme la piste que personne ne devine seul : une
+       PWA servie depuis un autre port que le serveur de développement
+       est une AUTRE origine, et se fait refuser en silence. L'écrire
+       coûte une ligne et fait gagner une soirée. */
+    throw new ErreurServeur(
+      `Pas de réponse de ${ADRESSE}. Serveur éteint, hors ligne — ou cette origine (${origineDIci()}) n'est pas autorisée par le serveur.`,
+      0
+    );
   }
 
   if (!rep.ok) {

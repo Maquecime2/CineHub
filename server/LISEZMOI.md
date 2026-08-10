@@ -95,6 +95,30 @@ les verrait **jamais**. Elles seraient rangées sur le serveur, invisibles
 Les dates du client (`maj_le`) gardent leur rôle : arbitrer entre deux
 versions d'une même fiche. Les deux ne se confondent pas.
 
+## « Le serveur ne répond pas » alors qu'il tourne
+
+Neuf fois sur dix : l'ORIGINE. Le navigateur refuse une réponse dont
+l'origine n'est pas autorisée **avant** de la donner à la page, et
+`fetch` échoue exactement comme si le serveur était éteint — la
+distinction n'est pas révélée, délibérément.
+
+Le serveur de développement (5173) et l'aperçu de la version construite
+(4173) sont deux origines différentes. Les deux doivent figurer dans
+`ORIGINE`. Le démarrage les imprime, c'est le seul endroit où la vérité
+se lit :
+
+```
+Ciné Hub — serveur debout sur 8787
+  origine acceptée : http://localhost:5173
+  origine acceptée : http://localhost:4173
+```
+
+Côté client, essayer la version construite contre ce serveur :
+
+```bash
+VITE_SERVEUR=http://localhost:8787 npm run build && npm run preview
+```
+
 ## La porte de service
 
 `POST /dev/session` ouvre une session sans clé d'accès. Elle n'existe que
