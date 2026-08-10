@@ -15,6 +15,8 @@ export interface Personne {
   id: string;
   pseudo: string;
   courriel: string | null;
+  partage?: string;
+  jeton?: string | null;
 }
 
 export interface CleAcces {
@@ -30,13 +32,19 @@ export interface CleAcces {
    ------------------------------------------------------------ */
 
 export async function trouverParPseudo(base: Base, pseudo: string): Promise<Personne | null> {
-  return une<Personne>(base, "SELECT id, pseudo, courriel FROM personne WHERE pseudo = $1", [
-    pseudo,
-  ]);
+  return une<Personne>(
+    base,
+    "SELECT id, pseudo, courriel, partage, jeton FROM personne WHERE pseudo = $1",
+    [pseudo]
+  );
 }
 
 export async function trouverParId(base: Base, id: string): Promise<Personne | null> {
-  return une<Personne>(base, "SELECT id, pseudo, courriel FROM personne WHERE id = $1", [id]);
+  return une<Personne>(
+    base,
+    "SELECT id, pseudo, courriel, partage, jeton FROM personne WHERE id = $1",
+    [id]
+  );
 }
 
 export async function creerPersonne(base: Base, pseudo: string): Promise<Personne> {
@@ -163,7 +171,7 @@ export async function ouvrirSession(base: Base, personneId: string): Promise<str
 export async function personneDeSession(base: Base, secret: string): Promise<Personne | null> {
   return une<Personne>(
     base,
-    `SELECT p.id, p.pseudo, p.courriel
+    `SELECT p.id, p.pseudo, p.courriel, p.partage, p.jeton
        FROM session s JOIN personne p ON p.id = s.personne_id
       WHERE s.empreinte = $1 AND s.expire_le > now()`,
     [empreinteDe(secret)]
@@ -182,7 +190,7 @@ export interface FicheRangee {
   id: string;
   seq: string | number;
   tmdb_id: string | null;
-  visibilite: string;
+  cachee: boolean;
   donnees: Record<string, unknown>;
   maj_le: Date;
   supprimee: boolean;
@@ -207,7 +215,7 @@ export async function fichesDepuis(
   plafond = 500
 ): Promise<FicheRangee[]> {
   return base.requete<FicheRangee>(
-    `SELECT id, seq, tmdb_id, visibilite, donnees, maj_le, supprimee
+    `SELECT id, seq, tmdb_id, cachee, donnees, maj_le, supprimee
        FROM fiche WHERE personne_id = $1 AND seq > $2
       ORDER BY seq ASC LIMIT $3`,
     [personneId, String(depuis), plafond]
@@ -230,7 +238,7 @@ export async function rangerFiche(
   f: {
     id: string;
     tmdbId?: string | null;
-    visibilite?: string;
+    cachee?: boolean;
     donnees: unknown;
     majLe: Date;
     supprimee?: boolean;
@@ -255,11 +263,11 @@ export async function rangerFiche(
        Le défaut était donc invisible en test et systématique en vrai :
        la seule espèce qu'une suite verte ne rattrape jamais. Il a fallu
        pousser une fiche dans un vrai Postgres pour le voir. */
-    `INSERT INTO fiche (personne_id, id, tmdb_id, visibilite, donnees, maj_le, supprimee)
+    `INSERT INTO fiche (personne_id, id, tmdb_id, cachee, donnees, maj_le, supprimee)
      VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7)
      ON CONFLICT (personne_id, id) DO UPDATE
         SET tmdb_id = EXCLUDED.tmdb_id,
-            visibilite = EXCLUDED.visibilite,
+            cachee = EXCLUDED.cachee,
             donnees = EXCLUDED.donnees,
             maj_le = EXCLUDED.maj_le,
             supprimee = EXCLUDED.supprimee,
@@ -273,7 +281,7 @@ export async function rangerFiche(
       personneId,
       f.id,
       f.tmdbId ?? null,
-      f.visibilite ?? "privee",
+      f.cachee ?? false,
       f.donnees,
       f.majLe,
       f.supprimee ?? false,
@@ -338,4 +346,87 @@ export async function rangerDoc(
     [personneId, d.cle, d.contenu, d.majLe, d.supprime ?? false]
   );
   return ecrit.length > 0;
+}
+
+/* ------------------------------------------------------------
+   PARTAGER SA COLLECTION
+   ------------------------------------------------------------ */
+
+export async function reglerLePartage(
+  base: Base,
+  personneId: string,
+  partage: string,
+  jeton: string | null
+): Promise<void> {
+  await base.requete("UPDATE personne SET partage = $2, jeton = $3 WHERE id = $1", [
+    personneId,
+    partage,
+    jeton,
+  ]);
+}
+
+/* CE QUI NE SORT JAMAIS, ÉCARTÉ ICI ET PAS AILLEURS.
+
+   Les notes sont un carnet intime, et le journal des séances un relevé
+   de présence : ni l'un ni l'autre n'a affaire au visiteur. Ils sont
+   retirés dans la REQUÊTE, par soustraction sur le `jsonb`, et non dans
+   la route.
+
+   La différence n'est pas théorique. Une route qui filtre est une route
+   qu'on duplique un jour pour un autre besoin, en oubliant la moitié du
+   filtre ; une soustraction écrite dans la seule requête qui sert le
+   public ne s'oublie pas — il n'y a rien d'autre à appeler. */
+const SANS_LE_PRIVE = `donnees - 'notes' - 'watches' - 'watchedAt' AS donnees`;
+
+export interface FichePublique {
+  id: string;
+  tmdb_id: string | null;
+  donnees: Record<string, unknown>;
+}
+
+/**
+ * La collection d'une personne, vue du dehors.
+ *
+ * `null` si elle ne partage pas, ou si le jeton ne correspond pas. Le
+ * même `null` dans les deux cas : dire « ce compte existe mais ne
+ * partage pas » renseignerait sur qui est inscrit.
+ */
+export async function collectionPubliqueDe(
+  base: Base,
+  pseudo: string,
+  jeton: string | null
+): Promise<{ pseudo: string; films: FichePublique[] } | null> {
+  const p = await trouverParPseudo(base, pseudo);
+  if (!p) return null;
+  if (p.partage === "publique") {
+    /* rien à vérifier */
+  } else if (p.partage === "lien") {
+    if (!jeton || !p.jeton || jeton !== p.jeton) return null;
+  } else {
+    return null;
+  }
+
+  const films = await base.requete<FichePublique>(
+    `SELECT id, tmdb_id, ${SANS_LE_PRIVE}
+       FROM fiche
+      WHERE personne_id = $1 AND NOT cachee AND NOT supprimee
+      ORDER BY maj_le DESC`,
+    [p.id]
+  );
+  return { pseudo: p.pseudo, films };
+}
+
+/** Retirer une fiche du partage, ou l'y remettre. */
+export async function cacherFiche(
+  base: Base,
+  personneId: string,
+  ficheId: string,
+  cachee: boolean
+): Promise<boolean> {
+  const r = await base.requete(
+    `UPDATE fiche SET cachee = $3, seq = nextval('fiche_seq')
+      WHERE personne_id = $1 AND id = $2 RETURNING seq`,
+    [personneId, ficheId, cachee]
+  );
+  return r.length > 0;
 }

@@ -419,7 +419,19 @@ const global: Tour = {
     {
       target: at("compte"),
       title: "Retrouver sa collection ailleurs",
-      body: "Un compte relie ce classeur à vos autres appareils : ce que vous rangez ici s'y retrouve, et inversement. Sans mot de passe — c'est votre téléphone ou votre ordinateur qui signe. Vos notes et votre journal de séances, eux, ne partent jamais.",
+      body: "Un compte relie ce classeur à vos autres appareils : ce que vous rangez ici s'y retrouve, et inversement — les films, mais aussi l'agencement de vos étagères et les pages de votre carnet. Sans mot de passe : c'est votre téléphone ou votre ordinateur qui signe.",
+      placement: "right",
+      view: "library",
+      optional: true,
+    },
+    /* LE PARTAGE VIT DANS LE MÊME TIROIR QUE LE COMPTE, et l'étape le
+       dit là aussi : il n'existe qu'avec un compte, et une seconde
+       ancre pour un panneau que la visite ne peut pas ouvrir seule
+       montrerait le vide. */
+    {
+      target: at("compte"),
+      title: "Montrer sa vidéothèque",
+      body: "Dans ce même tiroir : personne, par lien secret, ou tout le monde. Le lien ne se devine pas et se coupe quand vous voulez. Un visiteur voit vos films, vos notes chiffrées et vos critiques — jamais votre carnet ni votre journal de séances, et vous pouvez écarter une fiche à part.",
       placement: "right",
       view: "library",
       optional: true,

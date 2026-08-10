@@ -22,6 +22,7 @@ import {
   X,
   Download,
   Trash2,
+  Link as LinkIcon,
 } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
@@ -33,8 +34,10 @@ import {
   effacerMonCompte,
   mesDonnees,
   seConnecter,
+  reglerLePartage,
   seDeconnecter,
   sInscrire,
+  type Partage,
   type Personne,
 } from "../../services/serveur";
 import { oublierLaSynchro } from "../../services/synchro";
@@ -126,7 +129,9 @@ export function CompteDrawer({
               color: C.ink,
             }}
           >
-            {connecté ? bilan.personne!.pseudo : "Votre compte"}
+            <span data-pseudo={connecté ? bilan.personne!.pseudo : undefined}>
+              {connecté ? bilan.personne!.pseudo : "Votre compte"}
+            </span>
           </div>
           <button
             onClick={onFermer}
@@ -252,6 +257,8 @@ export function CompteDrawer({
           </>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <Partage />
+
             <button
               onClick={async () => {
                 await seDeconnecter();
@@ -386,3 +393,121 @@ const bouton = (encre: string, éteint: boolean) => ({
   background: encre,
   border: `1px solid ${encre}`,
 });
+
+/* ============================================================
+   MONTRER SA COLLECTION — trois états, et pas deux
+   ============================================================
+
+   « Public » ou « privé » ne dit pas ce qu'on veut vraiment faire :
+   montrer sa vidéothèque à quelqu'un sans l'afficher au monde. D'où le
+   lien secret, qui est le cas le plus fréquent et le plus utile.
+
+   LE RÉGLAGE VIT SUR LE SERVEUR, pas ici : c'est lui qui décidera de
+   répondre ou non à un inconnu, et une préférence rangée dans le
+   navigateur n'aurait aucune prise sur cette décision-là.
+   ============================================================ */
+function Partage() {
+  const [état, setÉtat] = useState<Partage | null>(null);
+  const [jeton, setJeton] = useState<string | null>(null);
+  const [occupé, setOccupé] = useState(false);
+  const [copié, setCopié] = useState(false);
+
+  const adresse =
+    état === "publique"
+      ? `${location.origin}${location.pathname}#/chez/${pseudoDeLaPage()}`
+      : jeton
+        ? `${location.origin}${location.pathname}#/chez/${pseudoDeLaPage()}?jeton=${jeton}`
+        : null;
+
+  const régler = async (voulu: Partage) => {
+    setOccupé(true);
+    try {
+      const r = await reglerLePartage(voulu);
+      setÉtat(r.partage);
+      setJeton(r.jeton);
+      setCopié(false);
+    } finally {
+      setOccupé(false);
+    }
+  };
+
+  return (
+    <div style={{ borderTop: `1px dashed ${C.line}`, paddingTop: 14 }}>
+      <Label>Montrer ma collection</Label>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+        {(
+          [
+            ["privee", "PERSONNE"],
+            ["lien", "PAR LIEN"],
+            ["publique", "TOUT LE MONDE"],
+          ] as [Partage, string][]
+        ).map(([clé, mot]) => (
+          <button
+            key={clé}
+            disabled={occupé}
+            onClick={() => régler(clé)}
+            style={{
+              ...bouton(état === clé ? C.burgundy : C.ink, occupé),
+              background: état === clé ? C.burgundy : "transparent",
+              color: état === clé ? C.card : C.inkFaded,
+              borderColor: état === clé ? C.burgundy : C.line,
+            }}
+          >
+            {mot}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 8 }}>
+        {état === null && "Par défaut, personne ne voit votre collection."}
+        {état === "privee" && "Personne. Les liens déjà donnés ne valent plus rien."}
+        {état === "lien" && "Qui a le lien. Il ne se devine pas, et se coupe quand vous voulez."}
+        {état === "publique" && "Qui connaît votre pseudonyme."}
+      </div>
+
+      {adresse && (
+        <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 8 }}>
+          <input
+            readOnly
+            value={adresse}
+            onFocus={(e) => e.currentTarget.select()}
+            style={{
+              flex: 1,
+              minWidth: 0,
+              ...tap,
+              padding: "8px 10px",
+              background: C.card,
+              border: `1px solid ${C.line}`,
+              fontFamily: F.mono,
+              fontSize: 10,
+              color: C.ink,
+            }}
+          />
+          <button
+            onClick={() => {
+              navigator.clipboard?.writeText(adresse);
+              setCopié(true);
+            }}
+            style={bouton(C.slate, false)}
+          >
+            {copié ? <Check size={12} /> : <LinkIcon size={12} />} {copié ? "COPIÉ" : "COPIER"}
+          </button>
+        </div>
+      )}
+
+      {/* CE QUI NE PART JAMAIS, DIT LÀ OÙ ON DÉCIDE. Le rappeler dans le
+          bas de page ne suffit pas : c'est ICI qu'on hésite. */}
+      <div
+        style={{ fontFamily: F.mono, fontSize: 9, color: alpha(C.inkFaded, 0.75), marginTop: 8 }}
+      >
+        Vos notes et votre journal de séances ne sont jamais montrés.
+      </div>
+    </div>
+  );
+}
+
+/* Le pseudonyme s'affiche déjà en tête du tiroir : on le relit dans le
+   document plutôt que de le faire descendre en prop à travers trois
+   composants pour une seule ligne d'adresse. */
+const pseudoDeLaPage = (): string =>
+  document.querySelector("[data-pseudo]")?.getAttribute("data-pseudo") || "";

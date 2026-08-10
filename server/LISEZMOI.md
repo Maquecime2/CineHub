@@ -40,21 +40,24 @@ une clé physique. La vérification des signatures est confiée à
 
 ## Les routes
 
-| Route                                 | Ce qu'elle fait                                               |
-| ------------------------------------- | ------------------------------------------------------------- |
-| `POST /auth/inscription/options`      | Ouvre une inscription pour un pseudonyme libre                |
-| `POST /auth/inscription/verification` | Enregistre la clé, crée le compte, ouvre la session           |
-| `POST /auth/connexion/options`        | Propose une cérémonie — même réponse si le compte est inconnu |
-| `POST /auth/connexion/verification`   | Vérifie la signature et ouvre la session                      |
-| `GET /moi`                            | Qui est connecté, et combien de fiches                        |
-| `POST /deconnexion`                   | Ferme la session                                              |
-| `GET /collection?depuis=…`            | Ce qui a bougé depuis une date                                |
-| `PUT /collection`                     | Range des fiches (500 par envoi au plus)                      |
-| `GET /tmdb/*`                         | Relais TMDB — onze chemins, la clé reste ici, compte exigé    |
-| `GET /letterboxd/:pseudo`             | Relais du flux RSS que le navigateur ne peut pas lire         |
-| `GET /mes-donnees`                    | Tout ce que le serveur détient de vous                        |
-| `DELETE /mon-compte`                  | L'efface, et tout ce qui pend dessous                         |
-| `GET /sante`                          | Debout ?                                                      |
+| Route                                 | Ce qu'elle fait                                                 |
+| ------------------------------------- | --------------------------------------------------------------- |
+| `POST /auth/inscription/options`      | Ouvre une inscription pour un pseudonyme libre                  |
+| `POST /auth/inscription/verification` | Enregistre la clé, crée le compte, ouvre la session             |
+| `POST /auth/connexion/options`        | Propose une cérémonie — même réponse si le compte est inconnu   |
+| `POST /auth/connexion/verification`   | Vérifie la signature et ouvre la session                        |
+| `GET /moi`                            | Qui est connecté, et combien de fiches                          |
+| `POST /deconnexion`                   | Ferme la session                                                |
+| `GET /collection?depuis=…`            | Ce qui a bougé depuis une date                                  |
+| `PUT /collection`                     | Range des fiches (500 par envoi au plus)                        |
+| `GET /tmdb/*`                         | Relais TMDB — onze chemins, la clé reste ici, compte exigé      |
+| `GET /letterboxd/:pseudo`             | Relais du flux RSS que le navigateur ne peut pas lire           |
+| `PUT /partage`                        | Personne, par lien, ou tout le monde — jeton neuf à chaque fois |
+| `PUT /fiche/:id/cachee`               | Écarter une fiche du partage, ou l'y remettre                   |
+| `GET /chez/:pseudo?jeton=…`           | La collection de quelqu'un, sans compte ni cookie               |
+| `GET /mes-donnees`                    | Tout ce que le serveur détient de vous                          |
+| `DELETE /mon-compte`                  | L'efface, et tout ce qui pend dessous                           |
+| `GET /sante`                          | Debout ?                                                        |
 
 ## Trois choix qui méritent d'être connus
 
@@ -79,6 +82,25 @@ gratuit et anonyme pour la Terre entière, sur notre quota. Un classeur
 sans compte garde donc la clé saisie chez lui — ce qu'il fait déjà. Et
 seuls onze chemins sont relayés, écrits en toutes lettres : un relais qui
 transmet n'importe quoi prête sa clé, son adresse et sa facture.
+
+## Ce qu'un visiteur voit, et ce qu'il ne verra jamais
+
+`GET /chez/:pseudo` est la **seule** route qui réponde à quelqu'un sans
+compte. Trois décisions la gouvernent :
+
+**Les notes et le journal des séances sont retirés dans la REQUÊTE**
+(`donnees - notes - watches - watchedAt`), pas dans la route. Une
+route qui filtre est une route qu'on duplique un jour en oubliant la
+moitié du filtre ; une soustraction écrite dans la seule requête qui
+sert le public ne s'oublie pas.
+
+**Le même 404 dans les trois cas** — compte inconnu, collection privée,
+jeton faux. Distinguer renseignerait un inconnu sur qui est inscrit et
+sur qui garde une collection secrète.
+
+**Le partage appartient à la collection**, pas à chaque fiche : « je
+montre ma vidéothèque » se dit une fois. Une fiche peut en être écartée
+(`cachee`), et c'est l'exception.
 
 ## Le curseur est un rang, jamais une heure
 

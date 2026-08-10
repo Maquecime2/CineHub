@@ -250,3 +250,49 @@ export const pousserDocs = (documents: DocÀPousser[]) =>
 
 /** Le plafond du serveur pour les documents. */
 export const DOCS_PAR_ENVOI = 200;
+
+/* ------------------------------------------------------------
+   PARTAGER SA COLLECTION
+   ------------------------------------------------------------ */
+
+export type Partage = "privee" | "lien" | "publique";
+
+export interface FilmPartage {
+  id: string;
+  title?: string;
+  year?: string | number;
+  director?: string;
+  poster?: string;
+  rating?: number;
+  review?: string;
+  [k: string]: unknown;
+}
+
+export const reglerLePartage = (partage: Partage) =>
+  appeler<{ partage: Partage; jeton: string | null }>("/partage", {
+    method: "PUT",
+    body: JSON.stringify({ partage }),
+  });
+
+export const cacherLaFiche = (id: string, cachee: boolean) =>
+  appeler<{ id: string; cachee: boolean }>(`/fiche/${encodeURIComponent(id)}/cachee`, {
+    method: "PUT",
+    body: JSON.stringify({ cachee }),
+  });
+
+/**
+ * La collection de quelqu'un, vue du dehors.
+ *
+ * SANS COOKIE ET SANS COMPTE : c'est une page qu'on ouvre depuis un
+ * lien reçu, souvent dans un navigateur où l'on n'a jamais mis les
+ * pieds. Elle ne doit rien exiger.
+ */
+export async function collectionDe(
+  pseudo: string,
+  jeton?: string | null
+): Promise<{ pseudo: string; films: FilmPartage[] }> {
+  const q = jeton ? `?jeton=${encodeURIComponent(jeton)}` : "";
+  return appeler<{ pseudo: string; films: FilmPartage[] }>(
+    `/chez/${encodeURIComponent(pseudo)}${q}`
+  );
+}

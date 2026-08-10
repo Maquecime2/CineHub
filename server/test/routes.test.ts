@@ -161,7 +161,7 @@ describe("la chaîne, de bout en bout", () => {
     expect(tout.json().fiches[0]).toMatchObject({
       id: "f1",
       tmdbId: "42",
-      visibilite: "privee",
+      cachee: false,
       donnees: { title: "Cléo de 5 à 7" },
     });
 
@@ -190,7 +190,7 @@ describe("la chaîne, de bout en bout", () => {
     expect(depuis.json().fiches.map((f: { id: string }) => f.id)).toEqual(["f2"]);
   });
 
-  it("privée par défaut : rien ne devient public par distraction", async () => {
+  it("aucune fiche n'est écartée du partage par distraction", async () => {
     const { cookie } = await connecte();
     await app.inject({
       method: "PUT",
@@ -199,7 +199,9 @@ describe("la chaîne, de bout en bout", () => {
       payload: { fiches: [{ id: "f1", majLe: 1, donnees: {} }] },
     });
     const r = await app.inject({ method: "GET", url: "/collection", headers: { cookie } });
-    expect(r.json().fiches[0].visibilite).toBe("privee");
+    /* La décision de partager appartient à la COLLECTION ; une fiche
+       n'en sort qu'explicitement. */
+    expect(r.json().fiches[0].cachee).toBe(false);
   });
 
   it("une collection ne voit pas celle du voisin", async () => {

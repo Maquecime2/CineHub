@@ -29,6 +29,34 @@ CREATE TABLE IF NOT EXISTS personne (
 );
 
 -- ------------------------------------------------------------
+-- PARTAGER SA COLLECTION
+-- ------------------------------------------------------------
+-- LA DÉCISION APPARTIENT À LA COLLECTION, PAS À CHAQUE FICHE.
+-- « Je montre ma vidéothèque » est une phrase qu'on dit une fois ; la
+-- poser film par film ferait de six cents fiches six cents décisions,
+-- c'est-à-dire aucune.
+--
+-- Trois états et pas deux, parce que « public » et « privé » ne suffisent
+-- pas à ce qu'on veut vraiment faire — montrer à quelqu'un sans
+-- s'afficher au monde :
+--   privee   : personne, jamais. C'est le défaut, et il le reste.
+--   lien     : qui a l'adresse secrète. Elle ne se devine pas, elle ne
+--              s'indexe pas, et elle se change d'un geste.
+--   publique : le pseudonyme suffit.
+ALTER TABLE IF EXISTS personne
+  ADD COLUMN IF NOT EXISTS partage text NOT NULL DEFAULT 'privee';
+
+DO $$ BEGIN
+  ALTER TABLE personne ADD CONSTRAINT personne_partage_check
+    CHECK (partage IN ('privee', 'lien', 'publique'));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- Le secret du partage par lien. Changer de jeton révoque tous les liens
+-- distribués : c'est la seule façon de reprendre ce qu'on a donné.
+ALTER TABLE IF EXISTS personne
+  ADD COLUMN IF NOT EXISTS jeton text;
+
+-- ------------------------------------------------------------
 -- LA CLÉ D'ACCÈS
 -- ------------------------------------------------------------
 -- Ce que le navigateur retient, c'est une paire de clés ; ce que le
@@ -126,8 +154,12 @@ CREATE TABLE IF NOT EXISTS fiche (
   id            text NOT NULL,
   seq           bigint NOT NULL DEFAULT nextval('fiche_seq'),
   tmdb_id       text,
-  visibilite    text NOT NULL DEFAULT 'privee'
-                CHECK (visibilite IN ('privee', 'lien', 'publique')),
+  -- « Celle-ci ne part pas, même quand je partage. » Une exclusion, et
+  -- non une visibilité par fiche : la décision de montrer appartient à
+  -- la collection (voir `personne.partage`), et ceci n'en est que
+  -- l'exception. Fausse par défaut — qui partage sa vidéothèque la
+  -- partage, il ne coche pas six cents cases.
+  cachee        boolean NOT NULL DEFAULT false,
   donnees       jsonb NOT NULL,
   maj_le        timestamptz NOT NULL,
   -- Une suppression se SYNCHRONISE : effacer la ligne ferait revenir la
@@ -151,10 +183,20 @@ CREATE TABLE IF NOT EXISTS fiche (
 ALTER TABLE IF EXISTS fiche
   ADD COLUMN IF NOT EXISTS seq bigint NOT NULL DEFAULT nextval('fiche_seq');
 
+ALTER TABLE IF EXISTS fiche
+  ADD COLUMN IF NOT EXISTS cachee boolean NOT NULL DEFAULT false;
+
+-- `visibilite` n'a jamais porté autre chose que sa valeur par défaut : le
+-- client ne l'a jamais renseignée, et la décision de partager s'est
+-- révélée appartenir à la collection entière. Une colonne morte se
+-- retire ; on ne la garde pas « au cas où ».
+ALTER TABLE IF EXISTS fiche DROP COLUMN IF EXISTS visibilite;
+
 -- L'index de la synchronisation : « ce qui a bougé depuis », dans
 -- l'ordre où le serveur l'a reçu.
 CREATE INDEX IF NOT EXISTS fiche_suite ON fiche(personne_id, seq);
-CREATE INDEX IF NOT EXISTS fiche_publique ON fiche(tmdb_id) WHERE visibilite = 'publique';
+-- Ce qu'une collection partagée montre : tout sauf les exclusions.
+CREATE INDEX IF NOT EXISTS fiche_visible ON fiche(personne_id) WHERE NOT cachee AND NOT supprimee;
 
 -- ------------------------------------------------------------
 -- LE RESTE DU CLASSEUR

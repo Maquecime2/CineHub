@@ -12,6 +12,7 @@
    fonctions à ajouter plus tard — ce sont des propriétés qu'on n'ajoute
    jamais si elles ne sont pas là au premier jour.
    ============================================================ */
+import { randomBytes } from "node:crypto";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
@@ -306,7 +307,7 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
       fiches: fiches.map((f) => ({
         id: f.id,
         tmdbId: f.tmdb_id,
-        visibilite: f.visibilite,
+        cachee: f.cachee,
         supprimee: f.supprimee,
         majLe: new Date(f.maj_le).getTime(),
         donnees: f.donnees,
@@ -347,7 +348,7 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
       const ecrite = await depot.rangerFiche(base, personne.id, {
         id,
         tmdbId: f.tmdbId == null ? null : String(f.tmdbId),
-        visibilite: typeof f.visibilite === "string" ? f.visibilite : "privee",
+        cachee: f.cachee === true,
         donnees: f.donnees ?? {},
         majLe: new Date(majLe),
         supprimee: f.supprimee === true,
@@ -418,6 +419,58 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
       else perimes += 1;
     }
     return { ranges, perimes, illisibles };
+  });
+
+  /* ------------------------------------------------------------
+     PARTAGER SA COLLECTION
+     ------------------------------------------------------------
+     La seule route de tout ce serveur qui réponde à quelqu'un qui n'a
+     pas de compte. Elle est donc écrite en se demandant, à chaque
+     ligne, ce qu'un inconnu pourrait en tirer. */
+
+  app.put("/partage", async (req, reply) => {
+    const personne = await exigerUnCompte(req);
+    const { partage } = (req.body ?? {}) as { partage?: string };
+    if (!["privee", "lien", "publique"].includes(partage || "")) {
+      return reply.code(400).send({ erreur: "Partage inconnu." });
+    }
+
+    /* UN JETON NEUF À CHAQUE PASSAGE PAR « LIEN ». Reprendre l'ancien
+       ferait revivre tous les liens distribués la fois d'avant — y
+       compris celui qu'on avait justement voulu couper en repassant en
+       privé. Se raviser doit vouloir dire quelque chose. */
+    const jeton = partage === "lien" ? randomBytes(16).toString("base64url") : null;
+    await depot.reglerLePartage(base, personne.id, partage!, jeton);
+    return { partage, jeton };
+  });
+
+  app.put("/fiche/:id/cachee", async (req, reply) => {
+    const personne = await exigerUnCompte(req);
+    const { id } = req.params as { id: string };
+    const { cachee } = (req.body ?? {}) as { cachee?: boolean };
+    const fait = await depot.cacherFiche(base, personne.id, id, cachee === true);
+    if (!fait) return reply.code(404).send({ erreur: "Fiche inconnue." });
+    return { id, cachee: cachee === true };
+  });
+
+  app.get("/chez/:pseudo", async (req, reply) => {
+    const { pseudo } = req.params as { pseudo: string };
+    const { jeton } = req.query as { jeton?: string };
+    if (!PSEUDO_OK.test(pseudo || "")) {
+      return reply.code(404).send({ erreur: "Pas de collection à cette adresse." });
+    }
+
+    const vue = await depot.collectionPubliqueDe(base, pseudo.toLowerCase(), jeton ?? null);
+    /* LE MÊME 404 DANS LES TROIS CAS : compte inexistant, compte qui ne
+       partage pas, jeton faux. Distinguer renseignerait un inconnu sur
+       qui est inscrit et sur qui garde une collection secrète — deux
+       choses qui ne le regardent pas. */
+    if (!vue) return reply.code(404).send({ erreur: "Pas de collection à cette adresse." });
+
+    return {
+      pseudo: vue.pseudo,
+      films: vue.films.map((f) => ({ id: f.id, tmdbId: f.tmdb_id, ...f.donnees })),
+    };
   });
 
   /* ------------------------------------------------------------
