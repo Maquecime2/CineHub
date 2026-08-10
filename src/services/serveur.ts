@@ -15,9 +15,23 @@
 
 /* L'adresse du serveur. Vide en production tant qu'aucun n'est déployé :
    la synchronisation est alors simplement absente, sans message ni
-   bouton mort. */
-export const ADRESSE: string =
-  import.meta.env.VITE_SERVEUR || (import.meta.env.DEV ? "http://localhost:8787" : "");
+   bouton mort.
+
+   ELLE EST NETTOYÉE, ET CE N'EST PAS DE LA COQUETTERIE. Sous `cmd`,
+   `set VITE_SERVEUR=http://… && npm run build` range dans la variable
+   TOUT ce qui précède le `&&`, espace comprise. L'adresse compilée
+   devient « http://localhost:8787 », chaque requête part vers une URL
+   invalide, et l'application annonce un serveur injoignable qui tourne
+   parfaitement — j'ai mis une demi-heure à le voir, et seulement parce
+   que le message affichait une espace avant son point.
+
+   La barre finale part pour la même raison : les chemins commencent
+   déjà par une barre, et « …:8787//moi » n'est pas « …:8787/moi ». */
+export const ADRESSE: string = (
+  import.meta.env.VITE_SERVEUR || (import.meta.env.DEV ? "http://localhost:8787" : "")
+)
+  .trim()
+  .replace(/\/+$/, "");
 
 export const serveurConfigure = (): boolean => ADRESSE !== "";
 
