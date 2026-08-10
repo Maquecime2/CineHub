@@ -150,6 +150,31 @@ describe("ranger une fiche", () => {
     expect(await depot.compterFiches(base, p.id)).toBe(0);
   });
 
+  it("range un OBJET json, et non une chaîne qui en a l'air", async () => {
+    /* CE TEST EXISTE PARCE QUE LE CONTRAIRE EST ARRIVÉ. Une chaîne
+       confiée à une colonne `jsonb` sans conversion explicite est rangée
+       telle quelle par certains pilotes : la fiche se retrouve
+       doublement encodée, et tout ce qui la relit reçoit du texte au
+       lieu d'un objet. Le défaut ne s'est vu que sur un vrai Postgres —
+       d'où cette vérification du TYPE rangé, et non de la valeur relue,
+       qui a l'air juste dans les deux cas. */
+    const p = await depot.creerPersonne(base, "marker");
+    await depot.rangerFiche(base, p.id, {
+      id: "f1",
+      donnees: { title: "La Jetée", rating: 5 },
+      majLe: new Date(1000),
+    });
+
+    const t = await base.requete<{ type: string }>(
+      "SELECT jsonb_typeof(donnees) AS type FROM fiche WHERE personne_id = $1",
+      [p.id]
+    );
+    expect(t[0]!.type).toBe("object");
+
+    const relue = await depot.fichesDepuis(base, p.id, new Date(0));
+    expect(relue[0]!.donnees).toEqual({ title: "La Jetée", rating: 5 });
+  });
+
   it("deux personnes peuvent nommer leurs fiches pareil", async () => {
     /* L'identifiant vient du client : rien ne garantit qu'il soit unique
        entre deux collections, et rien n'a besoin de l'être. */

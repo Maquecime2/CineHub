@@ -227,8 +227,22 @@ export async function rangerFiche(
   }
 ): Promise<void> {
   await base.requete(
+    /* ON PASSE L'OBJET, JAMAIS SA SÉRIALISATION, et ce n'est pas un
+       détail de style.
+
+       Le pilote de production sérialise LUI-MÊME ce qui va dans une
+       colonne `jsonb`. Lui donner une chaîne déjà sérialisée la fait
+       sérialiser une seconde fois : la fiche est rangée comme une
+       CHAÎNE JSON et non comme un objet, `donnees->>'title'` ne trouve
+       plus rien, et tout ce qui la relit reçoit du texte. La conversion
+       explicite n'y change rien — mesuré sur les deux moteurs.
+
+       Le Postgres des tests, lui, accepte les deux formes sans broncher.
+       Le défaut était donc invisible en test et systématique en vrai :
+       la seule espèce qu'une suite verte ne rattrape jamais. Il a fallu
+       pousser une fiche dans un vrai Postgres pour le voir. */
     `INSERT INTO fiche (personne_id, id, tmdb_id, visibilite, donnees, maj_le, supprimee)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7)
      ON CONFLICT (personne_id, id) DO UPDATE
         SET tmdb_id = EXCLUDED.tmdb_id,
             visibilite = EXCLUDED.visibilite,
@@ -241,7 +255,7 @@ export async function rangerFiche(
       f.id,
       f.tmdbId ?? null,
       f.visibilite ?? "privee",
-      JSON.stringify(f.donnees),
+      f.donnees,
       f.majLe,
       f.supprimee ?? false,
     ]
