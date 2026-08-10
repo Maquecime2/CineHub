@@ -55,6 +55,11 @@ une clé physique. La vérification des signatures est confiée à
 | `PUT /partage`                        | Personne, par lien, ou tout le monde — jeton neuf à chaque fois |
 | `PUT /fiche/:id/cachee`               | Écarter une fiche du partage, ou l'y remettre                   |
 | `GET /chez/:pseudo?jeton=…`           | La collection de quelqu'un, sans compte ni cookie               |
+| `GET /profils/:pseudo`                | Le profil de qui se montre — 404 pour les autres                |
+| `PUT /abonnements/:pseudo`            | Suivre. Sens unique, personne n'est prévenu                     |
+| `DELETE /abonnements/:pseudo`         | Ne plus suivre — possible même si l'autre s'est refermé         |
+| `GET /abonnements`                    | Qui vous suivez, et si leur collection est encore ouverte       |
+| `GET /fil?avant=…`                    | Ce que les gens suivis ont touché récemment                     |
 | `GET /mes-donnees`                    | Tout ce que le serveur détient de vous                          |
 | `DELETE /mon-compte`                  | L'efface, et tout ce qui pend dessous                           |
 | `GET /sante`                          | Debout ?                                                        |
@@ -101,6 +106,22 @@ sur qui garde une collection secrète.
 **Le partage appartient à la collection**, pas à chaque fiche : « je
 montre ma vidéothèque » se dit une fois. Une fiche peut en être écartée
 (`cachee`), et c'est l'exception.
+
+## Le fil ne raconte pas, il montre
+
+Le serveur ne garde aucune histoire : il sait qu'une fiche a bougé, pas
+ce qui a changé dedans. Le fil rend donc des films **récemment touchés**
+chez les gens suivis, avec la note et la critique du moment. Il n'écrit
+jamais « a mis quatre étoiles » — ce qu'il serait incapable de prouver.
+
+Il se calcule à la lecture, sans table de fil : pour quelques dizaines
+d'abonnements, l'index `fiche_suite` suffit largement. Le jour où il ne
+suffira plus sera un vrai problème d'échelle, et pas avant.
+
+**On ne trouve que ceux qui se montrent.** Pas d'annuaire, pas de liste
+d'inscrits : `GET /profils/:pseudo` répond 404 pour un compte privé
+exactement comme pour un compte inexistant. Un partage par LIEN n'ouvre
+pas de profil — un lien se donne à quelqu'un, il ne rend pas trouvable.
 
 ## Le curseur est un rang, jamais une heure
 

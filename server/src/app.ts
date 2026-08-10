@@ -474,6 +474,79 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
   });
 
   /* ------------------------------------------------------------
+     SUIVRE QUELQU'UN, ET LIRE SON FIL
+     ------------------------------------------------------------ */
+
+  app.get("/profils/:pseudo", async (req, reply) => {
+    const { pseudo } = req.params as { pseudo: string };
+    if (!PSEUDO_OK.test(pseudo || "")) return reply.code(404).send({ erreur: "Personne." });
+
+    /* On lit la session sans l'exiger : connecté, on saura si l'on suit
+       déjà ; sinon le profil se consulte quand même. */
+    const moi = await quiEst(req);
+    const profil = await depot.profilPublicDe(base, pseudo.toLowerCase(), moi?.id);
+    /* MÊME RÉPONSE POUR « N'EXISTE PAS » ET « NE SE MONTRE PAS ». On ne
+       peut trouver que des gens qui ont choisi d'être trouvables. */
+    if (!profil) return reply.code(404).send({ erreur: "Personne." });
+    return profil;
+  });
+
+  app.get("/abonnements", async (req) => {
+    const personne = await exigerUnCompte(req);
+    return { abonnements: await depot.abonnementsDe(base, personne.id) };
+  });
+
+  app.put("/abonnements/:pseudo", async (req, reply) => {
+    const personne = await exigerUnCompte(req);
+    const { pseudo } = req.params as { pseudo: string };
+    const cible = await depot.profilPublicDe(base, (pseudo || "").toLowerCase());
+    /* On ne peut suivre que ce qui se montre : suivre une collection
+       fermée serait s'abonner à un silence, et dirait au passage
+       qu'elle existe. */
+    if (!cible) return reply.code(404).send({ erreur: "Personne." });
+
+    const vise = await depot.trouverParPseudo(base, cible.pseudo);
+    if (!vise || vise.id === personne.id) {
+      return reply.code(400).send({ erreur: "On ne se suit pas soi-même." });
+    }
+    await depot.suivre(base, personne.id, vise.id);
+    return { pseudo: cible.pseudo, suivi: true };
+  });
+
+  app.delete("/abonnements/:pseudo", async (req, reply) => {
+    const personne = await exigerUnCompte(req);
+    const { pseudo } = req.params as { pseudo: string };
+    const vise = await depot.trouverParPseudo(base, (pseudo || "").toLowerCase());
+    /* Se désabonner de quelqu'un qui s'est refermé doit RESTER possible :
+       on ne passe donc pas par le profil public, qui n'existerait plus. */
+    if (vise) await depot.nePlusSuivre(base, personne.id, vise.id);
+    return reply.send({ pseudo, suivi: false });
+  });
+
+  app.get("/fil", async (req, reply) => {
+    const personne = await exigerUnCompte(req);
+    const { avant } = req.query as { avant?: string };
+    const borne = avant ? Number(avant) : null;
+    if (borne !== null && !Number.isFinite(borne)) {
+      return reply.code(400).send({ erreur: "Borne illisible." });
+    }
+
+    const nouvelles = await depot.filDe(base, personne.id, borne);
+    return {
+      /* Le rang de la dernière nouvelle rendue : le client le renvoie
+         pour lire la suite, sans se demander l'heure qu'il est. */
+      jusqua: nouvelles.length ? Number(nouvelles[nouvelles.length - 1]!.seq) : null,
+      nouvelles: nouvelles.map((n) => ({
+        pseudo: n.pseudo,
+        id: n.id,
+        tmdbId: n.tmdb_id,
+        le: new Date(n.maj_le).getTime(),
+        film: n.donnees,
+      })),
+    };
+  });
+
+  /* ------------------------------------------------------------
      CE QUI EST À SOI, ET LE DROIT DE PARTIR
      ------------------------------------------------------------ */
 

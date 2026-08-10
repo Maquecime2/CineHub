@@ -296,3 +296,43 @@ export async function collectionDe(
     `/chez/${encodeURIComponent(pseudo)}${q}`
   );
 }
+
+/* ------------------------------------------------------------
+   SUIVRE, ET LE FIL
+   ------------------------------------------------------------ */
+
+export interface Profil {
+  pseudo: string;
+  films: number;
+  suivi?: boolean;
+  /** Pour la liste des abonnements : sa collection est-elle encore ouverte ? */
+  ouverte?: boolean;
+}
+
+export interface Nouvelle {
+  pseudo: string;
+  id: string;
+  tmdbId: string | null;
+  le: number;
+  film: FilmPartage;
+}
+
+export const profilDe = (pseudo: string) =>
+  appeler<Profil>(`/profils/${encodeURIComponent(pseudo)}`);
+
+export const suivre = (pseudo: string) =>
+  appeler<{ pseudo: string; suivi: boolean }>(`/abonnements/${encodeURIComponent(pseudo)}`, {
+    method: "PUT",
+  });
+
+export const nePlusSuivre = (pseudo: string) =>
+  appeler<{ pseudo: string; suivi: boolean }>(`/abonnements/${encodeURIComponent(pseudo)}`, {
+    method: "DELETE",
+  });
+
+export const mesAbonnements = () => appeler<{ abonnements: Profil[] }>("/abonnements");
+
+export const lireLeFil = (avant?: number | null) =>
+  appeler<{ jusqua: number | null; nouvelles: Nouvelle[] }>(
+    `/fil${avant ? `?avant=${avant}` : ""}`
+  );

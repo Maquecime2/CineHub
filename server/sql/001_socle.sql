@@ -229,6 +229,29 @@ CREATE TABLE IF NOT EXISTS doc (
 CREATE INDEX IF NOT EXISTS doc_suite ON doc(personne_id, seq);
 
 -- ------------------------------------------------------------
+-- SUIVRE QUELQU'UN
+-- ------------------------------------------------------------
+-- Un lien à SENS UNIQUE, et volontairement : suivre n'est pas une
+-- demande d'amitié, c'est un geste qu'on fait seul et qu'on défait
+-- seul. Personne n'a à accepter, personne n'a à refuser, et il n'y a
+-- donc aucune notification à supporter.
+--
+-- On ne peut suivre qu'une collection PUBLIQUE — le filtre est dans la
+-- lecture, pas ici : quelqu'un qui se referme ne doit pas perdre ses
+-- suiveurs, seulement disparaître de leur fil le temps qu'il se tait.
+CREATE TABLE IF NOT EXISTS abonnement (
+  suiveur_id    uuid NOT NULL REFERENCES personne(id) ON DELETE CASCADE,
+  suivi_id      uuid NOT NULL REFERENCES personne(id) ON DELETE CASCADE,
+  cree_le       timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (suiveur_id, suivi_id),
+  -- Se suivre soi-même remplirait son propre fil de ce qu'on vient
+  -- d'écrire. La base le refuse plutôt que la route.
+  CHECK (suiveur_id <> suivi_id)
+);
+
+CREATE INDEX IF NOT EXISTS abonnement_suivi ON abonnement(suivi_id);
+
+-- ------------------------------------------------------------
 -- LE SIGNALEMENT
 -- ------------------------------------------------------------
 -- Vide tant que rien n'est public, et posé quand même : une table de

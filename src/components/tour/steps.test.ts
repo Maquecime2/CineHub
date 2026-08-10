@@ -21,6 +21,7 @@ const VUES = [
   "constellation",
   "notebook",
   "import",
+  "fil",
   "detail",
   "almanac",
 ] as const;

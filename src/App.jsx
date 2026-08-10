@@ -137,6 +137,7 @@ import { GeneriqueView } from "./views/GeneriqueView";
 import { RecoView } from "./views/RecoView";
 import { DetailView } from "./views/DetailView";
 import { ImportView } from "./views/import/ImportView";
+import { FilView } from "./views/FilView";
 import {
   viewKey,
   saveViewIndex,
@@ -905,6 +906,7 @@ export default function App() {
             fiches VUES, y compris celles mises de côté dans la réserve —
             les avoir archivées ne les rend pas non vues. */}
         {view === "almanac" && <AlmanacView films={watched} onOpenPerson={ouvrirPersonne} />}
+        {view === "fil" && <FilView connecte={!!synchro.personne} />}
         {view === "skinlab" && import.meta.env.DEV && <SkinLab />}
         {view === "import" && (
           <ImportView

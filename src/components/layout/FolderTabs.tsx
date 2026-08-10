@@ -10,6 +10,7 @@ import {
   Clapperboard,
   Bookmark,
   Users,
+  Users2,
   Compass,
   Sparkles,
   CalendarDays,
@@ -30,6 +31,7 @@ export type View =
   | "constellation"
   | "notebook"
   | "import"
+  | "fil"
   | "detail"
   | "almanac"
   | "skinlab";
@@ -68,6 +70,10 @@ const TABS: { key: View; label: string; color: string; icon: ComponentType<{ siz
     { key: "almanac", label: "Almanach", color: C.moss, icon: CalendarDays },
     { key: "notebook", label: "Carnet", color: C.pine, icon: NotebookPen },
     { key: "import", label: "Import Letterboxd", color: C.slate, icon: FolderInput },
+    /* LE FIL EST LE DERNIER ONGLET, et pas le premier : le classeur
+       reste une videotheque personnelle, et ce qu'on regarde chez les
+       autres vient apres ce qu'on a chez soi. */
+    { key: "fil", label: "Le fil", color: C.cobalt, icon: Users2 },
   ];
 
 /* L'onglet de contrôle des peaux n'est pas une vue du produit : il ne

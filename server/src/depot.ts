@@ -376,7 +376,7 @@ export async function reglerLePartage(
    qu'on duplique un jour pour un autre besoin, en oubliant la moitié du
    filtre ; une soustraction écrite dans la seule requête qui sert le
    public ne s'oublie pas — il n'y a rien d'autre à appeler. */
-const SANS_LE_PRIVE = `donnees - 'notes' - 'watches' - 'watchedAt' AS donnees`;
+const SANS_LE_PRIVE = `f.donnees - 'notes' - 'watches' - 'watchedAt' AS donnees`;
 
 export interface FichePublique {
   id: string;
@@ -407,10 +407,10 @@ export async function collectionPubliqueDe(
   }
 
   const films = await base.requete<FichePublique>(
-    `SELECT id, tmdb_id, ${SANS_LE_PRIVE}
-       FROM fiche
-      WHERE personne_id = $1 AND NOT cachee AND NOT supprimee
-      ORDER BY maj_le DESC`,
+    `SELECT f.id, f.tmdb_id, ${SANS_LE_PRIVE}
+       FROM fiche f
+      WHERE f.personne_id = $1 AND NOT f.cachee AND NOT f.supprimee
+      ORDER BY f.maj_le DESC`,
     [p.id]
   );
   return { pseudo: p.pseudo, films };
@@ -429,4 +429,123 @@ export async function cacherFiche(
     [personneId, ficheId, cachee]
   );
   return r.length > 0;
+}
+
+/* ------------------------------------------------------------
+   SUIVRE, ET LE FIL
+   ------------------------------------------------------------ */
+
+export interface Profil {
+  pseudo: string;
+  /** Combien de films sa collection montre. */
+  films: number;
+  /** Est-ce que je le suis déjà ? */
+  suivi?: boolean;
+}
+
+/**
+ * Le profil de quelqu'un — et il n'existe QUE s'il se montre.
+ *
+ * On ne peut donc trouver que des gens qui ont choisi d'être
+ * trouvables : pas d'annuaire, pas de liste, et un pseudonyme deviné au
+ * hasard ne dit rien de plus qu'un pseudonyme inventé. Le partage par
+ * lien n'ouvre pas de profil : un lien se donne à quelqu'un, il ne rend
+ * pas public.
+ */
+export async function profilPublicDe(
+  base: Base,
+  pseudo: string,
+  quiDemande?: string
+): Promise<Profil | null> {
+  const p = await trouverParPseudo(base, pseudo);
+  if (!p || p.partage !== "publique") return null;
+
+  const n = await une<{ n: string }>(
+    base,
+    "SELECT count(*)::text AS n FROM fiche WHERE personne_id = $1 AND NOT cachee AND NOT supprimee",
+    [p.id]
+  );
+  const suivi = quiDemande
+    ? (
+        await base.requete("SELECT 1 FROM abonnement WHERE suiveur_id = $1 AND suivi_id = $2", [
+          quiDemande,
+          p.id,
+        ])
+      ).length > 0
+    : undefined;
+
+  return { pseudo: p.pseudo, films: Number(n?.n ?? 0), suivi };
+}
+
+export async function suivre(base: Base, suiveur: string, suivi: string): Promise<void> {
+  /* `ON CONFLICT DO NOTHING` : suivre deux fois est le même geste, et
+     doit répondre la même chose. */
+  await base.requete(
+    "INSERT INTO abonnement (suiveur_id, suivi_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+    [suiveur, suivi]
+  );
+}
+
+export async function nePlusSuivre(base: Base, suiveur: string, suivi: string): Promise<void> {
+  await base.requete("DELETE FROM abonnement WHERE suiveur_id = $1 AND suivi_id = $2", [
+    suiveur,
+    suivi,
+  ]);
+}
+
+/** Qui je suis, avec ce que leur collection montre encore. */
+export async function abonnementsDe(base: Base, personneId: string): Promise<Profil[]> {
+  return base.requete<Profil>(
+    `SELECT p.pseudo,
+            (SELECT count(*) FROM fiche f
+              WHERE f.personne_id = p.id AND NOT f.cachee AND NOT f.supprimee)::int AS films,
+            (p.partage = 'publique') AS ouverte
+       FROM abonnement a JOIN personne p ON p.id = a.suivi_id
+      WHERE a.suiveur_id = $1
+      ORDER BY p.pseudo`,
+    [personneId]
+  );
+}
+
+export interface Nouvelle {
+  pseudo: string;
+  seq: string | number;
+  id: string;
+  tmdb_id: string | null;
+  donnees: Record<string, unknown>;
+  maj_le: Date;
+}
+
+/**
+ * Le fil : ce que les gens suivis ont touché récemment.
+ *
+ * CE QU'IL DIT, ET CE QU'IL NE PRÉTEND PAS DIRE. Le serveur ne garde
+ * aucune histoire : il sait qu'une fiche a bougé, pas ce qui a changé
+ * dedans. Le fil montre donc des films récemment touchés, avec la note
+ * et la critique du moment — et n'écrit jamais « a noté 4 étoiles »,
+ * ce qu'il serait incapable de prouver.
+ *
+ * Il se calcule à la lecture, sans table de fil. Pour quelques dizaines
+ * d'abonnements, l'index `fiche_suite` suffit largement ; le jour où il
+ * ne suffira plus, ce sera un vrai problème d'échelle, et pas avant.
+ */
+export async function filDe(
+  base: Base,
+  personneId: string,
+  avant: bigint | number | null,
+  plafond = 40
+): Promise<Nouvelle[]> {
+  return base.requete<Nouvelle>(
+    `SELECT p.pseudo, f.seq, f.id, f.tmdb_id, ${SANS_LE_PRIVE}, f.maj_le
+       FROM abonnement a
+       JOIN personne p ON p.id = a.suivi_id
+       JOIN fiche f ON f.personne_id = p.id
+      WHERE a.suiveur_id = $1
+        AND p.partage = 'publique'
+        AND NOT f.cachee AND NOT f.supprimee
+        AND ($2::bigint IS NULL OR f.seq < $2::bigint)
+      ORDER BY f.seq DESC
+      LIMIT $3`,
+    [personneId, avant === null ? null : String(avant), plafond]
+  );
 }

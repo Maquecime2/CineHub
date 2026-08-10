@@ -446,6 +446,37 @@ const global: Tour = {
   ],
 };
 
+/* LE FIL — la seule vue qui ne parle pas de votre collection. Ses
+   etapes sont `optional` : sans serveur, sans compte, ou sans personne
+   suivie, la moitie de ces reperes n'existe pas, et une visite qui
+   pointe le vide est pire qu'une visite plus courte. */
+const fil: Tour = {
+  label: "Le fil",
+  steps: [
+    {
+      target: at("fil-chercher"),
+      title: "Trouver quelqu'un",
+      body: "On cherche par pseudonyme, et on ne trouve que les gens qui ont choisi de montrer leur collection. Il n'y a pas d'annuaire : ce classeur n'est pas un reseau social, et personne n'y figure sans l'avoir voulu.",
+      placement: "bottom",
+      optional: true,
+    },
+    {
+      target: at("fil-abonnements"),
+      title: "Ceux que vous suivez",
+      body: "Suivre est un geste qu'on fait seul et qu'on defait seul : personne n'accepte, personne n'est prevenu. Si quelqu'un referme sa collection, il reste dans la liste — son fil se tait, et reparlera s'il rouvre.",
+      placement: "bottom",
+      optional: true,
+    },
+    {
+      target: at("fil-nouvelles"),
+      title: "Ce qu'ils regardent",
+      body: "Les films recemment touches chez les gens que vous suivez, avec leur note et leur critique. Jamais leurs notes personnelles ni leur journal de seances — pas plus que les votres ne sortent d'ici.",
+      placement: "top",
+      optional: true,
+    },
+  ],
+};
+
 /* ---------- le registre ---------- */
 
 export const TOURS: Record<string, Tour> = {
@@ -459,6 +490,7 @@ export const TOURS: Record<string, Tour> = {
   almanac,
   notebook,
   import: importTour,
+  fil,
 };
 
 /** La visite d'une vue, s'il y en a une. `detail` en a une, `skinlab` non. */
