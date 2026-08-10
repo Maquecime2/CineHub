@@ -16,6 +16,7 @@ coverage
 # … sauf le modèle du serveur, qui ne contient aucun secret et sans lequel
 # personne ne sait quoi écrire dans son `.env`.
 !server/.env.exemple
+!.env.exemple
 
 # Éditeurs / OS
 .vscode

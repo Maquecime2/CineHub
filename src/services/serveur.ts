@@ -56,7 +56,16 @@ async function appeler<T>(chemin: string, options: Envoi = {}): Promise<T> {
     rep = await fetch(`${ADRESSE}${chemin}`, {
       ...options,
       credentials: "include",
-      headers: { "content-type": "application/json", ...(options.headers || {}) },
+      headers: {
+        /* LE `content-type` NE SE POSE QUE S'IL Y A QUELQUE CHOSE À
+           TYPER. Annoncer du JSON sans rien envoyer fait refuser la
+           requête par bien des serveurs — le nôtre le tolère désormais,
+           mais annoncer un type pour un corps qui n'existe pas restait
+           un petit mensonge, et c'est celui qui cassait la
+           déconnexion. */
+        ...(options.body ? { "content-type": "application/json" } : {}),
+        ...(options.headers || {}),
+      },
     });
   } catch {
     /* Hors ligne, serveur éteint, DNS qui ne répond pas : la requête
@@ -103,6 +112,20 @@ export async function quiSuisJe(): Promise<Personne | null> {
 export async function seDeconnecter(): Promise<void> {
   await appeler("/deconnexion", { method: "POST" }).catch(() => {});
 }
+
+/** Ce que le serveur détient, dans un seul objet — pour l'emporter. */
+export const mesDonnees = () => appeler<Record<string, unknown>>("/mes-donnees");
+
+/**
+ * Efface le compte et tout ce qui pend dessous.
+ *
+ * La collection LOCALE n'est pas touchée : effacer son compte, c'est
+ * retirer sa copie du serveur, pas se déposséder de son classeur.
+ */
+export const effacerMonCompte = () =>
+  appeler<{ efface: boolean }>("/mon-compte", {
+    method: "DELETE",
+  });
 
 /* LES CLÉS D'ACCÈS. La bibliothèque du navigateur n'est chargée QUE si
    l'on s'inscrit ou se connecte : c'est une centaine de kilo-octets que
@@ -169,3 +192,32 @@ export const pousser = (fiches: FicheÀPousser[]) =>
 
 /** Le plafond du serveur, repris ici pour découper les envois. */
 export const PAR_ENVOI = 500;
+
+/* ------------------------------------------------------------
+   LE RESTE DU CLASSEUR
+   ------------------------------------------------------------ */
+
+export interface DocÀPousser {
+  cle: string;
+  majLe: number;
+  contenu: unknown;
+  supprime?: boolean;
+}
+
+export interface RecuDocs {
+  jusqua: number;
+  encore?: boolean;
+  documents: { cle: string; majLe: number; supprime?: boolean; contenu: unknown }[];
+}
+
+export const tirerDocsDepuis = (depuis: number): Promise<RecuDocs> =>
+  appeler<RecuDocs>(`/documents?depuis=${depuis}`);
+
+export const pousserDocs = (documents: DocÀPousser[]) =>
+  appeler<{ ranges: number; perimes: number; illisibles: number }>("/documents", {
+    method: "PUT",
+    body: JSON.stringify({ documents }),
+  });
+
+/** Le plafond du serveur pour les documents. */
+export const DOCS_PAR_ENVOI = 200;

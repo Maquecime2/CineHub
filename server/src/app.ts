@@ -30,7 +30,15 @@ export interface Reglages {
   base: Base;
   /** Le domaine que les clés d'accès signeront. `localhost` en développement. */
   domaine: string;
-  /** L'origine exacte du client — une clé signée pour une autre ne vaut rien. */
+  /**
+   * Les origines du client, séparées par des virgules.
+   *
+   * PLUSIEURS, PARCE QU'IL Y EN A PLUSIEURS EN VRAI : le serveur de
+   * développement (5173) et l'aperçu de la version construite (4173)
+   * ne sont pas la même origine, et l'on veut essayer la PWA contre le
+   * même serveur. La PREMIÈRE sert de référence aux clés d'accès —
+   * une clé signée pour une origine ne vaut rien sur une autre.
+   */
   origine: string;
   /** Cookies `Secure` : faux en développement, où il n'y a pas de HTTPS. */
   securise?: boolean;
@@ -62,9 +70,33 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
   const { base, domaine, origine } = reglages;
   const app = Fastify({ logger: false });
 
+  /* UN CORPS VIDE N'EST PAS UN CORPS ILLISIBLE.
+
+     Par défaut, Fastify refuse en 400 toute requête annonçant du JSON
+     sans rien envoyer. Or un client qui pose un `content-type` sur tous
+     ses appels — ce qui est la chose normale à faire — envoie
+     exactement cela quand la route ne demande aucune donnée. La
+     déconnexion échouait donc en silence : le navigateur croyait avoir
+     fermé la session, le serveur la gardait ouverte.
+
+     Le défaut a survécu à quarante tests parce qu'`inject`, sans charge
+     utile, n'annonce pas de `content-type` : la question qui échouait
+     n'était jamais posée. */
+  app.addContentTypeParser("application/json", { parseAs: "string" }, (_req, corps, fait) => {
+    try {
+      fait(null, corps ? JSON.parse(corps as string) : {});
+    } catch {
+      fait(new Error("JSON illisible"), undefined);
+    }
+  });
+
   await app.register(cookie);
+  const origines = origine
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
   await app.register(cors, {
-    origin: origine,
+    origin: origines,
     /* Sans cela le navigateur n'enverrait pas le cookie de session : une
        requête d'une origine à l'autre est anonyme par défaut. */
     credentials: true,
@@ -139,7 +171,7 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
     const v = await verifyRegistrationResponse({
       response: reponse as never,
       expectedChallenge: attendu.valeur,
-      expectedOrigin: origine,
+      expectedOrigin: origines,
       expectedRPID: domaine,
     });
     if (!v.verified || !v.registrationInfo) {
@@ -206,7 +238,7 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
     const v = await verifyAuthenticationResponse({
       response: reponse as never,
       expectedChallenge: attendu.valeur,
-      expectedOrigin: origine,
+      expectedOrigin: origines,
       expectedRPID: domaine,
       credential: {
         id: cle.id,
@@ -331,6 +363,64 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
   });
 
   /* ------------------------------------------------------------
+     LE RESTE DU CLASSEUR
+     ------------------------------------------------------------
+     Agencements d'étagère, pages du carnet, fils, vocabulaire, décors.
+     Mêmes règles que les fiches, et volontairement les mêmes formes :
+     un `depuis` qui est un rang, un `jusqua` qu'on renvoie tel quel. */
+
+  app.get("/documents", async (req, reply) => {
+    const personne = await exigerUnCompte(req);
+    const rang = Number((req.query as { depuis?: string }).depuis ?? 0);
+    if (!Number.isFinite(rang) || rang < 0) {
+      return reply.code(400).send({ erreur: "Rang de départ illisible." });
+    }
+    const docs = await depot.docsDepuis(base, personne.id, rang);
+    return {
+      jusqua: docs.length ? Number(docs[docs.length - 1]!.seq) : rang,
+      encore: docs.length === 200,
+      documents: docs.map((d) => ({
+        cle: d.cle,
+        supprime: d.supprime,
+        majLe: new Date(d.maj_le).getTime(),
+        contenu: d.contenu,
+      })),
+    };
+  });
+
+  app.put("/documents", async (req, reply) => {
+    const personne = await exigerUnCompte(req);
+    const { documents } = (req.body ?? {}) as { documents?: unknown };
+    if (!Array.isArray(documents)) {
+      return reply.code(400).send({ erreur: "Il faut un tableau de documents." });
+    }
+    if (documents.length > 200) {
+      return reply.code(413).send({ erreur: "Deux cents documents par envoi au plus." });
+    }
+
+    let ranges = 0;
+    let perimes = 0;
+    let illisibles = 0;
+    for (const d of documents as Record<string, unknown>[]) {
+      const cle = typeof d.cle === "string" ? d.cle : null;
+      const majLe = Number(d.majLe);
+      if (!cle || !Number.isFinite(majLe)) {
+        illisibles += 1;
+        continue;
+      }
+      const ecrit = await depot.rangerDoc(base, personne.id, {
+        cle,
+        contenu: d.contenu ?? null,
+        majLe: new Date(majLe),
+        supprime: d.supprime === true,
+      });
+      if (ecrit) ranges += 1;
+      else perimes += 1;
+    }
+    return { ranges, perimes, illisibles };
+  });
+
+  /* ------------------------------------------------------------
      CE QUI EST À SOI, ET LE DROIT DE PARTIR
      ------------------------------------------------------------ */
 
@@ -342,6 +432,7 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
     return {
       personne,
       fiches: await depot.fichesDepuis(base, personne.id, 0, 100000),
+      documents: await depot.docsDepuis(base, personne.id, 0, 100000),
     };
   });
 

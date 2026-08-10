@@ -24,7 +24,12 @@ import type { Film } from "../types";
 
 const RYTHME_MS = 5 * 60 * 1000;
 
-export function useSynchro(prêt: boolean, poser: (films: Film[]) => void) {
+export function useSynchro(
+  prêt: boolean,
+  poser: (films: Film[]) => void,
+  /** Appelé quand des documents sont entrés : à l'appelant de relire. */
+  relireLesDocuments: () => void
+) {
   const [bilan, setBilan] = useState<Bilan>({
     état: serveurConfigure() ? "hors-compte" : "absent",
     personne: null,
@@ -35,9 +40,11 @@ export function useSynchro(prêt: boolean, poser: (films: Film[]) => void) {
   /* `poser` change à chaque rendu de l'application : le garder dans une
      référence évite de relancer la boucle à chaque fois. */
   const poserRef = useRef(poser);
+  const relireRef = useRef(relireLesDocuments);
   useEffect(() => {
     poserRef.current = poser;
-  }, [poser]);
+    relireRef.current = relireLesDocuments;
+  }, [poser, relireLesDocuments]);
   const enCours = useRef(false);
 
   const lancer = useCallback(async () => {
@@ -45,7 +52,9 @@ export function useSynchro(prêt: boolean, poser: (films: Film[]) => void) {
     enCours.current = true;
     setBilan((b) => ({ ...b, état: "en-cours" }));
     try {
-      setBilan(await synchroniser((films) => poserRef.current(films)));
+      const bilan = await synchroniser((films) => poserRef.current(films));
+      setBilan(bilan);
+      if (bilan.documentsEntrés) relireRef.current();
     } finally {
       enCours.current = false;
     }

@@ -290,3 +290,52 @@ export async function compterFiches(base: Base, personneId: string): Promise<num
   );
   return Number(r?.n ?? 0);
 }
+
+/* ------------------------------------------------------------
+   LES DOCUMENTS — le reste du classeur
+   ------------------------------------------------------------
+   Mêmes règles que les fiches, à la lettre : rang du serveur pour
+   l'ordre, date du client pour l'arbitrage, et le refus d'une version
+   périmée écrit dans la requête plutôt que dans la route. */
+
+export interface DocRange {
+  cle: string;
+  seq: string | number;
+  contenu: unknown;
+  maj_le: Date;
+  supprime: boolean;
+}
+
+export async function docsDepuis(
+  base: Base,
+  personneId: string,
+  depuis: bigint | number,
+  plafond = 200
+): Promise<DocRange[]> {
+  return base.requete<DocRange>(
+    `SELECT cle, seq, contenu, maj_le, supprime
+       FROM doc WHERE personne_id = $1 AND seq > $2
+      ORDER BY seq ASC LIMIT $3`,
+    [personneId, String(depuis), plafond]
+  );
+}
+
+export async function rangerDoc(
+  base: Base,
+  personneId: string,
+  d: { cle: string; contenu: unknown; majLe: Date; supprime?: boolean }
+): Promise<boolean> {
+  const ecrit = await base.requete(
+    `INSERT INTO doc (personne_id, cle, contenu, maj_le, supprime)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (personne_id, cle) DO UPDATE
+        SET contenu = EXCLUDED.contenu,
+            maj_le = EXCLUDED.maj_le,
+            supprime = EXCLUDED.supprime,
+            seq = nextval('doc_seq')
+      WHERE doc.maj_le < EXCLUDED.maj_le
+     RETURNING seq`,
+    [personneId, d.cle, d.contenu, d.majLe, d.supprime ?? false]
+  );
+  return ecrit.length > 0;
+}

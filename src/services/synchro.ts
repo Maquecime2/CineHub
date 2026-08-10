@@ -31,17 +31,29 @@ import {
 } from "./collection";
 import { store } from "./storage";
 import {
+  documentsÀEnvoyer,
+  oublierDocumentsPartis,
+  oublierLesDocuments,
+  rangerDocumentVenu,
+  tousLesDocumentsÀEnvoyer,
+} from "./documents";
+import {
+  DOCS_PAR_ENVOI,
   ErreurServeur,
   PAR_ENVOI,
   pousser,
   quiSuisJe,
   serveurConfigure,
+  pousserDocs,
   tirerDepuis,
+  tirerDocsDepuis,
   type Personne,
 } from "./serveur";
 import type { Film } from "../types";
 
 const CLÉ_CURSEUR = "synchro-rang";
+/* Deux rangs, parce que les deux tables comptent chacune pour elle. */
+const CLÉ_CURSEUR_DOCS = "synchro-rang-documents";
 /* À QUI APPARTIENT CE QU'ON A DÉJÀ SYNCHRONISÉ. Sans cette mémoire, se
    connecter à un second compte reprendrait le rang de lecture du
    premier — le classeur croirait avoir tout vu d'une collection qu'il
@@ -69,6 +81,15 @@ export interface Bilan {
   le: number | null;
   /** Ce qui reste à envoyer, s'il en reste. */
   enAttente: number;
+  /**
+   * Des documents sont entrés — agencements, carnet, fils, décors.
+   *
+   * Les vues les lisent AU MONTAGE et ne les observent pas : sans ce
+   * signal, l'étagère resterait celle d'avant jusqu'au prochain
+   * rechargement de la page, et l'on croirait la synchronisation
+   * incomplète alors qu'elle a tout ramené.
+   */
+  documentsEntrés?: number;
   message?: string;
 }
 
@@ -113,7 +134,9 @@ export async function synchroniser(poser: (films: Film[]) => void): Promise<Bila
      et le premier envoi serait vide. */
   if (store.get(CLÉ_COMPTE, "") !== personne.id) {
     store.set(CLÉ_CURSEUR, 0);
+    store.set(CLÉ_CURSEUR_DOCS, 0);
     toutÀEnvoyer();
+    tousLesDocumentsÀEnvoyer();
     store.set(CLÉ_COMPTE, personne.id);
   }
 
@@ -167,9 +190,36 @@ export async function synchroniser(poser: (films: Film[]) => void): Promise<Bila
       );
     }
 
+    /* ---------- 3. LE RESTE DU CLASSEUR ----------
+       Après les fiches, et pas avant : un agencement d'étagère cite des
+       identifiants de films, et une étagère qui arrive la première
+       désignerait des fiches que l'on n'a pas encore. */
+    let rangDocs = Number(store.get(CLÉ_CURSEUR_DOCS, 0)) || 0;
+    let encoreDocs = true;
+    let toursDocs = 0;
+    let entrés = 0;
+    while (encoreDocs && toursDocs < 50) {
+      const reçu = await tirerDocsDepuis(rangDocs);
+      for (const d of reçu.documents) if (rangerDocumentVenu(d)) entrés += 1;
+      rangDocs = reçu.jusqua;
+      encoreDocs = reçu.encore === true;
+      toursDocs += 1;
+    }
+    store.set(CLÉ_CURSEUR_DOCS, rangDocs);
+
+    const paquetDocs = documentsÀEnvoyer();
+    for (let i = 0; i < paquetDocs.length; i += DOCS_PAR_ENVOI) {
+      const tranche = paquetDocs.slice(i, i + DOCS_PAR_ENVOI);
+      await pousserDocs(tranche);
+      oublierDocumentsPartis(tranche.map((d) => d.cle));
+    }
+
+    /* Un agencement qui change demande un rechargement de la vue : les
+       étagères sont lues au montage, pas observées. On le dit à
+       l'appelant plutôt que de recharger la page sous ses doigts. */
     const le = Date.now();
-    store.set(CLÉ_BILAN, { le });
-    return { état: "à-jour", personne, le, enAttente: 0 };
+    store.set(CLÉ_BILAN, { le, documentsEntrés: entrés });
+    return { état: "à-jour", personne, le, enAttente: 0, documentsEntrés: entrés };
   } catch (e) {
     const erreur = e as ErreurServeur;
     const attend = àEnvoyer(collectionConnue(), tombesConnues(), enAttenteDEnvoi()).length;
@@ -196,6 +246,8 @@ export const enAttente = (): number =>
 /** Repartir de zéro : après une déconnexion, ou un changement de compte. */
 export function oublierLaSynchro(): void {
   store.set(CLÉ_CURSEUR, 0);
+  store.set(CLÉ_CURSEUR_DOCS, 0);
+  oublierLesDocuments();
   store.set(CLÉ_COMPTE, "");
   store.set(CLÉ_BILAN, { le: null });
 }

@@ -157,6 +157,36 @@ CREATE INDEX IF NOT EXISTS fiche_suite ON fiche(personne_id, seq);
 CREATE INDEX IF NOT EXISTS fiche_publique ON fiche(tmdb_id) WHERE visibilite = 'publique';
 
 -- ------------------------------------------------------------
+-- LE RESTE DU CLASSEUR
+-- ------------------------------------------------------------
+-- Une vidéothèque n'est pas qu'une liste de films : c'est aussi
+-- l'agencement des étagères, les pages du carnet, les fils tendus entre
+-- les œuvres, le vocabulaire qu'on s'est écrit et les décors qu'on a
+-- posés. Synchroniser les fiches seules donne un second appareil qui
+-- connaît les films et ne sait plus comment ils étaient rangés — c'est
+-- la moitié du classeur, et pas la plus personnelle.
+--
+-- UNE TABLE À PART, ET PAS UNE COLONNE DE PLUS SUR `fiche` : ces
+-- documents ne sont pas des fiches, ils n'ont ni identité d'œuvre ni
+-- visibilité, et ils ne se partageront jamais de la même façon. Ils
+-- suivent en revanche exactement les mêmes règles de synchronisation —
+-- rang du serveur, date du client, dernier écrivain gagne.
+CREATE SEQUENCE IF NOT EXISTS doc_seq;
+
+CREATE TABLE IF NOT EXISTS doc (
+  personne_id   uuid NOT NULL REFERENCES personne(id) ON DELETE CASCADE,
+  -- La clé du client : « shelf-view:abc », « notebook-notes », « fils »…
+  cle           text NOT NULL,
+  seq           bigint NOT NULL DEFAULT nextval('doc_seq'),
+  contenu       jsonb NOT NULL,
+  maj_le        timestamptz NOT NULL,
+  supprime      boolean NOT NULL DEFAULT false,
+  PRIMARY KEY (personne_id, cle)
+);
+
+CREATE INDEX IF NOT EXISTS doc_suite ON doc(personne_id, seq);
+
+-- ------------------------------------------------------------
 -- LE SIGNALEMENT
 -- ------------------------------------------------------------
 -- Vide tant que rien n'est public, et posé quand même : une table de

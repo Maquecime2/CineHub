@@ -12,13 +12,26 @@
    vit chez soi. On dit donc ce qui attend, pas ce qui manque.
    ============================================================ */
 import { useState } from "react";
-import { CloudOff, RefreshCw, LogOut, KeyRound, UserPlus, Check, X } from "lucide-react";
+import {
+  CloudOff,
+  RefreshCw,
+  LogOut,
+  KeyRound,
+  UserPlus,
+  Check,
+  X,
+  Download,
+  Trash2,
+} from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { Calque } from "../ui/Calque";
 import { Label } from "../ui";
+import { Confirmation, type DemandeConfirmation } from "../ui/Confirmation";
 import {
   ADRESSE,
+  effacerMonCompte,
+  mesDonnees,
   seConnecter,
   seDeconnecter,
   sInscrire,
@@ -53,6 +66,7 @@ export function CompteDrawer({
   const [pseudo, setPseudo] = useState("");
   const [occupé, setOccupé] = useState(false);
   const [souci, setSouci] = useState<string | null>(null);
+  const [demande, setDemande] = useState<DemandeConfirmation | null>(null);
 
   const tenter = async (quoi: (p: string) => Promise<Personne>) => {
     setSouci(null);
@@ -231,19 +245,99 @@ export function CompteDrawer({
             )}
           </>
         ) : (
-          <button
-            onClick={async () => {
-              await seDeconnecter();
-              /* La collection RESTE : se déconnecter n'est pas se
-                 déposséder. Seul le lien avec le serveur se coupe. */
-              oublierLaSynchro();
-              onChangement(null);
-            }}
-            style={bouton(C.ink, false)}
-          >
-            <LogOut size={12} /> SE DÉCONNECTER
-          </button>
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <button
+              onClick={async () => {
+                await seDeconnecter();
+                /* La collection RESTE : se déconnecter n'est pas se
+                   déposséder. Seul le lien avec le serveur se coupe. */
+                oublierLaSynchro();
+                onChangement(null);
+              }}
+              style={bouton(C.ink, false)}
+            >
+              <LogOut size={12} /> SE DÉCONNECTER
+            </button>
+
+            {/* ------------------------------------------------------
+                CE QUI EST À VOUS, ET LE DROIT DE PARTIR
+
+                Les deux routes existaient depuis le premier jour du
+                serveur et n'avaient aucun bouton : un droit qu'on ne
+                peut pas exercer d'un doigt n'est pas un droit, c'est une
+                ligne dans un fichier de configuration.
+                ------------------------------------------------------ */}
+            <div style={{ borderTop: `1px dashed ${C.line}`, paddingTop: 14 }}>
+              <Label>Vos données</Label>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
+                <button
+                  disabled={occupé}
+                  onClick={async () => {
+                    setSouci(null);
+                    setOccupé(true);
+                    try {
+                      const tout = await mesDonnees();
+                      /* Un fichier, pas un écran : ce qu'on emporte doit
+                         pouvoir être relu ailleurs, et dans dix ans. */
+                      const lien = document.createElement("a");
+                      lien.href = URL.createObjectURL(
+                        new Blob([JSON.stringify(tout, null, 2)], { type: "application/json" })
+                      );
+                      lien.download = `cine-hub-${bilan.personne!.pseudo}.json`;
+                      lien.click();
+                      URL.revokeObjectURL(lien.href);
+                    } catch (e) {
+                      setSouci((e as Error).message || "L'export a échoué.");
+                    } finally {
+                      setOccupé(false);
+                    }
+                  }}
+                  style={bouton(C.slate, occupé)}
+                >
+                  <Download size={12} /> TOUT EMPORTER
+                </button>
+
+                <button
+                  disabled={occupé}
+                  onClick={() =>
+                    setDemande({
+                      titre: "Effacer votre compte ?",
+                      corps: `La copie de votre collection sur le serveur est effacée, avec vos clés d'accès et vos sessions. Votre classeur, lui, reste entier sur cet appareil — mais vos autres appareils ne se synchroniseront plus.`,
+                      action: "EFFACER LE COMPTE",
+                      grave: true,
+                      onConfirm: async () => {
+                        setDemande(null);
+                        setOccupé(true);
+                        try {
+                          await effacerMonCompte();
+                          oublierLaSynchro();
+                          onChangement(null);
+                        } catch (e) {
+                          setSouci((e as Error).message || "L'effacement a échoué.");
+                        } finally {
+                          setOccupé(false);
+                        }
+                      },
+                    })
+                  }
+                  style={{
+                    ...bouton(C.burgundy, occupé),
+                    background: "transparent",
+                    color: C.burgundy,
+                  }}
+                >
+                  <Trash2 size={12} /> EFFACER MON COMPTE
+                </button>
+              </div>
+            </div>
+
+            {souci && (
+              <div style={{ fontFamily: F.hand, fontSize: 16, color: C.burgundy }}>{souci}</div>
+            )}
+          </div>
         )}
+
+        <Confirmation demande={demande} onClose={() => setDemande(null)} />
 
         <div
           style={{

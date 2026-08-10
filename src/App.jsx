@@ -89,7 +89,12 @@ import { motifById, makeMotifPerso, motifsPerso } from "./domain/motifs";
 import { loadFils, saveFils as saveFilsToDisk } from "./services/fils";
 import { loadVocabulaire, saveVocabulaire, normalizeVocabulaire } from "./services/motifs";
 import { store } from "./services/storage";
-import { chargerFilms, enregistrerFilms, oublierLeCache } from "./services/collection";
+import {
+  chargerFilms,
+  collectionConnue,
+  enregistrerFilms,
+  oublierLeCache,
+} from "./services/collection";
 import { underlineInput, ruledTextarea } from "./theme/styles";
 import { LINK_TYPES } from "./components/film/linkTypes";
 import {
@@ -302,7 +307,31 @@ export default function App() {
      classeur chargé : synchroniser une collection vide qu'on n'a pas
      encore lue effacerait tout au premier envoi. */
   const [compteOuvert, setCompteOuvert] = useState(false);
-  const { bilan: synchro, synchroniser: relancerSynchro } = useSynchro(loaded, setFilms);
+  /* RELIRE CE QUI VIENT D'ARRIVER. Les agencements d'étagère, le
+     carnet, les fils et le vocabulaire sont lus au montage : quand la
+     synchronisation en fait entrer, il faut les redemander au disque,
+     sinon l'écran garde ceux d'avant sans rien dire. */
+  const relireLesDocuments = useCallback(() => {
+    notebook.load();
+    setFils(loadFils());
+    setVocabulaire(loadVocabulaire());
+    const tabs = store.get("shelf-dividers", []);
+    setDividers(tabs);
+    setViews(
+      ensureViews({
+        films: collectionConnue(),
+        dividers: tabs,
+        wallPrefs: store.get("wall-prefs", {}),
+      })
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const { bilan: synchro, synchroniser: relancerSynchro } = useSynchro(
+    loaded,
+    setFilms,
+    relireLesDocuments
+  );
 
   const installation = useInstallation();
   const {

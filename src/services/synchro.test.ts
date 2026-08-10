@@ -14,6 +14,8 @@ const faux = {
   poussés: [] as unknown[][],
   jetteAuTirage: null as null | { code: number; message: string },
   jetteÀLEnvoi: null as null | { code: number; message: string },
+  docsReçus: [] as { jusqua: number; encore?: boolean; documents: unknown[] }[],
+  docsPoussés: [] as unknown[][],
 };
 
 class ErreurServeurFausse extends Error {
@@ -43,6 +45,13 @@ vi.mock("./serveur", () => ({
     faux.poussés.push(fiches);
     return { rangees: fiches.length, perimees: 0, illisibles: 0 };
   },
+  DOCS_PAR_ENVOI: 200,
+  tirerDocsDepuis: async (depuis: number) =>
+    faux.docsReçus.shift() ?? { jusqua: depuis, encore: false, documents: [] },
+  pousserDocs: async (documents: unknown[]) => {
+    faux.docsPoussés.push(documents);
+    return { ranges: documents.length, perimes: 0, illisibles: 0 };
+  },
 }));
 
 const { synchroniser, oublierLaSynchro, enAttente } = await import("./synchro");
@@ -60,6 +69,8 @@ beforeEach(async () => {
   faux.poussés = [];
   faux.jetteAuTirage = null;
   faux.jetteÀLEnvoi = null;
+  faux.docsReçus = [];
+  faux.docsPoussés = [];
   await chargerFilms();
 });
 
@@ -185,5 +196,84 @@ describe("ce qui attend", () => {
     await synchroniser(() => {});
     const dernier = faux.poussés.at(-1)!.at(-1) as { id: string; supprimee?: boolean };
     expect(dernier).toMatchObject({ id: "b", supprimee: true });
+  });
+});
+
+describe("le reste du classeur", () => {
+  /* CE QUI MANQUAIT À LA PREMIÈRE VERSION, et que seul un essai à la
+     main a montré : la synchronisation ne portait que les fiches. Le
+     second appareil retrouvait les films sans savoir comment ils
+     étaient rangés — c'est-à-dire sans l'étagère, qui est le geste
+     central de cette application. */
+
+  it("envoie l'agencement des étagères, le carnet et les fils", async () => {
+    const { store } = await import("./storage");
+    store.set("shelf-view:abc", { id: "abc", rows: [{ id: "r1", items: ["uuid-a"] }] });
+    store.set("notebook-notes", [{ id: "n1", title: "Une page" }]);
+    store.set("fils", [{ id: "f1", question: "où il pleut" }]);
+
+    await synchroniser(() => {});
+
+    const clés = faux.docsPoussés.flat().map((d) => (d as { cle: string }).cle);
+    expect(clés).toEqual(expect.arrayContaining(["shelf-view:abc", "notebook-notes", "fils"]));
+  });
+
+  it("laisse ici ce qui décrit CET appareil", async () => {
+    /* La peau choisie, l'état de la visite, les repères de
+       synchronisation : les envoyer imposerait son goût du moment à son
+       autre écran, et se synchroniser sur son propre curseur. */
+    const { store } = await import("./storage");
+    store.set("skin", "cinematheque");
+    store.set("onboarding", { done: ["global"] });
+
+    await synchroniser(() => {});
+
+    const clés = faux.docsPoussés.flat().map((d) => (d as { cle: string }).cle);
+    expect(clés).not.toContain("skin");
+    expect(clés).not.toContain("onboarding");
+    expect(clés.some((c) => c.startsWith("synchro-"))).toBe(false);
+  });
+
+  it("range ce qui vient d'ailleurs, et le signale pour qu'on relise", async () => {
+    faux.docsReçus = [
+      {
+        jusqua: 3,
+        encore: false,
+        documents: [
+          { cle: "shelf-view:abc", majLe: 9000, contenu: { id: "abc", venue: "d'ailleurs" } },
+        ],
+      },
+    ];
+    const bilan = await synchroniser(() => {});
+    expect(bilan.documentsEntrés).toBe(1);
+    expect(JSON.parse(localStorage.getItem("shelf-view:abc")!)).toMatchObject({
+      venue: "d'ailleurs",
+    });
+  });
+
+  it("un agencement plus ancien n'écrase pas celui d'ici", async () => {
+    const { store } = await import("./storage");
+    store.set("shelf-view:abc", { id: "abc", ici: true });
+    await synchroniser(() => {});
+
+    faux.docsReçus = [
+      {
+        jusqua: 9,
+        encore: false,
+        documents: [{ cle: "shelf-view:abc", majLe: 1, contenu: { vieux: true } }],
+      },
+    ];
+    await synchroniser(() => {});
+    expect(JSON.parse(localStorage.getItem("shelf-view:abc")!)).toMatchObject({ ici: true });
+  });
+
+  it("ce qui est arrivé ne repart pas", async () => {
+    faux.docsReçus = [
+      { jusqua: 4, encore: false, documents: [{ cle: "fils", majLe: 8000, contenu: [] }] },
+    ];
+    await synchroniser(() => {});
+    faux.docsPoussés = [];
+    await synchroniser(() => {});
+    expect(faux.docsPoussés.flat()).toEqual([]);
   });
 });
