@@ -39,12 +39,13 @@ export async function baseDEssai(): Promise<Base> {
   return base;
 }
 
-export async function appDEssai(base: Base) {
+export async function appDEssai(base: Base, extra: { cleTmdb?: string } = {}) {
   return construireApp({
     base,
     domaine: "localhost",
     origine: "http://localhost:5173",
     securise: false,
+    ...extra,
   });
 }
 

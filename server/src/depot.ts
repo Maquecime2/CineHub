@@ -225,8 +225,12 @@ export async function rangerFiche(
     majLe: Date;
     supprimee?: boolean;
   }
-): Promise<void> {
-  await base.requete(
+): Promise<boolean> {
+  /* `RETURNING` ne rend une ligne QUE si l'insertion ou la mise à jour a
+     eu lieu : quand la clause `WHERE` écarte une version périmée, il ne
+     rend rien. C'est ainsi que l'appelant apprend qu'il a poussé dans le
+     vide — sans seconde requête, et sans intervalle entre les deux. */
+  const ecrite = await base.requete(
     /* ON PASSE L'OBJET, JAMAIS SA SÉRIALISATION, et ce n'est pas un
        détail de style.
 
@@ -249,7 +253,8 @@ export async function rangerFiche(
             donnees = EXCLUDED.donnees,
             maj_le = EXCLUDED.maj_le,
             supprimee = EXCLUDED.supprimee
-      WHERE fiche.maj_le < EXCLUDED.maj_le`,
+      WHERE fiche.maj_le < EXCLUDED.maj_le
+     RETURNING 1 AS ecrite`,
     [
       personneId,
       f.id,
@@ -260,6 +265,7 @@ export async function rangerFiche(
       f.supprimee ?? false,
     ]
   );
+  return ecrite.length > 0;
 }
 
 export async function compterFiches(base: Base, personneId: string): Promise<number> {

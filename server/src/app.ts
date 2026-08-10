@@ -24,6 +24,7 @@ import {
 } from "@simplewebauthn/server";
 import type { Base } from "./base.ts";
 import * as depot from "./depot.ts";
+import { poserLesRelais } from "./relais.ts";
 
 export interface Reglages {
   base: Base;
@@ -33,6 +34,15 @@ export interface Reglages {
   origine: string;
   /** Cookies `Secure` : faux en développement, où il n'y a pas de HTTPS. */
   securise?: boolean;
+  /**
+   * La clé TMDB, si l'on en a une de ce côté-ci.
+   *
+   * Absente, le relais répond « pas de service » et le classeur continue
+   * d'utiliser celle que la personne a saisie chez elle. C'est
+   * volontairement dégradable : le serveur est un confort, pas une
+   * condition d'usage.
+   */
+  cleTmdb?: string;
 }
 
 const COOKIE = "session";
@@ -264,12 +274,25 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
       return reply.code(413).send({ erreur: "Cinq cents fiches par envoi au plus." });
     }
 
+    /* TROIS COMPTES ET NON UN SEUL, PARCE QUE « RANGÉES » MENTAIT.
+       La réponse annonçait le nombre de fiches REÇUES, alors que la
+       base en refuse silencieusement une partie — celles qu'un appareil
+       en retard pousse par-dessus une version plus fraîche. Un client
+       qui vide sa file d'attente sur la foi de ce compte croirait avoir
+       envoyé ce qui a été écarté. La distinction ne coûte rien
+       aujourd'hui et sera tout demain, quand la synchronisation lira
+       cette réponse pour décider quoi oublier. */
     let rangees = 0;
+    let perimees = 0;
+    let illisibles = 0;
     for (const f of fiches as Record<string, unknown>[]) {
       const id = typeof f.id === "string" ? f.id : null;
       const majLe = Number(f.majLe);
-      if (!id || !Number.isFinite(majLe)) continue;
-      await depot.rangerFiche(base, personne.id, {
+      if (!id || !Number.isFinite(majLe)) {
+        illisibles += 1;
+        continue;
+      }
+      const ecrite = await depot.rangerFiche(base, personne.id, {
         id,
         tmdbId: f.tmdbId == null ? null : String(f.tmdbId),
         visibilite: typeof f.visibilite === "string" ? f.visibilite : "privee",
@@ -277,9 +300,10 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
         majLe: new Date(majLe),
         supprimee: f.supprimee === true,
       });
-      rangees += 1;
+      if (ecrite) rangees += 1;
+      else perimees += 1;
     }
-    return { rangees, jusqua: Date.now() };
+    return { rangees, perimees, illisibles, jusqua: Date.now() };
   });
 
   /* ------------------------------------------------------------
@@ -305,6 +329,31 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
   });
 
   app.get("/sante", async () => ({ debout: true }));
+
+  /* ------------------------------------------------------------
+     LES RELAIS — la clé TMDB quitte le bundle
+     ------------------------------------------------------------ */
+  poserLesRelais(app, { cleTmdb: reglages.cleTmdb, exigerUnCompte });
+
+  /* ------------------------------------------------------------
+     LE BALAYAGE
+     ------------------------------------------------------------
+     Un défi expiré ne sert plus à rien et ne se consomme jamais : sans
+     balayage, la table grossit d'une ligne morte par cérémonie
+     abandonnée, indéfiniment. Toutes les heures suffit largement — la
+     validité d'un défi ne dépend pas de ce ménage, elle est vérifiée à
+     l'usage (`expire_le > now()`). Ceci n'est qu'une question de place.
+
+     `unref()` : ce minuteur ne doit pas retenir le processus en vie au
+     moment de s'arrêter, sinon `npm run dev` refuse de rendre la main. */
+  const balai = setInterval(
+    () => {
+      depot.balayerDefis(base).catch(() => {});
+    },
+    60 * 60 * 1000
+  );
+  balai.unref();
+  app.addHook("onClose", async () => clearInterval(balai));
 
   function poserLeCookie(reply: FastifyReply, secret: string) {
     reply.setCookie(COOKIE, secret, {

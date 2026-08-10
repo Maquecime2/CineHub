@@ -50,6 +50,8 @@ une clé physique. La vérification des signatures est confiée à
 | `POST /deconnexion`                   | Ferme la session                                              |
 | `GET /collection?depuis=…`            | Ce qui a bougé depuis une date                                |
 | `PUT /collection`                     | Range des fiches (500 par envoi au plus)                      |
+| `GET /tmdb/*`                         | Relais TMDB — onze chemins, la clé reste ici, compte exigé    |
+| `GET /letterboxd/:pseudo`             | Relais du flux RSS que le navigateur ne peut pas lire         |
 | `GET /mes-donnees`                    | Tout ce que le serveur détient de vous                        |
 | `DELETE /mon-compte`                  | L'efface, et tout ce qui pend dessous                         |
 | `GET /sante`                          | Debout ?                                                      |
@@ -68,9 +70,22 @@ intervalle où deux appareils peuvent se doubler.
 fiche au prochain envoi de l'appareil qui ne sait pas encore : on garde
 une pierre tombale.
 
+**Le compte rendu d'un envoi distingue trois choses** — `rangees`,
+`perimees`, `illisibles`. Un client qui vide sa file d'attente sur la foi
+d'un seul chiffre croirait avoir envoyé ce que la base a écarté.
+
+**Le relais TMDB exige un compte.** Sans cela, c'est un accès TMDB
+gratuit et anonyme pour la Terre entière, sur notre quota. Un classeur
+sans compte garde donc la clé saisie chez lui — ce qu'il fait déjà. Et
+seuls onze chemins sont relayés, écrits en toutes lettres : un relais qui
+transmet n'importe quoi prête sa clé, son adresse et sa facture.
+
 ## Ce qui n'est pas encore là
 
-Le relais TMDB (la clé est encore côté client), les profils publics, les
-abonnements, les avis, les listes, le balayage des défis expirés, et le
-déploiement. La table des signalements existe déjà, vide : celle-là
-n'arrive jamais à temps si on l'ajoute après coup.
+Les profils publics, les abonnements, les avis, les listes, la
+synchronisation côté client — et le déploiement. **Le client ne parle
+pas encore à ce serveur** : il continue d'aller chez TMDB avec sa propre
+clé, et de garder sa collection chez lui.
+
+La table des signalements existe déjà, vide : celle-là n'arrive jamais à
+temps si on l'ajoute après coup.

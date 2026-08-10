@@ -227,7 +227,28 @@ describe("la chaîne, de bout en bout", () => {
       headers: { cookie },
       payload: { fiches: [{ donnees: {} }, { id: "bon", majLe: 10, donnees: {} }] },
     });
-    expect(r.json().rangees).toBe(1);
+    expect(r.json()).toMatchObject({ rangees: 1, illisibles: 1, perimees: 0 });
+  });
+
+  it("le compte rendu distingue ce qui est écrit de ce qui est reçu", async () => {
+    /* Un client qui vide sa file d'attente sur la foi de ce compte
+       croirait avoir envoyé ce que la base a écarté. */
+    const { cookie } = await connecte();
+    const pousser = (majLe: number, titre: string) =>
+      app.inject({
+        method: "PUT",
+        url: "/collection",
+        headers: { cookie },
+        payload: { fiches: [{ id: "f1", majLe, donnees: { titre } }] },
+      });
+
+    expect((await pousser(2000, "récent")).json()).toMatchObject({ rangees: 1, perimees: 0 });
+    /* Un appareil en retard pousse par-dessus : la base refuse, et le
+       serveur le DIT au lieu de compter une réussite. */
+    expect((await pousser(1000, "ancien")).json()).toMatchObject({ rangees: 0, perimees: 1 });
+
+    const relu = await app.inject({ method: "GET", url: "/collection", headers: { cookie } });
+    expect(relu.json().fiches[0].donnees).toEqual({ titre: "récent" });
   });
 });
 

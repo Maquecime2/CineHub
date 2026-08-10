@@ -42,6 +42,9 @@ const app = await construireApp({
   base,
   domaine,
   origine,
+  /* Elle n'est pas obligatoire : sans elle, le relais se déclare
+     indisponible et chacun garde la sienne, comme aujourd'hui. */
+  cleTmdb: process.env.TMDB_KEY,
   /* Un cookie de session sans `Secure` sur un site en HTTPS voyage en
      clair au premier lien en http:// : c'est exactement ce contre quoi
      l'attribut existe. */
