@@ -185,7 +185,7 @@ describe("le classement est stable", () => {
   it("s'arrête au nombre demandé", () => {
     const pivot = film("Pivot", { director: "X" });
     const beaucoup = Array.from({ length: 20 }, (_, i) => film(`F${i}`, { director: "X" }));
-    expect(sillageMaison(pivot, beaucoup, { gens: 2, sujets: 1 })).toHaveLength(3);
+    expect(sillageMaison(pivot, beaucoup, { gens: 2, sujets: 1, foule: 0 })).toHaveLength(3);
   });
 });
 
@@ -218,7 +218,7 @@ describe("les quotas : les gens d'un côté, les sujets de l'autre", () => {
      lourd qu'un motif, si bien qu'un classement par score seul rendait
      des filmographies et jamais un sujet. */
   it("réserve des places aux sujets, que le score seul aurait pris", () => {
-    const rendu = sillageMaison(pivot, [...gens, ...sujets], { gens: 2, sujets: 2 });
+    const rendu = sillageMaison(pivot, [...gens, ...sujets], { gens: 2, sujets: 2, foule: 0 });
     const familles = rendu.map((v) => familleDe(v.liens));
     expect(familles.filter((f) => f === "gens")).toHaveLength(2);
     expect(familles.filter((f) => f === "sujets")).toHaveLength(2);
@@ -227,13 +227,13 @@ describe("les quotas : les gens d'un côté, les sujets de l'autre", () => {
   /* Une collection sans motifs ni mots-clés ne doit pas être punie d'un
      manque qu'elle ne peut pas combler sur-le-champ. */
   it("reverse à l'autre famille ce qu'une famille ne prend pas", () => {
-    const rendu = sillageMaison(pivot, gens, { gens: 2, sujets: 2 });
+    const rendu = sillageMaison(pivot, gens, { gens: 2, sujets: 2, foule: 0 });
     expect(rendu).toHaveLength(4);
     expect(rendu.every((v) => familleDe(v.liens) === "gens")).toBe(true);
   });
 
   it("ne rend pas plus que ce qui existe", () => {
-    expect(sillageMaison(pivot, [gens[0]!], { gens: 5, sujets: 5 })).toHaveLength(1);
+    expect(sillageMaison(pivot, [gens[0]!], { gens: 5, sujets: 5, foule: 0 })).toHaveLength(1);
   });
 });
 
@@ -245,7 +245,7 @@ describe("parQuotas", () => {
      « même sujet » : deux listes collées, pas une réponse. */
   it("rend le tout dans l'ordre du classement, pas famille par famille", () => {
     const triés = [item("a", "gens"), item("b", "sujets"), item("c", "gens"), item("d", "sujets")];
-    expect(parQuotas(triés, famille, { gens: 2, sujets: 2 }).map((i) => i.nom)).toEqual([
+    expect(parQuotas(triés, famille, { gens: 2, sujets: 2, foule: 0 }).map((i) => i.nom)).toEqual([
       "a",
       "b",
       "c",
@@ -254,7 +254,7 @@ describe("parQuotas", () => {
   });
 
   it("ne rend rien d'une liste vide", () => {
-    expect(parQuotas([], famille, { gens: 5, sujets: 5 })).toEqual([]);
+    expect(parQuotas([], famille, { gens: 5, sujets: 5, foule: 0 })).toEqual([]);
   });
 });
 

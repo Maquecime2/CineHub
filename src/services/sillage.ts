@@ -51,8 +51,10 @@ export async function récolterLeSillage(pivot: Film, apiKey: string): Promise<R
 
   if (pivot.tmdbId)
     tâches.push(async () => ({
-      par: "reco",
-      valeur: pivot.title,
+      par: "foule",
+      /* Pas de valeur : « vu par les mêmes gens » se suffit, et le nom
+         qui suivrait serait celui du film qu'on a sous les yeux. */
+      valeur: "",
       candidats: await recommendationsFor(pivot.tmdbId, apiKey),
     }));
 

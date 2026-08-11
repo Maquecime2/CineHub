@@ -33,7 +33,7 @@ import {
 import type { VoisinLoin } from "../../domain/sillageLoin";
 import { récolterLeSillage } from "../../services/sillage";
 import { useTmdbKey } from "../../services/tmdbKey";
-import { POSTER_BASE, directorOf } from "../../tmdb";
+import { directorOf } from "../../tmdb";
 import type { Film } from "../../types";
 
 /* La hauteur réservée sous chaque titre de colonne. Les deux colonnes
@@ -49,9 +49,16 @@ const HAUTEUR_MINIMALE = 220;
    plus lourd, et à juste titre — raflaient la liste entière : on
    apprenait dix fois « même équipe » et jamais « même sujet ».
 
-   Ce qu'une famille ne remplit pas revient à l'autre : une collection
-   sans motifs ni mots-clés doit voir dix propositions, pas cinq. */
-const QUOTAS = { gens: 5, sujets: 5 };
+   Ce qu'une famille ne remplit pas revient aux autres : une collection
+   sans motifs ni mots-clés doit voir dix propositions, pas quatre.
+
+   LA TROISIÈME PART EST LA PLUS PETITE, ET C'EST VOULU. « Vu par les
+   mêmes gens » est le seul rapprochement qui n'apprend rien sur le
+   film — c'est la foule qui parle. Il valait pourtant 2,2 quand un
+   sujet plafonne à 1,8, et vivait dans la même pile : les vingt
+   recommandations de TMDB raflaient les cinq places à tous les coups,
+   et aucun rapprochement par mot-clé n'a jamais paru. */
+const QUOTAS = { gens: 4, sujets: 4, foule: 2 };
 
 /* ------------------------------------------------------------
    UNE PROPOSITION — l'affiche, le titre, et POURQUOI
@@ -473,7 +480,11 @@ export function SillagePanel({
       makeFilm({
         title: v.title,
         year: v.year || "",
-        poster: v.poster ? `${POSTER_BASE}${v.poster}` : "",
+        /* `toCandidate` rend DÉJÀ une URL complète. La re-préfixer
+           donnait « …/w342https://image.tmdb… » : des vignettes cassées
+           dans toute la colonne, et — bien pire — une affiche invalide
+           écrite dans la collection à chaque mise de côté. */
+        poster: v.poster || "",
         director: réals[v.tmdbId] || "",
         status: "watchlist",
         tmdbId: v.tmdbId,
@@ -578,7 +589,7 @@ export function SillagePanel({
                   affiche={
                     v.poster ? (
                       <img
-                        src={`${POSTER_BASE}${v.poster}`}
+                        src={v.poster}
                         alt=""
                         loading="lazy"
                         decoding="async"

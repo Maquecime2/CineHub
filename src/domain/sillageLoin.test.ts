@@ -29,7 +29,7 @@ const récolte = (par: Récolte["par"], valeur: string, candidats: CandidatLoin[
 
 describe("ce que la colonne « dehors » tait", () => {
   it("écarte ce qui est déjà dans le classeur", () => {
-    const r = [récolte("reco", "Pivot", [cand(1, "Déjà vu"), cand(2, "Neuf")])];
+    const r = [récolte("foule", "", [cand(1, "Déjà vu"), cand(2, "Neuf")])];
     const out = fusionnerLoin(r, { déjàLà: new Set([1]) });
     expect(out.map((v) => v.title)).toEqual(["Neuf"]);
   });
@@ -46,7 +46,7 @@ describe("ce que la colonne « dehors » tait", () => {
 
   it("ignore un candidat sans identifiant ou sans titre", () => {
     const bancal = [{ ...cand(0, ""), tmdbId: 0 }] as CandidatLoin[];
-    expect(fusionnerLoin([récolte("reco", "P", bancal)])).toEqual([]);
+    expect(fusionnerLoin([récolte("foule", "", bancal)])).toEqual([]);
   });
 
   it("ne rend rien sans récolte", () => {
@@ -57,7 +57,7 @@ describe("ce que la colonne « dehors » tait", () => {
 describe("la fusion des provenances", () => {
   it("additionne les chemins d'un film qui arrive plusieurs fois", () => {
     const r = [
-      récolte("reco", "Pivot", [cand(1, "Croisé")]),
+      récolte("foule", "", [cand(1, "Croisé")]),
       récolte("image", "Deakins", [cand(1, "Croisé")]),
       récolte("musique", "Zimmer", [cand(2, "Simple")]),
     ];
@@ -71,7 +71,7 @@ describe("la fusion des provenances", () => {
      chercher. Les deux premiers chemins se nomment. */
   it("nomme les deux chemins plutôt que de compter le second", () => {
     const r = [
-      récolte("reco", "Pivot", [cand(1, "Croisé")]),
+      récolte("foule", "", [cand(1, "Croisé")]),
       récolte("image", "Roger Deakins", [cand(1, "Croisé")]),
     ];
     expect(fusionnerLoin(r)[0]!.raison).toBe(
@@ -83,7 +83,7 @@ describe("la fusion des provenances", () => {
     const r = [
       récolte("image", "Deakins", [cand(1, "Croisé")]),
       récolte("musique", "Zimmer", [cand(1, "Croisé")]),
-      récolte("reco", "Pivot", [cand(1, "Croisé")]),
+      récolte("foule", "", [cand(1, "Croisé")]),
       récolte("acteur", "Vedette", [cand(1, "Croisé")]),
     ];
     expect(fusionnerLoin(r)[0]!.raison).toBe(
@@ -98,7 +98,7 @@ describe("la fusion des provenances", () => {
 
   it("fait passer un chef op partagé devant une simple recommandation", () => {
     const r = [
-      récolte("reco", "Pivot", [cand(1, "Foule")]),
+      récolte("foule", "", [cand(1, "Foule")]),
       récolte("image", "Deakins", [cand(2, "Même œil")]),
     ];
     expect(fusionnerLoin(r).map((v) => v.title)).toEqual(["Même œil", "Foule"]);
@@ -107,7 +107,7 @@ describe("la fusion des provenances", () => {
 
 describe("le classement est stable", () => {
   it("ne dépend pas de l'ordre d'arrivée des requêtes", () => {
-    const a = récolte("reco", "P", [cand(1, "Alpha"), cand(2, "Bravo")]);
+    const a = récolte("foule", "", [cand(1, "Alpha"), cand(2, "Bravo")]);
     const b = récolte("musique", "M", [cand(3, "Charlie")]);
     const gauche = fusionnerLoin([a, b]).map((v) => v.title);
     const droite = fusionnerLoin([b, a]).map((v) => v.title);
@@ -117,8 +117,10 @@ describe("le classement est stable", () => {
   it("s'arrête au nombre demandé", () => {
     const beaucoup = Array.from({ length: 30 }, (_, i) => cand(i + 1, `F${i}`));
     expect(
-      fusionnerLoin([récolte("reco", "P", beaucoup)], { quotas: { gens: 2, sujets: 2 } })
-    ).toHaveLength(4);
+      fusionnerLoin([récolte("foule", "", beaucoup)], {
+        quotas: { gens: 2, sujets: 2, foule: 2 },
+      })
+    ).toHaveLength(6);
   });
 });
 
@@ -131,29 +133,67 @@ describe("les quotas côté TMDB", () => {
     const parSujet = Array.from({ length: 10 }, (_, i) => cand(100 + i, `Sujet${i}`));
     const rendu = fusionnerLoin(
       [récolte("image", "Deakins", parGens), récolte("mot-clé", "neo-noir", parSujet)],
-      { quotas: { gens: 3, sujets: 3 } }
+      { quotas: { gens: 3, sujets: 3, foule: 0 } }
     );
     expect(rendu.filter((v) => v.title.startsWith("Gens"))).toHaveLength(3);
     expect(rendu.filter((v) => v.title.startsWith("Sujet"))).toHaveLength(3);
   });
 
-  it("reverse à l'autre famille quand une voie ne rapporte rien", () => {
+  it("reverse aux autres familles quand une voie ne rapporte rien", () => {
     const parGens = Array.from({ length: 10 }, (_, i) => cand(i + 1, `Gens${i}`));
     const rendu = fusionnerLoin([récolte("image", "Deakins", parGens)], {
-      quotas: { gens: 3, sujets: 3 },
+      quotas: { gens: 3, sujets: 3, foule: 0 },
     });
     expect(rendu).toHaveLength(6);
   });
 
-  /* « Recommandé » n'est ni une équipe ni un sujet ; on le range du côté
-     où TMDB a le moins à offrir. */
-  it("compte une recommandation comme un sujet", () => {
+  /* ▲ LE TEST QUI AURAIT ATTRAPÉ LE DÉFAUT.
+
+     « Recommandé » pesait 2,2 et vivait dans la famille « sujets », où un
+     mot-clé plafonne à 1,4 + 0,4 = 1,8. Les vingt recommandations que
+     TMDB rend à chaque appel saturaient donc la pile entière, et le
+     résultat de la requête par mots-clés — lancée, payée — était jeté à
+     cent pour cent. Aucun sillage n'a jamais montré un seul « même
+     sujet » venu du dehors. */
+  it("laisse passer les sujets malgré vingt recommandations", () => {
+    const recos = Array.from({ length: 20 }, (_, i) => cand(i + 1, `Reco${i}`));
+    const sujets = Array.from({ length: 8 }, (_, i) => cand(100 + i, `Sujet${i}`));
+    const rendu = fusionnerLoin(
+      [récolte("foule", "", recos), récolte("mot-clé", "time loop", sujets)],
+      { quotas: { gens: 4, sujets: 4, foule: 2 } }
+    );
+    /* Le point qui compte : il y en a, là où il n'y en avait JAMAIS.
+       Le compte exact dépend du report — la famille « gens » est vide
+       ici, et ses quatre places reviennent aux autres. */
+    expect(rendu.filter((v) => v.title.startsWith("Sujet")).length).toBeGreaterThanOrEqual(4);
+  });
+
+  /* Le même défaut vu à l'envers : sans quota propre, la foule ne
+     laissait pas UNE place. On vérifie donc les deux bornes. */
+  it("ne laisse pas la foule rafler la part des sujets", () => {
+    const recos = Array.from({ length: 20 }, (_, i) => cand(i + 1, `Reco${i}`));
+    const sujets = Array.from({ length: 8 }, (_, i) => cand(100 + i, `Sujet${i}`));
+    const gens = Array.from({ length: 8 }, (_, i) => cand(200 + i, `Gens${i}`));
     const rendu = fusionnerLoin(
       [
-        récolte("reco", "P", [cand(1, "Foule")]),
+        récolte("foule", "", recos),
+        récolte("mot-clé", "time loop", sujets),
+        récolte("image", "Deakins", gens),
+      ],
+      { quotas: { gens: 4, sujets: 4, foule: 2 } }
+    );
+    expect(rendu.filter((v) => v.title.startsWith("Gens"))).toHaveLength(4);
+    expect(rendu.filter((v) => v.title.startsWith("Sujet"))).toHaveLength(4);
+    expect(rendu.filter((v) => v.title.startsWith("Reco"))).toHaveLength(2);
+  });
+
+  it("donne à la foule sa propre part, ni celle des gens ni celle des sujets", () => {
+    const rendu = fusionnerLoin(
+      [
+        récolte("foule", "", [cand(1, "Foule")]),
         récolte("image", "D", [cand(2, "A"), cand(3, "B")]),
       ],
-      { quotas: { gens: 1, sujets: 1 } }
+      { quotas: { gens: 1, sujets: 0, foule: 1 } }
     );
     expect(rendu.map((v) => v.title).sort()).toEqual(["A", "Foule"]);
   });
@@ -178,7 +218,7 @@ describe("déjàDansLeClasseur", () => {
 
   it("écarte bien un film déjà possédé sous un identifiant en texte", () => {
     const déjàLà = déjàDansLeClasseur([{ tmdbId: "1" }]);
-    const out = fusionnerLoin([récolte("reco", "P", [cand(1, "Déjà là"), cand(2, "Neuf")])], {
+    const out = fusionnerLoin([récolte("foule", "", [cand(1, "Déjà là"), cand(2, "Neuf")])], {
       déjàLà,
     });
     expect(out.map((v) => v.title)).toEqual(["Neuf"]);
@@ -268,13 +308,18 @@ describe("renfortDuDehors", () => {
   /* « Recommandé » n'a pas d'équivalent dans le vocabulaire du sillage
      maison : il devient un sujet, ce qui le range du bon côté des
      quotas. */
-  it("range une recommandation du côté des sujets", () => {
+  /* ▲ L'AUTRE MOITIÉ DU DÉFAUT. Le renfort convertissait une
+     recommandation en `mot-clé` : une proposition venue de la foule se
+     faisait passer pour un rapprochement par sujet, et la raison
+     affichée mentait. */
+  it("ne déguise pas une recommandation en rapprochement par sujet", () => {
     const out = renfortDuDehors(
-      [récolte("reco", "Pivot", [cand(42, "Chez moi")])],
+      [récolte("foule", "", [cand(42, "Chez moi")])],
       parIdTmdb([fiche("a", 42)]),
       "pivot"
     );
-    expect(familleDe(out[0]!.liens)).toBe("sujets");
+    expect(out[0]!.liens[0]!.type).toBe("foule");
+    expect(familleDe(out[0]!.liens)).toBe("foule");
   });
 
   it("ne rend rien sans récolte", () => {

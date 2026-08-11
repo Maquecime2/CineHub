@@ -27,7 +27,11 @@ const CACHE_KEY = "tmdb-cache";
    Le numéro règle cela une fois pour toutes : une entrée d'une autre
    forme n'est pas une réponse, c'est une absence. On la jette et on
    redemande. À INCRÉMENTER dès qu'un champ s'ajoute à `getDetails`. */
-const SHAPE = 3;
+/* 4 : les entrées de forme 3 portent `keywords: []` là où la ressource
+   jointe n'était pas revenue — un vide qui se fait passer pour une
+   réponse. Les garder rendrait la réparation impossible : on redemande,
+   et le cache resservirait le même mensonge. */
+const SHAPE = 4;
 
 // le cache évite de reconsommer le quota à chaque réimport du même fichier
 const readCache = () => {
@@ -173,6 +177,25 @@ export async function getDetails(tmdbId, apiKey) {
      part — ce que fait `fetchKeywords` pour la fiche ouverte — doublerait
      le nombre d'appels d'un import complet pour la même chose. */
   const data = await get(`/movie/${tmdbId}`, { append_to_response: "credits,keywords" }, apiKey);
+
+  /* LE REPLI SUR L'ENDPOINT DÉDIÉ.
+
+     Si la ressource jointe n'est pas revenue, on la demande séparément
+     plutôt que de rendre « on ne sait pas » et de laisser la fiche vide
+     pour toujours. Un appel de plus, et seulement dans ce cas-là ;
+     `fetchKeywords` est de toute façon mis en cache, et c'est le même
+     appel que celui de la fiche ouverte — souvent déjà payé.
+
+     On distingue toujours l'absence du vide : si CE second appel échoue
+     à son tour, il rend `[]`, mais on ne l'écrit pas — on repasse à
+     `undefined`, pour que la fiche reste réparable. */
+  let keywords;
+  if (data.keywords?.keywords) keywords = data.keywords.keywords;
+  else {
+    const secours = await fetchKeywords(tmdbId, apiKey);
+    keywords = secours.length ? secours : undefined;
+  }
+
   const équipe = data.credits?.crew || [];
   const directors = équipe.filter((c) => c.job === "Director").map((c) => c.name);
 
@@ -236,8 +259,23 @@ export async function getDetails(tmdbId, apiKey) {
 
        Vingt au plus : les fiches populaires en portent parfois cent, et
        la queue de liste est de la poussière (« based on novel »,
-       « duringcreditsstinger ») qui gonflerait le stockage pour rien. */
-    keywords: (data.keywords?.keywords || []).slice(0, 20).map((k) => k.name),
+       « duringcreditsstinger ») qui gonflerait le stockage pour rien.
+
+       ABSENT N'EST PAS VIDE, ET LES CONFONDRE A TOUT GELÉ.
+
+       Le premier jet écrivait `(data.keywords?.keywords || [])`. Quand
+       l'`append_to_response` groupé ne rapportait rien — champ absent de
+       la réponse — cela rendait un tableau vide, c'est-à-dire une
+       AFFIRMATION : « on a demandé, ce film n'a pas de mots-clés ». La
+       fiche se figeait alors définitivement, puisque tout ce qui répare
+       (`isIncomplete`, la fiche ouverte, la fusion d'import) ne réécrit
+       que si le champ est absent. Une collection entière s'est retrouvée
+       à zéro mot-clé sans qu'aucune erreur ne soit levée nulle part.
+
+       `undefined` quand on ne sait pas, `[]` quand on sait qu'il n'y en
+       a pas. La même discipline que `runtime` et `tmdbRating`, un cran
+       plus haut. */
+    keywords: keywords ? keywords.slice(0, 20).map((k) => k.name) : undefined,
   };
 }
 
@@ -602,7 +640,10 @@ export async function enrichRows(rows, apiKey, { onProgress, concurrency = 5 } =
             language: info.language || "",
             countries: info.countries || [],
             tmdbRating: info.tmdbRating ?? null,
-            keywords: info.keywords || [],
+            /* Pas de `|| []` : voir `getDetails`. Un repli sur la liste
+               vide transformerait « on ne sait pas » en « il n'y en a
+               pas », et figerait la fiche pour de bon. */
+            keywords: info.keywords,
             tmdbId: info.tmdbId,
             year: rows[i].year || info.year || "",
           };

@@ -28,7 +28,23 @@ import type { Film } from "../types";
 
 /** La nature d'un rapprochement — ce qui fait que deux fiches se tiennent. */
 export type Lien =
-  "réalisation" | "image" | "musique" | "scénario" | "motif" | "thème" | "mot-clé" | "acteur";
+  | "réalisation"
+  | "image"
+  | "musique"
+  | "scénario"
+  | "motif"
+  | "thème"
+  | "mot-clé"
+  | "acteur"
+  /**
+   * « Les gens qui ont vu celui-ci ont vu celui-là ». Le seul lien que la
+   * collection ne peut PAS établir seule : il vient des recommandations
+   * de TMDB, et n'existe donc que dans le sillage du dehors. Il figure
+   * ici malgré tout, parce qu'un lien doit avoir un poids, un intitulé
+   * et une famille — et qu'en donner un second jeu ailleurs serait la
+   * garantie qu'ils divergent.
+   */
+  | "foule";
 
 export interface Rapprochement {
   type: Lien;
@@ -60,6 +76,12 @@ export const POIDS: Record<Lien, number> = {
   image: 3,
   musique: 3,
   réalisation: 2.5,
+  /* TMDB tire ses recommandations des comportements réels, pas d'une
+     intersection d'étiquettes : c'est un bon signal, mais un signal de
+     foule. Il pèse donc moins qu'un chef opérateur partagé, qui est un
+     fait vérifiable sur le film qu'on regarde. Son poids ne le met plus
+     en concurrence avec les sujets : il a sa propre famille. */
+  foule: 2.2,
   scénario: 2,
   motif: 2,
   acteur: 1.5,
@@ -140,6 +162,7 @@ const INTITULÉS: Record<Lien, string> = {
   thème: "thème partagé",
   "mot-clé": "sujet commun",
   acteur: "à l'affiche des deux",
+  foule: "vu par les mêmes gens",
 };
 
 /* La meilleure note qu'une fiche ait jamais reçue — la même mesure que
@@ -163,7 +186,7 @@ const meilleureNote = (f: Film): number => {
 const parLeGoût = (f: Film): number => 1 + 0.3 * weightOf(meilleureNote(f) || f.rating);
 
 /* ============================================================
-   DEUX FAÇONS DE SE RESSEMBLER, ET UN QUOTA POUR CHACUNE
+   TROIS FAÇONS DE SE RESSEMBLER, ET UN QUOTA POUR CHACUNE
    ============================================================
 
    Deux films peuvent se tenir par LES GENS qui les ont faits, ou par CE
@@ -174,21 +197,32 @@ const parLeGoût = (f: Film): number => 1 + 0.3 * weightOf(meilleureNote(f) || f
    apprenait dix fois « même équipe » et jamais « même sujet ».
 
    Un quota par famille règle cela sans toucher aux poids, qui restent
-   justes à l'intérieur de chaque famille. On garantit une place aux
-   deux, et le score continue de classer DANS chaque moitié.
+   justes à l'intérieur de chaque famille. On garantit une place à
+   chacune, et le score continue de classer DANS chaque part.
+
+   LA TROISIÈME FAMILLE EST UNE RÉPARATION, ET ELLE MÉRITE D'ÊTRE DITE.
+   « Les gens qui ont vu celui-ci ont vu celui-là » n'est ni une équipe
+   ni un sujet : c'est la foule qui parle. On l'avait rangée avec les
+   sujets, faute de troisième case — et comme une recommandation pèse
+   2,2 quand un mot-clé partagé plafonne à 1,8, elle raflait à tous les
+   coups les cinq places de la pile. Les vingt recommandations que TMDB
+   rend à chaque appel suffisaient à saturer la famille entière : la
+   requête par mots-clés était lancée, payée, et son résultat jeté À
+   CENT POUR CENT. Aucun sillage n'a jamais montré un seul rapprochement
+   par sujet venu du dehors, et c'était arithmétique, pas accidentel.
 
    LE REPORT EST INDISPENSABLE. Une collection sans motifs ni mots-clés
-   n'a rien à mettre dans « sujets » ; lui rendre cinq propositions au
-   lieu de dix serait la punir d'un manque qu'elle ne peut pas combler
-   sur-le-champ. Ce qu'une famille ne prend pas, l'autre le prend. */
-export type Famille = "gens" | "sujets";
+   n'a rien à mettre dans « sujets » ; lui rendre la moitié des
+   propositions serait la punir d'un manque qu'elle ne peut pas combler
+   sur-le-champ. Ce qu'une famille ne prend pas, les autres le prennent. */
+export type Famille = "gens" | "sujets" | "foule";
 
-export interface Quotas {
-  gens: number;
-  sujets: number;
-}
+export type Quotas = Record<Famille, number>;
 
-export const QUOTAS_PAR_DÉFAUT: Quotas = { gens: 5, sujets: 5 };
+export const QUOTAS_PAR_DÉFAUT: Quotas = { gens: 4, sujets: 4, foule: 2 };
+
+/** L'ordre dans lequel les familles sont servies, et rien de plus. */
+const FAMILLES: Famille[] = ["gens", "sujets", "foule"];
 
 const FAMILLE_DE: Record<Lien, Famille> = {
   réalisation: "gens",
@@ -199,6 +233,7 @@ const FAMILLE_DE: Record<Lien, Famille> = {
   motif: "sujets",
   thème: "sujets",
   "mot-clé": "sujets",
+  foule: "foule",
 };
 
 /* La famille d'un voisin est celle de son lien LE PLUS FORT — les liens
@@ -210,22 +245,23 @@ export const familleDe = (liens: Rapprochement[]): Famille =>
   liens[0] ? FAMILLE_DE[liens[0].type] : "sujets";
 
 /**
- * Sert les deux familles à hauteur de leur quota, puis reverse à l'autre
- * ce que l'une n'a pas su prendre. L'ordre d'entrée est conservé dans
- * chaque famille — c'est le classement par score qui décide, le quota ne
- * fait que réserver des places.
+ * Sert chaque famille à hauteur de son quota, puis reverse aux autres ce
+ * que l'une n'a pas su prendre. L'ordre d'entrée est conservé — c'est le
+ * classement par score qui décide, le quota ne fait que réserver des
+ * places.
  */
 export function parQuotas<T>(
   triés: T[],
   familleDeItem: (item: T) => Famille,
   quotas: Partial<Quotas> = {}
 ): T[] {
-  const { gens, sujets } = { ...QUOTAS_PAR_DÉFAUT, ...quotas };
-  const total = gens + sujets;
-  const piles: Record<Famille, T[]> = { gens: [], sujets: [] };
+  const pleins = { ...QUOTAS_PAR_DÉFAUT, ...quotas };
+  const total = FAMILLES.reduce((s, f) => s + pleins[f], 0);
+
+  const piles: Record<Famille, T[]> = { gens: [], sujets: [], foule: [] };
   for (const item of triés) piles[familleDeItem(item)].push(item);
 
-  const pris = [...piles.gens.slice(0, gens), ...piles.sujets.slice(0, sujets)];
+  const pris = FAMILLES.flatMap((f) => piles[f].slice(0, pleins[f]));
   /* Le report, dans l'ordre du score global : on ne veut pas que le
      complément arrive par paquets de famille après coup. */
   if (pris.length < total) {
@@ -236,8 +272,9 @@ export function parQuotas<T>(
     }
   }
   /* On reclasse sur l'ordre d'origine : servi famille par famille, le
-     résultat afficherait cinq « même équipe » puis cinq « même sujet »,
-     ce qui se lit comme deux listes collées et non comme une réponse. */
+     résultat afficherait quatre « même équipe » puis quatre « même
+     sujet », ce qui se lit comme des listes collées et non comme une
+     réponse. */
   const rang = new Map(triés.map((item, i) => [item, i]));
   return pris.sort((a, b) => (rang.get(a) ?? 0) - (rang.get(b) ?? 0));
 }
@@ -256,10 +293,15 @@ const PLURIELS: Partial<Record<Lien, (n: number) => string>> = {
    lui qui apprend quelque chose — et l'on résume le reste d'un compte.
    Tout énumérer ferait quatre lignes sous chaque affiche, et l'on ne
    lirait plus rien. */
-function raisonDe(liens: Rapprochement[]): string {
+export function raisonDe(liens: Rapprochement[]): string {
   const [tête, ...reste] = liens;
   if (!tête) return "";
-  const début = `${INTITULÉS[tête.type]} — ${tête.valeur}`;
+  /* « Vu par les mêmes gens » se suffit : le nom qui suivrait serait
+     celui du film qu'on a sous les yeux, ce qu'on sait déjà. */
+  const début =
+    tête.type === "foule" || !tête.valeur
+      ? INTITULÉS[tête.type]
+      : `${INTITULÉS[tête.type]} — ${tête.valeur}`;
   if (!reste.length) return début;
   /* QUAND LE RESTE EST D'UNE SEULE ESPÈCE, ON LA NOMME. « + 3 motifs »
      et « + 4 acteurs » se lisent ; « + 3 autres » ne dit rien de ce qui
@@ -329,27 +371,52 @@ export function liensEntre(pivot: Film, autre: Film): Rapprochement[] {
   return liens.sort((a, b) => POIDS[b.type] - POIDS[a.type]);
 }
 
-/* Le score d'un voisin, plafonds appliqués famille par famille. Séparé
-   de `liensEntre` parce que les liens s'AFFICHENT et que le score se
-   CLASSE : mélanger les deux rendait la pondération intestable. */
-export function scoreDe(pivot: Film, autre: Film, liens: Rapprochement[]): number {
-  const parFamille = new Map<Lien, number>();
+/* ============================================================
+   LE SCORE D'UN VOISIN — UNE SEULE DÉFINITION, ET C'EST TOUT L'ENJEU
+   ============================================================
 
-  const castPivot = new Map((pivot.cast || []).map((n, i) => [clé(n), i]));
+   Séparé de `liensEntre` parce que les liens s'AFFICHENT et que le score
+   se CLASSE : mélanger les deux rendait la pondération intestable.
+
+   MAIS SURTOUT : cette fonction est la SEULE à savoir combien vaut un
+   rapprochement. Le renfort venu de TMDB (`sillageLoin`) en avait sa
+   propre version — une simple somme de poids, sans plafond ni goût — et
+   les deux nombres, incommensurables, étaient malgré tout comparés au
+   moment de dédoublonner. Un vrai « sujet commun » de la collection
+   valait 1,47 là où la version venue des recommandations valait 2,2 : la
+   seconde remplaçait la première, et le rapprochement par mot-clé,
+   pourtant calculé juste, ne paraissait jamais à l'écran.
+
+   Deux barèmes pour une même chose finissent toujours par diverger. Il
+   n'y en a plus qu'un.
+
+   `pivot` sert au rang au générique, `noté` au multiplicateur de goût.
+   Les deux sont facultatifs : le renfort connaît la fiche notée mais
+   n'a pas toujours de pivot à comparer. */
+export function scoreDesLiens(
+  liens: Rapprochement[],
+  { pivot, noté }: { pivot?: Film; noté?: Film } = {}
+): number {
+  const parType = new Map<Lien, number>();
+  const castPivot = new Map((pivot?.cast || []).map((n, i) => [clé(n), i]));
 
   for (const l of liens) {
     let p = POIDS[l.type];
     if (l.type === "acteur") p *= poidsDuRang(castPivot.get(clé(l.valeur)) ?? 7);
-    parFamille.set(l.type, (parFamille.get(l.type) || 0) + p);
+    parType.set(l.type, (parType.get(l.type) || 0) + p);
   }
 
   let total = 0;
-  for (const [type, somme] of parFamille) {
+  for (const [type, somme] of parType) {
     const plafond = PLAFONDS[type];
     total += plafond != null ? Math.min(somme, plafond) : somme;
   }
-  return total * parLeGoût(autre);
+  return noté ? total * parLeGoût(noté) : total;
 }
+
+/** Le score d'un voisin de la collection. Voir `scoreDesLiens`. */
+export const scoreDe = (pivot: Film, autre: Film, liens: Rapprochement[]): number =>
+  scoreDesLiens(liens, { pivot, noté: autre });
 
 /**
  * Ce que votre collection a de proche de ce film-là.

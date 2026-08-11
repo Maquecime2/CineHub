@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { slugOf, filmKey, parseRating, diffImport, parseLetterboxdCsv } from "./importing";
-import { makeFilm, withWatches, isIncomplete } from "./film";
+import { makeFilm, withWatches, isIncomplete, sansMotsClés } from "./film";
 import type { Film, ImportRow } from "../types";
 
 const row = (partial: Partial<ImportRow> = {}): ImportRow => ({
@@ -568,6 +568,16 @@ describe("diffImport — les mots-clés", () => {
     expect(toUpdate[0]!.changes).toMatchObject({ keywords: [] });
   });
 
+  /* ▲ LA RÉPARATION. Un défaut de récolte a figé des collections
+     entières à `[]` — « demandé, il n'y en a pas » — et plus rien ne
+     pouvait les toucher, tout ce qui remplit ne visant que l'absence.
+     On comble donc AUSSI le vide, dès lors qu'on rapporte du contenu. */
+  it("répare une fiche figée à vide quand on rapporte enfin des mots-clés", () => {
+    const figée = makeFilm({ title: "Un film", year: 1975, keywords: [] });
+    const { toUpdate } = diffImport([figée], [row({ keywords: ["neo-noir"] })], "watched");
+    expect(toUpdate[0]!.changes).toMatchObject({ keywords: ["neo-noir"] });
+  });
+
   it("ne redemande pas une fiche qui a déjà répondu vide", () => {
     const ancienne = makeFilm({ title: "Un film", year: 1975, keywords: [] });
     const { unchanged } = diffImport([ancienne], [row({ keywords: [] })], "watched");
@@ -598,5 +608,24 @@ describe("isIncomplete — ce que « compléter les fiches » va chercher", () =
   it("laisse tranquille une fiche qui a répondu vide", () => {
     const f = makeFilm({ title: "Un film", cast: ["Quelqu'un"], runtime: 100, keywords: [] });
     expect(isIncomplete(f)).toBe(false);
+  });
+});
+
+describe("sansMotsClés — ce que le rattrapage explicite vise", () => {
+  /* Plus large que `isIncomplete`, et c'est tout son objet : celui-ci
+     s'interdit le vide pour ne pas boucler à chaque passage, mais une
+     collection figée à `[]` a besoin qu'on la vise quand même. */
+  it("retient une fiche qui n'a jamais été interrogée", () => {
+    expect(sansMotsClés(makeFilm({ title: "Un film" }))).toBe(true);
+  });
+
+  it("retient une fiche figée à vide, que `isIncomplete` laisse passer", () => {
+    const figée = makeFilm({ title: "Un film", cast: ["Quelqu'un"], runtime: 100, keywords: [] });
+    expect(isIncomplete(figée)).toBe(false);
+    expect(sansMotsClés(figée)).toBe(true);
+  });
+
+  it("laisse tranquille une fiche qui en porte", () => {
+    expect(sansMotsClés(makeFilm({ title: "Un film", keywords: ["neo-noir"] }))).toBe(false);
   });
 });
