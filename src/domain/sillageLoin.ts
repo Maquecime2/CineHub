@@ -12,7 +12,8 @@
    cesserait d'être « dehors » pour devenir un doublon de la gauche.
    ============================================================ */
 import { POIDS, familleDe, parQuotas } from "./sillage";
-import type { Famille, Lien, Quotas } from "./sillage";
+import type { Famille, Lien, Quotas, Rapprochement, Voisin } from "./sillage";
+import type { Film } from "../types";
 
 /** Ce qu'une récolte rapporte : des films, et par quel chemin. */
 export interface Récolte {
@@ -111,6 +112,80 @@ function raisonDe(par: VoisinLoin["par"]): string {
   return reste.length ? `${deux}, + ${reste.length}` : deux;
 }
 
+/* ============================================================
+   LE RENFORT — ce que TMDB apprend sur VOTRE collection
+   ============================================================
+
+   Le sillage maison rapproche par les sujets à condition que les DEUX
+   fiches en portent. Or les motifs et les thèmes se posent à la main, et
+   les mots-clés de TMDB ne sont récoltés que depuis peu : sur une
+   collection importée avant cela, la moitié « sujets » reste vide et la
+   colonne ne parle que d'équipes.
+
+   Aller chercher les mots-clés des cinq cents fiches réglerait la
+   question — au prix de cinq cents appels à l'ouverture d'une fiche, ce
+   qui n'est pas une option.
+
+   MAIS LA RÉPONSE EST DÉJÀ LÀ. La requête `discover` par mots-clés,
+   lancée pour la colonne de droite, rapporte des films qui partagent le
+   sujet du pivot — et certains sont DANS votre classeur. On les jetait
+   comme des doublons ; ce sont en réalité les rapprochements
+   thématiques qui manquaient, obtenus sans un appel de plus.
+
+   Le raisonnement vaut pour tous les chemins : un film de votre
+   collection remonté par la filmographie d'un chef opérateur est un
+   voisin, que sa fiche porte ou non le nom de ce chef opérateur. */
+
+/**
+ * Les films de VOTRE collection que les récoltes ont désignés.
+ *
+ * `parTmdbId` associe un identifiant TMDB à la fiche correspondante ;
+ * c'est l'appelant qui le construit, une fois, à partir de la
+ * collection — la conversion des identifiants écrits en texte comprise.
+ */
+export function renfortDuDehors(
+  récoltes: Récolte[],
+  parTmdbId: Map<number, Film>,
+  pivotId: string
+): Voisin[] {
+  const fusion = new Map<string, { film: Film; par: VoisinLoin["par"] }>();
+
+  for (const r of récoltes) {
+    for (const c of r.candidats || []) {
+      if (!c?.tmdbId) continue;
+      const film = parTmdbId.get(c.tmdbId);
+      /* Le pivot se retrouve évidemment lui-même dans sa propre
+         filmographie et dans ses propres mots-clés. */
+      if (!film || film.id === pivotId || film.archived) continue;
+      const déjà = fusion.get(film.id);
+      if (déjà) déjà.par.push({ par: r.par, valeur: r.valeur });
+      else fusion.set(film.id, { film, par: [{ par: r.par, valeur: r.valeur }] });
+    }
+  }
+
+  const out: Voisin[] = [];
+  for (const { film, par } of fusion.values()) {
+    par.sort((a, b) => poidsDe(b.par) - poidsDe(a.par));
+    /* Les chemins deviennent des liens du même vocabulaire que le
+       sillage maison : c'est ce qui permet de les mêler aux siens et de
+       leur appliquer les mêmes quotas. « Recommandé » n'a pas
+       d'équivalent — il devient un sujet, faute de mieux, et le dit. */
+    const liens: Rapprochement[] = par.map((p) =>
+      p.par === "reco"
+        ? { type: "mot-clé" as const, valeur: p.valeur }
+        : { type: p.par, valeur: p.valeur }
+    );
+    out.push({
+      film,
+      score: par.reduce((s, p) => s + poidsDe(p.par), 0),
+      liens,
+      raison: raisonDe(par),
+      clé: `renfort:${pivotId}:${film.id}`,
+    });
+  }
+  return out;
+}
+
 /**
  * Fusionne les récoltes en une liste classée, purgée de ce qu'on a déjà.
  *
@@ -176,6 +251,23 @@ export function fusionnerLoin(
  * possède revient se proposer comme une découverte. On ramène donc tout
  * au nombre, une bonne fois, à l'entrée.
  */
+/** Le même passage au nombre, isolé pour être appliqué partout pareil. */
+const idNumérique = (v: string | number | null | undefined): number =>
+  v == null || v === "" ? NaN : Number(v);
+
+/**
+ * La collection indexée par identifiant TMDB — de quoi reconnaître une
+ * de vos fiches dans ce que TMDB rapporte.
+ */
+export const parIdTmdb = (films: Film[]): Map<number, Film> => {
+  const m = new Map<number, Film>();
+  for (const f of films) {
+    const id = idNumérique(f.tmdbId);
+    if (Number.isFinite(id)) m.set(id, f);
+  }
+  return m;
+};
+
 export const déjàDansLeClasseur = (films: { tmdbId?: string | number | null }[]): Set<number> =>
   new Set(
     films

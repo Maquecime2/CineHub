@@ -1,6 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { fusionnerLoin, déjàDansLeClasseur, VOTES_MINIMUM } from "./sillageLoin";
+import {
+  fusionnerLoin,
+  renfortDuDehors,
+  déjàDansLeClasseur,
+  parIdTmdb,
+  VOTES_MINIMUM,
+} from "./sillageLoin";
 import type { CandidatLoin, Récolte } from "./sillageLoin";
+import { familleDe } from "./sillage";
+import { makeFilm } from "./film";
+import type { Film } from "../types";
 
 const cand = (tmdbId: number, title: string, extra: Partial<CandidatLoin> = {}): CandidatLoin => ({
   tmdbId,
@@ -173,5 +182,102 @@ describe("déjàDansLeClasseur", () => {
       déjàLà,
     });
     expect(out.map((v) => v.title)).toEqual(["Neuf"]);
+  });
+});
+
+/* ============================================================
+   LE RENFORT — TMDB au service de la colonne « chez vous »
+   ============================================================
+
+   Le sillage maison ne rapproche par sujet que si les DEUX fiches
+   portent motifs ou mots-clés. Sur une collection importée, elles n'en
+   ont aucun, et la colonne ne parlait que d'équipes. Aller chercher les
+   mots-clés des cinq cents fiches coûterait cinq cents appels ; la
+   réponse était déjà dans la récolte, qu'on jetait. */
+describe("renfortDuDehors", () => {
+  const fiche = (id: string, tmdbId: number | string, extra: Partial<Film> = {}): Film =>
+    makeFilm({ id, title: `Film ${id}`, tmdbId, ...extra });
+
+  it("reconnaît une de vos fiches dans ce que TMDB rapporte", () => {
+    const à_moi = fiche("a", 42);
+    const out = renfortDuDehors(
+      [récolte("mot-clé", "time loop", [cand(42, "Chez moi")])],
+      parIdTmdb([à_moi]),
+      "pivot"
+    );
+    expect(out).toHaveLength(1);
+    expect(out[0]!.film.id).toBe("a");
+    expect(out[0]!.liens[0]!.type).toBe("mot-clé");
+  });
+
+  it("ignore ce que vous ne possédez pas — c'est l'affaire de l'autre colonne", () => {
+    const out = renfortDuDehors(
+      [récolte("mot-clé", "time loop", [cand(99, "Dehors")])],
+      parIdTmdb([fiche("a", 42)]),
+      "pivot"
+    );
+    expect(out).toEqual([]);
+  });
+
+  /* Le pivot se retrouve évidemment dans sa propre filmographie et sous
+     ses propres mots-clés. */
+  it("ne se propose pas lui-même", () => {
+    const pivot = fiche("pivot", 42);
+    const out = renfortDuDehors(
+      [récolte("image", "Deakins", [cand(42, "Le pivot")])],
+      parIdTmdb([pivot]),
+      "pivot"
+    );
+    expect(out).toEqual([]);
+  });
+
+  it("écarte les fiches rangées", () => {
+    const out = renfortDuDehors(
+      [récolte("mot-clé", "x", [cand(42, "Rangé")])],
+      parIdTmdb([fiche("a", 42, { archived: true })]),
+      "pivot"
+    );
+    expect(out).toEqual([]);
+  });
+
+  /* Les identifiants écrits en texte : sinon « 42 » n'est jamais 42 et
+     le renfort ne reconnaît aucune de vos fiches. */
+  it("reconnaît un identifiant écrit en toutes lettres", () => {
+    const out = renfortDuDehors(
+      [récolte("mot-clé", "x", [cand(42, "Chez moi")])],
+      parIdTmdb([fiche("a", "42")]),
+      "pivot"
+    );
+    expect(out).toHaveLength(1);
+  });
+
+  it("additionne les chemins d'une fiche remontée plusieurs fois", () => {
+    const out = renfortDuDehors(
+      [
+        récolte("mot-clé", "time loop", [cand(42, "Chez moi")]),
+        récolte("image", "Deakins", [cand(42, "Chez moi")]),
+      ],
+      parIdTmdb([fiche("a", 42)]),
+      "pivot"
+    );
+    expect(out[0]!.liens).toHaveLength(2);
+    // le plus rare d'abord, comme partout
+    expect(out[0]!.liens[0]!.type).toBe("image");
+  });
+
+  /* « Recommandé » n'a pas d'équivalent dans le vocabulaire du sillage
+     maison : il devient un sujet, ce qui le range du bon côté des
+     quotas. */
+  it("range une recommandation du côté des sujets", () => {
+    const out = renfortDuDehors(
+      [récolte("reco", "Pivot", [cand(42, "Chez moi")])],
+      parIdTmdb([fiche("a", 42)]),
+      "pivot"
+    );
+    expect(familleDe(out[0]!.liens)).toBe("sujets");
+  });
+
+  it("ne rend rien sans récolte", () => {
+    expect(renfortDuDehors([], parIdTmdb([fiche("a", 42)]), "pivot")).toEqual([]);
   });
 });

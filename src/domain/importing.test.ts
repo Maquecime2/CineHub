@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { slugOf, filmKey, parseRating, diffImport, parseLetterboxdCsv } from "./importing";
-import { makeFilm, withWatches } from "./film";
+import { makeFilm, withWatches, isIncomplete } from "./film";
 import type { Film, ImportRow } from "../types";
 
 const row = (partial: Partial<ImportRow> = {}): ImportRow => ({
@@ -536,5 +536,67 @@ describe("diffImport — durée, langue, pays, note du public", () => {
     const ancienne = makeFilm({ title: "Un film", year: 1975, tmdbRating: 0 });
     const { unchanged } = diffImport([ancienne], [row({ tmdbRating: 7.8 })], "watched");
     expect(unchanged).toHaveLength(1);
+  });
+});
+
+/* ============================================================
+   LES MOTS-CLÉS — la chaîne d'écriture, bout à bout
+   ============================================================
+
+   C'est le seul renseignement THÉMATIQUE qui arrive tout seul : motifs
+   et thèmes se posent à la main, et sur une collection importée ils
+   restent vides. Sans les mots-clés, le sillage d'un film ne sait
+   rapprocher que des noms de personnes.
+
+   D'où ces tests : la faille, si elle existe, est dans la fusion — pas
+   dans le rapprochement, qui a les siens. */
+describe("diffImport — les mots-clés", () => {
+  it("comble une fiche qui n'en a jamais eu", () => {
+    const ancienne = makeFilm({ title: "Un film", year: 1975 });
+    expect(ancienne.keywords).toBeUndefined();
+    const { toUpdate } = diffImport([ancienne], [row({ keywords: ["time loop"] })], "watched");
+    expect(toUpdate[0]!.changes).toMatchObject({ keywords: ["time loop"] });
+  });
+
+  /* LE CAS QUI BOUCLE. Un film dont TMDB n'a aucun mot-clé doit repartir
+     avec une liste VIDE : c'est elle qui dit « on a demandé ». Sans
+     cette écriture, la fiche reste « jamais demandée » et « compléter »
+     la redemande à chaque passage, sans fin. */
+  it("écrit la liste même vide, sinon la complétion tourne en rond", () => {
+    const ancienne = makeFilm({ title: "Un film", year: 1975 });
+    const { toUpdate } = diffImport([ancienne], [row({ keywords: [] })], "watched");
+    expect(toUpdate[0]!.changes).toMatchObject({ keywords: [] });
+  });
+
+  it("ne redemande pas une fiche qui a déjà répondu vide", () => {
+    const ancienne = makeFilm({ title: "Un film", year: 1975, keywords: [] });
+    const { unchanged } = diffImport([ancienne], [row({ keywords: [] })], "watched");
+    expect(unchanged).toHaveLength(1);
+  });
+
+  it("n'écrase pas des mots-clés déjà posés", () => {
+    const ancienne = makeFilm({ title: "Un film", year: 1975, keywords: ["neo-noir"] });
+    const { unchanged } = diffImport([ancienne], [row({ keywords: ["autre chose"] })], "watched");
+    expect(unchanged).toHaveLength(1);
+  });
+
+  it("les pose sur une fiche créée par l'import", () => {
+    const { toCreate } = diffImport([], [row({ keywords: ["heist"] })], "watched");
+    expect(toCreate[0]!.keywords).toEqual(["heist"]);
+  });
+});
+
+describe("isIncomplete — ce que « compléter les fiches » va chercher", () => {
+  it("retient une fiche complète mais sans mots-clés", () => {
+    const f = makeFilm({ title: "Un film", cast: ["Quelqu'un"], runtime: 100 });
+    expect(isIncomplete(f)).toBe(true);
+  });
+
+  /* Sans cette distinction, une fiche dont TMDB n'a aucun mot-clé serait
+     réinterrogée éternellement — le défaut contre lequel l'en-tête de
+     `isIncomplete` met déjà en garde pour les pays et la langue. */
+  it("laisse tranquille une fiche qui a répondu vide", () => {
+    const f = makeFilm({ title: "Un film", cast: ["Quelqu'un"], runtime: 100, keywords: [] });
+    expect(isIncomplete(f)).toBe(false);
   });
 });
