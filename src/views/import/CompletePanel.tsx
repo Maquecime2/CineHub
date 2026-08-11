@@ -291,7 +291,7 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
 
       {!apiKey.trim() && (
         <div style={{ fontFamily: F.hand, fontSize: 16, color: C.burgundy, marginTop: 8 }}>
-          Il faut d’abord saisir une clé TMDB, plus haut.
+          Il faut de quoi interroger TMDB : une clé, plus haut — ou un compte, qui vous en dispense.
         </div>
       )}
       {msg && (
