@@ -200,7 +200,7 @@ const detail: Tour = {
     {
       target: at("detail-sillage"),
       title: "Dans le sillage",
-      body: "À gauche, ce que votre classeur a de proche de ce film : le même chef opérateur, le même compositeur, des motifs partagés, quelqu'un à l'affiche des deux — et chaque proposition dit pourquoi elle est là. À droite, la même question posée à TMDB, qui ne montre que ce que vous n'avez pas encore.",
+      body: "Dix propositions par colonne : cinq tenues par les gens qui ont fait les films — même chef opérateur, même compositeur, quelqu'un à l'affiche des deux — et cinq par ce dont ils parlent, motifs et sujets communs. Chacune dit pourquoi elle est là. À gauche votre classeur ; à droite TMDB, qui ne montre que ce que vous n'avez pas : cliquez une proposition pour lire son résumé sans quitter la page, et la mettre de côté d'un bouton.",
       placement: "top",
       /* Optionnelle : une collection d'un seul film n'a pas de sillage,
          et la visite doit pouvoir se jouer en entier sur un classeur

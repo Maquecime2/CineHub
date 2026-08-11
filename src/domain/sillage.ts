@@ -162,6 +162,86 @@ const meilleureNote = (f: Film): number => {
    collection importée de Letterboxd est notée pour un tiers à peine. */
 const parLeGoût = (f: Film): number => 1 + 0.3 * weightOf(meilleureNote(f) || f.rating);
 
+/* ============================================================
+   DEUX FAÇONS DE SE RESSEMBLER, ET UN QUOTA POUR CHACUNE
+   ============================================================
+
+   Deux films peuvent se tenir par LES GENS qui les ont faits, ou par CE
+   DONT ILS PARLENT. Ce sont deux questions différentes, et un simple
+   classement par score répondait toujours à la même : les noms propres
+   pèsent plus lourd (un chef opérateur vaut trois points, un motif
+   deux), si bien que la liste entière finissait en filmographies — on
+   apprenait dix fois « même équipe » et jamais « même sujet ».
+
+   Un quota par famille règle cela sans toucher aux poids, qui restent
+   justes à l'intérieur de chaque famille. On garantit une place aux
+   deux, et le score continue de classer DANS chaque moitié.
+
+   LE REPORT EST INDISPENSABLE. Une collection sans motifs ni mots-clés
+   n'a rien à mettre dans « sujets » ; lui rendre cinq propositions au
+   lieu de dix serait la punir d'un manque qu'elle ne peut pas combler
+   sur-le-champ. Ce qu'une famille ne prend pas, l'autre le prend. */
+export type Famille = "gens" | "sujets";
+
+export interface Quotas {
+  gens: number;
+  sujets: number;
+}
+
+export const QUOTAS_PAR_DÉFAUT: Quotas = { gens: 5, sujets: 5 };
+
+const FAMILLE_DE: Record<Lien, Famille> = {
+  réalisation: "gens",
+  image: "gens",
+  musique: "gens",
+  scénario: "gens",
+  acteur: "gens",
+  motif: "sujets",
+  thème: "sujets",
+  "mot-clé": "sujets",
+};
+
+/* La famille d'un voisin est celle de son lien LE PLUS FORT — les liens
+   étant déjà triés par poids. Un film qui partage un chef opérateur et
+   un motif compte dans « gens » : c'est ce que la raison affichée
+   annonce, et ranger une proposition sous une famille que sa phrase ne
+   nomme pas serait une promesse trahie. */
+export const familleDe = (liens: Rapprochement[]): Famille =>
+  liens[0] ? FAMILLE_DE[liens[0].type] : "sujets";
+
+/**
+ * Sert les deux familles à hauteur de leur quota, puis reverse à l'autre
+ * ce que l'une n'a pas su prendre. L'ordre d'entrée est conservé dans
+ * chaque famille — c'est le classement par score qui décide, le quota ne
+ * fait que réserver des places.
+ */
+export function parQuotas<T>(
+  triés: T[],
+  familleDeItem: (item: T) => Famille,
+  quotas: Partial<Quotas> = {}
+): T[] {
+  const { gens, sujets } = { ...QUOTAS_PAR_DÉFAUT, ...quotas };
+  const total = gens + sujets;
+  const piles: Record<Famille, T[]> = { gens: [], sujets: [] };
+  for (const item of triés) piles[familleDeItem(item)].push(item);
+
+  const pris = [...piles.gens.slice(0, gens), ...piles.sujets.slice(0, sujets)];
+  /* Le report, dans l'ordre du score global : on ne veut pas que le
+     complément arrive par paquets de famille après coup. */
+  if (pris.length < total) {
+    const déjà = new Set(pris);
+    for (const item of triés) {
+      if (pris.length >= total) break;
+      if (!déjà.has(item)) pris.push(item);
+    }
+  }
+  /* On reclasse sur l'ordre d'origine : servi famille par famille, le
+     résultat afficherait cinq « même équipe » puis cinq « même sujet »,
+     ce qui se lit comme deux listes collées et non comme une réponse. */
+  const rang = new Map(triés.map((item, i) => [item, i]));
+  return pris.sort((a, b) => (rang.get(a) ?? 0) - (rang.get(b) ?? 0));
+}
+
 /* Comment se compte chaque espèce de lien quand elle arrive en nombre.
    Les métiers n'y figurent pas : on ne partage pas « trois chefs op »,
    et si cela arrivait, « + 3 autres » reste juste. */
@@ -282,7 +362,7 @@ export function scoreDe(pivot: Film, autre: Film, liens: Rapprochement[]): numbe
  * reste : « vous l'avez mis de côté, et il tient de celui-ci » est
  * précisément une chose qu'on veut apprendre. L'écran les sépare.
  */
-export function sillageMaison(pivot: Film, films: Film[], combien = 8): Voisin[] {
+export function sillageMaison(pivot: Film, films: Film[], quotas: Partial<Quotas> = {}): Voisin[] {
   const out: Voisin[] = [];
   for (const film of films) {
     if (film.id === pivot.id || film.archived) continue;
@@ -299,12 +379,11 @@ export function sillageMaison(pivot: Film, films: Film[], combien = 8): Voisin[]
   /* À score égal, le mieux noté puis le titre : sans ce dernier cran, deux
      fiches jumelles s'échangeraient de place d'un rendu à l'autre selon
      l'ordre du tableau, et un mur qui gigote n'est pas un mur. */
-  return out
-    .sort(
-      (a, b) =>
-        b.score - a.score ||
-        meilleureNote(b.film) - meilleureNote(a.film) ||
-        a.film.title.localeCompare(b.film.title, "fr")
-    )
-    .slice(0, combien);
+  out.sort(
+    (a, b) =>
+      b.score - a.score ||
+      meilleureNote(b.film) - meilleureNote(a.film) ||
+      a.film.title.localeCompare(b.film.title, "fr")
+  );
+  return parQuotas(out, (v) => familleDe(v.liens), quotas);
 }

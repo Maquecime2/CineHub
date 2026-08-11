@@ -765,6 +765,7 @@ export default function App() {
             onMasquerMotif={masquerMotif}
             onOpen={(id) => setSelectedId(id)}
             onOpenPerson={ouvrirPersonne}
+            onAddToWatchlist={addFilm}
           />
         )}
         {view === "generique" && (

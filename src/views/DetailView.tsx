@@ -63,6 +63,8 @@ interface DetailViewProps {
   onOpen: (id: string) => void;
   /** Ouvre le dossier de quelqu'un du générique, par son nom écrit. */
   onOpenPerson?: (nom: string) => void;
+  /** Range une proposition du sillage dans la liste « à voir ». */
+  onAddToWatchlist?: (f: Film) => void;
   /** Faire d'un motif une question posée à toute la collection. */
   onFaireUnFil?: (motifId: string) => void;
   /** Le vocabulaire à vous : vos motifs, et ceux du catalogue écartés. */
@@ -86,6 +88,7 @@ export function DetailView({
   onEditLink,
   onOpen,
   onOpenPerson,
+  onAddToWatchlist,
   vocabulaire = { perso: [], masqués: [] },
   onCréerMotif,
   onSupprimerMotif,
@@ -933,7 +936,7 @@ export function DetailView({
           film d'autres une fois qu'on a fini de dire ce qu'il est. Posé
           là, c'est aussi la sortie naturelle de la fiche — on referme
           rarement un dossier sans se demander « et ensuite ? ». */}
-      <SillagePanel film={film} films={films} onOpen={onOpen} />
+      <SillagePanel film={film} films={films} onOpen={onOpen} onAddToWatchlist={onAddToWatchlist} />
       <Confirmation demande={demande} onClose={() => setDemande(null)} />
       {lightbox != null && (
         <StillLightbox

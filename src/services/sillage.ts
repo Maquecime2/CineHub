@@ -10,7 +10,14 @@
    jours). Ouvrir une fiche ne doit pas coûter une récolte : ce sont des
    propositions à côté d'un film, pas un balayage du catalogue.
    ============================================================ */
-import { recommendationsFor, searchPerson, personFilmography, pooled } from "../tmdb";
+import {
+  recommendationsFor,
+  searchPerson,
+  personFilmography,
+  fetchKeywords,
+  discover,
+  pooled,
+} from "../tmdb";
 import type { Récolte } from "../domain/sillageLoin";
 import type { Film } from "../types";
 import type { Lien } from "../domain/sillage";
@@ -62,6 +69,41 @@ export async function récolterLeSillage(pivot: Film, apiKey: string): Promise<R
       };
     });
   }
+
+  /* LA VOIE DU SUJET, qui manquait entièrement.
+
+     Les quatre chemins ci-dessus mènent tous à des GENS : la colonne
+     « ailleurs » ne savait donc rendre que des filmographies, et
+     « même sujet » n'y paraissait jamais. `/discover` accepte des
+     mots-clés — encore faut-il leurs IDENTIFIANTS, que `film.keywords`
+     ne garde pas (il n'a que les libellés, qui se lisent). On les
+     redemande donc ici : l'appel est en cache, et c'est le même que
+     celui de la fiche ouverte.
+
+     Trois mots-clés joints par une barre verticale, c'est-à-dire un OU :
+     exiger les trois à la fois ne rendrait presque rien, et les trois
+     premiers sont les plus spécifiques du lot. */
+  if (pivot.tmdbId)
+    tâches.push(async () => {
+      const mots = await fetchKeywords(pivot.tmdbId, apiKey);
+      const ids = mots
+        .map((m: { id?: number }) => m.id)
+        .filter(Boolean)
+        .slice(0, 3);
+      if (!ids.length) return null;
+      return {
+        par: "mot-clé",
+        valeur: mots
+          .slice(0, 3)
+          .map((m: { name?: string }) => m.name)
+          .filter(Boolean)
+          .join(", "),
+        candidats: await discover(
+          { with_keywords: ids.join("|"), sort_by: "vote_count.desc" },
+          apiKey
+        ),
+      };
+    });
 
   const résultats = await pooled(tâches, { concurrency: 5 });
   return résultats.filter((r): r is Récolte => !!r?.candidats?.length);

@@ -16,19 +16,19 @@
    ============================================================ */
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
-import { Compass, Waves } from "lucide-react";
+import { Bookmark, Compass, Waves } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { hueOf } from "../../theme/ink";
 import { Carton, Consigne, SansCle, TitreSection } from "../../components/ui";
 import { PosterArt } from "../../components/film/PosterArt";
-import { initialsOf } from "../../domain/film";
+import { initialsOf, makeFilm } from "../../domain/film";
 import { sillageMaison } from "../../domain/sillage";
 import type { Voisin } from "../../domain/sillage";
 import { fusionnerLoin, déjàDansLeClasseur } from "../../domain/sillageLoin";
 import type { VoisinLoin } from "../../domain/sillageLoin";
 import { récolterLeSillage } from "../../services/sillage";
 import { useTmdbKey } from "../../services/tmdbKey";
-import { POSTER_BASE } from "../../tmdb";
+import { POSTER_BASE, directorOf } from "../../tmdb";
 import type { Film } from "../../types";
 
 /* La hauteur réservée sous chaque titre de colonne. Les deux colonnes
@@ -37,7 +37,16 @@ import type { Film } from "../../types";
    sous le curseur au moment où l'on va cliquer. */
 const HAUTEUR_MINIMALE = 220;
 
-const COMBIEN = 6;
+/* DIX PAR COLONNE, ET PAS DE N'IMPORTE QUELLE SORTE.
+
+   Cinq propositions tenues par les GENS qui ont fait les films, cinq par
+   ce dont ils PARLENT. Sans ce partage, les noms propres — qui pèsent
+   plus lourd, et à juste titre — raflaient la liste entière : on
+   apprenait dix fois « même équipe » et jamais « même sujet ».
+
+   Ce qu'une famille ne remplit pas revient à l'autre : une collection
+   sans motifs ni mots-clés doit voir dix propositions, pas cinq. */
+const QUOTAS = { gens: 5, sujets: 5 };
 
 /* ------------------------------------------------------------
    UNE PROPOSITION — l'affiche, le titre, et POURQUOI
@@ -54,6 +63,7 @@ function Proposition({
   affiche,
   onClick,
   aside,
+  dépli,
 }: {
   titre: string;
   année: number | string | null;
@@ -62,6 +72,8 @@ function Proposition({
   onClick?: () => void;
   /** Une mention à droite du titre : « à voir », par exemple. */
   aside?: string;
+  /** Ce qui se déplie sous la proposition quand on l'ouvre. */
+  dépli?: ReactNode;
 }) {
   const contenu = (
     <>
@@ -125,32 +137,41 @@ function Proposition({
     display: "flex",
     gap: 10,
     padding: "8px 4px",
-    borderBottom: `1px dashed ${C.line}`,
     alignItems: "flex-start",
     width: "100%",
     boxSizing: "border-box",
     textAlign: "left",
   };
 
-  if (!onClick) return <div style={style}>{contenu}</div>;
+  /* Le filet est sur l'ENVELOPPE et non sur la ligne : sinon il passerait
+     entre la proposition et son dépli, qui se liraient alors comme deux
+     entrées différentes. */
   return (
-    <button
-      onClick={onClick}
-      style={{
-        all: "unset",
-        ...style,
-        cursor: "pointer",
-        transition: "background var(--motion-fast) ease",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = alpha(C.ochre, 0.09);
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = "transparent";
-      }}
-    >
-      {contenu}
-    </button>
+    <div style={{ borderBottom: `1px dashed ${C.line}` }}>
+      {onClick ? (
+        <button
+          onClick={onClick}
+          aria-expanded={dépli ? true : undefined}
+          style={{
+            all: "unset",
+            ...style,
+            cursor: "pointer",
+            transition: "background var(--motion-fast) ease",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = alpha(C.ochre, 0.09);
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "transparent";
+          }}
+        >
+          {contenu}
+        </button>
+      ) : (
+        <div style={style}>{contenu}</div>
+      )}
+      {dépli}
+    </div>
   );
 }
 
@@ -184,6 +205,83 @@ function Vignette({ film }: { film: Film }) {
   );
 }
 
+/* ------------------------------------------------------------
+   EN SAVOIR PLUS SANS QUITTER LE CLASSEUR
+   ------------------------------------------------------------
+
+   Les propositions du dehors ne menaient nulle part : un titre, une
+   affiche, une raison, et rien à en faire. On ne pouvait ni les
+   retenir, ni même savoir de quoi elles parlaient — il fallait aller
+   chercher ailleurs, c'est-à-dire sortir.
+
+   Le dépli répond sur place. Le synopsis vient DÉJÀ avec le candidat
+   (`toCandidate` en garde 240 signes) ; seul le réalisateur manque, et
+   il est demandé à l'ouverture — un appel, pour le film qu'on regarde,
+   et non quarante d'avance pour ceux qu'on n'ouvrira pas. */
+function Dépli({
+  v,
+  réalisateur,
+  déjàMis,
+  onMettreDeCôté,
+}: {
+  v: VoisinLoin;
+  réalisateur: string;
+  déjàMis: boolean;
+  onMettreDeCôté: () => void;
+}) {
+  return (
+    <div style={{ padding: "2px 4px 12px 58px" }}>
+      {réalisateur && (
+        <div style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded, marginBottom: 4 }}>
+          {réalisateur.toUpperCase()}
+        </div>
+      )}
+      {v.overview ? (
+        <div style={{ fontFamily: F.body, fontSize: 12.5, color: C.ink, lineHeight: 1.45 }}>
+          {v.overview}
+        </div>
+      ) : (
+        <div style={{ fontFamily: F.hand, fontSize: 13.5, color: C.inkFaded }}>
+          TMDB n&apos;en donne aucun résumé.
+        </div>
+      )}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          flexWrap: "wrap",
+          marginTop: 8,
+        }}
+      >
+        <button
+          onClick={onMettreDeCôté}
+          disabled={déjàMis}
+          style={{
+            all: "unset",
+            cursor: déjàMis ? "default" : "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 5,
+            padding: "4px 10px",
+            fontFamily: F.mono,
+            fontSize: 10,
+            borderRadius: "var(--tag-radius)",
+            border: `1px solid ${déjàMis ? C.line : C.pine}`,
+            color: déjàMis ? C.inkFaded : C.card,
+            background: déjàMis ? "transparent" : C.pine,
+          }}
+        >
+          <Bookmark size={11} /> {déjàMis ? "mis de côté" : "mettre de côté"}
+        </button>
+        <span style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}>
+          {v.voteAverage ? `${v.voteAverage.toFixed(1)} / 10 · ${v.voteCount} votes` : "pas noté"}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 /* Ce qu'on dit d'une colonne vide. Jamais rien : une colonne muette se
    lit « c'est cassé », et l'on ne saura pas que c'est simplement le
    classeur qui est encore petit. */
@@ -207,33 +305,59 @@ export function SillagePanel({
   film,
   films,
   onOpen,
+  onAddToWatchlist,
 }: {
   film: Film;
   films: Film[];
   /** Ouvre une fiche de la collection. */
   onOpen: (id: string) => void;
+  /** Range une proposition du dehors dans la liste « à voir ». */
+  onAddToWatchlist?: (f: Film) => void;
 }) {
   const apiKey = useTmdbKey();
 
   /* La moitié maison : pure, synchrone, et recalculée seulement quand la
      collection ou le pivot bougent — pas à chaque frappe dans un champ
      de la fiche, ce qui rejouerait le tri sur cinq cents fiches. */
-  const chezVous: Voisin[] = useMemo(() => sillageMaison(film, films, COMBIEN), [film, films]);
+  const chezVous: Voisin[] = useMemo(() => sillageMaison(film, films, QUOTAS), [film, films]);
 
   const [dehors, setDehors] = useState<VoisinLoin[] | null>(null);
   const [cherche, setCherche] = useState(false);
+  /* La proposition dépliée — une seule à la fois : deux synopsis ouverts
+     transformeraient la colonne en article. */
+  const [ouvert, setOuvert] = useState<number | null>(null);
+  /* Les réalisateurs déjà demandés, par identifiant TMDB. `discover` et
+     `recommendations` rendent des films, pas des équipes : le nom se
+     demande à part, et seulement pour celui qu'on ouvre. */
+  const [réals, setRéals] = useState<Record<number, string>>({});
+  const [misDeCôté, setMisDeCôté] = useState<Set<number>>(() => new Set());
 
-  const déjàLà = useMemo(() => déjàDansLeClasseur(films), [films]);
+  /* CE QU'ON POSSÈDE EST LU AU MOMENT DE LA RÉCOLTE, ET N'EST PAS SUIVI.
 
+     `films` est volontairement absent des dépendances : c'est la
+     fermeture de l'effet qui en garde l'instantané, pris au moment où
+     la question a été posée. Deux raisons, qui vont dans le même sens.
+
+     La première est un défaut : mettre une proposition de côté ajoute
+     une fiche, donc change `films` — et l'effet se rejouait, repliant
+     le synopsis qu'on venait tout juste d'ouvrir.
+
+     La seconde est un choix : ce film-là DOIT rester à sa place. Le
+     voir s'évanouir sous le curseur à l'instant où on le retient
+     donnerait l'impression de l'avoir perdu. Il reste, marqué « à
+     voir » — la liste répond à une question posée à l'ouverture, ce
+     n'est pas un tableau de bord qui se réécrit tout seul. */
   useEffect(() => {
     setDehors(null);
+    setOuvert(null);
+    setMisDeCôté(new Set());
     if (!apiKey) return;
     let vivant = true;
     setCherche(true);
     récolterLeSillage(film, apiKey)
       .then((récoltes) => {
         if (!vivant) return;
-        setDehors(fusionnerLoin(récoltes, { déjàLà, combien: COMBIEN }));
+        setDehors(fusionnerLoin(récoltes, { déjàLà: déjàDansLeClasseur(films), quotas: QUOTAS }));
       })
       /* Un échec réseau rend une liste VIDE et non `null` : la colonne
          doit dire « rien trouvé » plutôt que tourner indéfiniment. */
@@ -246,7 +370,41 @@ export function SillagePanel({
     return () => {
       vivant = false;
     };
-  }, [film, apiKey, déjàLà]);
+    /* `film.id` et non `film` : retoucher une note ou poser un motif
+       rend un nouvel objet, et refaire la récolte à chaque frappe
+       viderait la colonne sous les yeux. */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [film.id, apiKey]);
+
+  /* Déplier demande le réalisateur, une fois. Un échec ne dit rien : le
+     dépli vaut déjà pour son synopsis et son bouton. */
+  const déplier = (v: VoisinLoin) => {
+    setOuvert((o) => (o === v.tmdbId ? null : v.tmdbId));
+    if (réals[v.tmdbId] != null || !apiKey) return;
+    directorOf(v.tmdbId, apiKey)
+      .then((nom: string) => setRéals((r) => ({ ...r, [v.tmdbId]: nom })))
+      .catch(() => {});
+  };
+
+  /* METTRE DE CÔTÉ FABRIQUE UNE VRAIE FICHE, pas un signet. On y range
+     ce qu'on sait déjà — titre, année, affiche, identifiant, et le
+     réalisateur s'il a été demandé — pour qu'elle parte nommée au lieu
+     d'attendre un « compléter les fiches » qui redemanderait la même
+     chose. C'est le même geste que le bureau des découvertes. */
+  const mettreDeCôté = (v: VoisinLoin) => {
+    onAddToWatchlist?.(
+      makeFilm({
+        title: v.title,
+        year: v.year || "",
+        poster: v.poster ? `${POSTER_BASE}${v.poster}` : "",
+        director: réals[v.tmdbId] || "",
+        status: "watchlist",
+        tmdbId: v.tmdbId,
+        source: "tmdb",
+      })
+    );
+    setMisDeCôté((s) => new Set(s).add(v.tmdbId));
+  };
 
   return (
     <Carton tour="detail-sillage" style={{ marginTop: 18 }}>
@@ -327,6 +485,18 @@ export function SillagePanel({
                   titre={v.title}
                   année={v.year}
                   raison={v.raison}
+                  aside={misDeCôté.has(v.tmdbId) ? "à voir" : undefined}
+                  onClick={() => déplier(v)}
+                  dépli={
+                    ouvert === v.tmdbId ? (
+                      <Dépli
+                        v={v}
+                        réalisateur={réals[v.tmdbId] || ""}
+                        déjàMis={misDeCôté.has(v.tmdbId)}
+                        onMettreDeCôté={() => mettreDeCôté(v)}
+                      />
+                    ) : undefined
+                  }
                   affiche={
                     v.poster ? (
                       <img

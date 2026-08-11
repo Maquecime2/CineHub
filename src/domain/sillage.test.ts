@@ -1,13 +1,17 @@
 import { describe, it, expect } from "vitest";
-import { sillageMaison, liensEntre, scoreDe, POIDS } from "./sillage";
+import { sillageMaison, liensEntre, scoreDe, POIDS, familleDe, parQuotas } from "./sillage";
+import type { Quotas } from "./sillage";
 import { makeFilm } from "./film";
 import type { Film } from "../types";
 
 const film = (title: string, extra: Partial<Film> = {}): Film =>
   makeFilm({ title, status: "watched", ...extra });
 
-const titres = (pivot: Film, films: Film[], combien = 8) =>
-  sillageMaison(pivot, films, combien).map((v) => v.film.title);
+/* Large par défaut : la plupart des cas veulent voir TOUT ce que le
+   sillage a trouvé, et non ce qu'un quota en laisse passer. Les quotas
+   ont leur propre section. */
+const titres = (pivot: Film, films: Film[], quotas: Partial<Quotas> = { gens: 50, sujets: 50 }) =>
+  sillageMaison(pivot, films, quotas).map((v) => v.film.title);
 
 describe("qui entre dans le sillage", () => {
   it("ne rend rien d'une collection vide", () => {
@@ -181,7 +185,76 @@ describe("le classement est stable", () => {
   it("s'arrête au nombre demandé", () => {
     const pivot = film("Pivot", { director: "X" });
     const beaucoup = Array.from({ length: 20 }, (_, i) => film(`F${i}`, { director: "X" }));
-    expect(sillageMaison(pivot, beaucoup, 3)).toHaveLength(3);
+    expect(sillageMaison(pivot, beaucoup, { gens: 2, sujets: 1 })).toHaveLength(3);
+  });
+});
+
+describe("les quotas : les gens d'un côté, les sujets de l'autre", () => {
+  const pivot = film("Pivot", {
+    director: "X",
+    crew: { image: ["Deakins"], musique: ["Zimmer"] },
+    cast: ["Vedette"],
+    motifs: ["heros-meurt"],
+    keywords: ["neo-noir"],
+  });
+  const gens = [
+    film("G1", { director: "X" }),
+    film("G2", { crew: { image: ["Deakins"] } }),
+    film("G3", { crew: { musique: ["Zimmer"] } }),
+    film("G4", { cast: ["Vedette"] }),
+  ];
+  const sujets = [
+    film("S1", { motifs: ["heros-meurt"] }),
+    film("S2", { keywords: ["neo-noir"] }),
+    film("S3", { motifs: ["heros-meurt"], keywords: ["neo-noir"] }),
+  ];
+
+  it("range chaque voisin sous son lien le plus fort", () => {
+    expect(familleDe(liensEntre(pivot, gens[1]!))).toBe("gens");
+    expect(familleDe(liensEntre(pivot, sujets[0]!))).toBe("sujets");
+  });
+
+  /* Le défaut que les quotas corrigent : les noms propres pèsent plus
+     lourd qu'un motif, si bien qu'un classement par score seul rendait
+     des filmographies et jamais un sujet. */
+  it("réserve des places aux sujets, que le score seul aurait pris", () => {
+    const rendu = sillageMaison(pivot, [...gens, ...sujets], { gens: 2, sujets: 2 });
+    const familles = rendu.map((v) => familleDe(v.liens));
+    expect(familles.filter((f) => f === "gens")).toHaveLength(2);
+    expect(familles.filter((f) => f === "sujets")).toHaveLength(2);
+  });
+
+  /* Une collection sans motifs ni mots-clés ne doit pas être punie d'un
+     manque qu'elle ne peut pas combler sur-le-champ. */
+  it("reverse à l'autre famille ce qu'une famille ne prend pas", () => {
+    const rendu = sillageMaison(pivot, gens, { gens: 2, sujets: 2 });
+    expect(rendu).toHaveLength(4);
+    expect(rendu.every((v) => familleDe(v.liens) === "gens")).toBe(true);
+  });
+
+  it("ne rend pas plus que ce qui existe", () => {
+    expect(sillageMaison(pivot, [gens[0]!], { gens: 5, sujets: 5 })).toHaveLength(1);
+  });
+});
+
+describe("parQuotas", () => {
+  const item = (nom: string, f: "gens" | "sujets") => ({ nom, f });
+  const famille = (i: { f: "gens" | "sujets" }) => i.f;
+
+  /* Servi famille par famille, on lirait cinq « même équipe » puis cinq
+     « même sujet » : deux listes collées, pas une réponse. */
+  it("rend le tout dans l'ordre du classement, pas famille par famille", () => {
+    const triés = [item("a", "gens"), item("b", "sujets"), item("c", "gens"), item("d", "sujets")];
+    expect(parQuotas(triés, famille, { gens: 2, sujets: 2 }).map((i) => i.nom)).toEqual([
+      "a",
+      "b",
+      "c",
+      "d",
+    ]);
+  });
+
+  it("ne rend rien d'une liste vide", () => {
+    expect(parQuotas([], famille, { gens: 5, sujets: 5 })).toEqual([]);
   });
 });
 

@@ -61,11 +61,15 @@ function Case({
   onOpen: (id: string) => void;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
-  const [enVue, setEnVue] = useState(true);
-  /* La hauteur mesurée pendant qu'on la voyait. C'est elle qu'on rendra
-     à la case vidée — sans elle, la case s'écraserait et tout le mur en
-     dessous remonterait d'un coup. */
-  const hauteur = useRef<number | undefined>(undefined);
+  /* `null` : la case est montée. Un nombre : elle est vidée, et c'est la
+     hauteur qu'elle avait au moment où on l'a vidée.
+
+     UN ÉTAT ET NON UNE RÉFÉRENCE, parce que la valeur est LUE PENDANT LE
+     RENDU — c'est elle qui donne sa hauteur au vide. Une référence lue
+     au rendu ne prévient pas React qu'il faut redessiner, et rien ne
+     garantit qu'on lise la bonne : le premier jet le faisait, et le
+     lint a eu raison de le refuser. */
+  const [vidéeÀ, setVidéeÀ] = useState<number | null>(null);
 
   useEffect(() => {
     const el = ref.current;
@@ -76,14 +80,10 @@ function Case({
     const obs = new IntersectionObserver(
       ([e]) => {
         if (!e) return;
-        if (e.isIntersecting) setEnVue(true);
-        else {
-          /* On mesure AVANT de vider, pendant que la case a encore son
-             contenu — après, il n'y aurait plus rien à mesurer. */
-          const h = el.getBoundingClientRect().height;
-          if (h > 0) hauteur.current = h;
-          setEnVue(false);
-        }
+        if (e.isIntersecting) setVidéeÀ(null);
+        /* On mesure AVANT de vider, pendant que la case a encore son
+           contenu — après, il n'y aurait plus rien à mesurer. */
+        else setVidéeÀ(el.getBoundingClientRect().height || 1);
       },
       { rootMargin: MARGE }
     );
@@ -92,8 +92,8 @@ function Case({
   }, []);
 
   return (
-    <div ref={ref} style={enVue ? undefined : { height: hauteur.current, minHeight: 1 }}>
-      {enVue && <FilmPolaroid film={film} look={look} onClick={() => onOpen(film.id)} />}
+    <div ref={ref} style={vidéeÀ == null ? undefined : { height: vidéeÀ }}>
+      {vidéeÀ == null && <FilmPolaroid film={film} look={look} onClick={() => onOpen(film.id)} />}
     </div>
   );
 }

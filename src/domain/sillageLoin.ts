@@ -11,8 +11,8 @@
    proposition à un pas d'intervalle, et la moitié droite du panneau
    cesserait d'être « dehors » pour devenir un doublon de la gauche.
    ============================================================ */
-import { POIDS } from "./sillage";
-import type { Lien } from "./sillage";
+import { POIDS, familleDe, parQuotas } from "./sillage";
+import type { Famille, Lien, Quotas } from "./sillage";
 
 /** Ce qu'une récolte rapporte : des films, et par quel chemin. */
 export interface Récolte {
@@ -52,6 +52,14 @@ export const POIDS_RECO = 2.2;
 
 const poidsDe = (par: Lien | "reco"): number => (par === "reco" ? POIDS_RECO : POIDS[par]);
 
+/* À quelle famille appartient un chemin. « Recommandé » n'est ni l'un ni
+   l'autre — c'est la foule qui parle, pas une équipe ni un sujet — et on
+   le range dans « sujets » : c'est de ce côté-là que TMDB a le moins à
+   offrir, et une recommandation est plus proche d'un « ça parle de la
+   même chose » que d'un générique partagé. */
+const familleLoin = (par: Lien | "reco" | undefined): Famille =>
+  !par || par === "reco" ? "sujets" : familleDe([{ type: par, valeur: "" }]);
+
 /* CE QU'ON EXIGE AVANT DE PROPOSER QUELQUE CHOSE.
 
    Sans plancher de votes, la filmographie d'un chef opérateur remonte
@@ -80,12 +88,27 @@ const INTITULÉS_LOIN: Record<Lien | "reco", string> = {
 const qualité = (c: CandidatLoin): number =>
   Math.max(0, Math.min(1, (c.voteAverage - 5.5) / 3)) * 0.4;
 
+/** Un chemin, en toutes lettres : « du même chef op Franz Lustig ». */
+const direLeChemin = (p: VoisinLoin["par"][number]): string =>
+  p.par === "reco" ? INTITULÉS_LOIN.reco : `${INTITULÉS_LOIN[p.par]} ${p.valeur}`;
+
+/* UN LIEN SE NOMME, IL NE SE COMPTE PAS.
+
+   Le premier jet écrivait « du même chef op Franz Lustig, + 1 lien ». Ce
+   « + 1 lien » ne dit rien du tout : on apprend qu'il existe une seconde
+   raison, et pas laquelle — c'est-à-dire exactement l'information qu'on
+   était venu chercher. La moitié maison, elle, nomme la famille (« + 2
+   motifs ») ; celle-ci doit au moins en faire autant.
+
+   On nomme donc les DEUX premiers chemins. Au-delà, on compte : trois
+   provenances écrites bout à bout font une ligne qu'on ne lit plus, et
+   les deux plus forts portent déjà l'essentiel. */
 function raisonDe(par: VoisinLoin["par"]): string {
-  const [tête, ...reste] = par;
+  const [tête, second, ...reste] = par;
   if (!tête) return "";
-  const début =
-    tête.par === "reco" ? INTITULÉS_LOIN.reco : `${INTITULÉS_LOIN[tête.par]} ${tête.valeur}`;
-  return reste.length ? `${début}, + ${reste.length} lien${reste.length > 1 ? "s" : ""}` : début;
+  if (!second) return direLeChemin(tête);
+  const deux = `${direLeChemin(tête)} · ${direLeChemin(second)}`;
+  return reste.length ? `${deux}, + ${reste.length}` : deux;
 }
 
 /**
@@ -98,7 +121,7 @@ function raisonDe(par: VoisinLoin["par"]): string {
  */
 export function fusionnerLoin(
   récoltes: Récolte[],
-  { déjàLà = new Set<number>(), combien = 8, votesMinimum = VOTES_MINIMUM } = {}
+  { déjàLà = new Set<number>(), quotas = {} as Partial<Quotas>, votesMinimum = VOTES_MINIMUM } = {}
 ): VoisinLoin[] {
   const fusion = new Map<number, VoisinLoin>();
 
@@ -134,9 +157,13 @@ export function fusionnerLoin(
   /* Le titre départage : sans lui, deux films de même score changeraient
      de place au gré de l'ordre d'arrivée des requêtes — c'est-à-dire du
      réseau, ce qui ferait un panneau différent à chaque ouverture. */
-  return [...fusion.values()]
-    .sort((a, b) => b.score - a.score || a.title.localeCompare(b.title, "fr"))
-    .slice(0, combien);
+  const triés = [...fusion.values()].sort(
+    (a, b) => b.score - a.score || a.title.localeCompare(b.title, "fr")
+  );
+  /* Les mêmes quotas qu'à la maison, et pour la même raison : sans eux,
+     les filmographies des quatre artisans de tête raflent toute la
+     colonne et l'on n'apprend jamais « du même sujet ». */
+  return parQuotas(triés, (v) => familleLoin(v.par[0]?.par), quotas);
 }
 
 /**

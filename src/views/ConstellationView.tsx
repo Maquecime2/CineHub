@@ -244,17 +244,15 @@ export function ConstellationView({
     if (curseur && !byId.has(curseur)) setCurseur(null);
   }, [byId, curseur]);
 
-  const ouvrirOuFoyer = useCallback(
-    (n: PlacedNode) => {
-      if (n.kind === "work") return;
-      if (n.kind === "fil") poserFoyer(n.id);
-      else if (n.id === foyer) onOpen(n.filmId as string);
-      else poserFoyer(n.id);
-    },
-    // `poserFoyer` est refait à chaque rendu ; ses entrées, non
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [foyer, onOpen]
-  );
+  /* Le même geste qu'un clic, pour que le clavier et le pointeur ne
+     puissent pas diverger : deux copies de cette règle finiraient par
+     répondre différemment à la même touche. */
+  const ouvrirOuFoyer = (n: PlacedNode) => {
+    if (n.kind === "work") return;
+    if (n.kind === "fil") poserFoyer(n.id);
+    else if (n.id === foyer) onOpen(n.filmId as string);
+    else poserFoyer(n.id);
+  };
 
   const auClavier = (e: ReactKeyboardEvent<SVGSVGElement>) => {
     const flèches: Record<string, Direction> = {
