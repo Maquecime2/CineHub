@@ -4,10 +4,11 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { C, F } from "../../theme/tokens";
-import { underlineInput, ruledTextarea } from "../../theme/styles";
+import { underlineInput, ruledTextarea, tap, tapSquare } from "../../theme/styles";
 import { CommaInput, InkStars, Label } from "../ui";
 import { makeFilm } from "../../domain/film";
 import type { Film, FilmStatus } from "../../types";
+import { useViewport } from "../../hooks/useViewport";
 
 const STATUSES: { k: FilmStatus; l: string }[] = [
   { k: "watched", l: "Film vu" },
@@ -17,6 +18,7 @@ const STATUSES: { k: FilmStatus; l: string }[] = [
 export function FilmModal({ onClose, onSave }: { onClose: () => void; onSave: (f: Film) => void }) {
   const [f, setF] = useState<Film>(() => makeFilm());
   const set = <K extends keyof Film>(k: K, v: Film[K]) => setF((p) => ({ ...p, [k]: v }));
+  const { phone } = useViewport();
 
   return (
     <div
@@ -25,10 +27,19 @@ export function FilmModal({ onClose, onSave }: { onClose: () => void; onSave: (f
         inset: 0,
         background: "rgba(20,15,10,0.55)",
         display: "flex",
-        alignItems: "center",
+        /* AU TELEPHONE, LA FICHE MONTE DU BAS PLUTOT QUE DE FLOTTER AU
+           MILIEU.
+
+           Une carte centree suppose une marge tout autour, et sur trois
+           cent quatre-vingt-dix pixels cette marge est du vide qu'on
+           paie deux fois : en largeur de champ, et en hauteur — le
+           clavier logiciel occupe la moitie basse de l'ecran, et une
+           carte centree se retrouve poussee sous lui. Ancree en bas,
+           elle s'arrete ou le clavier commence. */
+        alignItems: phone ? "flex-end" : "center",
         justifyContent: "center",
         zIndex: 50,
-        padding: 20,
+        padding: phone ? 0 : 20,
       }}
       onClick={onClose}
     >
@@ -36,10 +47,16 @@ export function FilmModal({ onClose, onSave }: { onClose: () => void; onSave: (f
         onClick={(e) => e.stopPropagation()}
         style={{
           background: C.card,
-          width: "min(520px,100%)",
-          maxHeight: "88vh",
+          width: "min(520px, 100%)",
+          /* Le voile ne porte plus de retrait au telephone : c'est la
+             feuille qui prend ses marges, et sa marge du bas doit passer
+             au-dessus de la barre d'accueil du systeme. */
+          margin: phone ? "0 8px" : undefined,
+          marginBottom: phone ? "max(8px, var(--safe-bottom))" : undefined,
+          maxHeight: phone ? "calc(100dvh - 24px)" : "88vh",
           overflowY: "auto",
-          padding: "30px 34px",
+          overscrollBehavior: "contain",
+          padding: "clamp(20px, 5vw, 30px) clamp(18px, 6vw, 34px)",
           position: "relative",
           boxShadow: "6px 10px 30px rgba(0,0,0,0.4)",
         }}
@@ -48,6 +65,7 @@ export function FilmModal({ onClose, onSave }: { onClose: () => void; onSave: (f
           onClick={onClose}
           style={{
             all: "unset",
+            ...tapSquare,
             position: "absolute",
             top: 18,
             right: 20,
@@ -125,6 +143,7 @@ export function FilmModal({ onClose, onSave }: { onClose: () => void; onSave: (f
                 onClick={() => set("status", o.k)}
                 style={{
                   all: "unset",
+                  ...tap,
                   cursor: "pointer",
                   padding: "6px 14px",
                   fontFamily: F.mono,
@@ -159,6 +178,7 @@ export function FilmModal({ onClose, onSave }: { onClose: () => void; onSave: (f
           disabled={!f.title.trim()}
           style={{
             all: "unset",
+            ...tap,
             marginTop: 24,
             width: "100%",
             textAlign: "center",

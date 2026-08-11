@@ -88,7 +88,13 @@ import { makeFil, normalizeFils } from "./domain/fils";
 import { motifById, makeMotifPerso, motifsPerso } from "./domain/motifs";
 import { loadFils, saveFils as saveFilsToDisk } from "./services/fils";
 import { loadVocabulaire, saveVocabulaire, normalizeVocabulaire } from "./services/motifs";
-import { KEYS, store } from "./services/storage";
+import { store } from "./services/storage";
+import {
+  chargerFilms,
+  collectionConnue,
+  enregistrerFilms,
+  oublierLeCache,
+} from "./services/collection";
 import { underlineInput, ruledTextarea } from "./theme/styles";
 import { LINK_TYPES } from "./components/film/linkTypes";
 import {
@@ -106,9 +112,18 @@ import { PosterArt } from "./components/film/PosterArt";
 import { FilmPolaroid } from "./components/film/FilmPolaroid";
 import { FilmModal } from "./components/film/FilmModal";
 import { FolderTabs } from "./components/layout/FolderTabs";
+import { useViewport } from "./hooks/useViewport";
+import { usePointerDrag } from "./hooks/usePointerDrag";
 import { SkinPicker } from "./components/layout/SkinPicker";
+import { Installation, MiseÀJour } from "./components/layout/Installation";
+import { CompteDrawer } from "./components/layout/CompteDrawer";
 import { TmdbKeyPanel } from "./components/layout/TmdbKeyPanel";
 import { inscrireOuvreurTmdb } from "./services/tmdbKey";
+import { useSynchro } from "./hooks/useSynchro";
+import { useInstallation } from "./hooks/useInstallation";
+/* Le module n'existe qu'à la construction : c'est le greffon qui le
+   fabrique, avec l'adresse du service worker qu'il vient d'écrire. */
+import { useRegisterSW } from "virtual:pwa-register/react";
 import { SearchDrawer } from "./components/layout/SearchDrawer";
 import { FilmWall } from "./views/library/FilmWall";
 import { WALLS } from "./views/library/walls";
@@ -124,6 +139,8 @@ import { GeneriqueView } from "./views/GeneriqueView";
 import { RecoView } from "./views/RecoView";
 import { DetailView } from "./views/DetailView";
 import { ImportView } from "./views/import/ImportView";
+import { FilView } from "./views/FilView";
+import { ListesView } from "./views/ListesView";
 import {
   viewKey,
   saveViewIndex,
@@ -234,23 +251,33 @@ export default function App() {
     saveSkinKey(skin);
   }, [skin]);
 
+  /* LE CHARGEMENT EST DEVENU ASYNCHRONE, et c'est le prix du coffre.
+     La collection descend dans IndexedDB — plusieurs gigaoctets au lieu
+     des cinq mégaoctets du `localStorage`, qui prévenait déjà qu'il
+     débordait. Le dépôt (`services/collection`) sait d'où lire, y
+     déménage ce qu'il trouve en haut, et complète les fiches d'avant
+     les champs status/watchedAt/tmdbId au passage. */
   useEffect(() => {
-    // les fiches d'avant les champs status/watchedAt/tmdbId sont complétées ici
-    const migrated = migrate(store.get("films", []));
-    setFilms(migrated);
-    store.set("films", migrated);
-    notebook.load();
-    const tabs = store.get("shelf-dividers", []);
-    setDividers(tabs);
-    setFils(loadFils());
-    setVocabulaire(loadVocabulaire());
-    /* La migration lit `order` et `status`, que `migrate` vient de
-       normaliser : elle doit donc passer après, et sur les fiches
-       migrées — pas sur ce qui sort du disque. */
-    setViews(
-      ensureViews({ films: migrated, dividers: tabs, wallPrefs: store.get("wall-prefs", {}) })
-    );
-    setLoaded(true);
+    let vivant = true;
+    chargerFilms().then((migrated) => {
+      if (!vivant) return;
+      setFilms(migrated);
+      notebook.load();
+      const tabs = store.get("shelf-dividers", []);
+      setDividers(tabs);
+      setFils(loadFils());
+      setVocabulaire(loadVocabulaire());
+      /* La migration lit `order` et `status`, que le dépôt vient de
+         normaliser : elle doit donc passer après, et sur les fiches
+         migrées — pas sur ce qui sort du disque. */
+      setViews(
+        ensureViews({ films: migrated, dividers: tabs, wallPrefs: store.get("wall-prefs", {}) })
+      );
+      setLoaded(true);
+    });
+    return () => {
+      vivant = false;
+    };
   }, []);
 
   /* LA VISITE GUIDÉE. Trois états seulement : la visite en cours, le
@@ -262,6 +289,64 @@ export default function App() {
   const [tourId, setTourId] = useState(null);
   const [tourMenu, setTourMenu] = useState(false);
   const [hint, setHint] = useState(false);
+
+  /* LE GLISSEMENT AU DOIGT — monté ici, une fois, pour toute
+     l'application.
+
+     Il n'appartient à aucune vue : ce qu'il traduit, ce sont les
+     événements de glisser-déposer que le navigateur tactile n'émet pas,
+     et cela vaut partout où quelque chose se saisit — l'étagère, le mur,
+     le cabinet de décors. Le monter dans l'étagère aurait voulu dire le
+     remonter dans chaque vue qui glisse un jour.
+
+     Il ne s'installe que sous un pointeur grossier. Ce n'est pas une
+     économie : à la souris, les vrais événements arrivent déjà, et un
+     pont qui en émettrait une seconde série les doublerait. */
+  const { coarse } = useViewport();
+  usePointerDrag(coarse);
+
+  /* LE CLASSEUR S'INSTALLE, ET SE MET À JOUR QUAND ON LE DIT.
+
+     Deux fiches, jamais ensemble : l'invitation à poser l'application
+     sur l'écran d'accueil, et l'annonce d'une version neuve. La seconde
+     passe devant — on ne propose pas d'installer une version qu'on sait
+     déjà périmée. */
+  /* LA SYNCHRONISATION — montée ici parce qu'elle touche la collection
+     entière, et nulle part ailleurs. Elle ne part qu'une fois le
+     classeur chargé : synchroniser une collection vide qu'on n'a pas
+     encore lue effacerait tout au premier envoi. */
+  const [compteOuvert, setCompteOuvert] = useState(false);
+  /* RELIRE CE QUI VIENT D'ARRIVER. Les agencements d'étagère, le
+     carnet, les fils et le vocabulaire sont lus au montage : quand la
+     synchronisation en fait entrer, il faut les redemander au disque,
+     sinon l'écran garde ceux d'avant sans rien dire. */
+  const relireLesDocuments = useCallback(() => {
+    notebook.load();
+    setFils(loadFils());
+    setVocabulaire(loadVocabulaire());
+    const tabs = store.get("shelf-dividers", []);
+    setDividers(tabs);
+    setViews(
+      ensureViews({
+        films: collectionConnue(),
+        dividers: tabs,
+        wallPrefs: store.get("wall-prefs", {}),
+      })
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const { bilan: synchro, synchroniser: relancerSynchro } = useSynchro(
+    loaded,
+    setFilms,
+    relireLesDocuments
+  );
+
+  const installation = useInstallation();
+  const {
+    needRefresh: [majPrête],
+    updateServiceWorker,
+  } = useRegisterSW();
 
   /* La première ouverture lance la visite complète — mais APRÈS le
      chargement, sinon elle pointe des cibles que le classeur n'a pas
@@ -292,17 +377,27 @@ export default function App() {
     setSelectedId(null);
   }, []);
 
-  /* L'ÉCRAN TOUT DE SUITE, LE DISQUE UN PEU APRÈS.
+  /* L'ÉCRAN D'ABORD, LE DISQUE ENSUITE. On pose l'état tout de suite —
+     une frappe ne doit pas attendre une écriture — puis le dépôt rend
+     les fiches DATÉES, et c'est cette version-là qu'on garde : elle
+     seule porte les `updatedAt` qui diront demain quoi synchroniser.
 
-     Cette fonction est appelée depuis une dizaine d'endroits — ranger un
-     rayon, cocher une séance, poser un motif, écrire une critique — et
-     elle re-sérialisait la collection ENTIÈRE à chaque fois. `setSoon`
-     garde la dernière valeur et n'écrit qu'une fois ; le vidage sur
-     `pagehide` et `visibilitychange` fait que rien ne se perd en
-     chemin. Voir `services/storage`. */
+     Le second `setFilms` ne coûte rien quand rien n'a changé : le dépôt
+     rend alors les mêmes objets, et React abandonne la mise à jour.
+
+     CE QUI EST ARRIVÉ À L'ÉCRITURE DIFFÉRÉE DE `main`. Elle écrivait
+     ici, par `store.setSoon(KEYS.films, …)`, pour ne pas re-sérialiser
+     six cents fiches à chaque frappe dans `localStorage`. Entre-temps
+     la collection a déménagé dans le coffre : le dépôt écrit par
+     IndexedDB, et `localStorage` n'est plus que son repli. Le remède
+     s'applique donc à un mal qui a changé de place — et le différer sur
+     le chemin de repli reviendrait à retarder la seule copie qui reste
+     le jour où le coffre refuse. `store.setSoon` demeure, inemployé
+     ici ; ce qu'il faudrait grouper aujourd'hui, c'est l'écriture dans
+     le coffre, et cela ne se décide pas au détour d'une fusion. */
   const saveFilms = (next) => {
     setFilms(next);
-    store.setSoon(KEYS.films, next);
+    enregistrerFilms(next).then((datés) => setFilms(datés));
   };
 
   const commitFils = (next) => {
@@ -509,6 +604,13 @@ export default function App() {
      refabrique alors depuis ses intercalaires, ce à quoi sert `force`. */
   const restoreBackup = ({ films: f, notes: n, dividers: d, views: v, fils: fl, motifs: mo }) => {
     const migrated = migrate(f);
+    /* UNE RESTAURATION N'EST PAS UNE MODIFICATION. Sans cette ligne, le
+       dépôt comparerait la sauvegarde à la collection qu'elle remplace,
+       trouverait mille différences et daterait tout de maintenant : les
+       fiches perdraient la date qu'elles portent dans le fichier, qui
+       est précisément ce qu'on restaure. On repart donc de la
+       sauvegarde elle-même comme état connu. */
+    oublierLeCache(migrated);
     saveFilms(migrated);
     commitFils(normalizeFils(fl || []));
     commitVocabulaire(normalizeVocabulaire(mo || {}));
@@ -674,7 +776,20 @@ export default function App() {
         onSkin={() => setSkinPicker(true)}
         onKey={() => setKeyPanel(true)}
         onHelp={() => setTourMenu((o) => !o)}
+        onCompte={() => setCompteOuvert(true)}
+        synchro={synchro.état}
       />
+      {compteOuvert && (
+        <CompteDrawer
+          bilan={synchro}
+          onFermer={() => setCompteOuvert(false)}
+          onSynchroniser={relancerSynchro}
+          onChangement={() => {
+            setCompteOuvert(false);
+            relancerSynchro();
+          }}
+        />
+      )}
       {skinPicker && (
         <SkinPicker skin={skin} onPick={setSkin} onClose={() => setSkinPicker(false)} />
       )}
@@ -748,6 +863,7 @@ export default function App() {
           <DetailView
             film={selectedFilm}
             films={films}
+            connecte={!!synchro.personne}
             onBack={() => {
               setView(backView);
               setSelectedId(null);
@@ -813,6 +929,8 @@ export default function App() {
             fiches VUES, y compris celles mises de côté dans la réserve —
             les avoir archivées ne les rend pas non vues. */}
         {view === "almanac" && <AlmanacView films={watched} onOpenPerson={ouvrirPersonne} />}
+        {view === "fil" && <FilView connecte={!!synchro.personne} />}
+        {view === "listes" && <ListesView connecte={!!synchro.personne} />}
         {view === "skinlab" && import.meta.env.DEV && <SkinLab />}
         {view === "import" && (
           <ImportView
@@ -836,6 +954,18 @@ export default function App() {
           tout `position: fixed` qu'il contient : le voile s'y serait
           ancré sur la colonne au lieu de la fenêtre, et le trou aurait
           visé à côté à chaque changement de vue. */}
+      {majPrête ? (
+        <MiseÀJour onRecharger={() => updateServiceWorker(true)} />
+      ) : (
+        installation.invite && (
+          <Installation
+            pomme={installation.pomme}
+            onInstaller={installation.installer}
+            onÉcarter={installation.écarter}
+          />
+        )
+      )}
+
       {tourMenu && <TourMenu view={view} onPlay={jouerVisite} onClose={() => setTourMenu(false)} />}
       <TourOverlay tourId={tourId} onClose={fermerVisite} onView={visiteOuvreVue} />
       {hint && !tourId && (

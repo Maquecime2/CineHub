@@ -125,6 +125,12 @@ export function SansCle({ quoi, style }: { quoi: string; style?: CSSProperties }
       <span style={{ fontFamily: F.hand, fontSize: 14, color: C.inkFaded }}>
         Il manque une clé TMDB pour {quoi}.
       </span>
+      {/* DEUX REMÈDES, ET LE SECOND N'EN DEMANDE AUCUN. Depuis que le
+          serveur relaie TMDB, un compte ouvert dispense entièrement de
+          clé — c'est même la première chose que le compte apporte au
+          lieu de recopier ailleurs ce qu'on avait déjà. Le dire ICI,
+          là où le manque se fait sentir, plutôt que dans un écran que
+          personne n'ouvre. */}
       <button
         onClick={ouvrirReglageTmdb}
         style={{
@@ -138,6 +144,9 @@ export function SansCle({ quoi, style }: { quoi: string; style?: CSSProperties }
       >
         La régler ici
       </button>
+      <span style={{ fontFamily: F.hand, fontSize: 14, color: C.inkFaded }}>
+        — ou ouvrez un compte, qui vous en dispense.
+      </span>
     </div>
   );
 }

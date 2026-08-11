@@ -18,6 +18,7 @@
 import { useMemo, useState } from "react";
 import { Undo2 } from "lucide-react";
 import { C, F } from "../../theme/tokens";
+import { tap } from "../../theme/styles";
 import { Tally, Confirmation } from "../../components/ui";
 import type { DemandeConfirmation } from "../../components/ui";
 import { basculéesParErreur } from "../../domain/repairs";
@@ -162,6 +163,7 @@ export function RepairPanel({ films, onImport }: RepairPanelProps) {
           onClick={toutes}
           style={{
             all: "unset",
+            ...tap,
             cursor: "pointer",
             padding: "8px 14px",
             border: `1px solid ${C.line}`,
@@ -177,6 +179,7 @@ export function RepairPanel({ films, onImport }: RepairPanelProps) {
           disabled={choisies.size === 0}
           style={{
             all: "unset",
+            ...tap,
             cursor: choisies.size ? "pointer" : "default",
             opacity: choisies.size ? 1 : 0.45,
             display: "flex",

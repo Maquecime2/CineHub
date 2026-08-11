@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import { enrichRows } from "./tmdb";
+import { checkApiKey, enrichRows } from "./tmdb";
+import { PAR_LE_SERVEUR, setTmdbKey } from "./services/tmdbKey";
 
 const CACHE_KEY = "tmdb-cache";
 
@@ -399,5 +400,108 @@ describe("enrichRows — les mots-clés", () => {
     );
     const out = await enrichRows(rows, "k");
     expect(out.rows[0].keywords).toBeUndefined();
+  });
+});
+
+/* ============================================================
+   PAR SOI, OU PAR LE SERVEUR
+
+   L'aiguillage est la seule ligne de tout le classeur qui décide si une
+   requête part chez TMDB avec une clé, ou chez notre serveur avec un
+   cookie. Elle ne se voit pas à l'usage — les deux chemins rendent la
+   même chose — et se casserait donc en silence.
+   ============================================================ */
+describe("le relais du serveur", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const réponse = (status, corps = {}) => ({
+    ok: status >= 200 && status < 300,
+    status,
+    headers: new Headers(),
+    json: async () => corps,
+  });
+
+  it("passe par le serveur, sans clé, avec le cookie", async () => {
+    const appels = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url, opts) => {
+        appels.push({ url: String(url), opts });
+        return réponse(200, {});
+      })
+    );
+
+    expect((await checkApiKey(PAR_LE_SERVEUR)).ok).toBe(true);
+    expect(appels).toHaveLength(1);
+    expect(appels[0].url).toContain("/tmdb/configuration");
+    expect(appels[0].url).not.toContain("api.themoviedb.org");
+    /* La clé du serveur est la sienne : on n'a rien à envoyer, et
+       envoyer quelque chose serait envoyer la clé de quelqu'un vers un
+       endroit qui n'en veut pas. */
+    expect(appels[0].url).not.toContain("api_key");
+    /* Sans cette ligne, le serveur voit un inconnu : le cookie vient
+       d'une autre origine que la page. */
+    expect(appels[0].opts?.credentials).toBe("include");
+  });
+
+  it("redescend sur la clé posée quand le relais se récuse", async () => {
+    /* 401 : la session a expiré pendant que l'onglet dormait. 503 : le
+       serveur tourne sans clé de son côté. Ni l'un ni l'autre ne dit
+       que TMDB n'a rien — et une clé dort peut-être à côté. */
+    for (const code of [401, 403, 503]) {
+      setTmdbKey("la-mienne");
+      const appels = [];
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (url) => {
+          appels.push(String(url));
+          return String(url).includes("/tmdb/") ? réponse(code) : réponse(200, {});
+        })
+      );
+
+      expect((await checkApiKey(PAR_LE_SERVEUR)).ok, `code ${code}`).toBe(true);
+      expect(appels, `code ${code}`).toHaveLength(2);
+      expect(appels[1]).toContain("api.themoviedb.org");
+      expect(appels[1]).toContain("api_key=la-mienne");
+      setTmdbKey("");
+    }
+  });
+
+  it("ne contourne PAS un chemin que le relais ne connaît pas", async () => {
+    /* Un 404 du relais est une liste à corriger, pas un incident à
+       rattraper : repartir en douce vers TMDB rendrait le défaut
+       invisible pour toujours. */
+    setTmdbKey("la-mienne");
+    const appels = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url) => {
+        appels.push(String(url));
+        return réponse(404);
+      })
+    );
+
+    expect((await checkApiKey(PAR_LE_SERVEUR)).ok).toBe(false);
+    expect(appels).toHaveLength(1);
+  });
+
+  it("sans compte ni relais, rien ne change", async () => {
+    const appels = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url) => {
+        appels.push(String(url));
+        return réponse(200, {});
+      })
+    );
+
+    await checkApiKey("la-mienne");
+    expect(appels[0]).toContain("api.themoviedb.org");
+    expect(appels[0]).toContain("api_key=la-mienne");
   });
 });

@@ -15,6 +15,7 @@
    divergeraient au premier changement.
    ============================================================ */
 import type { View } from "../layout/FolderTabs";
+import { serveurConfigure } from "../../services/serveur";
 
 export interface TourStep {
   /** Sélecteur CSS de ce qu'on montre. `null` : bulle au centre. */
@@ -29,6 +30,16 @@ export interface TourStep {
    * du contenu : une collection vide n'a ni affiche, ni rangée, ni fiche.
    */
   optional?: boolean;
+  /**
+   * L'étape n'existe pas du tout sans serveur.
+   *
+   * `optional` ne suffit pas pour celles qui OUVRENT une vue : le
+   * changement de vue a lieu AVANT qu'on cherche la cible (voir
+   * `TourOverlay`), de sorte qu'une étape sautée aurait quand même fait
+   * clignoter une page qui n'a plus d'onglet. On la retire donc en
+   * amont, plutôt que de la sauter en aval.
+   */
+  exigeUnServeur?: boolean;
 }
 
 export interface Tour {
@@ -47,7 +58,7 @@ const library: Tour = {
     {
       target: at("wall-search"),
       title: "Chercher",
-      body: "Un titre, un·e cinéaste, un mot de votre critique. Sur le mur, la recherche filtre ; sur l'étagère, elle éteint ce qu'elle ne trouve pas et laisse l'agencement en place. Pour chercher au-delà des films — les gens, les motifs, les fils, le carnet — la loupe du pied de rail interroge tout d'un coup.",
+      body: "Un titre, un·e cinéaste, un mot de votre critique. Sur le mur, la recherche filtre ; sur l'étagère, elle éteint ce qu'elle ne trouve pas et laisse l'agencement en place. Pour chercher au-delà des films — les gens, les motifs, les fils, le carnet — la loupe, au pied du rail ou au bout de la barre du bas, interroge tout d'un coup.",
       placement: "bottom",
     },
     {
@@ -87,6 +98,21 @@ const library: Tour = {
       target: at("wall-films"),
       title: "Une fiche s'ouvre",
       body: "Cliquez une affiche pour ouvrir son dossier : c'est là que se tiennent la critique, les motifs et le fil rouge.",
+      placement: "top",
+      optional: true,
+    },
+    /* LE GESTE QUI NE SE DEVINE PAS, et qui n'existait pas avant que
+       l'application se tienne dans une main. Au doigt, un balayage fait
+       défiler : la saisie doit donc s'annoncer autrement, et c'est
+       l'appui maintenu qui s'en charge. Personne ne le trouve tout seul.
+
+       `optional` comme les autres étapes qui visent du contenu : un
+       classeur vide n'a pas d'affiche à montrer, et doit pouvoir jouer
+       la visite en entier. */
+    {
+      target: at("wall-films"),
+      title: "Ranger au doigt",
+      body: "Sur l'étagère et sur le mur, on déplace en glissant. Au doigt, gardez l'objet appuyé un instant : il se saisit, et le balayage cesse de faire défiler. Un repère montre la fente où il tombera.",
       placement: "top",
       optional: true,
     },
@@ -166,6 +192,13 @@ const detail: Tour = {
       target: at("detail-watchlog"),
       title: "Le journal des séances",
       body: "Une ligne par visionnage, avec sa date et sa note. C'est lui qui sait qu'un film a été revu quatre fois, et qui nourrit l'almanach.",
+      placement: "right",
+      optional: true,
+    },
+    {
+      target: at("detail-ailleurs"),
+      title: "Ce qu'on en dit ailleurs",
+      body: "Quand un compte est ouvert, la fiche montre ce que d'autres vidéothèques publiques disent du même film : leur moyenne — sans la vôtre — et leurs critiques. Chacune se signale, et son auteur se fait taire d'un geste. Sans serveur ni compte, cette section n'existe pas.",
       placement: "right",
       optional: true,
     },
@@ -376,7 +409,7 @@ const global: Tour = {
     {
       target: "[data-tab-rail]",
       title: "La tranche du classeur",
-      body: "Huit pastilles, toujours là, à gauche. Chacune est une façon différente de regarder la même collection ; survolez-en une pour lire son nom.",
+      body: "Huit pastilles, toujours là : sur la tranche gauche au bureau, couchées au bas de l'écran sur un téléphone, où le pouce les atteint. Chacune est une façon différente de regarder la même collection ; survolez-en une — ou appuyez longuement — pour lire son nom.",
       placement: "right",
       view: "library",
     },
@@ -391,7 +424,7 @@ const global: Tour = {
     {
       target: at("add-film"),
       title: "Épingler un film",
-      body: "À la main, sans passer par l'import : le bouton du pied de rail ouvre une fiche vierge.",
+      body: "À la main, sans passer par l'import : l'épingle ouvre une fiche vierge. Elle est au pied du rail au bureau, au bout de la barre du bas sur un téléphone.",
       placement: "right",
       view: "library",
     },
@@ -409,10 +442,71 @@ const global: Tour = {
       placement: "right",
       view: "library",
     },
+    /* LE CLASSEUR S'INSTALLE — et la fiche qui le propose ne paraît pas
+       toujours : le navigateur décide seul qu'un site est installable,
+       et elle disparaît dès qu'on l'a écartée deux fois ou qu'elle est
+       déjà posée. `optional`, donc, comme tout ce qui dépend de ce
+       qu'on a sous les yeux. */
+    {
+      target: at("installer"),
+      title: "Le poser sur l'écran d'accueil",
+      body: "Installé, le classeur s'ouvre en plein écran, sans barre d'adresse, et fonctionne sans réseau — vos films sont chez vous, pas sur un serveur. Sur iPhone, c'est Partager puis « Sur l'écran d'accueil ».",
+      placement: "top",
+      view: "library",
+      optional: true,
+    },
+    /* LE COMPTE — `optional` parce que l'action n'est montée que si un
+       serveur est réglé. Sans serveur, il n'y a rien à montrer et la
+       visite passe outre sans le dire. */
+    {
+      target: at("compte"),
+      title: "Retrouver sa collection ailleurs",
+      body: "Un compte relie ce classeur à vos autres appareils : ce que vous rangez ici s'y retrouve, et inversement — les films, mais aussi l'agencement de vos étagères et les pages de votre carnet. Sans mot de passe : c'est votre téléphone ou votre ordinateur qui signe.",
+      placement: "right",
+      view: "library",
+      optional: true,
+    },
+    /* LE PARTAGE VIT DANS LE MÊME TIROIR QUE LE COMPTE, et l'étape le
+       dit là aussi : il n'existe qu'avec un compte, et une seconde
+       ancre pour un panneau que la visite ne peut pas ouvrir seule
+       montrerait le vide. */
+    {
+      target: at("compte"),
+      title: "Montrer sa vidéothèque",
+      body: "Dans ce même tiroir : personne, par lien secret, ou tout le monde. Le lien ne se devine pas et se coupe quand vous voulez. Un visiteur voit vos films, vos notes chiffrées et vos critiques — jamais votre carnet ni votre journal de séances, et vous pouvez écarter une fiche à part.",
+      placement: "right",
+      view: "library",
+      optional: true,
+    },
+    /* LES RAPPELS vivent dans le même tiroir que le compte et le
+       partage, et l'étape le dit là aussi. `optional` : sans serveur,
+       sans clés posées dessus, ou dans un navigateur qui ne sait pas
+       recevoir de notification, l'action n'est même pas montée. */
+    {
+      target: at("compte"),
+      title: "Se faire rappeler ses défis",
+      body: "Toujours dans ce tiroir : la seule chose qui vous sonnera jamais est un défi qui commence ou s'achève. Rien d'autre — ni les films des autres, ni un rappel de revenir. Le réglage vaut pour cet appareil seulement.",
+      placement: "right",
+      view: "library",
+      optional: true,
+    },
+    /* LES DÉFIS, en dernier avant l'au revoir : c'est la seule chose de
+       ce classeur qui se fasse à plusieurs, et elle suppose tout le
+       reste. `optional` comme le compte — sans serveur, la vue
+       n'affiche qu'une phrase, et il n'y a pas de repère à montrer. */
+    {
+      target: at("listes-defis"),
+      exigeUnServeur: true,
+      title: "Se lancer quelque chose",
+      body: "Une liste plus une période fait un défi. Personne ne coche « vu » : l'avancement se calcule depuis votre journal de séances, et le serveur n'en tire qu'un nombre — vos dates ne sortent pas d'ici.",
+      placement: "top",
+      view: "listes",
+      optional: true,
+    },
     {
       target: at("tmdb-key"),
       title: "La clé TMDB",
-      body: "Elle est facultative : le classeur marche entièrement sans elle. Posée, elle ouvre les Découvertes, les affiches, les relevés d'équipe et le sillage d'un film. Elle reste sur votre machine. Partout où elle manque, l'écran vous le dit et vous ramène ici.",
+      body: "Elle est facultative : le classeur marche entièrement sans elle. Posée, elle ouvre les Découvertes, les affiches, les relevés d'équipe et le sillage d'un film — et elle reste sur votre machine. Un compte en dispense entièrement : le serveur garde alors la sienne, et vous n'avez rien à demander à personne. Partout où il en manque une, l'écran vous le dit et vous ramène ici.",
       placement: "right",
       view: "library",
     },
@@ -426,20 +520,92 @@ const global: Tour = {
   ],
 };
 
+/* LE FIL — la seule vue qui ne parle pas de votre collection. Ses
+   etapes sont `optional` : sans serveur, sans compte, ou sans personne
+   suivie, la moitie de ces reperes n'existe pas, et une visite qui
+   pointe le vide est pire qu'une visite plus courte. */
+const fil: Tour = {
+  label: "Le fil",
+  steps: [
+    {
+      target: at("fil-chercher"),
+      title: "Trouver quelqu'un",
+      body: "On cherche par pseudonyme, et on ne trouve que les gens qui ont choisi de montrer leur collection. Il n'y a pas d'annuaire : ce classeur n'est pas un reseau social, et personne n'y figure sans l'avoir voulu.",
+      placement: "bottom",
+      optional: true,
+    },
+    {
+      target: at("fil-abonnements"),
+      title: "Ceux que vous suivez",
+      body: "Suivre est un geste qu'on fait seul et qu'on defait seul : personne n'accepte, personne n'est prevenu. Si quelqu'un referme sa collection, il reste dans la liste — son fil se tait, et reparlera s'il rouvre.",
+      placement: "bottom",
+      optional: true,
+    },
+    {
+      target: at("fil-nouvelles"),
+      title: "Ce qu'ils regardent",
+      body: "Les films recemment touches chez les gens que vous suivez, avec leur note et leur critique. Jamais leurs notes personnelles ni leur journal de seances — pas plus que les votres ne sortent d'ici.",
+      placement: "top",
+      optional: true,
+    },
+  ],
+};
+
+/* LES LISTES ET LES DEFIS. Memes precautions que le fil : sans serveur
+   ni compte, rien de tout cela n'existe, et une visite qui pointe le
+   vide est pire qu'une visite plus courte. */
+const listes: Tour = {
+  label: "Listes et defis",
+  steps: [
+    {
+      target: at("listes-nouvelle"),
+      title: "Ouvrir une liste",
+      body: "Une liste contient des oeuvres et non vos fiches : elle veut donc dire la meme chose chez quelqu'un d'autre, et ne se vide pas le jour ou vous effacez un film. On y range depuis la fiche du film, sous le catalogue.",
+      placement: "bottom",
+      optional: true,
+    },
+    {
+      target: at("listes-mes-listes"),
+      title: "Les votres, et celles a plusieurs",
+      body: "Chaque liste s'ouvre d'un clic. Vous pouvez y inviter quelqu'un a ecrire : il ajoute et retire des films, il ne renomme pas la liste et ne l'efface pas. Fermee par defaut — la rendre visible est une case a cocher.",
+      placement: "bottom",
+      optional: true,
+    },
+    {
+      target: at("listes-defis"),
+      title: "Un defi est une liste plus une periode",
+      body: "Personne ne coche « vu » : l'avancement se calcule depuis votre journal de seances, et seules les seances datees dans la periode comptent. Le serveur en tire un nombre, jamais vos dates — et seulement pour ceux qui ont demande a participer.",
+      placement: "top",
+      optional: true,
+    },
+  ],
+};
+
 /* ---------- le registre ---------- */
 
-export const TOURS: Record<string, Tour> = {
-  global,
-  library,
-  watchlist,
-  generique,
-  detail,
-  reco,
-  constellation,
-  almanac,
-  notebook,
-  import: importTour,
-};
+/* CE QUI N'EXISTE PAS NE SE VISITE PAS. Sans serveur — le cas du site
+   publié — le fil et les défis n'ont pas d'onglet ; leurs étapes n'ont
+   donc rien à montrer, et la visite doit décrire le produit tel qu'il
+   est chez celui qui la joue. */
+const élaguer = (t: Tour): Tour =>
+  serveurConfigure() ? t : { ...t, steps: t.steps.filter((s) => !s.exigeUnServeur) };
+
+export const TOURS: Record<string, Tour> = Object.fromEntries(
+  Object.entries({
+    global,
+    library,
+    watchlist,
+    generique,
+    detail,
+    reco,
+    constellation,
+    almanac,
+    notebook,
+    import: importTour,
+    fil,
+    listes,
+  }).map(([clé, t]) => [clé, élaguer(t)])
+);
 
 /** La visite d'une vue, s'il y en a une. `detail` en a une, `skinlab` non. */
 export const tourForView = (view: string): Tour | undefined =>

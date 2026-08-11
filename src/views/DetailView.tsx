@@ -14,7 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { C, F } from "../theme/tokens";
-import { underlineInput } from "../theme/styles";
+import { underlineInput, tap } from "../theme/styles";
 import { uid, withWatches, initialsOf } from "../domain/film";
 import { searchFilms } from "../domain/search";
 import { putImage } from "../db";
@@ -32,6 +32,8 @@ import { PosterArt } from "../components/film/PosterArt";
 import { PosterPicker } from "../components/film/PosterPicker";
 import { FilmIdentity } from "../components/film/FilmIdentity";
 import { TmdbFacts } from "../components/film/TmdbFacts";
+import { Ailleurs } from "../components/film/Ailleurs";
+import { RangerDansUneListe } from "../components/film/RangerDansUneListe";
 import { TmdbLink } from "../components/film/TmdbLink";
 import { WatchLog } from "../components/film/WatchLog";
 import { ThreadBoard } from "../components/film/ThreadBoard";
@@ -73,6 +75,8 @@ interface DetailViewProps {
   onCréerMotif?: (label: string, famille: MotifFamille, spoiler: boolean) => string | null;
   onSupprimerMotif?: (motifId: string) => void;
   onMasquerMotif?: (motifId: string, masqué: boolean) => void;
+  /** Un compte est ouvert : la fiche peut alors lire ce qu'on en dit ailleurs. */
+  connecte?: boolean;
 }
 
 export function DetailView({
@@ -93,6 +97,7 @@ export function DetailView({
   onCréerMotif,
   onSupprimerMotif,
   onMasquerMotif,
+  connecte = false,
 }: DetailViewProps) {
   const apiKey = useTmdbKey();
   /* Une seule demande à la fois, portée par la vue : les trois gestes qui
@@ -288,6 +293,7 @@ export function DetailView({
         onClick={onBack}
         style={{
           all: "unset",
+          ...tap,
           cursor: "pointer",
           display: "flex",
           alignItems: "center",
@@ -355,6 +361,7 @@ export function DetailView({
                 }
                 style={{
                   all: "unset",
+                  ...tap,
                   cursor: "pointer",
                   marginTop: 12,
                   display: "block",
@@ -384,6 +391,7 @@ export function DetailView({
                   onClick={() => onUpdate({ ...film, status: "watchlist" })}
                   style={{
                     all: "unset",
+                    ...tap,
                     cursor: "pointer",
                     marginTop: 8,
                     color: C.inkFaded,
@@ -423,6 +431,12 @@ export function DetailView({
                 part : durée, pays, langue, équipe, casting. C'est là
                 qu'on voit ce qui manque, et qu'on le redemande. */}
             <TmdbFacts film={film} onUpdate={onUpdate} onOpenPerson={onOpenPerson} />
+            {/* Ce que d'autres vidéothèques publiques disent du même
+                film. Se tait entièrement sans serveur, sans compte, ou
+                quand personne n'a rien dit — une fiche qui vit seule ne
+                réclame pas un compte. */}
+            <Ailleurs film={film} connecte={connecte} />
+            <RangerDansUneListe film={film} connecte={connecte} />
           </Carton>
         </div>
 
@@ -593,6 +607,7 @@ export function DetailView({
                 }
                 style={{
                   all: "unset",
+                  ...tap,
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
@@ -622,6 +637,7 @@ export function DetailView({
               }}
               style={{
                 all: "unset",
+                ...tap,
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
@@ -657,6 +673,7 @@ export function DetailView({
               }
               style={{
                 all: "unset",
+                ...tap,
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
@@ -766,6 +783,7 @@ export function DetailView({
                       onClick={() => setPicked(null)}
                       style={{
                         all: "unset",
+                        ...tap,
                         cursor: "pointer",
                         color: C.inkFaded,
                         marginLeft: "auto",
@@ -808,6 +826,7 @@ export function DetailView({
                         }}
                         style={{
                           all: "unset",
+                          ...tap,
                           cursor: "pointer",
                           display: "block",
                           width: "100%",
@@ -913,6 +932,7 @@ export function DetailView({
                 onClick={addLink}
                 style={{
                   all: "unset",
+                  ...tap,
                   cursor: "pointer",
                   background: C.burgundy,
                   color: C.card,

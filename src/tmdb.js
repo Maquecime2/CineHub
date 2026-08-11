@@ -4,6 +4,9 @@
    le réalisateur, lui, doit être retrouvé auprès de TMDB.
    ============================================================ */
 
+import { ADRESSE } from "./services/serveur";
+import { cleEcrite, PAR_LE_SERVEUR } from "./services/tmdbKey";
+
 const BASE = "https://api.themoviedb.org/3";
 // w342 : assez fin pour une carte, assez léger pour un mur de 500 affiches
 export const POSTER_BASE = "https://image.tmdb.org/t/p/w342";
@@ -80,8 +83,49 @@ export function rememberResolution(title, year, info) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/* Un GET tolérant : 429 = on respire et on retente, le reste échoue franchement. */
+/* ============================================================
+   PAR SOI, OU PAR LE SERVEUR
+   ============================================================
+
+   Le serveur relaie onze chemins de TMDB depuis qu'il existe, garde SA
+   clé et n'accepte que les gens connectés — et le classeur ne l'avait
+   jamais appelé, faute d'un endroit unique où en décider. Le voici :
+   tous les appels de ce module passent par cette fonction, et c'est la
+   seule ligne à changer pour que le compte dispense d'une clé.
+
+   `credentials: "include"` : le cookie de session vient d'une autre
+   origine que la page, et sans cette ligne le serveur voit un inconnu.
+
+   ON NE POUSSE AUCUNE CLÉ vers le relais — pas même une clé locale si
+   elle existe. Elle n'a rien à faire dans une requête vers notre propre
+   serveur, qui la jetterait de toute façon : c'est la sienne qu'il
+   emploie.
+
+   ET L'ON REDESCEND SI LE RELAIS SE RÉCUSE. Trois réponses disent que
+   le relais ne peut rien pour nous, et aucune ne dit que TMDB n'a rien :
+   401 et 403 (la session a expiré pendant que l'onglet dormait), et 503
+   (le serveur tourne sans clé de son côté). Dans ces trois cas, une clé
+   posée dort peut-être à côté — on repart par la voie directe plutôt
+   que de rendre le classeur muet.
+
+   Un 404 ne redescend PAS, lui : ce serait un chemin absent de la liste
+   du relais, c'est-à-dire une liste à corriger. Le contourner en douce
+   rendrait le défaut invisible pour toujours. */
+const RÉCUSÉ = new Set([401, 403, 503]);
 async function get(path, params, apiKey, attempt = 0) {
+  if (apiKey === PAR_LE_SERVEUR) {
+    const qs = new URLSearchParams(params);
+    const res = await fetch(`${ADRESSE}/tmdb${path}?${qs}`, { credentials: "include" });
+    if (res.ok) return res.json();
+    if (res.status === 429 && attempt < 3) {
+      await sleep(1000 * (attempt + 1));
+      return get(path, params, apiKey, attempt + 1);
+    }
+    const propre = cleEcrite();
+    if (RÉCUSÉ.has(res.status) && propre) return get(path, params, propre, attempt);
+    throw new Error(`TMDB ${res.status}`);
+  }
+
   const qs = new URLSearchParams({ api_key: apiKey, ...params });
   const res = await fetch(`${BASE}${path}?${qs}`);
   if (res.status === 429 && attempt < 3) {

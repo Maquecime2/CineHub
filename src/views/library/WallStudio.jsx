@@ -9,8 +9,10 @@
    Deux volets, parce qu'il y a deux choses à régler : ce sur quoi les
    fiches sont accrochées, et les fiches elles-mêmes. */
 import { useState } from "react";
+import { Calque } from "../../components/ui/Calque";
 import { X, RotateCcw } from "lucide-react";
 import { C, F } from "../../theme/tokens";
+import { tap } from "../../theme/styles";
 import { STUDIO_BOX, Title, OptionButton, SurfaceTab } from "../../components/ui/Swatches";
 import { CARD_SIZES, SPREADS, MESSES, HANGS, DEFAULT_WALL_LOOK } from "./wallLook";
 
@@ -75,7 +77,7 @@ export function WallStudio({ look, onChange, onReset, onClose }) {
   const setDecor = (patch) => onChange({ decor: { ...(look.decor || {}), ...patch } });
 
   return (
-    <>
+    <Calque>
       <div onClick={onClose} data-veil style={{ position: "fixed", inset: 0, zIndex: 44 }} />
       <div style={STUDIO_BOX}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
@@ -95,6 +97,7 @@ export function WallStudio({ look, onChange, onReset, onClose }) {
             title="Revenir au mur d'origine"
             style={{
               all: "unset",
+              ...tap,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
@@ -144,6 +147,6 @@ export function WallStudio({ look, onChange, onReset, onClose }) {
             : "ce mur est à cette collection — l'autre garde le sien"}
         </div>
       </div>
-    </>
+    </Calque>
   );
 }

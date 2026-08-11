@@ -15,7 +15,7 @@ import type { CSSProperties } from "react";
 import { X, KeyRound, Check, Loader2 } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { checkApiKey } from "../../tmdb";
-import { getTmdbKey, setTmdbKey } from "../../services/tmdbKey";
+import { cleEcrite, setTmdbKey } from "../../services/tmdbKey";
 
 /* Même tranche que le choix des peaux : ce sont deux tiroirs du même
    rail, et le budget de `z-index` leur réserve 59–60. */
@@ -38,7 +38,7 @@ const PANEL: CSSProperties = {
 type Essai = { état: "repos" | "essai" | "bonne" | "mauvaise"; message?: string };
 
 export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
-  const [key, setKey] = useState(getTmdbKey);
+  const [key, setKey] = useState(cleEcrite);
   const [essai, setEssai] = useState<Essai>({ état: "repos" });
 
   /* Échap ferme, comme partout ailleurs : un tiroir qu'on ne peut fermer
@@ -90,7 +90,7 @@ export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
     }
   };
 
-  const posée = getTmdbKey();
+  const posée = cleEcrite();
 
   return (
     <>

@@ -17,6 +17,7 @@
 import type { CSSProperties } from "react";
 import { X } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
+import { tap } from "../../theme/styles";
 import { SKINS, type Skin } from "../../theme/skins";
 
 const PANEL: CSSProperties = {
@@ -44,6 +45,7 @@ function SkinCard({ skin, on, onPick }: { skin: Skin; on: boolean; onPick: () =>
       aria-label={skin.label}
       style={{
         all: "unset",
+        ...tap,
         cursor: "pointer",
         boxSizing: "border-box",
         display: "block",

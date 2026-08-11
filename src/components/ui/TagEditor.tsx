@@ -8,7 +8,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { C, F } from "../../theme/tokens";
-import { underlineInput } from "../../theme/styles";
+import { underlineInput, tap } from "../../theme/styles";
 import { hash, pickFrom } from "../../domain/seeded";
 
 const TAG_INKS = [C.pine, C.cobalt, C.vermillion, C.ochre, C.moss] as const;
@@ -141,6 +141,7 @@ export function TagEditor({
                 onClick={() => add(s)}
                 style={{
                   all: "unset",
+                  ...tap,
                   cursor: "pointer",
                   display: "block",
                   width: "100%",

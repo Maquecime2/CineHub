@@ -1,6 +1,7 @@
 /* Les objets qu'on pose sur une planche : le repère de dépôt, le boîtier,
    le décor et la catégorie. */
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Calque } from "../ui/Calque";
 import { C, F, alpha } from "../../theme/tokens";
 import { hueOf } from "../../theme/ink";
 import { tiltOf } from "../../domain/seeded";
@@ -59,28 +60,38 @@ export const carryGhost = (e, node) => {
   setTimeout(() => ghost.remove(), 0);
 };
 
+/* LE REPÈRE DE DÉPÔT SE REND DANS LE CORPS DU DOCUMENT, ET IL LE DOIT.
+
+   Il est placé en coordonnées d'ÉCRAN, calculées à chaque survol depuis
+   les rectangles des boîtiers. Rendu dans la colonne de vue, il héritait
+   du bloc conteneur que `[data-enters]` fabrique pendant son animation :
+   les mêmes coordonnées désignaient alors un autre point, et le repère
+   se posait à côté de la fente visée — au moment précis où l'on glisse,
+   c'est-à-dire juste après avoir changé d'onglet. */
 export const DropMark = React.forwardRef(function DropMark(_props, ref) {
   return (
-    <div ref={ref} data-drop-mark aria-hidden style={DROP_MARK_STYLE}>
-      <svg
-        width={MARK_W}
-        height={MARK_H}
-        viewBox={`0 0 ${MARK_W} ${MARK_H}`}
-        fill="none"
-        style={{ display: "block" }}
-      >
-        {/* l'ombre d'abord, en un seul groupe décalé : elle ne peut pas
+    <Calque>
+      <div ref={ref} data-drop-mark aria-hidden style={DROP_MARK_STYLE}>
+        <svg
+          width={MARK_W}
+          height={MARK_H}
+          viewBox={`0 0 ${MARK_W} ${MARK_H}`}
+          fill="none"
+          style={{ display: "block" }}
+        >
+          {/* l'ombre d'abord, en un seul groupe décalé : elle ne peut pas
             dériver du trait puisqu'elle en reprend les mêmes chemins */}
-        <g transform="translate(1.2 1.4)" opacity="0.18">
+          <g transform="translate(1.2 1.4)" opacity="0.18">
+            {MARK_PATHS.map((p) => (
+              <path key={p.d} d={p.d} stroke={C.ink} strokeWidth={p.w + 0.8} {...MARK_INK} />
+            ))}
+          </g>
           {MARK_PATHS.map((p) => (
-            <path key={p.d} d={p.d} stroke={C.ink} strokeWidth={p.w + 0.8} {...MARK_INK} />
+            <path key={p.d} d={p.d} stroke={C.burgundy} strokeWidth={p.w} {...MARK_INK} />
           ))}
-        </g>
-        {MARK_PATHS.map((p) => (
-          <path key={p.d} d={p.d} stroke={C.burgundy} strokeWidth={p.w} {...MARK_INK} />
-        ))}
-      </svg>
-    </div>
+        </svg>
+      </div>
+    </Calque>
   );
 });
 

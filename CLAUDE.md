@@ -42,11 +42,41 @@ là pour que la règle ne dépende pas de la seule bonne volonté.
   `src/services/` — la persistance et les entrées/sorties.
 - `src/components/layout/FolderTabs.tsx` — le rail d'onglets et ses trois
   actions de pied : épingler un film, la peau du site, la visite.
-- Budget de `z-index` : grain 1, page et rail 2, panneaux d'étagère 30–45,
-  modale 50, peaux et tiroirs 59–60, visite 190–200.
-- `[data-enters]` porte une transformation pendant son animation d'entrée :
-  tout `position: fixed` doit être monté EN DEHORS, sinon il s'ancre sur la
-  colonne au lieu de la fenêtre.
+- Budget de `z-index` : grain 1, page et rail 2, la barre du bas du téléphone
+  20, panneaux d'étagère 30–45, modale 50, peaux et tiroirs 59–60,
+  visite 190–200.
+- **Ce budget n'est vrai que pour ce qui est monté hors de la colonne de vue.**
+  `[data-enters]` est un contexte d'empilement (`position: relative`,
+  `z-index: 2`) ET il porte une transformation pendant son animation
+  d'entrée. Un `position: fixed` rendu dedans s'ancre donc sur la colonne au
+  lieu de la fenêtre, et son `z-index` ne le classe plus que parmi ses
+  voisins de colonne — un panneau à 45 y perd contre n'importe quoi du
+  dehors, puisque seul le 2 de la colonne compte.
+  Tout panneau, voile, tiroir ou repère en `position: fixed` passe donc par
+  `<Calque>` (`src/components/ui/Calque.tsx`), qui le rend dans le corps du
+  document. La règle vaut aussi pour ce qui se place en coordonnées d'écran
+  calculées à la main, comme le repère de dépôt de l'étagère.
+  Exception assumée : un menu ancré à son bouton (`position: absolute` sous
+  lui, avec son voile) reste dans la colonne — le sortir romprait l'ancrage.
+
+## Le serveur vit à côté, et le classeur vit sans lui
+
+`server/` est un second paquet, avec ses propres dépendances et ses
+propres contrôles (`cd server && npm test && npm run typecheck`). Il n'est
+pas dans la liste ci-dessous : le client ne l'appelle pas encore, et il
+doit continuer de fonctionner entièrement hors ligne.
+
+- Le schéma est du **SQL qu'on lit** (`server/sql/001_socle.sql`), pas la
+  sortie d'un ORM. Les requêtes vivent toutes dans `server/src/depot.ts`,
+  en paramètres numérotés — une valeur passée en `$1` ne peut jamais
+  devenir de la syntaxe.
+- Les tests du serveur parlent à un **vrai Postgres** compilé en
+  WebAssembly (PGlite) : pas de Docker à lancer, et les contraintes
+  éprouvées sont celles de la production.
+- Ce qui protège quelqu'un est dans le SCHÉMA quand c'est possible —
+  unicité, forme du pseudonyme, cascade d'effacement, refus d'une
+  version périmée. Une règle écrite dans une route se contourne par la
+  route suivante.
 
 ## Vérifier
 

@@ -11,6 +11,15 @@ export const KEYS = {
   tmdbKey: "tmdb-key",
 } as const;
 
+/* Le registre des dates vit dans `documents`, qui écrit lui-même par ce
+   magasin : on le charge à la volée pour ne pas nouer les deux modules
+   l'un à l'autre au chargement. La promesse n'est pas attendue — dater
+   un document ne doit jamais retarder son écriture. */
+const noterSiSynchronisable = async (clé: string): Promise<void> => {
+  const { estSynchronisable, noterDocument } = await import("./documents");
+  if (estSynchronisable(clé)) noterDocument(clé);
+};
+
 /* ------------------------------------------------------------
    LE QUOTA SE VOIT VENIR, IL NE SE DÉCOUVRE PAS
    ------------------------------------------------------------
@@ -89,9 +98,24 @@ export const store = {
      des clés sont minuscules et écrites une fois de loin en loin. */
   set: (k: string, v: unknown): boolean => {
     try {
+      /* MESURER AVANT D'ÉCRIRE, DATER APRÈS AVOIR ÉCRIT : les deux
+         moitiés de cette ligne viennent de deux chantiers différents et
+         se composent sans se gêner. */
       const texte = JSON.stringify(v);
       prévenirSiGros(texte.length);
       localStorage.setItem(k, texte);
+      /* LA DATE SE POSE ICI, ET C'EST TOUT L'INTÉRÊT DE LA POSER ICI.
+
+         Six services écrivent des documents — l'étagère, le carnet, les
+         fils, le vocabulaire, les décors, les préférences du mur — et
+         aucun ne date ce qu'il écrit. Demander à chacun d'y penser,
+         c'est se garantir qu'un l'oubliera, et qu'un pan du classeur ne
+         se synchronisera jamais sans que rien ne le signale.
+
+         L'import est différé pour une raison bête et réelle : le
+         registre des dates s'écrit lui-même par ce magasin, et un import
+         direct fabriquerait une boucle entre les deux modules. */
+      void noterSiSynchronisable(k);
       return true;
     } catch (e) {
       console.error(e);

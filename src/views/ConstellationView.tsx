@@ -8,6 +8,7 @@ import type {
 } from "react";
 import { Sparkles, Users, Spool } from "lucide-react";
 import { C, F, alpha } from "../theme/tokens";
+import { tap } from "../theme/styles";
 import {
   buildSky,
   buildSkyWithCrew,
@@ -367,6 +368,7 @@ export function ConstellationView({
         aria-pressed={équipes}
         style={{
           all: "unset",
+          ...tap,
           cursor: "pointer",
           marginTop: 14,
           position: "relative",
@@ -429,6 +431,7 @@ export function ConstellationView({
                   title={motif ? `alimenté par « ${motif.label} »` : "fil composé à la main"}
                   style={{
                     all: "unset",
+                    ...tap,
                     cursor: "pointer",
                     display: "inline-flex",
                     alignItems: "center",
@@ -491,6 +494,7 @@ export function ConstellationView({
                       onClick={() => toggle(setGenres)(g)}
                       style={{
                         all: "unset",
+                        ...tap,
                         cursor: "pointer",
                         fontFamily: F.mono,
                         fontSize: 10,
@@ -516,6 +520,7 @@ export function ConstellationView({
               }}
               style={{
                 all: "unset",
+                ...tap,
                 cursor: "pointer",
                 marginTop: 10,
                 color: C.inkFaded,
@@ -586,6 +591,7 @@ export function ConstellationView({
             onClick={() => setFoyer(null)}
             style={{
               all: "unset",
+              ...tap,
               cursor: "pointer",
               marginTop: 12,
               fontFamily: F.mono,
@@ -1228,6 +1234,7 @@ export function ConstellationView({
                 }}
                 style={{
                   all: "unset",
+                  ...tap,
                   cursor: "pointer",
                   fontFamily: F.mono,
                   fontSize: 10.5,
@@ -1314,6 +1321,7 @@ function Résultats({
 
 const departStyle: CSSProperties = {
   all: "unset",
+  ...tap,
   cursor: "pointer",
   fontFamily: F.body,
   fontSize: 12.5,
@@ -1326,6 +1334,7 @@ const departStyle: CSSProperties = {
 
 const petitBouton = (actif: boolean): CSSProperties => ({
   all: "unset",
+  ...tap,
   cursor: "pointer",
   fontFamily: F.mono,
   fontSize: 10,

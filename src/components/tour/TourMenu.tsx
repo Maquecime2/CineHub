@@ -8,6 +8,7 @@
 import type { CSSProperties } from "react";
 import { X } from "lucide-react";
 import { C, F } from "../../theme/tokens";
+import { tap } from "../../theme/styles";
 import { TOURS, tourForView } from "./steps";
 
 export function TourMenu({
@@ -91,6 +92,7 @@ export function TourMenu({
 
 const porte: CSSProperties = {
   all: "unset",
+  ...tap,
   cursor: "pointer",
   boxSizing: "border-box",
   display: "block",

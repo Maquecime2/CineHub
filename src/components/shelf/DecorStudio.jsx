@@ -19,6 +19,7 @@
    efface le décor entier : la vue redevient ce que son bois dit d'elle.
    C'est cette porte de sortie qui rend toute l'exploration sans risque. */
 import { useState } from "react";
+import { Calque } from "../ui/Calque";
 import { X, RotateCcw } from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { MATERIALS, FINISHES, FAMILY_LABELS, materialStyle } from "../../theme/surfaces";
@@ -103,7 +104,7 @@ export function DecorStudio({ view, onChange, onReset, onClose }) {
   const set = (patch) => onChange(tab === "wall" ? "wall" : "plank", patch);
 
   return (
-    <>
+    <Calque>
       <div onClick={onClose} data-veil style={{ position: "fixed", inset: 0, zIndex: 44 }} />
       <div style={STUDIO_BOX}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
@@ -179,6 +180,6 @@ export function DecorStudio({ view, onChange, onReset, onClose }) {
           le décor appartient à cette vue — une autre garde le sien
         </div>
       </div>
-    </>
+    </Calque>
   );
 }

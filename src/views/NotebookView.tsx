@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { C, F } from "../theme/tokens";
-import { underlineInput, ruledTextarea } from "../theme/styles";
+import { underlineInput, ruledTextarea, tap } from "../theme/styles";
 import { tiltOf } from "../domain/seeded";
 import { uid } from "../domain/film";
 import { StampCorner } from "../components/atmosphere";
@@ -83,6 +83,7 @@ export function NotebookView({ notes, onAdd, onUpdate, onDelete }: NotebookViewP
           onClick={create}
           style={{
             all: "unset",
+            ...tap,
             cursor: "pointer",
             marginTop: 14,
             background: C.pine,
@@ -119,6 +120,7 @@ export function NotebookView({ notes, onAdd, onUpdate, onDelete }: NotebookViewP
                 onClick={() => onDelete(n.id)}
                 style={{
                   all: "unset",
+                  ...tap,
                   position: "absolute",
                   top: 12,
                   right: 14,

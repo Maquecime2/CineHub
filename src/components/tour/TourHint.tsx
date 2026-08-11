@@ -9,6 +9,7 @@
 import { useEffect, useState } from "react";
 import { CornerLeftDown, X } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
+import { tap } from "../../theme/styles";
 import { bumpHint } from "../../services/onboarding";
 
 /** Assez pour être lu deux fois, trop court pour gêner. */
@@ -71,6 +72,7 @@ export function TourHint({ onReplay, onDismiss }: { onReplay: () => void; onDism
         aria-label="Effacer ce rappel"
         style={{
           all: "unset",
+          ...tap,
           cursor: "pointer",
           position: "absolute",
           top: 8,
@@ -99,6 +101,7 @@ export function TourHint({ onReplay, onDismiss }: { onReplay: () => void; onDism
         onClick={onReplay}
         style={{
           all: "unset",
+          ...tap,
           cursor: "pointer",
           marginTop: 10,
           display: "inline-flex",

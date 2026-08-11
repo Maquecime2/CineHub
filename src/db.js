@@ -17,8 +17,13 @@ import {
 } from "./services/customDecor";
 
 const DB_NAME = "cine-hub";
-const DB_VERSION = 1;
+/* Version 2 : un second magasin, `docs`, pour ce qui n'est pas une image.
+   La collection y descend — voir `services/collection`. Une base déjà
+   créée passe par `onupgradeneeded` sans rien perdre : on n'ajoute qu'un
+   magasin, on ne touche pas à celui des images. */
+const DB_VERSION = 2;
 const POSTERS = "posters";
+const DOCS = "docs";
 
 export const IDB_PREFIX = "idb:";
 export const isIdbPoster = (poster) => typeof poster === "string" && poster.startsWith(IDB_PREFIX);
@@ -33,8 +38,33 @@ function openDb() {
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains(POSTERS)) db.createObjectStore(POSTERS);
+      if (!db.objectStoreNames.contains(DOCS)) db.createObjectStore(DOCS);
     };
-    req.onsuccess = () => resolve(req.result);
+    /* DEUX ONGLETS, ET LE CLASSEUR N'OUVRE PLUS.
+
+       Changer la version de la base demande un verrou exclusif. Tant
+       qu'un autre onglet tient une connexion à l'ancienne version, le
+       navigateur ne refuse pas : IL ATTEND, en silence, et `onsuccess`
+       ne vient jamais. Une promesse qui ne se résout ni ne se rejette
+       laisse l'application sur son écran d'ouverture, indéfiniment —
+       observé, la première fois, avec deux onglets ouverts sur le site.
+
+       On rejette donc explicitement : le dépôt sait retomber sur le
+       `localStorage`, et mieux vaut un classeur qui s'ouvre en mode
+       dégradé qu'un classeur qui n'ouvre pas. */
+    req.onblocked = () => reject(new Error("base verrouillée par un autre onglet"));
+    req.onsuccess = () => {
+      const db = req.result;
+      /* ET SURTOUT : NE PAS ÊTRE CELUI QUI BLOQUE. Quand un autre onglet
+         demande la version suivante, on ferme la nôtre au lieu de la
+         retenir. Sans cette ligne, c'est l'onglet d'à côté qui reste sur
+         son écran d'ouverture. */
+      db.onversionchange = () => {
+        db.close();
+        dbPromise = null;
+      };
+      resolve(db);
+    };
     req.onerror = () => reject(req.error);
   });
   return dbPromise;
@@ -51,11 +81,11 @@ export async function idbAvailable() {
   }
 }
 
-async function tx(mode, fn) {
+async function tx(mode, fn, magasin = POSTERS) {
   const db = await openDb();
   return new Promise((resolve, reject) => {
-    const t = db.transaction(POSTERS, mode);
-    const store = t.objectStore(POSTERS);
+    const t = db.transaction(magasin, mode);
+    const store = t.objectStore(magasin);
     let result;
     try {
       result = fn(store);
@@ -71,6 +101,15 @@ async function tx(mode, fn) {
 
 /* Le magasin s'appelle encore « posters » — il stocke désormais aussi les
    captures d'écran, mais renommer casserait les bases déjà créées. */
+/* ---------- les documents ----------
+   Tout ce qui n'est pas une image et ne tient plus dans les cinq
+   mégaoctets du `localStorage` : la collection, d'abord. On range des
+   objets JavaScript tels quels — IndexedDB les clone, sans passer par
+   une chaîne de caractères. */
+export const putDoc = (key, valeur) => tx("readwrite", (s) => s.put(valeur, key), DOCS);
+export const getDoc = (key) => tx("readonly", (s) => s.get(key), DOCS);
+export const deleteDoc = (key) => tx("readwrite", (s) => s.delete(key), DOCS);
+
 export const putImage = (key, blob) => tx("readwrite", (s) => s.put(blob, key));
 export const getImage = (key) => tx("readonly", (s) => s.get(key));
 export const deleteImage = (key) => tx("readwrite", (s) => s.delete(key));

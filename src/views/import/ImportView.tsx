@@ -4,11 +4,11 @@
 import { useMemo, useRef, useState } from "react";
 import { Upload } from "lucide-react";
 import { C, F } from "../../theme/tokens";
-import { underlineInput } from "../../theme/styles";
+import { underlineInput, tap } from "../../theme/styles";
 import { Label, Tally, InkStars } from "../../components/ui";
 import { StampCorner } from "../../components/atmosphere";
 import { store } from "../../services/storage";
-import { getTmdbKey, setTmdbKey } from "../../services/tmdbKey";
+import { cleEcrite, setTmdbKey, useTmdbKey } from "../../services/tmdbKey";
 import { parseLetterboxdCsv, diffImport, filmKey } from "../../domain/importing";
 import {
   fetchLetterboxdFeed,
@@ -84,8 +84,25 @@ export function ImportView({
      la valider — mais il n'est plus le SEUL endroit où elle se pose : le
      tiroir au pied du rail écrit dans le même service, et poser la clé
      là-bas doit se voir ici. */
-  const [apiKey, setApiKey] = useState(getTmdbKey);
-  const [useTmdb, setUseTmdb] = useState(() => !!getTmdbKey());
+  /* DEUX CHOSES QUI SE RESSEMBLENT ET QU'IL NE FAUT PAS CONFONDRE.
+
+     `apiKey` est le contenu du CHAMP : ce qu'on est en train de taper,
+     et ce que « tester la clé » éprouve. Il doit donc rester la clé
+     écrite, et rien d'autre — on ne teste pas un jeton qu'on n'a pas
+     saisi.
+
+     `deQuoi` est ce avec QUOI l'on appellera TMDB : la clé qu'on vient
+     de taper, sinon celle qui était déjà posée, sinon le relais du
+     serveur quand un compte est ouvert. C'est LUI qui commande les
+     boutons.
+
+     Les avoir confondus laissait « il faut d'abord saisir une clé »
+     sous le nez de quelqu'un de connecté, qui n'en a précisément plus
+     besoin. */
+  const [apiKey, setApiKey] = useState(cleEcrite);
+  const posé = useTmdbKey();
+  const deQuoi = apiKey.trim() || posé;
+  const [useTmdb, setUseTmdb] = useState(() => !!deQuoi);
   const [keyState, setKeyState] = useState("");
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null); // { done, total }
   const [tmdbReport, setTmdbReport] = useState<{ resolved: number; failed: number } | null>(null);
@@ -209,9 +226,11 @@ export function ImportView({
   // Le réalisateur n'est pas dans le CSV : on va le chercher avant de comparer,
   // pour que l'aperçu montre déjà les fiches telles qu'elles seront écrites.
   const runTmdb = async () => {
-    const key = apiKey.trim();
+    const key = deQuoi;
     if (!key) return;
-    setTmdbKey(key);
+    /* On ne retient que ce qui a été TAPÉ : le jeton du relais n'est pas
+       une clé et n'a rien à faire sur le disque. */
+    if (apiKey.trim()) setTmdbKey(apiKey.trim());
     setProgress({ done: 0, total: rows.length });
     const res = await enrichRows(rows, key, {
       onProgress: (d: number, t: number) => setProgress({ done: d, total: t }),
@@ -420,6 +439,7 @@ export function ImportView({
               disabled={!lbUser.trim() || feeding}
               style={{
                 all: "unset",
+                ...tap,
                 cursor: lbUser.trim() && !feeding ? "pointer" : "not-allowed",
                 padding: "7px 14px",
                 border: `1px solid ${C.line}`,
@@ -441,6 +461,7 @@ export function ImportView({
           onClick={() => setShowRelay((v) => !v)}
           style={{
             all: "unset",
+            ...tap,
             cursor: "pointer",
             marginTop: 10,
             fontFamily: F.hand,
@@ -502,6 +523,7 @@ export function ImportView({
           onClick={() => fileRef.current?.click()}
           style={{
             all: "unset",
+            ...tap,
             cursor: "pointer",
             background: C.burgundy,
             color: C.card,
@@ -614,6 +636,7 @@ export function ImportView({
                   onClick={() => setImportStatus(o.k)}
                   style={{
                     all: "unset",
+                    ...tap,
                     cursor: "pointer",
                     padding: "6px 14px",
                     fontFamily: F.mono,
@@ -729,6 +752,7 @@ export function ImportView({
               disabled={!apiKey.trim()}
               style={{
                 all: "unset",
+                ...tap,
                 cursor: apiKey.trim() ? "pointer" : "not-allowed",
                 padding: "7px 14px",
                 border: `1px solid ${C.line}`,
@@ -780,12 +804,13 @@ export function ImportView({
           ) : (
             <button
               onClick={runTmdb}
-              disabled={!apiKey.trim() || !useTmdb}
+              disabled={!deQuoi || !useTmdb}
               style={{
                 all: "unset",
-                cursor: apiKey.trim() ? "pointer" : "not-allowed",
+                ...tap,
+                cursor: deQuoi ? "pointer" : "not-allowed",
                 marginTop: 14,
-                background: apiKey.trim() ? C.ochre : C.line,
+                background: deQuoi ? C.ochre : C.line,
                 color: C.card,
                 padding: "9px 16px",
                 fontFamily: F.mono,
@@ -973,6 +998,7 @@ export function ImportView({
             disabled={diff.toCreate.length === 0 && diff.toUpdate.length === 0}
             style={{
               all: "unset",
+              ...tap,
               marginTop: 16,
               padding: "11px 20px",
               cursor: diff.toCreate.length || diff.toUpdate.length ? "pointer" : "not-allowed",
@@ -1052,7 +1078,7 @@ export function ImportView({
       </div>
 
       <div data-tour="import-complete">
-        <CompletePanel films={films} apiKey={apiKey} onImport={onImport} />
+        <CompletePanel films={films} apiKey={deQuoi} onImport={onImport} />
       </div>
 
       {/* Placé APRÈS « compléter » et avant la sauvegarde : c'est

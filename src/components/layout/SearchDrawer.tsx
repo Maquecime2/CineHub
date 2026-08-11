@@ -15,9 +15,11 @@ import type { KeyboardEvent, ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Search, Film as FilmIcon, User, Tag, Spline, NotebookPen } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
+import { tap } from "../../theme/styles";
 import { chercherPartout, parGenres, type Genre, type Trouvaille } from "../../domain/partout";
 import type { Fil } from "../../domain/fils";
 import type { Film, Note } from "../../types";
+import { useViewport } from "../../hooks/useViewport";
 
 /* Ce que chaque nature s'appelle une fois trouvée, et de quoi elle a
    l'air. L'icône n'est pas décorative : c'est ce qui permet de lire
@@ -53,6 +55,7 @@ export function SearchDrawer({
   ouvrir: OuvrirTrouvaille;
 }) {
   const [q, setQ] = useState("");
+  const { phone } = useViewport();
   const [curseur, setCurseur] = useState(0);
   const champ = useRef<HTMLInputElement>(null);
 
@@ -117,11 +120,18 @@ export function SearchDrawer({
         onKeyDown={auClavier}
         style={{
           position: "fixed",
-          top: "8vh",
+          /* HUIT POUR CENT DE HAUTEUR, C'EST UNE MARGE DE BUREAU.
+
+             Sur un telephone, ces huit pour cent sont du vide au-dessus
+             du champ, et les soixante-dix-huit restants s'arretent bien
+             avant le bas de l'ecran : la liste des trouvailles tenait
+             sur trois lignes. La feuille part donc sous l'encoche et
+             descend aussi loin qu'elle peut. */
+          top: `max(8vh, var(--safe-top))`,
           left: "50%",
           transform: "translateX(-50%)",
-          width: "min(620px, 92vw)",
-          maxHeight: "78vh",
+          width: phone ? "calc(100vw - 16px)" : "min(620px, 92vw)",
+          maxHeight: phone ? "calc(100dvh - max(8vh, var(--safe-top)) - 16px)" : "78vh",
           zIndex: 60,
           background: C.paper,
           border: `1px solid ${C.line}`,
@@ -150,6 +160,7 @@ export function SearchDrawer({
             aria-label="Chercher dans tout le classeur"
             style={{
               all: "unset",
+              ...tap,
               flex: 1,
               fontFamily: F.body,
               fontSize: 17,
@@ -198,6 +209,7 @@ export function SearchDrawer({
                         aria-current={visé ? "true" : undefined}
                         style={{
                           all: "unset",
+                          ...tap,
                           cursor: "pointer",
                           display: "block",
                           width: "100%",

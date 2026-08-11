@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pin, Plus, Trash2, LayoutGrid, Library, Paperclip, Dice5 } from "lucide-react";
 import { C, F } from "../../theme/tokens";
-import { underlineInput } from "../../theme/styles";
+import { underlineInput, tap, tapSquare } from "../../theme/styles";
 import { hash, tiltOf } from "../../domain/seeded";
 import { matchFilm } from "../../domain/search";
 import { CoffeeRing, TapeResidue, StampCorner, InkUnderline } from "../../components/atmosphere";
@@ -56,6 +56,7 @@ function ViewSwitcher({
         title="Changer de rangement"
         style={{
           all: "unset",
+          ...tap,
           cursor: "pointer",
           display: "flex",
           alignItems: "center",
@@ -122,6 +123,7 @@ function ViewSwitcher({
                       }}
                       style={{
                         all: "unset",
+                        ...tap,
                         flex: 1,
                         fontFamily: F.body,
                         fontSize: 13,
@@ -137,6 +139,7 @@ function ViewSwitcher({
                       }}
                       style={{
                         all: "unset",
+                        ...tap,
                         cursor: "pointer",
                         flex: 1,
                         fontFamily: F.body,
@@ -159,6 +162,7 @@ function ViewSwitcher({
                         title="Renommer"
                         style={{
                           all: "unset",
+                          ...tap,
                           cursor: "pointer",
                           color: C.inkFaded,
                           display: "flex",
@@ -171,6 +175,7 @@ function ViewSwitcher({
                         title="Dupliquer ce rangement"
                         style={{
                           all: "unset",
+                          ...tap,
                           cursor: "pointer",
                           color: C.inkFaded,
                           display: "flex",
@@ -184,6 +189,7 @@ function ViewSwitcher({
                           title="Supprimer cette vue"
                           style={{
                             all: "unset",
+                            ...tap,
                             cursor: "pointer",
                             color: C.burgundy,
                             display: "flex",
@@ -215,6 +221,7 @@ function ViewSwitcher({
                 }}
                 style={{
                   all: "unset",
+                  ...tap,
                   cursor: "pointer",
                   fontFamily: F.mono,
                   fontSize: 10,
@@ -234,6 +241,7 @@ function ViewSwitcher({
                 title="Une ligne et une boîte par réalisateur"
                 style={{
                   all: "unset",
+                  ...tap,
                   cursor: "pointer",
                   fontFamily: F.mono,
                   fontSize: 10,
@@ -263,6 +271,7 @@ function ViewSwitcher({
                   title={t.label}
                   style={{
                     all: "unset",
+                    ...tapSquare,
                     cursor: "pointer",
                     width: 26,
                     height: 20,
@@ -285,6 +294,7 @@ function ViewSwitcher({
               title="Peindre le mur, changer la matière des planches"
               style={{
                 all: "unset",
+                ...tap,
                 cursor: "pointer",
                 marginTop: 10,
                 fontFamily: F.mono,
@@ -590,6 +600,7 @@ export function LibraryView({
                   onClick={() => setGenreFilter(on ? "" : g)}
                   style={{
                     all: "unset",
+                    ...tap,
                     cursor: "pointer",
                     fontFamily: F.mono,
                     fontSize: 10.5,
@@ -621,6 +632,7 @@ export function LibraryView({
                     onClick={() => setDecadeFilter(on ? null : d)}
                     style={{
                       all: "unset",
+                      ...tap,
                       cursor: "pointer",
                       fontFamily: F.mono,
                       fontSize: 10.5,
@@ -701,6 +713,7 @@ export function LibraryView({
                 onClick={() => set({ mode: k })}
                 style={{
                   all: "unset",
+                  ...tap,
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
@@ -749,6 +762,7 @@ export function LibraryView({
               title="Trouver quoi regarder ce soir"
               style={{
                 all: "unset",
+                ...tap,
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
@@ -773,6 +787,7 @@ export function LibraryView({
               onClick={() => setGrouped((g) => !g)}
               style={{
                 all: "unset",
+                ...tap,
                 cursor: "pointer",
                 padding: "5px 12px",
                 marginTop: 2,
@@ -797,6 +812,7 @@ export function LibraryView({
               title="Peindre le mur, régler la taille et le désordre des fiches"
               style={{
                 all: "unset",
+                ...tap,
                 cursor: "pointer",
                 padding: "5px 12px",
                 marginTop: 2,

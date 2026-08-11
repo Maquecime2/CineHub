@@ -10,7 +10,12 @@ export default [
      cette exclusion, `npm run lint` se met à relire tout le projet une
      seconde fois dès qu'une tâche tourne, et rend des centaines
      d'erreurs qui n'appartiennent pas au code qu'on écrit. */
-  { ignores: ["dist", "coverage", "etagere.html", ".claude"] },
+  /* `server/` est un second paquet, avec son propre TypeScript, ses
+     propres contrôles et les globales de Node — que cette configuration-
+     ci, réglée pour un navigateur, ne connaît pas : elle y voyait des
+     `process` et des `Buffer` non définis. Il se vérifie chez lui, par
+     `cd server && npm test && npm run typecheck`. */
+  { ignores: ["dist", "coverage", "etagere.html", ".claude", "server"] },
 
   /* Le TypeScript arrive fichier par fichier pendant la migration : les deux
      langages cohabitent dans src/ et partagent les mêmes règles React. */

@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { Clapperboard, Plus } from "lucide-react";
 import { C, F } from "../../theme/tokens";
-import { underlineInput } from "../../theme/styles";
+import { underlineInput, tap } from "../../theme/styles";
 import { tiltOf } from "../../domain/seeded";
 import { deleteImage } from "../../db";
 import { Carton, Consigne, TitreSection } from "../ui";
@@ -78,6 +78,7 @@ export function StillsStrip({
               onClick={() => fileRef.current?.click()}
               style={{
                 all: "unset",
+                ...tap,
                 cursor: "pointer",
                 padding: "5px 11px",
                 background: C.burgundy,
@@ -241,6 +242,7 @@ export function StillsStrip({
                     onClick={() => remove(i)}
                     style={{
                       all: "unset",
+                      ...tap,
                       cursor: "pointer",
                       color: C.inkFaded,
                       marginLeft: "auto",
