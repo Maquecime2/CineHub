@@ -494,7 +494,7 @@ const global: Tour = {
     {
       target: at("tmdb-key"),
       title: "La clé TMDB",
-      body: "Elle est facultative : le classeur marche entièrement sans elle. Posée, elle ouvre les Découvertes, les affiches, les relevés d'équipe et le sillage d'un film. Elle reste sur votre machine. Partout où elle manque, l'écran vous le dit et vous ramène ici.",
+      body: "Elle est facultative : le classeur marche entièrement sans elle. Posée, elle ouvre les Découvertes, les affiches, les relevés d'équipe et le sillage d'un film — et elle reste sur votre machine. Un compte en dispense entièrement : le serveur garde alors la sienne, et vous n'avez rien à demander à personne. Partout où il en manque une, l'écran vous le dit et vous ramène ici.",
       placement: "right",
       view: "library",
     },

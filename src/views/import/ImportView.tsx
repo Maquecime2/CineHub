@@ -8,7 +8,7 @@ import { underlineInput, tap } from "../../theme/styles";
 import { Label, Tally, InkStars } from "../../components/ui";
 import { StampCorner } from "../../components/atmosphere";
 import { store } from "../../services/storage";
-import { getTmdbKey, setTmdbKey } from "../../services/tmdbKey";
+import { cleEcrite, getTmdbKey, setTmdbKey } from "../../services/tmdbKey";
 import { parseLetterboxdCsv, diffImport, filmKey } from "../../domain/importing";
 import {
   fetchLetterboxdFeed,
@@ -84,7 +84,7 @@ export function ImportView({
      la valider — mais il n'est plus le SEUL endroit où elle se pose : le
      tiroir au pied du rail écrit dans le même service, et poser la clé
      là-bas doit se voir ici. */
-  const [apiKey, setApiKey] = useState(getTmdbKey);
+  const [apiKey, setApiKey] = useState(cleEcrite);
   const [useTmdb, setUseTmdb] = useState(() => !!getTmdbKey());
   const [keyState, setKeyState] = useState("");
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null); // { done, total }

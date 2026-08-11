@@ -27,6 +27,8 @@
 
    La barre finale part pour la même raison : les chemins commencent
    déjà par une barre, et « …:8787//moi » n'est pas « …:8787/moi ». */
+import { store } from "./storage";
+
 export const ADRESSE: string = (
   import.meta.env.VITE_SERVEUR || (import.meta.env.DEV ? "http://localhost:8787" : "")
 )
@@ -131,15 +133,57 @@ async function appeler<T>(chemin: string, options: Envoi = {}): Promise<T> {
 export async function quiSuisJe(): Promise<Personne | null> {
   try {
     const r = await appeler<{ personne: Personne }>("/moi");
+    noterLeCompte(r.personne.id);
     return r.personne;
   } catch (e) {
     if ((e as ErreurServeur).code === 0) throw e;
+    noterLeCompte(null);
     return null;
   }
 }
 
 export async function seDeconnecter(): Promise<void> {
   await appeler("/deconnexion", { method: "POST" }).catch(() => {});
+  noterLeCompte(null);
+}
+
+/* ------------------------------------------------------------
+   « UN COMPTE EST-IL OUVERT ? », POUR CE QUI N'EST PAS UN RENDU
+   ------------------------------------------------------------
+
+   Le relais TMDB du serveur n'accepte que les gens connectés, et c'est
+   `src/tmdb.js` — un module qui n'a ni React ni contexte — qui doit
+   décider s'il passe par là. Il lui faut donc une réponse SYNCHRONE.
+
+   La valeur est semée depuis le disque au chargement, avec la dernière
+   personne connue de la synchronisation : sans cela, les premières
+   secondes après l'ouverture répondraient « pas de compte » à quelqu'un
+   qui en a un, et l'écran afficherait « il manque une clé » avant de se
+   raviser. Ce n'est qu'un PRESSENTIMENT — si l'on se trompe, le relais
+   répond 401 et l'appel repart par le chemin d'avant.
+
+   `quiSuisJe` corrige ce pressentiment au premier aller-retour, et
+   c'est elle qui fait autorité. */
+let compte: string | null = store.get<string>("synchro-compte", "") || null;
+
+type Veille = () => void;
+const veilleurs = new Set<Veille>();
+
+function noterLeCompte(id: string | null): void {
+  if (compte === id) return;
+  compte = id;
+  for (const fn of veilleurs) fn();
+}
+
+/** Y a-t-il un compte ouvert, autant qu'on sache ? */
+export const compteOuvert = (): boolean => serveurConfigure() && compte !== null;
+
+/** Être prévenu quand la réponse change. Rend de quoi se désabonner. */
+export function suivreLeCompte(fn: Veille): () => void {
+  veilleurs.add(fn);
+  return () => {
+    veilleurs.delete(fn);
+  };
 }
 
 /** Ce que le serveur détient, dans un seul objet — pour l'emporter. */
@@ -170,6 +214,7 @@ export async function sInscrire(pseudo: string): Promise<Personne> {
     method: "POST",
     body: JSON.stringify({ defi, reponse }),
   });
+  noterLeCompte(r.personne.id);
   return r.personne;
 }
 
@@ -184,6 +229,7 @@ export async function seConnecter(pseudo: string): Promise<Personne> {
     method: "POST",
     body: JSON.stringify({ defi, reponse }),
   });
+  noterLeCompte(r.personne.id);
   return r.personne;
 }
 

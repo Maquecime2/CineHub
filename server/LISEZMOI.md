@@ -157,6 +157,15 @@ personne » mais « les gens qui ont vu ce film » (`fiche_oeuvre`).
 film ont deux fiches, deux identifiants, souvent deux titres. Une fiche
 saisie à la main n'a donc pas d'écho, et c'est cohérent.
 
+**Conséquence : recoller une fiche au bon film n'est plus un geste
+privé.** Le classeur sait corriger une identité mal appariée à l'import
+(`components/film/TmdbLink.tsx`). Tant que la collection restait chez
+soi, s'en passer ne coûtait qu'une mauvaise affiche ; maintenant que
+`tmdb_id` porte l'écho des œuvres, les listes et les défis, une fiche
+mal appariée fait apparaître **votre** critique sous **le mauvais
+film**, chez les autres. Le symptôme est connu : le film se propose
+lui-même dans son propre sillage.
+
 **Une note est du texte tant qu'on ne l'a pas regardée.** Le `jsonb`
 vient de clients de toutes les époques : `rating` y est un nombre, une
 chaîne, une chaîne vide, ou absent. Un `::numeric` direct fait tomber la
