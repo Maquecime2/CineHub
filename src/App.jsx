@@ -451,9 +451,35 @@ export default function App() {
      le jour où le coffre refuse. `store.setSoon` demeure, inemployé
      ici ; ce qu'il faudrait grouper aujourd'hui, c'est l'écriture dans
      le coffre, et cela ne se décide pas au détour d'une fusion. */
+  /* ET UNE ÉCRITURE EN RETARD NE DOIT PLUS RIEN ÉCRASER.
+
+     C'est le défaut qui rendait la prise de notes inutilisable, et il
+     n'avait rien d'exotique : il suffisait de taper vite.
+
+     Chaque frappe appelle `saveFilms`. Le premier `setFilms` pose le
+     texte à l'écran tout de suite ; l'écriture, elle, part dans le
+     coffre et met quelques dizaines de millisecondes à revenir. Le
+     temps qu'elle revienne, deux ou trois lettres de plus ont été
+     tapées — et son `.then` reposait alors une collection qui portait
+     le texte d'AVANT. La fiche redescendait d'une lettre, le champ se
+     réécrivait, le curseur sautait, et l'on obtenait « laoume s s »
+     pour « le samourai ne parle pas ».
+
+     Un rang par écriture, et l'on n'applique que le retour de la
+     DERNIÈRE demandée : les précédentes ont déjà été dépassées à
+     l'écran, et leurs dates seront de toute façon reposées par la
+     suivante — `horodater` les recalcule depuis l'état du dépôt, pas
+     depuis ce qu'on lui rend ici.
+
+     `useRef` et non une variable de module : deux classeurs montés côte
+     à côte dans un test partageraient le compteur. */
+  const rangÉcriture = useRef(0);
   const saveFilms = (next) => {
     setFilms(next);
-    enregistrerFilms(next).then((datés) => setFilms(datés));
+    const rang = ++rangÉcriture.current;
+    enregistrerFilms(next).then((datés) => {
+      if (rang === rangÉcriture.current) setFilms(datés);
+    });
   };
 
   /* RETIRER L'EXEMPLE. Le bandeau ne paraît que tant que le classeur
