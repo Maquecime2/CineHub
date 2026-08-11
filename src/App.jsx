@@ -842,6 +842,7 @@ export default function App() {
           <DetailView
             film={selectedFilm}
             films={films}
+            connecte={!!synchro.personne}
             onBack={() => {
               setView(backView);
               setSelectedId(null);

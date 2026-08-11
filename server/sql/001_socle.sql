@@ -252,6 +252,33 @@ CREATE TABLE IF NOT EXISTS abonnement (
 CREATE INDEX IF NOT EXISTS abonnement_suivi ON abonnement(suivi_id);
 
 -- ------------------------------------------------------------
+-- NE PLUS VOIR QUELQU'UN
+-- ------------------------------------------------------------
+-- Le blocage est le pendant nécessaire de la première chose que ce
+-- classeur publie : dès qu'un texte écrit par un inconnu peut apparaître
+-- sous un film qu'on aime, il faut pouvoir le faire taire sans attendre
+-- qu'un modérateur se réveille.
+--
+-- IL SE DÉCLARE D'UN CÔTÉ ET AGIT DES DEUX. Bloquer quelqu'un le retire
+-- de ce que je vois, ET me retire de ce qu'il voit : un blocage qui ne
+-- couperait que dans un sens laisse l'autre continuer de lire, de
+-- répondre et de recommencer. Les lectures interrogent donc cette table
+-- dans les deux sens (`OR`), et jamais dans un seul.
+--
+-- Ce qu'il ne fait PAS : cacher une collection publique à qui en connaît
+-- l'adresse. Un blocage n'est pas un mur, c'est un silence — prétendre
+-- le contraire donnerait une fausse sécurité.
+CREATE TABLE IF NOT EXISTS blocage (
+  bloqueur_id   uuid NOT NULL REFERENCES personne(id) ON DELETE CASCADE,
+  bloque_id     uuid NOT NULL REFERENCES personne(id) ON DELETE CASCADE,
+  cree_le       timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (bloqueur_id, bloque_id),
+  CHECK (bloqueur_id <> bloque_id)
+);
+
+CREATE INDEX IF NOT EXISTS blocage_bloque ON blocage(bloque_id);
+
+-- ------------------------------------------------------------
 -- LE SIGNALEMENT
 -- ------------------------------------------------------------
 -- Vide tant que rien n'est public, et posé quand même : une table de
@@ -266,3 +293,36 @@ CREATE TABLE IF NOT EXISTS signalement (
   cree_le       timestamptz NOT NULL DEFAULT now(),
   traite_le     timestamptz
 );
+
+-- LE SIGNALÉ EST UNE COLONNE, PAS UNE DÉDUCTION. `cible_id` désigne une
+-- fiche ; retrouver son propriétaire demanderait de la relire, et une
+-- fiche effacée entre-temps emporterait avec elle la seule chose qui
+-- rendait le signalement exploitable. On note donc qui est visé au
+-- moment où l'on signale.
+ALTER TABLE IF EXISTS signalement
+  ADD COLUMN IF NOT EXISTS vise_id uuid REFERENCES personne(id) ON DELETE CASCADE;
+
+-- Signaler deux fois la même chose est le même geste : la seconde fois
+-- ne doit pas gonfler une file de modération qu'un humain devra lire.
+CREATE UNIQUE INDEX IF NOT EXISTS signalement_unique
+  ON signalement(auteur_id, cible_type, cible_id)
+  WHERE auteur_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS signalement_a_traiter ON signalement(cree_le) WHERE traite_le IS NULL;
+
+-- ------------------------------------------------------------
+-- CE QU'ON DIT D'UNE ŒUVRE
+-- ------------------------------------------------------------
+-- IL N'Y A PAS DE TABLE D'AVIS, et c'est la décision de toute cette
+-- étape. Une critique existe déjà : elle est dans la fiche de son
+-- auteur, `donnees->>'review'`, et elle s'y synchronise depuis la phase
+-- 4. La recopier ailleurs pour la « publier » créerait deux vérités qui
+-- divergeraient au premier oubli — une critique corrigée chez soi et
+-- restée fausse en public est exactement le défaut qu'on ne veut pas.
+--
+-- Publier n'est donc pas un geste de plus : c'est la conséquence du
+-- partage déjà choisi. Ce qui manquait n'était pas un endroit où
+-- écrire, mais un index pour lire à l'ENVERS — non plus « les films de
+-- cette personne » mais « les gens qui ont vu ce film ».
+CREATE INDEX IF NOT EXISTS fiche_oeuvre
+  ON fiche(tmdb_id) WHERE tmdb_id IS NOT NULL AND NOT cachee AND NOT supprimee;

@@ -499,10 +499,11 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
   app.put("/abonnements/:pseudo", async (req, reply) => {
     const personne = await exigerUnCompte(req);
     const { pseudo } = req.params as { pseudo: string };
-    const cible = await depot.profilPublicDe(base, (pseudo || "").toLowerCase());
+    const cible = await depot.profilPublicDe(base, (pseudo || "").toLowerCase(), personne.id);
     /* On ne peut suivre que ce qui se montre : suivre une collection
        fermée serait s'abonner à un silence, et dirait au passage
-       qu'elle existe. */
+       qu'elle existe. Un blocage referme de la même façon — c'est le
+       profil qui n'existe plus, et non une interdiction annoncée. */
     if (!cible) return reply.code(404).send({ erreur: "Personne." });
 
     const vise = await depot.trouverParPseudo(base, cible.pseudo);
@@ -544,6 +545,93 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
         film: n.donnees,
       })),
     };
+  });
+
+  /* ------------------------------------------------------------
+     CE QU'ON DIT D'UNE ŒUVRE
+     ------------------------------------------------------------
+     La lecture à l'envers : non plus « les films de cette personne »,
+     mais « les gens qui ont vu ce film ». Rien n'est publié pour cela —
+     les critiques lues ici sont celles des fiches, chez leurs auteurs,
+     dans les collections qu'ils ont choisi de rendre publiques. */
+
+  app.get("/oeuvres/:tmdbId", async (req, reply) => {
+    /* UN COMPTE EST EXIGÉ, alors que la collection partagée n'en demande
+       pas. La différence : là-bas on ouvre la porte de quelqu'un qui
+       vous a donné son adresse ; ici on interroge tout le monde à la
+       fois. Ouvrir cela aux inconnus ferait de ce serveur un moissonneur
+       d'avis, et de chaque critique une donnée publiquement aspirable. */
+    const personne = await exigerUnCompte(req);
+    const { tmdbId } = req.params as { tmdbId: string };
+    if (!/^[0-9]{1,12}$/.test(tmdbId || "")) {
+      return reply.code(400).send({ erreur: "Identifiant d'œuvre illisible." });
+    }
+    return depot.echoDeLOeuvre(base, tmdbId, personne.id);
+  });
+
+  /* ------------------------------------------------------------
+     SE PROTÉGER
+     ------------------------------------------------------------
+     Elles arrivent avec la première chose que ce classeur publie, et
+     non « quand il y aura un problème » : le jour où il y en a un, ce
+     n'est plus le moment de développer. */
+
+  app.get("/blocages", async (req) => {
+    const personne = await exigerUnCompte(req);
+    return { blocages: await depot.mesBlocages(base, personne.id) };
+  });
+
+  app.put("/blocages/:pseudo", async (req, reply) => {
+    const personne = await exigerUnCompte(req);
+    const { pseudo } = req.params as { pseudo: string };
+    /* On bloque par le compte, PAS par le profil public : quelqu'un qui
+       s'est refermé après coup doit rester blocable, sans quoi il
+       suffirait de passer en privé pour redevenir inbloquable puis
+       ressortir. */
+    const vise = await depot.trouverParPseudo(base, (pseudo || "").toLowerCase());
+    if (!vise) return reply.code(404).send({ erreur: "Personne." });
+    if (vise.id === personne.id) {
+      return reply.code(400).send({ erreur: "On ne se bloque pas soi-même." });
+    }
+    await depot.bloquer(base, personne.id, vise.id);
+    return { pseudo: vise.pseudo, bloque: true };
+  });
+
+  app.delete("/blocages/:pseudo", async (req, reply) => {
+    const personne = await exigerUnCompte(req);
+    const { pseudo } = req.params as { pseudo: string };
+    const vise = await depot.trouverParPseudo(base, (pseudo || "").toLowerCase());
+    if (vise) await depot.debloquer(base, personne.id, vise.id);
+    /* Débloquer ne réabonne à personne : le lien a été défait, il se
+       refait à la main. Reconstituer un abonnement qu'on a coupé serait
+       décider à la place de quelqu'un. */
+    return reply.send({ pseudo, bloque: false });
+  });
+
+  app.post("/signalements", async (req, reply) => {
+    const personne = await exigerUnCompte(req);
+    const { pseudo, fiche, motif } = (req.body ?? {}) as {
+      pseudo?: string;
+      fiche?: string;
+      motif?: string;
+    };
+    const texte = (motif || "").trim();
+    if (!texte || texte.length > 500) {
+      return reply.code(400).send({ erreur: "Dites en une phrase ce qui ne va pas." });
+    }
+    const vise = pseudo ? await depot.trouverParPseudo(base, pseudo.toLowerCase()) : null;
+    if (!vise) return reply.code(404).send({ erreur: "Personne." });
+
+    const neuf = await depot.signaler(base, personne.id, {
+      cibleType: "fiche",
+      cibleId: String(fiche || ""),
+      viseId: vise.id,
+      motif: texte,
+    });
+    /* LA MÊME RÉPONSE QUE CE SOIT LE PREMIER SIGNALEMENT OU LE
+       DIXIÈME : « c'est noté » est vrai dans les deux cas, et savoir
+       qu'on avait déjà signalé n'apporte rien à qui vient de le faire. */
+    return { note: true, neuf };
   });
 
   /* ------------------------------------------------------------

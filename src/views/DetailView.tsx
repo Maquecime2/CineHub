@@ -32,6 +32,7 @@ import { PosterArt } from "../components/film/PosterArt";
 import { PosterPicker } from "../components/film/PosterPicker";
 import { FilmIdentity } from "../components/film/FilmIdentity";
 import { TmdbFacts } from "../components/film/TmdbFacts";
+import { Ailleurs } from "../components/film/Ailleurs";
 import { WatchLog } from "../components/film/WatchLog";
 import { ThreadBoard } from "../components/film/ThreadBoard";
 import { LINK_TYPES } from "../components/film/linkTypes";
@@ -69,6 +70,8 @@ interface DetailViewProps {
   onCréerMotif?: (label: string, famille: MotifFamille, spoiler: boolean) => string | null;
   onSupprimerMotif?: (motifId: string) => void;
   onMasquerMotif?: (motifId: string, masqué: boolean) => void;
+  /** Un compte est ouvert : la fiche peut alors lire ce qu'on en dit ailleurs. */
+  connecte?: boolean;
 }
 
 export function DetailView({
@@ -88,6 +91,7 @@ export function DetailView({
   onCréerMotif,
   onSupprimerMotif,
   onMasquerMotif,
+  connecte = false,
 }: DetailViewProps) {
   /* Une seule demande à la fois, portée par la vue : les trois gestes qui
      la lèvent — supprimer la fiche, la mettre de côté, supprimer un motif —
@@ -404,6 +408,11 @@ export function DetailView({
                 part : durée, pays, langue, équipe, casting. C'est là
                 qu'on voit ce qui manque, et qu'on le redemande. */}
             <TmdbFacts film={film} onUpdate={onUpdate} onOpenPerson={onOpenPerson} />
+            {/* Ce que d'autres vidéothèques publiques disent du même
+                film. Se tait entièrement sans serveur, sans compte, ou
+                quand personne n'a rien dit — une fiche qui vit seule ne
+                réclame pas un compte. */}
+            <Ailleurs film={film} connecte={connecte} />
           </Carton>
         </div>
 

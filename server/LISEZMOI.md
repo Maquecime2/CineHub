@@ -60,6 +60,11 @@ une clé physique. La vérification des signatures est confiée à
 | `DELETE /abonnements/:pseudo`         | Ne plus suivre — possible même si l'autre s'est refermé         |
 | `GET /abonnements`                    | Qui vous suivez, et si leur collection est encore ouverte       |
 | `GET /fil?avant=…`                    | Ce que les gens suivis ont touché récemment                     |
+| `GET /oeuvres/:tmdbId`                | Ce que les collections publiques disent d'un film               |
+| `GET /blocages`                       | Qui vous avez fait taire                                        |
+| `PUT /blocages/:pseudo`               | Ne plus rien voir de quelqu'un — et lui non plus de vous        |
+| `DELETE /blocages/:pseudo`            | Le défaire ; les abonnements coupés ne reviennent pas           |
+| `POST /signalements`                  | Dire ce qui ne va pas ; deux fois vaut une                      |
 | `GET /mes-donnees`                    | Tout ce que le serveur détient de vous                          |
 | `DELETE /mon-compte`                  | L'efface, et tout ce qui pend dessous                           |
 | `GET /sante`                          | Debout ?                                                        |
@@ -123,6 +128,52 @@ d'inscrits : `GET /profils/:pseudo` répond 404 pour un compte privé
 exactement comme pour un compte inexistant. Un partage par LIEN n'ouvre
 pas de profil — un lien se donne à quelqu'un, il ne rend pas trouvable.
 
+## Il n'y a pas de table d'avis
+
+C'est la décision de l'étape des avis partagés. Une critique existe
+déjà : elle est dans la fiche de son auteur, `donnees->>'review'`, et
+elle s'y synchronise depuis la phase 4. La recopier ailleurs pour la
+« publier » créerait deux vérités qui divergeraient au premier oubli —
+une critique corrigée chez soi et restée fausse en public.
+
+Publier n'est donc pas un geste de plus : c'est la conséquence du
+partage déjà choisi. Ce qui manquait n'était pas un endroit où écrire,
+mais un index pour lire à l'ENVERS — non plus « les films de cette
+personne » mais « les gens qui ont vu ce film » (`fiche_oeuvre`).
+
+`tmdb_id` est la seule clé possible : deux personnes qui rangent le même
+film ont deux fiches, deux identifiants, souvent deux titres. Une fiche
+saisie à la main n'a donc pas d'écho, et c'est cohérent.
+
+**Une note est du texte tant qu'on ne l'a pas regardée.** Le `jsonb`
+vient de clients de toutes les époques : `rating` y est un nombre, une
+chaîne, une chaîne vide, ou absent. Un `::numeric` direct fait tomber la
+requête entière sur une seule fiche mal formée — la moyenne de tout le
+monde perdue pour une vieille fiche d'un inconnu. La forme se vérifie
+avant la conversion.
+
+**`GET /oeuvres/:tmdbId` exige un compte**, alors que la collection
+partagée n'en demande pas. La différence : là-bas on ouvre la porte de
+quelqu'un qui vous a donné son adresse ; ici on interroge tout le monde
+à la fois. L'ouvrir aux inconnus ferait de ce serveur un moissonneur
+d'avis.
+
+## Le blocage se déclare d'un côté et agit des deux
+
+Bloquer quelqu'un le retire de ce qu'on voit ET nous retire de ce qu'il
+voit — profil, fil, écho des œuvres. Un blocage à sens unique laisse
+l'autre continuer de lire, de répondre et de recommencer. Les trois
+lectures qui font se croiser deux personnes partagent donc le même
+fragment de condition, écrit une fois.
+
+Il défait au passage les abonnements **des deux côtés**, et ne les
+refait pas au déblocage : reconstituer un lien qu'on a coupé serait
+décider à la place de quelqu'un.
+
+Ce qu'il ne fait **pas** : cacher une collection publique à qui en
+connaît l'adresse. Un blocage est un silence, pas un mur, et prétendre
+le contraire donnerait une fausse sécurité.
+
 ## Le curseur est un rang, jamais une heure
 
 `GET /collection?depuis=` prend le **numéro d'ordre** de la dernière
@@ -171,8 +222,7 @@ navigateur piloté, où aucune empreinte ni aucun visage n'existe.
 
 ## Ce qui n'est pas encore là
 
-Les profils publics, les abonnements, les avis, les listes — et le
-déploiement. Le client, lui, **parle désormais à ce serveur** : il tire,
+Les listes et les défis — et le déploiement. Le client, lui, **parle désormais à ce serveur** : il tire,
 fusionne et pousse sa collection dès qu'un compte est ouvert, et
 continue de fonctionner entièrement sans.
 
@@ -183,5 +233,8 @@ blobs dans IndexedDB, et les faire suivre demande un stockage d'objets
 sur une machine de bureau. Un second appareil affiche donc un cadre qui
 dit « restée sur l'autre appareil » plutôt qu'un rectangle muet.
 
-La table des signalements existe déjà, vide : celle-là n'arrive jamais à
-temps si on l'ajoute après coup.
+**Il n'y a pas encore de file de modération.** Les signalements
+s'empilent dans leur table, avec leur auteur, leur cible et la personne
+visée ; rien ne les lit. C'est acceptable tant que ce serveur tourne sur
+une machine de bureau, et ce ne le sera plus le jour des inscriptions
+ouvertes.

@@ -336,3 +336,52 @@ export const lireLeFil = (avant?: number | null) =>
   appeler<{ jusqua: number | null; nouvelles: Nouvelle[] }>(
     `/fil${avant ? `?avant=${avant}` : ""}`
   );
+
+/* ------------------------------------------------------------
+   CE QU'ON DIT D'UNE ŒUVRE, ET COMMENT ON S'EN PROTÈGE
+   ------------------------------------------------------------ */
+
+export interface Avis {
+  pseudo: string;
+  /** L'identifiant de la fiche chez son auteur — c'est ce qu'on signale. */
+  fiche: string;
+  note: number | null;
+  critique: string | null;
+  le: string;
+}
+
+export interface Echo {
+  collections: number;
+  moyenne: number | null;
+  notes: number;
+  avis: Avis[];
+}
+
+/**
+ * Ce que les collections publiques disent d'une œuvre.
+ *
+ * `tmdbId` EST LA SEULE CLÉ POSSIBLE : deux personnes qui rangent le
+ * même film ont deux fiches, deux identifiants, souvent deux titres.
+ * Une fiche saisie à la main n'a donc pas d'écho, et c'est cohérent —
+ * elle n'existe que chez soi.
+ */
+export const echoDeLOeuvre = (tmdbId: string | number) =>
+  appeler<Echo>(`/oeuvres/${encodeURIComponent(String(tmdbId))}`);
+
+export const mesBlocages = () => appeler<{ blocages: string[] }>("/blocages");
+
+export const bloquer = (pseudo: string) =>
+  appeler<{ pseudo: string; bloque: boolean }>(`/blocages/${encodeURIComponent(pseudo)}`, {
+    method: "PUT",
+  });
+
+export const debloquer = (pseudo: string) =>
+  appeler<{ pseudo: string; bloque: boolean }>(`/blocages/${encodeURIComponent(pseudo)}`, {
+    method: "DELETE",
+  });
+
+export const signaler = (quoi: { pseudo: string; fiche: string; motif: string }) =>
+  appeler<{ note: boolean; neuf: boolean }>("/signalements", {
+    method: "POST",
+    body: JSON.stringify(quoi),
+  });

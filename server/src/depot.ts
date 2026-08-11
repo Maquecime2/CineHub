@@ -460,6 +460,11 @@ export async function profilPublicDe(
   const p = await trouverParPseudo(base, pseudo);
   if (!p || p.partage !== "publique") return null;
 
+  /* Un blocage rend introuvable, dans les deux sens, et sans le dire :
+     c'est le même 404 que « n'existe pas ». Annoncer « vous êtes bloqué »
+     ferait de la route un moyen de vérifier qu'on l'est. */
+  if (quiDemande && (await bloques(base, quiDemande, p.id))) return null;
+
   const n = await une<{ n: string }>(
     base,
     "SELECT count(*)::text AS n FROM fiche WHERE personne_id = $1 AND NOT cachee AND NOT supprimee",
@@ -476,6 +481,17 @@ export async function profilPublicDe(
 
   return { pseudo: p.pseudo, films: Number(n?.n ?? 0), suivi };
 }
+
+/* CE QUI COUPE, ET QUI S'INTERPOSE DANS CHAQUE LECTURE COMMUNAUTAIRE.
+
+   Écrit une fois, en fragment, et collé dans les trois requêtes qui
+   font se croiser deux personnes — le profil, le fil, les avis. Un
+   blocage qui n'agirait que dans un sens laisserait le bloqué continuer
+   de lire : la condition regarde donc les deux sens. */
+const PAS_BLOQUE = (moi: string, lui: string) =>
+  `NOT EXISTS (SELECT 1 FROM blocage b
+                WHERE (b.bloqueur_id = ${moi} AND b.bloque_id = ${lui})
+                   OR (b.bloqueur_id = ${lui} AND b.bloque_id = ${moi}))`;
 
 export async function suivre(base: Base, suiveur: string, suivi: string): Promise<void> {
   /* `ON CONFLICT DO NOTHING` : suivre deux fois est le même geste, et
@@ -544,8 +560,178 @@ export async function filDe(
         AND p.partage = 'publique'
         AND NOT f.cachee AND NOT f.supprimee
         AND ($2::bigint IS NULL OR f.seq < $2::bigint)
+        AND ${PAS_BLOQUE("$1", "p.id")}
       ORDER BY f.seq DESC
       LIMIT $3`,
     [personneId, avant === null ? null : String(avant), plafond]
   );
+}
+
+/* ------------------------------------------------------------
+   CE QU'ON DIT D'UNE ŒUVRE
+   ------------------------------------------------------------ */
+
+export interface Avis {
+  pseudo: string;
+  /** L'identifiant de la fiche chez son auteur : c'est ce qu'on signale. */
+  fiche: string;
+  note: number | null;
+  critique: string | null;
+  le: Date;
+}
+
+export interface Echo {
+  /** Combien de collections publiques rangent cette œuvre. */
+  collections: number;
+  /** La moyenne des notes posées, ou `null` si personne n'a noté. */
+  moyenne: number | null;
+  notes: number;
+  avis: Avis[];
+}
+
+/* UNE NOTE EST DU TEXTE TANT QU'ON NE L'A PAS REGARDÉE. Le `jsonb` vient
+   de six cents clients différents, dont d'anciennes versions : `rating` y
+   est un nombre, une chaîne, une chaîne vide, ou absent. Un `::numeric`
+   direct fait tomber la requête ENTIÈRE sur une seule fiche mal formée —
+   une moyenne qui disparaît parce qu'un inconnu a une vieille fiche.
+   On filtre donc la forme avant de convertir. */
+const NOTE = `CASE WHEN f.donnees->>'rating' ~ '^[0-9]+(\\.[0-9]+)?$'
+                   THEN (f.donnees->>'rating')::numeric END`;
+
+/**
+ * Ce que les collections publiques disent d'une œuvre.
+ *
+ * LA CLÉ EST `tmdb_id`, ET C'EST LA SEULE POSSIBLE. Deux personnes qui
+ * rangent le même film ont deux fiches, deux identifiants, souvent deux
+ * titres — l'identité de l'œuvre ne peut venir que de la référence
+ * commune. Une fiche saisie à la main, sans `tmdb_id`, ne rejoint donc
+ * aucun écho : elle n'existe que chez elle, et c'est cohérent.
+ *
+ * `quiDemande` sert à deux choses et pas une : écarter les gens bloqués,
+ * et s'écarter soi-même — lire son propre avis dans « ce que les autres
+ * en pensent » donnerait une moyenne à laquelle on aurait voté deux fois.
+ */
+export async function echoDeLOeuvre(
+  base: Base,
+  tmdbId: string,
+  quiDemande: string | null,
+  plafond = 30
+): Promise<Echo> {
+  const filtre = quiDemande
+    ? `AND p.id <> $2 AND ${PAS_BLOQUE("$2", "p.id")}`
+    : `AND ($2::uuid IS NULL)`;
+  const args = [tmdbId, quiDemande];
+
+  const compte = await une<{ collections: string; notes: string; moyenne: string | null }>(
+    base,
+    `SELECT count(*)::text AS collections,
+            count(${NOTE})::text AS notes,
+            avg(${NOTE})::text AS moyenne
+       FROM fiche f JOIN personne p ON p.id = f.personne_id
+      WHERE f.tmdb_id = $1 AND p.partage = 'publique'
+        AND NOT f.cachee AND NOT f.supprimee ${filtre}`,
+    args
+  );
+
+  /* Seules les fiches qui DISENT quelque chose remontent : une œuvre
+     rangée sans un mot ni une note compte dans le total et n'a rien à
+     lire. Afficher des lignes vides ferait passer le silence pour un
+     avis. */
+  const avis = await base.requete<Avis>(
+    `SELECT p.pseudo, f.id AS fiche, ${NOTE} AS note,
+            NULLIF(f.donnees->>'review', '') AS critique, f.maj_le AS le
+       FROM fiche f JOIN personne p ON p.id = f.personne_id
+      WHERE f.tmdb_id = $1 AND p.partage = 'publique'
+        AND NOT f.cachee AND NOT f.supprimee ${filtre}
+        AND (NULLIF(f.donnees->>'review', '') IS NOT NULL OR ${NOTE} IS NOT NULL)
+      ORDER BY f.maj_le DESC
+      LIMIT $3`,
+    [...args, plafond]
+  );
+
+  return {
+    collections: Number(compte?.collections ?? 0),
+    notes: Number(compte?.notes ?? 0),
+    moyenne: compte?.moyenne == null ? null : Math.round(Number(compte.moyenne) * 100) / 100,
+    avis: avis.map((a) => ({ ...a, note: a.note == null ? null : Number(a.note) })),
+  };
+}
+
+/* ------------------------------------------------------------
+   SE PROTÉGER : bloquer, signaler
+   ------------------------------------------------------------ */
+
+/** Y a-t-il un blocage entre ces deux-là, dans un sens ou dans l'autre ? */
+export async function bloques(base: Base, un: string, autre: string): Promise<boolean> {
+  const r = await base.requete(
+    `SELECT 1 FROM blocage
+      WHERE (bloqueur_id = $1 AND bloque_id = $2) OR (bloqueur_id = $2 AND bloque_id = $1)`,
+    [un, autre]
+  );
+  return r.length > 0;
+}
+
+/**
+ * Bloquer quelqu'un.
+ *
+ * ET DÉFAIRE LES ABONNEMENTS DES DEUX CÔTÉS, dans la foulée. Bloquer en
+ * restant abonné laisserait un lien mort dans sa propre liste, et
+ * surtout laisserait l'autre inscrit dans un fil qu'il ne verra plus
+ * jamais bouger — un état que rien ne rattrape si l'on débloque un jour.
+ */
+export async function bloquer(base: Base, bloqueur: string, bloque: string): Promise<void> {
+  await base.requete(
+    "INSERT INTO blocage (bloqueur_id, bloque_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+    [bloqueur, bloque]
+  );
+  await base.requete(
+    `DELETE FROM abonnement
+      WHERE (suiveur_id = $1 AND suivi_id = $2) OR (suiveur_id = $2 AND suivi_id = $1)`,
+    [bloqueur, bloque]
+  );
+}
+
+export async function debloquer(base: Base, bloqueur: string, bloque: string): Promise<void> {
+  await base.requete("DELETE FROM blocage WHERE bloqueur_id = $1 AND bloque_id = $2", [
+    bloqueur,
+    bloque,
+  ]);
+}
+
+/** Qui J'AI bloqué — jamais qui m'a bloqué : cela ne se demande pas. */
+export async function mesBlocages(base: Base, personneId: string): Promise<string[]> {
+  const r = await base.requete<{ pseudo: string }>(
+    `SELECT p.pseudo FROM blocage b JOIN personne p ON p.id = b.bloque_id
+      WHERE b.bloqueur_id = $1 ORDER BY p.pseudo`,
+    [personneId]
+  );
+  return r.map((l) => l.pseudo);
+}
+
+/**
+ * Signaler quelque chose.
+ *
+ * Rend `false` si c'était déjà signalé par la même personne : le geste
+ * est le même, et une file de modération qu'un humain devra lire ne
+ * doit pas enfler à chaque clic répété.
+ */
+export async function signaler(
+  base: Base,
+  auteurId: string,
+  quoi: { cibleType: string; cibleId: string; viseId: string | null; motif: string }
+): Promise<boolean> {
+  const r = await base.requete(
+    `INSERT INTO signalement (id, auteur_id, cible_type, cible_id, vise_id, motif)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     /* LA CLAUSE WHERE FAIT PARTIE DE LA DÉSIGNATION DE L'INDEX.
+        L'index d'unicité est partiel — il ne couvre que les
+        signalements dont l'auteur existe encore. Sans reprendre ici son
+        prédicat, Postgres ne le reconnaît pas et refuse la requête
+        entière (42P10) : ce n'est pas une optimisation, c'est la seule
+        façon de nommer un index partiel. */
+     ON CONFLICT (auteur_id, cible_type, cible_id) WHERE auteur_id IS NOT NULL DO NOTHING
+     RETURNING id`,
+    [randomUUID(), auteurId, quoi.cibleType, quoi.cibleId, quoi.viseId, quoi.motif]
+  );
+  return r.length > 0;
 }

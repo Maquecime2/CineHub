@@ -19,6 +19,7 @@
    social, ce qu'il n'est pas.
    ============================================================ */
 import { useCallback, useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import { Search, UserPlus, UserMinus, Users } from "lucide-react";
 import { C, F, alpha } from "../theme/tokens";
 import { tap, underlineInput } from "../theme/styles";
@@ -273,7 +274,7 @@ export function FilView({ connecte }: { connecte: boolean }) {
   );
 }
 
-const Page = ({ children }: { children: React.ReactNode }) => (
+const Page = ({ children }: { children: ReactNode }) => (
   <div style={{ padding: "34px 24px 70px", maxWidth: 1100 }}>
     <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 4 }}>
       <Users size={22} color={C.cobalt} />
@@ -297,7 +298,7 @@ const Page = ({ children }: { children: React.ReactNode }) => (
   </div>
 );
 
-const Consigne = ({ children }: { children: React.ReactNode }) => (
+const Consigne = ({ children }: { children: ReactNode }) => (
   <div style={{ fontFamily: F.hand, fontSize: 18, color: C.inkFaded, marginTop: 8 }}>
     {children}
   </div>

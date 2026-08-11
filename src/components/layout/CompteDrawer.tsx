@@ -257,7 +257,7 @@ export function CompteDrawer({
           </>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <Partage />
+            <Partager />
 
             <button
               onClick={async () => {
@@ -406,7 +406,7 @@ const bouton = (encre: string, éteint: boolean) => ({
    répondre ou non à un inconnu, et une préférence rangée dans le
    navigateur n'aurait aucune prise sur cette décision-là.
    ============================================================ */
-function Partage() {
+function Partager() {
   const [état, setÉtat] = useState<Partage | null>(null);
   const [jeton, setJeton] = useState<string | null>(null);
   const [occupé, setOccupé] = useState(false);
