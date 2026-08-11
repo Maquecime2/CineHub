@@ -22,9 +22,14 @@ import { hueOf } from "../../theme/ink";
 import { Carton, Consigne, SansCle, TitreSection } from "../../components/ui";
 import { PosterArt } from "../../components/film/PosterArt";
 import { initialsOf, makeFilm } from "../../domain/film";
-import { sillageMaison } from "../../domain/sillage";
+import { sillageMaison, familleDe, parQuotas } from "../../domain/sillage";
 import type { Voisin } from "../../domain/sillage";
-import { fusionnerLoin, déjàDansLeClasseur } from "../../domain/sillageLoin";
+import {
+  fusionnerLoin,
+  renfortDuDehors,
+  déjàDansLeClasseur,
+  parIdTmdb,
+} from "../../domain/sillageLoin";
 import type { VoisinLoin } from "../../domain/sillageLoin";
 import { récolterLeSillage } from "../../services/sillage";
 import { useTmdbKey } from "../../services/tmdbKey";
@@ -282,6 +287,39 @@ function Dépli({
   );
 }
 
+/* ------------------------------------------------------------
+   POURQUOI LA COLONNE NE PARLE QUE D'ÉQUIPES
+   ------------------------------------------------------------
+
+   Le sillage rapproche par les gens ET par les sujets. Mais les sujets
+   n'existent que si les fiches en portent : les motifs et les thèmes se
+   posent à la main, et les mots-clés de TMDB ne sont récoltés que depuis
+   peu. Sur une collection importée avant cela, la moitié « sujets » est
+   vide — et la liste ne parle que d'équipes.
+
+   AVEC UNE CLÉ, LE PROBLÈME NE SE POSE PLUS : le renfort venu de TMDB
+   comble le manque tout seul (voir `renfortDuDehors`). Ce mot ne
+   s'affiche donc que HORS LIGNE, où il reste vrai — et où le seul remède
+   est bien de poser des motifs à la main. */
+function ManqueLesSujets() {
+  return (
+    <div
+      style={{
+        fontFamily: F.hand,
+        fontSize: 13.5,
+        color: C.inkFaded,
+        borderLeft: `2px solid ${alpha(C.ochre, 0.5)}`,
+        paddingLeft: 8,
+        margin: "2px 0 6px",
+        lineHeight: 1.35,
+      }}
+    >
+      Sans clé TMDB, les rapprochements par sujet demandent des motifs ou des mots-clés posés à la
+      main — cette fiche n&apos;en a aucun.
+    </div>
+  );
+}
+
 /* Ce qu'on dit d'une colonne vide. Jamais rien : une colonne muette se
    lit « c'est cassé », et l'on ne saura pas que c'est simplement le
    classeur qui est encore petit. */
@@ -319,7 +357,40 @@ export function SillagePanel({
   /* La moitié maison : pure, synchrone, et recalculée seulement quand la
      collection ou le pivot bougent — pas à chaque frappe dans un champ
      de la fiche, ce qui rejouerait le tri sur cinq cents fiches. */
-  const chezVous: Voisin[] = useMemo(() => sillageMaison(film, films, QUOTAS), [film, films]);
+  /* Ce que la collection dit d'elle-même, sans réseau. Large : ce n'est
+     pas la liste finale, seulement l'une de ses deux sources. */
+  const maison: Voisin[] = useMemo(
+    () => sillageMaison(film, films, { gens: 40, sujets: 40 }),
+    [film, films]
+  );
+
+  /* Le renfort venu de TMDB — vos propres fiches, reconnues dans ce que
+     la récolte rapporte. Il arrive après le réseau, d'où l'état. */
+  const [renfort, setRenfort] = useState<Voisin[]>([]);
+
+  /* Ce film n'a RIEN sur quoi un rapprochement de sujet pourrait porter.
+     On regarde le pivot et non la collection : c'est lui qu'on regarde,
+     et c'est son manque à lui qui explique ce qu'on lit. */
+  const sansSujets =
+    !(film.motifs || []).length && !(film.themes || []).length && !(film.keywords || []).length;
+
+  /* LES DEUX SOURCES FONDUES, PUIS LES QUOTAS.
+
+     Une même fiche peut venir des deux côtés : par ses propres motifs,
+     et parce que TMDB l'a remontée. On garde alors celle qui EXPLIQUE le
+     mieux — le meilleur score — et jamais les deux, sinon la même
+     affiche paraîtrait deux fois dans la colonne. */
+  const chezVous: Voisin[] = useMemo(() => {
+    const parFilm = new Map<string, Voisin>();
+    for (const v of [...maison, ...renfort]) {
+      const déjà = parFilm.get(v.film.id);
+      if (!déjà || v.score > déjà.score) parFilm.set(v.film.id, v);
+    }
+    const tous = [...parFilm.values()].sort(
+      (a, b) => b.score - a.score || a.film.title.localeCompare(b.film.title, "fr")
+    );
+    return parQuotas(tous, (v) => familleDe(v.liens), QUOTAS);
+  }, [maison, renfort]);
 
   const [dehors, setDehors] = useState<VoisinLoin[] | null>(null);
   const [cherche, setCherche] = useState(false);
@@ -349,6 +420,7 @@ export function SillagePanel({
      n'est pas un tableau de bord qui se réécrit tout seul. */
   useEffect(() => {
     setDehors(null);
+    setRenfort([]);
     setOuvert(null);
     setMisDeCôté(new Set());
     if (!apiKey) return;
@@ -357,6 +429,11 @@ export function SillagePanel({
     récolterLeSillage(film, apiKey)
       .then((récoltes) => {
         if (!vivant) return;
+        /* La MÊME récolte sert les deux colonnes : ce qu'elle rapporte
+           et que vous possédez déjà nourrit la gauche, le reste la
+           droite. C'est ce qui donne des rapprochements par sujet sans
+           avoir à demander les mots-clés de cinq cents fiches. */
+        setRenfort(renfortDuDehors(récoltes, parIdTmdb(films), film.id));
         setDehors(fusionnerLoin(récoltes, { déjàLà: déjàDansLeClasseur(films), quotas: QUOTAS }));
       })
       /* Un échec réseau rend une liste VIDE et non `null` : la colonne
@@ -410,7 +487,7 @@ export function SillagePanel({
     <Carton tour="detail-sillage" style={{ marginTop: 18 }}>
       <TitreSection icon={<Waves size={15} color={C.cobalt} />}>Dans le sillage</TitreSection>
       <Consigne>
-        ce qui tient de « {film.title} » — par l&apos;équipe, les motifs, les gens à l&apos;affiche
+        ce qui tient de « {film.title} » — par l&apos;équipe, les sujets, les gens à l&apos;affiche
       </Consigne>
 
       <div
@@ -434,6 +511,7 @@ export function SillagePanel({
           >
             CHEZ VOUS
           </div>
+          {!apiKey && sansSujets && <ManqueLesSujets />}
           <div style={{ minHeight: HAUTEUR_MINIMALE }}>
             {chezVous.length ? (
               chezVous.map((v) => (
