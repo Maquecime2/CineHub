@@ -31,6 +31,7 @@ vi.mock("../../services/serveur", () => ({
   mesDonnees: vi.fn(),
   seConnecter: vi.fn(),
   reglerLePartage: vi.fn(async () => ({ partage: "privee", jeton: null })),
+  monPartage: vi.fn(async () => ({ partage: "privee", jeton: null })),
   seDeconnecter: vi.fn(),
   sInscrire: vi.fn(),
 }));

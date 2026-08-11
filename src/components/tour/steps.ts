@@ -222,6 +222,14 @@ const detail: Tour = {
       optional: true,
     },
     {
+      target: at("detail-partage"),
+      onglet: "film",
+      title: "La retirer du partage",
+      body: "Un film qu'on assume chez soi sans vouloir l'afficher : cette fiche-là quitte votre collection partagée, et elle seule. Elle reste au mur, dans l'almanach et dans la constellation — c'est le dehors qui l'ignore. Ne paraît qu'avec un compte, et seulement si vous montrez votre collection à quelqu'un.",
+      placement: "right",
+      optional: true,
+    },
+    {
       target: at("detail-review"),
       onglet: "mots",
       title: "Vos mots",
@@ -513,7 +521,7 @@ const global: Tour = {
     {
       target: at("compte"),
       title: "Montrer sa vidéothèque",
-      body: "Dans ce même tiroir : personne, par lien secret, ou tout le monde. Le lien ne se devine pas et se coupe quand vous voulez. Un visiteur voit vos films, vos notes chiffrées et vos critiques — jamais votre carnet ni votre journal de séances, et vous pouvez écarter une fiche à part.",
+      body: "Dans ce même tiroir : personne, par lien secret, ou tout le monde. Le lien ne se devine pas et se coupe quand vous voulez. Un visiteur voit vos films, vos notes chiffrées et vos critiques — jamais votre carnet ni votre journal de séances. Et une fiche s'écarte à part, depuis son dossier, sous la fiche catalogue.",
       placement: "right",
       view: "library",
       optional: true,

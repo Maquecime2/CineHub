@@ -314,11 +314,17 @@ export interface FilmPartage {
   [k: string]: unknown;
 }
 
+/** Ce que la collection montre en ce moment, et à qui. */
+export const monPartage = () => appeler<{ partage: Partage; jeton: string | null }>("/partage");
+
 export const reglerLePartage = (partage: Partage) =>
   appeler<{ partage: Partage; jeton: string | null }>("/partage", {
     method: "PUT",
     body: JSON.stringify({ partage }),
   });
+
+/** Les fiches écartées du partage — des identifiants, rien de plus. */
+export const fichesCachees = () => appeler<{ ids: string[] }>("/fiches-cachees");
 
 export const cacherLaFiche = (id: string, cachee: boolean) =>
   appeler<{ id: string; cachee: boolean }>(`/fiche/${encodeURIComponent(id)}/cachee`, {

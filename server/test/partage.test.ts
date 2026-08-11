@@ -119,6 +119,90 @@ describe("ce qu'un visiteur voit", () => {
     expect(r.json().films.map((f: { title: string }) => f.title)).toEqual(["Playtime"]);
   });
 
+  /* ============================================================
+     UNE FICHE ÉCARTÉE LE RESTE, MÊME QUAND ON LA RETOUCHE
+     ============================================================
+
+     Le défaut que ce test attrape ne se voyait pas : `rangerFiche`
+     réécrivait `cachee` depuis la poussée, or le client ne modélise pas
+     ce champ et ne l'envoie jamais. Il valait donc toujours faux, et
+     TOUTE modification de la fiche la rendait publique de nouveau — une
+     note ajoutée, une étoile, une séance.
+
+     Rien ne l'aurait signalé : la fiche ne change pas d'apparence chez
+     soi, seulement chez les autres. C'est exactement l'espèce de défaut
+     qui se découvre par quelqu'un d'autre. */
+  it("reste écartée après une modification de la fiche", async () => {
+    const { cookie } = await connecte("varda");
+    await pousser(cookie, [
+      { id: "montrable", majLe: 1, donnees: { title: "Playtime" } },
+      { id: "honteuse", majLe: 1, donnees: { title: "un plaisir coupable" } },
+    ]);
+    await regler(cookie, "publique");
+    await app.inject({
+      method: "PUT",
+      url: "/fiche/honteuse/cachee",
+      headers: { cookie },
+      payload: { cachee: true },
+    });
+
+    /* On la retouche, comme le ferait une note écrite ce soir : `majLe`
+       est plus récent, donc la poussée est acceptée et écrase. */
+    await pousser(cookie, [
+      { id: "honteuse", majLe: 2, donnees: { title: "un plaisir coupable", review: "revu" } },
+    ]);
+
+    const r = await app.inject({ method: "GET", url: "/chez/varda" });
+    expect(r.json().films.map((f: { title: string }) => f.title)).toEqual(["Playtime"]);
+  });
+
+  it("dit lesquelles sont écartées, pour que le classeur puisse le montrer", async () => {
+    const { cookie } = await connecte("varda");
+    await pousser(cookie, [
+      { id: "f1", majLe: 1, donnees: { title: "A" } },
+      { id: "f2", majLe: 1, donnees: { title: "B" } },
+    ]);
+    await app.inject({
+      method: "PUT",
+      url: "/fiche/f2/cachee",
+      headers: { cookie },
+      payload: { cachee: true },
+    });
+
+    const r = await app.inject({ method: "GET", url: "/fiches-cachees", headers: { cookie } });
+    expect(r.json().ids).toEqual(["f2"]);
+
+    /* Et l'on peut se raviser. */
+    await app.inject({
+      method: "PUT",
+      url: "/fiche/f2/cachee",
+      headers: { cookie },
+      payload: { cachee: false },
+    });
+    expect(
+      (await app.inject({ method: "GET", url: "/fiches-cachees", headers: { cookie } })).json().ids
+    ).toEqual([]);
+  });
+
+  it("ne dit à personne ce qu'un autre a écarté", async () => {
+    const moi = await connecte("varda");
+    const lui = await connecte("melville");
+    await pousser(lui.cookie, [{ id: "s1", majLe: 1, donnees: { title: "Le Samouraï" } }]);
+    await app.inject({
+      method: "PUT",
+      url: "/fiche/s1/cachee",
+      headers: { cookie: lui.cookie },
+      payload: { cachee: true },
+    });
+
+    const r = await app.inject({
+      method: "GET",
+      url: "/fiches-cachees",
+      headers: { cookie: moi.cookie },
+    });
+    expect(r.json().ids).toEqual([]);
+  });
+
   it("une fiche effacée ne revient pas par la porte du partage", async () => {
     const { cookie } = await connecte("varda");
     await pousser(cookie, [{ id: "f1", majLe: 1, donnees: { title: "Playtime" } }]);

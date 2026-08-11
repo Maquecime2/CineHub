@@ -37,6 +37,7 @@ import {
   mesDonnees,
   seConnecter,
   reglerLePartage,
+  monPartage,
   seDeconnecter,
   sInscrire,
   mesBlocages,
@@ -599,6 +600,27 @@ function Partager() {
   const [jeton, setJeton] = useState<string | null>(null);
   const [occupé, setOccupé] = useState(false);
   const [copié, setCopié] = useState(false);
+
+  /* IL OUVRAIT SUR TROIS BOUTONS DONT AUCUN N'ÉTAIT MARQUÉ. La route
+     d'écriture existait seule : le tiroir n'apprenait votre mode de
+     partage qu'au moment où vous en changiez — c'est-à-dire trop tard
+     pour vous aider à décider, et au prix d'un changement qu'on ne
+     voulait peut-être pas faire. On lit d'abord. */
+  useEffect(() => {
+    let vivant = true;
+    monPartage()
+      .then((r) => {
+        if (!vivant) return;
+        setÉtat(r.partage);
+        setJeton(r.jeton);
+      })
+      /* Hors ligne : on reste muet plutôt que de marquer un état
+         inventé. Cliquer un mode le réglera et le dira. */
+      .catch(() => {});
+    return () => {
+      vivant = false;
+    };
+  }, []);
 
   const adresse =
     état === "publique"

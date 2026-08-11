@@ -34,6 +34,7 @@ import { FilmIdentity } from "../components/film/FilmIdentity";
 import { TmdbFacts } from "../components/film/TmdbFacts";
 import { Ailleurs } from "../components/film/Ailleurs";
 import { RangerDansUneListe } from "../components/film/RangerDansUneListe";
+import { EcarterDuPartage } from "../components/film/EcarterDuPartage";
 import { TmdbLink } from "../components/film/TmdbLink";
 import { WatchLog } from "../components/film/WatchLog";
 import { ThreadBoard } from "../components/film/ThreadBoard";
@@ -576,6 +577,10 @@ export function DetailView({
                 réclame pas un compte. */}
               <Ailleurs film={film} connecte={connecte} />
               <RangerDansUneListe film={film} connecte={connecte} />
+              {/* Le troisième bloc qui ne parle que du dehors, à côté
+                  des deux autres : ce que les autres voient de cette
+                  fiche, et le droit de la leur retirer. */}
+              <EcarterDuPartage film={film} connecte={connecte} />
             </Carton>
           </div>
 
