@@ -54,6 +54,15 @@ export interface Reglages {
    */
   cleTmdb?: string;
   /**
+   * Requêtes TMDB par minute et par adresse, pour le relais seul.
+   *
+   * Le plafond général du serveur — cent par minute — vise les routes
+   * qui écrivent. Le relais, lui, sert un travail long et légitime :
+   * remplir trois cents fiches en demande trois cents. Voir
+   * `PLAFOND_TMDB_DEFAUT` dans `relais.ts`.
+   */
+  plafondTmdb?: number;
+  /**
    * Ouvre `POST /dev/session`, qui crée un compte et une session sans
    * clé d'accès. Jamais vrai en production — voir `index.ts`.
    */
@@ -115,6 +124,17 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
        plus — `inject` appelle la route directement, sans préflet, donc
        sans jamais poser la question qui échouait. */
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    /* UN EN-TÊTE QU'ON N'EXPOSE PAS EST UN EN-TÊTE QU'ON N'ENVOIE PAS.
+
+       Sur une requête d'une origine à l'autre, le navigateur ne laisse
+       lire au JavaScript qu'une poignée d'en-têtes ; tous les autres
+       sont là, dans la réponse, et `headers.get()` rend `null`. Le
+       serveur répondait donc « réessaie dans 47 secondes » à un client
+       qui ne pouvait pas l'entendre, et qui retentait au bout d'une —
+       trois fois, dans la même fenêtre, pour se faire refuser trois
+       fois. Le rythme d'attente était écrit des deux côtés et ne
+       traversait pas. */
+    exposedHeaders: ["retry-after"],
   });
   /* CENT REQUÊTES PAR MINUTE ET PAR ADRESSE. Ce n'est pas contre une
      attaque sérieuse — il faudrait un pare-feu devant — mais contre la
@@ -1038,7 +1058,11 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
   /* ------------------------------------------------------------
      LES RELAIS — la clé TMDB quitte le bundle
      ------------------------------------------------------------ */
-  poserLesRelais(app, { cleTmdb: reglages.cleTmdb, exigerUnCompte });
+  poserLesRelais(app, {
+    cleTmdb: reglages.cleTmdb,
+    exigerUnCompte,
+    plafondTmdb: reglages.plafondTmdb,
+  });
 
   /* ------------------------------------------------------------
      LE BALAYAGE

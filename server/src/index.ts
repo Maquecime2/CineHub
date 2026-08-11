@@ -66,6 +66,11 @@ const app = await construireApp({
   /* Elle n'est pas obligatoire : sans elle, le relais se déclare
      indisponible et chacun garde la sienne, comme aujourd'hui. */
   cleTmdb: process.env.TMDB_KEY,
+  /* Le quota TMDB est la facture de qui héberge : le plafond du relais
+     se règle donc de l'extérieur. Vide, on prend le défaut de
+     `relais.ts` — six cents par minute, de quoi remplir une collection
+     entière sans la hacher. */
+  plafondTmdb: Number(process.env.TMDB_PAR_MINUTE) || undefined,
   /* DEUX VERROUS, ET LE PREMIER NE S'OUVRE PAS DE L'EXTÉRIEUR. La porte
      de service n'existe que hors production ET sur demande explicite :
      poser `PORTE_DEV=1` sur un serveur en production ne suffit pas. */
