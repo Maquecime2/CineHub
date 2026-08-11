@@ -267,7 +267,25 @@ export async function rangerFiche(
      VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7)
      ON CONFLICT (personne_id, id) DO UPDATE
         SET tmdb_id = EXCLUDED.tmdb_id,
-            cachee = EXCLUDED.cachee,
+            /* LA COLONNE cachee N'EST PAS RÉÉCRITE PAR UNE POUSSÉE, et
+               c'est la seule ligne de cette clause qui manquait.
+
+               « Écarter une fiche du partage » est une décision de
+               PARTAGE, prise sur ce serveur et vivant sur lui seul : le
+               client ne la modélise pas, ne la stocke pas, et ne
+               l'envoie donc jamais. EXCLUDED.cachee valait par
+               conséquent toujours faux — et chaque poussée de la fiche
+               la rendait publique de nouveau, en silence.
+
+               Il suffisait d'écrire une note sur une fiche écartée pour
+               la remettre sous les yeux de tout le monde. Personne
+               n'aurait vu passer ça : la fiche ne change pas
+               d'apparence chez soi, seulement chez les autres.
+
+               C'est cacherFiche qui écrit cette colonne, et elle seule.
+               La protection est dans le SCHÉMA plutôt que dans la
+               route, comme le veut la maison : une règle écrite dans
+               une route se contourne par la route suivante. */
             donnees = EXCLUDED.donnees,
             maj_le = EXCLUDED.maj_le,
             supprimee = EXCLUDED.supprimee,
@@ -429,6 +447,15 @@ export async function cacherFiche(
     [personneId, ficheId, cachee]
   );
   return r.length > 0;
+}
+
+/** Les fiches écartées du partage. Des identifiants, rien de plus. */
+export async function fichesCachees(base: Base, personneId: string): Promise<string[]> {
+  const r = await base.requete<{ id: string }>(
+    "SELECT id FROM fiche WHERE personne_id = $1 AND cachee AND NOT supprimee",
+    [personneId]
+  );
+  return r.map((l) => l.id);
 }
 
 /* ------------------------------------------------------------

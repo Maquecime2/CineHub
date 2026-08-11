@@ -60,14 +60,6 @@ export const cacheKeyOf = (title, year) => `${(title || "").toLowerCase().trim()
    réalisateur et l'affiche de l'autre. */
 export const cacheKeyOfId = (tmdbId) => `id:${tmdbId}`;
 
-export const clearTmdbCache = () => {
-  try {
-    localStorage.removeItem(CACHE_KEY);
-  } catch (e) {
-    console.error(e);
-  }
-};
-
 /* UNE CORRECTION MANUELLE S'INSCRIT DANS LE CACHE, sinon elle ne tient
    qu'un temps : le cache associe encore `titre|année` au mauvais
    identifiant, et le prochain import du même titre le ressert comme si
@@ -454,14 +446,6 @@ async function cachedList(cacheKey, fetcher) {
   writeDisc(cache);
   return v;
 }
-
-export const clearDiscoverCache = () => {
-  try {
-    localStorage.removeItem(DISC_KEY);
-  } catch (e) {
-    console.error(e);
-  }
-};
 
 /* La forme minimale qui suffit à scorer ET à afficher une carte. `/discover`
    et `/recommendations` renvoient déjà tout cela : aucun appel de détail

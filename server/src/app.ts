@@ -480,6 +480,21 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
      pas de compte. Elle est donc écrite en se demandant, à chaque
      ligne, ce qu'un inconnu pourrait en tirer. */
 
+  /* LIRE SON PROPRE RÉGLAGE DE PARTAGE — ce qui manquait pour le
+     dessiner. La route d'écriture existait seule, de sorte que le tiroir
+     du compte ouvrait sur trois boutons dont AUCUN n'était marqué : il
+     n'apprenait votre mode qu'au moment où vous en changiez, c'est-à-dire
+     trop tard pour vous aider à décider. La fiche, elle, ne pouvait pas
+     dire « les autres la voient » sans savoir si quelqu'un voit quoi que
+     ce soit.
+
+     La personne de session porte déjà les deux valeurs : il n'y a rien à
+     aller chercher, seulement à répondre. */
+  app.get("/partage", async (req) => {
+    const personne = await exigerUnCompte(req);
+    return { partage: personne.partage ?? "privee", jeton: personne.jeton ?? null };
+  });
+
   app.put("/partage", async (req, reply) => {
     const personne = await exigerUnCompte(req);
     const { partage } = (req.body ?? {}) as { partage?: string };
@@ -494,6 +509,22 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
     const jeton = partage === "lien" ? randomBytes(16).toString("base64url") : null;
     await depot.reglerLePartage(base, personne.id, partage!, jeton);
     return { partage, jeton };
+  });
+
+  /* CE QUI EST ÉCARTÉ DU PARTAGE, ET RIEN D'AUTRE.
+
+     La route d'à côté sait écarter une fiche depuis le premier jour ;
+     aucune ne savait dire lesquelles l'étaient. Le classeur ne pouvait
+     donc pas dessiner l'état d'un bouton qu'il n'avait aucun moyen de
+     lire — c'est pour cela que le bouton n'existait pas, alors que la
+     visite le promettait.
+
+     On rend des IDENTIFIANTS et rien de plus : c'est tout ce qu'il faut
+     pour cocher une case, et une liste de titres ferait voyager la
+     collection pour rien. */
+  app.get("/fiches-cachees", async (req) => {
+    const personne = await exigerUnCompte(req);
+    return { ids: await depot.fichesCachees(base, personne.id) };
   });
 
   app.put("/fiche/:id/cachee", async (req, reply) => {
