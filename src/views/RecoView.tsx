@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { C, F } from "../theme/tokens";
 import { underlineInput } from "../theme/styles";
-import { Label, TitreSection, Consigne } from "../components/ui";
+import { Label, TitreSection, Consigne, SansCle } from "../components/ui";
 import { StampCorner, InkUnderline, CoffeeRing } from "../components/atmosphere";
-import { store } from "../services/storage";
+import { useTmdbKey } from "../services/tmdbKey";
 import { buildTaste } from "../taste";
 import { gatherCandidates, rank, DEFAULT_QUERY } from "../reco";
 import { directorOf, pooled } from "../tmdb";
@@ -399,7 +399,7 @@ export function RecoView({
   const [added, setAdded] = useState<Set<number>>(() => new Set());
   const set = <K extends keyof Query>(k: K, v: Query[K]) => setQuery((q) => ({ ...q, [k]: v }));
 
-  const apiKey = store.get("tmdb-key", "");
+  const apiKey = useTmdbKey();
   const taste = useMemo(() => buildTaste(films), [films]);
   /* Calculé ICI et non dans le bloc : le message de clé manquante doit
      savoir s'il y a quelque chose au-dessus de lui pour en parler. */
@@ -543,11 +543,10 @@ export function RecoView({
             }}
           >
             {maison.length > 0
-              ? "Les propositions ci-dessus viennent de votre collection et n'ont besoin de rien. Pour en chercher au-dehors, il faut une clé : "
-              : "Chercher des films au-dehors demande une clé : "}
-            rendez-vous dans l'onglet « Import Letterboxd » pour y coller la vôtre — elle reste dans
-            ce navigateur et sert aussi à l'enrichissement des fiches.
+              ? "Les propositions ci-dessus viennent de votre collection et n'ont besoin de rien. Pour en chercher au-dehors, il faut une clé — elle reste dans ce navigateur et sert aussi à l'enrichissement des fiches."
+              : "Chercher des films au-dehors demande une clé — elle reste dans ce navigateur et sert aussi à l'enrichissement des fiches."}
           </div>
+          <SansCle quoi="chercher au-dehors" style={{ marginTop: 10 }} />
         </div>
       ) : (
         <>

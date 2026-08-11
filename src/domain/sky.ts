@@ -504,3 +504,73 @@ export function relax(nodes: SkyNode[], links: SkyLink[], W: number, H: number):
 
   return P;
 }
+
+/* ============================================================
+   PARCOURIR LE CIEL AU CLAVIER
+   ============================================================
+
+   La carte ne se lisait qu'au pointeur : survoler, glisser, cliquer.
+   Sans souris, il n'existait AUCUN chemin vers un astre — la vue la plus
+   riche du classeur était la seule entièrement fermée.
+
+   Les flèches y répondent, mais il fallait décider ce qu'elles veulent
+   dire. Suivre les arêtes du graphe (`neighbourhood`) était tentant :
+   c'est la structure. C'est pourtant le mauvais choix — l'utilisateur
+   VOIT une carte, et sur une carte « à droite » veut dire à droite. Une
+   flèche qui saute à l'autre bout du ciel parce que les deux astres sont
+   reliés donnerait le vertige plutôt qu'un parcours.
+
+   On cherche donc géométriquement, dans un cône : ce qui est franchement
+   dans la direction demandée, et le plus proche parmi ceux-là.
+   ============================================================ */
+
+export type Direction = "haut" | "bas" | "gauche" | "droite";
+
+/* Un demi-cône de 45° : un astre doit être franchement dans la
+   direction, sinon les quatre flèches désigneraient toutes le même
+   voisin en diagonale et l'on tournerait en rond. */
+const COSINUS_MINIMUM = Math.SQRT1_2;
+
+const VECTEURS: Record<Direction, { x: number; y: number }> = {
+  droite: { x: 1, y: 0 },
+  gauche: { x: -1, y: 0 },
+  // l'axe des ordonnées descend en SVG : « haut » est un y qui diminue
+  haut: { x: 0, y: -1 },
+  bas: { x: 0, y: 1 },
+};
+
+/**
+ * L'astre le plus proche dans cette direction, ou `null` s'il n'y a rien
+ * de ce côté — auquel cas le curseur ne bouge pas, ce qui vaut mieux que
+ * de sauter n'importe où.
+ *
+ * `depuis` inconnu : on rend le premier astre, pour que la première
+ * flèche pressée fasse entrer dans la carte au lieu de ne rien faire.
+ */
+export function voisinDansLaDirection(
+  placed: PlacedNode[],
+  depuis: string | null,
+  direction: Direction
+): PlacedNode | null {
+  const origine = placed.find((p) => p.id === depuis);
+  if (!origine) return placed[0] ?? null;
+
+  const v = VECTEURS[direction];
+  let meilleur: PlacedNode | null = null;
+  let meilleureDistance = Infinity;
+
+  for (const p of placed) {
+    if (p.id === origine.id) continue;
+    const dx = p.x - origine.x;
+    const dy = p.y - origine.y;
+    const distance = Math.hypot(dx, dy);
+    if (distance === 0) continue;
+    // le cosinus de l'angle entre le déplacement et la direction voulue
+    if ((dx * v.x + dy * v.y) / distance < COSINUS_MINIMUM) continue;
+    if (distance < meilleureDistance) {
+      meilleureDistance = distance;
+      meilleur = p;
+    }
+  }
+  return meilleur;
+}

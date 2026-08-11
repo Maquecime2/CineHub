@@ -24,7 +24,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { RefreshCw } from "lucide-react";
 import { C, F } from "../../theme/tokens";
-import { store } from "../../services/storage";
+import { getTmdbKey } from "../../services/tmdbKey";
 import { getDetails, searchMovie } from "../../tmdb";
 import { nomLangue, nomPays } from "../../noms";
 import type { Film } from "../../types";
@@ -142,9 +142,9 @@ export function TmdbFacts({
   const [busy, setBusy] = useState(false);
 
   const rafraîchir = async () => {
-    const apiKey = store.get("tmdb-key", "");
+    const apiKey = getTmdbKey();
     if (!apiKey) {
-      setMsg("Aucune clé TMDB — renseignez-la dans l'onglet Import.");
+      setMsg("Aucune clé TMDB — à régler au pied du rail d'onglets.");
       return;
     }
     setBusy(true);
@@ -175,6 +175,10 @@ export function TmdbFacts({
         changes.crew = info.crew;
       if (info.genres?.length && !(film.genres || []).length) changes.genres = info.genres;
       if (info.director && !film.director) changes.director = info.director;
+      /* Les mots-clés s'écrivent même vides : c'est la liste elle-même,
+         fût-elle de longueur zéro, qui dit « on a demandé ». Voir
+         `types` et `domain/importing`. */
+      if (info.keywords && film.keywords == null) changes.keywords = info.keywords;
       if (!film.tmdbId) changes.tmdbId = id;
 
       const n = Object.keys(changes).length;
@@ -246,6 +250,13 @@ export function TmdbFacts({
       <Fait nom="CASTING">
         <Noms noms={cast} sépare=" · " onOpenPerson={onOpenPerson} />
       </Fait>
+      {/* LES MOTS-CLÉS, MONTRÉS ET NON CACHÉS. Ils nourrissent le
+          sillage : quand celui-ci ne rapproche que par les noms, c'est
+          ici qu'on voit pourquoi — la ligne est vide, et le bouton
+          « rafraîchir » juste au-dessus va les chercher. Un tiret dit
+          « TMDB ne nous l'a pas donné » ; une ligne absente ne dirait
+          rien du tout. */}
+      <Fait nom="MOTS-CLÉS">{film.keywords?.length ? film.keywords.join(" · ") : VIDE}</Fait>
       <Fait nom="ID TMDB">{film.tmdbId ?? VIDE}</Fait>
 
       {msg && (

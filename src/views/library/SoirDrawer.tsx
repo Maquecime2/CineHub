@@ -15,12 +15,12 @@ import { createPortal } from "react-dom";
 import { X, Dice5, ArrowRight, Loader2 } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { PosterArt } from "../../components/film/PosterArt";
-import { Label } from "../../components/ui";
+import { Label, SansCle } from "../../components/ui";
 import { initialsOf } from "../../domain/film";
 import { MOTIFS, suggestMotifs } from "../../domain/motifs";
 import { classerLaSoirée, languesDeLaListe, CRÉNEAUX, type Envie } from "../../domain/soir";
 import { nomLangue } from "../../noms";
-import { store } from "../../services/storage";
+import { useTmdbKey } from "../../services/tmdbKey";
 import { fetchKeywords, pooled } from "../../tmdb";
 import type { Film } from "../../types";
 
@@ -52,7 +52,7 @@ export function SoirDrawer({
   const [devinés, setDevinés] = useState<Map<string, string[]>>(new Map());
   const [cherche, setCherche] = useState(false);
 
-  const apiKey = store.get("tmdb-key", "");
+  const apiKey = useTmdbKey();
   const envie: Envie = { minutes, humeur, langues };
 
   const dispo = useMemo(() => languesDeLaListe(films), [films]);
@@ -211,9 +211,11 @@ export function SoirDrawer({
             /* Sans clé, les motifs d'une fiche non vue n'existent pas et
                rien ne peut les deviner. On le dit plutôt que de laisser
                une molette qui ne répond à rien. */
-            <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginBottom: 6 }}>
-              Sans clé TMDB, l'humeur ne se lit que sur les fiches que vous avez déjà annotées. La
-              clé se pose depuis l'onglet Import.
+            <SansCle quoi="deviner l'humeur d'un film que vous n'avez pas encore annoté" />
+          )}
+          {!apiKey && (
+            <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, margin: "6px 0" }}>
+              en attendant, l&apos;humeur se lit sur vos propres motifs.
             </div>
           )}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>

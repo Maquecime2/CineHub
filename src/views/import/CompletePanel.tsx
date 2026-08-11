@@ -133,9 +133,17 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
 
       <Tally label="fiches dans la collection" value={films.length} />
       <Tally
-        label="fiches sans casting ni durée"
+        label="fiches à compléter"
         value={àFaire.length}
         ink={àFaire.length ? C.burgundy : C.pine}
+      />
+      {/* Les mots-clés comptés à part : ils sont arrivés après le reste,
+          et une collection déjà complétée les a tous à zéro. Le dire
+          évite de croire que « fiches à compléter » a mal compté. */}
+      <Tally
+        label="fiches sans mots-clés TMDB"
+        value={films.filter((f) => f.keywords == null).length}
+        ink={C.inkFaded}
       />
 
       <div
@@ -149,7 +157,7 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
       >
         {àFaire.length === 0
           ? "Tout est déjà rempli — rien à demander à TMDB."
-          : "Va chercher le casting, l’équipe, la durée, le pays et la langue des fiches qui n’en ont pas. Rien n’est écrit avant que vous ayez vu le détail."}
+          : "Va chercher le casting, l’équipe, la durée, le pays, la langue et les mots-clés des fiches qui n’en ont pas. Les mots-clés sont ce qui permet au sillage d’un film de rapprocher deux fiches autrement que par les noms de leur équipe. Rien n’est écrit avant que vous ayez vu le détail."}
       </div>
 
       {progress && (

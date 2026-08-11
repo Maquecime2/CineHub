@@ -118,6 +118,23 @@ export interface Film {
   countries: string[];
   /** La note du public TMDB sur 10 — de quoi mesurer son propre écart. */
   tmdbRating: number | null;
+  /**
+   * Les mots-clés de TMDB (« time loop », « neo-noir »), vingt au plus.
+   * Ce sont les SEULS renseignements thématiques qui arrivent tout seuls :
+   * `themes` et `motifs` se posent à la main, et sur une collection
+   * importée ils restent vides. Ils ne remplacent ni l'un ni l'autre —
+   * un motif est un mot qu'on a choisi de suivre, un mot-clé est ce que
+   * TMDB a écrit — mais ils donnent au sillage de quoi rapprocher deux
+   * films autrement que par les noms de leur équipe.
+   *
+   * ABSENT ET LISTE VIDE NE DISENT PAS LA MÊME CHOSE, et c'est ce qui
+   * permet de compléter sans boucler. `undefined` : on n'a jamais
+   * demandé. `[]` : on a demandé, TMDB n'en a pas — un court-métrage
+   * obscur, par exemple. Sans cette distinction, « compléter les
+   * fiches » réinterrogerait éternellement les mêmes films sans que rien
+   * ne change jamais, ce contre quoi `isIncomplete` met déjà en garde.
+   */
+  keywords?: string[];
   themes: string[];
   /**
    * Les motifs du catalogue (`domain/motifs`), par `id`. À côté de
@@ -222,6 +239,7 @@ export interface ImportRow {
   language?: string;
   countries?: string[];
   tmdbRating?: number | null;
+  keywords?: string[];
   poster?: string;
   tmdbId?: number | string | null;
   /**
