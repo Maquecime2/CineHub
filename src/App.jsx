@@ -1,87 +1,9 @@
-import React, { useState, useEffect, useMemo, useRef, useLayoutEffect, useCallback } from "react";
-import {
-  Pin,
-  Paperclip,
-  Plus,
-  X,
-  Trash2,
-  ArrowLeft,
-  Upload,
-  Star,
-  BookOpen,
-  Palette,
-  Clapperboard,
-  Sparkles,
-  Link2,
-  LayoutGrid,
-  Library,
-  Archive,
-  ArchiveRestore,
-  Moon,
-} from "lucide-react";
-import Papa from "papaparse";
-import { enrichRows, checkApiKey, listPosters, POSTER_BASE, POSTER_THUMB } from "./tmdb";
-import { buildTaste } from "./taste";
-import { gatherCandidates, rank, DEFAULT_QUERY } from "./reco";
-import {
-  IDB_PREFIX,
-  isIdbPoster,
-  idbKeyOf,
-  putImage,
-  getImage,
-  deleteImage,
-  posterStats,
-  pruneOrphans,
-  exportBackup,
-  importBackup,
-} from "./db";
-import {
-  SHELF_KINDS,
-  CAT_KEYS,
-  VIEW_VERSION,
-  belongs,
-  isUnplaced,
-  makeView,
-  makeCat,
-  makeDecor,
-  reconcileView,
-  moveItem,
-  sortIntoRows,
-  buildViewsFromLegacy,
-  duplicateView,
-  reflowView,
-  layoutView,
-  layoutByDirector,
-  upgradeView,
-  DEFAULT_CAP,
-  capFor,
-  patchRow,
-  addRow,
-  removeRow,
-  clearRow,
-  addCat,
-  patchCat,
-  removeCat,
-  patchDecor,
-  removeDecor,
-} from "./shelf-views";
-import { C, F, FONT_IMPORT, GRAIN } from "./theme/tokens";
+import { useState, useEffect, useMemo, useRef, useLayoutEffect, useCallback } from "react";
+import { pruneOrphans } from "./db";
+import { CAT_KEYS } from "./shelf-views";
+import { C, F, FONT_IMPORT } from "./theme/tokens";
 import { applySkin, loadSkinKey, saveSkinKey } from "./theme/applySkin";
-
-/* Le kraft d'origine, pour le tout premier rendu — avant qu'une peau
-   ait ete posee. La meme recette vit dans `theme/skins`, sous la peau
-   « carnet » : deux endroits pour une chose, mais l'un des deux doit
-   pouvoir servir sans qu'aucun module ait tourne. */
-const KRAFT_FALLBACK = `
-  radial-gradient(circle at 18% 12%, #F5EDD8 0%, transparent 45%),
-  radial-gradient(circle at 82% 68%, #F2E9D2 0%, transparent 40%),
-  radial-gradient(circle at 55% 100%, #E5D6B4 0%, transparent 50%),
-  #EEE3CC`;
-import { tapeColor, hueOf } from "./theme/ink";
-import { hash, seededRand, tiltOf, usesPin, nudgeOf, fileNoOf, tornClip } from "./domain/seeded";
-import { uid, makeFilm, migrate, editLinkedWork } from "./domain/film";
-import { slugOf, filmKey, parseRating, parseLetterboxdCsv, diffImport } from "./domain/importing";
-import { workKey, buildSky, relax } from "./domain/sky";
+import { uid, migrate, editLinkedWork } from "./domain/film";
 import { normaliser } from "./domain/search";
 import { inverseDe, forceDe } from "./domain/relations";
 import { makeFil, normalizeFils } from "./domain/fils";
@@ -95,21 +17,7 @@ import {
   enregistrerFilms,
   oublierLeCache,
 } from "./services/collection";
-import { underlineInput, ruledTextarea } from "./theme/styles";
-import { LINK_TYPES } from "./components/film/linkTypes";
-import {
-  PaperGrain,
-  CoffeeRing,
-  TapeResidue,
-  InkUnderline,
-  FileNumber,
-  Tape,
-  PushPin,
-  StampCorner,
-} from "./components/atmosphere";
-import { InkStars, Label } from "./components/ui";
-import { PosterArt } from "./components/film/PosterArt";
-import { FilmPolaroid } from "./components/film/FilmPolaroid";
+import { PaperGrain } from "./components/atmosphere";
 import { FilmModal } from "./components/film/FilmModal";
 import { FolderTabs } from "./components/layout/FolderTabs";
 import { useViewport } from "./hooks/useViewport";
@@ -125,15 +33,7 @@ import { useInstallation } from "./hooks/useInstallation";
    fabrique, avec l'adresse du service worker qu'il vient d'écrire. */
 import { useRegisterSW } from "virtual:pwa-register/react";
 import { SearchDrawer } from "./components/layout/SearchDrawer";
-import { FilmWall } from "./views/library/FilmWall";
 import { WALLS } from "./views/library/walls";
-import { ThreadBoard } from "./components/film/ThreadBoard";
-import { IdbImage } from "./components/stills/IdbImage";
-import { StillLightbox } from "./components/stills/StillLightbox";
-import { RichText } from "./components/stills/RichText";
-import { RichField } from "./components/stills/RichField";
-import { StillsStrip } from "./components/stills/StillsStrip";
-import { STILL_TOKEN } from "./components/stills/tokens";
 import { NotebookView } from "./views/NotebookView";
 import { GeneriqueView } from "./views/GeneriqueView";
 import { RecoView } from "./views/RecoView";
@@ -141,34 +41,8 @@ import { DetailView } from "./views/DetailView";
 import { ImportView } from "./views/import/ImportView";
 import { FilView } from "./views/FilView";
 import { ListesView } from "./views/ListesView";
-import {
-  viewKey,
-  saveViewIndex,
-  saveView,
-  deleteViewKey,
-  ensureViews,
-} from "./services/shelfViews";
-import {
-  SHELF_KIND,
-  BOX_W,
-  BOX_H,
-  GAP_X,
-  GAP_Y,
-  CAT_COLORS,
-  catInk,
-  THEMES,
-  themeOf,
-  DECOR_TYPES,
-  DECOR_BY_KEY,
-  DECOR_SIZES,
-  MARK_W,
-  MARK_H,
-  DROP_MARK_STYLE,
-} from "./components/shelf/constants";
+import { viewKey, saveViewIndex, deleteViewKey, ensureViews } from "./services/shelfViews";
 import { ConstellationView } from "./views/ConstellationView";
-import { TagChip, TagEditor } from "./components/ui/TagEditor";
-import { PosterPicker } from "./components/film/PosterPicker";
-import { imageSize, shrinkImage } from "./services/images";
 import { LibraryView } from "./views/library/LibraryView";
 import { AlmanacView } from "./views/AlmanacView";
 import { SkinLab } from "./views/dev/SkinLab";
@@ -184,6 +58,16 @@ import {
   PRÉFIXE_DÉMO,
 } from "./services/demo";
 import { BandeauDémo } from "./components/layout/BandeauDemo";
+
+/* Le kraft d'origine, pour le tout premier rendu — avant qu'une peau
+   ait ete posee. La meme recette vit dans `theme/skins`, sous la peau
+   « carnet » : deux endroits pour une chose, mais l'un des deux doit
+   pouvoir servir sans qu'aucun module ait tourne. */
+const KRAFT_FALLBACK = `
+  radial-gradient(circle at 18% 12%, #F5EDD8 0%, transparent 45%),
+  radial-gradient(circle at 82% 68%, #F2E9D2 0%, transparent 40%),
+  radial-gradient(circle at 55% 100%, #E5D6B4 0%, transparent 50%),
+  #EEE3CC`;
 
 export default function App() {
   const [films, setFilms] = useState([]);
