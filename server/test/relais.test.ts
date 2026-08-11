@@ -102,6 +102,90 @@ describe("le relais TMDB", () => {
     expect(r.statusCode).toBe(404);
   });
 
+  /* LE DÉLAI D'ATTENTE DOIT TRAVERSER, sans quoi le 429 « que le client
+     sait attendre » ne lui apprend rien : il retombe sur une seconde
+     inventée, se refait refuser dans la même fenêtre, et brûle ses trois
+     essais pour rien. */
+  it("repasse le délai d'attente que TMDB annonce", async () => {
+    vi.stubGlobal(
+      "fetch",
+      async () => new Response("{}", { status: 429, headers: { "retry-after": "47" } })
+    );
+    const cookie = await connecte();
+    const r = await app.inject({ method: "GET", url: "/tmdb/movie/42", headers: { cookie } });
+    expect(r.statusCode).toBe(429);
+    expect(r.headers["retry-after"]).toBe("47");
+  });
+
+  /* ============================================================
+     LE PLAFOND DU RELAIS N'EST PAS CELUI DU RESTE
+     ============================================================
+
+     Le serveur limite à cent requêtes par minute et par adresse, ce qui
+     est juste pour des routes qui écrivent. Appliqué au relais, c'était
+     faux : « compléter les fiches » demande UNE requête par film, cinq
+     à la fois — trois cents fiches font trois cents requêtes, et les
+     cent étaient franchies en quelques secondes. Tout le reste de la
+     minute repartait en 429, y compris la synchronisation, qui partage
+     le compteur. Le classeur semblait cassé au moment où il travaillait.
+
+     Le test se joue avec un plafond bas, pour ne pas injecter six cents
+     requêtes : ce qu'on éprouve n'est pas le chiffre, c'est le fait que
+     le relais ait le SIEN. */
+  it("laisse passer plus que le plafond général du serveur", async () => {
+    const large = await appDEssai(base, { cleTmdb: "K", plafondTmdb: 250 });
+    const cookie = await connecte("chantal");
+    /* Cent une : une de plus que le plafond global, qui refusait ici. */
+    let dernier = 0;
+    for (let i = 0; i < 101; i++) {
+      const r = await large.inject({
+        method: "GET",
+        url: `/tmdb/movie/${1000 + i}`,
+        headers: { cookie },
+      });
+      dernier = r.statusCode;
+    }
+    expect(dernier).toBe(200);
+    await large.close();
+  });
+
+  it("garde tout de même un plafond, sinon ce n'est plus un relais mais un robinet", async () => {
+    const etroit = await appDEssai(base, { cleTmdb: "K", plafondTmdb: 3 });
+    const cookie = await connecte("jacques");
+    const codes: number[] = [];
+    for (let i = 0; i < 5; i++) {
+      const r = await etroit.inject({
+        method: "GET",
+        url: `/tmdb/movie/${2000 + i}`,
+        headers: { cookie },
+      });
+      codes.push(r.statusCode);
+    }
+    expect(codes.slice(0, 3)).toEqual([200, 200, 200]);
+    expect(codes[3]).toBe(429);
+    await etroit.close();
+  });
+
+  /* Le plafond général reste ce qu'il est sur les autres routes : le
+     relais a gagné une exception, pas le serveur entier. */
+  it("ne desserre rien ailleurs", async () => {
+    const etroit = await appDEssai(base, { cleTmdb: "K", plafondTmdb: 3 });
+    const cookie = await connecte("agnes");
+    const codes: number[] = [];
+    for (let i = 0; i < 5; i++) {
+      const r = await etroit.inject({ method: "GET", url: "/moi", headers: { cookie } });
+      codes.push(r.statusCode);
+    }
+    /* Cinq appels ne franchissent pas les cent : aucun 429 ici, et
+       surtout aucun 429 à trois — le plafond du relais ne déborde pas
+       sur les voisins. */
+    expect(codes.filter((c) => c === 429)).toEqual([]);
+    /* Et la route répond vraiment : sans cette ligne, un `/moi` devenu
+       404 ferait passer le test sans rien prouver. */
+    expect(codes[0]).toBe(200);
+    await etroit.close();
+  });
+
   it("sans clé de ce côté-ci, il le dit au lieu de faire semblant", async () => {
     const nu = await appDEssai(base, {});
     const cookie = await connecte("melville");

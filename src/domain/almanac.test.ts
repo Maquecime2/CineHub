@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   ageOfFilms,
   almanacFor,
+  artisans,
+  sujets,
   driftHighlights,
   filmsOfYear,
   geography,
@@ -366,6 +368,83 @@ describe("loyalties", () => {
     const l = loyalties(films, 2024);
     expect(l.directors).toEqual([{ nom: "Ozu", n: 3 }]);
     expect(l.actors).toEqual([]); // Ryu 2, Hara 2 — sous le seuil
+  });
+});
+
+describe("sujets", () => {
+  it("range les mots-clés et les motifs séparément", () => {
+    const films = [
+      vu("A", ["2024-01-01"], {
+        keywords: ["time loop", "small town"],
+        motifs: ["boucle-temporelle"],
+      }),
+      vu("B", ["2024-01-02"], { keywords: ["time loop"], motifs: ["boucle-temporelle", "fuite"] }),
+    ];
+    const s = sujets(films, 2024);
+    expect(s.motsClés[0]).toEqual({ nom: "time loop", n: 2 });
+    expect(s.motifs[0]).toEqual({ nom: "boucle-temporelle", n: 2 });
+    /* Les deux vocabulaires ne se mélangent jamais : un motif n'a rien à
+       faire dans le palmarès des mots-clés, et réciproquement. */
+    expect(s.motsClés.map((x) => x.nom)).not.toContain("fuite");
+  });
+
+  it("ne compte que les séances de la période", () => {
+    const films = [
+      vu("A", ["2024-01-01"], { keywords: ["dream"] }),
+      vu("B", ["2023-01-01"], { keywords: ["dream"] }),
+    ];
+    expect(sujets(films, 2024).motsClés).toEqual([{ nom: "dream", n: 1 }]);
+  });
+
+  /* Une collection importée d'un CSV n'a ni mots-clés ni motifs : le
+     carton doit pouvoir se dessiner sur deux listes vides plutôt que de
+     lever au premier tracé. */
+  it("rend deux listes vides quand rien n'est renseigné", () => {
+    expect(sujets([vu("A", ["2024-01-01"])], 2024)).toEqual({ motsClés: [], motifs: [] });
+  });
+
+  it("rend deux listes vides sur une collection vide", () => {
+    expect(sujets([], "toujours")).toEqual({ motsClés: [], motifs: [] });
+  });
+});
+
+describe("artisans", () => {
+  it("compte l'image, la musique et le scénario, chacun de son côté", () => {
+    const films = [
+      vu("A", ["2024-01-01"], { crew: { image: ["Decaë"], musique: ["Delerue"] } }),
+      vu("B", ["2024-01-02"], { crew: { image: ["Decaë"], scénario: ["Audiard"] } }),
+    ];
+    const a = artisans(films, 2024);
+    expect(a.image).toEqual([{ nom: "Decaë", n: 2 }]);
+    expect(a.musique).toEqual([{ nom: "Delerue", n: 1 }]);
+    expect(a.scénario).toEqual([{ nom: "Audiard", n: 1 }]);
+  });
+
+  /* Sans seuil, contrairement aux fidélités : deux films d'un même chef
+     opérateur est déjà une remarque. Un seul aussi — c'est la vue qui
+     décide de ne montrer que ce qui revient. */
+  it("ne s'impose aucun seuil", () => {
+    const films = [vu("A", ["2024-01-01"], { crew: { musique: ["Vangelis"] } })];
+    expect(artisans(films, 2024).musique).toEqual([{ nom: "Vangelis", n: 1 }]);
+  });
+
+  it("compte une revoyure comme une séance de plus", () => {
+    const films = [vu("A", ["2024-01-01", "2024-06-01"], { crew: { image: ["Doyle"] } })];
+    expect(artisans(films, 2024).image).toEqual([{ nom: "Doyle", n: 2 }]);
+  });
+
+  /* Le champ est facultatif sur la fiche, et `migrate` le rend à `{}` :
+     un `crew` absent ou vide ne doit rien casser. */
+  it("survit à des fiches sans équipe", () => {
+    expect(artisans([vu("A", ["2024-01-01"])], 2024)).toEqual({
+      image: [],
+      musique: [],
+      scénario: [],
+    });
+  });
+
+  it("survit à une collection vide", () => {
+    expect(artisans([], "toujours")).toEqual({ image: [], musique: [], scénario: [] });
   });
 });
 

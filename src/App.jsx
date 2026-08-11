@@ -1,115 +1,23 @@
-import React, { useState, useEffect, useMemo, useRef, useLayoutEffect, useCallback } from "react";
-import {
-  Pin,
-  Paperclip,
-  Plus,
-  X,
-  Trash2,
-  ArrowLeft,
-  Upload,
-  Star,
-  BookOpen,
-  Palette,
-  Clapperboard,
-  Sparkles,
-  Link2,
-  LayoutGrid,
-  Library,
-  Archive,
-  ArchiveRestore,
-  Moon,
-} from "lucide-react";
-import Papa from "papaparse";
-import { enrichRows, checkApiKey, listPosters, POSTER_BASE, POSTER_THUMB } from "./tmdb";
-import { buildTaste } from "./taste";
-import { gatherCandidates, rank, DEFAULT_QUERY } from "./reco";
-import {
-  IDB_PREFIX,
-  isIdbPoster,
-  idbKeyOf,
-  putImage,
-  getImage,
-  deleteImage,
-  posterStats,
-  pruneOrphans,
-  exportBackup,
-  importBackup,
-} from "./db";
-import {
-  SHELF_KINDS,
-  CAT_KEYS,
-  VIEW_VERSION,
-  belongs,
-  isUnplaced,
-  makeView,
-  makeCat,
-  makeDecor,
-  reconcileView,
-  moveItem,
-  sortIntoRows,
-  buildViewsFromLegacy,
-  duplicateView,
-  reflowView,
-  layoutView,
-  layoutByDirector,
-  upgradeView,
-  DEFAULT_CAP,
-  capFor,
-  patchRow,
-  addRow,
-  removeRow,
-  clearRow,
-  addCat,
-  patchCat,
-  removeCat,
-  patchDecor,
-  removeDecor,
-} from "./shelf-views";
-import { C, F, FONT_IMPORT, GRAIN } from "./theme/tokens";
+import { useState, useEffect, useMemo, useRef, useLayoutEffect, useCallback } from "react";
+import { pruneOrphans } from "./db";
+import { CAT_KEYS } from "./shelf-views";
+import { C, F, FONT_IMPORT } from "./theme/tokens";
 import { applySkin, loadSkinKey, saveSkinKey } from "./theme/applySkin";
-
-/* Le kraft d'origine, pour le tout premier rendu — avant qu'une peau
-   ait ete posee. La meme recette vit dans `theme/skins`, sous la peau
-   « carnet » : deux endroits pour une chose, mais l'un des deux doit
-   pouvoir servir sans qu'aucun module ait tourne. */
-const KRAFT_FALLBACK = `
-  radial-gradient(circle at 18% 12%, #F5EDD8 0%, transparent 45%),
-  radial-gradient(circle at 82% 68%, #F2E9D2 0%, transparent 40%),
-  radial-gradient(circle at 55% 100%, #E5D6B4 0%, transparent 50%),
-  #EEE3CC`;
-import { tapeColor, hueOf } from "./theme/ink";
-import { hash, seededRand, tiltOf, usesPin, nudgeOf, fileNoOf, tornClip } from "./domain/seeded";
-import { uid, makeFilm, migrate, editLinkedWork } from "./domain/film";
-import { slugOf, filmKey, parseRating, parseLetterboxdCsv, diffImport } from "./domain/importing";
-import { workKey, buildSky, relax } from "./domain/sky";
+import { uid, migrate, editLinkedWork } from "./domain/film";
 import { normaliser } from "./domain/search";
 import { inverseDe, forceDe } from "./domain/relations";
 import { makeFil, normalizeFils } from "./domain/fils";
 import { motifById, makeMotifPerso, motifsPerso } from "./domain/motifs";
 import { loadFils, saveFils as saveFilsToDisk } from "./services/fils";
 import { loadVocabulaire, saveVocabulaire, normalizeVocabulaire } from "./services/motifs";
-import { store } from "./services/storage";
+import { store, KEYS } from "./services/storage";
 import {
   chargerFilms,
   collectionConnue,
   enregistrerFilms,
   oublierLeCache,
 } from "./services/collection";
-import { underlineInput, ruledTextarea } from "./theme/styles";
-import { LINK_TYPES } from "./components/film/linkTypes";
-import {
-  PaperGrain,
-  CoffeeRing,
-  TapeResidue,
-  InkUnderline,
-  FileNumber,
-  Tape,
-  PushPin,
-  StampCorner,
-} from "./components/atmosphere";
-import { InkStars, Label } from "./components/ui";
-import { PosterArt } from "./components/film/PosterArt";
-import { FilmPolaroid } from "./components/film/FilmPolaroid";
+import { PaperGrain } from "./components/atmosphere";
 import { FilmModal } from "./components/film/FilmModal";
 import { FolderTabs } from "./components/layout/FolderTabs";
 import { useViewport } from "./hooks/useViewport";
@@ -125,15 +33,7 @@ import { useInstallation } from "./hooks/useInstallation";
    fabrique, avec l'adresse du service worker qu'il vient d'écrire. */
 import { useRegisterSW } from "virtual:pwa-register/react";
 import { SearchDrawer } from "./components/layout/SearchDrawer";
-import { FilmWall } from "./views/library/FilmWall";
 import { WALLS } from "./views/library/walls";
-import { ThreadBoard } from "./components/film/ThreadBoard";
-import { IdbImage } from "./components/stills/IdbImage";
-import { StillLightbox } from "./components/stills/StillLightbox";
-import { RichText } from "./components/stills/RichText";
-import { RichField } from "./components/stills/RichField";
-import { StillsStrip } from "./components/stills/StillsStrip";
-import { STILL_TOKEN } from "./components/stills/tokens";
 import { NotebookView } from "./views/NotebookView";
 import { GeneriqueView } from "./views/GeneriqueView";
 import { RecoView } from "./views/RecoView";
@@ -141,45 +41,33 @@ import { DetailView } from "./views/DetailView";
 import { ImportView } from "./views/import/ImportView";
 import { FilView } from "./views/FilView";
 import { ListesView } from "./views/ListesView";
-import {
-  viewKey,
-  saveViewIndex,
-  saveView,
-  deleteViewKey,
-  ensureViews,
-} from "./services/shelfViews";
-import {
-  SHELF_KIND,
-  BOX_W,
-  BOX_H,
-  GAP_X,
-  GAP_Y,
-  CAT_COLORS,
-  catInk,
-  THEMES,
-  themeOf,
-  DECOR_TYPES,
-  DECOR_BY_KEY,
-  DECOR_SIZES,
-  MARK_W,
-  MARK_H,
-  DROP_MARK_STYLE,
-} from "./components/shelf/constants";
+import { viewKey, saveViewIndex, deleteViewKey, ensureViews } from "./services/shelfViews";
 import { ConstellationView } from "./views/ConstellationView";
-import { TagChip, TagEditor } from "./components/ui/TagEditor";
-import { PosterPicker } from "./components/film/PosterPicker";
-import { imageSize, shrinkImage } from "./services/images";
 import { LibraryView } from "./views/library/LibraryView";
 import { AlmanacView } from "./views/AlmanacView";
 import { SkinLab } from "./views/dev/SkinLab";
 import { useNotes } from "./hooks/useNotes";
 import { useShelfViews } from "./hooks/useShelfViews";
 import { TourOverlay, TourHint, TourMenu } from "./components/tour";
-import { isFirstRun, shouldHint } from "./services/onboarding";
+import { isFirstRun, shouldHint, doitSemer, markSemé } from "./services/onboarding";
+import {
+  classeurEncoreDémo,
+  filmsDeDémonstration,
+  notesDeDémonstration,
+  sansDémo,
+  PRÉFIXE_DÉMO,
+} from "./services/demo";
+import { BandeauDémo } from "./components/layout/BandeauDemo";
 
-/* Réexportés le temps de la migration : shelf-views et les tests les
-   importent encore depuis ce fichier. */
-export { makeFilm, migrate, slugOf, filmKey, parseRating, parseLetterboxdCsv, diffImport };
+/* Le kraft d'origine, pour le tout premier rendu — avant qu'une peau
+   ait ete posee. La meme recette vit dans `theme/skins`, sous la peau
+   « carnet » : deux endroits pour une chose, mais l'un des deux doit
+   pouvoir servir sans qu'aucun module ait tourne. */
+const KRAFT_FALLBACK = `
+  radial-gradient(circle at 18% 12%, #F5EDD8 0%, transparent 45%),
+  radial-gradient(circle at 82% 68%, #F2E9D2 0%, transparent 40%),
+  radial-gradient(circle at 55% 100%, #E5D6B4 0%, transparent 50%),
+  #EEE3CC`;
 
 export default function App() {
   const [films, setFilms] = useState([]);
@@ -201,6 +89,34 @@ export default function App() {
   const [loaded, setLoaded] = useState(false);
   const [view, setView] = useState("library");
   const [selectedId, setSelectedId] = useState(null);
+  /* L'INTERCALAIRE OUVERT DU DOSSIER FILM — « film », « mots » ou
+     « liens ». Ici et non dans la fiche : la visite guidée l'ouvre comme
+     elle ouvre une vue. Voir `OngletFiche` dans `views/DetailView`.
+
+     IL RETIENT AUSSI LA FICHE À LAQUELLE IL SE RAPPORTE, et c'est ce qui
+     évite un effet de remise à zéro. Ouvrir un film depuis le fil rouge
+     — c'est-à-dire depuis l'onglet « Les liens » — poserait sinon la
+     fiche suivante sur ses liens à elle, qu'on n'a pas encore lus. Un
+     onglet qui ne vaut que pour la fiche où il a été choisi se DÉDUIT ;
+     le remettre à « film » dans un effet se paierait d'un rendu de plus
+     à chaque changement de fiche. */
+  const [ongletChoisi, setOngletChoisi] = useState({ pour: null, onglet: "film" });
+  const detailOnglet = ongletChoisi.pour === selectedId ? ongletChoisi.onglet : "film";
+  /* Stable d'un rendu à l'autre : la visite s'en sert dans un effet, et
+     une fonction refaite à chaque passage le relancerait sans fin. D'où
+     la référence — elle porte la fiche courante sans entrer dans les
+     dépendances. */
+  const ficheOuverte = useRef(null);
+  /* Écrite APRÈS le rendu et non pendant : lire ou écrire une référence
+     au milieu d'un rendu est ce que le compilateur React refuse, et il a
+     raison — un rendu doit pouvoir être rejoué sans effet de bord. */
+  useEffect(() => {
+    ficheOuverte.current = selectedId;
+  }, [selectedId]);
+  const setDetailOnglet = useCallback(
+    (onglet) => setOngletChoisi({ pour: ficheOuverte.current, onglet }),
+    []
+  );
   /* La personne ouverte au Générique, par sa clé normalisée. À côté de
      `selectedId` et non à sa place : on ouvre une personne DEPUIS une
      fiche, et revenir à la fiche ne doit pas avoir oublié laquelle. */
@@ -259,8 +175,27 @@ export default function App() {
      les champs status/watchedAt/tmdbId au passage. */
   useEffect(() => {
     let vivant = true;
-    chargerFilms().then((migrated) => {
+    chargerFilms().then(async (chargés) => {
       if (!vivant) return;
+      /* LE CLASSEUR DE DÉMONSTRATION, ET SEULEMENT ICI.
+
+         C'est le seul endroit où l'on sait à la fois que la collection
+         est vide et qu'elle l'a toujours été. Le semis passe par le
+         dépôt — jamais par `store.set` — pour que les douze fiches
+         descendent dans le coffre comme les autres, et il précède
+         `ensureViews` : l'étagère se fabrique alors sur une vraie
+         collection au lieu de se refaire au rendu suivant.
+         Voir `services/demo` pour ce que ces douze films contiennent,
+         et pourquoi. */
+      let migrated = chargés;
+      if (!chargés.length && doitSemer()) {
+        migrated = await enregistrerFilms(filmsDeDémonstration());
+        /* Le carnet ne reçoit sa page que s'il est vide : quelqu'un
+           peut avoir écrit avant d'avoir un seul film. */
+        if (!store.get(KEYS.notes, []).length) store.set(KEYS.notes, notesDeDémonstration());
+        markSemé();
+        if (!vivant) return;
+      }
       setFilms(migrated);
       notebook.load();
       const tabs = store.get("shelf-dividers", []);
@@ -377,6 +312,11 @@ export default function App() {
     setSelectedId(null);
   }, []);
 
+  /* Le pendant de `visiteOuvreVue`, un cran plus bas : l'intercalaire du
+     dossier film. Stable pour la même raison — la visite s'en sert dans
+     un effet, et une fonction refaite à chaque rendu le relancerait sans
+     fin. `setDetailOnglet` l'est déjà, on le passe tel quel. */
+
   /* L'ÉCRAN D'ABORD, LE DISQUE ENSUITE. On pose l'état tout de suite —
      une frappe ne doit pas attendre une écriture — puis le dépôt rend
      les fiches DATÉES, et c'est cette version-là qu'on garde : elle
@@ -395,9 +335,44 @@ export default function App() {
      le jour où le coffre refuse. `store.setSoon` demeure, inemployé
      ici ; ce qu'il faudrait grouper aujourd'hui, c'est l'écriture dans
      le coffre, et cela ne se décide pas au détour d'une fusion. */
+  /* ET UNE ÉCRITURE EN RETARD NE DOIT PLUS RIEN ÉCRASER.
+
+     C'est le défaut qui rendait la prise de notes inutilisable, et il
+     n'avait rien d'exotique : il suffisait de taper vite.
+
+     Chaque frappe appelle `saveFilms`. Le premier `setFilms` pose le
+     texte à l'écran tout de suite ; l'écriture, elle, part dans le
+     coffre et met quelques dizaines de millisecondes à revenir. Le
+     temps qu'elle revienne, deux ou trois lettres de plus ont été
+     tapées — et son `.then` reposait alors une collection qui portait
+     le texte d'AVANT. La fiche redescendait d'une lettre, le champ se
+     réécrivait, le curseur sautait, et l'on obtenait « laoume s s »
+     pour « le samourai ne parle pas ».
+
+     Un rang par écriture, et l'on n'applique que le retour de la
+     DERNIÈRE demandée : les précédentes ont déjà été dépassées à
+     l'écran, et leurs dates seront de toute façon reposées par la
+     suivante — `horodater` les recalcule depuis l'état du dépôt, pas
+     depuis ce qu'on lui rend ici.
+
+     `useRef` et non une variable de module : deux classeurs montés côte
+     à côte dans un test partageraient le compteur. */
+  const rangÉcriture = useRef(0);
   const saveFilms = (next) => {
     setFilms(next);
-    enregistrerFilms(next).then((datés) => setFilms(datés));
+    const rang = ++rangÉcriture.current;
+    enregistrerFilms(next).then((datés) => {
+      if (rang === rangÉcriture.current) setFilms(datés);
+    });
+  };
+
+  /* RETIRER L'EXEMPLE. Le bandeau ne paraît que tant que le classeur
+     n'est QUE de l'exemple : on efface donc tout, sans avoir à trier.
+     La page de carnet part avec — elle parle des douze films. */
+  const retirerDémo = () => {
+    saveFilms(sansDémo(films));
+    notebook.replaceAll(notebook.notes.filter((n) => !n.id.startsWith(PRÉFIXE_DÉMO)));
+    setSelectedId(null);
   };
 
   const commitFils = (next) => {
@@ -864,6 +839,11 @@ export default function App() {
             film={selectedFilm}
             films={films}
             connecte={!!synchro.personne}
+            /* L'INTERCALAIRE EST TENU ICI, comme la vue l'est déjà : la
+               visite guidée doit pouvoir ouvrir « Les liens » avant
+               d'aller y chercher le fil rouge. Voir `visiteOuvreOnglet`. */
+            onglet={detailOnglet}
+            onOnglet={setDetailOnglet}
             onBack={() => {
               setView(backView);
               setSelectedId(null);
@@ -966,8 +946,25 @@ export default function App() {
         )
       )}
 
+      {/* L'EXEMPLE S'ANNONCE, ET SUR TOUTES LES VUES : c'est la
+          collection entière qui n'est pas la vôtre, pas un onglet.
+
+          MONTÉ ICI ET NON DANS LA COLONNE DE VUE, et par `Calque` comme
+          tout ce qui flotte. Posé dans le flux au-dessus de la vue, il
+          repoussait tout d'une soixantaine de pixels — et l'almanach,
+          qui promet de tenir dans la fenêtre sans une barre de
+          défilement, se mettait à défiler exactement de cette hauteur.
+          Une fiche scotchée ne déplace rien, et c'est la forme que le
+          classeur donne déjà à ses autres phrases (voir
+          `Installation`). */}
+      {classeurEncoreDémo(films) && <BandeauDémo onRetirer={retirerDémo} />}
       {tourMenu && <TourMenu view={view} onPlay={jouerVisite} onClose={() => setTourMenu(false)} />}
-      <TourOverlay tourId={tourId} onClose={fermerVisite} onView={visiteOuvreVue} />
+      <TourOverlay
+        tourId={tourId}
+        onClose={fermerVisite}
+        onView={visiteOuvreVue}
+        onOnglet={setDetailOnglet}
+      />
       {hint && !tourId && (
         <TourHint onReplay={() => jouerVisite("global")} onDismiss={() => setHint(false)} />
       )}

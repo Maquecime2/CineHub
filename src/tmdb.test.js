@@ -419,10 +419,10 @@ describe("le relais du serveur", () => {
     vi.unstubAllGlobals();
   });
 
-  const réponse = (status, corps = {}) => ({
+  const réponse = (status, corps = {}, entetes = {}) => ({
     ok: status >= 200 && status < 300,
     status,
-    headers: new Headers(),
+    headers: new Headers(entetes),
     json: async () => corps,
   });
 
@@ -488,6 +488,92 @@ describe("le relais du serveur", () => {
 
     expect((await checkApiKey(PAR_LE_SERVEUR)).ok).toBe(false);
     expect(appels).toHaveLength(1);
+  });
+
+  /* ============================================================
+     LE 429 DU RELAIS, ET LE TEMPS QU'IL FAUT VRAIMENT ATTENDRE
+     ============================================================
+
+     Le relais a son propre plafond par minute, et « compléter les
+     fiches » le franchit forcément : c'est un travail long, une requête
+     par film, cinq à la fois. Le 429 est donc NORMAL sur ce chemin — ce
+     qui ne l'était pas, c'est la suite.
+
+     La voie du relais attendait une seconde, puis deux, puis trois, en
+     dur, sans lire `retry-after`. Sur une fenêtre d'une minute, les
+     trois essais retombaient dans la fenêtre qui venait de les
+     rejeter : trois refus, et le remplissage s'arrêtait là. */
+  it("attend le délai que le relais annonce, et non une seconde inventée", async () => {
+    vi.useFakeTimers();
+    try {
+      const appels = [];
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (url) => {
+          appels.push(String(url));
+          return appels.length === 1 ? réponse(429, {}, { "retry-after": "47" }) : réponse(200, {});
+        })
+      );
+
+      const promesse = checkApiKey(PAR_LE_SERVEUR);
+      /* Une seconde ne suffit plus : c'était exactement le défaut. */
+      await vi.advanceTimersByTimeAsync(1500);
+      expect(appels).toHaveLength(1);
+      await vi.advanceTimersByTimeAsync(46_000);
+      expect(appels).toHaveLength(2);
+      expect((await promesse).ok).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  /* L'en-tête peut manquer — un serveur qui ne le pose pas, ou une
+     réponse d'une autre origine dont il n'est pas exposé. On retombe
+     alors sur l'escalier plutôt que de renoncer. */
+  it("retombe sur une attente en escalier quand rien n'est annoncé", async () => {
+    vi.useFakeTimers();
+    try {
+      const appels = [];
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (url) => {
+          appels.push(String(url));
+          return appels.length === 1 ? réponse(429) : réponse(200, {});
+        })
+      );
+
+      const promesse = checkApiKey(PAR_LE_SERVEUR);
+      await vi.advanceTimersByTimeAsync(1500);
+      expect(appels).toHaveLength(2);
+      expect((await promesse).ok).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  /* Un délai déraisonnable ne doit pas retenir un remplissage entier sur
+     une seule fiche : on rend la main plutôt que de dormir une heure. */
+  it("ne dort jamais plus d'une minute, quoi qu'on lui dise", async () => {
+    vi.useFakeTimers();
+    try {
+      const appels = [];
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (url) => {
+          appels.push(String(url));
+          return appels.length === 1
+            ? réponse(429, {}, { "retry-after": "3600" })
+            : réponse(200, {});
+        })
+      );
+
+      const promesse = checkApiKey(PAR_LE_SERVEUR);
+      await vi.advanceTimersByTimeAsync(61_000);
+      expect(appels).toHaveLength(2);
+      expect((await promesse).ok).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("sans compte ni relais, rien ne change", async () => {

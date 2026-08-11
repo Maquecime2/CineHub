@@ -39,7 +39,10 @@ export async function baseDEssai(): Promise<Base> {
   return base;
 }
 
-export async function appDEssai(base: Base, extra: { cleTmdb?: string } = {}) {
+export async function appDEssai(
+  base: Base,
+  extra: { cleTmdb?: string; plafondTmdb?: number } = {}
+) {
   return construireApp({
     base,
     domaine: "localhost",

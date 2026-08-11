@@ -5,10 +5,15 @@ import { DetailView } from "./DetailView";
 import { makeFilm } from "../domain/film";
 import { makeMotifPerso, poserVocabulaire } from "../domain/motifs";
 
-/* Le déménagement des blocs vers le rail d'annotation est une affaire de
-   mise en page — mais rien de ce qui s'y trouvait ne doit avoir disparu en
-   chemin, et c'est le genre de perte qu'on ne voit qu'en cherchant un
-   bouton six semaines plus tard. */
+/* Le découpage de la fiche est une affaire de mise en page — mais rien
+   de ce qu'elle portait ne doit avoir disparu en chemin, et c'est le
+   genre de perte qu'on ne voit qu'en cherchant un bouton six semaines
+   plus tard.
+
+   Depuis les trois intercalaires, ces tests doivent DIRE dans lequel ils
+   cherchent : un bloc absent de l'onglet ouvert n'est pas monté du tout.
+   `monter({}, { onglet: "mots" })` ouvre la page voulue — c'est la même
+   propriété contrôlée dont se sert la visite guidée. */
 const monter = (extra = {}, props = {}) => {
   const onDelete = vi.fn();
   const onUpdate = vi.fn();
@@ -37,9 +42,12 @@ const monter = (extra = {}, props = {}) => {
   return { film, onDelete, onUpdate };
 };
 
-describe("la fiche film, après le passage en trois colonnes", () => {
-  it("garde ce que le rail d'annotation a repris", () => {
-    monter();
+const MOTS = { onglet: "mots" as const };
+const LIENS = { onglet: "liens" as const };
+
+describe("la fiche film, après le passage en trois intercalaires", () => {
+  it("garde sous « Mes mots » ce que le rail d'annotation portait", () => {
+    monter({}, MOTS);
     expect(screen.getByText("Mots-clés")).toBeInTheDocument();
     expect(screen.getByText("Motifs")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /film de chevet/ })).toBeInTheDocument();
@@ -48,19 +56,40 @@ describe("la fiche film, après le passage en trois colonnes", () => {
   });
 
   it("garde la pellicule, montée près du texte qu'elle illustre", () => {
-    monter();
+    monter({}, MOTS);
     expect(screen.getByText("La pellicule")).toBeInTheDocument();
   });
 
-  it("garde à gauche ce qui décrit le film", () => {
+  /* LE JOURNAL A CHANGÉ D'ONGLET, et c'est la seule chose que le
+     découpage ait déplacée : une séance datée est ce qu'on a FAIT du
+     film, pas ce qu'il est. */
+  it("range le journal des séances avec vos mots, et non avec le catalogue", () => {
+    monter({}, MOTS);
+    expect(document.querySelector('[data-tour="detail-watchlog"]')).not.toBeNull();
+    expect(screen.queryByText("Fiche catalogue")).not.toBeInTheDocument();
+  });
+
+  it("garde sous « Le film » ce qui décrit l'œuvre", () => {
     monter();
     // le titre est mis en capitales par la feuille, pas dans le texte
     expect(screen.getByText("Fiche catalogue")).toBeInTheDocument();
+    expect(document.querySelector('[data-tour="detail-identite"]')).not.toBeNull();
+  });
+
+  it("garde sous « Les liens » le fil rouge", () => {
+    monter({}, LIENS);
     expect(screen.getByText("Le fil rouge")).toBeInTheDocument();
   });
 
+  /* L'affiche et le titre ne changent pas d'onglet : c'est ce qui fait
+     qu'on ne perd pas de vue le film dont on parle. */
+  it.each([{}, MOTS, LIENS])("garde l'affiche et le titre (%o)", (props) => {
+    monter({}, props);
+    expect(screen.getAllByText("Le Samouraï").length).toBeGreaterThan(0);
+  });
+
   it("montre les mots-clés et les motifs déjà posés", () => {
-    monter();
+    monter({}, MOTS);
     expect(screen.getByText("solitude")).toBeInTheDocument();
     // « Le héros meurt » raconte la fin : il reste gratté jusqu'au clic
     expect(screen.getByText("motif de fin")).toBeInTheDocument();
@@ -70,9 +99,22 @@ describe("la fiche film, après le passage en trois colonnes", () => {
   /* Pas de chevet pour un film qu'on n'a pas vu : le rayon est celui qu'on
      revoit, et la watchlist ne l'ouvre pas. */
   it("n'offre pas le chevet à un film jamais vu", () => {
-    monter({ status: "watchlist" });
+    monter({ status: "watchlist" }, MOTS);
     expect(screen.queryByRole("button", { name: /film de chevet/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /supprimer définitivement/ })).toBeInTheDocument();
+  });
+});
+
+/* L'intercalaire se change à la main aussi, et pas seulement par la
+   visite guidée : sans propriété contrôlée, la fiche s'en tient un à
+   elle. C'est ce repli-là qu'on éprouve ici. */
+describe("les intercalaires se tournent à la main", () => {
+  it("ouvre « Les liens » d'un clic, sans qu'on lui dise d'en haut", async () => {
+    const user = userEvent.setup();
+    monter();
+    expect(screen.queryByText("Le fil rouge")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "LES LIENS" }));
+    expect(screen.getByText("Le fil rouge")).toBeInTheDocument();
   });
 });
 
@@ -81,7 +123,7 @@ describe("la fiche film, après le passage en trois colonnes", () => {
 describe("les gestes qu'on peut regretter", () => {
   it("ne supprime pas au premier clic, mais le demande", async () => {
     const user = userEvent.setup();
-    const { onDelete } = monter();
+    const { onDelete } = monter({}, MOTS);
     await user.click(screen.getByRole("button", { name: /supprimer définitivement/ }));
     expect(onDelete).not.toHaveBeenCalled();
     expect(screen.getByRole("dialog")).toBeInTheDocument();
@@ -91,7 +133,7 @@ describe("les gestes qu'on peut regretter", () => {
 
   it("renonce sans rien faire", async () => {
     const user = userEvent.setup();
-    const { onDelete } = monter();
+    const { onDelete } = monter({}, MOTS);
     await user.click(screen.getByRole("button", { name: /supprimer définitivement/ }));
     await user.click(screen.getByRole("button", { name: "RENONCER" }));
     expect(onDelete).not.toHaveBeenCalled();
@@ -100,7 +142,7 @@ describe("les gestes qu'on peut regretter", () => {
 
   it("demande aussi avant de mettre de côté", async () => {
     const user = userEvent.setup();
-    const { onUpdate } = monter();
+    const { onUpdate } = monter({}, MOTS);
     await user.click(screen.getByRole("button", { name: /mettre de côté/ }));
     expect(onUpdate).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "METTRE DE CÔTÉ" }));
@@ -111,7 +153,7 @@ describe("les gestes qu'on peut regretter", () => {
      n'apprendrait qu'à cliquer sans lire. */
   it("remet en rayon sans rien demander", async () => {
     const user = userEvent.setup();
-    const { onUpdate } = monter({ archived: true });
+    const { onUpdate } = monter({ archived: true }, MOTS);
     await user.click(screen.getByRole("button", { name: /remettre en rayon/ }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ archived: false }));
@@ -127,7 +169,7 @@ describe("gérer le vocabulaire depuis la fiche", () => {
 
   it("écrit un motif et le pose aussitôt sur la fiche", async () => {
     const onCréerMotif = vi.fn(() => "il-pleut-sans-arret");
-    const { onUpdate } = monter({}, { onCréerMotif });
+    const { onUpdate } = monter({}, { onCréerMotif, ...MOTS });
     const user = await ouvrirLaListe();
     await user.type(screen.getByLabelText("Nouveau motif"), "Il pleut sans arrêt{Enter}");
     expect(onCréerMotif).toHaveBeenCalledWith("Il pleut sans arrêt", "récit", false);
@@ -139,7 +181,7 @@ describe("gérer le vocabulaire depuis la fiche", () => {
 
   it("écarte un motif du catalogue sans rien demander", async () => {
     const onMasquerMotif = vi.fn();
-    monter({}, { onMasquerMotif });
+    monter({}, { onMasquerMotif, ...MOTS });
     const user = await ouvrirLaListe();
     await user.click(screen.getByLabelText("Écarter le motif Huis clos"));
     expect(onMasquerMotif).toHaveBeenCalledWith("huis-clos", true);
@@ -150,7 +192,7 @@ describe("gérer le vocabulaire depuis la fiche", () => {
   it("annonce les fiches touchées avant de supprimer un motif", async () => {
     poserVocabulaire({ perso: [makeMotifPerso("Il pleut", "monde")], masqués: [] });
     const onSupprimerMotif = vi.fn();
-    monter({ motifs: ["il-pleut"] }, { onSupprimerMotif });
+    monter({ motifs: ["il-pleut"] }, { onSupprimerMotif, ...MOTS });
     const user = await ouvrirLaListe();
     await user.click(screen.getByLabelText("Supprimer le motif Il pleut"));
     expect(screen.getByText(/1 fiche/)).toBeInTheDocument();

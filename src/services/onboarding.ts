@@ -19,9 +19,23 @@ export interface OnboardingState {
   skipped: boolean;
   /** Nombre de cartes-bristol déjà montrées. */
   hints: number;
+  /**
+   * Le classeur de démonstration a été semé une fois.
+   *
+   * À CÔTÉ DE `isFirstRun` ET JAMAIS À SA PLACE. La première ouverture
+   * se reconnaît à « rien de fait, rien d'écarté » — c'est-à-dire à un
+   * état qui retombe à faux dès qu'on a joué ou écarté la visite, mais
+   * qui redevient vrai pour qui n'a jamais rien fait de tout cela. S'y
+   * fier seul ferait revenir les douze films d'exemple le lendemain du
+   * jour où quelqu'un a vidé sa collection à la main — c'est-à-dire au
+   * pire moment possible.
+   *
+   * Ce drapeau-ci ne retombe jamais, sauf `resetOnboarding`.
+   */
+  semé: boolean;
 }
 
-const EMPTY: OnboardingState = { done: [], skipped: false, hints: 0 };
+const EMPTY: OnboardingState = { done: [], skipped: false, hints: 0, semé: false };
 
 /* Le repli n'est pas seulement l'absence de clé : une valeur écrite par
    une version antérieure peut manquer un champ, et une visite qui
@@ -32,6 +46,10 @@ export function loadOnboarding(): OnboardingState {
     done: Array.isArray(raw?.done) ? raw.done.filter((d) => typeof d === "string") : [],
     skipped: raw?.skipped === true,
     hints: typeof raw?.hints === "number" && raw.hints >= 0 ? raw.hints : 0,
+    /* Même repli défensif que `skipped`, et pour la même raison : une
+       valeur écrite par une version antérieure ne porte pas ce champ,
+       et l'absence doit se lire « pas encore semé ». */
+    semé: raw?.semé === true,
   };
 }
 
@@ -58,6 +76,16 @@ export function markSkipped(): OnboardingState {
 export function bumpHint(): OnboardingState {
   const s = loadOnboarding();
   return save({ ...s, hints: s.hints + 1 });
+}
+
+/** Le classeur d'exemple a été semé : on ne le ressèmera plus jamais. */
+export function markSemé(): OnboardingState {
+  return save({ ...loadOnboarding(), semé: true });
+}
+
+/** Reste-t-il à semer le classeur de démonstration ? */
+export function doitSemer(s: OnboardingState = loadOnboarding()): boolean {
+  return !s.semé;
 }
 
 /** Tout oublier : l'accueil se rejouera à la prochaine ouverture. */

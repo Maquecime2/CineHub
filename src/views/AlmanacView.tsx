@@ -1,5 +1,5 @@
 /* ============================================================
-   VUE — L'ALMANACH, en trois planches qu'on feuillette
+   VUE — L'ALMANACH, en quatre planches qu'on feuillette
    ============================================================
 
    La page de comptes d'un archiviste : ce que l'année a contenu, tenu à
@@ -7,7 +7,7 @@
    compteurs. Le calcul entier vit dans `domain/almanac` — cette vue ne
    fait que dessiner ce qu'il rend, et n'a donc aucune règle à elle.
 
-   POURQUOI TROIS PLANCHES, ET AUCUN DÉFILEMENT.
+   POURQUOI PLUSIEURS PLANCHES, ET AUCUN DÉFILEMENT.
 
    Une page d'almanach se regarde, elle ne se déroule pas : ce qui
    dépasse du bord n'existe pas pour le lecteur, et une barre de
@@ -17,8 +17,8 @@
 
    D'où le livret. Chaque planche occupe EXACTEMENT la hauteur
    disponible, et l'on tourne la page — à la flèche, au clavier, ou en
-   cliquant une pastille. Trois planches valent trois fois la place sans
-   coûter un seul pixel de défilement.
+   cliquant une pastille. Quatre planches valent quatre fois la place
+   sans coûter un seul pixel de défilement.
 
    CE QUI GARANTIT QU'AUCUNE NE DÉBORDE. Les planches sont des grilles à
    lignes fixes, jamais des flux : la hauteur est décidée d'avance et
@@ -53,6 +53,7 @@ import { drawYearInBox, telecharger, type BoxPalette } from "../services/yearInB
 import { hash, seededRand, tiltOf } from "../domain/seeded";
 import { CoffeeRing, InkUnderline, PushPin, StampCorner, Tape } from "../components/atmosphere";
 import { InkStars, Label, Tally } from "../components/ui";
+import { motifById } from "../domain/motifs";
 import { nomLangue, nomPays } from "../noms";
 import type { Film } from "../types";
 
@@ -387,11 +388,12 @@ function PlancheCompte({ a }: { a: Almanac }) {
 
       {/* Douze mois pour une année, une colonne par année pour toute une
           pratique : c'est la même barre, et la graduation change seule. */}
-      <Carton
-        titre={toujours ? "Les années" : "Les mois"}
-        seed={`mois-${clé}`}
-        style={{ gridColumn: "span 2" }}
-      >
+      {/* PLUS DE `gridColumn: "span 2"` : il était la contrepartie des
+          trois colonnes, où il servait à combler la première rangée. Sur
+          un vrai 2×2, il pousserait les deux cartons du bas dans une
+          troisième rangée que la grille ne déclare pas — et la planche
+          se remettrait à déborder par où on venait de la refermer. */}
+      <Carton titre={toujours ? "Les années" : "Les mois"} seed={`mois-${clé}`}>
         {toujours ? (
           <Barres
             valeurs={a.byYear.map((y) => y.séances)}
@@ -446,6 +448,25 @@ function PlancheCompte({ a }: { a: Almanac }) {
                 />
               )}
             </div>
+            {/* LE TITRE ALLAIT AVEC LA DURÉE, ET N'ÉTAIT PAS ÉCRIT.
+                `plusLong` porte le film entier depuis toujours ; on n'en
+                montrait que le nombre de minutes, qui ne dit rien tout
+                seul. */}
+            {a.screenTime.plusLong && (
+              <div
+                style={{
+                  marginTop: 4,
+                  fontFamily: F.hand,
+                  fontSize: 15,
+                  color: C.inkFaded,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {a.screenTime.plusLong.film.title}
+              </div>
+            )}
             {/* UN TOTAL QUI S'ANNONCE COMME UN PLANCHER. Taire les séances
                 sans durée donnerait un chiffre faux avec l'aplomb d'un
                 chiffre juste. */}
@@ -612,9 +633,22 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
                   <div style={{ fontFamily: F.mono, fontSize: 8.5, color: C.inkFaded }}>
                     {String(d.decade).slice(2)}
                   </div>
-                  <div style={{ fontFamily: F.mono, fontSize: 8.5, color: C.burgundy }}>
+                  {/* UNE MOYENNE SANS SON EFFECTIF EST UN CHIFFRE QUI
+                      BLUFFE : « 4,5 » sur une seule séance s'affichait
+                      exactement comme « 4,5 » sur quarante. `n` est
+                      calculé depuis le premier jour et n'avait jamais
+                      été écrit. */}
+                  <div
+                    style={{ fontFamily: F.mono, fontSize: 8.5, color: C.burgundy }}
+                    title={note ? `${note.n} séance${note.n > 1 ? "s" : ""} notée(s)` : undefined}
+                  >
                     {note ? note.avg.toFixed(1) : "—"}
                   </div>
+                  {note && (
+                    <div style={{ fontFamily: F.mono, fontSize: 7.5, color: C.inkFaded }}>
+                      /{note.n}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -803,14 +837,169 @@ function PlancheGens({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (nom: str
   );
 }
 
+/* ------------------------------------------------------------
+   PLANCHE IV — DE QUOI ÇA PARLAIT, ET QUI L'A FABRIQUÉ
+   ------------------------------------------------------------
+
+   Les trois premières planches disent COMBIEN, COMMENT NOTÉ et PAR QUI
+   — genres, pays, langues, cinéastes, interprètes. Aucune ne disait DE
+   QUOI, alors que la fiche porte des mots-clés depuis TMDB et des
+   motifs depuis le catalogue commun ; ni PAR QUI D'AUTRE, alors que
+   `crew` porte l'image, la musique et le scénario. Cette planche est
+   faite des deux axes qui manquaient, plus la moitié de l'écart au
+   public qui n'était jamais montrée. */
+function PlancheSujets({ a }: { a: Almanac }) {
+  const clé = String(a.période);
+  const s = a.sujets;
+  const ar = a.artisans;
+  return (
+    <div style={GRILLE_2x2}>
+      <Carton titre="Les sujets" seed={`sujets-${clé}`}>
+        <Palmares
+          items={s.motsClés.slice(0, 5)}
+          total={a.count}
+          ink={C.ochre}
+          vide="aucun mot-clé — « compléter les fiches », dans l'onglet Import, va les chercher"
+        />
+      </Carton>
+
+      <Carton titre="Les motifs suivis" seed={`motifs-${clé}`}>
+        {/* Le domaine rend des IDENTIFIANTS, comme il rend des codes
+            pays : c'est ici qu'on les lit en français. Un motif retiré
+            du catalogue depuis garde son identifiant plutôt que de
+            disparaître — la même règle que sur la fiche. */}
+        <Palmares
+          items={s.motifs
+            .slice(0, 5)
+            .map((m) => ({ nom: motifById(m.nom)?.label ?? m.nom, n: m.n }))}
+          total={a.count}
+          ink={C.pine}
+          vide="aucun motif posé — ils se choisissent sur une fiche, sous la critique"
+        />
+      </Carton>
+
+      <Carton titre="Les artisans" seed={`artisans-${clé}`}>
+        {/* Sans seuil, contrairement aux fidélités : personne ne se dit
+            « je suis le travail d'un chef opérateur », et c'est justement
+            pour cela que le montrer apprend quelque chose. On ne garde
+            que ce qui REVIENT — un nom vu une seule fois n'est pas une
+            fidélité, c'est un générique. */}
+        <MétierSuivi label="IMAGE" gens={ar.image} />
+        <MétierSuivi label="MUSIQUE" gens={ar.musique} />
+        <MétierSuivi label="SCÉNARIO" gens={ar.scénario} />
+        {[ar.image, ar.musique, ar.scénario].every(
+          (g) => g.filter((x) => x.n > 1).length === 0
+        ) && (
+          <Rien quoi="personne ne revient deux fois derrière la caméra — « compléter les fiches », dans l'onglet Import, remplit les équipes" />
+        )}
+      </Carton>
+
+      <Carton titre="Plus tendre, plus sévère" seed={`ecart-${clé}`}>
+        {a.écart.n === 0 ? (
+          <Rien quoi="aucune séance notée dont on connaisse aussi la note publique" />
+        ) : (
+          <>
+            {/* LES DEUX MOYENNES EN CLAIR. La planche des goûts dit déjà
+                « plus tendre de 0,3 point » ; elle ne disait pas de quoi
+                à quoi. Les deux nombres étaient calculés depuis le
+                premier jour et n'avaient jamais été écrits. */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "8px 6px",
+                marginTop: 8,
+              }}
+            >
+              <Chiffre
+                valeur={a.écart.vous?.toFixed(1) ?? "—"}
+                legende="VOUS, SUR 10"
+                ink={C.burgundy}
+              />
+              <Chiffre valeur={a.écart.public?.toFixed(1) ?? "—"} legende="LE PUBLIC" />
+            </div>
+            <div style={{ marginTop: 9 }}>
+              <ÉcartListe label="VOS INDULGENCES" films={a.écart.plusTendre} ink={C.moss} />
+              <ÉcartListe label="VOS SÉVÉRITÉS" films={a.écart.plusSévère} ink={C.vermillion} />
+            </div>
+          </>
+        )}
+      </Carton>
+    </div>
+  );
+}
+
+/** Un métier de `crew` — muet quand personne n'y revient deux fois. */
+function MétierSuivi({ label, gens }: { label: string; gens: { nom: string; n: number }[] }) {
+  const suivis = gens.filter((g) => g.n > 1).slice(0, 3);
+  if (suivis.length === 0) return null;
+  return (
+    <div style={{ marginBottom: 7 }}>
+      <div style={{ fontFamily: F.mono, fontSize: 9, color: C.inkFaded }}>{label}</div>
+      <div style={{ fontFamily: F.body, fontSize: 12.5, color: C.ink }}>
+        {suivis.map((g) => `${g.nom} (${g.n})`).join(" · ")}
+      </div>
+    </div>
+  );
+}
+
+/** Trois films et leur écart à la foule, en points sur dix. */
+function ÉcartListe({
+  label,
+  films,
+  ink,
+}: {
+  label: string;
+  films: { film: Film; delta: number }[];
+  ink: string;
+}) {
+  if (films.length === 0) return null;
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <div style={{ fontFamily: F.mono, fontSize: 9, color: C.inkFaded }}>{label}</div>
+      {films.map(({ film, delta }) => (
+        <div
+          key={film.id}
+          style={{ display: "flex", alignItems: "baseline", gap: 8, fontSize: 12.5, marginTop: 2 }}
+        >
+          <span style={{ fontFamily: F.mono, fontSize: 11, color: ink, minWidth: 30 }}>
+            {delta > 0 ? "+" : "−"}
+            {Math.abs(delta).toFixed(1)}
+          </span>
+          <span
+            style={{
+              fontFamily: F.body,
+              color: C.ink,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {film.title}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* Deux colonnes, deux rangées — et des rangées EN FRACTIONS, ce qui est
    toute l'astuce : `1fr` répartit la hauteur disponible au lieu de la
    demander au contenu. La planche fait donc exactement la taille qu'on
-   lui donne, quoi qu'elle contienne. */
+   lui donne, quoi qu'elle contienne.
+
+   ELLE EN ANNONÇAIT DEUX ET EN POSAIT TROIS. `repeat(3, 1fr)` sous un
+   commentaire qui disait « deux colonnes » : les planches se
+   remplissaient donc à trois cartons en haut et un seul en bas, deux
+   cases vides derrière, et chaque carton faisait un tiers de moins que
+   ce pour quoi son contenu était écrit. C'est de là que venaient les
+   troncatures partout — les palmarès, les titres, « Fidélités et
+   découvertes ». Rétablir le 2×2 les fait disparaître d'elles-mêmes,
+   sans rien borner. */
 const GRILLE_2x2: CSSProperties = {
   height: "100%",
   display: "grid",
-  gridTemplateColumns: "repeat(3, 1fr)",
+  gridTemplateColumns: "repeat(2, 1fr)",
   gridTemplateRows: "1fr 1fr",
   gap: 18,
   alignItems: "stretch",
@@ -824,6 +1013,7 @@ const PLANCHES = [
   { titre: "Le compte et le rythme", tampon: "I" },
   { titre: "Les goûts", tampon: "II" },
   { titre: "Les gens et le monde", tampon: "III" },
+  { titre: "Les sujets et les artisans", tampon: "IV" },
 ];
 
 /* La hauteur que l'en-tête se réserve. En dur, et c'est le prix du
@@ -968,7 +1158,13 @@ export function AlmanacView({
         padding: "22px 34px 0",
         position: "relative",
         /* La page entière tient dans la fenêtre : c'est ici que le
-           non-défilement se décide, et nulle part ailleurs. */
+           non-défilement se décide, et nulle part ailleurs.
+
+           `100vh` SUPPOSE QUE L'ALMANACH COMMENCE EN HAUT DE LA COLONNE,
+           et cette supposition n'est vraie que parce que rien ne se pose
+           jamais au-dessus de lui dans le flux. Le bandeau de la
+           collection d'exemple a failli la rompre : il passe par
+           `Calque`, précisément pour ne rien déplacer. */
         height: "100vh",
         boxSizing: "border-box",
         display: "flex",
@@ -1021,7 +1217,36 @@ export function AlmanacView({
             <ChevronRight size={17} />
           </button>
 
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginLeft: 8, maxWidth: 380 }}>
+          {/* LES PASTILLES TIENNENT SUR UNE LIGNE, ET C'EST UNE CORRECTION.
+
+              Elles étaient en `flexWrap: "wrap"` sous une largeur de
+              trois cent quatre-vingts pixels : au-delà de huit années
+              couvertes elles passaient sur deux lignes, au-delà de
+              quatorze sur trois. L'en-tête, lui, a une hauteur ARRÊTÉE
+              (`ENTETE`) — rien ne bornait donc ce débordement, et la
+              planche, qui porte `zIndex: 2`, passait par-dessus les
+              pastilles et les boutons de planche. Ils devenaient
+              incliquables sans que rien n'explique pourquoi.
+
+              Une ligne qui défile plutôt qu'un en-tête qui grandit :
+              c'est le parti pris du non-défilement de la page qu'on
+              préserve ici, et lui seul qui justifie une hauteur en dur
+              au-dessus. */}
+          <div
+            style={{
+              display: "flex",
+              gap: 5,
+              marginLeft: 8,
+              maxWidth: 380,
+              overflowX: "auto",
+              overflowY: "hidden",
+              /* Sans cela, un objet flex se laisse pousser par son
+                 contenu au lieu de défiler. */
+              minWidth: 0,
+              paddingBottom: 2,
+              scrollbarWidth: "thin",
+            }}
+          >
             {périodes.map((p) => (
               <button
                 key={String(p)}
@@ -1120,6 +1345,7 @@ export function AlmanacView({
         {planche === 0 && <PlancheCompte a={a} />}
         {planche === 1 && <PlancheGouts a={a} drifts={drifts} />}
         {planche === 2 && <PlancheGens a={a} onOpenPerson={onOpenPerson} />}
+        {planche === 3 && <PlancheSujets a={a} />}
       </div>
     </div>
   );
@@ -1194,6 +1420,10 @@ const anneeStyle = (actif: boolean): CSSProperties => ({
   fontSize: 10.5,
   letterSpacing: "var(--tag-tracking)",
   padding: "3px 7px",
+  /* La barre défile : une pastille qui se laisse comprimer donnerait
+     « 20… » au lieu d'un millésime. */
+  flexShrink: 0,
+  whiteSpace: "nowrap",
   color: actif ? C.card : C.inkFaded,
   background: actif ? C.burgundy : "transparent",
   border: `1px solid ${actif ? C.burgundy : C.line}`,

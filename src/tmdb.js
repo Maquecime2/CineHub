@@ -112,13 +112,39 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
    du relais, c'est-à-dire une liste à corriger. Le contourner en douce
    rendrait le défaut invisible pour toujours. */
 const RÉCUSÉ = new Set([401, 403, 503]);
+
+/* COMBIEN DE TEMPS ATTENDRE, D'APRÈS CELUI QUI REFUSE.
+
+   `retry-after` se compte en SECONDES, et c'est la seule réponse juste :
+   une attente inventée est soit trop courte — on se refait refuser dans
+   la même fenêtre, et l'on a brûlé un essai pour rien — soit trop
+   longue, et l'on fait patienter sans raison.
+
+   Le repli en escalier ne sert que quand l'en-tête manque : un serveur
+   qui ne le pose pas, ou une réponse d'une autre origine dont il n'est
+   pas exposé (voir `exposedHeaders` côté serveur). On le borne à une
+   minute : au-delà, mieux vaut rendre la main que retenir un
+   remplissage entier sur une seule fiche. */
+const MINUTE = 60_000;
+const attenteAprès = (res, attempt) => {
+  const dit = Number(res.headers.get("retry-after"));
+  if (Number.isFinite(dit) && dit > 0) return Math.min(dit * 1000, MINUTE);
+  return 1000 * (attempt + 1);
+};
+
 async function get(path, params, apiKey, attempt = 0) {
   if (apiKey === PAR_LE_SERVEUR) {
     const qs = new URLSearchParams(params);
     const res = await fetch(`${ADRESSE}/tmdb${path}?${qs}`, { credentials: "include" });
     if (res.ok) return res.json();
+    /* NOTRE PROPRE SERVEUR PEUT DIRE 429, et pas seulement TMDB : le
+       relais a son plafond par minute. Le remplissage d'une collection
+       le franchit forcément — c'est un travail long, pas une boucle —
+       et il faut alors attendre le temps QU'IL DIT, pas une seconde
+       tirée au hasard. C'est ce que faisait déjà la voie directe, plus
+       bas ; la voie du relais l'avait perdu en chemin. */
     if (res.status === 429 && attempt < 3) {
-      await sleep(1000 * (attempt + 1));
+      await sleep(attenteAprès(res, attempt));
       return get(path, params, apiKey, attempt + 1);
     }
     const propre = cleEcrite();
@@ -129,8 +155,7 @@ async function get(path, params, apiKey, attempt = 0) {
   const qs = new URLSearchParams({ api_key: apiKey, ...params });
   const res = await fetch(`${BASE}${path}?${qs}`);
   if (res.status === 429 && attempt < 3) {
-    const wait = Number(res.headers.get("retry-after")) * 1000 || 1000 * (attempt + 1);
-    await sleep(wait);
+    await sleep(attenteAprès(res, attempt));
     return get(path, params, apiKey, attempt + 1);
   }
   if (!res.ok) throw new Error(`TMDB ${res.status}`);
