@@ -15,6 +15,7 @@
    divergeraient au premier changement.
    ============================================================ */
 import type { View } from "../layout/FolderTabs";
+import { serveurConfigure } from "../../services/serveur";
 
 export interface TourStep {
   /** Sélecteur CSS de ce qu'on montre. `null` : bulle au centre. */
@@ -29,6 +30,16 @@ export interface TourStep {
    * du contenu : une collection vide n'a ni affiche, ni rangée, ni fiche.
    */
   optional?: boolean;
+  /**
+   * L'étape n'existe pas du tout sans serveur.
+   *
+   * `optional` ne suffit pas pour celles qui OUVRENT une vue : le
+   * changement de vue a lieu AVANT qu'on cherche la cible (voir
+   * `TourOverlay`), de sorte qu'une étape sautée aurait quand même fait
+   * clignoter une page qui n'a plus d'onglet. On la retire donc en
+   * amont, plutôt que de la sauter en aval.
+   */
+  exigeUnServeur?: boolean;
 }
 
 export interface Tour {
@@ -485,6 +496,7 @@ const global: Tour = {
        n'affiche qu'une phrase, et il n'y a pas de repère à montrer. */
     {
       target: at("listes-defis"),
+      exigeUnServeur: true,
       title: "Se lancer quelque chose",
       body: "Une liste plus une période fait un défi. Personne ne coche « vu » : l'avancement se calcule depuis votre journal de séances, et le serveur n'en tire qu'un nombre — vos dates ne sortent pas d'ici.",
       placement: "top",
@@ -571,20 +583,29 @@ const listes: Tour = {
 
 /* ---------- le registre ---------- */
 
-export const TOURS: Record<string, Tour> = {
-  global,
-  library,
-  watchlist,
-  generique,
-  detail,
-  reco,
-  constellation,
-  almanac,
-  notebook,
-  import: importTour,
-  fil,
-  listes,
-};
+/* CE QUI N'EXISTE PAS NE SE VISITE PAS. Sans serveur — le cas du site
+   publié — le fil et les défis n'ont pas d'onglet ; leurs étapes n'ont
+   donc rien à montrer, et la visite doit décrire le produit tel qu'il
+   est chez celui qui la joue. */
+const élaguer = (t: Tour): Tour =>
+  serveurConfigure() ? t : { ...t, steps: t.steps.filter((s) => !s.exigeUnServeur) };
+
+export const TOURS: Record<string, Tour> = Object.fromEntries(
+  Object.entries({
+    global,
+    library,
+    watchlist,
+    generique,
+    detail,
+    reco,
+    constellation,
+    almanac,
+    notebook,
+    import: importTour,
+    fil,
+    listes,
+  }).map(([clé, t]) => [clé, élaguer(t)])
+);
 
 /** La visite d'une vue, s'il y en a une. `detail` en a une, `skinlab` non. */
 export const tourForView = (view: string): Tour | undefined =>

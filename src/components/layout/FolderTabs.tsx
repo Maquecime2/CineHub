@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { C, alpha } from "../../theme/tokens";
 import { useViewport } from "../../hooks/useViewport";
+import { serveurConfigure } from "../../services/serveur";
 
 /** Les vues joignables depuis les onglets. `detail` s'ouvre depuis une fiche. */
 export type View =
@@ -63,26 +64,38 @@ interface FolderTabsProps {
 /* L'ICÔNE N'EST PAS UN ORNEMENT : c'est ce qui reste de l'onglet quand
    la fenêtre est trop basse pour ses mots. Elle doit donc se lire seule,
    et désigner la vue et non sa jolie métaphore. */
-const TABS: { key: View; label: string; color: string; icon: ComponentType<{ size?: number }> }[] =
-  [
-    { key: "library", label: "Vidéothèque", color: C.burgundy, icon: Clapperboard },
-    { key: "watchlist", label: "À voir", color: C.ochre, icon: Bookmark },
-    /* Le Générique regarde la même collection sous un autre angle : il est
+const TABS: {
+  key: View;
+  label: string;
+  color: string;
+  icon: ComponentType<{ size?: number }>;
+  /** Ne vaut rien sans serveur : l'onglet ne paraît pas du tout. */
+  exigeUnServeur?: boolean;
+}[] = [
+  { key: "library", label: "Vidéothèque", color: C.burgundy, icon: Clapperboard },
+  { key: "watchlist", label: "À voir", color: C.ochre, icon: Bookmark },
+  /* Le Générique regarde la même collection sous un autre angle : il est
      du groupe du fonds, à côté des deux murs, et non des outils. */
-    { key: "generique", label: "Générique", color: C.plum, icon: Users },
-    { key: "reco", label: "Découvertes", color: C.vermillion, icon: Compass },
-    { key: "constellation", label: "Constellation", color: C.cobalt, icon: Sparkles },
-    { key: "almanac", label: "Almanach", color: C.moss, icon: CalendarDays },
-    { key: "notebook", label: "Carnet", color: C.pine, icon: NotebookPen },
-    { key: "import", label: "Import Letterboxd", color: C.slate, icon: FolderInput },
-    /* LE FIL EST LE DERNIER ONGLET, et pas le premier : le classeur
+  { key: "generique", label: "Générique", color: C.plum, icon: Users },
+  { key: "reco", label: "Découvertes", color: C.vermillion, icon: Compass },
+  { key: "constellation", label: "Constellation", color: C.cobalt, icon: Sparkles },
+  { key: "almanac", label: "Almanach", color: C.moss, icon: CalendarDays },
+  { key: "notebook", label: "Carnet", color: C.pine, icon: NotebookPen },
+  { key: "import", label: "Import Letterboxd", color: C.slate, icon: FolderInput },
+  /* LE FIL EST LE DERNIER ONGLET, et pas le premier : le classeur
        reste une videotheque personnelle, et ce qu'on regarde chez les
        autres vient apres ce qu'on a chez soi. */
-    { key: "fil", label: "Le fil", color: C.cobalt, icon: Users2 },
-    /* Les listes et les defis viennent apres le fil : on regarde ce que
+  { key: "fil", label: "Le fil", color: C.cobalt, icon: Users2, exigeUnServeur: true },
+  /* Les listes et les defis viennent apres le fil : on regarde ce que
        font les autres avant de se lancer quelque chose avec eux. */
-    { key: "listes", label: "Listes et défis", color: C.moss, icon: ListChecks },
-  ];
+  {
+    key: "listes",
+    label: "Listes et défis",
+    color: C.moss,
+    icon: ListChecks,
+    exigeUnServeur: true,
+  },
+];
 
 /* L'onglet de contrôle des peaux n'est pas une vue du produit : il ne
    paraît qu'en développement, et le build de production ne l'emporte
@@ -311,7 +324,22 @@ export function FolderTabs({
   onCompte,
   synchro,
 }: FolderTabsProps) {
-  const tabs = [...TABS, ...DEV_TABS];
+  /* DEUX ONGLETS QUI NE PARAISSENT QUE S'IL Y A QUELQU'UN EN FACE.
+
+     Sans serveur — c'est le cas du site publié, qui n'en a pas — le fil
+     et les défis n'ont rien à montrer qu'une phrase expliquant qu'ils
+     n'ont rien à montrer. Deux crans du rail occupés par une promesse.
+
+     Ils s'effacent donc entièrement, plutôt que de s'afficher éteints :
+     un onglet grisé demande « pourquoi ? » à chaque passage, alors
+     qu'un onglet absent ne se remarque pas. Le bouton du compte suit
+     déjà cette règle depuis qu'il existe, et pour la même raison.
+
+     La condition est statique — l'adresse du serveur est décidée à la
+     construction — donc le rail ne changera jamais de forme en cours de
+     route. Ni la visite : ses étapes visant ces vues sont `optional`,
+     et une cible absente saute sans bruit. */
+  const tabs = [...TABS, ...DEV_TABS].filter((t) => !t.exigeUnServeur || serveurConfigure());
   /* LE RAIL SE COUCHE PLUTOT QU'IL NE DISPARAIT.
 
      Sur la tranche gauche d'un classeur, huit pastilles empilees et
