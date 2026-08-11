@@ -217,7 +217,7 @@ const detail: Tour = {
       target: at("detail-ailleurs"),
       onglet: "film",
       title: "Ce qu'on en dit ailleurs",
-      body: "Quand un compte est ouvert, la fiche montre ce que d'autres vidéothèques publiques disent du même film : leur moyenne — sans la vôtre — et leurs critiques. Chacune se signale, et son auteur se fait taire d'un geste. Sans serveur ni compte, cette section n'existe pas.",
+      body: "Quand un compte est ouvert, la fiche montre ce que d'autres vidéothèques publiques disent du même film : leur moyenne — sans la vôtre — et leurs critiques. Chacune se signale, et son auteur se fait taire d'un geste — le tiroir du compte liste ceux que vous avez fait taire, et leur rend la parole. Sans serveur ni compte, cette section n'existe pas.",
       placement: "right",
       optional: true,
     },

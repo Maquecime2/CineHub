@@ -24,6 +24,7 @@ import {
   Trash2,
   Link as LinkIcon,
   Bell,
+  VolumeX,
 } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
@@ -38,6 +39,8 @@ import {
   reglerLePartage,
   seDeconnecter,
   sInscrire,
+  mesBlocages,
+  debloquer,
   type Partage,
   type Personne,
 } from "../../services/serveur";
@@ -266,6 +269,8 @@ export function CompteDrawer({
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <Partager />
 
+            <Blocages />
+
             <Rappels />
 
             <button
@@ -435,6 +440,107 @@ const bouton = (encre: string, éteint: boolean) => ({
    qui est exactement ce qu'on veut — on n'a pas envie d'être sonné sur
    son ordinateur de travail parce qu'on l'a accepté sur son téléphone.
    ============================================================ */
+/* ============================================================
+   CEUX QU'ON A FAIT TAIRE — et le droit de se raviser
+   ============================================================
+
+   `Ailleurs`, sur une fiche, sait faire taire l'auteur d'une critique
+   d'un geste. Ce geste marchait, il était même testé de bout en bout —
+   et il était SANS RETOUR : rien, nulle part, ne disait qui l'on avait
+   bloqué, et aucun écran n'appelait `debloquer`. Les deux fonctions
+   existaient côté client, la route côté serveur, la table dans le
+   schéma. Il manquait quinze lignes de tiroir.
+
+   Un geste qu'on ne peut pas défaire n'est pas un réglage, c'est un
+   accident qui attend. On le répare ici plutôt que d'enlever le bouton
+   d'en face : faire taire quelqu'un est légitime, ne plus pouvoir
+   revenir dessus ne l'est pas.
+
+   LA SECTION SE TAIT QUAND LA LISTE EST VIDE, comme les rappels
+   au-dessus : il n'y a rien à défaire, et une rubrique « personne » sur
+   un sujet pareil n'apprend rien à personne. */
+function Blocages() {
+  const [liste, setListe] = useState<string[] | null>(null);
+  const [occupé, setOccupé] = useState<string | null>(null);
+
+  const relire = () =>
+    mesBlocages()
+      .then((r) => setListe(r.blocages))
+      /* Sans serveur ou hors ligne : on se tait, on n'affiche pas une
+         erreur pour une rubrique qui n'a peut-être rien à dire. */
+      .catch(() => setListe(null));
+
+  useEffect(() => {
+    relire();
+  }, []);
+
+  if (!liste?.length) return null;
+
+  const rendreLaParole = async (pseudo: string) => {
+    setOccupé(pseudo);
+    try {
+      await debloquer(pseudo);
+    } finally {
+      setOccupé(null);
+      await relire();
+    }
+  };
+
+  return (
+    <div style={{ borderTop: `1px dashed ${C.line}`, paddingTop: 14 }}>
+      <Label>Ceux que vous avez fait taire</Label>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
+        {liste.map((pseudo) => (
+          <div key={pseudo} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <VolumeX size={13} style={{ flexShrink: 0, color: C.inkFaded }} aria-hidden />
+            <span
+              style={{
+                flex: 1,
+                minWidth: 0,
+                fontFamily: F.body,
+                fontSize: 13,
+                color: C.ink,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {pseudo}
+            </span>
+            <button
+              onClick={() => rendreLaParole(pseudo)}
+              disabled={occupé === pseudo}
+              aria-label={`Rendre la parole à ${pseudo}`}
+              style={{
+                all: "unset",
+                ...tap,
+                cursor: occupé === pseudo ? "default" : "pointer",
+                opacity: occupé === pseudo ? 0.45 : 1,
+                flexShrink: 0,
+                fontFamily: F.mono,
+                fontSize: 10,
+                letterSpacing: 1,
+                color: C.inkFaded,
+                borderBottom: `1px dashed ${C.line}`,
+              }}
+            >
+              RENDRE LA PAROLE
+            </button>
+          </div>
+        ))}
+      </div>
+      {/* CE QUE DÉBLOQUER NE FAIT PAS, et il vaut mieux le dire que le
+          laisser deviner : le serveur ne réabonne personne. Le lien a été
+          défait au blocage ; on rouvre une porte, on ne rappelle pas
+          quelqu'un. */}
+      <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 7 }}>
+        Leurs critiques reparaîtront sous les fiches. Vous ne les suivrez pas pour autant — le
+        blocage avait défait le lien, et le défaire ne le renoue pas.
+      </div>
+    </div>
+  );
+}
+
 function Rappels() {
   const [état, setÉtat] = useState<EtatPoussees | null>(null);
   const [occupé, setOccupé] = useState(false);
