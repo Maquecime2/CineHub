@@ -159,8 +159,28 @@ export const initialsOf = (title = ""): string =>
    laisse légitimement sans pour un court-métrage obscur. Les prendre
    pour un manque ferait réinterroger éternellement les mêmes fiches, à
    chaque passage, sans que rien ne change jamais. */
-export const isIncomplete = (f: Pick<Film, "cast" | "runtime">): boolean =>
-  (f.cast || []).length === 0 || f.runtime == null;
+export const isIncomplete = (f: Pick<Film, "cast" | "runtime" | "keywords">): boolean =>
+  (f.cast || []).length === 0 ||
+  f.runtime == null ||
+  /* Les mots-clés se testent sur l'ABSENCE et non sur le vide, et c'est
+     ce qui les distingue des pays et de la langue écartés ci-dessus. Un
+     film dont TMDB n'a aucun mot-clé repart avec une liste vide, qui est
+     une réponse : il ne sera pas redemandé. Une fiche d'avant leur
+     récolte, elle, n'a rien du tout — et c'est cette différence-là qui
+     fait qu'on peut compléter une fois sans boucler. */
+  f.keywords == null;
+
+/* CE QU'UN RATTRAPAGE EXPLICITE VA CHERCHER — et c'est plus large.
+
+   `isIncomplete` s'interdit le vide, pour ne pas boucler à chaque
+   passage. Mais une collection entière a été figée à `[]` par un défaut
+   de récolte (voir `getDetails`), et rien de ce qui répare ne pouvait
+   plus la toucher. Il fallait donc un geste qui vise AUSSI le vide.
+
+   Il n'est pas automatique, et ne doit pas l'être : sur cinq cents
+   fiches, cela fait cinq cents appels. C'est à l'utilisateur de le
+   demander, une fois, en connaissance du nombre. */
+export const sansMotsClés = (f: Pick<Film, "keywords">): boolean => !(f.keywords || []).length;
 
 /* ------------------------------------------------------------
    LE JOURNAL DES SÉANCES
@@ -270,6 +290,10 @@ export const migrate = (films: Partial<Film>[] | null | undefined): Film[] =>
     language: f.language || "",
     countries: f.countries || [],
     tmdbRating: f.tmdbRating ?? null,
+    /* PAS DE REPLI SUR LA LISTE VIDE, contrairement à tous ses voisins :
+       « jamais demandé » et « demandé, il n'y en a pas » doivent rester
+       distincts, sans quoi la complétion tourne en rond. Voir `types`. */
+    keywords: f.keywords,
     themes: f.themes || [],
     motifs: f.motifs || [],
     linkedWorks: f.linkedWorks || [],

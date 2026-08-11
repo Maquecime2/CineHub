@@ -26,7 +26,7 @@ import { MotifPicker } from "../components/film/MotifPicker";
 import { MOTIFS, suggestMotifs } from "../domain/motifs";
 import type { Motif, MotifFamille } from "../domain/motifs";
 import { fetchKeywords } from "../tmdb";
-import { store } from "../services/storage";
+import { useTmdbKey } from "../services/tmdbKey";
 import { StampCorner, Tape } from "../components/atmosphere";
 import { PosterArt } from "../components/film/PosterArt";
 import { PosterPicker } from "../components/film/PosterPicker";
@@ -34,10 +34,12 @@ import { FilmIdentity } from "../components/film/FilmIdentity";
 import { TmdbFacts } from "../components/film/TmdbFacts";
 import { Ailleurs } from "../components/film/Ailleurs";
 import { RangerDansUneListe } from "../components/film/RangerDansUneListe";
+import { TmdbLink } from "../components/film/TmdbLink";
 import { WatchLog } from "../components/film/WatchLog";
 import { ThreadBoard } from "../components/film/ThreadBoard";
 import { LINK_TYPES } from "../components/film/linkTypes";
 import { FORCES, RELATIONS_SAISISSABLES, forceDe } from "../domain/relations";
+import { SillagePanel } from "./detail/SillagePanel";
 import { StillsStrip } from "../components/stills/StillsStrip";
 import { StillLightbox } from "../components/stills/StillLightbox";
 import { RichField } from "../components/stills/RichField";
@@ -63,6 +65,8 @@ interface DetailViewProps {
   onOpen: (id: string) => void;
   /** Ouvre le dossier de quelqu'un du générique, par son nom écrit. */
   onOpenPerson?: (nom: string) => void;
+  /** Range une proposition du sillage dans la liste « à voir ». */
+  onAddToWatchlist?: (f: Film) => void;
   /** Faire d'un motif une question posée à toute la collection. */
   onFaireUnFil?: (motifId: string) => void;
   /** Le vocabulaire à vous : vos motifs, et ceux du catalogue écartés. */
@@ -88,12 +92,14 @@ export function DetailView({
   onEditLink,
   onOpen,
   onOpenPerson,
+  onAddToWatchlist,
   vocabulaire = { perso: [], masqués: [] },
   onCréerMotif,
   onSupprimerMotif,
   onMasquerMotif,
   connecte = false,
 }: DetailViewProps) {
+  const apiKey = useTmdbKey();
   /* Une seule demande à la fois, portée par la vue : les trois gestes qui
      la lèvent — supprimer la fiche, la mettre de côté, supprimer un motif —
      n'ont rien à partager sinon le fait qu'on puisse s'être trompé. */
@@ -210,17 +216,33 @@ export function DetailView({
   useEffect(() => {
     let vivant = true;
     setProposés([]);
-    const apiKey = store.get("tmdb-key", "");
     if (!film.tmdbId || !apiKey) return;
     fetchKeywords(film.tmdbId, apiKey)
       .then((mots: { id?: number; name?: string }[]) => {
-        if (vivant) setProposés(suggestMotifs(mots));
+        if (!vivant) return;
+        setProposés(suggestMotifs(mots));
+        /* ON LES RANGE AU PASSAGE. Ils étaient demandés puis jetés :
+           seules les propositions de motifs en sortaient, et le sillage
+           n'avait ensuite rien de thématique à quoi se raccrocher. Les
+           garder ici fait qu'ouvrir une fiche l'améliore — et celles
+           qu'on n'ouvre jamais attendent « compléter les fiches ».
+
+           On n'écrit que si la fiche n'en portait pas : une écriture à
+           chaque ouverture sauverait la collection entière pour rien. */
+        if (film.keywords == null)
+          onUpdate({
+            ...film,
+            keywords: mots.map((m) => m.name || "").filter(Boolean),
+          });
       })
       .catch(() => {});
     return () => {
       vivant = false;
     };
-  }, [film.id, film.tmdbId]);
+    /* La clé est une dépendance : la poser dans le tiroir doit rattraper
+       une fiche déjà ouverte, sans quoi il faudrait la refermer pour que
+       les propositions arrivent. */
+  }, [film.id, film.tmdbId, apiKey]);
 
   const addLink = () => {
     // une fiche retenue devient un vrai lien réciproque, pas une étiquette
@@ -667,6 +689,15 @@ export function DetailView({
               <Trash2 size={12} /> supprimer définitivement
             </button>
           </Carton>
+          {/* L'IDENTITÉ, ET NON LE RANGEMENT — d'où un carton à part.
+              « Ce qu'on en fait » réunit les gestes qui déplacent la
+              fiche ; celui-ci répare ce qu'elle EST, quand l'import l'a
+              confondue avec un homonyme. Il se tient en bas parce qu'on
+              ne s'en sert qu'une fois par fiche, et jamais sur la
+              plupart. */}
+          <Carton tour="detail-identite">
+            <TmdbLink film={film} onUpdate={onUpdate} />
+          </Carton>
         </div>
         {/* LE FIL ROUGE, MONTÉ EN COLONNE.
 
@@ -919,6 +950,13 @@ export function DetailView({
           </Carton>
         </div>
       </div>
+      {/* LE SILLAGE, tout en bas et sur toute la largeur.
+
+          Après les motifs, et non avant : on lit ce qui rapproche ce
+          film d'autres une fois qu'on a fini de dire ce qu'il est. Posé
+          là, c'est aussi la sortie naturelle de la fiche — on referme
+          rarement un dossier sans se demander « et ensuite ? ». */}
+      <SillagePanel film={film} films={films} onOpen={onOpen} onAddToWatchlist={onAddToWatchlist} />
       <Confirmation demande={demande} onClose={() => setDemande(null)} />
       {lightbox != null && (
         <StillLightbox

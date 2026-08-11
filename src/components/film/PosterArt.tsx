@@ -18,6 +18,12 @@ interface PosterArtProps {
   initials: string;
   clipSeed?: number;
   plain?: boolean;
+  /**
+   * Différer le décodage de l'image. Vrai partout où l'on en montre
+   * beaucoup à la fois ; faux sur une fiche isolée, qu'on veut voir
+   * tout de suite. Par défaut, le mode `plain` — l'étagère — l'active.
+   */
+  lazy?: boolean;
 }
 
 /* `height` ne vaut que pour l'émulsion de substitution, en paysage. Une vraie
@@ -33,6 +39,7 @@ export const PosterArt = React.memo(function PosterArt({
   initials,
   clipSeed = 0,
   plain = false,
+  lazy = plain,
 }: PosterArtProps) {
   const [broken, setBroken] = useState(false);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
@@ -93,7 +100,15 @@ export const PosterArt = React.memo(function PosterArt({
              à garder en mémoire et à rastériser. `lazy` n'en décode que ce
              qui est à l'écran, `async` ne bloque pas le fil principal — et
              c'est ce fil qui doit rester libre pour suivre la souris. */
-          loading={plain ? "lazy" : "eager"}
+          /* LE MUR CHARGEAIT TOUT, ET C'ÉTAIT LE PLUS CHER.
+
+             `plain` désignait l'étagère, et le reste — dont le mur
+             d'affiches, qui en montre cinq cents — décodait en `eager`.
+             Le critère n'était pas le bon : ce qui compte n'est pas la
+             forme de la découpe mais le NOMBRE d'images à l'écran.
+             `lazy` le dit maintenant en toutes lettres, et sa valeur par
+             défaut garde le comportement d'avant partout ailleurs. */
+          loading={lazy ? "lazy" : "eager"}
           decoding="async"
           // `contain` : une affiche au format inhabituel est montrée entière,
           // jamais rognée — quitte à laisser un liseré sur les côtés

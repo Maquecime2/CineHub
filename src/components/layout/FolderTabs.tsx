@@ -19,6 +19,7 @@ import {
   FolderInput,
   Settings,
   Search,
+  KeyRound,
 } from "lucide-react";
 import { C, alpha } from "../../theme/tokens";
 import { useViewport } from "../../hooks/useViewport";
@@ -48,6 +49,8 @@ interface FolderTabsProps {
   onSkin: () => void;
   /** Ouvre le menu de la visite guidée. */
   onHelp: () => void;
+  /** Ouvre le réglage de la clé TMDB. */
+  onKey: () => void;
   /** Le tiroir du compte et de la synchronisation. */
   onCompte: () => void;
   /**
@@ -215,6 +218,88 @@ function Onglet({
    cette limite. Si l'un change, l'autre change. */
 const BAR_H = 58;
 
+/* LES PETITS RÉGLAGES DE TOUT — la peau, la clé, le compte, la visite.
+
+   Ils ne sont le réglage d'AUCUNE vue, c'est celui de toutes : d'où le
+   pied du rail, et non un onglet. Discrets, parce qu'on les touche deux
+   fois et qu'on les côtoie tous les jours.
+
+   Une seule pastille écrite une seule fois : les quatre portaient le
+   même bloc de style recopié, et la suivante l'aurait recopié une fois
+   de plus — autant d'occasions de diverger sans le vouloir. La
+   démonstration a eu lieu : le rail au doigt et la clé TMDB sont
+   arrivés chacun de son côté, et ont réécrit les mêmes boutons.
+
+   D'où `doigt` : au téléphone ces pastilles descendent dans la barre du
+   bas, où 26 px ne se visent pas. Le paramètre vit ICI plutôt qu'à
+   chaque appel, sinon la prochaine pastille ajoutée l'oubliera.
+
+   `marque` porte la pastille de synchronisation — la seule chose qu'un
+   de ces boutons ait à dire sans qu'on l'ouvre. */
+function ActionRonde({
+  onClick,
+  label,
+  tour,
+  icon: Icon,
+  doigt = false,
+  marque,
+}: {
+  onClick: () => void;
+  label: string;
+  tour: string;
+  icon: ComponentType<{ size?: number }>;
+  doigt?: boolean;
+  marque?: string | null;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      data-tour={tour}
+      title={label}
+      aria-label={label}
+      style={{
+        all: "unset",
+        cursor: "pointer",
+        position: "relative",
+        marginLeft: doigt ? 0 : 8,
+        width: doigt ? 40 : 26,
+        height: doigt ? 40 : 26,
+        borderRadius: "50%",
+        color: C.inkFaded,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        border: `1px solid ${C.line}`,
+        transition: "color var(--motion-fast) ease, border-color var(--motion-fast) ease",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.color = C.burgundy;
+        e.currentTarget.style.borderColor = C.burgundy;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.color = C.inkFaded;
+        e.currentTarget.style.borderColor = C.line;
+      }}
+    >
+      <Icon size={13} />
+      {marque && (
+        <span
+          aria-hidden
+          style={{
+            position: "absolute",
+            top: doigt ? 6 : 1,
+            right: doigt ? 6 : 1,
+            width: 6,
+            height: 6,
+            borderRadius: "50%",
+            background: marque,
+          }}
+        />
+      )}
+    </button>
+  );
+}
+
 export function FolderTabs({
   view,
   setView,
@@ -222,6 +307,7 @@ export function FolderTabs({
   onSearch,
   onSkin,
   onHelp,
+  onKey,
   onCompte,
   synchro,
 }: FolderTabsProps) {
@@ -484,42 +570,29 @@ export function FolderTabs({
             <Search size={14} />
           </button>
 
-          {/* LA PEAU DU SITE, au pied de la tranche du classeur.
-
-            Elle est ici et non dans une vue : ce n'est le reglage
-            d'aucune d'elles, c'est celui de tout. Discrete, parce qu'on
-            la choisit deux fois et qu'on la regarde ensuite tous les
-            jours. */}
-          <button
+          {/* LA PEAU DU SITE, au pied de la tranche du classeur. */}
+          <ActionRonde
             onClick={onSkin}
-            data-tour="skin"
-            title="Changer la peau du site"
-            aria-label="Changer la peau du site"
-            style={{
-              all: "unset",
-              cursor: "pointer",
-              marginLeft: phone ? 0 : 8,
-              width: phone ? 40 : 26,
-              height: phone ? 40 : 26,
-              borderRadius: "50%",
-              color: C.inkFaded,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              border: `1px solid ${C.line}`,
-              transition: "color .18s ease, border-color .18s ease",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = C.burgundy;
-              e.currentTarget.style.borderColor = C.burgundy;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = C.inkFaded;
-              e.currentTarget.style.borderColor = C.line;
-            }}
-          >
-            <Palette size={13} />
-          </button>
+            tour="skin"
+            label="Changer la peau du site"
+            icon={Palette}
+            doigt={phone}
+          />
+
+          {/* LA CLÉ TMDB, entre la peau et le compte.
+
+            Elle commande huit écrans — les Découvertes, le sillage, les
+            affiches, les fiches d'équipe — et ne se posait que dans
+            l'onglet Import, au milieu d'un écran qui parle d'autre
+            chose. Un réglage qui commande tout n'appartient à aucune
+            vue : il est ici, avec les autres réglages de tout. */}
+          <ActionRonde
+            onClick={onKey}
+            tour="tmdb-key"
+            label="La clé TMDB"
+            icon={KeyRound}
+            doigt={phone}
+          />
 
           {/* LE COMPTE ET SA PASTILLE.
 
@@ -528,43 +601,16 @@ export function FolderTabs({
             pastille dit d'un coup d'œil ce qui attend — c'est la seule
             chose qu'on veut savoir sans ouvrir. */}
           {synchro !== "absent" && (
-            <button
+            <ActionRonde
               onClick={onCompte}
-              data-tour="compte"
-              title="Votre compte et la synchronisation"
-              aria-label="Votre compte et la synchronisation"
-              style={{
-                all: "unset",
-                cursor: "pointer",
-                position: "relative",
-                marginLeft: phone ? 0 : 8,
-                width: phone ? 40 : 26,
-                height: phone ? 40 : 26,
-                borderRadius: "50%",
-                color: C.inkFaded,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                border: `1px solid ${C.line}`,
-                transition: "color .18s ease, border-color .18s ease",
-              }}
-            >
-              <UserRound size={13} />
-              {(synchro === "en-attente" || synchro === "erreur") && (
-                <span
-                  aria-hidden
-                  style={{
-                    position: "absolute",
-                    top: phone ? 6 : 1,
-                    right: phone ? 6 : 1,
-                    width: 6,
-                    height: 6,
-                    borderRadius: "50%",
-                    background: synchro === "erreur" ? C.burgundy : C.inkFaded,
-                  }}
-                />
-              )}
-            </button>
+              tour="compte"
+              label="Votre compte et la synchronisation"
+              icon={UserRound}
+              doigt={phone}
+              marque={
+                synchro === "erreur" ? C.burgundy : synchro === "en-attente" ? C.inkFaded : null
+              }
+            />
           )}
 
           {/* LA VISITE, au dernier cran du rail.
@@ -572,39 +618,16 @@ export function FolderTabs({
             Une seule ancre, et toujours la même : c'est ce que la fiche
             de rappel désigne quand on écarte la visite, et ce qu'on
             cherche six mois plus tard en se demandant à quoi servait
-            l'étagère. Sous la peau parce qu'on la consulte encore moins
-            souvent — mais jamais ailleurs, jamais rangée dans une vue :
-            l'aide d'un outil ne se cache pas dans l'outil. */}
-          <button
+            l'étagère. Au dernier cran parce qu'on la consulte encore
+            moins souvent — mais jamais ailleurs, jamais rangée dans une
+            vue : l'aide d'un outil ne se cache pas dans l'outil. */}
+          <ActionRonde
             onClick={onHelp}
-            data-tour="help"
-            title="La visite guidée"
-            aria-label="La visite guidée"
-            style={{
-              all: "unset",
-              cursor: "pointer",
-              marginLeft: phone ? 0 : 8,
-              width: phone ? 40 : 26,
-              height: phone ? 40 : 26,
-              borderRadius: "50%",
-              color: C.inkFaded,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              border: `1px solid ${C.line}`,
-              transition: "color .18s ease, border-color .18s ease",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = C.burgundy;
-              e.currentTarget.style.borderColor = C.burgundy;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = C.inkFaded;
-              e.currentTarget.style.borderColor = C.line;
-            }}
-          >
-            <HelpCircle size={13} />
-          </button>
+            tour="help"
+            label="La visite guidée"
+            icon={HelpCircle}
+            doigt={phone}
+          />
         </div>
       </div>
     </div>

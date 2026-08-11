@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { C, F } from "../../theme/tokens";
 import { underlineInput, tap } from "../../theme/styles";
 import { Label } from "../ui";
-import { store } from "../../services/storage";
+import { useTmdbKey } from "../../services/tmdbKey";
 import { IDB_PREFIX, isIdbPoster, idbKeyOf, putImage, deleteImage } from "../../db";
 import { listPosters } from "../../tmdb";
 import type { Film } from "../../types";
@@ -21,14 +21,14 @@ export function PosterPicker({ film, onUpdate }: { film: Film; onUpdate: (f: Fil
   const [gallery, setGallery] = useState<PosterChoice[] | null>(null); // affiches proposées par TMDB
   const [galleryMsg, setGalleryMsg] = useState("");
   const ref = useRef<HTMLInputElement | null>(null);
-  const apiKey = store.get("tmdb-key", "");
+  const apiKey = useTmdbKey();
 
   /* La voie par défaut : TMDB connaît en général plusieurs affiches par film
      (pays, rééditions, versions sans texte). Autant les proposer plutôt que
      d'imposer la première venue. */
   const loadGallery = async () => {
     if (!apiKey) {
-      setGalleryMsg("Aucune clé TMDB — renseignez-la dans l'onglet Import.");
+      setGalleryMsg("Aucune clé TMDB — à régler au pied du rail d'onglets.");
       return;
     }
     setGalleryMsg("recherche…");

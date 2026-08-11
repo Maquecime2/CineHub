@@ -235,6 +235,21 @@ async function écrire(films: Film[]): Promise<void> {
       coffre = false;
     }
   }
+  /* `set` ET NON `setSoon`, ET C'EST RÉFLÉCHI.
+
+     `main` avait mis la collection en écriture différée, pour ne pas
+     re-sérialiser six cents fiches à chaque frappe. Ce raisonnement
+     visait `localStorage`, qui était alors le seul logement de la
+     collection ; depuis, elle a déménagé dans le coffre, et cette ligne
+     n'est plus que le REPLI du jour où le coffre refuse.
+
+     Or c'est précisément le jour où il ne faut pas différer : on vient
+     d'apprendre que l'exemplaire d'en bas n'existe pas, et celui-ci est
+     le seul. Quatre cents millisecondes de fenêtre sur la seule copie
+     restante est un mauvais marché — et deux tests le disent déjà.
+
+     Le groupage reste disponible (`store.setSoon`) pour qui écrit
+     souvent une valeur reconstructible ; ce n'est pas le cas ici. */
   store.set(CLÉ, films);
 }
 

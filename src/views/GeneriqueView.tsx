@@ -28,7 +28,7 @@ import { initialsOf, makeFilm } from "../domain/film";
 import { filmKey } from "../domain/importing";
 import { motifById } from "../domain/motifs";
 import { tiltOf } from "../domain/seeded";
-import { store } from "../services/storage";
+import { useTmdbKey } from "../services/tmdbKey";
 import { searchPerson, personFilmography } from "../tmdb";
 import type { Film, KinshipRole } from "../types";
 
@@ -564,7 +564,7 @@ function CeQuiManque({
   films: Film[];
   onAddToWatchlist: (f: Film) => void;
 }) {
-  const apiKey = store.get("tmdb-key", "");
+  const apiKey = useTmdbKey();
   const [état, setÉtat] = useState<"repos" | "en-cours" | "fait">("repos");
   const [msg, setMsg] = useState("");
   const [manquants, setManquants] = useState<Manquant[]>([]);

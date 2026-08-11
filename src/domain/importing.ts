@@ -201,6 +201,7 @@ export function diffImport(
         language: r.language || "",
         countries: r.countries || [],
         tmdbRating: r.tmdbRating ?? null,
+        keywords: r.keywords,
         tmdbId: r.tmdbId || null,
         rating: r.rating ?? 0,
         status,
@@ -246,6 +247,22 @@ export function diffImport(
     if (r.language && !match.language) changes.language = r.language;
     if (r.countries?.length && !(match.countries || []).length) changes.countries = r.countries;
     if (r.tmdbRating != null && match.tmdbRating == null) changes.tmdbRating = r.tmdbRating;
+    /* LES MOTS-CLÉS S'ÉCRIVENT MÊME VIDES, et c'est indispensable.
+
+       La règle « on ne remplit que le vide » suffit partout ailleurs.
+       Ici elle boucle : une réponse SANS mot-clé n'écrirait rien, la
+       fiche resterait « jamais demandée », et « compléter » la
+       redemanderait à chaque passage jusqu'à la fin des temps. On écrit
+       donc la liste, fût-elle vide — c'est elle qui dit « on a demandé ».
+
+       Ils ne sont PAS vos motifs et n'y touchent pas : ceux-là ne
+       s'écrivent qu'à la main, et une récolte n'a rien à y dire. */
+    /* On comble l'absence — et aussi le VIDE, quand on rapporte enfin
+       quelque chose. C'est ce qui rend « redemander les mots-clés »
+       capable de réparer les fiches figées à `[]` par l'ancien défaut.
+       Une liste déjà remplie n'est jamais écrasée. */
+    if (r.keywords && (match.keywords == null || (r.keywords.length && !match.keywords.length)))
+      changes.keywords = r.keywords;
     // une affiche choisie à la main n'est jamais remplacée par celle de TMDB
     if (r.poster && !match.poster) changes.poster = r.poster;
     if (r.year && !match.year) changes.year = r.year;

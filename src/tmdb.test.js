@@ -18,6 +18,11 @@ const okFetch = () =>
             release_date: "1967-10-25",
             poster_path: "/p.jpg",
             credits: { crew: [{ job: "Director", name: "Jean-Pierre Melville" }] },
+            /* `append_to_response` demande AUSSI les mots-clés, et TMDB
+               les rend toujours — fût-ce sous forme de liste vide. Sans
+               eux, le mock déclenche le repli sur l'endpoint dédié et
+               fait donc un appel de plus que la réalité. */
+            keywords: { keywords: [{ id: 1, name: "hitman" }] },
           },
   }));
 
@@ -323,5 +328,76 @@ describe("enrichRows — durée, langue, pays, note", () => {
     const { rows: out } = await enrichRows([{ title: "Le Samouraï", year: 1967 }], "k");
     expect(fetchMock).not.toHaveBeenCalled();
     expect(out[0].runtime).toBe(105);
+  });
+});
+
+/* ============================================================
+   LES MOTS-CLÉS — « absent » n'est PAS « vide »
+   ============================================================
+
+   Confondre les deux a figé des collections entières. Une réponse où la
+   ressource jointe n'est pas revenue devenait `[]`, c'est-à-dire une
+   AFFIRMATION — « on a demandé, ce film n'en a pas ». Or tout ce qui
+   répare (`isIncomplete`, la fiche ouverte, la fusion d'import) ne vise
+   que l'absence : la fiche devenait irréparable, sans qu'aucune erreur
+   ne soit levée nulle part. */
+describe("enrichRows — les mots-clés", () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(() => vi.unstubAllGlobals());
+
+  const détail = (extra) =>
+    vi.fn(async (url) => ({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      json: async () =>
+        String(url).includes("/search/movie")
+          ? { results: [{ id: 42, title: "Le Samouraï", release_date: "1967-10-25" }] }
+          : String(url).includes("/keywords")
+            ? { keywords: [{ id: 7, name: "de secours" }] }
+            : { id: 42, release_date: "1967-10-25", credits: { crew: [] }, ...extra },
+    }));
+
+  it("rapporte les mots-clés de la ressource jointe", async () => {
+    vi.stubGlobal("fetch", détail({ keywords: { keywords: [{ id: 1, name: "hitman" }] } }));
+    const out = await enrichRows(rows, "k");
+    expect(out.rows[0].keywords).toEqual(["hitman"]);
+  });
+
+  /* Présent mais vide : c'est une vraie réponse. On l'écrit, et la fiche
+     ne sera plus redemandée — sans quoi « compléter » boucle sans fin. */
+  it("garde la liste vide quand TMDB dit qu'il n'y en a pas", async () => {
+    vi.stubGlobal("fetch", détail({ keywords: { keywords: [] } }));
+    const out = await enrichRows(rows, "k");
+    expect(out.rows[0].keywords).toEqual([]);
+  });
+
+  /* Absent : on ne sait pas. On retombe sur l'endpoint dédié plutôt que
+     d'inventer une réponse. */
+  it("retombe sur l'endpoint dédié quand la ressource jointe manque", async () => {
+    vi.stubGlobal("fetch", détail({}));
+    const out = await enrichRows(rows, "k");
+    expect(out.rows[0].keywords).toEqual(["de secours"]);
+  });
+
+  /* Et si le repli échoue à son tour, on rend `undefined` — jamais `[]`.
+     C'est ce qui laisse la fiche réparable. */
+  it("rend « on ne sait pas » plutôt qu'une liste vide quand tout échoue", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url) => ({
+        ok: true,
+        status: 200,
+        headers: new Headers(),
+        json: async () =>
+          String(url).includes("/search/movie")
+            ? { results: [{ id: 42, title: "Le Samouraï", release_date: "1967-10-25" }] }
+            : String(url).includes("/keywords")
+              ? { keywords: [] }
+              : { id: 42, release_date: "1967-10-25", credits: { crew: [] } },
+      }))
+    );
+    const out = await enrichRows(rows, "k");
+    expect(out.rows[0].keywords).toBeUndefined();
   });
 });

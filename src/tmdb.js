@@ -27,7 +27,11 @@ const CACHE_KEY = "tmdb-cache";
    Le numéro règle cela une fois pour toutes : une entrée d'une autre
    forme n'est pas une réponse, c'est une absence. On la jette et on
    redemande. À INCRÉMENTER dès qu'un champ s'ajoute à `getDetails`. */
-const SHAPE = 2;
+/* 4 : les entrées de forme 3 portent `keywords: []` là où la ressource
+   jointe n'était pas revenue — un vide qui se fait passer pour une
+   réponse. Les garder rendrait la réparation impossible : on redemande,
+   et le cache resservirait le même mensonge. */
+const SHAPE = 4;
 
 // le cache évite de reconsommer le quota à chaque réimport du même fichier
 const readCache = () => {
@@ -60,6 +64,19 @@ export const clearTmdbCache = () => {
     console.error(e);
   }
 };
+
+/* UNE CORRECTION MANUELLE S'INSCRIT DANS LE CACHE, sinon elle ne tient
+   qu'un temps : le cache associe encore `titre|année` au mauvais
+   identifiant, et le prochain import du même titre le ressert comme si
+   de rien n'était. On écrit donc les DEUX clés — celle du titre, qui
+   était fausse, et celle de l'identifiant retenu. */
+export function rememberResolution(title, year, info) {
+  if (!info?.tmdbId) return;
+  const cache = readCache();
+  cache[cacheKeyOf(title, year)] = info;
+  cache[cacheKeyOfId(info.tmdbId)] = info;
+  writeCache(cache);
+}
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -97,6 +114,41 @@ export async function searchMovie({ title, year, apiKey }) {
   return data.results?.[0] || null;
 }
 
+/* PLUSIEURS RÉSULTATS, ET NON LE PREMIER.
+
+   `searchMovie` prend `results[0]` sans regarder : c'est ce qu'il faut
+   pour enrichir cinq cents lignes d'un coup, et c'est exactement d'où
+   viennent les erreurs d'identité. Deux « Resurrection » à trente ans
+   d'écart, et la collection suit le mauvais toute sa vie — mauvaise
+   affiche, mauvaise équipe, et un sillage qui propose le vrai film comme
+   s'il s'agissait d'un autre.
+
+   Corriger cela demande de VOIR les homonymes. D'où cette variante, qui
+   ne décide rien et rend la liste telle quelle : c'est l'œil humain qui
+   tranche, une fiche à la fois. */
+/* `year` a une valeur par défaut, et ce n'est pas une commodité : sans
+   elle, TypeScript la déduit OBLIGATOIRE depuis ce module en JavaScript,
+   et le seul appelant — la correction d'identité — la laisse
+   délibérément de côté, l'année inscrite sur la fiche étant justement
+   celle qu'on soupçonne d'être fausse. */
+export async function searchMovies({ title, year = null, apiKey, limit = 12 }) {
+  const params = { query: title, include_adult: "false" };
+  let data = await get("/search/movie", year ? { ...params, year: String(year) } : params, apiKey);
+  /* Le repli sans année est ici PLUS important qu'ailleurs : quand on
+     vient corriger une identité, l'année inscrite sur la fiche est
+     souvent celle du mauvais film. */
+  if (!data.results?.length && year) data = await get("/search/movie", params, apiKey);
+  return (data.results || []).slice(0, limit).map((m) => ({
+    tmdbId: m.id,
+    title: m.title || m.original_title || "",
+    original: m.original_title || "",
+    year: m.release_date ? Number(m.release_date.slice(0, 4)) || null : null,
+    poster: m.poster_path ? `${POSTER_THUMB}${m.poster_path}` : "",
+    overview: (m.overview || "").slice(0, 200),
+    lang: m.original_language || "",
+  }));
+}
+
 /* LES TROIS MÉTIERS QU'ON RETIENT, et les intitulés TMDB qui les
    désignent. Trois et pas trente : une équipe entière compte deux cents
    noms, dont l'écrasante majorité ne relie jamais deux films entre eux
@@ -117,7 +169,33 @@ const ROLES = 8;
 
 /* Détail + équipe : c'est là que se trouve le réalisateur. */
 export async function getDetails(tmdbId, apiKey) {
-  const data = await get(`/movie/${tmdbId}`, { append_to_response: "credits" }, apiKey);
+  /* LES MOTS-CLÉS VIENNENT DANS LA MÊME REQUÊTE, ET C'EST TOUT L'INTÉRÊT.
+
+     `append_to_response` accepte plusieurs ressources séparées par des
+     virgules : les demander ici ne coûte pas un appel de plus, pas un
+     jeton de quota de plus, pas une milliseconde de plus. Les récolter à
+     part — ce que fait `fetchKeywords` pour la fiche ouverte — doublerait
+     le nombre d'appels d'un import complet pour la même chose. */
+  const data = await get(`/movie/${tmdbId}`, { append_to_response: "credits,keywords" }, apiKey);
+
+  /* LE REPLI SUR L'ENDPOINT DÉDIÉ.
+
+     Si la ressource jointe n'est pas revenue, on la demande séparément
+     plutôt que de rendre « on ne sait pas » et de laisser la fiche vide
+     pour toujours. Un appel de plus, et seulement dans ce cas-là ;
+     `fetchKeywords` est de toute façon mis en cache, et c'est le même
+     appel que celui de la fiche ouverte — souvent déjà payé.
+
+     On distingue toujours l'absence du vide : si CE second appel échoue
+     à son tour, il rend `[]`, mais on ne l'écrit pas — on repasse à
+     `undefined`, pour que la fiche reste réparable. */
+  let keywords;
+  if (data.keywords?.keywords) keywords = data.keywords.keywords;
+  else {
+    const secours = await fetchKeywords(tmdbId, apiKey);
+    keywords = secours.length ? secours : undefined;
+  }
+
   const équipe = data.credits?.crew || [];
   const directors = équipe.filter((c) => c.job === "Director").map((c) => c.name);
 
@@ -165,6 +243,39 @@ export async function getDetails(tmdbId, apiKey) {
     countries: (data.production_countries || []).slice(0, 2).map((c) => c.iso_3166_1),
     // même raison que la durée : 0 veut dire « pas encore noté »
     tmdbRating: data.vote_average || null,
+    /* LES MOTS-CLÉS, GARDÉS CETTE FOIS.
+
+       Ils étaient récoltés depuis longtemps et jetés aussitôt : ils ne
+       servaient qu'à proposer des motifs à confirmer sur la fiche
+       ouverte. Or ce sont les SEULS renseignements thématiques que TMDB
+       donne — les motifs et les mots-clés à vous se posent à la main, et
+       sur une collection importée ils sont vides. Le sillage d'un film
+       n'avait donc que des noms de personnes à rapprocher.
+
+       Ils ne remplacent pas les motifs et ne s'y mélangent pas : un
+       motif est un mot que VOUS avez choisi de suivre, un mot-clé est ce
+       que TMDB a écrit. Ils vivent côte à côte, comme `themes` et
+       `motifs`, et le sillage les pèse différemment.
+
+       Vingt au plus : les fiches populaires en portent parfois cent, et
+       la queue de liste est de la poussière (« based on novel »,
+       « duringcreditsstinger ») qui gonflerait le stockage pour rien.
+
+       ABSENT N'EST PAS VIDE, ET LES CONFONDRE A TOUT GELÉ.
+
+       Le premier jet écrivait `(data.keywords?.keywords || [])`. Quand
+       l'`append_to_response` groupé ne rapportait rien — champ absent de
+       la réponse — cela rendait un tableau vide, c'est-à-dire une
+       AFFIRMATION : « on a demandé, ce film n'a pas de mots-clés ». La
+       fiche se figeait alors définitivement, puisque tout ce qui répare
+       (`isIncomplete`, la fiche ouverte, la fusion d'import) ne réécrit
+       que si le champ est absent. Une collection entière s'est retrouvée
+       à zéro mot-clé sans qu'aucune erreur ne soit levée nulle part.
+
+       `undefined` quand on ne sait pas, `[]` quand on sait qu'il n'y en
+       a pas. La même discipline que `runtime` et `tmdbRating`, un cran
+       plus haut. */
+    keywords: keywords ? keywords.slice(0, 20).map((k) => k.name) : undefined,
   };
 }
 
@@ -529,6 +640,10 @@ export async function enrichRows(rows, apiKey, { onProgress, concurrency = 5 } =
             language: info.language || "",
             countries: info.countries || [],
             tmdbRating: info.tmdbRating ?? null,
+            /* Pas de `|| []` : voir `getDetails`. Un repli sur la liste
+               vide transformerait « on ne sait pas » en « il n'y en a
+               pas », et figerait la fiche pour de bon. */
+            keywords: info.keywords,
             tmdbId: info.tmdbId,
             year: rows[i].year || info.year || "",
           };

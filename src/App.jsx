@@ -117,6 +117,8 @@ import { usePointerDrag } from "./hooks/usePointerDrag";
 import { SkinPicker } from "./components/layout/SkinPicker";
 import { Installation, MiseÀJour } from "./components/layout/Installation";
 import { CompteDrawer } from "./components/layout/CompteDrawer";
+import { TmdbKeyPanel } from "./components/layout/TmdbKeyPanel";
+import { inscrireOuvreurTmdb } from "./services/tmdbKey";
 import { useSynchro } from "./hooks/useSynchro";
 import { useInstallation } from "./hooks/useInstallation";
 /* Le module n'existe qu'à la construction : c'est le greffon qui le
@@ -239,6 +241,11 @@ export default function App() {
 
   const [skin, setSkin] = useState(loadSkinKey);
   const [skinPicker, setSkinPicker] = useState(false);
+  /* Le tiroir de la clé TMDB. Il s'inscrit auprès du service pour que
+     n'importe quel écran privé de clé puisse dire « la régler ici » sans
+     qu'un rappel traverse dix composants qui n'ont rien à voir. */
+  const [keyPanel, setKeyPanel] = useState(false);
+  useEffect(() => inscrireOuvreurTmdb(() => setKeyPanel(true)), []);
   useLayoutEffect(() => {
     applySkin(skin);
     saveSkinKey(skin);
@@ -376,7 +383,18 @@ export default function App() {
      seule porte les `updatedAt` qui diront demain quoi synchroniser.
 
      Le second `setFilms` ne coûte rien quand rien n'a changé : le dépôt
-     rend alors les mêmes objets, et React abandonne la mise à jour. */
+     rend alors les mêmes objets, et React abandonne la mise à jour.
+
+     CE QUI EST ARRIVÉ À L'ÉCRITURE DIFFÉRÉE DE `main`. Elle écrivait
+     ici, par `store.setSoon(KEYS.films, …)`, pour ne pas re-sérialiser
+     six cents fiches à chaque frappe dans `localStorage`. Entre-temps
+     la collection a déménagé dans le coffre : le dépôt écrit par
+     IndexedDB, et `localStorage` n'est plus que son repli. Le remède
+     s'applique donc à un mal qui a changé de place — et le différer sur
+     le chemin de repli reviendrait à retarder la seule copie qui reste
+     le jour où le coffre refuse. `store.setSoon` demeure, inemployé
+     ici ; ce qu'il faudrait grouper aujourd'hui, c'est l'écriture dans
+     le coffre, et cela ne se décide pas au détour d'une fusion. */
   const saveFilms = (next) => {
     setFilms(next);
     enregistrerFilms(next).then((datés) => setFilms(datés));
@@ -756,6 +774,7 @@ export default function App() {
         onAdd={() => setShowModal(true)}
         onSearch={() => setRecherche(true)}
         onSkin={() => setSkinPicker(true)}
+        onKey={() => setKeyPanel(true)}
         onHelp={() => setTourMenu((o) => !o)}
         onCompte={() => setCompteOuvert(true)}
         synchro={synchro.état}
@@ -774,6 +793,7 @@ export default function App() {
       {skinPicker && (
         <SkinPicker skin={skin} onPick={setSkin} onClose={() => setSkinPicker(false)} />
       )}
+      {keyPanel && <TmdbKeyPanel onClose={() => setKeyPanel(false)} />}
       {recherche && (
         <SearchDrawer
           films={films}
@@ -861,6 +881,7 @@ export default function App() {
             onMasquerMotif={masquerMotif}
             onOpen={(id) => setSelectedId(id)}
             onOpenPerson={ouvrirPersonne}
+            onAddToWatchlist={addFilm}
           />
         )}
         {view === "generique" && (
