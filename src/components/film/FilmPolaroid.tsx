@@ -102,7 +102,9 @@ export function FilmPolaroid({
             style={{ top: -10, left: "50%", marginLeft: -35 }}
           />
         )}
-        <PosterArt film={film} height={px(150)} initials={initials} />
+        {/* `lazy` : une fiche paraît rarement seule — le mur en aligne
+            cinq cents, et les Découvertes quarante. */}
+        <PosterArt film={film} height={px(150)} initials={initials} lazy />
         <div style={{ paddingTop: px(14), textAlign: "left" }}>
           <div
             style={{

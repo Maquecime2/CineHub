@@ -120,7 +120,11 @@ export function SkinPicker({
             PEAU DU SITE
           </div>
           <div style={{ flex: 1 }} />
-          <button onClick={onClose} style={{ all: "unset", cursor: "pointer", color: C.inkFaded }}>
+          <button
+            onClick={onClose}
+            aria-label="Fermer le choix des peaux"
+            style={{ all: "unset", cursor: "pointer", color: C.inkFaded }}
+          >
             <X size={13} />
           </button>
         </div>

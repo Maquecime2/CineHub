@@ -106,7 +106,13 @@ export function WallStudio({ look, onChange, onReset, onClose }) {
           >
             <RotateCcw size={11} /> D'ORIGINE
           </button>
-          <button onClick={onClose} style={{ all: "unset", cursor: "pointer", color: C.inkFaded }}>
+          {/* Une croix seule n'a pas de nom : sans étiquette, un lecteur
+              d'écran annonce « bouton » et rien d'autre. */}
+          <button
+            onClick={onClose}
+            aria-label="Fermer l'atelier"
+            style={{ all: "unset", cursor: "pointer", color: C.inkFaded }}
+          >
             <X size={13} />
           </button>
         </div>

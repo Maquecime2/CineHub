@@ -8,6 +8,7 @@ import { underlineInput } from "../../theme/styles";
 import { Label, Tally, InkStars } from "../../components/ui";
 import { StampCorner } from "../../components/atmosphere";
 import { store } from "../../services/storage";
+import { getTmdbKey, setTmdbKey } from "../../services/tmdbKey";
 import { parseLetterboxdCsv, diffImport, filmKey } from "../../domain/importing";
 import {
   fetchLetterboxdFeed,
@@ -79,8 +80,12 @@ export function ImportView({
     null
   ); // bilan après écriture
 
-  const [apiKey, setApiKey] = useState(() => store.get("tmdb-key", ""));
-  const [useTmdb, setUseTmdb] = useState(() => !!store.get("tmdb-key", ""));
+  /* Le champ d'ici garde son brouillon local — on tape une clé avant de
+     la valider — mais il n'est plus le SEUL endroit où elle se pose : le
+     tiroir au pied du rail écrit dans le même service, et poser la clé
+     là-bas doit se voir ici. */
+  const [apiKey, setApiKey] = useState(getTmdbKey);
+  const [useTmdb, setUseTmdb] = useState(() => !!getTmdbKey());
   const [keyState, setKeyState] = useState("");
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null); // { done, total }
   const [tmdbReport, setTmdbReport] = useState<{ resolved: number; failed: number } | null>(null);
@@ -206,7 +211,7 @@ export function ImportView({
   const runTmdb = async () => {
     const key = apiKey.trim();
     if (!key) return;
-    store.set("tmdb-key", key);
+    setTmdbKey(key);
     setProgress({ done: 0, total: rows.length });
     const res = await enrichRows(rows, key, {
       onProgress: (d: number, t: number) => setProgress({ done: d, total: t }),

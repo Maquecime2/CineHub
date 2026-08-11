@@ -1,13 +1,21 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   CSSProperties,
   Dispatch,
   SetStateAction,
   PointerEvent as ReactPointerEvent,
+  KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { Sparkles, Users, Spool } from "lucide-react";
 import { C, F, alpha } from "../theme/tokens";
-import { buildSky, buildSkyWithCrew, neighbourhood, relax } from "../domain/sky";
+import {
+  buildSky,
+  buildSkyWithCrew,
+  neighbourhood,
+  relax,
+  voisinDansLaDirection,
+} from "../domain/sky";
+import type { Direction } from "../domain/sky";
 import { CoffeeRing, StampCorner, InkUnderline } from "../components/atmosphere";
 import type { Film, KinshipRole, LinkType, PlacedNode, SkyLink, SkyNode } from "../types";
 import { Label } from "../components/ui";
@@ -209,6 +217,90 @@ export function ConstellationView({
 
   const pos = useCallback((p: PlacedNode) => moved[p.id] || p, [moved]);
   const byId = useMemo(() => new Map(placed.map((p) => [p.id, p])), [placed]);
+
+  /* ------------------------------------------------------------
+     LE PARCOURS AU CLAVIER
+     ------------------------------------------------------------
+
+     La carte ne se lisait qu'au pointeur. Sans souris, aucun chemin
+     n'existait vers un astre : la vue la plus riche du classeur était
+     la seule entièrement fermée.
+
+     UN SEUL ARRÊT DE TABULATION pour tout le ciel, et les flèches à
+     l'intérieur. Rendre trois cents astres tabulables ferait trois cents
+     pressions pour traverser la vue, ce qui est une façon polie de la
+     garder fermée. C'est le motif habituel des grilles et des cartes.
+
+     `curseur` double le survol plutôt que de le remplacer : les deux
+     désignent « l'astre dont on parle en ce moment », et la mise en
+     lumière des voisins doit répondre aux deux de la même façon. */
+  const [curseur, setCurseur] = useState<string | null>(null);
+  const astreCourant = curseur ? byId.get(curseur) : undefined;
+
+  /* Un astre effacé par un changement de filtre ne doit pas laisser un
+     curseur fantôme derrière lui — ni la voix de synthèse annoncer un
+     astre qui n'est plus là. */
+  useEffect(() => {
+    if (curseur && !byId.has(curseur)) setCurseur(null);
+  }, [byId, curseur]);
+
+  /* Le même geste qu'un clic, pour que le clavier et le pointeur ne
+     puissent pas diverger : deux copies de cette règle finiraient par
+     répondre différemment à la même touche. */
+  const ouvrirOuFoyer = (n: PlacedNode) => {
+    if (n.kind === "work") return;
+    if (n.kind === "fil") poserFoyer(n.id);
+    else if (n.id === foyer) onOpen(n.filmId as string);
+    else poserFoyer(n.id);
+  };
+
+  const auClavier = (e: ReactKeyboardEvent<SVGSVGElement>) => {
+    const flèches: Record<string, Direction> = {
+      ArrowUp: "haut",
+      ArrowDown: "bas",
+      ArrowLeft: "gauche",
+      ArrowRight: "droite",
+    };
+    const direction = flèches[e.key];
+    if (direction) {
+      const suivant = voisinDansLaDirection(placed, curseur, direction);
+      /* On n'avale la touche QUE si l'on s'est déplacé : sinon la page
+         ne défilerait plus alors qu'il n'y a rien de ce côté, et l'on
+         croirait la carte figée. */
+      if (suivant) {
+        e.preventDefault();
+        setCurseur(suivant.id);
+      }
+      return;
+    }
+    if ((e.key === "Enter" || e.key === " ") && astreCourant) {
+      e.preventDefault();
+      ouvrirOuFoyer(astreCourant);
+      return;
+    }
+    /* Échap repose le curseur sans quitter la carte : on sort de
+       l'exploration, pas de la vue. Une seconde pression laisse le
+       navigateur faire ce qu'il veut. */
+    if (e.key === "Escape" && curseur) {
+      e.preventDefault();
+      setCurseur(null);
+    }
+  };
+
+  /* Ce que le lecteur d'écran annonce. Un film porte sa note, une œuvre
+     son type, un fil ce qu'il rassemble — la même chose que l'étiquette
+     visible, parce que deux descriptions différentes du même astre
+     seraient deux cartes différentes. */
+  const direLAstre = (n: PlacedNode): string =>
+    [
+      n.label,
+      n.sub,
+      n.kind === "film" ? "film" : n.kind === "fil" ? "fil" : "œuvre",
+      n.id === foyer ? "foyer de la carte" : "",
+      `${n.degree} lien${n.degree > 1 ? "s" : ""}`,
+    ]
+      .filter(Boolean)
+      .join(", ");
 
   // l'ensemble des astres qu'un survol met en lumière
   const lit = useMemo(() => {
@@ -713,12 +805,33 @@ export function ConstellationView({
           >
             <svg
               ref={svgRef}
+              data-tour="constellation-ciel"
               viewBox={`0 0 ${W} ${H}`}
+              /* UN SEUL ARRÊT DE TABULATION POUR TOUTE LA CARTE, et les
+                 flèches à l'intérieur : trois cents astres tabulables
+                 demanderaient trois cents pressions pour traverser la
+                 vue. `application` prévient le lecteur d'écran qu'il
+                 doit laisser passer les flèches au lieu de les prendre
+                 pour sa propre navigation. */
+              role="application"
+              tabIndex={0}
+              aria-label="Carte du ciel — flèches pour aller d'un astre à l'autre, Entrée pour l'ouvrir, Échap pour lâcher"
+              aria-activedescendant={curseur ? `astre-${curseur}` : undefined}
+              onKeyDown={auClavier}
+              onFocus={() => {
+                /* Entrer dans la carte pose le curseur quelque part :
+                   un cadre au focus sans rien de désigné dedans ne dit
+                   pas quoi faire de la touche suivante. */
+                if (!curseur) setCurseur(foyer ?? placed[0]?.id ?? null);
+              }}
+              onBlur={() => setCurseur(null)}
               style={{
                 width: "100%",
                 display: "block",
                 cursor: drag ? "grabbing" : "default",
                 touchAction: "none",
+                outline: curseur ? `2px solid ${alpha(C.cobalt, 0.5)}` : "none",
+                outlineOffset: 2,
               }}
               onPointerMove={(e) => {
                 if (!drag) return;
@@ -916,7 +1029,7 @@ export function ConstellationView({
                 const p = pos(n);
                 const r = radiusOf(n);
                 const on = !lit || lit.has(n.id);
-                const isHover = hover === n.id;
+                const isHover = hover === n.id || curseur === n.id;
                 const ink =
                   n.kind === "fil"
                     ? catInk(n.couleur || "burgundy")
@@ -933,6 +1046,10 @@ export function ConstellationView({
                 return (
                   <g
                     key={n.id}
+                    id={`astre-${n.id}`}
+                    role="option"
+                    aria-selected={curseur === n.id}
+                    aria-label={direLAstre(n)}
                     transform={`translate(${p.x},${p.y})`}
                     style={{
                       cursor: n.kind === "work" ? "grab" : "pointer",
@@ -971,6 +1088,20 @@ export function ConstellationView({
                     }}
                     onDoubleClick={() => n.kind === "film" && onOpen(n.filmId as string)}
                   >
+                    {/* L'ANNEAU DU CURSEUR CLAVIER. Le halo du survol ne
+                        suffit pas : il est diffus par nature, et « où
+                        suis-je » doit se voir d'un coup d'œil sans avoir
+                        à comparer deux lueurs. Un trait franc, donc, et
+                        seulement au clavier. */}
+                    {curseur === n.id && (
+                      <circle
+                        r={r + 11}
+                        fill="none"
+                        stroke={C.cobalt}
+                        strokeWidth={2}
+                        strokeDasharray="3 3"
+                      />
+                    )}
                     {/* halo : les astres les plus cités brillent le plus fort */}
                     <circle
                       r={r + 7}
@@ -1046,6 +1177,27 @@ export function ConstellationView({
                 );
               })}
             </svg>
+            {/* CE QUE LA VOIX DIT PENDANT QU'ON SE DÉPLACE.
+
+                `aria-activedescendant` suffit en théorie, mais les
+                lecteurs d'écran le suivent inégalement à l'intérieur
+                d'un SVG. Une région vivante dit la même chose par un
+                chemin qui, lui, marche partout. Elle est hors de l'écran
+                et non `display: none` : ce qui est masqué n'est pas lu. */}
+            <div
+              aria-live="polite"
+              aria-atomic="true"
+              style={{
+                position: "absolute",
+                width: 1,
+                height: 1,
+                overflow: "hidden",
+                clipPath: "inset(50%)",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {astreCourant ? direLAstre(astreCourant) : ""}
+            </div>
           </div>
 
           <div

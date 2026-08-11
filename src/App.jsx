@@ -88,7 +88,7 @@ import { makeFil, normalizeFils } from "./domain/fils";
 import { motifById, makeMotifPerso, motifsPerso } from "./domain/motifs";
 import { loadFils, saveFils as saveFilsToDisk } from "./services/fils";
 import { loadVocabulaire, saveVocabulaire, normalizeVocabulaire } from "./services/motifs";
-import { store } from "./services/storage";
+import { KEYS, store } from "./services/storage";
 import { underlineInput, ruledTextarea } from "./theme/styles";
 import { LINK_TYPES } from "./components/film/linkTypes";
 import {
@@ -107,6 +107,8 @@ import { FilmPolaroid } from "./components/film/FilmPolaroid";
 import { FilmModal } from "./components/film/FilmModal";
 import { FolderTabs } from "./components/layout/FolderTabs";
 import { SkinPicker } from "./components/layout/SkinPicker";
+import { TmdbKeyPanel } from "./components/layout/TmdbKeyPanel";
+import { inscrireOuvreurTmdb } from "./services/tmdbKey";
 import { SearchDrawer } from "./components/layout/SearchDrawer";
 import { FilmWall } from "./views/library/FilmWall";
 import { WALLS } from "./views/library/walls";
@@ -222,6 +224,11 @@ export default function App() {
 
   const [skin, setSkin] = useState(loadSkinKey);
   const [skinPicker, setSkinPicker] = useState(false);
+  /* Le tiroir de la clé TMDB. Il s'inscrit auprès du service pour que
+     n'importe quel écran privé de clé puisse dire « la régler ici » sans
+     qu'un rappel traverse dix composants qui n'ont rien à voir. */
+  const [keyPanel, setKeyPanel] = useState(false);
+  useEffect(() => inscrireOuvreurTmdb(() => setKeyPanel(true)), []);
   useLayoutEffect(() => {
     applySkin(skin);
     saveSkinKey(skin);
@@ -285,9 +292,17 @@ export default function App() {
     setSelectedId(null);
   }, []);
 
+  /* L'ÉCRAN TOUT DE SUITE, LE DISQUE UN PEU APRÈS.
+
+     Cette fonction est appelée depuis une dizaine d'endroits — ranger un
+     rayon, cocher une séance, poser un motif, écrire une critique — et
+     elle re-sérialisait la collection ENTIÈRE à chaque fois. `setSoon`
+     garde la dernière valeur et n'écrit qu'une fois ; le vidage sur
+     `pagehide` et `visibilitychange` fait que rien ne se perd en
+     chemin. Voir `services/storage`. */
   const saveFilms = (next) => {
     setFilms(next);
-    store.set("films", next);
+    store.setSoon(KEYS.films, next);
   };
 
   const commitFils = (next) => {
@@ -657,11 +672,13 @@ export default function App() {
         onAdd={() => setShowModal(true)}
         onSearch={() => setRecherche(true)}
         onSkin={() => setSkinPicker(true)}
+        onKey={() => setKeyPanel(true)}
         onHelp={() => setTourMenu((o) => !o)}
       />
       {skinPicker && (
         <SkinPicker skin={skin} onPick={setSkin} onClose={() => setSkinPicker(false)} />
       )}
+      {keyPanel && <TmdbKeyPanel onClose={() => setKeyPanel(false)} />}
       {recherche && (
         <SearchDrawer
           films={films}
@@ -748,6 +765,7 @@ export default function App() {
             onMasquerMotif={masquerMotif}
             onOpen={(id) => setSelectedId(id)}
             onOpenPerson={ouvrirPersonne}
+            onAddToWatchlist={addFilm}
           />
         )}
         {view === "generique" && (

@@ -3,8 +3,9 @@
    ============================================================ */
 import { useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
-import { Star } from "lucide-react";
-import { C, F } from "../../theme/tokens";
+import { Star, KeyRound } from "lucide-react";
+import { C, F, alpha } from "../../theme/tokens";
+import { ouvrirReglageTmdb } from "../../services/tmdbKey";
 
 /** La note, en étoiles d'encre. Un clic sur une étoile déjà pleine la coupe en deux. */
 export function InkStars({
@@ -90,6 +91,53 @@ export function Carton({
       }}
     >
       {children}
+    </div>
+  );
+}
+
+/* ============================================================
+   IL MANQUE UNE CLÉ — le manque, dit à voix haute
+   ============================================================
+
+   Sans clé TMDB, huit écrans s'éteignaient en silence : les Découvertes
+   ne découvraient rien, le tiroir du soir ne proposait rien, le choix
+   d'affiche n'offrait aucune affiche. Une vue vide ne dit pas « il
+   manque un réglage » — elle dit « il n'y a rien », et on referme.
+
+   Ce cartouche prend la place que le contenu aurait prise, et il porte
+   ce qu'il faut pour sortir du manque : un bouton qui ouvre le tiroir.
+   On ne renvoie donc jamais `null` faute de clé ; on renvoie ceci. */
+export function SansCle({ quoi, style }: { quoi: string; style?: CSSProperties }) {
+  return (
+    <div
+      style={{
+        border: `1px dashed ${C.line}`,
+        background: alpha(C.ochre, 0.07),
+        padding: "12px 14px",
+        display: "flex",
+        alignItems: "baseline",
+        flexWrap: "wrap",
+        gap: 6,
+        ...style,
+      }}
+    >
+      <KeyRound size={13} color={C.inkFaded} style={{ transform: "translateY(2px)" }} />
+      <span style={{ fontFamily: F.hand, fontSize: 14, color: C.inkFaded }}>
+        Il manque une clé TMDB pour {quoi}.
+      </span>
+      <button
+        onClick={ouvrirReglageTmdb}
+        style={{
+          all: "unset",
+          cursor: "pointer",
+          fontFamily: F.hand,
+          fontSize: 14,
+          color: C.burgundy,
+          textDecoration: "underline",
+        }}
+      >
+        La régler ici
+      </button>
     </div>
   );
 }

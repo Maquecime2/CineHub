@@ -16,6 +16,7 @@ import {
   FolderInput,
   Settings,
   Search,
+  KeyRound,
 } from "lucide-react";
 import { C, alpha } from "../../theme/tokens";
 
@@ -42,6 +43,8 @@ interface FolderTabsProps {
   onSkin: () => void;
   /** Ouvre le menu de la visite guidée. */
   onHelp: () => void;
+  /** Ouvre le réglage de la clé TMDB. */
+  onKey: () => void;
 }
 
 /* L'ICÔNE N'EST PAS UN ORNEMENT : c'est ce qui reste de l'onglet quand
@@ -155,7 +158,69 @@ function Onglet({ t, active, onClick }: { t: Tab; active: boolean; onClick: () =
   );
 }
 
-export function FolderTabs({ view, setView, onAdd, onSearch, onSkin, onHelp }: FolderTabsProps) {
+/* LES PETITS RÉGLAGES DE TOUT — la peau, la clé, la visite.
+
+   Ils ne sont le réglage d'AUCUNE vue, c'est celui de toutes : d'où le
+   pied du rail, et non un onglet. Discrets, parce qu'on les touche deux
+   fois et qu'on les côtoie tous les jours.
+
+   Une seule pastille écrite une seule fois : les trois portaient le même
+   bloc de style recopié, et la troisième arrivée l'aurait recopié une
+   fois de plus — trois occasions de diverger sans le vouloir. */
+function ActionRonde({
+  onClick,
+  label,
+  tour,
+  icon: Icon,
+}: {
+  onClick: () => void;
+  label: string;
+  tour: string;
+  icon: ComponentType<{ size?: number }>;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      data-tour={tour}
+      title={label}
+      aria-label={label}
+      style={{
+        all: "unset",
+        cursor: "pointer",
+        marginLeft: 8,
+        width: 26,
+        height: 26,
+        borderRadius: "50%",
+        color: C.inkFaded,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        border: `1px solid ${C.line}`,
+        transition: "color var(--motion-fast) ease, border-color var(--motion-fast) ease",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.color = C.burgundy;
+        e.currentTarget.style.borderColor = C.burgundy;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.color = C.inkFaded;
+        e.currentTarget.style.borderColor = C.line;
+      }}
+    >
+      <Icon size={13} />
+    </button>
+  );
+}
+
+export function FolderTabs({
+  view,
+  setView,
+  onAdd,
+  onSearch,
+  onSkin,
+  onHelp,
+  onKey,
+}: FolderTabsProps) {
   const tabs = [...TABS, ...DEV_TABS];
 
   return (
@@ -309,81 +374,32 @@ export function FolderTabs({ view, setView, onAdd, onSearch, onSkin, onHelp }: F
             <Search size={14} />
           </button>
 
-          {/* LA PEAU DU SITE, au pied de la tranche du classeur.
-
-            Elle est ici et non dans une vue : ce n'est le reglage
-            d'aucune d'elles, c'est celui de tout. Discrete, parce qu'on
-            la choisit deux fois et qu'on la regarde ensuite tous les
-            jours. */}
-          <button
+          {/* LA PEAU DU SITE, au pied de la tranche du classeur. */}
+          <ActionRonde
             onClick={onSkin}
-            data-tour="skin"
-            title="Changer la peau du site"
-            aria-label="Changer la peau du site"
-            style={{
-              all: "unset",
-              cursor: "pointer",
-              marginLeft: 8,
-              width: 26,
-              height: 26,
-              borderRadius: "50%",
-              color: C.inkFaded,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              border: `1px solid ${C.line}`,
-              transition: "color .18s ease, border-color .18s ease",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = C.burgundy;
-              e.currentTarget.style.borderColor = C.burgundy;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = C.inkFaded;
-              e.currentTarget.style.borderColor = C.line;
-            }}
-          >
-            <Palette size={13} />
-          </button>
+            tour="skin"
+            label="Changer la peau du site"
+            icon={Palette}
+          />
+
+          {/* LA CLÉ TMDB, entre la peau et la visite.
+
+            Elle commande huit écrans — les Découvertes, le sillage, les
+            affiches, les fiches d'équipe — et ne se posait que dans
+            l'onglet Import, au milieu d'un écran qui parle d'autre
+            chose. Un réglage qui commande tout n'appartient à aucune
+            vue : il est ici, avec les autres réglages de tout. */}
+          <ActionRonde onClick={onKey} tour="tmdb-key" label="La clé TMDB" icon={KeyRound} />
 
           {/* LA VISITE, au dernier cran du rail.
 
             Une seule ancre, et toujours la même : c'est ce que la fiche
             de rappel désigne quand on écarte la visite, et ce qu'on
             cherche six mois plus tard en se demandant à quoi servait
-            l'étagère. Sous la peau parce qu'on la consulte encore moins
-            souvent — mais jamais ailleurs, jamais rangée dans une vue :
-            l'aide d'un outil ne se cache pas dans l'outil. */}
-          <button
-            onClick={onHelp}
-            data-tour="help"
-            title="La visite guidée"
-            aria-label="La visite guidée"
-            style={{
-              all: "unset",
-              cursor: "pointer",
-              marginLeft: 8,
-              width: 26,
-              height: 26,
-              borderRadius: "50%",
-              color: C.inkFaded,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              border: `1px solid ${C.line}`,
-              transition: "color .18s ease, border-color .18s ease",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = C.burgundy;
-              e.currentTarget.style.borderColor = C.burgundy;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = C.inkFaded;
-              e.currentTarget.style.borderColor = C.line;
-            }}
-          >
-            <HelpCircle size={13} />
-          </button>
+            l'étagère. Au dernier cran parce qu'on la consulte encore
+            moins souvent — mais jamais ailleurs, jamais rangée dans une
+            vue : l'aide d'un outil ne se cache pas dans l'outil. */}
+          <ActionRonde onClick={onHelp} tour="help" label="La visite guidée" icon={HelpCircle} />
         </div>
       </div>
     </div>

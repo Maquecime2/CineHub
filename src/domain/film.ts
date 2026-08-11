@@ -71,8 +71,16 @@ export const initialsOf = (title = ""): string =>
    laisse légitimement sans pour un court-métrage obscur. Les prendre
    pour un manque ferait réinterroger éternellement les mêmes fiches, à
    chaque passage, sans que rien ne change jamais. */
-export const isIncomplete = (f: Pick<Film, "cast" | "runtime">): boolean =>
-  (f.cast || []).length === 0 || f.runtime == null;
+export const isIncomplete = (f: Pick<Film, "cast" | "runtime" | "keywords">): boolean =>
+  (f.cast || []).length === 0 ||
+  f.runtime == null ||
+  /* Les mots-clés se testent sur l'ABSENCE et non sur le vide, et c'est
+     ce qui les distingue des pays et de la langue écartés ci-dessus. Un
+     film dont TMDB n'a aucun mot-clé repart avec une liste vide, qui est
+     une réponse : il ne sera pas redemandé. Une fiche d'avant leur
+     récolte, elle, n'a rien du tout — et c'est cette différence-là qui
+     fait qu'on peut compléter une fois sans boucler. */
+  f.keywords == null;
 
 /* ------------------------------------------------------------
    LE JOURNAL DES SÉANCES
@@ -175,6 +183,10 @@ export const migrate = (films: Partial<Film>[] | null | undefined): Film[] =>
     language: f.language || "",
     countries: f.countries || [],
     tmdbRating: f.tmdbRating ?? null,
+    /* PAS DE REPLI SUR LA LISTE VIDE, contrairement à tous ses voisins :
+       « jamais demandé » et « demandé, il n'y en a pas » doivent rester
+       distincts, sans quoi la complétion tourne en rond. Voir `types`. */
+    keywords: f.keywords,
     themes: f.themes || [],
     motifs: f.motifs || [],
     linkedWorks: f.linkedWorks || [],

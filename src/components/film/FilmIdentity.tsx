@@ -8,7 +8,7 @@ import { Check, Pencil, X } from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { underlineInput } from "../../theme/styles";
 import { CommaInput, Label } from "../ui";
-import { store } from "../../services/storage";
+import { getTmdbKey } from "../../services/tmdbKey";
 import { searchMovie, getDetails } from "../../tmdb";
 import type { Film, Year } from "../../types";
 
@@ -66,9 +66,9 @@ export function FilmIdentity({
   /* Le rattrapage des « films non identifiés » : on relance la recherche avec
      le titre corrigé plutôt que celui, fautif, qui figurait dans le CSV. */
   const relookup = async () => {
-    const apiKey = store.get("tmdb-key", "");
+    const apiKey = getTmdbKey();
     if (!apiKey) {
-      setMsg("Aucune clé TMDB — renseignez-la dans l'onglet Import.");
+      setMsg("Aucune clé TMDB — à régler au pied du rail d'onglets.");
       return;
     }
     if (!draft.title.trim()) return;
