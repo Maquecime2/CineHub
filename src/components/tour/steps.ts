@@ -443,6 +443,18 @@ const global: Tour = {
       view: "library",
       optional: true,
     },
+    /* LES DÉFIS, en dernier avant l'au revoir : c'est la seule chose de
+       ce classeur qui se fasse à plusieurs, et elle suppose tout le
+       reste. `optional` comme le compte — sans serveur, la vue
+       n'affiche qu'une phrase, et il n'y a pas de repère à montrer. */
+    {
+      target: at("listes-defis"),
+      title: "Se lancer quelque chose",
+      body: "Une liste plus une période fait un défi. Personne ne coche « vu » : l'avancement se calcule depuis votre journal de séances, et le serveur n'en tire qu'un nombre — vos dates ne sortent pas d'ici.",
+      placement: "top",
+      view: "listes",
+      optional: true,
+    },
     {
       target: at("help"),
       title: "Rejouer la visite",
@@ -484,6 +496,36 @@ const fil: Tour = {
   ],
 };
 
+/* LES LISTES ET LES DEFIS. Memes precautions que le fil : sans serveur
+   ni compte, rien de tout cela n'existe, et une visite qui pointe le
+   vide est pire qu'une visite plus courte. */
+const listes: Tour = {
+  label: "Listes et defis",
+  steps: [
+    {
+      target: at("listes-nouvelle"),
+      title: "Ouvrir une liste",
+      body: "Une liste contient des oeuvres et non vos fiches : elle veut donc dire la meme chose chez quelqu'un d'autre, et ne se vide pas le jour ou vous effacez un film. On y range depuis la fiche du film, sous le catalogue.",
+      placement: "bottom",
+      optional: true,
+    },
+    {
+      target: at("listes-mes-listes"),
+      title: "Les votres, et celles a plusieurs",
+      body: "Chaque liste s'ouvre d'un clic. Vous pouvez y inviter quelqu'un a ecrire : il ajoute et retire des films, il ne renomme pas la liste et ne l'efface pas. Fermee par defaut — la rendre visible est une case a cocher.",
+      placement: "bottom",
+      optional: true,
+    },
+    {
+      target: at("listes-defis"),
+      title: "Un defi est une liste plus une periode",
+      body: "Personne ne coche « vu » : l'avancement se calcule depuis votre journal de seances, et seules les seances datees dans la periode comptent. Le serveur en tire un nombre, jamais vos dates — et seulement pour ceux qui ont demande a participer.",
+      placement: "top",
+      optional: true,
+    },
+  ],
+};
+
 /* ---------- le registre ---------- */
 
 export const TOURS: Record<string, Tour> = {
@@ -498,6 +540,7 @@ export const TOURS: Record<string, Tour> = {
   notebook,
   import: importTour,
   fil,
+  listes,
 };
 
 /** La visite d'une vue, s'il y en a une. `detail` en a une, `skinlab` non. */

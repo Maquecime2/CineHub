@@ -735,3 +735,365 @@ export async function signaler(
   );
   return r.length > 0;
 }
+
+/* ------------------------------------------------------------
+   LES LISTES, ET LES ÉPREUVES QU'ON EN TIRE
+   ------------------------------------------------------------ */
+
+export interface Liste {
+  id: string;
+  titre: string;
+  intention: string;
+  publique: boolean;
+  proprietaire: string;
+  /** Combien d'œuvres. */
+  oeuvres: number;
+  /** Suis-je le propriétaire, et puis-je écrire dedans ? */
+  mienne?: boolean;
+  membre?: boolean;
+}
+
+export interface Oeuvre {
+  tmdb_id: string;
+  titre: string;
+  annee: string | null;
+  par: string | null;
+}
+
+/** Ce que quelqu'un a le droit de faire d'une liste. */
+export interface Droit {
+  lire: boolean;
+  ecrire: boolean;
+  administrer: boolean;
+  proprietaire_id: string;
+  liste_id: string;
+}
+
+/**
+ * Les droits de quelqu'un sur une liste, en une requête.
+ *
+ * TROIS NIVEAUX ET NON DEUX, parce que co-construire n'est pas posséder.
+ * Un membre ajoute et retire des œuvres ; il ne renomme pas la liste, ne
+ * la rend pas publique et ne l'efface pas. Sans cette asymétrie, une
+ * liste à six mains n'a plus personne pour en répondre.
+ */
+export async function droitsSurListe(
+  base: Base,
+  listeId: string,
+  personneId: string | null
+): Promise<Droit | null> {
+  const l = await une<{ id: string; proprietaire_id: string; publique: boolean; membre: boolean }>(
+    base,
+    `SELECT l.id, l.proprietaire_id, l.publique,
+            EXISTS (SELECT 1 FROM liste_membre m
+                     WHERE m.liste_id = l.id AND m.personne_id = $2) AS membre
+       FROM liste l WHERE l.id = $1`,
+    [listeId, personneId]
+  );
+  if (!l) return null;
+  const proprio = personneId !== null && l.proprietaire_id === personneId;
+  return {
+    liste_id: l.id,
+    proprietaire_id: l.proprietaire_id,
+    lire: l.publique || proprio || l.membre,
+    ecrire: proprio || l.membre,
+    administrer: proprio,
+  };
+}
+
+/** Mes listes, et celles où l'on m'a laissé écrire. */
+export async function mesListes(base: Base, personneId: string): Promise<Liste[]> {
+  return base.requete<Liste>(
+    `SELECT l.id, l.titre, l.intention, l.publique,
+            p.pseudo AS proprietaire,
+            (SELECT count(*) FROM liste_item i WHERE i.liste_id = l.id)::int AS oeuvres,
+            (l.proprietaire_id = $1) AS mienne,
+            EXISTS (SELECT 1 FROM liste_membre m
+                     WHERE m.liste_id = l.id AND m.personne_id = $1) AS membre
+       FROM liste l JOIN personne p ON p.id = l.proprietaire_id
+      WHERE l.proprietaire_id = $1
+         OR EXISTS (SELECT 1 FROM liste_membre m
+                     WHERE m.liste_id = l.id AND m.personne_id = $1)
+      ORDER BY l.maj_le DESC`,
+    [personneId]
+  );
+}
+
+/** Les listes publiques de quelqu'un — ce qu'un visiteur peut en voir. */
+export async function listesPubliquesDe(base: Base, proprietaireId: string): Promise<Liste[]> {
+  return base.requete<Liste>(
+    `SELECT l.id, l.titre, l.intention, l.publique,
+            p.pseudo AS proprietaire,
+            (SELECT count(*) FROM liste_item i WHERE i.liste_id = l.id)::int AS oeuvres
+       FROM liste l JOIN personne p ON p.id = l.proprietaire_id
+      WHERE l.proprietaire_id = $1 AND l.publique
+      ORDER BY l.maj_le DESC`,
+    [proprietaireId]
+  );
+}
+
+export async function creerListe(
+  base: Base,
+  proprietaireId: string,
+  l: { titre: string; intention?: string; publique?: boolean }
+): Promise<string> {
+  const id = randomUUID();
+  await base.requete(
+    "INSERT INTO liste (id, proprietaire_id, titre, intention, publique) VALUES ($1, $2, $3, $4, $5)",
+    [id, proprietaireId, l.titre, l.intention ?? "", l.publique ?? false]
+  );
+  return id;
+}
+
+export async function retoucherListe(
+  base: Base,
+  listeId: string,
+  l: { titre?: string; intention?: string; publique?: boolean }
+): Promise<void> {
+  await base.requete(
+    `UPDATE liste
+        SET titre = coalesce($2, titre),
+            intention = coalesce($3, intention),
+            publique = coalesce($4, publique),
+            maj_le = now()
+      WHERE id = $1`,
+    [listeId, l.titre ?? null, l.intention ?? null, l.publique ?? null]
+  );
+}
+
+export async function effacerListe(base: Base, listeId: string): Promise<void> {
+  await base.requete("DELETE FROM liste WHERE id = $1", [listeId]);
+}
+
+export async function oeuvresDe(base: Base, listeId: string): Promise<Oeuvre[]> {
+  return base.requete<Oeuvre>(
+    `SELECT i.tmdb_id, i.titre, i.annee, p.pseudo AS par
+       FROM liste_item i LEFT JOIN personne p ON p.id = i.ajoute_par
+      WHERE i.liste_id = $1
+      ORDER BY i.ajoute_le`,
+    [listeId]
+  );
+}
+
+/** Rend `false` si l'œuvre y était déjà : le même geste, la même réponse. */
+export async function ajouterALaListe(
+  base: Base,
+  listeId: string,
+  parQui: string,
+  o: { tmdbId: string; titre?: string; annee?: string | null }
+): Promise<boolean> {
+  const r = await base.requete(
+    `INSERT INTO liste_item (liste_id, tmdb_id, titre, annee, ajoute_par)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (liste_id, tmdb_id) DO NOTHING
+     RETURNING tmdb_id`,
+    [listeId, o.tmdbId, o.titre ?? "", o.annee ?? null, parQui]
+  );
+  await base.requete("UPDATE liste SET maj_le = now() WHERE id = $1", [listeId]);
+  return r.length > 0;
+}
+
+export async function retirerDeLaListe(base: Base, listeId: string, tmdbId: string): Promise<void> {
+  await base.requete("DELETE FROM liste_item WHERE liste_id = $1 AND tmdb_id = $2", [
+    listeId,
+    tmdbId,
+  ]);
+  await base.requete("UPDATE liste SET maj_le = now() WHERE id = $1", [listeId]);
+}
+
+export async function membresDe(base: Base, listeId: string): Promise<string[]> {
+  const r = await base.requete<{ pseudo: string }>(
+    `SELECT p.pseudo FROM liste_membre m JOIN personne p ON p.id = m.personne_id
+      WHERE m.liste_id = $1 ORDER BY p.pseudo`,
+    [listeId]
+  );
+  return r.map((l) => l.pseudo);
+}
+
+export async function inviterALaListe(
+  base: Base,
+  listeId: string,
+  personneId: string
+): Promise<void> {
+  await base.requete(
+    "INSERT INTO liste_membre (liste_id, personne_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+    [listeId, personneId]
+  );
+}
+
+export async function renvoyerDeLaListe(
+  base: Base,
+  listeId: string,
+  personneId: string
+): Promise<void> {
+  await base.requete("DELETE FROM liste_membre WHERE liste_id = $1 AND personne_id = $2", [
+    listeId,
+    personneId,
+  ]);
+}
+
+/* L'AVANCEMENT SE CALCULE, IL NE SE DÉCLARE PAS.
+
+   Personne ne coche « vu » dans un défi : le classeur le sait déjà. Une
+   œuvre compte quand une séance datée tombe dans la période — c'est le
+   journal, celui-là même qui ne sort jamais d'une collection partagée.
+   Il ne sort pas davantage ici : seul un NOMBRE en ressort, et
+   seulement pour des gens qui ont demandé à participer.
+
+   `jsonb_typeof` avant tout : `watches` traverse des clients de toutes
+   les époques, et `jsonb_array_elements` sur ce qui n'est pas un
+   tableau fait tomber la requête entière. Une seule vieille fiche
+   suffirait alors à effacer l'avancement de tout le monde.
+
+   `watchedAt` est le repli des fiches d'avant le journal — elles
+   existent encore, et les ignorer dirait « pas vu » à quelqu'un qui a
+   vu. */
+const VU_PENDANT = `EXISTS (
+  SELECT 1 FROM fiche f
+   WHERE f.personne_id = ep.personne_id
+     AND f.tmdb_id = li.tmdb_id
+     AND NOT f.supprimee
+     AND (
+       EXISTS (
+         SELECT 1 FROM jsonb_array_elements(
+                CASE WHEN jsonb_typeof(f.donnees->'watches') = 'array'
+                     THEN f.donnees->'watches' ELSE '[]'::jsonb END) w
+          WHERE left(w->>'date', 10) BETWEEN to_char(e.debut, 'YYYY-MM-DD')
+                                         AND to_char(e.fin, 'YYYY-MM-DD'))
+       OR left(f.donnees->>'watchedAt', 10) BETWEEN to_char(e.debut, 'YYYY-MM-DD')
+                                                AND to_char(e.fin, 'YYYY-MM-DD')
+     ))`;
+
+export interface Epreuve {
+  id: string;
+  titre: string;
+  liste_id: string;
+  liste: string;
+  debut: string;
+  fin: string;
+  par: string | null;
+  oeuvres: number;
+  /** Est-ce que j'y participe ? */
+  dedans?: boolean;
+}
+
+export interface Avancement {
+  pseudo: string;
+  faites: number;
+}
+
+/**
+ * Les défis que je peux voir : les miens, ceux que j'ai rejoints, et
+ * ceux bâtis sur une liste publique de quelqu'un que je suis.
+ *
+ * PAS D'ANNUAIRE DE DÉFIS, pour la même raison qu'il n'y a pas
+ * d'annuaire de gens : une liste de tout ce qui se joue ferait de ce
+ * classeur une place publique, ce qu'il n'est pas.
+ */
+export async function mesEpreuves(base: Base, personneId: string): Promise<Epreuve[]> {
+  return base.requete<Epreuve>(
+    `SELECT e.id, e.titre, e.liste_id, l.titre AS liste,
+            to_char(e.debut, 'YYYY-MM-DD') AS debut,
+            to_char(e.fin, 'YYYY-MM-DD') AS fin,
+            p.pseudo AS par,
+            (SELECT count(*) FROM liste_item i WHERE i.liste_id = l.id)::int AS oeuvres,
+            EXISTS (SELECT 1 FROM epreuve_participant x
+                     WHERE x.epreuve_id = e.id AND x.personne_id = $1) AS dedans
+       FROM epreuve e
+       JOIN liste l ON l.id = e.liste_id
+       LEFT JOIN personne p ON p.id = e.cree_par
+      WHERE e.cree_par = $1
+         OR EXISTS (SELECT 1 FROM epreuve_participant x
+                     WHERE x.epreuve_id = e.id AND x.personne_id = $1)
+         OR (l.publique AND EXISTS (SELECT 1 FROM abonnement a
+                                     WHERE a.suiveur_id = $1 AND a.suivi_id = l.proprietaire_id)
+             AND ${PAS_BLOQUE("$1", "l.proprietaire_id")})
+      ORDER BY e.fin DESC`,
+    [personneId]
+  );
+}
+
+export async function epreuveParId(base: Base, id: string): Promise<Epreuve | null> {
+  return une<Epreuve>(
+    base,
+    `SELECT e.id, e.titre, e.liste_id, l.titre AS liste,
+            to_char(e.debut, 'YYYY-MM-DD') AS debut,
+            to_char(e.fin, 'YYYY-MM-DD') AS fin,
+            p.pseudo AS par,
+            (SELECT count(*) FROM liste_item i WHERE i.liste_id = l.id)::int AS oeuvres
+       FROM epreuve e
+       JOIN liste l ON l.id = e.liste_id
+       LEFT JOIN personne p ON p.id = e.cree_par
+      WHERE e.id = $1`,
+    [id]
+  );
+}
+
+export async function creerEpreuve(
+  base: Base,
+  parQui: string,
+  e: { listeId: string; titre: string; debut: string; fin: string }
+): Promise<string> {
+  const id = randomUUID();
+  await base.requete(
+    "INSERT INTO epreuve (id, liste_id, cree_par, titre, debut, fin) VALUES ($1, $2, $3, $4, $5, $6)",
+    [id, e.listeId, parQui, e.titre, e.debut, e.fin]
+  );
+  /* Qui lance un défi y participe : l'inverse — un organisateur qui
+     regarde les autres courir — n'est pas ce que ces gens-là font. */
+  await rejoindreEpreuve(base, id, parQui);
+  return id;
+}
+
+export async function effacerEpreuve(base: Base, id: string): Promise<void> {
+  await base.requete("DELETE FROM epreuve WHERE id = $1", [id]);
+}
+
+export async function rejoindreEpreuve(
+  base: Base,
+  epreuveId: string,
+  personneId: string
+): Promise<void> {
+  await base.requete(
+    "INSERT INTO epreuve_participant (epreuve_id, personne_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+    [epreuveId, personneId]
+  );
+}
+
+export async function quitterEpreuve(
+  base: Base,
+  epreuveId: string,
+  personneId: string
+): Promise<void> {
+  await base.requete("DELETE FROM epreuve_participant WHERE epreuve_id = $1 AND personne_id = $2", [
+    epreuveId,
+    personneId,
+  ]);
+}
+
+/** Où en est chacun — un nombre par participant, et rien de plus. */
+export async function avancementDe(base: Base, epreuveId: string): Promise<Avancement[]> {
+  return base.requete<Avancement>(
+    `SELECT pe.pseudo,
+            (SELECT count(*) FROM liste_item li
+              WHERE li.liste_id = e.liste_id AND ${VU_PENDANT})::int AS faites
+       FROM epreuve_participant ep
+       JOIN epreuve e ON e.id = ep.epreuve_id
+       JOIN personne pe ON pe.id = ep.personne_id
+      WHERE ep.epreuve_id = $1
+      ORDER BY 2 DESC, pe.pseudo`,
+    [epreuveId]
+  );
+}
+
+/** Une liste par son identifiant, sans se demander qui la lit. */
+export async function listeParId(base: Base, id: string): Promise<Liste | null> {
+  return une<Liste>(
+    base,
+    `SELECT l.id, l.titre, l.intention, l.publique, p.pseudo AS proprietaire,
+            (SELECT count(*) FROM liste_item i WHERE i.liste_id = l.id)::int AS oeuvres
+       FROM liste l JOIN personne p ON p.id = l.proprietaire_id
+      WHERE l.id = $1`,
+    [id]
+  );
+}

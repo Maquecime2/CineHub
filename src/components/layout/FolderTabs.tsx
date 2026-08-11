@@ -11,6 +11,7 @@ import {
   Bookmark,
   Users,
   Users2,
+  ListChecks,
   Compass,
   Sparkles,
   CalendarDays,
@@ -32,6 +33,7 @@ export type View =
   | "notebook"
   | "import"
   | "fil"
+  | "listes"
   | "detail"
   | "almanac"
   | "skinlab";
@@ -74,6 +76,9 @@ const TABS: { key: View; label: string; color: string; icon: ComponentType<{ siz
        reste une videotheque personnelle, et ce qu'on regarde chez les
        autres vient apres ce qu'on a chez soi. */
     { key: "fil", label: "Le fil", color: C.cobalt, icon: Users2 },
+    /* Les listes et les defis viennent apres le fil : on regarde ce que
+       font les autres avant de se lancer quelque chose avec eux. */
+    { key: "listes", label: "Listes et défis", color: C.moss, icon: ListChecks },
   ];
 
 /* L'onglet de contrôle des peaux n'est pas une vue du produit : il ne

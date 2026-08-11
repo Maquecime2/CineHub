@@ -65,6 +65,16 @@ une clé physique. La vérification des signatures est confiée à
 | `PUT /blocages/:pseudo`               | Ne plus rien voir de quelqu'un — et lui non plus de vous        |
 | `DELETE /blocages/:pseudo`            | Le défaire ; les abonnements coupés ne reviennent pas           |
 | `POST /signalements`                  | Dire ce qui ne va pas ; deux fois vaut une                      |
+| `GET /listes`                         | Vos listes, et celles où l'on vous laisse écrire                |
+| `POST /listes`                        | En ouvrir une — fermée par défaut                               |
+| `GET/PUT/DELETE /listes/:id`          | La lire, la retoucher, l'effacer (propriétaire)                 |
+| `POST /listes/:id/oeuvres`            | Y ranger une œuvre, par son `tmdb_id`                           |
+| `DELETE /listes/:id/oeuvres/:tmdbId`  | L'en retirer                                                    |
+| `PUT/DELETE /listes/:id/membres/:qui` | Inviter à écrire, renvoyer — ou partir soi-même                 |
+| `GET /defis`                          | Les vôtres, ceux rejoints, ceux des gens suivis                 |
+| `POST /defis`                         | Une liste plus une période ; qui le lance y participe           |
+| `GET /defis/:id`                      | Ses œuvres, et où en est chaque participant                     |
+| `PUT/DELETE /defis/:id/participation` | Entrer, sortir — sortir se fait toujours                        |
 | `GET /mes-donnees`                    | Tout ce que le serveur détient de vous                          |
 | `DELETE /mon-compte`                  | L'efface, et tout ce qui pend dessous                           |
 | `GET /sante`                          | Debout ?                                                        |
@@ -174,6 +184,42 @@ Ce qu'il ne fait **pas** : cacher une collection publique à qui en
 connaît l'adresse. Un blocage est un silence, pas un mur, et prétendre
 le contraire donnerait une fausse sécurité.
 
+## Une liste contient des œuvres, pas des fiches
+
+Une liste de fiches serait la liste des exemplaires de quelqu'un : elle
+ne voudrait plus rien dire chez un autre, et se viderait le jour où son
+auteur efface une fiche. `tmdb_id` est donc la clé, et le titre n'est
+gardé qu'en instantané — de quoi afficher la liste à quelqu'un qui n'a
+ni le film ni de clé TMDB.
+
+**Co-construire est un droit d'écriture, pas une propriété partagée.**
+Un membre ajoute et retire des œuvres ; il ne renomme pas la liste, ne
+la publie pas et ne l'efface pas. Sans cette asymétrie, une liste à six
+mains n'a plus personne pour en répondre. Partir, en revanche, ne
+demande la permission de personne.
+
+## L'avancement d'un défi se calcule, il ne se déclare pas
+
+Personne ne coche « vu » : le classeur le sait déjà. Une œuvre compte
+quand une séance **datée dans la période** figure au journal — celui-là
+même qui ne sort jamais d'une collection partagée. Il n'en sort pas
+davantage ici : seul un NOMBRE en ressort, et seulement pour des gens
+qui ont demandé à participer. D'où l'inscription explicite : compter
+automatiquement les abonnés d'une liste publique mesurerait des gens
+qui n'ont rien demandé.
+
+`jsonb_typeof` avant `jsonb_array_elements`, pour la même raison que la
+moyenne des notes : `watches` traverse des clients de toutes les
+époques, et une seule vieille fiche ferait tomber la requête entière —
+l'avancement de tout le monde perdu d'un coup. `watchedAt` sert de repli
+pour les fiches d'avant le journal ; les ignorer dirait « pas vu » à
+quelqu'un qui a vu.
+
+**La table s'appelle `epreuve` et non `defi`** : ce dernier nom était
+déjà pris par le hasard des cérémonies WebAuthn, et deux tables de sens
+opposés sous un même nom se confondent une nuit de panne. « Défi » reste
+le mot de l'écran.
+
 ## Le curseur est un rang, jamais une heure
 
 `GET /collection?depuis=` prend le **numéro d'ordre** de la dernière
@@ -222,7 +268,7 @@ navigateur piloté, où aucune empreinte ni aucun visage n'existe.
 
 ## Ce qui n'est pas encore là
 
-Les listes et les défis — et le déploiement. Le client, lui, **parle désormais à ce serveur** : il tire,
+Le déploiement. Le client, lui, **parle désormais à ce serveur** : il tire,
 fusionne et pousse sa collection dès qu'un compte est ouvert, et
 continue de fonctionner entièrement sans.
 

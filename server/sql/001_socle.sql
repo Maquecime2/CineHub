@@ -326,3 +326,96 @@ CREATE INDEX IF NOT EXISTS signalement_a_traiter ON signalement(cree_le) WHERE t
 -- cette personne » mais « les gens qui ont vu ce film ».
 CREATE INDEX IF NOT EXISTS fiche_oeuvre
   ON fiche(tmdb_id) WHERE tmdb_id IS NOT NULL AND NOT cachee AND NOT supprimee;
+
+-- ------------------------------------------------------------
+-- LES LISTES
+-- ------------------------------------------------------------
+-- Une liste ne contient PAS des fiches : elle contient des œuvres.
+-- La différence décide de tout. Une liste de fiches serait une liste
+-- des exemplaires de quelqu'un — elle ne voudrait plus rien dire chez
+-- un autre, et se viderait le jour où son auteur efface une fiche.
+-- `tmdb_id` est donc la seule clé, comme pour l'écho des œuvres, et le
+-- titre n'est gardé qu'en INSTANTANÉ : de quoi afficher la liste à
+-- quelqu'un qui n'a ni le film ni la clé TMDB.
+CREATE TABLE IF NOT EXISTS liste (
+  id            uuid PRIMARY KEY,
+  proprietaire_id uuid NOT NULL REFERENCES personne(id) ON DELETE CASCADE,
+  titre         text NOT NULL CHECK (length(btrim(titre)) BETWEEN 1 AND 120),
+  intention     text NOT NULL DEFAULT '',
+  -- Fermée par défaut, comme tout le reste de ce projet.
+  publique      boolean NOT NULL DEFAULT false,
+  cree_le       timestamptz NOT NULL DEFAULT now(),
+  maj_le        timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS liste_proprietaire ON liste(proprietaire_id);
+
+-- CO-CONSTRUIRE EST UN DROIT D'ÉCRITURE, PAS UNE PROPRIÉTÉ PARTAGÉE.
+-- Quelqu'un ajoute et retire des œuvres ; il ne renomme pas la liste,
+-- ne la rend pas publique et ne l'efface pas. Sans cette asymétrie, une
+-- liste à six mains n'a plus personne pour en répondre.
+CREATE TABLE IF NOT EXISTS liste_membre (
+  liste_id      uuid NOT NULL REFERENCES liste(id) ON DELETE CASCADE,
+  personne_id   uuid NOT NULL REFERENCES personne(id) ON DELETE CASCADE,
+  ajoute_le     timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (liste_id, personne_id)
+);
+
+CREATE INDEX IF NOT EXISTS liste_membre_personne ON liste_membre(personne_id);
+
+CREATE TABLE IF NOT EXISTS liste_item (
+  liste_id      uuid NOT NULL REFERENCES liste(id) ON DELETE CASCADE,
+  tmdb_id       text NOT NULL,
+  titre         text NOT NULL DEFAULT '',
+  annee         text,
+  -- Qui l'a mise là. `SET NULL` et non `CASCADE` : quelqu'un qui s'en va
+  -- ne doit pas emporter la liste que six personnes ont construite.
+  ajoute_par    uuid REFERENCES personne(id) ON DELETE SET NULL,
+  ajoute_le     timestamptz NOT NULL DEFAULT now(),
+  -- La même œuvre deux fois est la même œuvre : la clé le dit, plutôt
+  -- qu'une vérification dans une route qu'on oubliera ailleurs.
+  PRIMARY KEY (liste_id, tmdb_id)
+);
+
+-- ------------------------------------------------------------
+-- LES ÉPREUVES — ce que l'interface appelle des défis
+-- ------------------------------------------------------------
+-- LE MOT `defi` ÉTAIT DÉJÀ PRIS par le hasard des cérémonies WebAuthn,
+-- quelques tables plus haut. Deux tables de sens opposés sous un même
+-- nom se relisent mal et se confondent une nuit de panne : celle-ci
+-- s'appelle donc `epreuve` dans la base, et « défi » à l'écran.
+--
+-- UNE ÉPREUVE EST UNE LISTE PLUS UNE PÉRIODE, et rien d'autre. Elle ne
+-- duplique pas ses œuvres : elle pointe la liste, qui peut continuer de
+-- vivre. Un défi dont la liste s'allonge en cours de route est un défi
+-- qui s'allonge, et c'est le comportement voulu — ce sont des gens qui
+-- se lancent quelque chose, pas un contrat.
+CREATE TABLE IF NOT EXISTS epreuve (
+  id            uuid PRIMARY KEY,
+  liste_id      uuid NOT NULL REFERENCES liste(id) ON DELETE CASCADE,
+  cree_par      uuid REFERENCES personne(id) ON DELETE SET NULL,
+  titre         text NOT NULL CHECK (length(btrim(titre)) BETWEEN 1 AND 120),
+  debut         date NOT NULL,
+  fin           date NOT NULL,
+  cree_le       timestamptz NOT NULL DEFAULT now(),
+  -- Une épreuve qui finit avant de commencer n'existe pas. La base le
+  -- refuse, plutôt que la route qui la crée.
+  CHECK (fin >= debut)
+);
+
+CREATE INDEX IF NOT EXISTS epreuve_liste ON epreuve(liste_id);
+CREATE INDEX IF NOT EXISTS epreuve_periode ON epreuve(fin);
+
+-- ON NE PARTICIPE PAS SANS L'AVOIR DIT. Compter automatiquement tous
+-- les abonnés d'une liste publique ferait de chaque défi une mesure sur
+-- des gens qui n'ont rien demandé — et l'avancement d'un défi se déduit
+-- du journal des séances, qui est privé. Y entrer est donc un geste
+-- explicite, et en sortir aussi.
+CREATE TABLE IF NOT EXISTS epreuve_participant (
+  epreuve_id    uuid NOT NULL REFERENCES epreuve(id) ON DELETE CASCADE,
+  personne_id   uuid NOT NULL REFERENCES personne(id) ON DELETE CASCADE,
+  rejoint_le    timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (epreuve_id, personne_id)
+);
+
+CREATE INDEX IF NOT EXISTS epreuve_participant_personne ON epreuve_participant(personne_id);

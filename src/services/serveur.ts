@@ -385,3 +385,114 @@ export const signaler = (quoi: { pseudo: string; fiche: string; motif: string })
     method: "POST",
     body: JSON.stringify(quoi),
   });
+
+/* ------------------------------------------------------------
+   LES LISTES, ET LES DÉFIS QU'ON EN TIRE
+   ------------------------------------------------------------ */
+
+export interface Liste {
+  id: string;
+  titre: string;
+  intention: string;
+  publique: boolean;
+  proprietaire: string;
+  oeuvres: number;
+  mienne?: boolean;
+  membre?: boolean;
+}
+
+export interface OeuvreDeListe {
+  tmdb_id: string;
+  titre: string;
+  annee: string | null;
+  /** Qui l'a mise là — `null` si cette personne est partie. */
+  par: string | null;
+}
+
+export interface Defi {
+  id: string;
+  titre: string;
+  liste_id: string;
+  liste: string;
+  debut: string;
+  fin: string;
+  par: string | null;
+  oeuvres: number;
+  dedans?: boolean;
+}
+
+/** Un nombre par participant : le journal des séances ne sort pas. */
+export interface Avancement {
+  pseudo: string;
+  faites: number;
+}
+
+export const mesListes = () => appeler<{ listes: Liste[] }>("/listes");
+
+export const creerListe = (l: { titre: string; intention?: string; publique?: boolean }) =>
+  appeler<{ id: string }>("/listes", { method: "POST", body: JSON.stringify(l) });
+
+export const lireLaListe = (id: string) =>
+  appeler<{ liste: Liste; oeuvres: OeuvreDeListe[]; membres: string[] }>(
+    `/listes/${encodeURIComponent(id)}`
+  );
+
+export const retoucherLaListe = (
+  id: string,
+  l: { titre?: string; intention?: string; publique?: boolean }
+) =>
+  appeler<{ fait: boolean }>(`/listes/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify(l),
+  });
+
+export const effacerLaListe = (id: string) =>
+  appeler<{ efface: boolean }>(`/listes/${encodeURIComponent(id)}`, { method: "DELETE" });
+
+export const rangerDansLaListe = (
+  id: string,
+  o: { tmdbId: string | number; titre?: string; annee?: string | number }
+) =>
+  appeler<{ ajoute: boolean; neuf: boolean }>(`/listes/${encodeURIComponent(id)}/oeuvres`, {
+    method: "POST",
+    body: JSON.stringify({ ...o, annee: o.annee == null ? undefined : String(o.annee) }),
+  });
+
+export const retirerDeLaListe = (id: string, tmdbId: string) =>
+  appeler<{ retire: boolean }>(
+    `/listes/${encodeURIComponent(id)}/oeuvres/${encodeURIComponent(tmdbId)}`,
+    { method: "DELETE" }
+  );
+
+export const inviterALaListe = (id: string, pseudo: string) =>
+  appeler<{ pseudo: string; membre: boolean }>(
+    `/listes/${encodeURIComponent(id)}/membres/${encodeURIComponent(pseudo)}`,
+    { method: "PUT" }
+  );
+
+export const renvoyerDeLaListe = (id: string, pseudo: string) =>
+  appeler<{ pseudo: string; membre: boolean }>(
+    `/listes/${encodeURIComponent(id)}/membres/${encodeURIComponent(pseudo)}`,
+    { method: "DELETE" }
+  );
+
+export const mesDefis = () => appeler<{ defis: Defi[] }>("/defis");
+
+export const creerUnDefi = (d: { listeId: string; titre: string; debut: string; fin: string }) =>
+  appeler<{ id: string }>("/defis", { method: "POST", body: JSON.stringify(d) });
+
+export const lireLeDefi = (id: string) =>
+  appeler<{ defi: Defi; oeuvres: OeuvreDeListe[]; avancement: Avancement[] }>(
+    `/defis/${encodeURIComponent(id)}`
+  );
+
+export const effacerLeDefi = (id: string) =>
+  appeler<{ efface: boolean }>(`/defis/${encodeURIComponent(id)}`, { method: "DELETE" });
+
+export const rejoindreLeDefi = (id: string) =>
+  appeler<{ dedans: boolean }>(`/defis/${encodeURIComponent(id)}/participation`, { method: "PUT" });
+
+export const quitterLeDefi = (id: string) =>
+  appeler<{ dedans: boolean }>(`/defis/${encodeURIComponent(id)}/participation`, {
+    method: "DELETE",
+  });

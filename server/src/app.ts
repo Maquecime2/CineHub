@@ -67,6 +67,12 @@ const COOKIE = "session";
    erreur de base de données. */
 const PSEUDO_OK = /^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])$/;
 
+/* Les listes et les défis sont nommés par le SERVEUR, en UUID : une
+   route qui passerait n'importe quel texte à une colonne `uuid` répond
+   500 sur une adresse mal tapée, là où 404 est la vérité. */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const JOUR = /^\d{4}-\d{2}-\d{2}$/;
+
 export async function construireApp(reglages: Reglages): Promise<FastifyInstance> {
   const { base, domaine, origine } = reglages;
   const app = Fastify({ logger: false });
@@ -632,6 +638,278 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
        DIXIÈME : « c'est noté » est vrai dans les deux cas, et savoir
        qu'on avait déjà signalé n'apporte rien à qui vient de le faire. */
     return { note: true, neuf };
+  });
+
+  /* ------------------------------------------------------------
+     LES LISTES
+     ------------------------------------------------------------
+     Une liste contient des ŒUVRES et non des fiches : une liste de
+     fiches serait la liste des exemplaires de quelqu'un, elle ne
+     voudrait rien dire chez un autre et se viderait le jour où son
+     auteur efface une fiche. */
+
+  /** Les droits sur une liste, ou la réponse déjà prête pour un refus. */
+  const droitsOu404 = async (req: FastifyRequest, reply: FastifyReply, personneId: string) => {
+    const { id } = req.params as { id: string };
+    if (!UUID.test(id || "")) {
+      reply.code(404).send({ erreur: "Liste inconnue." });
+      return null;
+    }
+    const droits = await depot.droitsSurListe(base, id, personneId);
+    /* PAS DE 403 : une liste qu'on n'a pas le droit de lire répond
+       comme une liste qui n'existe pas. Distinguer dirait à un inconnu
+       que tel identifiant désigne quelque chose. */
+    if (!droits?.lire) {
+      reply.code(404).send({ erreur: "Liste inconnue." });
+      return null;
+    }
+    return droits;
+  };
+
+  app.get("/listes", async (req) => {
+    const personne = await exigerUnCompte(req);
+    return { listes: await depot.mesListes(base, personne.id) };
+  });
+
+  app.post("/listes", async (req, reply) => {
+    const personne = await exigerUnCompte(req);
+    const { titre, intention, publique } = (req.body ?? {}) as {
+      titre?: string;
+      intention?: string;
+      publique?: boolean;
+    };
+    const nom = (titre || "").trim();
+    if (!nom || nom.length > 120) {
+      return reply.code(400).send({ erreur: "Il faut un titre, de 1 à 120 caractères." });
+    }
+    const id = await depot.creerListe(base, personne.id, {
+      titre: nom,
+      intention: (intention || "").trim(),
+      publique: publique === true,
+    });
+    return { id };
+  });
+
+  app.get("/listes/:id", async (req, reply) => {
+    const personne = await exigerUnCompte(req);
+    const droits = await droitsOu404(req, reply, personne.id);
+    if (!droits) return reply;
+
+    const liste = await depot.listeParId(base, droits.liste_id);
+    return {
+      liste: { ...liste, mienne: droits.administrer, membre: droits.ecrire },
+      oeuvres: await depot.oeuvresDe(base, droits.liste_id),
+      /* Les co-constructeurs ne se montrent qu'à ceux qui écrivent
+         dedans : un visiteur d'une liste publique lit des films, pas la
+         liste des gens qui la tiennent. */
+      membres: droits.ecrire ? await depot.membresDe(base, droits.liste_id) : [],
+    };
+  });
+
+  app.put("/listes/:id", async (req, reply) => {
+    const personne = await exigerUnCompte(req);
+    const droits = await droitsOu404(req, reply, personne.id);
+    if (!droits) return reply;
+    /* RENOMMER, PUBLIER, EFFACER : le propriétaire seul. Co-construire
+       est un droit d'écriture, pas une propriété partagée — sans cette
+       asymétrie, une liste à six mains n'a plus personne pour en
+       répondre. */
+    if (!droits.administrer)
+      return reply.code(403).send({ erreur: "Cette liste n'est pas vôtre." });
+
+    const { titre, intention, publique } = (req.body ?? {}) as {
+      titre?: string;
+      intention?: string;
+      publique?: boolean;
+    };
+    if (titre !== undefined && !(titre.trim() && titre.trim().length <= 120)) {
+      return reply.code(400).send({ erreur: "Il faut un titre, de 1 à 120 caractères." });
+    }
+    await depot.retoucherListe(base, droits.liste_id, {
+      titre: titre?.trim(),
+      intention: intention?.trim(),
+      publique,
+    });
+    return { fait: true };
+  });
+
+  app.delete("/listes/:id", async (req, reply) => {
+    const personne = await exigerUnCompte(req);
+    const droits = await droitsOu404(req, reply, personne.id);
+    if (!droits) return reply;
+    if (!droits.administrer)
+      return reply.code(403).send({ erreur: "Cette liste n'est pas vôtre." });
+    await depot.effacerListe(base, droits.liste_id);
+    return { efface: true };
+  });
+
+  app.post("/listes/:id/oeuvres", async (req, reply) => {
+    const personne = await exigerUnCompte(req);
+    const droits = await droitsOu404(req, reply, personne.id);
+    if (!droits) return reply;
+    if (!droits.ecrire) return reply.code(403).send({ erreur: "On ne vous a rien demandé ici." });
+
+    const { tmdbId, titre, annee } = (req.body ?? {}) as {
+      tmdbId?: string | number;
+      titre?: string;
+      annee?: string;
+    };
+    if (!/^[0-9]{1,12}$/.test(String(tmdbId ?? ""))) {
+      return reply.code(400).send({ erreur: "Une œuvre se désigne par son identifiant TMDB." });
+    }
+    const neuf = await depot.ajouterALaListe(base, droits.liste_id, personne.id, {
+      tmdbId: String(tmdbId),
+      titre: (titre || "").slice(0, 200),
+      annee: annee ? String(annee).slice(0, 8) : null,
+    });
+    return { ajoute: true, neuf };
+  });
+
+  app.delete("/listes/:id/oeuvres/:tmdbId", async (req, reply) => {
+    const personne = await exigerUnCompte(req);
+    const droits = await droitsOu404(req, reply, personne.id);
+    if (!droits) return reply;
+    if (!droits.ecrire) return reply.code(403).send({ erreur: "On ne vous a rien demandé ici." });
+    const { tmdbId } = req.params as { tmdbId: string };
+    await depot.retirerDeLaListe(base, droits.liste_id, tmdbId);
+    return { retire: true };
+  });
+
+  app.put("/listes/:id/membres/:pseudo", async (req, reply) => {
+    const personne = await exigerUnCompte(req);
+    const droits = await droitsOu404(req, reply, personne.id);
+    if (!droits) return reply;
+    if (!droits.administrer)
+      return reply.code(403).send({ erreur: "Cette liste n'est pas vôtre." });
+
+    const { pseudo } = req.params as { pseudo: string };
+    const invite = await depot.trouverParPseudo(base, (pseudo || "").toLowerCase());
+    if (!invite) return reply.code(404).send({ erreur: "Personne." });
+    if (invite.id === personne.id) {
+      return reply.code(400).send({ erreur: "Vous y écrivez déjà." });
+    }
+    /* On n'invite pas quelqu'un qu'on a fait taire, ni quelqu'un qui
+       nous a fait taire : ce serait rouvrir par une porte de côté ce
+       qu'un blocage vient de fermer. */
+    if (await depot.bloques(base, personne.id, invite.id)) {
+      return reply.code(404).send({ erreur: "Personne." });
+    }
+    await depot.inviterALaListe(base, droits.liste_id, invite.id);
+    return { pseudo: invite.pseudo, membre: true };
+  });
+
+  app.delete("/listes/:id/membres/:pseudo", async (req, reply) => {
+    const personne = await exigerUnCompte(req);
+    const droits = await droitsOu404(req, reply, personne.id);
+    if (!droits) return reply;
+    const { pseudo } = req.params as { pseudo: string };
+    const vise = await depot.trouverParPseudo(base, (pseudo || "").toLowerCase());
+    if (!vise) return reply.code(404).send({ erreur: "Personne." });
+    /* Le propriétaire renvoie qui il veut ; un membre ne peut renvoyer
+       que lui-même. Partir d'une liste ne demande la permission de
+       personne. */
+    if (!droits.administrer && vise.id !== personne.id) {
+      return reply.code(403).send({ erreur: "Cette liste n'est pas vôtre." });
+    }
+    await depot.renvoyerDeLaListe(base, droits.liste_id, vise.id);
+    return { pseudo: vise.pseudo, membre: false };
+  });
+
+  /* ------------------------------------------------------------
+     LES DÉFIS
+     ------------------------------------------------------------
+     Une liste plus une période. L'avancement se CALCULE — personne ne
+     coche « vu », le classeur le sait déjà. */
+
+  app.get("/defis", async (req) => {
+    const personne = await exigerUnCompte(req);
+    return { defis: await depot.mesEpreuves(base, personne.id) };
+  });
+
+  app.post("/defis", async (req, reply) => {
+    const personne = await exigerUnCompte(req);
+    const { listeId, titre, debut, fin } = (req.body ?? {}) as {
+      listeId?: string;
+      titre?: string;
+      debut?: string;
+      fin?: string;
+    };
+    const nom = (titre || "").trim();
+    if (!nom || nom.length > 120) {
+      return reply.code(400).send({ erreur: "Il faut un titre, de 1 à 120 caractères." });
+    }
+    if (!JOUR.test(debut || "") || !JOUR.test(fin || "") || fin! < debut!) {
+      return reply.code(400).send({ erreur: "Deux dates, et la fin après le début." });
+    }
+    /* On ne bâtit un défi que sur une liste où l'on écrit : sinon
+       n'importe qui lance un défi sur la liste publique d'un inconnu,
+       qui le verrait apparaître sans l'avoir voulu. */
+    const droits = UUID.test(listeId || "")
+      ? await depot.droitsSurListe(base, listeId!, personne.id)
+      : null;
+    if (!droits?.ecrire) return reply.code(404).send({ erreur: "Liste inconnue." });
+
+    const id = await depot.creerEpreuve(base, personne.id, {
+      listeId: droits.liste_id,
+      titre: nom,
+      debut: debut!,
+      fin: fin!,
+    });
+    return { id };
+  });
+
+  app.get("/defis/:id", async (req, reply) => {
+    const personne = await exigerUnCompte(req);
+    const { id } = req.params as { id: string };
+    const defi = UUID.test(id || "") ? await depot.epreuveParId(base, id) : null;
+    if (!defi) return reply.code(404).send({ erreur: "Défi inconnu." });
+    /* Le droit de voir un défi est celui de voir sa liste : il n'y a
+       pas deux confidentialités à tenir d'accord. */
+    const droits = await depot.droitsSurListe(base, defi.liste_id, personne.id);
+    if (!droits?.lire) return reply.code(404).send({ erreur: "Défi inconnu." });
+
+    return {
+      defi,
+      oeuvres: await depot.oeuvresDe(base, defi.liste_id),
+      /* L'AVANCEMENT NE SORT DU JOURNAL QU'EN NOMBRE. Le journal des
+         séances ne quitte jamais une collection ; ici il ne quitte rien
+         non plus — on compte, on ne recopie pas. Et l'on ne compte que
+         des gens qui ont demandé à participer. */
+      avancement: await depot.avancementDe(base, defi.id),
+    };
+  });
+
+  app.delete("/defis/:id", async (req, reply) => {
+    const personne = await exigerUnCompte(req);
+    const { id } = req.params as { id: string };
+    const defi = UUID.test(id || "") ? await depot.epreuveParId(base, id) : null;
+    if (!defi) return reply.code(404).send({ erreur: "Défi inconnu." });
+    const droits = await depot.droitsSurListe(base, defi.liste_id, personne.id);
+    if (!droits?.administrer) return reply.code(403).send({ erreur: "Ce défi n'est pas vôtre." });
+    await depot.effacerEpreuve(base, defi.id);
+    return { efface: true };
+  });
+
+  app.put("/defis/:id/participation", async (req, reply) => {
+    const personne = await exigerUnCompte(req);
+    const { id } = req.params as { id: string };
+    const defi = UUID.test(id || "") ? await depot.epreuveParId(base, id) : null;
+    if (!defi) return reply.code(404).send({ erreur: "Défi inconnu." });
+    const droits = await depot.droitsSurListe(base, defi.liste_id, personne.id);
+    if (!droits?.lire) return reply.code(404).send({ erreur: "Défi inconnu." });
+    await depot.rejoindreEpreuve(base, defi.id, personne.id);
+    return { dedans: true };
+  });
+
+  app.delete("/defis/:id/participation", async (req, reply) => {
+    const personne = await exigerUnCompte(req);
+    const { id } = req.params as { id: string };
+    if (!UUID.test(id || "")) return reply.code(404).send({ erreur: "Défi inconnu." });
+    /* Partir se fait TOUJOURS, sans vérifier qu'on avait le droit
+       d'entrer : quelqu'un dont la liste s'est refermée doit pouvoir
+       sortir d'un décompte qui le mesure encore. */
+    await depot.quitterEpreuve(base, id, personne.id);
+    return { dedans: false };
   });
 
   /* ------------------------------------------------------------

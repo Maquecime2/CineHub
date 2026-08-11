@@ -33,6 +33,7 @@ import { PosterPicker } from "../components/film/PosterPicker";
 import { FilmIdentity } from "../components/film/FilmIdentity";
 import { TmdbFacts } from "../components/film/TmdbFacts";
 import { Ailleurs } from "../components/film/Ailleurs";
+import { RangerDansUneListe } from "../components/film/RangerDansUneListe";
 import { WatchLog } from "../components/film/WatchLog";
 import { ThreadBoard } from "../components/film/ThreadBoard";
 import { LINK_TYPES } from "../components/film/linkTypes";
@@ -413,6 +414,7 @@ export function DetailView({
                 quand personne n'a rien dit — une fiche qui vit seule ne
                 réclame pas un compte. */}
             <Ailleurs film={film} connecte={connecte} />
+            <RangerDansUneListe film={film} connecte={connecte} />
           </Carton>
         </div>
 
