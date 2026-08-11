@@ -88,7 +88,7 @@ import { makeFil, normalizeFils } from "./domain/fils";
 import { motifById, makeMotifPerso, motifsPerso } from "./domain/motifs";
 import { loadFils, saveFils as saveFilsToDisk } from "./services/fils";
 import { loadVocabulaire, saveVocabulaire, normalizeVocabulaire } from "./services/motifs";
-import { store } from "./services/storage";
+import { store, KEYS } from "./services/storage";
 import {
   chargerFilms,
   collectionConnue,
@@ -175,11 +175,15 @@ import { SkinLab } from "./views/dev/SkinLab";
 import { useNotes } from "./hooks/useNotes";
 import { useShelfViews } from "./hooks/useShelfViews";
 import { TourOverlay, TourHint, TourMenu } from "./components/tour";
-import { isFirstRun, shouldHint } from "./services/onboarding";
-
-/* Réexportés le temps de la migration : shelf-views et les tests les
-   importent encore depuis ce fichier. */
-export { makeFilm, migrate, slugOf, filmKey, parseRating, parseLetterboxdCsv, diffImport };
+import { isFirstRun, shouldHint, doitSemer, markSemé } from "./services/onboarding";
+import {
+  classeurEncoreDémo,
+  filmsDeDémonstration,
+  notesDeDémonstration,
+  sansDémo,
+  PRÉFIXE_DÉMO,
+} from "./services/demo";
+import { BandeauDémo } from "./components/layout/BandeauDemo";
 
 export default function App() {
   const [films, setFilms] = useState([]);
@@ -201,6 +205,34 @@ export default function App() {
   const [loaded, setLoaded] = useState(false);
   const [view, setView] = useState("library");
   const [selectedId, setSelectedId] = useState(null);
+  /* L'INTERCALAIRE OUVERT DU DOSSIER FILM — « film », « mots » ou
+     « liens ». Ici et non dans la fiche : la visite guidée l'ouvre comme
+     elle ouvre une vue. Voir `OngletFiche` dans `views/DetailView`.
+
+     IL RETIENT AUSSI LA FICHE À LAQUELLE IL SE RAPPORTE, et c'est ce qui
+     évite un effet de remise à zéro. Ouvrir un film depuis le fil rouge
+     — c'est-à-dire depuis l'onglet « Les liens » — poserait sinon la
+     fiche suivante sur ses liens à elle, qu'on n'a pas encore lus. Un
+     onglet qui ne vaut que pour la fiche où il a été choisi se DÉDUIT ;
+     le remettre à « film » dans un effet se paierait d'un rendu de plus
+     à chaque changement de fiche. */
+  const [ongletChoisi, setOngletChoisi] = useState({ pour: null, onglet: "film" });
+  const detailOnglet = ongletChoisi.pour === selectedId ? ongletChoisi.onglet : "film";
+  /* Stable d'un rendu à l'autre : la visite s'en sert dans un effet, et
+     une fonction refaite à chaque passage le relancerait sans fin. D'où
+     la référence — elle porte la fiche courante sans entrer dans les
+     dépendances. */
+  const ficheOuverte = useRef(null);
+  /* Écrite APRÈS le rendu et non pendant : lire ou écrire une référence
+     au milieu d'un rendu est ce que le compilateur React refuse, et il a
+     raison — un rendu doit pouvoir être rejoué sans effet de bord. */
+  useEffect(() => {
+    ficheOuverte.current = selectedId;
+  }, [selectedId]);
+  const setDetailOnglet = useCallback(
+    (onglet) => setOngletChoisi({ pour: ficheOuverte.current, onglet }),
+    []
+  );
   /* La personne ouverte au Générique, par sa clé normalisée. À côté de
      `selectedId` et non à sa place : on ouvre une personne DEPUIS une
      fiche, et revenir à la fiche ne doit pas avoir oublié laquelle. */
@@ -259,8 +291,27 @@ export default function App() {
      les champs status/watchedAt/tmdbId au passage. */
   useEffect(() => {
     let vivant = true;
-    chargerFilms().then((migrated) => {
+    chargerFilms().then(async (chargés) => {
       if (!vivant) return;
+      /* LE CLASSEUR DE DÉMONSTRATION, ET SEULEMENT ICI.
+
+         C'est le seul endroit où l'on sait à la fois que la collection
+         est vide et qu'elle l'a toujours été. Le semis passe par le
+         dépôt — jamais par `store.set` — pour que les douze fiches
+         descendent dans le coffre comme les autres, et il précède
+         `ensureViews` : l'étagère se fabrique alors sur une vraie
+         collection au lieu de se refaire au rendu suivant.
+         Voir `services/demo` pour ce que ces douze films contiennent,
+         et pourquoi. */
+      let migrated = chargés;
+      if (!chargés.length && doitSemer()) {
+        migrated = await enregistrerFilms(filmsDeDémonstration());
+        /* Le carnet ne reçoit sa page que s'il est vide : quelqu'un
+           peut avoir écrit avant d'avoir un seul film. */
+        if (!store.get(KEYS.notes, []).length) store.set(KEYS.notes, notesDeDémonstration());
+        markSemé();
+        if (!vivant) return;
+      }
       setFilms(migrated);
       notebook.load();
       const tabs = store.get("shelf-dividers", []);
@@ -377,6 +428,11 @@ export default function App() {
     setSelectedId(null);
   }, []);
 
+  /* Le pendant de `visiteOuvreVue`, un cran plus bas : l'intercalaire du
+     dossier film. Stable pour la même raison — la visite s'en sert dans
+     un effet, et une fonction refaite à chaque rendu le relancerait sans
+     fin. `setDetailOnglet` l'est déjà, on le passe tel quel. */
+
   /* L'ÉCRAN D'ABORD, LE DISQUE ENSUITE. On pose l'état tout de suite —
      une frappe ne doit pas attendre une écriture — puis le dépôt rend
      les fiches DATÉES, et c'est cette version-là qu'on garde : elle
@@ -398,6 +454,15 @@ export default function App() {
   const saveFilms = (next) => {
     setFilms(next);
     enregistrerFilms(next).then((datés) => setFilms(datés));
+  };
+
+  /* RETIRER L'EXEMPLE. Le bandeau ne paraît que tant que le classeur
+     n'est QUE de l'exemple : on efface donc tout, sans avoir à trier.
+     La page de carnet part avec — elle parle des douze films. */
+  const retirerDémo = () => {
+    saveFilms(sansDémo(films));
+    notebook.replaceAll(notebook.notes.filter((n) => !n.id.startsWith(PRÉFIXE_DÉMO)));
+    setSelectedId(null);
   };
 
   const commitFils = (next) => {
@@ -864,6 +929,11 @@ export default function App() {
             film={selectedFilm}
             films={films}
             connecte={!!synchro.personne}
+            /* L'INTERCALAIRE EST TENU ICI, comme la vue l'est déjà : la
+               visite guidée doit pouvoir ouvrir « Les liens » avant
+               d'aller y chercher le fil rouge. Voir `visiteOuvreOnglet`. */
+            onglet={detailOnglet}
+            onOnglet={setDetailOnglet}
             onBack={() => {
               setView(backView);
               setSelectedId(null);
@@ -966,8 +1036,25 @@ export default function App() {
         )
       )}
 
+      {/* L'EXEMPLE S'ANNONCE, ET SUR TOUTES LES VUES : c'est la
+          collection entière qui n'est pas la vôtre, pas un onglet.
+
+          MONTÉ ICI ET NON DANS LA COLONNE DE VUE, et par `Calque` comme
+          tout ce qui flotte. Posé dans le flux au-dessus de la vue, il
+          repoussait tout d'une soixantaine de pixels — et l'almanach,
+          qui promet de tenir dans la fenêtre sans une barre de
+          défilement, se mettait à défiler exactement de cette hauteur.
+          Une fiche scotchée ne déplace rien, et c'est la forme que le
+          classeur donne déjà à ses autres phrases (voir
+          `Installation`). */}
+      {classeurEncoreDémo(films) && <BandeauDémo onRetirer={retirerDémo} />}
       {tourMenu && <TourMenu view={view} onPlay={jouerVisite} onClose={() => setTourMenu(false)} />}
-      <TourOverlay tourId={tourId} onClose={fermerVisite} onView={visiteOuvreVue} />
+      <TourOverlay
+        tourId={tourId}
+        onClose={fermerVisite}
+        onView={visiteOuvreVue}
+        onOnglet={setDetailOnglet}
+      />
       {hint && !tourId && (
         <TourHint onReplay={() => jouerVisite("global")} onDismiss={() => setHint(false)} />
       )}

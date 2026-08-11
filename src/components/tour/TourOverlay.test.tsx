@@ -129,8 +129,12 @@ describe("une cible absente ne bloque pas", () => {
 
     render(<TourOverlay tourId="almanac" onClose={vi.fn()} onView={vi.fn()} />);
 
+    /* Le titre se LIT dans la visite plutôt que de se recopier ici : ce
+       test parle du saut d'étape, pas du texte de la seconde, et une
+       reformulation du produit ne doit pas le faire échouer. */
+    const seconde = TOURS.almanac!.steps.find((s) => s.target?.includes("almanac-plates"))!;
     expect(
-      await screen.findByText("Trois planches", undefined, { timeout: 3000 })
+      await screen.findByText(seconde.title, undefined, { timeout: 3000 })
     ).toBeInTheDocument();
   });
 

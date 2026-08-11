@@ -24,6 +24,22 @@ export interface TourStep {
   body: string;
   /** Vue à ouvrir avant l'étape — c'est ce qui fait voyager la visite. */
   view?: View;
+  /**
+   * Intercalaire du dossier film à ouvrir avant l'étape.
+   *
+   * MÊME MÉCANIQUE QUE `view`, ÉTENDUE D'UN CRAN — et surtout pas une
+   * seconde mécanique à côté : `TourOverlay` appelle `onOnglet` dans le
+   * même effet qu'il appelle `onView`, et pour la même raison. Depuis
+   * que la fiche se lit en trois intercalaires, quatre des sept étapes
+   * du tour « detail » visent des cartons que l'onglet ouvert ne montre
+   * pas ; sans ce champ elles seraient sautées comme des cibles
+   * absentes.
+   *
+   * Les valeurs sont celles de `OngletFiche` (`views/DetailView`),
+   * recopiées ici plutôt qu'importées : `steps.ts` décrit le produit et
+   * ne dépend d'aucune vue — `View` lui-même n'y est qu'un type.
+   */
+  onglet?: "film" | "mots" | "liens";
   placement?: "right" | "bottom" | "left" | "top" | "center";
   /**
    * Cible absente ⇒ étape sautée sans bruit. Vrai de tout ce qui dépend
@@ -183,6 +199,7 @@ const detail: Tour = {
   steps: [
     {
       target: at("detail-catalog"),
+      onglet: "film",
       title: "La fiche catalogue",
       body: "Ce que le film est : titre, année, réalisation, genres, et tout ce que TMDB rapporte. Chaque champ se corrige d'un clic — c'est la seule façon de rattraper un import mal identifié. Les noms soulignés d'un pointillé ouvrent leur dossier au générique.",
       placement: "right",
@@ -190,6 +207,7 @@ const detail: Tour = {
     },
     {
       target: at("detail-watchlog"),
+      onglet: "mots",
       title: "Le journal des séances",
       body: "Une ligne par visionnage, avec sa date et sa note. C'est lui qui sait qu'un film a été revu quatre fois, et qui nourrit l'almanach.",
       placement: "right",
@@ -197,6 +215,7 @@ const detail: Tour = {
     },
     {
       target: at("detail-ailleurs"),
+      onglet: "film",
       title: "Ce qu'on en dit ailleurs",
       body: "Quand un compte est ouvert, la fiche montre ce que d'autres vidéothèques publiques disent du même film : leur moyenne — sans la vôtre — et leurs critiques. Chacune se signale, et son auteur se fait taire d'un geste. Sans serveur ni compte, cette section n'existe pas.",
       placement: "right",
@@ -204,6 +223,7 @@ const detail: Tour = {
     },
     {
       target: at("detail-review"),
+      onglet: "mots",
       title: "Vos mots",
       body: "La critique et les notes libres. Les photogrammes déposés sur la fiche s'y insèrent dans le texte, à l'endroit du curseur.",
       placement: "left",
@@ -211,6 +231,7 @@ const detail: Tour = {
     },
     {
       target: at("detail-tags"),
+      onglet: "mots",
       title: "Mots-clés et motifs",
       body: "Les mots-clés sont les vôtres. Les motifs sont un vocabulaire commun — « le héros meurt », « il pleut à la fin » — sur lequel une question peut porter, et dont on tire un fil.",
       placement: "left",
@@ -218,6 +239,7 @@ const detail: Tour = {
     },
     {
       target: at("detail-identite"),
+      onglet: "film",
       title: "La bonne fiche TMDB",
       body: "L'import retient le premier titre trouvé, et se trompe sur les homonymes — deux « Resurrection » ne sont pas le même film. Ici on cherche le vrai et on relie la fiche : l'équipe, la durée, le pays et les mots-clés sont réécrits, vos mots et vos séances ne bougent pas. Le signe qui trahit l'erreur, c'est un sillage qui vous propose le film que vous regardez déjà.",
       placement: "left",
@@ -225,6 +247,7 @@ const detail: Tour = {
     },
     {
       target: at("detail-thread"),
+      onglet: "liens",
       title: "Le fil rouge",
       body: "Relier deux films, en disant pourquoi : un motif partagé, une filiation, une réponse. Ces liens sont ce que la constellation dessine.",
       placement: "left",
@@ -232,6 +255,7 @@ const detail: Tour = {
     },
     {
       target: at("detail-sillage"),
+      onglet: "liens",
       title: "Dans le sillage",
       body: "Dix propositions par colonne, en trois parts : quatre tenues par les gens qui ont fait les films — même chef opérateur, même compositeur, quelqu'un à l'affiche des deux —, quatre par ce dont ils parlent, motifs et sujets communs, et deux par la foule, « vu par les mêmes gens ». Chacune dit pourquoi elle est là. À gauche votre classeur ; à droite TMDB, qui ne montre que ce que vous n'avez pas : cliquez une proposition pour lire son résumé sans quitter la page, et la mettre de côté d'un bouton.",
       placement: "top",
@@ -315,8 +339,8 @@ const almanac: Tour = {
     },
     {
       target: at("almanac-plates"),
-      title: "Trois planches",
-      body: "Le compte, les goûts, les gens. Les flèches du clavier feuillettent. Sous vos notes se lit votre écart à la note publique — où vous êtes plus tendre, où vous êtes plus sévère que la foule.",
+      title: "Quatre planches",
+      body: "Le compte, les goûts, les gens, puis les sujets. Les flèches du clavier feuillettent. La dernière planche dit de quoi vos films parlaient — mots-clés et motifs —, quels chefs opérateurs et compositeurs vous suivez sans le savoir, et sur quels titres exactement vous êtes plus tendre ou plus sévère que la foule.",
       placement: "bottom",
       optional: true,
     },
@@ -415,8 +439,24 @@ const global: Tour = {
     },
     ...from("library", library, "wall-search", "wall-mode", "wall-films"),
     ...from("watchlist", watchlist, "wall-films", "soir-ouvrir"),
-    ...from("generique", generique, "generique-search", "generique-dossier"),
-    ...from("reco", reco, "reco-maison", "reco-dials"),
+    /* PAS `generique-dossier` ICI, ET C'EST UNE CORRECTION.
+       Son ancre n'existe qu'une fois une personne SÉLECTIONNÉE, et la
+       visite globale arrive sur un répertoire fermé : l'étape était donc
+       morte en permanence, même sur une collection pleine. Elle reste
+       dans la visite du Générique, où l'on a pu ouvrir un dossier. */
+    ...from("generique", generique, "generique-search", "generique-roles"),
+    /* PAS `reco-dials` NON PLUS, et pour la même raison que
+       `generique-dossier` ci-dessus : les deux molettes vivent DANS le
+       bulletin de commande, que la vue ne monte pas du tout sans clé
+       TMDB. Sur un classeur neuf — qui n'en a jamais — l'étape ouvrait
+       les Découvertes, cherchait une ancre absente pendant sept cents
+       millisecondes de voile opaque, puis passait sans rien dire.
+
+       `reco-maison`, lui, reste : les propositions tirées de votre
+       propre collection ne demandent aucune clé, et c'est précisément
+       ce que cette étape raconte. Les molettes gardent leur place dans
+       la visite des Découvertes, où l'on arrive avec ce qu'on a. */
+    ...from("reco", reco, "reco-maison"),
     ...from("constellation", constellation, "constellation-start", "constellation-teams"),
     ...from("almanac", almanac, "almanac-year"),
     ...from("notebook", notebook, "notebook-new"),

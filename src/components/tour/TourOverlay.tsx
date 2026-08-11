@@ -38,9 +38,18 @@ interface TourOverlayProps {
   onClose: () => void;
   /** Ouvre une vue — c'est ce qui permet à la visite globale de voyager. */
   onView: (view: string) => void;
+  /**
+   * Ouvre un intercalaire du dossier film.
+   *
+   * Le pendant exact de `onView`, un cran plus bas : depuis que la fiche
+   * se lit en trois onglets, une étape qui vise le fil rouge doit
+   * pouvoir ouvrir « Les liens » avant de chercher sa cible, faute de
+   * quoi elle passerait pour une cible absente et serait sautée.
+   */
+  onOnglet?: (onglet: string) => void;
 }
 
-export function TourOverlay({ tourId, onClose, onView }: TourOverlayProps) {
+export function TourOverlay({ tourId, onClose, onView, onOnglet }: TourOverlayProps) {
   const tour = tourId ? TOURS[tourId] : undefined;
   const [i, setI] = useState(0);
 
@@ -57,7 +66,8 @@ export function TourOverlay({ tourId, onClose, onView }: TourOverlayProps) {
      recherche de la cible attend ensuite que React ait posé le nœud. */
   useEffect(() => {
     if (step?.view) onView(step.view);
-  }, [step, onView]);
+    if (step?.onglet) onOnglet?.(step.onglet);
+  }, [step, onView, onOnglet]);
 
   const { rect, status } = useTourTarget(step?.target ?? null, i);
 

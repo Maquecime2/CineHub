@@ -285,6 +285,81 @@ export function loyalties(films: Film[], période: Période, seuil = 3): Loyalti
   return { directors: garde(réal), actors: garde(acteurs) };
 }
 
+/* ------------------------------------------------------------
+   LES SUJETS DE L'ANNÉE
+   ------------------------------------------------------------
+
+   L'almanach savait dire les genres, les pays, les langues, les
+   cinéastes et les interprètes — c'est-à-dire QUI et D'OÙ, jamais DE
+   QUOI. C'était le seul axe manquant, et le plus intéressant : « une
+   année de boucles temporelles et de deuils » dit autre chose qu'« une
+   année de drames français ».
+
+   DEUX LISTES ET NON UNE, parce que les deux vocabulaires ne sont pas
+   de la même main. Les mots-clés viennent de TMDB, en anglais, tels
+   quels. Les motifs sont le vocabulaire commun du projet, et ce sont des
+   IDENTIFIANTS : « boucle-temporelle » se lit « Le temps se répète » une
+   fois passé par `motifById`. Les mélanger donnerait une liste où
+   l'anglais brut côtoie des identifiants à tirets, et où le compte d'un
+   même sujet se retrouverait scindé en deux lignes.
+
+   Rendus bruts, comme les codes pays de `geography` : traduire est un
+   travail d'affichage, et le domaine ne sait pas dans quelle langue on
+   le lira. */
+export interface Sujets {
+  /** Les mots-clés TMDB les plus vus — en anglais, tels que reçus. */
+  motsClés: { nom: string; n: number }[];
+  /** Les motifs du catalogue, par `id` : la vue les traduit. */
+  motifs: { nom: string; n: number }[];
+}
+
+export function sujets(films: Film[], période: Période, combien = 6): Sujets {
+  const mots: string[] = [];
+  const mot: string[] = [];
+  for (const { film, watch } of séancesDe(films)) {
+    if (!dansLaPériode(watch.date, période)) continue;
+    mots.push(...(film.keywords || []));
+    mot.push(...(film.motifs || []));
+  }
+  return { motsClés: palmarès(mots, combien), motifs: palmarès(mot, combien) };
+}
+
+/* ------------------------------------------------------------
+   LES ARTISANS SUIVIS
+   ------------------------------------------------------------
+
+   `loyalties` ne regarde que la réalisation et l'interprétation, c'est-
+   à-dire les deux noms qu'on connaît déjà. Or `crew` porte l'image et la
+   musique depuis le début, et c'est là que se cachent les fidélités
+   qu'on ne s'était pas vu contracter : personne ne se dit « je suis le
+   travail d'un chef opérateur », et pourtant.
+
+   Pas de seuil, contrairement aux fidélités : deux films d'un même chef
+   opérateur dans une année est déjà une remarque, là où deux films d'un
+   même cinéaste n'en est pas une. Le palmarès rend ce qu'il trouve, et
+   la vue décide de ne montrer que ce qui revient. */
+export interface Artisans {
+  /** Chefs opérateurs, du plus vu au moins. */
+  image: { nom: string; n: number }[];
+  /** Compositeurs. */
+  musique: { nom: string; n: number }[];
+  /** Scénaristes — le troisième métier que `crew` connaît. */
+  scénario: { nom: string; n: number }[];
+}
+
+export function artisans(films: Film[], période: Période, combien = 5): Artisans {
+  const par: Record<string, string[]> = { image: [], musique: [], scénario: [] };
+  for (const { film, watch } of séancesDe(films)) {
+    if (!dansLaPériode(watch.date, période)) continue;
+    for (const métier of Object.keys(par)) par[métier]!.push(...((film.crew || {})[métier] || []));
+  }
+  return {
+    image: palmarès(par.image!, combien),
+    musique: palmarès(par.musique!, combien),
+    scénario: palmarès(par.scénario!, combien),
+  };
+}
+
 export interface Rhythm {
   /** Jours distincts où l'on a vu quelque chose. */
   jours: number;
@@ -440,6 +515,10 @@ export interface Almanac {
   ratingByDecade: { decade: number; avg: number; n: number }[];
   newDirectors: string[];
   loyalties: Loyalties;
+  /** De quoi l'année a parlé : mots-clés TMDB et motifs du catalogue. */
+  sujets: Sujets;
+  /** Les métiers de l'ombre, que `loyalties` ne regardait pas. */
+  artisans: Artisans;
   rhythm: Rhythm;
   screenTime: ScreenTime;
   geography: Geography;
@@ -629,6 +708,8 @@ export function almanacFor(films: Film[], période: Période): Almanac {
     /* Trois fois dans une année est une traversée d'œuvre ; trois fois
        en sept ans, une coïncidence. Le seuil suit la période. */
     loyalties: loyalties(films, période, période === "toujours" ? 6 : 3),
+    sujets: sujets(films, période),
+    artisans: artisans(films, période),
     rhythm: rhythm(films, période),
     screenTime: screenTime(films, période),
     geography: geography(films, période),
