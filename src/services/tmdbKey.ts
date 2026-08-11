@@ -73,9 +73,6 @@ export const cleEcrite = (): string => courante;
 export const getTmdbKey = (): string =>
   courante.trim() ? courante : compteOuvert() ? PAR_LE_SERVEUR : "";
 
-/** Y a-t-il de quoi parler à TMDB — par une clé à soi ou par le serveur ? */
-export const hasTmdbKey = (): boolean => getTmdbKey() !== "";
-
 /**
  * Poser (ou effacer) la clé. Écrit sur le disque ET réveille les écrans
  * ouverts : c'est tout l'objet du module.

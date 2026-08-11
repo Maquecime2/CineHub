@@ -254,10 +254,6 @@ export async function removeCustomDecor(key: string): Promise<void> {
   await deleteImage(entry.imageKey).catch(console.error);
 }
 
-export const renameCustomDecor = (key: string, label: string): void => {
-  write(read().map((d) => (d.key === key ? { ...d, label: label.slice(0, 40) } : d)));
-};
-
 /* ---------- sauvegarde ----------
    Le registre entre dans le fichier de sauvegarde comme les fiches : ce
    sont des données que l'utilisateur a apportées, pas des réglages. */

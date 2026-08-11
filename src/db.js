@@ -70,17 +70,6 @@ function openDb() {
   return dbPromise;
 }
 
-/* Le mode privé de certains navigateurs refuse IndexedDB : mieux vaut le
-   savoir avant de proposer un stockage qui n'existe pas. */
-export async function idbAvailable() {
-  try {
-    await openDb();
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 async function tx(mode, fn, magasin = POSTERS) {
   const db = await openDb();
   return new Promise((resolve, reject) => {
@@ -108,26 +97,31 @@ async function tx(mode, fn, magasin = POSTERS) {
    une chaîne de caractères. */
 export const putDoc = (key, valeur) => tx("readwrite", (s) => s.put(valeur, key), DOCS);
 export const getDoc = (key) => tx("readonly", (s) => s.get(key), DOCS);
-export const deleteDoc = (key) => tx("readwrite", (s) => s.delete(key), DOCS);
 
 export const putImage = (key, blob) => tx("readwrite", (s) => s.put(blob, key));
 export const getImage = (key) => tx("readonly", (s) => s.get(key));
 export const deleteImage = (key) => tx("readwrite", (s) => s.delete(key));
 export const allImageKeys = () => tx("readonly", (s) => s.getAllKeys());
 
-// anciens noms, conservés pour les appels existants
-export const putPoster = putImage;
-export const getPoster = getImage;
-export const deletePoster = deleteImage;
-export const allPosterKeys = allImageKeys;
+/* LES ANCIENS NOMS EN `*Poster` SONT PARTIS, et le commentaire qui les
+   gardait — « conservés pour les appels existants » — n'était plus vrai
+   depuis longtemps : il n'en restait aucun. Le seul endroit qui s'en
+   servait encore était `posterStats`, juste dessous, c'est-à-dire ce
+   fichier appelant ses propres alias.
+
+   `deleteDoc` et `idbAvailable` sont partis avec, pour la même raison.
+   Le second avait un remplaçant en face sans que personne ne le dise :
+   `services/collection` répond à la même question par `coffreDisponible`,
+   avec un délai en plus — une base verrouillée par un autre onglet ne
+   répond jamais, et `idbAvailable` aurait attendu indéfiniment. */
 
 /* Combien de place occupent réellement les affiches — affiché dans les
    réglages d'import, parce qu'un quota invisible est un quota qu'on dépasse. */
 export async function posterStats() {
-  const keys = await allPosterKeys();
+  const keys = await allImageKeys();
   let bytes = 0;
   for (const k of keys) {
-    const blob = await getPoster(k);
+    const blob = await getImage(k);
     if (blob) bytes += blob.size;
   }
   let quota = null;

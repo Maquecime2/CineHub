@@ -60,11 +60,6 @@ export const membresDuFil = (fil: Fil, films: Film[]): string[] => {
   return [...ids].filter((id) => !exclus.has(id) && vivants.has(id));
 };
 
-export const filmsDuFil = (fil: Fil, films: Film[]): Film[] => {
-  const ids = new Set(membresDuFil(fil, films));
-  return films.filter((f) => ids.has(f.id));
-};
-
 /* Poser ou ôter une fiche revient toujours à la même question : quel est
    l'état VOULU, et qu'est-ce que le motif en dit déjà ? Un film que le
    motif amène ne s'ajoute pas — il se retire de la liste des exclus. */
