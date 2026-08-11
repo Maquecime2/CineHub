@@ -77,6 +77,8 @@ une clé physique. La vérification des signatures est confiée à
 | `PUT/DELETE /defis/:id/participation` | Entrer, sortir — sortir se fait toujours                        |
 | `GET /mes-donnees`                    | Tout ce que le serveur détient de vous                          |
 | `DELETE /mon-compte`                  | L'efface, et tout ce qui pend dessous                           |
+| `GET /poussees`                       | Ce serveur envoie-t-il des notifications, et sa clé publique    |
+| `PUT/DELETE /poussees`                | Abonner cet appareil, ou le faire taire                         |
 | `GET /sante`                          | Debout ?                                                        |
 
 ## Trois choix qui méritent d'être connus
@@ -265,6 +267,14 @@ VITE_SERVEUR=http://localhost:8787 npm run build && npm run preview
 si `NODE_ENV` n'est pas `production` **et** que `PORTE_DEV=1` est posé à
 la main. Elle sert à éprouver la synchronisation de bout en bout dans un
 navigateur piloté, où aucune empreinte ni aucun visage n'existe.
+
+## Sauvegardes, mesure, notifications
+
+Elles vivent dans **EXPLOITATION.md**, à côté de ce fichier : comment
+sauvegarder et surtout comment RESTAURER, ce que la mesure d'usage
+refuse délibérément de savoir, la seule raison qu'a ce serveur de
+sonner, et le coût mensuel regardé en face avant d'ouvrir les
+inscriptions.
 
 ## Ce qui n'est pas encore là
 

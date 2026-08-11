@@ -443,6 +443,18 @@ const global: Tour = {
       view: "library",
       optional: true,
     },
+    /* LES RAPPELS vivent dans le même tiroir que le compte et le
+       partage, et l'étape le dit là aussi. `optional` : sans serveur,
+       sans clés posées dessus, ou dans un navigateur qui ne sait pas
+       recevoir de notification, l'action n'est même pas montée. */
+    {
+      target: at("compte"),
+      title: "Se faire rappeler ses défis",
+      body: "Toujours dans ce tiroir : la seule chose qui vous sonnera jamais est un défi qui commence ou s'achève. Rien d'autre — ni les films des autres, ni un rappel de revenir. Le réglage vaut pour cet appareil seulement.",
+      placement: "right",
+      view: "library",
+      optional: true,
+    },
     /* LES DÉFIS, en dernier avant l'au revoir : c'est la seule chose de
        ce classeur qui se fasse à plusieurs, et elle suppose tout le
        reste. `optional` comme le compte — sans serveur, la vue

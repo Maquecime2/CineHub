@@ -1,0 +1,8 @@
+node_modules
+
+# LES SAUVEGARDES NE SE VERSIONNENT PAS, ET CE N'EST PAS UNE QUESTION DE
+# TAILLE : un dump contient les collections, les critiques et les notes
+# intimes de tout le monde. Le pousser dans un dépôt, même privé, le
+# recopie sur chaque machine qui le clone — et dans son historique, pour
+# toujours.
+sauvegardes/

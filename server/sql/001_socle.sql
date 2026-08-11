@@ -419,3 +419,57 @@ CREATE TABLE IF NOT EXISTS epreuve_participant (
 );
 
 CREATE INDEX IF NOT EXISTS epreuve_participant_personne ON epreuve_participant(personne_id);
+
+-- ------------------------------------------------------------
+-- LA MESURE D'USAGE
+-- ------------------------------------------------------------
+-- CE QU'ELLE NE CONTIENT PAS EST SA DÉFINITION. Pas d'identifiant de
+-- personne, pas d'adresse IP, pas de navigateur, pas d'heure : un
+-- compteur par JOUR et par GESTE, et rien qui permette de recomposer
+-- une journée de quelqu'un. On mesure pour savoir si le serveur tient
+-- et ce qui sert, pas pour savoir qui fait quoi.
+--
+-- La conséquence est assumée : ces chiffres ne répondront jamais à
+-- « combien de personnes actives ». Y répondre demanderait justement ce
+-- qu'on refuse de garder.
+CREATE TABLE IF NOT EXISTS mesure (
+  jour          date NOT NULL DEFAULT current_date,
+  geste         text NOT NULL,
+  n             bigint NOT NULL DEFAULT 0,
+  PRIMARY KEY (jour, geste)
+);
+
+-- ------------------------------------------------------------
+-- LES NOTIFICATIONS POUSSÉES
+-- ------------------------------------------------------------
+-- Un abonnement push appartient à un APPAREIL, pas à une personne :
+-- même compte sur un téléphone et un ordinateur fait deux lignes, et
+-- fermer l'un ne doit pas faire taire l'autre.
+--
+-- `secret` et `p256dh` sont les clés que le navigateur donne pour
+-- chiffrer le message — c'est LUI qui les fabrique, et le serveur ne
+-- peut rien en faire d'autre que pousser vers ce point-là.
+CREATE TABLE IF NOT EXISTS pousse (
+  point         text PRIMARY KEY,           -- l'endpoint du service de push
+  personne_id   uuid NOT NULL REFERENCES personne(id) ON DELETE CASCADE,
+  p256dh        text NOT NULL,
+  secret        text NOT NULL,
+  cree_le       timestamptz NOT NULL DEFAULT now(),
+  -- Un envoi refusé par le service de push (410) signifie que
+  -- l'abonnement est mort : on l'efface plutôt que de réessayer tous les
+  -- jours jusqu'à la fin des temps.
+  vu_le         timestamptz
+);
+
+CREATE INDEX IF NOT EXISTS pousse_personne ON pousse(personne_id);
+
+-- CE QUI A DÉJÀ ÉTÉ DIT NE SE REDIT PAS. Sans cette table, un balayage
+-- qui tourne deux fois — un redémarrage, un serveur relancé — envoie
+-- deux fois le même rappel. Une notification en double est la façon la
+-- plus rapide de faire couper les notifications.
+CREATE TABLE IF NOT EXISTS rappel_envoye (
+  personne_id   uuid NOT NULL REFERENCES personne(id) ON DELETE CASCADE,
+  sujet         text NOT NULL,              -- « epreuve:<id>:fin », par exemple
+  cree_le       timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (personne_id, sujet)
+);

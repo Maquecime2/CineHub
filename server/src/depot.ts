@@ -1097,3 +1097,111 @@ export async function listeParId(base: Base, id: string): Promise<Liste | null> 
     [id]
   );
 }
+
+/* ------------------------------------------------------------
+   LA MESURE, ET CE QU'ELLE REFUSE DE SAVOIR
+   ------------------------------------------------------------ */
+
+/**
+ * Compte un geste, pour la journée en cours.
+ *
+ * AUCUN IDENTIFIANT NE TRAVERSE CETTE FONCTION, et c'est sa signature
+ * qui le garantit : elle ne prend qu'un mot. On ne peut donc pas, même
+ * par distraction, lui passer un compte ou une adresse — il n'y a pas
+ * de paramètre pour les recevoir.
+ */
+export async function compter(base: Base, geste: string): Promise<void> {
+  await base.requete(
+    `INSERT INTO mesure (jour, geste, n) VALUES (current_date, $1, 1)
+     ON CONFLICT (jour, geste) DO UPDATE SET n = mesure.n + 1`,
+    [geste]
+  );
+}
+
+export async function mesures(
+  base: Base,
+  jours = 30
+): Promise<{ jour: string; geste: string; n: string }[]> {
+  return base.requete(
+    `SELECT to_char(jour, 'YYYY-MM-DD') AS jour, geste, n::text
+       FROM mesure WHERE jour > current_date - $1::int
+      ORDER BY jour DESC, n DESC`,
+    [jours]
+  );
+}
+
+/* ------------------------------------------------------------
+   LES NOTIFICATIONS POUSSÉES
+   ------------------------------------------------------------ */
+
+export interface Pousse {
+  point: string;
+  p256dh: string;
+  secret: string;
+  personne_id: string;
+}
+
+export async function rangerPousse(
+  base: Base,
+  personneId: string,
+  p: { point: string; p256dh: string; secret: string }
+): Promise<void> {
+  /* Le même appareil qui se réabonne remplace sa ligne — et change de
+     propriétaire si quelqu'un d'autre s'est connecté sur ce navigateur.
+     Sans cela, un ordinateur partagé pousserait les rappels d'une
+     personne à une autre. */
+  await base.requete(
+    `INSERT INTO pousse (point, personne_id, p256dh, secret) VALUES ($1, $2, $3, $4)
+     ON CONFLICT (point) DO UPDATE
+        SET personne_id = EXCLUDED.personne_id,
+            p256dh = EXCLUDED.p256dh,
+            secret = EXCLUDED.secret`,
+    [p.point, personneId, p.p256dh, p.secret]
+  );
+}
+
+export async function oublierPousse(base: Base, point: string): Promise<void> {
+  await base.requete("DELETE FROM pousse WHERE point = $1", [point]);
+}
+
+export async function poussesDe(base: Base, personneId: string): Promise<Pousse[]> {
+  return base.requete<Pousse>(
+    "SELECT point, p256dh, secret, personne_id FROM pousse WHERE personne_id = $1",
+    [personneId]
+  );
+}
+
+/**
+ * Note qu'un rappel a été dit, et rend `false` s'il l'avait déjà été.
+ *
+ * L'INSERTION EST LE VERROU. Vérifier puis écrire laisserait deux
+ * balayages simultanés — un redémarrage pendant un envoi — passer tous
+ * les deux. Une notification en double est la façon la plus rapide de
+ * faire couper les notifications.
+ */
+export async function rappelNeuf(base: Base, personneId: string, sujet: string): Promise<boolean> {
+  const r = await base.requete(
+    `INSERT INTO rappel_envoye (personne_id, sujet) VALUES ($1, $2)
+     ON CONFLICT DO NOTHING RETURNING sujet`,
+    [personneId, sujet]
+  );
+  return r.length > 0;
+}
+
+/**
+ * Les défis qui commencent ou s'achèvent aujourd'hui, et qui y participe.
+ *
+ * C'est le SEUL prétexte à notification de tout ce serveur. Il n'y en
+ * aura pas d'autre sans une bonne raison : une application qui trouve
+ * des motifs de sonner finit désinstallée.
+ */
+export async function rappelsDuJour(
+  base: Base
+): Promise<{ epreuve_id: string; titre: string; personne_id: string; quand: string }[]> {
+  return base.requete(
+    `SELECT e.id AS epreuve_id, e.titre, ep.personne_id,
+            CASE WHEN e.debut = current_date THEN 'debut' ELSE 'fin' END AS quand
+       FROM epreuve e JOIN epreuve_participant ep ON ep.epreuve_id = e.id
+      WHERE e.debut = current_date OR e.fin = current_date`
+  );
+}

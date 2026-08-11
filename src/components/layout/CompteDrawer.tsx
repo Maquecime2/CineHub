@@ -11,7 +11,7 @@
    pas une panne ici, c'est le fonctionnement normal d'un classeur qui
    vit chez soi. On dit donc ce qui attend, pas ce qui manque.
    ============================================================ */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   CloudOff,
   RefreshCw,
@@ -23,6 +23,7 @@ import {
   Download,
   Trash2,
   Link as LinkIcon,
+  Bell,
 } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
@@ -40,6 +41,12 @@ import {
   type Partage,
   type Personne,
 } from "../../services/serveur";
+import {
+  etatDesPoussees,
+  sAbonner,
+  seDesabonner,
+  type EtatPoussees,
+} from "../../services/poussees";
 import { oublierLaSynchro } from "../../services/synchro";
 import type { Bilan } from "../../services/synchro";
 
@@ -259,6 +266,8 @@ export function CompteDrawer({
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <Partager />
 
+            <Rappels />
+
             <button
               onClick={async () => {
                 await seDeconnecter();
@@ -406,6 +415,79 @@ const bouton = (encre: string, éteint: boolean) => ({
    répondre ou non à un inconnu, et une préférence rangée dans le
    navigateur n'aurait aucune prise sur cette décision-là.
    ============================================================ */
+/* ============================================================
+   LES RAPPELS DE DÉFI
+   ============================================================
+
+   LE SEUL PRÉTEXTE À SONNER DE TOUT CE PROJET : un défi qui commence,
+   un défi qui s'achève. Pas de « quelqu'un que vous suivez a noté un
+   film », pas de « revenez, votre collection vous attend ». Une
+   application qui se trouve des motifs de sonner finit désinstallée.
+
+   LE RÉGLAGE NE PARAÎT PAS S'IL NE PEUT RIEN FAIRE. Il faut un
+   serveur, des clés posées dessus, un service worker et la permission
+   du système ; trois de ces quatre conditions échappent à
+   l'application. Un interrupteur qui ne fait rien serait pire que son
+   absence.
+
+   L'ABONNEMENT EST CELUI DE CET APPAREIL, et le texte le dit : la même
+   personne sur un téléphone et un ordinateur les règle deux fois, ce
+   qui est exactement ce qu'on veut — on n'a pas envie d'être sonné sur
+   son ordinateur de travail parce qu'on l'a accepté sur son téléphone.
+   ============================================================ */
+function Rappels() {
+  const [état, setÉtat] = useState<EtatPoussees | null>(null);
+  const [occupé, setOccupé] = useState(false);
+
+  const relire = () =>
+    etatDesPoussees()
+      .then(setÉtat)
+      .catch(() => setÉtat(null));
+
+  useEffect(() => {
+    relire();
+  }, []);
+
+  if (!état?.possible) return null;
+
+  const basculer = async () => {
+    setOccupé(true);
+    try {
+      if (état.abonne) await seDesabonner();
+      else await sAbonner();
+    } finally {
+      setOccupé(false);
+      await relire();
+    }
+  };
+
+  return (
+    <div style={{ borderTop: `1px dashed ${C.line}`, paddingTop: 14 }}>
+      <Label>Les rappels</Label>
+      {état.refusee ? (
+        /* Le refus est définitif dans la plupart des navigateurs : il
+           n'y a pas de seconde demande à faire, seulement un réglage à
+           rouvrir à la main. Le dire vaut mieux qu'un bouton qui
+           échoue. */
+        <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded, marginTop: 4 }}>
+          Ce navigateur a refusé les notifications. Cela se rouvre dans ses réglages de site, pas
+          ici.
+        </div>
+      ) : (
+        <>
+          <button onClick={basculer} disabled={occupé} style={bouton(C.pine, état.abonne)}>
+            <Bell size={12} /> {état.abonne ? "NE PLUS ME RAPPELER" : "ME RAPPELER MES DÉFIS"}
+          </button>
+          <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 6 }}>
+            Un défi qui commence, un défi qui s'achève — rien d'autre ne vous sonnera. Le réglage
+            vaut pour cet appareil seulement.
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function Partager() {
   const [état, setÉtat] = useState<Partage | null>(null);
   const [jeton, setJeton] = useState<string | null>(null);

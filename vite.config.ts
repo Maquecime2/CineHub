@@ -64,6 +64,12 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,png,svg,woff2}"],
+        /* LE SERVICE WORKER EST FABRIQUÉ, PAS ÉCRIT : c'est le greffon
+           qui le génère, avec la liste des fichiers précachés. On ne
+           peut donc pas y ajouter un gestionnaire à la main sans le
+           remplacer entièrement — `importScripts` est la porte prévue
+           pour cela, et `public/push.js` la franchit. */
+        importScripts: ["push.js"],
         /* Une collection enrichie par TMDB tient dans quelques mégaoctets
            de JavaScript ; le défaut de deux mégaoctets laissait le plus
            gros morceau hors du précache, donc hors ligne. */

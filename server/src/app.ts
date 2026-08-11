@@ -26,6 +26,7 @@ import {
 import type { Base } from "./base.ts";
 import * as depot from "./depot.ts";
 import { poserLesRelais } from "./relais.ts";
+import { clePublique, pousseesPossibles, rappelerLesDefis } from "./pousse.ts";
 
 export interface Reglages {
   base: Base;
@@ -119,6 +120,31 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
      attaque sérieuse — il faudrait un pare-feu devant — mais contre la
      boucle d'un client mal réglé, qui coûte le même argent. */
   await app.register(rateLimit, { max: 100, timeWindow: "1 minute" });
+
+  /* ------------------------------------------------------------
+     LA MESURE D'USAGE — ce qu'elle refuse de savoir la définit
+     ------------------------------------------------------------
+     Un compteur par JOUR et par GESTE. Pas d'identifiant de personne,
+     pas d'adresse, pas de navigateur, pas d'heure : rien qui permette
+     de recomposer la journée de quelqu'un.
+
+     Le geste est la MÉTHODE et le CHEMIN DE ROUTE — `GET /listes/:id`
+     et non `GET /listes/97703c16-…`. L'URL réelle porte des
+     identifiants ; le chemin de route, non. Compter l'une pour l'autre
+     aurait fabriqué exactement le registre qu'on refuse de tenir.
+
+     Ce compteur est délibérément aveugle à « combien de personnes » :
+     y répondre demanderait ce qu'on ne garde pas. C'est le prix, et il
+     est payé sciemment. */
+  app.addHook("onResponse", async (req, reply) => {
+    const chemin = req.routeOptions?.url;
+    if (!chemin) return;
+    /* Une écriture par requête serait payer la mesure plus cher que le
+       service. Les échecs ne comptent pas non plus : ce sont des
+       incidents, et le journal du serveur est là pour eux. */
+    if (reply.statusCode >= 400) return;
+    depot.compter(base, `${req.method} ${chemin}`).catch(() => {});
+  });
 
   /** Qui parle ? `null` si personne. */
   const quiEst = async (req: FastifyRequest) => {
@@ -935,6 +961,46 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
     return { efface: true };
   });
 
+  /* ------------------------------------------------------------
+     LES NOTIFICATIONS POUSSÉES
+     ------------------------------------------------------------
+     Une seule raison de sonner dans tout ce serveur : un défi qui
+     commence, un défi qui s'achève. Sans clés VAPID, ces routes
+     répondent « pas de service » et le classeur n'en montre pas le
+     réglage. */
+
+  app.get("/poussees", async () => ({ possible: pousseesPossibles(), cle: clePublique() }));
+
+  app.put("/poussees", async (req, reply) => {
+    const personne = await exigerUnCompte(req);
+    if (!pousseesPossibles()) {
+      return reply.code(503).send({ erreur: "Ce serveur n'envoie pas de notifications." });
+    }
+    const { point, p256dh, secret } = (req.body ?? {}) as {
+      point?: string;
+      p256dh?: string;
+      secret?: string;
+    };
+    /* L'abonnement vient du NAVIGATEUR et le serveur ne peut pas le
+       vérifier : tout ce qu'il peut faire est refuser ce qui n'a pas la
+       forme d'une adresse, pour ne pas ranger n'importe quoi. */
+    if (!point || !/^https:\/\//.test(point) || !p256dh || !secret) {
+      return reply.code(400).send({ erreur: "Abonnement illisible." });
+    }
+    await depot.rangerPousse(base, personne.id, { point, p256dh, secret });
+    return { abonne: true };
+  });
+
+  app.delete("/poussees", async (req, reply) => {
+    await exigerUnCompte(req);
+    const { point } = (req.body ?? {}) as { point?: string };
+    /* On efface par le POINT et non par le compte : un ordinateur
+       partagé ne doit pas faire taire le téléphone de la même
+       personne. */
+    if (point) await depot.oublierPousse(base, point);
+    return reply.send({ abonne: false });
+  });
+
   app.get("/sante", async () => ({ debout: true }));
 
   /* ------------------------------------------------------------
@@ -988,6 +1054,14 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
   const balai = setInterval(
     () => {
       depot.balayerDefis(base).catch(() => {});
+      /* LES RAPPELS PASSENT PAR LE MÊME BALAI, à l'heure : un défi qui
+         commence aujourd'hui est annoncé aujourd'hui, et la table des
+         rappels déjà dits empêche les vingt-trois autres passages de le
+         redire. Un vrai ordonnanceur serait une dépendance de plus pour
+         un serveur qui tourne sur une machine de bureau. */
+      rappelerLesDefis(base)
+        .then(({ dits }) => dits && console.log(`  ${dits} rappel(s) de défi envoyé(s)`))
+        .catch((e) => console.error("rappels :", e));
     },
     60 * 60 * 1000
   );

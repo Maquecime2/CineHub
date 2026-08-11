@@ -11,6 +11,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { construireApp } from "./app.ts";
 import { ouvrirPostgres, poserLeSocle } from "./base.ts";
+import { reglerLesPoussees } from "./pousse.ts";
 
 const urlBase = process.env.DATABASE_URL;
 if (!urlBase) {
@@ -26,6 +27,26 @@ if (!domaine || !origine) {
   console.error("RP_ID et ORIGINE sont obligatoires hors développement.");
   process.exit(1);
 }
+
+/* LES NOTIFICATIONS SONT FACULTATIVES DE BOUT EN BOUT. Sans clés VAPID,
+   ce module se tait, la route l'annonce, et le classeur ne montre même
+   pas le réglage. On les fabrique une fois pour toutes :
+
+     npx web-push generate-vapid-keys
+
+   La clé PRIVÉE ne quitte pas le serveur ; la publique est distribuée à
+   chaque navigateur qui s'abonne, et c'est son rôle. */
+const vapidPub = process.env.VAPID_PUBLIQUE;
+const vapidPriv = process.env.VAPID_PRIVEE;
+reglerLesPoussees(
+  vapidPub && vapidPriv
+    ? {
+        publique: vapidPub,
+        privee: vapidPriv,
+        contact: process.env.VAPID_CONTACT || "mailto:personne@example.org",
+      }
+    : null
+);
 
 const base = await ouvrirPostgres(urlBase);
 
@@ -69,6 +90,9 @@ for (const o of origine
   .map((x) => x.trim())
   .filter(Boolean)) {
   console.log(`  origine acceptée : ${o}`);
+}
+if (!vapidPub || !vapidPriv) {
+  console.log("  notifications : éteintes (VAPID_PUBLIQUE / VAPID_PRIVEE absentes)");
 }
 if (process.env.PORTE_DEV === "1" && developpement) {
   console.log("  ⚠ porte de développement ouverte : POST /dev/session");
