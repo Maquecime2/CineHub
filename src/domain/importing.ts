@@ -257,7 +257,12 @@ export function diffImport(
 
        Ils ne sont PAS vos motifs et n'y touchent pas : ceux-là ne
        s'écrivent qu'à la main, et une récolte n'a rien à y dire. */
-    if (r.keywords && match.keywords == null) changes.keywords = r.keywords;
+    /* On comble l'absence — et aussi le VIDE, quand on rapporte enfin
+       quelque chose. C'est ce qui rend « redemander les mots-clés »
+       capable de réparer les fiches figées à `[]` par l'ancien défaut.
+       Une liste déjà remplie n'est jamais écrasée. */
+    if (r.keywords && (match.keywords == null || (r.keywords.length && !match.keywords.length)))
+      changes.keywords = r.keywords;
     // une affiche choisie à la main n'est jamais remplacée par celle de TMDB
     if (r.poster && !match.poster) changes.poster = r.poster;
     if (r.year && !match.year) changes.year = r.year;

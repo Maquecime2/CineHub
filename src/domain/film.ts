@@ -82,6 +82,18 @@ export const isIncomplete = (f: Pick<Film, "cast" | "runtime" | "keywords">): bo
      fait qu'on peut compléter une fois sans boucler. */
   f.keywords == null;
 
+/* CE QU'UN RATTRAPAGE EXPLICITE VA CHERCHER — et c'est plus large.
+
+   `isIncomplete` s'interdit le vide, pour ne pas boucler à chaque
+   passage. Mais une collection entière a été figée à `[]` par un défaut
+   de récolte (voir `getDetails`), et rien de ce qui répare ne pouvait
+   plus la toucher. Il fallait donc un geste qui vise AUSSI le vide.
+
+   Il n'est pas automatique, et ne doit pas l'être : sur cinq cents
+   fiches, cela fait cinq cents appels. C'est à l'utilisateur de le
+   demander, une fois, en connaissance du nombre. */
+export const sansMotsClés = (f: Pick<Film, "keywords">): boolean => !(f.keywords || []).length;
+
 /* ------------------------------------------------------------
    LE JOURNAL DES SÉANCES
    ------------------------------------------------------------

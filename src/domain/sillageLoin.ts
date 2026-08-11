@@ -11,15 +11,15 @@
    proposition à un pas d'intervalle, et la moitié droite du panneau
    cesserait d'être « dehors » pour devenir un doublon de la gauche.
    ============================================================ */
-import { POIDS, familleDe, parQuotas } from "./sillage";
+import { POIDS, familleDe, parQuotas, scoreDesLiens } from "./sillage";
 import type { Famille, Lien, Quotas, Rapprochement, Voisin } from "./sillage";
 import type { Film } from "../types";
 
 /** Ce qu'une récolte rapporte : des films, et par quel chemin. */
 export interface Récolte {
-  /** Le chemin suivi. `reco` : « les gens qui ont vu celui-ci ont vu ». */
-  par: Lien | "reco";
-  /** Le nom de la personne, ou le titre du pivot pour une reco. */
+  /** Le chemin suivi. `foule` : « les gens qui ont vu celui-ci ont vu ». */
+  par: Lien;
+  /** Le nom de la personne. Vide pour une recommandation, qui se suffit. */
   valeur: string;
   candidats: CandidatLoin[];
 }
@@ -38,28 +38,25 @@ export interface CandidatLoin {
 export interface VoisinLoin extends CandidatLoin {
   score: number;
   /** Toutes les provenances : un film peut arriver par trois chemins. */
-  par: { par: Lien | "reco"; valeur: string }[];
+  par: { par: Lien; valeur: string }[];
   raison: string;
   clé: string;
 }
 
-/* CE QUE PÈSE « RECOMMANDÉ À PARTIR DE CE FILM ».
+/* UN SEUL VOCABULAIRE, ET C'EST CE QUI RÉPARE LE DÉFAUT.
 
-   TMDB tire ses recommandations des comportements réels, pas d'une
-   intersection d'étiquettes : c'est un bon signal, mais un signal de
-   foule. Il pèse donc moins qu'un chef opérateur partagé, qui est un
-   fait vérifiable sur le film qu'on regarde, et plus qu'un thème. */
-export const POIDS_RECO = 2.2;
+   Ce module avait le sien : un chemin `reco` étranger au type `Lien`, un
+   poids `POIDS_RECO` à part, une fonction `familleLoin` qui le rangeait
+   dans « sujets », et une conversion en `mot-clé` au moment de rendre
+   les liens. Quatre endroits où deux vocabulaires pouvaient diverger —
+   et ils ont divergé : la recommandation, plus lourde que tout sujet,
+   raflait la pile entière, puis se faisait passer pour un mot-clé.
 
-const poidsDe = (par: Lien | "reco"): number => (par === "reco" ? POIDS_RECO : POIDS[par]);
-
-/* À quelle famille appartient un chemin. « Recommandé » n'est ni l'un ni
-   l'autre — c'est la foule qui parle, pas une équipe ni un sujet — et on
-   le range dans « sujets » : c'est de ce côté-là que TMDB a le moins à
-   offrir, et une recommandation est plus proche d'un « ça parle de la
-   même chose » que d'un générique partagé. */
-const familleLoin = (par: Lien | "reco" | undefined): Famille =>
-  !par || par === "reco" ? "sujets" : familleDe([{ type: par, valeur: "" }]);
+   « Vu par les mêmes gens » est désormais un `Lien` comme les autres
+   (`foule`), avec son poids et sa famille définis au même endroit que
+   ses voisins. Il n'y a plus rien à convertir. */
+const familleLoin = (par: Lien | undefined): Famille =>
+  par ? familleDe([{ type: par, valeur: "" }]) : "sujets";
 
 /* CE QU'ON EXIGE AVANT DE PROPOSER QUELQUE CHOSE.
 
@@ -71,7 +68,11 @@ const familleLoin = (par: Lien | "reco" | undefined): Famille =>
    existe vraiment » dans la même application. */
 export const VOTES_MINIMUM = 30;
 
-const INTITULÉS_LOIN: Record<Lien | "reco", string> = {
+/* Les mêmes natures que le sillage maison, mais tournées autrement : ici
+   la proposition VIENT de quelque part, là-bas elle PARTAGE quelque
+   chose. « du même chef op » et « même chef op » ne se disent pas dans
+   la même phrase. */
+const INTITULÉS_LOIN: Record<Lien, string> = {
   image: "du même chef op",
   musique: "du même compositeur",
   réalisation: "de la même réalisation",
@@ -80,7 +81,7 @@ const INTITULÉS_LOIN: Record<Lien | "reco", string> = {
   motif: "même motif",
   thème: "même thème",
   "mot-clé": "même sujet",
-  reco: "vu par les mêmes gens",
+  foule: "vu par les mêmes gens",
 };
 
 /* La qualité perçue entre pour très peu, et seulement pour départager :
@@ -91,7 +92,7 @@ const qualité = (c: CandidatLoin): number =>
 
 /** Un chemin, en toutes lettres : « du même chef op Franz Lustig ». */
 const direLeChemin = (p: VoisinLoin["par"][number]): string =>
-  p.par === "reco" ? INTITULÉS_LOIN.reco : `${INTITULÉS_LOIN[p.par]} ${p.valeur}`;
+  p.par === "foule" || !p.valeur ? INTITULÉS_LOIN[p.par] : `${INTITULÉS_LOIN[p.par]} ${p.valeur}`;
 
 /* UN LIEN SE NOMME, IL NE SE COMPTE PAS.
 
@@ -165,19 +166,21 @@ export function renfortDuDehors(
 
   const out: Voisin[] = [];
   for (const { film, par } of fusion.values()) {
-    par.sort((a, b) => poidsDe(b.par) - poidsDe(a.par));
-    /* Les chemins deviennent des liens du même vocabulaire que le
-       sillage maison : c'est ce qui permet de les mêler aux siens et de
-       leur appliquer les mêmes quotas. « Recommandé » n'a pas
-       d'équivalent — il devient un sujet, faute de mieux, et le dit. */
-    const liens: Rapprochement[] = par.map((p) =>
-      p.par === "reco"
-        ? { type: "mot-clé" as const, valeur: p.valeur }
-        : { type: p.par, valeur: p.valeur }
-    );
+    par.sort((a, b) => POIDS[b.par] - POIDS[a.par]);
+    /* Les chemins SONT déjà des liens du vocabulaire commun : il n'y a
+       plus rien à traduire. La version précédente convertissait une
+       recommandation en `mot-clé` — une proposition venue de la foule se
+       faisait donc passer pour un rapprochement par sujet, et la raison
+       affichée mentait. */
+    const liens: Rapprochement[] = par.map((p) => ({ type: p.par, valeur: p.valeur }));
     out.push({
       film,
-      score: par.reduce((s, p) => s + poidsDe(p.par), 0),
+      /* LE MÊME BARÈME QUE LE SILLAGE MAISON, et c'est tout l'objet de
+         `scoreDesLiens`. Ce score-ci était une somme brute, sans plafond
+         ni goût : comparé au score maison lors du dédoublonnage, il le
+         battait toujours, et le rapprochement par mot-clé de VOTRE
+         collection disparaissait au profit d'une recommandation. */
+      score: scoreDesLiens(liens, { noté: film }),
       liens,
       raison: raisonDe(par),
       clé: `renfort:${pivotId}:${film.id}`,
@@ -211,13 +214,13 @@ export function fusionnerLoin(
         /* Arrivé par plusieurs chemins : c'est bon signe, et les
            provenances s'additionnent au lieu de se remplacer. */
         déjà.par.push({ par: r.par, valeur: r.valeur });
-        déjà.score += poidsDe(r.par);
+        déjà.score += POIDS[r.par];
         continue;
       }
       fusion.set(c.tmdbId, {
         ...c,
         par: [{ par: r.par, valeur: r.valeur }],
-        score: poidsDe(r.par) + qualité(c),
+        score: POIDS[r.par] + qualité(c),
         raison: "",
         clé: `loin:${c.tmdbId}`,
       });
@@ -225,7 +228,7 @@ export function fusionnerLoin(
   }
 
   for (const v of fusion.values()) {
-    v.par.sort((a, b) => poidsDe(b.par) - poidsDe(a.par));
+    v.par.sort((a, b) => POIDS[b.par] - POIDS[a.par]);
     v.raison = raisonDe(v.par);
   }
 

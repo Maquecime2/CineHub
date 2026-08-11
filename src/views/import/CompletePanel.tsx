@@ -31,12 +31,12 @@
       par « Les ». Laisser passer la création ferait alors un DOUBLON de
       la fiche qu'on voulait compléter. */
 import { useState } from "react";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Tags } from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { Tally } from "../../components/ui";
 import { enrichRows } from "../../tmdb";
 import { diffImport } from "../../domain/importing";
-import { isIncomplete } from "../../domain/film";
+import { isIncomplete, sansMotsClés } from "../../domain/film";
 import type { Film, ImportDiff, ImportRow } from "../../types";
 
 interface CompletePanelProps {
@@ -51,18 +51,22 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
   const [msg, setMsg] = useState("");
 
   const àFaire = films.filter(isIncomplete);
+  /* Les fiches sans le moindre mot-clé — l'absence ET le vide. Une
+     collection entière a été figée à `[]` par un défaut de récolte, et
+     `isIncomplete` ne peut pas les voir : voir `domain/film`. */
+  const sansSujets = films.filter(sansMotsClés);
 
-  const lancer = async () => {
+  const lancer = async (cibles: Film[]) => {
     const key = apiKey.trim();
-    if (!key || àFaire.length === 0) return;
+    if (!key || cibles.length === 0) return;
     setMsg("");
     setDiff(null);
-    setProgress({ done: 0, total: àFaire.length });
+    setProgress({ done: 0, total: cibles.length });
 
     /* Une ligne par fiche. `tmdbId` quand on l'a : il évite une
        recherche par titre, et surtout les faux positifs de
        `searchMovie`, qui prend le premier résultat sans comparer. */
-    const rows: ImportRow[] = àFaire.map((f) => ({
+    const rows: ImportRow[] = cibles.map((f) => ({
       title: f.title,
       year: f.year,
       rating: null,
@@ -140,11 +144,10 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
       {/* Les mots-clés comptés à part : ils sont arrivés après le reste,
           et une collection déjà complétée les a tous à zéro. Le dire
           évite de croire que « fiches à compléter » a mal compté. */}
-      <Tally
-        label="fiches sans mots-clés TMDB"
-        value={films.filter((f) => f.keywords == null).length}
-        ink={C.inkFaded}
-      />
+      {/* Le vide compte comme un manque : une fiche figée à « demandé,
+          il n'y en a pas » n'a pas plus de sujets qu'une fiche jamais
+          interrogée, et c'est ce nombre-là qu'on veut voir descendre. */}
+      <Tally label="fiches sans mots-clés TMDB" value={sansSujets.length} ink={C.inkFaded} />
 
       <div
         style={{
@@ -213,7 +216,7 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
         <button
-          onClick={lancer}
+          onClick={() => lancer(àFaire)}
           disabled={!apiKey.trim() || àFaire.length === 0 || !!progress}
           style={{
             all: "unset",
@@ -232,6 +235,38 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
           <Sparkles size={13} />
           {progress ? "EN COURS…" : `COMPLÉTER ${àFaire.length} FICHE(S)`}
         </button>
+
+        {/* LE RATTRAPAGE DES MOTS-CLÉS, à part et volontaire.
+
+            Un défaut de récolte a figé des collections entières à
+            « demandé, il n'y en a pas » : plus rien ne pouvait les
+            réparer, puisque tout ce qui remplit ne vise que l'absence.
+            Ce bouton vise AUSSI le vide. Il est distinct du premier
+            parce qu'il coûte un appel par fiche visée — le nombre est
+            écrit dessus, et c'est à l'utilisateur de décider. */}
+        {sansSujets.length > 0 && (
+          <button
+            onClick={() => lancer(sansSujets)}
+            disabled={!apiKey.trim() || !!progress}
+            title="Redemande les mots-clés, y compris pour les fiches qui avaient répondu vide"
+            style={{
+              all: "unset",
+              cursor: !apiKey.trim() || progress ? "default" : "pointer",
+              opacity: !apiKey.trim() || progress ? 0.45 : 1,
+              display: "flex",
+              alignItems: "center",
+              gap: 7,
+              padding: "8px 14px",
+              border: `1px solid ${C.slate}`,
+              color: C.slate,
+              fontFamily: F.mono,
+              fontSize: 10.5,
+            }}
+          >
+            <Tags size={13} />
+            REDEMANDER LES MOTS-CLÉS ({sansSujets.length})
+          </button>
+        )}
 
         {diff && diff.toUpdate.length > 0 && (
           <button
