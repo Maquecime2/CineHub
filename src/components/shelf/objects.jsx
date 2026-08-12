@@ -1,28 +1,25 @@
 /* ============================================================
-   LE CABINET DE CURIOSITÉS — les dessins
+   THE CABINET OF CURIOSITIES — the drawings
 
-   Les décors d'avant venaient de deux endroits : les motifs que la
-   maison dessine ailleurs (tache de café, scotch, punaise) et quatre
-   pictogrammes lucide. Les premiers disaient « papeterie », les seconds
-   « planche d'icônes ». Ni les uns ni les autres ne disaient ce qu'on
-   pose vraiment sur une étagère : une plante, une statuette rapportée
-   d'un voyage, un réveil qui ne sonne plus.
+   The decors of before came from two places: the patterns the house draws
+   elsewhere (coffee stain, tape, pin) and four lucide pictograms. The
+   first said "stationery", the second "icon sheet". Neither said what one
+   actually lays on a shelf: a plant, a statuette brought back from a trip,
+   an alarm clock that no longer rings.
 
-   Ce sont donc des objets, dessinés à la main dans le même trait que le
-   reste du carnet — encre franche, aplats lavés, rien de plein. Chacun
-   tient dans un carré de cent unités et POSE sur la ligne du bas : c'est
-   ce qui les fait tenir debout côte à côte sur la planche, quelle que
-   soit leur taille.
+   So these are objects, drawn by hand in the same stroke as the rest of
+   the notebook — clean ink, washed fills, nothing solid. Each fits in a
+   square of a hundred units and RESTS on the bottom line: that is what
+   makes them stand upright side by side on the board, whatever their size.
 
-   Les objets muraux, eux, PENDENT du haut de leur carré : ils
-   s'accrochent au fond du rayon et ne touchent aucune planche. Le clou
-   ou la punaise est dessiné dedans, c'est lui qui dit qu'on les a
-   plantés là.
+   The wall objects, for their part, HANG from the top of their square:
+   they hook to the back of the shelf and touch no board. The nail or the
+   pin is drawn inside, and it is what says they were planted there.
    ============================================================ */
 
-/* Un dessin : l'encre au trait, les aplats lavés en dessous. Toutes les
-   pièces partagent le même carré, la même épaisseur de trait et les
-   mêmes bouts ronds — c'est ce qui les fait lire comme une seule main. */
+/* A drawing: the ink in line work, the washed fills underneath. Every
+   piece shares the same square, the same stroke weight and the same round
+   caps — that is what makes them read as a single hand. */
 const Sketch = ({ color, style, children }) => (
   <svg
     viewBox="0 0 100 100"
@@ -37,12 +34,12 @@ const Sketch = ({ color, style, children }) => (
   </svg>
 );
 
-/* L'aplat : la couleur de l'objet, mais lavée. Peindre au même ton que
-   le trait donnerait une silhouette pleine — une vignette, pas un
-   croquis. */
+/* The fill: the object's colour, but washed. Painting in the same tone as
+   the stroke would give a solid silhouette — a thumbnail, not a
+   sketch. */
 const wash = (color, o = 0.16) => ({ fill: color, fillOpacity: o, stroke: "none" });
 
-/* ---------- CE QUI SE POSE ---------- */
+/* ---------- WHAT IS LAID DOWN ---------- */
 
 export const Plant = ({ color, ...p }) => (
   <Sketch color={color} {...p}>
@@ -206,32 +203,32 @@ export const Pennant = ({ color, ...p }) => (
   </Sketch>
 );
 
-/* LE SCOTCH — le seul objet qui ne pende de rien.
+/* THE TAPE — the only object that hangs from nothing.
 
-   Tous les autres muraux portent leur clou ou leur punaise : c'est le
-   dessin de l'attache qui dit qu'on les a plantés là. Un ruban n'a pas
-   d'attache, il EST l'attache — d'où pas de tête, pas de fil, et un
-   dessin qui occupe sa bande d'un bord à l'autre du carré.
+   All the other wall objects carry their nail or their pin: it is the
+   drawing of the fastening that says they were planted there. A ribbon has
+   no fastening, it IS the fastening — hence no head, no thread, and a
+   drawing that fills its band from one edge of the square to the other.
 
-   Il traverse en oblique parce qu'un morceau de scotch posé à la main ne
-   tombe jamais d'équerre, et parce que c'est ce qui le distingue au
-   premier coup d'œil d'un trait de crayon. Qui le veut droit le redresse
-   dans son panneau — l'orientation se règle maintenant.
+   It crosses at an angle because a piece of tape laid by hand never falls
+   square, and because that is what tells it apart at first glance from a
+   pencil stroke. Whoever wants it straight straightens it in its panel —
+   orientation can now be set.
 
-   Deux lavis superposés et pas un aplat : un adhésif laisse voir à
-   travers, et c'est à ça qu'on le reconnaît. Les bouts sont dentelés
-   comme un ruban qu'on a coupé avec les doigts, jamais avec des ciseaux. */
+   Two washes superimposed and not one flat fill: an adhesive lets things
+   show through, and that is what one recognises it by. The ends are
+   ragged like a ribbon torn with the fingers, never cut with scissors. */
 export const Tape = ({ color, ...p }) => (
   <Sketch color={color} {...p}>
     <g transform="rotate(-18 50 50)">
       {/* la bande, vue à travers */}
       <path d="M8 40 L92 40 L92 60 L8 60 Z" {...wash(color, 0.14)} />
-      {/* les deux bords, plus francs que les bouts */}
+      {/* the two edges, cleaner than the ends */}
       <path d="M8 40 L92 40 M8 60 L92 60" />
       {/* les bouts déchirés */}
       <path d="M8 40 L13 45 L8 50 L13 55 L8 60" strokeWidth="2.4" />
       <path d="M92 40 L87 45 L92 50 L87 55 L92 60" strokeWidth="2.4" />
-      {/* le pli du milieu, qui attrape la lumière */}
+      {/* the fold down the middle, which catches the light */}
       <path d="M40 42 L34 58" strokeWidth="2" opacity="0.55" />
     </g>
   </Sketch>

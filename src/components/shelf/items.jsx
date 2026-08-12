@@ -1,5 +1,5 @@
-/* Les objets qu'on pose sur une planche : le repère de dépôt, le boîtier,
-   le décor et la catégorie. */
+/* The objects one lays on a board: the drop marker, the case, the decor
+   and the category. */
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Calque } from "../ui/Calque";
 import { C, F, alpha } from "../../theme/tokens";
@@ -25,24 +25,24 @@ import {
   catInk,
 } from "./constants";
 
-/* L'IMAGE QU'ON EMPORTE SOUS LE CURSEUR.
+/* THE IMAGE ONE CARRIES UNDER THE CURSOR.
 
-   Le navigateur fabrique tout seul l'aperçu d'un glissement en
-   photographiant l'élément saisi. Mais le boîtier vit dans une enveloppe
-   en `content-visibility: auto` : la photo prise là-dedans déborde de
-   l'élément et rend une bande entière — on croit tirer la rangée alors
-   qu'on ne déplace bien qu'un film.
+   The browser makes a drag's preview all by itself, by photographing the
+   grabbed element. But the case lives in a wrapper in
+   `content-visibility: auto`: the photo taken in there overflows the
+   element and returns a whole band — one thinks one is dragging the row
+   when one is only moving a single film.
 
-   On lui donne donc la photo à emporter : un CALQUE du boîtier, posé
-   hors écran le temps du cliché, sans l'inclinaison ni la transparence
-   que le glissement lui applique par ailleurs. Il est saisi à l'endroit
-   exact où la main l'a pris, pour que rien ne saute au départ.
+   So we give it the photo to take away: a COPY of the case, laid off
+   screen for the time of the shot, without the tilt or the transparency
+   that the drag applies to it elsewhere. It is grabbed at exactly the
+   place the hand took it, so that nothing jumps at the start.
 
-   La copie s'efface au tour de boucle suivant : le cliché est pris
-   pendant `dragstart`, la retirer plus tôt ne laisserait rien à
-   photographier. On passe par un délai plutôt que par une trame
-   d'animation, parce qu'une trame ne vient pas quand la page ne se
-   compose pas — et la copie resterait alors dans le document. */
+   The copy is erased on the next turn of the loop: the shot is taken
+   during `dragstart`, removing it earlier would leave nothing to
+   photograph. We go through a timeout rather than an animation frame,
+   because a frame does not come when the page is not compositing — and
+   the copy would then stay in the document. */
 export const carryGhost = (e, node) => {
   const r = node.getBoundingClientRect();
   const ghost = node.cloneNode(true);
@@ -60,14 +60,14 @@ export const carryGhost = (e, node) => {
   setTimeout(() => ghost.remove(), 0);
 };
 
-/* LE REPÈRE DE DÉPÔT SE REND DANS LE CORPS DU DOCUMENT, ET IL LE DOIT.
+/* THE DROP MARKER RENDERS INTO THE DOCUMENT BODY, AND IT MUST.
 
-   Il est placé en coordonnées d'ÉCRAN, calculées à chaque survol depuis
-   les rectangles des boîtiers. Rendu dans la colonne de vue, il héritait
-   du bloc conteneur que `[data-enters]` fabrique pendant son animation :
-   les mêmes coordonnées désignaient alors un autre point, et le repère
-   se posait à côté de la fente visée — au moment précis où l'on glisse,
-   c'est-à-dire juste après avoir changé d'onglet. */
+   It is placed in SCREEN coordinates, computed at every hover from the
+   cases' rectangles. Rendered inside the view column, it inherited the
+   containing block that `[data-enters]` makes during its animation: the
+   same coordinates then designated another point, and the marker settled
+   beside the slot aimed at — at the precise moment one drags, that is to
+   say just after changing tab. */
 export const DropMark = React.forwardRef(function DropMark(_props, ref) {
   return (
     <Calque>
@@ -79,8 +79,8 @@ export const DropMark = React.forwardRef(function DropMark(_props, ref) {
           fill="none"
           style={{ display: "block" }}
         >
-          {/* l'ombre d'abord, en un seul groupe décalé : elle ne peut pas
-            dériver du trait puisqu'elle en reprend les mêmes chemins */}
+          {/* the shadow first, as a single offset group: it cannot be
+            derived from the stroke since it reuses the same paths */}
           <g transform="translate(1.2 1.4)" opacity="0.18">
             {MARK_PATHS.map((p) => (
               <path key={p.d} d={p.d} stroke={C.ink} strokeWidth={p.w + 0.8} {...MARK_INK} />
@@ -95,17 +95,17 @@ export const DropMark = React.forwardRef(function DropMark(_props, ref) {
   );
 });
 
-/* Un boîtier vu de tranche : le dos porte le titre, la face porte l'affiche.
+/* A case seen edge-on: the spine carries the title, the face the poster.
 
-   Mémoïsé, et ce n'est pas une optimisation de confort : `dragover` tire
-   plusieurs dizaines d'événements par seconde pendant tout le glissement.
-   Sans cela, chaque événement reconstruit tous les boîtiers du rayon — et
-   un rayon de cent films rame. Les fonctions reçues sont donc stables, et
-   `kind` voyage en prop plutôt que dans une fermeture.
+   Memoised, and that is not a comfort optimisation: `dragover` fires
+   several dozen events per second for the whole drag. Without it, every
+   event rebuilds all the shelf's cases — and a shelf of a hundred films
+   crawls. The functions received are therefore stable, and `kind` travels
+   as a prop rather than in a closure.
 
-   Le boîtier ne connaît PLUS le repère de dépôt : pendant un glissement
-   il ne reçoit aucune prop qui change, donc React ne le retouche jamais.
-   Le repère est un seul élément déplacé à la main, hors de React. */
+   The case NO LONGER knows the drop marker: during a drag it receives no
+   prop that changes, so React never touches it. The marker is a single
+   element moved by hand, outside React. */
 export const FilmBox = React.memo(function FilmBox({
   film,
   ctx,
@@ -116,53 +116,53 @@ export const FilmBox = React.memo(function FilmBox({
   dim,
 }) {
   const [hover, setHover] = useState(false);
-  /* OUVRIR UN BOÎTIER MALGRÉ LE GLISSER-DÉPOSER.
+  /* OPENING A CASE DESPITE THE DRAG AND DROP.
 
-     `onClick` ne suffit pas sur un élément `draggable`, et c'est le
-     navigateur qui en décide : dès que le pointeur bouge de deux ou
-     trois pixels entre l'appui et le relâchement, il considère qu'un
-     glissement a commencé et N'ÉMET JAMAIS le clic. Sur un boîtier de
-     quatre-vingt-seize pixels qu'on vise à la souris, ce tremblement est
-     la règle plutôt que l'exception — d'où un rayon qui ne s'ouvrait
-     qu'une fois sur deux, sans qu'aucune erreur ne paraisse.
+     `onClick` is not enough on a `draggable` element, and it is the
+     browser that decides: as soon as the pointer moves two or three
+     pixels between the press and the release, it considers a drag to have
+     begun and NEVER EMITS the click. On a case of ninety-six pixels aimed
+     at with a mouse, that tremor is the rule rather than the exception —
+     hence a shelf that only opened one time in two, without any error
+     showing.
 
-     On ouvre donc au RELÂCHEMENT du pointeur, en jugeant nous-mêmes ce
-     qui est un clic : pas de glissement commencé, et moins de cinq
-     pixels parcourus. Le seuil est le même que dans la constellation,
-     pour que le geste ait partout la même tolérance.
+     So we open on the pointer's RELEASE, judging for ourselves what a
+     click is: no drag begun, and fewer than five pixels travelled. The
+     threshold is the same as in the constellation, so that the gesture
+     has the same tolerance everywhere.
 
-     `onClick` reste, mais pour le CLAVIER seulement. Entrée et Espace
-     sur un bouton émettent un clic dont `detail` vaut zéro — aucun
-     pointeur ne l'a produit. C'est le seul moyen de garder le rayon
-     accessible sans ouvrir deux fois à la souris. */
+     `onClick` stays, but for the KEYBOARD only. Enter and Space on a
+     button emit a click whose `detail` is zero — no pointer produced it.
+     It is the only way to keep the shelf accessible without opening twice
+     with the mouse. */
   const pressAt = useRef(null);
   const dragged = useRef(false);
   const hue = hueOf(film.id);
   const initials = initialsOf(film.title);
-  /* LA NOTE SUR LA TRANCHE.
+  /* THE RATING ON THE EDGE.
 
-     On comptait les étoiles pleines et les creuses avec deux `repeat`.
-     Mais `repeat` tronque : une note de 3,5 rendait trois pleines et UNE
-     creuse — la demie disparaissait, et le film paraissait noté sur
-     quatre. Même juste, deux glyphes qui ne diffèrent que par leur
-     remplissage ne se distinguent plus à dix pixels de haut.
+     We counted the full stars and the hollow ones with two `repeat`s. But
+     `repeat` truncates: a rating of 3.5 returned three full and ONE
+     hollow — the half vanished, and the film appeared to be rated out of
+     four. Even when right, two glyphs that differ only by their fill can
+     no longer be told apart at ten pixels high.
 
-     On empile donc deux fois les mêmes cinq étoiles : les éteintes
-     dessous, les allumées par-dessus, coupées net à la fraction de la
-     note. La demie est alors une étoile à moitié peinte — la seule
-     lecture qui ne demande pas de compter. */
+     So we stack the same five stars twice: the unlit underneath, the lit
+     over them, cut clean at the rating's fraction. The half is then a
+     half-painted star — the only reading that does not require
+     counting. */
   const fill = `${Math.min(Math.max(film.rating || 0, 0), 5) * 20}%`;
-  /* Le compte se DÉRIVE de la fiche, il n'arrive pas en prop : `FilmBox`
-     est mémoïsé parce que `dragover` le rejoue des dizaines de fois par
-     seconde, et une prop recalculée à chaque rendu annulerait la
-     mémoïsation pour toute la rangée. */
+  /* The count is DERIVED from the card, it does not arrive as a prop:
+     `FilmBox` is memoised because `dragover` replays it dozens of times a
+     second, and a prop recomputed at every render would cancel the
+     memoisation for the whole row. */
   const vus = watchCount(film);
 
   return (
     <div
-      /* L'enveloppe porte l'identité de l'objet ET sa zone de dépôt : le
-         code de glissement remonte toujours jusqu'ici, il peut donc lire
-         qui il vise sans qu'on le lui repasse en fermeture. */
+      /* The wrapper carries the object's identity AND its drop zone: the
+         drag code always walks up to here, so it can read what it is
+         aiming at without our passing it back in a closure. */
       data-shelf-item={film.id}
       onDragOver={(e) => onDragOverBox(e, ctx)}
       style={{
@@ -170,34 +170,32 @@ export const FilmBox = React.memo(function FilmBox({
         display: "flex",
         alignItems: "flex-end",
         flexShrink: 0,
-        /* Une étagère de cent films, c'est cent affiches à disposer et à
-           peindre alors qu'on n'en voit qu'une vingtaine. `content-visibility`
-           dit au navigateur de ne rien calculer pour ce qui est hors écran ;
-           la taille annoncée étant exactement celle d'un boîtier, la mise en
-           page reste juste et rien ne saute au défilement. */
+        /* A shelf of a hundred films means a hundred posters to lay out
+           and paint when one sees only twenty of them.
+           `content-visibility` tells the browser to compute nothing for
+           what is off screen; the announced size being exactly a case's,
+           the layout stays right and nothing jumps when scrolling. */
         contentVisibility: "auto",
         containIntrinsicSize: `${BOX_W + GAP_X}px ${BOX_H + GAP_Y}px`,
       }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
-      {/* La couche qui bascule quand le voisin s'écarte. Elle est SOUS
-          l'enveloppe et non confondue avec elle : l'enveloppe est la
-          cible de dépôt, et une cible qui se dérobe sous le curseur fait
-          osciller le geste au lieu de l'accompagner.
+      {/* The layer that tips when the neighbour parts. It is UNDER the
+          wrapper and not merged with it: the wrapper is the drop target,
+          and a target that slips away under the cursor makes the gesture
+          oscillate instead of accompanying it.
 
-          Le seul style que le glissement écrit ici est un `transform` ;
-          la transition et le pivot sont déclarés une fois pour toutes,
-          pour que l'écartement s'anime sans que personne ait à toucher au
-          reste. Le boîtier bascule sur son pied, comme au survol, et la
-          courbe dépasse à peine avant de se poser : un carton qu'on
-          écarte revient toujours d'un cheveu — mais mollement, pas d'un
-          claquement.
+          The only style the drag writes here is a `transform`; the
+          transition and the pivot are declared once and for all, so that
+          the parting animates without anybody having to touch the rest.
+          The case tips on its foot, as on hover, and the curve barely
+          overshoots before settling: a card one pushes aside always comes
+          back by a hair — but softly, not with a snap.
 
-          Elle est distincte du boîtier lui-même parce que React tient
-          DÉJÀ le `transform` du boîtier, pour la bascule du survol : deux
-          mains sur la même propriété, et l'une efface le travail de
-          l'autre. */}
+          It is distinct from the case itself because React ALREADY holds
+          the case's `transform`, for the hover tip: two hands on the same
+          property, and one erases the other's work. */}
       <div
         data-lean
         style={{
@@ -231,7 +229,7 @@ export const FilmBox = React.memo(function FilmBox({
             if (Math.hypot(e.clientX - s.x, e.clientY - s.y) > 5) return; // c'était un glissé
             onOpen(film.id);
           }}
-          // le clavier seulement : un clic de souris a déjà été traité au relâchement
+          // keyboard only: a mouse click has already been handled on release
           onClick={(e) => {
             if (e.detail === 0) onOpen(film.id);
           }}
@@ -241,15 +239,16 @@ export const FilmBox = React.memo(function FilmBox({
             boxSizing: "border-box",
             cursor: "pointer",
             position: "relative",
-            /* `draggable` ne pose pas un drapeau : il applique `-webkit-user-drag:
-               element`, une simple déclaration de style — que `all: unset` efface
-               comme le reste. Le boîtier n'était donc pas saisissable ; ce qu'on
-               glissait, c'était l'affiche, que le navigateur rend saisissable
-               d'elle-même, et l'événement remontait jusqu'ici. Sans affiche, plus
-               rien à saisir : le rayon devenait immobile. On rétablit donc ce que
-               `all: unset` a emporté. */
+            /* `draggable` does not set a flag: it applies
+               `-webkit-user-drag: element`, a plain style declaration —
+               which `all: unset` erases like the rest. So the case was not
+               grabbable; what one dragged was the poster, which the
+               browser makes grabbable by itself, and the event bubbled up
+               to here. With no poster, nothing left to grab: the shelf
+               became immobile. So we restore what `all: unset` took
+               away. */
             WebkitUserDrag: "element",
-            // et le texte des initiales ne doit pas se sélectionner au glissement
+            // and the initials' text must not be selected when dragging
             userSelect: "none",
             WebkitUserSelect: "none",
             width: BOX_W,
@@ -259,21 +258,21 @@ export const FilmBox = React.memo(function FilmBox({
             flexShrink: 0,
             borderRadius: "2px 3px 3px 2px",
             overflow: "hidden",
-            // ce qui se repeint dans un boîtier ne concerne que ce boîtier
+            // what repaints inside a case concerns only that case
             contain: "layout paint style",
-            /* Le filet et l'ombre sont de l'ENCRE de la peau, et non plus
-               le brun du carnet écrit en dur : sur un fond de nuit, un
-               trait brun-noir contre une tranche claire dessinait un
-               liseré sale au lieu de poser le boîtier. */
+            /* The hairline and the shadow are the skin's INK, and no
+               longer the notebook's brown written by hand: on a night
+               background, a brown-black stroke against a pale edge drew a
+               dirty border instead of settling the case. */
             border: `1px solid ${alpha(C.ink, 0.35)}`,
             boxShadow: hover
               ? `3px 5px 10px ${alpha(C.ink, 0.34)}`
               : `2px 2px 0 ${alpha(C.ink, 0.16)}`,
             transform: hover ? "translateY(-7px) rotate(-1.2deg)" : "none",
             transformOrigin: "bottom center",
-            /* `dim` : la recherche, sur l'étagère, ne trie plus le rayon —
-               elle éteint ce qu'elle ne trouve pas. Filtrer démonterait
-               l'agencement à chaque lettre tapée. */
+            /* `dim`: searching, on the shelf, no longer sorts the shelf —
+               it dims what it does not find. Filtering would dismantle the
+               arrangement at every letter typed. */
             opacity: dim ? 0.26 : film.archived ? 0.62 : 1,
             filter: dim ? "saturate(0.35)" : film.archived ? "saturate(0.5)" : "none",
             transition:
@@ -281,16 +280,16 @@ export const FilmBox = React.memo(function FilmBox({
           }}
         >
           <PosterArt film={film} height={BOX_H} initials={initials} plain />
-          {/* Le dos : c'est lui qui fait lire « boîtier » et non
-              « vignette ». Il ne porte PLUS le titre.
+          {/* The spine: it is what makes one read "case" and not
+              "thumbnail". It NO LONGER carries the title.
 
-              On l'écrivait à la verticale, en huit pixels, sur onze
-              pixels de large : la seule façon d'y faire tenir un titre
-              long, et une façon de ne le lire jamais. Un titre qu'on
-              doit pencher la tête pour déchiffrer, et qui se coupe au
-              tiers, ne renseigne personne — il salit une tranche de
-              couleur qui, elle, faisait très bien son travail. Le nom se
-              lit dans l'infobulle du boîtier, avec l'année, et en entier. */}
+              We wrote it vertically, in eight pixels, on eleven pixels of
+              width: the only way to fit a long title in, and a way never
+              to read it. A title one must tilt one's head to decipher,
+              and which is cut off at a third, informs nobody — it dirties
+              a band of colour which, for its part, was doing its job very
+              well. The name is read in the case's tooltip, with the year,
+              and in full. */}
           <span
             aria-hidden
             style={{
@@ -310,7 +309,7 @@ export const FilmBox = React.memo(function FilmBox({
                 position: "absolute",
                 top: 4,
                 left: 15,
-                // l'étiquette est du papier de la peau, pas du kraft en dur
+                // the label is the skin's paper, not kraft written by hand
                 background: alpha(C.card, 0.88),
                 color: C.ink,
                 fontFamily: F.mono,
@@ -331,19 +330,19 @@ export const FilmBox = React.memo(function FilmBox({
                 left: 11,
                 right: 0,
                 padding: "3px 5px",
-                /* Le bandeau des étoiles : une bande d'encre de la peau,
-                   et les étoiles dans son papier. Le brun-noir en dur
-                   qu'il portait posait, sous une peau de nuit, une barre
-                   sombre sur un rayon clair — et les étoiles blanches
-                   dessus finissaient par ne plus se voir du tout. */
+                /* The stars' band: a strip of the skin's ink, and the
+                   stars in its paper. The hand-written brown-black it
+                   carried laid, under a night skin, a dark bar on a pale
+                   shelf — and the white stars on it ended up not showing
+                   at all. */
                 background: alpha(C.ink, 0.78),
                 color: C.card,
                 fontFamily: F.mono,
                 fontSize: 9.5,
                 letterSpacing: 1,
                 zIndex: 3,
-                /* Les étoiles à gauche, le compte des séances à droite :
-                   la bande ne grandit pas, elle se partage. */
+                /* The stars on the left, the screening count on the
+                   right: the band does not grow, it shares itself out. */
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
@@ -361,9 +360,9 @@ export const FilmBox = React.memo(function FilmBox({
                 }}
               >
                 <span style={{ color: alpha(C.card, 0.32) }}>★★★★★</span>
-                {/* La couche allumée se superpose exactement à l'éteinte :
-                    même texte, même chasse, donc les deux rangées se
-                    recouvrent au pixel et la coupure tombe où il faut. */}
+                {/* The lit layer sits exactly over the unlit one: same
+                    text, same tracking, so the two rows overlap to the
+                    pixel and the cut falls where it should. */}
                 <span
                   aria-hidden
                   style={{
@@ -378,10 +377,10 @@ export const FilmBox = React.memo(function FilmBox({
                   ★★★★★
                 </span>
               </span>
-              {/* LE COMPTE DES SÉANCES, et seulement à partir de deux.
-                  Un « ×1 » sur chaque tranche serait du bruit sur toute
-                  la bibliothèque, et n'apprendrait rien à personne : ce
-                  qu'on cherche du regard, ce sont les films qu'on revoit. */}
+              {/* THE SCREENING COUNT, and only from two. A "×1" on every
+                  edge would be noise across the whole library, and would
+                  teach nobody anything: what one looks for is the films
+                  one rewatches. */}
               {vus > 1 && (
                 <span
                   aria-label={`vu ${vus} fois`}
@@ -398,89 +397,90 @@ export const FilmBox = React.memo(function FilmBox({
   );
 });
 
-/* L'INCLINAISON D'UN CARTON DRESSÉ.
+/* THE TILT OF AN UPRIGHT CARD.
 
-   Un carton planté ne gît pas de travers comme un bibelot posé : il
-   s'APPUIE. C'est ce qui le distingue d'une cloison d'imprimerie, et
-   c'est aussi ce qui le fait lire comme du carton plutôt que comme un
-   trait tracé à la règle.
+   A planted card does not lie askew like a trinket set down: it LEANS.
+   That is what distinguishes it from a printer's partition, and it is
+   also what makes it read as cardstock rather than as a line drawn with a
+   ruler.
 
-   Deux raisons de ne pas lui donner le guingois entier des autres
-   décors. La première tient à sa hauteur : ±4,5° sur quarante-six
-   pixels ne se remarque pas, mais sur cent quarante-quatre le sommet
-   part à onze pixels de son pied et le carton a l'air de tomber. La
-   seconde est qu'il sépare : ce qui sépare doit rester lisible comme une
-   verticale, sinon la rangée entière semble de guingois.
+   Two reasons not to give it the other decors' full lopsidedness. The
+   first is its height: ±4.5° over forty-six pixels goes unnoticed, but
+   over a hundred and forty-four the top travels eleven pixels from its
+   foot and the card looks about to fall. The second is that it separates:
+   what separates must stay readable as a vertical, otherwise the whole
+   row seems lopsided.
 
-   Mais la moitié du guingois ne suffisait pas non plus, parce que le
-   hasard est SEMÉ : `tiltOf` peut rendre une valeur voisine de zéro, et
-   ce carton-là se dressait parfaitement droit — c'est ce qu'on voyait.
-   On garde donc la variation, qui donne à chaque carton sa main propre,
-   mais on l'éloigne de zéro : au moins un degré et deux dixièmes, jamais
-   plus de deux et deux. Le sommet dérive de trois à six pixels — assez
-   pour qu'on voie qu'il s'appuie, trop peu pour qu'on croie qu'il glisse.
+   But half the lopsidedness was not enough either, because the randomness
+   is SOWN: `tiltOf` can return a value near zero, and that particular card
+   stood perfectly straight — which is what one could see. So we keep the
+   variation, which gives each card its own hand, but we push it away from
+   zero: at least one degree and two tenths, never more than two and two.
+   The top drifts by three to six pixels — enough that one sees it
+   leaning, too little that one believes it slipping.
 
-   Les deux bornes tiennent sur une décimale, comme l'angle qu'on écrit :
-   une borne plus fine que l'arrondi serait franchie par l'arrondi
-   lui-même, et ne bornerait donc rien.
+   Both bounds hold to one decimal, like the angle we write: a bound finer
+   than the rounding would be crossed by the rounding itself, and would
+   therefore bound nothing.
 
-   Il pivote sur son pied (`transformOrigin: bottom center`, plus bas),
-   comme un vrai carton calé contre les tranches voisines. */
+   It pivots on its foot (`transformOrigin: bottom center`, below), like a
+   real card wedged against the neighbouring edges. */
 const LEAN_MIN = 1.2,
   LEAN_MAX = 2.2;
 
-/* LE CARTON, REPRIS POUR QU'ON LE VOIE.
+/* THE CARD, REWORKED SO THAT IT IS SEEN.
 
-   Il portait le papier de la boîte : même kraft, même filet, un liseré
-   de couleur de trois pixels sur la tête. C'était juste — c'est bien le
-   même carton d'archives — mais entre douze boîtiers du même papier,
-   ce qui sépare avait exactement la couleur de ce qu'il sépare, et on ne
-   le trouvait qu'en le cherchant. Or un intercalaire ne sert à rien
-   d'autre qu'à être vu du bout de la rangée.
+   It carried the box's paper: the same kraft, the same hairline, a
+   three-pixel border of colour on its head. That was right — it is indeed
+   the same archive card — but among twelve cases of the same paper, what
+   separates had exactly the colour of what it separates, and one only
+   found it by looking for it. Yet a divider serves no purpose other than
+   being seen from the end of the row.
 
-   Trois changements, et tous vont dans le même sens : rendre le carton à
-   sa COULEUR au lieu de la réduire à un liseré.
+   Three changes, and all go the same way: giving the card back its
+   COLOUR instead of reducing it to a border.
 
-   1. L'ONGLET. Un vrai carton de fichier ne se signale pas par sa
-      tranche, mais par la languette de couleur qui dépasse en tête. Les
-      trois pixels de bordure deviennent donc une vraie tête pleine,
-      percée de son œillet — le trou de classeur, qui est ce qui fait
-      lire « carton de fichier » et non « trait vertical ».
-   2. LE CORPS. Un lavis de la même encre plutôt que le kraft commun :
-      assez pâle pour qu'on écrive dessus à l'encre sombre, assez teinté
-      pour qu'il ne se confonde plus avec les tranches voisines.
-   3. LA LARGEUR. Vingt-six pixels étaient la largeur d'une tranche ; le
-      carton en prend trente, parce qu'un séparateur qui a la chasse de
-      ce qu'il sépare ne sépare rien.
+   1. THE TAB. A real file card does not signal itself by its edge, but by
+      the coloured tab that sticks out at the head. So the three pixels of
+      border become a real full head, pierced with its eyelet — the
+      binder hole, which is what makes one read "file card" and not
+      "vertical stroke".
+   2. THE BODY. A wash of the same ink rather than the common kraft: pale
+      enough to write on in dark ink, tinted enough that it no longer
+      merges with the neighbouring edges.
+   3. THE WIDTH. Twenty-six pixels was an edge's width; the card takes
+      thirty, because a separator with the same set as what it separates
+      separates nothing.
 
-   Le nom, lui, ne bouge pas : il se lit toujours à la verticale, de bas
-   en haut, et commence sous l'onglet — écrire dans la tête reviendrait à
-   écrire sur la languette, qui est justement la partie qu'on regarde. */
+   The name, for its part, does not move: it is still read vertically,
+   bottom to top, and starts under the tab — writing in the head would
+   amount to writing on the tab, which is precisely the part one looks
+   at. */
 export const DIVIDER_W = 30,
   DIVIDER_HEAD = 18;
 
-/* Le carré d'un décor posé, au calibre M. Il était écrit en dur à deux
-   endroits, dont l'un ne servait qu'à mesurer : deux chiffres qui doivent
-   rester égaux et que rien n'oblige à l'être. */
+/* The square of a laid decor, at calibre M. It was hand-written in two
+   places, one of which served only to measure: two figures that must stay
+   equal and that nothing obliged to be. */
 export const DECOR_BOX = 46;
 
-/* Le carton et sa maquette au cabinet doivent se ressembler assez pour
-   qu'on reconnaisse dans la rangée ce qu'on a tiré du panneau : les deux
-   lisent donc leur habillage ici. */
-/* LE LAVIS A ÉTÉ APPUYÉ. À treize pour cent d'encre, le carton était un
-   voile : ce qui sépare doit se voir de loin, sinon la rangée n'a plus
-   de coupures, seulement une nuance. On monte donc à un bon quart, et le
-   filet à trois quarts — assez pour tenir son bord contre douze tranches
-   de kraft, pas assez pour devenir un aplat qui volerait la vedette aux
-   boîtiers.
+/* The card and its mock-up in the cabinet must look alike enough that
+   one recognises in the row what one pulled from the panel: so both read
+   their styling here. */
+/* THE WASH WAS DEEPENED. At thirteen per cent of ink, the card was a
+   veil: what separates must be seen from afar, otherwise the row has no
+   cuts left, only a shade. So we go up to a good quarter, and the
+   hairline to three quarters — enough to hold its edge against twelve
+   edges of kraft, not enough to become a flat fill that would steal the
+   show from the cases.
 
-   L'opacité s'écrit avec `alpha` et non plus en collant `22` derrière la
-   couleur : la teinte reste un hexadécimal aujourd'hui, mais l'ombre
-   portée, elle, doit follow la peau — et `color-mix` prend les deux. */
-/* LE CARTON EST OPAQUE. Le lavis reste un lavis — un quart d'encre, pas
-   un aplat — mais il se pose désormais sur du carton, et non sur le vide :
-   sans fond dessous, le mur transparaissait à travers l'intercalaire, et
-   ses motifs traversaient ce qui est censé couper la rangée. */
+   The opacity is written with `alpha` and no longer by gluing `22` behind
+   the colour: the tint stays a hexadecimal today, but the drop shadow
+   must follow the skin — and `color-mix` takes both. */
+/* THE CARD IS OPAQUE. The wash stays a wash — a quarter of ink, not a
+   flat fill — but it now rests on cardstock, and not on the void: with no
+   background underneath, the wall showed through the divider, and its
+   patterns crossed what is supposed to cut the row. */
 export const dividerSkin = (ink) => ({
   backgroundColor: C.card,
   backgroundImage: `linear-gradient(160deg, ${alpha(ink, 0.26)}, ${alpha(ink, 0.44)})`,
@@ -504,7 +504,7 @@ export const DividerHead = ({ ink, height }) => (
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      // le carton est un peu plus clair juste sous la tête, comme un pli
+      // the card is a little paler just under the head, like a fold
       boxShadow: `0 1px 0 ${alpha(C.card, 0.45)}`,
     }}
   >
@@ -526,45 +526,45 @@ export const leanOf = (id) => {
   return (side * Math.min(Math.max(Math.abs(t), LEAN_MIN), LEAN_MAX)).toFixed(1);
 };
 
-/* L'ANGLE D'UN OBJET — celui qu'on a réglé, sinon celui du hasard semé.
+/* AN OBJECT'S ANGLE — the one that was set, otherwise the sown random
+   one.
 
-   Le guingois vient de l'identifiant : c'est lui qui fait qu'une étagère
-   ressemble à une étagère et non à une planche de catalogue, et il n'y a
-   rien à régler tant qu'on ne le veut pas. Mais un cadre qu'on veut
-   droit, un lierre qui pend du mauvais côté, une image importée couchée
-   sur le flanc : à un moment la main doit pouvoir passer devant le
-   hasard.
+   The lopsidedness comes from the identifier: it is what makes a shelf
+   look like a shelf and not like a catalogue plate, and there is nothing
+   to set as long as one does not want to. But a frame one wants straight,
+   an ivy hanging on the wrong side, an imported image lying on its side:
+   at some point the hand must be able to pass in front of chance.
 
-   `??` et non `||` : zéro degré est une réponse, et la plus demandée de
-   toutes — c'est « remets-le d'aplomb ». */
+   `??` and not `||`: zero degrees is an answer, and the most requested of
+   all — it is "put it back upright". */
 export const angleOf = (item, tall = false) =>
   item.rot ?? (tall ? leanOf(item.id) : tiltOf(item.id));
 
-/* LA PLACE QUE PREND UN OBJET TOURNÉ — ET OÙ ELLE TOMBE.
+/* THE ROOM A TURNED OBJECT TAKES — AND WHERE IT FALLS.
 
-   Premier essai : la largeur du cadre englobant, |L·cos θ| + |H·sin θ|,
-   donnée à l'enveloppe. Le compte était juste, et pourtant les boîtiers
-   collés au carton restaient dessous.
+   First attempt: the bounding box's width, |W·cos θ| + |H·sin θ|, given to
+   the wrapper. The arithmetic was right, and yet the cases pressed
+   against the card stayed underneath.
 
-   Parce qu'un objet ne tourne pas sur son milieu : il pivote sur son
-   PIED (`transformOrigin: bottom center`), comme un carton calé contre
-   les tranches voisines. Le cadre englobant a bien la largeur qu'on
-   calculait, mais il n'est plus centré sur l'objet — il part du côté vers
-   lequel la tête penche. L'enveloppe, elle, centrait sagement le carton
-   dedans : en bas tout allait bien, en haut le carton sortait de la place
-   qu'il avait réclamée et recouvrait son voisin. La hauteur avait le même
-   défaut, en pire : le coin bas passait SOUS la planche.
+   Because an object does not turn on its middle: it pivots on its FOOT
+   (`transformOrigin: bottom center`), like a card wedged against the
+   neighbouring edges. The bounding box does have the width we computed,
+   but it is no longer centred on the object — it starts from the side the
+   head leans towards. The wrapper, for its part, dutifully centred the
+   card inside it: at the bottom all was well, at the top the card came
+   out of the room it had claimed and covered its neighbour. The height
+   had the same defect, worse: the bottom corner passed UNDER the board.
 
-   On mesure donc les quatre coins après rotation autour du pied, et on
-   rend deux choses — la taille du cadre, et le décalage qui le remet à
-   cheval sur l'enveloppe. L'objet est ensuite translaté d'autant : ce
-   qu'on voit occupe exactement ce qui a été réservé, du pied à la tête. */
+   So we measure the four corners after rotation about the foot, and
+   return two things — the box's size, and the offset that puts it back
+   astride the wrapper. The object is then translated by as much: what one
+   sees occupies exactly what was reserved, from foot to head. */
 export const rotatedBox = (w, h, deg) => {
   const r = (Number(deg) * Math.PI) / 180;
   const cos = Math.cos(r),
     sin = Math.sin(r);
-  /* Les coins, comptés depuis le pivot : le pied à l'ordonnée 0, la tête
-     à −h (l'axe des y descend, à l'écran comme en CSS). */
+  /* The corners, counted from the pivot: the foot at ordinate 0, the head
+     at −h (the y axis goes down, on screen as in CSS). */
   const xs = [],
     ys = [];
   for (const x of [-w / 2, w / 2])
@@ -579,34 +579,33 @@ export const rotatedBox = (w, h, deg) => {
   return {
     width: Math.round(maxX - minX),
     height: Math.round(maxY - minY),
-    /* Le cadre se cale sur le BORD GAUCHE de l'enveloppe, et non en son
-       milieu. L'enveloppe vaut le cadre plus l'écart au voisin, et cet
-       écart appartient tout entier à la droite — c'est un `marginRight`
-       qu'on a déménagé, pas une marge à partager. Centré, il se coupait
-       en deux et le carton se retrouvait avec six pixels de trop à sa
-       gauche : un trou que rien ne justifiait, puisque de ce côté-là il
-       n'y a pas d'écart à tenir.
+    /* The box is aligned on the wrapper's LEFT EDGE, and not on its
+       middle. The wrapper is worth the box plus the gap to the neighbour,
+       and that gap belongs entirely to the right — it is a `marginRight`
+       we moved house, not a margin to share. Centred, it was cut in two
+       and the card found itself with six pixels too many on its left: a
+       hole nothing justified, since on that side there is no gap to hold.
 
-       On vise donc le pied du cadre à l'abscisse zéro : le carton est
-       posé à gauche de l'enveloppe, son pivot est à `w/2`, et le coin le
-       plus à gauche du cadre tombé à `minX` de ce pivot. */
-    // `|| 0` : `Math.round` rend un zéro NÉGATIF, qui s'écrirait « -0px »
+       So we aim the box's foot at abscissa zero: the card is laid to the
+       left of the wrapper, its pivot is at `w/2`, and the box's leftmost
+       corner fell at `minX` from that pivot. */
+    // `|| 0`: `Math.round` returns a NEGATIVE zero, which would be written "-0px"
     dx: Math.round(-(w / 2 + minX)) || 0,
     dy: Math.round(-maxY) || 0,
   };
 };
 
-/* LA LARGEUR QU'UN DÉCOR RÉCLAME DANS SA RANGÉE, écart au voisin
-   compris — exactement ce que `DecorItem` pose sur son enveloppe.
+/* THE WIDTH A DECOR CLAIMS IN ITS ROW, gap to the neighbour included —
+   exactly what `DecorItem` lays on its wrapper.
 
-   Elle est ici, et non recalculée par le découpage en lignes, parce
-   qu'il n'y a qu'une place possible pour une mesure : celle qui la
-   dessine. Le jour où l'angle, le calibre ou la chasse du carton
-   changent, la ligne suivra sans qu'on y pense.
+   It is here, and not recomputed by the splitting into lines, because
+   there is only one possible place for a measurement: the one that draws
+   it. The day the angle, the calibre or the card's set changes, the line
+   will follow without anyone thinking about it.
 
-   Un boîtier vaut une case, un décor en vaut autant qu'il en occupe :
-   c'est tout ce que `splitRow` a besoin de savoir pour ne plus laisser
-   un objet en XXL déborder de sa planche. */
+   A case is worth one cell, a decor is worth as many as it occupies: that
+   is all `splitRow` needs to know so as to stop letting an XXL object
+   overflow its board. */
 export const decorSpanOf = (item) => {
   const spec = decorSpec(item.motif);
   if (!spec) return 0;
@@ -616,9 +615,9 @@ export const decorSpanOf = (item) => {
   return rotatedBox(w, h, angleOf(item, spec.tall)).width + GAP_X;
 };
 
-/* Un décor posé sur la planche : il se glisse, se déplace et s'enlève
-   comme un boîtier, mais ne dit rien d'un film. Six des motifs sont les
-   décors que la maison dessine déjà ailleurs ; le reste vient de lucide. */
+/* A decor laid on the board: it is dragged, moved and taken away like a
+   case, but says nothing of a film. Six of the patterns are the decors
+   the house already draws elsewhere; the rest comes from lucide. */
 export const DecorItem = React.memo(function DecorItem({
   item,
   ctx,
@@ -642,29 +641,28 @@ export const DecorItem = React.memo(function DecorItem({
   if (!spec) return null;
   const Draw = spec.draw;
 
-  /* L'ONGLET DU CARTON — la hauteur de tête qu'on voit de loin.
-     Voir le long passage sur la refonte, plus bas. */
+  /* THE CARD'S TAB — the head height one sees from afar.
+     See the long passage on the rework, below. */
   const head = Math.round(DIVIDER_HEAD * s);
 
-  /* Un carton se nomme SUR le carton. Le panneau savait déjà le faire,
-     mais il fallait l'ouvrir pour le découvrir — et un carton vierge ne
-     dit pas qu'il attend un nom. C'est le geste de la catégorie, dont on
-     écrit l'onglet là où on le lit ; la palette reste à côté, pour ce
-     qui n'est pas du texte. */
-  /* NOMMER RESTE UNE OFFRE, PAS UN PASSAGE OBLIGÉ.
+  /* A card is named ON the card. The panel already knew how to do it, but
+     one had to open it to discover it — and a blank card does not say it
+     is waiting for a name. It is the category's gesture, whose tab one
+     writes where one reads it; the palette stays beside, for what is not
+     text. */
+  /* NAMING STAYS AN OFFER, NOT A COMPULSORY STEP.
 
-     Le carton s'écrivait sur lui-même : un clic ouvrait le champ, et un
-     carton vierge affichait « nommer » en italique. C'était juste pour
-     qui venait poser une catégorie, et pénible pour tous les autres —
-     beaucoup d'intercalaires ne servent qu'à marquer une coupure, et
-     n'ont rien à dire. Le clic tombait alors dans un champ dont il
-     fallait ressortir, et la couleur ou la taille se cachaient derrière
-     une icône qu'on ne trouvait qu'au survol.
+     The card wrote on itself: a click opened the field, and a blank card
+     showed "name" in italics. That was right for whoever came to lay a
+     category, and tiresome for everybody else — many dividers serve only
+     to mark a cut, and have nothing to say. The click then fell into a
+     field one had to get out of, and the colour or the size hid behind an
+     icon one only found on hover.
 
-     On garde donc le geste, mais on le réserve aux cartons qui ONT un
-     nom : celui-là s'écrit là où on le lit. Un carton vierge, lui, ouvre
-     son panneau comme n'importe quel objet — et le panneau porte déjà un
-     champ NOM pour qui veut lui en donner un. */
+     So we keep the gesture, but reserve it for the cards that HAVE a
+     name: that one is written where one reads it. A blank card, for its
+     part, opens its panel like any other object — and the panel already
+     carries a NAME field for whoever wants to give it one. */
   const writes = !!spec.writes && !!onLabel && !!item.label;
   const commit = () => {
     setWriting(false);
@@ -685,14 +683,14 @@ export const DecorItem = React.memo(function DecorItem({
         display: "flex",
         alignItems: "flex-end",
         flexShrink: 0,
-        /* La place réclamée dans la rangée suit l'angle, en largeur comme
-           en hauteur : voir `rotatedBox`. Une tête qui penche dépasse du
-           bois, et c'est la rangée qui doit s'en apercevoir. */
+        /* The room claimed in the row follows the angle, in width as in
+           height: see `rotatedBox`. A leaning head sticks out over the
+           wood, and it is the row that must notice. */
         width: frame.width + GAP_X,
         height: frame.height + GAP_Y,
       }}
     >
-      {/* la couche qui bascule à l'écartement, sous la cible de dépôt */}
+      {/* the layer that tips at the parting, under the drop target */}
       <div
         data-lean
         style={{
@@ -703,9 +701,9 @@ export const DecorItem = React.memo(function DecorItem({
         }}
       >
         <div
-          /* Un carton qu'on est en train d'écrire ne se glisse pas : le
-             `draggable` d'un ancêtre avale la sélection du texte et le
-             double-clic dans le champ déclenche un glissement. */
+          /* A card one is in the middle of writing is not dragged: an
+             ancestor's `draggable` swallows the text selection and the
+             double click in the field triggers a drag. */
           draggable={!writing}
           onDragStart={(e) => {
             e.dataTransfer.effectAllowed = "move";
@@ -726,12 +724,12 @@ export const DecorItem = React.memo(function DecorItem({
             position: "relative",
             width: w,
             height: h,
-            /* Le pied du carton se pose sur la planche, jamais dessous :
-               `dy` rattrape ce que la rotation lui a fait descendre. */
+            /* The card's foot rests on the board, never below it: `dy`
+               makes up for what the rotation sent down. */
             marginBottom: GAP_Y,
-            /* L'écart au voisin est passé à l'enveloppe, avec la place que
-               réclame l'angle : le laisser ici l'ajouterait une seconde
-               fois, et un objet tourné dériverait vers la droite. */
+            /* The gap to the neighbour is passed to the wrapper, with the
+               room the angle claims: leaving it here would add it a second
+               time, and a turned object would drift to the right. */
             flexShrink: 0,
             cursor: "pointer",
             display: "flex",
@@ -742,19 +740,18 @@ export const DecorItem = React.memo(function DecorItem({
             transformOrigin: "bottom center",
             userSelect: "none",
             WebkitUserSelect: "none",
-            // le carton lui-même : sa propre encre, tête comprise
+            // the card itself: its own ink, head included
             ...(spec.tall ? dividerSkin(ink) : null),
           }}
         >
           {spec.tall && <DividerHead ink={ink} height={head} />}
 
           {spec.tall ? (
-            /* Le nom se lit à la verticale, de bas en haut : c'est ainsi
-               qu'on lit une tranche dans une boîte d'archives, et la
-               seule façon d'écrire long sur vingt-six pixels de large.
-               Le champ reprend exactement la même écriture, pour qu'on
-               n'ait pas l'impression que le texte saute de place quand on
-               se met à l'écrire. */
+            /* The name is read vertically, bottom to top: that is how one
+               reads an edge in an archive box, and the only way to write
+               long over twenty-six pixels of width. The field takes back
+               exactly the same writing, so that one does not feel the text
+               jumps place when one starts writing it. */
             writing ? (
               <input
                 autoFocus
@@ -779,13 +776,13 @@ export const DecorItem = React.memo(function DecorItem({
                   fontSize: Math.max(8, Math.round(10 * s)),
                   letterSpacing: "0.08em",
                   color: C.ink,
-                  /* Le champ commence SOUS l'onglet : écrire dans la tête
-                     reviendrait à écrire sur la languette de couleur,
-                     qui est précisément ce qu'on regarde de loin. */
+                  /* The field begins UNDER the tab: writing in the head
+                     would amount to writing on the coloured tab, which is
+                     precisely what one looks at from afar. */
                   height: `calc(100% - ${head}px)`,
                   marginTop: head,
                   padding: "6px 0",
-                  // le filet du champ longe la tranche, comme un trait au crayon
+                  // the field's hairline runs along the edge, like a pencil stroke
                   borderLeft: `1px solid ${ink}`,
                 }}
               />
@@ -797,9 +794,9 @@ export const DecorItem = React.memo(function DecorItem({
                   fontFamily: F.mono,
                   fontSize: Math.max(8, Math.round(10 * s)),
                   letterSpacing: "0.08em",
-                  /* Le nom passe à l'encre sombre : sur un corps désormais
-                     teinté de sa propre couleur, l'écrire dans cette
-                     même couleur le rendait illisible. */
+                  /* The name goes to dark ink: on a body now tinted with
+                     its own colour, writing it in that same colour made it
+                     unreadable. */
                   color: C.ink,
                   whiteSpace: "nowrap",
                   overflow: "hidden",
@@ -809,8 +806,8 @@ export const DecorItem = React.memo(function DecorItem({
                   padding: "6px 0",
                 }}
               >
-                {/* Un carton vierge reste vierge : il sépare, et séparer
-                    se passe très bien de mot. */}
+                {/* A blank card stays blank: it separates, and separating
+                    does very well without a word. */}
                 {item.label}
               </span>
             )
@@ -818,11 +815,11 @@ export const DecorItem = React.memo(function DecorItem({
             <Draw color={ink} style={{ width: "100%", height: "100%" }} />
           )}
 
-          {/* La palette reste joignable : écrire prend le clic, mais la
-              couleur, la taille et le retrait sont ailleurs. Au pied du
-              carton, et seulement au survol — c'est le geste de l'onglet
-              d'une catégorie, qui porte le même bouton à côté de son
-              nom. */}
+          {/* The palette stays reachable: writing takes the click, but
+              the colour, the size and the inset are elsewhere. At the foot
+              of the card, and only on hover — it is the gesture of a
+              category's tab, which carries the same button beside its
+              name. */}
           {writes && !writing && (
             <button
               onMouseDown={(e) => e.preventDefault()}
@@ -842,7 +839,7 @@ export const DecorItem = React.memo(function DecorItem({
                 display: "flex",
                 justifyContent: "center",
                 color: ink,
-                // il répond au survol du CARTON : sur le sien, il resterait introuvable
+                // it answers the CARD's hover: on its own, it would stay unfindable
                 opacity: hover ? 0.75 : 0,
                 transition: "opacity .15s ease",
               }}
@@ -856,42 +853,40 @@ export const DecorItem = React.memo(function DecorItem({
   );
 });
 
-/* Le cadre englobant d'un objet ACCROCHÉ. Il pivote sur son milieu et
-   non sur son pied — rien ne le porte, il pend — d'où un `rotatedBox`
-   d'une boîte deux fois moins haute, recentrée : les décalages
-   s'annulent et il ne reste que la taille. C'est elle que réclame la
-   case, et elle aussi qui borne le dépôt au bord du rayon. */
+/* The bounding box of a HANGING object. It pivots on its middle and not
+   on its foot — nothing carries it, it hangs — hence a `rotatedBox` of a
+   box half as tall, recentred: the offsets cancel out and only the size
+   remains. It is the size the cell claims, and it too that clamps the
+   drop to the shelf's edge. */
 export const rotatedBoxOfWall = (item) => {
   const b = wallBoxOf(item.size);
   const { width, height } = rotatedBox(b, b, angleOf(item));
   return { width, height };
 };
 
-/* UN OBJET ACCROCHÉ — il ne pose sur rien, mais il peut faire de l'ombre.
+/* A HANGING OBJECT — it rests on nothing, but it can cast a shadow.
 
-   Le décor posé vit dans le flux de sa rangée : il prend une place entre
-   deux boîtiers, et l'écartement le pousse comme les autres. Celui-ci
-   est punaisé au fond du rayon, à un point qu'on a choisi en le lâchant.
-   Il n'a donc ni enveloppe, ni écart, ni zone de dépôt — rien ne se
-   range à côté de lui.
+   The laid decor lives in its row's flow: it takes a place between two
+   cases, and the parting pushes it like the others. This one is pinned to
+   the back of the shelf, at a point chosen by letting it go. So it has
+   neither wrapper, nor gap, nor drop zone — nothing is filed beside it.
 
-   Sauf s'il le RÉCLAME. Un cadre au fond d'un rayon plein disparaît
-   derrière les tranches, et il n'y avait rien à faire sinon le déplacer
-   là où il restait de la place. La case à cocher de son panneau lui
-   donne une emprise : les boîtiers de la ligne qu'il recouvre s'écartent
-   pour le laisser voir. C'est un choix par objet, et par défaut il ne
-   dérange personne — la plupart des punaises n'ont pas à repousser une
-   collection.
+   Unless it ASKS for it. A frame at the back of a full shelf disappears
+   behind the edges, and there was nothing to do but move it where room
+   was left. The checkbox in its panel gives it a footprint: the cases of
+   the line it covers part to let it be seen. It is a choice per object,
+   and by default it disturbs nobody — most pins do not have to push back
+   a collection.
 
-   Il est peint AVANT les rangées et sans `z-index` : les boîtiers, plus
-   loin dans le document, passent devant. C'est ce qui le met au fond
-   plutôt que par-dessus, et c'est aussi ce qu'on attend d'un cadre
-   accroché derrière une étagère. */
+   It is painted BEFORE the rows and without a `z-index`: the cases,
+   further on in the document, pass in front. That is what puts it at the
+   back rather than on top, and it is also what one expects of a frame
+   hung behind a shelf. */
 export const WallItem = React.memo(function WallItem({ item, onDragStart, onDragEnd, onEdit }) {
   const spec = decorSpec(item.motif);
   if (!spec) return null;
   const ink = catInk(item.color);
-  // le dessin, plus la marge de prise qui en fait le tour
+  // the drawing, plus the grip margin that goes round it
   const box = wallBoxOf(item.size);
   const frame = rotatedBoxOfWall(item);
   const Draw = spec.draw;
@@ -901,26 +896,26 @@ export const WallItem = React.memo(function WallItem({ item, onDragStart, onDrag
       draggable
       onDragStart={(e) => {
         e.dataTransfer.effectAllowed = "move";
-        /* OÙ l'a-t-on pris ? Sans cette mesure, l'objet se recentre sous
-           le curseur au dépôt : on le saisit par un coin, on le lâche là
-           où on croit le voir, et il saute d'une demi-largeur. On garde
-           donc l'écart entre le point de prise et le centre, pour le
-           défalquer à l'arrivée. */
+        /* WHERE was it picked up? Without this measurement, the object
+           recentres itself under the cursor at the drop: one grabs it by a
+           corner, lets it go where one thinks one sees it, and it jumps by
+           half a width. So we keep the gap between the grab point and the
+           centre, to deduct it on arrival. */
         const r = e.currentTarget.getBoundingClientRect();
-        /* CELUI-CI, ON LE TIENT.
+        /* THIS ONE, WE ARE HOLDING.
 
-           Le temps d'un geste, les objets accrochés cessent de recevoir
-           le curseur : c'est ce qui les autorise à déborder de leur rayon
-           sans voler les dépôts du rayon voisin (voir `tokens.ts`). Mais
-           la règle attrapait aussi l'objet qu'on venait d'empoigner, et
-           un glissement dont la source cesse d'être testable au survol
-           est un glissement que le navigateur annule : une fois posé, un
-           objet volant ne se reprenait plus.
+           For the length of a gesture, hanging objects stop receiving the
+           cursor: that is what allows them to overflow their shelf without
+           stealing the neighbouring shelf's drops (see `tokens.ts`). But
+           the rule also caught the object one had just grabbed, and a drag
+           whose source stops being hit-testable on hover is a drag the
+           browser cancels: once laid, a flying object could not be picked
+           up again.
 
-           Il se marque donc comme étant celui qu'on tient, et la règle
-           l'épargne. Le marquage est écrit à la main sur le nœud, comme
-           tout ce qui bouge pendant un glissement — un état React ici
-           re-rendrait le rayon au pire moment. */
+           So it marks itself as the one being held, and the rule spares
+           it. The mark is written by hand on the node, like everything
+           that moves during a drag — a React state here would re-render
+           the shelf at the worst moment. */
         e.currentTarget.dataset.dragSelf = "1";
         onDragStart("wall", item.id, e.currentTarget, {
           dx: e.clientX - (r.left + r.width / 2),
@@ -937,11 +932,12 @@ export const WallItem = React.memo(function WallItem({ item, onDragStart, onDrag
         position: "absolute",
         left: `${item.x}%`,
         top: `${item.y}%`,
-        /* LA PRISE SUIT L'ANGLE. Elle faisait la taille du dessin DEBOUT,
-           et la rotation, qui ne déplace pas la mise en page, laissait
-           dépasser tout ce qui sortait de ce carré : un fanion couché se
-           voyait sur toute sa longueur mais ne s'attrapait qu'au milieu,
-           et le reste laissait passer le curseur vers les boîtiers. */
+        /* THE GRIP FOLLOWS THE ANGLE. It used to be the size of the
+           drawing UPRIGHT, and the rotation, which does not move the
+           layout, let everything outside that square stick out: a pennant
+           lying down was seen along its whole length but could only be
+           caught in the middle, and the rest let the cursor through to the
+           cases. */
         width: frame.width,
         height: frame.height,
         marginLeft: -frame.width / 2,
@@ -951,7 +947,7 @@ export const WallItem = React.memo(function WallItem({ item, onDragStart, onDrag
         alignItems: "center",
         justifyContent: "center",
         cursor: "grab",
-        // la couche du mur ne laisse passer le curseur que sur ses objets
+        // the wall layer only lets the cursor through on its objects
         pointerEvents: "auto",
         userSelect: "none",
         WebkitUserSelect: "none",
@@ -963,7 +959,7 @@ export const WallItem = React.memo(function WallItem({ item, onDragStart, onDrag
           height: box,
           padding: WALL_GRIP,
           boxSizing: "border-box",
-          // accroché de travers, comme tout ce qu'on accroche — sauf si on l'a redressé
+          // hung askew, like everything one hangs — unless it has been straightened
           transform: `rotate(${angleOf(item)}deg)`,
         }}
       >
@@ -973,26 +969,25 @@ export const WallItem = React.memo(function WallItem({ item, onDragStart, onDrag
   );
 });
 
-/* LA CATÉGORIE — une boîte, et non plus un carton planté.
+/* THE CATEGORY — a box, and no longer a planted card.
 
-   L'intercalaire d'avant séparait sans rien contenir : on ne pouvait pas
-   « mettre un film dans Polars », seulement le poser après le carton et
-   espérer que l'ordre tienne. La catégorie est un conteneur : on y
-   glisse, on en sort, elle se déplace pleine.
+   The divider of before separated without containing anything: one could
+   not "put a film in Crime", only lay it after the card and hope the order
+   would hold. The category is a container: one drags into it, out of it,
+   it moves full.
 
-   Son nom se lit à l'horizontale, tronqué par des points de suspension et
-   doublé d'une infobulle. Le carton d'avant l'écrivait à la verticale et
-   le coupait net à la hauteur d'un boîtier, sans repli d'aucune sorte —
-   illisible dès qu'on nommait vraiment quelque chose.
+   Its name is read horizontally, truncated with an ellipsis and backed by
+   a tooltip. The card of before wrote it vertically and cut it clean at a
+   case's height, with no fallback of any kind — unreadable as soon as one
+   really named something.
 
-   ELLE SE COUPE EN SEGMENTS. Une boîte ne replie plus son contenu à
-   l'intérieur d'elle-même : elle grandissait alors en hauteur sans
-   qu'aucune planche ne vienne sous ses lignes, et le rayon cessait
-   d'être un rayon. Elle reçoit maintenant la seule TRANCHE qui tient sur
-   la ligne (`items`), et se répète telle quelle sur la ligne suivante —
-   c'est `splitRow` qui découpe (voir `lines.js`). `first` porte
-   l'en-tête, `last` ferme le carton à droite ; entre les deux, les bords
-   restent ouverts, et l'on voit que c'est la même boîte qui continue. */
+   IT CUTS ITSELF INTO SEGMENTS. A box no longer wraps its content inside
+   itself: it then grew in height without any board coming under its lines,
+   and the shelf stopped being a shelf. It now receives the only SLICE that
+   fits on the line (`items`), and repeats itself as it is on the next
+   line — it is `splitRow` that cuts (see `lines.js`). `first` carries the
+   header, `last` closes the card on the right; between the two, the edges
+   stay open, and one sees that it is the same box continuing. */
 export const CategoryBox = React.memo(function CategoryBox({
   cat,
   items,
@@ -1028,9 +1023,9 @@ export const CategoryBox = React.memo(function CategoryBox({
     else setDraft(cat.label);
   };
 
-  /* Une boîte tient des boîtiers ET du mobilier : un intercalaire glissé
-     là-dedans est la sous-division dont on a besoin quand la
-     filmographie déborde. Seule une autre boîte reste dehors. */
+  /* A box holds cases AND furniture: a divider dragged in there is the
+     subdivision one needs when the filmography overflows. Only another box
+     stays outside. */
   const boxes = (items || cat.items)
     .map((it) => {
       if (it.t === "d")
@@ -1064,23 +1059,22 @@ export const CategoryBox = React.memo(function CategoryBox({
     .filter(Boolean);
 
   return (
-    /* Une boîte est bâtie comme un boîtier : une enveloppe qui porte
-       l'écart, l'identité et la zone de dépôt, et l'objet visible à
-       l'intérieur. C'est ce qui fait que les cibles pavent la rangée. */
+    /* A box is built like a case: a wrapper carrying the gap, the
+       identity and the drop zone, and the visible object inside. That is
+       what makes the targets pave the row. */
     <div
       data-shelf-item={cat.id}
       draggable={!editing}
-      /* Une boîte contient des boîtiers, eux-mêmes saisissables : le
-         `dragstart` d'un film REMONTE jusqu'ici. Sans cette garde, saisir
-         un film dans une catégorie déplaçait la catégorie entière —
-         l'événement arrivait en second et écrasait le premier.
+      /* A box contains cases, themselves grabbable: a film's `dragstart`
+         BUBBLES UP to here. Without this guard, grabbing a film inside a
+         category moved the whole category — the event arrived second and
+         overwrote the first.
 
-         On compare les ENVELOPPES et non plus les nœuds : `e.target ===
-         e.currentTarget` ne laissait saisir la boîte que par son propre
-         fond, jamais par son onglet — c'est-à-dire jamais par l'endroit
-         où la main va la chercher. Le glissement partait quand même, sans
-         que personne l'ait enregistré, et se terminait par un dépôt qui
-         ne faisait rien. */
+         We compare the WRAPPERS and no longer the nodes: `e.target ===
+         e.currentTarget` only let the box be grabbed by its own back,
+         never by its tab — that is to say never by the place the hand goes
+         to find it. The drag started anyway, without anybody having
+         recorded it, and ended in a drop that did nothing. */
       onDragStart={(e) => {
         if (editing || e.target.closest("[data-shelf-item]") !== e.currentTarget) return;
         e.dataTransfer.effectAllowed = "move";
@@ -1088,10 +1082,10 @@ export const CategoryBox = React.memo(function CategoryBox({
       }}
       onDragEnd={onDragEnd}
       onDragOver={(e) => onCatOver(e, ctx)}
-      /* Plus de `maxWidth` ni de repli : la tranche reçue tient sur la
-         ligne par construction, c'est `splitRow` qui s'en est assuré. La
-         boîte trop grande pour la ligne ne se replie pas sur elle-même,
-         elle DÉBORDE sur la ligne du dessous, qui a son bois. */
+      /* No more `maxWidth` nor wrapping: the slice received fits on the
+         line by construction, `splitRow` made sure of it. The box too big
+         for the line does not wrap inside itself, it OVERFLOWS onto the
+         line below, which has its wood. */
       style={{
         flexShrink: 0,
         minWidth: 0,
@@ -1099,8 +1093,8 @@ export const CategoryBox = React.memo(function CategoryBox({
         alignItems: "flex-end",
       }}
     >
-      {/* Le carton EST la couche qui bascule : rien d'autre ne touche à
-          son `transform`, il n'a donc pas besoin d'une couche à lui. */}
+      {/* The card IS the layer that tips: nothing else touches its
+          `transform`, so it does not need a layer of its own. */}
       <div
         data-cat-card
         data-lean
@@ -1114,25 +1108,25 @@ export const CategoryBox = React.memo(function CategoryBox({
           flexDirection: "column",
           transformOrigin: "bottom center",
           transition: "transform .3s cubic-bezier(.32,1.16,.42,1)",
-          /* C'est TOUJOURS un carton : même papier, même filet, même ombre
-             portée sèche que l'intercalaire debout d'avant. Il a seulement
-             cessé d'être une cloison pour devenir une pochette — ouverte en
-             bas, pour que les boîtiers qu'elle tient posent sur la planche
-             du rayon comme les autres. Une pochette fermée les ferait
-             flotter, et l'étagère cesserait d'être une étagère. */
-          /* LE DÉGRADÉ SUIT LA PEAU. Il finissait sur un `#D8C69C` écrit
-             en dur — le kraft du carnet, et lui seul : sous une peau de
-             nuit, le carton s'éclaircissait vers un beige qui n'était
-             plus la couleur de rien. Les deux bouts sont maintenant des
-             jetons, et un lavis de l'encre du carton par-dessus le
-             rattache à sa catégorie sans le repeindre. */
+          /* It is STILL a card: same paper, same hairline, same dry drop
+             shadow as the upright divider of before. It has only stopped
+             being a partition to become a sleeve — open at the bottom, so
+             that the cases it holds rest on the shelf's board like the
+             others. A closed sleeve would make them float, and the shelf
+             would stop being a shelf. */
+          /* THE GRADIENT FOLLOWS THE SKIN. It ended on a hand-written
+             `#D8C69C` — the notebook's kraft, and it alone: under a night
+             skin, the card lightened towards a beige that was no longer
+             the colour of anything. Both ends are now tokens, and a wash
+             of the card's ink over them ties it back to its category
+             without repainting it. */
           background: `linear-gradient(160deg, ${alpha(ink, 0.1)}, ${alpha(ink, 0.16)}),
             linear-gradient(160deg, ${C.card}, ${C.paperDark})`,
           border: `1px solid ${C.line}`,
           borderBottom: "none",
-          /* Une boîte coupée en deux garde ses bords là où elle commence
-             et là où elle finit, et les perd là où elle continue : c'est
-             le bord manquant qui dit « la suite est plus bas ». */
+          /* A box cut in two keeps its edges where it starts and where it
+             ends, and loses them where it continues: it is the missing
+             edge that says "the rest is further down". */
           borderLeft: first ? `1px solid ${C.line}` : "none",
           borderRight: last ? `1px solid ${C.line}` : "none",
           borderRadius: `${first ? 3 : 0}px ${last ? 3 : 0}px 0 0`,
@@ -1140,13 +1134,13 @@ export const CategoryBox = React.memo(function CategoryBox({
           "--cat-open": `${ink}22`,
         }}
       >
-        {/* L'onglet d'index : la couleur est une languette collée en tête de
-            carton, pas un aplat qui mangerait le kraft. C'est ainsi qu'on
-            repère un dossier dans une boîte d'archives.
+        {/* The index tab: the colour is a tab stuck at the head of the
+            card, not a flat fill that would eat the kraft. That is how one
+            spots a folder in an archive box.
 
-            Elle a épaissi : quatre pixels, c'était un cheveu qu'on ne
-            voyait plus dès qu'une rangée s'éloignait. Sept la font lire
-            comme une languette sans qu'elle devienne un bandeau. */}
+            It has thickened: four pixels was a hair one no longer saw as
+            soon as a row moved away. Seven make it read as a tab without
+            its becoming a banner. */}
         <div
           style={{
             height: 7,
@@ -1155,16 +1149,16 @@ export const CategoryBox = React.memo(function CategoryBox({
             opacity: 0.9,
           }}
         />
-        {/* La suite d'une boîte ne reporte pas son nom : la languette de
-            couleur et le bord gauche ouvert suffisent à la reconnaître, et
-            un nom répété à chaque ligne se lirait comme trois boîtes. */}
+        {/* The continuation of a box does not carry its name over: the
+            coloured tab and the open left edge are enough to recognise it,
+            and a name repeated on every line would read as three boxes. */}
         {!first && <div style={{ height: 1, background: C.line, opacity: 0.5 }} />}
         {first && (
           <div
             onClick={() => setEditing(true)}
             title={cat.label}
-            /* LE NOM SE LIT. À dix virgule cinq, c'était une mention en bas
-               de page sur l'objet qui donne son nom à toute la boîte. */
+            /* THE NAME IS READ. At ten point five, it was a footnote on
+               the object that gives its name to the whole box. */
             style={{
               padding: "5px 10px",
               cursor: "text",
@@ -1199,7 +1193,7 @@ export const CategoryBox = React.memo(function CategoryBox({
                   flex: 1,
                   minWidth: 60,
                   fontFamily: F.mono,
-                  // la même écriture que le nom posé : le texte ne saute pas
+                  // the same writing as the laid name: the text does not jump
                   fontSize: 12.5,
                   fontWeight: 600,
                   color: C.ink,
@@ -1207,9 +1201,9 @@ export const CategoryBox = React.memo(function CategoryBox({
                 }}
               />
             ) : (
-              /* Horizontal, tronqué proprement, et l'infobulle porte le nom
-               entier. L'intercalaire d'avant l'écrivait à la verticale et le
-               coupait net à 144 px, sans ellipse ni recours. */
+              /* Horizontal, truncated cleanly, and the tooltip carries the
+               whole name. The divider of before wrote it vertically and cut
+               it clean at 144 px, with no ellipsis and no recourse. */
               <span
                 style={{
                   flex: 1,
@@ -1240,8 +1234,8 @@ export const CategoryBox = React.memo(function CategoryBox({
         <div
           style={{
             display: "flex",
-            /* Plus de repli ici : ce qui ne tient pas sur la ligne n'est
-               pas dans `items`, il est dans le segment d'en dessous. */
+            /* No more wrapping here: what does not fit on the line is not
+               in `items`, it is in the segment below. */
             flexWrap: "nowrap",
             alignItems: "flex-end",
             padding: `${first ? 8 : 4}px 6px 0`,

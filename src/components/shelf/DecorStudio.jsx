@@ -1,23 +1,23 @@
-/* L'ATELIER DÉCO — de quoi la pièce est faite.
+/* THE DECOR WORKSHOP — what the room is made of.
 
-   Le cabinet de curiosités donne les objets qu'on POSE ; celui-ci donne
-   la matière de ce sur quoi on les pose. Deux volets, parce qu'il y a
-   deux surfaces : le mur derrière, la planche dessous.
+   The cabinet of curiosities gives the objects one LAYS DOWN; this one
+   gives the substance of what one lays them on. Two panels, because there
+   are two surfaces: the wall behind, the board underneath.
 
-   IL N'Y A PAS DE VOLET « PALETTE ». Les teintes se choisissent SUR
-   l'objet qui les porte, dans sa propre palette — un nuancier ici
-   n'aurait rien à peindre, et offrirait un réglage global là où la
-   couleur est une propriété de chaque carton. La seule teinte qui soit
-   un réglage de pièce est celle du papier peint, et elle vit donc avec
-   lui, dans le volet du mur.
+   THERE IS NO "PALETTE" PANEL. Tints are chosen ON the object that
+   carries them, in its own palette — a colour chart here would have
+   nothing to paint, and would offer a global setting where colour is a
+   property of each card. The only tint that is a room setting is the
+   wallpaper's, and it therefore lives with it, in the wall panel.
 
-   Chaque vignette est rendue par le MÊME moteur que l'étagère
-   (`theme/surfaces`) : un aperçu qui se dessinerait autrement finirait
-   par mentir, et c'est toujours l'aperçu qui aurait tort.
+   Every thumbnail is rendered by the SAME engine as the shelf
+   (`theme/surfaces`): a preview that drew itself otherwise would end up
+   lying, and it is always the preview that would be wrong.
 
-   Rien n'est écrit tant qu'on ne choisit rien, et « revenir au thème »
-   efface le décor entier : la vue redevient ce que son bois dit d'elle.
-   C'est cette porte de sortie qui rend toute l'exploration sans risque. */
+   Nothing is written as long as one chooses nothing, and "back to the
+   theme" erases the whole decor: the view becomes again what its wood
+   says of it. It is that way out that makes all the exploring
+   riskless. */
 import { useState } from "react";
 import { Calque } from "../ui/Calque";
 import { X, RotateCcw } from "lucide-react";
@@ -33,9 +33,9 @@ import {
   SurfaceTab,
 } from "../ui/Swatches";
 
-/* Les matériaux, groupés par famille. Vingt et une vignettes en vrac
-   seraient un catalogue ; par famille, on cherche « quelque chose en
-   métal » et on l'a. Même raisonnement que pour les teintes. */
+/* The materials, grouped by family. Twenty-one thumbnails in bulk would
+   be a catalogue; by family, one looks for "something in metal" and has
+   it. The same reasoning as for the tints. */
 const byFamily = () => {
   const out = new Map();
   for (const [k, m] of Object.entries(MATERIALS)) {
@@ -62,8 +62,8 @@ function PlankTab({ decor, set }) {
                 onClick={() => set({ material: k })}
                 title={MATERIALS[k].label}
                 h={22}
-                /* La vignette est une TRANCHE de planche, à la finition
-                   retenue : c'est ce qu'on verra sous les boîtiers. */
+                /* The thumbnail is a SLICE of board, in the chosen
+                   finish: it is what one will see under the cases. */
                 style={materialStyle(k, decor?.finish)}
               />
             ))}
@@ -71,8 +71,8 @@ function PlankTab({ decor, set }) {
         </div>
       ))}
 
-      {/* La finition ne vernit que ce qui a une matière : sans matériau,
-          elle ne toucherait à rien. */}
+      {/* The finish only varnishes what has a material: with no
+          material, it would touch nothing. */}
       {decor?.material && (
         <>
           <Title>FINITION</Title>

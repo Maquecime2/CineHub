@@ -1,4 +1,4 @@
-/* Le rangement à la main : c'est ici que vit tout le glisser-déposer. */
+/* Filing by hand: this is where all the drag and drop lives. */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { C } from "../../theme/tokens";
 import {
@@ -38,28 +38,28 @@ import {
 import { DropMark, angleOf, rotatedBoxOfWall } from "./items";
 import { Shelf, ReserveDrawer, CasePreview, DecorCabinet, ItemPalette } from "./layout";
 
-/* Un motif dont la teinte ne change rien : une image importée qui n'est
-   pas du trait, ou un SVG dont on n'a pas su nommer l'encre. Les motifs
-   de la maison sont tous dessinés pour prendre une couleur. */
+/* A pattern whose tint changes nothing: an imported image that is not
+   line work, or an SVG whose ink we could not name. The house patterns
+   are all drawn to take a colour. */
 const noTint = (motif) => {
   const spec = decorSpec(motif);
   return !!spec?.custom && !spec.tintable;
 };
 
-/* Ce qui s'accroche plutôt que de se poser — la question que se posent
-   tous les gestionnaires de glissement avant de faire quoi que ce soit. */
+/* What hangs rather than being laid down — the question every drag
+   handler asks itself before doing anything at all. */
 const hangs = (drag) => drag?.type === "wall";
 
 export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) {
-  /* Un glissement ne change AUCUN état React. C'était le dernier retard
-     visible : `setDragId` au départ du glissement re-rendait le rayon, ce
-     qui salissait la mise en page — et le premier `getBoundingClientRect`
-     du premier survol devait alors la recalculer entièrement avant que le
-     repère puisse s'afficher. D'où un trait qui tardait à apparaître.
+  /* A drag changes NO React state. It was the last visible lag:
+     `setDragId` at the start of the drag re-rendered the shelf, which
+     dirtied the layout — and the first `getBoundingClientRect` of the
+     first hover then had to recompute it entirely before the marker could
+     show. Hence a line that was slow to appear.
 
-     Tout ce qui bouge pendant un glissement est donc écrit à la main : le
-     boîtier pâli, le repère, les voisins écartés, les cibles qui
-     s'éclairent, et l'attribut `data-dragging` du document. */
+     Everything that moves during a drag is therefore written by hand: the
+     paled case, the marker, the parted neighbours, the targets that light
+     up, and the document's `data-dragging` attribute. */
   const dragRef = useRef(null); // { type, id, node, create? }
   const overRef = useRef({}); // { kind, rowId, catId, overId, side, afterRowId }
   const markRef = useRef(null); // le repère de dépôt, hors React
@@ -75,10 +75,10 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
 
   const filmsById = useMemo(() => new Map(films.map((f) => [f.id, f])), [films]);
 
-  /* La vue affichée est la vue enregistrée RAMENÉE à la collection réelle :
-     films disparus retirés, films neufs recueillis dans la rangée
-     d'arrivée. Purement au rendu — on n'écrit rien tant que l'utilisateur
-     n'a pas lui-même rangé quelque chose. */
+  /* The view shown is the saved view BROUGHT BACK to the real
+     collection: vanished films removed, new films gathered into the
+     arrivals row. Purely at render time — we write nothing as long as the
+     user has not filed something themselves. */
   const view = useMemo(() => (doc ? reconcileView(doc, films) : null), [doc, films]);
   const theme = themeOf(view?.theme);
 
@@ -100,34 +100,32 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     [view, onDoc]
   );
 
-  /* Mesurer une fois, pour tout le glissement.
+  /* Measure once, for the whole drag.
 
-     `dragover` tire en continu, souris immobile comprise. Chaque
-     gestionnaire de survol avait besoin d'un rectangle, et le redemandait
-     à chaque événement — soixante fois par seconde pour un curseur qui ne
-     bouge pas.
+     `dragover` fires continuously, motionless mouse included. Every hover
+     handler needed a rectangle, and asked for it again at every event —
+     sixty times a second for a cursor that is not moving.
 
-     Une lecture de rectangle n'est pas un renseignement qu'on consulte,
-     c'est une question à laquelle le navigateur doit répondre JUSTE : il
-     entérine donc toute mise en page en attente avant de répondre. Or les
-     enveloppes portent `content-visibility: auto` (voir `items.jsx`), qui
-     dit précisément au navigateur de NE PAS mettre en page ce qui est hors
-     écran. Lui réclamer un rectangle le forçait à calculer la rangée
-     entière qu'il venait délibérément de sauter, et qu'il sauterait de
-     nouveau aussitôt après. Cent boîtiers mis en page puis jetés, soixante
-     fois par seconde, sans jamais rendre la main : l'onglet ralentissait
-     jusqu'à mourir avec le boîtier encore en l'air.
+     Reading a rectangle is not a piece of information one consults, it is
+     a question the browser must answer CORRECTLY: so it commits any
+     pending layout before answering. Now the wrappers carry
+     `content-visibility: auto` (see `items.jsx`), which tells the browser
+     precisely NOT to lay out what is off screen. Demanding a rectangle
+     from it forced it to compute the whole row it had just deliberately
+     skipped, and would skip again immediately after. A hundred cases laid
+     out then thrown away, sixty times a second, without ever yielding:
+     the tab slowed down until it died with the case still in the air.
 
-     On peut retenir ces mesures parce que le fichier s'interdit ailleurs de
-     bouger les cibles — voir le long passage sur l'écartement, plus bas :
-     seule une couche INTÉRIEURE bascule, l'enveloppe ne bouge pas d'un
-     cheveu de tout le glissement. Le cache repose entièrement sur cette
-     promesse. Si une transformation atterrit un jour sur l'enveloppe
-     elle-même, ces mesures deviennent fausses en même temps que le geste
-     redevient oscillant : c'est le même invariant qui tient les deux.
+     We can keep these measurements because the file forbids itself
+     elsewhere to move the targets — see the long passage on parting,
+     below: only an INNER layer tips, the wrapper does not move by a hair
+     for the whole drag. The cache rests entirely on that promise. If a
+     transform ever lands on the wrapper itself, these measurements become
+     wrong at the same time as the gesture becomes wobbly again: it is the
+     same invariant that holds both.
 
-     Un `WeakMap` neuf à chaque glissement, et rien à ranger : la page peut
-     changer entre deux gestes, elle ne changera pas pendant l'un d'eux. */
+     A fresh `WeakMap` at every drag, and nothing to tidy: the page may
+     change between two gestures, it will not change during one. */
   const rectOf = (node) => {
     const seen = measureRef.current;
     let r = seen.get(node);
@@ -135,16 +133,16 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     return r;
   };
 
-  /* Le dernier objet d'une rangée. Même raisonnement, même durée de vie :
-     la rangée ne se remplit pas pendant qu'on la survole, et parcourir ses
-     enfants à chaque événement pour retrouver le même nœud n'apprenait
-     rien à personne. `null` est une réponse valable — on la retient donc
-     aussi, sinon une rangée vide serait reparcourue à chaque frimousse.
+  /* The last object of a row. The same reasoning, the same lifetime: the
+     row does not fill up while one is hovering it, and walking its
+     children at every event to find the same node again taught nobody
+     anything. `null` is a valid answer — so we keep it too, otherwise an
+     empty row would be walked again at every twitch.
 
-     Son propre registre, et non celui des rectangles : une rangée est à la
-     fois quelque chose qu'on mesure et quelque chose dont on cherche le
-     dernier enfant, et un seul registre lui rendrait l'une des deux
-     réponses à la place de l'autre. */
+     Its own registry, and not the rectangles': a row is at once something
+     one measures and something whose last child one looks for, and a
+     single registry would give it one of the two answers in place of the
+     other. */
   const tailOf = (strip) => {
     const seen = tailRef.current;
     if (seen.has(strip)) return seen.get(strip);
@@ -158,43 +156,43 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     if (markRef.current) markRef.current.style.opacity = "0";
   };
 
-  /* Poser le repère.
+  /* Laying the marker down.
 
-     Une fois posé, il n'a plus qu'à glisser d'une fente à l'autre : on
-     écrit le `transform`, la transition de la feuille de styles fait le
-     reste, et il file d'un intervalle au suivant au lieu de sauter.
+     Once laid, it has only to slide from one slot to the next: we write
+     the `transform`, the style sheet's transition does the rest, and it
+     runs from one gap to the following one instead of jumping.
 
-     La PREMIÈRE pose est le cas délicat. Le repère est un élément unique
-     qui vit dans la page en permanence : il porte encore la position du
-     glissement d'avant. Le laisser glisser depuis là, c'est un trait qui
-     traverse l'étagère en biais avant de se poser. On coupe donc la
-     transition, on l'installe un peu au-dessus de sa place et un peu
-     écrasé, on force le navigateur à entériner cet état de départ, et
-     seulement alors on rend la transition et on vise la place juste : il
-     redescend de ses sept pixels en se dépliant, ce qui ressemble à
-     quelque chose qu'on dépose plutôt qu'à quelque chose qui s'allume.
+     The FIRST laying is the delicate case. The marker is a single element
+     that lives in the page permanently: it still carries the position of
+     the previous drag. Letting it slide from there means a line crossing
+     the shelf at an angle before settling. So we cut the transition,
+     install it a little above its place and a little squashed, force the
+     browser to commit that starting state, and only then give the
+     transition back and aim at the right place: it comes back down its
+     seven pixels while unfolding, which looks like something one puts
+     down rather than something that lights up.
 
-     C'est la lecture de rectangle qui force cette prise en compte, et
-     c'est délibérément elle plutôt qu'une attente de trame. Un double
-     `requestAnimationFrame` ferait le même travail sans rien coûter en
-     mise en page — mais il ferait dépendre l'apparition du repère de la
-     bonne volonté des trames PENDANT une boucle de glissement native, ce
-     que tous les navigateurs ne garantissent pas ; là où les trames sont
-     affamées, le repère ne naîtrait jamais. Le coût, lui, est nul à
-     l'échelle de ce fichier : une seule fois par glissement, quand le
-     survol d'un boîtier en lit déjà une à chaque événement.
+     It is the rectangle read that forces this commit, and it is
+     deliberately that rather than waiting for a frame. A double
+     `requestAnimationFrame` would do the same work without costing
+     anything in layout — but it would make the marker's appearance depend
+     on the goodwill of frames DURING a native drag loop, which not every
+     browser guarantees; where frames are starved, the marker would never
+     be born. The cost, for its part, is nil at this file's scale: once
+     per drag, when hovering a case already reads one at every event.
 
-     Les deux gestes n'ont pas la même vitesse, et c'est voulu. La dépose
-     peut prendre son temps : elle n'a rien à rattraper, on la regarde.
-     Le glissement d'une fente à l'autre, lui, court après la souris — au
-     même tempo il traînerait derrière elle. D'où une durée longue écrite
-     en ligne pour la seule pose, que le premier déplacement efface pour
-     retomber sur le tempo vif de la feuille de styles. */
+     The two gestures do not have the same speed, and that is intended.
+     The laying can take its time: it has nothing to catch up with, we are
+     watching it. The slide from one slot to the next, on the other hand,
+     is chasing the mouse — at the same tempo it would lag behind it.
+     Hence a long duration written inline for the laying alone, which the
+     first move erases so as to fall back on the style sheet's brisk
+     tempo. */
   const SETTLE = "transform .36s cubic-bezier(.16,.86,.26,1), opacity .3s ease-out";
 
-  /* `rot` : entre deux RANGÉES, le repère se couche. C'est le même
-     élément et le même dessin — seule la chaîne de transformation
-     change, donc rien de neuf à peindre. */
+  /* `rot`: between two ROWS, the marker lies down. It is the same element
+     and the same drawing — only the transform chain changes, so nothing
+     new to paint. */
   const placeMark = (x, y, rot = 0) => {
     const m = markRef.current;
     if (!m) return;
@@ -214,38 +212,38 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     m.style.opacity = "1";
   };
 
-  /* Les deux voisins du point de dépôt s'écartent pour faire la place :
-     c'est le geste des deux doigts qui ouvrent une rangée de boîtiers
-     avant d'y glisser le suivant. Ils ne glissent pas à plat — ils
-     BASCULENT, pivotant sur leur pied comme des boîtiers debout qu'on
-     couche l'un vers la gauche, l'autre vers la droite. C'est l'idiome
-     de toute la page : le survol d'un boîtier le fait déjà se pencher.
+  /* The two neighbours of the drop point part to make room: it is the
+     gesture of two fingers opening a row of cases before sliding the next
+     one in. They do not slide flat — they TIP, pivoting on their foot
+     like standing cases laid over, one to the left, the other to the
+     right. It is the whole page's idiom: hovering a case already makes it
+     lean.
 
-     Comme le repère, cela s'écrit à la main sur les nœuds — un `setState`
-     ici rendrait à nouveau tout le rayon à chaque frémissement de souris,
-     ce que toute cette partie s'emploie à éviter.
+     Like the marker, this is written by hand on the nodes — a `setState`
+     here would again render the whole shelf at every quiver of the mouse,
+     which this entire part works to avoid.
 
-     Le geste bascule une COUCHE À L'INTÉRIEUR de l'enveloppe, jamais
-     l'enveloppe elle-même, et c'est toute la différence entre un
-     écartement et un tremblement.
+     The gesture tips a LAYER INSIDE the wrapper, never the wrapper
+     itself, and that is the whole difference between a parting and a
+     tremor.
 
-     L'enveloppe est la cible de dépôt. La faire basculer, c'était
-     déplacer la cible sous le curseur : les deux voisins s'écartant de
-     sept pixels chacun, un trou de quatorze s'ouvrait entre eux — juste
-     là où la main visait. Le curseur y tombait, ne survolait plus aucun
-     boîtier, l'événement retombait sur la rangée qui rappelait tout le
-     monde à sa place, le curseur se retrouvait sur le boîtier, qui
-     rouvrait le trou. Vingt fois par seconde. Le geste se mordait la
-     queue parce qu'il effaçait sa propre condition.
+     The wrapper is the drop target. Tipping it meant moving the target
+     under the cursor: with the two neighbours parting by seven pixels
+     each, a hole of fourteen opened between them — right where the hand
+     was aiming. The cursor fell into it, no longer hovered any case, the
+     event fell back on the row which called everybody back into place,
+     the cursor found itself on the case again, which reopened the hole.
+     Twenty times a second. The gesture bit its own tail because it erased
+     its own condition.
 
-     Les cibles sont donc fixes pour toute la durée du glissement : elles
-     pavent la rangée et rien ne les bouge. Seule l'image bascule. C'est
-     aussi ce qui permet de mesurer les rectangles au repos sans avoir à
-     défalquer quoi que ce soit — l'écartement ne les touche plus. */
+     The targets are therefore fixed for the whole duration of the drag:
+     they pave the row and nothing moves them. Only the image tips. That
+     is also what allows the rectangles to be measured at rest without
+     having to deduct anything — the parting no longer touches them. */
   const SPREAD = 7,
     TILT = 1.4;
 
-  /* La couche qui bascule, sous une enveloppe donnée. */
+  /* The layer that tips, under a given wrapper. */
   const leanLayer = (wrap) => wrap?.querySelector(":scope > [data-lean]") || null;
 
   const clearSpread = () => {
@@ -270,11 +268,11 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     spreadRef.current = next;
   };
 
-  /* Le voisin immédiat. Aux bords d'une catégorie il n'y a PAS de frère :
-     le boîtier suivant est dehors, un cran plus haut dans l'arbre. On
-     remonte alors jusqu'à la boîte elle-même et on prend son voisin à
-     elle — la catégorie s'écarte d'un bloc, et c'est exactement ce qu'on
-     veut voir : la boîte s'ouvre pour accueillir. */
+  /* The immediate neighbour. At a category's edges there is NO sibling:
+     the next case is outside, one notch higher in the tree. So we go up to
+     the box itself and take its own neighbour — the category parts as one
+     block, and that is exactly what one wants to see: the box opens to
+     receive. */
   const neighbour = (wrap, dir) => {
     const sib = dir < 0 ? wrap.previousElementSibling : wrap.nextElementSibling;
     if (sib && sib.hasAttribute("data-shelf-item")) return sib;
@@ -284,9 +282,9 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     return out && out.hasAttribute("data-shelf-item") ? out : null;
   };
 
-  /* Éclairer une cible, et une seule. En attribut plutôt qu'en état : les
-     règles vivent dans la feuille de styles, et React ne sait rien de ce
-     qui s'allume pendant qu'on glisse. */
+  /* Lighting one target, and only one. As an attribute rather than as
+     state: the rules live in the style sheet, and React knows nothing of
+     what lights up while one drags. */
   const light = (node, attr) => {
     if (litRef.current === node) return;
     if (litRef.current) {
@@ -301,16 +299,16 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
   const reset = useCallback(() => {
     const d = dragRef.current;
     if (d?.node && !d.create) d.node.style.opacity = "";
-    /* Le marquage de l'objet accroché qu'on tenait (voir `WallItem`) est
-       défait par son propre `dragend`. On l'efface quand même ici : ce
-       `dragend` n'arrive pas toujours — un nœud remplacé par le rendu du
-       dépôt ne le reçoit jamais — et un marquage oublié rendrait cet
-       objet-là seul capable de voler un dépôt au geste suivant. */
+    /* The marking of the hanging object one was holding (see `WallItem`)
+       is undone by its own `dragend`. We clear it here anyway: that
+       `dragend` does not always arrive — a node replaced by the drop's
+       render never receives it — and a forgotten mark would make that one
+       object alone able to steal a drop at the next gesture. */
     for (const el of document.querySelectorAll("[data-drag-self]")) delete el.dataset.dragSelf;
     dragRef.current = null;
     overRef.current = {};
-    /* Les mesures ne valaient que pour CE glissement : le suivant trouvera
-       peut-être une étagère rangée autrement, et il la remesurera. */
+    /* The measurements were only valid for THIS drag: the next one may
+       find a shelf filed differently, and will measure it again. */
     measureRef.current = new WeakMap();
     tailRef.current = new WeakMap();
     hideMark();
@@ -325,14 +323,13 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     document.documentElement.dataset.dragging = "1";
   }, []);
 
-  /* Sortir un décor du cabinet, c'est le FAIRE, pas le déplacer : il
-     n'existe nulle part tant qu'on ne l'a pas lâché. Le motif décide de
-     sa famille, et sa famille décide de tout le reste : un objet mural
-     ignore les fentes entre les boîtiers et ne connaît que le fond du
-     rayon. */
+  /* Taking a decor out of the cabinet is MAKING it, not moving it: it
+     exists nowhere until it has been let go. The pattern decides its
+     family, and its family decides all the rest: a wall object ignores the
+     slots between the cases and knows only the back of the shelf. */
   const onDecorDragStart = useCallback((motif, node) => {
     const wall = isWallMotif(motif);
-    // certains motifs n'arrivent pas au calibre commun — le ruban adhésif
+    // some patterns do not reach the common calibre — the strip of tape
     const size = decorSpec(motif)?.defaultSize;
     dragRef.current = {
       type: wall ? "wall" : "decor",
@@ -343,49 +340,48 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     document.documentElement.dataset.dragging = "1";
   }, []);
 
-  /* Ce qu'une boîte accepte : tout sauf une autre boîte — `moveItem`
-     tient la règle, et celle-ci ne fait que la refléter. Les deux doivent
-     dire la même chose : un repère qui invite là où le modèle refusera
-     annonce un dépôt qui n'arrivera pas, et c'est pire que pas de cible
-     du tout. Une boîte promenée au-dessus d'une autre se vise donc À
-     CÔTÉ d'elle ; un décor, lui, entre. */
+  /* What a box accepts: anything but another box — `moveItem` holds the
+     rule, and this only reflects it. The two must say the same thing: a
+     marker that invites where the model will refuse announces a drop that
+     will not happen, and that is worse than no target at all. A box
+     carried over another is therefore aimed BESIDE it; a decor, for its
+     part, goes in. */
   const goesInside = (drag) => drag.type !== "cat";
 
-  /* Viser la fente avant ou après un objet du rayon.
+  /* Aiming at the slot before or after an object on the shelf.
 
-     `wrap` est toujours une enveloppe [data-shelf-item] : elle porte
-     l'écart qui suit l'objet, jamais l'objet seul. On retire donc cet
-     écart pour retrouver la tranche — sinon le partage en deux moitiés se
-     ferait autour d'un milieu décalé, et le repère hésiterait sur le bord
-     au lieu de trancher.
+     `wrap` is always a [data-shelf-item] wrapper: it carries the gap that
+     follows the object, never the object alone. So we take that gap off to
+     find the edge again — otherwise the split into two halves would be
+     made around an offset middle, and the marker would dither on the edge
+     instead of deciding.
 
-     Ce gestionnaire ne touche pas à l'état React : il déplace un unique
-     élément à la main. Faire passer le repère par un `setState`, c'était
-     redemander à React de reconstruire les cent boîtiers du rayon à chaque
-     frimousse de la souris — même mémoïsés, cent comparaisons de props par
-     événement, soixante fois par seconde. */
+     This handler does not touch React state: it moves a single element by
+     hand. Putting the marker through a `setState` meant asking React to
+     rebuild the shelf's hundred cases at every twitch of the mouse — even
+     memoised, a hundred prop comparisons per event, sixty times a
+     second. */
   const aimBeside = (wrap, clientX, ctx) => {
     const id = wrap.dataset.shelfItem;
-    /* Le rectangle d'une enveloppe est toujours celui du repos :
-       l'écartement bascule une couche à l'intérieur d'elle et ne la
-       déplace pas. Rien à défalquer, donc, et surtout rien qui puisse se
-       mettre à osciller au gré de sa propre animation. */
+    /* A wrapper's rectangle is always the resting one: the parting tips a
+       layer inside it and does not move it. Nothing to deduct, then, and
+       above all nothing that could start oscillating to the rhythm of its
+       own animation. */
     const r = rectOf(wrap);
     const left = r.left,
       right = r.right - GAP_X;
     const o = overRef.current;
 
-    /* Le milieu du boîtier est une charnière, et une charnière franche
-       claque. À son aplomb, le moindre tremblement de la main renvoyait
-       le repère d'un bord à l'autre — deux fentes distantes de cent
-       pixels, désignées l'une après l'autre par un curseur qui n'a pas
-       bougé d'un cheveu, et les voisins qui s'écartaient dans un sens
-       puis dans l'autre à chaque aller.
+    /* The middle of the case is a hinge, and a clean hinge slams. Right
+       above it, the slightest tremor of the hand sent the marker from one
+       edge to the other — two slots a hundred pixels apart, designated one
+       after the other by a cursor that had not moved a hair, and the
+       neighbours parting one way then the other at every trip.
 
-       On ne change donc d'avis qu'en dépassant FRANCHEMENT le milieu, et
-       seulement quand on tenait déjà ce boîtier : la bande morte ne
-       s'applique pas au premier survol, où il n'y a pas d'avis à garder
-       et où le partage en deux moitiés est le bon. */
+       So we only change our mind by passing the middle DECISIVELY, and
+       only when we already held that case: the dead band does not apply
+       to the first hover, where there is no opinion to keep and where the
+       split into two halves is the right one. */
     const HYST = 6;
     const mid = (left + right) / 2;
     const held = o.overId === id ? o.side : null;
@@ -403,7 +399,7 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     overRef.current = { ...ctx, overId: id, side: s };
     light(null);
 
-    // le repère est centré dans l'espace qui s'ouvre entre les deux voisins
+    // the marker is centred in the space that opens between the two neighbours
     placeMark(
       (s === "before" ? left - 5 : right + 5) - MARK_W / 2,
       r.bottom - GAP_Y - BOX_H - (MARK_H - BOX_H) / 2
@@ -412,16 +408,16 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     else setSpread(wrap, neighbour(wrap, 1));
   };
 
-  /* `dragover` tire en continu tant que la souris bouge, et même immobile. */
+  /* `dragover` fires continuously while the mouse moves, and even still. */
   const onBoxOver = useCallback((e, ctx) => {
     const drag = dragRef.current;
     if (!drag || hangs(drag)) return;
     e.preventDefault();
     e.stopPropagation();
     const wrap = e.currentTarget;
-    /* Un boîtier DANS une boîte : si ce qu'on tire ne peut pas y entrer,
-       on ne vise pas la fente qu'on a sous les yeux — on remonte à la
-       boîte et on vise à côté d'elle, au niveau de la rangée. */
+    /* A case INSIDE a box: if what one is dragging cannot go in, we do not
+       aim at the slot before our eyes — we go up to the box and aim beside
+       it, at the row's level. */
     if (ctx.catId && !goesInside(drag)) {
       const box = wrap.parentElement?.closest("[data-shelf-item]");
       if (box) aimBeside(box, e.clientX, { kind: ctx.kind, rowId: ctx.rowId, catId: null });
@@ -430,14 +426,14 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     aimBeside(wrap, e.clientX, ctx);
   }, []);
 
-  /* Le corps d'une catégorie : on entre DANS la boîte, à la suite. */
+  /* A category's body: one goes INTO the box, at the end. */
   const onCatOver = useCallback((e, ctx) => {
     const drag = dragRef.current;
     if (!drag || hangs(drag)) return;
     e.preventDefault();
     e.stopPropagation();
     const wrap = e.currentTarget;
-    // une boîte ne se range pas dans une boîte : elle se range à côté
+    // a box is not filed inside a box: it is filed beside it
     if (!goesInside(drag)) {
       aimBeside(wrap, e.clientX, { kind: ctx.kind, rowId: ctx.rowId, catId: null });
       return;
@@ -446,16 +442,16 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     if (o.catId === ctx.catId && !o.overId) return;
     overRef.current = { ...ctx, overId: null, side: null };
     clearSpread();
-    /* C'est le CARTON qui s'éclaire, pas l'enveloppe : celle-ci n'est
-       qu'une zone, elle n'a ni papier ni bord à teinter. */
+    /* It is the CARDSTOCK that lights up, not the wrapper: the latter is
+       only a zone, it has neither paper nor edge to tint. */
     const card = wrap.querySelector("[data-cat-card]");
     light(card, "catOver");
     const r = rectOf(card || wrap);
-    // le pied des boîtiers d'une boîte est à un écart au-dessus de son bas
+    // the foot of a box's cases is one gap above its bottom
     placeMark(r.right - 5 - MARK_W / 2, r.bottom - GAP_Y - BOX_H - (MARK_H - BOX_H) / 2);
   }, []);
 
-  /* Le vide d'une rangée : à la suite de ce qui s'y trouve déjà. */
+  /* A row's emptiness: at the end of what is already there. */
   const onRowOver = useCallback((e, ctx) => {
     if (!dragRef.current || hangs(dragRef.current)) return;
     e.preventDefault();
@@ -468,18 +464,18 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     const strip = e.currentTarget;
     const last = tailOf(strip);
     const r = rectOf(strip);
-    /* `content-visibility` peut avoir sauté la mise en page du dernier
-       boîtier ; un rectangle vide n'apprendrait rien, on se rabat alors
-       sur le bord de la rangée. */
+    /* `content-visibility` may have skipped the last case's layout; an
+       empty rectangle would teach nothing, so we fall back on the row's
+       edge. */
     const lr = last && rectOf(last);
-    // les rectangles d'enveloppe portent l'écart : on le retire pour viser la tranche
+    // wrapper rectangles carry the gap: we take it off to aim at the edge
     const x = lr && lr.width ? lr.right - GAP_X + 5 : r.left + GAP_Y;
     const y = (lr && lr.height ? lr.bottom : r.bottom) - GAP_Y - BOX_H - (MARK_H - BOX_H) / 2;
     placeMark(x - MARK_W / 2, y);
   }, []);
 
-  /* La couture entre deux rangées : y lâcher quelque chose ouvre une
-     rangée neuve. Le repère se couche pour le dire. */
+  /* The seam between two rows: letting something go there opens a new
+     row. The marker lies down to say so. */
   const onSeamOver = useCallback((e, kind, afterRowId) => {
     if (!dragRef.current || hangs(dragRef.current)) return;
     e.preventDefault();
@@ -494,55 +490,54 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
 
   const onShelfOver = useCallback(() => {}, []); // le repère suffit à dire où l'on va
 
-  /* Déposer.
+  /* Dropping.
 
-     Il n'y a plus de numéros à distribuer ni de rayon à renuméroter : la
-     place d'un boîtier est sa position dans un tableau, et l'écriture ne
-     touche qu'un document — celui de la vue. Ce que le film garde en
-     propre, ce sont ses drapeaux : ils disent SUR QUEL rayon il est, et
-     ils valent pour toutes les vues à la fois. */
+     There are no numbers to hand out any more, nor a shelf to renumber:
+     a case's place is its position in an array, and the write touches
+     only one document — the view's. What the film keeps of its own are
+     its flags: they say WHICH shelf it is on, and they hold for every
+     view at once. */
   const drop = (kind, e, onWall = false) => {
     const drag = dragRef.current;
     if (!drag || !view) return reset();
 
-    /* Un objet mural ne se dépose pas dans une rangée. Le `drop` d'une
-       rangée le voit passer d'abord — il est plus profond dans l'arbre —
-       et doit le LAISSER MONTER : sans ce retour, un cadre lâché juste
-       au-dessus d'un boîtier se rangerait entre deux tranches. On ne
-       réinitialise donc rien ici, le glissement n'est pas fini. */
+    /* A wall object is not dropped into a row. A row's `drop` sees it go
+       past first — it is deeper in the tree — and must LET IT RISE:
+       without this return, a frame let go just above a case would be filed
+       between two edges. So we reset nothing here, the drag is not
+       over. */
     if (hangs(drag)) {
       if (!onWall) return;
-      /* On mesure LA COUCHE DU MUR, jamais le cadre du rayon : c'est
-         elle qui sert de repère aux pourcentages une fois l'objet posé.
-         Mesurer le cadre revenait à compter dans une boîte plus grande
-         de ses dix pixels de marge, et tout ce qu'on posait se retrouvait
-         décalé vers le haut et la gauche. */
+      /* We measure THE WALL LAYER, never the shelf's frame: it is the
+         wall layer that the percentages refer to once the object is laid.
+         Measuring the frame amounted to counting in a box larger by its
+         ten pixels of margin, and everything one laid ended up shifted up
+         and to the left. */
       const layer = e.currentTarget.querySelector("[data-wall-layer]");
       const r = (layer || e.currentTarget).getBoundingClientRect();
-      /* Et on rend l'objet à l'endroit où on le VOYAIT : le curseur ne
-         le tient pas par son centre mais par l'endroit où on l'a pris. */
+      /* And we give the object back where one SAW it: the cursor does not
+         hold it by its centre but by the place one picked it up. */
       const { dx = 0, dy = 0 } = drag.grab || {};
 
-      /* ON NE BORNE PLUS QU'À LA PAROI.
+      /* WE NOW CLAMP ONLY TO THE WALL.
 
-         L'objet était tenu à sa demi-largeur du bord, pour qu'il rentre
-         entier dans son rayon. C'était une précaution contre un vrai
-         défaut : un objet qui déborde reste saisissable là où il
-         déborde, et il interceptait alors les dépôts destinés au rayon
-         d'en dessous — on visait la collection, on posait dans les films
-         de bedside.
+         The object was held half its width from the edge, so that it
+         would fit whole inside its shelf. That was a precaution against a
+         real defect: an object that overflows stays grabbable where it
+         overflows, and it then intercepted drops meant for the shelf
+         below — one aimed at the collection and dropped into the bedside
+         films.
 
-         Mais la précaution coûtait plus que le défaut. Elle interdisait
-         de punaiser quoi que ce soit près d'un bord : une guirlande dans
-         un angle, un lierre qui pend d'un montant, tout revenait vers le
-         milieu sans qu'on comprenne pourquoi. Or le défaut, lui, se
-         règle à sa source — pendant un glissement, plus AUCUN objet
-         accroché ne reçoit le curseur (voir `tokens.ts`), et il ne peut
-         donc plus voler le dépôt de personne.
+         But the precaution cost more than the defect. It forbade pinning
+         anything near an edge: a garland in a corner, an ivy hanging from
+         an upright, everything came back towards the middle without one
+         understanding why. Now the defect can be settled at its source —
+         during a drag, NO hanging object receives the cursor any more (see
+         `tokens.ts`), and it can therefore no longer steal anybody's drop.
 
-         Reste la seule borne qui décrive quelque chose de réel : le
-         centre de l'objet demeure dans son rayon. Ce qui dépasse dépasse
-         — c'est ce qu'on veut d'un objet accroché à un montant. */
+         What remains is the only clamp that describes something real: the
+         object's centre stays within its shelf. What sticks out sticks
+         out — that is what one wants of an object hooked to an upright. */
       const pct = (v, span) => (Math.min(Math.max(v, 0), span) / span) * 100;
       const next = pinToWall(view, kind, drag.create ? { create: drag.create } : { id: drag.id }, {
         x: pct(e.clientX - dx - r.left, r.width),
@@ -560,9 +555,9 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     } else if (o.kind === kind && o.rowId) {
       target = { kind, rowId: o.rowId, catId: o.catId, overId: o.overId, side: o.side };
     } else {
-      /* Lâché sur le fond d'un rayon, sur la languette du tiroir, ou sur
-         un repère resté d'ailleurs : on ne sait pas OÙ, seulement sur
-         quel rayon. La rangée d'arrivée est faite pour ça. */
+      /* Let go on a shelf's back, on the drawer's tab, or on a marker left
+         over from elsewhere: we do not know WHERE, only on which shelf.
+         The arrivals row is made for that. */
       const rows = view.shelves[kind].rows;
       target = { kind, rowId: rows[rows.length - 1].id };
     }
@@ -573,42 +568,41 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     reset();
   };
 
-  /* `drop` lit la vue et la collection : elle est donc forcément refaite à
-     chaque rendu, et c'est très bien — elle ne sert qu'une fois, au lâcher.
+  /* `drop` reads the view and the collection: so it is necessarily
+     rebuilt at every render, and that is quite all right — it serves only
+     once, at the release.
 
-     Ce qui ne va pas, c'est de la faire voyager telle quelle. Le paquet
-     `dnd` descend en prop jusqu'aux RANGÉES ; une seule fonction neuve
-     dedans, et le paquet entier est neuf, si bien que le `React.memo` de
-     chaque rangée voit des props différentes et refait son travail — pour
-     une fonction qu'on n'a même pas appelée.
+     What is wrong is making it travel as it is. The `dnd` bundle goes down
+     as a prop as far as the ROWS; a single new function inside it and the
+     whole bundle is new, so that each row's `React.memo` sees different
+     props and does its work again — for a function we did not even call.
 
-     Les boîtiers, eux, y échappent : ils reçoivent les gestionnaires un par
-     un, et ceux-là sont déjà stables. La perte se limite donc aux rangées.
-     Elle vaut quand même d'être colmatée, parce qu'une rangée refaite
-     remplace ses enveloppes — et que les mesures retenues plus haut
-     désignaient précisément ces enveloppes-là. Le seul rendu qu'un
-     glissement déclenche (la languette du tiroir qui s'ouvre) suffirait
-     alors à jeter le cache au milieu du geste.
+     The cases escape it: they receive the handlers one by one, and those
+     are already stable. The loss is therefore limited to the rows. It is
+     still worth plugging, because a rebuilt row replaces its wrappers —
+     and the measurements kept above designated precisely those wrappers.
+     The only render a drag triggers (the drawer's tab opening) would then
+     be enough to throw the cache away in the middle of the gesture.
 
-     On range donc la fonction du jour derrière une poignée qui, elle, ne
-     change jamais. Le paquet devient constant pour toute la vie du
-     composant, et la promesse tient.
+     So we file the day's function behind a handle which, for its part,
+     never changes. The bundle becomes constant for the component's whole
+     life, and the promise holds.
 
-     Le rangement se fait après coup plutôt qu'en plein rendu : un rendu
-     doit pouvoir être joué deux fois sans rien laisser derrière lui. Le
-     décalage est sans conséquence ici — la poignée n'est tirée qu'au
-     lâcher, longtemps après que l'écran s'est posé. */
+     The filing is done afterwards rather than in mid-render: a render must
+     be playable twice without leaving anything behind it. The lag is
+     inconsequential here — the handle is only pulled at the release, long
+     after the screen has settled. */
   const dropRef = useRef(drop);
   useEffect(() => {
     dropRef.current = drop;
   });
-  /* La poignée passe TOUT ce qu'elle reçoit. Elle ne transmettait que le
-     rayon, et les deux arguments suivants tombaient en route : le dépôt
-     dans une rangée s'en accommodait, puisqu'il lit sa cible dans
-     `overRef` — mais le mur, lui, n'a que l'événement pour savoir où on
-     a lâché, et le drapeau pour savoir qu'on visait le fond du rayon et
-     non une fente entre deux tranches. Sans eux, `onWall` retombait sur
-     son défaut et rien ne s'accrochait plus nulle part. */
+  /* The handle passes on EVERYTHING it receives. It only forwarded the
+     shelf, and the two following arguments fell by the wayside: dropping
+     into a row put up with it, since it reads its target in `overRef` —
+     but the wall has only the event to know where one let go, and the flag
+     to know that one was aiming at the shelf's back and not a slot between
+     two edges. Without them, `onWall` fell back on its default and nothing
+     hung anywhere any more. */
   const onDrop = useCallback((...args) => dropRef.current(...args), []);
 
   const dnd = useMemo(
@@ -625,17 +619,16 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     [onDragStart, reset, onShelfOver, onBoxOver, onCatOver, onRowOver, onSeamOver, onDrop]
   );
 
-  /* Nommer un carton se fait SUR le carton, sans ouvrir de panneau :
-     c'est une écriture directe, comme l'onglet d'une catégorie.
+  /* Naming a card is done ON the card, without opening a panel: it is a
+     direct write, like a category's tab.
 
-     Elle est retenue, et ce n'est pas du confort. Elle descend jusqu'aux
-     RANGÉES, dont le `React.memo` est tout ce qui les empêche de se
-     refaire au milieu d'un geste — et une flèche réécrite à chaque rendu
-     est une prop qui change à chaque rendu. Le seul `setState` qu'un
-     glissement déclenche (le tiroir qui s'ouvre) suffisait alors à
-     refaire toutes les rangées, donc à remplacer les enveloppes que les
-     mesures du glissement désignaient. C'est le défaut que garde
-     `ShelfBoard.test.jsx`. */
+     It is memoised, and that is not for comfort. It goes down as far as
+     the ROWS, whose `React.memo` is all that stops them being rebuilt in
+     the middle of a gesture — and an arrow rewritten at every render is a
+     prop that changes at every render. The only `setState` a drag
+     triggers (the drawer opening) was then enough to rebuild every row,
+     hence to replace the wrappers the drag's measurements designated.
+     That is the defect `ShelfBoard.test.jsx` guards. */
   const onDecorLabel = useCallback((id, label) => acts.setDecor(id, { label }), [acts]);
 
   const countOf = (kind) => films.filter(belongs[kind]).length;
@@ -650,8 +643,8 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     acts,
     films: filmsById,
     theme,
-    /* Le décor du mur, ou rien. Il est le même pour les deux rayons : ce
-       qu'on peint, c'est la pièce, pas une planche. */
+    /* The wall's decor, or nothing. It is the same for both shelves: what
+       one paints is the room, not a board. */
     wallDecor: wallDecorOf(view),
     plankDecor: plankDecorOf(view),
     dim,
@@ -662,31 +655,31 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
   };
 
   return (
-    /* `--mark-ink` : l'encre du repère vient du thème de la vue, par
-       variable CSS. Un changement de thème n'a ainsi rien à demander à
-       React au milieu d'un glissement. */
+    /* `--mark-ink`: the marker's ink comes from the view's theme, through
+       a CSS variable. A change of theme thus has nothing to ask of React
+       in the middle of a drag. */
     <div
       onDragEnd={reset}
       style={{
         "--mark-ink": theme.accent,
-        /* PAS DE ROGNAGE ICI.
+        /* NO CLIPPING HERE.
 
-           Ce bloc contient le tiroir et la fiche d'un boîtier, qui sont
-           `position: fixed`. Un `overflow` autre que `visible` en ferait
-           une boîte de rognage : les deux resteraient accrochés à la
-           fenêtre mais ne se verraient qu'à travers un cadre qui, lui,
-           défile — un tiroir qu'il faut aller chercher en bas de page,
-           une fiche qui ne paraît pas du tout. Le débordement des décors
-           est rogné un cran plus bas, sur chaque rayon (`Shelf`), et la
-           fenêtre s'occupe du reste (`index.css`). */
+           This block contains a case's drawer and card, which are
+           `position: fixed`. An `overflow` other than `visible` would make
+           it a clipping box: the two would stay hooked to the window but
+           would only be seen through a frame which, for its part, scrolls
+           — a drawer one has to go and find at the bottom of the page, a
+           card that does not appear at all. The decors' overflow is
+           clipped one notch lower, on each shelf (`Shelf`), and the window
+           takes care of the rest (`index.css`). */
       }}
     >
-      {/* le repère de dépôt : un seul, déplacé à la main pendant le glissement */}
+      {/* the drop marker: a single one, moved by hand during the drag */}
       <DropMark ref={markRef} />
-      {/* « Films de chevet », c'est ceux qu'on revoit : le rayon n'a pas
-          lieu d'être sur le mur des films à voir, où il ne s'ouvrait que
-          pour rester vide. `belongs` range déjà là-bas les fiches
-          drapeautées, elles ne se perdent donc pas. */}
+      {/* "Bedside films" are the ones one rewatches: the shelf has no
+          reason to be on the wall of films to watch, where it only opened
+          to stay empty. `belongs` already files the flagged cards over
+          there, so they are not lost. */}
       {view.wall !== "watchlist" && (
         <Shelf
           kind="bedside"
@@ -738,23 +731,22 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
           title="OBJET"
           color={decor.color}
           size={decor.size}
-          /* Le champ n'apparaît que pour les motifs qui écrivent : passer
-             `onLabel` à une punaise lui donnerait un nom que rien ne
-             montrerait jamais. */
+          /* The field only appears for the patterns that write: passing
+             `onLabel` to a pin would give it a name nothing would ever
+             show. */
           {...(decorSpec(decor.motif)?.writes
             ? { label: decor.label, onLabel: (v) => acts.setDecor(decor.id, { label: v }) }
             : null)}
           removeLabel="retirer l'objet"
-          /* L'orientation. `seededRot` donne l'angle que l'objet porte
-             tant que personne ne l'a réglé : sans lui, le panneau
-             annoncerait zéro sous un objet visiblement de travers. */
+          /* The orientation. `seededRot` gives the angle the object
+             carries as long as nobody has set it: without it, the panel
+             would announce zero under an object visibly askew. */
           rot={decor.rot}
           seededRot={angleOf({ id: decor.id }, decorSpec(decor.motif)?.tall)}
           onRot={(deg) => acts.setDecor(decor.id, { rot: deg })}
-          /* Un motif importé qu'on ne sait pas teinter — un PNG, un SVG
-             sans trait nommé — n'a pas de couleur à choisir : la lui
-             proposer quand même serait offrir une rangée de boutons
-             morts. */
+          /* An imported pattern we cannot tint — a PNG, an SVG with no
+             named line — has no colour to choose: offering it one anyway
+             would be offering a row of dead buttons. */
           onColor={noTint(decor.motif) ? undefined : (k) => acts.setDecor(decor.id, { color: k })}
           onSize={(v) => acts.setDecor(decor.id, { size: v })}
           onRemove={() => {
@@ -775,8 +767,8 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
   );
 }
 
-/* Retrouver un meuble dans la vue — le panneau d'édition n'en connaît
-   que l'identifiant. */
+/* Finding a piece of furniture in the view — the editing panel knows only
+   its identifier. */
 const shelfKindOfRow = (view, rowId) =>
   SHELF_KINDS.find((k) => view.shelves[k].rows.some((r) => r.id === rowId)) || "main";
 
@@ -801,8 +793,9 @@ const findDecorIn = (view, id) => {
   return null;
 };
 
-/* LE CHOIX DE LA VUE — une étagère peut être rangée de plusieurs façons.
+/* CHOOSING THE VIEW — a shelf can be filed in several ways.
 
-   Les films sont les mêmes ; ce qui change, c'est la mise en scène :
-   l'ordre, les catégories, la largeur des lignes, les objets posés et le
-   bois des planches. On passe de l'une à l'autre sans rien déplacer. */
+   The films are the same; what changes is the staging: the order, the
+   categories, the width of the lines, the objects laid down and the wood
+   of the boards. One goes from one to the other without moving
+   anything. */

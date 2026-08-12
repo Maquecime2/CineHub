@@ -23,7 +23,7 @@ const field = (value, max) => {
 describe("PerRowField — auto, ou un nombre qu'on écrit", () => {
   it("laisse écrire n'importe quel compte, pas seulement ceux d'une liste", () => {
     const { onChange } = field(6);
-    // 7 et 20 n'existaient dans aucun des sept boutons d'avant
+    // 7 and 20 existed in none of the seven buttons of before
     expect(screen.getByLabelText(TITLE)).toHaveValue(6);
     expect(onChange).not.toHaveBeenCalled();
   });
@@ -32,7 +32,7 @@ describe("PerRowField — auto, ou un nombre qu'on écrit", () => {
     const { onChange, user, input } = field(6);
     await user.clear(input());
     await user.type(input(), "12");
-    // sans cette retenue, le rayon se replierait a 1 puis a 12 sous les doigts
+    // without this hold-back, the shelf would fold to 1 then to 12 under one's fingers
     expect(onChange).not.toHaveBeenCalled();
     await user.keyboard("{Enter}");
     expect(onChange).toHaveBeenCalledExactlyOnceWith(12);
@@ -66,7 +66,7 @@ describe("PerRowField — auto, ou un nombre qu'on écrit", () => {
     const { onChange, user, input } = field(1, 2);
     await user.clear(input());
     await user.type(input(), "10{Enter}");
-    // le tiroir ne tient que deux boîtiers : on corrige la main, on ne la repousse pas
+    // the drawer only holds two cases: we correct the hand, we do not push it away
     expect(onChange).toHaveBeenCalledExactlyOnceWith(2);
     expect(input()).toHaveValue(2);
   });
@@ -75,7 +75,7 @@ describe("PerRowField — auto, ou un nombre qu'on écrit", () => {
     const { onChange, user, input } = field(2, 2);
     await user.clear(input());
     await user.type(input(), "10{Enter}");
-    // ramené à 2, qui est déjà le réglage : pas d'écriture pour rien
+    // brought back to 2, which is already the setting: no write for nothing
     expect(onChange).not.toHaveBeenCalled();
     expect(input()).toHaveValue(2);
   });
@@ -115,16 +115,16 @@ describe("PerRowField — auto, ou un nombre qu'on écrit", () => {
   });
 });
 
-/* Le cabinet choisissait entre un pictogramme et un dessin, et supposait
-   que tout motif avait l'un ou l'autre. L'intercalaire n'a ni l'un ni
-   l'autre — il est fait de papier et de bordures — d'où un `<undefined />`
-   et un panneau qui ne s'ouvrait plus du tout.
+/* The cabinet chose between a pictogram and a drawing, and assumed every
+   pattern had one or the other. The divider has neither — it is made of
+   paper and borders — hence an `<undefined />` and a panel that no longer
+   opened at all.
 
-   Le vrai défaut n'était pas la vignette manquante mais l'absence de ce
-   test : rien ne rendait le cabinet, donc rien ne remarquait qu'un motif
-   n'y était pas montrable. On les parcourt donc tous, et un motif ajouté
-   demain sans de quoi se dessiner fera tomber ce test plutôt que la
-   page. */
+   The real defect was not the missing thumbnail but the absence of this
+   test: nothing rendered the cabinet, so nothing noticed that a pattern
+   was not showable in it. So we walk through them all, and a pattern added
+   tomorrow with nothing to draw itself with will bring this test down
+   rather than the page. */
 describe("DecorCabinet", () => {
   const open = () =>
     render(
@@ -147,7 +147,7 @@ describe("DecorCabinet", () => {
     render(
       <DecorCabinet kind="main" onDragStart={onDragStart} onDragEnd={vi.fn()} onClose={vi.fn()} />
     );
-    // le glissement natif ne se simule pas ; l'événement, si
+    // the native drag cannot be simulated; the event can
     screen.getByTitle("Intercalaire").dispatchEvent(
       Object.assign(new Event("dragstart", { bubbles: true }), {
         dataTransfer: { effectAllowed: "" },
@@ -187,16 +187,17 @@ describe("ItemPalette — les couleurs offertes", () => {
     for (const fam of CAT_FAMILIES) expect(screen.getByText(fam.label.toUpperCase())).toBeTruthy();
   });
 
-  /* Ce qui remonte est la CLÉ, jamais l'hexadécimal : c'est l'invariant
-     qui permet de retoucher une teinte sans figer ce qui la porte. */
+  /* What comes back up is the KEY, never the hexadecimal: it is the
+     invariant that allows a tint to be reworked without freezing what
+     carries it. */
   it("rend la clé de la teinte choisie", async () => {
     const { onColor, user } = open();
     await user.click(screen.getByTitle("canard"));
     expect(onColor).toHaveBeenCalledWith("canard");
   });
 
-  /* Un objet importé qu'on ne sait pas teinter n'a pas de couleur : la
-     grille disparaît au lieu de promettre un réglage sans effet. */
+  /* An imported object we cannot tint has no colour: the grid disappears
+     instead of promising a setting with no effect. */
   it("ne montre aucune pastille sans onColor", () => {
     open({ onColor: undefined });
     expect(screen.queryByTitle("burgundy")).toBeNull();

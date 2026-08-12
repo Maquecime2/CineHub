@@ -14,8 +14,8 @@ const angleRendu = (el) => {
 };
 
 describe("l'orientation d'un objet", () => {
-  /* Le guingois semé est ce qui fait qu'une étagère ressemble à une
-     étagère : tant que personne n'a rien réglé, il doit rester intact. */
+  /* The sown lopsidedness is what makes a shelf look like a shelf: as long
+     as nobody has set anything, it must stay intact. */
   it("garde le guingois de son identifiant tant qu'on n'y touche pas", () => {
     const d = makeDecor({ motif: "plant" });
     expect(angleOf(d)).toBe(tiltOf(d.id));
@@ -27,8 +27,8 @@ describe("l'orientation d'un objet", () => {
     expect(angleOf({ ...d, rot: 37 })).toBe(37);
   });
 
-  /* Zéro est la réponse la plus demandée — « remets-le droit » — et
-     serait avalée par un `||`. */
+  /* Zero is the most requested answer — "put it back straight" — and would
+     be swallowed by a `||`. */
   it("sait qu'un objet peut être voulu d'aplomb", () => {
     const d = makeDecor({ motif: "plant" });
     expect(angleOf({ ...d, rot: 0 })).toBe(0);
@@ -51,17 +51,17 @@ describe("l'orientation d'un objet", () => {
     expect(angleRendu(container.querySelector("[data-wall-item] > div"))).toBe(90);
   });
 
-  /* Les objets accrochés cessent de recevoir le curseur le temps d'un
-     geste, pour ne pas voler les dépôts du rayon qu'ils débordent. Mais
-     un glissement dont la SOURCE cesse d'être testable est annulé net :
-     l'objet qu'on tient doit s'exclure de la règle, sans quoi on ne peut
-     plus reprendre un objet volant une fois posé. */
+  /* Hanging objects stop receiving the cursor for the length of a gesture,
+     so as not to steal the drops of the shelf they overflow. But a drag
+     whose SOURCE stops being hit-testable is cancelled outright: the object
+     one is holding must exclude itself from the rule, without which a
+     flying object cannot be picked up again once laid. */
   it("se marque comme celui qu'on tient, le temps du geste", () => {
     const { container } = render(<WallItem item={makeWallDecor({ motif: "frame" })} {...dnd} />);
     const el = container.querySelector("[data-wall-item]");
     expect(el.dataset.dragSelf).toBeUndefined();
 
-    // jsdom n'attache pas de presse-papiers de glissement : on le fournit
+    // jsdom attaches no drag clipboard: we supply one
     fireEvent.dragStart(el, { dataTransfer: { effectAllowed: "" } });
     expect(el.dataset.dragSelf).toBe("1");
 
@@ -69,8 +69,8 @@ describe("l'orientation d'un objet", () => {
     expect(el.dataset.dragSelf).toBeUndefined();
   });
 
-  /* La prise faisait la taille du dessin debout : un objet couché se
-     voyait sur toute sa longueur mais ne s'attrapait qu'au milieu. */
+  /* The grip was the size of the drawing upright: an object lying down was
+     seen along its whole length but could only be caught in the middle. */
   it("donne à la prise d'un objet accroché la taille qu'il occupe vraiment", () => {
     const prise = (rot) => {
       const { container } = render(
@@ -89,10 +89,10 @@ describe("l'orientation d'un objet", () => {
   });
 });
 
-/* Une rotation CSS ne déplace rien : l'objet couché traversait les
-   boîtiers voisins sans jamais leur demander la place. L'enveloppe — qui
-   est aussi la cible de dépôt — réclame donc la largeur du cadre
-   englobant, et ce qu'on voit redevient ce qui prend la place. */
+/* A CSS rotation moves nothing: the object lying down crossed the
+   neighbouring cases without ever asking them for room. So the wrapper —
+   which is also the drop target — claims the bounding box's width, and what
+   one sees becomes again what takes up the room. */
 describe("la place que prend un objet tourné", () => {
   const largeur = (over) => {
     const item = { ...makeDecor({ motif: "plant" }), ...over };
@@ -104,8 +104,8 @@ describe("la place que prend un objet tourné", () => {
     expect(largeur({ rot: 45 })).toBeGreaterThan(largeur({ rot: 0 }));
   });
 
-  /* Un carré couché d'un quart de tour retombe sur lui-même : c'est le
-     même cadre englobant, et donc la même place. */
+  /* A square laid down by a quarter turn falls back on itself: it is the
+     same bounding box, and therefore the same room. */
   it("rend sa place au carré remis d'équerre", () => {
     expect(largeur({ rot: 90 })).toBe(largeur({ rot: 0 }));
   });
@@ -118,10 +118,9 @@ describe("la place que prend un objet tourné", () => {
     expect(largeur({ rot: 45 })).toBeGreaterThan(largeur({ rot: 90 }));
   });
 
-  /* L'écart au voisin appartient tout entier à la DROITE : c'est un
-     `marginRight` qu'on a déménagé dans l'enveloppe. Centrer le carton
-     dedans le coupait en deux et ouvrait à gauche un trou que rien ne
-     tenait. */
+  /* The gap to the neighbour belongs entirely to the RIGHT: it is a
+     `marginRight` that was moved into the wrapper. Centring the card inside
+     it cut it in two and opened a hole on the left that nothing held. */
   it("ne laisse rien traîner à gauche du carton", () => {
     const item = { ...makeDecor({ motif: "divider" }), rot: 2 };
     const { container } = render(<DecorItem item={item} ctx={{}} onLabel={noop} {...dnd} />);
@@ -131,21 +130,21 @@ describe("la place que prend un objet tourné", () => {
     const w = Number.parseInt(carton.style.width, 10);
     const h = Number.parseInt(carton.style.height, 10);
     const cadre = rotatedBox(w, h, 2);
-    // le carton est calé à gauche, pas centré
+    // the card is aligned left, not centred
     expect(dx).toBe(cadre.dx);
-    // et tout l'écart au voisin reste à droite
+    // and the whole gap to the neighbour stays on the right
     expect(Number.parseInt(env.style.width, 10) - cadre.width).toBe(GAP_X);
   });
 
-  /* Le carton pivote sur son PIED : le cadre englobant part du côté vers
-     lequel la tête penche, et l'enveloppe qui le centrait sagement le
-     laissait sortir en haut, sur le boîtier d'à côté. */
+  /* The card pivots on its FOOT: the bounding box starts from the side the
+     head leans towards, and the wrapper that dutifully centred it let it
+     come out at the top, over the case next door. */
   it("réserve la place là où la tête penche, et pas ailleurs", () => {
     const item = { ...makeDecor({ motif: "divider" }), rot: 30 };
     const { container } = render(<DecorItem item={item} ctx={{}} onLabel={noop} {...dnd} />);
     const carton = container.querySelector("[draggable]");
     const [, dx] = carton.style.transform.match(/translate\((-?\d+)px, (-?\d+)px\)/) || [];
-    // penchée à droite, la tête déporte le cadre : le carton recule vers la gauche
+    // leaning right, the head shifts the box: the card backs off to the left
     expect(Number(dx)).toBeLessThan(0);
   });
 
@@ -154,7 +153,7 @@ describe("la place que prend un objet tourné", () => {
     const { container } = render(<DecorItem item={item} ctx={{}} onLabel={noop} {...dnd} />);
     const el = container.querySelector("[draggable]");
     const dy = Number(el.style.transform.match(/translate\(-?\d+px, (-?\d+)px\)/)?.[1]);
-    // sans ce relèvement, le coin bas passait sous le bois
+    // without this lift, the bottom corner passed under the wood
     expect(dy).toBeLessThan(0);
   });
 
@@ -164,7 +163,7 @@ describe("la place que prend un objet tourné", () => {
       const { container } = render(<DecorItem item={item} ctx={{}} onLabel={noop} {...dnd} />);
       return Number.parseInt(container.querySelector("[data-shelf-item]").style.width, 10);
     };
-    // couché, il réclame sa hauteur de boîtier au lieu de ses trente pixels
+    // lying down, it claims its case height instead of its thirty pixels
     expect(carton(90)).toBeGreaterThan(carton(0) * 3);
   });
 });
@@ -176,15 +175,15 @@ describe("l'intercalaire, repris pour qu'on le voie", () => {
     return container.querySelector("[draggable]");
   };
 
-  /* Le corps portait le kraft commun aux boîtiers : entre douze tranches
-     du même papier, ce qui sépare avait la couleur de ce qu'il sépare. */
+  /* The body carried the kraft common to the cases: among twelve edges of
+     the same paper, what separates had the colour of what it separates. */
   it("porte sa propre encre et non le papier des boîtiers", () => {
     const el = carton();
-    /* Le lavis est un `backgroundImage` et non plus un `background`
-       composite : le carton a pris un fond opaque dessous pour que le mur
-       ne le traverse plus, et les deux ne tiennent pas dans la même
-       propriété. C'est le lavis qu'on interroge — le fond, lui, doit
-       justement être neutre. */
+    /* The wash is a `backgroundImage` and no longer a composite
+       `background`: the card took an opaque backdrop underneath so that the
+       wall no longer shows through it, and the two do not fit in the same
+       property. It is the wash we are asking about — the backdrop, for its
+       part, must precisely be neutral. */
     expect(el.style.backgroundImage).toContain("140, 58, 52");
     expect(el.style.backgroundImage).not.toContain("216, 198, 156");
   });

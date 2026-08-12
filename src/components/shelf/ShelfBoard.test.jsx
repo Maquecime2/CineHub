@@ -1,22 +1,22 @@
-/* Ce que ces tests gardent, ce n'est pas un affichage : c'est le COÛT d'un
-   glissement.
+/* What these tests guard is not a display: it is the COST of a drag.
 
-   `dragover` tire en continu tant qu'on tient quelque chose, souris immobile
-   comprise. Tout ce que le survol s'autorise à faire est donc payé soixante
-   fois par seconde, sans interruption, pendant tout le geste — et l'étagère a
-   déjà tué un onglet pour l'avoir oublié. Les deux mesures ci-dessous sont
-   celles qui l'avaient tué : les rectangles relus, et les boîtiers refaits.
+   `dragover` fires continuously while one holds something, motionless
+   mouse included. Everything the hover allows itself to do is therefore
+   paid for sixty times a second, without interruption, for the whole
+   gesture — and the shelf has already killed a tab for having forgotten
+   it. The two measurements below are the ones that had killed it: the
+   rectangles read again, and the cases rebuilt.
 
-   On compte donc des appels plutôt que d'inspecter du HTML. C'est inhabituel,
-   mais c'est la seule chose que le rendu ne dit pas et que l'utilisateur, lui,
-   sentait tout de suite. */
+   So we count calls rather than inspecting HTML. That is unusual, but it
+   is the only thing the render does not say and that the user, for their
+   part, felt immediately. */
 import React from "react";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, cleanup, act } from "@testing-library/react";
 
-/* `hueOf` est appelée dans le corps de `FilmBox`, une fois par rendu et par
-   boîtier : la compter, c'est compter les rendus de boîtiers sans avoir à
-   instrumenter React. */
+/* `hueOf` is called in `FilmBox`'s body, once per render and per case:
+   counting it means counting case renders without having to instrument
+   React. */
 const hueCalls = { n: 0 };
 vi.mock("../../theme/ink", async () => {
   const real = await vi.importActual("../../theme/ink");
@@ -29,10 +29,10 @@ vi.mock("../../theme/ink", async () => {
   };
 });
 
-/* `isUnplaced` est appelée dans le corps de `ShelfRow` : elle compte les
-   rendus de RANGÉES, la couche que l'identité de `dnd` atteint réellement.
-   Les boîtiers, eux, reçoivent les gestionnaires un par un — déjà stables —
-   et sont protégés quoi qu'il arrive au paquet. */
+/* `isUnplaced` is called in `ShelfRow`'s body: it counts ROW renders, the
+   layer `dnd`'s identity actually reaches. The cases, for their part,
+   receive the handlers one by one — already stable — and are protected
+   whatever happens to the bundle. */
 const rowCalls = { n: 0 };
 vi.mock("../../shelf-views", async () => {
   const real = await vi.importActual("../../shelf-views");
@@ -59,9 +59,9 @@ const films = Array.from({ length: 40 }, (_, i) => ({
   archived: false,
 }));
 
-/* Un vrai `DragEvent` n'existe pas sous jsdom ; React n'écoute de toute façon
-   que le nom de l'événement et sa cible. Un `Event` qui bouillonne suffit,
-   augmenté des seuls champs que le code lit. */
+/* A real `DragEvent` does not exist under jsdom; React only listens for
+   the event's name and its target anyway. An `Event` that bubbles is
+   enough, augmented with the only fields the code reads. */
 const fire = (node, type, extra = {}) => {
   const e = new Event(type, { bubbles: true, cancelable: true });
   Object.assign(e, {
@@ -90,9 +90,9 @@ const renderBoard = () => {
   };
 };
 
-/* Chaque nœud compte ses propres mesures. jsdom rend des rectangles nuls, ce
-   qui ne gêne pas : on ne vérifie pas OÙ va le repère, seulement combien de
-   fois on a demandé au navigateur de le calculer. */
+/* Every node counts its own measurements. jsdom returns zero rectangles,
+   which does not matter: we are not checking WHERE the marker goes, only
+   how many times we asked the browser to compute it. */
 const countRects = (container) => {
   const seen = new Map();
   container.querySelectorAll("*").forEach((node) => {
@@ -126,9 +126,9 @@ describe("ShelfBoard — le coût d'un glissement", () => {
 
     for (let i = 0; i < 50; i += 1) fire(wrap, "dragover", { clientX: 10 + (i % 3) });
 
-    /* Avant, c'était cinquante — une mise en page complète forcée par survol,
-       contre des enveloppes en `content-visibility: auto` qui venaient
-       justement d'être sautées. */
+    /* Before, it was fifty — a full layout forced by hovering, against
+       wrappers in `content-visibility: auto` that had just been
+       skipped. */
     expect(rects.get(wrap)).toBe(1);
   });
 
@@ -144,7 +144,7 @@ describe("ShelfBoard — le coût d'un glissement", () => {
     fire(wrap.querySelector("[draggable]") || wrap, "dragstart");
     fire(wrap, "dragover", { clientX: 10 });
 
-    // l'étagère a pu être rangée autrement entre les deux : on remesure
+    // the shelf may have been filed differently in between: we measure again
     expect(rects.get(wrap)).toBe(2);
   });
 
@@ -154,8 +154,8 @@ describe("ShelfBoard — le coût d'un glissement", () => {
     const strip = container.querySelector("[data-shelf-row]");
     const rects = countRects(container);
 
-    /* Le fond de rangée se dédoublonne déjà ; on l'oblige à repasser en
-       alternant avec un boîtier, ce qui casse sa mémoire de survol. */
+    /* The row's back already de-duplicates; we force it to come round
+       again by alternating with a case, which breaks its hover memory. */
     for (let i = 0; i < 20; i += 1) {
       fire(strip, "dragover");
       fire(wrap, "dragover", { clientX: 10 });
@@ -172,22 +172,23 @@ describe("ShelfBoard — le coût d'un glissement", () => {
     expect(rowsBefore).toBeGreaterThan(0);
     expect(boxesBefore).toBeGreaterThan(0);
 
-    /* Survoler la languette du tiroir en tenant un boîtier ouvre le tiroir :
-       c'est le seul `setState` qu'un glissement déclenche, et il rend donc
-       tout `ShelfBoard` au beau milieu du geste. Ce rendu ne doit coûter que
-       le tiroir.
+    /* Hovering the drawer's tab while holding a case opens the drawer:
+       it is the only `setState` a drag triggers, and it therefore renders
+       the whole of `ShelfBoard` in the middle of the gesture. That render
+       must cost only the drawer.
 
-       Le paquet `dnd` descend jusqu'aux rangées ; s'il change d'identité à
-       chaque rendu, leur `React.memo` ne retient plus rien et les rangées se
-       refont — avec elles, les enveloppes que les mesures retenues plus haut
-       désignaient. C'est là que les deux correctifs se rejoignent. */
-    /* Le tiroir se rend dans le CORPS du document et non dans le conteneur
-       de rendu : c'est un `Calque`, pour que ses coordonnées d'écran ne
-       dépendent pas de la colonne de vue et de sa transformation. On le
-       cherche donc où il est vraiment. */
+       The `dnd` bundle goes down as far as the rows; if it changes
+       identity at every render, their `React.memo` keeps nothing any more
+       and the rows are rebuilt — and with them, the wrappers the
+       measurements kept above designated. That is where the two fixes
+       meet. */
+    /* The drawer renders into the document's BODY and not into the render
+       container: it is a `Calque`, so that its screen coordinates do not
+       depend on the view column and its transform. So we look for it where
+       it really is. */
     const tab = document.querySelector("[data-drawer-tab]");
     expect(tab).toBeTruthy();
-    // `act` : sans lui le rendu déclenché resterait en attente et le compte mentirait
+    // `act`: without it the triggered render would stay pending and the count would lie
     act(() => {
       fire(tab, "dragover");
     });

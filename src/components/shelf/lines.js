@@ -1,52 +1,51 @@
-/* LES LIGNES DE BOIS D'UNE RANGÉE.
+/* A ROW'S LINES OF WOOD.
 
-   Une rangée n'est pas une bande qui se replie toute seule : c'est une
-   PILE de lignes, et chaque ligne a sa planche. Le repli laissé au
-   navigateur ne savait pas poser de bois sous les lignes du haut — les
-   boîtiers y flottaient, et une boîte un peu remplie grandissait en
-   hauteur sans que rien ne la porte.
+   A row is not a band that wraps by itself: it is a STACK of lines, and
+   every line has its board. Wrapping left to the browser did not know how
+   to lay wood under the upper lines — the cases floated there, and a
+   somewhat full box grew in height with nothing carrying it.
 
-   On découpe donc nous-mêmes, en cases. Une case tient un boîtier. Une
-   boîte n'est plus un objet indivisible qui se replierait à l'intérieur
-   d'elle-même : elle prend les cases qui restent sur la ligne, puis
-   CONTINUE sur la ligne suivante — bois compris. C'est le seul endroit
-   du fichier qui décide où l'on va à la ligne. */
+   So we cut it ourselves, into cells. A cell holds one case. A box is no
+   longer an indivisible object that would wrap inside itself: it takes the
+   cells left on the line, then CONTINUES on the next line — wood included.
+   It is the only place in the file that decides where one goes to the next
+   line. */
 import { useEffect, useState } from "react";
 import { BOX_W, GAP_X } from "./constants";
 import { decorSpanOf } from "./items";
 
-/* La case : un boîtier et son écart au voisin. C'est l'unité de tout ce
-   fichier — la ligne en tient `cap`, et rien d'autre ne mesure ici. */
+/* The cell: a case and its gap to the neighbour. It is this whole file's
+   unit — the line holds `cap` of them, and nothing else measures here. */
 const CASE = BOX_W + GAP_X;
 
-/* CE QU'UN OBJET COÛTE À SA LIGNE.
+/* WHAT AN OBJECT COSTS ITS LINE.
 
-   Un boîtier vaut une case, et c'était la règle pour tout le monde.
-   Elle a tenu tant que les décors faisaient la taille d'un boîtier ;
-   avec les grands calibres, un objet en XXL réclame deux ou trois cases
-   et n'en payait qu'une. La ligne dépassait alors de sa planche, et le
-   débord poussait la PAGE — une barre de défilement horizontale sur
-   toute l'étagère pour un bibelot posé trop gros.
+   A case is worth one cell, and that was the rule for everybody. It held
+   as long as the decors were the size of a case; with the large calibres,
+   an XXL object claims two or three cells and only paid for one. The line
+   then overflowed its board, and the overflow pushed the PAGE — a
+   horizontal scrollbar across the whole shelf for one trinket laid too
+   big.
 
-   Le décor paie donc sa largeur, arrondie à la case supérieure. Ce qui
-   ne rentre plus part à la ligne suivante, qui est ce qu'on veut : une
-   étagère se lit de haut en bas, jamais de gauche à droite. */
+   So the decor pays its width, rounded up to the cell. What no longer fits
+   goes to the next line, which is what one wants: a shelf is read top to
+   bottom, never left to right. */
 const costOf = (it) => (it.t === "d" ? Math.max(1, Math.ceil(decorSpanOf(it) / CASE)) : 1);
 
-/* Ce qu'on tient quand on n'a encore rien mesuré, et ce qu'on tient si
-   le navigateur ne sait pas mesurer. Dix, comme la rangée neuve. */
+/* What we hold when nothing has been measured yet, and what we hold if
+   the browser cannot measure. Ten, like the new row. */
 export const FALLBACK_CAP = 10;
 
-/* Découpe les objets d'une rangée en lignes de `cap` cases.
+/* Cuts a row's objects into lines of `cap` cells.
 
-   Rend un tableau de lignes, chaque ligne étant un tableau de segments :
-   - `{ t:"f"|"d", it, key }` — un objet, une case ;
-   - `{ t:"c", cat, items, first, last, key }` — la TRANCHE d'une boîte
-     qui tient sur cette ligne, avec de quoi savoir si elle porte
-     l'en-tête (`first`) et si elle s'arrête là (`last`).
+   Returns an array of lines, each line being an array of segments:
+   - `{ t:"f"|"d", it, key }` — an object, one cell;
+   - `{ t:"c", cat, items, first, last, key }` — the SLICE of a box that
+     fits on this line, with what is needed to know whether it carries the
+     header (`first`) and whether it stops there (`last`).
 
-   Une rangée vide rend une ligne vide plutôt qu'aucune : elle a quand
-   même une planche et un mot à dire. */
+   An empty row returns an empty line rather than none: it still has a
+   board and a word to say. */
 export function splitRow(items, cap) {
   const n = Math.max(1, Math.floor(cap) || 1);
   const lines = [];
@@ -62,7 +61,7 @@ export function splitRow(items, cap) {
   for (const it of items || []) {
     if (it.t === "c") {
       const total = it.items.length;
-      // une boîte vide occupe quand même sa case : elle porte l'invite
+      // an empty box still takes up its cell: it carries the invitation
       if (total === 0) {
         if (free === 0) turn();
         cur.push({ t: "c", cat: it, items: [], first: true, last: true, key: it.id });
@@ -72,20 +71,19 @@ export function splitRow(items, cap) {
       let at = 0;
       let first = true;
       while (at < total) {
-        /* On n'ouvre pas une tranche dans une place où le premier objet
-           ne tient déjà pas : c'est la même garde qu'au premier niveau,
-           et c'est elle qui envoie le gros décor à la ligne plutôt que de
-           le tasser dans la case qui restait. */
+        /* We do not open a slice in a place where the first object
+           already does not fit: it is the same guard as at the first
+           level, and it is what sends the big decor to the next line
+           rather than cramming it into the cell that was left. */
         if (cur.length && free < costOf(it.items[at])) turn();
-        /* Combien de ce que la boîte tient encore entre dans les cases
-           qui restent. On comptait des OBJETS ; on compte maintenant leur
-           coût, comme au premier niveau — un décor en XXXL rangé dans une
-           boîte gonflait le carton bien au-delà de sa planche, et par lui
-           la page entière.
+        /* How much of what the box still holds fits into the cells that
+           are left. We used to count OBJECTS; we now count their cost, as
+           at the first level — an XXXL decor filed in a box swelled the
+           card well beyond its board, and through it the whole page.
 
-           `taken > 0` : une tranche emporte toujours au moins un objet,
-           même s'il est à lui seul plus large que la ligne. Sans quoi une
-           boîte contenant un objet démesuré ne se découperait jamais. */
+           `taken > 0`: a slice always takes at least one object, even if
+           on its own it is wider than the line. Without that, a box
+           containing an outsized object would never be cut. */
         let taken = 0;
         let used = 0;
         while (at + taken < total) {
@@ -111,10 +109,10 @@ export function splitRow(items, cap) {
       continue;
     }
     const cost = costOf(it);
-    /* `cur.length` avant tout : un objet plus large que la ligne entière
-       la prend telle quelle plutôt que d'ouvrir une ligne vide devant
-       lui — sans quoi un décor en XXXL sur une planche étroite tournerait
-       en rond, chaque nouvelle ligne étant aussi trop petite. */
+    /* `cur.length` above all: an object wider than the whole line takes it
+       as it is rather than opening an empty line in front of it — without
+       which an XXXL decor on a narrow board would go round in circles,
+       every new line being too small as well. */
     if (cur.length && free < cost) turn();
     cur.push({ t: it.t, it, key: it.id });
     free = Math.max(0, free - cost);
@@ -124,20 +122,19 @@ export function splitRow(items, cap) {
   return lines;
 }
 
-/* LE COMPTE EFFECTIF D'UNE RANGÉE.
+/* A ROW'S EFFECTIVE COUNT.
 
-   Un compte réglé à la main est le compte, et on ne mesure rien. En
-   « auto », le compte n'était rien du tout : on laissait le navigateur
-   replier, c'est-à-dire précisément ce qu'on ne veut plus. On mesure
-   donc la rangée pour savoir combien de boîtiers y tiennent, et « auto »
-   redevient un compte comme un autre — celui de la largeur.
+   A count set by hand is the count, and we measure nothing. In "auto",
+   the count was nothing at all: we let the browser wrap, which is
+   precisely what we no longer want. So we measure the row to know how many
+   cases fit in it, and "auto" becomes a count like any other — the width's.
 
-   `pad` est ce que les bandes perdent en marge intérieure ; on le retire
-   avant de diviser, sinon la dernière case déborderait de la planche.
+   `pad` is what the bands lose to inner padding; we take it off before
+   dividing, otherwise the last cell would overflow the board.
 
-   On n'écrit l'état que lorsque le nombre CHANGE : un `ResizeObserver`
-   parle à chaque pixel, et rendre la rangée à chaque pixel ferait de la
-   poignée de fenêtre un rabot. */
+   We only write the state when the number CHANGES: a `ResizeObserver`
+   speaks at every pixel, and rendering the row at every pixel would make
+   the window handle a plane. */
 export function useRowCap(ref, perRow, pad = 20) {
   const [measured, setMeasured] = useState(null);
 
@@ -147,9 +144,9 @@ export function useRowCap(ref, perRow, pad = 20) {
     if (!el || typeof ResizeObserver === "undefined") return undefined;
 
     const read = (w) => {
-      /* Une largeur nulle n'est pas une rangée étroite, c'est une rangée
-         qu'on n'a pas encore mise en page — un rayon replié, un onglet en
-         arrière-plan. La croire donnerait une case par ligne. */
+      /* A width of zero is not a narrow row, it is a row that has not been
+         laid out yet — a folded shelf, a background tab. Believing it would
+         give one cell per line. */
       if (!(w > 0)) return;
       const fit = Math.max(1, Math.floor((w - pad) / (BOX_W + GAP_X)));
       setMeasured((c) => (c === fit ? c : fit));

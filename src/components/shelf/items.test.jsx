@@ -46,8 +46,8 @@ const box = (cat, films = []) => {
 describe("CategoryBox — ce qu'une boîte tient", () => {
   const films = [film("f1"), film("f2"), film("f3")];
 
-  /* La boîte elle-même porte `data-shelf-item` — c'est son enveloppe de
-     dépôt. Ce qu'elle TIENT est donc ce qui se trouve sous son carton. */
+  /* The box itself carries `data-shelf-item` — it is its drop wrapper.
+     What it HOLDS is therefore what is found under its card. */
   const held = () =>
     [...document.querySelectorAll("[data-cat-card] [data-shelf-item]")].map((n) =>
       n.getAttribute("data-shelf-item")
@@ -81,7 +81,7 @@ describe("CategoryBox — ce qu'une boîte tient", () => {
       makeCat({ id: "c1", items: [filmItem("f1"), makeDecor({ id: "d1", motif: "divider" })] }),
       films
     );
-    // l'onglet porte le nombre d'objets rangés, films et mobilier confondus
+    // the tab carries the number of objects filed, films and furniture alike
     expect(screen.getByText("2")).toBeInTheDocument();
   });
 
@@ -91,10 +91,10 @@ describe("CategoryBox — ce qu'une boîte tient", () => {
   });
 });
 
-/* Une boîte ne replie plus son contenu : c'est la rangée qui la coupe et
-   lui passe la seule tranche qui tient sur la ligne (voir `lines.js`).
-   Restent à vérifier les deux choses que le segment décide seul : ce
-   qu'il montre, et où il ferme son carton. */
+/* A box no longer wraps its content: it is the row that cuts it and hands
+   it the only slice that fits on the line (see `lines.js`). What remains
+   to check is the two things the segment decides on its own: what it
+   shows, and where it closes its card. */
 describe("CategoryBox — un segment de boîte", () => {
   const many = Array.from({ length: 6 }, (_, i) => film(`f${i}`));
   const items = many.map((f) => filmItem(f.id));
@@ -144,17 +144,17 @@ describe("CategoryBox — un segment de boîte", () => {
     expect(within(c).getByText("6")).toBeInTheDocument();
   });
 
-  /* On lit la valeur DÉCLARÉE et non `borderLeftStyle`. Depuis que les
-     couleurs sont des renvois à des variables CSS, jsdom refuse le
-     raccourci `1px solid var(--c-line)` et n'en expose plus les
-     composantes — un navigateur, lui, le comprend. La déclaration reste
-     la seule chose que ce test avait à vérifier. */
+  /* We read the DECLARED value and not `borderLeftStyle`. Since the
+     colours became references to CSS variables, jsdom refuses the
+     shorthand `1px solid var(--c-line)` and no longer exposes its parts —
+     a browser, for its part, understands it. The declaration stays the
+     only thing this test had to check. */
   it("ouvre le bord par lequel elle continue", () => {
     const card = (props) => seg(props).querySelector("[data-cat-card]").getAttribute("style");
-    /* jsdom rend « none » comme « medium » : l'absence de bordure ne se
-       lit donc que par l'absence du trait. C'est de toute facon ce que
-       le test veut dire — le bord ouvert n'a pas de trait, le bord
-       ferme en a un. */
+    /* jsdom returns "none" as "medium": the absence of a border can
+       therefore only be read by the absence of the stroke. That is what
+       the test means anyway — the open edge has no stroke, the closed edge
+       has one. */
     expect(card({ first: true, last: false })).not.toMatch(/border-right:[^;]*solid/);
     expect(card({ first: false, last: true })).not.toMatch(/border-left:[^;]*solid/);
     const seul = card({ first: true, last: true });
@@ -194,10 +194,10 @@ describe("DecorItem — l'intercalaire", () => {
     expect(c.querySelector("[data-shelf-item]")).toBeNull();
   });
 
-  /* Le carton s'APPUIE : c'est ce qui le fait lire comme du carton
-     plutôt que comme un trait tiré à la règle. Le guingois est semé, donc
-     variable — mais jamais nul, sinon ce carton-là se dresserait tout
-     droit et c'est précisément ce qu'on ne veut plus voir. */
+  /* The card LEANS: that is what makes it read as cardstock rather than
+     as a line drawn with a ruler. The lopsidedness is sown, therefore
+     variable — but never nil, otherwise that particular card would stand
+     straight and that is precisely what we no longer want to see. */
   describe("son inclinaison", () => {
     const ids = Array.from({ length: 400 }, (_, i) => `d${i}`);
 
@@ -225,9 +225,9 @@ describe("DecorItem — l'intercalaire", () => {
   });
 });
 
-/* Nommer un carton se fait SUR le carton — mais seulement s'il porte
-   déjà un nom. Un carton vierge n'a rien à réclamer : il sépare, et
-   séparer se passe de mot. */
+/* Naming a card is done ON the card — but only if it already carries a
+   name. A blank card has nothing to claim: it separates, and separating
+   does without a word. */
 describe("DecorItem — écrire sur l'intercalaire", () => {
   const board = (over = {}) => {
     const onLabel = vi.fn();
@@ -294,11 +294,10 @@ describe("DecorItem — écrire sur l'intercalaire", () => {
     expect(carton()).toHaveAttribute("draggable", "false");
   });
 
-  /* Nommer est une offre et non un passage obligé : beaucoup de cartons
-     ne servent qu'à marquer une coupure. Un carton vierge reste donc
-     vierge, et son clic ouvre le panneau — où un champ NOM attend celui
-     qui en veut un — au lieu de tomber dans un champ dont il faut
-     ressortir. */
+  /* Naming is an offer and not a compulsory step: many cards serve only
+     to mark a cut. So a blank card stays blank, and its click opens the
+     panel — where a NAME field waits for whoever wants one — instead of
+     falling into a field one has to get out of. */
   it("laisse un carton vierge sans rien réclamer", () => {
     board({ label: "" });
     expect(screen.queryByText("nommer")).not.toBeInTheDocument();
@@ -315,7 +314,7 @@ describe("DecorItem — écrire sur l'intercalaire", () => {
     const { user, onEdit, onLabel } = board();
     await user.click(screen.getByRole("button", { name: /Réglages de « Polars »/ }));
     expect(onEdit).toHaveBeenCalledExactlyOnceWith("d1");
-    // et le clic sur la palette n'ouvre pas le champ par-dessus
+    // and the click on the palette does not open the field over it
     expect(onLabel).not.toHaveBeenCalled();
     expect(screen.queryByLabelText("Nom de l'intercalaire")).not.toBeInTheDocument();
   });
@@ -343,10 +342,9 @@ describe("FilmBox — la note sur la tranche", () => {
     return row.querySelector("span[aria-hidden]").style.width;
   };
 
-  /* Ce qu'on lit, c'est la LARGEUR de la couche allumée : cinq étoiles
-     entières font cent pour cent, et une demie tombe pile au milieu de
-     la troisième. L'ancien compte par `repeat` n'avait aucun moyen de
-     dire cette moitié-là. */
+  /* What we read is the WIDTH of the lit layer: five whole stars make a
+     hundred per cent, and a half falls exactly in the middle of the third.
+     The old count by `repeat` had no way of saying that half. */
   it("peint la fraction exacte de la note, demies comprises", () => {
     expect(shown(5)).toBe("100%");
     expect(shown(4.5)).toBe("90%");
@@ -378,9 +376,9 @@ describe("FilmBox — le compte des séances", () => {
     expect(compteur(3)).toHaveTextContent("×3");
   });
 
-  /* Un « ×1 » sur chaque tranche serait du bruit sur toute la
-     bibliothèque : ce qu'on cherche du regard, ce sont les films qu'on
-     revoit, et ils ne ressortent que si les autres se taisent. */
+  /* A "×1" on every edge would be noise across the whole library: what one
+     looks for is the films one rewatches, and they only stand out if the
+     others keep quiet. */
   it("se tait pour un film vu une seule fois", () => {
     expect(compteur(1)).toBeNull();
   });
@@ -403,7 +401,7 @@ describe("carryGhost — ce qu'on emporte sous le curseur", () => {
     const [ghost, dx, dy] = setDragImage.mock.calls[0];
     expect(ghost).not.toBe(node); // la copie, jamais l'original pris dans la rangée
     expect([ghost.style.width, ghost.style.height]).toEqual(["96px", "144px"]);
-    // saisi là où la main l'a pris, pour que rien ne saute au départ
+    // grabbed where the hand took it, so that nothing jumps at the start
     expect([dx, dy]).toEqual([20, 30]);
     expect(document.body.contains(ghost)).toBe(true);
 

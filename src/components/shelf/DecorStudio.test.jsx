@@ -22,21 +22,21 @@ describe("l'atelier déco", () => {
     expect(onChange).toHaveBeenCalledWith("plank", { material: "laiton" });
   });
 
-  /* « Rien » est un choix, pas une absence de bouton : sans lui, on pose
-     un papier peint et on ne peut plus l'enlever. Le nul est ce que
-     `patchViewDecor` comprend comme un effacement. */
+  /* "Nothing" is a choice, not an absence of button: without it, one lays
+     a wallpaper and can no longer remove it. Null is what `patchViewDecor`
+     understands as an erasure. */
   it("sait retirer une couche posée", async () => {
     const view = patchViewDecor({}, "wall", { pattern: "pois" });
     const { onChange, user } = studio(view);
     const aucuns = screen.getAllByLabelText("aucun");
-    // celui de la rangée des papiers peints est le deuxième
+    // the wallpaper row's is the second one
     await user.click(aucuns[1]);
     expect(onChange).toHaveBeenCalledWith("wall", { pattern: null });
   });
 
-  /* Un réglage qui ne toucherait à rien ne s'offre pas : l'encre n'a de
-     sens qu'avec une trame à teinter, la finition qu'avec une matière à
-     vernir. */
+  /* A setting that would touch nothing is not offered: ink only makes
+     sense with a weave to tint, the finish only with a material to
+     varnish. */
   it("cache l'encre tant qu'aucun papier peint n'est posé", () => {
     studio();
     expect(screen.queryByText("ENCRE DU MOTIF")).toBeNull();
@@ -53,8 +53,8 @@ describe("l'atelier déco", () => {
     expect(screen.queryByText("FINITION")).toBeNull();
   });
 
-  /* La porte de sortie, et ce qui rend l'exploration sans risque. Elle
-     ne s'affiche pas quand il n'y a rien à défaire. */
+  /* The way out, and what makes the exploring riskless. It does not show
+     when there is nothing to undo. */
   it("n'offre le retour au thème que s'il y a un décor", async () => {
     const nom = "Effacer le décor et revenir au bois du thème";
     studio();
