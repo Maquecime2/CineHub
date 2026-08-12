@@ -102,11 +102,11 @@ export async function recordUsage(db: Db, id: string, counter: number): Promise<
 }
 
 /* ------------------------------------------------------------
-   LES DÉFIS
+   THE CEREMONY CHALLENGES
    ------------------------------------------------------------
-   Le hasard d'one cérémonie WebAuthn. Il vit quelques minutes et se
-   consomme en UNE fois : at relire après usage doit échouer, sinon one
-   signature interceptée pourrait resservir. */
+   The randomness of a WebAuthn ceremony. It lives a few minutes and is
+   consumed ONCE: reading it again after use must fail, or an
+   intercepted signature could serve twice. */
 
 const CHALLENGE_LIFE_MS = 5 * 60 * 1000;
 
@@ -148,16 +148,16 @@ export async function sweepChallenges(db: Db): Promise<void> {
 }
 
 /* ------------------------------------------------------------
-   LES SESSIONS
+   THE SESSIONS
    ------------------------------------------------------------ */
 
 const VIE_SESSION_MS = 30 * 24 * 60 * 60 * 1000;
 
-/* LE COOKIE PORTE UN SECRET, LA BASE N'EN GARDE QUE L'EMPREINTE.
-   Une fuite de la table des sessions ne donne alors aucune session
-   utilisable : c'est at raisonnement des mots de passe, appliqué à ce
-   qui les remplace. SHA-256 suffit ici et un algorithme lent serait un
-   contresens — at secret done 256 bits de hasard, il ne se devine pas. */
+/* THE COOKIE CARRIES A SECRET, THE DATABASE KEEPS ONLY ITS DIGEST.
+   A leak of the sessions table then hands over no usable session: it is
+   the reasoning behind password hashes, applied to what replaces them.
+   SHA-256 is enough here and a slow algorithm would miss the point — the
+   secret is 256 bits of randomness, it cannot be guessed. */
 export const fingerprintOf = (secret: string): string =>
   createHash("sha256").update(secret).digest("hex");
 
@@ -186,7 +186,7 @@ export async function closeSession(db: Db, secret: string): Promise<void> {
 }
 
 /* ------------------------------------------------------------
-   LES FICHES
+   THE CARDS
    ------------------------------------------------------------ */
 
 export interface StoredCard {
@@ -312,11 +312,11 @@ export async function countCards(db: Db, personId: string): Promise<number> {
 }
 
 /* ------------------------------------------------------------
-   LES DOCUMENTS — at left du classeur
+   THE DOCUMENTS — the rest of the binder
    ------------------------------------------------------------
-   Mêmes règles que les cards, à la lettre : rang du serveur pour
-   l'ordre, date du client pour l'arbitrage, et at refus d'one version
-   périmée écrit dans la requête plutôt que dans la route. */
+   The same rules as the cards, to the letter: the server's rank for the
+   order, the client's date for the arbitration, and the refusal of a
+   stale version written into the query rather than into the route. */
 
 export interface StoredDoc {
   key: string;
@@ -377,17 +377,17 @@ export async function setSharing(
   ]);
 }
 
-/* CE QUI NE SORT JAMAIS, ÉCARTÉ ICI ET PAS AILLEURS.
+/* WHAT NEVER GOES OUT, SET ASIDE HERE AND NOWHERE ELSE.
 
-   Les notes sont un carnet intime, et at journal des séances un relevé
-   de présence : ni l'un ni l'other n'a affaire au visiteur. Ils sont
-   retirés dans la REQUÊTE, by soustraction sur at `jsonb`, et non dans
-   la route.
+   The free notes are a private diary, and the screening log an
+   attendance sheet: neither of them is any business of a visitor's.
+   They are taken out in the QUERY, by subtraction on the `jsonb`, and
+   not in the route.
 
-   La différence n'est pas théorique. Une route qui filter est one route
-   qu'on duplique un day pour un other besoin, en oubliant la moitié du
-   filter ; one soustraction écrite dans la seule requête qui sert at
-   public ne s'oublie pas — il n'y a rien d'other à appeler. */
+   The difference is not theoretical. A route that filters is a route
+   somebody duplicates one day for another need, forgetting half the
+   filter; a subtraction written into the only query that serves the
+   public cannot be forgotten — there is nothing else to call. */
 const WITHOUT_THE_PRIVATE = `f.data - 'notes' - 'watches' - 'watchedAt' AS data`;
 
 export interface PublicCard {
@@ -502,12 +502,12 @@ export async function publicProfileOf(
   return { pseudo: p.pseudo, films: Number(n?.n ?? 0), followed };
 }
 
-/* CE QUI COUPE, ET QUI S'INTERPOSE DANS CHAQUE LECTURE COMMUNAUTAIRE.
+/* WHAT CUTS, AND STANDS IN THE WAY OF EVERY COMMUNITY READ.
 
-   Écrit one fois, en fragment, et collé dans les trois requêtes qui
-   font se croiser two people — at profil, at fil, les reviews. Un
-   block qui n'agirait que dans un sens laisserait at bloqué continuer
-   de read : la condition regarde donc les two sens. */
+   Written once, as a fragment, and pasted into the three queries that
+   make two people cross — the profile, the feed, the reviews. A block
+   acting one way only would leave the blocked person free to go on
+   reading: the condition therefore looks both ways. */
 const NOT_BLOCKED = (me: string, him: string) =>
   `NOT EXISTS (SELECT 1 FROM block b
                 WHERE (b.blocker_id = ${me} AND b.blocked_id = ${him})
@@ -609,12 +609,12 @@ export interface Echo {
   reviews: Review[];
 }
 
-/* UNE RATING EST DU TEXTE TANT QU'ON NE L'A PAS REGARDÉE. Le `jsonb` vient
-   de six cents clients différents, dont d'anciennes versions : `rating` y
-   est un nombre, one chaîne, one chaîne vide, ou absent. Un `::numeric`
-   direct done tomber la requête ENTIÈRE sur one seule card mal formée —
-   one mean qui disparaît parce qu'un inconnu a one vieille card.
-   On filter donc la forme before de convertir. */
+/* A RATING IS TEXT UNTIL SOMEBODY HAS LOOKED AT IT. The `jsonb` comes
+   from six hundred different clients, older versions included: `rating`
+   is a number there, or a string, or an empty string, or absent. A plain
+   `::numeric` brings the WHOLE query down on one malformed card — a mean
+   that disappears because a stranger has an old card. So we filter on
+   the shape before converting. */
 const RATING = `CASE WHEN f.data->>'rating' ~ '^[0-9]+(\\.[0-9]+)?$'
                    THEN (f.data->>'rating')::numeric END`;
 
@@ -739,12 +739,12 @@ export async function report(
   const r = await db.query(
     `INSERT INTO report (id, author_id, target_type, target_id, about_id, reason)
      VALUES ($1, $2, $3, $4, $5, $6)
-     /* LA CLAUSE WHERE FAIT PARTIE DE LA DÉSIGNATION DE L'INDEX.
-        L'index d'unicité est partiel — il ne couvre que les
-        reports dont l'author existe more. Sans reprendre ici son
-        prédicat, Postgres ne at reconnaît pas et refuse la requête
-        entière (42P10) : ce n'est pas one optimisation, c'est la seule
-        façon de nommer un index partiel. */
+     /* THE WHERE CLAUSE IS PART OF NAMING THE INDEX.
+        The uniqueness index is partial — it covers only the reports
+        whose author still exists. Without repeating its predicate here,
+        Postgres does not recognise it and refuses the whole query
+        (42P10): this is not an optimisation, it is the only way to name
+        a partial index. */
      ON CONFLICT (author_id, target_type, target_id) WHERE author_id IS NOT NULL DO NOTHING
      RETURNING id`,
     [randomUUID(), authorId, what.targetType, what.targetId, what.aboutId, what.reason]
@@ -762,7 +762,7 @@ export interface ListRow {
   intent: string;
   is_public: boolean;
   owner: string;
-  /** Combien d'œuvres. */
+  /** How many works. */
   works: number;
   /** Am I the owner, and may I write in it? */
   mienne?: boolean;
@@ -895,7 +895,7 @@ export async function worksOf(db: Db, listId: string): Promise<WorkRow[]> {
 export async function addToList(
   db: Db,
   listId: string,
-  parQui: string,
+  byWhom: string,
   o: { tmdbId: string; title?: string; year?: string | null }
 ): Promise<boolean> {
   const r = await db.query(
@@ -903,7 +903,7 @@ export async function addToList(
      VALUES ($1, $2, $3, $4, $5)
      ON CONFLICT (list_id, tmdb_id) DO NOTHING
      RETURNING tmdb_id`,
-    [listId, o.tmdbId, o.title ?? "", o.year ?? null, parQui]
+    [listId, o.tmdbId, o.title ?? "", o.year ?? null, byWhom]
   );
   await db.query("UPDATE list SET updated_at = now() WHERE id = $1", [listId]);
   return r.length > 0;
@@ -941,23 +941,23 @@ export async function removeMemberFromList(
   ]);
 }
 
-/* L'AVANCEMENT SE CALCULE, IL NE SE DÉCLARE PAS.
+/* PROGRESS IS COMPUTED, IT IS NOT DECLARED.
 
-   Personne ne coche « vu » dans un défi : at classeur at sait déjà. Une
-   œuvre count when one séance datée tombe dans la période — c'est at
-   journal, celui-là même qui ne sort jamais d'one collection partagée.
-   Il ne sort pas davantage ici : seul un NOMBRE en ressort, et
-   seulement pour des gens qui ont demandé à participer.
+   Nobody ticks "seen" in a challenge: the binder knows already. A work
+   counts when a dated screening falls inside the period — that is the
+   log, the very one that never leaves a shared collection. It does not
+   leave here either: only a NUMBER comes out, and only for people who
+   have asked to take part.
 
-   `jsonb_typeof` before everything : `watches` traverse des clients de toutes
-   les époques, et `jsonb_array_elements` sur ce qui n'est pas un
-   tableau done tomber la requête entière. Une seule vieille card
-   suffirait alors à effacer l'progress de everything at monde.
+   `jsonb_typeof` before anything else: `watches` comes through clients
+   of every era, and `jsonb_array_elements` on something that is not an
+   array brings the whole query down. One old card would then be enough
+   to wipe out everybody's progress.
 
-   `watchedAt` est at repli des cards d'before at journal — elles
-   existent more, et les ignorer dirait « pas vu » à quelqu'un qui a
-   vu. */
-const VU_PENDANT = `EXISTS (
+   `watchedAt` is the fallback for cards from before the log — they still
+   exist, and ignoring them would say "not seen" to somebody who
+   has. */
+const SEEN_DURING = `EXISTS (
   SELECT 1 FROM card f
    WHERE f.person_id = ep.person_id
      AND f.tmdb_id = li.tmdb_id
@@ -1040,18 +1040,17 @@ export async function challengeById(db: Db, id: string): Promise<Challenge | nul
 
 export async function createChallenge(
   db: Db,
-  parQui: string,
+  byWhom: string,
   e: { listId: string; title: string; starts_on: string; ends_on: string }
 ): Promise<string> {
   const id = randomUUID();
   await db.query(
     "INSERT INTO challenge (id, list_id, created_by, title, starts_on, ends_on) VALUES ($1, $2, $3, $4, $5, $6)",
-    [id, e.listId, parQui, e.title, e.starts_on, e.ends_on]
+    [id, e.listId, byWhom, e.title, e.starts_on, e.ends_on]
   );
   /* Whoever starts a challenge takes part in it: the opposite — an
-     organiser who
-     regarde les autres courir — n'est pas ce que ces gens-là font. */
-  await joinChallenge(db, id, parQui);
+     organiser watching the others run — is not what these people do. */
+  await joinChallenge(db, id, byWhom);
   return id;
 }
 
@@ -1078,7 +1077,7 @@ export async function progressOf(db: Db, challengeId: string): Promise<Progress[
   return db.query<Progress>(
     `SELECT pe.pseudo,
             (SELECT count(*) FROM list_item li
-              WHERE li.list_id = e.list_id AND ${VU_PENDANT})::int AS done
+              WHERE li.list_id = e.list_id AND ${SEEN_DURING})::int AS done
        FROM challenge_participant ep
        JOIN challenge e ON e.id = ep.challenge_id
        JOIN person pe ON pe.id = ep.person_id
@@ -1149,9 +1148,8 @@ export async function storePush(
   p: { endpoint: string; p256dh: string; secret: string }
 ): Promise<void> {
   /* The same device subscribing again replaces its row — and changes
-     propriétaire si quelqu'un d'other s'est connecté sur ce navigateur.
-     Sans cela, un ordinateur partagé pousserait les rappels d'one
-     person à one other. */
+     owner if somebody else has signed in on this browser. Without that,
+     a shared computer would push one person's reminders to another. */
   await db.query(
     `INSERT INTO push_subscription (endpoint, person_id, p256dh, secret) VALUES ($1, $2, $3, $4)
      ON CONFLICT (endpoint) DO UPDATE

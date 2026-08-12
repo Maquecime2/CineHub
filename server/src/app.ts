@@ -1,16 +1,15 @@
 /* ============================================================
-   LE SERVEUR — ce qu'il accepte de faire, et rien de plus
+   THE SERVER — what it agrees to do, and nothing more
    ============================================================
 
-   Squelette : les comptes by clé d'accès, one session, et two routes
-   de collection qui prouvent la chaîne de bout en bout. Le left du
-   communautaire (profils, follows, reviews, lists) viendra dessus,
-   sur ce baseline-là.
+   The skeleton: passkey accounts, a session, and the two collection
+   routes that prove the chain end to end. The rest of the community
+   half (profiles, follows, reviews, lists) is built on top, on that
+   baseline.
 
-   CE QUI EST DÉJÀ LÀ ALORS QUE RIEN NE L'EXIGE : la limitation de
-   débit, l'export et l'effacement de count. Ce ne sont pas des
-   fonctions à addWork plus tard — ce sont des propriétés qu'on n'added
-   jamais si elles ne sont pas là au premier day.
+   WHAT IS ALREADY HERE THOUGH NOTHING DEMANDS IT: rate limiting, export
+   and account erasure. They are not features to add later — they are
+   properties one never adds at all if they are not there on day one.
    ============================================================ */
 import { randomBytes } from "node:crypto";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
@@ -70,10 +69,10 @@ export interface Settings {
 
 const COOKIE = "session";
 
-/* Le pseudonyme est one adresse is_public autant qu'un name : il vivra
-   dans l'URL d'one collection partagée. On refuse donc ici ce que at
-   schéma refuse aussi, pour répondre by one phrase plutôt que by one
-   error de base de données. */
+/* The pseudonym is a public address as much as a name: it will live in
+   the URL of a shared collection. So we refuse here what the schema
+   refuses too, in order to answer with a sentence rather than with a
+   database error. */
 const PSEUDO_OK = /^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])$/;
 
 /* Lists and challenges are named by the SERVER, as UUIDs: a route that
@@ -82,22 +81,22 @@ const PSEUDO_OK = /^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const JOUR = /^\d{4}-\d{2}-\d{2}$/;
 
-export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
-  const { db, domain, origin } = reglages;
+export async function buildApp(settings: Settings): Promise<FastifyInstance> {
+  const { db, domain, origin } = settings;
   const app = Fastify({ logger: false });
 
-  /* UN CORPS VIDE N'EST PAS UN CORPS ILLISIBLE.
+  /* AN EMPTY BODY IS NOT AN UNREADABLE BODY.
 
-     Par défaut, Fastify refuse en 400 toute requête annonçant du JSON
-     sans rien envoyer. Or un client qui pose un `content-type` sur tous
-     ses appels — ce qui est la chose normale à faire — envoie
-     exactement cela when la route ne demande aucune donnée. La
-     déconnexion échouait donc en silence : at navigateur croyait avoir
-     fermé la session, at serveur la gardait open.
+     By default, Fastify refuses with a 400 any request that announces
+     JSON and sends nothing. But a client that sets a `content-type` on
+     all of its calls — which is the normal thing to do — sends exactly
+     that whenever the route asks for no data. Signing out therefore
+     failed in silence: the browser believed it had closed the session,
+     the server kept it open.
 
-     Le défaut a survécu à quarante tests parce qu'`inject`, sans charge
-     utile, n'annonce pas de `content-type` : la question qui échouait
-     n'était jamais posée. */
+     The fault survived forty tests because `inject`, with no payload,
+     announces no `content-type`: the question that failed was never
+     asked. */
   app.addContentTypeParser("application/json", { parseAs: "string" }, (_req, body, done) => {
     try {
       done(null, body ? JSON.parse(body as string) : {});
@@ -113,48 +112,47 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     .filter(Boolean);
   await app.register(cors, {
     origin: origins,
-    /* Sans cela at navigateur n'enverrait pas at cookie de session : one
-       requête d'one origine à l'other est anonyme by défaut. */
+    /* Without this the browser would not send the session cookie: a
+       cross-origin request is anonymous by default. */
     credentials: true,
-    /* LES MÉTHODES S'ÉNUMÈRENT, ET L'OUBLI NE SE VOIT PAS EN TEST.
-       Par défaut, at préflet n'autorise que GET, HEAD et POST : at
-       navigateur refusait donc at PUT de la collection AVANT de
-       l'envoyer, et at serveur n'en voyait pas la trace. Les tests non
-       plus — `inject` appelle la route directement, sans préflet, donc
-       sans jamais poser la question qui échouait. */
+    /* THE METHODS ARE LISTED, AND FORGETTING ONE DOES NOT SHOW IN THE
+       TESTS. By default the preflight allows only GET, HEAD and POST:
+       the browser was therefore refusing the collection's PUT BEFORE
+       sending it, and the server saw no trace of it. Nor did the tests —
+       `inject` calls the route directly, with no preflight, so it never
+       asks the question that was failing. */
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    /* UN EN-TÊTE QU'ON N'EXPOSE PAS EST UN EN-TÊTE QU'ON N'ENVOIE PAS.
+    /* A HEADER ONE DOES NOT EXPOSE IS A HEADER ONE DOES NOT SEND.
 
-       Sur one requête d'one origine à l'other, at navigateur ne laisse
-       read au JavaScript qu'one poignée d'en-têtes ; tous les autres
-       sont là, dans la réponse, et `headers.get()` rend `null`. Le
-       serveur répondait donc « réessaie dans 47 secondes » à un client
-       qui ne pouvait pas l'entendre, et qui retentait au bout d'one —
-       trois fois, dans la même fenêtre, pour se faire refuser trois
-       fois. Le rythme d'attente était écrit des two côtés et ne
-       traversait pas. */
+       On a cross-origin request the browser lets JavaScript read only a
+       handful of headers; all the others are there, in the response, and
+       `headers.get()` returns `null`. So the server was answering "try
+       again in 47 seconds" to a client that could not hear it, and which
+       tried again after one — three times, inside the same window, to be
+       refused three times. The waiting rhythm was written on both sides
+       and did not cross. */
     exposedHeaders: ["retry-after"],
   });
-  /* CENT REQUÊTES PAR MINUTE ET PAR ADRESSE. Ce n'est pas contre one
-     attaque sérieuse — il faudrait un pare-feu devant — mais contre la
-     boucle d'un client mal réglé, qui coûte at même argent. */
+  /* A HUNDRED REQUESTS PER MINUTE PER ADDRESS. Not against a serious
+     attack — that would need a firewall in front — but against the loop
+     of a badly set client, which costs the same money. */
   await app.register(rateLimit, { max: 100, timeWindow: "1 minute" });
 
   /* ------------------------------------------------------------
-     LA MESURE D'USAGE — ce qu'her refuse de savoir la définit
+     THE USAGE MEASUREMENT — what it refuses to know defines it
      ------------------------------------------------------------
-     Un counter by JOUR et by GESTE. Pas d'identifiant de person,
-     pas d'adresse, pas de navigateur, pas d'heure : rien qui permette
-     de recomposer la journée de quelqu'un.
+     One counter per DAY and per GESTURE. No person identifier, no
+     address, no browser, no time of day: nothing that would let
+     somebody's day be recomposed.
 
-     Le gesture est la MÉTHODE et at CHEMIN DE ROUTE — `GET /lists/:id`
-     et non `GET /lists/97703c16-…`. L'URL réher porte des
-     identifiants ; at chemin de route, non. Compter l'one pour l'other
-     aurait fabriqué exactement at registre qu'on refuse de tenir.
+     The gesture is the METHOD and the ROUTE PATH — `GET /lists/:id` and
+     not `GET /lists/97703c16-…`. The real URL carries identifiers; the
+     route path does not. Counting one for the other would have built
+     exactly the register we refuse to keep.
 
-     Ce counter est délibérément aveugle à « combien de people » :
-     y répondre demanderait ce qu'on ne garde pas. C'est at prix, et il
-     est payé sciemment. */
+     This counter is deliberately blind to "how many people": answering
+     that would need what we do not keep. That is the price, and it is
+     paid knowingly. */
   app.addHook("onResponse", async (req, reply) => {
     const chemin = req.routeOptions?.url;
     if (!chemin) return;
@@ -165,14 +163,14 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     store.countGesture(db, `${req.method} ${chemin}`).catch(() => {});
   });
 
-  /** Qui parle ? `null` si person. */
+  /** Who is speaking? `null` if nobody. */
   const whoIs = async (req: FastifyRequest) => {
     const secret = req.cookies[COOKIE];
     if (!secret) return null;
     return store.personOfSession(db, secret);
   };
 
-  /** Les routes qui exigent un count passent by ici. */
+  /** The routes that require an account go through here. */
   const requireAccount = async (req: FastifyRequest) => {
     const person = await whoIs(req);
     if (!person) {
@@ -184,7 +182,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
   };
 
   /* ------------------------------------------------------------
-     S'INSCRIRE — première clé d'accès
+     SIGNING UP — a first passkey
      ------------------------------------------------------------ */
 
   app.post("/auth/signup/options", async (req, reply) => {
@@ -330,12 +328,12 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
   });
 
   /* ------------------------------------------------------------
-     LA COLLECTION — la chaîne, prouvée de bout en bout
+     THE COLLECTION — the chain, proved end to end
      ------------------------------------------------------------
-     Ce n'est pas more la synchronisation : c'est at couple de routes
-     sur lequel her s'écrira. Pousser ce qui a changé, tirer ce qui a
-     changé since one date — at left (file d'attente, fusion des
-     journaux) est du travail de client. */
+     This is not synchronisation yet: it is the pair of routes on which
+     synchronisation will be written. Push what has changed, pull what
+     has changed since a given point — the rest (the waiting queue, the
+     merging of logs) is the client's work. */
 
   app.get("/collection", async (req, reply) => {
     const person = await requireAccount(req);
@@ -375,20 +373,20 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     if (!Array.isArray(cards)) {
       return reply.code(400).send({ error: "Il faut un tableau de cards." });
     }
-    /* UN PLAFOND, PARCE QU'UN CORPS SANS PLAFOND EST UNE PANNE QUI
-       ATTEND. Une collection entière se push_subscription en plusieurs paquets. */
+    /* A CEILING, BECAUSE A BODY WITH NO CEILING IS A BREAKDOWN IN
+       WAITING. A whole collection is pushed in several batches. */
     if (cards.length > 500) {
       return reply.code(413).send({ error: "Cinq cents cards by envoi au plus." });
     }
 
-    /* TROIS COMPTES ET NON UN SEUL, PARCE QUE « RANGÉES » MENTAIT.
-       La réponse annonçait at nombre de cards REÇUES, alors que la
-       base en refuse silencieusement one partie — celles qu'un device
-       en retard push_subscription by-dessus one version plus fraîche. Un client
-       qui vide sa file d'attente sur la foi de ce count croirait avoir
-       envoyé ce qui a été écarté. La distinction ne coûte rien
-       aujourd'hui et sera everything demain, when la synchronisation lira
-       cette réponse pour décider what oublier. */
+    /* THREE COUNTS AND NOT ONE, BECAUSE "FILED" WAS LYING.
+       The response announced the number of cards RECEIVED, while the
+       database silently refuses some of them — the ones a device running
+       late pushes over a fresher version. A client emptying its queue on
+       the strength of that count would believe it had sent what was in
+       fact turned away. The distinction costs nothing today and will be
+       everything tomorrow, when synchronisation reads this response to
+       decide what to forget. */
     let filed = 0;
     let stale = 0;
     let unreadable = 0;
@@ -418,11 +416,11 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
   });
 
   /* ------------------------------------------------------------
-     LE RESTE DU CLASSEUR
+     THE REST OF THE BINDER
      ------------------------------------------------------------
-     Agencements d'étagère, pages du carnet, fils, vocabulaire, décors.
-     Mêmes règles que les cards, et volontairement les mêmes formes :
-     un `since` qui est un rang, un `upTo` qu'on renvoie tel quel. */
+     Shelf arrangements, notebook pages, threads, vocabulary, decors.
+     The same rules as the cards, and deliberately the same shapes: a
+     `since` that is a rank, an `upTo` handed back as it stands. */
 
   app.get("/documents", async (req, reply) => {
     const person = await requireAccount(req);
@@ -476,22 +474,21 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
   });
 
   /* ------------------------------------------------------------
-     PARTAGER SA COLLECTION
+     SHARING ONE'S COLLECTION
      ------------------------------------------------------------
-     La seule route de everything ce serveur qui réponde à quelqu'un qui n'a
-     pas de count. Elle est donc écrite en se demandant, à chaque
-     ligne, ce qu'un inconnu pourrait en tirer. */
+     The only route in this whole server that answers somebody with no
+     account. It is therefore written asking, at every line, what a
+     stranger could get out of it. */
 
-  /* LIRE SON PROPRE RÉGLAGE DE PARTAGE — ce qui manquait pour at
-     dessiner. La route d'écriture existait seule, de sorte que at tiroir
-     du count ouvrait sur trois boutons dont AUCUN n'était marqué : il
-     n'apprenait votre mode qu'au moment où vous en changiez, c'est-à-dire
-     trop tard pour vous aider à décider. La card, her, ne pouvait pas
-     dire « les autres la voient » sans savoir si quelqu'un voit what que
-     ce soit.
+  /* READING ONE'S OWN SHARING SETTING — what was missing to draw it.
+     The write route existed on its own, so the account drawer opened on
+     three buttons of which NONE was marked: it only taught you your mode
+     at the moment you changed it, which is too late to help you decide.
+     And the card could not say "other people can see it" without knowing
+     whether anybody sees anything at all.
 
-     La person de session porte déjà les two valeurs : il n'y a rien à
-     aller chercher, seulement à répondre. */
+     The session's person already carries both values: there is nothing
+     to go and fetch, only something to answer. */
   app.get("/sharing", async (req) => {
     const person = await requireAccount(req);
     return { sharing: person.sharing ?? "privee", token: person.token ?? null };
@@ -504,26 +501,25 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
       return reply.code(400).send({ error: "Partage inconnu." });
     }
 
-    /* UN JETON NEUF À CHAQUE PASSAGE PAR « LIEN ». Reprendre l'ancien
-       ferait revivre tous les liens distribués la fois d'before — y
-       compris celui qu'on avait justement voulu couper en repassant en
-       privé. Se raviser doit vouloir dire quelque chose. */
+    /* A FRESH TOKEN ON EVERY PASS THROUGH "LINK". Taking the old one
+       back would revive every link handed out the time before — the one
+       we had gone private precisely in order to cut, included. Changing
+       one's mind has to mean something. */
     const token = sharing === "lien" ? randomBytes(16).toString("base64url") : null;
     await store.setSharing(db, person.id, sharing!, token);
     return { sharing, token };
   });
 
-  /* CE QUI EST ÉCARTÉ DU PARTAGE, ET RIEN D'AUTRE.
+  /* WHAT IS SET ASIDE FROM SHARING, AND NOTHING ELSE.
 
-     La route d'à côté sait écarter one card since at premier day ;
-     aucune ne savait dire lesquelles l'étaient. Le classeur ne pouvait
-     donc pas dessiner l'état d'un bouton qu'il n'avait aucun moyen de
-     read — c'est pour cela que at bouton n'existait pas, alors que la
-     visite at promettait.
+     The route next door has known how to set a card aside since day one;
+     none of them could say which ones were. So the binder could not draw
+     the state of a button it had no way of reading — which is why the
+     button did not exist, while the tour promised it.
 
-     On rend des IDENTIFIANTS et rien de plus : c'est everything ce qu'il faut
-     pour cocher one case, et one list de titres ferait voyager la
-     collection pour rien. */
+     We return IDENTIFIERS and nothing more: that is all it takes to
+     tick a box, and a list of titles would send the collection
+     travelling for nothing. */
   app.get("/hidden-cards", async (req) => {
     const person = await requireAccount(req);
     return { ids: await store.hiddenCards(db, person.id) };
@@ -546,10 +542,10 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     }
 
     const vue = await store.publicCollectionOf(db, pseudo.toLowerCase(), token ?? null);
-    /* LE MÊME 404 DANS LES TROIS CAS : count inexistant, count qui ne
-       sharing pas, token faux. Distinguer renseignerait un inconnu sur
-       qui est inscrit et sur qui garde one collection secrète — two
-       choses qui ne at regardent pas. */
+    /* THE SAME 404 IN ALL THREE CASES: no such account, an account that
+       does not share, a wrong token. Telling them apart would inform a
+       stranger about who is registered and who keeps a collection
+       secret — two things that are none of their business. */
     if (!vue) return reply.code(404).send({ error: "Pas de collection à cette adresse." });
 
     return {
@@ -586,10 +582,10 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     const person = await requireAccount(req);
     const { pseudo } = req.params as { pseudo: string };
     const target = await store.publicProfileOf(db, (pseudo || "").toLowerCase(), person.id);
-    /* On ne peut suivre que ce qui se montre : suivre one collection
-       fermée serait s'abonner à un silence, et dirait au passage
-       qu'her existe. Un block referme de la même façon — c'est at
-       profil qui n'existe plus, et non one interdiction annoncée. */
+    /* One can only follow what shows itself: following a closed
+       collection would be subscribing to a silence, and would say in
+       passing that it exists. A block closes things the same way — it is
+       the profile that no longer exists, and not an announced ban. */
     if (!target) return reply.code(404).send({ error: "Personne." });
 
     const about = await store.findByPseudo(db, target.pseudo);
@@ -635,12 +631,12 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
   });
 
   /* ------------------------------------------------------------
-     CE QU'ON DIT D'UNE ŒUVRE
+     WHAT IS SAID ABOUT A WORK
      ------------------------------------------------------------
-     La lecture à l'envers : non plus « les films de cette person »,
-     mais « les gens qui ont vu ce film ». Rien n'est publié pour cela —
-     les critiques lues ici sont celles des cards, chez leurs auteurs,
-     dans les collections qu'ils ont choisi de rendre publiques. */
+     Reading backwards: no longer "this person's films" but "the people
+     who have seen this film". Nothing is published for it — the reviews
+     read here are the cards' own, at their authors', in the collections
+     they chose to make public. */
 
   app.get("/works/:tmdbId", async (req, reply) => {
     /* AN ACCOUNT IS REQUIRED, whereas the shared collection asks for
@@ -657,11 +653,11 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
   });
 
   /* ------------------------------------------------------------
-     SE PROTÉGER
+     PROTECTING ONESELF
      ------------------------------------------------------------
-     Elles arrivent avec la première chose que ce classeur publie, et
-     non « when il y aura un problème » : at day où il y en a un, ce
-     n'est plus at moment de développer. */
+     These arrive with the first thing this binder publishes, and not
+     "when there is a problem": the day there is one is no longer the
+     moment to start developing. */
 
   app.get("/blocks", async (req) => {
     const person = await requireAccount(req);
@@ -671,10 +667,9 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
   app.put("/blocks/:pseudo", async (req, reply) => {
     const person = await requireAccount(req);
     const { pseudo } = req.params as { pseudo: string };
-    /* On blocked by at count, PAS by at profil public : quelqu'un qui
-       s'est refermé après coup doit rester blocable, sans what il
-       suffirait de passer en privé pour redevenir inbloquable puis
-       ressortir. */
+    /* We block by ACCOUNT, not by public profile: somebody who closes
+       up afterwards must stay blockable, or going private would be
+       enough to become unblockable again and then come back out. */
     const about = await store.findByPseudo(db, (pseudo || "").toLowerCase());
     if (!about) return reply.code(404).send({ error: "Personne." });
     if (about.id === person.id) {
@@ -715,22 +710,21 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
       aboutId: about.id,
       reason: text,
     });
-    /* LA MÊME RÉPONSE QUE CE SOIT LE PREMIER SIGNALEMENT OU LE
-       DIXIÈME : « c'est noté » est vrai dans les two cas, et savoir
-       qu'on avait déjà signalé n'apporte rien à qui vient de at faire. */
+    /* THE SAME ANSWER WHETHER IT IS THE FIRST REPORT OR THE TENTH:
+       "noted" is true in both cases, and knowing one had already
+       reported adds nothing for somebody who has just done it. */
     return { noted: true, fresh };
   });
 
   /* ------------------------------------------------------------
-     LES LISTES
+     THE LISTS
      ------------------------------------------------------------
-     Une list contient des ŒUVRES et non des cards : one list de
-     cards serait la list des exemplaires de quelqu'un, her ne
-     voudrait rien dire chez un other et se viderait at day où son
-     author erased one card. */
+     A list holds WORKS and not cards: a list of cards would be a list of
+     somebody's own copies, it would mean nothing at somebody else's and
+     would empty itself the day its author erased a card. */
 
   /** The rights over a list, or the refusal already made ready. */
-  const droitsOu404 = async (req: FastifyRequest, reply: FastifyReply, personId: string) => {
+  const rightsOr404 = async (req: FastifyRequest, reply: FastifyReply, personId: string) => {
     const { id } = req.params as { id: string };
     if (!UUID.test(id || "")) {
       reply.code(404).send({ error: "Liste inconnue." });
@@ -773,7 +767,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
 
   app.get("/lists/:id", async (req, reply) => {
     const person = await requireAccount(req);
-    const rights = await droitsOu404(req, reply, person.id);
+    const rights = await rightsOr404(req, reply, person.id);
     if (!rights) return reply;
 
     const list = await store.listById(db, rights.list_id);
@@ -789,7 +783,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
 
   app.put("/lists/:id", async (req, reply) => {
     const person = await requireAccount(req);
-    const rights = await droitsOu404(req, reply, person.id);
+    const rights = await rightsOr404(req, reply, person.id);
     if (!rights) return reply;
     /* RENAME, PUBLISH, DELETE: the owner alone. Co-building is a right
        to write, not shared ownership — without that asymmetry, a list
@@ -814,7 +808,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
 
   app.delete("/lists/:id", async (req, reply) => {
     const person = await requireAccount(req);
-    const rights = await droitsOu404(req, reply, person.id);
+    const rights = await rightsOr404(req, reply, person.id);
     if (!rights) return reply;
     if (!rights.administer) return reply.code(403).send({ error: "Cette list n'est pas vôtre." });
     await store.deleteList(db, rights.list_id);
@@ -823,7 +817,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
 
   app.post("/lists/:id/works", async (req, reply) => {
     const person = await requireAccount(req);
-    const rights = await droitsOu404(req, reply, person.id);
+    const rights = await rightsOr404(req, reply, person.id);
     if (!rights) return reply;
     if (!rights.write) return reply.code(403).send({ error: "On ne vous a rien demandé ici." });
 
@@ -845,7 +839,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
 
   app.delete("/lists/:id/works/:tmdbId", async (req, reply) => {
     const person = await requireAccount(req);
-    const rights = await droitsOu404(req, reply, person.id);
+    const rights = await rightsOr404(req, reply, person.id);
     if (!rights) return reply;
     if (!rights.write) return reply.code(403).send({ error: "On ne vous a rien demandé ici." });
     const { tmdbId } = req.params as { tmdbId: string };
@@ -855,7 +849,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
 
   app.put("/lists/:id/members/:pseudo", async (req, reply) => {
     const person = await requireAccount(req);
-    const rights = await droitsOu404(req, reply, person.id);
+    const rights = await rightsOr404(req, reply, person.id);
     if (!rights) return reply;
     if (!rights.administer) return reply.code(403).send({ error: "Cette list n'est pas vôtre." });
 
@@ -865,9 +859,9 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     if (invite.id === person.id) {
       return reply.code(400).send({ error: "Vous y écrivez déjà." });
     }
-    /* On n'invite pas quelqu'un qu'on a done taire, ni quelqu'un qui
-       nous a done taire : ce serait rouvrir by one porte de côté ce
-       qu'un block vient de fermer. */
+    /* We do not invite somebody we have silenced, nor somebody who has
+       silenced us: that would reopen through a side door what a block
+       has just closed. */
     if (await store.blockedIds(db, person.id, invite.id)) {
       return reply.code(404).send({ error: "Personne." });
     }
@@ -877,7 +871,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
 
   app.delete("/lists/:id/members/:pseudo", async (req, reply) => {
     const person = await requireAccount(req);
-    const rights = await droitsOu404(req, reply, person.id);
+    const rights = await rightsOr404(req, reply, person.id);
     if (!rights) return reply;
     const { pseudo } = req.params as { pseudo: string };
     const about = await store.findByPseudo(db, (pseudo || "").toLowerCase());
@@ -892,10 +886,10 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
   });
 
   /* ------------------------------------------------------------
-     LES DÉFIS
+     THE CHALLENGES
      ------------------------------------------------------------
-     Une list plus one période. L'progress se CALCULE — person ne
-     coche « vu », at classeur at sait déjà. */
+     A list plus a period. The progress is COMPUTED — nobody ticks
+     "seen", the binder knows already. */
 
   app.get("/challenges", async (req) => {
     const person = await requireAccount(req);
@@ -947,10 +941,10 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     return {
       challenge,
       works: await store.worksOf(db, challenge.list_id),
-      /* L'AVANCEMENT NE SORT DU JOURNAL QU'EN NOMBRE. Le journal des
-         séances ne quitte jamais one collection ; ici il ne quitte rien
-         non plus — on count, on ne recopie pas. Et l'on ne count que
-         des gens qui ont demandé à participer. */
+      /* PROGRESS LEAVES THE LOG AS A NUMBER AND NOTHING ELSE. The
+         screening log never leaves a collection; here it leaves nothing
+         either — we count, we do not copy. And we count only people who
+         have asked to take part. */
       progress: await store.progressOf(db, challenge.id),
     };
   });
@@ -1012,12 +1006,12 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
   });
 
   /* ------------------------------------------------------------
-     LES NOTIFICATIONS POUSSÉES
+     THE PUSH NOTIFICATIONS
      ------------------------------------------------------------
-     Une seule raison de sonner dans everything ce serveur : un défi qui
-     commence, un défi qui s'achève. Sans clés VAPID, ces routes
-     répondent « pas de service » et at classeur n'en montre pas at
-     réglage. */
+     One single reason to ring in this whole server: a challenge that
+     begins, a challenge that ends. With no VAPID keys these routes
+     answer "no service" and the binder does not even show the
+     setting. */
 
   app.get("/push-subscriptions", async () => ({
     possible: pushAvailable(),
@@ -1034,9 +1028,9 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
       p256dh?: string;
       secret?: string;
     };
-    /* L'follow vient du NAVIGATEUR et at serveur ne peut pas at
-       vérifier : everything ce qu'il peut faire est refuser ce qui n'a pas la
-       forme d'one adresse, pour ne pas ranger n'importe what. */
+    /* THE SUBSCRIPTION COMES FROM THE BROWSER and the server cannot
+       check it: all it can do is refuse what is not shaped like an
+       address, so as not to file just anything. */
     if (!endpoint || !/^https:\/\//.test(endpoint) || !p256dh || !secret) {
       return reply.code(400).send({ error: "Abonnement illisible." });
     }
@@ -1047,9 +1041,8 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
   app.delete("/push-subscriptions", async (req, reply) => {
     await requireAccount(req);
     const { endpoint } = (req.body ?? {}) as { endpoint?: string };
-    /* On erased by at POINT et non by at count : un ordinateur
-       partagé ne doit pas faire taire at téléphone de la même
-       person. */
+    /* We erase by ENDPOINT and not by account: a shared computer must
+       not silence the same person's phone. */
     if (endpoint) await store.forgetPush(db, endpoint);
     return reply.send({ subscribed: false });
   });
@@ -1057,27 +1050,23 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
   app.get("/health", async () => ({ debout: true }));
 
   /* ------------------------------------------------------------
-     LA PORTE DE SERVICE — fermée à double tour, et pour de bonnes
-     raisons
+     THE SERVICE DOOR — double-locked, and for good reasons
      ------------------------------------------------------------
 
-     Une clé d'accès se signe avec one digest, un visage ou one clé
-     physique. Rien de everything cela n'existe dans un navigateur piloté, ce
-     qui rendait la synchronisation invérifiable de bout en bout : on
-     pouvait éprouver at serveur seul, at client seul, et jamais les
-     two ensemble.
+     A passkey is signed with a fingerprint, a face or a physical key.
+     None of that exists in a driven browser, which made synchronisation
+     unverifiable end to end: one could try the server alone, the client
+     alone, and never the two together.
 
-     Cette route ouvre one session sans cérémonie — exactement ce que la
-     cérémonie aurait produit. C'est one porte dérobée, et her est
-     traitée comme telle : il faut ET ne pas être en production, ET
-     avoir posé `PORTE_DEV=1` à la main. Les two conditions sont lues
-     au démarrage, pas à la requête : one variable d'environnement
-     changée en douce ne la rouvre pas.
+     This route opens a session with no ceremony — exactly what the
+     ceremony would have produced. It is a back door, and it is treated
+     as one: it takes BOTH not being in production AND `DEV_DOOR=1` laid
+     down by hand. Both conditions are read at start-up, not per request:
+     an environment variable changed on the quiet does not reopen it.
 
-     Si vous lisez ceci en vous demandant si her peut être active en
-     ligne : non, `index.ts` ne la propose jamais when
-     `NODE_ENV=production`. */
-  if (reglages.devDoor) {
+     If you are reading this and wondering whether it can be live online:
+     no, `index.ts` never offers it when `NODE_ENV=production`. */
+  if (settings.devDoor) {
     app.post("/dev/session", async (req, reply) => {
       const { pseudo } = (req.body ?? {}) as { pseudo?: string };
       const name = (pseudo || `dev-${Date.now().toString(36)}`).toLowerCase();
@@ -1088,26 +1077,26 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
   }
 
   /* ------------------------------------------------------------
-     LES RELAIS — la clé TMDB quitte at bundle
+     THE RELAYS — the TMDB key leaves the bundle
      ------------------------------------------------------------ */
   registerRelays(app, {
-    tmdbKey: reglages.tmdbKey,
+    tmdbKey: settings.tmdbKey,
     requireAccount,
-    tmdbCeiling: reglages.tmdbCeiling,
+    tmdbCeiling: settings.tmdbCeiling,
   });
 
   /* ------------------------------------------------------------
-     LE BALAYAGE
+     THE SWEEP
      ------------------------------------------------------------
-     Un défi expiré ne sert plus à rien et ne se consomme jamais : sans
-     balayage, la table grossit d'one ligne morte by cérémonie
-     abandonnée, indéfiniment. Toutes les heures suffit largement — la
-     validité d'un défi ne dépend pas de ce ménage, her est vérifiée à
-     l'usage (`expires_at > now()`). Ceci n'est qu'one question de place.
+     An expired ceremony challenge is good for nothing and is never
+     consumed: with no sweep, the table grows by one dead row per
+     abandoned ceremony, for ever. Every hour is plenty — a challenge's
+     validity does not depend on this housekeeping, it is checked on use
+     (`expires_at > now()`). This is only a question of room.
 
-     `unref()` : ce minuteur ne doit pas retenir at processus en vie au
-     moment de s'arrêter, sinon `npm run dev` refuse de rendre la main. */
-  const balai = setInterval(
+     `unref()`: this timer must not hold the process alive when it is
+     time to stop, or `npm run dev` refuses to give the hand back. */
+  const sweeper = setInterval(
     () => {
       store.sweepChallenges(db).catch(() => {});
       /* THE REMINDERS GO THROUGH THE SAME SWEEP, on the hour: a
@@ -1116,30 +1105,30 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
          saying it again. A real scheduler would be one more dependency
          for a server running on a desktop machine. */
       remindChallenges(db)
-        .then(({ told }) => told && console.log(`  ${told} rappel(s) de défi envoyé(s)`))
-        .catch((e) => console.error("rappels :", e));
+        .then(({ told }) => told && console.log(`  ${told} challenge reminder(s) sent`))
+        .catch((e) => console.error("reminders:", e));
     },
     60 * 60 * 1000
   );
-  balai.unref();
-  app.addHook("onClose", async () => clearInterval(balai));
+  sweeper.unref();
+  app.addHook("onClose", async () => clearInterval(sweeper));
 
   function setCookie(reply: FastifyReply, secret: string) {
     reply.setCookie(COOKIE, secret, {
       path: "/",
       httpOnly: true,
-      /* EN DÉVELOPPEMENT, `lax` SUFFIT ET EN LIGNE IL CASSE TOUT.
+      /* IN DEVELOPMENT `lax` IS ENOUGH; ONLINE IT BREAKS EVERYTHING.
 
-         Le client et at serveur partagent `localhost` en local : two
-         ports d'un même hôte sont at même « site », et at cookie voyage.
-         En ligne, at classeur vit sur un domaine de pages statiques et
-         l'API sur un other : la requête devient inter-sites, et `lax`
-         retient at cookie — la session existe et n'est jamais envoyée.
+         Locally the client and the server share `localhost`: two ports
+         of one host are the same "site", and the cookie travels. Online
+         the binder lives on a static-pages domain and the API on
+         another: the request becomes cross-site, `lax` holds the cookie
+         back — the session exists and is never sent.
 
-         `none` l'autorise, et n'a de sens qu'avec `Secure` : les two
-         vont donc ensemble, et se règlent d'un seul interrupteur. */
-      sameSite: reglages.secure ? "none" : "lax",
-      secure: reglages.secure ?? false,
+         `none` allows it, and only makes sense with `Secure`: the two
+         therefore go together, and are set by one single switch. */
+      sameSite: settings.secure ? "none" : "lax",
+      secure: settings.secure ?? false,
       maxAge: 30 * 24 * 60 * 60,
     });
   }

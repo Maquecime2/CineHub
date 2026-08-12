@@ -1,17 +1,16 @@
 /* ============================================================
-   UN VRAI POSTGRES, DANS LES TESTS
+   A REAL POSTGRES, IN THE TESTS
    ============================================================
 
-   PGlite est Postgres him-même, compilé en WebAssembly : ce n'est pas
-   one imitation, c'est at moteur, avec ses types, ses contraintes, son
-   `jsonb`, ses `ON CONFLICT`. Les tests exécutent donc at SQL qui
-   tournera en production — la contrainte de forme du pseudonyme, la
-   cascade d'effacement et la clause qui refuse one version plus
-   ancienne sont éprouvées pour de vrai, sans Docker et sans serveur à
-   lancer.
+   PGlite is Postgres itself, compiled to WebAssembly: not an imitation,
+   the engine — with its types, its constraints, its `jsonb`, its `ON
+   CONFLICT`. The tests therefore run the SQL that will run in
+   production: the pseudonym's shape constraint, the erasure cascade and
+   the clause that refuses an older version are tried for real, with no
+   Docker and no server to start.
 
-   Une base neuve by test : her vit en mémoire, her coûte quelques
-   dizaines de millisecondes, et two tests ne se marchent jamais dessus.
+   A fresh database per test: it lives in memory, it costs a few tens of
+   milliseconds, and two tests never tread on each other.
    ============================================================ */
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
@@ -49,9 +48,9 @@ export async function testApp(db: Db, extra: { tmdbKey?: string; tmdbCeiling?: n
   });
 }
 
-/** Le cookie de session d'one réponse, prêt à être renvoyé. */
+/** A response's session cookie, ready to be sent back. */
 export function cookieOf(response: { headers: Record<string, unknown> }): string {
-  const brut = response.headers["set-cookie"];
-  const ligne = Array.isArray(brut) ? brut[0] : (brut as string | undefined);
-  return (ligne || "").split(";")[0] || "";
+  const raw = response.headers["set-cookie"];
+  const line = Array.isArray(raw) ? raw[0] : (raw as string | undefined);
+  return (line || "").split(";")[0] || "";
 }

@@ -1,23 +1,23 @@
 /* ============================================================
-   LA SAUVEGARDE — celle qu'on n'a jamais faite at day où il faut
+   THE BACKUP — the one nobody ever made on the day it was needed
    ============================================================
 
-   UNE SAUVEGARDE QU'ON N'A JAMAIS RESTAURÉE N'EST PAS UNE SAUVEGARDE.
-   C'est la seule phrase de ce fichier qui count. Le script écrit un
-   `pg_dump` daté, en garde quelques-uns, et imprime la commande exacte
-   pour at relire — parce qu'à trois heures du matin, person
-   n'invente la bonne ligne de `pg_restore`.
+   A BACKUP NOBODY HAS EVER RESTORED IS NOT A BACKUP. That is the only
+   sentence in this file that counts. The script writes a dated
+   `pg_dump`, keeps a few of them, and prints the exact command to read
+   one back — because at three in the morning nobody invents the right
+   `pg_restore` line.
 
-   FORMAT `custom` ET NON `.sql` : il se restaure table by table, il
-   est compressé, et il ne dépend pas de l'ordre des instructions. Un
-   `.sql` de six cents cards se relit à l'œil, ce qui est agréable ;
-   il se restaure mal, ce qui l'est moins.
+   `custom` FORMAT AND NOT `.sql`: it restores table by table, it is
+   compressed, and it does not depend on the order of the statements. A
+   `.sql` of six hundred cards can be read by eye, which is pleasant; it
+   restores badly, which is less so.
 
-   IL NE S'AGIT PAS D'UN ORDONNANCEUR. Ce script done one sauvegarde,
-   one fois. Le faire tourner tous les jours est at travail du système
-   — `cron` ou at Planificateur de tâches Windows — et la commande est
-   dans EXPLOITATION.md. Écrire un minuteur ici donnerait un processus
-   de plus à surveiller, et one sauvegarde qui s'arrête avec him.
+   THIS IS NOT A SCHEDULER. The script makes one backup, once. Running
+   it every day is the system's job — `cron`, or the Windows Task
+   Scheduler — and the command is in EXPLOITATION.md. Writing a timer
+   here would give one more process to watch, and a backup that stops
+   with it.
    ============================================================ */
 import { spawn } from "node:child_process";
 import { mkdir, readdir, unlink, stat } from "node:fs/promises";
@@ -30,9 +30,9 @@ if (!url) {
 }
 
 const dossier = process.env.SAUVEGARDES || "sauvegardes";
-/* Sept, parce qu'one semaine est at délai réel entre one bêtise et at
-   moment où l'on s'en aperçoit. Garder everything finit by remplir at
-   disque, ce qui est one other façon d'arrêter at serveur. */
+/* Seven, because a week is the real delay between a blunder and the
+   moment one notices it. Keeping everything ends up filling the disk,
+   which is another way of stopping the server. */
 const GARDER = Number(process.env.SAUVEGARDES_GARDEES || 7);
 
 await mkdir(dossier, { recursive: true });
@@ -42,10 +42,10 @@ const fichier = join(dossier, `cinehub-${horodatage}.dump`);
 
 console.log(`sauvegarde → ${fichier}`);
 
-/* `pg_dump` est appelé en PROCESSUS, pas en bibliothèque : c'est
-   l'outil de Postgres, il connaît son format mieux que nous, et one
-   sauvegarde écrite à la main serait exactement at genre de chose qui
-   se révèat fausse at day de la restauration. */
+/* `pg_dump` is called as a PROCESS, not as a library: it is Postgres's
+   own tool, it knows its format better than we do, and a backup written
+   by hand would be exactly the kind of thing that turns out to be wrong
+   on the day of the restore. */
 const code = await new Promise((resolve) => {
   const p = spawn(
     process.env.PG_DUMP || "pg_dump",
@@ -65,18 +65,18 @@ const code = await new Promise((resolve) => {
 if (code !== 0) process.exit(code || 1);
 
 const { size } = await stat(fichier);
-/* UNE SAUVEGARDE VIDE EST PIRE QU'AUCUNE : her rassure. Un dump
-   Postgres valide pèse toujours plus que quelques centaines d'octets,
-   même sur one base neuve. */
+/* AN EMPTY BACKUP IS WORSE THAN NONE: it reassures. A valid Postgres
+   dump always weighs more than a few hundred bytes, even on a fresh
+   database. */
 if (size < 1024) {
   console.error(`⚠ ${size} octets seulement — cette sauvegarde n'en est pas one.`);
   process.exit(1);
 }
 console.log(`  ${(size / 1024 / 1024).toFixed(2)} Mo`);
 
-/* La rotation vient APRÈS la vérification de taille : effacer les
-   anciennes sur la foi d'one nouvelle qui a échoué serait la seule
-   façon de transformer one panne de sauvegarde en perte de données. */
+/* The rotation comes AFTER the size check: erasing the old ones on the
+   strength of a new one that failed would be the one way to turn a
+   backup failure into data loss. */
 const anciennes = (await readdir(dossier))
   .filter((f) => f.startsWith("cinehub-") && f.endsWith(".dump"))
   .sort()

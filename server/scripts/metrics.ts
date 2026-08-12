@@ -1,15 +1,15 @@
 /* ============================================================
-   LIRE LA MESURE — il n'y a pas de tableau de bord, et c'est voulu
+   READING THE MEASUREMENT — there is no dashboard, and that is meant
    ============================================================
 
-   Ces chiffres n'ont pas de route : les exposer demanderait one notion
-   d'administrateur que ce serveur n'a pas, et l'inventer pour un
-   tableau de bord serait la mauvaise raison d'addWork un pouvoir.
-   On les lit ici, since la machine qui tient la base.
+   These figures have no route: exposing them would need a notion of
+   administrator this server does not have, and inventing one for a
+   dashboard would be the wrong reason to add a power. They are read
+   here, from the machine that holds the database.
 
-   CE QU'ILS NE DIRONT JAMAIS : combien de people. Y répondre
-   demanderait de garder ce qu'on refuse de garder. Ils disent ce qui
-   sert et ce qui coûte — c'est ce pour what on metric.
+   WHAT THEY WILL NEVER SAY: how many people. Answering that would mean
+   keeping what we refuse to keep. They say what gets used and what
+   costs — which is what we measure for.
    ============================================================ */
 import { openPostgres } from "../src/db.ts";
 import { metrics } from "../src/store.ts";
