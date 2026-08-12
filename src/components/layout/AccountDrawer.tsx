@@ -54,15 +54,15 @@ import {
 import { forgetSync } from "../../services/sync";
 import type { SyncReport } from "../../services/sync";
 
-const quandDit = (le: number | null): string => {
-  if (!le) return "jamais encore";
-  const seconds = Math.round((Date.now() - le) / 1000);
+const quandDit = (at: number | null): string => {
+  if (!at) return "jamais more";
+  const seconds = Math.round((Date.now() - at) / 1000);
   if (seconds < 90) return "à l'instant";
   const minutes = Math.round(seconds / 60);
   if (minutes < 60) return `il y a ${minutes} minutes`;
   const hours = Math.round(minutes / 60);
   if (hours < 24) return `il y a ${hours} heure${hours > 1 ? "s" : ""}`;
-  return new Date(le).toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
+  return new Date(at).toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
 };
 
 export function AccountDrawer({
@@ -234,7 +234,7 @@ export function AccountDrawer({
               {/* We explain the passkey in one sentence: nobody should
                   have to know what WebAuthn is in order to sign up. */}
               Pas de word de pass : votre téléphone ou votre ordinateur sign à votre place, withCrew
-              ce qui le déverrouille existing.
+              ce qui at déverrouille existing.
             </div>
 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -380,8 +380,8 @@ export function AccountDrawer({
               it lie by watching what actually left: the whole card is
               sent, notes and screenings included.
 
-              That is as it should be: a note that does not follow onto
-              the phone is a note lost. But it cannot be guessed, so it is
+              That is as it should be: a noted that does not follow onto
+              the phone is a noted lost. But it cannot be guessed, so it is
               said — and sharing, for its part, will send only the public
               part of the card (see `publicPart`). */}
           Votre collection entière est copiée sur votre count, notes et screenings comprises.
@@ -464,7 +464,7 @@ function Blocks() {
 
   const reread = () =>
     myBlocks()
-      .then((r) => setListe(r.blocages))
+      .then((r) => setListe(r.blocks))
       /* With no server or offline: we stay quiet, we do not show an
          error for a heading that may have nothing to say. */
       .catch(() => setListe(null));
@@ -608,7 +608,7 @@ function Share() {
     mySharing()
       .then((r) => {
         if (!alive) return;
-        setState(r.partage);
+        setState(r.sharing);
         setJeton(r.token);
       })
       /* Offline: we stay mute rather than marking an invented state.
@@ -630,7 +630,7 @@ function Share() {
     setBusy(true);
     try {
       const r = await setSharing(voulu);
-      setState(r.partage);
+      setState(r.sharing);
       setJeton(r.token);
       setCopied(false);
     } finally {
@@ -668,7 +668,7 @@ function Share() {
       <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 8 }}>
         {state === null && "Par défaut, personne ne voit votre collection."}
         {state === "privee" && "Personne. Les liens déjà donnés ne valent plus rien."}
-        {state === "lien" && "Qui a le lien. Il ne se devine pas, et se coupe quand vous voulez."}
+        {state === "lien" && "Qui a at lien. Il ne se devine pas, et se coupe quand vous voulez."}
         {state === "publique" && "Qui connaît votre pseudonyme."}
       </div>
 

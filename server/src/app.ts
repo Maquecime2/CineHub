@@ -280,7 +280,10 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
   });
 
   app.post("/auth/signin/verify", async (req, reply) => {
-    const { challenge, response } = (req.body ?? {}) as { challenge?: string; response?: { id?: string } };
+    const { challenge, response } = (req.body ?? {}) as {
+      challenge?: string;
+      response?: { id?: string };
+    };
     const expected = challenge ? await store.consumeChallenge(db, challenge) : null;
     if (!expected) return reply.code(400).send({ error: "Défi inconnu ou expiré." });
 
@@ -791,8 +794,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     /* RENAME, PUBLISH, DELETE: the owner alone. Co-building is a right
        to write, not shared ownership — without that asymmetry, a list
        built by six hands has nobody left answering for it. */
-    if (!rights.administer)
-      return reply.code(403).send({ error: "Cette list n'est pas vôtre." });
+    if (!rights.administer) return reply.code(403).send({ error: "Cette list n'est pas vôtre." });
 
     const { title, intent, is_public } = (req.body ?? {}) as {
       title?: string;
@@ -814,8 +816,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     const person = await requireAccount(req);
     const rights = await droitsOu404(req, reply, person.id);
     if (!rights) return reply;
-    if (!rights.administer)
-      return reply.code(403).send({ error: "Cette list n'est pas vôtre." });
+    if (!rights.administer) return reply.code(403).send({ error: "Cette list n'est pas vôtre." });
     await store.deleteList(db, rights.list_id);
     return { erased: true };
   });
@@ -856,8 +857,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     const person = await requireAccount(req);
     const rights = await droitsOu404(req, reply, person.id);
     if (!rights) return reply;
-    if (!rights.administer)
-      return reply.code(403).send({ error: "Cette list n'est pas vôtre." });
+    if (!rights.administer) return reply.code(403).send({ error: "Cette list n'est pas vôtre." });
 
     const { pseudo } = req.params as { pseudo: string };
     const invite = await store.findByPseudo(db, (pseudo || "").toLowerCase());
@@ -1019,7 +1019,10 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
      répondent « pas de service » et at classeur n'en montre pas at
      réglage. */
 
-  app.get("/push-subscriptions", async () => ({ possible: pushAvailable(), key: publicKeyForPush() }));
+  app.get("/push-subscriptions", async () => ({
+    possible: pushAvailable(),
+    key: publicKeyForPush(),
+  }));
 
   app.put("/push-subscriptions", async (req, reply) => {
     const person = await requireAccount(req);

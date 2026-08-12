@@ -32,8 +32,8 @@ beforeEach(() => {
   for (const m of [hiddenCards, mySharing, hideCard, serverConfigured]) m.mockReset();
   serverConfigured.mockReturnValue(true);
   hiddenCards.mockResolvedValue({ ids: [] });
-  mySharing.mockResolvedValue({ partage: "publique", token: null });
-  hideCard.mockImplementation(async (_id: string, cachee: boolean) => ({ id: "f1", cachee }));
+  mySharing.mockResolvedValue({ sharing: "is_public", token: null });
+  hideCard.mockImplementation(async (_id: string, hidden: boolean) => ({ id: "f1", hidden }));
 });
 
 afterEach(() => vi.clearAllMocks());
@@ -58,7 +58,7 @@ describe("it only appears when it means something", () => {
      have no effect there, and a switch with no effect teaches you to stop
      reading it. */
   it("stays quiet when the collection is shown to nobody", async () => {
-    mySharing.mockResolvedValue({ partage: "privee", token: null });
+    mySharing.mockResolvedValue({ sharing: "privee", token: null });
     build();
     await waitFor(() => expect(mySharing).toHaveBeenCalled());
     expect(screen.queryByText("Ce que les autres en voient")).not.toBeInTheDocument();
@@ -72,7 +72,7 @@ describe("it only appears when it means something", () => {
   });
 
   it("appears as soon as the collection is shown by link", async () => {
-    mySharing.mockResolvedValue({ partage: "lien", token: "abc" });
+    mySharing.mockResolvedValue({ sharing: "lien", token: "abc" });
     build();
     expect(await screen.findByText("Ce que les autres en voient")).toBeInTheDocument();
   });

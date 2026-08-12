@@ -32,19 +32,15 @@ export interface AccessKey {
    ------------------------------------------------------------ */
 
 export async function findByPseudo(db: Db, pseudo: string): Promise<Person | null> {
-  return one<Person>(
-    db,
-    "SELECT id, pseudo, email, sharing, token FROM person WHERE pseudo = $1",
-    [pseudo]
-  );
+  return one<Person>(db, "SELECT id, pseudo, email, sharing, token FROM person WHERE pseudo = $1", [
+    pseudo,
+  ]);
 }
 
 export async function findById(db: Db, id: string): Promise<Person | null> {
-  return one<Person>(
-    db,
-    "SELECT id, pseudo, email, sharing, token FROM person WHERE id = $1",
-    [id]
-  );
+  return one<Person>(db, "SELECT id, pseudo, email, sharing, token FROM person WHERE id = $1", [
+    id,
+  ]);
 }
 
 export async function createPerson(db: Db, pseudo: string): Promise<Person> {
@@ -122,7 +118,13 @@ export async function setChallenge(
   const id = randomUUID();
   await db.query(
     "INSERT INTO webauthn_challenge (id, value, person_id, pseudo, expires_at) VALUES ($1, $2, $3, $4, $5)",
-    [id, value, what.personId ?? null, what.pseudo ?? null, new Date(Date.now() + CHALLENGE_LIFE_MS)]
+    [
+      id,
+      value,
+      what.personId ?? null,
+      what.pseudo ?? null,
+      new Date(Date.now() + CHALLENGE_LIFE_MS),
+    ]
   );
   return id;
 }
@@ -295,15 +297,7 @@ export async function storeCard(
             seq = nextval('card_seq')
       WHERE card.updated_at < EXCLUDED.updated_at
      RETURNING seq`,
-    [
-      personId,
-      f.id,
-      f.tmdbId ?? null,
-      f.hidden ?? false,
-      f.data,
-      f.updatedAt,
-      f.deleted ?? false,
-    ]
+    [personId, f.id, f.tmdbId ?? null, f.hidden ?? false, f.data, f.updatedAt, f.deleted ?? false]
   );
   return written.length > 0;
 }
@@ -394,7 +388,7 @@ export async function setSharing(
    qu'on duplique un day pour un other besoin, en oubliant la moitié du
    filter ; one soustraction écrite dans la seule requête qui sert at
    public ne s'oublie pas — il n'y a rien d'other à appeler. */
-const SANS_LE_PRIVE = `f.data - 'notes' - 'watches' - 'watchedAt' AS data`;
+const WITHOUT_THE_PRIVATE = `f.data - 'notes' - 'watches' - 'watchedAt' AS data`;
 
 export interface PublicCard {
   id: string;
@@ -425,7 +419,7 @@ export async function publicCollectionOf(
   }
 
   const films = await db.query<PublicCard>(
-    `SELECT f.id, f.tmdb_id, ${SANS_LE_PRIVE}
+    `SELECT f.id, f.tmdb_id, ${WITHOUT_THE_PRIVATE}
        FROM card f
       WHERE f.person_id = $1 AND NOT f.hidden AND NOT f.deleted
       ORDER BY f.updated_at DESC`,
@@ -578,7 +572,7 @@ export async function feedOf(
   cap = 40
 ): Promise<FeedItem[]> {
   return db.query<FeedItem>(
-    `SELECT p.pseudo, f.seq, f.id, f.tmdb_id, ${SANS_LE_PRIVE}, f.updated_at
+    `SELECT p.pseudo, f.seq, f.id, f.tmdb_id, ${WITHOUT_THE_PRIVATE}, f.updated_at
        FROM follow a
        JOIN person p ON p.id = a.followed_id
        JOIN card f ON f.person_id = p.id
@@ -601,7 +595,7 @@ export interface Review {
   pseudo: string;
   /** The card's identifier at its author's: that is what gets reported. */
   card: string;
-  note: number | null;
+  rating: number | null;
   review: string | null;
   at: Date;
 }
@@ -611,7 +605,7 @@ export interface Echo {
   collections: number;
   /** The mean of the ratings given, or `null` if nobody rated. */
   mean: number | null;
-  notes: number;
+  ratings: number;
   reviews: Review[];
 }
 
@@ -648,10 +642,10 @@ export async function echoOfWork(
     : `AND ($2::uuid IS NULL)`;
   const args = [tmdbId, asker];
 
-  const count = await one<{ collections: string; notes: string; mean: string | null }>(
+  const count = await one<{ collections: string; ratings: string; mean: string | null }>(
     db,
     `SELECT count(*)::text AS collections,
-            count(${RATING})::text AS notes,
+            count(${RATING})::text AS ratings,
             avg(${RATING})::text AS mean
        FROM card f JOIN person p ON p.id = f.person_id
       WHERE f.tmdb_id = $1 AND p.sharing = 'publique'
@@ -663,7 +657,7 @@ export async function echoOfWork(
      neither a word nor a rating counts in the total and has nothing to
      read. Showing empty lines would pass silence off as an opinion. */
   const reviews = await db.query<Review>(
-    `SELECT p.pseudo, f.id AS card, ${RATING} AS note,
+    `SELECT p.pseudo, f.id AS card, ${RATING} AS rating,
             NULLIF(f.data->>'review', '') AS review, f.updated_at AS at
        FROM card f JOIN person p ON p.id = f.person_id
       WHERE f.tmdb_id = $1 AND p.sharing = 'publique'
@@ -676,9 +670,9 @@ export async function echoOfWork(
 
   return {
     collections: Number(count?.collections ?? 0),
-    notes: Number(count?.notes ?? 0),
+    ratings: Number(count?.ratings ?? 0),
     mean: count?.mean == null ? null : Math.round(Number(count.mean) * 100) / 100,
-    reviews: reviews.map((a) => ({ ...a, note: a.note == null ? null : Number(a.note) })),
+    reviews: reviews.map((a) => ({ ...a, rating: a.rating == null ? null : Number(a.rating) })),
   };
 }
 
@@ -717,10 +711,7 @@ export async function block(db: Db, blocker: string, blocked: string): Promise<v
 }
 
 export async function unblock(db: Db, blocker: string, blocked: string): Promise<void> {
-  await db.query("DELETE FROM block WHERE blocker_id = $1 AND blocked_id = $2", [
-    blocker,
-    blocked,
-  ]);
+  await db.query("DELETE FROM block WHERE blocker_id = $1 AND blocked_id = $2", [blocker, blocked]);
 }
 
 /** Whom I HAVE blocked — never who blocked me: that is not askable. */

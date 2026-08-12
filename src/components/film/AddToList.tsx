@@ -30,7 +30,7 @@ export function AddToList({ film, signedIn }: { film: Film; signedIn: boolean })
     if (!serverConfigured() || !signedIn || !film.tmdbId) return;
     let alive = true;
     myLists()
-      .then((r) => alive && setListes(r.listes))
+      .then((r) => alive && setListes(r.lists))
       /* A server breakdown must not make the card speak: the section
          disappears, the binder carries on. */
       .catch(() => {});
@@ -45,17 +45,17 @@ export function AddToList({ film, signedIn }: { film: Film; signedIn: boolean })
     if (!choice) return;
     const r = await addToList(choice, {
       tmdbId: film.tmdbId!,
-      titre: film.title,
-      annee: film.year,
+      title: film.title,
+      year: film.year,
     });
     /* "Already in it" is not an error: it is the same gesture, and it
        deserves the same calm answer. */
-    setDit(r.neuf ? "rangé" : "y était déjà");
+    setDit(r.fresh ? "rangé" : "y était déjà");
   };
 
   return (
-    <div data-tour="detail-listes" style={{ marginTop: 18 }}>
-      <Label>Ranger dans une liste</Label>
+    <div data-tour="detail-lists" style={{ marginTop: 18 }}>
+      <Label>Ranger dans une list</Label>
       <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
         <select
           value={choice}
@@ -77,7 +77,7 @@ export function AddToList({ film, signedIn }: { film: Film; signedIn: boolean })
           <option value="">choisir…</option>
           {lists.map((l) => (
             <option key={l.id} value={l.id}>
-              {l.titre}
+              {l.title}
             </option>
           ))}
         </select>

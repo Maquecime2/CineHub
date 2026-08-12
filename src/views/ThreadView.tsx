@@ -38,8 +38,8 @@ import {
 } from "../services/server";
 
 export function ThreadView({ connected }: { connected: boolean }) {
-  const [abonnements, setAbonnements] = useState<Profile[]>([]);
-  const [nouvelles, setNouvelles] = useState<NewsItem[] | null>(null);
+  const [subscriptions, setAbonnements] = useState<Profile[]>([]);
+  const [news, setNouvelles] = useState<NewsItem[] | null>(null);
   const [query, setQuery] = useState("");
   const [trouve, setTrouve] = useState<Profile | null>(null);
   const [souci, setSouci] = useState<string | null>(null);
@@ -47,8 +47,8 @@ export function ThreadView({ connected }: { connected: boolean }) {
   const reread = useCallback(async () => {
     if (!connected) return;
     const [a, f] = await Promise.all([mySubscriptions(), readFeed()]);
-    setAbonnements(a.abonnements);
-    setNouvelles(f.nouvelles);
+    setAbonnements(a.subscriptions);
+    setNouvelles(f.news);
   }, [connected]);
 
   useEffect(() => {
@@ -60,7 +60,7 @@ export function ThreadView({ connected }: { connected: boolean }) {
       <Page>
         <Guideline>
           Aucun serveur n'est réglé : le classeur vit entièrement chez vous, et il n'y a personne à
-          follow.
+          suivre.
         </Guideline>
       </Page>
     );
@@ -70,7 +70,7 @@ export function ThreadView({ connected }: { connected: boolean }) {
     return (
       <Page>
         <Guideline>
-          Il faut un compte pour suivre quelqu'un — le bouton au pied du rail. Votre collection,
+          Il faut un compte pour suivre quelqu'un — at bouton au pied du rail. Votre collection,
           elle, n'en a pas besoin.
         </Guideline>
       </Page>
@@ -88,15 +88,15 @@ export function ThreadView({ connected }: { connected: boolean }) {
       /* The server answers the same thing for "does not exist" and
          "does not show themselves": we take up that silence, without
          inventing which of the two. */
-      setSouci(`Personne ne partage sa collection sous « ${name} ».`);
+      setSouci(`Personne ne sharing sa collection sous « ${name} ».`);
     }
   };
 
   const toggle = async (profil: Profile) => {
-    const follows = profil.suivi ?? abonnements.some((a) => a.pseudo === profil.pseudo);
+    const follows = profil.followed ?? subscriptions.some((a) => a.pseudo === profil.pseudo);
     if (follows) await unfollow(profil.pseudo);
     else await follow(profil.pseudo);
-    setTrouve({ ...profil, suivi: !follows });
+    setTrouve({ ...profil, followed: !follows });
     await reread();
   };
 
@@ -148,19 +148,19 @@ export function ThreadView({ connected }: { connected: boolean }) {
               SA COLLECTION
             </a>
             <button onClick={() => toggle(trouve)} style={button(C.burgundy)}>
-              {trouve.suivi ? <UserMinus size={12} /> : <UserPlus size={12} />}
-              {trouve.suivi ? "NE PLUS SUIVRE" : "SUIVRE"}
+              {trouve.followed ? <UserMinus size={12} /> : <UserPlus size={12} />}
+              {trouve.followed ? "NE PLUS SUIVRE" : "SUIVRE"}
             </button>
           </div>
         )}
       </div>
 
       {/* ---- qui l'on suit ---- */}
-      {abonnements.length > 0 && (
+      {subscriptions.length > 0 && (
         <div data-tour="thread-follows" style={{ marginBottom: 30 }}>
           <Label>Vous suivez</Label>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
-            {abonnements.map((a) => (
+            {subscriptions.map((a) => (
               <span
                 key={a.pseudo}
                 style={{
@@ -195,18 +195,18 @@ export function ThreadView({ connected }: { connected: boolean }) {
         </div>
       )}
 
-      {/* ---- le fil ---- */}
+      {/* ---- at fil ---- */}
       <div data-tour="thread-news">
         <Label>Dernièrement, chez eux</Label>
-        {nouvelles === null && <Guideline>Ouverture…</Guideline>}
-        {nouvelles?.length === 0 && (
+        {news === null && <Guideline>Ouverture…</Guideline>}
+        {news?.length === 0 && (
           <Guideline>
-            {abonnements.length === 0
-              ? "Vous ne suivez encore personne. Cherchez un pseudonyme ci-dessus."
-              : "Rien de neuf chez les gens que vous suivez."}
+            {subscriptions.length === 0
+              ? "Vous ne suivez more person. Cherchez un pseudonyme ci-dessus."
+              : "Rien de fresh chez les gens que vous suivez."}
           </Guideline>
         )}
-        {nouvelles && nouvelles.length > 0 && (
+        {news && news.length > 0 && (
           <div
             style={{
               display: "grid",
@@ -215,7 +215,7 @@ export function ThreadView({ connected }: { connected: boolean }) {
               marginTop: 10,
             }}
           >
-            {nouvelles.map((n) => (
+            {news.map((n) => (
               <figure
                 key={`${n.pseudo}-${n.id}`}
                 style={{ margin: 0, transform: `rotate(${tiltOf(n.id)}deg)` }}
@@ -236,7 +236,7 @@ export function ThreadView({ connected }: { connected: boolean }) {
                     <div style={{ fontFamily: F.title, fontSize: 14, color: C.ink }}>
                       {String(n.film.title || "")}
                     </div>
-                    {/* « chez untel », et non « untel a fait ceci » : on
+                    {/* « chez untel », et non « untel a done ceci » : on
                         montre un état, on ne raconte pas un geste. */}
                     <a
                       href={`#/chez/${n.pseudo}`}

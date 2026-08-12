@@ -155,7 +155,7 @@ describe("l'écho d'one œuvre", () => {
 
     const r = (await echo(me.cookie)).json();
     expect(r.collections).toBe(2);
-    expect(r.notes).toBe(1);
+    expect(r.ratings).toBe(1);
     expect(r.mean).toBe(3);
   });
 
@@ -283,9 +283,8 @@ describe("bloquer", () => {
     await app.inject({ method: "DELETE", url: "/blocks/him", headers: { cookie: me.cookie } });
 
     expect(
-      (
-        await app.inject({ method: "GET", url: "/blocks", headers: { cookie: me.cookie } })
-      ).json().blocks
+      (await app.inject({ method: "GET", url: "/blocks", headers: { cookie: me.cookie } })).json()
+        .blocks
     ).toEqual([]);
     const list = await app.inject({
       method: "GET",

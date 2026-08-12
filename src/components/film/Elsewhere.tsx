@@ -49,7 +49,7 @@ export function Elsewhere({ film, signedIn }: { film: Film; signedIn: boolean })
   if (!echo || echo.collections === 0) return null;
 
   const hide = (pseudo: string) =>
-    setEcho((e) => (e ? { ...e, avis: e.avis.filter((a) => a.pseudo !== pseudo) } : e));
+    setEcho((e) => (e ? { ...e, reviews: e.reviews.filter((a) => a.pseudo !== pseudo) } : e));
 
   return (
     <div data-tour="detail-ailleurs" style={{ marginTop: 22 }}>
@@ -67,32 +67,38 @@ export function Elsewhere({ film, signedIn }: { film: Film; signedIn: boolean })
       >
         <Users size={12} />
         <span>
-          {echo.collections} vidéothèque{echo.collections > 1 ? "s" : ""} le range
+          {echo.collections} vidéothèque{echo.collections > 1 ? "s" : ""} at range
           {echo.collections > 1 ? "nt" : ""}
         </span>
-        {echo.moyenne !== null && (
+        {echo.mean !== null && (
           <span style={{ display: "inline-flex", alignItems: "center", gap: 4, color: C.burgundy }}>
             <Star size={12} fill={C.burgundy} strokeWidth={1.4} />
-            {echo.moyenne.toFixed(1)}
+            {echo.mean.toFixed(1)}
             <span style={{ color: C.inkFaded }}>
-              sur {echo.notes} note{echo.notes > 1 ? "s" : ""}
+              sur {echo.ratings} noted{echo.ratings > 1 ? "s" : ""}
             </span>
           </span>
         )}
       </div>
 
-      {echo.avis.map((a) => (
-        <AvisLu key={`${a.pseudo}-${a.fiche}`} avis={a} onSilence={() => hide(a.pseudo)} />
+      {echo.reviews.map((a) => (
+        <OneOpinion key={`${a.pseudo}-${a.card}`} opinion={a} onSilence={() => hide(a.pseudo)} />
       ))}
     </div>
   );
 }
 
-function AvisLu({ avis, onSilence }: { avis: Echo["avis"][number]; onSilence: () => void }) {
-  const [fait, setFait] = useState<string | null>(null);
+function OneOpinion({
+  opinion,
+  onSilence,
+}: {
+  opinion: Echo["reviews"][number];
+  onSilence: () => void;
+}) {
+  const [said, setSaid] = useState<string | null>(null);
 
   const mute = async () => {
-    await block(avis.pseudo);
+    await block(opinion.pseudo);
     onSilence();
   };
 
@@ -100,10 +106,10 @@ function AvisLu({ avis, onSilence }: { avis: Echo["avis"][number]; onSilence: ()
     /* `prompt` is ugly, and it is the right tool: a motif is stated in
        one sentence, and one more modal in an already dense card would be
        paid for in confusion, for a gesture made twice a year. */
-    const motif = window.prompt(`Qu'est-ce qui ne va pas dans ce qu'a écrit ${avis.pseudo} ?`);
-    if (!motif?.trim()) return;
-    await report({ pseudo: avis.pseudo, fiche: avis.fiche, motif });
-    setFait("signalé — nous le lirons");
+    const reason = window.prompt(`Qu'est-ce qui ne va pas dans ce qu'a écrit ${opinion.pseudo} ?`);
+    if (!reason?.trim()) return;
+    await report({ pseudo: opinion.pseudo, card: opinion.card, reason });
+    setSaid("signalé — nous le lirons");
   };
 
   return (
@@ -117,39 +123,39 @@ function AvisLu({ avis, onSilence }: { avis: Echo["avis"][number]; onSilence: ()
     >
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <a
-          href={`#/chez/${avis.pseudo}`}
+          href={`#/chez/${opinion.pseudo}`}
           style={{ fontFamily: F.mono, fontSize: 10, color: C.burgundy, textDecoration: "none" }}
         >
-          chez {avis.pseudo}
+          chez {opinion.pseudo}
         </a>
-        {avis.note !== null && (
-          <span style={{ display: "flex", gap: 1 }} aria-label={`${avis.note} sur 5`}>
+        {opinion.rating !== null && (
+          <span style={{ display: "flex", gap: 1 }} aria-label={`${opinion.rating} sur 5`}>
             {[1, 2, 3, 4, 5].map((n) => (
               <Star
                 key={n}
                 size={10}
                 color={C.burgundy}
-                fill={avis.note! >= n ? C.burgundy : "none"}
+                fill={opinion.rating! >= n ? C.burgundy : "none"}
                 strokeWidth={1.4}
               />
             ))}
           </span>
         )}
         <span style={{ flex: 1 }} />
-        {fait ? (
-          <span style={{ fontFamily: F.mono, fontSize: 9, color: C.inkFaded }}>{fait}</span>
+        {said ? (
+          <span style={{ fontFamily: F.mono, fontSize: 9, color: C.inkFaded }}>{said}</span>
         ) : (
           <>
             <button onClick={say} title="Signaler" style={small}>
               <Flag size={11} />
             </button>
-            <button onClick={mute} title={`Ne plus rien voir de ${avis.pseudo}`} style={small}>
+            <button onClick={mute} title={`Ne plus rien voir de ${opinion.pseudo}`} style={small}>
               <UserMinus size={11} />
             </button>
           </>
         )}
       </div>
-      {avis.critique && (
+      {opinion.review && (
         <div
           style={{
             fontFamily: F.hand,
@@ -159,7 +165,7 @@ function AvisLu({ avis, onSilence }: { avis: Echo["avis"][number]; onSilence: ()
             lineHeight: 1.35,
           }}
         >
-          {avis.critique}
+          {opinion.review}
         </div>
       )}
     </div>

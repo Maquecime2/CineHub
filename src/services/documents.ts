@@ -18,7 +18,7 @@
    those would mean six places not to forget. So we keep a register: one
    key, one date, written here and nowhere else.
 
-   THE WIRE FIELD NAMES (`cle`, `majLe`, `contenu`, `supprime`) ARE THE
+   THE WIRE FIELD NAMES (`key`, `updatedAt`, `contenu`, `supprime`) ARE THE
    SERVER'S, not ours. They stay as they are until both sides are renamed
    in the same change.
    ============================================================ */
@@ -75,16 +75,16 @@ export const dateOf = (key: string): number => register()[key] ?? 0;
 
 /** What is left to send, ready for the road. */
 export function documentsToSend(): {
-  cle: string;
-  majLe: number;
+  key: string;
+  updatedAt: number;
   content: unknown;
   supprime?: boolean;
 }[] {
   return pending().map((key) => {
     const raw = localStorage.getItem(key);
     return {
-      cle: key,
-      majLe: dateOf(key) || Date.now(),
+      key: key,
+      updatedAt: dateOf(key) || Date.now(),
       /* A document deleted here goes out like the cards: as a tombstone.
          Otherwise the other device would push it back. */
       supprime: raw === null,
@@ -114,22 +114,22 @@ export function forgetSentDocuments(keys: string[]): void {
  * the only arbitration that surprises nobody.
  */
 export function fileIncomingDocument(d: {
-  cle: string;
-  majLe: number;
+  key: string;
+  updatedAt: number;
   content: unknown;
   supprime?: boolean;
 }): boolean {
-  if (!isSyncable(d.cle)) return false;
-  if (d.majLe <= dateOf(d.cle)) return false;
+  if (!isSyncable(d.key)) return false;
+  if (d.updatedAt <= dateOf(d.key)) return false;
 
-  if (d.supprime) localStorage.removeItem(d.cle);
-  else store.set(d.cle, d.content);
+  if (d.supprime) localStorage.removeItem(d.key);
+  else store.set(d.key, d.content);
 
-  /* We note the date RECEIVED, and we do not put the key back on the
+  /* We noted the date RECEIVED, and we do not put the key back on the
      waiting list: this document comes from elsewhere, it has no reason
      to go back there. */
-  store.set(REGISTER_KEY, { ...register(), [d.cle]: d.majLe });
-  forgetSentDocuments([d.cle]);
+  store.set(REGISTER_KEY, { ...register(), [d.key]: d.updatedAt });
+  forgetSentDocuments([d.key]);
   return true;
 }
 
@@ -143,7 +143,7 @@ export function sendAllDocuments(): void {
     if (key && isSyncable(key)) keys.push(key);
   }
   /* A date for those that never had one — otherwise the server would
-     receive `majLe: 0` and refuse them all on the next round. */
+     receive `updatedAt: 0` and refuse them all on the next round. */
   const next = { ...reg };
   for (const c of keys) if (!next[c]) next[c] = now;
   store.set(REGISTER_KEY, next);

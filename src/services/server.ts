@@ -107,10 +107,7 @@ async function call<T>(path: string, options: CallOptions = {}): Promise<T> {
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new ServerError(
-      (body as { erreur?: string }).erreur || `Erreur ${res.status}`,
-      res.status
-    );
+    throw new ServerError((body as { error?: string }).error || `Erreur ${res.status}`, res.status);
   }
   return (await res.json()) as T;
 }
@@ -199,7 +196,7 @@ export const myData = () => call<Record<string, unknown>>("/my-data");
  * binder.
  */
 export const deleteMyAccount = () =>
-  call<{ efface: boolean }>("/my-account", {
+  call<{ erased: boolean }>("/my-account", {
     method: "DELETE",
   });
 
@@ -243,26 +240,26 @@ export async function signIn(pseudo: string): Promise<Person> {
 export interface CardToPush {
   id: string;
   tmdbId?: unknown;
-  majLe: number;
-  supprimee?: boolean;
-  donnees?: unknown;
+  updatedAt: number;
+  deleted?: boolean;
+  data?: unknown;
 }
 
 export interface Pulled {
   /** The server rank we have read up to. */
-  jusqua: number;
+  upTo: number;
   /** There is more: call again with the new rank. */
-  encore?: boolean;
-  fiches: { id: string; majLe: number; supprimee?: boolean; donnees: Record<string, unknown> }[];
+  more?: boolean;
+  cards: { id: string; updatedAt: number; deleted?: boolean; data: Record<string, unknown> }[];
 }
 
-export const pullFrom = (depuis: number): Promise<Pulled> =>
-  call<Pulled>(`/collection?since=${depuis}`);
+export const pullFrom = (since: number): Promise<Pulled> =>
+  call<Pulled>(`/collection?since=${since}`);
 
-export const push = (fiches: CardToPush[]) =>
-  call<{ rangees: number; perimees: number; illisibles: number; jusqua: number }>("/collection", {
+export const push = (cards: CardToPush[]) =>
+  call<{ filed: number; stale: number; unreadable: number; upTo: number }>("/collection", {
     method: "PUT",
-    body: JSON.stringify({ fiches }),
+    body: JSON.stringify({ cards }),
   });
 
 /** The server's cap, repeated here to cut the sends up. */
@@ -273,23 +270,23 @@ export const PER_SEND = 500;
    ------------------------------------------------------------ */
 
 export interface DocToPush {
-  cle: string;
-  majLe: number;
+  key: string;
+  updatedAt: number;
   content: unknown;
   supprime?: boolean;
 }
 
 export interface PulledDocs {
-  jusqua: number;
-  encore?: boolean;
-  documents: { cle: string; majLe: number; supprime?: boolean; content: unknown }[];
+  upTo: number;
+  more?: boolean;
+  documents: { key: string; updatedAt: number; supprime?: boolean; content: unknown }[];
 }
 
-export const pullDocsFrom = (depuis: number): Promise<PulledDocs> =>
-  call<PulledDocs>(`/documents?since=${depuis}`);
+export const pullDocsFrom = (since: number): Promise<PulledDocs> =>
+  call<PulledDocs>(`/documents?since=${since}`);
 
 export const pushDocs = (documents: DocToPush[]) =>
-  call<{ ranges: number; perimes: number; illisibles: number }>("/documents", {
+  call<{ filed: number; stale: number; unreadable: number }>("/documents", {
     method: "PUT",
     body: JSON.stringify({ documents }),
   });
@@ -315,21 +312,21 @@ export interface SharedFilm {
 }
 
 /** What the collection shows right now, and to whom. */
-export const mySharing = () => call<{ partage: Sharing; token: string | null }>("/sharing");
+export const mySharing = () => call<{ sharing: Sharing; token: string | null }>("/sharing");
 
-export const setSharing = (partage: Sharing) =>
-  call<{ partage: Sharing; token: string | null }>("/sharing", {
+export const setSharing = (sharing: Sharing) =>
+  call<{ sharing: Sharing; token: string | null }>("/sharing", {
     method: "PUT",
-    body: JSON.stringify({ partage }),
+    body: JSON.stringify({ sharing }),
   });
 
 /** The cards kept out of the sharing — identifiers, nothing more. */
 export const hiddenCards = () => call<{ ids: string[] }>("/hidden-cards");
 
-export const hideCard = (id: string, cachee: boolean) =>
-  call<{ id: string; cachee: boolean }>(`/cards/${encodeURIComponent(id)}/hidden`, {
+export const hideCard = (id: string, hidden: boolean) =>
+  call<{ id: string; hidden: boolean }>(`/cards/${encodeURIComponent(id)}/hidden`, {
     method: "PUT",
-    body: JSON.stringify({ cachee }),
+    body: JSON.stringify({ hidden }),
   });
 
 /**
@@ -345,7 +342,9 @@ export async function collectionOf(
   token?: string | null
 ): Promise<{ pseudo: string; films: SharedFilm[] }> {
   const q = token ? `?token=${encodeURIComponent(token)}` : "";
-  return call<{ pseudo: string; films: SharedFilm[] }>(`/collections/${encodeURIComponent(pseudo)}${q}`);
+  return call<{ pseudo: string; films: SharedFilm[] }>(
+    `/collections/${encodeURIComponent(pseudo)}${q}`
+  );
 }
 
 /* ------------------------------------------------------------
@@ -355,7 +354,7 @@ export async function collectionOf(
 export interface Profile {
   pseudo: string;
   films: number;
-  suivi?: boolean;
+  followed?: boolean;
   /** For the subscriptions list: is their collection still open? */
   ouverte?: boolean;
 }
@@ -364,7 +363,7 @@ export interface NewsItem {
   pseudo: string;
   id: string;
   tmdbId: string | null;
-  le: number;
+  at: number;
   film: SharedFilm;
 }
 
@@ -372,19 +371,19 @@ export const profileOf = (pseudo: string) =>
   call<Profile>(`/profiles/${encodeURIComponent(pseudo)}`);
 
 export const follow = (pseudo: string) =>
-  call<{ pseudo: string; suivi: boolean }>(`/follows/${encodeURIComponent(pseudo)}`, {
+  call<{ pseudo: string; followed: boolean }>(`/follows/${encodeURIComponent(pseudo)}`, {
     method: "PUT",
   });
 
 export const unfollow = (pseudo: string) =>
-  call<{ pseudo: string; suivi: boolean }>(`/follows/${encodeURIComponent(pseudo)}`, {
+  call<{ pseudo: string; followed: boolean }>(`/follows/${encodeURIComponent(pseudo)}`, {
     method: "DELETE",
   });
 
-export const mySubscriptions = () => call<{ abonnements: Profile[] }>("/follows");
+export const mySubscriptions = () => call<{ subscriptions: Profile[] }>("/follows");
 
-export const readFeed = (avant?: number | null) =>
-  call<{ jusqua: number | null; nouvelles: NewsItem[] }>(`/feed${avant ? `?before=${avant}` : ""}`);
+export const readFeed = (before?: number | null) =>
+  call<{ upTo: number | null; news: NewsItem[] }>(`/feed${before ? `?before=${before}` : ""}`);
 
 /* ------------------------------------------------------------
    CE QU'ON DIT D'UNE ŒUVRE, ET COMMENT ON S'EN PROTÈGE
@@ -393,17 +392,17 @@ export const readFeed = (avant?: number | null) =>
 export interface Opinion {
   pseudo: string;
   /** The card's id at its author's — that is what gets reported. */
-  fiche: string;
-  note: number | null;
-  critique: string | null;
-  le: string;
+  card: string;
+  rating: number | null;
+  review: string | null;
+  at: string;
 }
 
 export interface Echo {
   collections: number;
-  moyenne: number | null;
-  notes: number;
-  avis: Opinion[];
+  mean: number | null;
+  ratings: number;
+  reviews: Opinion[];
 }
 
 /**
@@ -418,22 +417,22 @@ export interface Echo {
 export const echoOfWork = (tmdbId: string | number) =>
   call<Echo>(`/works/${encodeURIComponent(String(tmdbId))}`);
 
-export const myBlocks = () => call<{ blocages: string[] }>("/blocks");
+export const myBlocks = () => call<{ blocks: string[] }>("/blocks");
 
 export const block = (pseudo: string) =>
-  call<{ pseudo: string; bloque: boolean }>(`/blocks/${encodeURIComponent(pseudo)}`, {
+  call<{ pseudo: string; blocked: boolean }>(`/blocks/${encodeURIComponent(pseudo)}`, {
     method: "PUT",
   });
 
 export const unblock = (pseudo: string) =>
-  call<{ pseudo: string; bloque: boolean }>(`/blocks/${encodeURIComponent(pseudo)}`, {
+  call<{ pseudo: string; blocked: boolean }>(`/blocks/${encodeURIComponent(pseudo)}`, {
     method: "DELETE",
   });
 
-export const report = (quoi: { pseudo: string; fiche: string; motif: string }) =>
-  call<{ note: boolean; neuf: boolean }>("/reports", {
+export const report = (what: { pseudo: string; card: string; reason: string }) =>
+  call<{ noted: boolean; fresh: boolean }>("/reports", {
     method: "POST",
-    body: JSON.stringify(quoi),
+    body: JSON.stringify(what),
   });
 
 /* ------------------------------------------------------------
@@ -442,111 +441,108 @@ export const report = (quoi: { pseudo: string; fiche: string; motif: string }) =
 
 export interface List {
   id: string;
-  titre: string;
-  intention: string;
-  publique: boolean;
-  proprietaire: string;
-  oeuvres: number;
+  title: string;
+  intent: string;
+  is_public: boolean;
+  owner: string;
+  works: number;
   mienne?: boolean;
-  membre?: boolean;
+  isMember?: boolean;
 }
 
 export interface ListWork {
   tmdb_id: string;
-  titre: string;
-  annee: string | null;
+  title: string;
+  year: string | null;
   /** Who put it there — `null` if that person has left. */
   per: string | null;
 }
 
 export interface Challenge {
   id: string;
-  titre: string;
+  title: string;
   liste_id: string;
-  liste: string;
-  debut: string;
-  fin: string;
+  list: string;
+  starts_on: string;
+  ends_on: string;
   per: string | null;
-  oeuvres: number;
-  dedans?: boolean;
+  works: number;
+  inside?: boolean;
 }
 
 /** One number per participant: the screening log does not go out. */
 export interface Progress {
   pseudo: string;
-  faites: number;
+  done: number;
 }
 
-export const myLists = () => call<{ listes: List[] }>("/lists");
+export const myLists = () => call<{ lists: List[] }>("/lists");
 
-export const createList = (l: { titre: string; intention?: string; publique?: boolean }) =>
+export const createList = (l: { title: string; intent?: string; is_public?: boolean }) =>
   call<{ id: string }>("/lists", { method: "POST", body: JSON.stringify(l) });
 
 export const readList = (id: string) =>
-  call<{ liste: List; oeuvres: ListWork[]; membres: string[] }>(
-    `/lists/${encodeURIComponent(id)}`
-  );
+  call<{ list: List; works: ListWork[]; members: string[] }>(`/lists/${encodeURIComponent(id)}`);
 
-export const editList = (
-  id: string,
-  l: { titre?: string; intention?: string; publique?: boolean }
-) =>
-  call<{ fait: boolean }>(`/lists/${encodeURIComponent(id)}`, {
+export const editList = (id: string, l: { title?: string; intent?: string; is_public?: boolean }) =>
+  call<{ done: boolean }>(`/lists/${encodeURIComponent(id)}`, {
     method: "PUT",
     body: JSON.stringify(l),
   });
 
 export const deleteList = (id: string) =>
-  call<{ efface: boolean }>(`/lists/${encodeURIComponent(id)}`, { method: "DELETE" });
+  call<{ erased: boolean }>(`/lists/${encodeURIComponent(id)}`, { method: "DELETE" });
 
 export const addToList = (
   id: string,
-  o: { tmdbId: string | number; titre?: string; annee?: string | number }
+  o: { tmdbId: string | number; title?: string; year?: string | number }
 ) =>
-  call<{ ajoute: boolean; neuf: boolean }>(`/lists/${encodeURIComponent(id)}/works`, {
+  call<{ added: boolean; fresh: boolean }>(`/lists/${encodeURIComponent(id)}/works`, {
     method: "POST",
-    body: JSON.stringify({ ...o, annee: o.annee == null ? undefined : String(o.annee) }),
+    body: JSON.stringify({ ...o, year: o.year == null ? undefined : String(o.year) }),
   });
 
 export const removeFromList = (id: string, tmdbId: string) =>
-  call<{ retire: boolean }>(
+  call<{ removed: boolean }>(
     `/lists/${encodeURIComponent(id)}/works/${encodeURIComponent(tmdbId)}`,
     { method: "DELETE" }
   );
 
 export const inviteToList = (id: string, pseudo: string) =>
-  call<{ pseudo: string; membre: boolean }>(
+  call<{ pseudo: string; isMember: boolean }>(
     `/lists/${encodeURIComponent(id)}/members/${encodeURIComponent(pseudo)}`,
     { method: "PUT" }
   );
 
 export const removeFromListMembers = (id: string, pseudo: string) =>
-  call<{ pseudo: string; membre: boolean }>(
+  call<{ pseudo: string; isMember: boolean }>(
     `/lists/${encodeURIComponent(id)}/members/${encodeURIComponent(pseudo)}`,
     { method: "DELETE" }
   );
 
-export const myChallenges = () => call<{ defis: Challenge[] }>("/challenges");
+export const myChallenges = () => call<{ challenges: Challenge[] }>("/challenges");
 
 export const createChallenge = (d: {
   listeId: string;
-  titre: string;
-  debut: string;
-  fin: string;
+  title: string;
+  starts_on: string;
+  ends_on: string;
 }) => call<{ id: string }>("/challenges", { method: "POST", body: JSON.stringify(d) });
 
 export const readChallenge = (id: string) =>
-  call<{ challenge: Challenge; oeuvres: ListWork[]; avancement: Progress[] }>(
+  call<{ challenge: Challenge; works: ListWork[]; progress: Progress[] }>(
     `/challenges/${encodeURIComponent(id)}`
   );
 
 export const deleteChallenge = (id: string) =>
-  call<{ efface: boolean }>(`/challenges/${encodeURIComponent(id)}`, { method: "DELETE" });
+  call<{ erased: boolean }>(`/challenges/${encodeURIComponent(id)}`, { method: "DELETE" });
 
 export const joinChallenge = (id: string) =>
-  call<{ dedans: boolean }>(`/challenges/${encodeURIComponent(id)}/participation`, { method: "PUT" });
+  call<{ inside: boolean }>(`/challenges/${encodeURIComponent(id)}/participation`, {
+    method: "PUT",
+  });
 
 export const leaveChallenge = (id: string) =>
-  call<{ dedans: boolean }>(`/challenges/${encodeURIComponent(id)}/participation`, {
+  call<{ inside: boolean }>(`/challenges/${encodeURIComponent(id)}/participation`, {
     method: "DELETE",
   });

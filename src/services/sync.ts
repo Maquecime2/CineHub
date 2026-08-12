@@ -163,20 +163,20 @@ export async function synchronise(onFilms: (films: Film[]) => void): Promise<Syn
 
     while (more && rounds < 50) {
       const received = await pullFrom(rank);
-      if (received.fiches.length) {
+      if (received.cards.length) {
         /* THE WIRE FORMAT STAYS THE SERVER'S, and the translation
            happens HERE. `domain/merge` speaks English like all the
-           domain; the server still sends `majLe`/`supprimee`/`donnees`.
+           domain; the server still sends `updatedAt`/`deleted`/`data`.
            Adapting at the boundary leaves the domain independent of the
            protocol — and the day the server changes vocabulary, it is
            this function that disappears, not `mergeRemote`. */
         const incoming: RemoteCard[] = (
-          received.fiches as { id: string; majLe: number; supprimee?: boolean; donnees?: unknown }[]
+          received.cards as { id: string; updatedAt: number; deleted?: boolean; data?: unknown }[]
         ).map((f) => ({
           id: f.id,
-          updatedAt: f.majLe,
-          deleted: f.supprimee,
-          data: (f.donnees ?? {}) as never,
+          updatedAt: f.updatedAt,
+          deleted: f.deleted,
+          data: (f.data ?? {}) as never,
         }));
         const { films: merged } = mergeRemote(films, incoming);
         films = merged;
@@ -187,8 +187,8 @@ export async function synchronise(onFilms: (films: Film[]) => void): Promise<Syn
         await replaceFilms(films);
         onFilms(films);
       }
-      rank = received.jusqua;
-      more = received.encore === true;
+      rank = received.upTo;
+      more = received.more === true;
       rounds += 1;
     }
     store.set(CURSOR_KEY, rank);
@@ -199,9 +199,9 @@ export async function synchronise(onFilms: (films: Film[]) => void): Promise<Syn
     const batch = toSend(knownCollection(), knownGraves(), pendingToSend()).map((e) => ({
       id: e.id,
       tmdbId: e.tmdbId,
-      majLe: e.updatedAt,
-      ...(e.deleted ? { supprimee: true } : {}),
-      donnees: e.data,
+      updatedAt: e.updatedAt,
+      ...(e.deleted ? { deleted: true } : {}),
+      data: e.data,
     }));
 
     for (let i = 0; i < batch.length; i += PER_SEND) {
@@ -213,14 +213,14 @@ export async function synchronise(onFilms: (films: Film[]) => void): Promise<Syn
          the card if the send fails.
 
          And we only remove what has not moved again in the meantime: a
-         note written while the batch was travelling must go out on the
+         noted written while the batch was travelling must go out on the
          next round. */
       const byId = new Map(knownCollection().map((f) => [f.id, f]));
       forgetWhatWentOut(
         slice
           .filter((e) => {
             const here = byId.get(e.id);
-            return !here || here.updatedAt === e.majLe;
+            return !here || here.updatedAt === e.updatedAt;
           })
           .map((e) => e.id)
       );
@@ -237,8 +237,8 @@ export async function synchronise(onFilms: (films: Film[]) => void): Promise<Syn
     while (moreDocs && docRounds < 50) {
       const received = await pullDocsFrom(docsRank);
       for (const d of received.documents) if (fileIncomingDocument(d)) came += 1;
-      docsRank = received.jusqua;
-      moreDocs = received.encore === true;
+      docsRank = received.upTo;
+      moreDocs = received.more === true;
       docRounds += 1;
     }
     store.set(DOCS_CURSOR_KEY, docsRank);
@@ -247,7 +247,7 @@ export async function synchronise(onFilms: (films: Film[]) => void): Promise<Syn
     for (let i = 0; i < docBatch.length; i += DOCS_PER_SEND) {
       const slice = docBatch.slice(i, i + DOCS_PER_SEND);
       await pushDocs(slice);
-      forgetSentDocuments(slice.map((d) => d.cle));
+      forgetSentDocuments(slice.map((d) => d.key));
     }
 
     /* An arrangement that changes asks for a view reload: the shelves

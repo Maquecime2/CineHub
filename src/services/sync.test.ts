@@ -10,11 +10,11 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 const fake = {
   person: { id: "p1", pseudo: "varda" } as { id: string; pseudo: string } | null,
-  received: [] as { jusqua: number; encore?: boolean; fiches: unknown[] }[],
+  received: [] as { upTo: number; more?: boolean; cards: unknown[] }[],
   pushed: [] as unknown[][],
   jetteAuTirage: null as null | { code: number; message: string },
   throwsOnSend: null as null | { code: number; message: string },
-  docsReceived: [] as { jusqua: number; encore?: boolean; documents: unknown[] }[],
+  docsReceived: [] as { upTo: number; more?: boolean; documents: unknown[] }[],
   docsPushed: [] as unknown[][],
 };
 
@@ -32,25 +32,25 @@ vi.mock("./server", () => ({
   PER_SEND: 2,
   serverConfigured: () => true,
   whoAmI: async () => fake.person,
-  pullFrom: async (depuis: number) => {
+  pullFrom: async (since: number) => {
     if (fake.jetteAuTirage) {
       throw new FakeServerError(fake.jetteAuTirage.message, fake.jetteAuTirage.code);
     }
-    return fake.received.shift() ?? { jusqua: depuis, encore: false, fiches: [] };
+    return fake.received.shift() ?? { upTo: since, more: false, cards: [] };
   },
   push: async (cards: unknown[]) => {
     if (fake.throwsOnSend) {
       throw new FakeServerError(fake.throwsOnSend.message, fake.throwsOnSend.code);
     }
     fake.pushed.push(cards);
-    return { rangees: cards.length, perimees: 0, illisibles: 0 };
+    return { filed: cards.length, stale: 0, unreadable: 0 };
   },
   DOCS_PER_SEND: 200,
-  pullDocsFrom: async (depuis: number) =>
-    fake.docsReceived.shift() ?? { jusqua: depuis, encore: false, documents: [] },
+  pullDocsFrom: async (since: number) =>
+    fake.docsReceived.shift() ?? { upTo: since, more: false, documents: [] },
   pushDocs: async (documents: unknown[]) => {
     fake.docsPushed.push(documents);
-    return { ranges: documents.length, perimes: 0, illisibles: 0 };
+    return { filed: documents.length, stale: 0, unreadable: 0 };
   },
 }));
 
@@ -84,9 +84,9 @@ describe("one full round", () => {
     await saveFilms([card({ id: "local", updatedAt: 5000 })]);
     fake.received = [
       {
-        jusqua: 12,
-        encore: false,
-        fiches: [{ id: "venue", majLe: 3000, donnees: { title: "Yi Yi" } }],
+        upTo: 12,
+        more: false,
+        cards: [{ id: "venue", updatedAt: 3000, data: { title: "Yi Yi" } }],
       },
     ];
 
@@ -101,8 +101,8 @@ describe("one full round", () => {
 
   it("asks again as long as the server says there is more", async () => {
     fake.received = [
-      { jusqua: 5, encore: true, fiches: [{ id: "a", majLe: 1, donnees: {} }] },
-      { jusqua: 9, encore: false, fiches: [{ id: "b", majLe: 1, donnees: {} }] },
+      { upTo: 5, more: true, cards: [{ id: "a", updatedAt: 1, data: {} }] },
+      { upTo: 9, more: false, cards: [{ id: "b", updatedAt: 1, data: {} }] },
     ];
     let seenFilms: unknown[] = [];
     await synchronise((films) => (seenFilms = films));
@@ -124,9 +124,9 @@ describe("one full round", () => {
        local modification, and it would bounce for ever. */
     fake.received = [
       {
-        jusqua: 7,
-        encore: false,
-        fiches: [{ id: "venue", majLe: 3000, donnees: { title: "Stalker" } }],
+        upTo: 7,
+        more: false,
+        cards: [{ id: "venue", updatedAt: 3000, data: { title: "Stalker" } }],
       },
     ];
     await synchronise(() => {});
@@ -194,8 +194,8 @@ describe("what is waiting", () => {
     expect(pending()).toBe(1);
 
     await synchronise(() => {});
-    const last = fake.pushed.at(-1)!.at(-1) as { id: string; supprimee?: boolean };
-    expect(last).toMatchObject({ id: "b", supprimee: true });
+    const last = fake.pushed.at(-1)!.at(-1) as { id: string; deleted?: boolean };
+    expect(last).toMatchObject({ id: "b", deleted: true });
   });
 });
 
@@ -213,7 +213,7 @@ describe("the rest of the binder", () => {
 
     await synchronise(() => {});
 
-    const keys = fake.docsPushed.flat().map((d) => (d as { cle: string }).cle);
+    const keys = fake.docsPushed.flat().map((d) => (d as { key: string }).key);
     expect(keys).toEqual(expect.arrayContaining(["shelf-view:abc", "notebook-notes", "fils"]));
   });
 
@@ -227,7 +227,7 @@ describe("the rest of the binder", () => {
 
     await synchronise(() => {});
 
-    const keys = fake.docsPushed.flat().map((d) => (d as { cle: string }).cle);
+    const keys = fake.docsPushed.flat().map((d) => (d as { key: string }).key);
     expect(keys).not.toContain("skin");
     expect(keys).not.toContain("onboarding");
     expect(keys.some((c) => c.startsWith("synchro-"))).toBe(false);
@@ -236,10 +236,10 @@ describe("the rest of the binder", () => {
   it("files what comes from elsewhere, and says so, so it gets reread", async () => {
     fake.docsReceived = [
       {
-        jusqua: 3,
-        encore: false,
+        upTo: 3,
+        more: false,
         documents: [
-          { cle: "shelf-view:abc", majLe: 9000, content: { id: "abc", venue: "d'ailleurs" } },
+          { key: "shelf-view:abc", updatedAt: 9000, content: { id: "abc", venue: "d'ailleurs" } },
         ],
       },
     ];
@@ -257,9 +257,9 @@ describe("the rest of the binder", () => {
 
     fake.docsReceived = [
       {
-        jusqua: 9,
-        encore: false,
-        documents: [{ cle: "shelf-view:abc", majLe: 1, content: { vieux: true } }],
+        upTo: 9,
+        more: false,
+        documents: [{ key: "shelf-view:abc", updatedAt: 1, content: { vieux: true } }],
       },
     ];
     await synchronise(() => {});
@@ -268,7 +268,7 @@ describe("the rest of the binder", () => {
 
   it("what has come in does not go back out", async () => {
     fake.docsReceived = [
-      { jusqua: 4, encore: false, documents: [{ cle: "fils", majLe: 8000, content: [] }] },
+      { upTo: 4, more: false, documents: [{ key: "fils", updatedAt: 8000, content: [] }] },
     ];
     await synchronise(() => {});
     fake.docsPushed = [];

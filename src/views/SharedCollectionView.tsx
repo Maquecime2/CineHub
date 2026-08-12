@@ -130,7 +130,7 @@ export function SharedCollectionView({ address }: { address: Address }) {
 }
 
 function Poster({ film }: { film: SharedFilm }) {
-  const note = Number(film.rating) || 0;
+  const noted = Number(film.rating) || 0;
   return (
     <figure style={{ margin: 0, transform: `rotate(${tiltOf(String(film.id))}deg)` }}>
       <div
@@ -152,20 +152,20 @@ function Poster({ film }: { film: SharedFilm }) {
           <div style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded, marginTop: 2 }}>
             {[film.year, film.director].filter(Boolean).join(" · ")}
           </div>
-          {note > 0 && (
-            <div style={{ display: "flex", gap: 1, marginTop: 4 }} aria-label={`${note} sur 5`}>
+          {noted > 0 && (
+            <div style={{ display: "flex", gap: 1, marginTop: 4 }} aria-label={`${noted} sur 5`}>
               {[1, 2, 3, 4, 5].map((n) => (
                 <Star
                   key={n}
                   size={11}
                   color={C.burgundy}
-                  fill={note >= n ? C.burgundy : "none"}
+                  fill={noted >= n ? C.burgundy : "none"}
                   strokeWidth={1.4}
                 />
               ))}
             </div>
           )}
-          {/* La critique est la seule chose qu'on ait vraiment envie de
+          {/* La review est la seule chose qu'on ait vraiment envie de
               lire chez quelqu'un d'autre. */}
           {film.review ? (
             <div

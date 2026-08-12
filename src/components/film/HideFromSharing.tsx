@@ -4,7 +4,7 @@
 
    The tour had promised it for a long time — "you can set a card aside" —
    and there was no button at all. The route existed (`PUT
-   /fiche/:id/cachee`), the column existed, sharing already respected it:
+   /fiche/:id/hidden`), the column existed, sharing already respected it:
    what was missing was something to read it with, and something to click.
 
    WHY HERE AND NOT IN "WHAT WE DO WITH IT". Putting aside, filing at the
@@ -35,7 +35,7 @@ import type { Film } from "../../types";
 
 export function HideFromSharing({ film, signedIn }: { film: Film; signedIn: boolean }) {
   const [hiddenNow, setHiddenNow] = useState<boolean | null>(null);
-  const [partage, setPartage] = useState<Sharing | null>(null);
+  const [sharing, setPartage] = useState<Sharing | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -45,7 +45,7 @@ export function HideFromSharing({ film, signedIn }: { film: Film; signedIn: bool
       .then(([c, p]) => {
         if (!alive) return;
         setHiddenNow(c.ids.includes(film.id));
-        setPartage(p.partage);
+        setPartage(p.sharing);
       })
       /* A server breakdown does not make the card speak: the section
          disappears, the binder carries on. */
@@ -58,20 +58,20 @@ export function HideFromSharing({ film, signedIn }: { film: Film; signedIn: bool
   /* "Nobody" is not argued card by card: when nothing is shown,
      everything is already set aside, and offering to set more aside would
      be a box with no effect. */
-  if (hiddenNow == null || partage == null || partage === "privee") return null;
+  if (hiddenNow == null || sharing == null || sharing === "privee") return null;
 
   const toggle = async () => {
     setBusy(true);
     try {
       const r = await hideCard(film.id, !hiddenNow);
-      setHiddenNow(r.cachee);
+      setHiddenNow(r.hidden);
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <div data-tour="detail-partage" style={{ marginTop: 18 }}>
+    <div data-tour="detail-sharing" style={{ marginTop: 18 }}>
       <Label>Ce que les autres en voient</Label>
       <button
         onClick={toggle}
@@ -95,7 +95,7 @@ export function HideFromSharing({ film, signedIn }: { film: Film; signedIn: bool
       </button>
       <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 5 }}>
         {hiddenNow
-          ? "Personne ne la voit chez vous. Elle reste au mur, dans l'almanach et dans la constellation — c'est le dehors qui l'ignore."
+          ? "Personne ne la voit chez vous. Elle reste au mur, dans l'almanach et dans la constellation — c'est at dehors qui l'ignore."
           : "Elle paraît dans votre collection partagée, avec sa note et votre critique. Vos notes libres et votre journal de séances ne sortent jamais."}
       </div>
     </div>

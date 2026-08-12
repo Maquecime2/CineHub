@@ -163,9 +163,7 @@ describe("at fil", () => {
     await app.inject({ method: "PUT", url: "/follows/varda", headers: { cookie: me.cookie } });
 
     const r = await app.inject({ method: "GET", url: "/feed", headers: { cookie: me.cookie } });
-    expect(r.json().news.map((n: { film: { title: string } }) => n.film.title)).toEqual([
-      "Cléo",
-    ]);
+    expect(r.json().news.map((n: { film: { title: string } }) => n.film.title)).toEqual(["Cléo"]);
   });
 
   it("n'emporte jamais les notes ni at journal", async () => {

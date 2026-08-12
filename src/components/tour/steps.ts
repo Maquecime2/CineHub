@@ -221,7 +221,7 @@ const detail: Tour = {
       optional: true,
     },
     {
-      target: at("detail-partage"),
+      target: at("detail-sharing"),
       tab: "film",
       title: "La retirer du partage",
       body: "Un film qu'on assume chez soi sans vouloir l'afficher : cette fiche-là quitte votre collection partagée, et elle seule. Elle reste au mur, dans l'almanach et dans la constellation — c'est le dehors qui l'ignore. Ne paraît qu'avec un compte, et seulement si vous montrez votre collection à quelqu'un.",

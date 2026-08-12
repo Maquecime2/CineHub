@@ -237,7 +237,12 @@ describe("un défi", () => {
       headers: { cookie: me.cookie },
       payload: {
         cards: [
-          { id: "a", tmdbId: "550", updatedAt: 1, data: { title: "Cléo", watchedAt: "2026-03-09" } },
+          {
+            id: "a",
+            tmdbId: "550",
+            updatedAt: 1,
+            data: { title: "Cléo", watchedAt: "2026-03-09" },
+          },
         ],
       },
     });
@@ -307,7 +312,11 @@ describe("un défi", () => {
       url: `/challenges/${id}/participation`,
       headers: { cookie: other.cookie },
     });
-    r = await app.inject({ method: "GET", url: `/challenges/${id}`, headers: { cookie: other.cookie } });
+    r = await app.inject({
+      method: "GET",
+      url: `/challenges/${id}`,
+      headers: { cookie: other.cookie },
+    });
     expect(r.json().progress).toContainEqual({ pseudo: "other", done: 1 });
   });
 
@@ -367,7 +376,12 @@ describe("un défi", () => {
       method: "POST",
       url: "/challenges",
       headers: { cookie: me.cookie },
-      payload: { listId: list, title: "À l'envers", starts_on: "2026-03-31", ends_on: "2026-03-01" },
+      payload: {
+        listId: list,
+        title: "À l'envers",
+        starts_on: "2026-03-31",
+        ends_on: "2026-03-01",
+      },
     });
     expect(r.statusCode).toBe(400);
   });

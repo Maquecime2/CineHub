@@ -70,15 +70,15 @@ const build = (signedIn = true) =>
 beforeEach(() => {
   myBlocks.mockReset();
   unblock.mockReset();
-  myBlocks.mockResolvedValue({ blocages: [] });
-  unblock.mockResolvedValue({ pseudo: "", bloque: false });
+  myBlocks.mockResolvedValue({ blocks: [] });
+  unblock.mockResolvedValue({ pseudo: "", blocked: false });
 });
 
 afterEach(() => vi.clearAllMocks());
 
 describe("those one has silenced", () => {
   it("names them, one by one", async () => {
-    myBlocks.mockResolvedValue({ blocages: ["genant", "penible"] });
+    myBlocks.mockResolvedValue({ blocks: ["genant", "penible"] });
     build();
     expect(await screen.findByText("genant")).toBeInTheDocument();
     expect(screen.getByText("penible")).toBeInTheDocument();
@@ -106,8 +106,8 @@ describe("those one has silenced", () => {
      return — and `unblock` was called by no screen. */
   it("gives speech back, and rereads the list afterwards", async () => {
     const user = userEvent.setup();
-    myBlocks.mockResolvedValueOnce({ blocages: ["genant"] });
-    myBlocks.mockResolvedValue({ blocages: [] });
+    myBlocks.mockResolvedValueOnce({ blocks: ["genant"] });
+    myBlocks.mockResolvedValue({ blocks: [] });
     build();
 
     await user.click(await screen.findByRole("button", { name: /Rendre la parole à genant/ }));
@@ -122,7 +122,7 @@ describe("those one has silenced", () => {
      nobody, and letting anyone believe otherwise would be worse than
      saying nothing. */
   it("says that giving speech back does not tie the link again", async () => {
-    myBlocks.mockResolvedValue({ blocages: ["genant"] });
+    myBlocks.mockResolvedValue({ blocks: ["genant"] });
     build();
     expect(await screen.findByText(/ne le renoue pas/)).toBeInTheDocument();
   });

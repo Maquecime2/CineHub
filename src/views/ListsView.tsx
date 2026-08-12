@@ -46,15 +46,15 @@ import {
 
 export function ListsView({ connected }: { connected: boolean }) {
   const [lists, setListes] = useState<List[]>([]);
-  const [defis, setDefis] = useState<Challenge[]>([]);
+  const [challenges, setDefis] = useState<Challenge[]>([]);
   const [ouverte, setOuverte] = useState<string | null>(null);
   const [title, setTitre] = useState("");
 
   const reread = useCallback(async () => {
     if (!connected) return;
     const [l, d] = await Promise.all([myLists(), myChallenges()]);
-    setListes(l.listes);
-    setDefis(d.defis);
+    setListes(l.lists);
+    setDefis(d.challenges);
   }, [connected]);
 
   useEffect(() => {
@@ -85,7 +85,7 @@ export function ListsView({ connected }: { connected: boolean }) {
   const freshOne = async () => {
     const name = title.trim();
     if (!name) return;
-    const { id } = await createList({ titre: name });
+    const { id } = await createList({ title: name });
     setTitre("");
     await reread();
     setOuverte(id);
@@ -94,7 +94,7 @@ export function ListsView({ connected }: { connected: boolean }) {
   return (
     <Page>
       <div data-tour="lists-new" style={{ maxWidth: 460, marginBottom: 28 }}>
-        <Label>Une nouvelle liste</Label>
+        <Label>Une nouvelle list</Label>
         <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
           <input
             value={title}
@@ -111,13 +111,13 @@ export function ListsView({ connected }: { connected: boolean }) {
             where one has the film in front of one's eyes, and its work
             identifier. */}
         <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 6 }}>
-          On y range les films depuis leur fiche — « ranger dans une liste », sous le catalogue.
+          On y range les films since leur fiche — « ranger dans une list », sous at catalogue.
         </div>
       </div>
 
       <div data-tour="lists-mine" style={{ marginBottom: 34 }}>
-        <Label>Vos listes</Label>
-        {lists.length === 0 && <Guideline>Aucune liste pour l'instant.</Guideline>}
+        <Label>Vos lists</Label>
+        {lists.length === 0 && <Guideline>Aucune list pour l'instant.</Guideline>}
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 6 }}>
           {lists.map((l) => (
             <OneList
@@ -133,15 +133,15 @@ export function ListsView({ connected }: { connected: boolean }) {
 
       <div data-tour="lists-challenges">
         <Label>Les défis</Label>
-        {defis.length === 0 && (
+        {challenges.length === 0 && (
           <Guideline>
             Aucun défi. Un défi est une liste plus une période : ouvrez une liste ci-dessus pour en
             lancer un.
           </Guideline>
         )}
         <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 8 }}>
-          {defis.map((d) => (
-            <OneChallenge key={d.id} defi={d} onChange={reread} />
+          {challenges.map((d) => (
+            <OneChallenge key={d.id} challenge={d} onChange={reread} />
           ))}
         </div>
       </div>
@@ -164,11 +164,11 @@ function OneList({
   onOuvrir: () => void;
   onChange: () => Promise<void>;
 }) {
-  const [oeuvres, setOeuvres] = useState<ListWork[]>([]);
-  const [membres, setMembres] = useState<string[]>([]);
+  const [works, setOeuvres] = useState<ListWork[]>([]);
+  const [members, setMembres] = useState<string[]>([]);
   const [invite, setInvite] = useState("");
   const [souci, setSouci] = useState<string | null>(null);
-  const [defi, setDefi] = useState({
+  const [challenge, setDefi] = useState({
     title: "",
     start: currentMonth().start,
     end: currentMonth().end,
@@ -176,8 +176,8 @@ function OneList({
 
   const reread = useCallback(async () => {
     const r = await readList(list.id);
-    setOeuvres(r.oeuvres);
-    setMembres(r.membres);
+    setOeuvres(r.works);
+    setMembres(r.members);
   }, [list.id]);
 
   useEffect(() => {
@@ -200,16 +200,16 @@ function OneList({
   };
 
   const run = async () => {
-    if (!defi.title.trim()) return;
+    if (!challenge.title.trim()) return;
     /* The server's vocabulary is French; the form's is not. The mapping
        happens here, at the boundary, and nowhere else. */
     await createChallenge({
       listeId: list.id,
-      titre: defi.title.trim(),
-      debut: defi.start,
-      fin: defi.end,
+      title: challenge.title.trim(),
+      starts_on: challenge.start,
+      ends_on: challenge.end,
     });
-    setDefi({ ...defi, title: "" });
+    setDefi({ ...challenge, title: "" });
     await onChange();
   };
 
@@ -230,21 +230,19 @@ function OneList({
         }}
       >
         <span style={{ fontFamily: F.title, fontStyle: "italic", fontSize: 20, color: C.ink }}>
-          {list.titre}
+          {list.title}
         </span>
         <span style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>
-          {list.oeuvres} film{list.oeuvres > 1 ? "s" : ""}
-          {list.publique ? " · publique" : ""}
-          {list.mienne ? "" : ` · chez ${list.proprietaire}`}
+          {list.works} film{list.works > 1 ? "s" : ""}
+          {list.is_public ? " · publique" : ""}
+          {list.mienne ? "" : ` · chez ${list.owner}`}
         </span>
       </button>
 
       {ouverte && (
         <div style={{ padding: "0 12px 14px" }}>
-          {oeuvres.length === 0 && (
-            <Guideline>Vide. Rangez-y des films depuis leur fiche.</Guideline>
-          )}
-          {oeuvres.map((o) => (
+          {works.length === 0 && <Guideline>Vide. Rangez-y des films since leur fiche.</Guideline>}
+          {works.map((o) => (
             <div
               key={o.tmdb_id}
               style={{
@@ -256,11 +254,11 @@ function OneList({
               }}
             >
               <span style={{ fontFamily: F.title, fontSize: 15, color: C.ink, flex: 1 }}>
-                {o.titre || `TMDB ${o.tmdb_id}`}
-                {o.annee ? (
+                {o.title || `TMDB ${o.tmdb_id}`}
+                {o.year ? (
                   <span style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>
                     {" "}
-                    {o.annee}
+                    {o.year}
                   </span>
                 ) : null}
               </span>
@@ -271,7 +269,7 @@ function OneList({
               )}
               <button
                 onClick={() => removeFromList(list.id, o.tmdb_id).then(reread)}
-                title="Retirer de la liste"
+                title="Retirer de la list"
                 style={{ ...small, color: C.burgundy }}
               >
                 <X size={12} />
@@ -302,9 +300,9 @@ function OneList({
                   {souci}
                 </div>
               )}
-              {membres.length > 0 && (
+              {members.length > 0 && (
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
-                  {membres.map((m) => (
+                  {members.map((m) => (
                     <span key={m} style={token}>
                       {m}
                       <button
@@ -323,9 +321,9 @@ function OneList({
                 <label style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>
                   <input
                     type="checkbox"
-                    checked={list.publique}
+                    checked={list.is_public}
                     onChange={(e) =>
-                      editList(list.id, { publique: e.target.checked }).then(onChange)
+                      editList(list.id, { is_public: e.target.checked }).then(onChange)
                     }
                   />{" "}
                   visible de qui vous follows
@@ -333,7 +331,7 @@ function OneList({
                 <span style={{ flex: 1 }} />
                 <button
                   onClick={() => deleteList(list.id).then(onChange)}
-                  title="Effacer cette liste"
+                  title="Effacer cette list"
                   style={{ ...small, color: C.burgundy }}
                 >
                   <Trash2 size={12} />
@@ -345,26 +343,26 @@ function OneList({
           {/* Starting a challenge requires the right to write in the
               list — otherwise anybody starts a challenge on a stranger's
               list, who would see it appear without having wanted it. */}
-          {(list.mienne || list.membre) && (
+          {(list.mienne || list.isMember) && (
             <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px dashed ${C.line}` }}>
               <Label>Lancer un défi sur cette liste</Label>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
                 <input
-                  value={defi.title}
-                  onChange={(e) => setDefi({ ...defi, title: e.target.value })}
+                  value={challenge.title}
+                  onChange={(e) => setDefi({ ...challenge, title: e.target.value })}
                   placeholder="Mars chez Varda"
                   style={{ ...underlineInput, fontFamily: F.hand, fontSize: 16, flex: "1 1 160px" }}
                 />
                 <input
                   type="date"
-                  value={defi.start}
-                  onChange={(e) => setDefi({ ...defi, start: e.target.value })}
+                  value={challenge.start}
+                  onChange={(e) => setDefi({ ...challenge, start: e.target.value })}
                   style={{ ...underlineInput, fontFamily: F.mono, fontSize: 11, width: 130 }}
                 />
                 <input
                   type="date"
-                  value={defi.end}
-                  onChange={(e) => setDefi({ ...defi, end: e.target.value })}
+                  value={challenge.end}
+                  onChange={(e) => setDefi({ ...challenge, end: e.target.value })}
                   style={{ ...underlineInput, fontFamily: F.mono, fontSize: 11, width: 130 }}
                 />
                 <button onClick={run} style={button(C.burgundy)}>
@@ -383,45 +381,52 @@ function OneList({
    ONE CHALLENGE, AND WHERE EVERYBODY STANDS
    ------------------------------------------------------------ */
 
-function OneChallenge({ defi, onChange }: { defi: Challenge; onChange: () => Promise<void> }) {
-  const [avancement, setAvancement] = useState<Progress[] | null>(null);
+function OneChallenge({
+  challenge,
+  onChange,
+}: {
+  challenge: Challenge;
+  onChange: () => Promise<void>;
+}) {
+  const [progress, setAvancement] = useState<Progress[] | null>(null);
 
   const reread = useCallback(async () => {
-    const r = await readChallenge(defi.id);
-    setAvancement(r.avancement);
-  }, [defi.id]);
+    const r = await readChallenge(challenge.id);
+    setAvancement(r.progress);
+  }, [challenge.id]);
 
   useEffect(() => {
     reread().catch(() => setAvancement([]));
   }, [reread]);
 
   const today = new Date().toISOString().slice(0, 10);
-  const state = today < defi.debut ? "à venir" : today > defi.fin ? "terminé" : "en cours";
+  const state =
+    today < challenge.starts_on ? "à venir" : today > challenge.ends_on ? "terminé" : "en cours";
 
   return (
     <div style={{ background: C.card, border: `1px solid ${C.line}`, padding: "11px 13px" }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
         <span style={{ fontFamily: F.title, fontStyle: "italic", fontSize: 20, color: C.ink }}>
-          {defi.titre}
+          {challenge.title}
         </span>
         <span style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>
-          {defi.debut} → {defi.fin} · {state} · {defi.oeuvres} film
-          {defi.oeuvres > 1 ? "s" : ""} · d'après « {defi.liste} »
+          {challenge.starts_on} → {challenge.ends_on} · {state} · {challenge.works} film
+          {challenge.works > 1 ? "s" : ""} · d'après « {challenge.list} »
         </span>
         <span style={{ flex: 1 }} />
         <button
           onClick={() =>
-            (defi.dedans ? leaveChallenge(defi.id) : joinChallenge(defi.id))
+            (challenge.inside ? leaveChallenge(challenge.id) : joinChallenge(challenge.id))
               .then(onChange)
               .then(reread)
           }
-          style={button(defi.dedans ? C.slate : C.pine)}
+          style={button(challenge.inside ? C.slate : C.pine)}
         >
-          {defi.dedans ? "SORTIR" : "PARTICIPER"}
+          {challenge.inside ? "SORTIR" : "PARTICIPER"}
         </button>
-        {defi.per === null || defi.dedans ? (
+        {challenge.per === null || challenge.inside ? (
           <button
-            onClick={() => deleteChallenge(defi.id).then(onChange)}
+            onClick={() => deleteChallenge(challenge.id).then(onChange)}
             title="Effacer ce défi"
             style={{ ...small, color: C.burgundy }}
           >
@@ -434,8 +439,8 @@ function OneChallenge({ defi, onChange }: { defi: Challenge; onChange: () => Pro
           the server counts, it does not copy out — and only counts
           people who have asked to take part. */}
       <div style={{ marginTop: 8 }}>
-        {avancement?.length === 0 && <Guideline>Person n'y participe encore.</Guideline>}
-        {(avancement ?? []).map((a) => (
+        {progress?.length === 0 && <Guideline>Person n'y participe more.</Guideline>}
+        {(progress ?? []).map((a) => (
           <div
             key={a.pseudo}
             style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 5 }}
@@ -465,14 +470,14 @@ function OneChallenge({ defi, onChange }: { defi: Challenge; onChange: () => Pro
                   position: "absolute",
                   inset: 0,
                   right: "auto",
-                  width: `${defi.oeuvres ? (100 * a.faites) / defi.oeuvres : 0}%`,
+                  width: `${challenge.works ? (100 * a.done) / challenge.works : 0}%`,
                   background: C.burgundy,
                   transition: "width var(--motion-slow) var(--motion-ease)",
                 }}
               />
             </span>
             <span style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>
-              {a.faites}/{defi.oeuvres}
+              {a.done}/{challenge.works}
             </span>
           </div>
         ))}
