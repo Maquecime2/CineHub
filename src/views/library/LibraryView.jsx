@@ -323,7 +323,7 @@ export function LibraryView({
   /* The WHOLE collection, and not the displayed wall alone: the evening
      drawer builds a taste profile, and a profile is read on the films
      SEEN — which the "à voir" list precisely does not contain. */
-  tousLesFilms = [],
+  allFilms = [],
   onOpen,
   wall = "watched",
   ui,
@@ -912,7 +912,7 @@ export function LibraryView({
           soir ne change pas selon qu'on regarde un mur ou une étagère. */}
       {soir && (
         <TonightDrawer
-          films={tousLesFilms.length ? tousLesFilms : films}
+          films={allFilms.length ? allFilms : films}
           onClose={() => setSoir(false)}
           onOpen={onOpen}
         />

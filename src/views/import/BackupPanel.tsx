@@ -5,7 +5,7 @@ import { Tally } from "../../components/ui";
 import { posterStats, exportBackup, importBackup } from "../../db";
 import type { Divider, Film, Note, ShelfViews } from "../../types";
 import type { Thread } from "../../domain/threads";
-import type { StoredVocabulary as Vocabulaire } from "../../domain/motifs";
+import type { StoredVocabulary as Vocabulary } from "../../domain/motifs";
 
 /** What `posterStats` brings back from the image database. */
 interface PosterStats {
@@ -23,14 +23,14 @@ interface BackupPanelProps {
   dividers: Divider[];
   views: ShelfViews | null;
   fils: Thread[];
-  motifs: Vocabulaire;
+  motifs: Vocabulary;
   onRestore: (data: {
     films: Film[];
     notes: Note[];
     dividers: Divider[];
     views: ShelfViews | null;
     fils: Thread[];
-    motifs: Vocabulaire;
+    motifs: Vocabulary;
   }) => void;
 }
 
@@ -88,7 +88,7 @@ export function BackupPanel({
           dividers: d as Divider[],
           views: null,
           fils: (fl || []) as Thread[],
-          motifs: (mo || { custom: [], hidden: [] }) as Vocabulaire,
+          motifs: (mo || { custom: [], hidden: [] }) as Vocabulary,
         })} fiche(s) restaurée(s).`
       );
     } catch (e) {

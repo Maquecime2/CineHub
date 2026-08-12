@@ -167,11 +167,11 @@ describe("gérer le vocabulaire depuis la fiche", () => {
   };
 
   it("écrit un motif et le pose aussitôt sur la fiche", async () => {
-    const onCréerMotif = vi.fn(() => "il-pleut-sans-arret");
-    const { onUpdate } = monter({}, { onCréerMotif, ...MOTS });
+    const onCreateMotif = vi.fn(() => "il-pleut-sans-arret");
+    const { onUpdate } = monter({}, { onCreateMotif, ...MOTS });
     const user = await ouvrirLaListe();
     await user.type(screen.getByLabelText("Nouveau motif"), "Il pleut sans arrêt{Enter}");
-    expect(onCréerMotif).toHaveBeenCalledWith("Il pleut sans arrêt", "narrative", false);
+    expect(onCreateMotif).toHaveBeenCalledWith("Il pleut sans arrêt", "narrative", false);
     // creating and laying are one single gesture
     expect(onUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ motifs: ["hero-dies", "il-pleut-sans-arret"] })
@@ -179,25 +179,25 @@ describe("gérer le vocabulaire depuis la fiche", () => {
   });
 
   it("écarte un motif du catalogue sans rien demander", async () => {
-    const onMasquerMotif = vi.fn();
-    monter({}, { onMasquerMotif, ...MOTS });
+    const onHideMotif = vi.fn();
+    monter({}, { onHideMotif, ...MOTS });
     const user = await ouvrirLaListe();
     await user.click(screen.getByLabelText("Écarter le motif Huis clos"));
-    expect(onMasquerMotif).toHaveBeenCalledWith("single-setting", true);
+    expect(onHideMotif).toHaveBeenCalledWith("single-setting", true);
   });
 
   /* Deleting a pattern of one's own also removes its identifier from
      the cards: so the confirmation announces how many carry it. */
   it("annonce les fiches touchées avant de supprimer un motif", async () => {
     setVocabulary({ custom: [makeCustomMotif("Il pleut", "world")], hidden: [] });
-    const onSupprimerMotif = vi.fn();
-    monter({ motifs: ["il-pleut"] }, { onSupprimerMotif, ...MOTS });
+    const onDeleteMotif = vi.fn();
+    monter({ motifs: ["il-pleut"] }, { onDeleteMotif, ...MOTS });
     const user = await ouvrirLaListe();
     await user.click(screen.getByLabelText("Supprimer le motif Il pleut"));
     expect(screen.getByText(/1 fiche/)).toBeInTheDocument();
-    expect(onSupprimerMotif).not.toHaveBeenCalled();
+    expect(onDeleteMotif).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "SUPPRIMER LE MOTIF" }));
-    expect(onSupprimerMotif).toHaveBeenCalledWith("il-pleut");
+    expect(onDeleteMotif).toHaveBeenCalledWith("il-pleut");
     setVocabulary({ custom: [], hidden: [] });
   });
 });

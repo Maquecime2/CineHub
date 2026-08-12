@@ -605,10 +605,10 @@ function Partager() {
      and at the price of a change you may not have wanted to make. We
      read first. */
   useEffect(() => {
-    let vivant = true;
+    let alive = true;
     mySharing()
       .then((r) => {
-        if (!vivant) return;
+        if (!alive) return;
         setÉtat(r.partage);
         setJeton(r.jeton);
       })
@@ -616,7 +616,7 @@ function Partager() {
          Clicking a mode will set it and say so. */
       .catch(() => {});
     return () => {
-      vivant = false;
+      alive = false;
     };
   }, []);
 

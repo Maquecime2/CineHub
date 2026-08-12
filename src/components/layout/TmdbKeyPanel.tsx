@@ -56,8 +56,8 @@ export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
      cause. An EMPTY key, for its part, is saved without a try: that is a
      deliberate erasure, not an attempt. */
   const poser = async () => {
-    const propre = key.trim();
-    if (!propre) {
+    const clean = key.trim();
+    if (!clean) {
       setTmdbKey("");
       setEssai({ état: "repos" });
       return;
@@ -67,9 +67,9 @@ export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
       /* `checkApiKey` returns `{ ok, error }` and NOT a boolean: an
          object is always truthy, and testing it as such would announce
          "it works" on a refused key. */
-      const r = await checkApiKey(propre);
+      const r = await checkApiKey(clean);
       if (r.ok) {
-        setTmdbKey(propre);
+        setTmdbKey(clean);
         setEssai({ état: "bonne" });
       } else {
         setEssai({

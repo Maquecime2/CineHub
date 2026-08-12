@@ -11,17 +11,17 @@
    ============================================================ */
 import { describe, it, expect } from "vitest";
 import {
-  PRÉFIXE_DÉMO,
-  classeurEncoreDémo,
-  estDémo,
-  filmsDeDémonstration,
-  notesDeDémonstration,
-  sansDémo,
+  DEMO_PREFIX,
+  binderStillDemo,
+  isDemo,
+  demoFilms,
+  demoNotes,
+  withoutDemo,
 } from "./demo";
 import { MOTIFS } from "../domain/motifs";
 import { makeFilm } from "../domain/film";
 
-const films = filmsDeDémonstration();
+const films = demoFilms();
 
 describe("le classeur de démonstration", () => {
   it("compte une douzaine de fiches", () => {
@@ -29,12 +29,12 @@ describe("le classeur de démonstration", () => {
   });
 
   it("se reconnaît à son préfixe, et rien d'autre", () => {
-    expect(films.every(estDémo)).toBe(true);
-    expect(estDémo(makeFilm({ title: "à moi" }))).toBe(false);
+    expect(films.every(isDemo)).toBe(true);
+    expect(isDemo(makeFilm({ title: "à moi" }))).toBe(false);
   });
 
   it("rend des fiches neuves à chaque appel", () => {
-    expect(filmsDeDémonstration()[0]).not.toBe(films[0]);
+    expect(demoFilms()[0]).not.toBe(films[0]);
   });
 
   it("n'a pas deux fois le même identifiant", () => {
@@ -172,31 +172,31 @@ describe("il couvre ce que la visite montre", () => {
 
 describe("le carnet de démonstration", () => {
   it("a une page, préfixée comme le reste", () => {
-    const notes = notesDeDémonstration();
+    const notes = demoNotes();
     expect(notes.length).toBeGreaterThan(0);
-    expect(notes.every((n) => n.id.startsWith(PRÉFIXE_DÉMO))).toBe(true);
+    expect(notes.every((n) => n.id.startsWith(DEMO_PREFIX))).toBe(true);
   });
 });
 
 describe("il se retire d'un geste", () => {
   it("reconnaît un classeur qui n'est que l'exemple", () => {
-    expect(classeurEncoreDémo(films)).toBe(true);
+    expect(binderStillDemo(films)).toBe(true);
   });
 
   it("se tait dès qu'une fiche est à vous", () => {
-    expect(classeurEncoreDémo([...films, makeFilm({ title: "à moi" })])).toBe(false);
+    expect(binderStillDemo([...films, makeFilm({ title: "à moi" })])).toBe(false);
   });
 
   it("se tait aussi sur un classeur vide", () => {
-    expect(classeurEncoreDémo([])).toBe(false);
+    expect(binderStillDemo([])).toBe(false);
   });
 
   it("ne laisse rien derrière lui", () => {
-    expect(sansDémo(films)).toHaveLength(0);
+    expect(withoutDemo(films)).toHaveLength(0);
   });
 
   it("ne touche pas à ce qui n'est pas l'exemple", () => {
     const mien = makeFilm({ title: "à moi" });
-    expect(sansDémo([...films, mien])).toEqual([mien]);
+    expect(withoutDemo([...films, mien])).toEqual([mien]);
   });
 });

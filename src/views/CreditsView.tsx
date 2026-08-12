@@ -30,7 +30,7 @@ interface CreditsViewProps {
   films: Film[];
   /** The open person, by their normalised key. `null`: the directory. */
   personne: string | null;
-  onOpenPersonne: (clé: string | null) => void;
+  onOpenPerson: (clé: string | null) => void;
   onOpen: (filmId: string) => void;
   onAddToWatchlist: (f: Film) => void;
 }
@@ -67,7 +67,7 @@ const ROLE_COURT: Record<KinshipRole, string> = {
 export function CreditsView({
   films,
   personne,
-  onOpenPersonne,
+  onOpenPerson,
   onOpen,
   onAddToWatchlist,
 }: CreditsViewProps) {
@@ -81,13 +81,13 @@ export function CreditsView({
       <Dossier
         p={ouvert}
         films={films}
-        onRetour={() => onOpenPersonne(null)}
+        onRetour={() => onOpenPerson(null)}
         onOpen={onOpen}
         onAddToWatchlist={onAddToWatchlist}
       />
     );
 
-  return <Répertoire gens={gens} onOuvrir={onOpenPersonne} inconnue={!!personne} />;
+  return <Répertoire gens={gens} onOuvrir={onOpenPerson} inconnue={!!personne} />;
 }
 
 /* ============================================================

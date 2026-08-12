@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { normalizeVocabulaire } from "./motifs";
+import { normalizeVocabulary } from "./motifs";
 
 /* ============================================================
    THE VOCABULARY WRITTEN BEFORE THE TRANSLATION
@@ -23,7 +23,7 @@ describe("a vocabulary written before the switch", () => {
   });
 
   it("reads the old `perso` and `masqués` keys", () => {
-    const v = normalizeVocabulaire(oldShape("monde"));
+    const v = normalizeVocabulary(oldShape("monde"));
     expect(v.custom.map((m) => m.id)).toEqual(["il-pleut"]);
     expect(v.hidden).toEqual(["hero-dies"]);
   });
@@ -36,17 +36,17 @@ describe("a vocabulary written before the switch", () => {
     ["ton", "tone"],
     ["monde", "world"],
   ])("reads the old family « %s »", (old, expected) => {
-    expect(normalizeVocabulaire(oldShape(old)).custom[0]!.family).toBe(expected);
+    expect(normalizeVocabulary(oldShape(old)).custom[0]!.family).toBe(expected);
   });
 
   it("keeps a custom motif's id, which is not the catalogue's", () => {
     /* Its id is taken from its label and was never translated: migrating
        it would orphan it from the cards that carry it. */
-    expect(normalizeVocabulaire(oldShape("monde")).custom[0]!.id).toBe("il-pleut");
+    expect(normalizeVocabulary(oldShape("monde")).custom[0]!.id).toBe("il-pleut");
   });
 
   it("does not let the old keys back out onto the disk", () => {
-    const v = normalizeVocabulaire(oldShape("monde"));
+    const v = normalizeVocabulary(oldShape("monde"));
     expect(v as unknown as Record<string, unknown>).not.toHaveProperty("perso");
     expect(v as unknown as Record<string, unknown>).not.toHaveProperty("masqués");
     expect(v.custom[0] as unknown as Record<string, unknown>).not.toHaveProperty("famille");
@@ -60,7 +60,7 @@ describe("a vocabulary already written in English", () => {
   };
 
   it("comes through untouched", () => {
-    const v = normalizeVocabulaire(current);
+    const v = normalizeVocabulary(current);
     expect(v.custom[0]!.family).toBe("world");
     expect(v.hidden).toEqual(["hero-dies"]);
   });
@@ -68,7 +68,7 @@ describe("a vocabulary already written in English", () => {
   it("falls back on the narrative for a family it cannot read", () => {
     /* An unknown family must not make the motif invisible: better to file
        it somewhere than to lose it. */
-    const v = normalizeVocabulaire({
+    const v = normalizeVocabulary({
       custom: [{ id: "x", label: "Un motif", family: "famille-inventée" }],
     });
     expect(v.custom[0]!.family).toBe("narrative");
@@ -77,13 +77,13 @@ describe("a vocabulary already written in English", () => {
 
 describe("what comes off the disk", () => {
   it("survives any shape at all", () => {
-    expect(normalizeVocabulaire(null)).toEqual({ custom: [], hidden: [] });
-    expect(normalizeVocabulaire({ custom: "pas une liste" })).toEqual({ custom: [], hidden: [] });
-    expect(normalizeVocabulaire({ custom: [{ id: "x" }] }).custom).toEqual([]);
+    expect(normalizeVocabulary(null)).toEqual({ custom: [], hidden: [] });
+    expect(normalizeVocabulary({ custom: "pas une liste" })).toEqual({ custom: [], hidden: [] });
+    expect(normalizeVocabulary({ custom: [{ id: "x" }] }).custom).toEqual([]);
   });
 
   it("drops a motif with no label rather than showing an empty line", () => {
-    const v = normalizeVocabulaire({ custom: [{ id: "x", label: "   ", family: "world" }] });
+    const v = normalizeVocabulary({ custom: [{ id: "x", label: "   ", family: "world" }] });
     expect(v.custom).toEqual([]);
   });
 });

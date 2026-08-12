@@ -47,11 +47,11 @@ export function SharedCollectionView({ address }: { address: Address }) {
   const [souci, setSouci] = useState<string | null>(null);
 
   useEffect(() => {
-    let vivant = true;
+    let alive = true;
     collectionOf(address.pseudo, address.jeton)
-      .then((r) => vivant && setFilms(r.films))
+      .then((r) => alive && setFilms(r.films))
       .catch((e) => {
-        if (!vivant) return;
+        if (!alive) return;
         /* THE SERVER ANSWERS 404 FOR THREE REASONS and says no more —
            unknown account, closed collection, expired link. We take up
            that silence rather than invent an explanation that would have
@@ -63,7 +63,7 @@ export function SharedCollectionView({ address }: { address: Address }) {
         );
       });
     return () => {
-      vivant = false;
+      alive = false;
     };
   }, [address.pseudo, address.jeton]);
 

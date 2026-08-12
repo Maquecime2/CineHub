@@ -105,10 +105,10 @@ export function MotifPicker({
   motifs = [],
   onChange,
   suggestions = [],
-  onFaireUnFil,
+  onMakeThread,
   onCréer,
   onSupprimer,
-  onMasquer,
+  onHide,
   masqués = [],
 }: {
   motifs?: string[];
@@ -116,13 +116,13 @@ export function MotifPicker({
   /** What TMDB offers. Nothing enters without a click. */
   suggestions?: Motif[];
   /** Turn this motif into a question asked of the whole collection. */
-  onFaireUnFil?: (motifId: string) => void;
+  onMakeThread?: (motifId: string) => void;
   /** Add a motif to the vocabulary. Absent: the list stays read-only. */
   onCréer?: (label: string, famille: MotifFamily, spoiler: boolean) => void;
   /** Remove one of your own — the confirmation and the tidying are the caller's. */
   onSupprimer?: (motif: Motif) => void;
   /** Set one of the catalogue's aside, or put it back. */
-  onMasquer?: (motifId: string, masqué: boolean) => void;
+  onHide?: (motifId: string, hidden: boolean) => void;
   /** Those of the catalogue already set aside, to offer them back. */
   masqués?: Motif[];
 }) {
@@ -183,12 +183,12 @@ export function MotifPicker({
         </div>
       )}
 
-      {posés.length > 0 && onFaireUnFil && (
+      {posés.length > 0 && onMakeThread && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
           {posés.map((m) => (
             <button
               key={m.id}
-              onClick={() => onFaireUnFil(m.id)}
+              onClick={() => onMakeThread(m.id)}
               title={`Rassembler tous les films portant « ${m.label} »`}
               style={{ ...chipStyle(C.slate, false), fontSize: 9.5 }}
             >
@@ -306,9 +306,9 @@ export function MotifPicker({
                           <Trash2 size={10} />
                         </button>
                       )}
-                      {!isCustom(m.id) && onMasquer && (
+                      {!isCustom(m.id) && onHide && (
                         <button
-                          onClick={() => onMasquer(m.id, true)}
+                          onClick={() => onHide(m.id, true)}
                           aria-label={"Écarter le motif " + m.label}
                           style={{
                             all: "unset",
@@ -402,14 +402,14 @@ export function MotifPicker({
           {/* What has been set aside stays recallable: hiding is not
               throwing away, and a vocabulary one cannot reopen closes for
               good at the first hesitation. */}
-          {onMasquer && masqués.length > 0 && (
+          {onHide && masqués.length > 0 && (
             <div style={{ borderTop: `1px solid ${C.line}`, paddingTop: 10, marginTop: 10 }}>
               <div style={rubrique}>ÉCARTÉS ({masqués.length})</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                 {masqués.map((m) => (
                   <button
                     key={m.id}
-                    onClick={() => onMasquer(m.id, false)}
+                    onClick={() => onHide(m.id, false)}
                     title="Le remettre dans la liste"
                     style={{ ...chipStyle(C.inkFaded, false), borderStyle: "dashed" }}
                   >

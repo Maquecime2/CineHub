@@ -28,14 +28,14 @@ export function AddToList({ film, signedIn }: { film: Film; signedIn: boolean })
 
   useEffect(() => {
     if (!serverConfigured() || !signedIn || !film.tmdbId) return;
-    let vivant = true;
+    let alive = true;
     myLists()
-      .then((r) => vivant && setListes(r.listes))
+      .then((r) => alive && setListes(r.listes))
       /* A server breakdown must not make the card speak: the section
          disappears, the binder carries on. */
       .catch(() => {});
     return () => {
-      vivant = false;
+      alive = false;
     };
   }, [signedIn, film.tmdbId]);
 

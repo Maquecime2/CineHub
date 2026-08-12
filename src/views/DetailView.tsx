@@ -143,7 +143,7 @@ interface DetailViewProps {
   film: Film;
   onBack: () => void;
   /** What the back button announces. Default: "RETOUR AU MUR". */
-  retourVers?: string;
+  backTo?: string;
   onUpdate: (f: Film) => void;
   onDelete: (id: string) => void;
   films?: Film[];
@@ -165,13 +165,13 @@ interface DetailViewProps {
   /** Files a proposal from the wake into the "à voir" list. */
   onAddToWatchlist?: (f: Film) => void;
   /** Turns a pattern into a question asked of the whole collection. */
-  onFaireUnFil?: (motifId: string) => void;
+  onMakeThread?: (motifId: string) => void;
   /** Your own vocabulary: your patterns, and the catalogue ones set aside. */
-  vocabulaire?: { custom: Motif[]; hidden: string[] };
+  vocabulary?: { custom: Motif[]; hidden: string[] };
   /** Returns the identifier of the written pattern, to lay it on the card at once. */
-  onCréerMotif?: (label: string, famille: MotifFamily, spoiler: boolean) => string | null;
-  onSupprimerMotif?: (motifId: string) => void;
-  onMasquerMotif?: (motifId: string, masqué: boolean) => void;
+  onCreateMotif?: (label: string, famille: MotifFamily, spoiler: boolean) => string | null;
+  onDeleteMotif?: (motifId: string) => void;
+  onHideMotif?: (motifId: string, hidden: boolean) => void;
   /** An account is open: the card can then read what is said of it elsewhere. */
   signedIn?: boolean;
   /**
@@ -182,30 +182,30 @@ interface DetailViewProps {
    * lets the guided tour open the tab of its target.
    */
   onglet?: OngletFiche;
-  onOnglet?: (o: OngletFiche) => void;
+  onTab?: (o: OngletFiche) => void;
 }
 
 export function DetailView({
   film,
   onBack,
-  retourVers,
+  backTo,
   onUpdate,
   onDelete,
   films = [],
   onLinkFilm,
   onRemoveLink,
-  onFaireUnFil,
+  onMakeThread,
   onEditLink,
   onOpen,
   onOpenPerson,
   onAddToWatchlist,
-  vocabulaire = { custom: [], hidden: [] },
-  onCréerMotif,
-  onSupprimerMotif,
-  onMasquerMotif,
+  vocabulary = { custom: [], hidden: [] },
+  onCreateMotif,
+  onDeleteMotif,
+  onHideMotif,
   signedIn = false,
   onglet: ongletContrôlé,
-  onOnglet,
+  onTab,
 }: DetailViewProps) {
   const apiKey = useTmdbKey();
   /* The local fallback follows the controlled one rather than fight it:
@@ -214,7 +214,7 @@ export function DetailView({
   const onglet = ongletContrôlé ?? ongletLocal;
   const changerOnglet = (o: OngletFiche) => {
     setOngletLocal(o);
-    onOnglet?.(o);
+    onTab?.(o);
   };
   /* A single request at a time, carried by the view: the three gestures
      that raise it — deleting the card, setting it aside, deleting a
@@ -333,12 +333,12 @@ export function DetailView({
      proposals to be read over, not a harvest. */
   const [proposés, setProposés] = useState<Motif[]>([]);
   useEffect(() => {
-    let vivant = true;
+    let alive = true;
     setProposés([]);
     if (!film.tmdbId || !apiKey) return;
     fetchKeywords(film.tmdbId, apiKey)
       .then((mots: { id?: number; name?: string }[]) => {
-        if (!vivant) return;
+        if (!alive) return;
         setProposés(suggestMotifs(mots));
         /* WE STORE THEM ON THE WAY. They were asked for and then thrown
            away: only the pattern proposals came out of them, and the
@@ -356,7 +356,7 @@ export function DetailView({
       })
       .catch(() => {});
     return () => {
-      vivant = false;
+      alive = false;
     };
     /* The key is a dependency: laying it in the drawer must catch up
        with an already open card, failing which one would have to close
@@ -392,8 +392,8 @@ export function DetailView({
      them on the way back, otherwise calling them back would mean digging
      into the code. */
   const masqués = useMemo(
-    () => MOTIFS.filter((m) => vocabulaire.hidden.includes(m.id)),
-    [vocabulaire.hidden]
+    () => MOTIFS.filter((m) => vocabulary.hidden.includes(m.id)),
+    [vocabulary.hidden]
   );
 
   const removeLink = (id: string) => onRemoveLink(film.id, id);
@@ -428,7 +428,7 @@ export function DetailView({
             from somebody's folder does not send you back to the wall
             from there, and announcing it that way would be one more
             lie. */}
-        <ArrowLeft size={14} /> {retourVers || "RETOUR AU MUR"}
+        <ArrowLeft size={14} /> {backTo || "RETOUR AU MUR"}
       </button>
 
       {/* ---- THE COVER, WHICH DOES NOT CHANGE TAB ----
@@ -746,23 +746,23 @@ export function DetailView({
                 motifs={film.motifs || []}
                 suggestions={proposés}
                 onChange={(motifs) => onUpdate({ ...film, motifs })}
-                onFaireUnFil={onFaireUnFil}
+                onMakeThread={onMakeThread}
                 masqués={masqués}
-                onMasquer={onMasquerMotif}
+                onHide={onHideMotif}
                 /* Creating and laying are one single gesture: one does
                  not write a pattern in the abstract, but because one is
                  looking at THIS film and no word said it. */
                 onCréer={
-                  onCréerMotif
+                  onCreateMotif
                     ? (label, famille, spoiler) => {
-                        const id = onCréerMotif(label, famille, spoiler);
+                        const id = onCreateMotif(label, famille, spoiler);
                         if (id && !(film.motifs || []).includes(id))
                           onUpdate({ ...film, motifs: [...(film.motifs || []), id] });
                       }
                     : undefined
                 }
                 onSupprimer={
-                  onSupprimerMotif
+                  onDeleteMotif
                     ? (motif) => {
                         const combien = films.filter((f) =>
                           (f.motifs || []).includes(motif.id)
@@ -774,7 +774,7 @@ export function DetailView({
                             : "Ce motif n'est posé sur aucune fiche.",
                           action: "supprimer le motif",
                           severe: true,
-                          onConfirm: () => onSupprimerMotif(motif.id),
+                          onConfirm: () => onDeleteMotif(motif.id),
                         });
                       }
                     : undefined

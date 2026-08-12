@@ -90,7 +90,7 @@ export function TonightDrawer({
       .filter((f) => f.tmdbId && !devinés.has(f.id));
     if (àDeviner.length === 0) return;
 
-    let vivant = true;
+    let alive = true;
     setCherche(true);
     pooled(
       àDeviner.map((f) => async () => {
@@ -100,7 +100,7 @@ export function TonightDrawer({
       { concurrency: 5 }
     )
       .then((paires: ([string, string[]] | null)[]) => {
-        if (!vivant) return;
+        if (!alive) return;
         setDevinés((avant) => {
           const suite = new Map(avant);
           /* The films whose guess failed are marked EMPTY and not left
@@ -112,11 +112,11 @@ export function TonightDrawer({
         });
       })
       .finally(() => {
-        if (vivant) setCherche(false);
+        if (alive) setCherche(false);
       });
 
     return () => {
-      vivant = false;
+      alive = false;
     };
   }, [apiKey, humeur, propositions, devinés]);
 

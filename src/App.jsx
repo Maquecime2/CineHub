@@ -8,8 +8,8 @@ import { normalize } from "./domain/search";
 import { inverseOf, strengthOf } from "./domain/relations";
 import { makeThread, normalizeThreads } from "./domain/threads";
 import { motifById, makeCustomMotif, customMotifs } from "./domain/motifs";
-import { loadThreads, saveThreads as saveFilsToDisk } from "./services/threads";
-import { loadVocabulaire, saveVocabulaire, normalizeVocabulaire } from "./services/motifs";
+import { loadThreads, saveThreads as saveThreadsToDisk } from "./services/threads";
+import { loadVocabulary, saveVocabulary, normalizeVocabulary } from "./services/motifs";
 import { store, KEYS } from "./services/storage";
 import { loadFilms, knownCollection, saveFilms, forgetCache } from "./services/collection";
 import { PaperGrain } from "./components/atmosphere";
@@ -18,7 +18,7 @@ import { FolderTabs } from "./components/layout/FolderTabs";
 import { useViewport } from "./hooks/useViewport";
 import { usePointerDrag } from "./hooks/usePointerDrag";
 import { SkinPicker } from "./components/layout/SkinPicker";
-import { Installation, MiseÀJour } from "./components/layout/Installation";
+import { Installation, UpdateCard } from "./components/layout/Installation";
 import { AccountDrawer } from "./components/layout/AccountDrawer";
 import { TmdbKeyPanel } from "./components/layout/TmdbKeyPanel";
 import { registerTmdbOpener } from "./services/tmdbKey";
@@ -46,11 +46,11 @@ import { useShelfViews } from "./hooks/useShelfViews";
 import { TourOverlay, TourHint, TourMenu } from "./components/tour";
 import { isFirstRun, shouldHint, shouldSeed, markSeeded } from "./services/onboarding";
 import {
-  classeurEncoreDémo,
-  filmsDeDémonstration,
-  notesDeDémonstration,
-  sansDémo,
-  PRÉFIXE_DÉMO,
+  binderStillDemo,
+  demoFilms,
+  demoNotes,
+  withoutDemo,
+  DEMO_PREFIX,
 } from "./services/demo";
 import { DemoBanner } from "./components/layout/DemoBanner";
 
@@ -75,12 +75,12 @@ export default function App() {
   const [dividers, setDividers] = useState([]);
   /* The constellation's threads: questions put to the collection, which
      must stay put from one session to the next. */
-  const [fils, setFils] = useState([]);
+  const [fils, setThreads] = useState([]);
   /* The vocabulary: the motifs you wrote, and those of the catalogue you
      set aside. The catalogue itself lives in the code — see
      `domain/motifs`. The React state only serves to redraw: it is the
      domain's register that answers `motifById`, everywhere else. */
-  const [vocabulaire, setVocabulaire] = useState({ custom: [], hidden: [] });
+  const [vocabulary, setVocabulary] = useState({ custom: [], hidden: [] });
   const [loaded, setLoaded] = useState(false);
   const [view, setView] = useState("library");
   const [selectedId, setSelectedId] = useState(null);
@@ -95,31 +95,31 @@ export default function App() {
      card where it was chosen is DEDUCED; putting it back to "film"
      inside an effect would cost one more render on every change of
      card. */
-  const [ongletChoisi, setOngletChoisi] = useState({ pour: null, onglet: "film" });
-  const detailOnglet = ongletChoisi.pour === selectedId ? ongletChoisi.onglet : "film";
+  const [chosenTab, setChosenTab] = useState({ pour: null, onglet: "film" });
+  const detailTab = chosenTab.pour === selectedId ? chosenTab.onglet : "film";
   /* Stable from one render to the next: the tour uses it inside an
      effect, and a function rebuilt on every pass would restart it
      endlessly. Hence the ref — it carries the current card without
      entering the dependencies. */
-  const ficheOuverte = useRef(null);
+  const openCard = useRef(null);
   /* Written AFTER the render and not during: reading or writing a ref in
      the middle of a render is what the React compiler refuses, and it is
      right — a render must be replayable without side effects. */
   useEffect(() => {
-    ficheOuverte.current = selectedId;
+    openCard.current = selectedId;
   }, [selectedId]);
-  const setDetailOnglet = useCallback(
-    (onglet) => setOngletChoisi({ pour: ficheOuverte.current, onglet }),
+  const setDetailTab = useCallback(
+    (onglet) => setChosenTab({ pour: openCard.current, onglet }),
     []
   );
   /* The person open in the Credits view, by their normalized key.
      Alongside `selectedId` and not instead of it: you open a person FROM
      a card, and going back to the card must not have forgotten which. */
-  const [personne, setPersonne] = useState(null);
+  const [personne, setPerson] = useState(null);
   const [showModal, setShowModal] = useState(false);
   /* The search that cuts across everything. A state and not a view: it
      replaces no tab, it passes over them and closes behind itself. */
-  const [recherche, setRecherche] = useState(false);
+  const [search, setSearch] = useState(false);
 
   /* THE SITE'S SKIN. It is in React state here for one reason only: the
      picker has to know which one is applied in order to mark it. It is
@@ -142,7 +142,7 @@ export default function App() {
     const onKey = (e) => {
       if (e.key?.toLowerCase() === "k" && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
-        setRecherche((o) => !o);
+        setSearch((o) => !o);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -168,9 +168,9 @@ export default function App() {
      read from, moves what it finds upstairs down there, and completes
      cards from before the status/watchedAt/tmdbId fields on the way. */
   useEffect(() => {
-    let vivant = true;
-    loadFilms().then(async (chargés) => {
-      if (!vivant) return;
+    let alive = true;
+    loadFilms().then(async (loaded) => {
+      if (!alive) return;
       /* THE DEMONSTRATION BINDER, AND ONLY HERE.
 
          This is the only place where we know both that the collection is
@@ -180,21 +180,21 @@ export default function App() {
          `ensureViews`: the shelf is then built on a real collection
          instead of rebuilding itself on the next render. See
          `services/demo` for what those twelve films contain, and why. */
-      let migrated = chargés;
-      if (!chargés.length && shouldSeed()) {
-        migrated = await saveFilms(filmsDeDémonstration());
+      let migrated = loaded;
+      if (!loaded.length && shouldSeed()) {
+        migrated = await saveFilms(demoFilms());
         /* The notebook only receives its page if it is empty: somebody
            may have written before having a single film. */
-        if (!store.get(KEYS.notes, []).length) store.set(KEYS.notes, notesDeDémonstration());
+        if (!store.get(KEYS.notes, []).length) store.set(KEYS.notes, demoNotes());
         markSeeded();
-        if (!vivant) return;
+        if (!alive) return;
       }
       setFilms(migrated);
       notebook.load();
       const tabs = store.get("shelf-dividers", []);
       setDividers(tabs);
-      setFils(loadThreads());
-      setVocabulaire(loadVocabulaire());
+      setThreads(loadThreads());
+      setVocabulary(loadVocabulary());
       /* The migration reads `order` and `status`, which the store has
          just normalized: it must therefore come after, and work on the
          migrated cards — not on what comes off the disk. */
@@ -204,7 +204,7 @@ export default function App() {
       setLoaded(true);
     });
     return () => {
-      vivant = false;
+      alive = false;
     };
   }, []);
 
@@ -242,15 +242,15 @@ export default function App() {
      collection, and nowhere else. It only starts once the binder is
      loaded: synchronising an empty collection we have not read yet would
      erase everything on the first send. */
-  const [accountOpen, setCompteOuvert] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   /* RE-READ WHAT HAS JUST ARRIVED. The shelf arrangements, the notebook,
      the threads and the vocabulary are read on mount: when the
      synchronisation brings some in, they have to be asked of the disk
      again, otherwise the screen keeps the old ones without a word. */
-  const relireLesDocuments = useCallback(() => {
+  const rereadDocuments = useCallback(() => {
     notebook.load();
-    setFils(loadThreads());
-    setVocabulaire(loadVocabulaire());
+    setThreads(loadThreads());
+    setVocabulary(loadVocabulary());
     const tabs = store.get("shelf-dividers", []);
     setDividers(tabs);
     setViews(
@@ -266,12 +266,12 @@ export default function App() {
   const { report: synchro, synchronise: rerunSync } = useSync(
     loaded,
     setFilms,
-    relireLesDocuments
+    rereadDocuments
   );
 
   const installation = useInstallation();
   const {
-    needRefresh: [majPrête],
+    needRefresh: [updateReady],
     updateServiceWorker,
   } = useRegisterSW();
 
@@ -284,7 +284,7 @@ export default function App() {
     else if (shouldHint()) setHint(true);
   }, [loaded]);
 
-  const jouerVisite = (id) => {
+  const playTour = (id) => {
     setTourMenu(false);
     setHint(false);
     setTourId(id);
@@ -293,14 +293,14 @@ export default function App() {
   /* Waving the tour away makes nothing appear at once: the reminder card
      would arrive on the very gesture that has just refused it. It waits
      for the next opening, where it has a chance of being read. */
-  const fermerVisite = () => setTourId(null);
+  const closeTour = () => setTourId(null);
 
   /* Stable from one render to the next: the tour uses it inside an
      effect, and a function rebuilt on every pass would restart it
      endlessly. Re-applying the view already open costs nothing — React
      drops the update when the value does not change, and the effect
      stays quiet. */
-  const visiteOuvreVue = useCallback((v) => {
+  const tourOpensView = useCallback((v) => {
     setView(v);
     setSelectedId(null);
   }, []);
@@ -349,12 +349,12 @@ export default function App() {
 
      `useRef` and not a module variable: two binders mounted side by side
      in a test would share the counter. */
-  const rangÉcriture = useRef(0);
+  const writeRank = useRef(0);
   const commitFilms = (next) => {
     setFilms(next);
-    const rang = ++rangÉcriture.current;
-    saveFilms(next).then((datés) => {
-      if (rang === rangÉcriture.current) setFilms(datés);
+    const rang = ++writeRank.current;
+    saveFilms(next).then((dated) => {
+      if (rang === writeRank.current) setFilms(dated);
     });
   };
 
@@ -362,34 +362,34 @@ export default function App() {
      NOTHING BUT the example: so we erase everything, without having to
      sort. The notebook page goes with it — it talks about the twelve
      films. */
-  const retirerDémo = () => {
-    commitFilms(sansDémo(films));
-    notebook.replaceAll(notebook.notes.filter((n) => !n.id.startsWith(PRÉFIXE_DÉMO)));
+  const removeDemo = () => {
+    commitFilms(withoutDemo(films));
+    notebook.replaceAll(notebook.notes.filter((n) => !n.id.startsWith(DEMO_PREFIX)));
     setSelectedId(null);
   };
 
-  const commitFils = (next) => {
-    setFils(next);
-    saveFilsToDisk(next);
+  const commitThreads = (next) => {
+    setThreads(next);
+    saveThreadsToDisk(next);
   };
 
-  const commitVocabulaire = (next) => {
-    setVocabulaire(next);
-    saveVocabulaire(next);
+  const commitVocabulary = (next) => {
+    setVocabulary(next);
+    saveVocabulary(next);
   };
 
   /* Writing a motif of one's own. Making it SET on the open card at
      once: you never create one in the abstract, but because you have
      just watched that film and no word said it. */
-  const créerMotif = (label, famille, spoiler) => {
-    const propre = (label || "").trim();
-    if (!propre) return null;
-    const existant = [...customMotifs()].find(
-      (m) => m.label.toLowerCase() === propre.toLowerCase()
+  const createMotif = (label, famille, spoiler) => {
+    const clean = (label || "").trim();
+    if (!clean) return null;
+    const existing = [...customMotifs()].find(
+      (m) => m.label.toLowerCase() === clean.toLowerCase()
     );
-    if (existant) return existant.id;
-    const motif = makeCustomMotif(propre, famille, spoiler);
-    commitVocabulaire({ ...vocabulaire, custom: [...vocabulaire.custom, motif] });
+    if (existing) return existing.id;
+    const motif = makeCustomMotif(clean, famille, spoiler);
+    commitVocabulary({ ...vocabulary, custom: [...vocabulary.custom, motif] });
     return motif.id;
   };
 
@@ -404,10 +404,10 @@ export default function App() {
      The threads built on it lose their source and keep the members set
      by hand: a thread is not destroyed by its motif disappearing, it
      becomes a list again. */
-  const supprimerMotif = (motifId) => {
-    commitVocabulaire({
-      ...vocabulaire,
-      custom: vocabulaire.custom.filter((m) => m.id !== motifId),
+  const deleteMotif = (motifId) => {
+    commitVocabulary({
+      ...vocabulary,
+      custom: vocabulary.custom.filter((m) => m.id !== motifId),
     });
     commitFilms(
       films.map((f) =>
@@ -416,20 +416,20 @@ export default function App() {
           : f
       )
     );
-    const touchés = fils.filter((f) => f.motif === motifId);
-    if (touchés.length)
-      commitFils(fils.map((f) => (f.motif === motifId ? { ...f, motif: null } : f)));
+    const touched = fils.filter((f) => f.motif === motifId);
+    if (touched.length)
+      commitThreads(fils.map((f) => (f.motif === motifId ? { ...f, motif: null } : f)));
   };
 
   /* Setting aside, and not deleting: a catalogue motif is not yours, and
      erasing it from your data would see it come back on the next update.
      The cards carrying it keep it — hiding rewrites nothing. */
-  const masquerMotif = (motifId, masqué) =>
-    commitVocabulaire({
-      ...vocabulaire,
-      hidden: masqué
-        ? [...new Set([...vocabulaire.hidden, motifId])]
-        : vocabulaire.hidden.filter((id) => id !== motifId),
+  const hideMotif = (motifId, hidden) =>
+    commitVocabulary({
+      ...vocabulary,
+      hidden: hidden
+        ? [...new Set([...vocabulary.hidden, motifId])]
+        : vocabulary.hidden.filter((id) => id !== motifId),
     });
 
   const addFilm = (film) => {
@@ -440,8 +440,8 @@ export default function App() {
   /* Opening somebody from a card. The key is normalized HERE and once
      only: the Credits view files its dossiers under the same one, and
      two ways of writing it would make two people. */
-  const ouvrirPersonne = (nom) => {
-    setPersonne(normalize(nom));
+  const openPerson = (nom) => {
+    setPerson(normalize(nom));
     setView("credits");
   };
 
@@ -452,13 +452,13 @@ export default function App() {
      ALREADY searches the motifs (`domain/search`), and the result is
      exactly "the cards carrying this motif", written with the tools that
      exist rather than with one more filter. */
-  const ouvrirTrouvaille = {
+  const openFinding = {
     film: (id) => {
       setSelectedId(id);
       setView("detail");
     },
     person: (clé) => {
-      setPersonne(clé);
+      setPerson(clé);
       setView("credits");
     },
     page: () => setView("notebook"),
@@ -526,7 +526,7 @@ export default function App() {
 
      Setting the same motif again does not create a duplicate: we reopen
      the one that already exists. */
-  const faireUnFilDuMotif = (motifId) => {
+  const makeThreadFromMotif = (motifId) => {
     const déjà = fils.find((f) => f.motif === motifId);
     if (déjà) {
       setView("constellation");
@@ -534,7 +534,7 @@ export default function App() {
     }
     const motif = motifById(motifId);
     if (!motif) return;
-    commitFils([
+    commitThreads([
       ...fils,
       makeThread({
         label: motif.label,
@@ -583,8 +583,8 @@ export default function App() {
        known state. */
     forgetCache(migrated);
     commitFilms(migrated);
-    commitFils(normalizeThreads(fl || []));
-    commitVocabulaire(normalizeVocabulaire(mo || {}));
+    commitThreads(normalizeThreads(fl || []));
+    commitVocabulary(normalizeVocabulary(mo || {}));
     if (n?.length) notebook.replaceAll(n);
     const tabs = d || [];
     setDividers(tabs);
@@ -741,23 +741,23 @@ export default function App() {
           setSelectedId(null);
           /* A tab is a departure, not a return: clicking "Credits"
              opens the directory, and not the last name consulted. */
-          setPersonne(null);
+          setPerson(null);
         }}
         onAdd={() => setShowModal(true)}
-        onSearch={() => setRecherche(true)}
+        onSearch={() => setSearch(true)}
         onSkin={() => setSkinPicker(true)}
         onKey={() => setKeyPanel(true)}
         onHelp={() => setTourMenu((o) => !o)}
-        onAccount={() => setCompteOuvert(true)}
+        onAccount={() => setAccountOpen(true)}
         sync={synchro.state}
       />
       {accountOpen && (
         <AccountDrawer
           report={synchro}
-          onFermer={() => setCompteOuvert(false)}
+          onFermer={() => setAccountOpen(false)}
           onSync={rerunSync}
           onChangement={() => {
-            setCompteOuvert(false);
+            setAccountOpen(false);
             rerunSync();
           }}
         />
@@ -766,13 +766,13 @@ export default function App() {
         <SkinPicker skin={skin} onPick={setSkin} onClose={() => setSkinPicker(false)} />
       )}
       {keyPanel && <TmdbKeyPanel onClose={() => setKeyPanel(false)} />}
-      {recherche && (
+      {search && (
         <SearchDrawer
           films={films}
           notes={notebook.notes}
           threads={fils}
-          onClose={() => setRecherche(false)}
-          ouvrir={ouvrirTrouvaille}
+          onClose={() => setSearch(false)}
+          ouvrir={openFinding}
         />
       )}
       {/* THE COLUMN THAT MUST BE ABLE TO SHRINK.
@@ -819,7 +819,7 @@ export default function App() {
           <LibraryView
             wall="watchlist"
             films={watchlist}
-            tousLesFilms={films}
+            allFilms={films}
             ui={wallUi.watchlist}
             setUi={setUiFor("watchlist")}
             onUpdateMany={updateMany}
@@ -838,25 +838,25 @@ export default function App() {
             /* THE TAB IS HELD HERE, as the view already is: the guided
                tour must be able to open "Links" before going there to
                find the red thread. See `visiteOuvreOnglet`. */
-            onglet={detailOnglet}
-            onOnglet={setDetailOnglet}
+            onglet={detailTab}
+            onTab={setDetailTab}
             onBack={() => {
               setView(backView);
               setSelectedId(null);
             }}
-            retourVers={personne ? "RETOUR AU GÉNÉRIQUE" : undefined}
+            backTo={personne ? "RETOUR AU GÉNÉRIQUE" : undefined}
             onUpdate={updateFilm}
             onDelete={deleteFilm}
             onLinkFilm={linkFilms}
             onRemoveLink={removeLink}
             onEditLink={editLink}
-            onFaireUnFil={faireUnFilDuMotif}
-            vocabulaire={vocabulaire}
-            onCréerMotif={créerMotif}
-            onSupprimerMotif={supprimerMotif}
-            onMasquerMotif={masquerMotif}
+            onMakeThread={makeThreadFromMotif}
+            vocabulary={vocabulary}
+            onCreateMotif={createMotif}
+            onDeleteMotif={deleteMotif}
+            onHideMotif={hideMotif}
             onOpen={(id) => setSelectedId(id)}
-            onOpenPerson={ouvrirPersonne}
+            onOpenPerson={openPerson}
             onAddToWatchlist={addFilm}
           />
         )}
@@ -864,7 +864,7 @@ export default function App() {
           <CreditsView
             films={films}
             personne={personne}
-            onOpenPersonne={setPersonne}
+            onOpenPerson={setPerson}
             onOpen={(id) => {
               setSelectedId(id);
               setView("detail");
@@ -904,7 +904,7 @@ export default function App() {
         {/* The almanac reads the screening log: so it looks at the cards
             WATCHED, including those set aside in the reserve — having
             archived them does not make them unwatched. */}
-        {view === "almanac" && <AlmanacView films={watched} onOpenPerson={ouvrirPersonne} />}
+        {view === "almanac" && <AlmanacView films={watched} onOpenPerson={openPerson} />}
         {view === "thread" && <ThreadView connected={!!synchro.person} />}
         {view === "lists" && <ListsView connected={!!synchro.person} />}
         {view === "skinlab" && import.meta.env.DEV && <SkinLab />}
@@ -916,7 +916,7 @@ export default function App() {
             dividers={dividers}
             views={views}
             fils={fils}
-            motifs={vocabulaire}
+            motifs={vocabulary}
             onRestore={restoreBackup}
           />
         )}
@@ -930,14 +930,14 @@ export default function App() {
           block of any `position: fixed` inside it: the veil would have
           anchored on the column instead of the window, and the hole
           would have aimed beside the mark on every change of view. */}
-      {majPrête ? (
-        <MiseÀJour onRecharger={() => updateServiceWorker(true)} />
+      {updateReady ? (
+        <UpdateCard onReload={() => updateServiceWorker(true)} />
       ) : (
         installation.invite && (
           <Installation
             apple={installation.apple}
-            onInstaller={installation.installer}
-            onÉcarter={installation.dismiss}
+            onInstall={installation.installer}
+            onDismiss={installation.dismiss}
           />
         )
       )}
@@ -952,16 +952,16 @@ export default function App() {
           started scrolling by exactly that height. A taped card moves
           nothing, and it is the shape the binder already gives its other
           sentences (see `Installation`). */}
-      {classeurEncoreDémo(films) && <DemoBanner onRemove={retirerDémo} />}
-      {tourMenu && <TourMenu view={view} onPlay={jouerVisite} onClose={() => setTourMenu(false)} />}
+      {binderStillDemo(films) && <DemoBanner onRemove={removeDemo} />}
+      {tourMenu && <TourMenu view={view} onPlay={playTour} onClose={() => setTourMenu(false)} />}
       <TourOverlay
         tourId={tourId}
-        onClose={fermerVisite}
-        onView={visiteOuvreVue}
-        onTab={setDetailOnglet}
+        onClose={closeTour}
+        onView={tourOpensView}
+        onTab={setDetailTab}
       />
       {hint && !tourId && (
-        <TourHint onReplay={() => jouerVisite("global")} onDismiss={() => setHint(false)} />
+        <TourHint onReplay={() => playTour("global")} onDismiss={() => setHint(false)} />
       )}
     </div>
   );

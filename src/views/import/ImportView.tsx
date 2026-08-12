@@ -32,7 +32,7 @@ import type {
   ShelfViews,
 } from "../../types";
 import type { Thread } from "../../domain/threads";
-import type { StoredVocabulary as Vocabulaire } from "../../domain/motifs";
+import type { StoredVocabulary as Vocabulary } from "../../domain/motifs";
 
 /** The two kinds of import offered under the file's reading. */
 const IMPORT_STATUSES: { k: FilmStatus; l: string }[] = [
@@ -47,14 +47,14 @@ interface ImportViewProps {
   dividers: Divider[];
   views: ShelfViews | null;
   fils: Thread[];
-  motifs: Vocabulaire;
+  motifs: Vocabulary;
   onRestore: (data: {
     films: Film[];
     notes: Note[];
     dividers: Divider[];
     views: ShelfViews | null;
     fils: Thread[];
-    motifs: Vocabulaire;
+    motifs: Vocabulary;
   }) => void;
 }
 

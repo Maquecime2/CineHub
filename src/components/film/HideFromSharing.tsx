@@ -40,10 +40,10 @@ export function HideFromSharing({ film, signedIn }: { film: Film; signedIn: bool
 
   useEffect(() => {
     if (!serverConfigured() || !signedIn) return;
-    let vivant = true;
+    let alive = true;
     Promise.all([hiddenCards(), mySharing()])
       .then(([c, p]) => {
-        if (!vivant) return;
+        if (!alive) return;
         setCachée(c.ids.includes(film.id));
         setPartage(p.partage);
       })
@@ -51,7 +51,7 @@ export function HideFromSharing({ film, signedIn }: { film: Film; signedIn: bool
          disappears, the binder carries on. */
       .catch(() => {});
     return () => {
-      vivant = false;
+      alive = false;
     };
   }, [signedIn, film.id]);
 

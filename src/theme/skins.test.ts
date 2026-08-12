@@ -88,7 +88,7 @@ describe("le catalogue de peaux", () => {
      on. A dark skin announcing itself light keeps the checkboxes and the
      lists light on its black background — the flaw is invisible to a
      render test, since those pieces are not in the document. */
-  it("ne se trompe pas sur la couleur de son propre fond", () => {
+  it("ne se trompe pas sur la couleur de son clean fond", () => {
     for (const skin of SKINS) {
       const isDark = contrast(skin.c.card!, "#FFFFFF") > contrast(skin.c.card!, "#000000");
       expect(!!skin.dark, `${skin.key} : carton ${skin.c.card}`).toBe(isDark);

@@ -34,15 +34,15 @@ export function Elsewhere({ film, signedIn }: { film: Film; signedIn: boolean })
   useEffect(() => {
     setEcho(null);
     if (!serverConfigured() || !signedIn || !tmdbId) return;
-    let vivant = true;
+    let alive = true;
     echoOfWork(tmdbId)
-      .then((e) => vivant && setEcho(e))
+      .then((e) => alive && setEcho(e))
       /* Silence is the right answer to a breakdown here: this section is
          an extra, and a card must not show an error for something it was
          not asked for. */
       .catch(() => {});
     return () => {
-      vivant = false;
+      alive = false;
     };
   }, [tmdbId, signedIn]);
 

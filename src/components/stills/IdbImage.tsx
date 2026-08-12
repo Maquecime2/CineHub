@@ -48,11 +48,11 @@ export function IdbImage({
 
   useEffect(() => {
     let objectUrl: string | null = null;
-    let vivant = true;
+    let alive = true;
     setÉtat("cherche");
     getImage(imageKey)
       .then((blob: Blob | undefined) => {
-        if (!vivant) return;
+        if (!alive) return;
         if (!blob) {
           setÉtat("absente");
           return;
@@ -64,10 +64,10 @@ export function IdbImage({
       .catch(() => {
         /* The vault refuses — private mode, locked database. For
            whoever is looking, it is the same as a missing image. */
-        if (vivant) setÉtat("absente");
+        if (alive) setÉtat("absente");
       });
     return () => {
-      vivant = false;
+      alive = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [imageKey]);

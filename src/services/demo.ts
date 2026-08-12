@@ -36,9 +36,9 @@ import { inverseOf } from "../domain/relations";
 import type { Film, Strength, LinkedWork, Note, Relation, Watch } from "../types";
 
 /** The prefix that tells an example card from your own. */
-export const PRÉFIXE_DÉMO = "demo-";
+export const DEMO_PREFIX = "demo-";
 
-export const estDémo = (f: Pick<Film, "id">): boolean => f.id.startsWith(PRÉFIXE_DÉMO);
+export const isDemo = (f: Pick<Film, "id">): boolean => f.id.startsWith(DEMO_PREFIX);
 
 /**
  * Does the binder contain ONLY examples?
@@ -48,12 +48,12 @@ export const estDémo = (f: Pick<Film, "id">): boolean => f.id.startsWith(PRÉFI
  * be — the twelve films remain, but they no longer lie about what one is
  * looking at.
  */
-export const classeurEncoreDémo = (films: Pick<Film, "id">[]): boolean =>
-  films.length > 0 && films.every(estDémo);
+export const binderStillDemo = (films: Pick<Film, "id">[]): boolean =>
+  films.length > 0 && films.every(isDemo);
 
 /** What remains once the examples have been removed. */
-export const sansDémo = <T extends Pick<Film, "id">>(films: T[]): T[] =>
-  films.filter((f) => !estDémo(f));
+export const withoutDemo = <T extends Pick<Film, "id">>(films: T[]): T[] =>
+  films.filter((f) => !isDemo(f));
 
 /* ------------------------------------------------------------
    Les fiches
@@ -396,7 +396,7 @@ const LIVRE: Omit<LinkedWork, "id"> & { propriétaire: string } = {
  * modified by somebody — cards are copied everywhere in the application,
  * but an array is not.
  */
-export function filmsDeDémonstration(maintenant = Date.now()): Film[] {
+export function demoFilms(maintenant = Date.now()): Film[] {
   const films = BROUILLONS.map((b, rang) =>
     makeFilm({
       ...b,
@@ -423,9 +423,9 @@ export function filmsDeDémonstration(maintenant = Date.now()): Film[] {
     const a = parId.get(fil.de);
     const b = parId.get(fil.vers);
     if (!a || !b) continue;
-    const pairId = `${PRÉFIXE_DÉMO}pair-${rang}`;
+    const pairId = `${DEMO_PREFIX}pair-${rang}`;
     const moitié = (cible: Film, relation: Relation): LinkedWork => ({
-      id: `${PRÉFIXE_DÉMO}lien-${rang}-${cible.id}`,
+      id: `${DEMO_PREFIX}lien-${rang}-${cible.id}`,
       pairId,
       type: "film",
       filmId: cible.id,
@@ -440,16 +440,16 @@ export function filmsDeDémonstration(maintenant = Date.now()): Film[] {
   }
 
   const { propriétaire, ...livre } = LIVRE;
-  ajouter(propriétaire, { id: `${PRÉFIXE_DÉMO}lien-livre`, ...livre });
+  ajouter(propriétaire, { id: `${DEMO_PREFIX}lien-livre`, ...livre });
 
   return films;
 }
 
 /** The notebook page that comes with it — the notebook has its tour too. */
-export function notesDeDémonstration(maintenant = Date.now()): Note[] {
+export function demoNotes(maintenant = Date.now()): Note[] {
   return [
     {
-      id: `${PRÉFIXE_DÉMO}note-1`,
+      id: `${DEMO_PREFIX}note-1`,
       title: "Ce que je cherche en ce moment",
       body: "Des films qui font confiance au silence. Melville, Wenders, Sciamma dans la seconde moitié — à chaque fois, la scène qui compte est celle où personne ne parle.\n\nÀ suivre : les chefs opérateurs plutôt que les cinéastes. Decaë revient deux fois sans que je l'aie cherché.",
       createdAt: maintenant,

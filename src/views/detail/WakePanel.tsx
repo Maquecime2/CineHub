@@ -432,11 +432,11 @@ export function WakePanel({
     setOuvert(null);
     setMisDeCôté(new Set());
     if (!apiKey) return;
-    let vivant = true;
+    let alive = true;
     setCherche(true);
     harvestTheWake(film, apiKey)
       .then((récoltes) => {
-        if (!vivant) return;
+        if (!alive) return;
         /* The SAME harvest serves both columns: what it brings back
            that you already own feeds the left, the rest the right. That
            is what gives connections by subject without having to ask for
@@ -447,13 +447,13 @@ export function WakePanel({
       /* A network failure returns an EMPTY list and not `null`: the
          column must say "nothing found" rather than spin for ever. */
       .catch(() => {
-        if (vivant) setDehors([]);
+        if (alive) setDehors([]);
       })
       .finally(() => {
-        if (vivant) setCherche(false);
+        if (alive) setCherche(false);
       });
     return () => {
-      vivant = false;
+      alive = false;
     };
     /* `film.id` and not `film`: touching up a rating or laying a
        pattern returns a new object, and redoing the harvest at every

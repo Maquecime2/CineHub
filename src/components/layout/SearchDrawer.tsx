@@ -32,7 +32,7 @@ const NATURES: Record<Kind, { title: string; icon: typeof Search; tint: string }
   page: { title: "Carnet", icon: NotebookPen, tint: C.pine },
 };
 
-export interface OuvrirTrouvaille {
+export interface OpenFinding {
   film: (id: string) => void;
   person: (key: string) => void;
   page: () => void;
@@ -52,7 +52,7 @@ export function SearchDrawer({
   notes: Note[];
   threads: Thread[];
   onClose: () => void;
-  ouvrir: OuvrirTrouvaille;
+  ouvrir: OpenFinding;
 }) {
   const [q, setQ] = useState("");
   const { phone } = useViewport();

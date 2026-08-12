@@ -48,9 +48,9 @@ describe("the move into the vault", () => {
     const avant = [fiche({ id: "a", title: "Stalker" })];
     localStorage.setItem(FILMS_KEY, JSON.stringify(avant));
 
-    const chargés = await loadFilms();
-    expect(chargés).toHaveLength(1);
-    expect(chargés[0]!.title).toBe("Stalker");
+    const loaded = await loadFilms();
+    expect(loaded).toHaveLength(1);
+    expect(loaded[0]!.title).toBe("Stalker");
     expect(coffre.get(FILMS_KEY)).toHaveLength(1);
     /* The copy up top was taking the missing room: it leaves once — and
        only once — the vault has taken. */
@@ -61,8 +61,8 @@ describe("the move into the vault", () => {
     coffre.set(FILMS_KEY, [fiche({ id: "a", title: "Le Trou" })]);
     localStorage.setItem(FILMS_KEY, JSON.stringify([fiche({ id: "z", title: "effacé hier" })]));
 
-    const chargés = await loadFilms();
-    expect(chargés.map((f) => f.title)).toEqual(["Le Trou"]);
+    const loaded = await loadFilms();
+    expect(loaded.map((f) => f.title)).toEqual(["Le Trou"]);
   });
 
   it("un classeur vide ne déclenche pas d'écriture", async () => {
@@ -77,26 +77,26 @@ describe("the modification date", () => {
     const b = fiche({ id: "b", updatedAt: 1000 });
     forgetCache([a, b]);
 
-    const datés = await saveFilms([{ ...a, rating: 5 }, b]);
-    expect(datés[0]!.updatedAt).toBeGreaterThan(1000);
-    expect(datés[1]!.updatedAt).toBe(1000);
+    const dated = await saveFilms([{ ...a, rating: 5 }, b]);
+    expect(dated[0]!.updatedAt).toBeGreaterThan(1000);
+    expect(dated[1]!.updatedAt).toBe(1000);
     /* Better: the untouched card is the SAME object, failing which
        every memoised view would rebuild itself on each keystroke. */
-    expect(datés[1]).toBe(b);
+    expect(dated[1]).toBe(b);
   });
 
   it("une recopie sans changement de valeur ne date rien", async () => {
     const a = fiche({ id: "a", updatedAt: 1000 });
     forgetCache([a]);
     /* What the whole application does: `films.map(f => ({...f}))`. */
-    const datés = await saveFilms([{ ...a }]);
-    expect(datés[0]!.updatedAt).toBe(1000);
+    const dated = await saveFilms([{ ...a }]);
+    expect(dated[0]!.updatedAt).toBe(1000);
   });
 
   it("une fiche neuve porte sa date dès la première écriture", async () => {
     forgetCache([]);
-    const datés = await saveFilms([fiche({ id: "neuf", updatedAt: 0 })]);
-    expect(datés[0]!.updatedAt).toBeGreaterThan(0);
+    const dated = await saveFilms([fiche({ id: "neuf", updatedAt: 0 })]);
+    expect(dated[0]!.updatedAt).toBeGreaterThan(0);
   });
 
   it("les fiches d'avant gardent leur date d'ajout, et ne se disent pas fraîches", async () => {
@@ -107,8 +107,8 @@ describe("the modification date", () => {
       FILMS_KEY,
       JSON.stringify([{ id: "vieux", title: "Persona", addedAt: 42 }])
     );
-    const chargés = await loadFilms();
-    expect(chargés[0]!.updatedAt).toBe(42);
+    const loaded = await loadFilms();
+    expect(loaded[0]!.updatedAt).toBe(42);
   });
 });
 
@@ -127,8 +127,8 @@ describe("when the vault refuses", () => {
     forgetCache([]);
     await saveFilms([fiche({ id: "a", title: "Cléo" })]);
     forgetCache([]);
-    const chargés = await loadFilms();
-    expect(chargés.map((f) => f.title)).toEqual(["Cléo"]);
+    const loaded = await loadFilms();
+    expect(loaded.map((f) => f.title)).toEqual(["Cléo"]);
   });
 });
 

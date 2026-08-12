@@ -145,15 +145,15 @@ export function FilmIdentity({
                 would open a phantom folder with two names. */}
             {film.director
               ? film.director.split(",").map((nom, i) => {
-                  const propre = nom.trim();
-                  if (!propre) return null;
+                  const clean = nom.trim();
+                  if (!clean) return null;
                   return (
-                    <span key={`${propre}-${i}`}>
+                    <span key={`${clean}-${i}`}>
                       {i > 0 && ", "}
                       {onOpenPerson ? (
                         <button
-                          onClick={() => onOpenPerson(propre)}
-                          title={`Ce que j'ai de ${propre}`}
+                          onClick={() => onOpenPerson(clean)}
+                          title={`Ce que j'ai de ${clean}`}
                           style={{
                             all: "unset",
                             ...tap,
@@ -168,10 +168,10 @@ export function FilmIdentity({
                             e.currentTarget.style.color = "";
                           }}
                         >
-                          {propre}
+                          {clean}
                         </button>
                       ) : (
-                        propre
+                        clean
                       )}
                     </span>
                   );

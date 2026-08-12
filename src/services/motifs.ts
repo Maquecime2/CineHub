@@ -35,7 +35,7 @@ const familyOf = (m: StoredMotif): MotifFamily => {
 };
 
 /** What comes off the disk: we trust nothing about its shape. */
-export const normalizeVocabulaire = (raw: unknown): StoredVocabulary => {
+export const normalizeVocabulary = (raw: unknown): StoredVocabulary => {
   const stored = (raw || {}) as StoredShape;
   const rawCustom = Array.isArray(stored.custom)
     ? stored.custom
@@ -59,14 +59,14 @@ export const normalizeVocabulaire = (raw: unknown): StoredVocabulary => {
   return { custom, hidden: rawHidden.map(String) };
 };
 
-export const loadVocabulaire = (): StoredVocabulary => {
-  const v = normalizeVocabulaire(store.get(MOTIFS_KEY, {}));
+export const loadVocabulary = (): StoredVocabulary => {
+  const v = normalizeVocabulary(store.get(MOTIFS_KEY, {}));
   // the domain's register is set here: it is the only reading path
   setVocabulary(v);
   return v;
 };
 
-export const saveVocabulaire = (v: StoredVocabulary): boolean => {
+export const saveVocabulary = (v: StoredVocabulary): boolean => {
   setVocabulary(v);
   return store.set(MOTIFS_KEY, v);
 };

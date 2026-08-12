@@ -259,7 +259,7 @@ function useDirectors(results: Candidate[] | null, apiKey: string) {
 
   useEffect(() => {
     if (!apiKey || !ids.length) return;
-    let vivant = true;
+    let alive = true;
     const manquants = ids.filter((id) => !(id in noms));
     if (!manquants.length) return;
     pooled(
@@ -267,12 +267,12 @@ function useDirectors(results: Candidate[] | null, apiKey: string) {
         const nom = await directorOf(id, apiKey);
         // we publish as we go: forty posters must not wait for the last
         // answer to name themselves all at once
-        if (vivant) setNoms((n) => (id in n ? n : { ...n, [id]: nom }));
+        if (alive) setNoms((n) => (id in n ? n : { ...n, [id]: nom }));
       }),
       { concurrency: 5 }
     );
     return () => {
-      vivant = false;
+      alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clé, apiKey]);

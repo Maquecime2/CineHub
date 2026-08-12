@@ -117,16 +117,16 @@ const bouton = {
 /** The invitation to lay the binder on the home screen. */
 export function Installation({
   apple,
-  onInstaller,
-  onÉcarter,
+  onInstall,
+  onDismiss,
 }: {
   /** On iOS we explain the gesture: no dialog box exists. */
   apple: boolean;
-  onInstaller: () => void;
-  onÉcarter: () => void;
+  onInstall: () => void;
+  onDismiss: () => void;
 }) {
   return (
-    <Fiche tour="install" onFermer={onÉcarter}>
+    <Fiche tour="install" onFermer={onDismiss}>
       <Titre>Le classeur tient sur votre écran d'accueil</Titre>
       {apple ? (
         <Phrase>
@@ -138,7 +138,7 @@ export function Installation({
           <Phrase>
             Il s'ouvre alors en plein écran, sans barre d'adresse, et même sans réseau.
           </Phrase>
-          <button onClick={onInstaller} style={bouton}>
+          <button onClick={onInstall} style={bouton}>
             <Download size={12} /> INSTALLER
           </button>
         </>
@@ -148,14 +148,14 @@ export function Installation({
 }
 
 /** A brand-new version is waiting to be laid down. */
-export function MiseÀJour({ onRecharger }: { onRecharger: () => void }) {
+export function UpdateCard({ onReload }: { onReload: () => void }) {
   return (
     <Fiche tour="maj">
       <Titre>Une nouvelle version est prête</Titre>
       {/* We replace NOTHING without saying so: an application that
           updates itself while one is writing a note loses the note. */}
       <Phrase>Elle s'installera au rechargement. Rien de ce que vous avez rangé ne bouge.</Phrase>
-      <button onClick={onRecharger} style={bouton}>
+      <button onClick={onReload} style={bouton}>
         <RefreshCw size={12} /> RECHARGER
       </button>
     </Fiche>
