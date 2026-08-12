@@ -341,8 +341,8 @@ function ChezVous({
                 >
                   {s.film.title}
                 </div>
-                {/* LA RAISON EN CLAIR. Une proposition qui ne dit pas
-                    pourquoi n'est qu'un tirage au sort de plus. */}
+                {/* THE REASON IN THE CLEAR. A proposal that does not
+                    say why is only one more lottery draw. */}
                 <div
                   style={{
                     fontFamily: F.hand,
@@ -513,8 +513,8 @@ export function RecoView({
         des films à voir, choisis d'après ce que dit votre collection
       </div>
 
-      {/* CHEZ VOUS, AVANT LE RESTE, et hors du test de clé : ces
-          propositions-là ne demandent rien au réseau. */}
+      {/* AT YOUR PLACE, BEFORE THE REST, and outside the key check:
+          these proposals ask nothing of the network. */}
       {onOpen && maison.length > 0 && <ChezVous suggestions={maison} onOpen={onOpen} />}
 
       {!apiKey ? (

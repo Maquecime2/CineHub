@@ -110,7 +110,7 @@ function Specimen() {
         </div>
       </div>
 
-      {/* LES ACCENTS — les quatre teintes qui percent le fond, et un onglet */}
+      {/* THE ACCENTS — the four tints that pierce the background, and a tab */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 16 }}>
         {(["burgundy", "ochre", "pine", "slate", "cobalt", "vermillion", "moss"] as const).map(
           (t) => (
@@ -134,7 +134,7 @@ function Specimen() {
         )}
       </div>
 
-      {/* L'ONGLET DE CLASSEUR — le dégradé qui s'était éteint sans un mot */}
+      {/* THE BINDER TAB — the gradient that had gone out without a word */}
       <div style={{ display: "flex", gap: 8, marginTop: 14, alignItems: "flex-start" }}>
         {[C.burgundy, C.cobalt, C.pine].map((couleur, i) => (
           <span
@@ -202,10 +202,10 @@ function SkinPanel({ skin }: { skin: Skin }) {
       data-dark={skin.dark ? "1" : "0"}
       style={{ ...CARD, ...skinVars(skin), background: skin.page } as CSSProperties}
     >
-      {/* L'EN-TÊTE EST HORS DE LA PEAU. Il doit rester lisible même quand
-          la peau qu'il annonce est, elle, en défaut — c'est justement ce
-          cas-là qu'on vient chercher ici. D'où des valeurs en dur, les
-          seules du fichier, et assumées. */}
+      {/* THE HEADER IS OUTSIDE THE SKIN. It must stay legible even when
+          the skin it announces is itself at fault — that is precisely
+          the case one comes looking for here. Hence hard-coded values,
+          the only ones in the file, and owned. */}
       <div
         style={{
           padding: "7px 12px",

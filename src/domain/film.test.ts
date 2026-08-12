@@ -483,9 +483,9 @@ describe("editLinkedWork", () => {
     });
 
     /* The relation belongs to the link, like the note — but it FLIPS
-       from one end to the other. Writing the same one on both sides would
-       dire à chaque film qu'il est la suite de l'autre, ce qui ne se voit
-       qu'en ouvrant la seconde fiche. */
+       from one end to the other. Writing the same one on both sides
+       would tell each film it is the sequel to the other, which only
+       shows on opening the second card. */
     it("flips the relation on the half opposite", () => {
       const out = editLinkedWork(base(), "a", "wa", { relation: "sequel-to", force: 3 });
       expect(firstOf(out, "a")).toMatchObject({ relation: "sequel-to", force: 3 });

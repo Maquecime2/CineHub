@@ -1,34 +1,34 @@
 /* ============================================================
-   LES PEAUX — de quoi le site entier est fait
+   THE SKINS — what the whole site is made of
    ============================================================
 
-   Une peau n'est pas une palette. Changer huit couleurs et garder la
-   même typographie, le même grain de papier et les mêmes onglets de
-   carton, c'est repeindre un carnet d'archiviste en bleu : on obtient un
-   carnet d'archiviste bleu. Une peau change donc quatre choses à la
-   fois, et c'est ce qui fait qu'on passe vraiment d'un monde à l'autre :
+   A skin is not a palette. Changing eight colours and keeping the same
+   typography, the same paper grain and the same card tabs is repainting
+   an archivist's notebook in blue: one gets a blue archivist's notebook.
+   So a skin changes four things at once, and that is what makes one
+   really pass from one world to another:
 
-     - LES TEINTES — les quatorze jetons de `tokens`.
-     - LA TYPOGRAPHIE — les quatre rôles, avec les familles à charger.
-     - LE FOND DE PAGE — pas une couleur, une recette : le kraft a des
-       nappes plus claires là où la lumière tombe, une planche contact a
-       ses perforations, une nuit américaine a sa lune froide.
-     - LA FORME ET L'ATMOSPHÈRE — l'angle d'un onglet, le grain du
-       papier, les ronds de café. Une affiche imprimée n'a pas de tache
-       de café : ce n'est pas une couleur qui le dit.
+     - THE TINTS — the fourteen tokens of `tokens`.
+     - THE TYPOGRAPHY — the four roles, with the families to load.
+     - THE PAGE BACKGROUND — not a colour, a recipe: the kraft has
+       lighter patches where the light falls, a contact sheet has its
+       perforations, a day-for-night has its cold moon.
+     - THE SHAPE AND THE ATMOSPHERE — the angle of a tab, the grain of
+       the paper, the coffee rings. A printed poster has no coffee stain:
+       it is not a colour that says so.
 
-   LES NOMS DES JETONS NE VEULENT PLUS DIRE LEUR COULEUR. `burgundy`
-   désigne « la teinte chaude qui porte l'identité » — un indigo dans le
-   papier Japon, un orangé de diapositive dans le Kodachrome. Les
-   renommer aurait touché six cent treize lignes pour ne rien changer à
-   ce qu'on voit.
+   THE TOKEN NAMES NO LONGER MEAN THEIR COLOUR. `burgundy` designates
+   "the warm tint that carries the identity" — an indigo in the Japanese
+   paper, a slide orange in the Kodachrome. Renaming them would have
+   touched six hundred and thirteen lines to change nothing of what one
+   sees.
 
-   Ce que les peaux NE touchent PAS :
-     - le nuancier des objets rangés (`theme/palette`), qui appartient au
-       rangement de l'utilisateur et non à l'habillage du site ;
-     - le décor d'une vue d'étagère (`theme/surfaces`), choisi vue par
-       vue et pour la même raison.
-   Les deux sont expliqués là où ils vivent. */
+   What the skins do NOT touch:
+     - the palette of the filed objects (`theme/palette`), which belongs
+       to the user's own filing and not to the site's dress;
+     - the decor of a shelf view (`theme/surfaces`), chosen view by view
+       and for the same reason.
+   Both are explained where they live. */
 
 export type Skin = {
   key: string;
@@ -593,12 +593,11 @@ export const SKINS: Skin[] = [
 
   /* THE POLISH POSTER — greyish paper, garish flat tints.
 
-     L'école polonaise d'affiche de cinéma n'avait ni photographie ni
-     budget : elle avait un mauvais papier, trois encres, et le droit de
-     dessiner le film au lieu de le photographier. D'où ce fond gris —
-     jamais blanc, le blanc coûtait cher — et des couleurs qui ne
-     cherchent pas à s'accorder entre elles : elles se cognent, et c'est
-     précisément le sujet. */
+     The Polish school of film posters had neither photography nor
+     budget: it had bad paper, three inks, and the right to draw the film
+     instead of photographing it. Hence this grey background — never
+     white, white cost too much — and colours that do not seek to agree
+     with one another: they clash, and that is precisely the point. */
   {
     key: "affiche",
     label: "Affiche polonaise",

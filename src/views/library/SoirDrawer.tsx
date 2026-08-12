@@ -322,8 +322,9 @@ function Carte({
           <div style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded, marginTop: 3 }}>
             {[f.year || "s.d.", f.director].filter(Boolean).join(" · ")}
           </div>
-          {/* LES RAISONS, EN CLAIR. Un score ne se discute pas ; une
-              phrase, si — et c'est elle qui donne envie ou pas. */}
+          {/* THE REASONS, IN THE CLEAR. A score cannot be argued with;
+              a sentence can — and it is what makes one want to watch, or
+              not. */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 9 }}>
             {choix.reasons.map((r, i) => (
               <span

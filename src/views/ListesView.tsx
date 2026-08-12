@@ -107,8 +107,9 @@ export function ListesView({ connecte }: { connecte: boolean }) {
             <Plus size={12} /> OUVRIR
           </button>
         </div>
-        {/* Le geste de remplir une liste part de la FICHE : c'est là
-            qu'on a le film sous les yeux, et son identifiant d'œuvre. */}
+        {/* The gesture of filling a list starts from the CARD: that is
+            where one has the film in front of one's eyes, and its work
+            identifier. */}
         <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 6 }}>
           On y range les films depuis leur fiche — « ranger dans une liste », sous le catalogue.
         </div>
@@ -256,8 +257,8 @@ function UneListe({
                   </span>
                 ) : null}
               </span>
-              {/* Qui l'a mise là : dans une liste à six mains, c'est la
-                  seule chose qu'on veut savoir d'une ligne. */}
+              {/* Who put it there: in a list written by six hands, it
+                  is the only thing one wants to know about a row. */}
               {o.par && (
                 <span style={{ fontFamily: F.mono, fontSize: 9, color: C.inkFaded }}>{o.par}</span>
               )}
@@ -271,8 +272,8 @@ function UneListe({
             </div>
           ))}
 
-          {/* Co-construire est un droit d'écriture, pas une propriété :
-              seul le propriétaire invite, renomme et publie. */}
+          {/* Co-building is a right to write, not ownership: only the
+              owner invites, renames and publishes. */}
           {liste.mienne && (
             <>
               <div style={{ display: "flex", gap: 8, alignItems: "flex-end", marginTop: 14 }}>
@@ -334,9 +335,9 @@ function UneListe({
             </>
           )}
 
-          {/* Lancer un défi demande d'écrire dans la liste — sinon
-              n'importe qui lance un défi sur la liste d'un inconnu, qui
-              le verrait apparaître sans l'avoir voulu. */}
+          {/* Starting a challenge requires the right to write in the
+              list — otherwise anybody starts a challenge on a stranger's
+              list, who would see it appear without having wanted it. */}
           {(liste.mienne || liste.membre) && (
             <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px dashed ${C.line}` }}>
               <Label>Lancer un défi sur cette liste</Label>
@@ -422,9 +423,9 @@ function UnDefi({ defi, onChange }: { defi: Challenge; onChange: () => Promise<v
         ) : null}
       </div>
 
-      {/* L'avancement ne sort du journal des séances qu'en NOMBRE : le
-          serveur compte, il ne recopie pas — et ne compte que des gens
-          qui ont demandé à participer. */}
+      {/* The progress leaves the log of screenings as a NUMBER only:
+          the server counts, it does not copy out — and only counts
+          people who have asked to take part. */}
       <div style={{ marginTop: 8 }}>
         {avancement?.length === 0 && <Guideline>Person n'y participe encore.</Guideline>}
         {(avancement ?? []).map((a) => (

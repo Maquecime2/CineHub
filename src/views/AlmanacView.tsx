@@ -236,8 +236,8 @@ function Barres({
                 strokeLinejoin="round"
               />
             )}
-            {/* Le count au-dessus de la barre, mais seulement quand il y
-                a la place : douze nombres serrés ne se lisent pas. */}
+            {/* The count above the bar, but only when there is room:
+                twelve numbers squeezed together cannot be read. */}
             {n > 0 && n >= max * 0.34 && (
               <text
                 x={(g + d) / 2}
@@ -384,13 +384,14 @@ function PlancheCompte({ a }: { a: Almanac }) {
         </div>
       </Cardstock>
 
-      {/* Douze mois pour une year, une colonne par year pour toute une
-          pratique : c'est la même barre, et la graduation change seule. */}
-      {/* PLUS DE `gridColumn: "span 2"` : il était la contrepartie des
-          trois colonnes, où il servait à combler la firstSeen rangée. Sur
-          un vrai 2×2, il pousserait les deux cartons du bas dans une
-          troisième rangée que la grille ne déclare pas — et la planche
-          se remettrait à déborder par où on venait de la refermer. */}
+      {/* Twelve months for a year, one column per year for a whole
+          practice: it is the same bar, and the graduation changes by
+          itself. */}
+      {/* NO MORE `gridColumn: "span 2"`: it was the counterpart of the
+          three columns, where it served to fill the first row up. On a
+          real 2×2 it would push the two bottom cards into a third row
+          the grid does not declare — and the board would start
+          overflowing again through the very place we had just closed. */}
       <Cardstock titre={toujours ? "Les années" : "Les mois"} seed={`mois-${clé}`}>
         {toujours ? (
           <Barres
@@ -446,10 +447,10 @@ function PlancheCompte({ a }: { a: Almanac }) {
                 />
               )}
             </div>
-            {/* LE TITRE ALLAIT AVEC LA DURÉE, ET N'ÉTAIT PAS ÉCRIT.
-                `plusLong` porte le film entier depuis toujours ; on n'en
-                montrait que le nombre de minutes, qui ne dit rien tout
-                seul. */}
+            {/* THE TITLE WENT WITH THE RUNTIME, AND WAS NOT WRITTEN.
+                `plusLong` has always carried the whole film; we only
+                showed the number of minutes, which says nothing on its
+                own. */}
             {a.screenTime.plusLong && (
               <div
                 style={{
@@ -465,9 +466,9 @@ function PlancheCompte({ a }: { a: Almanac }) {
                 {a.screenTime.plusLong.film.title}
               </div>
             )}
-            {/* UN TOTAL QUI S'ANNONCE COMME UN PLANCHER. Taire les screenings
-                sans durée donnerait un chiffre faux avec l'aplomb d'un
-                chiffre juste. */}
+            {/* A TOTAL THAT ANNOUNCES ITSELF AS A FLOOR. Saying nothing
+                of the screenings with no runtime would give a false
+                figure with the poise of a right one. */}
             {a.screenTime.sansDuree > 0 && (
               <div style={{ marginTop: 8, fontFamily: F.hand, fontSize: 15, color: C.inkFaded }}>
                 au moins — {a.screenTime.sansDuree} séance(s) sans durée connue
@@ -527,10 +528,10 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
                 </div>
               ))}
             </div>
-            {/* L'ÉCART À LA FOULE, sous vos propres notes — c'est le même
-                sujet, et la planche ne peut pas porter un carton de plus
-                sans déborder. `tmdbRating` était stocké depuis le début
-                pour cette mesure exactement, et n'avait jamais servi. */}
+            {/* THE GAP TO THE CROWD, under your own ratings — it is the
+                same subject, and the board cannot carry one more card
+                without overflowing. `tmdbRating` had been stored from the
+                start for exactly this measure, and had never served. */}
             {a.gap.gap != null && (
               <div
                 style={{
@@ -631,11 +632,10 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
                   <div style={{ fontFamily: F.mono, fontSize: 8.5, color: C.inkFaded }}>
                     {String(d.decade).slice(2)}
                   </div>
-                  {/* UNE MOYENNE SANS SON EFFECTIF EST UN CHIFFRE QUI
-                      BLUFFE : « 4,5 » sur une seule séance s'affichait
-                      exactement comme « 4,5 » sur quarante. `n` est
-                      calculé depuis le premier jour et n'avait jamais
-                      été écrit. */}
+                  {/* A MEAN WITHOUT ITS SAMPLE SIZE IS A FIGURE THAT
+                      BLUFFS: "4,5" on a single screening displayed
+                      exactly like "4,5" on forty. `n` has been computed
+                      since the first day and had never been written. */}
                   <div
                     style={{ fontFamily: F.mono, fontSize: 8.5, color: C.burgundy }}
                     title={note ? `${note.n} séance${note.n > 1 ? "s" : ""} notée(s)` : undefined}
@@ -654,8 +654,9 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
         )}
       </Cardstock>
 
-      {/* CE QUI A BOUGÉ — hors de l'year, et c'est délibéré : un film
-          qu'on réévalue le fait sur une décennie, pas sur douze mois. */}
+      {/* WHAT HAS MOVED — outside the year, and that is deliberate: a
+          film one re-rates does so over a decade, not over twelve
+          months. */}
       <Cardstock titre="Ce qui a changé d'avis" seed="drift">
         {drifts.length === 0 ? (
           <Rien quoi="aucune note n'a bougé entre deux screenings" />
@@ -725,9 +726,10 @@ function PlancheGens({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (name: st
   return (
     <div style={GRILLE_2x2}>
       <Cardstock titre="Les cinéastes" seed={`cineastes-${clé}`}>
-        {/* Les namesIn mènent au générique : l'almanach dit qui revient,
-            le dossier dit ce qu'on a de cette personne. Deux questions
-            voisines qui n'avaient aucun chemin l'une vers l'autre. */}
+        {/* The names lead to the credits: the almanac says who comes
+            back, the folder says what one has of that person. Two
+            neighbouring questions that had no path towards each
+            other. */}
         <Palmares items={a.topDirectors.slice(0, 4)} total={a.count} onPick={onOpenPerson} />
       </Cardstock>
 
@@ -739,16 +741,16 @@ function PlancheGens({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (name: st
         titre={toujours ? "Les fidélités" : "Fidélités et découvertes"}
         seed={`gens-${clé}`}
       >
-        {/* TROIS FOIS DANS UNE ANNÉE N'EST PAS UN HASARD : c'est une
-            traversée d'œuvre, et c'est ce qu'un cinéphile veut voir
-            nommé. Les découvertes sont l'autre face — les namesIn dont
-            c'est la firstSeen apparition au journal, all années
-            confondues.
+        {/* THREE TIMES IN A YEAR IS NOT AN ACCIDENT: it is a crossing
+            of a body of work, and that is what a film lover wants to see
+            named. The discoveries are the other side — the names whose
+            first appearance in the log this is, all years taken
+            together.
 
-            Sur « toujours », cette seconde face se dissout : tout le
-            monde a été découvert un jour. `newDirectors` rend alors une
-            list vide, et le carton se referme sur les seules
-            fidélités — dont le threshold, lui, a monté. */}
+            On "toujours", that second side dissolves: everybody was
+            discovered one day. `newDirectors` then returns an empty
+            list, and the card closes on the loyalties alone — whose
+            threshold, for its part, has risen. */}
         {a.loyalties.directors.length === 0 &&
         a.loyalties.actors.length === 0 &&
         a.newDirectors.length === 0 ? (
@@ -865,10 +867,10 @@ function PlancheSujets({ a }: { a: Almanac }) {
       </Cardstock>
 
       <Cardstock titre="Les motifs suivis" seed={`motifs-${clé}`}>
-        {/* Le domaine rend des IDENTIFIANTS, comme il rend des codes
-            countries : c'est ici qu'on les lit en français. Un motif retiré
-            du catalogue depuis keep son identifiant plutôt que de
-            disparaître — la même règle que sur la fiche. */}
+        {/* The domain returns IDENTIFIERS, as it returns country codes:
+            it is here that they are read in French. A pattern removed
+            from the catalogue since then keeps its identifier rather
+            than vanish — the same rule as on the card. */}
         <Palmares
           items={s.motifs
             .slice(0, 5)
@@ -880,11 +882,11 @@ function PlancheSujets({ a }: { a: Almanac }) {
       </Cardstock>
 
       <Cardstock titre="Les craftspeople" seed={`craftspeople-${clé}`}>
-        {/* Sans threshold, contrairement aux fidélités : personne ne se dit
-            « je suis le travail d'un chef opérateur », et c'est justement
-            pour cela que le montrer apprend quelque chose. On ne keep
-            que ce qui REVIENT — un name vu une seule fois n'est pas une
-            fidélité, c'est un générique. */}
+        {/* With no threshold, unlike the loyalties: nobody says to
+            themselves "I follow a cinematographer's work", and that is
+            precisely why showing it teaches something. We only keep what
+            COMES BACK — a name seen once is not a loyalty, it is a
+            credit list. */}
         <MétierSuivi label="IMAGE" gens={ar.image} />
         <MétierSuivi label="MUSIQUE" gens={ar.musique} />
         <MétierSuivi label="SCÉNARIO" gens={ar.scénario} />
@@ -900,10 +902,10 @@ function PlancheSujets({ a }: { a: Almanac }) {
           <Rien quoi="aucune séance notée dont on connaisse aussi la note publique" />
         ) : (
           <>
-            {/* LES DEUX MOYENNES EN CLAIR. La planche des goûts dit already
-                « plus tendre de 0,3 point » ; elle ne disait pas de quoi
-                à quoi. Les deux nombres étaient calculés depuis le
-                premier jour et n'avaient jamais été écrits. */}
+            {/* THE TWO MEANS IN THE CLEAR. The tastes board already
+                says "plus tendre de 0,3 point"; it did not say from what
+                to what. Both numbers had been computed since the first
+                day and had never been written. */}
             <div
               style={{
                 display: "grid",
@@ -1217,21 +1219,19 @@ export function AlmanacView({
             <ChevronRight size={17} />
           </button>
 
-          {/* LES PASTILLES TIENNENT SUR UNE LIGNE, ET C'EST UNE CORRECTION.
+          {/* THE PILLS HOLD ON ONE LINE, AND THAT IS A FIX.
 
-              Elles étaient en `flexWrap: "wrap"` sous une largeur de
-              trois cent quatre-vingts pixels : au-delà de huit années
-              couvertes elles passaient sur deux lignes, au-delà de
-              quatorze sur trois. L'en-tête, lui, a une hauteur ARRÊTÉE
-              (`ENTETE`) — rien ne bornait donc ce débordement, et la
-              planche, qui porte `zIndex: 2`, passait par-dessus les
-              pastilles et les boutons de planche. Ils devenaient
-              incliquables sans que rien n'explique pourquoi.
+              They were in `flexWrap: "wrap"` under a width of three
+              hundred and eighty pixels: beyond eight covered years they
+              went onto two lines, beyond fourteen onto three. The
+              header, though, has a SETTLED height (`ENTETE`) — so
+              nothing bounded that overflow, and the board, which carries
+              `zIndex: 2`, passed over the pills and the board buttons.
+              They became unclickable with nothing to explain why.
 
-              Une ligne qui défile plutôt qu'un en-tête qui grandit :
-              c'est le parti pris du non-défilement de la page qu'on
-              préserve ici, et lui seul qui justifie une hauteur en dur
-              au-dessus. */}
+              One line that scrolls rather than a header that grows: it
+              is the page's no-scrolling stance that is preserved here,
+              and it alone that justifies a hard-coded height above. */}
           <div
             style={{
               display: "flex",
@@ -1259,9 +1259,9 @@ export function AlmanacView({
             ))}
           </div>
 
-          {/* L'ANNÉE EN BOÎTE — la seule chose d'ici qui sorte du
-              navigateur, et qui n'existe que pour une year : l'image
-              est bâtie autour d'un millésime écrit en gros. */}
+          {/* THE YEAR IN A BOX — the only thing here that leaves the
+              browser, and which exists only for one year: the image is
+              built around a vintage written large. */}
           {!toujours && (
             <button
               onClick={emporter}

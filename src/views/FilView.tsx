@@ -178,9 +178,9 @@ export function FilView({ connecte }: { connecte: boolean }) {
                 <a href={`#/chez/${a.pseudo}`} style={{ color: C.ink, textDecoration: "none" }}>
                   {a.pseudo}
                 </a>
-                {/* Une collection refermée ne disparaît pas de la liste :
-                    on reste abonné, et le fil se tait. Le dire évite de
-                    croire à une panne. */}
+                {/* A collection closed again does not vanish from the
+                    list: one stays subscribed, and the feed goes quiet.
+                    Saying so avoids believing in a breakdown. */}
                 {a.ouverte === false && <em style={{ opacity: 0.7 }}>refermée</em>}
                 <button
                   onClick={() => basculer(a)}

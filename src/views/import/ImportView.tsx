@@ -381,9 +381,9 @@ export function ImportView({
         </div>
       </div>
 
-      {/* LE FLUX — pour la mise à jour, quand le zip est pour l'amorçage.
-          Il est placé APRÈS les fichiers et non avant : c'est le CSV qui
-          bâtit une vidéothèque, le flux ne fait que la tenir à jour. */}
+      {/* THE FEED — for updating, where the zip is for priming. It is
+          placed AFTER the files and not before: it is the CSV that
+          builds a film library, the feed merely keeps it up to date. */}
       <div
         data-tour="import-feed"
         style={{
@@ -422,9 +422,10 @@ export function ImportView({
               }}
             />
           </div>
-          {/* Deux relevés, un seul pseudo : les séances viennent du flux,
-              la watchlist des pages du profil — mais c'est le même compte,
-              et ce serait le redemander pour rien. */}
+          {/* Two readings, a single username: the screenings come from
+              the feed, the watchlist from the profile's pages — but it
+              is the same account, and asking again would be for
+              nothing. */}
           {(
             [
               ["SÉANCES", runFeed, feeding ? "…" : "SÉANCES"],
@@ -455,10 +456,11 @@ export function ImportView({
           ))}
         </div>
 
-        {/* Le relais, replié. Letterboxd n'autorise pas la lecture de son
-            flux depuis un autre site : il faut un intermédiaire, et celui
-            par défaut est un service public. Qui préfère le sien le colle
-            ici — c'est expliqué dans docs/relais-letterboxd.md. */}
+        {/* The relay, folded away. Letterboxd does not allow its feed
+            to be read from another site: an intermediary is needed, and
+            the default one is a public service. Whoever prefers their
+            own pastes it here — it is explained in
+            docs/relais-letterboxd.md. */}
         <button
           onClick={() => setShowRelay((v) => !v)}
           style={{
@@ -654,13 +656,13 @@ export function ImportView({
             </div>
           </div>
 
-          {/* LA RÉPARATION DES JOURNAILS. Longtemps, une fiche déposée par
-              watched.csv récoltait une séance à la date où elle avait été
-              AJOUTÉE, et diary.csv en ajoutait une seconde à la date où le
-              film avait été vu : un « ×2 » sous un film vu une fois. Le
-              premier travers est corrigé à la lecture, mais les fiches déjà
-              écrites gardent leur séance en trop — et compléter ne sait pas
-              défaire. Cette case le peut, une fois. */}
+          {/* REPAIRING THE LOGS. For a long time, a card dropped by
+              watched.csv harvested a screening at the date it had been
+              ADDED, and diary.csv added a second one at the date the
+              film had been seen: a "×2" under a film seen once. The
+              first flaw is fixed at reading time, but the cards already
+              written keep their extra screening — and completing does
+              not know how to undo. This box can, once. */}
           {porteDesSeances && importStatus === "watched" && (
             <div style={{ marginTop: 16 }}>
               <label
@@ -1018,11 +1020,12 @@ export function ImportView({
         </div>
       )}
 
-      {/* ---- ce que la watchlist en ligne ne porte plus ----
-          Un constat, et rien d'autre : aucun bouton, aucune écriture. Un
-          film retiré de la watchlist l'a parfois été parce qu'on l'a vu,
-          parfois par lassitude — l'appli n'a pas à trancher, et un mur
-          vidé tout seul serait la pire façon de l'apprendre. */}
+      {/* ---- what the online watchlist no longer carries ----
+          An observation, and nothing else: no button, no writing. A film
+          removed from the watchlist was sometimes removed because it was
+          seen, sometimes out of weariness — the application has no
+          business deciding, and a wall emptying itself would be the
+          worst way of finding out. */}
       {dropped.length > 0 && (
         <div
           style={{
@@ -1083,15 +1086,15 @@ export function ImportView({
         <CompletePanel films={films} apiKey={deQuoi} onImport={onImport} />
       </div>
 
-      {/* Placé APRÈS « compléter » et avant la sauvegarde : c'est
-          « compléter » qui a causé le dégât, et la sauvegarde est le
-          geste à faire avant de réparer. L'ordre raconte la marche à
-          follow. Le panneau disparaît de lui-même quand il n'a plus
-          rien à proposer. */}
-      {/* Pas d'enveloppe ici : c'est le panneau lui-même qui porte son
-          `data-tour`. Une enveloppe vide garde une largeur, donc reste
-          une cible mesurable, et la visite s'arrêtait sur une bande
-          invisible au lieu de sauter l'étape. */}
+      {/* Placed AFTER "complete" and before the backup: it is
+          "complete" that caused the damage, and the backup is the
+          gesture to make before repairing. The order tells the procedure
+          to follow. The panel disappears by itself when it has nothing
+          left to offer. */}
+      {/* No wrapper here: it is the panel itself that carries its
+          `data-tour`. An empty wrapper keeps a width, hence stays a
+          measurable target, and the tour stopped on an invisible strip
+          instead of skipping the step. */}
       <RepairPanel films={films} onImport={onImport} />
 
       <div data-tour="import-backup">

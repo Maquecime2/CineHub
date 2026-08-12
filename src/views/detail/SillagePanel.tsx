@@ -89,14 +89,14 @@ function Proposition({
 }) {
   const contenu = (
     <>
-      {/* LA CASE DE L'AFFICHE EST POSITIONNÉE, ET ELLE A UNE TAILLE.
+      {/* THE POSTER'S CELL IS POSITIONED, AND IT HAS A SIZE.
 
-          `PosterArt` en mode `plain` se pose en `position: absolute;
-          inset: 0` — il attend du contenant qu'il impose ses dimensions.
-          Sans `position: relative` ici, l'affiche remontait jusqu'au
-          premier ancêtre positionné et s'étalait en travers de la page
-          entière, en vignette de 185 px étirée sur mille : une immense
-          image floue au milieu de la fiche. */}
+          `PosterArt` in `plain` mode lays itself out in `position:
+          absolute; inset: 0` — it expects the container to impose its
+          dimensions. Without `position: relative` here, the poster
+          climbed up to the first positioned ancestor and spread across
+          the whole page, a 185 px thumbnail stretched over a thousand: a
+          huge blurred image in the middle of the card. */}
       <div
         style={{
           position: "relative",

@@ -105,8 +105,9 @@ export function CollectionPartagee({ address }: { address: Address }) {
           </div>
         )}
 
-        {/* Le classeur se présente, sans se vendre : quelqu'un qui arrive
-            par un lien ne sait pas ce qu'est cette application. */}
+        {/* The binder introduces itself, without selling itself:
+            somebody arriving by a link does not know what this
+            application is. */}
         <div
           style={{
             marginTop: 50,
@@ -140,9 +141,9 @@ function Affiche({ film }: { film: SharedFilm }) {
           boxShadow: `2px 5px 14px ${alpha(C.ink, 0.22)}`,
         }}
       >
-        {/* L'affiche prend la fiche telle qu'elle arrive : une adresse
-            TMDB traverse, une image importée d'un disque reste chez son
-            propriétaire — et `PosterArt` sait déjà dessiner à sa place. */}
+        {/* The poster takes the card as it comes: a TMDB address gets
+            through, an image imported from a disk stays at its owner's —
+            and `PosterArt` already knows how to draw in its stead. */}
         <PosterArt film={film as never} initials={initialesDe(String(film.title || ""))} />
         <figcaption style={{ padding: "8px 3px 2px" }}>
           <div style={{ fontFamily: F.title, fontSize: 14, color: C.ink, lineHeight: 1.25 }}>

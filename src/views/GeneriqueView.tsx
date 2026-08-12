@@ -156,8 +156,8 @@ function Répertoire({
         />
       </div>
 
-      {/* Les tamis par rôle, cumulables et qui s'éteignent au reclic —
-          les mêmes gestes que les tamis du mur. */}
+      {/* The sieves by role, which add up and go out when clicked again
+          — the same gestures as the wall's sieves. */}
       <div
         data-tour="generique-roles"
         style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 20 }}
@@ -370,11 +370,11 @@ function Dossier({
         </div>
       </Cardstock>
 
-      {/* Les motifs inconnus du catalogue sont ignorés à l'affichage et
-          non effacés de la fiche — la règle est la même partout. On les
-          écarte donc AVANT de décider si le bloc a lieu d'être : sinon
-          un dossier n'ayant que des motifs oubliés montrait un intitulé
-          suivi de rien. */}
+      {/* Patterns unknown to the catalogue are ignored when displaying
+          and not erased from the card — the rule is the same everywhere.
+          So we set them aside BEFORE deciding whether the block has any
+          reason to be: otherwise a folder holding only forgotten
+          patterns showed a heading followed by nothing. */}
       {(() => {
         const connus = p.motifs.map(motifById).filter(Boolean);
         if (!connus.length) return null;
@@ -473,9 +473,9 @@ function Rayon({
               >
                 {f.title}
               </div>
-              {/* Le titre auquel cette personne est là ne s'écrit que
-                  s'il y a un doute : rappeler « réalisation » sous chaque
-                  affiche d'un cinéaste n'apprend rien. */}
+              {/* The title under which this person is here is only
+                  written if there is a doubt: repeating "réalisation"
+                  under every poster of a film-maker teaches nothing. */}
               <div style={{ fontFamily: F.mono, fontSize: 8.5, color: C.inkFaded, marginTop: 3 }}>
                 {f.year || ""}
                 {rôles.length > 1 ? ` · ${rôles.map((r) => ROLE_COURT[r]).join(", ")}` : ""}
@@ -670,18 +670,19 @@ function CeQuiManque({
                 padding: 8,
               }}
             >
-              {/* L'AFFICHE, PARCE QU'ON CHOISIT AVEC LES YEUX.
+              {/* THE POSTER, BECAUSE ONE CHOOSES WITH THE EYES.
 
-                  Elle arrivait déjà dans la réponse — `toCandidate` la
-                  rapporte — et on ne l'affichait pas : une liste de
-                  titres à cocher n'est pas un rayon qu'on parcourt. Le
-                  bureau des découvertes montre les siennes, celle-ci
-                  n'avait pas de raison de s'en priver.
+                  It already came in the answer — `toCandidate` brings it
+                  back — and we did not display it: a list of titles to
+                  tick is not a shelf one walks along. The discoveries
+                  desk shows its own, this one had no reason to do
+                  without.
 
-                  L'adresse est une URL TMDB, pas une clé IndexedDB : on
-                  ne passe donc pas par `PosterArt`, qui sait sortir une
-                  image rangée et n'aurait ici rien à sortir. Repli aux
-                  initiales quand TMDB n'a pas d'affiche. */}
+                  The address is a TMDB URL, not an IndexedDB key: so we
+                  do not go through `PosterArt`, which knows how to bring
+                  out a stored image and would have nothing to bring out
+                  here. Fallback to the initials when TMDB has no
+                  poster. */}
               <Affiche titre={c.title} src={c.poster} />
               <div
                 style={{

@@ -195,8 +195,8 @@ export function rankTheEvening(
          film's — "genre que vous aimez : drame" reads, "affinity 0.72"
          does not.
 
-         A NOUN phrase and not "you like drama": the article depends on
-         the genre — le drame, l'action, la science-fiction — and a
+         A NOUN phrase and not "vous aimez le drame": the article depends
+         on the genre — le drame, l'action, la science-fiction — and a
          sentence that has to guess an article always ends up getting one
          of them wrong. */
       const best = (f.genres || [])

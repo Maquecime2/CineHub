@@ -139,12 +139,13 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
         value={àFaire.length}
         ink={àFaire.length ? C.burgundy : C.pine}
       />
-      {/* Les mots-clés comptés à part : ils sont arrivés après le reste,
-          et une collection déjà complétée les a tous à zéro. Le dire
-          évite de croire que « fiches à compléter » a mal compté. */}
-      {/* Le vide compte comme un manque : une fiche figée à « demandé,
-          il n'y en a pas » n'a pas plus de sujets qu'une fiche jamais
-          interrogée, et c'est ce nombre-là qu'on veut voir descendre. */}
+      {/* The keywords counted separately: they arrived after the rest,
+          and an already completed collection has them all at zero.
+          Saying so avoids believing that "cards to complete" has counted
+          wrong. */}
+      {/* Emptiness counts as a lack: a card frozen at "asked for, there
+          are none" has no more subjects than a card never queried, and
+          it is that number one wants to see go down. */}
       <Tally label="fiches sans mots-clés TMDB" value={sansSujets.length} ink={C.inkFaded} />
 
       <div
@@ -235,14 +236,14 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
           {progress ? "EN COURS…" : `COMPLÉTER ${àFaire.length} FICHE(S)`}
         </button>
 
-        {/* LE RATTRAPAGE DES MOTS-CLÉS, à part et volontaire.
+        {/* THE KEYWORD CATCH-UP, separate and deliberate.
 
-            Un défaut de récolte a figé des collections entières à
-            « demandé, il n'y en a pas » : plus rien ne pouvait les
-            réparer, puisque tout ce qui remplit ne vise que l'absence.
-            Ce bouton vise AUSSI le vide. Il est distinct du premier
-            parce qu'il coûte un appel par fiche visée — le nombre est
-            écrit dessus, et c'est à l'utilisateur de décider. */}
+            A harvest flaw froze whole collections at "asked for, there
+            are none": nothing could repair them any more, since
+            everything that fills targets absence only. This button
+            targets emptiness TOO. It is distinct from the first because
+            it costs one call per targeted card — the number is written
+            on it, and it is up to the user to decide. */}
         {sansSujets.length > 0 && (
           <button
             onClick={() => lancer(sansSujets)}

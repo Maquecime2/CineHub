@@ -181,7 +181,7 @@ export function buildSky(
 }
 
 /* ============================================================
-   LES PARENTÉS TROUVÉES DANS LES GÉNÉRIQUES
+   THE KINSHIPS FOUND IN THE CREDITS
    ============================================================
 
    `buildSky` shows only what was linked by hand, and that rule stays
@@ -300,7 +300,7 @@ export function suggestLinks(films: Film[], { min = 2, max = 3 }: SuggestOptions
 }
 
 /* ============================================================
-   LE VOISINAGE — ce qu'on montre quand on n'affiche pas tout
+   THE NEIGHBOURHOOD — what we show when we do not display everything
    ============================================================
 
    The cure for the clutter is not a better layout: it is NOT SHOWING

@@ -53,9 +53,9 @@ function CardsTab({ look, set }) {
         value={look.spread}
         onPick={(spread) => set({ spread })}
       />
-      {/* « Rangé » ne retire pas le désordre, il le met à zéro : le tirage
-          de chaque fiche est intact, et remonter d'un cran rend au mur
-          exactement l'allure qu'il avait. */}
+      {/* "Rangé" does not remove the disorder, it sets it to zero: the
+          draw of each card is intact, and going back up one notch gives
+          the wall exactly the look it had. */}
       <Choice
         title="DÉSORDRE"
         catalog={MESSES}
@@ -110,8 +110,8 @@ export function WallStudio({ look, onChange, onReset, onClose }) {
           >
             <RotateCcw size={11} /> D'ORIGINE
           </button>
-          {/* Une croix seule n'a pas de nom : sans étiquette, un lecteur
-              d'écran annonce « bouton » et rien d'autre. */}
+          {/* A cross on its own has no name: without a label, a screen
+              reader announces "button" and nothing else. */}
           <button
             onClick={onClose}
             aria-label="Fermer l'atelier"

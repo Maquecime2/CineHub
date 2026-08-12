@@ -407,10 +407,10 @@ export function ConstellationView({
         </div>
       )}
 
-      {/* LES FILS. À la différence des filtres ci-dessous, ils PEUPLENT le
-          ciel : un fil y fait entrer ses membres, reliés ou non. C'est ce
-          qui permet de demander « les films où le héros meurt » et de
-          l'obtenir dessiné, plutôt que de fouiller une liste. */}
+      {/* THE THREADS. Unlike the filters below, they POPULATE the sky: a
+          thread brings its members in, linked or not. That is what makes
+          it possible to ask for "les films où le héros meurt" and get it
+          drawn, rather than dig through a list. */}
       {fils.length > 0 && (
         <div
           data-tour="constellation-fils"
@@ -456,7 +456,7 @@ export function ConstellationView({
         </div>
       )}
 
-      {/* filtres : mots-clés et genres. Ils réduisent le ciel, ils ne le peuplent pas. */}
+      {/* filters: keywords and genres. They shrink the sky, they do not populate it. */}
       {(allTags.length > 0 || allGenres.length > 0) && (
         <div
           style={{
@@ -536,13 +536,13 @@ export function ConstellationView({
         </div>
       )}
 
-      {/* LE CHOIX DU DÉPART — tant qu'aucun foyer n'est posé, on ne
-          montre pas le graphe. C'est tout le remède : au lieu de subir
-          deux cents astres et de chercher par où entrer, on choisit un
-          film, et la carte se compose autour de lui.
+      {/* THE CHOICE OF A STARTING POINT — as long as no focus is laid,
+          we do not show the graph. That is the whole remedy: instead of
+          suffering two hundred bodies and looking for a way in, one
+          chooses a film, and the chart composes itself around it.
 
-          Les films proposés sont les plus reliés : ce sont ceux depuis
-          lesquels on ira le plus loin. */}
+          The films offered are the most linked: they are the ones from
+          which one will travel furthest. */}
       {foyer == null && complet.nodes.length > 0 && (
         <div
           data-tour="constellation-start"
@@ -608,8 +608,8 @@ export function ConstellationView({
         </div>
       )}
 
-      {/* LE FIL D'ARIANE — on avance de proche en proche, il faut donc
-          pouvoir revenir sur ses pas. */}
+      {/* THE BREADCRUMB TRAIL — one advances step by step, so one must
+          be able to retrace one's steps. */}
       {foyer != null && (
         <div
           style={{
@@ -651,12 +651,13 @@ export function ConstellationView({
         </div>
       )}
 
-      {/* LA RECHERCHE RESTE À PORTÉE UNE FOIS LE FOYER POSÉ.
+      {/* THE SEARCH STAYS WITHIN REACH ONCE THE FOCUS IS LAID.
 
-          Elle ne servait qu'à choisir un départ et disparaissait ensuite —
-          or c'est en explorant qu'on pense à un film, et il fallait
-          revenir en arrière pour l'atteindre. C'est aussi le seul moyen de
-          sauter d'un bout du ciel à l'autre sans repasser par les voisins. */}
+          It only served to choose a starting point and vanished
+          afterwards — but it is while exploring that one thinks of a
+          film, and one had to go back to reach it. It is also the only
+          way to jump from one end of the sky to the other without going
+          through the neighbours. */}
       {foyer != null && (
         <div style={{ marginTop: 12, position: "relative", zIndex: 3 }}>
           <input
@@ -876,7 +877,7 @@ export function ConstellationView({
               </defs>
               <rect width={W} height={H} fill="url(#sky-grid)" />
 
-              {/* les fils : caténaire légère, comme sur le panneau d'enquête */}
+              {/* the threads: a light catenary, as on the investigation board */}
               {links.map((l, i) => {
                 const na = byId.get(l.a),
                   nb = byId.get(l.b);
@@ -974,9 +975,9 @@ export function ConstellationView({
                         pointerEvents: "none",
                       }}
                     />
-                    {/* L'ÉTIQUETTE, au milieu du fil et seulement au
-                        survol : elle nomme la nature de la parenté, ce
-                        qu'une couleur seule ne peut pas faire. */}
+                    {/* THE LABEL, in the middle of the thread and only
+                        on hover: it names the kind of the kinship, which
+                        a colour alone cannot do. */}
                     {vise && raisons && (
                       <g style={{ pointerEvents: "none" }}>
                         <rect
@@ -999,18 +1000,19 @@ export function ConstellationView({
                         </text>
                       </g>
                     )}
-                    {/* CE QUI REÇOIT LA SOURIS, et il est large.
+                    {/* WHAT RECEIVES THE MOUSE, and it is wide.
 
-                        Un trait d'un pixel et demi ne se vise pas : il
-                        faut l'atteindre au pixel près, et une caténaire
-                        n'est même pas droite. D'où ce chemin transparent
-                        posé par-dessus, épais de vingt-six pixels — assez
-                        pour qu'on tombe dessus sans y penser, assez fin
-                        pour que deux fils voisins restent distincts.
+                        A stroke a pixel and a half thick cannot be
+                        aimed at: one has to hit it to the pixel, and a
+                        catenary is not even straight. Hence this
+                        transparent path laid over it, twenty-six pixels
+                        thick — wide enough to fall on without thinking,
+                        thin enough for two neighbouring threads to stay
+                        distinct.
 
-                        Il existe pour TOUT fil et non plus seulement pour
-                        ceux qu'on peut fixer : le survol doit nommer la
-                        parenté même quand il n'y a rien à cliquer. */}
+                        It exists for EVERY thread and no longer only for
+                        those one can fix: the hover must name the
+                        kinship even when there is nothing to click. */}
                     <path
                       d={d}
                       fill="none"
@@ -1021,11 +1023,11 @@ export function ConstellationView({
                       onPointerLeave={() => setHoverLink(null)}
                       onClick={fixer}
                     >
-                      {/* L'infobulle du navigateur double l'étiquette
-                          dessinée : elle survit au fil qu'on vise en
-                          bord de ciel, et c'est elle que lisent les
-                          outils qui ne voient pas le SVG. Tout fil en a
-                          une, pas seulement celui qu'on peut fixer. */}
+                      {/* The browser's tooltip doubles the drawn label:
+                          it survives on a thread aimed at the edge of
+                          the sky, and it is what the tools that do not
+                          see the SVG read. Every thread has one, not
+                          only the one that can be fixed. */}
                       {(fixer || raisons) && (
                         <title>{fixer ? `Fixer ce fil — ${raisons}` : raisons}</title>
                       )}
@@ -1099,11 +1101,11 @@ export function ConstellationView({
                     }}
                     onDoubleClick={() => n.kind === "film" && onOpen(n.filmId as string)}
                   >
-                    {/* L'ANNEAU DU CURSEUR CLAVIER. Le halo du survol ne
-                        suffit pas : il est diffus par nature, et « où
-                        suis-je » doit se voir d'un coup d'œil sans avoir
-                        à comparer deux lueurs. Un trait franc, donc, et
-                        seulement au clavier. */}
+                    {/* THE KEYBOARD CURSOR'S RING. The hover's halo is
+                        not enough: it is diffuse by nature, and "where
+                        am I" must show at a glance without having to
+                        compare two glows. A plain stroke, then, and only
+                        with the keyboard. */}
                     {curseur === n.id && (
                       <circle
                         r={r + 11}
@@ -1113,7 +1115,7 @@ export function ConstellationView({
                         strokeDasharray="3 3"
                       />
                     )}
-                    {/* halo : les astres les plus cités brillent le plus fort */}
+                    {/* halo: the most cited bodies shine the brightest */}
                     <circle
                       r={r + 7}
                       fill={ink}
@@ -1126,8 +1128,9 @@ export function ConstellationView({
                       stroke={n.kind === "thread" ? ink : C.card}
                       strokeWidth={n.kind === "thread" ? 2 : 1.6}
                     />
-                    {/* L'astre épinglé se distingue : rien ne le retient au
-                        ciel qu'un geste, et le cercle en pointillé le dit. */}
+                    {/* The pinned body stands apart: nothing holds it to
+                        the sky but a gesture, and the dashed circle says
+                        so. */}
                     {n.pinned && (
                       <circle
                         r={r + 8}
@@ -1188,13 +1191,13 @@ export function ConstellationView({
                 );
               })}
             </svg>
-            {/* CE QUE LA VOIX DIT PENDANT QU'ON SE DÉPLACE.
+            {/* WHAT THE VOICE SAYS WHILE ONE MOVES ABOUT.
 
-                `aria-activedescendant` suffit en théorie, mais les
-                lecteurs d'écran le suivent inégalement à l'intérieur
-                d'un SVG. Une région vivante dit la même chose par un
-                chemin qui, lui, marche partout. Elle est hors de l'écran
-                et non `display: none` : ce qui est masqué n'est pas lu. */}
+                `aria-activedescendant` is enough in theory, but screen
+                readers follow it unevenly inside an SVG. A live region
+                says the same thing by a path that does work everywhere.
+                It is off screen and not `display: none`: what is hidden
+                is not read. */}
             <div
               aria-live="polite"
               aria-atomic="true"

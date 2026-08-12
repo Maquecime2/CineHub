@@ -437,7 +437,7 @@ export const report = (quoi: { pseudo: string; fiche: string; motif: string }) =
   });
 
 /* ------------------------------------------------------------
-   LES LISTES, ET LES DÉFIS QU'ON EN TIRE
+   THE LISTS, AND THE CHALLENGES DRAWN FROM THEM
    ------------------------------------------------------------ */
 
 export interface List {

@@ -424,18 +424,19 @@ export function DetailView({
           marginBottom: 22,
         }}
       >
-        {/* Le bouton dit où il ramène. Une fiche ouverte depuis un
-            dossier de personne n'y renvoie pas au mur, et l'annoncer
-            ainsi serait un mensonge de plus. */}
+        {/* The button says where it takes you back to. A card opened
+            from somebody's folder does not send you back to the wall
+            from there, and announcing it that way would be one more
+            lie. */}
         <ArrowLeft size={14} /> {retourVers || "RETOUR AU MUR"}
       </button>
 
-      {/* ---- LA COUVERTURE, QUI NE CHANGE PAS D'ONGLET ----
+      {/* ---- THE COVER, WHICH DOES NOT CHANGE TAB ----
 
-          L'affiche et le titre restent au-dessus des intercalaires :
-          c'est ce qui fait qu'on ne perd pas de vue le film dont on
-          parle en changeant de page, et c'est la seule chose des onze
-          blocs d'avant qui n'appartienne à aucun des trois. */}
+          The poster and the title stay above the dividers: that is what
+          keeps the film one is speaking of in sight while changing page,
+          and it is the only one of the eleven previous blocks that
+          belongs to none of the three. */}
       <div
         style={{
           display: "flex",
@@ -464,10 +465,10 @@ export function DetailView({
           <PosterPicker film={film} onUpdate={onUpdate} />
         </div>
         <div style={{ flex: "1 1 280px", minWidth: 0 }}>
-          {/* En lecture seule, et c'est délibéré : le titre s'ÉDITE dans
-              la fiche catalogue, qui est le seul endroit qui le corrige.
-              Deux champs pour une même valeur donnent tôt ou tard deux
-              valeurs. */}
+          {/* Read-only, and that is deliberate: the title is EDITED in
+              the catalogue card, which is the only place that corrects
+              it. Two fields for one value give two values sooner or
+              later. */}
           <div
             style={{
               fontFamily: F.title,
@@ -489,16 +490,16 @@ export function DetailView({
       <BarreOnglets valeur={onglet} onChange={changerOnglet} />
 
       {/* ============================================================
-          ONGLET « LE FILM » — ce que l'œuvre EST
+          TAB "LE FILM" — what the work IS
           ============================================================ */}
       {onglet === "film" && (
         <div style={{ display: "flex", gap: 34, flexWrap: "wrap", alignItems: "flex-start" }}>
           <div style={{ flex: "1 1 420px", minWidth: 0, maxWidth: 620 }}>
             <Cardstock tour="detail-catalog">
               <Label>Fiche catalogue</Label>
-              {/* Titre, année, réalisateur·rice et genres : en lecture ici, et
-                rattrapables d'un clic — c'est la seule façon de corriger une
-                fiche que l'import a mal identifiée. */}
+              {/* Title, year, director and genres: read-only here, and
+                fixable in one click — it is the only way to correct a
+                card the import identified wrongly. */}
               <FilmIdentity film={film} onUpdate={onUpdate} onOpenPerson={onOpenPerson} />
               {film.status === "watchlist" ? (
                 <button
@@ -561,11 +562,11 @@ export function DetailView({
                   </button>
                 </>
               )}
-              {/* LE JOURNAL EST PARTI DANS « MES MOTS », et c'est le
-                découpage lui-même qui le request : une séance datée est
-                ce que VOUS avez fait du film, pas ce qu'il est. Il est
-                aussi ce qui vaut le plus de place, et il en avait deux
-                cent quarante pixels dans la colonne d'affiche. */}
+              {/* THE LOG HAS MOVED TO "MES MOTS", and the cutting up
+                itself demands it: a dated screening is what YOU have done
+                with the film, not what it is. It is also what deserves
+                the most room, and it had two hundred and forty pixels of
+                it in the poster column. */}
               <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 10 }}>
                 {(film.genres || []).map((g) => (
                   <span
@@ -583,29 +584,30 @@ export function DetailView({
                   </span>
                 ))}
               </div>
-              {/* Tout ce que la récolte rapporte et qu'on ne lisait nulle
-                part : durée, pays, langue, équipe, casting. C'est là
-                qu'on voit ce qui manque, et qu'on le redemande. */}
+              {/* Everything the harvest brings back and that could be
+                read nowhere: runtime, country, language, crew, cast. It
+                is there that one sees what is missing, and asks for it
+                again. */}
               <TmdbFacts film={film} onUpdate={onUpdate} onOpenPerson={onOpenPerson} />
-              {/* Ce que d'autres vidéothèques publiques disent du même
-                film. Se tait entièrement sans serveur, sans compte, ou
-                quand personne n'a rien dit — une fiche qui vit seule ne
-                réclame pas un compte. */}
+              {/* What other public film libraries say about the same
+                film. Stays entirely silent with no server, no account,
+                or when nobody has said anything — a card that lives alone
+                does not clamour for an account. */}
               <Elsewhere film={film} signedIn={signedIn} />
               <AddToList film={film} signedIn={signedIn} />
-              {/* Le troisième bloc qui ne parle que du dehors, à côté
-                  des deux autres : ce que les autres voient de cette
-                  fiche, et le droit de la leur retirer. */}
+              {/* The third block that speaks only of the outside,
+                  beside the other two: what others see of this card, and
+                  the right to take it away from them. */}
               <HideFromSharing film={film} signedIn={signedIn} />
             </Cardstock>
           </div>
 
-          {/* L'IDENTITÉ, ET NON LE RANGEMENT — d'où un carton à part, et
-              d'où sa présence ICI. Elle répare ce que la fiche EST quand
-              l'import l'a confondue avec un homonyme : c'est du même
-              onglet que le catalogue qu'elle corrige, et non du même que
-              vos mots. On ne s'en sert qu'une fois par fiche, et jamais
-              sur la plupart. */}
+          {/* IDENTITY, AND NOT FILING — hence a card of its own, and
+              hence its presence HERE. It repairs what the card IS when
+              the import confused it with a namesake: it belongs to the
+              same tab as the catalogue it corrects, and not to the same
+              as your words. One uses it once per card, and never on most
+              of them. */}
           <div style={{ flex: "1 1 260px", maxWidth: 380, minWidth: 0 }}>
             <Cardstock tour="detail-identite">
               <TmdbLink film={film} onUpdate={onUpdate} />
@@ -615,16 +617,17 @@ export function DetailView({
       )}
 
       {/* ============================================================
-          ONGLET « MES MOTS » — ce que VOUS en avez fait
+          TAB "MES MOTS" — what YOU have made of it
           ============================================================ */}
       {onglet === "mots" && (
         <div style={{ display: "flex", gap: 34, flexWrap: "wrap", alignItems: "flex-start" }}>
-          {/* 760 px : au-delà, l'œil perd la ligne suivante en revenant à la
-            marge. C'est la seule colonne qui ait une raison d'être bornée. */}
+          {/* 760 px: beyond that, the eye loses the next line on coming
+            back to the margin. It is the only column that has a reason to
+            be bounded. */}
           <div style={{ flex: "1 1 420px", maxWidth: 760, minWidth: 0, position: "relative" }}>
-            {/* LE JOURNAL DES SÉANCES, EN TÊTE DE VOS MOTS. Il est la
-              donnée la plus riche de la fiche et la seule que l'almanach
-              lise ; il n'avait qu'un quart de colonne. */}
+            {/* THE LOG OF SCREENINGS, AT THE HEAD OF YOUR WORDS. It is
+              the richest data on the card and the only one the almanac
+              reads; it had but a quarter of a column. */}
             {film.status !== "watchlist" && (
               <Cardstock tour="detail-watchlog" style={{ marginBottom: 18 }}>
                 <WatchLog film={film} onUpdate={onUpdate} />
@@ -641,9 +644,10 @@ export function DetailView({
                 opacity: 0.7,
               }}
             />
-            {/* Le champ actif reçoit les captures qu'on insère. Le liseré n'est
-              plus une auréole posée AUTOUR du bloc mais le filet du carton
-              lui-même, qui change d'encre : c'est le même objet, désigné. */}
+            {/* The active field receives the stills one inserts. The
+              border is no longer a halo laid AROUND the block but the
+              card's own thin line, changing ink: it is the same object,
+              pointed at. */}
             <Cardstock
               tour="detail-review"
               onFocusCapture={() => setFocusField("review")}
@@ -685,13 +689,13 @@ export function DetailView({
               />
             </Cardstock>
 
-            {/* LA PELLICULE, SOUS LE TEXTE QU'ELLE ILLUSTRE.
+            {/* THE FILM STRIP, UNDER THE TEXT IT ILLUSTRATES.
 
-              Elle était tout en bas de la page. Or « insérer » pose la
-              vignette à l'endroit du curseur, dans le champ où l'on écrit :
-              la planche et le texte se répondent à chaque geste, et les
-              tenir à deux écrans l'un de l'autre obligeait à faire l'aller-
-              retour pour chaque image. */}
+              It was right at the bottom of the page. But "insert" lays
+              the thumbnail where the cursor is, in the field one is
+              writing in: the board and the text answer each other at
+              every gesture, and keeping them two screens apart forced a
+              round trip for every image. */}
             <div style={{ marginTop: 18 }}>
               <StillsStrip
                 film={film}
@@ -705,14 +709,16 @@ export function DetailView({
             </div>
           </div>
 
-          {/* LE RAIL D'ANNOTATION — ce qu'on FAIT du film, et non ce qu'il est.
+          {/* THE ANNOTATION RAIL — what one DOES with the film, and not
+            what it is.
 
-            Ces quatre blocs vivaient dans la colonne de gauche, avec sept
-            autres, dans deux cent vingt pixels. Une puce un peu longue y
-            débordait, et le tout se lisait comme un entonnoir. Ils sont ici
-            parce qu'ils forment une famille : vos mots, vos motifs, le rayon
-            où le film se range, et la sortie définitive. La fiche catalogue,
-            à gauche, ne décrit plus que le film lui-même. */}
+            These four blocks used to live in the left column, with seven
+            others, in two hundred and twenty pixels. A slightly long
+            bullet overflowed there, and the whole read like a funnel.
+            They are here because they form a family: your words, your
+            patterns, the shelf where the film is filed, and the final
+            exit. The catalogue card, on the left, now describes only the
+            film itself. */}
           <div
             style={{
               flex: "1 1 260px",
@@ -731,9 +737,9 @@ export function DetailView({
                 onChange={(themes) => onUpdate({ ...film, themes })}
               />
             </Cardstock>
-            {/* Les motifs, sous les mots-clés et non à leur place : les uns
-              sont vos mots, les autres le vocabulaire commun sur lequel
-              une question peut porter. */}
+            {/* The patterns, under the keywords and not in their place:
+              the ones are your words, the others the common vocabulary a
+              question can bear on. */}
             <Cardstock tour="detail-tags">
               <Label>Motifs</Label>
               <MotifPicker
@@ -775,14 +781,14 @@ export function DetailView({
                 }
               />
             </Cardstock>
-            {/* Les deux rangements de l'étagère, atteignables sans y aller :
-              ils changent le rayon, pas la fiche. */}
+            {/* The shelf's two filings, reachable without going there:
+              they change the shelf, not the card. */}
             <Cardstock style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <Label>Ce qu'on en fait</Label>
-              {/* Pas de chevet pour un film qu'on n'a pas vu : le rayon
-                  est celui qu'on revoit, et l'étagère de la watchlist ne
-                  l'ouvre pas. Le bouton n'y aurait rien changé de
-                  visible. */}
+              {/* No bedside for a film one has not seen: that shelf is
+                  the one of what gets rewatched, and the watchlist's
+                  shelf does not open it. The button would have changed
+                  nothing visible there. */}
               {film.status !== "watchlist" && (
                 <button
                   onClick={() =>
@@ -845,9 +851,9 @@ export function DetailView({
                   </>
                 )}
               </button>
-              {/* La sortie définitive se tient à l'écart des deux rangements :
-                mettre de côté et supprimer se ressemblent assez pour qu'on
-                les confonde, et l'un des deux ne se rattrape pas. */}
+              {/* The final exit keeps its distance from the two filings:
+                setting aside and deleting look alike enough to be
+                confused, and one of the two cannot be undone. */}
               <button
                 onClick={() =>
                   setRequest({
@@ -881,21 +887,21 @@ export function DetailView({
       )}
 
       {/* ============================================================
-          ONGLET « LES LIENS » — ce que le film touche autour de lui
+          TAB "LES LIENS" — what the film touches around it
           ============================================================ */}
       {onglet === "liens" && (
         <div style={{ display: "flex", gap: 34, flexWrap: "wrap", alignItems: "flex-start" }}>
-          {/* LE FIL ROUGE, MONTÉ EN COLONNE.
+          {/* THE RED THREAD, MOUNTED AS A COLUMN.
 
-            Il vivait tout en bas, sur toute la largeur, et n'y tenait qu'un
-            bandeau : les cartons épinglés s'alignaient sur une rangée pendant
-            que la moitié droite de l'écran restait vide. Le panneau
-            d'enquête est ce qui aime le plus la place — il la prend ici, et
-            les fiches s'y empilent en colonne comme sur un vrai mur.
+            It used to live right at the bottom, across the full width,
+            and held only a strip there: the pinned cards lined up on one
+            row while the right half of the screen stayed empty. The
+            investigation board is what loves room most — it takes it
+            here, and the cards pile up in a column as on a real wall.
 
-            En dessous de la largeur qu'il lui faut, il repasse sous les
-            autres colonnes : c'est là qu'il était, l'ordre de lecture ne
-            change pas. */}
+            Below the width it needs, it goes back under the other
+            columns: that is where it was, the reading order does not
+            change. */}
           <div style={{ flex: "1 1 380px", minWidth: 0 }}>
             <Cardstock tour="detail-thread">
               <SectionTitle icon={<Link2 size={15} color={C.burgundy} />}>
@@ -1074,9 +1080,9 @@ export function DetailView({
                     disabled={!!picked}
                   />
                 </div>
-                {/* La nature du fil n'a de sens qu'entre deux fiches : une
-              mention libre n'est reliée qu'à elle-même. Le champ n'apparaît
-              donc qu'une fois la fiche retenue. */}
+                {/* The kind of the thread only makes sense between two
+              cards: a free-form mention is linked only to itself. So the
+              field only appears once the card has been chosen. */}
                 {picked && (
                   <>
                     <div style={{ minWidth: 160 }}>
@@ -1139,15 +1145,15 @@ export function DetailView({
                 </button>
               </div>
             </Cardstock>
-            {/* LE SILLAGE, SOUS LE FIL ROUGE ET DANS LE MÊME ONGLET.
+            {/* THE WAKE, UNDER THE RED THREAD AND IN THE SAME TAB.
 
-              Il était tout en bas de la page entière, après les motifs.
-              Le découpage lui donne sa vraie place : le fil rouge est ce
-              que VOUS avez relié, le sillage ce que la machine propose de
-              relier — deux réponses à la même question, qui gagnent à se
-              lire l'une sous l'autre. C'est aussi la sortie naturelle de
-              la fiche : on referme rarement un dossier sans se demander
-              « et ensuite ? ». */}
+              It was right at the bottom of the whole page, after the
+              patterns. The cutting up gives it its true place: the red
+              thread is what YOU have linked, the wake what the machine
+              proposes to link — two answers to the same question, which
+              gain from being read one under the other. It is also the
+              card's natural way out: one rarely closes a folder without
+              wondering "and then?". */}
             <SillagePanel
               film={film}
               films={films}

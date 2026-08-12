@@ -188,8 +188,8 @@ export function SurfaceTab({ decor, set }) {
             title={t.label}
             style={paintStyle(decor?.paint)}
           >
-            {/* la texture se fond, elle ne se substitue pas : la vignette
-                l'empile comme la surface le fait */}
+            {/* the texture blends, it does not substitute: the thumbnail
+                stacks it the way the surface does */}
             <span style={{ position: "absolute", inset: 0, ...textureLayer(k) }} aria-hidden />
             {pattern && <span style={{ position: "absolute", inset: 0, ...pattern }} aria-hidden />}
           </Swatch>

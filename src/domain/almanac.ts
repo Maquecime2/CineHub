@@ -382,7 +382,7 @@ export interface Rhythm {
    the edges would make every newcomer look like an intermittent film
    lover.
 
-   LA DENSITÉ EST LA SEULE CHOSE QUI NE SE GÉNÉRALISE PAS TOUTE SEULE.
+   THE DENSITY IS THE ONLY THING THAT DOES NOT GENERALISE BY ITSELF.
    Related to three hundred and sixty-five days, it only makes sense over
    one year; over seven years it would say seven hundred per cent. On
    "always", the denominator therefore becomes the span ACTUALLY covered,
@@ -594,14 +594,13 @@ export function gapToPublic(films: Film[], period: Period, howMany = 3): GapToPu
 }
 
 /* ------------------------------------------------------------
-   ANNÉE PAR ANNÉE
+   YEAR BY YEAR
    ------------------------------------------------------------
 
    What twelve monthly bars tell about a year, N yearly bars tell about a
    practice: the troughs, the climb, the year the log started being kept.
-   It is the only thing the report for
-   toujours ne pouvait pas emprunter au bilan annuel — il fallait une
-   graduation de plus. */
+   It is the only thing the "always" report could not borrow from the
+   yearly account — it needed one more graduation. */
 export function byYear(
   films: Film[]
 ): { year: number; screenings: number; titles: number; rating: number | null }[] {
@@ -761,17 +760,17 @@ export function filmsOfYear(films: Film[], period: Period): FilmOfYear[] {
 }
 
 /* ------------------------------------------------------------
-   CE QUI A BOUGÉ
+   WHAT HAS MOVED
    ------------------------------------------------------------
 
-   La trouvaille la plus personnelle de l'almanach n'est pas un count :
-   it is a film we had given three stars and that is worth five ten
-   years plus tard. `ratingDrift` sait already le calculer sur une fiche ; il
-   all that was missing was a place to look at the whole collection from.
+   The almanac's most personal find is not a count: it is a film we had
+   given three stars and that is worth five ten years later.
+   `ratingDrift` already knows how to compute it on one card; all that
+   was missing was a place to look at the whole collection from.
 
-   On keep l'gap le plus GRAND en valeur absolue, et on ne retient
-   que le sens dans lequel il penche — un film qui monte puis redescend
-   did move twice, but what we want to see is its amplitude. */
+   We keep the LARGEST gap in absolute value, and we only retain the
+   direction it leans in — a film that goes up then comes back down did
+   move twice, but what we want to see is its amplitude. */
 export interface Drift {
   film: Film;
   /** Signed: positive if the rating went up. */

@@ -533,12 +533,13 @@ describe("geography", () => {
 });
 
 /* ============================================================
-   LA PÉRIODE « TOUJOURS »
+   THE "ALWAYS" PERIOD
 
-   L'almanach ne savait répondre que par year. Ces tests tiennent la
-   promesse de la généralisation : ce qui se comptait sur douze mois se
-   count sur sept years sans qu'aucune fonction ait à le savoir, et le
-   peu qui résiste — la densité, les découvertes — le dit franchement.
+   The almanac only knew how to answer by year. These tests hold the
+   promise of the generalisation: what was counted over twelve months is
+   counted over seven years without any function having to know it, and
+   the little that resists — the density, the discoveries — says so
+   plainly.
    ============================================================ */
 describe("the whole practice", () => {
   const collection = () => [

@@ -148,9 +148,10 @@ export function RepairPanel({ films, onImport }: RepairPanelProps) {
             <span style={{ flex: 1 }}>
               {f.title} {f.year && <span style={{ color: C.inkFaded }}>({f.year})</span>}
             </span>
-            {/* La provenance est le meilleur indice qu'on ait à offrir :
-                une fiche venue de Letterboxd a été posée par un relevé de
-                watchlist, et c'est justement celles-là qui ont basculé. */}
+            {/* The provenance is the best clue we have to offer: a card
+                that came from Letterboxd was laid by a watchlist
+                reading, and those are precisely the ones that
+                flipped. */}
             {f.source === "letterboxd" && (
               <span style={{ fontFamily: F.mono, fontSize: 10, color: C.cobalt }}>letterboxd</span>
             )}

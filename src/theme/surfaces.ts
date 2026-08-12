@@ -76,14 +76,14 @@ export const paintStyle = (key?: string): CSSProperties => ({
 });
 
 /* ------------------------------------------------------------
-   LE PAPIER PEINT — une trame qui se répète
+   THE WALLPAPER — a pattern that repeats
    ------------------------------------------------------------
 
-   Chaque motif est une fonction de l'encre : la même trame donne autant
-   d'ambiances que la palette a de teintes. On les dessine volontairement
-   PÂLES — un mur est derrière les boîtiers, pas devant eux — et
-   l'opacité vit dans le markup plutôt que sur la couche, pour qu'une
-   texture posée par-dessus ne la dilue pas une seconde fois. */
+   Every pattern is a function of the ink: the same weave gives as many
+   moods as the palette has tints. We deliberately draw them PALE — a
+   wall is behind the cases, not in front of them — and the opacity lives
+   in the markup rather than on the layer, so that a texture laid on top
+   does not dilute it a second time. */
 
 export type PatternKey = keyof typeof PATTERNS;
 
@@ -211,12 +211,12 @@ export const patternLayer = (key?: string, ink: string = DEFAULT_INK): CSSProper
 };
 
 /* ------------------------------------------------------------
-   LA TEXTURE — ce qui passe par-dessus tout
+   THE TEXTURE — what goes over everything
    ------------------------------------------------------------
 
-   En `multiply`, comme le grain de papier de l'atmosphère : une texture
-   ASSOMBRIT le fond au lieu de le recouvrir, sinon elle effacerait la
-   peinture qu'on vient de choisir. */
+   In `multiply`, like the atmosphere's paper grain: a texture DARKENS
+   the background instead of covering it, otherwise it would erase the
+   paint one has just chosen. */
 
 export type TextureKey = keyof typeof TEXTURES;
 
@@ -254,25 +254,24 @@ export const textureLayer = (key?: string): CSSProperties | null =>
   TEXTURES[key as TextureKey]?.style || null;
 
 /* ------------------------------------------------------------
-   LE MUR ASSEMBLÉ — les trois couches en un seul geste
+   THE ASSEMBLED WALL — the three layers in one gesture
    ------------------------------------------------------------
 
-   Peinture et papier peint ne sont PAS des éléments de plus : ce sont
-   des couches de fond sur le cadre du rayon, qui en portait déjà une (la
-   teinte du rayon de bedside). C'est délibéré, et c'est la contrainte
-   qui compte ici : le dépôt d'un objet accroché mesure `data-wall-layer`
-   pour convertir un pixel en pourcentage, et tout enfant de plus dans ce
-   cadre risquerait de déplacer ce que ce rect vaut. Un fond ne déplace
-   rien.
+   Paint and wallpaper are NOT extra elements: they are background layers
+   on the row's frame, which already carried one (the tint of the bedside
+   row). That is deliberate, and it is the constraint that matters here:
+   dropping a hung object measures `data-wall-layer` to convert a pixel
+   into a percentage, and any extra child inside that frame would risk
+   shifting what that rect is worth. A background shifts nothing.
 
-   Seule la texture reste un calque à elle : elle se fond en `multiply`,
-   ce qu'un fond ne sait pas faire tout seul.
+   Only the texture stays a layer of its own: it blends in `multiply`,
+   which a background cannot do by itself.
 
-   L'ordre des couches est celui d'un empilement — le papier peint DEVANT
-   la peinture, donc écrit avant elle. Et `tint` en dernier, comme
-   couleur de fond : c'est la seule qui ne soit pas une image.
+   The order of the layers is that of a stack — the wallpaper IN FRONT OF
+   the paint, hence written before it. And `tint` last, as a background
+   colour: it is the only one that is not an image.
 
-   `ink` est une couleur résolue, jamais une clé. */
+   `ink` is a resolved colour, never a key. */
 export function wallStyle(
   decor?: { paint?: string; pattern?: string; texture?: string } | null,
   ink: string = DEFAULT_INK,
@@ -306,17 +305,16 @@ export function wallStyle(
 }
 
 /* ------------------------------------------------------------
-   LES MATÉRIAUX — de quoi la planche est faite
+   THE MATERIALS — what the board is made of
    ------------------------------------------------------------
 
-   Une planche n'était que deux stops de dégradé. Elle a maintenant une
-   FAMILLE, et la famille décide de ce qui se passe au-delà de la
-   couleur : le bois a un veinage étiré, le métal des bandes fines et un
-   reflet haut, le verre laisse voir à travers et pose une ombre plus
-   légère, la pierre a un grain gros.
+   A board was only two gradient stops. It now has a FAMILY, and the
+   family decides what happens beyond the colour: wood has a stretched
+   graining, metal thin bands and a high sheen, glass lets one see
+   through and casts a lighter shadow, stone has a coarse grain.
 
-   `finish` ne s'applique qu'aux matériaux qui ont quelque chose à
-   vernir — c'est un ajout d'éclat, pas une sixième famille. */
+   `finish` only applies to the materials that have something to varnish
+   — it is an addition of gloss, not a sixth family. */
 
 export type MaterialKey = keyof typeof MATERIALS;
 export type FinishKey = keyof typeof FINISHES;
