@@ -26,7 +26,7 @@ import { relationDef, forceDe } from "../domain/relations";
 import { linkTypeOf } from "../components/film/linkTypes";
 import { motifById } from "../domain/motifs";
 import { searchFilms } from "../domain/search";
-import type { Fil } from "../domain/fils";
+import type { Thread } from "../domain/threads";
 
 /* ============================================================
    VUE — CONSTELLATION : une carte du ciel tracée à l'encre.
@@ -77,7 +77,7 @@ export function ConstellationView({
   /** Fixer une parenté suggérée : elle devient un vrai fil rouge, réciproque. */
   onLinkFilm?: (fromId: string, toId: string, note?: string) => void;
   /** Les rassemblements nommés — « les films où le héros meurt ». */
-  fils?: Fil[];
+  fils?: Thread[];
 }) {
   const [hover, setHover] = useState<string | null>(null);
   /** Le fil visé, par son rang — de quoi l'épaissir et l'étiqueter. */
@@ -418,7 +418,7 @@ export function ConstellationView({
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
             {fils.map((fil) => {
               const on = !filsÉteints.includes(fil.id);
-              const encre = catInk(fil.couleur);
+              const encre = catInk(fil.color);
               const motif = fil.motif ? motifById(fil.motif) : undefined;
               return (
                 <button
@@ -925,7 +925,7 @@ export function ConstellationView({
                     : undefined;
                 const vise = hoverLink === i;
                 const teinteDuFil = filDeRassemblement
-                  ? catInk(byId.get(l.a)?.couleur || "burgundy")
+                  ? catInk(byId.get(l.a)?.color || "burgundy")
                   : null;
                 const encre = teinteDuFil ?? (crew ? inkOf(l) : peer ? C.burgundy : C.vermillion);
                 // un lien fort épaissit le trait : c'est la seule chose qu'il ait à dire ici
@@ -1038,7 +1038,7 @@ export function ConstellationView({
                 const isHover = hover === n.id || curseur === n.id;
                 const ink =
                   n.kind === "fil"
-                    ? catInk(n.couleur || "burgundy")
+                    ? catInk(n.color || "burgundy")
                     : n.kind === "film"
                       ? C.burgundy
                       : n.type

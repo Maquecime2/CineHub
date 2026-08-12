@@ -337,7 +337,7 @@ const BROUILLONS: Brouillon[] = [
    (voir `inverseDe`). Les recopier telles quelles plutôt que d'appeler
    `linkFilms` est délibéré — cette fonction vit dans `App` et travaille
    sur l'état React, qui n'existe pas encore au moment du semis. */
-interface Fil {
+interface Thread {
   de: string;
   vers: string;
   note: string;
@@ -345,7 +345,7 @@ interface Fil {
   force: Force;
 }
 
-const FILS: Fil[] = [
+const FILS: Thread[] = [
   {
     de: "demo-alien",
     vers: "demo-blade-runner",

@@ -31,7 +31,7 @@ import type {
   Note,
   ShelfViews,
 } from "../../types";
-import type { Fil } from "../../domain/fils";
+import type { Thread } from "../../domain/threads";
 import type { VocabulaireStocké as Vocabulaire } from "../../domain/motifs";
 
 /** Les deux natures d'import proposées sous le relevé du fichier. */
@@ -46,14 +46,14 @@ interface ImportViewProps {
   notes: Note[];
   dividers: Divider[];
   views: ShelfViews | null;
-  fils: Fil[];
+  fils: Thread[];
   motifs: Vocabulaire;
   onRestore: (data: {
     films: Film[];
     notes: Note[];
     dividers: Divider[];
     views: ShelfViews | null;
-    fils: Fil[];
+    fils: Thread[];
     motifs: Vocabulaire;
   }) => void;
 }

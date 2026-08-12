@@ -8,11 +8,11 @@
    jamais des centaines. Découper serait de la mécanique sans bénéfice.
    ============================================================ */
 import { store } from "./storage";
-import { normalizeFils } from "../domain/fils";
-import type { Fil } from "../domain/fils";
+import { normalizeThreads } from "../domain/threads";
+import type { Thread } from "../domain/threads";
 
 export const FILS_KEY = "fils";
 
-export const loadFils = (): Fil[] => normalizeFils(store.get(FILS_KEY, []));
+export const loadFils = (): Thread[] => normalizeThreads(store.get(FILS_KEY, []));
 
-export const saveFils = (fils: Fil[]): boolean => store.set(FILS_KEY, fils);
+export const saveFils = (fils: Thread[]): boolean => store.set(FILS_KEY, fils);

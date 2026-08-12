@@ -17,7 +17,7 @@ import { Search, Film as FilmIcon, User, Tag, Spline, NotebookPen } from "lucide
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { chercherPartout, parGenres, type Genre, type Trouvaille } from "../../domain/partout";
-import type { Fil } from "../../domain/fils";
+import type { Thread } from "../../domain/threads";
 import type { Film, Note } from "../../types";
 import { useViewport } from "../../hooks/useViewport";
 
@@ -50,7 +50,7 @@ export function SearchDrawer({
 }: {
   films: Film[];
   notes: Note[];
-  fils: Fil[];
+  fils: Thread[];
   onClose: () => void;
   ouvrir: OuvrirTrouvaille;
 }) {

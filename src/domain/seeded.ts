@@ -1,13 +1,13 @@
 /* ============================================================
-   ALÉATOIRE REPRODUCTIBLE
+   REPRODUCIBLE RANDOMNESS
 
-   Tout le désordre visuel du projet — inclinaisons, punaises, bords
-   déchirés, décalages — est dérivé de l'identifiant de la fiche. Une même
-   fiche retrouve donc toujours exactement la même allure, d'une session à
-   l'autre : c'est ce qui distingue un mur d'archives d'une animation.
+   Every bit of visual disorder in the project — tilts, pins, torn edges,
+   offsets — is derived from the card's id. The same card therefore always
+   comes back with exactly the same look, from one session to the next:
+   that is what tells an archive wall apart from an animation.
 
-   Ces fonctions ne renvoient que des nombres et des formes. Les choix de
-   couleur, eux, vivent dans `theme/ink.ts`.
+   These functions return nothing but numbers and shapes. The colour
+   choices live in `theme/ink.ts`.
    ============================================================ */
 
 export const hash = (str = ""): number => {
@@ -22,8 +22,8 @@ export const seededRand = (seed: number): number => {
 };
 
 /**
- * Indexe un tableau à partir d'un entier quelconque, en restant toujours
- * dans les bornes. Évite d'avoir à affirmer partout que l'accès est sûr.
+ * Indexes an array from any integer whatsoever, always staying within
+ * bounds. Saves having to assert everywhere that the access is safe.
  */
 export const pickFrom = <T>(items: readonly T[], n: number): T =>
   items[((n % items.length) + items.length) % items.length] as T;
@@ -32,13 +32,13 @@ export const tiltOf = (id: string): string => ((Math.abs(hash(id)) % 90) / 10 - 
 
 export const usesPin = (id: string): boolean => Math.abs(hash(id)) % 2 === 0;
 
-// décalage vertical pour casser l'alignement des colonnes du mur
+// vertical offset, to break the alignment of the wall's columns
 export const nudgeOf = (id: string): number => Math.round(seededRand(Math.abs(hash(id)) + 3) * 34);
 
-// numéro de fiche façon tampon d'archive
+// card number, archive-stamp style
 export const fileNoOf = (id: string): string => String((Math.abs(hash(id)) % 9000) + 1000);
 
-// bord déchiré déterministe (clip-path) pour le bas d'une photo
+// deterministic torn edge (clip-path) for the bottom of a photo
 export const tornClip = (id: string, points = 9): string => {
   const base = Math.abs(hash(id));
   const pts = ["0% 0%", "100% 0%", "100% 85%"];

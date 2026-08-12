@@ -20,9 +20,9 @@
    ============================================================ */
 import { normaliser, scoreFilm } from "./search";
 import { tousLesMotifs, motifById } from "./motifs";
-import { membresDuFil } from "./fils";
+import { threadMembers } from "./threads";
 import { recenser } from "./people";
-import type { Fil } from "./fils";
+import type { Thread } from "./threads";
 import type { Film, Note } from "../types";
 
 /** Les natures de choses qu'un classeur contient. */
@@ -56,7 +56,7 @@ export interface Trouvaille {
 export interface Fonds {
   films: Film[];
   notes: Note[];
-  fils: Fil[];
+  fils: Thread[];
 }
 
 /* Combien de caractères de part et d'autre du mot trouvé. Assez pour
@@ -193,7 +193,7 @@ export function chercherPartout(
     const surNote = rangDe(fil.note || "", t, 3);
     const rang = surLabel ?? surNote;
     if (rang == null) continue;
-    const n = membresDuFil(fil, films).length;
+    const n = threadMembers(fil, films).length;
     parFil.push({
       genre: "fil",
       clé: `fil:${fil.id}`,

@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ConstellationView } from "./ConstellationView";
 import { makeFilm } from "../domain/film";
-import { makeFil } from "../domain/fils";
+import { makeThread } from "../domain/threads";
 
 /* Un film relié, pour que le ciel ne soit pas vide, et un film que rien
    ne relie — c'est celui-là que la recherche devait rendre atteignable. */
@@ -64,7 +64,7 @@ describe("la recherche de la constellation", () => {
 
 describe("les fils au ciel", () => {
   it("propose de les éteindre un par un", () => {
-    const fil = makeFil({ id: "f1", label: "Le héros meurt", motif: "heros-meurt" });
+    const fil = makeThread({ id: "f1", label: "Le héros meurt", motif: "heros-meurt" });
     monter({ fils: [fil] });
     expect(screen.getByRole("button", { name: /Le héros meurt/ })).toBeInTheDocument();
   });

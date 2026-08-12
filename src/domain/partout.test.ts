@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { chercherPartout, extraitAutour, parGenres } from "./partout";
 import { makeFilm } from "./film";
-import { makeFil } from "./fils";
+import { makeThread } from "./threads";
 import type { Film, Note } from "../types";
 
 const film = (title: string, extra: Partial<Film> = {}) => makeFilm({ title, ...extra });
@@ -14,7 +14,7 @@ const page = (title: string, body: string, createdAt = 1_700_000_000_000): Note 
 });
 
 const fonds = (
-  o: { films?: Film[]; notes?: Note[]; fils?: ReturnType<typeof makeFil>[] } = {}
+  o: { films?: Film[]; notes?: Note[]; fils?: ReturnType<typeof makeThread>[] } = {}
 ) => ({
   films: o.films || [],
   notes: o.notes || [],
@@ -113,13 +113,13 @@ describe("les motifs", () => {
 
 describe("les fils", () => {
   it("trouve un fil par son nom", () => {
-    const fil = makeFil({ label: "Les fins tristes", motif: null });
+    const fil = makeThread({ label: "Les fins tristes", motif: null });
     const t = chercherPartout("tristes", fonds({ fils: [fil] }));
     expect(t.find((x) => x.genre === "fil")).toMatchObject({ titre: "Les fins tristes" });
   });
 
   it("trouve un fil par ce qu'on a écrit dessous", () => {
-    const fil = makeFil({ label: "Un fil", note: "tout ce qui parle de deuil" });
+    const fil = makeThread({ label: "Un fil", note: "tout ce qui parle de deuil" });
     const t = chercherPartout("deuil", fonds({ fils: [fil] }));
     const f = t.find((x) => x.genre === "fil");
     expect(f).toBeDefined();

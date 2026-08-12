@@ -6,8 +6,8 @@
    ============================================================ */
 import { hash, seededRand } from "./seeded";
 import { forceDe } from "./relations";
-import { membresDuFil } from "./fils";
-import type { Fil } from "./fils";
+import { threadMembers } from "./threads";
+import type { Thread } from "./threads";
 import type { Force } from "./relations";
 import type {
   Film,
@@ -52,7 +52,7 @@ const côtéÉcritDe = (films: Film[], aId: string, bId: string) =>
      recherche. Un astre isolé, oui — mais posé exprès, par un geste, et
      qui repart au premier coup de balai. */
 export interface SkyExtras {
-  fils?: Fil[];
+  fils?: Thread[];
   /** Identifiants de films à faire entrer au ciel quoi qu'il arrive. */
   pinned?: string[];
 }
@@ -78,7 +78,7 @@ export function buildSky(
      réunit AVANT de construire les nœuds : un film peut être les deux à
      la fois, et le dédoublerait sinon. */
   const parLesFils = new Set<string>();
-  for (const fil of fils) for (const id of membresDuFil(fil, pool)) parLesFils.add(id);
+  for (const fil of fils) for (const id of threadMembers(fil, pool)) parLesFils.add(id);
   const épinglés = new Set(pinned.filter((id) => poolIds.has(id)));
 
   const connected = pool.filter(
@@ -152,7 +152,7 @@ export function buildSky(
      membres se rassemblent visiblement autour de lui. Un fil vide n'entre
      pas — un nom seul au milieu du ciel ne dit rien. */
   for (const fil of fils) {
-    const membres = membresDuFil(fil, connected);
+    const membres = threadMembers(fil, connected);
     if (membres.length === 0) continue;
     const id = `t:${fil.id}`;
     nodes.push({
@@ -160,7 +160,7 @@ export function buildSky(
       kind: "fil",
       label: fil.label,
       sub: `${membres.length} film${membres.length > 1 ? "s" : ""}`,
-      couleur: fil.couleur,
+      color: fil.color,
       motif: fil.motif ?? null,
       degree: 0,
     });

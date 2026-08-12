@@ -4,7 +4,7 @@ import { tap } from "../../theme/styles";
 import { Tally } from "../../components/ui";
 import { posterStats, exportBackup, importBackup } from "../../db";
 import type { Divider, Film, Note, ShelfViews } from "../../types";
-import type { Fil } from "../../domain/fils";
+import type { Thread } from "../../domain/threads";
 import type { VocabulaireStocké as Vocabulaire } from "../../domain/motifs";
 
 /** Ce que `posterStats` rapporte de la base d'images. */
@@ -22,14 +22,14 @@ interface BackupPanelProps {
   notes: Note[];
   dividers: Divider[];
   views: ShelfViews | null;
-  fils: Fil[];
+  fils: Thread[];
   motifs: Vocabulaire;
   onRestore: (data: {
     films: Film[];
     notes: Note[];
     dividers: Divider[];
     views: ShelfViews | null;
-    fils: Fil[];
+    fils: Thread[];
     motifs: Vocabulaire;
   }) => void;
 }
@@ -87,7 +87,7 @@ export function BackupPanel({
           notes: n as Note[],
           dividers: d as Divider[],
           views: null,
-          fils: (fl || []) as Fil[],
+          fils: (fl || []) as Thread[],
           motifs: (mo || { perso: [], masqués: [] }) as Vocabulaire,
         })} fiche(s) restaurée(s).`
       );

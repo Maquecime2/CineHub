@@ -6,7 +6,7 @@ import { applySkin, loadSkinKey, saveSkinKey } from "./theme/applySkin";
 import { uid, migrate, editLinkedWork } from "./domain/film";
 import { normaliser } from "./domain/search";
 import { inverseDe, forceDe } from "./domain/relations";
-import { makeFil, normalizeFils } from "./domain/fils";
+import { makeThread, normalizeThreads } from "./domain/threads";
 import { motifById, makeMotifPerso, motifsPerso } from "./domain/motifs";
 import { loadFils, saveFils as saveFilsToDisk } from "./services/fils";
 import { loadVocabulaire, saveVocabulaire, normalizeVocabulaire } from "./services/motifs";
@@ -540,10 +540,10 @@ export default function App() {
     if (!motif) return;
     commitFils([
       ...fils,
-      makeFil({
+      makeThread({
         label: motif.label,
         motif: motifId,
-        couleur: CAT_KEYS[fils.length % CAT_KEYS.length],
+        color: CAT_KEYS[fils.length % CAT_KEYS.length],
       }),
     ]);
     setView("constellation");
@@ -587,7 +587,7 @@ export default function App() {
        sauvegarde elle-même comme état connu. */
     oublierLeCache(migrated);
     saveFilms(migrated);
-    commitFils(normalizeFils(fl || []));
+    commitFils(normalizeThreads(fl || []));
     commitVocabulaire(normalizeVocabulaire(mo || {}));
     if (n?.length) notebook.replaceAll(n);
     const tabs = d || [];

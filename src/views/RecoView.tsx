@@ -11,7 +11,7 @@ import { makeFilm, initialsOf } from "../domain/film";
 import { FilmPolaroid } from "../components/film/FilmPolaroid";
 import { PosterArt } from "../components/film/PosterArt";
 import { filmKey } from "../domain/importing";
-import { suggestionsMaison, type Nature } from "../domain/chezvous";
+import { atHomeSuggestions, type Nature } from "../domain/athome";
 import type { Film, Year } from "../types";
 
 /** Un film proposé par TMDB, une fois classé. */
@@ -294,7 +294,7 @@ function ChezVous({
   suggestions,
   onOpen,
 }: {
-  suggestions: ReturnType<typeof suggestionsMaison>;
+  suggestions: ReturnType<typeof atHomeSuggestions>;
   onOpen: (id: string) => void;
 }) {
   return (
@@ -312,7 +312,7 @@ function ChezVous({
         }}
       >
         {suggestions.map((s) => (
-          <button key={s.clé} onClick={() => onOpen(s.film.id)} style={carteMaison}>
+          <button key={s.key} onClick={() => onOpen(s.film.id)} style={carteMaison}>
             <div style={{ display: "flex", gap: 11 }}>
               <div style={{ width: 54, flexShrink: 0 }}>
                 <PosterArt film={s.film} height={81} initials={initialsOf(s.film.title)} />
@@ -327,7 +327,7 @@ function ChezVous({
                     color: TEINTE[s.nature],
                   }}
                 >
-                  {s.titre}
+                  {s.label}
                 </div>
                 <div
                   style={{
@@ -352,7 +352,7 @@ function ChezVous({
                     lineHeight: 1.2,
                   }}
                 >
-                  {s.raison}
+                  {s.reason}
                 </div>
               </div>
             </div>
@@ -367,9 +367,9 @@ function ChezVous({
    regarde la collection sous trois angles, et non qu'elle répète la
    même chose six fois. */
 const TEINTE: Record<Nature, string> = {
-  revoir: C.burgundy,
+  rewatch: C.burgundy,
   motif: C.plum,
-  cinéaste: C.pine,
+  director: C.pine,
 };
 
 const carteMaison = {
@@ -406,7 +406,7 @@ export function RecoView({
   const taste = useMemo(() => buildTaste(films), [films]);
   /* Calculé ICI et non dans le bloc : le message de clé manquante doit
      savoir s'il y a quelque chose au-dessus de lui pour en parler. */
-  const maison = useMemo(() => suggestionsMaison(films), [films]);
+  const maison = useMemo(() => atHomeSuggestions(films), [films]);
   const allGenres = useMemo(
     () => Array.from(new Set(films.flatMap((f) => f.genres || []))).sort(),
     [films]
