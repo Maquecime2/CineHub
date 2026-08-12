@@ -318,7 +318,7 @@ export interface SkyNode {
   type?: LinkType;
   refs?: number;
   /** Fils seulement : la clé de teinte du fil, et le motif qui l'alimente. */
-  couleur?: string;
+  color?: string;
   motif?: string | null;
   /** Vrai quand l'astre ne tient au ciel que parce qu'on l'y a épinglé. */
   épinglé?: boolean;

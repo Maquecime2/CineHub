@@ -81,13 +81,20 @@ doit continuer de fonctionner entièrement hors ligne.
 ## Vérifier
 
 `npm run dev`, `npm test`, **`npm run lint`**, **`npx prettier --check .`**,
-`npm run build`.
+**`npm run typecheck`**, `npm run build`.
 
-Les deux contrôles en gras manquaient à cette liste, et l'intégration
+Les trois contrôles en gras manquaient à cette liste, et l'intégration
 continue, elle, les fait échouer — trois `React.ReactNode` écrits sans
 importer `React`, et dix-neuf fichiers mal formatés, sont passés jusque
 dans `main` sans que personne les voie. Un contrôle absent de la liste
 des contrôles est un contrôle qu'on ne fait pas.
+
+**`npm run typecheck` n'est PAS couvert par `npm run build`.** Vite
+transpile sans vérifier les types : un champ renommé dans un `interface`
+et pas chez ceux qui le lisent passe le build ET les tests, puis casse à
+l'écran. Quatre erreurs de ce genre — `STRENGTHS[].valeur` et
+`SkyNode.couleur` — ont survécu à `npm test` et à `npm run build` avant
+que `tsc` ne les nomme.
 
 - Les 197 avertissements du lint sont tolérés ; ce sont les ERREURS qui
   arrêtent tout. On écrit `import type { ReactNode } from "react"` et

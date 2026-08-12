@@ -141,7 +141,7 @@ function ThreadCardEditor({
             }}
           >
             {STRENGTHS.map((f) => (
-              <option key={f.valeur} value={f.valeur}>
+              <option key={f.value} value={f.value}>
                 {f.label}
               </option>
             ))}

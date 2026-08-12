@@ -1093,7 +1093,7 @@ export function DetailView({
                         style={{ ...underlineInput, fontFamily: F.mono, fontSize: 12 }}
                       >
                         {STRENGTHS.map((f) => (
-                          <option key={f.valeur} value={f.valeur}>
+                          <option key={f.value} value={f.value}>
                             {f.label}
                           </option>
                         ))}

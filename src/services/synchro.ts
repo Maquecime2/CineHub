@@ -20,7 +20,13 @@
    et le prochain passage refait le même travail — c'est ce qui tient
    lieu de file d'attente, sans file d'attente à tenir.
    ============================================================ */
-import { fusionner, àEnvoyer } from "../domain/fusion";
+import { mergeRemote, toSend } from "../domain/merge";
+import type { RemoteCard } from "../domain/merge";
+
+/* `Tombe` porte encore son `le` d'origine — il sera renommé avec sa
+   migration quand `services/` passera à l'anglais. En attendant, la
+   traduction se fait ici plutôt que dans le domaine. */
+const pierresTombales = () => tombesConnues().map((t) => ({ id: t.id, at: t.le }));
 import {
   collectionConnue,
   enAttenteDEnvoi,
@@ -150,7 +156,21 @@ export async function synchroniser(poser: (films: Film[]) => void): Promise<Bila
     while (encore && tours < 50) {
       const reçu = await tirerDepuis(rang);
       if (reçu.fiches.length) {
-        const { films: fusionnés } = fusionner(films, reçu.fiches as never);
+        /* LE FORMAT DE FIL RESTE CELUI DU SERVEUR, et la traduction se
+           fait ICI. `domain/merge` parle anglais comme tout le domaine ;
+           le serveur, lui, envoie encore `majLe`/`supprimee`/`donnees`.
+           Adapter à la frontière laisse le domaine indépendant du
+           protocole — et le jour où le serveur changera de vocabulaire,
+           c'est cette fonction-ci qui disparaîtra, pas `mergeRemote`. */
+        const venues: RemoteCard[] = (
+          reçu.fiches as { id: string; majLe: number; supprimee?: boolean; donnees?: unknown }[]
+        ).map((f) => ({
+          id: f.id,
+          updatedAt: f.majLe,
+          deleted: f.supprimee,
+          data: (f.donnees ?? {}) as never,
+        }));
+        const { films: fusionnés } = mergeRemote(films, venues);
         films = fusionnés;
         /* ÉCRIT SANS RE-DATER : ces fiches viennent d'ailleurs et
            portent déjà leur date. Passer par l'enregistrement ordinaire
@@ -166,7 +186,15 @@ export async function synchroniser(poser: (films: Film[]) => void): Promise<Bila
     store.set(CLÉ_CURSEUR, rang);
 
     /* ---------- 2. POUSSER ---------- */
-    const paquet = àEnvoyer(collectionConnue(), tombesConnues(), enAttenteDEnvoi());
+    /* `toSend` rend le vocabulaire du domaine ; le serveur attend le
+       sien. Même frontière, même traduction, en sens inverse. */
+    const paquet = toSend(collectionConnue(), pierresTombales(), enAttenteDEnvoi()).map((e) => ({
+      id: e.id,
+      tmdbId: e.tmdbId,
+      majLe: e.updatedAt,
+      ...(e.deleted ? { supprimee: true } : {}),
+      donnees: e.data,
+    }));
 
     for (let i = 0; i < paquet.length; i += PAR_ENVOI) {
       const tranche = paquet.slice(i, i + PAR_ENVOI);
@@ -222,7 +250,7 @@ export async function synchroniser(poser: (films: Film[]) => void): Promise<Bila
     return { état: "à-jour", personne, le, enAttente: 0, documentsEntrés: entrés };
   } catch (e) {
     const erreur = e as ErreurServeur;
-    const attend = àEnvoyer(collectionConnue(), tombesConnues(), enAttenteDEnvoi()).length;
+    const attend = toSend(collectionConnue(), pierresTombales(), enAttenteDEnvoi()).length;
     /* LE ZÉRO VEUT DIRE « LA REQUÊTE N'EST JAMAIS PARTIE » : hors ligne,
        serveur éteint. Ce n'est pas une erreur à montrer en rouge, c'est
        un état normal d'application locale — d'où « en attente ». */
@@ -241,7 +269,7 @@ export async function synchroniser(poser: (films: Film[]) => void): Promise<Bila
 
 /** Ce qui attend, sans rien demander au réseau. */
 export const enAttente = (): number =>
-  serveurConfigure() ? àEnvoyer(collectionConnue(), tombesConnues(), enAttenteDEnvoi()).length : 0;
+  serveurConfigure() ? toSend(collectionConnue(), pierresTombales(), enAttenteDEnvoi()).length : 0;
 
 /** Repartir de zéro : après une déconnexion, ou un changement de compte. */
 export function oublierLaSynchro(): void {
