@@ -1,318 +1,327 @@
 /* ============================================================
-   LE DÉPÔT — la seule porte par où la collection entre et sort
+   THE STORE — the only door the collection comes in and out through
    ============================================================
 
-   Jusqu'ici, deux lignes d'`App.jsx` lisaient et écrivaient les films
-   directement dans le `localStorage`. Ça marchait, et ça ne pouvait pas
-   continuer, pour trois raisons qui n'ont rien à voir entre elles.
+   Until now, two lines of `App.jsx` read and wrote the films straight
+   into `localStorage`. It worked, and it could not go on, for three
+   reasons that have nothing to do with each other.
 
-   LE PLAFOND. Le `localStorage` s'arrête vers cinq mégaoctets pour
-   TOUTE l'application, et il ne stocke que du texte. Une collection un
-   peu fournie, avec ses critiques et ses journaux de séance, en occupe
-   déjà une bonne part — au point que le magasin prévient l'utilisateur
-   quand l'écriture échoue. IndexedDB range des objets tels quels et
-   dispose de plusieurs gigaoctets ; les images y sont déjà.
+   THE CEILING. `localStorage` stops at around five megabytes for the
+   WHOLE application, and it only stores text. A reasonably furnished
+   collection, with its reviews and its screening logs, already takes a
+   good share of that — to the point where the store warns the user when
+   a write fails. IndexedDB files objects as they are and has several
+   gigabytes; the images are already in it.
 
-   LA DATE. Une collection qui se synchronise a besoin de savoir QUELLES
-   fiches ont bougé. Cette date ne peut pas être posée par les vingt
-   endroits qui modifient un film : un seul oubli, et la fiche ne part
-   jamais. Elle se pose ICI, au passage, sur les seules fiches dont la
-   valeur a réellement changé (`stamp`).
+   THE DATE. A collection that synchronises needs to know WHICH cards
+   moved. That date cannot be set by the twenty places that modify a
+   film: one omission, and the card never goes out. It is set HERE, in
+   passing, on the only cards whose value really changed (`stamp`).
 
-   LA COUTURE. Le jour où un serveur existe, c'est ce module qui
-   apprendra à pousser et à tirer — pas les vues. Elles demandent la
-   collection et la rendent ; d'où elle vient ne les regarde pas.
+   THE SEAM. The day a server exists, it is this module that will learn
+   to push and to pull — not the views. They ask for the collection and
+   hand it back; where it comes from is none of their business.
 
-   CE QUI RESTE VRAI : rien ne part nulle part. Le dépôt écrit sur cette
-   machine et sur elle seule.
+   WHAT STAYS TRUE: nothing goes anywhere. The store writes on this
+   machine and on this machine only.
    ============================================================ */
 import { getDoc, putDoc } from "../db";
 import { migrate, stamp } from "../domain/film";
 import { store } from "./storage";
 import type { Film } from "../types";
 
-/** La clé de la collection, dans l'un comme dans l'autre magasin. */
-export const CLÉ = "films";
+/** The collection's key, in either store. Its VALUE stays `"films"`. */
+export const FILMS_KEY = "films";
 
 /* ============================================================
-   LES PIERRES TOMBALES
+   TOMBSTONES
    ============================================================
 
-   Effacer une fiche la retire du tableau, et c'est tout : il ne reste
-   RIEN qui dise qu'elle a existé. Tant qu'un classeur est seul, cela
-   suffit. Dès qu'il y en a deux, c'est un trou : l'autre appareil, qui
-   ignore l'effacement, repousse sa copie au prochain envoi, et le film
-   ressuscite. On l'efface, il revient ; on l'efface encore, il revient
-   encore.
+   Deleting a card takes it out of the array, and that is all: NOTHING
+   remains to say it existed. As long as a binder is alone, that is
+   enough. As soon as there are two, it is a hole: the other device,
+   which knows nothing of the deletion, pushes its copy back on the next
+   send, and the film comes back to life. You delete it, it returns; you
+   delete it again, it returns again.
 
-   On garde donc, pour chaque fiche partie, son identifiant et l'heure
-   de son départ. C'est le strict minimum — pas de titre, pas de note :
-   une pierre tombale n'est pas une copie de la fiche.
+   So for every card that left we keep its identifier and the time of its
+   departure. That is the strict minimum — no title, no rating: a
+   tombstone is not a copy of the card.
 
-   Elles ne s'accumulent pas indéfiniment : au-delà d'un an, un appareil
-   qui n'a pas parlé depuis si longtemps a d'autres problèmes que celui-
-   là, et ressusciter une fiche vieille d'un an est le moindre d'entre
-   eux. */
-export const CLÉ_TOMBES = "films-effaces";
+   They do not pile up indefinitely: past a year, a device that has not
+   spoken for that long has other problems than this one, and
+   resurrecting a year-old card is the least of them. */
+export const GRAVES_KEY = "films-effaces";
 
-const VIE_TOMBE_MS = 365 * 24 * 60 * 60 * 1000;
+const GRAVE_LIFETIME_MS = 365 * 24 * 60 * 60 * 1000;
 
-export interface Tombe {
+export interface Grave {
   id: string;
-  /** Quand la fiche a été retirée, en millisecondes. */
-  le: number;
+  /** When the card was removed, in milliseconds. */
+  at: number;
 }
 
-let tombes: Tombe[] = [];
+/** The shape stored before this module was translated. */
+type StoredGrave = Partial<Grave> & { le?: unknown };
 
-export const tombesConnues = (): Tombe[] => tombes;
+let graves: Grave[] = [];
+
+export const knownGraves = (): Grave[] => graves;
 
 /* ============================================================
-   CE QUI ATTEND D'ÊTRE ENVOYÉ
+   WHAT IS WAITING TO BE SENT
    ============================================================
 
-   Première idée, et mauvaise : comparer `updatedAt` à la date du
-   dernier envoi. Elle a tenu trois minutes — le temps qu'un test montre
-   qu'une fiche DESCENDUE du serveur repartait aussitôt vers lui. Sa
-   date vient de l'autre appareil, dont l'horloge n'est pas la nôtre :
-   la comparer à notre repère à nous ne veut rien dire, et selon le sens
-   du décalage on renvoie tout ou on n'envoie rien.
+   First idea, and a bad one: compare `updatedAt` against the date of
+   the last send. It lasted three minutes — the time it took a test to
+   show that a card PULLED DOWN from the server went straight back up to
+   it. Its date comes from the other device, whose clock is not ours:
+   comparing it against our own marker means nothing, and depending on
+   which way the offset runs you send everything or you send nothing.
 
-   On tient donc une LISTE : les identifiants des fiches modifiées ICI
-   depuis le dernier envoi accepté. Aucune horloge, aucune soustraction,
-   rien à interpréter. Elle est écrite par le dépôt, au seul endroit qui
-   sache distinguer une modification locale d'une fiche reçue.
+   So we keep a LIST: the identifiers of the cards modified HERE since
+   the last accepted send. No clock, no subtraction, nothing to
+   interpret. It is written by the store, at the one place that can tell
+   a local modification from a card received.
 
-   Elle survit au rechargement, sinon une note écrite hors ligne le
-   vendredi ne partirait jamais. */
-export const CLÉ_ATTENTE = "films-a-envoyer";
+   It survives a reload, otherwise a note written offline on a Friday
+   would never go out. */
+export const PENDING_KEY = "films-a-envoyer";
 
-let attente = new Set<string>();
+let pending = new Set<string>();
 
-export const enAttenteDEnvoi = (): string[] => [...attente];
+export const pendingToSend = (): string[] => [...pending];
 
-const noterÀEnvoyer = (ids: string[]): void => {
+const notePending = (ids: string[]): void => {
   if (!ids.length) return;
-  for (const id of ids) attente.add(id);
-  store.set(CLÉ_ATTENTE, [...attente]);
+  for (const id of ids) pending.add(id);
+  store.set(PENDING_KEY, [...pending]);
 };
 
 /**
- * Tout est à envoyer.
+ * Everything is to be sent.
  *
- * À LA PREMIÈRE CONNEXION D'UN COMPTE, et là seulement. La liste
- * d'attente ne retient que ce qu'on modifie APRÈS l'avoir mise en
- * place : une collection de six cents films déjà rangés n'y figure pas,
- * et le premier envoi ne contenait donc rien du tout. Le classeur se
- * disait à jour, le serveur restait vide, et personne ne mentait.
+ * ON AN ACCOUNT'S FIRST CONNECTION, and only there. The waiting list
+ * only holds what gets modified AFTER it was put in place: a collection
+ * of six hundred films already filed is not on it, so the first send
+ * contained nothing at all. The binder called itself up to date, the
+ * server stayed empty, and nobody was lying.
  */
-export function toutÀEnvoyer(): void {
-  attente = new Set(dernière.map((f) => f.id));
-  for (const t of tombes) attente.add(t.id);
-  store.set(CLÉ_ATTENTE, [...attente]);
+export function sendEverything(): void {
+  pending = new Set(latest.map((f) => f.id));
+  for (const t of graves) pending.add(t.id);
+  store.set(PENDING_KEY, [...pending]);
 }
 
-/** Après un envoi accepté. Ce qui a rebougé entre-temps reste dedans. */
-export function oublierCeQuiEstParti(ids: string[]): void {
-  for (const id of ids) attente.delete(id);
-  store.set(CLÉ_ATTENTE, [...attente]);
+/** After an accepted send. Whatever moved again in the meantime stays in. */
+export function forgetWhatWentOut(ids: string[]): void {
+  for (const id of ids) pending.delete(id);
+  store.set(PENDING_KEY, [...pending]);
 }
 
-const noterLesParties = (avant: Film[], après: Film[], maintenant: number): void => {
-  if (!avant.length) return;
-  const restants = new Set(après.map((f) => f.id));
-  const parties = avant.filter((f) => !restants.has(f.id));
-  if (!parties.length) return;
-  const limite = maintenant - VIE_TOMBE_MS;
-  tombes = [
-    ...tombes.filter((t) => t.le > limite && restants.has(t.id) === false),
-    ...parties.map((f) => ({ id: f.id, le: maintenant })),
+const noteDepartures = (before: Film[], after: Film[], now: number): void => {
+  if (!before.length) return;
+  const remaining = new Set(after.map((f) => f.id));
+  const gone = before.filter((f) => !remaining.has(f.id));
+  if (!gone.length) return;
+  const cutoff = now - GRAVE_LIFETIME_MS;
+  graves = [
+    ...graves.filter((t) => t.at > cutoff && remaining.has(t.id) === false),
+    ...gone.map((f) => ({ id: f.id, at: now })),
   ];
-  store.set(CLÉ_TOMBES, tombes);
-  /* Un départ est une chose à dire, au même titre qu'une note écrite. */
-  noterÀEnvoyer(parties.map((f) => f.id));
+  store.set(GRAVES_KEY, graves);
+  /* A departure is something to say, just as much as a note written. */
+  notePending(gone.map((f) => f.id));
 };
 
-/* ON GARDE UNE COPIE DE TRAVAIL, et ce n'est pas une optimisation.
-   `stamp` a besoin de l'état PRÉCÉDENT pour dire ce qui a changé ;
-   relire IndexedDB à chaque écriture le donnerait aussi, mais au prix
-   d'un aller-retour asynchrone avant chaque enregistrement, et sur un
-   chemin où l'on écrit à chaque frappe. */
-let dernière: Film[] = [];
+/* WE KEEP A WORKING COPY, and it is not an optimisation. `stamp` needs
+   the PREVIOUS state to say what changed; re-reading IndexedDB on every
+   write would give that too, but at the cost of an asynchronous round
+   trip before every save, on a path where we write on every
+   keystroke. */
+let latest: Film[] = [];
 
-/* Le mode privé de certains navigateurs refuse IndexedDB. On ne peut
-   pas refuser l'application pour autant : on retombe alors sur le
-   `localStorage`, avec son plafond — c'est moins bien, et c'est mieux
-   que rien. La réponse est retenue, la question ne se pose qu'une fois. */
-let coffre: boolean | null = null;
+/* Some browsers' private mode refuses IndexedDB. We cannot refuse the
+   application over it: we fall back on `localStorage`, with its ceiling
+   — that is worse, and it is better than nothing. The answer is
+   remembered, the question is only asked once. */
+let vault: boolean | null = null;
 
-/* CE QUI NE RÉPOND PAS EN DEUX SECONDES NE RÉPONDRA PAS.
+/* WHAT DOES NOT ANSWER WITHIN TWO SECONDS WILL NOT ANSWER.
 
-   Une base verrouillée par un autre onglet est déjà traitée à la source
-   (`db.js` rejette au lieu d'attendre), mais l'écran d'ouverture est le
-   seul endroit de l'application où une promesse en suspens ne se
-   rattrape par rien : elle laisse le classeur fermé, sans message et
-   sans recours. Ce délai est la ceinture qui va avec les bretelles. */
-const DÉLAI_MS = 2000;
+   A database locked by another tab is already handled at the source
+   (`db.js` rejects instead of waiting), but the opening screen is the
+   one place in the application where a pending promise is caught by
+   nothing: it leaves the binder shut, with no message and no recourse.
+   This timeout is the belt that goes with the braces. */
+const TIMEOUT_MS = 2000;
 
-const avecDélai = <T>(p: Promise<T>): Promise<T> =>
+const withTimeout = <T>(p: Promise<T>): Promise<T> =>
   Promise.race([
     p,
-    new Promise<T>((_, rej) => setTimeout(() => rej(new Error("coffre muet")), DÉLAI_MS)),
+    new Promise<T>((_, rej) => setTimeout(() => rej(new Error("vault muet")), TIMEOUT_MS)),
   ]);
 
-const coffreDisponible = async (): Promise<boolean> => {
-  if (coffre !== null) return coffre;
+const vaultAvailable = async (): Promise<boolean> => {
+  if (vault !== null) return vault;
   try {
-    await avecDélai(getDoc(CLÉ));
-    coffre = true;
+    await withTimeout(getDoc(FILMS_KEY));
+    vault = true;
   } catch {
-    coffre = false;
+    vault = false;
   }
-  return coffre;
+  return vault;
 };
 
 /**
- * Charge la collection, d'où qu'elle vienne.
+ * Loads the collection, wherever it comes from.
  *
- * L'ORDRE COMPTE : IndexedDB d'abord, `localStorage` ensuite. Une
- * collection déjà descendue dans le coffre y est plus récente que la
- * copie laissée en haut, et lire la seconde ferait revivre des fiches
- * effacées la veille.
+ * THE ORDER MATTERS: IndexedDB first, `localStorage` second. A
+ * collection already moved down into the vault is more recent there
+ * than the copy left upstairs, and reading the second would bring back
+ * to life cards deleted the day before.
  */
-export async function chargerFilms(): Promise<Film[]> {
-  let brut: Partial<Film>[] | null = null;
+export async function loadFilms(): Promise<Film[]> {
+  let raw: Partial<Film>[] | null = null;
 
-  if (await coffreDisponible()) {
+  if (await vaultAvailable()) {
     try {
-      const doc = await getDoc(CLÉ);
-      if (Array.isArray(doc)) brut = doc as Partial<Film>[];
+      const doc = await getDoc(FILMS_KEY);
+      if (Array.isArray(doc)) raw = doc as Partial<Film>[];
     } catch {
-      /* Le coffre a répondu à l'ouverture puis refusé la lecture : on
-         redescend d'un cran plutôt que de perdre la collection. */
-      coffre = false;
+      /* The vault answered on opening and then refused the read: we step
+         down a level rather than lose the collection. */
+      vault = false;
     }
   }
 
-  /* Rien dans le coffre : c'est soit une première ouverture, soit une
-     collection qui n'a pas encore déménagé. Dans les deux cas, ce qui
-     compte est en haut. */
-  const déménage = brut === null;
-  if (brut === null) brut = store.get<Partial<Film>[]>(CLÉ, []);
+  /* Nothing in the vault: either a first opening, or a collection that
+     has not moved yet. Either way, what counts is upstairs. */
+  const migrating = raw === null;
+  if (raw === null) raw = store.get<Partial<Film>[]>(FILMS_KEY, []);
 
-  const films = migrate(brut);
-  dernière = films;
-  /* Les tombes restent dans le `localStorage` : quelques dizaines
-     d'octets par fiche partie, et elles doivent survivre à un coffre
-     indisponible aussi bien qu'à un rechargement. */
-  tombes = store.get<Tombe[]>(CLÉ_TOMBES, []).filter((t) => t?.id && typeof t.le === "number");
-  attente = new Set(store.get<string[]>(CLÉ_ATTENTE, []).filter((x) => typeof x === "string"));
+  const films = migrate(raw);
+  latest = films;
+  /* The tombstones stay in `localStorage`: a few dozen bytes per card
+     that left, and they must survive an unavailable vault as well as a
+     reload. */
+  /* `le` became `at` when this module was translated, and a tombstone
+     is written to disk. Reading only the new spelling would drop every
+     grave already laid — and each of those cards would come back to life
+     on the next pull from a device that still has it. */
+  const storedGraves = store.get<StoredGrave[]>(GRAVES_KEY, []);
+  graves = (Array.isArray(storedGraves) ? storedGraves : [])
+    .map((t) => ({ id: String(t?.id ?? ""), at: typeof t?.at === "number" ? t.at : t?.le }))
+    .filter((t): t is Grave => !!t.id && typeof t.at === "number");
+  pending = new Set(store.get<string[]>(PENDING_KEY, []).filter((x) => typeof x === "string"));
 
-  /* Le déménagement a lieu au premier chargement qui le peut, et
-     l'ancienne copie N'EST PAS effacée dans la foulée : tant qu'on n'a
-     pas écrit une fois dans le coffre avec succès, elle est le seul
-     exemplaire. C'est `enregistrerFilms` qui la retire, après. */
-  if (déménage && films.length && (await coffreDisponible())) {
-    await écrire(films);
+  /* The move happens on the first load that can manage it, and the old
+     copy is NOT erased in the same breath: until we have written to the
+     vault successfully once, it is the only copy. It is `saveFilms` that
+     removes it, afterwards. */
+  if (migrating && films.length && (await vaultAvailable())) {
+    await write(films);
   }
 
   return films;
 }
 
-/** L'écriture nue, sans horodatage : le déménagement s'en sert tel quel. */
-async function écrire(films: Film[]): Promise<void> {
-  if (await coffreDisponible()) {
+/** The bare write, with no stamping: the move uses it as it is. */
+async function write(films: Film[]): Promise<void> {
+  if (await vaultAvailable()) {
     try {
-      /* Une copie simple : IndexedDB clone la valeur, et un objet gelé
-         ou porteur de fonctions le ferait échouer. `JSON` garantit une
-         structure clonable, et la fiche n'est que des données. */
-      await putDoc(CLÉ, JSON.parse(JSON.stringify(films)));
-      /* Le coffre a pris : la copie du haut n'a plus de raison d'être,
-         et elle occupe la place qui manquait. */
-      localStorage.removeItem(CLÉ);
+      /* A plain copy: IndexedDB clones the value, and a frozen object or
+         one carrying functions would make that fail. `JSON` guarantees a
+         cloneable structure, and a card is nothing but data. */
+      await putDoc(FILMS_KEY, JSON.parse(JSON.stringify(films)));
+      /* The vault took it: the upstairs copy has no reason to exist any
+         more, and it takes up the room that was missing. */
+      localStorage.removeItem(FILMS_KEY);
       return;
     } catch {
-      coffre = false;
+      vault = false;
     }
   }
-  /* `set` ET NON `setSoon`, ET C'EST RÉFLÉCHI.
+  /* `set` AND NOT `setSoon`, AND IT IS DELIBERATE.
 
-     `main` avait mis la collection en écriture différée, pour ne pas
-     re-sérialiser six cents fiches à chaque frappe. Ce raisonnement
-     visait `localStorage`, qui était alors le seul logement de la
-     collection ; depuis, elle a déménagé dans le coffre, et cette ligne
-     n'est plus que le REPLI du jour où le coffre refuse.
+     `main` had put the collection on deferred writing, so as not to
+     re-serialise six hundred cards on every keystroke. That reasoning
+     was aimed at `localStorage`, which was then the collection's only
+     home; since, it has moved into the vault, and this line is now only
+     the FALLBACK for the day the vault refuses.
 
-     Or c'est précisément le jour où il ne faut pas différer : on vient
-     d'apprendre que l'exemplaire d'en bas n'existe pas, et celui-ci est
-     le seul. Quatre cents millisecondes de fenêtre sur la seule copie
-     restante est un mauvais marché — et deux tests le disent déjà.
+     But that is precisely the day not to defer: we have just learned
+     that the copy downstairs does not exist, and this one is the only
+     one. Four hundred milliseconds of window on the last remaining copy
+     is a bad bargain — and two tests already say so.
 
-     Le groupage reste disponible (`store.setSoon`) pour qui écrit
-     souvent une valeur reconstructible ; ce n'est pas le cas ici. */
-  store.set(CLÉ, films);
+     Batching stays available (`store.setSoon`) for whoever writes a
+     rebuildable value often; that is not the case here. */
+  store.set(FILMS_KEY, films);
 }
 
 /**
- * Enregistre la collection et rend ce qui a été écrit.
+/**
+ * Saves the collection and returns what was written.
  *
- * Le retour n'est pas une politesse : les fiches modifiées y portent
- * leur nouvelle date, et c'est CE tableau que l'application doit garder
- * en mémoire. Rendre celui qu'on a reçu ferait diverger l'écran du
- * disque dès la première écriture.
+ * The return value is not a courtesy: the modified cards carry their new
+ * date in it, and it is THAT array the application must keep in memory.
+ * Returning the one we were given would make the screen and the disk
+ * drift apart on the very first write.
  */
-export async function enregistrerFilms(films: Film[]): Promise<Film[]> {
-  const maintenant = Date.now();
-  const datés = stamp(dernière, films, maintenant);
-  /* Les départs se lisent ICI et nulle part ailleurs : c'est le seul
-     endroit qui voie l'avant et l'après. Une suppression signalée par
-     chaque appelant serait une suppression qu'un appelant oublierait de
-     signaler — et une fiche qui ressuscite au prochain envoi. */
-  noterLesParties(dernière, datés, maintenant);
-  /* CE QUI A BOUGÉ SE LIT À L'IDENTITÉ DES OBJETS, pas à leur date.
-     `stamp` rend le MÊME objet pour une fiche inchangée : un objet
-     différent de celui d'avant est donc une fiche modifiée, et une
-     fiche absente d'avant est une fiche neuve. C'est exact.
+export async function saveFilms(films: Film[]): Promise<Film[]> {
+  const now = Date.now();
+  const stamped = stamp(latest, films, now);
+  /* Departures are read HERE and nowhere else: it is the only place that
+     sees the before and the after. A deletion signalled by every caller
+     would be a deletion one caller forgets to signal — and a card that
+     comes back to life on the next send. */
+  noteDepartures(latest, stamped, now);
+  /* WHAT MOVED IS READ FROM THE OBJECTS' IDENTITY, not from their date.
+     `stamp` returns the SAME object for an unchanged card: an object
+     different from the previous one is therefore a modified card, and a
+     card absent from before is a new one. That is exact.
 
-     Comparer `updatedAt` à « maintenant » semblait équivalent et ne
-     l'était pas : deux enregistrements dans la même milliseconde — ce
-     qui arrive à la moindre suite de gestes — faisaient passer pour
-     modifiées des fiches qui n'avaient pas bougé. */
-  const avant = new Map(dernière.map((f) => [f.id, f]));
-  noterÀEnvoyer(datés.filter((f) => avant.get(f.id) !== f).map((f) => f.id));
-  dernière = datés;
-  await écrire(datés);
-  return datés;
+     Comparing `updatedAt` against "now" seemed equivalent and was not:
+     two saves within the same millisecond — which happens on the
+     slightest sequence of gestures — made cards that had not moved look
+     modified. */
+  const before = new Map(latest.map((f) => [f.id, f]));
+  notePending(stamped.filter((f) => before.get(f.id) !== f).map((f) => f.id));
+  latest = stamped;
+  await write(stamped);
+  return stamped;
 }
 
 /**
- * Écrit une collection venue d'AILLEURS, sans la re-dater.
+/**
+ * Writes a collection from ELSEWHERE, without re-dating it.
  *
- * `enregistrerFilms` date ce qui a changé — c'est son travail, et c'est
- * exactement ce qu'il ne faut pas faire ici. Les fiches qui descendent
- * du serveur portent déjà leur date ; les redater de maintenant les
- * ferait passer pour des modifications locales, elles repartiraient au
- * serveur, qui les renverrait, indéfiniment.
+ * `saveFilms` dates what changed — that is its job, and it is exactly
+ * what must not happen here. The cards coming down from the server
+ * already carry their date; re-dating them to now would make them look
+ * like local modifications, they would go back up to the server, which
+ * would send them back, indefinitely.
  *
- * Les départs ne sont pas notés non plus : une fiche absente d'un
- * tirage n'a pas été effacée ici, elle n'était simplement pas dans le
- * paquet.
+ * Departures are not noted either: a card missing from a pull was not
+ * deleted here, it simply was not in the batch.
  */
-export async function remplacerFilms(films: Film[]): Promise<void> {
-  dernière = films;
-  await écrire(films);
+export async function replaceFilms(films: Film[]): Promise<void> {
+  latest = films;
+  await write(films);
 }
 
 /**
- * La collection telle que le disque la connaît, sans la relire.
+/**
+ * The collection as the disk knows it, without re-reading it.
  *
- * La synchronisation en a besoin à des moments où l'écran n'est pas la
- * source : juste après un tirage, par exemple.
+ * Synchronisation needs it at moments when the screen is not the source:
+ * just after a pull, for instance.
  */
-export const collectionConnue = (): Film[] => dernière;
+export const knownCollection = (): Film[] => latest;
 
-/** Pour les tests, et pour une restauration qui repart de zéro. */
-export function oublierLeCache(films: Film[] = []): void {
-  dernière = films;
-  coffre = null;
+/** For the tests, and for a restore that starts from scratch. */
+export function forgetCache(films: Film[] = []): void {
+  latest = films;
+  vault = null;
 }

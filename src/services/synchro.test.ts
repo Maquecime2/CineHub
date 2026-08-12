@@ -55,14 +55,14 @@ vi.mock("./serveur", () => ({
 }));
 
 const { synchroniser, oublierLaSynchro, enAttente } = await import("./synchro");
-const { chargerFilms, enregistrerFilms, oublierLeCache } = await import("./collection");
+const { loadFilms, saveFilms, forgetCache } = await import("./collection");
 const { makeFilm } = await import("../domain/film");
 
 const fiche = (p: Record<string, unknown> = {}) => makeFilm({ title: "Playtime", ...p });
 
 beforeEach(async () => {
   localStorage.clear();
-  oublierLeCache([]);
+  forgetCache([]);
   oublierLaSynchro();
   faux.personne = { id: "p1", pseudo: "varda" };
   faux.reçus = [];
@@ -71,7 +71,7 @@ beforeEach(async () => {
   faux.jetteÀLEnvoi = null;
   faux.docsReçus = [];
   faux.docsPoussés = [];
-  await chargerFilms();
+  await loadFilms();
 });
 
 afterEach(() => localStorage.clear());
@@ -81,7 +81,7 @@ describe("un tour complet", () => {
     /* Pousser en premier enverrait des fiches sur le point d'être
        remplacées : du travail pour rien, et une fenêtre où le serveur
        porte une version qu'on s'apprête à abandonner. */
-    await enregistrerFilms([fiche({ id: "local", updatedAt: 5000 })]);
+    await saveFilms([fiche({ id: "local", updatedAt: 5000 })]);
     faux.reçus = [
       {
         jusqua: 12,
@@ -110,7 +110,7 @@ describe("un tour complet", () => {
   });
 
   it("découpe les gros envois", async () => {
-    await enregistrerFilms([
+    await saveFilms([
       fiche({ id: "a", updatedAt: 5000 }),
       fiche({ id: "b", updatedAt: 5000 }),
       fiche({ id: "c", updatedAt: 5000 }),
@@ -138,7 +138,7 @@ describe("un tour complet", () => {
 
 describe("quand le réseau manque", () => {
   it("l'appareil reste où il était, et le dit sans rougir", async () => {
-    await enregistrerFilms([fiche({ id: "local", updatedAt: 5000 })]);
+    await saveFilms([fiche({ id: "local", updatedAt: 5000 })]);
     faux.jetteAuTirage = { code: 0, message: "Le serveur ne répond pas." };
 
     const bilan = await synchroniser(() => {});
@@ -147,7 +147,7 @@ describe("quand le réseau manque", () => {
   });
 
   it("et rattrape tout au retour du réseau", async () => {
-    await enregistrerFilms([fiche({ id: "local", updatedAt: 5000 })]);
+    await saveFilms([fiche({ id: "local", updatedAt: 5000 })]);
     faux.jetteÀLEnvoi = { code: 0, message: "coupé" };
     expect((await synchroniser(() => {})).état).toBe("en-attente");
     expect(faux.poussés).toEqual([]);
@@ -169,7 +169,7 @@ describe("quand le réseau manque", () => {
 describe("sans compte", () => {
   it("rien ne part, et ce n'est pas une panne", async () => {
     faux.personne = null;
-    await enregistrerFilms([fiche({ id: "local", updatedAt: 5000 })]);
+    await saveFilms([fiche({ id: "local", updatedAt: 5000 })]);
     const bilan = await synchroniser(() => {});
     expect(bilan.état).toBe("hors-compte");
     expect(faux.poussés).toEqual([]);
@@ -178,7 +178,7 @@ describe("sans compte", () => {
 
 describe("ce qui attend", () => {
   it("se compte sans rien demander au réseau", async () => {
-    await enregistrerFilms([fiche({ id: "a", updatedAt: 5000 })]);
+    await saveFilms([fiche({ id: "a", updatedAt: 5000 })]);
     expect(enAttente()).toBe(1);
     await synchroniser(() => {});
     expect(enAttente()).toBe(0);
@@ -188,9 +188,9 @@ describe("ce qui attend", () => {
     /* `a` est le MÊME objet d'un enregistrement à l'autre : seule `b`
        s'en va, et c'est son départ qu'on veut voir compté. */
     const a = fiche({ id: "a" });
-    await enregistrerFilms([a, fiche({ id: "b" })]);
+    await saveFilms([a, fiche({ id: "b" })]);
     await synchroniser(() => {});
-    await enregistrerFilms([a]);
+    await saveFilms([a]);
     expect(enAttente()).toBe(1);
 
     await synchroniser(() => {});

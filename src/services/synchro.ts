@@ -23,17 +23,13 @@
 import { mergeRemote, toSend } from "../domain/merge";
 import type { RemoteCard } from "../domain/merge";
 
-/* `Tombe` porte encore son `le` d'origine — il sera renommé avec sa
-   migration quand `services/` passera à l'anglais. En attendant, la
-   traduction se fait ici plutôt que dans le domaine. */
-const pierresTombales = () => tombesConnues().map((t) => ({ id: t.id, at: t.le }));
 import {
-  collectionConnue,
-  enAttenteDEnvoi,
-  oublierCeQuiEstParti,
-  toutÀEnvoyer,
-  remplacerFilms,
-  tombesConnues,
+  knownCollection,
+  pendingToSend,
+  forgetWhatWentOut,
+  sendEverything,
+  replaceFilms,
+  knownGraves,
 } from "./collection";
 import { store } from "./storage";
 import {
@@ -127,7 +123,7 @@ export async function synchroniser(poser: (films: Film[]) => void): Promise<Bila
       état: "en-attente",
       personne: null,
       le: dernierBilan().le,
-      enAttente: enAttenteDEnvoi().length,
+      enAttente: pendingToSend().length,
     };
   }
   if (!personne) {
@@ -141,7 +137,7 @@ export async function synchroniser(poser: (films: Film[]) => void): Promise<Bila
   if (store.get(CLÉ_COMPTE, "") !== personne.id) {
     store.set(CLÉ_CURSEUR, 0);
     store.set(CLÉ_CURSEUR_DOCS, 0);
-    toutÀEnvoyer();
+    sendEverything();
     tousLesDocumentsÀEnvoyer();
     store.set(CLÉ_COMPTE, personne.id);
   }
@@ -149,7 +145,7 @@ export async function synchroniser(poser: (films: Film[]) => void): Promise<Bila
   try {
     /* ---------- 1. TIRER ---------- */
     let rang = curseur();
-    let films = collectionConnue();
+    let films = knownCollection();
     let encore = true;
     let tours = 0;
 
@@ -176,7 +172,7 @@ export async function synchroniser(poser: (films: Film[]) => void): Promise<Bila
            portent déjà leur date. Passer par l'enregistrement ordinaire
            les daterait de maintenant, elles se croiraient modifiées
            ici, et repartiraient au serveur en boucle. */
-        await remplacerFilms(films);
+        await replaceFilms(films);
         poser(films);
       }
       rang = reçu.jusqua;
@@ -188,7 +184,7 @@ export async function synchroniser(poser: (films: Film[]) => void): Promise<Bila
     /* ---------- 2. POUSSER ---------- */
     /* `toSend` rend le vocabulaire du domaine ; le serveur attend le
        sien. Même frontière, même traduction, en sens inverse. */
-    const paquet = toSend(collectionConnue(), pierresTombales(), enAttenteDEnvoi()).map((e) => ({
+    const paquet = toSend(knownCollection(), knownGraves(), pendingToSend()).map((e) => ({
       id: e.id,
       tmdbId: e.tmdbId,
       majLe: e.updatedAt,
@@ -207,8 +203,8 @@ export async function synchroniser(poser: (films: Film[]) => void): Promise<Bila
          Et l'on ne retire que ce qui n'a pas rebougé entre-temps : une
          note écrite pendant que le paquet voyageait doit repartir au
          tour suivant. */
-      const parId = new Map(collectionConnue().map((f) => [f.id, f]));
-      oublierCeQuiEstParti(
+      const parId = new Map(knownCollection().map((f) => [f.id, f]));
+      forgetWhatWentOut(
         tranche
           .filter((e) => {
             const ici = parId.get(e.id);
@@ -250,7 +246,7 @@ export async function synchroniser(poser: (films: Film[]) => void): Promise<Bila
     return { état: "à-jour", personne, le, enAttente: 0, documentsEntrés: entrés };
   } catch (e) {
     const erreur = e as ErreurServeur;
-    const attend = toSend(collectionConnue(), pierresTombales(), enAttenteDEnvoi()).length;
+    const attend = toSend(knownCollection(), knownGraves(), pendingToSend()).length;
     /* LE ZÉRO VEUT DIRE « LA REQUÊTE N'EST JAMAIS PARTIE » : hors ligne,
        serveur éteint. Ce n'est pas une erreur à montrer en rouge, c'est
        un état normal d'application locale — d'où « en attente ». */
@@ -269,7 +265,7 @@ export async function synchroniser(poser: (films: Film[]) => void): Promise<Bila
 
 /** Ce qui attend, sans rien demander au réseau. */
 export const enAttente = (): number =>
-  serveurConfigure() ? toSend(collectionConnue(), pierresTombales(), enAttenteDEnvoi()).length : 0;
+  serveurConfigure() ? toSend(knownCollection(), knownGraves(), pendingToSend()).length : 0;
 
 /** Repartir de zéro : après une déconnexion, ou un changement de compte. */
 export function oublierLaSynchro(): void {

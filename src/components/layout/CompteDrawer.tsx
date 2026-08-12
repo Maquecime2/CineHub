@@ -46,11 +46,11 @@ import {
   type Person,
 } from "../../services/serveur";
 import {
-  etatDesPoussees,
-  sAbonner,
-  seDesabonner,
-  type EtatPoussees,
-} from "../../services/poussees";
+  pushState,
+  subscribeToPush,
+  unsubscribeFromPush,
+  type PushState,
+} from "../../services/push";
 import { oublierLaSynchro } from "../../services/synchro";
 import type { Bilan } from "../../services/synchro";
 
@@ -543,11 +543,11 @@ function Blocages() {
 }
 
 function Rappels() {
-  const [état, setÉtat] = useState<EtatPoussees | null>(null);
+  const [état, setÉtat] = useState<PushState | null>(null);
   const [occupé, setOccupé] = useState(false);
 
   const relire = () =>
-    etatDesPoussees()
+    pushState()
       .then(setÉtat)
       .catch(() => setÉtat(null));
 
@@ -560,8 +560,8 @@ function Rappels() {
   const basculer = async () => {
     setOccupé(true);
     try {
-      if (état.abonne) await seDesabonner();
-      else await sAbonner();
+      if (état.subscribed) await unsubscribeFromPush();
+      else await subscribeToPush();
     } finally {
       setOccupé(false);
       await relire();
@@ -571,7 +571,7 @@ function Rappels() {
   return (
     <div style={{ borderTop: `1px dashed ${C.line}`, paddingTop: 14 }}>
       <Label>Les rappels</Label>
-      {état.refusee ? (
+      {état.denied ? (
         /* Le refus est définitif dans la plupart des navigateurs : il
            n'y a pas de seconde request à faire, seulement un réglage à
            rouvrir à la main. Le dire vaut mieux qu'un bouton qui
@@ -582,8 +582,8 @@ function Rappels() {
         </div>
       ) : (
         <>
-          <button onClick={basculer} disabled={occupé} style={bouton(C.pine, état.abonne)}>
-            <Bell size={12} /> {état.abonne ? "NE PLUS ME RAPPELER" : "ME RAPPELER MES DÉFIS"}
+          <button onClick={basculer} disabled={occupé} style={bouton(C.pine, état.subscribed)}>
+            <Bell size={12} /> {état.subscribed ? "NE PLUS ME RAPPELER" : "ME RAPPELER MES DÉFIS"}
           </button>
           <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 6 }}>
             Un défi qui commence, un défi qui s'achève — rien d'autre ne vous sonnera. Le réglage

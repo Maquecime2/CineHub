@@ -36,12 +36,12 @@ vi.mock("../../services/serveur", () => ({
   sInscrire: vi.fn(),
 }));
 
-vi.mock("../../services/poussees", () => ({
+vi.mock("../../services/push", () => ({
   /* Pas de notifications possibles : la section se tait, et n'entre pas
      dans le chemin de ce test. */
-  etatDesPoussees: vi.fn(async () => ({ possible: false, abonne: false, refusee: false })),
-  sAbonner: vi.fn(),
-  seDesabonner: vi.fn(),
+  pushState: vi.fn(async () => ({ possible: false, subscribed: false, denied: false })),
+  subscribeToPush: vi.fn(),
+  unsubscribeFromPush: vi.fn(),
 }));
 
 vi.mock("../../services/synchro", async (vrai) => ({

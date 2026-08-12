@@ -24,7 +24,7 @@ import { store } from "./storage";
 /** Le registre des dates, à côté des documents eux-mêmes. */
 const CLÉ_REGISTRE = "documents-maj";
 /** Ce qui attend d'être envoyé — les clés, comme pour les fiches. */
-const CLÉ_ATTENTE = "documents-a-envoyer";
+const PENDING_KEY = "documents-a-envoyer";
 
 /* CE QUI SE SYNCHRONISE, ET CE QUI NE DOIT SURTOUT PAS.
 
@@ -51,7 +51,7 @@ export const estSynchronisable = (clé: string): boolean =>
 type Registre = Record<string, number>;
 
 const registre = (): Registre => store.get<Registre>(CLÉ_REGISTRE, {});
-const attente = (): string[] => store.get<string[]>(CLÉ_ATTENTE, []);
+const attente = (): string[] => store.get<string[]>(PENDING_KEY, []);
 
 /**
  * Ce document vient de changer ICI.
@@ -64,7 +64,7 @@ export function noterDocument(clé: string, maintenant = Date.now()): void {
   if (!estSynchronisable(clé)) return;
   store.set(CLÉ_REGISTRE, { ...registre(), [clé]: maintenant });
   const liste = attente();
-  if (!liste.includes(clé)) store.set(CLÉ_ATTENTE, [...liste, clé]);
+  if (!liste.includes(clé)) store.set(PENDING_KEY, [...liste, clé]);
 }
 
 /** La date d'un document, ou zéro s'il n'a jamais été noté. */
@@ -100,7 +100,7 @@ const safeParse = (brut: string): unknown => {
 
 export function oublierDocumentsPartis(clés: string[]): void {
   const reste = attente().filter((c) => !clés.includes(c));
-  store.set(CLÉ_ATTENTE, reste);
+  store.set(PENDING_KEY, reste);
 }
 
 /**
@@ -143,9 +143,9 @@ export function tousLesDocumentsÀEnvoyer(): void {
   const suite = { ...reg };
   for (const c of clés) if (!suite[c]) suite[c] = maintenant;
   store.set(CLÉ_REGISTRE, suite);
-  store.set(CLÉ_ATTENTE, clés);
+  store.set(PENDING_KEY, clés);
 }
 
 export function oublierLesDocuments(): void {
-  store.set(CLÉ_ATTENTE, []);
+  store.set(PENDING_KEY, []);
 }

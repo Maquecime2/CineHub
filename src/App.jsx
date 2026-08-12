@@ -11,12 +11,7 @@ import { motifById, makeCustomMotif, customMotifs } from "./domain/motifs";
 import { loadThreads, saveThreads as saveFilsToDisk } from "./services/threads";
 import { loadVocabulaire, saveVocabulaire, normalizeVocabulaire } from "./services/motifs";
 import { store, KEYS } from "./services/storage";
-import {
-  chargerFilms,
-  collectionConnue,
-  enregistrerFilms,
-  oublierLeCache,
-} from "./services/collection";
+import { loadFilms, knownCollection, saveFilms, forgetCache } from "./services/collection";
 import { PaperGrain } from "./components/atmosphere";
 import { FilmModal } from "./components/film/FilmModal";
 import { FolderTabs } from "./components/layout/FolderTabs";
@@ -175,7 +170,7 @@ export default function App() {
      les champs status/watchedAt/tmdbId au passage. */
   useEffect(() => {
     let vivant = true;
-    chargerFilms().then(async (chargés) => {
+    loadFilms().then(async (chargés) => {
       if (!vivant) return;
       /* LE CLASSEUR DE DÉMONSTRATION, ET SEULEMENT ICI.
 
@@ -189,7 +184,7 @@ export default function App() {
          et pourquoi. */
       let migrated = chargés;
       if (!chargés.length && doitSemer()) {
-        migrated = await enregistrerFilms(filmsDeDémonstration());
+        migrated = await saveFilms(filmsDeDémonstration());
         /* Le carnet ne reçoit sa page que s'il est vide : quelqu'un
            peut avoir écrit avant d'avoir un seul film. */
         if (!store.get(KEYS.notes, []).length) store.set(KEYS.notes, notesDeDémonstration());
@@ -263,7 +258,7 @@ export default function App() {
     setDividers(tabs);
     setViews(
       ensureViews({
-        films: collectionConnue(),
+        films: knownCollection(),
         dividers: tabs,
         wallPrefs: store.get("wall-prefs", {}),
       })
@@ -361,7 +356,7 @@ export default function App() {
   const saveFilms = (next) => {
     setFilms(next);
     const rang = ++rangÉcriture.current;
-    enregistrerFilms(next).then((datés) => {
+    saveFilms(next).then((datés) => {
       if (rang === rangÉcriture.current) setFilms(datés);
     });
   };
@@ -587,7 +582,7 @@ export default function App() {
        fiches perdraient la date qu'elles portent dans le fichier, qui
        est précisément ce qu'on restaure. On repart donc de la
        sauvegarde elle-même comme état connu. */
-    oublierLeCache(migrated);
+    forgetCache(migrated);
     saveFilms(migrated);
     commitFils(normalizeThreads(fl || []));
     commitVocabulaire(normalizeVocabulaire(mo || {}));
