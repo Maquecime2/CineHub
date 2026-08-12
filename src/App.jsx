@@ -958,7 +958,7 @@ export default function App() {
         tourId={tourId}
         onClose={fermerVisite}
         onView={visiteOuvreVue}
-        onOnglet={setDetailOnglet}
+        onTab={setDetailOnglet}
       />
       {hint && !tourId && (
         <TourHint onReplay={() => jouerVisite("global")} onDismiss={() => setHint(false)} />

@@ -1,20 +1,20 @@
 /* ============================================================
-   LE FILET DE LA VISITE
+   THE TOUR'S SAFETY NET
 
-   Ces tests ne vérifient pas un calcul : ils vérifient une PROMESSE
-   d'entretien. Une vue ajoutée au produit sans visite fait échouer la
-   suite, et c'est tout leur objet — la règle écrite dans CLAUDE.md ne
-   tiendrait pas six mois si rien ne la tenait.
+   These tests do not check a computation: they check a PROMISE of
+   upkeep. A view added to the product without a tour makes the suite
+   fail, and that is their whole purpose — the rule written in CLAUDE.md
+   would not hold six months if nothing held it.
    ============================================================ */
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it, expect } from "vitest";
 import { TOURS, tourForView } from "./steps";
 
-/* La liste des vues du produit, recopiée à la main depuis l'union `View`
-   de `FolderTabs` : un type ne survit pas à la compilation, et c'est
-   justement ici qu'on veut qu'il soit lisible à l'exécution. `skinlab`
-   n'en est pas — c'est un outil de développement, pas une vue. */
+/* The list of the product's views, copied by hand from `FolderTabs`'
+   `View` union: a type does not survive compilation, and it is precisely
+   here that we want it readable at run time. `skinlab` is not one of
+   them — it is a development tool, not a view. */
 const VUES = [
   "library",
   "watchlist",
@@ -61,38 +61,38 @@ describe("les étapes se tiennent", () => {
     }
   });
 
-  /* La visite globale voyage : chaque étape doit dire dans quelle vue
-     elle se joue, sinon elle pointe une cible restée dans la vue
-     précédente. */
+  /* The global tour travels: every step must say in which view it
+     plays, failing which it points at a target left behind in the
+     previous view. */
   it("la visite globale nomme la vue de chaque étape", () => {
     for (const [i, s] of TOURS.global!.steps.entries()) {
       expect(s.view, `global[${i}] : ${s.title}`).toBeDefined();
     }
   });
 
-  /* LE DOSSIER FILM SE LIT EN TROIS INTERCALAIRES, et une étape ne peut
-     plus se contenter de nommer sa cible : celle-ci n'est montée que si
-     son onglet est ouvert. Une étape sans `onglet` viserait donc un
-     carton absent trois fois sur quatre — elle serait sautée comme une
-     cible manquante, après sept cents millisecondes de voile.
+  /* THE FILM FOLDER IS READ IN THREE TABS, and a step can no longer make
+     do with naming its target: that target is only mounted if its tab is
+     open. A step with no `tab` would therefore aim at an absent card
+     three times out of four — it would be skipped like a missing target,
+     after seven hundred milliseconds of veil.
 
-     La règle ne vaut QUE pour cette visite : c'est la seule vue du
-     produit qui ait des intercalaires. */
+     The rule holds ONLY for this tour: it is the product's only view
+     that has tabs. */
   it("chaque étape du dossier film dit son intercalaire", () => {
     for (const [i, s] of TOURS.detail!.steps.entries()) {
-      expect(s.onglet, `detail[${i}] : ${s.title}`).toBeDefined();
+      expect(s.tab, `detail[${i}] : ${s.title}`).toBeDefined();
     }
   });
 
   it("aucune autre visite ne parle d'intercalaire", () => {
     for (const [id, t] of Object.entries(TOURS)) {
       if (id === "detail") continue;
-      for (const s of t.steps) expect(s.onglet, `${id} : ${s.title}`).toBeUndefined();
+      for (const s of t.steps) expect(s.tab, `${id} : ${s.title}`).toBeUndefined();
     }
   });
 
-  /* Les visites de page, elles, ne doivent JAMAIS naviguer : on les
-     lance depuis la page qu'elles décrivent. */
+  /* Page tours, for their part, must NEVER navigate: we launch them
+     from the page they describe. */
   it("les visites de page ne naviguent pas", () => {
     for (const [id, t] of Object.entries(TOURS)) {
       if (id === "global") continue;
@@ -102,26 +102,27 @@ describe("les étapes se tiennent", () => {
 });
 
 /* ============================================================
-   CHAQUE CIBLE EXISTE QUELQUE PART
+   EVERY TARGET EXISTS SOMEWHERE
 
-   Une étape dont l'ancre n'est posée nulle part ne montre rien : au
-   mieux elle est `optional` et se saute après sept cents millisecondes
-   de voile opaque, au pire elle laisse la visite plantée. Aucun des
-   tests ci-dessus ne l'attrape, parce qu'ils ne lisent que `steps.ts` —
-   et c'est exactement ainsi que « generique-dossier » a pu rester dans
-   la visite globale, morte en permanence, sans que rien ne le dise.
+   A step whose anchor is laid nowhere shows nothing: at best it is
+   `optional` and gets skipped after seven hundred milliseconds of opaque
+   veil, at worst it leaves the tour stuck. None of the tests above
+   catches it, because they only read `steps.ts` — and that is exactly
+   how "generique-dossier" was able to stay in the global tour,
+   permanently dead, without anything saying so.
 
-   ON LIT DONC LES FICHIERS. Deux formes d'ancre coexistent dans le
-   projet et le test doit connaître les deux : `data-tour="…"` en JSX
-   nu, et la propriété `tour="…"` que `Cardstock` traduit en attribut. N'en
-   chercher qu'une donnerait une moisson de faux positifs.
+   SO WE READ THE FILES. Two forms of anchor coexist in the project and
+   the test must know both: `data-tour="…"` in bare JSX, and the `tour="…"`
+   property that `Cardstock` translates into an attribute. Looking for
+   only one would give a harvest of false positives.
 
-   Ce test ne dit PAS que l'ancre est montée à l'écran au moment de
-   l'étape — cela ne se vérifie qu'en jouant la visite. Il dit qu'elle
-   existe dans le produit, ce qui est la moitié bon marché du problème.
+   This test does NOT say the anchor is mounted on screen at the moment
+   of the step — that can only be verified by playing the tour. It says
+   the anchor exists in the product, which is the cheap half of the
+   problem.
    ============================================================ */
-/* La racine du projet, et non `import.meta.url` : Vite réécrit celui-ci
-   en URL de module servie, qui n'est pas un chemin de fichier. */
+/* The project root, and not `import.meta.url`: Vite rewrites the latter
+   into a served module URL, which is not a file path. */
 const SRC = join(process.cwd(), "src");
 
 const fichiers = (dossier: string): string[] =>
@@ -134,8 +135,8 @@ const fichiers = (dossier: string): string[] =>
 const ancresPosées = (): Set<string> => {
   const trouvées = new Set<string>();
   for (const f of fichiers(SRC)) {
-    /* `steps.ts` NOMME les ancres, il n'en pose aucune : s'en servir de
-       preuve ferait que chaque étape se justifie elle-même. */
+    /* `steps.ts` NAMES the anchors, it lays none: using it as proof
+       would make every step justify itself. */
     if (/[\\/]tour[\\/]steps\.ts$/.test(f)) continue;
     for (const m of readFileSync(f, "utf8").matchAll(/\b(?:data-tour|tour)=["']([\w-]+)["']/g))
       trouvées.add(m[1]!);
@@ -147,8 +148,8 @@ describe("les cibles de la visite existent dans le produit", () => {
   const posées = ancresPosées();
 
   it("en trouve un nombre plausible", () => {
-    /* Garde-fou du garde-fou : une expression rationnelle cassée rendrait
-       un ensemble vide, et tous les tests ci-dessous passeraient. */
+    /* Safeguard of the safeguard: a broken regular expression would
+       return an empty set, and every test below would pass. */
     expect(posées.size).toBeGreaterThan(30);
   });
 

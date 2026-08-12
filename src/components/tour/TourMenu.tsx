@@ -1,9 +1,9 @@
 /* ============================================================
-   LE MENU D'AIDE — deux portes, pas une de plus
+   THE HELP MENU — two doors, not one more
 
-   Panneau et voile repris du choix des peaux : c'est le motif maison
-   pour un petit panneau qui se referme au clic à côté (`data-veil` est
-   honoré par une règle globale des jetons).
+   Panel and veil taken from the skin picker: it is the house pattern for
+   a small panel that closes on a click beside it (`data-veil` is honoured
+   by a global rule in the tokens).
    ============================================================ */
 import type { CSSProperties } from "react";
 import { X } from "lucide-react";
@@ -57,9 +57,9 @@ export function TourMenu({
           </span>
         </button>
 
-        {/* La visite de page n'est pas grisée quand elle manque : elle
-            n'est pas là. Un bouton mort se clique quand même, et ne
-            répond pas — ce qui se lit comme une panne. */}
+        {/* The page tour is not greyed out when it is missing: it is
+            simply not there. A dead button gets clicked anyway, and does
+            not answer — which reads as a failure. */}
         {page ? (
           <button onClick={() => onPlay(view)} style={porte}>
             <span style={titre}>Cette page</span>

@@ -1,14 +1,13 @@
 /* ============================================================
-   LE MONTREUR — un voile percé, et une fiche bristol qui explique
+   THE GUIDE — a pierced veil, and an index card that explains
 
-   Le voile n'est pas un carré à trou en `clip-path` mais QUATRE
-   rectangles autour de la cible. C'est plus simple à animer, et surtout
-   le trou reste un vrai vide : ce qu'on montre demeure cliquable, et
-   l'on pourra un jour demander à l'utilisateur de faire le geste plutôt
-   que de le regarder.
+   The veil is not a square with a `clip-path` hole but FOUR rectangles
+   around the target. That is simpler to animate, and above all the hole
+   stays a real void: what we point at remains clickable, and one day we
+   may ask the user to make the gesture rather than watch it.
 
-   Rien n'y est écrit : le moteur ne connaît que des étapes, et les
-   étapes vivent dans `steps.ts`.
+   Nothing is written in it: the engine knows only steps, and the steps
+   live in `steps.ts`.
    ============================================================ */
 import { useCallback, useEffect, useState } from "react";
 import type { CSSProperties } from "react";
@@ -22,52 +21,53 @@ import type { TourStep } from "./steps";
 import { useTourTarget } from "./useTourTarget";
 import type { Rect } from "./useTourTarget";
 
-/** Au-dessus de tout : modale 50, panneau de peaux 60, tiroirs 60. */
+/** Above everything: modal 50, skin panel 60, drawers 60. */
 const Z = 200;
 
-/** Marge du trou autour de la cible — l'objet montré respire. */
+/** The hole's margin around the target — the object shown can breathe. */
 const PAD = 8;
 
 const BULLE_BASE = 300;
-/** Distance entre le bord du trou et la fiche. */
+/** Distance between the hole's edge and the card. */
 const GAP = 16;
 
 interface TourOverlayProps {
   /** Clé de `TOURS`. `null` : aucune visite en cours. */
   tourId: string | null;
   onClose: () => void;
-  /** Ouvre une vue — c'est ce qui permet à la visite globale de voyager. */
+  /** Opens a view — that is what lets the global tour travel. */
   onView: (view: string) => void;
   /**
-   * Ouvre un intercalaire du dossier film.
+   * Opens a tab of the film folder.
    *
-   * Le pendant exact de `onView`, un cran plus bas : depuis que la fiche
-   * se lit en trois onglets, une étape qui vise le fil rouge doit
-   * pouvoir ouvrir « Les liens » avant de chercher sa cible, faute de
-   * quoi elle passerait pour une cible absente et serait sautée.
+   * The exact counterpart of `onView`, one notch lower: since the card is
+   * read in three tabs, a step aiming at the red thread must be able to
+   * open "Links" before looking for its target, failing which it would
+   * pass for a missing target and be skipped.
    */
-  onOnglet?: (onglet: string) => void;
+  onTab?: (tab: string) => void;
 }
 
-export function TourOverlay({ tourId, onClose, onView, onOnglet }: TourOverlayProps) {
+export function TourOverlay({ tourId, onClose, onView, onTab }: TourOverlayProps) {
   const tour = tourId ? TOURS[tourId] : undefined;
   const [i, setI] = useState(0);
 
-  /* Une visite relancée repart du début : reprendre au milieu de la
-     précédente serait la plus mauvaise des surprises. */
+  /* A tour restarted begins again from the start: picking up in the
+     middle of the previous one would be the worst kind of surprise. */
   useEffect(() => {
     setI(0);
   }, [tourId]);
 
   const step: TourStep | undefined = tour?.steps[i];
 
-  /* LA VUE D'ABORD, LA CIBLE ENSUITE. Le changement de vue est demandé
-     pendant le rendu de l'étape — c'est un effet, pas un calcul — et la
-     recherche de la cible attend ensuite que React ait posé le nœud. */
+  /* THE VIEW FIRST, THE TARGET SECOND. The change of view is asked for
+     during the step's render — it is an effect, not a computation — and
+     the search for the target then waits for React to have laid the
+     node. */
   useEffect(() => {
     if (step?.view) onView(step.view);
-    if (step?.onglet) onOnglet?.(step.onglet);
-  }, [step, onView, onOnglet]);
+    if (step?.tab) onTab?.(step.tab);
+  }, [step, onView, onTab]);
 
   const { rect, status } = useTourTarget(step?.target ?? null, i);
 
@@ -91,10 +91,10 @@ export function TourOverlay({ tourId, onClose, onView, onOnglet }: TourOverlayPr
 
   const prev = useCallback(() => setI((n) => Math.max(0, n - 1)), []);
 
-  /* UNE CIBLE INTROUVABLE NE BLOQUE PAS. Une collection vide n'a ni
-     affiche ni rangée, et la moitié des étapes visent du contenu : sans
-     cette échappatoire, la première visite d'un classeur neuf resterait
-     plantée sur un voile opaque. */
+  /* A TARGET THAT CANNOT BE FOUND DOES NOT BLOCK. An empty collection
+     has neither poster nor row, and half the steps aim at content:
+     without this escape hatch, a new binder's first tour would stay
+     stuck on an opaque veil. */
   useEffect(() => {
     if (!step || !step.target || status !== "missing") return;
     if (!step.optional) return;
@@ -117,9 +117,9 @@ export function TourOverlay({ tourId, onClose, onView, onOnglet }: TourOverlayPr
 
   if (!tour || !step) return null;
 
-  /* Une étape sans cible, ou dont la cible se fait attendre, se joue au
-     centre sur voile plein : mieux vaut une bulle centrée qu'un trou qui
-     saute d'un coin à l'autre pendant que la vue s'ouvre. */
+  /* A step with no target, or whose target keeps us waiting, plays in
+     the centre on a full veil: better a centred bubble than a hole
+     jumping from one corner to another while the view opens. */
   const hole = step.target && status === "found" && rect ? grow(rect, PAD) : null;
 
   return (
@@ -149,9 +149,9 @@ const grow = (r: Rect, p: number): Rect => ({
 
 /* ---------- le voile ---------- */
 
-/* Quatre volets. Cliquer à côté de ce qu'on montre écarte la visite —
-   c'est le geste que tout le monde tente, et le refuser serait tenir
-   l'utilisateur en otage. */
+/* Four panels. Clicking beside what we are showing waves the tour away —
+   it is the gesture everybody tries, and refusing it would hold the user
+   hostage. */
 function Voile({ hole, onSkip }: { hole: Rect | null; onSkip: () => void }) {
   const encre = alpha(C.ink, 0.62);
   const commun: CSSProperties = {
@@ -188,7 +188,7 @@ function Voile({ hole, onSkip }: { hole: Rect | null; onSkip: () => void }) {
   );
 }
 
-/** Le liseré du trou — sans lui, le vide se lit comme un accident. */
+/** The hole's outline — without it, the void reads as an accident. */
 function Cadre({ hole }: { hole: Rect }) {
   return (
     <div
@@ -230,17 +230,17 @@ function Bulle({
   onSkip: () => void;
   label: string;
 }) {
-  /* AUCUN CÔTÉ N'EST LIBRE SUR UN TÉLÉPHONE.
+  /* NO SIDE IS FREE ON A PHONE.
 
-     Une fiche de trois cents pixels posée « à droite » d'une cible, dans
-     une fenêtre de trois cent quatre-vingt-dix, n'a pas de droite : le
-     bornage la ramenait sur la cible, et la visite montrait alors une
-     chose en la cachant. Au centre, elle ne cache que le voile — et le
-     trou, lui, continue de désigner. */
+     A three-hundred-pixel card laid "to the right" of a target, in a
+     window three hundred and ninety wide, has no right: the clamping
+     brought it back over the target, and the tour then showed a thing by
+     hiding it. In the centre it hides only the veil — and the hole goes
+     on pointing. */
   const { phone } = useViewport();
   const pos = placer(hole, phone ? "center" : step.placement);
-  /* L'inclinaison est semée sur le rang de l'étape : la même fiche
-     penche toujours pareil, comme tout le désordre du site. */
+  /* The tilt is sown from the step's rank: the same card always leans
+     the same way, like all the site's disorder. */
   const tilt = Number(tiltOf(`bulle-${index}`)) / 2.4;
 
   return (
@@ -249,8 +249,8 @@ function Bulle({
       aria-live="polite"
       style={{
         position: "fixed",
-        /* Elle ne rétrécit qu'au besoin : sur un bureau, c'est la même
-           fiche qu'avant, au pixel. */
+        /* It only shrinks when it has to: on a desktop it is the same
+           card as before, to the pixel. */
         width: `min(${BULLE_BASE}px, calc(100vw - 24px))`,
         maxWidth: "100%",
         boxSizing: "border-box",
@@ -356,17 +356,17 @@ const lien: CSSProperties = {
 
 /* ---------- où poser la fiche ---------- */
 
-/* Le côté demandé n'est qu'un vœu : si la fiche déborde, on la replie
-   du côté opposé, et à défaut on la borne dans la fenêtre. Une bulle à
-   moitié hors de l'écran est pire que mal placée. */
+/* The requested side is only a wish: if the card overflows, we fold it
+   to the opposite side, and failing that we clamp it inside the window. A
+   bubble half off the screen is worse than badly placed. */
 function placer(hole: Rect | null, placement: TourStep["placement"]): CSSProperties {
   const W = window.innerWidth;
   const H = window.innerHeight;
-  /* La fiche se rétrécit avec la fenêtre : la mesure qui sert à la
-     placer doit dire la même chose que celle qui la dessine. */
+  /* The card shrinks with the window: the measurement used to place it
+     must say the same thing as the one that draws it. */
   const BULLE_W = Math.min(BULLE_BASE, W - 24);
-  /* Hauteur inconnue avant mesure : on prend une borne haute prudente
-     plutôt que de faire un aller-retour de rendu pour un pixel. */
+  /* Height unknown before measuring: we take a cautious upper bound
+     rather than doing a render round trip for one pixel. */
   const HAUT = 230;
 
   if (!hole || placement === "center") {
