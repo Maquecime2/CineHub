@@ -81,7 +81,7 @@ export function skinVars(skin: Skin): Record<string, string> {
      of 1 — so they work with no skin applied. */
   vars["--atm-grain"] = String(skin.atm.grain);
   vars["--atm-stain"] = String(skin.atm.stain);
-  vars["--atm-vignette"] = String(skin.atm.vignette);
+  vars["--atm-vignette"] = String(skin.atm.thumb);
 
   return vars;
 }

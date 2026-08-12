@@ -80,15 +80,15 @@ export function ThreadView({ connected }: { connected: boolean }) {
   const search = async () => {
     setSouci(null);
     setTrouve(null);
-    const nom = query.trim().toLowerCase();
-    if (!nom) return;
+    const name = query.trim().toLowerCase();
+    if (!name) return;
     try {
-      setTrouve(await profileOf(nom));
+      setTrouve(await profileOf(name));
     } catch {
       /* The server answers the same thing for "does not exist" and
          "does not show themselves": we take up that silence, without
          inventing which of the two. */
-      setSouci(`Personne ne partage sa collection sous « ${nom} ».`);
+      setSouci(`Personne ne partage sa collection sous « ${name} ».`);
     }
   };
 

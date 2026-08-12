@@ -51,7 +51,7 @@ export function TourMenu({
 
         <button onClick={() => onPlay("global")} style={carries}>
           <span style={title}>{TOURS.global!.label}</span>
-          <span style={sous}>
+          <span style={under}>
             le tour du classeur, d&apos;un tab à l&apos;other — {TOURS.global!.steps.length} steps
           </span>
         </button>
@@ -62,13 +62,13 @@ export function TourMenu({
         {page ? (
           <button onClick={() => onPlay(view)} style={carries}>
             <span style={title}>Cette page</span>
-            <span style={sous}>
+            <span style={under}>
               {page.label.toLowerCase()} — {page.steps.length}{" "}
               {page.steps.length > 1 ? "étapes" : "étape"}
             </span>
           </button>
         ) : (
-          <div style={{ ...sous, marginTop: 12 }}>cette page n&apos;a pas de visite à elle</div>
+          <div style={{ ...under, marginTop: 12 }}>cette page n&apos;a pas de visite à elle</div>
         )}
 
         <div
@@ -111,7 +111,7 @@ const title: CSSProperties = {
   color: C.ink,
 };
 
-const sous: CSSProperties = {
+const under: CSSProperties = {
   display: "block",
   fontFamily: F.hand,
   fontSize: 15,

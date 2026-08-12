@@ -29,8 +29,8 @@ import type { Film, KinshipRole } from "../types";
 interface CreditsViewProps {
   films: Film[];
   /** The open person, by their normalised key. `null`: the directory. */
-  personne: string | null;
-  onOpenPerson: (clé: string | null) => void;
+  who: string | null;
+  onOpenPerson: (key: string | null) => void;
   onOpen: (filmId: string) => void;
   onAddToWatchlist: (f: Film) => void;
 }
@@ -66,7 +66,7 @@ const SHORT_ROLE: Record<KinshipRole, string> = {
 
 export function CreditsView({
   films,
-  personne,
+  who,
   onOpenPerson,
   onOpen,
   onAddToWatchlist,
@@ -74,7 +74,7 @@ export function CreditsView({
   /* The census sweeps the whole collection: we only redo it when a card
      is written, not at every keystroke in the search. */
   const people = useMemo(() => census(films), [films]);
-  const open = personne ? people.find((p) => p.key === personne) : null;
+  const open = who ? people.find((p) => p.key === who) : null;
 
   if (open)
     return (
@@ -87,7 +87,7 @@ export function CreditsView({
       />
     );
 
-  return <Directory people={people} onOuvrir={onOpenPerson} unknown={!!personne} />;
+  return <Directory people={people} onOuvrir={onOpenPerson} unknown={!!who} />;
 }
 
 /* ============================================================
@@ -100,7 +100,7 @@ function Directory({
   unknown,
 }: {
   people: Person[];
-  onOuvrir: (clé: string) => void;
+  onOuvrir: (key: string) => void;
   unknown: boolean;
 }) {
   const [q, setQ] = useState("");
@@ -135,8 +135,8 @@ function Directory({
         Le générique
       </div>
       <Guideline>
-        Les noms que votre collection carries déjà — celles et ceux qui ont réalisé, joué, éclairé,
-        composé, written. {people.length} en everything.
+        Les noms que votre collection carries existing — celles et ceux qui ont réalisé, joué,
+        éclairé, composé, written. {people.length} en everything.
       </Guideline>
 
       {unknown && (
@@ -355,7 +355,7 @@ function Dossier({
 
       <Cardstock tour="credits-dossier" style={{ marginTop: 8 }}>
         <div style={{ display: "flex", gap: 34, flexWrap: "wrap" }}>
-          <Figure nom="VOTRE NOTE">
+          <Figure name="VOTRE NOTE">
             {p.rating != null ? (
               <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
                 {p.rating.toFixed(1)}
@@ -365,8 +365,8 @@ function Dossier({
               "—"
             )}
           </Figure>
-          <Figure nom="ÉCART AU PUBLIC">{readableGap(p.gap)}</Figure>
-          <Figure nom="SÉANCES">{p.screenings || "—"}</Figure>
+          <Figure name="ÉCART AU PUBLIC">{readableGap(p.gap)}</Figure>
+          <Figure name="SÉANCES">{p.screenings || "—"}</Figure>
         </div>
       </Cardstock>
 
@@ -392,8 +392,8 @@ function Dossier({
         );
       })()}
 
-      <Shelf title="Vus" films={seenFilms} clé={p.key} onOpen={onOpen} />
-      <Shelf title="En attente" films={wishlist} clé={p.key} onOpen={onOpen} />
+      <Shelf title="Vus" films={seenFilms} key={p.key} onOpen={onOpen} />
+      <Shelf title="En attente" films={wishlist} key={p.key} onOpen={onOpen} />
 
       <WhatIsMissing p={p} films={films} onAddToWatchlist={onAddToWatchlist} />
     </div>
@@ -414,10 +414,10 @@ const back = {
   marginBottom: 16,
 };
 
-function Figure({ nom, children }: { nom: string; children: ReactNode }) {
+function Figure({ name, children }: { name: string; children: ReactNode }) {
   return (
     <div>
-      <Label>{nom}</Label>
+      <Label>{name}</Label>
       <div style={{ fontFamily: F.title, fontSize: 26, fontWeight: 700, color: C.ink }}>
         {children}
       </div>
@@ -441,12 +441,12 @@ function readableGap(gap: number | null) {
 function Shelf({
   title,
   films,
-  clé,
+  key,
   onOpen,
 }: {
   title: string;
   films: Film[];
-  clé: string;
+  key: string;
   onOpen: (id: string) => void;
 }) {
   if (films.length === 0) return null;
@@ -457,9 +457,9 @@ function Shelf({
       </SectionTitle>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginTop: 12 }}>
         {films.map((f) => {
-          const roles = rolesOnFilm(f, clé);
+          const roles = rolesOnFilm(f, key);
           return (
-            <button key={f.id} onClick={() => onOpen(f.id)} style={vignette}>
+            <button key={f.id} onClick={() => onOpen(f.id)} style={thumb}>
               <PosterArt film={f} height={150} initials={initialsOf(f.title)} />
               <div
                 style={{
@@ -488,7 +488,7 @@ function Shelf({
   );
 }
 
-const vignette = {
+const thumb = {
   all: "unset" as const,
   ...tap,
   cursor: "pointer",

@@ -164,7 +164,7 @@ describe("tombstones written before the translation", () => {
   });
 
   it("survives a store that does not hold a list", async () => {
-    localStorage.setItem("films-effaces", JSON.stringify({ pas: "une liste" }));
+    localStorage.setItem("films-effaces", JSON.stringify({ step: "une liste" }));
     await loadFilms();
     expect(knownGraves()).toEqual([]);
   });

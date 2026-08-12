@@ -37,9 +37,9 @@ describe("la visite couvre le produit", () => {
   });
 
   it("n'a pas de visite orpheline", () => {
-    for (const clé of Object.keys(TOURS)) {
-      if (clé === "global") continue;
-      expect(VIEWS).toContain(clé as (typeof VIEWS)[number]);
+    for (const key of Object.keys(TOURS)) {
+      if (key === "global") continue;
+      expect(VIEWS).toContain(key as (typeof VIEWS)[number]);
     }
   });
 });

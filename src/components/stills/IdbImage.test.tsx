@@ -17,9 +17,9 @@ const coffre = new Map<string, Blob>();
 let refuse = false;
 
 vi.mock("../../db", () => ({
-  getImage: async (clé: string) => {
+  getImage: async (key: string) => {
     if (refuse) throw new Error("coffre ferme");
-    return coffre.get(clé);
+    return coffre.get(key);
   },
 }));
 

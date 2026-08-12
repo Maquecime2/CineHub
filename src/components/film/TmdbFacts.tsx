@@ -31,7 +31,7 @@ import { languageName, countryName } from "../../names";
 import type { Film } from "../../types";
 
 /** A "label → value" line, or nothing at all if we do not know. */
-function Done({ nom, children }: { nom: string; children: ReactNode }) {
+function Done({ name, children }: { name: string; children: ReactNode }) {
   return (
     /* `flexWrap`: the label reserves 74 px and the value cannot go below
        its content — in a narrow column, the line overflowed. It now
@@ -54,7 +54,7 @@ function Done({ nom, children }: { nom: string; children: ReactNode }) {
           minWidth: 74,
         }}
       >
-        {nom}
+        {name}
       </span>
       <span
         style={{ fontFamily: F.body, fontSize: 12.5, color: C.ink, flex: "1 1 120px", minWidth: 0 }}
@@ -70,7 +70,7 @@ function Done({ nom, children }: { nom: string; children: ReactNode }) {
    did not give it to us", which calls for the button. */
 const EMPTY = <span style={{ color: C.line }}>—</span>;
 
-const TRADES: [key: string, nom: string][] = [
+const TRADES: [key: string, name: string][] = [
   ["image", "IMAGE"],
   ["musique", "MUSIQUE"],
   ["scénario", "SCÉNARIO"],
@@ -93,18 +93,18 @@ function Names({
 }: {
   names: string[];
   separator?: string;
-  onOpenPerson?: (nom: string) => void;
+  onOpenPerson?: (name: string) => void;
 }) {
   if (!names.length) return EMPTY;
   return (
     <>
-      {names.map((nom, i) => (
-        <span key={`${nom}-${i}`}>
+      {names.map((name, i) => (
+        <span key={`${name}-${i}`}>
           {i > 0 && separator}
           {onOpenPerson ? (
             <button
-              onClick={() => onOpenPerson(nom)}
-              title={`Ce que j'ai de ${nom}`}
+              onClick={() => onOpenPerson(name)}
+              title={`Ce que j'ai de ${name}`}
               style={{
                 all: "unset",
                 ...tap,
@@ -119,10 +119,10 @@ function Names({
                 e.currentTarget.style.color = "";
               }}
             >
-              {nom}
+              {name}
             </button>
           ) : (
-            nom
+            name
           )}
         </span>
       ))}
@@ -138,7 +138,7 @@ export function TmdbFacts({
   film: Film;
   onUpdate: (f: Film) => void;
   /** Absent: the names stay text. The card does not know how to navigate. */
-  onOpenPerson?: (nom: string) => void;
+  onOpenPerson?: (name: string) => void;
 }) {
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
@@ -239,18 +239,18 @@ export function TmdbFacts({
         </button>
       </div>
 
-      <Done nom="DURÉE">{film.runtime != null ? `${film.runtime} min` : EMPTY}</Done>
-      <Done nom="PAYS">{countries || EMPTY}</Done>
-      <Done nom="LANGUE">{film.language ? languageName(film.language) : EMPTY}</Done>
-      <Done nom="NOTE TMDB">
+      <Done name="DURÉE">{film.runtime != null ? `${film.runtime} min` : EMPTY}</Done>
+      <Done name="PAYS">{countries || EMPTY}</Done>
+      <Done name="LANGUE">{film.language ? languageName(film.language) : EMPTY}</Done>
+      <Done name="NOTE TMDB">
         {film.tmdbRating != null ? `${film.tmdbRating.toFixed(1)} / 10` : EMPTY}
       </Done>
-      {TRADES.map(([key, nom]) => (
-        <Done key={key} nom={nom}>
+      {TRADES.map(([key, name]) => (
+        <Done key={key} name={name}>
           <Names names={crew[key] || []} onOpenPerson={onOpenPerson} />
         </Done>
       ))}
-      <Done nom="CASTING">
+      <Done name="CASTING">
         <Names names={cast} separator=" · " onOpenPerson={onOpenPerson} />
       </Done>
       {/* THE KEYWORDS, SHOWN AND NOT HIDDEN. They feed the wake: when the
@@ -258,8 +258,8 @@ export function TmdbFacts({
           why — the line is empty, and the "refresh" button just above goes
           and fetches them. A dash says "TMDB did not give it to us"; an
           absent line would say nothing at all. */}
-      <Done nom="MOTS-CLÉS">{film.keywords?.length ? film.keywords.join(" · ") : EMPTY}</Done>
-      <Done nom="ID TMDB">{film.tmdbId ?? EMPTY}</Done>
+      <Done name="MOTS-CLÉS">{film.keywords?.length ? film.keywords.join(" · ") : EMPTY}</Done>
+      <Done name="ID TMDB">{film.tmdbId ?? EMPTY}</Done>
 
       {msg && (
         <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded, marginTop: 6 }}>

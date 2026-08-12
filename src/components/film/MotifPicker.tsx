@@ -109,7 +109,7 @@ export function MotifPicker({
   onCréer,
   onSupprimer,
   onHide,
-  masqués = [],
+  hiddenOnes = [],
 }: {
   motifs?: string[];
   onChange: (next: string[]) => void;
@@ -124,7 +124,7 @@ export function MotifPicker({
   /** Set one of the catalogue's aside, or put it back. */
   onHide?: (motifId: string, hidden: boolean) => void;
   /** Those of the catalogue already set aside, to offer them back. */
-  masqués?: Motif[];
+  hiddenOnes?: Motif[];
 }) {
   const [open, setOuvert] = useState(false);
   const [q, setQ] = useState("");
@@ -402,11 +402,11 @@ export function MotifPicker({
           {/* What has been set aside stays recallable: hiding is not
               throwing away, and a vocabulary one cannot reopen closes for
               good at the first hesitation. */}
-          {onHide && masqués.length > 0 && (
+          {onHide && hiddenOnes.length > 0 && (
             <div style={{ borderTop: `1px solid ${C.line}`, paddingTop: 10, marginTop: 10 }}>
-              <div style={section}>ÉCARTÉS ({masqués.length})</div>
+              <div style={section}>ÉCARTÉS ({hiddenOnes.length})</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                {masqués.map((m) => (
+                {hiddenOnes.map((m) => (
                   <button
                     key={m.id}
                     onClick={() => onHide(m.id, false)}

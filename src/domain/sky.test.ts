@@ -222,9 +222,9 @@ describe("buildSkyWithCrew", () => {
   it("leaves the hand-made map intact when nothing is shared", () => {
     const a = film("A", { linkedWorks: [nighthawks()] });
     const base = buildSky([a]);
-    const avec = buildSkyWithCrew([a]);
-    expect(avec.nodes).toHaveLength(base.nodes.length);
-    expect(avec.links).toHaveLength(base.links.length);
+    const withCrew = buildSkyWithCrew([a]);
+    expect(withCrew.nodes).toHaveLength(base.nodes.length);
+    expect(withCrew.links).toHaveLength(base.links.length);
   });
 
   /* A film that ONLY a kinship links is not in the base map: without
@@ -233,9 +233,9 @@ describe("buildSkyWithCrew", () => {
     const a = film("A", { crew: { image: ["Decaë"] } });
     const b = film("B", { crew: { image: ["Decaë"] } });
     expect(buildSky([a, b]).nodes).toEqual([]);
-    const avec = buildSkyWithCrew([a, b]);
-    expect(avec.nodes.map((n) => n.label).sort()).toEqual(["A", "B"]);
-    expect(avec.links).toHaveLength(1);
+    const withCrew = buildSkyWithCrew([a, b]);
+    expect(withCrew.nodes.map((n) => n.label).sort()).toEqual(["A", "B"]);
+    expect(withCrew.links).toHaveLength(1);
   });
 
   it("does not double a red thread already strung between the same two films", () => {
@@ -243,16 +243,16 @@ describe("buildSkyWithCrew", () => {
     const b = film("B", { cast: ["Delon"] });
     a.linkedWorks = [work({ type: "film", title: "B", filmId: b.id, id: "l1", pairId: "p" })];
     b.linkedWorks = [work({ type: "film", title: "A", filmId: a.id, id: "l2", pairId: "p" })];
-    const avec = buildSkyWithCrew([a, b]);
-    expect(avec.links).toHaveLength(1);
-    expect(avec.links[0]!.kind).toBe("peer");
+    const withCrew = buildSkyWithCrew([a, b]);
+    expect(withCrew.links).toHaveLength(1);
+    expect(withCrew.links[0]!.kind).toBe("peer");
   });
 
   it("recounts the degree over the whole graph", () => {
     const a = film("A", { crew: { image: ["Decaë"] } });
     const b = film("B", { crew: { image: ["Decaë"] } });
-    const avec = buildSkyWithCrew([a, b]);
-    expect(avec.nodes.every((n) => n.degree === 1)).toBe(true);
+    const withCrew = buildSkyWithCrew([a, b]);
+    expect(withCrew.nodes.every((n) => n.degree === 1)).toBe(true);
   });
 
   it("respecte les filtres de la carte de base", () => {
@@ -357,8 +357,8 @@ describe("threads in the sky", () => {
   it("brings a thread's members in, even with no red thread strung", () => {
     const a = film("A", { motifs: ["hero-dies"] });
     const b = film("B", { motifs: ["hero-dies"] });
-    const fil = makeThread({ label: "Le héros meurt", motif: "hero-dies" });
-    const { nodes, links } = buildSky([a, b], {}, { threads: [fil] });
+    const thread = makeThread({ label: "Le héros meurt", motif: "hero-dies" });
+    const { nodes, links } = buildSky([a, b], {}, { threads: [thread] });
 
     expect(nodes.filter((n) => n.kind === "film")).toHaveLength(2);
     const star = nodes.find((n) => n.kind === "thread");
@@ -367,15 +367,15 @@ describe("threads in the sky", () => {
   });
 
   it("n'accroche pas au ciel un fil que personne ne porte", () => {
-    const fil = makeThread({ label: "Vide", motif: "hero-dies" });
-    const { nodes } = buildSky([film("A")], {}, { threads: [fil] });
+    const thread = makeThread({ label: "Vide", motif: "hero-dies" });
+    const { nodes } = buildSky([film("A")], {}, { threads: [thread] });
     expect(nodes).toEqual([]);
   });
 
   it("does not duplicate a film that is both linked and a thread member", () => {
     const a = film("A", { linkedWorks: [nighthawks()], motifs: ["hero-dies"] });
-    const fil = makeThread({ label: "x", motif: "hero-dies" });
-    const { nodes } = buildSky([a], {}, { threads: [fil] });
+    const thread = makeThread({ label: "x", motif: "hero-dies" });
+    const { nodes } = buildSky([a], {}, { threads: [thread] });
     expect(nodes.filter((n) => n.filmId === a.id)).toHaveLength(1);
   });
 });

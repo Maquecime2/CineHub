@@ -53,7 +53,7 @@ export type Skin = {
   /* The atmosphere is made of opacities and not of flags: a grain at a
      third is not a grain switched off, and a skin can dose what it keeps
      rather than choosing between everything and nothing. */
-  atm: { grain: number; stain: number; vignette: number };
+  atm: { grain: number; stain: number; thumb: number };
 };
 
 const KRAFT_PAGE = `
@@ -97,7 +97,7 @@ export const SKINS: Skin[] = [
     ],
     page: KRAFT_PAGE,
     tag: { radius: "3px", tracking: "1.5px", transform: "none" },
-    atm: { grain: 1, stain: 1, vignette: 1 },
+    atm: { grain: 1, stain: 1, thumb: 1 },
   },
 
   {
@@ -138,7 +138,7 @@ export const SKINS: Skin[] = [
       radial-gradient(circle at 78% 72%, #262220 0%, transparent 44%),
       #211E1B`,
     tag: { radius: "3px", tracking: "1.5px", transform: "none" },
-    atm: { grain: 0.6, stain: 0.35, vignette: 1 },
+    atm: { grain: 0.6, stain: 0.35, thumb: 1 },
   },
 
   {
@@ -179,7 +179,7 @@ export const SKINS: Skin[] = [
       radial-gradient(circle at 50% 110%, #241413 0%, transparent 50%),
       #17100F`,
     tag: { radius: "0px", tracking: "3px", transform: "uppercase" },
-    atm: { grain: 0.5, stain: 0, vignette: 1 },
+    atm: { grain: 0.5, stain: 0, thumb: 1 },
   },
 
   {
@@ -211,7 +211,7 @@ export const SKINS: Skin[] = [
     google: ["Archivo+Black", "Archivo:wght@400;500;700", "Space+Mono:wght@400;700"],
     page: `#F2F0EB`,
     tag: { radius: "0px", tracking: "2px", transform: "uppercase" },
-    atm: { grain: 0, stain: 0, vignette: 0 },
+    atm: { grain: 0, stain: 0, thumb: 0 },
   },
 
   /* DAY FOR NIGHT — daylight shot for night.
@@ -260,7 +260,7 @@ export const SKINS: Skin[] = [
       radial-gradient(circle at 20% 90%, #1B2938 0%, transparent 50%),
       linear-gradient(170deg, #1B2836, #101821)`,
     tag: { radius: "1px", tracking: "2px", transform: "uppercase" },
-    atm: { grain: 0.45, stain: 0, vignette: 1 },
+    atm: { grain: 0.45, stain: 0, thumb: 1 },
   },
 
   /* KODACHROME — a slide forgotten in its box.
@@ -309,7 +309,7 @@ export const SKINS: Skin[] = [
       radial-gradient(circle at 88% 92%, #2A1D16 0%, transparent 45%),
       #110E0C`,
     tag: { radius: "0px", tracking: "2px", transform: "uppercase" },
-    atm: { grain: 0.7, stain: 0.2, vignette: 1 },
+    atm: { grain: 0.7, stain: 0.2, thumb: 1 },
   },
 
   {
@@ -348,7 +348,7 @@ export const SKINS: Skin[] = [
       radial-gradient(circle at 75% 80%, #E9E5D2 0%, transparent 45%),
       #F0EDE0`,
     tag: { radius: "8px", tracking: "1px", transform: "none" },
-    atm: { grain: 0.8, stain: 0.5, vignette: 0.6 },
+    atm: { grain: 0.8, stain: 0.5, thumb: 0.6 },
   },
 
   {
@@ -389,7 +389,7 @@ export const SKINS: Skin[] = [
       repeating-linear-gradient(90deg, #ffffff0a 0 1px, transparent 1px 28px),
       linear-gradient(160deg, #124063, #0A2038)`,
     tag: { radius: "0px", tracking: "2.5px", transform: "uppercase" },
-    atm: { grain: 0.3, stain: 0, vignette: 0.8 },
+    atm: { grain: 0.3, stain: 0, thumb: 0.8 },
   },
 
   {
@@ -429,7 +429,7 @@ export const SKINS: Skin[] = [
       radial-gradient(circle at 80% 85%, #E3C88F 0%, transparent 45%),
       #EDD9AE`,
     tag: { radius: "2px", tracking: "1.5px", transform: "uppercase" },
-    atm: { grain: 1, stain: 0.8, vignette: 1 },
+    atm: { grain: 1, stain: 0.8, thumb: 1 },
   },
 
   {
@@ -466,7 +466,7 @@ export const SKINS: Skin[] = [
     ],
     page: `#EDEDE8`,
     tag: { radius: "0px", tracking: "1px", transform: "uppercase" },
-    atm: { grain: 1, stain: 0.3, vignette: 0 },
+    atm: { grain: 1, stain: 0.3, thumb: 0 },
   },
 
   {
@@ -501,7 +501,7 @@ export const SKINS: Skin[] = [
       radial-gradient(circle at 82% 80%, #EDF3FD 0%, transparent 50%),
       #FBF3F6`,
     tag: { radius: "14px", tracking: "0.5px", transform: "none" },
-    atm: { grain: 0, stain: 0, vignette: 0 },
+    atm: { grain: 0, stain: 0, thumb: 0 },
   },
 
   /* JAPANESE PAPER — indigo, off-white, one red seal.
@@ -548,7 +548,7 @@ export const SKINS: Skin[] = [
       radial-gradient(circle at 80% 90%, #ECE7DA 0%, transparent 50%),
       #F4F1E9`,
     tag: { radius: "1px", tracking: "2px", transform: "none" },
-    atm: { grain: 0.9, stain: 0.2, vignette: 0.4 },
+    atm: { grain: 0.9, stain: 0.2, thumb: 0.4 },
   },
 
   {
@@ -588,7 +588,7 @@ export const SKINS: Skin[] = [
       radial-gradient(circle at 50% 100%, #D2BE9C 0%, transparent 55%),
       #E8DAC3`,
     tag: { radius: "2px", tracking: "1.5px", transform: "none" },
-    atm: { grain: 1, stain: 0.6, vignette: 1 },
+    atm: { grain: 1, stain: 0.6, thumb: 1 },
   },
 
   /* THE POLISH POSTER — greyish paper, garish flat tints.
@@ -630,7 +630,7 @@ export const SKINS: Skin[] = [
       radial-gradient(circle at 70% 15%, #E4E0D6 0%, transparent 50%),
       #DCD8CE`,
     tag: { radius: "0px", tracking: "1.5px", transform: "uppercase" },
-    atm: { grain: 1, stain: 0.15, vignette: 0.3 },
+    atm: { grain: 1, stain: 0.15, thumb: 0.3 },
   },
 ];
 

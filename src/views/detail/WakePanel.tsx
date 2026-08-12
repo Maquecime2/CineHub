@@ -391,8 +391,8 @@ export function WakePanel({
   const atHome: Neighbour[] = useMemo(() => {
     const perFilm = new Map<string, Neighbour>();
     for (const v of [...house, ...renfort]) {
-      const déjà = perFilm.get(v.film.id);
-      if (!déjà || v.score > déjà.score) perFilm.set(v.film.id, v);
+      const existing = perFilm.get(v.film.id);
+      if (!existing || v.score > existing.score) perFilm.set(v.film.id, v);
     }
     const all = [...perFilm.values()].sort(
       (a, b) => b.score - a.score || a.film.title.localeCompare(b.film.title, "fr")
@@ -467,7 +467,7 @@ export function WakePanel({
     setOuvert((o) => (o === v.tmdbId ? null : v.tmdbId));
     if (réals[v.tmdbId] != null || !apiKey) return;
     directorOf(v.tmdbId, apiKey)
-      .then((nom: string) => setRéals((r) => ({ ...r, [v.tmdbId]: nom })))
+      .then((name: string) => setRéals((r) => ({ ...r, [v.tmdbId]: name })))
       .catch(() => {});
   };
 
@@ -499,7 +499,7 @@ export function WakePanel({
     <Cardstock tour="detail-sillage" style={{ marginTop: 18 }}>
       <SectionTitle icon={<Waves size={15} color={C.cobalt} />}>Dans le sillage</SectionTitle>
       <Guideline>
-        ce qui fits de « {film.title} » — par l&apos;équipe, les sujets, les people à l&apos;affiche
+        ce qui fits de « {film.title} » — per l&apos;équipe, les sujets, les people à l&apos;affiche
       </Guideline>
 
       <div

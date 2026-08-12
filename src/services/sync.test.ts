@@ -213,8 +213,8 @@ describe("le reste du classeur", () => {
 
     await synchronise(() => {});
 
-    const clés = fake.docsPushed.flat().map((d) => (d as { cle: string }).cle);
-    expect(clés).toEqual(expect.arrayContaining(["shelf-view:abc", "notebook-notes", "fils"]));
+    const keys = fake.docsPushed.flat().map((d) => (d as { cle: string }).cle);
+    expect(keys).toEqual(expect.arrayContaining(["shelf-view:abc", "notebook-notes", "fils"]));
   });
 
   it("laisse ici ce qui décrit CET appareil", async () => {
@@ -227,10 +227,10 @@ describe("le reste du classeur", () => {
 
     await synchronise(() => {});
 
-    const clés = fake.docsPushed.flat().map((d) => (d as { cle: string }).cle);
-    expect(clés).not.toContain("skin");
-    expect(clés).not.toContain("onboarding");
-    expect(clés.some((c) => c.startsWith("synchro-"))).toBe(false);
+    const keys = fake.docsPushed.flat().map((d) => (d as { cle: string }).cle);
+    expect(keys).not.toContain("skin");
+    expect(keys).not.toContain("onboarding");
+    expect(keys.some((c) => c.startsWith("synchro-"))).toBe(false);
   });
 
   it("range ce qui vient d'ailleurs, et le signale pour qu'on relise", async () => {

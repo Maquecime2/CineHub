@@ -53,7 +53,7 @@ là pour que la règle ne dépende pas de la seule bonne volonté.
   voisins de colonne — un panneau à 45 y perd contre n'importe quoi du
   dehors, puisque seul le 2 de la colonne compte.
   Tout panneau, voile, tiroir ou repère en `position: fixed` passe donc par
-  `<Calque>` (`src/components/ui/Calque.tsx`), qui le rend dans le corps du
+  `<Layer>` (`src/components/ui/Layer.tsx`), qui le rend dans le corps du
   document. La règle vaut aussi pour ce qui se place en coordonnées d'écran
   calculées à la main, comme le repère de dépôt de l'étagère.
   Exception assumée : un menu ancré à son bouton (`position: absolute` sous

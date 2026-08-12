@@ -106,7 +106,7 @@ export default function App() {
   /* The person open in the Credits view, by their normalized key.
      Alongside `selectedId` and not instead of it: you open a person FROM
      a card, and going back to the card must not have forgotten which. */
-  const [personne, setPerson] = useState(null);
+  const [who, setPerson] = useState(null);
   const [showModal, setShowModal] = useState(false);
   /* The search that cuts across everything. A state and not a view: it
      replaces no tab, it passes over them and closes behind itself. */
@@ -425,8 +425,8 @@ export default function App() {
   /* Opening somebody from a card. The key is normalized HERE and once
      only: the Credits view files its dossiers under the same one, and
      two ways of writing it would make two people. */
-  const openPerson = (nom) => {
-    setPerson(normalize(nom));
+  const openPerson = (name) => {
+    setPerson(normalize(name));
     setView("credits");
   };
 
@@ -442,8 +442,8 @@ export default function App() {
       setSelectedId(id);
       setView("detail");
     },
-    person: (clé) => {
-      setPerson(clé);
+    person: (key) => {
+      setPerson(key);
       setView("credits");
     },
     page: () => setView("notebook"),
@@ -512,8 +512,8 @@ export default function App() {
      Setting the same motif again does not create a duplicate: we reopen
      the one that already exists. */
   const makeThreadFromMotif = (motifId) => {
-    const déjà = fils.find((f) => f.motif === motifId);
-    if (déjà) {
+    const existing = fils.find((f) => f.motif === motifId);
+    if (existing) {
       setView("constellation");
       return;
     }
@@ -677,11 +677,7 @@ export default function App() {
      dossier leads back to that dossier — otherwise, following a
      cinematographer from film to film would mean finding them again
      every time. */
-  const backView = personne
-    ? "credits"
-    : selectedFilm?.status === "watchlist"
-      ? "watchlist"
-      : "library";
+  const backView = who ? "credits" : selectedFilm?.status === "watchlist" ? "watchlist" : "library";
 
   if (!loaded) {
     return (
@@ -783,7 +779,7 @@ export default function App() {
           and must read as one. */}
       <div
         data-enters
-        key={`${view}:${selectedId || personne || ""}`}
+        key={`${view}:${selectedId || who || ""}`}
         style={{ flex: 1, minWidth: 0, position: "relative", zIndex: 2 }}
       >
         {view === "library" && !selectedId && (
@@ -829,7 +825,7 @@ export default function App() {
               setView(backView);
               setSelectedId(null);
             }}
-            backTo={personne ? "RETOUR AU GÉNÉRIQUE" : undefined}
+            backTo={who ? "RETOUR AU GÉNÉRIQUE" : undefined}
             onUpdate={updateFilm}
             onDelete={deleteFilm}
             onLinkFilm={linkFilms}
@@ -848,7 +844,7 @@ export default function App() {
         {view === "credits" && (
           <CreditsView
             films={films}
-            personne={personne}
+            who={who}
             onOpenPerson={setPerson}
             onOpen={(id) => {
               setSelectedId(id);

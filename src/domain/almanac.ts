@@ -204,18 +204,18 @@ export function ratingByDecade(
   films: Film[],
   period: Period
 ): { decade: number; avg: number; n: number }[] {
-  const par = new Map<number, { sum: number; n: number }>();
+  const per = new Map<number, { sum: number; n: number }>();
   for (const { film, watch } of screeningsOf(films)) {
     if (!inPeriod(watch.date, period) || watch.rating == null) continue;
     const release = releaseOf(film);
     if (release == null) continue;
     const d = Math.floor(release / 10) * 10;
-    const batch = par.get(d) || { sum: 0, n: 0 };
+    const batch = per.get(d) || { sum: 0, n: 0 };
     batch.sum += watch.rating;
     batch.n += 1;
-    par.set(d, batch);
+    per.set(d, batch);
   }
-  return [...par.entries()]
+  return [...per.entries()]
     .map(([decade, { sum, n }]) => ({ decade, avg: sum / n, n }))
     .sort((a, b) => a.decade - b.decade);
 }
@@ -604,23 +604,23 @@ export function gapToPublic(films: Film[], period: Period, howMany = 3): GapToPu
 export function byYear(
   films: Film[]
 ): { year: number; screenings: number; titles: number; rating: number | null }[] {
-  const par = new Map<
+  const per = new Map<
     number,
     { screenings: number; films: Set<string>; sum: number; rated: number }
   >();
   for (const { film, watch } of screeningsOf(films)) {
     const year = yearOf(watch.date);
     if (year == null) continue;
-    const batch = par.get(year) || { screenings: 0, films: new Set<string>(), sum: 0, rated: 0 };
+    const batch = per.get(year) || { screenings: 0, films: new Set<string>(), sum: 0, rated: 0 };
     batch.screenings += 1;
     batch.films.add(film.id);
     if (watch.rating != null) {
       batch.sum += watch.rating;
       batch.rated += 1;
     }
-    par.set(year, batch);
+    per.set(year, batch);
   }
-  return [...par.entries()]
+  return [...per.entries()]
     .map(([year, l]) => ({
       year,
       screenings: l.screenings,
@@ -741,12 +741,12 @@ export interface FilmOfYear {
 }
 
 export function filmsOfYear(films: Film[], period: Period): FilmOfYear[] {
-  const par = new Map<string, FilmOfYear>();
+  const per = new Map<string, FilmOfYear>();
   for (const { film, watch } of screeningsOf(films)) {
     if (!inPeriod(watch.date, period)) continue;
-    const seen = par.get(film.id);
+    const seen = per.get(film.id);
     if (!seen) {
-      par.set(film.id, { film, rating: watch.rating, n: 1, date: watch.date });
+      per.set(film.id, { film, rating: watch.rating, n: 1, date: watch.date });
       continue;
     }
     seen.n += 1;
@@ -754,7 +754,7 @@ export function filmsOfYear(films: Film[], period: Period): FilmOfYear[] {
       seen.rating = watch.rating;
     if (watch.date > seen.date) seen.date = watch.date;
   }
-  return [...par.values()].sort(
+  return [...per.values()].sort(
     (a, b) => (b.rating ?? -1) - (a.rating ?? -1) || b.date.localeCompare(a.date)
   );
 }

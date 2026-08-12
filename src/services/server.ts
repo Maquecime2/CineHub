@@ -132,9 +132,9 @@ async function call<T>(path: string, options: CallOptions = {}): Promise<T> {
  */
 export async function whoAmI(): Promise<Person | null> {
   try {
-    const r = await call<{ personne: Person }>("/moi");
-    noteAccount(r.personne.id);
-    return r.personne;
+    const r = await call<{ who: Person }>("/moi");
+    noteAccount(r.who.id);
+    return r.who;
   } catch (e) {
     if ((e as ServerError).code === 0) throw e;
     noteAccount(null);
@@ -213,12 +213,12 @@ export async function signUp(pseudo: string): Promise<Person> {
     { method: "POST", body: JSON.stringify({ pseudo }) }
   );
   const response = await startRegistration({ optionsJSON: options as never });
-  const r = await call<{ personne: Person }>("/auth/inscription/verification", {
+  const r = await call<{ who: Person }>("/auth/inscription/verification", {
     method: "POST",
     body: JSON.stringify({ challenge, response }),
   });
-  noteAccount(r.personne.id);
-  return r.personne;
+  noteAccount(r.who.id);
+  return r.who;
 }
 
 export async function signIn(pseudo: string): Promise<Person> {
@@ -228,12 +228,12 @@ export async function signIn(pseudo: string): Promise<Person> {
     { method: "POST", body: JSON.stringify({ pseudo }) }
   );
   const response = await startAuthentication({ optionsJSON: options as never });
-  const r = await call<{ personne: Person }>("/auth/connexion/verification", {
+  const r = await call<{ who: Person }>("/auth/connexion/verification", {
     method: "POST",
     body: JSON.stringify({ challenge, response }),
   });
-  noteAccount(r.personne.id);
-  return r.personne;
+  noteAccount(r.who.id);
+  return r.who;
 }
 
 /* ------------------------------------------------------------
@@ -456,7 +456,7 @@ export interface ListWork {
   titre: string;
   annee: string | null;
   /** Who put it there — `null` if that person has left. */
-  par: string | null;
+  per: string | null;
 }
 
 export interface Challenge {
@@ -466,7 +466,7 @@ export interface Challenge {
   liste: string;
   debut: string;
   fin: string;
-  par: string | null;
+  per: string | null;
   oeuvres: number;
   dedans?: boolean;
 }

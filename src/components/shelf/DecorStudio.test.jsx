@@ -56,12 +56,12 @@ describe("l'atelier déco", () => {
   /* The way out, and what makes the exploring riskless. It does not show
      when there is nothing to undo. */
   it("n'offre le retour au thème que s'il y a un décor", async () => {
-    const nom = "Effacer le décor et revenir au bois du thème";
+    const name = "Effacer le décor et revenir au bois du thème";
     studio();
-    expect(screen.queryByTitle(nom)).toBeNull();
+    expect(screen.queryByTitle(name)).toBeNull();
 
     const { onReset, user } = studio(patchViewDecor({}, "plank", { material: "verre" }));
-    await user.click(screen.getByTitle(nom));
+    await user.click(screen.getByTitle(name));
     expect(onReset).toHaveBeenCalled();
   });
 });

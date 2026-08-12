@@ -23,7 +23,7 @@ export const MOTIFS_KEY = "motifs";
 const KNOWN_FAMILIES = new Set(FAMILIES.map((f) => f.id));
 
 /** The shape stored before this module was translated. */
-type StoredShape = Partial<StoredVocabulary> & { perso?: unknown; masqués?: unknown };
+type StoredShape = Partial<StoredVocabulary> & { perso?: unknown; hiddenOnes?: unknown };
 type StoredMotif = Partial<Motif> & { famille?: unknown };
 
 /* A motif's family, whichever spelling it was written in. An unknown
@@ -53,8 +53,8 @@ export const normalizeVocabulary = (raw: unknown): StoredVocabulary => {
     .filter((m) => !!m.label);
   const rawHidden = Array.isArray(stored.hidden)
     ? stored.hidden
-    : Array.isArray(stored.masqués)
-      ? (stored.masqués as unknown[])
+    : Array.isArray(stored.hiddenOnes)
+      ? (stored.hiddenOnes as unknown[])
       : [];
   return { custom, hidden: rawHidden.map(String) };
 };

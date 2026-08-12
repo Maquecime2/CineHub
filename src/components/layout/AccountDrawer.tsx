@@ -86,12 +86,12 @@ export function AccountDrawer({
     setSouci(null);
     setBusy(true);
     try {
-      const personne = await what(pseudo.trim().toLowerCase());
+      const who = await what(pseudo.trim().toLowerCase());
       /* AN ACCOUNT THAT CHANGES STARTS OVER. Keeping the old one's read
          cursor would make the binder believe it had already seen all of
          the new one's collection — which would stay invisible. */
       forgetSync();
-      onChangement(personne);
+      onChangement(who);
     } catch (e) {
       /* Refusing one's own fingerprint is not an error to dramatise: one
          changes one's mind, and that is all. */
@@ -233,8 +233,8 @@ export function AccountDrawer({
             <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginBottom: 12 }}>
               {/* We explain the passkey in one sentence: nobody should
                   have to know what WebAuthn is in order to sign up. */}
-              Pas de word de pass : votre téléphone ou votre ordinateur sign à votre place, avec ce
-              qui le déverrouille déjà.
+              Pas de word de pass : votre téléphone ou votre ordinateur sign à votre place, withCrew
+              ce qui le déverrouille existing.
             </div>
 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -648,16 +648,16 @@ function Share() {
             ["lien", "PAR LIEN"],
             ["publique", "TOUT LE MONDE"],
           ] as [Sharing, string][]
-        ).map(([clé, word]) => (
+        ).map(([key, word]) => (
           <button
-            key={clé}
+            key={key}
             disabled={busy}
-            onClick={() => set(clé)}
+            onClick={() => set(key)}
             style={{
-              ...button(state === clé ? C.burgundy : C.ink, busy),
-              background: state === clé ? C.burgundy : "transparent",
-              color: state === clé ? C.card : C.inkFaded,
-              borderColor: state === clé ? C.burgundy : C.line,
+              ...button(state === key ? C.burgundy : C.ink, busy),
+              background: state === key ? C.burgundy : "transparent",
+              color: state === key ? C.card : C.inkFaded,
+              borderColor: state === key ? C.burgundy : C.line,
             }}
           >
             {word}

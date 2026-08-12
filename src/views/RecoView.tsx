@@ -255,7 +255,7 @@ function useDirectors(results: Candidate[] | null, apiKey: string) {
   const ids = (results || []).map((c) => c.tmdbId);
   // the effect's key is the LIST, not the array: `results` is a new
   // object at every slider move, the list of identifiers is not
-  const clé = ids.join(",");
+  const key = ids.join(",");
 
   useEffect(() => {
     if (!apiKey || !ids.length) return;
@@ -264,10 +264,10 @@ function useDirectors(results: Candidate[] | null, apiKey: string) {
     if (!manquants.length) return;
     pooled(
       manquants.map((id) => async () => {
-        const nom = await directorOf(id, apiKey);
+        const name = await directorOf(id, apiKey);
         // we publish as we go: forty posters must not wait for the last
         // answer to name themselves all at once
-        if (alive) setNoms((n) => (id in n ? n : { ...n, [id]: nom }));
+        if (alive) setNoms((n) => (id in n ? n : { ...n, [id]: name }));
       }),
       { concurrency: 5 }
     );
@@ -275,7 +275,7 @@ function useDirectors(results: Candidate[] | null, apiKey: string) {
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clé, apiKey]);
+  }, [key, apiKey]);
 
   return names;
 }

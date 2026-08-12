@@ -81,10 +81,10 @@ type TextField = "review" | "notes";
    to play. See `onglet` in `TourStep`. */
 export type CardTab = "film" | "mots" | "liens";
 
-const CARD_TABS: { clé: CardTab; label: string }[] = [
-  { clé: "film", label: "LE FILM" },
-  { clé: "mots", label: "MES MOTS" },
-  { clé: "liens", label: "LES LIENS" },
+const CARD_TABS: { key: CardTab; label: string }[] = [
+  { key: "film", label: "LE FILM" },
+  { key: "mots", label: "MES MOTS" },
+  { key: "liens", label: "LES LIENS" },
 ];
 
 function TabBar({ valeur, onChange }: { valeur: CardTab; onChange: (o: CardTab) => void }) {
@@ -102,13 +102,13 @@ function TabBar({ valeur, onChange }: { valeur: CardTab; onChange: (o: CardTab) 
       }}
     >
       {CARD_TABS.map((o) => {
-        const active = o.clé === valeur;
+        const active = o.key === valeur;
         return (
           <button
-            key={o.clé}
+            key={o.key}
             role="tab"
             aria-selected={active}
-            onClick={() => onChange(o.clé)}
+            onClick={() => onChange(o.key)}
             style={{
               all: "unset",
               ...tap,
@@ -155,7 +155,7 @@ interface DetailViewProps {
   onEditLink: (filmId: string, workId: string, patch: LinkPatch) => void;
   onOpen: (id: string) => void;
   /** Opens the folder of somebody in the credits, by their written name. */
-  onOpenPerson?: (nom: string) => void;
+  onOpenPerson?: (name: string) => void;
   /** Files a proposal from the wake into the "à voir" list. */
   onAddToWatchlist?: (f: Film) => void;
   /** Turns a pattern into a question asked of the whole collection. */
@@ -385,7 +385,7 @@ export function DetailView({
   /* Those of the catalogue that have been set aside: the picker offers
      them on the way back, otherwise calling them back would mean digging
      into the code. */
-  const masqués = useMemo(
+  const hiddenOnes = useMemo(
     () => MOTIFS.filter((m) => vocabulary.hidden.includes(m.id)),
     [vocabulary.hidden]
   );
@@ -741,7 +741,7 @@ export function DetailView({
                 suggestions={proposés}
                 onChange={(motifs) => onUpdate({ ...film, motifs })}
                 onMakeThread={onMakeThread}
-                masqués={masqués}
+                hiddenOnes={hiddenOnes}
                 onHide={onHideMotif}
                 /* Creating and laying are one single gesture: one does
                  not write a pattern in the abstract, but because one is

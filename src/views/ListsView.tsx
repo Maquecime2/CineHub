@@ -83,9 +83,9 @@ export function ListsView({ connected }: { connected: boolean }) {
   }
 
   const freshOne = async () => {
-    const nom = title.trim();
-    if (!nom) return;
-    const { id } = await createList({ titre: nom });
+    const name = title.trim();
+    if (!name) return;
+    const { id } = await createList({ titre: name });
     setTitre("");
     await reread();
     setOuverte(id);
@@ -185,17 +185,17 @@ function OneList({
   }, [ouverte, reread]);
 
   const sendInvite = async () => {
-    const nom = invite.trim().toLowerCase();
-    if (!nom) return;
+    const name = invite.trim().toLowerCase();
+    if (!name) return;
     setSouci(null);
     try {
-      await inviteToList(list.id, nom);
+      await inviteToList(list.id, name);
       setInvite("");
       await reread();
     } catch {
       /* The server answers the same thing for "does not exist" and "you
          two have blocked each other": we take up that silence. */
-      setSouci(`Personne à inviter sous « ${nom} ».`);
+      setSouci(`Personne à inviter sous « ${name} ».`);
     }
   };
 
@@ -266,8 +266,8 @@ function OneList({
               </span>
               {/* Who put it there: in a list written by six hands, it
                   is the only thing one wants to know about a row. */}
-              {o.par && (
-                <span style={{ fontFamily: F.mono, fontSize: 9, color: C.inkFaded }}>{o.par}</span>
+              {o.per && (
+                <span style={{ fontFamily: F.mono, fontSize: 9, color: C.inkFaded }}>{o.per}</span>
               )}
               <button
                 onClick={() => removeFromList(list.id, o.tmdb_id).then(reread)}
@@ -419,7 +419,7 @@ function OneChallenge({ defi, onChange }: { defi: Challenge; onChange: () => Pro
         >
           {defi.dedans ? "SORTIR" : "PARTICIPER"}
         </button>
-        {defi.par === null || defi.dedans ? (
+        {defi.per === null || defi.dedans ? (
           <button
             onClick={() => deleteChallenge(defi.id).then(onChange)}
             title="Effacer ce défi"

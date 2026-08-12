@@ -1497,7 +1497,7 @@ function DecorWorkshop({ onBack }) {
               key={d.key}
               label={d.label}
               note={`${d.wall ? "à accrocher" : "à poser"}${d.tintable ? "" : " · sans couleur"}`}
-              vignette={
+              thumb={
                 <CustomDraw
                   motif={d.key}
                   color={C.ochre}
@@ -1529,7 +1529,7 @@ function DecorWorkshop({ onBack }) {
               label={d.label}
               note={d.wall ? "à accrocher" : "à poser"}
               dim={hidden}
-              vignette={
+              thumb={
                 d.tall ? (
                   <div
                     style={{
@@ -1599,7 +1599,7 @@ const RowButton = ({ onClick, label, children }) => (
 /* A line of the workshop: the thumbnail, the name, and the gesture one
    can make on it. The same for an imported object and for a house
    drawing — they are read in the same list, they must look alike. */
-const DecorRow = ({ label, note, vignette, action, dim }) => (
+const DecorRow = ({ label, note, thumb, action, dim }) => (
   <div
     style={{
       display: "flex",
@@ -1623,7 +1623,7 @@ const DecorRow = ({ label, note, vignette, action, dim }) => (
         justifyContent: "center",
       }}
     >
-      {vignette}
+      {thumb}
     </div>
     <div style={{ flex: 1, minWidth: 0 }}>
       <div

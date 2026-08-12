@@ -34,7 +34,7 @@ export function FilmIdentity({
   film: Film;
   onUpdate: (f: Film) => void;
   /** Absent: the directing credit stays plain text. */
-  onOpenPerson?: (nom: string) => void;
+  onOpenPerson?: (name: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Draft>(() => ({
@@ -144,8 +144,8 @@ export function FilmIdentity({
                 comma as `kinshipsOf` does, failing which "Coen, Coen"
                 would open a phantom folder with two names. */}
             {film.director
-              ? film.director.split(",").map((nom, i) => {
-                  const clean = nom.trim();
+              ? film.director.split(",").map((name, i) => {
+                  const clean = name.trim();
                   if (!clean) return null;
                   return (
                     <span key={`${clean}-${i}`}>

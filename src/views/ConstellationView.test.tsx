@@ -64,8 +64,8 @@ describe("la recherche de la constellation", () => {
 
 describe("les fils au ciel", () => {
   it("propose de les éteindre un par un", () => {
-    const fil = makeThread({ id: "f1", label: "Le héros meurt", motif: "hero-dies" });
-    build({ fils: [fil] });
+    const thread = makeThread({ id: "f1", label: "Le héros meurt", motif: "hero-dies" });
+    build({ fils: [thread] });
     expect(screen.getByRole("button", { name: /Le héros meurt/ })).toBeInTheDocument();
   });
 });

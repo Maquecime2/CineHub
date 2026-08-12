@@ -123,7 +123,7 @@ export function NoKey({ what, style }: { what: string; style?: CSSProperties }) 
     >
       <KeyRound size={13} color={C.inkFaded} style={{ transform: "translateY(2px)" }} />
       <span style={{ fontFamily: F.hand, fontSize: 14, color: C.inkFaded }}>
-        Il manque une clé TMDB pour {what}.
+        Il manque une key TMDB pour {what}.
       </span>
       {/* TWO REMEDIES, AND THE SECOND ASKS FOR NONE. Since the server
           relays TMDB, an open account does away with the key entirely —

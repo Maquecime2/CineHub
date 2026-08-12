@@ -418,16 +418,18 @@ export function ConstellationView({
         >
           <Label>Fils</Label>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
-            {fils.map((fil) => {
-              const on = !mutedThreads.includes(fil.id);
-              const ink = catInk(fil.color);
-              const motif = fil.motif ? motifById(fil.motif) : undefined;
+            {fils.map((thread) => {
+              const on = !mutedThreads.includes(thread.id);
+              const ink = catInk(thread.color);
+              const motif = thread.motif ? motifById(thread.motif) : undefined;
               return (
                 <button
-                  key={fil.id}
+                  key={thread.id}
                   onClick={() =>
                     setMutedThreads((cur) =>
-                      cur.includes(fil.id) ? cur.filter((x) => x !== fil.id) : [...cur, fil.id]
+                      cur.includes(thread.id)
+                        ? cur.filter((x) => x !== thread.id)
+                        : [...cur, thread.id]
                     )
                   }
                   title={motif ? `alimenté par « ${motif.label} »` : "fil composé à la main"}
@@ -448,7 +450,7 @@ export function ConstellationView({
                   }}
                 >
                   <Spool size={11} />
-                  {fil.label}
+                  {thread.label}
                 </button>
               );
             })}
@@ -470,7 +472,7 @@ export function ConstellationView({
           {allTags.length > 0 && (
             <div style={{ marginBottom: 10 }}>
               <Label>
-                Mots-clés {tags.length > 0 && <span style={{ color: C.pine }}>· cumulatifs</span>}
+                Mots-keys {tags.length > 0 && <span style={{ color: C.pine }}>· cumulatifs</span>}
               </Label>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
                 {allTags.map((t) => (

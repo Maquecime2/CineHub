@@ -19,7 +19,7 @@ import { normalizeVocabulary } from "./motifs";
 describe("a vocabulary written before the switch", () => {
   const oldShape = (family: unknown) => ({
     perso: [{ id: "il-pleut", label: "Il pleut", famille: family }],
-    masqués: ["hero-dies"],
+    hiddenOnes: ["hero-dies"],
   });
 
   it("reads the old `perso` and `masqués` keys", () => {

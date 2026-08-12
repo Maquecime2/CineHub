@@ -419,9 +419,9 @@ export function demoFilms(maintenant = Date.now()): Film[] {
     if (f) f.linkedWorks = [...f.linkedWorks, link];
   };
 
-  for (const [rank, fil] of THREADS.entries()) {
-    const a = perId.get(fil.de);
-    const b = perId.get(fil.vers);
+  for (const [rank, thread] of THREADS.entries()) {
+    const a = perId.get(thread.de);
+    const b = perId.get(thread.vers);
     if (!a || !b) continue;
     const pairId = `${DEMO_PREFIX}pair-${rank}`;
     const half = (target: Film, relation: Relation): LinkedWork => ({
@@ -431,12 +431,12 @@ export function demoFilms(maintenant = Date.now()): Film[] {
       filmId: target.id,
       title: target.title,
       creator: target.director,
-      note: fil.note,
+      note: thread.note,
       relation,
-      force: fil.force,
+      force: thread.force,
     });
-    add(a.id, half(b, fil.relation));
-    add(b.id, half(a, inverseOf(fil.relation)!));
+    add(a.id, half(b, thread.relation));
+    add(b.id, half(a, inverseOf(thread.relation)!));
   }
 
   const { owner, ...livre } = BOOK;

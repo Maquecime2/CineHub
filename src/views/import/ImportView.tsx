@@ -406,7 +406,7 @@ export function ImportView({
         </div>
         <div style={{ fontFamily: F.body, fontSize: 13, color: C.inkFaded, marginBottom: 12 }}>
           Sans fichier, directement depuis votre profil public. <strong>Séances</strong> ne rend que
-          vos cinquante dernières : c'est de what tenir la collection à day, pas de what la bâtir.{" "}
+          vos cinquante dernières : c'est de what tenir la collection à day, step de what la bâtir.{" "}
           <strong>Watchlist</strong> la relève entière, page après page.
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
@@ -1078,7 +1078,7 @@ export function ImportView({
       )}
 
       <div style={{ marginTop: 26, fontFamily: F.hand, fontSize: 17, color: C.inkFaded }}>
-        {films.length} film(s) déjà au catalogue — un réimport met à day les cards existantes au
+        {films.length} film(s) existing au catalogue — un réimport met à day les cards existantes au
         lieu de les duplicate.
       </div>
 

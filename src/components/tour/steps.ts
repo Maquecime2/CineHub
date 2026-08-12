@@ -419,10 +419,10 @@ const importTour: Tour = {
    global tour tells. An unknown target throws — it is the coverage test
    that catches it, not the user. */
 const from = (view: View, tour: Tour, ...names: string[]): TourStep[] =>
-  names.map((nom) => {
-    const target = at(nom);
+  names.map((name) => {
+    const target = at(name);
     const s = tour.steps.find((x) => x.target === target);
-    if (!s) throw new Error(`Visite globale : « ${nom} » n'existe pas dans « ${tour.label} »`);
+    if (!s) throw new Error(`Visite globale : « ${name} » n'existe pas dans « ${tour.label} »`);
     return { ...s, view };
   });
 

@@ -206,8 +206,8 @@ function Bars({
   const W = 300;
   const H = 108;
   const max = Math.max(1, ...values);
-  const pas = W / Math.max(1, values.length);
-  const width = pas * 0.56;
+  const step = W / Math.max(1, values.length);
+  const width = step * 0.56;
   /* Beyond eight columns, a four-figure year bumps into its neighbour:
      we keep only the last two, which are enough to follow a decade. */
   const narrow = values.length > 8;
@@ -221,7 +221,7 @@ function Bars({
       style={{ display: "block", marginTop: 6 }}
     >
       {values.map((n, i) => {
-        const g = i * pas + (pas - width) / 2;
+        const g = i * step + (step - width) / 2;
         const d = g + width;
         const top = H - (n / max) * (H - 6);
         const jitter = (k: number) => (seededRand(hash(`${seed}-${i}-${k}`)) - 0.5) * 2.2;
@@ -350,14 +350,14 @@ function Honours({
    ------------------------------------------------------------ */
 function PlateCount({ a }: { a: Almanac }) {
   const r = a.rhythm;
-  const clé = String(a.period);
+  const key = String(a.period);
   const always = a.period === "always";
   /* The days actually covered, so as to say "one screening every so
      many days" without assuming a calendar year. */
   const span = r.density > 0 ? (r.days / r.density) * 100 : 365;
   return (
     <div style={GRID_2x2}>
-      <Cardstock title="Le compte" seed={`count-${clé}`}>
+      <Cardstock title="Le compte" seed={`count-${key}`}>
         <div
           style={{
             display: "grid",
@@ -392,19 +392,19 @@ function PlateCount({ a }: { a: Almanac }) {
           real 2×2 it would push the two bottom cards into a third row
           the grid does not declare — and the board would start
           overflowing again through the very place we had just closed. */}
-      <Cardstock title={always ? "Les années" : "Les mois"} seed={`mois-${clé}`}>
+      <Cardstock title={always ? "Les années" : "Les mois"} seed={`mois-${key}`}>
         {always ? (
           <Bars
             values={a.byYear.map((y) => y.screenings)}
             légendes={a.byYear.map((y) => String(y.year))}
-            seed={clé}
+            seed={key}
           />
         ) : (
-          <Bars values={a.byMonth} légendes={MONTHS} seed={clé} />
+          <Bars values={a.byMonth} légendes={MONTHS} seed={key} />
         )}
       </Cardstock>
 
-      <Cardstock title="Le rythme" seed={`rythme-${clé}`}>
+      <Cardstock title="Le rythme" seed={`rythme-${key}`}>
         <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 6 }}>
           <Tally label="Jours avec séance" value={r.days} ink={C.pine} />
           <Tally
@@ -422,7 +422,7 @@ function PlateCount({ a }: { a: Almanac }) {
         </div>
       </Cardstock>
 
-      <Cardstock title="Les heures de cinéma" seed={`heures-${clé}`}>
+      <Cardstock title="Les heures de cinéma" seed={`heures-${key}`}>
         {a.screenTime.minutes === 0 ? (
           <Nothing what="aucune durée connue — le bouton « compléter les fiches », dans l'onglet Import, va les chercher" />
         ) : (
@@ -486,11 +486,11 @@ function PlateCount({ a }: { a: Almanac }) {
    ------------------------------------------------------------ */
 function PlateTastes({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
   const maxHisto = Math.max(1, ...a.ratingHistogram);
-  const clé = String(a.period);
+  const key = String(a.period);
   const always = a.period === "always";
   return (
     <div style={GRID_2x2}>
-      <Cardstock title="Les notes" seed={`notes-${clé}`}>
+      <Cardstock title="Les notes" seed={`notes-${key}`}>
         {a.ratingAvg == null ? (
           <Nothing what={always ? "aucune séance notée" : "aucune séance notée cette année"} />
         ) : (
@@ -543,7 +543,7 @@ function PlateTastes({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
                 }}
               >
                 {Math.abs(a.gap.gap) < 0.15 ? (
-                  <>d'accord avec le public, sur {a.gap.n} screenings</>
+                  <>d'accord withCrew le public, sur {a.gap.n} screenings</>
                 ) : (
                   <>
                     plus{" "}
@@ -560,7 +560,7 @@ function PlateTastes({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
         )}
       </Cardstock>
 
-      <Cardstock title="L'âge de ce que vous regardez" seed={`age-${clé}`}>
+      <Cardstock title="L'âge de ce que vous regardez" seed={`age-${key}`}>
         {a.age.mean == null ? (
           <Nothing what="aucune année de sortie renseignée" />
         ) : (
@@ -604,7 +604,7 @@ function PlateTastes({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
         )}
       </Cardstock>
 
-      <Cardstock title="Les décennies visitées" seed={`decennies-${clé}`}>
+      <Cardstock title="Les décennies visitées" seed={`decennies-${key}`}>
         {a.decades.length === 0 ? (
           <Nothing what="aucune année de sortie renseignée" />
         ) : (
@@ -717,11 +717,11 @@ function PlateTastes({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
    ------------------------------------------------------------ */
 function PlatePeople({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (name: string) => void }) {
   const g = a.geography;
-  const clé = String(a.period);
+  const key = String(a.period);
   const always = a.period === "always";
   return (
     <div style={GRID_2x2}>
-      <Cardstock title="Les cinéastes" seed={`cineastes-${clé}`}>
+      <Cardstock title="Les cinéastes" seed={`cineastes-${key}`}>
         {/* The names lead to the credits: the almanac says who comes
             back, the folder says what one has of that person. Two
             neighbouring questions that had no path towards each
@@ -729,11 +729,11 @@ function PlatePeople({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (name: st
         <Honours items={a.topDirectors.slice(0, 4)} total={a.count} onPick={onOpenPerson} />
       </Cardstock>
 
-      <Cardstock title="Les genres" seed={`genres-${clé}`}>
+      <Cardstock title="Les genres" seed={`genres-${key}`}>
         <Honours items={a.topGenres.slice(0, 4)} total={a.count} ink={C.moss} />
       </Cardstock>
 
-      <Cardstock title={always ? "Les fidélités" : "Fidélités et découvertes"} seed={`gens-${clé}`}>
+      <Cardstock title={always ? "Les fidélités" : "Fidélités et découvertes"} seed={`gens-${key}`}>
         {/* THREE TIMES IN A YEAR IS NOT AN ACCIDENT: it is a crossing
             of a body of work, and that is what a film lover wants to see
             named. The discoveries are the other side — the names whose
@@ -800,7 +800,7 @@ function PlatePeople({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (name: st
         )}
       </Cardstock>
 
-      <Cardstock title="Le monde traversé" seed={`monde-${clé}`}>
+      <Cardstock title="Le monde traversé" seed={`monde-${key}`}>
         {g.countryCount === 0 ? (
           <Nothing what="aucun pays renseigné — « compléter les fiches », dans l'onglet Import, va les chercher" />
         ) : (
@@ -845,12 +845,12 @@ function PlatePeople({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (name: st
    two axes that were missing, plus the half of the gap to the public
    that was never shown. */
 function PlateSubjects({ a }: { a: Almanac }) {
-  const clé = String(a.period);
+  const key = String(a.period);
   const s = a.subjects;
   const ar = a.craftspeople;
   return (
     <div style={GRID_2x2}>
-      <Cardstock title="Les sujets" seed={`subjects-${clé}`}>
+      <Cardstock title="Les sujets" seed={`subjects-${key}`}>
         <Honours
           items={s.keywords.slice(0, 5)}
           total={a.count}
@@ -859,7 +859,7 @@ function PlateSubjects({ a }: { a: Almanac }) {
         />
       </Cardstock>
 
-      <Cardstock title="Les motifs suivis" seed={`motifs-${clé}`}>
+      <Cardstock title="Les motifs suivis" seed={`motifs-${key}`}>
         {/* The domain returns IDENTIFIERS, as it returns country codes:
             it is here that they are read in French. A pattern removed
             from the catalogue since then keeps its identifier rather
@@ -874,7 +874,7 @@ function PlateSubjects({ a }: { a: Almanac }) {
         />
       </Cardstock>
 
-      <Cardstock title="Les artisans" seed={`craftspeople-${clé}`}>
+      <Cardstock title="Les artisans" seed={`craftspeople-${key}`}>
         {/* With no threshold, unlike the loyalties: nobody says to
             themselves "I follow a cinematographer's work", and that is
             precisely why showing it teaches something. We only keep what
@@ -890,7 +890,7 @@ function PlateSubjects({ a }: { a: Almanac }) {
         )}
       </Cardstock>
 
-      <Cardstock title="Plus tendre, plus sévère" seed={`ecart-${clé}`}>
+      <Cardstock title="Plus tendre, plus sévère" seed={`ecart-${key}`}>
         {a.gap.n === 0 ? (
           <Nothing what="aucune séance notée dont on connaisse aussi la note publique" />
         ) : (
@@ -1147,8 +1147,8 @@ export function AlmanacView({
      arrows must be able to reach "toujours", which opens the
      booklet. */
   const rank = periods.indexOf(period);
-  const goToYear = (pas: number) => {
-    const nextOne = periods[rank + pas];
+  const goToYear = (step: number) => {
+    const nextOne = periods[rank + step];
     if (nextOne != null) setChoisie(nextOne);
   };
   const always = period === "always";
