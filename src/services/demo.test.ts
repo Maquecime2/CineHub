@@ -10,14 +10,7 @@
    Each test below names the tour step it protects.
    ============================================================ */
 import { describe, it, expect } from "vitest";
-import {
-  DEMO_PREFIX,
-  binderStillDemo,
-  isDemo,
-  demoFilms,
-  demoNotes,
-  withoutDemo,
-} from "./demo";
+import { DEMO_PREFIX, binderStillDemo, isDemo, demoFilms, demoNotes, withoutDemo } from "./demo";
 import { MOTIFS } from "../domain/motifs";
 import { makeFilm } from "../domain/film";
 
@@ -82,16 +75,16 @@ describe("il couvre ce que la visite montre", () => {
      emptiness. */
   it("pose des motifs qui existent vraiment au catalogue", () => {
     const connus = new Set(MOTIFS.map((m) => m.id));
-    const posés = films.flatMap((f) => f.motifs);
-    expect(posés.length).toBeGreaterThan(5);
-    for (const m of posés) expect(connus.has(m), `motif inconnu : ${m}`).toBe(true);
+    const placed = films.flatMap((f) => f.motifs);
+    expect(placed.length).toBeGreaterThan(5);
+    for (const m of placed) expect(connus.has(m), `motif inconnu : ${m}`).toBe(true);
   });
 
   /* Step "L'almanach": a single year does not make a vintage, and
      "TOUJOURS" would have nothing to compare. */
   it("a des séances sur au moins trois années", () => {
-    const années = new Set(films.flatMap((f) => f.watches.map((w) => w.date.slice(0, 4))));
-    expect(années.size).toBeGreaterThanOrEqual(3);
+    const years = new Set(films.flatMap((f) => f.watches.map((w) => w.date.slice(0, 4))));
+    expect(years.size).toBeGreaterThanOrEqual(3);
   });
 
   it("a un film revu, pour que le journal ait quelque chose à dire", () => {
@@ -112,9 +105,9 @@ describe("il couvre ce que la visite montre", () => {
   });
 
   it("fait revenir au moins un nom, sinon rien ne se rapproche", () => {
-    const compte = (noms: string[]) => {
+    const compte = (names: string[]) => {
       const n = new Map<string, number>();
-      for (const x of noms) n.set(x, (n.get(x) || 0) + 1);
+      for (const x of names) n.set(x, (n.get(x) || 0) + 1);
       return [...n.values()];
     };
     expect(Math.max(...compte(films.map((f) => f.director)))).toBeGreaterThan(1);

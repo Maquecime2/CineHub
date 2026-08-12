@@ -50,7 +50,7 @@ export function TonightDrawer({
   const [humeur, setHumeur] = useState<string[]>([]);
   const [langues, setLangues] = useState<string[]>([]);
   const [rang, setRang] = useState(0);
-  const [devinés, setDevinés] = useState<Map<string, string[]>>(new Map());
+  const [guessed, setGuessed] = useState<Map<string, string[]>>(new Map());
   const [cherche, setCherche] = useState(false);
 
   const apiKey = useTmdbKey();
@@ -58,9 +58,9 @@ export function TonightDrawer({
 
   const dispo = useMemo(() => listLanguages(films), [films]);
   const propositions = useMemo(
-    () => rankTheEvening(films, envie, devinés),
+    () => rankTheEvening(films, envie, guessed),
     // `envie` is rebuilt on every render: we depend on its parts
-    [films, minutes, humeur, langues, devinés]
+    [films, minutes, humeur, langues, guessed]
   );
 
   /* Changing one's mind resets the pile: "une autre" means "the next of
@@ -84,16 +84,16 @@ export function TonightDrawer({
      evening. */
   useEffect(() => {
     if (!apiKey || humeur.length === 0) return;
-    const àDeviner = propositions
+    const toGuess = propositions
       .slice(0, PLAFOND_DEVINETTE)
       .map((p) => p.film)
-      .filter((f) => f.tmdbId && !devinés.has(f.id));
-    if (àDeviner.length === 0) return;
+      .filter((f) => f.tmdbId && !guessed.has(f.id));
+    if (toGuess.length === 0) return;
 
     let alive = true;
     setCherche(true);
     pooled(
-      àDeviner.map((f) => async () => {
+      toGuess.map((f) => async () => {
         const mots = await fetchKeywords(f.tmdbId, apiKey);
         return [f.id, suggestMotifs(mots).map((m) => m.id)] as [string, string[]];
       }),
@@ -101,12 +101,12 @@ export function TonightDrawer({
     )
       .then((paires: ([string, string[]] | null)[]) => {
         if (!alive) return;
-        setDevinés((avant) => {
+        setGuessed((avant) => {
           const suite = new Map(avant);
           /* The films whose guess failed are marked EMPTY and not left
              absent: without that trace, the effect would ask for them
              again on every render, indefinitely. */
-          for (const f of àDeviner) suite.set(f.id, []);
+          for (const f of toGuess) suite.set(f.id, []);
           for (const p of paires) if (p) suite.set(p[0], p[1]);
           return suite;
         });
@@ -118,7 +118,7 @@ export function TonightDrawer({
     return () => {
       alive = false;
     };
-  }, [apiKey, humeur, propositions, devinés]);
+  }, [apiKey, humeur, propositions, guessed]);
 
   // Escape closes, as everywhere else
   useEffect(() => {

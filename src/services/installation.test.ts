@@ -73,19 +73,19 @@ describe("the invitation to install", () => {
    ============================================================ */
 describe("a state written before the switch", () => {
   it("reads `refus` back", () => {
-    localStorage.setItem("installation", JSON.stringify({ refus: 2, posée: false }));
+    localStorage.setItem("installation", JSON.stringify({ refus: 2, placedOne: false }));
     expect(readInstallState().dismissals).toBe(2);
     expect(mayOffer()).toBe(false);
   });
 
   it("reads `posée` back", () => {
-    localStorage.setItem("installation", JSON.stringify({ refus: 0, posée: true }));
+    localStorage.setItem("installation", JSON.stringify({ refus: 0, placedOne: true }));
     expect(readInstallState().installed).toBe(true);
     expect(mayOffer()).toBe(false);
   });
 
   it("does not let the old keys back out onto the disk", () => {
-    localStorage.setItem("installation", JSON.stringify({ refus: 1, posée: false }));
+    localStorage.setItem("installation", JSON.stringify({ refus: 1, placedOne: false }));
     noteDismissal();
     const written = JSON.parse(localStorage.getItem("installation") || "{}");
     expect(written).toEqual({ dismissals: 2, installed: false });

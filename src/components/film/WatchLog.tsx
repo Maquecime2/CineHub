@@ -25,7 +25,7 @@ const aujourdhui = () => new Date().toISOString().slice(0, 10);
 /* "+½" is read at a glance where "+0.5" demands reading. The sign is what
    counts: one wants to see it GO UP or GO DOWN, the exact magnitude comes
    after. */
-const écart = (d: number): string => {
+const gap = (d: number): string => {
   const signe = d > 0 ? "+" : "−";
   const n = Math.abs(d);
   const entier = Math.floor(n);
@@ -86,7 +86,7 @@ export function WatchLog({ film, onUpdate }: { film: Film; onUpdate: (film: Film
                 color: drift[i]! > 0 ? C.pine : C.burgundy,
               }}
             >
-              {écart(drift[i]!)}
+              {gap(drift[i]!)}
             </span>
           ) : null}
           {w.rewatch && <span style={{ fontFamily: F.mono, fontSize: 9, opacity: 0.6 }}>REVU</span>}

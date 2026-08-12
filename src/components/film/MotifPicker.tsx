@@ -135,7 +135,7 @@ export function MotifPicker({
 
   /* `motifsOf` and not a filter on the catalogue: a motif of yours is not
      in `MOTIFS`, and the card would have lost it on display. */
-  const posés = useMemo(() => motifsOf({ motifs }), [motifs]);
+  const placed = useMemo(() => motifsOf({ motifs }), [motifs]);
   const familles = useMemo(() => byFamily(), [ouvert, motifs]);
   const trouvés = useMemo(() => (q.trim() ? searchMotifs(q) : []), [q]);
   const àProposer = suggestions.filter((m) => !motifs.includes(m.id));
@@ -148,7 +148,7 @@ export function MotifPicker({
   return (
     <div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 6 }}>
-        {posés.map((m) => (
+        {placed.map((m) => (
           <MotifChip
             key={m.id}
             motif={m}
@@ -157,7 +157,7 @@ export function MotifPicker({
             onRemove={() => ôter(m.id)}
           />
         ))}
-        {posés.length === 0 && (
+        {placed.length === 0 && (
           <span style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded }}>aucun motif</span>
         )}
       </div>
@@ -183,9 +183,9 @@ export function MotifPicker({
         </div>
       )}
 
-      {posés.length > 0 && onMakeThread && (
+      {placed.length > 0 && onMakeThread && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
-          {posés.map((m) => (
+          {placed.map((m) => (
             <button
               key={m.id}
               onClick={() => onMakeThread(m.id)}

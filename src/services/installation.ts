@@ -28,7 +28,7 @@ export interface InstallState {
 }
 
 /** The shape stored before this module was translated. */
-type StoredState = Partial<InstallState> & { refus?: unknown; posée?: unknown };
+type StoredState = Partial<InstallState> & { refus?: unknown; placedOne?: unknown };
 
 const EMPTY: InstallState = { dismissals: 0, installed: false };
 
@@ -37,7 +37,7 @@ export const readInstallState = (): InstallState => {
   const dismissals = stored?.dismissals ?? stored?.refus;
   return {
     dismissals: typeof dismissals === "number" && dismissals >= 0 ? dismissals : 0,
-    installed: stored?.installed === true || stored?.posée === true,
+    installed: stored?.installed === true || stored?.placedOne === true,
   };
 };
 

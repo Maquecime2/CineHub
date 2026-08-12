@@ -70,7 +70,7 @@ function Fait({ nom, children }: { nom: string; children: ReactNode }) {
    did not give it to us", which calls for the button. */
 const VIDE = <span style={{ color: C.line }}>—</span>;
 
-const MÉTIERS: [key: string, nom: string][] = [
+const TRADES: [key: string, nom: string][] = [
   ["image", "IMAGE"],
   ["musique", "MUSIQUE"],
   ["scénario", "SCÉNARIO"],
@@ -86,21 +86,21 @@ const MÉTIERS: [key: string, nom: string][] = [
    A dotted ink line, and not a link blue: the art direction is a
    notebook, and a notebook does not underline in blue what can be
    followed — it writes it in ink. */
-function Noms({
-  noms,
-  sépare = ", ",
+function Names({
+  names,
+  separator = ", ",
   onOpenPerson,
 }: {
-  noms: string[];
-  sépare?: string;
+  names: string[];
+  separator?: string;
   onOpenPerson?: (nom: string) => void;
 }) {
-  if (!noms.length) return VIDE;
+  if (!names.length) return VIDE;
   return (
     <>
-      {noms.map((nom, i) => (
+      {names.map((nom, i) => (
         <span key={`${nom}-${i}`}>
-          {i > 0 && sépare}
+          {i > 0 && separator}
           {onOpenPerson ? (
             <button
               onClick={() => onOpenPerson(nom)}
@@ -245,13 +245,13 @@ export function TmdbFacts({
       <Fait nom="NOTE TMDB">
         {film.tmdbRating != null ? `${film.tmdbRating.toFixed(1)} / 10` : VIDE}
       </Fait>
-      {MÉTIERS.map(([key, nom]) => (
+      {TRADES.map(([key, nom]) => (
         <Fait key={key} nom={nom}>
-          <Noms noms={crew[key] || []} onOpenPerson={onOpenPerson} />
+          <Names names={crew[key] || []} onOpenPerson={onOpenPerson} />
         </Fait>
       ))}
       <Fait nom="CASTING">
-        <Noms noms={cast} sépare=" · " onOpenPerson={onOpenPerson} />
+        <Names names={cast} separator=" · " onOpenPerson={onOpenPerson} />
       </Fait>
       {/* THE KEYWORDS, SHOWN AND NOT HIDDEN. They feed the wake: when the
           wake only brings things together by name, this is where one sees

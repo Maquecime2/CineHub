@@ -70,22 +70,22 @@ const QUOTAS = { people: 4, subjects: 4, crowd: 2 };
    understood. */
 function Proposition({
   titre,
-  année,
+  year,
   raison,
   affiche,
   onClick,
   aside,
-  dépli,
+  unfolded,
 }: {
   titre: string;
-  année: number | string | null;
+  year: number | string | null;
   raison: string;
   affiche: ReactNode;
   onClick?: () => void;
   /** A note to the right of the title: "à voir", for instance. */
   aside?: string;
   /** What unfolds under the proposal when one opens it. */
-  dépli?: ReactNode;
+  unfolded?: ReactNode;
 }) {
   const contenu = (
     <>
@@ -128,7 +128,7 @@ function Proposition({
           )}
         </div>
         <div style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded, marginTop: 1 }}>
-          {année || "s.d."}
+          {year || "s.d."}
         </div>
         <div
           style={{
@@ -163,7 +163,7 @@ function Proposition({
       {onClick ? (
         <button
           onClick={onClick}
-          aria-expanded={dépli ? true : undefined}
+          aria-expanded={unfolded ? true : undefined}
           style={{
             all: "unset",
             ...style,
@@ -182,7 +182,7 @@ function Proposition({
       ) : (
         <div style={style}>{contenu}</div>
       )}
-      {dépli}
+      {unfolded}
     </div>
   );
 }
@@ -232,20 +232,20 @@ function Vignette({ film }: { film: Film }) {
    will never open. */
 function Dépli({
   v,
-  réalisateur,
-  déjàMis,
+  director,
+  alreadySetAside,
   onMettreDeCôté,
 }: {
   v: FarNeighbour;
-  réalisateur: string;
-  déjàMis: boolean;
+  director: string;
+  alreadySetAside: boolean;
   onMettreDeCôté: () => void;
 }) {
   return (
     <div style={{ padding: "2px 4px 12px 58px" }}>
-      {réalisateur && (
+      {director && (
         <div style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded, marginBottom: 4 }}>
-          {réalisateur.toUpperCase()}
+          {director.toUpperCase()}
         </div>
       )}
       {v.overview ? (
@@ -268,10 +268,10 @@ function Dépli({
       >
         <button
           onClick={onMettreDeCôté}
-          disabled={déjàMis}
+          disabled={alreadySetAside}
           style={{
             all: "unset",
-            cursor: déjàMis ? "default" : "pointer",
+            cursor: alreadySetAside ? "default" : "pointer",
             display: "flex",
             alignItems: "center",
             gap: 5,
@@ -279,12 +279,12 @@ function Dépli({
             fontFamily: F.mono,
             fontSize: 10,
             borderRadius: "var(--tag-radius)",
-            border: `1px solid ${déjàMis ? C.line : C.pine}`,
-            color: déjàMis ? C.inkFaded : C.card,
-            background: déjàMis ? "transparent" : C.pine,
+            border: `1px solid ${alreadySetAside ? C.line : C.pine}`,
+            color: alreadySetAside ? C.inkFaded : C.card,
+            background: alreadySetAside ? "transparent" : C.pine,
           }}
         >
-          <Bookmark size={11} /> {déjàMis ? "mis de côté" : "mettre de côté"}
+          <Bookmark size={11} /> {alreadySetAside ? "mis de côté" : "mettre de côté"}
         </button>
         <span style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}>
           {v.voteAverage ? `${v.voteAverage.toFixed(1)} / 10 · ${v.voteCount} votes` : "pas noté"}
@@ -463,7 +463,7 @@ export function WakePanel({
 
   /* Unfolding asks for the director, once. A failure says nothing: the
      unfolding is already worth it for its synopsis and its button. */
-  const déplier = (v: FarNeighbour) => {
+  const unfold = (v: FarNeighbour) => {
     setOuvert((o) => (o === v.tmdbId ? null : v.tmdbId));
     if (réals[v.tmdbId] != null || !apiKey) return;
     directorOf(v.tmdbId, apiKey)
@@ -530,7 +530,7 @@ export function WakePanel({
                 <Proposition
                   key={v.key}
                   titre={v.film.title}
-                  année={v.film.year}
+                  year={v.film.year}
                   raison={v.reason}
                   aside={v.film.status === "watchlist" ? "à voir" : undefined}
                   onClick={() => onOpen(v.film.id)}
@@ -573,16 +573,16 @@ export function WakePanel({
                 <Proposition
                   key={v.key}
                   titre={v.title}
-                  année={v.year}
+                  year={v.year}
                   raison={v.reason}
                   aside={misDeCôté.has(v.tmdbId) ? "à voir" : undefined}
-                  onClick={() => déplier(v)}
-                  dépli={
+                  onClick={() => unfold(v)}
+                  unfolded={
                     ouvert === v.tmdbId ? (
                       <Dépli
                         v={v}
-                        réalisateur={réals[v.tmdbId] || ""}
-                        déjàMis={misDeCôté.has(v.tmdbId)}
+                        director={réals[v.tmdbId] || ""}
+                        alreadySetAside={misDeCôté.has(v.tmdbId)}
                         onMettreDeCôté={() => mettreDeCôté(v)}
                       />
                     ) : undefined

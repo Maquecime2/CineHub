@@ -272,15 +272,15 @@ describe("lire une page de watchlist", () => {
    dictionary of pages: what we check here is the LOOP and the order, not
    the ability of `fetch` to go and get a page. */
 describe("relever une watchlist entière", () => {
-  const page = (noms: string[], dernière: number) =>
-    `<html><body><ul class="grid">${noms
+  const page = (names: string[], last: number) =>
+    `<html><body><ul class="grid">${names
       .map(
         (n) =>
           `<li class="griditem"><div class="react-component" data-item-name="${n}"
              data-item-slug="${n.toLowerCase().replace(/\W+/g, "-")}"></div></li>`
       )
       .join("")}</ul>
-     <div class="paginate-pages"><ul><li>1</li><li>${dernière}</li></ul></div></body></html>`;
+     <div class="paginate-pages"><ul><li>1</li><li>${last}</li></ul></div></body></html>`;
 
   const servir = (pages: Record<string, string>) =>
     vi.stubGlobal("fetch", (url: string) => {

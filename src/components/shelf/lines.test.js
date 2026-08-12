@@ -98,8 +98,8 @@ describe("splitRow — le découpage d'une rangée en lignes de bois", () => {
      whole line: opening an empty line in front of it would only push the
      problem one notch further, indefinitely. */
   it("donne la ligne entière à un décor plus large qu'elle", () => {
-    const énorme = makeDecor({ id: "d1", motif: "plant", size: 4.6 });
-    expect(shape(splitRow([énorme, filmItem("a")], 1))).toEqual([["d1"], ["a"]]);
+    const huge = makeDecor({ id: "d1", motif: "plant", size: 4.6 });
+    expect(shape(splitRow([huge, filmItem("a")], 1))).toEqual([["d1"], ["a"]]);
   });
 
   it("tient avec une seule case par ligne", () => {

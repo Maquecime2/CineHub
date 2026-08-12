@@ -59,19 +59,19 @@ export function RepairPanel({ films, onImport }: RepairPanelProps) {
      own: it is the same field-by-field merge as the import, and a single
      place where the writing can go wrong. */
   const remettre = () => {
-    const àRemettre = suspectes.filter((f) => choisies.has(f.id));
-    if (!àRemettre.length) return;
+    const toPutBack = suspectes.filter((f) => choisies.has(f.id));
+    if (!toPutBack.length) return;
     setRequest({
-      title: `Remettre ${àRemettre.length} fiche(s) en « à voir » ?`,
+      title: `Remettre ${toPutBack.length} fiche(s) en « à voir » ?`,
       body: "Elles quittent la vidéothèque pour l'onglet À voir. Rien n'est effacé : notes, motifs et fils restent attachés, et une fiche remise se rebascule d'un clic depuis son dossier.",
       action: "REMETTRE EN « À VOIR »",
       onConfirm: () => {
         onImport({
           toCreate: [],
-          toUpdate: àRemettre.map((film) => ({ film, changes: { status: "watchlist" as const } })),
+          toUpdate: toPutBack.map((film) => ({ film, changes: { status: "watchlist" as const } })),
           unchanged: [],
         });
-        setReport(`${àRemettre.length} fiche(s) remise(s) dans « À voir ».`);
+        setReport(`${toPutBack.length} fiche(s) remise(s) dans « À voir ».`);
         setChoisies(new Set());
         setRequest(null);
       },
@@ -199,7 +199,9 @@ export function RepairPanel({ films, onImport }: RepairPanelProps) {
       </div>
 
       {report && (
-        <div style={{ fontFamily: F.hand, fontSize: 17, color: C.pine, marginTop: 8 }}>{report}</div>
+        <div style={{ fontFamily: F.hand, fontSize: 17, color: C.pine, marginTop: 8 }}>
+          {report}
+        </div>
       )}
 
       <Confirmation request={request} onClose={() => setRequest(null)} />

@@ -1056,7 +1056,7 @@ export function ImportView({
             }}
           >
             {dropped.length} fiche(s) « à voir » venues de Letterboxd n'y figurent plus. Rien n'est
-            retiré : à vous de les garder ou de les ranger.
+            removed : à vous de les garder ou de les ranger.
           </div>
           <div style={{ maxHeight: 180, overflowY: "auto" }}>
             {dropped.map((f) => (

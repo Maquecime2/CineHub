@@ -49,7 +49,7 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
   const [diff, setDiff] = useState<ImportDiff | null>(null);
   const [msg, setMsg] = useState("");
 
-  const àFaire = films.filter(isIncomplete);
+  const toDo = films.filter(isIncomplete);
   /* The cards without a single keyword — the absence AND the emptiness.
      A whole collection was frozen at `[]` by a harvest flaw, and
      `isIncomplete` cannot see them: see `domain/film`. */
@@ -104,7 +104,7 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
     }
   };
 
-  const écrire = () => {
+  const write = () => {
     if (!diff) return;
     // toCreate is deliberately emptied: see the file's header
     onImport({ toCreate: [], toUpdate: diff.toUpdate, unchanged: diff.unchanged });
@@ -136,8 +136,8 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
       <Tally label="fiches dans la collection" value={films.length} />
       <Tally
         label="fiches à compléter"
-        value={àFaire.length}
-        ink={àFaire.length ? C.burgundy : C.pine}
+        value={toDo.length}
+        ink={toDo.length ? C.burgundy : C.pine}
       />
       {/* The keywords counted separately: they arrived after the rest,
           and an already completed collection has them all at zero.
@@ -157,7 +157,7 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
           lineHeight: 1.35,
         }}
       >
-        {àFaire.length === 0
+        {toDo.length === 0
           ? "Tout est déjà rempli — rien à demander à TMDB."
           : "Va chercher le casting, l’équipe, la durée, le pays, la langue et les mots-clés des fiches qui n’en ont pas. Les mots-clés sont ce qui permet au sillage d’un film de rapprocher deux fiches autrement que par les noms de leur équipe. Rien n’est écrit avant que vous ayez vu le détail."}
       </div>
@@ -215,13 +215,13 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
         <button
-          onClick={() => lancer(àFaire)}
-          disabled={!apiKey.trim() || àFaire.length === 0 || !!progress}
+          onClick={() => lancer(toDo)}
+          disabled={!apiKey.trim() || toDo.length === 0 || !!progress}
           style={{
             all: "unset",
             ...tap,
-            cursor: !apiKey.trim() || àFaire.length === 0 || progress ? "default" : "pointer",
-            opacity: !apiKey.trim() || àFaire.length === 0 || progress ? 0.45 : 1,
+            cursor: !apiKey.trim() || toDo.length === 0 || progress ? "default" : "pointer",
+            opacity: !apiKey.trim() || toDo.length === 0 || progress ? 0.45 : 1,
             display: "flex",
             alignItems: "center",
             gap: 7,
@@ -233,7 +233,7 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
           }}
         >
           <Sparkles size={13} />
-          {progress ? "EN COURS…" : `COMPLÉTER ${àFaire.length} FICHE(S)`}
+          {progress ? "EN COURS…" : `COMPLÉTER ${toDo.length} FICHE(S)`}
         </button>
 
         {/* THE KEYWORD CATCH-UP, separate and deliberate.
@@ -270,7 +270,7 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
 
         {diff && diff.toUpdate.length > 0 && (
           <button
-            onClick={écrire}
+            onClick={write}
             style={{
               all: "unset",
               ...tap,

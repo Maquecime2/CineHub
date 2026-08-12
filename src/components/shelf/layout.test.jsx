@@ -158,7 +158,7 @@ describe("DecorCabinet", () => {
 
   it("dit sur quel rayon on vise", () => {
     open();
-    expect(screen.getByText(/rayon visé/)).toHaveTextContent("La collection");
+    expect(screen.getByText(/rayon targeted/)).toHaveTextContent("La collection");
   });
 });
 

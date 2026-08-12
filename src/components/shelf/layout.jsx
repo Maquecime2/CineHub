@@ -1696,7 +1696,7 @@ export function DecorCabinet({ kind, onDragStart, onDragEnd, onClose }) {
             onDragEnd={onDragEnd}
           />
           <CabinetNote style={{ marginTop: 10 }}>
-            rayon visé : {SHELF_KIND[kind]?.title || kind}
+            rayon targeted : {SHELF_KIND[kind]?.title || kind}
           </CabinetNote>
         </div>
       )}

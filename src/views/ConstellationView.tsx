@@ -107,7 +107,7 @@ export function ConstellationView({
      hand-drawn chart is this screen's promise, and a second layer lit by
      default would pass off as yours what comes from the machine. One
      lights it when one wants to see further. */
-  const [équipes, setÉquipes] = useState(false);
+  const [crews, setÉquipes] = useState(false);
 
   /* THE FOCUS — the remedy for the tangle, and it is not a graphical
      one.
@@ -133,24 +133,24 @@ export function ConstellationView({
      not yet linked, to see what it might join. Like the positions
      grabbed with the mouse, they do not survive the page: they are
      gestures, not data. */
-  const [épingles, setÉpingles] = useState<string[]>([]);
+  const [pins, setPins] = useState<string[]>([]);
   /* The threads one has put out. We keep the ONES PUT OUT and not the
      lit ones: a thread just created must appear without one having to
      light it. */
-  const [filsÉteints, setFilsÉteints] = useState<string[]>([]);
+  const [mutedThreads, setMutedThreads] = useState<string[]>([]);
   const filsActifs = useMemo(
-    () => fils.filter((f) => !filsÉteints.includes(f.id)),
-    [fils, filsÉteints]
+    () => fils.filter((f) => !mutedThreads.includes(f.id)),
+    [fils, mutedThreads]
   );
 
   const W = 1100,
     H = 760;
   const complet = useMemo(
     () =>
-      équipes
-        ? buildSkyWithCrew(films, { tags, genres }, {}, { threads: filsActifs, pinned: épingles })
-        : buildSky(films, { tags, genres }, { threads: filsActifs, pinned: épingles }),
-    [films, tags, genres, équipes, filsActifs, épingles]
+      crews
+        ? buildSkyWithCrew(films, { tags, genres }, {}, { threads: filsActifs, pinned: pins })
+        : buildSky(films, { tags, genres }, { threads: filsActifs, pinned: pins }),
+    [films, tags, genres, crews, filsActifs, pins]
   );
   /* The cutting out happens AFTER the building: the whole chart still
      exists, we merely show a part of it. */
@@ -191,13 +191,13 @@ export function ConstellationView({
     () => new Set(complet.nodes.filter((n) => n.kind === "film").map((n) => n.filmId as string)),
     [complet.nodes]
   );
-  const résultats = useMemo(
+  const results = useMemo(
     () => (cherche.trim() ? searchFilms(films, cherche, 12) : []),
     [films, cherche]
   );
 
-  const épingler = (filmId: string) => {
-    setÉpingles((cur) => (cur.includes(filmId) ? cur : [...cur, filmId]));
+  const pin = (filmId: string) => {
+    setPins((cur) => (cur.includes(filmId) ? cur : [...cur, filmId]));
     poserFoyer(`f:${filmId}`);
     setCherche("");
   };
@@ -358,7 +358,7 @@ export function ConstellationView({
           zIndex: 2,
         }}
       >
-        {équipes
+        {crews
           ? "vos fils, et les parentés trouvées dans les génériques"
           : "seulement ce que vous avez relié à la main — attrapez une étoile pour la déplacer"}
       </div>
@@ -367,7 +367,7 @@ export function ConstellationView({
       <button
         onClick={() => setÉquipes((v) => !v)}
         data-tour="constellation-teams"
-        aria-pressed={équipes}
+        aria-pressed={crews}
         style={{
           all: "unset",
           ...tap,
@@ -382,8 +382,8 @@ export function ConstellationView({
           fontSize: 10.5,
           letterSpacing: "var(--tag-tracking)",
           padding: "5px 11px",
-          color: équipes ? C.card : C.slate,
-          background: équipes ? C.slate : "transparent",
+          color: crews ? C.card : C.slate,
+          background: crews ? C.slate : "transparent",
           border: `1px solid ${C.slate}`,
           borderRadius: "var(--tag-radius)",
         }}
@@ -391,7 +391,7 @@ export function ConstellationView({
         <Users size={13} />
         SUIVRE LES ÉQUIPES
       </button>
-      {équipes && (
+      {crews && (
         <div
           style={{
             fontFamily: F.hand,
@@ -419,14 +419,14 @@ export function ConstellationView({
           <Label>Fils</Label>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
             {fils.map((fil) => {
-              const on = !filsÉteints.includes(fil.id);
+              const on = !mutedThreads.includes(fil.id);
               const encre = catInk(fil.color);
               const motif = fil.motif ? motifById(fil.motif) : undefined;
               return (
                 <button
                   key={fil.id}
                   onClick={() =>
-                    setFilsÉteints((cur) =>
+                    setMutedThreads((cur) =>
                       cur.includes(fil.id) ? cur.filter((x) => x !== fil.id) : [...cur, fil.id]
                     )
                   }
@@ -583,11 +583,11 @@ export function ConstellationView({
           />
           <Résultats
             cherche={cherche}
-            résultats={résultats}
+            results={results}
             departs={departs}
             auCiel={auCiel}
             onFoyer={poserFoyer}
-            onÉpingler={épingler}
+            onÉpingler={pin}
           />
           <button
             onClick={() => setFoyer(null)}
@@ -682,11 +682,11 @@ export function ConstellationView({
           {cherche.trim() && (
             <Résultats
               cherche={cherche}
-              résultats={résultats}
+              results={results}
               departs={departs}
               auCiel={auCiel}
               onFoyer={poserFoyer}
-              onÉpingler={épingler}
+              onÉpingler={pin}
             />
           )}
         </div>
@@ -744,7 +744,7 @@ export function ConstellationView({
           >
             {placed.filter((n) => n.kind === "film").length} FILM(S) RELIÉ(S) · {links.length}{" "}
             FIL(S)
-            {équipes && ` · DONT ${links.filter((l) => l.kind === "crew").length} PAR LES ÉQUIPES`}
+            {crews && ` · DONT ${links.filter((l) => l.kind === "crew").length} PAR LES ÉQUIPES`}
             {(tags.length || genres.length) > 0 && ` · ${linkedTotal} RELIÉ(S) AU TOTAL`}
           </div>
           <div
@@ -758,7 +758,7 @@ export function ConstellationView({
               zIndex: 2,
             }}
           >
-            {équipes &&
+            {crews &&
               (Object.keys(KIN_INK) as KinshipRole[]).map((r) => (
                 <span
                   key={r}
@@ -1230,7 +1230,7 @@ export function ConstellationView({
               {placed.filter((n) => n.kind === "work").length} œuvre(s) —{" "}
               {placed.filter((n) => (n.refs ?? 0) > 1).length} pont(s) entre deux films
             </span>
-            {(Object.keys(moved).length > 0 || épingles.length > 0) && (
+            {(Object.keys(moved).length > 0 || pins.length > 0) && (
               <button
                 /* Putting the sky back in place also means removing the
                    pins: they are two gestures of the same hand, and
@@ -1238,7 +1238,7 @@ export function ConstellationView({
                    back in place" that is not. */
                 onClick={() => {
                   setMoved({});
-                  setÉpingles([]);
+                  setPins([]);
                 }}
                 style={{
                   all: "unset",
@@ -1269,14 +1269,14 @@ export function ConstellationView({
    precisely what one came to do. */
 function Résultats({
   cherche,
-  résultats,
+  results,
   departs,
   auCiel,
   onFoyer,
   onÉpingler,
 }: {
   cherche: string;
-  résultats: Film[];
+  results: Film[];
   departs: PlacedNode[] | SkyNode[];
   auCiel: Set<string>;
   onFoyer: (nodeId: string) => void;
@@ -1294,7 +1294,7 @@ function Résultats({
       </div>
     );
 
-  if (résultats.length === 0)
+  if (results.length === 0)
     return (
       <div style={{ fontFamily: F.hand, fontSize: 17, color: C.inkFaded }}>
         rien de ce nom dans la collection.
@@ -1303,7 +1303,7 @@ function Résultats({
 
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-      {résultats.map((f) => {
+      {results.map((f) => {
         const placé = auCiel.has(f.id);
         return (
           <button

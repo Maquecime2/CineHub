@@ -53,7 +53,7 @@ const TMDB_FICHE = "https://www.themoviedb.org/movie/";
 /* A poster "from TMDB": the one we have the right to replace without
    destroying anything chosen. All the rest — a pasted address, an image
    filed in IndexedDB — belongs to whoever put it there. */
-const affichéeParTmdb = (poster?: string) =>
+const shownByTmdb = (poster?: string) =>
   !poster || (!isIdbPoster(poster) && poster.includes("image.tmdb.org"));
 
 export function TmdbLink({ film, onUpdate }: { film: Film; onUpdate: (f: Film) => void }) {
@@ -115,7 +115,7 @@ export function TmdbLink({ film, onUpdate }: { film: Film; onUpdate: (f: Film) =
         countries: info.countries || [],
         tmdbRating: info.tmdbRating ?? null,
         keywords: info.keywords || [],
-        poster: affichéeParTmdb(film.poster) ? info.poster || film.poster : film.poster,
+        poster: shownByTmdb(film.poster) ? info.poster || film.poster : film.poster,
       });
       setMsg(`relié à « ${c.title} »${c.year ? ` (${c.year})` : ""}.`);
       setCandidats(null);

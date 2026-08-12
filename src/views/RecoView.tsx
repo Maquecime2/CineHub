@@ -250,7 +250,7 @@ function RecoCard({
    A single state, cumulative: moving a slider re-ranks the same harvest,
    and the names already known must survive the re-ranking. */
 function useDirectors(results: Candidate[] | null, apiKey: string) {
-  const [noms, setNoms] = useState<Record<number, string>>({});
+  const [names, setNoms] = useState<Record<number, string>>({});
 
   const ids = (results || []).map((c) => c.tmdbId);
   // the effect's key is the LIST, not the array: `results` is a new
@@ -260,7 +260,7 @@ function useDirectors(results: Candidate[] | null, apiKey: string) {
   useEffect(() => {
     if (!apiKey || !ids.length) return;
     let alive = true;
-    const manquants = ids.filter((id) => !(id in noms));
+    const manquants = ids.filter((id) => !(id in names));
     if (!manquants.length) return;
     pooled(
       manquants.map((id) => async () => {
@@ -277,7 +277,7 @@ function useDirectors(results: Candidate[] | null, apiKey: string) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clé, apiKey]);
 
-  return noms;
+  return names;
 }
 
 /* ------------------------------------------------------------

@@ -160,11 +160,11 @@ describe("le nettoyage d'un SVG", () => {
 
   it("appuie le dessin en bas s'il se pose, en haut s'il s'accroche", () => {
     const posé = sanitizeSvg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"/>`);
-    const accroché = sanitizeSvg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"/>`, {
+    const hung = sanitizeSvg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"/>`, {
       wall: true,
     });
     expect(posé.markup).toContain("xMidYMax");
-    expect(accroché.markup).toContain("xMidYMin");
+    expect(hung.markup).toContain("xMidYMin");
   });
 
   it("rend null sur ce qui n'est pas un SVG", () => {
@@ -177,16 +177,16 @@ describe("le motif importé, tel que l'étagère le voit", () => {
     const { shelfDecorTypes, wallDecorTypes, decorSpec, isWallMotif } =
       await import("../components/shelf/constants");
     const posé = await addCustomDecor(pngFile("galet.png"), { wall: false });
-    const accroché = await addCustomDecor(svgFile(`<svg viewBox="0 0 1 1"/>`, "guirlande.svg"), {
+    const hung = await addCustomDecor(svgFile(`<svg viewBox="0 0 1 1"/>`, "guirlande.svg"), {
       wall: true,
     });
 
     expect(shelfDecorTypes().map((d) => d.key)).toContain(posé.key);
-    expect(wallDecorTypes().map((d) => d.key)).toContain(accroché.key);
+    expect(wallDecorTypes().map((d) => d.key)).toContain(hung.key);
     // and the house patterns are still there, at the head
     expect(shelfDecorTypes().map((d) => d.key)).toContain("plant");
 
-    expect(isWallMotif(accroché.key)).toBe(true);
+    expect(isWallMotif(hung.key)).toBe(true);
     expect(isWallMotif(posé.key)).toBe(false);
     expect(decorSpec(posé.key)).toMatchObject({ label: "galet", custom: true });
     expect(decorSpec("plant")?.custom).toBeUndefined();

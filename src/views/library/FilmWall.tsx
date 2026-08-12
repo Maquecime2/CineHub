@@ -68,7 +68,7 @@ function Case({
      render does not tell React it must redraw, and nothing guarantees
      the right one is read: the first draft did it, and the linter was
      right to refuse. */
-  const [vidéeÀ, setVidéeÀ] = useState<number | null>(null);
+  const [emptiedAt, setEmptiedAt] = useState<number | null>(null);
 
   useEffect(() => {
     const el = ref.current;
@@ -79,11 +79,11 @@ function Case({
     const obs = new IntersectionObserver(
       ([e]) => {
         if (!e) return;
-        if (e.isIntersecting) setVidéeÀ(null);
+        if (e.isIntersecting) setEmptiedAt(null);
         /* We measure BEFORE emptying, while the cell still has its
            content — afterwards there would be nothing left to
            measure. */
-        else setVidéeÀ(el.getBoundingClientRect().height || 1);
+        else setEmptiedAt(el.getBoundingClientRect().height || 1);
       },
       { rootMargin: MARGE }
     );
@@ -92,8 +92,10 @@ function Case({
   }, []);
 
   return (
-    <div ref={ref} style={vidéeÀ == null ? undefined : { height: vidéeÀ }}>
-      {vidéeÀ == null && <FilmPolaroid film={film} look={look} onClick={() => onOpen(film.id)} />}
+    <div ref={ref} style={emptiedAt == null ? undefined : { height: emptiedAt }}>
+      {emptiedAt == null && (
+        <FilmPolaroid film={film} look={look} onClick={() => onOpen(film.id)} />
+      )}
     </div>
   );
 }
@@ -108,7 +110,7 @@ export function FilmWall({
   look?: WallLook;
 }) {
   const gap = gapOf(look);
-  const fenêtré = films.length >= SEUIL;
+  const windowed = films.length >= SEUIL;
 
   return (
     <div
@@ -120,7 +122,7 @@ export function FilmWall({
       }}
     >
       {films.map((f) =>
-        fenêtré ? (
+        windowed ? (
           <Case key={f.id} film={f} look={look} onOpen={onOpen} />
         ) : (
           <FilmPolaroid key={f.id} film={f} look={look} onClick={() => onOpen(f.id)} />

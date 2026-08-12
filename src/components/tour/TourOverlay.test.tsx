@@ -45,8 +45,8 @@ describe("la visite se déroule", () => {
     poserLesCibles("notebook");
     render(<TourOverlay tourId="notebook" onClose={vi.fn()} onView={vi.fn()} />);
 
-    const étape = TOURS.notebook!.steps[0]!;
-    expect(await screen.findByText(étape.title)).toBeInTheDocument();
+    const step = TOURS.notebook!.steps[0]!;
+    expect(await screen.findByText(step.title)).toBeInTheDocument();
     expect(screen.getByText(`1 / ${TOURS.notebook!.steps.length}`)).toBeInTheDocument();
   });
 
@@ -187,16 +187,16 @@ describe("une cible absente ne bloque pas la visite", () => {
   }
 
   it("saute l'étape facultative dont la cible manque", async () => {
-    const étapes = TOURS.almanac!.steps;
-    const boîte = étapes.find((s) => s.target === '[data-tour="almanac-export"]')!;
-    expect(boîte.optional, "le test ne vaut que si l'étape est facultative").toBe(true);
+    const steps = TOURS.almanac!.steps;
+    const box = steps.find((s) => s.target === '[data-tour="almanac-export"]')!;
+    expect(box.optional, "le test ne vaut que si l'étape est facultative").toBe(true);
 
     poserSauf("almanac", "almanac-export");
     const onClose = vi.fn();
     render(<TourOverlay tourId="almanac" onClose={onClose} onView={vi.fn()} />);
 
     // we do reach the second to last…
-    const avant = étapes[étapes.length - 2]!;
+    const avant = steps[steps.length - 2]!;
     expect(await screen.findByText(avant.title)).toBeInTheDocument();
     await userEvent.click(screen.getByText(/suivant|terminer/i));
 

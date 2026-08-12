@@ -200,13 +200,13 @@ export function SearchDrawer({
                   </div>
                   {g.items.map((t) => {
                     const rang = plate.indexOf(t);
-                    const visé = rang === curseur;
+                    const targeted = rang === curseur;
                     return (
                       <button
                         key={t.key}
                         onClick={() => ouvrirCelui(t)}
                         onMouseEnter={() => setCurseur(rang)}
-                        aria-current={visé ? "true" : undefined}
+                        aria-current={targeted ? "true" : undefined}
                         style={{
                           all: "unset",
                           ...tap,
@@ -215,8 +215,8 @@ export function SearchDrawer({
                           width: "100%",
                           boxSizing: "border-box",
                           padding: "5px 18px",
-                          background: visé ? alpha(nature.tint, 0.12) : "transparent",
-                          borderLeft: `3px solid ${visé ? nature.tint : "transparent"}`,
+                          background: targeted ? alpha(nature.tint, 0.12) : "transparent",
+                          borderLeft: `3px solid ${targeted ? nature.tint : "transparent"}`,
                         }}
                       >
                         <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>

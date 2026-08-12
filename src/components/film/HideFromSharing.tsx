@@ -34,9 +34,9 @@ import {
 import type { Film } from "../../types";
 
 export function HideFromSharing({ film, signedIn }: { film: Film; signedIn: boolean }) {
-  const [cachée, setCachée] = useState<boolean | null>(null);
+  const [hiddenNow, setHiddenNow] = useState<boolean | null>(null);
   const [partage, setPartage] = useState<Sharing | null>(null);
-  const [occupé, setOccupé] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!serverConfigured() || !signedIn) return;
@@ -44,7 +44,7 @@ export function HideFromSharing({ film, signedIn }: { film: Film; signedIn: bool
     Promise.all([hiddenCards(), mySharing()])
       .then(([c, p]) => {
         if (!alive) return;
-        setCachée(c.ids.includes(film.id));
+        setHiddenNow(c.ids.includes(film.id));
         setPartage(p.partage);
       })
       /* A server breakdown does not make the card speak: the section
@@ -58,15 +58,15 @@ export function HideFromSharing({ film, signedIn }: { film: Film; signedIn: bool
   /* "Nobody" is not argued card by card: when nothing is shown,
      everything is already set aside, and offering to set more aside would
      be a box with no effect. */
-  if (cachée == null || partage == null || partage === "privee") return null;
+  if (hiddenNow == null || partage == null || partage === "privee") return null;
 
   const basculer = async () => {
-    setOccupé(true);
+    setBusy(true);
     try {
-      const r = await hideCard(film.id, !cachée);
-      setCachée(r.cachee);
+      const r = await hideCard(film.id, !hiddenNow);
+      setHiddenNow(r.cachee);
     } finally {
-      setOccupé(false);
+      setBusy(false);
     }
   };
 
@@ -75,26 +75,26 @@ export function HideFromSharing({ film, signedIn }: { film: Film; signedIn: bool
       <Label>Ce que les autres en voient</Label>
       <button
         onClick={basculer}
-        disabled={occupé}
+        disabled={busy}
         style={{
           all: "unset",
           ...tap,
-          cursor: occupé ? "default" : "pointer",
-          opacity: occupé ? 0.5 : 1,
+          cursor: busy ? "default" : "pointer",
+          opacity: busy ? 0.5 : 1,
           display: "inline-flex",
           alignItems: "center",
           gap: 6,
           marginTop: 4,
           fontFamily: F.mono,
           fontSize: 10,
-          color: cachée ? C.burgundy : C.inkFaded,
+          color: hiddenNow ? C.burgundy : C.inkFaded,
         }}
       >
-        {cachée ? <EyeOff size={12} /> : <Eye size={12} />}
-        {cachée ? "ÉCARTÉE DU PARTAGE" : "ÉCARTER DU PARTAGE"}
+        {hiddenNow ? <EyeOff size={12} /> : <Eye size={12} />}
+        {hiddenNow ? "ÉCARTÉE DU PARTAGE" : "ÉCARTER DU PARTAGE"}
       </button>
       <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 5 }}>
-        {cachée
+        {hiddenNow
           ? "Personne ne la voit chez vous. Elle reste au mur, dans l'almanach et dans la constellation — c'est le dehors qui l'ignore."
           : "Elle paraît dans votre collection partagée, avec sa note et votre critique. Vos notes libres et votre journal de séances ne sortent jamais."}
       </div>

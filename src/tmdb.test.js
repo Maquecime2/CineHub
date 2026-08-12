@@ -422,7 +422,7 @@ describe("le relais du serveur", () => {
     vi.unstubAllGlobals();
   });
 
-  const réponse = (status, corps = {}, entetes = {}) => ({
+  const response = (status, corps = {}, entetes = {}) => ({
     ok: status >= 200 && status < 300,
     status,
     headers: new Headers(entetes),
@@ -435,7 +435,7 @@ describe("le relais du serveur", () => {
       "fetch",
       vi.fn(async (url, opts) => {
         appels.push({ url: String(url), opts });
-        return réponse(200, {});
+        return response(200, {});
       })
     );
 
@@ -463,7 +463,7 @@ describe("le relais du serveur", () => {
         "fetch",
         vi.fn(async (url) => {
           appels.push(String(url));
-          return String(url).includes("/tmdb/") ? réponse(code) : réponse(200, {});
+          return String(url).includes("/tmdb/") ? response(code) : response(200, {});
         })
       );
 
@@ -485,7 +485,7 @@ describe("le relais du serveur", () => {
       "fetch",
       vi.fn(async (url) => {
         appels.push(String(url));
-        return réponse(404);
+        return response(404);
       })
     );
 
@@ -514,7 +514,9 @@ describe("le relais du serveur", () => {
         "fetch",
         vi.fn(async (url) => {
           appels.push(String(url));
-          return appels.length === 1 ? réponse(429, {}, { "retry-after": "47" }) : réponse(200, {});
+          return appels.length === 1
+            ? response(429, {}, { "retry-after": "47" })
+            : response(200, {});
         })
       );
 
@@ -541,7 +543,7 @@ describe("le relais du serveur", () => {
         "fetch",
         vi.fn(async (url) => {
           appels.push(String(url));
-          return appels.length === 1 ? réponse(429) : réponse(200, {});
+          return appels.length === 1 ? response(429) : response(200, {});
         })
       );
 
@@ -565,8 +567,8 @@ describe("le relais du serveur", () => {
         vi.fn(async (url) => {
           appels.push(String(url));
           return appels.length === 1
-            ? réponse(429, {}, { "retry-after": "3600" })
-            : réponse(200, {});
+            ? response(429, {}, { "retry-after": "3600" })
+            : response(200, {});
         })
       );
 
@@ -585,7 +587,7 @@ describe("le relais du serveur", () => {
       "fetch",
       vi.fn(async (url) => {
         appels.push(String(url));
-        return réponse(200, {});
+        return response(200, {});
       })
     );
 

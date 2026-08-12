@@ -53,7 +53,7 @@ export function TourMenu({
           <span style={titre}>{TOURS.global!.label}</span>
           <span style={sous}>
             le tour du classeur, d&apos;un onglet à l&apos;autre — {TOURS.global!.steps.length}{" "}
-            étapes
+            steps
           </span>
         </button>
 

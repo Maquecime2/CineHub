@@ -77,11 +77,11 @@ const MOIS_LONG = [
    25 janvier au 24 décembre" on an account covering seven years makes
    one believe in a single year, and that is precisely the thing this
    account must deny. */
-const enClair = (iso: string | null, avecAnnée = false): string => {
+const enClair = (iso: string | null, withYear = false): string => {
   if (!iso) return "—";
   const [a, m, j] = iso.split("-");
   const jour = `${Number(j)} ${MOIS_LONG[Number(m) - 1] || ""}`.trim();
-  return avecAnnée ? `${jour} ${a}` : jour;
+  return withYear ? `${jour} ${a}` : jour;
 };
 
 /** 5,430 minutes → "90 h 30". Nobody reads an account in minutes. */
@@ -418,7 +418,7 @@ function PlancheCompte({ a }: { a: Almanac }) {
           />
         </div>
         <div style={{ marginTop: 8, fontFamily: F.hand, fontSize: 15, color: C.inkFaded }}>
-          {r.days > 0 ? `une séance tous les ${(span / r.days).toFixed(1)} days` : ""}
+          {r.days > 0 ? `une séance tous les ${(span / r.days).toFixed(1)} jours` : ""}
         </div>
       </Cardstock>
 
@@ -573,11 +573,7 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
                 marginTop: 8,
               }}
             >
-              <Chiffre
-                valeur={`${Math.round(a.age.mean)} ans`}
-                legende="EN MOYENNE"
-                ink={C.pine}
-              />
+              <Chiffre valeur={`${Math.round(a.age.mean)} ans`} legende="EN MOYENNE" ink={C.pine} />
               <Chiffre
                 valeur={`${Math.round(a.age.heritageShare ?? 0)} %`}
                 legende="DE PLUS DE 20 ANS"
@@ -1038,7 +1034,7 @@ export function AlmanacView({
   /** Opens the folder of somebody in the credits. */
   onOpenPerson?: (name: string) => void;
 }) {
-  const années = useMemo(() => yearsCovered(films), [films]);
+  const years = useMemo(() => yearsCovered(films), [films]);
 
   /* THE PERIODS ONE CAN LEAF THROUGH: "toujours" first, then the years
      from the most recent to the oldest.
@@ -1049,8 +1045,8 @@ export function AlmanacView({
      single one, "toujours" and "cette année" are the same page, and
      offering it twice would only make a duplicate to leaf through. */
   const périodes: Period[] = useMemo(
-    () => (années.length > 1 ? ["always", ...années] : années),
-    [années]
+    () => (years.length > 1 ? ["always", ...years] : years),
+    [years]
   );
 
   const [choisie, setChoisie] = useState<Period | null>(null);
@@ -1088,7 +1084,7 @@ export function AlmanacView({
   /* THE IMAGE TO TAKE AWAY. "en cours" rather than a boolean: the
      drawing waits for the posters to load, and a button that says
      nothing for two seconds passes for broken. */
-  const [boîte, setBoîte] = useState<"repos" | "en cours" | "raté">("repos");
+  const [box, setBoîte] = useState<"repos" | "en cours" | "raté">("repos");
   const emporter = async () => {
     /* THE IMAGE IS COMPOSED AROUND A VINTAGE — it is written on it in
        large characters. On "toujours" there is none, and the button does
@@ -1266,12 +1262,12 @@ export function AlmanacView({
             <button
               onClick={emporter}
               data-tour="almanac-export"
-              disabled={boîte === "en cours"}
+              disabled={box === "en cours"}
               title="Une image de cette année, à garder ou à montrer"
               style={{
                 all: "unset",
                 ...tap,
-                cursor: boîte === "en cours" ? "progress" : "pointer",
+                cursor: box === "en cours" ? "progress" : "pointer",
                 marginLeft: "auto",
                 display: "flex",
                 alignItems: "center",
@@ -1284,13 +1280,13 @@ export function AlmanacView({
                 background: C.burgundy,
                 borderRadius: "var(--tag-radius)",
                 boxShadow: "2px 3px 7px rgba(0,0,0,0.28)",
-                opacity: boîte === "en cours" ? 0.6 : 1,
+                opacity: box === "en cours" ? 0.6 : 1,
               }}
             >
               <Download size={14} />
-              {boîte === "en cours"
+              {box === "en cours"
                 ? "on développe…"
-                : boîte === "raté"
+                : box === "raté"
                   ? "raté — réessayer"
                   : "l'année en boîte"}
             </button>

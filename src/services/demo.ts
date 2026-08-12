@@ -377,8 +377,8 @@ const FILS: Thread[] = [
 
 /* A reference to a work that is not a film: that is what makes the
    constellation something other than a map of the collection. */
-const LIVRE: Omit<LinkedWork, "id"> & { propriétaire: string } = {
-  propriétaire: "demo-blade-runner",
+const LIVRE: Omit<LinkedWork, "id"> & { owner: string } = {
+  owner: "demo-blade-runner",
   type: "book",
   title: "Les androïdes rêvent-ils de moutons électriques ?",
   creator: "Philip K. Dick",
@@ -439,8 +439,8 @@ export function demoFilms(maintenant = Date.now()): Film[] {
     ajouter(b.id, moitié(a, inverseOf(fil.relation)!));
   }
 
-  const { propriétaire, ...livre } = LIVRE;
-  ajouter(propriétaire, { id: `${DEMO_PREFIX}lien-livre`, ...livre });
+  const { owner, ...livre } = LIVRE;
+  ajouter(owner, { id: `${DEMO_PREFIX}lien-livre`, ...livre });
 
   return films;
 }

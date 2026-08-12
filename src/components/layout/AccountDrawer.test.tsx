@@ -49,18 +49,18 @@ vi.mock("../../services/sync", async (vrai) => ({
   forgetSync: vi.fn(),
 }));
 
-const report = (connecté: boolean): SyncReport =>
+const report = (signedIn: boolean): SyncReport =>
   ({
-    state: connecté ? "up-to-date" : "no-account",
-    person: connecté ? { id: "1", pseudo: "varda" } : null,
+    state: signedIn ? "up-to-date" : "no-account",
+    person: signedIn ? { id: "1", pseudo: "varda" } : null,
     at: null,
     pending: 0,
   }) as SyncReport;
 
-const monter = (connecté = true) =>
+const monter = (signedIn = true) =>
   render(
     <AccountDrawer
-      report={report(connecté)}
+      report={report(signedIn)}
       onFermer={vi.fn()}
       onSync={vi.fn()}
       onChangement={vi.fn()}

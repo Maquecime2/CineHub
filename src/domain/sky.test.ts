@@ -417,10 +417,10 @@ describe("the relation an edge carries", () => {
         ],
       },
     ];
-    const arête = buildSky(lié).links.find((l) => l.kind === "peer");
+    const edge = buildSky(lié).links.find((l) => l.kind === "peer");
     // "a1" sorts before "b2": the edge starts at A, and so carries what A says
-    expect(arête?.a).toBe(`f:${a.id}`);
-    expect(arête?.relation).toBe("sequel-to");
-    expect(arête?.force).toBe(3);
+    expect(edge?.a).toBe(`f:${a.id}`);
+    expect(edge?.relation).toBe("sequel-to");
+    expect(edge?.force).toBe(3);
   });
 });

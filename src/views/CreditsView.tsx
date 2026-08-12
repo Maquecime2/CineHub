@@ -52,7 +52,7 @@ interface CreditsViewProps {
    their only title. */
 const SEUIL = 2;
 
-const estHabitué = (p: Person): boolean =>
+const isRegular = (p: Person): boolean =>
   p.films.length >= SEUIL || p.roles.some((r) => r !== "interprétation");
 
 const ROLE_COURT: Record<KinshipRole, string> = {
@@ -87,14 +87,14 @@ export function CreditsView({
       />
     );
 
-  return <Répertoire gens={gens} onOuvrir={onOpenPerson} inconnue={!!personne} />;
+  return <Directory gens={gens} onOuvrir={onOpenPerson} inconnue={!!personne} />;
 }
 
 /* ============================================================
    THE DIRECTORY
    ============================================================ */
 
-function Répertoire({
+function Directory({
   gens,
   onOuvrir,
   inconnue,
@@ -104,21 +104,21 @@ function Répertoire({
   inconnue: boolean;
 }) {
   const [q, setQ] = useState("");
-  const [rôles, setRôles] = useState<KinshipRole[]>([]);
+  const [roles, setRoles] = useState<KinshipRole[]>([]);
   const [tous, setTous] = useState(false);
 
   const liste = useMemo(() => {
     let out = gens;
-    if (rôles.length) out = out.filter((p) => rôles.some((r) => p.roles.includes(r)));
+    if (roles.length) out = out.filter((p) => roles.some((r) => p.roles.includes(r)));
     /* The threshold does NOT apply to a search: one types a name
        because one is looking for somebody in particular, and not finding
        them because they have only one film would be the opposite of
        searching. */
     if (q.trim()) return searchPeople(out, q);
-    return tous ? out : out.filter(estHabitué);
-  }, [gens, q, rôles, tous]);
+    return tous ? out : out.filter(isRegular);
+  }, [gens, q, roles, tous]);
 
-  const cachés = gens.length - gens.filter(estHabitué).length;
+  const hiddenCount = gens.length - gens.filter(isRegular).length;
 
   return (
     <div style={{ padding: "34px 44px 70px", position: "relative" }}>
@@ -135,7 +135,7 @@ function Répertoire({
         Le générique
       </div>
       <Guideline>
-        Les noms que votre collection porte déjà — celles et ceux qui ont réalisé, joué, éclairé,
+        Les names que votre collection porte déjà — celles et ceux qui ont réalisé, joué, éclairé,
         composé, écrit. {gens.length} en tout.
       </Guideline>
 
@@ -163,20 +163,20 @@ function Répertoire({
         style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 20 }}
       >
         {PERSON_ROLES.map((r) => {
-          const on = rôles.includes(r);
+          const on = roles.includes(r);
           return (
             <button
               key={r}
-              onClick={() => setRôles((s) => (on ? s.filter((x) => x !== r) : [...s, r]))}
-              style={étiquette(on)}
+              onClick={() => setRoles((s) => (on ? s.filter((x) => x !== r) : [...s, r]))}
+              style={chipLook(on)}
             >
               {ROLE_COURT[r]}
             </button>
           );
         })}
-        {!q.trim() && cachés > 0 && (
-          <button onClick={() => setTous((t) => !t)} style={étiquette(tous, C.slate)}>
-            {tous ? "les habitués seulement" : `+ ${cachés} de passage`}
+        {!q.trim() && hiddenCount > 0 && (
+          <button onClick={() => setTous((t) => !t)} style={chipLook(tous, C.slate)}>
+            {tous ? "les habitués seulement" : `+ ${hiddenCount} de passage`}
           </button>
         )}
       </div>
@@ -190,7 +190,7 @@ function Répertoire({
             ? "Aucun nom pour l'instant. Complétez vos fiches par TMDB, depuis l'onglet Import, et le générique se remplira tout seul."
             : q.trim()
               ? "Personne de ce nom."
-              : cachés > 0
+              : hiddenCount > 0
                 ? "Personne à ce titre parmi les habitués — ouvrez « de passage » pour voir le reste."
                 : "Personne à ce titre."}
         </div>
@@ -212,7 +212,7 @@ function Répertoire({
   );
 }
 
-const étiquette = (on: boolean, teinte: string = C.burgundy) => ({
+const chipLook = (on: boolean, teinte: string = C.burgundy) => ({
   all: "unset" as const,
   ...tap,
   cursor: "pointer",
@@ -365,7 +365,7 @@ function Dossier({
               "—"
             )}
           </Chiffre>
-          <Chiffre nom="ÉCART AU PUBLIC">{écartLisible(p.gap)}</Chiffre>
+          <Chiffre nom="ÉCART AU PUBLIC">{readableGap(p.gap)}</Chiffre>
           <Chiffre nom="SÉANCES">{p.screenings || "—"}</Chiffre>
         </div>
       </Cardstock>
@@ -383,7 +383,7 @@ function Dossier({
             <Label>Ce qui revient</Label>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
               {connus.map((m) => (
-                <span key={m!.id} style={étiquette(false, C.plum)}>
+                <span key={m!.id} style={chipLook(false, C.plum)}>
                   {m!.label}
                 </span>
               ))}
@@ -427,13 +427,13 @@ function Chiffre({ nom, children }: { nom: string; children: ReactNode }) {
 
 /* "Vous êtes plus sévère de 0,8" reads by itself; "−0,8" asks one to
    remember which way round the subtraction was done. */
-function écartLisible(écart: number | null) {
-  if (écart == null) return "—";
-  const v = Math.abs(écart).toFixed(1);
-  if (Math.abs(écart) < 0.15) return <span style={{ fontSize: 19 }}>d'accord</span>;
+function readableGap(gap: number | null) {
+  if (gap == null) return "—";
+  const v = Math.abs(gap).toFixed(1);
+  if (Math.abs(gap) < 0.15) return <span style={{ fontSize: 19 }}>d'accord</span>;
   return (
-    <span style={{ fontSize: 19, color: écart > 0 ? C.moss : C.vermillion }}>
-      {écart > 0 ? "plus tendre" : "plus sévère"} de {v}
+    <span style={{ fontSize: 19, color: gap > 0 ? C.moss : C.vermillion }}>
+      {gap > 0 ? "plus tendre" : "plus sévère"} de {v}
     </span>
   );
 }
@@ -457,7 +457,7 @@ function Rayon({
       </SectionTitle>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginTop: 12 }}>
         {films.map((f) => {
-          const rôles = rolesOnFilm(f, clé);
+          const roles = rolesOnFilm(f, clé);
           return (
             <button key={f.id} onClick={() => onOpen(f.id)} style={vignette}>
               <PosterArt film={f} height={150} initials={initialsOf(f.title)} />
@@ -478,7 +478,7 @@ function Rayon({
                   under every poster of a film-maker teaches nothing. */}
               <div style={{ fontFamily: F.mono, fontSize: 8.5, color: C.inkFaded, marginTop: 3 }}>
                 {f.year || ""}
-                {rôles.length > 1 ? ` · ${rôles.map((r) => ROLE_COURT[r]).join(", ")}` : ""}
+                {roles.length > 1 ? ` · ${roles.map((r) => ROLE_COURT[r]).join(", ")}` : ""}
               </div>
             </button>
           );
@@ -561,7 +561,7 @@ function CeQuiManque({
   onAddToWatchlist: (f: Film) => void;
 }) {
   const apiKey = useTmdbKey();
-  const [état, setÉtat] = useState<"repos" | "en-cours" | "fait">("repos");
+  const [state, setState] = useState<"repos" | "en-cours" | "fait">("repos");
   const [msg, setMsg] = useState("");
   const [manquants, setManquants] = useState<Manquant[]>([]);
   const [ajoutés, setAjoutés] = useState<Set<number>>(new Set());
@@ -572,12 +572,12 @@ function CeQuiManque({
   if (!apiKey) return null;
 
   const chercher = async () => {
-    setÉtat("en-cours");
+    setState("en-cours");
     setMsg("");
     try {
       const hit = await searchPerson(p.name, apiKey);
       if (!hit) {
-        setÉtat("fait");
+        setState("fait");
         setMsg("TMDB ne connaît personne de ce nom.");
         return;
       }
@@ -604,14 +604,14 @@ function CeQuiManque({
         .sort((a, b) => (b.year || 0) - (a.year || 0));
 
       setManquants(reste);
-      setÉtat("fait");
+      setState("fait");
       setMsg(
         reste.length
           ? `${reste.length} film(s) que vous n'avez pas — à ce titre-là.`
           : "Rien ne manque : vous avez tout ce que TMDB lui connaît."
       );
     } catch (e) {
-      setÉtat("repos");
+      setState("repos");
       setMsg(`TMDB indisponible (${(e as Error).message}).`);
     }
   };
@@ -637,10 +637,10 @@ function CeQuiManque({
         action={
           <button
             onClick={chercher}
-            disabled={état === "en-cours"}
-            style={étiquette(false, C.pine)}
+            disabled={state === "en-cours"}
+            style={chipLook(false, C.pine)}
           >
-            {état === "en-cours" ? <Loader2 size={11} /> : <Download size={11} />} demander à TMDB
+            {state === "en-cours" ? <Loader2 size={11} /> : <Download size={11} />} demander à TMDB
           </button>
         }
       >
@@ -705,7 +705,7 @@ function CeQuiManque({
               <button
                 onClick={() => ajouter(c)}
                 disabled={dedans}
-                style={{ ...étiquette(dedans, C.ochre), cursor: dedans ? "default" : "pointer" }}
+                style={{ ...chipLook(dedans, C.ochre), cursor: dedans ? "default" : "pointer" }}
               >
                 {dedans ? "dans À voir" : "+ à voir"}
               </button>

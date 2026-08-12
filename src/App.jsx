@@ -45,13 +45,7 @@ import { useNotes } from "./hooks/useNotes";
 import { useShelfViews } from "./hooks/useShelfViews";
 import { TourOverlay, TourHint, TourMenu } from "./components/tour";
 import { isFirstRun, shouldHint, shouldSeed, markSeeded } from "./services/onboarding";
-import {
-  binderStillDemo,
-  demoFilms,
-  demoNotes,
-  withoutDemo,
-  DEMO_PREFIX,
-} from "./services/demo";
+import { binderStillDemo, demoFilms, demoNotes, withoutDemo, DEMO_PREFIX } from "./services/demo";
 import { DemoBanner } from "./components/layout/DemoBanner";
 
 /* The original kraft, for the very first render — before a skin has been
@@ -263,11 +257,7 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const { report: synchro, synchronise: rerunSync } = useSync(
-    loaded,
-    setFilms,
-    rereadDocuments
-  );
+  const { report: synchro, synchronise: rerunSync } = useSync(loaded, setFilms, rereadDocuments);
 
   const installation = useInstallation();
   const {
@@ -384,9 +374,7 @@ export default function App() {
   const createMotif = (label, famille, spoiler) => {
     const clean = (label || "").trim();
     if (!clean) return null;
-    const existing = [...customMotifs()].find(
-      (m) => m.label.toLowerCase() === clean.toLowerCase()
-    );
+    const existing = [...customMotifs()].find((m) => m.label.toLowerCase() === clean.toLowerCase());
     if (existing) return existing.id;
     const motif = makeCustomMotif(clean, famille, spoiler);
     commitVocabulary({ ...vocabulary, custom: [...vocabulary.custom, motif] });

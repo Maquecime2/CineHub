@@ -41,30 +41,30 @@ export function IdbImage({
      progress and the definitive absence: announcing a missing image
      while we are still looking for it would make a reproach blink on
      every opening. */
-  const [état, setÉtat] = useState<"cherche" | "trouvée" | "absente">("cherche");
+  const [state, setState] = useState<"cherche" | "trouvée" | "absente">("cherche");
   const [url, setUrl] = useState<string | null>(null);
-  const boîte = useRef<HTMLDivElement | null>(null);
+  const box = useRef<HTMLDivElement | null>(null);
   const [large, setLarge] = useState(true);
 
   useEffect(() => {
     let objectUrl: string | null = null;
     let alive = true;
-    setÉtat("cherche");
+    setState("cherche");
     getImage(imageKey)
       .then((blob: Blob | undefined) => {
         if (!alive) return;
         if (!blob) {
-          setÉtat("absente");
+          setState("absente");
           return;
         }
         objectUrl = URL.createObjectURL(blob);
         setUrl(objectUrl);
-        setÉtat("trouvée");
+        setState("trouvée");
       })
       .catch(() => {
         /* The vault refuses — private mode, locked database. For
            whoever is looking, it is the same as a missing image. */
-        if (alive) setÉtat("absente");
+        if (alive) setState("absente");
       });
     return () => {
       alive = false;
@@ -73,21 +73,21 @@ export function IdbImage({
   }, [imageKey]);
 
   useLayoutEffect(() => {
-    if (état !== "absente" || !boîte.current) return;
-    setLarge(boîte.current.getBoundingClientRect().width >= ASSEZ_GRAND);
-  }, [état]);
+    if (state !== "absente" || !box.current) return;
+    setLarge(box.current.getBoundingClientRect().width >= ASSEZ_GRAND);
+  }, [state]);
 
-  if (état === "trouvée" && url) {
+  if (state === "trouvée" && url) {
     return <img src={url} alt={alt} onClick={onClick} style={style} />;
   }
 
   /* While looking: the cardstock as before, without a word. It is a
      matter of a few milliseconds. */
-  if (état === "cherche") return <div style={{ ...style, background: C.paperDark }} />;
+  if (state === "cherche") return <div style={{ ...style, background: C.paperDark }} />;
 
   return (
     <div
-      ref={boîte}
+      ref={box}
       onClick={onClick}
       title="Cette image est restée sur l'appareil qui l'a importée : les captures ne se synchronisent pas encore."
       style={{

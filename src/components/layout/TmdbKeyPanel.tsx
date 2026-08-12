@@ -35,11 +35,11 @@ const PANEL: CSSProperties = {
 
 /* The state of the check. "Not tried yet" is not "wrong": confusing the
    two would cry error in front of an untouched field. */
-type Essai = { état: "repos" | "essai" | "bonne" | "mauvaise"; message?: string };
+type Essai = { state: "repos" | "essai" | "bonne" | "mauvaise"; message?: string };
 
 export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
   const [key, setKey] = useState(writtenKey);
-  const [essai, setEssai] = useState<Essai>({ état: "repos" });
+  const [essai, setEssai] = useState<Essai>({ state: "repos" });
 
   /* Escape closes, as everywhere else: a drawer one can only close with
      the mouse is one drawer too many for whoever navigates by keyboard. */
@@ -59,10 +59,10 @@ export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
     const clean = key.trim();
     if (!clean) {
       setTmdbKey("");
-      setEssai({ état: "repos" });
+      setEssai({ state: "repos" });
       return;
     }
-    setEssai({ état: "essai" });
+    setEssai({ state: "essai" });
     try {
       /* `checkApiKey` returns `{ ok, error }` and NOT a boolean: an
          object is always truthy, and testing it as such would announce
@@ -70,10 +70,10 @@ export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
       const r = await checkApiKey(clean);
       if (r.ok) {
         setTmdbKey(clean);
-        setEssai({ état: "bonne" });
+        setEssai({ state: "bonne" });
       } else {
         setEssai({
-          état: "mauvaise",
+          state: "mauvaise",
           /* `checkApiKey` swallows the exception: a wrong key and an
              absence of network both come out of it as a failure. So we do
              not decide in its place — we report what we know, and the two
@@ -86,11 +86,11 @@ export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
     } catch {
       /* `checkApiKey` does not throw — but the day it did, a drawer
          stuck on "trying…" would be worse than the fault. */
-      setEssai({ état: "mauvaise", message: "Impossible de joindre TMDB — êtes-vous en ligne ?" });
+      setEssai({ state: "mauvaise", message: "Impossible de joindre TMDB — êtes-vous en ligne ?" });
     }
   };
 
-  const posée = writtenKey();
+  const placedOne = writtenKey();
 
   return (
     <>
@@ -126,7 +126,7 @@ export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
           value={key}
           onChange={(e) => {
             setKey(e.target.value);
-            setEssai({ état: "repos" });
+            setEssai({ state: "repos" });
           }}
           onKeyDown={(e) => {
             if (e.key === "Enter") void poser();
@@ -143,7 +143,7 @@ export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
             fontSize: 12,
             color: C.ink,
             background: C.paperDark,
-            border: `1px solid ${essai.état === "mauvaise" ? C.vermillion : C.line}`,
+            border: `1px solid ${essai.state === "mauvaise" ? C.vermillion : C.line}`,
             borderRadius: "var(--tag-radius)",
           }}
         />
@@ -151,23 +151,23 @@ export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
           <button
             onClick={() => void poser()}
-            disabled={essai.état === "essai"}
+            disabled={essai.state === "essai"}
             style={{
               all: "unset",
-              cursor: essai.état === "essai" ? "default" : "pointer",
+              cursor: essai.state === "essai" ? "default" : "pointer",
               padding: "5px 12px",
               fontFamily: F.hand,
               fontSize: 14,
               color: C.card,
               background: C.burgundy,
               borderRadius: "var(--tag-radius)",
-              opacity: essai.état === "essai" ? 0.6 : 1,
+              opacity: essai.state === "essai" ? 0.6 : 1,
             }}
           >
-            {essai.état === "essai" ? "on essaie…" : "Essayer et enregistrer"}
+            {essai.state === "essai" ? "on essaie…" : "Essayer et enregistrer"}
           </button>
-          {essai.état === "essai" && <Loader2 size={13} color={C.inkFaded} />}
-          {essai.état === "bonne" && (
+          {essai.state === "essai" && <Loader2 size={13} color={C.inkFaded} />}
+          {essai.state === "bonne" && (
             <span
               style={{
                 display: "flex",
@@ -183,7 +183,7 @@ export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
           )}
         </div>
 
-        {essai.état === "mauvaise" && (
+        {essai.state === "mauvaise" && (
           <div
             style={{
               marginTop: 8,
@@ -215,12 +215,12 @@ export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
           entièrement — seuls l&apos;enrichissement et les propositions venues du dehors se taisent.
         </div>
 
-        {posée && (
+        {placedOne && (
           <button
             onClick={() => {
               setTmdbKey("");
               setKey("");
-              setEssai({ état: "repos" });
+              setEssai({ state: "repos" });
             }}
             style={{
               all: "unset",

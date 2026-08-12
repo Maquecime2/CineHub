@@ -10,12 +10,12 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 const faux = {
   person: { id: "p1", pseudo: "varda" } as { id: string; pseudo: string } | null,
-  reçus: [] as { jusqua: number; encore?: boolean; fiches: unknown[] }[],
-  poussés: [] as unknown[][],
+  received: [] as { jusqua: number; encore?: boolean; fiches: unknown[] }[],
+  pushed: [] as unknown[][],
   jetteAuTirage: null as null | { code: number; message: string },
-  jetteÀLEnvoi: null as null | { code: number; message: string },
-  docsReçus: [] as { jusqua: number; encore?: boolean; documents: unknown[] }[],
-  docsPoussés: [] as unknown[][],
+  throwsOnSend: null as null | { code: number; message: string },
+  docsReceived: [] as { jusqua: number; encore?: boolean; documents: unknown[] }[],
+  docsPushed: [] as unknown[][],
 };
 
 class ErreurServeurFausse extends Error {
@@ -36,20 +36,20 @@ vi.mock("./server", () => ({
     if (faux.jetteAuTirage) {
       throw new ErreurServeurFausse(faux.jetteAuTirage.message, faux.jetteAuTirage.code);
     }
-    return faux.reçus.shift() ?? { jusqua: depuis, encore: false, fiches: [] };
+    return faux.received.shift() ?? { jusqua: depuis, encore: false, fiches: [] };
   },
   push: async (fiches: unknown[]) => {
-    if (faux.jetteÀLEnvoi) {
-      throw new ErreurServeurFausse(faux.jetteÀLEnvoi.message, faux.jetteÀLEnvoi.code);
+    if (faux.throwsOnSend) {
+      throw new ErreurServeurFausse(faux.throwsOnSend.message, faux.throwsOnSend.code);
     }
-    faux.poussés.push(fiches);
+    faux.pushed.push(fiches);
     return { rangees: fiches.length, perimees: 0, illisibles: 0 };
   },
   DOCS_PER_SEND: 200,
   pullDocsFrom: async (depuis: number) =>
-    faux.docsReçus.shift() ?? { jusqua: depuis, encore: false, documents: [] },
+    faux.docsReceived.shift() ?? { jusqua: depuis, encore: false, documents: [] },
   pushDocs: async (documents: unknown[]) => {
-    faux.docsPoussés.push(documents);
+    faux.docsPushed.push(documents);
     return { ranges: documents.length, perimes: 0, illisibles: 0 };
   },
 }));
@@ -65,12 +65,12 @@ beforeEach(async () => {
   forgetCache([]);
   forgetSync();
   faux.person = { id: "p1", pseudo: "varda" };
-  faux.reçus = [];
-  faux.poussés = [];
+  faux.received = [];
+  faux.pushed = [];
   faux.jetteAuTirage = null;
-  faux.jetteÀLEnvoi = null;
-  faux.docsReçus = [];
-  faux.docsPoussés = [];
+  faux.throwsOnSend = null;
+  faux.docsReceived = [];
+  faux.docsPushed = [];
   await loadFilms();
 });
 
@@ -82,7 +82,7 @@ describe("un tour complet", () => {
        nothing, and a window during which the server carries a version we
        are about to abandon. */
     await saveFilms([fiche({ id: "local", updatedAt: 5000 })]);
-    faux.reçus = [
+    faux.received = [
       {
         jusqua: 12,
         encore: false,
@@ -96,11 +96,11 @@ describe("un tour complet", () => {
     expect(report.state).toBe("up-to-date");
     expect((vus as { id: string }[]).map((f) => f.id).sort()).toEqual(["local", "venue"]);
     /* The card that came from the server does NOT leave again: it carries its date. */
-    expect(faux.poussés.flat().map((f) => (f as { id: string }).id)).toEqual(["local"]);
+    expect(faux.pushed.flat().map((f) => (f as { id: string }).id)).toEqual(["local"]);
   });
 
   it("redemande tant que le serveur dit qu'il en reste", async () => {
-    faux.reçus = [
+    faux.received = [
       { jusqua: 5, encore: true, fiches: [{ id: "a", majLe: 1, donnees: {} }] },
       { jusqua: 9, encore: false, fiches: [{ id: "b", majLe: 1, donnees: {} }] },
     ];
@@ -116,13 +116,13 @@ describe("un tour complet", () => {
       fiche({ id: "c", updatedAt: 5000 }),
     ]);
     await synchronise(() => {});
-    expect(faux.poussés.map((p) => p.length)).toEqual([2, 1]);
+    expect(faux.pushed.map((p) => p.length)).toEqual([2, 1]);
   });
 
   it("ce qui vient du serveur ne repart pas au tour suivant", async () => {
     /* The trap: re-dating a received card would make it pass for a
        local modification, and it would bounce for ever. */
-    faux.reçus = [
+    faux.received = [
       {
         jusqua: 7,
         encore: false,
@@ -130,9 +130,9 @@ describe("un tour complet", () => {
       },
     ];
     await synchronise(() => {});
-    faux.poussés = [];
+    faux.pushed = [];
     await synchronise(() => {});
-    expect(faux.poussés).toEqual([]);
+    expect(faux.pushed).toEqual([]);
   });
 });
 
@@ -148,14 +148,14 @@ describe("quand le réseau manque", () => {
 
   it("et rattrape tout au retour du réseau", async () => {
     await saveFilms([fiche({ id: "local", updatedAt: 5000 })]);
-    faux.jetteÀLEnvoi = { code: 0, message: "coupé" };
+    faux.throwsOnSend = { code: 0, message: "coupé" };
     expect((await synchronise(() => {})).state).toBe("waiting");
-    expect(faux.poussés).toEqual([]);
+    expect(faux.pushed).toEqual([]);
 
-    faux.jetteÀLEnvoi = null;
+    faux.throwsOnSend = null;
     const report = await synchronise(() => {});
     expect(report.state).toBe("up-to-date");
-    expect(faux.poussés.flat().map((f) => (f as { id: string }).id)).toEqual(["local"]);
+    expect(faux.pushed.flat().map((f) => (f as { id: string }).id)).toEqual(["local"]);
   });
 
   it("une vraie erreur du serveur se distingue d'une absence de réseau", async () => {
@@ -172,7 +172,7 @@ describe("sans compte", () => {
     await saveFilms([fiche({ id: "local", updatedAt: 5000 })]);
     const report = await synchronise(() => {});
     expect(report.state).toBe("no-account");
-    expect(faux.poussés).toEqual([]);
+    expect(faux.pushed).toEqual([]);
   });
 });
 
@@ -194,7 +194,7 @@ describe("ce qui attend", () => {
     expect(pending()).toBe(1);
 
     await synchronise(() => {});
-    const dernier = faux.poussés.at(-1)!.at(-1) as { id: string; supprimee?: boolean };
+    const dernier = faux.pushed.at(-1)!.at(-1) as { id: string; supprimee?: boolean };
     expect(dernier).toMatchObject({ id: "b", supprimee: true });
   });
 });
@@ -213,7 +213,7 @@ describe("le reste du classeur", () => {
 
     await synchronise(() => {});
 
-    const clés = faux.docsPoussés.flat().map((d) => (d as { cle: string }).cle);
+    const clés = faux.docsPushed.flat().map((d) => (d as { cle: string }).cle);
     expect(clés).toEqual(expect.arrayContaining(["shelf-view:abc", "notebook-notes", "fils"]));
   });
 
@@ -227,14 +227,14 @@ describe("le reste du classeur", () => {
 
     await synchronise(() => {});
 
-    const clés = faux.docsPoussés.flat().map((d) => (d as { cle: string }).cle);
+    const clés = faux.docsPushed.flat().map((d) => (d as { cle: string }).cle);
     expect(clés).not.toContain("skin");
     expect(clés).not.toContain("onboarding");
     expect(clés.some((c) => c.startsWith("synchro-"))).toBe(false);
   });
 
   it("range ce qui vient d'ailleurs, et le signale pour qu'on relise", async () => {
-    faux.docsReçus = [
+    faux.docsReceived = [
       {
         jusqua: 3,
         encore: false,
@@ -255,7 +255,7 @@ describe("le reste du classeur", () => {
     store.set("shelf-view:abc", { id: "abc", ici: true });
     await synchronise(() => {});
 
-    faux.docsReçus = [
+    faux.docsReceived = [
       {
         jusqua: 9,
         encore: false,
@@ -267,12 +267,12 @@ describe("le reste du classeur", () => {
   });
 
   it("ce qui est arrivé ne repart pas", async () => {
-    faux.docsReçus = [
+    faux.docsReceived = [
       { jusqua: 4, encore: false, documents: [{ cle: "fils", majLe: 8000, contenu: [] }] },
     ];
     await synchronise(() => {});
-    faux.docsPoussés = [];
+    faux.docsPushed = [];
     await synchronise(() => {});
-    expect(faux.docsPoussés.flat()).toEqual([]);
+    expect(faux.docsPushed.flat()).toEqual([]);
   });
 });

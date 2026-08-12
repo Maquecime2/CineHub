@@ -78,13 +78,13 @@ export function AccountDrawer({
   onChangement: (person: Person | null) => void;
 }) {
   const [pseudo, setPseudo] = useState("");
-  const [occupé, setOccupé] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [souci, setSouci] = useState<string | null>(null);
   const [request, setRequest] = useState<ConfirmRequest | null>(null);
 
   const tenter = async (quoi: (p: string) => Promise<Person>) => {
     setSouci(null);
-    setOccupé(true);
+    setBusy(true);
     try {
       const personne = await quoi(pseudo.trim().toLowerCase());
       /* AN ACCOUNT THAT CHANGES STARTS OVER. Keeping the old one's read
@@ -98,11 +98,11 @@ export function AccountDrawer({
       const m = (e as Error).message || "";
       setSouci(/NotAllowed|abort/i.test(m) ? "Geste annulé." : m || "Ça n'a pas marché.");
     } finally {
-      setOccupé(false);
+      setBusy(false);
     }
   };
 
-  const connecté = !!report.person;
+  const signedIn = !!report.person;
 
   return (
     <Layer>
@@ -140,8 +140,8 @@ export function AccountDrawer({
               color: C.ink,
             }}
           >
-            <span data-pseudo={connecté ? report.person!.pseudo : undefined}>
-              {connecté ? report.person!.pseudo : "Votre compte"}
+            <span data-pseudo={signedIn ? report.person!.pseudo : undefined}>
+              {signedIn ? report.person!.pseudo : "Votre compte"}
             </span>
           </div>
           <button
@@ -154,7 +154,7 @@ export function AccountDrawer({
         </div>
 
         <div style={{ fontFamily: F.hand, fontSize: 17, color: C.inkFaded, marginBottom: 20 }}>
-          {connecté
+          {signedIn
             ? "Votre collection se retrouve sur vos autres appareils."
             : "Un compte sert à retrouver votre collection ailleurs. Le classeur marche très bien sans."}
         </div>
@@ -195,7 +195,7 @@ export function AccountDrawer({
                   } le réseau.`)}
             {report.state === "error" && (report.message || "Le serveur a refusé.")}
           </span>
-          {connecté && (
+          {signedIn && (
             <button
               onClick={onSync}
               title="Synchroniser maintenant"
@@ -207,7 +207,7 @@ export function AccountDrawer({
         </div>
 
         {/* ---- entrer, ou partir ---- */}
-        {!connecté ? (
+        {!signedIn ? (
           <>
             <Label>Pseudonyme</Label>
             <input
@@ -239,17 +239,13 @@ export function AccountDrawer({
 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button
-                disabled={occupé || pseudo.trim().length < 3}
+                disabled={busy || pseudo.trim().length < 3}
                 onClick={() => tenter(signUp)}
-                style={bouton(C.burgundy, occupé || pseudo.trim().length < 3)}
+                style={bouton(C.burgundy, busy || pseudo.trim().length < 3)}
               >
                 <UserPlus size={12} /> CRÉER UN COMPTE
               </button>
-              <button
-                disabled={occupé}
-                onClick={() => tenter(signIn)}
-                style={bouton(C.ink, occupé)}
-              >
+              <button disabled={busy} onClick={() => tenter(signIn)} style={bouton(C.ink, busy)}>
                 <KeyRound size={12} /> J'EN AI DÉJÀ UN
               </button>
             </div>
@@ -299,10 +295,10 @@ export function AccountDrawer({
               <Label>Vos données</Label>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
                 <button
-                  disabled={occupé}
+                  disabled={busy}
                   onClick={async () => {
                     setSouci(null);
-                    setOccupé(true);
+                    setBusy(true);
                     try {
                       const tout = await myData();
                       /* A file, not a screen: what one takes away must
@@ -317,16 +313,16 @@ export function AccountDrawer({
                     } catch (e) {
                       setSouci((e as Error).message || "L'export a échoué.");
                     } finally {
-                      setOccupé(false);
+                      setBusy(false);
                     }
                   }}
-                  style={bouton(C.slate, occupé)}
+                  style={bouton(C.slate, busy)}
                 >
                   <Download size={12} /> TOUT EMPORTER
                 </button>
 
                 <button
-                  disabled={occupé}
+                  disabled={busy}
                   onClick={() =>
                     setRequest({
                       title: "Effacer votre compte ?",
@@ -335,7 +331,7 @@ export function AccountDrawer({
                       severe: true,
                       onConfirm: async () => {
                         setRequest(null);
-                        setOccupé(true);
+                        setBusy(true);
                         try {
                           await deleteMyAccount();
                           forgetSync();
@@ -343,13 +339,13 @@ export function AccountDrawer({
                         } catch (e) {
                           setSouci((e as Error).message || "L'effacement a échoué.");
                         } finally {
-                          setOccupé(false);
+                          setBusy(false);
                         }
                       },
                     })
                   }
                   style={{
-                    ...bouton(C.burgundy, occupé),
+                    ...bouton(C.burgundy, busy),
                     background: "transparent",
                     color: C.burgundy,
                   }}
@@ -394,11 +390,11 @@ export function AccountDrawer({
   );
 }
 
-const bouton = (encre: string, éteint: boolean) => ({
+const bouton = (encre: string, off: boolean) => ({
   all: "unset" as const,
   ...tap,
-  cursor: éteint ? "default" : "pointer",
-  opacity: éteint ? 0.45 : 1,
+  cursor: off ? "default" : "pointer",
+  opacity: off ? 0.45 : 1,
   gap: 6,
   padding: "8px 14px",
   fontFamily: F.mono,
@@ -461,7 +457,7 @@ const bouton = (encre: string, éteint: boolean) => ({
    subject teaches nobody anything. */
 function Blocages() {
   const [liste, setListe] = useState<string[] | null>(null);
-  const [occupé, setOccupé] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
 
   const relire = () =>
     myBlocks()
@@ -477,11 +473,11 @@ function Blocages() {
   if (!liste?.length) return null;
 
   const rendreLaParole = async (pseudo: string) => {
-    setOccupé(pseudo);
+    setBusy(pseudo);
     try {
       await unblock(pseudo);
     } finally {
-      setOccupé(null);
+      setBusy(null);
       await relire();
     }
   };
@@ -509,13 +505,13 @@ function Blocages() {
             </span>
             <button
               onClick={() => rendreLaParole(pseudo)}
-              disabled={occupé === pseudo}
+              disabled={busy === pseudo}
               aria-label={`Rendre la parole à ${pseudo}`}
               style={{
                 all: "unset",
                 ...tap,
-                cursor: occupé === pseudo ? "default" : "pointer",
-                opacity: occupé === pseudo ? 0.45 : 1,
+                cursor: busy === pseudo ? "default" : "pointer",
+                opacity: busy === pseudo ? 0.45 : 1,
                 flexShrink: 0,
                 fontFamily: F.mono,
                 fontSize: 10,
@@ -542,27 +538,27 @@ function Blocages() {
 }
 
 function Rappels() {
-  const [état, setÉtat] = useState<PushState | null>(null);
-  const [occupé, setOccupé] = useState(false);
+  const [state, setState] = useState<PushState | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const relire = () =>
     pushState()
-      .then(setÉtat)
-      .catch(() => setÉtat(null));
+      .then(setState)
+      .catch(() => setState(null));
 
   useEffect(() => {
     relire();
   }, []);
 
-  if (!état?.possible) return null;
+  if (!state?.possible) return null;
 
   const basculer = async () => {
-    setOccupé(true);
+    setBusy(true);
     try {
-      if (état.subscribed) await unsubscribeFromPush();
+      if (state.subscribed) await unsubscribeFromPush();
       else await subscribeToPush();
     } finally {
-      setOccupé(false);
+      setBusy(false);
       await relire();
     }
   };
@@ -570,7 +566,7 @@ function Rappels() {
   return (
     <div style={{ borderTop: `1px dashed ${C.line}`, paddingTop: 14 }}>
       <Label>Les rappels</Label>
-      {état.denied ? (
+      {state.denied ? (
         /* The refusal is final in most browsers: there is no second
            request to make, only a setting to reopen by hand. Saying so is
            better than a button that fails. */
@@ -580,8 +576,8 @@ function Rappels() {
         </div>
       ) : (
         <>
-          <button onClick={basculer} disabled={occupé} style={bouton(C.pine, état.subscribed)}>
-            <Bell size={12} /> {état.subscribed ? "NE PLUS ME RAPPELER" : "ME RAPPELER MES DÉFIS"}
+          <button onClick={basculer} disabled={busy} style={bouton(C.pine, state.subscribed)}>
+            <Bell size={12} /> {state.subscribed ? "NE PLUS ME RAPPELER" : "ME RAPPELER MES DÉFIS"}
           </button>
           <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 6 }}>
             Un défi qui commence, un défi qui s'achève — rien d'autre ne vous sonnera. Le réglage
@@ -594,10 +590,10 @@ function Rappels() {
 }
 
 function Partager() {
-  const [état, setÉtat] = useState<Sharing | null>(null);
+  const [state, setState] = useState<Sharing | null>(null);
   const [jeton, setJeton] = useState<string | null>(null);
-  const [occupé, setOccupé] = useState(false);
-  const [copié, setCopié] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   /* IT OPENED ON THREE BUTTONS OF WHICH NONE WAS MARKED. The write route
      existed alone: the drawer only learned your sharing mode at the
@@ -609,7 +605,7 @@ function Partager() {
     mySharing()
       .then((r) => {
         if (!alive) return;
-        setÉtat(r.partage);
+        setState(r.partage);
         setJeton(r.jeton);
       })
       /* Offline: we stay mute rather than marking an invented state.
@@ -621,21 +617,21 @@ function Partager() {
   }, []);
 
   const adresse =
-    état === "publique"
+    state === "publique"
       ? `${location.origin}${location.pathname}#/chez/${pseudoDeLaPage()}`
       : jeton
         ? `${location.origin}${location.pathname}#/chez/${pseudoDeLaPage()}?jeton=${jeton}`
         : null;
 
   const régler = async (voulu: Sharing) => {
-    setOccupé(true);
+    setBusy(true);
     try {
       const r = await setSharing(voulu);
-      setÉtat(r.partage);
+      setState(r.partage);
       setJeton(r.jeton);
-      setCopié(false);
+      setCopied(false);
     } finally {
-      setOccupé(false);
+      setBusy(false);
     }
   };
 
@@ -652,13 +648,13 @@ function Partager() {
         ).map(([clé, mot]) => (
           <button
             key={clé}
-            disabled={occupé}
+            disabled={busy}
             onClick={() => régler(clé)}
             style={{
-              ...bouton(état === clé ? C.burgundy : C.ink, occupé),
-              background: état === clé ? C.burgundy : "transparent",
-              color: état === clé ? C.card : C.inkFaded,
-              borderColor: état === clé ? C.burgundy : C.line,
+              ...bouton(state === clé ? C.burgundy : C.ink, busy),
+              background: state === clé ? C.burgundy : "transparent",
+              color: state === clé ? C.card : C.inkFaded,
+              borderColor: state === clé ? C.burgundy : C.line,
             }}
           >
             {mot}
@@ -667,10 +663,10 @@ function Partager() {
       </div>
 
       <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 8 }}>
-        {état === null && "Par défaut, personne ne voit votre collection."}
-        {état === "privee" && "Personne. Les liens déjà donnés ne valent plus rien."}
-        {état === "lien" && "Qui a le lien. Il ne se devine pas, et se coupe quand vous voulez."}
-        {état === "publique" && "Qui connaît votre pseudonyme."}
+        {state === null && "Par défaut, personne ne voit votre collection."}
+        {state === "privee" && "Personne. Les liens déjà donnés ne valent plus rien."}
+        {state === "lien" && "Qui a le lien. Il ne se devine pas, et se coupe quand vous voulez."}
+        {state === "publique" && "Qui connaît votre pseudonyme."}
       </div>
 
       {adresse && (
@@ -694,11 +690,11 @@ function Partager() {
           <button
             onClick={() => {
               navigator.clipboard?.writeText(adresse);
-              setCopié(true);
+              setCopied(true);
             }}
             style={bouton(C.slate, false)}
           >
-            {copié ? <Check size={12} /> : <LinkIcon size={12} />} {copié ? "COPIÉ" : "COPIER"}
+            {copied ? <Check size={12} /> : <LinkIcon size={12} />} {copied ? "COPIÉ" : "COPIER"}
           </button>
         </div>
       )}
