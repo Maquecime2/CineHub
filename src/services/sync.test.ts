@@ -76,8 +76,8 @@ beforeEach(async () => {
 
 afterEach(() => localStorage.clear());
 
-describe("un tour complet", () => {
-  it("tire d'abord, pousse ensuite", async () => {
+describe("one full round", () => {
+  it("pulls first, pushes second", async () => {
     /* Pushing first would send cards about to be replaced: work for
        nothing, and a window during which the server carries a version we
        are about to abandon. */
@@ -99,7 +99,7 @@ describe("un tour complet", () => {
     expect(fake.pushed.flat().map((f) => (f as { id: string }).id)).toEqual(["local"]);
   });
 
-  it("redemande tant que le serveur dit qu'il en reste", async () => {
+  it("asks again as long as the server says there is more", async () => {
     fake.received = [
       { jusqua: 5, encore: true, fiches: [{ id: "a", majLe: 1, donnees: {} }] },
       { jusqua: 9, encore: false, fiches: [{ id: "b", majLe: 1, donnees: {} }] },
@@ -109,7 +109,7 @@ describe("un tour complet", () => {
     expect((seenFilms as { id: string }[]).map((f) => f.id).sort()).toEqual(["a", "b"]);
   });
 
-  it("découpe les gros envois", async () => {
+  it("cuts the big sends up", async () => {
     await saveFilms([
       card({ id: "a", updatedAt: 5000 }),
       card({ id: "b", updatedAt: 5000 }),
@@ -119,7 +119,7 @@ describe("un tour complet", () => {
     expect(fake.pushed.map((p) => p.length)).toEqual([2, 1]);
   });
 
-  it("ce qui vient du serveur ne repart pas au tour suivant", async () => {
+  it("what comes from the server does not go back on the next round", async () => {
     /* The trap: re-dating a received card would make it pass for a
        local modification, and it would bounce for ever. */
     fake.received = [
@@ -136,8 +136,8 @@ describe("un tour complet", () => {
   });
 });
 
-describe("quand le réseau manque", () => {
-  it("l'appareil reste où il était, et le dit sans rougir", async () => {
+describe("when the network is missing", () => {
+  it("the device stays where it was, and says so without blushing", async () => {
     await saveFilms([card({ id: "local", updatedAt: 5000 })]);
     fake.jetteAuTirage = { code: 0, message: "Le serveur ne répond pas." };
 
@@ -146,7 +146,7 @@ describe("quand le réseau manque", () => {
     expect(report.pending).toBe(1);
   });
 
-  it("et rattrape tout au retour du réseau", async () => {
+  it("and catches everything up when the network comes back", async () => {
     await saveFilms([card({ id: "local", updatedAt: 5000 })]);
     fake.throwsOnSend = { code: 0, message: "coupé" };
     expect((await synchronise(() => {})).state).toBe("waiting");
@@ -158,7 +158,7 @@ describe("quand le réseau manque", () => {
     expect(fake.pushed.flat().map((f) => (f as { id: string }).id)).toEqual(["local"]);
   });
 
-  it("une vraie erreur du serveur se distingue d'une absence de réseau", async () => {
+  it("a real server error is told apart from an absent network", async () => {
     fake.jetteAuTirage = { code: 500, message: "ça a cassé" };
     const report = await synchronise(() => {});
     expect(report.state).toBe("error");
@@ -166,8 +166,8 @@ describe("quand le réseau manque", () => {
   });
 });
 
-describe("sans compte", () => {
-  it("rien ne part, et ce n'est pas une panne", async () => {
+describe("with no account", () => {
+  it("nothing goes out, and that is not a breakdown", async () => {
     fake.person = null;
     await saveFilms([card({ id: "local", updatedAt: 5000 })]);
     const report = await synchronise(() => {});
@@ -176,15 +176,15 @@ describe("sans compte", () => {
   });
 });
 
-describe("ce qui attend", () => {
-  it("se compte sans rien demander au réseau", async () => {
+describe("what is waiting", () => {
+  it("counts itself without asking the network anything", async () => {
     await saveFilms([card({ id: "a", updatedAt: 5000 })]);
     expect(pending()).toBe(1);
     await synchronise(() => {});
     expect(pending()).toBe(0);
   });
 
-  it("une fiche effacée compte comme une chose à dire", async () => {
+  it("an erased card counts as something to say", async () => {
     /* `a` is the SAME object from one save to the next: only `b`
        leaves, and it is its departure we want to see counted. */
     const a = card({ id: "a" });
@@ -199,13 +199,13 @@ describe("ce qui attend", () => {
   });
 });
 
-describe("le reste du classeur", () => {
+describe("the rest of the binder", () => {
   /* WHAT THE FIRST VERSION LACKED, and only a hand trial showed: the
      synchronisation carried only the cards. The second device found the
      films again without knowing how they were arranged — that is,
      without the shelf, which is this application's central gesture. */
 
-  it("envoie l'agencement des étagères, le carnet et les fils", async () => {
+  it("sends the shelf arrangements, the notebook and the threads", async () => {
     const { store } = await import("./storage");
     store.set("shelf-view:abc", { id: "abc", rows: [{ id: "r1", items: ["uuid-a"] }] });
     store.set("notebook-notes", [{ id: "n1", title: "Une page" }]);
@@ -217,7 +217,7 @@ describe("le reste du classeur", () => {
     expect(keys).toEqual(expect.arrayContaining(["shelf-view:abc", "notebook-notes", "fils"]));
   });
 
-  it("laisse ici ce qui décrit CET appareil", async () => {
+  it("leaves here what describes THIS device", async () => {
     /* The chosen skin, the state of the tour, the synchronisation
        markers: sending them would impose one's mood of the moment on
        one's other screen, and each device syncs on its own cursor. */
@@ -233,7 +233,7 @@ describe("le reste du classeur", () => {
     expect(keys.some((c) => c.startsWith("synchro-"))).toBe(false);
   });
 
-  it("range ce qui vient d'ailleurs, et le signale pour qu'on relise", async () => {
+  it("files what comes from elsewhere, and says so, so it gets reread", async () => {
     fake.docsReceived = [
       {
         jusqua: 3,
@@ -250,7 +250,7 @@ describe("le reste du classeur", () => {
     });
   });
 
-  it("un agencement plus ancien n'écrase pas celui d'ici", async () => {
+  it("an older arrangement does not overwrite the one here", async () => {
     const { store } = await import("./storage");
     store.set("shelf-view:abc", { id: "abc", ici: true });
     await synchronise(() => {});
@@ -266,7 +266,7 @@ describe("le reste du classeur", () => {
     expect(JSON.parse(localStorage.getItem("shelf-view:abc")!)).toMatchObject({ ici: true });
   });
 
-  it("ce qui est arrivé ne repart pas", async () => {
+  it("what has come in does not go back out", async () => {
     fake.docsReceived = [
       { jusqua: 4, encore: false, documents: [{ cle: "fils", majLe: 8000, content: [] }] },
     ];

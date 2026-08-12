@@ -40,8 +40,8 @@ function layTargets(tourId: string) {
   }
 }
 
-describe("la visite se déroule", () => {
-  it("ouvre la première étape et compte les suivantes", async () => {
+describe("the tour unrolls", () => {
+  it("opens the first step and counts the ones after", async () => {
     layTargets("notebook");
     render(<TourOverlay tourId="notebook" onClose={vi.fn()} onView={vi.fn()} />);
 
@@ -50,7 +50,7 @@ describe("la visite se déroule", () => {
     expect(screen.getByText(`1 / ${TOURS.notebook!.steps.length}`)).toBeInTheDocument();
   });
 
-  it("avance, revient, et n'offre pas de retour à la première étape", async () => {
+  it("goes forward, comes back, and offers no way back from the first step", async () => {
     layTargets("import");
     render(<TourOverlay tourId="import" onClose={vi.fn()} onView={vi.fn()} />);
     const [un, two] = TOURS.import!.steps;
@@ -67,7 +67,7 @@ describe("la visite se déroule", () => {
 
   /* Finishing and abandoning do NOT write the same thing: that is what
      decides whether the reminder will appear. */
-  it("terminer inscrit la visite comme faite", async () => {
+  it("finishing records the tour as taken", async () => {
     layTargets("notebook");
     const onClose = vi.fn();
     render(<TourOverlay tourId="notebook" onClose={onClose} onView={vi.fn()} />);
@@ -78,7 +78,7 @@ describe("la visite se déroule", () => {
     expect(loadOnboarding().skipped).toBe(false);
   });
 
-  it("passer marque l'abandon sans inscrire la visite", async () => {
+  it("skipping marks the walk-out without recording the tour", async () => {
     layTargets("import");
     const onClose = vi.fn();
     render(<TourOverlay tourId="import" onClose={onClose} onView={vi.fn()} />);
@@ -88,7 +88,7 @@ describe("la visite se déroule", () => {
     expect(loadOnboarding()).toMatchObject({ done: [], skipped: true });
   });
 
-  it("Échap écarte la visite", async () => {
+  it("Escape dismisses the tour", async () => {
     layTargets("import");
     const onClose = vi.fn();
     render(<TourOverlay tourId="import" onClose={onClose} onView={vi.fn()} />);
@@ -99,14 +99,14 @@ describe("la visite se déroule", () => {
     expect(loadOnboarding().skipped).toBe(true);
   });
 
-  it("ne montre rien quand aucune visite n'est demandée", () => {
+  it("shows nothing when no tour is asked for", () => {
     const { container } = render(<TourOverlay tourId={null} onClose={vi.fn()} onView={vi.fn()} />);
     expect(container).toBeEmptyDOMElement();
   });
 });
 
-describe("la visite globale voyage", () => {
-  it("demande la vue de sa première étape", async () => {
+describe("the global tour travels", () => {
+  it("asks for the view of its first step", async () => {
     const onView = vi.fn();
     layTargets("global");
     render(<TourOverlay tourId="global" onClose={vi.fn()} onView={onView} />);
@@ -116,11 +116,11 @@ describe("la visite globale voyage", () => {
   });
 });
 
-describe("une cible absente ne bloque pas", () => {
+describe("a missing target does not block", () => {
   /* The new binder's case: half the steps aim at content that does not
      exist yet. Without this escape hatch, the very first tour would stay
      stuck on an opaque veil. */
-  it("saute l'étape facultative dont la cible manque", async () => {
+  it("skips the optional step whose target is missing", async () => {
     /* We lay down ONLY the second anchor: the almanac tour's first step
        is optional and must fade away. */
     const n = document.createElement("div");
@@ -146,7 +146,7 @@ describe("une cible absente ne bloque pas", () => {
      Hence going through `tourId={null}`: without it the guide is born
      with the right tour, the tainted state never exists, and the test
      would pass even with the bug. */
-  it("n'escamote pas la première étape quand sa cible est là", async () => {
+  it("does not spirit away the first step when its target is there", async () => {
     layTargets("detail");
     const { rerender } = render(<TourOverlay tourId={null} onClose={vi.fn()} onView={vi.fn()} />);
     rerender(<TourOverlay tourId="detail" onClose={vi.fn()} onView={vi.fn()} />);
@@ -172,7 +172,7 @@ describe("une cible absente ne bloque pas", () => {
    is none. Without that skip, the almanac's tour would stop on a bubble
    pointing at nothing.
    ============================================================ */
-describe("une cible absente ne bloque pas la visite", () => {
+describe("a missing target does not block the tour", () => {
   /** The same targets, minus one — the one we want to see missing. */
   function poserSauf(tourId: string, absente: string) {
     for (const s of TOURS[tourId]!.steps) {
@@ -184,7 +184,7 @@ describe("une cible absente ne bloque pas la visite", () => {
     }
   }
 
-  it("saute l'étape facultative dont la cible manque", async () => {
+  it("skips the optional step whose target is missing", async () => {
     const steps = TOURS.almanac!.steps;
     const box = steps.find((s) => s.target === '[data-tour="almanac-export"]')!;
     expect(box.optional, "le test ne vaut que si l'étape est facultative").toBe(true);

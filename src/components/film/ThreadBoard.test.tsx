@@ -57,14 +57,14 @@ const openEditor = async (title = "Le Ravissement de Lol V. Stein") => {
   return user;
 };
 
-describe("ThreadBoard — retoucher un fil", () => {
-  it("ne montre pas les champs tant qu'on n'a pas demandé à écrire", () => {
+describe("ThreadBoard — editing a thread", () => {
+  it("does not show the fields until writing has been asked for", () => {
     board();
     expect(screen.queryByLabelText("Titre de l'œuvre")).not.toBeInTheDocument();
     expect(screen.getByText("Le Ravissement de Lol V. Stein")).toBeInTheDocument();
   });
 
-  it("ouvre la fiche garnie de ce qui y est déjà écrit", async () => {
+  it("opens the card filled with what is already written on it", async () => {
     board();
     await openEditor();
     expect(screen.getByLabelText("Titre de l'œuvre")).toHaveValue("Le Ravissement de Lol V. Stein");
@@ -73,7 +73,7 @@ describe("ThreadBoard — retoucher un fil", () => {
     expect(screen.getByLabelText("Nature de l'œuvre")).toHaveValue("book");
   });
 
-  it("rend la retouche complète d'une mention libre", async () => {
+  it("returns the full edit of a free mention", async () => {
     const { onEdit } = board();
     const user = await openEditor();
 
@@ -91,14 +91,14 @@ describe("ThreadBoard — retoucher un fil", () => {
     });
   });
 
-  it("referme la fiche une fois notée", async () => {
+  it("closes the card once it is written down", async () => {
     board();
     const user = await openEditor();
     await user.click(screen.getByRole("button", { name: /NOTER/ }));
     expect(screen.queryByLabelText("Titre de l'œuvre")).not.toBeInTheDocument();
   });
 
-  it("renonce sans rien écrire, et rend son texte d'origine à la fiche", async () => {
+  it("gives up without writing anything, and hands the card its original text back", async () => {
     const { onEdit } = board();
     const user = await openEditor();
 
@@ -110,7 +110,7 @@ describe("ThreadBoard — retoucher un fil", () => {
     expect(screen.getByText("Le Ravissement de Lol V. Stein")).toBeInTheDocument();
   });
 
-  it("Échap renonce, Entrée note", async () => {
+  it("Escape gives up, Enter writes down", async () => {
     const { onEdit } = board();
     let user = await openEditor();
     await user.keyboard("{Escape}");
@@ -127,7 +127,7 @@ describe("ThreadBoard — retoucher un fil", () => {
   /* The model's rule, seen from the form: a reference to a card on the
      wall takes its title from THAT card. So we do not offer it — that
      would be offering an edit `App` would refuse to write. */
-  describe("un renvoi vers une fiche du mur", () => {
+  describe("a pointer to a card on the wall", () => {
     const linked = () =>
       board({
         film: film("f1", {
@@ -138,7 +138,7 @@ describe("ThreadBoard — retoucher un fil", () => {
         films: [film("f2", { title: "Les Statues meurent aussi" })],
       });
 
-    it("n'offre à réécrire que ce qui appartient au lien", async () => {
+    it("offers for rewriting only what belongs to the link", async () => {
       linked();
       await openEditor("Les Statues meurent aussi");
       // the title and the author belong to the card opposite
@@ -151,13 +151,13 @@ describe("ThreadBoard — retoucher un fil", () => {
       expect(screen.getByLabelText("Strength du lien")).toBeInTheDocument();
     });
 
-    it("montre quand même de quoi on parle", async () => {
+    it("still shows what is being talked about", async () => {
       linked();
       await openEditor("Les Statues meurent aussi");
       expect(screen.getByText("Les Statues meurent aussi")).toBeInTheDocument();
     });
 
-    it("n'envoie que ce qui appartient au lien", async () => {
+    it("sends only what belongs to the link", async () => {
       const { onEdit } = linked();
       const user = await openEditor("Les Statues meurent aussi");
       await user.clear(screen.getByLabelText("Pourquoi ce lien ?"));
@@ -170,7 +170,7 @@ describe("ThreadBoard — retoucher un fil", () => {
       });
     });
 
-    it("envoie la nature du lien qu'on vient de choisir", async () => {
+    it("sends the kind of link just chosen", async () => {
       const { onEdit } = linked();
       const user = await openEditor("Les Statues meurent aussi");
       await user.selectOptions(screen.getByLabelText("Nature du lien"), "sequel-to");
@@ -182,7 +182,7 @@ describe("ThreadBoard — retoucher un fil", () => {
     });
   });
 
-  it("détacher reste possible, et distinct de retoucher", async () => {
+  it("detaching stays possible, and distinct from editing", async () => {
     const { onRemove, onEdit } = board();
     const user = userEvent.setup();
     await user.click(
