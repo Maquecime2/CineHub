@@ -1,28 +1,24 @@
 /* ============================================================
-   TOKENS — ce dont le site est fait, et qui peut changer
+   TOKENS — what the site is made of, and what can change
    ============================================================
 
-   `C` n'est plus une liste d'hexadécimaux mais une liste de RENVOIS. La
-   couleur elle-même vit dans une variable CSS écrite sur la racine du
-   document, et c'est une PEAU qui l'y écrit (voir `theme/skins.ts`).
+   `C` is no longer a list of hex codes but a list of REFERENCES. The
+   colour itself lives in a CSS variable written on the document's root,
+   and it is a SKIN that writes it there (see `theme/skins.ts`).
 
-   Pourquoi ainsi, et pas un contexte React : `C` est importé par vingt-
-   neuf fichiers et lu six cent treize fois, presque toujours dans un
-   style en ligne. En faire un état de React aurait voulu dire un crochet
-   dans chacun de ces fichiers, et un re-rendu de l'application entière à
-   chaque changement. Une variable CSS ne demande rien à personne — on
-   l'écrit sur `documentElement`, et le navigateur repeint.
+   Why this way, and not a React context: `C` is imported by twenty-nine
+   files and read six hundred and thirteen times, almost always inside an
+   inline style. Making it React state would have meant a hook in each of
+   those files, and a re-render of the whole application on every change.
+   A CSS variable asks nothing of anyone — you write it on the root, and
+   every read that already exists picks up the new value on the next
+   paint.
 
-   Le nom des clés ne bouge pas, et c'est délibéré : `burgundy` désigne
-   maintenant « la teinte chaude qui porte l'identité », pas le bordeaux.
-   Une peau de nuit y met un rouge sombre, une peau néon un magenta. Les
-   renommer toutes eût été plus juste et aurait touché six cent treize
-   lignes pour ne rien changer à ce qu'on voit.
-
-   Les valeurs par défaut — celles du carnet d'archiviste, papier kraft
-   et fil rouge — sont écrites dans `FONT_IMPORT` plus bas : la peau
-   « carnet » n'a donc rien à faire pour que le site soit ce qu'il a
-   toujours été. */
+   THE FALLBACKS ARE THE ORIGINAL SKIN, character for character. A token
+   read before any skin has been applied — the very first render, a test
+   with no DOM — therefore gives exactly what it gave before the skins
+   existed.
+   ============================================================ */
 
 export const C = {
   paper: "var(--c-paper)",
@@ -39,9 +35,9 @@ export const C = {
   cobalt: "var(--c-cobalt)",
   vermillion: "var(--c-vermillion)",
   moss: "var(--c-moss)",
-  /* Le huitième onglet en avait besoin : les sept autres teintes étaient
-     prises, et deux onglets de la même couleur ne se distinguent plus
-     une fois le rail resserré en pastilles. */
+  /* The eighth tab needed it: the other seven tints were taken, and two
+     tabs of the same colour cannot be told apart once the rail is
+     squeezed into pills. */
   plum: "var(--c-plum)",
 } as const;
 
@@ -193,7 +189,7 @@ body { background: ${C.paper}; }
 [data-tab-rail] { scrollbar-width: none; }
 [data-tab-rail]::-webkit-scrollbar { width: 0; height: 0; }
 
-/* la molette fait défiler un dossier, pas une page web */
+/* the wheel scrolls a folder, not a web page */
 ::-webkit-scrollbar { width: 11px; height: 11px; }
 ::-webkit-scrollbar-track { background: ${C.paperDark}; }
 ::-webkit-scrollbar-thumb { background: ${C.line}; border: 2px solid ${C.paperDark}; border-radius: 6px; }
@@ -201,8 +197,8 @@ body { background: ${C.paper}; }
 
 @keyframes swayIn { from { opacity: 0; transform: translateY(10px) rotate(var(--tilt, 0deg)); } to { opacity: 1; transform: translateY(0) rotate(var(--tilt, 0deg)); } }
 
-/* l'ouverture du boîtier : le rabat pivote, l'affiche sort de son logement,
-   la fiche arrive en dernier — dans cet ordre, sinon rien ne se lit. */
+/* the case opening: the flap swings, the poster comes out of its slot,
+   the card arrives last — in that order, otherwise nothing reads. */
 @keyframes openLid { from { transform: rotateY(0deg); } to { transform: rotateY(-158deg); } }
 @keyframes slideOut { from { opacity: 0; transform: translateX(-34px) rotate(-4deg); } to { opacity: 1; transform: none; } }
 @keyframes caseIn { from { opacity: 0; transform: translateY(14px) scale(0.97); } to { opacity: 1; transform: none; } }
@@ -224,46 +220,47 @@ body { background: ${C.paper}; }
    rayon au moment précis où la souris commence à bouger. */
 html[data-dragging="1"] [data-drawer-tab] { background: ${C.ochre} !important; }
 
-/* Un panneau ouvert pose un voile plein écran pour se refermer au premier
-   clic à côté. Mais on TIRE un objet du cabinet vers une planche : ce
-   voile recevrait le dépôt à la place du rayon. Pendant un glissement il
-   se retire donc du chemin, sans cesser d'exister. */
+/* An open panel lays a full-screen veil to close itself on the first
+   click beside it. But an object is DRAGGED from the cabinet onto a
+   board: that veil would receive the drop instead of the shelf. During a
+   drag it therefore gets out of the way, without ceasing to exist. */
 html[data-dragging="1"] [data-veil] { pointer-events: none; }
 
-/* Le repère se pose, il ne s'allume pas. Sa transition vit ICI et non dans
-   le style en ligne, et c'est délibéré : le code de glissement doit pouvoir
-   la couper le temps d'une trame (pour placer le repère sans qu'il traverse
-   l'étagère depuis sa place précédente) puis la rendre en effaçant
-   simplement la propriété en ligne — ce qui ne marcherait pas si la valeur
-   de repos venait, elle aussi, du style en ligne. */
+/* The marker is laid down, it does not light up. Its transition lives
+   HERE and not in the inline style, and deliberately so: the drag code
+   must be able to cut it for one frame (to place the marker without it
+   crossing the shelf from its previous spot) and then give it back by
+   simply erasing the inline property — which would not work if the
+   resting value came from the inline style too. */
 [data-drop-mark] {
   transition: transform .24s cubic-bezier(.2,.88,.3,1), opacity .22s ease-out;
 }
 
-/* Les cibles de dépôt s'annoncent, elles aussi en CSS : une catégorie qui
-   va recevoir un film s'éclaire, une rangée vide se signale, une couture
-   entre deux rangées se creuse. Tout passe par un attribut écrit à la
-   main sur le nœud — c'est la même règle que la languette ci-dessus, et
-   pour la même raison. */
+/* Drop targets announce themselves, also in CSS: a category about to
+   receive a film lights up, an empty row signals itself, a seam between
+   two rows deepens. It all goes through an attribute written by hand on
+   the node — the same rule as the tab above, and for the same
+   reason. */
 [data-cat-over="1"] { background: var(--cat-open, ${alpha(C.ochre, 0.13)}) !important; }
 [data-row-over="1"] { box-shadow: inset 0 0 0 1px ${alpha(C.ochre, 0.4)}; }
 [data-seam-over="1"] { background: ${alpha(C.ochre, 0.27)}; }
 [data-row-seam] { transition: background .12s ease, height .12s ease; }
 
-/* L'encre du repère de dépôt vient du thème de la vue. En variable CSS et
-   non en prop React : changer de thème ne doit toucher à rien de ce que
-   le glissement manipule.
+/* The drop marker's ink comes from the view's theme. As a CSS variable
+   and not a React prop: changing theme must touch nothing the drag
+   manipulates.
 
-   L'ombre en est exclue : elle est faite de ces mêmes chemins, décalés,
-   et les repeindre à l'encre du thème lui ôtait sa raison d'être — un
-   trait pâle sous le trait, de la même couleur, ne pose rien sur rien. */
+   The shadow is excluded from it: it is made of those same paths,
+   offset, and repainting them in the theme's ink took away its reason to
+   exist — a pale stroke under the stroke, in the same colour, lays
+   nothing on anything. */
 [data-drop-mark] svg > path { stroke: var(--mark-ink, ${C.burgundy}); }
 [data-drop-mark] svg > path[fill] { fill: var(--mark-ink, ${C.burgundy}); }
 
-/* Un objet accroché au mur se saisit : il le dit au survol, d'une ombre
-   portée et de rien d'autre. Aucune transformation ici — l'inclinaison
-   est écrite en ligne, et une seconde main sur la même propriété
-   effacerait le guingois de l'objet. */
+/* An object hung on the wall can be grabbed: it says so on hover, with a
+   drop shadow and nothing else. No transform here — the tilt is written
+   inline, and a second hand on the same property would erase the
+   object's lean. */
 [data-wall-item] { transition: filter .16s ease; }
 
 /* PENDANT UN GLISSEMENT, IL S'EFFACE DU CHEMIN.
@@ -420,7 +417,7 @@ input, select, textarea { color: ${C.ink}; }
 
 input::placeholder, textarea::placeholder { color: ${alpha(C.inkFaded, 0.53)}; font-style: italic; }
 
-/* le champ éditable n'a pas de placeholder natif : on le dessine */
+/* the editable field has no native placeholder: we draw it */
 [contenteditable][data-placeholder]:empty::before {
   content: attr(data-placeholder);
   color: ${alpha(C.inkFaded, 0.53)};

@@ -1,10 +1,11 @@
 /* ============================================================
-   ENCRES TIRÉES AU SORT
+   INKS DRAWN BY LOT
 
-   Les couleurs qu'une fiche reçoit sans qu'on les choisisse : le ruban qui
-   la scotche, l'émulsion virée de son affiche de secours. Tirées de son
-   identifiant, donc stables — et séparées de `domain/seeded.ts`, qui ne
-   connaît que des nombres et ignore tout de la palette.
+   The colours a card receives without anyone choosing them: the tape
+   sticking it down, the toned emulsion of its fallback poster. Drawn
+   from its identifier, therefore stable — and kept apart from
+   `domain/seeded.ts`, which knows only numbers and nothing of the
+   palette.
    ============================================================ */
 import { hash, pickFrom } from "../domain/seeded";
 import { C } from "./tokens";
@@ -13,7 +14,7 @@ export const TAPE_COLORS = [C.ochre, C.slate, C.burgundy] as const;
 
 export const tapeColor = (id: string): string => pickFrom(TAPE_COLORS, Math.abs(hash(id)));
 
-// émulsions virées : sépia, cyanotype, sélénium, cibachrome fané…
+// toned emulsions: sepia, cyanotype, selenium, faded Cibachrome…
 const HUES = [
   "#7a5230",
   "#6b4a4a",

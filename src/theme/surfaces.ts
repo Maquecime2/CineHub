@@ -1,46 +1,33 @@
 /* ============================================================
-   LES SURFACES — de quoi sont faits le mur et le bois
+   SURFACES — the matter a shelf can be made of
    ============================================================
 
-   Une vue ne choisissait qu'un `theme` : deux stops de dégradé pour la
-   planche, une teinte de papier, une encre. Le mur, lui, n'avait aucune
-   peinture. Ce module est l'endroit — le seul — où une CLÉ devient une
-   apparence.
+   Paper, wood, metal, glass, stone. This module is the place — the only
+   one — where a key becomes a texture, and it is deliberately kept apart
+   from `palette`: a colour is a decision of the eye, a material is a
+   decision of the hand.
 
-   Deux règles le tiennent :
-
-   1. ON NE SERT QUE DES STYLES. Ni `layout.jsx` ni le panneau de réglage
-      n'ont à connaître un dégradé ou une turbulence ; ils demandent
-      « peinture lin » et reçoivent des `CSSProperties`. C'est ce qui
-      permet à la vignette d'aperçu de l'Atelier d'être, littéralement,
-      la même surface que l'étagère — deux catalogues finiraient par
-      diverger, et c'est toujours l'aperçu qui aurait tort.
-
-   2. TOUT EST PROCÉDURAL. Les textures sont du SVG en adresse-données,
-      selon la technique déjà éprouvée par `GRAIN` : aucun fichier à
-      livrer, aucune requête, et un motif se reteinte sans qu'on ait à
-      redessiner une image.
-
-   Le catalogue de teintes, lui, N'EST PAS ici. `patternLayer` reçoit une
-   couleur déjà résolue plutôt qu'une clé : les surfaces ignorent la
-   palette des objets, et la palette ignore les surfaces. */
+   EVERYTHING IS DRAWN, nothing is downloaded. The patterns are SVG data
+   URIs built here, from a filtered noise: an image file would have to be
+   fetched, cached, and would not follow the ink it is tinted with.
+   ============================================================ */
 
 import type { CSSProperties } from "react";
 import { C, GRAIN, alpha } from "./tokens";
 
-/* L'adresse-données, faite une bonne fois. Le pourcent AVANT le dièse —
-   l'ordre inverse ré-échapperait le pourcent qu'on vient d'écrire. Les
-   deux y passent forcément : une couleur commence par un dièse, et
-   `width='100%'` est dans presque chaque motif. */
+/* The data URI, made once and for all. The percent sign BEFORE the hash
+   — the other way round would re-escape the percent we have just
+   written. Both necessarily come up: a colour starts with a hash, and
+   `width='100%'` is in almost every pattern. */
 const svgUrl = (markup: string): string =>
   `url("data:image/svg+xml;utf8,${markup.replace(/%/g, "%25").replace(/#/g, "%23")}")`;
 
 const svg = (w: number, h: number, body: string): string =>
   `<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}' viewBox='0 0 ${w} ${h}'>${body}</svg>`;
 
-/* Un bruit filtré, du même moule que `GRAIN` mais réglable. `freq`
-   accepte deux nombres : c'est ce qui distingue un grain de plâtre
-   (isotrope) d'un veinage de bois (étiré à l'horizontale). */
+/* A filtered noise, from the same mould as `GRAIN` but adjustable.
+   `freq` accepts two numbers: that is what tells a plaster grain
+   (isotropic) from a wood grain (stretched horizontally). */
 const noise = (id: string, freq: string, octaves: number, alpha: number, seed = 3): string =>
   `<filter id='${id}'><feTurbulence type='fractalNoise' baseFrequency='${freq}' numOctaves='${octaves}' seed='${seed}' stitchTiles='stitch'/>` +
   `<feColorMatrix type='matrix' values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 ${alpha} 0'/></filter>` +
@@ -212,7 +199,7 @@ export const PATTERN_KEYS = Object.keys(PATTERNS);
    embarqué doit être une couleur, pas un renvoi vers une couleur. */
 const DEFAULT_INK = "#6E6153";
 
-/* `ink` est une couleur RÉSOLUE, jamais une clé — voir l'en-tête. */
+/* `ink` is a RESOLVED colour, never a key — see the header. */
 export const patternLayer = (key?: string, ink: string = DEFAULT_INK): CSSProperties | null => {
   const p = PATTERNS[key as string];
   if (!p) return null;
@@ -301,10 +288,10 @@ export function wallStyle(
   }
   if (decor?.paint) {
     images.push(paintOf(decor.paint).image);
-    /* `auto` et non `cover` : un dégradé n'a pas de dimensions propres et
-       remplit déjà sa boîte. La liste des tailles doit seulement rester
-       aussi longue que celle des images, sans quoi elle se répète et le
-       motif reprend la taille du dégradé. */
+    /* `auto` and not `cover`: a gradient has no dimensions of its own and
+       already fills its box. The list of sizes only has to stay as long
+       as the list of images, otherwise it repeats and the pattern takes
+       the gradient's size. */
     sizes.push("auto");
   }
 
@@ -340,13 +327,13 @@ type Material = {
   family: MaterialFamily;
   top: string;
   bottom: string;
-  /* La couche de matière, sous la couleur. Absente = un aplat dégradé,
-     ce qui est exactement l'étagère d'avant les matériaux. */
+  /* The layer of matter, under the colour. Absent = a plain gradient,
+     which is exactly the shelf from before the materials. */
   texture?: string;
-  /* L'ombre portée sous la planche. Le verre en veut une plus légère :
-     ce qui est translucide ne pèse pas. */
+  /* The drop shadow under the board. Glass wants a lighter one: what is
+     translucent does not weigh. */
   shadow?: string;
-  /* Un liseré de lumière sur l'arête haute. */
+  /* A line of light on the top edge. */
   sheen?: string;
   alpha?: number;
 };
@@ -365,9 +352,11 @@ const wood = (label: string, top: string, bottom: string): Material => ({
 });
 
 export const MATERIALS: Record<string, Material> = {
-  /* Les bois. `chene`, `noyer`, `ceruse` reprennent au hexadécimal près
-     les teintes des thèmes d'origine — un décor qui les choisit doit
-     retrouver son étagère, au veinage près. */
+  /* The woods. `chene`, `noyer` and `ceruse` take up, hex code for hex
+     code, the tints of the original themes — a decor that chooses them
+     must find its shelf again, down to the grain.
+
+     THEIR KEYS STAY FRENCH: they are what a decor carries on disk. */
   chene: wood("Chêne", "#7A5B3A", "#5E442A"),
   noyer: wood("Noyer", "#5A3E28", "#3B2818"),
   teck: wood("Teck", "#8B5E34", "#6A4423"),
@@ -470,9 +459,9 @@ export const FINISHES = {
 const CHENE = MATERIALS.chene as Material;
 export const materialOf = (key?: string): Material => MATERIALS[key as string] || CHENE;
 
-/* L'ombre par défaut de la planche — celle d'avant les matériaux, au
-   pixel près. Elle vit ici parce que `materialStyle` doit pouvoir la
-   rendre telle quelle. */
+/* The board's default shadow — the one from before the materials, to the
+   pixel. It lives here because `materialStyle` must be able to return it
+   as it is. */
 export const PLANK_SHADOW = "0 3px 0 rgba(0,0,0,0.18)";
 
 export const materialStyle = (key?: string, finish?: string): CSSProperties => {

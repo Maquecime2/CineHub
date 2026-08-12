@@ -36,23 +36,23 @@ export type Skin = {
   /** Une ligne pour dire ce qu'on regarde. Elle s'affiche au choix. */
   note: string;
   /**
-   * Le fond est-il sombre ? Sert à l'aperçu, et à `color-scheme` : c'est
-   * ce drapeau qui, via l'attribut `data-dark`, dit au navigateur sur
-   * quel fond il dessine ce qu'il dessine lui-même — listes déroulantes
-   * ouvertes, cases à cocher, barres de défilement. Le mentir rend ces
-   * morceaux-là illisibles, et eux seuls.
+   * Is the background dark? Used for the preview, and for
+   * `color-scheme`: that is the only way to tell the browser what
+   * background it draws on what it draws itself — open dropdowns, check
+   * boxes, scrollbars. Lying about it makes those pieces unreadable, and
+   * only those.
    */
   dark?: boolean;
   c: Record<string, string>;
   fonts: { title: string; body: string; hand: string; mono: string };
-  /** Ce qu'il faut demander à Google, tel quel dans l'adresse. */
+  /** What to ask Google for, exactly as it goes in the URL. */
   google: string[];
-  /** Le fond de la page. Une recette entière, pas une couleur. */
+  /** The page's background. A whole recipe, not a colour. */
   page: string;
   tag: { radius: string; tracking: string; transform: string };
-  /* L'atmosphère est faite d'opacités et non de drapeaux : un grain à
-     demi effacé est un réglage utile, et un `false` ne l'aurait pas
-     permis. Zéro éteint. */
+  /* The atmosphere is made of opacities and not of flags: a grain at a
+     third is not a grain switched off, and a skin can dose what it keeps
+     rather than choosing between everything and nothing. */
   atm: { grain: number; stain: number; vignette: number };
 };
 
@@ -214,14 +214,14 @@ export const SKINS: Skin[] = [
     atm: { grain: 0, stain: 0, vignette: 0 },
   },
 
-  /* LA NUIT AMÉRICAINE — le jour tourné pour la nuit.
+  /* DAY FOR NIGHT — daylight shot for night.
 
-     Le procédé consiste à filmer en plein soleil, à sous-exposer et à
-     poser un filtre bleu : on obtient une nuit où tout garde ses ombres
-     de midi. La peau fait exactement cela — un fond bleu-gris qui n'est
-     pas noir, des ombres portées trop nettes pour l'heure qu'il prétend
-     être, et une seule chaleur, l'ambre du projecteur, pour rappeler que
-     le soleil est resté là. */
+     The technique is to film in full sun, underexpose, and lay a blue
+     filter over it: you get a night where everything keeps its midday
+     shadows. The skin does exactly that — a blue-grey background that is
+     not black, drop shadows too crisp for the hour it claims to be, and
+     one warmth only, the projector's amber, to remind you the sun stayed
+     where it was. */
   {
     key: "nuit-americaine",
     label: "Nuit américaine",
@@ -263,14 +263,14 @@ export const SKINS: Skin[] = [
     atm: { grain: 0.45, stain: 0, vignette: 1 },
   },
 
-  /* LE KODACHROME — une diapositive oubliée dans sa boîte.
+  /* KODACHROME — a slide forgotten in its box.
 
-     Ce qu'on regarde d'une diapositive, c'est d'abord son cadre : un
-     rectangle sombre qui isole l'image et fait paraître les couleurs
-     plus fortes qu'elles ne sont. D'où un fond presque noir mais tiré
-     vers le brun de la boîte, et des teintes qui ne se retiennent pas —
-     l'orangé et le cyan que ce film rendait mieux que tous les autres,
-     et qui ont fini par être la couleur de toute une décennie. */
+     What you look at on a slide is first of all its frame: a dark
+     rectangle that isolates the image and makes the colours look
+     stronger than they are. Hence a background almost black but pulled
+     towards the brown of the box, and tints that hold nothing back — the
+     orange and the cyan this film rendered better than any other, and
+     which ended up being the colour of a whole decade. */
   {
     key: "kodachrome",
     label: "Kodachrome",
@@ -504,13 +504,14 @@ export const SKINS: Skin[] = [
     atm: { grain: 0, stain: 0, vignette: 0 },
   },
 
-  /* LE PAPIER JAPON — indigo, blanc cassé, un sceau rouge.
+  /* JAPANESE PAPER — indigo, off-white, one red seal.
 
-     Une page qui laisse presque tout vide, et où le peu qui est écrit
-     porte d'autant plus. Deux encres suffisent : l'indigo, qui écrit, et
-     le vermillon du sceau, qui n'écrit rien mais dit à qui c'est. Les
-     autres jetons sont donc tenus bas — un nuancier bavard casserait le
-     silence sur lequel cette peau est bâtie. */
+     A page that leaves almost everything empty, and where the little
+     that is written carries all the more. Two inks are enough: the
+     indigo, which writes, and the seal's vermilion, which writes nothing
+     but says whose it is. The other tokens are therefore kept low — a
+     talkative swatch book would break the silence this skin is built
+     on. */
   {
     key: "japon",
     label: "Papier Japon",
