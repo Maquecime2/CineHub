@@ -1,57 +1,57 @@
 import { describe, it, expect } from "vitest";
-import { recenser, dossierDe, rôlesSurLeFilm, chercherPersonnes } from "./people";
+import { census, dossierOf, rolesOnFilm, searchPeople } from "./people";
 import { makeFilm } from "./film";
 import type { Film } from "../types";
 
 const film = (title: string, partial: Partial<Film> = {}) => makeFilm({ title, ...partial });
 
-const par = (gens: ReturnType<typeof recenser>, nom: string) => gens.find((p) => p.nom === nom);
+const by = (people: ReturnType<typeof census>, name: string) => people.find((p) => p.name === name);
 
-describe("recenser", () => {
-  it("ne rend rien d'une collection vide", () => {
-    expect(recenser([])).toEqual([]);
+describe("census", () => {
+  it("returns nothing from an empty collection", () => {
+    expect(census([])).toEqual([]);
   });
 
-  it("réunit un même nom écrit à deux orthographes", () => {
-    /* « Decae » tapé à la main et « Decaë » venu de TMDB sont le même
-       chef opérateur : deux entrées en feraient deux inconnus. */
-    const gens = recenser([
+  it("brings together one name written two ways", () => {
+    /* "Decae" typed by hand and "Decaë" come from TMDB are the same
+       cinematographer: two entries would make two strangers of them. */
+    const people = census([
       film("Ascenseur", { crew: { image: ["Henri Decaë"] } }),
       film("Le Samouraï", { crew: { image: ["Henri Decae"] } }),
     ]);
-    expect(gens).toHaveLength(1);
-    expect(gens[0]!.films).toHaveLength(2);
+    expect(people).toHaveLength(1);
+    expect(people[0]!.films).toHaveLength(2);
   });
 
-  it("garde l'orthographe la plus fréquente", () => {
-    const gens = recenser([
+  it("keeps the most frequent spelling", () => {
+    const people = census([
       film("A", { crew: { image: ["Henri Decaë"] } }),
       film("B", { crew: { image: ["Henri Decaë"] } }),
       film("C", { crew: { image: ["henri decae"] } }),
     ]);
-    expect(gens[0]!.nom).toBe("Henri Decaë");
+    expect(people[0]!.name).toBe("Henri Decaë");
   });
 
-  it("porte plusieurs rôles sans se dédoubler", () => {
-    const gens = recenser([
+  it("carries several roles without splitting in two", () => {
+    const people = census([
       film("Le Cercle rouge", {
         director: "Jean-Pierre Melville",
         crew: { scénario: ["Jean-Pierre Melville"] },
       }),
     ]);
-    expect(gens).toHaveLength(1);
-    expect(gens[0]!.rôles).toEqual(["réalisation", "scénario"]);
-    // et le film ne compte qu'une fois, malgré les deux casquettes
-    expect(gens[0]!.films).toHaveLength(1);
+    expect(people).toHaveLength(1);
+    expect(people[0]!.roles).toEqual(["réalisation", "scénario"]);
+    // and the film counts only once, despite the two hats
+    expect(people[0]!.films).toHaveLength(1);
   });
 
-  it("écarte les mots-clés, qui ne sont pas des gens", () => {
-    const gens = recenser([film("Stalker", { themes: ["la pluie"], director: "Tarkovski" })]);
-    expect(gens.map((p) => p.nom)).toEqual(["Tarkovski"]);
+  it("rules out keywords, which are not people", () => {
+    const people = census([film("Stalker", { themes: ["la pluie"], director: "Tarkovski" })]);
+    expect(people.map((p) => p.name)).toEqual(["Tarkovski"]);
   });
 
-  it("compte les vus, les à-voir et les séances", () => {
-    const gens = recenser([
+  it("counts the watched, the to-watch and the screenings", () => {
+    const people = census([
       film("A", {
         director: "Varda",
         status: "watched",
@@ -62,114 +62,114 @@ describe("recenser", () => {
       }),
       film("B", { director: "Varda", status: "watchlist" }),
     ]);
-    const varda = par(gens, "Varda")!;
-    expect(varda.vus).toBe(1);
-    expect(varda.àVoir).toBe(1);
-    expect(varda.séances).toBe(2);
+    const varda = by(people, "Varda")!;
+    expect(varda.watched).toBe(1);
+    expect(varda.toWatch).toBe(1);
+    expect(varda.screenings).toBe(2);
   });
 
-  it("ne laisse pas un film non noté tirer la moyenne vers le bas", () => {
-    /* Un zéro veut dire « pas noté » : le compter ferait passer pour
-       tiède quelqu'un qu'on n'a simplement pas jugé. */
-    const gens = recenser([
+  it("does not let an unrated film drag the average down", () => {
+    /* A zero means "not rated": counting it would make someone we simply
+       have not judged look lukewarm. */
+    const people = census([
       film("A", { director: "Ozu", rating: 5 }),
       film("B", { director: "Ozu", rating: 0 }),
     ]);
-    expect(par(gens, "Ozu")!.note).toBe(5);
+    expect(by(people, "Ozu")!.rating).toBe(5);
   });
 
-  it("laisse la note vide quand rien n'est noté", () => {
-    expect(recenser([film("A", { director: "Ozu" })])[0]!.note).toBeNull();
+  it("leaves the rating empty when nothing is rated", () => {
+    expect(census([film("A", { director: "Ozu" })])[0]!.rating).toBeNull();
   });
 });
 
-describe("l'écart à la note publique", () => {
-  it("se mesure sur la même échelle", () => {
-    // 4/5 vaut 8/10 : deux points au-dessus d'un public à 6
-    const gens = recenser([film("A", { director: "Ozu", rating: 4, tmdbRating: 6 })]);
-    expect(par(gens, "Ozu")!.écart).toBe(2);
+describe("the gap to the public rating", () => {
+  it("is measured on the same scale", () => {
+    // 4/5 is 8/10: two points above a public sitting at 6
+    const people = census([film("A", { director: "Ozu", rating: 4, tmdbRating: 6 })]);
+    expect(by(people, "Ozu")!.gap).toBe(2);
   });
 
-  it("reste vide sans note publique", () => {
-    const gens = recenser([film("A", { director: "Ozu", rating: 4, tmdbRating: null })]);
-    expect(par(gens, "Ozu")!.écart).toBeNull();
+  it("stays empty with no public rating", () => {
+    const people = census([film("A", { director: "Ozu", rating: 4, tmdbRating: null })]);
+    expect(by(people, "Ozu")!.gap).toBeNull();
   });
 
-  it("ignore les fiches où l'une des deux notes manque", () => {
-    const gens = recenser([
+  it("ignores the cards where one of the two ratings is missing", () => {
+    const people = census([
       film("A", { director: "Ozu", rating: 4, tmdbRating: 6 }),
       film("B", { director: "Ozu", rating: 0, tmdbRating: 9 }),
     ]);
-    expect(par(gens, "Ozu")!.écart).toBe(2);
+    expect(by(people, "Ozu")!.gap).toBe(2);
   });
 });
 
-describe("la période et les motifs", () => {
-  it("va du plus ancien au plus récent", () => {
-    const gens = recenser([
+describe("the period and the motifs", () => {
+  it("runs from the oldest to the most recent", () => {
+    const people = census([
       film("A", { director: "Ozu", year: 1953 }),
       film("B", { director: "Ozu", year: 1949 }),
       film("C", { director: "Ozu", year: "" }),
     ]);
-    expect(par(gens, "Ozu")!.période).toEqual([1949, 1953]);
+    expect(by(people, "Ozu")!.period).toEqual([1949, 1953]);
   });
 
-  it("ne retient qu'un motif qui revient", () => {
-    const gens = recenser([
+  it("only keeps a motif that recurs", () => {
+    const people = census([
       film("A", { director: "Ozu", motifs: ["train", "mer"] }),
       film("B", { director: "Ozu", motifs: ["train"] }),
     ]);
-    expect(par(gens, "Ozu")!.motifs).toEqual(["train"]);
+    expect(by(people, "Ozu")!.motifs).toEqual(["train"]);
   });
 });
 
-describe("rôlesSurLeFilm", () => {
-  it("dit à quels titres quelqu'un est là", () => {
+describe("rolesOnFilm", () => {
+  it("says in what capacities somebody is there", () => {
     const f = film("Le Cercle rouge", {
       director: "Jean-Pierre Melville",
       crew: { scénario: ["Jean-Pierre Melville"], image: ["Henri Decaë"] },
     });
-    expect(rôlesSurLeFilm(f, "jean-pierre melville")).toEqual(["réalisation", "scénario"]);
-    expect(rôlesSurLeFilm(f, "henri decae")).toEqual(["image"]);
-    expect(rôlesSurLeFilm(f, "personne")).toEqual([]);
+    expect(rolesOnFilm(f, "jean-pierre melville")).toEqual(["réalisation", "scénario"]);
+    expect(rolesOnFilm(f, "henri decae")).toEqual(["image"]);
+    expect(rolesOnFilm(f, "personne")).toEqual([]);
   });
 });
 
-describe("chercherPersonnes", () => {
-  const gens = recenser([
+describe("searchPeople", () => {
+  const people = census([
     film("A", { director: "Agnès Varda" }),
     film("B", { cast: ["Kenji Kurozu"] }),
     film("C", { director: "Yasujirō Ozu" }),
   ]);
 
-  it("trouve malgré les accents", () => {
-    expect(chercherPersonnes(gens, "agnes").map((p) => p.nom)).toEqual(["Agnès Varda"]);
+  it("finds despite the accents", () => {
+    expect(searchPeople(people, "agnes").map((p) => p.name)).toEqual(["Agnès Varda"]);
   });
 
-  it("trouve par le patronyme, qui n'ouvre pas le nom", () => {
-    expect(chercherPersonnes(gens, "varda").map((p) => p.nom)).toEqual(["Agnès Varda"]);
+  it("finds by the surname, which does not open the name", () => {
+    expect(searchPeople(people, "varda").map((p) => p.name)).toEqual(["Agnès Varda"]);
   });
 
-  it("place devant celui dont un MOT commence par ce qu'on tape", () => {
-    // « ozu » doit rendre Ozu avant Kurozu, qui ne le contient qu'au milieu
-    expect(chercherPersonnes(gens, "ozu").map((p) => p.nom)).toEqual([
+  it("puts first whoever has a WORD starting with what you type", () => {
+    // "ozu" must return Ozu before Kurozu, which only contains it in the middle
+    expect(searchPeople(people, "ozu").map((p) => p.name)).toEqual([
       "Yasujirō Ozu",
       "Kenji Kurozu",
     ]);
   });
 
-  it("rend tout le monde sur une recherche vide", () => {
-    expect(chercherPersonnes(gens, "  ")).toHaveLength(3);
+  it("returns everybody on an empty search", () => {
+    expect(searchPeople(people, "  ")).toHaveLength(3);
   });
 });
 
-describe("dossierDe", () => {
-  it("rend null pour un inconnu", () => {
-    expect(dossierDe([film("A", { director: "Ozu" })], "kurosawa")).toBeNull();
+describe("dossierOf", () => {
+  it("returns null for a stranger", () => {
+    expect(dossierOf([film("A", { director: "Ozu" })], "kurosawa")).toBeNull();
   });
 
-  it("retrouve quelqu'un par sa clé normalisée", () => {
-    expect(dossierDe([film("A", { director: "Agnès Varda" })], "agnes varda")?.nom).toBe(
+  it("finds somebody by their normalized key", () => {
+    expect(dossierOf([film("A", { director: "Agnès Varda" })], "agnes varda")?.name).toBe(
       "Agnès Varda"
     );
   });

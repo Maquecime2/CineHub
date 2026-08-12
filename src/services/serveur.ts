@@ -40,7 +40,7 @@ export const serveurConfigure = (): boolean => ADRESSE !== "";
 /** D'où cette page parle — c'est ce que le serveur doit autoriser. */
 export const origineDIci = (): string => (typeof location === "undefined" ? "?" : location.origin);
 
-export interface Personne {
+export interface Person {
   id: string;
   pseudo: string;
 }
@@ -130,9 +130,9 @@ async function appeler<T>(chemin: string, options: Envoi = {}): Promise<T> {
  * (401) rend `null` ; une absence de réseau JETTE, et l'appelant
  * saura dire « en attente » plutôt que d'effacer quelqu'un.
  */
-export async function quiSuisJe(): Promise<Personne | null> {
+export async function quiSuisJe(): Promise<Person | null> {
   try {
-    const r = await appeler<{ personne: Personne }>("/moi");
+    const r = await appeler<{ personne: Person }>("/moi");
     noterLeCompte(r.personne.id);
     return r.personne;
   } catch (e) {
@@ -203,14 +203,14 @@ export const effacerMonCompte = () =>
 /* LES CLÉS D'ACCÈS. La bibliothèque du navigateur n'est chargée QUE si
    l'on s'inscrit ou se connecte : c'est une centaine de kilo-octets que
    personne n'a à télécharger pour consulter sa vidéothèque. */
-export async function sInscrire(pseudo: string): Promise<Personne> {
+export async function sInscrire(pseudo: string): Promise<Person> {
   const { startRegistration } = await import("@simplewebauthn/browser");
   const { defi, options } = await appeler<{ defi: string; options: object }>(
     "/auth/inscription/options",
     { method: "POST", body: JSON.stringify({ pseudo }) }
   );
   const reponse = await startRegistration({ optionsJSON: options as never });
-  const r = await appeler<{ personne: Personne }>("/auth/inscription/verification", {
+  const r = await appeler<{ personne: Person }>("/auth/inscription/verification", {
     method: "POST",
     body: JSON.stringify({ defi, reponse }),
   });
@@ -218,14 +218,14 @@ export async function sInscrire(pseudo: string): Promise<Personne> {
   return r.personne;
 }
 
-export async function seConnecter(pseudo: string): Promise<Personne> {
+export async function seConnecter(pseudo: string): Promise<Person> {
   const { startAuthentication } = await import("@simplewebauthn/browser");
   const { defi, options } = await appeler<{ defi: string; options: object }>(
     "/auth/connexion/options",
     { method: "POST", body: JSON.stringify({ pseudo }) }
   );
   const reponse = await startAuthentication({ optionsJSON: options as never });
-  const r = await appeler<{ personne: Personne }>("/auth/connexion/verification", {
+  const r = await appeler<{ personne: Person }>("/auth/connexion/verification", {
     method: "POST",
     body: JSON.stringify({ defi, reponse }),
   });

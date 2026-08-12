@@ -16,7 +16,7 @@ import { createPortal } from "react-dom";
 import { Search, Film as FilmIcon, User, Tag, Spline, NotebookPen } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
-import { chercherPartout, parGenres, type Genre, type Trouvaille } from "../../domain/partout";
+import { searchEverywhere, groupByKind, type Kind, type Hit } from "../../domain/everywhere";
 import type { Thread } from "../../domain/threads";
 import type { Film, Note } from "../../types";
 import { useViewport } from "../../hooks/useViewport";
@@ -24,33 +24,33 @@ import { useViewport } from "../../hooks/useViewport";
 /* Ce que chaque nature s'appelle une fois trouvée, et de quoi elle a
    l'air. L'icône n'est pas décorative : c'est ce qui permet de lire
    d'un coup d'œil qu'on regarde cinq natures et non une liste plate. */
-const NATURES: Record<Genre, { titre: string; icon: typeof Search; teinte: string }> = {
-  film: { titre: "Films", icon: FilmIcon, teinte: C.burgundy },
-  personne: { titre: "Au générique", icon: User, teinte: C.plum },
-  motif: { titre: "Motifs", icon: Tag, teinte: C.cobalt },
-  fil: { titre: "Fils", icon: Spline, teinte: C.vermillion },
-  page: { titre: "Carnet", icon: NotebookPen, teinte: C.pine },
+const NATURES: Record<Kind, { title: string; icon: typeof Search; tint: string }> = {
+  film: { title: "Films", icon: FilmIcon, tint: C.burgundy },
+  person: { title: "Au générique", icon: User, tint: C.plum },
+  motif: { title: "Motifs", icon: Tag, tint: C.cobalt },
+  thread: { title: "Fils", icon: Spline, tint: C.vermillion },
+  page: { title: "Carnet", icon: NotebookPen, tint: C.pine },
 };
 
 export interface OuvrirTrouvaille {
   film: (id: string) => void;
-  personne: (clé: string) => void;
+  person: (key: string) => void;
   page: () => void;
   /** Le mur, sa recherche posée sur le libellé du motif. */
   motif: (label: string) => void;
-  fil: () => void;
+  thread: () => void;
 }
 
 export function SearchDrawer({
   films,
   notes,
-  fils,
+  threads,
   onClose,
   ouvrir,
 }: {
   films: Film[];
   notes: Note[];
-  fils: Thread[];
+  threads: Thread[];
   onClose: () => void;
   ouvrir: OuvrirTrouvaille;
 }) {
@@ -60,10 +60,10 @@ export function SearchDrawer({
   const champ = useRef<HTMLInputElement>(null);
 
   const trouvailles = useMemo(
-    () => chercherPartout(q, { films, notes, fils }),
-    [q, films, notes, fils]
+    () => searchEverywhere(q, { films, notes, threads }),
+    [q, films, notes, threads]
   );
-  const groupes = useMemo(() => parGenres(trouvailles), [trouvailles]);
+  const groupes = useMemo(() => groupByKind(trouvailles), [trouvailles]);
   /* La liste APLATIE, dans l'ordre où elle est dessinée : c'est elle que
      les flèches parcourent. Reconstruire l'ordre à la volée dans le
      gestionnaire de touches le ferait diverger de l'affichage au premier
@@ -79,12 +79,12 @@ export function SearchDrawer({
     champ.current?.focus();
   }, []);
 
-  const ouvrirCelui = (t: Trouvaille) => {
-    if (t.genre === "film" && t.filmId) ouvrir.film(t.filmId);
-    else if (t.genre === "personne" && t.personne) ouvrir.personne(t.personne);
-    else if (t.genre === "page") ouvrir.page();
-    else if (t.genre === "motif") ouvrir.motif(t.titre);
-    else if (t.genre === "fil") ouvrir.fil();
+  const ouvrirCelui = (t: Hit) => {
+    if (t.kind === "film" && t.filmId) ouvrir.film(t.filmId);
+    else if (t.kind === "person" && t.person) ouvrir.person(t.person);
+    else if (t.kind === "page") ouvrir.page();
+    else if (t.kind === "motif") ouvrir.motif(t.title);
+    else if (t.kind === "thread") ouvrir.thread();
     onClose();
   };
 
@@ -180,10 +180,10 @@ export function SearchDrawer({
             <Mot>Rien de ce nom dans le classeur.</Mot>
           ) : (
             groupes.map((g) => {
-              const nature = NATURES[g.genre];
+              const nature = NATURES[g.kind];
               const Icon = nature.icon;
               return (
-                <div key={g.genre} style={{ marginBottom: 6 }}>
+                <div key={g.kind} style={{ marginBottom: 6 }}>
                   <div
                     style={{
                       display: "flex",
@@ -193,17 +193,17 @@ export function SearchDrawer({
                       fontFamily: F.mono,
                       fontSize: 9,
                       letterSpacing: 1,
-                      color: nature.teinte,
+                      color: nature.tint,
                     }}
                   >
-                    <Icon size={11} /> {nature.titre.toUpperCase()}
+                    <Icon size={11} /> {nature.title.toUpperCase()}
                   </div>
                   {g.items.map((t) => {
                     const rang = plate.indexOf(t);
                     const visé = rang === curseur;
                     return (
                       <button
-                        key={t.clé}
+                        key={t.key}
                         onClick={() => ouvrirCelui(t)}
                         onMouseEnter={() => setCurseur(rang)}
                         aria-current={visé ? "true" : undefined}
@@ -215,8 +215,8 @@ export function SearchDrawer({
                           width: "100%",
                           boxSizing: "border-box",
                           padding: "5px 18px",
-                          background: visé ? alpha(nature.teinte, 0.12) : "transparent",
-                          borderLeft: `3px solid ${visé ? nature.teinte : "transparent"}`,
+                          background: visé ? alpha(nature.tint, 0.12) : "transparent",
+                          borderLeft: `3px solid ${visé ? nature.tint : "transparent"}`,
                         }}
                       >
                         <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
@@ -228,17 +228,17 @@ export function SearchDrawer({
                               color: C.ink,
                             }}
                           >
-                            {t.titre}
+                            {t.title}
                           </span>
                           <span style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}>
-                            {t.sous}
+                            {t.subtitle}
                           </span>
                         </div>
                         {/* CE QU'ON AVAIT ÉCRIT. Sans l'extrait, une
                             recherche sur ses propres mots ne rend qu'une
                             liste de titres — et l'on doit rouvrir chaque
                             fiche pour savoir laquelle parlait de quoi. */}
-                        {t.extrait && (
+                        {t.excerpt && (
                           <div
                             style={{
                               fontFamily: F.hand,
@@ -250,7 +250,7 @@ export function SearchDrawer({
                               whiteSpace: "nowrap",
                             }}
                           >
-                            {t.extrait}
+                            {t.excerpt}
                           </div>
                         )}
                       </button>

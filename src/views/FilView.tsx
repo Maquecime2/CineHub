@@ -89,7 +89,7 @@ export function FilView({ connecte }: { connecte: boolean }) {
       /* Le serveur répond la même chose pour « n'existe pas » et « ne se
          montre pas » : on reprend ce silence, sans inventer laquelle
          des deux. */
-      setSouci(`Personne ne partage sa collection sous « ${nom} ».`);
+      setSouci(`Person ne partage sa collection sous « ${nom} ».`);
     }
   };
 

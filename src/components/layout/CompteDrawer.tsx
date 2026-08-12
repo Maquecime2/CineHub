@@ -43,7 +43,7 @@ import {
   mesBlocages,
   debloquer,
   type Partage,
-  type Personne,
+  type Person,
 } from "../../services/serveur";
 import {
   etatDesPoussees,
@@ -75,14 +75,14 @@ export function CompteDrawer({
   onFermer: () => void;
   onSynchroniser: () => void;
   /** Le compte a changé : l'application doit se resituer. */
-  onChangement: (personne: Personne | null) => void;
+  onChangement: (personne: Person | null) => void;
 }) {
   const [pseudo, setPseudo] = useState("");
   const [occupé, setOccupé] = useState(false);
   const [souci, setSouci] = useState<string | null>(null);
   const [demande, setDemande] = useState<DemandeConfirmation | null>(null);
 
-  const tenter = async (quoi: (p: string) => Promise<Personne>) => {
+  const tenter = async (quoi: (p: string) => Promise<Person>) => {
     setSouci(null);
     setOccupé(true);
     try {
@@ -670,7 +670,7 @@ function Partager() {
 
       <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 8 }}>
         {état === null && "Par défaut, personne ne voit votre collection."}
-        {état === "privee" && "Personne. Les liens déjà donnés ne valent plus rien."}
+        {état === "privee" && "Person. Les liens déjà donnés ne valent plus rien."}
         {état === "lien" && "Qui a le lien. Il ne se devine pas, et se coupe quand vous voulez."}
         {état === "publique" && "Qui connaît votre pseudonyme."}
       </div>

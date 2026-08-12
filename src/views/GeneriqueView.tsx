@@ -17,13 +17,7 @@ import { underlineInput, tap } from "../theme/styles";
 import { StampCorner, PushPin } from "../components/atmosphere";
 import { Carton, TitreSection, Consigne, Label, InkStars } from "../components/ui";
 import { PosterArt } from "../components/film/PosterArt";
-import {
-  recenser,
-  chercherPersonnes,
-  rôlesSurLeFilm,
-  RÔLES,
-  type Personne,
-} from "../domain/people";
+import { census, searchPeople, rolesOnFilm, PERSON_ROLES, type Person } from "../domain/people";
 import { initialsOf, makeFilm } from "../domain/film";
 import { filmKey } from "../domain/importing";
 import { motifById } from "../domain/motifs";
@@ -58,8 +52,8 @@ interface GeneriqueViewProps {
    ceux dont l'interprétation est le seul titre. */
 const SEUIL = 2;
 
-const estHabitué = (p: Personne): boolean =>
-  p.films.length >= SEUIL || p.rôles.some((r) => r !== "interprétation");
+const estHabitué = (p: Person): boolean =>
+  p.films.length >= SEUIL || p.roles.some((r) => r !== "interprétation");
 
 const ROLE_COURT: Record<KinshipRole, string> = {
   réalisation: "réalisation",
@@ -79,8 +73,8 @@ export function GeneriqueView({
 }: GeneriqueViewProps) {
   /* Le recensement balaie toute la collection : on ne le refait qu'à
      l'écriture d'une fiche, pas à chaque frappe dans la recherche. */
-  const gens = useMemo(() => recenser(films), [films]);
-  const ouvert = personne ? gens.find((p) => p.clé === personne) : null;
+  const gens = useMemo(() => census(films), [films]);
+  const ouvert = personne ? gens.find((p) => p.key === personne) : null;
 
   if (ouvert)
     return (
@@ -105,7 +99,7 @@ function Répertoire({
   onOuvrir,
   inconnue,
 }: {
-  gens: Personne[];
+  gens: Person[];
   onOuvrir: (clé: string) => void;
   inconnue: boolean;
 }) {
@@ -115,11 +109,11 @@ function Répertoire({
 
   const liste = useMemo(() => {
     let out = gens;
-    if (rôles.length) out = out.filter((p) => rôles.some((r) => p.rôles.includes(r)));
+    if (rôles.length) out = out.filter((p) => rôles.some((r) => p.roles.includes(r)));
     /* Le seuil ne s'applique PAS à une recherche : on tape un nom parce
        qu'on cherche quelqu'un en particulier, et ne pas le trouver parce
        qu'il n'a qu'un film serait le contraire de chercher. */
-    if (q.trim()) return chercherPersonnes(out, q);
+    if (q.trim()) return searchPeople(out, q);
     return tous ? out : out.filter(estHabitué);
   }, [gens, q, rôles, tous]);
 
@@ -167,7 +161,7 @@ function Répertoire({
         data-tour="generique-roles"
         style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 20 }}
       >
-        {RÔLES.map((r) => {
+        {PERSON_ROLES.map((r) => {
           const on = rôles.includes(r);
           return (
             <button
@@ -187,17 +181,17 @@ function Répertoire({
       </div>
 
       {liste.length === 0 ? (
-        /* « Personne de ce nom » sous un tamis serait un mensonge : on
+        /* « Person de ce nom » sous un tamis serait un mensonge : on
            n'a nommé personne. Chaque façon de vider la liste a sa
            phrase, et celle du seuil dit où sont passés les autres. */
         <div style={{ fontFamily: F.hand, fontSize: 19, color: C.inkFaded }}>
           {gens.length === 0
             ? "Aucun nom pour l'instant. Complétez vos fiches par TMDB, depuis l'onglet Import, et le générique se remplira tout seul."
             : q.trim()
-              ? "Personne de ce nom."
+              ? "Person de ce nom."
               : cachés > 0
-                ? "Personne à ce titre parmi les habitués — ouvrez « de passage » pour voir le reste."
-                : "Personne à ce titre."}
+                ? "Person à ce titre parmi les habitués — ouvrez « de passage » pour voir le reste."
+                : "Person à ce titre."}
         </div>
       ) : (
         <div
@@ -209,7 +203,7 @@ function Répertoire({
           }}
         >
           {liste.map((p) => (
-            <Fiche key={p.clé} p={p} onClick={() => onOuvrir(p.clé)} />
+            <Fiche key={p.key} p={p} onClick={() => onOuvrir(p.key)} />
           ))}
         </div>
       )}
@@ -233,13 +227,13 @@ const étiquette = (on: boolean, teinte: string = C.burgundy) => ({
 });
 
 /** La carte d'un nom dans le répertoire — une fiche bristol, punaisée. */
-function Fiche({ p, onClick }: { p: Personne; onClick: () => void }) {
+function Fiche({ p, onClick }: { p: Person; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
       /* Le nom est écrit dans la carte, mais en trois morceaux : sans
          cet intitulé, la carte s'annonce « bouton » et rien de plus. */
-      aria-label={`${p.nom} — ${p.films.length} film${p.films.length > 1 ? "s" : ""}`}
+      aria-label={`${p.name} — ${p.films.length} film${p.films.length > 1 ? "s" : ""}`}
       style={{
         all: "unset",
         ...tap,
@@ -251,7 +245,7 @@ function Fiche({ p, onClick }: { p: Personne; onClick: () => void }) {
         borderRadius: 2,
         padding: "16px 14px 12px",
         // le désordre est semé, jamais tiré au sort : un mur qui gigote n'est pas un mur
-        transform: `rotate(${tiltOf(p.clé)}deg)`,
+        transform: `rotate(${tiltOf(p.key)}deg)`,
         boxShadow: "1px 2px 6px rgba(0,0,0,0.12)",
         transition: "transform var(--motion-fast) var(--motion-ease)",
       }}
@@ -259,12 +253,12 @@ function Fiche({ p, onClick }: { p: Personne; onClick: () => void }) {
         e.currentTarget.style.transform = "rotate(0deg) translateY(-2px)";
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.transform = `rotate(${tiltOf(p.clé)}deg)`;
+        e.currentTarget.style.transform = `rotate(${tiltOf(p.key)}deg)`;
       }}
     >
       <PushPin color={C.plum} style={{ position: "absolute", top: -7, left: 12 }} />
       <div style={{ fontFamily: F.title, fontWeight: 700, fontSize: 17, color: C.ink }}>
-        {p.nom}
+        {p.name}
       </div>
       <div
         style={{
@@ -275,7 +269,7 @@ function Fiche({ p, onClick }: { p: Personne; onClick: () => void }) {
           margin: "4px 0 8px",
         }}
       >
-        {p.rôles
+        {p.roles
           .map((r) => ROLE_COURT[r])
           .join(" · ")
           .toUpperCase()}
@@ -293,10 +287,10 @@ function Fiche({ p, onClick }: { p: Personne; onClick: () => void }) {
         <span>
           {p.films.length} film{p.films.length > 1 ? "s" : ""}
         </span>
-        {p.note != null && (
+        {p.rating != null && (
           <>
             <span>·</span>
-            <InkStars value={p.note} size={11} />
+            <InkStars value={p.rating} size={11} />
           </>
         )}
       </div>
@@ -315,7 +309,7 @@ function Dossier({
   onOpen,
   onAddToWatchlist,
 }: {
-  p: Personne;
+  p: Person;
   films: Film[];
   onRetour: () => void;
   onOpen: (id: string) => void;
@@ -343,34 +337,34 @@ function Dossier({
             color: C.ink,
           }}
         >
-          {p.nom}
+          {p.name}
         </div>
-        {p.période && (
+        {p.period && (
           <div style={{ fontFamily: F.mono, fontSize: 11, color: C.inkFaded, letterSpacing: 1 }}>
-            {p.période[0] === p.période[1] ? p.période[0] : `${p.période[0]} – ${p.période[1]}`}
+            {p.period[0] === p.period[1] ? p.period[0] : `${p.period[0]} – ${p.period[1]}`}
           </div>
         )}
       </div>
       <Consigne>
-        {p.rôles.map((r) => ROLE_COURT[r]).join(", ")} — {p.films.length} film
+        {p.roles.map((r) => ROLE_COURT[r]).join(", ")} — {p.films.length} film
         {p.films.length > 1 ? "s" : ""} chez vous
-        {p.àVoir > 0 ? `, dont ${p.àVoir} en attente` : ""}.
+        {p.toWatch > 0 ? `, dont ${p.toWatch} en attente` : ""}.
       </Consigne>
 
       <Carton tour="generique-dossier" style={{ marginTop: 8 }}>
         <div style={{ display: "flex", gap: 34, flexWrap: "wrap" }}>
           <Chiffre nom="VOTRE NOTE">
-            {p.note != null ? (
+            {p.rating != null ? (
               <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                {p.note.toFixed(1)}
-                <InkStars value={p.note} size={13} />
+                {p.rating.toFixed(1)}
+                <InkStars value={p.rating} size={13} />
               </span>
             ) : (
               "—"
             )}
           </Chiffre>
-          <Chiffre nom="ÉCART AU PUBLIC">{écartLisible(p.écart)}</Chiffre>
-          <Chiffre nom="SÉANCES">{p.séances || "—"}</Chiffre>
+          <Chiffre nom="ÉCART AU PUBLIC">{écartLisible(p.gap)}</Chiffre>
+          <Chiffre nom="SÉANCES">{p.screenings || "—"}</Chiffre>
         </div>
       </Carton>
 
@@ -396,8 +390,8 @@ function Dossier({
         );
       })()}
 
-      <Rayon titre="Vus" films={vus} clé={p.clé} onOpen={onOpen} />
-      <Rayon titre="En attente" films={àVoir} clé={p.clé} onOpen={onOpen} />
+      <Rayon titre="Vus" films={vus} clé={p.key} onOpen={onOpen} />
+      <Rayon titre="En attente" films={àVoir} clé={p.key} onOpen={onOpen} />
 
       <CeQuiManque p={p} films={films} onAddToWatchlist={onAddToWatchlist} />
     </div>
@@ -461,7 +455,7 @@ function Rayon({
       </TitreSection>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginTop: 12 }}>
         {films.map((f) => {
-          const rôles = rôlesSurLeFilm(f, clé);
+          const rôles = rolesOnFilm(f, clé);
           return (
             <button key={f.id} onClick={() => onOpen(f.id)} style={vignette}>
               <PosterArt film={f} height={150} initials={initialsOf(f.title)} />
@@ -560,7 +554,7 @@ function CeQuiManque({
   films,
   onAddToWatchlist,
 }: {
-  p: Personne;
+  p: Person;
   films: Film[];
   onAddToWatchlist: (f: Film) => void;
 }) {
@@ -579,7 +573,7 @@ function CeQuiManque({
     setÉtat("en-cours");
     setMsg("");
     try {
-      const hit = await searchPerson(p.nom, apiKey);
+      const hit = await searchPerson(p.name, apiKey);
       if (!hit) {
         setÉtat("fait");
         setMsg("TMDB ne connaît personne de ce nom.");
@@ -588,7 +582,7 @@ function CeQuiManque({
       /* On demande au titre le mieux fourni : c'est celui pour lequel
          « ce qui manque » veut dire quelque chose. Un acteur vu deux
          fois comme réalisateur ne se juge pas sur ses trente rôles. */
-      const rôle = p.rôles[0]!;
+      const rôle = p.roles[0]!;
       const tout = await personFilmography(hit.id, apiKey, { role: rôle });
 
       /* Ce qu'on a déjà, par identifiant TMDB d'abord — le plus sûr — puis
@@ -626,7 +620,7 @@ function CeQuiManque({
         title: c.title,
         year: c.year || "",
         poster: c.poster,
-        director: p.rôles[0] === "réalisation" ? p.nom : "",
+        director: p.roles[0] === "réalisation" ? p.name : "",
         status: "watchlist",
         tmdbId: c.tmdbId,
         source: "tmdb",

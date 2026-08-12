@@ -175,7 +175,7 @@ const castFetch = () =>
                 { job: "Director of Photography", name: "Decaë" },
                 { job: "Original Music Composer", name: "Rubinstein" },
                 { job: "Screenplay", name: "Melville" },
-                { job: "Third Assistant Editor", name: "Personne" },
+                { job: "Third Assistant Editor", name: "Person" },
               ],
               cast: Array.from({ length: 20 }, (_, i) => ({ name: `Acteur ${i}` })),
             },

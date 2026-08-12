@@ -462,7 +462,7 @@ export default function App() {
       setSelectedId(id);
       setView("detail");
     },
-    personne: (clé) => {
+    person: (clé) => {
       setPersonne(clé);
       setView("generique");
     },
@@ -472,7 +472,7 @@ export default function App() {
       setUiFor("watched")({ ...wallUi.watched, q: label });
       setView("library");
     },
-    fil: () => setView("constellation"),
+    thread: () => setView("constellation"),
   };
   const updateFilm = (film) => saveFilms(films.map((f) => (f.id === film.id ? film : f)));
   /* Ranger un boîtier renumérote tout un rayon : une écriture, pas trente. */
@@ -773,7 +773,7 @@ export default function App() {
         <SearchDrawer
           films={films}
           notes={notebook.notes}
-          fils={fils}
+          threads={fils}
           onClose={() => setRecherche(false)}
           ouvrir={ouvrirTrouvaille}
         />

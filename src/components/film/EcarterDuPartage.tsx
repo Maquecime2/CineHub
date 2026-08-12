@@ -55,7 +55,7 @@ export function EcarterDuPartage({ film, connecte }: { film: Film; connecte: boo
     };
   }, [connecte, film.id]);
 
-  /* « Personne » ne se discute pas fiche par fiche : quand rien n'est
+  /* « Person » ne se discute pas fiche par fiche : quand rien n'est
      montré, tout est déjà écarté, et proposer de l'écarter davantage
      serait une case sans effet. */
   if (cachée == null || partage == null || partage === "privee") return null;
@@ -95,7 +95,7 @@ export function EcarterDuPartage({ film, connecte }: { film: Film; connecte: boo
       </button>
       <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 5 }}>
         {cachée
-          ? "Personne ne la voit chez vous. Elle reste au mur, dans l'almanach et dans la constellation — c'est le dehors qui l'ignore."
+          ? "Person ne la voit chez vous. Elle reste au mur, dans l'almanach et dans la constellation — c'est le dehors qui l'ignore."
           : "Elle paraît dans votre collection partagée, avec sa note et votre critique. Vos notes libres et votre journal de séances ne sortent jamais."}
       </div>
     </div>

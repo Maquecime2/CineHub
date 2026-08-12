@@ -45,7 +45,7 @@ export const C = {
   plum: "var(--c-plum)",
 } as const;
 
-/* LES QUATRE RÔLES DE LA TYPOGRAPHIE.
+/* LES QUATRE PERSON_ROLES DE LA TYPOGRAPHIE.
 
    Il n'y avait pas de rôles : quatre familles nommées en toutes lettres,
    recopiées deux cent vingt-neuf fois. Une peau qui change de police

@@ -233,7 +233,7 @@ export const CREW_ROLES: Record<string, KinshipRole> = {
    premier métier qu'on ajouterait à `Film.crew`. Le rôle `thème` en sort
    aussi — il n'est pas une personne, et c'est à l'appelant de l'écarter
    s'il ne recense que des gens. */
-export const parentésDe = (f: Film): Kinship[] => {
+export const kinshipsOf = (f: Film): Kinship[] => {
   const out: Kinship[] = [];
   for (const nom of (f.director || "").split(","))
     if (nom.trim()) out.push({ role: "réalisation", nom: nom.trim() });
@@ -257,7 +257,7 @@ export function suggestLinks(films: Film[], { min = 2, max = 3 }: SuggestOptions
   const lisible = new Map<string, Kinship>();
 
   for (const f of films) {
-    for (const k of parentésDe(f)) {
+    for (const k of kinshipsOf(f)) {
       const clé = cléDe(k);
       if (clé.endsWith("::")) continue;
       let lot = parParenté.get(clé);

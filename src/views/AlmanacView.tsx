@@ -85,7 +85,7 @@ const enClair = (iso: string | null, avecAnnée = false): string => {
   return avecAnnée ? `${jour} ${a}` : jour;
 };
 
-/** 5 430 minutes → « 90 h 30 ». Personne ne lit un bilan en minutes. */
+/** 5 430 minutes → « 90 h 30 ». Person ne lit un bilan en minutes. */
 const enHeures = (minutes: number): string => {
   const h = Math.floor(minutes / 60);
   const m = Math.round(minutes % 60);

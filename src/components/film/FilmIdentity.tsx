@@ -141,7 +141,7 @@ export function FilmIdentity({
           <span>
             {film.year || "s.d."} —{" "}
             {/* La réalisation peut être à plusieurs mains : on découpe
-                sur la virgule comme le fait `parentésDe`, sans quoi
+                sur la virgule comme le fait `kinshipsOf`, sans quoi
                 « Coen, Coen » ouvrirait un dossier fantôme à deux noms. */}
             {film.director
               ? film.director.split(",").map((nom, i) => {

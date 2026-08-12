@@ -66,7 +66,7 @@ export const MOTIFS: Motif[] = [
   },
   {
     id: "tout-le-monde-meurt",
-    label: "Personne n'en réchappe",
+    label: "Person n'en réchappe",
     famille: "destin",
     spoiler: true,
     tmdb: ["mass death", "massacre"],

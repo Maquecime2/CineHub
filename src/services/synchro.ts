@@ -53,7 +53,7 @@ import {
   pousserDocs,
   tirerDepuis,
   tirerDocsDepuis,
-  type Personne,
+  type Person,
 } from "./serveur";
 import type { Film } from "../types";
 
@@ -82,7 +82,7 @@ export type État =
 
 export interface Bilan {
   état: État;
-  personne: Personne | null;
+  personne: Person | null;
   /** Quand la dernière synchronisation complète a réussi. */
   le: number | null;
   /** Ce qui reste à envoyer, s'il en reste. */
@@ -119,7 +119,7 @@ export async function synchroniser(poser: (films: Film[]) => void): Promise<Bila
      n'est pas « personne ». Le compte reste, ce qui attend reste, et
      l'écran dit « en attente » au lieu de proposer de s'inscrire à
      quelqu'un qui est déjà inscrit. */
-  let personne: Personne | null;
+  let personne: Person | null;
   try {
     personne = await quiSuisJe();
   } catch {

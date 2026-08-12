@@ -120,7 +120,7 @@ const library: Tour = {
     /* LE GESTE QUI NE SE DEVINE PAS, et qui n'existait pas avant que
        l'application se tienne dans une main. Au doigt, un balayage fait
        défiler : la saisie doit donc s'annoncer autrement, et c'est
-       l'appui maintenu qui s'en charge. Personne ne le trouve tout seul.
+       l'appui maintenu qui s'en charge. Person ne le trouve tout seul.
 
        `optional` comme les autres étapes qui visent du contenu : un
        classeur vide n'a pas d'affiche à montrer, et doit pouvoir jouer
@@ -546,7 +546,7 @@ const global: Tour = {
       target: at("listes-defis"),
       exigeUnServeur: true,
       title: "Se lancer quelque chose",
-      body: "Une liste plus une période fait un défi. Personne ne coche « vu » : l'avancement se calcule depuis votre journal de séances, et le serveur n'en tire qu'un nombre — vos dates ne sortent pas d'ici.",
+      body: "Une liste plus une période fait un défi. Person ne coche « vu » : l'avancement se calcule depuis votre journal de séances, et le serveur n'en tire qu'un nombre — vos dates ne sortent pas d'ici.",
       placement: "top",
       view: "listes",
       optional: true,
@@ -622,7 +622,7 @@ const listes: Tour = {
     {
       target: at("listes-defis"),
       title: "Un defi est une liste plus une periode",
-      body: "Personne ne coche « vu » : l'avancement se calcule depuis votre journal de seances, et seules les seances datees dans la periode comptent. Le serveur en tire un nombre, jamais vos dates — et seulement pour ceux qui ont demande a participer.",
+      body: "Person ne coche « vu » : l'avancement se calcule depuis votre journal de seances, et seules les seances datees dans la periode comptent. Le serveur en tire un nombre, jamais vos dates — et seulement pour ceux qui ont demande a participer.",
       placement: "top",
       optional: true,
     },

@@ -194,7 +194,7 @@ function UneListe({
     } catch {
       /* Le serveur répond la même chose pour « n'existe pas » et « vous
          vous êtes bloqués » : on reprend ce silence. */
-      setSouci(`Personne à inviter sous « ${nom} ».`);
+      setSouci(`Person à inviter sous « ${nom} ».`);
     }
   };
 
@@ -424,7 +424,7 @@ function UnDefi({ defi, onChange }: { defi: Defi; onChange: () => Promise<void> 
           serveur compte, il ne recopie pas — et ne compte que des gens
           qui ont demandé à participer. */}
       <div style={{ marginTop: 8 }}>
-        {avancement?.length === 0 && <Consigne>Personne n'y participe encore.</Consigne>}
+        {avancement?.length === 0 && <Consigne>Person n'y participe encore.</Consigne>}
         {(avancement ?? []).map((a) => (
           <div
             key={a.pseudo}
