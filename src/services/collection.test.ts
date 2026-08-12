@@ -44,7 +44,7 @@ afterEach(() => {
 });
 
 describe("the move into the vault", () => {
-  it("descend dans le coffre ce qu'il trouve en haut, et libère la place", async () => {
+  it("moves down into the vault what it finds above, and frees the room", async () => {
     const before = [card({ id: "a", title: "Stalker" })];
     localStorage.setItem(FILMS_KEY, JSON.stringify(before));
 
@@ -57,7 +57,7 @@ describe("the move into the vault", () => {
     expect(localStorage.getItem(FILMS_KEY)).toBeNull();
   });
 
-  it("lit le coffre en premier : la copie du haut est un fantôme", async () => {
+  it("reads the vault first: the copy above is a ghost", async () => {
     coffre.set(FILMS_KEY, [card({ id: "a", title: "Le Trou" })]);
     localStorage.setItem(FILMS_KEY, JSON.stringify([card({ id: "z", title: "effacé hier" })]));
 
@@ -65,14 +65,14 @@ describe("the move into the vault", () => {
     expect(loaded.map((f) => f.title)).toEqual(["Le Trou"]);
   });
 
-  it("un classeur vide ne déclenche pas d'écriture", async () => {
+  it("an empty binder sets off no write", async () => {
     expect(await loadFilms()).toEqual([]);
     expect(coffre.has(FILMS_KEY)).toBe(false);
   });
 });
 
 describe("the modification date", () => {
-  it("ne bouge que sur la fiche qui a changé", async () => {
+  it("moves only on the card that has changed", async () => {
     const a = card({ id: "a", updatedAt: 1000 });
     const b = card({ id: "b", updatedAt: 1000 });
     forgetCache([a, b]);
@@ -85,7 +85,7 @@ describe("the modification date", () => {
     expect(dated[1]).toBe(b);
   });
 
-  it("une recopie sans changement de valeur ne date rien", async () => {
+  it("a rewrite with no change of value dates nothing", async () => {
     const a = card({ id: "a", updatedAt: 1000 });
     forgetCache([a]);
     /* What the whole application does: `films.map(f => ({...f}))`. */
@@ -93,13 +93,13 @@ describe("the modification date", () => {
     expect(dated[0]!.updatedAt).toBe(1000);
   });
 
-  it("une fiche neuve porte sa date dès la première écriture", async () => {
+  it("a fresh card carries its date from the first write", async () => {
     forgetCache([]);
     const dated = await saveFilms([card({ id: "neuf", updatedAt: 0 })]);
     expect(dated[0]!.updatedAt).toBeGreaterThan(0);
   });
 
-  it("les fiches d'avant gardent leur date d'ajout, et ne se disent pas fraîches", async () => {
+  it("cards from before keep their added date, and do not call themselves fresh", async () => {
     /* Otherwise, at the first synchronisation, the WHOLE collection
        would claim to have been modified just now and would crush
        whatever comes from the other side. */
@@ -113,7 +113,7 @@ describe("the modification date", () => {
 });
 
 describe("when the vault refuses", () => {
-  it("la collection reste écrite, en haut, plutôt que perdue", async () => {
+  it("the collection stays written, above, rather than lost", async () => {
     refuse = true;
     forgetCache([]);
     await saveFilms([card({ id: "a", title: "Yi Yi" })]);
@@ -122,7 +122,7 @@ describe("when the vault refuses", () => {
     expect(written[0].title).toBe("Yi Yi");
   });
 
-  it("et se recharge de là où elle a été écrite", async () => {
+  it("and loads again from where it was written", async () => {
     refuse = true;
     forgetCache([]);
     await saveFilms([card({ id: "a", title: "Cléo" })]);

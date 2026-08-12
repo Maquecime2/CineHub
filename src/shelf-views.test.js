@@ -450,7 +450,7 @@ describe("overflow", () => {
     expect(reflowShelf(view, "main")).toBe(view);
   });
 
-  it("an \"auto\" row does not overflow — it follows the width", () => {
+  it('an "auto" row does not overflow — it follows the width', () => {
     const view = makeView();
     view.shelves.main.rows = [
       makeRow({ perRow: null, items: ["a", "b", "c"].map(filmItem) }),

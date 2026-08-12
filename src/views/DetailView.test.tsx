@@ -45,7 +45,7 @@ const WORDS = { tab: "mots" as const };
 const LINKS = { tab: "liens" as const };
 
 describe("the film card, after the move to three dividers", () => {
-  it("keeps under \"Mes mots\" what the annotation rail carried", () => {
+  it('keeps under "Mes mots" what the annotation rail carried', () => {
     build({}, WORDS);
     expect(screen.getByText("Mots-clés")).toBeInTheDocument();
     expect(screen.getByText("Motifs")).toBeInTheDocument();
@@ -68,14 +68,14 @@ describe("the film card, after the move to three dividers", () => {
     expect(screen.queryByText("Fiche catalogue")).not.toBeInTheDocument();
   });
 
-  it("keeps under \"Le film\" what describes the work", () => {
+  it('keeps under "Le film" what describes the work', () => {
     build();
     // the title is capitalised by the stylesheet, not in the text
     expect(screen.getByText("Fiche catalogue")).toBeInTheDocument();
     expect(document.querySelector('[data-tour="detail-identite"]')).not.toBeNull();
   });
 
-  it("keeps the red thread under \"Les liens\"", () => {
+  it('keeps the red thread under "Les liens"', () => {
     build({}, LINKS);
     expect(screen.getByText("Le fil rouge")).toBeInTheDocument();
   });
@@ -108,7 +108,7 @@ describe("the film card, after the move to three dividers", () => {
    with no controlled property, the card keeps one of its own. It is that
    fallback which is tested here. */
 describe("the dividers are turned by hand", () => {
-  it("opens \"Les liens\" on a click, with nobody telling it from above", async () => {
+  it('opens "Les liens" on a click, with nobody telling it from above', async () => {
     const user = userEvent.setup();
     build();
     expect(screen.queryByText("Le fil rouge")).not.toBeInTheDocument();

@@ -33,7 +33,7 @@ describe("workKey", () => {
 });
 
 describe("buildSky", () => {
-  it("laisse hors du ciel les films sans aucun fil rouge", () => {
+  it("leaves out of the sky the films with no red thread at all", () => {
     // a graph that shows every card no longer shows anything
     const { nodes } = buildSky([film("Playtime"), film("Le Miroir")]);
     expect(nodes).toEqual([]);
@@ -119,7 +119,7 @@ describe("relax", () => {
     expect(first.map((p) => [p.id, p.x, p.y])).toEqual(second.map((p) => [p.id, p.x, p.y]));
   });
 
-  it("n'empile jamais deux astres l'un sur l'autre", () => {
+  it("never stacks two stars on top of each other", () => {
     const { nodes, links } = sky();
     const placed = relax(nodes, links, 1100, 760);
     for (let i = 0; i < placed.length; i++) {
@@ -130,7 +130,7 @@ describe("relax", () => {
     }
   });
 
-  it("recadre le ciel dans les bornes de la feuille", () => {
+  it("frames the sky within the sheet's bounds", () => {
     const { nodes, links } = sky();
     const W = 1100,
       H = 760;
@@ -143,7 +143,7 @@ describe("relax", () => {
     }
   });
 
-  it("rend un ciel vide sans lever", () => {
+  it("returns an empty sky without throwing", () => {
     expect(relax([], [], 1100, 760)).toEqual([]);
   });
 
@@ -229,7 +229,7 @@ describe("buildSkyWithCrew", () => {
 
   /* A film that ONLY a kinship links is not in the base map: without
      that added node, the edge would point into the void. */
-  it("fait entrer dans le ciel un film qu'aucun fil rouge ne tenait", () => {
+  it("brings into the sky a film no red thread was holding", () => {
     const a = film("A", { crew: { image: ["Decaë"] } });
     const b = film("B", { crew: { image: ["Decaë"] } });
     expect(buildSky([a, b]).nodes).toEqual([]);
@@ -255,7 +255,7 @@ describe("buildSkyWithCrew", () => {
     expect(withCrew.nodes.every((n) => n.degree === 1)).toBe(true);
   });
 
-  it("respecte les filtres de la carte de base", () => {
+  it("respects the filters of the base map", () => {
     const a = film("A", { crew: { image: ["Decaë"] }, genres: ["Policier"] });
     const b = film("B", { crew: { image: ["Decaë"] }, genres: ["Comédie"] });
     expect(buildSkyWithCrew([a, b], { genres: ["Policier"] }).links).toEqual([]);
@@ -318,7 +318,7 @@ describe("neighbourhood", () => {
     return { nodes, links };
   };
 
-  it("ne rend que le foyer et ses voisins directs", () => {
+  it("returns only the focus and its direct neighbours", () => {
     const { nodes, links } = chain();
     const v = neighbourhood(nodes, links, "f:B", 1);
     expect(v.nodes.map((n) => n.label).sort()).toEqual(["A", "B", "C"]);
@@ -342,12 +342,12 @@ describe("neighbourhood", () => {
     expect(v.links.every((l) => ["f:A", "f:B", "f:C"].includes(l.a))).toBe(true);
   });
 
-  it("rend le foyer seul quand rien ne le relie", () => {
+  it("returns the focus alone when nothing links it", () => {
     const { nodes } = chain();
     expect(neighbourhood(nodes, [], "f:A", 1).nodes.map((n) => n.label)).toEqual(["A"]);
   });
 
-  it("ne rend rien d'un foyer qui n'existe pas", () => {
+  it("returns nothing for a focus that does not exist", () => {
     const { nodes, links } = chain();
     expect(neighbourhood(nodes, links, "f:ZZZ", 1)).toEqual({ nodes: [], links: [] });
   });
@@ -366,7 +366,7 @@ describe("threads in the sky", () => {
     expect(links.filter((l) => l.kind === "thread")).toHaveLength(2);
   });
 
-  it("n'accroche pas au ciel un fil que personne ne porte", () => {
+  it("does not hang in the sky a thread nobody carries", () => {
     const thread = makeThread({ label: "Vide", motif: "hero-dies" });
     const { nodes } = buildSky([film("A")], {}, { threads: [thread] });
     expect(nodes).toEqual([]);
@@ -400,7 +400,7 @@ describe("the pins", () => {
 });
 
 describe("the relation an edge carries", () => {
-  it("se lit dans le sens du trait", () => {
+  it("reads in the direction of the line", () => {
     const a = makeFilm({ id: "a1", title: "A" });
     const b = makeFilm({ id: "b2", title: "B" });
     const linkedOne = [

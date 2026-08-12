@@ -26,33 +26,33 @@ const search = async (texte: string) => {
   return user;
 };
 
-describe("la recherche de la constellation", () => {
-  it("trouve un film que rien ne relie, et le marque hors carte", async () => {
+describe("the constellation's search", () => {
+  it("finds a film nothing links, and marks it off the map", async () => {
     build();
     await search("playtime");
     expect(screen.getByRole("button", { name: /Playtime/ })).toBeInTheDocument();
     expect(screen.getByText("épingler")).toBeInTheDocument();
   });
 
-  it("cherche aussi sur le réalisateur", async () => {
+  it("searches on the director too", async () => {
     build();
     await search("tati");
     expect(screen.getByRole("button", { name: /Playtime/ })).toBeInTheDocument();
   });
 
-  it("marque « au ciel » un film déjà placé", async () => {
+  it('marks a film already placed as "in the sky"', async () => {
     build();
     await search("samou");
     expect(screen.getByText("au ciel")).toBeInTheDocument();
   });
 
-  it("dit franchement quand la collection n'a rien de ce nom", async () => {
+  it("says plainly when the collection has nothing by that name", async () => {
     build();
     await search("zzz");
     expect(screen.getByText(/rien de ce nom/)).toBeInTheDocument();
   });
 
-  it("épingler un film hors carte le fait entrer au ciel et devenir le foyer", async () => {
+  it("pinning a film that is off the map brings it into the sky and makes it the focus", async () => {
     build();
     const user = await search("playtime");
     await user.click(screen.getByRole("button", { name: /Playtime/ }));
@@ -62,8 +62,8 @@ describe("la recherche de la constellation", () => {
   });
 });
 
-describe("les fils au ciel", () => {
-  it("propose de les éteindre un par un", () => {
+describe("the threads in the sky", () => {
+  it("offers to put them out one by one", () => {
     const thread = makeThread({ id: "f1", label: "Le héros meurt", motif: "hero-dies" });
     build({ fils: [thread] });
     expect(screen.getByRole("button", { name: /Le héros meurt/ })).toBeInTheDocument();

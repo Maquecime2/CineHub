@@ -118,8 +118,8 @@ beforeEach(() => {
   cleanup();
 });
 
-describe("ShelfBoard — le coût d'un glissement", () => {
-  it("ne mesure une enveloppe qu'UNE fois, quel que soit le nombre de survols", () => {
+describe("ShelfBoard — the cost of one drag", () => {
+  it("measures a box ONCE only, however many times it is hovered", () => {
     const { container } = renderBoard();
     const wrap = grab(container);
     const rects = countRects(container);
@@ -132,7 +132,7 @@ describe("ShelfBoard — le coût d'un glissement", () => {
     expect(rects.get(wrap)).toBe(1);
   });
 
-  it("remesure au glissement SUIVANT : le cache ne vaut que pour un geste", () => {
+  it("measures again on the NEXT drag: the cache is good for one gesture only", () => {
     const { container } = renderBoard();
     const wrap = grab(container);
     const rects = countRects(container);
@@ -148,7 +148,7 @@ describe("ShelfBoard — le coût d'un glissement", () => {
     expect(rects.get(wrap)).toBe(2);
   });
 
-  it("ne mesure pas non plus la rangée à chaque survol de son fond", () => {
+  it("does not measure the row on every hover of its background either", () => {
     const { container } = renderBoard();
     const wrap = grab(container);
     const strip = container.querySelector("[data-shelf-row]");
@@ -164,7 +164,7 @@ describe("ShelfBoard — le coût d'un glissement", () => {
     expect(rects.get(strip)).toBe(1);
   });
 
-  it("ne refait ni rangée ni boîtier quand l'étagère se rend à nouveau pendant le geste", () => {
+  it("rebuilds neither row nor case when the shelf renders again during the gesture", () => {
     const { container } = renderBoard();
     grab(container);
     const rowsBefore = rowCalls.n;

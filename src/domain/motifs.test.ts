@@ -50,7 +50,7 @@ describe("what TMDB suggests", () => {
     expect(out.map((m) => m.id)).toEqual(["time-loop"]);
   });
 
-  it("accepte aussi une simple liste de mots", () => {
+  it("accepts a plain list of words too", () => {
     expect(suggestMotifs(["road movie"]).map((m) => m.id)).toContain("road-movie");
   });
 
@@ -97,7 +97,7 @@ describe("the motifs set aside", () => {
 
   /* Hiding is not erasing: a card that carries it must go on showing
      it, otherwise setting aside would quietly rewrite data. */
-  it("restent lisibles sur les fiches qui les portent", () => {
+  it("stay readable on the cards that carry them", () => {
     setVocabulary({ custom: [], hidden: ["hero-dies"] });
     expect(motifById("hero-dies")?.label).toBe("Le héros meurt");
     expect(motifsOf(makeFilm({ motifs: ["hero-dies"] }))).toHaveLength(1);

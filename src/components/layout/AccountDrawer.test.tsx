@@ -76,8 +76,8 @@ beforeEach(() => {
 
 afterEach(() => vi.clearAllMocks());
 
-describe("ceux qu'on a fait taire", () => {
-  it("les nomme, un par un", async () => {
+describe("those one has silenced", () => {
+  it("names them, one by one", async () => {
     myBlocks.mockResolvedValue({ blocages: ["genant", "penible"] });
     build();
     expect(await screen.findByText("genant")).toBeInTheDocument();
@@ -87,7 +87,7 @@ describe("ceux qu'on a fait taire", () => {
 
   /* A "nobody" heading on such a subject teaches nothing: there is
      nothing to undo, therefore nothing to show. */
-  it("se tait quand il n'y a personne", async () => {
+  it("stays quiet when there is nobody", async () => {
     build();
     await waitFor(() => expect(myBlocks).toHaveBeenCalled());
     expect(screen.queryByText("Ceux que vous avez fait taire")).not.toBeInTheDocument();
@@ -95,7 +95,7 @@ describe("ceux qu'on a fait taire", () => {
 
   /* Offline, or with no server: we stay quiet too. An error shown for a
      heading that may have nothing to say is noise. */
-  it("se tait quand le serveur ne répond pas", async () => {
+  it("stays quiet when the server does not answer", async () => {
     myBlocks.mockRejectedValue(new Error("hors ligne"));
     build();
     await waitFor(() => expect(myBlocks).toHaveBeenCalled());
@@ -104,7 +104,7 @@ describe("ceux qu'on a fait taire", () => {
 
   /* THE MISSING GESTURE. Without it, silencing somebody was without
      return — and `unblock` was called by no screen. */
-  it("rend la parole, et relit la liste ensuite", async () => {
+  it("gives speech back, and rereads the list afterwards", async () => {
     const user = userEvent.setup();
     myBlocks.mockResolvedValueOnce({ blocages: ["genant"] });
     myBlocks.mockResolvedValue({ blocages: [] });
@@ -121,7 +121,7 @@ describe("ceux qu'on a fait taire", () => {
   /* What unblocking does NOT do must be written: the server resubscribes
      nobody, and letting anyone believe otherwise would be worse than
      saying nothing. */
-  it("dit que rendre la parole ne renoue pas le lien", async () => {
+  it("says that giving speech back does not tie the link again", async () => {
     myBlocks.mockResolvedValue({ blocages: ["genant"] });
     build();
     expect(await screen.findByText(/ne le renoue pas/)).toBeInTheDocument();
@@ -129,7 +129,7 @@ describe("ceux qu'on a fait taire", () => {
 
   /* With no account there are no blocks to show — and above all no
      request to make. */
-  it("ne demande rien tant qu'aucun compte n'est ouvert", async () => {
+  it("asks for nothing as long as no account is open", async () => {
     build(false);
     await new Promise((r) => setTimeout(r, 20));
     expect(myBlocks).not.toHaveBeenCalled();

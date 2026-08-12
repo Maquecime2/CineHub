@@ -64,7 +64,7 @@ describe("usePointerDrag", () => {
     document.body.innerHTML = "";
   });
 
-  it("un appui maintenu saisit, un balayage laisse defiler", () => {
+  it("a held press grabs, a swipe lets the page scroll", () => {
     render(<Bridge />);
     pointer("pointerdown", 10, 10, source);
     act(() => void vi.advanceTimersByTime(300));
@@ -80,7 +80,7 @@ describe("usePointerDrag", () => {
     expect(heard).toHaveLength(0);
   });
 
-  it("le geste complet parle le vocabulaire de l'etagere", () => {
+  it("the whole gesture speaks the shelf's vocabulary", () => {
     render(<Bridge />);
     pointer("pointerdown", 10, 10, source);
     act(() => void vi.advanceTimersByTime(300));
@@ -98,7 +98,7 @@ describe("usePointerDrag", () => {
     expect(heard.find((h) => h.type === "dragend")?.on).toBe("source");
   });
 
-  it("le marquage qui coupe le defilement ne dure que le geste", () => {
+  it("the marking that cuts scrolling lasts only as long as the gesture", () => {
     render(<Bridge />);
     pointer("pointerdown", 10, 10, source);
     act(() => void vi.advanceTimersByTime(300));
@@ -107,7 +107,7 @@ describe("usePointerDrag", () => {
     expect(source.dataset.pointerDrag).toBeUndefined();
   });
 
-  it("un bouton dans la chose tenue reste un bouton", () => {
+  it("a button inside the held thing stays a button", () => {
     render(<Bridge />);
     const button = source.querySelector("button")!;
     pointer("pointerdown", 10, 10, button);
@@ -115,7 +115,7 @@ describe("usePointerDrag", () => {
     expect(heard).toHaveLength(0);
   });
 
-  it("au bord de l'ecran, l'etagere defile et le repere suit", () => {
+  it("at the screen's edge, the shelf scrolls and the marker follows", () => {
     /* A container with something to scroll: jsdom lays nothing out, so
        the heights are set by hand. */
     const box = document.createElement("div");
@@ -152,7 +152,7 @@ describe("usePointerDrag", () => {
     expect(top).toBe(settled);
   });
 
-  it("a la souris, le pont ne s'installe pas", () => {
+  it("with a mouse, the bridge is not set up", () => {
     render(<Bridge on={false} />);
     pointer("pointerdown", 10, 10, source);
     act(() => void vi.advanceTimersByTime(300));

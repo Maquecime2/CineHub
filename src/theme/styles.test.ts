@@ -26,8 +26,8 @@ afterEach(() => {
   vi.resetModules();
 });
 
-describe("les cibles du doigt", () => {
-  it("au doigt, rien ne descend sous quarante-quatre pixels", async () => {
+describe("the finger's targets", () => {
+  it("under a finger, nothing goes below forty-four pixels", async () => {
     const { tap, tapSquare, underlineInput, TAP } = await load(true);
     expect(TAP).toBe(44);
     expect(tap.minHeight).toBe(44);
@@ -38,7 +38,7 @@ describe("les cibles du doigt", () => {
     expect(underlineInput.minHeight).toBe(44);
   });
 
-  it("a la souris, pas un pixel ne change", async () => {
+  it("with a mouse, not one pixel changes", async () => {
     const { tap, tapSquare, underlineInput } = await load(false);
     expect(tap).toEqual({});
     expect(tapSquare).toEqual({});
@@ -46,7 +46,7 @@ describe("les cibles du doigt", () => {
     expect(underlineInput.padding).toBe("4px 2px");
   });
 
-  it("sans matchMedia, on tient le pointeur pour fin", async () => {
+  it("with no matchMedia, we take the pointer to be fine", async () => {
     vi.resetModules();
     vi.stubGlobal("matchMedia", undefined);
     const { tap } = await import("./styles");

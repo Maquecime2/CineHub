@@ -54,7 +54,7 @@ describe("PerRowField — auto, or a number one writes", () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
-  it.each(["0", "-3", "   "])("refuses \"%s\" and hands back to the setting", async (bad) => {
+  it.each(["0", "-3", "   "])('refuses "%s" and hands back to the setting', async (bad) => {
     const { onChange, user, input } = field(6);
     await user.clear(input());
     await user.type(input(), `${bad}{Enter}`);

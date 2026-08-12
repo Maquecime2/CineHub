@@ -6,22 +6,22 @@ import { readAddress } from "./SharedCollectionView";
    out by hand, from a barcode scanner. What follows holds the only thing
    that matters — recognising what is an address, and nothing else. */
 
-describe("lire l'adresse d'une collection", () => {
-  it("reconnaît un pseudonyme", () => {
+describe("reading a collection's address", () => {
+  it("recognises a handle", () => {
     expect(readAddress("#/chez/agnes-varda")).toEqual({ pseudo: "agnes-varda", token: null });
   });
 
-  it("reconnaît un lien secret", () => {
+  it("recognises a secret link", () => {
     expect(readAddress("#/chez/varda?jeton=aB3_-x")).toEqual({ pseudo: "varda", token: "aB3_-x" });
   });
 
-  it("ignore tout le reste : c'est le classeur qui s'ouvre", () => {
+  it("ignores everything else: it is the binder that opens", () => {
     for (const nothing of ["", "#", "#/", "#/ailleurs", "#/chez/", "#/chez/ab", "#/chez/Varda"]) {
       expect({ nothing, lu: readAddress(nothing) }).toEqual({ nothing, lu: null });
     }
   });
 
-  it("n'accepte pas qu'on lui fasse dire autre chose", () => {
+  it("does not let itself be made to say something else", () => {
     /* The username leaves inside a server address: anything that could
        build another one is refused here, before even the encoding. */
     for (const crooked of [

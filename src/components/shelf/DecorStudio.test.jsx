@@ -11,8 +11,8 @@ const studio = (view = {}) => {
   return { onChange, onReset, user: userEvent.setup() };
 };
 
-describe("l'atelier déco", () => {
-  it("écrit dans la bonne facette, une clé à la fois", async () => {
+describe("the decor workshop", () => {
+  it("writes into the right facet, one key at a time", async () => {
     const { onChange, user } = studio();
     await user.click(screen.getByLabelText("Terracotta"));
     expect(onChange).toHaveBeenCalledWith("wall", { paint: "terracotta" });
@@ -25,7 +25,7 @@ describe("l'atelier déco", () => {
   /* "Nothing" is a choice, not an absence of button: without it, one lays
      a wallpaper and can no longer remove it. Null is what `patchViewDecor`
      understands as an erasure. */
-  it("sait retirer une couche posée", async () => {
+  it("knows how to take off a layer that is laid down", async () => {
     const view = patchViewDecor({}, "wall", { pattern: "pois" });
     const { onChange, user } = studio(view);
     const none = screen.getAllByLabelText("aucun");
@@ -37,17 +37,17 @@ describe("l'atelier déco", () => {
   /* A setting that would touch nothing is not offered: ink only makes
      sense with a weave to tint, the finish only with a material to
      varnish. */
-  it("cache l'encre tant qu'aucun papier peint n'est posé", () => {
+  it("hides the ink as long as no wallpaper is laid", () => {
     studio();
     expect(screen.queryByText("ENCRE DU MOTIF")).toBeNull();
   });
 
-  it("montre l'encre dès qu'une trame est posée", () => {
+  it("shows the ink as soon as a weave is laid", () => {
     studio(patchViewDecor({}, "wall", { pattern: "damier" }));
     expect(screen.getByText("ENCRE DU MOTIF")).toBeTruthy();
   });
 
-  it("cache la finition tant qu'aucune matière n'est choisie", async () => {
+  it("hides the finish as long as no material is chosen", async () => {
     const { user } = studio();
     await user.click(screen.getByRole("button", { name: "PLANCHE" }));
     expect(screen.queryByText("FINITION")).toBeNull();
@@ -55,7 +55,7 @@ describe("l'atelier déco", () => {
 
   /* The way out, and what makes the exploring riskless. It does not show
      when there is nothing to undo. */
-  it("n'offre le retour au thème que s'il y a un décor", async () => {
+  it("offers the way back to the theme only if there is a decor", async () => {
     const name = "Effacer le décor et revenir au bois du thème";
     studio();
     expect(screen.queryByTitle(name)).toBeNull();

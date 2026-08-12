@@ -90,7 +90,7 @@ describe("reading the Letterboxd feed", () => {
   /* Zero means "rated zero" in the model. A film seen without a rating
      must come out as null, otherwise a re-import crushes an existing
      rating with a zero nobody gave. */
-  it("tells \"no rating\" from \"rated zero\"", () => {
+  it('tells "no rating" from "rated zero"', () => {
     expect(find("The Backrooms")!.rating).toBeNull();
     expect(find("Toy Story 4")!.rating).toBe(3.5);
   });

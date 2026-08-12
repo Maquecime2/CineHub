@@ -55,7 +55,7 @@ describe("useViewport", () => {
     resetViewport();
   });
 
-  it("lit le gabarit des le premier rendu, sans attendre un effet", () => {
+  it("reads the size from the very first render, without waiting for an effect", () => {
     width = 390;
     resetViewport();
     const { result } = renderHook(() => useViewport());
@@ -63,7 +63,7 @@ describe("useViewport", () => {
     expect(result.current.desk).toBe(false);
   });
 
-  it("les trois tailles s'excluent", () => {
+  it("the three sizes rule each other out", () => {
     const { result } = renderHook(() => useViewport());
     for (const w of [390, 800, 1400]) {
       resize(w);
@@ -72,7 +72,7 @@ describe("useViewport", () => {
     }
   });
 
-  it("suit les seuils declares dans les jetons", () => {
+  it("follows the thresholds declared in the tokens", () => {
     const { result } = renderHook(() => useViewport());
     resize(BP.phone - 1);
     expect(result.current.phone).toBe(true);
@@ -82,14 +82,14 @@ describe("useViewport", () => {
     expect(result.current.desk).toBe(true);
   });
 
-  it("la finesse du pointeur est une autre question que la largeur", () => {
+  it("how fine the pointer is, is another question than the width", () => {
     const { result } = renderHook(() => useViewport());
     resize(1400, { coarse: true });
     expect(result.current.desk).toBe(true);
     expect(result.current.coarse).toBe(true);
   });
 
-  it("sans matchMedia, on rend le bureau plutot que rien", () => {
+  it("with no matchMedia, we return the desktop rather than nothing", () => {
     vi.unstubAllGlobals();
     vi.stubGlobal("matchMedia", undefined);
     resetViewport();
@@ -97,7 +97,7 @@ describe("useViewport", () => {
     expect(result.current.desk).toBe(true);
   });
 
-  it("se desabonne en partant", () => {
+  it("unsubscribes on the way out", () => {
     const { unmount } = renderHook(() => useViewport());
     expect(listeners.size).toBeGreaterThan(0);
     unmount();

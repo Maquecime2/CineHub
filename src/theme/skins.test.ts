@@ -5,8 +5,8 @@ import { C, F } from "./tokens";
 
 const TOKENS = Object.keys(C);
 
-describe("le catalogue de peaux", () => {
-  it("en offre une bonne dizaine, toutes distinctes", () => {
+describe("the catalogue of skins", () => {
+  it("offers a good dozen of them, all distinct", () => {
     expect(SKINS.length).toBeGreaterThanOrEqual(10);
     expect(new Set(SKINS.map((s) => s.key)).size).toBe(SKINS.length);
     expect(new Set(SKINS.map((s) => s.label)).size).toBe(SKINS.length);
@@ -17,7 +17,7 @@ describe("le catalogue de peaux", () => {
      CSS variable, they would have thrown nothing: the browser ignores a
      declaration it does not understand, and the skin would simply have
      had one token that never changes. */
-  it("n'a que des hexadécimaux bien formés", () => {
+  it("has nothing but well-formed hex codes", () => {
     for (const skin of SKINS)
       for (const [token, color] of Object.entries(skin.c))
         expect(`${skin.key}.${token} = ${color}`).toMatch(/= #[0-9A-Fa-f]{6}$/);
@@ -26,11 +26,11 @@ describe("le catalogue de peaux", () => {
   /* A forgotten token is not caught by the default skin: the variables
      are written on the root and STAY there from one skin to the next. It
      would therefore keep the previous skin's value. */
-  it("donne les quatorze jetons, sans en inventer un de plus", () => {
+  it("gives the fourteen tokens, without inventing one more", () => {
     for (const skin of SKINS) expect(Object.keys(skin.c).sort()).toEqual([...TOKENS].sort());
   });
 
-  it("donne les quatre rôles de police, et de quoi les charger", () => {
+  it("gives the four font roles, and the means to load them", () => {
     for (const skin of SKINS) {
       expect(Object.keys(skin.fonts).sort()).toEqual(["body", "hand", "mono", "title"]);
       expect(skin.google.length).toBeGreaterThan(0);
@@ -46,7 +46,7 @@ describe("le catalogue de peaux", () => {
     }
   });
 
-  it("a un fond de page et une forme d'tab", () => {
+  it("has a page ground and a tab shape", () => {
     for (const skin of SKINS) {
       expect(skin.page.trim().length).toBeGreaterThan(0);
       expect(skin.tag.radius).toMatch(/px$/);
@@ -76,7 +76,7 @@ describe("le catalogue de peaux", () => {
      document: no rule will come and fix two colours too close together
      after the fact. So we check them here, at the source, on the two
      tokens the `select option` rule uses. */
-  it("garde les listes déroulantes lisibles, sur les quatorze peaux", () => {
+  it("keeps the drop-downs readable, across the fourteen skins", () => {
     for (const skin of SKINS)
       expect(
         contrast(skin.c.ink!, skin.c.card!),
@@ -88,28 +88,28 @@ describe("le catalogue de peaux", () => {
      on. A dark skin announcing itself light keeps the checkboxes and the
      lists light on its black background — the flaw is invisible to a
      render test, since those pieces are not in the document. */
-  it("ne se trompe step sur la couleur de son clean fond", () => {
+  it("does not get its own ground colour wrong", () => {
     for (const skin of SKINS) {
       const isDark = contrast(skin.c.card!, "#FFFFFF") > contrast(skin.c.card!, "#000000");
       expect(!!skin.dark, `${skin.key} : carton ${skin.c.card}`).toBe(isDark);
     }
   });
 
-  it("retombe sur le carnet pour une key inconnue", () => {
+  it("falls back on the notebook for an unknown key", () => {
     expect(skinOf("n'existe step").key).toBe(DEFAULT_SKIN);
     expect(skinOf(undefined).key).toBe(DEFAULT_SKIN);
     expect(SKINS[0]!.key).toBe(DEFAULT_SKIN);
   });
 });
 
-describe("poser une peau", () => {
+describe("laying a skin down", () => {
   beforeEach(() => {
     document.documentElement.removeAttribute("style");
     document.getElementById("skin-fonts")?.remove();
     localStorage.clear();
   });
 
-  it("écrit chaque jeton là où le renvoi ira le chercher", () => {
+  it("writes each token where the reference will come looking for it", () => {
     const skin = applySkin("kodachrome");
     const root = document.documentElement.style;
     for (const [token, color] of Object.entries(skin.c)) {
@@ -121,7 +121,7 @@ describe("poser une peau", () => {
       expect(root.getPropertyValue(F[role as keyof typeof F].slice(4, -1))).toBeTruthy();
   });
 
-  it("pose le fond, la forme et l'atmosphère", () => {
+  it("lays the ground, the shape and the atmosphere", () => {
     applySkin("bauhaus");
     const root = document.documentElement.style;
     expect(root.getPropertyValue("--page-bg")).toContain("#F2F0EB");
@@ -135,7 +135,7 @@ describe("poser une peau", () => {
   /* A single link element, reused: creating one per attempt would leave
      behind as many stylesheets as skins tried, and the last one DECLARED
      would win — not the last one chosen. */
-  it("ne laisse qu'un seul lien de polices, quoi qu'on essaie", () => {
+  it("leaves a single font link, whatever one tries", () => {
     applySkin("japon");
     const premier = document.getElementById("skin-fonts") as HTMLLinkElement;
     applySkin("pastel");
@@ -144,7 +144,7 @@ describe("poser une peau", () => {
     expect(premier.href).toContain("Quicksand");
   });
 
-  it("garde le choice d'une fois sur l'other", () => {
+  it("keeps the choice from one time to the next", () => {
     expect(loadSkinKey()).toBe(DEFAULT_SKIN);
     saveSkinKey("herbier");
     expect(localStorage.getItem(SKIN_KEY)).toBe("herbier");

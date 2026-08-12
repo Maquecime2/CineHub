@@ -152,7 +152,7 @@ describe("a missing target does not block", () => {
     rerender(<TourOverlay tourId="detail" onClose={vi.fn()} onView={vi.fn()} />);
 
     const firstOne = TOURS.detail!.steps[0]!;
-    expect(firstOne.optional, "le test ne vaut que si l'étape est facultative").toBe(true);
+    expect(firstOne.optional, "the test only means something if the step is optional").toBe(true);
     expect(await screen.findByText(firstOne.title)).toBeInTheDocument();
     expect(screen.getByText(`1 / ${TOURS.detail!.steps.length}`)).toBeInTheDocument();
   });
@@ -187,7 +187,7 @@ describe("a missing target does not block the tour", () => {
   it("skips the optional step whose target is missing", async () => {
     const steps = TOURS.almanac!.steps;
     const box = steps.find((s) => s.target === '[data-tour="almanac-export"]')!;
-    expect(box.optional, "le test ne vaut que si l'étape est facultative").toBe(true);
+    expect(box.optional, "the test only means something if the step is optional").toBe(true);
 
     poserSauf("almanac", "almanac-export");
     const onClose = vi.fn();

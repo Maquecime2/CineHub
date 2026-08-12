@@ -71,7 +71,7 @@ describe("enrichRows — cache", () => {
     expect((await enrichRows(rows, "k")).resolved).toBe(1);
   });
 
-  it("remembers a \"not found\", but lets it go stale", async () => {
+  it('remembers a "not found", but lets it go stale', async () => {
     vi.stubGlobal("fetch", emptySearch());
     const out = await enrichRows(rows, "k");
     expect(out.failed).toBe(1);
@@ -288,7 +288,7 @@ describe("enrichRows — runtime, language, country, rating", () => {
 
   /* TMDB returns 0 for a runtime it does not know. Keeping it would let
      a zero into the almanac's averages without anyone knowing why. */
-  it("turns a runtime of zero into \"unknown\"", async () => {
+  it('turns a runtime of zero into "unknown"', async () => {
     vi.stubGlobal("fetch", detailsFetch({ runtime: 0, vote_average: 0 }));
     const { rows: out } = await enrichRows([{ title: "Le Samouraï", year: 1967 }], "k");
     expect(out[0].runtime).toBeNull();
@@ -386,7 +386,7 @@ describe("enrichRows — the keywords", () => {
 
   /* And if the fallback fails in its turn, we return `undefined` —
      never `[]`. That is what leaves the card repairable. */
-  it("returns \"we do not know\" rather than an empty list when everything fails", async () => {
+  it('returns "we do not know" rather than an empty list when everything fails', async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url) => ({

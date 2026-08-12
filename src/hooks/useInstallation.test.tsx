@@ -43,19 +43,19 @@ afterEach(() => {
 });
 
 describe("useInstallation", () => {
-  it("se tait tant que le navigateur n'a rien proposé", () => {
+  it("stays quiet as long as the browser has offered nothing", () => {
     probe = renderHook(() => useInstallation()).result;
     expect(probe.current.invite).toBe(false);
   });
 
-  it("attrape l'événement, et empêche la bannière du navigateur", () => {
+  it("catches the event, and holds back the browser's banner", () => {
     probe = renderHook(() => useInstallation()).result;
     const ev = offer();
     expect(probe.current.invite).toBe(true);
     expect(ev.defaultPrevented).toBe(true);
   });
 
-  it("install ouvre la boîte du système et retient que c'est fait", async () => {
+  it("install opens the system's box and remembers it was done", async () => {
     probe = renderHook(() => useInstallation()).result;
     const ev = offer("accepted");
     await act(async () => {
@@ -66,7 +66,7 @@ describe("useInstallation", () => {
     expect(probe.current.invite).toBe(false);
   });
 
-  it("refuser la boîte compte comme « pas maintenant », pas comme un oui", async () => {
+  it('refusing the box counts as "not now", not as a yes', async () => {
     probe = renderHook(() => useInstallation()).result;
     offer("dismissed");
     await act(async () => {
@@ -75,7 +75,7 @@ describe("useInstallation", () => {
     expect(readInstallState()).toEqual({ dismissals: 1, installed: false });
   });
 
-  it("écarter compte le refus, et deux refus ferment le sujet", () => {
+  it("dismissing counts the refusal, and two refusals close the subject", () => {
     probe = renderHook(() => useInstallation()).result;
     offer();
     act(() => probe.current.dismiss());
@@ -96,14 +96,14 @@ describe("useInstallation", () => {
     expect(probe.current.invite).toBe(false);
   });
 
-  it("sur iOS, personne n'émettra jamais rien : on explique de nous-mêmes", () => {
+  it("on iOS nobody will ever emit anything: we explain it ourselves", () => {
     vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)" });
     probe = renderHook(() => useInstallation()).result;
     expect(probe.current.apple).toBe(true);
     expect(probe.current.invite).toBe(true);
   });
 
-  it("déjà posée sur l'écran d'accueil : on n'en parle plus", () => {
+  it("already on the home screen: we say no more about it", () => {
     vi.stubGlobal("matchMedia", (q: string) => ({ matches: q.includes("standalone"), media: q }));
     probe = renderHook(() => useInstallation()).result;
     offer();
