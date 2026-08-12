@@ -773,7 +773,7 @@ describe("buildViewsFromLegacy", () => {
   it("each divider becomes a row whose category swallows what followed it", () => {
     const view = build().find((v) => v.wall === "watched");
     const rows = rowsOf(view, "main");
-    // f1 seul avant le premier carton, puis Cultes(f2,f3), puis Polars(f4)
+    // f1 alone before the first cardstock, then Cultes(f2,f3), then Polars(f4)
     expect(idsIn(rows[0])).toEqual(["f1"]);
     expect(rows[0].perRow).toBe(6);
 
