@@ -148,7 +148,7 @@ function Répertoire({
       <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "18px 0 14px" }}>
         <Search size={15} color={C.inkFaded} />
         <input
-          data-tour="generique-search"
+          data-tour="credits-search"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="un nom…"
@@ -159,7 +159,7 @@ function Répertoire({
       {/* The sieves by role, which add up and go out when clicked again
           — the same gestures as the wall's sieves. */}
       <div
-        data-tour="generique-roles"
+        data-tour="credits-roles"
         style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 20 }}
       >
         {PERSON_ROLES.map((r) => {
@@ -196,7 +196,7 @@ function Répertoire({
         </div>
       ) : (
         <div
-          data-tour="generique-list"
+          data-tour="credits-list"
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))",
@@ -353,7 +353,7 @@ function Dossier({
         {p.toWatch > 0 ? `, dont ${p.toWatch} en attente` : ""}.
       </Guideline>
 
-      <Cardstock tour="generique-dossier" style={{ marginTop: 8 }}>
+      <Cardstock tour="credits-dossier" style={{ marginTop: 8 }}>
         <div style={{ display: "flex", gap: 34, flexWrap: "wrap" }}>
           <Chiffre nom="VOTRE NOTE">
             {p.rating != null ? (
@@ -632,7 +632,7 @@ function CeQuiManque({
   };
 
   return (
-    <div data-tour="generique-tmdb" style={{ marginTop: 34 }}>
+    <div data-tour="credits-tmdb" style={{ marginTop: 34 }}>
       <SectionTitle
         action={
           <button

@@ -442,7 +442,7 @@ export default function App() {
      two ways of writing it would make two people. */
   const ouvrirPersonne = (nom) => {
     setPersonne(normalize(nom));
-    setView("generique");
+    setView("credits");
   };
 
   /* WHAT WE DO WITH A HIT, according to its nature.
@@ -459,7 +459,7 @@ export default function App() {
     },
     person: (clé) => {
       setPersonne(clé);
-      setView("generique");
+      setView("credits");
     },
     page: () => setView("notebook"),
     motif: (label) => {
@@ -693,7 +693,7 @@ export default function App() {
      cinematographer from film to film would mean finding them again
      every time. */
   const backView = personne
-    ? "generique"
+    ? "credits"
     : selectedFilm?.status === "watchlist"
       ? "watchlist"
       : "library";
@@ -860,7 +860,7 @@ export default function App() {
             onAddToWatchlist={addFilm}
           />
         )}
-        {view === "generique" && (
+        {view === "credits" && (
           <CreditsView
             films={films}
             personne={personne}
@@ -905,8 +905,8 @@ export default function App() {
             WATCHED, including those set aside in the reserve — having
             archived them does not make them unwatched. */}
         {view === "almanac" && <AlmanacView films={watched} onOpenPerson={ouvrirPersonne} />}
-        {view === "fil" && <ThreadView connected={!!synchro.person} />}
-        {view === "listes" && <ListsView connected={!!synchro.person} />}
+        {view === "thread" && <ThreadView connected={!!synchro.person} />}
+        {view === "lists" && <ListsView connected={!!synchro.person} />}
         {view === "skinlab" && import.meta.env.DEV && <SkinLab />}
         {view === "import" && (
           <ImportView

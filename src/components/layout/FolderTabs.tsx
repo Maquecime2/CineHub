@@ -29,13 +29,13 @@ import { serverConfigured } from "../../services/server";
 export type View =
   | "library"
   | "watchlist"
-  | "generique"
+  | "credits"
   | "reco"
   | "constellation"
   | "notebook"
   | "import"
-  | "fil"
-  | "listes"
+  | "thread"
+  | "lists"
   | "detail"
   | "almanac"
   | "skinlab";
@@ -76,7 +76,7 @@ const TABS: {
   { key: "watchlist", label: "À voir", color: C.ochre, icon: Bookmark },
   /* The Credits look at the same collection from another angle: it
      belongs to the holdings group, beside the two walls, not the tools. */
-  { key: "generique", label: "Générique", color: C.plum, icon: Users },
+  { key: "credits", label: "Générique", color: C.plum, icon: Users },
   { key: "reco", label: "Découvertes", color: C.vermillion, icon: Compass },
   { key: "constellation", label: "Constellation", color: C.cobalt, icon: Sparkles },
   { key: "almanac", label: "Almanach", color: C.moss, icon: CalendarDays },
@@ -85,11 +85,11 @@ const TABS: {
   /* THE FEED IS THE LAST TAB, and not the first: the binder stays a
        personal video library, and what we look at in other people's
        homes comes after what we have in ours. */
-  { key: "fil", label: "Le fil", color: C.cobalt, icon: Users2, needsServer: true },
+  { key: "thread", label: "Le fil", color: C.cobalt, icon: Users2, needsServer: true },
   /* The lists and the challenges come after the feed: we look at what
        others are doing before starting something with them. */
   {
-    key: "listes",
+    key: "lists",
     label: "Listes et défis",
     color: C.moss,
     icon: ListChecks,

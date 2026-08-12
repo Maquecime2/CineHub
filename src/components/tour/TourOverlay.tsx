@@ -147,7 +147,7 @@ const grow = (r: Rect, p: number): Rect => ({
   height: r.height + p * 2,
 });
 
-/* ---------- le voile ---------- */
+/* ---------- the veil ---------- */
 
 /* Four panels. Clicking beside what we are showing waves the tour away —
    it is the gesture everybody tries, and refusing it would hold the user
@@ -209,7 +209,7 @@ function Cadre({ hole }: { hole: Rect }) {
   );
 }
 
-/* ---------- la fiche ---------- */
+/* ---------- the card ---------- */
 
 function Bulle({
   step,

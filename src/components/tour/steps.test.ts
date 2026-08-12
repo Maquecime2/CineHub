@@ -18,13 +18,13 @@ import { TOURS, tourForView } from "./steps";
 const VUES = [
   "library",
   "watchlist",
-  "generique",
+  "credits",
   "reco",
   "constellation",
   "notebook",
   "import",
-  "fil",
-  "listes",
+  "thread",
+  "lists",
   "detail",
   "almanac",
 ] as const;
@@ -108,7 +108,7 @@ describe("les étapes se tiennent", () => {
    `optional` and gets skipped after seven hundred milliseconds of opaque
    veil, at worst it leaves the tour stuck. None of the tests above
    catches it, because they only read `steps.ts` — and that is exactly
-   how "generique-dossier" was able to stay in the global tour,
+   how "credits-dossier" was able to stay in the global tour,
    permanently dead, without anything saying so.
 
    SO WE READ THE FILES. Two forms of anchor coexist in the project and

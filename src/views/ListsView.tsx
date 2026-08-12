@@ -93,7 +93,7 @@ export function ListsView({ connected }: { connected: boolean }) {
 
   return (
     <Page>
-      <div data-tour="listes-nouvelle" style={{ maxWidth: 460, marginBottom: 28 }}>
+      <div data-tour="lists-new" style={{ maxWidth: 460, marginBottom: 28 }}>
         <Label>Une nouvelle liste</Label>
         <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
           <input
@@ -115,7 +115,7 @@ export function ListsView({ connected }: { connected: boolean }) {
         </div>
       </div>
 
-      <div data-tour="listes-mes-listes" style={{ marginBottom: 34 }}>
+      <div data-tour="lists-mine" style={{ marginBottom: 34 }}>
         <Label>Vos listes</Label>
         {listes.length === 0 && <Guideline>Aucune liste pour l'instant.</Guideline>}
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 6 }}>
@@ -131,7 +131,7 @@ export function ListsView({ connected }: { connected: boolean }) {
         </div>
       </div>
 
-      <div data-tour="listes-defis">
+      <div data-tour="lists-challenges">
         <Label>Les défis</Label>
         {defis.length === 0 && (
           <Guideline>

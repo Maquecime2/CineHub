@@ -103,7 +103,7 @@ export function ThreadView({ connected }: { connected: boolean }) {
   return (
     <Page>
       {/* ---- chercher quelqu'un ---- */}
-      <div data-tour="fil-chercher" style={{ marginBottom: 26, maxWidth: 420 }}>
+      <div data-tour="thread-search" style={{ marginBottom: 26, maxWidth: 420 }}>
         <Label>Chercher quelqu'un</Label>
         <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
           <input
@@ -157,7 +157,7 @@ export function ThreadView({ connected }: { connected: boolean }) {
 
       {/* ---- qui l'on suit ---- */}
       {abonnements.length > 0 && (
-        <div data-tour="fil-abonnements" style={{ marginBottom: 30 }}>
+        <div data-tour="thread-follows" style={{ marginBottom: 30 }}>
           <Label>Vous suivez</Label>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
             {abonnements.map((a) => (
@@ -196,7 +196,7 @@ export function ThreadView({ connected }: { connected: boolean }) {
       )}
 
       {/* ---- le fil ---- */}
-      <div data-tour="fil-nouvelles">
+      <div data-tour="thread-news">
         <Label>Dernièrement, chez eux</Label>
         {nouvelles === null && <Guideline>Ouverture…</Guideline>}
         {nouvelles?.length === 0 && (
