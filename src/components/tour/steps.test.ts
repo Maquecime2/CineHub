@@ -113,7 +113,7 @@ describe("les étapes se tiennent", () => {
 
    ON LIT DONC LES FICHIERS. Deux formes d'ancre coexistent dans le
    projet et le test doit connaître les deux : `data-tour="…"` en JSX
-   nu, et la propriété `tour="…"` que `Carton` traduit en attribut. N'en
+   nu, et la propriété `tour="…"` que `Cardstock` traduit en attribut. N'en
    chercher qu'une donnerait une moisson de faux positifs.
 
    Ce test ne dit PAS que l'ancre est montée à l'écran au moment de
