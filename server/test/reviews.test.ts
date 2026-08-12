@@ -264,12 +264,12 @@ describe("bloquer", () => {
     });
     await app.inject({ method: "PUT", url: "/blocages/genant", headers: { cookie: moi.cookie } });
 
-    const suivre = await app.inject({
+    const follow = await app.inject({
       method: "PUT",
       url: "/abonnements/genant",
       headers: { cookie: moi.cookie },
     });
-    expect(suivre.statusCode).toBe(404);
+    expect(follow.statusCode).toBe(404);
     const fil = await app.inject({ method: "GET", url: "/fil", headers: { cookie: moi.cookie } });
     expect(fil.json().nouvelles).toEqual([]);
   });

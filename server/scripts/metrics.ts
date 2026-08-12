@@ -12,7 +12,7 @@
    sert et ce qui coûte — c'est ce pour quoi on mesure.
    ============================================================ */
 import { openPostgres } from "../src/db.ts";
-import { mesures } from "../src/store.ts";
+import { metrics } from "../src/store.ts";
 
 const url = process.env.DATABASE_URL;
 if (!url) {
@@ -22,7 +22,7 @@ if (!url) {
 
 const jours = Number(process.argv[2] || 30);
 const db = await openPostgres(url);
-const rows = await mesures(db, jours);
+const rows = await metrics(db, jours);
 
 const total = new Map<string, number>();
 for (const l of rows) total.set(l.geste, (total.get(l.geste) ?? 0) + Number(l.n));

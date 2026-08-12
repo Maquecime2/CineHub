@@ -163,7 +163,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
        service. Les échecs ne comptent pas non plus : ce sont des
        incidents, et le journal du serveur est là pour eux. */
     if (reply.statusCode >= 400) return;
-    store.compter(db, `${req.method} ${chemin}`).catch(() => {});
+    store.countGesture(db, `${req.method} ${chemin}`).catch(() => {});
   });
 
   /** Qui parle ? `null` si personne. */
@@ -593,7 +593,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     if (!vise || vise.id === personne.id) {
       return reply.code(400).send({ erreur: "On ne se suit pas soi-même." });
     }
-    await store.suivre(db, personne.id, vise.id);
+    await store.follow(db, personne.id, vise.id);
     return { pseudo: cible.pseudo, suivi: true };
   });
 
@@ -705,7 +705,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     const vise = pseudo ? await store.findByPseudo(db, pseudo.toLowerCase()) : null;
     if (!vise) return reply.code(404).send({ erreur: "Personne." });
 
-    const neuf = await store.signaler(db, personne.id, {
+    const neuf = await store.report(db, personne.id, {
       cibleType: "fiche",
       cibleId: String(fiche || ""),
       viseId: vise.id,
@@ -868,7 +868,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     /* On n'invite pas quelqu'un qu'on a fait taire, ni quelqu'un qui
        nous a fait taire : ce serait rouvrir par une porte de côté ce
        qu'un blocage vient de fermer. */
-    if (await store.bloques(db, personne.id, invite.id)) {
+    if (await store.blockedIds(db, personne.id, invite.id)) {
       return reply.code(404).send({ erreur: "Personne." });
     }
     await store.inviteToList(db, droits.liste_id, invite.id);

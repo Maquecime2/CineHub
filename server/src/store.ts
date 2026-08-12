@@ -11,7 +11,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { Db } from "./db.ts";
 import { one } from "./db.ts";
 
-export interface Personne {
+export interface Person {
   id: string;
   pseudo: string;
   courriel: string | null;
@@ -19,7 +19,7 @@ export interface Personne {
   jeton?: string | null;
 }
 
-export interface CleAcces {
+export interface AccessKey {
   id: string;
   personne_id: string;
   cle_publique: Uint8Array;
@@ -31,24 +31,24 @@ export interface CleAcces {
    LES PERSONNES
    ------------------------------------------------------------ */
 
-export async function findByPseudo(db: Db, pseudo: string): Promise<Personne | null> {
-  return one<Personne>(
+export async function findByPseudo(db: Db, pseudo: string): Promise<Person | null> {
+  return one<Person>(
     db,
     "SELECT id, pseudo, courriel, partage, jeton FROM personne WHERE pseudo = $1",
     [pseudo]
   );
 }
 
-export async function findById(db: Db, id: string): Promise<Personne | null> {
-  return one<Personne>(
+export async function findById(db: Db, id: string): Promise<Person | null> {
+  return one<Person>(
     db,
     "SELECT id, pseudo, courriel, partage, jeton FROM personne WHERE id = $1",
     [id]
   );
 }
 
-export async function createPerson(db: Db, pseudo: string): Promise<Personne> {
-  const p = await one<Personne>(
+export async function createPerson(db: Db, pseudo: string): Promise<Person> {
+  const p = await one<Person>(
     db,
     "INSERT INTO personne (id, pseudo) VALUES ($1, $2) RETURNING id, pseudo, courriel",
     [randomUUID(), pseudo]
@@ -66,15 +66,15 @@ export async function deletePerson(db: Db, id: string): Promise<void> {
    LES CLÉS D'ACCÈS
    ------------------------------------------------------------ */
 
-export async function keysOf(db: Db, personneId: string): Promise<CleAcces[]> {
-  return db.query<CleAcces>(
+export async function keysOf(db: Db, personneId: string): Promise<AccessKey[]> {
+  return db.query<AccessKey>(
     "SELECT id, personne_id, cle_publique, compteur, transports FROM cle_acces WHERE personne_id = $1",
     [personneId]
   );
 }
 
-export async function keyById(db: Db, id: string): Promise<CleAcces | null> {
-  return one<CleAcces>(
+export async function keyById(db: Db, id: string): Promise<AccessKey | null> {
+  return one<AccessKey>(
     db,
     "SELECT id, personne_id, cle_publique, compteur, transports FROM cle_acces WHERE id = $1",
     [id]
@@ -169,8 +169,8 @@ export async function openSession(db: Db, personneId: string): Promise<string> {
   return secret;
 }
 
-export async function personOfSession(db: Db, secret: string): Promise<Personne | null> {
-  return one<Personne>(
+export async function personOfSession(db: Db, secret: string): Promise<Person | null> {
+  return one<Person>(
     db,
     `SELECT p.id, p.pseudo, p.courriel, p.partage, p.jeton
        FROM session s JOIN personne p ON p.id = s.personne_id
@@ -187,7 +187,7 @@ export async function closeSession(db: Db, secret: string): Promise<void> {
    LES FICHES
    ------------------------------------------------------------ */
 
-export interface FicheRangee {
+export interface StoredCard {
   id: string;
   seq: string | number;
   tmdb_id: string | null;
@@ -214,8 +214,8 @@ export async function cardsSince(
   personneId: string,
   depuis: bigint | number,
   plafond = 500
-): Promise<FicheRangee[]> {
-  return db.query<FicheRangee>(
+): Promise<StoredCard[]> {
+  return db.query<StoredCard>(
     `SELECT id, seq, tmdb_id, cachee, donnees, maj_le, supprimee
        FROM fiche WHERE personne_id = $1 AND seq > $2
       ORDER BY seq ASC LIMIT $3`,
@@ -325,7 +325,7 @@ export async function countCards(db: Db, personneId: string): Promise<number> {
    l'ordre, date du client pour l'arbitrage, et le refus d'une version
    périmée écrit dans la requête plutôt que dans la route. */
 
-export interface DocRange {
+export interface StoredDoc {
   cle: string;
   seq: string | number;
   contenu: unknown;
@@ -338,8 +338,8 @@ export async function docsSince(
   personneId: string,
   depuis: bigint | number,
   plafond = 200
-): Promise<DocRange[]> {
-  return db.query<DocRange>(
+): Promise<StoredDoc[]> {
+  return db.query<StoredDoc>(
     `SELECT cle, seq, contenu, maj_le, supprime
        FROM doc WHERE personne_id = $1 AND seq > $2
       ORDER BY seq ASC LIMIT $3`,
@@ -397,7 +397,7 @@ export async function setSharing(
    public ne s'oublie pas — il n'y a rien d'autre à appeler. */
 const SANS_LE_PRIVE = `f.donnees - 'notes' - 'watches' - 'watchedAt' AS donnees`;
 
-export interface FichePublique {
+export interface PublicCard {
   id: string;
   tmdb_id: string | null;
   donnees: Record<string, unknown>;
@@ -414,7 +414,7 @@ export async function publicCollectionOf(
   db: Db,
   pseudo: string,
   jeton: string | null
-): Promise<{ pseudo: string; films: FichePublique[] } | null> {
+): Promise<{ pseudo: string; films: PublicCard[] } | null> {
   const p = await findByPseudo(db, pseudo);
   if (!p) return null;
   if (p.partage === "publique") {
@@ -425,7 +425,7 @@ export async function publicCollectionOf(
     return null;
   }
 
-  const films = await db.query<FichePublique>(
+  const films = await db.query<PublicCard>(
     `SELECT f.id, f.tmdb_id, ${SANS_LE_PRIVE}
        FROM fiche f
       WHERE f.personne_id = $1 AND NOT f.cachee AND NOT f.supprimee
@@ -463,7 +463,7 @@ export async function hiddenCards(db: Db, personneId: string): Promise<string[]>
    SUIVRE, ET LE FIL
    ------------------------------------------------------------ */
 
-export interface Profil {
+export interface Profile {
   pseudo: string;
   /** Combien de films sa collection montre. */
   films: number;
@@ -484,14 +484,14 @@ export async function publicProfileOf(
   db: Db,
   pseudo: string,
   quiDemande?: string
-): Promise<Profil | null> {
+): Promise<Profile | null> {
   const p = await findByPseudo(db, pseudo);
   if (!p || p.partage !== "publique") return null;
 
   /* Un blocage rend introuvable, dans les deux sens, et sans le dire :
      c'est le même 404 que « n'existe pas ». Annoncer « vous êtes bloqué »
      ferait de la route un moyen de vérifier qu'on l'est. */
-  if (quiDemande && (await bloques(db, quiDemande, p.id))) return null;
+  if (quiDemande && (await blockedIds(db, quiDemande, p.id))) return null;
 
   const n = await one<{ n: string }>(
     db,
@@ -521,7 +521,7 @@ const PAS_BLOQUE = (moi: string, lui: string) =>
                 WHERE (b.bloqueur_id = ${moi} AND b.bloque_id = ${lui})
                    OR (b.bloqueur_id = ${lui} AND b.bloque_id = ${moi}))`;
 
-export async function suivre(db: Db, suiveur: string, suivi: string): Promise<void> {
+export async function follow(db: Db, suiveur: string, suivi: string): Promise<void> {
   /* `ON CONFLICT DO NOTHING` : suivre deux fois est le même geste, et
      doit répondre la même chose. */
   await db.query(
@@ -538,8 +538,8 @@ export async function unfollow(db: Db, suiveur: string, suivi: string): Promise<
 }
 
 /** Qui je suis, avec ce que leur collection montre encore. */
-export async function subscriptionsOf(db: Db, personneId: string): Promise<Profil[]> {
-  return db.query<Profil>(
+export async function subscriptionsOf(db: Db, personneId: string): Promise<Profile[]> {
+  return db.query<Profile>(
     `SELECT p.pseudo,
             (SELECT count(*) FROM fiche f
               WHERE f.personne_id = p.id AND NOT f.cachee AND NOT f.supprimee)::int AS films,
@@ -551,7 +551,7 @@ export async function subscriptionsOf(db: Db, personneId: string): Promise<Profi
   );
 }
 
-export interface Nouvelle {
+export interface FeedItem {
   pseudo: string;
   seq: string | number;
   id: string;
@@ -578,8 +578,8 @@ export async function feedOf(
   personneId: string,
   avant: bigint | number | null,
   plafond = 40
-): Promise<Nouvelle[]> {
-  return db.query<Nouvelle>(
+): Promise<FeedItem[]> {
+  return db.query<FeedItem>(
     `SELECT p.pseudo, f.seq, f.id, f.tmdb_id, ${SANS_LE_PRIVE}, f.maj_le
        FROM abonnement a
        JOIN personne p ON p.id = a.suivi_id
@@ -599,7 +599,7 @@ export async function feedOf(
    CE QU'ON DIT D'UNE ŒUVRE
    ------------------------------------------------------------ */
 
-export interface Avis {
+export interface Review {
   pseudo: string;
   /** L'identifiant de la fiche chez son auteur : c'est ce qu'on signale. */
   fiche: string;
@@ -614,7 +614,7 @@ export interface Echo {
   /** La moyenne des notes posées, ou `null` si personne n'a noté. */
   moyenne: number | null;
   notes: number;
-  avis: Avis[];
+  avis: Review[];
 }
 
 /* UNE NOTE EST DU TEXTE TANT QU'ON NE L'A PAS REGARDÉE. Le `jsonb` vient
@@ -665,7 +665,7 @@ export async function echoOfWork(
      rangée sans un mot ni une note compte dans le total et n'a rien à
      lire. Afficher des lignes vides ferait passer le silence pour un
      avis. */
-  const avis = await db.query<Avis>(
+  const avis = await db.query<Review>(
     `SELECT p.pseudo, f.id AS fiche, ${NOTE} AS note,
             NULLIF(f.donnees->>'review', '') AS critique, f.maj_le AS le
        FROM fiche f JOIN personne p ON p.id = f.personne_id
@@ -690,7 +690,7 @@ export async function echoOfWork(
    ------------------------------------------------------------ */
 
 /** Y a-t-il un blocage entre ces deux-là, dans un sens ou dans l'autre ? */
-export async function bloques(db: Db, un: string, autre: string): Promise<boolean> {
+export async function blockedIds(db: Db, un: string, autre: string): Promise<boolean> {
   const r = await db.query(
     `SELECT 1 FROM blocage
       WHERE (bloqueur_id = $1 AND bloque_id = $2) OR (bloqueur_id = $2 AND bloque_id = $1)`,
@@ -743,7 +743,7 @@ export async function myBlocks(db: Db, personneId: string): Promise<string[]> {
  * est le même, et une file de modération qu'un humain devra lire ne
  * doit pas enfler à chaque clic répété.
  */
-export async function signaler(
+export async function report(
   db: Db,
   auteurId: string,
   quoi: { cibleType: string; cibleId: string; viseId: string | null; motif: string }
@@ -768,7 +768,7 @@ export async function signaler(
    LES LISTES, ET LES ÉPREUVES QU'ON EN TIRE
    ------------------------------------------------------------ */
 
-export interface Liste {
+export interface ListRow {
   id: string;
   titre: string;
   intention: string;
@@ -781,7 +781,7 @@ export interface Liste {
   membre?: boolean;
 }
 
-export interface Oeuvre {
+export interface WorkRow {
   tmdb_id: string;
   titre: string;
   annee: string | null;
@@ -789,7 +789,7 @@ export interface Oeuvre {
 }
 
 /** Ce que quelqu'un a le droit de faire d'une liste. */
-export interface Droit {
+export interface Rights {
   lire: boolean;
   ecrire: boolean;
   administrer: boolean;
@@ -809,7 +809,7 @@ export async function rightsOnList(
   db: Db,
   listeId: string,
   personneId: string | null
-): Promise<Droit | null> {
+): Promise<Rights | null> {
   const l = await one<{ id: string; proprietaire_id: string; publique: boolean; membre: boolean }>(
     db,
     `SELECT l.id, l.proprietaire_id, l.publique,
@@ -830,8 +830,8 @@ export async function rightsOnList(
 }
 
 /** Mes listes, et celles où l'on m'a laissé écrire. */
-export async function myLists(db: Db, personneId: string): Promise<Liste[]> {
-  return db.query<Liste>(
+export async function myLists(db: Db, personneId: string): Promise<ListRow[]> {
+  return db.query<ListRow>(
     `SELECT l.id, l.titre, l.intention, l.publique,
             p.pseudo AS proprietaire,
             (SELECT count(*) FROM liste_item i WHERE i.liste_id = l.id)::int AS oeuvres,
@@ -848,8 +848,8 @@ export async function myLists(db: Db, personneId: string): Promise<Liste[]> {
 }
 
 /** Les listes publiques de quelqu'un — ce qu'un visiteur peut en voir. */
-export async function publicListsOf(db: Db, proprietaireId: string): Promise<Liste[]> {
-  return db.query<Liste>(
+export async function publicListsOf(db: Db, proprietaireId: string): Promise<ListRow[]> {
+  return db.query<ListRow>(
     `SELECT l.id, l.titre, l.intention, l.publique,
             p.pseudo AS proprietaire,
             (SELECT count(*) FROM liste_item i WHERE i.liste_id = l.id)::int AS oeuvres
@@ -893,8 +893,8 @@ export async function deleteList(db: Db, listeId: string): Promise<void> {
   await db.query("DELETE FROM liste WHERE id = $1", [listeId]);
 }
 
-export async function worksOf(db: Db, listeId: string): Promise<Oeuvre[]> {
-  return db.query<Oeuvre>(
+export async function worksOf(db: Db, listeId: string): Promise<WorkRow[]> {
+  return db.query<WorkRow>(
     `SELECT i.tmdb_id, i.titre, i.annee, p.pseudo AS par
        FROM liste_item i LEFT JOIN personne p ON p.id = i.ajoute_par
       WHERE i.liste_id = $1
@@ -985,7 +985,7 @@ const VU_PENDANT = `EXISTS (
                                                 AND to_char(e.fin, 'YYYY-MM-DD')
      ))`;
 
-export interface Epreuve {
+export interface Challenge {
   id: string;
   titre: string;
   liste_id: string;
@@ -998,7 +998,7 @@ export interface Epreuve {
   dedans?: boolean;
 }
 
-export interface Avancement {
+export interface Progress {
   pseudo: string;
   faites: number;
 }
@@ -1011,8 +1011,8 @@ export interface Avancement {
  * d'annuaire de gens : une liste de tout ce qui se joue ferait de ce
  * classeur une place publique, ce qu'il n'est pas.
  */
-export async function myChallenges(db: Db, personneId: string): Promise<Epreuve[]> {
-  return db.query<Epreuve>(
+export async function myChallenges(db: Db, personneId: string): Promise<Challenge[]> {
+  return db.query<Challenge>(
     `SELECT e.id, e.titre, e.liste_id, l.titre AS liste,
             to_char(e.debut, 'YYYY-MM-DD') AS debut,
             to_char(e.fin, 'YYYY-MM-DD') AS fin,
@@ -1034,8 +1034,8 @@ export async function myChallenges(db: Db, personneId: string): Promise<Epreuve[
   );
 }
 
-export async function challengeById(db: Db, id: string): Promise<Epreuve | null> {
-  return one<Epreuve>(
+export async function challengeById(db: Db, id: string): Promise<Challenge | null> {
+  return one<Challenge>(
     db,
     `SELECT e.id, e.titre, e.liste_id, l.titre AS liste,
             to_char(e.debut, 'YYYY-MM-DD') AS debut,
@@ -1085,8 +1085,8 @@ export async function leaveChallenge(db: Db, epreuveId: string, personneId: stri
 }
 
 /** Où en est chacun — un nombre par participant, et rien de plus. */
-export async function progressOf(db: Db, epreuveId: string): Promise<Avancement[]> {
-  return db.query<Avancement>(
+export async function progressOf(db: Db, epreuveId: string): Promise<Progress[]> {
+  return db.query<Progress>(
     `SELECT pe.pseudo,
             (SELECT count(*) FROM liste_item li
               WHERE li.liste_id = e.liste_id AND ${VU_PENDANT})::int AS faites
@@ -1100,8 +1100,8 @@ export async function progressOf(db: Db, epreuveId: string): Promise<Avancement[
 }
 
 /** Une liste par son identifiant, sans se demander qui la lit. */
-export async function listById(db: Db, id: string): Promise<Liste | null> {
-  return one<Liste>(
+export async function listById(db: Db, id: string): Promise<ListRow | null> {
+  return one<ListRow>(
     db,
     `SELECT l.id, l.titre, l.intention, l.publique, p.pseudo AS proprietaire,
             (SELECT count(*) FROM liste_item i WHERE i.liste_id = l.id)::int AS oeuvres
@@ -1123,7 +1123,7 @@ export async function listById(db: Db, id: string): Promise<Liste | null> {
  * par distraction, lui passer un compte ou une adresse — il n'y a pas
  * de paramètre pour les recevoir.
  */
-export async function compter(db: Db, geste: string): Promise<void> {
+export async function countGesture(db: Db, geste: string): Promise<void> {
   await db.query(
     `INSERT INTO mesure (jour, geste, n) VALUES (current_date, $1, 1)
      ON CONFLICT (jour, geste) DO UPDATE SET n = mesure.n + 1`,
@@ -1131,7 +1131,7 @@ export async function compter(db: Db, geste: string): Promise<void> {
   );
 }
 
-export async function mesures(
+export async function metrics(
   db: Db,
   jours = 30
 ): Promise<{ jour: string; geste: string; n: string }[]> {
@@ -1147,7 +1147,7 @@ export async function mesures(
    LES NOTIFICATIONS POUSSÉES
    ------------------------------------------------------------ */
 
-export interface Pousse {
+export interface PushRow {
   point: string;
   p256dh: string;
   secret: string;
@@ -1177,8 +1177,8 @@ export async function forgetPush(db: Db, point: string): Promise<void> {
   await db.query("DELETE FROM pousse WHERE point = $1", [point]);
 }
 
-export async function pushesOf(db: Db, personneId: string): Promise<Pousse[]> {
-  return db.query<Pousse>(
+export async function pushesOf(db: Db, personneId: string): Promise<PushRow[]> {
+  return db.query<PushRow>(
     "SELECT point, p256dh, secret, personne_id FROM pousse WHERE personne_id = $1",
     [personneId]
   );

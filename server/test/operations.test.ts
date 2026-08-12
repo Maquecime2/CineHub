@@ -52,7 +52,7 @@ describe("la mesure d'usage", () => {
     ).json().id;
     await app.inject({ method: "GET", url: `/listes/${liste}`, headers: { cookie: moi.cookie } });
 
-    const gestes = (await store.mesures(db)).map((m) => m.geste);
+    const gestes = (await store.metrics(db)).map((m) => m.geste);
     expect(gestes).toContain("GET /listes/:id");
     expect(gestes.join(" ")).not.toContain(liste);
   });
@@ -73,7 +73,7 @@ describe("la mesure d'usage", () => {
       .sort();
     expect(colonnes).toEqual(["geste", "jour", "n"]);
 
-    const tout = JSON.stringify(await store.mesures(db));
+    const tout = JSON.stringify(await store.metrics(db));
     expect(tout).not.toContain(varda.personne.id);
     expect(tout).not.toContain("varda");
   });
@@ -81,14 +81,14 @@ describe("la mesure d'usage", () => {
   it("compte ce qui réussit, et laisse les échecs au journal", async () => {
     await app.inject({ method: "GET", url: "/moi" }); // 401
     await app.inject({ method: "GET", url: "/sante" });
-    const gestes = (await store.mesures(db)).map((m) => m.geste);
+    const gestes = (await store.metrics(db)).map((m) => m.geste);
     expect(gestes).toContain("GET /sante");
     expect(gestes).not.toContain("GET /moi");
   });
 
   it("s'additionne par jour, sans une ligne par requête", async () => {
     for (let i = 0; i < 3; i += 1) await app.inject({ method: "GET", url: "/sante" });
-    const rows = (await store.mesures(db)).filter((m) => m.geste === "GET /sante");
+    const rows = (await store.metrics(db)).filter((m) => m.geste === "GET /sante");
     expect(rows).toHaveLength(1);
     expect(Number(rows[0]!.n)).toBe(3);
   });
