@@ -33,11 +33,11 @@ import {
 } from "./collection";
 import { store } from "./storage";
 import {
-  documentsÀEnvoyer,
-  oublierDocumentsPartis,
-  oublierLesDocuments,
-  rangerDocumentVenu,
-  tousLesDocumentsÀEnvoyer,
+  documentsToSend,
+  forgetSentDocuments,
+  forgetDocuments,
+  fileIncomingDocument,
+  sendAllDocuments,
 } from "./documents";
 import {
   DOCS_PAR_ENVOI,
@@ -138,7 +138,7 @@ export async function synchroniser(poser: (films: Film[]) => void): Promise<Bila
     store.set(CLÉ_CURSEUR, 0);
     store.set(CLÉ_CURSEUR_DOCS, 0);
     sendEverything();
-    tousLesDocumentsÀEnvoyer();
+    sendAllDocuments();
     store.set(CLÉ_COMPTE, personne.id);
   }
 
@@ -224,18 +224,18 @@ export async function synchroniser(poser: (films: Film[]) => void): Promise<Bila
     let entrés = 0;
     while (encoreDocs && toursDocs < 50) {
       const reçu = await tirerDocsDepuis(rangDocs);
-      for (const d of reçu.documents) if (rangerDocumentVenu(d)) entrés += 1;
+      for (const d of reçu.documents) if (fileIncomingDocument(d)) entrés += 1;
       rangDocs = reçu.jusqua;
       encoreDocs = reçu.encore === true;
       toursDocs += 1;
     }
     store.set(CLÉ_CURSEUR_DOCS, rangDocs);
 
-    const paquetDocs = documentsÀEnvoyer();
+    const paquetDocs = documentsToSend();
     for (let i = 0; i < paquetDocs.length; i += DOCS_PAR_ENVOI) {
       const tranche = paquetDocs.slice(i, i + DOCS_PAR_ENVOI);
       await pousserDocs(tranche);
-      oublierDocumentsPartis(tranche.map((d) => d.cle));
+      forgetSentDocuments(tranche.map((d) => d.cle));
     }
 
     /* Un agencement qui change demande un rechargement de la vue : les
@@ -271,7 +271,7 @@ export const enAttente = (): number =>
 export function oublierLaSynchro(): void {
   store.set(CLÉ_CURSEUR, 0);
   store.set(CLÉ_CURSEUR_DOCS, 0);
-  oublierLesDocuments();
+  forgetDocuments();
   store.set(CLÉ_COMPTE, "");
   store.set(CLÉ_BILAN, { le: null });
 }

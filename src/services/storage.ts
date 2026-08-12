@@ -1,8 +1,8 @@
 /* ============================================================
-   PERSISTANCE LOCALE — remplace le window.storage du runtime artefact.
+   LOCAL PERSISTENCE — replaces the artifact runtime's window.storage.
    ============================================================ */
 
-/** Les clés du localStorage, réunies pour qu'aucune ne se perde en chemin. */
+/** The localStorage keys, gathered so that none gets lost on the way. */
 export const KEYS = {
   films: "films",
   notes: "notebook-notes",
@@ -11,77 +11,76 @@ export const KEYS = {
   tmdbKey: "tmdb-key",
 } as const;
 
-/* Le registre des dates vit dans `documents`, qui écrit lui-même par ce
-   magasin : on le charge à la volée pour ne pas nouer les deux modules
-   l'un à l'autre au chargement. La promesse n'est pas attendue — dater
-   un document ne doit jamais retarder son écriture. */
-const noterSiSynchronisable = async (clé: string): Promise<void> => {
-  const { estSynchronisable, noterDocument } = await import("./documents");
-  if (estSynchronisable(clé)) noterDocument(clé);
+/* The date register lives in `documents`, which itself writes through
+   this store: we load it on the fly so as not to tie the two modules to
+   each other at load time. The promise is not awaited — dating a
+   document must never delay writing it. */
+const noteIfSyncable = async (key: string): Promise<void> => {
+  const { isSyncable, noteDocument } = await import("./documents");
+  if (isSyncable(key)) noteDocument(key);
 };
 
 /* ------------------------------------------------------------
-   LE QUOTA SE VOIT VENIR, IL NE SE DÉCOUVRE PAS
+   THE QUOTA IS SEEN COMING, IT IS NOT DISCOVERED
    ------------------------------------------------------------
 
-   L'alerte n'arrivait qu'APRÈS l'échec de l'écriture. À ce moment-là le
-   mal est fait : la modification est à l'écran, elle n'est pas sur le
-   disque, et rien ne le dit — on ferme l'onglet en croyant avoir
-   enregistré, et l'on rouvre une collection d'hier.
+   The warning only arrived AFTER the write had failed. By then the
+   damage is done: the change is on screen, it is not on the disk, and
+   nothing says so — you close the tab believing you saved, and you
+   reopen yesterday's collection.
 
-   On mesure donc AVANT. `JSON.stringify` est de toute façon appelé pour
-   écrire ; sa longueur ne coûte rien de plus, et elle permet de prévenir
-   pendant qu'il reste de la place pour agir — exporter une sauvegarde,
-   alléger des affiches.
+   So we measure BEFORE. `JSON.stringify` is called to write anyway; its
+   length costs nothing more, and it lets us warn while there is still
+   room to act — export a backup, lighten some posters.
 
-   Le seuil est en UTF-16 : `localStorage` compte des unités de code, pas
-   des octets, et la plupart des navigateurs plafonnent autour de cinq
-   millions. On prévient aux quatre cinquièmes. */
-const SEUIL_ALERTE = 4_000_000;
+   The threshold is in UTF-16: `localStorage` counts code units, not
+   bytes, and most browsers cap around five million. We warn at four
+   fifths. */
+const WARN_THRESHOLD = 4_000_000;
 
-const CONSEIL =
+const ADVICE =
   "Les affiches importées depuis votre disque sont les plus lourdes : préférez une adresse d'image (clic droit → copier l'adresse de l'image) ou l'enrichissement TMDB, qui ne stockent qu'un lien.";
 
-/* Une fois par session, et pas une de plus. Une alerte qui se répète à
-   chaque frappe est une alerte qu'on apprend à cliquer sans lire. */
-let prévenu = false;
+/* Once per session, and not one more. A warning that repeats on every
+   keystroke is a warning you learn to click through without reading. */
+let warned = false;
 
-const prévenirSiGros = (taille: number): void => {
-  if (prévenu || taille < SEUIL_ALERTE) return;
-  prévenu = true;
+const warnIfLarge = (size: number): void => {
+  if (warned || size < WARN_THRESHOLD) return;
+  warned = true;
   alert(
-    `L'espace de stockage se remplit (${Math.round(taille / 100_000) / 10} Mo sur environ 5).\n\n${CONSEIL}\n\nPensez à exporter une sauvegarde depuis l'onglet Import.`
+    `L'espace de stockage se remplit (${Math.round(size / 100_000) / 10} Mo sur environ 5).\n\n${ADVICE}\n\nPensez à exporter une sauvegarde depuis l'onglet Import.`
   );
 };
 
 /* ------------------------------------------------------------
-   ÉCRIRE PLUS TARD, ET UNE SEULE FOIS
+   WRITE LATER, AND ONLY ONCE
    ------------------------------------------------------------
 
-   `saveFilms` re-sérialise la collection ENTIÈRE à chaque édition, et il
-   est appelé depuis une dizaine d'endroits — ranger un rayon, cocher une
-   séance, poser un motif. Sur cinq cents fiches, chaque frappe dans une
-   critique écrivait tout le classeur.
+   `saveFilms` re-serialises the WHOLE collection on every edit, and it
+   is called from a dozen places — filing a shelf, ticking a screening,
+   setting a motif. On five hundred cards, every keystroke in a review
+   wrote the entire binder.
 
-   On garde la dernière valeur par clé et on écrit une fois, un peu plus
-   tard. Ce qui rend la chose sûre est le VIDAGE : quitter la page,
-   changer d'onglet ou masquer la fenêtre écrit tout de suite. Sans lui,
-   différer reviendrait à parier sur la patience de l'utilisateur. */
-const DÉLAI = 400;
+   We keep the last value per key and write once, a little later. What
+   makes this safe is the FLUSH: leaving the page, switching tabs or
+   hiding the window writes immediately. Without it, deferring would
+   amount to betting on the user's patience. */
+const DELAY = 400;
 
-const enAttente = new Map<string, unknown>();
-let minuteur: ReturnType<typeof setTimeout> | null = null;
+const pending = new Map<string, unknown>();
+let timer: ReturnType<typeof setTimeout> | null = null;
 
-/** Écrit tout ce qui attend. Sans effet quand rien n'attend. */
+/** Writes everything that is waiting. No effect when nothing is. */
 export function flush(): void {
-  if (minuteur != null) {
-    clearTimeout(minuteur);
-    minuteur = null;
+  if (timer != null) {
+    clearTimeout(timer);
+    timer = null;
   }
-  if (enAttente.size === 0) return;
-  const lot = [...enAttente];
-  enAttente.clear();
-  for (const [k, v] of lot) store.set(k, v);
+  if (pending.size === 0) return;
+  const batch = [...pending];
+  pending.clear();
+  for (const [k, v] of batch) store.set(k, v);
 }
 
 export const store = {
@@ -94,64 +93,65 @@ export const store = {
     }
   },
 
-  /* L'écriture immédiate. Elle reste le chemin par défaut : la plupart
-     des clés sont minuscules et écrites une fois de loin en loin. */
+  /* The immediate write. It stays the default path: most keys are tiny
+     and written once in a while. */
   set: (k: string, v: unknown): boolean => {
     try {
-      /* MESURER AVANT D'ÉCRIRE, DATER APRÈS AVOIR ÉCRIT : les deux
-         moitiés de cette ligne viennent de deux chantiers différents et
-         se composent sans se gêner. */
-      const texte = JSON.stringify(v);
-      prévenirSiGros(texte.length);
-      localStorage.setItem(k, texte);
-      /* LA DATE SE POSE ICI, ET C'EST TOUT L'INTÉRÊT DE LA POSER ICI.
+      /* MEASURE BEFORE WRITING, DATE AFTER HAVING WRITTEN: the two
+         halves of this line come from two different pieces of work and
+         compose without getting in each other's way. */
+      const text = JSON.stringify(v);
+      warnIfLarge(text.length);
+      localStorage.setItem(k, text);
+      /* THE DATE IS SET HERE, AND THAT IS THE WHOLE POINT OF SETTING IT
+         HERE.
 
-         Six services écrivent des documents — l'étagère, le carnet, les
-         fils, le vocabulaire, les décors, les préférences du mur — et
-         aucun ne date ce qu'il écrit. Demander à chacun d'y penser,
-         c'est se garantir qu'un l'oubliera, et qu'un pan du classeur ne
-         se synchronisera jamais sans que rien ne le signale.
+         Six services write documents — the shelf, the notebook, the
+         threads, the vocabulary, the decors, the wall's preferences —
+         and none of them dates what it writes. Asking each to remember
+         is guaranteeing that one will forget, and that a whole section
+         of the binder will never synchronise with nothing to say so.
 
-         L'import est différé pour une raison bête et réelle : le
-         registre des dates s'écrit lui-même par ce magasin, et un import
-         direct fabriquerait une boucle entre les deux modules. */
-      void noterSiSynchronisable(k);
+         The import is deferred for a dull and real reason: the date
+         register writes itself through this store, and a direct import
+         would make a loop between the two modules. */
+      void noteIfSyncable(k);
       return true;
     } catch (e) {
       console.error(e);
       if (String((e as Error)?.name || "").includes("Quota")) {
-        alert(`Espace de stockage plein.\n\n${CONSEIL}`);
+        alert(`Espace de stockage plein.\n\n${ADVICE}`);
       }
       return false;
     }
   },
 
   /**
-   * L'écriture différée, pour ce qui est gros et souvent retouché.
+   * The deferred write, for what is large and often retouched.
    *
-   * Les appels successifs sur une même clé se remplacent : dix éditions
-   * d'affilée font une écriture. L'appelant met son état à l'écran comme
-   * avant — seul le disque attend.
+   * Successive calls on the same key replace each other: ten edits in a
+   * row make one write. The caller puts its state on screen as before —
+   * only the disk waits.
    */
   setSoon: (k: string, v: unknown): void => {
-    enAttente.set(k, v);
-    if (minuteur != null) clearTimeout(minuteur);
-    minuteur = setTimeout(flush, DÉLAI);
+    pending.set(k, v);
+    if (timer != null) clearTimeout(timer);
+    timer = setTimeout(flush, DELAY);
   },
 
-  /** Ce qui attend encore d'être écrit — pour les tests, et pour le doute. */
-  enAttente: (): number => enAttente.size,
+  /** What is still waiting to be written — for the tests, and for doubt. */
+  pending: (): number => pending.size,
 };
 
-/* LES DEUX ÉVÉNEMENTS QUI COMPTENT, ET POURQUOI LES DEUX.
+/* THE TWO EVENTS THAT MATTER, AND WHY BOTH.
 
-   `pagehide` couvre la fermeture et la navigation. `visibilitychange`
-   couvre le reste — changer d'onglet, verrouiller l'écran, poser le
-   téléphone — et c'est le seul sur lequel les navigateurs mobiles soient
-   fiables : un onglet mobile peut être supprimé de la mémoire sans que
-   `pagehide` ne parte jamais.
+   `pagehide` covers closing and navigating away. `visibilitychange`
+   covers the rest — switching tabs, locking the screen, putting the
+   phone down — and it is the only one mobile browsers are reliable
+   about: a mobile tab can be dropped from memory without `pagehide`
+   ever firing.
 
-   `window` peut manquer (tests hors DOM), d'où la garde. */
+   `window` can be missing (tests outside the DOM), hence the guard. */
 if (typeof window !== "undefined") {
   window.addEventListener("pagehide", flush);
   document.addEventListener("visibilitychange", () => {
