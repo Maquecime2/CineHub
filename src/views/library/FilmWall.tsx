@@ -3,52 +3,51 @@ import { FilmPolaroid } from "../../components/film/FilmPolaroid";
 import { DEFAULT_WALL_LOOK, scaleOf, gapOf, type WallLook } from "./wallLook";
 import type { Film } from "../../types";
 
-/* Le mur des fiches.
+/* The wall of cards.
 
-   Il utilisait des colonnes CSS, qui remplissent une colonne de haut en bas
-   avant de passer à la suivante : l'ordre trié devenait illisible pour un œil
-   qui lit de gauche à droite, au point de faire croire que le tri ne marchait
-   pas. Une grille ordonne les fiches ligne par ligne ; le décalage vertical de
-   chaque fiche (nudgeOf) suffit à garder le désordre voulu.
+   It used CSS columns, which fill a column from top to bottom before
+   moving to the next: the sorted order became illegible to an eye that
+   reads from left to right, to the point of making one believe the sort
+   was not working. A grid orders the cards line by line; the vertical
+   offset of each card (nudgeOf) is enough to keep the wanted disorder.
 
-   La largeur de colonne n'est plus un nombre écrit ici : elle suit le calibre
-   des fiches, sinon une fiche rapetissée flotterait au milieu d'une colonne
-   restée large. L'écartement, lui, se règle à part — deux murs de même
-   calibre peuvent être serrés ou aérés. */
+   The column width is no longer a number written here: it follows the
+   calibre of the cards, otherwise a shrunk card would float in the
+   middle of a column that stayed wide. The spacing is adjusted
+   separately — two walls of the same calibre may be tight or airy. */
 
 /* ============================================================
-   LE MUR NE MONTE QUE CE QU'ON REGARDE
+   THE WALL ONLY MOUNTS WHAT ONE LOOKS AT
    ============================================================
 
-   Cinq cents fiches, c'est cinq cents polaroïds montés d'un coup : une
-   affiche, un ruban ou une punaise, des étoiles, un numéro de dossier.
-   Le premier rendu bloquait le fil, et chaque coup de molette repeignait
-   ce que personne ne regardait.
+   Five hundred cards is five hundred polaroids mounted at once: a
+   poster, a piece of tape or a pin, stars, a folder number. The first
+   render blocked the thread, and every turn of the wheel repainted what
+   nobody was looking at.
 
-   ON NE VIRTUALISE PAS LA GRILLE, ET C'EST DÉLIBÉRÉ. Le nombre de
-   colonnes est décidé par `auto-fill` — donc par le navigateur, d'après
-   la largeur disponible — et les hauteurs varient d'une fiche à l'autre
-   (le décalage semé, le format de l'affiche). Calculer des rangées en
-   JavaScript reviendrait à réimplémenter la mise en page pour la
-   deviner, et à la deviner faux un jour sur deux.
+   WE DO NOT VIRTUALISE THE GRID, AND THAT IS DELIBERATE. The number of
+   columns is decided by `auto-fill` — hence by the browser, according to
+   the available width — and the heights vary from one card to another
+   (the sown offset, the poster's format). Computing rows in JavaScript
+   would mean reimplementing the layout in order to guess it, and
+   guessing it wrong every other day.
 
-   On garde donc la grille telle quelle, et l'on vide les CASES qu'on ne
-   voit pas — en leur laissant exactement la hauteur qu'elles avaient. La
-   mise en page ne bouge pas d'un pixel, le défilement ne saute jamais,
-   l'ascenseur garde sa taille, et `WallStudio` continue de voir le mur
-   entier puisque toutes les cases sont là.
+   So we keep the grid as it is, and we empty the CELLS one does not see
+   — leaving them exactly the height they had. The layout does not move
+   by a pixel, the scrolling never jumps, the scrollbar keeps its size,
+   and `WallStudio` goes on seeing the whole wall since every cell is
+   there.
 
-   Le désordre reste intact : `tiltOf` et `nudgeOf` sont semés par
-   l'identifiant du film, jamais par son rang de rendu — une fiche qui
-   sort de vue et revient revient IDENTIQUE. */
+   The disorder stays intact: `tiltOf` and `nudgeOf` are sown by the
+   film's identifier, never by its render rank — a card that leaves view
+   and comes back comes back IDENTICAL. */
 
-/* De quoi monter une bonne hauteur d'écran d'avance, de chaque côté :
-   on ne veut pas voir apparaître les fiches, seulement ne pas les
-   porter toutes. */
+/* Enough to mount a good screen height in advance, on each side: we do
+   not want to see the cards appear, only to avoid carrying them all. */
 const MARGE = "900px";
 
-/* En dessous de ce nombre, on ne fait rien : l'observation coûte plus
-   qu'elle ne rapporte, et un mur de quarante fiches n'a jamais ramé. */
+/* Below this number we do nothing: the observation costs more than it
+   brings back, and a wall of forty cards has never struggled. */
 const SEUIL = 60;
 
 function Case({
@@ -61,28 +60,29 @@ function Case({
   onOpen: (id: string) => void;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
-  /* `null` : la case est montée. Un nombre : elle est vidée, et c'est la
-     hauteur qu'elle avait au moment où on l'a vidée.
+  /* `null`: the cell is mounted. A number: it is emptied, and that is
+     the height it had at the moment it was emptied.
 
-     UN ÉTAT ET NON UNE RÉFÉRENCE, parce que la valeur est LUE PENDANT LE
-     RENDU — c'est elle qui donne sa hauteur au vide. Une référence lue
-     au rendu ne prévient pas React qu'il faut redessiner, et rien ne
-     garantit qu'on lise la bonne : le premier jet le faisait, et le
-     lint a eu raison de le refuser. */
+     A STATE AND NOT A REF, because the value is READ DURING THE RENDER —
+     it is what gives the emptiness its height. A ref read during a
+     render does not tell React it must redraw, and nothing guarantees
+     the right one is read: the first draft did it, and the linter was
+     right to refuse. */
   const [vidéeÀ, setVidéeÀ] = useState<number | null>(null);
 
   useEffect(() => {
     const el = ref.current;
-    /* Un navigateur sans `IntersectionObserver` garde le mur d'avant :
-       plus lourd, mais entier. Une dégradation ne doit jamais faire
-       disparaître le contenu. */
+    /* A browser without `IntersectionObserver` keeps the wall from
+       before: heavier, but whole. A degradation must never make the
+       content vanish. */
     if (!el || typeof IntersectionObserver === "undefined") return;
     const obs = new IntersectionObserver(
       ([e]) => {
         if (!e) return;
         if (e.isIntersecting) setVidéeÀ(null);
-        /* On mesure AVANT de vider, pendant que la case a encore son
-           contenu — après, il n'y aurait plus rien à mesurer. */
+        /* We measure BEFORE emptying, while the cell still has its
+           content — afterwards there would be nothing left to
+           measure. */
         else setVidéeÀ(el.getBoundingClientRect().height || 1);
       },
       { rootMargin: MARGE }

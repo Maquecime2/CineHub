@@ -1,21 +1,22 @@
 /* ============================================================
-   L'ALLURE DU MUR — ce qui se règle sur la présentation en fiches
+   THE LOOK OF THE WALL — what is adjustable on the card display
    ============================================================
 
-   L'étagère a son atelier déco depuis longtemps ; le mur, lui, était une
-   grille figée : deux cent dix pixels de colonne, une affiche de cent
-   cinquante, et pas une poignée. Tout ce qui suit n'est que ça — les
-   cotes qui étaient écrites en dur, sorties du composant et nommées.
+   The shelf has had its decor workshop for a long time; the wall was a
+   frozen grid: two hundred and ten pixels of column, a poster of a
+   hundred and fifty, and not one handle. All that follows is only that —
+   the dimensions that were hard-coded, taken out of the component and
+   named.
 
-   Un seul facteur commande la taille : une fiche est un objet, elle
-   grandit d'un bloc. Régler séparément l'affiche, le titre et la légende
-   permettrait surtout de fabriquer des fiches disgracieuses.
+   A single factor commands the size: a card is an object, it grows as
+   one block. Adjusting the poster, the title and the caption separately
+   would above all allow building ungainly cards.
 
-   Les catalogues sont des dictionnaires de facteurs, sur le modèle de
-   `DECOR_SIZES` (`components/shelf/constants.tsx`) : une clé se persiste
-   et se relit, un nombre nu ne se relit pas. */
+   The catalogues are dictionaries of factors, on the model of
+   `DECOR_SIZES` (`components/shelf/constants.tsx`): a key persists and
+   is read back, a bare number is not. */
 
-/** Le calibre d'une fiche — facteur appliqué à TOUTES ses cotes. */
+/** The calibre of a card — a factor applied to ALL its dimensions. */
 export const CARD_SIZES = {
   XS: { label: "minuscule", f: 0.62 },
   S: { label: "petit", f: 0.78 },
@@ -24,25 +25,25 @@ export const CARD_SIZES = {
   XL: { label: "très grand", f: 1.6 },
 } as const;
 
-/** L'écartement entre fiches, indépendamment de leur taille. */
+/** The spacing between cards, independently of their size. */
 export const SPREADS = {
   serre: { label: "serré", f: 0.5 },
   normal: { label: "normal", f: 1 },
   aere: { label: "aéré", f: 1.6 },
 } as const;
 
-/* Le désordre ne se retire pas, il se DOSE : les inclinaisons et les
-   décalages restent semés par l'identifiant du film (`tiltOf`, `nudgeOf`),
-   on ne fait que multiplier ce tirage. À zéro, le mur est au cordeau sans
-   qu'aucune fiche n'ait changé de tirage — remonter d'un cran retrouve
-   exactement le désordre qu'on avait. */
+/* The disorder is not removed, it is DOSED: the leans and the offsets
+   stay sown by the film's identifier (`tiltOf`, `nudgeOf`), we merely
+   multiply that draw. At zero the wall is dead straight without any card
+   having changed its draw — going back up one notch finds exactly the
+   disorder one had. */
 export const MESSES = {
   range: { label: "rangé", f: 0 },
   naturel: { label: "naturel", f: 1 },
   disperse: { label: "dispersé", f: 1.9 },
 } as const;
 
-/** Ce qui tient la fiche au mur. `auto` laisse le tirage décider. */
+/** What holds the card to the wall. `auto` lets the draw decide. */
 export const HANGS = {
   auto: { label: "au hasard" },
   pin: { label: "punaise" },
@@ -55,7 +56,7 @@ export type Spread = keyof typeof SPREADS;
 export type Mess = keyof typeof MESSES;
 export type Hang = keyof typeof HANGS;
 
-/** Le décor de fond, exactement la forme que `wallStyle` sait lire. */
+/** The background decor, exactly the shape `wallStyle` knows how to read. */
 export interface WallDecor {
   paint?: string | null;
   pattern?: string | null;
@@ -71,10 +72,10 @@ export interface WallLook {
   decor: WallDecor | null;
 }
 
-/* Le mur ouvrait en `M`, et c'était trop gros : à deux cent dix pixels de
-   colonne, un écran courant n'en montrait que cinq ou six. On ouvre donc
-   un cran plus bas — les grands calibres restent à un clic pour qui veut
-   revoir les affiches en grand. */
+/* The wall used to open at `M`, and that was too big: at two hundred
+   and ten pixels of column, a common screen showed only five or six of
+   them. So we open one notch lower — the large calibres stay one click
+   away for whoever wants to see the posters big again. */
 export const DEFAULT_WALL_LOOK: WallLook = {
   size: "S",
   spread: "normal",
@@ -83,10 +84,10 @@ export const DEFAULT_WALL_LOOK: WallLook = {
   decor: null,
 };
 
-/* L'allure de qui n'en demande pas. Elle n'est PAS le défaut du mur :
-   une fiche posée ailleurs (les découvertes, par exemple) n'a pas à
-   rapetisser parce que le mur, lui, ouvre plus petit. Neutre veut dire
-   « comme avant qu'on puisse régler quoi que ce soit ». */
+/* The look of whoever asks for none. It is NOT the wall's default: a
+   card laid elsewhere (the discoveries, for instance) has no business
+   shrinking because the wall opens smaller. Neutral means "as it was
+   before anything could be adjusted at all". */
 export const NEUTRAL_WALL_LOOK: WallLook = {
   size: "M",
   spread: "normal",
@@ -98,10 +99,10 @@ export const NEUTRAL_WALL_LOOK: WallLook = {
 const keyOf = <T extends object>(cat: T, v: unknown, fallback: keyof T): keyof T =>
   typeof v === "string" && v in cat ? (v as keyof T) : fallback;
 
-/* Les préférences viennent du disque, écrites par une version qui ne
-   connaissait pas ces champs — ou par une plus récente que celle qui
-   les relit. On ne fait donc jamais confiance à ce qu'on lit : chaque
-   clé inconnue retombe sur son défaut, et le mur s'affiche. */
+/* The preferences come from disk, written by a version that did not
+   know these fields — or by a more recent one than that which reads them
+   back. So we never trust what we read: every unknown key falls back on
+   its default, and the wall displays. */
 export function wallLookOf(saved?: Partial<WallLook> | null): WallLook {
   const s = saved || {};
   return {
@@ -113,17 +114,18 @@ export function wallLookOf(saved?: Partial<WallLook> | null): WallLook {
   };
 }
 
-/* Les trois lectures d'une allure. Sans allure du tout, c'est la neutre
-   qui répond — jamais celle du mur, qui n'a pas cours ailleurs. */
+/* The three readings of a look. With no look at all, it is the neutral
+   one that answers — never the wall's, which has no currency
+   elsewhere. */
 
-/** Le facteur de taille d'une allure, prêt à multiplier une cote. */
+/** The size factor of a look, ready to multiply a dimension. */
 export const scaleOf = (look?: WallLook | null): number =>
   CARD_SIZES[look?.size || NEUTRAL_WALL_LOOK.size].f;
 
-/** L'écart horizontal entre deux fiches, en pixels. */
+/** The horizontal gap between two cards, in pixels. */
 export const gapOf = (look?: WallLook | null): number =>
   Math.round(34 * scaleOf(look) * SPREADS[look?.spread || NEUTRAL_WALL_LOOK.spread].f);
 
-/** De combien on multiplie le désordre semé. */
+/** By how much the sown disorder is multiplied. */
 export const messOf = (look?: WallLook | null): number =>
   MESSES[look?.mess || NEUTRAL_WALL_LOOK.mess].f;

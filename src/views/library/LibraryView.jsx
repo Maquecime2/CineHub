@@ -1,5 +1,5 @@
 /* ============================================================
-   VUE — VIDÉOTHÈQUE : le mur, ou l'étagère et ses vues.
+   VIEW — FILM LIBRARY: the wall, or the shelf and its views.
    ============================================================ */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pin, Plus, Trash2, LayoutGrid, Library, Paperclip, Dice5 } from "lucide-react";
@@ -312,7 +312,7 @@ function ViewSwitcher({
   );
 }
 
-/** La décennie d'un film — `null` quand l'année manque. */
+/** A film's decade — `null` when the year is missing. */
 const decadeOf = (f) => {
   const y = Number(f.year);
   return Number.isFinite(y) && y > 0 ? Math.floor(y / 10) * 10 : null;
@@ -320,9 +320,9 @@ const decadeOf = (f) => {
 
 export function LibraryView({
   films,
-  /* TOUTE la collection, et non le seul mur affiché : le tiroir de la
-     soirée bâtit un profil de goût, et un profil se lit sur les films
-     VUS — que la liste « à voir » ne contient précisément pas. */
+  /* The WHOLE collection, and not the displayed wall alone: the evening
+     drawer builds a taste profile, and a profile is read on the films
+     SEEN — which the "à voir" list precisely does not contain. */
   tousLesFilms = [],
   onOpen,
   wall = "watched",
@@ -339,8 +339,8 @@ export function LibraryView({
   onDeleteView,
 }) {
   const cfg = WALLS[wall];
-  /* Recherche, filtre et tri vivent dans App : ouvrir un film démonte cette
-     vue, et un état local serait perdu au retour au mur. */
+  /* Search, filter and sort live in App: opening a film unmounts this
+     view, and a local state would be lost on the way back to the wall. */
   const { q, genreFilter, decadeFilter = null, sortBy, desc, grouped } = ui;
   const mode = ui.mode === "shelf" ? "shelf" : "wall";
   const set = (patch) => setUi({ ...ui, ...patch });
@@ -348,7 +348,7 @@ export function LibraryView({
   const setGenreFilter = (v) => set({ genreFilter: v });
   const setDecadeFilter = (v) => set({ decadeFilter: v });
   const setGrouped = (fn) => set({ grouped: typeof fn === "function" ? fn(grouped) : fn });
-  // recliquer le tri actif inverse simplement le sens
+  // clicking the active sort again simply reverses the direction
   const pickSort = (k) => set(k === sortBy ? { desc: !desc } : { sortBy: k, desc: true });
 
   const allGenres = useMemo(
@@ -356,41 +356,41 @@ export function LibraryView({
     [films]
   );
 
-  /* Les décennies ne sont pas une liste fixe : on n'offre que celles que
-     la collection contient réellement, de la plus ancienne à la plus
-     récente. Un film sans année n'en a aucune — il disparaît dès qu'on
-     choisit une décennie, et c'est bien ce qu'on demande. */
+  /* The decades are not a fixed list: we offer only those the
+     collection actually contains, from the oldest to the most recent. A
+     film with no year has none — it vanishes as soon as a decade is
+     chosen, and that is indeed what is being asked. */
   const allDecades = useMemo(
     () => Array.from(new Set(films.map(decadeOf).filter((d) => d !== null))).sort((a, b) => a - b),
     [films]
   );
 
-  /* L'atelier déco, ouvert par-dessus l'étagère plutôt que dans le menu
-     de vue : on y règle une surface et on veut VOIR le rayon changer
-     derrière, ce qu'un menu refermé sur lui-même interdit. */
+  /* The decor workshop, opened over the shelf rather than inside the
+     view menu: one adjusts a surface there and wants to SEE the row
+     change behind, which a menu closed on itself forbids. */
   const [studio, setStudio] = useState(false);
 
-  /* L'atelier du mur, son exact pendant côté fiches. Deux états et non un
-     seul : les deux ateliers ne règlent pas la même chose et ne s'ouvrent
-     pas dans la même présentation. */
+  /* The wall workshop, its exact counterpart on the cards' side. Two
+     states and not one: the two workshops do not adjust the same thing
+     and do not open in the same display. */
   const [wallStudio, setWallStudio] = useState(false);
 
-  /* Le tiroir de la soirée. Local à la vue et non dans `ui` : ce n'est
-     pas un réglage du mur qu'on retrouve en revenant, c'est une question
-     qu'on pose une fois. */
+  /* The evening drawer. Local to the view and not in `ui`: it is not a
+     wall setting one finds again on coming back, it is a question one
+     asks once. */
   const [soir, setSoir] = useState(false);
 
-  /* L'allure du mur vient du disque et peut manquer, ou avoir été écrite
-     par une autre version : `wallLookOf` la ramène toujours à une allure
-     complète, quitte à retomber sur les défauts. */
+  /* The wall's look comes from disk and may be missing, or have been
+     written by another version: `wallLookOf` always brings it back to a
+     complete look, falling back on the defaults if need be. */
   const look = useMemo(() => wallLookOf(ui.look), [ui.look]);
   const skin = useMemo(
     () => wallStyle(look.decor, look.decor?.patternInk ? catInk(look.decor.patternInk) : undefined),
     [look.decor]
   );
 
-  /* Genre et décennie se cumulent : ce sont deux tamis posés l'un sur
-     l'autre, et non deux boutons qui se disputent la liste. */
+  /* Genre and decade add up: they are two sieves laid one on the other,
+     and not two buttons fighting over the list. */
   const passesFilters = useCallback(
     (f) =>
       (!genreFilter || (f.genres || []).includes(genreFilter)) &&
@@ -398,21 +398,21 @@ export function LibraryView({
     [genreFilter, decadeFilter]
   );
 
-  /* Un film mis de côté n'a rien à faire sur le mur : c'est justement ce
-     qu'on lui a demandé. Il reste visible sur l'étagère, dans son rayon. */
+  /* A film set aside has no business on the wall: that is precisely
+     what was asked of it. It stays visible on the shelf, in its row. */
   const scope = useMemo(
     () => (mode === "shelf" ? films : films.filter((f) => !f.archived)),
     [films, mode]
   );
   const asideCount = useMemo(() => films.filter((f) => f.archived).length, [films]);
 
-  /* Sur l'étagère, chercher n'est pas filtrer.
+  /* On the shelf, searching is not filtering.
 
-     Retirer les films qui ne correspondent pas démonterait l'agencement à
-     chaque lettre tapée, et rendrait les rangées absurdes — une ligne de
-     six qui n'en montre plus qu'un. On garde donc tout en place et on
-     ÉTEINT ce qui ne répond pas : la collection reste lisible comme une
-     étagère, et ce qu'on cherche s'y détache. */
+     Removing the films that do not match would dismantle the arrangement
+     at every letter typed, and make the rows absurd — a line of six
+     showing only one. So we keep everything in place and DIM what does
+     not answer: the collection stays readable as a shelf, and what one
+     is looking for stands out on it. */
   const matches = useCallback((f) => !q || matchFilm(f, q), [q]);
 
   const dimSet = useMemo(() => {
@@ -420,12 +420,12 @@ export function LibraryView({
     return new Set(scope.filter((f) => matches(f) && passesFilters(f)).map((f) => f.id));
   }, [mode, q, genreFilter, decadeFilter, scope, matches, passesFilters]);
 
-  /* Ranger l'étagère d'un geste. Le tri n'est plus un état qui se battrait
-     avec les catégories : c'est un verbe qui réécrit l'agencement une
-     fois, puis s'efface. Les catégories et les objets posés gardent leur
-     place ; seuls les films circulent. */
-  /* Un rangement se relit dans les deux sens : recliquer le même verbe
-     retourne la rangée plutôt que de la refaire à l'identique. */
+  /* Tidying the shelf in one gesture. The sort is no longer a state
+     that would fight with the categories: it is a verb that rewrites the
+     arrangement once, then bows out. The categories and the laid objects
+     keep their place; only the films move. */
+  /* A tidying reads both ways: clicking the same verb again turns the
+     row over rather than redo it identically. */
   const arrangedBy = ui.arrangedBy ?? null;
   const arrangedDesc = ui.arrangedDesc !== false;
 
@@ -468,7 +468,7 @@ export function LibraryView({
     let list = scope.filter((f) => (!q || matchFilm(f, q)) && passesFilters(f));
     return [...list].sort((a, b) => {
       const cmp =
-        // A–Z se lit dans l'ordre naturel : c'est `desc` qui l'inverse
+        // A–Z reads in the natural order: it is `desc` that reverses it
         sortBy === "title"
           ? -a.title.localeCompare(b.title)
           : sortBy === "director"
@@ -488,8 +488,8 @@ export function LibraryView({
     });
   }, [scope, q, passesFilters, sortBy, desc]);
 
-  /* Le regroupement par réalisateur : une pile de fiches par cinéaste, les
-     plus fréquentés d'abord — c'est là que se lisent les habitudes. */
+  /* The grouping by director: one pile of cards per film-maker, the
+     most frequented first — that is where habits can be read. */
   const groups = useMemo(() => {
     if (!grouped) return null;
     const by = new Map();
@@ -589,7 +589,7 @@ export function LibraryView({
               <span style={{ color: C.inkFaded, fontSize: 13, fontStyle: "italic" }}>—</span>
             )}
             {allGenres.map((g) => {
-              // chaque genre porte sa propre encre — l'étiquetage n'a pas été fait le même jour
+              // each genre carries its own ink — the labelling was not done on the same day
               const ink = [C.burgundy, C.cobalt, C.moss, C.vermillion, C.slate][
                 Math.abs(hash(g)) % 5
               ];
@@ -861,13 +861,13 @@ export function LibraryView({
           )}
         </div>
       ) : (
-        /* LE MUR — la surface d'abord, les fiches dessus.
+        /* THE WALL — the surface first, the cards on top.
 
-           Le fond est peint par le MÊME moteur que celui des rayons
-           (`wallStyle`) : peinture, papier peint et texture. Il déborde
-           du contenu de vingt pixels pour que les fiches ne soient pas
-           collées à l'arête, et la texture reste un calque à elle, qui
-           se fond en `multiply` — un fond ne sait pas faire ça seul. */
+           The background is painted by the SAME engine as the rows'
+           (`wallStyle`): paint, wallpaper and texture. It overflows the
+           content by twenty pixels so that the cards are not stuck to
+           the edge, and the texture stays a layer of its own, blending
+           in `multiply` — a background cannot do that alone. */
         <div
           data-tour="wall-films"
           style={{ position: "relative", zIndex: 2, padding: look.decor ? 20 : 0, ...skin.frame }}
@@ -921,9 +921,9 @@ export function LibraryView({
   );
 }
 
-/* Ce qu'on voit quand le mur est vide — la collection l'est, ou bien le
-   tamis ne laisse rien passer. Ce sont deux vides différents, et ils ne
-   se disent pas de la même façon. */
+/* What one sees when the wall is empty — either the collection is, or
+   the sieve lets nothing through. These are two different emptinesses,
+   and they are not said the same way. */
 function WallEmpty({ films, cfg }) {
   const jamais = films.length === 0;
   return (
@@ -964,19 +964,19 @@ function WallEmpty({ films, cfg }) {
                 height: 111,
                 border: `1.5px dashed ${C.line}`,
                 borderRadius: 2,
-                /* L'inclinaison vient de la même veine que tout le
-                   désordre du site : dérivée, jamais tirée au sort à
-                   chaque rendu — un mur qui gigote n'est pas un mur.
+                /* The lean comes from the same vein as all the site's
+                   disorder: derived, never drawn at random on each
+                   render — a wall that wriggles is not a wall.
 
-                   L'INDICE EST DEVANT, ET C'EST NÉCESSAIRE. Le hachage
-                   du projet est un Horner : deux chaînes qui ne
-                   diffèrent que par leur DERNIER caractère ont deux
-                   hachages qui ne diffèrent que d'autant, et le modulo
-                   le conserve. `fantome-0` … `fantome-5` donnaient donc
-                   −2,0 −1,9 −1,8 … : une rampe régulière, c'est-à-dire
-                   exactement le contraire du désordre qu'on cherchait.
-                   Placé en tête, l'indice se propage dans tout le
-                   calcul et disperse. */
+                   THE INDEX GOES IN FRONT, AND THAT IS NECESSARY. The
+                   project's hash is a Horner: two strings differing only
+                   by their LAST character have two hashes differing only
+                   by as much, and the modulo preserves it. `fantome-0` …
+                   `fantome-5` therefore gave −2.0 −1.9 −1.8 …: a regular
+                   ramp, that is to say exactly the opposite of the
+                   disorder we were after. Placed at the head, the index
+                   propagates through the whole computation and
+                   scatters. */
                 transform: `rotate(${tiltOf(`${i}-cadre-vide`)}deg)`,
                 position: "relative",
               }}
@@ -1016,7 +1016,7 @@ function WallEmpty({ films, cfg }) {
   );
 }
 
-/* Le filet qui sépare deux réalisateurs, quand le mur est classé. */
+/* The thin line separating two directors, when the wall is grouped. */
 function DirectorRule({ director, count }) {
   return (
     <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 6 }}>

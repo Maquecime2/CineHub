@@ -1,14 +1,15 @@
 import type { FilmStatus } from "../../types";
 
-/** Les clés de tri proposées sous l'en-tête d'un mur. */
+/** The sort keys offered under a wall's header. */
 export type SortKey = "watched" | "added" | "title" | "year" | "rating" | "director";
 
 /**
- * L'état de consultation d'un mur. Il vit dans `App` et non dans la vue :
- * ouvrir un film démonte la vue, et un état local serait perdu au retour.
+ * The browsing state of a wall. It lives in `App` and not in the view:
+ * opening a film unmounts the view, and a local state would be lost on
+ * the way back.
  *
- * Le nombre de boîtiers par ligne n'y figure pas : depuis les vues
- * d'étagère, il se règle ligne par ligne et vit dans la vue elle-même.
+ * The number of cases per line is not there: since the shelf views, it is
+ * adjusted line by line and lives in the view itself.
  */
 export interface WallUi {
   q: string;
@@ -26,19 +27,20 @@ export interface WallConfig {
   underline: number;
   defaultSort: SortKey;
   sorts: [SortKey, string][];
-  /** Titre puis invite, quand le rayon est vide. */
+  /** Title then prompt, when the shelf is empty. */
   empty: [string, string];
 }
 
-/* Le même mur sert la vidéothèque et la liste « à voir » : seules changent
-   l'en-tête, les tris proposés et l'invite quand il n'y a rien. */
+/* The same wall serves the film library and the "à voir" list: only the
+   header, the offered sorts and the prompt when there is nothing
+   change. */
 export const WALLS: Record<FilmStatus, WallConfig> = {
   watched: {
     stamp: "CATALOGUE",
     title: "Votre vidéothèque",
     subtitle: "un mur d'affiches, de notes et de souvenirs de séances",
     underline: 330,
-    // la dernière séance d'abord : c'est l'ordre dans lequel on se souvient
+    // the latest screening first: that is the order in which one remembers
     defaultSort: "watched",
     sorts: [
       ["watched", "vus récemment"],

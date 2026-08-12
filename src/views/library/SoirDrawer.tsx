@@ -1,14 +1,14 @@
 /* ============================================================
-   LE TIROIR DE LA SOIRÉE
+   THE EVENING DRAWER
 
-   On dit le temps dont on dispose et l'humeur, le classeur tranche. Il
-   ne propose qu'UN film à la fois : une liste de dix ramènerait le
-   problème qu'on est venu résoudre, qui est justement de ne pas savoir
-   choisir dans une liste. « Une autre » descend d'un cran.
+   One says how much time one has and what mood one is in, the binder
+   decides. It offers only ONE film at a time: a list of ten would bring
+   back the very problem one came to solve, which is precisely not
+   knowing how to choose from a list. "Une autre" goes down one notch.
 
-   On ne marque pas le film vu depuis ici. On est AVANT le film, pas
-   après : « JE L'AI VU » existe déjà sur la fiche, et c'est là qu'il a
-   du sens.
+   We do not mark the film as seen from here. We are BEFORE the film, not
+   after: "JE L'AI VU" already exists on the card, and that is where it
+   makes sense.
    ============================================================ */
 import { useEffect, useMemo, useState } from "react";
 import { Calque } from "../../components/ui/Calque";
@@ -25,15 +25,15 @@ import { useTmdbKey } from "../../services/tmdbKey";
 import { fetchKeywords, pooled } from "../../tmdb";
 import type { Film } from "../../types";
 
-/* L'humeur se dit dans la famille « le ton » et nulle part ailleurs :
-   « il pleut à la fin » raconte un film, « mélancolie » dit dans quel
-   état on est ce soir. Ce sont deux vocabulaires, et le second est
-   exactement celui qu'on cherchait. */
+/* The mood is said in the "le ton" family and nowhere else: "il pleut à
+   la fin" tells a film, "mélancolie" says what state one is in tonight.
+   These are two vocabularies, and the second is exactly the one we were
+   after. */
 const HUMEURS = MOTIFS.filter((m) => m.family === "tone" && !m.spoiler);
 
-/* Au-delà, deviner l'humeur coûterait plus d'attente que la question ne
-   vaut. On demande les mots-clés des mieux placés seulement — le
-   classement sans humeur est déjà un classement. */
+/* Beyond that, guessing the mood would cost more waiting than the
+   question is worth. We ask for the keywords of the best placed only —
+   the ranking without a mood is already a ranking. */
 const PLAFOND_DEVINETTE = 40;
 
 export function SoirDrawer({
@@ -41,7 +41,7 @@ export function SoirDrawer({
   onClose,
   onOpen,
 }: {
-  /** TOUTE la collection : le profil de goût se bâtit sur les films vus. */
+  /** The WHOLE collection: the taste profile is built on the films seen. */
   films: Film[];
   onClose: () => void;
   onOpen: (id: string) => void;
@@ -59,29 +59,29 @@ export function SoirDrawer({
   const dispo = useMemo(() => listLanguages(films), [films]);
   const propositions = useMemo(
     () => rankTheEvening(films, envie, devinés),
-    // `envie` est reconstruit à chaque rendu : on dépend de ses parties
+    // `envie` is rebuilt on every render: we depend on its parts
     [films, minutes, humeur, langues, devinés]
   );
 
-  /* Changer d'avis remet la pile à zéro : « une autre » veut dire « la
-     suivante de CE classement-ci », et garder le rang après avoir changé
-     de créneau ferait sauter des propositions jamais montrées. */
+  /* Changing one's mind resets the pile: "une autre" means "the next of
+     THIS ranking", and keeping the rank after changing the slot would
+     skip proposals never shown. */
   useEffect(() => {
     setRang(0);
   }, [minutes, humeur, langues]);
 
-  /* DEVINER L'HUMEUR DES FILMS QU'ON N'A PAS VUS.
+  /* GUESSING THE MOOD OF THE FILMS ONE HAS NOT SEEN.
 
-     Un film non vu ne porte aucun motif — personne ne peut dire « il
-     pleut à la fin » d'un film qu'il n'a pas vu. Les mots-clés TMDB y
-     répondent, et `suggestMotifs` sait déjà les traduire en motifs :
-     c'est ainsi que la fiche en propose.
+     An unseen film carries no pattern — nobody can say "il pleut à la
+     fin" of a film they have not seen. TMDB's keywords answer that, and
+     `suggestMotifs` already knows how to translate them into patterns:
+     that is how the card offers them.
 
-     On ne le fait QUE si une humeur est demandée, et seulement sur les
-     mieux placés du classement courant : sans cela, poser la question
-     lancerait un appel par film de toute la liste. `pooled` borne la
-     concurrence et avale les échecs — un mot-clé perdu ne doit pas
-     annuler la soirée. */
+     We do it ONLY if a mood is asked for, and only on the best placed of
+     the current ranking: without that, asking the question would fire
+     one call per film of the whole list. `pooled` bounds the concurrency
+     and swallows the failures — one lost keyword must not cancel the
+     evening. */
   useEffect(() => {
     if (!apiKey || humeur.length === 0) return;
     const àDeviner = propositions
@@ -103,9 +103,9 @@ export function SoirDrawer({
         if (!vivant) return;
         setDevinés((avant) => {
           const suite = new Map(avant);
-          /* Les films dont la devinette a échoué sont marqués VIDES et
-             non laissés absents : sans cette trace, l'effet les
-             redemanderait à chaque rendu, indéfiniment. */
+          /* The films whose guess failed are marked EMPTY and not left
+             absent: without that trace, the effect would ask for them
+             again on every render, indefinitely. */
           for (const f of àDeviner) suite.set(f.id, []);
           for (const p of paires) if (p) suite.set(p[0], p[1]);
           return suite;
@@ -133,15 +133,15 @@ export function SoirDrawer({
   const bascule = (liste: string[], v: string) =>
     liste.includes(v) ? liste.filter((x) => x !== v) : [...liste, v];
 
-  /* MONTÉ SUR LE CORPS DE LA PAGE, PAS LÀ OÙ ON L'APPELLE.
+  /* MOUNTED ON THE BODY OF THE PAGE, NOT WHERE IT IS CALLED FROM.
 
-     Les vues vivent dans la colonne `[data-enters]`, qui porte une
-     transformation le temps de son animation d'entrée — et une
-     transformation devient le repère des `position: fixed` qu'elle
-     contient. Le tiroir s'ancrerait alors sur la colonne, donc sur le
-     haut du document, et s'ouvrirait hors de l'écran quand on le
-     demande depuis le bas d'un long mur. Le piège a déjà mordu une
-     fois, sur la demande de confirmation. */
+     The views live in the `[data-enters]` column, which carries a
+     transform for the duration of its entry animation — and a transform
+     becomes the frame of reference for the `position: fixed` it
+     contains. The drawer would then anchor itself on the column, hence
+     on the top of the document, and would open off screen when asked for
+     from the bottom of a long wall. The trap has already bitten once, on
+     the confirmation request. */
   return (
     <Calque>
       <>
@@ -212,9 +212,9 @@ export function SoirDrawer({
           <div data-tour="soir-humeur" style={{ marginBottom: 18 }}>
             <Label>Je suis d'humeur</Label>
             {!apiKey && (
-              /* Sans clé, les motifs d'une fiche non vue n'existent pas et
-               rien ne peut les deviner. On le dit plutôt que de laisser
-               une molette qui ne répond à rien. */
+              /* Without a key, the patterns of an unseen card do not
+               exist and nothing can guess them. We say so rather than
+               leave a wheel that answers to nothing. */
               <NoKey what="deviner l'humeur d'un film que vous n'avez pas encore annoté" />
             )}
             {!apiKey && (
