@@ -5,15 +5,14 @@ import { DetailView } from "./DetailView";
 import { makeFilm } from "../domain/film";
 import { makeCustomMotif, setVocabulary } from "../domain/motifs";
 
-/* Le découpage de la fiche est une affaire de mise en page — mais rien
-   de ce qu'elle portait ne doit avoir disparu en chemin, et c'est le
-   genre de perte qu'on ne voit qu'en cherchant un bouton six semaines
-   plus tard.
+/* Cutting the card up is a matter of layout — but nothing it carried
+   must have vanished along the way, and that is the kind of loss one
+   only notices while hunting for a button six weeks later.
 
-   Depuis les trois intercalaires, ces tests doivent DIRE dans lequel ils
-   cherchent : un bloc absent de l'onglet ouvert n'est pas monté du tout.
-   `monter({}, { onglet: "mots" })` ouvre la page voulue — c'est la même
-   propriété contrôlée dont se sert la visite guidée. */
+   Since the three dividers, these tests must SAY which one they are
+   searching in: a block absent from the open tab is not mounted at all.
+   `monter({}, { onglet: "mots" })` opens the wanted page — it is the
+   same controlled property the guided tour uses. */
 const monter = (extra = {}, props = {}) => {
   const onDelete = vi.fn();
   const onUpdate = vi.fn();
@@ -60,9 +59,9 @@ describe("la fiche film, après le passage en trois intercalaires", () => {
     expect(screen.getByText("La pellicule")).toBeInTheDocument();
   });
 
-  /* LE JOURNAL A CHANGÉ D'ONGLET, et c'est la seule chose que le
-     découpage ait déplacée : une séance datée est ce qu'on a FAIT du
-     film, pas ce qu'il est. */
+  /* THE LOG HAS CHANGED TAB, and it is the only thing the cutting up
+     moved: a dated screening is what one has DONE with the film, not
+     what it is. */
   it("range le journal des séances avec vos mots, et non avec le catalogue", () => {
     monter({}, MOTS);
     expect(document.querySelector('[data-tour="detail-watchlog"]')).not.toBeNull();
@@ -71,7 +70,7 @@ describe("la fiche film, après le passage en trois intercalaires", () => {
 
   it("garde sous « Le film » ce qui décrit l'œuvre", () => {
     monter();
-    // le titre est mis en capitales par la feuille, pas dans le texte
+    // the title is capitalised by the stylesheet, not in the text
     expect(screen.getByText("Fiche catalogue")).toBeInTheDocument();
     expect(document.querySelector('[data-tour="detail-identite"]')).not.toBeNull();
   });
@@ -81,8 +80,8 @@ describe("la fiche film, après le passage en trois intercalaires", () => {
     expect(screen.getByText("Le fil rouge")).toBeInTheDocument();
   });
 
-  /* L'affiche et le titre ne changent pas d'onglet : c'est ce qui fait
-     qu'on ne perd pas de vue le film dont on parle. */
+  /* The poster and the title do not change tab: that is what keeps the
+     film one is speaking of in sight. */
   it.each([{}, MOTS, LIENS])("garde l'affiche et le titre (%o)", (props) => {
     monter({}, props);
     expect(screen.getAllByText("Le Samouraï").length).toBeGreaterThan(0);
@@ -91,13 +90,13 @@ describe("la fiche film, après le passage en trois intercalaires", () => {
   it("montre les mots-clés et les motifs déjà posés", () => {
     monter({}, MOTS);
     expect(screen.getByText("solitude")).toBeInTheDocument();
-    // « Le héros meurt » raconte la fin : il reste gratté jusqu'au clic
+    // "Le héros meurt" gives the ending away: it stays scratched out until clicked
     expect(screen.getByText("motif de fin")).toBeInTheDocument();
     expect(screen.queryByText("Le héros meurt")).not.toBeInTheDocument();
   });
 
-  /* Pas de chevet pour un film qu'on n'a pas vu : le rayon est celui qu'on
-     revoit, et la watchlist ne l'ouvre pas. */
+  /* No bedside for a film one has not seen: that shelf is the one of
+     what gets rewatched, and the watchlist does not open it. */
   it("n'offre pas le chevet à un film jamais vu", () => {
     monter({ status: "watchlist" }, MOTS);
     expect(screen.queryByRole("button", { name: /film de chevet/ })).not.toBeInTheDocument();
@@ -105,9 +104,9 @@ describe("la fiche film, après le passage en trois intercalaires", () => {
   });
 });
 
-/* L'intercalaire se change à la main aussi, et pas seulement par la
-   visite guidée : sans propriété contrôlée, la fiche s'en tient un à
-   elle. C'est ce repli-là qu'on éprouve ici. */
+/* The divider is also changed by hand, and not only by the guided tour:
+   with no controlled property, the card keeps one of its own. It is that
+   fallback which is tested here. */
 describe("les intercalaires se tournent à la main", () => {
   it("ouvre « Les liens » d'un clic, sans qu'on lui dise d'en haut", async () => {
     const user = userEvent.setup();
@@ -118,8 +117,8 @@ describe("les intercalaires se tournent à la main", () => {
   });
 });
 
-/* Les deux gestes qui ne se ressemblent que de loin : l'un range, l'autre
-   efface. La demande de confirmation est ce qui les sépare. */
+/* The two gestures that only look alike from afar: one files, the other
+   erases. The confirmation request is what separates them. */
 describe("les gestes qu'on peut regretter", () => {
   it("ne supprime pas au premier clic, mais le demande", async () => {
     const user = userEvent.setup();
@@ -149,8 +148,8 @@ describe("les gestes qu'on peut regretter", () => {
     expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ archived: true }));
   });
 
-  /* Remettre en rayon défait le geste précédent : le faire confirmer
-     n'apprendrait qu'à cliquer sans lire. */
+  /* Putting back on the shelf undoes the previous gesture: asking to
+     confirm it would only teach clicking without reading. */
   it("remet en rayon sans rien demander", async () => {
     const user = userEvent.setup();
     const { onUpdate } = monter({ archived: true }, MOTS);
@@ -173,7 +172,7 @@ describe("gérer le vocabulaire depuis la fiche", () => {
     const user = await ouvrirLaListe();
     await user.type(screen.getByLabelText("Nouveau motif"), "Il pleut sans arrêt{Enter}");
     expect(onCréerMotif).toHaveBeenCalledWith("Il pleut sans arrêt", "narrative", false);
-    // créer et poser sont un seul geste
+    // creating and laying are one single gesture
     expect(onUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ motifs: ["hero-dies", "il-pleut-sans-arret"] })
     );
@@ -187,8 +186,8 @@ describe("gérer le vocabulaire depuis la fiche", () => {
     expect(onMasquerMotif).toHaveBeenCalledWith("single-setting", true);
   });
 
-  /* Supprimer un motif à soi retire aussi son identifiant des fiches : la
-     confirmation annonce donc combien en sont porteuses. */
+  /* Deleting a pattern of one's own also removes its identifier from
+     the cards: so the confirmation announces how many carry it. */
   it("annonce les fiches touchées avant de supprimer un motif", async () => {
     setVocabulary({ custom: [makeCustomMotif("Il pleut", "world")], hidden: [] });
     const onSupprimerMotif = vi.fn();

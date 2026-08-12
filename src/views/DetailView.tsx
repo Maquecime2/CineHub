@@ -53,33 +53,32 @@ import { StillLightbox } from "../components/stills/StillLightbox";
 import { RichField } from "../components/stills/RichField";
 import type { Film, Strength, LinkPatch, LinkType, Relation, Still } from "../types";
 
-/** Les deux champs de texte de la fiche, où une capture peut s'insérer. */
+/** The card's two text fields, where a still can be inserted. */
 type TextField = "review" | "notes";
 
 /* ============================================================
-   LES TROIS INTERCALAIRES DU DOSSIER
+   THE FOLDER'S THREE DIVIDERS
    ============================================================
 
-   La fiche alignait onze blocs de même poids dans quatre colonnes
-   souples. « Souples » veut dire qu'elles se replient quand la place
-   manque — et l'ordre dans lequel elles se replient dépend de la
-   largeur de la fenêtre, c'est-à-dire de rien : le journal des séances
-   pouvait se retrouver au-dessus ou au-dessous de la critique selon
-   qu'on avait ouvert le navigateur en grand.
+   The card lined up eleven blocks of equal weight in four flexible
+   columns. "Flexible" means they fold when room runs short — and the
+   order in which they fold depends on the width of the window, that is
+   to say on nothing: the log of screenings could end up above or below
+   the review depending on whether the browser had been opened wide.
 
-   Trois intercalaires, et une question par intercalaire :
+   Three dividers, and one question per divider:
 
-     LE FILM   — ce que l'œuvre EST. Catalogue, relevé TMDB, identité.
-     MES MOTS  — ce que VOUS en avez fait. Séances, critique, notes,
-                 pellicule, mots-clés, motifs, rangement.
-     LES LIENS — ce qu'elle touche autour d'elle. Le fil rouge que vous
-                 avez tendu, et le sillage que la machine propose.
+     LE FILM   — what the work IS. Catalogue, TMDB reading, identity.
+     MES MOTS  — what YOU have made of it. Screenings, review, notes,
+                 stills, keywords, patterns, filing.
+     LES LIENS — what it touches around it. The red thread you have
+                 strung, and the wake the machine proposes.
 
-   L'ONGLET EST CONTRÔLÉ DEPUIS `App`, et ce n'est pas de la
-   sur-ingénierie : la visite guidée doit pouvoir OUVRIR l'onglet d'une
-   étape avant d'en chercher la cible, exactement comme elle ouvre déjà
-   la vue. Un onglet purement local rendrait quatre des sept étapes du
-   tour « detail » impossibles à jouer. Voir `onglet` dans `TourStep`. */
+   THE TAB IS CONTROLLED FROM `App`, and that is not over-engineering:
+   the guided tour must be able to OPEN the tab of a step before looking
+   for its target, exactly as it already opens the view. A purely local
+   tab would make four of the seven steps of the "detail" tour impossible
+   to play. See `onglet` in `TourStep`. */
 export type OngletFiche = "film" | "mots" | "liens";
 
 const ONGLETS: { clé: OngletFiche; label: string }[] = [
@@ -143,13 +142,13 @@ function BarreOnglets({
 interface DetailViewProps {
   film: Film;
   onBack: () => void;
-  /** Ce que le bouton de retour annonce. Défaut : « RETOUR AU MUR ». */
+  /** What the back button announces. Default: "RETOUR AU MUR". */
   retourVers?: string;
   onUpdate: (f: Film) => void;
   onDelete: (id: string) => void;
   films?: Film[];
-  /** Relie deux fiches du mur : le lien est posé des deux côtés, la
-   *  relation renversée à l'autre bout. */
+  /** Links two cards of the wall: the link is laid on both sides, the
+   *  relation reversed at the other end. */
   onLinkFilm: (
     aId: string,
     bId: string,
@@ -158,29 +157,29 @@ interface DetailViewProps {
     force?: Strength
   ) => void;
   onRemoveLink: (filmId: string, workId: string) => void;
-  /** Retouche un fil : le modele decide de ce qu il accepte. */
+  /** Touches up a thread: the model decides what it accepts. */
   onEditLink: (filmId: string, workId: string, patch: LinkPatch) => void;
   onOpen: (id: string) => void;
-  /** Ouvre le dossier de quelqu'un du générique, par son nom écrit. */
+  /** Opens the folder of somebody in the credits, by their written name. */
   onOpenPerson?: (nom: string) => void;
-  /** Range une proposition du sillage dans la liste « à voir ». */
+  /** Files a proposal from the wake into the "à voir" list. */
   onAddToWatchlist?: (f: Film) => void;
-  /** Faire d'un motif une question posée à toute la collection. */
+  /** Turns a pattern into a question asked of the whole collection. */
   onFaireUnFil?: (motifId: string) => void;
-  /** Le vocabulaire à vous : vos motifs, et ceux du catalogue écartés. */
+  /** Your own vocabulary: your patterns, and the catalogue ones set aside. */
   vocabulaire?: { custom: Motif[]; hidden: string[] };
-  /** Rend l'identifiant du motif écrit, pour le poser aussitôt sur la fiche. */
+  /** Returns the identifier of the written pattern, to lay it on the card at once. */
   onCréerMotif?: (label: string, famille: MotifFamily, spoiler: boolean) => string | null;
   onSupprimerMotif?: (motifId: string) => void;
   onMasquerMotif?: (motifId: string, masqué: boolean) => void;
-  /** Un compte est ouvert : la fiche peut alors lire ce qu'on en dit ailleurs. */
+  /** An account is open: the card can then read what is said of it elsewhere. */
   signedIn?: boolean;
   /**
-   * L'intercalaire ouvert, tenu par `App`.
+   * The open divider, held by `App`.
    *
-   * Absent, la fiche s'en tient un à elle — c'est le cas d'un test ou
-   * d'un montage isolé. Présent, il gagne : c'est ce qui permet à la
-   * visite guidée d'ouvrir l'onglet de sa cible.
+   * When absent, the card keeps one of its own — that is the case of a
+   * test or of an isolated mount. When present, it wins: that is what
+   * lets the guided tour open the tab of its target.
    */
   onglet?: OngletFiche;
   onOnglet?: (o: OngletFiche) => void;
@@ -209,17 +208,18 @@ export function DetailView({
   onOnglet,
 }: DetailViewProps) {
   const apiKey = useTmdbKey();
-  /* Le repli local suit le contrôlé plutôt que de lutter contre lui :
-     l'un ou l'autre répond, jamais les deux à la fois. */
+  /* The local fallback follows the controlled one rather than fight it:
+     one or the other answers, never both at once. */
   const [ongletLocal, setOngletLocal] = useState<OngletFiche>("film");
   const onglet = ongletContrôlé ?? ongletLocal;
   const changerOnglet = (o: OngletFiche) => {
     setOngletLocal(o);
     onOnglet?.(o);
   };
-  /* Une seule request à la fois, portée par la vue : les trois gestes qui
-     la lèvent — supprimer la fiche, la mettre de côté, supprimer un motif —
-     n'ont rien à partager sinon le fait qu'on puisse s'être trompé. */
+  /* A single request at a time, carried by the view: the three gestures
+     that raise it — deleting the card, setting it aside, deleting a
+     pattern — have nothing in common but the fact that one may have made
+     a mistake. */
   const [request, setRequest] = useState<ConfirmRequest | null>(null);
   const [linkType, setLinkType] = useState<LinkType>("book");
   const [linkTitle, setLinkTitle] = useState("");
@@ -228,7 +228,7 @@ export function DetailView({
   const [linkRelation, setLinkRelation] = useState<Relation | "">("");
   const [linkForce, setLinkForce] = useState<Strength>(2);
   const [picked, setPicked] = useState<Film | null>(null); // fiche existante retenue
-  // le vocabulaire déjà employé dans la collection, pour ne pas le fragmenter
+  // the vocabulary already used in the collection, so as not to fragment it
   const allTags = useMemo(
     () => Array.from(new Set(films.flatMap((f) => f.themes || []))).sort(),
     [films]
@@ -244,9 +244,9 @@ export function DetailView({
     if (next != null) onUpdate({ ...film, [focusField]: next });
   };
 
-  /* Ranger des images dans la pellicule. `insert` sert au collage : coller
-     une capture pendant qu'on écrit doit aussi poser le jeton au curseur,
-     sinon il faudrait redescendre la chercher dans la bande. */
+  /* Storing images in the film strip. `insert` serves pasting: pasting a
+     still while writing must also lay the token at the cursor, otherwise
+     one would have to go back down and fetch it from the strip. */
   const addStills = async (files: FileList | File[] | null, { insert = false } = {}) => {
     const list = [...(files ?? [])].filter((f) => f.type.startsWith("image/"));
     if (!list.length) return;
@@ -254,11 +254,12 @@ export function DetailView({
     const added: Still[] = [];
     for (const file of list) {
       try {
-        /* Le fichier d'origine est stocké TEL QUEL : aucun redimensionnement,
-           aucun ré-encodage. Un PNG reste un PNG, pixel pour pixel. C'est la
-           visionneuse et la sauvegarde qui s'en servent.
-           À côté, une vignette légère sert la bande et le texte : afficher
-           une image 4K dans une case de 110 px serait ruineux pour rien. */
+        /* The original file is stored AS IT IS: no resizing, no
+           re-encoding. A PNG stays a PNG, pixel for pixel. It is the
+           lightbox and the backup that use it.
+           Beside it, a light thumbnail serves the strip and the text:
+           displaying a 4K image in a 110 px cell would be ruinous for
+           nothing. */
         const key = `still-${film.id}-${uid()}`;
         const thumbKey = `${key}-thumb`;
         await putImage(key, file);
@@ -281,8 +282,8 @@ export function DetailView({
     setBusy(0);
     if (!added.length) return;
 
-    // une seule écriture : captures et texte partent ensemble, sinon la
-    // seconde mise à jour repartirait d'une fiche sans les captures
+    // a single write: stills and text leave together, otherwise the
+    // second update would start again from a card without the stills
     const patch = { ...film, stills: [...stills, ...added] };
     if (insert) {
       const tokens = added.map((_, i) => `[img:${stills.length + i + 1}]`).join("");
@@ -292,8 +293,9 @@ export function DetailView({
     onUpdate(patch);
   };
 
-  /* Le collage est écouté sur toute la fiche : selon les navigateurs, un
-     Ctrl+V hors champ de saisie ne remonte pas jusqu'à un conteneur. */
+  /* Pasting is listened for on the whole card: depending on the
+     browser, a Ctrl+V outside an input field does not bubble up to a
+     container. */
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
       const files = [...(e.clipboardData?.items || [])]
@@ -302,7 +304,7 @@ export function DetailView({
         .filter((f): f is File => f !== null);
       if (!files.length) return; // un collage de texte reste un collage de texte
       e.preventDefault();
-      // le champ de critique est un div éditable, pas un textarea
+      // the review field is an editable div, not a textarea
       const el = document.activeElement as HTMLElement | null;
       const inField = el?.isContentEditable || ["TEXTAREA", "INPUT"].includes(el?.tagName ?? "");
       addStills(files, { insert: inField });
@@ -311,9 +313,9 @@ export function DetailView({
     return () => window.removeEventListener("paste", onPaste);
   }, [film, stills.length, focusField]);
 
-  /* Quand on cherche un film, on propose ceux de la collection — vidéothèque
-     et watchlist confondues. Rien n'oblige à en choisir un : le champ reste
-     libre pour les films qu'on ne possède pas encore. */
+  /* When one searches for a film, we offer those of the collection —
+     film library and watchlist together. Nothing forces choosing one:
+     the field stays free for the films one does not own yet. */
   const already = new Set((film.linkedWorks || []).map((w) => w.filmId).filter(Boolean));
   const suggestions = useMemo(() => {
     if (linkType !== "film") return [];
@@ -326,9 +328,9 @@ export function DetailView({
     );
   }, [films, film.id, linkTitle, linkType, film.linkedWorks]);
 
-  /* CE QUE TMDB PROPOSE — demandé à l'ouverture de la fiche, et seulement
-     si l'on a une clé et un identifiant. Un seul appel, jamais en masse :
-     ce sont des propositions à relire, pas une récolte. */
+  /* WHAT TMDB PROPOSES — asked for when the card opens, and only if one
+     has a key and an identifier. A single call, never in bulk: these are
+     proposals to be read over, not a harvest. */
   const [proposés, setProposés] = useState<Motif[]>([]);
   useEffect(() => {
     let vivant = true;
@@ -338,14 +340,14 @@ export function DetailView({
       .then((mots: { id?: number; name?: string }[]) => {
         if (!vivant) return;
         setProposés(suggestMotifs(mots));
-        /* ON LES RANGE AU PASSAGE. Ils étaient demandés puis jetés :
-           seules les propositions de motifs en sortaient, et le sillage
-           n'avait ensuite rien de thématique à quoi se raccrocher. Les
-           garder ici fait qu'ouvrir une fiche l'améliore — et celles
-           qu'on n'ouvre jamais attendent « compléter les fiches ».
+        /* WE STORE THEM ON THE WAY. They were asked for and then thrown
+           away: only the pattern proposals came out of them, and the
+           wake then had nothing thematic to hold on to. Keeping them
+           here means that opening a card improves it — and those one
+           never opens wait for "complete the cards".
 
-           On n'écrit que si la fiche n'en portait pas : une écriture à
-           chaque ouverture sauverait la collection entière pour rien. */
+           We only write if the card carried none: a write on every
+           opening would save the whole collection for nothing. */
         if (film.keywords == null)
           onUpdate({
             ...film,
@@ -356,13 +358,13 @@ export function DetailView({
     return () => {
       vivant = false;
     };
-    /* La clé est une dépendance : la poser dans le tiroir doit rattraper
-       une fiche déjà ouverte, sans quoi il faudrait la refermer pour que
-       les propositions arrivent. */
+    /* The key is a dependency: laying it in the drawer must catch up
+       with an already open card, failing which one would have to close
+       it for the proposals to arrive. */
   }, [film.id, film.tmdbId, apiKey]);
 
   const addLink = () => {
-    // une fiche retenue devient un vrai lien réciproque, pas une étiquette
+    // a kept card becomes a real reciprocal link, not a label
     if (picked) {
       onLinkFilm(film.id, picked.id, linkNote, linkRelation || undefined, linkForce);
       setPicked(null);
@@ -386,8 +388,9 @@ export function DetailView({
     setLinkCreator("");
     setLinkNote("");
   };
-  /* Ceux du catalogue qu'on a écartés : le sélecteur les propose au
-     retour, sinon les rappeler demanderait d'aller fouiller le code. */
+  /* Those of the catalogue that have been set aside: the picker offers
+     them on the way back, otherwise calling them back would mean digging
+     into the code. */
   const masqués = useMemo(
     () => MOTIFS.filter((m) => vocabulaire.hidden.includes(m.id)),
     [vocabulaire.hidden]
@@ -397,13 +400,13 @@ export function DetailView({
   const editLink = (id: string, patch: LinkPatch) => onEditLink(film.id, id, patch);
 
   return (
-    /* PAS DE PLAFOND SUR LA PAGE, UN PLAFOND SUR LA LECTURE.
+    /* NO CEILING ON THE PAGE, A CEILING ON THE READING.
 
-       Un plafond de page laissait un vide franc à droite sur un grand écran,
-       et c'était le mauvais endroit où le poser : ce qui devient illisible en
-       s'élargissant, ce n'est pas la fiche, c'est la LIGNE DE TEXTE. On
-       plafonne donc la colonne de critique (voir plus bas) et on laisse tout
-       le reste — l'affiche, le rail, le fil rouge — occuper la table. */
+       A page ceiling left a plain emptiness on the right on a large
+       screen, and that was the wrong place to put it: what becomes
+       illegible as it widens is not the card, it is the LINE OF TEXT. So
+       we cap the review column (see below) and let all the rest — the
+       poster, the rail, the red thread — take up the table. */
     <div style={{ padding: "34px 44px 70px", position: "relative" }}>
       <StampCorner text="DOSSIER" />
       <button
@@ -499,10 +502,10 @@ export function DetailView({
               <FilmIdentity film={film} onUpdate={onUpdate} onOpenPerson={onOpenPerson} />
               {film.status === "watchlist" ? (
                 <button
-                  /* Il posait `watchedAt` tout seul. Depuis qu'un journal
-                   existe, cela ferait un film vu à telle date et vu zéro
-                   fois — deux affirmations contradictoires dès le premier
-                   clic. `withWatches` écrit les deux d'un coup. */
+                  /* It used to lay `watchedAt` on its own. Since a log
+                   exists, that would make a film seen on such a date and
+                   seen zero times — two contradictory assertions from the
+                   first click. `withWatches` writes both at once. */
                   onClick={() =>
                     onUpdate(
                       withWatches({ ...film, status: "watched" }, [
@@ -740,9 +743,9 @@ export function DetailView({
                 onFaireUnFil={onFaireUnFil}
                 masqués={masqués}
                 onMasquer={onMasquerMotif}
-                /* Créer et poser sont un seul geste : on n'écrit pas un
-                 motif dans l'abstrait, mais parce qu'on regarde CE film
-                 et qu'aucun mot ne le disait. */
+                /* Creating and laying are one single gesture: one does
+                 not write a pattern in the abstract, but because one is
+                 looking at THIS film and no word said it. */
                 onCréer={
                   onCréerMotif
                     ? (label, famille, spoiler) => {
@@ -806,9 +809,10 @@ export function DetailView({
                 </button>
               )}
               <button
-                /* Remettre en rayon ne request rien : c'est le geste qui
-                 défait l'autre, et faire confirmer un retour en arrière
-                 apprend surtout à cliquer sans lire. */
+                /* Putting back on the shelf asks nothing: it is the
+                 gesture that undoes the other, and making somebody
+                 confirm a step backwards mostly teaches them to click
+                 without reading. */
                 onClick={() => {
                   const remise = { ...film, archived: !film.archived, bedside: false };
                   if (film.archived) return onUpdate({ ...film, archived: false });
@@ -947,7 +951,7 @@ export function DetailView({
                     {linkType === "film" ? "Chercher dans la collection" : "Titre de l'œuvre"}
                   </Label>
                   {picked ? (
-                    // fiche retenue : on montre qu'il s'agit d'un vrai renvoi, pas d'un texte
+                    // a kept card: we show this is a real reference, not a text
                     <div
                       style={{
                         display: "flex",

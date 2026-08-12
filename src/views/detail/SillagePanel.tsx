@@ -1,18 +1,18 @@
 /* ============================================================
-   DANS LE SILLAGE — le panneau, au bas de la fiche
+   IN THE WAKE — the panel, at the bottom of the card
 
-   Deux colonnes de même largeur, et c'est un parti pris : ce qu'on a
-   déjà vaut autant que ce qu'on n'a pas. Une collection tenue depuis des
-   années répond souvent mieux que le catalogue mondial à « quoi à côté
-   de celui-là ? », parce qu'elle sait ce qu'on a aimé.
+   Two columns of the same width, and that is a stance: what one already
+   has is worth as much as what one has not. A collection kept for years
+   often answers "what next to this one?" better than the world
+   catalogue, because it knows what one has loved.
 
-   La colonne de GAUCHE se dessine en synchrone, sans réseau, sans clé.
-   La colonne de DROITE arrive après — et ne doit jamais faire sauter la
-   gauche en arrivant, d'où la hauteur réservée.
+   The LEFT column draws itself synchronously, with no network, no key.
+   The RIGHT column arrives afterwards — and must never make the left one
+   jump as it arrives, hence the reserved height.
 
-   SANS CLÉ, LA COLONNE DE DROITE RESTE MONTÉE. La faire disparaître
-   donnerait un panneau à une colonne qui a l'air complet, et l'on ne
-   saurait jamais qu'il manque quelque chose ni comment l'obtenir.
+   WITHOUT A KEY, THE RIGHT COLUMN STAYS MOUNTED. Making it vanish would
+   give a one-column panel that looks complete, and one would never know
+   that something is missing nor how to get it.
    ============================================================ */
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
@@ -36,38 +36,38 @@ import { useTmdbKey } from "../../services/tmdbKey";
 import { directorOf } from "../../tmdb";
 import type { Film } from "../../types";
 
-/* La hauteur réservée sous chaque titre de colonne. Les deux colonnes
-   se remplissent à des instants différents — l'une tout de suite,
-   l'autre au retour du réseau — et sans plancher la page se réagencerait
-   sous le curseur au moment où l'on va cliquer. */
+/* The height reserved under each column title. The two columns fill up
+   at different moments — one straight away, the other on the network's
+   return — and without a floor the page would rearrange itself under the
+   cursor at the very moment one is about to click. */
 const HAUTEUR_MINIMALE = 220;
 
-/* DIX PAR COLONNE, ET PAS DE N'IMPORTE QUELLE SORTE.
+/* TEN PER COLUMN, AND NOT OF JUST ANY KIND.
 
-   Cinq propositions tenues par les GENS qui ont fait les films, cinq par
-   ce dont ils PARLENT. Sans ce partage, les noms propres — qui pèsent
-   plus lourd, et à juste titre — raflaient la liste entière : on
-   apprenait dix fois « même équipe » et jamais « même sujet ».
+   Five proposals held together by the PEOPLE who made the films, five by
+   what they SPEAK OF. Without that split, proper nouns — which weigh
+   more, and rightly so — took the whole list: one learned "same crew"
+   ten times over and "same subject" never.
 
-   Ce qu'une famille ne remplit pas revient aux autres : une collection
-   sans motifs ni mots-clés doit voir dix propositions, pas quatre.
+   What one family does not fill goes back to the others: a collection
+   with neither patterns nor keywords must see ten proposals, not four.
 
-   LA TROISIÈME PART EST LA PLUS PETITE, ET C'EST VOULU. « Vu par les
-   mêmes gens » est le seul rapprochement qui n'apprend rien sur le
-   film — c'est la foule qui parle. Il valait pourtant 2,2 quand un
-   sujet plafonne à 1,8, et vivait dans la même pile : les vingt
-   recommandations de TMDB raflaient les cinq places à tous les coups,
-   et aucun rapprochement par mot-clé n'a jamais paru. */
+   THE THIRD SHARE IS THE SMALLEST, AND THAT IS INTENDED. "Seen by the
+   same people" is the only connection that teaches nothing about the
+   film — it is the crowd speaking. Yet it was worth 2.2 when a subject
+   tops out at 1.8, and lived in the same pile: TMDB's twenty
+   recommendations took the five places every single time, and no
+   keyword-based connection ever appeared. */
 const QUOTAS = { people: 4, subjects: 4, crowd: 2 };
 
 /* ------------------------------------------------------------
-   UNE PROPOSITION — l'affiche, le titre, et POURQUOI
+   ONE PROPOSAL — the poster, the title, and WHY
    ------------------------------------------------------------
 
-   La raison n'est pas un ornement : c'est tout ce que le panneau
-   apporte. Une liste d'affiches sans raisons est un rayon de plus ; avec
-   elles, c'est un argument, et l'on peut être en désaccord — ce qui
-   suppose d'avoir compris. */
+   The reason is not an ornament: it is all the panel brings. A list of
+   posters without reasons is one more shelf; with them it is an
+   argument, and one may disagree — which supposes having
+   understood. */
 function Proposition({
   titre,
   année,
@@ -82,9 +82,9 @@ function Proposition({
   raison: string;
   affiche: ReactNode;
   onClick?: () => void;
-  /** Une mention à droite du titre : « à voir », par exemple. */
+  /** A note to the right of the title: "à voir", for instance. */
   aside?: string;
-  /** Ce qui se déplie sous la proposition quand on l'ouvre. */
+  /** What unfolds under the proposal when one opens it. */
   dépli?: ReactNode;
 }) {
   const contenu = (
@@ -155,9 +155,9 @@ function Proposition({
     textAlign: "left",
   };
 
-  /* Le filet est sur l'ENVELOPPE et non sur la ligne : sinon il passerait
-     entre la proposition et son dépli, qui se liraient alors comme deux
-     entrées différentes. */
+  /* The thin line is on the WRAPPER and not on the row: otherwise it
+     would pass between the proposal and its unfolding, which would then
+     read as two different entries. */
   return (
     <div style={{ borderBottom: `1px dashed ${C.line}` }}>
       {onClick ? (
@@ -187,14 +187,13 @@ function Proposition({
   );
 }
 
-/* L'AFFICHE D'UNE FICHE DU CLASSEUR, EN TOUT PETIT.
+/* THE POSTER OF A CARD OF THE BINDER, VERY SMALL.
 
-   `PosterArt` sait tout faire — l'affiche rangée dans IndexedDB, le
-   repli, le grain — mais sa substitution est taillée pour les boîtiers
-   de l'étagère : elle écrit les initiales à quarante pixels, ce qui
-   déborde d'une case de quarante-quatre. On ne l'appelle donc que
-   lorsqu'il y a vraiment une affiche, et l'on écrit les initiales
-   nous-mêmes, à notre échelle, dans le cas contraire. */
+   `PosterArt` can do everything — the poster stored in IndexedDB, the
+   fallback, the grain — but its substitute is cut for the shelf's cases:
+   it writes the initials at forty pixels, which overflows a cell of
+   forty-four. So we only call it when there really is a poster, and we
+   write the initials ourselves, at our own scale, otherwise. */
 function Vignette({ film }: { film: Film }) {
   if (film.poster) return <PosterArt film={film} initials={initialsOf(film.title)} plain />;
   return (
@@ -218,18 +217,19 @@ function Vignette({ film }: { film: Film }) {
 }
 
 /* ------------------------------------------------------------
-   EN SAVOIR PLUS SANS QUITTER LE CLASSEUR
+   LEARNING MORE WITHOUT LEAVING THE BINDER
    ------------------------------------------------------------
 
-   Les propositions du dehors ne menaient nulle part : un titre, une
-   affiche, une raison, et rien à en faire. On ne pouvait ni les
-   retenir, ni même savoir de quoi elles parlaient — il fallait aller
-   chercher ailleurs, c'est-à-dire sortir.
+   The proposals from outside led nowhere: a title, a poster, a reason,
+   and nothing to be done with them. One could neither keep them, nor
+   even know what they were about — one had to go and look elsewhere,
+   which is to say leave.
 
-   Le dépli répond sur place. Le synopsis vient DÉJÀ avec le candidat
-   (`toCandidate` en garde 240 signes) ; seul le réalisateur manque, et
-   il est demandé à l'ouverture — un appel, pour le film qu'on regarde,
-   et non quarante d'avance pour ceux qu'on n'ouvrira pas. */
+   The unfolding answers on the spot. The synopsis comes ALREADY with the
+   candidate (`toCandidate` keeps 240 characters of it); only the
+   director is missing, and it is asked for on opening — one call, for
+   the film one is looking at, and not forty in advance for those one
+   will never open. */
 function Dépli({
   v,
   réalisateur,
@@ -295,19 +295,19 @@ function Dépli({
 }
 
 /* ------------------------------------------------------------
-   POURQUOI LA COLONNE NE PARLE QUE D'ÉQUIPES
+   WHY THE COLUMN ONLY SPEAKS OF CREWS
    ------------------------------------------------------------
 
-   Le sillage rapproche par les gens ET par les sujets. Mais les sujets
-   n'existent que si les fiches en portent : les motifs et les thèmes se
-   posent à la main, et les mots-clés de TMDB ne sont récoltés que depuis
-   peu. Sur une collection importée avant cela, la moitié « sujets » est
-   vide — et la liste ne parle que d'équipes.
+   The wake connects by people AND by subjects. But subjects only exist
+   if the cards carry them: patterns and themes are laid by hand, and
+   TMDB's keywords have only lately been harvested. On a collection
+   imported before that, the "subjects" half is empty — and the list
+   speaks of crews only.
 
-   AVEC UNE CLÉ, LE PROBLÈME NE SE POSE PLUS : le renfort venu de TMDB
-   comble le manque tout seul (voir `reinforcementFromOutside`). Ce mot ne
-   s'affiche donc que HORS LIGNE, où il reste vrai — et où le seul remède
-   est bien de poser des motifs à la main. */
+   WITH A KEY, THE PROBLEM NO LONGER ARISES: the reinforcement coming
+   from TMDB fills the gap by itself (see `reinforcementFromOutside`). So
+   this word only appears OFFLINE, where it stays true — and where the
+   only remedy really is to lay patterns by hand. */
 function ManqueLesSujets() {
   return (
     <div
@@ -327,9 +327,9 @@ function ManqueLesSujets() {
   );
 }
 
-/* Ce qu'on dit d'une colonne vide. Jamais rien : une colonne muette se
-   lit « c'est cassé », et l'on ne saura pas que c'est simplement le
-   classeur qui est encore petit. */
+/* What is said of an empty column. Never nothing: a mute column reads
+   "it is broken", and one will not know it is simply that the binder is
+   still small. */
 function Rien({ children }: { children: ReactNode }) {
   return (
     <div
@@ -354,39 +354,40 @@ export function SillagePanel({
 }: {
   film: Film;
   films: Film[];
-  /** Ouvre une fiche de la collection. */
+  /** Opens a card of the collection. */
   onOpen: (id: string) => void;
-  /** Range une proposition du dehors dans la liste « à voir ». */
+  /** Files a proposal from outside into the "à voir" list. */
   onAddToWatchlist?: (f: Film) => void;
 }) {
   const apiKey = useTmdbKey();
 
-  /* La moitié maison : pure, synchrone, et recalculée seulement quand la
-     collection ou le pivot bougent — pas à chaque frappe dans un champ
-     de la fiche, ce qui rejouerait le tri sur cinq cents fiches. */
-  /* Ce que la collection dit d'elle-même, sans réseau. Large : ce n'est
-     pas la liste finale, seulement l'une de ses deux sources. */
+  /* The in-house half: pure, synchronous, and recomputed only when the
+     collection or the pivot move — not at every keystroke in a field of
+     the card, which would replay the sort over five hundred cards. */
+  /* What the collection says of itself, with no network. Broad: this is
+     not the final list, only one of its two sources. */
   const maison: Neighbour[] = useMemo(
     () => wakeAtHome(film, films, { people: 40, subjects: 40 }),
     [film, films]
   );
 
-  /* Le renfort venu de TMDB — vos propres fiches, reconnues dans ce que
-     la récolte rapporte. Il arrive après le réseau, d'où l'état. */
+  /* The reinforcement coming from TMDB — your own cards, recognised in
+     what the harvest brings back. It arrives after the network, hence
+     the state. */
   const [renfort, setRenfort] = useState<Neighbour[]>([]);
 
-  /* Ce film n'a RIEN sur quoi un rapprochement de sujet pourrait porter.
-     On regarde le pivot et non la collection : c'est lui qu'on regarde,
-     et c'est son manque à lui qui explique ce qu'on lit. */
+  /* This film has NOTHING a subject connection could bear on. We look
+     at the pivot and not at the collection: it is the pivot one is
+     looking at, and it is its own lack that explains what one reads. */
   const sansSujets =
     !(film.motifs || []).length && !(film.themes || []).length && !(film.keywords || []).length;
 
-  /* LES DEUX SOURCES FONDUES, PUIS LES QUOTAS.
+  /* THE TWO SOURCES MERGED, THEN THE QUOTAS.
 
-     Une même fiche peut venir des deux côtés : par ses propres motifs,
-     et parce que TMDB l'a remontée. On garde alors celle qui EXPLIQUE le
-     mieux — le meilleur score — et jamais les deux, sinon la même
-     affiche paraîtrait deux fois dans la colonne. */
+     One and the same card may come from both sides: through its own
+     patterns, and because TMDB brought it back. We then keep the one
+     that EXPLAINS best — the better score — and never both, otherwise
+     the same poster would appear twice in the column. */
   const chezVous: Neighbour[] = useMemo(() => {
     const parFilm = new Map<string, Neighbour>();
     for (const v of [...maison, ...renfort]) {
@@ -401,30 +402,30 @@ export function SillagePanel({
 
   const [dehors, setDehors] = useState<FarNeighbour[] | null>(null);
   const [cherche, setCherche] = useState(false);
-  /* La proposition dépliée — une seule à la fois : deux synopsis ouverts
-     transformeraient la colonne en article. */
+  /* The unfolded proposal — one at a time only: two open synopses would
+     turn the column into an article. */
   const [ouvert, setOuvert] = useState<number | null>(null);
-  /* Les réalisateurs déjà demandés, par identifiant TMDB. `discover` et
-     `recommendations` rendent des films, pas des équipes : le nom se
-     demande à part, et seulement pour celui qu'on ouvre. */
+  /* The directors already asked for, by TMDB identifier. `discover` and
+     `recommendations` return films, not crews: the name is asked for
+     separately, and only for the one being opened. */
   const [réals, setRéals] = useState<Record<number, string>>({});
   const [misDeCôté, setMisDeCôté] = useState<Set<number>>(() => new Set());
 
-  /* CE QU'ON POSSÈDE EST LU AU MOMENT DE LA RÉCOLTE, ET N'EST PAS SUIVI.
+  /* WHAT ONE OWNS IS READ AT HARVEST TIME, AND IS NOT TRACKED.
 
-     `films` est volontairement absent des dépendances : c'est la
-     fermeture de l'effet qui en garde l'instantané, pris au moment où
-     la question a été posée. Deux raisons, qui vont dans le même sens.
+     `films` is deliberately absent from the dependencies: it is the
+     effect's closure that keeps the snapshot of it, taken at the moment
+     the question was asked. Two reasons, which point the same way.
 
-     La première est un défaut : mettre une proposition de côté ajoute
-     une fiche, donc change `films` — et l'effet se rejouait, repliant
-     le synopsis qu'on venait tout juste d'ouvrir.
+     The first is a flaw: setting a proposal aside adds a card, hence
+     changes `films` — and the effect replayed itself, folding back the
+     synopsis one had only just opened.
 
-     La seconde est un choix : ce film-là DOIT rester à sa place. Le
-     voir s'évanouir sous le curseur à l'instant où on le retient
-     donnerait l'impression de l'avoir perdu. Il reste, marqué « à
-     voir » — la liste répond à une question posée à l'ouverture, ce
-     n'est pas un tableau de bord qui se réécrit tout seul. */
+     The second is a choice: that film MUST stay in its place. Watching
+     it vanish under the cursor at the instant one keeps it would give
+     the impression of having lost it. It stays, marked "à voir" — the
+     list answers a question asked on opening, it is not a dashboard that
+     rewrites itself. */
   useEffect(() => {
     setDehors(null);
     setRenfort([]);
@@ -436,15 +437,15 @@ export function SillagePanel({
     harvestTheWake(film, apiKey)
       .then((récoltes) => {
         if (!vivant) return;
-        /* La MÊME récolte sert les deux colonnes : ce qu'elle rapporte
-           et que vous possédez déjà nourrit la gauche, le reste la
-           droite. C'est ce qui donne des rapprochements par sujet sans
-           avoir à demander les mots-clés de cinq cents fiches. */
+        /* The SAME harvest serves both columns: what it brings back
+           that you already own feeds the left, the rest the right. That
+           is what gives connections by subject without having to ask for
+           the keywords of five hundred cards. */
         setRenfort(reinforcementFromOutside(récoltes, byTmdbId(films), film.id));
         setDehors(mergeAfar(récoltes, { alreadyHere: alreadyInTheBinder(films), quotas: QUOTAS }));
       })
-      /* Un échec réseau rend une liste VIDE et non `null` : la colonne
-         doit dire « rien trouvé » plutôt que tourner indéfiniment. */
+      /* A network failure returns an EMPTY list and not `null`: the
+         column must say "nothing found" rather than spin for ever. */
       .catch(() => {
         if (vivant) setDehors([]);
       })
@@ -454,14 +455,14 @@ export function SillagePanel({
     return () => {
       vivant = false;
     };
-    /* `film.id` et non `film` : retoucher une note ou poser un motif
-       rend un nouvel objet, et refaire la récolte à chaque frappe
-       viderait la colonne sous les yeux. */
+    /* `film.id` and not `film`: touching up a rating or laying a
+       pattern returns a new object, and redoing the harvest at every
+       keystroke would empty the column before one's eyes. */
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [film.id, apiKey]);
 
-  /* Déplier demande le réalisateur, une fois. Un échec ne dit rien : le
-     dépli vaut déjà pour son synopsis et son bouton. */
+  /* Unfolding asks for the director, once. A failure says nothing: the
+     unfolding is already worth it for its synopsis and its button. */
   const déplier = (v: FarNeighbour) => {
     setOuvert((o) => (o === v.tmdbId ? null : v.tmdbId));
     if (réals[v.tmdbId] != null || !apiKey) return;
@@ -470,20 +471,20 @@ export function SillagePanel({
       .catch(() => {});
   };
 
-  /* METTRE DE CÔTÉ FABRIQUE UNE VRAIE FICHE, pas un signet. On y range
-     ce qu'on sait déjà — titre, année, affiche, identifiant, et le
-     réalisateur s'il a été demandé — pour qu'elle parte nommée au lieu
-     d'attendre un « compléter les fiches » qui redemanderait la même
-     chose. C'est le même geste que le bureau des découvertes. */
+  /* SETTING ASIDE BUILDS A REAL CARD, not a bookmark. We store in it
+     what we already know — title, year, poster, identifier, and the
+     director if it has been asked for — so that it leaves named instead
+     of waiting for a "complete the cards" that would ask for the same
+     thing again. It is the same gesture as the discoveries desk. */
   const mettreDeCôté = (v: FarNeighbour) => {
     onAddToWatchlist?.(
       makeFilm({
         title: v.title,
         year: v.year || "",
-        /* `toCandidate` rend DÉJÀ une URL complète. La re-préfixer
-           donnait « …/w342https://image.tmdb… » : des vignettes cassées
-           dans toute la colonne, et — bien pire — une affiche invalide
-           écrite dans la collection à chaque mise de côté. */
+        /* `toCandidate` ALREADY returns a complete URL. Prefixing it
+           again gave "…/w342https://image.tmdb…": broken thumbnails all
+           down the column, and — far worse — an invalid poster written
+           into the collection at every setting aside. */
         poster: v.poster || "",
         director: réals[v.tmdbId] || "",
         status: "watchlist",
