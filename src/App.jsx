@@ -7,7 +7,7 @@ import { uid, migrate, editLinkedWork } from "./domain/film";
 import { normalize } from "./domain/search";
 import { inverseOf, strengthOf } from "./domain/relations";
 import { makeThread, normalizeThreads } from "./domain/threads";
-import { motifById, makeMotifPerso, motifsPerso } from "./domain/motifs";
+import { motifById, makeCustomMotif, customMotifs } from "./domain/motifs";
 import { loadFils, saveFils as saveFilsToDisk } from "./services/fils";
 import { loadVocabulaire, saveVocabulaire, normalizeVocabulaire } from "./services/motifs";
 import { store, KEYS } from "./services/storage";
@@ -85,7 +85,7 @@ export default function App() {
      que vous avez écartés. Le catalogue lui-même vit dans le code — voir
      `domain/motifs`. L'état React ne sert qu'à redessiner : c'est le
      registre du domaine qui répond à `motifById`, partout ailleurs. */
-  const [vocabulaire, setVocabulaire] = useState({ perso: [], masqués: [] });
+  const [vocabulaire, setVocabulaire] = useState({ custom: [], hidden: [] });
   const [loaded, setLoaded] = useState(false);
   const [view, setView] = useState("library");
   const [selectedId, setSelectedId] = useState(null);
@@ -391,10 +391,12 @@ export default function App() {
   const créerMotif = (label, famille, spoiler) => {
     const propre = (label || "").trim();
     if (!propre) return null;
-    const existant = [...motifsPerso()].find((m) => m.label.toLowerCase() === propre.toLowerCase());
+    const existant = [...customMotifs()].find(
+      (m) => m.label.toLowerCase() === propre.toLowerCase()
+    );
     if (existant) return existant.id;
-    const motif = makeMotifPerso(propre, famille, spoiler);
-    commitVocabulaire({ ...vocabulaire, perso: [...vocabulaire.perso, motif] });
+    const motif = makeCustomMotif(propre, famille, spoiler);
+    commitVocabulaire({ ...vocabulaire, custom: [...vocabulaire.custom, motif] });
     return motif.id;
   };
 
@@ -412,7 +414,7 @@ export default function App() {
   const supprimerMotif = (motifId) => {
     commitVocabulaire({
       ...vocabulaire,
-      perso: vocabulaire.perso.filter((m) => m.id !== motifId),
+      custom: vocabulaire.custom.filter((m) => m.id !== motifId),
     });
     saveFilms(
       films.map((f) =>
@@ -432,9 +434,9 @@ export default function App() {
   const masquerMotif = (motifId, masqué) =>
     commitVocabulaire({
       ...vocabulaire,
-      masqués: masqué
-        ? [...new Set([...vocabulaire.masqués, motifId])]
-        : vocabulaire.masqués.filter((id) => id !== motifId),
+      hidden: masqué
+        ? [...new Set([...vocabulaire.hidden, motifId])]
+        : vocabulaire.hidden.filter((id) => id !== motifId),
     });
 
   const addFilm = (film) => {

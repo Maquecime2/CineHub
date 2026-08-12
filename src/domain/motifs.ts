@@ -1,43 +1,48 @@
 /* ============================================================
-   LES MOTIFS — le vocabulaire commun des fiches
+   MOTIFS — the cards' shared vocabulary
    ============================================================
 
-   `themes` existait déjà, et reste ce qu'il est : VOS mots, écrits à la
-   main, libres. Sa liberté est aussi sa limite — « fin triste », « fin
-   amère » et « ça finit mal » sont trois étiquettes que rien ne
-   rapproche, et une carte bâtie dessus ne relie que les fiches taguées le
-   même jour, dans la même humeur.
+   `themes` already existed, and stays what it is: YOUR words, written by
+   hand, free. Its freedom is also its limit — "fin triste", "fin amère"
+   and "ça finit mal" are three labels that nothing brings together, and a
+   map built on them only joins the cards tagged on the same day, in the
+   same mood.
 
-   Un motif est l'inverse : un mot FIGÉ, choisi dans une liste écrite ici,
-   dans le code. On n'en invente pas — c'est précisément ce qui permet de
-   demander « montre-moi tous les films où le héros meurt » et d'obtenir
-   une réponse, plutôt qu'une réponse par orthographe.
+   A motif is the opposite: a FIXED word, chosen from a list written here,
+   in the code. You do not invent them — that is precisely what lets you
+   ask "show me every film where the hero dies" and get an answer, rather
+   than one answer per spelling.
 
-   La liste vit donc dans le code et jamais dans le `localStorage` : c'est
-   du vocabulaire, pas de la donnée. Une fiche n'en garde que des `id`,
-   et un motif qu'on renommerait ici se réaffiche partout sans migration.
+   So the list lives in the code and never in `localStorage`: it is
+   vocabulary, not data. A card only keeps `id`s of it, and a motif
+   RELABELLED here shows up everywhere with no migration.
+
+   THE `id`, ON THE OTHER HAND, IS DATA. It is the one thing a card keeps,
+   and translating the identifiers is therefore a change of format — see
+   `migrateMotifId` at the bottom of this file, and the three reading
+   doors that apply it.
    ============================================================ */
 import type { Film } from "../types";
 
-export type MotifFamille = "fate" | "ending" | "narrative" | "figures" | "tone" | "world";
+export type MotifFamily = "fate" | "ending" | "narrative" | "figures" | "tone" | "world";
 
 export interface Motif {
-  /** Clé stable, jamais le label : c'est elle qui est écrite sur la fiche. */
+  /** Stable key, never the label: it is what gets written on the card. */
   id: string;
   label: string;
-  famille: MotifFamille;
+  family: MotifFamily;
   /**
-   * Un motif qui raconte la fin. Il s'écrit comme les autres, mais toute
-   * vue qui l'affiche doit le gratter tant qu'on ne l'a pas dévoilé —
-   * sans quoi le simple fait de ranger sa collection gâcherait les films
-   * qu'on n'a pas encore vus.
+   * A motif that gives the ending away. It is written like the others,
+   * but any view showing it must scratch it out until it has been
+   * revealed — otherwise the mere act of filing your collection would
+   * spoil the films you have not seen yet.
    */
   spoiler?: boolean;
-  /** Mots-clés TMDB qui le suggèrent. Libellés en anglais, ou ids. */
+  /** TMDB keywords that suggest it. English labels, or ids. */
   tmdb?: (number | string)[];
 }
 
-export const FAMILLES: { id: MotifFamille; label: string }[] = [
+export const FAMILIES: { id: MotifFamily; label: string }[] = [
   { id: "fate", label: "Ce qui arrive aux personnages" },
   { id: "ending", label: "La dernière image" },
   { id: "narrative", label: "La façon de raconter" },
@@ -46,87 +51,87 @@ export const FAMILLES: { id: MotifFamille; label: string }[] = [
   { id: "world", label: "Le monde" },
 ];
 
-/* L'ORDRE COMPTE : c'est celui de l'affichage, famille par famille, et il
-   va du plus courant au plus rare à l'intérieur de chacune. */
+/* THE ORDER MATTERS: it is the display order, family by family, and it
+   runs from the most common to the rarest inside each one. */
 export const MOTIFS: Motif[] = [
   /* --- ce qui arrive aux personnages ------------------------------- */
   {
     id: "hero-dies",
     label: "Le héros meurt",
-    famille: "fate",
+    family: "fate",
     spoiler: true,
     tmdb: ["death of hero", "dying and death", "protagonist dies"],
   },
   {
     id: "sacrifice",
     label: "Il se sacrifie",
-    famille: "fate",
+    family: "fate",
     spoiler: true,
     tmdb: ["self sacrifice", "sacrifice", "heroic sacrifice"],
   },
   {
     id: "everyone-dies",
     label: "Person n'en réchappe",
-    famille: "fate",
+    family: "fate",
     spoiler: true,
     tmdb: ["mass death", "massacre"],
   },
   {
     id: "sole-survivor",
     label: "Un seul en réchappe",
-    famille: "fate",
+    family: "fate",
     spoiler: true,
     tmdb: ["sole survivor", "survivor"],
   },
-  { id: "grief", label: "Le deuil d'un proche", famille: "fate", tmdb: ["grief", "mourning"] },
+  { id: "grief", label: "Le deuil d'un proche", family: "fate", tmdb: ["grief", "mourning"] },
   {
     id: "revenge-fulfilled",
     label: "La vengeance aboutit",
-    famille: "fate",
+    family: "fate",
     spoiler: true,
     tmdb: ["revenge", "vengeance"],
   },
   {
     id: "revenge-in-vain",
     label: "La vengeance ne répare rien",
-    famille: "fate",
+    family: "fate",
     spoiler: true,
   },
   {
     id: "betrayal",
     label: "Trahi par un proche",
-    famille: "fate",
+    family: "fate",
     tmdb: ["betrayal", "traitor"],
   },
-  { id: "flight", label: "La fuite", famille: "fate", tmdb: ["escape", "on the run", "manhunt"] },
+  { id: "flight", label: "La fuite", family: "fate", tmdb: ["escape", "on the run", "manhunt"] },
   {
     id: "downfall",
     label: "L'ascension puis la chute",
-    famille: "fate",
+    family: "fate",
     tmdb: ["rise and fall", "downfall"],
   },
   {
     id: "impossible-love",
     label: "L'amour impossible",
-    famille: "fate",
+    family: "fate",
     tmdb: ["forbidden love", "unrequited love", "impossible love"],
   },
   {
     id: "reunion",
     label: "Se retrouver après des années",
-    famille: "fate",
+    family: "fate",
     tmdb: ["reunion", "family reunion"],
   },
   {
     id: "confinement",
     label: "Enfermé, littéralement",
-    famille: "fate",
+    family: "fate",
     tmdb: ["prison", "captivity", "kidnapping"],
   },
   {
     id: "loss-of-reason",
     label: "La raison qui s'en va",
-    famille: "fate",
+    family: "fate",
     tmdb: ["insanity", "madness", "mental illness"],
   },
 
@@ -134,40 +139,40 @@ export const MOTIFS: Motif[] = [
   {
     id: "open-ending",
     label: "Fin ouverte",
-    famille: "ending",
+    family: "ending",
     spoiler: true,
     tmdb: ["open ending", "ambiguous ending"],
   },
   {
     id: "final-revelation",
     label: "Tout bascule à la fin",
-    famille: "ending",
+    family: "ending",
     spoiler: true,
     tmdb: ["twist ending", "plot twist", "surprise ending"],
   },
   {
     id: "back-to-the-start",
     label: "On revient au point de départ",
-    famille: "ending",
+    family: "ending",
     spoiler: true,
   },
   {
     id: "false-happy-ending",
     label: "Une fin heureuse à laquelle on ne croit pas",
-    famille: "ending",
+    family: "ending",
     spoiler: true,
   },
   {
     id: "final-freeze-frame",
     label: "Un dernier plan qui se fige",
-    famille: "ending",
+    family: "ending",
     spoiler: true,
     tmdb: ["freeze frame"],
   },
   {
     id: "distant-epilogue",
     label: "Un épilogue des années après",
-    famille: "ending",
+    family: "ending",
     spoiler: true,
   },
 
@@ -175,269 +180,271 @@ export const MOTIFS: Motif[] = [
   {
     id: "non-linear-narrative",
     label: "Récit désordonné",
-    famille: "narrative",
+    family: "narrative",
     tmdb: ["nonlinear timeline", "anachronic order"],
   },
   {
     id: "unreliable-narrator",
     label: "Le narrateur ment",
-    famille: "narrative",
+    family: "narrative",
     tmdb: ["unreliable narrator"],
   },
   {
     id: "single-setting",
     label: "Huis clos",
-    famille: "narrative",
+    family: "narrative",
     tmdb: ["one location", "single set"],
   },
-  { id: "ensemble-film", label: "Film choral", famille: "narrative", tmdb: ["ensemble cast"] },
+  { id: "ensemble-film", label: "Film choral", family: "narrative", tmdb: ["ensemble cast"] },
   {
     id: "road-movie",
     label: "Road movie",
-    famille: "narrative",
+    family: "narrative",
     tmdb: ["road movie", "road trip"],
   },
   {
     id: "story-within-a-story",
     label: "Un film dans le film",
-    famille: "narrative",
+    family: "narrative",
     tmdb: ["film within a film", "filmmaking", "metafiction"],
   },
   {
     id: "voice-over",
     label: "Porté par une voix off",
-    famille: "narrative",
+    family: "narrative",
     tmdb: ["voice over narration", "narration"],
   },
   {
     id: "real-time",
     label: "En temps réel",
-    famille: "narrative",
+    family: "narrative",
     tmdb: ["real time", "one day"],
   },
   {
     id: "time-loop",
     label: "La même journée qui recommence",
-    famille: "narrative",
+    family: "narrative",
     tmdb: ["time loop"],
   },
-  { id: "chapters", label: "Découpé en chapitres", famille: "narrative", tmdb: ["anthology"] },
+  { id: "chapters", label: "Découpé en chapitres", family: "narrative", tmdb: ["anthology"] },
   {
     id: "flashback",
     label: "Raconté depuis après",
-    famille: "narrative",
+    family: "narrative",
     tmdb: ["flashback", "told in flashback"],
   },
-  { id: "mockumentary", label: "Faux documentaire", famille: "narrative", tmdb: ["mockumentary"] },
+  { id: "mockumentary", label: "Faux documentaire", family: "narrative", tmdb: ["mockumentary"] },
   {
     id: "long-take",
     label: "De longs plans-séquences",
-    famille: "narrative",
+    family: "narrative",
     tmdb: ["long take", "one shot"],
   },
   {
     id: "literary-adaptation",
     label: "Vient d'un livre",
-    famille: "narrative",
+    family: "narrative",
     tmdb: ["based on novel or book", "based on play"],
   },
 
   /* --- les figures -------------------------------------------------- */
-  { id: "the-double", label: "Le double", famille: "figures", tmdb: ["doppelganger", "twins"] },
+  { id: "the-double", label: "Le double", family: "figures", tmdb: ["doppelganger", "twins"] },
   {
     id: "lost-mentor",
     label: "Le mentor qu'on perd",
-    famille: "figures",
+    family: "figures",
     spoiler: true,
     tmdb: ["mentor"],
   },
   {
     id: "wrong-man",
     label: "Le faux coupable",
-    famille: "figures",
+    family: "figures",
     tmdb: ["wrongful conviction", "wrongly accused"],
   },
   {
     id: "child-witness",
     label: "Un enfant qui regarde",
-    famille: "figures",
+    family: "figures",
     tmdb: ["child protagonist", "coming of age"],
   },
   {
     id: "siblings",
     label: "Une histoire de fratrie",
-    famille: "figures",
+    family: "figures",
     tmdb: ["brother brother relationship", "sister sister relationship", "siblings"],
   },
   {
     id: "absent-father",
     label: "Le père absent",
-    famille: "figures",
+    family: "figures",
     tmdb: ["father son relationship", "absent father"],
   },
   {
     id: "mismatched-duo",
     label: "Un duo dépareillé",
-    famille: "figures",
+    family: "figures",
     tmdb: ["buddy", "odd couple"],
   },
   {
     id: "group-falling-apart",
     label: "Une bande qui se défait",
-    famille: "figures",
+    family: "figures",
     tmdb: ["friendship", "gang"],
   },
   {
     id: "artist-at-work",
     label: "Quelqu'un qui fabrique quelque chose",
-    famille: "figures",
+    family: "figures",
     tmdb: ["artist", "writer", "musician"],
   },
   {
     id: "authority-figure",
     label: "L'institution comme adversaire",
-    famille: "figures",
+    family: "figures",
     tmdb: ["bureaucracy", "corruption"],
   },
   {
     id: "ghost",
     label: "Un mort qui reste là",
-    famille: "figures",
+    family: "figures",
     tmdb: ["ghost", "haunting"],
   },
 
   /* --- le ton -------------------------------------------------------- */
-  { id: "melancholy", label: "Mélancolie", famille: "tone", tmdb: ["melancholy", "loneliness"] },
-  { id: "slapstick", label: "Burlesque", famille: "tone", tmdb: ["slapstick comedy", "farce"] },
+  { id: "melancholy", label: "Mélancolie", family: "tone", tmdb: ["melancholy", "loneliness"] },
+  { id: "slapstick", label: "Burlesque", family: "tone", tmdb: ["slapstick comedy", "farce"] },
   {
     id: "unease",
     label: "Malaise",
-    famille: "tone",
+    family: "tone",
     tmdb: ["awkwardness", "psychological horror"],
   },
   {
     id: "contemplative",
     label: "Contemplatif",
-    famille: "tone",
+    family: "tone",
     tmdb: ["slow cinema", "meditative"],
   },
-  { id: "irony", label: "Ironie froide", famille: "tone", tmdb: ["black comedy", "satire"] },
-  { id: "tenderness", label: "Tendresse", famille: "tone", tmdb: ["heartwarming"] },
-  { id: "fever", label: "Fièvre, tout va trop vite", famille: "tone", tmdb: ["frenetic"] },
-  { id: "sensuality", label: "Sensualité", famille: "tone", tmdb: ["eroticism", "sensuality"] },
-  { id: "paranoia", label: "Paranoïa", famille: "tone", tmdb: ["paranoia", "conspiracy"] },
-  { id: "dreamlike", label: "Onirique", famille: "tone", tmdb: ["dream", "surrealism"] },
+  { id: "irony", label: "Ironie froide", family: "tone", tmdb: ["black comedy", "satire"] },
+  { id: "tenderness", label: "Tendresse", family: "tone", tmdb: ["heartwarming"] },
+  { id: "fever", label: "Fièvre, tout va trop vite", family: "tone", tmdb: ["frenetic"] },
+  { id: "sensuality", label: "Sensualité", family: "tone", tmdb: ["eroticism", "sensuality"] },
+  { id: "paranoia", label: "Paranoïa", family: "tone", tmdb: ["paranoia", "conspiracy"] },
+  { id: "dreamlike", label: "Onirique", family: "tone", tmdb: ["dream", "surrealism"] },
 
   /* --- le monde ------------------------------------------------------ */
   {
     id: "sprawling-city",
     label: "La grande ville qui avale",
-    famille: "world",
+    family: "world",
     tmdb: ["urban setting", "megacity", "new york city"],
   },
   {
     id: "stifling-countryside",
     label: "La campagne étouffante",
-    famille: "world",
+    family: "world",
     tmdb: ["rural setting", "small town", "village"],
   },
-  { id: "winter", label: "L'hiver, la neige", famille: "world", tmdb: ["winter", "snow"] },
+  { id: "winter", label: "L'hiver, la neige", family: "world", tmdb: ["winter", "snow"] },
   {
     id: "crushing-summer",
     label: "Un été écrasant",
-    famille: "world",
+    family: "world",
     tmdb: ["summer", "heat wave"],
   },
-  { id: "sea", label: "La mer", famille: "world", tmdb: ["ocean", "sea", "island"] },
+  { id: "sea", label: "La mer", family: "world", tmdb: ["ocean", "sea", "island"] },
   {
     id: "near-future",
     label: "Un futur tout proche",
-    famille: "world",
+    family: "world",
     tmdb: ["near future", "dystopia"],
   },
   {
     id: "after-the-end",
     label: "Après la fin du monde",
-    famille: "world",
+    family: "world",
     tmdb: ["post-apocalyptic future", "apocalypse"],
   },
   {
     id: "war-in-the-background",
     label: "La guerre, en arrière-plan",
-    famille: "world",
+    family: "world",
     tmdb: ["world war ii", "war", "occupation"],
   },
   {
     id: "world-of-work",
     label: "Le travail, vraiment montré",
-    famille: "world",
+    family: "world",
     tmdb: ["workplace", "factory", "office"],
   },
   {
     id: "family-single-setting",
     label: "La maison de famille",
-    famille: "world",
+    family: "world",
     tmdb: ["family drama", "dysfunctional family"],
   },
-  { id: "the-night", label: "Ça se passe la nuit", famille: "world", tmdb: ["night", "one night"] },
+  { id: "the-night", label: "Ça se passe la nuit", family: "world", tmdb: ["night", "one night"] },
   {
     id: "exile",
     label: "Loin de chez soi",
-    famille: "world",
+    family: "world",
     tmdb: ["immigration", "exile", "refugee"],
   },
 ];
 
 /* ============================================================
-   VOS MOTIFS À VOUS
+   YOUR OWN MOTIFS
    ============================================================
 
-   Le catalogue ci-dessus reste dans le code, et c'est ce qui permet à une
-   mise à jour de l'application d'enrichir le vocabulaire de tout le monde
-   sans rien écraser. Mais il ne peut pas tout prévoir : personne d'autre
-   que vous ne sait que vous suivez « les films où il pleut sans arrêt ».
+   The catalogue above stays in the code, and that is what lets an update
+   of the application enrich everybody's vocabulary without overwriting
+   anything. But it cannot foresee everything: nobody but you knows that
+   you follow "the films where it rains without stopping".
 
-   Deux gestes, donc, et deux seulement :
-   — AJOUTER les vôtres, qui vivent à côté, dans vos données ;
-   — MASQUER ceux du catalogue qui ne vous servent pas. Masquer et non
-     supprimer : un motif fourni n'est pas à vous, et le faire disparaître
-     de vos données le ferait revenir à la prochaine mise à jour, ce qui
-     serait pire que de ne pas l'avoir enlevé.
+   Two gestures, then, and two only:
+   — ADD your own, which live alongside, in your data;
+   — HIDE the catalogue's that are no use to you. Hide and not delete: a
+     motif we supply is not yours, and making it vanish from your data
+     would bring it back on the next update, which would be worse than
+     not having removed it.
 
-   LE REGISTRE EST GLOBAL, ET C'EST UN CHOIX ASSUMÉ. `motifById` est
-   appelé depuis la recherche, la carte du ciel et la fiche — faire
-   descendre le catalogue en propriété jusqu'à chacun traverserait la
-   moitié de l'application pour une liste qui ne change qu'à la main.
-   `App` charge le disque au démarrage et pose le registre ici ; c'est le
-   seul endroit qui écrit. */
-let PERSO: Motif[] = [];
-let MASQUÉS = new Set<string>();
+   THE REGISTER IS GLOBAL, AND THAT IS A DELIBERATE CHOICE. `motifById` is
+   called from the search, the sky map and the card — passing the
+   catalogue down as a prop to each of them would cross half the
+   application for a list that only changes by hand. `App` loads the disk
+   at start-up and sets the register here; it is the only place that
+   writes.
 
-export interface VocabulaireStocké {
-  perso: Motif[];
-  masqués: string[];
+   ITS FIELDS ARE STORED. `perso`, `masqués` and each motif's `famille`
+   are written into `localStorage`; they are read back through
+   `services/motifs`, which is their only door and carries the old
+   spellings over. */
+let CUSTOM: Motif[] = [];
+let HIDDEN = new Set<string>();
+
+export interface StoredVocabulary {
+  custom: Motif[];
+  hidden: string[];
 }
 
-export const poserVocabulaire = ({
-  perso = [],
-  masqués = [],
-}: Partial<VocabulaireStocké>): void => {
-  PERSO = perso;
-  MASQUÉS = new Set(masqués);
+export const setVocabulary = ({ custom = [], hidden = [] }: Partial<StoredVocabulary>): void => {
+  CUSTOM = custom;
+  HIDDEN = new Set(hidden);
 };
 
-export const motifsPerso = (): Motif[] => PERSO;
-export const estMasqué = (id: string): boolean => MASQUÉS.has(id);
-export const estPerso = (id: string): boolean => PERSO.some((m) => m.id === id);
+export const customMotifs = (): Motif[] => CUSTOM;
+export const isHidden = (id: string): boolean => HIDDEN.has(id);
+export const isCustom = (id: string): boolean => CUSTOM.some((m) => m.id === id);
 
-/** Le vocabulaire en usage : le catalogue moins les masqués, plus les vôtres. */
-export const tousLesMotifs = (): Motif[] => [...MOTIFS.filter((m) => !MASQUÉS.has(m.id)), ...PERSO];
+/** The vocabulary in use: the catalogue minus the hidden, plus yours. */
+export const allMotifs = (): Motif[] => [...MOTIFS.filter((m) => !HIDDEN.has(m.id)), ...CUSTOM];
 
-/* Un identifiant se DÉDUIT du libellé, et ne bouge plus jamais ensuite :
-   c'est lui qui est écrit sur les fiches. Renommer « Il pleut » en « Il
-   pleut sans arrêt » ne doit pas décrocher le motif des douze films qui
-   le portent. */
-export const idDepuisLabel = (label: string, pris: string[] = []): string => {
+/* An identifier is DEDUCED from the label, and never moves again
+   afterwards: it is what gets written on the cards. Renaming "Il pleut"
+   to "Il pleut sans arrêt" must not unhook the motif from the twelve
+   films that carry it. */
+export const idFromLabel = (label: string, taken: string[] = []): string => {
   const base =
     label
       .trim()
@@ -447,117 +454,111 @@ export const idDepuisLabel = (label: string, pris: string[] = []): string => {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "")
       .slice(0, 40) || "motif";
-  if (!pris.includes(base)) return base;
+  if (!taken.includes(base)) return base;
   let n = 2;
-  while (pris.includes(`${base}-${n}`)) n++;
+  while (taken.includes(`${base}-${n}`)) n++;
   return `${base}-${n}`;
 };
 
-export const makeMotifPerso = (
+export const makeCustomMotif = (
   label: string,
-  famille: MotifFamille = "narrative",
+  family: MotifFamily = "narrative",
   spoiler = false
 ): Motif => ({
-  id: idDepuisLabel(label, [...MOTIFS.map((m) => m.id), ...PERSO.map((m) => m.id)]),
+  id: idFromLabel(label, [...MOTIFS.map((m) => m.id), ...CUSTOM.map((m) => m.id)]),
   label: label.trim(),
-  famille,
+  family,
   ...(spoiler ? { spoiler: true } : {}),
 });
 
-const PAR_ID = new Map(MOTIFS.map((m) => [m.id, m]));
+const BY_ID = new Map(MOTIFS.map((m) => [m.id, m]));
 
-/* On regarde les vôtres D'ABORD : si un identifiant existait des deux
-   côtés — un motif du catalogue ajouté après coup sous le même nom que
-   l'un des vôtres — c'est le vôtre qui doit gagner, puisque c'est celui
-   que vous avez écrit.
+/* We look at yours FIRST: if an identifier existed on both sides — a
+   catalogue motif added later under the same name as one of yours — it is
+   yours that must win, since it is the one you wrote.
 
-   Un motif masqué reste trouvable ici : les fiches qui le portent doivent
-   continuer de l'afficher, sans quoi masquer effacerait en silence. */
+   A hidden motif stays findable here: the cards that carry it must go on
+   showing it, otherwise hiding would erase in silence. */
 export const motifById = (id: string): Motif | undefined =>
-  PERSO.find((m) => m.id === id) || PAR_ID.get(id);
+  CUSTOM.find((m) => m.id === id) || BY_ID.get(id);
 
-/** Les motifs d'une fiche, dans l'ordre du catalogue et non celui de la pose.
+/** A card's motifs, in the catalogue's order and not the order they were set.
  *
- *  Un `id` inconnu — un motif retiré du catalogue depuis — est simplement
- *  ignoré à l'affichage plutôt qu'effacé de la fiche : le retirer des
- *  données demanderait une migration pour une liste qui bouge encore. */
-export const motifsDe = (film: Pick<Film, "motifs">): Motif[] =>
+ *  An unknown `id` — a motif since removed from the catalogue — is simply
+ *  ignored on display rather than erased from the card: taking it out of
+ *  the data would ask for a migration, for a list that is still moving. */
+export const motifsOf = (film: Pick<Film, "motifs">): Motif[] =>
   (film.motifs || []).map((id) => motifById(id)).filter((m): m is Motif => !!m);
 
-export const parFamille = (): { famille: MotifFamille; label: string; motifs: Motif[] }[] => {
-  const usage = tousLesMotifs();
-  return FAMILLES.map((f) => ({
-    famille: f.id,
+export const byFamily = (): { family: MotifFamily; label: string; motifs: Motif[] }[] => {
+  const inUse = allMotifs();
+  return FAMILIES.map((f) => ({
+    family: f.id,
     label: f.label,
-    motifs: usage.filter((m) => m.famille === f.id),
+    motifs: inUse.filter((m) => m.family === f.id),
   })).filter((f) => f.motifs.length > 0);
 };
 
-/** Recherche dans le catalogue, sur le label ET la famille. */
-export const chercheMotifs = (q: string): Motif[] => {
+/** Search in the catalogue, on the label AND the family. */
+export const searchMotifs = (q: string): Motif[] => {
   const t = q.trim().toLowerCase();
   if (!t) return [];
-  return tousLesMotifs().filter(
+  return allMotifs().filter(
     (m) =>
       m.label.toLowerCase().includes(t) ||
-      (FAMILLES.find((f) => f.id === m.famille)
+      (FAMILIES.find((f) => f.id === m.family)
         ?.label.toLowerCase()
         .includes(t) ??
         false)
   );
 };
 
-/* CE QUE TMDB PEUT PROPOSER, ET RIEN DE PLUS.
+/* WHAT TMDB CAN SUGGEST, AND NOTHING MORE.
 
-   Les mots-clés TMDB sont posés par n'importe qui et vont du très juste
-   au franchement faux. On s'en sert donc comme d'une PROPOSITION — la
-   fiche ne reçoit que ce qu'un clic a validé. Une suggestion automatique
-   écrite sans relecture, sur un champ qui sert ensuite à bâtir la carte,
-   remplirait le ciel de fils qu'on n'a jamais tirés.
+   TMDB keywords are set by anybody at all and run from the very apt to
+   the plainly wrong. So we use them as a SUGGESTION — the card only
+   receives what a click has approved. An automatic suggestion written
+   without review, on a field that then goes on to build the map, would
+   fill the sky with threads nobody ever strung.
 
-   La correspondance se fait sur le LIBELLÉ et non sur l'id numérique :
-   les ids sont stables chez TMDB mais illisibles ici, et une liste de
-   nombres nus serait invérifiable à la relecture. */
+   The match is made on the LABEL and not on the numeric id: the ids are
+   stable at TMDB but unreadable here, and a list of bare numbers would be
+   unverifiable on review. */
 export const suggestMotifs = (keywords: { id?: number; name?: string }[] | string[]): Motif[] => {
-  const mots = new Set<string>();
+  const words = new Set<string>();
   for (const k of keywords || []) {
-    if (typeof k === "string") mots.add(k.trim().toLowerCase());
+    if (typeof k === "string") words.add(k.trim().toLowerCase());
     else {
-      if (k?.name) mots.add(k.name.trim().toLowerCase());
-      if (typeof k?.id === "number") mots.add(String(k.id));
+      if (k?.name) words.add(k.name.trim().toLowerCase());
+      if (typeof k?.id === "number") words.add(String(k.id));
     }
   }
-  if (mots.size === 0) return [];
-  return MOTIFS.filter((m) => (m.tmdb || []).some((t) => mots.has(String(t).toLowerCase())));
+  if (words.size === 0) return [];
+  return MOTIFS.filter((m) => (m.tmdb || []).some((t) => words.has(String(t).toLowerCase())));
 };
 
 /* ============================================================
-   L'ANCIENNE GRAPHIE DES IDENTIFIANTS
+   THE OLD SPELLING OF THE IDENTIFIERS
    ============================================================
 
-   Les identifiants ci-dessus sont passés à l'anglais, et ce sont eux
-   qu'une fiche porte sur le disque : `motifs: ["melancolie"]` était écrit
-   dans le `localStorage` de toute collection tenue avant la bascule.
+   The identifiers above moved to English, and they are what a card
+   carries on disk: `motifs: ["melancolie"]` was written into the
+   `localStorage` of every collection kept before the switch.
 
-   Le commentaire d'en-tête promet qu'« un motif qu'on renommerait ici se
-   réaffiche partout sans migration » — c'est vrai du LABEL, qui ne
-   voyage pas ; c'est faux de l'`id`, qui est la seule chose qu'une fiche
-   garde. Cette table est donc la contrepartie du renommage, et les deux
-   portes de lecture du classeur la traversent : `migrate` dans
-   `domain/film` pour les fiches, `normalizeThreads` dans `domain/threads`
-   pour les fils.
+   The header comment promises that "a motif relabelled here shows up
+   everywhere with no migration" — that is true of the LABEL, which does
+   not travel; it is false of the `id`, which is the only thing a card
+   keeps. This table is therefore the counterpart of the rename, and the
+   binder's reading doors all go through it: `migrate` in `domain/film`
+   for the cards, `normalizeThreads` in `domain/threads` for the threads,
+   `normalizeVocabulaire` in `services/motifs` for the families.
 
-   Un identifiant inconnu ressort tel quel. C'est déjà la règle du
-   catalogue — un motif que personne ne connaît est ignoré à l'affichage,
-   jamais effacé de la fiche — et la migration n'a aucune raison d'être
-   plus brutale que lui. */
-const ANCIENS_IDS: Record<string, string> = {
-  destin: "fate",
-  fin: "ending",
-  récit: "narrative",
-  figure: "figures",
-  ton: "tone",
-  monde: "world",
+   An unknown identifier comes back untouched. That is already the
+   catalogue's rule — a motif nobody knows is ignored on display, never
+   erased from the card — and the migration has no reason to be harsher
+   than it is. A motif YOU created takes its id from its label and has no
+   business in this table. */
+const OLD_IDS: Record<string, string> = {
   "heros-meurt": "hero-dies",
   "tout-le-monde-meurt": "everyone-dies",
   "seul-survivant": "sole-survivor",
@@ -623,11 +624,10 @@ const ANCIENS_IDS: Record<string, string> = {
   exil: "exile",
 };
 
-/* Les FAMILLES ont changé de nom en même temps que les motifs, et elles
-   sont écrites sur le disque elles aussi : un motif que vous avez créé
-   garde la sienne dans le `localStorage`. La reprise passe par
-   `services/motifs`, qui est sa porte de lecture. */
-const ANCIENNES_FAMILLES: Record<string, MotifFamille> = {
+/* The FAMILIES changed name at the same time as the motifs, and they are
+   written on disk too: a motif you created keeps its own in
+   `localStorage`. */
+const OLD_FAMILIES: Record<string, MotifFamily> = {
   destin: "fate",
   fin: "ending",
   récit: "narrative",
@@ -636,13 +636,13 @@ const ANCIENNES_FAMILLES: Record<string, MotifFamille> = {
   monde: "world",
 };
 
-export const migrateMotifFamille = (f: unknown): MotifFamille | null =>
-  typeof f === "string" ? (ANCIENNES_FAMILLES[f] ?? null) : null;
+export const migrateMotifFamily = (f: unknown): MotifFamily | null =>
+  typeof f === "string" ? (OLD_FAMILIES[f] ?? null) : null;
 
-/** L'identifiant d'aujourd'hui pour un motif écrit avant la bascule. */
-export const migrateMotifId = (id: string): string => ANCIENS_IDS[id] ?? id;
+/** Today's identifier for a motif written before the switch. */
+export const migrateMotifId = (id: string): string => OLD_IDS[id] ?? id;
 
-/** La même chose sur une liste, en écartant les doublons qu'elle produirait. */
+/** The same over a list, dropping the duplicates it would produce. */
 export const migrateMotifIds = (ids: unknown): string[] =>
   Array.isArray(ids)
     ? [...new Set(ids.filter((i) => typeof i === "string").map(migrateMotifId))]

@@ -222,7 +222,7 @@ export type Quotas = Record<Famille, number>;
 export const QUOTAS_PAR_DÉFAUT: Quotas = { gens: 4, sujets: 4, foule: 2 };
 
 /** L'ordre dans lequel les familles sont servies, et rien de plus. */
-const FAMILLES: Famille[] = ["gens", "sujets", "foule"];
+const FAMILIES: Famille[] = ["gens", "sujets", "foule"];
 
 const FAMILLE_DE: Record<Lien, Famille> = {
   réalisation: "gens",
@@ -256,12 +256,12 @@ export function parQuotas<T>(
   quotas: Partial<Quotas> = {}
 ): T[] {
   const pleins = { ...QUOTAS_PAR_DÉFAUT, ...quotas };
-  const total = FAMILLES.reduce((s, f) => s + pleins[f], 0);
+  const total = FAMILIES.reduce((s, f) => s + pleins[f], 0);
 
   const piles: Record<Famille, T[]> = { gens: [], sujets: [], foule: [] };
   for (const item of triés) piles[familleDeItem(item)].push(item);
 
-  const pris = FAMILLES.flatMap((f) => piles[f].slice(0, pleins[f]));
+  const pris = FAMILIES.flatMap((f) => piles[f].slice(0, pleins[f]));
   /* Le report, dans l'ordre du score global : on ne veut pas que le
      complément arrive par paquets de famille après coup. */
   if (pris.length < total) {

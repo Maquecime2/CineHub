@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DetailView } from "./DetailView";
 import { makeFilm } from "../domain/film";
-import { makeMotifPerso, poserVocabulaire } from "../domain/motifs";
+import { makeCustomMotif, setVocabulary } from "../domain/motifs";
 
 /* Le découpage de la fiche est une affaire de mise en page — mais rien
    de ce qu'elle portait ne doit avoir disparu en chemin, et c'est le
@@ -190,7 +190,7 @@ describe("gérer le vocabulaire depuis la fiche", () => {
   /* Supprimer un motif à soi retire aussi son identifiant des fiches : la
      confirmation annonce donc combien en sont porteuses. */
   it("annonce les fiches touchées avant de supprimer un motif", async () => {
-    poserVocabulaire({ perso: [makeMotifPerso("Il pleut", "world")], masqués: [] });
+    setVocabulary({ custom: [makeCustomMotif("Il pleut", "world")], hidden: [] });
     const onSupprimerMotif = vi.fn();
     monter({ motifs: ["il-pleut"] }, { onSupprimerMotif, ...MOTS });
     const user = await ouvrirLaListe();
@@ -199,6 +199,6 @@ describe("gérer le vocabulaire depuis la fiche", () => {
     expect(onSupprimerMotif).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "SUPPRIMER LE MOTIF" }));
     expect(onSupprimerMotif).toHaveBeenCalledWith("il-pleut");
-    poserVocabulaire({ perso: [], masqués: [] });
+    setVocabulary({ custom: [], hidden: [] });
   });
 });

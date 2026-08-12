@@ -32,7 +32,7 @@ import type {
   ShelfViews,
 } from "../../types";
 import type { Thread } from "../../domain/threads";
-import type { VocabulaireStocké as Vocabulaire } from "../../domain/motifs";
+import type { StoredVocabulary as Vocabulaire } from "../../domain/motifs";
 
 /** Les deux natures d'import proposées sous le relevé du fichier. */
 const IMPORT_STATUSES: { k: FilmStatus; l: string }[] = [

@@ -24,7 +24,7 @@ import type { DemandeConfirmation } from "../components/ui";
 import { TagEditor } from "../components/ui/TagEditor";
 import { MotifPicker } from "../components/film/MotifPicker";
 import { MOTIFS, suggestMotifs } from "../domain/motifs";
-import type { Motif, MotifFamille } from "../domain/motifs";
+import type { Motif, MotifFamily } from "../domain/motifs";
 import { fetchKeywords } from "../tmdb";
 import { useTmdbKey } from "../services/tmdbKey";
 import { StampCorner, Tape } from "../components/atmosphere";
@@ -161,9 +161,9 @@ interface DetailViewProps {
   /** Faire d'un motif une question posée à toute la collection. */
   onFaireUnFil?: (motifId: string) => void;
   /** Le vocabulaire à vous : vos motifs, et ceux du catalogue écartés. */
-  vocabulaire?: { perso: Motif[]; masqués: string[] };
+  vocabulaire?: { custom: Motif[]; hidden: string[] };
   /** Rend l'identifiant du motif écrit, pour le poser aussitôt sur la fiche. */
-  onCréerMotif?: (label: string, famille: MotifFamille, spoiler: boolean) => string | null;
+  onCréerMotif?: (label: string, famille: MotifFamily, spoiler: boolean) => string | null;
   onSupprimerMotif?: (motifId: string) => void;
   onMasquerMotif?: (motifId: string, masqué: boolean) => void;
   /** Un compte est ouvert : la fiche peut alors lire ce qu'on en dit ailleurs. */
@@ -193,7 +193,7 @@ export function DetailView({
   onOpen,
   onOpenPerson,
   onAddToWatchlist,
-  vocabulaire = { perso: [], masqués: [] },
+  vocabulaire = { custom: [], hidden: [] },
   onCréerMotif,
   onSupprimerMotif,
   onMasquerMotif,
@@ -382,8 +382,8 @@ export function DetailView({
   /* Ceux du catalogue qu'on a écartés : le sélecteur les propose au
      retour, sinon les rappeler demanderait d'aller fouiller le code. */
   const masqués = useMemo(
-    () => MOTIFS.filter((m) => vocabulaire.masqués.includes(m.id)),
-    [vocabulaire.masqués]
+    () => MOTIFS.filter((m) => vocabulaire.hidden.includes(m.id)),
+    [vocabulaire.hidden]
   );
 
   const removeLink = (id: string) => onRemoveLink(film.id, id);

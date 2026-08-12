@@ -18,7 +18,7 @@
    to date on every keystroke.
    ============================================================ */
 import { normalize, scoreFilm } from "./search";
-import { tousLesMotifs, motifById } from "./motifs";
+import { allMotifs, motifById } from "./motifs";
 import { threadMembers } from "./threads";
 import { census } from "./people";
 import type { Thread } from "./threads";
@@ -158,7 +158,7 @@ export function searchEverywhere(q: string, { films, notes, threads }: Corpus, p
      We count the cards carrying it: a motif nobody carries is still
      found, but it presents itself for what it is. */
   const byMotif: Hit[] = [];
-  for (const m of tousLesMotifs()) {
+  for (const m of allMotifs()) {
     const rank = rankOf(m.label, t, 1);
     if (rank == null) continue;
     const n = films.filter((f) => (f.motifs || []).includes(m.id)).length;

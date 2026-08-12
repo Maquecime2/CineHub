@@ -1,17 +1,17 @@
 import { describe, it, expect, afterEach } from "vitest";
 import {
   MOTIFS,
-  chercheMotifs,
-  estMasqué,
-  estPerso,
-  idDepuisLabel,
-  makeMotifPerso,
+  searchMotifs,
+  isHidden,
+  isCustom,
+  idFromLabel,
+  makeCustomMotif,
   motifById,
-  motifsDe,
-  parFamille,
-  poserVocabulaire,
+  motifsOf,
+  byFamily,
+  setVocabulary,
   suggestMotifs,
-  tousLesMotifs,
+  allMotifs,
 } from "./motifs";
 import { makeFilm } from "./film";
 
@@ -29,18 +29,18 @@ describe("le catalogue de motifs", () => {
   });
 
   it("range chaque motif dans une famille affichée", () => {
-    const rangés = parFamille().flatMap((f) => f.motifs);
+    const rangés = byFamily().flatMap((f) => f.motifs);
     expect(rangés).toHaveLength(MOTIFS.length);
   });
 
   it("ignore un motif inconnu plutôt que de le montrer", () => {
     const film = makeFilm({ motifs: ["hero-dies", "motif-supprimé-depuis"] });
-    expect(motifsDe(film).map((m) => m.id)).toEqual(["hero-dies"]);
+    expect(motifsOf(film).map((m) => m.id)).toEqual(["hero-dies"]);
   });
 
   it("cherche sans casse", () => {
-    expect(chercheMotifs("HÉROS").map((m) => m.id)).toContain("hero-dies");
-    expect(chercheMotifs("")).toEqual([]);
+    expect(searchMotifs("HÉROS").map((m) => m.id)).toContain("hero-dies");
+    expect(searchMotifs("")).toEqual([]);
   });
 });
 
@@ -61,46 +61,46 @@ describe("ce que TMDB propose", () => {
 });
 
 describe("vos motifs à vous", () => {
-  afterEach(() => poserVocabulaire({ perso: [], masqués: [] }));
+  afterEach(() => setVocabulary({ custom: [], hidden: [] }));
 
   it("s'ajoutent au catalogue sans le remplacer", () => {
-    const mien = makeMotifPerso("Il pleut sans arrêt", "world");
-    poserVocabulaire({ perso: [mien], masqués: [] });
+    const mien = makeCustomMotif("Il pleut sans arrêt", "world");
+    setVocabulary({ custom: [mien], hidden: [] });
     expect(motifById(mien.id)?.label).toBe("Il pleut sans arrêt");
     expect(motifById("hero-dies")).toBeTruthy();
-    expect(tousLesMotifs()).toHaveLength(MOTIFS.length + 1);
-    expect(estPerso(mien.id)).toBe(true);
-    expect(estPerso("hero-dies")).toBe(false);
+    expect(allMotifs()).toHaveLength(MOTIFS.length + 1);
+    expect(isCustom(mien.id)).toBe(true);
+    expect(isCustom("hero-dies")).toBe(false);
   });
 
   it("tirent leur identifiant du libellé, une fois pour toutes", () => {
-    expect(idDepuisLabel("Il pleut, sans arrêt !")).toBe("il-pleut-sans-arret");
+    expect(idFromLabel("Il pleut, sans arrêt !")).toBe("il-pleut-sans-arret");
     // et n'écrasent jamais un identifiant déjà pris
-    expect(idDepuisLabel("Le héros meurt", ["le-heros-meurt"])).toBe("le-heros-meurt-2");
+    expect(idFromLabel("Le héros meurt", ["le-heros-meurt"])).toBe("le-heros-meurt-2");
   });
 
   it("se cherchent comme les autres", () => {
-    const mien = makeMotifPerso("Il pleut sans arrêt", "world");
-    poserVocabulaire({ perso: [mien], masqués: [] });
-    expect(chercheMotifs("pleut").map((m) => m.id)).toContain(mien.id);
+    const mien = makeCustomMotif("Il pleut sans arrêt", "world");
+    setVocabulary({ custom: [mien], hidden: [] });
+    expect(searchMotifs("pleut").map((m) => m.id)).toContain(mien.id);
   });
 });
 
 describe("les motifs écartés", () => {
-  afterEach(() => poserVocabulaire({ perso: [], masqués: [] }));
+  afterEach(() => setVocabulary({ custom: [], hidden: [] }));
 
   it("quittent la liste où l'on choisit", () => {
-    poserVocabulaire({ perso: [], masqués: ["hero-dies"] });
-    expect(tousLesMotifs().some((m) => m.id === "hero-dies")).toBe(false);
-    expect(chercheMotifs("héros").some((m) => m.id === "hero-dies")).toBe(false);
+    setVocabulary({ custom: [], hidden: ["hero-dies"] });
+    expect(allMotifs().some((m) => m.id === "hero-dies")).toBe(false);
+    expect(searchMotifs("héros").some((m) => m.id === "hero-dies")).toBe(false);
   });
 
   /* Masquer n'est pas effacer : une fiche qui le porte doit continuer de
      l'afficher, sans quoi écarter réécrirait les données en douce. */
   it("restent lisibles sur les fiches qui les portent", () => {
-    poserVocabulaire({ perso: [], masqués: ["hero-dies"] });
+    setVocabulary({ custom: [], hidden: ["hero-dies"] });
     expect(motifById("hero-dies")?.label).toBe("Le héros meurt");
-    expect(motifsDe(makeFilm({ motifs: ["hero-dies"] }))).toHaveLength(1);
-    expect(estMasqué("hero-dies")).toBe(true);
+    expect(motifsOf(makeFilm({ motifs: ["hero-dies"] }))).toHaveLength(1);
+    expect(isHidden("hero-dies")).toBe(true);
   });
 });

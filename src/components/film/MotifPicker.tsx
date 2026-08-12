@@ -18,14 +18,14 @@ import { Eye, EyeOff, Plus, Spool, Trash2, X } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { underlineInput, tap } from "../../theme/styles";
 import {
-  FAMILLES,
-  chercheMotifs,
-  estPerso,
+  FAMILIES,
+  searchMotifs,
+  isCustom,
   motifById,
-  motifsDe,
-  parFamille,
+  motifsOf,
+  byFamily,
 } from "../../domain/motifs";
-import type { Motif, MotifFamille } from "../../domain/motifs";
+import type { Motif, MotifFamily } from "../../domain/motifs";
 
 const rubrique = {
   fontFamily: F.mono,
@@ -118,7 +118,7 @@ export function MotifPicker({
   /** Faire de ce motif une question posée à toute la collection. */
   onFaireUnFil?: (motifId: string) => void;
   /** Ajouter un motif au vocabulaire. Absent : la liste reste en lecture. */
-  onCréer?: (label: string, famille: MotifFamille, spoiler: boolean) => void;
+  onCréer?: (label: string, famille: MotifFamily, spoiler: boolean) => void;
   /** Retirer l'un des vôtres — la confirmation et le ménage sont à l'appelant. */
   onSupprimer?: (motif: Motif) => void;
   /** Écarter l'un du catalogue, ou le remettre. */
@@ -130,14 +130,14 @@ export function MotifPicker({
   const [q, setQ] = useState("");
   const [révélés, setRévélés] = useState<string[]>([]);
   const [neuf, setNeuf] = useState("");
-  const [famille, setFamille] = useState<MotifFamille>("narrative");
+  const [famille, setFamille] = useState<MotifFamily>("narrative");
   const [spoiler, setSpoiler] = useState(false);
 
-  /* `motifsDe` et non un filtre sur le catalogue : un motif à vous n'est
+  /* `motifsOf` et non un filtre sur le catalogue : un motif à vous n'est
      pas dans `MOTIFS`, et la fiche l'aurait perdu à l'affichage. */
-  const posés = useMemo(() => motifsDe({ motifs }), [motifs]);
-  const familles = useMemo(() => parFamille(), [ouvert, motifs]);
-  const trouvés = useMemo(() => (q.trim() ? chercheMotifs(q) : []), [q]);
+  const posés = useMemo(() => motifsOf({ motifs }), [motifs]);
+  const familles = useMemo(() => byFamily(), [ouvert, motifs]);
+  const trouvés = useMemo(() => (q.trim() ? searchMotifs(q) : []), [q]);
   const àProposer = suggestions.filter((m) => !motifs.includes(m.id));
 
   const poser = (id: string) => {
@@ -234,7 +234,7 @@ export function MotifPicker({
                 <button
                   key={m.id}
                   onClick={() => poser(m.id)}
-                  style={chipStyle(estPerso(m.id) ? C.cobalt : C.pine, motifs.includes(m.id))}
+                  style={chipStyle(isCustom(m.id) ? C.cobalt : C.pine, motifs.includes(m.id))}
                 >
                   {m.label}
                 </button>
@@ -255,7 +255,7 @@ export function MotifPicker({
             </div>
           ) : (
             familles.map((f) => (
-              <div key={f.famille} style={{ marginBottom: 10 }}>
+              <div key={f.family} style={{ marginBottom: 10 }}>
                 <div
                   style={{
                     fontFamily: F.mono,
@@ -280,7 +280,7 @@ export function MotifPicker({
                     >
                       <button
                         onClick={() => (motifs.includes(m.id) ? ôter(m.id) : poser(m.id))}
-                        style={chipStyle(estPerso(m.id) ? C.cobalt : C.pine, motifs.includes(m.id))}
+                        style={chipStyle(isCustom(m.id) ? C.cobalt : C.pine, motifs.includes(m.id))}
                       >
                         {m.label}
                       </button>
@@ -291,7 +291,7 @@ export function MotifPicker({
                           catalogue se MASQUE seulement — l'effacer de vos
                           données le verrait revenir à la prochaine mise à
                           jour, ce qui est pire que de ne pas l'avoir enlevé. */}
-                      {estPerso(m.id) && onSupprimer && (
+                      {isCustom(m.id) && onSupprimer && (
                         <button
                           onClick={() => onSupprimer(m)}
                           aria-label={"Supprimer le motif " + m.label}
@@ -306,7 +306,7 @@ export function MotifPicker({
                           <Trash2 size={10} />
                         </button>
                       )}
-                      {!estPerso(m.id) && onMasquer && (
+                      {!isCustom(m.id) && onMasquer && (
                         <button
                           onClick={() => onMasquer(m.id, true)}
                           aria-label={"Écarter le motif " + m.label}
@@ -361,7 +361,7 @@ export function MotifPicker({
               >
                 <select
                   value={famille}
-                  onChange={(e) => setFamille(e.target.value as MotifFamille)}
+                  onChange={(e) => setFamille(e.target.value as MotifFamily)}
                   aria-label="Famille du motif"
                   style={{
                     ...underlineInput,
@@ -371,7 +371,7 @@ export function MotifPicker({
                     fontSize: 10,
                   }}
                 >
-                  {FAMILLES.map((f) => (
+                  {FAMILIES.map((f) => (
                     <option key={f.id} value={f.id}>
                       {f.label}
                     </option>

@@ -5,7 +5,7 @@ import { Tally } from "../../components/ui";
 import { posterStats, exportBackup, importBackup } from "../../db";
 import type { Divider, Film, Note, ShelfViews } from "../../types";
 import type { Thread } from "../../domain/threads";
-import type { VocabulaireStocké as Vocabulaire } from "../../domain/motifs";
+import type { StoredVocabulary as Vocabulaire } from "../../domain/motifs";
 
 /** Ce que `posterStats` rapporte de la base d'images. */
 interface PosterStats {
@@ -88,7 +88,7 @@ export function BackupPanel({
           dividers: d as Divider[],
           views: null,
           fils: (fl || []) as Thread[],
-          motifs: (mo || { perso: [], masqués: [] }) as Vocabulaire,
+          motifs: (mo || { custom: [], hidden: [] }) as Vocabulaire,
         })} fiche(s) restaurée(s).`
       );
     } catch (e) {
