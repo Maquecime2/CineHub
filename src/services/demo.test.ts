@@ -16,39 +16,39 @@ import { makeFilm } from "../domain/film";
 
 const films = demoFilms();
 
-describe("le classeur de démonstration", () => {
-  it("compte une douzaine de fiches", () => {
+describe("the demonstration binder", () => {
+  it("counts a dozen cards", () => {
     expect(films.length).toBeGreaterThanOrEqual(10);
   });
 
-  it("se reconnaît à son préfixe, et rien d'autre", () => {
+  it("is known by its prefix, and nothing else", () => {
     expect(films.every(isDemo)).toBe(true);
     expect(isDemo(makeFilm({ title: "à moi" }))).toBe(false);
   });
 
-  it("rend des fiches neuves à chaque appel", () => {
+  it("returns fresh cards on every call", () => {
     expect(demoFilms()[0]).not.toBe(films[0]);
   });
 
-  it("n'a pas deux fois le même identifiant", () => {
+  it("has no identifier twice", () => {
     expect(new Set(films.map((f) => f.id)).size).toBe(films.length);
   });
 });
 
-describe("il couvre ce que la visite montre", () => {
+describe("it covers what the tour shows", () => {
   /* Step "Ce qui attend": with no card set aside, the "À voir" tab
      opens an empty wall and the bubble circles nothing. */
-  it("a au moins un film mis de côté", () => {
+  it("has at least one film set aside", () => {
     expect(films.filter((f) => f.status === "watchlist").length).toBeGreaterThan(0);
   });
 
   /* Step "Une fiche s'ouvre": there must be a crowd on BOTH walls. */
-  it("a aussi des films vus", () => {
+  it("has films seen too", () => {
     expect(films.filter((f) => f.status === "watched").length).toBeGreaterThan(5);
   });
 
   /* Step "Le fil rouge", and the whole constellation. */
-  it("tend des fils entre ses fiches, dans les deux sens", () => {
+  it("runs threads between its cards, both ways", () => {
     const pairs = films.flatMap((f) =>
       (f.linkedWorks || []).filter((w) => w.pairId).map((w) => w.pairId!)
     );
@@ -57,14 +57,14 @@ describe("il couvre ce que la visite montre", () => {
     for (const p of new Set(pairs)) expect(pairs.filter((x) => x === p)).toHaveLength(2);
   });
 
-  it("relie une œuvre qui n'est pas un film", () => {
+  it("links a work that is not a film", () => {
     const outside = films.flatMap((f) => (f.linkedWorks || []).filter((w) => w.type !== "film"));
     expect(outside.length).toBeGreaterThan(0);
   });
 
   /* The two ends of a thread must point at each other, failing which
      the constellation draws edges leading nowhere. */
-  it("ne renvoie jamais vers une fiche absente", () => {
+  it("never points at a card that is not there", () => {
     const ids = new Set(films.map((f) => f.id));
     for (const f of films)
       for (const w of f.linkedWorks || []) if (w.filmId) expect(ids.has(w.filmId)).toBe(true);
@@ -73,7 +73,7 @@ describe("il couvre ce que la visite montre", () => {
   /* Step "Mots-clés et motifs": a pattern unknown to the catalogue is
      ignored when displaying, hence invisible — and the step shows
      emptiness. */
-  it("pose des motifs qui existent vraiment au catalogue", () => {
+  it("lays motifs that really exist in the catalogue", () => {
     const known = new Set(MOTIFS.map((m) => m.id));
     const placed = films.flatMap((f) => f.motifs);
     expect(placed.length).toBeGreaterThan(5);
@@ -82,29 +82,29 @@ describe("il couvre ce que la visite montre", () => {
 
   /* Step "L'almanach": a single year does not make a vintage, and
      "TOUJOURS" would have nothing to compare. */
-  it("a des séances sur au moins trois années", () => {
+  it("has screenings across at least three years", () => {
     const years = new Set(films.flatMap((f) => f.watches.map((w) => w.date.slice(0, 4))));
     expect(years.size).toBeGreaterThanOrEqual(3);
   });
 
-  it("a un film revu, pour que le journal ait quelque chose à dire", () => {
+  it("has a rewatched film, so the log has something to say", () => {
     expect(films.some((f) => f.watches.length > 1)).toBe(true);
   });
 
   /* `watchedAt` is the reflection of `watches`: letting them diverge
      would make the library's sort lie from the first opening. */
-  it("accorde watchedAt avec la séance la plus récente", () => {
+  it("agrees watchedAt with the most recent screening", () => {
     for (const f of films) expect(f.watchedAt).toBe(f.watches[0]?.date ?? null);
   });
 
   /* Step "Dans le sillage" and the constellation's kinships: they hold
      on to the people in the credits, and not only to the film-makers. */
-  it("a un chef opérateur et un compositeur", () => {
+  it("has a cinematographer and a composer", () => {
     expect(films.some((f) => (f.crew.image || []).length)).toBe(true);
     expect(films.some((f) => (f.crew.musique || []).length)).toBe(true);
   });
 
-  it("fait revenir au moins un nom, sinon rien ne se rapproche", () => {
+  it("brings at least one name back, or nothing draws near", () => {
     const count = (names: string[]) => {
       const n = new Map<string, number>();
       for (const x of names) n.set(x, (n.get(x) || 0) + 1);
@@ -115,7 +115,7 @@ describe("il couvre ce que la visite montre", () => {
   });
 
   /* Step "La fiche catalogue": it shows what TMDB brings back. */
-  it("remplit le catalogue des fiches vues", () => {
+  it("fills in the catalogue of the cards seen", () => {
     for (const f of films.filter((x) => x.status === "watched")) {
       expect(f.runtime, f.title).toBeGreaterThan(0);
       expect(f.cast.length, f.title).toBeGreaterThan(0);
@@ -128,7 +128,7 @@ describe("il couvre ce que la visite montre", () => {
   });
 
   /* Step "Vos mots", and the gap to the almanac's public rating. */
-  it("porte des notes et des critiques", () => {
+  it("carries ratings and reviews", () => {
     const seenFilms = films.filter((f) => f.status === "watched");
     expect(seenFilms.every((f) => f.rating > 0)).toBe(true);
     expect(seenFilms.every((f) => f.review.trim() !== "")).toBe(true);
@@ -142,7 +142,7 @@ describe("il couvre ce que la visite montre", () => {
      of 9 therefore passed every check, and came out as "vous : 17,8 sur
      10" on the board of gaps. Half a point is the finest step the star
      knows how to lay. */
-  it("note sur cinq, par demi-points", () => {
+  it("rates out of five, in half points", () => {
     for (const f of films) {
       expect(f.rating, f.title).toBeLessThanOrEqual(5);
       expect((f.rating * 2) % 1, f.title).toBe(0);
@@ -158,37 +158,37 @@ describe("il couvre ce que la visite montre", () => {
      broken rectangles where the application draws a tinted emulsion. The
      test is there so that nobody pastes "just one" later without
      wondering what becomes of it offline. */
-  it("ne dépend d'aucune image distante", () => {
+  it("depends on no remote image", () => {
     for (const f of films) expect(f.poster, f.title).toBe("");
   });
 });
 
-describe("le carnet de démonstration", () => {
-  it("a une page, préfixée comme le reste", () => {
+describe("the demonstration notebook", () => {
+  it("has one page, prefixed like the rest", () => {
     const notes = demoNotes();
     expect(notes.length).toBeGreaterThan(0);
     expect(notes.every((n) => n.id.startsWith(DEMO_PREFIX))).toBe(true);
   });
 });
 
-describe("il se retire d'un geste", () => {
-  it("reconnaît un classeur qui n'est que l'exemple", () => {
+describe("it is taken away in one gesture", () => {
+  it("recognises a binder that is nothing but the example", () => {
     expect(binderStillDemo(films)).toBe(true);
   });
 
-  it("se tait dès qu'une fiche est à vous", () => {
+  it("stays quiet as soon as one card is yours", () => {
     expect(binderStillDemo([...films, makeFilm({ title: "à moi" })])).toBe(false);
   });
 
-  it("se tait aussi sur un classeur vide", () => {
+  it("stays quiet on an empty binder too", () => {
     expect(binderStillDemo([])).toBe(false);
   });
 
-  it("ne laisse rien derrière lui", () => {
+  it("leaves nothing behind it", () => {
     expect(withoutDemo(films)).toHaveLength(0);
   });
 
-  it("ne touche pas à ce qui n'est pas l'exemple", () => {
+  it("does not touch what is not the example", () => {
     const mine = makeFilm({ title: "à moi" });
     expect(withoutDemo([...films, mine])).toEqual([mine]);
   });

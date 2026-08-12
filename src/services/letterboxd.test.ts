@@ -60,8 +60,8 @@ ${item(
 const parsed = () => parseLetterboxdRss(FEED);
 const find = (title: string) => parsed().rows.find((r) => r.title === title);
 
-describe("lire le flux Letterboxd", () => {
-  it("rend une séance complète, identifiant TMDB compris", () => {
+describe("reading the Letterboxd feed", () => {
+  it("returns a complete screening, TMDB identifier included", () => {
     expect(find("The Backrooms")).toMatchObject({
       title: "The Backrooms",
       year: 2022,
@@ -74,7 +74,7 @@ describe("lire le flux Letterboxd", () => {
   /* The identifier is what lets `diffImport` match without going
      through the title, and TMDB stop searching. It is the only field of
      the feed that existed in no CSV. */
-  it("donne l'identifiant TMDB en nombre, pas en chaîne", () => {
+  it("gives the TMDB identifier as a number, not a string", () => {
     expect(find("Toy Story 4")!.tmdbId).toBe(301528);
   });
 
@@ -82,7 +82,7 @@ describe("lire le flux Letterboxd", () => {
      sorting on the `guid`, "Mes films de 2026" would enter the film
      library as a film — it has a title and a link, nothing would give it
      away. */
-  it("écarte les listes, qui ne sont pas des films", () => {
+  it("sets aside the lists, which are not films", () => {
     expect(parsed().rows.map((r) => r.title)).not.toContain("Mes films de 2026");
     expect(parsed().rows).toHaveLength(2);
   });
@@ -90,12 +90,12 @@ describe("lire le flux Letterboxd", () => {
   /* Zero means "rated zero" in the model. A film seen without a rating
      must come out as null, otherwise a re-import crushes an existing
      rating with a zero nobody gave. */
-  it("distingue « pas de note » de « noté zéro »", () => {
+  it("tells \"no rating\" from \"rated zero\"", () => {
     expect(find("The Backrooms")!.rating).toBeNull();
     expect(find("Toy Story 4")!.rating).toBe(3.5);
   });
 
-  it("fond un revisionnage en une fiche, pas deux", () => {
+  it("melts a rewatch into one card, not two", () => {
     const rows = parsed().rows.filter((r) => r.title === "Toy Story 4");
     expect(rows).toHaveLength(1);
     expect(rows[0]!.watchedAt).toBe("2026-06-25");
@@ -104,20 +104,20 @@ describe("lire le flux Letterboxd", () => {
   /* The feed gives the rating of EVERY screening. Reducing them to the
      last one meant throwing away the one thing that says an opinion has
      moved. */
-  it("garde les deux séances d'un film revu, chacune avec sa note", () => {
+  it("keeps both screenings of a rewatched film, each with its rating", () => {
     expect(find("Toy Story 4")!.watches).toEqual([
       { date: "2026-06-25", rating: 3.5, rewatch: true },
       { date: "2024-01-02", rating: 3 },
     ]);
   });
 
-  it("consigne une séance même sans note", () => {
+  it("logs a screening even with no rating", () => {
     expect(find("The Backrooms")!.watches).toEqual([{ date: "2026-05-22", rating: null }]);
   });
 
   /* A rewatch is not a reject: announcing it as a duplicate would make
      one believe we lost the very thing we have just kept. */
-  it("compte ce qu'il a lu, sans prendre les revoyures pour des doublons", () => {
+  it("counts what it has read, without taking rewatches for duplicates", () => {
     expect(parsed().stats).toMatchObject({
       lines: 3,
       total: 2,
@@ -128,7 +128,7 @@ describe("lire le flux Letterboxd", () => {
   });
 
   // there is no watchlist feed: this path only returns what was seen
-  it("annonce des films vus", () => {
+  it("announces films seen", () => {
     expect(parsed().kind).toBe("watched");
   });
 
@@ -136,29 +136,29 @@ describe("lire le flux Letterboxd", () => {
      page. Reading it in silence would give "no screening at all", and we
      would search on the side of the username while the real culprit is
      the relay. */
-  it("refuse une page HTML avec un message qui dit quoi vérifier", () => {
+  it("refuses an HTML page with a message that says what to check", () => {
     expect(() => parseLetterboxdRss("<html><body>503 Service Unavailable</body></html>")).toThrow(
       /pseudo|relais/i
     );
   });
 });
 
-describe("l'adresse du flux", () => {
+describe("the feed's address", () => {
   /* The tests run under Vitest, hence in development mode: it is the
      relative path of the Vite proxy that must come out. */
-  it("passe par le serveur de développement, sans relais ni tiers", () => {
+  it("goes through the development server, with no relay and no third party", () => {
     expect(feedUrl("essai")).toBe("/lb-rss/essai/rss/");
   });
 
-  it("laisse coller un pseudo avec son arobase", () => {
+  it("lets a handle be pasted with its at-sign", () => {
     expect(feedUrl("@essai")).toBe("/lb-rss/essai/rss/");
   });
 
-  it("a un relais par défaut qui sait où mettre l'adresse", () => {
+  it("has a default relay that knows where to put the address", () => {
     expect(DEFAULT_RELAY).toContain("{url}");
   });
 
-  it("numérote les pages de watchlist à partir de un", () => {
+  it("numbers the watchlist pages from one", () => {
     expect(watchlistUrl("@essai")).toBe("/lb-rss/essai/watchlist/page/1/");
     expect(watchlistUrl("essai", 3)).toBe("/lb-rss/essai/watchlist/page/3/");
   });
@@ -201,10 +201,10 @@ const OLD = `<html><body><ul class="poster-list">
   </li>
 </ul></body></html>`;
 
-describe("lire une page de watchlist", () => {
+describe("reading one watchlist page", () => {
   const page = () => parseWatchlistPage(GRID);
 
-  it("rend chaque film avec son année et son adresse", () => {
+  it("returns each film with its year and its address", () => {
     expect(page().rows[0]).toMatchObject({
       title: "Rachel, Rachel",
       year: 1968,
@@ -215,18 +215,18 @@ describe("lire une page de watchlist", () => {
   /* The year is stuck to the title, not in an attribute. Leaving it
      there would make "Le Samouraï (1967)" a film the collection would
      never recognise — and would recreate at every reading. */
-  it("détache l'année du titre sans manger le reste", () => {
+  it("pulls the year off the title without eating the rest", () => {
     expect(page().rows[1]).toMatchObject({ title: "Le Samouraï", year: 1967 });
   });
 
   /* A wish has neither rating nor screening. Returning them as zero
      rather than null would crush, on re-import, the rating of an
      already-seen film still lying about in the watchlist. */
-  it("ne prête ni note ni séance à une envie", () => {
+  it("lends neither rating nor screening to a wish", () => {
     expect(page().rows[1]).toMatchObject({ rating: null, watchedAt: null, watches: [] });
   });
 
-  it("compte les affiches sans titre au lieu de les inventer", () => {
+  it("counts the untitled posters instead of inventing them", () => {
     expect(page().rows).toHaveLength(2);
     expect(page().skippedNoTitle).toBe(1);
   });
@@ -234,15 +234,15 @@ describe("lire une page de watchlist", () => {
   /* The pagination carries an ellipsis between the third page and the
      last: it is the LARGEST number that counts, not the last one read,
      and certainly not the "…". */
-  it("lit le nombre de pages dans la pagination, points de suspension compris", () => {
+  it("reads the number of pages from the pagination, ellipsis included", () => {
     expect(page().lastPage).toBe(4);
   });
 
-  it("tient une watchlist courte pour une seule page", () => {
+  it("takes a short watchlist for a single page", () => {
     expect(parseWatchlistPage(OLD).lastPage).toBe(1);
   });
 
-  it("comprend encore l'ancien gabarit, où l'année est un attribut", () => {
+  it("still understands the old template, where the year is an attribute", () => {
     expect(parseWatchlistPage(OLD).rows[0]).toMatchObject({
       title: "Vivre sa vie",
       year: 1962,
@@ -254,7 +254,7 @@ describe("lire une page de watchlist", () => {
      throw, not return zero films. Zero films would tell itself as an
      emptied watchlist, and the screen would flag the whole collection as
      removed. */
-  it("refuse une page qui n'est pas une watchlist", () => {
+  it("refuses a page that is not a watchlist", () => {
     expect(() => parseWatchlistPage("<html><body>503 Service Unavailable</body></html>")).toThrow(
       /pseudo|relais|public/i
     );
@@ -262,7 +262,7 @@ describe("lire une page de watchlist", () => {
 
   /* An empty watchlist says so: Letterboxd lays a "No films yet" in
      `.empty-text`. That is what tells it apart from a failed page. */
-  it("accepte en revanche une watchlist réellement vide", () => {
+  it("accepts, on the other hand, a genuinely empty watchlist", () => {
     const empty = `<html><body><p class="empty-text">No films yet</p></body></html>`;
     expect(parseWatchlistPage(empty).rows).toEqual([]);
   });
@@ -271,7 +271,7 @@ describe("lire une page de watchlist", () => {
 /* The whole reading, pages included. The network is replaced by a
    dictionary of pages: what we check here is the LOOP and the order, not
    the ability of `fetch` to go and get a page. */
-describe("relever une watchlist entière", () => {
+describe("taking down a whole watchlist", () => {
   const page = (names: string[], last: number) =>
     `<html><body><ul class="grid">${names
       .map(
@@ -294,7 +294,7 @@ describe("relever une watchlist entière", () => {
 
   afterEach(() => vi.unstubAllGlobals());
 
-  it("suit la pagination et rend les films dans l'ordre des pages", async () => {
+  it("follows the pagination and returns the films in page order", async () => {
     serve({
       "/lb-rss/essai/watchlist/page/1/": page(["Stalker (1979)", "Solaris (1972)"], 2),
       "/lb-rss/essai/watchlist/page/2/": page(["Le Miroir (1975)"], 2),
@@ -309,7 +309,7 @@ describe("relever une watchlist entière", () => {
      recently added to the oldest. Without carrying it over, the three
      cards would be born at the same millisecond and the "by addition"
      sort would be at random. */
-  it("date les fiches dans l'ordre où elles ont été mises de côté", async () => {
+  it("dates the cards in the order they were set aside", async () => {
     serve({
       "/lb-rss/essai/watchlist/page/1/": page(["Stalker (1979)", "Solaris (1972)"], 2),
       "/lb-rss/essai/watchlist/page/2/": page(["Le Miroir (1975)"], 2),
@@ -320,7 +320,7 @@ describe("relever une watchlist entière", () => {
     expect(dates[1]).toBeGreaterThan(dates[2]!);
   });
 
-  it("annonce l'avancée page après page", async () => {
+  it("announces the progress page after page", async () => {
     serve({
       "/lb-rss/essai/watchlist/page/1/": page(["Stalker (1979)"], 2),
       "/lb-rss/essai/watchlist/page/2/": page(["Solaris (1972)"], 2),
@@ -332,7 +332,7 @@ describe("relever une watchlist entière", () => {
     expect(seen).toEqual(["1/2", "2/2"]);
   });
 
-  it("refuse un pseudo vide avant de toucher au réseau", async () => {
+  it("refuses an empty handle before touching the network", async () => {
     await expect(fetchLetterboxdWatchlist("  ")).rejects.toThrow(/pseudo/i);
   });
 });

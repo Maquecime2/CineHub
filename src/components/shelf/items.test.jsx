@@ -43,7 +43,7 @@ const box = (cat, films = []) => {
   return { onEditDecor };
 };
 
-describe("CategoryBox — ce qu'une boîte tient", () => {
+describe("CategoryBox — what a box holds", () => {
   const films = [film("f1"), film("f2"), film("f3")];
 
   /* The box itself carries `data-shelf-item` — it is its drop wrapper.
@@ -53,7 +53,7 @@ describe("CategoryBox — ce qu'une boîte tient", () => {
       n.getAttribute("data-shelf-item")
     );
 
-  it("range les décors au milieu des boîtiers, dans l'ordre du modèle", () => {
+  it("files the decors among the cases, in the model's order", () => {
     box(
       makeCat({
         id: "c1",
@@ -68,7 +68,7 @@ describe("CategoryBox — ce qu'une boîte tient", () => {
     expect(held()).toEqual(["f1", "d1", "f2"]);
   });
 
-  it("montre le nom d'un intercalaire posé dans la boîte", () => {
+  it("shows the name of a divider laid in the box", () => {
     box(
       makeCat({ id: "c1", items: [makeDecor({ id: "d1", motif: "divider", label: "Années 70" })] }),
       films
@@ -76,7 +76,7 @@ describe("CategoryBox — ce qu'une boîte tient", () => {
     expect(screen.getByText("Années 70")).toBeInTheDocument();
   });
 
-  it("compte le mobilier dans le total de la boîte", () => {
+  it("counts the furniture in the box's total", () => {
     box(
       makeCat({ id: "c1", items: [filmItem("f1"), makeDecor({ id: "d1", motif: "divider" })] }),
       films
@@ -85,7 +85,7 @@ describe("CategoryBox — ce qu'une boîte tient", () => {
     expect(screen.getByText("2")).toBeInTheDocument();
   });
 
-  it("ignore un film que la collection ne connaît plus", () => {
+  it("ignores a film the collection no longer knows", () => {
     box(makeCat({ id: "c1", items: [filmItem("f1"), filmItem("disparu")] }), films);
     expect(held()).toEqual(["f1"]);
   });
@@ -95,7 +95,7 @@ describe("CategoryBox — ce qu'une boîte tient", () => {
    it the only slice that fits on the line (see `lines.js`). What remains
    to check is the two things the segment decides on its own: what it
    shows, and where it closes its card. */
-describe("CategoryBox — un segment de boîte", () => {
+describe("CategoryBox — one segment of a box", () => {
   const many = Array.from({ length: 6 }, (_, i) => film(`f${i}`));
   const items = many.map((f) => filmItem(f.id));
   const cat = makeCat({ id: "c1", label: "Polars", items });
@@ -122,16 +122,16 @@ describe("CategoryBox — un segment de boîte", () => {
       n.getAttribute("data-shelf-item")
     );
 
-  it("ne montre que la tranche qu'on lui donne", () => {
+  it("shows only the slice it is given", () => {
     const c = seg({ items: items.slice(0, 2), first: true, last: false });
     expect(held(c)).toEqual(["f0", "f1"]);
   });
 
-  it("montre toute la boîte quand personne ne l'a coupée", () => {
+  it("shows the whole box when nobody has cut it", () => {
     expect(held(seg({}))).toHaveLength(6);
   });
 
-  it("porte l'en-tête sur son premier segment, et pas sur les suivants", () => {
+  it("carries the header on its first segment, and not on the ones after", () => {
     expect(
       within(seg({ items: items.slice(0, 2), last: false })).getByText("Polars")
     ).toBeInTheDocument();
@@ -139,7 +139,7 @@ describe("CategoryBox — un segment de boîte", () => {
     expect(within(next).queryByText("Polars")).toBeNull();
   });
 
-  it("compte toujours la boîte entière, pas la tranche", () => {
+  it("always counts the whole box, not the slice", () => {
     const c = seg({ items: items.slice(0, 2), last: false });
     expect(within(c).getByText("6")).toBeInTheDocument();
   });
@@ -149,7 +149,7 @@ describe("CategoryBox — un segment de boîte", () => {
      shorthand `1px solid var(--c-line)` and no longer exposes its parts —
      a browser, for its part, understands it. The declaration stays the
      only thing this test had to check. */
-  it("ouvre le bord par lequel elle continue", () => {
+  it("opens the edge it carries on through", () => {
     const card = (props) => seg(props).querySelector("[data-cat-card]").getAttribute("style");
     /* jsdom returns "none" as "medium": the absence of a border can
        therefore only be read by the absence of the stroke. That is what
@@ -163,33 +163,33 @@ describe("CategoryBox — un segment de boîte", () => {
   });
 });
 
-describe("DecorItem — l'intercalaire", () => {
+describe("DecorItem — the divider", () => {
   const draw = (item) =>
     render(<DecorItem item={item} ctx={{}} onEdit={noop} {...dnd} />).container;
 
-  it("écrit son nom", () => {
+  it("writes its name", () => {
     draw(makeDecor({ id: "d1", motif: "divider", label: "Polars" }));
     expect(screen.getByText("Polars")).toBeInTheDocument();
   });
 
-  it("se dresse à la hauteur d'un boîtier, là où un bibelot reste carré", () => {
+  it("stands as tall as a case, where a trinket stays square", () => {
     const tall = draw(makeDecor({ id: "d1", motif: "divider" }));
     const flat = draw(makeDecor({ id: "d2", motif: "plant" }));
     const grip = (c) => within(c).getByTitle(/Intercalaire|Plante verte/).style;
     expect(parseInt(grip(tall).height)).toBeGreaterThan(parseInt(grip(flat).height));
   });
 
-  it("porte son nom en infobulle, plutôt que le nom du motif", () => {
+  it("carries its own name as a tooltip, rather than the motif's", () => {
     draw(makeDecor({ id: "d1", motif: "divider", label: "Polars" }));
     expect(screen.getByTitle("Polars")).toBeInTheDocument();
   });
 
-  it("retombe sur le nom du motif tant qu'on ne l'a pas nommé", () => {
+  it("falls back on the motif's name as long as it has none", () => {
     draw(makeDecor({ id: "d1", motif: "divider", label: "" }));
     expect(screen.getByTitle("Intercalaire")).toBeInTheDocument();
   });
 
-  it("ne rend rien d'un motif inconnu", () => {
+  it("renders nothing from an unknown motif", () => {
     const c = draw(makeDecor({ id: "d1", motif: "n'existe pas" }));
     expect(c.querySelector("[data-shelf-item]")).toBeNull();
   });
@@ -198,28 +198,28 @@ describe("DecorItem — l'intercalaire", () => {
      as a line drawn with a ruler. The lopsidedness is sown, therefore
      variable — but never nil, otherwise that particular card would stand
      straight and that is precisely what we no longer want to see. */
-  describe("son inclinaison", () => {
+  describe("its lean", () => {
     const ids = Array.from({ length: 400 }, (_, i) => `d${i}`);
 
-    it("penche toujours, quel que soit l'identifiant", () => {
+    it("always leans, whatever the identifier", () => {
       for (const id of ids) expect(Math.abs(Number(leanOf(id)))).toBeGreaterThanOrEqual(1.2);
     });
 
-    it("penche légèrement, jamais au point de tomber", () => {
+    it("leans slightly, never far enough to fall", () => {
       for (const id of ids) expect(Math.abs(Number(leanOf(id)))).toBeLessThanOrEqual(2.2);
     });
 
-    it("penche des deux côtés — sinon toute la rangée gîterait du même bord", () => {
+    it("leans both ways — otherwise the whole row would list to one side", () => {
       const sides = new Set(ids.map((id) => Math.sign(Number(leanOf(id)))));
       expect(sides).toEqual(new Set([-1, 1]));
     });
 
-    it("reste moins penché qu'un bibelot posé, qui lui gît de travers", () => {
+    it("stays less tilted than a trinket laid down, which lies askew", () => {
       const trinkets = ids.map((id) => Math.abs(Number(tiltOf(id))));
       expect(Math.max(...trinkets)).toBeGreaterThan(2.2);
     });
 
-    it("garde la même inclinaison d'un rendu à l'autre", () => {
+    it("keeps the same lean from one render to the next", () => {
       expect(leanOf("d1")).toBe(leanOf("d1"));
     });
   });
@@ -228,7 +228,7 @@ describe("DecorItem — l'intercalaire", () => {
 /* Naming a card is done ON the card — but only if it already carries a
    name. A blank card has nothing to claim: it separates, and separating
    does without a word. */
-describe("DecorItem — écrire sur l'intercalaire", () => {
+describe("DecorItem — writing on the divider", () => {
   const board = (over = {}) => {
     const onLabel = vi.fn();
     const onEdit = vi.fn();
@@ -247,14 +247,14 @@ describe("DecorItem — écrire sur l'intercalaire", () => {
   const field = () => screen.getByLabelText("Nom de l'intercalaire");
   const cardstock = () => screen.getByTitle(/Polars|Intercalaire/);
 
-  it("ouvre un champ garni du nom, au clic sur le carton", async () => {
+  it("opens a field filled with the name, on a click on the cardstock", async () => {
     const { user } = board();
     expect(screen.queryByLabelText("Nom de l'intercalaire")).not.toBeInTheDocument();
     await user.click(cardstock());
     expect(field()).toHaveValue("Polars");
   });
 
-  it("écrit le nom à la validation", async () => {
+  it("writes the name on confirmation", async () => {
     const { user, onLabel } = board();
     await user.click(cardstock());
     await user.clear(field());
@@ -262,7 +262,7 @@ describe("DecorItem — écrire sur l'intercalaire", () => {
     expect(onLabel).toHaveBeenCalledExactlyOnceWith("d1", "Années 70");
   });
 
-  it("écrit aussi en quittant le champ", async () => {
+  it("writes on leaving the field too", async () => {
     const { user, onLabel } = board();
     await user.click(cardstock());
     await user.type(field(), " noirs");
@@ -270,7 +270,7 @@ describe("DecorItem — écrire sur l'intercalaire", () => {
     expect(onLabel).toHaveBeenCalledExactlyOnceWith("d1", "Polars noirs");
   });
 
-  it("Échap renonce et rend son nom au carton", async () => {
+  it("Escape gives up and hands the cardstock its name back", async () => {
     const { user, onLabel } = board();
     await user.click(cardstock());
     await user.clear(field());
@@ -279,14 +279,14 @@ describe("DecorItem — écrire sur l'intercalaire", () => {
     expect(screen.getByText("Polars")).toBeInTheDocument();
   });
 
-  it("n'écrit rien quand le nom n'a pas bougé", async () => {
+  it("writes nothing when the name has not moved", async () => {
     const { user, onLabel } = board();
     await user.click(cardstock());
     await user.keyboard("{Enter}");
     expect(onLabel).not.toHaveBeenCalled();
   });
 
-  it("ne se glisse pas pendant qu'on l'écrit", async () => {
+  it("does not drag while it is being written", async () => {
     const { user } = board();
     const before = cardstock();
     expect(before).toHaveAttribute("draggable", "true");
@@ -298,19 +298,19 @@ describe("DecorItem — écrire sur l'intercalaire", () => {
      to mark a cut. So a blank card stays blank, and its click opens the
      panel — where a NAME field waits for whoever wants one — instead of
      falling into a field one has to get out of. */
-  it("laisse un carton vierge sans rien réclamer", () => {
+  it("leaves a blank cardstock asking for nothing", () => {
     board({ label: "" });
     expect(screen.queryByText("nommer")).not.toBeInTheDocument();
   });
 
-  it("un carton vierge ouvre son panneau plutôt qu'un champ", async () => {
+  it("a blank cardstock opens its panel rather than a field", async () => {
     const { user, onEdit } = board({ label: "" });
     await user.click(cardstock());
     expect(onEdit).toHaveBeenCalledExactlyOnceWith("d1");
     expect(screen.queryByLabelText("Nom de l'intercalaire")).not.toBeInTheDocument();
   });
 
-  it("laisse la palette joignable pour ce qui n'est pas du texte", async () => {
+  it("keeps the palette reachable for what is not text", async () => {
     const { user, onEdit, onLabel } = board();
     await user.click(screen.getByRole("button", { name: /Réglages de « Polars »/ }));
     expect(onEdit).toHaveBeenCalledExactlyOnceWith("d1");
@@ -319,7 +319,7 @@ describe("DecorItem — écrire sur l'intercalaire", () => {
     expect(screen.queryByLabelText("Nom de l'intercalaire")).not.toBeInTheDocument();
   });
 
-  it("sans de quoi écrire, le carton retombe sur le panneau", async () => {
+  it("with no way to write, the cardstock falls back on the panel", async () => {
     const onEdit = vi.fn();
     render(
       <DecorItem
@@ -334,7 +334,7 @@ describe("DecorItem — écrire sur l'intercalaire", () => {
   });
 });
 
-describe("FilmBox — la note sur la tranche", () => {
+describe("FilmBox — the rating on the spine", () => {
   const shown = (rating) => {
     document.body.innerHTML = "";
     render(<FilmBox film={film("f1", { rating })} ctx={{}} onOpen={noop} dim={false} {...dnd} />);
@@ -345,7 +345,7 @@ describe("FilmBox — la note sur la tranche", () => {
   /* What we read is the WIDTH of the lit layer: five whole stars make a
      hundred per cent, and a half falls exactly in the middle of the third.
      The old count by `repeat` had no way of saying that half. */
-  it("peint la fraction exacte de la note, demies comprises", () => {
+  it("paints the exact fraction of the rating, halves included", () => {
     expect(shown(5)).toBe("100%");
     expect(shown(4.5)).toBe("90%");
     expect(shown(3.5)).toBe("70%");
@@ -354,7 +354,7 @@ describe("FilmBox — la note sur la tranche", () => {
   });
 });
 
-describe("FilmBox — le compte des séances", () => {
+describe("FilmBox — the count of screenings", () => {
   const screenings = (n) =>
     Array.from({ length: n }, (_, i) => ({ date: `202${i}-01-01`, rating: null }));
 
@@ -372,24 +372,24 @@ describe("FilmBox — le compte des séances", () => {
     return screen.queryByLabelText(`vu ${n} fois`);
   };
 
-  it("annonce un film qu'on a revu", () => {
+  it("announces a film one has rewatched", () => {
     expect(counter(3)).toHaveTextContent("×3");
   });
 
   /* A "×1" on every edge would be noise across the whole library: what one
      looks for is the films one rewatches, and they only stand out if the
      others keep quiet. */
-  it("se tait pour un film vu une seule fois", () => {
+  it("stays quiet for a film seen once", () => {
     expect(counter(1)).toBeNull();
   });
 
-  it("se tait pour un film dont on ne sait rien", () => {
+  it("stays quiet for a film nothing is known about", () => {
     expect(counter(0)).toBeNull();
   });
 });
 
-describe("carryGhost — ce qu'on emporte sous le curseur", () => {
-  it("photographie une COPIE du seul objet saisi, puis la retire", () => {
+describe("carryGhost — what one carries under the cursor", () => {
+  it("photographs a COPY of the one grabbed object, then takes it away", () => {
     const node = document.createElement("div");
     node.getBoundingClientRect = () => ({ left: 100, top: 50, width: 96, height: 144 });
     document.body.appendChild(node);
