@@ -9,9 +9,9 @@
    ============================================================ */
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { construireApp } from "./app.ts";
-import { ouvrirPostgres, poserLeSocle } from "./base.ts";
-import { reglerLesPoussees } from "./pousse.ts";
+import { buildApp } from "./app.ts";
+import { openPostgres, applySchema } from "./db.ts";
+import { configurePush } from "./push.ts";
 
 const urlBase = process.env.DATABASE_URL;
 if (!urlBase) {
@@ -38,7 +38,7 @@ if (!domaine || !origine) {
    chaque navigateur qui s'abonne, et c'est son rôle. */
 const vapidPub = process.env.VAPID_PUBLIQUE;
 const vapidPriv = process.env.VAPID_PRIVEE;
-reglerLesPoussees(
+configurePush(
   vapidPub && vapidPriv
     ? {
         publique: vapidPub,
@@ -48,37 +48,37 @@ reglerLesPoussees(
     : null
 );
 
-const base = await ouvrirPostgres(urlBase);
+const base = await openPostgres(urlBase);
 
 /* Le socle est posé au démarrage plutôt que par une commande à part :
    il est conditionnel de bout en bout, donc rejouable, et un serveur qui
    démarre sur une base vide est un serveur qui démarre. */
 const socle = await readFile(
-  fileURLToPath(new URL("../sql/001_socle.sql", import.meta.url)),
+  fileURLToPath(new URL("../sql/001_baseline.sql", import.meta.url)),
   "utf8"
 );
-await poserLeSocle(base, socle);
+await applySchema(base, socle);
 
-const app = await construireApp({
+const app = await buildApp({
   base,
   domaine,
   origine,
   /* Elle n'est pas obligatoire : sans elle, le relais se déclare
      indisponible et chacun garde la sienne, comme aujourd'hui. */
-  cleTmdb: process.env.TMDB_KEY,
+  tmdbKey: process.env.TMDB_KEY,
   /* Le quota TMDB est la facture de qui héberge : le plafond du relais
      se règle donc de l'extérieur. Vide, on prend le défaut de
      `relais.ts` — six cents par minute, de quoi remplir une collection
      entière sans la hacher. */
-  plafondTmdb: Number(process.env.TMDB_PAR_MINUTE) || undefined,
+  tmdbCeiling: Number(process.env.TMDB_PAR_MINUTE) || undefined,
   /* DEUX VERROUS, ET LE PREMIER NE S'OUVRE PAS DE L'EXTÉRIEUR. La porte
      de service n'existe que hors production ET sur demande explicite :
      poser `PORTE_DEV=1` sur un serveur en production ne suffit pas. */
-  porteDev: developpement && process.env.PORTE_DEV === "1",
+  devDoor: developpement && process.env.PORTE_DEV === "1",
   /* Un cookie de session sans `Secure` sur un site en HTTPS voyage en
      clair au premier lien en http:// : c'est exactement ce contre quoi
      l'attribut existe. */
-  securise: !developpement,
+  secure: !developpement,
 });
 
 const port = Number(process.env.PORT || 8787);
@@ -106,7 +106,7 @@ if (process.env.PORTE_DEV === "1" && developpement) {
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, async () => {
     await app.close();
-    await base.fermer();
+    await base.close();
     process.exit(0);
   });
 }

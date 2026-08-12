@@ -25,7 +25,7 @@ import type { FastifyInstance } from "fastify";
    ci-dessous est exactement celle des appels que le client fait — onze
    chemins, pas un de plus. Un chemin absent d'ici n'est pas relayé,
    même s'il existe chez TMDB. */
-const CHEMINS_TMDB: RegExp[] = [
+const TMDB_PATHS: RegExp[] = [
   /^\/configuration$/,
   /^\/search\/movie$/,
   /^\/search\/person$/,
@@ -67,18 +67,18 @@ const TMDB = "https://api.themoviedb.org/3";
 
    Réglable, parce que c'est la facture de celui qui héberge : voir
    `TMDB_PAR_MINUTE` dans `index.ts`. */
-const PLAFOND_TMDB_DEFAUT = 600;
+const DEFAULT_TMDB_CEILING = 600;
 
-export interface OptionsRelais {
+export interface RelayOptions {
   /** La clé TMDB. Absente, le relais répond « pas de service ici ». */
-  cleTmdb?: string;
+  tmdbKey?: string;
   /** Qui parle — le relais TMDB n'est ouvert qu'aux comptes. */
-  exigerUnCompte: (req: never) => Promise<unknown>;
+  requireAccount: (req: never) => Promise<unknown>;
   /** Requêtes TMDB par minute et par adresse. Défaut : 600. */
-  plafondTmdb?: number;
+  tmdbCeiling?: number;
 }
 
-export function poserLesRelais(app: FastifyInstance, options: OptionsRelais): void {
+export function registerRelays(app: FastifyInstance, options: RelayOptions): void {
   /* ------------------------------------------------------------
      TMDB
      ------------------------------------------------------------ */
@@ -89,7 +89,7 @@ export function poserLesRelais(app: FastifyInstance, options: OptionsRelais): vo
        autres. Le reste du serveur garde ses cent par minute. */
     {
       config: {
-        rateLimit: { max: options.plafondTmdb ?? PLAFOND_TMDB_DEFAUT, timeWindow: "1 minute" },
+        rateLimit: { max: options.tmdbCeiling ?? DEFAULT_TMDB_CEILING, timeWindow: "1 minute" },
       },
     },
     async (req, reply) => {
@@ -97,18 +97,18 @@ export function poserLesRelais(app: FastifyInstance, options: OptionsRelais): vo
        le relais est un accès TMDB gratuit et anonyme pour la Terre
        entière, sur notre quota. Un classeur sans compte garde donc sa
        propre clé — c'est ce qu'il fait déjà, et il marche très bien. */
-      await options.exigerUnCompte(req as never);
+      await options.requireAccount(req as never);
 
       /* LA LISTE D'ABORD, LA CLÉ ENSUITE, et l'ordre est une question de
        franchise : un chemin qu'on ne relaiera jamais doit s'entendre
        dire ça, et non « il n'y a pas de clé ici » — qui laisserait
        croire qu'avec une clé, ça passerait. */
       const chemin = "/" + ((req.params as { "*"?: string })["*"] ?? "");
-      if (!CHEMINS_TMDB.some((r) => r.test(chemin))) {
+      if (!TMDB_PATHS.some((r) => r.test(chemin))) {
         return reply.code(404).send({ erreur: "Ce chemin n'est pas relayé." });
       }
 
-      if (!options.cleTmdb) {
+      if (!options.tmdbKey) {
         return reply.code(503).send({ erreur: "Aucune clé TMDB de ce côté-ci." });
       }
 
@@ -116,7 +116,7 @@ export function poserLesRelais(app: FastifyInstance, options: OptionsRelais): vo
        et s'il envoie quelque chose, ce n'est pas ce qui servira. */
       const params = new URLSearchParams(req.query as Record<string, string>);
       params.delete("api_key");
-      params.set("api_key", options.cleTmdb);
+      params.set("api_key", options.tmdbKey);
 
       const rep = await fetch(`${TMDB}${chemin}?${params}`);
       const texte = await rep.text();

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { appDEssai, baseDEssai } from "./aide.ts";
-import * as depot from "../src/depot.ts";
-import type { Base } from "../src/base.ts";
+import { testApp, testDb } from "./helpers.ts";
+import * as depot from "../src/store.ts";
+import type { Db } from "../src/db.ts";
 import type { FastifyInstance } from "fastify";
 
 /* ============================================================
@@ -13,12 +13,12 @@ import type { FastifyInstance } from "fastify";
    voit pas depuis son propre écran.
    ============================================================ */
 
-let base: Base;
+let base: Db;
 let app: FastifyInstance;
 
 async function compte(pseudo: string) {
-  const personne = await depot.creerPersonne(base, pseudo);
-  const secret = await depot.ouvrirSession(base, personne.id);
+  const personne = await depot.createPerson(base, pseudo);
+  const secret = await depot.openSession(base, personne.id);
   return { personne, cookie: `session=${secret}` };
 }
 
@@ -29,13 +29,13 @@ const ouvrir = (cookie: string, partage = "publique") =>
   app.inject({ method: "PUT", url: "/partage", headers: { cookie }, payload: { partage } });
 
 beforeEach(async () => {
-  base = await baseDEssai();
-  app = await appDEssai(base);
+  base = await testDb();
+  app = await testApp(base);
 });
 
 afterEach(async () => {
   await app.close();
-  await base.fermer();
+  await base.close();
 });
 
 describe("trouver quelqu'un", () => {

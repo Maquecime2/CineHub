@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { baseDEssai, appDEssai } from "./aide.ts";
-import * as depot from "../src/depot.ts";
-import type { Base } from "../src/base.ts";
+import { testDb, testApp } from "./helpers.ts";
+import * as depot from "../src/store.ts";
+import type { Db } from "../src/db.ts";
 import type { FastifyInstance } from "fastify";
 
 /* ============================================================
@@ -13,17 +13,17 @@ import type { FastifyInstance } from "fastify";
    qu'est tout l'enjeu : quelle adresse, avec quelle clé, et pour qui.
    ============================================================ */
 
-let base: Base;
+let base: Db;
 let app: FastifyInstance;
 let demandes: string[];
 
 async function connecte(pseudo = "varda") {
-  const personne = await depot.creerPersonne(base, pseudo);
-  return `session=${await depot.ouvrirSession(base, personne.id)}`;
+  const personne = await depot.createPerson(base, pseudo);
+  return `session=${await depot.openSession(base, personne.id)}`;
 }
 
 beforeEach(async () => {
-  base = await baseDEssai();
+  base = await testDb();
   demandes = [];
   vi.stubGlobal("fetch", async (url: string | URL) => {
     demandes.push(String(url));
@@ -32,13 +32,13 @@ beforeEach(async () => {
       headers: { "content-type": "application/json" },
     });
   });
-  app = await appDEssai(base, { cleTmdb: "LA-CLE-DU-SERVEUR" });
+  app = await testApp(base, { tmdbKey: "LA-CLE-DU-SERVEUR" });
 });
 
 afterEach(async () => {
   vi.unstubAllGlobals();
   await app.close();
-  await base.fermer();
+  await base.close();
 });
 
 describe("le relais TMDB", () => {
@@ -133,7 +133,7 @@ describe("le relais TMDB", () => {
      requêtes : ce qu'on éprouve n'est pas le chiffre, c'est le fait que
      le relais ait le SIEN. */
   it("laisse passer plus que le plafond général du serveur", async () => {
-    const large = await appDEssai(base, { cleTmdb: "K", plafondTmdb: 250 });
+    const large = await testApp(base, { tmdbKey: "K", tmdbCeiling: 250 });
     const cookie = await connecte("chantal");
     /* Cent une : une de plus que le plafond global, qui refusait ici. */
     let dernier = 0;
@@ -150,7 +150,7 @@ describe("le relais TMDB", () => {
   });
 
   it("garde tout de même un plafond, sinon ce n'est plus un relais mais un robinet", async () => {
-    const etroit = await appDEssai(base, { cleTmdb: "K", plafondTmdb: 3 });
+    const etroit = await testApp(base, { tmdbKey: "K", tmdbCeiling: 3 });
     const cookie = await connecte("jacques");
     const codes: number[] = [];
     for (let i = 0; i < 5; i++) {
@@ -169,7 +169,7 @@ describe("le relais TMDB", () => {
   /* Le plafond général reste ce qu'il est sur les autres routes : le
      relais a gagné une exception, pas le serveur entier. */
   it("ne desserre rien ailleurs", async () => {
-    const etroit = await appDEssai(base, { cleTmdb: "K", plafondTmdb: 3 });
+    const etroit = await testApp(base, { tmdbKey: "K", tmdbCeiling: 3 });
     const cookie = await connecte("agnes");
     const codes: number[] = [];
     for (let i = 0; i < 5; i++) {
@@ -187,7 +187,7 @@ describe("le relais TMDB", () => {
   });
 
   it("sans clé de ce côté-ci, il le dit au lieu de faire semblant", async () => {
-    const nu = await appDEssai(base, {});
+    const nu = await testApp(base, {});
     const cookie = await connecte("melville");
     const r = await nu.inject({
       method: "GET",

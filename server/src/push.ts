@@ -21,8 +21,8 @@
    jusqu'à la fin des temps.
    ============================================================ */
 import webpush from "web-push";
-import type { Base } from "./base.ts";
-import * as depot from "./depot.ts";
+import type { Db } from "./db.ts";
+import * as depot from "./store.ts";
 
 export interface Vapid {
   publique: string;
@@ -33,13 +33,13 @@ export interface Vapid {
 
 let reglee: Vapid | null = null;
 
-export function reglerLesPoussees(v: Vapid | null): void {
+export function configurePush(v: Vapid | null): void {
   reglee = v;
   if (v) webpush.setVapidDetails(v.contact, v.publique, v.privee);
 }
 
-export const pousseesPossibles = (): boolean => reglee !== null;
-export const clePublique = (): string | null => reglee?.publique ?? null;
+export const pushAvailable = (): boolean => reglee !== null;
+export const publicKeyForPush = (): string | null => reglee?.publique ?? null;
 
 /**
  * Pousse un message à tous les appareils de quelqu'un.
@@ -48,13 +48,13 @@ export const clePublique = (): string | null => reglee?.publique ?? null;
  * effacés au passage : c'est le seul moment où l'on apprend qu'ils le
  * sont, et ne pas le faire ici les garderait pour toujours.
  */
-export async function pousserA(
-  base: Base,
+export async function pushTo(
+  base: Db,
   personneId: string,
   message: { titre: string; corps: string; url?: string }
 ): Promise<number> {
   if (!reglee) return 0;
-  const abonnements = await depot.poussesDe(base, personneId);
+  const abonnements = await depot.pushesOf(base, personneId);
   let atteints = 0;
 
   for (const a of abonnements) {
@@ -70,7 +70,7 @@ export async function pousserA(
          permission retirée, abonnement expiré. Toute autre erreur est
          passagère (le service de push est en panne, le réseau est
          coupé) et ne doit surtout pas faire perdre l'abonnement. */
-      if (code === 404 || code === 410) await depot.oublierPousse(base, a.point);
+      if (code === 404 || code === 410) await depot.forgetPush(base, a.point);
     }
   }
   return atteints;
@@ -82,20 +82,20 @@ export async function pousserA(
  * Rend ce qu'il a fait, pour que l'appelant puisse le journaliser sans
  * que ce module ait à connaître un journal.
  */
-export async function rappelerLesDefis(base: Base): Promise<{ dits: number; appareils: number }> {
+export async function remindChallenges(base: Db): Promise<{ dits: number; appareils: number }> {
   if (!reglee) return { dits: 0, appareils: 0 };
   let dits = 0;
   let appareils = 0;
 
-  for (const r of await depot.rappelsDuJour(base)) {
+  for (const r of await depot.remindersDueToday(base)) {
     /* Le verrou est l'insertion, pas une vérification : deux balayages
        simultanés — un redémarrage pendant un envoi — passeraient tous
        les deux au travers d'un simple « est-ce déjà dit ? ». */
     const sujet = `epreuve:${r.epreuve_id}:${r.quand}`;
-    if (!(await depot.rappelNeuf(base, r.personne_id, sujet))) continue;
+    if (!(await depot.reminderIsNew(base, r.personne_id, sujet))) continue;
 
     dits += 1;
-    appareils += await pousserA(base, r.personne_id, {
+    appareils += await pushTo(base, r.personne_id, {
       titre: r.quand === "debut" ? "Un défi commence" : "Dernier jour",
       corps:
         r.quand === "debut"

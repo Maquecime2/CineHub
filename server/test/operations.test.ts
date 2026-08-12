@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import webpush from "web-push";
-import { appDEssai, baseDEssai } from "./aide.ts";
-import * as depot from "../src/depot.ts";
-import { pousserA, rappelerLesDefis, reglerLesPoussees } from "../src/pousse.ts";
-import type { Base } from "../src/base.ts";
+import { testApp, testDb } from "./helpers.ts";
+import * as depot from "../src/store.ts";
+import { pushTo, remindChallenges, configurePush } from "../src/push.ts";
+import type { Db } from "../src/db.ts";
 import type { FastifyInstance } from "fastify";
 
 /* ============================================================
@@ -16,24 +16,24 @@ import type { FastifyInstance } from "fastify";
    ou fait couper les notifications.
    ============================================================ */
 
-let base: Base;
+let base: Db;
 let app: FastifyInstance;
 
 async function compte(pseudo: string) {
-  const personne = await depot.creerPersonne(base, pseudo);
-  const secret = await depot.ouvrirSession(base, personne.id);
+  const personne = await depot.createPerson(base, pseudo);
+  const secret = await depot.openSession(base, personne.id);
   return { personne, cookie: `session=${secret}` };
 }
 
 beforeEach(async () => {
-  base = await baseDEssai();
-  app = await appDEssai(base);
+  base = await testDb();
+  app = await testApp(base);
 });
 
 afterEach(async () => {
   await app.close();
-  await base.fermer();
-  reglerLesPoussees(null);
+  await base.close();
+  configurePush(null);
 });
 
 describe("la mesure d'usage", () => {
@@ -65,7 +65,7 @@ describe("la mesure d'usage", () => {
        de plus. Une colonne ajoutée un jour « pour voir » ferait échouer
        ce test, et c'est exactement son objet. */
     const colonnes = (
-      await base.requete<{ column_name: string }>(
+      await base.query<{ column_name: string }>(
         "SELECT column_name FROM information_schema.columns WHERE table_name = 'mesure'"
       )
     )
@@ -112,7 +112,7 @@ describe("les notifications", () => {
   it("un abonnement appartient à un appareil, pas à une personne", async () => {
     /* Deux navigateurs du même compte font deux lignes, et fermer l'un
        ne doit pas faire taire l'autre. */
-    reglerLesPoussees(reglagesDEssai());
+    configurePush(reglagesDEssai());
     const moi = await compte("moi");
     for (const point of ["https://push.example/tel", "https://push.example/bureau"]) {
       await app.inject({
@@ -122,7 +122,7 @@ describe("les notifications", () => {
         payload: { point, p256dh: "k", secret: "s" },
       });
     }
-    expect(await depot.poussesDe(base, moi.personne.id)).toHaveLength(2);
+    expect(await depot.pushesOf(base, moi.personne.id)).toHaveLength(2);
 
     await app.inject({
       method: "DELETE",
@@ -130,14 +130,14 @@ describe("les notifications", () => {
       headers: { cookie: moi.cookie },
       payload: { point: "https://push.example/bureau" },
     });
-    const reste = await depot.poussesDe(base, moi.personne.id);
+    const reste = await depot.pushesOf(base, moi.personne.id);
     expect(reste.map((p) => p.point)).toEqual(["https://push.example/tel"]);
   });
 
   it("change de propriétaire quand quelqu'un d'autre ouvre ce navigateur", async () => {
     /* Sans cela, un ordinateur partagé pousserait les rappels d'une
        personne à la suivante. */
-    reglerLesPoussees(reglagesDEssai());
+    configurePush(reglagesDEssai());
     const un = await compte("unetelle");
     const deux = await compte("unautre");
     const point = "https://push.example/partage";
@@ -149,12 +149,12 @@ describe("les notifications", () => {
         payload: { point, p256dh: "k", secret: "s" },
       });
     }
-    expect(await depot.poussesDe(base, un.personne.id)).toEqual([]);
-    expect(await depot.poussesDe(base, deux.personne.id)).toHaveLength(1);
+    expect(await depot.pushesOf(base, un.personne.id)).toEqual([]);
+    expect(await depot.pushesOf(base, deux.personne.id)).toHaveLength(1);
   });
 
   it("refuse un abonnement qui n'a pas la forme d'une adresse", async () => {
-    reglerLesPoussees(reglagesDEssai());
+    configurePush(reglagesDEssai());
     const moi = await compte("moi");
     const r = await app.inject({
       method: "PUT",
@@ -169,17 +169,17 @@ describe("les notifications", () => {
     /* Seuls 404 et 410 disent qu'un point est mort. Tout le reste — le
        service de push en panne, le réseau coupé — est passager, et
        effacer sur cette foi ferait taire un appareil pour de bon. */
-    reglerLesPoussees(reglagesDEssai());
+    configurePush(reglagesDEssai());
     const moi = await compte("moi");
-    await depot.rangerPousse(base, moi.personne.id, {
+    await depot.storePush(base, moi.personne.id, {
       point: "https://ce-service-nexiste-pas.invalid/abc",
       p256dh: Buffer.alloc(65, 4).toString("base64url"),
       secret: Buffer.alloc(16).toString("base64url"),
     });
 
-    const atteints = await pousserA(base, moi.personne.id, { titre: "t", corps: "c" });
+    const atteints = await pushTo(base, moi.personne.id, { titre: "t", corps: "c" });
     expect(atteints).toBe(0);
-    expect(await depot.poussesDe(base, moi.personne.id)).toHaveLength(1);
+    expect(await depot.pushesOf(base, moi.personne.id)).toHaveLength(1);
   });
 });
 
@@ -207,12 +207,12 @@ describe("les rappels de défi", () => {
   it("ne se disent qu'une fois, quel que soit le nombre de passages", async () => {
     /* Le balai tourne toutes les heures : sans la table des rappels
        déjà dits, le même défi serait annoncé vingt-quatre fois. */
-    reglerLesPoussees(reglagesDEssai());
+    configurePush(reglagesDEssai());
     const moi = await compte("moi");
     await defiQuiCommenceAujourdhui(moi.cookie);
 
-    const un = await rappelerLesDefis(base);
-    const deux = await rappelerLesDefis(base);
+    const un = await remindChallenges(base);
+    const deux = await remindChallenges(base);
     /* Un défi dont le début ET la fin tombent le même jour ne sonne
        qu'une fois : la requête ne rend qu'une ligne par participant, et
        « ça commence » l'emporte sur « ça finit ». */
@@ -223,29 +223,27 @@ describe("les rappels de défi", () => {
   it("ne sonnent pas quand aucune clé n'est posée", async () => {
     const moi = await compte("moi");
     await defiQuiCommenceAujourdhui(moi.cookie);
-    expect(await rappelerLesDefis(base)).toEqual({ dits: 0, appareils: 0 });
+    expect(await remindChallenges(base)).toEqual({ dits: 0, appareils: 0 });
     /* Et rien n'a été noté comme dit : le jour où l'on pose des clés,
        le rappel du jour part encore. */
-    expect(await base.requete("SELECT 1 FROM rappel_envoye")).toHaveLength(0);
+    expect(await base.query("SELECT 1 FROM rappel_envoye")).toHaveLength(0);
   });
 
   it("ne concernent que ceux qui participent", async () => {
-    reglerLesPoussees(reglagesDEssai());
+    configurePush(reglagesDEssai());
     const moi = await compte("moi");
     const autre = await compte("autre");
     const defi = await defiQuiCommenceAujourdhui(moi.cookie);
-    await depot.quitterEpreuve(base, defi, moi.personne.id);
+    await depot.leaveChallenge(base, defi, moi.personne.id);
 
-    await rappelerLesDefis(base);
-    const dits = await base.requete<{ personne_id: string }>(
-      "SELECT personne_id FROM rappel_envoye"
-    );
+    await remindChallenges(base);
+    const dits = await base.query<{ personne_id: string }>("SELECT personne_id FROM rappel_envoye");
     expect(dits).toEqual([]);
     expect(autre).toBeTruthy();
   });
 
   it("ne parlent pas d'un défi qui n'est ni aujourd'hui ni ce soir", async () => {
-    reglerLesPoussees(reglagesDEssai());
+    configurePush(reglagesDEssai());
     const moi = await compte("moi");
     const liste = (
       await app.inject({
@@ -261,7 +259,7 @@ describe("les rappels de défi", () => {
       headers: { cookie: moi.cookie },
       payload: { listeId: liste, titre: "Plus tard", debut: "2099-01-01", fin: "2099-01-31" },
     });
-    expect((await rappelerLesDefis(base)).dits).toBe(0);
+    expect((await remindChallenges(base)).dits).toBe(0);
   });
 });
 

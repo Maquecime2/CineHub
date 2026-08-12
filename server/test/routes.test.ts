@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { appDEssai, baseDEssai, cookieDe } from "./aide.ts";
-import * as depot from "../src/depot.ts";
-import type { Base } from "../src/base.ts";
+import { testApp, testDb, cookieOf } from "./helpers.ts";
+import * as depot from "../src/store.ts";
+import type { Db } from "../src/db.ts";
 import type { FastifyInstance } from "fastify";
 
 /* ============================================================
@@ -20,24 +20,24 @@ import type { FastifyInstance } from "fastify";
    la même que la cérémonie aurait ouverte.
    ============================================================ */
 
-let base: Base;
+let base: Db;
 let app: FastifyInstance;
 
 /** Un compte et sa session, sans passer par la clé d'accès. */
 async function connecte(pseudo = "varda") {
-  const personne = await depot.creerPersonne(base, pseudo);
-  const secret = await depot.ouvrirSession(base, personne.id);
+  const personne = await depot.createPerson(base, pseudo);
+  const secret = await depot.openSession(base, personne.id);
   return { personne, cookie: `session=${secret}` };
 }
 
 beforeEach(async () => {
-  base = await baseDEssai();
-  app = await appDEssai(base);
+  base = await testDb();
+  app = await testApp(base);
 });
 
 afterEach(async () => {
   await app.close();
-  await base.fermer();
+  await base.close();
 });
 
 describe("la porte", () => {
@@ -58,7 +58,7 @@ describe("la porte", () => {
   });
 
   it("refuse un pseudonyme déjà pris, sans lancer de cérémonie", async () => {
-    await depot.creerPersonne(base, "varda");
+    await depot.createPerson(base, "varda");
     const r = await app.inject({
       method: "POST",
       url: "/auth/inscription/options",
@@ -78,14 +78,14 @@ describe("la porte", () => {
     expect(options.challenge).toBeTruthy();
     /* Le client reçoit un jeton, pas le hasard : il ne peut donc pas
        choisir le défi qu'on lui demandera de signer. */
-    const range = await depot.consommerDefi(base, defi);
+    const range = await depot.consumeChallenge(base, defi);
     expect(range?.valeur).toBe(options.challenge);
   });
 
   it("ne dit pas qui est inscrit", async () => {
     /* Répondre « ce compte n'existe pas » ferait de cette route un
        annuaire de la communauté. */
-    await depot.creerPersonne(base, "connue");
+    await depot.createPerson(base, "connue");
     const connue = await app.inject({
       method: "POST",
       url: "/auth/connexion/options",
@@ -298,7 +298,7 @@ describe("ce qui est à soi", () => {
   it("la déconnexion retire le cookie et la session", async () => {
     const { cookie } = await connecte();
     const r = await app.inject({ method: "POST", url: "/deconnexion", headers: { cookie } });
-    expect(cookieDe(r)).toMatch(/^session=/);
+    expect(cookieOf(r)).toMatch(/^session=/);
 
     const apres = await app.inject({ method: "GET", url: "/moi", headers: { cookie } });
     expect(apres.statusCode).toBe(401);

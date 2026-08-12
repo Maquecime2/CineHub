@@ -22,31 +22,31 @@
    les tests. Les mêmes requêtes tournent des deux côtés — les tests
    éprouvent donc le SQL réel, contraintes comprises, et non une
    imitation. */
-export interface Base {
-  requete<T = Record<string, unknown>>(texte: string, valeurs?: unknown[]): Promise<T[]>;
+export interface Db {
+  query<T = Record<string, unknown>>(texte: string, valeurs?: unknown[]): Promise<T[]>;
   /* UNE REQUÊTE PRÉPARÉE NE PORTE QU'UNE COMMANDE, et c'est une règle du
      protocole et non une limite de bibliothèque : le socle, qui en
      compte une vingtaine, ne peut donc pas passer par `requete`. D'où
      cette seconde porte, réservée aux scripts — sans paramètres, donc
      sans valeur venue du dehors, donc sans injection possible. */
-  executer(script: string): Promise<void>;
-  fermer(): Promise<void>;
+  exec(script: string): Promise<void>;
+  close(): Promise<void>;
 }
 
 /** Une seule ligne, ou rien. Le cas le plus fréquent. */
 export async function une<T = Record<string, unknown>>(
-  base: Base,
+  base: Db,
   texte: string,
   valeurs?: unknown[]
 ): Promise<T | null> {
-  const lignes = await base.requete<T>(texte, valeurs);
+  const lignes = await base.query<T>(texte, valeurs);
   return lignes[0] ?? null;
 }
 
 /* ------------------------------------------------------------
    POSTGRES, LE VRAI
    ------------------------------------------------------------ */
-export async function ouvrirPostgres(url: string): Promise<Base> {
+export async function openPostgres(url: string): Promise<Db> {
   const { default: postgres } = await import("postgres");
   const sql = postgres(url, {
     /* Le serveur est petit et les requêtes sont brèves : dix connexions
@@ -55,15 +55,15 @@ export async function ouvrirPostgres(url: string): Promise<Base> {
     onnotice: () => {},
   });
   return {
-    requete: async <T>(texte: string, valeurs: unknown[] = []) =>
+    query: async <T>(texte: string, valeurs: unknown[] = []) =>
       sql.unsafe(texte, valeurs as never[]) as unknown as Promise<T[]>,
-    executer: async (script: string) => {
+    exec: async (script: string) => {
       /* `simple()` passe par le protocole simple, le seul qui accepte
          plusieurs commandes d'un coup. Il n'accepte AUCUN paramètre en
          échange — ce qui est exactement ce qu'on veut ici. */
       await sql.unsafe(script).simple();
     },
-    fermer: () => sql.end(),
+    close: () => sql.end(),
   };
 }
 
@@ -74,6 +74,6 @@ export async function ouvrirPostgres(url: string): Promise<Base> {
    qu'une pile d'incréments illisibles. Quand il y en aura une seconde,
    c'est ici qu'on tiendra la liste — et le jour où elles seront
    nombreuses, la table qui dit lesquelles sont posées. */
-export async function poserLeSocle(base: Base, sqlDuSocle: string): Promise<void> {
-  await base.executer(sqlDuSocle);
+export async function applySchema(base: Db, schemaSql: string): Promise<void> {
+  await base.exec(schemaSql);
 }

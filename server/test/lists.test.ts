@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { appDEssai, baseDEssai } from "./aide.ts";
-import * as depot from "../src/depot.ts";
-import type { Base } from "../src/base.ts";
+import { testApp, testDb } from "./helpers.ts";
+import * as depot from "../src/store.ts";
+import type { Db } from "../src/db.ts";
 import type { FastifyInstance } from "fastify";
 
 /* ============================================================
@@ -19,16 +19,16 @@ import type { FastifyInstance } from "fastify";
    participer, et rien d'autre.
    ============================================================ */
 
-let base: Base;
+let base: Db;
 let app: FastifyInstance;
 
 async function compte(pseudo: string) {
-  const personne = await depot.creerPersonne(base, pseudo);
-  const secret = await depot.ouvrirSession(base, personne.id);
+  const personne = await depot.createPerson(base, pseudo);
+  const secret = await depot.openSession(base, personne.id);
   return { personne, cookie: `session=${secret}` };
 }
 
-const creerListe = async (cookie: string, corps: Record<string, unknown> = {}) =>
+const createList = async (cookie: string, corps: Record<string, unknown> = {}) =>
   (
     await app.inject({
       method: "POST",
@@ -50,20 +50,20 @@ const lireListe = (cookie: string, liste: string) =>
   app.inject({ method: "GET", url: `/listes/${liste}`, headers: { cookie } });
 
 beforeEach(async () => {
-  base = await baseDEssai();
-  app = await appDEssai(base);
+  base = await testDb();
+  app = await testApp(base);
 });
 
 afterEach(async () => {
   await app.close();
-  await base.fermer();
+  await base.close();
 });
 
 describe("une liste", () => {
   it("est fermée par défaut, et invisible aux autres", async () => {
     const moi = await compte("moi");
     const autre = await compte("autre");
-    const id = await creerListe(moi.cookie);
+    const id = await createList(moi.cookie);
 
     expect((await lireListe(moi.cookie, id)).json().liste.publique).toBe(false);
     /* Le même 404 que « n'existe pas » : distinguer dirait à un inconnu
@@ -79,7 +79,7 @@ describe("une liste", () => {
        elle ne voudrait rien dire chez un autre, et se viderait le jour
        où son auteur efface une fiche. */
     const moi = await compte("moi");
-    const id = await creerListe(moi.cookie);
+    const id = await createList(moi.cookie);
     expect((await ajouter(moi.cookie, id, "550")).json().neuf).toBe(true);
     expect((await ajouter(moi.cookie, id, "550")).json().neuf).toBe(false);
 
@@ -90,7 +90,7 @@ describe("une liste", () => {
 
   it("refuse ce qui n'est pas un identifiant d'œuvre", async () => {
     const moi = await compte("moi");
-    const id = await creerListe(moi.cookie);
+    const id = await createList(moi.cookie);
     const r = await app.inject({
       method: "POST",
       url: `/listes/${id}/oeuvres`,
@@ -110,7 +110,7 @@ describe("co-construire", () => {
   it("laisse écrire, et pas administrer", async () => {
     const moi = await compte("moi");
     const ami = await compte("ami");
-    const id = await creerListe(moi.cookie);
+    const id = await createList(moi.cookie);
     await app.inject({
       method: "PUT",
       url: `/listes/${id}/membres/ami`,
@@ -138,7 +138,7 @@ describe("co-construire", () => {
   it("on n'invite pas quelqu'un qu'on a fait taire", async () => {
     const moi = await compte("moi");
     await compte("genant");
-    const id = await creerListe(moi.cookie);
+    const id = await createList(moi.cookie);
     await app.inject({ method: "PUT", url: "/blocages/genant", headers: { cookie: moi.cookie } });
 
     const r = await app.inject({
@@ -152,7 +152,7 @@ describe("co-construire", () => {
   it("partir ne demande la permission de personne", async () => {
     const moi = await compte("moi");
     const ami = await compte("ami");
-    const id = await creerListe(moi.cookie);
+    const id = await createList(moi.cookie);
     await app.inject({
       method: "PUT",
       url: `/listes/${id}/membres/ami`,
@@ -172,7 +172,7 @@ describe("co-construire", () => {
     const moi = await compte("moi");
     const ami = await compte("ami");
     const passant = await compte("passant");
-    const id = await creerListe(moi.cookie, { publique: true });
+    const id = await createList(moi.cookie, { publique: true });
     await app.inject({
       method: "PUT",
       url: `/listes/${id}/membres/ami`,
@@ -189,7 +189,7 @@ describe("un défi", () => {
 
   async function defiDEssai() {
     const moi = await compte("moi");
-    const liste = await creerListe(moi.cookie);
+    const liste = await createList(moi.cookie);
     await ajouter(moi.cookie, liste, "550");
     await ajouter(moi.cookie, liste, "551");
     const id = (
@@ -349,7 +349,7 @@ describe("un défi", () => {
        le verrait apparaître sans l'avoir voulu. */
     const proprio = await compte("proprio");
     const passant = await compte("passant");
-    const liste = await creerListe(proprio.cookie, { publique: true });
+    const liste = await createList(proprio.cookie, { publique: true });
 
     const r = await app.inject({
       method: "POST",
@@ -362,7 +362,7 @@ describe("un défi", () => {
 
   it("refuse une fin avant son début", async () => {
     const moi = await compte("moi");
-    const liste = await creerListe(moi.cookie);
+    const liste = await createList(moi.cookie);
     const r = await app.inject({
       method: "POST",
       url: "/defis",

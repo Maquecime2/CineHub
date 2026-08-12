@@ -16,44 +16,41 @@
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
-import { construireApp } from "../src/app.ts";
-import { poserLeSocle, type Base } from "../src/base.ts";
+import { buildApp } from "../src/app.ts";
+import { applySchema, type Db } from "../src/db.ts";
 
-export async function baseDEssai(): Promise<Base> {
+export async function testDb(): Promise<Db> {
   const pg = new PGlite();
-  const base: Base = {
-    requete: async <T>(texte: string, valeurs: unknown[] = []) => {
+  const base: Db = {
+    query: async <T>(texte: string, valeurs: unknown[] = []) => {
       const r = await pg.query<T>(texte, valeurs as never[]);
       return r.rows;
     },
-    executer: async (script: string) => {
+    exec: async (script: string) => {
       await pg.exec(script);
     },
-    fermer: () => pg.close(),
+    close: () => pg.close(),
   };
   const socle = await readFile(
-    fileURLToPath(new URL("../sql/001_socle.sql", import.meta.url)),
+    fileURLToPath(new URL("../sql/001_baseline.sql", import.meta.url)),
     "utf8"
   );
-  await poserLeSocle(base, socle);
+  await applySchema(base, socle);
   return base;
 }
 
-export async function appDEssai(
-  base: Base,
-  extra: { cleTmdb?: string; plafondTmdb?: number } = {}
-) {
-  return construireApp({
+export async function testApp(base: Db, extra: { tmdbKey?: string; tmdbCeiling?: number } = {}) {
+  return buildApp({
     base,
     domaine: "localhost",
     origine: "http://localhost:5173",
-    securise: false,
+    secure: false,
     ...extra,
   });
 }
 
 /** Le cookie de session d'une réponse, prêt à être renvoyé. */
-export function cookieDe(reponse: { headers: Record<string, unknown> }): string {
+export function cookieOf(reponse: { headers: Record<string, unknown> }): string {
   const brut = reponse.headers["set-cookie"];
   const ligne = Array.isArray(brut) ? brut[0] : (brut as string | undefined);
   return (ligne || "").split(";")[0] || "";

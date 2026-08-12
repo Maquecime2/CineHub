@@ -23,13 +23,13 @@ import {
   generateAuthenticationOptions,
   verifyAuthenticationResponse,
 } from "@simplewebauthn/server";
-import type { Base } from "./base.ts";
-import * as depot from "./depot.ts";
-import { poserLesRelais } from "./relais.ts";
-import { clePublique, pousseesPossibles, rappelerLesDefis } from "./pousse.ts";
+import type { Db } from "./db.ts";
+import * as depot from "./store.ts";
+import { registerRelays } from "./relay.ts";
+import { publicKeyForPush, pushAvailable, remindChallenges } from "./push.ts";
 
-export interface Reglages {
-  base: Base;
+export interface Settings {
+  base: Db;
   /** Le domaine que les clés d'accès signeront. `localhost` en développement. */
   domaine: string;
   /**
@@ -43,7 +43,7 @@ export interface Reglages {
    */
   origine: string;
   /** Cookies `Secure` : faux en développement, où il n'y a pas de HTTPS. */
-  securise?: boolean;
+  secure?: boolean;
   /**
    * La clé TMDB, si l'on en a une de ce côté-ci.
    *
@@ -52,7 +52,7 @@ export interface Reglages {
    * volontairement dégradable : le serveur est un confort, pas une
    * condition d'usage.
    */
-  cleTmdb?: string;
+  tmdbKey?: string;
   /**
    * Requêtes TMDB par minute et par adresse, pour le relais seul.
    *
@@ -61,12 +61,12 @@ export interface Reglages {
    * remplir trois cents fiches en demande trois cents. Voir
    * `PLAFOND_TMDB_DEFAUT` dans `relais.ts`.
    */
-  plafondTmdb?: number;
+  tmdbCeiling?: number;
   /**
    * Ouvre `POST /dev/session`, qui crée un compte et une session sans
    * clé d'accès. Jamais vrai en production — voir `index.ts`.
    */
-  porteDev?: boolean;
+  devDoor?: boolean;
 }
 
 const COOKIE = "session";
@@ -83,7 +83,7 @@ const PSEUDO_OK = /^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const JOUR = /^\d{4}-\d{2}-\d{2}$/;
 
-export async function construireApp(reglages: Reglages): Promise<FastifyInstance> {
+export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
   const { base, domaine, origine } = reglages;
   const app = Fastify({ logger: false });
 
@@ -167,15 +167,15 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
   });
 
   /** Qui parle ? `null` si personne. */
-  const quiEst = async (req: FastifyRequest) => {
+  const whoIs = async (req: FastifyRequest) => {
     const secret = req.cookies[COOKIE];
     if (!secret) return null;
-    return depot.personneDeSession(base, secret);
+    return depot.personOfSession(base, secret);
   };
 
   /** Les routes qui exigent un compte passent par ici. */
-  const exigerUnCompte = async (req: FastifyRequest) => {
-    const personne = await quiEst(req);
+  const requireAccount = async (req: FastifyRequest) => {
+    const personne = await whoIs(req);
     if (!personne) {
       const e = new Error("il faut être connecté") as Error & { statusCode?: number };
       e.statusCode = 401;
@@ -196,7 +196,7 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
         erreur: "Un pseudonyme de 3 à 30 caractères : lettres sans accent, chiffres, tirets.",
       });
     }
-    if (await depot.trouverParPseudo(base, nom)) {
+    if (await depot.findByPseudo(base, nom)) {
       return reply.code(409).send({ erreur: "Ce pseudonyme est déjà pris." });
     }
 
@@ -212,13 +212,13 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
       attestationType: "none",
     });
 
-    const defi = await depot.poserDefi(base, options.challenge, { pseudo: nom });
+    const defi = await depot.setChallenge(base, options.challenge, { pseudo: nom });
     return { defi, options };
   });
 
   app.post("/auth/inscription/verification", async (req, reply) => {
     const { defi, reponse } = (req.body ?? {}) as { defi?: string; reponse?: unknown };
-    const attendu = defi ? await depot.consommerDefi(base, defi) : null;
+    const attendu = defi ? await depot.consumeChallenge(base, defi) : null;
     if (!attendu?.pseudo) return reply.code(400).send({ erreur: "Défi inconnu ou expiré." });
 
     const v = await verifyRegistrationResponse({
@@ -236,21 +236,21 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
        vérification d'il y a trois lignes. */
     let personne;
     try {
-      personne = await depot.creerPersonne(base, attendu.pseudo);
+      personne = await depot.createPerson(base, attendu.pseudo);
     } catch {
       return reply.code(409).send({ erreur: "Ce pseudonyme est déjà pris." });
     }
 
     const { credential } = v.registrationInfo;
-    await depot.ajouterCle(base, {
+    await depot.addKey(base, {
       id: credential.id,
       personneId: personne.id,
-      clePublique: credential.publicKey,
+      publicKeyForPush: credential.publicKey,
       compteur: credential.counter,
       transports: credential.transports ?? [],
     });
 
-    await poserLeCookie(reply, await depot.ouvrirSession(base, personne.id));
+    await setCookie(reply, await depot.openSession(base, personne.id));
     return { personne };
   });
 
@@ -261,20 +261,20 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
   app.post("/auth/connexion/options", async (req) => {
     const { pseudo } = (req.body ?? {}) as { pseudo?: string };
     const nom = (pseudo || "").trim().toLowerCase();
-    const personne = nom ? await depot.trouverParPseudo(base, nom) : null;
+    const personne = nom ? await depot.findByPseudo(base, nom) : null;
 
     /* UN PSEUDONYME INCONNU REÇOIT LA MÊME RÉPONSE QU'UN CONNU. Répondre
        « ce compte n'existe pas » ferait de cette route un annuaire :
        n'importe qui pourrait savoir qui est inscrit. On propose donc la
        cérémonie dans tous les cas, et c'est la signature qui échouera. */
-    const cles = personne ? await depot.clesDe(base, personne.id) : [];
+    const cles = personne ? await depot.keysOf(base, personne.id) : [];
     const options = await generateAuthenticationOptions({
       rpID: domaine,
       allowCredentials: cles.map((c) => ({ id: c.id, transports: c.transports as never })),
       userVerification: "preferred",
     });
 
-    const defi = await depot.poserDefi(base, options.challenge, {
+    const defi = await depot.setChallenge(base, options.challenge, {
       personneId: personne?.id,
     });
     return { defi, options };
@@ -282,10 +282,10 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
 
   app.post("/auth/connexion/verification", async (req, reply) => {
     const { defi, reponse } = (req.body ?? {}) as { defi?: string; reponse?: { id?: string } };
-    const attendu = defi ? await depot.consommerDefi(base, defi) : null;
+    const attendu = defi ? await depot.consumeChallenge(base, defi) : null;
     if (!attendu) return reply.code(400).send({ erreur: "Défi inconnu ou expiré." });
 
-    const cle = reponse?.id ? await depot.cleParId(base, reponse.id) : null;
+    const cle = reponse?.id ? await depot.keyById(base, reponse.id) : null;
     if (!cle) return reply.code(401).send({ erreur: "Clé inconnue." });
 
     const v = await verifyAuthenticationResponse({
@@ -302,11 +302,11 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
     });
     if (!v.verified) return reply.code(401).send({ erreur: "Signature refusée." });
 
-    await depot.noterUsage(base, cle.id, v.authenticationInfo.newCounter);
-    const personne = await depot.trouverParId(base, cle.personne_id);
+    await depot.recordUsage(base, cle.id, v.authenticationInfo.newCounter);
+    const personne = await depot.findById(base, cle.personne_id);
     if (!personne) return reply.code(401).send({ erreur: "Compte introuvable." });
 
-    await poserLeCookie(reply, await depot.ouvrirSession(base, personne.id));
+    await setCookie(reply, await depot.openSession(base, personne.id));
     return { personne };
   });
 
@@ -315,14 +315,14 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
      ------------------------------------------------------------ */
 
   app.get("/moi", async (req, reply) => {
-    const personne = await quiEst(req);
+    const personne = await whoIs(req);
     if (!personne) return reply.code(401).send({ erreur: "Personne." });
-    return { personne, fiches: await depot.compterFiches(base, personne.id) };
+    return { personne, fiches: await depot.countCards(base, personne.id) };
   });
 
   app.post("/deconnexion", async (req, reply) => {
     const secret = req.cookies[COOKIE];
-    if (secret) await depot.fermerSession(base, secret);
+    if (secret) await depot.closeSession(base, secret);
     reply.clearCookie(COOKIE, { path: "/" });
     return { fait: true };
   });
@@ -336,14 +336,14 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
      journaux) est du travail de client. */
 
   app.get("/collection", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
+    const personne = await requireAccount(req);
     const { depuis } = req.query as { depuis?: string };
     const rang = depuis ? Number(depuis) : 0;
     if (!Number.isFinite(rang) || rang < 0) {
       return reply.code(400).send({ erreur: "Rang de départ illisible." });
     }
 
-    const fiches = await depot.fichesDepuis(base, personne.id, rang);
+    const fiches = await depot.cardsSince(base, personne.id, rang);
     /* `jusqua` EST UN RANG, PAS UNE HEURE. C'est le numéro d'ordre de la
        dernière fiche rendue : le client le renvoie tel quel au prochain
        tirage, et n'a aucune horloge à comparer avec le serveur.
@@ -368,7 +368,7 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
   });
 
   app.put("/collection", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
+    const personne = await requireAccount(req);
     const { fiches } = (req.body ?? {}) as { fiches?: unknown };
     if (!Array.isArray(fiches)) {
       return reply.code(400).send({ erreur: "Il faut un tableau de fiches." });
@@ -397,7 +397,7 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
         illisibles += 1;
         continue;
       }
-      const ecrite = await depot.rangerFiche(base, personne.id, {
+      const ecrite = await depot.storeCard(base, personne.id, {
         id,
         tmdbId: f.tmdbId == null ? null : String(f.tmdbId),
         cachee: f.cachee === true,
@@ -423,12 +423,12 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
      un `depuis` qui est un rang, un `jusqua` qu'on renvoie tel quel. */
 
   app.get("/documents", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
+    const personne = await requireAccount(req);
     const rang = Number((req.query as { depuis?: string }).depuis ?? 0);
     if (!Number.isFinite(rang) || rang < 0) {
       return reply.code(400).send({ erreur: "Rang de départ illisible." });
     }
-    const docs = await depot.docsDepuis(base, personne.id, rang);
+    const docs = await depot.docsSince(base, personne.id, rang);
     return {
       jusqua: docs.length ? Number(docs[docs.length - 1]!.seq) : rang,
       encore: docs.length === 200,
@@ -442,7 +442,7 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
   });
 
   app.put("/documents", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
+    const personne = await requireAccount(req);
     const { documents } = (req.body ?? {}) as { documents?: unknown };
     if (!Array.isArray(documents)) {
       return reply.code(400).send({ erreur: "Il faut un tableau de documents." });
@@ -461,7 +461,7 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
         illisibles += 1;
         continue;
       }
-      const ecrit = await depot.rangerDoc(base, personne.id, {
+      const ecrit = await depot.storeDoc(base, personne.id, {
         cle,
         contenu: d.contenu ?? null,
         majLe: new Date(majLe),
@@ -491,12 +491,12 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
      La personne de session porte déjà les deux valeurs : il n'y a rien à
      aller chercher, seulement à répondre. */
   app.get("/partage", async (req) => {
-    const personne = await exigerUnCompte(req);
+    const personne = await requireAccount(req);
     return { partage: personne.partage ?? "privee", jeton: personne.jeton ?? null };
   });
 
   app.put("/partage", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
+    const personne = await requireAccount(req);
     const { partage } = (req.body ?? {}) as { partage?: string };
     if (!["privee", "lien", "publique"].includes(partage || "")) {
       return reply.code(400).send({ erreur: "Partage inconnu." });
@@ -507,7 +507,7 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
        compris celui qu'on avait justement voulu couper en repassant en
        privé. Se raviser doit vouloir dire quelque chose. */
     const jeton = partage === "lien" ? randomBytes(16).toString("base64url") : null;
-    await depot.reglerLePartage(base, personne.id, partage!, jeton);
+    await depot.setSharing(base, personne.id, partage!, jeton);
     return { partage, jeton };
   });
 
@@ -523,15 +523,15 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
      pour cocher une case, et une liste de titres ferait voyager la
      collection pour rien. */
   app.get("/fiches-cachees", async (req) => {
-    const personne = await exigerUnCompte(req);
-    return { ids: await depot.fichesCachees(base, personne.id) };
+    const personne = await requireAccount(req);
+    return { ids: await depot.hiddenCards(base, personne.id) };
   });
 
   app.put("/fiche/:id/cachee", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
+    const personne = await requireAccount(req);
     const { id } = req.params as { id: string };
     const { cachee } = (req.body ?? {}) as { cachee?: boolean };
-    const fait = await depot.cacherFiche(base, personne.id, id, cachee === true);
+    const fait = await depot.hideCard(base, personne.id, id, cachee === true);
     if (!fait) return reply.code(404).send({ erreur: "Fiche inconnue." });
     return { id, cachee: cachee === true };
   });
@@ -543,7 +543,7 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
       return reply.code(404).send({ erreur: "Pas de collection à cette adresse." });
     }
 
-    const vue = await depot.collectionPubliqueDe(base, pseudo.toLowerCase(), jeton ?? null);
+    const vue = await depot.publicCollectionOf(base, pseudo.toLowerCase(), jeton ?? null);
     /* LE MÊME 404 DANS LES TROIS CAS : compte inexistant, compte qui ne
        partage pas, jeton faux. Distinguer renseignerait un inconnu sur
        qui est inscrit et sur qui garde une collection secrète — deux
@@ -566,8 +566,8 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
 
     /* On lit la session sans l'exiger : connecté, on saura si l'on suit
        déjà ; sinon le profil se consulte quand même. */
-    const moi = await quiEst(req);
-    const profil = await depot.profilPublicDe(base, pseudo.toLowerCase(), moi?.id);
+    const moi = await whoIs(req);
+    const profil = await depot.publicProfileOf(base, pseudo.toLowerCase(), moi?.id);
     /* MÊME RÉPONSE POUR « N'EXISTE PAS » ET « NE SE MONTRE PAS ». On ne
        peut trouver que des gens qui ont choisi d'être trouvables. */
     if (!profil) return reply.code(404).send({ erreur: "Personne." });
@@ -575,21 +575,21 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
   });
 
   app.get("/abonnements", async (req) => {
-    const personne = await exigerUnCompte(req);
-    return { abonnements: await depot.abonnementsDe(base, personne.id) };
+    const personne = await requireAccount(req);
+    return { abonnements: await depot.subscriptionsOf(base, personne.id) };
   });
 
   app.put("/abonnements/:pseudo", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
+    const personne = await requireAccount(req);
     const { pseudo } = req.params as { pseudo: string };
-    const cible = await depot.profilPublicDe(base, (pseudo || "").toLowerCase(), personne.id);
+    const cible = await depot.publicProfileOf(base, (pseudo || "").toLowerCase(), personne.id);
     /* On ne peut suivre que ce qui se montre : suivre une collection
        fermée serait s'abonner à un silence, et dirait au passage
        qu'elle existe. Un blocage referme de la même façon — c'est le
        profil qui n'existe plus, et non une interdiction annoncée. */
     if (!cible) return reply.code(404).send({ erreur: "Personne." });
 
-    const vise = await depot.trouverParPseudo(base, cible.pseudo);
+    const vise = await depot.findByPseudo(base, cible.pseudo);
     if (!vise || vise.id === personne.id) {
       return reply.code(400).send({ erreur: "On ne se suit pas soi-même." });
     }
@@ -598,24 +598,24 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
   });
 
   app.delete("/abonnements/:pseudo", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
+    const personne = await requireAccount(req);
     const { pseudo } = req.params as { pseudo: string };
-    const vise = await depot.trouverParPseudo(base, (pseudo || "").toLowerCase());
+    const vise = await depot.findByPseudo(base, (pseudo || "").toLowerCase());
     /* Se désabonner de quelqu'un qui s'est refermé doit RESTER possible :
        on ne passe donc pas par le profil public, qui n'existerait plus. */
-    if (vise) await depot.nePlusSuivre(base, personne.id, vise.id);
+    if (vise) await depot.unfollow(base, personne.id, vise.id);
     return reply.send({ pseudo, suivi: false });
   });
 
   app.get("/fil", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
+    const personne = await requireAccount(req);
     const { avant } = req.query as { avant?: string };
     const borne = avant ? Number(avant) : null;
     if (borne !== null && !Number.isFinite(borne)) {
       return reply.code(400).send({ erreur: "Borne illisible." });
     }
 
-    const nouvelles = await depot.filDe(base, personne.id, borne);
+    const nouvelles = await depot.feedOf(base, personne.id, borne);
     return {
       /* Le rang de la dernière nouvelle rendue : le client le renvoie
          pour lire la suite, sans se demander l'heure qu'il est. */
@@ -644,12 +644,12 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
        vous a donné son adresse ; ici on interroge tout le monde à la
        fois. Ouvrir cela aux inconnus ferait de ce serveur un moissonneur
        d'avis, et de chaque critique une donnée publiquement aspirable. */
-    const personne = await exigerUnCompte(req);
+    const personne = await requireAccount(req);
     const { tmdbId } = req.params as { tmdbId: string };
     if (!/^[0-9]{1,12}$/.test(tmdbId || "")) {
       return reply.code(400).send({ erreur: "Identifiant d'œuvre illisible." });
     }
-    return depot.echoDeLOeuvre(base, tmdbId, personne.id);
+    return depot.echoOfWork(base, tmdbId, personne.id);
   });
 
   /* ------------------------------------------------------------
@@ -660,31 +660,31 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
      n'est plus le moment de développer. */
 
   app.get("/blocages", async (req) => {
-    const personne = await exigerUnCompte(req);
-    return { blocages: await depot.mesBlocages(base, personne.id) };
+    const personne = await requireAccount(req);
+    return { blocages: await depot.myBlocks(base, personne.id) };
   });
 
   app.put("/blocages/:pseudo", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
+    const personne = await requireAccount(req);
     const { pseudo } = req.params as { pseudo: string };
     /* On bloque par le compte, PAS par le profil public : quelqu'un qui
        s'est refermé après coup doit rester blocable, sans quoi il
        suffirait de passer en privé pour redevenir inbloquable puis
        ressortir. */
-    const vise = await depot.trouverParPseudo(base, (pseudo || "").toLowerCase());
+    const vise = await depot.findByPseudo(base, (pseudo || "").toLowerCase());
     if (!vise) return reply.code(404).send({ erreur: "Personne." });
     if (vise.id === personne.id) {
       return reply.code(400).send({ erreur: "On ne se bloque pas soi-même." });
     }
-    await depot.bloquer(base, personne.id, vise.id);
+    await depot.block(base, personne.id, vise.id);
     return { pseudo: vise.pseudo, bloque: true };
   });
 
   app.delete("/blocages/:pseudo", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
+    const personne = await requireAccount(req);
     const { pseudo } = req.params as { pseudo: string };
-    const vise = await depot.trouverParPseudo(base, (pseudo || "").toLowerCase());
-    if (vise) await depot.debloquer(base, personne.id, vise.id);
+    const vise = await depot.findByPseudo(base, (pseudo || "").toLowerCase());
+    if (vise) await depot.unblock(base, personne.id, vise.id);
     /* Débloquer ne réabonne à personne : le lien a été défait, il se
        refait à la main. Reconstituer un abonnement qu'on a coupé serait
        décider à la place de quelqu'un. */
@@ -692,7 +692,7 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
   });
 
   app.post("/signalements", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
+    const personne = await requireAccount(req);
     const { pseudo, fiche, motif } = (req.body ?? {}) as {
       pseudo?: string;
       fiche?: string;
@@ -702,7 +702,7 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
     if (!texte || texte.length > 500) {
       return reply.code(400).send({ erreur: "Dites en une phrase ce qui ne va pas." });
     }
-    const vise = pseudo ? await depot.trouverParPseudo(base, pseudo.toLowerCase()) : null;
+    const vise = pseudo ? await depot.findByPseudo(base, pseudo.toLowerCase()) : null;
     if (!vise) return reply.code(404).send({ erreur: "Personne." });
 
     const neuf = await depot.signaler(base, personne.id, {
@@ -732,7 +732,7 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
       reply.code(404).send({ erreur: "Liste inconnue." });
       return null;
     }
-    const droits = await depot.droitsSurListe(base, id, personneId);
+    const droits = await depot.rightsOnList(base, id, personneId);
     /* PAS DE 403 : une liste qu'on n'a pas le droit de lire répond
        comme une liste qui n'existe pas. Distinguer dirait à un inconnu
        que tel identifiant désigne quelque chose. */
@@ -744,12 +744,12 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
   };
 
   app.get("/listes", async (req) => {
-    const personne = await exigerUnCompte(req);
-    return { listes: await depot.mesListes(base, personne.id) };
+    const personne = await requireAccount(req);
+    return { listes: await depot.myLists(base, personne.id) };
   });
 
   app.post("/listes", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
+    const personne = await requireAccount(req);
     const { titre, intention, publique } = (req.body ?? {}) as {
       titre?: string;
       intention?: string;
@@ -759,7 +759,7 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
     if (!nom || nom.length > 120) {
       return reply.code(400).send({ erreur: "Il faut un titre, de 1 à 120 caractères." });
     }
-    const id = await depot.creerListe(base, personne.id, {
+    const id = await depot.createList(base, personne.id, {
       titre: nom,
       intention: (intention || "").trim(),
       publique: publique === true,
@@ -768,23 +768,23 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
   });
 
   app.get("/listes/:id", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
+    const personne = await requireAccount(req);
     const droits = await droitsOu404(req, reply, personne.id);
     if (!droits) return reply;
 
-    const liste = await depot.listeParId(base, droits.liste_id);
+    const liste = await depot.listById(base, droits.liste_id);
     return {
       liste: { ...liste, mienne: droits.administrer, membre: droits.ecrire },
-      oeuvres: await depot.oeuvresDe(base, droits.liste_id),
+      oeuvres: await depot.worksOf(base, droits.liste_id),
       /* Les co-constructeurs ne se montrent qu'à ceux qui écrivent
          dedans : un visiteur d'une liste publique lit des films, pas la
          liste des gens qui la tiennent. */
-      membres: droits.ecrire ? await depot.membresDe(base, droits.liste_id) : [],
+      membres: droits.ecrire ? await depot.membersOf(base, droits.liste_id) : [],
     };
   });
 
   app.put("/listes/:id", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
+    const personne = await requireAccount(req);
     const droits = await droitsOu404(req, reply, personne.id);
     if (!droits) return reply;
     /* RENOMMER, PUBLIER, EFFACER : le propriétaire seul. Co-construire
@@ -802,7 +802,7 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
     if (titre !== undefined && !(titre.trim() && titre.trim().length <= 120)) {
       return reply.code(400).send({ erreur: "Il faut un titre, de 1 à 120 caractères." });
     }
-    await depot.retoucherListe(base, droits.liste_id, {
+    await depot.editList(base, droits.liste_id, {
       titre: titre?.trim(),
       intention: intention?.trim(),
       publique,
@@ -811,17 +811,17 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
   });
 
   app.delete("/listes/:id", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
+    const personne = await requireAccount(req);
     const droits = await droitsOu404(req, reply, personne.id);
     if (!droits) return reply;
     if (!droits.administrer)
       return reply.code(403).send({ erreur: "Cette liste n'est pas vôtre." });
-    await depot.effacerListe(base, droits.liste_id);
+    await depot.deleteList(base, droits.liste_id);
     return { efface: true };
   });
 
   app.post("/listes/:id/oeuvres", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
+    const personne = await requireAccount(req);
     const droits = await droitsOu404(req, reply, personne.id);
     if (!droits) return reply;
     if (!droits.ecrire) return reply.code(403).send({ erreur: "On ne vous a rien demandé ici." });
@@ -834,7 +834,7 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
     if (!/^[0-9]{1,12}$/.test(String(tmdbId ?? ""))) {
       return reply.code(400).send({ erreur: "Une œuvre se désigne par son identifiant TMDB." });
     }
-    const neuf = await depot.ajouterALaListe(base, droits.liste_id, personne.id, {
+    const neuf = await depot.addToList(base, droits.liste_id, personne.id, {
       tmdbId: String(tmdbId),
       titre: (titre || "").slice(0, 200),
       annee: annee ? String(annee).slice(0, 8) : null,
@@ -843,24 +843,24 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
   });
 
   app.delete("/listes/:id/oeuvres/:tmdbId", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
+    const personne = await requireAccount(req);
     const droits = await droitsOu404(req, reply, personne.id);
     if (!droits) return reply;
     if (!droits.ecrire) return reply.code(403).send({ erreur: "On ne vous a rien demandé ici." });
     const { tmdbId } = req.params as { tmdbId: string };
-    await depot.retirerDeLaListe(base, droits.liste_id, tmdbId);
+    await depot.removeFromList(base, droits.liste_id, tmdbId);
     return { retire: true };
   });
 
   app.put("/listes/:id/membres/:pseudo", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
+    const personne = await requireAccount(req);
     const droits = await droitsOu404(req, reply, personne.id);
     if (!droits) return reply;
     if (!droits.administrer)
       return reply.code(403).send({ erreur: "Cette liste n'est pas vôtre." });
 
     const { pseudo } = req.params as { pseudo: string };
-    const invite = await depot.trouverParPseudo(base, (pseudo || "").toLowerCase());
+    const invite = await depot.findByPseudo(base, (pseudo || "").toLowerCase());
     if (!invite) return reply.code(404).send({ erreur: "Personne." });
     if (invite.id === personne.id) {
       return reply.code(400).send({ erreur: "Vous y écrivez déjà." });
@@ -871,16 +871,16 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
     if (await depot.bloques(base, personne.id, invite.id)) {
       return reply.code(404).send({ erreur: "Personne." });
     }
-    await depot.inviterALaListe(base, droits.liste_id, invite.id);
+    await depot.inviteToList(base, droits.liste_id, invite.id);
     return { pseudo: invite.pseudo, membre: true };
   });
 
   app.delete("/listes/:id/membres/:pseudo", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
+    const personne = await requireAccount(req);
     const droits = await droitsOu404(req, reply, personne.id);
     if (!droits) return reply;
     const { pseudo } = req.params as { pseudo: string };
-    const vise = await depot.trouverParPseudo(base, (pseudo || "").toLowerCase());
+    const vise = await depot.findByPseudo(base, (pseudo || "").toLowerCase());
     if (!vise) return reply.code(404).send({ erreur: "Personne." });
     /* Le propriétaire renvoie qui il veut ; un membre ne peut renvoyer
        que lui-même. Partir d'une liste ne demande la permission de
@@ -888,7 +888,7 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
     if (!droits.administrer && vise.id !== personne.id) {
       return reply.code(403).send({ erreur: "Cette liste n'est pas vôtre." });
     }
-    await depot.renvoyerDeLaListe(base, droits.liste_id, vise.id);
+    await depot.removeMemberFromList(base, droits.liste_id, vise.id);
     return { pseudo: vise.pseudo, membre: false };
   });
 
@@ -899,12 +899,12 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
      coche « vu », le classeur le sait déjà. */
 
   app.get("/defis", async (req) => {
-    const personne = await exigerUnCompte(req);
-    return { defis: await depot.mesEpreuves(base, personne.id) };
+    const personne = await requireAccount(req);
+    return { defis: await depot.myChallenges(base, personne.id) };
   });
 
   app.post("/defis", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
+    const personne = await requireAccount(req);
     const { listeId, titre, debut, fin } = (req.body ?? {}) as {
       listeId?: string;
       titre?: string;
@@ -922,11 +922,11 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
        n'importe qui lance un défi sur la liste publique d'un inconnu,
        qui le verrait apparaître sans l'avoir voulu. */
     const droits = UUID.test(listeId || "")
-      ? await depot.droitsSurListe(base, listeId!, personne.id)
+      ? await depot.rightsOnList(base, listeId!, personne.id)
       : null;
     if (!droits?.ecrire) return reply.code(404).send({ erreur: "Liste inconnue." });
 
-    const id = await depot.creerEpreuve(base, personne.id, {
+    const id = await depot.createChallenge(base, personne.id, {
       listeId: droits.liste_id,
       titre: nom,
       debut: debut!,
@@ -936,56 +936,56 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
   });
 
   app.get("/defis/:id", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
+    const personne = await requireAccount(req);
     const { id } = req.params as { id: string };
-    const defi = UUID.test(id || "") ? await depot.epreuveParId(base, id) : null;
+    const defi = UUID.test(id || "") ? await depot.challengeById(base, id) : null;
     if (!defi) return reply.code(404).send({ erreur: "Défi inconnu." });
     /* Le droit de voir un défi est celui de voir sa liste : il n'y a
        pas deux confidentialités à tenir d'accord. */
-    const droits = await depot.droitsSurListe(base, defi.liste_id, personne.id);
+    const droits = await depot.rightsOnList(base, defi.liste_id, personne.id);
     if (!droits?.lire) return reply.code(404).send({ erreur: "Défi inconnu." });
 
     return {
       defi,
-      oeuvres: await depot.oeuvresDe(base, defi.liste_id),
+      oeuvres: await depot.worksOf(base, defi.liste_id),
       /* L'AVANCEMENT NE SORT DU JOURNAL QU'EN NOMBRE. Le journal des
          séances ne quitte jamais une collection ; ici il ne quitte rien
          non plus — on compte, on ne recopie pas. Et l'on ne compte que
          des gens qui ont demandé à participer. */
-      avancement: await depot.avancementDe(base, defi.id),
+      avancement: await depot.progressOf(base, defi.id),
     };
   });
 
   app.delete("/defis/:id", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
+    const personne = await requireAccount(req);
     const { id } = req.params as { id: string };
-    const defi = UUID.test(id || "") ? await depot.epreuveParId(base, id) : null;
+    const defi = UUID.test(id || "") ? await depot.challengeById(base, id) : null;
     if (!defi) return reply.code(404).send({ erreur: "Défi inconnu." });
-    const droits = await depot.droitsSurListe(base, defi.liste_id, personne.id);
+    const droits = await depot.rightsOnList(base, defi.liste_id, personne.id);
     if (!droits?.administrer) return reply.code(403).send({ erreur: "Ce défi n'est pas vôtre." });
-    await depot.effacerEpreuve(base, defi.id);
+    await depot.deleteChallenge(base, defi.id);
     return { efface: true };
   });
 
   app.put("/defis/:id/participation", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
+    const personne = await requireAccount(req);
     const { id } = req.params as { id: string };
-    const defi = UUID.test(id || "") ? await depot.epreuveParId(base, id) : null;
+    const defi = UUID.test(id || "") ? await depot.challengeById(base, id) : null;
     if (!defi) return reply.code(404).send({ erreur: "Défi inconnu." });
-    const droits = await depot.droitsSurListe(base, defi.liste_id, personne.id);
+    const droits = await depot.rightsOnList(base, defi.liste_id, personne.id);
     if (!droits?.lire) return reply.code(404).send({ erreur: "Défi inconnu." });
-    await depot.rejoindreEpreuve(base, defi.id, personne.id);
+    await depot.joinChallenge(base, defi.id, personne.id);
     return { dedans: true };
   });
 
   app.delete("/defis/:id/participation", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
+    const personne = await requireAccount(req);
     const { id } = req.params as { id: string };
     if (!UUID.test(id || "")) return reply.code(404).send({ erreur: "Défi inconnu." });
     /* Partir se fait TOUJOURS, sans vérifier qu'on avait le droit
        d'entrer : quelqu'un dont la liste s'est refermée doit pouvoir
        sortir d'un décompte qui le mesure encore. */
-    await depot.quitterEpreuve(base, id, personne.id);
+    await depot.leaveChallenge(base, id, personne.id);
     return { dedans: false };
   });
 
@@ -994,20 +994,20 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
      ------------------------------------------------------------ */
 
   app.get("/mes-donnees", async (req) => {
-    const personne = await exigerUnCompte(req);
+    const personne = await requireAccount(req);
     /* Tout ce que le serveur détient de quelqu'un, dans un seul objet :
        c'est ce que le règlement appelle la portabilité, et c'est surtout
        la moindre des choses. */
     return {
       personne,
-      fiches: await depot.fichesDepuis(base, personne.id, 0, 100000),
-      documents: await depot.docsDepuis(base, personne.id, 0, 100000),
+      fiches: await depot.cardsSince(base, personne.id, 0, 100000),
+      documents: await depot.docsSince(base, personne.id, 0, 100000),
     };
   });
 
   app.delete("/mon-compte", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
-    await depot.effacerPersonne(base, personne.id);
+    const personne = await requireAccount(req);
+    await depot.deletePerson(base, personne.id);
     reply.clearCookie(COOKIE, { path: "/" });
     return { efface: true };
   });
@@ -1020,11 +1020,11 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
      répondent « pas de service » et le classeur n'en montre pas le
      réglage. */
 
-  app.get("/poussees", async () => ({ possible: pousseesPossibles(), cle: clePublique() }));
+  app.get("/poussees", async () => ({ possible: pushAvailable(), cle: publicKeyForPush() }));
 
   app.put("/poussees", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
-    if (!pousseesPossibles()) {
+    const personne = await requireAccount(req);
+    if (!pushAvailable()) {
       return reply.code(503).send({ erreur: "Ce serveur n'envoie pas de notifications." });
     }
     const { point, p256dh, secret } = (req.body ?? {}) as {
@@ -1038,17 +1038,17 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
     if (!point || !/^https:\/\//.test(point) || !p256dh || !secret) {
       return reply.code(400).send({ erreur: "Abonnement illisible." });
     }
-    await depot.rangerPousse(base, personne.id, { point, p256dh, secret });
+    await depot.storePush(base, personne.id, { point, p256dh, secret });
     return { abonne: true };
   });
 
   app.delete("/poussees", async (req, reply) => {
-    await exigerUnCompte(req);
+    await requireAccount(req);
     const { point } = (req.body ?? {}) as { point?: string };
     /* On efface par le POINT et non par le compte : un ordinateur
        partagé ne doit pas faire taire le téléphone de la même
        personne. */
-    if (point) await depot.oublierPousse(base, point);
+    if (point) await depot.forgetPush(base, point);
     return reply.send({ abonne: false });
   });
 
@@ -1075,13 +1075,13 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
      Si vous lisez ceci en vous demandant si elle peut être active en
      ligne : non, `index.ts` ne la propose jamais quand
      `NODE_ENV=production`. */
-  if (reglages.porteDev) {
+  if (reglages.devDoor) {
     app.post("/dev/session", async (req, reply) => {
       const { pseudo } = (req.body ?? {}) as { pseudo?: string };
       const nom = (pseudo || `dev-${Date.now().toString(36)}`).toLowerCase();
       const personne =
-        (await depot.trouverParPseudo(base, nom)) ?? (await depot.creerPersonne(base, nom));
-      poserLeCookie(reply, await depot.ouvrirSession(base, personne.id));
+        (await depot.findByPseudo(base, nom)) ?? (await depot.createPerson(base, nom));
+      setCookie(reply, await depot.openSession(base, personne.id));
       return { personne, avertissement: "porte de développement" };
     });
   }
@@ -1089,10 +1089,10 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
   /* ------------------------------------------------------------
      LES RELAIS — la clé TMDB quitte le bundle
      ------------------------------------------------------------ */
-  poserLesRelais(app, {
-    cleTmdb: reglages.cleTmdb,
-    exigerUnCompte,
-    plafondTmdb: reglages.plafondTmdb,
+  registerRelays(app, {
+    tmdbKey: reglages.tmdbKey,
+    requireAccount,
+    tmdbCeiling: reglages.tmdbCeiling,
   });
 
   /* ------------------------------------------------------------
@@ -1108,13 +1108,13 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
      moment de s'arrêter, sinon `npm run dev` refuse de rendre la main. */
   const balai = setInterval(
     () => {
-      depot.balayerDefis(base).catch(() => {});
+      depot.sweepChallenges(base).catch(() => {});
       /* LES RAPPELS PASSENT PAR LE MÊME BALAI, à l'heure : un défi qui
          commence aujourd'hui est annoncé aujourd'hui, et la table des
          rappels déjà dits empêche les vingt-trois autres passages de le
          redire. Un vrai ordonnanceur serait une dépendance de plus pour
          un serveur qui tourne sur une machine de bureau. */
-      rappelerLesDefis(base)
+      remindChallenges(base)
         .then(({ dits }) => dits && console.log(`  ${dits} rappel(s) de défi envoyé(s)`))
         .catch((e) => console.error("rappels :", e));
     },
@@ -1123,7 +1123,7 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
   balai.unref();
   app.addHook("onClose", async () => clearInterval(balai));
 
-  function poserLeCookie(reply: FastifyReply, secret: string) {
+  function setCookie(reply: FastifyReply, secret: string) {
     reply.setCookie(COOKIE, secret, {
       path: "/",
       httpOnly: true,
@@ -1137,8 +1137,8 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
 
          `none` l'autorise, et n'a de sens qu'avec `Secure` : les deux
          vont donc ensemble, et se règlent d'un seul interrupteur. */
-      sameSite: reglages.securise ? "none" : "lax",
-      secure: reglages.securise ?? false,
+      sameSite: reglages.secure ? "none" : "lax",
+      secure: reglages.secure ?? false,
       maxAge: 30 * 24 * 60 * 60,
     });
   }

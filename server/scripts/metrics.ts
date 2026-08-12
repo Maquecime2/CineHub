@@ -11,8 +11,8 @@
    demanderait de garder ce qu'on refuse de garder. Ils disent ce qui
    sert et ce qui coûte — c'est ce pour quoi on mesure.
    ============================================================ */
-import { ouvrirPostgres } from "../src/base.ts";
-import { mesures } from "../src/depot.ts";
+import { openPostgres } from "../src/db.ts";
+import { mesures } from "../src/store.ts";
 
 const url = process.env.DATABASE_URL;
 if (!url) {
@@ -21,7 +21,7 @@ if (!url) {
 }
 
 const jours = Number(process.argv[2] || 30);
-const base = await ouvrirPostgres(url);
+const base = await openPostgres(url);
 const lignes = await mesures(base, jours);
 
 const total = new Map<string, number>();
@@ -34,4 +34,4 @@ for (const [geste, n] of [...total].sort((a, b) => b[1] - a[1])) {
   console.log(`  ${String(n).padStart(8)}  ${geste}`);
 }
 
-await base.fermer();
+await base.close();

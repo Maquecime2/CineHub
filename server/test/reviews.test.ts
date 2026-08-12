@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { appDEssai, baseDEssai } from "./aide.ts";
-import * as depot from "../src/depot.ts";
-import type { Base } from "../src/base.ts";
+import { testApp, testDb } from "./helpers.ts";
+import * as depot from "../src/store.ts";
+import type { Db } from "../src/db.ts";
 import type { FastifyInstance } from "fastify";
 
 /* ============================================================
@@ -13,12 +13,12 @@ import type { FastifyInstance } from "fastify";
    intimes, les collections fermées, les gens qu'on a fait taire.
    ============================================================ */
 
-let base: Base;
+let base: Db;
 let app: FastifyInstance;
 
 async function compte(pseudo: string) {
-  const personne = await depot.creerPersonne(base, pseudo);
-  const secret = await depot.ouvrirSession(base, personne.id);
+  const personne = await depot.createPerson(base, pseudo);
+  const secret = await depot.openSession(base, personne.id);
   return { personne, cookie: `session=${secret}` };
 }
 
@@ -32,13 +32,13 @@ const echo = (cookie: string, tmdbId = "550") =>
   app.inject({ method: "GET", url: `/oeuvres/${tmdbId}`, headers: { cookie } });
 
 beforeEach(async () => {
-  base = await baseDEssai();
-  app = await appDEssai(base);
+  base = await testDb();
+  app = await testApp(base);
 });
 
 afterEach(async () => {
   await app.close();
-  await base.fermer();
+  await base.close();
 });
 
 describe("l'écho d'une œuvre", () => {
@@ -351,7 +351,7 @@ describe("signaler", () => {
     expect(deux.statusCode).toBe(200);
     expect(deux.json().note).toBe(true);
 
-    const lignes = await base.requete<{ motif: string; vise_id: string }>(
+    const lignes = await base.query<{ motif: string; vise_id: string }>(
       "SELECT motif, vise_id FROM signalement"
     );
     expect(lignes).toHaveLength(1);
@@ -392,6 +392,6 @@ describe("signaler", () => {
     });
 
     await app.inject({ method: "DELETE", url: "/mon-compte", headers: { cookie: lui.cookie } });
-    expect(await base.requete("SELECT 1 FROM signalement")).toHaveLength(0);
+    expect(await base.query("SELECT 1 FROM signalement")).toHaveLength(0);
   });
 });
