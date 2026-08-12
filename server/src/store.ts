@@ -57,7 +57,7 @@ export async function createPerson(db: Db, pseudo: string): Promise<Person> {
   return p;
 }
 
-/** Le droit à l'effacement, en une ligne : le schéma emporte le reste. */
+/** The right to erasure, in one line: the schema carries off the rest. */
 export async function deletePerson(db: Db, id: string): Promise<void> {
   await db.query("DELETE FROM personne WHERE id = $1", [id]);
 }
@@ -131,9 +131,9 @@ export async function consumeChallenge(
   db: Db,
   id: string
 ): Promise<{ valeur: string; personne_id: string | null; pseudo: string | null } | null> {
-  /* Lecture et suppression dans la MÊME requête : entre un SELECT et un
-     DELETE séparés, deux requêtes simultanées peuvent consommer le même
-     défi. `DELETE … RETURNING` ne laisse pas cet intervalle. */
+  /* Read and delete in the SAME statement: between a separate SELECT and
+     DELETE, two simultaneous requests can consume the same challenge.
+     `DELETE … RETURNING` leaves no such gap. */
   return one(
     db,
     "DELETE FROM defi WHERE id = $1 AND expire_le > now() RETURNING valeur, personne_id, pseudo",
@@ -198,16 +198,16 @@ export interface StoredCard {
 }
 
 /**
- * Ce qui a bougé depuis un rang, dans l'ordre d'arrivée au serveur.
+ * What has moved since a given rank, in the order it reached the server.
  *
- * PAS DEPUIS UNE DATE : les dates viennent des clients, dont les
- * horloges divergent. Un appareil en retard rangerait ses fiches
- * « avant » le curseur des autres, qui ne les verraient jamais. Le rang,
- * lui, est donné par le serveur et ne recule pas.
+ * NOT SINCE A DATE: dates come from the clients, whose clocks drift. A
+ * device running late would file its cards "before" everybody else's
+ * cursor, and they would never see them. The rank is given by the server
+ * and never goes back.
  *
- * Le plafond est là parce qu'une première synchronisation peut ramener
- * une collection entière : mieux vaut plusieurs pages qu'une réponse de
- * trente mégaoctets qui expire en chemin.
+ * The ceiling is there because a first synchronisation can bring back a
+ * whole collection: several pages beat a thirty-megabyte response that
+ * times out on the way.
  */
 export async function cardsSince(
   db: Db,
@@ -226,12 +226,11 @@ export async function cardsSince(
 /**
  * Range une fiche venue d'un appareil.
  *
- * LE DERNIER ÉCRIVAIN GAGNE, ET C'EST LA BASE QUI EN DÉCIDE. La clause
- * `WHERE fiche.maj_le < EXCLUDED.maj_le` refuse une version plus
- * ancienne que celle déjà rangée : deux appareils qui poussent en même
- * temps ne peuvent pas se doubler, quel que soit l'ordre d'arrivée.
- * Arbitrer côté serveur en lisant puis en écrivant laisserait
- * exactement cet intervalle-là.
+ * LAST WRITER WINS, AND IT IS THE DATABASE THAT DECIDES. The clause
+ * `WHERE fiche.maj_le < EXCLUDED.maj_le` refuses a version older than
+ * the one already stored: two devices pushing at the same time cannot
+ * overtake each other, whatever order they arrive in. Arbitrating on the
+ * server by reading and then writing would leave exactly that gap.
  */
 export async function storeCard(
   db: Db,
@@ -245,10 +244,10 @@ export async function storeCard(
     supprimee?: boolean;
   }
 ): Promise<boolean> {
-  /* `RETURNING` ne rend une ligne QUE si l'insertion ou la mise à jour a
-     eu lieu : quand la clause `WHERE` écarte une version périmée, il ne
-     rend rien. C'est ainsi que l'appelant apprend qu'il a poussé dans le
-     vide — sans seconde requête, et sans intervalle entre les deux. */
+  /* `RETURNING` returns a row ONLY if the insert or the update actually
+     happened: when the `WHERE` clause rules out a stale version, it
+     returns nothing. That is how the caller learns it pushed into the
+     void — with no second query, and no gap between the two. */
   const ecrite = await db.query(
     /* ON PASSE L'OBJET, JAMAIS SA SÉRIALISATION, et ce n'est pas un
        détail de style.
@@ -406,9 +405,9 @@ export interface PublicCard {
 /**
  * La collection d'une personne, vue du dehors.
  *
- * `null` si elle ne partage pas, ou si le jeton ne correspond pas. Le
- * même `null` dans les deux cas : dire « ce compte existe mais ne
- * partage pas » renseignerait sur qui est inscrit.
+ * `null` if they do not share, or if the token does not match. The SAME
+ * `null` in both cases: saying "this account exists but does not share"
+ * would tell you who is registered.
  */
 export async function publicCollectionOf(
   db: Db,
@@ -418,7 +417,7 @@ export async function publicCollectionOf(
   const p = await findByPseudo(db, pseudo);
   if (!p) return null;
   if (p.partage === "publique") {
-    /* rien à vérifier */
+    /* nothing to check */
   } else if (p.partage === "lien") {
     if (!jeton || !p.jeton || jeton !== p.jeton) return null;
   } else {
@@ -450,7 +449,7 @@ export async function hideCard(
   return r.length > 0;
 }
 
-/** Les fiches écartées du partage. Des identifiants, rien de plus. */
+/** The cards kept out of sharing. Identifiers, nothing more. */
 export async function hiddenCards(db: Db, personneId: string): Promise<string[]> {
   const r = await db.query<{ id: string }>(
     "SELECT id FROM fiche WHERE personne_id = $1 AND cachee AND NOT supprimee",
@@ -465,20 +464,19 @@ export async function hiddenCards(db: Db, personneId: string): Promise<string[]>
 
 export interface Profile {
   pseudo: string;
-  /** Combien de films sa collection montre. */
+  /** How many films their collection shows. */
   films: number;
-  /** Est-ce que je le suis déjà ? */
+  /** Am I already following them? */
   suivi?: boolean;
 }
 
 /**
  * Le profil de quelqu'un — et il n'existe QUE s'il se montre.
  *
- * On ne peut donc trouver que des gens qui ont choisi d'être
- * trouvables : pas d'annuaire, pas de liste, et un pseudonyme deviné au
- * hasard ne dit rien de plus qu'un pseudonyme inventé. Le partage par
- * lien n'ouvre pas de profil : un lien se donne à quelqu'un, il ne rend
- * pas public.
+ * So you can only find people who chose to be findable: no directory, no
+ * list, and a username guessed at random tells you nothing more than an
+ * invented one. Sharing by link does not open a profile: a link is given
+ * to somebody, it does not make you public.
  */
 export async function publicProfileOf(
   db: Db,
@@ -522,8 +520,8 @@ const PAS_BLOQUE = (moi: string, lui: string) =>
                    OR (b.bloqueur_id = ${lui} AND b.bloque_id = ${moi}))`;
 
 export async function follow(db: Db, suiveur: string, suivi: string): Promise<void> {
-  /* `ON CONFLICT DO NOTHING` : suivre deux fois est le même geste, et
-     doit répondre la même chose. */
+  /* `ON CONFLICT DO NOTHING`: following twice is the same gesture, and
+     must answer the same thing. */
   await db.query(
     "INSERT INTO abonnement (suiveur_id, suivi_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
     [suiveur, suivi]
@@ -561,17 +559,17 @@ export interface FeedItem {
 }
 
 /**
- * Le fil : ce que les gens suivis ont touché récemment.
+ * The feed: what the people you follow have touched recently.
  *
- * CE QU'IL DIT, ET CE QU'IL NE PRÉTEND PAS DIRE. Le serveur ne garde
- * aucune histoire : il sait qu'une fiche a bougé, pas ce qui a changé
- * dedans. Le fil montre donc des films récemment touchés, avec la note
- * et la critique du moment — et n'écrit jamais « a noté 4 étoiles »,
- * ce qu'il serait incapable de prouver.
+ * WHAT IT SAYS, AND WHAT IT DOES NOT CLAIM TO SAY. The server keeps no
+ * history: it knows a card moved, not what changed inside it. So the feed
+ * shows films recently touched, with the rating and review of the moment
+ * — and never writes "rated it 4 stars", which it would be unable to
+ * prove.
  *
- * Il se calcule à la lecture, sans table de fil. Pour quelques dizaines
- * d'abonnements, l'index `fiche_suite` suffit largement ; le jour où il
- * ne suffira plus, ce sera un vrai problème d'échelle, et pas avant.
+ * It is computed on read, with no feed table. For a few dozen
+ * subscriptions the `fiche_suite` index is plenty; the day it is not,
+ * that will be a real problem of scale, and not before.
  */
 export async function feedOf(
   db: Db,
@@ -611,7 +609,7 @@ export interface Review {
 export interface Echo {
   /** Combien de collections publiques rangent cette œuvre. */
   collections: number;
-  /** La moyenne des notes posées, ou `null` si personne n'a noté. */
+  /** The mean of the ratings given, or `null` if nobody rated. */
   moyenne: number | null;
   notes: number;
   avis: Review[];
@@ -630,14 +628,14 @@ const NOTE = `CASE WHEN f.donnees->>'rating' ~ '^[0-9]+(\\.[0-9]+)?$'
  * Ce que les collections publiques disent d'une œuvre.
  *
  * LA CLÉ EST `tmdb_id`, ET C'EST LA SEULE POSSIBLE. Deux personnes qui
- * rangent le même film ont deux fiches, deux identifiants, souvent deux
- * titres — l'identité de l'œuvre ne peut venir que de la référence
- * commune. Une fiche saisie à la main, sans `tmdb_id`, ne rejoint donc
- * aucun écho : elle n'existe que chez elle, et c'est cohérent.
+ * file the same film have two cards, two identifiers, often two titles —
+ * the work's identity can only come from the shared reference. A card
+ * typed by hand, with no `tmdb_id`, therefore joins no echo: it exists
+ * only at home, and that is consistent.
  *
- * `quiDemande` sert à deux choses et pas une : écarter les gens bloqués,
- * et s'écarter soi-même — lire son propre avis dans « ce que les autres
- * en pensent » donnerait une moyenne à laquelle on aurait voté deux fois.
+ * `quiDemande` serves two purposes and not one: ruling out blocked
+ * people, and ruling out yourself — reading your own review under "what
+ * others think of it" would give a mean you had voted in twice.
  */
 export async function echoOfWork(
   db: Db,
@@ -689,7 +687,7 @@ export async function echoOfWork(
    SE PROTÉGER : bloquer, signaler
    ------------------------------------------------------------ */
 
-/** Y a-t-il un blocage entre ces deux-là, dans un sens ou dans l'autre ? */
+/** Is there a block between these two, in either direction? */
 export async function blockedIds(db: Db, un: string, autre: string): Promise<boolean> {
   const r = await db.query(
     `SELECT 1 FROM blocage
@@ -702,10 +700,10 @@ export async function blockedIds(db: Db, un: string, autre: string): Promise<boo
 /**
  * Bloquer quelqu'un.
  *
- * ET DÉFAIRE LES ABONNEMENTS DES DEUX CÔTÉS, dans la foulée. Bloquer en
- * restant abonné laisserait un lien mort dans sa propre liste, et
- * surtout laisserait l'autre inscrit dans un fil qu'il ne verra plus
- * jamais bouger — un état que rien ne rattrape si l'on débloque un jour.
+ * AND UNDO THE SUBSCRIPTIONS ON BOTH SIDES, in the same breath. Blocking
+ * while staying subscribed would leave a dead link in your own list, and
+ * above all would leave the other subscribed to a feed they will never
+ * see move again — a state nothing puts right if you unblock one day.
  */
 export async function block(db: Db, bloqueur: string, bloque: string): Promise<void> {
   await db.query(
@@ -726,7 +724,7 @@ export async function unblock(db: Db, bloqueur: string, bloque: string): Promise
   ]);
 }
 
-/** Qui J'AI bloqué — jamais qui m'a bloqué : cela ne se demande pas. */
+/** Whom I HAVE blocked — never who blocked me: that is not askable. */
 export async function myBlocks(db: Db, personneId: string): Promise<string[]> {
   const r = await db.query<{ pseudo: string }>(
     `SELECT p.pseudo FROM blocage b JOIN personne p ON p.id = b.bloque_id
@@ -739,9 +737,9 @@ export async function myBlocks(db: Db, personneId: string): Promise<string[]> {
 /**
  * Signaler quelque chose.
  *
- * Rend `false` si c'était déjà signalé par la même personne : le geste
- * est le même, et une file de modération qu'un humain devra lire ne
- * doit pas enfler à chaque clic répété.
+ * Returns `false` if the same person had already reported it: the
+ * gesture is the same, and a moderation queue a human will have to read
+ * must not swell with every repeated click.
  */
 export async function report(
   db: Db,
@@ -776,7 +774,7 @@ export interface ListRow {
   proprietaire: string;
   /** Combien d'œuvres. */
   oeuvres: number;
-  /** Suis-je le propriétaire, et puis-je écrire dedans ? */
+  /** Am I the owner, and may I write in it? */
   mienne?: boolean;
   membre?: boolean;
 }
@@ -798,12 +796,12 @@ export interface Rights {
 }
 
 /**
- * Les droits de quelqu'un sur une liste, en une requête.
+ * Somebody's rights over a list, in one query.
  *
- * TROIS NIVEAUX ET NON DEUX, parce que co-construire n'est pas posséder.
+ * THREE LEVELS AND NOT TWO, because co-building is not owning.
  * Un membre ajoute et retire des œuvres ; il ne renomme pas la liste, ne
- * la rend pas publique et ne l'efface pas. Sans cette asymétrie, une
- * liste à six mains n'a plus personne pour en répondre.
+ * does not make it public and does not delete it. Without that
+ * asymmetry, a list built by six hands has nobody left answering for it.
  */
 export async function rightsOnList(
   db: Db,
@@ -829,7 +827,7 @@ export async function rightsOnList(
   };
 }
 
-/** Mes listes, et celles où l'on m'a laissé écrire. */
+/** My lists, and those I have been allowed to write in. */
 export async function myLists(db: Db, personneId: string): Promise<ListRow[]> {
   return db.query<ListRow>(
     `SELECT l.id, l.titre, l.intention, l.publique,
@@ -903,7 +901,7 @@ export async function worksOf(db: Db, listeId: string): Promise<WorkRow[]> {
   );
 }
 
-/** Rend `false` si l'œuvre y était déjà : le même geste, la même réponse. */
+/** Returns `false` if the work was already there: same gesture, same answer. */
 export async function addToList(
   db: Db,
   listeId: string,
@@ -1004,10 +1002,10 @@ export interface Progress {
 }
 
 /**
- * Les défis que je peux voir : les miens, ceux que j'ai rejoints, et
- * ceux bâtis sur une liste publique de quelqu'un que je suis.
+ * The challenges I can see: mine, those I have joined, and those built
+ * on a public list belonging to somebody I follow.
  *
- * PAS D'ANNUAIRE DE DÉFIS, pour la même raison qu'il n'y a pas
+ * NO DIRECTORY OF CHALLENGES, for the same reason there is no
  * d'annuaire de gens : une liste de tout ce qui se joue ferait de ce
  * classeur une place publique, ce qu'il n'est pas.
  */
@@ -1060,7 +1058,8 @@ export async function createChallenge(
     "INSERT INTO epreuve (id, liste_id, cree_par, titre, debut, fin) VALUES ($1, $2, $3, $4, $5, $6)",
     [id, e.listeId, parQui, e.titre, e.debut, e.fin]
   );
-  /* Qui lance un défi y participe : l'inverse — un organisateur qui
+  /* Whoever starts a challenge takes part in it: the opposite — an
+     organiser who
      regarde les autres courir — n'est pas ce que ces gens-là font. */
   await joinChallenge(db, id, parQui);
   return id;
@@ -1084,7 +1083,7 @@ export async function leaveChallenge(db: Db, epreuveId: string, personneId: stri
   ]);
 }
 
-/** Où en est chacun — un nombre par participant, et rien de plus. */
+/** Where each of them stands — one number per participant, nothing more. */
 export async function progressOf(db: Db, epreuveId: string): Promise<Progress[]> {
   return db.query<Progress>(
     `SELECT pe.pseudo,
@@ -1116,12 +1115,12 @@ export async function listById(db: Db, id: string): Promise<ListRow | null> {
    ------------------------------------------------------------ */
 
 /**
- * Compte un geste, pour la journée en cours.
+ * Counts one gesture, for the current day.
  *
- * AUCUN IDENTIFIANT NE TRAVERSE CETTE FONCTION, et c'est sa signature
- * qui le garantit : elle ne prend qu'un mot. On ne peut donc pas, même
- * par distraction, lui passer un compte ou une adresse — il n'y a pas
- * de paramètre pour les recevoir.
+ * NO IDENTIFIER PASSES THROUGH THIS FUNCTION, and it is its signature
+ * that guarantees it: it takes one word only. So one cannot, even
+ * absent-mindedly, hand it an account or an address — there is no
+ * parameter to receive them.
  */
 export async function countGesture(db: Db, geste: string): Promise<void> {
   await db.query(
@@ -1159,7 +1158,7 @@ export async function storePush(
   personneId: string,
   p: { point: string; p256dh: string; secret: string }
 ): Promise<void> {
-  /* Le même appareil qui se réabonne remplace sa ligne — et change de
+  /* The same device subscribing again replaces its row — and changes
      propriétaire si quelqu'un d'autre s'est connecté sur ce navigateur.
      Sans cela, un ordinateur partagé pousserait les rappels d'une
      personne à une autre. */
@@ -1185,11 +1184,11 @@ export async function pushesOf(db: Db, personneId: string): Promise<PushRow[]> {
 }
 
 /**
- * Note qu'un rappel a été dit, et rend `false` s'il l'avait déjà été.
+ * Records that a reminder was given, and returns `false` if it already had been.
  *
- * L'INSERTION EST LE VERROU. Vérifier puis écrire laisserait deux
- * balayages simultanés — un redémarrage pendant un envoi — passer tous
- * les deux. Une notification en double est la façon la plus rapide de
+ * THE INSERT IS THE LOCK. Checking and then writing would let two
+ * simultaneous sweeps — a restart in the middle of a send — both through.
+ * A duplicate notification is the quickest way to
  * faire couper les notifications.
  */
 export async function reminderIsNew(db: Db, personneId: string, subject: string): Promise<boolean> {
@@ -1202,11 +1201,11 @@ export async function reminderIsNew(db: Db, personneId: string, subject: string)
 }
 
 /**
- * Les défis qui commencent ou s'achèvent aujourd'hui, et qui y participe.
+ * The challenges starting or ending today, and who takes part in them.
  *
- * C'est le SEUL prétexte à notification de tout ce serveur. Il n'y en
- * aura pas d'autre sans une bonne raison : une application qui trouve
- * des motifs de sonner finit désinstallée.
+ * This is the ONLY pretext for a notification in this whole server.
+ * There will be no other without a good reason: an application that
+ * finds itself reasons to ring ends up uninstalled.
  */
 export async function remindersDueToday(
   db: Db

@@ -30,41 +30,40 @@ import { publicKeyForPush, pushAvailable, remindChallenges } from "./push.ts";
 
 export interface Settings {
   db: Db;
-  /** Le domaine que les clés d'accès signeront. `localhost` en développement. */
+  /** The domain the passkeys will sign for. `localhost` in development. */
   domain: string;
   /**
-   * Les origines du client, séparées par des virgules.
+   * The client's origins, comma-separated.
    *
-   * PLUSIEURS, PARCE QU'IL Y EN A PLUSIEURS EN VRAI : le serveur de
-   * développement (5173) et l'aperçu de la version construite (4173)
-   * ne sont pas la même origine, et l'on veut essayer la PWA contre le
-   * même serveur. La PREMIÈRE sert de référence aux clés d'accès —
-   * une clé signée pour une origine ne vaut rien sur une autre.
+   * SEVERAL, BECAUSE THERE REALLY ARE SEVERAL: the development server
+   * (5173) and the preview of the built version (4173) are not the same
+   * origin, and we want to try the PWA against the same server. The
+   * FIRST one is the reference for the passkeys — a key signed for one
+   * origin is worth nothing on another.
    */
   origin: string;
-  /** Cookies `Secure` : faux en développement, où il n'y a pas de HTTPS. */
+  /** `Secure` cookies: false in development, where there is no HTTPS. */
   secure?: boolean;
   /**
-   * La clé TMDB, si l'on en a une de ce côté-ci.
+   * The TMDB key, if there is one on this side.
    *
-   * Absente, le relais répond « pas de service » et le classeur continue
-   * d'utiliser celle que la personne a saisie chez elle. C'est
-   * volontairement dégradable : le serveur est un confort, pas une
-   * condition d'usage.
+   * Missing, the relay answers "no service" and the binder goes on using
+   * the one the person typed in at home. This is deliberately
+   * degradable: the server is a comfort, not a condition of use.
    */
   tmdbKey?: string;
   /**
-   * Requêtes TMDB par minute et par adresse, pour le relais seul.
+   * TMDB requests per minute per address, for the relay alone.
    *
-   * Le plafond général du serveur — cent par minute — vise les routes
-   * qui écrivent. Le relais, lui, sert un travail long et légitime :
-   * remplir trois cents fiches en demande trois cents. Voir
-   * `PLAFOND_TMDB_DEFAUT` dans `relais.ts`.
+   * The server's general ceiling — a hundred a minute — targets the
+   * routes that write. The relay serves a long and legitimate job:
+   * filling three hundred cards asks for three hundred. See
+   * `DEFAULT_TMDB_CEILING` in `relay.ts`.
    */
   tmdbCeiling?: number;
   /**
-   * Ouvre `POST /dev/session`, qui crée un compte et une session sans
-   * clé d'accès. Jamais vrai en production — voir `index.ts`.
+   * Opens `POST /dev/session`, which creates an account and a session
+   * with no passkey. Never true in production — see `index.ts`.
    */
   devDoor?: boolean;
 }
@@ -77,9 +76,9 @@ const COOKIE = "session";
    erreur de base de données. */
 const PSEUDO_OK = /^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])$/;
 
-/* Les listes et les défis sont nommés par le SERVEUR, en UUID : une
-   route qui passerait n'importe quel texte à une colonne `uuid` répond
-   500 sur une adresse mal tapée, là où 404 est la vérité. */
+/* Lists and challenges are named by the SERVER, as UUIDs: a route that
+   handed any text at all to a `uuid` column answers 500 on a mistyped
+   address, where 404 is the truth. */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const JOUR = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -159,9 +158,9 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
   app.addHook("onResponse", async (req, reply) => {
     const chemin = req.routeOptions?.url;
     if (!chemin) return;
-    /* Une écriture par requête serait payer la mesure plus cher que le
-       service. Les échecs ne comptent pas non plus : ce sont des
-       incidents, et le journal du serveur est là pour eux. */
+    /* One write per request would make the measurement cost more than
+       the service. Failures do not count either: those are incidents, and
+       the server log is there for them. */
     if (reply.statusCode >= 400) return;
     store.countGesture(db, `${req.method} ${chemin}`).catch(() => {});
   });
@@ -204,10 +203,10 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
       rpName: "Ciné Hub",
       rpID: domain,
       userName: nom,
-      /* PAS DE CLÉ RÉSIDENTE IMPOSÉE, mais préférée : c'est elle qui
-         permet de se connecter sans taper son pseudonyme. « Preferred »
-         plutôt que « required » pour ne pas fermer la porte aux
-         authentificateurs qui n'en font pas. */
+      /* NO RESIDENT KEY REQUIRED, but preferred: it is what lets you
+         sign in without typing your username. "Preferred" rather than
+         "required" so as not to shut the door on authenticators that do
+         not make them. */
       authenticatorSelection: { residentKey: "preferred", userVerification: "preferred" },
       attestationType: "none",
     });
@@ -231,9 +230,9 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
       return reply.code(400).send({ erreur: "Cette clé n'a pas pu être vérifiée." });
     }
 
-    /* La course entre deux inscriptions du même pseudonyme se joue ici :
-       c'est la contrainte d'unicité de la base qui tranche, pas notre
-       vérification d'il y a trois lignes. */
+    /* The race between two registrations of the same username is settled
+       here: it is the database's uniqueness constraint that decides, not
+       our check three lines ago. */
     let personne;
     try {
       personne = await store.createPerson(db, attendu.pseudo);
@@ -263,10 +262,10 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     const nom = (pseudo || "").trim().toLowerCase();
     const personne = nom ? await store.findByPseudo(db, nom) : null;
 
-    /* UN PSEUDONYME INCONNU REÇOIT LA MÊME RÉPONSE QU'UN CONNU. Répondre
-       « ce compte n'existe pas » ferait de cette route un annuaire :
-       n'importe qui pourrait savoir qui est inscrit. On propose donc la
-       cérémonie dans tous les cas, et c'est la signature qui échouera. */
+    /* AN UNKNOWN USERNAME GETS THE SAME ANSWER AS A KNOWN ONE. Answering
+       "this account does not exist" would make this route a directory:
+       anybody could learn who is registered. So we offer the ceremony in
+       every case, and it is the signature that will fail. */
     const cles = personne ? await store.keysOf(db, personne.id) : [];
     const options = await generateAuthenticationOptions({
       rpID: domain,
@@ -344,17 +343,17 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     }
 
     const fiches = await store.cardsSince(db, personne.id, rang);
-    /* `jusqua` EST UN RANG, PAS UNE HEURE. C'est le numéro d'ordre de la
-       dernière fiche rendue : le client le renvoie tel quel au prochain
-       tirage, et n'a aucune horloge à comparer avec le serveur.
+    /* `jusqua` IS A RANK, NOT A TIME. It is the sequence number of the
+       last card returned: the client sends it back as it is on the next
+       pull, and has no clock to compare with the server's.
 
-       Sans fiche, on rend le rang demandé — surtout pas zéro, qui
-       ferait tout retélécharger au prochain passage. */
+       With no card, we return the rank asked for — certainly not zero,
+       which would re-download everything on the next pass. */
     const jusqua = fiches.length ? Number(fiches[fiches.length - 1]!.seq) : rang;
     return {
       jusqua,
-      /* Il en reste : le client rappellera avec le nouveau rang plutôt
-         que de croire qu'il a tout. */
+      /* There is more: the client will call again with the new rank
+         rather than believe it has everything. */
       encore: fiches.length === 500,
       fiches: fiches.map((f) => ({
         id: f.id,
@@ -408,10 +407,10 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
       if (ecrite) rangees += 1;
       else perimees += 1;
     }
-    /* PAS DE `jusqua` ICI : un envoi ne dit pas où en est la lecture.
-       Le rang du client n'avance qu'au tirage, qui seul sait ce qu'il a
-       vraiment reçu — et repasser par là fait entrer les fiches des
-       autres appareils au passage. */
+    /* NO `jusqua` HERE: a push says nothing about where reading has got
+       to. The client's rank only advances on a pull, which alone knows
+       what it really received — and going back through it brings in the
+       other devices' cards on the way. */
     return { rangees, perimees, illisibles };
   });
 
@@ -564,12 +563,13 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     const { pseudo } = req.params as { pseudo: string };
     if (!PSEUDO_OK.test(pseudo || "")) return reply.code(404).send({ erreur: "Personne." });
 
-    /* On lit la session sans l'exiger : connecté, on saura si l'on suit
-       déjà ; sinon le profil se consulte quand même. */
+    /* We read the session without requiring it: signed in, we will know
+       whether we already follow; otherwise the profile is still
+       readable. */
     const moi = await whoIs(req);
     const profil = await store.publicProfileOf(db, pseudo.toLowerCase(), moi?.id);
-    /* MÊME RÉPONSE POUR « N'EXISTE PAS » ET « NE SE MONTRE PAS ». On ne
-       peut trouver que des gens qui ont choisi d'être trouvables. */
+    /* THE SAME ANSWER FOR "DOES NOT EXIST" AND "DOES NOT SHOW". You can
+       only find people who chose to be findable. */
     if (!profil) return reply.code(404).send({ erreur: "Personne." });
     return profil;
   });
@@ -601,8 +601,9 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     const personne = await requireAccount(req);
     const { pseudo } = req.params as { pseudo: string };
     const vise = await store.findByPseudo(db, (pseudo || "").toLowerCase());
-    /* Se désabonner de quelqu'un qui s'est refermé doit RESTER possible :
-       on ne passe donc pas par le profil public, qui n'existerait plus. */
+    /* Unfollowing somebody who has closed up must STAY possible: so we
+       do not go through the public profile, which would no longer
+       exist. */
     if (vise) await store.unfollow(db, personne.id, vise.id);
     return reply.send({ pseudo, suivi: false });
   });
@@ -617,8 +618,8 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
 
     const nouvelles = await store.feedOf(db, personne.id, borne);
     return {
-      /* Le rang de la dernière nouvelle rendue : le client le renvoie
-         pour lire la suite, sans se demander l'heure qu'il est. */
+      /* The rank of the last item returned: the client sends it back to
+         read on, without wondering what time it is. */
       jusqua: nouvelles.length ? Number(nouvelles[nouvelles.length - 1]!.seq) : null,
       nouvelles: nouvelles.map((n) => ({
         pseudo: n.pseudo,
@@ -639,11 +640,11 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
      dans les collections qu'ils ont choisi de rendre publiques. */
 
   app.get("/oeuvres/:tmdbId", async (req, reply) => {
-    /* UN COMPTE EST EXIGÉ, alors que la collection partagée n'en demande
-       pas. La différence : là-bas on ouvre la porte de quelqu'un qui
-       vous a donné son adresse ; ici on interroge tout le monde à la
-       fois. Ouvrir cela aux inconnus ferait de ce serveur un moissonneur
-       d'avis, et de chaque critique une donnée publiquement aspirable. */
+    /* AN ACCOUNT IS REQUIRED, whereas the shared collection asks for
+       none. The difference: over there you open the door of somebody who
+       gave you their address; here you question everybody at once.
+       Opening that to strangers would make this server a harvester of
+       reviews, and every review a publicly siphonable piece of data. */
     const personne = await requireAccount(req);
     const { tmdbId } = req.params as { tmdbId: string };
     if (!/^[0-9]{1,12}$/.test(tmdbId || "")) {
@@ -685,9 +686,9 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     const { pseudo } = req.params as { pseudo: string };
     const vise = await store.findByPseudo(db, (pseudo || "").toLowerCase());
     if (vise) await store.unblock(db, personne.id, vise.id);
-    /* Débloquer ne réabonne à personne : le lien a été défait, il se
-       refait à la main. Reconstituer un abonnement qu'on a coupé serait
-       décider à la place de quelqu'un. */
+    /* Unblocking re-subscribes nobody: the link was undone, it is redone
+       by hand. Rebuilding a subscription somebody cut would be deciding
+       on their behalf. */
     return reply.send({ pseudo, bloque: false });
   });
 
@@ -725,7 +726,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
      voudrait rien dire chez un autre et se viderait le jour où son
      auteur efface une fiche. */
 
-  /** Les droits sur une liste, ou la réponse déjà prête pour un refus. */
+  /** The rights over a list, or the refusal already made ready. */
   const droitsOu404 = async (req: FastifyRequest, reply: FastifyReply, personneId: string) => {
     const { id } = req.params as { id: string };
     if (!UUID.test(id || "")) {
@@ -733,9 +734,9 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
       return null;
     }
     const droits = await store.rightsOnList(db, id, personneId);
-    /* PAS DE 403 : une liste qu'on n'a pas le droit de lire répond
-       comme une liste qui n'existe pas. Distinguer dirait à un inconnu
-       que tel identifiant désigne quelque chose. */
+    /* NO 403: a list you have no right to read answers like a list that
+       does not exist. Telling them apart would tell a stranger that a
+       given identifier designates something. */
     if (!droits?.lire) {
       reply.code(404).send({ erreur: "Liste inconnue." });
       return null;
@@ -776,9 +777,9 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     return {
       liste: { ...liste, mienne: droits.administrer, membre: droits.ecrire },
       oeuvres: await store.worksOf(db, droits.liste_id),
-      /* Les co-constructeurs ne se montrent qu'à ceux qui écrivent
-         dedans : un visiteur d'une liste publique lit des films, pas la
-         liste des gens qui la tiennent. */
+      /* The co-builders only show themselves to those who write in it: a
+         visitor to a public list reads films, not the list of the people
+         who keep it. */
       membres: droits.ecrire ? await store.membersOf(db, droits.liste_id) : [],
     };
   });
@@ -787,10 +788,9 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     const personne = await requireAccount(req);
     const droits = await droitsOu404(req, reply, personne.id);
     if (!droits) return reply;
-    /* RENOMMER, PUBLIER, EFFACER : le propriétaire seul. Co-construire
-       est un droit d'écriture, pas une propriété partagée — sans cette
-       asymétrie, une liste à six mains n'a plus personne pour en
-       répondre. */
+    /* RENAME, PUBLISH, DELETE: the owner alone. Co-building is a right
+       to write, not shared ownership — without that asymmetry, a list
+       built by six hands has nobody left answering for it. */
     if (!droits.administrer)
       return reply.code(403).send({ erreur: "Cette liste n'est pas vôtre." });
 
@@ -882,9 +882,8 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     const { pseudo } = req.params as { pseudo: string };
     const vise = await store.findByPseudo(db, (pseudo || "").toLowerCase());
     if (!vise) return reply.code(404).send({ erreur: "Personne." });
-    /* Le propriétaire renvoie qui il veut ; un membre ne peut renvoyer
-       que lui-même. Partir d'une liste ne demande la permission de
-       personne. */
+    /* The owner can remove whoever they like; a member can only remove
+       themselves. Leaving a list asks nobody's permission. */
     if (!droits.administrer && vise.id !== personne.id) {
       return reply.code(403).send({ erreur: "Cette liste n'est pas vôtre." });
     }
@@ -918,9 +917,9 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     if (!JOUR.test(debut || "") || !JOUR.test(fin || "") || fin! < debut!) {
       return reply.code(400).send({ erreur: "Deux dates, et la fin après le début." });
     }
-    /* On ne bâtit un défi que sur une liste où l'on écrit : sinon
-       n'importe qui lance un défi sur la liste publique d'un inconnu,
-       qui le verrait apparaître sans l'avoir voulu. */
+    /* A challenge is only built on a list you write in: otherwise
+       anybody starts a challenge on a stranger's public list, and they
+       would see it appear without having wanted it. */
     const droits = UUID.test(listeId || "")
       ? await store.rightsOnList(db, listeId!, personne.id)
       : null;
@@ -940,8 +939,8 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     const { id } = req.params as { id: string };
     const defi = UUID.test(id || "") ? await store.challengeById(db, id) : null;
     if (!defi) return reply.code(404).send({ erreur: "Défi inconnu." });
-    /* Le droit de voir un défi est celui de voir sa liste : il n'y a
-       pas deux confidentialités à tenir d'accord. */
+    /* The right to see a challenge is the right to see its list: there
+       are not two confidentialities to keep in agreement. */
     const droits = await store.rightsOnList(db, defi.liste_id, personne.id);
     if (!droits?.lire) return reply.code(404).send({ erreur: "Défi inconnu." });
 
@@ -982,22 +981,22 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     const personne = await requireAccount(req);
     const { id } = req.params as { id: string };
     if (!UUID.test(id || "")) return reply.code(404).send({ erreur: "Défi inconnu." });
-    /* Partir se fait TOUJOURS, sans vérifier qu'on avait le droit
-       d'entrer : quelqu'un dont la liste s'est refermée doit pouvoir
-       sortir d'un décompte qui le mesure encore. */
+    /* Leaving ALWAYS works, with no check that you had the right to come
+       in: somebody whose list has closed up must be able to get out of a
+       count that still measures them. */
     await store.leaveChallenge(db, id, personne.id);
     return { dedans: false };
   });
 
   /* ------------------------------------------------------------
-     CE QUI EST À SOI, ET LE DROIT DE PARTIR
+     WHAT IS YOURS, AND THE RIGHT TO LEAVE
      ------------------------------------------------------------ */
 
   app.get("/mes-donnees", async (req) => {
     const personne = await requireAccount(req);
-    /* Tout ce que le serveur détient de quelqu'un, dans un seul objet :
-       c'est ce que le règlement appelle la portabilité, et c'est surtout
-       la moindre des choses. */
+    /* Everything the server holds about somebody, in a single object:
+       it is what the regulation calls portability, and above all it is
+       the least we can do. */
     return {
       personne,
       fiches: await store.cardsSince(db, personne.id, 0, 100000),
@@ -1108,11 +1107,11 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
   const balai = setInterval(
     () => {
       store.sweepChallenges(db).catch(() => {});
-      /* LES RAPPELS PASSENT PAR LE MÊME BALAI, à l'heure : un défi qui
-         commence aujourd'hui est annoncé aujourd'hui, et la table des
-         rappels déjà dits empêche les vingt-trois autres passages de le
-         redire. Un vrai ordonnanceur serait une dépendance de plus pour
-         un serveur qui tourne sur une machine de bureau. */
+      /* THE REMINDERS GO THROUGH THE SAME SWEEP, on the hour: a
+         challenge starting today is announced today, and the table of
+         reminders already given stops the other twenty-three passes from
+         saying it again. A real scheduler would be one more dependency
+         for a server running on a desktop machine. */
       remindChallenges(db)
         .then(({ told }) => told && console.log(`  ${told} rappel(s) de défi envoyé(s)`))
         .catch((e) => console.error("rappels :", e));
