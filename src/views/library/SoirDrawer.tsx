@@ -20,7 +20,7 @@ import { Label, NoKey } from "../../components/ui";
 import { initialsOf } from "../../domain/film";
 import { MOTIFS, suggestMotifs } from "../../domain/motifs";
 import { rankTheEvening, listLanguages, SLOTS, type Craving } from "../../domain/tonight";
-import { nomLangue } from "../../noms";
+import { languageName } from "../../names";
 import { useTmdbKey } from "../../services/tmdbKey";
 import { fetchKeywords, pooled } from "../../tmdb";
 import type { Film } from "../../types";
@@ -246,7 +246,7 @@ export function SoirDrawer({
                     onClick={() => setLangues((l) => bascule(l, code))}
                     style={puce(langues.includes(code), C.moss)}
                   >
-                    {nomLangue(code)} · {n}
+                    {languageName(code)} · {n}
                   </button>
                 ))}
               </div>

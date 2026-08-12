@@ -54,7 +54,7 @@ import { hash, seededRand, tiltOf } from "../domain/seeded";
 import { CoffeeRing, InkUnderline, PushPin, StampCorner, Tape } from "../components/atmosphere";
 import { InkStars, Label, Tally } from "../components/ui";
 import { motifById } from "../domain/motifs";
-import { nomLangue, nomPays } from "../noms";
+import { languageName, countryName } from "../names";
 import type { Film } from "../types";
 
 const MOIS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
@@ -817,7 +817,7 @@ function PlancheGens({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (name: st
             </div>
             <div style={{ marginTop: 8 }}>
               <Palmares
-                items={g.countries.slice(0, 3).map((p) => ({ name: nomPays(p.name), n: p.n }))}
+                items={g.countries.slice(0, 3).map((p) => ({ name: countryName(p.name), n: p.n }))}
                 total={a.count}
                 ink={C.cobalt}
               />
@@ -828,7 +828,7 @@ function PlancheGens({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (name: st
                 <div style={{ fontFamily: F.body, fontSize: 12, color: C.ink }}>
                   {g.languages
                     .slice(0, 4)
-                    .map((l) => nomLangue(l.name))
+                    .map((l) => languageName(l.name))
                     .join(" · ")}
                 </div>
               </div>
@@ -1109,7 +1109,7 @@ export function AlmanacView({
           topDirector: a.topDirectors[0]?.name ?? null,
           minutes: a.screenTime.minutes,
           decade: a.decades.length ? a.decades.reduce((m, d) => (d.n > m.n ? d : m)).decade : null,
-          country: a.geography.countries[0] ? nomPays(a.geography.countries[0].name) : null,
+          country: a.geography.countries[0] ? countryName(a.geography.countries[0].name) : null,
           ageMoyen: a.age.mean,
         },
         peauPosée()

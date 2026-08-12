@@ -27,7 +27,7 @@ import { C, F } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { getTmdbKey } from "../../services/tmdbKey";
 import { getDetails, searchMovie } from "../../tmdb";
-import { nomLangue, nomPays } from "../../noms";
+import { languageName, countryName } from "../../names";
 import type { Film } from "../../types";
 
 /** Une ligne « intitulé → valeur », ou rien du tout si on ne sait pas. */
@@ -198,7 +198,7 @@ export function TmdbFacts({
     }
   };
 
-  const pays = (film.countries || []).map(nomPays).join(", ");
+  const pays = (film.countries || []).map(countryName).join(", ");
   const crew = film.crew || {};
   const cast = film.cast || [];
 
@@ -241,7 +241,7 @@ export function TmdbFacts({
 
       <Fait nom="DURÉE">{film.runtime != null ? `${film.runtime} min` : VIDE}</Fait>
       <Fait nom="PAYS">{pays || VIDE}</Fait>
-      <Fait nom="LANGUE">{film.language ? nomLangue(film.language) : VIDE}</Fait>
+      <Fait nom="LANGUE">{film.language ? languageName(film.language) : VIDE}</Fait>
       <Fait nom="NOTE TMDB">
         {film.tmdbRating != null ? `${film.tmdbRating.toFixed(1)} / 10` : VIDE}
       </Fait>

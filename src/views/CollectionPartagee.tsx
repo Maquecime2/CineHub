@@ -33,23 +33,23 @@ import { initialsOf as initialesDe } from "../domain/film";
    qu'un fragment ne quitte jamais le navigateur. C'est ce qui permet à
    un lien de fonctionner sans un octet de configuration côté
    hébergeur. */
-export interface Adresse {
+export interface Address {
   pseudo: string;
   jeton: string | null;
 }
 
-export function lireLAdresse(fragment: string = location.hash): Adresse | null {
+export function readAddress(fragment: string = location.hash): Address | null {
   const m = /^#\/chez\/([a-z0-9-]{3,30})(?:\?jeton=([A-Za-z0-9_-]+))?$/.exec(fragment.trim());
   return m ? { pseudo: m[1]!, jeton: m[2] ?? null } : null;
 }
 
-export function CollectionPartagee({ adresse }: { adresse: Adresse }) {
+export function CollectionPartagee({ address }: { address: Address }) {
   const [films, setFilms] = useState<SharedFilm[] | null>(null);
   const [souci, setSouci] = useState<string | null>(null);
 
   useEffect(() => {
     let vivant = true;
-    collectionOf(adresse.pseudo, adresse.jeton)
+    collectionOf(address.pseudo, address.jeton)
       .then((r) => vivant && setFilms(r.films))
       .catch((e) => {
         if (!vivant) return;
@@ -66,7 +66,7 @@ export function CollectionPartagee({ adresse }: { adresse: Adresse }) {
     return () => {
       vivant = false;
     };
-  }, [adresse.pseudo, adresse.jeton]);
+  }, [address.pseudo, address.jeton]);
 
   return (
     <div style={{ minHeight: "100vh", padding: "34px 20px 60px" }}>
@@ -83,7 +83,7 @@ export function CollectionPartagee({ adresse }: { adresse: Adresse }) {
               color: C.ink,
             }}
           >
-            La vidéothèque de {adresse.pseudo}
+            La vidéothèque de {address.pseudo}
           </h1>
         </div>
         <div style={{ fontFamily: F.hand, fontSize: 18, color: C.inkFaded, margin: "4px 0 26px" }}>

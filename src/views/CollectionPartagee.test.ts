@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { lireLAdresse } from "./CollectionPartagee";
+import { readAddress } from "./CollectionPartagee";
 
 /* L'ADDRESS D'UNE COLLECTION PARTAGÉE se lit dans le fragment, et le
    fragment vient du dehors : d'un lien collé, d'un message recopié à la
@@ -8,16 +8,16 @@ import { lireLAdresse } from "./CollectionPartagee";
 
 describe("lire l'adresse d'une collection", () => {
   it("reconnaît un pseudonyme", () => {
-    expect(lireLAdresse("#/chez/agnes-varda")).toEqual({ pseudo: "agnes-varda", jeton: null });
+    expect(readAddress("#/chez/agnes-varda")).toEqual({ pseudo: "agnes-varda", jeton: null });
   });
 
   it("reconnaît un lien secret", () => {
-    expect(lireLAdresse("#/chez/varda?jeton=aB3_-x")).toEqual({ pseudo: "varda", jeton: "aB3_-x" });
+    expect(readAddress("#/chez/varda?jeton=aB3_-x")).toEqual({ pseudo: "varda", jeton: "aB3_-x" });
   });
 
   it("ignore tout le reste : c'est le classeur qui s'ouvre", () => {
     for (const rien of ["", "#", "#/", "#/ailleurs", "#/chez/", "#/chez/ab", "#/chez/Varda"]) {
-      expect({ rien, lu: lireLAdresse(rien) }).toEqual({ rien, lu: null });
+      expect({ rien, lu: readAddress(rien) }).toEqual({ rien, lu: null });
     }
   });
 
@@ -32,7 +32,7 @@ describe("lire l'adresse d'une collection", () => {
       "#/chez/varda#autre",
       "#/chez/varda?autre=1",
     ]) {
-      expect({ tordu, lu: lireLAdresse(tordu) }).toEqual({ tordu, lu: null });
+      expect({ tordu, lu: readAddress(tordu) }).toEqual({ tordu, lu: null });
     }
   });
 });
