@@ -98,7 +98,7 @@ export function buildTaste(films = []) {
     spread,
     total: watched.length,
     rated: ratedN,
-    // au-dessous de quoi le profil ne dit rien de fiable
+    // below which the profile says nothing reliable
     isEmpty: watched.length < 3,
   };
 }

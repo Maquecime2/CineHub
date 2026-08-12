@@ -2,9 +2,10 @@ import { describe, it, expect } from "vitest";
 import { affinity, nicheFactors, nicheScore, rank, reasonsFor, DEFAULT_QUERY } from "./reco";
 import { buildTaste } from "./taste";
 
-/* Ces tests ne touchent jamais au réseau : `gatherCandidates` est la seule
-   fonction du module qui parle à TMDB, et c'est précisément pour pouvoir
-   éprouver le classement sans elle que les deux étages sont séparés. */
+/* These tests never touch the network: `gatherCandidates` is the only
+   function of the module that speaks to TMDB, and it is precisely so
+   that the ranking can be tested without it that the two floors are
+   kept apart. */
 
 const film = (over = {}) => ({
   id: Math.random().toString(36).slice(2),
@@ -18,8 +19,8 @@ const film = (over = {}) => ({
   ...over,
 });
 
-/* Un candidat tel qu'il sort de la récolte : genres déjà résolus en noms,
-   `sources` disant par quels chemins il est arrivé. */
+/* A candidate as it comes out of the harvest: genres already resolved
+   into names, `sources` saying by which paths it arrived. */
 const candidate = (over = {}) => ({
   tmdbId: Math.floor(Math.random() * 1e6),
   title: "Candidat",
@@ -32,7 +33,7 @@ const candidate = (over = {}) => ({
   ...over,
 });
 
-/* Une collection assez fournie pour que le profil ne soit pas « vide ». */
+/* A collection full enough for the profile not to be "empty". */
 const collection = (over = {}) => [
   film({ rating: 5, genres: ["Drame"], year: 2000, ...over }),
   film({ rating: 5, genres: ["Drame"], year: 2005, ...over }),
@@ -95,7 +96,7 @@ describe("affinity", () => {
         })),
       });
     expect(affinity(reco(2), taste)).toBeGreaterThan(affinity(reco(1), taste));
-    // 0,55 + 0,15 × n plafonne à 1 : au-delà de 3 sources le bonus ne bouge plus
+    // 0.55 + 0.15 × n tops out at 1: beyond 3 sources the bonus no longer moves
     expect(affinity(reco(9), taste)).toBeCloseTo(affinity(reco(3), taste));
   });
 
@@ -123,8 +124,8 @@ describe("nicheFactors", () => {
   });
 
   it("reste prudent sur une langue étrangère quand la collection n'en déclare aucune", () => {
-    // le cas courant des imports Letterboxd : sans langues connues, on s'en
-    // tient au fait brut « ce n'est pas de l'anglais »
+    // the common case of Letterboxd imports: with no known languages, we
+    // stick to the raw fact "this is not English"
     expect(taste.seenLanguages.size).toBe(0);
     expect(nicheFactors(candidate({ lang: "ja" }), taste).foreign).toBe(0.7);
   });
@@ -164,7 +165,7 @@ describe("nicheScore", () => {
   });
 
   it("renormalise quand on désactive un facteur", () => {
-    // seule l'obscurité reste : elle porte tout le score
+    // only obscurity remains: it carries the whole score
     expect(nicheScore(f, { obscurity: true, foreign: false, age: false })).toBe(1);
   });
 
@@ -219,9 +220,9 @@ describe("rank", () => {
   });
 
   it("ne laisse pas une même fiche source occuper la tête de liste", () => {
-    /* Six films remontés par la même fiche aimée — donc favorisés par le bonus
-       de reco — au milieu d'autres candidats. Sans diversification, les six
-       trusteraient la tête et la page ne parlerait plus que d'un seul film. */
+    /* Six films brought back by the same beloved card — hence favoured by
+       the reco bonus — among other candidates. Without diversification the
+       six would hog the head and the page would speak of one film only. */
     const from = { title: "Le film aimé", rating: 5 };
     const grappe = Array.from({ length: 6 }, (_, i) =>
       candidate({ tmdbId: 100 + i, title: `Grappe ${i}`, sources: [{ kind: "reco", from }] })
@@ -231,7 +232,7 @@ describe("rank", () => {
     );
 
     const out = rank([...grappe, ...autres], taste, query(), 8);
-    // les 7 premières places sont composées avant tout report en fin de liste
+    // the first 7 places are composed before any carrying over to the tail
     const enTete = out.slice(0, 7).filter((c) => c.title.startsWith("Grappe"));
     expect(enTete).toHaveLength(2);
   });

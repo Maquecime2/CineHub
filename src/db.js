@@ -126,7 +126,7 @@ export async function posterStats() {
     const est = await navigator.storage?.estimate?.();
     quota = est ? { usage: est.usage, quota: est.quota } : null;
   } catch {
-    /* estimate() n'est pas partout */
+    /* estimate() is not everywhere */
   }
   return { count: keys.length, bytes, quota };
 }

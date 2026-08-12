@@ -71,7 +71,7 @@ function discoverPlans(query, taste, genreMap) {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 3);
     const likedIds = ids(liked.map(([n]) => n));
-    // `|` et non `,` : l'un OU l'autre, sinon l'intersection des trois est vide
+    // `|` and not `,`: one OR the other, otherwise the intersection of the three is empty
     if (likedIds.length) base.with_genres = likedIds.join("|");
   }
 
@@ -91,9 +91,9 @@ function discoverPlans(query, taste, genreMap) {
 }
 
 /**
- * Interroge TMDB et fusionne tout ce qui remonte, sans rien classer.
+ * Queries TMDB and merges everything that comes back, ranking nothing.
  *
- * @param {object}   opts.taste    profil issu de buildTaste
+ * @param {object}   opts.taste    profile coming from buildTaste
  * @param {Array}    opts.films    the collection, for the "because you loved" lines
  * @param {function} opts.isSeen   (candidate) => bool — the exclusion belongs to the
  *                                 caller, who alone knows their own matching key
@@ -261,7 +261,7 @@ export function nicheScore(factors, enabled = DEFAULT_QUERY.niche) {
 
 /**
  * Ranks the candidates. Pure: replayable on every slider move.
- * @returns les candidats enrichis de { affinity, niche, factors, score, reasons }
+ * @returns the candidates enriched with { affinity, niche, factors, score, reasons }
  */
 export function rank(candidates, taste, query, limit = 40) {
   const nichePref = query.nichePref ?? 0.5;
@@ -312,7 +312,7 @@ export function rank(candidates, taste, query, limit = 40) {
   return [...kept, ...spill].slice(0, limit);
 }
 
-/* Une recommandation qu'on ne peut pas justifier n'en est pas une. */
+/* A recommendation one cannot justify is not one. */
 export function reasonsFor(c, factors, taste) {
   const out = [];
 

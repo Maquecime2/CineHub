@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { weightOf, directorsOf, decadeOf, buildTaste, favorites, topDirectors } from "./taste";
 
-/* Fabrique de fiches : seuls les champs qui comptent pour le test sont
-   nommés, le reste prend des valeurs neutres. */
+/* Card factory: only the fields that matter for the test are named, the
+   rest take neutral values. */
 const film = (over = {}) => ({
   id: Math.random().toString(36).slice(2),
   title: "Film",
@@ -27,8 +27,8 @@ describe("weightOf", () => {
   });
 
   it("compte faiblement un film vu mais non noté", () => {
-    // les imports Letterboxd sont majoritairement sans note : les ignorer
-    // viderait le profil de sa matière
+    // Letterboxd imports are mostly without a rating: ignoring them
+    // would empty the profile of its substance
     expect(weightOf(0)).toBe(0.35);
     expect(weightOf(undefined)).toBe(0.35);
   });
@@ -91,10 +91,10 @@ describe("buildTaste", () => {
   });
 
   it("pèse les thèmes plus que les genres, parce qu'ils sont saisis à la main", () => {
-    // même note, même nombre d'occurrences : seul le coefficient 1,4 les sépare
+    // same rating, same number of occurrences: only the 1.4 coefficient separates them
     const films = [film({ rating: 4, genres: ["Drame"], themes: ["deuil"] })];
     const taste = buildTaste([...films, ...films, ...films]);
-    // chacun est normalisé dans sa propre table, on compare donc les bruts
+    // each is normalised within its own table, so we compare the raw ones
     const rawGenre = weightOf(4) * 3;
     const rawTheme = weightOf(4) * 1.4 * 3;
     expect(rawTheme / rawGenre).toBeCloseTo(1.4);
@@ -128,7 +128,7 @@ describe("buildTaste", () => {
   });
 
   it("laisse le profil de langue vide quand les fiches ne portent pas ce champ", () => {
-    // cas réel des imports Letterboxd — le scoring doit s'en accommoder
+    // a real case from Letterboxd imports — the scoring must cope with it
     const taste = buildTaste([film(), film(), film()]);
     expect(taste.seenLanguages.size).toBe(0);
   });
@@ -172,10 +172,11 @@ describe("topDirectors", () => {
   });
 
   it("admet une seule fiche quand l'adhésion domine la collection", () => {
-    /* Le seuil de 0,75 s'applique après normalisation : il est donc relatif au
-       cinéaste le plus fort. Un 5 étoiles isolé passe ici, mais ne passerait
-       plus si un autre nom cumulait deux fiches à 5 étoiles — ce qui est le
-       comportement voulu : « de chevet » se juge par rapport au reste. */
+    /* The 0.75 threshold applies AFTER normalisation: it is therefore
+       relative to the strongest film-maker. A lone 5-star passes here, but
+       would no longer pass if another name gathered two 5-star cards —
+       which is the intended behaviour: "bedside" is judged against the
+       rest. */
     const films = [
       film({ rating: 5, director: "Adoré" }),
       film({ rating: 3, director: "Tiède" }),
