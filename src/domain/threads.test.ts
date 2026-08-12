@@ -76,7 +76,7 @@ describe("les fils d'avant la traduction", () => {
     const [fil] = normalizeThreads([{ label: "Un fil", exclus: ["a"], couleur: "plum" }] as never);
     expect(fil?.excluded).toEqual(["a"]);
     expect(fil?.color).toBe("plum");
-    // et les anciennes clés ne repartent pas sur le disque
+    // and the old keys do not go back out onto the disk
     expect(fil as unknown as Record<string, unknown>).not.toHaveProperty("exclus");
     expect(fil as unknown as Record<string, unknown>).not.toHaveProperty("couleur");
   });

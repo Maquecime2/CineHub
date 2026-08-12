@@ -54,7 +54,7 @@ export const FAMILIES: { id: MotifFamily; label: string }[] = [
 /* THE ORDER MATTERS: it is the display order, family by family, and it
    runs from the most common to the rarest inside each one. */
 export const MOTIFS: Motif[] = [
-  /* --- ce qui arrive aux personnages ------------------------------- */
+  /* --- what happens to the characters ------------------------------ */
   {
     id: "hero-dies",
     label: "Le héros meurt",
@@ -135,7 +135,7 @@ export const MOTIFS: Motif[] = [
     tmdb: ["insanity", "madness", "mental illness"],
   },
 
-  /* --- la dernière image ------------------------------------------- */
+  /* --- the last image ---------------------------------------------- */
   {
     id: "open-ending",
     label: "Fin ouverte",
@@ -176,7 +176,7 @@ export const MOTIFS: Motif[] = [
     spoiler: true,
   },
 
-  /* --- la façon de raconter ---------------------------------------- */
+  /* --- the way of telling ------------------------------------------ */
   {
     id: "non-linear-narrative",
     label: "Récit désordonné",
@@ -247,7 +247,7 @@ export const MOTIFS: Motif[] = [
     tmdb: ["based on novel or book", "based on play"],
   },
 
-  /* --- les figures -------------------------------------------------- */
+  /* --- the figures -------------------------------------------------- */
   { id: "the-double", label: "Le double", family: "figures", tmdb: ["doppelganger", "twins"] },
   {
     id: "lost-mentor",
@@ -311,7 +311,7 @@ export const MOTIFS: Motif[] = [
     tmdb: ["ghost", "haunting"],
   },
 
-  /* --- le ton -------------------------------------------------------- */
+  /* --- the tone ------------------------------------------------------ */
   { id: "melancholy", label: "Mélancolie", family: "tone", tmdb: ["melancholy", "loneliness"] },
   { id: "slapstick", label: "Burlesque", family: "tone", tmdb: ["slapstick comedy", "farce"] },
   {
@@ -333,7 +333,7 @@ export const MOTIFS: Motif[] = [
   { id: "paranoia", label: "Paranoïa", family: "tone", tmdb: ["paranoia", "conspiracy"] },
   { id: "dreamlike", label: "Onirique", family: "tone", tmdb: ["dream", "surrealism"] },
 
-  /* --- le monde ------------------------------------------------------ */
+  /* --- the world ----------------------------------------------------- */
   {
     id: "sprawling-city",
     label: "La grande ville qui avale",
