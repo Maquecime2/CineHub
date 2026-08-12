@@ -5,12 +5,12 @@ import type { Db } from "../src/db.ts";
 import type { FastifyInstance } from "fastify";
 
 /* ============================================================
-   CE QU'ON DIT D'UNE ŒUVRE, ET COMMENT ON S'EN PROTÈGE
+   WHAT IS SAID ABOUT A WORK, AND HOW ONE IS PROTECTED FROM IT
 
-   Premier endroit du projet où at texte d'un inconnu peut apparaître
-   sous un film qu'on aime. Ce qui se teste ici n'est donc pas
-   l'affichage — c'est ce qui NE doit jamais remonter : les notes
-   intimes, les collections fermées, les gens qu'on a done taire.
+   The first place in the project where a stranger's text can appear
+   under a film one loves. So what is tested here is not the display —
+   it is what must NEVER come up: the private notes, the closed
+   collections, the people one has silenced.
    ============================================================ */
 
 let db: Db;
@@ -77,9 +77,10 @@ describe("a work's echo", () => {
   });
 
   it("never carries off the notes or the log", async () => {
-    /* Le fragment `SANS_LE_PRIVE` ne sert pas ici : cette requête choisit
-       ses champs un à un. Le vérifier sébyément est donc nécessaire —
-       c'est exactement at genre de filter qu'one seconde route oublie. */
+    /* The `WITHOUT_THE_PRIVATE` fragment is not used here: this query
+       picks its fields one by one. Checking it separately is therefore
+       necessary — it is exactly the kind of filter a second route
+       forgets. */
     const me = await count("mine");
     const her = await count("varda");
     await openUp(her.cookie);
@@ -106,8 +107,8 @@ describe("a work's echo", () => {
   });
 
   it("does not hand me back my own review", async () => {
-    /* Sinon la mean « des autres » contient ma voix, et je me lis
-       me-même en croyant read quelqu'un. */
+    /* Otherwise the mean "of the others" contains my own voice, and I
+       read myself believing I am reading somebody else. */
     const me = await count("mine");
     await openUp(me.cookie);
     await push(me.cookie, [
@@ -137,19 +138,18 @@ describe("a work's echo", () => {
   });
 
   it("an unreadable rating does not bring down the others' mean", async () => {
-    /* `rating` traverse six cents clients et d'anciennes versions : il
-       arrive vide, ou en toutes lettres. Un `::numeric` direct ferait
-       échouer la requête ENTIÈRE — la mean de everything at monde perdue
-       pour one seule vieille card. */
+    /* `rating` comes through six hundred clients and older versions: it
+       arrives empty, or spelled out in words. A plain `::numeric` would
+       fail the WHOLE query — everybody's mean lost for one old card. */
     const me = await count("mine");
-    const cassee = await count("cassee");
-    const saine = await count("saine");
-    await openUp(cassee.cookie);
-    await openUp(saine.cookie);
-    await push(cassee.cookie, [
+    const broken = await count("cassee");
+    const sound = await count("saine");
+    await openUp(broken.cookie);
+    await openUp(sound.cookie);
+    await push(broken.cookie, [
       { id: "a", tmdbId: "550", updatedAt: 1, data: { title: "Fight Club", rating: "" } },
     ]);
-    await push(saine.cookie, [
+    await push(sound.cookie, [
       { id: "b", tmdbId: "550", updatedAt: 1, data: { title: "Fight Club", rating: "3" } },
     ]);
 
@@ -195,8 +195,8 @@ describe("blocking", () => {
     await app.inject({ method: "PUT", url: "/blocks/genant", headers: { cookie: me.cookie } });
 
     expect((await echo(me.cookie)).json().collections).toBe(0);
-    /* Et him non plus ne me lit plus : un block à sens unique laisse
-       l'other continuer de read, de répondre et de recommencer. */
+    /* And they no longer read me either: a one-way block leaves the
+       other free to go on reading, replying and starting again. */
     expect((await echo(genant.cookie)).json().collections).toBe(0);
   });
 
@@ -292,7 +292,7 @@ describe("blocking", () => {
       headers: { cookie: me.cookie },
     });
     expect(list.json().subscriptions).toEqual([]);
-    /* Le profil est de nouveau trouvable : at silence était réversible. */
+    /* The profile is findable again: the silence was reversible. */
     expect(
       (await app.inject({ method: "GET", url: "/profiles/him", headers: { cookie: me.cookie } }))
         .statusCode
@@ -302,8 +302,8 @@ describe("blocking", () => {
   it("stays possible when the other has closed up, and on oneself never", async () => {
     const me = await count("mine");
     const him = await count("him");
-    /* `him` n'a jamais rien partagé : passer by at profil public
-       rendrait inbloquable quiconque se referme, puis ressort. */
+    /* `him` has never shared anything: going through the public profile
+       would make anybody who closes up, then comes back out, unblockable. */
     expect(
       (await app.inject({ method: "PUT", url: "/blocks/him", headers: { cookie: me.cookie } }))
         .statusCode
@@ -316,8 +316,8 @@ describe("blocking", () => {
   });
 
   it("does not hide a collection whose address one has", async () => {
-    /* Un block est un silence, pas un mur. Le dire ici évite de
-       promettre one protection qui n'existe pas. */
+    /* A block is a silence, not a wall. Saying so here avoids promising
+       a protection that does not exist. */
     const me = await count("mine");
     const him = await count("him");
     await openUp(him.cookie);
@@ -332,7 +332,7 @@ describe("reporting", () => {
     const him = await count("him");
     const body = { pseudo: "him", card: "a", reason: "propos haineux" };
 
-    const un = await app.inject({
+    const one = await app.inject({
       method: "POST",
       url: "/reports",
       headers: { cookie: me.cookie },
@@ -344,9 +344,9 @@ describe("reporting", () => {
       headers: { cookie: me.cookie },
       payload: body,
     });
-    expect(un.json()).toMatchObject({ noted: true, fresh: true });
-    /* La même réponse extérieure : savoir qu'on avait déjà signalé
-       n'apporte rien à qui vient de at faire. */
+    expect(one.json()).toMatchObject({ noted: true, fresh: true });
+    /* The same answer from outside: knowing one had already reported
+       adds nothing for somebody who has just done it. */
     expect(two.statusCode).toBe(200);
     expect(two.json().noted).toBe(true);
 
@@ -366,21 +366,22 @@ describe("reporting", () => {
       headers: { cookie: me.cookie },
       payload: { pseudo: "him", card: "a", reason: "   " },
     });
-    const fantome = await app.inject({
+    const ghost = await app.inject({
       method: "POST",
       url: "/reports",
       headers: { cookie: me.cookie },
       payload: { pseudo: "fantome", card: "a", reason: "quelque chose" },
     });
     expect(vide.statusCode).toBe(400);
-    expect(fantome.statusCode).toBe(404);
+    expect(ghost.statusCode).toBe(404);
   });
 
   it("survives the erasure of the reported card, and not that of the account", async () => {
-    /* Le signalé est one colonne et non one déduction : one card
-       effacée entre-temps emporterait sinon la seule chose qui rendait
-       at report exploitable. Un count effacé, him, doit everything
-       emporter — c'est at droit à l'effacement, et il prime. */
+    /* The one reported about is a column and not a deduction: a card
+       erased in the meantime would otherwise carry off the only thing
+       that made the report usable. An erased account, on the other hand,
+       must carry everything off — that is the right to erasure, and it
+       comes first. */
     const me = await count("mine");
     const him = await count("him");
     await app.inject({

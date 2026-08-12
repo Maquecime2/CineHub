@@ -5,13 +5,13 @@ import type { Db } from "../src/db.ts";
 import type { FastifyInstance } from "fastify";
 
 /* ============================================================
-   LE PARTAGE
+   SHARING
 
-   `GET /chez/:pseudo` est la SEULE route de ce serveur qui réponde à
-   quelqu'un sans count. Tout ce qui suit se demande donc, à chaque
-   ligne, ce qu'un inconnu peut en tirer : ce qu'il voit, ce qu'il ne
-   doit jamais voir, et ce que la réponse him apprend sur les gens qui
-   ne partagent pas.
+   `GET /collections/:pseudo` is the ONLY route in this server that
+   answers somebody with no account. Everything that follows therefore
+   asks, at every line, what a stranger can get out of it: what they
+   see, what they must never see, and what the answer teaches them about
+   the people who do not share.
    ============================================================ */
 
 let db: Db;
@@ -23,7 +23,7 @@ async function signedIn(pseudo: string) {
   return { person, cookie: `session=${secret}` };
 }
 
-/** Une card complète, notes et journal compris. */
+/** A complete card, free notes and log included. */
 const push = (cookie: string, cards: Record<string, unknown>[]) =>
   app.inject({ method: "PUT", url: "/collection", headers: { cookie }, payload: { cards } });
 
@@ -50,8 +50,8 @@ describe("by default, nothing is shared", () => {
   });
 
   it("and an account that does not exist answers exactly the same", async () => {
-    /* Sinon la route devient un annuaire : « 404 » d'un côté, « privé »
-       de l'other, et l'on sait qui est inscrit. */
+    /* Otherwise the route becomes a directory: "404" on one side,
+       "private" on the other, and one knows who is registered. */
     const { cookie } = await signedIn("varda");
     await push(cookie, [{ id: "f1", updatedAt: 1, data: {} }]);
 
@@ -91,13 +91,13 @@ describe("what a visitor sees", () => {
       rating: 5,
       review: "la scène du chapeau",
     });
-    /* LES TROIS QUI NE SORTENT JAMAIS. Le carnet intime, at journal des
-       séances, et la date de la dernière — qui dit à her seule avec
-       quelle régularité on passe ses soirées. */
+    /* THE THREE THAT NEVER GO OUT. The private diary, the screening
+       log, and the date of the last one — which says on its own how
+       regularly somebody spends their evenings. */
     expect("notes" in film).toBe(false);
     expect("watches" in film).toBe(false);
     expect("watchedAt" in film).toBe(false);
-    /* Et rien de la person au-delà de son pseudonyme. */
+    /* And nothing of the person beyond their pseudonym. */
     expect(Object.keys(r.json()).sort()).toEqual(["films", "pseudo"]);
   });
 
@@ -120,18 +120,17 @@ describe("what a visitor sees", () => {
   });
 
   /* ============================================================
-     UNE FICHE ÉCARTÉE LE RESTE, MÊME QUAND ON LA RETOUCHE
+     A CARD SET ASIDE STAYS SET ASIDE, EVEN WHEN IT IS EDITED
      ============================================================
 
-     Le défaut que ce test attrape ne se voyait pas : `rangerFiche`
-     réécrivait `hidden` since la poussée, or at client ne modélise pas
-     ce champ et ne l'envoie jamais. Il valait donc toujours faux, et
-     TOUTE modification de la card la rendait is_public de nouveau — one
-     note ajoutée, one étoile, one séance.
+     The fault this test catches could not be seen: `storeCard` rewrote
+     `hidden` from the push, but the client does not model that field and
+     never sends it. So it was always false, and ANY change to the card
+     made it public again — a note added, a star, a screening.
 
-     Rien ne l'aurait signalé : la card ne change pas d'apparence chez
-     soi, seulement chez les autres. C'est exactement l'espèce de défaut
-     qui se découvre by quelqu'un d'other. */
+     Nothing would have flagged it: the card looks no different at home,
+     only at other people's. It is exactly the species of fault that gets
+     discovered by somebody else. */
   it("stays set aside after a change to the card", async () => {
     const { cookie } = await signedIn("varda");
     await push(cookie, [
@@ -146,8 +145,8 @@ describe("what a visitor sees", () => {
       payload: { hidden: true },
     });
 
-    /* On la retouche, comme at ferait one note écrite ce soir : `updatedAt`
-       est plus récent, donc la poussée est acceptée et écrase. */
+    /* We edit it, as a note written this evening would: `updatedAt` is
+       more recent, so the push is accepted and overwrites. */
     await push(cookie, [
       { id: "honteuse", updatedAt: 2, data: { title: "un plaisir coupable", review: "revu" } },
     ]);
@@ -244,16 +243,16 @@ describe("sharing by link", () => {
   });
 
   it("reopening gives a FRESH token: changing one's mind has to mean something", async () => {
-    /* Reprendre l'ancien ferait revivre tous les liens distribués la
-       fois d'before — y compris celui qu'on avait voulu couper. */
+    /* Taking the old one back would revive every link handed out the
+       time before — the one we meant to cut, included. */
     const { cookie } = await signedIn("varda");
-    const premier = (await setSharing(cookie, "lien")).json().token;
+    const first = (await setSharing(cookie, "lien")).json().token;
     await setSharing(cookie, "privee");
     const second = (await setSharing(cookie, "lien")).json().token;
 
-    expect(second).not.toBe(premier);
+    expect(second).not.toBe(first);
     expect(
-      (await app.inject({ method: "GET", url: `/collections/varda?token=${premier}` })).statusCode
+      (await app.inject({ method: "GET", url: `/collections/varda?token=${first}` })).statusCode
     ).toBe(404);
   });
 });

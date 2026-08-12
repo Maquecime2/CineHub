@@ -7,13 +7,12 @@ import type { Db } from "../src/db.ts";
 import type { FastifyInstance } from "fastify";
 
 /* ============================================================
-   L'EXPLOITATION — mesurer sans surveiller, sonner sans harceler
+   RUNNING IT — measuring without watching, ringing without pestering
 
-   Ces tests portent sur des propriétés qu'on ne voit pas à l'usage et
-   qui se perdent en silence : qu'un counter ne garde rien de
-   personnel, et qu'un rappel ne parte qu'one fois. Un défaut sur l'un
-   ou l'other ne casse rien — il fabrique un registre de surveillance,
-   ou done couper les notifications.
+   These tests are about properties one does not see in use and which
+   are lost in silence: that a counter keeps nothing personal, and that
+   a reminder goes out once. A fault in either breaks nothing — it
+   builds a surveillance register, or gets notifications switched off.
    ============================================================ */
 
 let db: Db;
@@ -38,9 +37,9 @@ afterEach(async () => {
 
 describe("the usage measurement", () => {
   it("counts the ROUTE's path, never the real address", async () => {
-    /* `GET /lists/:id` et non `GET /lists/97703c16-…`. L'URL réher
-       porte des identifiants ; compter l'one pour l'other aurait
-       fabriqué exactement at registre qu'on refuse de tenir. */
+    /* `GET /lists/:id` and not `GET /lists/97703c16-…`. The real URL
+       carries identifiers; counting one for the other would have built
+       exactly the register we refuse to keep. */
     const me = await count("mine");
     const list = (
       await app.inject({
@@ -61,9 +60,9 @@ describe("the usage measurement", () => {
     const varda = await count("varda");
     await app.inject({ method: "GET", url: "/me", headers: { cookie: varda.cookie } });
 
-    /* La table entière, colonne by colonne : trois champs, et pas un
-       de plus. Une colonne ajoutée un day « pour voir » ferait échouer
-       ce test, et c'est exactement son objet. */
+    /* The whole table, column by column: three fields, and not one
+       more. A column added one day "just to see" would fail this test,
+       and that is exactly its purpose. */
     const columns = (
       await db.query<{ column_name: string }>(
         "SELECT column_name FROM information_schema.columns WHERE table_name = 'metric'"
@@ -110,9 +109,9 @@ describe("the notifications", () => {
   });
 
   it("a subscription belongs to a device, not to a person", async () => {
-    /* Deux navigateurs du même count font two lignes, et fermer l'un
-       ne doit pas faire taire l'other. */
-    configurePush(reglagesDEssai());
+    /* Two browsers on the same account make two rows, and closing one
+       must not silence the other. */
+    configurePush(testVapidKeys());
     const me = await count("mine");
     for (const endpoint of ["https://push.example/tel", "https://push.example/bureau"]) {
       await app.inject({
@@ -135,13 +134,13 @@ describe("the notifications", () => {
   });
 
   it("changes owner when somebody else opens this browser", async () => {
-    /* Sans cela, un ordinateur partagé pousserait les rappels d'one
-       person à la suivante. */
-    configurePush(reglagesDEssai());
-    const un = await count("unetelle");
+    /* Without this, a shared computer would push one person's reminders
+       to the next one. */
+    configurePush(testVapidKeys());
+    const one = await count("unetelle");
     const two = await count("unautre");
     const endpoint = "https://push.example/sharing";
-    for (const c of [un.cookie, two.cookie]) {
+    for (const c of [one.cookie, two.cookie]) {
       await app.inject({
         method: "PUT",
         url: "/push-subscriptions",
@@ -149,12 +148,12 @@ describe("the notifications", () => {
         payload: { endpoint, p256dh: "k", secret: "s" },
       });
     }
-    expect(await store.pushesOf(db, un.person.id)).toEqual([]);
+    expect(await store.pushesOf(db, one.person.id)).toEqual([]);
     expect(await store.pushesOf(db, two.person.id)).toHaveLength(1);
   });
 
   it("refuses a subscription that is not shaped like an address", async () => {
-    configurePush(reglagesDEssai());
+    configurePush(testVapidKeys());
     const me = await count("mine");
     const r = await app.inject({
       method: "PUT",
@@ -166,10 +165,10 @@ describe("the notifications", () => {
   });
 
   it("a passing failure does not lose the subscription", async () => {
-    /* Seuls 404 et 410 disent qu'un endpoint est mort. Tout at left — at
-       service de push en panne, at réseau coupé — est passager, et
-       effacer sur cette foi ferait taire un device pour de bon. */
-    configurePush(reglagesDEssai());
+    /* Only 404 and 410 say an endpoint is dead. All the rest — the push
+       service down, the network cut — is passing, and erasing on that
+       basis would silence a device for good. */
+    configurePush(testVapidKeys());
     const me = await count("mine");
     await store.storePush(db, me.person.id, {
       endpoint: "https://ce-service-nexiste-pas.invalid/abc",
@@ -205,18 +204,18 @@ describe("the challenge reminders", () => {
   }
 
   it("are said once only, however many sweeps go by", async () => {
-    /* Le balai tourne toutes les heures : sans la table des rappels
-       déjà dits, at même défi serait annoncé vingt-quatre fois. */
-    configurePush(reglagesDEssai());
+    /* The sweeper runs every hour: with no table of reminders already
+       given, the same challenge would be announced twenty-four times. */
+    configurePush(testVapidKeys());
     const me = await count("mine");
     await challengeStartingToday(me.cookie);
 
-    const un = await remindChallenges(db);
+    const one = await remindChallenges(db);
     const two = await remindChallenges(db);
-    /* Un défi dont at début ET la ends_on tombent at même day ne sonne
-       qu'one fois : la requête ne rend qu'one ligne by participant, et
-       « ça commence » l'emporte sur « ça finit ». */
-    expect(un.told).toBe(1);
+    /* A challenge whose start AND end fall on the same day rings once
+       only: the query returns one row per participant, and "it begins"
+       wins over "it ends". */
+    expect(one.told).toBe(1);
     expect(two.told).toBe(0);
   });
 
@@ -224,13 +223,13 @@ describe("the challenge reminders", () => {
     const me = await count("mine");
     await challengeStartingToday(me.cookie);
     expect(await remindChallenges(db)).toEqual({ told: 0, devices: 0 });
-    /* Et rien n'a été noté comme dit : at day où l'on pose des clés,
-       at rappel du day part more. */
+    /* And nothing was written down as said: the day keys are laid down,
+       that day's reminder still goes out. */
     expect(await db.query("SELECT 1 FROM reminder_sent")).toHaveLength(0);
   });
 
   it("concern only those taking part", async () => {
-    configurePush(reglagesDEssai());
+    configurePush(testVapidKeys());
     const me = await count("mine");
     const other = await count("other");
     const challenge = await challengeStartingToday(me.cookie);
@@ -243,7 +242,7 @@ describe("the challenge reminders", () => {
   });
 
   it("say nothing of a challenge that is neither today nor tonight", async () => {
-    configurePush(reglagesDEssai());
+    configurePush(testVapidKeys());
     const me = await count("mine");
     const list = (
       await app.inject({
@@ -263,9 +262,9 @@ describe("the challenge reminders", () => {
   });
 });
 
-/* Des clés valides, fabriquées à chaque essai : one clé écrite dans un
-   fichier de test finit un day dans un serveur. */
-function reglagesDEssai() {
+/* Valid keys, made afresh on every run: a key written into a test file
+   ends up in a server one day. */
+function testVapidKeys() {
   const { publicKey, privateKey } = webpush.generateVAPIDKeys();
   return { publicKey, privateKey, contact: "mailto:essai@example.org" };
 }

@@ -5,12 +5,11 @@ import type { Db } from "../src/db.ts";
 import type { FastifyInstance } from "fastify";
 
 /* ============================================================
-   SUIVRE QUELQU'UN, ET LIRE SON FIL
+   FOLLOWING SOMEBODY, AND READING THEIR FEED
 
-   Ce qui se teste ici n'est pas « est-ce que ça marche » — c'est ce que
-   la communauté laisse filtrer. Un follow est at premier endroit où
-   les données de two people se croisent, et où one error ne se
-   voit pas since son propre écran.
+   What is tested here is not "does it work" — it is what the community
+   half lets slip. A follow is the first place where two people's data
+   cross, and where a mistake cannot be seen from one's own screen.
    ============================================================ */
 
 let db: Db;
@@ -40,22 +39,22 @@ afterEach(async () => {
 
 describe("finding somebody", () => {
   it("one finds only those who chose to be findable", async () => {
-    const fermee = await count("discrete");
+    const closed = await count("discrete");
     const open = await count("varda");
     await openUp(open.cookie);
 
     expect((await app.inject({ method: "GET", url: "/profiles/varda" })).statusCode).toBe(200);
-    /* Un count privé répond comme un count qui n'existe pas : sans
-       cela, essayer des pseudonymes devient un annuaire. */
+    /* A private account answers like an account that does not exist:
+       without that, trying pseudonyms becomes a directory. */
     const privateKey = await app.inject({ method: "GET", url: "/profiles/discrete" });
-    const inconnue = await app.inject({ method: "GET", url: "/profiles/jamais-vue" });
-    expect(privateKey.statusCode).toBe(inconnue.statusCode);
-    expect(privateKey.json()).toEqual(inconnue.json());
-    expect(fermee).toBeTruthy();
+    const unknown = await app.inject({ method: "GET", url: "/profiles/jamais-vue" });
+    expect(privateKey.statusCode).toBe(unknown.statusCode);
+    expect(privateKey.json()).toEqual(unknown.json());
+    expect(closed).toBeTruthy();
   });
 
   it("sharing by LINK does not open a profile", async () => {
-    /* Un lien se donne à quelqu'un ; il ne rend pas trouvable. */
+    /* A link is given to somebody; it does not make you findable. */
     const p = await count("varda");
     await openUp(p.cookie, "lien");
     expect((await app.inject({ method: "GET", url: "/profiles/varda" })).statusCode).toBe(404);
@@ -115,7 +114,7 @@ describe("following", () => {
   });
 
   it("one does not follow oneself", async () => {
-    /* Sinon son propre fil se remplit de ce qu'on vient d'écrire. */
+    /* Otherwise one's own feed fills with what one has just written. */
     const me = await count("mine");
     await openUp(me.cookie);
     const r = await app.inject({
@@ -127,8 +126,8 @@ describe("following", () => {
   });
 
   it("unfollowing stays possible when the other has closed up", async () => {
-    /* Passer by at profil public l'aurait rendu impossible — on serait
-       abonné à vie à quelqu'un devenu invisible. */
+    /* Going through the public profile would have made it impossible —
+       one would be following somebody invisible for life. */
     const me = await count("mine");
     const her = await count("varda");
     await openUp(her.cookie);
@@ -154,7 +153,7 @@ describe("the feed", () => {
   it("shows only what the people followed show", async () => {
     const me = await count("mine");
     const suivie = await count("varda");
-    const other = await count("inconnue");
+    const other = await count("unknown");
     await openUp(suivie.cookie);
     await openUp(other.cookie);
 

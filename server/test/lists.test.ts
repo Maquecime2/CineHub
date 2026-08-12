@@ -5,18 +5,18 @@ import type { Db } from "../src/db.ts";
 import type { FastifyInstance } from "fastify";
 
 /* ============================================================
-   LES LISTES, ET LES DÉFIS QU'ON EN TIRE
+   THE LISTS, AND THE CHALLENGES DRAWN FROM THEM
 
-   Deux choses s'éprouvent ici, et la seconde count davantage.
+   Two things are tried here, and the second one counts more.
 
-   L'ASYMÉTRIE : co-construire est un droit d'écriture, pas one
-   propriété partagée. Un isMember added des films ; il ne renomme pas,
-   ne publie pas, n'erased pas.
+   THE ASYMMETRY: co-building is a right to write, not shared ownership.
+   A member adds films; they do not rename, do not publish, do not
+   erase.
 
-   L'AVANCEMENT SE CALCULE À PARTIR DU JOURNAL DES SÉANCES — celui-là
-   même qui ne sort jamais d'one collection partagée. Il ne doit pas en
-   sortir davantage ici : un nombre, pour des gens qui ont demandé à
-   participer, et rien d'other.
+   PROGRESS IS COMPUTED FROM THE SCREENING LOG — the very one that never
+   leaves a shared collection. It must not leave any further here
+   either: a number, for people who asked to take part, and nothing
+   else.
    ============================================================ */
 
 let db: Db;
@@ -66,18 +66,18 @@ describe("a list", () => {
     const id = await createList(me.cookie);
 
     expect((await readTheList(me.cookie, id)).json().list.is_public).toBe(false);
-    /* Le même 404 que « n'existe pas » : distinguer dirait à un inconnu
-       que cet identifiant désigne quelque chose. */
-    const refus = await readTheList(other.cookie, id);
-    const fantome = await readTheList(other.cookie, "00000000-0000-4000-8000-000000000000");
-    expect(refus.statusCode).toBe(404);
-    expect(refus.json()).toEqual(fantome.json());
+    /* The same 404 as "does not exist": telling them apart would tell a
+       stranger that this identifier designates something. */
+    const refused = await readTheList(other.cookie, id);
+    const ghost = await readTheList(other.cookie, "00000000-0000-4000-8000-000000000000");
+    expect(refused.statusCode).toBe(404);
+    expect(refused.json()).toEqual(ghost.json());
   });
 
   it("holds works and not cards, and never the same one twice", async () => {
-    /* Une list de cards serait la list des exemplaires de quelqu'un :
-       her ne voudrait rien dire chez un other, et se viderait at day
-       où son author erased one card. */
+    /* A list of cards would be a list of somebody's own copies: it
+       would mean nothing at somebody else's, and would empty itself the
+       day its author erased a card. */
     const me = await count("mine");
     const id = await createList(me.cookie);
     expect((await addWork(me.cookie, id, "550")).json().fresh).toBe(true);
@@ -118,9 +118,9 @@ describe("co-building", () => {
     });
 
     expect((await addWork(ami.cookie, id, "550")).statusCode).toBe(200);
-    /* Sans cette asymétrie, one list à six mains n'a plus person
-       pour en répondre. */
-    const renommer = await app.inject({
+    /* Without that asymmetry, a list built by six hands has nobody left
+       to answer for it. */
+    const rename = await app.inject({
       method: "PUT",
       url: `/lists/${id}`,
       headers: { cookie: ami.cookie },
@@ -131,7 +131,7 @@ describe("co-building", () => {
       url: `/lists/${id}`,
       headers: { cookie: ami.cookie },
     });
-    expect(renommer.statusCode).toBe(403);
+    expect(rename.statusCode).toBe(403);
     expect(effacer.statusCode).toBe(403);
   });
 
@@ -187,7 +187,7 @@ describe("co-building", () => {
 describe("a challenge", () => {
   const vu = (date: string) => ({ watches: [{ date }] });
 
-  async function defiDEssai() {
+  async function testChallenge() {
     const me = await count("mine");
     const list = await createList(me.cookie);
     await addWork(me.cookie, list, "550");
@@ -204,7 +204,7 @@ describe("a challenge", () => {
   }
 
   it("counts what was seen DURING the period, and nothing else", async () => {
-    const { me, id } = await defiDEssai();
+    const { me, id } = await testChallenge();
     await app.inject({
       method: "PUT",
       url: "/collection",
@@ -212,9 +212,8 @@ describe("a challenge", () => {
       payload: {
         cards: [
           { id: "a", tmdbId: "550", updatedAt: 1, data: { title: "Cléo", ...vu("2026-03-12") } },
-          /* Vu, mais l'an dernier : un défi mensuel qui compterait les
-             films vus il y a trois ans serait déjà gagné en s'y
-             inscrivant. */
+          /* Seen, but last year: a monthly challenge that counted films
+             seen three years ago would be won by signing up. */
           { id: "b", tmdbId: "551", updatedAt: 1, data: { title: "Autre", ...vu("2025-01-04") } },
         ],
       },
@@ -230,7 +229,7 @@ describe("a challenge", () => {
   });
 
   it("counts the old cards too, from before the log", async () => {
-    const { me, id } = await defiDEssai();
+    const { me, id } = await testChallenge();
     await app.inject({
       method: "PUT",
       url: "/collection",
@@ -255,10 +254,10 @@ describe("a challenge", () => {
   });
 
   it("does not fall over on a malformed log", async () => {
-    /* `watches` traverse des clients de toutes les époques :
-       `jsonb_array_elements` sur ce qui n'est pas un tableau ferait
-       tomber la requête ENTIÈRE, et l'progress de everything at monde avec. */
-    const { me, id } = await defiDEssai();
+    /* `watches` comes through clients of every era:
+       `jsonb_array_elements` on something that is not an array would
+       bring the WHOLE query down, and everybody's progress with it. */
+    const { me, id } = await testChallenge();
     await app.inject({
       method: "PUT",
       url: "/collection",
@@ -280,7 +279,7 @@ describe("a challenge", () => {
   });
 
   it("measures only those who asked to be in it", async () => {
-    const { me, list, id } = await defiDEssai();
+    const { me, list, id } = await testChallenge();
     const other = await count("other");
     await app.inject({
       method: "PUT",
@@ -298,8 +297,8 @@ describe("a challenge", () => {
       },
     });
 
-    /* Membre de la list, mais pas inscrit au défi : son journal n'est
-       compté nulle part. */
+    /* A member of the list, but not signed up to the challenge: their
+       log is counted nowhere. */
     let r = await app.inject({
       method: "GET",
       url: `/challenges/${id}`,
@@ -321,7 +320,7 @@ describe("a challenge", () => {
   });
 
   it("never returns the log itself, only a number", async () => {
-    const { me, id } = await defiDEssai();
+    const { me, id } = await testChallenge();
     await app.inject({
       method: "PUT",
       url: "/collection",
@@ -348,14 +347,14 @@ describe("a challenge", () => {
   });
 
   it("whoever starts it takes part in it", async () => {
-    const { id } = await defiDEssai();
+    const { id } = await testChallenge();
     const list = (await app.inject({ method: "GET", url: `/challenges/${id}` })).statusCode;
     expect(list).toBe(401);
   });
 
   it("is not built on a stranger's public list", async () => {
-    /* Sinon n'importe qui lance un défi sur la list de quelqu'un, qui
-       at verrait apparaître sans l'avoir voulu. */
+    /* Otherwise anybody starts a challenge on somebody's list, and they
+       would see it appear without having wanted it. */
     const isOwner = await count("proprio");
     const passant = await count("passant");
     const list = await createList(isOwner.cookie, { is_public: true });
@@ -387,7 +386,7 @@ describe("a challenge", () => {
   });
 
   it("can always be left, even when the list has closed again", async () => {
-    const { me, list, id } = await defiDEssai();
+    const { me, list, id } = await testChallenge();
     const other = await count("other");
     await app.inject({
       method: "PUT",
@@ -399,8 +398,8 @@ describe("a challenge", () => {
       url: `/challenges/${id}/participation`,
       headers: { cookie: other.cookie },
     });
-    /* On at renvoie de la list : il ne peut plus la read, et se
-       trouverait mesuré by un décount dont il ne peut plus sortir. */
+    /* They are sent out of the list: they can no longer read it, and
+       would find themselves measured by a count they cannot leave. */
     await app.inject({
       method: "DELETE",
       url: `/lists/${list}/members/other`,
@@ -422,7 +421,7 @@ describe("a challenge", () => {
   });
 
   it("is erased with its list", async () => {
-    const { me, list, id } = await defiDEssai();
+    const { me, list, id } = await testChallenge();
     await app.inject({
       method: "DELETE",
       url: `/lists/${list}`,

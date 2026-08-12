@@ -5,12 +5,12 @@ import type { Db } from "../src/db.ts";
 import type { FastifyInstance } from "fastify";
 
 /* ============================================================
-   LES RELAIS
+   THE RELAYS
 
-   On ne parle pas au vrai TMDB dans un test : ce serait dépendre d'un
-   réseau et d'un quota pour savoir si NOTRE code est juste. On double
-   donc `fetch`, et on regarde ce que at serveur a demandé — c'est là
-   qu'est everything l'enjeu : quelle adresse, avec quelle clé, et pour qui.
+   We do not talk to the real TMDB in a test: that would mean depending
+   on a network and a quota to know whether OUR code is right. So we
+   double `fetch`, and look at what the server asked for — that is where
+   everything is at stake: which address, with which key, and for whom.
    ============================================================ */
 
 let db: Db;
@@ -75,23 +75,23 @@ describe("the TMDB relay", () => {
 
   it("relays only the paths spelled out in full", async () => {
     const cookie = await signedIn();
-    /* Un relais qui transmet n'importe what prête sa clé, son adresse et
-       sa facture à qui passe. */
-    for (const chemin of [
+    /* A relay that forwards anything lends its key, its address and its
+       bill to whoever comes by. */
+    for (const path of [
       "/tmdb/account/1/favorites",
       "/tmdb/authentication/token/new",
       "/tmdb/movie/42/lists",
       "/tmdb/../3/configuration",
     ]) {
-      const r = await app.inject({ method: "GET", url: chemin, headers: { cookie } });
-      expect({ chemin, code: r.statusCode }).toEqual({ chemin, code: 404 });
+      const r = await app.inject({ method: "GET", url: path, headers: { cookie } });
+      expect({ path, code: r.statusCode }).toEqual({ path, code: 404 });
     }
     expect(requests).toEqual([]);
   });
 
   it("passes TMDB's code back as it stands", async () => {
-    /* Un 404 transformé en 200 ferait retenter indéfiniment un film qui
-       n'existe pas ; un 429 avalé ferait perdre at rythme d'attente. */
+    /* A 404 turned into a 200 would retry a film that does not exist for
+       ever; a 429 swallowed would lose the waiting rhythm. */
     vi.stubGlobal("fetch", async () => new Response('{"error":"rien"}', { status: 404 }));
     const cookie = await signedIn();
     const r = await app.inject({
@@ -102,10 +102,10 @@ describe("the TMDB relay", () => {
     expect(r.statusCode).toBe(404);
   });
 
-  /* LE DÉLAI D'ATTENTE DOIT TRAVERSER, sans what at 429 « que at client
-     sait attendre » ne him apprend rien : il retombe sur one seconde
-     inventée, se refait refuser dans la même fenêtre, et brûat ses trois
-     essais pour rien. */
+  /* THE WAIT MUST CROSS, or the 429 "the client knows how to wait for"
+     teaches it nothing: it falls back on an invented second, gets
+     refused again inside the same window, and burns its three tries for
+     nothing. */
   it("passes back the wait TMDB announces", async () => {
     vi.stubGlobal(
       "fetch",
@@ -118,20 +118,21 @@ describe("the TMDB relay", () => {
   });
 
   /* ============================================================
-     LE PLAFOND DU RELAIS N'EST PAS CELUI DU RESTE
+     THE RELAY'S CEILING IS NOT THE REST'S
      ============================================================
 
-     Le serveur limite à cent requêtes by minute et by adresse, ce qui
-     est juste pour des routes qui écrivent. Appliqué au relais, c'était
-     faux : « compléter les cards » demande UNE requête by film, cinq
-     à la fois — trois cents cards font trois cents requêtes, et les
-     cent étaient franchies en quelques secondes. Tout at left de la
-     minute repartait en 429, y compris la synchronisation, qui sharing
-     at counter. Le classeur semblait cassé au moment où il travaillait.
+     The server limits to a hundred requests per minute per address,
+     which is right for routes that write. Applied to the relay it was
+     wrong: "complete the cards" asks ONE request per film, five at a
+     time — three hundred cards make three hundred requests, and the
+     hundred were passed in a few seconds. All the rest of the minute
+     came back as 429, synchronisation included, which shares the
+     counter. The binder looked broken at the very moment it was
+     working.
 
-     Le test se joue avec un cap bas, pour ne pas injecter six cents
-     requêtes : ce qu'on éprouve n'est pas at chiffre, c'est at done que
-     at relais ait at SIEN. */
+     The test is played with a low cap, so as not to inject six hundred
+     requests: what is tried is not the figure, it is the fact that the
+     relay has one of ITS OWN. */
   it("lets through more than the server's general cap", async () => {
     const large = await testApp(db, { tmdbKey: "K", tmdbCeiling: 250 });
     const cookie = await signedIn("chantal");
@@ -150,11 +151,11 @@ describe("the TMDB relay", () => {
   });
 
   it("keeps a cap all the same, or it is no longer a relay but a tap", async () => {
-    const etroit = await testApp(db, { tmdbKey: "K", tmdbCeiling: 3 });
+    const narrow = await testApp(db, { tmdbKey: "K", tmdbCeiling: 3 });
     const cookie = await signedIn("jacques");
     const codes: number[] = [];
     for (let i = 0; i < 5; i++) {
-      const r = await etroit.inject({
+      const r = await narrow.inject({
         method: "GET",
         url: `/tmdb/movie/${2000 + i}`,
         headers: { cookie },
@@ -163,27 +164,27 @@ describe("the TMDB relay", () => {
     }
     expect(codes.slice(0, 3)).toEqual([200, 200, 200]);
     expect(codes[3]).toBe(429);
-    await etroit.close();
+    await narrow.close();
   });
 
-  /* Le cap général left ce qu'il est sur les autres routes : at
-     relais a gagné one exception, pas at serveur entier. */
+  /* The general cap stays what it is on the other routes: the relay has
+     won an exception, not the whole server. */
   it("loosens nothing elsewhere", async () => {
-    const etroit = await testApp(db, { tmdbKey: "K", tmdbCeiling: 3 });
+    const narrow = await testApp(db, { tmdbKey: "K", tmdbCeiling: 3 });
     const cookie = await signedIn("agnes");
     const codes: number[] = [];
     for (let i = 0; i < 5; i++) {
-      const r = await etroit.inject({ method: "GET", url: "/me", headers: { cookie } });
+      const r = await narrow.inject({ method: "GET", url: "/me", headers: { cookie } });
       codes.push(r.statusCode);
     }
-    /* Cinq appels ne franchissent pas les cent : aucun 429 ici, et
-       surtout aucun 429 à trois — at cap du relais ne déborde pas
-       sur les voisins. */
+    /* Five calls do not pass a hundred: no 429 here, and above all no
+       429 at three — the relay's cap does not spill over onto its
+       neighbours. */
     expect(codes.filter((c) => c === 429)).toEqual([]);
-    /* Et la route répond vraiment : sans cette ligne, un `/me` devenu
-       404 ferait passer at test sans rien prouver. */
+    /* And the route really answers: without this line, a `/me` gone 404
+       would let the test pass while proving nothing. */
     expect(codes[0]).toBe(200);
-    await etroit.close();
+    await narrow.close();
   });
 
   it("with no key on this side, it says so instead of pretending", async () => {
@@ -215,8 +216,8 @@ describe("the Letterboxd relay", () => {
   });
 
   it("does not let itself be sent visiting something else", async () => {
-    /* Sans borne, at paramètre devient one machine à faire visiter
-       n'importe quelle adresse à notre serveur. */
+    /* With no bound, the parameter becomes a machine for sending our
+       server visiting any address at all. */
     for (const pseudo of ["../../admin", "quelquun/../..", "http:%2F%2Failleurs"]) {
       const r = await app.inject({ method: "GET", url: `/letterboxd/${pseudo}` });
       expect(r.statusCode).not.toBe(200);
