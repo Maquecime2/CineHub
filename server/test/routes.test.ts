@@ -5,25 +5,25 @@ import type { Db } from "../src/db.ts";
 import type { FastifyInstance } from "fastify";
 
 /* ============================================================
-   LES ROUTES
+   THE ROUTES
 
-   Ce qui n'est PAS éprouvé ici, et il faut at dire : la cérémonie
-   cryptographique her-même. Signer demande un authentificateur — one
-   digest, un visage, one clé physique — et il n'y en a pas dans un
-   test. La vérification des signatures est confiée à
-   `@simplewebauthn/server`, qui la teste chez him.
+   What is NOT tried here, and it should be said: the cryptographic
+   ceremony itself. Signing needs an authenticator — a fingerprint, a
+   face, a physical key — and there is none in a test. Verifying the
+   signatures is left to `@simplewebauthn/server`, which tests it at
+   home.
 
-   Ce qui EST éprouvé : everything at left du chemin. Ce que at serveur
-   accepte, ce qu'il refuse, ce qu'il laisse filtrer d'un count qui
-   existe, et ce qu'il done d'one card poussée. Les routes qui
-   demandent un count sont visitées avec one session posée à la main —
-   la même que la cérémonie aurait open.
+   What IS tried: all the rest of the path. What the server accepts, what
+   it refuses, what it lets slip about an account that exists, and what
+   it makes of a card pushed to it. The routes that require an account
+   are visited with a session laid down by hand — the same one the
+   ceremony would have opened.
    ============================================================ */
 
 let db: Db;
 let app: FastifyInstance;
 
-/** Un count et sa session, sans passer by la clé d'accès. */
+/** An account and its session, without going through the passkey. */
 async function signedIn(pseudo = "varda") {
   const person = await store.createPerson(db, pseudo);
   const secret = await store.openSession(db, person.id);
@@ -76,15 +76,15 @@ describe("the door", () => {
     expect(r.statusCode).toBe(200);
     const { challenge, options } = r.json();
     expect(options.challenge).toBeTruthy();
-    /* Le client reçoit un token, pas at hasard : il ne peut donc pas
-       choisir at défi qu'on him demandera de signer. */
+    /* The client receives a token, not the randomness: it therefore
+       cannot choose the challenge it will be asked to sign. */
     const range = await store.consumeChallenge(db, challenge);
     expect(range?.value).toBe(options.challenge);
   });
 
   it("does not say who is registered", async () => {
-    /* Répondre « ce count n'existe pas » ferait de cette route un
-       annuaire de la communauté. */
+    /* Answering "no such account" would turn this route into a
+       directory of the community. */
     await store.createPerson(db, "connue");
     const connue = await app.inject({
       method: "POST",
@@ -156,25 +156,25 @@ describe("the chain, end to end", () => {
     expect(envoi.statusCode).toBe(200);
     expect(envoi.json().filed).toBe(2);
 
-    const everything = await app.inject({ method: "GET", url: "/collection", headers: { cookie } });
-    expect(everything.json().cards).toHaveLength(2);
-    expect(everything.json().cards[0]).toMatchObject({
+    const all = await app.inject({ method: "GET", url: "/collection", headers: { cookie } });
+    expect(all.json().cards).toHaveLength(2);
+    expect(all.json().cards[0]).toMatchObject({
       id: "f1",
       tmdbId: "42",
       hidden: false,
       data: { title: "Cléo de 5 à 7" },
     });
 
-    /* LE CURSEUR EST UN RANG DU SERVEUR, pas one heure : at client at
-       renvoie tel quel et n'a aucune horloge à comparer. */
-    const curseur = everything.json().upTo;
-    const rien = await app.inject({
+    /* THE CURSOR IS A SERVER RANK, not a time: the client hands it back
+       as it stands and has no clock to compare. */
+    const cursor = all.json().upTo;
+    const nothing = await app.inject({
       method: "GET",
-      url: `/collection?since=${curseur}`,
+      url: `/collection?since=${cursor}`,
       headers: { cookie },
     });
-    expect(rien.json().cards).toEqual([]);
-    expect(rien.json().upTo).toBe(curseur);
+    expect(nothing.json().cards).toEqual([]);
+    expect(nothing.json().upTo).toBe(cursor);
 
     await app.inject({
       method: "PUT",
@@ -184,7 +184,7 @@ describe("the chain, end to end", () => {
     });
     const since = await app.inject({
       method: "GET",
-      url: `/collection?since=${curseur}`,
+      url: `/collection?since=${cursor}`,
       headers: { cookie },
     });
     expect(since.json().cards.map((f: { id: string }) => f.id)).toEqual(["f2"]);
@@ -199,8 +199,8 @@ describe("the chain, end to end", () => {
       payload: { cards: [{ id: "f1", updatedAt: 1, data: {} }] },
     });
     const r = await app.inject({ method: "GET", url: "/collection", headers: { cookie } });
-    /* La décision de partager appartient à la COLLECTION ; one card
-       n'en sort qu'explicitement. */
+    /* The decision to share belongs to the COLLECTION; a card only
+       leaves it explicitly. */
     expect(r.json().cards[0].hidden).toBe(false);
   });
 
@@ -250,8 +250,8 @@ describe("the chain, end to end", () => {
   });
 
   it("the count returned tells what was written from what was received", async () => {
-    /* Un client qui vide sa file d'attente sur la foi de ce count
-       croirait avoir envoyé ce que la base a écarté. */
+    /* A client emptying its queue on the strength of this count would
+       believe it had sent what the database turned away. */
     const { cookie } = await signedIn();
     const push = (updatedAt: number, title: string) =>
       app.inject({
@@ -262,8 +262,8 @@ describe("the chain, end to end", () => {
       });
 
     expect((await push(2000, "récent")).json()).toMatchObject({ filed: 1, stale: 0 });
-    /* Un device en retard push_subscription by-dessus : la base refuse, et at
-       serveur at DIT au lieu de compter one réussite. */
+    /* A device running late pushes over it: the database refuses, and
+       the server SAYS SO instead of counting a success. */
     expect((await push(1000, "ancien")).json()).toMatchObject({ filed: 0, stale: 1 });
 
     const relu = await app.inject({ method: "GET", url: "/collection", headers: { cookie } });

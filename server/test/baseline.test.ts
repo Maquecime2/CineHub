@@ -6,13 +6,13 @@ import * as store from "../src/store.ts";
 import type { Db } from "../src/db.ts";
 
 /* ============================================================
-   CE QUE LA BASE PROMET
+   WHAT THE DATABASE PROMISES
 
-   Ces règles-là ne sont pas dans at code du serveur : elles sont dans at
-   schéma, et c'est exprès. Une contrainte écrite dans one route se
-   contourne by la route suivante ; one contrainte écrite dans la table
-   tient quel que soit at chemin. Encore faut-il qu'her tienne — d'où
-   ces tests, qui parlent à un vrai Postgres.
+   These rules are not in the server's code: they are in the schema, and
+   that is deliberate. A constraint written into one route is got round
+   by the next one; a constraint written into the table holds whatever
+   path is taken. It still has to hold — hence these tests, which speak
+   to a real Postgres.
    ============================================================ */
 
 let db: Db;
@@ -25,11 +25,11 @@ afterEach(async () => {
 
 describe("laying the baseline on a database that has already lived", () => {
   it("adds what is missing instead of leaving the table behind", async () => {
-    /* CE TEST EXISTE PARCE QUE LE SERVEUR A REFUSÉ DE DÉMARRER.
-       `CREATE TABLE IF NOT EXISTS` ne done rien du everything when la table
-       est là — pas même addWork one colonne apparue since. Une suite
-       qui part toujours d'one base vide ne peut pas s'en apercevoir :
-       il faut refaire l'ancienne forme, puis reposer at baseline. */
+    /* THIS TEST EXISTS BECAUSE THE SERVER REFUSED TO START.
+       `CREATE TABLE IF NOT EXISTS` does nothing at all when the table is
+       there — not even add a column that has appeared since. A suite
+       that always starts from an empty database cannot notice: one has
+       to rebuild the old shape, then lay the baseline again. */
     const blank = await testDb();
     await blank.exec("DROP TABLE IF EXISTS card;");
     await blank.exec(`
@@ -55,7 +55,7 @@ describe("laying the baseline on a database that has already lived", () => {
     );
     expect(columns.map((c) => c.column_name)).toContain("seq");
 
-    /* Et la table marche vraiment, pas seulement à l'inspection. */
+    /* And the table really works, not only under inspection. */
     const p = await store.createPerson(blank, "rivette");
     await store.storeCard(blank, p.id, { id: "f1", data: {}, updatedAt: new Date(1) });
     expect((await store.cardsSince(blank, p.id, 0))[0]!.seq).toBeTruthy();
@@ -70,10 +70,10 @@ describe("the pseudonym", () => {
   });
 
   it("refuses what cannot live in an address", async () => {
-    /* Le pseudonyme sera l'adresse d'one collection partagée : il ne
-       peut donc pas porter d'espace, de majuscule ni d'accent. */
-    for (const mauvais of ["ab", "Varda", "agnès", "two mots", "-varda", "varda-"]) {
-      await expect(store.createPerson(db, mauvais)).rejects.toThrow();
+    /* The pseudonym will be a shared collection's address: it can carry
+       no space, no capital and no accent. */
+    for (const bad of ["ab", "Varda", "agnès", "two mots", "-varda", "varda-"]) {
+      await expect(store.createPerson(db, bad)).rejects.toThrow();
     }
     await expect(store.createPerson(db, "agnes-varda")).resolves.toBeTruthy();
   });
@@ -110,7 +110,7 @@ describe("a ceremony's challenge", () => {
   it("is consumed once only", async () => {
     const id = await store.setChallenge(db, "hasard", { pseudo: "melville" });
     expect(await store.consumeChallenge(db, id)).toMatchObject({ value: "hasard" });
-    /* Une signature interceptée ne doit pas pouvoir resservir. */
+    /* An intercepted signature must not be able to serve twice. */
     expect(await store.consumeChallenge(db, id)).toBeNull();
   });
 
@@ -153,8 +153,8 @@ describe("filing a card", () => {
       data: { title: "récent" },
       updatedAt: new Date(2000),
     });
-    /* Un device en retard push_subscription sa version : her doit être refusée
-       sans error, et sans écraser la plus fraîche. */
+    /* A device running late pushes its version: it must be refused with
+       no error, and without overwriting the fresher one. */
     await store.storeCard(db, p.id, {
       id: "f1",
       data: { title: "ancien" },
@@ -169,17 +169,17 @@ describe("filing a card", () => {
   it("returns only what has moved since the rank asked for", async () => {
     const p = await store.createPerson(db, "ozu");
     await store.storeCard(db, p.id, { id: "premiere", data: {}, updatedAt: new Date(1000) });
-    const everything = await store.cardsSince(db, p.id, 0);
-    const curseur = Number(everything[0]!.seq);
+    const all = await store.cardsSince(db, p.id, 0);
+    const cursor = Number(all[0]!.seq);
 
     await store.storeCard(db, p.id, { id: "seconde", data: {}, updatedAt: new Date(5000) });
-    const bougé = await store.cardsSince(db, p.id, curseur);
-    expect(bougé.map((f) => f.id)).toEqual(["seconde"]);
+    const moved = await store.cardsSince(db, p.id, cursor);
+    expect(moved.map((f) => f.id)).toEqual(["seconde"]);
   });
 
   it("a modified card takes a fresh rank, and goes to the front again", async () => {
-    /* Sans cela, her garderait sa place dans la file et les appareils
-       déjà passés by là ne la reverraient jamais. */
+    /* Without this it would keep its place in the queue and the devices
+       already past that point would never see it again. */
     const p = await store.createPerson(db, "bresson");
     await store.storeCard(db, p.id, { id: "f1", data: {}, updatedAt: new Date(1000) });
     await store.storeCard(db, p.id, { id: "f2", data: {}, updatedAt: new Date(2000) });
@@ -195,22 +195,22 @@ describe("filing a card", () => {
   });
 
   it("the rank ignores the devices' clocks, and that is its reason for being", async () => {
-    /* UN TÉLÉPHONE EN RETARD D'UNE HEURE. Sa card porte one date plus
-       ancienne que everything ce qui précède ; suivre les dates la rendrait
-       invisible aux autres appareils, rangée sur at serveur et vue de
-       person. Le rang, him, est donné à l'arrivée. */
+    /* A PHONE AN HOUR BEHIND. Its card carries a date older than
+       everything before it; following the dates would make it invisible
+       to the other devices — filed on the server and seen by nobody. The
+       rank, for its part, is given on arrival. */
     const p = await store.createPerson(db, "wenders");
     await store.storeCard(db, p.id, {
       id: "a-l-heure",
       data: {},
       updatedAt: new Date(9_000_000),
     });
-    const curseur = Number((await store.cardsSince(db, p.id, 0)).at(-1)!.seq);
+    const cursor = Number((await store.cardsSince(db, p.id, 0)).at(-1)!.seq);
 
     await store.storeCard(db, p.id, { id: "en-retard", data: {}, updatedAt: new Date(1000) });
 
-    const vus = await store.cardsSince(db, p.id, curseur);
-    expect(vus.map((f) => f.id)).toEqual(["en-retard"]);
+    const seen = await store.cardsSince(db, p.id, cursor);
+    expect(seen.map((f) => f.id)).toEqual(["en-retard"]);
   });
 
   it("a deletion synchronises instead of disappearing", async () => {
@@ -231,13 +231,12 @@ describe("filing a card", () => {
   });
 
   it("files a json OBJECT, and not a string that looks like one", async () => {
-    /* CE TEST EXISTE PARCE QUE LE CONTRAIRE EST ARRIVÉ. Une chaîne
-       confiée à one colonne `jsonb` sans conversion explicite est rangée
-       telle quelle by certains pilotes : la card se retrouve
-       doublement encodée, et everything ce qui la relit reçoit du texte au
-       lieu d'un objet. Le défaut ne s'est vu que sur un vrai Postgres —
-       d'où cette vérification du TYPE rangé, et non de la value relue,
-       qui a l'air juste dans les two cas. */
+    /* THIS TEST EXISTS BECAUSE THE OPPOSITE HAPPENED. A string handed to
+       a `jsonb` column with no explicit cast is filed as it stands by
+       some drivers: the card ends up doubly encoded, and everything that
+       reads it back receives text instead of an object. The fault only
+       showed on a real Postgres — hence this check on the TYPE filed,
+       and not on the value read back, which looks right either way. */
     const p = await store.createPerson(db, "marker");
     await store.storeCard(db, p.id, {
       id: "f1",
@@ -256,8 +255,8 @@ describe("filing a card", () => {
   });
 
   it("two people may name their cards the same", async () => {
-    /* L'identifiant vient du client : rien ne garantit qu'il soit unique
-       entre two collections, et rien n'a besoin de l'être. */
+    /* The identifier comes from the client: nothing guarantees it is
+       unique across two collections, and nothing needs it to be. */
     const a = await store.createPerson(db, "duras");
     const b = await store.createPerson(db, "godard");
     await store.storeCard(db, a.id, { id: "même", data: { chez: "a" }, updatedAt: new Date(1) });
