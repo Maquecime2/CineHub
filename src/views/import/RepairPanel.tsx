@@ -21,7 +21,7 @@ import { C, F } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { Tally, Confirmation } from "../../components/ui";
 import type { DemandeConfirmation } from "../../components/ui";
-import { basculéesParErreur } from "../../domain/repairs";
+import { flippedByMistake } from "../../domain/repairs";
 import type { Film, ImportDiff } from "../../types";
 
 interface RepairPanelProps {
@@ -30,7 +30,7 @@ interface RepairPanelProps {
 }
 
 export function RepairPanel({ films, onImport }: RepairPanelProps) {
-  const suspectes = useMemo(() => basculéesParErreur(films), [films]);
+  const suspectes = useMemo(() => flippedByMistake(films), [films]);
   /* Rien de coché au départ. Décocher trente fiches sur trois cents est
      un travail ; cocher celles qu'on reconnaît en est un autre — mais le
      second se trompe dans le sens qui ne coûte rien. « TOUT COCHER » est

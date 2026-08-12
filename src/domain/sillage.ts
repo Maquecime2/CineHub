@@ -21,7 +21,7 @@
    rien à personne, et c'est ce qui la rend utile sans clé TMDB. L'autre
    moitié vit dans `sillageLoin`.
    ============================================================ */
-import { normaliser } from "./search";
+import { normalize } from "./search";
 import { directorsOf, weightOf } from "../taste";
 import { motifById } from "./motifs";
 import type { Film } from "../types";
@@ -136,7 +136,7 @@ export const PLAFONDS: Partial<Record<Lien, number>> = {
 const poidsDuRang = (rang: number): number => Math.max(0.25, 1 - rang * 0.11);
 
 /** Le nom, comparable : sans accent, sans casse, sans espaces au bord. */
-const clé = (nom: string): string => normaliser((nom || "").trim());
+const clé = (nom: string): string => normalize((nom || "").trim());
 
 /* Les trois métiers que la récolte range dans `crew`, et le nom du lien
    correspondant. On ne parcourt PAS `crew` en aveugle : une clé inconnue

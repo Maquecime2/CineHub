@@ -5,10 +5,10 @@
    là que les constellations se forment.
    ============================================================ */
 import { hash, seededRand } from "./seeded";
-import { forceDe } from "./relations";
+import { strengthOf } from "./relations";
 import { threadMembers } from "./threads";
 import type { Thread } from "./threads";
-import type { Force } from "./relations";
+import type { Strength } from "./relations";
 import type {
   Film,
   Kinship,
@@ -141,7 +141,7 @@ export function buildSky(
              elle qu'on veut lire au survol, avant le nom de la relation
              qui, lui, se devine déjà au sens du trait. */
           note: (côtéA?.note || w.note || "").trim(),
-          force: forceDe(w.force),
+          force: strengthOf(w.force),
         });
       }
     });
@@ -429,7 +429,7 @@ export function relax(nodes: SkyNode[], links: SkyLink[], W: number, H: number):
   const edges = links
     .map((l) => ({ i: index.get(l.a), j: index.get(l.b), kind: l.kind, force: l.force }))
     .filter(
-      (e): e is { i: number; j: number; kind: SkyLink["kind"]; force: Force | undefined } =>
+      (e): e is { i: number; j: number; kind: SkyLink["kind"]; force: Strength | undefined } =>
         e.i != null && e.j != null
     );
 
@@ -462,7 +462,8 @@ export function relax(nodes: SkyNode[], links: SkyLink[], W: number, H: number):
          pour le même film à deux reprises doivent se toucher. Un fil tient
          ses membres en grappe autour de son nom, un peu plus lâche qu'une
          œuvre citée pour laisser la place aux étiquettes. */
-      const rest = e.kind === "peer" ? 260 - forceDe(e.force) * 40 : e.kind === "fil" ? 170 : 128;
+      const rest =
+        e.kind === "peer" ? 260 - strengthOf(e.force) * 40 : e.kind === "fil" ? 170 : 128;
       const dx = b.x - a.x,
         dy = b.y - a.y;
       const d = Math.sqrt(dx * dx + dy * dy) || 0.01;

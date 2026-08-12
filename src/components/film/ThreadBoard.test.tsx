@@ -148,7 +148,7 @@ describe("ThreadBoard — retoucher un fil", () => {
       // la note, la nature du lien et sa force disent ce qui se passe ENTRE les deux
       expect(screen.getByLabelText("Pourquoi ce lien ?")).toBeInTheDocument();
       expect(screen.getByLabelText("Nature du lien")).toBeInTheDocument();
-      expect(screen.getByLabelText("Force du lien")).toBeInTheDocument();
+      expect(screen.getByLabelText("Strength du lien")).toBeInTheDocument();
     });
 
     it("montre quand même de quoi on parle", async () => {

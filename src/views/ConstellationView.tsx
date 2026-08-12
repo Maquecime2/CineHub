@@ -22,7 +22,7 @@ import type { Film, KinshipRole, LinkType, PlacedNode, SkyLink, SkyNode } from "
 import { Label } from "../components/ui";
 import { TagChip } from "../components/ui/TagEditor";
 import { catInk } from "../theme/palette";
-import { relationDef, forceDe } from "../domain/relations";
+import { relationDef, strengthOf } from "../domain/relations";
 import { linkTypeOf } from "../components/film/linkTypes";
 import { motifById } from "../domain/motifs";
 import { searchFilms } from "../domain/search";
@@ -929,7 +929,7 @@ export function ConstellationView({
                   : null;
                 const encre = teinteDuFil ?? (crew ? inkOf(l) : peer ? C.burgundy : C.vermillion);
                 // un lien fort épaissit le trait : c'est la seule chose qu'il ait à dire ici
-                const épaisseurPeer = 1.4 + forceDe(l.force) * 0.6;
+                const épaisseurPeer = 1.4 + strengthOf(l.force) * 0.6;
                 return (
                   <g key={i}>
                     <path

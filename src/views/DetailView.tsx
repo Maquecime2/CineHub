@@ -39,12 +39,12 @@ import { TmdbLink } from "../components/film/TmdbLink";
 import { WatchLog } from "../components/film/WatchLog";
 import { ThreadBoard } from "../components/film/ThreadBoard";
 import { LINK_TYPES } from "../components/film/linkTypes";
-import { FORCES, RELATIONS_SAISISSABLES, forceDe } from "../domain/relations";
+import { STRENGTHS, ENTERABLE_RELATIONS, strengthOf } from "../domain/relations";
 import { SillagePanel } from "./detail/SillagePanel";
 import { StillsStrip } from "../components/stills/StillsStrip";
 import { StillLightbox } from "../components/stills/StillLightbox";
 import { RichField } from "../components/stills/RichField";
-import type { Film, Force, LinkPatch, LinkType, Relation, Still } from "../types";
+import type { Film, Strength, LinkPatch, LinkType, Relation, Still } from "../types";
 
 /** Les deux champs de texte de la fiche, où une capture peut s'insérer. */
 type TextField = "review" | "notes";
@@ -143,7 +143,13 @@ interface DetailViewProps {
   films?: Film[];
   /** Relie deux fiches du mur : le lien est posé des deux côtés, la
    *  relation renversée à l'autre bout. */
-  onLinkFilm: (aId: string, bId: string, note: string, relation?: Relation, force?: Force) => void;
+  onLinkFilm: (
+    aId: string,
+    bId: string,
+    note: string,
+    relation?: Relation,
+    force?: Strength
+  ) => void;
   onRemoveLink: (filmId: string, workId: string) => void;
   /** Retouche un fil : le modele decide de ce qu il accepte. */
   onEditLink: (filmId: string, workId: string, patch: LinkPatch) => void;
@@ -213,7 +219,7 @@ export function DetailView({
   const [linkCreator, setLinkCreator] = useState("");
   const [linkNote, setLinkNote] = useState("");
   const [linkRelation, setLinkRelation] = useState<Relation | "">("");
-  const [linkForce, setLinkForce] = useState<Force>(2);
+  const [linkForce, setLinkForce] = useState<Strength>(2);
   const [picked, setPicked] = useState<Film | null>(null); // fiche existante retenue
   // le vocabulaire déjà employé dans la collection, pour ne pas le fragmenter
   const allTags = useMemo(
@@ -1072,7 +1078,7 @@ export function DetailView({
                         style={{ ...underlineInput, fontFamily: F.mono, fontSize: 12 }}
                       >
                         <option value="">— sans plus de précision —</option>
-                        {RELATIONS_SAISISSABLES.map((r) => (
+                        {ENTERABLE_RELATIONS.map((r) => (
                           <option key={r.id} value={r.id}>
                             {r.label}
                           </option>
@@ -1080,13 +1086,13 @@ export function DetailView({
                       </select>
                     </div>
                     <div style={{ minWidth: 150 }}>
-                      <Label>Force</Label>
+                      <Label>Strength</Label>
                       <select
                         value={linkForce}
-                        onChange={(e) => setLinkForce(forceDe(Number(e.target.value)))}
+                        onChange={(e) => setLinkForce(strengthOf(Number(e.target.value)))}
                         style={{ ...underlineInput, fontFamily: F.mono, fontSize: 12 }}
                       >
-                        {FORCES.map((f) => (
+                        {STRENGTHS.map((f) => (
                           <option key={f.valeur} value={f.valeur}>
                             {f.label}
                           </option>

@@ -33,8 +33,8 @@
       `onboarding`. Un classeur qu'on vide à la main doit rester vide.
    ============================================================ */
 import { makeFilm } from "../domain/film";
-import { inverseDe } from "../domain/relations";
-import type { Film, Force, LinkedWork, Note, Relation, Watch } from "../types";
+import { inverseOf } from "../domain/relations";
+import type { Film, Strength, LinkedWork, Note, Relation, Watch } from "../types";
 
 /** Le préfixe qui distingue une fiche d'exemple de la vôtre. */
 export const PRÉFIXE_DÉMO = "demo-";
@@ -334,7 +334,7 @@ const BROUILLONS: Brouillon[] = [
 
    Écrits à la main, comme dans l'application : deux moitiés qui
    partagent un `pairId`, avec la relation RENVERSÉE de l'autre côté
-   (voir `inverseDe`). Les recopier telles quelles plutôt que d'appeler
+   (voir `inverseOf`). Les recopier telles quelles plutôt que d'appeler
    `linkFilms` est délibéré — cette fonction vit dans `App` et travaille
    sur l'état React, qui n'existe pas encore au moment du semis. */
 interface Thread {
@@ -342,7 +342,7 @@ interface Thread {
   vers: string;
   note: string;
   relation: Relation;
-  force: Force;
+  force: Strength;
 }
 
 const FILS: Thread[] = [
@@ -435,7 +435,7 @@ export function filmsDeDémonstration(maintenant = Date.now()): Film[] {
       force: fil.force,
     });
     ajouter(a.id, moitié(b, fil.relation));
-    ajouter(b.id, moitié(a, inverseDe(fil.relation)!));
+    ajouter(b.id, moitié(a, inverseOf(fil.relation)!));
   }
 
   const { propriétaire, ...livre } = LIVRE;

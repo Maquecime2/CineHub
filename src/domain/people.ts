@@ -12,7 +12,7 @@
    c'est une question qu'on pose à la collection.
    ============================================================ */
 import { parentésDe } from "./sky";
-import { normaliser } from "./search";
+import { normalize } from "./search";
 import { watchCount } from "./film";
 import type { Film, KinshipRole, Year } from "../types";
 
@@ -28,7 +28,7 @@ export const RÔLES: KinshipRole[] = [
 const estUnRôleDePersonne = (r: KinshipRole): boolean => r !== "thème";
 
 export interface Personne {
-  /** `normaliser(nom)` — l'identité, insensible à la casse et aux accents. */
+  /** `normalize(nom)` — l'identité, insensible à la casse et aux accents. */
   clé: string;
   /** L'orthographe la plus fréquente dans la collection. */
   nom: string;
@@ -76,7 +76,7 @@ interface Brouillon {
 export const rôlesSurLeFilm = (f: Film, clé: string): KinshipRole[] => {
   const vus = new Set<KinshipRole>();
   for (const k of parentésDe(f))
-    if (estUnRôleDePersonne(k.role) && normaliser(k.nom.trim()) === clé) vus.add(k.role);
+    if (estUnRôleDePersonne(k.role) && normalize(k.nom.trim()) === clé) vus.add(k.role);
   return RÔLES.filter((r) => vus.has(r));
 };
 
@@ -158,7 +158,7 @@ export function recenser(films: Film[]): Personne[] {
       if (!estUnRôleDePersonne(k.role)) continue;
       const nom = k.nom.trim();
       if (!nom) continue;
-      const clé = normaliser(nom);
+      const clé = normalize(nom);
       if (!clé) continue;
 
       let b = brouillons.get(clé);
@@ -189,7 +189,7 @@ export const dossierDe = (films: Film[], clé: string): Personne | null =>
  * recherche du mur qui répond à cette question-là.
  */
 export const chercherPersonnes = (gens: Personne[], q: string): Personne[] => {
-  const t = normaliser(q.trim());
+  const t = normalize(q.trim());
   if (!t) return gens;
   const touche = gens.filter((p) => p.clé.includes(t));
   /* Celui dont un MOT commence par ce qu'on tape passe devant. Le rang

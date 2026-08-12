@@ -4,8 +4,8 @@ import { CAT_KEYS } from "./shelf-views";
 import { C, F, FONT_IMPORT } from "./theme/tokens";
 import { applySkin, loadSkinKey, saveSkinKey } from "./theme/applySkin";
 import { uid, migrate, editLinkedWork } from "./domain/film";
-import { normaliser } from "./domain/search";
-import { inverseDe, forceDe } from "./domain/relations";
+import { normalize } from "./domain/search";
+import { inverseOf, strengthOf } from "./domain/relations";
 import { makeThread, normalizeThreads } from "./domain/threads";
 import { motifById, makeMotifPerso, motifsPerso } from "./domain/motifs";
 import { loadFils, saveFils as saveFilsToDisk } from "./services/fils";
@@ -203,7 +203,7 @@ export default function App() {
       setFils(loadFils());
       setVocabulaire(loadVocabulaire());
       /* La migration lit `order` et `status`, que le dépôt vient de
-         normaliser : elle doit donc passer après, et sur les fiches
+         normalize : elle doit donc passer après, et sur les fiches
          migrées — pas sur ce qui sort du disque. */
       setViews(
         ensureViews({ films: migrated, dividers: tabs, wallPrefs: store.get("wall-prefs", {}) })
@@ -446,7 +446,7 @@ export default function App() {
      seule fois : le Générique range ses dossiers sous la même, et deux
      façons de l'écrire feraient deux personnes. */
   const ouvrirPersonne = (nom) => {
-    setPersonne(normaliser(nom));
+    setPersonne(normalize(nom));
     setView("generique");
   };
 
@@ -508,14 +508,14 @@ export default function App() {
       creator: target.director || "",
       note: note.trim(),
       relation: rel,
-      force: force ? forceDe(force) : undefined,
+      force: force ? strengthOf(force) : undefined,
     });
     saveFilms(
       films.map((f) =>
         f.id === a.id
           ? { ...f, linkedWorks: [...(f.linkedWorks || []), card(b, relation)] }
           : f.id === b.id
-            ? { ...f, linkedWorks: [...(f.linkedWorks || []), card(a, inverseDe(relation))] }
+            ? { ...f, linkedWorks: [...(f.linkedWorks || []), card(a, inverseOf(relation))] }
             : f
       )
     );

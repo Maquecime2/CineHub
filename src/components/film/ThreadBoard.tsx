@@ -12,8 +12,8 @@ import { tapeColor } from "../../theme/ink";
 import { hash, seededRand, tiltOf, usesPin } from "../../domain/seeded";
 import { PushPin, Tape } from "../atmosphere";
 import { LINK_TYPES, linkTypeOf } from "./linkTypes";
-import { FORCES, RELATIONS, forceDe, relationDef } from "../../domain/relations";
-import type { Film, Force, LinkedWork, LinkPatch, LinkType, Relation } from "../../types";
+import { STRENGTHS, RELATIONS, strengthOf, relationDef } from "../../domain/relations";
+import type { Film, Strength, LinkedWork, LinkPatch, LinkType, Relation } from "../../types";
 
 interface ThreadBoardProps {
   film: Film;
@@ -53,7 +53,7 @@ function ThreadCardEditor({
   const [creator, setCreator] = useState(work.creator || "");
   const [note, setNote] = useState(work.note || "");
   const [relation, setRelation] = useState<Relation | "">(work.relation || "");
-  const [force, setForce] = useState<Force>(forceDe(work.force));
+  const [force, setForce] = useState<Strength>(strengthOf(work.force));
 
   const commit = () => {
     if (!locked && !title.trim()) return onCancel();
@@ -121,7 +121,7 @@ function ThreadCardEditor({
             }}
           >
             <option value="">— sans plus de précision —</option>
-            {RELATIONS.filter((r) => !r.dérivée || r.id === work.relation).map((r) => (
+            {RELATIONS.filter((r) => !r.derived || r.id === work.relation).map((r) => (
               <option key={r.id} value={r.id}>
                 {r.label}
               </option>
@@ -129,8 +129,8 @@ function ThreadCardEditor({
           </select>
           <select
             value={force}
-            onChange={(e) => setForce(forceDe(Number(e.target.value)))}
-            aria-label="Force du lien"
+            onChange={(e) => setForce(strengthOf(Number(e.target.value)))}
+            aria-label="Strength du lien"
             style={{
               ...scribble,
               flex: "1 1 120px",
@@ -140,7 +140,7 @@ function ThreadCardEditor({
               color: C.inkFaded,
             }}
           >
-            {FORCES.map((f) => (
+            {STRENGTHS.map((f) => (
               <option key={f.valeur} value={f.valeur}>
                 {f.label}
               </option>
@@ -501,7 +501,7 @@ export function ThreadBoard({ film, onRemove, onEdit, films = [], onOpen }: Thre
                           <span style={{ color: C.burgundy }}>
                             {" · "}
                             {relationDef(w.relation)?.label ?? "fiche liée"}
-                            {" " + "·".repeat(forceDe(w.force))}
+                            {" " + "·".repeat(strengthOf(w.force))}
                           </span>
                         )}
                         {w.filmId && !linked && (

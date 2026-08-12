@@ -18,7 +18,7 @@
    balayage se fait en moins d'une image, et un index serait une
    structure de plus à tenir à jour à chaque frappe.
    ============================================================ */
-import { normaliser, scoreFilm } from "./search";
+import { normalize, scoreFilm } from "./search";
 import { tousLesMotifs, motifById } from "./motifs";
 import { threadMembers } from "./threads";
 import { recenser } from "./people";
@@ -74,15 +74,15 @@ const JETON_CAPTURE = /\[img:\d+\]/g;
  * suspension là où l'on a coupé.
  *
  * On cherche sur le texte NORMALISÉ mais on découpe dans l'ORIGINAL :
- * les deux ont la même longueur — `normaliser` ne fait que retirer les
+ * les deux ont la même longueur — `normalize` ne fait que retirer les
  * signes diacritiques, caractère par caractère — et c'est ce qui permet
  * de rendre l'extrait avec ses accents et ses majuscules.
  */
 export function extraitAutour(texte: string, q: string): string | undefined {
   const propre = (texte || "").replace(JETON_CAPTURE, " ");
-  const t = normaliser(q.trim());
+  const t = normalize(q.trim());
   if (!t) return undefined;
-  const i = normaliser(propre).indexOf(t);
+  const i = normalize(propre).indexOf(t);
   if (i < 0) return undefined;
 
   const début = Math.max(0, i - AUTOUR);
@@ -95,7 +95,7 @@ export function extraitAutour(texte: string, q: string): string | undefined {
    devant ce qui le contient au milieu. Même règle que pour un titre de
    film, et pour la même raison. */
 const rangDe = (texte: string, t: string, base: number): number | null => {
-  const n = normaliser(texte);
+  const n = normalize(texte);
   if (!n.includes(t)) return null;
   return n.startsWith(t) ? base - 0.5 : base;
 };
@@ -113,7 +113,7 @@ export function chercherPartout(
   { films, notes, fils }: Fonds,
   parGenre = 5
 ): Trouvaille[] {
-  const t = normaliser(q.trim());
+  const t = normalize(q.trim());
   if (t.length < 2) return [];
 
   const out: Trouvaille[] = [];

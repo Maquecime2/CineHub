@@ -1,9 +1,9 @@
 /* ============================================================
    Les formes de données du projet, en un seul endroit.
    ============================================================ */
-import type { Force, Relation } from "../domain/relations";
+import type { Strength, Relation } from "../domain/relations";
 
-export type { Force, Relation };
+export type { Strength, Relation };
 
 /** Une fiche vue, ou seulement mise de côté. */
 export type FilmStatus = "watched" | "watchlist";
@@ -43,7 +43,7 @@ export interface LinkedWork {
    */
   relation?: Relation;
   /** Trois crans ; voir `domain/relations`. Vaut 2 quand rien n'est dit. */
-  force?: Force;
+  force?: Strength;
 }
 
 /**
@@ -343,7 +343,7 @@ export interface SkyLink {
   relation?: Relation;
   /** Ce qu'on a écrit sous le lien — côté `a` pour un "peer". */
   note?: string;
-  force?: Force;
+  force?: Strength;
 }
 
 /**

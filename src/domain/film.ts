@@ -1,7 +1,7 @@
 /* ============================================================
    MODÈLE — une fiche film, une seule définition
    ============================================================ */
-import { inverseDe } from "./relations";
+import { inverseOf } from "./relations";
 import type { Film, LinkedWork, LinkPatch, Watch } from "../types";
 
 /* ============================================================
@@ -430,7 +430,7 @@ export const editLinkedWork = (
 
   /* La relation et la force appartiennent au lien, comme la note : elles
      disent ce qui se passe ENTRE les deux fiches. Elles valent donc des
-     deux côtés — mais la relation s'y renverse (voir `inverseDe`), sans
+     deux côtés — mais la relation s'y renverse (voir `inverseOf`), sans
      quoi chaque film se déclarerait la suite de l'autre. */
   const relation = patch.relation ?? work.relation;
   const force = patch.force ?? work.force;
@@ -455,7 +455,7 @@ export const editLinkedWork = (
       return {
         ...f,
         linkedWorks: (f.linkedWorks || []).map((w) =>
-          w.pairId === work.pairId ? { ...w, note, force, relation: inverseDe(relation) } : w
+          w.pairId === work.pairId ? { ...w, note, force, relation: inverseOf(relation) } : w
         ),
       };
     return f;
