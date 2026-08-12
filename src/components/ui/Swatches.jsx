@@ -76,8 +76,8 @@ export const Swatch = ({ on, onClick, title, style, w = 42, h = 28, children }) 
   </button>
 );
 
-/* « Rien » est un choix, pas une absence de bouton : sans lui, on pose
-   un papier peint et on ne peut plus l'enlever. */
+/* "Nothing" is a choice, not an absence of a button: without it, one
+   lays a wallpaper and can no longer take it off. */
 export const NoneSwatch = ({ on, onClick, label = "aucun" }) => (
   <Swatch
     on={on}
@@ -119,7 +119,7 @@ export const OptionButton = ({ on, onClick, children, title }) => (
   </button>
 );
 
-/** Le volet d'une surface : peinture, papier peint, son encre, texture. */
+/** The panel of a surface: paint, wallpaper, its ink, texture. */
 export function SurfaceTab({ decor, set }) {
   const ink = decor?.patternInk ? catInk(decor.patternInk) : undefined;
   const pattern = patternLayer(decor?.pattern, ink);
@@ -149,8 +149,9 @@ export function SurfaceTab({ decor, set }) {
             on={decor?.pattern === k}
             onClick={() => set({ pattern: k })}
             title={p.label}
-            /* La vignette montre la trame SUR la peinture retenue : un
-               motif sur fond blanc ne dit pas ce qu'il donnera. */
+            /* The thumbnail shows the pattern ON the chosen paint: a
+               pattern on a white background does not say what it will
+               give. */
             style={{ ...paintStyle(decor?.paint), ...patternLayer(k, ink) }}
           />
         ))}

@@ -34,7 +34,7 @@ describe("putting in and taking out", () => {
     const thread = makeThread({ motif: "hero-dies", label: "x" });
     const after = withoutFilm(thread, "a", films);
     expect(after.excluded).toEqual(["a"]);
-    // sans quoi il reviendrait au chargement suivant
+    // failing which it would come back on the next load
     expect(threadMembers(after, films)).toEqual(["b"]);
   });
 

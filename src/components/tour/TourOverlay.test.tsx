@@ -195,7 +195,7 @@ describe("une cible absente ne bloque pas la visite", () => {
     const onClose = vi.fn();
     render(<TourOverlay tourId="almanac" onClose={onClose} onView={vi.fn()} />);
 
-    // on arrive bien à l'avant-dernière…
+    // we do reach the second to last…
     const avant = étapes[étapes.length - 2]!;
     expect(await screen.findByText(avant.title)).toBeInTheDocument();
     await userEvent.click(screen.getByText(/suivant|terminer/i));

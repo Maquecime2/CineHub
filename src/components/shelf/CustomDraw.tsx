@@ -57,7 +57,7 @@ export function CustomDraw({
   if (inline)
     return (
       <span
-        // le markup a été nettoyé à l'import : ni script, ni gestionnaire, ni lien distant
+        // the markup was cleaned at import time: no script, no handler, no remote link
         dangerouslySetInnerHTML={{ __html: markup || "" }}
         style={{
           display: "block",

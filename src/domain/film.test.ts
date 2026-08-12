@@ -38,7 +38,7 @@ describe("uid", () => {
 
   it("with no cryptographic generator, the card still gets written", () => {
     const vrai = crypto.randomUUID;
-    // @ts-expect-error — on simule un navigateur qui ne l'a pas
+    // @ts-expect-error — we simulate a browser that does not have it
     crypto.randomUUID = undefined;
     try {
       expect(uid().length).toBeGreaterThan(8);
@@ -100,7 +100,7 @@ describe("what gets shared", () => {
     const published = publicPart(f) as Record<string, unknown>;
     expect("notes" in published).toBe(false);
     expect("watches" in published).toBe(false);
-    /* Ce qu'on publie quand on publie : c'est le propos d'une
+    /* What one publishes when one publishes: that is the point of a
        shared video library. */
     expect(published.review).toBe("la danse de la fin");
     expect(published.rating).toBe(5);
@@ -108,7 +108,7 @@ describe("what gets shared", () => {
   });
 
   it("a field added tomorrow goes out with the rest, rather than being forgotten", () => {
-    /* C'est pour cela qu'on nomme ce qu'on ÉCARTE, et non ce qu'on garde. */
+    /* That is why we name what we SET ASIDE, and not what we keep. */
     const f = { ...makeFilm({ title: "Elephant" }), nouveauChamp: "présent" } as unknown as Film;
     expect((publicPart(f) as Record<string, unknown>).nouveauChamp).toBe("présent");
   });
@@ -201,8 +201,8 @@ describe("migrate", () => {
     expect(f!.linkedWorks[0]!.relation).toBe("precedes");
   });
 
-  /* Un lien sans relation est le cas ordinaire — la nature du fil est
-     facultative. La migration ne doit pas lui en inventer une. */
+  /* A link with no relation is the ordinary case — the kind of the
+     thread is optional. The migration must not invent one for it. */
   it("does not invent a relation where there was none", () => {
     const [f] = migrate([
       {

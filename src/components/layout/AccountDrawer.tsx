@@ -74,7 +74,7 @@ export function AccountDrawer({
   bilan: SyncReport;
   onFermer: () => void;
   onSynchroniser: () => void;
-  /** Le compte a changé : l'application doit se resituer. */
+  /** The account has changed: the application must find its bearings again. */
   onChangement: (person: Person | null) => void;
 }) {
   const [pseudo, setPseudo] = useState("");

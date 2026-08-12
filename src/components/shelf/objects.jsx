@@ -140,7 +140,7 @@ export const Books = ({ color, ...p }) => (
   </Sketch>
 );
 
-/* ---------- CE QUI S'ACCROCHE ---------- */
+/* ---------- WHAT HANGS ---------- */
 
 export const Frame = ({ color, ...p }) => (
   <Sketch color={color} {...p}>

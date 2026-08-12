@@ -490,7 +490,7 @@ export const dividerSkin = (ink) => ({
   boxShadow: `2px 2px 0 ${alpha(C.ink, 0.2)}`,
 });
 
-/* L'onglet : la tête pleine, et l'œillet dedans. */
+/* The tab: the solid head, and the eyelet inside it. */
 export const DividerHead = ({ ink, height }) => (
   <div
     aria-hidden

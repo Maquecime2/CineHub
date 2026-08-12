@@ -114,7 +114,7 @@ const bouton = {
   border: `1px solid ${C.burgundy}`,
 };
 
-/** L'invitation à poser le classeur sur l'écran d'accueil. */
+/** The invitation to lay the binder on the home screen. */
 export function Installation({
   apple,
   onInstaller,
@@ -147,7 +147,7 @@ export function Installation({
   );
 }
 
-/** Une version neuve attend d'être posée. */
+/** A brand-new version is waiting to be laid down. */
 export function MiseÀJour({ onRecharger }: { onRecharger: () => void }) {
   return (
     <Fiche tour="maj">

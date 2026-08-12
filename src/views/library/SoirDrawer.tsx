@@ -120,7 +120,7 @@ export function SoirDrawer({
     };
   }, [apiKey, humeur, propositions, devinés]);
 
-  // Échap ferme, comme partout ailleurs
+  // Escape closes, as everywhere else
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();

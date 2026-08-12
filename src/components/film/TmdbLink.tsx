@@ -37,7 +37,7 @@ import { isIdbPoster } from "../../db";
 import { searchMovies, getDetails, rememberResolution } from "../../tmdb";
 import type { Film } from "../../types";
 
-/** Un homonyme proposé par TMDB. */
+/** A namesake proposed by TMDB. */
 interface Candidat {
   tmdbId: number;
   title: string;

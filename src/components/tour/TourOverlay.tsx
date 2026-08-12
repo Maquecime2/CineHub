@@ -32,7 +32,7 @@ const BULLE_BASE = 300;
 const GAP = 16;
 
 interface TourOverlayProps {
-  /** Clé de `TOURS`. `null` : aucune visite en cours. */
+  /** Key of `TOURS`. `null`: no tour under way. */
   tourId: string | null;
   onClose: () => void;
   /** Opens a view — that is what lets the global tour travel. */
@@ -354,7 +354,7 @@ const lien: CSSProperties = {
   borderBottom: `1px dashed ${C.line}`,
 };
 
-/* ---------- où poser la fiche ---------- */
+/* ---------- where to lay the card ---------- */
 
 /* The requested side is only a wish: if the card overflows, we fold it
    to the opposite side, and failing that we clamp it inside the window. A

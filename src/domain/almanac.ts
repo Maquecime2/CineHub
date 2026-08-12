@@ -432,7 +432,7 @@ export interface ScreenTime {
   sansDuree: number;
 }
 
-/* LES HEURES DE CINÉMA.
+/* THE HOURS OF CINEMA.
 
    Screenings with no known runtime are counted SEPARATELY and not
    silently ignored: "ninety-two hours" on a half-filled collection is a
@@ -459,7 +459,7 @@ export function screenTime(films: Film[], period: Period): ScreenTime {
 }
 
 export interface Geography {
-  /** Codes ISO 3166-1, du plus vu au moins. */
+  /** ISO 3166-1 codes, from the most watched to the least. */
   countries: { name: string; n: number }[];
   /** Codes ISO 639-1. */
   languages: { name: string; n: number }[];
@@ -501,9 +501,9 @@ export interface Almanac {
    * information drawn twice does not make it two.
    */
   byYear: { year: number; screenings: number; titles: number; rating: number | null }[];
-  /** Moyenne des screenings NOTÉES ; `null` quand aucune ne l'est. */
+  /** Mean of the RATED screenings; `null` when none is. */
   ratingAvg: number | null;
-  /** Onze cases : 0, 0.5, 1 … 5. */
+  /** Eleven bins: 0, 0.5, 1 … 5. */
   ratingHistogram: number[];
   /** The release decades visited, from the oldest to the most recent. */
   decades: { decade: number; n: number }[];
@@ -543,7 +543,7 @@ export interface Almanac {
    yours being out of five — subtracting two different scales is a
    faute qu'aucun signe ne trahit ensuite. */
 export interface GapToPublic {
-  /** Votre moyenne, sur dix, sur les screenings comparables. */
+  /** Your mean, out of ten, over the comparable screenings. */
   you: number | null;
   /** The public mean for the same films. */
   public: number | null;
@@ -631,13 +631,12 @@ export function byYear(
     .sort((a, b) => a.year - b.year);
 }
 
-/* CE QU'UNE ANNÉE CONTIENT.
+/* WHAT A YEAR CONTAINS.
 
    One sweep per question, and none assumes another: an empty collection,
    a year with no screening and a screening with no rating all three give
    an answer — never an exception, never a `NaN`. That is what lets the
-   view test nothing before
-   dessiner. */
+   view test nothing before drawing. */
 export function almanacFor(films: Film[], period: Period): Almanac {
   const all = screeningsOf(films);
   const year = all.filter(({ watch }) => inPeriod(watch.date, period));

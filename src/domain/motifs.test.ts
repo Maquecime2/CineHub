@@ -95,8 +95,8 @@ describe("the motifs set aside", () => {
     expect(searchMotifs("héros").some((m) => m.id === "hero-dies")).toBe(false);
   });
 
-  /* Masquer n'est pas effacer : une fiche qui le porte doit continuer de
-     showing it, otherwise setting aside would quietly rewrite data. */
+  /* Hiding is not erasing: a card that carries it must go on showing
+     it, otherwise setting aside would quietly rewrite data. */
   it("restent lisibles sur les fiches qui les portent", () => {
     setVocabulary({ custom: [], hidden: ["hero-dies"] });
     expect(motifById("hero-dies")?.label).toBe("Le héros meurt");

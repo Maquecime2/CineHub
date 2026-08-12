@@ -33,7 +33,7 @@ export function FilmIdentity({
 }: {
   film: Film;
   onUpdate: (f: Film) => void;
-  /** Absent : la réalisation reste du texte. */
+  /** Absent: the directing credit stays plain text. */
   onOpenPerson?: (nom: string) => void;
 }) {
   const [editing, setEditing] = useState(false);

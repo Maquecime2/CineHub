@@ -34,7 +34,7 @@ describe("workKey", () => {
 
 describe("buildSky", () => {
   it("laisse hors du ciel les films sans aucun fil rouge", () => {
-    // un graphe qui montre toutes les fiches ne montre plus rien
+    // a graph that shows every card no longer shows anything
     const { nodes } = buildSky([film("Playtime"), film("Le Miroir")]);
     expect(nodes).toEqual([]);
   });
@@ -48,7 +48,7 @@ describe("buildSky", () => {
     const works = nodes.filter((x) => x.kind === "work");
     expect(works).toHaveLength(1);
     expect(works[0]!.refs).toBe(2);
-    // deux films, une œuvre, deux fils
+    // two films, one work, two threads
     expect(nodes.filter((x) => x.kind === "film")).toHaveLength(2);
     expect(links).toHaveLength(2);
   });

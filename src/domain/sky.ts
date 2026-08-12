@@ -206,7 +206,7 @@ export interface SuggestOptions {
   max?: number;
 }
 
-/* TOUT CE QUI PEUT APPARENTER DEUX FICHES, avec sa NATURE.
+/* EVERYTHING THAT CAN MAKE TWO CARDS KIN, with its KIND.
 
    The previous version flattened everything into a list of names, and
    lost the trade on the way: the map could say "Decaë" but not "image ·
@@ -351,7 +351,7 @@ export function neighbourhood(
   };
 }
 
-/* LE CIEL, PARENTÉS COMPRISES.
+/* THE SKY, KINSHIPS INCLUDED.
 
    Composed rather than inserted into `buildSky`: the hand-made map stays
    exactly what it was, and the addition reads as what it is — a layer on

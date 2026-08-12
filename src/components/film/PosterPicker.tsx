@@ -7,7 +7,7 @@ import { IDB_PREFIX, isIdbPoster, idbKeyOf, putImage, deleteImage } from "../../
 import { listPosters } from "../../tmdb";
 import type { Film } from "../../types";
 
-/** Une affiche proposée par TMDB. */
+/** A poster proposed by TMDB. */
 interface PosterChoice {
   full: string;
   thumb: string;
