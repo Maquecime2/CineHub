@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { getImage } from "../../db";
 import type { Still } from "../../types";
 
-/* Les URL d'objet des captures, mutualisées : le même blob sert la bande,
-   les vignettes en ligne et la visionneuse. Révoquées au démontage. */
+/* The stills' object URLs, shared: the same blob serves the strip, the
+   inline thumbnails and the viewer. Revoked on unmount. */
 export function useStillUrls(stills: Still[]): Record<string, string> {
   const [urls, setUrls] = useState<Record<string, string>>({});
   const keys = (stills || []).map((s) => s.key).join("|");
@@ -12,7 +12,7 @@ export function useStillUrls(stills: Still[]): Record<string, string> {
     const made: string[] = [];
     Promise.all(
       (stills || []).map(async (s): Promise<[string, string] | null> => {
-        // vignette si elle existe : inutile de décoder du 4K pour 110 px
+        // thumbnail if there is one: no point decoding 4K for 110 px
         const blob =
           (await getImage(s.thumbKey || s.key).catch(() => null)) ||
           (await getImage(s.key).catch(() => null));
@@ -32,7 +32,7 @@ export function useStillUrls(stills: Still[]): Record<string, string> {
       alive = false;
       made.forEach(URL.revokeObjectURL);
     };
-    // `keys` résume la liste : c'est lui qui dit si les captures ont changé
+    // `keys` sums the list up: it is what says whether the stills changed
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keys]);
   return urls;

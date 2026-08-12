@@ -20,7 +20,7 @@ const ARROW_COL = {
   fontFamily: F.title,
 } as const;
 
-/* La visionneuse plein écran, avec navigation au clavier. */
+/* The full-screen viewer, with keyboard navigation. */
 export function StillLightbox({
   stills,
   index,
@@ -43,18 +43,16 @@ export function StillLightbox({
     return () => window.removeEventListener("keydown", onKey);
   }, [index, stills.length, onClose, onIndex]);
 
-  /* LA PAGE DERRIÈRE NE DÉFILE PAS.
+  /* THE PAGE BEHIND DOES NOT SCROLL.
 
-     La visionneuse prend tout l'écran, mais la fiche du film reste
-     dessous avec toute sa hauteur : la barre verticale continuait de
-     s'afficher sur le bord, et la molette faisait glisser une page
-     qu'on ne voit pas. Une image regardée en grand est un plein écran,
-     pas une fenêtre posée sur autre chose.
+     The viewer takes the whole screen, but the film's card stays
+     underneath with all its height: the vertical bar went on showing at
+     the edge, and the wheel slid a page nobody can see. An image looked
+     at large is a full screen, not a window laid over something else.
 
-     Sur `html` et non sur `body` : c'est le débordement de l'élément
-     racine qui se propage à la fenêtre. La valeur d'avant est remise
-     telle quelle — vide le plus souvent, et la feuille de styles
-     reprend la main. */
+     On `html` and not on `body`: it is the root element's overflow that
+     propagates to the window. The previous value is put back as it was —
+     empty most of the time, and the style sheet takes over again. */
   useEffect(() => {
     const root = document.documentElement;
     const before = root.style.overflowY;
@@ -67,8 +65,8 @@ export function StillLightbox({
 
   return (
     <Calque>
-      /* Fermer ne se déclenche que sur le fond lui-même (`e.target` = le voile), jamais sur ce
-      qu'il contient : viser à côté de l'image ne referme plus la visionneuse par accident. */
+      /* Closing only fires on the backdrop itself (`e.target` = the veil), never on what it
+      contains: aiming beside the image no longer closes the viewer by accident. */
       <div
         onClick={(e) => {
           if (e.target === e.currentTarget) onClose();
@@ -83,8 +81,8 @@ export function StillLightbox({
           justifyContent: "center",
         }}
       >
-        {/* `all: unset` remet le bouton en inline : sans `flex`, le rembourrage
-          vertical ne compte pas et la cible reste une mince bande */}
+        {/* `all: unset` puts the button back to inline: without `flex`, the vertical
+          padding does not count and the target stays a thin strip */}
         <button
           onClick={onClose}
           title="fermer (Échap)"
@@ -106,7 +104,7 @@ export function StillLightbox({
           <X size={22} />
         </button>
 
-        {/* colonnes de navigation pleine hauteur : une cible large, pas un chevron */}
+        {/* full-height navigation columns: a wide target, not a chevron */}
         {stills.length > 1 && (
           <button
             onClick={() => onIndex((index - 1 + stills.length) % stills.length)}

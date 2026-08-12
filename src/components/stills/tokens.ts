@@ -1,18 +1,18 @@
 /* ============================================================
-   LES JETONS [img:N]
+   THE [img:N] TOKENS
 
-   Une capture peut être appelée dans le texte d'une critique par un jeton
-   [img:N]. La source de vérité reste la chaîne à jetons enregistrée dans la
-   fiche ; le HTML n'en est qu'une projection éditable.
+   A still can be called into a review's text by an [img:N] token. The
+   source of truth stays the token string saved on the card; the HTML is
+   only an editable projection of it.
    ============================================================ */
 import { C } from "../../theme/tokens";
 import type { Still } from "../../types";
 
 export const STILL_TOKEN = /\[img:(\d+)\]/g;
 
-/* Une regex globale porte un curseur (`lastIndex`) : la partager entre un
-   `exec` en boucle et un rendu React reviendrait à muter un état de module
-   pendant le rendu. Les parcours pas-à-pas prennent donc leur propre copie. */
+/* A global regex carries a cursor (`lastIndex`): sharing it between an
+   `exec` loop and a React render would amount to mutating module state
+   during a render. So the step-by-step walks take their own copy. */
 export const stillTokenScanner = () => new RegExp(STILL_TOKEN.source, "g");
 
 const escapeHtml = (s: string) =>
@@ -21,8 +21,8 @@ const escapeHtml = (s: string) =>
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] as string
   );
 
-/* Texte (avec jetons) → HTML affichable. La vignette est un bloc atomique
-   non éditable : le curseur la franchit d'un coup, comme un caractère. */
+/* Text (with tokens) → displayable HTML. The thumbnail is an atomic,
+   non-editable block: the cursor crosses it in one go, like a character. */
 export function textToHtml(text: string, stills: Still[], urls: Record<string, string>): string {
   return escapeHtml(text || "")
     .replace(STILL_TOKEN, (_full, n: string) => {
@@ -40,14 +40,14 @@ export function textToHtml(text: string, stills: Still[], urls: Record<string, s
     .replace(/\n/g, "<br>");
 }
 
-/** Où s'arrêter dans le parcours, pour mesurer la position du curseur. */
+/** Where to stop in the walk, to measure the cursor's position. */
 export interface CaretStop {
   node: Node | null;
   offset: number;
 }
 
-/* HTML → texte (avec jetons). `stopAt` permet de mesurer la position du
-   curseur dans le texte sérialisé, pour y réinsérer proprement. */
+/* HTML → text (with tokens). `stopAt` allows the cursor's position in
+   the serialised text to be measured, so as to reinsert cleanly. */
 export function htmlToText(root: HTMLElement, stopAt?: CaretStop): string {
   let out = "";
   let done = false;
@@ -78,7 +78,7 @@ export function htmlToText(root: HTMLElement, stopAt?: CaretStop): string {
   return out;
 }
 
-/* Place le curseur à une position exprimée en caractères du texte sérialisé. */
+/* Puts the cursor at a position expressed in characters of the serialised text. */
 export function placeCaret(root: HTMLElement, target: number): void {
   let seen = 0,
     placed = false;
