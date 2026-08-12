@@ -165,8 +165,8 @@ const credits: Tour = {
   steps: [
     {
       target: at("credits-search"),
-      title: "Les names que vous avez déjà",
-      body: "Réalisation, interprétation, image, musique, scénario : ces names dorment dans vos fiches depuis le premier import. Ici, ils forment un répertoire — et chacun mène à ce que vous avez de cette personne.",
+      title: "Les noms que vous avez déjà",
+      body: "Réalisation, interprétation, image, musique, scénario : ces noms dorment dans vos fiches depuis le premier import. Ici, ils forment un répertoire — et chacun mène à ce que vous avez de cette personne.",
       placement: "bottom",
     },
     {
@@ -240,7 +240,7 @@ const detail: Tour = {
       target: at("detail-tags"),
       tab: "mots",
       title: "Mots-keys et motifs",
-      body: "Les mots-keys sont les vôtres. Les motifs sont un vocabulaire commun — « le héros meurt », « il pleut à la fin » — sur lequel une question peut porter, et dont on tire un fil.",
+      body: "Les mots-clés sont les vôtres. Les motifs sont un vocabulaire commun — « le héros meurt », « il pleut à la fin » — sur lequel une question peut porter, et dont on tire un fil.",
       placement: "left",
       optional: true,
     },
@@ -248,7 +248,7 @@ const detail: Tour = {
       target: at("detail-identite"),
       tab: "film",
       title: "La bonne fiche TMDB",
-      body: "L'import retient le premier titre trouvé, et se trompe sur les homonymes — deux « Resurrection » ne sont pas le même film. Ici on cherche le vrai et on relie la fiche : l'équipe, la durée, le pays et les mots-keys sont réécrits, vos mots et vos séances ne bougent pas. Le signe qui trahit l'erreur, c'est un sillage qui vous propose le film que vous regardez déjà.",
+      body: "L'import retient le premier titre trouvé, et se trompe sur les homonymes — deux « Resurrection » ne sont pas le même film. Ici on cherche le vrai et on relie la fiche : l'équipe, la durée, le pays et les mots-clés sont réécrits, vos mots et vos séances ne bougent pas. Le signe qui trahit l'erreur, c'est un sillage qui vous propose le film que vous regardez déjà.",
       placement: "left",
       optional: true,
     },
@@ -346,7 +346,7 @@ const almanac: Tour = {
     {
       target: at("almanac-plates"),
       title: "Quatre planches",
-      body: "Le compte, les goûts, les gens, puis les sujets. Les flèches du clavier feuillettent. La dernière planche dit de quoi vos films parlaient — mots-keys et motifs —, quels chefs opérateurs et compositeurs vous suivez sans le savoir, et sur quels titres exactement vous êtes plus tendre ou plus sévère que la foule.",
+      body: "Le compte, les goûts, les gens, puis les sujets. Les flèches du clavier feuillettent. La dernière planche dit de quoi vos films parlaient — mots-clés et motifs —, quels chefs opérateurs et compositeurs vous suivez sans le savoir, et sur quels titres exactement vous êtes plus tendre ou plus sévère que la foule.",
       placement: "bottom",
       optional: true,
     },

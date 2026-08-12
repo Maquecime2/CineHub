@@ -707,7 +707,7 @@ export function almanacFor(films: Film[], period: Period): Almanac {
     ratingByDecade: ratingByDecade(films, period),
     newDirectors: newDirectors(films, period),
     /* Three times in one year is a crossing of a body of work; three times
-       en sept years, une coïncidence. Le threshold suit la period. */
+       in seven, a coincidence. The threshold follows the period. */
     loyalties: loyalties(films, period, period === "always" ? 6 : 3),
     subjects: subjects(films, period),
     craftspeople: craftspeople(films, period),

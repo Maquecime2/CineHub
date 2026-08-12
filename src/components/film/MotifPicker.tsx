@@ -362,7 +362,7 @@ export function MotifPicker({
                 <select
                   value={famille}
                   onChange={(e) => setFamille(e.target.value as MotifFamily)}
-                  aria-label="Family du motif"
+                  aria-label="Famille du motif"
                   style={{
                     ...underlineInput,
                     flex: "1 1 140px",

@@ -357,7 +357,7 @@ function PlancheCompte({ a }: { a: Almanac }) {
   const span = r.density > 0 ? (r.days / r.density) * 100 : 365;
   return (
     <div style={GRILLE_2x2}>
-      <Cardstock titre="Le count" seed={`count-${clé}`}>
+      <Cardstock titre="Le compte" seed={`count-${clé}`}>
         <div
           style={{
             display: "grid",
@@ -408,7 +408,7 @@ function PlancheCompte({ a }: { a: Almanac }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 6 }}>
           <Tally label="Jours avec séance" value={r.days} ink={C.pine} />
           <Tally
-            label={toujours ? "De la period" : "De l'year"}
+            label={toujours ? "De la période" : "De l'année"}
             value={`${r.density.toFixed(1)} %`}
           />
           <Tally label="Plus longue drought" value={`${r.drought} j`} />
@@ -492,7 +492,7 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
     <div style={GRILLE_2x2}>
       <Cardstock titre="Les notes" seed={`notes-${clé}`}>
         {a.ratingAvg == null ? (
-          <Rien quoi={toujours ? "aucune séance notée" : "aucune séance notée cette year"} />
+          <Rien quoi={toujours ? "aucune séance notée" : "aucune séance notée cette année"} />
         ) : (
           <>
             <div
@@ -543,7 +543,7 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
                 }}
               >
                 {Math.abs(a.gap.gap) < 0.15 ? (
-                  <>d'accord avec le public, sur {a.gap.n} screenings</>
+                  <>d'accord avec le public, sur {a.gap.n} séances</>
                 ) : (
                   <>
                     plus{" "}
@@ -551,7 +551,7 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
                       {a.gap.gap > 0 ? "tendre" : "sévère"}
                     </span>{" "}
                     que le public de {Math.abs(a.gap.gap).toFixed(1)} point
-                    {Math.abs(a.gap.gap) >= 2 ? "s" : ""}, sur {a.gap.n} screenings
+                    {Math.abs(a.gap.gap) >= 2 ? "s" : ""}, sur {a.gap.n} séances
                   </>
                 )}
               </div>
@@ -560,9 +560,9 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
         )}
       </Cardstock>
 
-      <Cardstock titre="L'âge de ce que you regardez" seed={`age-${clé}`}>
+      <Cardstock titre="L'âge de ce que vous regardez" seed={`age-${clé}`}>
         {a.age.mean == null ? (
-          <Rien quoi="aucune year de release renseignée" />
+          <Rien quoi="aucune année de sortie renseignée" />
         ) : (
           <>
             <div
@@ -574,7 +574,7 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
               }}
             >
               <Chiffre
-                valeur={`${Math.round(a.age.mean)} years`}
+                valeur={`${Math.round(a.age.mean)} ans`}
                 legende="EN MOYENNE"
                 ink={C.pine}
               />
@@ -584,7 +584,7 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
               />
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 10 }}>
-              <Tally label="Médiane" value={`${a.age.median} years`} />
+              <Tally label="Médiane" value={`${a.age.median} ans`} />
               {a.age.oldest && (
                 <Tally label="Le plus ancien" value={a.age.oldest.year} ink={C.burgundy} />
               )}
@@ -610,7 +610,7 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
 
       <Cardstock titre="Les décennies visitées" seed={`decennies-${clé}`}>
         {a.decades.length === 0 ? (
-          <Rien quoi="aucune year de release renseignée" />
+          <Rien quoi="aucune année de sortie renseignée" />
         ) : (
           <div style={{ display: "flex", alignItems: "flex-end", gap: 4, marginTop: 10 }}>
             {a.decades.map((d) => {
@@ -659,7 +659,7 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
           months. */}
       <Cardstock titre="Ce qui a changé d'avis" seed="drift">
         {drifts.length === 0 ? (
-          <Rien quoi="aucune note n'a bougé entre deux screenings" />
+          <Rien quoi="aucune note n'a bougé entre deux séances" />
         ) : (
           <>
             <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
@@ -809,7 +809,7 @@ function PlancheGens({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (name: st
 
       <Cardstock titre="Le monde traversé" seed={`monde-${clé}`}>
         {g.countryCount === 0 ? (
-          <Rien quoi="aucun countries renseigné — « compléter les fiches », dans l'onglet Import, va les chercher" />
+          <Rien quoi="aucun pays renseigné — « compléter les fiches », dans l'onglet Import, va les chercher" />
         ) : (
           <>
             <div style={{ marginTop: 6 }}>
@@ -857,7 +857,7 @@ function PlancheSujets({ a }: { a: Almanac }) {
   const ar = a.craftspeople;
   return (
     <div style={GRILLE_2x2}>
-      <Cardstock titre="Les subjects" seed={`subjects-${clé}`}>
+      <Cardstock titre="Les sujets" seed={`subjects-${clé}`}>
         <Palmares
           items={s.keywords.slice(0, 5)}
           total={a.count}
@@ -881,7 +881,7 @@ function PlancheSujets({ a }: { a: Almanac }) {
         />
       </Cardstock>
 
-      <Cardstock titre="Les craftspeople" seed={`craftspeople-${clé}`}>
+      <Cardstock titre="Les artisans" seed={`craftspeople-${clé}`}>
         {/* With no threshold, unlike the loyalties: nobody says to
             themselves "I follow a cinematographer's work", and that is
             precisely why showing it teaches something. We only keep what
@@ -1012,10 +1012,10 @@ const GRILLE_2x2: CSSProperties = {
    ------------------------------------------------------------ */
 
 const PLANCHES = [
-  { titre: "Le count et le rythme", tampon: "I" },
+  { titre: "Le compte et le rythme", tampon: "I" },
   { titre: "Les goûts", tampon: "II" },
   { titre: "Les gens et le monde", tampon: "III" },
-  { titre: "Les subjects et les craftspeople", tampon: "IV" },
+  { titre: "Les sujets et les artisans", tampon: "IV" },
 ];
 
 /* The height the header reserves for itself. Hard-coded, and that is
@@ -1188,7 +1188,7 @@ export function AlmanacView({
           <button
             onClick={() => allerAnnée(1)}
             disabled={rang >= périodes.length - 1}
-            aria-label="period précédente"
+            aria-label="période précédente"
             style={flecheStyle(rang < périodes.length - 1)}
           >
             <ChevronLeft size={17} />
@@ -1213,7 +1213,7 @@ export function AlmanacView({
           <button
             onClick={() => allerAnnée(-1)}
             disabled={rang <= 0}
-            aria-label="period suivante"
+            aria-label="période suivante"
             style={flecheStyle(rang > 0)}
           >
             <ChevronRight size={17} />
@@ -1267,7 +1267,7 @@ export function AlmanacView({
               onClick={emporter}
               data-tour="almanac-export"
               disabled={boîte === "en cours"}
-              title="Une image de cette year, à garder ou à montrer"
+              title="Une image de cette année, à garder ou à montrer"
               style={{
                 all: "unset",
                 ...tap,
@@ -1292,7 +1292,7 @@ export function AlmanacView({
                 ? "on développe…"
                 : boîte === "raté"
                   ? "raté — réessayer"
-                  : "l'year en boîte"}
+                  : "l'année en boîte"}
             </button>
           )}
         </div>
