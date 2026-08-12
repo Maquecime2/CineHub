@@ -116,7 +116,7 @@ describe("the period and the motifs", () => {
 
   it("only keeps a motif that recurs", () => {
     const people = census([
-      film("A", { director: "Ozu", motifs: ["train", "mer"] }),
+      film("A", { director: "Ozu", motifs: ["train", "sea"] }),
       film("B", { director: "Ozu", motifs: ["train"] }),
     ]);
     expect(by(people, "Ozu")!.motifs).toEqual(["train"]);

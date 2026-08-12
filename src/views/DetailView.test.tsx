@@ -22,7 +22,7 @@ const monter = (extra = {}, props = {}) => {
     title: "Le Samouraï",
     status: "watched",
     themes: ["solitude"],
-    motifs: ["heros-meurt"],
+    motifs: ["hero-dies"],
     ...extra,
   });
   render(
@@ -172,10 +172,10 @@ describe("gérer le vocabulaire depuis la fiche", () => {
     const { onUpdate } = monter({}, { onCréerMotif, ...MOTS });
     const user = await ouvrirLaListe();
     await user.type(screen.getByLabelText("Nouveau motif"), "Il pleut sans arrêt{Enter}");
-    expect(onCréerMotif).toHaveBeenCalledWith("Il pleut sans arrêt", "récit", false);
+    expect(onCréerMotif).toHaveBeenCalledWith("Il pleut sans arrêt", "narrative", false);
     // créer et poser sont un seul geste
     expect(onUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ motifs: ["heros-meurt", "il-pleut-sans-arret"] })
+      expect.objectContaining({ motifs: ["hero-dies", "il-pleut-sans-arret"] })
     );
   });
 
@@ -184,13 +184,13 @@ describe("gérer le vocabulaire depuis la fiche", () => {
     monter({}, { onMasquerMotif, ...MOTS });
     const user = await ouvrirLaListe();
     await user.click(screen.getByLabelText("Écarter le motif Huis clos"));
-    expect(onMasquerMotif).toHaveBeenCalledWith("huis-clos", true);
+    expect(onMasquerMotif).toHaveBeenCalledWith("single-setting", true);
   });
 
   /* Supprimer un motif à soi retire aussi son identifiant des fiches : la
      confirmation annonce donc combien en sont porteuses. */
   it("annonce les fiches touchées avant de supprimer un motif", async () => {
-    poserVocabulaire({ perso: [makeMotifPerso("Il pleut", "monde")], masqués: [] });
+    poserVocabulaire({ perso: [makeMotifPerso("Il pleut", "world")], masqués: [] });
     const onSupprimerMotif = vi.fn();
     monter({ motifs: ["il-pleut"] }, { onSupprimerMotif, ...MOTS });
     const user = await ouvrirLaListe();

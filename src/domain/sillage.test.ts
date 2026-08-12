@@ -82,27 +82,27 @@ describe("ce qui rapproche deux fiches", () => {
   it("ne dit pas deux fois la même chose quand un motif recouvre le mot-clé", () => {
     /* « heros-meurt » porte « death of hero » dans sa liste `tmdb` :
        compter les deux ferait deux remarques pour un seul fait. */
-    const a = film("A", { motifs: ["heros-meurt"], keywords: ["death of hero"] });
-    const b = film("B", { motifs: ["heros-meurt"], keywords: ["death of hero"] });
+    const a = film("A", { motifs: ["hero-dies"], keywords: ["death of hero"] });
+    const b = film("B", { motifs: ["hero-dies"], keywords: ["death of hero"] });
     expect(liensEntre(a, b)).toEqual([{ type: "motif", valeur: "Le héros meurt" }]);
   });
 
   it("garde un mot-clé qu'aucun motif partagé ne recouvre", () => {
-    const a = film("A", { motifs: ["heros-meurt"], keywords: ["neo-noir"] });
-    const b = film("B", { motifs: ["heros-meurt"], keywords: ["neo-noir"] });
+    const a = film("A", { motifs: ["hero-dies"], keywords: ["neo-noir"] });
+    const b = film("B", { motifs: ["hero-dies"], keywords: ["neo-noir"] });
     expect(liensEntre(a, b).map((l) => l.type)).toEqual(["motif", "mot-clé"]);
   });
 
   it("fait passer un motif choisi à la main devant un mot-clé subi", () => {
-    const pivot = film("Pivot", { motifs: ["heros-meurt"], keywords: ["neo-noir"] });
-    const parMotif = film("Par motif", { motifs: ["heros-meurt"] });
+    const pivot = film("Pivot", { motifs: ["hero-dies"], keywords: ["neo-noir"] });
+    const parMotif = film("Par motif", { motifs: ["hero-dies"] });
     const parMot = film("Par mot-clé", { keywords: ["neo-noir"] });
     expect(titres(pivot, [parMot, parMotif])).toEqual(["Par motif", "Par mot-clé"]);
   });
 
   it("ignore un motif que le catalogue ne connaît pas, sans le faire tomber la fiche", () => {
-    const a = film("A", { motifs: ["heros-meurt", "motif-fantome"] });
-    const b = film("B", { motifs: ["heros-meurt", "motif-fantome"] });
+    const a = film("A", { motifs: ["hero-dies", "motif-fantome"] });
+    const b = film("B", { motifs: ["hero-dies", "motif-fantome"] });
     expect(liensEntre(a, b)).toHaveLength(1);
   });
 });
@@ -125,7 +125,7 @@ describe("la pondération", () => {
   });
 
   it("plafonne les motifs : six banalités ne valent pas un regard partagé", () => {
-    const beaucoup = ["heros-meurt", "sacrifice", "tout-le-monde-meurt", "seul-survivant"];
+    const beaucoup = ["hero-dies", "sacrifice", "everyone-dies", "sole-survivor"];
     const pivot = film("Pivot", { motifs: beaucoup, crew: { image: ["Deakins"] } });
     const motifs = film("Motifs", { motifs: beaucoup });
     const œil = film("Œil", { crew: { image: ["Deakins"] } });
@@ -148,11 +148,11 @@ describe("ce qui s'écrit sous l'affiche", () => {
   it("nomme le lien le plus fort et compte le reste", () => {
     const pivot = film("Pivot", {
       crew: { image: ["Roger Deakins"] },
-      motifs: ["heros-meurt", "sacrifice"],
+      motifs: ["hero-dies", "sacrifice"],
     });
     const voisin = film("Voisin", {
       crew: { image: ["Roger Deakins"] },
-      motifs: ["heros-meurt", "sacrifice"],
+      motifs: ["hero-dies", "sacrifice"],
     });
     expect(sillageMaison(pivot, [voisin])[0]!.raison).toBe(
       "même chef op — Roger Deakins, + 2 motifs"
@@ -194,7 +194,7 @@ describe("les quotas : les gens d'un côté, les sujets de l'autre", () => {
     director: "X",
     crew: { image: ["Deakins"], musique: ["Zimmer"] },
     cast: ["Vedette"],
-    motifs: ["heros-meurt"],
+    motifs: ["hero-dies"],
     keywords: ["neo-noir"],
   });
   const gens = [
@@ -204,9 +204,9 @@ describe("les quotas : les gens d'un côté, les sujets de l'autre", () => {
     film("G4", { cast: ["Vedette"] }),
   ];
   const sujets = [
-    film("S1", { motifs: ["heros-meurt"] }),
+    film("S1", { motifs: ["hero-dies"] }),
     film("S2", { keywords: ["neo-noir"] }),
-    film("S3", { motifs: ["heros-meurt"], keywords: ["neo-noir"] }),
+    film("S3", { motifs: ["hero-dies"], keywords: ["neo-noir"] }),
   ];
 
   it("range chaque voisin sous son lien le plus fort", () => {

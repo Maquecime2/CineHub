@@ -89,8 +89,8 @@ describe("the time available", () => {
 describe("the mood", () => {
   it("brings up what carries it", () => {
     const out = rankTheEvening(
-      [toWatch("Gai", { motifs: ["burlesque"] }), toWatch("Triste", { motifs: ["melancolie"] })],
-      { ...NO_CRAVING, mood: ["melancolie"] }
+      [toWatch("Gai", { motifs: ["slapstick"] }), toWatch("Triste", { motifs: ["melancholy"] })],
+      { ...NO_CRAVING, mood: ["melancholy"] }
     );
     expect(order(out)[0]).toBe("Triste");
     expect(out[0]!.reasons).toContain("mélancolie");
@@ -102,8 +102,8 @@ describe("the mood", () => {
     const f = toWatch("Deviné");
     const out = rankTheEvening(
       [f, toWatch("Rien")],
-      { ...NO_CRAVING, mood: ["melancolie"] },
-      new Map([[f.id, ["melancolie"]]])
+      { ...NO_CRAVING, mood: ["melancholy"] },
+      new Map([[f.id, ["melancholy"]]])
     );
     expect(order(out)[0]).toBe("Deviné");
   });
@@ -111,17 +111,17 @@ describe("the mood", () => {
   it("prefers the one answering two moods out of two", () => {
     const out = rankTheEvening(
       [
-        toWatch("Une seule", { motifs: ["melancolie"] }),
-        toWatch("Les deux", { motifs: ["melancolie", "contemplatif"] }),
+        toWatch("Une seule", { motifs: ["melancholy"] }),
+        toWatch("Les deux", { motifs: ["melancholy", "contemplative"] }),
       ],
-      { ...NO_CRAVING, mood: ["melancolie", "contemplatif"] }
+      { ...NO_CRAVING, mood: ["melancholy", "contemplative"] }
     );
     expect(order(out)[0]).toBe("Les deux");
   });
 
   it("asks for nothing when no mood is set", () => {
     const out = rankTheEvening(
-      [toWatch("A", { motifs: ["melancolie"] }), toWatch("B")],
+      [toWatch("A", { motifs: ["melancholy"] }), toWatch("B")],
       NO_CRAVING
     );
     expect(out).toHaveLength(2);

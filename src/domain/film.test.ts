@@ -259,8 +259,43 @@ describe("les motifs, sur une fiche d'avant", () => {
   });
 
   it("ne réécrivent pas ceux déjà posés", () => {
-    const [f] = migrate([{ title: "x", motifs: ["heros-meurt"] }]);
-    expect(f?.motifs).toEqual(["heros-meurt"]);
+    const [f] = migrate([{ title: "x", motifs: ["hero-dies"] }]);
+    expect(f?.motifs).toEqual(["hero-dies"]);
+  });
+
+  /* ============================================================
+     LES IDENTIFIANTS DE MOTIFS ONT CHANGÉ DE LANGUE
+
+     C'est la migration la plus risquée de la traduction : soixante-neuf
+     identifiants, écrits sur chaque fiche du classeur, et rien dans les
+     données ne dit à quelle graphie ils appartiennent. `migrate` est la
+     seule porte — la preuve se fait donc ici.
+     ============================================================ */
+  it("traduit les identifiants écrits avant la bascule", () => {
+    const [f] = migrate([{ title: "x", motifs: ["heros-meurt", "melancolie"] } as never]);
+    expect(f?.motifs).toEqual(["hero-dies", "melancholy"]);
+  });
+
+  it("laisse passer un motif que le catalogue ne connaît pas", () => {
+    /* Même règle qu'à l'affichage : un motif inconnu est ignoré, jamais
+       effacé de la fiche. Un motif que VOUS avez créé porte un
+       identifiant tiré de son libellé, et n'a rien à faire dans la
+       table des anciennes graphies. */
+    const [f] = migrate([{ title: "x", motifs: ["il-pleut-sans-arret"] } as never]);
+    expect(f?.motifs).toEqual(["il-pleut-sans-arret"]);
+  });
+
+  it("ne crée pas de doublon quand les deux graphies cohabitent", () => {
+    /* Une fiche synchronisée entre un appareil migré et un autre qui ne
+       l'est pas encore peut porter les deux. Elles désignent le même
+       motif : la fiche n'en garde qu'un. */
+    const [f] = migrate([{ title: "x", motifs: ["heros-meurt", "hero-dies"] } as never]);
+    expect(f?.motifs).toEqual(["hero-dies"]);
+  });
+
+  it("ne s'étrangle pas sur un champ `motifs` qui n'est pas une liste", () => {
+    const [f] = migrate([{ title: "x", motifs: "melancolie" } as never]);
+    expect(f?.motifs).toEqual([]);
   });
 });
 

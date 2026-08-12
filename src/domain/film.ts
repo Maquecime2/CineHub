@@ -2,6 +2,7 @@
    MODEL — a film card, one single definition
    ============================================================ */
 import { inverseOf, migrateRelation } from "./relations";
+import { migrateMotifIds } from "./motifs";
 import type { Film, LinkedWork, LinkPatch, Watch } from "../types";
 
 /* ============================================================
@@ -300,7 +301,7 @@ export const migrate = (films: StoredFilm[] | null | undefined): Film[] =>
        completion goes round in circles. See `types`. */
     keywords: f.keywords,
     themes: f.themes || [],
-    motifs: f.motifs || [],
+    motifs: migrateMotifIds(f.motifs),
     linkedWorks: (f.linkedWorks || []).map((w) => ({
       ...w,
       relation: migrateRelation(w.relation),

@@ -22,8 +22,12 @@
    THE FIELD NAMES ARE PART OF THE STORED FORMAT. Threads written before
    this module was translated carry `exclus` and `couleur`; `normalizeThreads`
    is the only door they come in through, and it reads both spellings so
-   that an existing binder loses neither its exclusions nor its colours. */
+   that an existing binder loses neither its exclusions nor its colours.
+   The same door carries the motif identifiers over (`migrateMotifId`):
+   a thread fed by `melancolie` must keep being fed once the catalogue
+   calls it `melancholy`. */
 import { uid } from "./film";
+import { migrateMotifId } from "./motifs";
 import type { Film } from "../types";
 
 export interface Thread {
@@ -110,6 +114,7 @@ export const normalizeThreads = (raw: unknown): Thread[] =>
         id: f.id || uid(),
         filmIds: Array.isArray(f.filmIds) ? f.filmIds : [],
         excluded,
+        motif: typeof f.motif === "string" ? migrateMotifId(f.motif) : (f.motif ?? null),
         color: f.color || (typeof couleur === "string" ? couleur : undefined) || "burgundy",
       });
     })

@@ -9,7 +9,7 @@ const amelie = makeFilm({
   title: "Le Fabuleux Destin d'Amélie Poulain",
   cast: ["Audrey Tautou"],
   themes: ["Paris"],
-  motifs: ["heros-meurt"],
+  motifs: ["hero-dies"],
 });
 const films = [autre, solaris, amelie];
 

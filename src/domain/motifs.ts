@@ -19,7 +19,7 @@
    ============================================================ */
 import type { Film } from "../types";
 
-export type MotifFamille = "destin" | "fin" | "récit" | "figure" | "ton" | "monde";
+export type MotifFamille = "fate" | "ending" | "narrative" | "figures" | "tone" | "world";
 
 export interface Motif {
   /** Clé stable, jamais le label : c'est elle qui est écrite sur la fiche. */
@@ -38,12 +38,12 @@ export interface Motif {
 }
 
 export const FAMILLES: { id: MotifFamille; label: string }[] = [
-  { id: "destin", label: "Ce qui arrive aux personnages" },
-  { id: "fin", label: "La dernière image" },
-  { id: "récit", label: "La façon de raconter" },
-  { id: "figure", label: "Les figures" },
-  { id: "ton", label: "Le ton" },
-  { id: "monde", label: "Le monde" },
+  { id: "fate", label: "Ce qui arrive aux personnages" },
+  { id: "ending", label: "La dernière image" },
+  { id: "narrative", label: "La façon de raconter" },
+  { id: "figures", label: "Les figures" },
+  { id: "tone", label: "Le ton" },
+  { id: "world", label: "Le monde" },
 ];
 
 /* L'ORDRE COMPTE : c'est celui de l'affichage, famille par famille, et il
@@ -51,314 +51,339 @@ export const FAMILLES: { id: MotifFamille; label: string }[] = [
 export const MOTIFS: Motif[] = [
   /* --- ce qui arrive aux personnages ------------------------------- */
   {
-    id: "heros-meurt",
+    id: "hero-dies",
     label: "Le héros meurt",
-    famille: "destin",
+    famille: "fate",
     spoiler: true,
     tmdb: ["death of hero", "dying and death", "protagonist dies"],
   },
   {
     id: "sacrifice",
     label: "Il se sacrifie",
-    famille: "destin",
+    famille: "fate",
     spoiler: true,
     tmdb: ["self sacrifice", "sacrifice", "heroic sacrifice"],
   },
   {
-    id: "tout-le-monde-meurt",
+    id: "everyone-dies",
     label: "Person n'en réchappe",
-    famille: "destin",
+    famille: "fate",
     spoiler: true,
     tmdb: ["mass death", "massacre"],
   },
   {
-    id: "seul-survivant",
+    id: "sole-survivor",
     label: "Un seul en réchappe",
-    famille: "destin",
+    famille: "fate",
     spoiler: true,
     tmdb: ["sole survivor", "survivor"],
   },
-  { id: "deuil", label: "Le deuil d'un proche", famille: "destin", tmdb: ["grief", "mourning"] },
+  { id: "grief", label: "Le deuil d'un proche", famille: "fate", tmdb: ["grief", "mourning"] },
   {
-    id: "vengeance-aboutie",
+    id: "revenge-fulfilled",
     label: "La vengeance aboutit",
-    famille: "destin",
+    famille: "fate",
     spoiler: true,
     tmdb: ["revenge", "vengeance"],
   },
   {
-    id: "vengeance-vaine",
+    id: "revenge-in-vain",
     label: "La vengeance ne répare rien",
-    famille: "destin",
+    famille: "fate",
     spoiler: true,
   },
   {
-    id: "trahison",
+    id: "betrayal",
     label: "Trahi par un proche",
-    famille: "destin",
+    famille: "fate",
     tmdb: ["betrayal", "traitor"],
   },
-  { id: "fuite", label: "La fuite", famille: "destin", tmdb: ["escape", "on the run", "manhunt"] },
+  { id: "flight", label: "La fuite", famille: "fate", tmdb: ["escape", "on the run", "manhunt"] },
   {
-    id: "chute",
+    id: "downfall",
     label: "L'ascension puis la chute",
-    famille: "destin",
+    famille: "fate",
     tmdb: ["rise and fall", "downfall"],
   },
   {
-    id: "amour-impossible",
+    id: "impossible-love",
     label: "L'amour impossible",
-    famille: "destin",
+    famille: "fate",
     tmdb: ["forbidden love", "unrequited love", "impossible love"],
   },
   {
-    id: "retrouvailles",
+    id: "reunion",
     label: "Se retrouver après des années",
-    famille: "destin",
+    famille: "fate",
     tmdb: ["reunion", "family reunion"],
   },
   {
-    id: "enfermement",
+    id: "confinement",
     label: "Enfermé, littéralement",
-    famille: "destin",
+    famille: "fate",
     tmdb: ["prison", "captivity", "kidnapping"],
   },
   {
-    id: "perte-de-raison",
+    id: "loss-of-reason",
     label: "La raison qui s'en va",
-    famille: "destin",
+    famille: "fate",
     tmdb: ["insanity", "madness", "mental illness"],
   },
 
   /* --- la dernière image ------------------------------------------- */
   {
-    id: "fin-ouverte",
+    id: "open-ending",
     label: "Fin ouverte",
-    famille: "fin",
+    famille: "ending",
     spoiler: true,
     tmdb: ["open ending", "ambiguous ending"],
   },
   {
-    id: "revelation-finale",
+    id: "final-revelation",
     label: "Tout bascule à la fin",
-    famille: "fin",
+    famille: "ending",
     spoiler: true,
     tmdb: ["twist ending", "plot twist", "surprise ending"],
   },
-  { id: "retour-au-depart", label: "On revient au point de départ", famille: "fin", spoiler: true },
   {
-    id: "fin-heureuse-mensongere",
-    label: "Une fin heureuse à laquelle on ne croit pas",
-    famille: "fin",
+    id: "back-to-the-start",
+    label: "On revient au point de départ",
+    famille: "ending",
     spoiler: true,
   },
   {
-    id: "derniere-image-fixe",
+    id: "false-happy-ending",
+    label: "Une fin heureuse à laquelle on ne croit pas",
+    famille: "ending",
+    spoiler: true,
+  },
+  {
+    id: "final-freeze-frame",
     label: "Un dernier plan qui se fige",
-    famille: "fin",
+    famille: "ending",
     spoiler: true,
     tmdb: ["freeze frame"],
   },
-  { id: "epilogue-lointain", label: "Un épilogue des années après", famille: "fin", spoiler: true },
+  {
+    id: "distant-epilogue",
+    label: "Un épilogue des années après",
+    famille: "ending",
+    spoiler: true,
+  },
 
   /* --- la façon de raconter ---------------------------------------- */
   {
-    id: "recit-non-lineaire",
+    id: "non-linear-narrative",
     label: "Récit désordonné",
-    famille: "récit",
+    famille: "narrative",
     tmdb: ["nonlinear timeline", "anachronic order"],
   },
   {
-    id: "narrateur-non-fiable",
+    id: "unreliable-narrator",
     label: "Le narrateur ment",
-    famille: "récit",
+    famille: "narrative",
     tmdb: ["unreliable narrator"],
   },
-  { id: "huis-clos", label: "Huis clos", famille: "récit", tmdb: ["one location", "single set"] },
-  { id: "film-choral", label: "Film choral", famille: "récit", tmdb: ["ensemble cast"] },
-  { id: "road-movie", label: "Road movie", famille: "récit", tmdb: ["road movie", "road trip"] },
   {
-    id: "mise-en-abyme",
+    id: "single-setting",
+    label: "Huis clos",
+    famille: "narrative",
+    tmdb: ["one location", "single set"],
+  },
+  { id: "ensemble-film", label: "Film choral", famille: "narrative", tmdb: ["ensemble cast"] },
+  {
+    id: "road-movie",
+    label: "Road movie",
+    famille: "narrative",
+    tmdb: ["road movie", "road trip"],
+  },
+  {
+    id: "story-within-a-story",
     label: "Un film dans le film",
-    famille: "récit",
+    famille: "narrative",
     tmdb: ["film within a film", "filmmaking", "metafiction"],
   },
   {
-    id: "voix-off",
+    id: "voice-over",
     label: "Porté par une voix off",
-    famille: "récit",
+    famille: "narrative",
     tmdb: ["voice over narration", "narration"],
   },
   {
-    id: "temps-reel",
+    id: "real-time",
     label: "En temps réel",
-    famille: "récit",
+    famille: "narrative",
     tmdb: ["real time", "one day"],
   },
   {
-    id: "boucle-temporelle",
+    id: "time-loop",
     label: "La même journée qui recommence",
-    famille: "récit",
+    famille: "narrative",
     tmdb: ["time loop"],
   },
-  { id: "chapitres", label: "Découpé en chapitres", famille: "récit", tmdb: ["anthology"] },
+  { id: "chapters", label: "Découpé en chapitres", famille: "narrative", tmdb: ["anthology"] },
   {
     id: "flashback",
     label: "Raconté depuis après",
-    famille: "récit",
+    famille: "narrative",
     tmdb: ["flashback", "told in flashback"],
   },
-  { id: "faux-documentaire", label: "Faux documentaire", famille: "récit", tmdb: ["mockumentary"] },
+  { id: "mockumentary", label: "Faux documentaire", famille: "narrative", tmdb: ["mockumentary"] },
   {
-    id: "plan-sequence",
+    id: "long-take",
     label: "De longs plans-séquences",
-    famille: "récit",
+    famille: "narrative",
     tmdb: ["long take", "one shot"],
   },
   {
-    id: "adaptation-litteraire",
+    id: "literary-adaptation",
     label: "Vient d'un livre",
-    famille: "récit",
+    famille: "narrative",
     tmdb: ["based on novel or book", "based on play"],
   },
 
   /* --- les figures -------------------------------------------------- */
-  { id: "le-double", label: "Le double", famille: "figure", tmdb: ["doppelganger", "twins"] },
+  { id: "the-double", label: "Le double", famille: "figures", tmdb: ["doppelganger", "twins"] },
   {
-    id: "mentor-perdu",
+    id: "lost-mentor",
     label: "Le mentor qu'on perd",
-    famille: "figure",
+    famille: "figures",
     spoiler: true,
     tmdb: ["mentor"],
   },
   {
-    id: "faux-coupable",
+    id: "wrong-man",
     label: "Le faux coupable",
-    famille: "figure",
+    famille: "figures",
     tmdb: ["wrongful conviction", "wrongly accused"],
   },
   {
-    id: "enfant-temoin",
+    id: "child-witness",
     label: "Un enfant qui regarde",
-    famille: "figure",
+    famille: "figures",
     tmdb: ["child protagonist", "coming of age"],
   },
   {
-    id: "fratrie",
+    id: "siblings",
     label: "Une histoire de fratrie",
-    famille: "figure",
+    famille: "figures",
     tmdb: ["brother brother relationship", "sister sister relationship", "siblings"],
   },
   {
-    id: "pere-absent",
+    id: "absent-father",
     label: "Le père absent",
-    famille: "figure",
+    famille: "figures",
     tmdb: ["father son relationship", "absent father"],
   },
   {
-    id: "duo-depareille",
+    id: "mismatched-duo",
     label: "Un duo dépareillé",
-    famille: "figure",
+    famille: "figures",
     tmdb: ["buddy", "odd couple"],
   },
   {
-    id: "groupe-qui-se-defait",
+    id: "group-falling-apart",
     label: "Une bande qui se défait",
-    famille: "figure",
+    famille: "figures",
     tmdb: ["friendship", "gang"],
   },
   {
-    id: "artiste-au-travail",
+    id: "artist-at-work",
     label: "Quelqu'un qui fabrique quelque chose",
-    famille: "figure",
+    famille: "figures",
     tmdb: ["artist", "writer", "musician"],
   },
   {
-    id: "figure-de-l-autorite",
+    id: "authority-figure",
     label: "L'institution comme adversaire",
-    famille: "figure",
+    famille: "figures",
     tmdb: ["bureaucracy", "corruption"],
   },
   {
-    id: "fantome",
+    id: "ghost",
     label: "Un mort qui reste là",
-    famille: "figure",
+    famille: "figures",
     tmdb: ["ghost", "haunting"],
   },
 
   /* --- le ton -------------------------------------------------------- */
-  { id: "melancolie", label: "Mélancolie", famille: "ton", tmdb: ["melancholy", "loneliness"] },
-  { id: "burlesque", label: "Burlesque", famille: "ton", tmdb: ["slapstick comedy", "farce"] },
+  { id: "melancholy", label: "Mélancolie", famille: "tone", tmdb: ["melancholy", "loneliness"] },
+  { id: "slapstick", label: "Burlesque", famille: "tone", tmdb: ["slapstick comedy", "farce"] },
   {
-    id: "malaise",
+    id: "unease",
     label: "Malaise",
-    famille: "ton",
+    famille: "tone",
     tmdb: ["awkwardness", "psychological horror"],
   },
   {
-    id: "contemplatif",
+    id: "contemplative",
     label: "Contemplatif",
-    famille: "ton",
+    famille: "tone",
     tmdb: ["slow cinema", "meditative"],
   },
-  { id: "ironie", label: "Ironie froide", famille: "ton", tmdb: ["black comedy", "satire"] },
-  { id: "tendresse", label: "Tendresse", famille: "ton", tmdb: ["heartwarming"] },
-  { id: "fievre", label: "Fièvre, tout va trop vite", famille: "ton", tmdb: ["frenetic"] },
-  { id: "sensualite", label: "Sensualité", famille: "ton", tmdb: ["eroticism", "sensuality"] },
-  { id: "paranoia", label: "Paranoïa", famille: "ton", tmdb: ["paranoia", "conspiracy"] },
-  { id: "onirique", label: "Onirique", famille: "ton", tmdb: ["dream", "surrealism"] },
+  { id: "irony", label: "Ironie froide", famille: "tone", tmdb: ["black comedy", "satire"] },
+  { id: "tenderness", label: "Tendresse", famille: "tone", tmdb: ["heartwarming"] },
+  { id: "fever", label: "Fièvre, tout va trop vite", famille: "tone", tmdb: ["frenetic"] },
+  { id: "sensuality", label: "Sensualité", famille: "tone", tmdb: ["eroticism", "sensuality"] },
+  { id: "paranoia", label: "Paranoïa", famille: "tone", tmdb: ["paranoia", "conspiracy"] },
+  { id: "dreamlike", label: "Onirique", famille: "tone", tmdb: ["dream", "surrealism"] },
 
   /* --- le monde ------------------------------------------------------ */
   {
-    id: "ville-tentaculaire",
+    id: "sprawling-city",
     label: "La grande ville qui avale",
-    famille: "monde",
+    famille: "world",
     tmdb: ["urban setting", "megacity", "new york city"],
   },
   {
-    id: "campagne-etouffante",
+    id: "stifling-countryside",
     label: "La campagne étouffante",
-    famille: "monde",
+    famille: "world",
     tmdb: ["rural setting", "small town", "village"],
   },
-  { id: "hiver", label: "L'hiver, la neige", famille: "monde", tmdb: ["winter", "snow"] },
-  { id: "ete-ecrasant", label: "Un été écrasant", famille: "monde", tmdb: ["summer", "heat wave"] },
-  { id: "mer", label: "La mer", famille: "monde", tmdb: ["ocean", "sea", "island"] },
+  { id: "winter", label: "L'hiver, la neige", famille: "world", tmdb: ["winter", "snow"] },
   {
-    id: "futur-proche",
+    id: "crushing-summer",
+    label: "Un été écrasant",
+    famille: "world",
+    tmdb: ["summer", "heat wave"],
+  },
+  { id: "sea", label: "La mer", famille: "world", tmdb: ["ocean", "sea", "island"] },
+  {
+    id: "near-future",
     label: "Un futur tout proche",
-    famille: "monde",
+    famille: "world",
     tmdb: ["near future", "dystopia"],
   },
   {
-    id: "apres-la-fin",
+    id: "after-the-end",
     label: "Après la fin du monde",
-    famille: "monde",
+    famille: "world",
     tmdb: ["post-apocalyptic future", "apocalypse"],
   },
   {
-    id: "guerre-en-arriere-plan",
+    id: "war-in-the-background",
     label: "La guerre, en arrière-plan",
-    famille: "monde",
+    famille: "world",
     tmdb: ["world war ii", "war", "occupation"],
   },
   {
-    id: "monde-du-travail",
+    id: "world-of-work",
     label: "Le travail, vraiment montré",
-    famille: "monde",
+    famille: "world",
     tmdb: ["workplace", "factory", "office"],
   },
   {
-    id: "huis-clos-familial",
+    id: "family-single-setting",
     label: "La maison de famille",
-    famille: "monde",
+    famille: "world",
     tmdb: ["family drama", "dysfunctional family"],
   },
-  { id: "la-nuit", label: "Ça se passe la nuit", famille: "monde", tmdb: ["night", "one night"] },
+  { id: "the-night", label: "Ça se passe la nuit", famille: "world", tmdb: ["night", "one night"] },
   {
-    id: "exil",
+    id: "exile",
     label: "Loin de chez soi",
-    famille: "monde",
+    famille: "world",
     tmdb: ["immigration", "exile", "refugee"],
   },
 ];
@@ -430,7 +455,7 @@ export const idDepuisLabel = (label: string, pris: string[] = []): string => {
 
 export const makeMotifPerso = (
   label: string,
-  famille: MotifFamille = "récit",
+  famille: MotifFamille = "narrative",
   spoiler = false
 ): Motif => ({
   id: idDepuisLabel(label, [...MOTIFS.map((m) => m.id), ...PERSO.map((m) => m.id)]),
@@ -505,3 +530,120 @@ export const suggestMotifs = (keywords: { id?: number; name?: string }[] | strin
   if (mots.size === 0) return [];
   return MOTIFS.filter((m) => (m.tmdb || []).some((t) => mots.has(String(t).toLowerCase())));
 };
+
+/* ============================================================
+   L'ANCIENNE GRAPHIE DES IDENTIFIANTS
+   ============================================================
+
+   Les identifiants ci-dessus sont passés à l'anglais, et ce sont eux
+   qu'une fiche porte sur le disque : `motifs: ["melancolie"]` était écrit
+   dans le `localStorage` de toute collection tenue avant la bascule.
+
+   Le commentaire d'en-tête promet qu'« un motif qu'on renommerait ici se
+   réaffiche partout sans migration » — c'est vrai du LABEL, qui ne
+   voyage pas ; c'est faux de l'`id`, qui est la seule chose qu'une fiche
+   garde. Cette table est donc la contrepartie du renommage, et les deux
+   portes de lecture du classeur la traversent : `migrate` dans
+   `domain/film` pour les fiches, `normalizeThreads` dans `domain/threads`
+   pour les fils.
+
+   Un identifiant inconnu ressort tel quel. C'est déjà la règle du
+   catalogue — un motif que personne ne connaît est ignoré à l'affichage,
+   jamais effacé de la fiche — et la migration n'a aucune raison d'être
+   plus brutale que lui. */
+const ANCIENS_IDS: Record<string, string> = {
+  destin: "fate",
+  fin: "ending",
+  récit: "narrative",
+  figure: "figures",
+  ton: "tone",
+  monde: "world",
+  "heros-meurt": "hero-dies",
+  "tout-le-monde-meurt": "everyone-dies",
+  "seul-survivant": "sole-survivor",
+  deuil: "grief",
+  "vengeance-aboutie": "revenge-fulfilled",
+  "vengeance-vaine": "revenge-in-vain",
+  trahison: "betrayal",
+  fuite: "flight",
+  chute: "downfall",
+  "amour-impossible": "impossible-love",
+  retrouvailles: "reunion",
+  enfermement: "confinement",
+  "perte-de-raison": "loss-of-reason",
+  "fin-ouverte": "open-ending",
+  "revelation-finale": "final-revelation",
+  "retour-au-depart": "back-to-the-start",
+  "fin-heureuse-mensongere": "false-happy-ending",
+  "derniere-image-fixe": "final-freeze-frame",
+  "epilogue-lointain": "distant-epilogue",
+  "recit-non-lineaire": "non-linear-narrative",
+  "narrateur-non-fiable": "unreliable-narrator",
+  "huis-clos": "single-setting",
+  "film-choral": "ensemble-film",
+  "mise-en-abyme": "story-within-a-story",
+  "voix-off": "voice-over",
+  "temps-reel": "real-time",
+  "boucle-temporelle": "time-loop",
+  chapitres: "chapters",
+  "faux-documentaire": "mockumentary",
+  "plan-sequence": "long-take",
+  "adaptation-litteraire": "literary-adaptation",
+  "le-double": "the-double",
+  "mentor-perdu": "lost-mentor",
+  "faux-coupable": "wrong-man",
+  "enfant-temoin": "child-witness",
+  fratrie: "siblings",
+  "pere-absent": "absent-father",
+  "duo-depareille": "mismatched-duo",
+  "groupe-qui-se-defait": "group-falling-apart",
+  "artiste-au-travail": "artist-at-work",
+  "figure-de-l-autorite": "authority-figure",
+  fantome: "ghost",
+  melancolie: "melancholy",
+  burlesque: "slapstick",
+  malaise: "unease",
+  contemplatif: "contemplative",
+  ironie: "irony",
+  tendresse: "tenderness",
+  fievre: "fever",
+  sensualite: "sensuality",
+  onirique: "dreamlike",
+  "ville-tentaculaire": "sprawling-city",
+  "campagne-etouffante": "stifling-countryside",
+  hiver: "winter",
+  "ete-ecrasant": "crushing-summer",
+  mer: "sea",
+  "futur-proche": "near-future",
+  "apres-la-fin": "after-the-end",
+  "guerre-en-arriere-plan": "war-in-the-background",
+  "monde-du-travail": "world-of-work",
+  "huis-clos-familial": "family-single-setting",
+  "la-nuit": "the-night",
+  exil: "exile",
+};
+
+/* Les FAMILLES ont changé de nom en même temps que les motifs, et elles
+   sont écrites sur le disque elles aussi : un motif que vous avez créé
+   garde la sienne dans le `localStorage`. La reprise passe par
+   `services/motifs`, qui est sa porte de lecture. */
+const ANCIENNES_FAMILLES: Record<string, MotifFamille> = {
+  destin: "fate",
+  fin: "ending",
+  récit: "narrative",
+  figure: "figures",
+  ton: "tone",
+  monde: "world",
+};
+
+export const migrateMotifFamille = (f: unknown): MotifFamille | null =>
+  typeof f === "string" ? (ANCIENNES_FAMILLES[f] ?? null) : null;
+
+/** L'identifiant d'aujourd'hui pour un motif écrit avant la bascule. */
+export const migrateMotifId = (id: string): string => ANCIENS_IDS[id] ?? id;
+
+/** La même chose sur une liste, en écartant les doublons qu'elle produirait. */
+export const migrateMotifIds = (ids: unknown): string[] =>
+  Array.isArray(ids)
+    ? [...new Set(ids.filter((i) => typeof i === "string").map(migrateMotifId))]
+    : [];

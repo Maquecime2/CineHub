@@ -91,7 +91,7 @@ const BROUILLONS: Brouillon[] = [
     countries: ["JP"],
     tmdbRating: 8.5,
     keywords: ["spirit world", "coming of age", "bathhouse", "shapeshifting"],
-    motifs: ["fuite", "retour-au-depart"],
+    motifs: ["flight", "back-to-the-start"],
     themes: ["l'enfance", "le travail"],
     rating: 4.5,
     review:
@@ -111,7 +111,7 @@ const BROUILLONS: Brouillon[] = [
     countries: ["US", "FR"],
     tmdbRating: 7.9,
     keywords: ["dream", "hollywood", "amnesia", "identity", "neo-noir"],
-    motifs: ["recit-non-lineaire", "revelation-finale", "perte-de-raison"],
+    motifs: ["non-linear-narrative", "final-revelation", "loss-of-reason"],
     themes: ["le cinéma", "les rêves"],
     rating: 4.5,
     review:
@@ -135,7 +135,7 @@ const BROUILLONS: Brouillon[] = [
     countries: ["HK", "FR"],
     tmdbRating: 8.1,
     keywords: ["unrequited love", "1960s", "hong kong", "adultery", "longing"],
-    motifs: ["amour-impossible", "fin-ouverte"],
+    motifs: ["impossible-love", "open-ending"],
     themes: ["le renoncement"],
     rating: 5,
     review:
@@ -155,7 +155,7 @@ const BROUILLONS: Brouillon[] = [
     countries: ["US"],
     tmdbRating: 7.6,
     keywords: ["time loop", "small town", "redemption", "weatherman"],
-    motifs: ["boucle-temporelle", "retour-au-depart"],
+    motifs: ["time-loop", "back-to-the-start"],
     themes: ["la répétition"],
     rating: 4,
     review: "La meilleure comédie jamais faite sur l'idée qu'on ne devient quelqu'un qu'à l'usure.",
@@ -174,7 +174,7 @@ const BROUILLONS: Brouillon[] = [
     countries: ["GB", "US"],
     tmdbRating: 8.2,
     keywords: ["space", "creature", "isolation", "corporate greed", "survival horror"],
-    motifs: ["huis-clos", "seul-survivant"],
+    motifs: ["single-setting", "sole-survivor"],
     themes: ["l'espace", "le corps"],
     rating: 4.5,
     review:
@@ -194,7 +194,7 @@ const BROUILLONS: Brouillon[] = [
     countries: ["US", "GB"],
     tmdbRating: 7.9,
     keywords: ["dystopia", "android", "memory", "neo-noir", "rain"],
-    motifs: ["fin-ouverte", "derniere-image-fixe"],
+    motifs: ["open-ending", "final-freeze-frame"],
     themes: ["la mémoire", "l'artificiel"],
     rating: 4,
     review:
@@ -214,7 +214,7 @@ const BROUILLONS: Brouillon[] = [
     countries: ["DE", "FR", "US"],
     tmdbRating: 8.1,
     keywords: ["road movie", "desert", "abandonment", "father son", "one way mirror"],
-    motifs: ["road-movie", "retrouvailles", "fin-ouverte"],
+    motifs: ["road-movie", "reunion", "open-ending"],
     themes: ["l'abandon", "le désert"],
     rating: 5,
     review:
@@ -234,7 +234,7 @@ const BROUILLONS: Brouillon[] = [
     countries: ["JP", "DE"],
     tmdbRating: 7.8,
     keywords: ["routine", "tokyo", "solitude", "cassette tape", "toilets"],
-    motifs: ["temps-reel"],
+    motifs: ["real-time"],
     themes: ["la routine", "le travail"],
     /* MIS DE CÔTÉ, et c'est ce qui donne son contenu à l'onglet « À
        voir » : sans une fiche au moins, la visite y ouvre un mur vide. */
@@ -254,7 +254,7 @@ const BROUILLONS: Brouillon[] = [
     countries: ["FR"],
     tmdbRating: 8.0,
     keywords: ["childhood", "reform school", "paris", "new wave", "running away"],
-    motifs: ["fuite", "derniere-image-fixe"],
+    motifs: ["flight", "final-freeze-frame"],
     themes: ["l'enfance", "l'école"],
     rating: 4.5,
     review:
@@ -278,7 +278,7 @@ const BROUILLONS: Brouillon[] = [
     countries: ["FR", "IT"],
     tmdbRating: 8.0,
     keywords: ["hitman", "loneliness", "paris", "trench coat", "code of honor"],
-    motifs: ["heros-meurt", "sacrifice"],
+    motifs: ["hero-dies", "sacrifice"],
     themes: ["la solitude", "le code"],
     rating: 4.5,
     review:
@@ -298,7 +298,7 @@ const BROUILLONS: Brouillon[] = [
     countries: ["SU"],
     tmdbRating: 8.1,
     keywords: ["the zone", "faith", "wasteland", "pilgrimage", "desire"],
-    motifs: ["huis-clos", "fin-ouverte", "voix-off"],
+    motifs: ["single-setting", "open-ending", "voice-over"],
     themes: ["la foi", "le désir"],
     rating: 4,
     review:
@@ -319,7 +319,7 @@ const BROUILLONS: Brouillon[] = [
     countries: ["FR"],
     tmdbRating: 8.1,
     keywords: ["painter", "18th century", "brittany", "forbidden love", "gaze"],
-    motifs: ["amour-impossible", "derniere-image-fixe", "flashback"],
+    motifs: ["impossible-love", "final-freeze-frame", "flashback"],
     themes: ["le regard", "la peinture"],
     rating: 4.5,
     review:

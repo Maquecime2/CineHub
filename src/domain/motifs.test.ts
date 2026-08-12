@@ -22,7 +22,7 @@ describe("le catalogue de motifs", () => {
   });
 
   it("porte bien la question qui a tout déclenché", () => {
-    const m = motifById("heros-meurt");
+    const m = motifById("hero-dies");
     expect(m?.label).toBe("Le héros meurt");
     // et il raconte la fin : il doit se gratter à l'affichage
     expect(m?.spoiler).toBe(true);
@@ -34,12 +34,12 @@ describe("le catalogue de motifs", () => {
   });
 
   it("ignore un motif inconnu plutôt que de le montrer", () => {
-    const film = makeFilm({ motifs: ["heros-meurt", "motif-supprimé-depuis"] });
-    expect(motifsDe(film).map((m) => m.id)).toEqual(["heros-meurt"]);
+    const film = makeFilm({ motifs: ["hero-dies", "motif-supprimé-depuis"] });
+    expect(motifsDe(film).map((m) => m.id)).toEqual(["hero-dies"]);
   });
 
   it("cherche sans casse", () => {
-    expect(chercheMotifs("HÉROS").map((m) => m.id)).toContain("heros-meurt");
+    expect(chercheMotifs("HÉROS").map((m) => m.id)).toContain("hero-dies");
     expect(chercheMotifs("")).toEqual([]);
   });
 });
@@ -47,7 +47,7 @@ describe("le catalogue de motifs", () => {
 describe("ce que TMDB propose", () => {
   it("reconnaît un mot-clé du catalogue, quelle que soit la casse", () => {
     const out = suggestMotifs([{ id: 1, name: "Time Loop" }]);
-    expect(out.map((m) => m.id)).toEqual(["boucle-temporelle"]);
+    expect(out.map((m) => m.id)).toEqual(["time-loop"]);
   });
 
   it("accepte aussi une simple liste de mots", () => {
@@ -64,13 +64,13 @@ describe("vos motifs à vous", () => {
   afterEach(() => poserVocabulaire({ perso: [], masqués: [] }));
 
   it("s'ajoutent au catalogue sans le remplacer", () => {
-    const mien = makeMotifPerso("Il pleut sans arrêt", "monde");
+    const mien = makeMotifPerso("Il pleut sans arrêt", "world");
     poserVocabulaire({ perso: [mien], masqués: [] });
     expect(motifById(mien.id)?.label).toBe("Il pleut sans arrêt");
-    expect(motifById("heros-meurt")).toBeTruthy();
+    expect(motifById("hero-dies")).toBeTruthy();
     expect(tousLesMotifs()).toHaveLength(MOTIFS.length + 1);
     expect(estPerso(mien.id)).toBe(true);
-    expect(estPerso("heros-meurt")).toBe(false);
+    expect(estPerso("hero-dies")).toBe(false);
   });
 
   it("tirent leur identifiant du libellé, une fois pour toutes", () => {
@@ -80,7 +80,7 @@ describe("vos motifs à vous", () => {
   });
 
   it("se cherchent comme les autres", () => {
-    const mien = makeMotifPerso("Il pleut sans arrêt", "monde");
+    const mien = makeMotifPerso("Il pleut sans arrêt", "world");
     poserVocabulaire({ perso: [mien], masqués: [] });
     expect(chercheMotifs("pleut").map((m) => m.id)).toContain(mien.id);
   });
@@ -90,17 +90,17 @@ describe("les motifs écartés", () => {
   afterEach(() => poserVocabulaire({ perso: [], masqués: [] }));
 
   it("quittent la liste où l'on choisit", () => {
-    poserVocabulaire({ perso: [], masqués: ["heros-meurt"] });
-    expect(tousLesMotifs().some((m) => m.id === "heros-meurt")).toBe(false);
-    expect(chercheMotifs("héros").some((m) => m.id === "heros-meurt")).toBe(false);
+    poserVocabulaire({ perso: [], masqués: ["hero-dies"] });
+    expect(tousLesMotifs().some((m) => m.id === "hero-dies")).toBe(false);
+    expect(chercheMotifs("héros").some((m) => m.id === "hero-dies")).toBe(false);
   });
 
   /* Masquer n'est pas effacer : une fiche qui le porte doit continuer de
      l'afficher, sans quoi écarter réécrirait les données en douce. */
   it("restent lisibles sur les fiches qui les portent", () => {
-    poserVocabulaire({ perso: [], masqués: ["heros-meurt"] });
-    expect(motifById("heros-meurt")?.label).toBe("Le héros meurt");
-    expect(motifsDe(makeFilm({ motifs: ["heros-meurt"] }))).toHaveLength(1);
-    expect(estMasqué("heros-meurt")).toBe(true);
+    poserVocabulaire({ perso: [], masqués: ["hero-dies"] });
+    expect(motifById("hero-dies")?.label).toBe("Le héros meurt");
+    expect(motifsDe(makeFilm({ motifs: ["hero-dies"] }))).toHaveLength(1);
+    expect(estMasqué("hero-dies")).toBe(true);
   });
 });

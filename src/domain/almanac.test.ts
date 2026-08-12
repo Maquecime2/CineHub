@@ -376,16 +376,16 @@ describe("sujets", () => {
     const films = [
       vu("A", ["2024-01-01"], {
         keywords: ["time loop", "small town"],
-        motifs: ["boucle-temporelle"],
+        motifs: ["time-loop"],
       }),
-      vu("B", ["2024-01-02"], { keywords: ["time loop"], motifs: ["boucle-temporelle", "fuite"] }),
+      vu("B", ["2024-01-02"], { keywords: ["time loop"], motifs: ["time-loop", "flight"] }),
     ];
     const s = sujets(films, 2024);
     expect(s.motsClés[0]).toEqual({ nom: "time loop", n: 2 });
-    expect(s.motifs[0]).toEqual({ nom: "boucle-temporelle", n: 2 });
+    expect(s.motifs[0]).toEqual({ nom: "time-loop", n: 2 });
     /* Les deux vocabulaires ne se mélangent jamais : un motif n'a rien à
        faire dans le palmarès des mots-clés, et réciproquement. */
-    expect(s.motsClés.map((x) => x.nom)).not.toContain("fuite");
+    expect(s.motsClés.map((x) => x.nom)).not.toContain("flight");
   });
 
   it("ne compte que les séances de la période", () => {

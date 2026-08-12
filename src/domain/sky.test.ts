@@ -354,9 +354,9 @@ describe("neighbourhood", () => {
 
 describe("les fils au ciel", () => {
   it("fait entrer les membres d'un fil, même sans aucun fil rouge tendu", () => {
-    const a = film("A", { motifs: ["heros-meurt"] });
-    const b = film("B", { motifs: ["heros-meurt"] });
-    const fil = makeThread({ label: "Le héros meurt", motif: "heros-meurt" });
+    const a = film("A", { motifs: ["hero-dies"] });
+    const b = film("B", { motifs: ["hero-dies"] });
+    const fil = makeThread({ label: "Le héros meurt", motif: "hero-dies" });
     const { nodes, links } = buildSky([a, b], {}, { fils: [fil] });
 
     expect(nodes.filter((n) => n.kind === "film")).toHaveLength(2);
@@ -366,14 +366,14 @@ describe("les fils au ciel", () => {
   });
 
   it("n'accroche pas au ciel un fil que personne ne porte", () => {
-    const fil = makeThread({ label: "Vide", motif: "heros-meurt" });
+    const fil = makeThread({ label: "Vide", motif: "hero-dies" });
     const { nodes } = buildSky([film("A")], {}, { fils: [fil] });
     expect(nodes).toEqual([]);
   });
 
   it("ne dédouble pas un film à la fois relié et membre d'un fil", () => {
-    const a = film("A", { linkedWorks: [nighthawks()], motifs: ["heros-meurt"] });
-    const fil = makeThread({ label: "x", motif: "heros-meurt" });
+    const a = film("A", { linkedWorks: [nighthawks()], motifs: ["hero-dies"] });
+    const fil = makeThread({ label: "x", motif: "hero-dies" });
     const { nodes } = buildSky([a], {}, { fils: [fil] });
     expect(nodes.filter((n) => n.filmId === a.id)).toHaveLength(1);
   });

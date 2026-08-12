@@ -95,13 +95,13 @@ describe("the notebook pages", () => {
 
 describe("the motifs", () => {
   it("finds a motif from the catalogue and says how many cards carry it", () => {
-    const films = [film("A", { motifs: ["melancolie"] }), film("B", { motifs: ["melancolie"] })];
+    const films = [film("A", { motifs: ["melancholy"] }), film("B", { motifs: ["melancholy"] })];
     const t = searchEverywhere("mélanco", corpus({ films }));
     const m = t.find((x) => x.kind === "motif");
     expect(m).toMatchObject({
       title: "Mélancolie",
       subtitle: "2 fiches le portent",
-      motifId: "melancolie",
+      motifId: "melancholy",
     });
   });
 
@@ -147,7 +147,7 @@ describe("the people", () => {
 describe("the crossing", () => {
   it("shows several kinds at once", () => {
     const films = [
-      film("Mélancolie du départ", { motifs: ["melancolie"], director: "Mélanie Ozu" }),
+      film("Mélancolie du départ", { motifs: ["melancholy"], director: "Mélanie Ozu" }),
     ];
     const notes = [page("Mélancolie", "une page")];
     const t = searchEverywhere("mélanc", corpus({ films, notes }));
@@ -166,7 +166,7 @@ describe("the crossing", () => {
   });
 
   it("returns distinct keys, usable as identity", () => {
-    const films = [film("Mélancolie", { motifs: ["melancolie"] })];
+    const films = [film("Mélancolie", { motifs: ["melancholy"] })];
     const keys = searchEverywhere("mélanc", corpus({ films })).map((x) => x.key);
     expect(new Set(keys).size).toBe(keys.length);
   });

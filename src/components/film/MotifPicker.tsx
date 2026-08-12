@@ -130,7 +130,7 @@ export function MotifPicker({
   const [q, setQ] = useState("");
   const [révélés, setRévélés] = useState<string[]>([]);
   const [neuf, setNeuf] = useState("");
-  const [famille, setFamille] = useState<MotifFamille>("récit");
+  const [famille, setFamille] = useState<MotifFamille>("narrative");
   const [spoiler, setSpoiler] = useState(false);
 
   /* `motifsDe` et non un filtre sur le catalogue : un motif à vous n'est

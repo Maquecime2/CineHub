@@ -29,7 +29,7 @@ import type { Film } from "../../types";
    « il pleut à la fin » raconte un film, « mélancolie » dit dans quel
    état on est ce soir. Ce sont deux vocabulaires, et le second est
    exactement celui qu'on cherchait. */
-const HUMEURS = MOTIFS.filter((m) => m.famille === "ton" && !m.spoiler);
+const HUMEURS = MOTIFS.filter((m) => m.famille === "tone" && !m.spoiler);
 
 /* Au-delà, deviner l'humeur coûterait plus d'attente que la question ne
    vaut. On demande les mots-clés des mieux placés seulement — le

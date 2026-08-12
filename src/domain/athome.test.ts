@@ -95,7 +95,7 @@ describe("a neglected motif", () => {
     watched(`Film ${n}`, [{ date: daysAgo(days), rating }], { rating, motifs });
 
   it("flags a vein we have not crossed again", () => {
-    const films = [withMotif(1, 900, 3, ["melancolie"]), withMotif(2, 800, 3.5, ["melancolie"])];
+    const films = [withMotif(1, 900, 3, ["melancholy"]), withMotif(2, 800, 3.5, ["melancholy"])];
     const s = suggestions(films).find((x) => x.nature === "motif");
     expect(s).toBeDefined();
     expect(s!.label).toBe("Mélancolie");
@@ -104,12 +104,12 @@ describe("a neglected motif", () => {
 
   it("says nothing about a motif carried by a single card", () => {
     // an isolated motif is an accident, not a neglected vein
-    const s = suggestions([withMotif(1, 900, 3, ["melancolie"])]);
+    const s = suggestions([withMotif(1, 900, 3, ["melancholy"])]);
     expect(s.some((x) => x.nature === "motif")).toBe(false);
   });
 
   it("stays quiet when the vein was crossed recently", () => {
-    const films = [withMotif(1, 900, 3, ["melancolie"]), withMotif(2, 30, 3, ["melancolie"])];
+    const films = [withMotif(1, 900, 3, ["melancholy"]), withMotif(2, 30, 3, ["melancholy"])];
     expect(suggestions(films).some((x) => x.nature === "motif")).toBe(false);
   });
 
@@ -122,7 +122,7 @@ describe("a neglected motif", () => {
   });
 
   it("suggests the best-rated of the vein, not the dustiest", () => {
-    const films = [withMotif(1, 1200, 2, ["melancolie"]), withMotif(2, 900, 5, ["melancolie"])];
+    const films = [withMotif(1, 1200, 2, ["melancholy"]), withMotif(2, 900, 5, ["melancholy"])];
     const s = suggestions(films).find((x) => x.nature === "motif");
     expect(s!.film.title).toBe("Film 2");
   });
@@ -216,12 +216,12 @@ describe("the assembly", () => {
       watched("A", [{ date: daysAgo(1000), rating: 5 }], {
         rating: 5,
         director: "Ozu",
-        motifs: ["melancolie"],
+        motifs: ["melancholy"],
       }),
       watched("B", [{ date: daysAgo(900), rating: 5 }], {
         rating: 5,
         director: "Ozu",
-        motifs: ["melancolie"],
+        motifs: ["melancholy"],
       }),
     ];
     const ids = suggestions(films).map((s) => s.film.id);
@@ -233,22 +233,22 @@ describe("the assembly", () => {
       watched("A", [{ date: daysAgo(1000), rating: 5 }], {
         rating: 5,
         director: "Ozu",
-        motifs: ["melancolie"],
+        motifs: ["melancholy"],
       }),
       watched("B", [{ date: daysAgo(900), rating: 5 }], {
         rating: 5,
         director: "Ozu",
-        motifs: ["melancolie"],
+        motifs: ["melancholy"],
       }),
       watched("C", [{ date: daysAgo(950), rating: 4.5 }], {
         rating: 4.5,
         director: "Varda",
-        motifs: ["contemplatif"],
+        motifs: ["contemplative"],
       }),
       watched("D", [{ date: daysAgo(920), rating: 4.5 }], {
         rating: 4.5,
         director: "Varda",
-        motifs: ["contemplatif"],
+        motifs: ["contemplative"],
       }),
     ];
     const natures = suggestions(films).map((s) => s.nature);
@@ -270,12 +270,12 @@ describe("the assembly", () => {
       watched("A", [{ date: daysAgo(1000), rating: 5 }], {
         rating: 5,
         director: "Ozu",
-        motifs: ["melancolie"],
+        motifs: ["melancholy"],
       }),
       watched("B", [{ date: daysAgo(900), rating: 5 }], {
         rating: 5,
         director: "Ozu",
-        motifs: ["melancolie"],
+        motifs: ["melancholy"],
       }),
     ];
     const forA = suggestions(films).find((s) => s.film.title === "A")!;
@@ -301,12 +301,12 @@ describe("the assembly", () => {
       watched("A", [{ date: daysAgo(1000), rating: 5 }], {
         rating: 5,
         director: "Ozu",
-        motifs: ["melancolie"],
+        motifs: ["melancholy"],
       }),
       watched("B", [{ date: daysAgo(900), rating: 5 }], {
         rating: 5,
         director: "Ozu",
-        motifs: ["melancolie"],
+        motifs: ["melancholy"],
       }),
     ];
     const keys = suggestions(films).map((s) => s.key);

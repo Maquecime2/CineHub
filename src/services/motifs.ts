@@ -8,7 +8,7 @@
    avez ouvert l'application pour la première fois.
    ============================================================ */
 import { store } from "./storage";
-import { FAMILLES, poserVocabulaire } from "../domain/motifs";
+import { FAMILLES, migrateMotifFamille, poserVocabulaire } from "../domain/motifs";
 import type { Motif, VocabulaireStocké } from "../domain/motifs";
 
 export const MOTIFS_KEY = "motifs";
@@ -23,8 +23,13 @@ export const normalizeVocabulaire = (raw: unknown): VocabulaireStocké => {
     .map((m) => ({
       id: String(m.id),
       label: String(m.label).trim(),
-      // une famille inconnue — renommée depuis — ne doit pas rendre le motif invisible
-      famille: FAMILLES_CONNUES.has(m.famille) ? m.famille : ("récit" as const),
+      /* Une famille inconnue ne doit pas rendre le motif invisible. On
+         essaie d'abord l'ANCIENNE GRAPHIE — les familles ont changé de nom
+         en passant à l'anglais, et un motif que vous avez créé porte
+         encore la sienne sur le disque — puis on se rabat sur le récit. */
+      famille: FAMILLES_CONNUES.has(m.famille)
+        ? m.famille
+        : (migrateMotifFamille(m.famille) ?? ("narrative" as const)),
       ...(m.spoiler ? { spoiler: true as const } : {}),
     }))
     .filter((m) => !!m.label);
