@@ -58,7 +58,7 @@ interface FolderTabsProps {
    * L'état de la synchronisation, pour le pastiller. `null` quand il
    * n'y a pas de serveur : l'action n'est alors même pas montée.
    */
-  synchro: "à-jour" | "en-cours" | "en-attente" | "erreur" | "hors-compte" | "absent";
+  synchro: "up-to-date" | "running" | "waiting" | "error" | "no-account" | "absent";
 }
 
 /* L'ICÔNE N'EST PAS UN ORNEMENT : c'est ce qui reste de l'onglet quand
@@ -636,7 +636,7 @@ export function FolderTabs({
               icon={UserRound}
               doigt={phone}
               marque={
-                synchro === "erreur" ? C.burgundy : synchro === "en-attente" ? C.inkFaded : null
+                synchro === "error" ? C.burgundy : synchro === "waiting" ? C.inkFaded : null
               }
             />
           )}

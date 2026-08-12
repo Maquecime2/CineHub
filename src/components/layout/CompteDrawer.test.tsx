@@ -15,7 +15,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CompteDrawer } from "./CompteDrawer";
-import type { Bilan } from "../../services/sync";
+import type { SyncReport } from "../../services/sync";
 
 const myBlocks = vi.fn();
 const unblock = vi.fn();
@@ -46,16 +46,16 @@ vi.mock("../../services/push", () => ({
 
 vi.mock("../../services/sync", async (vrai) => ({
   ...(await vrai<Record<string, unknown>>()),
-  oublierLaSynchro: vi.fn(),
+  forgetSync: vi.fn(),
 }));
 
-const bilan = (connecté: boolean): Bilan =>
+const bilan = (connecté: boolean): SyncReport =>
   ({
-    état: connecté ? "à-jour" : "hors-compte",
-    personne: connecté ? { id: "1", pseudo: "varda" } : null,
-    le: null,
-    enAttente: 0,
-  }) as Bilan;
+    state: connecté ? "up-to-date" : "no-account",
+    person: connecté ? { id: "1", pseudo: "varda" } : null,
+    at: null,
+    pending: 0,
+  }) as SyncReport;
 
 const monter = (connecté = true) =>
   render(

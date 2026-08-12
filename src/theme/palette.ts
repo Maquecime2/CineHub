@@ -11,7 +11,7 @@
    `shelf-views`, les couleurs dans `constants` — et une clé présente
    dans l'une mais pas dans l'autre retombait silencieusement sur le
    bordeaux. Les clés se DÉDUISENT maintenant des couleurs, et il n'y a
-   plus rien à synchroniser.
+   plus rien à synchronise.
 
    Pourquoi ici et pas dans `constants` : `shelf-views` s'interdit React,
    et `constants` est un fichier à JSX. Le seul endroit d'où les deux

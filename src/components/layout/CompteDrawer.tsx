@@ -51,8 +51,8 @@ import {
   unsubscribeFromPush,
   type PushState,
 } from "../../services/push";
-import { oublierLaSynchro } from "../../services/sync";
-import type { Bilan } from "../../services/sync";
+import { forgetSync } from "../../services/sync";
+import type { SyncReport } from "../../services/sync";
 
 const quandDit = (le: number | null): string => {
   if (!le) return "jamais encore";
@@ -71,11 +71,11 @@ export function CompteDrawer({
   onSynchroniser,
   onChangement,
 }: {
-  bilan: Bilan;
+  bilan: SyncReport;
   onFermer: () => void;
   onSynchroniser: () => void;
   /** Le compte a changé : l'application doit se resituer. */
-  onChangement: (personne: Person | null) => void;
+  onChangement: (person: Person | null) => void;
 }) {
   const [pseudo, setPseudo] = useState("");
   const [occupé, setOccupé] = useState(false);
@@ -90,7 +90,7 @@ export function CompteDrawer({
       /* UN COMPTE QUI CHANGE REPART DE ZÉRO. Garder le rang de lecture
          de l'ancien ferait croire au classeur qu'il a déjà tout vu de la
          collection du nouveau — qui resterait invisible. */
-      oublierLaSynchro();
+      forgetSync();
       onChangement(personne);
     } catch (e) {
       /* Refuser sa propre empreinte n'est pas une erreur à dramatiser :
@@ -102,7 +102,7 @@ export function CompteDrawer({
     }
   };
 
-  const connecté = !!bilan.personne;
+  const connecté = !!bilan.person;
 
   return (
     <Calque>
@@ -140,8 +140,8 @@ export function CompteDrawer({
               color: C.ink,
             }}
           >
-            <span data-pseudo={connecté ? bilan.personne!.pseudo : undefined}>
-              {connecté ? bilan.personne!.pseudo : "Votre compte"}
+            <span data-pseudo={connecté ? bilan.person!.pseudo : undefined}>
+              {connecté ? bilan.person!.pseudo : "Votre compte"}
             </span>
           </div>
           <button
@@ -175,25 +175,25 @@ export function CompteDrawer({
             color: C.inkFaded,
           }}
         >
-          {bilan.état === "à-jour" && <Check size={14} color={C.pine} />}
-          {bilan.état === "en-attente" && <CloudOff size={14} color={C.inkFaded} />}
-          {bilan.état === "en-cours" && <RefreshCw size={14} color={C.inkFaded} />}
+          {bilan.state === "up-to-date" && <Check size={14} color={C.pine} />}
+          {bilan.state === "waiting" && <CloudOff size={14} color={C.inkFaded} />}
+          {bilan.state === "running" && <RefreshCw size={14} color={C.inkFaded} />}
           <span style={{ flex: 1 }}>
-            {bilan.état === "absent" && "Aucun serveur réglé."}
-            {bilan.état === "hors-compte" && "Tout reste ici."}
-            {bilan.état === "en-cours" && "En cours…"}
-            {bilan.état === "à-jour" && `À jour, ${quandDit(bilan.le)}.`}
+            {bilan.state === "absent" && "Aucun serveur réglé."}
+            {bilan.state === "no-account" && "Tout reste ici."}
+            {bilan.state === "running" && "En cours…"}
+            {bilan.state === "up-to-date" && `À jour, ${quandDit(bilan.at)}.`}
             {/* « 0 FICHE ATTEND LE RÉSEAU » NE VEUT RIEN DIRE, et c'est
                 pourtant ce qui s'affichait quand le serveur était
                 injoignable sans qu'on ait rien modifié : un compte à
                 rebours vide au lieu de la seule information utile. */}
-            {bilan.état === "en-attente" &&
-              (bilan.enAttente === 0
+            {bilan.state === "waiting" &&
+              (bilan.pending === 0
                 ? "Serveur injoignable. Rien à envoyer, rien de perdu."
-                : `${bilan.enAttente} fiche${bilan.enAttente > 1 ? "s" : ""} attend${
-                    bilan.enAttente > 1 ? "ent" : ""
+                : `${bilan.pending} fiche${bilan.pending > 1 ? "s" : ""} attend${
+                    bilan.pending > 1 ? "ent" : ""
                   } le réseau.`)}
-            {bilan.état === "erreur" && (bilan.message || "Le serveur a refusé.")}
+            {bilan.state === "error" && (bilan.message || "Le serveur a refusé.")}
           </span>
           {connecté && (
             <button
@@ -279,7 +279,7 @@ export function CompteDrawer({
                 await signOut();
                 /* La collection RESTE : se déconnecter n'est pas se
                    déposséder. Seul le lien avec le serveur se coupe. */
-                oublierLaSynchro();
+                forgetSync();
                 onChangement(null);
               }}
               style={bouton(C.ink, false)}
@@ -311,7 +311,7 @@ export function CompteDrawer({
                       lien.href = URL.createObjectURL(
                         new Blob([JSON.stringify(tout, null, 2)], { type: "application/json" })
                       );
-                      lien.download = `cine-hub-${bilan.personne!.pseudo}.json`;
+                      lien.download = `cine-hub-${bilan.person!.pseudo}.json`;
                       lien.click();
                       URL.revokeObjectURL(lien.href);
                     } catch (e) {
@@ -338,7 +338,7 @@ export function CompteDrawer({
                         setOccupé(true);
                         try {
                           await deleteMyAccount();
-                          oublierLaSynchro();
+                          forgetSync();
                           onChangement(null);
                         } catch (e) {
                           setSouci((e as Error).message || "L'effacement a échoué.");

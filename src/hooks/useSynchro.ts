@@ -18,7 +18,7 @@
    une liste d'attente plutôt qu'un envoi immédiat.
    ============================================================ */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { dernierBilan, enAttente, synchroniser, type Bilan } from "../services/sync";
+import { lastReport, pending, synchronise, type SyncReport } from "../services/sync";
 import { serverConfigured } from "../services/server";
 import type { Film } from "../types";
 
@@ -30,11 +30,11 @@ export function useSynchro(
   /** Appelé quand des documents sont entrés : à l'appelant de relire. */
   relireLesDocuments: () => void
 ) {
-  const [bilan, setBilan] = useState<Bilan>({
-    état: serverConfigured() ? "hors-compte" : "absent",
-    personne: null,
-    le: dernierBilan().le,
-    enAttente: 0,
+  const [bilan, setBilan] = useState<SyncReport>({
+    state: serverConfigured() ? "no-account" : "absent",
+    person: null,
+    at: lastReport().at,
+    pending: 0,
   });
 
   /* `poser` change à chaque rendu de l'application : le garder dans une
@@ -50,11 +50,11 @@ export function useSynchro(
   const lancer = useCallback(async () => {
     if (!serverConfigured() || enCours.current) return;
     enCours.current = true;
-    setBilan((b) => ({ ...b, état: "en-cours" }));
+    setBilan((b) => ({ ...b, state: "running" }));
     try {
-      const bilan = await synchroniser((films) => poserRef.current(films));
+      const bilan = await synchronise((films) => poserRef.current(films));
       setBilan(bilan);
-      if (bilan.documentsEntrés) relireRef.current();
+      if (bilan.documentsIn) relireRef.current();
     } finally {
       enCours.current = false;
     }
@@ -81,7 +81,7 @@ export function useSynchro(
 
   /* Le compte de ce qui attend se relit à chaque rendu : il change quand
      on écrit, pas quand le réseau parle. */
-  const attend = serverConfigured() ? enAttente() : 0;
+  const attend = serverConfigured() ? pending() : 0;
 
   /* « À JOUR » NE PEUT PAS ÊTRE VRAI S'IL RESTE QUELQUE CHOSE À DIRE.
 
@@ -90,7 +90,7 @@ export function useSynchro(
      le serveur éteint — techniquement le récit du dernier passage,
      pratiquement un mensonge. L'état affiché se déduit de ce qui attend,
      pas de ce qui s'est passé tout à l'heure. */
-  const état = bilan.état === "à-jour" && attend > 0 ? "en-attente" : bilan.état;
+  const état = bilan.state === "up-to-date" && attend > 0 ? "waiting" : bilan.state;
 
-  return { bilan: { ...bilan, état, enAttente: attend }, synchroniser: lancer };
+  return { bilan: { ...bilan, état, pending: attend }, synchronise: lancer };
 }

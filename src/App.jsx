@@ -243,7 +243,7 @@ export default function App() {
      déjà périmée. */
   /* LA SYNCHRONISATION — montée ici parce qu'elle touche la collection
      entière, et nulle part ailleurs. Elle ne part qu'une fois le
-     classeur chargé : synchroniser une collection vide qu'on n'a pas
+     classeur chargé : synchronise une collection vide qu'on n'a pas
      encore lue effacerait tout au premier envoi. */
   const [accountOpen, setCompteOuvert] = useState(false);
   /* RELIRE CE QUI VIENT D'ARRIVER. Les agencements d'étagère, le
@@ -266,7 +266,7 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const { bilan: synchro, synchroniser: relancerSynchro } = useSynchro(
+  const { bilan: synchro, synchronise: relancerSynchro } = useSynchro(
     loaded,
     setFilms,
     relireLesDocuments
@@ -315,7 +315,7 @@ export default function App() {
   /* L'ÉCRAN D'ABORD, LE DISQUE ENSUITE. On pose l'état tout de suite —
      une frappe ne doit pas attendre une écriture — puis le dépôt rend
      les fiches DATÉES, et c'est cette version-là qu'on garde : elle
-     seule porte les `updatedAt` qui diront demain quoi synchroniser.
+     seule porte les `updatedAt` qui diront demain quoi synchronise.
 
      Le second `setFilms` ne coûte rien quand rien n'a changé : le dépôt
      rend alors les mêmes objets, et React abandonne la mise à jour.
@@ -749,7 +749,7 @@ export default function App() {
         onKey={() => setKeyPanel(true)}
         onHelp={() => setTourMenu((o) => !o)}
         onCompte={() => setCompteOuvert(true)}
-        synchro={synchro.état}
+        synchro={synchro.state}
       />
       {accountOpen && (
         <CompteDrawer
@@ -835,7 +835,7 @@ export default function App() {
           <DetailView
             film={selectedFilm}
             films={films}
-            connecte={!!synchro.personne}
+            connecte={!!synchro.person}
             /* L'INTERCALAIRE EST TENU ICI, comme la vue l'est déjà : la
                visite guidée doit pouvoir ouvrir « Les liens » avant
                d'aller y chercher le fil rouge. Voir `visiteOuvreOnglet`. */
@@ -906,8 +906,8 @@ export default function App() {
             fiches VUES, y compris celles mises de côté dans la réserve —
             les avoir archivées ne les rend pas non vues. */}
         {view === "almanac" && <AlmanacView films={watched} onOpenPerson={ouvrirPersonne} />}
-        {view === "fil" && <FilView connecte={!!synchro.personne} />}
-        {view === "listes" && <ListesView connecte={!!synchro.personne} />}
+        {view === "fil" && <FilView connecte={!!synchro.person} />}
+        {view === "listes" && <ListesView connecte={!!synchro.person} />}
         {view === "skinlab" && import.meta.env.DEV && <SkinLab />}
         {view === "import" && (
           <ImportView
