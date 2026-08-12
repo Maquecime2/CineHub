@@ -19,7 +19,7 @@ import { useViewport } from "./hooks/useViewport";
 import { usePointerDrag } from "./hooks/usePointerDrag";
 import { SkinPicker } from "./components/layout/SkinPicker";
 import { Installation, MiseÀJour } from "./components/layout/Installation";
-import { CompteDrawer } from "./components/layout/CompteDrawer";
+import { AccountDrawer } from "./components/layout/AccountDrawer";
 import { TmdbKeyPanel } from "./components/layout/TmdbKeyPanel";
 import { registerTmdbOpener } from "./services/tmdbKey";
 import { useSynchro } from "./hooks/useSynchro";
@@ -52,7 +52,7 @@ import {
   sansDémo,
   PRÉFIXE_DÉMO,
 } from "./services/demo";
-import { BandeauDémo } from "./components/layout/BandeauDemo";
+import { DemoBanner } from "./components/layout/DemoBanner";
 
 /* The original kraft, for the very first render — before a skin has been
    applied. The same recipe lives in `theme/skins`, under the "carnet"
@@ -748,11 +748,11 @@ export default function App() {
         onSkin={() => setSkinPicker(true)}
         onKey={() => setKeyPanel(true)}
         onHelp={() => setTourMenu((o) => !o)}
-        onCompte={() => setCompteOuvert(true)}
-        synchro={synchro.state}
+        onAccount={() => setCompteOuvert(true)}
+        sync={synchro.state}
       />
       {accountOpen && (
-        <CompteDrawer
+        <AccountDrawer
           bilan={synchro}
           onFermer={() => setCompteOuvert(false)}
           onSynchroniser={relancerSynchro}
@@ -952,7 +952,7 @@ export default function App() {
           started scrolling by exactly that height. A taped card moves
           nothing, and it is the shape the binder already gives its other
           sentences (see `Installation`). */}
-      {classeurEncoreDémo(films) && <BandeauDémo onRetirer={retirerDémo} />}
+      {classeurEncoreDémo(films) && <DemoBanner onRemove={retirerDémo} />}
       {tourMenu && <TourMenu view={view} onPlay={jouerVisite} onClose={() => setTourMenu(false)} />}
       <TourOverlay
         tourId={tourId}

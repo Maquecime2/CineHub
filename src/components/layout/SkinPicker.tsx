@@ -1,19 +1,19 @@
 /* ============================================================
-   LE CHOIX DE LA PEAU — à quoi ressemble le site
+   THE SKIN PICKER — what the site looks like
    ============================================================
 
-   Une vignette par peau, et la vignette EST la peau : son fond est le
-   fond de page de celle qu'elle propose, son titre est écrite dans sa
-   police de titre, ses pastilles sont ses jetons. Un aperçu qui se
-   dessinerait autrement finirait par mentir — c'est la même règle que
-   les vignettes de l'Atelier déco.
+   One thumbnail per skin, and the thumbnail IS the skin: its background
+   is the page background of the one it offers, its title is written in
+   its title font, its pills are its tokens. A preview that drew itself
+   otherwise would end up lying — it is the same rule as the Decor
+   Workshop's thumbnails.
 
-   Les polices d'une peau qu'on n'a pas choisie ne sont PAS chargées :
-   son titre s'affiche donc dans la police de secours de sa pile tant
-   qu'on ne l'a pas essayée. C'est un compromis assumé — précharger
-   quatorze jeux de polices pour un panneau qu'on ouvre deux fois coûte
-   bien plus cher que ce que l'aperçu y gagne. Les couleurs, elles, sont
-   justes du premier coup, et ce sont elles qu'on regarde. */
+   The fonts of a skin one has not chosen are NOT loaded: its title
+   therefore shows in its stack's fallback font until one has tried it.
+   That is an accepted compromise — preloading fourteen sets of fonts for
+   a panel one opens twice costs far more than what the preview gains by
+   it. The colours, for their part, are right the first time, and they
+   are what one looks at. */
 import type { CSSProperties } from "react";
 import { X } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
@@ -34,9 +34,9 @@ const PANEL: CSSProperties = {
   boxShadow: "2px 8px 24px rgba(20,14,8,0.4)",
 };
 
-/* Ce que la peau donne à voir, en petit. On lit ses valeurs
-   DIRECTEMENT — pas les variables du document, qui sont celles de la
-   peau posée et rendraient les quatorze vignettes identiques. */
+/* What the skin gives to be seen, in small. We read its values
+   DIRECTLY — not the document's variables, which are those of the skin
+   in place and would make the fourteen thumbnails identical. */
 function SkinCard({ skin, on, onPick }: { skin: Skin; on: boolean; onPick: () => void }) {
   return (
     <button
@@ -78,7 +78,7 @@ function SkinCard({ skin, on, onPick }: { skin: Skin; on: boolean; onPick: () =>
       >
         {skin.note}
       </div>
-      {/* les six jetons qui portent l'identite, dans l'ordre ou on les voit */}
+      {/* the six tokens that carry the identity, in the order they are seen */}
       <div style={{ display: "flex", gap: 4, marginTop: 8 }}>
         {["burgundy", "ochre", "pine", "slate", "cobalt", "vermillion"].map((k) => (
           <span
@@ -145,9 +145,9 @@ export function SkinPicker({
           <SkinCard key={s.key} skin={s} on={s.key === skin} onPick={() => onPick(s.key)} />
         ))}
 
-        {/* Ce que la peau ne touche pas, dit une fois plutot que jamais :
-            l'utilisateur qui a peint ses cartons doit savoir pourquoi ils
-            ne suivent pas. */}
+        {/* What the skin does not touch, said once rather than never:
+            the user who painted their cards must know why they do not
+            follow. */}
         <div
           style={{
             fontFamily: F.hand,

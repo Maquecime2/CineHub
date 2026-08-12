@@ -25,7 +25,7 @@ import { C, alpha } from "../../theme/tokens";
 import { useViewport } from "../../hooks/useViewport";
 import { serverConfigured } from "../../services/server";
 
-/** Les vues joignables depuis les onglets. `detail` s'ouvre depuis une fiche. */
+/** The views reachable from the tabs. `detail` opens from a card. */
 export type View =
   | "library"
   | "watchlist"
@@ -44,50 +44,50 @@ interface FolderTabsProps {
   view: View;
   setView: (v: View) => void;
   onAdd: () => void;
-  /** Ouvre la recherche qui traverse tout le classeur. */
+  /** Opens the search that crosses the whole binder. */
   onSearch: () => void;
-  /** Ouvre le choix de la peau du site. */
+  /** Opens the site skin picker. */
   onSkin: () => void;
-  /** Ouvre le menu de la visite guidée. */
+  /** Opens the guided tour menu. */
   onHelp: () => void;
-  /** Ouvre le réglage de la clé TMDB. */
+  /** Opens the TMDB key setting. */
   onKey: () => void;
-  /** Le tiroir du compte et de la synchronisation. */
-  onCompte: () => void;
+  /** The account and synchronisation drawer. */
+  onAccount: () => void;
   /**
-   * L'état de la synchronisation, pour le pastiller. `null` quand il
-   * n'y a pas de serveur : l'action n'est alors même pas montée.
+   * The synchronisation state, to badge it. `null` when there is no
+   * server: the action is then not even mounted.
    */
-  synchro: "up-to-date" | "running" | "waiting" | "error" | "no-account" | "absent";
+  sync: "up-to-date" | "running" | "waiting" | "error" | "no-account" | "absent";
 }
 
-/* L'ICÔNE N'EST PAS UN ORNEMENT : c'est ce qui reste de l'onglet quand
-   la fenêtre est trop basse pour ses mots. Elle doit donc se lire seule,
-   et désigner la vue et non sa jolie métaphore. */
+/* THE ICON IS NOT AN ORNAMENT: it is what is left of the tab when the
+   window is too short for its words. So it must read on its own, and
+   designate the view rather than its pretty metaphor. */
 const TABS: {
   key: View;
   label: string;
   color: string;
   icon: ComponentType<{ size?: number }>;
-  /** Ne vaut rien sans serveur : l'onglet ne paraît pas du tout. */
+  /** Worth nothing with no server: the tab does not appear at all. */
   exigeUnServeur?: boolean;
 }[] = [
   { key: "library", label: "Vidéothèque", color: C.burgundy, icon: Clapperboard },
   { key: "watchlist", label: "À voir", color: C.ochre, icon: Bookmark },
-  /* Le Générique regarde la même collection sous un autre angle : il est
-     du groupe du fonds, à côté des deux murs, et non des outils. */
+  /* The Credits look at the same collection from another angle: it
+     belongs to the holdings group, beside the two walls, not the tools. */
   { key: "generique", label: "Générique", color: C.plum, icon: Users },
   { key: "reco", label: "Découvertes", color: C.vermillion, icon: Compass },
   { key: "constellation", label: "Constellation", color: C.cobalt, icon: Sparkles },
   { key: "almanac", label: "Almanach", color: C.moss, icon: CalendarDays },
   { key: "notebook", label: "Carnet", color: C.pine, icon: NotebookPen },
   { key: "import", label: "Import Letterboxd", color: C.slate, icon: FolderInput },
-  /* LE FIL EST LE DERNIER ONGLET, et pas le premier : le classeur
-       reste une videotheque personnelle, et ce qu'on regarde chez les
-       autres vient apres ce qu'on a chez soi. */
+  /* THE FEED IS THE LAST TAB, and not the first: the binder stays a
+       personal video library, and what we look at in other people's
+       homes comes after what we have in ours. */
   { key: "fil", label: "Le fil", color: C.cobalt, icon: Users2, exigeUnServeur: true },
-  /* Les listes et les defis viennent apres le fil : on regarde ce que
-       font les autres avant de se lancer quelque chose avec eux. */
+  /* The lists and the challenges come after the feed: we look at what
+       others are doing before starting something with them. */
   {
     key: "listes",
     label: "Listes et défis",
@@ -97,10 +97,10 @@ const TABS: {
   },
 ];
 
-/* L'onglet de contrôle des peaux n'est pas une vue du produit : il ne
-   paraît qu'en développement, et le build de production ne l'emporte
-   même pas — la condition est statique, donc l'import de la planche
-   tombe au secouage d'arbre. */
+/* The skin control tab is not a view of the product: it only appears in
+   development, and the production build does not even carry it — the
+   condition is static, so the import of the board falls to tree
+   shaking. */
 const DEV_TABS: typeof TABS = import.meta.env.DEV
   ? /* En encre et non dans l'une des huit teintes : les onglets du
        produit sont pris, et un outil ne doit pas se déguiser en vue. */
@@ -111,19 +111,19 @@ const DIMMED = "saturate(0.65) brightness(0.92)";
 
 type Tab = (typeof TABS)[number];
 
-/* UN ONGLET — UNE PASTILLE À ICÔNE.
+/* A TAB — AN ICON PILL.
 
-   Les onglets portaient leur nom, écrit à la verticale. Huit noms font
-   plus de neuf cents pixels, une peau en capitales à chasse allongée les
-   rallonge encore, et le rail se mettait à défiler : une barre de
-   défilement sur une tranche de classeur, ce qui ne ressemble à rien.
+   The tabs carried their name, written vertically. Eight names make more
+   than nine hundred pixels, a skin in extended-width capitals makes them
+   longer still, and the rail began to scroll: a scrollbar on a binder's
+   spine, which looks like nothing at all.
 
-   L'icône règle la question au lieu de la repousser : huit pastilles
-   font moins de trois cents pixels, elles tiennent dans n'importe quelle
-   fenêtre, et aucune peau ne peut les rallonger. Le nom n'est pas perdu
-   — il passe dans l'infobulle et dans `aria-label`, sans quoi le rail
-   entier deviendrait muet pour un lecteur d'écran. */
-function Onglet({
+   The icon settles the question instead of postponing it: eight pills
+   make less than three hundred pixels, they fit in any window, and no
+   skin can lengthen them. The name is not lost — it moves into the
+   tooltip and into `aria-label`, failing which the whole rail would go
+   mute for a screen reader. */
+function Tab({
   t,
   active,
   onClick,
@@ -132,19 +132,18 @@ function Onglet({
   t: Tab;
   active: boolean;
   onClick: () => void;
-  /* AU TELEPHONE, CE N'EST PLUS UN ONGLET DE CLASSEUR.
+  /* ON A PHONE, THIS IS NO LONGER A BINDER TAB.
 
-     La pastille tire son dessin de la tranche contre laquelle elle bute :
-     arrondie a droite seulement, decalee de six pixels vers la gauche
-     quand elle dort, et qui avance quand on la choisit. Couchee au bas
-     de l'ecran, cette grammaire ne veut plus rien dire — il n'y a plus
-     de tranche a gauche, et le decalage lit alors comme un defaut
-     d'alignement.
+     The pill draws its shape from the spine it butts against: rounded on
+     the right only, offset six pixels to the left when it sleeps, and
+     coming forward when chosen. Laid at the bottom of the screen, that
+     grammar no longer means anything — there is no spine on the left any
+     more, and the offset then reads as a misalignment.
 
-     Elle redevient donc ce qu'elle est vraiment a cet endroit : un
-     jeton, arrondi de partout, assez large pour un pouce. Quarante
-     pixels et non trente-deux : c'est le plancher en dessous duquel une
-     cible se rate une fois sur trois. */
+     So it becomes again what it really is in that place: a token,
+     rounded all over, wide enough for a thumb. Forty pixels and not
+     thirty-two: that is the floor below which a target is missed one
+     time in three. */
   phone: boolean;
 }) {
   const Icon = t.icon;
@@ -162,51 +161,50 @@ function Onglet({
         boxSizing: "border-box",
         width: phone ? 40 : 32,
         height: phone ? 40 : 32,
-        /* ET QUI SE TASSENT PLUTÔT QUE DE DÉBORDER.
+        /* AND THAT PACK DOWN RATHER THAN OVERFLOW.
 
-           Huit pastilles tiennent dans toute fenêtre raisonnable, mais
-           « raisonnable » n'est pas une garantie : sous une certaine
-           hauteur, la dernière passerait sous le bord, et `overflow:
-           clip` la couperait en silence — un onglet invisible et
-           injoignable, ce qui est pire qu'un onglet serré.
+           Eight pills fit in any reasonable window, but "reasonable" is
+           not a guarantee: below a certain height the last one would
+           slide under the edge, and `overflow: clip` would cut it in
+           silence — an invisible, unreachable tab, which is worse than a
+           cramped one.
 
-           En colonne flexible, un objet se rétracte de lui-même quand la
-           place manque. Le plancher est l'icône elle-même : on ne
-           descend pas sous ce qui se lit. */
+           In a flexible column, an item shrinks on its own when room is
+           short. The floor is the icon itself: we do not go below what
+           can be read. */
         flexShrink: phone ? 0 : 1,
         minHeight: phone ? 40 : 18,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        // carton teinté dans la masse, pas un aplat : reflet en haut, tranche sombre en bas
-        /* `${t.color}cc` collait un canal alpha derriere une
-           couleur. Depuis que les jetons sont des renvois a des
-           variables CSS, ce collage ne veut plus rien dire et le
-           degrade entier etait rejete — les onglets perdaient
-           leur relief sans un mot. */
+        // cardstock dyed through, not a flat fill: highlight on top, dark edge below
+        /* `${t.color}cc` glued an alpha channel behind a colour. Since
+           the tokens became references to CSS variables, that gluing no
+           longer means anything and the whole gradient was rejected —
+           the tabs lost their relief without a word. */
         background: `linear-gradient(180deg, ${t.color}, ${t.color} 60%, ${alpha(t.color, 0.8)})`,
         filter: active ? "none" : DIMMED,
         color: C.card,
         borderRadius: phone ? "var(--tag-radius)" : "0 var(--tag-radius) var(--tag-radius) 0",
-        /* L'onglet choisi avance vers la droite, sur le rail. Couche en
-           bas il ne peut plus avancer : il se cerne alors d'un filet de
-           carton clair, qui le detache de la barre sans changer sa
-           couleur — c'est la meme chose que dit l'avancee, dite
-           autrement. */
+        /* The chosen tab moves right, on the rail. Laid at the bottom it
+           can no longer move forward: it then rings itself with a line of
+           pale cardstock, which detaches it from the bar without changing
+           its colour — it is the same thing the forward move says, said
+           otherwise. */
         boxShadow: active
           ? phone
             ? `0 0 0 2px ${C.card}, 0 2px 8px rgba(0,0,0,0.35)`
             : `4px 4px 10px rgba(0,0,0,0.35), inset -2px 0 0 ${t.color}, inset 0 1px 0 rgba(255,255,255,0.25)`
           : "2px 2px 6px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.15)",
         marginLeft: phone || active ? 0 : -6,
-        /* Les durées passent par les jetons de mouvement : le bloc
-           `prefers-reduced-motion` les met à zéro tout seul. */
+        /* The durations go through the motion tokens: the
+           `prefers-reduced-motion` block sets them to zero on its own. */
         transition: "margin var(--motion-fast) var(--motion-ease), filter var(--motion-fast) ease",
       }}
-      /* LE SURVOL N'EXISTE PAS SOUS UN DOIGT, MAIS LE NAVIGATEUR FAIT
-         SEMBLANT : il emet un survol au moment du contact, et l'onglet
-         restait ensuite avance et rallume jusqu'au prochain contact
-         ailleurs — huit onglets tous eclaires, plus aucun choisi. */
+      /* HOVER DOES NOT EXIST UNDER A FINGER, BUT THE BROWSER PRETENDS: it
+         emits a hover at the moment of contact, and the tab then stayed
+         forward and lit until the next contact elsewhere — eight tabs all
+         lit, none chosen any more. */
       onMouseEnter={(e) => {
         if (!active && !phone) {
           e.currentTarget.style.marginLeft = "0px";
@@ -225,44 +223,45 @@ function Onglet({
   );
 }
 
-/* LA HAUTEUR DE LA BARRE DU BAS, hors encoche. Le meme chiffre est
-   repris dans `FONT_IMPORT` pour creuser le pied de la colonne de vue :
-   une media query n'accepte pas de `var()`, et le doublon est le prix de
-   cette limite. Si l'un change, l'autre change. */
+/* THE HEIGHT OF THE BOTTOM BAR, notch excluded. The same figure is
+   repeated in `FONT_IMPORT` to hollow out the foot of the view column: a
+   media query does not accept a `var()`, and the duplicate is the price
+   of that limit. If one changes, the other changes. */
 const BAR_H = 58;
 
-/* LES PETITS RÉGLAGES DE TOUT — la peau, la clé, le compte, la visite.
+/* THE LITTLE SETTINGS OF EVERYTHING — the skin, the key, the account,
+   the tour.
 
-   Ils ne sont le réglage d'AUCUNE vue, c'est celui de toutes : d'où le
-   pied du rail, et non un onglet. Discrets, parce qu'on les touche deux
-   fois et qu'on les côtoie tous les jours.
+   They are the setting of NO view, they are the setting of them all:
+   hence the foot of the rail, and not a tab. Discreet, because we touch
+   them twice and live beside them every day.
 
-   Une seule pastille écrite une seule fois : les quatre portaient le
-   même bloc de style recopié, et la suivante l'aurait recopié une fois
-   de plus — autant d'occasions de diverger sans le vouloir. La
-   démonstration a eu lieu : le rail au doigt et la clé TMDB sont
-   arrivés chacun de son côté, et ont réécrit les mêmes boutons.
+   A single pill written a single time: the four carried the same block
+   of style copied out, and the next would have copied it once more — so
+   many chances to diverge unintentionally. The demonstration took place:
+   the finger rail and the TMDB key each arrived on their own, and
+   rewrote the same buttons.
 
-   D'où `doigt` : au téléphone ces pastilles descendent dans la barre du
-   bas, où 26 px ne se visent pas. Le paramètre vit ICI plutôt qu'à
-   chaque appel, sinon la prochaine pastille ajoutée l'oubliera.
+   Hence `finger`: on a phone these pills go down into the bottom bar,
+   where 26 px cannot be aimed at. The parameter lives HERE rather than at
+   each call, otherwise the next pill added will forget it.
 
-   `marque` porte la pastille de synchronisation — la seule chose qu'un
-   de ces boutons ait à dire sans qu'on l'ouvre. */
-function ActionRonde({
+   `badge` carries the synchronisation badge — the only thing one of
+   these buttons has to say without being opened. */
+function RoundAction({
   onClick,
   label,
   tour,
   icon: Icon,
-  doigt = false,
-  marque,
+  finger = false,
+  badge,
 }: {
   onClick: () => void;
   label: string;
   tour: string;
   icon: ComponentType<{ size?: number }>;
-  doigt?: boolean;
-  marque?: string | null;
+  finger?: boolean;
+  badge?: string | null;
 }) {
   return (
     <button
@@ -274,9 +273,9 @@ function ActionRonde({
         all: "unset",
         cursor: "pointer",
         position: "relative",
-        marginLeft: doigt ? 0 : 8,
-        width: doigt ? 40 : 26,
-        height: doigt ? 40 : 26,
+        marginLeft: finger ? 0 : 8,
+        width: finger ? 40 : 26,
+        height: finger ? 40 : 26,
         borderRadius: "50%",
         color: C.inkFaded,
         display: "flex",
@@ -295,17 +294,17 @@ function ActionRonde({
       }}
     >
       <Icon size={13} />
-      {marque && (
+      {badge && (
         <span
           aria-hidden
           style={{
             position: "absolute",
-            top: doigt ? 6 : 1,
-            right: doigt ? 6 : 1,
+            top: finger ? 6 : 1,
+            right: finger ? 6 : 1,
             width: 6,
             height: 6,
             borderRadius: "50%",
-            background: marque,
+            background: badge,
           }}
         />
       )}
@@ -321,39 +320,39 @@ export function FolderTabs({
   onSkin,
   onHelp,
   onKey,
-  onCompte,
-  synchro,
+  onAccount,
+  sync,
 }: FolderTabsProps) {
-  /* DEUX ONGLETS QUI NE PARAISSENT QUE S'IL Y A QUELQU'UN EN FACE.
+  /* TWO TABS THAT ONLY APPEAR IF THERE IS SOMEBODY OPPOSITE.
 
-     Sans serveur — c'est le cas du site publié, qui n'en a pas — le fil
-     et les défis n'ont rien à montrer qu'une phrase expliquant qu'ils
-     n'ont rien à montrer. Deux crans du rail occupés par une promesse.
+     With no server — that is the published site's case, which has none —
+     the feed and the challenges have nothing to show but a sentence
+     explaining that they have nothing to show. Two notches of the rail
+     taken up by a promise.
 
-     Ils s'effacent donc entièrement, plutôt que de s'afficher éteints :
-     un onglet grisé demande « pourquoi ? » à chaque passage, alors
-     qu'un onglet absent ne se remarque pas. Le bouton du compte suit
-     déjà cette règle depuis qu'il existe, et pour la même raison.
+     So they fade out entirely, rather than showing greyed: a greyed tab
+     asks "why?" at every passage, whereas an absent tab is not noticed.
+     The account button has followed this rule since it existed, and for
+     the same reason.
 
-     La condition est statique — l'adresse du serveur est décidée à la
-     construction — donc le rail ne changera jamais de forme en cours de
-     route. Ni la visite : ses étapes visant ces vues sont `optional`,
-     et une cible absente saute sans bruit. */
+     The condition is static — the server's address is decided at build
+     time — so the rail will never change shape along the way. Nor will
+     the tour: its steps aiming at these views are `optional`, and an
+     absent target is skipped without a sound. */
   const tabs = [...TABS, ...DEV_TABS].filter((t) => !t.exigeUnServeur || serverConfigured());
-  /* LE RAIL SE COUCHE PLUTOT QU'IL NE DISPARAIT.
+  /* THE RAIL LIES DOWN RATHER THAN DISAPPEARING.
 
-     Sur la tranche gauche d'un classeur, huit pastilles empilees et
-     quatre actions au pied tiennent dans quarante-six pixels de large.
-     Sur un telephone tenu d'une main, cette colonne mange un huitieme
-     de la largeur et se termine la ou le pouce n'arrive pas — le haut
-     de l'ecran. La meme liste, couchee au bas de la fenetre, tombe
-     exactement sous le pouce.
+     On a binder's left spine, eight stacked pills and four actions at the
+     foot fit in forty-six pixels of width. On a phone held in one hand,
+     that column eats an eighth of the width and ends where the thumb
+     does not reach — the top of the screen. The same list, laid at the
+     bottom of the window, falls exactly under the thumb.
 
-     RIEN NE DISPARAIT DANS L'AFFAIRE, et ce n'est pas un scrupule :
-     chacun de ces boutons porte un `data-tour`, et une visite guidee
-     dont la cible n'existe pas dans le document est une visite qui saute
-     l'etape en silence. Les douze cibles restent donc montees ; ce sont
-     l'axe et les mesures qui changent. */
+     NOTHING DISAPPEARS IN THE PROCESS, and that is not a scruple: each of
+     these buttons carries a `data-tour`, and a guided tour whose target
+     does not exist in the document is a tour that skips the step in
+     silence. So the twelve targets stay mounted; it is the axis and the
+     measurements that change. */
   const { phone } = useViewport();
 
   return (
@@ -362,27 +361,25 @@ export function FolderTabs({
         width: phone ? 0 : 46,
         flexShrink: 0,
         position: "relative",
-        /* LA BARRE DU BAS PERDAIT SON EGALITE, ET UNE EGALITE SE PERD
-           TOUJOURS DU MEME COTE.
+        /* THE BOTTOM BAR LOST ITS TIE, AND A TIE IS ALWAYS LOST THE SAME
+           WAY.
 
-           Le rail et la colonne de vue etaient tous deux a 2. A valeur
-           egale, c'est le DERNIER du document qui se peint dessus — et
-           le rail est ecrit avant. Sur la tranche gauche, cela ne se
-           voyait pas : le rail et la colonne ne se recouvrent nulle
-           part. Couchee en bas, la barre passe SOUS la colonne qu'elle
-           doit border, et tout ce qui deborde de la colonne se peint
-           dessus.
+           The rail and the view column were both at 2. At equal value, it
+           is the LAST in the document that paints on top — and the rail
+           is written first. On the left spine this did not show: the rail
+           and the column overlap nowhere. Laid at the bottom, the bar
+           passes UNDER the column it is meant to border, and everything
+           overflowing the column paints over it.
 
-           Vingt : au-dessus de la page (2), au-dessous des panneaux
-           (30–45) et de tout ce qui suit — un tiroir ouvert recouvre la
-           barre, la page jamais. */
+           Twenty: above the page (2), below the panels (30–45) and
+           everything that follows — an open drawer covers the bar, the
+           page never. */
         zIndex: phone ? 20 : 2,
       }}
     >
-      {/* la tranche du classeur, contre laquelle les onglets butent.
-          Elle ne suit pas la barre en bas : ce qu'elle dessine, c'est le
-          dos d'un classeur pose debout, et un dos couche n'est plus un
-          dos. */}
+      {/* the binder's spine, which the tabs butt against. It does not
+          follow the bar down: what it draws is the back of a binder
+          standing upright, and a back lying down is no longer a back. */}
       {!phone && (
         <div
           style={{
@@ -397,24 +394,23 @@ export function FolderTabs({
           }}
         />
       )}
-      {/* LE RAIL — pleine hauteur, et non plus « colle en haut ».
+      {/* THE RAIL — full height, and no longer "stuck to the top".
 
-          Il etait `sticky` et poussait vers le bas : six onglets ecrits
-          a la verticale font neuf cent cinquante pixels, et dans une
-          fenetre de sept cent vingt le bouton d'ajout tombait sous le
-          bord de l'ecran, injoignable. Une peau en capitales a chasse
-          allongee rallonge encore chaque onglet — le defaut empirait
-          avec l'habillage, ce qui est le signe qu'il n'etait pas dans
-          l'habillage.
+          It was `sticky` and pushed downwards: six tabs written
+          vertically make nine hundred and fifty pixels, and in a window
+          of seven hundred and twenty the add button fell below the edge
+          of the screen, unreachable. A skin in extended-width capitals
+          lengthens each tab further — the fault got worse with the skin,
+          which is the sign that it was not in the skin.
 
-          Le rail occupe donc toute la hauteur, et les actions sont
-          ancrees en bas : elles restent atteignables quels que soient le
-          nombre d'onglets, la longueur de leurs noms et la peau posee.
+          So the rail takes up the whole height, and the actions are
+          anchored at the bottom: they stay reachable whatever the number
+          of tabs, the length of their names and the skin laid on.
 
-          RIEN NE DEBORDE PLUS. Ce qui debordait, c'etait la LISTE, et
-          elle defilait. Les onglets ne portent plus leurs noms ecrits
-          mais une icone : huit pastilles tiennent partout, et se tassent
-          plutot que de passer sous le bord — voir `Onglet`. */}
+          NOTHING OVERFLOWS ANY MORE. What overflowed was the LIST, and it
+          scrolled. The tabs no longer carry their names written out but
+          an icon: eight pills fit everywhere, and pack down rather than
+          slipping under the edge — see `Tab`. */}
       <div
         style={{
           position: "fixed",
@@ -423,9 +419,9 @@ export function FolderTabs({
           display: "flex",
           ...(phone
             ? {
-                /* LA BARRE DU BAS. Elle est OPAQUE, et c'est necessaire :
-                   le mur defile dessous, et une barre transparente
-                   laisserait passer des affiches sous les onglets. */
+                /* THE BOTTOM BAR. It is OPAQUE, and that is necessary:
+                   the wall scrolls underneath, and a transparent bar
+                   would let posters show through under the tabs. */
                 right: 0,
                 bottom: 0,
                 paddingBottom: "var(--safe-bottom)",
@@ -453,9 +449,9 @@ export function FolderTabs({
         <div
           data-tab-rail
           style={{
-            /* `minHeight: 0` est ce qui autorise vraiment le retrait :
-               sans lui, un enfant flexible refuse de descendre sous la
-               taille de son contenu. */
+            /* `minHeight: 0` is what really allows the shrinking:
+               without it, a flexible child refuses to go below the size
+               of its content. */
             flex: "1 1 auto",
             minHeight: 0,
             minWidth: 0,
@@ -463,32 +459,31 @@ export function FolderTabs({
             gap: 6,
             ...(phone
               ? {
-                  /* ICI, ON DEFILE — ET C'EST L'INVERSE DU RAIL.
+                  /* HERE, WE SCROLL — AND IT IS THE OPPOSITE OF THE RAIL.
 
-                     Sur la tranche, rien ne devait deborder : une barre
-                     de defilement sur le dos d'un classeur ne ressemble
-                     a rien, et huit pastilles empilees tiennent dans
-                     toute fenetre. Couchees, huit pastilles de quarante
-                     pixels font trois cent soixante-huit, et les quatre
-                     actions en prennent deux cents de plus : sur une
-                     fenetre de trois cent quatre-vingt-dix, ca ne tient
-                     pas, et ca ne tiendra jamais.
+                     On the spine, nothing was to overflow: a scrollbar on
+                     a binder's back looks like nothing at all, and eight
+                     stacked pills fit in any window. Laid down, eight
+                     forty-pixel pills make three hundred and sixty-eight,
+                     and the four actions take two hundred more: in a
+                     window of three hundred and ninety, that does not
+                     fit, and never will.
 
-                     Le rangement horizontal a, lui, un geste evident au
-                     doigt — on balaie. Sa barre reste cachee
-                     (`[data-tab-rail]`, plus haut dans les jetons), le
-                     balayage non. */
+                     Horizontal filing, for its part, has an obvious
+                     finger gesture — we swipe. Its bar stays hidden
+                     (`[data-tab-rail]`, higher up in the tokens), the
+                     swipe does not. */
                   overflowX: "auto",
                   overflowY: "hidden",
                   flexDirection: "row",
                   alignItems: "center",
                 }
               : {
-                  /* `clip` et non `hidden` : on ne veut aucun axe de
-                     defilement, seulement que rien ne bave a droite. Les
-                     onglets glissent de six pixels au survol et portent
-                     une ombre — d'ou la marge, pour ne rogner ni l'un ni
-                     l'autre. */
+                  /* `clip` and not `hidden`: we want no scrolling axis
+                     at all, only that nothing bleeds to the right. The
+                     tabs slide six pixels on hover and carry a shadow —
+                     hence the margin, so as to clip neither one nor the
+                     other. */
                   overflow: "clip",
                   paddingRight: 12,
                   flexDirection: "column",
@@ -497,7 +492,7 @@ export function FolderTabs({
           }}
         >
           {tabs.map((t) => (
-            <Onglet
+            <Tab
               key={t.key}
               t={t}
               active={view === t.key}
@@ -507,10 +502,10 @@ export function FolderTabs({
           ))}
         </div>
 
-        {/* LES ACTIONS — toujours au pied du rail, toujours visibles.
-            Au telephone, « au pied » veut dire au bout : elles se rangent
-            a droite de la barre, hors du balayage des onglets, pour que
-            le pouce ne les perde pas en faisant defiler la liste. */}
+        {/* THE ACTIONS — always at the foot of the rail, always visible.
+            On a phone, "at the foot" means at the end: they file to the
+            right of the bar, outside the tabs' swipe, so that the thumb
+            does not lose them while scrolling the list. */}
         <div
           style={{
             flexShrink: 0,
@@ -532,12 +527,12 @@ export function FolderTabs({
             style={{
               all: "unset",
               cursor: "pointer",
-              /* LES QUATRE ACTIONS DESCENDENT EN TAILLE SUR LE RAIL —
-                 trente-quatre, trente, vingt-six, vingt-six — et cette
-                 degression dit leur ordre d'importance. Sous un doigt
-                 elle ne dit plus rien du tout : elle rend simplement les
-                 deux dernieres difficiles a viser. Quarante partout,
-                 donc, en dessous de quoi une cible se rate. */
+              /* THE FOUR ACTIONS DESCEND IN SIZE ON THE RAIL —
+                 thirty-four, thirty, twenty-six, twenty-six — and that
+                 taper states their order of importance. Under a finger it
+                 no longer states anything at all: it simply makes the
+                 last two hard to aim at. Forty everywhere, then, below
+                 which a target is missed. */
               marginLeft: phone ? 0 : 4,
               width: phone ? 40 : 34,
               height: phone ? 40 : 34,
@@ -560,14 +555,13 @@ export function FolderTabs({
             <Pin size={16} />
           </button>
 
-          {/* CHERCHER PARTOUT.
+          {/* SEARCHING EVERYWHERE.
 
-            Juste sous l'épingle, et non dans une vue : la question ne
-            s'adresse à aucune d'elles en particulier. Chaque onglet a
-            bien son champ, mais aucun ne cherchait au-delà de ce qu'il
-            montre — il fallait donc savoir d'avance dans quel onglet se
-            trouvait ce qu'on cherchait, ce qui suppose de l'avoir déjà
-            trouvé. */}
+            Just under the pin, and not in a view: the question is
+            addressed to none of them in particular. Each tab does have
+            its field, but none searched beyond what it shows — one
+            therefore had to know in advance which tab held what one was
+            looking for, which presupposes having already found it. */}
           <button
             onClick={onSearch}
             data-tour="search-all"
@@ -598,61 +592,61 @@ export function FolderTabs({
             <Search size={14} />
           </button>
 
-          {/* LA PEAU DU SITE, au pied de la tranche du classeur. */}
-          <ActionRonde
+          {/* THE SITE SKIN, at the foot of the binder's spine. */}
+          <RoundAction
             onClick={onSkin}
             tour="skin"
             label="Changer la peau du site"
             icon={Palette}
-            doigt={phone}
+            finger={phone}
           />
 
-          {/* LA CLÉ TMDB, entre la peau et le compte.
+          {/* THE TMDB KEY, between the skin and the account.
 
-            Elle commande huit écrans — les Découvertes, le sillage, les
-            affiches, les fiches d'équipe — et ne se posait que dans
-            l'onglet Import, au milieu d'un écran qui parle d'autre
-            chose. Un réglage qui commande tout n'appartient à aucune
-            vue : il est ici, avec les autres réglages de tout. */}
-          <ActionRonde
+            It commands eight screens — Discoveries, the wake, the
+            posters, the crew cards — and could only be set in the Import
+            tab, in the middle of a screen that speaks of something else.
+            A setting that commands everything belongs to no view: it is
+            here, with the other settings of everything. */}
+          <RoundAction
             onClick={onKey}
             tour="tmdb-key"
             label="La clé TMDB"
             icon={KeyRound}
-            doigt={phone}
+            finger={phone}
           />
 
-          {/* LE COMPTE ET SA PASTILLE.
+          {/* THE ACCOUNT AND ITS BADGE.
 
-            Elle ne paraît que si un serveur est réglé : un bouton qui
-            ouvre un tiroir vide est pire qu'un bouton absent. La
-            pastille dit d'un coup d'œil ce qui attend — c'est la seule
-            chose qu'on veut savoir sans ouvrir. */}
-          {synchro !== "absent" && (
-            <ActionRonde
-              onClick={onCompte}
+            It only appears if a server is set: a button that opens an
+            empty drawer is worse than an absent button. The badge says at
+            a glance what is waiting — that is the only thing one wants to
+            know without opening. */}
+          {sync !== "absent" && (
+            <RoundAction
+              onClick={onAccount}
               tour="compte"
               label="Votre compte et la synchronisation"
               icon={UserRound}
-              doigt={phone}
-              marque={synchro === "error" ? C.burgundy : synchro === "waiting" ? C.inkFaded : null}
+              finger={phone}
+              badge={sync === "error" ? C.burgundy : sync === "waiting" ? C.inkFaded : null}
             />
           )}
 
-          {/* LA VISITE, au dernier cran du rail.
+          {/* THE TOUR, at the rail's last notch.
 
-            Une seule ancre, et toujours la même : c'est ce que la fiche
-            de rappel désigne quand on écarte la visite, et ce qu'on
-            cherche six mois plus tard en se demandant à quoi servait
-            l'étagère. Au dernier cran parce qu'on la consulte encore
-            moins souvent — mais jamais ailleurs, jamais rangée dans une
-            vue : l'aide d'un outil ne se cache pas dans l'outil. */}
-          <ActionRonde
+            A single anchor, and always the same: it is what the reminder
+            card points at when the tour is waved away, and what one looks
+            for six months later wondering what the shelf was for. At the
+            last notch because one consults it even less often — but never
+            elsewhere, never filed inside a view: a tool's help is not
+            hidden inside the tool. */}
+          <RoundAction
             onClick={onHelp}
             tour="help"
             label="La visite guidée"
             icon={HelpCircle}
-            doigt={phone}
+            finger={phone}
           />
         </div>
       </div>

@@ -1,14 +1,14 @@
 /* ============================================================
-   CHERCHER PARTOUT — le tiroir
+   SEARCHING EVERYWHERE — the drawer
 
-   Une seule question posée à tout le classeur, et les réponses rangées
-   par nature. On y arrive par la loupe du pied de rail ou par Ctrl+K —
-   les deux, parce que le raccourci ne se devine pas et que le bouton ne
-   se retient pas.
+   A single question asked of the whole binder, and the answers filed by
+   kind. One gets there by the magnifier at the foot of the rail or by
+   Ctrl+K — both, because the shortcut cannot be guessed and the button
+   cannot be remembered.
 
-   Les flèches parcourent, Entrée ouvre, Échap referme : c'est ce qu'on
-   attend d'un champ de recherche, et rien de tout cela ne coûte quelque
-   chose à qui l'ignore et clique.
+   The arrows walk through, Enter opens, Escape closes: that is what one
+   expects of a search field, and none of it costs anything to whoever
+   ignores it and clicks.
    ============================================================ */
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
@@ -21,9 +21,9 @@ import type { Thread } from "../../domain/threads";
 import type { Film, Note } from "../../types";
 import { useViewport } from "../../hooks/useViewport";
 
-/* Ce que chaque nature s'appelle une fois trouvée, et de quoi elle a
-   l'air. L'icône n'est pas décorative : c'est ce qui permet de lire
-   d'un coup d'œil qu'on regarde cinq natures et non une liste plate. */
+/* What each kind is called once found, and what it looks like. The icon
+   is not decorative: it is what allows one to read at a glance that one
+   is looking at five kinds and not a flat list. */
 const NATURES: Record<Kind, { title: string; icon: typeof Search; tint: string }> = {
   film: { title: "Films", icon: FilmIcon, tint: C.burgundy },
   person: { title: "Au générique", icon: User, tint: C.plum },
@@ -36,7 +36,7 @@ export interface OuvrirTrouvaille {
   film: (id: string) => void;
   person: (key: string) => void;
   page: () => void;
-  /** Le mur, sa recherche posée sur le libellé du motif. */
+  /** The wall, its search set on the motif's label. */
   motif: (label: string) => void;
   thread: () => void;
 }
@@ -64,17 +64,17 @@ export function SearchDrawer({
     [q, films, notes, threads]
   );
   const groupes = useMemo(() => groupByKind(trouvailles), [trouvailles]);
-  /* La liste APLATIE, dans l'ordre où elle est dessinée : c'est elle que
-     les flèches parcourent. Reconstruire l'ordre à la volée dans le
-     gestionnaire de touches le ferait diverger de l'affichage au premier
-     changement de mise en page. */
+  /* The FLATTENED list, in the order it is drawn: it is what the arrows
+     walk through. Rebuilding the order on the fly in the key handler
+     would make it diverge from the display at the first change of
+     layout. */
   const plate = useMemo(() => groupes.flatMap((g) => g.items), [groupes]);
 
   useEffect(() => {
     setCurseur(0);
   }, [q]);
 
-  // le champ prend la main tout de suite : on ouvre ce tiroir pour taper
+  // the field takes focus at once: one opens this drawer in order to type
   useEffect(() => {
     champ.current?.focus();
   }, []);
@@ -104,10 +104,10 @@ export function SearchDrawer({
     }
   };
 
-  /* MONTÉ SUR LE CORPS DE LA PAGE. Les vues vivent dans la colonne
-     `[data-enters]`, dont la transformation d'entrée devient le repère
-     des `position: fixed` qu'elle contient. Le tiroir de la soirée et la
-     demande de confirmation ont déjà payé cette leçon. */
+  /* MOUNTED ON THE DOCUMENT BODY. The views live in the `[data-enters]`
+     column, whose entry transform becomes the reference for the
+     `position: fixed` it contains. The evening drawer and the
+     confirmation request have already paid for this lesson. */
   return createPortal(
     <>
       <div
@@ -120,13 +120,13 @@ export function SearchDrawer({
         onKeyDown={auClavier}
         style={{
           position: "fixed",
-          /* HUIT POUR CENT DE HAUTEUR, C'EST UNE MARGE DE BUREAU.
+          /* EIGHT PER CENT OF HEIGHT IS A DESKTOP MARGIN.
 
-             Sur un telephone, ces huit pour cent sont du vide au-dessus
-             du champ, et les soixante-dix-huit restants s'arretent bien
-             avant le bas de l'ecran : la liste des trouvailles tenait
-             sur trois lignes. La feuille part donc sous l'encoche et
-             descend aussi loin qu'elle peut. */
+             On a phone, those eight per cent are emptiness above the
+             field, and the remaining seventy-eight stop well before the
+             bottom of the screen: the list of finds fitted on three
+             lines. So the sheet starts under the notch and goes down as
+             far as it can. */
           top: `max(8vh, var(--safe-top))`,
           left: "50%",
           transform: "translateX(-50%)",
@@ -234,10 +234,10 @@ export function SearchDrawer({
                             {t.subtitle}
                           </span>
                         </div>
-                        {/* CE QU'ON AVAIT ÉCRIT. Sans l'extrait, une
-                            recherche sur ses propres mots ne rend qu'une
-                            liste de titres — et l'on doit rouvrir chaque
-                            fiche pour savoir laquelle parlait de quoi. */}
+                        {/* WHAT ONE HAD WRITTEN. Without the excerpt, a
+                            search on one's own words returns only a list
+                            of titles — and one must reopen every card to
+                            know which one spoke of what. */}
                         {t.excerpt && (
                           <div
                             style={{

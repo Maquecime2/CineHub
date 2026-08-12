@@ -1,20 +1,20 @@
 /* ============================================================
-   LE TIROIR DU COMPTE — et surtout : le droit de se raviser
+   THE ACCOUNT DRAWER — and above all: the right to change one's mind
 
-   Ce fichier n'existait pas, et c'est une partie du problème qu'il
-   corrige. `Ailleurs` savait faire taire l'auteur d'une critique — un
-   geste testé de bout en bout côté serveur — et rien ne savait le
-   défaire : aucun écran n'appelait `unblock`, aucun ne listait
-   `myBlocks`. Le manque ne se voyait dans aucune suite, parce que le
-   tiroir n'était pas monté une seule fois par un test.
+   This file did not exist, and that is part of the problem it fixes.
+   `Elsewhere` knew how to silence the author of a review — a gesture
+   tested end to end on the server side — and nothing knew how to undo
+   it: no screen called `unblock`, none listed `myBlocks`. The gap showed
+   in no suite, because the drawer was not mounted a single time by a
+   test.
 
-   On ne parle pas au serveur ici : ce qu'on éprouve est le tiroir, pas
-   les routes. Celles-ci ont leurs propres tests, dans `server/test`.
+   We do not talk to the server here: what we put to the test is the
+   drawer, not the routes. Those have their own tests, in `server/test`.
    ============================================================ */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { CompteDrawer } from "./CompteDrawer";
+import { AccountDrawer } from "./AccountDrawer";
 import type { SyncReport } from "../../services/sync";
 
 const myBlocks = vi.fn();
@@ -24,9 +24,9 @@ vi.mock("../../services/server", () => ({
   ADDRESS: "http://serveur.test",
   myBlocks: (...a: unknown[]) => myBlocks(...a),
   unblock: (...a: unknown[]) => unblock(...a),
-  /* Le reste du module : le tiroir les importe, il ne les appelle pas
-     dans ces scénarios. Les doubler à vide vaut mieux que de charger le
-     vrai module, qui parlerait au réseau au montage. */
+  /* The rest of the module: the drawer imports these, it does not call
+     them in these scenarios. Doubling them empty is better than loading
+     the real module, which would talk to the network on mount. */
   deleteMyAccount: vi.fn(),
   myData: vi.fn(),
   signIn: vi.fn(),
@@ -37,8 +37,8 @@ vi.mock("../../services/server", () => ({
 }));
 
 vi.mock("../../services/push", () => ({
-  /* Pas de notifications possibles : la section se tait, et n'entre pas
-     dans le chemin de ce test. */
+  /* No notifications possible: the section stays quiet, and does not
+     enter this test's path. */
   pushState: vi.fn(async () => ({ possible: false, subscribed: false, denied: false })),
   subscribeToPush: vi.fn(),
   unsubscribeFromPush: vi.fn(),
@@ -59,7 +59,7 @@ const bilan = (connecté: boolean): SyncReport =>
 
 const monter = (connecté = true) =>
   render(
-    <CompteDrawer
+    <AccountDrawer
       bilan={bilan(connecté)}
       onFermer={vi.fn()}
       onSynchroniser={vi.fn()}
@@ -85,16 +85,16 @@ describe("ceux qu'on a fait taire", () => {
     expect(screen.getByText("Ceux que vous avez fait taire")).toBeInTheDocument();
   });
 
-  /* Une rubrique « personne » sur un sujet pareil n'apprend rien : il
-     n'y a rien à défaire, donc rien à montrer. */
+  /* A "nobody" heading on such a subject teaches nothing: there is
+     nothing to undo, therefore nothing to show. */
   it("se tait quand il n'y a personne", async () => {
     monter();
     await waitFor(() => expect(myBlocks).toHaveBeenCalled());
     expect(screen.queryByText("Ceux que vous avez fait taire")).not.toBeInTheDocument();
   });
 
-  /* Hors ligne, ou sans serveur : on se tait aussi. Une erreur affichée
-     pour une rubrique qui n'a peut-être rien à dire est du bruit. */
+  /* Offline, or with no server: we stay quiet too. An error shown for a
+     heading that may have nothing to say is noise. */
   it("se tait quand le serveur ne répond pas", async () => {
     myBlocks.mockRejectedValue(new Error("hors ligne"));
     monter();
@@ -102,8 +102,8 @@ describe("ceux qu'on a fait taire", () => {
     expect(screen.queryByText("Ceux que vous avez fait taire")).not.toBeInTheDocument();
   });
 
-  /* LE GESTE QUI MANQUAIT. Sans lui, faire taire quelqu'un était sans
-     retour — et `unblock` n'était appelée par aucun écran. */
+  /* THE MISSING GESTURE. Without it, silencing somebody was without
+     return — and `unblock` was called by no screen. */
   it("rend la parole, et relit la liste ensuite", async () => {
     const user = userEvent.setup();
     myBlocks.mockResolvedValueOnce({ blocages: ["genant"] });
@@ -112,23 +112,23 @@ describe("ceux qu'on a fait taire", () => {
 
     await user.click(await screen.findByRole("button", { name: /Rendre la parole à genant/ }));
     expect(unblock).toHaveBeenCalledWith("genant");
-    /* La liste se relit : la rubrique disparaît puisqu'elle est vide. */
+    /* The list is re-read: the heading vanishes since it is empty. */
     await waitFor(() =>
       expect(screen.queryByText("Ceux que vous avez fait taire")).not.toBeInTheDocument()
     );
   });
 
-  /* Ce que débloquer ne fait PAS doit être écrit : le serveur ne
-     réabonne personne, et laisser croire le contraire serait pire que
-     se taire. */
+  /* What unblocking does NOT do must be written: the server resubscribes
+     nobody, and letting anyone believe otherwise would be worse than
+     saying nothing. */
   it("dit que rendre la parole ne renoue pas le lien", async () => {
     myBlocks.mockResolvedValue({ blocages: ["genant"] });
     monter();
     expect(await screen.findByText(/ne le renoue pas/)).toBeInTheDocument();
   });
 
-  /* Sans compte, il n'y a pas de blocages à montrer — et surtout pas de
-     requête à faire. */
+  /* With no account there are no blocks to show — and above all no
+     request to make. */
   it("ne demande rien tant qu'aucun compte n'est ouvert", async () => {
     monter(false);
     await new Promise((r) => setTimeout(r, 20));

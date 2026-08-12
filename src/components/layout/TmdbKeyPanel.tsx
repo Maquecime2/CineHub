@@ -1,14 +1,14 @@
 /* ============================================================
-   LA CLÉ TMDB — le tiroir de réglage
+   THE TMDB KEY — the setting drawer
 
-   Elle ne se posait que dans l'onglet « Import Letterboxd », au milieu
-   d'un écran qui parle d'autre chose, et personne n'allait l'y chercher
-   pour faire marcher les Découvertes. Un réglage qui commande huit
-   écrans n'appartient à aucun d'eux : il est au pied du rail, à côté de
-   la peau du site et de la visite, avec les autres réglages de tout.
+   It could only be set in the "Letterboxd Import" tab, in the middle of a
+   screen that speaks of something else, and nobody went looking for it
+   there in order to make Discoveries work. A setting that commands eight
+   screens belongs to none of them: it is at the foot of the rail, beside
+   the site skin and the tour, with the other settings of everything.
 
-   Le tiroir d'Import reste — il est utile là où l'on décide justement
-   d'enrichir un import — mais il écrit au même endroit que celui-ci.
+   The Import drawer stays — it is useful just where one decides to
+   enrich an import — but it writes to the same place as this one.
    ============================================================ */
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
@@ -17,8 +17,8 @@ import { C, F, alpha } from "../../theme/tokens";
 import { checkApiKey } from "../../tmdb";
 import { writtenKey, setTmdbKey } from "../../services/tmdbKey";
 
-/* Même tranche que le choix des peaux : ce sont deux tiroirs du même
-   rail, et le budget de `z-index` leur réserve 59–60. */
+/* The same band as the skin picker: they are two drawers of the same
+   rail, and the `z-index` budget reserves 59–60 for them. */
 const PANEL: CSSProperties = {
   position: "fixed",
   right: 40,
@@ -33,16 +33,16 @@ const PANEL: CSSProperties = {
   boxShadow: "2px 8px 24px rgba(20,14,8,0.4)",
 };
 
-/* L'état de la vérification. « Pas encore essayé » n'est pas « fausse » :
-   confondre les deux ferait crier à l'erreur devant un champ intact. */
+/* The state of the check. "Not tried yet" is not "wrong": confusing the
+   two would cry error in front of an untouched field. */
 type Essai = { état: "repos" | "essai" | "bonne" | "mauvaise"; message?: string };
 
 export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
   const [key, setKey] = useState(writtenKey);
   const [essai, setEssai] = useState<Essai>({ état: "repos" });
 
-  /* Échap ferme, comme partout ailleurs : un tiroir qu'on ne peut fermer
-     qu'à la souris est un tiroir de trop pour qui navigue au clavier. */
+  /* Escape closes, as everywhere else: a drawer one can only close with
+     the mouse is one drawer too many for whoever navigates by keyboard. */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -51,10 +51,10 @@ export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  /* ON ESSAIE AVANT D'ENREGISTRER. Une clé fausse enregistrée sans un mot
-     donne huit écrans qui échouent chacun dans leur coin, et rien qui
-     désigne la cause. Une clé VIDE, elle, s'enregistre sans essai : c'est
-     un effacement volontaire, pas une tentative. */
+  /* WE TRY BEFORE SAVING. A wrong key saved without a word gives eight
+     screens each failing in its own corner, and nothing to point at the
+     cause. An EMPTY key, for its part, is saved without a try: that is a
+     deliberate erasure, not an attempt. */
   const poser = async () => {
     const propre = key.trim();
     if (!propre) {
@@ -64,9 +64,9 @@ export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
     }
     setEssai({ état: "essai" });
     try {
-      /* `checkApiKey` rend `{ ok, error }` et NON un booléen : un objet
-         est toujours vrai, et le tester tel quel annoncerait « elle
-         marche » sur une clé refusée. */
+      /* `checkApiKey` returns `{ ok, error }` and NOT a boolean: an
+         object is always truthy, and testing it as such would announce
+         "it works" on a refused key. */
       const r = await checkApiKey(propre);
       if (r.ok) {
         setTmdbKey(propre);
@@ -74,18 +74,18 @@ export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
       } else {
         setEssai({
           état: "mauvaise",
-          /* `checkApiKey` avale l'exception : une clé fausse et une
-             absence de réseau en ressortent toutes deux comme un échec.
-             On ne tranche donc pas à sa place — on rapporte ce qu'on
-             sait, et les deux gestes possibles. */
+          /* `checkApiKey` swallows the exception: a wrong key and an
+             absence of network both come out of it as a failure. So we do
+             not decide in its place — we report what we know, and the two
+             possible gestures. */
           message: r.error
             ? `Échec : ${r.error}. Clé erronée, ou TMDB injoignable.`
             : "TMDB ne reconnaît pas cette clé.",
         });
       }
     } catch {
-      /* `checkApiKey` ne lève pas — mais le jour où il le ferait, un
-         tiroir bloqué sur « on essaie… » serait pire que le défaut. */
+      /* `checkApiKey` does not throw — but the day it did, a drawer
+         stuck on "trying…" would be worse than the fault. */
       setEssai({ état: "mauvaise", message: "Impossible de joindre TMDB — êtes-vous en ligne ?" });
     }
   };
@@ -199,8 +199,8 @@ export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
           </div>
         )}
 
-        {/* Où l'on en trouve une, dit ici plutôt que nulle part : sans
-            cette ligne, « collez-la » suppose qu'on en a déjà une. */}
+        {/* Where one is found, said here rather than nowhere: without
+            this line, "paste it" assumes one already has one. */}
         <div
           style={{
             fontFamily: F.hand,

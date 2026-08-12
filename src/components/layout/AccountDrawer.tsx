@@ -1,15 +1,15 @@
 /* ============================================================
-   LE TIROIR DU COMPTE — ce que le classeur dit du dehors
+   THE ACCOUNT DRAWER — what the binder says of the outside
    ============================================================
 
-   Un seul endroit pour trois choses qui vont ensemble : qui l'on est,
-   ce qui a été synchronisé, et ce qui attend encore. Les éparpiller —
-   l'état dans le rail, le compte dans les réglages — obligerait à
-   chercher la mauvaise nouvelle à deux endroits.
+   A single place for three things that belong together: who one is, what
+   has been synchronised, and what is still waiting. Scattering them —
+   the state in the rail, the account in the settings — would force one
+   to look for the bad news in two places.
 
-   LE TON N'EST PAS CELUI D'UN SERVICE EN LIGNE. « Hors ligne » n'est
-   pas une panne ici, c'est le fonctionnement normal d'un classeur qui
-   vit chez soi. On dit donc ce qui attend, pas ce qui manque.
+   THE TONE IS NOT THAT OF AN ONLINE SERVICE. "Offline" is not a failure
+   here, it is the normal working of a binder that lives at home. So we
+   say what is waiting, not what is missing.
    ============================================================ */
 import { useEffect, useState } from "react";
 import {
@@ -65,7 +65,7 @@ const quandDit = (le: number | null): string => {
   return new Date(le).toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
 };
 
-export function CompteDrawer({
+export function AccountDrawer({
   bilan,
   onFermer,
   onSynchroniser,
@@ -87,14 +87,14 @@ export function CompteDrawer({
     setOccupé(true);
     try {
       const personne = await quoi(pseudo.trim().toLowerCase());
-      /* UN COMPTE QUI CHANGE REPART DE ZÉRO. Garder le rang de lecture
-         de l'ancien ferait croire au classeur qu'il a déjà tout vu de la
-         collection du nouveau — qui resterait invisible. */
+      /* AN ACCOUNT THAT CHANGES STARTS OVER. Keeping the old one's read
+         cursor would make the binder believe it had already seen all of
+         the new one's collection — which would stay invisible. */
       forgetSync();
       onChangement(personne);
     } catch (e) {
-      /* Refuser sa propre empreinte n'est pas une erreur à dramatiser :
-         on se ravise, et c'est tout. */
+      /* Refusing one's own fingerprint is not an error to dramatise: one
+         changes one's mind, and that is all. */
       const m = (e as Error).message || "";
       setSouci(/NotAllowed|abort/i.test(m) ? "Geste annulé." : m || "Ça n'a pas marché.");
     } finally {
@@ -183,10 +183,10 @@ export function CompteDrawer({
             {bilan.state === "no-account" && "Tout reste ici."}
             {bilan.state === "running" && "En cours…"}
             {bilan.state === "up-to-date" && `À jour, ${quandDit(bilan.at)}.`}
-            {/* « 0 FICHE ATTEND LE RÉSEAU » NE VEUT RIEN DIRE, et c'est
-                pourtant ce qui s'affichait quand le serveur était
-                injoignable sans qu'on ait rien modifié : un compte à
-                rebours vide au lieu de la seule information utile. */}
+            {/* "0 CARDS ARE WAITING FOR THE NETWORK" MEANS NOTHING, and
+                that is nonetheless what showed when the server was
+                unreachable without our having changed anything: an empty
+                countdown instead of the one useful piece of news. */}
             {bilan.state === "waiting" &&
               (bilan.pending === 0
                 ? "Serveur injoignable. Rien à envoyer, rien de perdu."
@@ -231,8 +231,8 @@ export function CompteDrawer({
               }}
             />
             <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginBottom: 12 }}>
-              {/* On explique la clé d'accès en une phrase : personne ne
-                  doit avoir à savoir ce qu'est WebAuthn pour s'inscrire. */}
+              {/* We explain the passkey in one sentence: nobody should
+                  have to know what WebAuthn is in order to sign up. */}
               Pas de mot de passe : votre téléphone ou votre ordinateur signe à votre place, avec ce
               qui le déverrouille déjà.
             </div>
@@ -277,8 +277,8 @@ export function CompteDrawer({
             <button
               onClick={async () => {
                 await signOut();
-                /* La collection RESTE : se déconnecter n'est pas se
-                   déposséder. Seul le lien avec le serveur se coupe. */
+                /* The collection STAYS: signing out is not being
+                   dispossessed. Only the link with the server is cut. */
                 forgetSync();
                 onChangement(null);
               }}
@@ -288,12 +288,12 @@ export function CompteDrawer({
             </button>
 
             {/* ------------------------------------------------------
-                CE QUI EST À VOUS, ET LE DROIT DE PARTIR
+                WHAT IS YOURS, AND THE RIGHT TO LEAVE
 
-                Les deux routes existaient depuis le premier jour du
-                serveur et n'avaient aucun bouton : un droit qu'on ne
-                peut pas exercer d'un doigt n'est pas un droit, c'est une
-                ligne dans un fichier de configuration.
+                Both routes had existed since the server's first day and
+                had no button at all: a right one cannot exercise with a
+                finger is not a right, it is a line in a configuration
+                file.
                 ------------------------------------------------------ */}
             <div style={{ borderTop: `1px dashed ${C.line}`, paddingTop: 14 }}>
               <Label>Vos données</Label>
@@ -305,8 +305,8 @@ export function CompteDrawer({
                     setOccupé(true);
                     try {
                       const tout = await myData();
-                      /* Un fichier, pas un écran : ce qu'on emporte doit
-                         pouvoir être relu ailleurs, et dans dix ans. */
+                      /* A file, not a screen: what one takes away must
+                         be readable elsewhere, and in ten years. */
                       const lien = document.createElement("a");
                       lien.href = URL.createObjectURL(
                         new Blob([JSON.stringify(tout, null, 2)], { type: "application/json" })
@@ -378,14 +378,14 @@ export function CompteDrawer({
         >
           {ADDRESS || "aucun serveur"}
           <br />
-          {/* CETTE PHRASE DISAIT LE CONTRAIRE DE CE QUI SE PASSE, et je
-              l'ai vue mentir en regardant ce qui partait vraiment : la
-              fiche entière est envoyée, notes et séances comprises.
+          {/* THIS SENTENCE SAID THE OPPOSITE OF WHAT HAPPENS, and I saw
+              it lie by watching what actually left: the whole card is
+              sent, notes and screenings included.
 
-              C'est ce qu'il faut : une note qui ne suit pas sur le
-              téléphone est une note perdue. Mais cela ne se devine pas,
-              donc cela se dit — et le partage, lui, n'enverra que la
-              part publique de la fiche (voir `publicPart`). */}
+              That is as it should be: a note that does not follow onto
+              the phone is a note lost. But it cannot be guessed, so it is
+              said — and sharing, for its part, will send only the public
+              part of the card (see `publicPart`). */}
           Votre collection entière est copiée sur votre compte, notes et séances comprises. Rien
           n'est public : le partage se décide fiche par fiche, et n'emportera jamais vos notes.
         </div>
@@ -410,56 +410,55 @@ const bouton = (encre: string, éteint: boolean) => ({
 });
 
 /* ============================================================
-   MONTRER SA COLLECTION — trois états, et pas deux
+   SHOWING ONE'S COLLECTION — three states, and not two
    ============================================================
 
-   « Public » ou « privé » ne dit pas ce qu'on veut vraiment faire :
-   montrer sa vidéothèque à quelqu'un sans l'afficher au monde. D'où le
-   lien secret, qui est le cas le plus fréquent et le plus utile.
+   "Public" or "private" does not say what one really wants to do: show
+   one's video library to somebody without posting it to the world. Hence
+   the secret link, which is the most frequent and most useful case.
 
-   LE RÉGLAGE VIT SUR LE SERVEUR, pas ici : c'est lui qui décidera de
-   répondre ou non à un inconnu, et une préférence rangée dans le
-   navigateur n'aurait aucune prise sur cette décision-là.
+   THE SETTING LIVES ON THE SERVER, not here: it is the server that will
+   decide whether or not to answer a stranger, and a preference filed in
+   the browser would have no hold on that decision.
    ============================================================ */
 /* ============================================================
-   LES RAPPELS DE DÉFI
+   THE CHALLENGE REMINDERS
    ============================================================
 
-   LE SEUL PRÉTEXTE À SONNER DE TOUT CE PROJET : un défi qui commence,
-   un défi qui s'achève. Pas de « quelqu'un que vous suivez a noté un
-   film », pas de « revenez, votre collection vous attend ». Une
-   application qui se trouve des motifs de sonner finit désinstallée.
+   THE ONLY PRETEXT TO RING IN THIS WHOLE PROJECT: a challenge starting,
+   a challenge ending. No "somebody you follow rated a film", no "come
+   back, your collection is waiting". An application that finds itself
+   reasons to ring ends up uninstalled.
 
-   LE RÉGLAGE NE PARAÎT PAS S'IL NE PEUT RIEN FAIRE. Il faut un
-   serveur, des clés posées dessus, un service worker et la permission
-   du système ; trois de ces quatre conditions échappent à
-   l'application. Un interrupteur qui ne fait rien serait pire que son
-   absence.
+   THE SETTING DOES NOT APPEAR IF IT CAN DO NOTHING. It takes a server,
+   keys laid on it, a service worker and the system's permission; three
+   of those four conditions escape the application. A switch that does
+   nothing would be worse than its absence.
 
-   L'ABONNEMENT EST CELUI DE CET APPAREIL, et le texte le dit : la même
-   personne sur un téléphone et un ordinateur les règle deux fois, ce
-   qui est exactement ce qu'on veut — on n'a pas envie d'être sonné sur
-   son ordinateur de travail parce qu'on l'a accepté sur son téléphone.
+   THE SUBSCRIPTION IS THIS DEVICE'S, and the text says so: the same
+   person on a phone and a computer sets it twice, which is exactly what
+   we want — one does not want to be rung on one's work computer because
+   one accepted it on one's phone.
    ============================================================ */
 /* ============================================================
-   CEUX QU'ON A FAIT TAIRE — et le droit de se raviser
+   THOSE WE HAVE SILENCED — and the right to change one's mind
    ============================================================
 
-   `Ailleurs`, sur une fiche, sait faire taire l'auteur d'une critique
-   d'un geste. Ce geste marchait, il était même testé de bout en bout —
-   et il était SANS RETOUR : rien, nulle part, ne disait qui l'on avait
-   bloqué, et aucun écran n'appelait `unblock`. Les deux fonctions
-   existaient côté client, la route côté serveur, la table dans le
-   schéma. Il manquait quinze lignes de tiroir.
+   `Elsewhere`, on a card, knows how to silence a review's author in one
+   gesture. That gesture worked, it was even tested end to end — and it
+   was WITHOUT RETURN: nothing, nowhere, said whom one had blocked, and
+   no screen called `unblock`. Both functions existed on the client side,
+   the route on the server side, the table in the schema. Fifteen lines
+   of drawer were missing.
 
-   Un geste qu'on ne peut pas défaire n'est pas un réglage, c'est un
-   accident qui attend. On le répare ici plutôt que d'enlever le bouton
-   d'en face : faire taire quelqu'un est légitime, ne plus pouvoir
-   revenir dessus ne l'est pas.
+   A gesture that cannot be undone is not a setting, it is an accident
+   waiting to happen. We repair it here rather than removing the button
+   opposite: silencing somebody is legitimate, no longer being able to
+   go back on it is not.
 
-   LA SECTION SE TAIT QUAND LA LISTE EST VIDE, comme les rappels
-   au-dessus : il n'y a rien à défaire, et une rubrique « personne » sur
-   un sujet pareil n'apprend rien à personne. */
+   THE SECTION STAYS QUIET WHEN THE LIST IS EMPTY, like the reminders
+   above: there is nothing to undo, and a "nobody" heading on such a
+   subject teaches nobody anything. */
 function Blocages() {
   const [liste, setListe] = useState<string[] | null>(null);
   const [occupé, setOccupé] = useState<string | null>(null);
@@ -467,8 +466,8 @@ function Blocages() {
   const relire = () =>
     myBlocks()
       .then((r) => setListe(r.blocages))
-      /* Sans serveur ou hors ligne : on se tait, on n'affiche pas une
-         erreur pour une rubrique qui n'a peut-être rien à dire. */
+      /* With no server or offline: we stay quiet, we do not show an
+         error for a heading that may have nothing to say. */
       .catch(() => setListe(null));
 
   useEffect(() => {
@@ -530,10 +529,10 @@ function Blocages() {
           </div>
         ))}
       </div>
-      {/* CE QUE DÉBLOQUER NE FAIT PAS, et il vaut mieux le dire que le
-          laisser deviner : le serveur ne réabonne personne. Le lien a été
-          défait au blocage ; on rouvre une porte, on ne rappelle pas
-          quelqu'un. */}
+      {/* WHAT UNBLOCKING DOES NOT DO, and it is better said than left to
+          be guessed: the server resubscribes nobody. The link was undone
+          at the blocking; we reopen a door, we do not call somebody
+          back. */}
       <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 7 }}>
         Leurs critiques reparaîtront sous les fiches. Vous ne les suivrez pas pour autant — le
         blocage avait défait le lien, et le défaire ne le renoue pas.
@@ -572,10 +571,9 @@ function Rappels() {
     <div style={{ borderTop: `1px dashed ${C.line}`, paddingTop: 14 }}>
       <Label>Les rappels</Label>
       {état.denied ? (
-        /* Le refus est définitif dans la plupart des navigateurs : il
-           n'y a pas de seconde request à faire, seulement un réglage à
-           rouvrir à la main. Le dire vaut mieux qu'un bouton qui
-           échoue. */
+        /* The refusal is final in most browsers: there is no second
+           request to make, only a setting to reopen by hand. Saying so is
+           better than a button that fails. */
         <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded, marginTop: 4 }}>
           Ce navigateur a refusé les notifications. Cela se rouvre dans ses réglages de site, pas
           ici.
@@ -601,11 +599,11 @@ function Partager() {
   const [occupé, setOccupé] = useState(false);
   const [copié, setCopié] = useState(false);
 
-  /* IL OUVRAIT SUR TROIS BOUTONS DONT AUCUN N'ÉTAIT MARQUÉ. La route
-     d'écriture existait seule : le tiroir n'apprenait votre mode de
-     partage qu'au moment où vous en changiez — c'est-à-dire trop tard
-     pour vous aider à décider, et au prix d'un changement qu'on ne
-     voulait peut-être pas faire. On lit d'abord. */
+  /* IT OPENED ON THREE BUTTONS OF WHICH NONE WAS MARKED. The write route
+     existed alone: the drawer only learned your sharing mode at the
+     moment you changed it — that is to say too late to help you decide,
+     and at the price of a change you may not have wanted to make. We
+     read first. */
   useEffect(() => {
     let vivant = true;
     mySharing()
@@ -614,8 +612,8 @@ function Partager() {
         setÉtat(r.partage);
         setJeton(r.jeton);
       })
-      /* Hors ligne : on reste muet plutôt que de marquer un état
-         inventé. Cliquer un mode le réglera et le dira. */
+      /* Offline: we stay mute rather than marking an invented state.
+         Clicking a mode will set it and say so. */
       .catch(() => {});
     return () => {
       vivant = false;
@@ -705,8 +703,8 @@ function Partager() {
         </div>
       )}
 
-      {/* CE QUI NE PART JAMAIS, DIT LÀ OÙ ON DÉCIDE. Le rappeler dans le
-          bas de page ne suffit pas : c'est ICI qu'on hésite. */}
+      {/* WHAT NEVER LEAVES, SAID WHERE ONE DECIDES. Recalling it in the
+          footer is not enough: it is HERE that one hesitates. */}
       <div
         style={{ fontFamily: F.mono, fontSize: 9, color: alpha(C.inkFaded, 0.75), marginTop: 8 }}
       >
@@ -716,8 +714,8 @@ function Partager() {
   );
 }
 
-/* Le pseudonyme s'affiche déjà en tête du tiroir : on le relit dans le
-   document plutôt que de le faire descendre en prop à travers trois
-   composants pour une seule ligne d'adresse. */
+/* The handle is already shown at the head of the drawer: we re-read it
+   from the document rather than passing it down as a prop through three
+   components for a single address line. */
 const pseudoDeLaPage = (): string =>
   document.querySelector("[data-pseudo]")?.getAttribute("data-pseudo") || "";

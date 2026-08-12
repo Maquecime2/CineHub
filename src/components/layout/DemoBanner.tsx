@@ -1,40 +1,39 @@
 /* ============================================================
-   LA FICHE DE L'EXEMPLE — semer sans le dire serait pire
+   THE EXAMPLE'S CARD — sowing without saying so would be worse
 
-   Les douze films de `services/demo` mentent sur le contenu du
-   classeur : quelqu'un qui ouvre l'application pour la première fois
-   voit une collection qui n'est pas la sienne. Elle est là pour que la
-   visite guidée ait quelque chose à montrer, et c'est une bonne raison ;
-   ce n'en est pas une pour laisser croire.
+   The twelve films of `services/demo` lie about the binder's contents:
+   somebody opening the application for the first time sees a collection
+   that is not theirs. It is there so the guided tour has something to
+   show, and that is a good reason; it is not a reason to let anyone be
+   misled.
 
-   Elle ne paraît que TANT QUE LE CLASSEUR N'EST QUE L'EXEMPLE. Au
-   premier film ajouté à la main, le classeur devient celui de
-   quelqu'un : les douze restent — les effacer d'autorité serait un autre
-   abus — mais l'avertissement n'a plus d'objet.
+   It only appears AS LONG AS THE BINDER IS NOTHING BUT THE EXAMPLE. At
+   the first film added by hand, the binder becomes somebody's: the
+   twelve stay — erasing them by decree would be another abuse — but the
+   warning no longer has an object.
 
-   SCOTCHÉE ET NON POSÉE DANS LE FLUX, et ce n'est pas une coquetterie.
-   Un bandeau au-dessus de la colonne de vue repoussait tout d'une
-   soixantaine de pixels, et l'almanach — qui promet de tenir dans la
-   fenêtre sans une barre de défilement, par un `height: 100vh` qui
-   suppose qu'il commence en haut — se mettait à défiler exactement de
-   cette hauteur. Elle emprunte donc sa forme et son `Calque` aux deux
-   fiches de `Installation` : le classeur dit déjà ses phrases ainsi.
+   TAPED AND NOT LAID IN THE FLOW, and that is not an affectation. A
+   banner above the view column pushed everything down by some sixty
+   pixels, and the almanac — which promises to fit in the window without
+   a scrollbar, through a `height: 100vh` that assumes it starts at the
+   top — began to scroll by exactly that height. So it borrows its shape
+   and its `Calque` from the two cards of `Installation`: the binder
+   already says its sentences that way.
 
-   Elle se tient AU-DESSUS de la place de ces deux-là, qui peuvent
-   paraître en même temps sur une première ouverture. Sans elles, le
-   décalage n'est qu'un peu de marge.
+   It stands ABOVE the place of those two, which can appear at the same
+   time on a first opening. Without them, the offset is just a bit of
+   margin.
    ============================================================ */
 import { Info, Trash2 } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { Calque } from "../ui/Calque";
 
-/** Comme les fiches d'installation : au-dessus de la barre du bas (20),
- *  au-dessous de tout panneau ouvert (30). Elle informe, elle
- *  n'interrompt pas. */
+/** Like the installation cards: above the bottom bar (20), below any
+ *  open panel (30). It informs, it does not interrupt. */
 const Z = 25;
 
-export function BandeauDémo({ onRetirer }: { onRetirer: () => void }) {
+export function DemoBanner({ onRemove }: { onRemove: () => void }) {
   return (
     <Calque>
       <div
@@ -43,8 +42,8 @@ export function BandeauDémo({ onRetirer }: { onRetirer: () => void }) {
           position: "fixed",
           left: "max(12px, var(--safe-left))",
           right: "max(12px, var(--safe-right))",
-          /* 66 px pour la barre du bas du téléphone, 92 de plus pour
-             laisser sa place à la fiche d'installation. */
+          /* 66 px for the phone's bottom bar, 92 more to leave room for
+             the installation card. */
           bottom: "calc(158px + var(--safe-bottom))",
           zIndex: Z,
           margin: "0 auto",
@@ -61,7 +60,7 @@ export function BandeauDémo({ onRetirer }: { onRetirer: () => void }) {
           animation: "sheetIn var(--motion-slow) var(--motion-ease) backwards",
         }}
       >
-        {/* le bout de ruban : la fiche est scotchée, pas posée */}
+        {/* the strip of tape: the card is taped, not laid */}
         <div
           aria-hidden
           style={{
@@ -86,14 +85,14 @@ export function BandeauDémo({ onRetirer }: { onRetirer: () => void }) {
             faire le tour, ou retirez-le tout de suite.
           </div>
           <button
-            onClick={onRetirer}
+            onClick={onRemove}
             style={{
               all: "unset",
               ...tap,
               cursor: "pointer",
-              /* `tap` ne pose l'affichage en ligne flexible que sur un
-                 écran tactile ; l'icône et le mot doivent s'aligner
-                 partout. */
+              /* `tap` only sets flexible inline display on a touch
+                 screen; the icon and the word must line up
+                 everywhere. */
               display: "inline-flex",
               alignItems: "center",
               gap: 6,

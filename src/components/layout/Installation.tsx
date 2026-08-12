@@ -1,18 +1,17 @@
 /* ============================================================
-   DEUX FICHES SCOTCHÉES EN BAS DE PAGE
+   TWO CARDS TAPED AT THE BOTTOM OF THE PAGE
 
-   La première invite à poser le classeur sur l'écran d'accueil. La
-   seconde dit qu'une nouvelle version attend. Elles ne paraissent
-   jamais ensemble : on ne demande pas deux choses à la fois.
+   The first invites you to lay the binder on the home screen. The second
+   says a new version is waiting. They never appear together: we do not
+   ask two things at once.
 
-   Elles empruntent leur forme au rappel de la visite — une fiche de
-   bristol posée de travers, avec son bout de ruban adhésif. Ce n'est pas
-   une coquetterie : c'est ce qui distingue une phrase du classeur d'une
-   bannière du navigateur, et l'on veut justement que celle-ci ne
-   ressemble pas à celle-là.
+   They borrow their shape from the tour's reminder — an index card laid
+   askew, with its strip of tape. That is not an affectation: it is what
+   distinguishes a sentence from the binder from a browser banner, and
+   what we want precisely is for the former not to look like the latter.
 
-   Montées par `Calque`, comme tout ce qui flotte : la colonne de vue est
-   un contexte d'empilement et se transforme le temps d'une animation.
+   Mounted by `Calque`, like everything that floats: the view column is a
+   stacking context and transforms itself for the length of an animation.
    ============================================================ */
 import type { ReactNode } from "react";
 import { Download, RefreshCw, Share, X } from "lucide-react";
@@ -20,8 +19,8 @@ import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { Calque } from "../ui/Calque";
 
-/* La fiche vit au-dessus de la barre du bas (20) et au-dessous de tout
-   panneau ouvert (30) : elle informe, elle n'interrompt pas. */
+/* The card lives above the bottom bar (20) and below any open panel
+   (30): it informs, it does not interrupt. */
 const Z = 25;
 
 function Fiche({
@@ -41,8 +40,8 @@ function Fiche({
           position: "fixed",
           left: "max(12px, var(--safe-left))",
           right: "max(12px, var(--safe-right))",
-          /* Au-dessus de la barre du bas quand elle existe : la fiche ne
-             doit pas cacher les onglets qu'elle invite à garder. */
+          /* Above the bottom bar when there is one: the card must not
+             hide the tabs it invites you to keep. */
           bottom: "calc(66px + var(--safe-bottom))",
           zIndex: Z,
           margin: "0 auto",
@@ -58,7 +57,7 @@ function Fiche({
           animation: "sheetIn var(--motion-slow) var(--motion-ease) backwards",
         }}
       >
-        {/* le bout de ruban : la fiche est scotchée, pas posée */}
+        {/* the strip of tape: the card is taped, not laid */}
         <div
           aria-hidden
           style={{
@@ -121,7 +120,7 @@ export function Installation({
   onInstaller,
   onÉcarter,
 }: {
-  /** Sur iOS on explique le geste : aucune boîte de dialogue n'existe. */
+  /** On iOS we explain the gesture: no dialog box exists. */
   apple: boolean;
   onInstaller: () => void;
   onÉcarter: () => void;
@@ -153,8 +152,8 @@ export function MiseÀJour({ onRecharger }: { onRecharger: () => void }) {
   return (
     <Fiche tour="maj">
       <Titre>Une nouvelle version est prête</Titre>
-      {/* On ne remplace RIEN sans le dire : une application qui se met à
-          jour toute seule pendant qu'on écrit une note perd la note. */}
+      {/* We replace NOTHING without saying so: an application that
+          updates itself while one is writing a note loses the note. */}
       <Phrase>Elle s'installera au rechargement. Rien de ce que vous avez rangé ne bouge.</Phrase>
       <button onClick={onRecharger} style={bouton}>
         <RefreshCw size={12} /> RECHARGER
