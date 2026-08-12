@@ -81,7 +81,7 @@ const RECO_LANGS = [
 ];
 
 /* Un curseur annoté à ses deux bouts : sans les étiquettes, personne ne sait
-   si pousser à droite rend le résultat plus pointu ou moins. */
+   si push à droite rend le résultat plus pointu ou moins. */
 function Dial({
   label,
   left,

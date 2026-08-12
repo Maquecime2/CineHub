@@ -23,36 +23,36 @@ import { C, F, alpha } from "../theme/tokens";
 import { tap, underlineInput } from "../theme/styles";
 import { Label } from "../components/ui";
 import {
-  creerListe,
-  creerUnDefi,
-  effacerLaListe,
-  effacerLeDefi,
-  inviterALaListe,
-  lireLaListe,
-  lireLeDefi,
-  mesDefis,
-  mesListes,
-  quitterLeDefi,
-  rejoindreLeDefi,
-  renvoyerDeLaListe,
-  retirerDeLaListe,
-  retoucherLaListe,
-  serveurConfigure,
-  type Avancement,
-  type Defi,
-  type Liste,
-  type OeuvreDeListe,
-} from "../services/serveur";
+  createList,
+  createChallenge,
+  deleteList,
+  deleteChallenge,
+  inviteToList,
+  readList,
+  readChallenge,
+  myChallenges,
+  myLists,
+  leaveChallenge,
+  joinChallenge,
+  removeFromListMembers,
+  removeFromList,
+  editList,
+  serverConfigured,
+  type Progress,
+  type Challenge,
+  type List,
+  type ListWork,
+} from "../services/server";
 
 export function ListesView({ connecte }: { connecte: boolean }) {
-  const [listes, setListes] = useState<Liste[]>([]);
-  const [defis, setDefis] = useState<Defi[]>([]);
+  const [listes, setListes] = useState<List[]>([]);
+  const [defis, setDefis] = useState<Challenge[]>([]);
   const [ouverte, setOuverte] = useState<string | null>(null);
   const [titre, setTitre] = useState("");
 
   const relire = useCallback(async () => {
     if (!connecte) return;
-    const [l, d] = await Promise.all([mesListes(), mesDefis()]);
+    const [l, d] = await Promise.all([myLists(), myChallenges()]);
     setListes(l.listes);
     setDefis(d.defis);
   }, [connecte]);
@@ -61,7 +61,7 @@ export function ListesView({ connecte }: { connecte: boolean }) {
     relire().catch(() => {});
   }, [relire]);
 
-  if (!serveurConfigure()) {
+  if (!serverConfigured()) {
     return (
       <Page>
         <Guideline>
@@ -85,7 +85,7 @@ export function ListesView({ connecte }: { connecte: boolean }) {
   const nouvelle = async () => {
     const nom = titre.trim();
     if (!nom) return;
-    const { id } = await creerListe({ titre: nom });
+    const { id } = await createList({ titre: nom });
     setTitre("");
     await relire();
     setOuverte(id);
@@ -158,12 +158,12 @@ function UneListe({
   onOuvrir,
   onChange,
 }: {
-  liste: Liste;
+  liste: List;
   ouverte: boolean;
   onOuvrir: () => void;
   onChange: () => Promise<void>;
 }) {
-  const [oeuvres, setOeuvres] = useState<OeuvreDeListe[]>([]);
+  const [oeuvres, setOeuvres] = useState<ListWork[]>([]);
   const [membres, setMembres] = useState<string[]>([]);
   const [invite, setInvite] = useState("");
   const [souci, setSouci] = useState<string | null>(null);
@@ -174,7 +174,7 @@ function UneListe({
   });
 
   const relire = useCallback(async () => {
-    const r = await lireLaListe(liste.id);
+    const r = await readList(liste.id);
     setOeuvres(r.oeuvres);
     setMembres(r.membres);
   }, [liste.id]);
@@ -188,7 +188,7 @@ function UneListe({
     if (!nom) return;
     setSouci(null);
     try {
-      await inviterALaListe(liste.id, nom);
+      await inviteToList(liste.id, nom);
       setInvite("");
       await relire();
     } catch {
@@ -200,7 +200,7 @@ function UneListe({
 
   const lancer = async () => {
     if (!defi.titre.trim()) return;
-    await creerUnDefi({ listeId: liste.id, ...defi, titre: defi.titre.trim() });
+    await createChallenge({ listeId: liste.id, ...defi, titre: defi.titre.trim() });
     setDefi({ ...defi, titre: "" });
     await onChange();
   };
@@ -262,7 +262,7 @@ function UneListe({
                 <span style={{ fontFamily: F.mono, fontSize: 9, color: C.inkFaded }}>{o.par}</span>
               )}
               <button
-                onClick={() => retirerDeLaListe(liste.id, o.tmdb_id).then(relire)}
+                onClick={() => removeFromList(liste.id, o.tmdb_id).then(relire)}
                 title="Retirer de la liste"
                 style={{ ...petit, color: C.burgundy }}
               >
@@ -300,7 +300,7 @@ function UneListe({
                     <span key={m} style={jeton}>
                       {m}
                       <button
-                        onClick={() => renvoyerDeLaListe(liste.id, m).then(relire)}
+                        onClick={() => removeFromListMembers(liste.id, m).then(relire)}
                         title={`Retirer ${m}`}
                         style={{ ...petit, color: C.burgundy }}
                       >
@@ -317,14 +317,14 @@ function UneListe({
                     type="checkbox"
                     checked={liste.publique}
                     onChange={(e) =>
-                      retoucherLaListe(liste.id, { publique: e.target.checked }).then(onChange)
+                      editList(liste.id, { publique: e.target.checked }).then(onChange)
                     }
                   />{" "}
                   visible de qui vous suit
                 </label>
                 <span style={{ flex: 1 }} />
                 <button
-                  onClick={() => effacerLaListe(liste.id).then(onChange)}
+                  onClick={() => deleteList(liste.id).then(onChange)}
                   title="Effacer cette liste"
                   style={{ ...petit, color: C.burgundy }}
                 >
@@ -375,11 +375,11 @@ function UneListe({
    UN DÉFI, ET OÙ EN EST CHACUN
    ------------------------------------------------------------ */
 
-function UnDefi({ defi, onChange }: { defi: Defi; onChange: () => Promise<void> }) {
-  const [avancement, setAvancement] = useState<Avancement[] | null>(null);
+function UnDefi({ defi, onChange }: { defi: Challenge; onChange: () => Promise<void> }) {
+  const [avancement, setAvancement] = useState<Progress[] | null>(null);
 
   const relire = useCallback(async () => {
-    const r = await lireLeDefi(defi.id);
+    const r = await readChallenge(defi.id);
     setAvancement(r.avancement);
   }, [defi.id]);
 
@@ -403,7 +403,7 @@ function UnDefi({ defi, onChange }: { defi: Defi; onChange: () => Promise<void> 
         <span style={{ flex: 1 }} />
         <button
           onClick={() =>
-            (defi.dedans ? quitterLeDefi(defi.id) : rejoindreLeDefi(defi.id))
+            (defi.dedans ? leaveChallenge(defi.id) : joinChallenge(defi.id))
               .then(onChange)
               .then(relire)
           }
@@ -413,7 +413,7 @@ function UnDefi({ defi, onChange }: { defi: Defi; onChange: () => Promise<void> 
         </button>
         {defi.par === null || defi.dedans ? (
           <button
-            onClick={() => effacerLeDefi(defi.id).then(onChange)}
+            onClick={() => deleteChallenge(defi.id).then(onChange)}
             title="Effacer ce défi"
             style={{ ...petit, color: C.burgundy }}
           >

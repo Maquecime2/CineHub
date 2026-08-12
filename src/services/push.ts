@@ -19,7 +19,7 @@
    they are until both sides are renamed in the same change. Translating
    them here alone would make every request 404 in silence.
    ============================================================ */
-import { ADRESSE, serveurConfigure } from "./serveur";
+import { ADDRESS, serverConfigured } from "./server";
 
 export interface PushState {
   /** The server sends them, and this browser knows how to receive them. */
@@ -39,9 +39,9 @@ const supported = (): boolean =>
 
 /** The server's public key, once read. `null` if it has none. */
 async function serverKey(): Promise<string | null> {
-  if (!serveurConfigure()) return null;
+  if (!serverConfigured()) return null;
   try {
-    const r = await fetch(`${ADRESSE}/poussees`, { credentials: "include" });
+    const r = await fetch(`${ADDRESS}/poussees`, { credentials: "include" });
     if (!r.ok) return null;
     const { possible, cle } = (await r.json()) as { possible: boolean; cle: string | null };
     return possible ? cle : null;
@@ -79,7 +79,7 @@ export async function subscribeToPush(): Promise<boolean> {
   });
 
   const raw = sub.toJSON() as { keys?: { p256dh?: string; auth?: string } };
-  const r = await fetch(`${ADRESSE}/poussees`, {
+  const r = await fetch(`${ADDRESS}/poussees`, {
     method: "PUT",
     credentials: "include",
     headers: { "content-type": "application/json" },
@@ -106,7 +106,7 @@ export async function unsubscribeFromPush(): Promise<void> {
   /* We tell the server BEFORE unsubscribing: afterwards we no longer
      have the address to give it, and its row would go on pushing into
      the void until the first 410. */
-  await fetch(`${ADRESSE}/poussees`, {
+  await fetch(`${ADDRESS}/poussees`, {
     method: "DELETE",
     credentials: "include",
     headers: { "content-type": "application/json" },

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { lireLAdresse } from "./CollectionPartagee";
 
-/* L'ADRESSE D'UNE COLLECTION PARTAGÉE se lit dans le fragment, et le
+/* L'ADDRESS D'UNE COLLECTION PARTAGÉE se lit dans le fragment, et le
    fragment vient du dehors : d'un lien collé, d'un message recopié à la
    main, d'un scanner de codes-barres. Ce qui suit tient la seule chose
    qui compte — reconnaître ce qui est une adresse, et rien d'autre. */

@@ -4,7 +4,7 @@
    le réalisateur, lui, doit être retrouvé auprès de TMDB.
    ============================================================ */
 
-import { ADRESSE } from "./services/serveur";
+import { ADDRESS } from "./services/server";
 import { writtenKey, VIA_SERVER } from "./services/tmdbKey";
 
 const BASE = "https://api.themoviedb.org/3";
@@ -127,7 +127,7 @@ const attenteAprès = (res, attempt) => {
 async function get(path, params, apiKey, attempt = 0) {
   if (apiKey === VIA_SERVER) {
     const qs = new URLSearchParams(params);
-    const res = await fetch(`${ADRESSE}/tmdb${path}?${qs}`, { credentials: "include" });
+    const res = await fetch(`${ADDRESS}/tmdb${path}?${qs}`, { credentials: "include" });
     if (res.ok) return res.json();
     /* NOTRE PROPRE SERVEUR PEUT DIRE 429, et pas seulement TMDB : le
        relais a son plafond par minute. Le remplissage d'une collection
@@ -314,7 +314,7 @@ export async function getDetails(tmdbId, apiKey) {
        n'avait donc que des noms de personnes à rapprocher.
 
        Ils ne remplacent pas les motifs et ne s'y mélangent pas : un
-       motif est un mot que VOUS avez choisi de suivre, un mot-clé est ce
+       motif est un mot que VOUS avez choisi de follow, un mot-clé est ce
        que TMDB a écrit. Ils vivent côte à côte, comme `themes` et
        `motifs`, et le sillage les pèse différemment.
 

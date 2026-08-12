@@ -27,34 +27,34 @@ class ErreurServeurFausse extends Error {
   }
 }
 
-vi.mock("./serveur", () => ({
-  ErreurServeur: ErreurServeurFausse,
-  PAR_ENVOI: 2,
-  serveurConfigure: () => true,
-  quiSuisJe: async () => faux.personne,
-  tirerDepuis: async (depuis: number) => {
+vi.mock("./server", () => ({
+  ServerError: ErreurServeurFausse,
+  PER_SEND: 2,
+  serverConfigured: () => true,
+  whoAmI: async () => faux.personne,
+  pullFrom: async (depuis: number) => {
     if (faux.jetteAuTirage) {
       throw new ErreurServeurFausse(faux.jetteAuTirage.message, faux.jetteAuTirage.code);
     }
     return faux.reçus.shift() ?? { jusqua: depuis, encore: false, fiches: [] };
   },
-  pousser: async (fiches: unknown[]) => {
+  push: async (fiches: unknown[]) => {
     if (faux.jetteÀLEnvoi) {
       throw new ErreurServeurFausse(faux.jetteÀLEnvoi.message, faux.jetteÀLEnvoi.code);
     }
     faux.poussés.push(fiches);
     return { rangees: fiches.length, perimees: 0, illisibles: 0 };
   },
-  DOCS_PAR_ENVOI: 200,
-  tirerDocsDepuis: async (depuis: number) =>
+  DOCS_PER_SEND: 200,
+  pullDocsFrom: async (depuis: number) =>
     faux.docsReçus.shift() ?? { jusqua: depuis, encore: false, documents: [] },
-  pousserDocs: async (documents: unknown[]) => {
+  pushDocs: async (documents: unknown[]) => {
     faux.docsPoussés.push(documents);
     return { ranges: documents.length, perimes: 0, illisibles: 0 };
   },
 }));
 
-const { synchroniser, oublierLaSynchro, enAttente } = await import("./synchro");
+const { synchroniser, oublierLaSynchro, enAttente } = await import("./sync");
 const { loadFilms, saveFilms, forgetCache } = await import("./collection");
 const { makeFilm } = await import("../domain/film");
 

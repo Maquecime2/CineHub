@@ -25,23 +25,23 @@ import { C, F } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { Label } from "../ui";
 import {
-  cacherLaFiche,
-  fichesCachees,
-  monPartage,
-  serveurConfigure,
-  type Partage,
-} from "../../services/serveur";
+  hideCard,
+  hiddenCards,
+  mySharing,
+  serverConfigured,
+  type Sharing,
+} from "../../services/server";
 import type { Film } from "../../types";
 
 export function EcarterDuPartage({ film, connecte }: { film: Film; connecte: boolean }) {
   const [cachée, setCachée] = useState<boolean | null>(null);
-  const [partage, setPartage] = useState<Partage | null>(null);
+  const [partage, setPartage] = useState<Sharing | null>(null);
   const [occupé, setOccupé] = useState(false);
 
   useEffect(() => {
-    if (!serveurConfigure() || !connecte) return;
+    if (!serverConfigured() || !connecte) return;
     let vivant = true;
-    Promise.all([fichesCachees(), monPartage()])
+    Promise.all([hiddenCards(), mySharing()])
       .then(([c, p]) => {
         if (!vivant) return;
         setCachée(c.ids.includes(film.id));
@@ -63,7 +63,7 @@ export function EcarterDuPartage({ film, connecte }: { film: Film; connecte: boo
   const basculer = async () => {
     setOccupé(true);
     try {
-      const r = await cacherLaFiche(film.id, !cachée);
+      const r = await hideCard(film.id, !cachée);
       setCachée(r.cachee);
     } finally {
       setOccupé(false);

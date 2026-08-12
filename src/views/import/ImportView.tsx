@@ -1084,7 +1084,7 @@ export function ImportView({
       {/* Placé APRÈS « compléter » et avant la sauvegarde : c'est
           « compléter » qui a causé le dégât, et la sauvegarde est le
           geste à faire avant de réparer. L'ordre raconte la marche à
-          suivre. Le panneau disparaît de lui-même quand il n'a plus
+          follow. Le panneau disparaît de lui-même quand il n'a plus
           rien à proposer. */}
       {/* Pas d'enveloppe ici : c'est le panneau lui-même qui porte son
           `data-tour`. Une enveloppe vide garde une largeur, donc reste

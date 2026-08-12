@@ -245,7 +245,7 @@ export default function App() {
      entière, et nulle part ailleurs. Elle ne part qu'une fois le
      classeur chargé : synchroniser une collection vide qu'on n'a pas
      encore lue effacerait tout au premier envoi. */
-  const [compteOuvert, setCompteOuvert] = useState(false);
+  const [accountOpen, setCompteOuvert] = useState(false);
   /* RELIRE CE QUI VIENT D'ARRIVER. Les agencements d'étagère, le
      carnet, les fils et le vocabulaire sont lus au montage : quand la
      synchronisation en fait entrer, il faut les redemander au disque,
@@ -690,7 +690,7 @@ export default function App() {
   const constellationFilms = useMemo(() => watched.filter((f) => !f.archived), [watched]);
   // le mur d'où l'on vient : « je l'ai vu » depuis la watchlist doit ramener au bon endroit
   /* On revient d'où l'on vient. Une fiche ouverte depuis un dossier de
-     personne ramène à ce dossier — sans quoi, suivre un chef opérateur
+     personne ramène à ce dossier — sans quoi, follow un chef opérateur
      de film en film demanderait de le retrouver à chaque fois. */
   const backView = personne
     ? "generique"
@@ -751,7 +751,7 @@ export default function App() {
         onCompte={() => setCompteOuvert(true)}
         synchro={synchro.état}
       />
-      {compteOuvert && (
+      {accountOpen && (
         <CompteDrawer
           bilan={synchro}
           onFermer={() => setCompteOuvert(false)}
@@ -790,7 +790,7 @@ export default function App() {
           `minWidth: 0` lui rend le droit de rétrécir. La rangée mesure
           alors la largeur qu'elle a VRAIMENT (voir `useRowCap`) et pose
           le nombre de boîtiers qui y tiennent, au lieu d'en poser dix et
-          de pousser la fenêtre. */}
+          de push la fenêtre. */}
       {/* `key` PLUTÔT QU'UNE CLASSE POSÉE À LA MAIN. Une animation ne se
           rejoue que si le nœud est neuf : sans clé, React réemploie le
           même conteneur d'une vue à l'autre et rien ne bouge après le

@@ -21,11 +21,11 @@ import { useEffect, useState } from "react";
 import { Clapperboard, Star } from "lucide-react";
 import { C, F, alpha } from "../theme/tokens";
 import { PosterArt } from "../components/film/PosterArt";
-import { collectionDe, ErreurServeur, type FilmPartage } from "../services/serveur";
+import { collectionOf, ServerError, type SharedFilm } from "../services/server";
 import { tiltOf } from "../domain/seeded";
 import { initialsOf as initialesDe } from "../domain/film";
 
-/* L'ADRESSE D'UNE COLLECTION PARTAGÉE.
+/* L'ADDRESS D'UNE COLLECTION PARTAGÉE.
 
    `#/chez/varda` — dans le FRAGMENT, et pas dans le chemin. Le classeur
    est publié en pages statiques : un chemin inconnu y rend un 404 du
@@ -44,12 +44,12 @@ export function lireLAdresse(fragment: string = location.hash): Adresse | null {
 }
 
 export function CollectionPartagee({ adresse }: { adresse: Adresse }) {
-  const [films, setFilms] = useState<FilmPartage[] | null>(null);
+  const [films, setFilms] = useState<SharedFilm[] | null>(null);
   const [souci, setSouci] = useState<string | null>(null);
 
   useEffect(() => {
     let vivant = true;
-    collectionDe(adresse.pseudo, adresse.jeton)
+    collectionOf(adresse.pseudo, adresse.jeton)
       .then((r) => vivant && setFilms(r.films))
       .catch((e) => {
         if (!vivant) return;
@@ -58,7 +58,7 @@ export function CollectionPartagee({ adresse }: { adresse: Adresse }) {
            reprend ce silence plutôt que d'inventer une explication qui
            aurait une chance sur trois d'être juste. */
         setSouci(
-          (e as ErreurServeur).code === 404
+          (e as ServerError).code === 404
             ? "Pas de collection à cette adresse. Le lien a peut-être été refermé."
             : "Cette collection n'a pas pu être ouverte."
         );
@@ -129,7 +129,7 @@ export function CollectionPartagee({ adresse }: { adresse: Adresse }) {
   );
 }
 
-function Affiche({ film }: { film: FilmPartage }) {
+function Affiche({ film }: { film: SharedFilm }) {
   const note = Number(film.rating) || 0;
   return (
     <figure style={{ margin: 0, transform: `rotate(${tiltOf(String(film.id))}deg)` }}>

@@ -85,7 +85,7 @@ const MÉTIERS: [key: string, nom: string][] = [
 
    Un pointillé d'encre, et non un bleu de lien : la direction artistique
    est un carnet, et un carnet ne souligne pas en bleu ce qu'on peut
-   suivre — il l'écrit à la plume. */
+   follow — il l'écrit à la plume. */
 function Noms({
   noms,
   sépare = ", ",

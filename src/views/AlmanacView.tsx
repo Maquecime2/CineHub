@@ -211,7 +211,7 @@ function Barres({
   const largeur = pas * 0.56;
   /* Au-delà de huit colonnes, une year sur quatre chiffres se cogne à
      sa voisine : on ne keep que les deux derniers, qui suffisent à
-     suivre une décennie. */
+     follow une décennie. */
   const étroit = values.length > 8;
 
   return (
@@ -309,7 +309,7 @@ function Palmares({
           >
             {onPick ? (
               /* Un pointillé d'encre, comme sur la fiche film : le
-                 carnet ne souligne pas en bleu ce qu'on peut suivre. */
+                 carnet ne souligne pas en bleu ce qu'on peut follow. */
               <button
                 onClick={() => onPick(it.name)}
                 title={`Ce que j'ai de ${it.name}`}
@@ -1243,7 +1243,7 @@ export function AlmanacView({
               maxWidth: 380,
               overflowX: "auto",
               overflowY: "hidden",
-              /* Sans cela, un objet flex se laisse pousser par son
+              /* Sans cela, un objet flex se laisse push par son
                  contenu au lieu de défiler. */
               minWidth: 0,
               paddingBottom: 2,

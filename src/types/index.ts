@@ -123,7 +123,7 @@ export interface Film {
    * Ce sont les SEULS renseignements thématiques qui arrivent tout seuls :
    * `themes` et `motifs` se posent à la main, et sur une collection
    * importée ils restent vides. Ils ne remplacent ni l'un ni l'autre —
-   * un motif est un mot qu'on a choisi de suivre, un mot-clé est ce que
+   * un motif est un mot qu'on a choisi de follow, un mot-clé est ce que
    * TMDB a écrit — mais ils donnent au sillage de quoi rapprocher deux
    * films autrement que par les noms de leur équipe.
    *

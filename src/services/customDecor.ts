@@ -120,7 +120,7 @@ export const setHiddenDecor = (list: string[]): void =>
 
 /* ---------- l'encre d'un SVG ----------
 
-   Un dessin importé n'a aucune raison de suivre nos conventions, mais
+   Un dessin importé n'a aucune raison de follow nos conventions, mais
    s'il porte des traits nommés on peut lui rendre ce que les motifs de
    la maison ont : la teinte que l'utilisateur choisit. `currentColor`
    suffit — c'est la couleur CSS héritée, et le composant d'affichage n'a

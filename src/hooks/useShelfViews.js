@@ -34,7 +34,7 @@ export function useShelfViews(films) {
 
   const create = useCallback(
     (wall, name) => {
-      const blank = makeView({ wall, name: name || "Nouvelle vue", now: Date.now() });
+      const blank = makeView({ wall, name: name || "NewsItem vue", now: Date.now() });
       /* Tout laisser dans le sas donnerait une étagère vide et un tas :
        une vue neuve arrive déjà rangée, en planches d'une dizaine. */
       const doc = layoutView(blank, poolFor(wall));

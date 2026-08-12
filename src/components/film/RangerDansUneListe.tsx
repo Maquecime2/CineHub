@@ -18,18 +18,18 @@ import { ListPlus } from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { Label } from "../ui";
-import { mesListes, rangerDansLaListe, serveurConfigure, type Liste } from "../../services/serveur";
+import { myLists, addToList, serverConfigured, type List } from "../../services/server";
 import type { Film } from "../../types";
 
 export function RangerDansUneListe({ film, connecte }: { film: Film; connecte: boolean }) {
-  const [listes, setListes] = useState<Liste[]>([]);
+  const [listes, setListes] = useState<List[]>([]);
   const [choix, setChoix] = useState("");
   const [dit, setDit] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!serveurConfigure() || !connecte || !film.tmdbId) return;
+    if (!serverConfigured() || !connecte || !film.tmdbId) return;
     let vivant = true;
-    mesListes()
+    myLists()
       .then((r) => vivant && setListes(r.listes))
       /* Une panne du serveur ne doit pas faire parler la fiche : la
          section disparaît, le classeur continue. */
@@ -43,7 +43,7 @@ export function RangerDansUneListe({ film, connecte }: { film: Film; connecte: b
 
   const ranger = async () => {
     if (!choix) return;
-    const r = await rangerDansLaListe(choix, {
+    const r = await addToList(choix, {
       tmdbId: film.tmdbId!,
       titre: film.title,
       annee: film.year,

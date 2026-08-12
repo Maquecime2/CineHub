@@ -15,7 +15,7 @@
    divergeraient au premier changement.
    ============================================================ */
 import type { View } from "../layout/FolderTabs";
-import { serveurConfigure } from "../../services/serveur";
+import { serverConfigured } from "../../services/server";
 
 export interface TourStep {
   /** Sélecteur CSS de ce qu'on montre. `null` : bulle au centre. */
@@ -636,7 +636,7 @@ const listes: Tour = {
    donc rien à montrer, et la visite doit décrire le produit tel qu'il
    est chez celui qui la joue. */
 const élaguer = (t: Tour): Tour =>
-  serveurConfigure() ? t : { ...t, steps: t.steps.filter((s) => !s.exigeUnServeur) };
+  serverConfigured() ? t : { ...t, steps: t.steps.filter((s) => !s.exigeUnServeur) };
 
 export const TOURS: Record<string, Tour> = Object.fromEntries(
   Object.entries({

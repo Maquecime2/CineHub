@@ -19,7 +19,7 @@
    ============================================================ */
 import { useSyncExternalStore } from "react";
 import { KEYS, store } from "./storage";
-import { compteOuvert, suivreLeCompte } from "./serveur";
+import { accountOpen, watchAccount } from "./server";
 
 /* The value lives in memory as much as on disk: `useSyncExternalStore`
    wants a STABLE snapshot, and re-reading localStorage on every call
@@ -35,7 +35,7 @@ const subscribe = (fn: Listener): (() => void) => {
      relays TMDB, signing in is enough to give something to query it
      with, and the eight screens must notice without reloading — exactly
      as they notice a key being set. */
-  const forget = suivreLeCompte(fn);
+  const forget = watchAccount(fn);
   return () => {
     listeners.delete(fn);
     forget();
@@ -73,7 +73,7 @@ export const writtenKey = (): string => current;
  * neither.
  */
 export const getTmdbKey = (): string =>
-  current.trim() ? current : compteOuvert() ? VIA_SERVER : "";
+  current.trim() ? current : accountOpen() ? VIA_SERVER : "";
 
 /**
 /**

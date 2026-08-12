@@ -258,7 +258,7 @@ const BROUILLONS: Brouillon[] = [
     themes: ["l'enfance", "l'école"],
     rating: 4.5,
     review:
-      "L'arrêt sur image sur la plage est la première fin de film qui refuse de conclure. Tout le reste de la Nouvelle Vague en sort.",
+      "L'arrêt sur image sur la plage est la première fin de film qui refuse de conclure. Tout le reste de la NewsItem Vague en sort.",
     watches: [vu("2024-09-12", 4.5)],
   },
   {
@@ -334,7 +334,7 @@ const BROUILLONS: Brouillon[] = [
 
    Écrits à la main, comme dans l'application : deux moitiés qui
    partagent un `pairId`, avec la relation RENVERSÉE de l'autre côté
-   (voir `inverseOf`). Les recopier telles quelles plutôt que d'appeler
+   (voir `inverseOf`). Les recopier telles quelles plutôt que d'call
    `linkFilms` est délibéré — cette fonction vit dans `App` et travaille
    sur l'état React, qui n'existe pas encore au moment du semis. */
 interface Thread {
@@ -450,7 +450,7 @@ export function notesDeDémonstration(maintenant = Date.now()): Note[] {
     {
       id: `${PRÉFIXE_DÉMO}note-1`,
       title: "Ce que je cherche en ce moment",
-      body: "Des films qui font confiance au silence. Melville, Wenders, Sciamma dans la seconde moitié — à chaque fois, la scène qui compte est celle où personne ne parle.\n\nÀ suivre : les chefs opérateurs plutôt que les cinéastes. Decaë revient deux fois sans que je l'aie cherché.",
+      body: "Des films qui font confiance au silence. Melville, Wenders, Sciamma dans la seconde moitié — à chaque fois, la scène qui compte est celle où personne ne parle.\n\nÀ follow : les chefs opérateurs plutôt que les cinéastes. Decaë revient deux fois sans que je l'aie cherché.",
       createdAt: maintenant,
     },
   ];

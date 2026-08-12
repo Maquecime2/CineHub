@@ -476,7 +476,7 @@ export const DECOR_BOX = 46;
 
    L'opacité s'écrit avec `alpha` et non plus en collant `22` derrière la
    couleur : la teinte reste un hexadécimal aujourd'hui, mais l'ombre
-   portée, elle, doit suivre la peau — et `color-mix` prend les deux. */
+   portée, elle, doit follow la peau — et `color-mix` prend les deux. */
 /* LE CARTON EST OPAQUE. Le lavis reste un lavis — un quart d'encre, pas
    un aplat — mais il se pose désormais sur du carton, et non sur le vide :
    sans fond dessous, le mur transparaissait à travers l'intercalaire, et

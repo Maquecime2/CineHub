@@ -32,27 +32,27 @@ import { Calque } from "../ui/Calque";
 import { Label } from "../ui";
 import { Confirmation, type ConfirmRequest } from "../ui/Confirmation";
 import {
-  ADRESSE,
-  effacerMonCompte,
-  mesDonnees,
-  seConnecter,
-  reglerLePartage,
-  monPartage,
-  seDeconnecter,
-  sInscrire,
-  mesBlocages,
-  debloquer,
-  type Partage,
+  ADDRESS,
+  deleteMyAccount,
+  myData,
+  signIn,
+  setSharing,
+  mySharing,
+  signOut,
+  signUp,
+  myBlocks,
+  unblock,
+  type Sharing,
   type Person,
-} from "../../services/serveur";
+} from "../../services/server";
 import {
   pushState,
   subscribeToPush,
   unsubscribeFromPush,
   type PushState,
 } from "../../services/push";
-import { oublierLaSynchro } from "../../services/synchro";
-import type { Bilan } from "../../services/synchro";
+import { oublierLaSynchro } from "../../services/sync";
+import type { Bilan } from "../../services/sync";
 
 const quandDit = (le: number | null): string => {
   if (!le) return "jamais encore";
@@ -240,14 +240,14 @@ export function CompteDrawer({
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button
                 disabled={occupé || pseudo.trim().length < 3}
-                onClick={() => tenter(sInscrire)}
+                onClick={() => tenter(signUp)}
                 style={bouton(C.burgundy, occupé || pseudo.trim().length < 3)}
               >
                 <UserPlus size={12} /> CRÉER UN COMPTE
               </button>
               <button
                 disabled={occupé}
-                onClick={() => tenter(seConnecter)}
+                onClick={() => tenter(signIn)}
                 style={bouton(C.ink, occupé)}
               >
                 <KeyRound size={12} /> J'EN AI DÉJÀ UN
@@ -276,7 +276,7 @@ export function CompteDrawer({
 
             <button
               onClick={async () => {
-                await seDeconnecter();
+                await signOut();
                 /* La collection RESTE : se déconnecter n'est pas se
                    déposséder. Seul le lien avec le serveur se coupe. */
                 oublierLaSynchro();
@@ -304,7 +304,7 @@ export function CompteDrawer({
                     setSouci(null);
                     setOccupé(true);
                     try {
-                      const tout = await mesDonnees();
+                      const tout = await myData();
                       /* Un fichier, pas un écran : ce qu'on emporte doit
                          pouvoir être relu ailleurs, et dans dix ans. */
                       const lien = document.createElement("a");
@@ -337,7 +337,7 @@ export function CompteDrawer({
                         setRequest(null);
                         setOccupé(true);
                         try {
-                          await effacerMonCompte();
+                          await deleteMyAccount();
                           oublierLaSynchro();
                           onChangement(null);
                         } catch (e) {
@@ -376,7 +376,7 @@ export function CompteDrawer({
             lineHeight: 1.7,
           }}
         >
-          {ADRESSE || "aucun serveur"}
+          {ADDRESS || "aucun serveur"}
           <br />
           {/* CETTE PHRASE DISAIT LE CONTRAIRE DE CE QUI SE PASSE, et je
               l'ai vue mentir en regardant ce qui partait vraiment : la
@@ -448,7 +448,7 @@ const bouton = (encre: string, éteint: boolean) => ({
    `Ailleurs`, sur une fiche, sait faire taire l'auteur d'une critique
    d'un geste. Ce geste marchait, il était même testé de bout en bout —
    et il était SANS RETOUR : rien, nulle part, ne disait qui l'on avait
-   bloqué, et aucun écran n'appelait `debloquer`. Les deux fonctions
+   bloqué, et aucun écran n'appelait `unblock`. Les deux fonctions
    existaient côté client, la route côté serveur, la table dans le
    schéma. Il manquait quinze lignes de tiroir.
 
@@ -465,7 +465,7 @@ function Blocages() {
   const [occupé, setOccupé] = useState<string | null>(null);
 
   const relire = () =>
-    mesBlocages()
+    myBlocks()
       .then((r) => setListe(r.blocages))
       /* Sans serveur ou hors ligne : on se tait, on n'affiche pas une
          erreur pour une rubrique qui n'a peut-être rien à dire. */
@@ -480,7 +480,7 @@ function Blocages() {
   const rendreLaParole = async (pseudo: string) => {
     setOccupé(pseudo);
     try {
-      await debloquer(pseudo);
+      await unblock(pseudo);
     } finally {
       setOccupé(null);
       await relire();
@@ -596,7 +596,7 @@ function Rappels() {
 }
 
 function Partager() {
-  const [état, setÉtat] = useState<Partage | null>(null);
+  const [état, setÉtat] = useState<Sharing | null>(null);
   const [jeton, setJeton] = useState<string | null>(null);
   const [occupé, setOccupé] = useState(false);
   const [copié, setCopié] = useState(false);
@@ -608,7 +608,7 @@ function Partager() {
      voulait peut-être pas faire. On lit d'abord. */
   useEffect(() => {
     let vivant = true;
-    monPartage()
+    mySharing()
       .then((r) => {
         if (!vivant) return;
         setÉtat(r.partage);
@@ -629,10 +629,10 @@ function Partager() {
         ? `${location.origin}${location.pathname}#/chez/${pseudoDeLaPage()}?jeton=${jeton}`
         : null;
 
-  const régler = async (voulu: Partage) => {
+  const régler = async (voulu: Sharing) => {
     setOccupé(true);
     try {
-      const r = await reglerLePartage(voulu);
+      const r = await setSharing(voulu);
       setÉtat(r.partage);
       setJeton(r.jeton);
       setCopié(false);
@@ -650,7 +650,7 @@ function Partager() {
             ["privee", "PERSONNE"],
             ["lien", "PAR LIEN"],
             ["publique", "TOUT LE MONDE"],
-          ] as [Partage, string][]
+          ] as [Sharing, string][]
         ).map(([clé, mot]) => (
           <button
             key={clé}

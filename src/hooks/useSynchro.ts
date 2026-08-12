@@ -18,8 +18,8 @@
    une liste d'attente plutôt qu'un envoi immédiat.
    ============================================================ */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { dernierBilan, enAttente, synchroniser, type Bilan } from "../services/synchro";
-import { serveurConfigure } from "../services/serveur";
+import { dernierBilan, enAttente, synchroniser, type Bilan } from "../services/sync";
+import { serverConfigured } from "../services/server";
 import type { Film } from "../types";
 
 const RYTHME_MS = 5 * 60 * 1000;
@@ -31,7 +31,7 @@ export function useSynchro(
   relireLesDocuments: () => void
 ) {
   const [bilan, setBilan] = useState<Bilan>({
-    état: serveurConfigure() ? "hors-compte" : "absent",
+    état: serverConfigured() ? "hors-compte" : "absent",
     personne: null,
     le: dernierBilan().le,
     enAttente: 0,
@@ -48,7 +48,7 @@ export function useSynchro(
   const enCours = useRef(false);
 
   const lancer = useCallback(async () => {
-    if (!serveurConfigure() || enCours.current) return;
+    if (!serverConfigured() || enCours.current) return;
     enCours.current = true;
     setBilan((b) => ({ ...b, état: "en-cours" }));
     try {
@@ -61,7 +61,7 @@ export function useSynchro(
   }, []);
 
   useEffect(() => {
-    if (!prêt || !serveurConfigure()) return;
+    if (!prêt || !serverConfigured()) return;
     lancer();
 
     const auRetour = () => lancer();
@@ -81,7 +81,7 @@ export function useSynchro(
 
   /* Le compte de ce qui attend se relit à chaque rendu : il change quand
      on écrit, pas quand le réseau parle. */
-  const attend = serveurConfigure() ? enAttente() : 0;
+  const attend = serverConfigured() ? enAttente() : 0;
 
   /* « À JOUR » NE PEUT PAS ÊTRE VRAI S'IL RESTE QUELQUE CHOSE À DIRE.
 

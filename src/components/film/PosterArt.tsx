@@ -99,7 +99,7 @@ export const PosterArt = React.memo(function PosterArt({
           /* Sur l'étagère, une affiche par boîtier : cent images à décoder,
              à garder en mémoire et à rastériser. `lazy` n'en décode que ce
              qui est à l'écran, `async` ne bloque pas le fil principal — et
-             c'est ce fil qui doit rester libre pour suivre la souris. */
+             c'est ce fil qui doit rester libre pour follow la souris. */
           /* LE MUR CHARGEAIT TOUT, ET C'ÉTAIT LE PLUS CHER.
 
              `plain` désignait l'étagère, et le reste — dont le mur

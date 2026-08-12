@@ -84,7 +84,7 @@ export function FilmModal({ onClose, onSave }: { onClose: () => void; onSave: (f
             color: C.ink,
           }}
         >
-          Nouvelle fiche
+          NewsItem fiche
         </div>
         <div style={{ height: 1, background: C.line, margin: "14px 0 20px" }} />
         <div style={{ display: "flex", gap: 16 }}>

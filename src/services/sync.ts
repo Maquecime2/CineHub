@@ -40,17 +40,17 @@ import {
   sendAllDocuments,
 } from "./documents";
 import {
-  DOCS_PAR_ENVOI,
-  ErreurServeur,
-  PAR_ENVOI,
-  pousser,
-  quiSuisJe,
-  serveurConfigure,
-  pousserDocs,
-  tirerDepuis,
-  tirerDocsDepuis,
+  DOCS_PER_SEND,
+  ServerError,
+  PER_SEND,
+  push,
+  whoAmI,
+  serverConfigured,
+  pushDocs,
+  pullFrom,
+  pullDocsFrom,
   type Person,
-} from "./serveur";
+} from "./server";
 import type { Film } from "../types";
 
 const CLÉ_CURSEUR = "synchro-rang";
@@ -107,7 +107,7 @@ export const dernierBilan = (): { le: number | null } => store.get(CLÉ_BILAN, {
  * recevoir.
  */
 export async function synchroniser(poser: (films: Film[]) => void): Promise<Bilan> {
-  if (!serveurConfigure()) {
+  if (!serverConfigured()) {
     return { état: "absent", personne: null, le: null, enAttente: 0 };
   }
 
@@ -117,7 +117,7 @@ export async function synchroniser(poser: (films: Film[]) => void): Promise<Bila
      quelqu'un qui est déjà inscrit. */
   let personne: Person | null;
   try {
-    personne = await quiSuisJe();
+    personne = await whoAmI();
   } catch {
     return {
       état: "en-attente",
@@ -150,7 +150,7 @@ export async function synchroniser(poser: (films: Film[]) => void): Promise<Bila
     let tours = 0;
 
     while (encore && tours < 50) {
-      const reçu = await tirerDepuis(rang);
+      const reçu = await pullFrom(rang);
       if (reçu.fiches.length) {
         /* LE FORMAT DE FIL RESTE CELUI DU SERVEUR, et la traduction se
            fait ICI. `domain/merge` parle anglais comme tout le domaine ;
@@ -192,9 +192,9 @@ export async function synchroniser(poser: (films: Film[]) => void): Promise<Bila
       donnees: e.data,
     }));
 
-    for (let i = 0; i < paquet.length; i += PAR_ENVOI) {
-      const tranche = paquet.slice(i, i + PAR_ENVOI);
-      await pousser(tranche);
+    for (let i = 0; i < paquet.length; i += PER_SEND) {
+      const tranche = paquet.slice(i, i + PER_SEND);
+      await push(tranche);
       /* ON OUBLIE TRANCHE PAR TRANCHE, et seulement ce qui est
          RÉELLEMENT parti dans cette tranche-là. Vider la liste entière
          à la fin perdrait tout si la troisième tranche échoue ; la
@@ -223,7 +223,7 @@ export async function synchroniser(poser: (films: Film[]) => void): Promise<Bila
     let toursDocs = 0;
     let entrés = 0;
     while (encoreDocs && toursDocs < 50) {
-      const reçu = await tirerDocsDepuis(rangDocs);
+      const reçu = await pullDocsFrom(rangDocs);
       for (const d of reçu.documents) if (fileIncomingDocument(d)) entrés += 1;
       rangDocs = reçu.jusqua;
       encoreDocs = reçu.encore === true;
@@ -232,9 +232,9 @@ export async function synchroniser(poser: (films: Film[]) => void): Promise<Bila
     store.set(CLÉ_CURSEUR_DOCS, rangDocs);
 
     const paquetDocs = documentsToSend();
-    for (let i = 0; i < paquetDocs.length; i += DOCS_PAR_ENVOI) {
-      const tranche = paquetDocs.slice(i, i + DOCS_PAR_ENVOI);
-      await pousserDocs(tranche);
+    for (let i = 0; i < paquetDocs.length; i += DOCS_PER_SEND) {
+      const tranche = paquetDocs.slice(i, i + DOCS_PER_SEND);
+      await pushDocs(tranche);
       forgetSentDocuments(tranche.map((d) => d.cle));
     }
 
@@ -245,7 +245,7 @@ export async function synchroniser(poser: (films: Film[]) => void): Promise<Bila
     store.set(CLÉ_BILAN, { le, documentsEntrés: entrés });
     return { état: "à-jour", personne, le, enAttente: 0, documentsEntrés: entrés };
   } catch (e) {
-    const erreur = e as ErreurServeur;
+    const erreur = e as ServerError;
     const attend = toSend(knownCollection(), knownGraves(), pendingToSend()).length;
     /* LE ZÉRO VEUT DIRE « LA REQUÊTE N'EST JAMAIS PARTIE » : hors ligne,
        serveur éteint. Ce n'est pas une erreur à montrer en rouge, c'est
@@ -265,7 +265,7 @@ export async function synchroniser(poser: (films: Film[]) => void): Promise<Bila
 
 /** Ce qui attend, sans rien demander au réseau. */
 export const enAttente = (): number =>
-  serveurConfigure() ? toSend(knownCollection(), knownGraves(), pendingToSend()).length : 0;
+  serverConfigured() ? toSend(knownCollection(), knownGraves(), pendingToSend()).length : 0;
 
 /** Repartir de zéro : après une déconnexion, ou un changement de compte. */
 export function oublierLaSynchro(): void {

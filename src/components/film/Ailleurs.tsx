@@ -24,13 +24,7 @@ import { Flag, Star, UserMinus, Users } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { Label } from "../ui";
-import {
-  bloquer,
-  echoDeLOeuvre,
-  serveurConfigure,
-  signaler,
-  type Echo,
-} from "../../services/serveur";
+import { block, echoOfWork, serverConfigured, report, type Echo } from "../../services/server";
 import type { Film } from "../../types";
 
 export function Ailleurs({ film, connecte }: { film: Film; connecte: boolean }) {
@@ -39,9 +33,9 @@ export function Ailleurs({ film, connecte }: { film: Film; connecte: boolean }) 
 
   useEffect(() => {
     setEcho(null);
-    if (!serveurConfigure() || !connecte || !tmdbId) return;
+    if (!serverConfigured() || !connecte || !tmdbId) return;
     let vivant = true;
-    echoDeLOeuvre(tmdbId)
+    echoOfWork(tmdbId)
       .then((e) => vivant && setEcho(e))
       /* Le silence est la bonne réponse à une panne ici : cette section
          est un supplément, et une fiche ne doit pas afficher d'erreur
@@ -98,7 +92,7 @@ function AvisLu({ avis, onSilence }: { avis: Echo["avis"][number]; onSilence: ()
   const [fait, setFait] = useState<string | null>(null);
 
   const faireTaire = async () => {
-    await bloquer(avis.pseudo);
+    await block(avis.pseudo);
     onSilence();
   };
 
@@ -108,7 +102,7 @@ function AvisLu({ avis, onSilence }: { avis: Echo["avis"][number]; onSilence: ()
        en confusion pour un geste qu'on fait deux fois par an. */
     const motif = window.prompt(`Qu'est-ce qui ne va pas dans ce qu'a écrit ${avis.pseudo} ?`);
     if (!motif?.trim()) return;
-    await signaler({ pseudo: avis.pseudo, fiche: avis.fiche, motif });
+    await report({ pseudo: avis.pseudo, fiche: avis.fiche, motif });
     setFait("signalé — nous le lirons");
   };
 

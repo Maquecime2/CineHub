@@ -28,26 +28,26 @@ import { PosterArt } from "../components/film/PosterArt";
 import { initialsOf } from "../domain/film";
 import { tiltOf } from "../domain/seeded";
 import {
-  lireLeFil,
-  mesAbonnements,
-  nePlusSuivre,
-  profilDe,
-  serveurConfigure,
-  suivre,
-  type Nouvelle,
-  type Profil,
-} from "../services/serveur";
+  readFeed,
+  mySubscriptions,
+  unfollow,
+  profileOf,
+  serverConfigured,
+  follow,
+  type NewsItem,
+  type Profile,
+} from "../services/server";
 
 export function FilView({ connecte }: { connecte: boolean }) {
-  const [abonnements, setAbonnements] = useState<Profil[]>([]);
-  const [nouvelles, setNouvelles] = useState<Nouvelle[] | null>(null);
+  const [abonnements, setAbonnements] = useState<Profile[]>([]);
+  const [nouvelles, setNouvelles] = useState<NewsItem[] | null>(null);
   const [cherche, setCherche] = useState("");
-  const [trouve, setTrouve] = useState<Profil | null>(null);
+  const [trouve, setTrouve] = useState<Profile | null>(null);
   const [souci, setSouci] = useState<string | null>(null);
 
   const relire = useCallback(async () => {
     if (!connecte) return;
-    const [a, f] = await Promise.all([mesAbonnements(), lireLeFil()]);
+    const [a, f] = await Promise.all([mySubscriptions(), readFeed()]);
     setAbonnements(a.abonnements);
     setNouvelles(f.nouvelles);
   }, [connecte]);
@@ -56,12 +56,12 @@ export function FilView({ connecte }: { connecte: boolean }) {
     relire().catch(() => setNouvelles([]));
   }, [relire]);
 
-  if (!serveurConfigure()) {
+  if (!serverConfigured()) {
     return (
       <Page>
         <Guideline>
           Aucun serveur n'est réglé : le classeur vit entièrement chez vous, et il n'y a personne à
-          suivre.
+          follow.
         </Guideline>
       </Page>
     );
@@ -71,7 +71,7 @@ export function FilView({ connecte }: { connecte: boolean }) {
     return (
       <Page>
         <Guideline>
-          Il faut un compte pour suivre quelqu'un — le bouton au pied du rail. Votre collection,
+          Il faut un compte pour follow quelqu'un — le bouton au pied du rail. Votre collection,
           elle, n'en a pas besoin.
         </Guideline>
       </Page>
@@ -84,7 +84,7 @@ export function FilView({ connecte }: { connecte: boolean }) {
     const nom = cherche.trim().toLowerCase();
     if (!nom) return;
     try {
-      setTrouve(await profilDe(nom));
+      setTrouve(await profileOf(nom));
     } catch {
       /* Le serveur répond la même chose pour « n'existe pas » et « ne se
          montre pas » : on reprend ce silence, sans inventer laquelle
@@ -93,10 +93,10 @@ export function FilView({ connecte }: { connecte: boolean }) {
     }
   };
 
-  const basculer = async (profil: Profil) => {
+  const basculer = async (profil: Profile) => {
     const suit = profil.suivi ?? abonnements.some((a) => a.pseudo === profil.pseudo);
-    if (suit) await nePlusSuivre(profil.pseudo);
-    else await suivre(profil.pseudo);
+    if (suit) await unfollow(profil.pseudo);
+    else await follow(profil.pseudo);
     setTrouve({ ...profil, suivi: !suit });
     await relire();
   };
@@ -185,7 +185,7 @@ export function FilView({ connecte }: { connecte: boolean }) {
                 {a.ouverte === false && <em style={{ opacity: 0.7 }}>refermée</em>}
                 <button
                   onClick={() => basculer(a)}
-                  title={`Ne plus suivre ${a.pseudo}`}
+                  title={`Ne plus follow ${a.pseudo}`}
                   style={{ ...tap, all: "unset", cursor: "pointer", color: C.burgundy }}
                 >
                   <UserMinus size={12} />

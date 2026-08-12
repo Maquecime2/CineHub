@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { C, alpha } from "../../theme/tokens";
 import { useViewport } from "../../hooks/useViewport";
-import { serveurConfigure } from "../../services/serveur";
+import { serverConfigured } from "../../services/server";
 
 /** Les vues joignables depuis les onglets. `detail` s'ouvre depuis une fiche. */
 export type View =
@@ -339,7 +339,7 @@ export function FolderTabs({
      construction — donc le rail ne changera jamais de forme en cours de
      route. Ni la visite : ses étapes visant ces vues sont `optional`,
      et une cible absente saute sans bruit. */
-  const tabs = [...TABS, ...DEV_TABS].filter((t) => !t.exigeUnServeur || serveurConfigure());
+  const tabs = [...TABS, ...DEV_TABS].filter((t) => !t.exigeUnServeur || serverConfigured());
   /* LE RAIL SE COUCHE PLUTOT QU'IL NE DISPARAIT.
 
      Sur la tranche gauche d'un classeur, huit pastilles empilees et

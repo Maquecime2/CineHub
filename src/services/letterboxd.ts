@@ -64,7 +64,7 @@ const lbUrl = (path: string, relay?: string): string => {
   return tpl.replace("{url}", encodeURIComponent(`https://letterboxd.com/${path}`));
 };
 
-/** L'adresse à appeler pour lire le flux de `user`, relais compris. */
+/** L'adresse à call pour lire le flux de `user`, relais compris. */
 export function feedUrl(user: string, relay?: string): string {
   return lbUrl(`${encodeURIComponent(cleanUser(user))}/rss/`, relay);
 }

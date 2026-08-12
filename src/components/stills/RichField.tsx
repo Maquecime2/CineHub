@@ -60,7 +60,7 @@ export function RichField({
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    // les URL des blobs arrivent après coup : sans les suivre, les vignettes
+    // les URL des blobs arrivent après coup : sans les follow, les vignettes
     // resteraient des images vides larges de quelques pixels
     const sig = (stills || []).map((s) => urls[s.key] || "").join("|");
     const textChanged = value !== lastEmitted.current;
