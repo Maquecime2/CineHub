@@ -24,14 +24,14 @@ import {
   verifyAuthenticationResponse,
 } from "@simplewebauthn/server";
 import type { Db } from "./db.ts";
-import * as depot from "./store.ts";
+import * as store from "./store.ts";
 import { registerRelays } from "./relay.ts";
 import { publicKeyForPush, pushAvailable, remindChallenges } from "./push.ts";
 
 export interface Settings {
-  base: Db;
+  db: Db;
   /** Le domaine que les clés d'accès signeront. `localhost` en développement. */
-  domaine: string;
+  domain: string;
   /**
    * Les origines du client, séparées par des virgules.
    *
@@ -41,7 +41,7 @@ export interface Settings {
    * même serveur. La PREMIÈRE sert de référence aux clés d'accès —
    * une clé signée pour une origine ne vaut rien sur une autre.
    */
-  origine: string;
+  origin: string;
   /** Cookies `Secure` : faux en développement, où il n'y a pas de HTTPS. */
   secure?: boolean;
   /**
@@ -84,7 +84,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const JOUR = /^\d{4}-\d{2}-\d{2}$/;
 
 export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
-  const { base, domaine, origine } = reglages;
+  const { db, domain, origin } = reglages;
   const app = Fastify({ logger: false });
 
   /* UN CORPS VIDE N'EST PAS UN CORPS ILLISIBLE.
@@ -108,12 +108,12 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
   });
 
   await app.register(cookie);
-  const origines = origine
+  const origins = origin
     .split(",")
     .map((o) => o.trim())
     .filter(Boolean);
   await app.register(cors, {
-    origin: origines,
+    origin: origins,
     /* Sans cela le navigateur n'enverrait pas le cookie de session : une
        requête d'une origine à l'autre est anonyme par défaut. */
     credentials: true,
@@ -163,14 +163,14 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
        service. Les échecs ne comptent pas non plus : ce sont des
        incidents, et le journal du serveur est là pour eux. */
     if (reply.statusCode >= 400) return;
-    depot.compter(base, `${req.method} ${chemin}`).catch(() => {});
+    store.compter(db, `${req.method} ${chemin}`).catch(() => {});
   });
 
   /** Qui parle ? `null` si personne. */
   const whoIs = async (req: FastifyRequest) => {
     const secret = req.cookies[COOKIE];
     if (!secret) return null;
-    return depot.personOfSession(base, secret);
+    return store.personOfSession(db, secret);
   };
 
   /** Les routes qui exigent un compte passent par ici. */
@@ -196,13 +196,13 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
         erreur: "Un pseudonyme de 3 à 30 caractères : lettres sans accent, chiffres, tirets.",
       });
     }
-    if (await depot.findByPseudo(base, nom)) {
+    if (await store.findByPseudo(db, nom)) {
       return reply.code(409).send({ erreur: "Ce pseudonyme est déjà pris." });
     }
 
     const options = await generateRegistrationOptions({
       rpName: "Ciné Hub",
-      rpID: domaine,
+      rpID: domain,
       userName: nom,
       /* PAS DE CLÉ RÉSIDENTE IMPOSÉE, mais préférée : c'est elle qui
          permet de se connecter sans taper son pseudonyme. « Preferred »
@@ -212,20 +212,20 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
       attestationType: "none",
     });
 
-    const defi = await depot.setChallenge(base, options.challenge, { pseudo: nom });
+    const defi = await store.setChallenge(db, options.challenge, { pseudo: nom });
     return { defi, options };
   });
 
   app.post("/auth/inscription/verification", async (req, reply) => {
     const { defi, reponse } = (req.body ?? {}) as { defi?: string; reponse?: unknown };
-    const attendu = defi ? await depot.consumeChallenge(base, defi) : null;
+    const attendu = defi ? await store.consumeChallenge(db, defi) : null;
     if (!attendu?.pseudo) return reply.code(400).send({ erreur: "Défi inconnu ou expiré." });
 
     const v = await verifyRegistrationResponse({
       response: reponse as never,
       expectedChallenge: attendu.valeur,
-      expectedOrigin: origines,
-      expectedRPID: domaine,
+      expectedOrigin: origins,
+      expectedRPID: domain,
     });
     if (!v.verified || !v.registrationInfo) {
       return reply.code(400).send({ erreur: "Cette clé n'a pas pu être vérifiée." });
@@ -236,21 +236,21 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
        vérification d'il y a trois lignes. */
     let personne;
     try {
-      personne = await depot.createPerson(base, attendu.pseudo);
+      personne = await store.createPerson(db, attendu.pseudo);
     } catch {
       return reply.code(409).send({ erreur: "Ce pseudonyme est déjà pris." });
     }
 
     const { credential } = v.registrationInfo;
-    await depot.addKey(base, {
+    await store.addKey(db, {
       id: credential.id,
       personneId: personne.id,
-      publicKeyForPush: credential.publicKey,
+      publicKey: credential.publicKey,
       compteur: credential.counter,
       transports: credential.transports ?? [],
     });
 
-    await setCookie(reply, await depot.openSession(base, personne.id));
+    await setCookie(reply, await store.openSession(db, personne.id));
     return { personne };
   });
 
@@ -261,20 +261,20 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
   app.post("/auth/connexion/options", async (req) => {
     const { pseudo } = (req.body ?? {}) as { pseudo?: string };
     const nom = (pseudo || "").trim().toLowerCase();
-    const personne = nom ? await depot.findByPseudo(base, nom) : null;
+    const personne = nom ? await store.findByPseudo(db, nom) : null;
 
     /* UN PSEUDONYME INCONNU REÇOIT LA MÊME RÉPONSE QU'UN CONNU. Répondre
        « ce compte n'existe pas » ferait de cette route un annuaire :
        n'importe qui pourrait savoir qui est inscrit. On propose donc la
        cérémonie dans tous les cas, et c'est la signature qui échouera. */
-    const cles = personne ? await depot.keysOf(base, personne.id) : [];
+    const cles = personne ? await store.keysOf(db, personne.id) : [];
     const options = await generateAuthenticationOptions({
-      rpID: domaine,
+      rpID: domain,
       allowCredentials: cles.map((c) => ({ id: c.id, transports: c.transports as never })),
       userVerification: "preferred",
     });
 
-    const defi = await depot.setChallenge(base, options.challenge, {
+    const defi = await store.setChallenge(db, options.challenge, {
       personneId: personne?.id,
     });
     return { defi, options };
@@ -282,17 +282,17 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
 
   app.post("/auth/connexion/verification", async (req, reply) => {
     const { defi, reponse } = (req.body ?? {}) as { defi?: string; reponse?: { id?: string } };
-    const attendu = defi ? await depot.consumeChallenge(base, defi) : null;
+    const attendu = defi ? await store.consumeChallenge(db, defi) : null;
     if (!attendu) return reply.code(400).send({ erreur: "Défi inconnu ou expiré." });
 
-    const cle = reponse?.id ? await depot.keyById(base, reponse.id) : null;
+    const cle = reponse?.id ? await store.keyById(db, reponse.id) : null;
     if (!cle) return reply.code(401).send({ erreur: "Clé inconnue." });
 
     const v = await verifyAuthenticationResponse({
       response: reponse as never,
       expectedChallenge: attendu.valeur,
-      expectedOrigin: origines,
-      expectedRPID: domaine,
+      expectedOrigin: origins,
+      expectedRPID: domain,
       credential: {
         id: cle.id,
         publicKey: new Uint8Array(cle.cle_publique),
@@ -302,11 +302,11 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     });
     if (!v.verified) return reply.code(401).send({ erreur: "Signature refusée." });
 
-    await depot.recordUsage(base, cle.id, v.authenticationInfo.newCounter);
-    const personne = await depot.findById(base, cle.personne_id);
+    await store.recordUsage(db, cle.id, v.authenticationInfo.newCounter);
+    const personne = await store.findById(db, cle.personne_id);
     if (!personne) return reply.code(401).send({ erreur: "Compte introuvable." });
 
-    await setCookie(reply, await depot.openSession(base, personne.id));
+    await setCookie(reply, await store.openSession(db, personne.id));
     return { personne };
   });
 
@@ -317,12 +317,12 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
   app.get("/moi", async (req, reply) => {
     const personne = await whoIs(req);
     if (!personne) return reply.code(401).send({ erreur: "Personne." });
-    return { personne, fiches: await depot.countCards(base, personne.id) };
+    return { personne, fiches: await store.countCards(db, personne.id) };
   });
 
   app.post("/deconnexion", async (req, reply) => {
     const secret = req.cookies[COOKIE];
-    if (secret) await depot.closeSession(base, secret);
+    if (secret) await store.closeSession(db, secret);
     reply.clearCookie(COOKIE, { path: "/" });
     return { fait: true };
   });
@@ -343,7 +343,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
       return reply.code(400).send({ erreur: "Rang de départ illisible." });
     }
 
-    const fiches = await depot.cardsSince(base, personne.id, rang);
+    const fiches = await store.cardsSince(db, personne.id, rang);
     /* `jusqua` EST UN RANG, PAS UNE HEURE. C'est le numéro d'ordre de la
        dernière fiche rendue : le client le renvoie tel quel au prochain
        tirage, et n'a aucune horloge à comparer avec le serveur.
@@ -397,7 +397,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
         illisibles += 1;
         continue;
       }
-      const ecrite = await depot.storeCard(base, personne.id, {
+      const ecrite = await store.storeCard(db, personne.id, {
         id,
         tmdbId: f.tmdbId == null ? null : String(f.tmdbId),
         cachee: f.cachee === true,
@@ -428,7 +428,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     if (!Number.isFinite(rang) || rang < 0) {
       return reply.code(400).send({ erreur: "Rang de départ illisible." });
     }
-    const docs = await depot.docsSince(base, personne.id, rang);
+    const docs = await store.docsSince(db, personne.id, rang);
     return {
       jusqua: docs.length ? Number(docs[docs.length - 1]!.seq) : rang,
       encore: docs.length === 200,
@@ -461,7 +461,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
         illisibles += 1;
         continue;
       }
-      const ecrit = await depot.storeDoc(base, personne.id, {
+      const ecrit = await store.storeDoc(db, personne.id, {
         cle,
         contenu: d.contenu ?? null,
         majLe: new Date(majLe),
@@ -507,7 +507,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
        compris celui qu'on avait justement voulu couper en repassant en
        privé. Se raviser doit vouloir dire quelque chose. */
     const jeton = partage === "lien" ? randomBytes(16).toString("base64url") : null;
-    await depot.setSharing(base, personne.id, partage!, jeton);
+    await store.setSharing(db, personne.id, partage!, jeton);
     return { partage, jeton };
   });
 
@@ -524,14 +524,14 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
      collection pour rien. */
   app.get("/fiches-cachees", async (req) => {
     const personne = await requireAccount(req);
-    return { ids: await depot.hiddenCards(base, personne.id) };
+    return { ids: await store.hiddenCards(db, personne.id) };
   });
 
   app.put("/fiche/:id/cachee", async (req, reply) => {
     const personne = await requireAccount(req);
     const { id } = req.params as { id: string };
     const { cachee } = (req.body ?? {}) as { cachee?: boolean };
-    const fait = await depot.hideCard(base, personne.id, id, cachee === true);
+    const fait = await store.hideCard(db, personne.id, id, cachee === true);
     if (!fait) return reply.code(404).send({ erreur: "Fiche inconnue." });
     return { id, cachee: cachee === true };
   });
@@ -543,7 +543,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
       return reply.code(404).send({ erreur: "Pas de collection à cette adresse." });
     }
 
-    const vue = await depot.publicCollectionOf(base, pseudo.toLowerCase(), jeton ?? null);
+    const vue = await store.publicCollectionOf(db, pseudo.toLowerCase(), jeton ?? null);
     /* LE MÊME 404 DANS LES TROIS CAS : compte inexistant, compte qui ne
        partage pas, jeton faux. Distinguer renseignerait un inconnu sur
        qui est inscrit et sur qui garde une collection secrète — deux
@@ -567,7 +567,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     /* On lit la session sans l'exiger : connecté, on saura si l'on suit
        déjà ; sinon le profil se consulte quand même. */
     const moi = await whoIs(req);
-    const profil = await depot.publicProfileOf(base, pseudo.toLowerCase(), moi?.id);
+    const profil = await store.publicProfileOf(db, pseudo.toLowerCase(), moi?.id);
     /* MÊME RÉPONSE POUR « N'EXISTE PAS » ET « NE SE MONTRE PAS ». On ne
        peut trouver que des gens qui ont choisi d'être trouvables. */
     if (!profil) return reply.code(404).send({ erreur: "Personne." });
@@ -576,34 +576,34 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
 
   app.get("/abonnements", async (req) => {
     const personne = await requireAccount(req);
-    return { abonnements: await depot.subscriptionsOf(base, personne.id) };
+    return { subscriptions: await store.subscriptionsOf(db, personne.id) };
   });
 
   app.put("/abonnements/:pseudo", async (req, reply) => {
     const personne = await requireAccount(req);
     const { pseudo } = req.params as { pseudo: string };
-    const cible = await depot.publicProfileOf(base, (pseudo || "").toLowerCase(), personne.id);
+    const cible = await store.publicProfileOf(db, (pseudo || "").toLowerCase(), personne.id);
     /* On ne peut suivre que ce qui se montre : suivre une collection
        fermée serait s'abonner à un silence, et dirait au passage
        qu'elle existe. Un blocage referme de la même façon — c'est le
        profil qui n'existe plus, et non une interdiction annoncée. */
     if (!cible) return reply.code(404).send({ erreur: "Personne." });
 
-    const vise = await depot.findByPseudo(base, cible.pseudo);
+    const vise = await store.findByPseudo(db, cible.pseudo);
     if (!vise || vise.id === personne.id) {
       return reply.code(400).send({ erreur: "On ne se suit pas soi-même." });
     }
-    await depot.suivre(base, personne.id, vise.id);
+    await store.suivre(db, personne.id, vise.id);
     return { pseudo: cible.pseudo, suivi: true };
   });
 
   app.delete("/abonnements/:pseudo", async (req, reply) => {
     const personne = await requireAccount(req);
     const { pseudo } = req.params as { pseudo: string };
-    const vise = await depot.findByPseudo(base, (pseudo || "").toLowerCase());
+    const vise = await store.findByPseudo(db, (pseudo || "").toLowerCase());
     /* Se désabonner de quelqu'un qui s'est refermé doit RESTER possible :
        on ne passe donc pas par le profil public, qui n'existerait plus. */
-    if (vise) await depot.unfollow(base, personne.id, vise.id);
+    if (vise) await store.unfollow(db, personne.id, vise.id);
     return reply.send({ pseudo, suivi: false });
   });
 
@@ -615,7 +615,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
       return reply.code(400).send({ erreur: "Borne illisible." });
     }
 
-    const nouvelles = await depot.feedOf(base, personne.id, borne);
+    const nouvelles = await store.feedOf(db, personne.id, borne);
     return {
       /* Le rang de la dernière nouvelle rendue : le client le renvoie
          pour lire la suite, sans se demander l'heure qu'il est. */
@@ -649,7 +649,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     if (!/^[0-9]{1,12}$/.test(tmdbId || "")) {
       return reply.code(400).send({ erreur: "Identifiant d'œuvre illisible." });
     }
-    return depot.echoOfWork(base, tmdbId, personne.id);
+    return store.echoOfWork(db, tmdbId, personne.id);
   });
 
   /* ------------------------------------------------------------
@@ -661,7 +661,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
 
   app.get("/blocages", async (req) => {
     const personne = await requireAccount(req);
-    return { blocages: await depot.myBlocks(base, personne.id) };
+    return { blocages: await store.myBlocks(db, personne.id) };
   });
 
   app.put("/blocages/:pseudo", async (req, reply) => {
@@ -671,20 +671,20 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
        s'est refermé après coup doit rester blocable, sans quoi il
        suffirait de passer en privé pour redevenir inbloquable puis
        ressortir. */
-    const vise = await depot.findByPseudo(base, (pseudo || "").toLowerCase());
+    const vise = await store.findByPseudo(db, (pseudo || "").toLowerCase());
     if (!vise) return reply.code(404).send({ erreur: "Personne." });
     if (vise.id === personne.id) {
       return reply.code(400).send({ erreur: "On ne se bloque pas soi-même." });
     }
-    await depot.block(base, personne.id, vise.id);
+    await store.block(db, personne.id, vise.id);
     return { pseudo: vise.pseudo, bloque: true };
   });
 
   app.delete("/blocages/:pseudo", async (req, reply) => {
     const personne = await requireAccount(req);
     const { pseudo } = req.params as { pseudo: string };
-    const vise = await depot.findByPseudo(base, (pseudo || "").toLowerCase());
-    if (vise) await depot.unblock(base, personne.id, vise.id);
+    const vise = await store.findByPseudo(db, (pseudo || "").toLowerCase());
+    if (vise) await store.unblock(db, personne.id, vise.id);
     /* Débloquer ne réabonne à personne : le lien a été défait, il se
        refait à la main. Reconstituer un abonnement qu'on a coupé serait
        décider à la place de quelqu'un. */
@@ -698,18 +698,18 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
       fiche?: string;
       motif?: string;
     };
-    const texte = (motif || "").trim();
-    if (!texte || texte.length > 500) {
+    const text = (motif || "").trim();
+    if (!text || text.length > 500) {
       return reply.code(400).send({ erreur: "Dites en une phrase ce qui ne va pas." });
     }
-    const vise = pseudo ? await depot.findByPseudo(base, pseudo.toLowerCase()) : null;
+    const vise = pseudo ? await store.findByPseudo(db, pseudo.toLowerCase()) : null;
     if (!vise) return reply.code(404).send({ erreur: "Personne." });
 
-    const neuf = await depot.signaler(base, personne.id, {
+    const neuf = await store.signaler(db, personne.id, {
       cibleType: "fiche",
       cibleId: String(fiche || ""),
       viseId: vise.id,
-      motif: texte,
+      motif: text,
     });
     /* LA MÊME RÉPONSE QUE CE SOIT LE PREMIER SIGNALEMENT OU LE
        DIXIÈME : « c'est noté » est vrai dans les deux cas, et savoir
@@ -732,7 +732,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
       reply.code(404).send({ erreur: "Liste inconnue." });
       return null;
     }
-    const droits = await depot.rightsOnList(base, id, personneId);
+    const droits = await store.rightsOnList(db, id, personneId);
     /* PAS DE 403 : une liste qu'on n'a pas le droit de lire répond
        comme une liste qui n'existe pas. Distinguer dirait à un inconnu
        que tel identifiant désigne quelque chose. */
@@ -745,7 +745,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
 
   app.get("/listes", async (req) => {
     const personne = await requireAccount(req);
-    return { listes: await depot.myLists(base, personne.id) };
+    return { listes: await store.myLists(db, personne.id) };
   });
 
   app.post("/listes", async (req, reply) => {
@@ -759,7 +759,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     if (!nom || nom.length > 120) {
       return reply.code(400).send({ erreur: "Il faut un titre, de 1 à 120 caractères." });
     }
-    const id = await depot.createList(base, personne.id, {
+    const id = await store.createList(db, personne.id, {
       titre: nom,
       intention: (intention || "").trim(),
       publique: publique === true,
@@ -772,14 +772,14 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     const droits = await droitsOu404(req, reply, personne.id);
     if (!droits) return reply;
 
-    const liste = await depot.listById(base, droits.liste_id);
+    const liste = await store.listById(db, droits.liste_id);
     return {
       liste: { ...liste, mienne: droits.administrer, membre: droits.ecrire },
-      oeuvres: await depot.worksOf(base, droits.liste_id),
+      oeuvres: await store.worksOf(db, droits.liste_id),
       /* Les co-constructeurs ne se montrent qu'à ceux qui écrivent
          dedans : un visiteur d'une liste publique lit des films, pas la
          liste des gens qui la tiennent. */
-      membres: droits.ecrire ? await depot.membersOf(base, droits.liste_id) : [],
+      membres: droits.ecrire ? await store.membersOf(db, droits.liste_id) : [],
     };
   });
 
@@ -802,7 +802,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     if (titre !== undefined && !(titre.trim() && titre.trim().length <= 120)) {
       return reply.code(400).send({ erreur: "Il faut un titre, de 1 à 120 caractères." });
     }
-    await depot.editList(base, droits.liste_id, {
+    await store.editList(db, droits.liste_id, {
       titre: titre?.trim(),
       intention: intention?.trim(),
       publique,
@@ -816,7 +816,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     if (!droits) return reply;
     if (!droits.administrer)
       return reply.code(403).send({ erreur: "Cette liste n'est pas vôtre." });
-    await depot.deleteList(base, droits.liste_id);
+    await store.deleteList(db, droits.liste_id);
     return { efface: true };
   });
 
@@ -834,7 +834,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     if (!/^[0-9]{1,12}$/.test(String(tmdbId ?? ""))) {
       return reply.code(400).send({ erreur: "Une œuvre se désigne par son identifiant TMDB." });
     }
-    const neuf = await depot.addToList(base, droits.liste_id, personne.id, {
+    const neuf = await store.addToList(db, droits.liste_id, personne.id, {
       tmdbId: String(tmdbId),
       titre: (titre || "").slice(0, 200),
       annee: annee ? String(annee).slice(0, 8) : null,
@@ -848,7 +848,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     if (!droits) return reply;
     if (!droits.ecrire) return reply.code(403).send({ erreur: "On ne vous a rien demandé ici." });
     const { tmdbId } = req.params as { tmdbId: string };
-    await depot.removeFromList(base, droits.liste_id, tmdbId);
+    await store.removeFromList(db, droits.liste_id, tmdbId);
     return { retire: true };
   });
 
@@ -860,7 +860,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
       return reply.code(403).send({ erreur: "Cette liste n'est pas vôtre." });
 
     const { pseudo } = req.params as { pseudo: string };
-    const invite = await depot.findByPseudo(base, (pseudo || "").toLowerCase());
+    const invite = await store.findByPseudo(db, (pseudo || "").toLowerCase());
     if (!invite) return reply.code(404).send({ erreur: "Personne." });
     if (invite.id === personne.id) {
       return reply.code(400).send({ erreur: "Vous y écrivez déjà." });
@@ -868,10 +868,10 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     /* On n'invite pas quelqu'un qu'on a fait taire, ni quelqu'un qui
        nous a fait taire : ce serait rouvrir par une porte de côté ce
        qu'un blocage vient de fermer. */
-    if (await depot.bloques(base, personne.id, invite.id)) {
+    if (await store.bloques(db, personne.id, invite.id)) {
       return reply.code(404).send({ erreur: "Personne." });
     }
-    await depot.inviteToList(base, droits.liste_id, invite.id);
+    await store.inviteToList(db, droits.liste_id, invite.id);
     return { pseudo: invite.pseudo, membre: true };
   });
 
@@ -880,7 +880,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     const droits = await droitsOu404(req, reply, personne.id);
     if (!droits) return reply;
     const { pseudo } = req.params as { pseudo: string };
-    const vise = await depot.findByPseudo(base, (pseudo || "").toLowerCase());
+    const vise = await store.findByPseudo(db, (pseudo || "").toLowerCase());
     if (!vise) return reply.code(404).send({ erreur: "Personne." });
     /* Le propriétaire renvoie qui il veut ; un membre ne peut renvoyer
        que lui-même. Partir d'une liste ne demande la permission de
@@ -888,7 +888,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     if (!droits.administrer && vise.id !== personne.id) {
       return reply.code(403).send({ erreur: "Cette liste n'est pas vôtre." });
     }
-    await depot.removeMemberFromList(base, droits.liste_id, vise.id);
+    await store.removeMemberFromList(db, droits.liste_id, vise.id);
     return { pseudo: vise.pseudo, membre: false };
   });
 
@@ -900,7 +900,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
 
   app.get("/defis", async (req) => {
     const personne = await requireAccount(req);
-    return { defis: await depot.myChallenges(base, personne.id) };
+    return { defis: await store.myChallenges(db, personne.id) };
   });
 
   app.post("/defis", async (req, reply) => {
@@ -922,11 +922,11 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
        n'importe qui lance un défi sur la liste publique d'un inconnu,
        qui le verrait apparaître sans l'avoir voulu. */
     const droits = UUID.test(listeId || "")
-      ? await depot.rightsOnList(base, listeId!, personne.id)
+      ? await store.rightsOnList(db, listeId!, personne.id)
       : null;
     if (!droits?.ecrire) return reply.code(404).send({ erreur: "Liste inconnue." });
 
-    const id = await depot.createChallenge(base, personne.id, {
+    const id = await store.createChallenge(db, personne.id, {
       listeId: droits.liste_id,
       titre: nom,
       debut: debut!,
@@ -938,43 +938,43 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
   app.get("/defis/:id", async (req, reply) => {
     const personne = await requireAccount(req);
     const { id } = req.params as { id: string };
-    const defi = UUID.test(id || "") ? await depot.challengeById(base, id) : null;
+    const defi = UUID.test(id || "") ? await store.challengeById(db, id) : null;
     if (!defi) return reply.code(404).send({ erreur: "Défi inconnu." });
     /* Le droit de voir un défi est celui de voir sa liste : il n'y a
        pas deux confidentialités à tenir d'accord. */
-    const droits = await depot.rightsOnList(base, defi.liste_id, personne.id);
+    const droits = await store.rightsOnList(db, defi.liste_id, personne.id);
     if (!droits?.lire) return reply.code(404).send({ erreur: "Défi inconnu." });
 
     return {
       defi,
-      oeuvres: await depot.worksOf(base, defi.liste_id),
+      oeuvres: await store.worksOf(db, defi.liste_id),
       /* L'AVANCEMENT NE SORT DU JOURNAL QU'EN NOMBRE. Le journal des
          séances ne quitte jamais une collection ; ici il ne quitte rien
          non plus — on compte, on ne recopie pas. Et l'on ne compte que
          des gens qui ont demandé à participer. */
-      avancement: await depot.progressOf(base, defi.id),
+      avancement: await store.progressOf(db, defi.id),
     };
   });
 
   app.delete("/defis/:id", async (req, reply) => {
     const personne = await requireAccount(req);
     const { id } = req.params as { id: string };
-    const defi = UUID.test(id || "") ? await depot.challengeById(base, id) : null;
+    const defi = UUID.test(id || "") ? await store.challengeById(db, id) : null;
     if (!defi) return reply.code(404).send({ erreur: "Défi inconnu." });
-    const droits = await depot.rightsOnList(base, defi.liste_id, personne.id);
+    const droits = await store.rightsOnList(db, defi.liste_id, personne.id);
     if (!droits?.administrer) return reply.code(403).send({ erreur: "Ce défi n'est pas vôtre." });
-    await depot.deleteChallenge(base, defi.id);
+    await store.deleteChallenge(db, defi.id);
     return { efface: true };
   });
 
   app.put("/defis/:id/participation", async (req, reply) => {
     const personne = await requireAccount(req);
     const { id } = req.params as { id: string };
-    const defi = UUID.test(id || "") ? await depot.challengeById(base, id) : null;
+    const defi = UUID.test(id || "") ? await store.challengeById(db, id) : null;
     if (!defi) return reply.code(404).send({ erreur: "Défi inconnu." });
-    const droits = await depot.rightsOnList(base, defi.liste_id, personne.id);
+    const droits = await store.rightsOnList(db, defi.liste_id, personne.id);
     if (!droits?.lire) return reply.code(404).send({ erreur: "Défi inconnu." });
-    await depot.joinChallenge(base, defi.id, personne.id);
+    await store.joinChallenge(db, defi.id, personne.id);
     return { dedans: true };
   });
 
@@ -985,7 +985,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     /* Partir se fait TOUJOURS, sans vérifier qu'on avait le droit
        d'entrer : quelqu'un dont la liste s'est refermée doit pouvoir
        sortir d'un décompte qui le mesure encore. */
-    await depot.leaveChallenge(base, id, personne.id);
+    await store.leaveChallenge(db, id, personne.id);
     return { dedans: false };
   });
 
@@ -1000,14 +1000,14 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
        la moindre des choses. */
     return {
       personne,
-      fiches: await depot.cardsSince(base, personne.id, 0, 100000),
-      documents: await depot.docsSince(base, personne.id, 0, 100000),
+      fiches: await store.cardsSince(db, personne.id, 0, 100000),
+      documents: await store.docsSince(db, personne.id, 0, 100000),
     };
   });
 
   app.delete("/mon-compte", async (req, reply) => {
     const personne = await requireAccount(req);
-    await depot.deletePerson(base, personne.id);
+    await store.deletePerson(db, personne.id);
     reply.clearCookie(COOKIE, { path: "/" });
     return { efface: true };
   });
@@ -1038,7 +1038,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     if (!point || !/^https:\/\//.test(point) || !p256dh || !secret) {
       return reply.code(400).send({ erreur: "Abonnement illisible." });
     }
-    await depot.storePush(base, personne.id, { point, p256dh, secret });
+    await store.storePush(db, personne.id, { point, p256dh, secret });
     return { abonne: true };
   });
 
@@ -1048,7 +1048,7 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     /* On efface par le POINT et non par le compte : un ordinateur
        partagé ne doit pas faire taire le téléphone de la même
        personne. */
-    if (point) await depot.forgetPush(base, point);
+    if (point) await store.forgetPush(db, point);
     return reply.send({ abonne: false });
   });
 
@@ -1079,9 +1079,8 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
     app.post("/dev/session", async (req, reply) => {
       const { pseudo } = (req.body ?? {}) as { pseudo?: string };
       const nom = (pseudo || `dev-${Date.now().toString(36)}`).toLowerCase();
-      const personne =
-        (await depot.findByPseudo(base, nom)) ?? (await depot.createPerson(base, nom));
-      setCookie(reply, await depot.openSession(base, personne.id));
+      const personne = (await store.findByPseudo(db, nom)) ?? (await store.createPerson(db, nom));
+      setCookie(reply, await store.openSession(db, personne.id));
       return { personne, avertissement: "porte de développement" };
     });
   }
@@ -1108,14 +1107,14 @@ export async function buildApp(reglages: Settings): Promise<FastifyInstance> {
      moment de s'arrêter, sinon `npm run dev` refuse de rendre la main. */
   const balai = setInterval(
     () => {
-      depot.sweepChallenges(base).catch(() => {});
+      store.sweepChallenges(db).catch(() => {});
       /* LES RAPPELS PASSENT PAR LE MÊME BALAI, à l'heure : un défi qui
          commence aujourd'hui est annoncé aujourd'hui, et la table des
          rappels déjà dits empêche les vingt-trois autres passages de le
          redire. Un vrai ordonnanceur serait une dépendance de plus pour
          un serveur qui tourne sur une machine de bureau. */
-      remindChallenges(base)
-        .then(({ dits }) => dits && console.log(`  ${dits} rappel(s) de défi envoyé(s)`))
+      remindChallenges(db)
+        .then(({ told }) => told && console.log(`  ${told} rappel(s) de défi envoyé(s)`))
         .catch((e) => console.error("rappels :", e));
     },
     60 * 60 * 1000

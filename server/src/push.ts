@@ -1,101 +1,103 @@
 /* ============================================================
-   LES NOTIFICATIONS POUSSÉES — une par mois, au plus
+   PUSH NOTIFICATIONS — one a month, at most
    ============================================================
 
-   UNE SEULE RAISON DE SONNER : un défi qui commence, un défi qui
-   s'achève. Pas de « quelqu'un que vous suivez a noté un film », pas de
-   « revenez, votre collection vous attend ». Une application qui se
-   trouve des motifs de sonner finit désinstallée, et le classeur
-   deviendrait ce qu'il refuse d'être depuis le premier jour.
+   ONE REASON ONLY TO RING: a challenge that starts, a challenge that
+   ends. No "someone you follow rated a film", no "come back, your
+   collection is waiting". An application that finds itself reasons to
+   ring ends up uninstalled, and the binder would become the thing it has
+   refused to be since day one.
 
-   ELLES SONT FACULTATIVES DE BOUT EN BOUT. Sans clés VAPID posées, ce
-   module se tait, les routes répondent « pas de service », et rien
-   d'autre ne change. Le serveur est déjà un confort ; ceci est un
-   confort du confort.
+   THEY ARE OPTIONAL FROM END TO END. With no VAPID keys set, this module
+   stays quiet, the routes answer "no service", and nothing else changes.
+   The server is already a comfort; this is a comfort on top of a comfort.
 
-   CE QUE LE SERVEUR PEUT ET NE PEUT PAS. Il pousse vers un point que le
-   navigateur lui a donné, chiffré avec des clés que le navigateur a
-   fabriquées. Il ne sait pas si le message a été lu, ni si l'appareil
-   est allumé ; il apprend seulement, par un 404 ou un 410, qu'un
-   abonnement est mort — et l'efface alors, plutôt que de réessayer
-   jusqu'à la fin des temps.
+   WHAT THE SERVER CAN AND CANNOT DO. It pushes to an endpoint the browser
+   gave it, encrypted with keys the browser made. It does not know whether
+   the message was read, nor whether the device is switched on; it only
+   learns, from a 404 or a 410, that a subscription is dead — and erases
+   it then, rather than retrying until the end of time.
    ============================================================ */
 import webpush from "web-push";
 import type { Db } from "./db.ts";
-import * as depot from "./store.ts";
+import * as store from "./store.ts";
 
 export interface Vapid {
-  publique: string;
-  privee: string;
-  /** À qui le service de push doit écrire en cas d'ennui. */
+  publicKey: string;
+  privateKey: string;
+  /** Whom the push service should write to if there is trouble. */
   contact: string;
 }
 
-let reglee: Vapid | null = null;
+let configured: Vapid | null = null;
 
 export function configurePush(v: Vapid | null): void {
-  reglee = v;
-  if (v) webpush.setVapidDetails(v.contact, v.publique, v.privee);
+  configured = v;
+  if (v) webpush.setVapidDetails(v.contact, v.publicKey, v.privateKey);
 }
 
-export const pushAvailable = (): boolean => reglee !== null;
-export const publicKeyForPush = (): string | null => reglee?.publique ?? null;
+export const pushAvailable = (): boolean => configured !== null;
+export const publicKeyForPush = (): string | null => configured?.publicKey ?? null;
 
 /**
- * Pousse un message à tous les appareils de quelqu'un.
+ * Pushes a message to all of somebody's devices.
  *
- * Rend le nombre d'appareils atteints. Les abonnements morts sont
- * effacés au passage : c'est le seul moment où l'on apprend qu'ils le
- * sont, et ne pas le faire ici les garderait pour toujours.
+ * Returns the number of devices reached. Dead subscriptions are erased on
+ * the way: this is the only moment we learn that they are dead, and not
+ * doing it here would keep them forever.
  */
 export async function pushTo(
-  base: Db,
+  db: Db,
   personneId: string,
+  /* `titre` and `corps` STAY FRENCH: they are the payload the browser's
+     service worker reads (`public/push.js` shows `m.titre` and `m.corps`).
+     Renaming them here would silence every notification, and neither side
+     would report an error. */
   message: { titre: string; corps: string; url?: string }
 ): Promise<number> {
-  if (!reglee) return 0;
-  const abonnements = await depot.pushesOf(base, personneId);
-  let atteints = 0;
+  if (!configured) return 0;
+  const subscriptions = await store.pushesOf(db, personneId);
+  let reached = 0;
 
-  for (const a of abonnements) {
+  for (const a of subscriptions) {
     try {
       await webpush.sendNotification(
         { endpoint: a.point, keys: { p256dh: a.p256dh, auth: a.secret } },
         JSON.stringify(message)
       );
-      atteints += 1;
+      reached += 1;
     } catch (e) {
       const code = (e as { statusCode?: number }).statusCode;
-      /* 404 et 410 : ce point n'existe plus — navigateur désinstallé,
-         permission retirée, abonnement expiré. Toute autre erreur est
-         passagère (le service de push est en panne, le réseau est
-         coupé) et ne doit surtout pas faire perdre l'abonnement. */
-      if (code === 404 || code === 410) await depot.forgetPush(base, a.point);
+      /* 404 and 410: that endpoint no longer exists — browser
+         uninstalled, permission withdrawn, subscription expired. Any
+         other error is transient (the push service is down, the network
+         is cut) and must on no account lose the subscription. */
+      if (code === 404 || code === 410) await store.forgetPush(db, a.point);
     }
   }
-  return atteints;
+  return reached;
 }
 
 /**
- * Le balayage quotidien : les défis qui commencent ou s'achèvent.
+ * The daily sweep: the challenges that start or end.
  *
- * Rend ce qu'il a fait, pour que l'appelant puisse le journaliser sans
- * que ce module ait à connaître un journal.
+ * Returns what it did, so the caller can log it without this module
+ * having to know about a log.
  */
-export async function remindChallenges(base: Db): Promise<{ dits: number; appareils: number }> {
-  if (!reglee) return { dits: 0, appareils: 0 };
-  let dits = 0;
-  let appareils = 0;
+export async function remindChallenges(db: Db): Promise<{ told: number; devices: number }> {
+  if (!configured) return { told: 0, devices: 0 };
+  let told = 0;
+  let devices = 0;
 
-  for (const r of await depot.remindersDueToday(base)) {
-    /* Le verrou est l'insertion, pas une vérification : deux balayages
-       simultanés — un redémarrage pendant un envoi — passeraient tous
-       les deux au travers d'un simple « est-ce déjà dit ? ». */
-    const sujet = `epreuve:${r.epreuve_id}:${r.quand}`;
-    if (!(await depot.reminderIsNew(base, r.personne_id, sujet))) continue;
+  for (const r of await store.remindersDueToday(db)) {
+    /* The lock is the insert, not a check: two simultaneous sweeps — a
+       restart in the middle of a send — would both slip through a plain
+       "has this already been said?". */
+    const subject = `epreuve:${r.epreuve_id}:${r.quand}`;
+    if (!(await store.reminderIsNew(db, r.personne_id, subject))) continue;
 
-    dits += 1;
-    appareils += await pushTo(base, r.personne_id, {
+    told += 1;
+    devices += await pushTo(db, r.personne_id, {
       titre: r.quand === "debut" ? "Un défi commence" : "Dernier jour",
       corps:
         r.quand === "debut"
@@ -104,5 +106,5 @@ export async function remindChallenges(base: Db): Promise<{ dits: number; appare
       url: "#",
     });
   }
-  return { dits, appareils };
+  return { told, devices };
 }

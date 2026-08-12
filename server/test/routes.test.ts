@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { testApp, testDb, cookieOf } from "./helpers.ts";
-import * as depot from "../src/store.ts";
+import * as store from "../src/store.ts";
 import type { Db } from "../src/db.ts";
 import type { FastifyInstance } from "fastify";
 
@@ -20,24 +20,24 @@ import type { FastifyInstance } from "fastify";
    la même que la cérémonie aurait ouverte.
    ============================================================ */
 
-let base: Db;
+let db: Db;
 let app: FastifyInstance;
 
 /** Un compte et sa session, sans passer par la clé d'accès. */
-async function connecte(pseudo = "varda") {
-  const personne = await depot.createPerson(base, pseudo);
-  const secret = await depot.openSession(base, personne.id);
+async function signedIn(pseudo = "varda") {
+  const personne = await store.createPerson(db, pseudo);
+  const secret = await store.openSession(db, personne.id);
   return { personne, cookie: `session=${secret}` };
 }
 
 beforeEach(async () => {
-  base = await testDb();
-  app = await testApp(base);
+  db = await testDb();
+  app = await testApp(db);
 });
 
 afterEach(async () => {
   await app.close();
-  await base.close();
+  await db.close();
 });
 
 describe("la porte", () => {
@@ -58,7 +58,7 @@ describe("la porte", () => {
   });
 
   it("refuse un pseudonyme déjà pris, sans lancer de cérémonie", async () => {
-    await depot.createPerson(base, "varda");
+    await store.createPerson(db, "varda");
     const r = await app.inject({
       method: "POST",
       url: "/auth/inscription/options",
@@ -78,14 +78,14 @@ describe("la porte", () => {
     expect(options.challenge).toBeTruthy();
     /* Le client reçoit un jeton, pas le hasard : il ne peut donc pas
        choisir le défi qu'on lui demandera de signer. */
-    const range = await depot.consumeChallenge(base, defi);
+    const range = await store.consumeChallenge(db, defi);
     expect(range?.valeur).toBe(options.challenge);
   });
 
   it("ne dit pas qui est inscrit", async () => {
     /* Répondre « ce compte n'existe pas » ferait de cette route un
        annuaire de la communauté. */
-    await depot.createPerson(base, "connue");
+    await store.createPerson(db, "connue");
     const connue = await app.inject({
       method: "POST",
       url: "/auth/connexion/options",
@@ -140,7 +140,7 @@ describe("sans compte", () => {
 
 describe("la chaîne, de bout en bout", () => {
   it("pousse une fiche, la relit, et ne rend que ce qui a bougé", async () => {
-    const { cookie } = await connecte();
+    const { cookie } = await signedIn();
 
     const envoi = await app.inject({
       method: "PUT",
@@ -191,7 +191,7 @@ describe("la chaîne, de bout en bout", () => {
   });
 
   it("aucune fiche n'est écartée du partage par distraction", async () => {
-    const { cookie } = await connecte();
+    const { cookie } = await signedIn();
     await app.inject({
       method: "PUT",
       url: "/collection",
@@ -205,8 +205,8 @@ describe("la chaîne, de bout en bout", () => {
   });
 
   it("une collection ne voit pas celle du voisin", async () => {
-    const a = await connecte("duras");
-    const b = await connecte("godard");
+    const a = await signedIn("duras");
+    const b = await signedIn("godard");
     await app.inject({
       method: "PUT",
       url: "/collection",
@@ -223,7 +223,7 @@ describe("la chaîne, de bout en bout", () => {
   });
 
   it("un envoi trop gros est refusé plutôt qu'avalé", async () => {
-    const { cookie } = await connecte();
+    const { cookie } = await signedIn();
     const fiches = Array.from({ length: 501 }, (_, i) => ({
       id: `f${i}`,
       majLe: 1,
@@ -239,7 +239,7 @@ describe("la chaîne, de bout en bout", () => {
   });
 
   it("une fiche sans date ni identifiant est ignorée, pas fatale", async () => {
-    const { cookie } = await connecte();
+    const { cookie } = await signedIn();
     const r = await app.inject({
       method: "PUT",
       url: "/collection",
@@ -252,7 +252,7 @@ describe("la chaîne, de bout en bout", () => {
   it("le compte rendu distingue ce qui est écrit de ce qui est reçu", async () => {
     /* Un client qui vide sa file d'attente sur la foi de ce compte
        croirait avoir envoyé ce que la base a écarté. */
-    const { cookie } = await connecte();
+    const { cookie } = await signedIn();
     const pousser = (majLe: number, titre: string) =>
       app.inject({
         method: "PUT",
@@ -273,7 +273,7 @@ describe("la chaîne, de bout en bout", () => {
 
 describe("ce qui est à soi", () => {
   it("s'emporte en entier", async () => {
-    const { cookie } = await connecte("kiarostami");
+    const { cookie } = await signedIn("kiarostami");
     await app.inject({
       method: "PUT",
       url: "/collection",
@@ -287,7 +287,7 @@ describe("ce qui est à soi", () => {
   });
 
   it("et se reprend : le compte effacé, la session ne vaut plus rien", async () => {
-    const { cookie } = await connecte("pialat");
+    const { cookie } = await signedIn("pialat");
     const efface = await app.inject({ method: "DELETE", url: "/mon-compte", headers: { cookie } });
     expect(efface.json()).toEqual({ efface: true });
 
@@ -296,7 +296,7 @@ describe("ce qui est à soi", () => {
   });
 
   it("la déconnexion retire le cookie et la session", async () => {
-    const { cookie } = await connecte();
+    const { cookie } = await signedIn();
     const r = await app.inject({ method: "POST", url: "/deconnexion", headers: { cookie } });
     expect(cookieOf(r)).toMatch(/^session=/);
 

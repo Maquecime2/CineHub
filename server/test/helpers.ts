@@ -21,9 +21,9 @@ import { applySchema, type Db } from "../src/db.ts";
 
 export async function testDb(): Promise<Db> {
   const pg = new PGlite();
-  const base: Db = {
-    query: async <T>(texte: string, valeurs: unknown[] = []) => {
-      const r = await pg.query<T>(texte, valeurs as never[]);
+  const db: Db = {
+    query: async <T>(text: string, values: unknown[] = []) => {
+      const r = await pg.query<T>(text, values as never[]);
       return r.rows;
     },
     exec: async (script: string) => {
@@ -35,15 +35,15 @@ export async function testDb(): Promise<Db> {
     fileURLToPath(new URL("../sql/001_baseline.sql", import.meta.url)),
     "utf8"
   );
-  await applySchema(base, socle);
-  return base;
+  await applySchema(db, socle);
+  return db;
 }
 
-export async function testApp(base: Db, extra: { tmdbKey?: string; tmdbCeiling?: number } = {}) {
+export async function testApp(db: Db, extra: { tmdbKey?: string; tmdbCeiling?: number } = {}) {
   return buildApp({
-    base,
-    domaine: "localhost",
-    origine: "http://localhost:5173",
+    db,
+    domain: "localhost",
+    origin: "http://localhost:5173",
     secure: false,
     ...extra,
   });

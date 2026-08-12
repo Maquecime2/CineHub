@@ -1,30 +1,30 @@
 /* ============================================================
-   LES RELAIS — ce que le navigateur ne peut pas aller chercher seul
+   THE RELAYS — what the browser cannot go and fetch on its own
    ============================================================
 
-   Deux besoins qui n'ont rien à voir l'un avec l'autre, et deux
-   réponses différentes.
+   Two needs with nothing to do with each other, and two different
+   answers.
 
-   TMDB : le client porte une clé, et une clé dans un bundle JavaScript
-   est une clé publiée. N'importe qui peut l'extraire et s'en servir
-   jusqu'à ce qu'elle soit révoquée — au compte de celui qui l'a mise là.
-   Le relais la garde côté serveur, où elle n'est lisible par personne.
+   TMDB: the client carries a key, and a key in a JavaScript bundle is a
+   published key. Anybody can extract it and use it until it is revoked —
+   on the account of whoever put it there. The relay keeps it on the
+   server side, where nobody can read it.
 
-   LETTERBOXD : rien de secret, seulement un flux RSS qui ne porte aucun
-   en-tête d'autorisation d'origine. Le navigateur refuse donc de lire
-   la réponse. Le serveur, lui, n'est pas un navigateur : cette règle ne
-   le concerne pas. Jusqu'ici le client passait par un relais public
-   tiers, qui voyait passer chaque pseudonyme demandé.
+   LETTERBOXD: nothing secret, only an RSS feed that carries no
+   cross-origin authorisation header. So the browser refuses to read the
+   response. The server is not a browser: that rule does not concern it.
+   Until now the client went through a third-party public relay, which saw
+   every username asked for go past.
    ============================================================ */
 import type { FastifyInstance } from "fastify";
 
-/* CE QU'ON ACCEPTE DE RELAYER, ÉCRIT EN TOUTES LETTRES.
+/* WHAT WE AGREE TO RELAY, SPELLED OUT IN FULL.
 
-   Un relais qui transmet n'importe quel chemin est un relais ouvert :
-   on prête sa clé, son adresse IP et sa facture à qui passe. La liste
-   ci-dessous est exactement celle des appels que le client fait — onze
-   chemins, pas un de plus. Un chemin absent d'ici n'est pas relayé,
-   même s'il existe chez TMDB. */
+   A relay that forwards any path at all is an open relay: you lend your
+   key, your IP address and your bill to whoever comes along. The list
+   below is exactly the set of calls the client makes — eleven paths, not
+   one more. A path missing from here is not relayed, even if it exists at
+   TMDB. */
 const TMDB_PATHS: RegExp[] = [
   /^\/configuration$/,
   /^\/search\/movie$/,
@@ -42,39 +42,37 @@ const TMDB_PATHS: RegExp[] = [
 const TMDB = "https://api.themoviedb.org/3";
 
 /* ============================================================
-   LE RELAIS A SON PROPRE PLAFOND, ET IL LE FAUT
+   THE RELAY HAS ITS OWN CEILING, AND IT NEEDS ONE
    ============================================================
 
-   Le serveur limite à cent requêtes par minute et par adresse, ce qui
-   est juste pour des routes qui écrivent : personne ne range son
-   étagère cent fois par minute. Appliqué au relais, c'était faux, et
-   d'une façon qui ne se voit qu'à l'usage.
+   The server limits to a hundred requests per minute per address, which
+   is right for routes that write: nobody arranges their shelf a hundred
+   times a minute. Applied to the relay it was wrong, and wrong in a way
+   that only shows in use.
 
-   « Compléter les fiches » demande à TMDB UNE requête par film — deux
-   quand il faut d'abord le chercher — cinq à la fois. Sur une
-   collection de quelques centaines de fiches, les cent sont franchies
-   en quelques secondes, et TOUT le reste de la minute repart en 429 :
-   le remplissage, mais aussi la synchronisation et les documents, qui
-   partagent le compteur. Le classeur semblait alors cassé au moment
-   précis où il travaillait le mieux.
+   "Complete the cards" asks TMDB for ONE request per film — two when it
+   has to search for it first — five at a time. On a collection of a few
+   hundred cards, the hundred are crossed in seconds, and ALL the rest of
+   the minute comes back as 429: the filling in, but also the
+   synchronisation and the documents, which share the counter. The binder
+   then looked broken at the exact moment it was working best.
 
-   Le plafond ci-dessous ne protège donc pas des mêmes choses. Il ne
-   défend pas une base contre l'écriture en boucle, il défend une
-   FACTURE et un quota chez TMDB — dont la limite à lui se compte en
-   dizaines de requêtes par SECONDE. Dix par seconde laisse passer un
-   remplissage entier sans le hacher, et arrête encore net un client qui
-   tourne en rond.
+   So the ceiling below does not protect against the same things. It does
+   not defend a database against writing in a loop, it defends a BILL and
+   a quota at TMDB — whose own limit is counted in tens of requests per
+   SECOND. Ten a second lets a whole filling-in through without chopping
+   it up, and still stops dead a client going round in circles.
 
-   Réglable, parce que c'est la facture de celui qui héberge : voir
-   `TMDB_PAR_MINUTE` dans `index.ts`. */
+   Adjustable, because it is the bill of whoever hosts it: see
+   `TMDB_PER_MINUTE` in `index.ts`. */
 const DEFAULT_TMDB_CEILING = 600;
 
 export interface RelayOptions {
-  /** La clé TMDB. Absente, le relais répond « pas de service ici ». */
+  /** The TMDB key. Missing, the relay answers "no service here". */
   tmdbKey?: string;
-  /** Qui parle — le relais TMDB n'est ouvert qu'aux comptes. */
+  /** Who is speaking — the TMDB relay is open to accounts only. */
   requireAccount: (req: never) => Promise<unknown>;
-  /** Requêtes TMDB par minute et par adresse. Défaut : 600. */
+  /** TMDB requests per minute per address. Default: 600. */
   tmdbCeiling?: number;
 }
 
@@ -84,27 +82,27 @@ export function registerRelays(app: FastifyInstance, options: RelayOptions): voi
      ------------------------------------------------------------ */
   app.get(
     "/tmdb/*",
-    /* Surcharge le plafond global pour cette route seule — voir
-       `PLAFOND_TMDB_DEFAUT` ci-dessus pour ce qui la distingue des
-       autres. Le reste du serveur garde ses cent par minute. */
+    /* Overrides the global ceiling for this route alone — see
+       `DEFAULT_TMDB_CEILING` above for what sets it apart from the
+       others. The rest of the server keeps its hundred a minute. */
     {
       config: {
         rateLimit: { max: options.tmdbCeiling ?? DEFAULT_TMDB_CEILING, timeWindow: "1 minute" },
       },
     },
     async (req, reply) => {
-      /* IL FAUT UN COMPTE, ET C'EST LE PRIX DE LA CLÉ. Sans cette ligne,
-       le relais est un accès TMDB gratuit et anonyme pour la Terre
-       entière, sur notre quota. Un classeur sans compte garde donc sa
-       propre clé — c'est ce qu'il fait déjà, et il marche très bien. */
+      /* AN ACCOUNT IS REQUIRED, AND THAT IS THE PRICE OF THE KEY. Without
+       this line, the relay is free anonymous TMDB access for the whole
+       Earth, on our quota. A binder with no account therefore keeps its
+       own key — which is what it already does, and it works very well. */
       await options.requireAccount(req as never);
 
-      /* LA LISTE D'ABORD, LA CLÉ ENSUITE, et l'ordre est une question de
-       franchise : un chemin qu'on ne relaiera jamais doit s'entendre
-       dire ça, et non « il n'y a pas de clé ici » — qui laisserait
-       croire qu'avec une clé, ça passerait. */
-      const chemin = "/" + ((req.params as { "*"?: string })["*"] ?? "");
-      if (!TMDB_PATHS.some((r) => r.test(chemin))) {
+      /* THE LIST FIRST, THE KEY SECOND, and the order is a matter of
+       frankness: a path we will never relay must be told so, and not
+       "there is no key here" — which would suggest that with a key, it
+       would go through. */
+      const path = "/" + ((req.params as { "*"?: string })["*"] ?? "");
+      if (!TMDB_PATHS.some((r) => r.test(path))) {
         return reply.code(404).send({ erreur: "Ce chemin n'est pas relayé." });
       }
 
@@ -112,29 +110,30 @@ export function registerRelays(app: FastifyInstance, options: RelayOptions): voi
         return reply.code(503).send({ erreur: "Aucune clé TMDB de ce côté-ci." });
       }
 
-      /* LA CLÉ DU CLIENT EST JETÉE, PAS TRANSMISE. Il n'a rien à envoyer,
-       et s'il envoie quelque chose, ce n'est pas ce qui servira. */
+      /* THE CLIENT'S KEY IS THROWN AWAY, NOT FORWARDED. It has nothing to
+       send, and if it sends something, that is not what will be used. */
       const params = new URLSearchParams(req.query as Record<string, string>);
       params.delete("api_key");
       params.set("api_key", options.tmdbKey);
 
-      const rep = await fetch(`${TMDB}${chemin}?${params}`);
-      const texte = await rep.text();
-      /* On repasse le corps ET le code : un 404 de TMDB doit rester un 404
-         pour le client, sinon il retente indéfiniment un film qui n'existe
-         pas. Le 429 aussi, que le client sait déjà attendre.
+      const res = await fetch(`${TMDB}${path}?${params}`);
+      const text = await res.text();
+      /* We pass the body back AND the code: a 404 from TMDB must stay a
+         404 for the client, otherwise it retries a film that does not
+         exist indefinitely. The 429 too, which the client already knows
+         how to wait out.
 
-         ET SON DÉLAI AVEC, ce qui manquait pour que la phrase ci-dessus
-         soit vraie. Un 429 sans `retry-after` n'apprend rien : le client
-         retombe sur une attente inventée — une seconde, deux, trois — qui
-         n'a aucun rapport avec le temps qu'il faut réellement patienter.
-         TMDB dit ce délai ; le taire au passage revenait à le perdre. */
-      const delai = rep.headers.get("retry-after");
-      if (delai) reply.header("retry-after", delai);
+         AND ITS DELAY WITH IT, which was what the sentence above needed
+         to be true. A 429 with no `retry-after` teaches nothing: the
+         client falls back on an invented wait — one second, two, three —
+         that has no relation to how long it actually has to be patient.
+         TMDB says that delay; saying nothing about it lost it. */
+      const delay = res.headers.get("retry-after");
+      if (delay) reply.header("retry-after", delay);
       return reply
-        .code(rep.status)
-        .header("content-type", rep.headers.get("content-type") ?? "application/json")
-        .send(texte);
+        .code(res.status)
+        .header("content-type", res.headers.get("content-type") ?? "application/json")
+        .send(text);
     }
   );
 
@@ -143,22 +142,22 @@ export function registerRelays(app: FastifyInstance, options: RelayOptions): voi
      ------------------------------------------------------------ */
   app.get("/letterboxd/:pseudo", async (req, reply) => {
     const { pseudo } = req.params as { pseudo: string };
-    /* Un pseudonyme Letterboxd, et rien qui puisse fabriquer une autre
-       adresse : sans cette borne, le paramètre devient une machine à
-       faire visiter n'importe quoi à notre serveur. */
+    /* A Letterboxd username, and nothing that could build another
+       address: without this bound, the parameter becomes a machine for
+       making our server visit anything at all. */
     if (!/^[A-Za-z0-9_]{1,32}$/.test(pseudo)) {
       return reply.code(400).send({ erreur: "Pseudonyme Letterboxd improbable." });
     }
 
-    const rep = await fetch(`https://letterboxd.com/${pseudo}/rss/`, {
+    const res = await fetch(`https://letterboxd.com/${pseudo}/rss/`, {
       headers: { accept: "application/rss+xml, application/xml, text/xml" },
     });
-    if (!rep.ok) {
-      return reply.code(rep.status === 404 ? 404 : 502).send({
+    if (!res.ok) {
+      return reply.code(res.status === 404 ? 404 : 502).send({
         erreur:
-          rep.status === 404 ? "Pas de flux pour ce pseudonyme." : "Letterboxd n'a pas répondu.",
+          res.status === 404 ? "Pas de flux pour ce pseudonyme." : "Letterboxd n'a pas répondu.",
       });
     }
-    return reply.type("application/xml; charset=utf-8").send(await rep.text());
+    return reply.type("application/xml; charset=utf-8").send(await res.text());
   });
 }

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { testApp, testDb } from "./helpers.ts";
-import * as depot from "../src/store.ts";
+import * as store from "../src/store.ts";
 import type { Db } from "../src/db.ts";
 import type { FastifyInstance } from "fastify";
 
@@ -13,12 +13,12 @@ import type { FastifyInstance } from "fastify";
    voit pas depuis son propre écran.
    ============================================================ */
 
-let base: Db;
+let db: Db;
 let app: FastifyInstance;
 
 async function compte(pseudo: string) {
-  const personne = await depot.createPerson(base, pseudo);
-  const secret = await depot.openSession(base, personne.id);
+  const personne = await store.createPerson(db, pseudo);
+  const secret = await store.openSession(db, personne.id);
   return { personne, cookie: `session=${secret}` };
 }
 
@@ -29,13 +29,13 @@ const ouvrir = (cookie: string, partage = "publique") =>
   app.inject({ method: "PUT", url: "/partage", headers: { cookie }, payload: { partage } });
 
 beforeEach(async () => {
-  base = await testDb();
-  app = await testApp(base);
+  db = await testDb();
+  app = await testApp(db);
 });
 
 afterEach(async () => {
   await app.close();
-  await base.close();
+  await db.close();
 });
 
 describe("trouver quelqu'un", () => {
@@ -47,10 +47,10 @@ describe("trouver quelqu'un", () => {
     expect((await app.inject({ method: "GET", url: "/profils/varda" })).statusCode).toBe(200);
     /* Un compte privé répond comme un compte qui n'existe pas : sans
        cela, essayer des pseudonymes devient un annuaire. */
-    const privee = await app.inject({ method: "GET", url: "/profils/discrete" });
+    const privateKey = await app.inject({ method: "GET", url: "/profils/discrete" });
     const inconnue = await app.inject({ method: "GET", url: "/profils/jamais-vue" });
-    expect(privee.statusCode).toBe(inconnue.statusCode);
-    expect(privee.json()).toEqual(inconnue.json());
+    expect(privateKey.statusCode).toBe(inconnue.statusCode);
+    expect(privateKey.json()).toEqual(inconnue.json());
     expect(fermee).toBeTruthy();
   });
 
@@ -100,7 +100,7 @@ describe("suivre", () => {
       url: "/abonnements",
       headers: { cookie: moi.cookie },
     });
-    expect(liste.json().abonnements.map((a: { pseudo: string }) => a.pseudo)).toEqual(["varda"]);
+    expect(liste.json().subscriptions.map((a: { pseudo: string }) => a.pseudo)).toEqual(["varda"]);
   });
 
   it("on ne s'abonne pas à un silence", async () => {
@@ -146,7 +146,7 @@ describe("suivre", () => {
       url: "/abonnements",
       headers: { cookie: moi.cookie },
     });
-    expect(liste.json().abonnements).toEqual([]);
+    expect(liste.json().subscriptions).toEqual([]);
   });
 });
 

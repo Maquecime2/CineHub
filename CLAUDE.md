@@ -66,8 +66,8 @@ propres contrôles (`cd server && npm test && npm run typecheck`). Il n'est
 pas dans la liste ci-dessous : le client ne l'appelle pas encore, et il
 doit continuer de fonctionner entièrement hors ligne.
 
-- Le schéma est du **SQL qu'on lit** (`server/sql/001_socle.sql`), pas la
-  sortie d'un ORM. Les requêtes vivent toutes dans `server/src/depot.ts`,
+- Le schéma est du **SQL qu'on lit** (`server/sql/001_baseline.sql`), pas la
+  sortie d'un ORM. Les requêtes vivent toutes dans `server/src/store.ts`,
   en paramètres numérotés — une valeur passée en `$1` ne peut jamais
   devenir de la syntaxe.
 - Les tests du serveur parlent à un **vrai Postgres** compilé en

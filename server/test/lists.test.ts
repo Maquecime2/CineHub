@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { testApp, testDb } from "./helpers.ts";
-import * as depot from "../src/store.ts";
+import * as store from "../src/store.ts";
 import type { Db } from "../src/db.ts";
 import type { FastifyInstance } from "fastify";
 
@@ -19,12 +19,12 @@ import type { FastifyInstance } from "fastify";
    participer, et rien d'autre.
    ============================================================ */
 
-let base: Db;
+let db: Db;
 let app: FastifyInstance;
 
 async function compte(pseudo: string) {
-  const personne = await depot.createPerson(base, pseudo);
-  const secret = await depot.openSession(base, personne.id);
+  const personne = await store.createPerson(db, pseudo);
+  const secret = await store.openSession(db, personne.id);
   return { personne, cookie: `session=${secret}` };
 }
 
@@ -50,13 +50,13 @@ const lireListe = (cookie: string, liste: string) =>
   app.inject({ method: "GET", url: `/listes/${liste}`, headers: { cookie } });
 
 beforeEach(async () => {
-  base = await testDb();
-  app = await testApp(base);
+  db = await testDb();
+  app = await testApp(db);
 });
 
 afterEach(async () => {
   await app.close();
-  await base.close();
+  await db.close();
 });
 
 describe("une liste", () => {
@@ -333,9 +333,9 @@ describe("un défi", () => {
       url: `/defis/${id}`,
       headers: { cookie: moi.cookie },
     });
-    const texte = JSON.stringify(r.json());
-    expect(texte).not.toContain("SECRET");
-    expect(texte).not.toContain("2026-03-12");
+    const text = JSON.stringify(r.json());
+    expect(text).not.toContain("SECRET");
+    expect(text).not.toContain("2026-03-12");
   });
 
   it("qui le lance y participe", async () => {

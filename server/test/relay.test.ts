@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { testDb, testApp } from "./helpers.ts";
-import * as depot from "../src/store.ts";
+import * as store from "../src/store.ts";
 import type { Db } from "../src/db.ts";
 import type { FastifyInstance } from "fastify";
 
@@ -13,68 +13,68 @@ import type { FastifyInstance } from "fastify";
    qu'est tout l'enjeu : quelle adresse, avec quelle clé, et pour qui.
    ============================================================ */
 
-let base: Db;
+let db: Db;
 let app: FastifyInstance;
-let demandes: string[];
+let requests: string[];
 
-async function connecte(pseudo = "varda") {
-  const personne = await depot.createPerson(base, pseudo);
-  return `session=${await depot.openSession(base, personne.id)}`;
+async function signedIn(pseudo = "varda") {
+  const personne = await store.createPerson(db, pseudo);
+  return `session=${await store.openSession(db, personne.id)}`;
 }
 
 beforeEach(async () => {
-  base = await testDb();
-  demandes = [];
+  db = await testDb();
+  requests = [];
   vi.stubGlobal("fetch", async (url: string | URL) => {
-    demandes.push(String(url));
+    requests.push(String(url));
     return new Response('{"results":[]}', {
       status: 200,
       headers: { "content-type": "application/json" },
     });
   });
-  app = await testApp(base, { tmdbKey: "LA-CLE-DU-SERVEUR" });
+  app = await testApp(db, { tmdbKey: "LA-CLE-DU-SERVEUR" });
 });
 
 afterEach(async () => {
   vi.unstubAllGlobals();
   await app.close();
-  await base.close();
+  await db.close();
 });
 
 describe("le relais TMDB", () => {
   it("refuse qui n'a pas de compte : une clé prêtée à tous n'est plus une clé", async () => {
     const r = await app.inject({ method: "GET", url: "/tmdb/search/movie?query=cleo" });
     expect(r.statusCode).toBe(401);
-    expect(demandes).toEqual([]);
+    expect(requests).toEqual([]);
   });
 
   it("relaie un chemin connu, avec LA clé du serveur", async () => {
-    const cookie = await connecte();
+    const cookie = await signedIn();
     const r = await app.inject({
       method: "GET",
       url: "/tmdb/search/movie?query=cleo",
       headers: { cookie },
     });
     expect(r.statusCode).toBe(200);
-    expect(demandes).toHaveLength(1);
-    expect(demandes[0]).toContain("https://api.themoviedb.org/3/search/movie");
-    expect(demandes[0]).toContain("query=cleo");
-    expect(demandes[0]).toContain("api_key=LA-CLE-DU-SERVEUR");
+    expect(requests).toHaveLength(1);
+    expect(requests[0]).toContain("https://api.themoviedb.org/3/search/movie");
+    expect(requests[0]).toContain("query=cleo");
+    expect(requests[0]).toContain("api_key=LA-CLE-DU-SERVEUR");
   });
 
   it("jette la clé que le client aurait glissée dans sa requête", async () => {
-    const cookie = await connecte();
+    const cookie = await signedIn();
     await app.inject({
       method: "GET",
       url: "/tmdb/movie/42?api_key=LA-CLE-DE-QUELQUUN-DAUTRE",
       headers: { cookie },
     });
-    expect(demandes[0]).toContain("api_key=LA-CLE-DU-SERVEUR");
-    expect(demandes[0]).not.toContain("LA-CLE-DE-QUELQUUN-DAUTRE");
+    expect(requests[0]).toContain("api_key=LA-CLE-DU-SERVEUR");
+    expect(requests[0]).not.toContain("LA-CLE-DE-QUELQUUN-DAUTRE");
   });
 
   it("ne relaie que les chemins écrits en toutes lettres", async () => {
-    const cookie = await connecte();
+    const cookie = await signedIn();
     /* Un relais qui transmet n'importe quoi prête sa clé, son adresse et
        sa facture à qui passe. */
     for (const chemin of [
@@ -86,14 +86,14 @@ describe("le relais TMDB", () => {
       const r = await app.inject({ method: "GET", url: chemin, headers: { cookie } });
       expect({ chemin, code: r.statusCode }).toEqual({ chemin, code: 404 });
     }
-    expect(demandes).toEqual([]);
+    expect(requests).toEqual([]);
   });
 
   it("repasse le code de TMDB tel quel", async () => {
     /* Un 404 transformé en 200 ferait retenter indéfiniment un film qui
        n'existe pas ; un 429 avalé ferait perdre le rythme d'attente. */
     vi.stubGlobal("fetch", async () => new Response('{"erreur":"rien"}', { status: 404 }));
-    const cookie = await connecte();
+    const cookie = await signedIn();
     const r = await app.inject({
       method: "GET",
       url: "/tmdb/movie/999999999",
@@ -111,7 +111,7 @@ describe("le relais TMDB", () => {
       "fetch",
       async () => new Response("{}", { status: 429, headers: { "retry-after": "47" } })
     );
-    const cookie = await connecte();
+    const cookie = await signedIn();
     const r = await app.inject({ method: "GET", url: "/tmdb/movie/42", headers: { cookie } });
     expect(r.statusCode).toBe(429);
     expect(r.headers["retry-after"]).toBe("47");
@@ -133,8 +133,8 @@ describe("le relais TMDB", () => {
      requêtes : ce qu'on éprouve n'est pas le chiffre, c'est le fait que
      le relais ait le SIEN. */
   it("laisse passer plus que le plafond général du serveur", async () => {
-    const large = await testApp(base, { tmdbKey: "K", tmdbCeiling: 250 });
-    const cookie = await connecte("chantal");
+    const large = await testApp(db, { tmdbKey: "K", tmdbCeiling: 250 });
+    const cookie = await signedIn("chantal");
     /* Cent une : une de plus que le plafond global, qui refusait ici. */
     let dernier = 0;
     for (let i = 0; i < 101; i++) {
@@ -150,8 +150,8 @@ describe("le relais TMDB", () => {
   });
 
   it("garde tout de même un plafond, sinon ce n'est plus un relais mais un robinet", async () => {
-    const etroit = await testApp(base, { tmdbKey: "K", tmdbCeiling: 3 });
-    const cookie = await connecte("jacques");
+    const etroit = await testApp(db, { tmdbKey: "K", tmdbCeiling: 3 });
+    const cookie = await signedIn("jacques");
     const codes: number[] = [];
     for (let i = 0; i < 5; i++) {
       const r = await etroit.inject({
@@ -169,8 +169,8 @@ describe("le relais TMDB", () => {
   /* Le plafond général reste ce qu'il est sur les autres routes : le
      relais a gagné une exception, pas le serveur entier. */
   it("ne desserre rien ailleurs", async () => {
-    const etroit = await testApp(base, { tmdbKey: "K", tmdbCeiling: 3 });
-    const cookie = await connecte("agnes");
+    const etroit = await testApp(db, { tmdbKey: "K", tmdbCeiling: 3 });
+    const cookie = await signedIn("agnes");
     const codes: number[] = [];
     for (let i = 0; i < 5; i++) {
       const r = await etroit.inject({ method: "GET", url: "/moi", headers: { cookie } });
@@ -187,8 +187,8 @@ describe("le relais TMDB", () => {
   });
 
   it("sans clé de ce côté-ci, il le dit au lieu de faire semblant", async () => {
-    const nu = await testApp(base, {});
-    const cookie = await connecte("melville");
+    const nu = await testApp(db, {});
+    const cookie = await signedIn("melville");
     const r = await nu.inject({
       method: "GET",
       url: "/tmdb/configuration",
@@ -202,7 +202,7 @@ describe("le relais TMDB", () => {
 describe("le relais Letterboxd", () => {
   it("va chercher le flux que le navigateur ne peut pas lire", async () => {
     vi.stubGlobal("fetch", async (url: string | URL) => {
-      demandes.push(String(url));
+      requests.push(String(url));
       return new Response("<rss></rss>", {
         status: 200,
         headers: { "content-type": "application/xml" },
@@ -210,7 +210,7 @@ describe("le relais Letterboxd", () => {
     });
     const r = await app.inject({ method: "GET", url: "/letterboxd/agnesvarda" });
     expect(r.statusCode).toBe(200);
-    expect(demandes[0]).toBe("https://letterboxd.com/agnesvarda/rss/");
+    expect(requests[0]).toBe("https://letterboxd.com/agnesvarda/rss/");
     expect(r.body).toContain("<rss>");
   });
 
@@ -221,6 +221,6 @@ describe("le relais Letterboxd", () => {
       const r = await app.inject({ method: "GET", url: `/letterboxd/${pseudo}` });
       expect(r.statusCode).not.toBe(200);
     }
-    expect(demandes).toEqual([]);
+    expect(requests).toEqual([]);
   });
 });

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import webpush from "web-push";
 import { testApp, testDb } from "./helpers.ts";
-import * as depot from "../src/store.ts";
+import * as store from "../src/store.ts";
 import { pushTo, remindChallenges, configurePush } from "../src/push.ts";
 import type { Db } from "../src/db.ts";
 import type { FastifyInstance } from "fastify";
@@ -16,23 +16,23 @@ import type { FastifyInstance } from "fastify";
    ou fait couper les notifications.
    ============================================================ */
 
-let base: Db;
+let db: Db;
 let app: FastifyInstance;
 
 async function compte(pseudo: string) {
-  const personne = await depot.createPerson(base, pseudo);
-  const secret = await depot.openSession(base, personne.id);
+  const personne = await store.createPerson(db, pseudo);
+  const secret = await store.openSession(db, personne.id);
   return { personne, cookie: `session=${secret}` };
 }
 
 beforeEach(async () => {
-  base = await testDb();
-  app = await testApp(base);
+  db = await testDb();
+  app = await testApp(db);
 });
 
 afterEach(async () => {
   await app.close();
-  await base.close();
+  await db.close();
   configurePush(null);
 });
 
@@ -52,7 +52,7 @@ describe("la mesure d'usage", () => {
     ).json().id;
     await app.inject({ method: "GET", url: `/listes/${liste}`, headers: { cookie: moi.cookie } });
 
-    const gestes = (await depot.mesures(base)).map((m) => m.geste);
+    const gestes = (await store.mesures(db)).map((m) => m.geste);
     expect(gestes).toContain("GET /listes/:id");
     expect(gestes.join(" ")).not.toContain(liste);
   });
@@ -65,7 +65,7 @@ describe("la mesure d'usage", () => {
        de plus. Une colonne ajoutée un jour « pour voir » ferait échouer
        ce test, et c'est exactement son objet. */
     const colonnes = (
-      await base.query<{ column_name: string }>(
+      await db.query<{ column_name: string }>(
         "SELECT column_name FROM information_schema.columns WHERE table_name = 'mesure'"
       )
     )
@@ -73,7 +73,7 @@ describe("la mesure d'usage", () => {
       .sort();
     expect(colonnes).toEqual(["geste", "jour", "n"]);
 
-    const tout = JSON.stringify(await depot.mesures(base));
+    const tout = JSON.stringify(await store.mesures(db));
     expect(tout).not.toContain(varda.personne.id);
     expect(tout).not.toContain("varda");
   });
@@ -81,16 +81,16 @@ describe("la mesure d'usage", () => {
   it("compte ce qui réussit, et laisse les échecs au journal", async () => {
     await app.inject({ method: "GET", url: "/moi" }); // 401
     await app.inject({ method: "GET", url: "/sante" });
-    const gestes = (await depot.mesures(base)).map((m) => m.geste);
+    const gestes = (await store.mesures(db)).map((m) => m.geste);
     expect(gestes).toContain("GET /sante");
     expect(gestes).not.toContain("GET /moi");
   });
 
   it("s'additionne par jour, sans une ligne par requête", async () => {
     for (let i = 0; i < 3; i += 1) await app.inject({ method: "GET", url: "/sante" });
-    const lignes = (await depot.mesures(base)).filter((m) => m.geste === "GET /sante");
-    expect(lignes).toHaveLength(1);
-    expect(Number(lignes[0]!.n)).toBe(3);
+    const rows = (await store.mesures(db)).filter((m) => m.geste === "GET /sante");
+    expect(rows).toHaveLength(1);
+    expect(Number(rows[0]!.n)).toBe(3);
   });
 });
 
@@ -122,7 +122,7 @@ describe("les notifications", () => {
         payload: { point, p256dh: "k", secret: "s" },
       });
     }
-    expect(await depot.pushesOf(base, moi.personne.id)).toHaveLength(2);
+    expect(await store.pushesOf(db, moi.personne.id)).toHaveLength(2);
 
     await app.inject({
       method: "DELETE",
@@ -130,7 +130,7 @@ describe("les notifications", () => {
       headers: { cookie: moi.cookie },
       payload: { point: "https://push.example/bureau" },
     });
-    const reste = await depot.pushesOf(base, moi.personne.id);
+    const reste = await store.pushesOf(db, moi.personne.id);
     expect(reste.map((p) => p.point)).toEqual(["https://push.example/tel"]);
   });
 
@@ -149,8 +149,8 @@ describe("les notifications", () => {
         payload: { point, p256dh: "k", secret: "s" },
       });
     }
-    expect(await depot.pushesOf(base, un.personne.id)).toEqual([]);
-    expect(await depot.pushesOf(base, deux.personne.id)).toHaveLength(1);
+    expect(await store.pushesOf(db, un.personne.id)).toEqual([]);
+    expect(await store.pushesOf(db, deux.personne.id)).toHaveLength(1);
   });
 
   it("refuse un abonnement qui n'a pas la forme d'une adresse", async () => {
@@ -171,15 +171,15 @@ describe("les notifications", () => {
        effacer sur cette foi ferait taire un appareil pour de bon. */
     configurePush(reglagesDEssai());
     const moi = await compte("moi");
-    await depot.storePush(base, moi.personne.id, {
+    await store.storePush(db, moi.personne.id, {
       point: "https://ce-service-nexiste-pas.invalid/abc",
       p256dh: Buffer.alloc(65, 4).toString("base64url"),
       secret: Buffer.alloc(16).toString("base64url"),
     });
 
-    const atteints = await pushTo(base, moi.personne.id, { titre: "t", corps: "c" });
-    expect(atteints).toBe(0);
-    expect(await depot.pushesOf(base, moi.personne.id)).toHaveLength(1);
+    const reached = await pushTo(db, moi.personne.id, { titre: "t", corps: "c" });
+    expect(reached).toBe(0);
+    expect(await store.pushesOf(db, moi.personne.id)).toHaveLength(1);
   });
 });
 
@@ -211,22 +211,22 @@ describe("les rappels de défi", () => {
     const moi = await compte("moi");
     await defiQuiCommenceAujourdhui(moi.cookie);
 
-    const un = await remindChallenges(base);
-    const deux = await remindChallenges(base);
+    const un = await remindChallenges(db);
+    const deux = await remindChallenges(db);
     /* Un défi dont le début ET la fin tombent le même jour ne sonne
        qu'une fois : la requête ne rend qu'une ligne par participant, et
        « ça commence » l'emporte sur « ça finit ». */
-    expect(un.dits).toBe(1);
-    expect(deux.dits).toBe(0);
+    expect(un.told).toBe(1);
+    expect(deux.told).toBe(0);
   });
 
   it("ne sonnent pas quand aucune clé n'est posée", async () => {
     const moi = await compte("moi");
     await defiQuiCommenceAujourdhui(moi.cookie);
-    expect(await remindChallenges(base)).toEqual({ dits: 0, appareils: 0 });
+    expect(await remindChallenges(db)).toEqual({ told: 0, devices: 0 });
     /* Et rien n'a été noté comme dit : le jour où l'on pose des clés,
        le rappel du jour part encore. */
-    expect(await base.query("SELECT 1 FROM rappel_envoye")).toHaveLength(0);
+    expect(await db.query("SELECT 1 FROM rappel_envoye")).toHaveLength(0);
   });
 
   it("ne concernent que ceux qui participent", async () => {
@@ -234,11 +234,11 @@ describe("les rappels de défi", () => {
     const moi = await compte("moi");
     const autre = await compte("autre");
     const defi = await defiQuiCommenceAujourdhui(moi.cookie);
-    await depot.leaveChallenge(base, defi, moi.personne.id);
+    await store.leaveChallenge(db, defi, moi.personne.id);
 
-    await remindChallenges(base);
-    const dits = await base.query<{ personne_id: string }>("SELECT personne_id FROM rappel_envoye");
-    expect(dits).toEqual([]);
+    await remindChallenges(db);
+    const told = await db.query<{ personne_id: string }>("SELECT personne_id FROM rappel_envoye");
+    expect(told).toEqual([]);
     expect(autre).toBeTruthy();
   });
 
@@ -259,7 +259,7 @@ describe("les rappels de défi", () => {
       headers: { cookie: moi.cookie },
       payload: { listeId: liste, titre: "Plus tard", debut: "2099-01-01", fin: "2099-01-31" },
     });
-    expect((await remindChallenges(base)).dits).toBe(0);
+    expect((await remindChallenges(db)).told).toBe(0);
   });
 });
 
@@ -267,5 +267,5 @@ describe("les rappels de défi", () => {
    fichier de test finit un jour dans un serveur. */
 function reglagesDEssai() {
   const { publicKey, privateKey } = webpush.generateVAPIDKeys();
-  return { publique: publicKey, privee: privateKey, contact: "mailto:essai@example.org" };
+  return { publicKey, privateKey, contact: "mailto:essai@example.org" };
 }

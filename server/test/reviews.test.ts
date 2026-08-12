@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { testApp, testDb } from "./helpers.ts";
-import * as depot from "../src/store.ts";
+import * as store from "../src/store.ts";
 import type { Db } from "../src/db.ts";
 import type { FastifyInstance } from "fastify";
 
@@ -13,12 +13,12 @@ import type { FastifyInstance } from "fastify";
    intimes, les collections fermées, les gens qu'on a fait taire.
    ============================================================ */
 
-let base: Db;
+let db: Db;
 let app: FastifyInstance;
 
 async function compte(pseudo: string) {
-  const personne = await depot.createPerson(base, pseudo);
-  const secret = await depot.openSession(base, personne.id);
+  const personne = await store.createPerson(db, pseudo);
+  const secret = await store.openSession(db, personne.id);
   return { personne, cookie: `session=${secret}` };
 }
 
@@ -32,24 +32,24 @@ const echo = (cookie: string, tmdbId = "550") =>
   app.inject({ method: "GET", url: `/oeuvres/${tmdbId}`, headers: { cookie } });
 
 beforeEach(async () => {
-  base = await testDb();
-  app = await testApp(base);
+  db = await testDb();
+  app = await testApp(db);
 });
 
 afterEach(async () => {
   await app.close();
-  await base.close();
+  await db.close();
 });
 
 describe("l'écho d'une œuvre", () => {
   it("rassemble ceux qui ont rangé le même film, et personne d'autre", async () => {
     const moi = await compte("moi");
-    const une = await compte("varda");
+    const one = await compte("varda");
     const deux = await compte("tati");
-    await ouvrir(une.cookie);
+    await ouvrir(one.cookie);
     await ouvrir(deux.cookie);
 
-    await pousser(une.cookie, [
+    await pousser(one.cookie, [
       { id: "a", tmdbId: "550", majLe: 1, donnees: { title: "Fight Club", rating: 4 } },
       { id: "z", tmdbId: "999", majLe: 1, donnees: { title: "Autre film", rating: 1 } },
     ]);
@@ -248,8 +248,8 @@ describe("bloquer", () => {
       url: "/abonnements",
       headers: { cookie: genant.cookie },
     });
-    expect(mien.json().abonnements).toEqual([]);
-    expect(sien.json().abonnements).toEqual([]);
+    expect(mien.json().subscriptions).toEqual([]);
+    expect(sien.json().subscriptions).toEqual([]);
   });
 
   it("empêche de suivre, et le fil se tait", async () => {
@@ -292,7 +292,7 @@ describe("bloquer", () => {
       url: "/abonnements",
       headers: { cookie: moi.cookie },
     });
-    expect(liste.json().abonnements).toEqual([]);
+    expect(liste.json().subscriptions).toEqual([]);
     /* Le profil est de nouveau trouvable : le silence était réversible. */
     expect(
       (await app.inject({ method: "GET", url: "/profils/lui", headers: { cookie: moi.cookie } }))
@@ -351,11 +351,11 @@ describe("signaler", () => {
     expect(deux.statusCode).toBe(200);
     expect(deux.json().note).toBe(true);
 
-    const lignes = await base.query<{ motif: string; vise_id: string }>(
+    const rows = await db.query<{ motif: string; vise_id: string }>(
       "SELECT motif, vise_id FROM signalement"
     );
-    expect(lignes).toHaveLength(1);
-    expect(lignes[0]!.vise_id).toBe(lui.personne.id);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.vise_id).toBe(lui.personne.id);
   });
 
   it("veut un motif, et une personne qui existe", async () => {
@@ -392,6 +392,6 @@ describe("signaler", () => {
     });
 
     await app.inject({ method: "DELETE", url: "/mon-compte", headers: { cookie: lui.cookie } });
-    expect(await base.query("SELECT 1 FROM signalement")).toHaveLength(0);
+    expect(await db.query("SELECT 1 FROM signalement")).toHaveLength(0);
   });
 });

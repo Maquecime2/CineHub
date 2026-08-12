@@ -21,11 +21,11 @@ if (!url) {
 }
 
 const jours = Number(process.argv[2] || 30);
-const base = await openPostgres(url);
-const lignes = await mesures(base, jours);
+const db = await openPostgres(url);
+const rows = await mesures(db, jours);
 
 const total = new Map<string, number>();
-for (const l of lignes) total.set(l.geste, (total.get(l.geste) ?? 0) + Number(l.n));
+for (const l of rows) total.set(l.geste, (total.get(l.geste) ?? 0) + Number(l.n));
 
 console.log(
   `Sur ${jours} jours — ${lignes.length} lignes, ${[...total.values()].reduce((a, b) => a + b, 0)} appels\n`
@@ -34,4 +34,4 @@ for (const [geste, n] of [...total].sort((a, b) => b[1] - a[1])) {
   console.log(`  ${String(n).padStart(8)}  ${geste}`);
 }
 
-await base.close();
+await db.close();

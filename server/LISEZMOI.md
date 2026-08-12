@@ -255,7 +255,7 @@ distinction n'est pas révélée, délibérément.
 
 Le serveur de développement (5173) et l'aperçu de la version construite
 (4173) sont deux origines différentes. Les deux doivent figurer dans
-`ORIGINE`. Le démarrage les imprime, c'est le seul endroit où la vérité
+`ORIGIN`. Le démarrage les imprime, c'est le seul endroit où la vérité
 se lit :
 
 ```
@@ -273,7 +273,7 @@ VITE_SERVEUR=http://localhost:8787 npm run build && npm run preview
 ## La porte de service
 
 `POST /dev/session` ouvre une session sans clé d'accès. Elle n'existe que
-si `NODE_ENV` n'est pas `production` **et** que `PORTE_DEV=1` est posé à
+si `NODE_ENV` n'est pas `production` **et** que `DEV_DOOR=1` est posé à
 la main. Elle sert à éprouver la synchronisation de bout en bout dans un
 navigateur piloté, où aucune empreinte ni aucun visage n'existe.
 

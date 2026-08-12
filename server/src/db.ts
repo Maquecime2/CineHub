@@ -1,66 +1,70 @@
 /* ============================================================
-   LA BASE — une seule façon de poser une question
+   THE DATABASE — one single way of asking a question
    ============================================================
 
-   Pas d'ORM. Le schéma est un fichier SQL qu'on lit (`sql/001_socle.sql`)
-   et les requêtes sont du SQL écrit à la main, avec des paramètres
-   numérotés. Deux raisons, et aucune n'est l'esthétique.
+   No ORM. The schema is a SQL file you read (`sql/001_baseline.sql`) and
+   the queries are SQL written by hand, with numbered parameters. Two
+   reasons, and neither of them is aesthetics.
 
-   D'abord : ce serveur n'a rien de compliqué à demander. Une douzaine de
-   requêtes, toutes courtes. Un ORM apporterait un langage de plus à
-   connaître, un générateur de code à faire tourner, et sa propre
-   surface d'attaque — celle qu'on a justement écartée en le retirant.
+   First: this server has nothing complicated to ask for. A dozen
+   queries, all of them short. An ORM would bring one more language to
+   learn, a code generator to run, and its own attack surface — the very
+   one we removed by leaving it out.
 
-   Ensuite : les paramètres numérotés ne se concatènent pas. Une valeur
-   passée en `$1` ne peut pas devenir de la syntaxe, jamais, quelle que
-   soit la chaîne. C'est la seule défense qui tienne contre l'injection,
-   et elle est ici la façon NORMALE d'écrire — pas une précaution qu'on
-   pense à prendre.
+   Second: numbered parameters do not concatenate. A value passed as `$1`
+   can never become syntax, whatever the string. That is the only defence
+   that holds against injection, and here it is the NORMAL way to write —
+   not a precaution somebody has to remember to take.
 
-   L'interface est minuscule exprès : le vrai Postgres l'implémente en
-   production, et un Postgres compilé en WebAssembly l'implémente dans
-   les tests. Les mêmes requêtes tournent des deux côtés — les tests
-   éprouvent donc le SQL réel, contraintes comprises, et non une
-   imitation. */
+   The interface is deliberately tiny: real Postgres implements it in
+   production, and a Postgres compiled to WebAssembly implements it in the
+   tests. The same queries run on both sides — so the tests exercise the
+   real SQL, constraints included, and not an imitation.
+
+   THE TABLE AND COLUMN NAMES STAY FRENCH throughout this package, and
+   they are the one thing here that is not code: they are written into a
+   database that may already hold somebody's collection. Renaming them is
+   a schema migration, not a translation, and it is deliberately left out
+   of this pass. Everything around them speaks English. */
 export interface Db {
-  query<T = Record<string, unknown>>(texte: string, valeurs?: unknown[]): Promise<T[]>;
-  /* UNE REQUÊTE PRÉPARÉE NE PORTE QU'UNE COMMANDE, et c'est une règle du
-     protocole et non une limite de bibliothèque : le socle, qui en
-     compte une vingtaine, ne peut donc pas passer par `requete`. D'où
-     cette seconde porte, réservée aux scripts — sans paramètres, donc
-     sans valeur venue du dehors, donc sans injection possible. */
+  query<T = Record<string, unknown>>(text: string, values?: unknown[]): Promise<T[]>;
+  /* A PREPARED STATEMENT CARRIES ONE COMMAND ONLY, and that is a rule of
+     the protocol rather than a limit of the library: the baseline schema,
+     which holds a score of them, therefore cannot go through `query`.
+     Hence this second door, reserved for scripts — no parameters, so no
+     value from outside, so no injection possible. */
   exec(script: string): Promise<void>;
   close(): Promise<void>;
 }
 
-/** Une seule ligne, ou rien. Le cas le plus fréquent. */
-export async function une<T = Record<string, unknown>>(
-  base: Db,
-  texte: string,
-  valeurs?: unknown[]
+/** One row, or nothing. The most frequent case. */
+export async function one<T = Record<string, unknown>>(
+  db: Db,
+  text: string,
+  values?: unknown[]
 ): Promise<T | null> {
-  const lignes = await base.query<T>(texte, valeurs);
-  return lignes[0] ?? null;
+  const rows = await db.query<T>(text, values);
+  return rows[0] ?? null;
 }
 
 /* ------------------------------------------------------------
-   POSTGRES, LE VRAI
+   POSTGRES, THE REAL ONE
    ------------------------------------------------------------ */
 export async function openPostgres(url: string): Promise<Db> {
   const { default: postgres } = await import("postgres");
   const sql = postgres(url, {
-    /* Le serveur est petit et les requêtes sont brèves : dix connexions
-       suffisent, et un hébergeur géré facture les connexions ouvertes. */
+    /* The server is small and the queries are brief: ten connections are
+       enough, and a managed host bills for open connections. */
     max: 10,
     onnotice: () => {},
   });
   return {
-    query: async <T>(texte: string, valeurs: unknown[] = []) =>
-      sql.unsafe(texte, valeurs as never[]) as unknown as Promise<T[]>,
+    query: async <T>(text: string, values: unknown[] = []) =>
+      sql.unsafe(text, values as never[]) as unknown as Promise<T[]>,
     exec: async (script: string) => {
-      /* `simple()` passe par le protocole simple, le seul qui accepte
-         plusieurs commandes d'un coup. Il n'accepte AUCUN paramètre en
-         échange — ce qui est exactement ce qu'on veut ici. */
+      /* `simple()` goes through the simple protocol, the only one that
+         accepts several commands at once. It accepts NO parameter in
+         exchange — which is exactly what we want here. */
       await sql.unsafe(script).simple();
     },
     close: () => sql.end(),
@@ -68,12 +72,12 @@ export async function openPostgres(url: string): Promise<Db> {
 }
 
 /* ------------------------------------------------------------
-   LE SOCLE, POSÉ
+   THE BASELINE, LAID DOWN
    ------------------------------------------------------------
-   Une seule migration pour l'instant, et un fichier qu'on relit plutôt
-   qu'une pile d'incréments illisibles. Quand il y en aura une seconde,
-   c'est ici qu'on tiendra la liste — et le jour où elles seront
-   nombreuses, la table qui dit lesquelles sont posées. */
-export async function applySchema(base: Db, schemaSql: string): Promise<void> {
-  await base.exec(schemaSql);
+   One migration for now, and a file you read rather than a stack of
+   unreadable increments. When there is a second one, this is where the
+   list will be kept — and the day there are many, the table that says
+   which ones are laid down. */
+export async function applySchema(db: Db, schemaSql: string): Promise<void> {
+  await db.exec(schemaSql);
 }

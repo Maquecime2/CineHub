@@ -9,8 +9,8 @@
     "migrer": "node --experimental-strip-types src/migrer.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "sauvegarde": "node --env-file-if-exists=.env scripts/sauvegarde.mjs",
-    "mesures": "node --env-file-if-exists=.env --experimental-strip-types scripts/mesures.ts"
+    "backup": "node --env-file-if-exists=.env scripts/backup.mjs",
+    "metrics": "node --env-file-if-exists=.env --experimental-strip-types scripts/metrics.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",

@@ -9,7 +9,7 @@
    ============================================================ */
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { Db } from "./db.ts";
-import { une } from "./db.ts";
+import { one } from "./db.ts";
 
 export interface Personne {
   id: string;
@@ -31,25 +31,25 @@ export interface CleAcces {
    LES PERSONNES
    ------------------------------------------------------------ */
 
-export async function findByPseudo(base: Db, pseudo: string): Promise<Personne | null> {
-  return une<Personne>(
-    base,
+export async function findByPseudo(db: Db, pseudo: string): Promise<Personne | null> {
+  return one<Personne>(
+    db,
     "SELECT id, pseudo, courriel, partage, jeton FROM personne WHERE pseudo = $1",
     [pseudo]
   );
 }
 
-export async function findById(base: Db, id: string): Promise<Personne | null> {
-  return une<Personne>(
-    base,
+export async function findById(db: Db, id: string): Promise<Personne | null> {
+  return one<Personne>(
+    db,
     "SELECT id, pseudo, courriel, partage, jeton FROM personne WHERE id = $1",
     [id]
   );
 }
 
-export async function createPerson(base: Db, pseudo: string): Promise<Personne> {
-  const p = await une<Personne>(
-    base,
+export async function createPerson(db: Db, pseudo: string): Promise<Personne> {
+  const p = await one<Personne>(
+    db,
     "INSERT INTO personne (id, pseudo) VALUES ($1, $2) RETURNING id, pseudo, courriel",
     [randomUUID(), pseudo]
   );
@@ -58,48 +58,48 @@ export async function createPerson(base: Db, pseudo: string): Promise<Personne> 
 }
 
 /** Le droit à l'effacement, en une ligne : le schéma emporte le reste. */
-export async function deletePerson(base: Db, id: string): Promise<void> {
-  await base.query("DELETE FROM personne WHERE id = $1", [id]);
+export async function deletePerson(db: Db, id: string): Promise<void> {
+  await db.query("DELETE FROM personne WHERE id = $1", [id]);
 }
 
 /* ------------------------------------------------------------
    LES CLÉS D'ACCÈS
    ------------------------------------------------------------ */
 
-export async function keysOf(base: Db, personneId: string): Promise<CleAcces[]> {
-  return base.query<CleAcces>(
+export async function keysOf(db: Db, personneId: string): Promise<CleAcces[]> {
+  return db.query<CleAcces>(
     "SELECT id, personne_id, cle_publique, compteur, transports FROM cle_acces WHERE personne_id = $1",
     [personneId]
   );
 }
 
-export async function keyById(base: Db, id: string): Promise<CleAcces | null> {
-  return une<CleAcces>(
-    base,
+export async function keyById(db: Db, id: string): Promise<CleAcces | null> {
+  return one<CleAcces>(
+    db,
     "SELECT id, personne_id, cle_publique, compteur, transports FROM cle_acces WHERE id = $1",
     [id]
   );
 }
 
 export async function addKey(
-  base: Db,
+  db: Db,
   cle: {
     id: string;
     personneId: string;
-    publicKeyForPush: Uint8Array;
+    publicKey: Uint8Array;
     compteur: number;
     transports: string[];
   }
 ): Promise<void> {
-  await base.query(
+  await db.query(
     `INSERT INTO cle_acces (id, personne_id, cle_publique, compteur, transports)
      VALUES ($1, $2, $3, $4, $5)`,
-    [cle.id, cle.personneId, Buffer.from(cle.publicKeyForPush), cle.compteur, cle.transports]
+    [cle.id, cle.personneId, Buffer.from(cle.publicKey), cle.compteur, cle.transports]
   );
 }
 
-export async function recordUsage(base: Db, id: string, compteur: number): Promise<void> {
-  await base.query("UPDATE cle_acces SET compteur = $2, vue_le = now() WHERE id = $1", [
+export async function recordUsage(db: Db, id: string, compteur: number): Promise<void> {
+  await db.query("UPDATE cle_acces SET compteur = $2, vue_le = now() WHERE id = $1", [
     id,
     compteur,
   ]);
@@ -115,12 +115,12 @@ export async function recordUsage(base: Db, id: string, compteur: number): Promi
 const VIE_DEFI_MS = 5 * 60 * 1000;
 
 export async function setChallenge(
-  base: Db,
+  db: Db,
   valeur: string,
   quoi: { personneId?: string; pseudo?: string } = {}
 ): Promise<string> {
   const id = randomUUID();
-  await base.query(
+  await db.query(
     "INSERT INTO defi (id, valeur, personne_id, pseudo, expire_le) VALUES ($1, $2, $3, $4, $5)",
     [id, valeur, quoi.personneId ?? null, quoi.pseudo ?? null, new Date(Date.now() + VIE_DEFI_MS)]
   );
@@ -128,21 +128,21 @@ export async function setChallenge(
 }
 
 export async function consumeChallenge(
-  base: Db,
+  db: Db,
   id: string
 ): Promise<{ valeur: string; personne_id: string | null; pseudo: string | null } | null> {
   /* Lecture et suppression dans la MÊME requête : entre un SELECT et un
      DELETE séparés, deux requêtes simultanées peuvent consommer le même
      défi. `DELETE … RETURNING` ne laisse pas cet intervalle. */
-  return une(
-    base,
+  return one(
+    db,
     "DELETE FROM defi WHERE id = $1 AND expire_le > now() RETURNING valeur, personne_id, pseudo",
     [id]
   );
 }
 
-export async function sweepChallenges(base: Db): Promise<void> {
-  await base.query("DELETE FROM defi WHERE expire_le <= now()");
+export async function sweepChallenges(db: Db): Promise<void> {
+  await db.query("DELETE FROM defi WHERE expire_le <= now()");
 }
 
 /* ------------------------------------------------------------
@@ -159,9 +159,9 @@ const VIE_SESSION_MS = 30 * 24 * 60 * 60 * 1000;
 export const fingerprintOf = (secret: string): string =>
   createHash("sha256").update(secret).digest("hex");
 
-export async function openSession(base: Db, personneId: string): Promise<string> {
+export async function openSession(db: Db, personneId: string): Promise<string> {
   const secret = randomBytes(32).toString("base64url");
-  await base.query("INSERT INTO session (empreinte, personne_id, expire_le) VALUES ($1, $2, $3)", [
+  await db.query("INSERT INTO session (empreinte, personne_id, expire_le) VALUES ($1, $2, $3)", [
     fingerprintOf(secret),
     personneId,
     new Date(Date.now() + VIE_SESSION_MS),
@@ -169,9 +169,9 @@ export async function openSession(base: Db, personneId: string): Promise<string>
   return secret;
 }
 
-export async function personOfSession(base: Db, secret: string): Promise<Personne | null> {
-  return une<Personne>(
-    base,
+export async function personOfSession(db: Db, secret: string): Promise<Personne | null> {
+  return one<Personne>(
+    db,
     `SELECT p.id, p.pseudo, p.courriel, p.partage, p.jeton
        FROM session s JOIN personne p ON p.id = s.personne_id
       WHERE s.empreinte = $1 AND s.expire_le > now()`,
@@ -179,8 +179,8 @@ export async function personOfSession(base: Db, secret: string): Promise<Personn
   );
 }
 
-export async function closeSession(base: Db, secret: string): Promise<void> {
-  await base.query("DELETE FROM session WHERE empreinte = $1", [fingerprintOf(secret)]);
+export async function closeSession(db: Db, secret: string): Promise<void> {
+  await db.query("DELETE FROM session WHERE empreinte = $1", [fingerprintOf(secret)]);
 }
 
 /* ------------------------------------------------------------
@@ -210,12 +210,12 @@ export interface FicheRangee {
  * trente mégaoctets qui expire en chemin.
  */
 export async function cardsSince(
-  base: Db,
+  db: Db,
   personneId: string,
   depuis: bigint | number,
   plafond = 500
 ): Promise<FicheRangee[]> {
-  return base.query<FicheRangee>(
+  return db.query<FicheRangee>(
     `SELECT id, seq, tmdb_id, cachee, donnees, maj_le, supprimee
        FROM fiche WHERE personne_id = $1 AND seq > $2
       ORDER BY seq ASC LIMIT $3`,
@@ -234,7 +234,7 @@ export async function cardsSince(
  * exactement cet intervalle-là.
  */
 export async function storeCard(
-  base: Db,
+  db: Db,
   personneId: string,
   f: {
     id: string;
@@ -249,7 +249,7 @@ export async function storeCard(
      eu lieu : quand la clause `WHERE` écarte une version périmée, il ne
      rend rien. C'est ainsi que l'appelant apprend qu'il a poussé dans le
      vide — sans seconde requête, et sans intervalle entre les deux. */
-  const ecrite = await base.query(
+  const ecrite = await db.query(
     /* ON PASSE L'OBJET, JAMAIS SA SÉRIALISATION, et ce n'est pas un
        détail de style.
 
@@ -309,9 +309,9 @@ export async function storeCard(
   return ecrite.length > 0;
 }
 
-export async function countCards(base: Db, personneId: string): Promise<number> {
-  const r = await une<{ n: string }>(
-    base,
+export async function countCards(db: Db, personneId: string): Promise<number> {
+  const r = await one<{ n: string }>(
+    db,
     "SELECT count(*)::text AS n FROM fiche WHERE personne_id = $1 AND NOT supprimee",
     [personneId]
   );
@@ -334,12 +334,12 @@ export interface DocRange {
 }
 
 export async function docsSince(
-  base: Db,
+  db: Db,
   personneId: string,
   depuis: bigint | number,
   plafond = 200
 ): Promise<DocRange[]> {
-  return base.query<DocRange>(
+  return db.query<DocRange>(
     `SELECT cle, seq, contenu, maj_le, supprime
        FROM doc WHERE personne_id = $1 AND seq > $2
       ORDER BY seq ASC LIMIT $3`,
@@ -348,11 +348,11 @@ export async function docsSince(
 }
 
 export async function storeDoc(
-  base: Db,
+  db: Db,
   personneId: string,
   d: { cle: string; contenu: unknown; majLe: Date; supprime?: boolean }
 ): Promise<boolean> {
-  const ecrit = await base.query(
+  const ecrit = await db.query(
     `INSERT INTO doc (personne_id, cle, contenu, maj_le, supprime)
      VALUES ($1, $2, $3, $4, $5)
      ON CONFLICT (personne_id, cle) DO UPDATE
@@ -372,12 +372,12 @@ export async function storeDoc(
    ------------------------------------------------------------ */
 
 export async function setSharing(
-  base: Db,
+  db: Db,
   personneId: string,
   partage: string,
   jeton: string | null
 ): Promise<void> {
-  await base.query("UPDATE personne SET partage = $2, jeton = $3 WHERE id = $1", [
+  await db.query("UPDATE personne SET partage = $2, jeton = $3 WHERE id = $1", [
     personneId,
     partage,
     jeton,
@@ -411,11 +411,11 @@ export interface FichePublique {
  * partage pas » renseignerait sur qui est inscrit.
  */
 export async function publicCollectionOf(
-  base: Db,
+  db: Db,
   pseudo: string,
   jeton: string | null
 ): Promise<{ pseudo: string; films: FichePublique[] } | null> {
-  const p = await findByPseudo(base, pseudo);
+  const p = await findByPseudo(db, pseudo);
   if (!p) return null;
   if (p.partage === "publique") {
     /* rien à vérifier */
@@ -425,7 +425,7 @@ export async function publicCollectionOf(
     return null;
   }
 
-  const films = await base.query<FichePublique>(
+  const films = await db.query<FichePublique>(
     `SELECT f.id, f.tmdb_id, ${SANS_LE_PRIVE}
        FROM fiche f
       WHERE f.personne_id = $1 AND NOT f.cachee AND NOT f.supprimee
@@ -437,12 +437,12 @@ export async function publicCollectionOf(
 
 /** Retirer une fiche du partage, ou l'y remettre. */
 export async function hideCard(
-  base: Db,
+  db: Db,
   personneId: string,
   ficheId: string,
   cachee: boolean
 ): Promise<boolean> {
-  const r = await base.query(
+  const r = await db.query(
     `UPDATE fiche SET cachee = $3, seq = nextval('fiche_seq')
       WHERE personne_id = $1 AND id = $2 RETURNING seq`,
     [personneId, ficheId, cachee]
@@ -451,8 +451,8 @@ export async function hideCard(
 }
 
 /** Les fiches écartées du partage. Des identifiants, rien de plus. */
-export async function hiddenCards(base: Db, personneId: string): Promise<string[]> {
-  const r = await base.query<{ id: string }>(
+export async function hiddenCards(db: Db, personneId: string): Promise<string[]> {
+  const r = await db.query<{ id: string }>(
     "SELECT id FROM fiche WHERE personne_id = $1 AND cachee AND NOT supprimee",
     [personneId]
   );
@@ -481,26 +481,26 @@ export interface Profil {
  * pas public.
  */
 export async function publicProfileOf(
-  base: Db,
+  db: Db,
   pseudo: string,
   quiDemande?: string
 ): Promise<Profil | null> {
-  const p = await findByPseudo(base, pseudo);
+  const p = await findByPseudo(db, pseudo);
   if (!p || p.partage !== "publique") return null;
 
   /* Un blocage rend introuvable, dans les deux sens, et sans le dire :
      c'est le même 404 que « n'existe pas ». Annoncer « vous êtes bloqué »
      ferait de la route un moyen de vérifier qu'on l'est. */
-  if (quiDemande && (await bloques(base, quiDemande, p.id))) return null;
+  if (quiDemande && (await bloques(db, quiDemande, p.id))) return null;
 
-  const n = await une<{ n: string }>(
-    base,
+  const n = await one<{ n: string }>(
+    db,
     "SELECT count(*)::text AS n FROM fiche WHERE personne_id = $1 AND NOT cachee AND NOT supprimee",
     [p.id]
   );
   const suivi = quiDemande
     ? (
-        await base.query("SELECT 1 FROM abonnement WHERE suiveur_id = $1 AND suivi_id = $2", [
+        await db.query("SELECT 1 FROM abonnement WHERE suiveur_id = $1 AND suivi_id = $2", [
           quiDemande,
           p.id,
         ])
@@ -521,25 +521,25 @@ const PAS_BLOQUE = (moi: string, lui: string) =>
                 WHERE (b.bloqueur_id = ${moi} AND b.bloque_id = ${lui})
                    OR (b.bloqueur_id = ${lui} AND b.bloque_id = ${moi}))`;
 
-export async function suivre(base: Db, suiveur: string, suivi: string): Promise<void> {
+export async function suivre(db: Db, suiveur: string, suivi: string): Promise<void> {
   /* `ON CONFLICT DO NOTHING` : suivre deux fois est le même geste, et
      doit répondre la même chose. */
-  await base.query(
+  await db.query(
     "INSERT INTO abonnement (suiveur_id, suivi_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
     [suiveur, suivi]
   );
 }
 
-export async function unfollow(base: Db, suiveur: string, suivi: string): Promise<void> {
-  await base.query("DELETE FROM abonnement WHERE suiveur_id = $1 AND suivi_id = $2", [
+export async function unfollow(db: Db, suiveur: string, suivi: string): Promise<void> {
+  await db.query("DELETE FROM abonnement WHERE suiveur_id = $1 AND suivi_id = $2", [
     suiveur,
     suivi,
   ]);
 }
 
 /** Qui je suis, avec ce que leur collection montre encore. */
-export async function subscriptionsOf(base: Db, personneId: string): Promise<Profil[]> {
-  return base.query<Profil>(
+export async function subscriptionsOf(db: Db, personneId: string): Promise<Profil[]> {
+  return db.query<Profil>(
     `SELECT p.pseudo,
             (SELECT count(*) FROM fiche f
               WHERE f.personne_id = p.id AND NOT f.cachee AND NOT f.supprimee)::int AS films,
@@ -574,12 +574,12 @@ export interface Nouvelle {
  * ne suffira plus, ce sera un vrai problème d'échelle, et pas avant.
  */
 export async function feedOf(
-  base: Db,
+  db: Db,
   personneId: string,
   avant: bigint | number | null,
   plafond = 40
 ): Promise<Nouvelle[]> {
-  return base.query<Nouvelle>(
+  return db.query<Nouvelle>(
     `SELECT p.pseudo, f.seq, f.id, f.tmdb_id, ${SANS_LE_PRIVE}, f.maj_le
        FROM abonnement a
        JOIN personne p ON p.id = a.suivi_id
@@ -640,7 +640,7 @@ const NOTE = `CASE WHEN f.donnees->>'rating' ~ '^[0-9]+(\\.[0-9]+)?$'
  * en pensent » donnerait une moyenne à laquelle on aurait voté deux fois.
  */
 export async function echoOfWork(
-  base: Db,
+  db: Db,
   tmdbId: string,
   quiDemande: string | null,
   plafond = 30
@@ -650,8 +650,8 @@ export async function echoOfWork(
     : `AND ($2::uuid IS NULL)`;
   const args = [tmdbId, quiDemande];
 
-  const compte = await une<{ collections: string; notes: string; moyenne: string | null }>(
-    base,
+  const compte = await one<{ collections: string; notes: string; moyenne: string | null }>(
+    db,
     `SELECT count(*)::text AS collections,
             count(${NOTE})::text AS notes,
             avg(${NOTE})::text AS moyenne
@@ -665,7 +665,7 @@ export async function echoOfWork(
      rangée sans un mot ni une note compte dans le total et n'a rien à
      lire. Afficher des lignes vides ferait passer le silence pour un
      avis. */
-  const avis = await base.query<Avis>(
+  const avis = await db.query<Avis>(
     `SELECT p.pseudo, f.id AS fiche, ${NOTE} AS note,
             NULLIF(f.donnees->>'review', '') AS critique, f.maj_le AS le
        FROM fiche f JOIN personne p ON p.id = f.personne_id
@@ -690,8 +690,8 @@ export async function echoOfWork(
    ------------------------------------------------------------ */
 
 /** Y a-t-il un blocage entre ces deux-là, dans un sens ou dans l'autre ? */
-export async function bloques(base: Db, un: string, autre: string): Promise<boolean> {
-  const r = await base.query(
+export async function bloques(db: Db, un: string, autre: string): Promise<boolean> {
+  const r = await db.query(
     `SELECT 1 FROM blocage
       WHERE (bloqueur_id = $1 AND bloque_id = $2) OR (bloqueur_id = $2 AND bloque_id = $1)`,
     [un, autre]
@@ -707,28 +707,28 @@ export async function bloques(base: Db, un: string, autre: string): Promise<bool
  * surtout laisserait l'autre inscrit dans un fil qu'il ne verra plus
  * jamais bouger — un état que rien ne rattrape si l'on débloque un jour.
  */
-export async function block(base: Db, bloqueur: string, bloque: string): Promise<void> {
-  await base.query(
+export async function block(db: Db, bloqueur: string, bloque: string): Promise<void> {
+  await db.query(
     "INSERT INTO blocage (bloqueur_id, bloque_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
     [bloqueur, bloque]
   );
-  await base.query(
+  await db.query(
     `DELETE FROM abonnement
       WHERE (suiveur_id = $1 AND suivi_id = $2) OR (suiveur_id = $2 AND suivi_id = $1)`,
     [bloqueur, bloque]
   );
 }
 
-export async function unblock(base: Db, bloqueur: string, bloque: string): Promise<void> {
-  await base.query("DELETE FROM blocage WHERE bloqueur_id = $1 AND bloque_id = $2", [
+export async function unblock(db: Db, bloqueur: string, bloque: string): Promise<void> {
+  await db.query("DELETE FROM blocage WHERE bloqueur_id = $1 AND bloque_id = $2", [
     bloqueur,
     bloque,
   ]);
 }
 
 /** Qui J'AI bloqué — jamais qui m'a bloqué : cela ne se demande pas. */
-export async function myBlocks(base: Db, personneId: string): Promise<string[]> {
-  const r = await base.query<{ pseudo: string }>(
+export async function myBlocks(db: Db, personneId: string): Promise<string[]> {
+  const r = await db.query<{ pseudo: string }>(
     `SELECT p.pseudo FROM blocage b JOIN personne p ON p.id = b.bloque_id
       WHERE b.bloqueur_id = $1 ORDER BY p.pseudo`,
     [personneId]
@@ -744,11 +744,11 @@ export async function myBlocks(base: Db, personneId: string): Promise<string[]> 
  * doit pas enfler à chaque clic répété.
  */
 export async function signaler(
-  base: Db,
+  db: Db,
   auteurId: string,
   quoi: { cibleType: string; cibleId: string; viseId: string | null; motif: string }
 ): Promise<boolean> {
-  const r = await base.query(
+  const r = await db.query(
     `INSERT INTO signalement (id, auteur_id, cible_type, cible_id, vise_id, motif)
      VALUES ($1, $2, $3, $4, $5, $6)
      /* LA CLAUSE WHERE FAIT PARTIE DE LA DÉSIGNATION DE L'INDEX.
@@ -806,12 +806,12 @@ export interface Droit {
  * liste à six mains n'a plus personne pour en répondre.
  */
 export async function rightsOnList(
-  base: Db,
+  db: Db,
   listeId: string,
   personneId: string | null
 ): Promise<Droit | null> {
-  const l = await une<{ id: string; proprietaire_id: string; publique: boolean; membre: boolean }>(
-    base,
+  const l = await one<{ id: string; proprietaire_id: string; publique: boolean; membre: boolean }>(
+    db,
     `SELECT l.id, l.proprietaire_id, l.publique,
             EXISTS (SELECT 1 FROM liste_membre m
                      WHERE m.liste_id = l.id AND m.personne_id = $2) AS membre
@@ -830,8 +830,8 @@ export async function rightsOnList(
 }
 
 /** Mes listes, et celles où l'on m'a laissé écrire. */
-export async function myLists(base: Db, personneId: string): Promise<Liste[]> {
-  return base.query<Liste>(
+export async function myLists(db: Db, personneId: string): Promise<Liste[]> {
+  return db.query<Liste>(
     `SELECT l.id, l.titre, l.intention, l.publique,
             p.pseudo AS proprietaire,
             (SELECT count(*) FROM liste_item i WHERE i.liste_id = l.id)::int AS oeuvres,
@@ -848,8 +848,8 @@ export async function myLists(base: Db, personneId: string): Promise<Liste[]> {
 }
 
 /** Les listes publiques de quelqu'un — ce qu'un visiteur peut en voir. */
-export async function publicListsOf(base: Db, proprietaireId: string): Promise<Liste[]> {
-  return base.query<Liste>(
+export async function publicListsOf(db: Db, proprietaireId: string): Promise<Liste[]> {
+  return db.query<Liste>(
     `SELECT l.id, l.titre, l.intention, l.publique,
             p.pseudo AS proprietaire,
             (SELECT count(*) FROM liste_item i WHERE i.liste_id = l.id)::int AS oeuvres
@@ -861,12 +861,12 @@ export async function publicListsOf(base: Db, proprietaireId: string): Promise<L
 }
 
 export async function createList(
-  base: Db,
+  db: Db,
   proprietaireId: string,
   l: { titre: string; intention?: string; publique?: boolean }
 ): Promise<string> {
   const id = randomUUID();
-  await base.query(
+  await db.query(
     "INSERT INTO liste (id, proprietaire_id, titre, intention, publique) VALUES ($1, $2, $3, $4, $5)",
     [id, proprietaireId, l.titre, l.intention ?? "", l.publique ?? false]
   );
@@ -874,11 +874,11 @@ export async function createList(
 }
 
 export async function editList(
-  base: Db,
+  db: Db,
   listeId: string,
   l: { titre?: string; intention?: string; publique?: boolean }
 ): Promise<void> {
-  await base.query(
+  await db.query(
     `UPDATE liste
         SET titre = coalesce($2, titre),
             intention = coalesce($3, intention),
@@ -889,12 +889,12 @@ export async function editList(
   );
 }
 
-export async function deleteList(base: Db, listeId: string): Promise<void> {
-  await base.query("DELETE FROM liste WHERE id = $1", [listeId]);
+export async function deleteList(db: Db, listeId: string): Promise<void> {
+  await db.query("DELETE FROM liste WHERE id = $1", [listeId]);
 }
 
-export async function worksOf(base: Db, listeId: string): Promise<Oeuvre[]> {
-  return base.query<Oeuvre>(
+export async function worksOf(db: Db, listeId: string): Promise<Oeuvre[]> {
+  return db.query<Oeuvre>(
     `SELECT i.tmdb_id, i.titre, i.annee, p.pseudo AS par
        FROM liste_item i LEFT JOIN personne p ON p.id = i.ajoute_par
       WHERE i.liste_id = $1
@@ -905,32 +905,29 @@ export async function worksOf(base: Db, listeId: string): Promise<Oeuvre[]> {
 
 /** Rend `false` si l'œuvre y était déjà : le même geste, la même réponse. */
 export async function addToList(
-  base: Db,
+  db: Db,
   listeId: string,
   parQui: string,
   o: { tmdbId: string; titre?: string; annee?: string | null }
 ): Promise<boolean> {
-  const r = await base.query(
+  const r = await db.query(
     `INSERT INTO liste_item (liste_id, tmdb_id, titre, annee, ajoute_par)
      VALUES ($1, $2, $3, $4, $5)
      ON CONFLICT (liste_id, tmdb_id) DO NOTHING
      RETURNING tmdb_id`,
     [listeId, o.tmdbId, o.titre ?? "", o.annee ?? null, parQui]
   );
-  await base.query("UPDATE liste SET maj_le = now() WHERE id = $1", [listeId]);
+  await db.query("UPDATE liste SET maj_le = now() WHERE id = $1", [listeId]);
   return r.length > 0;
 }
 
-export async function removeFromList(base: Db, listeId: string, tmdbId: string): Promise<void> {
-  await base.query("DELETE FROM liste_item WHERE liste_id = $1 AND tmdb_id = $2", [
-    listeId,
-    tmdbId,
-  ]);
-  await base.query("UPDATE liste SET maj_le = now() WHERE id = $1", [listeId]);
+export async function removeFromList(db: Db, listeId: string, tmdbId: string): Promise<void> {
+  await db.query("DELETE FROM liste_item WHERE liste_id = $1 AND tmdb_id = $2", [listeId, tmdbId]);
+  await db.query("UPDATE liste SET maj_le = now() WHERE id = $1", [listeId]);
 }
 
-export async function membersOf(base: Db, listeId: string): Promise<string[]> {
-  const r = await base.query<{ pseudo: string }>(
+export async function membersOf(db: Db, listeId: string): Promise<string[]> {
+  const r = await db.query<{ pseudo: string }>(
     `SELECT p.pseudo FROM liste_membre m JOIN personne p ON p.id = m.personne_id
       WHERE m.liste_id = $1 ORDER BY p.pseudo`,
     [listeId]
@@ -938,19 +935,19 @@ export async function membersOf(base: Db, listeId: string): Promise<string[]> {
   return r.map((l) => l.pseudo);
 }
 
-export async function inviteToList(base: Db, listeId: string, personneId: string): Promise<void> {
-  await base.query(
+export async function inviteToList(db: Db, listeId: string, personneId: string): Promise<void> {
+  await db.query(
     "INSERT INTO liste_membre (liste_id, personne_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
     [listeId, personneId]
   );
 }
 
 export async function removeMemberFromList(
-  base: Db,
+  db: Db,
   listeId: string,
   personneId: string
 ): Promise<void> {
-  await base.query("DELETE FROM liste_membre WHERE liste_id = $1 AND personne_id = $2", [
+  await db.query("DELETE FROM liste_membre WHERE liste_id = $1 AND personne_id = $2", [
     listeId,
     personneId,
   ]);
@@ -1014,8 +1011,8 @@ export interface Avancement {
  * d'annuaire de gens : une liste de tout ce qui se joue ferait de ce
  * classeur une place publique, ce qu'il n'est pas.
  */
-export async function myChallenges(base: Db, personneId: string): Promise<Epreuve[]> {
-  return base.query<Epreuve>(
+export async function myChallenges(db: Db, personneId: string): Promise<Epreuve[]> {
+  return db.query<Epreuve>(
     `SELECT e.id, e.titre, e.liste_id, l.titre AS liste,
             to_char(e.debut, 'YYYY-MM-DD') AS debut,
             to_char(e.fin, 'YYYY-MM-DD') AS fin,
@@ -1037,9 +1034,9 @@ export async function myChallenges(base: Db, personneId: string): Promise<Epreuv
   );
 }
 
-export async function challengeById(base: Db, id: string): Promise<Epreuve | null> {
-  return une<Epreuve>(
-    base,
+export async function challengeById(db: Db, id: string): Promise<Epreuve | null> {
+  return one<Epreuve>(
+    db,
     `SELECT e.id, e.titre, e.liste_id, l.titre AS liste,
             to_char(e.debut, 'YYYY-MM-DD') AS debut,
             to_char(e.fin, 'YYYY-MM-DD') AS fin,
@@ -1054,50 +1051,42 @@ export async function challengeById(base: Db, id: string): Promise<Epreuve | nul
 }
 
 export async function createChallenge(
-  base: Db,
+  db: Db,
   parQui: string,
   e: { listeId: string; titre: string; debut: string; fin: string }
 ): Promise<string> {
   const id = randomUUID();
-  await base.query(
+  await db.query(
     "INSERT INTO epreuve (id, liste_id, cree_par, titre, debut, fin) VALUES ($1, $2, $3, $4, $5, $6)",
     [id, e.listeId, parQui, e.titre, e.debut, e.fin]
   );
   /* Qui lance un défi y participe : l'inverse — un organisateur qui
      regarde les autres courir — n'est pas ce que ces gens-là font. */
-  await joinChallenge(base, id, parQui);
+  await joinChallenge(db, id, parQui);
   return id;
 }
 
-export async function deleteChallenge(base: Db, id: string): Promise<void> {
-  await base.query("DELETE FROM epreuve WHERE id = $1", [id]);
+export async function deleteChallenge(db: Db, id: string): Promise<void> {
+  await db.query("DELETE FROM epreuve WHERE id = $1", [id]);
 }
 
-export async function joinChallenge(
-  base: Db,
-  epreuveId: string,
-  personneId: string
-): Promise<void> {
-  await base.query(
+export async function joinChallenge(db: Db, epreuveId: string, personneId: string): Promise<void> {
+  await db.query(
     "INSERT INTO epreuve_participant (epreuve_id, personne_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
     [epreuveId, personneId]
   );
 }
 
-export async function leaveChallenge(
-  base: Db,
-  epreuveId: string,
-  personneId: string
-): Promise<void> {
-  await base.query("DELETE FROM epreuve_participant WHERE epreuve_id = $1 AND personne_id = $2", [
+export async function leaveChallenge(db: Db, epreuveId: string, personneId: string): Promise<void> {
+  await db.query("DELETE FROM epreuve_participant WHERE epreuve_id = $1 AND personne_id = $2", [
     epreuveId,
     personneId,
   ]);
 }
 
 /** Où en est chacun — un nombre par participant, et rien de plus. */
-export async function progressOf(base: Db, epreuveId: string): Promise<Avancement[]> {
-  return base.query<Avancement>(
+export async function progressOf(db: Db, epreuveId: string): Promise<Avancement[]> {
+  return db.query<Avancement>(
     `SELECT pe.pseudo,
             (SELECT count(*) FROM liste_item li
               WHERE li.liste_id = e.liste_id AND ${VU_PENDANT})::int AS faites
@@ -1111,9 +1100,9 @@ export async function progressOf(base: Db, epreuveId: string): Promise<Avancemen
 }
 
 /** Une liste par son identifiant, sans se demander qui la lit. */
-export async function listById(base: Db, id: string): Promise<Liste | null> {
-  return une<Liste>(
-    base,
+export async function listById(db: Db, id: string): Promise<Liste | null> {
+  return one<Liste>(
+    db,
     `SELECT l.id, l.titre, l.intention, l.publique, p.pseudo AS proprietaire,
             (SELECT count(*) FROM liste_item i WHERE i.liste_id = l.id)::int AS oeuvres
        FROM liste l JOIN personne p ON p.id = l.proprietaire_id
@@ -1134,8 +1123,8 @@ export async function listById(base: Db, id: string): Promise<Liste | null> {
  * par distraction, lui passer un compte ou une adresse — il n'y a pas
  * de paramètre pour les recevoir.
  */
-export async function compter(base: Db, geste: string): Promise<void> {
-  await base.query(
+export async function compter(db: Db, geste: string): Promise<void> {
+  await db.query(
     `INSERT INTO mesure (jour, geste, n) VALUES (current_date, $1, 1)
      ON CONFLICT (jour, geste) DO UPDATE SET n = mesure.n + 1`,
     [geste]
@@ -1143,10 +1132,10 @@ export async function compter(base: Db, geste: string): Promise<void> {
 }
 
 export async function mesures(
-  base: Db,
+  db: Db,
   jours = 30
 ): Promise<{ jour: string; geste: string; n: string }[]> {
-  return base.query(
+  return db.query(
     `SELECT to_char(jour, 'YYYY-MM-DD') AS jour, geste, n::text
        FROM mesure WHERE jour > current_date - $1::int
       ORDER BY jour DESC, n DESC`,
@@ -1166,7 +1155,7 @@ export interface Pousse {
 }
 
 export async function storePush(
-  base: Db,
+  db: Db,
   personneId: string,
   p: { point: string; p256dh: string; secret: string }
 ): Promise<void> {
@@ -1174,7 +1163,7 @@ export async function storePush(
      propriétaire si quelqu'un d'autre s'est connecté sur ce navigateur.
      Sans cela, un ordinateur partagé pousserait les rappels d'une
      personne à une autre. */
-  await base.query(
+  await db.query(
     `INSERT INTO pousse (point, personne_id, p256dh, secret) VALUES ($1, $2, $3, $4)
      ON CONFLICT (point) DO UPDATE
         SET personne_id = EXCLUDED.personne_id,
@@ -1184,12 +1173,12 @@ export async function storePush(
   );
 }
 
-export async function forgetPush(base: Db, point: string): Promise<void> {
-  await base.query("DELETE FROM pousse WHERE point = $1", [point]);
+export async function forgetPush(db: Db, point: string): Promise<void> {
+  await db.query("DELETE FROM pousse WHERE point = $1", [point]);
 }
 
-export async function pushesOf(base: Db, personneId: string): Promise<Pousse[]> {
-  return base.query<Pousse>(
+export async function pushesOf(db: Db, personneId: string): Promise<Pousse[]> {
+  return db.query<Pousse>(
     "SELECT point, p256dh, secret, personne_id FROM pousse WHERE personne_id = $1",
     [personneId]
   );
@@ -1203,11 +1192,11 @@ export async function pushesOf(base: Db, personneId: string): Promise<Pousse[]> 
  * les deux. Une notification en double est la façon la plus rapide de
  * faire couper les notifications.
  */
-export async function reminderIsNew(base: Db, personneId: string, sujet: string): Promise<boolean> {
-  const r = await base.query(
+export async function reminderIsNew(db: Db, personneId: string, subject: string): Promise<boolean> {
+  const r = await db.query(
     `INSERT INTO rappel_envoye (personne_id, sujet) VALUES ($1, $2)
      ON CONFLICT DO NOTHING RETURNING sujet`,
-    [personneId, sujet]
+    [personneId, subject]
   );
   return r.length > 0;
 }
@@ -1220,9 +1209,9 @@ export async function reminderIsNew(base: Db, personneId: string, sujet: string)
  * des motifs de sonner finit désinstallée.
  */
 export async function remindersDueToday(
-  base: Db
+  db: Db
 ): Promise<{ epreuve_id: string; titre: string; personne_id: string; quand: string }[]> {
-  return base.query(
+  return db.query(
     `SELECT e.id AS epreuve_id, e.titre, ep.personne_id,
             CASE WHEN e.debut = current_date THEN 'debut' ELSE 'fin' END AS quand
        FROM epreuve e JOIN epreuve_participant ep ON ep.epreuve_id = e.id

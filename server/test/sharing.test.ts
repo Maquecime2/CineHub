@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { testApp, testDb } from "./helpers.ts";
-import * as depot from "../src/store.ts";
+import * as store from "../src/store.ts";
 import type { Db } from "../src/db.ts";
 import type { FastifyInstance } from "fastify";
 
@@ -14,12 +14,12 @@ import type { FastifyInstance } from "fastify";
    ne partagent pas.
    ============================================================ */
 
-let base: Db;
+let db: Db;
 let app: FastifyInstance;
 
-async function connecte(pseudo: string) {
-  const personne = await depot.createPerson(base, pseudo);
-  const secret = await depot.openSession(base, personne.id);
+async function signedIn(pseudo: string) {
+  const personne = await store.createPerson(db, pseudo);
+  const secret = await store.openSession(db, personne.id);
   return { personne, cookie: `session=${secret}` };
 }
 
@@ -31,18 +31,18 @@ const regler = (cookie: string, partage: string) =>
   app.inject({ method: "PUT", url: "/partage", headers: { cookie }, payload: { partage } });
 
 beforeEach(async () => {
-  base = await testDb();
-  app = await testApp(base);
+  db = await testDb();
+  app = await testApp(db);
 });
 
 afterEach(async () => {
   await app.close();
-  await base.close();
+  await db.close();
 });
 
 describe("par défaut, on ne partage rien", () => {
   it("une collection est muette tant qu'on ne l'a pas ouverte", async () => {
-    const { cookie } = await connecte("varda");
+    const { cookie } = await signedIn("varda");
     await pousser(cookie, [{ id: "f1", majLe: 1, donnees: { title: "Cléo de 5 à 7" } }]);
 
     const r = await app.inject({ method: "GET", url: "/chez/varda" });
@@ -52,19 +52,19 @@ describe("par défaut, on ne partage rien", () => {
   it("et un compte qui n'existe pas répond exactement pareil", async () => {
     /* Sinon la route devient un annuaire : « 404 » d'un côté, « privé »
        de l'autre, et l'on sait qui est inscrit. */
-    const { cookie } = await connecte("varda");
+    const { cookie } = await signedIn("varda");
     await pousser(cookie, [{ id: "f1", majLe: 1, donnees: {} }]);
 
-    const privee = await app.inject({ method: "GET", url: "/chez/varda" });
+    const privateKey = await app.inject({ method: "GET", url: "/chez/varda" });
     const inconnue = await app.inject({ method: "GET", url: "/chez/jamais-vue" });
-    expect(privee.statusCode).toBe(inconnue.statusCode);
-    expect(privee.json()).toEqual(inconnue.json());
+    expect(privateKey.statusCode).toBe(inconnue.statusCode);
+    expect(privateKey.json()).toEqual(inconnue.json());
   });
 });
 
 describe("ce qu'un visiteur voit", () => {
   it("les films, la note et la critique — jamais les notes ni le journal", async () => {
-    const { cookie } = await connecte("varda");
+    const { cookie } = await signedIn("varda");
     await pousser(cookie, [
       {
         id: "f1",
@@ -102,7 +102,7 @@ describe("ce qu'un visiteur voit", () => {
   });
 
   it("une fiche écartée reste chez elle", async () => {
-    const { cookie } = await connecte("varda");
+    const { cookie } = await signedIn("varda");
     await pousser(cookie, [
       { id: "montrable", majLe: 1, donnees: { title: "Playtime" } },
       { id: "honteuse", majLe: 1, donnees: { title: "un plaisir coupable" } },
@@ -133,7 +133,7 @@ describe("ce qu'un visiteur voit", () => {
      soi, seulement chez les autres. C'est exactement l'espèce de défaut
      qui se découvre par quelqu'un d'autre. */
   it("reste écartée après une modification de la fiche", async () => {
-    const { cookie } = await connecte("varda");
+    const { cookie } = await signedIn("varda");
     await pousser(cookie, [
       { id: "montrable", majLe: 1, donnees: { title: "Playtime" } },
       { id: "honteuse", majLe: 1, donnees: { title: "un plaisir coupable" } },
@@ -157,7 +157,7 @@ describe("ce qu'un visiteur voit", () => {
   });
 
   it("dit lesquelles sont écartées, pour que le classeur puisse le montrer", async () => {
-    const { cookie } = await connecte("varda");
+    const { cookie } = await signedIn("varda");
     await pousser(cookie, [
       { id: "f1", majLe: 1, donnees: { title: "A" } },
       { id: "f2", majLe: 1, donnees: { title: "B" } },
@@ -185,8 +185,8 @@ describe("ce qu'un visiteur voit", () => {
   });
 
   it("ne dit à personne ce qu'un autre a écarté", async () => {
-    const moi = await connecte("varda");
-    const lui = await connecte("melville");
+    const moi = await signedIn("varda");
+    const lui = await signedIn("melville");
     await pousser(lui.cookie, [{ id: "s1", majLe: 1, donnees: { title: "Le Samouraï" } }]);
     await app.inject({
       method: "PUT",
@@ -204,7 +204,7 @@ describe("ce qu'un visiteur voit", () => {
   });
 
   it("une fiche effacée ne revient pas par la porte du partage", async () => {
-    const { cookie } = await connecte("varda");
+    const { cookie } = await signedIn("varda");
     await pousser(cookie, [{ id: "f1", majLe: 1, donnees: { title: "Playtime" } }]);
     await pousser(cookie, [{ id: "f1", majLe: 2, supprimee: true, donnees: {} }]);
     await regler(cookie, "publique");
@@ -216,7 +216,7 @@ describe("ce qu'un visiteur voit", () => {
 
 describe("le partage par lien", () => {
   it("s'ouvre à qui a le jeton, et à personne d'autre", async () => {
-    const { cookie } = await connecte("varda");
+    const { cookie } = await signedIn("varda");
     await pousser(cookie, [{ id: "f1", majLe: 1, donnees: { title: "Le Bonheur" } }]);
     const { jeton } = (await regler(cookie, "lien")).json();
     expect(jeton).toBeTruthy();
@@ -233,7 +233,7 @@ describe("le partage par lien", () => {
   });
 
   it("se referme, et le lien distribué ne vaut plus rien", async () => {
-    const { cookie } = await connecte("varda");
+    const { cookie } = await signedIn("varda");
     await pousser(cookie, [{ id: "f1", majLe: 1, donnees: {} }]);
     const { jeton } = (await regler(cookie, "lien")).json();
 
@@ -246,7 +246,7 @@ describe("le partage par lien", () => {
   it("rouvrir donne un jeton NEUF : se raviser veut dire quelque chose", async () => {
     /* Reprendre l'ancien ferait revivre tous les liens distribués la
        fois d'avant — y compris celui qu'on avait voulu couper. */
-    const { cookie } = await connecte("varda");
+    const { cookie } = await signedIn("varda");
     const premier = (await regler(cookie, "lien")).json().jeton;
     await regler(cookie, "privee");
     const second = (await regler(cookie, "lien")).json().jeton;
@@ -260,8 +260,8 @@ describe("le partage par lien", () => {
 
 describe("qui décide", () => {
   it("personne d'autre que soi", async () => {
-    const a = await connecte("duras");
-    const b = await connecte("godard");
+    const a = await signedIn("duras");
+    const b = await signedIn("godard");
     await pousser(a.cookie, [{ id: "f1", majLe: 1, donnees: { title: "India Song" } }]);
 
     /* B ne peut ni ouvrir la collection de A, ni y cacher une fiche :
@@ -285,7 +285,7 @@ describe("qui décide", () => {
   });
 
   it("un réglage inventé est refusé", async () => {
-    const { cookie } = await connecte("varda");
+    const { cookie } = await signedIn("varda");
     const r = await regler(cookie, "au-monde-entier-sauf-mon-frere");
     expect(r.statusCode).toBe(400);
   });
