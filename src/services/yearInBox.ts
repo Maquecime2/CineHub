@@ -54,7 +54,7 @@ export interface BoxData {
   minutes: number;
   /** La décennie la plus visitée — `null` si aucune fiche n'est datée. */
   decade: number | null;
-  /** Le pays le plus vu, déjà traduit par la vue. */
+  /** Le countries le plus vu, already traduit par la vue. */
   country: string | null;
   ageMoyen: number | null;
 }
@@ -69,7 +69,7 @@ export interface BoxData {
 
    SEULEMENT VOILÀ : LE MUR EST PASSÉ AVANT. `PosterArt` affiche ces
    mêmes adresses par un `<img>` ordinaire, SANS `crossOrigin`. Le cache
-   HTTP en garde une réponse obtenue en mode « no-cors », et le
+   HTTP en keep une réponse obtenue en mode « no-cors », et le
    navigateur REFUSE de la réutiliser pour une requête CORS. Mesuré ici,
    sur une adresse d'abord chargée comme le fait le mur :
 
@@ -127,7 +127,7 @@ async function chargerAffiche(poster: string): Promise<HTMLImageElement | null> 
   }
 
   /* Le filet : une entrée de cache bien à elle, que le mur n'a pas pu
-     salir. Le séparateur tient compte d'une adresse qui porterait déjà
+     salir. Le séparateur tient count d'une adresse qui porterait already
      une requête — une affiche collée à la main peut en avoir une. */
   const àPart = `${url}${url.includes("?") ? "&" : "?"}cors=1`;
   const parBalise = await enImage(àPart, "anonymous");
@@ -186,14 +186,14 @@ function tronquer(ctx: CanvasRenderingContext2D, texte: string, max: number): st
 
 const W = 1080;
 const H = 1350;
-/* Douze au plus : c'est ce qui tient en portrait sans que les titres
-   deviennent illisibles, et une année se raconte bien en douze images,
-   même quand elle en compte deux cents. */
+/* Douze au plus : c'est ce qui tient en portrait sans que les titles
+   deviennent illisibles, et une year se raconte bien en douze images,
+   même quand elle en count deux cents. */
 const MAX = 12;
 
 /* LA GRILLE S'AJUSTE, ET DEUX FOIS PLUTÔT QU'UNE.
 
-   En colonnes, parce qu'une année de deux films ne doit pas être
+   En colonnes, parce qu'une year de deux films ne doit pas être
    dessinée en quatre colonnes dont deux vides. En taille de case, parce
    que déduire la hauteur de la largeur seule ne regarde pas le bas du
    cadre : une grille de trois rangées calculée ainsi débordait de cent
@@ -270,7 +270,7 @@ export async function drawYearInBox(data: BoxData, p: BoxPalette): Promise<Blob>
   ctx.font = `bold 150px ${p.title}`;
   ctx.fillText(String(data.year), 68, 218);
 
-  // le trait à main levée sous l'année
+  // le trait à main levée sous l'year
   ctx.strokeStyle = p.accent;
   ctx.lineWidth = 5;
   ctx.lineCap = "round";
@@ -279,16 +279,16 @@ export async function drawYearInBox(data: BoxData, p: BoxPalette): Promise<Blob>
   ctx.bezierCurveTo(180, 231, 300, 245, 400, 236);
   ctx.stroke();
 
-  /* Les comptes, à droite de l'année : c'est la seule chose qu'un
+  /* Les comptes, à droite de l'year : c'est la seule chose qu'un
      regard de trois secondes retiendra. */
   const lignes: [string, string][] = [
-    [String(data.count), data.count > 1 ? "séances" : "séance"],
+    [String(data.count), data.count > 1 ? "screenings" : "séance"],
     [String(data.titles), data.titles > 1 ? "films" : "film"],
     [String(data.rewatches), data.rewatches > 1 ? "revoyures" : "revoyure"],
   ];
   if (data.ratingAvg != null) lignes.push([data.ratingAvg.toFixed(1), "de moyenne"]);
   /* Les heures de cinéma, quand on les connaît. C'est la statistique la
-     plus parlante du lot, et la seule qui demande d'avoir complété ses
+     plus parlante du batch, et la seule qui demande d'avoir complété ses
      fiches — une collection qui ne l'a pas faite ne voit rien manquer. */
   if (data.minutes > 0) lignes.push([`${Math.round(data.minutes / 60)} h`, "de cinéma"]);
 
@@ -303,14 +303,14 @@ export async function drawYearInBox(data: BoxData, p: BoxPalette): Promise<Blob>
      était abîmée.
 
      On mesure donc les cinq colonnes d'abord, et on en déduit
-     l'échelle qui les fait tenir entre l'année et la marge. Les
+     l'échelle qui les fait tenir entre l'year et la marge. Les
      largeurs d'un texte étant proportionnelles à sa taille, un seul
      relevé suffit à la calculer — pas de tâtonnement.
 
      Réduire plutôt qu'écarter : chacune de ces mentions a été jugée
      digne du regard de trois secondes, et une image qui rétrécit ses
      chiffres de quinze pour cent reste lisible là où une image qui en
-     escamote un ment sur l'année. */
+     escamote un ment sur l'year. */
   const X0 = 470;
   const ÉCART = 26;
   const dispo = W - MARGE - X0;
@@ -381,7 +381,7 @@ export async function drawYearInBox(data: BoxData, p: BoxPalette): Promise<Blob>
          Un film sans affiche n'est pas un trou : `PosterArt` lui fabrique
          depuis toujours une émulsion virée, teinte tirée de son
          identifiant, avec ses initiales dessus. Elle valait pour l'écran
-         et pas pour l'image, si bien qu'une année de films sans affiche
+         et pas pour l'image, si bien qu'une year de films sans affiche
          sortait en cartons blancs — alors qu'elle a une allure, et
          qu'elle est reconnaissable.
 
@@ -444,20 +444,20 @@ export async function drawYearInBox(data: BoxData, p: BoxPalette): Promise<Blob>
 
   /* ---- LE PIED ---- */
   const phrase = data.topDirector
-    ? `Le plus revu cette année : ${data.topDirector}.`
-    : "Une année de séances, tenue à la main.";
+    ? `Le plus revu cette year : ${data.topDirector}.`
+    : "Une year de screenings, tenue à la main.";
   ctx.fillStyle = p.inkFaded;
   ctx.font = `italic 27px ${p.body}`;
   ctx.fillText(tronquer(ctx, phrase, W - MARGE * 2), MARGE, H - 82);
 
-  /* Le bandeau de portrait : la décennie, le pays, l'âge. Chaque mention
-     ne paraît que si on la connaît — un « — » à la place d'un pays dirait
+  /* Le bandeau de portrait : la décennie, le countries, l'âge. Chaque mention
+     ne paraît que si on la connaît — un « — » à la place d'un countries dirait
      seulement qu'on n'a pas rempli ses fiches, ce qui n'intéresse
      personne sur une image qu'on montre. */
   const mentions = [
     data.decade != null ? `années ${String(data.decade).slice(2)}` : null,
     data.country,
-    data.ageMoyen != null ? `${Math.round(data.ageMoyen)} ans de moyenne` : null,
+    data.ageMoyen != null ? `${Math.round(data.ageMoyen)} years de moyenne` : null,
   ].filter(Boolean) as string[];
   if (mentions.length) {
     ctx.font = `21px ${p.mono}`;
@@ -475,12 +475,12 @@ export async function drawYearInBox(data: BoxData, p: BoxPalette): Promise<Blob>
   );
 }
 
-/** Poser l'image dans les téléchargements, sous un nom qui se retrouve. */
-export function telecharger(blob: Blob, nom: string): void {
+/** Poser l'image dans les téléchargements, sous un name qui se retrouve. */
+export function telecharger(blob: Blob, name: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = nom;
+  a.download = name;
   document.body.appendChild(a);
   a.click();
   a.remove();

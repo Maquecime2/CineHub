@@ -2,7 +2,7 @@
    VUE — L'ALMANACH, en quatre planches qu'on feuillette
    ============================================================
 
-   La page de comptes d'un archiviste : ce que l'année a contenu, tenu à
+   La page de comptes d'un archiviste : ce que l'year a contenu, tenu à
    la main sur des cartons posés de travers, et non une grille de
    compteurs. Le calcul entier vit dans `domain/almanac` — cette vue ne
    fait que dessiner ce qu'il rend, et n'a donc aucune règle à elle.
@@ -23,7 +23,7 @@
    CE QUI GARANTIT QU'AUCUNE NE DÉBORDE. Les planches sont des grilles à
    lignes fixes, jamais des flux : la hauteur est décidée d'avance et
    répartie, au lieu d'être subie. Et surtout, ce qui pourrait être long
-   est tronqué PAR LE CALCUL — un palmarès rend quatre lignes, pas
+   est tronqué PAR LE CALCUL — un ranking rend quatre lignes, pas
    quarante. Un `overflow: hidden` aurait caché la donnée sans le dire,
    ce qui est pire qu'une barre de défilement.
 
@@ -47,7 +47,7 @@ import {
   yearsCovered,
   type Almanac,
   type Drift,
-  type Période,
+  type Period,
 } from "../domain/almanac";
 import { drawYearInBox, telecharger, type BoxPalette } from "../services/yearInBox";
 import { hash, seededRand, tiltOf } from "../domain/seeded";
@@ -73,10 +73,10 @@ const MOIS_LONG = [
   "décembre",
 ];
 
-/* « 2024-03-07 » → « 7 mars ». L'année est tue parce qu'elle est déjà
+/* « 2024-03-07 » → « 7 mars ». L'year est tue parce qu'elle est already
    dans le titre de la page — mais seulement quand le titre EST une
-   année : « du 25 janvier au 24 décembre » sur un bilan qui couvre sept
-   ans laisse croire à une seule année, et c'est justement la chose que
+   year : « du 25 janvier au 24 décembre » sur un bilan qui couvre sept
+   years laisse croire à une seule year, et c'est justement la chose que
    ce bilan doit démentir. */
 const enClair = (iso: string | null, avecAnnée = false): string => {
   if (!iso) return "—";
@@ -92,12 +92,12 @@ const enHeures = (minutes: number): string => {
   return m ? `${h} h ${String(m).padStart(2, "0")}` : `${h} h`;
 };
 
-/* Les noms de pays et de langues se traduisent dans `noms`, et non dans
+/* Les namesIn de countries et de languages se traduisent dans `namesIn`, et non dans
    le domaine : `geography` rend des codes ISO parce qu'il ne sait pas
    dans quelle langue on le lira. La fiche s'en sert aussi. */
 
 /* ------------------------------------------------------------
-   LE CARTON — la pièce que toutes les planches réemploient
+   LE CARTON — la pièce que all les planches réemploient
    ------------------------------------------------------------ */
 function Cardstock({
   titre,
@@ -188,31 +188,31 @@ function Chiffre({
    ------------------------------------------------------------
 
    Chaque barre est un quadrilatère dont les quatre coins bougent d'un
-   cheveu — tiré de l'année et du mois, donc toujours le même. Un
+   cheveu — tiré de l'year et du mois, donc toujours le même. Un
    rectangle parfait dans une page manuscrite se voit tout de suite ;
    un rectangle qui tremble ne se voit pas du tout, ce qui est le but. */
 /* Douze mois ou sept années : c'est la même barre, et le même dessin.
-   Le graphique ne connaît que des valeurs et leurs légendes — lui faire
-   croire qu'il compte des mois aurait obligé à l'écrire deux fois le
+   Le graphique ne connaît que des values et leurs légendes — lui faire
+   croire qu'il count des mois aurait obligé à l'écrire deux fois le
    jour où l'on a voulu lire une pratique entière. */
 function Barres({
-  valeurs,
+  values,
   légendes,
   graine,
 }: {
-  valeurs: number[];
+  values: number[];
   légendes: string[];
   graine: string | number;
 }) {
   const W = 300;
   const H = 108;
-  const max = Math.max(1, ...valeurs);
-  const pas = W / Math.max(1, valeurs.length);
+  const max = Math.max(1, ...values);
+  const pas = W / Math.max(1, values.length);
   const largeur = pas * 0.56;
-  /* Au-delà de huit colonnes, une année sur quatre chiffres se cogne à
-     sa voisine : on ne garde que les deux derniers, qui suffisent à
+  /* Au-delà de huit colonnes, une year sur quatre chiffres se cogne à
+     sa voisine : on ne keep que les deux derniers, qui suffisent à
      suivre une décennie. */
-  const étroit = valeurs.length > 8;
+  const étroit = values.length > 8;
 
   return (
     <svg
@@ -222,7 +222,7 @@ function Barres({
       preserveAspectRatio="none"
       style={{ display: "block", marginTop: 6 }}
     >
-      {valeurs.map((n, i) => {
+      {values.map((n, i) => {
         const g = i * pas + (pas - largeur) / 2;
         const d = g + largeur;
         const haut = H - (n / max) * (H - 6);
@@ -238,7 +238,7 @@ function Barres({
                 strokeLinejoin="round"
               />
             )}
-            {/* Le compte au-dessus de la barre, mais seulement quand il y
+            {/* Le count au-dessus de la barre, mais seulement quand il y
                 a la place : douze nombres serrés ne se lisent pas. */}
             {n > 0 && n >= max * 0.34 && (
               <text
@@ -272,7 +272,7 @@ function Barres({
   );
 }
 
-/* Une petite règle horizontale : la part de chaque entrée d'un palmarès.
+/* Une petite règle horizontale : la part de chaque entrée d'un ranking.
 
    Le nombre de lignes est TRONQUÉ PAR L'APPELANT, jamais masqué ici :
    c'est ce qui garantit qu'une planche ne déborde pas sans qu'on le
@@ -284,19 +284,19 @@ function Palmares({
   vide = "rien à noter",
   onPick,
 }: {
-  items: { nom: string; n: number }[];
+  items: { name: string; n: number }[];
   total: number;
   ink?: string;
   vide?: string;
-  /** Rend chaque nom cliquable. Absent : le palmarès reste du texte. */
-  onPick?: (nom: string) => void;
+  /** Rend chaque name cliquable. Absent : le ranking reste du texte. */
+  onPick?: (name: string) => void;
 }) {
   if (items.length === 0) return <Rien quoi={vide} />;
   const max = Math.max(1, ...items.map((i) => i.n));
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 3 }}>
       {items.map((it) => (
-        <div key={it.nom}>
+        <div key={it.name}>
           <div
             style={{
               display: "flex",
@@ -311,8 +311,8 @@ function Palmares({
               /* Un pointillé d'encre, comme sur la fiche film : le
                  carnet ne souligne pas en bleu ce qu'on peut suivre. */
               <button
-                onClick={() => onPick(it.nom)}
-                title={`Ce que j'ai de ${it.nom}`}
+                onClick={() => onPick(it.name)}
+                title={`Ce que j'ai de ${it.name}`}
                 style={{
                   all: "unset",
                   ...tap,
@@ -323,14 +323,14 @@ function Palmares({
                   borderBottom: `1px dotted ${C.inkFaded}`,
                 }}
               >
-                {it.nom}
+                {it.name}
               </button>
             ) : (
               <span
                 style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-                title={it.nom}
+                title={it.name}
               >
-                {it.nom}
+                {it.name}
               </span>
             )}
             <span style={{ fontFamily: F.mono, fontSize: 11, color: C.inkFaded, flexShrink: 0 }}>
@@ -352,14 +352,14 @@ function Palmares({
    ------------------------------------------------------------ */
 function PlancheCompte({ a }: { a: Almanac }) {
   const r = a.rhythm;
-  const clé = String(a.période);
-  const toujours = a.période === "toujours";
-  /* Les jours réellement couverts, pour dire « une séance tous les tant
-     de jours » sans supposer une année civile. */
-  const étendue = r.densite > 0 ? (r.jours / r.densite) * 100 : 365;
+  const clé = String(a.period);
+  const toujours = a.period === "always";
+  /* Les days réellement couverts, pour dire « une séance tous les tant
+     de days » sans supposer une year civile. */
+  const span = r.density > 0 ? (r.days / r.density) * 100 : 365;
   return (
     <div style={GRILLE_2x2}>
-      <Cardstock titre="Le compte" seed={`compte-${clé}`}>
+      <Cardstock titre="Le count" seed={`count-${clé}`}>
         <div
           style={{
             display: "grid",
@@ -386,40 +386,40 @@ function PlancheCompte({ a }: { a: Almanac }) {
         </div>
       </Cardstock>
 
-      {/* Douze mois pour une année, une colonne par année pour toute une
+      {/* Douze mois pour une year, une colonne par year pour toute une
           pratique : c'est la même barre, et la graduation change seule. */}
       {/* PLUS DE `gridColumn: "span 2"` : il était la contrepartie des
-          trois colonnes, où il servait à combler la première rangée. Sur
+          trois colonnes, où il servait à combler la firstSeen rangée. Sur
           un vrai 2×2, il pousserait les deux cartons du bas dans une
           troisième rangée que la grille ne déclare pas — et la planche
           se remettrait à déborder par où on venait de la refermer. */}
       <Cardstock titre={toujours ? "Les années" : "Les mois"} seed={`mois-${clé}`}>
         {toujours ? (
           <Barres
-            valeurs={a.byYear.map((y) => y.séances)}
+            values={a.byYear.map((y) => y.screenings)}
             légendes={a.byYear.map((y) => String(y.year))}
             graine={clé}
           />
         ) : (
-          <Barres valeurs={a.byMonth} légendes={MOIS} graine={clé} />
+          <Barres values={a.byMonth} légendes={MOIS} graine={clé} />
         )}
       </Cardstock>
 
       <Cardstock titre="Le rythme" seed={`rythme-${clé}`}>
         <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 6 }}>
-          <Tally label="Jours avec séance" value={r.jours} ink={C.pine} />
+          <Tally label="Jours avec séance" value={r.days} ink={C.pine} />
           <Tally
-            label={toujours ? "De la période" : "De l'année"}
-            value={`${r.densite.toFixed(1)} %`}
+            label={toujours ? "De la period" : "De l'year"}
+            value={`${r.density.toFixed(1)} %`}
           />
-          <Tally label="Plus longue disette" value={`${r.disette} j`} />
+          <Tally label="Plus longue drought" value={`${r.drought} j`} />
           <Tally
             label="Mois le plus dense"
             value={r.moisLePlusDense ? MOIS_LONG[r.moisLePlusDense - 1] || "—" : "—"}
           />
         </div>
         <div style={{ marginTop: 8, fontFamily: F.hand, fontSize: 15, color: C.inkFaded }}>
-          {r.jours > 0 ? `une séance tous les ${(étendue / r.jours).toFixed(1)} jours` : ""}
+          {r.days > 0 ? `une séance tous les ${(span / r.days).toFixed(1)} days` : ""}
         </div>
       </Cardstock>
 
@@ -437,7 +437,7 @@ function PlancheCompte({ a }: { a: Almanac }) {
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 10 }}>
               <Tally
-                label="Séance moyenne"
+                label="Screening moyenne"
                 value={a.screenTime.moyenne ? `${Math.round(a.screenTime.moyenne)} min` : "—"}
               />
               {a.screenTime.plusLong && (
@@ -467,7 +467,7 @@ function PlancheCompte({ a }: { a: Almanac }) {
                 {a.screenTime.plusLong.film.title}
               </div>
             )}
-            {/* UN TOTAL QUI S'ANNONCE COMME UN PLANCHER. Taire les séances
+            {/* UN TOTAL QUI S'ANNONCE COMME UN PLANCHER. Taire les screenings
                 sans durée donnerait un chiffre faux avec l'aplomb d'un
                 chiffre juste. */}
             {a.screenTime.sansDuree > 0 && (
@@ -487,13 +487,13 @@ function PlancheCompte({ a }: { a: Almanac }) {
    ------------------------------------------------------------ */
 function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
   const maxHisto = Math.max(1, ...a.ratingHistogram);
-  const clé = String(a.période);
-  const toujours = a.période === "toujours";
+  const clé = String(a.period);
+  const toujours = a.period === "always";
   return (
     <div style={GRILLE_2x2}>
       <Cardstock titre="Les notes" seed={`notes-${clé}`}>
         {a.ratingAvg == null ? (
-          <Rien quoi={toujours ? "aucune séance notée" : "aucune séance notée cette année"} />
+          <Rien quoi={toujours ? "aucune séance notée" : "aucune séance notée cette year"} />
         ) : (
           <>
             <div
@@ -533,7 +533,7 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
                 sujet, et la planche ne peut pas porter un carton de plus
                 sans déborder. `tmdbRating` était stocké depuis le début
                 pour cette mesure exactement, et n'avait jamais servi. */}
-            {a.écart.écart != null && (
+            {a.gap.gap != null && (
               <div
                 style={{
                   marginTop: 9,
@@ -543,16 +543,16 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
                   textAlign: "center",
                 }}
               >
-                {Math.abs(a.écart.écart) < 0.15 ? (
-                  <>d'accord avec le public, sur {a.écart.n} séances</>
+                {Math.abs(a.gap.gap) < 0.15 ? (
+                  <>d'accord avec le public, sur {a.gap.n} screenings</>
                 ) : (
                   <>
                     plus{" "}
-                    <span style={{ color: a.écart.écart > 0 ? C.moss : C.vermillion }}>
-                      {a.écart.écart > 0 ? "tendre" : "sévère"}
+                    <span style={{ color: a.gap.gap > 0 ? C.moss : C.vermillion }}>
+                      {a.gap.gap > 0 ? "tendre" : "sévère"}
                     </span>{" "}
-                    que le public de {Math.abs(a.écart.écart).toFixed(1)} point
-                    {Math.abs(a.écart.écart) >= 2 ? "s" : ""}, sur {a.écart.n} séances
+                    que le public de {Math.abs(a.gap.gap).toFixed(1)} point
+                    {Math.abs(a.gap.gap) >= 2 ? "s" : ""}, sur {a.gap.n} screenings
                   </>
                 )}
               </div>
@@ -561,9 +561,9 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
         )}
       </Cardstock>
 
-      <Cardstock titre="L'âge de ce que vous regardez" seed={`age-${clé}`}>
-        {a.age.moyen == null ? (
-          <Rien quoi="aucune année de sortie renseignée" />
+      <Cardstock titre="L'âge de ce que you regardez" seed={`age-${clé}`}>
+        {a.age.mean == null ? (
+          <Rien quoi="aucune year de release renseignée" />
         ) : (
           <>
             <div
@@ -575,22 +575,22 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
               }}
             >
               <Chiffre
-                valeur={`${Math.round(a.age.moyen)} ans`}
+                valeur={`${Math.round(a.age.mean)} years`}
                 legende="EN MOYENNE"
                 ink={C.pine}
               />
               <Chiffre
-                valeur={`${Math.round(a.age.partPatrimoine ?? 0)} %`}
+                valeur={`${Math.round(a.age.heritageShare ?? 0)} %`}
                 legende="DE PLUS DE 20 ANS"
               />
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 10 }}>
-              <Tally label="Médiane" value={`${a.age.median} ans`} />
-              {a.age.plusAncien && (
-                <Tally label="Le plus ancien" value={a.age.plusAncien.year} ink={C.burgundy} />
+              <Tally label="Médiane" value={`${a.age.median} years`} />
+              {a.age.oldest && (
+                <Tally label="Le plus ancien" value={a.age.oldest.year} ink={C.burgundy} />
               )}
             </div>
-            {a.age.plusAncien && (
+            {a.age.oldest && (
               <div
                 style={{
                   marginTop: 6,
@@ -602,7 +602,7 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
                   whiteSpace: "nowrap",
                 }}
               >
-                {a.age.plusAncien.film.title}
+                {a.age.oldest.film.title}
               </div>
             )}
           </>
@@ -611,13 +611,13 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
 
       <Cardstock titre="Les décennies visitées" seed={`decennies-${clé}`}>
         {a.decades.length === 0 ? (
-          <Rien quoi="aucune année de sortie renseignée" />
+          <Rien quoi="aucune year de release renseignée" />
         ) : (
           <div style={{ display: "flex", alignItems: "flex-end", gap: 4, marginTop: 10 }}>
             {a.decades.map((d) => {
               const max = Math.max(...a.decades.map((x) => x.n));
               /* La note moyenne de la décennie, sous sa barre : c'est ce
-                 rapprochement — combien, et aimés comment — qui montre un
+                 rapprochement — howMany, et aimés comment — qui montre un
                  biais qu'on ne se connaît pas. */
               const note = a.ratingByDecade.find((x) => x.decade === d.decade);
               return (
@@ -656,11 +656,11 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
         )}
       </Cardstock>
 
-      {/* CE QUI A BOUGÉ — hors de l'année, et c'est délibéré : un film
+      {/* CE QUI A BOUGÉ — hors de l'year, et c'est délibéré : un film
           qu'on réévalue le fait sur une décennie, pas sur douze mois. */}
       <Cardstock titre="Ce qui a changé d'avis" seed="drift">
         {drifts.length === 0 ? (
-          <Rien quoi="aucune note n'a bougé entre deux séances" />
+          <Rien quoi="aucune note n'a bougé entre deux screenings" />
         ) : (
           <>
             <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
@@ -708,7 +708,7 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
               ))}
             </div>
             <div style={{ marginTop: 8, fontFamily: F.hand, fontSize: 15, color: C.inkFaded }}>
-              toutes années confondues — on ne se ravise pas en douze mois
+              all années confondues — on ne se ravise pas en douze mois
             </div>
           </>
         )}
@@ -720,14 +720,14 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
 /* ------------------------------------------------------------
    PLANCHE III — LES GENS ET LE MONDE
    ------------------------------------------------------------ */
-function PlancheGens({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (nom: string) => void }) {
+function PlancheGens({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (name: string) => void }) {
   const g = a.geography;
-  const clé = String(a.période);
-  const toujours = a.période === "toujours";
+  const clé = String(a.period);
+  const toujours = a.period === "always";
   return (
     <div style={GRILLE_2x2}>
       <Cardstock titre="Les cinéastes" seed={`cineastes-${clé}`}>
-        {/* Les noms mènent au générique : l'almanach dit qui revient,
+        {/* Les namesIn mènent au générique : l'almanach dit qui revient,
             le dossier dit ce qu'on a de cette personne. Deux questions
             voisines qui n'avaient aucun chemin l'une vers l'autre. */}
         <Palmares items={a.topDirectors.slice(0, 4)} total={a.count} onPick={onOpenPerson} />
@@ -743,14 +743,14 @@ function PlancheGens({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (nom: str
       >
         {/* TROIS FOIS DANS UNE ANNÉE N'EST PAS UN HASARD : c'est une
             traversée d'œuvre, et c'est ce qu'un cinéphile veut voir
-            nommé. Les découvertes sont l'autre face — les noms dont
-            c'est la première apparition au journal, toutes années
+            nommé. Les découvertes sont l'autre face — les namesIn dont
+            c'est la firstSeen apparition au journal, all années
             confondues.
 
             Sur « toujours », cette seconde face se dissout : tout le
             monde a été découvert un jour. `newDirectors` rend alors une
-            liste vide, et le carton se referme sur les seules
-            fidélités — dont le seuil, lui, a monté. */}
+            list vide, et le carton se referme sur les seules
+            fidélités — dont le threshold, lui, a monté. */}
         {a.loyalties.directors.length === 0 &&
         a.loyalties.actors.length === 0 &&
         a.newDirectors.length === 0 ? (
@@ -758,7 +758,7 @@ function PlancheGens({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (nom: str
             quoi={
               toujours
                 ? `personne ne revient ${SEUIL_TOUJOURS} fois ou plus`
-                : "rien qui revienne trois fois, ni aucun nom nouveau"
+                : "rien qui revienne trois fois, ni aucun name nouveau"
             }
           />
         ) : (
@@ -769,7 +769,7 @@ function PlancheGens({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (nom: str
                 <div style={{ fontFamily: F.body, fontSize: 12.5, color: C.ink }}>
                   {a.loyalties.directors
                     .slice(0, 3)
-                    .map((d) => `${d.nom} (${d.n})`)
+                    .map((d) => `${d.name} (${d.n})`)
                     .join(" · ")}
                 </div>
               </div>
@@ -780,7 +780,7 @@ function PlancheGens({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (nom: str
                 <div style={{ fontFamily: F.body, fontSize: 12.5, color: C.ink }}>
                   {a.loyalties.actors
                     .slice(0, 3)
-                    .map((d) => `${d.nom} (${d.n})`)
+                    .map((d) => `${d.name} (${d.n})`)
                     .join(" · ")}
                 </div>
               </div>
@@ -808,27 +808,27 @@ function PlancheGens({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (nom: str
       </Cardstock>
 
       <Cardstock titre="Le monde traversé" seed={`monde-${clé}`}>
-        {g.nbPays === 0 ? (
-          <Rien quoi="aucun pays renseigné — « compléter les fiches », dans l'onglet Import, va les chercher" />
+        {g.countryCount === 0 ? (
+          <Rien quoi="aucun countries renseigné — « compléter les fiches », dans l'onglet Import, va les chercher" />
         ) : (
           <>
             <div style={{ marginTop: 6 }}>
-              <Chiffre valeur={g.nbPays} legende="PAYS TRAVERSÉS" ink={C.cobalt} />
+              <Chiffre valeur={g.countryCount} legende="PAYS TRAVERSÉS" ink={C.cobalt} />
             </div>
             <div style={{ marginTop: 8 }}>
               <Palmares
-                items={g.pays.slice(0, 3).map((p) => ({ nom: nomPays(p.nom), n: p.n }))}
+                items={g.countries.slice(0, 3).map((p) => ({ name: nomPays(p.name), n: p.n }))}
                 total={a.count}
                 ink={C.cobalt}
               />
             </div>
-            {g.langues.length > 0 && (
+            {g.languages.length > 0 && (
               <div style={{ marginTop: 8 }}>
                 <div style={{ fontFamily: F.mono, fontSize: 9, color: C.inkFaded }}>LANGUES</div>
                 <div style={{ fontFamily: F.body, fontSize: 12, color: C.ink }}>
-                  {g.langues
+                  {g.languages
                     .slice(0, 4)
-                    .map((l) => nomLangue(l.nom))
+                    .map((l) => nomLangue(l.name))
                     .join(" · ")}
                 </div>
               </div>
@@ -845,21 +845,21 @@ function PlancheGens({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (nom: str
    ------------------------------------------------------------
 
    Les trois premières planches disent COMBIEN, COMMENT NOTÉ et PAR QUI
-   — genres, pays, langues, cinéastes, interprètes. Aucune ne disait DE
+   — genres, countries, languages, cinéastes, interprètes. Aucune ne disait DE
    QUOI, alors que la fiche porte des mots-clés depuis TMDB et des
    motifs depuis le catalogue commun ; ni PAR QUI D'AUTRE, alors que
    `crew` porte l'image, la musique et le scénario. Cette planche est
-   faite des deux axes qui manquaient, plus la moitié de l'écart au
+   faite des deux axes qui manquaient, plus la moitié de l'gap au
    public qui n'était jamais montrée. */
 function PlancheSujets({ a }: { a: Almanac }) {
-  const clé = String(a.période);
-  const s = a.sujets;
-  const ar = a.artisans;
+  const clé = String(a.period);
+  const s = a.subjects;
+  const ar = a.craftspeople;
   return (
     <div style={GRILLE_2x2}>
-      <Cardstock titre="Les sujets" seed={`sujets-${clé}`}>
+      <Cardstock titre="Les subjects" seed={`subjects-${clé}`}>
         <Palmares
-          items={s.motsClés.slice(0, 5)}
+          items={s.keywords.slice(0, 5)}
           total={a.count}
           ink={C.ochre}
           vide="aucun mot-clé — « compléter les fiches », dans l'onglet Import, va les chercher"
@@ -868,24 +868,24 @@ function PlancheSujets({ a }: { a: Almanac }) {
 
       <Cardstock titre="Les motifs suivis" seed={`motifs-${clé}`}>
         {/* Le domaine rend des IDENTIFIANTS, comme il rend des codes
-            pays : c'est ici qu'on les lit en français. Un motif retiré
-            du catalogue depuis garde son identifiant plutôt que de
+            countries : c'est ici qu'on les lit en français. Un motif retiré
+            du catalogue depuis keep son identifiant plutôt que de
             disparaître — la même règle que sur la fiche. */}
         <Palmares
           items={s.motifs
             .slice(0, 5)
-            .map((m) => ({ nom: motifById(m.nom)?.label ?? m.nom, n: m.n }))}
+            .map((m) => ({ name: motifById(m.name)?.label ?? m.name, n: m.n }))}
           total={a.count}
           ink={C.pine}
           vide="aucun motif posé — ils se choisissent sur une fiche, sous la critique"
         />
       </Cardstock>
 
-      <Cardstock titre="Les artisans" seed={`artisans-${clé}`}>
-        {/* Sans seuil, contrairement aux fidélités : personne ne se dit
+      <Cardstock titre="Les craftspeople" seed={`craftspeople-${clé}`}>
+        {/* Sans threshold, contrairement aux fidélités : personne ne se dit
             « je suis le travail d'un chef opérateur », et c'est justement
-            pour cela que le montrer apprend quelque chose. On ne garde
-            que ce qui REVIENT — un nom vu une seule fois n'est pas une
+            pour cela que le montrer apprend quelque chose. On ne keep
+            que ce qui REVIENT — un name vu une seule fois n'est pas une
             fidélité, c'est un générique. */}
         <MétierSuivi label="IMAGE" gens={ar.image} />
         <MétierSuivi label="MUSIQUE" gens={ar.musique} />
@@ -898,11 +898,11 @@ function PlancheSujets({ a }: { a: Almanac }) {
       </Cardstock>
 
       <Cardstock titre="Plus tendre, plus sévère" seed={`ecart-${clé}`}>
-        {a.écart.n === 0 ? (
+        {a.gap.n === 0 ? (
           <Rien quoi="aucune séance notée dont on connaisse aussi la note publique" />
         ) : (
           <>
-            {/* LES DEUX MOYENNES EN CLAIR. La planche des goûts dit déjà
+            {/* LES DEUX MOYENNES EN CLAIR. La planche des goûts dit already
                 « plus tendre de 0,3 point » ; elle ne disait pas de quoi
                 à quoi. Les deux nombres étaient calculés depuis le
                 premier jour et n'avaient jamais été écrits. */}
@@ -915,15 +915,15 @@ function PlancheSujets({ a }: { a: Almanac }) {
               }}
             >
               <Chiffre
-                valeur={a.écart.vous?.toFixed(1) ?? "—"}
+                valeur={a.gap.you?.toFixed(1) ?? "—"}
                 legende="VOUS, SUR 10"
                 ink={C.burgundy}
               />
-              <Chiffre valeur={a.écart.public?.toFixed(1) ?? "—"} legende="LE PUBLIC" />
+              <Chiffre valeur={a.gap.public?.toFixed(1) ?? "—"} legende="LE PUBLIC" />
             </div>
             <div style={{ marginTop: 9 }}>
-              <ÉcartListe label="VOS INDULGENCES" films={a.écart.plusTendre} ink={C.moss} />
-              <ÉcartListe label="VOS SÉVÉRITÉS" films={a.écart.plusSévère} ink={C.vermillion} />
+              <ÉcartListe label="VOS INDULGENCES" films={a.gap.mostGenerous} ink={C.moss} />
+              <ÉcartListe label="VOS SÉVÉRITÉS" films={a.gap.mostSevere} ink={C.vermillion} />
             </div>
           </>
         )}
@@ -933,20 +933,20 @@ function PlancheSujets({ a }: { a: Almanac }) {
 }
 
 /** Un métier de `crew` — muet quand personne n'y revient deux fois. */
-function MétierSuivi({ label, gens }: { label: string; gens: { nom: string; n: number }[] }) {
+function MétierSuivi({ label, gens }: { label: string; gens: { name: string; n: number }[] }) {
   const suivis = gens.filter((g) => g.n > 1).slice(0, 3);
   if (suivis.length === 0) return null;
   return (
     <div style={{ marginBottom: 7 }}>
       <div style={{ fontFamily: F.mono, fontSize: 9, color: C.inkFaded }}>{label}</div>
       <div style={{ fontFamily: F.body, fontSize: 12.5, color: C.ink }}>
-        {suivis.map((g) => `${g.nom} (${g.n})`).join(" · ")}
+        {suivis.map((g) => `${g.name} (${g.n})`).join(" · ")}
       </div>
     </div>
   );
 }
 
-/** Trois films et leur écart à la foule, en points sur dix. */
+/** Trois films et leur gap à la foule, en points sur dix. */
 function ÉcartListe({
   label,
   films,
@@ -996,7 +996,7 @@ function ÉcartListe({
    remplissaient donc à trois cartons en haut et un seul en bas, deux
    cases vides derrière, et chaque carton faisait un tiers de moins que
    ce pour quoi son contenu était écrit. C'est de là que venaient les
-   troncatures partout — les palmarès, les titres, « Fidélités et
+   troncatures partout — les ranking, les titles, « Fidélités et
    découvertes ». Rétablir le 2×2 les fait disparaître d'elles-mêmes,
    sans rien borner. */
 const GRILLE_2x2: CSSProperties = {
@@ -1013,10 +1013,10 @@ const GRILLE_2x2: CSSProperties = {
    ------------------------------------------------------------ */
 
 const PLANCHES = [
-  { titre: "Le compte et le rythme", tampon: "I" },
+  { titre: "Le count et le rythme", tampon: "I" },
   { titre: "Les goûts", tampon: "II" },
   { titre: "Les gens et le monde", tampon: "III" },
-  { titre: "Les sujets et les artisans", tampon: "IV" },
+  { titre: "Les subjects et les craftspeople", tampon: "IV" },
 ];
 
 /* La hauteur que l'en-tête se réserve. En dur, et c'est le prix du
@@ -1025,9 +1025,9 @@ const PLANCHES = [
    observateur de redimensionnement pour gagner quelques pixels. */
 const ENTETE = 178;
 
-/* Le seuil de fidélité sur toute une pratique — le domaine le fixe, la
+/* Le threshold de fidélité sur toute une pratique — le domaine le fixe, la
    vue le redit quand il n'y a rien à montrer. Recopié, oui : l'écrire en
-   toutes lettres dans la phrase « personne ne revient six fois » vaut
+   all lettres dans la phrase « personne ne revient six fois » vaut
    mieux qu'un nombre importé pour une seule phrase. */
 const SEUIL_TOUJOURS = 6;
 
@@ -1037,42 +1037,42 @@ export function AlmanacView({
 }: {
   films: Film[];
   /** Ouvre le dossier de quelqu'un au générique. */
-  onOpenPerson?: (nom: string) => void;
+  onOpenPerson?: (name: string) => void;
 }) {
   const années = useMemo(() => yearsCovered(films), [films]);
 
   /* LES PÉRIODES QU'ON PEUT FEUILLETER : « toujours » d'abord, puis les
      années de la plus récente à la plus ancienne.
 
-     En tête et non à la fin : c'est la page de garde du livret, celle
+     En tête et non à la fin : c'est la page de keep du livret, celle
      qui dit de quoi l'ensemble est fait avant d'entrer dans le détail
-     d'une année. Elle ne paraît qu'à partir de deux années couvertes —
-     sur une seule, « toujours » et « cette année » sont la même page,
+     d'une year. Elle ne paraît qu'à partir de deux années couvertes —
+     sur une seule, « toujours » et « cette year » sont la même page,
      et l'offrir deux fois ne ferait qu'un doublon à feuilleter. */
-  const périodes: Période[] = useMemo(
-    () => (années.length > 1 ? ["toujours", ...années] : années),
+  const périodes: Period[] = useMemo(
+    () => (années.length > 1 ? ["always", ...années] : années),
     [années]
   );
 
-  const [choisie, setChoisie] = useState<Période | null>(null);
-  /* La période regardée : celle qu'on a choisie tant qu'elle existe
-     encore — supprimer la dernière séance d'une année la fait
-     disparaître de la liste, et on ne doit pas rester sur une page qui
+  const [choisie, setChoisie] = useState<Period | null>(null);
+  /* La period regardée : celle qu'on a choisie tant qu'elle existe
+     encore — supprimer la dernière séance d'une year la fait
+     disparaître de la list, et on ne doit pas rester sur une page qui
      n'existe plus. */
-  const période = choisie != null && périodes.includes(choisie) ? choisie : (périodes[0] ?? null);
+  const period = choisie != null && périodes.includes(choisie) ? choisie : (périodes[0] ?? null);
 
   const [planche, setPlanche] = useState(0);
 
   const a: Almanac | null = useMemo(
-    () => (période == null ? null : almanacFor(films, période)),
-    [films, période]
+    () => (period == null ? null : almanacFor(films, period)),
+    [films, period]
   );
   const drifts = useMemo(() => driftHighlights(films, 4), [films]);
 
   /* LES FLÈCHES DU CLAVIER TOURNENT LA PAGE. C'est le geste d'un livret,
      et il ne coûte rien à qui ne le connaît pas. Elles ne changent PAS
-     l'année : deux sens de navigation sur la même touche seraient
-     indevinables, et l'année a ses propres pastilles. */
+     l'year : deux sens de navigation sur la même touche seraient
+     indevinables, et l'year a ses propres pastilles. */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const cible = e.target as HTMLElement | null;
@@ -1094,27 +1094,27 @@ export function AlmanacView({
     /* L'IMAGE EST COMPOSÉE AUTOUR D'UN MILLÉSIME — il s'y écrit en gros
        caractères. Sur « toujours », il n'y en a pas, et le bouton ne
        paraît pas : mieux vaut ne rien proposer qu'une image qui
-       inventerait une année. */
-    if (typeof période !== "number" || a == null) return;
+       inventerait une year. */
+    if (typeof period !== "number" || a == null) return;
     setBoîte("en cours");
     try {
       const blob = await drawYearInBox(
         {
-          year: période,
-          films: filmsOfYear(films, période),
+          year: period,
+          films: filmsOfYear(films, period),
           count: a.count,
           titles: a.titles,
           rewatches: a.rewatches,
           ratingAvg: a.ratingAvg,
-          topDirector: a.topDirectors[0]?.nom ?? null,
+          topDirector: a.topDirectors[0]?.name ?? null,
           minutes: a.screenTime.minutes,
           decade: a.decades.length ? a.decades.reduce((m, d) => (d.n > m.n ? d : m)).decade : null,
-          country: a.geography.pays[0] ? nomPays(a.geography.pays[0].nom) : null,
-          ageMoyen: a.age.moyen,
+          country: a.geography.countries[0] ? nomPays(a.geography.countries[0].name) : null,
+          ageMoyen: a.age.mean,
         },
         peauPosée()
       );
-      telecharger(blob, `cine-hub-${période}.png`);
+      telecharger(blob, `cine-hub-${period}.png`);
       setBoîte("repos");
     } catch (e) {
       console.error(e);
@@ -1122,7 +1122,7 @@ export function AlmanacView({
     }
   };
 
-  if (période == null || a == null) {
+  if (period == null || a == null) {
     return (
       <div style={{ padding: "34px 44px 70px", maxWidth: 760, position: "relative" }}>
         <StampCorner text="ALMANACH" />
@@ -1148,12 +1148,12 @@ export function AlmanacView({
   /* Le rang se prend dans les PÉRIODES et non dans les années : les
      flèches doivent pouvoir atteindre « toujours », qui ouvre le
      livret. */
-  const rang = périodes.indexOf(période);
+  const rang = périodes.indexOf(period);
   const allerAnnée = (pas: number) => {
     const suivante = périodes[rang + pas];
     if (suivante != null) setChoisie(suivante);
   };
-  const toujours = période === "toujours";
+  const toujours = period === "always";
 
   return (
     <div
@@ -1189,7 +1189,7 @@ export function AlmanacView({
           <button
             onClick={() => allerAnnée(1)}
             disabled={rang >= périodes.length - 1}
-            aria-label="période précédente"
+            aria-label="period précédente"
             style={flecheStyle(rang < périodes.length - 1)}
           >
             <ChevronLeft size={17} />
@@ -1209,12 +1209,12 @@ export function AlmanacView({
               textAlign: "center",
             }}
           >
-            {toujours ? "toujours" : période}
+            {toujours ? "always" : period}
           </div>
           <button
             onClick={() => allerAnnée(-1)}
             disabled={rang <= 0}
-            aria-label="période suivante"
+            aria-label="period suivante"
             style={flecheStyle(rang > 0)}
           >
             <ChevronRight size={17} />
@@ -1254,23 +1254,23 @@ export function AlmanacView({
               <button
                 key={String(p)}
                 onClick={() => setChoisie(p)}
-                aria-pressed={p === période}
-                style={anneeStyle(p === période)}
+                aria-pressed={p === period}
+                style={anneeStyle(p === period)}
               >
-                {p === "toujours" ? "TOUJOURS" : p}
+                {p === "always" ? "TOUJOURS" : p}
               </button>
             ))}
           </div>
 
           {/* L'ANNÉE EN BOÎTE — la seule chose d'ici qui sorte du
-              navigateur, et qui n'existe que pour une année : l'image
+              navigateur, et qui n'existe que pour une year : l'image
               est bâtie autour d'un millésime écrit en gros. */}
           {!toujours && (
             <button
               onClick={emporter}
               data-tour="almanac-export"
               disabled={boîte === "en cours"}
-              title="Une image de cette année, à garder ou à montrer"
+              title="Une image de cette year, à garder ou à montrer"
               style={{
                 all: "unset",
                 ...tap,
@@ -1295,7 +1295,7 @@ export function AlmanacView({
                 ? "on développe…"
                 : boîte === "raté"
                   ? "raté — réessayer"
-                  : "l'année en boîte"}
+                  : "l'year en boîte"}
             </button>
           )}
         </div>
@@ -1341,7 +1341,7 @@ export function AlmanacView({
       <div
         /* `key` : sans elle React réemploie le même nœud et l'animation
            d'entrée ne se rejoue jamais. Voir le même motif dans `App`. */
-        key={`${période}:${planche}`}
+        key={`${period}:${planche}`}
         data-enters
         style={{ flex: 1, minHeight: 0, paddingBottom: 22, position: "relative", zIndex: 2 }}
       >
@@ -1385,7 +1385,7 @@ function Titre() {
    regarder le document. */
 function peauPosée(): BoxPalette {
   const s = getComputedStyle(document.documentElement);
-  const v = (nom: string, repli: string) => s.getPropertyValue(nom).trim() || repli;
+  const v = (name: string, repli: string) => s.getPropertyValue(name).trim() || repli;
   return {
     paper: v("--c-paper", "#EEE3CC"),
     card: v("--c-card", "#F6EFDE"),
