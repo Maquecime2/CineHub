@@ -109,7 +109,7 @@ const DEV_TABS: typeof TABS = import.meta.env.DEV
 
 const DIMMED = "saturate(0.65) brightness(0.92)";
 
-type Tab = (typeof TABS)[number];
+type TabDef = (typeof TABS)[number];
 
 /* A TAB — AN ICON PILL.
 
@@ -129,7 +129,7 @@ function Tab({
   onClick,
   phone,
 }: {
-  t: Tab;
+  t: TabDef;
   active: boolean;
   onClick: () => void;
   /* ON A PHONE, THIS IS NO LONGER A BINDER TAB.

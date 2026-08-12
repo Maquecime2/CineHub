@@ -333,7 +333,7 @@ export default function App() {
      This is the flaw that made note-taking unusable, and there was
      nothing exotic about it: you only had to type fast.
 
-     Every keystroke calls `saveFilms`. The first `setFilms` puts the
+     Every keystroke calls `commitFilms`. The first `setFilms` puts the
      text on screen straight away; the write, meanwhile, goes off into
      the vault and takes a few dozen milliseconds to come back. By the
      time it does, two or three more letters have been typed — and its
@@ -350,7 +350,7 @@ export default function App() {
      `useRef` and not a module variable: two binders mounted side by side
      in a test would share the counter. */
   const rangÉcriture = useRef(0);
-  const saveFilms = (next) => {
+  const commitFilms = (next) => {
     setFilms(next);
     const rang = ++rangÉcriture.current;
     saveFilms(next).then((datés) => {
@@ -363,7 +363,7 @@ export default function App() {
      sort. The notebook page goes with it — it talks about the twelve
      films. */
   const retirerDémo = () => {
-    saveFilms(sansDémo(films));
+    commitFilms(sansDémo(films));
     notebook.replaceAll(notebook.notes.filter((n) => !n.id.startsWith(PRÉFIXE_DÉMO)));
     setSelectedId(null);
   };
@@ -409,7 +409,7 @@ export default function App() {
       ...vocabulaire,
       custom: vocabulaire.custom.filter((m) => m.id !== motifId),
     });
-    saveFilms(
+    commitFilms(
       films.map((f) =>
         (f.motifs || []).includes(motifId)
           ? { ...f, motifs: f.motifs.filter((id) => id !== motifId) }
@@ -433,7 +433,7 @@ export default function App() {
     });
 
   const addFilm = (film) => {
-    saveFilms([film, ...films]);
+    commitFilms([film, ...films]);
     setShowModal(false);
   };
 
@@ -469,13 +469,13 @@ export default function App() {
     },
     thread: () => setView("constellation"),
   };
-  const updateFilm = (film) => saveFilms(films.map((f) => (f.id === film.id ? film : f)));
+  const updateFilm = (film) => commitFilms(films.map((f) => (f.id === film.id ? film : f)));
   /* Filing a case renumbers a whole shelf: one write, not thirty. */
   const updateMany = (patches) =>
-    saveFilms(films.map((f) => (patches[f.id] ? { ...f, ...patches[f.id] } : f)));
+    commitFilms(films.map((f) => (patches[f.id] ? { ...f, ...patches[f.id] } : f)));
   const deleteFilm = (id) => {
     const next = films.filter((f) => f.id !== id);
-    saveFilms(next);
+    commitFilms(next);
     pruneOrphans(next).catch(console.error); // l'affiche part avec la fiche
     setView("library");
     setSelectedId(null);
@@ -506,7 +506,7 @@ export default function App() {
       relation: rel,
       force: force ? strengthOf(force) : undefined,
     });
-    saveFilms(
+    commitFilms(
       films.map((f) =>
         f.id === a.id
           ? { ...f, linkedWorks: [...(f.linkedWorks || []), card(b, relation)] }
@@ -549,14 +549,14 @@ export default function App() {
      being rewritten, and what its reciprocal half receives of it — lives
      in the domain, where it is tested without mounting a screen. */
   const editLink = (ownerId, workId, patch) =>
-    saveFilms(editLinkedWork(films, ownerId, workId, patch));
+    commitFilms(editLinkedWork(films, ownerId, workId, patch));
 
   /* Undoing a link: the reciprocal half goes with it. */
   const removeLink = (ownerId, workId) => {
     const owner = films.find((f) => f.id === ownerId);
     const work = (owner?.linkedWorks || []).find((w) => w.id === workId);
     if (!work) return;
-    saveFilms(
+    commitFilms(
       films.map((f) => {
         if (f.id === ownerId)
           return { ...f, linkedWorks: f.linkedWorks.filter((w) => w.id !== workId) };
@@ -582,7 +582,7 @@ export default function App() {
        are restoring. So we start again from the backup itself as the
        known state. */
     forgetCache(migrated);
-    saveFilms(migrated);
+    commitFilms(migrated);
     commitFils(normalizeThreads(fl || []));
     commitVocabulaire(normalizeVocabulaire(mo || {}));
     if (n?.length) notebook.replaceAll(n);
@@ -614,7 +614,7 @@ export default function App() {
   const importFilms = ({ toCreate, toUpdate }) => {
     const patches = new Map(toUpdate.map(({ film, changes }) => [film.id, changes]));
     const merged = films.map((f) => (patches.has(f.id) ? { ...f, ...patches.get(f.id) } : f));
-    saveFilms([...toCreate, ...merged]);
+    commitFilms([...toCreate, ...merged]);
   };
 
   const selectedFilm = films.find((f) => f.id === selectedId);
