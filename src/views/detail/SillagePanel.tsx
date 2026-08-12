@@ -22,16 +22,16 @@ import { hueOf } from "../../theme/ink";
 import { Carton, Consigne, SansCle, TitreSection } from "../../components/ui";
 import { PosterArt } from "../../components/film/PosterArt";
 import { initialsOf, makeFilm } from "../../domain/film";
-import { sillageMaison, familleDe, parQuotas } from "../../domain/sillage";
-import type { Voisin } from "../../domain/sillage";
+import { wakeAtHome, familyOf, byQuotas } from "../../domain/wake";
+import type { Neighbour } from "../../domain/wake";
 import {
-  fusionnerLoin,
-  renfortDuDehors,
-  déjàDansLeClasseur,
-  parIdTmdb,
-} from "../../domain/sillageLoin";
-import type { VoisinLoin } from "../../domain/sillageLoin";
-import { récolterLeSillage } from "../../services/sillage";
+  mergeAfar,
+  reinforcementFromOutside,
+  alreadyInTheBinder,
+  byTmdbId,
+} from "../../domain/wakeAfar";
+import type { FarNeighbour } from "../../domain/wakeAfar";
+import { harvestTheWake } from "../../services/wake";
 import { useTmdbKey } from "../../services/tmdbKey";
 import { directorOf } from "../../tmdb";
 import type { Film } from "../../types";
@@ -58,7 +58,7 @@ const HAUTEUR_MINIMALE = 220;
    sujet plafonne à 1,8, et vivait dans la même pile : les vingt
    recommandations de TMDB raflaient les cinq places à tous les coups,
    et aucun rapprochement par mot-clé n'a jamais paru. */
-const QUOTAS = { gens: 4, sujets: 4, foule: 2 };
+const QUOTAS = { people: 4, subjects: 4, crowd: 2 };
 
 /* ------------------------------------------------------------
    UNE PROPOSITION — l'affiche, le titre, et POURQUOI
@@ -236,7 +236,7 @@ function Dépli({
   déjàMis,
   onMettreDeCôté,
 }: {
-  v: VoisinLoin;
+  v: FarNeighbour;
   réalisateur: string;
   déjàMis: boolean;
   onMettreDeCôté: () => void;
@@ -305,7 +305,7 @@ function Dépli({
    vide — et la liste ne parle que d'équipes.
 
    AVEC UNE CLÉ, LE PROBLÈME NE SE POSE PLUS : le renfort venu de TMDB
-   comble le manque tout seul (voir `renfortDuDehors`). Ce mot ne
+   comble le manque tout seul (voir `reinforcementFromOutside`). Ce mot ne
    s'affiche donc que HORS LIGNE, où il reste vrai — et où le seul remède
    est bien de poser des motifs à la main. */
 function ManqueLesSujets() {
@@ -366,14 +366,14 @@ export function SillagePanel({
      de la fiche, ce qui rejouerait le tri sur cinq cents fiches. */
   /* Ce que la collection dit d'elle-même, sans réseau. Large : ce n'est
      pas la liste finale, seulement l'une de ses deux sources. */
-  const maison: Voisin[] = useMemo(
-    () => sillageMaison(film, films, { gens: 40, sujets: 40 }),
+  const maison: Neighbour[] = useMemo(
+    () => wakeAtHome(film, films, { people: 40, subjects: 40 }),
     [film, films]
   );
 
   /* Le renfort venu de TMDB — vos propres fiches, reconnues dans ce que
      la récolte rapporte. Il arrive après le réseau, d'où l'état. */
-  const [renfort, setRenfort] = useState<Voisin[]>([]);
+  const [renfort, setRenfort] = useState<Neighbour[]>([]);
 
   /* Ce film n'a RIEN sur quoi un rapprochement de sujet pourrait porter.
      On regarde le pivot et non la collection : c'est lui qu'on regarde,
@@ -387,8 +387,8 @@ export function SillagePanel({
      et parce que TMDB l'a remontée. On garde alors celle qui EXPLIQUE le
      mieux — le meilleur score — et jamais les deux, sinon la même
      affiche paraîtrait deux fois dans la colonne. */
-  const chezVous: Voisin[] = useMemo(() => {
-    const parFilm = new Map<string, Voisin>();
+  const chezVous: Neighbour[] = useMemo(() => {
+    const parFilm = new Map<string, Neighbour>();
     for (const v of [...maison, ...renfort]) {
       const déjà = parFilm.get(v.film.id);
       if (!déjà || v.score > déjà.score) parFilm.set(v.film.id, v);
@@ -396,10 +396,10 @@ export function SillagePanel({
     const tous = [...parFilm.values()].sort(
       (a, b) => b.score - a.score || a.film.title.localeCompare(b.film.title, "fr")
     );
-    return parQuotas(tous, (v) => familleDe(v.liens), QUOTAS);
+    return byQuotas(tous, (v) => familyOf(v.links), QUOTAS);
   }, [maison, renfort]);
 
-  const [dehors, setDehors] = useState<VoisinLoin[] | null>(null);
+  const [dehors, setDehors] = useState<FarNeighbour[] | null>(null);
   const [cherche, setCherche] = useState(false);
   /* La proposition dépliée — une seule à la fois : deux synopsis ouverts
      transformeraient la colonne en article. */
@@ -433,15 +433,15 @@ export function SillagePanel({
     if (!apiKey) return;
     let vivant = true;
     setCherche(true);
-    récolterLeSillage(film, apiKey)
+    harvestTheWake(film, apiKey)
       .then((récoltes) => {
         if (!vivant) return;
         /* La MÊME récolte sert les deux colonnes : ce qu'elle rapporte
            et que vous possédez déjà nourrit la gauche, le reste la
            droite. C'est ce qui donne des rapprochements par sujet sans
            avoir à demander les mots-clés de cinq cents fiches. */
-        setRenfort(renfortDuDehors(récoltes, parIdTmdb(films), film.id));
-        setDehors(fusionnerLoin(récoltes, { déjàLà: déjàDansLeClasseur(films), quotas: QUOTAS }));
+        setRenfort(reinforcementFromOutside(récoltes, byTmdbId(films), film.id));
+        setDehors(mergeAfar(récoltes, { alreadyHere: alreadyInTheBinder(films), quotas: QUOTAS }));
       })
       /* Un échec réseau rend une liste VIDE et non `null` : la colonne
          doit dire « rien trouvé » plutôt que tourner indéfiniment. */
@@ -462,7 +462,7 @@ export function SillagePanel({
 
   /* Déplier demande le réalisateur, une fois. Un échec ne dit rien : le
      dépli vaut déjà pour son synopsis et son bouton. */
-  const déplier = (v: VoisinLoin) => {
+  const déplier = (v: FarNeighbour) => {
     setOuvert((o) => (o === v.tmdbId ? null : v.tmdbId));
     if (réals[v.tmdbId] != null || !apiKey) return;
     directorOf(v.tmdbId, apiKey)
@@ -475,7 +475,7 @@ export function SillagePanel({
      réalisateur s'il a été demandé — pour qu'elle parte nommée au lieu
      d'attendre un « compléter les fiches » qui redemanderait la même
      chose. C'est le même geste que le bureau des découvertes. */
-  const mettreDeCôté = (v: VoisinLoin) => {
+  const mettreDeCôté = (v: FarNeighbour) => {
     onAddToWatchlist?.(
       makeFilm({
         title: v.title,
@@ -527,10 +527,10 @@ export function SillagePanel({
             {chezVous.length ? (
               chezVous.map((v) => (
                 <Proposition
-                  key={v.clé}
+                  key={v.key}
                   titre={v.film.title}
                   année={v.film.year}
-                  raison={v.raison}
+                  raison={v.reason}
                   aside={v.film.status === "watchlist" ? "à voir" : undefined}
                   onClick={() => onOpen(v.film.id)}
                   affiche={<Vignette film={v.film} />}
@@ -570,10 +570,10 @@ export function SillagePanel({
             ) : dehors?.length ? (
               dehors.map((v) => (
                 <Proposition
-                  key={v.clé}
+                  key={v.key}
                   titre={v.title}
                   année={v.year}
-                  raison={v.raison}
+                  raison={v.reason}
                   aside={misDeCôté.has(v.tmdbId) ? "à voir" : undefined}
                   onClick={() => déplier(v)}
                   dépli={
