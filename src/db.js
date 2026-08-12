@@ -100,17 +100,17 @@ export const getImage = (key) => tx("readonly", (s) => s.get(key));
 export const deleteImage = (key) => tx("readwrite", (s) => s.delete(key));
 export const allImageKeys = () => tx("readonly", (s) => s.getAllKeys());
 
-/* LES ANCIENS NOMS EN `*Poster` SONT PARTIS, et le commentaire qui les
-   gardait — « conservés pour les appels existants » — n'était plus vrai
-   depuis longtemps : il n'en restait aucun. Le seul endroit qui s'en
-   servait encore était `posterStats`, juste dessous, c'est-à-dire ce
-   fichier appelant ses propres alias.
+/* THE OLD `*Poster` NAMES ARE GONE, and the comment that kept them —
+   "kept for the existing calls" — had not been true for a long time:
+   there were none left. The only place still using them was
+   `posterStats`, just below, that is to say this file calling its own
+   aliases.
 
-   `deleteDoc` et `idbAvailable` sont partis avec, pour la même raison.
-   Le second avait un remplaçant en face sans que personne ne le dise :
-   `services/collection` répond à la même question par `coffreDisponible`,
-   avec un délai en plus — une base verrouillée par un autre onglet ne
-   répond jamais, et `idbAvailable` aurait attendu indéfiniment. */
+   `deleteDoc` and `idbAvailable` went with them, for the same reason.
+   The second had a replacement opposite without anyone saying so:
+   `services/collection` answers the same question with `vaultAvailable`,
+   with a timeout on top — a database locked by another tab never
+   answers, and `idbAvailable` would have waited forever. */
 
 /* How much room the posters really take — shown in the import settings,
    because an invisible quota is a quota you go past. */
@@ -139,7 +139,7 @@ export function referencedKeys(films) {
     if (isIdbPoster(f.poster)) keys.add(idbKeyOf(f.poster));
     for (const s of f.stills || []) {
       if (s.key) keys.add(s.key);
-      if (s.thumbKey) keys.add(s.thumbKey); // la vignette est dérivée mais référencée
+      if (s.thumbKey) keys.add(s.thumbKey); // the thumbnail is derived but referenced
     }
   }
   return keys;
@@ -159,9 +159,9 @@ export async function pruneOrphans(films) {
   return dead.length;
 }
 
-/* ---------- sauvegarde ----------
-   Un seul fichier .json contenant fiches, notes et affiches encodées :
-   de quoi repartir après un nettoyage du navigateur ou sur une autre machine. */
+/* ---------- backup ----------
+   A single .json file holding cards, notes and encoded posters: enough
+   to start again after clearing the browser, or on another machine. */
 
 const blobToDataUrl = (blob) =>
   new Promise((res, rej) => {
