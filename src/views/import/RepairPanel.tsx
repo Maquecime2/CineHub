@@ -3,7 +3,7 @@
    ============================================================
 
    « Compléter les fiches » a longtemps fait passer « à voir » → « vu »
-   les fiches qu'il enrichissait. Le bouton est réparé (`garderStatut`,
+   les fiches qu'il enrichissait. Le bouton est réparé (`keepStatus`,
    dans `importing`), mais les collections déjà basculées restent
    basculées : la correction ne remonte pas le temps.
 

@@ -81,7 +81,7 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
         onProgress: (d: number, t: number) => setProgress({ done: d, total: t }),
       } as never);
 
-      /* `garderStatut` N'EST PAS UNE PRÉCAUTION, C'EST LE SUJET.
+      /* `keepStatus` N'EST PAS UNE PRÉCAUTION, C'EST LE SUJET.
 
          Ce panneau va chercher une durée et un casting : il n'a rien
          appris sur ce que vous avez vu. Le statut passé ici ne servait
@@ -91,7 +91,7 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
          compléter sa collection vidait la watchlist dans la
          vidéothèque. */
       const brut = diffImport(films, res.rows as ImportRow[], "watched", {
-        garderStatut: true,
+        keepStatus: true,
       });
       setDiff(brut);
       if (brut.toCreate.length)
