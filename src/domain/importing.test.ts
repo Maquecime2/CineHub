@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { slugOf, filmKey, parseRating, diffImport, parseLetterboxdCsv } from "./importing";
-import { makeFilm, withWatches, isIncomplete, sansMotsClés } from "./film";
+import { makeFilm, withWatches, isIncomplete, withoutKeywords } from "./film";
 import type { Film, ImportRow } from "../types";
 
 const row = (partial: Partial<ImportRow> = {}): ImportRow => ({
@@ -611,21 +611,21 @@ describe("isIncomplete — ce que « compléter les fiches » va chercher", () =
   });
 });
 
-describe("sansMotsClés — ce que le rattrapage explicite vise", () => {
+describe("withoutKeywords — ce que le rattrapage explicite vise", () => {
   /* Plus large que `isIncomplete`, et c'est tout son objet : celui-ci
      s'interdit le vide pour ne pas boucler à chaque passage, mais une
      collection figée à `[]` a besoin qu'on la vise quand même. */
   it("retient une fiche qui n'a jamais été interrogée", () => {
-    expect(sansMotsClés(makeFilm({ title: "Un film" }))).toBe(true);
+    expect(withoutKeywords(makeFilm({ title: "Un film" }))).toBe(true);
   });
 
   it("retient une fiche figée à vide, que `isIncomplete` laisse passer", () => {
     const figée = makeFilm({ title: "Un film", cast: ["Quelqu'un"], runtime: 100, keywords: [] });
     expect(isIncomplete(figée)).toBe(false);
-    expect(sansMotsClés(figée)).toBe(true);
+    expect(withoutKeywords(figée)).toBe(true);
   });
 
   it("laisse tranquille une fiche qui en porte", () => {
-    expect(sansMotsClés(makeFilm({ title: "Un film", keywords: ["neo-noir"] }))).toBe(false);
+    expect(withoutKeywords(makeFilm({ title: "Un film", keywords: ["neo-noir"] }))).toBe(false);
   });
 });

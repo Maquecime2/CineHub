@@ -385,7 +385,7 @@ export function CompteDrawer({
               C'est ce qu'il faut : une note qui ne suit pas sur le
               téléphone est une note perdue. Mais cela ne se devine pas,
               donc cela se dit — et le partage, lui, n'enverra que la
-              part publique de la fiche (voir `partiePublique`). */}
+              part publique de la fiche (voir `publicPart`). */}
           Votre collection entière est copiée sur votre compte, notes et séances comprises. Rien
           n'est public : le partage se décide fiche par fiche, et n'emportera jamais vos notes.
         </div>

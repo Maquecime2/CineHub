@@ -406,20 +406,20 @@ describe("la relation portée par une arête", () => {
       {
         ...a,
         linkedWorks: [
-          work({ type: "film", filmId: b.id, pairId: "p", relation: "suite-de", force: 3 }),
+          work({ type: "film", filmId: b.id, pairId: "p", relation: "sequel-to", force: 3 }),
         ],
       },
       {
         ...b,
         linkedWorks: [
-          work({ type: "film", filmId: a.id, pairId: "p", relation: "précède", force: 3 }),
+          work({ type: "film", filmId: a.id, pairId: "p", relation: "precedes", force: 3 }),
         ],
       },
     ];
     const arête = buildSky(lié).links.find((l) => l.kind === "peer");
     // « a1 » trie avant « b2 » : l'arête part de A, et porte donc ce que A dit
     expect(arête?.a).toBe(`f:${a.id}`);
-    expect(arête?.relation).toBe("suite-de");
+    expect(arête?.relation).toBe("sequel-to");
     expect(arête?.force).toBe(3);
   });
 });

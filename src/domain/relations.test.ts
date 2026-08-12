@@ -15,23 +15,23 @@ describe("les relations", () => {
   });
 
   it("une relation symétrique est son propre inverse", () => {
-    expect(inverseOf("écho")).toBe("écho");
-    expect(inverseOf("diptyque")).toBe("diptyque");
-    expect(isSymmetric("même-destin")).toBe(true);
+    expect(inverseOf("echo")).toBe("echo");
+    expect(inverseOf("diptych")).toBe("diptych");
+    expect(isSymmetric("same-fate")).toBe(true);
   });
 
   it("une relation orientée se renverse", () => {
-    expect(inverseOf("suite-de")).toBe("précède");
-    expect(inverseOf("précède")).toBe("suite-de");
-    expect(inverseOf("remake-de")).toBe("remaké-par");
-    expect(isSymmetric("suite-de")).toBe(false);
+    expect(inverseOf("sequel-to")).toBe("precedes");
+    expect(inverseOf("precedes")).toBe("sequel-to");
+    expect(inverseOf("remake-of")).toBe("remade-by");
+    expect(isSymmetric("sequel-to")).toBe(false);
   });
 
   it("ne propose pas à la saisie ce qui s'écrit tout seul à l'autre bout", () => {
     const ids = ENTERABLE_RELATIONS.map((r) => r.id);
-    expect(ids).not.toContain("précède");
-    expect(ids).not.toContain("remaké-par");
-    expect(ids).toContain("suite-de");
+    expect(ids).not.toContain("precedes");
+    expect(ids).not.toContain("remade-by");
+    expect(ids).toContain("sequel-to");
   });
 
   it("laisse tranquille ce qu'elle ne connaît pas", () => {

@@ -166,7 +166,7 @@ export interface Film {
   updatedAt: number;
   status: FilmStatus;
   /** Le rayon du haut : ceux qu'on revoit. */
-  chevet: boolean;
+  bedside: boolean;
   /**
    * Mis de côté : la fiche quitte le mur et la constellation sans être
    * détruite. C'est le contraire d'une suppression.
@@ -198,7 +198,7 @@ export interface Note {
 }
 
 /** Les trois rayons de l'étagère. */
-export type ShelfKind = "chevet" | "main" | "reserve";
+export type ShelfKind = "bedside" | "main" | "reserve";
 
 /**
  * Un séparateur posé à la main entre deux boîtiers d'un rayon.

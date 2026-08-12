@@ -126,8 +126,8 @@ describe("le mur assemblé", () => {
     expect(nu.frame).toEqual({ background: "transparent" });
     expect(nu.texture).toBeNull();
 
-    const chevet = wallStyle(undefined, undefined, "#8C3A340D");
-    expect(chevet.frame).toEqual({ background: "#8C3A340D" });
+    const bedside = wallStyle(undefined, undefined, "#8C3A340D");
+    expect(bedside.frame).toEqual({ background: "#8C3A340D" });
   });
 
   it("empile le papier peint DEVANT la peinture", () => {

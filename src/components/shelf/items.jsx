@@ -322,7 +322,7 @@ export const FilmBox = React.memo(function FilmBox({
               {film.year}
             </span>
           )}
-          {film.chevet && <PushPin style={{ top: -5, right: -5, zIndex: 4 }} />}
+          {film.bedside && <PushPin style={{ top: -5, right: -5, zIndex: 4 }} />}
           {film.status !== "watchlist" && (
             <span
               style={{

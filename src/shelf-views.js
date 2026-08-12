@@ -7,7 +7,7 @@
    rangement possible : impossible d'en tenir deux mises en scène.
 
    Le rangement déménage donc ici, dans un document « vue » : rangées,
-   catégories, décors et thème. Les drapeaux du film (`chevet`,
+   catégories, décors et thème. Les drapeaux du film (`bedside`,
    `archived`) disent sur QUEL rayon il se trouve ; la vue dit OÙ sur ce
    rayon. C'est la seule règle à retenir, et tout le reste en découle.
 
@@ -19,13 +19,13 @@ import { CAT_KEYS } from "./theme/palette";
 
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
-export const SHELF_KINDS = ["chevet", "main", "reserve"];
+export const SHELF_KINDS = ["bedside", "main", "reserve"];
 
 /* À quel rayon un film appartient. Repris tel quel de `ShelfBoard` : ce
    sont les drapeaux du film, et eux seuls, qui en décident.
 
    Sauf un cas, qui n'est pas une exception mais la définition du rayon :
-   « films de chevet », c'est CEUX QU'ON REVOIT. Un film qu'on n'a pas
+   « films de bedside », c'est CEUX QU'ON REVOIT. Un film qu'on n'a pas
    encore vu ne peut pas en être. Le drapeau reste inscrit sur la fiche —
    on ne le perd pas en mettant un film à voir — mais tant qu'il est à
    voir, il se range dans la collection. Sans quoi la watchlist ouvrait
@@ -34,12 +34,12 @@ export const SHELF_KINDS = ["chevet", "main", "reserve"];
 const revu = (f) => f.status !== "watchlist";
 
 export const belongs = {
-  chevet: (f) => f.chevet && revu(f) && !f.archived,
-  main: (f) => (!f.chevet || !revu(f)) && !f.archived,
+  bedside: (f) => f.bedside && revu(f) && !f.archived,
+  main: (f) => (!f.bedside || !revu(f)) && !f.archived,
   reserve: (f) => f.archived,
 };
 
-export const kindOf = (f) => (f.archived ? "reserve" : f.chevet && revu(f) ? "chevet" : "main");
+export const kindOf = (f) => (f.archived ? "reserve" : f.bedside && revu(f) ? "bedside" : "main");
 
 /* Les couleurs offertes aux catégories. La liste n'est plus recopiée
    ici : elle se DÉDUIT du nuancier (`theme/palette`), qui reste pur et
@@ -210,7 +210,7 @@ export const makeView = ({
   createdAt: now,
   updatedAt: now,
   /* `decor` est VOLONTAIREMENT absent d'une vue neuve — voir plus bas. */
-  shelves: { chevet: makeShelf(), main: makeShelf(), reserve: makeShelf() },
+  shelves: { bedside: makeShelf(), main: makeShelf(), reserve: makeShelf() },
 });
 
 /* ------------------------------------------------------------

@@ -16,7 +16,7 @@ const film = (id, over = {}) => ({
   themes: [],
   rating: 0,
   status: "watched",
-  chevet: false,
+  bedside: false,
   archived: false,
   ...over,
 });

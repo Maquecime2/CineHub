@@ -116,7 +116,7 @@ export function favorites(films = [], n = 12) {
 }
 
 /* Les cinéastes de tête. Un seul film noté 5 ne fait pas un cinéaste de
-   chevet : on demande soit plusieurs fiches, soit une adhésion très nette. */
+   bedside : on demande soit plusieurs fiches, soit une adhésion très nette. */
 export function topDirectors(films = [], taste, n = 5) {
   const counts = new Map();
   films

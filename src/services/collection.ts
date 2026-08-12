@@ -17,7 +17,7 @@
    fiches ont bougé. Cette date ne peut pas être posée par les vingt
    endroits qui modifient un film : un seul oubli, et la fiche ne part
    jamais. Elle se pose ICI, au passage, sur les seules fiches dont la
-   valeur a réellement changé (`horodater`).
+   valeur a réellement changé (`stamp`).
 
    LA COUTURE. Le jour où un serveur existe, c'est ce module qui
    apprendra à pousser et à tirer — pas les vues. Elles demandent la
@@ -27,7 +27,7 @@
    machine et sur elle seule.
    ============================================================ */
 import { getDoc, putDoc } from "../db";
-import { migrate, horodater } from "../domain/film";
+import { migrate, stamp } from "../domain/film";
 import { store } from "./storage";
 import type { Film } from "../types";
 
@@ -134,7 +134,7 @@ const noterLesParties = (avant: Film[], après: Film[], maintenant: number): voi
 };
 
 /* ON GARDE UNE COPIE DE TRAVAIL, et ce n'est pas une optimisation.
-   `horodater` a besoin de l'état PRÉCÉDENT pour dire ce qui a changé ;
+   `stamp` a besoin de l'état PRÉCÉDENT pour dire ce qui a changé ;
    relire IndexedDB à chaque écriture le donnerait aussi, mais au prix
    d'un aller-retour asynchrone avant chaque enregistrement, et sur un
    chemin où l'on écrit à chaque frappe. */
@@ -263,14 +263,14 @@ async function écrire(films: Film[]): Promise<void> {
  */
 export async function enregistrerFilms(films: Film[]): Promise<Film[]> {
   const maintenant = Date.now();
-  const datés = horodater(dernière, films, maintenant);
+  const datés = stamp(dernière, films, maintenant);
   /* Les départs se lisent ICI et nulle part ailleurs : c'est le seul
      endroit qui voie l'avant et l'après. Une suppression signalée par
      chaque appelant serait une suppression qu'un appelant oublierait de
      signaler — et une fiche qui ressuscite au prochain envoi. */
   noterLesParties(dernière, datés, maintenant);
   /* CE QUI A BOUGÉ SE LIT À L'IDENTITÉ DES OBJETS, pas à leur date.
-     `horodater` rend le MÊME objet pour une fiche inchangée : un objet
+     `stamp` rend le MÊME objet pour une fiche inchangée : un objet
      différent de celui d'avant est donc une fiche modifiée, et une
      fiche absente d'avant est une fiche neuve. C'est exact.
 

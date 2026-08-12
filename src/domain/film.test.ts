@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
-  aChangé,
+  hasChanged,
   editLinkedWork,
-  horodater,
+  stamp,
   makeFilm,
   mergeWatches,
   migrate,
-  partiePublique,
+  publicPart,
   ratingDrift,
   uid,
   watchCount,
@@ -53,25 +53,25 @@ describe("dater ce qui a changé", () => {
 
   it("une recopie à l'identique n'est pas un changement", () => {
     const f = base();
-    expect(aChangé(f, { ...f })).toBe(false);
+    expect(hasChanged(f, { ...f })).toBe(false);
   });
 
   it("une valeur composée qui bouge en est un", () => {
     const f = base();
-    expect(aChangé(f, { ...f, motifs: ["pluie"] })).toBe(true);
-    expect(aChangé(f, { ...f, watches: [{ date: "2020-01-01", rating: 4 }] })).toBe(true);
+    expect(hasChanged(f, { ...f, motifs: ["pluie"] })).toBe(true);
+    expect(hasChanged(f, { ...f, watches: [{ date: "2020-01-01", rating: 4 }] })).toBe(true);
   });
 
   it("la date de modification elle-même ne compte pas comme un changement", () => {
     /* Sinon toute écriture en provoquerait une autre, indéfiniment. */
     const f = base();
-    expect(aChangé(f, { ...f, updatedAt: 9999 })).toBe(false);
+    expect(hasChanged(f, { ...f, updatedAt: 9999 })).toBe(false);
   });
 
-  it("horodater ne touche que ce qui a bougé, et rend le reste intact", () => {
+  it("stamp ne touche que ce qui a bougé, et rend le reste intact", () => {
     const a = base({ id: "a" });
     const b = base({ id: "b" });
-    const suite = horodater([a, b], [{ ...a, rating: 5 }, { ...b }], 5000);
+    const suite = stamp([a, b], [{ ...a, rating: 5 }, { ...b }], 5000);
     expect(suite[0]!.updatedAt).toBe(5000);
     expect(suite[1]).toBe(b);
   });
@@ -79,12 +79,12 @@ describe("dater ce qui a changé", () => {
   it("rien n'a bougé : c'est le tableau reçu qui revient", () => {
     const a = base();
     const reçu = [a];
-    expect(horodater([a], reçu, 5000)).toBe(reçu);
+    expect(stamp([a], reçu, 5000)).toBe(reçu);
   });
 
   it("une fiche jamais vue est une fiche qui a changé", () => {
     const neuve = base({ id: "neuf" });
-    expect(horodater([], [neuve], 5000)[0]!.updatedAt).toBe(5000);
+    expect(stamp([], [neuve], 5000)[0]!.updatedAt).toBe(5000);
   });
 });
 
@@ -97,7 +97,7 @@ describe("ce qui se partage", () => {
       review: "la danse de la fin",
       rating: 5,
     });
-    const publié = partiePublique(f) as Record<string, unknown>;
+    const publié = publicPart(f) as Record<string, unknown>;
     expect("notes" in publié).toBe(false);
     expect("watches" in publié).toBe(false);
     /* Ce qu'on publie quand on publie : c'est le propos d'une
@@ -110,7 +110,7 @@ describe("ce qui se partage", () => {
   it("un champ ajouté demain part avec le reste, plutôt que d'être oublié", () => {
     /* C'est pour cela qu'on nomme ce qu'on ÉCARTE, et non ce qu'on garde. */
     const f = { ...makeFilm({ title: "Elephant" }), nouveauChamp: "présent" } as unknown as Film;
-    expect((partiePublique(f) as Record<string, unknown>).nouveauChamp).toBe("présent");
+    expect((publicPart(f) as Record<string, unknown>).nouveauChamp).toBe("présent");
   });
 });
 
@@ -148,12 +148,70 @@ describe("migrate", () => {
       title: "Stalker",
       rating: 4,
       status: "watched",
-      chevet: false,
+      bedside: false,
       archived: false,
       order: null,
     });
     expect(f!.stills).toEqual([]);
     expect(f!.linkedWorks).toEqual([]);
+  });
+
+  /* ============================================================
+     LA TRADUCTION NE DOIT RIEN COÛTER À UN CLASSEUR DÉJÀ TENU
+
+     Deux champs ont changé de nom en passant à l'anglais, et tous deux
+     sont écrits sur le disque : `chevet` est devenu `bedside`, et les
+     valeurs de `Relation` ont changé de vocabulaire. `migrate` est la
+     seule porte par laquelle une fiche entre — c'est donc ici que la
+     relecture des anciennes graphies se prouve, ou nulle part.
+     ============================================================ */
+  it("relit `chevet` sur une fiche d'avant la traduction", () => {
+    const [f] = migrate([{ id: "x", title: "Stalker", chevet: true } as never]);
+    expect(f!.bedside).toBe(true);
+    // et l'ancienne graphie ne survit pas à la relecture
+    expect(f as unknown as Record<string, unknown>).not.toHaveProperty("chevet");
+  });
+
+  it("ne prend pas l'absence de `chevet` pour un rayon du haut", () => {
+    expect(migrate([{ id: "x", title: "Stalker" }])[0]!.bedside).toBe(false);
+  });
+
+  it("traduit les relations écrites avant la bascule, sans perdre le sens", () => {
+    const [f] = migrate([
+      {
+        id: "a",
+        title: "Stalker",
+        linkedWorks: [
+          { id: "w1", type: "film", filmId: "b", relation: "suite-de" },
+          { id: "w2", type: "film", filmId: "c", relation: "écho" },
+        ],
+      } as never,
+    ]);
+    expect(f!.linkedWorks.map((w) => w.relation)).toEqual(["sequel-to", "echo"]);
+  });
+
+  it("laisse intacte une relation déjà traduite", () => {
+    const [f] = migrate([
+      {
+        id: "a",
+        title: "Stalker",
+        linkedWorks: [{ id: "w1", type: "film", filmId: "b", relation: "precedes" }],
+      } as never,
+    ]);
+    expect(f!.linkedWorks[0]!.relation).toBe("precedes");
+  });
+
+  /* Un lien sans relation est le cas ordinaire — la nature du fil est
+     facultative. La migration ne doit pas lui en inventer une. */
+  it("n'invente pas de relation là où il n'y en avait pas", () => {
+    const [f] = migrate([
+      {
+        id: "a",
+        title: "Stalker",
+        linkedWorks: [{ id: "w1", type: "livre", title: "Roadside Picnic" }],
+      } as never,
+    ]);
+    expect(f!.linkedWorks[0]!.relation).toBeUndefined();
   });
 
   /* D'une fiche d'avant le journal on ne sait qu'une chose : elle a été
@@ -395,14 +453,14 @@ describe("editLinkedWork", () => {
        dire à chaque film qu'il est la suite de l'autre, ce qui ne se voit
        qu'en ouvrant la seconde fiche. */
     it("renverse la relation sur la moitié d'en face", () => {
-      const out = editLinkedWork(base(), "a", "wa", { relation: "suite-de", force: 3 });
-      expect(firstOf(out, "a")).toMatchObject({ relation: "suite-de", force: 3 });
-      expect(firstOf(out, "b")).toMatchObject({ relation: "précède", force: 3 });
+      const out = editLinkedWork(base(), "a", "wa", { relation: "sequel-to", force: 3 });
+      expect(firstOf(out, "a")).toMatchObject({ relation: "sequel-to", force: 3 });
+      expect(firstOf(out, "b")).toMatchObject({ relation: "precedes", force: 3 });
     });
 
     it("garde une relation symétrique telle quelle", () => {
-      const out = editLinkedWork(base(), "a", "wa", { relation: "diptyque" });
-      expect(firstOf(out, "b").relation).toBe("diptyque");
+      const out = editLinkedWork(base(), "a", "wa", { relation: "diptych" });
+      expect(firstOf(out, "b").relation).toBe("diptych");
     });
 
     it("ne touche pas aux fils des autres fiches", () => {

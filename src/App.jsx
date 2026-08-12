@@ -352,7 +352,7 @@ export default function App() {
      Un rang par écriture, et l'on n'applique que le retour de la
      DERNIÈRE demandée : les précédentes ont déjà été dépassées à
      l'écran, et leurs dates seront de toute façon reposées par la
-     suivante — `horodater` les recalcule depuis l'état du dépôt, pas
+     suivante — `stamp` les recalcule depuis l'état du dépôt, pas
      depuis ce qu'on lui rend ici.
 
      `useRef` et non une variable de module : deux classeurs montés côte

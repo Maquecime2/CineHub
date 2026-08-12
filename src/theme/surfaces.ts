@@ -272,7 +272,7 @@ export const textureLayer = (key?: string): CSSProperties | null =>
 
    Peinture et papier peint ne sont PAS des éléments de plus : ce sont
    des couches de fond sur le cadre du rayon, qui en portait déjà une (la
-   teinte du rayon de chevet). C'est délibéré, et c'est la contrainte
+   teinte du rayon de bedside). C'est délibéré, et c'est la contrainte
    qui compte ici : le dépôt d'un objet accroché mesure `data-wall-layer`
    pour convertir un pixel en pourcentage, et tout enfant de plus dans ce
    cadre risquerait de déplacer ce que ce rect vaut. Un fond ne déplace

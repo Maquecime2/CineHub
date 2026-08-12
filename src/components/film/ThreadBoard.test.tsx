@@ -19,7 +19,7 @@ const film = (id: string, extra: Partial<Film> = {}): Film =>
     review: "",
     notes: "",
     status: "watched",
-    chevet: false,
+    bedside: false,
     archived: false,
     linkedWorks: [],
     ...extra,
@@ -173,11 +173,11 @@ describe("ThreadBoard — retoucher un fil", () => {
     it("envoie la nature du lien qu'on vient de choisir", async () => {
       const { onEdit } = linked();
       const user = await openEditor("Les Statues meurent aussi");
-      await user.selectOptions(screen.getByLabelText("Nature du lien"), "suite-de");
+      await user.selectOptions(screen.getByLabelText("Nature du lien"), "sequel-to");
       await user.click(screen.getByRole("button", { name: /NOTER/ }));
       expect(onEdit).toHaveBeenCalledWith(
         "w1",
-        expect.objectContaining({ relation: "suite-de", force: 2 })
+        expect.objectContaining({ relation: "sequel-to", force: 2 })
       );
     });
   });

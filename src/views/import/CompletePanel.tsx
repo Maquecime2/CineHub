@@ -37,7 +37,7 @@ import { tap } from "../../theme/styles";
 import { Tally } from "../../components/ui";
 import { enrichRows } from "../../tmdb";
 import { diffImport } from "../../domain/importing";
-import { isIncomplete, sansMotsClés } from "../../domain/film";
+import { isIncomplete, withoutKeywords } from "../../domain/film";
 import type { Film, ImportDiff, ImportRow } from "../../types";
 
 interface CompletePanelProps {
@@ -55,7 +55,7 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
   /* Les fiches sans le moindre mot-clé — l'absence ET le vide. Une
      collection entière a été figée à `[]` par un défaut de récolte, et
      `isIncomplete` ne peut pas les voir : voir `domain/film`. */
-  const sansSujets = films.filter(sansMotsClés);
+  const sansSujets = films.filter(withoutKeywords);
 
   const lancer = async (cibles: Film[]) => {
     const key = apiKey.trim();

@@ -55,7 +55,7 @@ const films = Array.from({ length: 40 }, (_, i) => ({
   status: "watched",
   rating: 3,
   genres: [],
-  chevet: false,
+  bedside: false,
   archived: false,
 }));
 

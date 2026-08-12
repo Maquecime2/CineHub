@@ -46,7 +46,7 @@ const film = (id, extra = {}) => ({
   title: id,
   addedAt: 1000,
   status: "watched",
-  chevet: false,
+  bedside: false,
   archived: false,
   order: null,
   ...extra,
@@ -81,17 +81,17 @@ const catIn = (view, catId, kind = "main") =>
 describe("appartenance à un rayon", () => {
   it("les drapeaux du film, et eux seuls, décident du rayon", () => {
     expect(kindOf(film("a"))).toBe("main");
-    expect(kindOf(film("a", { chevet: true }))).toBe("chevet");
+    expect(kindOf(film("a", { bedside: true }))).toBe("bedside");
     expect(kindOf(film("a", { archived: true }))).toBe("reserve");
-    // archivé l'emporte : un film de chevet mis de côté est mis de côté
-    expect(kindOf(film("a", { chevet: true, archived: true }))).toBe("reserve");
-    expect(belongs.chevet(film("a", { chevet: true, archived: true }))).toBe(false);
+    // archivé l'emporte : un film de bedside mis de côté est mis de côté
+    expect(kindOf(film("a", { bedside: true, archived: true }))).toBe("reserve");
+    expect(belongs.bedside(film("a", { bedside: true, archived: true }))).toBe(false);
   });
 
-  it("un film à voir n'est jamais de chevet : on ne revoit pas ce qu'on n'a pas vu", () => {
-    const aVoir = film("a", { chevet: true, status: "watchlist" });
+  it("un film à voir n'est jamais de bedside : on ne revoit pas ce qu'on n'a pas vu", () => {
+    const aVoir = film("a", { bedside: true, status: "watchlist" });
     expect(kindOf(aVoir)).toBe("main");
-    expect(belongs.chevet(aVoir)).toBe(false);
+    expect(belongs.bedside(aVoir)).toBe(false);
     // et il ne disparaît pas pour autant : la collection le recueille
     expect(belongs.main(aVoir)).toBe(true);
   });
@@ -285,9 +285,9 @@ describe("moveItem", () => {
     const next = moveItem(
       view,
       { id: "f1" },
-      { kind: "chevet", rowId: rowsOf(view, "chevet")[0].id }
+      { kind: "bedside", rowId: rowsOf(view, "bedside")[0].id }
     );
-    expect(idsIn(rowsOf(next, "chevet")[0])).toEqual(["f1"]);
+    expect(idsIn(rowsOf(next, "bedside")[0])).toEqual(["f1"]);
     expect(idsIn(rowsOf(next, "main")[0])).toEqual(["f2", "c1"]);
   });
 
@@ -543,11 +543,11 @@ describe("layoutView", () => {
   it("répartit selon les drapeaux du film", () => {
     const out = layoutView(makeView(), [
       film("a"),
-      film("b", { chevet: true }),
+      film("b", { bedside: true }),
       film("c", { archived: true }),
     ]);
     expect(idsIn(rowsOf(out, "main")[0])).toEqual(["a"]);
-    expect(idsIn(rowsOf(out, "chevet")[0])).toEqual(["b"]);
+    expect(idsIn(rowsOf(out, "bedside")[0])).toEqual(["b"]);
     expect(idsIn(rowsOf(out, "reserve")[0])).toEqual(["c"]);
   });
 });
@@ -637,9 +637,9 @@ describe("les objets accrochés au mur", () => {
       { create: makeWallDecor({ id: "w1", motif: "frame" }) },
       { x: 10, y: 10 }
     );
-    v = pinToWall(v, "chevet", { id: "w1" }, { x: 80, y: 60 });
+    v = pinToWall(v, "bedside", { id: "w1" }, { x: 80, y: 60 });
     expect(wallOf(v, "main")).toHaveLength(0);
-    expect(wallOf(v, "chevet")).toEqual([expect.objectContaining({ id: "w1", x: 80, y: 60 })]);
+    expect(wallOf(v, "bedside")).toEqual([expect.objectContaining({ id: "w1", x: 80, y: 60 })]);
   });
 
   it("se laisse retoucher et retirer comme un décor posé", () => {
@@ -708,11 +708,11 @@ describe("layoutByDirector", () => {
   it("répartit selon les drapeaux, chaque rayon ayant ses propres cinéastes", () => {
     const out = layoutByDirector(makeView(), [
       film("a", { director: "Varda" }),
-      film("b", { director: "Varda", chevet: true }),
+      film("b", { director: "Varda", bedside: true }),
       film("c", { director: "Akerman", archived: true }),
     ]);
     expect(catsOf(out, "main").map((c) => c.label)).toEqual(["Varda"]);
-    expect(catsOf(out, "chevet").map((c) => c.label)).toEqual(["Varda"]);
+    expect(catsOf(out, "bedside").map((c) => c.label)).toEqual(["Varda"]);
     expect(catsOf(out, "reserve").map((c) => c.label)).toEqual(["Akerman"]);
   });
 
@@ -936,7 +936,7 @@ describe("le décor de la vue", () => {
       (x) => reflowView(x),
       (x) => reconcileView(x, films),
       (x) => duplicateView(x),
-      (x) => moveItem(x, { id: "f1" }, { kind: "chevet", rowId: x.shelves.chevet.rows[0].id }),
+      (x) => moveItem(x, { id: "f1" }, { kind: "bedside", rowId: x.shelves.bedside.rows[0].id }),
     ]) {
       expect(wallDecorOf(passe(v))).toEqual({ paint: "terracotta", texture: "crepi" });
     }

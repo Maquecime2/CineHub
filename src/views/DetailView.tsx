@@ -769,7 +769,7 @@ export function DetailView({
               ils changent le rayon, pas la fiche. */}
             <Carton style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <Label>Ce qu'on en fait</Label>
-              {/* Pas de chevet pour un film qu'on n'a pas vu : le rayon
+              {/* Pas de bedside pour un film qu'on n'a pas vu : le rayon
                   est celui qu'on revoit, et l'étagère de la watchlist ne
                   l'ouvre pas. Le bouton n'y aurait rien changé de
                   visible. */}
@@ -778,8 +778,8 @@ export function DetailView({
                   onClick={() =>
                     onUpdate({
                       ...film,
-                      chevet: !film.chevet,
-                      archived: film.chevet ? film.archived : false,
+                      bedside: !film.bedside,
+                      archived: film.bedside ? film.archived : false,
                     })
                   }
                   style={{
@@ -791,11 +791,11 @@ export function DetailView({
                     gap: 6,
                     fontFamily: F.mono,
                     fontSize: 10,
-                    color: film.chevet ? C.burgundy : C.inkFaded,
+                    color: film.bedside ? C.burgundy : C.inkFaded,
                   }}
                 >
                   <Moon size={12} />{" "}
-                  {film.chevet ? "retirer des films de chevet" : "film de chevet"}
+                  {film.bedside ? "retirer des films de bedside" : "film de bedside"}
                 </button>
               )}
               <button
@@ -803,7 +803,7 @@ export function DetailView({
                  défait l'autre, et faire confirmer un retour en arrière
                  apprend surtout à cliquer sans lire. */
                 onClick={() => {
-                  const remise = { ...film, archived: !film.archived, chevet: false };
+                  const remise = { ...film, archived: !film.archived, bedside: false };
                   if (film.archived) return onUpdate({ ...film, archived: false });
                   setDemande({
                     titre: "Mettre cette fiche de côté ?",

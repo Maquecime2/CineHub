@@ -1165,7 +1165,7 @@ export function CasePreview({ film, onClose, onOpenFile }) {
                     {g}
                   </span>
                 ))}
-                {film.chevet && (
+                {film.bedside && (
                   <span
                     style={{
                       fontFamily: F.mono,

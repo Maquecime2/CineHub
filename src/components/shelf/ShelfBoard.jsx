@@ -530,7 +530,7 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
          défaut : un objet qui déborde reste saisissable là où il
          déborde, et il interceptait alors les dépôts destinés au rayon
          d'en dessous — on visait la collection, on posait dans les films
-         de chevet.
+         de bedside.
 
          Mais la précaution coûtait plus que le défaut. Elle interdisait
          de punaiser quoi que ce soit près d'un bord : une guirlande dans
@@ -683,16 +683,16 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     >
       {/* le repère de dépôt : un seul, déplacé à la main pendant le glissement */}
       <DropMark ref={markRef} />
-      {/* « Films de chevet », c'est ceux qu'on revoit : le rayon n'a pas
+      {/* « Films de bedside », c'est ceux qu'on revoit : le rayon n'a pas
           lieu d'être sur le mur des films à voir, où il ne s'ouvrait que
           pour rester vide. `belongs` range déjà là-bas les fiches
           drapeautées, elles ne se perdent donc pas. */}
       {view.wall !== "watchlist" && (
         <Shelf
-          kind="chevet"
-          shelf={view.shelves.chevet}
-          wall={view.shelves.chevet.wall}
-          count={countOf("chevet")}
+          kind="bedside"
+          shelf={view.shelves.bedside}
+          wall={view.shelves.bedside.wall}
+          count={countOf("bedside")}
           onCabinet={setCabinet}
           {...shared}
         />

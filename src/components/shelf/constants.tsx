@@ -46,18 +46,18 @@ interface ShelfKindConfig {
 }
 
 export const SHELF_KIND: Record<ShelfKind, ShelfKindConfig> = {
-  chevet: {
-    title: "Films de chevet",
+  bedside: {
+    title: "Films de bedside",
     tag: "ceux qu'on revoit",
-    patch: { chevet: true, archived: false },
+    patch: { bedside: true, archived: false },
     tint: `${alpha(C.burgundy, 0.051)}`,
     border: C.burgundy,
   },
-  main: { title: "La collection", tag: "", patch: { chevet: false, archived: false } },
+  main: { title: "La collection", tag: "", patch: { bedside: false, archived: false } },
   reserve: {
     title: "Mis de côté",
     tag: "gardés, pas jetés",
-    patch: { chevet: false, archived: true },
+    patch: { bedside: false, archived: true },
     tint: "transparent",
     border: C.line,
   },

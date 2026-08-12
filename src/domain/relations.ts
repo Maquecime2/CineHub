@@ -17,23 +17,25 @@
    each film claim to be the sequel of the other — an absurdity you only
    see by opening the second card, which is to say never straight away.
 
-   THE IDENTIFIERS BELOW ARE STORED ON THE CARDS. `Relation`'s values are
-   written into `linkedWorks[].relation` and read back from disk; they are
-   data, not code, so they keep their original spelling. Translating them
-   would silently orphan every link already drawn. */
+   THESE VALUES ARE STORED ON THE CARDS. `Relation` is written into
+   `linkedWorks[].relation` and read back from disk, so renaming it is a
+   change of format, not of code. `migrateRelation` below holds the old
+   spelling against the new one, and `domain/film`'s `migrate` — the only
+   door a card comes in through — applies it on load. Every link already
+   drawn keeps its direction. */
 
 export type Relation =
-  | "écho"
-  | "diptyque"
-  | "même-destin"
-  | "réponse-à"
-  | "répondu-par"
-  | "adapté-de"
-  | "adapté-en"
-  | "suite-de"
-  | "précède"
-  | "remake-de"
-  | "remaké-par";
+  | "echo"
+  | "diptych"
+  | "same-fate"
+  | "answers"
+  | "answered-by"
+  | "adapts"
+  | "adapted-into"
+  | "sequel-to"
+  | "precedes"
+  | "remake-of"
+  | "remade-by";
 
 export interface RelationDef {
   id: Relation;
@@ -45,21 +47,21 @@ export interface RelationDef {
 }
 
 export const RELATIONS: RelationDef[] = [
-  { id: "écho", label: "fait écho à", inverse: "écho" },
-  { id: "diptyque", label: "forme un diptyque avec", inverse: "diptyque" },
-  { id: "même-destin", label: "même destin que", inverse: "même-destin" },
+  { id: "echo", label: "fait écho à", inverse: "echo" },
+  { id: "diptych", label: "forme un diptyque avec", inverse: "diptych" },
+  { id: "same-fate", label: "même destin que", inverse: "same-fate" },
   /* "Answers" inverts to "was answered by" and NOT to "echo". Folding both
      onto the echo lost the direction of reading: the card opposite could
      no longer say which of the two had answered, and the information was
      nowhere to be found. */
-  { id: "réponse-à", label: "répond à", inverse: "répondu-par" },
-  { id: "répondu-par", label: "a reçu une réponse de", inverse: "réponse-à", derived: true },
-  { id: "adapté-de", label: "adapte", inverse: "adapté-en" },
-  { id: "adapté-en", label: "a été adapté par", inverse: "adapté-de", derived: true },
-  { id: "suite-de", label: "fait suite à", inverse: "précède" },
-  { id: "précède", label: "précède", inverse: "suite-de", derived: true },
-  { id: "remake-de", label: "refait", inverse: "remaké-par" },
-  { id: "remaké-par", label: "a été refait par", inverse: "remake-de", derived: true },
+  { id: "answers", label: "répond à", inverse: "answered-by" },
+  { id: "answered-by", label: "a reçu une réponse de", inverse: "answers", derived: true },
+  { id: "adapts", label: "adapte", inverse: "adapted-into" },
+  { id: "adapted-into", label: "a été adapté par", inverse: "adapts", derived: true },
+  { id: "sequel-to", label: "fait suite à", inverse: "precedes" },
+  { id: "precedes", label: "précède", inverse: "sequel-to", derived: true },
+  { id: "remake-of", label: "refait", inverse: "remade-by" },
+  { id: "remade-by", label: "a été refait par", inverse: "remake-of", derived: true },
 ];
 
 const BY_ID = new Map(RELATIONS.map((r) => [r.id, r]));
@@ -92,3 +94,32 @@ export const STRENGTHS: { value: Strength; label: string }[] = [
 
 export const strengthOf = (f: number | null | undefined): Strength =>
   f === 1 || f === 2 || f === 3 ? f : 2;
+
+/* ------------------------------------------------------------
+   THE OLD SPELLING
+   ------------------------------------------------------------
+
+   Relations written before this module was translated are French on
+   disk. This table is the only place that knows both vocabularies;
+   `domain/film`'s `migrate` runs every stored relation through it, so a
+   link drawn last year comes back pointing the same way.
+
+   A value that is neither old nor known comes back untouched rather than
+   as `undefined`: a relation we cannot read is still better kept than
+   silently dropped. */
+const OLD_SPELLING: Record<string, Relation> = {
+  écho: "echo",
+  diptyque: "diptych",
+  "même-destin": "same-fate",
+  "réponse-à": "answers",
+  "répondu-par": "answered-by",
+  "adapté-de": "adapts",
+  "adapté-en": "adapted-into",
+  "suite-de": "sequel-to",
+  précède: "precedes",
+  "remake-de": "remake-of",
+  "remaké-par": "remade-by",
+};
+
+export const migrateRelation = <T>(r: T): T | Relation =>
+  typeof r === "string" && r in OLD_SPELLING ? OLD_SPELLING[r]! : r;

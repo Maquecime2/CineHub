@@ -8,7 +8,7 @@
    respectait déjà : il manquait de quoi la lire, et de quoi la cliquer.
 
    POURQUOI ICI ET NON DANS « CE QU'ON EN FAIT ». Mettre de côté, ranger
-   au chevet, supprimer : ce sont des gestes qui déplacent la fiche CHEZ
+   au bedside, supprimer : ce sont des gestes qui déplacent la fiche CHEZ
    SOI. Écarter du partage ne déplace rien chez soi — la fiche reste au
    mur, dans l'almanach, dans la constellation. Ce qui change est ce que
    les AUTRES voient, et c'est pourquoi ce bouton se tient à côté
