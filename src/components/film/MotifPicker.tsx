@@ -1,17 +1,17 @@
 /* ============================================================
-   LES MOTIFS D'UNE FICHE — on choisit, on n'écrit pas
+   A CARD'S MOTIFS — one chooses, one does not write
    ============================================================
 
-   La différence avec `TagEditor` est tout le sujet : là-bas on tape ce
-   qu'on veut, ici on prend dans une liste. Un champ libre redonnerait
-   « fin triste » et « ça finit mal », et c'est justement ce qu'on essaie
-   de ne plus avoir.
+   The difference from `TagEditor` is the whole subject: there you type
+   whatever you want, here you take from a list. A free field would give
+   back "sad ending" and "it ends badly", and that is precisely what we
+   are trying not to have any more.
 
-   LES MOTIFS QUI RACONTENT LA FIN SE POSENT COMME LES AUTRES, MAIS NE
-   S'AFFICHENT PAS COMME EUX. Ranger sa collection ne doit pas gâcher les
-   films qu'on n'a pas encore vus : un motif `spoiler` reste gratté tant
-   qu'on ne l'a pas dévoilé, et le dévoilement ne vaut que pour la fiche
-   ouverte — il ne s'enregistre nulle part.
+   THE MOTIFS THAT TELL THE ENDING ARE LAID LIKE THE OTHERS, BUT ARE NOT
+   SHOWN LIKE THEM. Filing one's collection must not spoil the films one
+   has not seen yet: a `spoiler` motif stays scratched out until it is
+   revealed, and the revealing counts only for the open card — it is
+   saved nowhere.
    ============================================================ */
 import { useMemo, useState } from "react";
 import { Eye, EyeOff, Plus, Spool, Trash2, X } from "lucide-react";
@@ -42,9 +42,9 @@ const chipStyle = (encre: string, actif: boolean) => ({
   display: "inline-flex",
   alignItems: "center",
   gap: 5,
-  /* Même règle que `TagChip` : « Une fin heureuse à laquelle on ne croit
-     pas » est plus large que la colonne où il se pose, et sans ceci il la
-     pousse. Il passe à la ligne dans la puce. */
+  /* The same rule as `TagChip`: "A happy ending nobody believes in" is
+     wider than the column it is laid in, and without this it pushes it.
+     It wraps inside the chip. */
   maxWidth: "100%",
   whiteSpace: "normal" as const,
   fontFamily: F.mono,
@@ -56,7 +56,7 @@ const chipStyle = (encre: string, actif: boolean) => ({
   background: actif ? encre : "transparent",
 });
 
-/** Un motif posé sur la fiche, gratté s'il raconte la fin. */
+/** A motif laid on the card, scratched out if it tells the ending. */
 function MotifChip({
   motif,
   révélé,
@@ -113,17 +113,17 @@ export function MotifPicker({
 }: {
   motifs?: string[];
   onChange: (next: string[]) => void;
-  /** Ce que TMDB propose. Rien n'entre sans un clic. */
+  /** What TMDB offers. Nothing enters without a click. */
   suggestions?: Motif[];
-  /** Faire de ce motif une question posée à toute la collection. */
+  /** Turn this motif into a question asked of the whole collection. */
   onFaireUnFil?: (motifId: string) => void;
-  /** Ajouter un motif au vocabulaire. Absent : la liste reste en lecture. */
+  /** Add a motif to the vocabulary. Absent: the list stays read-only. */
   onCréer?: (label: string, famille: MotifFamily, spoiler: boolean) => void;
-  /** Retirer l'un des vôtres — la confirmation et le ménage sont à l'appelant. */
+  /** Remove one of your own — the confirmation and the tidying are the caller's. */
   onSupprimer?: (motif: Motif) => void;
-  /** Écarter l'un du catalogue, ou le remettre. */
+  /** Set one of the catalogue's aside, or put it back. */
   onMasquer?: (motifId: string, masqué: boolean) => void;
-  /** Ceux du catalogue déjà écartés, pour les proposer au retour. */
+  /** Those of the catalogue already set aside, to offer them back. */
   masqués?: Motif[];
 }) {
   const [ouvert, setOuvert] = useState(false);
@@ -133,8 +133,8 @@ export function MotifPicker({
   const [famille, setFamille] = useState<MotifFamily>("narrative");
   const [spoiler, setSpoiler] = useState(false);
 
-  /* `motifsOf` et non un filtre sur le catalogue : un motif à vous n'est
-     pas dans `MOTIFS`, et la fiche l'aurait perdu à l'affichage. */
+  /* `motifsOf` and not a filter on the catalogue: a motif of yours is not
+     in `MOTIFS`, and the card would have lost it on display. */
   const posés = useMemo(() => motifsOf({ motifs }), [motifs]);
   const familles = useMemo(() => byFamily(), [ouvert, motifs]);
   const trouvés = useMemo(() => (q.trim() ? searchMotifs(q) : []), [q]);
@@ -162,9 +162,9 @@ export function MotifPicker({
         )}
       </div>
 
-      {/* Ce que TMDB propose, en pointillé et jamais posé d'office : ses
-          mots-clés vont du très juste au franchement faux, et ils
-          serviront ensuite à bâtir la carte. */}
+      {/* What TMDB offers, dotted and never laid automatically: its
+          keywords range from the very apt to the frankly wrong, and they
+          will then serve to build the map. */}
       {àProposer.length > 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
           <span style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded, marginRight: 2 }}>
@@ -284,13 +284,13 @@ export function MotifPicker({
                       >
                         {m.label}
                       </button>
-                      {/* CE QU'ON PEUT FAIRE D'UN MOTIF DÉPEND DE SON ORIGINE.
+                      {/* WHAT CAN BE DONE WITH A MOTIF DEPENDS ON WHERE IT COMES FROM.
 
-                          Le vôtre se SUPPRIME : il n'existe que dans vos
-                          données, personne d'autre ne le remettra. Celui du
-                          catalogue se MASQUE seulement — l'effacer de vos
-                          données le verrait revenir à la prochaine mise à
-                          jour, ce qui est pire que de ne pas l'avoir enlevé. */}
+                          Yours is DELETED: it exists only in your data,
+                          nobody else will put it back. The catalogue's is
+                          only HIDDEN — erasing it from your data would see
+                          it return at the next update, which is worse
+                          than not having removed it. */}
                       {isCustom(m.id) && onSupprimer && (
                         <button
                           onClick={() => onSupprimer(m)}
@@ -328,11 +328,11 @@ export function MotifPicker({
             ))
           )}
 
-          {/* CRÉER LE SIEN, LÀ OÙ L'ON CHERCHAIT.
+          {/* CREATING ONE'S OWN, WHERE ONE WAS LOOKING.
 
-              Le catalogue ne peut pas tout prévoir, et le moment où l'on
-              s'en aperçoit est exactement celui-ci : on vient de parcourir
-              la liste sans y trouver son idée. */}
+              The catalogue cannot foresee everything, and the moment one
+              notices is exactly this one: one has just gone through the
+              list without finding one's idea in it. */}
           {onCréer && (
             <div style={{ borderTop: `1px solid ${C.line}`, paddingTop: 10, marginTop: 4 }}>
               <div style={rubrique}>LE VÔTRE</div>
@@ -399,9 +399,9 @@ export function MotifPicker({
             </div>
           )}
 
-          {/* Ce qu'on a écarté reste rappelable : masquer n'est pas jeter, et
-              un vocabulaire qu'on ne peut pas rouvrir se referme pour de bon
-              à la première hésitation. */}
+          {/* What has been set aside stays recallable: hiding is not
+              throwing away, and a vocabulary one cannot reopen closes for
+              good at the first hesitation. */}
           {onMasquer && masqués.length > 0 && (
             <div style={{ borderTop: `1px solid ${C.line}`, paddingTop: 10, marginTop: 10 }}>
               <div style={rubrique}>ÉCARTÉS ({masqués.length})</div>

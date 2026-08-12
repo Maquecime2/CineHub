@@ -1,16 +1,15 @@
 /* ============================================================
-   ÉCARTER UNE FICHE DU PARTAGE
+   SETTING A CARD ASIDE FROM SHARING
 
-   La visite promettait ce geste depuis longtemps et aucun bouton ne
-   l'offrait. Ce qui compte le plus ici n'est pas qu'il marche, c'est
-   qu'il SE TAISE quand il n'aurait rien à dire : un interrupteur de
-   confidentialité qui paraît là où il n'a aucun effet apprend à ne plus
-   le lire.
+   The tour had promised this gesture for a long time and no button
+   offered it. What matters most here is not that it works, it is that it
+   STAYS QUIET when it would have nothing to say: a privacy switch that
+   appears where it has no effect teaches you to stop reading it.
    ============================================================ */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { EcarterDuPartage } from "./EcarterDuPartage";
+import { HideFromSharing } from "./HideFromSharing";
 import { makeFilm } from "../../domain/film";
 
 const hiddenCards = vi.fn();
@@ -27,7 +26,7 @@ vi.mock("../../services/server", () => ({
 
 const film = makeFilm({ id: "f1", title: "Le Samouraï" });
 
-const monter = (connecte = true) => render(<EcarterDuPartage film={film} connecte={connecte} />);
+const monter = (signedIn = true) => render(<HideFromSharing film={film} signedIn={signedIn} />);
 
 beforeEach(() => {
   for (const m of [hiddenCards, mySharing, hideCard, serverConfigured]) m.mockReset();
@@ -54,9 +53,10 @@ describe("il ne paraît que quand il veut dire quelque chose", () => {
     expect(mySharing).not.toHaveBeenCalled();
   });
 
-  /* LE CAS QUI COMPTE. Quand la collection n'est montrée à personne,
-     tout est déjà écarté : une case « écarter du partage » y serait sans
-     effet, et un interrupteur sans effet apprend à ne plus le lire. */
+  /* THE CASE THAT MATTERS. When the collection is shown to nobody,
+     everything is already set aside: a "set aside from sharing" box would
+     have no effect there, and a switch with no effect teaches you to stop
+     reading it. */
   it("se tait quand la collection n'est montrée à personne", async () => {
     mySharing.mockResolvedValue({ partage: "privee", jeton: null });
     monter();
@@ -91,8 +91,8 @@ describe("il dit l'état, et le change", () => {
     expect(await screen.findByRole("button", { name: /ÉCARTÉE DU PARTAGE/ })).toBeInTheDocument();
   });
 
-  /* Une autre fiche écartée ne doit pas teindre celle-ci : la liste rend
-     des identifiants, encore faut-il regarder le bon. */
+  /* Another card set aside must not tint this one: the list returns
+     identifiers, and one still has to look at the right one. */
   it("ne se croit pas écarté parce qu'une autre fiche l'est", async () => {
     hiddenCards.mockResolvedValue({ ids: ["f2", "f3"] });
     monter();
@@ -105,7 +105,7 @@ describe("il dit l'état, et le change", () => {
     await user.click(await screen.findByRole("button", { name: /ÉCARTER DU PARTAGE/ }));
     expect(hideCard).toHaveBeenCalledWith("f1", true);
     expect(await screen.findByRole("button", { name: /ÉCARTÉE DU PARTAGE/ })).toBeInTheDocument();
-    /* Ce que l'utilisateur doit comprendre : la fiche reste chez lui. */
+    /* What the user must understand: the card stays at home. */
     expect(screen.getByText(/reste au mur/)).toBeInTheDocument();
   });
 

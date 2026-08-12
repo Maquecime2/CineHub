@@ -1,19 +1,18 @@
 /* ============================================================
-   LE JOURNAL DES SÉANCES — combien de fois, et ce qu'on en pensait
+   THE SCREENING LOG — how many times, and what one thought of it
    ============================================================
 
-   La fiche ne disait qu'« vu le 2 mars 2019 ». Un film qu'on a revu
-   quatre fois y ressemblait trait pour trait à un film vu une fois, et
-   la seule chose qui aurait valu la peine d'être regardée — que la note
-   soit passée de trois à cinq entre deux décennies — n'était consignée
-   nulle part.
+   The card only said "seen on 2 March 2019". A film seen four times
+   looked exactly like a film seen once, and the only thing that would
+   have been worth looking at — that the rating went from three to five
+   between two decades — was recorded nowhere.
 
-   D'où trois choses ici, et pas une de plus : COMBIEN, QUAND, et DE
-   COMBIEN LA NOTE A BOUGÉ. Le reste est déjà ailleurs dans la fiche.
+   Hence three things here, and not one more: HOW MANY, WHEN, and BY HOW
+   MUCH THE RATING MOVED. The rest is already elsewhere in the card.
 
-   La variation se lit face à la dernière séance NOTÉE (voir
-   `ratingDrift`) : un revisionnage sans note ne rompt pas la chaîne, il
-   n'a simplement rien à en dire. */
+   The drift is read against the last RATED screening (see `ratingDrift`):
+   a rewatch with no rating does not break the chain, it simply has
+   nothing to say about it. */
 import { X, Plus } from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
@@ -23,9 +22,9 @@ import type { Film } from "../../types";
 
 const aujourdhui = () => new Date().toISOString().slice(0, 10);
 
-/* « +½ » se lit d'un coup d'œil là où « +0.5 » demande une lecture. Le
-   signe est ce qui compte : on veut voir MONTER ou DESCENDRE, la
-   grandeur exacte vient après. */
+/* "+½" is read at a glance where "+0.5" demands reading. The sign is what
+   counts: one wants to see it GO UP or GO DOWN, the exact magnitude comes
+   after. */
 const écart = (d: number): string => {
   const signe = d > 0 ? "+" : "−";
   const n = Math.abs(d);
@@ -38,9 +37,9 @@ export function WatchLog({ film, onUpdate }: { film: Film; onUpdate: (film: Film
   const watches = sortWatches(film.watches || []);
   const drift = ratingDrift(watches);
 
-  /* Une séance de plus prend la note COURANTE du film : c'est celle
-     qu'on vient de poser en revoyant, et si elle n'a pas bougé, la
-     variation se taira d'elle-même. */
+  /* One more screening takes the film's CURRENT rating: it is the one
+     just laid down on rewatching, and if it has not moved, the drift will
+     keep quiet on its own. */
   const revu = () =>
     onUpdate(withWatches(film, [...watches, { date: aujourdhui(), rating: film.rating || null }]));
 
@@ -76,8 +75,8 @@ export function WatchLog({ film, onUpdate }: { film: Film; onUpdate: (film: Film
           ) : (
             <span style={{ fontSize: 14, opacity: 0.7 }}>sans note</span>
           )}
-          {/* La variation ne s'affiche que lorsqu'il y a variation : un
-              « =0 » sous chaque séance dirait exactement rien, trois fois. */}
+          {/* The drift only shows when there is a drift: an "=0" under
+              every screening would say exactly nothing, three times. */}
           {drift[i] ? (
             <span
               title="depuis la fois d'avant"

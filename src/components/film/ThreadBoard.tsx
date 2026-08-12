@@ -2,8 +2,8 @@
    PANNEAU D'ENQUÊTE — fils tendus mesurés en SVG
    ============================================================ */
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
-/* Types seuls : la transformation JSX moderne ne met pas `React` dans la
-   portée, et `React.CSSProperties` y serait un identifiant inconnu. */
+/* Types only: the modern JSX transform does not put `React` in scope, and
+   `React.CSSProperties` would be an unknown identifier there. */
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { Check, Pencil, X } from "lucide-react";
 import { C, F } from "../../theme/tokens";
@@ -23,8 +23,8 @@ interface ThreadBoardProps {
   onOpen: (filmId: string) => void;
 }
 
-/* Le champ d'une fiche qu'on retouche. Souligné et sans cadre : on écrit
-   SUR le carton, on ne remplit pas un formulaire posé par-dessus. */
+/* The field of a card being edited. Underlined and without a frame: one
+   writes ON the cardstock, one does not fill in a form laid over it. */
 const scribble: CSSProperties = {
   all: "unset",
   ...tap,
@@ -35,7 +35,7 @@ const scribble: CSSProperties = {
   color: C.ink,
 };
 
-/** La fiche retournée : ce qu'on peut y réécrire, et rien de plus. */
+/** The card turned over: what can be rewritten on it, and nothing more. */
 function ThreadCardEditor({
   work,
   locked,
@@ -43,7 +43,7 @@ function ThreadCardEditor({
   onCancel,
 }: {
   work: LinkedWork;
-  /** Un renvoi vers une fiche du mur : seule la note lui appartient. */
+  /** A reference to a card on the wall: only the note belongs to it. */
   locked: boolean;
   onCommit: (patch: LinkPatch) => void;
   onCancel: () => void;
@@ -62,10 +62,10 @@ function ThreadCardEditor({
     );
   };
 
-  /* Entrée valide, Échap renonce — dans un carton de deux cents pixels,
-     viser une petite coche à la souris pour chaque retouche serait une
-     corvée. La note reste un `input` d'une ligne : c'est une phrase, pas
-     une critique, et un `textarea` inviterait au paragraphe. */
+  /* Enter confirms, Escape gives up — in a card of two hundred pixels,
+     aiming at a small tick with the mouse for every edit would be a
+     chore. The note stays a one-line `input`: it is a sentence, not a
+     review, and a `textarea` would invite a paragraph. */
   const keys = (e: ReactKeyboardEvent) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -80,9 +80,9 @@ function ThreadCardEditor({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 7 }} onKeyDown={keys}>
       {locked ? (
-        /* Le titre d'un renvoi n'est pas à prendre ici : il est la fiche
-           d'en face. On le montre, éteint, pour qu'on sache ce qu'on
-           annote plutôt que de laisser un champ vide et muet. */
+        /* A reference's title is not to be taken here: it is the card
+           opposite. We show it, dimmed, so that one knows what one is
+           annotating rather than leaving an empty, mute field. */
         <div
           style={{
             fontFamily: F.title,
@@ -96,13 +96,13 @@ function ThreadCardEditor({
         </div>
       ) : null}
       {locked && (
-        /* La nature du fil ne se propose QUE sur un renvoi : une mention
-           libre n'est reliée qu'à elle-même, et « fait suite à » n'y
-           voudrait rien dire. Les relations dérivées — « précède », « a
-           été refait par » — ne sont pas dans la liste : elles s'écrivent
-           toutes seules, à l'autre bout. On garde tout de même celle du
-           fil si c'en est une, sinon le champ afficherait autre chose que
-           ce qui est écrit. */
+        /* The thread's kind is only offered ON a reference: a free
+           mention is linked only to itself, and "follows on from" would
+           mean nothing there. The derived relations — "precedes", "was
+           remade by" — are not in the list: they write themselves, at the
+           other end. We nonetheless keep the thread's own if it is one,
+           otherwise the field would show something other than what is
+           written. */
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <select
             value={relation}
@@ -110,9 +110,9 @@ function ThreadCardEditor({
             aria-label="Nature du lien"
             style={{
               ...scribble,
-              /* Deux sélecteurs côte à côte dans un carton de deux cents
-                 pixels : sans base souple ni `minWidth: 0`, ils refusent de
-                 rétrécir et débordent. Ils s'empilent quand il le faut. */
+              /* Two selects side by side in a card of two hundred
+                 pixels: without a flexible basis or `minWidth: 0`, they
+                 refuse to shrink and overflow. They stack when they must. */
               flex: "1 1 120px",
               minWidth: 0,
               fontFamily: F.mono,
@@ -235,7 +235,7 @@ function ThreadCardEditor({
   );
 }
 
-/** Un fil tracé : sa courbe, et le nœud qui le fixe à la fiche. */
+/** A drawn thread: its curve, and the knot that fixes it to the card. */
 interface Thread {
   id: string;
   d: string;
@@ -243,8 +243,8 @@ interface Thread {
 }
 
 export function ThreadBoard({ film, onRemove, onEdit, films = [], onOpen }: ThreadBoardProps) {
-  // les fiches encore présentes derrière les renvois : une fiche supprimée
-  // laisse le lien lisible mais inerte plutôt qu'un bouton qui casse
+  // the cards still present behind the references: a deleted card leaves
+  // the link readable but inert rather than a button that breaks
   const linkedFilms = useMemo(() => {
     const byId = new Map(films.map((f) => [f.id, f]));
     return Object.fromEntries(
@@ -277,7 +277,7 @@ export function ThreadBoard({ film, onRemove, onEdit, films = [], onOpen }: Thre
         const r = el.getBoundingClientRect();
         const x1 = r.left + r.width / 2 - bRect.left;
         const y1 = r.top - bRect.top + 4;
-        // caténaire : le fil pend d'autant plus qu'il est long, et jamais symétriquement
+        // catenary: the thread sags the longer it is, and never symmetrically
         const span = Math.abs(x1 - x0);
         const sag = 26 + span * 0.16 + seededRand(Math.abs(hash(w.id))) * 22;
         const c1x = x0 + (x1 - x0) * 0.28,
@@ -294,10 +294,10 @@ export function ThreadBoard({ film, onRemove, onEdit, films = [], onOpen }: Thre
     setSvgSize({ w: bRect.width, h: bRect.height });
   }, [works]);
 
-  /* `editing` est dans les dépendances alors que le calcul ne s'en sert
-     pas : retourner une fiche la fait grandir, et les fils resteraient
-     accrochés à la hauteur qu'elle avait avant. Ce n'est pas le contenu
-     du calcul qui a changé, c'est la page sous lui. */
+  /* `editing` is in the dependencies although the computation does not
+     use it: turning a card over makes it grow, and the threads would stay
+     hooked to the height it had before. It is not the computation's
+     content that changed, it is the page under it. */
   useLayoutEffect(() => {
     const t = setTimeout(recompute, 30);
     window.addEventListener("resize", recompute);
@@ -322,7 +322,7 @@ export function ThreadBoard({ film, onRemove, onEdit, films = [], onOpen }: Thre
       >
         {paths.map((p) => (
           <g key={p.id}>
-            {/* l'ombre du fil, décalée : il flotte au-dessus du papier */}
+            {/* the thread's shadow, offset: it floats above the paper */}
             <path
               d={p.d}
               fill="none"
@@ -331,7 +331,7 @@ export function ThreadBoard({ film, onRemove, onEdit, films = [], onOpen }: Thre
               strokeLinecap="round"
               transform="translate(1.5,3)"
             />
-            {/* l'âme sombre de la corde, puis la torsade éclairée par-dessus */}
+            {/* the rope's dark core, then the lit twist over it */}
             <path
               d={p.d}
               fill="none"
@@ -349,7 +349,7 @@ export function ThreadBoard({ film, onRemove, onEdit, films = [], onOpen }: Thre
               strokeLinecap="round"
               opacity="0.8"
             />
-            {/* le nœud là où le fil mord la fiche */}
+            {/* the knot where the thread bites the card */}
             <circle cx={p.knot.x} cy={p.knot.y} r="3.2" fill="#6B241F" opacity="0.9" />
           </g>
         ))}
@@ -413,10 +413,10 @@ export function ThreadBoard({ film, onRemove, onEdit, films = [], onOpen }: Thre
                   position: "relative",
                   background: C.card,
                   padding: "12px 16px 14px",
-                  /* Une fiche qu'on annote se pose à plat et se relève du
-                     mur : on la redresse et on appuie son ombre. Tout le
-                     reste de la page emploie déjà ce geste — le boîtier
-                     survolé, le carton qu'on écarte. */
+                  /* A card being annotated lies flat and lifts off the
+                     wall: we straighten it and deepen its shadow. All the
+                     rest of the page already uses this gesture — the
+                     hovered case, the card one sets aside. */
                   boxShadow: open
                     ? "3px 8px 20px rgba(30,20,10,0.34)"
                     : "2px 5px 12px rgba(30,20,10,0.25)",
@@ -451,8 +451,8 @@ export function ThreadBoard({ film, onRemove, onEdit, films = [], onOpen }: Thre
                     </div>
                   ) : (
                     <div style={{ flex: 1 }}>
-                      {/* un renvoi vers une fiche du mur s'ouvre ; une simple
-                        mention reste du texte, y compris si la fiche a disparu */}
+                      {/* a reference to a card on the wall opens; a plain
+                        mention stays text, including if the card is gone */}
                       {linked ? (
                         <button
                           onClick={() => onOpen(w.filmId as string)}
@@ -495,8 +495,8 @@ export function ThreadBoard({ film, onRemove, onEdit, films = [], onOpen }: Thre
                       >
                         {type.label}
                         {w.creator ? ` — ${w.creator}` : ""}
-                        {/* La nature du fil se lit du côté où l'on est :
-                            « fait suite à » ici, « précède » là-bas. */}
+                        {/* The thread's kind is read from the side one is
+                            on: "follows on from" here, "precedes" there. */}
                         {linked && (
                           <span style={{ color: C.burgundy }}>
                             {" · "}

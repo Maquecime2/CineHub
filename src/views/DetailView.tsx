@@ -39,9 +39,9 @@ import { PosterArt } from "../components/film/PosterArt";
 import { PosterPicker } from "../components/film/PosterPicker";
 import { FilmIdentity } from "../components/film/FilmIdentity";
 import { TmdbFacts } from "../components/film/TmdbFacts";
-import { Ailleurs } from "../components/film/Ailleurs";
-import { RangerDansUneListe } from "../components/film/RangerDansUneListe";
-import { EcarterDuPartage } from "../components/film/EcarterDuPartage";
+import { Elsewhere } from "../components/film/Elsewhere";
+import { AddToList } from "../components/film/AddToList";
+import { HideFromSharing } from "../components/film/HideFromSharing";
 import { TmdbLink } from "../components/film/TmdbLink";
 import { WatchLog } from "../components/film/WatchLog";
 import { ThreadBoard } from "../components/film/ThreadBoard";
@@ -174,7 +174,7 @@ interface DetailViewProps {
   onSupprimerMotif?: (motifId: string) => void;
   onMasquerMotif?: (motifId: string, masqué: boolean) => void;
   /** Un compte est ouvert : la fiche peut alors lire ce qu'on en dit ailleurs. */
-  connecte?: boolean;
+  signedIn?: boolean;
   /**
    * L'intercalaire ouvert, tenu par `App`.
    *
@@ -204,7 +204,7 @@ export function DetailView({
   onCréerMotif,
   onSupprimerMotif,
   onMasquerMotif,
-  connecte = false,
+  signedIn = false,
   onglet: ongletContrôlé,
   onOnglet,
 }: DetailViewProps) {
@@ -588,12 +588,12 @@ export function DetailView({
                 film. Se tait entièrement sans serveur, sans compte, ou
                 quand personne n'a rien dit — une fiche qui vit seule ne
                 réclame pas un compte. */}
-              <Ailleurs film={film} connecte={connecte} />
-              <RangerDansUneListe film={film} connecte={connecte} />
+              <Elsewhere film={film} signedIn={signedIn} />
+              <AddToList film={film} signedIn={signedIn} />
               {/* Le troisième bloc qui ne parle que du dehors, à côté
                   des deux autres : ce que les autres voient de cette
                   fiche, et le droit de la leur retirer. */}
-              <EcarterDuPartage film={film} connecte={connecte} />
+              <HideFromSharing film={film} signedIn={signedIn} />
             </Cardstock>
           </div>
 

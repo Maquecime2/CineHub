@@ -1,7 +1,7 @@
 /* ============================================================
-   IDENTITÉ D'UNE FICHE — titre, année, réalisateur·rice, genres.
-   Ces quatre champs viennent presque toujours de TMDB ; quand la
-   résolution a échoué à l'import, c'est ici qu'on les rattrape.
+   A CARD'S IDENTITY — title, year, director, genres.
+   These four fields almost always come from TMDB; when resolution failed
+   at import time, this is where we catch them up.
    ============================================================ */
 import { useState } from "react";
 import { Check, Pencil, X } from "lucide-react";
@@ -43,8 +43,8 @@ export function FilmIdentity({
     director: film.director,
     genres: film.genres || [],
   }));
-  /* L'identifiant TMDB suit le brouillon : si une nouvelle recherche aboutit,
-     la fiche doit repartir avec le bon film, pas l'ancien (souvent absent). */
+  /* The TMDB identifier follows the draft: if a new search succeeds, the
+     card must leave with the right film, not the old one (often absent). */
   const [tmdbId, setTmdbId] = useState<Film["tmdbId"]>(film.tmdbId);
   const [poster, setPoster] = useState(film.poster);
   const [msg, setMsg] = useState("");
@@ -64,8 +64,8 @@ export function FilmIdentity({
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setDraft((p) => ({ ...p, [k]: v }));
 
-  /* Le rattrapage des « films non identifiés » : on relance la recherche avec
-     le titre corrigé plutôt que celui, fautif, qui figurait dans le CSV. */
+  /* Catching up the "unidentified films": we relaunch the search with the
+     corrected title rather than the faulty one that was in the CSV. */
   const relookup = async () => {
     const apiKey = getTmdbKey();
     if (!apiKey) {
@@ -88,7 +88,7 @@ export function FilmIdentity({
         year: p.year || info.year || "",
       }));
       setTmdbId(info.tmdbId);
-      // une affiche déjà choisie reste la sienne ; on ne comble qu'un vide
+      // a poster already chosen stays its own; we only fill a gap
       if (!poster && info.poster) setPoster(info.poster);
       setMsg(
         `trouvé : ${hit.title}${hit.release_date ? ` (${hit.release_date.slice(0, 4)})` : ""}`
@@ -140,9 +140,9 @@ export function FilmIdentity({
         >
           <span>
             {film.year || "s.d."} —{" "}
-            {/* La réalisation peut être à plusieurs mains : on découpe
-                sur la virgule comme le fait `kinshipsOf`, sans quoi
-                « Coen, Coen » ouvrirait un dossier fantôme à deux noms. */}
+            {/* Directing can be done by several hands: we split on the
+                comma as `kinshipsOf` does, failing which "Coen, Coen"
+                would open a phantom folder with two names. */}
             {film.director
               ? film.director.split(",").map((nom, i) => {
                   const propre = nom.trim();

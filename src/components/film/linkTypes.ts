@@ -2,7 +2,7 @@ import { BookOpen, Palette, Clapperboard, Sparkles } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { LinkType } from "../../types";
 
-/** Les quatre natures d'œuvre reliables, avec leur pictogramme. */
+/** The four kinds of linkable work, with their pictogram. */
 export const LINK_TYPES: { key: LinkType; label: string; icon: LucideIcon }[] = [
   { key: "book", label: "Livre", icon: BookOpen },
   { key: "painting", label: "Peinture", icon: Palette },
@@ -10,6 +10,6 @@ export const LINK_TYPES: { key: LinkType; label: string; icon: LucideIcon }[] = 
   { key: "other", label: "Autre œuvre", icon: Sparkles },
 ];
 
-/** Le type d'une œuvre, avec repli sur « Autre œuvre » si la clé est inconnue. */
+/** A work's type, falling back on "Autre œuvre" if the key is unknown. */
 export const linkTypeOf = (key: string) =>
   LINK_TYPES.find((t) => t.key === key) ?? (LINK_TYPES[3] as (typeof LINK_TYPES)[number]);

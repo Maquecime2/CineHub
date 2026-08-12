@@ -1,17 +1,17 @@
 /* ============================================================
-   RANGER CE FILM DANS UNE LISTE
+   FILING THIS FILM IN A LIST
    ============================================================
 
-   LE GESTE PART DE LA FICHE, et non de la vue des listes : c'est ici
-   qu'on a le film sous les yeux, et surtout son identifiant d'œuvre.
-   Remplir une liste depuis la vue des listes aurait demandé d'y
-   reconstruire une recherche TMDB entière — le même travail, à un
-   endroit où l'on n'a rien à regarder.
+   THE GESTURE STARTS FROM THE CARD, and not from the lists view: it is
+   here that one has the film before one's eyes, and above all its work
+   identifier. Filling a list from the lists view would have required
+   rebuilding an entire TMDB search there — the same work, in a place
+   where there is nothing to look at.
 
-   D'où le corollaire : une fiche SANS `tmdbId` ne se range nulle part,
-   et ce n'est pas un défaut. Une liste contient des œuvres, pas des
-   exemplaires ; un film saisi à la main n'a pas d'identité commune
-   avec le même film chez quelqu'un d'autre.
+   Hence the corollary: a card WITHOUT a `tmdbId` is filed nowhere, and
+   that is not a defect. A list contains works, not copies; a film entered
+   by hand has no identity in common with the same film at somebody
+   else's.
    ============================================================ */
 import { useEffect, useState } from "react";
 import { ListPlus } from "lucide-react";
@@ -21,23 +21,23 @@ import { Label } from "../ui";
 import { myLists, addToList, serverConfigured, type List } from "../../services/server";
 import type { Film } from "../../types";
 
-export function RangerDansUneListe({ film, connecte }: { film: Film; connecte: boolean }) {
+export function AddToList({ film, signedIn }: { film: Film; signedIn: boolean }) {
   const [listes, setListes] = useState<List[]>([]);
   const [choix, setChoix] = useState("");
   const [dit, setDit] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!serverConfigured() || !connecte || !film.tmdbId) return;
+    if (!serverConfigured() || !signedIn || !film.tmdbId) return;
     let vivant = true;
     myLists()
       .then((r) => vivant && setListes(r.listes))
-      /* Une panne du serveur ne doit pas faire parler la fiche : la
-         section disparaît, le classeur continue. */
+      /* A server breakdown must not make the card speak: the section
+         disappears, the binder carries on. */
       .catch(() => {});
     return () => {
       vivant = false;
     };
-  }, [connecte, film.tmdbId]);
+  }, [signedIn, film.tmdbId]);
 
   if (!film.tmdbId || listes.length === 0) return null;
 
@@ -48,8 +48,8 @@ export function RangerDansUneListe({ film, connecte }: { film: Film; connecte: b
       titre: film.title,
       annee: film.year,
     });
-    /* « Déjà dedans » n'est pas une erreur : c'est le même geste, et il
-       mérite la même réponse tranquille. */
+    /* "Already in it" is not an error: it is the same gesture, and it
+       deserves the same calm answer. */
     setDit(r.neuf ? "rangé" : "y était déjà");
   };
 

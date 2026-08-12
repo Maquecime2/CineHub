@@ -1,23 +1,23 @@
 /* ============================================================
-   ÉCARTER CETTE FICHE DU PARTAGE
+   SETTING THIS CARD ASIDE FROM SHARING
    ============================================================
 
-   La visite le promettait depuis longtemps — « vous pouvez dismiss une
-   fiche à part » — et il n'y avait aucun bouton. La route existait
-   (`PUT /fiche/:id/cachee`), la colonne existait, le partage la
-   respectait déjà : il manquait de quoi la lire, et de quoi la cliquer.
+   The tour had promised it for a long time — "you can set a card aside" —
+   and there was no button at all. The route existed (`PUT
+   /fiche/:id/cachee`), the column existed, sharing already respected it:
+   what was missing was something to read it with, and something to click.
 
-   POURQUOI ICI ET NON DANS « CE QU'ON EN FAIT ». Mettre de côté, ranger
-   au bedside, supprimer : ce sont des gestes qui déplacent la fiche CHEZ
-   SOI. Écarter du partage ne déplace rien chez soi — la fiche reste au
-   mur, dans l'almanach, dans la constellation. Ce qui change est ce que
-   les AUTRES voient, et c'est pourquoi ce bouton se tient à côté
-   d'`Ailleurs` et de `RangerDansUneListe`, les deux autres blocs qui ne
-   parlent que du dehors.
+   WHY HERE AND NOT IN "WHAT WE DO WITH IT". Putting aside, filing at the
+   bedside, deleting: those are gestures that move the card AT HOME.
+   Setting aside from sharing moves nothing at home — the card stays on
+   the wall, in the almanac, in the constellation. What changes is what
+   OTHERS see, and that is why this button stands beside `Elsewhere` and
+   `AddToList`, the two other blocks that speak only of the
+   outside.
 
-   ELLE NE PARAÎT QUE QUAND ELLE VEUT DIRE QUELQUE CHOSE : sans serveur,
-   sans compte, ou quand la collection n'est montrée à personne, il n'y
-   a rien à dismiss de rien.
+   IT ONLY APPEARS WHEN IT MEANS SOMETHING: with no server, no account,
+   or when the collection is shown to nobody, there is nothing to set
+   aside from anything.
    ============================================================ */
 import { useEffect, useState } from "react";
 import { EyeOff, Eye } from "lucide-react";
@@ -33,13 +33,13 @@ import {
 } from "../../services/server";
 import type { Film } from "../../types";
 
-export function EcarterDuPartage({ film, connecte }: { film: Film; connecte: boolean }) {
+export function HideFromSharing({ film, signedIn }: { film: Film; signedIn: boolean }) {
   const [cachée, setCachée] = useState<boolean | null>(null);
   const [partage, setPartage] = useState<Sharing | null>(null);
   const [occupé, setOccupé] = useState(false);
 
   useEffect(() => {
-    if (!serverConfigured() || !connecte) return;
+    if (!serverConfigured() || !signedIn) return;
     let vivant = true;
     Promise.all([hiddenCards(), mySharing()])
       .then(([c, p]) => {
@@ -47,17 +47,17 @@ export function EcarterDuPartage({ film, connecte }: { film: Film; connecte: boo
         setCachée(c.ids.includes(film.id));
         setPartage(p.partage);
       })
-      /* Une panne du serveur ne fait pas parler la fiche : la section
-         disparaît, le classeur continue. */
+      /* A server breakdown does not make the card speak: the section
+         disappears, the binder carries on. */
       .catch(() => {});
     return () => {
       vivant = false;
     };
-  }, [connecte, film.id]);
+  }, [signedIn, film.id]);
 
-  /* « Person » ne se discute pas fiche par fiche : quand rien n'est
-     montré, tout est déjà écarté, et proposer de l'dismiss davantage
-     serait une case sans effet. */
+  /* "Nobody" is not argued card by card: when nothing is shown,
+     everything is already set aside, and offering to set more aside would
+     be a box with no effect. */
   if (cachée == null || partage == null || partage === "privee") return null;
 
   const basculer = async () => {

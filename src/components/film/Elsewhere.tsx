@@ -1,23 +1,23 @@
 /* ============================================================
-   AILLEURS — ce que les autres ont dit du même film
+   ELSEWHERE — what other people said of the same film
    ============================================================
 
-   Le seul endroit du classeur où le texte de quelqu'un d'autre entre
-   dans une fiche. Trois choix le gouvernent, et ils tiennent ensemble.
+   The only place in the binder where somebody else's text enters a card.
+   Three choices govern it, and they hold together.
 
-   IL SE TAIT PLUTÔT QUE DE S'EXCUSER. Pas de serveur, pas de compte,
-   pas de `tmdbId`, personne n'a rien dit : il n'y a rien à afficher, et
-   surtout aucun bandeau pour annoncer qu'il n'y a rien. Une fiche qui
-   vit très bien seule ne doit pas se mettre à réclamer un compte.
+   IT STAYS QUIET RATHER THAN APOLOGISING. No server, no account, no
+   `tmdbId`, nobody has said anything: there is nothing to show, and
+   above all no banner to announce that there is nothing. A card that
+   lives very well alone must not start demanding an account.
 
-   IL NE MÉLANGE PAS SA NOTE ET CELLE DES AUTRES. La moyenne rendue par
-   le serveur exclut la sienne : lire son propre avis dans « ce qu'on en
-   pense ailleurs » donnerait une moyenne à laquelle on aurait voté deux
-   fois, et l'impression d'être approuvé par soi-même.
+   IT DOES NOT MIX ITS OWN RATING WITH OTHER PEOPLE'S. The average
+   returned by the server excludes yours: reading your own opinion inside
+   "what they think of it elsewhere" would give an average you had voted
+   in twice, and the impression of being approved of by yourself.
 
-   BLOQUER ET SIGNALER SONT LÀ DÈS LA PREMIÈRE LIGNE PUBLIÉE. Le jour où
-   un texte pose un problème n'est pas le jour où l'on développe le
-   bouton pour le faire taire.
+   BLOCKING AND REPORTING ARE THERE FROM THE FIRST PUBLISHED LINE. The
+   day a text causes a problem is not the day one writes the button to
+   silence it.
    ============================================================ */
 import { useEffect, useState } from "react";
 import { Flag, Star, UserMinus, Users } from "lucide-react";
@@ -27,24 +27,24 @@ import { Label } from "../ui";
 import { block, echoOfWork, serverConfigured, report, type Echo } from "../../services/server";
 import type { Film } from "../../types";
 
-export function Ailleurs({ film, connecte }: { film: Film; connecte: boolean }) {
+export function Elsewhere({ film, signedIn }: { film: Film; signedIn: boolean }) {
   const [echo, setEcho] = useState<Echo | null>(null);
   const tmdbId = film.tmdbId;
 
   useEffect(() => {
     setEcho(null);
-    if (!serverConfigured() || !connecte || !tmdbId) return;
+    if (!serverConfigured() || !signedIn || !tmdbId) return;
     let vivant = true;
     echoOfWork(tmdbId)
       .then((e) => vivant && setEcho(e))
-      /* Le silence est la bonne réponse à une panne ici : cette section
-         est un supplément, et une fiche ne doit pas afficher d'erreur
-         pour ce qu'on ne lui a pas demandé. */
+      /* Silence is the right answer to a breakdown here: this section is
+         an extra, and a card must not show an error for something it was
+         not asked for. */
       .catch(() => {});
     return () => {
       vivant = false;
     };
-  }, [tmdbId, connecte]);
+  }, [tmdbId, signedIn]);
 
   if (!echo || echo.collections === 0) return null;
 
@@ -53,7 +53,7 @@ export function Ailleurs({ film, connecte }: { film: Film; connecte: boolean }) 
 
   return (
     <div data-tour="detail-ailleurs" style={{ marginTop: 22 }}>
-      <Label>Ailleurs</Label>
+      <Label>Elsewhere</Label>
       <div
         style={{
           display: "flex",
@@ -97,9 +97,9 @@ function AvisLu({ avis, onSilence }: { avis: Echo["avis"][number]; onSilence: ()
   };
 
   const dire = async () => {
-    /* `prompt` est laid, et c'est le bon outil : un motif se dit en une
-       phrase, et une modale de plus dans une fiche déjà dense se paierait
-       en confusion pour un geste qu'on fait deux fois par an. */
+    /* `prompt` is ugly, and it is the right tool: a motif is stated in
+       one sentence, and one more modal in an already dense card would be
+       paid for in confusion, for a gesture made twice a year. */
     const motif = window.prompt(`Qu'est-ce qui ne va pas dans ce qu'a écrit ${avis.pseudo} ?`);
     if (!motif?.trim()) return;
     await report({ pseudo: avis.pseudo, fiche: avis.fiche, motif });

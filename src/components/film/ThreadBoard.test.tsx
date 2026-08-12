@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { ThreadBoard } from "./ThreadBoard";
 import type { Film, LinkedWork } from "../../types";
 
-/* Un film réduit à ce dont le panneau d'enquête a besoin. */
+/* A film reduced to what the investigation board needs. */
 const film = (id: string, extra: Partial<Film> = {}): Film =>
   ({
     id,
@@ -124,9 +124,9 @@ describe("ThreadBoard — retoucher un fil", () => {
     );
   });
 
-  /* La règle du modèle, vue du formulaire : un renvoi vers une fiche du
-     mur tient son titre de CETTE fiche. On ne le propose donc pas — ce
-     serait offrir une retouche que `App` refuserait d'écrire. */
+  /* The model's rule, seen from the form: a reference to a card on the
+     wall takes its title from THAT card. So we do not offer it — that
+     would be offering an edit `App` would refuse to write. */
   describe("un renvoi vers une fiche du mur", () => {
     const linked = () =>
       board({
@@ -141,11 +141,11 @@ describe("ThreadBoard — retoucher un fil", () => {
     it("n'offre à réécrire que ce qui appartient au lien", async () => {
       linked();
       await openEditor("Les Statues meurent aussi");
-      // le titre et l'auteur appartiennent à la fiche d'en face
+      // the title and the author belong to the card opposite
       expect(screen.queryByLabelText("Titre de l'œuvre")).not.toBeInTheDocument();
       expect(screen.queryByLabelText("Auteur·rice / artiste")).not.toBeInTheDocument();
       expect(screen.queryByLabelText("Nature de l'œuvre")).not.toBeInTheDocument();
-      // la note, la nature du lien et sa force disent ce qui se passe ENTRE les deux
+      // the note, the link's kind and its strength say what happens BETWEEN the two
       expect(screen.getByLabelText("Pourquoi ce lien ?")).toBeInTheDocument();
       expect(screen.getByLabelText("Nature du lien")).toBeInTheDocument();
       expect(screen.getByLabelText("Strength du lien")).toBeInTheDocument();

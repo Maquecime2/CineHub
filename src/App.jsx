@@ -834,7 +834,7 @@ export default function App() {
           <DetailView
             film={selectedFilm}
             films={films}
-            connecte={!!synchro.person}
+            signedIn={!!synchro.person}
             /* THE TAB IS HELD HERE, as the view already is: the guided
                tour must be able to open "Links" before going there to
                find the red thread. See `visiteOuvreOnglet`. */
