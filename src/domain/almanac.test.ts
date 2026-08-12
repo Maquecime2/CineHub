@@ -20,9 +20,9 @@ import {
 import { makeFilm } from "./film";
 import type { Film, Watch } from "../types";
 
-/* Une fiche vue, avec son journal. Les screenings sont données dans
-   n'importe quel ordre à dessein : rien dans l'almanach ne doit
-   supposer qu'elles arrivent triées. */
+/* A watched card, with its log. The screenings are given in any order at
+   all on purpose: nothing in the almanac may assume they arrive
+   sorted. */
 const vu = (title: string, watches: (Watch | string)[], extra: Partial<Film> = {}): Film =>
   makeFilm({
     title,
@@ -31,60 +31,60 @@ const vu = (title: string, watches: (Watch | string)[], extra: Partial<Film> = {
   });
 
 describe("yearsCovered", () => {
-  it("ne rend que les années où il s'est passé quelque chose, la plus récente en tête", () => {
+  it("returns only the years something happened in, most recent first", () => {
     const films = [vu("A", ["2021-03-02", "2024-01-01"]), vu("B", ["2021-11-30"])];
     expect(yearsCovered(films)).toEqual([2024, 2021]);
   });
 
-  it("ne rend rien d'une collection vide, ni de fiches sans séance", () => {
+  it("returns nothing from an empty collection, nor from cards with no screening", () => {
     expect(yearsCovered([])).toEqual([]);
     expect(yearsCovered([vu("A", [])])).toEqual([]);
   });
 
-  it("écarte les dates qui ne disent rien", () => {
+  it("rules out dates that say nothing", () => {
     expect(yearsCovered([vu("A", [{ date: "", rating: null }, "0000-01-01"])])).toEqual([]);
   });
 
-  it("ignore la list à voir — une séance sur un film non vu n'existe pas", () => {
+  it("ignores the watchlist — a screening of an unwatched film does not exist", () => {
     const films = [vu("A", ["2024-05-05"], { status: "watchlist" })];
     expect(yearsCovered(films)).toEqual([]);
   });
 
-  it("count les fiches mises de côté : les archiver ne les rend pas non vues", () => {
+  it("counts cards set aside: archiving them does not make them unwatched", () => {
     expect(yearsCovered([vu("A", ["2024-05-05"], { archived: true })])).toEqual([2024]);
   });
 });
 
 describe("longestStreak", () => {
-  it("count les days consécutifs", () => {
+  it("counts consecutive days", () => {
     expect(longestStreak(["2024-03-01", "2024-03-02", "2024-03-03", "2024-03-09"])).toBe(3);
   });
 
-  it("ne count qu'une fois deux screenings du même jour", () => {
+  it("counts two screenings on the same day only once", () => {
     expect(longestStreak(["2024-03-01", "2024-03-01", "2024-03-02"])).toBe(2);
   });
 
-  it("franchit une fin de mois", () => {
+  it("crosses a month end", () => {
     expect(longestStreak(["2024-01-31", "2024-02-01"])).toBe(2);
   });
 
-  it("franchit un 29 février", () => {
+  it("crosses a 29 February", () => {
     expect(longestStreak(["2024-02-28", "2024-02-29", "2024-03-01"])).toBe(3);
   });
 
-  it("ne franchit PAS un 29 février qui n'existe pas", () => {
-    // 2023 n'est pas bissextile : le 28 février et le 1er mars ne se touchent pas
+  it("does NOT cross a 29 February that does not exist", () => {
+    // 2023 is not a leap year: 28 February and 1 March do not touch
     expect(longestStreak(["2023-02-28", "2023-03-01"])).toBe(2);
   });
 
-  it("rend zéro sans date, et un pour une seule", () => {
+  it("returns zero with no date, and one for a single one", () => {
     expect(longestStreak([])).toBe(0);
     expect(longestStreak(["2024-06-06"])).toBe(1);
   });
 });
 
 describe("almanacFor", () => {
-  it("répond sur une collection vide sans rien inventer", () => {
+  it("answers on an empty collection without inventing anything", () => {
     const a = almanacFor([], 2024);
     expect(a.count).toBe(0);
     expect(a.titles).toBe(0);
@@ -94,7 +94,7 @@ describe("almanacFor", () => {
     expect(a.decades).toEqual([]);
   });
 
-  it("count les SÉANCES par mois, pas les fiches", () => {
+  it("counts SCREENINGS per month, not cards", () => {
     const films = [vu("A", ["2024-03-01", "2024-03-14", "2024-03-30"])];
     const a = almanacFor(films, 2024);
     expect(a.byMonth[2]).toBe(3);
@@ -102,27 +102,27 @@ describe("almanacFor", () => {
     expect(a.titles).toBe(1);
   });
 
-  it("ne retient que l'year demandée", () => {
+  it("keeps only the year asked for", () => {
     const films = [vu("A", ["2023-12-31", "2024-01-01"])];
     expect(almanacFor(films, 2024).count).toBe(1);
     expect(almanacFor(films, 2023).count).toBe(1);
     expect(almanacFor(films, 2022).count).toBe(0);
   });
 
-  it("appelle revoyure toute séance qui n'est pas la firstSeen du film", () => {
+  it("calls a rewatch any screening that is not the film's first", () => {
     const films = [vu("A", ["2024-02-02", "2024-08-08"])];
     const a = almanacFor(films, 2024);
     expect(a.count).toBe(2);
     expect(a.rewatches).toBe(1);
   });
 
-  it("count comme revoyure un film découvert une year plus tôt", () => {
+  it("counts as a rewatch a film discovered a year earlier", () => {
     const films = [vu("A", ["2019-05-05", "2024-05-05"])];
     expect(almanacFor(films, 2024).rewatches).toBe(1);
     expect(almanacFor(films, 2019).rewatches).toBe(0);
   });
 
-  it("ne moyenne que les screenings rated — une séance sans note n'est pas un zéro", () => {
+  it("averages only the rated screenings — an unrated screening is not a zero", () => {
     const films = [
       vu("A", [
         { date: "2024-01-01", rating: 4 },
@@ -134,7 +134,7 @@ describe("almanacFor", () => {
     expect(a.count).toBe(2);
   });
 
-  it("range les notes en demi-crans", () => {
+  it("files the ratings in half notches", () => {
     const films = [
       vu("A", [{ date: "2024-01-01", rating: 3.5 }]),
       vu("B", [{ date: "2024-01-02", rating: 5 }]),
@@ -145,7 +145,7 @@ describe("almanacFor", () => {
     expect(h[10]).toBe(1); // 5
   });
 
-  it("écarte des décennies les fiches sans year de release", () => {
+  it("rules out of the decades the cards with no release year", () => {
     const films = [
       vu("A", ["2024-01-01"], { year: 1975 }),
       vu("B", ["2024-01-02"], { year: 1979 }),
@@ -154,7 +154,7 @@ describe("almanacFor", () => {
     expect(almanacFor(films, 2024).decades).toEqual([{ decade: 1970, n: 2 }]);
   });
 
-  it("classe réalisateurs et genres, et tranche les égalités par l'alphabet", () => {
+  it("ranks directors and genres, and breaks ties alphabetically", () => {
     const films = [
       vu("A", ["2024-01-01"], { director: "Varda", genres: ["Drame"] }),
       vu("B", ["2024-01-02"], { director: "Varda", genres: ["Drame", "Documentaire"] }),
@@ -171,23 +171,23 @@ describe("almanacFor", () => {
     ]);
   });
 
-  it("donne la firstSeen et la dernière séance de l'year, dans l'ordre", () => {
+  it("gives the year's first and last screening, in order", () => {
     const films = [vu("A", ["2024-09-09", "2024-02-02", "2024-05-05"])];
     const a = almanacFor(films, 2024);
     expect(a.firstWatch).toBe("2024-02-02");
     expect(a.lastWatch).toBe("2024-09-09");
   });
 
-  it("ne count pas deux fois une même date rentrée deux fois", () => {
-    // le journal est censé être dédoublonné par `mergeWatches`, mais
-    // l'almanach ne doit pas s'écrouler si une fiche échappe à la règle
+  it("does not count twice one date entered twice", () => {
+    // the log is meant to be deduplicated by `mergeWatches`, but the
+    // almanac must not collapse if a card escapes the rule
     const films = [vu("A", ["2024-04-04", "2024-04-04"])];
     expect(almanacFor(films, 2024).longestStreak).toBe(1);
   });
 });
 
 describe("filmsOfYear", () => {
-  it("ne rend qu'une ligne par film, avec sa best note de l'year", () => {
+  it("returns one line per film only, with its best rating of the year", () => {
     const films = [
       vu("A", [
         { date: "2024-01-01", rating: 3 },
@@ -197,7 +197,7 @@ describe("filmsOfYear", () => {
     expect(filmsOfYear(films, 2024)).toMatchObject([{ rating: 4.5, n: 2, date: "2024-06-06" }]);
   });
 
-  it("classe par note, puis par séance la plus récente", () => {
+  it("ranks by rating, then by most recent screening", () => {
     const films = [
       vu("A", [{ date: "2024-01-01", rating: 3 }]),
       vu("B", [{ date: "2024-01-02", rating: 5 }]),
@@ -206,7 +206,7 @@ describe("filmsOfYear", () => {
     expect(filmsOfYear(films, 2024).map((f) => f.film.title)).toEqual(["B", "C", "A"]);
   });
 
-  it("keep un film non noté, mais derrière ceux qui le sont", () => {
+  it("keeps an unrated film, but behind those that are rated", () => {
     const films = [
       vu("A", [{ date: "2024-05-05", rating: null }]),
       vu("B", [{ date: "2024-01-01", rating: 1 }]),
@@ -214,13 +214,13 @@ describe("filmsOfYear", () => {
     expect(filmsOfYear(films, 2024).map((f) => f.film.title)).toEqual(["B", "A"]);
   });
 
-  it("ignore les autres années", () => {
+  it("ignores the other years", () => {
     expect(filmsOfYear([vu("A", ["2023-01-01"])], 2024)).toEqual([]);
   });
 });
 
 describe("driftHighlights", () => {
-  it("retient le plus grand gap d'une fiche, et son sens", () => {
+  it("keeps a card's largest gap, and its direction", () => {
     const films = [
       vu("Solaris", [
         { date: "2010-01-01", rating: 2 },
@@ -232,7 +232,7 @@ describe("driftHighlights", () => {
     ]);
   });
 
-  it("classe du plus grand gap au plus petit, dans les deux sens", () => {
+  it("ranks from the largest gap to the smallest, in both directions", () => {
     const films = [
       vu("A", [
         { date: "2010-01-01", rating: 3 },
@@ -246,7 +246,7 @@ describe("driftHighlights", () => {
     expect(driftHighlights(films).map((d) => d.film.title)).toEqual(["B", "A"]);
   });
 
-  it("ignore un film qui n'a pas bougé, ou vu une seule fois", () => {
+  it("ignores a film that has not moved, or was watched only once", () => {
     const films = [
       vu("A", [
         { date: "2010-01-01", rating: 4 },
@@ -257,9 +257,9 @@ describe("driftHighlights", () => {
     expect(driftHighlights(films)).toEqual([]);
   });
 
-  it("saute une séance sans note sans rompre la comparaison", () => {
-    // revoir sans noter n'a rien à dire : l'gap se lit face à la
-    // dernière séance NOTÉE, comme dans `ratingDrift`
+  it("skips an unrated screening without breaking the comparison", () => {
+    // watching again without rating has nothing to say: the gap is read
+    // against the last RATED screening, as in `ratingDrift`
     const films = [
       vu("A", [
         { date: "2010-01-01", rating: 2 },
@@ -270,7 +270,7 @@ describe("driftHighlights", () => {
     expect(driftHighlights(films)).toMatchObject([{ delta: 2 }]);
   });
 
-  it("ignore la list à voir", () => {
+  it("ignores the watchlist", () => {
     const films = [
       vu(
         "A",
@@ -286,14 +286,14 @@ describe("driftHighlights", () => {
 });
 
 describe("ageOfFilms", () => {
-  it("mesure l'gap entre la release et la séance", () => {
+  it("measures the gap between the release and the screening", () => {
     const films = [vu("A", ["2024-01-01"], { year: 1990 })];
     expect(ageOfFilms(films, 2024).mean).toBe(34);
   });
 
-  /* Un muet de 1920 décalerait la moyenne de dix years à lui seul : la
-     median est là pour résister à ce genre de fiche. */
-  it("rend une median qui résiste à un film isolé très ancien", () => {
+  /* A 1920 silent film would shift the mean by ten years all on its own:
+     the median is there to resist that kind of card. */
+  it("returns a median that resists one isolated very old film", () => {
     const films = [
       vu("A", ["2024-01-01"], { year: 2020 }),
       vu("B", ["2024-01-02"], { year: 2018 }),
@@ -304,12 +304,12 @@ describe("ageOfFilms", () => {
     expect(Math.round(a.mean!)).toBe(38);
   });
 
-  it("écarte les fiches sans year plutôt que de leur donner deux mille years", () => {
+  it("rules out cards with no year rather than giving them two thousand years", () => {
     const films = [vu("A", ["2024-01-01"], { year: 1990 }), vu("B", ["2024-01-02"], { year: "" })];
     expect(ageOfFilms(films, 2024).mean).toBe(34);
   });
 
-  it("count la part de patrimoine au-delà de vingt years", () => {
+  it("counts the heritage share beyond twenty years", () => {
     const films = [
       vu("A", ["2024-01-01"], { year: 1990 }),
       vu("B", ["2024-01-02"], { year: 2020 }),
@@ -317,13 +317,13 @@ describe("ageOfFilms", () => {
     expect(ageOfFilms(films, 2024).heritageShare).toBe(50);
   });
 
-  it("ne rend rien d'une year vide", () => {
+  it("returns nothing from an empty year", () => {
     expect(ageOfFilms([], 2024)).toMatchObject({ mean: null, median: null, oldest: null });
   });
 });
 
 describe("ratingByDecade", () => {
-  it("moyenne les notes par décennie de release", () => {
+  it("averages the ratings by release decade", () => {
     const films = [
       vu("A", [{ date: "2024-01-01", rating: 4 }], { year: 1975 }),
       vu("B", [{ date: "2024-01-02", rating: 5 }], { year: 1979 }),
@@ -335,14 +335,14 @@ describe("ratingByDecade", () => {
     ]);
   });
 
-  it("n'invente pas une décennie qui n'a aucune séance notée", () => {
+  it("does not invent a decade with no rated screening", () => {
     const films = [vu("A", [{ date: "2024-01-01", rating: null }], { year: 1975 })];
     expect(ratingByDecade(films, 2024)).toEqual([]);
   });
 });
 
 describe("newDirectors", () => {
-  it("ne retient que les cinéastes vus pour la PREMIÈRE fois cette year", () => {
+  it("keeps only the filmmakers seen for the FIRST time that year", () => {
     const films = [
       vu("A", ["2019-01-01"], { director: "Varda" }),
       vu("B", ["2024-01-01"], { director: "Varda" }), // pas une découverte
@@ -351,14 +351,14 @@ describe("newDirectors", () => {
     expect(newDirectors(films, 2024)).toEqual(["Akerman"]);
   });
 
-  it("sépare une co-réalisation", () => {
+  it("splits a co-direction", () => {
     const films = [vu("A", ["2024-01-01"], { director: "Powell, Pressburger" })];
     expect(newDirectors(films, 2024)).toEqual(["Powell", "Pressburger"]);
   });
 });
 
 describe("loyalties", () => {
-  it("ne nomme que ce qui revient au moins trois fois", () => {
+  it("names only what comes back at least three times", () => {
     const films = [
       vu("A", ["2024-01-01"], { director: "Ozu", cast: ["Ryu"] }),
       vu("B", ["2024-01-02"], { director: "Ozu", cast: ["Ryu"] }),
@@ -372,7 +372,7 @@ describe("loyalties", () => {
 });
 
 describe("subjects", () => {
-  it("range les mots-clés et les motifs séparément", () => {
+  it("files the keywords and the motifs separately", () => {
     const films = [
       vu("A", ["2024-01-01"], {
         keywords: ["time loop", "small town"],
@@ -383,12 +383,12 @@ describe("subjects", () => {
     const s = subjects(films, 2024);
     expect(s.keywords[0]).toEqual({ name: "time loop", n: 2 });
     expect(s.motifs[0]).toEqual({ name: "time-loop", n: 2 });
-    /* Les deux vocabulaires ne se mélangent jamais : un motif n'a rien à
-       faire dans le ranking des mots-clés, et réciproquement. */
+    /* The two vocabularies never mix: a motif has no business in the
+       keyword ranking, and vice versa. */
     expect(s.keywords.map((x) => x.name)).not.toContain("flight");
   });
 
-  it("ne count que les screenings de la period", () => {
+  it("counts only the period's screenings", () => {
     const films = [
       vu("A", ["2024-01-01"], { keywords: ["dream"] }),
       vu("B", ["2023-01-01"], { keywords: ["dream"] }),
@@ -396,20 +396,20 @@ describe("subjects", () => {
     expect(subjects(films, 2024).keywords).toEqual([{ name: "dream", n: 1 }]);
   });
 
-  /* Une collection importée d'un CSV n'a ni mots-clés ni motifs : le
-     carton doit pouvoir se dessiner sur deux listes vides plutôt que de
-     lever au premier tracé. */
-  it("rend deux listes vides quand rien n'est renseigné", () => {
+  /* A collection imported from a CSV has neither keywords nor motifs:
+     the card must be able to draw itself on two empty lists rather than
+     throw on the first stroke. */
+  it("returns two empty lists when nothing is filled in", () => {
     expect(subjects([vu("A", ["2024-01-01"])], 2024)).toEqual({ keywords: [], motifs: [] });
   });
 
-  it("rend deux listes vides sur une collection vide", () => {
+  it("returns two empty lists on an empty collection", () => {
     expect(subjects([], "always")).toEqual({ keywords: [], motifs: [] });
   });
 });
 
 describe("craftspeople", () => {
-  it("count l'image, la musique et le scénario, chacun de son côté", () => {
+  it("counts cinematography, music and writing, each on its own", () => {
     const films = [
       vu("A", ["2024-01-01"], { crew: { image: ["Decaë"], musique: ["Delerue"] } }),
       vu("B", ["2024-01-02"], { crew: { image: ["Decaë"], scénario: ["Audiard"] } }),
@@ -420,22 +420,22 @@ describe("craftspeople", () => {
     expect(a.scénario).toEqual([{ name: "Audiard", n: 1 }]);
   });
 
-  /* Sans threshold, contrairement aux fidélités : deux films d'un même chef
-     opérateur est already une remarque. Un seul aussi — c'est la vue qui
-     décide de ne montrer que ce qui revient. */
-  it("ne s'impose aucun threshold", () => {
+  /* No threshold, unlike the loyalties: two films by the same
+     cinematographer is already worth a remark. So is one — it is the view
+     that decides to show only what recurs. */
+  it("imposes no threshold on itself", () => {
     const films = [vu("A", ["2024-01-01"], { crew: { musique: ["Vangelis"] } })];
     expect(craftspeople(films, 2024).musique).toEqual([{ name: "Vangelis", n: 1 }]);
   });
 
-  it("count une revoyure comme une séance de plus", () => {
+  it("counts a rewatch as one more screening", () => {
     const films = [vu("A", ["2024-01-01", "2024-06-01"], { crew: { image: ["Doyle"] } })];
     expect(craftspeople(films, 2024).image).toEqual([{ name: "Doyle", n: 2 }]);
   });
 
-  /* Le field est facultatif sur la fiche, et `migrate` le rend à `{}` :
-     un `crew` absent ou vide ne doit rien casser. */
-  it("survit à des fiches sans équipe", () => {
+  /* The field is optional on the card, and `migrate` returns it as `{}`:
+     a missing or empty `crew` must break nothing. */
+  it("survives cards with no crew", () => {
     expect(craftspeople([vu("A", ["2024-01-01"])], 2024)).toEqual({
       image: [],
       musique: [],
@@ -443,32 +443,32 @@ describe("craftspeople", () => {
     });
   });
 
-  it("survit à une collection vide", () => {
+  it("survives an empty collection", () => {
     expect(craftspeople([], "always")).toEqual({ image: [], musique: [], scénario: [] });
   });
 });
 
 describe("rhythm", () => {
-  it("count les days distincts, pas les screenings", () => {
+  it("counts distinct days, not screenings", () => {
     const films = [vu("A", ["2024-03-01", "2024-03-01", "2024-03-05"])];
     expect(rhythm(films, 2024).days).toBe(2);
   });
 
-  /* La drought se mesure ENTRE la firstSeen et la dernière séance : une
-     year commencée en mars n'a pas connu deux mois de drought, elle
-     n'avait pas commencé. */
-  it("ne count pas les bords de l'year comme une drought", () => {
+  /* The drought is measured BETWEEN the first and the last screening: a
+     year that started in March did not go through two months of drought,
+     it had not started. */
+  it("does not count the year's edges as a drought", () => {
     const films = [vu("A", ["2024-03-01", "2024-03-11"])];
     expect(rhythm(films, 2024).drought).toBe(9);
   });
 
-  it("connaît les années bissextiles pour la densité", () => {
+  it("knows about leap years for the density", () => {
     const films = [vu("A", ["2024-03-01"])];
     expect(rhythm(films, 2024).density).toBeCloseTo((1 / 366) * 100, 6);
     expect(rhythm([vu("A", ["2023-03-01"])], 2023).density).toBeCloseTo((1 / 365) * 100, 6);
   });
 
-  it("désigne le mois le plus dense, et rien si l'year est vide", () => {
+  it("names the densest month, and nothing if the year is empty", () => {
     const films = [vu("A", ["2024-05-01", "2024-05-02", "2024-09-09"])];
     expect(rhythm(films, 2024).moisLePlusDense).toBe(5);
     expect(rhythm([], 2024).moisLePlusDense).toBeNull();
@@ -476,7 +476,7 @@ describe("rhythm", () => {
 });
 
 describe("screenTime", () => {
-  it("cumule les durées et count à part ce qu'il ignore", () => {
+  it("sums the runtimes and counts separately what it does not know", () => {
     const films = [
       vu("A", ["2024-01-01"], { runtime: 120 }),
       vu("B", ["2024-01-02"], { runtime: 90 }),
@@ -489,9 +489,9 @@ describe("screenTime", () => {
     expect(s.plusLong?.runtime).toBe(120);
   });
 
-  /* Une durée de zéro est une donnée fausse, pas un film de zéro
-     minute : elle ne doit pas tirer la moyenne vers le bas. */
-  it("traite une durée nulle comme inconnue", () => {
+  /* A runtime of zero is bad data, not a nought-minute film: it must not
+     drag the mean down. */
+  it("treats a zero runtime as unknown", () => {
     const films = [
       vu("A", ["2024-01-01"], { runtime: 100 }),
       vu("B", ["2024-01-02"], { runtime: 0 }),
@@ -501,18 +501,18 @@ describe("screenTime", () => {
     expect(s.sansDuree).toBe(1);
   });
 
-  it("count deux fois un film revu deux fois — on l'a bien regardé deux fois", () => {
+  it("counts twice a film watched twice — we did watch it twice", () => {
     const films = [vu("A", ["2024-01-01", "2024-06-06"], { runtime: 100 })];
     expect(screenTime(films, 2024).minutes).toBe(200);
   });
 
-  it("ne rend rien d'une year vide", () => {
+  it("returns nothing from an empty year", () => {
     expect(screenTime([], 2024)).toMatchObject({ minutes: 0, moyenne: null, sansDuree: 0 });
   });
 });
 
 describe("geography", () => {
-  it("classe countries et languages, et count les countries distincts", () => {
+  it("ranks countries and languages, and counts the distinct countries", () => {
     const films = [
       vu("A", ["2024-01-01"], { countries: ["FR"], language: "fr" }),
       vu("B", ["2024-01-02"], { countries: ["FR", "IT"], language: "it" }),
@@ -524,7 +524,7 @@ describe("geography", () => {
     expect(g.languages).toHaveLength(3);
   });
 
-  it("ne rend rien quand aucune fiche n'est renseignée", () => {
+  it("returns nothing when no card is filled in", () => {
     expect(geography([vu("A", ["2024-01-01"])], 2024)).toMatchObject({
       countryCount: 0,
       countries: [],
@@ -540,65 +540,66 @@ describe("geography", () => {
    count sur sept years sans qu'aucune fonction ait à le savoir, et le
    peu qui résiste — la densité, les découvertes — le dit franchement.
    ============================================================ */
-describe("always", () => {
+describe("the whole practice", () => {
   const collection = () => [
     vu("A", ["2022-01-10", "2024-01-10"], { year: 1990, rating: 4 }),
     vu("B", ["2023-06-15"], { year: 2000 }),
     vu("C", ["2024-03-20"], { year: 1960 }),
   ];
 
-  it("count all les screenings, all années confondues", () => {
+  it("counts all the screenings, across all years", () => {
     const a = almanacFor(collection(), "always");
     expect(a.count).toBe(4);
     expect(a.titles).toBe(3);
     expect(a.period).toBe("always");
   });
 
-  it("count la revoyure comme telle même à deux years d'gap", () => {
+  it("counts a rewatch as such even two years apart", () => {
     expect(almanacFor(collection(), "always").rewatches).toBe(1);
   });
 
-  it("rend une case par year couverte, la plus ancienne d'abord", () => {
+  it("returns one slot per year covered, the oldest first", () => {
     const a = almanacFor(collection(), "always");
     expect(a.byYear.map((y) => y.year)).toEqual([2022, 2023, 2024]);
     expect(a.byYear.map((y) => y.screenings)).toEqual([1, 1, 2]);
   });
 
-  it("ne dessine pas les années sur une period annuelle", () => {
-    // `byMonth` y répond already : la même information deux fois n'en fait pas une de plus
+  it("does not draw the years on a yearly period", () => {
+    // `byMonth` already answers that: the same information twice does not make it two
     expect(almanacFor(collection(), 2024).byYear).toEqual([]);
   });
 
-  it("écarte la question des cinéastes découverts", () => {
-    // tout le monde a bien été découvert un jour : la réponse serait la list entière
+  it("sets aside the question of filmmakers discovered", () => {
+    // everybody was indeed discovered one day: the answer would be the whole list
     expect(newDirectors(collection(), "always")).toEqual([]);
   });
 
-  it("rapporte la densité à l'span vraiment couverte, non à l'year civile", () => {
-    /* Deux screenings à un year d'gap : 2 days sur 367, et non 2 sur 365
-       — sur sept years, un dénominateur d'year civile passerait les 100 %. */
+  it("relates the density to the span actually covered, not to the calendar year", () => {
+    /* Two screenings a year apart: 2 days out of 367, and not 2 out of
+       365 — over seven years, a calendar-year denominator would go past
+       100%. */
     const r = rhythm([vu("A", ["2023-01-01", "2024-01-02"])], "always");
     expect(r.days).toBe(2);
     expect(r.density).toBeLessThan(1);
     expect(r.density).toBeGreaterThan(0);
   });
 
-  it("count l'âge d'un film depuis l'year de SA séance", () => {
-    /* Un film de 1990 vu en 2000 avait dix years ce soir-là, pas trente.
-       Prendre une year fixe sur toute une pratique serait faux. */
+  it("counts a film's age from the year of ITS screening", () => {
+    /* A 1990 film watched in 2000 was ten years old that evening, not
+       thirty. Taking a fixed year over a whole practice would be wrong. */
     const a = ageOfFilms([vu("A", ["2000-01-01", "2020-01-01"], { year: 1990 })], "always");
     expect(a.mean).toBe(20); // (10 + 30) / 2
   });
 
-  it("relève le threshold de fidélité : trois fois en sept years n'est pas une traversée", () => {
+  it("raises the loyalty threshold: three times in seven years is not a crossing", () => {
     const films = [vu("A", ["2019-01-01", "2020-01-01", "2021-01-01"], { director: "Ozu" })];
     expect(almanacFor(films, "always").loyalties.directors).toEqual([]);
   });
 });
 
 describe("gapToPublic", () => {
-  it("ramène les deux notes sur la même échelle avant de soustraire", () => {
-    // 4/5 vaut 8/10 : deux points au-dessus d'un public à 6
+  it("brings both ratings onto the same scale before subtracting", () => {
+    // 4/5 is 8/10: two points above a public sitting at 6
     const e = gapToPublic([vu("A", [{ date: "2024-01-01", rating: 4 }], { tmdbRating: 6 })], 2024);
     expect(e.you).toBe(8);
     expect(e.public).toBe(6);
@@ -606,7 +607,7 @@ describe("gapToPublic", () => {
     expect(e.n).toBe(1);
   });
 
-  it("n'entre que les screenings où les DEUX notes existent", () => {
+  it("takes in only the screenings where BOTH ratings exist", () => {
     const films = [
       vu("Notée", [{ date: "2024-01-01", rating: 4 }], { tmdbRating: 6 }),
       vu("Sans public", [{ date: "2024-01-02", rating: 5 }], { tmdbRating: null }),
@@ -615,7 +616,7 @@ describe("gapToPublic", () => {
     expect(gapToPublic(films, 2024).n).toBe(1);
   });
 
-  it("range d'un côté ce qu'on aime plus que la foule, de l'autre le contraire", () => {
+  it("files on one side what we like more than the crowd, on the other the opposite", () => {
     const films = [
       vu("Adoré", [{ date: "2024-01-01", rating: 5 }], { tmdbRating: 5 }),
       vu("Détesté", [{ date: "2024-01-02", rating: 1 }], { tmdbRating: 8 }),
@@ -625,7 +626,7 @@ describe("gapToPublic", () => {
     expect(e.mostSevere[0]?.film.title).toBe("Détesté");
   });
 
-  it("ne fait peser un film revu qu'une fois dans les ranking", () => {
+  it("makes a rewatched film weigh only once in the rankings", () => {
     const films = [
       vu(
         "Revu",
@@ -639,14 +640,14 @@ describe("gapToPublic", () => {
     expect(gapToPublic(films, 2024).mostGenerous).toHaveLength(1);
   });
 
-  it("reste vide plutôt que de rendre zéro quand rien n'est comparable", () => {
+  it("stays empty rather than returning zero when nothing is comparable", () => {
     const e = gapToPublic([vu("A", ["2024-01-01"])], 2024);
     expect(e).toMatchObject({ you: null, public: null, gap: null, n: 0 });
   });
 });
 
 describe("byYear", () => {
-  it("rend screenings, titles et note moyenne par year", () => {
+  it("returns screenings, titles and mean rating per year", () => {
     const films = [
       vu("A", [
         { date: "2023-01-01", rating: 4 },
@@ -660,11 +661,11 @@ describe("byYear", () => {
     ]);
   });
 
-  it("laisse la note vide sur une year sans aucune séance notée", () => {
+  it("leaves the rating empty on a year with no rated screening", () => {
     expect(byYear([vu("A", ["2024-01-01"])])[0]?.rating).toBeNull();
   });
 
-  it("ne rend rien d'une collection sans séance", () => {
+  it("returns nothing from a collection with no screening", () => {
     expect(byYear([])).toEqual([]);
   });
 });
