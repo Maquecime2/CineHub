@@ -29,7 +29,7 @@
       dessiner une émulsion teintée aux initiales du titre. Le repli
       n'est pas un pis-aller ici : c'est la direction artistique.
 
-   3. On ne sème QU'UNE FOIS, et jamais plus — voir `semé` dans
+   3. On ne sème QU'UNE FOIS, et jamais plus — voir `seeded` dans
       `onboarding`. Un classeur qu'on vide à la main doit rester vide.
    ============================================================ */
 import { makeFilm } from "../domain/film";

@@ -5,7 +5,7 @@ import { useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { Star, KeyRound } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
-import { ouvrirReglageTmdb } from "../../services/tmdbKey";
+import { openTmdbSettings } from "../../services/tmdbKey";
 
 /** The rating, in ink stars. Clicking an already full star halves it. */
 export function InkStars({
@@ -131,7 +131,7 @@ export function NoKey({ what, style }: { what: string; style?: CSSProperties }) 
           elsewhere what we already had. Say it HERE, where the lack makes
           itself felt, rather than in a screen nobody opens. */}
       <button
-        onClick={ouvrirReglageTmdb}
+        onClick={openTmdbSettings}
         style={{
           all: "unset",
           cursor: "pointer",

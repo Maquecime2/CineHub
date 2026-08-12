@@ -1,55 +1,63 @@
 /* ============================================================
-   LA VISITE DÉJÀ FAITE — ce que le classeur retient de l'accueil
+   THE TOUR ALREADY TAKEN — what the binder remembers of the welcome
 
-   Trois choses seulement : les visites menées à leur terme, le fait
-   d'en avoir écarté une, et le nombre de rappels déjà posés. C'est un
-   état de NAVIGATEUR, pas une donnée de collection : il ne part donc
-   pas dans la sauvegarde, et effacer ses données rejoue l'accueil —
-   ce qui est exactement ce qu'on veut pour tester.
+   Three things only: the tours carried through to the end, the fact of
+   having waved one away, and the number of reminders already laid down.
+   This is BROWSER state, not collection data: it does not go into the
+   backup, and clearing site data plays the welcome again — which is
+   exactly what we want for testing.
+
+   ITS `semé` FIELD IS STORED. It became `seeded` when this module moved
+   to English; `loadOnboarding` is the only door it comes in through, and
+   it reads both spellings. Without that, the twelve demo films would be
+   sown again into a collection somebody has already made their own.
    ============================================================ */
 import { KEYS, store } from "./storage";
 
-/** Au-delà de trois rappels, on n'insiste plus : c'est un refus, pas un oubli. */
+/** Past three reminders we stop insisting: that is a refusal, not an oversight. */
 export const HINT_MAX = 3;
 
 export interface OnboardingState {
-  /** Identifiants des visites terminées : "global", "library", "detail"… */
+  /** Ids of the tours finished: "global", "library", "detail"… */
   done: string[];
-  /** L'utilisateur a écarté une visite au moins une fois. */
+  /** The user waved a tour away at least once. */
   skipped: boolean;
-  /** Nombre de cartes-bristol déjà montrées. */
+  /** Number of index cards already shown. */
   hints: number;
   /**
-   * Le classeur de démonstration a été semé une fois.
+   * The demonstration binder has been sown once.
    *
-   * À CÔTÉ DE `isFirstRun` ET JAMAIS À SA PLACE. La première ouverture
-   * se reconnaît à « rien de fait, rien d'écarté » — c'est-à-dire à un
-   * état qui retombe à faux dès qu'on a joué ou écarté la visite, mais
-   * qui redevient vrai pour qui n'a jamais rien fait de tout cela. S'y
-   * fier seul ferait revenir les douze films d'exemple le lendemain du
-   * jour où quelqu'un a vidé sa collection à la main — c'est-à-dire au
-   * pire moment possible.
+   * ALONGSIDE `isFirstRun` AND NEVER INSTEAD OF IT. A first opening is
+   * recognised by "nothing done, nothing skipped" — that is to say by a
+   * state that falls back to false as soon as the tour has been played
+   * or waved away, but that becomes true again for anyone who has never
+   * done either. Relying on it alone would bring the twelve example
+   * films back the day after somebody emptied their collection by hand —
+   * that is, at the worst possible moment.
    *
-   * Ce drapeau-ci ne retombe jamais, sauf `resetOnboarding`.
+   * This flag never falls back, except through `resetOnboarding`.
    */
-  semé: boolean;
+  seeded: boolean;
 }
 
-const EMPTY: OnboardingState = { done: [], skipped: false, hints: 0, semé: false };
+/** The shape stored before this module was translated. */
+type StoredState = Partial<OnboardingState> & { semé?: unknown };
 
-/* Le repli n'est pas seulement l'absence de clé : une valeur écrite par
-   une version antérieure peut manquer un champ, et une visite qui
-   plante à l'ouverture est pire que pas de visite du tout. */
+const EMPTY: OnboardingState = { done: [], skipped: false, hints: 0, seeded: false };
+
+/* The fallback is not only the absence of a key: a value written by an
+   earlier version can be missing a field, and a tour that crashes on
+   opening is worse than no tour at all. */
 export function loadOnboarding(): OnboardingState {
-  const raw = store.get<Partial<OnboardingState>>(KEYS.onboarding, EMPTY);
+  const raw = store.get<StoredState>(KEYS.onboarding, EMPTY);
   return {
     done: Array.isArray(raw?.done) ? raw.done.filter((d) => typeof d === "string") : [],
     skipped: raw?.skipped === true,
     hints: typeof raw?.hints === "number" && raw.hints >= 0 ? raw.hints : 0,
-    /* Même repli défensif que `skipped`, et pour la même raison : une
-       valeur écrite par une version antérieure ne porte pas ce champ,
-       et l'absence doit se lire « pas encore semé ». */
-    semé: raw?.semé === true,
+    /* Same defensive fallback as `skipped`, and for the same reason: a
+       value written by an earlier version does not carry this field, and
+       the absence must read "not sown yet". */
+    seeded: raw?.seeded === true || raw?.semé === true,
   };
 }
 
@@ -58,7 +66,7 @@ function save(next: OnboardingState): OnboardingState {
   return next;
 }
 
-/** Une visite menée jusqu'au bout. Terminer efface le besoin de rappel. */
+/** A tour carried through to the end. Finishing erases the need for a reminder. */
 export function markDone(id: string): OnboardingState {
   const s = loadOnboarding();
   return save({
@@ -67,38 +75,38 @@ export function markDone(id: string): OnboardingState {
   });
 }
 
-/** Une visite écartée en cours de route : c'est ce qui déclenche le rappel. */
+/** A tour waved away along the way: that is what triggers the reminder. */
 export function markSkipped(): OnboardingState {
   return save({ ...loadOnboarding(), skipped: true });
 }
 
-/** Un rappel de plus posé — on compte pour savoir quand se taire. */
+/** One more reminder laid down — we count so as to know when to keep quiet. */
 export function bumpHint(): OnboardingState {
   const s = loadOnboarding();
   return save({ ...s, hints: s.hints + 1 });
 }
 
-/** Le classeur d'exemple a été semé : on ne le ressèmera plus jamais. */
-export function markSemé(): OnboardingState {
-  return save({ ...loadOnboarding(), semé: true });
+/** The example binder has been sown: we will never sow it again. */
+export function markSeeded(): OnboardingState {
+  return save({ ...loadOnboarding(), seeded: true });
 }
 
-/** Reste-t-il à semer le classeur de démonstration ? */
-export function doitSemer(s: OnboardingState = loadOnboarding()): boolean {
-  return !s.semé;
+/** Is the demonstration binder still to be sown? */
+export function shouldSeed(s: OnboardingState = loadOnboarding()): boolean {
+  return !s.seeded;
 }
 
-/** Tout oublier : l'accueil se rejouera à la prochaine ouverture. */
+/** Forget everything: the welcome will play again on the next opening. */
 export function resetOnboarding(): OnboardingState {
   return save({ ...EMPTY });
 }
 
-/** Faut-il poser la carte-bristol qui dit où retrouver la visite ? */
+/** Should we lay down the index card that says where to find the tour again? */
 export function shouldHint(s: OnboardingState = loadOnboarding()): boolean {
   return s.skipped && !s.done.includes("global") && s.hints < HINT_MAX;
 }
 
-/** Première ouverture : rien de fait, rien d'écarté. */
+/** First opening: nothing done, nothing waved away. */
 export function isFirstRun(s: OnboardingState = loadOnboarding()): boolean {
   return s.done.length === 0 && !s.skipped;
 }

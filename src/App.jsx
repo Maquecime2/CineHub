@@ -21,7 +21,7 @@ import { SkinPicker } from "./components/layout/SkinPicker";
 import { Installation, MiseÀJour } from "./components/layout/Installation";
 import { CompteDrawer } from "./components/layout/CompteDrawer";
 import { TmdbKeyPanel } from "./components/layout/TmdbKeyPanel";
-import { inscrireOuvreurTmdb } from "./services/tmdbKey";
+import { registerTmdbOpener } from "./services/tmdbKey";
 import { useSynchro } from "./hooks/useSynchro";
 import { useInstallation } from "./hooks/useInstallation";
 /* Le module n'existe qu'à la construction : c'est le greffon qui le
@@ -44,7 +44,7 @@ import { SkinLab } from "./views/dev/SkinLab";
 import { useNotes } from "./hooks/useNotes";
 import { useShelfViews } from "./hooks/useShelfViews";
 import { TourOverlay, TourHint, TourMenu } from "./components/tour";
-import { isFirstRun, shouldHint, doitSemer, markSemé } from "./services/onboarding";
+import { isFirstRun, shouldHint, shouldSeed, markSeeded } from "./services/onboarding";
 import {
   classeurEncoreDémo,
   filmsDeDémonstration,
@@ -156,7 +156,7 @@ export default function App() {
      n'importe quel écran privé de clé puisse dire « la régler ici » sans
      qu'un rappel traverse dix composants qui n'ont rien à voir. */
   const [keyPanel, setKeyPanel] = useState(false);
-  useEffect(() => inscrireOuvreurTmdb(() => setKeyPanel(true)), []);
+  useEffect(() => registerTmdbOpener(() => setKeyPanel(true)), []);
   useLayoutEffect(() => {
     applySkin(skin);
     saveSkinKey(skin);
@@ -183,12 +183,12 @@ export default function App() {
          Voir `services/demo` pour ce que ces douze films contiennent,
          et pourquoi. */
       let migrated = chargés;
-      if (!chargés.length && doitSemer()) {
+      if (!chargés.length && shouldSeed()) {
         migrated = await saveFilms(filmsDeDémonstration());
         /* Le carnet ne reçoit sa page que s'il est vide : quelqu'un
            peut avoir écrit avant d'avoir un seul film. */
         if (!store.get(KEYS.notes, []).length) store.set(KEYS.notes, notesDeDémonstration());
-        markSemé();
+        markSeeded();
         if (!vivant) return;
       }
       setFilms(migrated);

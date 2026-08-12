@@ -5,7 +5,7 @@
    ============================================================ */
 
 import { ADRESSE } from "./services/serveur";
-import { cleEcrite, PAR_LE_SERVEUR } from "./services/tmdbKey";
+import { writtenKey, VIA_SERVER } from "./services/tmdbKey";
 
 const BASE = "https://api.themoviedb.org/3";
 // w342 : assez fin pour une carte, assez léger pour un mur de 500 affiches
@@ -125,7 +125,7 @@ const attenteAprès = (res, attempt) => {
 };
 
 async function get(path, params, apiKey, attempt = 0) {
-  if (apiKey === PAR_LE_SERVEUR) {
+  if (apiKey === VIA_SERVER) {
     const qs = new URLSearchParams(params);
     const res = await fetch(`${ADRESSE}/tmdb${path}?${qs}`, { credentials: "include" });
     if (res.ok) return res.json();
@@ -139,7 +139,7 @@ async function get(path, params, apiKey, attempt = 0) {
       await sleep(attenteAprès(res, attempt));
       return get(path, params, apiKey, attempt + 1);
     }
-    const propre = cleEcrite();
+    const propre = writtenKey();
     if (RÉCUSÉ.has(res.status) && propre) return get(path, params, propre, attempt);
     throw new Error(`TMDB ${res.status}`);
   }

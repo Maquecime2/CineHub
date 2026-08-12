@@ -8,7 +8,7 @@ import { underlineInput, tap } from "../../theme/styles";
 import { Label, Tally, InkStars } from "../../components/ui";
 import { StampCorner } from "../../components/atmosphere";
 import { store } from "../../services/storage";
-import { cleEcrite, setTmdbKey, useTmdbKey } from "../../services/tmdbKey";
+import { writtenKey, setTmdbKey, useTmdbKey } from "../../services/tmdbKey";
 import { parseLetterboxdCsv, diffImport, filmKey } from "../../domain/importing";
 import {
   fetchLetterboxdFeed,
@@ -99,7 +99,7 @@ export function ImportView({
      Les avoir confondus laissait « il faut d'abord saisir une clé »
      sous le nez de quelqu'un de connecté, qui n'en a précisément plus
      besoin. */
-  const [apiKey, setApiKey] = useState(cleEcrite);
+  const [apiKey, setApiKey] = useState(writtenKey);
   const posé = useTmdbKey();
   const deQuoi = apiKey.trim() || posé;
   const [useTmdb, setUseTmdb] = useState(() => !!deQuoi);

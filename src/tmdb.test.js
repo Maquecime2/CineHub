@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { checkApiKey, enrichRows } from "./tmdb";
-import { PAR_LE_SERVEUR, setTmdbKey } from "./services/tmdbKey";
+import { VIA_SERVER, setTmdbKey } from "./services/tmdbKey";
 
 const CACHE_KEY = "tmdb-cache";
 
@@ -436,7 +436,7 @@ describe("le relais du serveur", () => {
       })
     );
 
-    expect((await checkApiKey(PAR_LE_SERVEUR)).ok).toBe(true);
+    expect((await checkApiKey(VIA_SERVER)).ok).toBe(true);
     expect(appels).toHaveLength(1);
     expect(appels[0].url).toContain("/tmdb/configuration");
     expect(appels[0].url).not.toContain("api.themoviedb.org");
@@ -464,7 +464,7 @@ describe("le relais du serveur", () => {
         })
       );
 
-      expect((await checkApiKey(PAR_LE_SERVEUR)).ok, `code ${code}`).toBe(true);
+      expect((await checkApiKey(VIA_SERVER)).ok, `code ${code}`).toBe(true);
       expect(appels, `code ${code}`).toHaveLength(2);
       expect(appels[1]).toContain("api.themoviedb.org");
       expect(appels[1]).toContain("api_key=la-mienne");
@@ -486,7 +486,7 @@ describe("le relais du serveur", () => {
       })
     );
 
-    expect((await checkApiKey(PAR_LE_SERVEUR)).ok).toBe(false);
+    expect((await checkApiKey(VIA_SERVER)).ok).toBe(false);
     expect(appels).toHaveLength(1);
   });
 
@@ -515,7 +515,7 @@ describe("le relais du serveur", () => {
         })
       );
 
-      const promesse = checkApiKey(PAR_LE_SERVEUR);
+      const promesse = checkApiKey(VIA_SERVER);
       /* Une seconde ne suffit plus : c'était exactement le défaut. */
       await vi.advanceTimersByTimeAsync(1500);
       expect(appels).toHaveLength(1);
@@ -542,7 +542,7 @@ describe("le relais du serveur", () => {
         })
       );
 
-      const promesse = checkApiKey(PAR_LE_SERVEUR);
+      const promesse = checkApiKey(VIA_SERVER);
       await vi.advanceTimersByTimeAsync(1500);
       expect(appels).toHaveLength(2);
       expect((await promesse).ok).toBe(true);
@@ -567,7 +567,7 @@ describe("le relais du serveur", () => {
         })
       );
 
-      const promesse = checkApiKey(PAR_LE_SERVEUR);
+      const promesse = checkApiKey(VIA_SERVER);
       await vi.advanceTimersByTimeAsync(61_000);
       expect(appels).toHaveLength(2);
       expect((await promesse).ok).toBe(true);

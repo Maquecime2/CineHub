@@ -6,8 +6,8 @@ import {
   loadOnboarding,
   markDone,
   markSkipped,
-  markSemé,
-  doitSemer,
+  markSeeded,
+  shouldSeed,
   resetOnboarding,
   shouldHint,
 } from "./onboarding";
@@ -17,7 +17,7 @@ beforeEach(() => localStorage.clear());
 
 describe("ce que le classeur retient de l'accueil", () => {
   it("part de rien : c'est une première ouverture", () => {
-    expect(loadOnboarding()).toEqual({ done: [], skipped: false, hints: 0, semé: false });
+    expect(loadOnboarding()).toEqual({ done: [], skipped: false, hints: 0, seeded: false });
     expect(isFirstRun()).toBe(true);
   });
 
@@ -58,7 +58,7 @@ describe("ce que le classeur retient de l'accueil", () => {
      malheureuse, ne doit pas faire planter l'ouverture. */
   it("survit à une valeur abîmée", () => {
     localStorage.setItem(KEYS.onboarding, JSON.stringify({ done: "oui", hints: -4 }));
-    expect(loadOnboarding()).toEqual({ done: [], skipped: false, hints: 0, semé: false });
+    expect(loadOnboarding()).toEqual({ done: [], skipped: false, hints: 0, seeded: false });
   });
 
   it("survit à ce qui n'est même pas du JSON", () => {
@@ -78,20 +78,20 @@ describe("ce que le classeur retient de l'accueil", () => {
    ============================================================ */
 describe("le classeur de démonstration ne se sème qu'une fois", () => {
   it("reste à semer sur une première ouverture", () => {
-    expect(doitSemer()).toBe(true);
+    expect(shouldSeed()).toBe(true);
   });
 
   it("ne se ressème plus une fois semé", () => {
-    markSemé();
-    expect(doitSemer()).toBe(false);
+    markSeeded();
+    expect(shouldSeed()).toBe(false);
   });
 
   it("survit au rechargement", () => {
-    markSemé();
+    markSeeded();
     /* Rien en mémoire : `loadOnboarding` relit le magasin à chaque
        appel, ce qui est exactement ce qu'on veut vérifier ici. */
-    expect(loadOnboarding().semé).toBe(true);
-    expect(doitSemer()).toBe(false);
+    expect(loadOnboarding().seeded).toBe(true);
+    expect(shouldSeed()).toBe(false);
   });
 
   /* LE CAS QUI A MOTIVÉ LE CHAMP : un classeur vidé à la main, par
@@ -99,21 +99,21 @@ describe("le classeur de démonstration ne se sème qu'une fois", () => {
      « oui » — et il a raison de son point de vue. Le semis doit dire
      « non » quand même. */
   it("ne ressème pas un classeur vidé par quelqu'un qui n'a rien visité", () => {
-    markSemé();
+    markSeeded();
     expect(isFirstRun()).toBe(true);
-    expect(doitSemer()).toBe(false);
+    expect(shouldSeed()).toBe(false);
   });
 
   it("ne survit pas à un oubli général, qui rejoue tout l'accueil", () => {
-    markSemé();
+    markSeeded();
     resetOnboarding();
-    expect(doitSemer()).toBe(true);
+    expect(shouldSeed()).toBe(true);
   });
 
   /* Une valeur écrite avant ce champ ne le porte pas : l'absence doit se
      lire « pas encore semé », et non « déjà fait ». */
   it("lit une valeur d'avant comme un classeur jamais semé", () => {
     localStorage.setItem(KEYS.onboarding, JSON.stringify({ done: ["global"], hints: 1 }));
-    expect(doitSemer()).toBe(true);
+    expect(shouldSeed()).toBe(true);
   });
 });

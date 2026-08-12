@@ -1,119 +1,124 @@
 /* ============================================================
-   LA CLÉ TMDB — un seul endroit où elle se lit, un seul où elle s'écrit
+/* ============================================================
+   THE TMDB KEY — one place where it is read, one where it is written
 
-   Elle ne se posait que dans l'onglet Import, et HUIT écrans la
-   lisaient : les Découvertes, le tiroir du soir, le Générique, la fiche,
-   le choix d'affiche, l'identité d'un film, les faits TMDB, le
-   remplissage. Chacun faisait son `store.get("tmdb-key", "")` dans son
-   coin, au montage, une fois — de sorte que poser la clé dans Import ne
-   réveillait rien : il fallait recharger la page pour que les autres
-   vues s'en aperçoivent, et personne ne le devinait.
+   It was only ever set in the Import tab, and EIGHT screens read it: the
+   Discoveries, the evening drawer, the Credits, the card, the poster
+   picker, a film's identity, the TMDB facts, the completion. Each did
+   its own `store.get("tmdb-key", "")` in its corner, on mount, once — so
+   that setting the key in Import woke nothing up: you had to reload the
+   page for the other views to notice, and nobody guessed that.
 
-   Pire, celui qui n'avait pas de clé se taisait. Une vue vide ne dit pas
-   « il manque un réglage », elle dit « il n'y a rien » — et la seule
-   chose à faire est alors de fermer l'onglet.
+   Worse, the one with no key kept quiet. An empty view does not say "a
+   setting is missing", it says "there is nothing" — and the only thing
+   left to do is close the tab.
 
-   Ce module tient donc la clé en UN point, prévient tout le monde quand
-   elle change, et donne à chaque vue de quoi dire son manque à voix
-   haute (voir `NoKey`).
+   So this module holds the key in ONE place, tells everybody when it
+   changes, and gives each view what it needs to say its lack out loud
+   (see `NoKey`).
    ============================================================ */
 import { useSyncExternalStore } from "react";
 import { KEYS, store } from "./storage";
 import { compteOuvert, suivreLeCompte } from "./serveur";
 
-/* La valeur vit en mémoire autant que sur le disque : `useSyncExternalStore`
-   veut un instantané STABLE, et relire le localStorage à chaque appel
-   rendrait une chaîne neuve à chaque rendu — donc une boucle. */
-let courante: string = store.get<string>(KEYS.tmdbKey, "");
+/* The value lives in memory as much as on disk: `useSyncExternalStore`
+   wants a STABLE snapshot, and re-reading localStorage on every call
+   would return a fresh string on every render — hence a loop. */
+let current: string = store.get<string>(KEYS.tmdbKey, "");
 
-type Écoute = () => void;
-const écoutes = new Set<Écoute>();
+type Listener = () => void;
+const listeners = new Set<Listener>();
 
-const subscribe = (fn: Écoute): (() => void) => {
-  écoutes.add(fn);
-  /* On écoute AUSSI l'ouverture et la fermeture d'un compte : depuis
-     que le serveur relaie TMDB, se connecter suffit à donner de quoi
-     l'interroger, et les huit écrans doivent s'en apercevoir sans
-     recharger — exactement comme ils s'aperçoivent d'une clé posée. */
-  const oublier = suivreLeCompte(fn);
+const subscribe = (fn: Listener): (() => void) => {
+  listeners.add(fn);
+  /* We ALSO listen for an account opening and closing: since the server
+     relays TMDB, signing in is enough to give something to query it
+     with, and the eight screens must notice without reloading — exactly
+     as they notice a key being set. */
+  const forget = suivreLeCompte(fn);
   return () => {
-    écoutes.delete(fn);
-    oublier();
+    listeners.delete(fn);
+    forget();
   };
 };
 
 /* ============================================================
-   UN COMPTE VAUT UNE CLÉ
+/* ============================================================
+   AN ACCOUNT IS WORTH A KEY
    ============================================================
 
-   Le serveur relaie onze chemins de TMDB, garde SA clé, et n'accepte
-   que les gens connectés. Quelqu'un de connecté n'a donc besoin
-   d'aucune clé : les Découvertes, le sillage, les affiches et le
-   remplissage marchent sans qu'on ait rien à demander à personne.
+   The server relays eleven TMDB paths, keeps ITS key, and only accepts
+   people who are signed in. Somebody signed in therefore needs no key at
+   all: the Discoveries, the wake, the posters and the completion work
+   without having to ask anyone for anything.
 
-   Plutôt que d'apprendre à huit écrans qu'il existe désormais deux
-   façons d'avoir le droit d'interroger TMDB, on répond à la seule
-   question qu'ils posent — « avec quoi j'appelle ? » — et l'on rend un
-   jeton qui dit « par le serveur ». `src/tmdb.js` le reconnaît et
-   n'envoie rien de plus ; personne d'autre n'a à le connaître.
+   Rather than teaching eight screens that there are now two ways of
+   being allowed to query TMDB, we answer the only question they ask —
+   "what do I call with?" — and return a token that says "via the
+   server". `src/tmdb.js` recognises it and sends nothing more; nobody
+   else needs to know about it.
 
-   Ce n'est PAS un secret et ne doit jamais s'afficher : les deux écrans
-   qui montrent ou modifient la clé écrite (le tiroir de réglage,
-   l'onglet Import) passent par `cleEcrite`. */
-export const PAR_LE_SERVEUR = "par-le-serveur";
+   It is NOT a secret and must never be displayed: the two screens that
+   show or change the written key (the settings drawer, the Import tab)
+   go through `writtenKey`. */
+export const VIA_SERVER = "via-server";
 
-/** La clé réellement saisie — pour l'afficher et pour la corriger. */
-export const cleEcrite = (): string => courante;
+/** The key actually typed in — to display it and to correct it. */
+export const writtenKey = (): string => current;
 
 /**
- * De quoi interroger TMDB, hors composant : la clé posée, ou le jeton
- * du relais quand un compte est ouvert. Vide si l'on n'a ni l'un ni
- * l'autre.
+/**
+ * What it takes to query TMDB, outside a component: the key that was
+ * set, or the relay's token when an account is open. Empty if we have
+ * neither.
  */
 export const getTmdbKey = (): string =>
-  courante.trim() ? courante : compteOuvert() ? PAR_LE_SERVEUR : "";
+  current.trim() ? current : compteOuvert() ? VIA_SERVER : "";
 
 /**
- * Poser (ou effacer) la clé. Écrit sur le disque ET réveille les écrans
- * ouverts : c'est tout l'objet du module.
+/**
+ * Sets (or clears) the key. Writes to disk AND wakes the open screens:
+ * that is the whole point of the module.
  */
 export function setTmdbKey(key: string): void {
   const next = (key || "").trim();
-  if (next === courante) return;
-  courante = next;
+  if (next === current) return;
+  current = next;
   store.set(KEYS.tmdbKey, next);
-  for (const fn of écoutes) fn();
+  for (const fn of listeners) fn();
 }
 
 /**
- * De quoi interroger TMDB, dans un composant. Rerend quand la clé
- * change — le tiroir de réglage, l'onglet Import, une autre vue — et
- * quand un compte s'ouvre ou se ferme.
+/**
+ * What it takes to query TMDB, inside a component. Re-renders when the
+ * key changes — the settings drawer, the Import tab, another view — and
+ * when an account opens or closes.
  */
 export function useTmdbKey(): string {
   return useSyncExternalStore(subscribe, getTmdbKey, getTmdbKey);
 }
 
 /* ------------------------------------------------------------
-   OUVRIR LE RÉGLAGE, DEPUIS N'IMPORTE OÙ
+/* ------------------------------------------------------------
+   OPENING THE SETTING, FROM ANYWHERE
 
-   Huit écrans doivent pouvoir dire « la régler ici » et que ça marche.
-   Leur faire descendre un `onOuvrirReglage` depuis `App` traverserait
-   des composants qui n'ont rien à voir avec TMDB — la fiche, le carton,
-   la pellicule — juste pour transporter un rappel.
+   Eight screens must be able to say "set it here" and have it work.
+   Passing an `onOpenSettings` down from `App` would cross components
+   that have nothing to do with TMDB — the card, the cardstock, the film
+   strip — just to carry a callback.
 
-   Le tiroir s'inscrit donc lui-même, et le cartouche l'appelle. Un seul
-   inscrit à la fois : c'est un tiroir, pas un abonnement.
+   So the drawer registers itself, and the cartouche calls it. One
+   registration at a time: it is a drawer, not a subscription.
    ------------------------------------------------------------ */
-let ouvreur: (() => void) | null = null;
+let opener: (() => void) | null = null;
 
-/** Monté par `App` avec le tiroir de réglage ; rend de quoi se désinscrire. */
-export function inscrireOuvreurTmdb(fn: () => void): () => void {
-  ouvreur = fn;
+/** Mounted by `App` along with the settings drawer; returns an unregister. */
+export function registerTmdbOpener(fn: () => void): () => void {
+  opener = fn;
   return () => {
-    if (ouvreur === fn) ouvreur = null;
+    if (opener === fn) opener = null;
   };
 }
 
-/** Ouvre le tiroir de réglage de la clé, si quelqu'un sait le faire. */
-export const ouvrirReglageTmdb = (): void => ouvreur?.();
+/** Opens the key's settings drawer, if anybody knows how. */
+export const openTmdbSettings = (): void => opener?.();
