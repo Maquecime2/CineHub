@@ -19,7 +19,7 @@ import { PosterArt } from "../../components/film/PosterArt";
 import { Label, SansCle } from "../../components/ui";
 import { initialsOf } from "../../domain/film";
 import { MOTIFS, suggestMotifs } from "../../domain/motifs";
-import { classerLaSoirée, languesDeLaListe, CRÉNEAUX, type Envie } from "../../domain/soir";
+import { rankTheEvening, listLanguages, SLOTS, type Craving } from "../../domain/tonight";
 import { nomLangue } from "../../noms";
 import { useTmdbKey } from "../../services/tmdbKey";
 import { fetchKeywords, pooled } from "../../tmdb";
@@ -54,11 +54,11 @@ export function SoirDrawer({
   const [cherche, setCherche] = useState(false);
 
   const apiKey = useTmdbKey();
-  const envie: Envie = { minutes, humeur, langues };
+  const envie: Craving = { minutes, mood: humeur, languages: langues };
 
-  const dispo = useMemo(() => languesDeLaListe(films), [films]);
+  const dispo = useMemo(() => listLanguages(films), [films]);
   const propositions = useMemo(
-    () => classerLaSoirée(films, envie, devinés),
+    () => rankTheEvening(films, envie, devinés),
     // `envie` est reconstruit à chaque rendu : on dépend de ses parties
     [films, minutes, humeur, langues, devinés]
   );
@@ -196,7 +196,7 @@ export function SoirDrawer({
               <button onClick={() => setMinutes(null)} style={puce(minutes === null)}>
                 peu importe
               </button>
-              {CRÉNEAUX.map((c) => (
+              {SLOTS.map((c) => (
                 <button
                   key={c.minutes}
                   onClick={() => setMinutes(c.minutes)}
@@ -302,7 +302,7 @@ function Carte({
   onAutre,
   onOuvrir,
 }: {
-  choix: ReturnType<typeof classerLaSoirée>[number];
+  choix: ReturnType<typeof rankTheEvening>[number];
   rang: number;
   total: number;
   onAutre: () => void;
@@ -325,7 +325,7 @@ function Carte({
           {/* LES RAISONS, EN CLAIR. Un score ne se discute pas ; une
               phrase, si — et c'est elle qui donne envie ou pas. */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 9 }}>
-            {choix.raisons.map((r, i) => (
+            {choix.reasons.map((r, i) => (
               <span
                 key={i}
                 style={{
