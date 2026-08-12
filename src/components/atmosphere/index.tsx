@@ -124,7 +124,7 @@ export function TapeResidue({
   );
 }
 
-/* soulignement tracé à main levée sous un titre */
+/* a freehand underline drawn under a title */
 export function InkUnderline({
   width = 260,
   color = C.burgundy,
@@ -161,7 +161,7 @@ export function InkUnderline({
   );
 }
 
-/* numéro d'inventaire tamponné dans un coin */
+/* an inventory number stamped in a corner */
 export function FileNumber({ id, style }: { id: string; style?: CSSProperties }) {
   return (
     <div
