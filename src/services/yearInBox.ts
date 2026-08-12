@@ -83,7 +83,7 @@ export interface BoxData {
    sont donc écrits pour ne jamais la rencontrer.
 
    `fetch` d'abord, avec `cache: "reload"` qui force la revalidation :
-   il rend un statut et un type, donc il peut écarter ce qui n'est pas
+   il rend un statut et un type, donc il peut dismiss ce qui n'est pas
    une image — TMDB sert ses erreurs en HTML, parfois sous un 200.
 
    La balise ensuite, avec un paramètre d'URL qui lui donne sa propre
@@ -307,7 +307,7 @@ export async function drawYearInBox(data: BoxData, p: BoxPalette): Promise<Blob>
      largeurs d'un texte étant proportionnelles à sa taille, un seul
      relevé suffit à la calculer — pas de tâtonnement.
 
-     Réduire plutôt qu'écarter : chacune de ces mentions a été jugée
+     Réduire plutôt qu'dismiss : chacune de ces mentions a été jugée
      digne du regard de trois secondes, et une image qui rétrécit ses
      chiffres de quinze pour cent reste lisible là où une image qui en
      escamote un ment sur l'year. */

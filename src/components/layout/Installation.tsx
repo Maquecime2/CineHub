@@ -117,19 +117,19 @@ const bouton = {
 
 /** L'invitation à poser le classeur sur l'écran d'accueil. */
 export function Installation({
-  pomme,
+  apple,
   onInstaller,
   onÉcarter,
 }: {
   /** Sur iOS on explique le geste : aucune boîte de dialogue n'existe. */
-  pomme: boolean;
+  apple: boolean;
   onInstaller: () => void;
   onÉcarter: () => void;
 }) {
   return (
-    <Fiche tour="installer" onFermer={onÉcarter}>
+    <Fiche tour="install" onFermer={onÉcarter}>
       <Titre>Le classeur tient sur votre écran d'accueil</Titre>
-      {pomme ? (
+      {apple ? (
         <Phrase>
           Touchez <Share size={13} style={{ verticalAlign: -2 }} /> en bas de Safari, puis « Sur
           l'écran d'accueil ». Il s'ouvrira en plein écran, et même sans réseau.

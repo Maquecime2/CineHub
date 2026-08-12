@@ -2,7 +2,7 @@
    ÉCARTER CETTE FICHE DU PARTAGE
    ============================================================
 
-   La visite le promettait depuis longtemps — « vous pouvez écarter une
+   La visite le promettait depuis longtemps — « vous pouvez dismiss une
    fiche à part » — et il n'y avait aucun bouton. La route existait
    (`PUT /fiche/:id/cachee`), la colonne existait, le partage la
    respectait déjà : il manquait de quoi la lire, et de quoi la cliquer.
@@ -17,7 +17,7 @@
 
    ELLE NE PARAÎT QUE QUAND ELLE VEUT DIRE QUELQUE CHOSE : sans serveur,
    sans compte, ou quand la collection n'est montrée à personne, il n'y
-   a rien à écarter de rien.
+   a rien à dismiss de rien.
    ============================================================ */
 import { useEffect, useState } from "react";
 import { EyeOff, Eye } from "lucide-react";
@@ -56,7 +56,7 @@ export function EcarterDuPartage({ film, connecte }: { film: Film; connecte: boo
   }, [connecte, film.id]);
 
   /* « Person » ne se discute pas fiche par fiche : quand rien n'est
-     montré, tout est déjà écarté, et proposer de l'écarter davantage
+     montré, tout est déjà écarté, et proposer de l'dismiss davantage
      serait une case sans effet. */
   if (cachée == null || partage == null || partage === "privee") return null;
 

@@ -266,7 +266,7 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const { bilan: synchro, synchronise: relancerSynchro } = useSynchro(
+  const { report: synchro, synchronise: relancerSynchro } = useSynchro(
     loaded,
     setFilms,
     relireLesDocuments
@@ -936,9 +936,9 @@ export default function App() {
       ) : (
         installation.invite && (
           <Installation
-            pomme={installation.pomme}
+            apple={installation.apple}
             onInstaller={installation.installer}
-            onÉcarter={installation.écarter}
+            onÉcarter={installation.dismiss}
           />
         )
       )}

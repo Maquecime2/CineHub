@@ -13,7 +13,7 @@
 
    La première : donner à `src/components/shelf/` un second jeu de
    gestionnaires, tactile, à côté du premier. C'est mille lignes qui
-   savent placer un repère, mesurer une rangée, écarter deux voisins et
+   savent placer un repère, mesurer une rangée, dismiss deux voisins et
    arbitrer une charnière — dupliquées, et vouées à diverger à la
    première correction portée d'un seul côté.
 

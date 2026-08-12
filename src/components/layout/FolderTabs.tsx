@@ -635,9 +635,7 @@ export function FolderTabs({
               label="Votre compte et la synchronisation"
               icon={UserRound}
               doigt={phone}
-              marque={
-                synchro === "error" ? C.burgundy : synchro === "waiting" ? C.inkFaded : null
-              }
+              marque={synchro === "error" ? C.burgundy : synchro === "waiting" ? C.inkFaded : null}
             />
           )}
 

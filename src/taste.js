@@ -92,7 +92,7 @@ export function buildTaste(films = []) {
     themes: normalize(themes),
     decades: normalize(decades),
     languages: normalize(languages),
-    // les ensembles connus servent à écarter les candidats déjà vus, mais
+    // les ensembles connus servent à dismiss les candidats déjà vus, mais
     // aussi à mesurer le dépaysement : ce qui n'y figure pas est nouveau
     seenGenres: new Set(genres.keys()),
     seenDecades: new Set(decades.keys()),

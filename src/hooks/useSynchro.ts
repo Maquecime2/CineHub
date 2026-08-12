@@ -1,96 +1,96 @@
 /* ============================================================
-   LE RYTHME DE LA SYNCHRONISATION
+   THE RHYTHM OF SYNCHRONISATION
    ============================================================
 
-   Quand elle se déclenche, et jamais plus souvent que nécessaire :
+   When it fires, and never more often than needed:
 
-   — à l'ouverture, une fois le classeur chargé ;
-   — au retour du réseau, parce que c'est le moment exact où ce qui
-     attendait peut enfin partir ;
-   — quand l'onglet redevient visible, parce qu'on revient d'ailleurs et
-     qu'un autre appareil a peut-être parlé ;
-   — et toutes les cinq minutes, faute de mieux.
+   — on opening, once the binder is loaded;
+   — when the network comes back, because that is the exact moment what
+     was waiting can finally go;
+   — when the tab becomes visible again, because we are coming back from
+     elsewhere and another device may have spoken;
+   — and every five minutes, for want of anything better.
 
-   PAS À CHAQUE ÉCRITURE, et c'est délibéré : on écrit à chaque frappe
-   dans une critique. Une synchronisation par frappe ferait de chaque
-   note un aller-retour réseau, et de chaque panne un message d'erreur.
-   Ce qui attend part au prochain passage — c'est tout l'intérêt d'avoir
-   une liste d'attente plutôt qu'un envoi immédiat.
+   NOT ON EVERY WRITE, and deliberately so: we write on every keystroke
+   in a review. One synchronisation per keystroke would make every note a
+   network round trip, and every outage an error message. What is waiting
+   goes out on the next pass — that is the whole point of having a
+   waiting list rather than an immediate send.
    ============================================================ */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { lastReport, pending, synchronise, type SyncReport } from "../services/sync";
 import { serverConfigured } from "../services/server";
 import type { Film } from "../types";
 
-const RYTHME_MS = 5 * 60 * 1000;
+const RHYTHM_MS = 5 * 60 * 1000;
 
 export function useSynchro(
-  prêt: boolean,
-  poser: (films: Film[]) => void,
-  /** Appelé quand des documents sont entrés : à l'appelant de relire. */
-  relireLesDocuments: () => void
+  ready: boolean,
+  onFilms: (films: Film[]) => void,
+  /** Called when documents came in: up to the caller to re-read. */
+  rereadDocuments: () => void
 ) {
-  const [bilan, setBilan] = useState<SyncReport>({
+  const [report, setReport] = useState<SyncReport>({
     state: serverConfigured() ? "no-account" : "absent",
     person: null,
     at: lastReport().at,
     pending: 0,
   });
 
-  /* `poser` change à chaque rendu de l'application : le garder dans une
-     référence évite de relancer la boucle à chaque fois. */
-  const poserRef = useRef(poser);
-  const relireRef = useRef(relireLesDocuments);
+  /* `onFilms` changes on every render of the application: keeping it in
+     a ref avoids restarting the loop each time. */
+  const onFilmsRef = useRef(onFilms);
+  const rereadRef = useRef(rereadDocuments);
   useEffect(() => {
-    poserRef.current = poser;
-    relireRef.current = relireLesDocuments;
-  }, [poser, relireLesDocuments]);
-  const enCours = useRef(false);
+    onFilmsRef.current = onFilms;
+    rereadRef.current = rereadDocuments;
+  }, [onFilms, rereadDocuments]);
+  const running = useRef(false);
 
-  const lancer = useCallback(async () => {
-    if (!serverConfigured() || enCours.current) return;
-    enCours.current = true;
-    setBilan((b) => ({ ...b, state: "running" }));
+  const run = useCallback(async () => {
+    if (!serverConfigured() || running.current) return;
+    running.current = true;
+    setReport((b) => ({ ...b, state: "running" }));
     try {
-      const bilan = await synchronise((films) => poserRef.current(films));
-      setBilan(bilan);
-      if (bilan.documentsIn) relireRef.current();
+      const report = await synchronise((films) => onFilmsRef.current(films));
+      setReport(report);
+      if (report.documentsIn) rereadRef.current();
     } finally {
-      enCours.current = false;
+      running.current = false;
     }
   }, []);
 
   useEffect(() => {
-    if (!prêt || !serverConfigured()) return;
-    lancer();
+    if (!ready || !serverConfigured()) return;
+    run();
 
-    const auRetour = () => lancer();
-    const àLaVisite = () => {
-      if (document.visibilityState === "visible") lancer();
+    const onOnline = () => run();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") run();
     };
-    window.addEventListener("online", auRetour);
-    document.addEventListener("visibilitychange", àLaVisite);
-    const minuteur = setInterval(lancer, RYTHME_MS);
+    window.addEventListener("online", onOnline);
+    document.addEventListener("visibilitychange", onVisible);
+    const timer = setInterval(run, RHYTHM_MS);
 
     return () => {
-      window.removeEventListener("online", auRetour);
-      document.removeEventListener("visibilitychange", àLaVisite);
-      clearInterval(minuteur);
+      window.removeEventListener("online", onOnline);
+      document.removeEventListener("visibilitychange", onVisible);
+      clearInterval(timer);
     };
-  }, [prêt, lancer]);
+  }, [ready, run]);
 
-  /* Le compte de ce qui attend se relit à chaque rendu : il change quand
-     on écrit, pas quand le réseau parle. */
-  const attend = serverConfigured() ? pending() : 0;
+  /* The count of what is waiting is re-read on every render: it changes
+     when we write, not when the network speaks. */
+  const waiting = serverConfigured() ? pending() : 0;
 
-  /* « À JOUR » NE PEUT PAS ÊTRE VRAI S'IL RESTE QUELQUE CHOSE À DIRE.
+  /* "UP TO DATE" CANNOT BE TRUE IF THERE IS STILL SOMETHING TO SAY.
 
-     Le bilan date du dernier tour ; on écrit entre deux tours. Le tiroir
-     annonçait donc « à jour, à l'instant » avec une fiche en attente et
-     le serveur éteint — techniquement le récit du dernier passage,
-     pratiquement un mensonge. L'état affiché se déduit de ce qui attend,
-     pas de ce qui s'est passé tout à l'heure. */
-  const état = bilan.state === "up-to-date" && attend > 0 ? "waiting" : bilan.state;
+     The report dates from the last round; we write between two rounds.
+     So the drawer announced "up to date, just now" with a card waiting
+     and the server switched off — technically an account of the last
+     pass, practically a lie. The state displayed is deduced from what is
+     waiting, not from what happened a while ago. */
+  const state = report.state === "up-to-date" && waiting > 0 ? "waiting" : report.state;
 
-  return { bilan: { ...bilan, état, pending: attend }, synchronise: lancer };
+  return { report: { ...report, state, pending: waiting }, synchronise: run };
 }

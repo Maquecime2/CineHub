@@ -55,11 +55,11 @@ describe("useInstallation", () => {
     expect(ev.defaultPrevented).toBe(true);
   });
 
-  it("installer ouvre la boîte du système et retient que c'est fait", async () => {
+  it("install ouvre la boîte du système et retient que c'est fait", async () => {
     sonde = renderHook(() => useInstallation()).result;
     const ev = inviter("accepted");
     await act(async () => {
-      await sonde.current.installer();
+      await sonde.current.install();
     });
     expect(ev.prompt).toHaveBeenCalled();
     expect(readInstallState().installed).toBe(true);
@@ -70,22 +70,22 @@ describe("useInstallation", () => {
     sonde = renderHook(() => useInstallation()).result;
     inviter("dismissed");
     await act(async () => {
-      await sonde.current.installer();
+      await sonde.current.install();
     });
     expect(readInstallState()).toEqual({ dismissals: 1, installed: false });
   });
 
-  it("écarter compte le refus, et deux refus ferment le sujet", () => {
+  it("dismiss compte le refus, et deux refus ferment le sujet", () => {
     sonde = renderHook(() => useInstallation()).result;
     inviter();
-    act(() => sonde.current.écarter());
+    act(() => sonde.current.dismiss());
     expect(sonde.current.invite).toBe(false);
     expect(readInstallState().dismissals).toBe(1);
 
     cleanup();
     sonde = renderHook(() => useInstallation()).result;
     inviter();
-    act(() => sonde.current.écarter());
+    act(() => sonde.current.dismiss());
     expect(readInstallState().dismissals).toBe(2);
     cleanup();
 
@@ -99,7 +99,7 @@ describe("useInstallation", () => {
   it("sur iOS, personne n'émettra jamais rien : on explique de nous-mêmes", () => {
     vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)" });
     sonde = renderHook(() => useInstallation()).result;
-    expect(sonde.current.pomme).toBe(true);
+    expect(sonde.current.apple).toBe(true);
     expect(sonde.current.invite).toBe(true);
   });
 
