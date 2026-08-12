@@ -16,7 +16,7 @@
    pas de bouton possible : seulement une phrase qui dit où trouver
    « Sur l'écran d'accueil » dans le menu de partage. */
 import { useCallback, useEffect, useState } from "react";
-import { estIOS, noterPosée, noterRefus, peutProposer } from "../services/installation";
+import { isIOS, noteInstalled, noteDismissal, mayOffer } from "../services/installation";
 
 /** Ce que le navigateur passe dans `beforeinstallprompt`. */
 interface ÉvénementInstall extends Event {
@@ -38,10 +38,10 @@ export interface Installation {
 export function useInstallation(): Installation {
   const [attendu, setAttendu] = useState<ÉvénementInstall | null>(null);
   const [invite, setInvite] = useState(false);
-  const pomme = estIOS();
+  const pomme = isIOS();
 
   useEffect(() => {
-    if (!peutProposer()) return;
+    if (!mayOffer()) return;
 
     const surInvite = (e: Event) => {
       e.preventDefault();
@@ -51,7 +51,7 @@ export function useInstallation(): Installation {
     /* Installée depuis l'invitation OU depuis le menu du navigateur : dans
        les deux cas on n'a plus rien à proposer. */
     const surPosée = () => {
-      noterPosée();
+      noteInstalled();
       setInvite(false);
       setAttendu(null);
     };
@@ -77,14 +77,14 @@ export function useInstallation(): Installation {
     /* Refuser la boîte du système n'est pas refuser le classeur : on
        compte ce refus comme un « pas maintenant », et l'événement est
        consommé de toute façon. */
-    if (outcome === "accepted") noterPosée();
-    else noterRefus();
+    if (outcome === "accepted") noteInstalled();
+    else noteDismissal();
     setAttendu(null);
     setInvite(false);
   }, [attendu]);
 
   const écarter = useCallback(() => {
-    noterRefus();
+    noteDismissal();
     setInvite(false);
   }, []);
 

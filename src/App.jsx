@@ -8,7 +8,7 @@ import { normalize } from "./domain/search";
 import { inverseOf, strengthOf } from "./domain/relations";
 import { makeThread, normalizeThreads } from "./domain/threads";
 import { motifById, makeCustomMotif, customMotifs } from "./domain/motifs";
-import { loadFils, saveFils as saveFilsToDisk } from "./services/fils";
+import { loadThreads, saveThreads as saveFilsToDisk } from "./services/threads";
 import { loadVocabulaire, saveVocabulaire, normalizeVocabulaire } from "./services/motifs";
 import { store, KEYS } from "./services/storage";
 import {
@@ -200,7 +200,7 @@ export default function App() {
       notebook.load();
       const tabs = store.get("shelf-dividers", []);
       setDividers(tabs);
-      setFils(loadFils());
+      setFils(loadThreads());
       setVocabulaire(loadVocabulaire());
       /* La migration lit `order` et `status`, que le dépôt vient de
          normalize : elle doit donc passer après, et sur les fiches
@@ -257,7 +257,7 @@ export default function App() {
      sinon l'écran garde ceux d'avant sans rien dire. */
   const relireLesDocuments = useCallback(() => {
     notebook.load();
-    setFils(loadFils());
+    setFils(loadThreads());
     setVocabulaire(loadVocabulaire());
     const tabs = store.get("shelf-dividers", []);
     setDividers(tabs);

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderHook, act, cleanup } from "@testing-library/react";
 import { useInstallation, type Installation } from "./useInstallation";
-import { lireInstallation } from "../services/installation";
+import { readInstallState } from "../services/installation";
 
 /* L'invitation ne se fabrique pas : elle attend un événement que le
    navigateur émet quand il juge le site installable, et qui NE REVIENT
@@ -62,7 +62,7 @@ describe("useInstallation", () => {
       await sonde.current.installer();
     });
     expect(ev.prompt).toHaveBeenCalled();
-    expect(lireInstallation().posée).toBe(true);
+    expect(readInstallState().installed).toBe(true);
     expect(sonde.current.invite).toBe(false);
   });
 
@@ -72,7 +72,7 @@ describe("useInstallation", () => {
     await act(async () => {
       await sonde.current.installer();
     });
-    expect(lireInstallation()).toEqual({ refus: 1, posée: false });
+    expect(readInstallState()).toEqual({ dismissals: 1, installed: false });
   });
 
   it("écarter compte le refus, et deux refus ferment le sujet", () => {
@@ -80,13 +80,13 @@ describe("useInstallation", () => {
     inviter();
     act(() => sonde.current.écarter());
     expect(sonde.current.invite).toBe(false);
-    expect(lireInstallation().refus).toBe(1);
+    expect(readInstallState().dismissals).toBe(1);
 
     cleanup();
     sonde = renderHook(() => useInstallation()).result;
     inviter();
     act(() => sonde.current.écarter());
-    expect(lireInstallation().refus).toBe(2);
+    expect(readInstallState().dismissals).toBe(2);
     cleanup();
 
     /* Troisième ouverture : plus personne n'écoute, et l'événement du
