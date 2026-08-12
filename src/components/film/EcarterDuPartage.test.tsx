@@ -55,7 +55,7 @@ describe("il ne paraît que quand il veut dire quelque chose", () => {
   });
 
   /* LE CAS QUI COMPTE. Quand la collection n'est montrée à personne,
-     tout est déjà écarté : une case « dismiss du partage » y serait sans
+     tout est déjà écarté : une case « écarter du partage » y serait sans
      effet, et un interrupteur sans effet apprend à ne plus le lire. */
   it("se tait quand la collection n'est montrée à personne", async () => {
     mySharing.mockResolvedValue({ partage: "privee", jeton: null });

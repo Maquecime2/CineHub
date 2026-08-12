@@ -50,7 +50,7 @@ describe("la fiche film, après le passage en trois intercalaires", () => {
     monter({}, MOTS);
     expect(screen.getByText("Mots-clés")).toBeInTheDocument();
     expect(screen.getByText("Motifs")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /film de bedside/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /film de chevet/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /mettre de côté/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /supprimer définitivement/ })).toBeInTheDocument();
   });
@@ -96,11 +96,11 @@ describe("la fiche film, après le passage en trois intercalaires", () => {
     expect(screen.queryByText("Le héros meurt")).not.toBeInTheDocument();
   });
 
-  /* Pas de bedside pour un film qu'on n'a pas vu : le rayon est celui qu'on
+  /* Pas de chevet pour un film qu'on n'a pas vu : le rayon est celui qu'on
      revoit, et la watchlist ne l'ouvre pas. */
-  it("n'offre pas le bedside à un film jamais vu", () => {
+  it("n'offre pas le chevet à un film jamais vu", () => {
     monter({ status: "watchlist" }, MOTS);
-    expect(screen.queryByRole("button", { name: /film de bedside/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /film de chevet/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /supprimer définitivement/ })).toBeInTheDocument();
   });
 });

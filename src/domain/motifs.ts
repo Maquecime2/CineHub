@@ -71,7 +71,7 @@ export const MOTIFS: Motif[] = [
   },
   {
     id: "everyone-dies",
-    label: "Person n'en réchappe",
+    label: "Personne n'en réchappe",
     family: "fate",
     spoiler: true,
     tmdb: ["mass death", "massacre"],

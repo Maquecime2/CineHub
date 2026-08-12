@@ -683,7 +683,7 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     >
       {/* le repère de dépôt : un seul, déplacé à la main pendant le glissement */}
       <DropMark ref={markRef} />
-      {/* « Films de bedside », c'est ceux qu'on revoit : le rayon n'a pas
+      {/* « Films de chevet », c'est ceux qu'on revoit : le rayon n'a pas
           lieu d'être sur le mur des films à voir, où il ne s'ouvrait que
           pour rester vide. `belongs` range déjà là-bas les fiches
           drapeautées, elles ne se perdent donc pas. */}

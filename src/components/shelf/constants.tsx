@@ -47,7 +47,7 @@ interface ShelfKindConfig {
 
 export const SHELF_KIND: Record<ShelfKind, ShelfKindConfig> = {
   bedside: {
-    title: "Films de bedside",
+    title: "Films de chevet",
     tag: "ceux qu'on revoit",
     patch: { bedside: true, archived: false },
     tint: `${alpha(C.burgundy, 0.051)}`,

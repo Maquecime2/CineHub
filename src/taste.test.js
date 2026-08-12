@@ -175,7 +175,7 @@ describe("topDirectors", () => {
     /* Le seuil de 0,75 s'applique après normalisation : il est donc relatif au
        cinéaste le plus fort. Un 5 étoiles isolé passe ici, mais ne passerait
        plus si un autre nom cumulait deux fiches à 5 étoiles — ce qui est le
-       comportement voulu : « de bedside » se juge par rapport au reste. */
+       comportement voulu : « de chevet » se juge par rapport au reste. */
     const films = [
       film({ rating: 5, director: "Adoré" }),
       film({ rating: 3, director: "Tiède" }),

@@ -95,7 +95,7 @@ export function EcarterDuPartage({ film, connecte }: { film: Film; connecte: boo
       </button>
       <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 5 }}>
         {cachée
-          ? "Person ne la voit chez vous. Elle reste au mur, dans l'almanach et dans la constellation — c'est le dehors qui l'ignore."
+          ? "Personne ne la voit chez vous. Elle reste au mur, dans l'almanach et dans la constellation — c'est le dehors qui l'ignore."
           : "Elle paraît dans votre collection partagée, avec sa note et votre critique. Vos notes libres et votre journal de séances ne sortent jamais."}
       </div>
     </div>

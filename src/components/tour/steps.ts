@@ -544,7 +544,7 @@ const global: Tour = {
       target: at("listes-defis"),
       exigeUnServeur: true,
       title: "Se lancer quelque chose",
-      body: "Une liste plus une période fait un défi. Person ne coche « vu » : l'avancement se calcule depuis votre journal de séances, et le serveur n'en tire qu'un nombre — vos dates ne sortent pas d'ici.",
+      body: "Une liste plus une période fait un défi. Personne ne coche « vu » : l'avancement se calcule depuis votre journal de séances, et le serveur n'en tire qu'un nombre — vos dates ne sortent pas d'ici.",
       placement: "top",
       view: "listes",
       optional: true,
@@ -620,7 +620,7 @@ const listes: Tour = {
     {
       target: at("listes-defis"),
       title: "Un defi est une liste plus une periode",
-      body: "Person ne coche « vu » : l'avancement se calcule depuis votre journal de seances, et seules les seances datees dans la periode comptent. Le serveur en tire un nombre, jamais vos dates — et seulement pour ceux qui ont demande a participer.",
+      body: "Personne ne coche « vu » : l'avancement se calcule depuis votre journal de seances, et seules les seances datees dans la periode comptent. Le serveur en tire un nombre, jamais vos dates — et seulement pour ceux qui ont demande a participer.",
       placement: "top",
       optional: true,
     },

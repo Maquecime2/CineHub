@@ -88,7 +88,7 @@ describe("appartenance à un rayon", () => {
     expect(belongs.bedside(film("a", { bedside: true, archived: true }))).toBe(false);
   });
 
-  it("un film à voir n'est jamais de bedside : on ne revoit pas ce qu'on n'a pas vu", () => {
+  it("un film à voir n'est jamais de chevet : on ne revoit pas ce qu'on n'a pas vu", () => {
     const aVoir = film("a", { bedside: true, status: "watchlist" });
     expect(kindOf(aVoir)).toBe("main");
     expect(belongs.bedside(aVoir)).toBe(false);

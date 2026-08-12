@@ -188,10 +188,10 @@ function Répertoire({
           {gens.length === 0
             ? "Aucun nom pour l'instant. Complétez vos fiches par TMDB, depuis l'onglet Import, et le générique se remplira tout seul."
             : q.trim()
-              ? "Person de ce nom."
+              ? "Personne de ce nom."
               : cachés > 0
-                ? "Person à ce titre parmi les habitués — ouvrez « de passage » pour voir le reste."
-                : "Person à ce titre."}
+                ? "Personne à ce titre parmi les habitués — ouvrez « de passage » pour voir le reste."
+                : "Personne à ce titre."}
         </div>
       ) : (
         <div

@@ -450,7 +450,7 @@ export function notesDeDémonstration(maintenant = Date.now()): Note[] {
     {
       id: `${PRÉFIXE_DÉMO}note-1`,
       title: "Ce que je cherche en ce moment",
-      body: "Des films qui font confiance au silence. Melville, Wenders, Sciamma dans la seconde moitié — à chaque fois, la scène qui compte est celle où personne ne parle.\n\nÀ follow : les chefs opérateurs plutôt que les cinéastes. Decaë revient deux fois sans que je l'aie cherché.",
+      body: "Des films qui font confiance au silence. Melville, Wenders, Sciamma dans la seconde moitié — à chaque fois, la scène qui compte est celle où personne ne parle.\n\nÀ suivre : les chefs opérateurs plutôt que les cinéastes. Decaë revient deux fois sans que je l'aie cherché.",
       createdAt: maintenant,
     },
   ];

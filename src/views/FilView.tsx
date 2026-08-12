@@ -71,7 +71,7 @@ export function FilView({ connecte }: { connecte: boolean }) {
     return (
       <Page>
         <Guideline>
-          Il faut un compte pour follow quelqu'un — le bouton au pied du rail. Votre collection,
+          Il faut un compte pour suivre quelqu'un — le bouton au pied du rail. Votre collection,
           elle, n'en a pas besoin.
         </Guideline>
       </Page>
@@ -89,7 +89,7 @@ export function FilView({ connecte }: { connecte: boolean }) {
       /* Le serveur répond la même chose pour « n'existe pas » et « ne se
          montre pas » : on reprend ce silence, sans inventer laquelle
          des deux. */
-      setSouci(`Person ne partage sa collection sous « ${nom} ».`);
+      setSouci(`Personne ne partage sa collection sous « ${nom} ».`);
     }
   };
 
@@ -185,7 +185,7 @@ export function FilView({ connecte }: { connecte: boolean }) {
                 {a.ouverte === false && <em style={{ opacity: 0.7 }}>refermée</em>}
                 <button
                   onClick={() => basculer(a)}
-                  title={`Ne plus follow ${a.pseudo}`}
+                  title={`Ne plus suivre ${a.pseudo}`}
                   style={{ ...tap, all: "unset", cursor: "pointer", color: C.burgundy }}
                 >
                   <UserMinus size={12} />

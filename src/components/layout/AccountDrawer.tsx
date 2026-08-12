@@ -668,7 +668,7 @@ function Partager() {
 
       <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 8 }}>
         {état === null && "Par défaut, personne ne voit votre collection."}
-        {état === "privee" && "Person. Les liens déjà donnés ne valent plus rien."}
+        {état === "privee" && "Personne. Les liens déjà donnés ne valent plus rien."}
         {état === "lien" && "Qui a le lien. Il ne se devine pas, et se coupe quand vous voulez."}
         {état === "publique" && "Qui connaît votre pseudonyme."}
       </div>

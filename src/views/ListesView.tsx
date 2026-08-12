@@ -194,7 +194,7 @@ function UneListe({
     } catch {
       /* Le serveur répond la même chose pour « n'existe pas » et « vous
          vous êtes bloqués » : on reprend ce silence. */
-      setSouci(`Person à inviter sous « ${nom} ».`);
+      setSouci(`Personne à inviter sous « ${nom} ».`);
     }
   };
 

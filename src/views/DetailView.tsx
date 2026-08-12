@@ -776,7 +776,7 @@ export function DetailView({
               ils changent le rayon, pas la fiche. */}
             <Cardstock style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <Label>Ce qu'on en fait</Label>
-              {/* Pas de bedside pour un film qu'on n'a pas vu : le rayon
+              {/* Pas de chevet pour un film qu'on n'a pas vu : le rayon
                   est celui qu'on revoit, et l'étagère de la watchlist ne
                   l'ouvre pas. Le bouton n'y aurait rien changé de
                   visible. */}
@@ -802,7 +802,7 @@ export function DetailView({
                   }}
                 >
                   <Moon size={12} />{" "}
-                  {film.bedside ? "retirer des films de bedside" : "film de bedside"}
+                  {film.bedside ? "retirer des films de chevet" : "film de chevet"}
                 </button>
               )}
               <button

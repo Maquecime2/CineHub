@@ -75,7 +75,7 @@ describe("useInstallation", () => {
     expect(readInstallState()).toEqual({ dismissals: 1, installed: false });
   });
 
-  it("dismiss compte le refus, et deux refus ferment le sujet", () => {
+  it("écarter compte le refus, et deux refus ferment le sujet", () => {
     sonde = renderHook(() => useInstallation()).result;
     inviter();
     act(() => sonde.current.dismiss());
