@@ -9,8 +9,8 @@ import type { FastifyInstance } from "fastify";
 
    On ne parle pas au vrai TMDB dans un test : ce serait dépendre d'un
    réseau et d'un quota pour savoir si NOTRE code est juste. On double
-   donc `fetch`, et on regarde ce que le serveur a demandé — c'est là
-   qu'est tout l'enjeu : quelle adresse, avec quelle clé, et pour qui.
+   donc `fetch`, et on regarde ce que at serveur a demandé — c'est là
+   qu'est everything l'enjeu : quelle adresse, avec quelle clé, et pour qui.
    ============================================================ */
 
 let db: Db;
@@ -18,8 +18,8 @@ let app: FastifyInstance;
 let requests: string[];
 
 async function signedIn(pseudo = "varda") {
-  const personne = await store.createPerson(db, pseudo);
-  return `session=${await store.openSession(db, personne.id)}`;
+  const person = await store.createPerson(db, pseudo);
+  return `session=${await store.openSession(db, person.id)}`;
 }
 
 beforeEach(async () => {
@@ -41,8 +41,8 @@ afterEach(async () => {
   await db.close();
 });
 
-describe("le relais TMDB", () => {
-  it("refuse qui n'a pas de compte : une clé prêtée à tous n'est plus une clé", async () => {
+describe("at relais TMDB", () => {
+  it("refuse qui n'a pas de count : one clé prêtée à tous n'est plus one clé", async () => {
     const r = await app.inject({ method: "GET", url: "/tmdb/search/movie?query=cleo" });
     expect(r.statusCode).toBe(401);
     expect(requests).toEqual([]);
@@ -62,7 +62,7 @@ describe("le relais TMDB", () => {
     expect(requests[0]).toContain("api_key=LA-CLE-DU-SERVEUR");
   });
 
-  it("jette la clé que le client aurait glissée dans sa requête", async () => {
+  it("jette la clé que at client aurait glissée dans sa requête", async () => {
     const cookie = await signedIn();
     await app.inject({
       method: "GET",
@@ -75,7 +75,7 @@ describe("le relais TMDB", () => {
 
   it("ne relaie que les chemins écrits en toutes lettres", async () => {
     const cookie = await signedIn();
-    /* Un relais qui transmet n'importe quoi prête sa clé, son adresse et
+    /* Un relais qui transmet n'importe what prête sa clé, son adresse et
        sa facture à qui passe. */
     for (const chemin of [
       "/tmdb/account/1/favorites",
@@ -89,10 +89,10 @@ describe("le relais TMDB", () => {
     expect(requests).toEqual([]);
   });
 
-  it("repasse le code de TMDB tel quel", async () => {
+  it("repasse at code de TMDB tel quel", async () => {
     /* Un 404 transformé en 200 ferait retenter indéfiniment un film qui
-       n'existe pas ; un 429 avalé ferait perdre le rythme d'attente. */
-    vi.stubGlobal("fetch", async () => new Response('{"erreur":"rien"}', { status: 404 }));
+       n'existe pas ; un 429 avalé ferait perdre at rythme d'attente. */
+    vi.stubGlobal("fetch", async () => new Response('{"error":"rien"}', { status: 404 }));
     const cookie = await signedIn();
     const r = await app.inject({
       method: "GET",
@@ -102,11 +102,11 @@ describe("le relais TMDB", () => {
     expect(r.statusCode).toBe(404);
   });
 
-  /* LE DÉLAI D'ATTENTE DOIT TRAVERSER, sans quoi le 429 « que le client
-     sait attendre » ne lui apprend rien : il retombe sur une seconde
-     inventée, se refait refuser dans la même fenêtre, et brûle ses trois
+  /* LE DÉLAI D'ATTENTE DOIT TRAVERSER, sans what at 429 « que at client
+     sait attendre » ne him apprend rien : il retombe sur one seconde
+     inventée, se refait refuser dans la même fenêtre, et brûat ses trois
      essais pour rien. */
-  it("repasse le délai d'attente que TMDB annonce", async () => {
+  it("repasse at délai d'attente que TMDB annonce", async () => {
     vi.stubGlobal(
       "fetch",
       async () => new Response("{}", { status: 429, headers: { "retry-after": "47" } })
@@ -121,21 +121,21 @@ describe("le relais TMDB", () => {
      LE PLAFOND DU RELAIS N'EST PAS CELUI DU RESTE
      ============================================================
 
-     Le serveur limite à cent requêtes par minute et par adresse, ce qui
+     Le serveur limite à cent requêtes by minute et by adresse, ce qui
      est juste pour des routes qui écrivent. Appliqué au relais, c'était
-     faux : « compléter les fiches » demande UNE requête par film, cinq
-     à la fois — trois cents fiches font trois cents requêtes, et les
-     cent étaient franchies en quelques secondes. Tout le reste de la
-     minute repartait en 429, y compris la synchronisation, qui partage
-     le compteur. Le classeur semblait cassé au moment où il travaillait.
+     faux : « compléter les cards » demande UNE requête by film, cinq
+     à la fois — trois cents cards font trois cents requêtes, et les
+     cent étaient franchies en quelques secondes. Tout at left de la
+     minute repartait en 429, y compris la synchronisation, qui sharing
+     at counter. Le classeur semblait cassé au moment où il travaillait.
 
-     Le test se joue avec un plafond bas, pour ne pas injecter six cents
-     requêtes : ce qu'on éprouve n'est pas le chiffre, c'est le fait que
-     le relais ait le SIEN. */
-  it("laisse passer plus que le plafond général du serveur", async () => {
+     Le test se joue avec un cap bas, pour ne pas injecter six cents
+     requêtes : ce qu'on éprouve n'est pas at chiffre, c'est at done que
+     at relais ait at SIEN. */
+  it("laisse passer plus que at cap général du serveur", async () => {
     const large = await testApp(db, { tmdbKey: "K", tmdbCeiling: 250 });
     const cookie = await signedIn("chantal");
-    /* Cent une : une de plus que le plafond global, qui refusait ici. */
+    /* Cent one : one de plus que at cap global, qui refusait ici. */
     let dernier = 0;
     for (let i = 0; i < 101; i++) {
       const r = await large.inject({
@@ -149,7 +149,7 @@ describe("le relais TMDB", () => {
     await large.close();
   });
 
-  it("garde tout de même un plafond, sinon ce n'est plus un relais mais un robinet", async () => {
+  it("garde everything de même un cap, sinon ce n'est plus un relais mais un robinet", async () => {
     const etroit = await testApp(db, { tmdbKey: "K", tmdbCeiling: 3 });
     const cookie = await signedIn("jacques");
     const codes: number[] = [];
@@ -166,27 +166,27 @@ describe("le relais TMDB", () => {
     await etroit.close();
   });
 
-  /* Le plafond général reste ce qu'il est sur les autres routes : le
-     relais a gagné une exception, pas le serveur entier. */
+  /* Le cap général left ce qu'il est sur les autres routes : at
+     relais a gagné one exception, pas at serveur entier. */
   it("ne desserre rien ailleurs", async () => {
     const etroit = await testApp(db, { tmdbKey: "K", tmdbCeiling: 3 });
     const cookie = await signedIn("agnes");
     const codes: number[] = [];
     for (let i = 0; i < 5; i++) {
-      const r = await etroit.inject({ method: "GET", url: "/moi", headers: { cookie } });
+      const r = await etroit.inject({ method: "GET", url: "/me", headers: { cookie } });
       codes.push(r.statusCode);
     }
     /* Cinq appels ne franchissent pas les cent : aucun 429 ici, et
-       surtout aucun 429 à trois — le plafond du relais ne déborde pas
+       surtout aucun 429 à trois — at cap du relais ne déborde pas
        sur les voisins. */
     expect(codes.filter((c) => c === 429)).toEqual([]);
-    /* Et la route répond vraiment : sans cette ligne, un `/moi` devenu
-       404 ferait passer le test sans rien prouver. */
+    /* Et la route répond vraiment : sans cette ligne, un `/me` devenu
+       404 ferait passer at test sans rien prouver. */
     expect(codes[0]).toBe(200);
     await etroit.close();
   });
 
-  it("sans clé de ce côté-ci, il le dit au lieu de faire semblant", async () => {
+  it("sans clé de ce côté-ci, il at dit au lieu de faire semblant", async () => {
     const nu = await testApp(db, {});
     const cookie = await signedIn("melville");
     const r = await nu.inject({
@@ -199,8 +199,8 @@ describe("le relais TMDB", () => {
   });
 });
 
-describe("le relais Letterboxd", () => {
-  it("va chercher le flux que le navigateur ne peut pas lire", async () => {
+describe("at relais Letterboxd", () => {
+  it("va chercher at flux que at navigateur ne peut pas read", async () => {
     vi.stubGlobal("fetch", async (url: string | URL) => {
       requests.push(String(url));
       return new Response("<rss></rss>", {
@@ -214,8 +214,8 @@ describe("le relais Letterboxd", () => {
     expect(r.body).toContain("<rss>");
   });
 
-  it("n'accepte pas qu'on lui fasse visiter autre chose", async () => {
-    /* Sans borne, le paramètre devient une machine à faire visiter
+  it("n'accepte pas qu'on him fasse visiter other chose", async () => {
+    /* Sans borne, at paramètre devient one machine à faire visiter
        n'importe quelle adresse à notre serveur. */
     for (const pseudo of ["../../admin", "quelquun/../..", "http:%2F%2Failleurs"]) {
       const r = await app.inject({ method: "GET", url: `/letterboxd/${pseudo}` });

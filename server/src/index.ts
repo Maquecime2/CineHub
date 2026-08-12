@@ -56,7 +56,7 @@ configurePush(
     ? {
         publicKey: vapidPub,
         privateKey: vapidPriv,
-        contact: process.env.VAPID_CONTACT || "mailto:personne@example.org",
+        contact: process.env.VAPID_CONTACT || "mailto:person@example.org",
       }
     : null
 );
@@ -115,7 +115,7 @@ if (!vapidPub || !vapidPriv) {
   console.log("  notifications : éteintes (VAPID_PUBLIC / VAPID_PRIVATE absentes)");
 }
 if (devDoor && development) {
-  console.log("  ⚠ porte de développement ouverte : POST /dev/session");
+  console.log("  ⚠ porte de développement open : POST /dev/session");
 }
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {

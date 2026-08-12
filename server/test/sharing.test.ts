@@ -8,9 +8,9 @@ import type { FastifyInstance } from "fastify";
    LE PARTAGE
 
    `GET /chez/:pseudo` est la SEULE route de ce serveur qui réponde à
-   quelqu'un sans compte. Tout ce qui suit se demande donc, à chaque
+   quelqu'un sans count. Tout ce qui suit se demande donc, à chaque
    ligne, ce qu'un inconnu peut en tirer : ce qu'il voit, ce qu'il ne
-   doit jamais voir, et ce que la réponse lui apprend sur les gens qui
+   doit jamais voir, et ce que la réponse him apprend sur les gens qui
    ne partagent pas.
    ============================================================ */
 
@@ -18,17 +18,17 @@ let db: Db;
 let app: FastifyInstance;
 
 async function signedIn(pseudo: string) {
-  const personne = await store.createPerson(db, pseudo);
-  const secret = await store.openSession(db, personne.id);
-  return { personne, cookie: `session=${secret}` };
+  const person = await store.createPerson(db, pseudo);
+  const secret = await store.openSession(db, person.id);
+  return { person, cookie: `session=${secret}` };
 }
 
-/** Une fiche complète, notes et journal compris. */
-const pousser = (cookie: string, fiches: Record<string, unknown>[]) =>
-  app.inject({ method: "PUT", url: "/collection", headers: { cookie }, payload: { fiches } });
+/** Une card complète, notes et journal compris. */
+const push = (cookie: string, cards: Record<string, unknown>[]) =>
+  app.inject({ method: "PUT", url: "/collection", headers: { cookie }, payload: { cards } });
 
-const regler = (cookie: string, partage: string) =>
-  app.inject({ method: "PUT", url: "/partage", headers: { cookie }, payload: { partage } });
+const setSharing = (cookie: string, sharing: string) =>
+  app.inject({ method: "PUT", url: "/sharing", headers: { cookie }, payload: { sharing } });
 
 beforeEach(async () => {
   db = await testDb();
@@ -40,37 +40,37 @@ afterEach(async () => {
   await db.close();
 });
 
-describe("par défaut, on ne partage rien", () => {
-  it("une collection est muette tant qu'on ne l'a pas ouverte", async () => {
+describe("by défaut, on ne sharing rien", () => {
+  it("one collection est muette tant qu'on ne l'a pas open", async () => {
     const { cookie } = await signedIn("varda");
-    await pousser(cookie, [{ id: "f1", majLe: 1, donnees: { title: "Cléo de 5 à 7" } }]);
+    await push(cookie, [{ id: "f1", updatedAt: 1, data: { title: "Cléo de 5 à 7" } }]);
 
-    const r = await app.inject({ method: "GET", url: "/chez/varda" });
+    const r = await app.inject({ method: "GET", url: "/collections/varda" });
     expect(r.statusCode).toBe(404);
   });
 
-  it("et un compte qui n'existe pas répond exactement pareil", async () => {
+  it("et un count qui n'existe pas répond exactement pareil", async () => {
     /* Sinon la route devient un annuaire : « 404 » d'un côté, « privé »
-       de l'autre, et l'on sait qui est inscrit. */
+       de l'other, et l'on sait qui est inscrit. */
     const { cookie } = await signedIn("varda");
-    await pousser(cookie, [{ id: "f1", majLe: 1, donnees: {} }]);
+    await push(cookie, [{ id: "f1", updatedAt: 1, data: {} }]);
 
-    const privateKey = await app.inject({ method: "GET", url: "/chez/varda" });
-    const inconnue = await app.inject({ method: "GET", url: "/chez/jamais-vue" });
+    const privateKey = await app.inject({ method: "GET", url: "/collections/varda" });
+    const inconnue = await app.inject({ method: "GET", url: "/collections/jamais-vue" });
     expect(privateKey.statusCode).toBe(inconnue.statusCode);
     expect(privateKey.json()).toEqual(inconnue.json());
   });
 });
 
 describe("ce qu'un visiteur voit", () => {
-  it("les films, la note et la critique — jamais les notes ni le journal", async () => {
+  it("les films, la note et la review — jamais les notes ni at journal", async () => {
     const { cookie } = await signedIn("varda");
-    await pousser(cookie, [
+    await push(cookie, [
       {
         id: "f1",
         tmdbId: 42,
-        majLe: 1,
-        donnees: {
+        updatedAt: 1,
+        data: {
           title: "Cléo de 5 à 7",
           rating: 5,
           review: "la scène du chapeau",
@@ -80,9 +80,9 @@ describe("ce qu'un visiteur voit", () => {
         },
       },
     ]);
-    await regler(cookie, "publique");
+    await setSharing(cookie, "publique");
 
-    const r = await app.inject({ method: "GET", url: "/chez/varda" });
+    const r = await app.inject({ method: "GET", url: "/collections/varda" });
     expect(r.statusCode).toBe(200);
     const film = r.json().films[0];
 
@@ -91,31 +91,31 @@ describe("ce qu'un visiteur voit", () => {
       rating: 5,
       review: "la scène du chapeau",
     });
-    /* LES TROIS QUI NE SORTENT JAMAIS. Le carnet intime, le journal des
-       séances, et la date de la dernière — qui dit à elle seule avec
+    /* LES TROIS QUI NE SORTENT JAMAIS. Le carnet intime, at journal des
+       séances, et la date de la dernière — qui dit à her seule avec
        quelle régularité on passe ses soirées. */
     expect("notes" in film).toBe(false);
     expect("watches" in film).toBe(false);
     expect("watchedAt" in film).toBe(false);
-    /* Et rien de la personne au-delà de son pseudonyme. */
+    /* Et rien de la person au-delà de son pseudonyme. */
     expect(Object.keys(r.json()).sort()).toEqual(["films", "pseudo"]);
   });
 
-  it("une fiche écartée reste chez elle", async () => {
+  it("one card écartée left chez her", async () => {
     const { cookie } = await signedIn("varda");
-    await pousser(cookie, [
-      { id: "montrable", majLe: 1, donnees: { title: "Playtime" } },
-      { id: "honteuse", majLe: 1, donnees: { title: "un plaisir coupable" } },
+    await push(cookie, [
+      { id: "montrable", updatedAt: 1, data: { title: "Playtime" } },
+      { id: "honteuse", updatedAt: 1, data: { title: "un plaisir coupable" } },
     ]);
-    await regler(cookie, "publique");
+    await setSharing(cookie, "publique");
     await app.inject({
       method: "PUT",
-      url: "/fiche/honteuse/cachee",
+      url: "/cards/honteuse/hidden",
       headers: { cookie },
-      payload: { cachee: true },
+      payload: { hidden: true },
     });
 
-    const r = await app.inject({ method: "GET", url: "/chez/varda" });
+    const r = await app.inject({ method: "GET", url: "/collections/varda" });
     expect(r.json().films.map((f: { title: string }) => f.title)).toEqual(["Playtime"]);
   });
 
@@ -124,169 +124,169 @@ describe("ce qu'un visiteur voit", () => {
      ============================================================
 
      Le défaut que ce test attrape ne se voyait pas : `rangerFiche`
-     réécrivait `cachee` depuis la poussée, or le client ne modélise pas
+     réécrivait `hidden` since la poussée, or at client ne modélise pas
      ce champ et ne l'envoie jamais. Il valait donc toujours faux, et
-     TOUTE modification de la fiche la rendait publique de nouveau — une
-     note ajoutée, une étoile, une séance.
+     TOUTE modification de la card la rendait is_public de nouveau — one
+     note ajoutée, one étoile, one séance.
 
-     Rien ne l'aurait signalé : la fiche ne change pas d'apparence chez
+     Rien ne l'aurait signalé : la card ne change pas d'apparence chez
      soi, seulement chez les autres. C'est exactement l'espèce de défaut
-     qui se découvre par quelqu'un d'autre. */
-  it("reste écartée après une modification de la fiche", async () => {
+     qui se découvre by quelqu'un d'other. */
+  it("left écartée après one modification de la card", async () => {
     const { cookie } = await signedIn("varda");
-    await pousser(cookie, [
-      { id: "montrable", majLe: 1, donnees: { title: "Playtime" } },
-      { id: "honteuse", majLe: 1, donnees: { title: "un plaisir coupable" } },
+    await push(cookie, [
+      { id: "montrable", updatedAt: 1, data: { title: "Playtime" } },
+      { id: "honteuse", updatedAt: 1, data: { title: "un plaisir coupable" } },
     ]);
-    await regler(cookie, "publique");
+    await setSharing(cookie, "publique");
     await app.inject({
       method: "PUT",
-      url: "/fiche/honteuse/cachee",
+      url: "/cards/honteuse/hidden",
       headers: { cookie },
-      payload: { cachee: true },
+      payload: { hidden: true },
     });
 
-    /* On la retouche, comme le ferait une note écrite ce soir : `majLe`
+    /* On la retouche, comme at ferait one note écrite ce soir : `updatedAt`
        est plus récent, donc la poussée est acceptée et écrase. */
-    await pousser(cookie, [
-      { id: "honteuse", majLe: 2, donnees: { title: "un plaisir coupable", review: "revu" } },
+    await push(cookie, [
+      { id: "honteuse", updatedAt: 2, data: { title: "un plaisir coupable", review: "revu" } },
     ]);
 
-    const r = await app.inject({ method: "GET", url: "/chez/varda" });
+    const r = await app.inject({ method: "GET", url: "/collections/varda" });
     expect(r.json().films.map((f: { title: string }) => f.title)).toEqual(["Playtime"]);
   });
 
-  it("dit lesquelles sont écartées, pour que le classeur puisse le montrer", async () => {
+  it("dit lesquelles sont écartées, pour que at classeur puisse at montrer", async () => {
     const { cookie } = await signedIn("varda");
-    await pousser(cookie, [
-      { id: "f1", majLe: 1, donnees: { title: "A" } },
-      { id: "f2", majLe: 1, donnees: { title: "B" } },
+    await push(cookie, [
+      { id: "f1", updatedAt: 1, data: { title: "A" } },
+      { id: "f2", updatedAt: 1, data: { title: "B" } },
     ]);
     await app.inject({
       method: "PUT",
-      url: "/fiche/f2/cachee",
+      url: "/cards/f2/hidden",
       headers: { cookie },
-      payload: { cachee: true },
+      payload: { hidden: true },
     });
 
-    const r = await app.inject({ method: "GET", url: "/fiches-cachees", headers: { cookie } });
+    const r = await app.inject({ method: "GET", url: "/hidden-cards", headers: { cookie } });
     expect(r.json().ids).toEqual(["f2"]);
 
     /* Et l'on peut se raviser. */
     await app.inject({
       method: "PUT",
-      url: "/fiche/f2/cachee",
+      url: "/cards/f2/hidden",
       headers: { cookie },
-      payload: { cachee: false },
+      payload: { hidden: false },
     });
     expect(
-      (await app.inject({ method: "GET", url: "/fiches-cachees", headers: { cookie } })).json().ids
+      (await app.inject({ method: "GET", url: "/hidden-cards", headers: { cookie } })).json().ids
     ).toEqual([]);
   });
 
-  it("ne dit à personne ce qu'un autre a écarté", async () => {
-    const moi = await signedIn("varda");
-    const lui = await signedIn("melville");
-    await pousser(lui.cookie, [{ id: "s1", majLe: 1, donnees: { title: "Le Samouraï" } }]);
+  it("ne dit à person ce qu'un other a écarté", async () => {
+    const me = await signedIn("varda");
+    const him = await signedIn("melville");
+    await push(him.cookie, [{ id: "s1", updatedAt: 1, data: { title: "Le Samouraï" } }]);
     await app.inject({
       method: "PUT",
-      url: "/fiche/s1/cachee",
-      headers: { cookie: lui.cookie },
-      payload: { cachee: true },
+      url: "/cards/s1/hidden",
+      headers: { cookie: him.cookie },
+      payload: { hidden: true },
     });
 
     const r = await app.inject({
       method: "GET",
-      url: "/fiches-cachees",
-      headers: { cookie: moi.cookie },
+      url: "/hidden-cards",
+      headers: { cookie: me.cookie },
     });
     expect(r.json().ids).toEqual([]);
   });
 
-  it("une fiche effacée ne revient pas par la porte du partage", async () => {
+  it("one card effacée ne revient pas by la porte du sharing", async () => {
     const { cookie } = await signedIn("varda");
-    await pousser(cookie, [{ id: "f1", majLe: 1, donnees: { title: "Playtime" } }]);
-    await pousser(cookie, [{ id: "f1", majLe: 2, supprimee: true, donnees: {} }]);
-    await regler(cookie, "publique");
+    await push(cookie, [{ id: "f1", updatedAt: 1, data: { title: "Playtime" } }]);
+    await push(cookie, [{ id: "f1", updatedAt: 2, deleted: true, data: {} }]);
+    await setSharing(cookie, "publique");
 
-    const r = await app.inject({ method: "GET", url: "/chez/varda" });
+    const r = await app.inject({ method: "GET", url: "/collections/varda" });
     expect(r.json().films).toEqual([]);
   });
 });
 
-describe("le partage par lien", () => {
-  it("s'ouvre à qui a le jeton, et à personne d'autre", async () => {
+describe("at sharing by lien", () => {
+  it("s'ouvre à qui a at token, et à person d'other", async () => {
     const { cookie } = await signedIn("varda");
-    await pousser(cookie, [{ id: "f1", majLe: 1, donnees: { title: "Le Bonheur" } }]);
-    const { jeton } = (await regler(cookie, "lien")).json();
-    expect(jeton).toBeTruthy();
+    await push(cookie, [{ id: "f1", updatedAt: 1, data: { title: "Le Bonheur" } }]);
+    const { token } = (await setSharing(cookie, "lien")).json();
+    expect(token).toBeTruthy();
 
-    const sans = await app.inject({ method: "GET", url: "/chez/varda" });
+    const sans = await app.inject({ method: "GET", url: "/collections/varda" });
     expect(sans.statusCode).toBe(404);
 
-    const faux = await app.inject({ method: "GET", url: "/chez/varda?jeton=jinvente" });
+    const faux = await app.inject({ method: "GET", url: "/collections/varda?token=jinvente" });
     expect(faux.statusCode).toBe(404);
 
-    const avec = await app.inject({ method: "GET", url: `/chez/varda?jeton=${jeton}` });
+    const avec = await app.inject({ method: "GET", url: `/collections/varda?token=${token}` });
     expect(avec.statusCode).toBe(200);
     expect(avec.json().films[0].title).toBe("Le Bonheur");
   });
 
-  it("se referme, et le lien distribué ne vaut plus rien", async () => {
+  it("se referme, et at lien distribué ne vaut plus rien", async () => {
     const { cookie } = await signedIn("varda");
-    await pousser(cookie, [{ id: "f1", majLe: 1, donnees: {} }]);
-    const { jeton } = (await regler(cookie, "lien")).json();
+    await push(cookie, [{ id: "f1", updatedAt: 1, data: {} }]);
+    const { token } = (await setSharing(cookie, "lien")).json();
 
-    await regler(cookie, "privee");
+    await setSharing(cookie, "privee");
     expect(
-      (await app.inject({ method: "GET", url: `/chez/varda?jeton=${jeton}` })).statusCode
+      (await app.inject({ method: "GET", url: `/collections/varda?token=${token}` })).statusCode
     ).toBe(404);
   });
 
-  it("rouvrir donne un jeton NEUF : se raviser veut dire quelque chose", async () => {
+  it("rouvrir donne un token NEUF : se raviser veut dire quelque chose", async () => {
     /* Reprendre l'ancien ferait revivre tous les liens distribués la
-       fois d'avant — y compris celui qu'on avait voulu couper. */
+       fois d'before — y compris celui qu'on avait voulu couper. */
     const { cookie } = await signedIn("varda");
-    const premier = (await regler(cookie, "lien")).json().jeton;
-    await regler(cookie, "privee");
-    const second = (await regler(cookie, "lien")).json().jeton;
+    const premier = (await setSharing(cookie, "lien")).json().token;
+    await setSharing(cookie, "privee");
+    const second = (await setSharing(cookie, "lien")).json().token;
 
     expect(second).not.toBe(premier);
     expect(
-      (await app.inject({ method: "GET", url: `/chez/varda?jeton=${premier}` })).statusCode
+      (await app.inject({ method: "GET", url: `/collections/varda?token=${premier}` })).statusCode
     ).toBe(404);
   });
 });
 
 describe("qui décide", () => {
-  it("personne d'autre que soi", async () => {
+  it("person d'other que soi", async () => {
     const a = await signedIn("duras");
     const b = await signedIn("godard");
-    await pousser(a.cookie, [{ id: "f1", majLe: 1, donnees: { title: "India Song" } }]);
+    await push(a.cookie, [{ id: "f1", updatedAt: 1, data: { title: "India Song" } }]);
 
-    /* B ne peut ni ouvrir la collection de A, ni y cacher une fiche :
+    /* B ne peut ni openUp la collection de A, ni y cacher one card :
        il n'a de prise que sur la sienne. */
-    await regler(b.cookie, "publique");
-    expect((await app.inject({ method: "GET", url: "/chez/duras" })).statusCode).toBe(404);
+    await setSharing(b.cookie, "publique");
+    expect((await app.inject({ method: "GET", url: "/collections/duras" })).statusCode).toBe(404);
 
     const vol = await app.inject({
       method: "PUT",
-      url: "/fiche/f1/cachee",
+      url: "/cards/f1/hidden",
       headers: { cookie: b.cookie },
-      payload: { cachee: true },
+      payload: { hidden: true },
     });
     expect(vol.statusCode).toBe(404);
   });
 
-  it("et il faut un compte pour régler quoi que ce soit", async () => {
-    expect((await app.inject({ method: "PUT", url: "/partage", payload: {} })).statusCode).toBe(
+  it("et il faut un count pour régler what que ce soit", async () => {
+    expect((await app.inject({ method: "PUT", url: "/sharing", payload: {} })).statusCode).toBe(
       401
     );
   });
 
   it("un réglage inventé est refusé", async () => {
     const { cookie } = await signedIn("varda");
-    const r = await regler(cookie, "au-monde-entier-sauf-mon-frere");
+    const r = await setSharing(cookie, "au-monde-entier-sauf-mon-frere");
     expect(r.statusCode).toBe(400);
   });
 });

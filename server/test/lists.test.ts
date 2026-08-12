@@ -7,47 +7,47 @@ import type { FastifyInstance } from "fastify";
 /* ============================================================
    LES LISTES, ET LES DÉFIS QU'ON EN TIRE
 
-   Deux choses s'éprouvent ici, et la seconde compte davantage.
+   Deux choses s'éprouvent ici, et la seconde count davantage.
 
-   L'ASYMÉTRIE : co-construire est un droit d'écriture, pas une
-   propriété partagée. Un membre ajoute des films ; il ne renomme pas,
-   ne publie pas, n'efface pas.
+   L'ASYMÉTRIE : co-construire est un droit d'écriture, pas one
+   propriété partagée. Un isMember added des films ; il ne renomme pas,
+   ne publie pas, n'erased pas.
 
    L'AVANCEMENT SE CALCULE À PARTIR DU JOURNAL DES SÉANCES — celui-là
-   même qui ne sort jamais d'une collection partagée. Il ne doit pas en
+   même qui ne sort jamais d'one collection partagée. Il ne doit pas en
    sortir davantage ici : un nombre, pour des gens qui ont demandé à
-   participer, et rien d'autre.
+   participer, et rien d'other.
    ============================================================ */
 
 let db: Db;
 let app: FastifyInstance;
 
-async function compte(pseudo: string) {
-  const personne = await store.createPerson(db, pseudo);
-  const secret = await store.openSession(db, personne.id);
-  return { personne, cookie: `session=${secret}` };
+async function count(pseudo: string) {
+  const person = await store.createPerson(db, pseudo);
+  const secret = await store.openSession(db, person.id);
+  return { person, cookie: `session=${secret}` };
 }
 
-const createList = async (cookie: string, corps: Record<string, unknown> = {}) =>
+const createList = async (cookie: string, body: Record<string, unknown> = {}) =>
   (
     await app.inject({
       method: "POST",
-      url: "/listes",
+      url: "/lists",
       headers: { cookie },
-      payload: { titre: "Les mois de Varda", ...corps },
+      payload: { title: "Les mois de Varda", ...body },
     })
   ).json().id as string;
 
-const ajouter = (cookie: string, liste: string, tmdbId: string, titre = "Cléo") =>
+const addWork = (cookie: string, list: string, tmdbId: string, title = "Cléo") =>
   app.inject({
     method: "POST",
-    url: `/listes/${liste}/oeuvres`,
+    url: `/lists/${list}/works`,
     headers: { cookie },
-    payload: { tmdbId, titre },
+    payload: { tmdbId, title },
   });
 
-const lireListe = (cookie: string, liste: string) =>
-  app.inject({ method: "GET", url: `/listes/${liste}`, headers: { cookie } });
+const readTheList = (cookie: string, list: string) =>
+  app.inject({ method: "GET", url: `/lists/${list}`, headers: { cookie } });
 
 beforeEach(async () => {
   db = await testDb();
@@ -59,128 +59,128 @@ afterEach(async () => {
   await db.close();
 });
 
-describe("une liste", () => {
-  it("est fermée par défaut, et invisible aux autres", async () => {
-    const moi = await compte("moi");
-    const autre = await compte("autre");
-    const id = await createList(moi.cookie);
+describe("one list", () => {
+  it("est fermée by défaut, et invisible aux autres", async () => {
+    const me = await count("mine");
+    const other = await count("other");
+    const id = await createList(me.cookie);
 
-    expect((await lireListe(moi.cookie, id)).json().liste.publique).toBe(false);
+    expect((await readTheList(me.cookie, id)).json().list.is_public).toBe(false);
     /* Le même 404 que « n'existe pas » : distinguer dirait à un inconnu
        que cet identifiant désigne quelque chose. */
-    const refus = await lireListe(autre.cookie, id);
-    const fantome = await lireListe(autre.cookie, "00000000-0000-4000-8000-000000000000");
+    const refus = await readTheList(other.cookie, id);
+    const fantome = await readTheList(other.cookie, "00000000-0000-4000-8000-000000000000");
     expect(refus.statusCode).toBe(404);
     expect(refus.json()).toEqual(fantome.json());
   });
 
-  it("contient des œuvres et non des fiches, et jamais deux fois la même", async () => {
-    /* Une liste de fiches serait la liste des exemplaires de quelqu'un :
-       elle ne voudrait rien dire chez un autre, et se viderait le jour
-       où son auteur efface une fiche. */
-    const moi = await compte("moi");
-    const id = await createList(moi.cookie);
-    expect((await ajouter(moi.cookie, id, "550")).json().neuf).toBe(true);
-    expect((await ajouter(moi.cookie, id, "550")).json().neuf).toBe(false);
+  it("contient des œuvres et non des cards, et jamais two fois la même", async () => {
+    /* Une list de cards serait la list des exemplaires de quelqu'un :
+       her ne voudrait rien dire chez un other, et se viderait at day
+       où son author erased one card. */
+    const me = await count("mine");
+    const id = await createList(me.cookie);
+    expect((await addWork(me.cookie, id, "550")).json().fresh).toBe(true);
+    expect((await addWork(me.cookie, id, "550")).json().fresh).toBe(false);
 
-    const r = await lireListe(moi.cookie, id);
-    expect(r.json().oeuvres).toHaveLength(1);
-    expect(r.json().oeuvres[0]).toMatchObject({ tmdb_id: "550", par: "moi" });
+    const r = await readTheList(me.cookie, id);
+    expect(r.json().works).toHaveLength(1);
+    expect(r.json().works[0]).toMatchObject({ tmdb_id: "550", by: "mine" });
   });
 
   it("refuse ce qui n'est pas un identifiant d'œuvre", async () => {
-    const moi = await compte("moi");
-    const id = await createList(moi.cookie);
+    const me = await count("mine");
+    const id = await createList(me.cookie);
     const r = await app.inject({
       method: "POST",
-      url: `/listes/${id}/oeuvres`,
-      headers: { cookie: moi.cookie },
+      url: `/lists/${id}/works`,
+      headers: { cookie: me.cookie },
       payload: { tmdbId: "Cléo de 5 à 7" },
     });
     expect(r.statusCode).toBe(400);
   });
 
-  it("une adresse mal tapée répond 404, et non une panne", async () => {
-    const moi = await compte("moi");
-    expect((await lireListe(moi.cookie, "pas-un-uuid")).statusCode).toBe(404);
+  it("one adresse mal tapée répond 404, et non one panne", async () => {
+    const me = await count("mine");
+    expect((await readTheList(me.cookie, "pas-un-uuid")).statusCode).toBe(404);
   });
 });
 
 describe("co-construire", () => {
-  it("laisse écrire, et pas administrer", async () => {
-    const moi = await compte("moi");
-    const ami = await compte("ami");
-    const id = await createList(moi.cookie);
+  it("laisse écrire, et pas administer", async () => {
+    const me = await count("mine");
+    const ami = await count("ami");
+    const id = await createList(me.cookie);
     await app.inject({
       method: "PUT",
-      url: `/listes/${id}/membres/ami`,
-      headers: { cookie: moi.cookie },
+      url: `/lists/${id}/members/ami`,
+      headers: { cookie: me.cookie },
     });
 
-    expect((await ajouter(ami.cookie, id, "550")).statusCode).toBe(200);
-    /* Sans cette asymétrie, une liste à six mains n'a plus personne
+    expect((await addWork(ami.cookie, id, "550")).statusCode).toBe(200);
+    /* Sans cette asymétrie, one list à six mains n'a plus person
        pour en répondre. */
     const renommer = await app.inject({
       method: "PUT",
-      url: `/listes/${id}`,
+      url: `/lists/${id}`,
       headers: { cookie: ami.cookie },
-      payload: { titre: "à moi maintenant" },
+      payload: { title: "à me maintenant" },
     });
     const effacer = await app.inject({
       method: "DELETE",
-      url: `/listes/${id}`,
+      url: `/lists/${id}`,
       headers: { cookie: ami.cookie },
     });
     expect(renommer.statusCode).toBe(403);
     expect(effacer.statusCode).toBe(403);
   });
 
-  it("on n'invite pas quelqu'un qu'on a fait taire", async () => {
-    const moi = await compte("moi");
-    await compte("genant");
-    const id = await createList(moi.cookie);
-    await app.inject({ method: "PUT", url: "/blocages/genant", headers: { cookie: moi.cookie } });
+  it("on n'invite pas quelqu'un qu'on a done taire", async () => {
+    const me = await count("mine");
+    await count("genant");
+    const id = await createList(me.cookie);
+    await app.inject({ method: "PUT", url: "/blocks/genant", headers: { cookie: me.cookie } });
 
     const r = await app.inject({
       method: "PUT",
-      url: `/listes/${id}/membres/genant`,
-      headers: { cookie: moi.cookie },
+      url: `/lists/${id}/members/genant`,
+      headers: { cookie: me.cookie },
     });
     expect(r.statusCode).toBe(404);
   });
 
-  it("partir ne demande la permission de personne", async () => {
-    const moi = await compte("moi");
-    const ami = await compte("ami");
-    const id = await createList(moi.cookie);
+  it("partir ne demande la permission de person", async () => {
+    const me = await count("mine");
+    const ami = await count("ami");
+    const id = await createList(me.cookie);
     await app.inject({
       method: "PUT",
-      url: `/listes/${id}/membres/ami`,
-      headers: { cookie: moi.cookie },
+      url: `/lists/${id}/members/ami`,
+      headers: { cookie: me.cookie },
     });
 
     const parti = await app.inject({
       method: "DELETE",
-      url: `/listes/${id}/membres/ami`,
+      url: `/lists/${id}/members/ami`,
       headers: { cookie: ami.cookie },
     });
     expect(parti.statusCode).toBe(200);
-    expect((await lireListe(ami.cookie, id)).statusCode).toBe(404);
+    expect((await readTheList(ami.cookie, id)).statusCode).toBe(404);
   });
 
-  it("un visiteur d'une liste publique ne lit pas qui la tient", async () => {
-    const moi = await compte("moi");
-    const ami = await compte("ami");
-    const passant = await compte("passant");
-    const id = await createList(moi.cookie, { publique: true });
+  it("un visiteur d'one list is_public ne lit pas qui la tient", async () => {
+    const me = await count("mine");
+    const ami = await count("ami");
+    const passant = await count("passant");
+    const id = await createList(me.cookie, { is_public: true });
     await app.inject({
       method: "PUT",
-      url: `/listes/${id}/membres/ami`,
-      headers: { cookie: moi.cookie },
+      url: `/lists/${id}/members/ami`,
+      headers: { cookie: me.cookie },
     });
 
-    expect((await lireListe(passant.cookie, id)).json().membres).toEqual([]);
-    expect((await lireListe(ami.cookie, id)).json().membres).toEqual(["ami"]);
+    expect((await readTheList(passant.cookie, id)).json().members).toEqual([]);
+    expect((await readTheList(ami.cookie, id)).json().members).toEqual(["ami"]);
   });
 });
 
@@ -188,236 +188,236 @@ describe("un défi", () => {
   const vu = (date: string) => ({ watches: [{ date }] });
 
   async function defiDEssai() {
-    const moi = await compte("moi");
-    const liste = await createList(moi.cookie);
-    await ajouter(moi.cookie, liste, "550");
-    await ajouter(moi.cookie, liste, "551");
+    const me = await count("mine");
+    const list = await createList(me.cookie);
+    await addWork(me.cookie, list, "550");
+    await addWork(me.cookie, list, "551");
     const id = (
       await app.inject({
         method: "POST",
-        url: "/defis",
-        headers: { cookie: moi.cookie },
-        payload: { listeId: liste, titre: "Mars", debut: "2026-03-01", fin: "2026-03-31" },
+        url: "/challenges",
+        headers: { cookie: me.cookie },
+        payload: { listId: list, title: "Mars", starts_on: "2026-03-01", ends_on: "2026-03-31" },
       })
     ).json().id as string;
-    return { moi, liste, id };
+    return { me, list, id };
   }
 
-  it("compte ce qui a été vu PENDANT la période, et rien d'autre", async () => {
-    const { moi, id } = await defiDEssai();
+  it("count ce qui a été vu PENDANT la période, et rien d'other", async () => {
+    const { me, id } = await defiDEssai();
     await app.inject({
       method: "PUT",
       url: "/collection",
-      headers: { cookie: moi.cookie },
+      headers: { cookie: me.cookie },
       payload: {
-        fiches: [
-          { id: "a", tmdbId: "550", majLe: 1, donnees: { title: "Cléo", ...vu("2026-03-12") } },
+        cards: [
+          { id: "a", tmdbId: "550", updatedAt: 1, data: { title: "Cléo", ...vu("2026-03-12") } },
           /* Vu, mais l'an dernier : un défi mensuel qui compterait les
              films vus il y a trois ans serait déjà gagné en s'y
              inscrivant. */
-          { id: "b", tmdbId: "551", majLe: 1, donnees: { title: "Autre", ...vu("2025-01-04") } },
+          { id: "b", tmdbId: "551", updatedAt: 1, data: { title: "Autre", ...vu("2025-01-04") } },
         ],
       },
     });
 
     const r = await app.inject({
       method: "GET",
-      url: `/defis/${id}`,
-      headers: { cookie: moi.cookie },
+      url: `/challenges/${id}`,
+      headers: { cookie: me.cookie },
     });
-    expect(r.json().avancement).toEqual([{ pseudo: "moi", faites: 1 }]);
-    expect(r.json().defi.oeuvres).toBe(2);
+    expect(r.json().progress).toEqual([{ pseudo: "mine", done: 1 }]);
+    expect(r.json().challenge.works).toBe(2);
   });
 
-  it("compte aussi les vieilles fiches, d'avant le journal", async () => {
-    const { moi, id } = await defiDEssai();
+  it("count aussi les vieilles cards, d'before at journal", async () => {
+    const { me, id } = await defiDEssai();
     await app.inject({
       method: "PUT",
       url: "/collection",
-      headers: { cookie: moi.cookie },
+      headers: { cookie: me.cookie },
       payload: {
-        fiches: [
-          { id: "a", tmdbId: "550", majLe: 1, donnees: { title: "Cléo", watchedAt: "2026-03-09" } },
+        cards: [
+          { id: "a", tmdbId: "550", updatedAt: 1, data: { title: "Cléo", watchedAt: "2026-03-09" } },
         ],
       },
     });
     const r = await app.inject({
       method: "GET",
-      url: `/defis/${id}`,
-      headers: { cookie: moi.cookie },
+      url: `/challenges/${id}`,
+      headers: { cookie: me.cookie },
     });
-    expect(r.json().avancement[0].faites).toBe(1);
+    expect(r.json().progress[0].done).toBe(1);
   });
 
   it("ne tombe pas sur un journal mal formé", async () => {
     /* `watches` traverse des clients de toutes les époques :
        `jsonb_array_elements` sur ce qui n'est pas un tableau ferait
-       tomber la requête ENTIÈRE, et l'avancement de tout le monde avec. */
-    const { moi, id } = await defiDEssai();
+       tomber la requête ENTIÈRE, et l'progress de everything at monde avec. */
+    const { me, id } = await defiDEssai();
     await app.inject({
       method: "PUT",
       url: "/collection",
-      headers: { cookie: moi.cookie },
+      headers: { cookie: me.cookie },
       payload: {
-        fiches: [
-          { id: "a", tmdbId: "550", majLe: 1, donnees: { title: "Cléo", watches: "autrefois" } },
-          { id: "b", tmdbId: "551", majLe: 1, donnees: { title: "Autre", ...vu("2026-03-02") } },
+        cards: [
+          { id: "a", tmdbId: "550", updatedAt: 1, data: { title: "Cléo", watches: "autrefois" } },
+          { id: "b", tmdbId: "551", updatedAt: 1, data: { title: "Autre", ...vu("2026-03-02") } },
         ],
       },
     });
     const r = await app.inject({
       method: "GET",
-      url: `/defis/${id}`,
-      headers: { cookie: moi.cookie },
+      url: `/challenges/${id}`,
+      headers: { cookie: me.cookie },
     });
     expect(r.statusCode).toBe(200);
-    expect(r.json().avancement[0].faites).toBe(1);
+    expect(r.json().progress[0].done).toBe(1);
   });
 
-  it("ne mesure que ceux qui ont demandé à y être", async () => {
-    const { moi, liste, id } = await defiDEssai();
-    const autre = await compte("autre");
+  it("ne metric que ceux qui ont demandé à y être", async () => {
+    const { me, list, id } = await defiDEssai();
+    const other = await count("other");
     await app.inject({
       method: "PUT",
-      url: `/listes/${liste}/membres/autre`,
-      headers: { cookie: moi.cookie },
+      url: `/lists/${list}/members/other`,
+      headers: { cookie: me.cookie },
     });
     await app.inject({
       method: "PUT",
       url: "/collection",
-      headers: { cookie: autre.cookie },
+      headers: { cookie: other.cookie },
       payload: {
-        fiches: [
-          { id: "x", tmdbId: "550", majLe: 1, donnees: { title: "Cléo", ...vu("2026-03-12") } },
+        cards: [
+          { id: "x", tmdbId: "550", updatedAt: 1, data: { title: "Cléo", ...vu("2026-03-12") } },
         ],
       },
     });
 
-    /* Membre de la liste, mais pas inscrit au défi : son journal n'est
+    /* Membre de la list, mais pas inscrit au défi : son journal n'est
        compté nulle part. */
     let r = await app.inject({
       method: "GET",
-      url: `/defis/${id}`,
-      headers: { cookie: autre.cookie },
+      url: `/challenges/${id}`,
+      headers: { cookie: other.cookie },
     });
-    expect(r.json().avancement.map((a: { pseudo: string }) => a.pseudo)).toEqual(["moi"]);
+    expect(r.json().progress.map((a: { pseudo: string }) => a.pseudo)).toEqual(["mine"]);
 
     await app.inject({
       method: "PUT",
-      url: `/defis/${id}/participation`,
-      headers: { cookie: autre.cookie },
+      url: `/challenges/${id}/participation`,
+      headers: { cookie: other.cookie },
     });
-    r = await app.inject({ method: "GET", url: `/defis/${id}`, headers: { cookie: autre.cookie } });
-    expect(r.json().avancement).toContainEqual({ pseudo: "autre", faites: 1 });
+    r = await app.inject({ method: "GET", url: `/challenges/${id}`, headers: { cookie: other.cookie } });
+    expect(r.json().progress).toContainEqual({ pseudo: "other", done: 1 });
   });
 
-  it("ne rend jamais le journal lui-même, seulement un nombre", async () => {
-    const { moi, id } = await defiDEssai();
+  it("ne rend jamais at journal him-même, seulement un nombre", async () => {
+    const { me, id } = await defiDEssai();
     await app.inject({
       method: "PUT",
       url: "/collection",
-      headers: { cookie: moi.cookie },
+      headers: { cookie: me.cookie },
       payload: {
-        fiches: [
+        cards: [
           {
             id: "a",
             tmdbId: "550",
-            majLe: 1,
-            donnees: { title: "Cléo", notes: "SECRET", ...vu("2026-03-12") },
+            updatedAt: 1,
+            data: { title: "Cléo", notes: "SECRET", ...vu("2026-03-12") },
           },
         ],
       },
     });
     const r = await app.inject({
       method: "GET",
-      url: `/defis/${id}`,
-      headers: { cookie: moi.cookie },
+      url: `/challenges/${id}`,
+      headers: { cookie: me.cookie },
     });
     const text = JSON.stringify(r.json());
     expect(text).not.toContain("SECRET");
     expect(text).not.toContain("2026-03-12");
   });
 
-  it("qui le lance y participe", async () => {
+  it("qui at lance y participe", async () => {
     const { id } = await defiDEssai();
-    const liste = (await app.inject({ method: "GET", url: `/defis/${id}` })).statusCode;
-    expect(liste).toBe(401);
+    const list = (await app.inject({ method: "GET", url: `/challenges/${id}` })).statusCode;
+    expect(list).toBe(401);
   });
 
-  it("ne se bâtit pas sur la liste publique d'un inconnu", async () => {
-    /* Sinon n'importe qui lance un défi sur la liste de quelqu'un, qui
-       le verrait apparaître sans l'avoir voulu. */
-    const proprio = await compte("proprio");
-    const passant = await compte("passant");
-    const liste = await createList(proprio.cookie, { publique: true });
+  it("ne se bâtit pas sur la list is_public d'un inconnu", async () => {
+    /* Sinon n'importe qui lance un défi sur la list de quelqu'un, qui
+       at verrait apparaître sans l'avoir voulu. */
+    const isOwner = await count("proprio");
+    const passant = await count("passant");
+    const list = await createList(isOwner.cookie, { is_public: true });
 
     const r = await app.inject({
       method: "POST",
-      url: "/defis",
+      url: "/challenges",
       headers: { cookie: passant.cookie },
-      payload: { listeId: liste, titre: "Mars", debut: "2026-03-01", fin: "2026-03-31" },
+      payload: { listId: list, title: "Mars", starts_on: "2026-03-01", ends_on: "2026-03-31" },
     });
     expect(r.statusCode).toBe(404);
   });
 
-  it("refuse une fin avant son début", async () => {
-    const moi = await compte("moi");
-    const liste = await createList(moi.cookie);
+  it("refuse one ends_on before son début", async () => {
+    const me = await count("mine");
+    const list = await createList(me.cookie);
     const r = await app.inject({
       method: "POST",
-      url: "/defis",
-      headers: { cookie: moi.cookie },
-      payload: { listeId: liste, titre: "À l'envers", debut: "2026-03-31", fin: "2026-03-01" },
+      url: "/challenges",
+      headers: { cookie: me.cookie },
+      payload: { listId: list, title: "À l'envers", starts_on: "2026-03-31", ends_on: "2026-03-01" },
     });
     expect(r.statusCode).toBe(400);
   });
 
-  it("se quitte toujours, même quand la liste s'est refermée", async () => {
-    const { moi, liste, id } = await defiDEssai();
-    const autre = await compte("autre");
+  it("se quitte toujours, même when la list s'est refermée", async () => {
+    const { me, list, id } = await defiDEssai();
+    const other = await count("other");
     await app.inject({
       method: "PUT",
-      url: `/listes/${liste}/membres/autre`,
-      headers: { cookie: moi.cookie },
+      url: `/lists/${list}/members/other`,
+      headers: { cookie: me.cookie },
     });
     await app.inject({
       method: "PUT",
-      url: `/defis/${id}/participation`,
-      headers: { cookie: autre.cookie },
+      url: `/challenges/${id}/participation`,
+      headers: { cookie: other.cookie },
     });
-    /* On le renvoie de la liste : il ne peut plus la lire, et se
-       trouverait mesuré par un décompte dont il ne peut plus sortir. */
+    /* On at renvoie de la list : il ne peut plus la read, et se
+       trouverait mesuré by un décount dont il ne peut plus sortir. */
     await app.inject({
       method: "DELETE",
-      url: `/listes/${liste}/membres/autre`,
-      headers: { cookie: moi.cookie },
+      url: `/lists/${list}/members/other`,
+      headers: { cookie: me.cookie },
     });
 
     const parti = await app.inject({
       method: "DELETE",
-      url: `/defis/${id}/participation`,
-      headers: { cookie: autre.cookie },
+      url: `/challenges/${id}/participation`,
+      headers: { cookie: other.cookie },
     });
     expect(parti.statusCode).toBe(200);
     const r = await app.inject({
       method: "GET",
-      url: `/defis/${id}`,
-      headers: { cookie: moi.cookie },
+      url: `/challenges/${id}`,
+      headers: { cookie: me.cookie },
     });
-    expect(r.json().avancement.map((a: { pseudo: string }) => a.pseudo)).toEqual(["moi"]);
+    expect(r.json().progress.map((a: { pseudo: string }) => a.pseudo)).toEqual(["mine"]);
   });
 
-  it("s'efface avec sa liste", async () => {
-    const { moi, liste, id } = await defiDEssai();
+  it("s'erased avec sa list", async () => {
+    const { me, list, id } = await defiDEssai();
     await app.inject({
       method: "DELETE",
-      url: `/listes/${liste}`,
-      headers: { cookie: moi.cookie },
+      url: `/lists/${list}`,
+      headers: { cookie: me.cookie },
     });
     const r = await app.inject({
       method: "GET",
-      url: `/defis/${id}`,
-      headers: { cookie: moi.cookie },
+      url: `/challenges/${id}`,
+      headers: { cookie: me.cookie },
     });
     expect(r.statusCode).toBe(404);
   });

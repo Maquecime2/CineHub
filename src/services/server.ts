@@ -27,7 +27,7 @@
    because the message showed a space before its full stop.
 
    The trailing slash goes for the same reason: the paths already start
-   with a slash, and "…:8787//moi" is not "…:8787/moi". */
+   with a slash, and "…:8787//me" is not "…:8787/me". */
 import { store } from "./storage";
 
 export const ADDRESS: string = (
@@ -132,7 +132,7 @@ async function call<T>(path: string, options: CallOptions = {}): Promise<T> {
  */
 export async function whoAmI(): Promise<Person | null> {
   try {
-    const r = await call<{ who: Person }>("/moi");
+    const r = await call<{ who: Person }>("/me");
     noteAccount(r.who.id);
     return r.who;
   } catch (e) {
@@ -143,7 +143,7 @@ export async function whoAmI(): Promise<Person | null> {
 }
 
 export async function signOut(): Promise<void> {
-  await call("/deconnexion", { method: "POST" }).catch(() => {});
+  await call("/signout", { method: "POST" }).catch(() => {});
   noteAccount(null);
 }
 
@@ -188,7 +188,7 @@ export function watchAccount(fn: Watcher): () => void {
 }
 
 /** What the server holds, in a single object — to take it away with you. */
-export const myData = () => call<Record<string, unknown>>("/mes-donnees");
+export const myData = () => call<Record<string, unknown>>("/my-data");
 
 /**
 /**
@@ -199,7 +199,7 @@ export const myData = () => call<Record<string, unknown>>("/mes-donnees");
  * binder.
  */
 export const deleteMyAccount = () =>
-  call<{ efface: boolean }>("/mon-account", {
+  call<{ efface: boolean }>("/my-account", {
     method: "DELETE",
   });
 
@@ -209,11 +209,11 @@ export const deleteMyAccount = () =>
 export async function signUp(pseudo: string): Promise<Person> {
   const { startRegistration } = await import("@simplewebauthn/browser");
   const { challenge, options } = await call<{ challenge: string; options: object }>(
-    "/auth/inscription/options",
+    "/auth/signup/options",
     { method: "POST", body: JSON.stringify({ pseudo }) }
   );
   const response = await startRegistration({ optionsJSON: options as never });
-  const r = await call<{ who: Person }>("/auth/inscription/verification", {
+  const r = await call<{ who: Person }>("/auth/signup/verify", {
     method: "POST",
     body: JSON.stringify({ challenge, response }),
   });
@@ -224,11 +224,11 @@ export async function signUp(pseudo: string): Promise<Person> {
 export async function signIn(pseudo: string): Promise<Person> {
   const { startAuthentication } = await import("@simplewebauthn/browser");
   const { challenge, options } = await call<{ challenge: string; options: object }>(
-    "/auth/connexion/options",
+    "/auth/signin/options",
     { method: "POST", body: JSON.stringify({ pseudo }) }
   );
   const response = await startAuthentication({ optionsJSON: options as never });
-  const r = await call<{ who: Person }>("/auth/connexion/verification", {
+  const r = await call<{ who: Person }>("/auth/signin/verify", {
     method: "POST",
     body: JSON.stringify({ challenge, response }),
   });
@@ -257,7 +257,7 @@ export interface Pulled {
 }
 
 export const pullFrom = (depuis: number): Promise<Pulled> =>
-  call<Pulled>(`/collection?depuis=${depuis}`);
+  call<Pulled>(`/collection?since=${depuis}`);
 
 export const push = (fiches: CardToPush[]) =>
   call<{ rangees: number; perimees: number; illisibles: number; jusqua: number }>("/collection", {
@@ -286,7 +286,7 @@ export interface PulledDocs {
 }
 
 export const pullDocsFrom = (depuis: number): Promise<PulledDocs> =>
-  call<PulledDocs>(`/documents?depuis=${depuis}`);
+  call<PulledDocs>(`/documents?since=${depuis}`);
 
 export const pushDocs = (documents: DocToPush[]) =>
   call<{ ranges: number; perimes: number; illisibles: number }>("/documents", {
@@ -315,19 +315,19 @@ export interface SharedFilm {
 }
 
 /** What the collection shows right now, and to whom. */
-export const mySharing = () => call<{ partage: Sharing; token: string | null }>("/partage");
+export const mySharing = () => call<{ partage: Sharing; token: string | null }>("/sharing");
 
 export const setSharing = (partage: Sharing) =>
-  call<{ partage: Sharing; token: string | null }>("/partage", {
+  call<{ partage: Sharing; token: string | null }>("/sharing", {
     method: "PUT",
     body: JSON.stringify({ partage }),
   });
 
 /** The cards kept out of the sharing — identifiers, nothing more. */
-export const hiddenCards = () => call<{ ids: string[] }>("/fiches-cachees");
+export const hiddenCards = () => call<{ ids: string[] }>("/hidden-cards");
 
 export const hideCard = (id: string, cachee: boolean) =>
-  call<{ id: string; cachee: boolean }>(`/fiche/${encodeURIComponent(id)}/cachee`, {
+  call<{ id: string; cachee: boolean }>(`/cards/${encodeURIComponent(id)}/hidden`, {
     method: "PUT",
     body: JSON.stringify({ cachee }),
   });
@@ -344,8 +344,8 @@ export async function collectionOf(
   pseudo: string,
   token?: string | null
 ): Promise<{ pseudo: string; films: SharedFilm[] }> {
-  const q = token ? `?jeton=${encodeURIComponent(token)}` : "";
-  return call<{ pseudo: string; films: SharedFilm[] }>(`/chez/${encodeURIComponent(pseudo)}${q}`);
+  const q = token ? `?token=${encodeURIComponent(token)}` : "";
+  return call<{ pseudo: string; films: SharedFilm[] }>(`/collections/${encodeURIComponent(pseudo)}${q}`);
 }
 
 /* ------------------------------------------------------------
@@ -369,22 +369,22 @@ export interface NewsItem {
 }
 
 export const profileOf = (pseudo: string) =>
-  call<Profile>(`/profils/${encodeURIComponent(pseudo)}`);
+  call<Profile>(`/profiles/${encodeURIComponent(pseudo)}`);
 
 export const follow = (pseudo: string) =>
-  call<{ pseudo: string; suivi: boolean }>(`/abonnements/${encodeURIComponent(pseudo)}`, {
+  call<{ pseudo: string; suivi: boolean }>(`/follows/${encodeURIComponent(pseudo)}`, {
     method: "PUT",
   });
 
 export const unfollow = (pseudo: string) =>
-  call<{ pseudo: string; suivi: boolean }>(`/abonnements/${encodeURIComponent(pseudo)}`, {
+  call<{ pseudo: string; suivi: boolean }>(`/follows/${encodeURIComponent(pseudo)}`, {
     method: "DELETE",
   });
 
-export const mySubscriptions = () => call<{ abonnements: Profile[] }>("/abonnements");
+export const mySubscriptions = () => call<{ abonnements: Profile[] }>("/follows");
 
 export const readFeed = (avant?: number | null) =>
-  call<{ jusqua: number | null; nouvelles: NewsItem[] }>(`/fil${avant ? `?avant=${avant}` : ""}`);
+  call<{ jusqua: number | null; nouvelles: NewsItem[] }>(`/feed${avant ? `?before=${avant}` : ""}`);
 
 /* ------------------------------------------------------------
    CE QU'ON DIT D'UNE ŒUVRE, ET COMMENT ON S'EN PROTÈGE
@@ -416,22 +416,22 @@ export interface Echo {
  * home.
  */
 export const echoOfWork = (tmdbId: string | number) =>
-  call<Echo>(`/oeuvres/${encodeURIComponent(String(tmdbId))}`);
+  call<Echo>(`/works/${encodeURIComponent(String(tmdbId))}`);
 
-export const myBlocks = () => call<{ blocages: string[] }>("/blocages");
+export const myBlocks = () => call<{ blocages: string[] }>("/blocks");
 
 export const block = (pseudo: string) =>
-  call<{ pseudo: string; bloque: boolean }>(`/blocages/${encodeURIComponent(pseudo)}`, {
+  call<{ pseudo: string; bloque: boolean }>(`/blocks/${encodeURIComponent(pseudo)}`, {
     method: "PUT",
   });
 
 export const unblock = (pseudo: string) =>
-  call<{ pseudo: string; bloque: boolean }>(`/blocages/${encodeURIComponent(pseudo)}`, {
+  call<{ pseudo: string; bloque: boolean }>(`/blocks/${encodeURIComponent(pseudo)}`, {
     method: "DELETE",
   });
 
 export const report = (quoi: { pseudo: string; fiche: string; motif: string }) =>
-  call<{ note: boolean; neuf: boolean }>("/signalements", {
+  call<{ note: boolean; neuf: boolean }>("/reports", {
     method: "POST",
     body: JSON.stringify(quoi),
   });
@@ -477,76 +477,76 @@ export interface Progress {
   faites: number;
 }
 
-export const myLists = () => call<{ listes: List[] }>("/listes");
+export const myLists = () => call<{ listes: List[] }>("/lists");
 
 export const createList = (l: { titre: string; intention?: string; publique?: boolean }) =>
-  call<{ id: string }>("/listes", { method: "POST", body: JSON.stringify(l) });
+  call<{ id: string }>("/lists", { method: "POST", body: JSON.stringify(l) });
 
 export const readList = (id: string) =>
   call<{ liste: List; oeuvres: ListWork[]; membres: string[] }>(
-    `/listes/${encodeURIComponent(id)}`
+    `/lists/${encodeURIComponent(id)}`
   );
 
 export const editList = (
   id: string,
   l: { titre?: string; intention?: string; publique?: boolean }
 ) =>
-  call<{ fait: boolean }>(`/listes/${encodeURIComponent(id)}`, {
+  call<{ fait: boolean }>(`/lists/${encodeURIComponent(id)}`, {
     method: "PUT",
     body: JSON.stringify(l),
   });
 
 export const deleteList = (id: string) =>
-  call<{ efface: boolean }>(`/listes/${encodeURIComponent(id)}`, { method: "DELETE" });
+  call<{ efface: boolean }>(`/lists/${encodeURIComponent(id)}`, { method: "DELETE" });
 
 export const addToList = (
   id: string,
   o: { tmdbId: string | number; titre?: string; annee?: string | number }
 ) =>
-  call<{ ajoute: boolean; neuf: boolean }>(`/listes/${encodeURIComponent(id)}/oeuvres`, {
+  call<{ ajoute: boolean; neuf: boolean }>(`/lists/${encodeURIComponent(id)}/works`, {
     method: "POST",
     body: JSON.stringify({ ...o, annee: o.annee == null ? undefined : String(o.annee) }),
   });
 
 export const removeFromList = (id: string, tmdbId: string) =>
   call<{ retire: boolean }>(
-    `/listes/${encodeURIComponent(id)}/oeuvres/${encodeURIComponent(tmdbId)}`,
+    `/lists/${encodeURIComponent(id)}/works/${encodeURIComponent(tmdbId)}`,
     { method: "DELETE" }
   );
 
 export const inviteToList = (id: string, pseudo: string) =>
   call<{ pseudo: string; membre: boolean }>(
-    `/listes/${encodeURIComponent(id)}/membres/${encodeURIComponent(pseudo)}`,
+    `/lists/${encodeURIComponent(id)}/members/${encodeURIComponent(pseudo)}`,
     { method: "PUT" }
   );
 
 export const removeFromListMembers = (id: string, pseudo: string) =>
   call<{ pseudo: string; membre: boolean }>(
-    `/listes/${encodeURIComponent(id)}/membres/${encodeURIComponent(pseudo)}`,
+    `/lists/${encodeURIComponent(id)}/members/${encodeURIComponent(pseudo)}`,
     { method: "DELETE" }
   );
 
-export const myChallenges = () => call<{ defis: Challenge[] }>("/defis");
+export const myChallenges = () => call<{ defis: Challenge[] }>("/challenges");
 
 export const createChallenge = (d: {
   listeId: string;
   titre: string;
   debut: string;
   fin: string;
-}) => call<{ id: string }>("/defis", { method: "POST", body: JSON.stringify(d) });
+}) => call<{ id: string }>("/challenges", { method: "POST", body: JSON.stringify(d) });
 
 export const readChallenge = (id: string) =>
   call<{ challenge: Challenge; oeuvres: ListWork[]; avancement: Progress[] }>(
-    `/defis/${encodeURIComponent(id)}`
+    `/challenges/${encodeURIComponent(id)}`
   );
 
 export const deleteChallenge = (id: string) =>
-  call<{ efface: boolean }>(`/defis/${encodeURIComponent(id)}`, { method: "DELETE" });
+  call<{ efface: boolean }>(`/challenges/${encodeURIComponent(id)}`, { method: "DELETE" });
 
 export const joinChallenge = (id: string) =>
-  call<{ dedans: boolean }>(`/defis/${encodeURIComponent(id)}/participation`, { method: "PUT" });
+  call<{ dedans: boolean }>(`/challenges/${encodeURIComponent(id)}/participation`, { method: "PUT" });
 
 export const leaveChallenge = (id: string) =>
-  call<{ dedans: boolean }>(`/defis/${encodeURIComponent(id)}/participation`, {
+  call<{ dedans: boolean }>(`/challenges/${encodeURIComponent(id)}/participation`, {
     method: "DELETE",
   });

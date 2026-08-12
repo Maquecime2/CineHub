@@ -1,475 +1,630 @@
 -- ============================================================
--- LE SOCLE — comptes, clés d'accès, sessions, et une collection
+-- THE BASELINE — accounts, passkeys, sessions, and a collection
 -- ============================================================
 --
--- Écrit en SQL et non dérivé d'un ORM : ce fichier est la description
--- de ce que le serveur garde de quelqu'un, et c'est un texte qu'on doit
--- pouvoir relire sans outil. Il se rejoue sans dommage — tout y est
--- conditionnel.
+-- Written in SQL and not derived from an ORM: this file is the
+-- description of what the server keeps of somebody, and it is a text one
+-- must be able to reread without a tool. It replays without harm —
+-- everything in it is conditional.
 
 -- ------------------------------------------------------------
--- LA PERSONNE
+-- THE NAMES THAT CHANGED
 -- ------------------------------------------------------------
--- Pas de mot de passe, pas d'adresse obligatoire : on entre par une clé
--- d'accès (passkey), et le compte n'a besoin de rien d'autre pour
--- exister. Le pseudonyme est le seul nom public ; il sert d'adresse de
--- collection partagée, d'où sa contrainte de forme.
-CREATE TABLE IF NOT EXISTS personne (
+-- THIS BLOCK IS NOT A TRANSLATION, IT IS A MOVE. The tables and columns
+-- below were French, and a database somewhere already holds somebody's
+-- collection under those names. Creating the English ones beside them
+-- would leave that collection behind, in tables nothing reads any more —
+-- so every name is RENAMED, in place, before the rest of the file runs.
+--
+-- It is conditional twice over: the old name must still exist, and the
+-- new one must not. A second run therefore does nothing, and a fresh
+-- database walks straight through it.
+--
+-- It can be deleted once every deployment has been through it once.
+DO $$
+DECLARE r record;
+BEGIN
+  FOR r IN SELECT * FROM (VALUES
+      ('personne', 'person'),
+      ('cle_acces', 'access_key'),
+      ('defi', 'webauthn_challenge'),
+      ('fiche', 'card'),
+      ('abonnement', 'follow'),
+      ('blocage', 'block'),
+      ('signalement', 'report'),
+      ('liste', 'list'),
+      ('liste_membre', 'list_member'),
+      ('liste_item', 'list_item'),
+      ('epreuve', 'challenge'),
+      ('epreuve_participant', 'challenge_participant'),
+      ('mesure', 'metric'),
+      ('pousse', 'push_subscription'),
+      ('rappel_envoye', 'reminder_sent')
+    ) AS t(old, new)
+  LOOP
+    IF to_regclass(r.old) IS NOT NULL AND to_regclass(r.new) IS NULL THEN
+      EXECUTE format('ALTER TABLE %I RENAME TO %I', r.old, r.new);
+    END IF;
+  END LOOP;
+
+  IF to_regclass('fiche_seq') IS NOT NULL AND to_regclass('card_seq') IS NULL THEN
+    EXECUTE 'ALTER SEQUENCE fiche_seq RENAME TO card_seq';
+  END IF;
+
+  FOR r IN SELECT * FROM (VALUES
+      ('person', 'courriel', 'email'),
+      ('person', 'cree_le', 'created_at'),
+      ('person', 'vu_le', 'seen_at'),
+      ('person', 'partage', 'sharing'),
+      ('person', 'jeton', 'token'),
+      ('access_key', 'personne_id', 'person_id'),
+      ('access_key', 'cle_publique', 'public_key'),
+      ('access_key', 'compteur', 'counter'),
+      ('access_key', 'appareil', 'device'),
+      ('access_key', 'cree_le', 'created_at'),
+      ('access_key', 'vue_le', 'seen_at'),
+      ('webauthn_challenge', 'valeur', 'value'),
+      ('webauthn_challenge', 'personne_id', 'person_id'),
+      ('webauthn_challenge', 'expire_le', 'expires_at'),
+      ('session', 'empreinte', 'digest'),
+      ('session', 'personne_id', 'person_id'),
+      ('session', 'cree_le', 'created_at'),
+      ('session', 'expire_le', 'expires_at'),
+      ('card', 'personne_id', 'person_id'),
+      ('card', 'cachee', 'hidden'),
+      ('card', 'donnees', 'data'),
+      ('card', 'maj_le', 'updated_at'),
+      ('card', 'supprimee', 'deleted'),
+      ('doc', 'personne_id', 'person_id'),
+      ('doc', 'cle', 'key'),
+      ('doc', 'contenu', 'content'),
+      ('doc', 'maj_le', 'updated_at'),
+      ('doc', 'supprime', 'deleted'),
+      ('follow', 'suiveur_id', 'follower_id'),
+      ('follow', 'suivi_id', 'followed_id'),
+      ('follow', 'cree_le', 'created_at'),
+      ('block', 'bloqueur_id', 'blocker_id'),
+      ('block', 'bloque_id', 'blocked_id'),
+      ('block', 'cree_le', 'created_at'),
+      ('report', 'auteur_id', 'author_id'),
+      ('report', 'cible_type', 'target_type'),
+      ('report', 'cible_id', 'target_id'),
+      ('report', 'motif', 'reason'),
+      ('report', 'cree_le', 'created_at'),
+      ('report', 'traite_le', 'handled_at'),
+      ('report', 'vise_id', 'about_id'),
+      ('list', 'proprietaire_id', 'owner_id'),
+      ('list', 'titre', 'title'),
+      ('list', 'intention', 'intent'),
+      ('list', 'publique', 'is_public'),
+      ('list', 'cree_le', 'created_at'),
+      ('list', 'maj_le', 'updated_at'),
+      ('list_member', 'liste_id', 'list_id'),
+      ('list_member', 'personne_id', 'person_id'),
+      ('list_member', 'ajoute_le', 'added_at'),
+      ('list_item', 'liste_id', 'list_id'),
+      ('list_item', 'titre', 'title'),
+      ('list_item', 'annee', 'year'),
+      ('list_item', 'ajoute_par', 'added_by'),
+      ('list_item', 'ajoute_le', 'added_at'),
+      ('challenge', 'liste_id', 'list_id'),
+      ('challenge', 'cree_par', 'created_by'),
+      ('challenge', 'titre', 'title'),
+      ('challenge', 'debut', 'starts_on'),
+      ('challenge', 'fin', 'ends_on'),
+      ('challenge', 'cree_le', 'created_at'),
+      ('challenge_participant', 'epreuve_id', 'challenge_id'),
+      ('challenge_participant', 'personne_id', 'person_id'),
+      ('challenge_participant', 'rejoint_le', 'joined_at'),
+      ('metric', 'jour', 'day'),
+      ('metric', 'geste', 'gesture'),
+      ('push_subscription', 'point', 'endpoint'),
+      ('push_subscription', 'personne_id', 'person_id'),
+      ('push_subscription', 'cree_le', 'created_at'),
+      ('push_subscription', 'vu_le', 'seen_at'),
+      ('reminder_sent', 'personne_id', 'person_id'),
+      ('reminder_sent', 'sujet', 'subject'),
+      ('reminder_sent', 'cree_le', 'created_at')
+    ) AS c(tbl, old, new)
+  LOOP
+    IF to_regclass(r.tbl) IS NOT NULL
+       AND EXISTS (SELECT 1 FROM information_schema.columns
+                    WHERE table_name = r.tbl AND column_name = r.old)
+       AND NOT EXISTS (SELECT 1 FROM information_schema.columns
+                        WHERE table_name = r.tbl AND column_name = r.new)
+    THEN
+      EXECUTE format('ALTER TABLE %I RENAME COLUMN %I TO %I', r.tbl, r.old, r.new);
+    END IF;
+  END LOOP;
+END $$;
+
+-- The old indexes are DROPPED rather than renamed: every one of them is
+-- recreated further down under its new name, and rebuilding an index
+-- costs nothing next to the confusion of two names for one thing.
+DROP INDEX IF EXISTS cle_acces_personne;
+DROP INDEX IF EXISTS defi_expire;
+DROP INDEX IF EXISTS session_personne;
+DROP INDEX IF EXISTS fiche_suite;
+DROP INDEX IF EXISTS fiche_visible;
+DROP INDEX IF EXISTS fiche_oeuvre;
+DROP INDEX IF EXISTS doc_suite;
+DROP INDEX IF EXISTS abonnement_suivi;
+DROP INDEX IF EXISTS blocage_bloque;
+DROP INDEX IF EXISTS signalement_unique;
+DROP INDEX IF EXISTS signalement_a_traiter;
+DROP INDEX IF EXISTS liste_proprietaire;
+DROP INDEX IF EXISTS liste_membre_personne;
+DROP INDEX IF EXISTS epreuve_liste;
+DROP INDEX IF EXISTS epreuve_periode;
+DROP INDEX IF EXISTS epreuve_participant_personne;
+DROP INDEX IF EXISTS pousse_personne;
+
+ALTER TABLE IF EXISTS person DROP CONSTRAINT IF EXISTS personne_partage_check;
+
+-- ------------------------------------------------------------
+-- THE PERSON
+-- ------------------------------------------------------------
+-- No password, no compulsory address: one comes in through a passkey,
+-- and the account needs nothing else to exist. The pseudonym is the only
+-- public name; it doubles as the address of a shared collection, hence
+-- the constraint on its shape.
+CREATE TABLE IF NOT EXISTS person (
   id            uuid PRIMARY KEY,
   pseudo        text NOT NULL UNIQUE
                 CHECK (pseudo ~ '^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])$'),
-  -- Facultative, et le restera : elle ne sert qu'à retrouver un compte
-  -- dont toutes les clés ont été perdues. Nulle part ailleurs.
-  courriel      text UNIQUE,
-  cree_le       timestamptz NOT NULL DEFAULT now(),
-  -- Effacer un compte efface tout ce qui pend dessous (ON DELETE CASCADE
-  -- partout) : le droit à l'effacement n'est pas une routine de ménage
-  -- à écrire plus tard, c'est une propriété du schéma.
-  vu_le         timestamptz
+  -- Optional, and it will stay that way: it serves only to find again an
+  -- account whose every key has been lost. Nowhere else.
+  email         text UNIQUE,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  -- Erasing an account erases everything hanging under it (ON DELETE
+  -- CASCADE everywhere): the right to erasure is not a housekeeping
+  -- routine to write later, it is a property of the schema.
+  seen_at       timestamptz
 );
 
 -- ------------------------------------------------------------
--- PARTAGER SA COLLECTION
+-- SHARING ONE'S COLLECTION
 -- ------------------------------------------------------------
--- LA DÉCISION APPARTIENT À LA COLLECTION, PAS À CHAQUE FICHE.
--- « Je montre ma vidéothèque » est une phrase qu'on dit une fois ; la
--- poser film par film ferait de six cents fiches six cents décisions,
--- c'est-à-dire aucune.
+-- THE DECISION BELONGS TO THE COLLECTION, NOT TO EACH CARD.
+-- "I am showing my film library" is a sentence one says once; laying it
+-- down film by film would turn six hundred cards into six hundred
+-- decisions, which is to say none.
 --
--- Trois états et pas deux, parce que « public » et « privé » ne suffisent
--- pas à ce qu'on veut vraiment faire — montrer à quelqu'un sans
--- s'afficher au monde :
---   privee   : personne, jamais. C'est le défaut, et il le reste.
---   lien     : qui a l'adresse secrète. Elle ne se devine pas, elle ne
---              s'indexe pas, et elle se change d'un geste.
---   publique : le pseudonyme suffit.
-ALTER TABLE IF EXISTS personne
-  ADD COLUMN IF NOT EXISTS partage text NOT NULL DEFAULT 'privee';
+-- Three states and not two, because "public" and "private" do not cover
+-- what one really wants to do — show somebody without showing the world:
+--   privee   : nobody, ever. That is the default, and it stays so.
+--   lien     : whoever has the secret address. It cannot be guessed, it
+--              is not indexed, and it is changed in one gesture.
+--   publique : the pseudonym is enough.
+--
+-- THE THREE VALUES STAY FRENCH: they are written into the rows, and into
+-- the client that reads them. Translating a stored value is a data
+-- migration of its own, and this one buys nothing.
+ALTER TABLE IF EXISTS person
+  ADD COLUMN IF NOT EXISTS sharing text NOT NULL DEFAULT 'privee';
 
 DO $$ BEGIN
-  ALTER TABLE personne ADD CONSTRAINT personne_partage_check
-    CHECK (partage IN ('privee', 'lien', 'publique'));
+  ALTER TABLE person ADD CONSTRAINT person_sharing_check
+    CHECK (sharing IN ('privee', 'lien', 'publique'));
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
--- Le secret du partage par lien. Changer de jeton révoque tous les liens
--- distribués : c'est la seule façon de reprendre ce qu'on a donné.
-ALTER TABLE IF EXISTS personne
-  ADD COLUMN IF NOT EXISTS jeton text;
+-- The secret behind link sharing. Changing the token revokes every link
+-- handed out: it is the only way to take back what one has given.
+ALTER TABLE IF EXISTS person
+  ADD COLUMN IF NOT EXISTS token text;
 
 -- ------------------------------------------------------------
--- LA CLÉ D'ACCÈS
+-- THE PASSKEY
 -- ------------------------------------------------------------
--- Ce que le navigateur retient, c'est une paire de clés ; ce que le
--- serveur garde, c'est la PUBLIQUE — inutile à qui la vole. Il n'y a
--- donc rien ici qui permette de se faire passer pour quelqu'un, et
--- c'est tout l'intérêt par rapport à une empreinte de mot de passe.
+-- What the browser keeps is a pair of keys; what the server keeps is the
+-- PUBLIC one — useless to whoever steals it. There is therefore nothing
+-- here that lets anyone pass for somebody else, and that is the whole
+-- point compared with a password hash.
 --
--- Plusieurs clés par personne, délibérément : un téléphone, un
--- ordinateur, une clé physique. N'en avoir qu'une, c'est perdre son
--- compte avec son téléphone.
-CREATE TABLE IF NOT EXISTS cle_acces (
-  id            text PRIMARY KEY,               -- l'identifiant fourni par l'authentificateur
-  personne_id   uuid NOT NULL REFERENCES personne(id) ON DELETE CASCADE,
-  cle_publique  bytea NOT NULL,
-  -- LE COMPTEUR ANTI-CLONAGE. L'authentificateur l'incrémente à chaque
-  -- signature ; un compteur qui recule dénonce une copie de la clé.
-  -- Certains authentificateurs le laissent à zéro : la vérification
-  -- n'est donc pas un refus, mais un signal.
-  compteur      bigint NOT NULL DEFAULT 0,
+-- Several keys per person, deliberately: a phone, a computer, a physical
+-- key. Having only one means losing one's account with one's phone.
+CREATE TABLE IF NOT EXISTS access_key (
+  id            text PRIMARY KEY,               -- the identifier the authenticator supplies
+  person_id     uuid NOT NULL REFERENCES person(id) ON DELETE CASCADE,
+  public_key    bytea NOT NULL,
+  -- THE ANTI-CLONING COUNTER. The authenticator increments it on every
+  -- signature; a counter that goes backwards denounces a copy of the
+  -- key. Some authenticators leave it at zero: the check is therefore
+  -- not a refusal, but a signal.
+  counter       bigint NOT NULL DEFAULT 0,
   transports    text[] NOT NULL DEFAULT '{}',
-  appareil      text,                            -- ce que la personne a écrit pour s'y retrouver
-  cree_le       timestamptz NOT NULL DEFAULT now(),
-  vue_le        timestamptz
+  device        text,                            -- what the person wrote to tell them apart
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  seen_at       timestamptz
 );
 
-CREATE INDEX IF NOT EXISTS cle_acces_personne ON cle_acces(personne_id);
+CREATE INDEX IF NOT EXISTS access_key_person ON access_key(person_id);
 
 -- ------------------------------------------------------------
--- LE DÉFI EN COURS
+-- THE CHALLENGE IN FLIGHT
 -- ------------------------------------------------------------
--- Une cérémonie WebAuthn se fait en deux temps, et le hasard tiré au
--- premier doit être retrouvé au second — SANS que le client puisse le
--- choisir lui-même, sinon la signature ne prouve plus rien. Il vit donc
--- ici, pour quelques minutes.
-CREATE TABLE IF NOT EXISTS defi (
+-- A WebAuthn ceremony happens in two moves, and the randomness drawn in
+-- the first must be found again in the second — WITHOUT the client
+-- getting to choose it, or the signature proves nothing any more. So it
+-- lives here, for a few minutes.
+--
+-- IT IS CALLED `webauthn_challenge` AND NOT `challenge`, because the
+-- screen has challenges of its own — a list plus a period, further down.
+-- Two tables of opposite meaning under one name read badly and get
+-- confused on the night something breaks.
+CREATE TABLE IF NOT EXISTS webauthn_challenge (
   id            uuid PRIMARY KEY,
-  valeur        text NOT NULL,
-  -- Une inscription n'a pas encore de personne : la colonne est nulle.
-  personne_id   uuid REFERENCES personne(id) ON DELETE CASCADE,
+  value         text NOT NULL,
+  -- A sign-up has no person yet: the column is null.
+  person_id     uuid REFERENCES person(id) ON DELETE CASCADE,
   pseudo        text,
-  expire_le     timestamptz NOT NULL
+  expires_at    timestamptz NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS defi_expire ON defi(expire_le);
+CREATE INDEX IF NOT EXISTS webauthn_challenge_expires ON webauthn_challenge(expires_at);
 
 -- ------------------------------------------------------------
--- LA SESSION
+-- THE SESSION
 -- ------------------------------------------------------------
--- Le cookie ne porte PAS l'identifiant de session tel quel : il porte un
--- secret dont la table ne garde que l'empreinte. Une fuite de la base ne
--- donne donc aucune session utilisable — le même raisonnement que pour
--- les mots de passe, appliqué à ce qui les remplace.
+-- The cookie does NOT carry the session identifier as it stands: it
+-- carries a secret of which the table keeps only the digest. A leak of
+-- the database therefore hands over no usable session — the same
+-- reasoning as for passwords, applied to what replaces them.
 CREATE TABLE IF NOT EXISTS session (
-  empreinte     text PRIMARY KEY,
-  personne_id   uuid NOT NULL REFERENCES personne(id) ON DELETE CASCADE,
-  cree_le       timestamptz NOT NULL DEFAULT now(),
-  expire_le     timestamptz NOT NULL
+  digest        text PRIMARY KEY,
+  person_id     uuid NOT NULL REFERENCES person(id) ON DELETE CASCADE,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  expires_at    timestamptz NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS session_personne ON session(personne_id);
+CREATE INDEX IF NOT EXISTS session_person ON session(person_id);
 
 -- ------------------------------------------------------------
--- LA COLLECTION
+-- THE COLLECTION
 -- ------------------------------------------------------------
--- UNE LIGNE PAR FICHE, et non un document par personne. C'est ce qui
--- permettra de ne pousser que ce qui a bougé : `maj_le` est la date que
--- le client tient déjà (`updatedAt`), et l'index qui la porte est celui
--- que la synchronisation interrogera.
+-- ONE ROW PER CARD, and not one document per person. That is what will
+-- allow pushing only what has moved: `updated_at` is the date the client
+-- already holds (`updatedAt`), and the index carrying it is the one
+-- synchronisation will question.
 --
--- `donnees` en jsonb : la fiche est un objet du client, et le serveur
--- n'a aucune raison d'en connaître les trente champs. Ce qu'il doit
--- savoir, il le sort en colonnes — l'identité de l'œuvre et la
--- visibilité, parce que ce sont les deux seules choses sur lesquelles il
--- devra filtrer.
--- DEUX HORLOGES, ET DEUX RÔLES QU'IL NE FAUT PAS CONFONDRE.
+-- `data` as jsonb: the card is an object belonging to the client, and the
+-- server has no reason to know its thirty fields. What it does need to
+-- know it pulls out into columns — the work's identity and the
+-- visibility, because those are the only two things it will have to
+-- filter on.
+-- TWO CLOCKS, AND TWO ROLES NOT TO BE CONFUSED.
 --
--- `maj_le` vient du CLIENT : c'est lui qui dit quand la fiche a été
--- touchée, et c'est ce qui arbitre entre deux versions.
+-- `updated_at` comes from the CLIENT: it says when the card was touched,
+-- and it is what arbitrates between two versions.
 --
--- `seq` vient du SERVEUR : un numéro d'ordre d'arrivée, croissant, qui
--- ne dépend d'aucune horloge. C'est LUI que la synchronisation suit
--- pour savoir où elle en est.
+-- `seq` comes from the SERVER: an arrival number, rising, that depends on
+-- no clock. It is THAT one synchronisation follows to know where it has
+-- got to.
 --
--- Confondre les deux paraissait économique et ne l'était pas : un
--- téléphone en retard d'une heure pousse des fiches datées d'une heure
--- plus tôt, et l'autre appareil, qui demande « ce qui a bougé depuis
--- maintenant », ne les verrait JAMAIS. Elles seraient rangées sur le
--- serveur, invisibles à tous, sans qu'aucune erreur ne le dise.
-CREATE SEQUENCE IF NOT EXISTS fiche_seq;
+-- Merging the two looked economical and was not: a phone an hour behind
+-- pushes cards dated an hour earlier, and the other device, asking for
+-- "what has moved since now", would NEVER see them. They would be filed
+-- on the server, invisible to everyone, with no error to say so.
+CREATE SEQUENCE IF NOT EXISTS card_seq;
 
-CREATE TABLE IF NOT EXISTS fiche (
-  personne_id   uuid NOT NULL REFERENCES personne(id) ON DELETE CASCADE,
-  -- L'identifiant vient du client (UUID v7) : c'est LUI qui nomme ses
-  -- fiches, le serveur ne fait que les ranger sous un compte.
+CREATE TABLE IF NOT EXISTS card (
+  person_id     uuid NOT NULL REFERENCES person(id) ON DELETE CASCADE,
+  -- The identifier comes from the client (UUID v7): IT names its own
+  -- cards, the server only files them under an account.
   id            text NOT NULL,
-  seq           bigint NOT NULL DEFAULT nextval('fiche_seq'),
+  seq           bigint NOT NULL DEFAULT nextval('card_seq'),
   tmdb_id       text,
-  -- « Celle-ci ne part pas, même quand je partage. » Une exclusion, et
-  -- non une visibilité par fiche : la décision de montrer appartient à
-  -- la collection (voir `personne.partage`), et ceci n'en est que
-  -- l'exception. Fausse par défaut — qui partage sa vidéothèque la
-  -- partage, il ne coche pas six cents cases.
-  cachee        boolean NOT NULL DEFAULT false,
-  donnees       jsonb NOT NULL,
-  maj_le        timestamptz NOT NULL,
-  -- Une suppression se SYNCHRONISE : effacer la ligne ferait revenir la
-  -- fiche au prochain envoi de l'appareil qui ne sait pas encore. On
-  -- garde donc une pierre tombale, que l'on balaiera plus tard.
-  supprimee     boolean NOT NULL DEFAULT false,
-  PRIMARY KEY (personne_id, id)
+  -- "This one does not go out, even when I share." An exclusion, and not
+  -- a per-card visibility: the decision to show belongs to the
+  -- collection (see `person.sharing`), and this is only its exception.
+  -- False by default — whoever shares their film library shares it, they
+  -- do not tick six hundred boxes.
+  hidden        boolean NOT NULL DEFAULT false,
+  data          jsonb NOT NULL,
+  updated_at    timestamptz NOT NULL,
+  -- A deletion SYNCHRONISES: erasing the row would bring the card back
+  -- at the next send from the device that does not know yet. So we keep
+  -- a tombstone, to be swept later.
+  deleted       boolean NOT NULL DEFAULT false,
+  PRIMARY KEY (person_id, id)
 );
 
--- CE QUE `CREATE TABLE IF NOT EXISTS` NE FAIT PAS.
+-- WHAT `CREATE TABLE IF NOT EXISTS` DOES NOT DO.
 --
--- Sur une base où la table existe déjà, il ne fait RIEN — pas même
--- ajouter une colonne apparue depuis. Le socle décrivait donc le schéma
--- voulu tout en laissant les bases existantes en arrière, et le serveur
--- refusait de démarrer sur la seule qui contenait quelque chose.
+-- On a database where the table already exists, it does NOTHING — not
+-- even add a column that has appeared since. The baseline therefore
+-- described the schema we wanted while leaving existing databases
+-- behind, and the server refused to start on the only one that held
+-- anything.
 --
--- Les tests ne pouvaient pas le voir : ils partent d'une base vide, où
--- la création couvre tout. Il a fallu démarrer sur une vraie base déjà
--- peuplée. Chaque colonne ajoutée après coup se pose donc ici, en
--- ALTER, aussi conditionnel que le reste.
-ALTER TABLE IF EXISTS fiche
-  ADD COLUMN IF NOT EXISTS seq bigint NOT NULL DEFAULT nextval('fiche_seq');
+-- The tests could not see it: they start from an empty database, where
+-- the creation covers everything. It took starting on a real, already
+-- populated one. Every column added after the fact is therefore laid
+-- down here, as an ALTER, as conditional as the rest.
+ALTER TABLE IF EXISTS card
+  ADD COLUMN IF NOT EXISTS seq bigint NOT NULL DEFAULT nextval('card_seq');
 
-ALTER TABLE IF EXISTS fiche
-  ADD COLUMN IF NOT EXISTS cachee boolean NOT NULL DEFAULT false;
+ALTER TABLE IF EXISTS card
+  ADD COLUMN IF NOT EXISTS hidden boolean NOT NULL DEFAULT false;
 
--- `visibilite` n'a jamais porté autre chose que sa valeur par défaut : le
--- client ne l'a jamais renseignée, et la décision de partager s'est
--- révélée appartenir à la collection entière. Une colonne morte se
--- retire ; on ne la garde pas « au cas où ».
-ALTER TABLE IF EXISTS fiche DROP COLUMN IF EXISTS visibilite;
+-- `visibilite` never carried anything but its default value: the client
+-- never filled it in, and the decision to share turned out to belong to
+-- the whole collection. A dead column is taken out; one does not keep it
+-- "just in case".
+ALTER TABLE IF EXISTS card DROP COLUMN IF EXISTS visibilite;
 
--- L'index de la synchronisation : « ce qui a bougé depuis », dans
--- l'ordre où le serveur l'a reçu.
-CREATE INDEX IF NOT EXISTS fiche_suite ON fiche(personne_id, seq);
--- Ce qu'une collection partagée montre : tout sauf les exclusions.
-CREATE INDEX IF NOT EXISTS fiche_visible ON fiche(personne_id) WHERE NOT cachee AND NOT supprimee;
+-- Synchronisation's index: "what has moved since", in the order the
+-- server received it.
+CREATE INDEX IF NOT EXISTS card_stream ON card(person_id, seq);
+-- What a shared collection shows: everything but the exclusions.
+CREATE INDEX IF NOT EXISTS card_visible ON card(person_id) WHERE NOT hidden AND NOT deleted;
 
 -- ------------------------------------------------------------
--- LE RESTE DU CLASSEUR
+-- THE REST OF THE BINDER
 -- ------------------------------------------------------------
--- Une vidéothèque n'est pas qu'une liste de films : c'est aussi
--- l'agencement des étagères, les pages du carnet, les fils tendus entre
--- les œuvres, le vocabulaire qu'on s'est écrit et les décors qu'on a
--- posés. Synchroniser les fiches seules donne un second appareil qui
--- connaît les films et ne sait plus comment ils étaient rangés — c'est
--- la moitié du classeur, et pas la plus personnelle.
+-- A film library is not only a list of films: it is also the arrangement
+-- of the shelves, the notebook's pages, the threads strung between
+-- works, the vocabulary one has written and the decors one has laid.
+-- Synchronising the cards alone gives a second device that knows the
+-- films and no longer knows how they were filed — half the binder, and
+-- not the less personal half.
 --
--- UNE TABLE À PART, ET PAS UNE COLONNE DE PLUS SUR `fiche` : ces
--- documents ne sont pas des fiches, ils n'ont ni identité d'œuvre ni
--- visibilité, et ils ne se partageront jamais de la même façon. Ils
--- suivent en revanche exactement les mêmes règles de synchronisation —
--- rang du serveur, date du client, dernier écrivain gagne.
+-- A TABLE OF ITS OWN, AND NOT ONE MORE COLUMN ON `card`: these documents
+-- are not cards, they have neither a work's identity nor a visibility,
+-- and they will never be shared the same way. They do follow exactly the
+-- same synchronisation rules, though — server rank, client date, last
+-- writer wins.
 CREATE SEQUENCE IF NOT EXISTS doc_seq;
 
 CREATE TABLE IF NOT EXISTS doc (
-  personne_id   uuid NOT NULL REFERENCES personne(id) ON DELETE CASCADE,
-  -- La clé du client : « shelf-view:abc », « notebook-notes », « fils »…
-  cle           text NOT NULL,
+  person_id     uuid NOT NULL REFERENCES person(id) ON DELETE CASCADE,
+  -- The client's key: "shelf-view:abc", "notebook-notes", "threads"…
+  key           text NOT NULL,
   seq           bigint NOT NULL DEFAULT nextval('doc_seq'),
-  contenu       jsonb NOT NULL,
-  maj_le        timestamptz NOT NULL,
-  supprime      boolean NOT NULL DEFAULT false,
-  PRIMARY KEY (personne_id, cle)
+  content       jsonb NOT NULL,
+  updated_at    timestamptz NOT NULL,
+  deleted       boolean NOT NULL DEFAULT false,
+  PRIMARY KEY (person_id, key)
 );
 
-CREATE INDEX IF NOT EXISTS doc_suite ON doc(personne_id, seq);
+CREATE INDEX IF NOT EXISTS doc_stream ON doc(person_id, seq);
 
 -- ------------------------------------------------------------
--- SUIVRE QUELQU'UN
+-- FOLLOWING SOMEBODY
 -- ------------------------------------------------------------
--- Un lien à SENS UNIQUE, et volontairement : suivre n'est pas une
--- demande d'amitié, c'est un geste qu'on fait seul et qu'on défait
--- seul. Personne n'a à accepter, personne n'a à refuser, et il n'y a
--- donc aucune notification à supporter.
+-- A ONE-WAY link, and deliberately so: following is not a friend
+-- request, it is a gesture one makes alone and undoes alone. Nobody has
+-- to accept, nobody has to refuse, and so there is no notification to
+-- put up with.
 --
--- On ne peut suivre qu'une collection PUBLIQUE — le filtre est dans la
--- lecture, pas ici : quelqu'un qui se referme ne doit pas perdre ses
--- suiveurs, seulement disparaître de leur fil le temps qu'il se tait.
-CREATE TABLE IF NOT EXISTS abonnement (
-  suiveur_id    uuid NOT NULL REFERENCES personne(id) ON DELETE CASCADE,
-  suivi_id      uuid NOT NULL REFERENCES personne(id) ON DELETE CASCADE,
-  cree_le       timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY (suiveur_id, suivi_id),
-  -- Se suivre soi-même remplirait son propre fil de ce qu'on vient
-  -- d'écrire. La base le refuse plutôt que la route.
-  CHECK (suiveur_id <> suivi_id)
+-- One can only follow a PUBLIC collection — the filter is in the read,
+-- not here: somebody who closes up must not lose their followers, only
+-- disappear from their feed for as long as they stay silent.
+CREATE TABLE IF NOT EXISTS follow (
+  follower_id   uuid NOT NULL REFERENCES person(id) ON DELETE CASCADE,
+  followed_id   uuid NOT NULL REFERENCES person(id) ON DELETE CASCADE,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (follower_id, followed_id),
+  -- Following oneself would fill one's own feed with what one has just
+  -- written. The database refuses it rather than the route.
+  CHECK (follower_id <> followed_id)
 );
 
-CREATE INDEX IF NOT EXISTS abonnement_suivi ON abonnement(suivi_id);
+CREATE INDEX IF NOT EXISTS follow_followed ON follow(followed_id);
 
 -- ------------------------------------------------------------
--- NE PLUS VOIR QUELQU'UN
+-- NOT SEEING SOMEBODY ANY MORE
 -- ------------------------------------------------------------
--- Le blocage est le pendant nécessaire de la première chose que ce
--- classeur publie : dès qu'un texte écrit par un inconnu peut apparaître
--- sous un film qu'on aime, il faut pouvoir le faire taire sans attendre
--- qu'un modérateur se réveille.
+-- Blocking is the necessary counterpart to the first thing this binder
+-- publishes: as soon as a text written by a stranger can appear under a
+-- film one loves, one must be able to silence it without waiting for a
+-- moderator to wake up.
 --
--- IL SE DÉCLARE D'UN CÔTÉ ET AGIT DES DEUX. Bloquer quelqu'un le retire
--- de ce que je vois, ET me retire de ce qu'il voit : un blocage qui ne
--- couperait que dans un sens laisse l'autre continuer de lire, de
--- répondre et de recommencer. Les lectures interrogent donc cette table
--- dans les deux sens (`OR`), et jamais dans un seul.
+-- IT IS DECLARED ON ONE SIDE AND ACTS ON BOTH. Blocking somebody takes
+-- them out of what I see, AND takes me out of what they see: a block
+-- that cut only one way leaves the other free to keep reading, replying
+-- and starting again. The reads therefore question this table both ways
+-- (`OR`), and never one way only.
 --
--- Ce qu'il ne fait PAS : cacher une collection publique à qui en connaît
--- l'adresse. Un blocage n'est pas un mur, c'est un silence — prétendre
--- le contraire donnerait une fausse sécurité.
-CREATE TABLE IF NOT EXISTS blocage (
-  bloqueur_id   uuid NOT NULL REFERENCES personne(id) ON DELETE CASCADE,
-  bloque_id     uuid NOT NULL REFERENCES personne(id) ON DELETE CASCADE,
-  cree_le       timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY (bloqueur_id, bloque_id),
-  CHECK (bloqueur_id <> bloque_id)
+-- What it does NOT do: hide a public collection from whoever knows its
+-- address. A block is not a wall, it is a silence — pretending otherwise
+-- would give a false sense of safety.
+CREATE TABLE IF NOT EXISTS block (
+  blocker_id    uuid NOT NULL REFERENCES person(id) ON DELETE CASCADE,
+  blocked_id    uuid NOT NULL REFERENCES person(id) ON DELETE CASCADE,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (blocker_id, blocked_id),
+  CHECK (blocker_id <> blocked_id)
 );
 
-CREATE INDEX IF NOT EXISTS blocage_bloque ON blocage(bloque_id);
+CREATE INDEX IF NOT EXISTS block_blocked ON block(blocked_id);
 
 -- ------------------------------------------------------------
--- LE SIGNALEMENT
+-- THE REPORT
 -- ------------------------------------------------------------
--- Vide tant que rien n'est public, et posé quand même : une table de
--- signalements qu'on ajoute après coup arrive toujours le jour où l'on
--- en a besoin tout de suite.
-CREATE TABLE IF NOT EXISTS signalement (
+-- Empty as long as nothing is public, and laid down all the same: a
+-- reports table added after the fact always arrives on the day one needs
+-- it immediately.
+CREATE TABLE IF NOT EXISTS report (
   id            uuid PRIMARY KEY,
-  auteur_id     uuid REFERENCES personne(id) ON DELETE SET NULL,
-  cible_type    text NOT NULL,
-  cible_id      text NOT NULL,
-  motif         text NOT NULL,
-  cree_le       timestamptz NOT NULL DEFAULT now(),
-  traite_le     timestamptz
+  author_id     uuid REFERENCES person(id) ON DELETE SET NULL,
+  target_type   text NOT NULL,
+  target_id     text NOT NULL,
+  reason        text NOT NULL,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  handled_at    timestamptz
 );
 
--- LE SIGNALÉ EST UNE COLONNE, PAS UNE DÉDUCTION. `cible_id` désigne une
--- fiche ; retrouver son propriétaire demanderait de la relire, et une
--- fiche effacée entre-temps emporterait avec elle la seule chose qui
--- rendait le signalement exploitable. On note donc qui est visé au
--- moment où l'on signale.
-ALTER TABLE IF EXISTS signalement
-  ADD COLUMN IF NOT EXISTS vise_id uuid REFERENCES personne(id) ON DELETE CASCADE;
+-- THE ONE REPORTED ABOUT IS A COLUMN, NOT A DEDUCTION. `target_id` names
+-- a card; finding its owner would mean reading it again, and a card
+-- erased in the meantime would carry off with it the only thing that
+-- made the report usable. So we write down who is aimed at, at the
+-- moment of reporting.
+ALTER TABLE IF EXISTS report
+  ADD COLUMN IF NOT EXISTS about_id uuid REFERENCES person(id) ON DELETE CASCADE;
 
--- Signaler deux fois la même chose est le même geste : la seconde fois
--- ne doit pas gonfler une file de modération qu'un humain devra lire.
-CREATE UNIQUE INDEX IF NOT EXISTS signalement_unique
-  ON signalement(auteur_id, cible_type, cible_id)
-  WHERE auteur_id IS NOT NULL;
+-- Reporting the same thing twice is the same gesture: the second time
+-- must not swell a moderation queue a human will have to read.
+CREATE UNIQUE INDEX IF NOT EXISTS report_unique
+  ON report(author_id, target_type, target_id)
+  WHERE author_id IS NOT NULL;
 
-CREATE INDEX IF NOT EXISTS signalement_a_traiter ON signalement(cree_le) WHERE traite_le IS NULL;
+CREATE INDEX IF NOT EXISTS report_to_handle ON report(created_at) WHERE handled_at IS NULL;
 
 -- ------------------------------------------------------------
--- CE QU'ON DIT D'UNE ŒUVRE
+-- WHAT IS SAID ABOUT A WORK
 -- ------------------------------------------------------------
--- IL N'Y A PAS DE TABLE D'AVIS, et c'est la décision de toute cette
--- étape. Une critique existe déjà : elle est dans la fiche de son
--- auteur, `donnees->>'review'`, et elle s'y synchronise depuis la phase
--- 4. La recopier ailleurs pour la « publier » créerait deux vérités qui
--- divergeraient au premier oubli — une critique corrigée chez soi et
--- restée fausse en public est exactement le défaut qu'on ne veut pas.
+-- THERE IS NO REVIEWS TABLE, and that is the decision of this whole
+-- stage. A review already exists: it is in its author's card,
+-- `data->>'review'`, and it has synchronised there since phase 4.
+-- Copying it elsewhere in order to "publish" it would create two truths
+-- that would diverge at the first oversight — a review corrected at home
+-- and left wrong in public is exactly the fault we do not want.
 --
--- Publier n'est donc pas un geste de plus : c'est la conséquence du
--- partage déjà choisi. Ce qui manquait n'était pas un endroit où
--- écrire, mais un index pour lire à l'ENVERS — non plus « les films de
--- cette personne » mais « les gens qui ont vu ce film ».
-CREATE INDEX IF NOT EXISTS fiche_oeuvre
-  ON fiche(tmdb_id) WHERE tmdb_id IS NOT NULL AND NOT cachee AND NOT supprimee;
+-- Publishing is therefore not one more gesture: it is the consequence of
+-- the sharing already chosen. What was missing was not somewhere to
+-- write, but an index to read BACKWARDS — no longer "this person's
+-- films" but "the people who have seen this film".
+CREATE INDEX IF NOT EXISTS card_work
+  ON card(tmdb_id) WHERE tmdb_id IS NOT NULL AND NOT hidden AND NOT deleted;
 
 -- ------------------------------------------------------------
--- LES LISTES
+-- THE LISTS
 -- ------------------------------------------------------------
--- Une liste ne contient PAS des fiches : elle contient des œuvres.
--- La différence décide de tout. Une liste de fiches serait une liste
--- des exemplaires de quelqu'un — elle ne voudrait plus rien dire chez
--- un autre, et se viderait le jour où son auteur efface une fiche.
--- `tmdb_id` est donc la seule clé, comme pour l'écho des œuvres, et le
--- titre n'est gardé qu'en INSTANTANÉ : de quoi afficher la liste à
--- quelqu'un qui n'a ni le film ni la clé TMDB.
-CREATE TABLE IF NOT EXISTS liste (
+-- A list does NOT contain cards: it contains works. The difference
+-- decides everything. A list of cards would be a list of somebody's own
+-- copies — it would mean nothing at somebody else's, and would empty
+-- itself the day its author erased a card. `tmdb_id` is therefore the
+-- only key, as for the echo of works, and the title is kept as a
+-- SNAPSHOT only: enough to show the list to somebody who has neither the
+-- film nor the TMDB key.
+CREATE TABLE IF NOT EXISTS list (
   id            uuid PRIMARY KEY,
-  proprietaire_id uuid NOT NULL REFERENCES personne(id) ON DELETE CASCADE,
-  titre         text NOT NULL CHECK (length(btrim(titre)) BETWEEN 1 AND 120),
-  intention     text NOT NULL DEFAULT '',
-  -- Fermée par défaut, comme tout le reste de ce projet.
-  publique      boolean NOT NULL DEFAULT false,
-  cree_le       timestamptz NOT NULL DEFAULT now(),
-  maj_le        timestamptz NOT NULL DEFAULT now()
+  owner_id      uuid NOT NULL REFERENCES person(id) ON DELETE CASCADE,
+  title         text NOT NULL CHECK (length(btrim(title)) BETWEEN 1 AND 120),
+  intent        text NOT NULL DEFAULT '',
+  -- Closed by default, like everything else in this project.
+  is_public     boolean NOT NULL DEFAULT false,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  updated_at    timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS liste_proprietaire ON liste(proprietaire_id);
+CREATE INDEX IF NOT EXISTS list_owner ON list(owner_id);
 
--- CO-CONSTRUIRE EST UN DROIT D'ÉCRITURE, PAS UNE PROPRIÉTÉ PARTAGÉE.
--- Quelqu'un ajoute et retire des œuvres ; il ne renomme pas la liste,
--- ne la rend pas publique et ne l'efface pas. Sans cette asymétrie, une
--- liste à six mains n'a plus personne pour en répondre.
-CREATE TABLE IF NOT EXISTS liste_membre (
-  liste_id      uuid NOT NULL REFERENCES liste(id) ON DELETE CASCADE,
-  personne_id   uuid NOT NULL REFERENCES personne(id) ON DELETE CASCADE,
-  ajoute_le     timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY (liste_id, personne_id)
+-- CO-BUILDING IS A RIGHT TO WRITE, NOT SHARED OWNERSHIP.
+-- Somebody adds and removes works; they do not rename the list, do not
+-- make it public and do not erase it. Without that asymmetry, a list
+-- built by six hands has nobody left to answer for it.
+CREATE TABLE IF NOT EXISTS list_member (
+  list_id       uuid NOT NULL REFERENCES list(id) ON DELETE CASCADE,
+  person_id     uuid NOT NULL REFERENCES person(id) ON DELETE CASCADE,
+  added_at      timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (list_id, person_id)
 );
 
-CREATE INDEX IF NOT EXISTS liste_membre_personne ON liste_membre(personne_id);
+CREATE INDEX IF NOT EXISTS list_member_person ON list_member(person_id);
 
-CREATE TABLE IF NOT EXISTS liste_item (
-  liste_id      uuid NOT NULL REFERENCES liste(id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS list_item (
+  list_id       uuid NOT NULL REFERENCES list(id) ON DELETE CASCADE,
   tmdb_id       text NOT NULL,
-  titre         text NOT NULL DEFAULT '',
-  annee         text,
-  -- Qui l'a mise là. `SET NULL` et non `CASCADE` : quelqu'un qui s'en va
-  -- ne doit pas emporter la liste que six personnes ont construite.
-  ajoute_par    uuid REFERENCES personne(id) ON DELETE SET NULL,
-  ajoute_le     timestamptz NOT NULL DEFAULT now(),
-  -- La même œuvre deux fois est la même œuvre : la clé le dit, plutôt
-  -- qu'une vérification dans une route qu'on oubliera ailleurs.
-  PRIMARY KEY (liste_id, tmdb_id)
+  title         text NOT NULL DEFAULT '',
+  year          text,
+  -- Who put it there. `SET NULL` and not `CASCADE`: somebody who leaves
+  -- must not carry off the list six people have built.
+  added_by      uuid REFERENCES person(id) ON DELETE SET NULL,
+  added_at      timestamptz NOT NULL DEFAULT now(),
+  -- The same work twice is the same work: the key says so, rather than a
+  -- check in a route we will forget somewhere else.
+  PRIMARY KEY (list_id, tmdb_id)
 );
 
 -- ------------------------------------------------------------
--- LES ÉPREUVES — ce que l'interface appelle des défis
+-- THE CHALLENGES
 -- ------------------------------------------------------------
--- LE MOT `defi` ÉTAIT DÉJÀ PRIS par le hasard des cérémonies WebAuthn,
--- quelques tables plus haut. Deux tables de sens opposés sous un même
--- nom se relisent mal et se confondent une nuit de panne : celle-ci
--- s'appelle donc `epreuve` dans la base, et « défi » à l'écran.
---
--- UNE ÉPREUVE EST UNE LISTE PLUS UNE PÉRIODE, et rien d'autre. Elle ne
--- duplique pas ses œuvres : elle pointe la liste, qui peut continuer de
--- vivre. Un défi dont la liste s'allonge en cours de route est un défi
--- qui s'allonge, et c'est le comportement voulu — ce sont des gens qui
--- se lancent quelque chose, pas un contrat.
-CREATE TABLE IF NOT EXISTS epreuve (
+-- A CHALLENGE IS A LIST PLUS A PERIOD, and nothing else. It does not
+-- duplicate its works: it points at the list, which can go on living. A
+-- challenge whose list grows along the way is a challenge that grows,
+-- and that is the wanted behaviour — these are people setting each other
+-- something, not a contract.
+CREATE TABLE IF NOT EXISTS challenge (
   id            uuid PRIMARY KEY,
-  liste_id      uuid NOT NULL REFERENCES liste(id) ON DELETE CASCADE,
-  cree_par      uuid REFERENCES personne(id) ON DELETE SET NULL,
-  titre         text NOT NULL CHECK (length(btrim(titre)) BETWEEN 1 AND 120),
-  debut         date NOT NULL,
-  fin           date NOT NULL,
-  cree_le       timestamptz NOT NULL DEFAULT now(),
-  -- Une épreuve qui finit avant de commencer n'existe pas. La base le
-  -- refuse, plutôt que la route qui la crée.
-  CHECK (fin >= debut)
+  list_id       uuid NOT NULL REFERENCES list(id) ON DELETE CASCADE,
+  created_by    uuid REFERENCES person(id) ON DELETE SET NULL,
+  title         text NOT NULL CHECK (length(btrim(title)) BETWEEN 1 AND 120),
+  starts_on     date NOT NULL,
+  ends_on       date NOT NULL,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  -- A challenge that ends before it begins does not exist. The database
+  -- refuses it, rather than the route that creates it.
+  CHECK (ends_on >= starts_on)
 );
 
-CREATE INDEX IF NOT EXISTS epreuve_liste ON epreuve(liste_id);
-CREATE INDEX IF NOT EXISTS epreuve_periode ON epreuve(fin);
+CREATE INDEX IF NOT EXISTS challenge_list ON challenge(list_id);
+CREATE INDEX IF NOT EXISTS challenge_period ON challenge(ends_on);
 
--- ON NE PARTICIPE PAS SANS L'AVOIR DIT. Compter automatiquement tous
--- les abonnés d'une liste publique ferait de chaque défi une mesure sur
--- des gens qui n'ont rien demandé — et l'avancement d'un défi se déduit
--- du journal des séances, qui est privé. Y entrer est donc un geste
--- explicite, et en sortir aussi.
-CREATE TABLE IF NOT EXISTS epreuve_participant (
-  epreuve_id    uuid NOT NULL REFERENCES epreuve(id) ON DELETE CASCADE,
-  personne_id   uuid NOT NULL REFERENCES personne(id) ON DELETE CASCADE,
-  rejoint_le    timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY (epreuve_id, personne_id)
+-- ONE DOES NOT TAKE PART WITHOUT HAVING SAID SO. Automatically counting
+-- every follower of a public list would make each challenge a
+-- measurement on people who asked for nothing — and a challenge's
+-- progress is deduced from the screening log, which is private. Entering
+-- is therefore an explicit gesture, and so is leaving.
+CREATE TABLE IF NOT EXISTS challenge_participant (
+  challenge_id  uuid NOT NULL REFERENCES challenge(id) ON DELETE CASCADE,
+  person_id     uuid NOT NULL REFERENCES person(id) ON DELETE CASCADE,
+  joined_at     timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (challenge_id, person_id)
 );
 
-CREATE INDEX IF NOT EXISTS epreuve_participant_personne ON epreuve_participant(personne_id);
+CREATE INDEX IF NOT EXISTS challenge_participant_person ON challenge_participant(person_id);
 
 -- ------------------------------------------------------------
--- LA MESURE D'USAGE
+-- THE USAGE MEASUREMENT
 -- ------------------------------------------------------------
--- CE QU'ELLE NE CONTIENT PAS EST SA DÉFINITION. Pas d'identifiant de
--- personne, pas d'adresse IP, pas de navigateur, pas d'heure : un
--- compteur par JOUR et par GESTE, et rien qui permette de recomposer
--- une journée de quelqu'un. On mesure pour savoir si le serveur tient
--- et ce qui sert, pas pour savoir qui fait quoi.
+-- WHAT IT DOES NOT CONTAIN IS ITS DEFINITION. No person identifier, no
+-- IP address, no browser, no time of day: one counter per DAY and per
+-- GESTURE, and nothing that allows somebody's day to be recomposed. We
+-- measure to know whether the server holds up and what gets used, not to
+-- know who does what.
 --
--- La conséquence est assumée : ces chiffres ne répondront jamais à
--- « combien de personnes actives ». Y répondre demanderait justement ce
--- qu'on refuse de garder.
-CREATE TABLE IF NOT EXISTS mesure (
-  jour          date NOT NULL DEFAULT current_date,
-  geste         text NOT NULL,
+-- The consequence is accepted: these figures will never answer "how many
+-- active people". Answering that would need exactly what we refuse to
+-- keep.
+CREATE TABLE IF NOT EXISTS metric (
+  day           date NOT NULL DEFAULT current_date,
+  gesture       text NOT NULL,
   n             bigint NOT NULL DEFAULT 0,
-  PRIMARY KEY (jour, geste)
+  PRIMARY KEY (day, gesture)
 );
 
 -- ------------------------------------------------------------
--- LES NOTIFICATIONS POUSSÉES
+-- THE PUSH NOTIFICATIONS
 -- ------------------------------------------------------------
--- Un abonnement push appartient à un APPAREIL, pas à une personne :
--- même compte sur un téléphone et un ordinateur fait deux lignes, et
--- fermer l'un ne doit pas faire taire l'autre.
+-- A push subscription belongs to a DEVICE, not to a person: the same
+-- account on a phone and on a computer makes two rows, and closing one
+-- must not silence the other.
 --
--- `secret` et `p256dh` sont les clés que le navigateur donne pour
--- chiffrer le message — c'est LUI qui les fabrique, et le serveur ne
--- peut rien en faire d'autre que pousser vers ce point-là.
-CREATE TABLE IF NOT EXISTS pousse (
-  point         text PRIMARY KEY,           -- l'endpoint du service de push
-  personne_id   uuid NOT NULL REFERENCES personne(id) ON DELETE CASCADE,
+-- `secret` and `p256dh` are the keys the browser gives so the message can
+-- be encrypted — IT makes them, and the server can do nothing with them
+-- but push towards that one point.
+CREATE TABLE IF NOT EXISTS push_subscription (
+  endpoint      text PRIMARY KEY,           -- the push service's endpoint
+  person_id     uuid NOT NULL REFERENCES person(id) ON DELETE CASCADE,
   p256dh        text NOT NULL,
   secret        text NOT NULL,
-  cree_le       timestamptz NOT NULL DEFAULT now(),
-  -- Un envoi refusé par le service de push (410) signifie que
-  -- l'abonnement est mort : on l'efface plutôt que de réessayer tous les
-  -- jours jusqu'à la fin des temps.
-  vu_le         timestamptz
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  -- A send refused by the push service (410) means the subscription is
+  -- dead: we erase it rather than retry every day until the end of time.
+  seen_at       timestamptz
 );
 
-CREATE INDEX IF NOT EXISTS pousse_personne ON pousse(personne_id);
+CREATE INDEX IF NOT EXISTS push_subscription_person ON push_subscription(person_id);
 
--- CE QUI A DÉJÀ ÉTÉ DIT NE SE REDIT PAS. Sans cette table, un balayage
--- qui tourne deux fois — un redémarrage, un serveur relancé — envoie
--- deux fois le même rappel. Une notification en double est la façon la
--- plus rapide de faire couper les notifications.
-CREATE TABLE IF NOT EXISTS rappel_envoye (
-  personne_id   uuid NOT NULL REFERENCES personne(id) ON DELETE CASCADE,
-  sujet         text NOT NULL,              -- « epreuve:<id>:fin », par exemple
-  cree_le       timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY (personne_id, sujet)
+-- WHAT HAS ALREADY BEEN SAID IS NOT SAID AGAIN. Without this table, a
+-- sweep that runs twice — a restart, a server brought back up — sends the
+-- same reminder twice. A duplicate notification is the fastest way to
+-- get notifications switched off.
+CREATE TABLE IF NOT EXISTS reminder_sent (
+  person_id     uuid NOT NULL REFERENCES person(id) ON DELETE CASCADE,
+  subject       text NOT NULL,              -- "challenge:<id>:end", for instance
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (person_id, subject)
 );

@@ -8,25 +8,25 @@ import type { FastifyInstance } from "fastify";
    SUIVRE QUELQU'UN, ET LIRE SON FIL
 
    Ce qui se teste ici n'est pas « est-ce que ça marche » — c'est ce que
-   la communauté laisse filtrer. Un abonnement est le premier endroit où
-   les données de deux personnes se croisent, et où une erreur ne se
-   voit pas depuis son propre écran.
+   la communauté laisse filtrer. Un follow est at premier endroit où
+   les données de two people se croisent, et où one error ne se
+   voit pas since son propre écran.
    ============================================================ */
 
 let db: Db;
 let app: FastifyInstance;
 
-async function compte(pseudo: string) {
-  const personne = await store.createPerson(db, pseudo);
-  const secret = await store.openSession(db, personne.id);
-  return { personne, cookie: `session=${secret}` };
+async function count(pseudo: string) {
+  const person = await store.createPerson(db, pseudo);
+  const secret = await store.openSession(db, person.id);
+  return { person, cookie: `session=${secret}` };
 }
 
-const pousser = (cookie: string, fiches: Record<string, unknown>[]) =>
-  app.inject({ method: "PUT", url: "/collection", headers: { cookie }, payload: { fiches } });
+const push = (cookie: string, cards: Record<string, unknown>[]) =>
+  app.inject({ method: "PUT", url: "/collection", headers: { cookie }, payload: { cards } });
 
-const ouvrir = (cookie: string, partage = "publique") =>
-  app.inject({ method: "PUT", url: "/partage", headers: { cookie }, payload: { partage } });
+const openUp = (cookie: string, sharing = "publique") =>
+  app.inject({ method: "PUT", url: "/sharing", headers: { cookie }, payload: { sharing } });
 
 beforeEach(async () => {
   db = await testDb();
@@ -40,143 +40,143 @@ afterEach(async () => {
 
 describe("trouver quelqu'un", () => {
   it("on ne trouve que ceux qui ont choisi d'être trouvables", async () => {
-    const fermee = await compte("discrete");
-    const ouverte = await compte("varda");
-    await ouvrir(ouverte.cookie);
+    const fermee = await count("discrete");
+    const open = await count("varda");
+    await openUp(open.cookie);
 
-    expect((await app.inject({ method: "GET", url: "/profils/varda" })).statusCode).toBe(200);
-    /* Un compte privé répond comme un compte qui n'existe pas : sans
+    expect((await app.inject({ method: "GET", url: "/profiles/varda" })).statusCode).toBe(200);
+    /* Un count privé répond comme un count qui n'existe pas : sans
        cela, essayer des pseudonymes devient un annuaire. */
-    const privateKey = await app.inject({ method: "GET", url: "/profils/discrete" });
-    const inconnue = await app.inject({ method: "GET", url: "/profils/jamais-vue" });
+    const privateKey = await app.inject({ method: "GET", url: "/profiles/discrete" });
+    const inconnue = await app.inject({ method: "GET", url: "/profiles/jamais-vue" });
     expect(privateKey.statusCode).toBe(inconnue.statusCode);
     expect(privateKey.json()).toEqual(inconnue.json());
     expect(fermee).toBeTruthy();
   });
 
-  it("un partage par LIEN n'ouvre pas de profil", async () => {
+  it("un sharing by LIEN n'ouvre pas de profil", async () => {
     /* Un lien se donne à quelqu'un ; il ne rend pas trouvable. */
-    const p = await compte("varda");
-    await ouvrir(p.cookie, "lien");
-    expect((await app.inject({ method: "GET", url: "/profils/varda" })).statusCode).toBe(404);
+    const p = await count("varda");
+    await openUp(p.cookie, "lien");
+    expect((await app.inject({ method: "GET", url: "/profiles/varda" })).statusCode).toBe(404);
   });
 
-  it("le profil dit ce qu'il montre, et rien de la personne", async () => {
-    const p = await compte("varda");
-    await pousser(p.cookie, [
-      { id: "f1", majLe: 1, donnees: { title: "Cléo" } },
-      { id: "f2", majLe: 1, donnees: { title: "Le Bonheur" } },
+  it("at profil dit ce qu'il montre, et rien de la person", async () => {
+    const p = await count("varda");
+    await push(p.cookie, [
+      { id: "f1", updatedAt: 1, data: { title: "Cléo" } },
+      { id: "f2", updatedAt: 1, data: { title: "Le Bonheur" } },
     ]);
-    await ouvrir(p.cookie);
+    await openUp(p.cookie);
 
-    const r = await app.inject({ method: "GET", url: "/profils/varda" });
+    const r = await app.inject({ method: "GET", url: "/profiles/varda" });
     expect(r.json()).toMatchObject({ pseudo: "varda", films: 2 });
-    expect(Object.keys(r.json())).not.toContain("courriel");
+    expect(Object.keys(r.json())).not.toContain("email");
     expect(Object.keys(r.json())).not.toContain("id");
   });
 });
 
 describe("suivre", () => {
-  it("est un geste qu'on fait seul, et qu'on refait sans dommage", async () => {
-    const moi = await compte("moi");
-    const elle = await compte("varda");
-    await ouvrir(elle.cookie);
+  it("est un gesture qu'on done seul, et qu'on refait sans dommage", async () => {
+    const me = await count("mine");
+    const her = await count("varda");
+    await openUp(her.cookie);
 
     const un = await app.inject({
       method: "PUT",
-      url: "/abonnements/varda",
-      headers: { cookie: moi.cookie },
+      url: "/follows/varda",
+      headers: { cookie: me.cookie },
     });
-    const deux = await app.inject({
+    const two = await app.inject({
       method: "PUT",
-      url: "/abonnements/varda",
-      headers: { cookie: moi.cookie },
+      url: "/follows/varda",
+      headers: { cookie: me.cookie },
     });
     expect(un.statusCode).toBe(200);
-    expect(deux.statusCode).toBe(200);
+    expect(two.statusCode).toBe(200);
 
-    const liste = await app.inject({
+    const list = await app.inject({
       method: "GET",
-      url: "/abonnements",
-      headers: { cookie: moi.cookie },
+      url: "/follows",
+      headers: { cookie: me.cookie },
     });
-    expect(liste.json().subscriptions.map((a: { pseudo: string }) => a.pseudo)).toEqual(["varda"]);
+    expect(list.json().subscriptions.map((a: { pseudo: string }) => a.pseudo)).toEqual(["varda"]);
   });
 
-  it("on ne s'abonne pas à un silence", async () => {
-    const moi = await compte("moi");
-    await compte("discrete");
+  it("on ne s'subscribed pas à un silence", async () => {
+    const me = await count("mine");
+    await count("discrete");
     const r = await app.inject({
       method: "PUT",
-      url: "/abonnements/discrete",
-      headers: { cookie: moi.cookie },
+      url: "/follows/discrete",
+      headers: { cookie: me.cookie },
     });
     expect(r.statusCode).toBe(404);
   });
 
   it("on ne se suit pas soi-même", async () => {
     /* Sinon son propre fil se remplit de ce qu'on vient d'écrire. */
-    const moi = await compte("moi");
-    await ouvrir(moi.cookie);
+    const me = await count("mine");
+    await openUp(me.cookie);
     const r = await app.inject({
       method: "PUT",
-      url: "/abonnements/moi",
-      headers: { cookie: moi.cookie },
+      url: "/follows/mine",
+      headers: { cookie: me.cookie },
     });
     expect(r.statusCode).toBe(400);
   });
 
-  it("se désabonner reste possible quand l'autre s'est refermé", async () => {
-    /* Passer par le profil public l'aurait rendu impossible — on serait
+  it("se désabonner left possible when l'other s'est refermé", async () => {
+    /* Passer by at profil public l'aurait rendu impossible — on serait
        abonné à vie à quelqu'un devenu invisible. */
-    const moi = await compte("moi");
-    const elle = await compte("varda");
-    await ouvrir(elle.cookie);
-    await app.inject({ method: "PUT", url: "/abonnements/varda", headers: { cookie: moi.cookie } });
-    await ouvrir(elle.cookie, "privee");
+    const me = await count("mine");
+    const her = await count("varda");
+    await openUp(her.cookie);
+    await app.inject({ method: "PUT", url: "/follows/varda", headers: { cookie: me.cookie } });
+    await openUp(her.cookie, "privee");
 
     const r = await app.inject({
       method: "DELETE",
-      url: "/abonnements/varda",
-      headers: { cookie: moi.cookie },
+      url: "/follows/varda",
+      headers: { cookie: me.cookie },
     });
     expect(r.statusCode).toBe(200);
-    const liste = await app.inject({
+    const list = await app.inject({
       method: "GET",
-      url: "/abonnements",
-      headers: { cookie: moi.cookie },
+      url: "/follows",
+      headers: { cookie: me.cookie },
     });
-    expect(liste.json().subscriptions).toEqual([]);
+    expect(list.json().subscriptions).toEqual([]);
   });
 });
 
-describe("le fil", () => {
+describe("at fil", () => {
   it("ne montre que ce que les gens suivis montrent", async () => {
-    const moi = await compte("moi");
-    const suivie = await compte("varda");
-    const autre = await compte("inconnue");
-    await ouvrir(suivie.cookie);
-    await ouvrir(autre.cookie);
+    const me = await count("mine");
+    const suivie = await count("varda");
+    const other = await count("inconnue");
+    await openUp(suivie.cookie);
+    await openUp(other.cookie);
 
-    await pousser(suivie.cookie, [{ id: "f1", majLe: 1, donnees: { title: "Cléo" } }]);
-    await pousser(autre.cookie, [{ id: "f9", majLe: 1, donnees: { title: "Jamais vu" } }]);
-    await app.inject({ method: "PUT", url: "/abonnements/varda", headers: { cookie: moi.cookie } });
+    await push(suivie.cookie, [{ id: "f1", updatedAt: 1, data: { title: "Cléo" } }]);
+    await push(other.cookie, [{ id: "f9", updatedAt: 1, data: { title: "Jamais vu" } }]);
+    await app.inject({ method: "PUT", url: "/follows/varda", headers: { cookie: me.cookie } });
 
-    const r = await app.inject({ method: "GET", url: "/fil", headers: { cookie: moi.cookie } });
-    expect(r.json().nouvelles.map((n: { film: { title: string } }) => n.film.title)).toEqual([
+    const r = await app.inject({ method: "GET", url: "/feed", headers: { cookie: me.cookie } });
+    expect(r.json().news.map((n: { film: { title: string } }) => n.film.title)).toEqual([
       "Cléo",
     ]);
   });
 
-  it("n'emporte jamais les notes ni le journal", async () => {
-    const moi = await compte("moi");
-    const elle = await compte("varda");
-    await ouvrir(elle.cookie);
-    await pousser(elle.cookie, [
+  it("n'emporte jamais les notes ni at journal", async () => {
+    const me = await count("mine");
+    const her = await count("varda");
+    await openUp(her.cookie);
+    await push(her.cookie, [
       {
         id: "f1",
-        majLe: 1,
-        donnees: {
+        updatedAt: 1,
+        data: {
           title: "Cléo",
           review: "la scène du chapeau",
           notes: "SECRET",
@@ -185,78 +185,78 @@ describe("le fil", () => {
         },
       },
     ]);
-    await app.inject({ method: "PUT", url: "/abonnements/varda", headers: { cookie: moi.cookie } });
+    await app.inject({ method: "PUT", url: "/follows/varda", headers: { cookie: me.cookie } });
 
     const film = (
-      await app.inject({ method: "GET", url: "/fil", headers: { cookie: moi.cookie } })
-    ).json().nouvelles[0].film;
+      await app.inject({ method: "GET", url: "/feed", headers: { cookie: me.cookie } })
+    ).json().news[0].film;
     expect(film.review).toBe("la scène du chapeau");
     expect("notes" in film).toBe(false);
     expect("watches" in film).toBe(false);
     expect("watchedAt" in film).toBe(false);
   });
 
-  it("se tait quand la personne suivie se referme", async () => {
-    const moi = await compte("moi");
-    const elle = await compte("varda");
-    await ouvrir(elle.cookie);
-    await pousser(elle.cookie, [{ id: "f1", majLe: 1, donnees: { title: "Cléo" } }]);
-    await app.inject({ method: "PUT", url: "/abonnements/varda", headers: { cookie: moi.cookie } });
+  it("se tait when la person suivie se referme", async () => {
+    const me = await count("mine");
+    const her = await count("varda");
+    await openUp(her.cookie);
+    await push(her.cookie, [{ id: "f1", updatedAt: 1, data: { title: "Cléo" } }]);
+    await app.inject({ method: "PUT", url: "/follows/varda", headers: { cookie: me.cookie } });
 
-    await ouvrir(elle.cookie, "privee");
-    const r = await app.inject({ method: "GET", url: "/fil", headers: { cookie: moi.cookie } });
-    /* L'abonnement reste : c'est le fil qui se tait, et il reparlera si
-       elle rouvre. */
-    expect(r.json().nouvelles).toEqual([]);
+    await openUp(her.cookie, "privee");
+    const r = await app.inject({ method: "GET", url: "/feed", headers: { cookie: me.cookie } });
+    /* L'follow left : c'est at fil qui se tait, et il reparlera si
+       her rouvre. */
+    expect(r.json().news).toEqual([]);
   });
 
-  it("une fiche écartée n'apparaît pas non plus", async () => {
-    const moi = await compte("moi");
-    const elle = await compte("varda");
-    await ouvrir(elle.cookie);
-    await pousser(elle.cookie, [
-      { id: "montrable", majLe: 1, donnees: { title: "Playtime" } },
-      { id: "honteuse", majLe: 1, donnees: { title: "coupable" } },
+  it("one card écartée n'apparaît pas non plus", async () => {
+    const me = await count("mine");
+    const her = await count("varda");
+    await openUp(her.cookie);
+    await push(her.cookie, [
+      { id: "montrable", updatedAt: 1, data: { title: "Playtime" } },
+      { id: "honteuse", updatedAt: 1, data: { title: "coupable" } },
     ]);
     await app.inject({
       method: "PUT",
-      url: "/fiche/honteuse/cachee",
-      headers: { cookie: elle.cookie },
-      payload: { cachee: true },
+      url: "/cards/honteuse/hidden",
+      headers: { cookie: her.cookie },
+      payload: { hidden: true },
     });
-    await app.inject({ method: "PUT", url: "/abonnements/varda", headers: { cookie: moi.cookie } });
+    await app.inject({ method: "PUT", url: "/follows/varda", headers: { cookie: me.cookie } });
 
     const titres = (
-      await app.inject({ method: "GET", url: "/fil", headers: { cookie: moi.cookie } })
+      await app.inject({ method: "GET", url: "/feed", headers: { cookie: me.cookie } })
     )
       .json()
-      .nouvelles.map((n: { film: { title: string } }) => n.film.title);
+      .news.map((n: { film: { title: string } }) => n.film.title);
     expect(titres).toEqual(["Playtime"]);
   });
 
-  it("se lit page par page, du plus récent au plus ancien", async () => {
-    const moi = await compte("moi");
-    const elle = await compte("varda");
-    await ouvrir(elle.cookie);
-    await pousser(elle.cookie, [{ id: "a", majLe: 1, donnees: { title: "premier" } }]);
-    await pousser(elle.cookie, [{ id: "b", majLe: 1, donnees: { title: "second" } }]);
-    await app.inject({ method: "PUT", url: "/abonnements/varda", headers: { cookie: moi.cookie } });
+  it("se lit page by page, du plus récent au plus ancien", async () => {
+    const me = await count("mine");
+    const her = await count("varda");
+    await openUp(her.cookie);
+    await push(her.cookie, [{ id: "a", updatedAt: 1, data: { title: "premier" } }]);
+    await push(her.cookie, [{ id: "b", updatedAt: 1, data: { title: "second" } }]);
+    await app.inject({ method: "PUT", url: "/follows/varda", headers: { cookie: me.cookie } });
 
-    const p1 = await app.inject({ method: "GET", url: "/fil", headers: { cookie: moi.cookie } });
-    expect(p1.json().nouvelles.map((n: { film: { title: string } }) => n.film.title)).toEqual([
+    const p1 = await app.inject({ method: "GET", url: "/feed", headers: { cookie: me.cookie } });
+    expect(p1.json().news.map((n: { film: { title: string } }) => n.film.title)).toEqual([
       "second",
       "premier",
     ]);
 
     const suite = await app.inject({
       method: "GET",
-      url: `/fil?avant=${p1.json().nouvelles[0].id ? p1.json().jusqua : 0}`,
-      headers: { cookie: moi.cookie },
+      url: `/feed?before=${p1.json().news[0].id ? p1.json().upTo : 0}`,
+      headers: { cookie: me.cookie },
     });
-    expect(suite.json().nouvelles).toEqual([]);
+    expect(suite.json().news).toEqual([]);
   });
 
-  it("il faut un compte pour avoir un fil", async () => {
-    expect((await app.inject({ method: "GET", url: "/fil" })).statusCode).toBe(401);
+  it("il faut un count pour avoir un fil", async () => {
+    expect((await app.inject({ method: "GET", url: "/feed" })).statusCode).toBe(401);
   });
 });

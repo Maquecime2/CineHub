@@ -1,11 +1,11 @@
 /* ============================================================
-   LE DÉPÔT — les seules questions que le serveur pose à la base
+   THE STORE — the only questions the server asks the database
    ============================================================
 
-   Toutes les requêtes vivent ici, et nulle part ailleurs. Une route qui
-   écrirait son SQL dans son gestionnaire ferait perdre la seule chose
-   qu'on gagne à les rassembler : pouvoir relire, en une page, tout ce
-   que le serveur sait faire des données de quelqu'un.
+   Every query lives here, and nowhere else. A route that wrote its SQL
+   inside its handler would lose the one thing gathering them buys:
+   being able to reread, on one page, everything the server knows how to
+   do with somebody's data.
    ============================================================ */
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { Db } from "./db.ts";
@@ -14,27 +14,27 @@ import { one } from "./db.ts";
 export interface Person {
   id: string;
   pseudo: string;
-  courriel: string | null;
-  partage?: string;
-  jeton?: string | null;
+  email: string | null;
+  sharing?: string;
+  token?: string | null;
 }
 
 export interface AccessKey {
   id: string;
-  personne_id: string;
-  cle_publique: Uint8Array;
-  compteur: string | number;
+  person_id: string;
+  public_key: Uint8Array;
+  counter: string | number;
   transports: string[];
 }
 
 /* ------------------------------------------------------------
-   LES PERSONNES
+   THE PEOPLE
    ------------------------------------------------------------ */
 
 export async function findByPseudo(db: Db, pseudo: string): Promise<Person | null> {
   return one<Person>(
     db,
-    "SELECT id, pseudo, courriel, partage, jeton FROM personne WHERE pseudo = $1",
+    "SELECT id, pseudo, email, sharing, token FROM person WHERE pseudo = $1",
     [pseudo]
   );
 }
@@ -42,7 +42,7 @@ export async function findByPseudo(db: Db, pseudo: string): Promise<Person | nul
 export async function findById(db: Db, id: string): Promise<Person | null> {
   return one<Person>(
     db,
-    "SELECT id, pseudo, courriel, partage, jeton FROM personne WHERE id = $1",
+    "SELECT id, pseudo, email, sharing, token FROM person WHERE id = $1",
     [id]
   );
 }
@@ -50,79 +50,79 @@ export async function findById(db: Db, id: string): Promise<Person | null> {
 export async function createPerson(db: Db, pseudo: string): Promise<Person> {
   const p = await one<Person>(
     db,
-    "INSERT INTO personne (id, pseudo) VALUES ($1, $2) RETURNING id, pseudo, courriel",
+    "INSERT INTO person (id, pseudo) VALUES ($1, $2) RETURNING id, pseudo, email",
     [randomUUID(), pseudo]
   );
-  if (!p) throw new Error("personne non créée");
+  if (!p) throw new Error("person non créée");
   return p;
 }
 
 /** The right to erasure, in one line: the schema carries off the rest. */
 export async function deletePerson(db: Db, id: string): Promise<void> {
-  await db.query("DELETE FROM personne WHERE id = $1", [id]);
+  await db.query("DELETE FROM person WHERE id = $1", [id]);
 }
 
 /* ------------------------------------------------------------
-   LES CLÉS D'ACCÈS
+   THE PASSKEYS
    ------------------------------------------------------------ */
 
-export async function keysOf(db: Db, personneId: string): Promise<AccessKey[]> {
+export async function keysOf(db: Db, personId: string): Promise<AccessKey[]> {
   return db.query<AccessKey>(
-    "SELECT id, personne_id, cle_publique, compteur, transports FROM cle_acces WHERE personne_id = $1",
-    [personneId]
+    "SELECT id, person_id, public_key, counter, transports FROM access_key WHERE person_id = $1",
+    [personId]
   );
 }
 
 export async function keyById(db: Db, id: string): Promise<AccessKey | null> {
   return one<AccessKey>(
     db,
-    "SELECT id, personne_id, cle_publique, compteur, transports FROM cle_acces WHERE id = $1",
+    "SELECT id, person_id, public_key, counter, transports FROM access_key WHERE id = $1",
     [id]
   );
 }
 
 export async function addKey(
   db: Db,
-  cle: {
+  key: {
     id: string;
-    personneId: string;
+    personId: string;
     publicKey: Uint8Array;
-    compteur: number;
+    counter: number;
     transports: string[];
   }
 ): Promise<void> {
   await db.query(
-    `INSERT INTO cle_acces (id, personne_id, cle_publique, compteur, transports)
+    `INSERT INTO access_key (id, person_id, public_key, counter, transports)
      VALUES ($1, $2, $3, $4, $5)`,
-    [cle.id, cle.personneId, Buffer.from(cle.publicKey), cle.compteur, cle.transports]
+    [key.id, key.personId, Buffer.from(key.publicKey), key.counter, key.transports]
   );
 }
 
-export async function recordUsage(db: Db, id: string, compteur: number): Promise<void> {
-  await db.query("UPDATE cle_acces SET compteur = $2, vue_le = now() WHERE id = $1", [
+export async function recordUsage(db: Db, id: string, counter: number): Promise<void> {
+  await db.query("UPDATE access_key SET counter = $2, seen_at = now() WHERE id = $1", [
     id,
-    compteur,
+    counter,
   ]);
 }
 
 /* ------------------------------------------------------------
    LES DÉFIS
    ------------------------------------------------------------
-   Le hasard d'une cérémonie WebAuthn. Il vit quelques minutes et se
-   consomme en UNE fois : le relire après usage doit échouer, sinon une
+   Le hasard d'one cérémonie WebAuthn. Il vit quelques minutes et se
+   consomme en UNE fois : at relire après usage doit échouer, sinon one
    signature interceptée pourrait resservir. */
 
-const VIE_DEFI_MS = 5 * 60 * 1000;
+const CHALLENGE_LIFE_MS = 5 * 60 * 1000;
 
 export async function setChallenge(
   db: Db,
-  valeur: string,
-  quoi: { personneId?: string; pseudo?: string } = {}
+  value: string,
+  what: { personId?: string; pseudo?: string } = {}
 ): Promise<string> {
   const id = randomUUID();
   await db.query(
-    "INSERT INTO defi (id, valeur, personne_id, pseudo, expire_le) VALUES ($1, $2, $3, $4, $5)",
-    [id, valeur, quoi.personneId ?? null, quoi.pseudo ?? null, new Date(Date.now() + VIE_DEFI_MS)]
+    "INSERT INTO webauthn_challenge (id, value, person_id, pseudo, expires_at) VALUES ($1, $2, $3, $4, $5)",
+    [id, value, what.personId ?? null, what.pseudo ?? null, new Date(Date.now() + CHALLENGE_LIFE_MS)]
   );
   return id;
 }
@@ -130,19 +130,19 @@ export async function setChallenge(
 export async function consumeChallenge(
   db: Db,
   id: string
-): Promise<{ valeur: string; personne_id: string | null; pseudo: string | null } | null> {
+): Promise<{ value: string; person_id: string | null; pseudo: string | null } | null> {
   /* Read and delete in the SAME statement: between a separate SELECT and
      DELETE, two simultaneous requests can consume the same challenge.
      `DELETE … RETURNING` leaves no such gap. */
   return one(
     db,
-    "DELETE FROM defi WHERE id = $1 AND expire_le > now() RETURNING valeur, personne_id, pseudo",
+    "DELETE FROM webauthn_challenge WHERE id = $1 AND expires_at > now() RETURNING value, person_id, pseudo",
     [id]
   );
 }
 
 export async function sweepChallenges(db: Db): Promise<void> {
-  await db.query("DELETE FROM defi WHERE expire_le <= now()");
+  await db.query("DELETE FROM webauthn_challenge WHERE expires_at <= now()");
 }
 
 /* ------------------------------------------------------------
@@ -153,17 +153,17 @@ const VIE_SESSION_MS = 30 * 24 * 60 * 60 * 1000;
 
 /* LE COOKIE PORTE UN SECRET, LA BASE N'EN GARDE QUE L'EMPREINTE.
    Une fuite de la table des sessions ne donne alors aucune session
-   utilisable : c'est le raisonnement des mots de passe, appliqué à ce
+   utilisable : c'est at raisonnement des mots de passe, appliqué à ce
    qui les remplace. SHA-256 suffit ici et un algorithme lent serait un
-   contresens — le secret fait 256 bits de hasard, il ne se devine pas. */
+   contresens — at secret done 256 bits de hasard, il ne se devine pas. */
 export const fingerprintOf = (secret: string): string =>
   createHash("sha256").update(secret).digest("hex");
 
-export async function openSession(db: Db, personneId: string): Promise<string> {
+export async function openSession(db: Db, personId: string): Promise<string> {
   const secret = randomBytes(32).toString("base64url");
-  await db.query("INSERT INTO session (empreinte, personne_id, expire_le) VALUES ($1, $2, $3)", [
+  await db.query("INSERT INTO session (digest, person_id, expires_at) VALUES ($1, $2, $3)", [
     fingerprintOf(secret),
-    personneId,
+    personId,
     new Date(Date.now() + VIE_SESSION_MS),
   ]);
   return secret;
@@ -172,15 +172,15 @@ export async function openSession(db: Db, personneId: string): Promise<string> {
 export async function personOfSession(db: Db, secret: string): Promise<Person | null> {
   return one<Person>(
     db,
-    `SELECT p.id, p.pseudo, p.courriel, p.partage, p.jeton
-       FROM session s JOIN personne p ON p.id = s.personne_id
-      WHERE s.empreinte = $1 AND s.expire_le > now()`,
+    `SELECT p.id, p.pseudo, p.email, p.sharing, p.token
+       FROM session s JOIN person p ON p.id = s.person_id
+      WHERE s.digest = $1 AND s.expires_at > now()`,
     [fingerprintOf(secret)]
   );
 }
 
 export async function closeSession(db: Db, secret: string): Promise<void> {
-  await db.query("DELETE FROM session WHERE empreinte = $1", [fingerprintOf(secret)]);
+  await db.query("DELETE FROM session WHERE digest = $1", [fingerprintOf(secret)]);
 }
 
 /* ------------------------------------------------------------
@@ -191,10 +191,10 @@ export interface StoredCard {
   id: string;
   seq: string | number;
   tmdb_id: string | null;
-  cachee: boolean;
-  donnees: Record<string, unknown>;
-  maj_le: Date;
-  supprimee: boolean;
+  hidden: boolean;
+  data: Record<string, unknown>;
+  updated_at: Date;
+  deleted: boolean;
 }
 
 /**
@@ -211,157 +211,157 @@ export interface StoredCard {
  */
 export async function cardsSince(
   db: Db,
-  personneId: string,
-  depuis: bigint | number,
-  plafond = 500
+  personId: string,
+  since: bigint | number,
+  cap = 500
 ): Promise<StoredCard[]> {
   return db.query<StoredCard>(
-    `SELECT id, seq, tmdb_id, cachee, donnees, maj_le, supprimee
-       FROM fiche WHERE personne_id = $1 AND seq > $2
+    `SELECT id, seq, tmdb_id, hidden, data, updated_at, deleted
+       FROM card WHERE person_id = $1 AND seq > $2
       ORDER BY seq ASC LIMIT $3`,
-    [personneId, String(depuis), plafond]
+    [personId, String(since), cap]
   );
 }
 
 /**
- * Range une fiche venue d'un appareil.
+ * Files a card come in from a device.
  *
  * LAST WRITER WINS, AND IT IS THE DATABASE THAT DECIDES. The clause
- * `WHERE fiche.maj_le < EXCLUDED.maj_le` refuses a version older than
+ * `WHERE card.updated_at < EXCLUDED.updated_at` refuses a version older than
  * the one already stored: two devices pushing at the same time cannot
  * overtake each other, whatever order they arrive in. Arbitrating on the
  * server by reading and then writing would leave exactly that gap.
  */
 export async function storeCard(
   db: Db,
-  personneId: string,
+  personId: string,
   f: {
     id: string;
     tmdbId?: string | null;
-    cachee?: boolean;
-    donnees: unknown;
-    majLe: Date;
-    supprimee?: boolean;
+    hidden?: boolean;
+    data: unknown;
+    updatedAt: Date;
+    deleted?: boolean;
   }
 ): Promise<boolean> {
   /* `RETURNING` returns a row ONLY if the insert or the update actually
      happened: when the `WHERE` clause rules out a stale version, it
      returns nothing. That is how the caller learns it pushed into the
      void — with no second query, and no gap between the two. */
-  const ecrite = await db.query(
-    /* ON PASSE L'OBJET, JAMAIS SA SÉRIALISATION, et ce n'est pas un
-       détail de style.
+  const written = await db.query(
+    /* WE PASS THE OBJECT, NEVER ITS SERIALISATION, and that is not a
+       matter of style.
 
-       Le pilote de production sérialise LUI-MÊME ce qui va dans une
-       colonne `jsonb`. Lui donner une chaîne déjà sérialisée la fait
-       sérialiser une seconde fois : la fiche est rangée comme une
-       CHAÎNE JSON et non comme un objet, `donnees->>'title'` ne trouve
-       plus rien, et tout ce qui la relit reçoit du texte. La conversion
-       explicite n'y change rien — mesuré sur les deux moteurs.
+       The production driver serialises what goes into a `jsonb` column
+       ITSELF. Handing it an already serialised string makes it
+       serialise a second time: the card is filed as a JSON STRING and
+       not as an object, `data->>'title'` finds nothing any more, and
+       everything that reads it back receives text. An explicit cast
+       changes nothing — measured on both engines.
 
-       Le Postgres des tests, lui, accepte les deux formes sans broncher.
-       Le défaut était donc invisible en test et systématique en vrai :
-       la seule espèce qu'une suite verte ne rattrape jamais. Il a fallu
-       pousser une fiche dans un vrai Postgres pour le voir. */
-    `INSERT INTO fiche (personne_id, id, tmdb_id, cachee, donnees, maj_le, supprimee)
+       The tests' Postgres, for its part, accepts both shapes without
+       flinching. The fault was therefore invisible in the tests and
+       systematic in production: the one species a green suite never
+       catches. It took pushing a card into a real Postgres to see it. */
+    `INSERT INTO card (person_id, id, tmdb_id, hidden, data, updated_at, deleted)
      VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7)
-     ON CONFLICT (personne_id, id) DO UPDATE
+     ON CONFLICT (person_id, id) DO UPDATE
         SET tmdb_id = EXCLUDED.tmdb_id,
-            /* LA COLONNE cachee N'EST PAS RÉÉCRITE PAR UNE POUSSÉE, et
-               c'est la seule ligne de cette clause qui manquait.
+            /* THE hidden COLUMN IS NOT REWRITTEN BY A PUSH, and it was
+               the one line of this clause that was missing.
 
-               « Écarter une fiche du partage » est une décision de
-               PARTAGE, prise sur ce serveur et vivant sur lui seul : le
-               client ne la modélise pas, ne la stocke pas, et ne
-               l'envoie donc jamais. EXCLUDED.cachee valait par
-               conséquent toujours faux — et chaque poussée de la fiche
-               la rendait publique de nouveau, en silence.
+               "Setting a card aside from sharing" is a SHARING
+               decision, taken on this server and living on it alone:
+               the client does not model it, does not store it, and so
+               never sends it. EXCLUDED.hidden was therefore always
+               false — and every push of the card made it public again,
+               in silence.
 
-               Il suffisait d'écrire une note sur une fiche écartée pour
-               la remettre sous les yeux de tout le monde. Personne
-               n'aurait vu passer ça : la fiche ne change pas
-               d'apparence chez soi, seulement chez les autres.
+               Writing one note on a card that had been set aside was
+               enough to put it back in front of everybody. Nobody would
+               have caught that: the card looks no different at home,
+               only at other people's.
 
-               C'est cacherFiche qui écrit cette colonne, et elle seule.
-               La protection est dans le SCHÉMA plutôt que dans la
-               route, comme le veut la maison : une règle écrite dans
-               une route se contourne par la route suivante. */
-            donnees = EXCLUDED.donnees,
-            maj_le = EXCLUDED.maj_le,
-            supprimee = EXCLUDED.supprimee,
-            /* UN RANG NEUF À CHAQUE ÉCRITURE, sans quoi la fiche
-               modifiée garderait sa place dans la file et les autres
-               appareils, déjà passés par là, ne la reverraient jamais. */
-            seq = nextval('fiche_seq')
-      WHERE fiche.maj_le < EXCLUDED.maj_le
+               It is hideCard that writes this column, and it alone. The
+               protection is in the SCHEMA rather than in the route, as
+               the house prefers: a rule written in one route is got
+               round by the next one. */
+            data = EXCLUDED.data,
+            updated_at = EXCLUDED.updated_at,
+            deleted = EXCLUDED.deleted,
+            /* A FRESH RANK ON EVERY WRITE, without which the modified
+               card would keep its place in the queue and the other
+               devices, already past it, would never see it again. */
+            seq = nextval('card_seq')
+      WHERE card.updated_at < EXCLUDED.updated_at
      RETURNING seq`,
     [
-      personneId,
+      personId,
       f.id,
       f.tmdbId ?? null,
-      f.cachee ?? false,
-      f.donnees,
-      f.majLe,
-      f.supprimee ?? false,
+      f.hidden ?? false,
+      f.data,
+      f.updatedAt,
+      f.deleted ?? false,
     ]
   );
-  return ecrite.length > 0;
+  return written.length > 0;
 }
 
-export async function countCards(db: Db, personneId: string): Promise<number> {
+export async function countCards(db: Db, personId: string): Promise<number> {
   const r = await one<{ n: string }>(
     db,
-    "SELECT count(*)::text AS n FROM fiche WHERE personne_id = $1 AND NOT supprimee",
-    [personneId]
+    "SELECT count(*)::text AS n FROM card WHERE person_id = $1 AND NOT deleted",
+    [personId]
   );
   return Number(r?.n ?? 0);
 }
 
 /* ------------------------------------------------------------
-   LES DOCUMENTS — le reste du classeur
+   LES DOCUMENTS — at left du classeur
    ------------------------------------------------------------
-   Mêmes règles que les fiches, à la lettre : rang du serveur pour
-   l'ordre, date du client pour l'arbitrage, et le refus d'une version
+   Mêmes règles que les cards, à la lettre : rang du serveur pour
+   l'ordre, date du client pour l'arbitrage, et at refus d'one version
    périmée écrit dans la requête plutôt que dans la route. */
 
 export interface StoredDoc {
-  cle: string;
+  key: string;
   seq: string | number;
-  contenu: unknown;
-  maj_le: Date;
-  supprime: boolean;
+  content: unknown;
+  updated_at: Date;
+  deleted: boolean;
 }
 
 export async function docsSince(
   db: Db,
-  personneId: string,
-  depuis: bigint | number,
-  plafond = 200
+  personId: string,
+  since: bigint | number,
+  cap = 200
 ): Promise<StoredDoc[]> {
   return db.query<StoredDoc>(
-    `SELECT cle, seq, contenu, maj_le, supprime
-       FROM doc WHERE personne_id = $1 AND seq > $2
+    `SELECT key, seq, content, updated_at, deleted
+       FROM doc WHERE person_id = $1 AND seq > $2
       ORDER BY seq ASC LIMIT $3`,
-    [personneId, String(depuis), plafond]
+    [personId, String(since), cap]
   );
 }
 
 export async function storeDoc(
   db: Db,
-  personneId: string,
-  d: { cle: string; contenu: unknown; majLe: Date; supprime?: boolean }
+  personId: string,
+  d: { key: string; content: unknown; updatedAt: Date; deleted?: boolean }
 ): Promise<boolean> {
   const ecrit = await db.query(
-    `INSERT INTO doc (personne_id, cle, contenu, maj_le, supprime)
+    `INSERT INTO doc (person_id, key, content, updated_at, deleted)
      VALUES ($1, $2, $3, $4, $5)
-     ON CONFLICT (personne_id, cle) DO UPDATE
-        SET contenu = EXCLUDED.contenu,
-            maj_le = EXCLUDED.maj_le,
-            supprime = EXCLUDED.supprime,
+     ON CONFLICT (person_id, key) DO UPDATE
+        SET content = EXCLUDED.content,
+            updated_at = EXCLUDED.updated_at,
+            deleted = EXCLUDED.deleted,
             seq = nextval('doc_seq')
-      WHERE doc.maj_le < EXCLUDED.maj_le
+      WHERE doc.updated_at < EXCLUDED.updated_at
      RETURNING seq`,
-    [personneId, d.cle, d.contenu, d.majLe, d.supprime ?? false]
+    [personId, d.key, d.content, d.updatedAt, d.deleted ?? false]
   );
   return ecrit.length > 0;
 }
@@ -372,38 +372,38 @@ export async function storeDoc(
 
 export async function setSharing(
   db: Db,
-  personneId: string,
-  partage: string,
-  jeton: string | null
+  personId: string,
+  sharing: string,
+  token: string | null
 ): Promise<void> {
-  await db.query("UPDATE personne SET partage = $2, jeton = $3 WHERE id = $1", [
-    personneId,
-    partage,
-    jeton,
+  await db.query("UPDATE person SET sharing = $2, token = $3 WHERE id = $1", [
+    personId,
+    sharing,
+    token,
   ]);
 }
 
 /* CE QUI NE SORT JAMAIS, ÉCARTÉ ICI ET PAS AILLEURS.
 
-   Les notes sont un carnet intime, et le journal des séances un relevé
-   de présence : ni l'un ni l'autre n'a affaire au visiteur. Ils sont
-   retirés dans la REQUÊTE, par soustraction sur le `jsonb`, et non dans
+   Les notes sont un carnet intime, et at journal des séances un relevé
+   de présence : ni l'un ni l'other n'a affaire au visiteur. Ils sont
+   retirés dans la REQUÊTE, by soustraction sur at `jsonb`, et non dans
    la route.
 
-   La différence n'est pas théorique. Une route qui filtre est une route
-   qu'on duplique un jour pour un autre besoin, en oubliant la moitié du
-   filtre ; une soustraction écrite dans la seule requête qui sert le
-   public ne s'oublie pas — il n'y a rien d'autre à appeler. */
-const SANS_LE_PRIVE = `f.donnees - 'notes' - 'watches' - 'watchedAt' AS donnees`;
+   La différence n'est pas théorique. Une route qui filter est one route
+   qu'on duplique un day pour un other besoin, en oubliant la moitié du
+   filter ; one soustraction écrite dans la seule requête qui sert at
+   public ne s'oublie pas — il n'y a rien d'other à appeler. */
+const SANS_LE_PRIVE = `f.data - 'notes' - 'watches' - 'watchedAt' AS data`;
 
 export interface PublicCard {
   id: string;
   tmdb_id: string | null;
-  donnees: Record<string, unknown>;
+  data: Record<string, unknown>;
 }
 
 /**
- * La collection d'une personne, vue du dehors.
+ * Somebody's collection, seen from outside.
  *
  * `null` if they do not share, or if the token does not match. The SAME
  * `null` in both cases: saying "this account exists but does not share"
@@ -412,48 +412,48 @@ export interface PublicCard {
 export async function publicCollectionOf(
   db: Db,
   pseudo: string,
-  jeton: string | null
+  token: string | null
 ): Promise<{ pseudo: string; films: PublicCard[] } | null> {
   const p = await findByPseudo(db, pseudo);
   if (!p) return null;
-  if (p.partage === "publique") {
+  if (p.sharing === "publique") {
     /* nothing to check */
-  } else if (p.partage === "lien") {
-    if (!jeton || !p.jeton || jeton !== p.jeton) return null;
+  } else if (p.sharing === "lien") {
+    if (!token || !p.token || token !== p.token) return null;
   } else {
     return null;
   }
 
   const films = await db.query<PublicCard>(
     `SELECT f.id, f.tmdb_id, ${SANS_LE_PRIVE}
-       FROM fiche f
-      WHERE f.personne_id = $1 AND NOT f.cachee AND NOT f.supprimee
-      ORDER BY f.maj_le DESC`,
+       FROM card f
+      WHERE f.person_id = $1 AND NOT f.hidden AND NOT f.deleted
+      ORDER BY f.updated_at DESC`,
     [p.id]
   );
   return { pseudo: p.pseudo, films };
 }
 
-/** Retirer une fiche du partage, ou l'y remettre. */
+/** Take a card out of the sharing, or put it back in. */
 export async function hideCard(
   db: Db,
-  personneId: string,
-  ficheId: string,
-  cachee: boolean
+  personId: string,
+  cardId: string,
+  hidden: boolean
 ): Promise<boolean> {
   const r = await db.query(
-    `UPDATE fiche SET cachee = $3, seq = nextval('fiche_seq')
-      WHERE personne_id = $1 AND id = $2 RETURNING seq`,
-    [personneId, ficheId, cachee]
+    `UPDATE card SET hidden = $3, seq = nextval('card_seq')
+      WHERE person_id = $1 AND id = $2 RETURNING seq`,
+    [personId, cardId, hidden]
   );
   return r.length > 0;
 }
 
 /** The cards kept out of sharing. Identifiers, nothing more. */
-export async function hiddenCards(db: Db, personneId: string): Promise<string[]> {
+export async function hiddenCards(db: Db, personId: string): Promise<string[]> {
   const r = await db.query<{ id: string }>(
-    "SELECT id FROM fiche WHERE personne_id = $1 AND cachee AND NOT supprimee",
-    [personneId]
+    "SELECT id FROM card WHERE person_id = $1 AND hidden AND NOT deleted",
+    [personId]
   );
   return r.map((l) => l.id);
 }
@@ -467,11 +467,11 @@ export interface Profile {
   /** How many films their collection shows. */
   films: number;
   /** Am I already following them? */
-  suivi?: boolean;
+  followed?: boolean;
 }
 
 /**
- * Le profil de quelqu'un — et il n'existe QUE s'il se montre.
+ * Somebody's profile — and it exists ONLY if they show themselves.
  *
  * So you can only find people who chose to be findable: no directory, no
  * list, and a username guessed at random tells you nothing more than an
@@ -481,71 +481,71 @@ export interface Profile {
 export async function publicProfileOf(
   db: Db,
   pseudo: string,
-  quiDemande?: string
+  asker?: string
 ): Promise<Profile | null> {
   const p = await findByPseudo(db, pseudo);
-  if (!p || p.partage !== "publique") return null;
+  if (!p || p.sharing !== "publique") return null;
 
-  /* Un blocage rend introuvable, dans les deux sens, et sans le dire :
-     c'est le même 404 que « n'existe pas ». Annoncer « vous êtes bloqué »
-     ferait de la route un moyen de vérifier qu'on l'est. */
-  if (quiDemande && (await blockedIds(db, quiDemande, p.id))) return null;
+  /* A block makes you unfindable, both ways, and without saying so: it
+     is the same 404 as "does not exist". Announcing "you are blocked"
+     would turn the route into a way of checking that you are. */
+  if (asker && (await blockedIds(db, asker, p.id))) return null;
 
   const n = await one<{ n: string }>(
     db,
-    "SELECT count(*)::text AS n FROM fiche WHERE personne_id = $1 AND NOT cachee AND NOT supprimee",
+    "SELECT count(*)::text AS n FROM card WHERE person_id = $1 AND NOT hidden AND NOT deleted",
     [p.id]
   );
-  const suivi = quiDemande
+  const followed = asker
     ? (
-        await db.query("SELECT 1 FROM abonnement WHERE suiveur_id = $1 AND suivi_id = $2", [
-          quiDemande,
+        await db.query("SELECT 1 FROM follow WHERE follower_id = $1 AND followed_id = $2", [
+          asker,
           p.id,
         ])
       ).length > 0
     : undefined;
 
-  return { pseudo: p.pseudo, films: Number(n?.n ?? 0), suivi };
+  return { pseudo: p.pseudo, films: Number(n?.n ?? 0), followed };
 }
 
 /* CE QUI COUPE, ET QUI S'INTERPOSE DANS CHAQUE LECTURE COMMUNAUTAIRE.
 
-   Écrit une fois, en fragment, et collé dans les trois requêtes qui
-   font se croiser deux personnes — le profil, le fil, les avis. Un
-   blocage qui n'agirait que dans un sens laisserait le bloqué continuer
-   de lire : la condition regarde donc les deux sens. */
-const PAS_BLOQUE = (moi: string, lui: string) =>
-  `NOT EXISTS (SELECT 1 FROM blocage b
-                WHERE (b.bloqueur_id = ${moi} AND b.bloque_id = ${lui})
-                   OR (b.bloqueur_id = ${lui} AND b.bloque_id = ${moi}))`;
+   Écrit one fois, en fragment, et collé dans les trois requêtes qui
+   font se croiser two people — at profil, at fil, les reviews. Un
+   block qui n'agirait que dans un sens laisserait at bloqué continuer
+   de read : la condition regarde donc les two sens. */
+const NOT_BLOCKED = (me: string, him: string) =>
+  `NOT EXISTS (SELECT 1 FROM block b
+                WHERE (b.blocker_id = ${me} AND b.blocked_id = ${him})
+                   OR (b.blocker_id = ${him} AND b.blocked_id = ${me}))`;
 
-export async function follow(db: Db, suiveur: string, suivi: string): Promise<void> {
+export async function follow(db: Db, follower: string, followed: string): Promise<void> {
   /* `ON CONFLICT DO NOTHING`: following twice is the same gesture, and
      must answer the same thing. */
   await db.query(
-    "INSERT INTO abonnement (suiveur_id, suivi_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
-    [suiveur, suivi]
+    "INSERT INTO follow (follower_id, followed_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+    [follower, followed]
   );
 }
 
-export async function unfollow(db: Db, suiveur: string, suivi: string): Promise<void> {
-  await db.query("DELETE FROM abonnement WHERE suiveur_id = $1 AND suivi_id = $2", [
-    suiveur,
-    suivi,
+export async function unfollow(db: Db, follower: string, followed: string): Promise<void> {
+  await db.query("DELETE FROM follow WHERE follower_id = $1 AND followed_id = $2", [
+    follower,
+    followed,
   ]);
 }
 
-/** Qui je suis, avec ce que leur collection montre encore. */
-export async function subscriptionsOf(db: Db, personneId: string): Promise<Profile[]> {
+/** Who I follow, with what their collection still shows. */
+export async function subscriptionsOf(db: Db, personId: string): Promise<Profile[]> {
   return db.query<Profile>(
     `SELECT p.pseudo,
-            (SELECT count(*) FROM fiche f
-              WHERE f.personne_id = p.id AND NOT f.cachee AND NOT f.supprimee)::int AS films,
-            (p.partage = 'publique') AS ouverte
-       FROM abonnement a JOIN personne p ON p.id = a.suivi_id
-      WHERE a.suiveur_id = $1
+            (SELECT count(*) FROM card f
+              WHERE f.person_id = p.id AND NOT f.hidden AND NOT f.deleted)::int AS films,
+            (p.sharing = 'publique') AS open
+       FROM follow a JOIN person p ON p.id = a.followed_id
+      WHERE a.follower_id = $1
       ORDER BY p.pseudo`,
-    [personneId]
+    [personId]
   );
 }
 
@@ -554,8 +554,8 @@ export interface FeedItem {
   seq: string | number;
   id: string;
   tmdb_id: string | null;
-  donnees: Record<string, unknown>;
-  maj_le: Date;
+  data: Record<string, unknown>;
+  updated_at: Date;
 }
 
 /**
@@ -568,118 +568,117 @@ export interface FeedItem {
  * prove.
  *
  * It is computed on read, with no feed table. For a few dozen
- * subscriptions the `fiche_suite` index is plenty; the day it is not,
+ * subscriptions the `card_stream` index is plenty; the day it is not,
  * that will be a real problem of scale, and not before.
  */
 export async function feedOf(
   db: Db,
-  personneId: string,
-  avant: bigint | number | null,
-  plafond = 40
+  personId: string,
+  before: bigint | number | null,
+  cap = 40
 ): Promise<FeedItem[]> {
   return db.query<FeedItem>(
-    `SELECT p.pseudo, f.seq, f.id, f.tmdb_id, ${SANS_LE_PRIVE}, f.maj_le
-       FROM abonnement a
-       JOIN personne p ON p.id = a.suivi_id
-       JOIN fiche f ON f.personne_id = p.id
-      WHERE a.suiveur_id = $1
-        AND p.partage = 'publique'
-        AND NOT f.cachee AND NOT f.supprimee
+    `SELECT p.pseudo, f.seq, f.id, f.tmdb_id, ${SANS_LE_PRIVE}, f.updated_at
+       FROM follow a
+       JOIN person p ON p.id = a.followed_id
+       JOIN card f ON f.person_id = p.id
+      WHERE a.follower_id = $1
+        AND p.sharing = 'publique'
+        AND NOT f.hidden AND NOT f.deleted
         AND ($2::bigint IS NULL OR f.seq < $2::bigint)
-        AND ${PAS_BLOQUE("$1", "p.id")}
+        AND ${NOT_BLOCKED("$1", "p.id")}
       ORDER BY f.seq DESC
       LIMIT $3`,
-    [personneId, avant === null ? null : String(avant), plafond]
+    [personId, before === null ? null : String(before), cap]
   );
 }
 
 /* ------------------------------------------------------------
-   CE QU'ON DIT D'UNE ŒUVRE
+   WHAT IS SAID ABOUT A WORK
    ------------------------------------------------------------ */
 
 export interface Review {
   pseudo: string;
-  /** L'identifiant de la fiche chez son auteur : c'est ce qu'on signale. */
-  fiche: string;
+  /** The card's identifier at its author's: that is what gets reported. */
+  card: string;
   note: number | null;
-  critique: string | null;
-  le: Date;
+  review: string | null;
+  at: Date;
 }
 
 export interface Echo {
-  /** Combien de collections publiques rangent cette œuvre. */
+  /** How many public collections file this work. */
   collections: number;
   /** The mean of the ratings given, or `null` if nobody rated. */
-  moyenne: number | null;
+  mean: number | null;
   notes: number;
-  avis: Review[];
+  reviews: Review[];
 }
 
-/* UNE NOTE EST DU TEXTE TANT QU'ON NE L'A PAS REGARDÉE. Le `jsonb` vient
+/* UNE RATING EST DU TEXTE TANT QU'ON NE L'A PAS REGARDÉE. Le `jsonb` vient
    de six cents clients différents, dont d'anciennes versions : `rating` y
-   est un nombre, une chaîne, une chaîne vide, ou absent. Un `::numeric`
-   direct fait tomber la requête ENTIÈRE sur une seule fiche mal formée —
-   une moyenne qui disparaît parce qu'un inconnu a une vieille fiche.
-   On filtre donc la forme avant de convertir. */
-const NOTE = `CASE WHEN f.donnees->>'rating' ~ '^[0-9]+(\\.[0-9]+)?$'
-                   THEN (f.donnees->>'rating')::numeric END`;
+   est un nombre, one chaîne, one chaîne vide, ou absent. Un `::numeric`
+   direct done tomber la requête ENTIÈRE sur one seule card mal formée —
+   one mean qui disparaît parce qu'un inconnu a one vieille card.
+   On filter donc la forme before de convertir. */
+const RATING = `CASE WHEN f.data->>'rating' ~ '^[0-9]+(\\.[0-9]+)?$'
+                   THEN (f.data->>'rating')::numeric END`;
 
 /**
- * Ce que les collections publiques disent d'une œuvre.
+ * What the public collections say about a work.
  *
- * LA CLÉ EST `tmdb_id`, ET C'EST LA SEULE POSSIBLE. Deux personnes qui
+ * THE KEY IS `tmdb_id`, AND IT IS THE ONLY ONE POSSIBLE. Two people who
  * file the same film have two cards, two identifiers, often two titles —
  * the work's identity can only come from the shared reference. A card
  * typed by hand, with no `tmdb_id`, therefore joins no echo: it exists
  * only at home, and that is consistent.
  *
- * `quiDemande` serves two purposes and not one: ruling out blocked
+ * `asker` serves two purposes and not one: ruling out blocked
  * people, and ruling out yourself — reading your own review under "what
  * others think of it" would give a mean you had voted in twice.
  */
 export async function echoOfWork(
   db: Db,
   tmdbId: string,
-  quiDemande: string | null,
-  plafond = 30
+  asker: string | null,
+  cap = 30
 ): Promise<Echo> {
-  const filtre = quiDemande
-    ? `AND p.id <> $2 AND ${PAS_BLOQUE("$2", "p.id")}`
+  const filter = asker
+    ? `AND p.id <> $2 AND ${NOT_BLOCKED("$2", "p.id")}`
     : `AND ($2::uuid IS NULL)`;
-  const args = [tmdbId, quiDemande];
+  const args = [tmdbId, asker];
 
-  const compte = await one<{ collections: string; notes: string; moyenne: string | null }>(
+  const count = await one<{ collections: string; notes: string; mean: string | null }>(
     db,
     `SELECT count(*)::text AS collections,
-            count(${NOTE})::text AS notes,
-            avg(${NOTE})::text AS moyenne
-       FROM fiche f JOIN personne p ON p.id = f.personne_id
-      WHERE f.tmdb_id = $1 AND p.partage = 'publique'
-        AND NOT f.cachee AND NOT f.supprimee ${filtre}`,
+            count(${RATING})::text AS notes,
+            avg(${RATING})::text AS mean
+       FROM card f JOIN person p ON p.id = f.person_id
+      WHERE f.tmdb_id = $1 AND p.sharing = 'publique'
+        AND NOT f.hidden AND NOT f.deleted ${filter}`,
     args
   );
 
-  /* Seules les fiches qui DISENT quelque chose remontent : une œuvre
-     rangée sans un mot ni une note compte dans le total et n'a rien à
-     lire. Afficher des lignes vides ferait passer le silence pour un
-     avis. */
-  const avis = await db.query<Review>(
-    `SELECT p.pseudo, f.id AS fiche, ${NOTE} AS note,
-            NULLIF(f.donnees->>'review', '') AS critique, f.maj_le AS le
-       FROM fiche f JOIN personne p ON p.id = f.personne_id
-      WHERE f.tmdb_id = $1 AND p.partage = 'publique'
-        AND NOT f.cachee AND NOT f.supprimee ${filtre}
-        AND (NULLIF(f.donnees->>'review', '') IS NOT NULL OR ${NOTE} IS NOT NULL)
-      ORDER BY f.maj_le DESC
+  /* Only the cards that SAY something come up: a work filed with
+     neither a word nor a rating counts in the total and has nothing to
+     read. Showing empty lines would pass silence off as an opinion. */
+  const reviews = await db.query<Review>(
+    `SELECT p.pseudo, f.id AS card, ${RATING} AS note,
+            NULLIF(f.data->>'review', '') AS review, f.updated_at AS at
+       FROM card f JOIN person p ON p.id = f.person_id
+      WHERE f.tmdb_id = $1 AND p.sharing = 'publique'
+        AND NOT f.hidden AND NOT f.deleted ${filter}
+        AND (NULLIF(f.data->>'review', '') IS NOT NULL OR ${RATING} IS NOT NULL)
+      ORDER BY f.updated_at DESC
       LIMIT $3`,
-    [...args, plafond]
+    [...args, cap]
   );
 
   return {
-    collections: Number(compte?.collections ?? 0),
-    notes: Number(compte?.notes ?? 0),
-    moyenne: compte?.moyenne == null ? null : Math.round(Number(compte.moyenne) * 100) / 100,
-    avis: avis.map((a) => ({ ...a, note: a.note == null ? null : Number(a.note) })),
+    collections: Number(count?.collections ?? 0),
+    notes: Number(count?.notes ?? 0),
+    mean: count?.mean == null ? null : Math.round(Number(count.mean) * 100) / 100,
+    reviews: reviews.map((a) => ({ ...a, note: a.note == null ? null : Number(a.note) })),
   };
 }
 
@@ -688,11 +687,11 @@ export async function echoOfWork(
    ------------------------------------------------------------ */
 
 /** Is there a block between these two, in either direction? */
-export async function blockedIds(db: Db, un: string, autre: string): Promise<boolean> {
+export async function blockedIds(db: Db, un: string, other: string): Promise<boolean> {
   const r = await db.query(
-    `SELECT 1 FROM blocage
-      WHERE (bloqueur_id = $1 AND bloque_id = $2) OR (bloqueur_id = $2 AND bloque_id = $1)`,
-    [un, autre]
+    `SELECT 1 FROM block
+      WHERE (blocker_id = $1 AND blocked_id = $2) OR (blocker_id = $2 AND blocked_id = $1)`,
+    [un, other]
   );
   return r.length > 0;
 }
@@ -705,31 +704,31 @@ export async function blockedIds(db: Db, un: string, autre: string): Promise<boo
  * above all would leave the other subscribed to a feed they will never
  * see move again — a state nothing puts right if you unblock one day.
  */
-export async function block(db: Db, bloqueur: string, bloque: string): Promise<void> {
+export async function block(db: Db, blocker: string, blocked: string): Promise<void> {
   await db.query(
-    "INSERT INTO blocage (bloqueur_id, bloque_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
-    [bloqueur, bloque]
+    "INSERT INTO block (blocker_id, blocked_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+    [blocker, blocked]
   );
   await db.query(
-    `DELETE FROM abonnement
-      WHERE (suiveur_id = $1 AND suivi_id = $2) OR (suiveur_id = $2 AND suivi_id = $1)`,
-    [bloqueur, bloque]
+    `DELETE FROM follow
+      WHERE (follower_id = $1 AND followed_id = $2) OR (follower_id = $2 AND followed_id = $1)`,
+    [blocker, blocked]
   );
 }
 
-export async function unblock(db: Db, bloqueur: string, bloque: string): Promise<void> {
-  await db.query("DELETE FROM blocage WHERE bloqueur_id = $1 AND bloque_id = $2", [
-    bloqueur,
-    bloque,
+export async function unblock(db: Db, blocker: string, blocked: string): Promise<void> {
+  await db.query("DELETE FROM block WHERE blocker_id = $1 AND blocked_id = $2", [
+    blocker,
+    blocked,
   ]);
 }
 
 /** Whom I HAVE blocked — never who blocked me: that is not askable. */
-export async function myBlocks(db: Db, personneId: string): Promise<string[]> {
+export async function myBlocks(db: Db, personId: string): Promise<string[]> {
   const r = await db.query<{ pseudo: string }>(
-    `SELECT p.pseudo FROM blocage b JOIN personne p ON p.id = b.bloque_id
-      WHERE b.bloqueur_id = $1 ORDER BY p.pseudo`,
-    [personneId]
+    `SELECT p.pseudo FROM block b JOIN person p ON p.id = b.blocked_id
+      WHERE b.blocker_id = $1 ORDER BY p.pseudo`,
+    [personId]
   );
   return r.map((l) => l.pseudo);
 }
@@ -743,21 +742,21 @@ export async function myBlocks(db: Db, personneId: string): Promise<string[]> {
  */
 export async function report(
   db: Db,
-  auteurId: string,
-  quoi: { cibleType: string; cibleId: string; viseId: string | null; motif: string }
+  authorId: string,
+  what: { targetType: string; targetId: string; aboutId: string | null; reason: string }
 ): Promise<boolean> {
   const r = await db.query(
-    `INSERT INTO signalement (id, auteur_id, cible_type, cible_id, vise_id, motif)
+    `INSERT INTO report (id, author_id, target_type, target_id, about_id, reason)
      VALUES ($1, $2, $3, $4, $5, $6)
      /* LA CLAUSE WHERE FAIT PARTIE DE LA DÉSIGNATION DE L'INDEX.
         L'index d'unicité est partiel — il ne couvre que les
-        signalements dont l'auteur existe encore. Sans reprendre ici son
-        prédicat, Postgres ne le reconnaît pas et refuse la requête
-        entière (42P10) : ce n'est pas une optimisation, c'est la seule
+        reports dont l'author existe more. Sans reprendre ici son
+        prédicat, Postgres ne at reconnaît pas et refuse la requête
+        entière (42P10) : ce n'est pas one optimisation, c'est la seule
         façon de nommer un index partiel. */
-     ON CONFLICT (auteur_id, cible_type, cible_id) WHERE auteur_id IS NOT NULL DO NOTHING
+     ON CONFLICT (author_id, target_type, target_id) WHERE author_id IS NOT NULL DO NOTHING
      RETURNING id`,
-    [randomUUID(), auteurId, quoi.cibleType, quoi.cibleId, quoi.viseId, quoi.motif]
+    [randomUUID(), authorId, what.targetType, what.targetId, what.aboutId, what.reason]
   );
   return r.length > 0;
 }
@@ -768,281 +767,281 @@ export async function report(
 
 export interface ListRow {
   id: string;
-  titre: string;
-  intention: string;
-  publique: boolean;
-  proprietaire: string;
+  title: string;
+  intent: string;
+  is_public: boolean;
+  owner: string;
   /** Combien d'œuvres. */
-  oeuvres: number;
+  works: number;
   /** Am I the owner, and may I write in it? */
   mienne?: boolean;
-  membre?: boolean;
+  isMember?: boolean;
 }
 
 export interface WorkRow {
   tmdb_id: string;
-  titre: string;
-  annee: string | null;
-  par: string | null;
+  title: string;
+  year: string | null;
+  by: string | null;
 }
 
-/** Ce que quelqu'un a le droit de faire d'une liste. */
+/** What somebody is allowed to do with a list. */
 export interface Rights {
-  lire: boolean;
-  ecrire: boolean;
-  administrer: boolean;
-  proprietaire_id: string;
-  liste_id: string;
+  read: boolean;
+  write: boolean;
+  administer: boolean;
+  owner_id: string;
+  list_id: string;
 }
 
 /**
  * Somebody's rights over a list, in one query.
  *
  * THREE LEVELS AND NOT TWO, because co-building is not owning.
- * Un membre ajoute et retire des œuvres ; il ne renomme pas la liste, ne
- * does not make it public and does not delete it. Without that
+ * A member adds and removes works; they do not rename the list, do not
+ * make it public and do not delete it. Without that
  * asymmetry, a list built by six hands has nobody left answering for it.
  */
 export async function rightsOnList(
   db: Db,
-  listeId: string,
-  personneId: string | null
+  listId: string,
+  personId: string | null
 ): Promise<Rights | null> {
-  const l = await one<{ id: string; proprietaire_id: string; publique: boolean; membre: boolean }>(
+  const l = await one<{ id: string; owner_id: string; is_public: boolean; is_member: boolean }>(
     db,
-    `SELECT l.id, l.proprietaire_id, l.publique,
-            EXISTS (SELECT 1 FROM liste_membre m
-                     WHERE m.liste_id = l.id AND m.personne_id = $2) AS membre
-       FROM liste l WHERE l.id = $1`,
-    [listeId, personneId]
+    `SELECT l.id, l.owner_id, l.is_public,
+            EXISTS (SELECT 1 FROM list_member m
+                     WHERE m.list_id = l.id AND m.person_id = $2) AS is_member
+       FROM list l WHERE l.id = $1`,
+    [listId, personId]
   );
   if (!l) return null;
-  const proprio = personneId !== null && l.proprietaire_id === personneId;
+  const isOwner = personId !== null && l.owner_id === personId;
   return {
-    liste_id: l.id,
-    proprietaire_id: l.proprietaire_id,
-    lire: l.publique || proprio || l.membre,
-    ecrire: proprio || l.membre,
-    administrer: proprio,
+    list_id: l.id,
+    owner_id: l.owner_id,
+    read: l.is_public || isOwner || l.is_member,
+    write: isOwner || l.is_member,
+    administer: isOwner,
   };
 }
 
 /** My lists, and those I have been allowed to write in. */
-export async function myLists(db: Db, personneId: string): Promise<ListRow[]> {
+export async function myLists(db: Db, personId: string): Promise<ListRow[]> {
   return db.query<ListRow>(
-    `SELECT l.id, l.titre, l.intention, l.publique,
-            p.pseudo AS proprietaire,
-            (SELECT count(*) FROM liste_item i WHERE i.liste_id = l.id)::int AS oeuvres,
-            (l.proprietaire_id = $1) AS mienne,
-            EXISTS (SELECT 1 FROM liste_membre m
-                     WHERE m.liste_id = l.id AND m.personne_id = $1) AS membre
-       FROM liste l JOIN personne p ON p.id = l.proprietaire_id
-      WHERE l.proprietaire_id = $1
-         OR EXISTS (SELECT 1 FROM liste_membre m
-                     WHERE m.liste_id = l.id AND m.personne_id = $1)
-      ORDER BY l.maj_le DESC`,
-    [personneId]
+    `SELECT l.id, l.title, l.intent, l.is_public,
+            p.pseudo AS owner,
+            (SELECT count(*) FROM list_item i WHERE i.list_id = l.id)::int AS works,
+            (l.owner_id = $1) AS mienne,
+            EXISTS (SELECT 1 FROM list_member m
+                     WHERE m.list_id = l.id AND m.person_id = $1) AS is_member
+       FROM list l JOIN person p ON p.id = l.owner_id
+      WHERE l.owner_id = $1
+         OR EXISTS (SELECT 1 FROM list_member m
+                     WHERE m.list_id = l.id AND m.person_id = $1)
+      ORDER BY l.updated_at DESC`,
+    [personId]
   );
 }
 
-/** Les listes publiques de quelqu'un — ce qu'un visiteur peut en voir. */
-export async function publicListsOf(db: Db, proprietaireId: string): Promise<ListRow[]> {
+/** Somebody's public lists — what a visitor gets to see of them. */
+export async function publicListsOf(db: Db, ownerId: string): Promise<ListRow[]> {
   return db.query<ListRow>(
-    `SELECT l.id, l.titre, l.intention, l.publique,
-            p.pseudo AS proprietaire,
-            (SELECT count(*) FROM liste_item i WHERE i.liste_id = l.id)::int AS oeuvres
-       FROM liste l JOIN personne p ON p.id = l.proprietaire_id
-      WHERE l.proprietaire_id = $1 AND l.publique
-      ORDER BY l.maj_le DESC`,
-    [proprietaireId]
+    `SELECT l.id, l.title, l.intent, l.is_public,
+            p.pseudo AS owner,
+            (SELECT count(*) FROM list_item i WHERE i.list_id = l.id)::int AS works
+       FROM list l JOIN person p ON p.id = l.owner_id
+      WHERE l.owner_id = $1 AND l.is_public
+      ORDER BY l.updated_at DESC`,
+    [ownerId]
   );
 }
 
 export async function createList(
   db: Db,
-  proprietaireId: string,
-  l: { titre: string; intention?: string; publique?: boolean }
+  ownerId: string,
+  l: { title: string; intent?: string; is_public?: boolean }
 ): Promise<string> {
   const id = randomUUID();
   await db.query(
-    "INSERT INTO liste (id, proprietaire_id, titre, intention, publique) VALUES ($1, $2, $3, $4, $5)",
-    [id, proprietaireId, l.titre, l.intention ?? "", l.publique ?? false]
+    "INSERT INTO list (id, owner_id, title, intent, is_public) VALUES ($1, $2, $3, $4, $5)",
+    [id, ownerId, l.title, l.intent ?? "", l.is_public ?? false]
   );
   return id;
 }
 
 export async function editList(
   db: Db,
-  listeId: string,
-  l: { titre?: string; intention?: string; publique?: boolean }
+  listId: string,
+  l: { title?: string; intent?: string; is_public?: boolean }
 ): Promise<void> {
   await db.query(
-    `UPDATE liste
-        SET titre = coalesce($2, titre),
-            intention = coalesce($3, intention),
-            publique = coalesce($4, publique),
-            maj_le = now()
+    `UPDATE list
+        SET title = coalesce($2, title),
+            intent = coalesce($3, intent),
+            is_public = coalesce($4, is_public),
+            updated_at = now()
       WHERE id = $1`,
-    [listeId, l.titre ?? null, l.intention ?? null, l.publique ?? null]
+    [listId, l.title ?? null, l.intent ?? null, l.is_public ?? null]
   );
 }
 
-export async function deleteList(db: Db, listeId: string): Promise<void> {
-  await db.query("DELETE FROM liste WHERE id = $1", [listeId]);
+export async function deleteList(db: Db, listId: string): Promise<void> {
+  await db.query("DELETE FROM list WHERE id = $1", [listId]);
 }
 
-export async function worksOf(db: Db, listeId: string): Promise<WorkRow[]> {
+export async function worksOf(db: Db, listId: string): Promise<WorkRow[]> {
   return db.query<WorkRow>(
-    `SELECT i.tmdb_id, i.titre, i.annee, p.pseudo AS par
-       FROM liste_item i LEFT JOIN personne p ON p.id = i.ajoute_par
-      WHERE i.liste_id = $1
-      ORDER BY i.ajoute_le`,
-    [listeId]
+    `SELECT i.tmdb_id, i.title, i.year, p.pseudo AS by
+       FROM list_item i LEFT JOIN person p ON p.id = i.added_by
+      WHERE i.list_id = $1
+      ORDER BY i.added_at`,
+    [listId]
   );
 }
 
 /** Returns `false` if the work was already there: same gesture, same answer. */
 export async function addToList(
   db: Db,
-  listeId: string,
+  listId: string,
   parQui: string,
-  o: { tmdbId: string; titre?: string; annee?: string | null }
+  o: { tmdbId: string; title?: string; year?: string | null }
 ): Promise<boolean> {
   const r = await db.query(
-    `INSERT INTO liste_item (liste_id, tmdb_id, titre, annee, ajoute_par)
+    `INSERT INTO list_item (list_id, tmdb_id, title, year, added_by)
      VALUES ($1, $2, $3, $4, $5)
-     ON CONFLICT (liste_id, tmdb_id) DO NOTHING
+     ON CONFLICT (list_id, tmdb_id) DO NOTHING
      RETURNING tmdb_id`,
-    [listeId, o.tmdbId, o.titre ?? "", o.annee ?? null, parQui]
+    [listId, o.tmdbId, o.title ?? "", o.year ?? null, parQui]
   );
-  await db.query("UPDATE liste SET maj_le = now() WHERE id = $1", [listeId]);
+  await db.query("UPDATE list SET updated_at = now() WHERE id = $1", [listId]);
   return r.length > 0;
 }
 
-export async function removeFromList(db: Db, listeId: string, tmdbId: string): Promise<void> {
-  await db.query("DELETE FROM liste_item WHERE liste_id = $1 AND tmdb_id = $2", [listeId, tmdbId]);
-  await db.query("UPDATE liste SET maj_le = now() WHERE id = $1", [listeId]);
+export async function removeFromList(db: Db, listId: string, tmdbId: string): Promise<void> {
+  await db.query("DELETE FROM list_item WHERE list_id = $1 AND tmdb_id = $2", [listId, tmdbId]);
+  await db.query("UPDATE list SET updated_at = now() WHERE id = $1", [listId]);
 }
 
-export async function membersOf(db: Db, listeId: string): Promise<string[]> {
+export async function membersOf(db: Db, listId: string): Promise<string[]> {
   const r = await db.query<{ pseudo: string }>(
-    `SELECT p.pseudo FROM liste_membre m JOIN personne p ON p.id = m.personne_id
-      WHERE m.liste_id = $1 ORDER BY p.pseudo`,
-    [listeId]
+    `SELECT p.pseudo FROM list_member m JOIN person p ON p.id = m.person_id
+      WHERE m.list_id = $1 ORDER BY p.pseudo`,
+    [listId]
   );
   return r.map((l) => l.pseudo);
 }
 
-export async function inviteToList(db: Db, listeId: string, personneId: string): Promise<void> {
+export async function inviteToList(db: Db, listId: string, personId: string): Promise<void> {
   await db.query(
-    "INSERT INTO liste_membre (liste_id, personne_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
-    [listeId, personneId]
+    "INSERT INTO list_member (list_id, person_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+    [listId, personId]
   );
 }
 
 export async function removeMemberFromList(
   db: Db,
-  listeId: string,
-  personneId: string
+  listId: string,
+  personId: string
 ): Promise<void> {
-  await db.query("DELETE FROM liste_membre WHERE liste_id = $1 AND personne_id = $2", [
-    listeId,
-    personneId,
+  await db.query("DELETE FROM list_member WHERE list_id = $1 AND person_id = $2", [
+    listId,
+    personId,
   ]);
 }
 
 /* L'AVANCEMENT SE CALCULE, IL NE SE DÉCLARE PAS.
 
-   Personne ne coche « vu » dans un défi : le classeur le sait déjà. Une
-   œuvre compte quand une séance datée tombe dans la période — c'est le
-   journal, celui-là même qui ne sort jamais d'une collection partagée.
+   Personne ne coche « vu » dans un défi : at classeur at sait déjà. Une
+   œuvre count when one séance datée tombe dans la période — c'est at
+   journal, celui-là même qui ne sort jamais d'one collection partagée.
    Il ne sort pas davantage ici : seul un NOMBRE en ressort, et
    seulement pour des gens qui ont demandé à participer.
 
-   `jsonb_typeof` avant tout : `watches` traverse des clients de toutes
+   `jsonb_typeof` before everything : `watches` traverse des clients de toutes
    les époques, et `jsonb_array_elements` sur ce qui n'est pas un
-   tableau fait tomber la requête entière. Une seule vieille fiche
-   suffirait alors à effacer l'avancement de tout le monde.
+   tableau done tomber la requête entière. Une seule vieille card
+   suffirait alors à effacer l'progress de everything at monde.
 
-   `watchedAt` est le repli des fiches d'avant le journal — elles
-   existent encore, et les ignorer dirait « pas vu » à quelqu'un qui a
+   `watchedAt` est at repli des cards d'before at journal — elles
+   existent more, et les ignorer dirait « pas vu » à quelqu'un qui a
    vu. */
 const VU_PENDANT = `EXISTS (
-  SELECT 1 FROM fiche f
-   WHERE f.personne_id = ep.personne_id
+  SELECT 1 FROM card f
+   WHERE f.person_id = ep.person_id
      AND f.tmdb_id = li.tmdb_id
-     AND NOT f.supprimee
+     AND NOT f.deleted
      AND (
        EXISTS (
          SELECT 1 FROM jsonb_array_elements(
-                CASE WHEN jsonb_typeof(f.donnees->'watches') = 'array'
-                     THEN f.donnees->'watches' ELSE '[]'::jsonb END) w
-          WHERE left(w->>'date', 10) BETWEEN to_char(e.debut, 'YYYY-MM-DD')
-                                         AND to_char(e.fin, 'YYYY-MM-DD'))
-       OR left(f.donnees->>'watchedAt', 10) BETWEEN to_char(e.debut, 'YYYY-MM-DD')
-                                                AND to_char(e.fin, 'YYYY-MM-DD')
+                CASE WHEN jsonb_typeof(f.data->'watches') = 'array'
+                     THEN f.data->'watches' ELSE '[]'::jsonb END) w
+          WHERE left(w->>'date', 10) BETWEEN to_char(e.starts_on, 'YYYY-MM-DD')
+                                         AND to_char(e.ends_on, 'YYYY-MM-DD'))
+       OR left(f.data->>'watchedAt', 10) BETWEEN to_char(e.starts_on, 'YYYY-MM-DD')
+                                                AND to_char(e.ends_on, 'YYYY-MM-DD')
      ))`;
 
 export interface Challenge {
   id: string;
-  titre: string;
-  liste_id: string;
-  liste: string;
-  debut: string;
-  fin: string;
-  par: string | null;
-  oeuvres: number;
-  /** Est-ce que j'y participe ? */
-  dedans?: boolean;
+  title: string;
+  list_id: string;
+  list: string;
+  starts_on: string;
+  ends_on: string;
+  by: string | null;
+  works: number;
+  /** Am I taking part? */
+  inside?: boolean;
 }
 
 export interface Progress {
   pseudo: string;
-  faites: number;
+  done: number;
 }
 
 /**
  * The challenges I can see: mine, those I have joined, and those built
  * on a public list belonging to somebody I follow.
  *
- * NO DIRECTORY OF CHALLENGES, for the same reason there is no
- * d'annuaire de gens : une liste de tout ce qui se joue ferait de ce
- * classeur une place publique, ce qu'il n'est pas.
+ * NO DIRECTORY OF CHALLENGES, for the same reason there is no directory
+ * of people: a list of everything being played would make this binder a
+ * public square, which it is not.
  */
-export async function myChallenges(db: Db, personneId: string): Promise<Challenge[]> {
+export async function myChallenges(db: Db, personId: string): Promise<Challenge[]> {
   return db.query<Challenge>(
-    `SELECT e.id, e.titre, e.liste_id, l.titre AS liste,
-            to_char(e.debut, 'YYYY-MM-DD') AS debut,
-            to_char(e.fin, 'YYYY-MM-DD') AS fin,
-            p.pseudo AS par,
-            (SELECT count(*) FROM liste_item i WHERE i.liste_id = l.id)::int AS oeuvres,
-            EXISTS (SELECT 1 FROM epreuve_participant x
-                     WHERE x.epreuve_id = e.id AND x.personne_id = $1) AS dedans
-       FROM epreuve e
-       JOIN liste l ON l.id = e.liste_id
-       LEFT JOIN personne p ON p.id = e.cree_par
-      WHERE e.cree_par = $1
-         OR EXISTS (SELECT 1 FROM epreuve_participant x
-                     WHERE x.epreuve_id = e.id AND x.personne_id = $1)
-         OR (l.publique AND EXISTS (SELECT 1 FROM abonnement a
-                                     WHERE a.suiveur_id = $1 AND a.suivi_id = l.proprietaire_id)
-             AND ${PAS_BLOQUE("$1", "l.proprietaire_id")})
-      ORDER BY e.fin DESC`,
-    [personneId]
+    `SELECT e.id, e.title, e.list_id, l.title AS list,
+            to_char(e.starts_on, 'YYYY-MM-DD') AS starts_on,
+            to_char(e.ends_on, 'YYYY-MM-DD') AS ends_on,
+            p.pseudo AS by,
+            (SELECT count(*) FROM list_item i WHERE i.list_id = l.id)::int AS works,
+            EXISTS (SELECT 1 FROM challenge_participant x
+                     WHERE x.challenge_id = e.id AND x.person_id = $1) AS inside
+       FROM challenge e
+       JOIN list l ON l.id = e.list_id
+       LEFT JOIN person p ON p.id = e.created_by
+      WHERE e.created_by = $1
+         OR EXISTS (SELECT 1 FROM challenge_participant x
+                     WHERE x.challenge_id = e.id AND x.person_id = $1)
+         OR (l.is_public AND EXISTS (SELECT 1 FROM follow a
+                                     WHERE a.follower_id = $1 AND a.followed_id = l.owner_id)
+             AND ${NOT_BLOCKED("$1", "l.owner_id")})
+      ORDER BY e.ends_on DESC`,
+    [personId]
   );
 }
 
 export async function challengeById(db: Db, id: string): Promise<Challenge | null> {
   return one<Challenge>(
     db,
-    `SELECT e.id, e.titre, e.liste_id, l.titre AS liste,
-            to_char(e.debut, 'YYYY-MM-DD') AS debut,
-            to_char(e.fin, 'YYYY-MM-DD') AS fin,
-            p.pseudo AS par,
-            (SELECT count(*) FROM liste_item i WHERE i.liste_id = l.id)::int AS oeuvres
-       FROM epreuve e
-       JOIN liste l ON l.id = e.liste_id
-       LEFT JOIN personne p ON p.id = e.cree_par
+    `SELECT e.id, e.title, e.list_id, l.title AS list,
+            to_char(e.starts_on, 'YYYY-MM-DD') AS starts_on,
+            to_char(e.ends_on, 'YYYY-MM-DD') AS ends_on,
+            p.pseudo AS by,
+            (SELECT count(*) FROM list_item i WHERE i.list_id = l.id)::int AS works
+       FROM challenge e
+       JOIN list l ON l.id = e.list_id
+       LEFT JOIN person p ON p.id = e.created_by
       WHERE e.id = $1`,
     [id]
   );
@@ -1051,12 +1050,12 @@ export async function challengeById(db: Db, id: string): Promise<Challenge | nul
 export async function createChallenge(
   db: Db,
   parQui: string,
-  e: { listeId: string; titre: string; debut: string; fin: string }
+  e: { listId: string; title: string; starts_on: string; ends_on: string }
 ): Promise<string> {
   const id = randomUUID();
   await db.query(
-    "INSERT INTO epreuve (id, liste_id, cree_par, titre, debut, fin) VALUES ($1, $2, $3, $4, $5, $6)",
-    [id, e.listeId, parQui, e.titre, e.debut, e.fin]
+    "INSERT INTO challenge (id, list_id, created_by, title, starts_on, ends_on) VALUES ($1, $2, $3, $4, $5, $6)",
+    [id, e.listId, parQui, e.title, e.starts_on, e.ends_on]
   );
   /* Whoever starts a challenge takes part in it: the opposite — an
      organiser who
@@ -1066,45 +1065,45 @@ export async function createChallenge(
 }
 
 export async function deleteChallenge(db: Db, id: string): Promise<void> {
-  await db.query("DELETE FROM epreuve WHERE id = $1", [id]);
+  await db.query("DELETE FROM challenge WHERE id = $1", [id]);
 }
 
-export async function joinChallenge(db: Db, epreuveId: string, personneId: string): Promise<void> {
+export async function joinChallenge(db: Db, challengeId: string, personId: string): Promise<void> {
   await db.query(
-    "INSERT INTO epreuve_participant (epreuve_id, personne_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
-    [epreuveId, personneId]
+    "INSERT INTO challenge_participant (challenge_id, person_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+    [challengeId, personId]
   );
 }
 
-export async function leaveChallenge(db: Db, epreuveId: string, personneId: string): Promise<void> {
-  await db.query("DELETE FROM epreuve_participant WHERE epreuve_id = $1 AND personne_id = $2", [
-    epreuveId,
-    personneId,
+export async function leaveChallenge(db: Db, challengeId: string, personId: string): Promise<void> {
+  await db.query("DELETE FROM challenge_participant WHERE challenge_id = $1 AND person_id = $2", [
+    challengeId,
+    personId,
   ]);
 }
 
 /** Where each of them stands — one number per participant, nothing more. */
-export async function progressOf(db: Db, epreuveId: string): Promise<Progress[]> {
+export async function progressOf(db: Db, challengeId: string): Promise<Progress[]> {
   return db.query<Progress>(
     `SELECT pe.pseudo,
-            (SELECT count(*) FROM liste_item li
-              WHERE li.liste_id = e.liste_id AND ${VU_PENDANT})::int AS faites
-       FROM epreuve_participant ep
-       JOIN epreuve e ON e.id = ep.epreuve_id
-       JOIN personne pe ON pe.id = ep.personne_id
-      WHERE ep.epreuve_id = $1
+            (SELECT count(*) FROM list_item li
+              WHERE li.list_id = e.list_id AND ${VU_PENDANT})::int AS done
+       FROM challenge_participant ep
+       JOIN challenge e ON e.id = ep.challenge_id
+       JOIN person pe ON pe.id = ep.person_id
+      WHERE ep.challenge_id = $1
       ORDER BY 2 DESC, pe.pseudo`,
-    [epreuveId]
+    [challengeId]
   );
 }
 
-/** Une liste par son identifiant, sans se demander qui la lit. */
+/** One list by its identifier, without asking who is reading it. */
 export async function listById(db: Db, id: string): Promise<ListRow | null> {
   return one<ListRow>(
     db,
-    `SELECT l.id, l.titre, l.intention, l.publique, p.pseudo AS proprietaire,
-            (SELECT count(*) FROM liste_item i WHERE i.liste_id = l.id)::int AS oeuvres
-       FROM liste l JOIN personne p ON p.id = l.proprietaire_id
+    `SELECT l.id, l.title, l.intent, l.is_public, p.pseudo AS owner,
+            (SELECT count(*) FROM list_item i WHERE i.list_id = l.id)::int AS works
+       FROM list l JOIN person p ON p.id = l.owner_id
       WHERE l.id = $1`,
     [id]
   );
@@ -1122,22 +1121,22 @@ export async function listById(db: Db, id: string): Promise<ListRow | null> {
  * absent-mindedly, hand it an account or an address — there is no
  * parameter to receive them.
  */
-export async function countGesture(db: Db, geste: string): Promise<void> {
+export async function countGesture(db: Db, gesture: string): Promise<void> {
   await db.query(
-    `INSERT INTO mesure (jour, geste, n) VALUES (current_date, $1, 1)
-     ON CONFLICT (jour, geste) DO UPDATE SET n = mesure.n + 1`,
-    [geste]
+    `INSERT INTO metric (day, gesture, n) VALUES (current_date, $1, 1)
+     ON CONFLICT (day, gesture) DO UPDATE SET n = metric.n + 1`,
+    [gesture]
   );
 }
 
 export async function metrics(
   db: Db,
   jours = 30
-): Promise<{ jour: string; geste: string; n: string }[]> {
+): Promise<{ day: string; gesture: string; n: string }[]> {
   return db.query(
-    `SELECT to_char(jour, 'YYYY-MM-DD') AS jour, geste, n::text
-       FROM mesure WHERE jour > current_date - $1::int
-      ORDER BY jour DESC, n DESC`,
+    `SELECT to_char(day, 'YYYY-MM-DD') AS day, gesture, n::text
+       FROM metric WHERE day > current_date - $1::int
+      ORDER BY day DESC, n DESC`,
     [jours]
   );
 }
@@ -1147,39 +1146,39 @@ export async function metrics(
    ------------------------------------------------------------ */
 
 export interface PushRow {
-  point: string;
+  endpoint: string;
   p256dh: string;
   secret: string;
-  personne_id: string;
+  person_id: string;
 }
 
 export async function storePush(
   db: Db,
-  personneId: string,
-  p: { point: string; p256dh: string; secret: string }
+  personId: string,
+  p: { endpoint: string; p256dh: string; secret: string }
 ): Promise<void> {
   /* The same device subscribing again replaces its row — and changes
-     propriétaire si quelqu'un d'autre s'est connecté sur ce navigateur.
-     Sans cela, un ordinateur partagé pousserait les rappels d'une
-     personne à une autre. */
+     propriétaire si quelqu'un d'other s'est connecté sur ce navigateur.
+     Sans cela, un ordinateur partagé pousserait les rappels d'one
+     person à one other. */
   await db.query(
-    `INSERT INTO pousse (point, personne_id, p256dh, secret) VALUES ($1, $2, $3, $4)
-     ON CONFLICT (point) DO UPDATE
-        SET personne_id = EXCLUDED.personne_id,
+    `INSERT INTO push_subscription (endpoint, person_id, p256dh, secret) VALUES ($1, $2, $3, $4)
+     ON CONFLICT (endpoint) DO UPDATE
+        SET person_id = EXCLUDED.person_id,
             p256dh = EXCLUDED.p256dh,
             secret = EXCLUDED.secret`,
-    [p.point, personneId, p.p256dh, p.secret]
+    [p.endpoint, personId, p.p256dh, p.secret]
   );
 }
 
-export async function forgetPush(db: Db, point: string): Promise<void> {
-  await db.query("DELETE FROM pousse WHERE point = $1", [point]);
+export async function forgetPush(db: Db, endpoint: string): Promise<void> {
+  await db.query("DELETE FROM push_subscription WHERE endpoint = $1", [endpoint]);
 }
 
-export async function pushesOf(db: Db, personneId: string): Promise<PushRow[]> {
+export async function pushesOf(db: Db, personId: string): Promise<PushRow[]> {
   return db.query<PushRow>(
-    "SELECT point, p256dh, secret, personne_id FROM pousse WHERE personne_id = $1",
-    [personneId]
+    "SELECT endpoint, p256dh, secret, person_id FROM push_subscription WHERE person_id = $1",
+    [personId]
   );
 }
 
@@ -1188,14 +1187,14 @@ export async function pushesOf(db: Db, personneId: string): Promise<PushRow[]> {
  *
  * THE INSERT IS THE LOCK. Checking and then writing would let two
  * simultaneous sweeps — a restart in the middle of a send — both through.
- * A duplicate notification is the quickest way to
- * faire couper les notifications.
+ * A duplicate notification is the quickest way to get notifications
+ * switched off.
  */
-export async function reminderIsNew(db: Db, personneId: string, subject: string): Promise<boolean> {
+export async function reminderIsNew(db: Db, personId: string, subject: string): Promise<boolean> {
   const r = await db.query(
-    `INSERT INTO rappel_envoye (personne_id, sujet) VALUES ($1, $2)
-     ON CONFLICT DO NOTHING RETURNING sujet`,
-    [personneId, subject]
+    `INSERT INTO reminder_sent (person_id, subject) VALUES ($1, $2)
+     ON CONFLICT DO NOTHING RETURNING subject`,
+    [personId, subject]
   );
   return r.length > 0;
 }
@@ -1209,11 +1208,11 @@ export async function reminderIsNew(db: Db, personneId: string, subject: string)
  */
 export async function remindersDueToday(
   db: Db
-): Promise<{ epreuve_id: string; titre: string; personne_id: string; quand: string }[]> {
+): Promise<{ challenge_id: string; title: string; person_id: string; when: string }[]> {
   return db.query(
-    `SELECT e.id AS epreuve_id, e.titre, ep.personne_id,
-            CASE WHEN e.debut = current_date THEN 'debut' ELSE 'fin' END AS quand
-       FROM epreuve e JOIN epreuve_participant ep ON ep.epreuve_id = e.id
-      WHERE e.debut = current_date OR e.fin = current_date`
+    `SELECT e.id AS challenge_id, e.title, ep.person_id,
+            CASE WHEN e.starts_on = current_date THEN 'starts_on' ELSE 'ends_on' END AS when
+       FROM challenge e JOIN challenge_participant ep ON ep.challenge_id = e.id
+      WHERE e.starts_on = current_date OR e.ends_on = current_date`
   );
 }

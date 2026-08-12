@@ -10,19 +10,19 @@ import type { FastifyInstance } from "fastify";
    L'EXPLOITATION — mesurer sans surveiller, sonner sans harceler
 
    Ces tests portent sur des propriétés qu'on ne voit pas à l'usage et
-   qui se perdent en silence : qu'un compteur ne garde rien de
-   personnel, et qu'un rappel ne parte qu'une fois. Un défaut sur l'un
-   ou l'autre ne casse rien — il fabrique un registre de surveillance,
-   ou fait couper les notifications.
+   qui se perdent en silence : qu'un counter ne garde rien de
+   personnel, et qu'un rappel ne parte qu'one fois. Un défaut sur l'un
+   ou l'other ne casse rien — il fabrique un registre de surveillance,
+   ou done couper les notifications.
    ============================================================ */
 
 let db: Db;
 let app: FastifyInstance;
 
-async function compte(pseudo: string) {
-  const personne = await store.createPerson(db, pseudo);
-  const secret = await store.openSession(db, personne.id);
-  return { personne, cookie: `session=${secret}` };
+async function count(pseudo: string) {
+  const person = await store.createPerson(db, pseudo);
+  const secret = await store.openSession(db, person.id);
+  return { person, cookie: `session=${secret}` };
 }
 
 beforeEach(async () => {
@@ -36,59 +36,59 @@ afterEach(async () => {
   configurePush(null);
 });
 
-describe("la mesure d'usage", () => {
-  it("compte le chemin de ROUTE, jamais l'adresse réelle", async () => {
-    /* `GET /listes/:id` et non `GET /listes/97703c16-…`. L'URL réelle
-       porte des identifiants ; compter l'une pour l'autre aurait
-       fabriqué exactement le registre qu'on refuse de tenir. */
-    const moi = await compte("moi");
-    const liste = (
+describe("la metric d'usage", () => {
+  it("count at chemin de ROUTE, jamais l'adresse réher", async () => {
+    /* `GET /lists/:id` et non `GET /lists/97703c16-…`. L'URL réher
+       porte des identifiants ; compter l'one pour l'other aurait
+       fabriqué exactement at registre qu'on refuse de tenir. */
+    const me = await count("mine");
+    const list = (
       await app.inject({
         method: "POST",
-        url: "/listes",
-        headers: { cookie: moi.cookie },
-        payload: { titre: "Mars" },
+        url: "/lists",
+        headers: { cookie: me.cookie },
+        payload: { title: "Mars" },
       })
     ).json().id;
-    await app.inject({ method: "GET", url: `/listes/${liste}`, headers: { cookie: moi.cookie } });
+    await app.inject({ method: "GET", url: `/lists/${list}`, headers: { cookie: me.cookie } });
 
-    const gestes = (await store.metrics(db)).map((m) => m.geste);
-    expect(gestes).toContain("GET /listes/:id");
-    expect(gestes.join(" ")).not.toContain(liste);
+    const gestes = (await store.metrics(db)).map((m) => m.gesture);
+    expect(gestes).toContain("GET /lists/:id");
+    expect(gestes.join(" ")).not.toContain(list);
   });
 
   it("ne garde rien qui désigne quelqu'un", async () => {
-    const varda = await compte("varda");
-    await app.inject({ method: "GET", url: "/moi", headers: { cookie: varda.cookie } });
+    const varda = await count("varda");
+    await app.inject({ method: "GET", url: "/me", headers: { cookie: varda.cookie } });
 
-    /* La table entière, colonne par colonne : trois champs, et pas un
-       de plus. Une colonne ajoutée un jour « pour voir » ferait échouer
+    /* La table entière, colonne by colonne : trois champs, et pas un
+       de plus. Une colonne ajoutée un day « pour voir » ferait échouer
        ce test, et c'est exactement son objet. */
-    const colonnes = (
+    const columns = (
       await db.query<{ column_name: string }>(
-        "SELECT column_name FROM information_schema.columns WHERE table_name = 'mesure'"
+        "SELECT column_name FROM information_schema.columns WHERE table_name = 'metric'"
       )
     )
       .map((c) => c.column_name)
       .sort();
-    expect(colonnes).toEqual(["geste", "jour", "n"]);
+    expect(columns).toEqual(["day", "gesture", "n"]);
 
-    const tout = JSON.stringify(await store.metrics(db));
-    expect(tout).not.toContain(varda.personne.id);
-    expect(tout).not.toContain("varda");
+    const everything = JSON.stringify(await store.metrics(db));
+    expect(everything).not.toContain(varda.person.id);
+    expect(everything).not.toContain("varda");
   });
 
-  it("compte ce qui réussit, et laisse les échecs au journal", async () => {
-    await app.inject({ method: "GET", url: "/moi" }); // 401
-    await app.inject({ method: "GET", url: "/sante" });
-    const gestes = (await store.metrics(db)).map((m) => m.geste);
-    expect(gestes).toContain("GET /sante");
-    expect(gestes).not.toContain("GET /moi");
+  it("count ce qui réussit, et laisse les échecs au journal", async () => {
+    await app.inject({ method: "GET", url: "/me" }); // 401
+    await app.inject({ method: "GET", url: "/health" });
+    const gestes = (await store.metrics(db)).map((m) => m.gesture);
+    expect(gestes).toContain("GET /health");
+    expect(gestes).not.toContain("GET /me");
   });
 
-  it("s'additionne par jour, sans une ligne par requête", async () => {
-    for (let i = 0; i < 3; i += 1) await app.inject({ method: "GET", url: "/sante" });
-    const rows = (await store.metrics(db)).filter((m) => m.geste === "GET /sante");
+  it("s'additionne by day, sans one ligne by requête", async () => {
+    for (let i = 0; i < 3; i += 1) await app.inject({ method: "GET", url: "/health" });
+    const rows = (await store.metrics(db)).filter((m) => m.gesture === "GET /health");
     expect(rows).toHaveLength(1);
     expect(Number(rows[0]!.n)).toBe(3);
   });
@@ -96,175 +96,175 @@ describe("la mesure d'usage", () => {
 
 describe("les notifications", () => {
   it("se déclarent absentes plutôt que de faire semblant", async () => {
-    const moi = await compte("moi");
-    const etat = await app.inject({ method: "GET", url: "/poussees" });
-    expect(etat.json()).toEqual({ possible: false, cle: null });
+    const me = await count("mine");
+    const state = await app.inject({ method: "GET", url: "/push-subscriptions" });
+    expect(state.json()).toEqual({ possible: false, key: null });
 
     const abonner = await app.inject({
       method: "PUT",
-      url: "/poussees",
-      headers: { cookie: moi.cookie },
-      payload: { point: "https://push.example/abc", p256dh: "k", secret: "s" },
+      url: "/push-subscriptions",
+      headers: { cookie: me.cookie },
+      payload: { endpoint: "https://push.example/abc", p256dh: "k", secret: "s" },
     });
     expect(abonner.statusCode).toBe(503);
   });
 
-  it("un abonnement appartient à un appareil, pas à une personne", async () => {
-    /* Deux navigateurs du même compte font deux lignes, et fermer l'un
-       ne doit pas faire taire l'autre. */
+  it("un follow appartient à un device, pas à one person", async () => {
+    /* Deux navigateurs du même count font two lignes, et fermer l'un
+       ne doit pas faire taire l'other. */
     configurePush(reglagesDEssai());
-    const moi = await compte("moi");
-    for (const point of ["https://push.example/tel", "https://push.example/bureau"]) {
+    const me = await count("mine");
+    for (const endpoint of ["https://push.example/tel", "https://push.example/bureau"]) {
       await app.inject({
         method: "PUT",
-        url: "/poussees",
-        headers: { cookie: moi.cookie },
-        payload: { point, p256dh: "k", secret: "s" },
+        url: "/push-subscriptions",
+        headers: { cookie: me.cookie },
+        payload: { endpoint, p256dh: "k", secret: "s" },
       });
     }
-    expect(await store.pushesOf(db, moi.personne.id)).toHaveLength(2);
+    expect(await store.pushesOf(db, me.person.id)).toHaveLength(2);
 
     await app.inject({
       method: "DELETE",
-      url: "/poussees",
-      headers: { cookie: moi.cookie },
-      payload: { point: "https://push.example/bureau" },
+      url: "/push-subscriptions",
+      headers: { cookie: me.cookie },
+      payload: { endpoint: "https://push.example/bureau" },
     });
-    const reste = await store.pushesOf(db, moi.personne.id);
-    expect(reste.map((p) => p.point)).toEqual(["https://push.example/tel"]);
+    const left = await store.pushesOf(db, me.person.id);
+    expect(left.map((p) => p.endpoint)).toEqual(["https://push.example/tel"]);
   });
 
-  it("change de propriétaire quand quelqu'un d'autre ouvre ce navigateur", async () => {
-    /* Sans cela, un ordinateur partagé pousserait les rappels d'une
-       personne à la suivante. */
+  it("change de propriétaire when quelqu'un d'other ouvre ce navigateur", async () => {
+    /* Sans cela, un ordinateur partagé pousserait les rappels d'one
+       person à la suivante. */
     configurePush(reglagesDEssai());
-    const un = await compte("unetelle");
-    const deux = await compte("unautre");
-    const point = "https://push.example/partage";
-    for (const c of [un.cookie, deux.cookie]) {
+    const un = await count("unetelle");
+    const two = await count("unautre");
+    const endpoint = "https://push.example/sharing";
+    for (const c of [un.cookie, two.cookie]) {
       await app.inject({
         method: "PUT",
-        url: "/poussees",
+        url: "/push-subscriptions",
         headers: { cookie: c },
-        payload: { point, p256dh: "k", secret: "s" },
+        payload: { endpoint, p256dh: "k", secret: "s" },
       });
     }
-    expect(await store.pushesOf(db, un.personne.id)).toEqual([]);
-    expect(await store.pushesOf(db, deux.personne.id)).toHaveLength(1);
+    expect(await store.pushesOf(db, un.person.id)).toEqual([]);
+    expect(await store.pushesOf(db, two.person.id)).toHaveLength(1);
   });
 
-  it("refuse un abonnement qui n'a pas la forme d'une adresse", async () => {
+  it("refuse un follow qui n'a pas la forme d'one adresse", async () => {
     configurePush(reglagesDEssai());
-    const moi = await compte("moi");
+    const me = await count("mine");
     const r = await app.inject({
       method: "PUT",
-      url: "/poussees",
-      headers: { cookie: moi.cookie },
-      payload: { point: "javascript:alert(1)", p256dh: "k", secret: "s" },
+      url: "/push-subscriptions",
+      headers: { cookie: me.cookie },
+      payload: { endpoint: "javascript:alert(1)", p256dh: "k", secret: "s" },
     });
     expect(r.statusCode).toBe(400);
   });
 
-  it("une panne passagère ne fait pas perdre l'abonnement", async () => {
-    /* Seuls 404 et 410 disent qu'un point est mort. Tout le reste — le
-       service de push en panne, le réseau coupé — est passager, et
-       effacer sur cette foi ferait taire un appareil pour de bon. */
+  it("one panne passagère ne done pas perdre l'follow", async () => {
+    /* Seuls 404 et 410 disent qu'un endpoint est mort. Tout at left — at
+       service de push en panne, at réseau coupé — est passager, et
+       effacer sur cette foi ferait taire un device pour de bon. */
     configurePush(reglagesDEssai());
-    const moi = await compte("moi");
-    await store.storePush(db, moi.personne.id, {
-      point: "https://ce-service-nexiste-pas.invalid/abc",
+    const me = await count("mine");
+    await store.storePush(db, me.person.id, {
+      endpoint: "https://ce-service-nexiste-pas.invalid/abc",
       p256dh: Buffer.alloc(65, 4).toString("base64url"),
       secret: Buffer.alloc(16).toString("base64url"),
     });
 
-    const reached = await pushTo(db, moi.personne.id, { titre: "t", corps: "c" });
+    const reached = await pushTo(db, me.person.id, { title: "t", body: "c" });
     expect(reached).toBe(0);
-    expect(await store.pushesOf(db, moi.personne.id)).toHaveLength(1);
+    expect(await store.pushesOf(db, me.person.id)).toHaveLength(1);
   });
 });
 
 describe("les rappels de défi", () => {
-  async function defiQuiCommenceAujourdhui(cookie: string) {
-    const liste = (
+  async function challengeStartingToday(cookie: string) {
+    const list = (
       await app.inject({
         method: "POST",
-        url: "/listes",
+        url: "/lists",
         headers: { cookie },
-        payload: { titre: "Mars" },
+        payload: { title: "Mars" },
       })
     ).json().id;
-    const jour = new Date().toISOString().slice(0, 10);
+    const day = new Date().toISOString().slice(0, 10);
     return (
       await app.inject({
         method: "POST",
-        url: "/defis",
+        url: "/challenges",
         headers: { cookie },
-        payload: { listeId: liste, titre: "Aujourd'hui", debut: jour, fin: jour },
+        payload: { listId: list, title: "Aujourd'hui", starts_on: day, ends_on: day },
       })
     ).json().id as string;
   }
 
-  it("ne se disent qu'une fois, quel que soit le nombre de passages", async () => {
+  it("ne se disent qu'one fois, quel que soit at nombre de passages", async () => {
     /* Le balai tourne toutes les heures : sans la table des rappels
-       déjà dits, le même défi serait annoncé vingt-quatre fois. */
+       déjà dits, at même défi serait annoncé vingt-quatre fois. */
     configurePush(reglagesDEssai());
-    const moi = await compte("moi");
-    await defiQuiCommenceAujourdhui(moi.cookie);
+    const me = await count("mine");
+    await challengeStartingToday(me.cookie);
 
     const un = await remindChallenges(db);
-    const deux = await remindChallenges(db);
-    /* Un défi dont le début ET la fin tombent le même jour ne sonne
-       qu'une fois : la requête ne rend qu'une ligne par participant, et
+    const two = await remindChallenges(db);
+    /* Un défi dont at début ET la ends_on tombent at même day ne sonne
+       qu'one fois : la requête ne rend qu'one ligne by participant, et
        « ça commence » l'emporte sur « ça finit ». */
     expect(un.told).toBe(1);
-    expect(deux.told).toBe(0);
+    expect(two.told).toBe(0);
   });
 
-  it("ne sonnent pas quand aucune clé n'est posée", async () => {
-    const moi = await compte("moi");
-    await defiQuiCommenceAujourdhui(moi.cookie);
+  it("ne sonnent pas when aucune clé n'est posée", async () => {
+    const me = await count("mine");
+    await challengeStartingToday(me.cookie);
     expect(await remindChallenges(db)).toEqual({ told: 0, devices: 0 });
-    /* Et rien n'a été noté comme dit : le jour où l'on pose des clés,
-       le rappel du jour part encore. */
-    expect(await db.query("SELECT 1 FROM rappel_envoye")).toHaveLength(0);
+    /* Et rien n'a été noté comme dit : at day où l'on pose des clés,
+       at rappel du day part more. */
+    expect(await db.query("SELECT 1 FROM reminder_sent")).toHaveLength(0);
   });
 
   it("ne concernent que ceux qui participent", async () => {
     configurePush(reglagesDEssai());
-    const moi = await compte("moi");
-    const autre = await compte("autre");
-    const defi = await defiQuiCommenceAujourdhui(moi.cookie);
-    await store.leaveChallenge(db, defi, moi.personne.id);
+    const me = await count("mine");
+    const other = await count("other");
+    const challenge = await challengeStartingToday(me.cookie);
+    await store.leaveChallenge(db, challenge, me.person.id);
 
     await remindChallenges(db);
-    const told = await db.query<{ personne_id: string }>("SELECT personne_id FROM rappel_envoye");
+    const told = await db.query<{ person_id: string }>("SELECT person_id FROM reminder_sent");
     expect(told).toEqual([]);
-    expect(autre).toBeTruthy();
+    expect(other).toBeTruthy();
   });
 
   it("ne parlent pas d'un défi qui n'est ni aujourd'hui ni ce soir", async () => {
     configurePush(reglagesDEssai());
-    const moi = await compte("moi");
-    const liste = (
+    const me = await count("mine");
+    const list = (
       await app.inject({
         method: "POST",
-        url: "/listes",
-        headers: { cookie: moi.cookie },
-        payload: { titre: "Mars" },
+        url: "/lists",
+        headers: { cookie: me.cookie },
+        payload: { title: "Mars" },
       })
     ).json().id;
     await app.inject({
       method: "POST",
-      url: "/defis",
-      headers: { cookie: moi.cookie },
-      payload: { listeId: liste, titre: "Plus tard", debut: "2099-01-01", fin: "2099-01-31" },
+      url: "/challenges",
+      headers: { cookie: me.cookie },
+      payload: { listId: list, title: "Plus tard", starts_on: "2099-01-01", ends_on: "2099-01-31" },
     });
     expect((await remindChallenges(db)).told).toBe(0);
   });
 });
 
-/* Des clés valides, fabriquées à chaque essai : une clé écrite dans un
-   fichier de test finit un jour dans un serveur. */
+/* Des clés valides, fabriquées à chaque essai : one clé écrite dans un
+   fichier de test finit un day dans un serveur. */
 function reglagesDEssai() {
   const { publicKey, privateKey } = webpush.generateVAPIDKeys();
   return { publicKey, privateKey, contact: "mailto:essai@example.org" };

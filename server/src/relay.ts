@@ -103,11 +103,11 @@ export function registerRelays(app: FastifyInstance, options: RelayOptions): voi
        would go through. */
       const path = "/" + ((req.params as { "*"?: string })["*"] ?? "");
       if (!TMDB_PATHS.some((r) => r.test(path))) {
-        return reply.code(404).send({ erreur: "Ce chemin n'est pas relayé." });
+        return reply.code(404).send({ error: "Ce chemin n'est pas relayé." });
       }
 
       if (!options.tmdbKey) {
-        return reply.code(503).send({ erreur: "Aucune clé TMDB de ce côté-ci." });
+        return reply.code(503).send({ error: "Aucune clé TMDB de ce côté-ci." });
       }
 
       /* THE CLIENT'S KEY IS THROWN AWAY, NOT FORWARDED. It has nothing to
@@ -146,7 +146,7 @@ export function registerRelays(app: FastifyInstance, options: RelayOptions): voi
        address: without this bound, the parameter becomes a machine for
        making our server visit anything at all. */
     if (!/^[A-Za-z0-9_]{1,32}$/.test(pseudo)) {
-      return reply.code(400).send({ erreur: "Pseudonyme Letterboxd improbable." });
+      return reply.code(400).send({ error: "Pseudonyme Letterboxd improbable." });
     }
 
     const res = await fetch(`https://letterboxd.com/${pseudo}/rss/`, {
@@ -154,7 +154,7 @@ export function registerRelays(app: FastifyInstance, options: RelayOptions): voi
     });
     if (!res.ok) {
       return reply.code(res.status === 404 ? 404 : 502).send({
-        erreur:
+        error:
           res.status === 404 ? "Pas de flux pour ce pseudonyme." : "Letterboxd n'a pas répondu.",
       });
     }
