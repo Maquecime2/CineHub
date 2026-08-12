@@ -78,7 +78,7 @@ export function ImportView({
   const [error, setError] = useState("");
   const [done, setDone] = useState<{ created: number; updated: number; unchanged: number } | null>(
     null
-  ); // bilan après écriture
+  ); // report après écriture
 
   /* The field here keeps its local draft — one types a key before
      validating it — but it is no longer the ONLY place where it is laid:

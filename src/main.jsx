@@ -1,7 +1,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
-import { CollectionPartagee, readAddress } from "./views/CollectionPartagee";
+import { SharedCollectionView, readAddress } from "./views/SharedCollectionView";
 import { applySkin, loadSkinKey } from "./theme/applySkin";
 import "./index.css";
 
@@ -45,6 +45,6 @@ addEventListener("hashchange", () => {
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    {address ? <CollectionPartagee address={address} /> : <App />}
+    {address ? <SharedCollectionView address={address} /> : <App />}
   </React.StrictMode>
 );

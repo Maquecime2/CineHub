@@ -47,7 +47,7 @@ import { WatchLog } from "../components/film/WatchLog";
 import { ThreadBoard } from "../components/film/ThreadBoard";
 import { LINK_TYPES } from "../components/film/linkTypes";
 import { STRENGTHS, ENTERABLE_RELATIONS, strengthOf } from "../domain/relations";
-import { SillagePanel } from "./detail/SillagePanel";
+import { WakePanel } from "./detail/WakePanel";
 import { StillsStrip } from "../components/stills/StillsStrip";
 import { StillLightbox } from "../components/stills/StillLightbox";
 import { RichField } from "../components/stills/RichField";
@@ -1154,7 +1154,7 @@ export function DetailView({
               gain from being read one under the other. It is also the
               card's natural way out: one rarely closes a folder without
               wondering "and then?". */}
-            <SillagePanel
+            <WakePanel
               film={film}
               films={films}
               onOpen={onOpen}

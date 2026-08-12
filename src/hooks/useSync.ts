@@ -24,7 +24,7 @@ import type { Film } from "../types";
 
 const RHYTHM_MS = 5 * 60 * 1000;
 
-export function useSynchro(
+export function useSync(
   ready: boolean,
   onFilms: (films: Film[]) => void,
   /** Called when documents came in: up to the caller to re-read. */

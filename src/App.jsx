@@ -22,7 +22,7 @@ import { Installation, MiseÀJour } from "./components/layout/Installation";
 import { AccountDrawer } from "./components/layout/AccountDrawer";
 import { TmdbKeyPanel } from "./components/layout/TmdbKeyPanel";
 import { registerTmdbOpener } from "./services/tmdbKey";
-import { useSynchro } from "./hooks/useSynchro";
+import { useSync } from "./hooks/useSync";
 import { useInstallation } from "./hooks/useInstallation";
 /* The module only exists at build time: it is the plugin that makes it,
    with the address of the service worker it has just written. */
@@ -30,12 +30,12 @@ import { useRegisterSW } from "virtual:pwa-register/react";
 import { SearchDrawer } from "./components/layout/SearchDrawer";
 import { WALLS } from "./views/library/walls";
 import { NotebookView } from "./views/NotebookView";
-import { GeneriqueView } from "./views/GeneriqueView";
+import { CreditsView } from "./views/CreditsView";
 import { RecoView } from "./views/RecoView";
 import { DetailView } from "./views/DetailView";
 import { ImportView } from "./views/import/ImportView";
-import { FilView } from "./views/FilView";
-import { ListesView } from "./views/ListesView";
+import { ThreadView } from "./views/ThreadView";
+import { ListsView } from "./views/ListsView";
 import { viewKey, saveViewIndex, deleteViewKey, ensureViews } from "./services/shelfViews";
 import { ConstellationView } from "./views/ConstellationView";
 import { LibraryView } from "./views/library/LibraryView";
@@ -263,7 +263,7 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const { report: synchro, synchronise: relancerSynchro } = useSynchro(
+  const { report: synchro, synchronise: rerunSync } = useSync(
     loaded,
     setFilms,
     relireLesDocuments
@@ -753,12 +753,12 @@ export default function App() {
       />
       {accountOpen && (
         <AccountDrawer
-          bilan={synchro}
+          report={synchro}
           onFermer={() => setCompteOuvert(false)}
-          onSynchroniser={relancerSynchro}
+          onSync={rerunSync}
           onChangement={() => {
             setCompteOuvert(false);
-            relancerSynchro();
+            rerunSync();
           }}
         />
       )}
@@ -861,7 +861,7 @@ export default function App() {
           />
         )}
         {view === "generique" && (
-          <GeneriqueView
+          <CreditsView
             films={films}
             personne={personne}
             onOpenPersonne={setPersonne}
@@ -905,8 +905,8 @@ export default function App() {
             WATCHED, including those set aside in the reserve — having
             archived them does not make them unwatched. */}
         {view === "almanac" && <AlmanacView films={watched} onOpenPerson={ouvrirPersonne} />}
-        {view === "fil" && <FilView connecte={!!synchro.person} />}
-        {view === "listes" && <ListesView connecte={!!synchro.person} />}
+        {view === "fil" && <ThreadView connected={!!synchro.person} />}
+        {view === "listes" && <ListsView connected={!!synchro.person} />}
         {view === "skinlab" && import.meta.env.DEV && <SkinLab />}
         {view === "import" && (
           <ImportView

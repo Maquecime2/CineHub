@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { render, cleanup } from "@testing-library/react";
-import { Calque } from "./Calque";
+import { Layer } from "./Layer";
 import { DropMark } from "../shelf/items";
 
 /* What is tested here cannot be seen: a panel rendered in the wrong place
@@ -15,9 +15,9 @@ describe("the layer", () => {
   it("renders into the document body, and not where it is called from", () => {
     const { container } = render(
       <div data-enters>
-        <Calque>
+        <Layer>
           <div data-probe />
-        </Calque>
+        </Layer>
       </div>
     );
     expect(container.querySelector("[data-probe]")).toBeNull();
@@ -30,9 +30,9 @@ describe("the layer", () => {
     let heard = 0;
     render(
       <div onClick={() => heard++}>
-        <Calque>
+        <Layer>
           <button data-probe>poser</button>
-        </Calque>
+        </Layer>
       </div>
     );
     (document.body.querySelector("[data-probe]") as HTMLElement).click();

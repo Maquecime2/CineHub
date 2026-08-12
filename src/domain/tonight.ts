@@ -15,7 +15,7 @@
    has none.
 
    Pure, networkless, stateless: a collection goes in, a ranking comes
-   out. The guessed motifs arrive ready-chewed (see `SoirDrawer`), because
+   out. The guessed motifs arrive ready-chewed (see `TonightDrawer`), because
    going to fetch them is I/O and this module does none.
    ============================================================ */
 import { buildTaste, decadeOf } from "../taste";

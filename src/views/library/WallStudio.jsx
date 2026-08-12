@@ -10,7 +10,7 @@
    Two panels, because there are two things to adjust: what the cards are
    hung on, and the cards themselves. */
 import { useState } from "react";
-import { Calque } from "../../components/ui/Calque";
+import { Layer } from "../../components/ui/Layer";
 import { X, RotateCcw } from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
@@ -78,7 +78,7 @@ export function WallStudio({ look, onChange, onReset, onClose }) {
   const setDecor = (patch) => onChange({ decor: { ...(look.decor || {}), ...patch } });
 
   return (
-    <Calque>
+    <Layer>
       <div onClick={onClose} data-veil style={{ position: "fixed", inset: 0, zIndex: 44 }} />
       <div style={STUDIO_BOX}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
@@ -148,6 +148,6 @@ export function WallStudio({ look, onChange, onReset, onClose }) {
             : "ce mur est à cette collection — l'autre garde le sien"}
         </div>
       </div>
-    </Calque>
+    </Layer>
   );
 }

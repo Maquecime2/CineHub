@@ -70,7 +70,7 @@ const TABS: {
   color: string;
   icon: ComponentType<{ size?: number }>;
   /** Worth nothing with no server: the tab does not appear at all. */
-  exigeUnServeur?: boolean;
+  needsServer?: boolean;
 }[] = [
   { key: "library", label: "Vidéothèque", color: C.burgundy, icon: Clapperboard },
   { key: "watchlist", label: "À voir", color: C.ochre, icon: Bookmark },
@@ -85,7 +85,7 @@ const TABS: {
   /* THE FEED IS THE LAST TAB, and not the first: the binder stays a
        personal video library, and what we look at in other people's
        homes comes after what we have in ours. */
-  { key: "fil", label: "Le fil", color: C.cobalt, icon: Users2, exigeUnServeur: true },
+  { key: "fil", label: "Le fil", color: C.cobalt, icon: Users2, needsServer: true },
   /* The lists and the challenges come after the feed: we look at what
        others are doing before starting something with them. */
   {
@@ -93,7 +93,7 @@ const TABS: {
     label: "Listes et défis",
     color: C.moss,
     icon: ListChecks,
-    exigeUnServeur: true,
+    needsServer: true,
   },
 ];
 
@@ -339,7 +339,7 @@ export function FolderTabs({
      time — so the rail will never change shape along the way. Nor will
      the tour: its steps aiming at these views are `optional`, and an
      absent target is skipped without a sound. */
-  const tabs = [...TABS, ...DEV_TABS].filter((t) => !t.exigeUnServeur || serverConfigured());
+  const tabs = [...TABS, ...DEV_TABS].filter((t) => !t.needsServer || serverConfigured());
   /* THE RAIL LIES DOWN RATHER THAN DISAPPEARING.
 
      On a binder's left spine, eight stacked pills and four actions at the

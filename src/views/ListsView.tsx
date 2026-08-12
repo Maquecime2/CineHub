@@ -44,18 +44,18 @@ import {
   type ListWork,
 } from "../services/server";
 
-export function ListesView({ connecte }: { connecte: boolean }) {
+export function ListsView({ connected }: { connected: boolean }) {
   const [listes, setListes] = useState<List[]>([]);
   const [defis, setDefis] = useState<Challenge[]>([]);
   const [ouverte, setOuverte] = useState<string | null>(null);
   const [titre, setTitre] = useState("");
 
   const relire = useCallback(async () => {
-    if (!connecte) return;
+    if (!connected) return;
     const [l, d] = await Promise.all([myLists(), myChallenges()]);
     setListes(l.listes);
     setDefis(d.defis);
-  }, [connecte]);
+  }, [connected]);
 
   useEffect(() => {
     relire().catch(() => {});
@@ -72,7 +72,7 @@ export function ListesView({ connecte }: { connecte: boolean }) {
     );
   }
 
-  if (!connecte) {
+  if (!connected) {
     return (
       <Page>
         <Guideline>

@@ -10,14 +10,14 @@
    distinguishes a sentence from the binder from a browser banner, and
    what we want precisely is for the former not to look like the latter.
 
-   Mounted by `Calque`, like everything that floats: the view column is a
+   Mounted by `Layer`, like everything that floats: the view column is a
    stacking context and transforms itself for the length of an animation.
    ============================================================ */
 import type { ReactNode } from "react";
 import { Download, RefreshCw, Share, X } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
-import { Calque } from "../ui/Calque";
+import { Layer } from "../ui/Layer";
 
 /* The card lives above the bottom bar (20) and below any open panel
    (30): it informs, it does not interrupt. */
@@ -33,7 +33,7 @@ function Fiche({
   onFermer?: () => void;
 }) {
   return (
-    <Calque>
+    <Layer>
       <div
         data-tour={tour}
         style={{
@@ -83,7 +83,7 @@ function Fiche({
           </button>
         )}
       </div>
-    </Calque>
+    </Layer>
   );
 }
 

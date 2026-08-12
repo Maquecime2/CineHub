@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
-import { Calque } from "../ui/Calque";
+import { Layer } from "../ui/Layer";
 import { Label } from "../ui";
 import { Confirmation, type ConfirmRequest } from "../ui/Confirmation";
 import {
@@ -66,14 +66,14 @@ const quandDit = (le: number | null): string => {
 };
 
 export function AccountDrawer({
-  bilan,
+  report,
   onFermer,
-  onSynchroniser,
+  onSync,
   onChangement,
 }: {
-  bilan: SyncReport;
+  report: SyncReport;
   onFermer: () => void;
-  onSynchroniser: () => void;
+  onSync: () => void;
   /** The account has changed: the application must find its bearings again. */
   onChangement: (person: Person | null) => void;
 }) {
@@ -102,10 +102,10 @@ export function AccountDrawer({
     }
   };
 
-  const connecté = !!bilan.person;
+  const connecté = !!report.person;
 
   return (
-    <Calque>
+    <Layer>
       <div
         onClick={onFermer}
         data-veil
@@ -140,8 +140,8 @@ export function AccountDrawer({
               color: C.ink,
             }}
           >
-            <span data-pseudo={connecté ? bilan.person!.pseudo : undefined}>
-              {connecté ? bilan.person!.pseudo : "Votre compte"}
+            <span data-pseudo={connecté ? report.person!.pseudo : undefined}>
+              {connecté ? report.person!.pseudo : "Votre compte"}
             </span>
           </div>
           <button
@@ -175,29 +175,29 @@ export function AccountDrawer({
             color: C.inkFaded,
           }}
         >
-          {bilan.state === "up-to-date" && <Check size={14} color={C.pine} />}
-          {bilan.state === "waiting" && <CloudOff size={14} color={C.inkFaded} />}
-          {bilan.state === "running" && <RefreshCw size={14} color={C.inkFaded} />}
+          {report.state === "up-to-date" && <Check size={14} color={C.pine} />}
+          {report.state === "waiting" && <CloudOff size={14} color={C.inkFaded} />}
+          {report.state === "running" && <RefreshCw size={14} color={C.inkFaded} />}
           <span style={{ flex: 1 }}>
-            {bilan.state === "absent" && "Aucun serveur réglé."}
-            {bilan.state === "no-account" && "Tout reste ici."}
-            {bilan.state === "running" && "En cours…"}
-            {bilan.state === "up-to-date" && `À jour, ${quandDit(bilan.at)}.`}
+            {report.state === "absent" && "Aucun serveur réglé."}
+            {report.state === "no-account" && "Tout reste ici."}
+            {report.state === "running" && "En cours…"}
+            {report.state === "up-to-date" && `À jour, ${quandDit(report.at)}.`}
             {/* "0 CARDS ARE WAITING FOR THE NETWORK" MEANS NOTHING, and
                 that is nonetheless what showed when the server was
                 unreachable without our having changed anything: an empty
                 countdown instead of the one useful piece of news. */}
-            {bilan.state === "waiting" &&
-              (bilan.pending === 0
+            {report.state === "waiting" &&
+              (report.pending === 0
                 ? "Serveur injoignable. Rien à envoyer, rien de perdu."
-                : `${bilan.pending} fiche${bilan.pending > 1 ? "s" : ""} attend${
-                    bilan.pending > 1 ? "ent" : ""
+                : `${report.pending} fiche${report.pending > 1 ? "s" : ""} attend${
+                    report.pending > 1 ? "ent" : ""
                   } le réseau.`)}
-            {bilan.state === "error" && (bilan.message || "Le serveur a refusé.")}
+            {report.state === "error" && (report.message || "Le serveur a refusé.")}
           </span>
           {connecté && (
             <button
-              onClick={onSynchroniser}
+              onClick={onSync}
               title="Synchroniser maintenant"
               style={{ ...tap, all: "unset", cursor: "pointer", color: C.burgundy }}
             >
@@ -311,7 +311,7 @@ export function AccountDrawer({
                       lien.href = URL.createObjectURL(
                         new Blob([JSON.stringify(tout, null, 2)], { type: "application/json" })
                       );
-                      lien.download = `cine-hub-${bilan.person!.pseudo}.json`;
+                      lien.download = `cine-hub-${report.person!.pseudo}.json`;
                       lien.click();
                       URL.revokeObjectURL(lien.href);
                     } catch (e) {
@@ -390,7 +390,7 @@ export function AccountDrawer({
           n'est public : le partage se décide fiche par fiche, et n'emportera jamais vos notes.
         </div>
       </div>
-    </Calque>
+    </Layer>
   );
 }
 

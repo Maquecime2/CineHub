@@ -183,7 +183,7 @@ describe("ShelfBoard — le coût d'un glissement", () => {
        measurements kept above designated. That is where the two fixes
        meet. */
     /* The drawer renders into the document's BODY and not into the render
-       container: it is a `Calque`, so that its screen coordinates do not
+       container: it is a `Layer`, so that its screen coordinates do not
        depend on the view column and its transform. So we look for it where
        it really is. */
     const tab = document.querySelector("[data-drawer-tab]");

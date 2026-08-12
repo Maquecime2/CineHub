@@ -49,7 +49,7 @@ vi.mock("../../services/sync", async (vrai) => ({
   forgetSync: vi.fn(),
 }));
 
-const bilan = (connecté: boolean): SyncReport =>
+const report = (connecté: boolean): SyncReport =>
   ({
     state: connecté ? "up-to-date" : "no-account",
     person: connecté ? { id: "1", pseudo: "varda" } : null,
@@ -60,9 +60,9 @@ const bilan = (connecté: boolean): SyncReport =>
 const monter = (connecté = true) =>
   render(
     <AccountDrawer
-      bilan={bilan(connecté)}
+      report={report(connecté)}
       onFermer={vi.fn()}
-      onSynchroniser={vi.fn()}
+      onSync={vi.fn()}
       onChangement={vi.fn()}
     />
   );

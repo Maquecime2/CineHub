@@ -54,7 +54,7 @@ export interface TourStep {
    * skipped step would still have made a page with no tab left blink. So
    * we remove it upstream, rather than skipping it downstream.
    */
-  exigeUnServeur?: boolean;
+  needsServer?: boolean;
 }
 
 export interface Tour {
@@ -339,7 +339,7 @@ const almanac: Tour = {
     {
       target: at("almanac-year"),
       title: "Une année, ou toujours",
-      body: "L'almanach lit le journal des séances : il ne compte que les vraies séances, à leur date, et non la date d'ajout des fiches. « TOUJOURS », en tête, ouvre le même bilan sur toute votre pratique — les douze mois y deviennent vos années.",
+      body: "L'almanach lit le journal des séances : il ne compte que les vraies séances, à leur date, et non la date d'ajout des fiches. « TOUJOURS », en tête, ouvre le même report sur toute votre pratique — les douze mois y deviennent vos années.",
       placement: "bottom",
       optional: true,
     },
@@ -542,7 +542,7 @@ const global: Tour = {
        only a sentence, and there is no landmark to point at. */
     {
       target: at("listes-defis"),
-      exigeUnServeur: true,
+      needsServer: true,
       title: "Se lancer quelque chose",
       body: "Une liste plus une période fait un défi. Personne ne coche « vu » : l'avancement se calcule depuis votre journal de séances, et le serveur n'en tire qu'un nombre — vos dates ne sortent pas d'ici.",
       placement: "top",
@@ -634,7 +634,7 @@ const listes: Tour = {
    therefore have nothing to show, and the tour must describe the product
    as it is for whoever is playing it. */
 const élaguer = (t: Tour): Tour =>
-  serverConfigured() ? t : { ...t, steps: t.steps.filter((s) => !s.exigeUnServeur) };
+  serverConfigured() ? t : { ...t, steps: t.steps.filter((s) => !s.needsServer) };
 
 export const TOURS: Record<string, Tour> = Object.fromEntries(
   Object.entries({

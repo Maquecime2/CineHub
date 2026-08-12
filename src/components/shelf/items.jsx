@@ -1,7 +1,7 @@
 /* The objects one lays on a board: the drop marker, the case, the decor
    and the category. */
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Calque } from "../ui/Calque";
+import { Layer } from "../ui/Layer";
 import { C, F, alpha } from "../../theme/tokens";
 import { hueOf } from "../../theme/ink";
 import { tiltOf } from "../../domain/seeded";
@@ -70,7 +70,7 @@ export const carryGhost = (e, node) => {
    say just after changing tab. */
 export const DropMark = React.forwardRef(function DropMark(_props, ref) {
   return (
-    <Calque>
+    <Layer>
       <div ref={ref} data-drop-mark aria-hidden style={DROP_MARK_STYLE}>
         <svg
           width={MARK_W}
@@ -91,7 +91,7 @@ export const DropMark = React.forwardRef(function DropMark(_props, ref) {
           ))}
         </svg>
       </div>
-    </Calque>
+    </Layer>
   );
 });
 

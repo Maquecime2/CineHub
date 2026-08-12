@@ -14,7 +14,7 @@ import { THEMES } from "../../components/shelf/constants";
 import { DecorStudio } from "../../components/shelf/DecorStudio";
 import { SHELF_KINDS, sortIntoRows, patchViewDecor, clearViewDecor } from "../../shelf-views";
 import { FilmWall } from "./FilmWall";
-import { SoirDrawer } from "./SoirDrawer";
+import { TonightDrawer } from "./TonightDrawer";
 import { WallStudio } from "./WallStudio";
 import { wallLookOf, DEFAULT_WALL_LOOK } from "./wallLook";
 import { wallStyle } from "../../theme/surfaces";
@@ -911,7 +911,7 @@ export function LibraryView({
       {/* Le tiroir est monté hors des deux présentations : la question du
           soir ne change pas selon qu'on regarde un mur ou une étagère. */}
       {soir && (
-        <SoirDrawer
+        <TonightDrawer
           films={tousLesFilms.length ? tousLesFilms : films}
           onClose={() => setSoir(false)}
           onOpen={onOpen}

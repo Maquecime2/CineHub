@@ -38,7 +38,7 @@ export function RepairPanel({ films, onImport }: RepairPanelProps) {
      glance. */
   const [choisies, setChoisies] = useState<Set<string>>(new Set());
   const [request, setRequest] = useState<ConfirmRequest | null>(null);
-  const [bilan, setBilan] = useState("");
+  const [report, setReport] = useState("");
 
   if (suspectes.length === 0) return null;
 
@@ -71,7 +71,7 @@ export function RepairPanel({ films, onImport }: RepairPanelProps) {
           toUpdate: àRemettre.map((film) => ({ film, changes: { status: "watchlist" as const } })),
           unchanged: [],
         });
-        setBilan(`${àRemettre.length} fiche(s) remise(s) dans « À voir ».`);
+        setReport(`${àRemettre.length} fiche(s) remise(s) dans « À voir ».`);
         setChoisies(new Set());
         setRequest(null);
       },
@@ -198,8 +198,8 @@ export function RepairPanel({ films, onImport }: RepairPanelProps) {
         </button>
       </div>
 
-      {bilan && (
-        <div style={{ fontFamily: F.hand, fontSize: 17, color: C.pine, marginTop: 8 }}>{bilan}</div>
+      {report && (
+        <div style={{ fontFamily: F.hand, fontSize: 17, color: C.pine, marginTop: 8 }}>{report}</div>
       )}
 
       <Confirmation request={request} onClose={() => setRequest(null)} />

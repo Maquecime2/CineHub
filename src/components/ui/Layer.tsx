@@ -32,7 +32,7 @@
 import { createPortal } from "react-dom";
 import type { ReactNode } from "react";
 
-export function Calque({ children }: { children: ReactNode }) {
+export function Layer({ children }: { children: ReactNode }) {
   /* Server rendering does not exist here, but the tests sometimes mount
      fragments with no complete document: we do not throw for that. */
   if (typeof document === "undefined") return null;

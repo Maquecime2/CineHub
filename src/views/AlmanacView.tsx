@@ -1165,7 +1165,7 @@ export function AlmanacView({
            `100vh` ASSUMES THE ALMANAC STARTS AT THE TOP OF THE COLUMN,
            and that assumption is only true because nothing is ever laid
            above it in the flow. The example collection's banner nearly
-           broke it: it goes through `Calque`, precisely so as to
+           broke it: it goes through `Layer`, precisely so as to
            displace nothing. */
         height: "100vh",
         boxSizing: "border-box",

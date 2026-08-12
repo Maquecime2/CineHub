@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Calque } from "../ui/Calque";
+import { Layer } from "../ui/Layer";
 import { X } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
@@ -64,7 +64,7 @@ export function StillLightbox({
   if (!still) return null;
 
   return (
-    <Calque>
+    <Layer>
       /* Closing only fires on the backdrop itself (`e.target` = the veil), never on what it
       contains: aiming beside the image no longer closes the viewer by accident. */
       <div
@@ -205,6 +205,6 @@ export function StillLightbox({
           </button>
         )}
       </div>
-    </Calque>
+    </Layer>
   );
 }

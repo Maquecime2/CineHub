@@ -97,6 +97,8 @@ export interface SyncReport {
   message?: string;
 }
 
+/* The KEY keeps its old spelling on purpose: it names a value already on
+   disk. Renaming it would not translate anything — it would lose it. */
 const REPORT_KEY = "synchro-bilan";
 
 /* `le` became `at` when this module was translated, and the report is

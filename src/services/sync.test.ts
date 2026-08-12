@@ -91,9 +91,9 @@ describe("un tour complet", () => {
     ];
 
     let vus: unknown[] = [];
-    const bilan = await synchronise((films) => (vus = films));
+    const report = await synchronise((films) => (vus = films));
 
-    expect(bilan.state).toBe("up-to-date");
+    expect(report.state).toBe("up-to-date");
     expect((vus as { id: string }[]).map((f) => f.id).sort()).toEqual(["local", "venue"]);
     /* The card that came from the server does NOT leave again: it carries its date. */
     expect(faux.poussés.flat().map((f) => (f as { id: string }).id)).toEqual(["local"]);
@@ -141,9 +141,9 @@ describe("quand le réseau manque", () => {
     await saveFilms([fiche({ id: "local", updatedAt: 5000 })]);
     faux.jetteAuTirage = { code: 0, message: "Le serveur ne répond pas." };
 
-    const bilan = await synchronise(() => {});
-    expect(bilan.state).toBe("waiting");
-    expect(bilan.pending).toBe(1);
+    const report = await synchronise(() => {});
+    expect(report.state).toBe("waiting");
+    expect(report.pending).toBe(1);
   });
 
   it("et rattrape tout au retour du réseau", async () => {
@@ -153,16 +153,16 @@ describe("quand le réseau manque", () => {
     expect(faux.poussés).toEqual([]);
 
     faux.jetteÀLEnvoi = null;
-    const bilan = await synchronise(() => {});
-    expect(bilan.state).toBe("up-to-date");
+    const report = await synchronise(() => {});
+    expect(report.state).toBe("up-to-date");
     expect(faux.poussés.flat().map((f) => (f as { id: string }).id)).toEqual(["local"]);
   });
 
   it("une vraie erreur du serveur se distingue d'une absence de réseau", async () => {
     faux.jetteAuTirage = { code: 500, message: "ça a cassé" };
-    const bilan = await synchronise(() => {});
-    expect(bilan.state).toBe("error");
-    expect(bilan.message).toBe("ça a cassé");
+    const report = await synchronise(() => {});
+    expect(report.state).toBe("error");
+    expect(report.message).toBe("ça a cassé");
   });
 });
 
@@ -170,8 +170,8 @@ describe("sans compte", () => {
   it("rien ne part, et ce n'est pas une panne", async () => {
     faux.person = null;
     await saveFilms([fiche({ id: "local", updatedAt: 5000 })]);
-    const bilan = await synchronise(() => {});
-    expect(bilan.state).toBe("no-account");
+    const report = await synchronise(() => {});
+    expect(report.state).toBe("no-account");
     expect(faux.poussés).toEqual([]);
   });
 });
@@ -243,8 +243,8 @@ describe("le reste du classeur", () => {
         ],
       },
     ];
-    const bilan = await synchronise(() => {});
-    expect(bilan.documentsIn).toBe(1);
+    const report = await synchronise(() => {});
+    expect(report.documentsIn).toBe(1);
     expect(JSON.parse(localStorage.getItem("shelf-view:abc")!)).toMatchObject({
       venue: "d'ailleurs",
     });

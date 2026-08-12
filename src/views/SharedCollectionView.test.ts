@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readAddress } from "./CollectionPartagee";
+import { readAddress } from "./SharedCollectionView";
 
 /* THE ADDRESS OF A SHARED COLLECTION is read in the fragment, and the
    fragment comes from outside: from a pasted link, from a message copied

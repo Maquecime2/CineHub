@@ -26,7 +26,7 @@ import { useTmdbKey } from "../services/tmdbKey";
 import { searchPerson, personFilmography } from "../tmdb";
 import type { Film, KinshipRole } from "../types";
 
-interface GeneriqueViewProps {
+interface CreditsViewProps {
   films: Film[];
   /** The open person, by their normalised key. `null`: the directory. */
   personne: string | null;
@@ -64,13 +64,13 @@ const ROLE_COURT: Record<KinshipRole, string> = {
   thème: "thème",
 };
 
-export function GeneriqueView({
+export function CreditsView({
   films,
   personne,
   onOpenPersonne,
   onOpen,
   onAddToWatchlist,
-}: GeneriqueViewProps) {
+}: CreditsViewProps) {
   /* The census sweeps the whole collection: we only redo it when a card
      is written, not at every keystroke in the search. */
   const gens = useMemo(() => census(films), [films]);

@@ -17,7 +17,7 @@
    pixels, and the almanac — which promises to fit in the window without
    a scrollbar, through a `height: 100vh` that assumes it starts at the
    top — began to scroll by exactly that height. So it borrows its shape
-   and its `Calque` from the two cards of `Installation`: the binder
+   and its `Layer` from the two cards of `Installation`: the binder
    already says its sentences that way.
 
    It stands ABOVE the place of those two, which can appear at the same
@@ -27,7 +27,7 @@
 import { Info, Trash2 } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
-import { Calque } from "../ui/Calque";
+import { Layer } from "../ui/Layer";
 
 /** Like the installation cards: above the bottom bar (20), below any
  *  open panel (30). It informs, it does not interrupt. */
@@ -35,7 +35,7 @@ const Z = 25;
 
 export function DemoBanner({ onRemove }: { onRemove: () => void }) {
   return (
-    <Calque>
+    <Layer>
       <div
         role="status"
         style={{
@@ -110,6 +110,6 @@ export function DemoBanner({ onRemove }: { onRemove: () => void }) {
           </button>
         </div>
       </div>
-    </Calque>
+    </Layer>
   );
 }

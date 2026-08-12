@@ -16,7 +16,7 @@
    this motif", and its grey frame drops into the middle of the notebook
    like a browser warning — which is what it is. */
 import { useEffect, useRef } from "react";
-import { Calque } from "./Calque";
+import { Layer } from "./Layer";
 import { C, F } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { Tape } from "../atmosphere";
@@ -67,7 +67,7 @@ export function Confirmation({
      opened off screen. The portal takes it out of the column, and it
      finds the window again. */
   return (
-    <Calque>
+    <Layer>
       <div
         onClick={onClose}
         style={{
@@ -152,6 +152,6 @@ export function Confirmation({
           </div>
         </div>
       </div>
-    </Calque>
+    </Layer>
   );
 }

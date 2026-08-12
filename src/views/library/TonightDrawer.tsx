@@ -11,7 +11,7 @@
    makes sense.
    ============================================================ */
 import { useEffect, useMemo, useState } from "react";
-import { Calque } from "../../components/ui/Calque";
+import { Layer } from "../../components/ui/Layer";
 import { X, Dice5, ArrowRight, Loader2 } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
@@ -36,7 +36,7 @@ const HUMEURS = MOTIFS.filter((m) => m.family === "tone" && !m.spoiler);
    the ranking without a mood is already a ranking. */
 const PLAFOND_DEVINETTE = 40;
 
-export function SoirDrawer({
+export function TonightDrawer({
   films,
   onClose,
   onOpen,
@@ -143,7 +143,7 @@ export function SoirDrawer({
      from the bottom of a long wall. The trap has already bitten once, on
      the confirmation request. */
   return (
-    <Calque>
+    <Layer>
       <>
         <div
           onClick={onClose}
@@ -291,7 +291,7 @@ export function SoirDrawer({
           </div>
         </div>
       </>
-    </Calque>
+    </Layer>
   );
 }
 

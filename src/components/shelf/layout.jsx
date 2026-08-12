@@ -2,7 +2,7 @@
    drawer of things set aside, the preview of an open case, the decor
    cabinet and an object's palette. */
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { Calque } from "../ui/Calque";
+import { Layer } from "../ui/Layer";
 import { X, Trash2, Upload, ChevronLeft, Eye, EyeOff } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap, tapSquare, COARSE, TAP } from "../../theme/styles";
@@ -836,7 +836,7 @@ export function ReserveDrawer({
   const filled = rows.some((r) => r.items.length);
 
   return (
-    <Calque>
+    <Layer>
       {/* the tab, always hooked to the edge */}
       <button
         data-drawer-tab
@@ -998,7 +998,7 @@ export function ReserveDrawer({
           )}
         </div>
       </div>
-    </Calque>
+    </Layer>
   );
 }
 
@@ -1015,7 +1015,7 @@ export function CasePreview({ film, onClose, onOpenFile }) {
 
   const initials = initialsOf(film.title);
   return (
-    <Calque>
+    <Layer>
       <div
         onClick={onClose}
         style={{
@@ -1228,7 +1228,7 @@ export function CasePreview({ film, onClose, onOpenFile }) {
           </div>
         </div>
       </div>
-    </Calque>
+    </Layer>
   );
 }
 
@@ -1652,7 +1652,7 @@ export function DecorCabinet({ kind, onDragStart, onDragEnd, onClose }) {
   useCustomDecor();
 
   return (
-    <Calque>
+    <Layer>
       <div onClick={onClose} data-veil style={{ position: "fixed", inset: 0, zIndex: 44 }} />
       {managing ? (
         <DecorWorkshop onBack={() => setManaging(false)} />
@@ -1700,7 +1700,7 @@ export function DecorCabinet({ kind, onDragStart, onDragEnd, onClose }) {
           </CabinetNote>
         </div>
       )}
-    </Calque>
+    </Layer>
   );
 }
 
@@ -1832,7 +1832,7 @@ export function ItemPalette({
   const commitLabel = () => onLabel?.(draft.trim());
 
   return (
-    <Calque>
+    <Layer>
       <div onClick={onClose} data-veil style={{ position: "fixed", inset: 0, zIndex: 44 }} />
       <div
         style={{
@@ -2007,7 +2007,7 @@ export function ItemPalette({
           {removeLabel}
         </button>
       </div>
-    </Calque>
+    </Layer>
   );
 }
 

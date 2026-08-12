@@ -37,7 +37,7 @@ import {
   type Profile,
 } from "../services/server";
 
-export function FilView({ connecte }: { connecte: boolean }) {
+export function ThreadView({ connected }: { connected: boolean }) {
   const [abonnements, setAbonnements] = useState<Profile[]>([]);
   const [nouvelles, setNouvelles] = useState<NewsItem[] | null>(null);
   const [cherche, setCherche] = useState("");
@@ -45,11 +45,11 @@ export function FilView({ connecte }: { connecte: boolean }) {
   const [souci, setSouci] = useState<string | null>(null);
 
   const relire = useCallback(async () => {
-    if (!connecte) return;
+    if (!connected) return;
     const [a, f] = await Promise.all([mySubscriptions(), readFeed()]);
     setAbonnements(a.abonnements);
     setNouvelles(f.nouvelles);
-  }, [connecte]);
+  }, [connected]);
 
   useEffect(() => {
     relire().catch(() => setNouvelles([]));
@@ -66,7 +66,7 @@ export function FilView({ connecte }: { connecte: boolean }) {
     );
   }
 
-  if (!connecte) {
+  if (!connected) {
     return (
       <Page>
         <Guideline>

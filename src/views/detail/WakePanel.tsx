@@ -346,7 +346,7 @@ function Rien({ children }: { children: ReactNode }) {
   );
 }
 
-export function SillagePanel({
+export function WakePanel({
   film,
   films,
   onOpen,

@@ -42,7 +42,7 @@ export function readAddress(fragment: string = location.hash): Address | null {
   return m ? { pseudo: m[1]!, jeton: m[2] ?? null } : null;
 }
 
-export function CollectionPartagee({ address }: { address: Address }) {
+export function SharedCollectionView({ address }: { address: Address }) {
   const [films, setFilms] = useState<SharedFilm[] | null>(null);
   const [souci, setSouci] = useState<string | null>(null);
 

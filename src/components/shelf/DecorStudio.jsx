@@ -19,7 +19,7 @@
    says of it. It is that way out that makes all the exploring
    riskless. */
 import { useState } from "react";
-import { Calque } from "../ui/Calque";
+import { Layer } from "../ui/Layer";
 import { X, RotateCcw } from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { MATERIALS, FINISHES, FAMILY_LABELS, materialStyle } from "../../theme/surfaces";
@@ -104,7 +104,7 @@ export function DecorStudio({ view, onChange, onReset, onClose }) {
   const set = (patch) => onChange(tab === "wall" ? "wall" : "plank", patch);
 
   return (
-    <Calque>
+    <Layer>
       <div onClick={onClose} data-veil style={{ position: "fixed", inset: 0, zIndex: 44 }} />
       <div style={STUDIO_BOX}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
@@ -180,6 +180,6 @@ export function DecorStudio({ view, onChange, onReset, onClose }) {
           le décor appartient à cette vue — une autre garde le sien
         </div>
       </div>
-    </Calque>
+    </Layer>
   );
 }
