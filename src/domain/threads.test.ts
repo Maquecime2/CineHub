@@ -7,104 +7,106 @@ const B = makeFilm({ id: "b", title: "B", motifs: ["hero-dies"] });
 const C = makeFilm({ id: "c", title: "C" });
 const films = [A, B, C];
 
-describe("les membres d'un fil", () => {
-  it("rassemble ce que le motif amène", () => {
-    const fil = makeThread({ label: "Le héros meurt", motif: "hero-dies" });
-    expect(threadMembers(fil, films).sort()).toEqual(["a", "b"]);
+describe("a thread's members", () => {
+  it("gathers what the motif brings in", () => {
+    const thread = makeThread({ label: "Le héros meurt", motif: "hero-dies" });
+    expect(threadMembers(thread, films).sort()).toEqual(["a", "b"]);
   });
 
-  it("ajoute ce qu'on a posé à la main, motif ou pas", () => {
-    const fil = makeThread({ motif: "hero-dies", filmIds: ["c"], label: "x" });
-    expect(threadMembers(fil, films).sort()).toEqual(["a", "b", "c"]);
+  it("adds what was set by hand, motif or no motif", () => {
+    const thread = makeThread({ motif: "hero-dies", filmIds: ["c"], label: "x" });
+    expect(threadMembers(thread, films).sort()).toEqual(["a", "b", "c"]);
   });
 
-  it("écarte ce qu'on a retiré, même si le motif l'amène encore", () => {
-    const fil = makeThread({ motif: "hero-dies", excluded: ["b"], label: "x" });
-    expect(threadMembers(fil, films)).toEqual(["a"]);
+  it("rules out what was removed, even if the motif still brings it in", () => {
+    const thread = makeThread({ motif: "hero-dies", excluded: ["b"], label: "x" });
+    expect(threadMembers(thread, films)).toEqual(["a"]);
   });
 
-  it("ne compte pas un film supprimé depuis", () => {
-    const fil = makeThread({ filmIds: ["a", "disparu"], label: "x" });
-    expect(threadMembers(fil, films)).toEqual(["a"]);
+  it("does not count a film deleted since", () => {
+    const thread = makeThread({ filmIds: ["a", "disparu"], label: "x" });
+    expect(threadMembers(thread, films)).toEqual(["a"]);
   });
 });
 
-describe("poser et ôter", () => {
-  it("retirer un film amené par le motif l'inscrit dans les exclus", () => {
-    const fil = makeThread({ motif: "hero-dies", label: "x" });
-    const après = withoutFilm(fil, "a", films);
-    expect(après.excluded).toEqual(["a"]);
+describe("putting in and taking out", () => {
+  it("removing a film brought in by the motif writes it into the exclusions", () => {
+    const thread = makeThread({ motif: "hero-dies", label: "x" });
+    const after = withoutFilm(thread, "a", films);
+    expect(after.excluded).toEqual(["a"]);
     // sans quoi il reviendrait au chargement suivant
-    expect(threadMembers(après, films)).toEqual(["b"]);
+    expect(threadMembers(after, films)).toEqual(["b"]);
   });
 
-  it("retirer un film posé à la main n'a rien à exclure", () => {
-    const fil = makeThread({ filmIds: ["c"], label: "x" });
-    const après = withoutFilm(fil, "c", films);
-    expect(après.excluded).toEqual([]);
-    expect(threadMembers(après, films)).toEqual([]);
+  it("removing a film set by hand has nothing to exclude", () => {
+    const thread = makeThread({ filmIds: ["c"], label: "x" });
+    const after = withoutFilm(thread, "c", films);
+    expect(after.excluded).toEqual([]);
+    expect(threadMembers(after, films)).toEqual([]);
   });
 
-  it("reposer un film exclu lève l'exclusion plutôt que d'empiler", () => {
-    const fil = makeThread({ motif: "hero-dies", excluded: ["a"], label: "x" });
-    const après = withFilm(fil, "a");
-    expect(après.excluded).toEqual([]);
-    expect(threadMembers(après, films).sort()).toEqual(["a", "b"]);
+  it("putting an excluded film back lifts the exclusion rather than stacking", () => {
+    const thread = makeThread({ motif: "hero-dies", excluded: ["a"], label: "x" });
+    const after = withFilm(thread, "a");
+    expect(after.excluded).toEqual([]);
+    expect(threadMembers(after, films).sort()).toEqual(["a", "b"]);
   });
 });
 
-describe("ce qui sort du disque", () => {
-  it("survit à n'importe quelle forme", () => {
+describe("what comes off the disk", () => {
+  it("survives any shape at all", () => {
     expect(normalizeThreads(null)).toEqual([]);
     expect(normalizeThreads([{ label: "" }])).toEqual([]);
-    const [fil] = normalizeThreads([{ label: "Un fil" }]);
-    expect(fil?.filmIds).toEqual([]);
-    expect(fil?.id).toBeTruthy();
+    const [thread] = normalizeThreads([{ label: "Un thread" }]);
+    expect(thread?.filmIds).toEqual([]);
+    expect(thread?.id).toBeTruthy();
   });
 });
 
 /* ============================================================
-   CE QUI A ÉTÉ ÉCRIT AVANT LA TRADUCTION
+   WHAT WAS WRITTEN BEFORE THE TRANSLATION
 
-   `normalizeThreads` est la seule porte par laquelle un fil entre. Trois
-   choses y ont changé de nom en passant à l'anglais — `exclus`,
-   `couleur`, et l'identifiant du motif qui alimente le fil — et un
-   classeur déjà tenu ne doit rien perdre des trois.
+   `normalizeThreads` is the only door a thread comes in through. Three
+   things changed name there when the code moved to English — `exclus`,
+   `couleur`, and the id of the motif that feeds the thread — and a binder
+   already kept must lose none of the three.
    ============================================================ */
-describe("les fils d'avant la traduction", () => {
-  it("relit `exclus` et `couleur`", () => {
-    const [fil] = normalizeThreads([{ label: "Un fil", exclus: ["a"], couleur: "plum" }] as never);
-    expect(fil?.excluded).toEqual(["a"]);
-    expect(fil?.color).toBe("plum");
-    // and the old keys do not go back out onto the disk
-    expect(fil as unknown as Record<string, unknown>).not.toHaveProperty("exclus");
-    expect(fil as unknown as Record<string, unknown>).not.toHaveProperty("couleur");
-  });
-
-  it("traduit le motif qui alimente le fil", () => {
-    /* Sans cela, un fil nourri par `melancolie` cesserait d'attraper quoi
-       que ce soit dès que le catalogue l'appellerait `melancholy` : le
-       fil resterait là, vide, sans que rien ne dise pourquoi. */
-    const [fil] = normalizeThreads([{ label: "Les tristes", motif: "melancolie" }] as never);
-    expect(fil?.motif).toBe("melancholy");
-  });
-
-  it("laisse un fil à la main sans motif", () => {
-    const [fil] = normalizeThreads([{ label: "À la main", motif: null }] as never);
-    expect(fil?.motif).toBeNull();
-  });
-
-  it("garde intact un motif que le catalogue ne connaît pas", () => {
-    const [fil] = normalizeThreads([{ label: "Le mien", motif: "il-pleut" }] as never);
-    expect(fil?.motif).toBe("il-pleut");
-  });
-
-  it("n'abîme pas un fil déjà écrit en anglais", () => {
-    const [fil] = normalizeThreads([
-      { label: "Un fil", excluded: ["b"], color: "pine", motif: "hero-dies" },
+describe("threads written before the translation", () => {
+  it("reads back `exclus` and `couleur`", () => {
+    const [thread] = normalizeThreads([
+      { label: "Un thread", exclus: ["a"], couleur: "plum" },
     ] as never);
-    expect(fil?.excluded).toEqual(["b"]);
-    expect(fil?.color).toBe("pine");
-    expect(fil?.motif).toBe("hero-dies");
+    expect(thread?.excluded).toEqual(["a"]);
+    expect(thread?.color).toBe("plum");
+    // and the old keys do not go back out onto the disk
+    expect(thread as unknown as Record<string, unknown>).not.toHaveProperty("exclus");
+    expect(thread as unknown as Record<string, unknown>).not.toHaveProperty("couleur");
+  });
+
+  it("translates the motif that feeds the thread", () => {
+    /* Without it, a thread fed by `melancolie` would stop catching
+       anything at all as soon as the catalogue called it `melancholy`:
+       the thread would sit there, empty, with nothing to say why. */
+    const [thread] = normalizeThreads([{ label: "Les tristes", motif: "melancolie" }] as never);
+    expect(thread?.motif).toBe("melancholy");
+  });
+
+  it("leaves a hand-made thread with no motif", () => {
+    const [thread] = normalizeThreads([{ label: "À la main", motif: null }] as never);
+    expect(thread?.motif).toBeNull();
+  });
+
+  it("keeps intact a motif the catalogue does not know", () => {
+    const [thread] = normalizeThreads([{ label: "Le mien", motif: "il-pleut" }] as never);
+    expect(thread?.motif).toBe("il-pleut");
+  });
+
+  it("does not damage a thread already written in English", () => {
+    const [thread] = normalizeThreads([
+      { label: "Un thread", excluded: ["b"], color: "pine", motif: "hero-dies" },
+    ] as never);
+    expect(thread?.excluded).toEqual(["b"]);
+    expect(thread?.color).toBe("pine");
+    expect(thread?.motif).toBe("hero-dies");
   });
 });

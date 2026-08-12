@@ -9,37 +9,37 @@ import {
   relationDef,
 } from "./relations";
 
-describe("les relations", () => {
-  it("l'inverse de l'inverse ramène à la relation de départ", () => {
+describe("the relations", () => {
+  it("the inverse of the inverse comes back to the original relation", () => {
     for (const r of RELATIONS) expect(inverseOf(inverseOf(r.id))).toBe(r.id);
   });
 
-  it("une relation symétrique est son propre inverse", () => {
+  it("a symmetric relation is its own inverse", () => {
     expect(inverseOf("echo")).toBe("echo");
     expect(inverseOf("diptych")).toBe("diptych");
     expect(isSymmetric("same-fate")).toBe(true);
   });
 
-  it("une relation orientée se renverse", () => {
+  it("a directed relation flips over", () => {
     expect(inverseOf("sequel-to")).toBe("precedes");
     expect(inverseOf("precedes")).toBe("sequel-to");
     expect(inverseOf("remake-of")).toBe("remade-by");
     expect(isSymmetric("sequel-to")).toBe(false);
   });
 
-  it("ne propose pas à la saisie ce qui s'écrit tout seul à l'autre bout", () => {
+  it("does not offer for entry what writes itself at the other end", () => {
     const ids = ENTERABLE_RELATIONS.map((r) => r.id);
     expect(ids).not.toContain("precedes");
     expect(ids).not.toContain("remade-by");
     expect(ids).toContain("sequel-to");
   });
 
-  it("laisse tranquille ce qu'elle ne connaît pas", () => {
+  it("leaves alone what it does not know", () => {
     expect(inverseOf(undefined)).toBeUndefined();
     expect(relationDef(null)).toBeUndefined();
   });
 
-  it("ramène toute force hors des trois crans au cran du milieu", () => {
+  it("brings any strength outside the three notches back to the middle one", () => {
     expect(strengthOf(undefined)).toBe(2);
     expect(strengthOf(0)).toBe(2);
     expect(strengthOf(9)).toBe(2);
