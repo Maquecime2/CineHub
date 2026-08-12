@@ -5,8 +5,8 @@ import { ConstellationView } from "./ConstellationView";
 import { makeFilm } from "../domain/film";
 import { makeThread } from "../domain/threads";
 
-/* Un film relié, pour que le ciel ne soit pas vide, et un film que rien
-   ne relie — c'est celui-là que la recherche devait rendre atteignable. */
+/* One linked film, so that the sky is not empty, and one film nothing
+   links — that is the one the search had to make reachable. */
 const relié = makeFilm({
   id: "r",
   title: "Le Samouraï",
@@ -56,7 +56,7 @@ describe("la recherche de la constellation", () => {
     monter();
     const user = await chercher("playtime");
     await user.click(screen.getByRole("button", { name: /Playtime/ }));
-    // le foyer est posé sur lui : la carte se compose autour
+    // the focus is laid on it: the chart composes itself around
     expect(screen.getByText("FOYER")).toBeInTheDocument();
     expect(screen.getAllByText("Playtime").length).toBeGreaterThan(0);
   });

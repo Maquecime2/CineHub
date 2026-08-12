@@ -1,13 +1,13 @@
 /* ============================================================
-   VUE — LE GÉNÉRIQUE
+   VIEW — THE CREDITS
 
-   Les mêmes films, lus par les gens qui les ont faits. Rien n'est rangé
-   ici : un dossier de personne se recompose depuis la collection à
-   chaque lecture (`domain/people`), exactement comme un fil.
+   The same films, read through the people who made them. Nothing is
+   stored here: somebody's folder is recomposed from the collection at
+   every reading (`domain/people`), exactly like a thread.
 
-   Deux états dans une seule vue, comme la vidéothèque sert deux murs :
-   le RÉPERTOIRE, où l'on cherche quelqu'un, et le DOSSIER, où l'on
-   regarde ce qu'on a de lui.
+   Two states in a single view, as the film library serves two walls: the
+   DIRECTORY, where one looks for somebody, and the FOLDER, where one
+   looks at what one has of them.
    ============================================================ */
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
@@ -28,28 +28,28 @@ import type { Film, KinshipRole } from "../types";
 
 interface GeneriqueViewProps {
   films: Film[];
-  /** La personne ouverte, par sa clé normalisée. `null` : le répertoire. */
+  /** The open person, by their normalised key. `null`: the directory. */
   personne: string | null;
   onOpenPersonne: (clé: string | null) => void;
   onOpen: (filmId: string) => void;
   onAddToWatchlist: (f: Film) => void;
 }
 
-/* LE SEUIL, ET CE QU'IL VISE VRAIMENT.
+/* THE THRESHOLD, AND WHAT IT REALLY AIMS AT.
 
-   Une collection de mille films porte huit mille noms, dont la plupart
-   n'ont traversé qu'une fiche : les afficher tous ne fait pas une liste
-   plus complète, ça fait une liste qu'on ne parcourt pas. Le répertoire
-   ne montre donc d'emblée que ceux qu'on croise deux fois — les mêmes
-   que les parentés de la constellation retiennent.
+   A collection of a thousand films carries eight thousand names, most of
+   which have crossed only one card: displaying them all does not make a
+   more complete list, it makes a list nobody walks through. So the
+   directory only shows straight away those one meets twice — the same
+   ones the constellation's kinships keep.
 
-   Mais ce bruit vient d'UNE source : les huit rôles que chaque fiche
-   emporte. Les cinéastes, chefs opérateurs, compositeurs et scénaristes
-   se comptent par dizaines, pas par milliers, et un seuil global les
-   effaçait à tort — cliquer « musique » sur une collection où un seul
-   compositeur est nommé rendait le vide, ce qui se lit comme un défaut
-   et non comme une règle. Le seuil ne s'applique donc qu'à celles et
-   ceux dont l'interprétation est le seul titre. */
+   But that noise comes from ONE source: the eight roles each card
+   carries. Film-makers, cinematographers, composers and screenwriters
+   are counted in dozens, not in thousands, and a global threshold erased
+   them wrongly — clicking "musique" on a collection where a single
+   composer is named returned emptiness, which reads as a defect and not
+   as a rule. So the threshold only applies to those whose acting is
+   their only title. */
 const SEUIL = 2;
 
 const estHabitué = (p: Person): boolean =>
@@ -71,8 +71,8 @@ export function GeneriqueView({
   onOpen,
   onAddToWatchlist,
 }: GeneriqueViewProps) {
-  /* Le recensement balaie toute la collection : on ne le refait qu'à
-     l'écriture d'une fiche, pas à chaque frappe dans la recherche. */
+  /* The census sweeps the whole collection: we only redo it when a card
+     is written, not at every keystroke in the search. */
   const gens = useMemo(() => census(films), [films]);
   const ouvert = personne ? gens.find((p) => p.key === personne) : null;
 
@@ -91,7 +91,7 @@ export function GeneriqueView({
 }
 
 /* ============================================================
-   LE RÉPERTOIRE
+   THE DIRECTORY
    ============================================================ */
 
 function Répertoire({
@@ -110,9 +110,10 @@ function Répertoire({
   const liste = useMemo(() => {
     let out = gens;
     if (rôles.length) out = out.filter((p) => rôles.some((r) => p.roles.includes(r)));
-    /* Le seuil ne s'applique PAS à une recherche : on tape un nom parce
-       qu'on cherche quelqu'un en particulier, et ne pas le trouver parce
-       qu'il n'a qu'un film serait le contraire de chercher. */
+    /* The threshold does NOT apply to a search: one types a name
+       because one is looking for somebody in particular, and not finding
+       them because they have only one film would be the opposite of
+       searching. */
     if (q.trim()) return searchPeople(out, q);
     return tous ? out : out.filter(estHabitué);
   }, [gens, q, rôles, tous]);
@@ -181,9 +182,9 @@ function Répertoire({
       </div>
 
       {liste.length === 0 ? (
-        /* « Person de ce nom » sous un tamis serait un mensonge : on
-           n'a nommé personne. Chaque façon de vider la liste a sa
-           phrase, et celle du seuil dit où sont passés les autres. */
+        /* "Nobody of that name" under a sieve would be a lie: nobody
+           has been named. Each way of emptying the list has its own
+           sentence, and the threshold's says where the others went. */
         <div style={{ fontFamily: F.hand, fontSize: 19, color: C.inkFaded }}>
           {gens.length === 0
             ? "Aucun nom pour l'instant. Complétez vos fiches par TMDB, depuis l'onglet Import, et le générique se remplira tout seul."
@@ -226,13 +227,14 @@ const étiquette = (on: boolean, teinte: string = C.burgundy) => ({
   transition: "background var(--motion-fast) ease, color var(--motion-fast) ease",
 });
 
-/** La carte d'un nom dans le répertoire — une fiche bristol, punaisée. */
+/** The card of a name in the directory — an index card, pinned up. */
 function Fiche({ p, onClick }: { p: Person; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      /* Le nom est écrit dans la carte, mais en trois morceaux : sans
-         cet intitulé, la carte s'annonce « bouton » et rien de plus. */
+      /* The name is written in the card, but in three pieces: without
+         this label, the card announces itself as "button" and nothing
+         more. */
       aria-label={`${p.name} — ${p.films.length} film${p.films.length > 1 ? "s" : ""}`}
       style={{
         all: "unset",
@@ -244,7 +246,7 @@ function Fiche({ p, onClick }: { p: Person; onClick: () => void }) {
         border: `1px solid ${C.line}`,
         borderRadius: 2,
         padding: "16px 14px 12px",
-        // le désordre est semé, jamais tiré au sort : un mur qui gigote n'est pas un mur
+        // the disorder is sown, never drawn at random: a wall that wriggles is not a wall
         transform: `rotate(${tiltOf(p.key)}deg)`,
         boxShadow: "1px 2px 6px rgba(0,0,0,0.12)",
         transition: "transform var(--motion-fast) var(--motion-ease)",
@@ -423,8 +425,8 @@ function Chiffre({ nom, children }: { nom: string; children: ReactNode }) {
   );
 }
 
-/* « Vous êtes plus sévère de 0,8 » se lit ; « −0,8 » demande de se
-   rappeler dans quel sens la soustraction a été faite. */
+/* "Vous êtes plus sévère de 0,8" reads by itself; "−0,8" asks one to
+   remember which way round the subtraction was done. */
 function écartLisible(écart: number | null) {
   if (écart == null) return "—";
   const v = Math.abs(écart).toFixed(1);
@@ -496,7 +498,7 @@ const vignette = {
 };
 
 /* ============================================================
-   CE QU'IL ME MANQUE — la seule chose qui sorte du navigateur ici
+   WHAT I AM MISSING — the only thing that leaves the browser here
    ============================================================ */
 
 interface Manquant {
@@ -507,10 +509,10 @@ interface Manquant {
   voteAverage: number;
 }
 
-/* Une affiche de proposition, au format 2:3 comme partout ailleurs. Une
-   image cassée se replie sur les initiales plutôt que de laisser le
-   cadre vide : TMDB connaît des films dont il n'a pas l'affiche, et un
-   trou dans une rangée se lit comme un défaut de chargement. */
+/* A proposal's poster, in the 2:3 format as everywhere else. A broken
+   image falls back on the initials rather than leave the frame empty:
+   TMDB knows films whose poster it does not have, and a hole in a row
+   reads as a loading failure. */
 function Affiche({ titre, src }: { titre: string; src: string }) {
   const [cassée, setCassée] = useState(false);
   const cadre = {
@@ -564,9 +566,9 @@ function CeQuiManque({
   const [manquants, setManquants] = useState<Manquant[]>([]);
   const [ajoutés, setAjoutés] = useState<Set<number>>(new Set());
 
-  /* Sans clé, le bouton n'existe pas : proposer une action qui ne peut
-     pas aboutir est pire que ne rien proposer. La clé se pose depuis
-     l'onglet Import, et c'est là que la visite l'explique. */
+  /* Without a key the button does not exist: offering an action that
+     cannot succeed is worse than offering nothing. The key is laid from
+     the Import tab, and that is where the tour explains it. */
   if (!apiKey) return null;
 
   const chercher = async () => {
@@ -579,15 +581,15 @@ function CeQuiManque({
         setMsg("TMDB ne connaît personne de ce nom.");
         return;
       }
-      /* On demande au titre le mieux fourni : c'est celui pour lequel
-         « ce qui manque » veut dire quelque chose. Un acteur vu deux
-         fois comme réalisateur ne se juge pas sur ses trente rôles. */
+      /* We ask about the best furnished title: it is the one for which
+         "what is missing" means something. An actor seen twice as a
+         director is not judged on their thirty acting roles. */
       const rôle = p.roles[0]!;
       const tout = await personFilmography(hit.id, apiKey, { role: rôle });
 
-      /* Ce qu'on a déjà, par identifiant TMDB d'abord — le plus sûr — puis
-         par la clé titre+année de l'import, qui neutralise déjà accents
-         et articles. */
+      /* What we already have, by TMDB identifier first — the safest —
+         then by the import's title+year key, which already neutralises
+         accents and articles. */
       const parTmdb = new Set(
         films
           .map((f) => f.tmdbId)

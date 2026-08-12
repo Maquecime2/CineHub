@@ -1,22 +1,21 @@
 /* ============================================================
-   LE FIL — ce que les autres regardent
+   THE FEED — what the others are watching
    ============================================================
 
-   La première vue de ce classeur qui ne parle pas de VOTRE collection.
-   Elle tient en trois choses, dans cet ordre : chercher quelqu'un, voir
-   qui l'on suit, lire ce qu'ils ont vu.
+   The first view of this binder that does not speak of YOUR collection.
+   It holds in three things, in that order: looking for somebody, seeing
+   who one follows, reading what they have seen.
 
-   CE QUE LE FIL NE DIT PAS, ET NE PEUT PAS DIRE. Le serveur ne garde
-   aucune histoire : il sait qu'une fiche a bougé, pas ce qui a changé
-   dedans. On n'écrit donc jamais « a mis quatre étoiles » — on montre
-   le film tel qu'il est aujourd'hui chez son propriétaire, et l'on dit
-   « chez untel ». Prétendre raconter un geste qu'on n'a pas observé
-   serait inventer.
+   WHAT THE FEED DOES NOT SAY, AND CANNOT SAY. The server keeps no
+   history: it knows a card has moved, not what changed inside it. So we
+   never write "gave it four stars" — we show the film as it stands today
+   at its owner's, and we say "at so-and-so's". Claiming to tell a
+   gesture one has not observed would be inventing.
 
-   IL N'Y A PAS D'ANNUAIRE, et ce n'est pas un oubli : on ne trouve que
-   les gens dont on connaît le pseudonyme, et qui ont choisi de se
-   montrer. Une liste des inscrits ferait de ce classeur un réseau
-   social, ce qu'il n'est pas.
+   THERE IS NO DIRECTORY, and that is not an oversight: one only finds
+   the people whose username one knows, and who have chosen to show
+   themselves. A list of registered users would make this binder a social
+   network, which it is not.
    ============================================================ */
 import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
@@ -86,9 +85,9 @@ export function FilView({ connecte }: { connecte: boolean }) {
     try {
       setTrouve(await profileOf(nom));
     } catch {
-      /* Le serveur répond la même chose pour « n'existe pas » et « ne se
-         montre pas » : on reprend ce silence, sans inventer laquelle
-         des deux. */
+      /* The server answers the same thing for "does not exist" and
+         "does not show themselves": we take up that silence, without
+         inventing which of the two. */
       setSouci(`Personne ne partage sa collection sous « ${nom} ».`);
     }
   };

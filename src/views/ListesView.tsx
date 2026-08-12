@@ -1,20 +1,20 @@
 /* ============================================================
-   LES LISTES ET LES DÉFIS
+   THE LISTS AND THE CHALLENGES
    ============================================================
 
-   UNE LISTE CONTIENT DES ŒUVRES, PAS DES FICHES. Une liste de fiches
-   serait la liste des exemplaires de quelqu'un : elle ne voudrait rien
-   dire chez un autre, et se viderait le jour où son auteur efface une
-   fiche. On y range donc des films par leur identifiant TMDB — d'où le
-   geste, qui part de la fiche et non d'ici.
+   A LIST CONTAINS WORKS, NOT CARDS. A list of cards would be the list of
+   somebody's own copies: it would mean nothing at somebody else's, and
+   would empty itself the day its author erased a card. So we file films
+   in it by their TMDB identifier — hence the gesture, which starts from
+   the card and not from here.
 
-   UN DÉFI EST UNE LISTE PLUS UNE PÉRIODE, et l'avancement se CALCULE :
-   personne ne coche « vu », le classeur le sait déjà. C'est aussi
-   pourquoi il faut demander à participer — on ne mesure pas le journal
-   de gens qui n'ont rien demandé.
+   A CHALLENGE IS A LIST PLUS A PERIOD, and the progress is COMPUTED:
+   nobody ticks "seen", the binder already knows. That is also why one
+   must ask to take part — we do not measure the log of people who asked
+   for nothing.
 
-   CETTE VUE NE MONTRE RIEN SANS COMPTE, et le dit en une phrase plutôt
-   que de proposer des boutons morts.
+   THIS VIEW SHOWS NOTHING WITHOUT AN ACCOUNT, and says so in one
+   sentence rather than offer dead buttons.
    ============================================================ */
 import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
@@ -149,7 +149,7 @@ export function ListesView({ connecte }: { connecte: boolean }) {
 }
 
 /* ------------------------------------------------------------
-   UNE LISTE, DÉPLIÉE
+   ONE LIST, UNFOLDED
    ------------------------------------------------------------ */
 
 function UneListe({
@@ -192,8 +192,8 @@ function UneListe({
       setInvite("");
       await relire();
     } catch {
-      /* Le serveur répond la même chose pour « n'existe pas » et « vous
-         vous êtes bloqués » : on reprend ce silence. */
+      /* The server answers the same thing for "does not exist" and "you
+         two have blocked each other": we take up that silence. */
       setSouci(`Personne à inviter sous « ${nom} ».`);
     }
   };
@@ -372,7 +372,7 @@ function UneListe({
 }
 
 /* ------------------------------------------------------------
-   UN DÉFI, ET OÙ EN EST CHACUN
+   ONE CHALLENGE, AND WHERE EVERYBODY STANDS
    ------------------------------------------------------------ */
 
 function UnDefi({ defi, onChange }: { defi: Challenge; onChange: () => Promise<void> }) {
@@ -473,8 +473,8 @@ function UnDefi({ defi, onChange }: { defi: Challenge; onChange: () => Promise<v
   );
 }
 
-/* Le mois où l'on est, du premier au dernier jour : c'est la période
-   qu'on veut neuf fois sur dix, et elle se corrige d'un clic. */
+/* The month one is in, from the first to the last day: it is the period
+   one wants nine times out of ten, and it is corrected in one click. */
 function moisCourant() {
   const d = new Date();
   const deux = (n: number) => String(n).padStart(2, "0");

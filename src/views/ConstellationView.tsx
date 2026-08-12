@@ -29,10 +29,10 @@ import { searchFilms } from "../domain/search";
 import type { Thread } from "../domain/threads";
 
 /* ============================================================
-   VUE — CONSTELLATION : une carte du ciel tracée à l'encre.
-   Chaque film est une étoile, chaque œuvre liée un astre plus
-   discret. Une œuvre citée par deux films devient un pont : c'est
-   là que les constellations se forment.
+   VIEW — CONSTELLATION: a sky chart drawn in ink.
+   Every film is a star, every linked work a more discreet body. A
+   work cited by two films becomes a bridge: that is where the
+   constellations form.
    ============================================================ */
 const LEGEND: [LinkType, string][] = [
   ["film", "Film"],
@@ -48,10 +48,11 @@ const LINK_INK: Record<LinkType, string> = {
   other: C.ochre,
 };
 
-/* UNE ENCRE PAR NATURE DE PARENTÉ. « Decaë » ne dit rien ; « image ·
-   Decaë » dit qu'on suit un chef opérateur, et la couleur le dit sans
-   qu'on ait à lire. `thème` est à part — c'est la seule qui vienne de
-   vous et non d'un générique — d'où l'encre de l'identité. */
+/* ONE INK PER KIND OF KINSHIP. "Decaë" says nothing; "image · Decaë"
+   says one is following a cinematographer, and the colour says it
+   without one having to read. `thème` stands apart — it is the only one
+   that comes from you and not from a credit list — hence the ink of
+   identity. */
 const KIN_INK: Record<KinshipRole, string> = {
   réalisation: C.slate,
   interprétation: C.ochre,
@@ -61,7 +62,7 @@ const KIN_INK: Record<KinshipRole, string> = {
   thème: C.burgundy,
 };
 
-/** L'encre d'un fil suggéré : celle de sa première raison. */
+/** The ink of a suggested thread: that of its first reason. */
 const inkOf = (l: SkyLink): string => {
   const r = l.why?.[0]?.role;
   return r ? KIN_INK[r] : C.slate;
@@ -74,18 +75,18 @@ export function ConstellationView({
 }: {
   films: Film[];
   onOpen: (id: string) => void;
-  /** Fixer une parenté suggérée : elle devient un vrai fil rouge, réciproque. */
+  /** Fixes a suggested kinship: it becomes a real red thread, reciprocal. */
   onLinkFilm?: (fromId: string, toId: string, note?: string) => void;
-  /** Les rassemblements nommés — « les films où le héros meurt ». */
+  /** The named gatherings — "the films where the hero dies". */
   fils?: Thread[];
 }) {
   const [hover, setHover] = useState<string | null>(null);
-  /** Le fil visé, par son rang — de quoi l'épaissir et l'étiqueter. */
+  /** The aimed-at thread, by its rank — enough to thicken and label it. */
   const [hoverLink, setHoverLink] = useState<number | null>(null);
   const [drag, setDrag] = useState<string | null>(null);
   const [moved, setMoved] = useState<Record<string, PlacedNode>>({});
   const svgRef = useRef<SVGSVGElement | null>(null);
-  // d'où le pointeur est parti : au-delà de quelques pixels, c'est un glissé, pas un clic
+  // where the pointer set off from: beyond a few pixels it is a drag, not a click
   const pressAt = useRef<{ x: number; y: number } | null>(null);
 
   const [tags, setTags] = useState<string[]>([]);
@@ -102,39 +103,40 @@ export function ConstellationView({
   const toggle = (setter: Dispatch<SetStateAction<string[]>>) => (v: string) =>
     setter((cur) => (cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v]));
 
-  /* SUIVRE LES ÉQUIPES — éteint par défaut, et ce n'est pas de la
-     timidité : la carte à la main est la promesse de cet écran, et une
-     seconde couche allumée d'office ferait passer pour vôtre ce qui
-     vient de la machine. On l'allume quand on veut voir plus loin. */
+  /* FOLLOWING THE CREWS — off by default, and that is not timidity: the
+     hand-drawn chart is this screen's promise, and a second layer lit by
+     default would pass off as yours what comes from the machine. One
+     lights it when one wants to see further. */
   const [équipes, setÉquipes] = useState(false);
 
-  /* LE FOYER — le remède au fouillis, et il n'est pas graphique.
+  /* THE FOCUS — the remedy for the tangle, and it is not a graphical
+     one.
 
-     Un graphe de deux cents astres ne se lit à AUCUNE disposition : ce
-     n'est pas un problème de placement mais de quantité. Et le lecteur
-     n'a de toute façon qu'une question à la fois — « qu'est-ce qui tient
-     près de celui-ci ». On part donc d'un film et l'on montre ses
-     voisins ; cliquer un voisin déplace le foyer sur lui.
+     A graph of two hundred bodies cannot be read in ANY layout: it is
+     not a problem of placement but of quantity. And the reader has only
+     one question at a time anyway — "what holds close to this one". So
+     we start from a film and show its neighbours; clicking a neighbour
+     moves the focus onto it.
 
-     `null` veut dire « la carte entière », qui reste joignable d'un
-     bouton : le fouillis est parfois ce qu'on est venu voir. */
+     `null` means "the whole chart", which stays one button away: the
+     tangle is sometimes what one came to see. */
   const [foyer, setFoyer] = useState<string | null>(null);
   const [portee, setPortee] = useState(1);
-  /* Les films traversés, pour pouvoir revenir sur ses pas. */
+  /* The films crossed, so that one can retrace one's steps. */
   const [chemin, setChemin] = useState<string[]>([]);
   const [cherche, setCherche] = useState("");
 
-  /* LES ÉPINGLES — les films qu'on est allé chercher soi-même.
+  /* THE PINS — the films one went and fetched oneself.
 
-     Ils ne tiennent au ciel par aucun fil : c'est la recherche qui les y
-     a posés, et c'est très bien ainsi — on cherche justement un film
-     qu'on n'a pas encore relié, pour voir ce qu'il pourrait rejoindre.
-     Comme les positions attrapées à la souris, ils ne survivent pas à la
-     page : ce sont des gestes, pas des données. */
+     They hold to the sky by no thread: it is the search that laid them
+     there, and that is quite right — one is precisely looking for a film
+     not yet linked, to see what it might join. Like the positions
+     grabbed with the mouse, they do not survive the page: they are
+     gestures, not data. */
   const [épingles, setÉpingles] = useState<string[]>([]);
-  /* Les fils qu'on a éteints. On garde les ÉTEINTS et non les allumés :
-     un fil qu'on vient de créer doit apparaître sans qu'on ait à
-     l'allumer. */
+  /* The threads one has put out. We keep the ONES PUT OUT and not the
+     lit ones: a thread just created must appear without one having to
+     light it. */
   const [filsÉteints, setFilsÉteints] = useState<string[]>([]);
   const filsActifs = useMemo(
     () => fils.filter((f) => !filsÉteints.includes(f.id)),
@@ -150,8 +152,8 @@ export function ConstellationView({
         : buildSky(films, { tags, genres }, { threads: filsActifs, pinned: épingles }),
     [films, tags, genres, équipes, filsActifs, épingles]
   );
-  /* La découpe se fait APRÈS la construction : la carte entière existe
-     toujours, on n'en montre qu'une part. */
+  /* The cutting out happens AFTER the building: the whole chart still
+     exists, we merely show a part of it. */
   const { nodes, links } = useMemo(
     () => (foyer ? neighbourhood(complet.nodes, complet.links, foyer, portee) : complet),
     [complet, foyer, portee]
@@ -163,8 +165,8 @@ export function ConstellationView({
   );
   const placed = useMemo(() => relax(nodes, links, W, H), [nodes, links]);
 
-  /* Les films par lesquels commencer : les plus reliés d'abord, ce sont
-     ceux depuis lesquels on ira le plus loin. */
+  /* The films to start from: the most linked first, they are the ones
+     from which one will travel furthest. */
   const departs = useMemo(
     () =>
       [...complet.nodes]
@@ -174,17 +176,17 @@ export function ConstellationView({
     [complet.nodes]
   );
 
-  /* CHERCHER DANS TOUTE LA COLLECTION, ET PAS SEULEMENT AU CIEL.
+  /* SEARCHING THE WHOLE COLLECTION, AND NOT ONLY THE SKY.
 
-     La recherche ne regardait que les astres déjà placés — c'est-à-dire
-     les films déjà reliés. Or on cherche presque toujours l'inverse : un
-     film auquel on pense, dont on ne sait plus s'il est relié, et qu'on
-     voudrait justement raccrocher à quelque chose. Ne rien trouver
-     laissait croire qu'il n'était pas dans la collection.
+     The search looked only at the bodies already placed — that is, at
+     the films already linked. But one almost always searches for the
+     opposite: a film one is thinking of, no longer knowing whether it is
+     linked, and which one would precisely like to hook onto something.
+     Finding nothing made one believe it was not in the collection.
 
-     Un résultat hors carte s'épingle donc d'un clic : il entre au ciel,
-     seul, et devient le foyer — d'où l'on voit ce qu'il pourrait
-     rejoindre. */
+     So a result outside the chart is pinned with one click: it enters
+     the sky, alone, and becomes the focus — from where one sees what it
+     might join. */
   const auCiel = useMemo(
     () => new Set(complet.nodes.filter((n) => n.kind === "film").map((n) => n.filmId as string)),
     [complet.nodes]
@@ -220,34 +222,34 @@ export function ConstellationView({
   const byId = useMemo(() => new Map(placed.map((p) => [p.id, p])), [placed]);
 
   /* ------------------------------------------------------------
-     LE PARCOURS AU CLAVIER
+     TRAVELLING BY KEYBOARD
      ------------------------------------------------------------
 
-     La carte ne se lisait qu'au pointeur. Sans souris, aucun chemin
-     n'existait vers un astre : la vue la plus riche du classeur était
-     la seule entièrement fermée.
+     The chart could only be read with the pointer. Without a mouse, no
+     path existed towards a body: the richest view of the binder was the
+     only entirely closed one.
 
-     UN SEUL ARRÊT DE TABULATION pour tout le ciel, et les flèches à
-     l'intérieur. Rendre trois cents astres tabulables ferait trois cents
-     pressions pour traverser la vue, ce qui est une façon polie de la
-     garder fermée. C'est le motif habituel des grilles et des cartes.
+     A SINGLE TAB STOP for the whole sky, and the arrows inside it.
+     Making three hundred bodies tabbable would mean three hundred key
+     presses to cross the view, which is a polite way of keeping it
+     closed. It is the usual pattern of grids and maps.
 
-     `curseur` double le survol plutôt que de le remplacer : les deux
-     désignent « l'astre dont on parle en ce moment », et la mise en
-     lumière des voisins doit répondre aux deux de la même façon. */
+     `curseur` doubles the hover rather than replace it: both designate
+     "the body being spoken of right now", and the lighting up of the
+     neighbours must answer to both the same way. */
   const [curseur, setCurseur] = useState<string | null>(null);
   const astreCourant = curseur ? byId.get(curseur) : undefined;
 
-  /* Un astre effacé par un changement de filtre ne doit pas laisser un
-     curseur fantôme derrière lui — ni la voix de synthèse annoncer un
-     astre qui n'est plus là. */
+  /* A body erased by a change of filter must not leave a ghost cursor
+     behind it — nor the synthetic voice announce a body that is no
+     longer there. */
   useEffect(() => {
     if (curseur && !byId.has(curseur)) setCurseur(null);
   }, [byId, curseur]);
 
-  /* Le même geste qu'un clic, pour que le clavier et le pointeur ne
-     puissent pas diverger : deux copies de cette règle finiraient par
-     répondre différemment à la même touche. */
+  /* The same gesture as a click, so that keyboard and pointer cannot
+     diverge: two copies of this rule would end up answering the same key
+     differently. */
   const ouvrirOuFoyer = (n: PlacedNode) => {
     if (n.kind === "work") return;
     if (n.kind === "thread") poserFoyer(n.id);
@@ -265,9 +267,9 @@ export function ConstellationView({
     const direction = flèches[e.key];
     if (direction) {
       const suivant = neighbourInDirection(placed, curseur, direction);
-      /* On n'avale la touche QUE si l'on s'est déplacé : sinon la page
-         ne défilerait plus alors qu'il n'y a rien de ce côté, et l'on
-         croirait la carte figée. */
+      /* We only swallow the key IF we have moved: otherwise the page
+         would stop scrolling while there is nothing on that side, and
+         one would believe the chart frozen. */
       if (suivant) {
         e.preventDefault();
         setCurseur(suivant.id);
@@ -279,19 +281,19 @@ export function ConstellationView({
       ouvrirOuFoyer(astreCourant);
       return;
     }
-    /* Échap repose le curseur sans quitter la carte : on sort de
-       l'exploration, pas de la vue. Une seconde pression laisse le
-       navigateur faire ce qu'il veut. */
+    /* Escape puts the cursor down without leaving the chart: one leaves
+       the exploration, not the view. A second press lets the browser do
+       as it pleases. */
     if (e.key === "Escape" && curseur) {
       e.preventDefault();
       setCurseur(null);
     }
   };
 
-  /* Ce que le lecteur d'écran annonce. Un film porte sa note, une œuvre
-     son type, un fil ce qu'il rassemble — la même chose que l'étiquette
-     visible, parce que deux descriptions différentes du même astre
-     seraient deux cartes différentes. */
+  /* What the screen reader announces. A film carries its rating, a work
+     its type, a thread what it gathers — the same thing as the visible
+     label, because two different descriptions of the same body would be
+     two different charts. */
   const direLAstre = (n: PlacedNode): string =>
     [
       n.label,
@@ -303,7 +305,7 @@ export function ConstellationView({
       .filter(Boolean)
       .join(", ");
 
-  // l'ensemble des astres qu'un survol met en lumière
+  // the set of bodies a hover lights up
   const lit = useMemo(() => {
     if (!hover) return null;
     const set = new Set<string>([hover]);
@@ -813,21 +815,21 @@ export function ConstellationView({
               ref={svgRef}
               data-tour="constellation-ciel"
               viewBox={`0 0 ${W} ${H}`}
-              /* UN SEUL ARRÊT DE TABULATION POUR TOUTE LA CARTE, et les
-                 flèches à l'intérieur : trois cents astres tabulables
-                 demanderaient trois cents pressions pour traverser la
-                 vue. `application` prévient le lecteur d'écran qu'il
-                 doit laisser passer les flèches au lieu de les prendre
-                 pour sa propre navigation. */
+              /* A SINGLE TAB STOP FOR THE WHOLE CHART, and the arrows
+                 inside it: three hundred tabbable bodies would ask for
+                 three hundred key presses to cross the view.
+                 `application` warns the screen reader that it must let
+                 the arrows through instead of taking them for its own
+                 navigation. */
               role="application"
               tabIndex={0}
               aria-label="Carte du ciel — flèches pour aller d'un astre à l'autre, Entrée pour l'ouvrir, Échap pour lâcher"
               aria-activedescendant={curseur ? `astre-${curseur}` : undefined}
               onKeyDown={auClavier}
               onFocus={() => {
-                /* Entrer dans la carte pose le curseur quelque part :
-                   un cadre au focus sans rien de désigné dedans ne dit
-                   pas quoi faire de la touche suivante. */
+                /* Entering the chart lays the cursor somewhere: a
+                   focused frame with nothing designated inside it does
+                   not say what to do with the next key. */
                 if (!curseur) setCurseur(foyer ?? placed[0]?.id ?? null);
               }}
               onBlur={() => setCurseur(null)}
@@ -884,21 +886,23 @@ export function ConstellationView({
                 const on = !lit || (lit.has(l.a) && lit.has(l.b));
                 const mx = (a.x + b.x) / 2,
                   my = (a.y + b.y) / 2 + Math.abs(b.x - a.x) * 0.09 + 10;
-                // fiche à fiche : un trait plein, c'est le lien le plus fort
+                // card to card: a solid stroke, it is the strongest link
                 const peer = l.kind === "peer";
-                /* UNE PARENTÉ NE SE DESSINE PAS COMME UN FIL ROUGE.
-                   Pointillé long et pâle, à l'encre de l'ardoise : ce
-                   qui vient de la machine doit se distinguer de ce qui
-                   vient de vous sans qu'on ait à cliquer pour le savoir. */
+                /* A KINSHIP IS NOT DRAWN LIKE A RED THREAD. A long,
+                   pale dashed line, in slate ink: what comes from the
+                   machine must be told apart from what comes from you
+                   without having to click to find out. */
                 const crew = l.kind === "crew";
-                /* Un fil (le rassemblement) n'est pas une parenté : il se
-                   trace à la teinte du fil, en trait continu mais fin —
-                   il rassemble sans prétendre relier deux à deux. */
+                /* A thread (the gathering) is not a kinship: it is
+                   drawn in the thread's tint, in a continuous but thin
+                   stroke — it gathers without claiming to link two by
+                   two. */
                 const filDeRassemblement = l.kind === "thread";
                 const d = `M ${a.x} ${a.y} Q ${mx} ${my}, ${b.x} ${b.y}`;
-                /* Ce que le fil raconte quand on le vise : la parenté
-                   trouvée par la machine, ou la relation qu'on a écrite
-                   soi-même — laquelle se lit dans le sens du trait. */
+                /* What the thread tells when aimed at: the kinship
+                   found by the machine, or the relation one has written
+                   oneself — which reads in the direction of the
+                   stroke. */
                 const raisons = filDeRassemblement
                   ? (byId.get(l.a)?.label ?? "")
                   : peer
@@ -928,7 +932,7 @@ export function ConstellationView({
                   ? catInk(byId.get(l.a)?.color || "burgundy")
                   : null;
                 const encre = teinteDuFil ?? (crew ? inkOf(l) : peer ? C.burgundy : C.vermillion);
-                // un lien fort épaissit le trait : c'est la seule chose qu'il ait à dire ici
+                // a strong link thickens the stroke: it is the only thing it has to say here
                 const épaisseurPeer = 1.4 + strengthOf(l.force) * 0.6;
                 return (
                   <g key={i}>
@@ -936,10 +940,9 @@ export function ConstellationView({
                       d={d}
                       fill="none"
                       stroke={encre}
-                      /* Un fil qu'on peut cliquer doit le dire AVANT
-                         qu'on clique : au survol il s'épaissit et
-                         s'assombrit, ce qu'aucune infobulle ne fait
-                         assez vite. */
+                      /* A thread one can click must say so BEFORE one
+                         clicks: on hover it thickens and darkens, which
+                         no tooltip does fast enough. */
                       strokeWidth={
                         vise
                           ? (peer ? épaisseurPeer : 1.4) + 1.2
@@ -1044,9 +1047,10 @@ export function ConstellationView({
                       : n.type
                         ? LINK_INK[n.type]
                         : C.ochre;
-                /* Un motif qui raconte la fin ne s'affiche pas en clair
-                   sur une carte qu'on parcourt : le nom du fil reste
-                   gratté tant qu'on ne l'a pas dévoilé d'un survol. */
+                /* A pattern that gives the ending away is not displayed
+                   in the clear on a chart one walks through: the
+                   thread's name stays scratched out until revealed by a
+                   hover. */
                 const gratté =
                   n.kind === "thread" && !!n.motif && !!motifById(n.motif)?.spoiler && !isHover;
                 return (
@@ -1069,25 +1073,26 @@ export function ConstellationView({
                       pressAt.current = { x: e.clientX, y: e.clientY };
                       setDrag(n.id);
                     }}
-                    /* UN CLIC DÉPLACE LE FOYER, IL N'OUVRE PLUS LA FICHE.
+                    /* A CLICK MOVES THE FOCUS, IT NO LONGER OPENS THE
+                       CARD.
 
-                       C'est le geste de l'exploration : on avance de
-                       proche en proche, et quitter la carte à chaque
-                       astre rendrait le parcours impossible. Ouvrir la
-                       fiche reste à un double-clic, et la légende le
-                       dit — un geste qu'on ne devine pas doit être
-                       écrit quelque part.
+                       It is the gesture of exploration: one advances
+                       step by step, and leaving the chart at every body
+                       would make the journey impossible. Opening the
+                       card remains a double-click away, and the legend
+                       says so — a gesture one cannot guess must be
+                       written down somewhere.
 
-                       Le foyer lui-même fait exception : recliquer
-                       dessus n'aurait rien à recentrer, alors il
-                       ouvre. */
+                       The focus itself is an exception: clicking it
+                       again would have nothing to recentre, so it
+                       opens. */
                     onClick={(e) => {
                       if (n.kind === "work") return;
                       const s = pressAt.current;
                       if (s && Math.hypot(e.clientX - s.x, e.clientY - s.y) > 4) return; // c'était un glissé
-                      /* Un fil ne s'ouvre pas — il n'a pas de fiche : le
-                         prendre pour foyer montre tout ce qu'il rassemble,
-                         et c'est exactement la question qu'on lui pose. */
+                      /* A thread does not open — it has no card: taking
+                         it as the focus shows everything it gathers, and
+                         that is exactly the question one asks of it. */
                       if (n.kind === "thread") poserFoyer(n.id);
                       else if (n.id === foyer) onOpen(n.filmId as string);
                       else poserFoyer(n.id);
@@ -1147,9 +1152,9 @@ export function ConstellationView({
                       y={-r - 11}
                       textAnchor="middle"
                       style={{
-                        /* Les rôles, et non deux polices nommées en
-                           clair : écrites ainsi, elles restaient celles
-                           du carnet sous les treize autres peaux. */
+                        /* The roles, and not two typefaces named in the
+                           clear: written that way, they stayed the
+                           notebook's under the thirteen other skins. */
                         fontFamily: n.kind === "work" ? F.mono : F.title,
                         fontSize: n.kind === "work" ? 10.5 : n.kind === "thread" ? 16 : 15,
                         fontWeight: n.kind === "work" ? 400 : 700,
@@ -1224,10 +1229,10 @@ export function ConstellationView({
             </span>
             {(Object.keys(moved).length > 0 || épingles.length > 0) && (
               <button
-                /* Remettre le ciel en place, c'est aussi retirer les
-                   épingles : ce sont deux gestes de la même main, et les
-                   laisser survivre au balayage donnerait un ciel « remis
-                   en place » qui ne l'est pas. */
+                /* Putting the sky back in place also means removing the
+                   pins: they are two gestures of the same hand, and
+                   letting them survive the sweep would give a sky "put
+                   back in place" that is not. */
                 onClick={() => {
                   setMoved({});
                   setÉpingles([]);
@@ -1252,13 +1257,13 @@ export function ConstellationView({
   );
 }
 
-/* LA LISTE DES DÉPARTS, ET CE QU'ELLE MONTRE QUAND ON CHERCHE.
+/* THE LIST OF DEPARTURES, AND WHAT IT SHOWS WHEN ONE SEARCHES.
 
-   Sans recherche : les films les plus reliés, ceux depuis lesquels on ira
-   le plus loin. Avec : la collection ENTIÈRE, chaque résultat marqué selon
-   qu'il est déjà au ciel ou non. Un film hors carte ne se grise pas — il
-   se propose, parce que l'épingler est justement ce qu'on est venu
-   faire. */
+   With no search: the most linked films, the ones from which one will
+   travel furthest. With one: the WHOLE collection, each result marked
+   according to whether it is already in the sky or not. A film outside
+   the chart is not greyed out — it is offered, because pinning it is
+   precisely what one came to do. */
 function Résultats({
   cherche,
   résultats,

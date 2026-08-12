@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { readAddress } from "./CollectionPartagee";
 
-/* L'ADDRESS D'UNE COLLECTION PARTAGÉE se lit dans le fragment, et le
-   fragment vient du dehors : d'un lien collé, d'un message recopié à la
-   main, d'un scanner de codes-barres. Ce qui suit tient la seule chose
-   qui compte — reconnaître ce qui est une adresse, et rien d'autre. */
+/* THE ADDRESS OF A SHARED COLLECTION is read in the fragment, and the
+   fragment comes from outside: from a pasted link, from a message copied
+   out by hand, from a barcode scanner. What follows holds the only thing
+   that matters — recognising what is an address, and nothing else. */
 
 describe("lire l'adresse d'une collection", () => {
   it("reconnaît un pseudonyme", () => {
@@ -22,9 +22,8 @@ describe("lire l'adresse d'une collection", () => {
   });
 
   it("n'accepte pas qu'on lui fasse dire autre chose", () => {
-    /* Le pseudonyme part dans une adresse de serveur : tout ce qui
-       pourrait en fabriquer une autre est refusé ici, avant même
-       l'encodage. */
+    /* The username leaves inside a server address: anything that could
+       build another one is refused here, before even the encoding. */
     for (const tordu of [
       "#/chez/../admin",
       "#/chez/varda/../autre",

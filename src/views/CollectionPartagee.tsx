@@ -1,21 +1,21 @@
 /* ============================================================
-   LA COLLECTION DE QUELQU'UN D'AUTRE
+   SOMEBODY ELSE'S COLLECTION
    ============================================================
 
-   La première page de ce projet qui ne soit pas la vôtre. Elle s'ouvre
-   depuis un lien reçu, souvent dans un navigateur où le classeur n'a
-   jamais mis les pieds : rien n'y est chargé, aucun compte n'y existe,
-   et il ne faut rien lui demander.
+   The first page of this project that is not yours. It opens from a
+   received link, often in a browser where the binder has never set foot:
+   nothing is loaded there, no account exists there, and nothing must be
+   asked of it.
 
-   ELLE NE MONTRE PAS UN MUR, ET C'EST UN CHOIX. Le mur d'ici est un
-   outil : on y filtre, on y trie, on y range. Chez quelqu'un d'autre,
-   il n'y a rien à ranger — on regarde. La page est donc une planche
-   contact : des affiches, des titres, des notes, et la seule chose
-   qu'on ait envie de lire chez un autre — ce qu'il en a pensé.
+   IT DOES NOT SHOW A WALL, AND THAT IS A CHOICE. The wall here is a
+   tool: one filters on it, sorts on it, files on it. At somebody else's,
+   there is nothing to file — one looks. So the page is a contact sheet:
+   posters, titles, ratings, and the one thing one actually wants to read
+   at somebody else's — what they thought of it.
 
-   ON N'EMPRUNTE PAS SA VIDÉOTHÈQUE POUR AUTANT : rien n'est écrit dans
-   le classeur du visiteur. Une collection partagée se regarde, elle ne
-   se télécharge pas.
+   WE DO NOT BORROW THEIR FILM LIBRARY FOR ALL THAT: nothing is written
+   into the visitor's binder. A shared collection is looked at, it is not
+   downloaded.
    ============================================================ */
 import { useEffect, useState } from "react";
 import { Clapperboard, Star } from "lucide-react";
@@ -25,14 +25,13 @@ import { collectionOf, ServerError, type SharedFilm } from "../services/server";
 import { tiltOf } from "../domain/seeded";
 import { initialsOf as initialesDe } from "../domain/film";
 
-/* L'ADDRESS D'UNE COLLECTION PARTAGÉE.
+/* THE ADDRESS OF A SHARED COLLECTION.
 
-   `#/chez/varda` — dans le FRAGMENT, et pas dans le chemin. Le classeur
-   est publié en pages statiques : un chemin inconnu y rend un 404 du
-   serveur avant que la moindre ligne de JavaScript ne tourne, alors
-   qu'un fragment ne quitte jamais le navigateur. C'est ce qui permet à
-   un lien de fonctionner sans un octet de configuration côté
-   hébergeur. */
+   `#/chez/varda` — in the FRAGMENT, and not in the path. The binder is
+   published as static pages: an unknown path there returns a 404 from
+   the server before the slightest line of JavaScript runs, whereas a
+   fragment never leaves the browser. That is what lets a link work
+   without one byte of configuration on the host's side. */
 export interface Address {
   pseudo: string;
   jeton: string | null;
@@ -53,10 +52,10 @@ export function CollectionPartagee({ address }: { address: Address }) {
       .then((r) => vivant && setFilms(r.films))
       .catch((e) => {
         if (!vivant) return;
-        /* LE SERVEUR RÉPOND 404 POUR TROIS RAISONS et n'en dit pas
-           plus — compte inconnu, collection fermée, lien périmé. On
-           reprend ce silence plutôt que d'inventer une explication qui
-           aurait une chance sur trois d'être juste. */
+        /* THE SERVER ANSWERS 404 FOR THREE REASONS and says no more —
+           unknown account, closed collection, expired link. We take up
+           that silence rather than invent an explanation that would have
+           one chance in three of being right. */
         setSouci(
           (e as ServerError).code === 404
             ? "Pas de collection à cette adresse. Le lien a peut-être été refermé."
