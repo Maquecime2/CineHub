@@ -2,12 +2,11 @@ import { describe, it, expect } from "vitest";
 import { CAT_COLORS, CAT_KEYS, CAT_FAMILIES, catInk } from "./palette";
 
 describe("la palette", () => {
-  /* LE TEST QUI COMPTE. `CAT_KEYS[0]` est la couleur d'une catégorie
-     neuve, et l'étagère par cinéaste distribue ses cartons en parcourant
-     cette liste dans l'ordre. L'élargir en tête, ou seulement bousculer
-     les huit d'origine, repeindrait toutes les vues qu'on referait — et
-     comme on stocke la clé, celles déjà faites changeraient de teinte
-     sur place. */
+  /* THE TEST THAT MATTERS. `CAT_KEYS[0]` is the colour of a brand-new
+     category, and the shelf by film-maker hands out its boxes by walking
+     this list in order. Widening it at the head, or merely shuffling the
+     original eight, would repaint every view one rebuilt — and since we
+     store the key, those already made would change tint in place. */
   it("garde les huit d'origine en tête, dans leur ordre et à leur teinte", () => {
     expect(CAT_KEYS.slice(0, 8)).toEqual([
       "burgundy",
@@ -42,9 +41,9 @@ describe("la palette", () => {
     expect(catInk("n'existe pas")).toBe("#8C3A34");
   });
 
-  /* Les familles ne sont qu'une VUE sur le nuancier. Une clé absente de
-     l'affichage resterait parfaitement valide — mais elle serait
-     inatteignable, ce qui n'est pas une façon d'offrir une couleur. */
+  /* The families are only a VIEW onto the palette. A key missing from
+     the display would remain perfectly valid — but it would be
+     unreachable, which is no way to offer a colour. */
   it("offre chaque teinte exactement une fois, et rien d'autre", () => {
     const shown = CAT_FAMILIES.flatMap((f) => f.keys);
     expect(new Set(shown).size).toBe(shown.length);

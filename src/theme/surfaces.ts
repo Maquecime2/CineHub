@@ -34,20 +34,20 @@ const noise = (id: string, freq: string, octaves: number, alpha: number, seed = 
   `<rect width='100%' height='100%' filter='url(#${id})'/>`;
 
 /* ------------------------------------------------------------
-   LA PEINTURE — le fond du mur
+   THE PAINT — the background of the wall
    ------------------------------------------------------------
 
-   Un dégradé très doux plutôt qu'un aplat : un mur est éclairé par
-   quelque chose. Il reste assez pâle pour qu'un boîtier posé devant se
-   détache — c'est la contrainte qui a écarté les teintes saturées, sauf
-   les trois sombres, qui assument d'être un fond de nuit. */
+   A very soft gradient rather than a flat tint: a wall is lit by
+   something. It stays pale enough for a case laid in front of it to
+   stand out — that is the constraint which ruled out the saturated
+   tints, save the three dark ones, which own being a night sky. */
 
 export type PaintKey = keyof typeof PAINTS;
 
-/* On garde l'IMAGE et non un `background` tout fait : la peinture n'est
-   qu'une couche parmi d'autres sur le cadre du rayon, et une couche se
-   compose, elle ne se substitue pas. `dark` dit à l'appelant que le fond
-   est sombre — de quoi éclaircir ce qui s'écrit dessus. */
+/* We keep the IMAGE and not a ready-made `background`: the paint is
+   only one layer among others on the row's frame, and a layer composes,
+   it does not substitute. `dark` tells the caller the background is dark
+   — enough to lighten what is written on it. */
 const wall = (label: string, top: string, bottom: string, dark = false) => ({
   label,
   dark,
@@ -186,17 +186,17 @@ export const PATTERNS: Record<string, Pattern> = {
 
 export const PATTERN_KEYS = Object.keys(PATTERNS);
 
-/* L'ENCRE PAR DÉFAUT D'UNE TRAME, ET POURQUOI ELLE EST ÉCRITE EN DUR.
+/* THE DEFAULT INK OF A PATTERN, AND WHY IT IS HARD-CODED.
 
-   C'était `C.inkFaded`. Depuis que les jetons sont des renvois à des
-   variables CSS, ce n'en est plus une couleur utilisable ici : la trame
-   part dans une adresse-données SVG, et un `var()` écrit dans un
-   document SVG embarqué ne résout rien — il n'a pas la racine du
-   document pour parent. Le motif devenait invisible, sans un mot.
+   It used to be `C.inkFaded`. Since the tokens became references to CSS
+   variables, that is no longer a colour usable here: the pattern leaves
+   inside an SVG data URL, and a `var()` written in an embedded SVG
+   document resolves to nothing — it does not have the document root for
+   a parent. The pattern became invisible, without a word.
 
-   C'est la même contrainte que celle qui garde le nuancier des objets en
-   hexadécimaux (voir `theme/palette`) : tout ce qui entre dans un SVG
-   embarqué doit être une couleur, pas un renvoi vers une couleur. */
+   It is the same constraint that keeps the objects' palette in
+   hexadecimals (see `theme/palette`): whatever enters an embedded SVG
+   must be a colour, not a reference to a colour. */
 const DEFAULT_INK = "#6E6153";
 
 /* `ink` is a RESOLVED colour, never a key — see the header. */
@@ -431,8 +431,9 @@ export const MATERIALS: Record<string, Material> = {
     sheen: "#FFFFFF66",
   },
 
-  /* Le peint : la planche prend une teinte franche et n'a plus de
-     matière propre. C'est la famille où la finition se voit vraiment. */
+  /* The painted: the board takes on a plain tint and no longer has any
+     substance of its own. This is the family where the finish really
+     shows. */
   blanc: { label: "Laqué blanc", family: "peint", top: "#F4F1E9", bottom: "#DFDACD" },
   vert: { label: "Vert atelier", family: "peint", top: "#4E6B58", bottom: "#3A5142" },
   bleu: { label: "Bleu nuit", family: "peint", top: "#3C4E68", bottom: "#2A374B" },
@@ -469,9 +470,9 @@ export const materialStyle = (key?: string, finish?: string): CSSProperties => {
   const f = FINISHES[finish as FinishKey] || FINISHES.satine;
   const base = `linear-gradient(${m.top}, ${m.bottom})`;
 
-  /* L'ordre des couches est celui d'un empilement : le reflet en
-     premier (donc au-dessus), la matière ensuite, la couleur au fond.
-     L'inverse peindrait la couleur PAR-DESSUS son propre veinage. */
+  /* The order of the layers is that of a stack: the sheen first (hence
+     on top), the substance next, the colour at the bottom. The reverse
+     would paint the colour OVER its own graining. */
   const layers: string[] = [];
   if (m.sheen && f.sheen)
     layers.push(

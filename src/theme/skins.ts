@@ -33,7 +33,7 @@
 export type Skin = {
   key: string;
   label: string;
-  /** Une ligne pour dire ce qu'on regarde. Elle s'affiche au choix. */
+  /** One line to say what one is looking at. It shows on the picker. */
   note: string;
   /**
    * Is the background dark? Used for the preview, and for
@@ -591,7 +591,7 @@ export const SKINS: Skin[] = [
     atm: { grain: 1, stain: 0.6, vignette: 1 },
   },
 
-  /* L'AFFICHE POLONAISE — papier grisâtre, aplats criards.
+  /* THE POLISH POSTER — greyish paper, garish flat tints.
 
      L'école polonaise d'affiche de cinéma n'avait ni photographie ni
      budget : elle avait un mauvais papier, trois encres, et le droit de

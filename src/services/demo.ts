@@ -258,7 +258,7 @@ const BROUILLONS: Brouillon[] = [
     themes: ["l'enfance", "l'école"],
     rating: 4.5,
     review:
-      "L'arrêt sur image sur la plage est la première fin de film qui refuse de conclure. Tout le reste de la NewsItem Vague en sort.",
+      "L'arrêt sur image sur la plage est la première fin de film qui refuse de conclure. Tout le reste de la Nouvelle Vague en sort.",
     watches: [vu("2024-09-12", 4.5)],
   },
   {

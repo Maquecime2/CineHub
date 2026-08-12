@@ -3,9 +3,9 @@ import { renderHook, act } from "@testing-library/react";
 import { useViewport, resetViewport } from "./useViewport";
 import { BP } from "../theme/tokens";
 
-/* jsdom n'implemente pas matchMedia. On en pose une qui sait vraiment
-   repondre — largeur et finesse du pointeur — pour que le crochet soit
-   teste sur ce qu'il fait et non sur une doublure qui dit toujours non. */
+/* jsdom does not implement matchMedia. We lay down one that really
+   knows how to answer — width and pointer fineness — so that the hook is
+   tested on what it does and not on a stub that always says no. */
 type Listener = () => void;
 
 let width = 1280;
@@ -32,7 +32,7 @@ const install = () => {
   }));
 };
 
-/** Redimensionner : la fenetre change, puis les requetes le disent. */
+/** Resize: the window changes, then the queries say so. */
 const resize = (w: number, opts: { coarse?: boolean } = {}) => {
   act(() => {
     width = w;

@@ -1,99 +1,100 @@
 /* ============================================================
-   LE GLISSEMENT AU DOIGT — un pont, et non une seconde étagère
+   FINGER DRAGGING — a bridge, and not a second shelf
    ============================================================
 
-   L'étagère se range en glissant : on prend un boîtier, on le pose entre
-   deux autres, et le rayon où on le lâche lui donne son statut. Tout ce
-   geste est écrit en événements de glisser-déposer HTML5 — `dragstart`,
-   `dragover`, `drop` — et ces événements N'EXISTENT PAS sous un doigt.
-   Aucun navigateur tactile ne les émet. Sur un téléphone, l'étagère
-   n'était donc pas maladroite : elle était inerte.
+   The shelf is tidied by dragging: one takes a case, one lays it between
+   two others, and the row where one lets go gives it its status. That
+   whole gesture is written in HTML5 drag-and-drop events — `dragstart`,
+   `dragover`, `drop` — and those events DO NOT EXIST under a finger. No
+   touch browser emits them. On a phone the shelf was therefore not
+   clumsy: it was inert.
 
-   IL Y AVAIT DEUX FAÇONS DE RÉPONDRE, ET UNE SEULE TIENT.
+   THERE WERE TWO WAYS TO ANSWER, AND ONLY ONE HOLDS.
 
-   La première : donner à `src/components/shelf/` un second jeu de
-   gestionnaires, tactile, à côté du premier. C'est mille lignes qui
-   savent placer un repère, mesurer une rangée, dismiss deux voisins et
-   arbitrer une charnière — dupliquées, et vouées à diverger à la
-   première correction portée d'un seul côté.
+   The first: give `src/components/shelf/` a second set of handlers, a
+   touch one, beside the first. That is a thousand lines that know how to
+   place a marker, measure a row, push two neighbours aside and settle a
+   hinge — duplicated, and doomed to diverge at the first fix carried on
+   one side only.
 
-   La seconde, celle-ci : ne rien dupliquer, et TRADUIRE. Le doigt parle
-   en `pointerdown`/`pointermove`/`pointerup` ; l'étagère écoute
-   `dragstart`/`dragover`/`drop`. On écoute donc l'un et on émet l'autre,
-   pour de vrai, sur le nœud qui se trouve sous le doigt — React attache
-   ses écouteurs à la racine du document et ne fait aucune différence
-   entre un événement du navigateur et un événement qu'on lui envoie.
-   L'étagère ne sait pas qu'on la touche, et c'est exactement le but :
-   pas une ligne de `shelf/` ne change, et toute correction faite à la
-   souris profite au doigt le jour même.
+   The second, this one: duplicate nothing, and TRANSLATE. The finger
+   speaks in `pointerdown`/`pointermove`/`pointerup`; the shelf listens
+   for `dragstart`/`dragover`/`drop`. So we listen to the one and emit the
+   other, for real, on the node that lies under the finger — React
+   attaches its listeners to the document root and makes no difference
+   between an event from the browser and an event we send it. The shelf
+   does not know it is being touched, and that is exactly the point: not
+   one line of `shelf/` changes, and every fix made with the mouse
+   benefits the finger the same day.
 
-   RIEN N'EST CÂBLÉ À L'ÉTAGÈRE ICI. Le pont ne connaît qu'une chose du
-   document : `[draggable="true"]`. Ce qui se glisse à la souris se
-   glisse au doigt, sur l'étagère comme sur le mur, et une vue future qui
-   rend un objet saisissable l'obtient sans rien demander. */
+   NOTHING IS WIRED TO THE SHELF HERE. The bridge knows only one thing of
+   the document: `[draggable="true"]`. What drags with the mouse drags
+   with the finger, on the shelf as on the wall, and a future view that
+   renders a grabbable object gets it without asking. */
 import { useEffect } from "react";
 
-/* CE QU'ON N'ATTRAPE PAS EN GLISSANT. Un boîtier saisissable porte des
-   boutons — ouvrir la fiche, renommer un carton. Un appui long sur l'un
-   d'eux doit rester un appui sur ce bouton.
+/* WHAT WE DO NOT CATCH WHILE DRAGGING. A grabbable case carries buttons
+   — open the card, rename a box. A long press on one of them must remain
+   a press on that button.
 
-   MAIS LA CHOSE TENUE EST ELLE-MEME UN BOUTON, ET C'EST TOUT LE PIEGE.
-   Un boîtier de l'étagère s'écrit `<button draggable="true">` : il
-   s'ouvre au clavier autant qu'à la souris, et c'est bien. Ecarter tout
-   appui « dans un bouton » l'écartait donc lui, et le glissement au
-   doigt ne demarrait JAMAIS sur un rayon — la seule chose que ce pont
-   existait pour rendre possible.
+   BUT THE HELD THING IS ITSELF A BUTTON, AND THAT IS THE WHOLE TRAP. A
+   shelf case is written `<button draggable="true">`: it opens with the
+   keyboard as much as with the mouse, and that is good. Setting aside
+   every press "inside a button" therefore set it aside too, and finger
+   dragging NEVER started on a row — the one thing this bridge existed to
+   make possible.
 
-   On ne regarde donc pas si l'appui tombe dans un bouton, mais s'il
-   tombe dans un bouton SITUE A L'INTERIEUR de la chose saisissable. */
+   So we do not look at whether the press falls inside a button, but
+   whether it falls inside a button LOCATED WITHIN the grabbable thing. */
 const INERT = "button, a, input, textarea, select, [contenteditable]";
 
-/* LE TEMPS QU'IL FAUT POUR DIRE « JE PRENDS » PLUTOT QUE « JE FAIS
-   DEFILER ».
+/* THE TIME IT TAKES TO SAY "I AM TAKING THIS" RATHER THAN "I AM
+   SCROLLING".
 
-   C'est l'arbitrage central, et il n'a pas de bonne reponse en pixels.
-   Un seuil de distance — on saisit des que le doigt a bouge de huit
-   pixels — condamne le defilement : l'etagere defile horizontalement, et
-   le premier geste de balayage arracherait un boitier au lieu de faire
-   glisser la rangee.
+   This is the central trade-off, and it has no good answer in pixels. A
+   distance threshold — one grabs as soon as the finger has moved eight
+   pixels — condemns scrolling: the shelf scrolls horizontally, and the
+   first sweeping gesture would tear off a case instead of sliding the
+   row.
 
-   L'appui maintenu tranche parce qu'il ne coute rien a qui veut
-   defiler : le doigt part tout de suite, et la saisie n'a jamais lieu.
-   C'est aussi le geste que le systeme lui-meme emploie pour reordonner
-   une liste, donc celui qu'on essaie sans qu'on l'explique.
+   The held press settles it because it costs nothing to whoever wants to
+   scroll: the finger leaves at once, and the grab never happens. It is
+   also the gesture the system itself uses to reorder a list, hence the
+   one people try without being told.
 
-   Deux cent soixante millisecondes : au-dessous on saisit par accident
-   en balayant vite, au-dessus on croit que rien ne repond. */
+   Two hundred and sixty milliseconds: below that one grabs by accident
+   while sweeping fast, above it one believes nothing is responding. */
 const HOLD_MS = 260;
 
-/* Le doigt tremble. Tant qu'on n'a pas saisi, ce tremblement doit rester
-   un tremblement — mais au-dela de dix pixels c'est un balayage, et
-   l'appui maintenu est abandonne au profit du defilement. */
+/* The finger trembles. As long as nothing has been grabbed, that tremble
+   must stay a tremble — but beyond ten pixels it is a sweep, and the held
+   press is abandoned in favour of scrolling. */
 const SLOP = 10;
 
-/* LE BORD QUI DEFILE.
+/* THE EDGE THAT SCROLLS.
 
-   Sur un telephone, une rangee tient trois boitiers : la fente visee est
-   presque toujours hors de l'ecran. A la souris on a la molette ; au
-   doigt on n'a rien, puisque le doigt est deja pris par le geste. Sans
-   ce qui suit, deplacer un film au-dela de ce que l'ecran montre est
-   simplement impossible.
+   On a phone a row holds three cases: the slot being aimed at is almost
+   always off screen. With the mouse one has the wheel; with the finger
+   one has nothing, since the finger is already taken by the gesture.
+   Without what follows, moving a film beyond what the screen shows is
+   simply impossible.
 
-   Quatre-vingts pixels de bande, dix-huit pixels par trame au plus fort
-   — soit environ mille par seconde, le temps de traverser une page sans
-   qu'on ait le sentiment de fuir. La vitesse suit l'enfoncement dans la
-   bande : effleurer la bande avance a peine, coller au bord file.
+   Eighty pixels of band, eighteen pixels per frame at the strongest —
+   about a thousand per second, enough to cross a page without the
+   feeling of fleeing. The speed follows how deep one is in the band:
+   brushing the band barely advances, sticking to the edge races.
 
-   `prefers-reduced-motion` NE COUPE PAS ce defilement. Ce n'est pas un
-   ornement qui bouge tout seul : c'est le seul chemin vers une cible
-   hors champ, et le supprimer rendrait le geste inachevable. */
+   `prefers-reduced-motion` DOES NOT CUT this scrolling. It is not an
+   ornament moving on its own: it is the only path to an off-screen
+   target, and removing it would make the gesture impossible to
+   finish. */
 const EDGE = 80;
 const SPEED = 18;
 
-/* Le conteneur qui defile sous ce qu'on survole. On remonte a la main
-   plutot qu'avec `closest()` : le selecteur ne sait rien du style
-   calcule, et un conteneur qui n'a rien a defiler ne doit pas capter le
-   geste a la place de la page. */
+/* The container that scrolls under what is being hovered. We walk up by
+   hand rather than with `closest()`: the selector knows nothing of the
+   computed style, and a container with nothing to scroll must not
+   capture the gesture in the page's stead. */
 const scroller = (node: Element | null): Element => {
   for (let el = node; el; el = el.parentElement) {
     if (!(el instanceof HTMLElement)) continue;
@@ -105,8 +106,8 @@ const scroller = (node: Element | null): Element => {
   return document.scrollingElement ?? document.documentElement;
 };
 
-/* Le pas d'une trame, en pixels, signe : negatif vers le haut. Zero tant
-   que le doigt n'est dans aucune des deux bandes. */
+/* The step of one frame, in pixels, signed: negative towards the top.
+   Zero as long as the finger is in neither band. */
 const pace = (y: number): number => {
   const top = EDGE - y;
   if (top > 0) return -SPEED * Math.min(1, top / EDGE);
@@ -115,13 +116,13 @@ const pace = (y: number): number => {
   return 0;
 };
 
-/* CE QUE `dataTransfer` DOIT ÊTRE POUR QUE PERSONNE NE S'EN APERÇOIVE.
+/* WHAT `dataTransfer` MUST BE SO THAT NOBODY NOTICES.
 
-   Un `DragEvent` construit à la main naît avec `dataTransfer` à `null`,
-   et le premier gestionnaire venu écrit `e.dataTransfer.effectAllowed =
-   "move"` — ce qui jette. Le presse-papiers du glissement ne sert à rien
-   ici (la source est retenue par l'étagère elle-même, pas lue dans le
-   transfert), mais il doit RÉPONDRE. */
+   A hand-built `DragEvent` is born with `dataTransfer` at `null`, and
+   the first handler along writes `e.dataTransfer.effectAllowed = "move"`
+   — which throws. The drag clipboard is of no use here (the source is
+   held by the shelf itself, not read from the transfer), but it must
+   ANSWER. */
 const fakeTransfer = () => {
   const data = new Map<string, string>();
   return {
@@ -137,25 +138,25 @@ const fakeTransfer = () => {
   } as unknown as DataTransfer;
 };
 
-/** Émettre un vrai événement de glissement, que React entendra. */
+/** Emit a real drag event, one that React will hear. */
 const emit = (node: Element | null, type: string, x: number, y: number, dt: DataTransfer) => {
   if (!node) return;
   const init = { bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y };
-  /* `DragEvent` n'existe pas partout — jsdom, où tournent les tests, ne
-     l'implémente pas. Un `MouseEvent` porte déjà tout ce que les
-     gestionnaires lisent vraiment (le type, les coordonnées, la
-     propagation) ; ce qui manquait, `dataTransfer`, est de toute façon
-     posé à la main juste en dessous. */
+  /* `DragEvent` does not exist everywhere — jsdom, where the tests run,
+     does not implement it. A `MouseEvent` already carries everything the
+     handlers really read (the type, the coordinates, the propagation);
+     what was missing, `dataTransfer`, is laid on by hand just below
+     anyway. */
   const Ctor = typeof DragEvent === "function" ? DragEvent : MouseEvent;
   const ev: Event = new Ctor(type, init);
-  /* `dataTransfer` est un accesseur du prototype, et il n'est pas
-     alimenté par le constructeur. On le pose sur l'instance. */
+  /* `dataTransfer` is a prototype accessor, and it is not fed by the
+     constructor. We lay it on the instance. */
   Object.defineProperty(ev, "dataTransfer", { value: dt, configurable: true });
   node.dispatchEvent(ev);
 };
 
-/* Ce qui se trouve sous le doigt, la chose tenue mise à part : elle est
-   sous le doigt en permanence, et se recevrait donc elle-même. */
+/* What lies under the finger, the held thing aside: it is under the
+   finger at all times, and would therefore receive itself. */
 const under = (x: number, y: number, held: HTMLElement): Element | null => {
   const before = held.style.pointerEvents;
   held.style.pointerEvents = "none";
@@ -171,17 +172,17 @@ interface Gesture {
   y: number;
   dt: DataTransfer;
   timer: number | null;
-  /** L'appui a tenu : on glisse pour de bon. */
+  /** The press held: we are dragging for real. */
   live: boolean;
-  /** Le dernier nœud survolé, pour lui dire qu'on le quitte. */
+  /** The last hovered node, to tell it we are leaving. */
   over: Element | null;
-  /** La trame de défilement en cours, s'il y en a une. */
+  /** The scrolling frame under way, if there is one. */
   raf: number | null;
-  /** Le pas de défilement, en pixels par trame ; zéro hors des bandes. */
+  /** The scrolling step, in pixels per frame; zero outside the bands. */
   pan: number;
 }
 
-/** Traduit le doigt en glisser-déposer, pour tout `[draggable="true"]`. */
+/** Translates the finger into drag-and-drop, for every `[draggable="true"]`. */
 export function usePointerDrag(enabled: boolean): void {
   useEffect(() => {
     if (!enabled) return;
@@ -195,10 +196,10 @@ export function usePointerDrag(enabled: boolean): void {
       }
     };
 
-    /* Fin du geste, quelle qu'en soit la raison. `dragend` est émis même
-       quand le dépôt a eu lieu : c'est lui qui remet l'étagère à plat
-       (voir `reset`, dans ShelfBoard), et un geste qui se termine sans
-       lui laisse un boîtier translucide et une racine encore marquée. */
+    /* End of the gesture, whatever the reason. `dragend` is emitted even
+       when the drop took place: it is what lays the shelf flat again
+       (see `reset`, in ShelfBoard), and a gesture that ends without it
+       leaves a translucent case and a root still marked. */
     const finish = (drop: { x: number; y: number } | null) => {
       if (!g) return;
       const { source, dt, live, over } = g;
@@ -228,10 +229,10 @@ export function usePointerDrag(enabled: boolean): void {
       x.pan = 0;
     };
 
-    /* Ce que le survol produit : le changement de cible, puis le
-       `dragover` qui place le repere. Appele par le doigt qui bouge, et
-       par chaque trame de defilement — car sous un doigt immobile, c'est
-       l'etagere qui bouge, et la cible change tout autant. */
+    /* What hovering produces: the change of target, then the `dragover`
+       that places the marker. Called by the moving finger, and by every
+       scrolling frame — because under a still finger it is the shelf
+       that moves, and the target changes just as much. */
     const hover = (x: number, y: number) => {
       if (!g) return;
       const target = under(x, y, g.source);
@@ -240,15 +241,15 @@ export function usePointerDrag(enabled: boolean): void {
         if (target) emit(target, "dragenter", x, y, g.dt);
         g.over = target;
       }
-      /* `dragover` tire en continu tant que la souris bouge : c'est lui
-         qui place le repère, et c'est donc lui qu'il faut répéter. */
+      /* `dragover` fires continuously as long as the mouse moves: it is
+         what places the marker, and therefore what must be repeated. */
       emit(target, "dragover", x, y, g.dt);
     };
 
-    /* Une trame de defilement : on pousse le conteneur, on regarde ce
-       qui est passe sous le doigt, on redemande une trame. Si le
-       conteneur n'a pas bouge, on est en butee et la boucle s'arrete —
-       la rejouer a vide ne ferait que rejouer le meme `dragover`. */
+    /* One scrolling frame: we push the container, we look at what has
+       passed under the finger, we ask for another frame. If the
+       container has not moved we are at the stop and the loop ends —
+       replaying it empty would only replay the same `dragover`. */
     const frame = () => {
       if (!g?.live || !g.pan) return;
       g.raf = null;
@@ -266,14 +267,14 @@ export function usePointerDrag(enabled: boolean): void {
     const begin = () => {
       if (!g) return;
       g.live = true;
-      /* `touch-action: none` n'arrive qu'ICI, et c'est tout l'équilibre
-         du geste : le poser d'avance sur chaque boîtier rendrait
-         l'étagère impossible à faire défiler au doigt. La règle vit dans
-         les jetons, sur `[data-pointer-drag]`. */
+      /* `touch-action: none` arrives only HERE, and that is the whole
+         balance of the gesture: laying it in advance on every case would
+         make the shelf impossible to scroll with the finger. The rule
+         lives in the tokens, on `[data-pointer-drag]`. */
       g.source.dataset.pointerDrag = "1";
-      /* Un retour physique dit que la chose est prise. Le clavier tactile
-         d'iOS n'en donne pas ; ceux qui l'ont y gagnent, les autres ne
-         perdent rien. */
+      /* A physical feedback says the thing is taken. The iOS touch
+         keyboard gives none; those who have it gain, the others lose
+         nothing. */
       navigator.vibrate?.(12);
       emit(g.source, "dragstart", g.x, g.y, g.dt);
     };
@@ -284,10 +285,10 @@ export function usePointerDrag(enabled: boolean): void {
       if (!el) return;
       const source = el.closest<HTMLElement>('[draggable="true"]');
       if (!source) return;
-      /* Le premier élément interactif au-dessus du doigt. S'il EST la
-         chose tenue, il n'y a pas d'obstacle : c'est elle qu'on prend.
-         S'il est en dessous d'elle, c'est un bouton posé sur elle, et il
-         garde son geste. */
+      /* The first interactive element above the finger. If it IS the
+         held thing there is no obstacle: it is the one being taken. If
+         it is below it, it is a button laid on it, and it keeps its own
+         gesture. */
       const inert = el.closest(INERT);
       if (inert && inert !== source && source.contains(inert)) return;
       g = {
@@ -307,23 +308,24 @@ export function usePointerDrag(enabled: boolean): void {
     const onMove = (e: PointerEvent) => {
       if (!g || e.pointerId !== g.id) return;
       if (!g.live) {
-        /* Le doigt est parti avant que l'appui ait tenu : c'est un
-           balayage, et il appartient au defilement. */
+        /* The finger left before the press had held: this is a sweep,
+           and it belongs to scrolling. */
         if (Math.hypot(e.clientX - g.x, e.clientY - g.y) > SLOP) {
           clearTimer();
           g = null;
         }
         return;
       }
-      /* A partir d'ici le geste est a nous, et la page ne doit plus
-         bouger sous lui. D'ou l'ecouteur non passif plus bas : sans
-         cela, cet appel serait sans effet et le navigateur le dirait. */
+      /* From here on the gesture is ours, and the page must no longer
+         move under it. Hence the non-passive listener further down:
+         without it this call would have no effect and the browser would
+         say so. */
       e.preventDefault();
       g.x = e.clientX;
       g.y = e.clientY;
       hover(e.clientX, e.clientY);
-      /* Entrer dans une bande allume la boucle, en sortir l'eteint ;
-         entre les deux, on se contente de corriger la vitesse. */
+      /* Entering a band lights the loop up, leaving it puts it out;
+         between the two, we merely correct the speed. */
       if (!g) return;
       g.pan = pace(e.clientY);
       if (g.pan && g.raf == null) g.raf = requestAnimationFrame(frame);
@@ -340,8 +342,8 @@ export function usePointerDrag(enabled: boolean): void {
       finish(null);
     };
 
-    /* Un appui maintenu ouvre le menu contextuel d'un navigateur mobile,
-       et ce menu vole le geste au moment précis où il commence. */
+    /* A held press opens a mobile browser's context menu, and that menu
+       steals the gesture at the precise moment it begins. */
     const onContext = (e: Event) => {
       if (g?.live) e.preventDefault();
     };

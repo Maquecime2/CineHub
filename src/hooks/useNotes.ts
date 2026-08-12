@@ -2,7 +2,7 @@ import { useState } from "react";
 import { store, KEYS } from "../services/storage";
 import type { Note } from "../types";
 
-/** Le carnet : des pages libres, qui n'appartiennent à aucun film. */
+/** The notebook: loose pages, belonging to no film. */
 export function useNotes() {
   const [notes, setNotes] = useState<Note[]>([]);
 
@@ -13,7 +13,7 @@ export function useNotes() {
 
   return {
     notes,
-    /** Appelé une fois au chargement, depuis App. */
+    /** Called once at load time, from App. */
     load: () => setNotes(store.get<Note[]>(KEYS.notes, [])),
     replaceAll: save,
     add: (n: Note) => save([n, ...notes]),

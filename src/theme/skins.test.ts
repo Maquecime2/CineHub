@@ -12,20 +12,20 @@ describe("le catalogue de peaux", () => {
     expect(new Set(SKINS.map((s) => s.label)).size).toBe(SKINS.length);
   });
 
-  /* CE TEST A DÉJÀ SERVI. Trois couleurs de ce fichier étaient de la
-     bouillie — un `#9E9versa` et deux de la même eau. Écrites dans une
-     variable CSS, elles n'auraient rien jeté : le navigateur ignore une
-     déclaration qu'il ne comprend pas, et la peau se serait contentée
-     d'avoir un jeton qui ne change pas. */
+  /* THIS TEST HAS ALREADY EARNED ITS KEEP. Three colours in that file
+     were mush — a `#9E9versa` and two of the same water. Written into a
+     CSS variable, they would have thrown nothing: the browser ignores a
+     declaration it does not understand, and the skin would simply have
+     had one token that never changes. */
   it("n'a que des hexadécimaux bien formés", () => {
     for (const skin of SKINS)
       for (const [token, color] of Object.entries(skin.c))
         expect(`${skin.key}.${token} = ${color}`).toMatch(/= #[0-9A-Fa-f]{6}$/);
   });
 
-  /* Un jeton oublié n'est pas rattrapé par la peau par défaut : les
-     variables sont écrites sur la racine et y RESTENT d'une peau à
-     l'autre. Il garderait donc la valeur de la peau précédente. */
+  /* A forgotten token is not caught by the default skin: the variables
+     are written on the root and STAY there from one skin to the next. It
+     would therefore keep the previous skin's value. */
   it("donne les quatorze jetons, sans en inventer un de plus", () => {
     for (const skin of SKINS) expect(Object.keys(skin.c).sort()).toEqual([...TOKENS].sort());
   });
@@ -34,8 +34,8 @@ describe("le catalogue de peaux", () => {
     for (const skin of SKINS) {
       expect(Object.keys(skin.fonts).sort()).toEqual(["body", "hand", "mono", "title"]);
       expect(skin.google.length).toBeGreaterThan(0);
-      /* Chaque famille nommée dans un rôle doit être demandée à Google,
-         sinon la peau retombe sur la police de secours sans un mot. */
+      /* Every family named in a role must be asked of Google, otherwise
+         the skin falls back on the fallback typeface without a word. */
       const asked = skin.google.join("&").replace(/\+/g, " ").toLowerCase();
       for (const stack of Object.values(skin.fonts)) {
         const first = stack.split(",")[0]!.replace(/'/g, "").trim().toLowerCase();
@@ -57,42 +57,41 @@ describe("le catalogue de peaux", () => {
     }
   });
 
-  /* ---------- ce que le navigateur dessine lui-même ---------- */
+  /* ---------- what the browser draws itself ---------- */
 
-  /* Le contraste WCAG, en clair : deux luminances relatives, la plus
-     claire au numérateur. 1 pour deux couleurs identiques, 21 pour le
-     noir sur le blanc. */
-  const canal = (v: number) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+  /* WCAG contrast, in plain terms: two relative luminances, the lighter
+     one on top. 1 for two identical colours, 21 for black on white. */
+  const channel = (v: number) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
   const luminance = (hex: string): number => {
     const n = parseInt(hex.slice(1), 16);
-    const [r, v, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => canal(c / 255));
-    return 0.2126 * r! + 0.7152 * v! + 0.0722 * b!;
+    const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => channel(c / 255));
+    return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
   };
-  const contraste = (a: string, b: string): number => {
-    const [clair, sombre] = [luminance(a), luminance(b)].sort((x, y) => y - x);
-    return (clair! + 0.05) / (sombre! + 0.05);
+  const contrast = (a: string, b: string): number => {
+    const [light, dark] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+    return (light! + 0.05) / (dark! + 0.05);
   };
 
-  /* Une liste déroulante ouverte est peinte par le navigateur, hors du
-     document : aucune règle ne viendra rattraper après coup deux
-     couleurs trop proches. On les vérifie donc ici, à la source, sur les
-     deux jetons que la règle `select option` emploie. */
+  /* An open drop-down list is painted by the browser, outside the
+     document: no rule will come and fix two colours too close together
+     after the fact. So we check them here, at the source, on the two
+     tokens the `select option` rule uses. */
   it("garde les listes déroulantes lisibles, sur les quatorze peaux", () => {
     for (const skin of SKINS)
       expect(
-        contraste(skin.c.ink!, skin.c.card!),
+        contrast(skin.c.ink!, skin.c.card!),
         `${skin.key} : encre sur carton, c'est le fond d'une liste ouverte`
       ).toBeGreaterThanOrEqual(4.5);
   });
 
-  /* LE DRAPEAU DOIT DIRE VRAI, et c'est tout ce qui tient `color-scheme`.
-     Une peau sombre qui s'annonce claire garde les cases à cocher et les
-     listes en clair sur son fond noir — le défaut est invisible au test
-     de rendu, puisque ces morceaux-là ne sont pas dans le document. */
+  /* THE FLAG MUST TELL THE TRUTH, and that is all `color-scheme` rests
+     on. A dark skin announcing itself light keeps the checkboxes and the
+     lists light on its black background — the flaw is invisible to a
+     render test, since those pieces are not in the document. */
   it("ne se trompe pas sur la couleur de son propre fond", () => {
     for (const skin of SKINS) {
-      const sombre = contraste(skin.c.card!, "#FFFFFF") > contraste(skin.c.card!, "#000000");
-      expect(!!skin.dark, `${skin.key} : carton ${skin.c.card}`).toBe(sombre);
+      const isDark = contrast(skin.c.card!, "#FFFFFF") > contrast(skin.c.card!, "#000000");
+      expect(!!skin.dark, `${skin.key} : carton ${skin.c.card}`).toBe(isDark);
     }
   });
 
@@ -114,7 +113,7 @@ describe("poser une peau", () => {
     const skin = applySkin("kodachrome");
     const root = document.documentElement.style;
     for (const [token, color] of Object.entries(skin.c)) {
-      // le renvoi tel que `tokens` l'écrit, et la variable telle qu'on la pose
+      // the reference as `tokens` writes it, and the variable as we lay it
       const name = C[token as keyof typeof C].slice(4, -1);
       expect(root.getPropertyValue(name)).toBe(color);
     }
@@ -127,16 +126,15 @@ describe("poser une peau", () => {
     const root = document.documentElement.style;
     expect(root.getPropertyValue("--page-bg")).toContain("#F2F0EB");
     expect(root.getPropertyValue("--tag-radius")).toBe("0px");
-    // le Bauhaus n'a ni grain ni tache : trois couleurs et rien dessus
+    // the Bauhaus has neither grain nor stain: three colours and nothing on top
     expect(root.getPropertyValue("--atm-grain")).toBe("0");
     expect(root.getPropertyValue("--atm-stain")).toBe("0");
     expect(document.documentElement.dataset.skin).toBe("bauhaus");
   });
 
-  /* Un seul élément de lien, réutilisé : en créer un par essai
-     laisserait derrière soi autant de feuilles de styles que de peaux
-     essayées, et la dernière DÉCLARÉE gagnerait — pas la dernière
-     choisie. */
+  /* A single link element, reused: creating one per attempt would leave
+     behind as many stylesheets as skins tried, and the last one DECLARED
+     would win — not the last one chosen. */
   it("ne laisse qu'un seul lien de polices, quoi qu'on essaie", () => {
     applySkin("japon");
     const premier = document.getElementById("skin-fonts") as HTMLLinkElement;

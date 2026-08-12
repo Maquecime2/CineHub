@@ -1,16 +1,16 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 
-/* Ce qui se teste ici n'est pas une apparence, c'est une REGLE : sous un
-   doigt, aucun controle ne descend au-dessous de quarante-quatre pixels,
-   et a la souris rien ne bouge. La regle est invisible a la relecture —
-   `tap` est un objet vide la moitie du temps — et c'est exactement le
-   genre de chose qui repart en silence.
+/* What is tested here is not an appearance, it is a RULE: under a
+   finger, no control goes below forty-four pixels, and with the mouse
+   nothing moves. The rule is invisible on a re-reading — `tap` is an
+   empty object half the time — and that is exactly the kind of thing
+   that quietly walks away.
 
-   Le module lit le pointeur UNE FOIS, a l'import : chaque cas doit donc
-   poser sa doublure avant d'importer, d'ou `resetModules` et l'import
-   dynamique. */
+   The module reads the pointer ONCE, at import time: every case must
+   therefore lay its stub before importing, hence `resetModules` and the
+   dynamic import. */
 
-const charger = async (coarse: boolean) => {
+const load = async (coarse: boolean) => {
   vi.resetModules();
   vi.stubGlobal("matchMedia", (q: string) => ({
     matches: q.includes("coarse") ? coarse : false,
@@ -28,18 +28,18 @@ afterEach(() => {
 
 describe("les cibles du doigt", () => {
   it("au doigt, rien ne descend sous quarante-quatre pixels", async () => {
-    const { tap, tapSquare, underlineInput, TAP } = await charger(true);
+    const { tap, tapSquare, underlineInput, TAP } = await load(true);
     expect(TAP).toBe(44);
     expect(tap.minHeight).toBe(44);
-    /* `all: unset` rend le bouton inline : sans cet affichage, la hauteur
-       minimale ne s'appliquerait pas du tout. */
+    /* `all: unset` makes the button inline: without this display, the
+       minimum height would not apply at all. */
     expect(tap.display).toBe("inline-flex");
     expect(tapSquare.minWidth).toBe(44);
     expect(underlineInput.minHeight).toBe(44);
   });
 
   it("a la souris, pas un pixel ne change", async () => {
-    const { tap, tapSquare, underlineInput } = await charger(false);
+    const { tap, tapSquare, underlineInput } = await load(false);
     expect(tap).toEqual({});
     expect(tapSquare).toEqual({});
     expect(underlineInput.minHeight).toBeUndefined();

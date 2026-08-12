@@ -196,7 +196,7 @@ export const makeShelf = () => ({
 export const makeView = ({
   id,
   wall = "watched",
-  name = "NewsItem vue",
+  name = "Nouvelle vue",
   theme = "kraft",
   now = 0,
 } = {}) => ({

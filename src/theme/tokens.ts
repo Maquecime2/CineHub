@@ -31,7 +31,7 @@ export const C = {
   pine: "var(--c-pine)",
   slate: "var(--c-slate)",
   line: "var(--c-line)",
-  // accents — des touches plus vives qui percent le fond
+  // accents — livelier touches that pierce the background
   cobalt: "var(--c-cobalt)",
   vermillion: "var(--c-vermillion)",
   moss: "var(--c-moss)",
@@ -41,16 +41,16 @@ export const C = {
   plum: "var(--c-plum)",
 } as const;
 
-/* LES QUATRE PERSON_ROLES DE LA TYPOGRAPHIE.
+/* THE FOUR ROLES OF TYPOGRAPHY.
 
-   Il n'y avait pas de rôles : quatre familles nommées en toutes lettres,
-   recopiées deux cent vingt-neuf fois. Une peau qui change de police
-   devait donc réécrire deux cent vingt-neuf lignes.
+   There were no roles: four families named in full, copied out two
+   hundred and twenty-nine times. A skin changing its typeface therefore
+   had to rewrite two hundred and twenty-nine lines.
 
-   Ce sont des rôles et non des polices : `mono` est « ce qui se tape à
-   la machine » — les étiquettes, les compteurs, les petites capitales —
-   et une peau peut y mettre une grotesque condensée sans que rien de ce
-   qui l'emploie ait à le savoir. */
+   These are roles and not typefaces: `mono` is "what is typed on a
+   machine" — the labels, the counters, the small capitals — and a skin
+   can put a condensed grotesque there without anything that uses it
+   having to know. */
 export const F = {
   title: "var(--f-title)",
   body: "var(--f-body)",
@@ -58,57 +58,55 @@ export const F = {
   mono: "var(--f-mono)",
 } as const;
 
-/* UNE COULEUR, PLUS TRANSPARENTE.
+/* A COLOUR, MORE TRANSPARENT.
 
-   On écrivait `${C.ink}22` — l'hexadécimal et son canal alpha collés
-   bout à bout. C'était juste tant que `C.ink` ÉTAIT un hexadécimal ;
-   `var(--c-ink)22` ne veut plus rien dire.
+   We used to write `${C.ink}22` — the hexadecimal and its alpha channel
+   stuck end to end. That was right as long as `C.ink` WAS a hexadecimal;
+   `var(--c-ink)22` no longer means anything.
 
-   `color-mix` fait le même travail sans rien savoir de la forme de la
-   couleur : elle marche sur un renvoi comme sur un dièse, ce qui laisse
-   les teintes du nuancier (qui, elles, restent des hexadécimaux) passer
-   par le même chemin.
+   `color-mix` does the same work without knowing anything of the shape
+   of the colour: it works on a reference as on a hash, which lets the
+   palette's tints (which do remain hexadecimals) go down the same path.
 
-   L'opacité s'écrit en clair — `alpha(C.ink, 0.13)` plutôt que `22` —
-   parce que personne ne lit `0x22` comme « treize pour cent ». */
+   The opacity is written in plain sight — `alpha(C.ink, 0.13)` rather
+   than `22` — because nobody reads `0x22` as "thirteen per cent". */
 export const alpha = (color: string, a: number): string =>
   `color-mix(in srgb, ${color} ${Math.round(a * 1000) / 10}%, transparent)`;
 
-/* LES DEUX SEUILS, ET PAS TRENTE.
+/* THE TWO THRESHOLDS, AND NOT THIRTY.
 
-   Ils sont ici, avec les couleurs et les polices, parce qu'ils sont de
-   la même espèce : ce dont le site est fait et qui peut changer. Une
-   valeur écrite à la main dans une media query d'un côté et dans un
-   `matchMedia` de l'autre, c'est deux vérités qui divergent au premier
-   ajustement — et le rail se retrouve horizontal pendant que la vue le
-   croit encore vertical.
+   They are here, with the colours and the typefaces, because they are of
+   the same kind: what the site is made of and what can change. A value
+   written by hand in a media query on one side and in a `matchMedia` on
+   the other is two truths diverging at the first adjustment — and the
+   rail turns out horizontal while the view still believes it vertical.
 
-   Deux seuils seulement, et ils désignent des GESTES plutôt que des
-   appareils : sous `phone`, on tient l'objet d'une main et le pouce ne
-   remonte pas en haut de l'écran ; sous `tablet`, la fenêtre est trop
-   étroite pour deux colonnes mais garde ses bords. Au-dessus, c'est le
-   classeur tel qu'il a été dessiné.
+   Two thresholds only, and they designate GESTURES rather than devices:
+   below `phone`, one holds the object in one hand and the thumb does not
+   reach the top of the screen; below `tablet`, the window is too narrow
+   for two columns but keeps its margins. Above that, it is the binder as
+   it was drawn.
 
-   `src/hooks/useViewport.ts` en fait des requêtes ; les `--bp-*`
-   ci-dessous servent la poignee d'endroits qui n'ont pas de composant
-   pour poser la question. */
+   `src/hooks/useViewport.ts` turns them into queries; the `--bp-*`
+   below serve the handful of places that have no component to ask the
+   question. */
 export const BP = { phone: 640, tablet: 1024 } as const;
 
 export const FONT_IMPORT = `
-/* LA PEAU PAR DEFAUT — le carnet d'archiviste, papier kraft et fil
-   rouge. Elle est ici, en dur, et non dans le catalogue des peaux : le
-   site doit etre ce qu'il a toujours ete avant meme qu'une ligne de
-   JavaScript ait tourne. Une peau choisie reecrit ces memes variables
-   sur documentElement, ou elles gagnent contre celles-ci.
+/* THE DEFAULT SKIN — the archivist notebook, kraft paper and red
+   thread. It is here, hard-coded, and not in the catalogue of skins: the
+   site must be what it has always been before even one line of
+   JavaScript has run. A chosen skin rewrites these same variables on
+   documentElement, where they win against these.
 
-   Les polices ne sont plus importees ici : chaque peau a les siennes, et
-   les charger toutes couterait une demi-douzaine de fichiers jamais
-   affiches. C'est applySkin qui pose le lien vers celles du jour.
+   The typefaces are no longer imported here: each skin has its own, and
+   loading them all would cost half a dozen files never displayed. It is
+   applySkin that lays the link to the ones of the day.
 
-   Pas un seul accent grave dans ce bloc, ni ailleurs entre les deux
-   accolades de cette chaine a gabarit : il la refermerait au milieu
-   d'une phrase. Le meme avertissement est repete plus bas, la ou le
-   piege s'est deja referme une fois. */
+   Not a single backtick in this block, nor anywhere else between the two
+   braces of this template string: it would close it in the middle of a
+   sentence. The same warning is repeated further down, where the trap
+   has already sprung once. */
 :root {
   --c-paper: #EEE3CC;
   --c-paper-dark: #E2D3AE;
@@ -130,47 +128,46 @@ export const FONT_IMPORT = `
   --f-hand: 'Caveat', cursive;
   --f-mono: 'Special Elite', monospace;
 
-  /* La FORME des choses, que la couleur seule ne dit pas : un onglet de
-     classeur n'a pas le même angle qu'une pastille pastel, et une
-     affiche imprimée ne veut aucun arrondi nulle part. */
+  /* The SHAPE of things, which colour alone does not say: a binder tab
+     does not have the same angle as a pastel pill, and a printed poster
+     wants no rounding anywhere. */
   --tag-radius: 3px;
   --tag-tracking: 1.5px;
   --tag-transform: none;
 
-  /* LE MOUVEMENT, EN DEUX DUREES ET PAS TRENTE.
+  /* MOTION, IN TWO DURATIONS AND NOT THIRTY.
 
-     Elles sont ici, et non recopiees dans chaque composant, pour une
-     raison qui n'est pas la coquetterie : le bloc « mouvement reduit »
-     plus bas les ramene a zero EN UN SEUL ENDROIT. Une duree ecrite en
-     ligne dans un style React ne peut pas etre annulee par une feuille
-     de styles — elle gagne toujours — et chaque animation ecrite ainsi
-     serait une promesse rompue a qui a demande a son systeme de ne pas
-     bouger.
+     They are here, and not copied into every component, for a reason
+     that is not vanity: the reduced-motion block further down brings
+     them back to zero IN A SINGLE PLACE. A duration written inline in a
+     React style cannot be cancelled by a stylesheet — it always wins —
+     and every animation written that way would be a promise broken to
+     whoever asked their system not to move.
 
-     Un carnet n'a pas de fondu enchaine : ce qui bouge ici se DEPLACE,
-     et la courbe le dit — elle part vite et se pose, comme un objet
-     qu'on repose sur une table. */
+     A notebook has no cross-fade: what moves here MOVES ACROSS, and the
+     curve says so — it leaves fast and settles, like an object one puts
+     back down on a table. */
   --motion-fast: .16s;
   --motion-slow: .34s;
   --motion-ease: cubic-bezier(.2,.8,.3,1);
 
-  /* LES DEUX SEUILS, DU COTE CSS. Ils doublent BP dans tokens.ts, et le
-     doublon est assume : une media query n'accepte pas de var(), donc
-     les regles plus bas reecrivent le chiffre. Ces jetons servent aux
-     styles qui veulent le CONNAITRE sans en faire une condition. */
+  /* THE TWO THRESHOLDS, ON THE CSS SIDE. They double BP in tokens.ts,
+     and the duplication is owned: a media query does not accept var(),
+     so the rules further down rewrite the figure. These tokens serve the
+     styles that want to KNOW it without making a condition of it. */
   --bp-phone: 640px;
   --bp-tablet: 1024px;
 
-  /* CE QUE L'ECRAN NE MONTRE PAS.
+  /* WHAT THE SCREEN DOES NOT SHOW.
 
-     Une encoche, une barre d'accueil, un coin arrondi : sur un telephone
-     la fenetre est plus grande que la surface reellement visible. Ces
-     quatre jetons disent de combien, et valent zero partout ailleurs —
-     un navigateur de bureau resout env() a sa valeur de repli.
+     A notch, a home bar, a rounded corner: on a phone the window is
+     larger than the really visible surface. These four tokens say by how
+     much, and are worth zero everywhere else — a desktop browser
+     resolves env() to its fallback value.
 
-     Ils sont pris ici plutot qu'ecrits en ligne parce que trois couches
-     en ont besoin et qu'aucune ne doit deviner : la barre d'onglets du
-     bas, le tiroir de recherche, et la feuille de la fiche. */
+     They are taken here rather than written inline because three layers
+     need them and none must guess: the bottom tab bar, the search
+     drawer, and the sheet of the film card. */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -181,11 +178,10 @@ export const FONT_IMPORT = `
 
 body { background: ${C.paper}; }
 
-/* Le rail des onglets peut avoir a defiler dans une fenetre courte. Sa
-   barre n'apporte rien — la tranche d'un classeur n'en a pas — et elle
-   mangerait onze des quarante-six pixels de large du rail. On la retire
-   sans retirer le defilement : la molette et le clavier marchent
-   toujours. */
+/* The tab rail may have to scroll in a short window. Its bar brings
+   nothing — the edge of a binder has none — and it would eat eleven of
+   the rail's forty-six pixels of width. We remove it without removing
+   the scrolling: the wheel and the keyboard still work. */
 [data-tab-rail] { scrollbar-width: none; }
 [data-tab-rail]::-webkit-scrollbar { width: 0; height: 0; }
 
@@ -203,21 +199,21 @@ body { background: ${C.paper}; }
 @keyframes slideOut { from { opacity: 0; transform: translateX(-34px) rotate(-4deg); } to { opacity: 1; transform: none; } }
 @keyframes caseIn { from { opacity: 0; transform: translateY(14px) scale(0.97); } to { opacity: 1; transform: none; } }
 @keyframes sheetIn { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: none; } }
-/* UN TIROIR ENTRE PAR SON CÔTÉ, ET DROIT.
+/* A DRAWER COMES IN FROM ITS SIDE, AND STRAIGHT.
 
-   slideOut faisait l'affaire pour une page — elle vient de la gauche et
-   s'incline de quatre degrés, ce qui donne à une feuille l'air d'avoir
-   été posée à la main. Sur un panneau ancré à droite et haut de toute la
-   fenêtre, la même inclinaison le fait déborder par les deux bouts le
-   temps de l'animation : une feuille se pose de travers, un tiroir non.
+   slideOut did the job for a page — it comes from the left and leans by
+   four degrees, which gives a sheet the look of having been laid by
+   hand. On a panel anchored to the right and as tall as the whole
+   window, the same lean makes it overflow at both ends for the duration
+   of the animation: a sheet settles askew, a drawer does not.
 
-   (Pas d'accent grave dans ce commentaire : il vit DANS un littéral de
-   gabarit, et le premier refermerait la feuille de styles entière.) */
+   (No backtick in this comment: it lives INSIDE a template literal, and
+   the first one would close the whole stylesheet.) */
 @keyframes drawerIn { from { opacity: 0; transform: translateX(26px); } to { opacity: 1; transform: none; } }
 
-/* Pendant un glissement, la languette du tiroir s'annonce comme cible.
-   En CSS et non en état React : un setState ici re-rendrait tout le
-   rayon au moment précis où la souris commence à bouger. */
+/* During a drag, the drawer tab announces itself as a target. In CSS
+   and not in React state: a setState here would re-render the whole row
+   at the precise moment the mouse starts to move. */
 html[data-dragging="1"] [data-drawer-tab] { background: ${C.ochre} !important; }
 
 /* An open panel lays a full-screen veil to close itself on the first
@@ -263,100 +259,94 @@ html[data-dragging="1"] [data-veil] { pointer-events: none; }
    object's lean. */
 [data-wall-item] { transition: filter .16s ease; }
 
-/* PENDANT UN GLISSEMENT, IL S'EFFACE DU CHEMIN.
+/* DURING A DRAG, IT GETS OUT OF THE WAY.
 
-   Un objet accroché peut désormais déborder de son rayon, et ce qui
-   déborde restait saisissable : il recouvrait le rayon d'en dessous et
-   recevait à sa place les dépôts qu'on lui destinait. C'est ce défaut-là
-   qui justifiait de border les objets loin des bords ; on retire donc le
-   défaut plutôt que la liberté.
+   A hung object may now overflow its row, and what overflowed stayed
+   grabbable: it covered the row below and received in its stead the
+   drops meant for it. That is the flaw which justified keeping objects
+   away from the edges; so we remove the flaw rather than the freedom.
 
-   Même raisonnement que le voile juste au-dessus : le temps du geste, ce
-   qui n'est pas une cible cesse d'en être une.
+   Same reasoning as the veil just above: for the time of the gesture,
+   what is not a target stops being one.
 
-   SAUF CELUI QU'ON TIENT. Un glissement dont la source cesse d'être
-   testable au survol est un glissement que le navigateur annule net :
-   la règle, en s'appliquant aussi à l'objet empoigné, empêchait de
-   reprendre un objet volant une fois posé. Il se marque donc au départ
-   du geste (voir WallItem, dans items.jsx), et l'exception le laisse en
-   place.
+   EXCEPT THE ONE BEING HELD. A drag whose source stops being hit-tested
+   on hover is a drag the browser cancels outright: the rule, by applying
+   to the grabbed object too, prevented picking a flying object back up
+   once laid down. So it marks itself at the start of the gesture (see
+   WallItem, in items.jsx), and the exception leaves it in place.
 
-   Pas d'accent grave dans ce commentaire, ni ailleurs entre ces deux
-   accolades : tout ce bloc est une chaîne à gabarit, et un accent grave
-   la refermerait au milieu d'une phrase. */
+   No backtick in this comment, nor anywhere else between these two
+   braces: this whole block is a template string, and one backtick would
+   close it in the middle of a sentence. */
 html[data-dragging="1"] [data-wall-item]:not([data-drag-self]) {
   pointer-events: none !important;
 }
 [data-wall-item]:hover { filter: drop-shadow(2px 3px 3px rgba(30,20,10,0.3)); }
 [data-wall-item]:active { cursor: grabbing; }
 
-/* CE QUI ARRIVE ARRIVE EN GLISSANT.
+/* WHAT ARRIVES ARRIVES BY SLIDING.
 
-   Une vue qui se substitue a une autre sans un mot ne se lit pas comme
-   un dossier qu'on ouvre : elle clignote. Neuf pixels et un souffle
-   suffisent a dire « ceci vient de remplacer cela » — au-dela on
-   attend, et une application qu'on ouvre trente fois par jour ne doit
-   jamais faire attendre.
+   A view that replaces another without a word does not read like a
+   folder being opened: it blinks. Nine pixels and a breath are enough to
+   say this has just replaced that — beyond that one waits, and an
+   application opened thirty times a day must never make anyone wait.
 
-   Porte par un attribut plutot qu'une classe : c'est le meme usage que
-   les cibles de depot ci-dessus, et il se pose en une ligne sur
-   n'importe quel conteneur.
+   Carried by an attribute rather than a class: the same usage as the
+   drop targets above, and it is laid in one line on any container.
 
-   BACKWARDS ET NON BOTH, ET C'EST LA MOITIE D'UN ECRAN QUI EN DEPEND.
-   Une animation qui touche la propriete transform fait de son element
-   un BLOC CONTENEUR pour tout ce qu'il contient en position fixed —
-   tant qu'elle est en effet. Le remplissage both la laisse en effet
-   POUR TOUJOURS une fois finie : le conteneur de vue devenait la
-   fenetre de tous les panneaux fixes qu'il porte, qui se mettaient
-   alors a defiler avec la page. La languette du tiroir qu'il fallait
-   aller chercher en bas, la fiche d'un boitier qui ne paraissait pas :
-   c'etait ca.
+   BACKWARDS AND NOT BOTH, AND HALF A SCREEN DEPENDS ON IT. An animation
+   touching the transform property makes its element a CONTAINING BLOCK
+   for everything it holds in position fixed — as long as it is in
+   effect. The both fill mode leaves it in effect FOREVER once finished:
+   the view container became the window of every fixed panel it carries,
+   which then started scrolling with the page. The drawer tab one had to
+   go and find at the bottom, the card of a case that did not appear:
+   that was it.
 
-   Le remplissage forwards n'apportait rien ici — l'image d'arrivee de
-   sheetIn est exactement l'etat naturel de l'element. Reste backwards,
-   le seul utile : pas de clignotement avant le premier pas. */
+   The forwards fill mode brought nothing here — the arrival image of
+   sheetIn is exactly the natural state of the element. That leaves
+   backwards, the only useful one: no flicker before the first step. */
 [data-enters] { animation: sheetIn var(--motion-slow) var(--motion-ease) backwards; }
 
 @media (prefers-reduced-motion: reduce) {
   [data-case] *, [data-case] { animation-duration: .01ms !important; animation-delay: 0ms !important; }
   [data-drop-mark], [data-lean], [data-row-seam], [data-wall-item] { transition: none !important; }
-  /* LA OU LES DEUX DUREES S'ETEIGNENT — une fois pour toutes celles qui
-     passent par les jetons. Tout ce qui est ecrit en ligne echappe a
-     cette regle : c'est pourquoi les nouvelles durees n'y sont pas. */
+  /* WHERE THE TWO DURATIONS GO OUT — once for all those that go through
+     the tokens. Everything written inline escapes this rule: that is why
+     new durations do not belong there. */
   :root { --motion-fast: 0s; --motion-slow: 0s; }
   [data-enters] { animation: none !important; }
 }
 
 /* ============================================================
-   LE TELEPHONE
+   THE PHONE
    ============================================================
 
-   Le classeur a ete dessine pour un bureau. Ce bloc ne le redessine
-   pas : il retire les quelques choses qui, sur un ecran tenu a la main,
-   empechent d'atteindre le reste.
+   The binder was drawn for a desk. This block does not redraw it: it
+   removes the few things which, on a hand-held screen, prevent reaching
+   the rest.
 
-   La mise en page, elle, ne passe pas par ici. Elle est en styles en
-   ligne comme tout le reste du projet, et c'est useViewport qui la
-   decide — une media query ne peut pas dire a React de rendre une barre
-   plutot qu'un rail. Ce qui reste ici, ce sont les reglages que le CSS
-   est SEUL a savoir faire.
+   The layout does not go through here. It is in inline styles like all
+   the rest of the project, and it is useViewport that decides it — a
+   media query cannot tell React to render a bar rather than a rail. What
+   remains here are the adjustments CSS is the ONLY one able to make.
 
-   (Aucun accent grave dans tout ce bloc : il vit DANS une chaine a
-   gabarit, et le premier la refermerait au milieu d'une phrase. Le
-   piege s'est referme une fois de plus en ecrivant ces lignes.) */
+   (No backtick in this whole block: it lives INSIDE a template string,
+   and the first one would close it in the middle of a sentence. The trap
+   sprang once more while writing these lines.) */
 
-/* Le geste de defilement ne doit pas devenir un rechargement de page ni
-   entrainer la fenetre entiere quand une liste arrive au bout. */
+/* The scrolling gesture must not become a page reload, nor drag the
+   whole window along when a list reaches its end. */
 html, body { overscroll-behavior-y: contain; }
 
-/* Un glissement au doigt sur un objet saisissable ne doit pas etre lu
-   comme un defilement. usePointerDrag pose l'attribut au moment ou il
-   prend la main, et pas avant : le poser d'emblee sur tous les boitiers
-   rendrait l'etagere impossible a faire defiler. */
+/* A finger drag on a grabbable object must not be read as scrolling.
+   usePointerDrag lays the attribute at the moment it takes over, and not
+   before: laying it from the start on every case would make the shelf
+   impossible to scroll. */
 [data-pointer-drag="1"] { touch-action: none; }
 
-/* Ce qu'on tient au doigt ne doit pas, en plus, se selectionner ni
-   ouvrir le menu long-appui d'iOS. */
+/* What is held with the finger must not, on top of that, select itself
+   or open the iOS long-press menu. */
 [data-pointer-drag="1"], html[data-dragging="1"] {
   -webkit-user-select: none;
   user-select: none;
@@ -364,55 +354,53 @@ html, body { overscroll-behavior-y: contain; }
 }
 
 @media (max-width: 639px) {
-  /* LA BARRE DE DEFILEMENT DESSINEE A LA MAIN N'A PAS DE SENS ICI. Onze
-     pixels de large sur une fenetre de trois cent quatre-vingt-dix, pour
-     une barre que le systeme fait deja glisser toute seule et qu'aucun
-     doigt n'attrape. */
+  /* THE HAND-DRAWN SCROLLBAR MAKES NO SENSE HERE. Eleven pixels wide on
+     a window of three hundred and ninety, for a bar the system already
+     slides away on its own and that no finger ever catches. */
   ::-webkit-scrollbar { width: 0; height: 0; }
 
-  /* Un champ dont le texte fait moins de seize pixels declenche un zoom
-     automatique a la mise au point sur iOS, et la page ne revient jamais
-     a sa taille. C'est la seule raison de cette regle — elle n'a rien
-     d'une preference typographique. */
+  /* A field whose text is smaller than sixteen pixels triggers an
+     automatic zoom on focus under iOS, and the page never returns to its
+     size. That is the only reason for this rule — it is in no way a
+     typographic preference. */
   input, select, textarea { font-size: max(16px, 1em); }
 
-  /* La colonne de la vue laisse la place a la barre du bas, encoche
-     comprise. En CSS plutot qu'en ligne : la barre n'existe qu'au
-     telephone, et la colonne n'a pas a savoir qu'elle existe. */
+  /* The view column leaves room for the bottom bar, home indicator
+     included. In CSS rather than inline: the bar exists only on the
+     phone, and the column has no business knowing it exists. */
   [data-enters] { padding-bottom: calc(58px + var(--safe-bottom)); }
 }
 
-/* CE QUE LE NAVIGATEUR DESSINE A NOTRE PLACE.
+/* WHAT THE BROWSER DRAWS IN OUR STEAD.
 
-   Une liste deroulante ouverte, une case a cocher, une barre de
-   defilement : ces morceaux-la ne sont pas peints par la page mais par
-   le navigateur, et il les peint CLAIRS tant qu'on ne lui a pas dit le
-   contraire. Sur les cinq peaux sombres, la liste d'un select tombait
-   en gris sur fond sombre — illisible, et hors d'atteinte du CSS
-   puisque ce menu n'est pas dans le document.
+   An open drop-down list, a checkbox, a scrollbar: those pieces are not
+   painted by the page but by the browser, and it paints them LIGHT until
+   told otherwise. On the five dark skins, a select list came out grey on
+   a dark background — illegible, and out of reach of CSS since that menu
+   is not in the document.
 
-   color-scheme est la seule prise qu'on ait dessus. Elle se lit sur
-   data-dark, que applySkin ecrit deja, et elle SE TRANSMET aux
-   descendants : le banc d'essai, qui montre quatorze peaux a la fois
-   sur des fragments, porte le meme attribut et obtient le meme
-   resultat sans une ligne de plus. */
+   color-scheme is the only handle we have on it. It reads from
+   data-dark, which applySkin already writes, and it IS PASSED ON to
+   descendants: the test bench, which shows fourteen skins at once on
+   fragments, carries the same attribute and gets the same result without
+   one more line. */
 [data-dark="1"] { color-scheme: dark; }
 [data-dark="0"] { color-scheme: light; }
 
-/* LA OU color-scheme NE SUFFIT PAS. Les entrees d'une liste heritent du
-   fond transparent de leur select, que le navigateur resout alors sur
-   SA toile a lui et non sur le carton de la peau. On leur donne donc un
-   fond opaque, pris aux jetons comme tout le reste. */
+/* WHERE color-scheme IS NOT ENOUGH. The entries of a list inherit the
+   transparent background of their select, which the browser then
+   resolves onto ITS OWN canvas and not onto the skin's card. So we give
+   them an opaque background, taken from the tokens like all the rest. */
 select option { background: ${C.card}; color: ${C.ink}; }
 
-/* Le bleu d'une case cochee est celui du navigateur, et il ne va avec
-   aucune des quatorze peaux. Le fil rouge, lui, va avec toutes. */
+/* The blue of a ticked box is the browser's, and it goes with none of
+   the fourteen skins. The red thread goes with them all. */
 input[type="checkbox"], input[type="radio"] { accent-color: ${C.burgundy}; }
 
-/* DERNIER RECOURS POUR LES CHAMPS QUE PERSONNE N'A HABILLES. Un style
-   en ligne gagne toujours contre cette regle, qui ne rattrape donc que
-   ceux qui n'en ont pas : ceux-la retombaient sur le noir du
-   navigateur, invisible sur une peau sombre. */
+/* LAST RESORT FOR THE FIELDS NOBODY HAS DRESSED. An inline style always
+   wins against this rule, which therefore only catches those that have
+   none: those fell back on the browser black, invisible on a dark
+   skin. */
 input, select, textarea { color: ${C.ink}; }
 
 input::placeholder, textarea::placeholder { color: ${alpha(C.inkFaded, 0.53)}; font-style: italic; }
