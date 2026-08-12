@@ -59,11 +59,11 @@ export function SearchDrawer({
   const [curseur, setCurseur] = useState(0);
   const field = useRef<HTMLInputElement>(null);
 
-  const trouvailles = useMemo(
+  const findings = useMemo(
     () => searchEverywhere(q, { films, notes, threads }),
     [q, films, notes, threads]
   );
-  const groups = useMemo(() => groupByKind(trouvailles), [trouvailles]);
+  const groups = useMemo(() => groupByKind(findings), [findings]);
   /* The FLATTENED list, in the order it is drawn: it is what the arrows
      walk through. Rebuilding the order on the fly in the key handler
      would make it diverge from the display at the first change of
@@ -79,7 +79,7 @@ export function SearchDrawer({
     field.current?.focus();
   }, []);
 
-  const ouvrirCelui = (t: Hit) => {
+  const openThat = (t: Hit) => {
     if (t.kind === "film" && t.filmId) ouvrir.film(t.filmId);
     else if (t.kind === "person" && t.person) ouvrir.person(t.person);
     else if (t.kind === "page") ouvrir.page();
@@ -88,7 +88,7 @@ export function SearchDrawer({
     onClose();
   };
 
-  const auClavier = (e: KeyboardEvent) => {
+  const byKeyboard = (e: KeyboardEvent) => {
     if (e.key === "Escape") return onClose();
     if (plate.length === 0) return;
     if (e.key === "ArrowDown") {
@@ -100,7 +100,7 @@ export function SearchDrawer({
     } else if (e.key === "Enter") {
       e.preventDefault();
       const t = plate[curseur];
-      if (t) ouvrirCelui(t);
+      if (t) openThat(t);
     }
   };
 
@@ -117,7 +117,7 @@ export function SearchDrawer({
       <div
         role="dialog"
         aria-label="Chercher partout"
-        onKeyDown={auClavier}
+        onKeyDown={byKeyboard}
         style={{
           position: "fixed",
           /* EIGHT PER CENT OF HEIGHT IS A DESKTOP MARGIN.
@@ -204,7 +204,7 @@ export function SearchDrawer({
                     return (
                       <button
                         key={t.key}
-                        onClick={() => ouvrirCelui(t)}
+                        onClick={() => openThat(t)}
                         onMouseEnter={() => setCurseur(rank)}
                         aria-current={targeted ? "true" : undefined}
                         style={{

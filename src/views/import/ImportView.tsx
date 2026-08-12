@@ -97,9 +97,9 @@ export function ImportView({
      Confusing them left "you must first enter a key" under the nose of
      somebody logged in, who precisely no longer needs one. */
   const [apiKey, setApiKey] = useState(writtenKey);
-  const posé = useTmdbKey();
-  const deQuoi = apiKey.trim() || posé;
-  const [useTmdb, setUseTmdb] = useState(() => !!deQuoi);
+  const placedKey = useTmdbKey();
+  const wherewithal = apiKey.trim() || placedKey;
+  const [useTmdb, setUseTmdb] = useState(() => !!wherewithal);
   const [keyState, setKeyState] = useState("");
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null); // { done, total }
   const [tmdbReport, setTmdbReport] = useState<{ resolved: number; failed: number } | null>(null);
@@ -228,7 +228,7 @@ export function ImportView({
   // The director is not in the CSV: we go and fetch it before comparing,
   // so that the preview already shows the cards as they will be written.
   const runTmdb = async () => {
-    const key = deQuoi;
+    const key = wherewithal;
     if (!key) return;
     /* We only keep what has been TYPED: the relay's token is not a key
        and has no business on the disk. */
@@ -253,7 +253,7 @@ export function ImportView({
 
   /* The "this file is authoritative" choice only makes sense if the
      file carries screenings: only diary.csv and the feed have any. */
-  const porteDesSeances = rows.some((r) => r.watches?.length);
+  const hasScreenings = rows.some((r) => r.watches?.length);
 
   const confirm = () => {
     if (!diff) return;
@@ -663,7 +663,7 @@ export function ImportView({
               first flaw is fixed at reading time, but the cards already
               written keep their extra screening — and completing does
               not know how to undo. This box can, once. */}
-          {porteDesSeances && importStatus === "watched" && (
+          {hasScreenings && importStatus === "watched" && (
             <div style={{ marginTop: 16 }}>
               <label
                 style={{
@@ -808,13 +808,13 @@ export function ImportView({
           ) : (
             <button
               onClick={runTmdb}
-              disabled={!deQuoi || !useTmdb}
+              disabled={!wherewithal || !useTmdb}
               style={{
                 all: "unset",
                 ...tap,
-                cursor: deQuoi ? "pointer" : "not-allowed",
+                cursor: wherewithal ? "pointer" : "not-allowed",
                 marginTop: 14,
-                background: deQuoi ? C.ochre : C.line,
+                background: wherewithal ? C.ochre : C.line,
                 color: C.card,
                 padding: "9px 16px",
                 fontFamily: F.mono,
@@ -1056,7 +1056,7 @@ export function ImportView({
             }}
           >
             {dropped.length} card(s) « à voir » venues de Letterboxd n'y figurent plus. Nothing
-            n'est removed : à vous de les garder ou de les ranger.
+            n'est removed : à vous de les garder ou de les file.
           </div>
           <div style={{ maxHeight: 180, overflowY: "auto" }}>
             {dropped.map((f) => (
@@ -1083,7 +1083,7 @@ export function ImportView({
       </div>
 
       <div data-tour="import-complete">
-        <CompletePanel films={films} apiKey={deQuoi} onImport={onImport} />
+        <CompletePanel films={films} apiKey={wherewithal} onImport={onImport} />
       </div>
 
       {/* Placed AFTER "complete" and before the backup: it is

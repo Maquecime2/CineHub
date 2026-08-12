@@ -156,7 +156,7 @@ export const FilmBox = React.memo(function FilmBox({
      `FilmBox` is memoised because `dragover` replays it dozens of times a
      second, and a prop recomputed at every render would cancel the
      memoisation for the whole row. */
-  const vus = watchCount(film);
+  const seenFilms = watchCount(film);
 
   return (
     <div
@@ -381,12 +381,12 @@ export const FilmBox = React.memo(function FilmBox({
                   edge would be noise across the whole library, and would
                   teach nobody anything: what one looks for is the films
                   one rewatches. */}
-              {vus > 1 && (
+              {seenFilms > 1 && (
                 <span
-                  aria-label={`vu ${vus} fois`}
+                  aria-label={`vu ${seenFilms} fois`}
                   style={{ fontSize: 9, letterSpacing: 0, opacity: 0.85, flexShrink: 0 }}
                 >
-                  ×{vus}
+                  ×{seenFilms}
                 </span>
               )}
             </span>

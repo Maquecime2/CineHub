@@ -925,7 +925,7 @@ export function LibraryView({
    the sieve lets nothing through. These are two different emptinesses,
    and they are not said the same way. */
 function WallEmpty({ films, cfg }) {
-  const jamais = films.length === 0;
+  const never = films.length === 0;
   return (
     <div
       style={{
@@ -944,7 +944,7 @@ function WallEmpty({ films, cfg }) {
           Ils ne sont pas décoratifs : ils disent la FORME de ce qui
           viendra — six affiches, punaisées de travers — et une invite
           seule ne le dit pas. */}
-      {jamais && (
+      {never && (
         <div
           aria-hidden
           style={{
@@ -1007,10 +1007,10 @@ function WallEmpty({ films, cfg }) {
           marginBottom: 6,
         }}
       >
-        {jamais ? cfg.empty[0] : "Rien à afficher"}
+        {never ? cfg.empty[0] : "Rien à afficher"}
       </div>
       <div style={{ fontFamily: F.hand, fontSize: 19 }}>
-        {jamais ? cfg.empty[1] : "Essayez une autre recherche."}
+        {never ? cfg.empty[1] : "Essayez une autre recherche."}
       </div>
     </div>
   );

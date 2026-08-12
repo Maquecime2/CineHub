@@ -799,8 +799,8 @@ describe("buildViewsFromLegacy", () => {
   });
 
   it("une collection jamais rangée à la main prend une planche, pas le sas", () => {
-    const jamais = Array.from({ length: 25 }, (_, i) => film(`x${i}`, { order: null, addedAt: i }));
-    const view = buildViewsFromLegacy({ films: jamais }).find((v) => v.wall === "watched");
+    const never = Array.from({ length: 25 }, (_, i) => film(`x${i}`, { order: null, addedAt: i }));
+    const view = buildViewsFromLegacy({ films: never }).find((v) => v.wall === "watched");
     const rows = rowsOf(view, "main");
     // with no wanted count, a single row: it will fill its width
     expect(rows.filter((r) => !isUnplaced(r)).map((r) => r.items.length)).toEqual([25]);
@@ -808,9 +808,9 @@ describe("buildViewsFromLegacy", () => {
   });
 
   it("débite en revanche au compte que le mur d'avant avait choisi", () => {
-    const jamais = Array.from({ length: 25 }, (_, i) => film(`x${i}`, { order: null, addedAt: i }));
+    const never = Array.from({ length: 25 }, (_, i) => film(`x${i}`, { order: null, addedAt: i }));
     const view = buildViewsFromLegacy({
-      films: jamais,
+      films: never,
       wallPrefs: { watched: { perRow: 6 } },
     }).find((v) => v.wall === "watched");
     const rows = rowsOf(view, "main").filter((r) => !isUnplaced(r));
@@ -931,14 +931,14 @@ describe("le décor de la vue", () => {
     v.shelves.main.rows[0].items = [filmItem("f1")];
 
     const films = [{ id: "f1", status: "watched" }];
-    for (const passe of [
+    for (const pass of [
       (x) => upgradeView({ ...x, version: 1 }),
       (x) => reflowView(x),
       (x) => reconcileView(x, films),
       (x) => duplicateView(x),
       (x) => moveItem(x, { id: "f1" }, { kind: "bedside", rowId: x.shelves.bedside.rows[0].id }),
     ]) {
-      expect(wallDecorOf(passe(v))).toEqual({ paint: "terracotta", texture: "crepi" });
+      expect(wallDecorOf(pass(v))).toEqual({ paint: "terracotta", texture: "crepi" });
     }
   });
 });

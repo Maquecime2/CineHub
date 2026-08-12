@@ -55,7 +55,7 @@ const THRESHOLD = 2;
 const isRegular = (p: Person): boolean =>
   p.films.length >= THRESHOLD || p.roles.some((r) => r !== "interprétation");
 
-const ROLE_COURT: Record<KinshipRole, string> = {
+const SHORT_ROLE: Record<KinshipRole, string> = {
   réalisation: "réalisation",
   interprétation: "interprétation",
   image: "image",
@@ -74,12 +74,12 @@ export function CreditsView({
   /* The census sweeps the whole collection: we only redo it when a card
      is written, not at every keystroke in the search. */
   const people = useMemo(() => census(films), [films]);
-  const ouvert = personne ? people.find((p) => p.key === personne) : null;
+  const open = personne ? people.find((p) => p.key === personne) : null;
 
-  if (ouvert)
+  if (open)
     return (
       <Dossier
-        p={ouvert}
+        p={open}
         films={films}
         onRetour={() => onOpenPerson(null)}
         onOpen={onOpen}
@@ -135,8 +135,8 @@ function Directory({
         Le générique
       </div>
       <Guideline>
-        Les noms que votre collection porte déjà — celles et ceux qui ont réalisé, joué, éclairé,
-        composé, écrit. {people.length} en tout.
+        Les noms que votre collection carries déjà — celles et ceux qui ont réalisé, joué, éclairé,
+        composé, written. {people.length} en everything.
       </Guideline>
 
       {unknown && (
@@ -170,7 +170,7 @@ function Directory({
               onClick={() => setRoles((s) => (on ? s.filter((x) => x !== r) : [...s, r]))}
               style={chipLook(on)}
             >
-              {ROLE_COURT[r]}
+              {SHORT_ROLE[r]}
             </button>
           );
         })}
@@ -272,7 +272,7 @@ function Card({ p, onClick }: { p: Person; onClick: () => void }) {
         }}
       >
         {p.roles
-          .map((r) => ROLE_COURT[r])
+          .map((r) => SHORT_ROLE[r])
           .join(" · ")
           .toUpperCase()}
       </div>
@@ -317,14 +317,14 @@ function Dossier({
   onOpen: (id: string) => void;
   onAddToWatchlist: (f: Film) => void;
 }) {
-  const parId = useMemo(() => new Map(films.map((f) => [f.id, f])), [films]);
-  const siens = p.films.map((id) => parId.get(id)).filter(Boolean) as Film[];
-  const vus = siens.filter((f) => f.status === "watched");
-  const àVoir = siens.filter((f) => f.status === "watchlist");
+  const perId = useMemo(() => new Map(films.map((f) => [f.id, f])), [films]);
+  const theirs = p.films.map((id) => perId.get(id)).filter(Boolean) as Film[];
+  const seenFilms = theirs.filter((f) => f.status === "watched");
+  const wishlist = theirs.filter((f) => f.status === "watchlist");
 
   return (
     <div style={{ padding: "34px 44px 70px", maxWidth: 1000, position: "relative" }}>
-      <button onClick={onRetour} style={retour}>
+      <button onClick={onRetour} style={back}>
         <ArrowLeft size={13} /> le générique
       </button>
 
@@ -348,14 +348,14 @@ function Dossier({
         )}
       </div>
       <Guideline>
-        {p.roles.map((r) => ROLE_COURT[r]).join(", ")} — {p.films.length} film
+        {p.roles.map((r) => SHORT_ROLE[r]).join(", ")} — {p.films.length} film
         {p.films.length > 1 ? "s" : ""} chez vous
         {p.toWatch > 0 ? `, dont ${p.toWatch} en attente` : ""}.
       </Guideline>
 
       <Cardstock tour="credits-dossier" style={{ marginTop: 8 }}>
         <div style={{ display: "flex", gap: 34, flexWrap: "wrap" }}>
-          <Chiffre nom="VOTRE NOTE">
+          <Figure nom="VOTRE NOTE">
             {p.rating != null ? (
               <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
                 {p.rating.toFixed(1)}
@@ -364,9 +364,9 @@ function Dossier({
             ) : (
               "—"
             )}
-          </Chiffre>
-          <Chiffre nom="ÉCART AU PUBLIC">{readableGap(p.gap)}</Chiffre>
-          <Chiffre nom="SÉANCES">{p.screenings || "—"}</Chiffre>
+          </Figure>
+          <Figure nom="ÉCART AU PUBLIC">{readableGap(p.gap)}</Figure>
+          <Figure nom="SÉANCES">{p.screenings || "—"}</Figure>
         </div>
       </Cardstock>
 
@@ -392,15 +392,15 @@ function Dossier({
         );
       })()}
 
-      <Shelf title="Vus" films={vus} clé={p.key} onOpen={onOpen} />
-      <Shelf title="En attente" films={àVoir} clé={p.key} onOpen={onOpen} />
+      <Shelf title="Vus" films={seenFilms} clé={p.key} onOpen={onOpen} />
+      <Shelf title="En attente" films={wishlist} clé={p.key} onOpen={onOpen} />
 
-      <CeQuiManque p={p} films={films} onAddToWatchlist={onAddToWatchlist} />
+      <WhatIsMissing p={p} films={films} onAddToWatchlist={onAddToWatchlist} />
     </div>
   );
 }
 
-const retour = {
+const back = {
   all: "unset" as const,
   ...tap,
   cursor: "pointer",
@@ -414,7 +414,7 @@ const retour = {
   marginBottom: 16,
 };
 
-function Chiffre({ nom, children }: { nom: string; children: ReactNode }) {
+function Figure({ nom, children }: { nom: string; children: ReactNode }) {
   return (
     <div>
       <Label>{nom}</Label>
@@ -478,7 +478,7 @@ function Shelf({
                   under every poster of a film-maker teaches nothing. */}
               <div style={{ fontFamily: F.mono, fontSize: 8.5, color: C.inkFaded, marginTop: 3 }}>
                 {f.year || ""}
-                {roles.length > 1 ? ` · ${roles.map((r) => ROLE_COURT[r]).join(", ")}` : ""}
+                {roles.length > 1 ? ` · ${roles.map((r) => SHORT_ROLE[r]).join(", ")}` : ""}
               </div>
             </button>
           );
@@ -501,7 +501,7 @@ const vignette = {
    WHAT I AM MISSING — the only thing that leaves the browser here
    ============================================================ */
 
-interface Manquant {
+interface Missing {
   tmdbId: number;
   title: string;
   year: number | null;
@@ -513,7 +513,7 @@ interface Manquant {
    image falls back on the initials rather than leave the frame empty:
    TMDB knows films whose poster it does not have, and a hole in a row
    reads as a loading failure. */
-function Affiche({ title, src }: { title: string; src: string }) {
+function Poster({ title, src }: { title: string; src: string }) {
   const [cassée, setCassée] = useState(false);
   const frame = {
     width: "100%",
@@ -551,7 +551,7 @@ function Affiche({ title, src }: { title: string; src: string }) {
   );
 }
 
-function CeQuiManque({
+function WhatIsMissing({
   p,
   films,
   onAddToWatchlist,
@@ -563,7 +563,7 @@ function CeQuiManque({
   const apiKey = useTmdbKey();
   const [state, setState] = useState<"repos" | "en-cours" | "fait">("repos");
   const [msg, setMsg] = useState("");
-  const [manquants, setManquants] = useState<Manquant[]>([]);
+  const [manquants, setManquants] = useState<Missing[]>([]);
   const [ajoutés, setAjoutés] = useState<Set<number>>(new Set());
 
   /* Without a key the button does not exist: offering an action that
@@ -584,13 +584,13 @@ function CeQuiManque({
       /* We ask about the best furnished title: it is the one for which
          "what is missing" means something. An actor seen twice as a
          director is not judged on their thirty acting roles. */
-      const rôle = p.roles[0]!;
-      const tout = await personFilmography(hit.id, apiKey, { role: rôle });
+      const role = p.roles[0]!;
+      const everything = await personFilmography(hit.id, apiKey, { role: role });
 
       /* What we already have, by TMDB identifier first — the safest —
          then by the import's title+year key, which already neutralises
          accents and articles. */
-      const parTmdb = new Set(
+      const perTmdb = new Set(
         films
           .map((f) => f.tmdbId)
           .filter(Boolean)
@@ -598,8 +598,8 @@ function CeQuiManque({
       );
       const byTitle = new Set(films.map((f) => filmKey(f)));
 
-      const rest = (tout as Manquant[])
-        .filter((c) => c.title && !parTmdb.has(String(c.tmdbId)))
+      const rest = (everything as Missing[])
+        .filter((c) => c.title && !perTmdb.has(String(c.tmdbId)))
         .filter((c) => !byTitle.has(filmKey({ title: c.title, year: c.year || "" })))
         .sort((a, b) => (b.year || 0) - (a.year || 0));
 
@@ -616,7 +616,7 @@ function CeQuiManque({
     }
   };
 
-  const add = (c: Manquant) => {
+  const add = (c: Missing) => {
     onAddToWatchlist(
       makeFilm({
         title: c.title,
@@ -679,7 +679,7 @@ function CeQuiManque({
                   out a stored image and would have nothing to bring out
                   here. Fallback to the initials when TMDB has no
                   poster. */}
-              <Affiche title={c.title} src={c.poster} />
+              <Poster title={c.title} src={c.poster} />
               <div
                 style={{
                   fontFamily: F.title,

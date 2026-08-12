@@ -240,8 +240,8 @@ export function newDirectors(films: Film[], period: Period): string[] {
     const year = yearOf(watch.date);
     if (year == null) continue;
     for (const name of namesIn(film.director)) {
-      const vu = firstSeen.get(name);
-      if (vu == null || year < vu) firstSeen.set(name, year);
+      const seen = firstSeen.get(name);
+      if (seen == null || year < seen) firstSeen.set(name, year);
     }
   }
   return [...firstSeen.entries()]
@@ -391,12 +391,12 @@ export interface Rhythm {
    which they were not yet keeping a log. */
 export function rhythm(films: Film[], period: Period): Rhythm {
   const days = new Set<number>();
-  const parMois = Array(12).fill(0) as number[];
+  const perMonth = Array(12).fill(0) as number[];
   for (const { watch } of screeningsOf(films)) {
     if (!inPeriod(watch.date, period)) continue;
     days.add(inDays(watch.date));
     const m = Number(watch.date.slice(5, 7));
-    if (m >= 1 && m <= 12) parMois[m - 1] = (parMois[m - 1] as number) + 1;
+    if (m >= 1 && m <= 12) perMonth[m - 1] = (perMonth[m - 1] as number) + 1;
   }
 
   const sorted = [...days].sort((a, b) => a - b);
@@ -413,12 +413,12 @@ export function rhythm(films: Film[], period: Period): Rhythm {
         ? 366
         : 365;
 
-  const max = Math.max(...parMois);
+  const max = Math.max(...perMonth);
   return {
     days: days.size,
     density: span > 0 ? (days.size / span) * 100 : 0,
     drought,
-    moisLePlusDense: max > 0 ? parMois.indexOf(max) + 1 : null,
+    moisLePlusDense: max > 0 ? perMonth.indexOf(max) + 1 : null,
   };
 }
 
@@ -427,7 +427,7 @@ export interface ScreenTime {
   minutes: number;
   /** A screening's mean runtime; `null` if no runtime is known. */
   moyenne: number | null;
-  plusLong: { film: Film; runtime: number } | null;
+  longest: { film: Film; runtime: number } | null;
   /** Screenings whose runtime is missing — enough to say the total is a floor. */
   noRuntime: number;
 }
@@ -443,7 +443,7 @@ export function screenTime(films: Film[], period: Period): ScreenTime {
   let minutes = 0;
   let n = 0;
   let noRuntime = 0;
-  let plusLong: { film: Film; runtime: number } | null = null;
+  let longest: { film: Film; runtime: number } | null = null;
 
   for (const { film, watch } of screeningsOf(films)) {
     if (!inPeriod(watch.date, period)) continue;
@@ -453,9 +453,9 @@ export function screenTime(films: Film[], period: Period): ScreenTime {
     }
     minutes += film.runtime;
     n += 1;
-    if (!plusLong || film.runtime > plusLong.runtime) plusLong = { film, runtime: film.runtime };
+    if (!longest || film.runtime > longest.runtime) longest = { film, runtime: film.runtime };
   }
-  return { minutes, moyenne: n ? minutes / n : null, plusLong, noRuntime };
+  return { minutes, moyenne: n ? minutes / n : null, longest, noRuntime };
 }
 
 export interface Geography {
@@ -744,15 +744,15 @@ export function filmsOfYear(films: Film[], period: Period): FilmOfYear[] {
   const par = new Map<string, FilmOfYear>();
   for (const { film, watch } of screeningsOf(films)) {
     if (!inPeriod(watch.date, period)) continue;
-    const vu = par.get(film.id);
-    if (!vu) {
+    const seen = par.get(film.id);
+    if (!seen) {
       par.set(film.id, { film, rating: watch.rating, n: 1, date: watch.date });
       continue;
     }
-    vu.n += 1;
-    if (watch.rating != null && (vu.rating == null || watch.rating > vu.rating))
-      vu.rating = watch.rating;
-    if (watch.date > vu.date) vu.date = watch.date;
+    seen.n += 1;
+    if (watch.rating != null && (seen.rating == null || watch.rating > seen.rating))
+      seen.rating = watch.rating;
+    if (watch.date > seen.date) seen.date = watch.date;
   }
   return [...par.values()].sort(
     (a, b) => (b.rating ?? -1) - (a.rating ?? -1) || b.date.localeCompare(a.date)
@@ -786,17 +786,17 @@ export function driftHighlights(films: Film[], howMany = 5): Drift[] {
   for (const film of films) {
     if (film.status === "watchlist") continue;
     const ordered = sortWatches(film.watches || []);
-    let meilleur: Drift | null = null;
+    let best: Drift | null = null;
     ordered.forEach((w, i) => {
       if (w.rating == null) return;
       const before = ordered.slice(i + 1).find((p) => p.rating != null);
       if (!before) return;
       const delta = w.rating - (before.rating as number);
       if (delta === 0) return;
-      if (!meilleur || Math.abs(delta) > Math.abs(meilleur.delta))
-        meilleur = { film, delta, from: before.rating as number, to: w.rating, date: w.date };
+      if (!best || Math.abs(delta) > Math.abs(best.delta))
+        best = { film, delta, from: before.rating as number, to: w.rating, date: w.date };
     });
-    if (meilleur) out.push(meilleur);
+    if (best) out.push(best);
   }
   return out.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, howMany);
 }

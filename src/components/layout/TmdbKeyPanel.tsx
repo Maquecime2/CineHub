@@ -35,11 +35,11 @@ const PANEL: CSSProperties = {
 
 /* The state of the check. "Not tried yet" is not "wrong": confusing the
    two would cry error in front of an untouched field. */
-type Essai = { state: "repos" | "essai" | "bonne" | "mauvaise"; message?: string };
+type Attempt = { state: "repos" | "essai" | "bonne" | "mauvaise"; message?: string };
 
 export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
   const [key, setKey] = useState(writtenKey);
-  const [essai, setEssai] = useState<Essai>({ state: "repos" });
+  const [essai, setEssai] = useState<Attempt>({ state: "repos" });
 
   /* Escape closes, as everywhere else: a drawer one can only close with
      the mouse is one drawer too many for whoever navigates by keyboard. */
@@ -55,7 +55,7 @@ export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
      screens each failing in its own corner, and nothing to point at the
      cause. An EMPTY key, for its part, is saved without a try: that is a
      deliberate erasure, not an attempt. */
-  const poser = async () => {
+  const lay = async () => {
     const clean = key.trim();
     if (!clean) {
       setTmdbKey("");
@@ -129,7 +129,7 @@ export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
             setEssai({ state: "repos" });
           }}
           onKeyDown={(e) => {
-            if (e.key === "Enter") void poser();
+            if (e.key === "Enter") void lay();
           }}
           placeholder="collez-la ici"
           spellCheck={false}
@@ -150,7 +150,7 @@ export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
 
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
           <button
-            onClick={() => void poser()}
+            onClick={() => void lay()}
             disabled={essai.state === "essai"}
             style={{
               all: "unset",

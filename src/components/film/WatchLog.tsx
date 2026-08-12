@@ -20,17 +20,17 @@ import { Tally, InkStars } from "../ui";
 import { ratingDrift, sortWatches, withWatches } from "../../domain/film";
 import type { Film } from "../../types";
 
-const aujourdhui = () => new Date().toISOString().slice(0, 10);
+const today = () => new Date().toISOString().slice(0, 10);
 
 /* "+½" is read at a glance where "+0.5" demands reading. The sign is what
    counts: one wants to see it GO UP or GO DOWN, the exact magnitude comes
    after. */
 const gap = (d: number): string => {
-  const signe = d > 0 ? "+" : "−";
+  const sign = d > 0 ? "+" : "−";
   const n = Math.abs(d);
   const whole = Math.floor(n);
   const half = n - whole >= 0.5;
-  return `${signe}${whole || ""}${half ? "½" : ""}`;
+  return `${sign}${whole || ""}${half ? "½" : ""}`;
 };
 
 export function WatchLog({ film, onUpdate }: { film: Film; onUpdate: (film: Film) => void }) {
@@ -40,10 +40,10 @@ export function WatchLog({ film, onUpdate }: { film: Film; onUpdate: (film: Film
   /* One more screening takes the film's CURRENT rating: it is the one
      just laid down on rewatching, and if it has not moved, the drift will
      keep quiet on its own. */
-  const revu = () =>
-    onUpdate(withWatches(film, [...watches, { date: aujourdhui(), rating: film.rating || null }]));
+  const rewatched = () =>
+    onUpdate(withWatches(film, [...watches, { date: today(), rating: film.rating || null }]));
 
-  const retirer = (date: string) =>
+  const remove = (date: string) =>
     onUpdate(
       withWatches(
         film,
@@ -92,7 +92,7 @@ export function WatchLog({ film, onUpdate }: { film: Film; onUpdate: (film: Film
           {w.rewatch && <span style={{ fontFamily: F.mono, fontSize: 9, opacity: 0.6 }}>REVU</span>}
           <span style={{ flex: 1 }} />
           <button
-            onClick={() => retirer(w.date)}
+            onClick={() => remove(w.date)}
             title="Retirer cette séance"
             aria-label={`Retirer la séance du ${w.date}`}
             style={{ all: "unset", cursor: "pointer", color: C.inkFaded, opacity: 0.5 }}
@@ -103,7 +103,7 @@ export function WatchLog({ film, onUpdate }: { film: Film; onUpdate: (film: Film
       ))}
 
       <button
-        onClick={revu}
+        onClick={rewatched}
         style={{
           all: "unset",
           ...tap,

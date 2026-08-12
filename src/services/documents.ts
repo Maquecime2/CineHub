@@ -77,7 +77,7 @@ export const dateOf = (key: string): number => register()[key] ?? 0;
 export function documentsToSend(): {
   cle: string;
   majLe: number;
-  contenu: unknown;
+  content: unknown;
   supprime?: boolean;
 }[] {
   return pending().map((key) => {
@@ -88,7 +88,7 @@ export function documentsToSend(): {
       /* A document deleted here goes out like the cards: as a tombstone.
          Otherwise the other device would push it back. */
       supprime: raw === null,
-      contenu: raw === null ? null : safeParse(raw),
+      content: raw === null ? null : safeParse(raw),
     };
   });
 }
@@ -116,14 +116,14 @@ export function forgetSentDocuments(keys: string[]): void {
 export function fileIncomingDocument(d: {
   cle: string;
   majLe: number;
-  contenu: unknown;
+  content: unknown;
   supprime?: boolean;
 }): boolean {
   if (!isSyncable(d.cle)) return false;
   if (d.majLe <= dateOf(d.cle)) return false;
 
   if (d.supprime) localStorage.removeItem(d.cle);
-  else store.set(d.cle, d.contenu);
+  else store.set(d.cle, d.content);
 
   /* We note the date RECEIVED, and we do not put the key back on the
      waiting list: this document comes from elsewhere, it has no reason

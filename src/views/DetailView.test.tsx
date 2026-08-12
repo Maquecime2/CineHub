@@ -13,7 +13,7 @@ import { makeCustomMotif, setVocabulary } from "../domain/motifs";
    searching in: a block absent from the open tab is not mounted at all.
    `monter({}, { onglet: "mots" })` opens the wanted page — it is the
    same controlled property the guided tour uses. */
-const monter = (extra = {}, props = {}) => {
+const build = (extra = {}, props = {}) => {
   const onDelete = vi.fn();
   const onUpdate = vi.fn();
   const film = makeFilm({
@@ -46,7 +46,7 @@ const LINKS = { tab: "liens" as const };
 
 describe("la fiche film, après le passage en trois intercalaires", () => {
   it("garde sous « Mes mots » ce que le rail d'annotation portait", () => {
-    monter({}, WORDS);
+    build({}, WORDS);
     expect(screen.getByText("Mots-clés")).toBeInTheDocument();
     expect(screen.getByText("Motifs")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /film de chevet/ })).toBeInTheDocument();
@@ -55,7 +55,7 @@ describe("la fiche film, après le passage en trois intercalaires", () => {
   });
 
   it("garde la pellicule, montée près du texte qu'elle illustre", () => {
-    monter({}, WORDS);
+    build({}, WORDS);
     expect(screen.getByText("La pellicule")).toBeInTheDocument();
   });
 
@@ -63,32 +63,32 @@ describe("la fiche film, après le passage en trois intercalaires", () => {
      moved: a dated screening is what one has DONE with the film, not
      what it is. */
   it("range le journal des séances avec vos mots, et non avec le catalogue", () => {
-    monter({}, WORDS);
+    build({}, WORDS);
     expect(document.querySelector('[data-tour="detail-watchlog"]')).not.toBeNull();
     expect(screen.queryByText("Fiche catalogue")).not.toBeInTheDocument();
   });
 
   it("garde sous « Le film » ce qui décrit l'œuvre", () => {
-    monter();
+    build();
     // the title is capitalised by the stylesheet, not in the text
     expect(screen.getByText("Fiche catalogue")).toBeInTheDocument();
     expect(document.querySelector('[data-tour="detail-identite"]')).not.toBeNull();
   });
 
   it("garde sous « Les liens » le fil rouge", () => {
-    monter({}, LINKS);
+    build({}, LINKS);
     expect(screen.getByText("Le fil rouge")).toBeInTheDocument();
   });
 
   /* The poster and the title do not change tab: that is what keeps the
      film one is speaking of in sight. */
   it.each([{}, WORDS, LINKS])("garde l'affiche et le titre (%o)", (props) => {
-    monter({}, props);
+    build({}, props);
     expect(screen.getAllByText("Le Samouraï").length).toBeGreaterThan(0);
   });
 
   it("montre les mots-clés et les motifs déjà posés", () => {
-    monter({}, WORDS);
+    build({}, WORDS);
     expect(screen.getByText("solitude")).toBeInTheDocument();
     // "Le héros meurt" gives the ending away: it stays scratched out until clicked
     expect(screen.getByText("motif de fin")).toBeInTheDocument();
@@ -98,7 +98,7 @@ describe("la fiche film, après le passage en trois intercalaires", () => {
   /* No bedside for a film one has not seen: that shelf is the one of
      what gets rewatched, and the watchlist does not open it. */
   it("n'offre pas le chevet à un film jamais vu", () => {
-    monter({ status: "watchlist" }, WORDS);
+    build({ status: "watchlist" }, WORDS);
     expect(screen.queryByRole("button", { name: /film de chevet/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /supprimer définitivement/ })).toBeInTheDocument();
   });
@@ -110,7 +110,7 @@ describe("la fiche film, après le passage en trois intercalaires", () => {
 describe("les intercalaires se tournent à la main", () => {
   it("ouvre « Les liens » d'un clic, sans qu'on lui dise d'en haut", async () => {
     const user = userEvent.setup();
-    monter();
+    build();
     expect(screen.queryByText("Le fil rouge")).not.toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: "LES LIENS" }));
     expect(screen.getByText("Le fil rouge")).toBeInTheDocument();
@@ -122,7 +122,7 @@ describe("les intercalaires se tournent à la main", () => {
 describe("les gestes qu'on peut regretter", () => {
   it("ne supprime pas au premier clic, mais le demande", async () => {
     const user = userEvent.setup();
-    const { onDelete } = monter({}, WORDS);
+    const { onDelete } = build({}, WORDS);
     await user.click(screen.getByRole("button", { name: /supprimer définitivement/ }));
     expect(onDelete).not.toHaveBeenCalled();
     expect(screen.getByRole("dialog")).toBeInTheDocument();
@@ -132,7 +132,7 @@ describe("les gestes qu'on peut regretter", () => {
 
   it("renonce sans rien faire", async () => {
     const user = userEvent.setup();
-    const { onDelete } = monter({}, WORDS);
+    const { onDelete } = build({}, WORDS);
     await user.click(screen.getByRole("button", { name: /supprimer définitivement/ }));
     await user.click(screen.getByRole("button", { name: "RENONCER" }));
     expect(onDelete).not.toHaveBeenCalled();
@@ -141,7 +141,7 @@ describe("les gestes qu'on peut regretter", () => {
 
   it("demande aussi avant de mettre de côté", async () => {
     const user = userEvent.setup();
-    const { onUpdate } = monter({}, WORDS);
+    const { onUpdate } = build({}, WORDS);
     await user.click(screen.getByRole("button", { name: /mettre de côté/ }));
     expect(onUpdate).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "METTRE DE CÔTÉ" }));
@@ -152,7 +152,7 @@ describe("les gestes qu'on peut regretter", () => {
      confirm it would only teach clicking without reading. */
   it("remet en rayon sans rien demander", async () => {
     const user = userEvent.setup();
-    const { onUpdate } = monter({ archived: true }, WORDS);
+    const { onUpdate } = build({ archived: true }, WORDS);
     await user.click(screen.getByRole("button", { name: /remettre en rayon/ }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ archived: false }));
@@ -168,7 +168,7 @@ describe("gérer le vocabulaire depuis la fiche", () => {
 
   it("écrit un motif et le pose aussitôt sur la fiche", async () => {
     const onCreateMotif = vi.fn(() => "il-pleut-sans-arret");
-    const { onUpdate } = monter({}, { onCreateMotif, ...WORDS });
+    const { onUpdate } = build({}, { onCreateMotif, ...WORDS });
     const user = await openList();
     await user.type(screen.getByLabelText("Nouveau motif"), "Il pleut sans arrêt{Enter}");
     expect(onCreateMotif).toHaveBeenCalledWith("Il pleut sans arrêt", "narrative", false);
@@ -180,7 +180,7 @@ describe("gérer le vocabulaire depuis la fiche", () => {
 
   it("écarte un motif du catalogue sans rien demander", async () => {
     const onHideMotif = vi.fn();
-    monter({}, { onHideMotif, ...WORDS });
+    build({}, { onHideMotif, ...WORDS });
     const user = await openList();
     await user.click(screen.getByLabelText("Écarter le motif Huis clos"));
     expect(onHideMotif).toHaveBeenCalledWith("single-setting", true);
@@ -191,7 +191,7 @@ describe("gérer le vocabulaire depuis la fiche", () => {
   it("annonce les fiches touchées avant de supprimer un motif", async () => {
     setVocabulary({ custom: [makeCustomMotif("Il pleut", "world")], hidden: [] });
     const onDeleteMotif = vi.fn();
-    monter({ motifs: ["il-pleut"] }, { onDeleteMotif, ...WORDS });
+    build({ motifs: ["il-pleut"] }, { onDeleteMotif, ...WORDS });
     const user = await openList();
     await user.click(screen.getByLabelText("Supprimer le motif Il pleut"));
     expect(screen.getByText(/1 fiche/)).toBeInTheDocument();

@@ -108,13 +108,13 @@ describe("enrichRows — quand la ligne porte déjà son identifiant", () => {
   beforeEach(() => localStorage.clear());
   afterEach(() => vi.unstubAllGlobals());
 
-  const parId = [{ title: "Le Samouraï", year: 1967, tmdbId: 42 }];
+  const perId = [{ title: "Le Samouraï", year: 1967, tmdbId: 42 }];
 
   it("va droit au détail, sans passer par la recherche", async () => {
     const fetchMock = okFetch();
     vi.stubGlobal("fetch", fetchMock);
 
-    const out = await enrichRows(parId, "k");
+    const out = await enrichRows(perId, "k");
     expect(out.resolved).toBe(1);
     expect(out.rows[0].director).toBe("Jean-Pierre Melville");
 
@@ -128,11 +128,11 @@ describe("enrichRows — quand la ligne porte déjà son identifiant", () => {
   it("mémorise sous l'identifiant et ne redemande rien", async () => {
     const fetchMock = okFetch();
     vi.stubGlobal("fetch", fetchMock);
-    await enrichRows(parId, "k");
+    await enrichRows(perId, "k");
     expect(Object.keys(cache())).toEqual(["id:42"]);
 
     const calls = fetchMock.mock.calls.length;
-    await enrichRows(parId, "k");
+    await enrichRows(perId, "k");
     expect(fetchMock.mock.calls.length).toBe(calls);
   });
 
@@ -348,7 +348,7 @@ describe("enrichRows — les mots-clés", () => {
   beforeEach(() => localStorage.clear());
   afterEach(() => vi.unstubAllGlobals());
 
-  const détail = (extra) =>
+  const detailPart = (extra) =>
     vi.fn(async (url) => ({
       ok: true,
       status: 200,
@@ -362,7 +362,7 @@ describe("enrichRows — les mots-clés", () => {
     }));
 
   it("rapporte les mots-clés de la ressource jointe", async () => {
-    vi.stubGlobal("fetch", détail({ keywords: { keywords: [{ id: 1, name: "hitman" }] } }));
+    vi.stubGlobal("fetch", detailPart({ keywords: { keywords: [{ id: 1, name: "hitman" }] } }));
     const out = await enrichRows(rows, "k");
     expect(out.rows[0].keywords).toEqual(["hitman"]);
   });
@@ -371,7 +371,7 @@ describe("enrichRows — les mots-clés", () => {
      will not be asked for again — failing which "complete" loops
      endlessly. */
   it("garde la liste vide quand TMDB dit qu'il n'y en a pas", async () => {
-    vi.stubGlobal("fetch", détail({ keywords: { keywords: [] } }));
+    vi.stubGlobal("fetch", detailPart({ keywords: { keywords: [] } }));
     const out = await enrichRows(rows, "k");
     expect(out.rows[0].keywords).toEqual([]);
   });
@@ -379,7 +379,7 @@ describe("enrichRows — les mots-clés", () => {
   /* Absent: we do not know. We fall back on the dedicated endpoint
      rather than invent an answer. */
   it("retombe sur l'endpoint dédié quand la ressource jointe manque", async () => {
-    vi.stubGlobal("fetch", détail({}));
+    vi.stubGlobal("fetch", detailPart({}));
     const out = await enrichRows(rows, "k");
     expect(out.rows[0].keywords).toEqual(["de secours"]);
   });
@@ -520,13 +520,13 @@ describe("le relais du serveur", () => {
         })
       );
 
-      const promesse = checkApiKey(VIA_SERVER);
+      const promise = checkApiKey(VIA_SERVER);
       /* One second is no longer enough: that was exactly the flaw. */
       await vi.advanceTimersByTimeAsync(1500);
       expect(appels).toHaveLength(1);
       await vi.advanceTimersByTimeAsync(46_000);
       expect(appels).toHaveLength(2);
-      expect((await promesse).ok).toBe(true);
+      expect((await promise).ok).toBe(true);
     } finally {
       vi.useRealTimers();
     }
@@ -547,10 +547,10 @@ describe("le relais du serveur", () => {
         })
       );
 
-      const promesse = checkApiKey(VIA_SERVER);
+      const promise = checkApiKey(VIA_SERVER);
       await vi.advanceTimersByTimeAsync(1500);
       expect(appels).toHaveLength(2);
-      expect((await promesse).ok).toBe(true);
+      expect((await promise).ok).toBe(true);
     } finally {
       vi.useRealTimers();
     }
@@ -572,10 +572,10 @@ describe("le relais du serveur", () => {
         })
       );
 
-      const promesse = checkApiKey(VIA_SERVER);
+      const promise = checkApiKey(VIA_SERVER);
       await vi.advanceTimersByTimeAsync(61_000);
       expect(appels).toHaveLength(2);
-      expect((await promesse).ok).toBe(true);
+      expect((await promise).ok).toBe(true);
     } finally {
       vi.useRealTimers();
     }

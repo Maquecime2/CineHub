@@ -100,10 +100,10 @@ describe("les adresses-données", () => {
 describe("les finitions", () => {
   it("changent l'éclat sans changer la couleur", () => {
     const mat = materialStyle("acier", "mat");
-    const laque = materialStyle("acier", "laque");
-    expect(mat.background).not.toBe(laque.background);
+    const lacquer = materialStyle("acier", "laque");
+    expect(mat.background).not.toBe(lacquer.background);
     // the background colour, though, is the same in both
-    for (const s of [mat, laque]) expect(String(s.background)).toContain("#B9BFC4");
+    for (const s of [mat, lacquer]) expect(String(s.background)).toContain("#B9BFC4");
   });
 
   it("laisse le verre translucide et son ombre légère", () => {

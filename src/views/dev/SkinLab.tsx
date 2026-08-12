@@ -45,8 +45,8 @@ const ALL_FONTS_ID = "skinlab-fonts";
 
 function useAllSkinFonts(): void {
   useEffect(() => {
-    const familles = [...new Set(SKINS.flatMap((s) => s.google))];
-    const href = `https://fonts.googleapis.com/css2?${familles
+    const families = [...new Set(SKINS.flatMap((s) => s.google))];
+    const href = `https://fonts.googleapis.com/css2?${families
       .map((f) => `family=${f}`)
       .join("&")}&display=swap`;
     let link = document.getElementById(ALL_FONTS_ID) as HTMLLinkElement | null;
@@ -233,7 +233,7 @@ export function SkinLab() {
   useAllSkinFonts();
   /* A single skin, large, when one came to look at ONE. */
   const [seule, setSeule] = useState<string | null>(null);
-  const montrees = seule ? SKINS.filter((s) => s.key === seule) : SKINS;
+  const shownOnes = seule ? SKINS.filter((s) => s.key === seule) : SKINS;
 
   return (
     <div style={{ padding: "30px 40px 70px", position: "relative" }}>
@@ -263,7 +263,7 @@ export function SkinLab() {
           gap: 22,
         }}
       >
-        {montrees.map((s) => (
+        {shownOnes.map((s) => (
           <SkinPanel key={s.key} skin={s} />
         ))}
       </div>

@@ -31,15 +31,16 @@ export const SHELF_KINDS = ["bedside", "main", "reserve"];
    it is to watch, it files in the main collection. Otherwise the
    watchlist opened a "the ones we watch again" shelf that means nothing,
    and ShelfBoard, which hides it, would have lost films in it. */
-const revu = (f) => f.status !== "watchlist";
+const rewatched = (f) => f.status !== "watchlist";
 
 export const belongs = {
-  bedside: (f) => f.bedside && revu(f) && !f.archived,
-  main: (f) => (!f.bedside || !revu(f)) && !f.archived,
+  bedside: (f) => f.bedside && rewatched(f) && !f.archived,
+  main: (f) => (!f.bedside || !rewatched(f)) && !f.archived,
   reserve: (f) => f.archived,
 };
 
-export const kindOf = (f) => (f.archived ? "reserve" : f.bedside && revu(f) ? "bedside" : "main");
+export const kindOf = (f) =>
+  f.archived ? "reserve" : f.bedside && rewatched(f) ? "bedside" : "main";
 
 /* The colours offered to the categories. The list is no longer copied
    here: it is DEDUCED from the swatch book (`theme/palette`), which
@@ -104,9 +105,9 @@ export function drainUnplaced(view) {
   for (const kind of SHELF_KINDS) {
     const shelf = view.shelves[kind];
     const rows = shelf.rows;
-    const sas = rows[rows.length - 1];
+    const airlock = rows[rows.length - 1];
     const cap = capFor(kind);
-    if (!sas || !isUnplaced(sas) || sas.items.length <= cap) {
+    if (!airlock || !isUnplaced(airlock) || airlock.items.length <= cap) {
       shelves[kind] = shelf;
       continue;
     }
@@ -116,8 +117,8 @@ export function drainUnplaced(view) {
     let keep = rows.slice(0, -1);
     while (keep.length && !keep[keep.length - 1].items.length) keep = keep.slice(0, -1);
     // one board, which will fill its width — not packets of ten
-    const born = [makeRow({ items: sas.items })];
-    shelves[kind] = { ...shelf, rows: [...keep, ...born, { ...sas, items: [] }] };
+    const born = [makeRow({ items: airlock.items })];
+    shelves[kind] = { ...shelf, rows: [...keep, ...born, { ...airlock, items: [] }] };
     changed = true;
   }
   return changed ? { ...view, shelves } : view;

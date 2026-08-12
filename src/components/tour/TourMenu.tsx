@@ -49,7 +49,7 @@ export function TourMenu({
           </button>
         </div>
 
-        <button onClick={() => onPlay("global")} style={porte}>
+        <button onClick={() => onPlay("global")} style={carries}>
           <span style={title}>{TOURS.global!.label}</span>
           <span style={sous}>
             le tour du classeur, d&apos;un tab à l&apos;other — {TOURS.global!.steps.length} steps
@@ -60,7 +60,7 @@ export function TourMenu({
             simply not there. A dead button gets clicked anyway, and does
             not answer — which reads as a failure. */}
         {page ? (
-          <button onClick={() => onPlay(view)} style={porte}>
+          <button onClick={() => onPlay(view)} style={carries}>
             <span style={title}>Cette page</span>
             <span style={sous}>
               {page.label.toLowerCase()} — {page.steps.length}{" "}
@@ -89,7 +89,7 @@ export function TourMenu({
   );
 }
 
-const porte: CSSProperties = {
+const carries: CSSProperties = {
   all: "unset",
   ...tap,
   cursor: "pointer",

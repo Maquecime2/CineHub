@@ -455,8 +455,8 @@ export const FINISHES = {
   laque: { label: "Laqué", sheen: 1.8, shadow: "0 3px 1px rgba(0,0,0,0.26)" },
 } as const;
 
-const CHENE = MATERIALS.chene as Material;
-export const materialOf = (key?: string): Material => MATERIALS[key as string] || CHENE;
+const OAK = MATERIALS.chene as Material;
+export const materialOf = (key?: string): Material => MATERIALS[key as string] || OAK;
 
 /* The board's default shadow — the one from before the materials, to the
    pixel. It lives here because `materialStyle` must be able to return it

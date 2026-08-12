@@ -123,7 +123,7 @@ export function ConstellationView({
   const [foyer, setFoyer] = useState<string | null>(null);
   const [portee, setPortee] = useState(1);
   /* The films crossed, so that one can retrace one's steps. */
-  const [chemin, setChemin] = useState<string[]>([]);
+  const [path, setChemin] = useState<string[]>([]);
   const [query, setQuery] = useState("");
 
   /* THE PINS — the films one went and fetched oneself.
@@ -187,7 +187,7 @@ export function ConstellationView({
      So a result outside the chart is pinned with one click: it enters
      the sky, alone, and becomes the focus — from where one sees what it
      might join. */
-  const auCiel = useMemo(
+  const inTheSky = useMemo(
     () => new Set(full.nodes.filter((n) => n.kind === "film").map((n) => n.filmId as string)),
     [full.nodes]
   );
@@ -198,21 +198,21 @@ export function ConstellationView({
 
   const pin = (filmId: string) => {
     setPins((cur) => (cur.includes(filmId) ? cur : [...cur, filmId]));
-    poserFoyer(`f:${filmId}`);
+    setFocus(`f:${filmId}`);
     setQuery("");
   };
 
-  const poserFoyer = (id: string) => {
+  const setFocus = (id: string) => {
     setFoyer((current) => {
       if (current && current !== id) setChemin((c) => [...c, current]);
       return id;
     });
     setMoved({});
   };
-  const revenir = () => {
+  const goBack = () => {
     setChemin((c) => {
-      const precedent = c[c.length - 1];
-      setFoyer(precedent ?? null);
+      const previous = c[c.length - 1];
+      setFoyer(previous ?? null);
       return c.slice(0, -1);
     });
     setMoved({});
@@ -238,7 +238,7 @@ export function ConstellationView({
      "the body being spoken of right now", and the lighting up of the
      neighbours must answer to both the same way. */
   const [curseur, setCurseur] = useState<string | null>(null);
-  const astreCourant = curseur ? byId.get(curseur) : undefined;
+  const currentStar = curseur ? byId.get(curseur) : undefined;
 
   /* A body erased by a change of filter must not leave a ghost cursor
      behind it — nor the synthetic voice announce a body that is no
@@ -250,35 +250,35 @@ export function ConstellationView({
   /* The same gesture as a click, so that keyboard and pointer cannot
      diverge: two copies of this rule would end up answering the same key
      differently. */
-  const ouvrirOuFoyer = (n: PlacedNode) => {
+  const openOrFocus = (n: PlacedNode) => {
     if (n.kind === "work") return;
-    if (n.kind === "thread") poserFoyer(n.id);
+    if (n.kind === "thread") setFocus(n.id);
     else if (n.id === foyer) onOpen(n.filmId as string);
-    else poserFoyer(n.id);
+    else setFocus(n.id);
   };
 
-  const auClavier = (e: ReactKeyboardEvent<SVGSVGElement>) => {
-    const flèches: Record<string, Direction> = {
+  const byKeyboard = (e: ReactKeyboardEvent<SVGSVGElement>) => {
+    const arrows: Record<string, Direction> = {
       ArrowUp: "up",
       ArrowDown: "down",
       ArrowLeft: "left",
       ArrowRight: "right",
     };
-    const direction = flèches[e.key];
+    const direction = arrows[e.key];
     if (direction) {
-      const suivant = neighbourInDirection(placed, curseur, direction);
+      const next = neighbourInDirection(placed, curseur, direction);
       /* We only swallow the key IF we have moved: otherwise the page
          would stop scrolling while there is nothing on that side, and
          one would believe the chart frozen. */
-      if (suivant) {
+      if (next) {
         e.preventDefault();
-        setCurseur(suivant.id);
+        setCurseur(next.id);
       }
       return;
     }
-    if ((e.key === "Enter" || e.key === " ") && astreCourant) {
+    if ((e.key === "Enter" || e.key === " ") && currentStar) {
       e.preventDefault();
-      ouvrirOuFoyer(astreCourant);
+      openOrFocus(currentStar);
       return;
     }
     /* Escape puts the cursor down without leaving the chart: one leaves
@@ -294,7 +294,7 @@ export function ConstellationView({
      its type, a thread what it gathers — the same thing as the visible
      label, because two different descriptions of the same body would be
      two different charts. */
-  const direLAstre = (n: PlacedNode): string =>
+  const describeStar = (n: PlacedNode): string =>
     [
       n.label,
       n.sub,
@@ -581,12 +581,12 @@ export function ConstellationView({
               marginBottom: 10,
             }}
           />
-          <Résultats
+          <Results
             query={query}
             results={results}
             departs={departs}
-            auCiel={auCiel}
-            onFoyer={poserFoyer}
+            inTheSky={inTheSky}
+            onFoyer={setFocus}
             onÉpingler={pin}
           />
           <button
@@ -628,9 +628,9 @@ export function ConstellationView({
           <span style={{ fontFamily: F.title, fontSize: 17, fontWeight: 700, color: C.ink }}>
             {full.nodes.find((n) => n.id === foyer)?.label ?? "—"}
           </span>
-          {chemin.length > 0 && (
-            <button onClick={revenir} style={smallButton(false)}>
-              ← REVENIR ({chemin.length})
+          {path.length > 0 && (
+            <button onClick={goBack} style={smallButton(false)}>
+              ← REVENIR ({path.length})
             </button>
           )}
           <button onClick={() => setPortee(portee === 1 ? 2 : 1)} style={smallButton(portee === 2)}>
@@ -680,12 +680,12 @@ export function ConstellationView({
             }}
           />
           {query.trim() && (
-            <Résultats
+            <Results
               query={query}
               results={results}
               departs={departs}
-              auCiel={auCiel}
-              onFoyer={poserFoyer}
+              inTheSky={inTheSky}
+              onFoyer={setFocus}
               onÉpingler={pin}
             />
           )}
@@ -826,7 +826,7 @@ export function ConstellationView({
               tabIndex={0}
               aria-label="Carte du ciel — flèches pour aller d'un astre à l'autre, Entrée pour l'ouvrir, Échap pour lâcher"
               aria-activedescendant={curseur ? `astre-${curseur}` : undefined}
-              onKeyDown={auClavier}
+              onKeyDown={byKeyboard}
               onFocus={() => {
                 /* Entering the chart lays the cursor somewhere: a
                    focused frame with nothing designated inside it does
@@ -904,7 +904,7 @@ export function ConstellationView({
                    found by the machine, or the relation one has written
                    oneself — which reads in the direction of the
                    stroke. */
-                const raisons = gatheringThread
+                const reasons = gatheringThread
                   ? (byId.get(l.a)?.label ?? "")
                   : peer
                     ? /* La relation nommée, puis CE QU'ON A ÉCRIT SOUS LE
@@ -926,15 +926,15 @@ export function ConstellationView({
                       : (l.why || []).map((w) => `${w.role} · ${w.name}`).join(", ");
                 const fixer =
                   crew && onLinkFilm
-                    ? () => onLinkFilm(l.a.slice(2), l.b.slice(2), raisons)
+                    ? () => onLinkFilm(l.a.slice(2), l.b.slice(2), reasons)
                     : undefined;
-                const vise = hoverLink === i;
+                const aimed = hoverLink === i;
                 const threadTint = gatheringThread
                   ? catInk(byId.get(l.a)?.color || "burgundy")
                   : null;
                 const ink = threadTint ?? (crew ? inkOf(l) : peer ? C.burgundy : C.vermillion);
                 // a strong link thickens the stroke: it is the only thing it has to say here
-                const épaisseurPeer = 1.4 + strengthOf(l.force) * 0.6;
+                const peerThickness = 1.4 + strengthOf(l.force) * 0.6;
                 return (
                   <g key={i}>
                     <path
@@ -945,10 +945,10 @@ export function ConstellationView({
                          clicks: on hover it thickens and darkens, which
                          no tooltip does fast enough. */
                       strokeWidth={
-                        vise
-                          ? (peer ? épaisseurPeer : 1.4) + 1.2
+                        aimed
+                          ? (peer ? peerThickness : 1.4) + 1.2
                           : peer
-                            ? épaisseurPeer
+                            ? peerThickness
                             : gatheringThread
                               ? 1.2
                               : 1.4
@@ -959,7 +959,7 @@ export function ConstellationView({
                       strokeLinecap="round"
                       opacity={
                         on
-                          ? vise
+                          ? aimed
                             ? 1
                             : peer
                               ? 0.8
@@ -978,12 +978,12 @@ export function ConstellationView({
                     {/* THE LABEL, in the middle of the thread and only
                         on hover: it names the kind of the kinship, which
                         a colour alone cannot do. */}
-                    {vise && raisons && (
+                    {aimed && reasons && (
                       <g style={{ pointerEvents: "none" }}>
                         <rect
-                          x={mx - Math.min(raisons.length * 3.4, 190) / 2 - 6}
+                          x={mx - Math.min(reasons.length * 3.4, 190) / 2 - 6}
                           y={(a.y + b.y) / 2 + 2}
-                          width={Math.min(raisons.length * 3.4, 190) + 12}
+                          width={Math.min(reasons.length * 3.4, 190) + 12}
                           height={19}
                           rx={2}
                           fill={C.card}
@@ -996,7 +996,7 @@ export function ConstellationView({
                           textAnchor="middle"
                           style={{ fontFamily: F.mono, fontSize: 10, fill: C.ink }}
                         >
-                          {raisons.length > 54 ? `${raisons.slice(0, 53)}…` : raisons}
+                          {reasons.length > 54 ? `${reasons.slice(0, 53)}…` : reasons}
                         </text>
                       </g>
                     )}
@@ -1028,8 +1028,8 @@ export function ConstellationView({
                           the sky, and it is what the tools that do not
                           see the SVG read. Every thread has one, not
                           only the one that can be fixed. */}
-                      {(fixer || raisons) && (
-                        <title>{fixer ? `Fixer ce fil — ${raisons}` : raisons}</title>
+                      {(fixer || reasons) && (
+                        <title>{fixer ? `Fixer ce fil — ${reasons}` : reasons}</title>
                       )}
                     </path>
                   </g>
@@ -1053,7 +1053,7 @@ export function ConstellationView({
                    in the clear on a chart one walks through: the
                    thread's name stays scratched out until revealed by a
                    hover. */
-                const gratté =
+                const scratched =
                   n.kind === "thread" && !!n.motif && !!motifById(n.motif)?.spoiler && !isHover;
                 return (
                   <g
@@ -1061,7 +1061,7 @@ export function ConstellationView({
                     id={`astre-${n.id}`}
                     role="option"
                     aria-selected={curseur === n.id}
-                    aria-label={direLAstre(n)}
+                    aria-label={describeStar(n)}
                     transform={`translate(${p.x},${p.y})`}
                     style={{
                       cursor: n.kind === "work" ? "grab" : "pointer",
@@ -1095,9 +1095,9 @@ export function ConstellationView({
                       /* A thread does not open — it has no card: taking
                          it as the focus shows everything it gathers, and
                          that is exactly the question one asks of it. */
-                      if (n.kind === "thread") poserFoyer(n.id);
+                      if (n.kind === "thread") setFocus(n.id);
                       else if (n.id === foyer) onOpen(n.filmId as string);
-                      else poserFoyer(n.id);
+                      else setFocus(n.id);
                     }}
                     onDoubleClick={() => n.kind === "film" && onOpen(n.filmId as string)}
                   >
@@ -1166,7 +1166,7 @@ export function ConstellationView({
                         pointerEvents: "none",
                       }}
                     >
-                      {gratté
+                      {scratched
                         ? "•".repeat(Math.min(n.label.length, 14))
                         : n.label.length > 30
                           ? n.label.slice(0, 29) + "…"
@@ -1210,7 +1210,7 @@ export function ConstellationView({
                 whiteSpace: "nowrap",
               }}
             >
-              {astreCourant ? direLAstre(astreCourant) : ""}
+              {currentStar ? describeStar(currentStar) : ""}
             </div>
           </div>
 
@@ -1228,7 +1228,7 @@ export function ConstellationView({
             <span style={{ fontFamily: F.hand, fontSize: 18, color: C.inkFaded }}>
               {placed.filter((n) => n.kind === "film").length} film(s),{" "}
               {placed.filter((n) => n.kind === "work").length} œuvre(s) —{" "}
-              {placed.filter((n) => (n.refs ?? 0) > 1).length} pont(s) entre deux films
+              {placed.filter((n) => (n.refs ?? 0) > 1).length} pont(s) entre two films
             </span>
             {(Object.keys(moved).length > 0 || pins.length > 0) && (
               <button
@@ -1267,18 +1267,18 @@ export function ConstellationView({
    according to whether it is already in the sky or not. A film outside
    the chart is not greyed out — it is offered, because pinning it is
    precisely what one came to do. */
-function Résultats({
+function Results({
   query,
   results,
   departs,
-  auCiel,
+  inTheSky,
   onFoyer,
   onÉpingler,
 }: {
   query: string;
   results: Film[];
   departs: PlacedNode[] | SkyNode[];
-  auCiel: Set<string>;
+  inTheSky: Set<string>;
   onFoyer: (nodeId: string) => void;
   onÉpingler: (filmId: string) => void;
 }) {
@@ -1304,21 +1304,21 @@ function Résultats({
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
       {results.map((f) => {
-        const placé = auCiel.has(f.id);
+        const placedItem = inTheSky.has(f.id);
         return (
           <button
             key={f.id}
-            onClick={() => (placé ? onFoyer(`f:${f.id}`) : onÉpingler(f.id))}
-            title={placé ? "Prendre pour foyer" : "L'épingler au ciel et partir de lui"}
+            onClick={() => (placedItem ? onFoyer(`f:${f.id}`) : onÉpingler(f.id))}
+            title={placedItem ? "Prendre pour foyer" : "L'épingler au ciel et partir de lui"}
             style={{
               ...departStyle,
-              borderStyle: placé ? "solid" : "dashed",
-              color: placé ? C.ink : C.inkFaded,
+              borderStyle: placedItem ? "solid" : "dashed",
+              color: placedItem ? C.ink : C.inkFaded,
             }}
           >
             {f.title}
             <span style={{ opacity: 0.6, marginLeft: 6, fontFamily: F.mono, fontSize: 9.5 }}>
-              {placé ? "au ciel" : "épingler"}
+              {placedItem ? "au ciel" : "épingler"}
             </span>
           </button>
         );

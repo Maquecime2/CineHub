@@ -77,7 +77,7 @@ const MONTHS_LONG = [
    25 janvier au 24 décembre" on an account covering seven years makes
    one believe in a single year, and that is precisely the thing this
    account must deny. */
-const enClair = (iso: string | null, withYear = false): string => {
+const spellDate = (iso: string | null, withYear = false): string => {
   if (!iso) return "—";
   const [a, m, j] = iso.split("-");
   const day = `${Number(j)} ${MONTHS_LONG[Number(m) - 1] || ""}`.trim();
@@ -85,7 +85,7 @@ const enClair = (iso: string | null, withYear = false): string => {
 };
 
 /** 5,430 minutes → "90 h 30". Nobody reads an account in minutes. */
-const enHeures = (minutes: number): string => {
+const inHours = (minutes: number): string => {
   const h = Math.floor(minutes / 60);
   const m = Math.round(minutes % 60);
   return m ? `${h} h ${String(m).padStart(2, "0")}` : `${h} h`;
@@ -111,7 +111,7 @@ function Cardstock({
   children: ReactNode;
   style?: CSSProperties;
 }) {
-  const penche = tiltOf(seed);
+  const leans = tiltOf(seed);
   const pin = Math.abs(hash(seed)) % 3 === 0;
   return (
     <div
@@ -124,7 +124,7 @@ function Cardstock({
         border: `1px solid ${C.line}`,
         boxShadow: "3px 5px 12px rgba(30,20,10,0.22)",
         padding: "13px 15px 12px",
-        transform: `rotate(${Number(penche) / 7}deg)`,
+        transform: `rotate(${Number(leans) / 7}deg)`,
         /* `minHeight: 0` is what really allows a grid cell to tighten.
            Without it, a grid child refuses to go below the size of its
            content, and it is the BOARD that grows — hence the page that
@@ -153,7 +153,7 @@ function Nothing({ what }: { what: string }) {
 
 /* A large number, with its caption below. The piece that carries the
    boards: it is what one reads in three seconds. */
-function Chiffre({
+function Figure({
   valeur,
   legende,
   ink = C.ink,
@@ -194,7 +194,7 @@ function Chiffre({
    drawing. The chart knows only values and their captions — making it
    believe it was counting months would have forced writing it twice the
    day we wanted to read a whole practice. */
-function Barres({
+function Bars({
   values,
   légendes,
   seed,
@@ -210,7 +210,7 @@ function Barres({
   const width = pas * 0.56;
   /* Beyond eight columns, a four-figure year bumps into its neighbour:
      we keep only the last two, which are enough to follow a decade. */
-  const étroit = values.length > 8;
+  const narrow = values.length > 8;
 
   return (
     <svg
@@ -252,9 +252,9 @@ function Barres({
               x={(g + d) / 2}
               y={H + 11}
               textAnchor="middle"
-              style={{ fontFamily: F.mono, fontSize: étroit ? 7 : 8, fill: C.inkFaded }}
+              style={{ fontFamily: F.mono, fontSize: narrow ? 7 : 8, fill: C.inkFaded }}
             >
-              {étroit ? (légendes[i] || "").slice(-2) : légendes[i]}
+              {narrow ? (légendes[i] || "").slice(-2) : légendes[i]}
             </text>
           </g>
         );
@@ -275,7 +275,7 @@ function Barres({
    The number of lines is TRUNCATED BY THE CALLER, never hidden here:
    that is what guarantees a board does not overflow without anyone
    knowing. */
-function Palmares({
+function Honours({
   items,
   total,
   ink = C.ochre,
@@ -356,7 +356,7 @@ function PlateCount({ a }: { a: Almanac }) {
      many days" without assuming a calendar year. */
   const span = r.density > 0 ? (r.days / r.density) * 100 : 365;
   return (
-    <div style={GRILLE_2x2}>
+    <div style={GRID_2x2}>
       <Cardstock title="Le compte" seed={`count-${clé}`}>
         <div
           style={{
@@ -366,10 +366,10 @@ function PlateCount({ a }: { a: Almanac }) {
             marginTop: 8,
           }}
         >
-          <Chiffre valeur={a.count} legende="SÉANCES" ink={C.burgundy} />
-          <Chiffre valeur={a.titles} legende="FILMS" />
-          <Chiffre valeur={a.rewatches} legende="REVOYURES" />
-          <Chiffre valeur={a.longestStreak} legende="JOURS D'AFFILÉE" />
+          <Figure valeur={a.count} legende="SÉANCES" ink={C.burgundy} />
+          <Figure valeur={a.titles} legende="FILMS" />
+          <Figure valeur={a.rewatches} legende="REVOYURES" />
+          <Figure valeur={a.longestStreak} legende="JOURS D'AFFILÉE" />
         </div>
         <div
           style={{
@@ -380,7 +380,7 @@ function PlateCount({ a }: { a: Almanac }) {
             textAlign: "center",
           }}
         >
-          du {enClair(a.firstWatch, always)} au {enClair(a.lastWatch, always)}
+          du {spellDate(a.firstWatch, always)} au {spellDate(a.lastWatch, always)}
         </div>
       </Cardstock>
 
@@ -394,13 +394,13 @@ function PlateCount({ a }: { a: Almanac }) {
           overflowing again through the very place we had just closed. */}
       <Cardstock title={always ? "Les années" : "Les mois"} seed={`mois-${clé}`}>
         {always ? (
-          <Barres
+          <Bars
             values={a.byYear.map((y) => y.screenings)}
             légendes={a.byYear.map((y) => String(y.year))}
             seed={clé}
           />
         ) : (
-          <Barres values={a.byMonth} légendes={MONTHS} seed={clé} />
+          <Bars values={a.byMonth} légendes={MONTHS} seed={clé} />
         )}
       </Cardstock>
 
@@ -428,8 +428,8 @@ function PlateCount({ a }: { a: Almanac }) {
         ) : (
           <>
             <div style={{ marginTop: 8 }}>
-              <Chiffre
-                valeur={enHeures(a.screenTime.minutes)}
+              <Figure
+                valeur={inHours(a.screenTime.minutes)}
                 legende="DEVANT UN ÉCRAN"
                 ink={C.burgundy}
               />
@@ -439,10 +439,10 @@ function PlateCount({ a }: { a: Almanac }) {
                 label="Screening moyenne"
                 value={a.screenTime.moyenne ? `${Math.round(a.screenTime.moyenne)} min` : "—"}
               />
-              {a.screenTime.plusLong && (
+              {a.screenTime.longest && (
                 <Tally
                   label="Le plus long"
-                  value={`${a.screenTime.plusLong.runtime} min`}
+                  value={`${a.screenTime.longest.runtime} min`}
                   ink={C.slate}
                 />
               )}
@@ -451,7 +451,7 @@ function PlateCount({ a }: { a: Almanac }) {
                 `plusLong` has always carried the whole film; we only
                 showed the number of minutes, which says nothing on its
                 own. */}
-            {a.screenTime.plusLong && (
+            {a.screenTime.longest && (
               <div
                 style={{
                   marginTop: 4,
@@ -463,7 +463,7 @@ function PlateCount({ a }: { a: Almanac }) {
                   whiteSpace: "nowrap",
                 }}
               >
-                {a.screenTime.plusLong.film.title}
+                {a.screenTime.longest.film.title}
               </div>
             )}
             {/* A TOTAL THAT ANNOUNCES ITSELF AS A FLOOR. Saying nothing
@@ -489,7 +489,7 @@ function PlateTastes({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
   const clé = String(a.period);
   const always = a.period === "always";
   return (
-    <div style={GRILLE_2x2}>
+    <div style={GRID_2x2}>
       <Cardstock title="Les notes" seed={`notes-${clé}`}>
         {a.ratingAvg == null ? (
           <Nothing what={always ? "aucune séance notée" : "aucune séance notée cette année"} />
@@ -543,7 +543,7 @@ function PlateTastes({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
                 }}
               >
                 {Math.abs(a.gap.gap) < 0.15 ? (
-                  <>d'accord avec le public, sur {a.gap.n} séances</>
+                  <>d'accord avec le public, sur {a.gap.n} screenings</>
                 ) : (
                   <>
                     plus{" "}
@@ -551,7 +551,7 @@ function PlateTastes({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
                       {a.gap.gap > 0 ? "tendre" : "sévère"}
                     </span>{" "}
                     que le public de {Math.abs(a.gap.gap).toFixed(1)} point
-                    {Math.abs(a.gap.gap) >= 2 ? "s" : ""}, sur {a.gap.n} séances
+                    {Math.abs(a.gap.gap) >= 2 ? "s" : ""}, sur {a.gap.n} screenings
                   </>
                 )}
               </div>
@@ -573,8 +573,8 @@ function PlateTastes({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
                 marginTop: 8,
               }}
             >
-              <Chiffre valeur={`${Math.round(a.age.mean)} ans`} legende="EN MOYENNE" ink={C.pine} />
-              <Chiffre
+              <Figure valeur={`${Math.round(a.age.mean)} ans`} legende="EN MOYENNE" ink={C.pine} />
+              <Figure
                 valeur={`${Math.round(a.age.heritageShare ?? 0)} %`}
                 legende="DE PLUS DE 20 ANS"
               />
@@ -720,17 +720,17 @@ function PlatePeople({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (name: st
   const clé = String(a.period);
   const always = a.period === "always";
   return (
-    <div style={GRILLE_2x2}>
+    <div style={GRID_2x2}>
       <Cardstock title="Les cinéastes" seed={`cineastes-${clé}`}>
         {/* The names lead to the credits: the almanac says who comes
             back, the folder says what one has of that person. Two
             neighbouring questions that had no path towards each
             other. */}
-        <Palmares items={a.topDirectors.slice(0, 4)} total={a.count} onPick={onOpenPerson} />
+        <Honours items={a.topDirectors.slice(0, 4)} total={a.count} onPick={onOpenPerson} />
       </Cardstock>
 
       <Cardstock title="Les genres" seed={`genres-${clé}`}>
-        <Palmares items={a.topGenres.slice(0, 4)} total={a.count} ink={C.moss} />
+        <Honours items={a.topGenres.slice(0, 4)} total={a.count} ink={C.moss} />
       </Cardstock>
 
       <Cardstock title={always ? "Les fidélités" : "Fidélités et découvertes"} seed={`gens-${clé}`}>
@@ -806,10 +806,10 @@ function PlatePeople({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (name: st
         ) : (
           <>
             <div style={{ marginTop: 6 }}>
-              <Chiffre valeur={g.countryCount} legende="PAYS TRAVERSÉS" ink={C.cobalt} />
+              <Figure valeur={g.countryCount} legende="PAYS TRAVERSÉS" ink={C.cobalt} />
             </div>
             <div style={{ marginTop: 8 }}>
-              <Palmares
+              <Honours
                 items={g.countries.slice(0, 3).map((p) => ({ name: countryName(p.name), n: p.n }))}
                 total={a.count}
                 ink={C.cobalt}
@@ -849,9 +849,9 @@ function PlateSubjects({ a }: { a: Almanac }) {
   const s = a.subjects;
   const ar = a.craftspeople;
   return (
-    <div style={GRILLE_2x2}>
+    <div style={GRID_2x2}>
       <Cardstock title="Les sujets" seed={`subjects-${clé}`}>
-        <Palmares
+        <Honours
           items={s.keywords.slice(0, 5)}
           total={a.count}
           ink={C.ochre}
@@ -864,7 +864,7 @@ function PlateSubjects({ a }: { a: Almanac }) {
             it is here that they are read in French. A pattern removed
             from the catalogue since then keeps its identifier rather
             than vanish — the same rule as on the card. */}
-        <Palmares
+        <Honours
           items={s.motifs
             .slice(0, 5)
             .map((m) => ({ name: motifById(m.name)?.label ?? m.name, n: m.n }))}
@@ -880,9 +880,9 @@ function PlateSubjects({ a }: { a: Almanac }) {
             precisely why showing it teaches something. We only keep what
             COMES BACK — a name seen once is not a loyalty, it is a
             credit list. */}
-        <MétierSuivi label="IMAGE" people={ar.image} />
-        <MétierSuivi label="MUSIQUE" people={ar.musique} />
-        <MétierSuivi label="SCÉNARIO" people={ar.scénario} />
+        <TradeFollowed label="IMAGE" people={ar.image} />
+        <TradeFollowed label="MUSIQUE" people={ar.musique} />
+        <TradeFollowed label="SCÉNARIO" people={ar.scénario} />
         {[ar.image, ar.musique, ar.scénario].every(
           (g) => g.filter((x) => x.n > 1).length === 0
         ) && (
@@ -907,16 +907,16 @@ function PlateSubjects({ a }: { a: Almanac }) {
                 marginTop: 8,
               }}
             >
-              <Chiffre
+              <Figure
                 valeur={a.gap.you?.toFixed(1) ?? "—"}
                 legende="VOUS, SUR 10"
                 ink={C.burgundy}
               />
-              <Chiffre valeur={a.gap.public?.toFixed(1) ?? "—"} legende="LE PUBLIC" />
+              <Figure valeur={a.gap.public?.toFixed(1) ?? "—"} legende="LE PUBLIC" />
             </div>
             <div style={{ marginTop: 9 }}>
-              <ÉcartListe label="VOS INDULGENCES" films={a.gap.mostGenerous} ink={C.moss} />
-              <ÉcartListe label="VOS SÉVÉRITÉS" films={a.gap.mostSevere} ink={C.vermillion} />
+              <GapList label="VOS INDULGENCES" films={a.gap.mostGenerous} ink={C.moss} />
+              <GapList label="VOS SÉVÉRITÉS" films={a.gap.mostSevere} ink={C.vermillion} />
             </div>
           </>
         )}
@@ -926,21 +926,27 @@ function PlateSubjects({ a }: { a: Almanac }) {
 }
 
 /** One trade of `crew` — mute when nobody comes back to it twice. */
-function MétierSuivi({ label, people }: { label: string; people: { name: string; n: number }[] }) {
-  const suivis = people.filter((g) => g.n > 1).slice(0, 3);
-  if (suivis.length === 0) return null;
+function TradeFollowed({
+  label,
+  people,
+}: {
+  label: string;
+  people: { name: string; n: number }[];
+}) {
+  const followed = people.filter((g) => g.n > 1).slice(0, 3);
+  if (followed.length === 0) return null;
   return (
     <div style={{ marginBottom: 7 }}>
       <div style={{ fontFamily: F.mono, fontSize: 9, color: C.inkFaded }}>{label}</div>
       <div style={{ fontFamily: F.body, fontSize: 12.5, color: C.ink }}>
-        {suivis.map((g) => `${g.name} (${g.n})`).join(" · ")}
+        {followed.map((g) => `${g.name} (${g.n})`).join(" · ")}
       </div>
     </div>
   );
 }
 
 /** Three films and their gap to the crowd, in points out of ten. */
-function ÉcartListe({
+function GapList({
   label,
   films,
   ink,
@@ -991,7 +997,7 @@ function ÉcartListe({
    where the truncations everywhere came from — the rankings, the titles,
    "Fidélités et découvertes". Restoring the 2×2 makes them disappear on
    their own, without bounding anything. */
-const GRILLE_2x2: CSSProperties = {
+const GRID_2x2: CSSProperties = {
   height: "100%",
   display: "grid",
   gridTemplateColumns: "repeat(2, 1fr)",
@@ -1015,7 +1021,7 @@ const PLATES = [
    the price of not scrolling: the board takes "all the rest", and "the
    rest" must be a number. Measuring the header on every render would
    cost a resize observer to gain a few pixels. */
-const ENTETE = 178;
+const HEADER = 178;
 
 /* The loyalty threshold over a whole practice — the domain sets it, the
    view says it again when there is nothing to show. Copied out, yes:
@@ -1041,7 +1047,7 @@ export function AlmanacView({
      of one year. It only appears from two covered years on — with a
      single one, "toujours" and "cette année" are the same page, and
      offering it twice would only make a duplicate to leaf through. */
-  const périodes: Period[] = useMemo(
+  const periods: Period[] = useMemo(
     () => (years.length > 1 ? ["always", ...years] : years),
     [years]
   );
@@ -1051,7 +1057,7 @@ export function AlmanacView({
      exists — deleting the last screening of a year makes it disappear
      from the list, and one must not stay on a page that no longer
      exists. */
-  const period = choisie != null && périodes.includes(choisie) ? choisie : (périodes[0] ?? null);
+  const period = choisie != null && periods.includes(choisie) ? choisie : (periods[0] ?? null);
 
   const [plate, setPlate] = useState(0);
 
@@ -1082,7 +1088,7 @@ export function AlmanacView({
      drawing waits for the posters to load, and a button that says
      nothing for two seconds passes for broken. */
   const [box, setBoîte] = useState<"repos" | "en cours" | "raté">("repos");
-  const emporter = async () => {
+  const takeAway = async () => {
     /* THE IMAGE IS COMPOSED AROUND A VINTAGE — it is written on it in
        large characters. On "toujours" there is none, and the button does
        not appear: better offer nothing than an image that would invent a
@@ -1104,7 +1110,7 @@ export function AlmanacView({
           country: a.geography.countries[0] ? countryName(a.geography.countries[0].name) : null,
           ageMean: a.age.mean,
         },
-        peauPosée()
+        skinApplied()
       );
       download(blob, `cine-hub-${period}.png`);
       setBoîte("repos");
@@ -1140,10 +1146,10 @@ export function AlmanacView({
   /* The rank is taken from the PERIODS and not from the years: the
      arrows must be able to reach "toujours", which opens the
      booklet. */
-  const rank = périodes.indexOf(period);
-  const allerAnnée = (pas: number) => {
-    const suivante = périodes[rank + pas];
-    if (suivante != null) setChoisie(suivante);
+  const rank = periods.indexOf(period);
+  const goToYear = (pas: number) => {
+    const nextOne = periods[rank + pas];
+    if (nextOne != null) setChoisie(nextOne);
   };
   const always = period === "always";
 
@@ -1171,7 +1177,7 @@ export function AlmanacView({
       <CoffeeRing style={{ left: 420, top: 210 }} rotate={-24} />
 
       {/* ---- L'EN-TÊTE, de hauteur arrêtée ---- */}
-      <div style={{ flexShrink: 0, height: ENTETE, boxSizing: "border-box" }}>
+      <div style={{ flexShrink: 0, height: HEADER, boxSizing: "border-box" }}>
         <Title />
 
         <div
@@ -1179,10 +1185,10 @@ export function AlmanacView({
           style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12 }}
         >
           <button
-            onClick={() => allerAnnée(1)}
-            disabled={rank >= périodes.length - 1}
+            onClick={() => goToYear(1)}
+            disabled={rank >= periods.length - 1}
             aria-label="période précédente"
-            style={arrowStyle(rank < périodes.length - 1)}
+            style={arrowStyle(rank < periods.length - 1)}
           >
             <ChevronLeft size={17} />
           </button>
@@ -1204,7 +1210,7 @@ export function AlmanacView({
             {always ? "always" : period}
           </div>
           <button
-            onClick={() => allerAnnée(-1)}
+            onClick={() => goToYear(-1)}
             disabled={rank <= 0}
             aria-label="période suivante"
             style={arrowStyle(rank > 0)}
@@ -1240,7 +1246,7 @@ export function AlmanacView({
               scrollbarWidth: "thin",
             }}
           >
-            {périodes.map((p) => (
+            {periods.map((p) => (
               <button
                 key={String(p)}
                 onClick={() => setChoisie(p)}
@@ -1257,7 +1263,7 @@ export function AlmanacView({
               built around a vintage written large. */}
           {!always && (
             <button
-              onClick={emporter}
+              onClick={takeAway}
               data-tour="almanac-export"
               disabled={box === "en cours"}
               title="Une image de cette année, à garder ou à montrer"
@@ -1373,7 +1379,7 @@ function Title() {
 
    Read here and not in the service: it is the view that has the right to
    look at the document. */
-function peauPosée(): BoxPalette {
+function skinApplied(): BoxPalette {
   const s = getComputedStyle(document.documentElement);
   const v = (name: string, repli: string) => s.getPropertyValue(name).trim() || repli;
   return {

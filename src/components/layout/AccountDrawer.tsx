@@ -56,9 +56,9 @@ import type { SyncReport } from "../../services/sync";
 
 const quandDit = (le: number | null): string => {
   if (!le) return "jamais encore";
-  const secondes = Math.round((Date.now() - le) / 1000);
-  if (secondes < 90) return "à l'instant";
-  const minutes = Math.round(secondes / 60);
+  const seconds = Math.round((Date.now() - le) / 1000);
+  if (seconds < 90) return "à l'instant";
+  const minutes = Math.round(seconds / 60);
   if (minutes < 60) return `il y a ${minutes} minutes`;
   const hours = Math.round(minutes / 60);
   if (hours < 24) return `il y a ${hours} heure${hours > 1 ? "s" : ""}`;
@@ -233,8 +233,8 @@ export function AccountDrawer({
             <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginBottom: 12 }}>
               {/* We explain the passkey in one sentence: nobody should
                   have to know what WebAuthn is in order to sign up. */}
-              Pas de word de passe : votre téléphone ou votre ordinateur signe à votre place, avec
-              ce qui le déverrouille déjà.
+              Pas de word de pass : votre téléphone ou votre ordinateur sign à votre place, avec ce
+              qui le déverrouille déjà.
             </div>
 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -266,9 +266,9 @@ export function AccountDrawer({
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <Share />
 
-            <Blocages />
+            <Blocks />
 
-            <Rappels />
+            <Reminders />
 
             <button
               onClick={async () => {
@@ -300,12 +300,14 @@ export function AccountDrawer({
                     setSouci(null);
                     setBusy(true);
                     try {
-                      const tout = await myData();
+                      const everything = await myData();
                       /* A file, not a screen: what one takes away must
                          be readable elsewhere, and in ten years. */
                       const link = document.createElement("a");
                       link.href = URL.createObjectURL(
-                        new Blob([JSON.stringify(tout, null, 2)], { type: "application/json" })
+                        new Blob([JSON.stringify(everything, null, 2)], {
+                          type: "application/json",
+                        })
                       );
                       link.download = `cine-hub-${report.person!.pseudo}.json`;
                       link.click();
@@ -382,8 +384,9 @@ export function AccountDrawer({
               the phone is a note lost. But it cannot be guessed, so it is
               said — and sharing, for its part, will send only the public
               part of the card (see `publicPart`). */}
-          Votre collection entière est copiée sur votre compte, notes et séances comprises. Nothing
-          n'est public : le partage se décide fiche par fiche, et n'emportera jamais vos notes.
+          Votre collection entière est copiée sur votre count, notes et screenings comprises.
+          Nothing n'est public : le partage se décide fiche par fiche, et n'emportera never vos
+          notes.
         </div>
       </div>
     </Layer>
@@ -455,11 +458,11 @@ const button = (ink: string, off: boolean) => ({
    THE SECTION STAYS QUIET WHEN THE LIST IS EMPTY, like the reminders
    above: there is nothing to undo, and a "nobody" heading on such a
    subject teaches nobody anything. */
-function Blocages() {
+function Blocks() {
   const [list, setListe] = useState<string[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
-  const relire = () =>
+  const reread = () =>
     myBlocks()
       .then((r) => setListe(r.blocages))
       /* With no server or offline: we stay quiet, we do not show an
@@ -467,7 +470,7 @@ function Blocages() {
       .catch(() => setListe(null));
 
   useEffect(() => {
-    relire();
+    reread();
   }, []);
 
   if (!list?.length) return null;
@@ -478,7 +481,7 @@ function Blocages() {
       await unblock(pseudo);
     } finally {
       setBusy(null);
-      await relire();
+      await reread();
     }
   };
 
@@ -537,17 +540,17 @@ function Blocages() {
   );
 }
 
-function Rappels() {
+function Reminders() {
   const [state, setState] = useState<PushState | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const relire = () =>
+  const reread = () =>
     pushState()
       .then(setState)
       .catch(() => setState(null));
 
   useEffect(() => {
-    relire();
+    reread();
   }, []);
 
   if (!state?.possible) return null;
@@ -559,7 +562,7 @@ function Rappels() {
       else await subscribeToPush();
     } finally {
       setBusy(false);
-      await relire();
+      await reread();
     }
   };
 
@@ -591,7 +594,7 @@ function Rappels() {
 
 function Share() {
   const [state, setState] = useState<Sharing | null>(null);
-  const [jeton, setJeton] = useState<string | null>(null);
+  const [token, setJeton] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -606,7 +609,7 @@ function Share() {
       .then((r) => {
         if (!alive) return;
         setState(r.partage);
-        setJeton(r.jeton);
+        setJeton(r.token);
       })
       /* Offline: we stay mute rather than marking an invented state.
          Clicking a mode will set it and say so. */
@@ -619,16 +622,16 @@ function Share() {
   const adresse =
     state === "publique"
       ? `${location.origin}${location.pathname}#/chez/${pseudoDeLaPage()}`
-      : jeton
-        ? `${location.origin}${location.pathname}#/chez/${pseudoDeLaPage()}?jeton=${jeton}`
+      : token
+        ? `${location.origin}${location.pathname}#/chez/${pseudoDeLaPage()}?jeton=${token}`
         : null;
 
-  const régler = async (voulu: Sharing) => {
+  const set = async (voulu: Sharing) => {
     setBusy(true);
     try {
       const r = await setSharing(voulu);
       setState(r.partage);
-      setJeton(r.jeton);
+      setJeton(r.token);
       setCopied(false);
     } finally {
       setBusy(false);
@@ -649,7 +652,7 @@ function Share() {
           <button
             key={clé}
             disabled={busy}
-            onClick={() => régler(clé)}
+            onClick={() => set(clé)}
             style={{
               ...button(state === clé ? C.burgundy : C.ink, busy),
               background: state === clé ? C.burgundy : "transparent",

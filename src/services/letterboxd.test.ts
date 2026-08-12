@@ -16,7 +16,7 @@ import {
 const item = (guid: string, inner: string) =>
   `<item><guid isPermaLink="false">${guid}</guid>${inner}</item>`;
 
-const FLUX = `<?xml version='1.0' encoding='utf-8'?>
+const FEED = `<?xml version='1.0' encoding='utf-8'?>
 <rss version="2.0" xmlns:letterboxd="https://letterboxd.com" xmlns:tmdb="https://themoviedb.org">
 <channel><title>Letterboxd - Essai</title>
 ${item(
@@ -57,7 +57,7 @@ ${item(
 )}
 </channel></rss>`;
 
-const parsed = () => parseLetterboxdRss(FLUX);
+const parsed = () => parseLetterboxdRss(FEED);
 const find = (title: string) => parsed().rows.find((r) => r.title === title);
 
 describe("lire le flux Letterboxd", () => {
@@ -169,7 +169,7 @@ describe("l'adresse du flux", () => {
    films — a title carrying a comma, one without a year, and a poster
    without a name. The pagination is reproduced as it is, ellipsis
    included: it is what says how many pages to read. */
-const GRILLE = `<html><body><section>
+const GRID = `<html><body><section>
   <div class="poster-grid"><ul class="grid -p125">
     <li class="griditem">
       <div class="react-component" data-component-class="LazyPoster"
@@ -194,7 +194,7 @@ const GRILLE = `<html><body><section>
 
 /* The old template, still served here and there: the year is an
    attribute there and the title lives in the poster's `alt`. */
-const ANCIEN = `<html><body><ul class="poster-list">
+const OLD = `<html><body><ul class="poster-list">
   <li class="poster-container">
     <div class="film-poster" data-film-slug="vivre-sa-vie"
          data-film-release-year="1962"><img alt="Vivre sa vie"></div>
@@ -202,7 +202,7 @@ const ANCIEN = `<html><body><ul class="poster-list">
 </ul></body></html>`;
 
 describe("lire une page de watchlist", () => {
-  const page = () => parseWatchlistPage(GRILLE);
+  const page = () => parseWatchlistPage(GRID);
 
   it("rend chaque film avec son année et son adresse", () => {
     expect(page().rows[0]).toMatchObject({
@@ -239,11 +239,11 @@ describe("lire une page de watchlist", () => {
   });
 
   it("tient une watchlist courte pour une seule page", () => {
-    expect(parseWatchlistPage(ANCIEN).lastPage).toBe(1);
+    expect(parseWatchlistPage(OLD).lastPage).toBe(1);
   });
 
   it("comprend encore l'ancien gabarit, où l'année est un attribut", () => {
-    expect(parseWatchlistPage(ANCIEN).rows[0]).toMatchObject({
+    expect(parseWatchlistPage(OLD).rows[0]).toMatchObject({
       title: "Vivre sa vie",
       year: 1962,
       uri: "https://letterboxd.com/film/vivre-sa-vie/",
@@ -282,7 +282,7 @@ describe("relever une watchlist entière", () => {
       .join("")}</ul>
      <div class="paginate-pages"><ul><li>1</li><li>${last}</li></ul></div></body></html>`;
 
-  const servir = (pages: Record<string, string>) =>
+  const serve = (pages: Record<string, string>) =>
     vi.stubGlobal("fetch", (url: string) => {
       const html = pages[url];
       return Promise.resolve({
@@ -295,7 +295,7 @@ describe("relever une watchlist entière", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("suit la pagination et rend les films dans l'ordre des pages", async () => {
-    servir({
+    serve({
       "/lb-rss/essai/watchlist/page/1/": page(["Stalker (1979)", "Solaris (1972)"], 2),
       "/lb-rss/essai/watchlist/page/2/": page(["Le Miroir (1975)"], 2),
     });
@@ -310,7 +310,7 @@ describe("relever une watchlist entière", () => {
      cards would be born at the same millisecond and the "by addition"
      sort would be at random. */
   it("date les fiches dans l'ordre où elles ont été mises de côté", async () => {
-    servir({
+    serve({
       "/lb-rss/essai/watchlist/page/1/": page(["Stalker (1979)", "Solaris (1972)"], 2),
       "/lb-rss/essai/watchlist/page/2/": page(["Le Miroir (1975)"], 2),
     });
@@ -321,15 +321,15 @@ describe("relever une watchlist entière", () => {
   });
 
   it("annonce l'avancée page après page", async () => {
-    servir({
+    serve({
       "/lb-rss/essai/watchlist/page/1/": page(["Stalker (1979)"], 2),
       "/lb-rss/essai/watchlist/page/2/": page(["Solaris (1972)"], 2),
     });
-    const vu: string[] = [];
+    const seen: string[] = [];
     await fetchLetterboxdWatchlist("essai", undefined, {
-      onProgress: (d, t) => vu.push(`${d}/${t}`),
+      onProgress: (d, t) => seen.push(`${d}/${t}`),
     });
-    expect(vu).toEqual(["1/2", "2/2"]);
+    expect(seen).toEqual(["1/2", "2/2"]);
   });
 
   it("refuse un pseudo vide avant de toucher au réseau", async () => {

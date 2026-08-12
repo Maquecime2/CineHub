@@ -30,7 +30,7 @@ interface RepairPanelProps {
 }
 
 export function RepairPanel({ films, onImport }: RepairPanelProps) {
-  const suspectes = useMemo(() => flippedByMistake(films), [films]);
+  const suspects = useMemo(() => flippedByMistake(films), [films]);
   /* Nothing ticked at the start. Unticking thirty cards out of three
      hundred is work; ticking the ones one recognises is another kind —
      but the second errs in the direction that costs nothing. "TOUT
@@ -40,7 +40,7 @@ export function RepairPanel({ films, onImport }: RepairPanelProps) {
   const [request, setRequest] = useState<ConfirmRequest | null>(null);
   const [report, setReport] = useState("");
 
-  if (suspectes.length === 0) return null;
+  if (suspects.length === 0) return null;
 
   const toggle = (id: string) =>
     setChoisies((s) => {
@@ -52,14 +52,14 @@ export function RepairPanel({ films, onImport }: RepairPanelProps) {
 
   const allOfThem = () =>
     setChoisies((s) =>
-      s.size === suspectes.length ? new Set() : new Set(suspectes.map((f) => f.id))
+      s.size === suspects.length ? new Set() : new Set(suspects.map((f) => f.id))
     );
 
   /* We go back through `onImport` rather than a writing path of our
      own: it is the same field-by-field merge as the import, and a single
      place where the writing can go wrong. */
   const putBack = () => {
-    const toPutBack = suspectes.filter((f) => choisies.has(f.id));
+    const toPutBack = suspects.filter((f) => choisies.has(f.id));
     if (!toPutBack.length) return;
     setRequest({
       title: `Remettre ${toPutBack.length} fiche(s) en « à voir » ?`,
@@ -102,7 +102,7 @@ export function RepairPanel({ films, onImport }: RepairPanelProps) {
 
       <Tally
         label="fiches « vues » sans aucune trace de visionnage"
-        value={suspectes.length}
+        value={suspects.length}
         ink={C.ochre}
       />
       <Tally label="cochées" value={choisies.size} ink={choisies.size ? C.pine : C.inkFaded} />
@@ -124,7 +124,7 @@ export function RepairPanel({ films, onImport }: RepairPanelProps) {
       </div>
 
       <div style={{ maxHeight: 260, overflowY: "auto", border: `1px solid ${C.line}` }}>
-        {suspectes.map((f) => (
+        {suspects.map((f) => (
           <label
             key={f.id}
             style={{
@@ -173,7 +173,7 @@ export function RepairPanel({ films, onImport }: RepairPanelProps) {
             fontSize: 10.5,
           }}
         >
-          {choisies.size === suspectes.length ? "TOUT DÉCOCHER" : "TOUT COCHER"}
+          {choisies.size === suspects.length ? "TOUT DÉCOCHER" : "TOUT COCHER"}
         </button>
         <button
           onClick={putBack}

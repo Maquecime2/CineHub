@@ -62,7 +62,7 @@ export const withoutDemo = <T extends Pick<Film, "id">>(films: T[]): T[] =>
 /* A screening reads "the day, the rating". `null` means "seen without
    rating", which is not zero — the almanac counts the screening and sets
    the rating aside. */
-const vu = (date: string, rating: number | null = null, rewatch = false): Watch => ({
+const seen = (date: string, rating: number | null = null, rewatch = false): Watch => ({
   date,
   rating,
   ...(rewatch ? { rewatch: true } : {}),
@@ -71,12 +71,12 @@ const vu = (date: string, rating: number | null = null, rewatch = false): Watch 
 /* The cards are written in a single table, in the order they will
    appear on the wall. `makeFilm` fills in everything left unsaid: it is
    the definition of a card, not this list. */
-interface Brouillon extends Partial<Film> {
+interface DraftNote extends Partial<Film> {
   id: string;
   title: string;
 }
 
-const BROUILLONS: Brouillon[] = [
+const DRAFTS: DraftNote[] = [
   {
     id: "demo-chihiro",
     title: "Le Voyage de Chihiro",
@@ -95,7 +95,7 @@ const BROUILLONS: Brouillon[] = [
     rating: 4.5,
     review:
       "Revu dix ans après, et c'est le train sur l'eau qui reste — pas les monstres. Le film le plus calme jamais fait sur le fait de grandir.",
-    watches: [vu("2026-02-14", 4.5, true), vu("2024-11-03", 4.5)],
+    watches: [seen("2026-02-14", 4.5, true), seen("2024-11-03", 4.5)],
   },
   {
     id: "demo-mulholland",
@@ -116,7 +116,7 @@ const BROUILLONS: Brouillon[] = [
     review:
       "La boîte bleue ne s'explique pas, elle se subit. J'ai mis trois visionnages à cesser de chercher la clé, et c'est là que le film a commencé.",
     notes: "Revoir en pensant à Persona. La scène du Silencio, seule, vaut le détour.",
-    watches: [vu("2025-09-21", 4.5)],
+    watches: [seen("2025-09-21", 4.5)],
   },
   {
     id: "demo-mood",
@@ -139,7 +139,7 @@ const BROUILLONS: Brouillon[] = [
     rating: 5,
     review:
       "Deux personnes qui ne se touchent jamais, et le film entier est une caresse. Le ralenti dans l'escalier, à chaque fois.",
-    watches: [vu("2025-02-09", 5), vu("2024-03-17", 4.5)],
+    watches: [seen("2025-02-09", 5), seen("2024-03-17", 4.5)],
   },
   {
     id: "demo-jour-sans-fin",
@@ -158,7 +158,7 @@ const BROUILLONS: Brouillon[] = [
     themes: ["la répétition"],
     rating: 4,
     review: "La meilleure comédie jamais faite sur l'idée qu'on ne devient quelqu'un qu'à l'usure.",
-    watches: [vu("2026-01-02", 4)],
+    watches: [seen("2026-01-02", 4)],
   },
   {
     id: "demo-alien",
@@ -178,7 +178,7 @@ const BROUILLONS: Brouillon[] = [
     rating: 4.5,
     review:
       "Un film de couloirs. Tout ce qui fait peur est hors champ, et la seule chose qu'on voie vraiment est la fatigue des gens.",
-    watches: [vu("2025-10-31", 4.5)],
+    watches: [seen("2025-10-31", 4.5)],
   },
   {
     id: "demo-blade-runner",
@@ -198,7 +198,7 @@ const BROUILLONS: Brouillon[] = [
     rating: 4,
     review:
       "Le monologue final est écrit sur le plateau, et c'est la plus belle chose du film. La pluie y fait le travail de la musique.",
-    watches: [vu("2025-10-25", 4)],
+    watches: [seen("2025-10-25", 4)],
   },
   {
     id: "demo-paris-texas",
@@ -218,7 +218,7 @@ const BROUILLONS: Brouillon[] = [
     rating: 5,
     review:
       "La scène du peep-show tient quinze minutes sur deux voix et une vitre. Rien de ce que j'ai vu depuis ne s'en approche.",
-    watches: [vu("2024-06-08", 5)],
+    watches: [seen("2024-06-08", 5)],
   },
   {
     id: "demo-perfect-days",
@@ -258,7 +258,7 @@ const BROUILLONS: Brouillon[] = [
     rating: 4.5,
     review:
       "L'arrêt sur image sur la plage est la première fin de film qui refuse de conclure. Tout le reste de la Nouvelle Vague en sort.",
-    watches: [vu("2024-09-12", 4.5)],
+    watches: [seen("2024-09-12", 4.5)],
   },
   {
     id: "demo-samourai",
@@ -282,7 +282,7 @@ const BROUILLONS: Brouillon[] = [
     rating: 4.5,
     review:
       "Dix minutes sans un mot pour ouvrir. Melville filme un rituel, pas un métier — et Delon ne joue rien, ce qui est exactement ce qu'il fallait.",
-    watches: [vu("2026-03-30", 4.5)],
+    watches: [seen("2026-03-30", 4.5)],
   },
   {
     id: "demo-stalker",
@@ -303,7 +303,7 @@ const BROUILLONS: Brouillon[] = [
     review:
       "Trois hommes marchent vers une pièce qui exauce, et aucun n'ose entrer. Le film dure ce qu'il faut pour qu'on comprenne pourquoi.",
     notes: "Vu fatigué, à revoir un dimanche matin. Le passage sépia du retour m'a échappé.",
-    watches: [vu("2025-05-04", 4)],
+    watches: [seen("2025-05-04", 4)],
   },
   {
     id: "demo-portrait",
@@ -323,7 +323,7 @@ const BROUILLONS: Brouillon[] = [
     rating: 4.5,
     review:
       "Un film sur ce que c'est que d'être regardée en retour. Le dernier plan tient sur un visage et un opéra, et il suffit.",
-    watches: [vu("2026-05-18", 4.5)],
+    watches: [seen("2026-05-18", 4.5)],
   },
 ];
 
@@ -377,7 +377,7 @@ const THREADS: Thread[] = [
 
 /* A reference to a work that is not a film: that is what makes the
    constellation something other than a map of the collection. */
-const LIVRE: Omit<LinkedWork, "id"> & { owner: string } = {
+const BOOK: Omit<LinkedWork, "id"> & { owner: string } = {
   owner: "demo-blade-runner",
   type: "book",
   title: "Les androïdes rêvent-ils de moutons électriques ?",
@@ -397,7 +397,7 @@ const LIVRE: Omit<LinkedWork, "id"> & { owner: string } = {
  * but an array is not.
  */
 export function demoFilms(maintenant = Date.now()): Film[] {
-  const films = BROUILLONS.map((b, rank) =>
+  const films = DRAFTS.map((b, rank) =>
     makeFilm({
       ...b,
       /* Arranged in the order of the table, from the most recently
@@ -413,18 +413,18 @@ export function demoFilms(maintenant = Date.now()): Film[] {
     })
   );
 
-  const parId = new Map(films.map((f) => [f.id, f]));
+  const perId = new Map(films.map((f) => [f.id, f]));
   const add = (id: string, link: LinkedWork) => {
-    const f = parId.get(id);
+    const f = perId.get(id);
     if (f) f.linkedWorks = [...f.linkedWorks, link];
   };
 
   for (const [rank, fil] of THREADS.entries()) {
-    const a = parId.get(fil.de);
-    const b = parId.get(fil.vers);
+    const a = perId.get(fil.de);
+    const b = perId.get(fil.vers);
     if (!a || !b) continue;
     const pairId = `${DEMO_PREFIX}pair-${rank}`;
-    const moitié = (target: Film, relation: Relation): LinkedWork => ({
+    const half = (target: Film, relation: Relation): LinkedWork => ({
       id: `${DEMO_PREFIX}lien-${rank}-${target.id}`,
       pairId,
       type: "film",
@@ -435,11 +435,11 @@ export function demoFilms(maintenant = Date.now()): Film[] {
       relation,
       force: fil.force,
     });
-    add(a.id, moitié(b, fil.relation));
-    add(b.id, moitié(a, inverseOf(fil.relation)!));
+    add(a.id, half(b, fil.relation));
+    add(b.id, half(a, inverseOf(fil.relation)!));
   }
 
-  const { owner, ...livre } = LIVRE;
+  const { owner, ...livre } = BOOK;
   add(owner, { id: `${DEMO_PREFIX}lien-livre`, ...livre });
 
   return films;

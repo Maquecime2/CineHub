@@ -40,7 +40,7 @@ import type { Film } from "../../types";
    at different moments — one straight away, the other on the network's
    return — and without a floor the page would rearrange itself under the
    cursor at the very moment one is about to click. */
-const HAUTEUR_MINIMALE = 220;
+const MIN_HEIGHT = 220;
 
 /* TEN PER COLUMN, AND NOT OF JUST ANY KIND.
 
@@ -87,7 +87,7 @@ function Proposition({
   /** What unfolds under the proposal when one opens it. */
   unfolded?: ReactNode;
 }) {
-  const contenu = (
+  const content = (
     <>
       {/* THE POSTER'S CELL IS POSITIONED, AND IT HAS A SIZE.
 
@@ -177,10 +177,10 @@ function Proposition({
             e.currentTarget.style.background = "transparent";
           }}
         >
-          {contenu}
+          {content}
         </button>
       ) : (
-        <div style={style}>{contenu}</div>
+        <div style={style}>{content}</div>
       )}
       {unfolded}
     </div>
@@ -230,7 +230,7 @@ function Vignette({ film }: { film: Film }) {
    director is missing, and it is asked for on opening — one call, for
    the film one is looking at, and not forty in advance for those one
    will never open. */
-function Dépli({
+function Unfold({
   v,
   director,
   alreadySetAside,
@@ -308,7 +308,7 @@ function Dépli({
    from TMDB fills the gap by itself (see `reinforcementFromOutside`). So
    this word only appears OFFLINE, where it stays true — and where the
    only remedy really is to lay patterns by hand. */
-function ManqueLesSujets() {
+function SubjectsMissing() {
   return (
     <div
       style={{
@@ -366,7 +366,7 @@ export function WakePanel({
      the card, which would replay the sort over five hundred cards. */
   /* What the collection says of itself, with no network. Broad: this is
      not the final list, only one of its two sources. */
-  const maison: Neighbour[] = useMemo(
+  const house: Neighbour[] = useMemo(
     () => wakeAtHome(film, films, { people: 40, subjects: 40 }),
     [film, films]
   );
@@ -388,23 +388,23 @@ export function WakePanel({
      patterns, and because TMDB brought it back. We then keep the one
      that EXPLAINS best — the better score — and never both, otherwise
      the same poster would appear twice in the column. */
-  const chezVous: Neighbour[] = useMemo(() => {
-    const parFilm = new Map<string, Neighbour>();
-    for (const v of [...maison, ...renfort]) {
-      const déjà = parFilm.get(v.film.id);
-      if (!déjà || v.score > déjà.score) parFilm.set(v.film.id, v);
+  const atHome: Neighbour[] = useMemo(() => {
+    const perFilm = new Map<string, Neighbour>();
+    for (const v of [...house, ...renfort]) {
+      const déjà = perFilm.get(v.film.id);
+      if (!déjà || v.score > déjà.score) perFilm.set(v.film.id, v);
     }
-    const all = [...parFilm.values()].sort(
+    const all = [...perFilm.values()].sort(
       (a, b) => b.score - a.score || a.film.title.localeCompare(b.film.title, "fr")
     );
     return byQuotas(all, (v) => familyOf(v.links), QUOTAS);
-  }, [maison, renfort]);
+  }, [house, renfort]);
 
   const [dehors, setDehors] = useState<FarNeighbour[] | null>(null);
   const [query, setQuery] = useState(false);
   /* The unfolded proposal — one at a time only: two open synopses would
      turn the column into an article. */
-  const [ouvert, setOuvert] = useState<number | null>(null);
+  const [open, setOuvert] = useState<number | null>(null);
   /* The directors already asked for, by TMDB identifier. `discover` and
      `recommendations` return films, not crews: the name is asked for
      separately, and only for the one being opened. */
@@ -476,7 +476,7 @@ export function WakePanel({
      director if it has been asked for — so that it leaves named instead
      of waiting for a "complete the cards" that would ask for the same
      thing again. It is the same gesture as the discoveries desk. */
-  const mettreDeCôté = (v: FarNeighbour) => {
+  const setAside = (v: FarNeighbour) => {
     onAddToWatchlist?.(
       makeFilm({
         title: v.title,
@@ -499,8 +499,7 @@ export function WakePanel({
     <Cardstock tour="detail-sillage" style={{ marginTop: 18 }}>
       <SectionTitle icon={<Waves size={15} color={C.cobalt} />}>Dans le sillage</SectionTitle>
       <Guideline>
-        ce qui tient de « {film.title} » — par l&apos;équipe, les sujets, les people à
-        l&apos;affiche
+        ce qui fits de « {film.title} » — par l&apos;équipe, les sujets, les people à l&apos;affiche
       </Guideline>
 
       <div
@@ -524,10 +523,10 @@ export function WakePanel({
           >
             CHEZ VOUS
           </div>
-          {!apiKey && noSubjects && <ManqueLesSujets />}
-          <div style={{ minHeight: HAUTEUR_MINIMALE }}>
-            {chezVous.length ? (
-              chezVous.map((v) => (
+          {!apiKey && noSubjects && <SubjectsMissing />}
+          <div style={{ minHeight: MIN_HEIGHT }}>
+            {atHome.length ? (
+              atHome.map((v) => (
                 <Proposition
                   key={v.key}
                   title={v.film.title}
@@ -561,7 +560,7 @@ export function WakePanel({
           >
             AILLEURS
           </div>
-          <div style={{ minHeight: HAUTEUR_MINIMALE }}>
+          <div style={{ minHeight: MIN_HEIGHT }}>
             {!apiKey ? (
               <NoKey what="chercher au-dehors ce qui tient de ce film" />
             ) : query ? (
@@ -579,12 +578,12 @@ export function WakePanel({
                   aside={misDeCôté.has(v.tmdbId) ? "à voir" : undefined}
                   onClick={() => unfold(v)}
                   unfolded={
-                    ouvert === v.tmdbId ? (
-                      <Dépli
+                    open === v.tmdbId ? (
+                      <Unfold
                         v={v}
                         director={réals[v.tmdbId] || ""}
                         alreadySetAside={misDeCôté.has(v.tmdbId)}
-                        onMettreDeCôté={() => mettreDeCôté(v)}
+                        onMettreDeCôté={() => setAside(v)}
                       />
                     ) : undefined
                   }

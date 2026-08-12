@@ -96,7 +96,7 @@ function AvisLu({ avis, onSilence }: { avis: Echo["avis"][number]; onSilence: ()
     onSilence();
   };
 
-  const dire = async () => {
+  const say = async () => {
     /* `prompt` is ugly, and it is the right tool: a motif is stated in
        one sentence, and one more modal in an already dense card would be
        paid for in confusion, for a gesture made twice a year. */
@@ -140,7 +140,7 @@ function AvisLu({ avis, onSilence }: { avis: Echo["avis"][number]; onSilence: ()
           <span style={{ fontFamily: F.mono, fontSize: 9, color: C.inkFaded }}>{fait}</span>
         ) : (
           <>
-            <button onClick={dire} title="Signaler" style={small}>
+            <button onClick={say} title="Signaler" style={small}>
               <Flag size={11} />
             </button>
             <button onClick={mute} title={`Ne plus rien voir de ${avis.pseudo}`} style={small}>

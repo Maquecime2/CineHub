@@ -36,7 +36,7 @@ export function FilmPolaroid({
 }) {
   const f = scaleOf(look);
   const px = (n: number) => Math.round(n * f);
-  const vus = watchCount(film);
+  const seenFilms = watchCount(film);
 
   /* The disorder stays SOWN from the identifier — we only dose it. At
      "tidy", the factor is zero and the wall is dead straight without any
@@ -152,9 +152,9 @@ export function FilmPolaroid({
                 right: the bottom-right corner already belongs to the
                 folder number and the shadow fold, which would have
                 covered it. */}
-            {vus > 1 && (
+            {seenFilms > 1 && (
               <span
-                aria-label={`vu ${vus} fois`}
+                aria-label={`vu ${seenFilms} fois`}
                 /* It used to take the size of the "TO WATCH" — ten
                    pixels, that of a service mention. But a wall card is
                    read from afar, and the count is INFORMATION there, not
@@ -167,7 +167,7 @@ export function FilmPolaroid({
                   lineHeight: 1,
                 }}
               >
-                ×{vus}
+                ×{seenFilms}
               </span>
             )}
           </div>

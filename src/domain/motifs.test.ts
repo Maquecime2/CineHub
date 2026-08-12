@@ -64,12 +64,12 @@ describe("your own motifs", () => {
   afterEach(() => setVocabulary({ custom: [], hidden: [] }));
 
   it("are added to the catalogue without replacing it", () => {
-    const mien = makeCustomMotif("Il pleut sans arrêt", "world");
-    setVocabulary({ custom: [mien], hidden: [] });
-    expect(motifById(mien.id)?.label).toBe("Il pleut sans arrêt");
+    const mine = makeCustomMotif("Il pleut sans arrêt", "world");
+    setVocabulary({ custom: [mine], hidden: [] });
+    expect(motifById(mine.id)?.label).toBe("Il pleut sans arrêt");
     expect(motifById("hero-dies")).toBeTruthy();
     expect(allMotifs()).toHaveLength(MOTIFS.length + 1);
-    expect(isCustom(mien.id)).toBe(true);
+    expect(isCustom(mine.id)).toBe(true);
     expect(isCustom("hero-dies")).toBe(false);
   });
 
@@ -80,9 +80,9 @@ describe("your own motifs", () => {
   });
 
   it("are searched like the others", () => {
-    const mien = makeCustomMotif("Il pleut sans arrêt", "world");
-    setVocabulary({ custom: [mien], hidden: [] });
-    expect(searchMotifs("pleut").map((m) => m.id)).toContain(mien.id);
+    const mine = makeCustomMotif("Il pleut sans arrêt", "world");
+    setVocabulary({ custom: [mine], hidden: [] });
+    expect(searchMotifs("pleut").map((m) => m.id)).toContain(mine.id);
   });
 });
 

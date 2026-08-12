@@ -157,9 +157,9 @@ describe("CategoryBox — un segment de boîte", () => {
        has one. */
     expect(card({ first: true, last: false })).not.toMatch(/border-right:[^;]*solid/);
     expect(card({ first: false, last: true })).not.toMatch(/border-left:[^;]*solid/);
-    const seul = card({ first: true, last: true });
-    expect(seul).toMatch(/border-left:[^;]*solid/);
-    expect(seul).toMatch(/border-right:[^;]*solid/);
+    const alone = card({ first: true, last: true });
+    expect(alone).toMatch(/border-left:[^;]*solid/);
+    expect(alone).toMatch(/border-right:[^;]*solid/);
   });
 });
 
@@ -215,8 +215,8 @@ describe("DecorItem — l'intercalaire", () => {
     });
 
     it("reste moins penché qu'un bibelot posé, qui lui gît de travers", () => {
-      const bibelots = ids.map((id) => Math.abs(Number(tiltOf(id))));
-      expect(Math.max(...bibelots)).toBeGreaterThan(2.2);
+      const trinkets = ids.map((id) => Math.abs(Number(tiltOf(id))));
+      expect(Math.max(...trinkets)).toBeGreaterThan(2.2);
     });
 
     it("garde la même inclinaison d'un rendu à l'autre", () => {
@@ -355,14 +355,14 @@ describe("FilmBox — la note sur la tranche", () => {
 });
 
 describe("FilmBox — le compte des séances", () => {
-  const séances = (n) =>
+  const screenings = (n) =>
     Array.from({ length: n }, (_, i) => ({ date: `202${i}-01-01`, rating: null }));
 
   const counter = (n) => {
     document.body.innerHTML = "";
     render(
       <FilmBox
-        film={film("f1", { rating: 3, watches: séances(n) })}
+        film={film("f1", { rating: 3, watches: screenings(n) })}
         ctx={{}}
         onOpen={noop}
         dim={false}

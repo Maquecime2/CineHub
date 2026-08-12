@@ -117,9 +117,9 @@ describe("when the vault refuses", () => {
     refuse = true;
     forgetCache([]);
     await saveFilms([card({ id: "a", title: "Yi Yi" })]);
-    const écrit = JSON.parse(localStorage.getItem(FILMS_KEY) || "[]");
-    expect(écrit).toHaveLength(1);
-    expect(écrit[0].title).toBe("Yi Yi");
+    const written = JSON.parse(localStorage.getItem(FILMS_KEY) || "[]");
+    expect(written).toHaveLength(1);
+    expect(written[0].title).toBe("Yi Yi");
   });
 
   it("et se recharge de là où elle a été écrite", async () => {

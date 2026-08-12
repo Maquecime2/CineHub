@@ -49,17 +49,17 @@ describe("il couvre ce que la visite montre", () => {
 
   /* Step "Le fil rouge", and the whole constellation. */
   it("tend des fils entre ses fiches, dans les deux sens", () => {
-    const paires = films.flatMap((f) =>
+    const pairs = films.flatMap((f) =>
       (f.linkedWorks || []).filter((w) => w.pairId).map((w) => w.pairId!)
     );
-    expect(paires.length).toBeGreaterThan(0);
+    expect(pairs.length).toBeGreaterThan(0);
     /* A thread is written on both sides: each `pairId` appears twice. */
-    for (const p of new Set(paires)) expect(paires.filter((x) => x === p)).toHaveLength(2);
+    for (const p of new Set(pairs)) expect(pairs.filter((x) => x === p)).toHaveLength(2);
   });
 
   it("relie une œuvre qui n'est pas un film", () => {
-    const hors = films.flatMap((f) => (f.linkedWorks || []).filter((w) => w.type !== "film"));
-    expect(hors.length).toBeGreaterThan(0);
+    const outside = films.flatMap((f) => (f.linkedWorks || []).filter((w) => w.type !== "film"));
+    expect(outside.length).toBeGreaterThan(0);
   });
 
   /* The two ends of a thread must point at each other, failing which
@@ -105,13 +105,13 @@ describe("il couvre ce que la visite montre", () => {
   });
 
   it("fait revenir au moins un nom, sinon rien ne se rapproche", () => {
-    const compte = (names: string[]) => {
+    const count = (names: string[]) => {
       const n = new Map<string, number>();
       for (const x of names) n.set(x, (n.get(x) || 0) + 1);
       return [...n.values()];
     };
-    expect(Math.max(...compte(films.map((f) => f.director)))).toBeGreaterThan(1);
-    expect(Math.max(...compte(films.flatMap((f) => f.crew.image || [])))).toBeGreaterThan(1);
+    expect(Math.max(...count(films.map((f) => f.director)))).toBeGreaterThan(1);
+    expect(Math.max(...count(films.flatMap((f) => f.crew.image || [])))).toBeGreaterThan(1);
   });
 
   /* Step "La fiche catalogue": it shows what TMDB brings back. */
@@ -129,10 +129,10 @@ describe("il couvre ce que la visite montre", () => {
 
   /* Step "Vos mots", and the gap to the almanac's public rating. */
   it("porte des notes et des critiques", () => {
-    const vus = films.filter((f) => f.status === "watched");
-    expect(vus.every((f) => f.rating > 0)).toBe(true);
-    expect(vus.every((f) => f.review.trim() !== "")).toBe(true);
-    expect(vus.some((f) => f.notes.trim() !== "")).toBe(true);
+    const seenFilms = films.filter((f) => f.status === "watched");
+    expect(seenFilms.every((f) => f.rating > 0)).toBe(true);
+    expect(seenFilms.every((f) => f.review.trim() !== "")).toBe(true);
+    expect(seenFilms.some((f) => f.notes.trim() !== "")).toBe(true);
   });
 
   /* RATINGS ARE OUT OF FIVE, AND NOTHING IN THE TYPE SAYS SO.
@@ -189,7 +189,7 @@ describe("il se retire d'un geste", () => {
   });
 
   it("ne touche pas à ce qui n'est pas l'exemple", () => {
-    const mien = makeFilm({ title: "à moi" });
-    expect(withoutDemo([...films, mien])).toEqual([mien]);
+    const mine = makeFilm({ title: "à moi" });
+    expect(withoutDemo([...films, mine])).toEqual([mine]);
   });
 });

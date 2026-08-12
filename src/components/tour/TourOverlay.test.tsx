@@ -16,7 +16,7 @@ import { loadOnboarding } from "../../services/onboarding";
 /* jsdom knows neither `ResizeObserver` nor `scrollIntoView`, which the
    target tracking uses: without them the search throws on the first node
    found, and we would be testing an engine that is not running. */
-class FauxResizeObserver {
+class FakeResizeObserver {
   observe() {}
   unobserve() {}
   disconnect() {}
@@ -25,12 +25,12 @@ class FauxResizeObserver {
 beforeEach(() => {
   cleanup();
   localStorage.clear();
-  vi.stubGlobal("ResizeObserver", FauxResizeObserver);
+  vi.stubGlobal("ResizeObserver", FakeResizeObserver);
   Element.prototype.scrollIntoView = vi.fn();
 });
 
 /** One target for every anchor the requested tour names. */
-function poserLesCibles(tourId: string) {
+function layTargets(tourId: string) {
   for (const s of TOURS[tourId]!.steps) {
     const m = s.target?.match(/^\[data-tour="(.+)"\]$/);
     if (!m) continue;
@@ -42,7 +42,7 @@ function poserLesCibles(tourId: string) {
 
 describe("la visite se déroule", () => {
   it("ouvre la première étape et compte les suivantes", async () => {
-    poserLesCibles("notebook");
+    layTargets("notebook");
     render(<TourOverlay tourId="notebook" onClose={vi.fn()} onView={vi.fn()} />);
 
     const step = TOURS.notebook!.steps[0]!;
@@ -51,15 +51,15 @@ describe("la visite se déroule", () => {
   });
 
   it("avance, revient, et n'offre pas de retour à la première étape", async () => {
-    poserLesCibles("import");
+    layTargets("import");
     render(<TourOverlay tourId="import" onClose={vi.fn()} onView={vi.fn()} />);
-    const [un, deux] = TOURS.import!.steps;
+    const [un, two] = TOURS.import!.steps;
 
     expect(await screen.findByText(un!.title)).toBeInTheDocument();
     expect(screen.queryByText("retour")).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByText("SUIVANT"));
-    expect(await screen.findByText(deux!.title)).toBeInTheDocument();
+    expect(await screen.findByText(two!.title)).toBeInTheDocument();
 
     await userEvent.click(screen.getByText("retour"));
     expect(await screen.findByText(un!.title)).toBeInTheDocument();
@@ -68,7 +68,7 @@ describe("la visite se déroule", () => {
   /* Finishing and abandoning do NOT write the same thing: that is what
      decides whether the reminder will appear. */
   it("terminer inscrit la visite comme faite", async () => {
-    poserLesCibles("notebook");
+    layTargets("notebook");
     const onClose = vi.fn();
     render(<TourOverlay tourId="notebook" onClose={onClose} onView={vi.fn()} />);
 
@@ -79,7 +79,7 @@ describe("la visite se déroule", () => {
   });
 
   it("passer marque l'abandon sans inscrire la visite", async () => {
-    poserLesCibles("import");
+    layTargets("import");
     const onClose = vi.fn();
     render(<TourOverlay tourId="import" onClose={onClose} onView={vi.fn()} />);
 
@@ -89,7 +89,7 @@ describe("la visite se déroule", () => {
   });
 
   it("Échap écarte la visite", async () => {
-    poserLesCibles("import");
+    layTargets("import");
     const onClose = vi.fn();
     render(<TourOverlay tourId="import" onClose={onClose} onView={vi.fn()} />);
     await screen.findByText(TOURS.import!.steps[0]!.title);
@@ -108,7 +108,7 @@ describe("la visite se déroule", () => {
 describe("la visite globale voyage", () => {
   it("demande la vue de sa première étape", async () => {
     const onView = vi.fn();
-    poserLesCibles("global");
+    layTargets("global");
     render(<TourOverlay tourId="global" onClose={vi.fn()} onView={onView} />);
 
     await screen.findByText(TOURS.global!.steps[0]!.title);
@@ -132,10 +132,8 @@ describe("une cible absente ne bloque pas", () => {
     /* The title is READ from the tour rather than copied here: this test
        is about the step being skipped, not about the second one's text,
        and a rewording of the product must not make it fail. */
-    const seconde = TOURS.almanac!.steps.find((s) => s.target?.includes("almanac-plates"))!;
-    expect(
-      await screen.findByText(seconde.title, undefined, { timeout: 3000 })
-    ).toBeInTheDocument();
+    const second = TOURS.almanac!.steps.find((s) => s.target?.includes("almanac-plates"))!;
+    expect(await screen.findByText(second.title, undefined, { timeout: 3000 })).toBeInTheDocument();
   });
 
   /* THE OTHER SIDE OF THE SET, AND IT IS WHAT BROKE. The guide stays
@@ -149,13 +147,13 @@ describe("une cible absente ne bloque pas", () => {
      with the right tour, the tainted state never exists, and the test
      would pass even with the bug. */
   it("n'escamote pas la première étape quand sa cible est là", async () => {
-    poserLesCibles("detail");
+    layTargets("detail");
     const { rerender } = render(<TourOverlay tourId={null} onClose={vi.fn()} onView={vi.fn()} />);
     rerender(<TourOverlay tourId="detail" onClose={vi.fn()} onView={vi.fn()} />);
 
-    const première = TOURS.detail!.steps[0]!;
-    expect(première.optional, "le test ne vaut que si l'étape est facultative").toBe(true);
-    expect(await screen.findByText(première.title)).toBeInTheDocument();
+    const firstOne = TOURS.detail!.steps[0]!;
+    expect(firstOne.optional, "le test ne vaut que si l'étape est facultative").toBe(true);
+    expect(await screen.findByText(firstOne.title)).toBeInTheDocument();
     expect(screen.getByText(`1 / ${TOURS.detail!.steps.length}`)).toBeInTheDocument();
   });
 });

@@ -44,7 +44,7 @@ export function ThreadView({ connected }: { connected: boolean }) {
   const [trouve, setTrouve] = useState<Profile | null>(null);
   const [souci, setSouci] = useState<string | null>(null);
 
-  const relire = useCallback(async () => {
+  const reread = useCallback(async () => {
     if (!connected) return;
     const [a, f] = await Promise.all([mySubscriptions(), readFeed()]);
     setAbonnements(a.abonnements);
@@ -52,8 +52,8 @@ export function ThreadView({ connected }: { connected: boolean }) {
   }, [connected]);
 
   useEffect(() => {
-    relire().catch(() => setNouvelles([]));
-  }, [relire]);
+    reread().catch(() => setNouvelles([]));
+  }, [reread]);
 
   if (!serverConfigured()) {
     return (
@@ -93,11 +93,11 @@ export function ThreadView({ connected }: { connected: boolean }) {
   };
 
   const toggle = async (profil: Profile) => {
-    const suit = profil.suivi ?? abonnements.some((a) => a.pseudo === profil.pseudo);
-    if (suit) await unfollow(profil.pseudo);
+    const follows = profil.suivi ?? abonnements.some((a) => a.pseudo === profil.pseudo);
+    if (follows) await unfollow(profil.pseudo);
     else await follow(profil.pseudo);
-    setTrouve({ ...profil, suivi: !suit });
-    await relire();
+    setTrouve({ ...profil, suivi: !follows });
+    await reread();
   };
 
   return (

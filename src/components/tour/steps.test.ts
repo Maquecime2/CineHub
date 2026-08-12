@@ -127,32 +127,32 @@ describe("les étapes se tiennent", () => {
    into a served module URL, which is not a file path. */
 const SRC = join(process.cwd(), "src");
 
-const fichiers = (dossier: string): string[] =>
+const files = (dossier: string): string[] =>
   readdirSync(dossier, { withFileTypes: true }).flatMap((e) => {
-    const chemin = join(dossier, e.name);
-    if (e.isDirectory()) return fichiers(chemin);
-    return /\.(tsx?|jsx?)$/.test(e.name) && !/\.test\./.test(e.name) ? [chemin] : [];
+    const path = join(dossier, e.name);
+    if (e.isDirectory()) return files(path);
+    return /\.(tsx?|jsx?)$/.test(e.name) && !/\.test\./.test(e.name) ? [path] : [];
   });
 
-const ancresPosées = (): Set<string> => {
-  const trouvées = new Set<string>();
-  for (const f of fichiers(SRC)) {
+const placedAnchors = (): Set<string> => {
+  const foundOnes = new Set<string>();
+  for (const f of files(SRC)) {
     /* `steps.ts` NAMES the anchors, it lays none: using it as proof
        would make every step justify itself. */
     if (/[\\/]tour[\\/]steps\.ts$/.test(f)) continue;
     for (const m of readFileSync(f, "utf8").matchAll(/\b(?:data-tour|tour)=["']([\w-]+)["']/g))
-      trouvées.add(m[1]!);
+      foundOnes.add(m[1]!);
   }
-  return trouvées;
+  return foundOnes;
 };
 
 describe("les cibles de la visite existent dans le produit", () => {
-  const posées = ancresPosées();
+  const placed = placedAnchors();
 
   it("en trouve un nombre plausible", () => {
     /* Safeguard of the safeguard: a broken regular expression would
        return an empty set, and every test below would pass. */
-    expect(posées.size).toBeGreaterThan(30);
+    expect(placed.size).toBeGreaterThan(30);
   });
 
   it("chaque étape vise une ancre posée", () => {
@@ -162,7 +162,7 @@ describe("les cibles de la visite existent dans le produit", () => {
         const nom = /^\[data-tour="([\w-]+)"\]$/.exec(s.target)?.[1];
         if (!nom) continue; // `[data-tab-rail]`, seule exception
         expect(
-          posées.has(nom),
+          placed.has(nom),
           `${id}[${i}] « ${s.title} » vise « ${nom} », qui n'est posé nulle part dans src/`
         ).toBe(true);
       }

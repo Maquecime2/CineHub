@@ -28,9 +28,9 @@ describe("l'atelier déco", () => {
   it("sait retirer une couche posée", async () => {
     const view = patchViewDecor({}, "wall", { pattern: "pois" });
     const { onChange, user } = studio(view);
-    const aucuns = screen.getAllByLabelText("aucun");
+    const none = screen.getAllByLabelText("aucun");
     // the wallpaper row's is the second one
-    await user.click(aucuns[1]);
+    await user.click(none[1]);
     expect(onChange).toHaveBeenCalledWith("wall", { pattern: null });
   });
 

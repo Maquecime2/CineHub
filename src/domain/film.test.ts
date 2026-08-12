@@ -37,13 +37,13 @@ describe("uid", () => {
   });
 
   it("with no cryptographic generator, the card still gets written", () => {
-    const vrai = crypto.randomUUID;
+    const real = crypto.randomUUID;
     // @ts-expect-error — we simulate a browser that does not have it
     crypto.randomUUID = undefined;
     try {
       expect(uid().length).toBeGreaterThan(8);
     } finally {
-      crypto.randomUUID = vrai;
+      crypto.randomUUID = real;
     }
   });
 });
@@ -83,8 +83,8 @@ describe("dating what has changed", () => {
   });
 
   it("a card never seen before is a card that has changed", () => {
-    const neuve = base({ id: "neuf" });
-    expect(stamp([], [neuve], 5000)[0]!.updatedAt).toBe(5000);
+    const fresh = base({ id: "neuf" });
+    expect(stamp([], [fresh], 5000)[0]!.updatedAt).toBe(5000);
   });
 });
 
@@ -141,8 +141,8 @@ describe("makeFilm", () => {
 
 describe("migrate", () => {
   it("completes cards from before the recent fields", () => {
-    const vieille = { id: "x", title: "Stalker", rating: 4 };
-    const [f] = migrate([vieille]);
+    const old = { id: "x", title: "Stalker", rating: 4 };
+    const [f] = migrate([old]);
     expect(f).toMatchObject({
       id: "x",
       title: "Stalker",
@@ -506,13 +506,13 @@ describe("editLinkedWork", () => {
     /* An orphaned half — the card opposite deleted outside this path —
        must not stop us annotating the one that remains. */
     it("still annotates when the card opposite has vanished", () => {
-      const seul = [
+      const alone = [
         makeFilm({
           id: "a",
           linkedWorks: [work({ id: "wa", type: "film", filmId: "disparu", pairId: "p" })],
         }),
       ];
-      expect(firstOf(editLinkedWork(seul, "a", "wa", { note: "n" }), "a").note).toBe("n");
+      expect(firstOf(editLinkedWork(alone, "a", "wa", { note: "n" }), "a").note).toBe("n");
     });
   });
 

@@ -54,13 +54,13 @@ describe("buildSky", () => {
   });
 
   it("links two cards on the wall with one edge, not two", () => {
-    const miroir = film("Le Miroir");
+    const mirror = film("Le Miroir");
     const stalker = film("Stalker", {
-      linkedWorks: [work({ type: "film", title: "Le Miroir", filmId: miroir.id })],
+      linkedWorks: [work({ type: "film", title: "Le Miroir", filmId: mirror.id })],
     });
     // the link is reciprocal: the two halves must not produce two lines
     const inverse = {
-      ...miroir,
+      ...mirror,
       linkedWorks: [work({ type: "film", title: "Stalker", filmId: stalker.id })],
     };
 
@@ -181,9 +181,9 @@ describe("suggestLinks", () => {
   });
 
   it("still links at the upper bound, no further", () => {
-    const trois = Array.from({ length: 3 }, (_, i) => film(`F${i}`, { cast: ["X"] }));
-    expect(suggestLinks(trois)).toHaveLength(3); // trois paires
-    expect(suggestLinks([...trois, film("F3", { cast: ["X"] })])).toEqual([]);
+    const three = Array.from({ length: 3 }, (_, i) => film(`F${i}`, { cast: ["X"] }));
+    expect(suggestLinks(three)).toHaveLength(3); // trois paires
+    expect(suggestLinks([...three, film("F3", { cast: ["X"] })])).toEqual([]);
   });
 
   it("does not link a film to itself, nor a lone person", () => {
@@ -302,7 +302,7 @@ describe("suggestLinks — the nature of the kinships", () => {
 
 describe("neighbourhood", () => {
   /* A — B — C — D, in a chain. */
-  const chaine = () => {
+  const chain = () => {
     const nodes = ["A", "B", "C", "D"].map((id) => ({
       id: `f:${id}`,
       kind: "film" as const,
@@ -319,13 +319,13 @@ describe("neighbourhood", () => {
   };
 
   it("ne rend que le foyer et ses voisins directs", () => {
-    const { nodes, links } = chaine();
+    const { nodes, links } = chain();
     const v = neighbourhood(nodes, links, "f:B", 1);
     expect(v.nodes.map((n) => n.label).sort()).toEqual(["A", "B", "C"]);
   });
 
   it("widens by one more step when asked", () => {
-    const { nodes, links } = chaine();
+    const { nodes, links } = chain();
     expect(
       neighbourhood(nodes, links, "f:A", 2)
         .nodes.map((n) => n.label)
@@ -336,19 +336,19 @@ describe("neighbourhood", () => {
   /* A thread running out to a star that is not displayed leads nowhere
      and suggests an invisible neighbour. */
   it("only keeps an edge if BOTH its ends are shown", () => {
-    const { nodes, links } = chaine();
+    const { nodes, links } = chain();
     const v = neighbourhood(nodes, links, "f:B", 1);
     expect(v.links).toHaveLength(2);
     expect(v.links.every((l) => ["f:A", "f:B", "f:C"].includes(l.a))).toBe(true);
   });
 
   it("rend le foyer seul quand rien ne le relie", () => {
-    const { nodes } = chaine();
+    const { nodes } = chain();
     expect(neighbourhood(nodes, [], "f:A", 1).nodes.map((n) => n.label)).toEqual(["A"]);
   });
 
   it("ne rend rien d'un foyer qui n'existe pas", () => {
-    const { nodes, links } = chaine();
+    const { nodes, links } = chain();
     expect(neighbourhood(nodes, links, "f:ZZZ", 1)).toEqual({ nodes: [], links: [] });
   });
 });
@@ -361,8 +361,8 @@ describe("threads in the sky", () => {
     const { nodes, links } = buildSky([a, b], {}, { threads: [fil] });
 
     expect(nodes.filter((n) => n.kind === "film")).toHaveLength(2);
-    const astre = nodes.find((n) => n.kind === "thread");
-    expect(astre?.label).toBe("Le héros meurt");
+    const star = nodes.find((n) => n.kind === "thread");
+    expect(star?.label).toBe("Le héros meurt");
     expect(links.filter((l) => l.kind === "thread")).toHaveLength(2);
   });
 
@@ -403,7 +403,7 @@ describe("the relation an edge carries", () => {
   it("se lit dans le sens du trait", () => {
     const a = makeFilm({ id: "a1", title: "A" });
     const b = makeFilm({ id: "b2", title: "B" });
-    const lié = [
+    const linkedOne = [
       {
         ...a,
         linkedWorks: [
@@ -417,7 +417,7 @@ describe("the relation an edge carries", () => {
         ],
       },
     ];
-    const edge = buildSky(lié).links.find((l) => l.kind === "peer");
+    const edge = buildSky(linkedOne).links.find((l) => l.kind === "peer");
     // "a1" sorts before "b2": the edge starts at A, and so carries what A says
     expect(edge?.a).toBe(`f:${a.id}`);
     expect(edge?.relation).toBe("sequel-to");

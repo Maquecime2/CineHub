@@ -275,14 +275,14 @@ export const PER_SEND = 500;
 export interface DocToPush {
   cle: string;
   majLe: number;
-  contenu: unknown;
+  content: unknown;
   supprime?: boolean;
 }
 
 export interface PulledDocs {
   jusqua: number;
   encore?: boolean;
-  documents: { cle: string; majLe: number; supprime?: boolean; contenu: unknown }[];
+  documents: { cle: string; majLe: number; supprime?: boolean; content: unknown }[];
 }
 
 export const pullDocsFrom = (depuis: number): Promise<PulledDocs> =>
@@ -315,10 +315,10 @@ export interface SharedFilm {
 }
 
 /** What the collection shows right now, and to whom. */
-export const mySharing = () => call<{ partage: Sharing; jeton: string | null }>("/partage");
+export const mySharing = () => call<{ partage: Sharing; token: string | null }>("/partage");
 
 export const setSharing = (partage: Sharing) =>
-  call<{ partage: Sharing; jeton: string | null }>("/partage", {
+  call<{ partage: Sharing; token: string | null }>("/partage", {
     method: "PUT",
     body: JSON.stringify({ partage }),
   });
@@ -342,9 +342,9 @@ export const hideCard = (id: string, cachee: boolean) =>
  */
 export async function collectionOf(
   pseudo: string,
-  jeton?: string | null
+  token?: string | null
 ): Promise<{ pseudo: string; films: SharedFilm[] }> {
-  const q = jeton ? `?jeton=${encodeURIComponent(jeton)}` : "";
+  const q = token ? `?jeton=${encodeURIComponent(token)}` : "";
   return call<{ pseudo: string; films: SharedFilm[] }>(`/chez/${encodeURIComponent(pseudo)}${q}`);
 }
 

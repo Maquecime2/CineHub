@@ -7,16 +7,16 @@ import { makeThread } from "../domain/threads";
 
 /* One linked film, so that the sky is not empty, and one film nothing
    links — that is the one the search had to make reachable. */
-const relié = makeFilm({
+const linkedFilm = makeFilm({
   id: "r",
   title: "Le Samouraï",
   linkedWorks: [{ id: "w", type: "book", title: "Solaris", creator: "Lem", note: "" }],
 });
-const isolé = makeFilm({ id: "i", title: "Playtime", director: "Tati" });
+const isolated = makeFilm({ id: "i", title: "Playtime", director: "Tati" });
 
-const monter = (props: Partial<Parameters<typeof ConstellationView>[0]> = {}) => {
+const build = (props: Partial<Parameters<typeof ConstellationView>[0]> = {}) => {
   const onOpen = vi.fn();
-  render(<ConstellationView films={[relié, isolé]} onOpen={onOpen} {...props} />);
+  render(<ConstellationView films={[linkedFilm, isolated]} onOpen={onOpen} {...props} />);
   return { onOpen };
 };
 
@@ -28,32 +28,32 @@ const search = async (texte: string) => {
 
 describe("la recherche de la constellation", () => {
   it("trouve un film que rien ne relie, et le marque hors carte", async () => {
-    monter();
+    build();
     await search("playtime");
     expect(screen.getByRole("button", { name: /Playtime/ })).toBeInTheDocument();
     expect(screen.getByText("épingler")).toBeInTheDocument();
   });
 
   it("cherche aussi sur le réalisateur", async () => {
-    monter();
+    build();
     await search("tati");
     expect(screen.getByRole("button", { name: /Playtime/ })).toBeInTheDocument();
   });
 
   it("marque « au ciel » un film déjà placé", async () => {
-    monter();
+    build();
     await search("samou");
     expect(screen.getByText("au ciel")).toBeInTheDocument();
   });
 
   it("dit franchement quand la collection n'a rien de ce nom", async () => {
-    monter();
+    build();
     await search("zzz");
     expect(screen.getByText(/rien de ce nom/)).toBeInTheDocument();
   });
 
   it("épingler un film hors carte le fait entrer au ciel et devenir le foyer", async () => {
-    monter();
+    build();
     const user = await search("playtime");
     await user.click(screen.getByRole("button", { name: /Playtime/ }));
     // the focus is laid on it: the chart composes itself around
@@ -65,7 +65,7 @@ describe("la recherche de la constellation", () => {
 describe("les fils au ciel", () => {
   it("propose de les éteindre un par un", () => {
     const fil = makeThread({ id: "f1", label: "Le héros meurt", motif: "hero-dies" });
-    monter({ fils: [fil] });
+    build({ fils: [fil] });
     expect(screen.getByRole("button", { name: /Le héros meurt/ })).toBeInTheDocument();
   });
 });

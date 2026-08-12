@@ -41,7 +41,7 @@ export function AddToList({ film, signedIn }: { film: Film; signedIn: boolean })
 
   if (!film.tmdbId || lists.length === 0) return null;
 
-  const ranger = async () => {
+  const file = async () => {
     if (!choice) return;
     const r = await addToList(choice, {
       tmdbId: film.tmdbId!,
@@ -82,7 +82,7 @@ export function AddToList({ film, signedIn }: { film: Film; signedIn: boolean })
           ))}
         </select>
         <button
-          onClick={ranger}
+          onClick={file}
           disabled={!choice}
           style={{
             all: "unset",

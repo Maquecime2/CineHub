@@ -34,12 +34,12 @@ import { initialsOf as initialesDe } from "../domain/film";
    without one byte of configuration on the host's side. */
 export interface Address {
   pseudo: string;
-  jeton: string | null;
+  token: string | null;
 }
 
 export function readAddress(fragment: string = location.hash): Address | null {
   const m = /^#\/chez\/([a-z0-9-]{3,30})(?:\?jeton=([A-Za-z0-9_-]+))?$/.exec(fragment.trim());
-  return m ? { pseudo: m[1]!, jeton: m[2] ?? null } : null;
+  return m ? { pseudo: m[1]!, token: m[2] ?? null } : null;
 }
 
 export function SharedCollectionView({ address }: { address: Address }) {
@@ -48,7 +48,7 @@ export function SharedCollectionView({ address }: { address: Address }) {
 
   useEffect(() => {
     let alive = true;
-    collectionOf(address.pseudo, address.jeton)
+    collectionOf(address.pseudo, address.token)
       .then((r) => alive && setFilms(r.films))
       .catch((e) => {
         if (!alive) return;
@@ -65,7 +65,7 @@ export function SharedCollectionView({ address }: { address: Address }) {
     return () => {
       alive = false;
     };
-  }, [address.pseudo, address.jeton]);
+  }, [address.pseudo, address.token]);
 
   return (
     <div style={{ minHeight: "100vh", padding: "34px 20px 60px" }}>
@@ -100,7 +100,7 @@ export function SharedCollectionView({ address }: { address: Address }) {
             }}
           >
             {films.map((f) => (
-              <Affiche key={f.id} film={f} />
+              <Poster key={f.id} film={f} />
             ))}
           </div>
         )}
@@ -129,7 +129,7 @@ export function SharedCollectionView({ address }: { address: Address }) {
   );
 }
 
-function Affiche({ film }: { film: SharedFilm }) {
+function Poster({ film }: { film: SharedFilm }) {
   const note = Number(film.rating) || 0;
   return (
     <figure style={{ margin: 0, transform: `rotate(${tiltOf(String(film.id))}deg)` }}>

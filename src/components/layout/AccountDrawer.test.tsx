@@ -30,8 +30,8 @@ vi.mock("../../services/server", () => ({
   deleteMyAccount: vi.fn(),
   myData: vi.fn(),
   signIn: vi.fn(),
-  setSharing: vi.fn(async () => ({ partage: "privee", jeton: null })),
-  mySharing: vi.fn(async () => ({ partage: "privee", jeton: null })),
+  setSharing: vi.fn(async () => ({ partage: "privee", token: null })),
+  mySharing: vi.fn(async () => ({ partage: "privee", token: null })),
   signOut: vi.fn(),
   signUp: vi.fn(),
 }));
@@ -44,8 +44,8 @@ vi.mock("../../services/push", () => ({
   unsubscribeFromPush: vi.fn(),
 }));
 
-vi.mock("../../services/sync", async (vrai) => ({
-  ...(await vrai<Record<string, unknown>>()),
+vi.mock("../../services/sync", async (real) => ({
+  ...(await real<Record<string, unknown>>()),
   forgetSync: vi.fn(),
 }));
 
@@ -57,7 +57,7 @@ const report = (signedIn: boolean): SyncReport =>
     pending: 0,
   }) as SyncReport;
 
-const monter = (signedIn = true) =>
+const build = (signedIn = true) =>
   render(
     <AccountDrawer
       report={report(signedIn)}
@@ -79,7 +79,7 @@ afterEach(() => vi.clearAllMocks());
 describe("ceux qu'on a fait taire", () => {
   it("les nomme, un par un", async () => {
     myBlocks.mockResolvedValue({ blocages: ["genant", "penible"] });
-    monter();
+    build();
     expect(await screen.findByText("genant")).toBeInTheDocument();
     expect(screen.getByText("penible")).toBeInTheDocument();
     expect(screen.getByText("Ceux que vous avez fait taire")).toBeInTheDocument();
@@ -88,7 +88,7 @@ describe("ceux qu'on a fait taire", () => {
   /* A "nobody" heading on such a subject teaches nothing: there is
      nothing to undo, therefore nothing to show. */
   it("se tait quand il n'y a personne", async () => {
-    monter();
+    build();
     await waitFor(() => expect(myBlocks).toHaveBeenCalled());
     expect(screen.queryByText("Ceux que vous avez fait taire")).not.toBeInTheDocument();
   });
@@ -97,7 +97,7 @@ describe("ceux qu'on a fait taire", () => {
      heading that may have nothing to say is noise. */
   it("se tait quand le serveur ne répond pas", async () => {
     myBlocks.mockRejectedValue(new Error("hors ligne"));
-    monter();
+    build();
     await waitFor(() => expect(myBlocks).toHaveBeenCalled());
     expect(screen.queryByText("Ceux que vous avez fait taire")).not.toBeInTheDocument();
   });
@@ -108,7 +108,7 @@ describe("ceux qu'on a fait taire", () => {
     const user = userEvent.setup();
     myBlocks.mockResolvedValueOnce({ blocages: ["genant"] });
     myBlocks.mockResolvedValue({ blocages: [] });
-    monter();
+    build();
 
     await user.click(await screen.findByRole("button", { name: /Rendre la parole à genant/ }));
     expect(unblock).toHaveBeenCalledWith("genant");
@@ -123,14 +123,14 @@ describe("ceux qu'on a fait taire", () => {
      saying nothing. */
   it("dit que rendre la parole ne renoue pas le lien", async () => {
     myBlocks.mockResolvedValue({ blocages: ["genant"] });
-    monter();
+    build();
     expect(await screen.findByText(/ne le renoue pas/)).toBeInTheDocument();
   });
 
   /* With no account there are no blocks to show — and above all no
      request to make. */
   it("ne demande rien tant qu'aucun compte n'est ouvert", async () => {
-    monter(false);
+    build(false);
     await new Promise((r) => setTimeout(r, 20));
     expect(myBlocks).not.toHaveBeenCalled();
   });

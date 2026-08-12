@@ -50,7 +50,7 @@ export function ListsView({ connected }: { connected: boolean }) {
   const [ouverte, setOuverte] = useState<string | null>(null);
   const [title, setTitre] = useState("");
 
-  const relire = useCallback(async () => {
+  const reread = useCallback(async () => {
     if (!connected) return;
     const [l, d] = await Promise.all([myLists(), myChallenges()]);
     setListes(l.listes);
@@ -58,8 +58,8 @@ export function ListsView({ connected }: { connected: boolean }) {
   }, [connected]);
 
   useEffect(() => {
-    relire().catch(() => {});
-  }, [relire]);
+    reread().catch(() => {});
+  }, [reread]);
 
   if (!serverConfigured()) {
     return (
@@ -82,12 +82,12 @@ export function ListsView({ connected }: { connected: boolean }) {
     );
   }
 
-  const nouvelle = async () => {
+  const freshOne = async () => {
     const nom = title.trim();
     if (!nom) return;
     const { id } = await createList({ titre: nom });
     setTitre("");
-    await relire();
+    await reread();
     setOuverte(id);
   };
 
@@ -99,11 +99,11 @@ export function ListsView({ connected }: { connected: boolean }) {
           <input
             value={title}
             onChange={(e) => setTitre(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && nouvelle()}
+            onKeyDown={(e) => e.key === "Enter" && freshOne()}
             placeholder="Les films qu'il faut avoir vus en mars"
             style={{ ...underlineInput, fontFamily: F.hand, fontSize: 17 }}
           />
-          <button onClick={nouvelle} style={button(C.ink)}>
+          <button onClick={freshOne} style={button(C.ink)}>
             <Plus size={12} /> OUVRIR
           </button>
         </div>
@@ -125,7 +125,7 @@ export function ListsView({ connected }: { connected: boolean }) {
               list={l}
               ouverte={ouverte === l.id}
               onOuvrir={() => setOuverte(ouverte === l.id ? null : l.id)}
-              onChange={relire}
+              onChange={reread}
             />
           ))}
         </div>
@@ -141,7 +141,7 @@ export function ListsView({ connected }: { connected: boolean }) {
         )}
         <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 8 }}>
           {defis.map((d) => (
-            <UnDefi key={d.id} defi={d} onChange={relire} />
+            <OneChallenge key={d.id} defi={d} onChange={reread} />
           ))}
         </div>
       </div>
@@ -170,19 +170,19 @@ function OneList({
   const [souci, setSouci] = useState<string | null>(null);
   const [defi, setDefi] = useState({
     title: "",
-    start: moisCourant().start,
-    end: moisCourant().end,
+    start: currentMonth().start,
+    end: currentMonth().end,
   });
 
-  const relire = useCallback(async () => {
+  const reread = useCallback(async () => {
     const r = await readList(list.id);
     setOeuvres(r.oeuvres);
     setMembres(r.membres);
   }, [list.id]);
 
   useEffect(() => {
-    if (ouverte) relire().catch(() => {});
-  }, [ouverte, relire]);
+    if (ouverte) reread().catch(() => {});
+  }, [ouverte, reread]);
 
   const sendInvite = async () => {
     const nom = invite.trim().toLowerCase();
@@ -191,7 +191,7 @@ function OneList({
     try {
       await inviteToList(list.id, nom);
       setInvite("");
-      await relire();
+      await reread();
     } catch {
       /* The server answers the same thing for "does not exist" and "you
          two have blocked each other": we take up that silence. */
@@ -270,7 +270,7 @@ function OneList({
                 <span style={{ fontFamily: F.mono, fontSize: 9, color: C.inkFaded }}>{o.par}</span>
               )}
               <button
-                onClick={() => removeFromList(list.id, o.tmdb_id).then(relire)}
+                onClick={() => removeFromList(list.id, o.tmdb_id).then(reread)}
                 title="Retirer de la liste"
                 style={{ ...small, color: C.burgundy }}
               >
@@ -305,10 +305,10 @@ function OneList({
               {membres.length > 0 && (
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
                   {membres.map((m) => (
-                    <span key={m} style={jeton}>
+                    <span key={m} style={token}>
                       {m}
                       <button
-                        onClick={() => removeFromListMembers(list.id, m).then(relire)}
+                        onClick={() => removeFromListMembers(list.id, m).then(reread)}
                         title={`Retirer ${m}`}
                         style={{ ...small, color: C.burgundy }}
                       >
@@ -328,7 +328,7 @@ function OneList({
                       editList(list.id, { publique: e.target.checked }).then(onChange)
                     }
                   />{" "}
-                  visible de qui vous suit
+                  visible de qui vous follows
                 </label>
                 <span style={{ flex: 1 }} />
                 <button
@@ -383,20 +383,20 @@ function OneList({
    ONE CHALLENGE, AND WHERE EVERYBODY STANDS
    ------------------------------------------------------------ */
 
-function UnDefi({ defi, onChange }: { defi: Challenge; onChange: () => Promise<void> }) {
+function OneChallenge({ defi, onChange }: { defi: Challenge; onChange: () => Promise<void> }) {
   const [avancement, setAvancement] = useState<Progress[] | null>(null);
 
-  const relire = useCallback(async () => {
+  const reread = useCallback(async () => {
     const r = await readChallenge(defi.id);
     setAvancement(r.avancement);
   }, [defi.id]);
 
   useEffect(() => {
-    relire().catch(() => setAvancement([]));
-  }, [relire]);
+    reread().catch(() => setAvancement([]));
+  }, [reread]);
 
-  const aujourdhui = new Date().toISOString().slice(0, 10);
-  const etat = aujourdhui < defi.debut ? "à venir" : aujourdhui > defi.fin ? "terminé" : "en cours";
+  const today = new Date().toISOString().slice(0, 10);
+  const state = today < defi.debut ? "à venir" : today > defi.fin ? "terminé" : "en cours";
 
   return (
     <div style={{ background: C.card, border: `1px solid ${C.line}`, padding: "11px 13px" }}>
@@ -405,7 +405,7 @@ function UnDefi({ defi, onChange }: { defi: Challenge; onChange: () => Promise<v
           {defi.titre}
         </span>
         <span style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>
-          {defi.debut} → {defi.fin} · {etat} · {defi.oeuvres} film
+          {defi.debut} → {defi.fin} · {state} · {defi.oeuvres} film
           {defi.oeuvres > 1 ? "s" : ""} · d'après « {defi.liste} »
         </span>
         <span style={{ flex: 1 }} />
@@ -413,7 +413,7 @@ function UnDefi({ defi, onChange }: { defi: Challenge; onChange: () => Promise<v
           onClick={() =>
             (defi.dedans ? leaveChallenge(defi.id) : joinChallenge(defi.id))
               .then(onChange)
-              .then(relire)
+              .then(reread)
           }
           style={button(defi.dedans ? C.slate : C.pine)}
         >
@@ -483,12 +483,12 @@ function UnDefi({ defi, onChange }: { defi: Challenge; onChange: () => Promise<v
 
 /* The month one is in, from the first to the last day: it is the period
    one wants nine times out of ten, and it is corrected in one click. */
-function moisCourant() {
+function currentMonth() {
   const d = new Date();
-  const deux = (n: number) => String(n).padStart(2, "0");
-  const start = `${d.getFullYear()}-${deux(d.getMonth() + 1)}-01`;
+  const two = (n: number) => String(n).padStart(2, "0");
+  const start = `${d.getFullYear()}-${two(d.getMonth() + 1)}-01`;
   const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-  const end = `${last.getFullYear()}-${deux(last.getMonth() + 1)}-${deux(last.getDate())}`;
+  const end = `${last.getFullYear()}-${two(last.getMonth() + 1)}-${two(last.getDate())}`;
   return { start, end };
 }
 
@@ -543,7 +543,7 @@ const small = {
   color: C.inkFaded,
 };
 
-const jeton = {
+const token = {
   display: "inline-flex",
   alignItems: "center",
   gap: 5,

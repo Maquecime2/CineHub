@@ -31,7 +31,7 @@ import { languageName, countryName } from "../../names";
 import type { Film } from "../../types";
 
 /** A "label → value" line, or nothing at all if we do not know. */
-function Fait({ nom, children }: { nom: string; children: ReactNode }) {
+function Done({ nom, children }: { nom: string; children: ReactNode }) {
   return (
     /* `flexWrap`: the label reserves 74 px and the value cannot go below
        its content — in a narrow column, the line overflowed. It now
@@ -143,7 +143,7 @@ export function TmdbFacts({
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const rafraîchir = async () => {
+  const refresh = async () => {
     const apiKey = getTmdbKey();
     if (!apiKey) {
       setMsg("Aucune clé TMDB — à régler au pied du rail d'onglets.");
@@ -198,7 +198,7 @@ export function TmdbFacts({
     }
   };
 
-  const pays = (film.countries || []).map(countryName).join(", ");
+  const countries = (film.countries || []).map(countryName).join(", ");
   const crew = film.crew || {};
   const cast = film.cast || [];
 
@@ -218,7 +218,7 @@ export function TmdbFacts({
       >
         RELEVÉ TMDB
         <button
-          onClick={rafraîchir}
+          onClick={refresh}
           disabled={busy}
           title="redemander cette fiche à TMDB"
           style={{
@@ -239,27 +239,27 @@ export function TmdbFacts({
         </button>
       </div>
 
-      <Fait nom="DURÉE">{film.runtime != null ? `${film.runtime} min` : EMPTY}</Fait>
-      <Fait nom="PAYS">{pays || EMPTY}</Fait>
-      <Fait nom="LANGUE">{film.language ? languageName(film.language) : EMPTY}</Fait>
-      <Fait nom="NOTE TMDB">
+      <Done nom="DURÉE">{film.runtime != null ? `${film.runtime} min` : EMPTY}</Done>
+      <Done nom="PAYS">{countries || EMPTY}</Done>
+      <Done nom="LANGUE">{film.language ? languageName(film.language) : EMPTY}</Done>
+      <Done nom="NOTE TMDB">
         {film.tmdbRating != null ? `${film.tmdbRating.toFixed(1)} / 10` : EMPTY}
-      </Fait>
+      </Done>
       {TRADES.map(([key, nom]) => (
-        <Fait key={key} nom={nom}>
+        <Done key={key} nom={nom}>
           <Names names={crew[key] || []} onOpenPerson={onOpenPerson} />
-        </Fait>
+        </Done>
       ))}
-      <Fait nom="CASTING">
+      <Done nom="CASTING">
         <Names names={cast} separator=" · " onOpenPerson={onOpenPerson} />
-      </Fait>
+      </Done>
       {/* THE KEYWORDS, SHOWN AND NOT HIDDEN. They feed the wake: when the
           wake only brings things together by name, this is where one sees
           why — the line is empty, and the "refresh" button just above goes
           and fetches them. A dash says "TMDB did not give it to us"; an
           absent line would say nothing at all. */}
-      <Fait nom="MOTS-CLÉS">{film.keywords?.length ? film.keywords.join(" · ") : EMPTY}</Fait>
-      <Fait nom="ID TMDB">{film.tmdbId ?? EMPTY}</Fait>
+      <Done nom="MOTS-CLÉS">{film.keywords?.length ? film.keywords.join(" · ") : EMPTY}</Done>
+      <Done nom="ID TMDB">{film.tmdbId ?? EMPTY}</Done>
 
       {msg && (
         <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded, marginTop: 6 }}>

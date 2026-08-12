@@ -8,11 +8,11 @@ import { readAddress } from "./SharedCollectionView";
 
 describe("lire l'adresse d'une collection", () => {
   it("reconnaît un pseudonyme", () => {
-    expect(readAddress("#/chez/agnes-varda")).toEqual({ pseudo: "agnes-varda", jeton: null });
+    expect(readAddress("#/chez/agnes-varda")).toEqual({ pseudo: "agnes-varda", token: null });
   });
 
   it("reconnaît un lien secret", () => {
-    expect(readAddress("#/chez/varda?jeton=aB3_-x")).toEqual({ pseudo: "varda", jeton: "aB3_-x" });
+    expect(readAddress("#/chez/varda?jeton=aB3_-x")).toEqual({ pseudo: "varda", token: "aB3_-x" });
   });
 
   it("ignore tout le reste : c'est le classeur qui s'ouvre", () => {
@@ -24,14 +24,14 @@ describe("lire l'adresse d'une collection", () => {
   it("n'accepte pas qu'on lui fasse dire autre chose", () => {
     /* The username leaves inside a server address: anything that could
        build another one is refused here, before even the encoding. */
-    for (const tordu of [
+    for (const crooked of [
       "#/chez/../admin",
       "#/chez/varda/../autre",
       "#/chez/varda?jeton=a b",
       "#/chez/varda#autre",
       "#/chez/varda?autre=1",
     ]) {
-      expect({ tordu, lu: readAddress(tordu) }).toEqual({ tordu, lu: null });
+      expect({ crooked, lu: readAddress(crooked) }).toEqual({ crooked, lu: null });
     }
   });
 });

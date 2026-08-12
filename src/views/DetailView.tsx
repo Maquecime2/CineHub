@@ -814,13 +814,13 @@ export function DetailView({
                  confirm a step backwards mostly teaches them to click
                  without reading. */
                 onClick={() => {
-                  const remise = { ...film, archived: !film.archived, bedside: false };
+                  const putBackOne = { ...film, archived: !film.archived, bedside: false };
                   if (film.archived) return onUpdate({ ...film, archived: false });
                   setRequest({
                     title: "Mettre cette fiche de côté ?",
                     body: "Elle quitte le mur et la constellation, sans être détruite — on la remet en rayon quand on veut.",
                     action: "mettre de côté",
-                    onConfirm: () => onUpdate(remise),
+                    onConfirm: () => onUpdate(putBackOne),
                   });
                 }}
                 style={{

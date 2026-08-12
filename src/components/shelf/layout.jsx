@@ -1563,7 +1563,7 @@ function DecorWorkshop({ onBack }) {
         {/* Two neighbouring gestures that do not do the same thing:
             saying it once here is better than a shelf that empties without
             warning. */}
-        masquer retire du cabinet sans toucher aux étagères ; supprimer retire des deux
+        masquer retire du cabinet sans toucher aux étagères ; supprimer retire des two
       </CabinetNote>
     </div>
   );
@@ -1728,8 +1728,8 @@ export function DecorCabinet({ kind, onDragStart, onDragEnd, onClose }) {
 const clampRot = (deg) => (((deg % 360) + 540) % 360) - 180;
 
 const OrientField = ({ angle, seeded, onChange }) => {
-  const réglé = angle != null;
-  const shown = Math.round(clampRot(Number(réglé ? angle : seeded) || 0));
+  const setValue = angle != null;
+  const shown = Math.round(clampRot(Number(setValue ? angle : seeded) || 0));
 
   return (
     <>
@@ -1777,7 +1777,7 @@ const OrientField = ({ angle, seeded, onChange }) => {
         </button>
       </div>
       {/* Handing back to chance only makes sense if one took it from chance. */}
-      {réglé && (
+      {setValue && (
         <button
           onClick={() => onChange(null)}
           title="Rendre à l'objet son guingois d'origine"

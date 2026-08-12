@@ -87,7 +87,7 @@ export function TmdbLink({ film, onUpdate }: { film: Film; onUpdate: (f: Film) =
     }
   };
 
-  const relier = async (c: Candidat) => {
+  const link = async (c: Candidat) => {
     if (!apiKey) return;
     setBusy(true);
     setMsg("récupération de la fiche…");
@@ -230,7 +230,7 @@ export function TmdbLink({ film, onUpdate }: { film: Film; onUpdate: (f: Film) =
                 return (
                   <button
                     key={c.tmdbId}
-                    onClick={() => !current && relier(c)}
+                    onClick={() => !current && link(c)}
                     disabled={busy || current}
                     title={c.overview || undefined}
                     style={{

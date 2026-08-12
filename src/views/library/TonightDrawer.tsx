@@ -29,12 +29,12 @@ import type { Film } from "../../types";
    la fin" tells a film, "mélancolie" says what state one is in tonight.
    These are two vocabularies, and the second is exactly the one we were
    after. */
-const HUMEURS = MOTIFS.filter((m) => m.family === "tone" && !m.spoiler);
+const MOODS = MOTIFS.filter((m) => m.family === "tone" && !m.spoiler);
 
 /* Beyond that, guessing the mood would cost more waiting than the
    question is worth. We ask for the keywords of the best placed only —
    the ranking without a mood is already a ranking. */
-const PLAFOND_DEVINETTE = 40;
+const GUESS_CAP = 40;
 
 export function TonightDrawer({
   films,
@@ -56,7 +56,7 @@ export function TonightDrawer({
   const apiKey = useTmdbKey();
   const craving: Craving = { minutes, mood: humeur, languages: langues };
 
-  const dispo = useMemo(() => listLanguages(films), [films]);
+  const available = useMemo(() => listLanguages(films), [films]);
   const suggestions = useMemo(
     () => rankTheEvening(films, craving, guessed),
     // `envie` is rebuilt on every render: we depend on its parts
@@ -85,7 +85,7 @@ export function TonightDrawer({
   useEffect(() => {
     if (!apiKey || humeur.length === 0) return;
     const toGuess = suggestions
-      .slice(0, PLAFOND_DEVINETTE)
+      .slice(0, GUESS_CAP)
       .map((p) => p.film)
       .filter((f) => f.tmdbId && !guessed.has(f.id));
     if (toGuess.length === 0) return;
@@ -99,7 +99,7 @@ export function TonightDrawer({
       }),
       { concurrency: 5 }
     )
-      .then((paires: ([string, string[]] | null)[]) => {
+      .then((pairs: ([string, string[]] | null)[]) => {
         if (!alive) return;
         setGuessed((before) => {
           const next = new Map(before);
@@ -107,7 +107,7 @@ export function TonightDrawer({
              absent: without that trace, the effect would ask for them
              again on every render, indefinitely. */
           for (const f of toGuess) next.set(f.id, []);
-          for (const p of paires) if (p) next.set(p[0], p[1]);
+          for (const p of pairs) if (p) next.set(p[0], p[1]);
           return next;
         });
       })
@@ -193,14 +193,14 @@ export function TonightDrawer({
           <div data-tour="soir-temps" style={{ marginBottom: 18 }}>
             <Label>J'ai</Label>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              <button onClick={() => setMinutes(null)} style={puce(minutes === null)}>
+              <button onClick={() => setMinutes(null)} style={chip(minutes === null)}>
                 peu importe
               </button>
               {SLOTS.map((c) => (
                 <button
                   key={c.minutes}
                   onClick={() => setMinutes(c.minutes)}
-                  style={puce(minutes === c.minutes)}
+                  style={chip(minutes === c.minutes)}
                 >
                   {c.label}
                 </button>
@@ -223,11 +223,11 @@ export function TonightDrawer({
               </div>
             )}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {HUMEURS.map((m) => (
+              {MOODS.map((m) => (
                 <button
                   key={m.id}
                   onClick={() => setHumeur((h) => toggle(h, m.id))}
-                  style={puce(humeur.includes(m.id), C.cobalt)}
+                  style={chip(humeur.includes(m.id), C.cobalt)}
                 >
                   {m.label}
                 </button>
@@ -236,15 +236,15 @@ export function TonightDrawer({
           </div>
 
           {/* ---- la langue, s'il y a de quoi choisir ---- */}
-          {dispo.length > 1 && (
+          {available.length > 1 && (
             <div style={{ marginBottom: 22 }}>
               <Label>En</Label>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {dispo.slice(0, 8).map(({ code, n }) => (
+                {available.slice(0, 8).map(({ code, n }) => (
                   <button
                     key={code}
                     onClick={() => setLangues((l) => toggle(l, code))}
-                    style={puce(langues.includes(code), C.moss)}
+                    style={chip(langues.includes(code), C.moss)}
                   >
                     {languageName(code)} · {n}
                   </button>
@@ -277,7 +277,7 @@ export function TonightDrawer({
                   : "Vous les avez tous passés en revue."}
               </div>
             ) : (
-              <Carte
+              <CravingCard
                 choice={choice}
                 rank={rank}
                 total={suggestions.length}
@@ -295,7 +295,7 @@ export function TonightDrawer({
   );
 }
 
-function Carte({
+function CravingCard({
   choice,
   rank,
   total,
@@ -347,14 +347,14 @@ function Carte({
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 16 }}>
-        <button onClick={onOuvrir} style={{ ...puce(true), padding: "5px 12px" }}>
+        <button onClick={onOuvrir} style={{ ...chip(true), padding: "5px 12px" }}>
           <ArrowRight size={11} /> sa fiche
         </button>
         <button
           onClick={onAutre}
           disabled={rank + 1 >= total}
           style={{
-            ...puce(false, C.slate),
+            ...chip(false, C.slate),
             padding: "5px 12px",
             opacity: rank + 1 >= total ? 0.4 : 1,
             cursor: rank + 1 >= total ? "default" : "pointer",
@@ -378,7 +378,7 @@ const nu = {
   alignItems: "center",
 };
 
-const puce = (on: boolean, tint: string = C.burgundy) => ({
+const chip = (on: boolean, tint: string = C.burgundy) => ({
   all: "unset" as const,
   ...tap,
   cursor: "pointer",

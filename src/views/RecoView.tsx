@@ -290,7 +290,7 @@ function useDirectors(results: Candidate[] | null, apiKey: string) {
 
    These proposals ask the network of nobody. So they come FIRST — and
    this tab now has something to say from the first visit. */
-function ChezVous({
+function AtHome({
   suggestions,
   onOpen,
 }: {
@@ -312,7 +312,7 @@ function ChezVous({
         }}
       >
         {suggestions.map((s) => (
-          <button key={s.key} onClick={() => onOpen(s.film.id)} style={carteMaison}>
+          <button key={s.key} onClick={() => onOpen(s.film.id)} style={houseMap}>
             <div style={{ display: "flex", gap: 11 }}>
               <div style={{ width: 54, flexShrink: 0 }}>
                 <PosterArt film={s.film} height={81} initials={initialsOf(s.film.title)} />
@@ -324,7 +324,7 @@ function ChezVous({
                     fontSize: 8.5,
                     letterSpacing: 0.7,
                     textTransform: "uppercase",
-                    color: TEINTE[s.nature],
+                    color: TINT[s.nature],
                   }}
                 >
                   {s.label}
@@ -366,13 +366,13 @@ function ChezVous({
 /* One tint per kind: one must see at a glance that the list looks at
    the collection from three angles, and not that it repeats the same
    thing six times. */
-const TEINTE: Record<Nature, string> = {
+const TINT: Record<Nature, string> = {
   rewatch: C.burgundy,
   motif: C.plum,
   director: C.pine,
 };
 
-const carteMaison = {
+const houseMap = {
   all: "unset" as const,
   ...tap,
   cursor: "pointer",
@@ -406,7 +406,7 @@ export function RecoView({
   const taste = useMemo(() => buildTaste(films), [films]);
   /* Computed HERE and not in the block: the missing-key message must
      know whether there is something above it to speak of. */
-  const maison = useMemo(() => atHomeSuggestions(films), [films]);
+  const house = useMemo(() => atHomeSuggestions(films), [films]);
   const allGenres = useMemo(
     () => Array.from(new Set(films.flatMap((f) => f.genres || []))).sort(),
     [films]
@@ -515,7 +515,7 @@ export function RecoView({
 
       {/* AT YOUR PLACE, BEFORE THE REST, and outside the key check:
           these proposals ask nothing of the network. */}
-      {onOpen && maison.length > 0 && <ChezVous suggestions={maison} onOpen={onOpen} />}
+      {onOpen && house.length > 0 && <AtHome suggestions={house} onOpen={onOpen} />}
 
       {!apiKey ? (
         <div
@@ -546,7 +546,7 @@ export function RecoView({
               lineHeight: 1.5,
             }}
           >
-            {maison.length > 0
+            {house.length > 0
               ? "Les propositions ci-dessus viennent de votre collection et n'ont besoin de rien. Pour en chercher au-dehors, il faut une clé — elle reste dans ce navigateur et sert aussi à l'enrichissement des fiches."
               : "Chercher des films au-dehors demande une clé — elle reste dans ce navigateur et sert aussi à l'enrichissement des fiches."}
           </div>

@@ -73,17 +73,17 @@ describe("affinity", () => {
   it("ne pénalise pas un genre inconnu : le découvrir n'est pas un défaut", () => {
     const taste = buildTaste(collection());
     const unknown = affinity(candidate({ genres: ["Documentaire"] }), taste);
-    const neutre = affinity(candidate({ genres: [] }), taste);
-    expect(unknown).toBeCloseTo(neutre);
+    const neutral = affinity(candidate({ genres: [] }), taste);
+    expect(unknown).toBeCloseTo(neutral);
   });
 
   it("récompense un film remonté par une fiche aimée", () => {
     const taste = buildTaste(collection());
     const nu = candidate();
-    const parReco = candidate({
+    const perReco = candidate({
       sources: [{ kind: "reco", from: { title: "Un film aimé", rating: 5 } }],
     });
-    expect(affinity(parReco, taste)).toBeGreaterThan(affinity(nu, taste));
+    expect(affinity(perReco, taste)).toBeGreaterThan(affinity(nu, taste));
   });
 
   it("récompense davantage plusieurs fiches aimées, sans dépasser le plafond", () => {
@@ -112,10 +112,10 @@ describe("nicheFactors", () => {
   const taste = buildTaste(collection());
 
   it("fait décroître l'obscurité quand les votes montent", () => {
-    const peu = nicheFactors(candidate({ voteCount: 50 }), taste).obscurity;
-    const beaucoup = nicheFactors(candidate({ voteCount: 40000 }), taste).obscurity;
-    expect(peu).toBeGreaterThan(beaucoup);
-    expect(beaucoup).toBeGreaterThanOrEqual(0);
+    const few = nicheFactors(candidate({ voteCount: 50 }), taste).obscurity;
+    const many = nicheFactors(candidate({ voteCount: 40000 }), taste).obscurity;
+    expect(few).toBeGreaterThan(many);
+    expect(many).toBeGreaterThanOrEqual(0);
   });
 
   it("ne considère pas l'anglais comme dépaysant", () => {
@@ -131,9 +131,9 @@ describe("nicheFactors", () => {
   });
 
   it("distingue langue connue et langue inédite quand la collection le permet", () => {
-    const avecLangues = buildTaste(collection({ lang: "fr" }));
-    expect(nicheFactors(candidate({ lang: "fr" }), avecLangues).foreign).toBe(0.6);
-    expect(nicheFactors(candidate({ lang: "ja" }), avecLangues).foreign).toBe(1);
+    const withLanguages = buildTaste(collection({ lang: "fr" }));
+    expect(nicheFactors(candidate({ lang: "fr" }), withLanguages).foreign).toBe(0.6);
+    expect(nicheFactors(candidate({ lang: "ja" }), withLanguages).foreign).toBe(1);
   });
 
   it("ne compte l'ancienneté qu'en dessous de 1985, et pas pour un film récent", () => {
@@ -142,9 +142,9 @@ describe("nicheFactors", () => {
   });
 
   it("mesure l'écart à la collection sans le confondre avec le désaccord", () => {
-    const familier = nicheFactors(candidate({ genres: ["Drame"], year: 2005 }), taste).drift;
+    const familiar = nicheFactors(candidate({ genres: ["Drame"], year: 2005 }), taste).drift;
     const inedit = nicheFactors(candidate({ genres: ["Western"], year: 1930 }), taste).drift;
-    expect(inedit).toBeGreaterThan(familier);
+    expect(inedit).toBeGreaterThan(familiar);
   });
 
   it("garde tous les facteurs dans [0, 1]", () => {
@@ -200,20 +200,20 @@ describe("rank", () => {
   });
 
   it("le curseur niche renverse l'ordre entre un connu et un confidentiel", () => {
-    const connu = candidate({ tmdbId: 1, title: "Connu", voteCount: 45000, genres: ["Drame"] });
+    const knownOne = candidate({ tmdbId: 1, title: "Connu", voteCount: 45000, genres: ["Drame"] });
     const rare = candidate({ tmdbId: 2, title: "Rare", voteCount: 60, genres: ["Drame"] });
 
-    const mainstream = rank([connu, rare], taste, query({ nichePref: 0 }));
+    const mainstream = rank([knownOne, rare], taste, query({ nichePref: 0 }));
     expect(mainstream[0].title).toBe("Connu");
 
-    const pepite = rank([connu, rare], taste, query({ nichePref: 1 }));
-    expect(pepite[0].title).toBe("Rare");
+    const gem = rank([knownOne, rare], taste, query({ nichePref: 1 }));
+    expect(gem[0].title).toBe("Rare");
   });
 
   it("le curseur drift transforme l'écart en atout ou en pénalité", () => {
-    const familier = candidate({ tmdbId: 1, title: "Familier", genres: ["Drame"], year: 2005 });
+    const familiar = candidate({ tmdbId: 1, title: "Familier", genres: ["Drame"], year: 2005 });
     const faraway = candidate({ tmdbId: 2, title: "Dépaysant", genres: ["Western"], year: 1935 });
-    const args = [[familier, faraway], taste];
+    const args = [[familiar, faraway], taste];
 
     expect(rank(...args, query({ driftPref: 1, nichePref: 0.5 }))[0].title).toBe("Dépaysant");
     expect(rank(...args, query({ driftPref: 0, nichePref: 0.5 }))[0].title).toBe("Familier");
@@ -246,8 +246,8 @@ describe("rank", () => {
   });
 
   it("respecte la limite demandée", () => {
-    const beaucoup = Array.from({ length: 60 }, (_, i) => candidate({ tmdbId: i }));
-    expect(rank(beaucoup, taste, query(), 10)).toHaveLength(10);
+    const many = Array.from({ length: 60 }, (_, i) => candidate({ tmdbId: i }));
+    expect(rank(many, taste, query(), 10)).toHaveLength(10);
   });
 
   it("accepte une liste vide", () => {

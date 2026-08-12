@@ -72,14 +72,14 @@ describe("l'orientation d'un objet", () => {
   /* The grip was the size of the drawing upright: an object lying down was
      seen along its whole length but could only be caught in the middle. */
   it("donne à la prise d'un objet accroché la taille qu'il occupe vraiment", () => {
-    const prise = (rot) => {
+    const grip = (rot) => {
       const { container } = render(
         <WallItem item={{ ...makeWallDecor({ motif: "frame" }), rot }} {...dnd} />
       );
       return Number.parseInt(container.querySelector("[data-wall-item]").style.width, 10);
     };
-    expect(prise(45)).toBeGreaterThan(prise(0));
-    expect(prise(90)).toBe(prise(0));
+    expect(grip(45)).toBeGreaterThan(grip(0));
+    expect(grip(90)).toBe(grip(0));
   });
 
   it("laisse le carton s'appuyer quand rien n'est réglé", () => {

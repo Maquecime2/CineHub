@@ -255,8 +255,8 @@ export async function getDetails(tmdbId, apiKey) {
   let keywords;
   if (data.keywords?.keywords) keywords = data.keywords.keywords;
   else {
-    const secours = await fetchKeywords(tmdbId, apiKey);
-    keywords = secours.length ? secours : undefined;
+    const fallback = await fetchKeywords(tmdbId, apiKey);
+    keywords = fallback.length ? fallback : undefined;
   }
 
   const crewList = data.credits?.crew || [];

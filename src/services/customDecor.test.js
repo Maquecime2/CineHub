@@ -108,10 +108,10 @@ describe("masquer un motif de la maison", () => {
 
   it("vaut aussi pour un objet importé et pour ce qui s'accroche", async () => {
     const { wallDecorTypes, shelfDecorTypes } = await import("../components/shelf/constants");
-    const mien = await addCustomDecor(pngFile("mien.png"));
-    toggleDecorHidden(mien.key);
+    const mine = await addCustomDecor(pngFile("mien.png"));
+    toggleDecorHidden(mine.key);
     toggleDecorHidden("frame");
-    expect(shelfDecorTypes().map((d) => d.key)).not.toContain(mien.key);
+    expect(shelfDecorTypes().map((d) => d.key)).not.toContain(mine.key);
     expect(wallDecorTypes().map((d) => d.key)).not.toContain("frame");
   });
 
@@ -159,11 +159,11 @@ describe("le nettoyage d'un SVG", () => {
   });
 
   it("appuie le dessin en bas s'il se pose, en haut s'il s'accroche", () => {
-    const posé = sanitizeSvg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"/>`);
+    const placedKey = sanitizeSvg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"/>`);
     const hung = sanitizeSvg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"/>`, {
       wall: true,
     });
-    expect(posé.markup).toContain("xMidYMax");
+    expect(placedKey.markup).toContain("xMidYMax");
     expect(hung.markup).toContain("xMidYMin");
   });
 
@@ -176,19 +176,19 @@ describe("le motif importé, tel que l'étagère le voit", () => {
   it("entre dans la bonne famille du cabinet", async () => {
     const { shelfDecorTypes, wallDecorTypes, decorSpec, isWallMotif } =
       await import("../components/shelf/constants");
-    const posé = await addCustomDecor(pngFile("galet.png"), { wall: false });
+    const placedKey = await addCustomDecor(pngFile("galet.png"), { wall: false });
     const hung = await addCustomDecor(svgFile(`<svg viewBox="0 0 1 1"/>`, "guirlande.svg"), {
       wall: true,
     });
 
-    expect(shelfDecorTypes().map((d) => d.key)).toContain(posé.key);
+    expect(shelfDecorTypes().map((d) => d.key)).toContain(placedKey.key);
     expect(wallDecorTypes().map((d) => d.key)).toContain(hung.key);
     // and the house patterns are still there, at the head
     expect(shelfDecorTypes().map((d) => d.key)).toContain("plant");
 
     expect(isWallMotif(hung.key)).toBe(true);
-    expect(isWallMotif(posé.key)).toBe(false);
-    expect(decorSpec(posé.key)).toMatchObject({ label: "galet", custom: true });
+    expect(isWallMotif(placedKey.key)).toBe(false);
+    expect(decorSpec(placedKey.key)).toMatchObject({ label: "galet", custom: true });
     expect(decorSpec("plant")?.custom).toBeUndefined();
     expect(decorSpec("fantôme")).toBeUndefined();
   });

@@ -44,7 +44,7 @@ import type { Film } from "../../types";
 
 /* Enough to mount a good screen height in advance, on each side: we do
    not want to see the cards appear, only to avoid carrying them all. */
-const MARGE = "900px";
+const EDGE_MARGIN = "900px";
 
 /* Below this number we do nothing: the observation costs more than it
    brings back, and a wall of forty cards has never struggled. */
@@ -85,7 +85,7 @@ function Cell({
            measure. */
         else setEmptiedAt(el.getBoundingClientRect().height || 1);
       },
-      { rootMargin: MARGE }
+      { rootMargin: EDGE_MARGIN }
     );
     obs.observe(el);
     return () => obs.disconnect();

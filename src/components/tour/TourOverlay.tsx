@@ -238,7 +238,7 @@ function Bubble({
      hiding it. In the centre it hides only the veil — and the hole goes
      on pointing. */
   const { phone } = useViewport();
-  const pos = placer(hole, phone ? "center" : step.placement);
+  const pos = place(hole, phone ? "center" : step.placement);
   /* The tilt is sown from the step's rank: the same card always leans
      the same way, like all the site's disorder. */
   const tilt = Number(tiltOf(`bulle-${index}`)) / 2.4;
@@ -359,7 +359,7 @@ const link: CSSProperties = {
 /* The requested side is only a wish: if the card overflows, we fold it
    to the opposite side, and failing that we clamp it inside the window. A
    bubble half off the screen is worse than badly placed. */
-function placer(hole: Rect | null, placement: TourStep["placement"]): CSSProperties {
+function place(hole: Rect | null, placement: TourStep["placement"]): CSSProperties {
   const W = window.innerWidth;
   const H = window.innerHeight;
   /* The card shrinks with the window: the measurement used to place it
@@ -390,12 +390,12 @@ function placer(hole: Rect | null, placement: TourStep["placement"]): CSSPropert
     top: "bottom",
   };
 
-  const tient = (p: { top: number; left: number }) =>
+  const fits = (p: { top: number; left: number }) =>
     p.left >= 8 && p.left + BUBBLE_W <= W - 8 && p.top >= 8 && p.top + TOP <= H - 8;
 
-  const choice = tient(tries[side]!)
+  const choice = fits(tries[side]!)
     ? tries[side]!
-    : tient(tries[oppose[side]!]!)
+    : fits(tries[oppose[side]!]!)
       ? tries[oppose[side]!]!
       : tries[side]!;
 

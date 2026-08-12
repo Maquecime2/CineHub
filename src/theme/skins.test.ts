@@ -135,7 +135,7 @@ describe("poser une peau", () => {
   /* A single link element, reused: creating one per attempt would leave
      behind as many stylesheets as skins tried, and the last one DECLARED
      would win — not the last one chosen. */
-  it("ne laisse qu'un seul link de polices, what qu'on essaie", () => {
+  it("ne laisse qu'un seul lien de polices, quoi qu'on essaie", () => {
     applySkin("japon");
     const premier = document.getElementById("skin-fonts") as HTMLLinkElement;
     applySkin("pastel");
