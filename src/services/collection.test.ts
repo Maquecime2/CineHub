@@ -1,16 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 /* ============================================================
-   LE DÉPÔT, ÉPROUVÉ SUR SES TROIS PROMESSES
+   THE STORE, TESTED ON ITS THREE PROMISES
 
-   Descendre dans le coffre sans rien perdre, dater ce qui a changé et
-   rien d'autre, et ne jamais abandonner la collection quand le coffre
-   se refuse. Aucune des trois ne se voit à l'écran, et les trois se
-   paieraient cher.
+   Going down into the vault without losing anything, dating what has
+   changed and nothing else, and never abandoning the collection when the
+   vault refuses. None of the three shows on screen, and all three would
+   cost dearly.
 
-   jsdom n'a pas d'IndexedDB : on double `src/db`, ce qui a l'avantage de
-   pouvoir ensuite le faire échouer à volonté — un mode privé de
-   navigateur ne se simule pas autrement.
+   jsdom has no IndexedDB: we stub `src/db`, which has the advantage of
+   letting us then make it fail at will — a browser's private mode cannot
+   be simulated otherwise.
    ============================================================ */
 
 const coffre = new Map<string, unknown>();
@@ -52,8 +52,8 @@ describe("the move into the vault", () => {
     expect(chargés).toHaveLength(1);
     expect(chargés[0]!.title).toBe("Stalker");
     expect(coffre.get(FILMS_KEY)).toHaveLength(1);
-    /* La copie du haut occupait la place qui manquait : elle part une
-       fois — et seulement une fois — que le coffre a pris. */
+    /* The copy up top was taking the missing room: it leaves once — and
+       only once — the vault has taken. */
     expect(localStorage.getItem(FILMS_KEY)).toBeNull();
   });
 
@@ -80,15 +80,15 @@ describe("the modification date", () => {
     const datés = await saveFilms([{ ...a, rating: 5 }, b]);
     expect(datés[0]!.updatedAt).toBeGreaterThan(1000);
     expect(datés[1]!.updatedAt).toBe(1000);
-    /* Mieux : la fiche intacte est le MÊME objet, sans quoi toutes les
-       vues mémoïsées se referaient à chaque frappe. */
+    /* Better: the untouched card is the SAME object, failing which
+       every memoised view would rebuild itself on each keystroke. */
     expect(datés[1]).toBe(b);
   });
 
   it("une recopie sans changement de valeur ne date rien", async () => {
     const a = fiche({ id: "a", updatedAt: 1000 });
     forgetCache([a]);
-    /* Ce que fait toute l'application : `films.map(f => ({...f}))`. */
+    /* What the whole application does: `films.map(f => ({...f}))`. */
     const datés = await saveFilms([{ ...a }]);
     expect(datés[0]!.updatedAt).toBe(1000);
   });
@@ -100,9 +100,9 @@ describe("the modification date", () => {
   });
 
   it("les fiches d'avant gardent leur date d'ajout, et ne se disent pas fraîches", async () => {
-    /* Sinon, à la première synchronisation, TOUTE la collection se
-       prétendrait modifiée à l'instant et écraserait ce qui vient d'en
-       face. */
+    /* Otherwise, at the first synchronisation, the WHOLE collection
+       would claim to have been modified just now and would crush
+       whatever comes from the other side. */
     localStorage.setItem(
       FILMS_KEY,
       JSON.stringify([{ id: "vieux", title: "Persona", addedAt: 42 }])

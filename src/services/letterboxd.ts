@@ -1,45 +1,46 @@
 /* ============================================================
-   LE FLUX LETTERBOXD — relever ses dernières séances sans fichier
+   THE LETTERBOXD FEED — collecting one's latest screenings, no file
    ============================================================
 
-   L'import CSV demande d'aller sur Letterboxd, de réclamer un export, de
-   télécharger un ZIP et de déposer un fichier. C'est la bonne façon
-   d'AMORCER une vidéothèque, et une corvée pour y ajouter les six films
-   vus depuis la dernière fois. Le flux public d'un membre suffit à ce
-   second geste, et il porte plus que le CSV : la note, la date de
-   séance, et surtout l'IDENTIFIANT TMDB du film.
+   The CSV import asks one to go to Letterboxd, request an export,
+   download a ZIP and drop a file. That is the right way to PRIME a film
+   library, and a chore for adding the six films seen since last time. A
+   member's public feed is enough for that second gesture, and it carries
+   more than the CSV: the rating, the date of the screening, and above
+   all the film's TMDB IDENTIFIER.
 
-   CE QUE LE FLUX NE FAIT PAS, et qu'il faut dire à l'écran plutôt que
-   laisser découvrir :
+   WHAT THE FEED DOES NOT DO, and what must be said on screen rather than
+   left to be discovered:
 
-     - il rend CENT entrées, dont la moitié sont des listes ; il reste
-       donc une cinquantaine de séances, pas la vidéothèque entière ;
-     - il n'existe pas de flux de watchlist (`/watchlist/rss/` répond
-       403) : ce chemin ne rapporte que des films VUS.
+     - it returns A HUNDRED entries, half of which are lists; that leaves
+       some fifty screenings, not the whole film library;
+     - there is no watchlist feed (`/watchlist/rss/` answers 403): this
+       path only brings back films SEEN.
 
-   LA WATCHLIST, ALORS. Faute de flux, on lit les pages publiques
-   `/{pseudo}/watchlist/page/N/` — du HTML, pas du XML, avec ce que ça
-   suppose de fragilité : Letterboxd peut remanier son gabarit sans
-   prévenir. D'où deux précautions ici, et une seule règle à retenir en
-   les lisant : MIEUX VAUT UNE ERREUR QU'UNE LISTE VIDE. Une page mal lue
-   qui rendrait « zéro film » se raconterait comme une watchlist vidée,
-   et l'écran signalerait toute la collection comme retirée.
+   THE WATCHLIST, THEN. For want of a feed, we read the public pages
+   `/{pseudo}/watchlist/page/N/` — HTML, not XML, with all the fragility
+   that implies: Letterboxd may rework its template without warning.
+   Hence two precautions here, and a single rule to keep in mind while
+   reading them: AN ERROR IS BETTER THAN AN EMPTY LIST. A misread page
+   returning "zero films" would tell itself as an emptied watchlist, and
+   the screen would flag the whole collection as removed.
 
-   Le CSV n'est donc pas remplacé, il est complété.
+   So the CSV is not replaced, it is completed.
 
-   POURQUOI UN RELAIS. Letterboxd ne renvoie aucun en-tête
-   `Access-Control-Allow-Origin` sur son flux : le navigateur refuse de
-   lire la réponse, quoi qu'on fasse côté appli. Il faut un intermédiaire
-   qui, lui, autorise la lecture. Il y en a deux ici, et le reste de
-   l'appli n'a pas à savoir lequel sert :
+   WHY A RELAY. Letterboxd returns no `Access-Control-Allow-Origin`
+   header on its feed: the browser refuses to read the response, whatever
+   is done on the application's side. An intermediary is needed, one that
+   does allow the reading. There are two here, and the rest of the
+   application has no business knowing which one serves:
 
-     - EN DÉVELOPPEMENT, le serveur Vite relaie lui-même (voir
-       `server.proxy` dans `vite.config.ts`). Aucun tiers, rien à régler.
-     - EN LIGNE, le site est un GitHub Pages STATIQUE : il n'y a pas de
-       serveur à nous pour relayer. On passe donc par un relais public,
-       et l'adresse est un réglage — celui qui déploie le sien (voir
-       `docs/relais-letterboxd.md`) le colle et ne dépend plus de
-       personne. */
+     - IN DEVELOPMENT, the Vite server relays by itself (see
+       `server.proxy` in `vite.config.ts`). No third party, nothing to
+       set up.
+     - ONLINE, the site is a STATIC GitHub Pages: there is no server of
+       ours to relay. So we go through a public relay, and the address is
+       a setting — whoever deploys their own (see
+       `docs/relais-letterboxd.md`) pastes it in and depends on nobody
+       any more. */
 import { store } from "./storage";
 import { filmKey, parseRating } from "../domain/importing";
 import { mergeWatches } from "../domain/film";
@@ -48,53 +49,53 @@ import type { ImportRow, ParsedCsv, Year } from "../types";
 export const USER_KEY = "letterboxd-user";
 export const RELAY_KEY = "letterboxd-relay";
 
-/* Le relais par défaut. Un tiers voit passer la requête : c'est
-   acceptable ICI parce que le flux est déjà public et qu'aucun secret ne
-   transite — mais c'est aussi pourquoi l'adresse reste modifiable. */
+/* The default relay. A third party sees the request go by: that is
+   acceptable HERE because the feed is already public and no secret
+   travels through — but it is also why the address stays editable. */
 export const DEFAULT_RELAY = "https://corsproxy.io/?url={url}";
 
 const cleanUser = (user: string) => user.trim().replace(/^@/, "");
 
-/* Le chemin, une fois pour toutes : les deux adresses ci-dessous ne
-   diffèrent que par lui, et c'est la seule chose qui change entre le
-   serveur de dev, qui relaie lui-même, et le relais public. */
+/* The path, once and for all: the two addresses below differ only by
+   it, and it is the only thing that changes between the dev server,
+   which relays by itself, and the public relay. */
 const lbUrl = (path: string, relay?: string): string => {
   if (import.meta.env.DEV) return `/lb-rss/${path}`;
   const tpl = (relay ?? store.get(RELAY_KEY, DEFAULT_RELAY)).trim() || DEFAULT_RELAY;
   return tpl.replace("{url}", encodeURIComponent(`https://letterboxd.com/${path}`));
 };
 
-/** L'adresse à call pour lire le flux de `user`, relais compris. */
+/** The address to call to read `user`'s feed, relay included. */
 export function feedUrl(user: string, relay?: string): string {
   return lbUrl(`${encodeURIComponent(cleanUser(user))}/rss/`, relay);
 }
 
-/** L'adresse d'une page de watchlist. Letterboxd les numérote à partir de 1. */
+/** The address of one watchlist page. Letterboxd numbers them from 1. */
 export function watchlistUrl(user: string, page = 1, relay?: string): string {
   return lbUrl(`${encodeURIComponent(cleanUser(user))}/watchlist/page/${page}/`, relay);
 }
 
-/* Un champ d'espace de noms se lit par son nom COMPLET, préfixe compris :
-   `querySelector("letterboxd:filmTitle")` ne le trouverait pas — les
-   deux-points y sont un opérateur de pseudo-classe, pas une lettre. */
+/* A namespaced field is read by its FULL name, prefix included:
+   `querySelector("letterboxd:filmTitle")` would not find it — there the
+   colon is a pseudo-class operator, not a letter. */
 const tagOf = (item: Element, name: string): string =>
   item.getElementsByTagName(name)[0]?.textContent?.trim() || "";
 
-/** Relève le flux et le rend sous la forme que l'import CSV produit déjà. */
+/** Reads the feed and returns it in the shape the CSV import already produces. */
 export function parseLetterboxdRss(xml: string): ParsedCsv {
   const doc = new DOMParser().parseFromString(xml, "application/xml");
-  /* Un relais en panne ne rend pas une erreur : il rend une page HTML,
-     que le lecteur XML refuse. Sans ce test, on lirait « zéro film » et
-     on chercherait longtemps du côté du pseudo. */
+  /* A broken relay does not return an error: it returns an HTML page,
+     which the XML reader refuses. Without this check we would read "zero
+     films" and search a long while on the side of the username. */
   if (doc.querySelector("parsererror") || !doc.querySelector("rss, channel"))
     throw new Error(
       "La réponse n'est pas un flux Letterboxd. Vérifiez le pseudo, ou le relais si vous en avez réglé un."
     );
 
   const items = [...doc.getElementsByTagName("item")];
-  /* Le flux mélange les séances et les listes publiées. Seul le
-     préfixe du `guid` les distingue — le reste de l'entrée se ressemble
-     assez pour qu'une liste passe pour un film. */
+  /* The feed mixes screenings and published lists. Only the prefix of
+     the `guid` tells them apart — the rest of an entry is alike enough
+     for a list to pass as a film. */
   const watches = items.filter((it) => tagOf(it, "guid").startsWith("letterboxd-watch-"));
 
   let skippedNoTitle = 0;
@@ -109,9 +110,9 @@ export function parseLetterboxdRss(xml: string): ParsedCsv {
     }
     const yearRaw = tagOf(it, "letterboxd:filmYear");
     const tmdbId = tagOf(it, "tmdb:movieId");
-    /* Un film peut être vu sans être noté : l'entrée n'a alors PAS de
-       `memberRating`, et `parseRating` rend null — ce qui ne veut pas
-       dire zéro, et n'écrasera donc aucune note existante. */
+    /* A film may be seen without being rated: the entry then has NO
+       `memberRating`, and `parseRating` returns null — which does not
+       mean zero, and will therefore crush no existing rating. */
     const rating = parseRating(tagOf(it, "letterboxd:memberRating") || null);
     const date = tagOf(it, "letterboxd:watchedDate") || null;
     const rewatch = /^yes$/i.test(tagOf(it, "letterboxd:rewatch"));
@@ -121,17 +122,17 @@ export function parseLetterboxdRss(xml: string): ParsedCsv {
       rating,
       watchedAt: date,
       uri: tagOf(it, "link") || null,
-      // une entrée du flux EST une séance, avec la note de ce jour-là
+      // an entry of the feed IS a screening, with that day's rating
       watches: date ? [{ date, rating, ...(rewatch && { rewatch }) }] : [],
-      /* Le vrai cadeau du flux : plus rien à deviner par recherche de
-         titre, ni pour TMDB ni pour l'appariement (`diffImport` teste
-         l'identifiant AVANT le titre). */
+      /* The feed's real gift: nothing left to guess by title search,
+         neither for TMDB nor for the matching (`diffImport` tests the
+         identifier BEFORE the title). */
       tmdbId: tmdbId ? Number(tmdbId) || tmdbId : null,
     };
-    /* Un revisionnage occupe deux entrées, et le flux donne la note de
-       CHACUNE — c'est de quoi voir un avis bouger sur dix ans. On les
-       empile donc, comme le diary du CSV : la fiche reste unique, c'est
-       le journal qui s'allonge. */
+    /* A rewatch takes up two entries, and the feed gives the rating of
+       EACH — enough to watch an opinion move over ten years. So we stack
+       them, like the CSV diary: the card stays unique, it is the log
+       that grows longer. */
     const k = filmKey(row);
     const prev = byKey.get(k);
     if (!prev) {
@@ -152,12 +153,12 @@ export function parseLetterboxdRss(xml: string): ParsedCsv {
   const rows = [...byKey.values()];
   return {
     rows,
-    // il n'existe pas de flux de watchlist : ce chemin ne rend que du vu
+    // there is no watchlist feed: this path only returns what was seen
     kind: "watched",
     stats: {
       lines: watches.length,
       total: rows.length,
-      // une revoyure est une séance de plus, pas un rebut
+      // a rewatch is one screening more, not a reject
       duplicatesInFile: watches.length - skippedNoTitle - rows.length - extraWatches,
       withRating: rows.filter((r) => r.rating != null).length,
       withoutRating: rows.filter((r) => r.rating == null).length,
@@ -166,16 +167,16 @@ export function parseLetterboxdRss(xml: string): ParsedCsv {
   };
 }
 
-/** Relève le flux d'un membre. Rejette avec un message affichable tel quel. */
+/** Reads a member's feed. Rejects with a message displayable as it is. */
 export async function fetchLetterboxdFeed(user: string, relay?: string): Promise<ParsedCsv> {
   if (!user.trim()) throw new Error("Indiquez d'abord votre pseudo Letterboxd.");
   let res: Response;
   try {
     res = await fetch(feedUrl(user, relay));
   } catch {
-    /* Un échec de `fetch` ne dit jamais pourquoi — CORS, réseau, relais
-       mort se ressemblent tous. On nomme la cause la plus probable au
-       lieu de rendre « Failed to fetch ». */
+    /* A `fetch` failure never says why — CORS, network, dead relay all
+       look alike. We name the most likely cause instead of returning
+       "Failed to fetch". */
     throw new Error("Le relais n'a pas répondu. Il est peut-être hors service — voyez « relais ».");
   }
   if (!res.ok) throw new Error(`Le flux a répondu ${res.status}. Le pseudo est-il le bon ?`);
@@ -183,14 +184,14 @@ export async function fetchLetterboxdFeed(user: string, relay?: string): Promise
 }
 
 /* ============================================================
-   LA WATCHLIST — lue dans les pages, faute de flux
+   THE WATCHLIST — read from the pages, for want of a feed
    ============================================================ */
 
-/* Un film n'est pas décrit deux fois de la même façon selon l'âge du
-   gabarit : l'ancien pose les attributs sur `.film-poster`, le récent sur
-   un composant React, et le titre se cache tantôt dans un attribut,
-   tantôt dans l'`alt` de l'affiche. On lit donc la première valeur qui
-   se présente au lieu de parier sur une seule. */
+/* A film is not described the same way twice depending on the age of
+   the template: the old one lays the attributes on `.film-poster`, the
+   recent one on a React component, and the title hides sometimes in an
+   attribute, sometimes in the poster's `alt`. So we read the first value
+   that shows up instead of betting on a single one. */
 const attrOf = (el: Element, names: string[]): string => {
   for (const n of names) {
     const v = el.getAttribute(n)?.trim();
@@ -199,32 +200,32 @@ const attrOf = (el: Element, names: string[]): string => {
   return "";
 };
 
-/* Le gabarit actuel ne donne pas l'année à part : elle est collée au
-   titre, « Rachel, Rachel (1968) ». On la détache — sinon elle entrerait
-   dans la clé d'appariement par le mauvais bout et un film déjà en
-   collection serait recréé au lieu d'être reconnu. */
+/* The current template does not give the year separately: it is stuck
+   to the title, "Rachel, Rachel (1968)". We detach it — otherwise it
+   would enter the matching key by the wrong end and a film already in
+   the collection would be recreated instead of recognised. */
 const splitYear = (name: string): { title: string; year: Year } => {
   const m = name.match(/^(.*?)\s*\((\d{4})\)$/);
   return m ? { title: m[1]!.trim(), year: Number(m[2]) } : { title: name, year: "" };
 };
 
-/** Ce qu'une page de watchlist apprend : ses films, et combien il y en a. */
+/** What one watchlist page teaches: its films, and how many there are. */
 export interface WatchlistPage {
   rows: ImportRow[];
   lastPage: number;
   skippedNoTitle: number;
 }
 
-/** Lit une page de watchlist. Lève plutôt que de rendre une liste vide douteuse. */
+/** Reads one watchlist page. Throws rather than return a doubtful empty list. */
 export function parseWatchlistPage(html: string): WatchlistPage {
   const doc = new DOMParser().parseFromString(html, "text/html");
   const posters = [...doc.querySelectorAll("[data-film-slug], [data-item-slug]")];
 
-  /* Le garde-fou. Une watchlist réellement vide le DIT — Letterboxd pose
-     un « No films yet » dans `.empty-text` ; un relais en panne, un
-     profil privé ou un pseudo erroné rendent tout autre chose. Sans cette
-     distinction, les deux cas se ressembleraient, et le second se
-     raconterait comme le premier. */
+  /* The guard rail. A genuinely empty watchlist SAYS SO — Letterboxd
+     lays a "No films yet" in `.empty-text`; a broken relay, a private
+     profile or a wrong username return something else entirely. Without
+     that distinction the two cases would look alike, and the second
+     would tell itself as the first. */
   if (!posters.length && !doc.querySelector(".empty-text, .empty-watchlist, ul.poster-list"))
     throw new Error(
       "Cette page n'a pas la forme d'une watchlist Letterboxd. Vérifiez le pseudo, que le profil est public, ou le relais si vous en avez réglé un."
@@ -241,18 +242,18 @@ export function parseWatchlistPage(html: string): WatchlistPage {
       skippedNoTitle++;
       continue;
     }
-    /* L'année vient de l'attribut quand il existe (ancien gabarit), du
-       titre sinon (gabarit actuel). */
+    /* The year comes from the attribute when it exists (old template),
+       from the title otherwise (current template). */
     const yearRaw = attrOf(el, ["data-film-release-year", "data-item-release-year"]);
     const named = splitYear(name);
     const slug = attrOf(el, ["data-item-slug", "data-film-slug"]);
     rows.push({
       title: named.title,
       year: yearRaw ? Number(yearRaw) || "" : named.year,
-      /* Une envie n'est ni notée ni vue. `null` et le journal vide ne
-         sont pas des trous à combler : ce sont les seules valeurs qui
-         empêchent `diffImport` d'écraser une note ou une séance déjà
-         inscrite sur une fiche du même film. */
+      /* A wish is neither rated nor seen. `null` and the empty log are
+         not holes to be filled: they are the only values that keep
+         `diffImport` from crushing a rating or a screening already
+         written on a card for the same film. */
       rating: null,
       watchedAt: null,
       uri: slug ? `https://letterboxd.com/film/${slug}/` : null,
@@ -260,9 +261,9 @@ export function parseWatchlistPage(html: string): WatchlistPage {
     });
   }
 
-  /* La pagination donne le nombre de pages d'un coup : mieux vaut le lire
-     que tâtonner jusqu'à la première page vide. Une watchlist courte n'a
-     pas de pagination du tout — c'est alors une page, et une seule. */
+  /* The pagination gives the number of pages at once: better read it
+     than grope along to the first empty page. A short watchlist has no
+     pagination at all — it is then one page, and one only. */
   const pages = [...doc.querySelectorAll(".paginate-pages li")]
     .map((li) => Number(li.textContent?.trim()))
     .filter((n) => Number.isFinite(n) && n > 0);
@@ -270,13 +271,14 @@ export function parseWatchlistPage(html: string): WatchlistPage {
   return { rows, lastPage: Math.max(1, ...pages), skippedNoTitle };
 }
 
-/* Letterboxd sert 28 films par page : une watchlist de mille films en
-   ferait trente-six. Le plafond n'est pas une limite de goût, c'est une
-   assurance contre une pagination mal lue qui ferait tourner la boucle. */
+/* Letterboxd serves 28 films per page: a watchlist of a thousand films
+   would make thirty-six of them. The ceiling is not a limit of taste, it
+   is insurance against a misread pagination that would set the loop
+   spinning. */
 const MAX_PAGES = 40;
 
 interface WatchlistOptions {
-  /** Appelé après chaque page, pour que l'écran montre l'avancée. */
+  /** Called after each page, so that the screen shows the progress. */
   onProgress?: (done: number, total: number) => void;
 }
 
@@ -294,7 +296,7 @@ async function fetchPage(url: string): Promise<string> {
   return res.text();
 }
 
-/** Relève la watchlist d'un membre, page après page. Message affichable tel quel. */
+/** Reads a member's watchlist, page after page. Message displayable as it is. */
 export async function fetchLetterboxdWatchlist(
   user: string,
   relay?: string,
@@ -312,10 +314,9 @@ export async function fetchLetterboxdWatchlist(
   const keep = (rows: ImportRow[]) => rows.forEach((r) => byKey.set(filmKey(r), r));
   keep(first.rows);
 
-  /* Les pages se lisent l'une APRÈS l'autre. En parallèle, on gagnerait
-     quelques secondes et on offrirait à un relais public une rafale de
-     trente requêtes — c'est le meilleur moyen de se faire refuser la
-     suivante. */
+  /* The pages are read one AFTER the other. In parallel we would gain a
+     few seconds and offer a public relay a burst of thirty requests —
+     which is the surest way to have the next one refused. */
   for (let p = 2; p <= total; p++) {
     const page = parseWatchlistPage(await fetchPage(watchlistUrl(user, p, relay)));
     keep(page.rows);
@@ -324,13 +325,13 @@ export async function fetchLetterboxdWatchlist(
     onProgress?.(p, total);
   }
 
-  /* L'ORDRE EST UNE DONNÉE. La page ne date aucune envie, mais elle les
-     sert dans l'ordre où elles ont été mises de côté, la plus récente
-     d'abord — c'est le tri « When Added / Newest First » que Letterboxd
-     applique par défaut à une watchlist. Sans ce report, les cinq cents
-     fiches d'un même relevé naîtraient à la même milliseconde et le tri
-     « par ajout » de l'étagère rendrait un ordre arbitraire. On espace
-     donc d'une minute, en remontant le temps depuis maintenant. */
+  /* THE ORDER IS DATA. The page dates no wish, but it serves them in
+     the order they were set aside, the most recent first — that is the
+     "When Added / Newest First" sort Letterboxd applies to a watchlist
+     by default. Without carrying it over, the five hundred cards of one
+     reading would be born at the same millisecond and the shelf's "by
+     addition" sort would give an arbitrary order. So we space them one
+     minute apart, going back in time from now. */
   const base = Date.now();
   const rows = [...byKey.values()].map((r, i) => ({ ...r, addedAt: base - i * 60_000 }));
   return {
@@ -340,7 +341,7 @@ export async function fetchLetterboxdWatchlist(
       lines,
       total: rows.length,
       duplicatesInFile: lines - skippedNoTitle - rows.length,
-      // une envie n'est jamais notée : ces deux comptes sont là pour la forme
+      // a wish is never rated: these two counts are there for the form
       withRating: 0,
       withoutRating: rows.length,
       skippedNoTitle,

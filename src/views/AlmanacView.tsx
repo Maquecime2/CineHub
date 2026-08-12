@@ -49,7 +49,7 @@ import {
   type Drift,
   type Period,
 } from "../domain/almanac";
-import { drawYearInBox, telecharger, type BoxPalette } from "../services/yearInBox";
+import { drawYearInBox, download, type BoxPalette } from "../services/yearInBox";
 import { hash, seededRand, tiltOf } from "../domain/seeded";
 import { CoffeeRing, InkUnderline, PushPin, StampCorner, Tape } from "../components/atmosphere";
 import { InkStars, Label, Tally } from "../components/ui";
@@ -1110,11 +1110,11 @@ export function AlmanacView({
           minutes: a.screenTime.minutes,
           decade: a.decades.length ? a.decades.reduce((m, d) => (d.n > m.n ? d : m)).decade : null,
           country: a.geography.countries[0] ? countryName(a.geography.countries[0].name) : null,
-          ageMoyen: a.age.mean,
+          ageMean: a.age.mean,
         },
         peauPosée()
       );
-      telecharger(blob, `cine-hub-${period}.png`);
+      download(blob, `cine-hub-${period}.png`);
       setBoîte("repos");
     } catch (e) {
       console.error(e);

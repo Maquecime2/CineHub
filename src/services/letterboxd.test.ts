@@ -8,11 +8,11 @@ import {
   DEFAULT_RELAY,
 } from "./letterboxd";
 
-/* Un extrait de flux RÉEL, figé ici. Aucun appel réseau dans ces tests :
-   ce qu'on vérifie, c'est la lecture, et un flux vivant changerait de
-   contenu entre deux exécutions. Il porte exprès les quatre cas qui
-   comptent — une séance notée, une liste, un film vu sans note, et un
-   revisionnage du même film à deux dates. */
+/* An extract of a REAL feed, frozen here. No network call in these
+   tests: what we check is the reading, and a live feed would change
+   content between two runs. It deliberately carries the four cases that
+   matter — a rated screening, a list, a film seen without a rating, and
+   a rewatch of the same film on two dates. */
 const item = (guid: string, inner: string) =>
   `<item><guid isPermaLink="false">${guid}</guid>${inner}</item>`;
 
@@ -71,24 +71,25 @@ describe("lire le flux Letterboxd", () => {
     });
   });
 
-  /* L'identifiant est ce qui permet à `diffImport` d'apparier sans passer
-     par le titre, et à TMDB de ne plus chercher. C'est le seul champ du
-     flux qui n'existait dans aucun CSV. */
+  /* The identifier is what lets `diffImport` match without going
+     through the title, and TMDB stop searching. It is the only field of
+     the feed that existed in no CSV. */
   it("donne l'identifiant TMDB en nombre, pas en chaîne", () => {
     expect(find("Toy Story 4")!.tmdbId).toBe(301528);
   });
 
-  /* Le flux mêle les listes publiées aux séances : sans le tri sur le
-     `guid`, « Mes films de 2026 » entrerait dans la vidéothèque comme un
-     film — il a un titre et un lien, rien ne le trahirait. */
+  /* The feed mixes published lists in with the screenings: without the
+     sorting on the `guid`, "Mes films de 2026" would enter the film
+     library as a film — it has a title and a link, nothing would give it
+     away. */
   it("écarte les listes, qui ne sont pas des films", () => {
     expect(parsed().rows.map((r) => r.title)).not.toContain("Mes films de 2026");
     expect(parsed().rows).toHaveLength(2);
   });
 
-  /* Zéro veut dire « noté zéro » dans le modèle. Un film vu sans note
-     doit ressortir en null, sinon le réimport écrase une note existante
-     par un zéro que personne n'a donné. */
+  /* Zero means "rated zero" in the model. A film seen without a rating
+     must come out as null, otherwise a re-import crushes an existing
+     rating with a zero nobody gave. */
   it("distingue « pas de note » de « noté zéro »", () => {
     expect(find("The Backrooms")!.rating).toBeNull();
     expect(find("Toy Story 4")!.rating).toBe(3.5);
@@ -100,8 +101,9 @@ describe("lire le flux Letterboxd", () => {
     expect(rows[0]!.watchedAt).toBe("2026-06-25");
   });
 
-  /* Le flux donne la note de CHAQUE séance. Les réduire à la dernière,
-     c'était jeter la seule chose qui dit qu'un avis a bougé. */
+  /* The feed gives the rating of EVERY screening. Reducing them to the
+     last one meant throwing away the one thing that says an opinion has
+     moved. */
   it("garde les deux séances d'un film revu, chacune avec sa note", () => {
     expect(find("Toy Story 4")!.watches).toEqual([
       { date: "2026-06-25", rating: 3.5, rewatch: true },
@@ -113,8 +115,8 @@ describe("lire le flux Letterboxd", () => {
     expect(find("The Backrooms")!.watches).toEqual([{ date: "2026-05-22", rating: null }]);
   });
 
-  /* Une revoyure n'est pas un rebut : l'annoncer comme un doublon ferait
-     croire qu'on a perdu ce qu'on vient justement de garder. */
+  /* A rewatch is not a reject: announcing it as a duplicate would make
+     one believe we lost the very thing we have just kept. */
   it("compte ce qu'il a lu, sans prendre les revoyures pour des doublons", () => {
     expect(parsed().stats).toMatchObject({
       lines: 3,
@@ -125,14 +127,15 @@ describe("lire le flux Letterboxd", () => {
     });
   });
 
-  // il n'existe pas de flux de watchlist : ce chemin ne rend que du vu
+  // there is no watchlist feed: this path only returns what was seen
   it("annonce des films vus", () => {
     expect(parsed().kind).toBe("watched");
   });
 
-  /* Un relais en panne ne répond pas une erreur : il répond une page. La
-     lire en silence donnerait « aucune séance », et on chercherait du
-     côté du pseudo pendant que le vrai coupable est le relais. */
+  /* A broken relay does not answer with an error: it answers with a
+     page. Reading it in silence would give "no screening at all", and we
+     would search on the side of the username while the real culprit is
+     the relay. */
   it("refuse une page HTML avec un message qui dit quoi vérifier", () => {
     expect(() => parseLetterboxdRss("<html><body>503 Service Unavailable</body></html>")).toThrow(
       /pseudo|relais/i
@@ -141,8 +144,8 @@ describe("lire le flux Letterboxd", () => {
 });
 
 describe("l'adresse du flux", () => {
-  /* Les tests tournent sous Vitest, donc en mode développement : c'est le
-     chemin relatif du proxy Vite qui doit sortir. */
+  /* The tests run under Vitest, hence in development mode: it is the
+     relative path of the Vite proxy that must come out. */
   it("passe par le serveur de développement, sans relais ni tiers", () => {
     expect(feedUrl("essai")).toBe("/lb-rss/essai/rss/");
   });
@@ -161,11 +164,11 @@ describe("l'adresse du flux", () => {
   });
 });
 
-/* La watchlist n'a pas de flux : on lit du HTML. Ce gabarit-ci est celui
-   que Letterboxd sert AUJOURD'HUI, relevé sur une vraie page et réduit à
-   trois films — un titre qui porte une virgule, un sans année, et une
-   affiche sans nom. La pagination est reproduite telle quelle, points de
-   suspension compris : c'est elle qui dit combien de pages relever. */
+/* The watchlist has no feed: we read HTML. This template is the one
+   Letterboxd serves TODAY, taken from a real page and reduced to three
+   films — a title carrying a comma, one without a year, and a poster
+   without a name. The pagination is reproduced as it is, ellipsis
+   included: it is what says how many pages to read. */
 const GRILLE = `<html><body><section>
   <div class="poster-grid"><ul class="grid -p125">
     <li class="griditem">
@@ -189,8 +192,8 @@ const GRILLE = `<html><body><section>
   </ul></div>
 </section></body></html>`;
 
-/* L'ancien gabarit, encore servi ici et là : l'année y est un attribut et
-   le titre vit dans l'`alt` de l'affiche. */
+/* The old template, still served here and there: the year is an
+   attribute there and the title lives in the poster's `alt`. */
 const ANCIEN = `<html><body><ul class="poster-list">
   <li class="poster-container">
     <div class="film-poster" data-film-slug="vivre-sa-vie"
@@ -209,16 +212,16 @@ describe("lire une page de watchlist", () => {
     });
   });
 
-  /* L'année est collée au titre, pas dans un attribut. La laisser là
-     ferait de « Le Samouraï (1967) » un film que la collection ne
-     reconnaîtrait jamais — et qu'elle recréerait à chaque relevé. */
+  /* The year is stuck to the title, not in an attribute. Leaving it
+     there would make "Le Samouraï (1967)" a film the collection would
+     never recognise — and would recreate at every reading. */
   it("détache l'année du titre sans manger le reste", () => {
     expect(page().rows[1]).toMatchObject({ title: "Le Samouraï", year: 1967 });
   });
 
-  /* Une envie n'a ni note ni séance. Les rendre à zéro plutôt qu'à null
-     ferait écraser, au réimport, la note d'un film déjà vu qui traîne
-     encore dans la watchlist. */
+  /* A wish has neither rating nor screening. Returning them as zero
+     rather than null would crush, on re-import, the rating of an
+     already-seen film still lying about in the watchlist. */
   it("ne prête ni note ni séance à une envie", () => {
     expect(page().rows[1]).toMatchObject({ rating: null, watchedAt: null, watches: [] });
   });
@@ -228,9 +231,9 @@ describe("lire une page de watchlist", () => {
     expect(page().skippedNoTitle).toBe(1);
   });
 
-  /* La pagination porte des points de suspension entre la troisième page
-     et la dernière : c'est le plus GRAND nombre qui compte, pas le
-     dernier lu, et surtout pas le « … ». */
+  /* The pagination carries an ellipsis between the third page and the
+     last: it is the LARGEST number that counts, not the last one read,
+     and certainly not the "…". */
   it("lit le nombre de pages dans la pagination, points de suspension compris", () => {
     expect(page().lastPage).toBe(4);
   });
@@ -247,27 +250,27 @@ describe("lire une page de watchlist", () => {
     });
   });
 
-  /* LE point du garde-fou : une page qui n'est pas une watchlist doit
-     lever, pas rendre zéro film. Zéro film se raconterait comme une
-     watchlist vidée, et l'écran signalerait toute la collection comme
-     retirée. */
+  /* THE point of the guard rail: a page that is not a watchlist must
+     throw, not return zero films. Zero films would tell itself as an
+     emptied watchlist, and the screen would flag the whole collection as
+     removed. */
   it("refuse une page qui n'est pas une watchlist", () => {
     expect(() => parseWatchlistPage("<html><body>503 Service Unavailable</body></html>")).toThrow(
       /pseudo|relais|public/i
     );
   });
 
-  /* Une watchlist vide le dit : Letterboxd pose « No films yet » dans
-     `.empty-text`. C'est ce qui la distingue d'une page ratée. */
+  /* An empty watchlist says so: Letterboxd lays a "No films yet" in
+     `.empty-text`. That is what tells it apart from a failed page. */
   it("accepte en revanche une watchlist réellement vide", () => {
     const vide = `<html><body><p class="empty-text">No films yet</p></body></html>`;
     expect(parseWatchlistPage(vide).rows).toEqual([]);
   });
 });
 
-/* Le relevé entier, pages comprises. Le réseau est remplacé par un
-   dictionnaire de pages : ce qu'on vérifie ici, c'est la BOUCLE et
-   l'ordre, pas la capacité de `fetch` à aller chercher une page. */
+/* The whole reading, pages included. The network is replaced by a
+   dictionary of pages: what we check here is the LOOP and the order, not
+   the ability of `fetch` to go and get a page. */
 describe("relever une watchlist entière", () => {
   const page = (noms: string[], dernière: number) =>
     `<html><body><ul class="grid">${noms
@@ -302,9 +305,10 @@ describe("relever une watchlist entière", () => {
     expect(stats.total).toBe(3);
   });
 
-  /* L'ORDRE EST UNE DONNÉE : la page sert la watchlist du plus récemment
-     ajouté au plus ancien. Sans ce report, les trois fiches naîtraient à
-     la même milliseconde et le tri « par ajout » serait au hasard. */
+  /* THE ORDER IS DATA: the page serves the watchlist from the most
+     recently added to the oldest. Without carrying it over, the three
+     cards would be born at the same millisecond and the "by addition"
+     sort would be at random. */
   it("date les fiches dans l'ordre où elles ont été mises de côté", async () => {
     servir({
       "/lb-rss/essai/watchlist/page/1/": page(["Stalker (1979)", "Solaris (1972)"], 2),

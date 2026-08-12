@@ -224,7 +224,6 @@ export async function synchronise(onFilms: (films: Film[]) => void): Promise<Syn
       );
     }
 
-    /* ---------- 3. LE RESTE DU CLASSEUR ----------
     /* ---------- 3. THE REST OF THE BINDER ----------
        After the cards, and not before: a shelf arrangement quotes film
        identifiers, and a shelf arriving first would point at cards we do

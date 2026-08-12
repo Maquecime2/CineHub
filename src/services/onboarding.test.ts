@@ -38,9 +38,9 @@ describe("ce que le classeur retient de l'accueil", () => {
     expect(shouldHint()).toBe(false);
   });
 
-  /* Le rappel ne sert qu'à retrouver une visite jamais faite : l'avoir
-     menée à son terme après coup doit le faire taire, même si le
-     compteur n'est pas au bout. */
+  /* The reminder only serves to find a tour never taken: having carried
+     it to its end after the fact must silence it, even if the counter
+     has not run out. */
   it("se tait dès que la visite complète a été faite", () => {
     markSkipped();
     markDone("global");
@@ -54,8 +54,8 @@ describe("ce que le classeur retient de l'accueil", () => {
     expect(isFirstRun()).toBe(true);
   });
 
-  /* Une valeur écrite par une version antérieure, ou par une main
-     malheureuse, ne doit pas faire planter l'ouverture. */
+  /* A value written by an earlier version, or by an unlucky hand, must
+     not crash the opening. */
   it("survit à une valeur abîmée", () => {
     localStorage.setItem(KEYS.onboarding, JSON.stringify({ done: "oui", hints: -4 }));
     expect(loadOnboarding()).toEqual({ done: [], skipped: false, hints: 0, seeded: false });
@@ -68,13 +68,13 @@ describe("ce que le classeur retient de l'accueil", () => {
 });
 
 /* ============================================================
-   LE SEMIS N'A LIEU QU'UNE FOIS
+   THE SOWING HAPPENS ONLY ONCE
 
-   `isFirstRun` ne pouvait pas porter cette question : il retombe à faux
-   dès qu'une visite est jouée ou écartée, mais il redevient VRAI pour
-   qui n'a jamais fait ni l'un ni l'autre. S'y fier aurait fait revenir
-   les douze films d'exemple le lendemain du jour où quelqu'un a vidé sa
-   collection à la main — au pire moment possible.
+   `isFirstRun` could not carry this question: it falls back to false as
+   soon as a tour is played or dismissed, but it becomes TRUE again for
+   whoever has done neither. Trusting it would have brought the twelve
+   example films back the day after somebody emptied their collection by
+   hand — at the worst possible moment.
    ============================================================ */
 describe("le classeur de démonstration ne se sème qu'une fois", () => {
   it("reste à semer sur une première ouverture", () => {
@@ -88,16 +88,16 @@ describe("le classeur de démonstration ne se sème qu'une fois", () => {
 
   it("survit au rechargement", () => {
     markSeeded();
-    /* Rien en mémoire : `loadOnboarding` relit le magasin à chaque
-       appel, ce qui est exactement ce qu'on veut vérifier ici. */
+    /* Nothing in memory: `loadOnboarding` re-reads the store at every
+       call, which is exactly what we want to check here. */
     expect(loadOnboarding().seeded).toBe(true);
     expect(shouldSeed()).toBe(false);
   });
 
-  /* LE CAS QUI A MOTIVÉ LE CHAMP : un classeur vidé à la main, par
-     quelqu'un qui n'a jamais joué ni écarté la visite. `isFirstRun` dit
-     « oui » — et il a raison de son point de vue. Le semis doit dire
-     « non » quand même. */
+  /* THE CASE THAT MOTIVATED THE FIELD: a binder emptied by hand, by
+     somebody who has never played nor dismissed the tour. `isFirstRun`
+     says "yes" — and it is right from its point of view. The sowing must
+     say "no" all the same. */
   it("ne ressème pas un classeur vidé par quelqu'un qui n'a rien visité", () => {
     markSeeded();
     expect(isFirstRun()).toBe(true);
@@ -110,8 +110,8 @@ describe("le classeur de démonstration ne se sème qu'une fois", () => {
     expect(shouldSeed()).toBe(true);
   });
 
-  /* Une valeur écrite avant ce champ ne le porte pas : l'absence doit se
-     lire « pas encore semé », et non « déjà fait ». */
+  /* A value written before this field does not carry it: the absence
+     must read "not sown yet", and not "already done". */
   it("lit une valeur d'avant comme un classeur jamais semé", () => {
     localStorage.setItem(KEYS.onboarding, JSON.stringify({ done: ["global"], hints: 1 }));
     expect(shouldSeed()).toBe(true);

@@ -1,9 +1,9 @@
 /* ============================================================
-   IMAGES — mesure et réduction avant rangement.
+   IMAGES — measuring and shrinking before storage.
    ============================================================ */
 
-/* Dimensions réelles d'un fichier image, pour pouvoir afficher ce qui a
-   effectivement été conservé plutôt que de le promettre. */
+/* The real dimensions of an image file, so as to display what was
+   actually kept rather than promise it. */
 export const imageSize = (file: File): Promise<{ w: number; h: number }> =>
   new Promise((resolve) => {
     const url = URL.createObjectURL(file);
@@ -19,23 +19,23 @@ export const imageSize = (file: File): Promise<{ w: number; h: number }> =>
     img.src = url;
   });
 
-/* Les formats qui savent porter de la transparence. Le JPEG n'en fait
-   pas partie, et c'est tout le problème réglé plus bas. */
+/* The formats that know how to carry transparency. JPEG is not one of
+   them, and that is the whole problem settled below. */
 const KEEPS_ALPHA = ["image/png", "image/webp", "image/gif"];
 
-/* L'image est ramenée à une taille d'affiche avant d'être rangée. IndexedDB
-   pourrait encaisser l'original, mais 700 px suffisent largement au plus grand
-   affichage : autant garder la base légère et le rendu instantané.
+/* The image is brought back to poster size before being stored.
+   IndexedDB could take the original, but 700 px is ample for the largest
+   display: better keep the database light and the rendering instant.
 
-   LE FOND QUI DEVENAIT NOIR. Tout ressortait en JPEG, y compris les PNG
-   détourés. Or un JPEG n'a pas de canal alpha : le canevas est
-   transparent là où l'image ne peint rien, et l'encodeur, n'ayant nulle
-   part où ranger cette transparence, la rend en noir. Un objet de déco
-   découpé arrivait donc sur l'étagère dans un rectangle noir.
+   THE BACKGROUND THAT TURNED BLACK. Everything came out as JPEG,
+   including cut-out PNGs. But a JPEG has no alpha channel: the canvas is
+   transparent where the image paints nothing, and the encoder, having
+   nowhere to store that transparency, renders it black. A cut-out decor
+   object therefore arrived on the shelf inside a black rectangle.
 
-   On garde donc le format quand il sait porter la transparence, et le
-   JPEG pour tout le reste — une affiche est une photo, elle n'a pas de
-   trou et le PNG la ferait peser trois fois plus. */
+   So we keep the format when it knows how to carry transparency, and
+   JPEG for all the rest — a poster is a photograph, it has no hole and
+   PNG would make it weigh three times as much. */
 export const shrinkImage = (file: File, maxW = 700): Promise<Blob> =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -50,11 +50,11 @@ export const shrinkImage = (file: File, maxW = 700): Promise<Blob> =>
         canvas.height = Math.round(img.height * scale);
         canvas.getContext("2d")?.drawImage(img, 0, 0, canvas.width, canvas.height);
         const alpha = KEEPS_ALPHA.includes(file.type);
-        // un Blob, pas une chaîne base64 : c'est tout l'intérêt d'IndexedDB
+        // a Blob, not a base64 string: that is the whole point of IndexedDB
         canvas.toBlob(
           (blob) => (blob ? resolve(blob) : reject(new Error("encodage impossible"))),
           alpha ? "image/png" : "image/jpeg",
-          // la qualité ne dit rien au PNG, qui ne perd rien
+          // quality says nothing to PNG, which loses nothing
           alpha ? undefined : 0.82
         );
       };

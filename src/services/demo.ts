@@ -1,58 +1,57 @@
 /* ============================================================
-   LE CLASSEUR DE DÉMONSTRATION — douze films pour la première fois
+   THE DEMONSTRATION BINDER — twelve films for the first time
 
-   Un classeur vide est le premier écran de qui découvre l'application,
-   et c'est le seul écran où la visite guidée ment. Sur rien, elle
-   escamote trois étapes après sept cents millisecondes de voile opaque
-   chacune, en joue cinq autour d'un carré vide, et la partie la plus
-   riche — le dossier d'un film — reste inatteignable faute de fiche à
-   ouvrir. Elle décrit alors un produit que personne ne voit.
+   An empty binder is the first screen of whoever discovers the
+   application, and it is the only screen where the guided tour lies. On
+   nothing, it skips three steps after seven hundred milliseconds of
+   opaque veil each, plays five more around an empty square, and the
+   richest part — a film's folder — stays out of reach for want of a card
+   to open. It then describes a product nobody sees.
 
-   Ces douze films sont donc taillés pour CE QUE LA VISITE MONTRE, et
-   pas pour faire nombre : des génériques qui se recoupent (Ridley Scott
-   deux fois, Wim Wenders deux fois, Henri Decaë à l'image de deux
-   films), des motifs, des fils rouges tendus à la main, des séances
-   datées sur trois années, une fiche mise de côté, et une page de
-   carnet. Chacun de ces traits sert un repère de la visite ; en retirer
-   un rouvre le trou qu'il bouchait.
+   These twelve films are therefore cut for WHAT THE TOUR SHOWS, and not
+   to make up the numbers: credits that overlap (Ridley Scott twice, Wim
+   Wenders twice, Henri Decaë behind the camera on two films), patterns,
+   red threads strung by hand, screenings dated over three years, a card
+   set aside, and a notebook page. Each of these traits serves one
+   landmark of the tour; removing one reopens the hole it filled.
 
-   TROIS RÈGLES QUI TIENNENT LE RESTE :
+   THREE RULES THAT HOLD THE REST TOGETHER:
 
-   1. Les identifiants sont FIXES et préfixés (`demo-`). C'est ce qui
-      permet de reconnaître un classeur encore entièrement d'exemple, de
-      le retirer d'un geste, et d'écrire les fils rouges à la main sans
-      passer par un registre d'identifiants tirés au hasard.
+   1. The identifiers are FIXED and prefixed (`demo-`). That is what
+      allows recognising a binder still entirely made of examples,
+      removing it in one gesture, and writing the red threads by hand
+      without going through a registry of randomly drawn identifiers.
 
-   2. AUCUNE AFFICHE. `image.tmdb.org` servirait de vraies images, mais
-      le classeur est une application hors ligne et une adresse morte
-      donne douze rectangles cassés là où l'application sait déjà
-      dessiner une émulsion teintée aux initiales du titre. Le repli
-      n'est pas un pis-aller ici : c'est la direction artistique.
+   2. NO POSTERS. `image.tmdb.org` would serve real images, but the
+      binder is an offline application and a dead address gives twelve
+      broken rectangles where the application already knows how to draw
+      an emulsion tinted with the title's initials. The fallback is not a
+      makeshift here: it is the art direction.
 
-   3. On ne sème QU'UNE FOIS, et jamais plus — voir `seeded` dans
-      `onboarding`. Un classeur qu'on vide à la main doit rester vide.
+   3. We sow ONLY ONCE, and never more — see `seeded` in `onboarding`. A
+      binder emptied by hand must stay empty.
    ============================================================ */
 import { makeFilm } from "../domain/film";
 import { inverseOf } from "../domain/relations";
 import type { Film, Strength, LinkedWork, Note, Relation, Watch } from "../types";
 
-/** Le préfixe qui distingue une fiche d'exemple de la vôtre. */
+/** The prefix that tells an example card from your own. */
 export const PRÉFIXE_DÉMO = "demo-";
 
 export const estDémo = (f: Pick<Film, "id">): boolean => f.id.startsWith(PRÉFIXE_DÉMO);
 
 /**
- * Le classeur ne contient-il QUE de l'exemple ?
+ * Does the binder contain ONLY examples?
  *
- * C'est la condition du bandeau : dès qu'une fiche est ajoutée à la
- * main, le classeur est celui de quelqu'un, et l'avertissement n'a plus
- * lieu d'être — les douze films restent, mais ils ne mentent plus sur
- * ce qu'on regarde.
+ * That is the condition for the banner: as soon as one card is added by
+ * hand, the binder is somebody's, and the warning has no reason left to
+ * be — the twelve films remain, but they no longer lie about what one is
+ * looking at.
  */
 export const classeurEncoreDémo = (films: Pick<Film, "id">[]): boolean =>
   films.length > 0 && films.every(estDémo);
 
-/** Ce qui reste après avoir retiré l'exemple. */
+/** What remains once the examples have been removed. */
 export const sansDémo = <T extends Pick<Film, "id">>(films: T[]): T[] =>
   films.filter((f) => !estDémo(f));
 
@@ -60,18 +59,18 @@ export const sansDémo = <T extends Pick<Film, "id">>(films: T[]): T[] =>
    Les fiches
    ------------------------------------------------------------ */
 
-/* Une séance se lit « le jour, la note ». `null` veut dire « vu sans
-   noter », ce qui n'est pas zéro — l'almanach compte la séance et
-   écarte la note. */
+/* A screening reads "the day, the rating". `null` means "seen without
+   rating", which is not zero — the almanac counts the screening and sets
+   the rating aside. */
 const vu = (date: string, rating: number | null = null, rewatch = false): Watch => ({
   date,
   rating,
   ...(rewatch ? { rewatch: true } : {}),
 });
 
-/* Les fiches sont écrites en une seule table, dans l'ordre où elles
-   apparaîtront sur le mur. `makeFilm` complète tout ce qui n'est pas
-   dit : c'est lui la définition d'une fiche, pas cette liste. */
+/* The cards are written in a single table, in the order they will
+   appear on the wall. `makeFilm` fills in everything left unsaid: it is
+   the definition of a card, not this list. */
 interface Brouillon extends Partial<Film> {
   id: string;
   title: string;
@@ -236,8 +235,8 @@ const BROUILLONS: Brouillon[] = [
     keywords: ["routine", "tokyo", "solitude", "cassette tape", "toilets"],
     motifs: ["real-time"],
     themes: ["la routine", "le travail"],
-    /* MIS DE CÔTÉ, et c'est ce qui donne son contenu à l'onglet « À
-       voir » : sans une fiche au moins, la visite y ouvre un mur vide. */
+    /* SET ASIDE, and that is what gives the "À voir" tab its content:
+       without at least one card, the tour opens an empty wall there. */
     status: "watchlist",
     watches: [],
   },
@@ -329,14 +328,14 @@ const BROUILLONS: Brouillon[] = [
 ];
 
 /* ------------------------------------------------------------
-   Les fils rouges
+   The red threads
    ------------------------------------------------------------
 
-   Écrits à la main, comme dans l'application : deux moitiés qui
-   partagent un `pairId`, avec la relation RENVERSÉE de l'autre côté
-   (voir `inverseOf`). Les recopier telles quelles plutôt que d'call
-   `linkFilms` est délibéré — cette fonction vit dans `App` et travaille
-   sur l'état React, qui n'existe pas encore au moment du semis. */
+   Written by hand, as in the application: two halves sharing a `pairId`,
+   with the relation REVERSED on the other side (see `inverseOf`).
+   Copying them out as they are rather than calling `linkFilms` is
+   deliberate — that function lives in `App` and works on React state,
+   which does not exist yet at sowing time. */
 interface Thread {
   de: string;
   vers: string;
@@ -376,8 +375,8 @@ const FILS: Thread[] = [
   },
 ];
 
-/* Un renvoi vers une œuvre qui n'est pas un film : c'est ce qui fait de
-   la constellation autre chose qu'une carte de la collection. */
+/* A reference to a work that is not a film: that is what makes the
+   constellation something other than a map of the collection. */
 const LIVRE: Omit<LinkedWork, "id"> & { propriétaire: string } = {
   propriétaire: "demo-blade-runner",
   type: "book",
@@ -391,22 +390,24 @@ const LIVRE: Omit<LinkedWork, "id"> & { propriétaire: string } = {
    ------------------------------------------------------------ */
 
 /**
- * Les douze fiches, complètes, fils tendus.
+ * The twelve cards, complete, threads strung.
  *
- * Rendues NEUVES à chaque appel : une constante partagée finirait par
- * être modifiée par quelqu'un — les fiches se recopient partout dans
- * l'application, mais un tableau, non.
+ * Returned BRAND NEW at every call: a shared constant would end up being
+ * modified by somebody — cards are copied everywhere in the application,
+ * but an array is not.
  */
 export function filmsDeDémonstration(maintenant = Date.now()): Film[] {
   const films = BROUILLONS.map((b, rang) =>
     makeFilm({
       ...b,
-      /* Rangées dans l'ordre de la table, du plus récemment ajouté au
-         plus ancien : c'est ce que le tri par défaut du mur attend. */
+      /* Arranged in the order of the table, from the most recently
+         added to the oldest: that is what the wall's default sort
+         expects. */
       addedAt: maintenant - rang * 86_400_000,
       updatedAt: maintenant - rang * 86_400_000,
-      /* `watchedAt` est le reflet de `watches`, et le dépôt ne le recale
-         pas tout seul à la lecture : on le pose ici, à la source. */
+      /* `watchedAt` is the reflection of `watches`, and the store does
+         not realign it by itself on reading: we lay it here, at the
+         source. */
       watchedAt: b.watches?.[0]?.date ?? null,
       source: "manual",
     })
@@ -444,7 +445,7 @@ export function filmsDeDémonstration(maintenant = Date.now()): Film[] {
   return films;
 }
 
-/** La page de carnet qui vient avec — le carnet aussi a sa visite. */
+/** The notebook page that comes with it — the notebook has its tour too. */
 export function notesDeDémonstration(maintenant = Date.now()): Note[] {
   return [
     {

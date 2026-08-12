@@ -1,16 +1,16 @@
 /* ============================================================
-   LES VUES — chargement, écriture, migration
+   THE VIEWS — loading, writing, migration
    ============================================================
 
-   Une clé par vue, et non un tableau unique : un dépôt réécrit alors le
-   seul agencement touché, pas toute la bibliothèque. Sur une grande
-   collection c'est la différence entre une écriture de quelques dizaines
-   de kilo-octets et une écriture qui frôle le quota. */
+   One key per view, and not a single array: a drop then rewrites only
+   the arrangement touched, not the whole library. On a large collection
+   that is the difference between a write of a few dozen kilobytes and a
+   write that brushes the quota. */
 import { store } from "./storage";
 import { VIEW_VERSION, upgradeView, buildViewsFromLegacy } from "../shelf-views";
 import type { Divider, Film, FilmStatus, ShelfViews } from "../types";
 
-/** Une vue d'étagère. Sa forme vit dans shelf-views.js, encore en JavaScript. */
+/** A shelf view. Its shape lives in shelf-views.js, still in JavaScript. */
 type ViewDoc = { id: string; wall: FilmStatus } & Record<string, unknown>;
 
 export const VIEW_INDEX = "shelf-views";
@@ -26,9 +26,9 @@ export const saveViewIndex = (byWall: Record<FilmStatus, string[]>) =>
 
 const loadView = (id: string) => store.get<ViewDoc | null>(viewKey(id), null);
 
-/* Le message de quota de `store` parle d'affiches ; ici ce qu'on perd
-   est un rangement, et le dire est la seule façon que l'utilisateur ne
-   croie pas son geste enregistré. */
+/* The quota message from `store` speaks of posters; here what is lost
+   is an arrangement, and saying so is the only way the user will not
+   believe their gesture was recorded. */
 export const saveView = (view: ViewDoc) => {
   const ok = store.set(viewKey(view.id), view);
   if (!ok) alert("Le rangement n'a pas pu être enregistré — espace de stockage plein.");
@@ -39,16 +39,16 @@ export const deleteViewKey = (id: string) => {
   try {
     localStorage.removeItem(viewKey(id));
   } catch {
-    /* rien à faire */
+    /* nothing to do */
   }
 };
 
-/* Fabriquer les vues à partir de l'ancien rangement, une fois.
+/* Build the views from the old arrangement, once.
 
-   La garde porte sur l'EXISTENCE de l'index, jamais sur « il n'y a pas
-   d'intercalaire » : un utilisateur qui n'en a jamais posé se verrait
-   sinon regénérer une vue neuve à chaque chargement, et perdrait son
-   agencement à chaque fois. */
+   The guard is on the EXISTENCE of the index, never on "there is no
+   divider": a user who has never laid one would otherwise get a
+   brand-new view regenerated at every load, and lose their arrangement
+   every time. */
 export function ensureViews({
   films,
   dividers,
@@ -68,20 +68,20 @@ export function ensureViews({
         for (const id of idx.byWall[wall]) {
           const v = loadView(id);
           if (!v) continue;
-          /* Une vue d'une version antérieure est reprise ICI, au
-             chargement, et réenregistrée. La laisser telle quelle, c'est
-             la laisser en une seule grosse ligne jusqu'à ce que
-             l'utilisateur y touche — autant dire jamais. */
+          /* A view from an earlier version is taken up HERE, at load
+             time, and saved again. Leaving it as it is means leaving it
+             in one big line until the user touches it — which is to say
+             never. */
           const up = upgradeView(v);
           if (up !== v) store.set(viewKey(id), up);
           docs[id] = up;
         }
       }
-      // un index qui ne mène à rien vaut un index absent : on refabrique
+      // an index leading nowhere is worth a missing index: we rebuild
       if (Object.keys(docs).length) return { byWall: idx.byWall, docs };
     }
   }
-  // shelf-views.js est encore en JavaScript : ses paramètres n'ont pas de type déclaré
+  // shelf-views.js is still in JavaScript: its parameters have no declared type
   const built: ViewDoc[] = buildViewsFromLegacy({
     films,
     dividers,

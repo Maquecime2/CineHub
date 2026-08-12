@@ -1,18 +1,17 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
-/* Le registre range ses images dans IndexedDB, dont jsdom ne dispose
-   pas : on remplace le coffre par une Map, ce qui suffit à vérifier
-   qu'une image est bien écrite quand on importe et bien effacée quand on
-   supprime. */
+/* The registry stores its images in IndexedDB, which jsdom does not
+   have: we replace the vault with a Map, which is enough to check that
+   an image is indeed written on import and indeed erased on delete. */
 const vault = new Map();
 vi.mock("../db", () => ({
   putImage: async (k, blob) => vault.set(k, blob),
   getImage: async (k) => vault.get(k),
   deleteImage: async (k) => void vault.delete(k),
 }));
-/* Un JPEG ne se fabrique pas sous jsdom (ni canvas, ni décodeur d'image) :
-   ce que `shrinkImage` rend n'a pas d'importance ici, seulement qu'il
-   rende quelque chose. */
+/* A JPEG cannot be built under jsdom (no canvas, no image decoder):
+   what `shrinkImage` returns does not matter here, only that it returns
+   something. */
 vi.mock("./images", () => ({
   shrinkImage: async (file) => new Blob([`shrunk:${file.name}`]),
   imageSize: async () => ({ w: 10, h: 10 }),
@@ -59,9 +58,9 @@ describe("le registre des objets importés", () => {
     expect(vault.has(entry.imageKey)).toBe(false);
   });
 
-  /* Le préfixe est ce qui empêche un import de recouvrir `plant` ou
-     `divider` : sans lui, deux objets porteraient la même clé et
-     l'étagère afficherait l'un pour l'autre. */
+  /* The prefix is what keeps an import from covering `plant` or
+     `divider`: without it, two objects would carry the same key and the
+     shelf would show one for the other. */
   it("ne peut pas prendre la clé d'un motif de la maison", async () => {
     const a = await addCustomDecor(pngFile("plant.png"));
     expect(a.key).not.toBe("plant");
@@ -93,8 +92,8 @@ describe("masquer un motif de la maison", () => {
     const { shelfDecorTypes, decorSpec } = await import("../components/shelf/constants");
     toggleDecorHidden("plant");
     expect(shelfDecorTypes().map((d) => d.key)).not.toContain("plant");
-    /* Il reste RÉSOLVABLE : une plante déjà posée sur une étagère
-       continue de s'afficher, masquer n'est pas supprimer. */
+    /* It remains RESOLVABLE: a plant already laid on a shelf goes on
+       being displayed, hiding is not deleting. */
     expect(decorSpec("plant")).toBeTruthy();
     expect(isDecorHidden("plant")).toBe(true);
   });
@@ -149,9 +148,9 @@ describe("le nettoyage d'un SVG", () => {
     expect(markup).toContain("opacity");
   });
 
-  /* Un dessin sans trait nommé — tout en dégradés, ou sans peinture
-     déclarée — n'est pas teintable, et le panneau lui retire alors ses
-     pastilles de couleur. */
+  /* A drawing with no named stroke — all in gradients, or with no
+     declared paint — is not tintable, and the panel then takes its
+     colour pills away from it. */
   it("ne se dit pas teintable quand il n'y a rien à teindre", () => {
     const { tintable } = sanitizeSvg(
       `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 0" fill="none"/></svg>`
@@ -184,7 +183,7 @@ describe("le motif importé, tel que l'étagère le voit", () => {
 
     expect(shelfDecorTypes().map((d) => d.key)).toContain(posé.key);
     expect(wallDecorTypes().map((d) => d.key)).toContain(accroché.key);
-    // et les motifs de la maison sont toujours là, en tête
+    // and the house patterns are still there, at the head
     expect(shelfDecorTypes().map((d) => d.key)).toContain("plant");
 
     expect(isWallMotif(accroché.key)).toBe(true);
@@ -194,9 +193,10 @@ describe("le motif importé, tel que l'étagère le voit", () => {
     expect(decorSpec("fantôme")).toBeUndefined();
   });
 
-  /* `decorSpec` est appelé au rendu de chaque objet posé : s'il rendait un
-     composant neuf à chaque fois, React démonterait et remonterait
-     l'image — donc la relirait dans IndexedDB — à chaque survol. */
+  /* `decorSpec` is called when rendering every laid object: if it
+     returned a brand-new component each time, React would unmount and
+     remount the image — hence re-read it from IndexedDB — on every
+     hover. */
   it("rend toujours le même dessin pour le même motif", async () => {
     const { decorSpec } = await import("../components/shelf/constants");
     const entry = await addCustomDecor(pngFile());

@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 /* ============================================================
-   LE MOTEUR DE SYNCHRONISATION
+   THE SYNCHRONISATION ENGINE
 
-   Ce qui se teste ici tient en une phrase : rien ne doit se perdre, ni
-   quand ça marche, ni surtout quand ça échoue. Le serveur est doublé —
-   on n'éprouve pas le réseau, on éprouve la décision.
+   What is tested here holds in one sentence: nothing must be lost,
+   neither when it works, nor above all when it fails. The server is
+   stubbed — we are not testing the network, we are testing the decision.
    ============================================================ */
 
 const faux = {
@@ -78,9 +78,9 @@ afterEach(() => localStorage.clear());
 
 describe("un tour complet", () => {
   it("tire d'abord, pousse ensuite", async () => {
-    /* Pousser en premier enverrait des fiches sur le point d'être
-       remplacées : du travail pour rien, et une fenêtre où le serveur
-       porte une version qu'on s'apprête à abandonner. */
+    /* Pushing first would send cards about to be replaced: work for
+       nothing, and a window during which the server carries a version we
+       are about to abandon. */
     await saveFilms([fiche({ id: "local", updatedAt: 5000 })]);
     faux.reçus = [
       {
@@ -95,7 +95,7 @@ describe("un tour complet", () => {
 
     expect(bilan.state).toBe("up-to-date");
     expect((vus as { id: string }[]).map((f) => f.id).sort()).toEqual(["local", "venue"]);
-    /* La fiche venue du serveur ne repart PAS : elle porte sa date. */
+    /* The card that came from the server does NOT leave again: it carries its date. */
     expect(faux.poussés.flat().map((f) => (f as { id: string }).id)).toEqual(["local"]);
   });
 
@@ -120,8 +120,8 @@ describe("un tour complet", () => {
   });
 
   it("ce qui vient du serveur ne repart pas au tour suivant", async () => {
-    /* Le piège : redater une fiche reçue la ferait passer pour une
-       modification locale, et elle rebondirait indéfiniment. */
+    /* The trap: re-dating a received card would make it pass for a
+       local modification, and it would bounce for ever. */
     faux.reçus = [
       {
         jusqua: 7,
@@ -185,8 +185,8 @@ describe("ce qui attend", () => {
   });
 
   it("une fiche effacée compte comme une chose à dire", async () => {
-    /* `a` est le MÊME objet d'un enregistrement à l'autre : seule `b`
-       s'en va, et c'est son départ qu'on veut voir compté. */
+    /* `a` is the SAME object from one save to the next: only `b`
+       leaves, and it is its departure we want to see counted. */
     const a = fiche({ id: "a" });
     await saveFilms([a, fiche({ id: "b" })]);
     await synchronise(() => {});
@@ -200,11 +200,10 @@ describe("ce qui attend", () => {
 });
 
 describe("le reste du classeur", () => {
-  /* CE QUI MANQUAIT À LA PREMIÈRE VERSION, et que seul un essai à la
-     main a montré : la synchronisation ne portait que les fiches. Le
-     second appareil retrouvait les films sans savoir comment ils
-     étaient rangés — c'est-à-dire sans l'étagère, qui est le geste
-     central de cette application. */
+  /* WHAT THE FIRST VERSION LACKED, and only a hand trial showed: the
+     synchronisation carried only the cards. The second device found the
+     films again without knowing how they were arranged — that is,
+     without the shelf, which is this application's central gesture. */
 
   it("envoie l'agencement des étagères, le carnet et les fils", async () => {
     const { store } = await import("./storage");
@@ -219,9 +218,9 @@ describe("le reste du classeur", () => {
   });
 
   it("laisse ici ce qui décrit CET appareil", async () => {
-    /* La peau choisie, l'état de la visite, les repères de
-       synchronisation : les envoyer imposerait son goût du moment à son
-       autre écran, et se synchronise sur son propre curseur. */
+    /* The chosen skin, the state of the tour, the synchronisation
+       markers: sending them would impose one's mood of the moment on
+       one's other screen, and each device syncs on its own cursor. */
     const { store } = await import("./storage");
     store.set("skin", "cinematheque");
     store.set("onboarding", { done: ["global"] });
