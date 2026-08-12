@@ -16,8 +16,8 @@ describe("lire l'adresse d'une collection", () => {
   });
 
   it("ignore tout le reste : c'est le classeur qui s'ouvre", () => {
-    for (const rien of ["", "#", "#/", "#/ailleurs", "#/chez/", "#/chez/ab", "#/chez/Varda"]) {
-      expect({ rien, lu: readAddress(rien) }).toEqual({ rien, lu: null });
+    for (const nothing of ["", "#", "#/", "#/ailleurs", "#/chez/", "#/chez/ab", "#/chez/Varda"]) {
+      expect({ nothing, lu: readAddress(nothing) }).toEqual({ nothing, lu: null });
     }
   });
 

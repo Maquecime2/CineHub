@@ -3,7 +3,7 @@ import { matchFilm, searchFilms } from "./search";
 import { makeFilm } from "./film";
 
 const solaris = makeFilm({ id: "1", title: "Solaris", director: "Tarkovski", year: 1972 });
-const autre = makeFilm({ id: "2", title: "Le Solaris de minuit", director: "X", year: 1990 });
+const other = makeFilm({ id: "2", title: "Le Solaris de minuit", director: "X", year: 1990 });
 const amelie = makeFilm({
   id: "3",
   title: "Le Fabuleux Destin d'Amélie Poulain",
@@ -11,7 +11,7 @@ const amelie = makeFilm({
   themes: ["Paris"],
   motifs: ["hero-dies"],
 });
-const films = [autre, solaris, amelie];
+const films = [other, solaris, amelie];
 
 describe("searching for a film", () => {
   it("finds on the title and on the director", () => {

@@ -30,7 +30,7 @@ vi.mock("../db", () => ({
 const { loadFilms, saveFilms, forgetCache, knownGraves, FILMS_KEY } = await import("./collection");
 const { makeFilm } = await import("../domain/film");
 
-const fiche = (p: Record<string, unknown> = {}) => makeFilm({ title: "Playtime", ...p });
+const card = (p: Record<string, unknown> = {}) => makeFilm({ title: "Playtime", ...p });
 
 beforeEach(() => {
   coffre.clear();
@@ -45,8 +45,8 @@ afterEach(() => {
 
 describe("the move into the vault", () => {
   it("descend dans le coffre ce qu'il trouve en haut, et libère la place", async () => {
-    const avant = [fiche({ id: "a", title: "Stalker" })];
-    localStorage.setItem(FILMS_KEY, JSON.stringify(avant));
+    const before = [card({ id: "a", title: "Stalker" })];
+    localStorage.setItem(FILMS_KEY, JSON.stringify(before));
 
     const loaded = await loadFilms();
     expect(loaded).toHaveLength(1);
@@ -58,8 +58,8 @@ describe("the move into the vault", () => {
   });
 
   it("lit le coffre en premier : la copie du haut est un fantôme", async () => {
-    coffre.set(FILMS_KEY, [fiche({ id: "a", title: "Le Trou" })]);
-    localStorage.setItem(FILMS_KEY, JSON.stringify([fiche({ id: "z", title: "effacé hier" })]));
+    coffre.set(FILMS_KEY, [card({ id: "a", title: "Le Trou" })]);
+    localStorage.setItem(FILMS_KEY, JSON.stringify([card({ id: "z", title: "effacé hier" })]));
 
     const loaded = await loadFilms();
     expect(loaded.map((f) => f.title)).toEqual(["Le Trou"]);
@@ -73,8 +73,8 @@ describe("the move into the vault", () => {
 
 describe("the modification date", () => {
   it("ne bouge que sur la fiche qui a changé", async () => {
-    const a = fiche({ id: "a", updatedAt: 1000 });
-    const b = fiche({ id: "b", updatedAt: 1000 });
+    const a = card({ id: "a", updatedAt: 1000 });
+    const b = card({ id: "b", updatedAt: 1000 });
     forgetCache([a, b]);
 
     const dated = await saveFilms([{ ...a, rating: 5 }, b]);
@@ -86,7 +86,7 @@ describe("the modification date", () => {
   });
 
   it("une recopie sans changement de valeur ne date rien", async () => {
-    const a = fiche({ id: "a", updatedAt: 1000 });
+    const a = card({ id: "a", updatedAt: 1000 });
     forgetCache([a]);
     /* What the whole application does: `films.map(f => ({...f}))`. */
     const dated = await saveFilms([{ ...a }]);
@@ -95,7 +95,7 @@ describe("the modification date", () => {
 
   it("une fiche neuve porte sa date dès la première écriture", async () => {
     forgetCache([]);
-    const dated = await saveFilms([fiche({ id: "neuf", updatedAt: 0 })]);
+    const dated = await saveFilms([card({ id: "neuf", updatedAt: 0 })]);
     expect(dated[0]!.updatedAt).toBeGreaterThan(0);
   });
 
@@ -116,7 +116,7 @@ describe("when the vault refuses", () => {
   it("la collection reste écrite, en haut, plutôt que perdue", async () => {
     refuse = true;
     forgetCache([]);
-    await saveFilms([fiche({ id: "a", title: "Yi Yi" })]);
+    await saveFilms([card({ id: "a", title: "Yi Yi" })]);
     const écrit = JSON.parse(localStorage.getItem(FILMS_KEY) || "[]");
     expect(écrit).toHaveLength(1);
     expect(écrit[0].title).toBe("Yi Yi");
@@ -125,7 +125,7 @@ describe("when the vault refuses", () => {
   it("et se recharge de là où elle a été écrite", async () => {
     refuse = true;
     forgetCache([]);
-    await saveFilms([fiche({ id: "a", title: "Cléo" })]);
+    await saveFilms([card({ id: "a", title: "Cléo" })]);
     forgetCache([]);
     const loaded = await loadFilms();
     expect(loaded.map((f) => f.title)).toEqual(["Cléo"]);

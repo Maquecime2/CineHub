@@ -53,19 +53,19 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
   /* The cards without a single keyword — the absence AND the emptiness.
      A whole collection was frozen at `[]` by a harvest flaw, and
      `isIncomplete` cannot see them: see `domain/film`. */
-  const sansSujets = films.filter(withoutKeywords);
+  const noSubjects = films.filter(withoutKeywords);
 
-  const lancer = async (cibles: Film[]) => {
+  const run = async (targets: Film[]) => {
     const key = apiKey.trim();
-    if (!key || cibles.length === 0) return;
+    if (!key || targets.length === 0) return;
     setMsg("");
     setDiff(null);
-    setProgress({ done: 0, total: cibles.length });
+    setProgress({ done: 0, total: targets.length });
 
     /* One row per card. `tmdbId` when we have it: it avoids a search by
        title, and above all the false positives of `searchMovie`, which
        takes the first result without comparing. */
-    const rows: ImportRow[] = cibles.map((f) => ({
+    const rows: ImportRow[] = targets.map((f) => ({
       title: f.title,
       year: f.year,
       rating: null,
@@ -87,14 +87,14 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
          believed inert. It was not: `diffImport` also uses it to move
          existing cards from "à voir" to "vu", and completing one's
          collection emptied the watchlist into the film library. */
-      const brut = diffImport(films, res.rows as ImportRow[], "watched", {
+      const raw = diffImport(films, res.rows as ImportRow[], "watched", {
         keepStatus: true,
       });
-      setDiff(brut);
-      if (brut.toCreate.length)
+      setDiff(raw);
+      if (raw.toCreate.length)
         console.warn(
           "compléter : lignes sans fiche correspondante, écartées",
-          brut.toCreate.map((f) => f.title)
+          raw.toCreate.map((f) => f.title)
         );
       if (res.failed) setMsg(`${res.failed} fiche(s) introuvable(s) chez TMDB.`);
     } catch (e) {
@@ -146,7 +146,7 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
       {/* Emptiness counts as a lack: a card frozen at "asked for, there
           are none" has no more subjects than a card never queried, and
           it is that number one wants to see go down. */}
-      <Tally label="fiches sans mots-clés TMDB" value={sansSujets.length} ink={C.inkFaded} />
+      <Tally label="fiches sans mots-clés TMDB" value={noSubjects.length} ink={C.inkFaded} />
 
       <div
         style={{
@@ -205,7 +205,7 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
               ))}
               {diff.toUpdate.length > 40 && (
                 <div style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded, marginTop: 4 }}>
-                  … et {diff.toUpdate.length - 40} autres
+                  … et {diff.toUpdate.length - 40} others
                 </div>
               )}
             </div>
@@ -215,7 +215,7 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
         <button
-          onClick={() => lancer(toDo)}
+          onClick={() => run(toDo)}
           disabled={!apiKey.trim() || toDo.length === 0 || !!progress}
           style={{
             all: "unset",
@@ -244,9 +244,9 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
             targets emptiness TOO. It is distinct from the first because
             it costs one call per targeted card — the number is written
             on it, and it is up to the user to decide. */}
-        {sansSujets.length > 0 && (
+        {noSubjects.length > 0 && (
           <button
-            onClick={() => lancer(sansSujets)}
+            onClick={() => run(noSubjects)}
             disabled={!apiKey.trim() || !!progress}
             title="Redemande les mots-clés, y compris pour les fiches qui avaient répondu vide"
             style={{
@@ -264,7 +264,7 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
             }}
           >
             <Tags size={13} />
-            REDEMANDER LES MOTS-CLÉS ({sansSujets.length})
+            REDEMANDER LES WORDS-CLÉS ({noSubjects.length})
           </button>
         )}
 

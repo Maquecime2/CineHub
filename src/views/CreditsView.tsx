@@ -50,10 +50,10 @@ interface CreditsViewProps {
    composer is named returned emptiness, which reads as a defect and not
    as a rule. So the threshold only applies to those whose acting is
    their only title. */
-const SEUIL = 2;
+const THRESHOLD = 2;
 
 const isRegular = (p: Person): boolean =>
-  p.films.length >= SEUIL || p.roles.some((r) => r !== "interprétation");
+  p.films.length >= THRESHOLD || p.roles.some((r) => r !== "interprétation");
 
 const ROLE_COURT: Record<KinshipRole, string> = {
   réalisation: "réalisation",
@@ -73,8 +73,8 @@ export function CreditsView({
 }: CreditsViewProps) {
   /* The census sweeps the whole collection: we only redo it when a card
      is written, not at every keystroke in the search. */
-  const gens = useMemo(() => census(films), [films]);
-  const ouvert = personne ? gens.find((p) => p.key === personne) : null;
+  const people = useMemo(() => census(films), [films]);
+  const ouvert = personne ? people.find((p) => p.key === personne) : null;
 
   if (ouvert)
     return (
@@ -87,7 +87,7 @@ export function CreditsView({
       />
     );
 
-  return <Directory gens={gens} onOuvrir={onOpenPerson} inconnue={!!personne} />;
+  return <Directory people={people} onOuvrir={onOpenPerson} unknown={!!personne} />;
 }
 
 /* ============================================================
@@ -95,30 +95,30 @@ export function CreditsView({
    ============================================================ */
 
 function Directory({
-  gens,
+  people,
   onOuvrir,
-  inconnue,
+  unknown,
 }: {
-  gens: Person[];
+  people: Person[];
   onOuvrir: (clé: string) => void;
-  inconnue: boolean;
+  unknown: boolean;
 }) {
   const [q, setQ] = useState("");
   const [roles, setRoles] = useState<KinshipRole[]>([]);
-  const [tous, setTous] = useState(false);
+  const [all, setTous] = useState(false);
 
-  const liste = useMemo(() => {
-    let out = gens;
+  const list = useMemo(() => {
+    let out = people;
     if (roles.length) out = out.filter((p) => roles.some((r) => p.roles.includes(r)));
     /* The threshold does NOT apply to a search: one types a name
        because one is looking for somebody in particular, and not finding
        them because they have only one film would be the opposite of
        searching. */
     if (q.trim()) return searchPeople(out, q);
-    return tous ? out : out.filter(isRegular);
-  }, [gens, q, roles, tous]);
+    return all ? out : out.filter(isRegular);
+  }, [people, q, roles, all]);
 
-  const hiddenCount = gens.length - gens.filter(isRegular).length;
+  const hiddenCount = people.length - people.filter(isRegular).length;
 
   return (
     <div style={{ padding: "34px 44px 70px", position: "relative" }}>
@@ -135,11 +135,11 @@ function Directory({
         Le générique
       </div>
       <Guideline>
-        Les names que votre collection porte déjà — celles et ceux qui ont réalisé, joué, éclairé,
-        composé, écrit. {gens.length} en tout.
+        Les noms que votre collection porte déjà — celles et ceux qui ont réalisé, joué, éclairé,
+        composé, écrit. {people.length} en tout.
       </Guideline>
 
-      {inconnue && (
+      {unknown && (
         <div style={{ fontFamily: F.hand, fontSize: 17, color: C.burgundy, marginBottom: 10 }}>
           Cette personne n'apparaît plus dans aucune fiche.
         </div>
@@ -175,18 +175,18 @@ function Directory({
           );
         })}
         {!q.trim() && hiddenCount > 0 && (
-          <button onClick={() => setTous((t) => !t)} style={chipLook(tous, C.slate)}>
-            {tous ? "les habitués seulement" : `+ ${hiddenCount} de passage`}
+          <button onClick={() => setTous((t) => !t)} style={chipLook(all, C.slate)}>
+            {all ? "les habitués seulement" : `+ ${hiddenCount} de passage`}
           </button>
         )}
       </div>
 
-      {liste.length === 0 ? (
+      {list.length === 0 ? (
         /* "Nobody of that name" under a sieve would be a lie: nobody
            has been named. Each way of emptying the list has its own
            sentence, and the threshold's says where the others went. */
         <div style={{ fontFamily: F.hand, fontSize: 19, color: C.inkFaded }}>
-          {gens.length === 0
+          {people.length === 0
             ? "Aucun nom pour l'instant. Complétez vos fiches par TMDB, depuis l'onglet Import, et le générique se remplira tout seul."
             : q.trim()
               ? "Personne de ce nom."
@@ -203,8 +203,8 @@ function Directory({
             gap: 14,
           }}
         >
-          {liste.map((p) => (
-            <Fiche key={p.key} p={p} onClick={() => onOuvrir(p.key)} />
+          {list.map((p) => (
+            <Card key={p.key} p={p} onClick={() => onOuvrir(p.key)} />
           ))}
         </div>
       )}
@@ -212,7 +212,7 @@ function Directory({
   );
 }
 
-const chipLook = (on: boolean, teinte: string = C.burgundy) => ({
+const chipLook = (on: boolean, tint: string = C.burgundy) => ({
   all: "unset" as const,
   ...tap,
   cursor: "pointer",
@@ -221,14 +221,14 @@ const chipLook = (on: boolean, teinte: string = C.burgundy) => ({
   letterSpacing: 0.6,
   padding: "3px 9px",
   borderRadius: 12,
-  border: `1px solid ${teinte}`,
-  background: on ? teinte : "transparent",
-  color: on ? C.card : teinte,
+  border: `1px solid ${tint}`,
+  background: on ? tint : "transparent",
+  color: on ? C.card : tint,
   transition: "background var(--motion-fast) ease, color var(--motion-fast) ease",
 });
 
 /** The card of a name in the directory — an index card, pinned up. */
-function Fiche({ p, onClick }: { p: Person; onClick: () => void }) {
+function Card({ p, onClick }: { p: Person; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
@@ -376,13 +376,13 @@ function Dossier({
           reason to be: otherwise a folder holding only forgotten
           patterns showed a heading followed by nothing. */}
       {(() => {
-        const connus = p.motifs.map(motifById).filter(Boolean);
-        if (!connus.length) return null;
+        const known = p.motifs.map(motifById).filter(Boolean);
+        if (!known.length) return null;
         return (
           <div style={{ marginTop: 20 }}>
             <Label>Ce qui revient</Label>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
-              {connus.map((m) => (
+              {known.map((m) => (
                 <span key={m!.id} style={chipLook(false, C.plum)}>
                   {m!.label}
                 </span>
@@ -392,8 +392,8 @@ function Dossier({
         );
       })()}
 
-      <Rayon titre="Vus" films={vus} clé={p.key} onOpen={onOpen} />
-      <Rayon titre="En attente" films={àVoir} clé={p.key} onOpen={onOpen} />
+      <Shelf title="Vus" films={vus} clé={p.key} onOpen={onOpen} />
+      <Shelf title="En attente" films={àVoir} clé={p.key} onOpen={onOpen} />
 
       <CeQuiManque p={p} films={films} onAddToWatchlist={onAddToWatchlist} />
     </div>
@@ -438,13 +438,13 @@ function readableGap(gap: number | null) {
   );
 }
 
-function Rayon({
-  titre,
+function Shelf({
+  title,
   films,
   clé,
   onOpen,
 }: {
-  titre: string;
+  title: string;
   films: Film[];
   clé: string;
   onOpen: (id: string) => void;
@@ -453,7 +453,7 @@ function Rayon({
   return (
     <div style={{ marginTop: 26 }}>
       <SectionTitle>
-        {titre} ({films.length})
+        {title} ({films.length})
       </SectionTitle>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginTop: 12 }}>
         {films.map((f) => {
@@ -513,9 +513,9 @@ interface Manquant {
    image falls back on the initials rather than leave the frame empty:
    TMDB knows films whose poster it does not have, and a hole in a row
    reads as a loading failure. */
-function Affiche({ titre, src }: { titre: string; src: string }) {
+function Affiche({ title, src }: { title: string; src: string }) {
   const [cassée, setCassée] = useState(false);
-  const cadre = {
+  const frame = {
     width: "100%",
     aspectRatio: "2 / 3",
     borderRadius: 1,
@@ -526,7 +526,7 @@ function Affiche({ titre, src }: { titre: string; src: string }) {
     return (
       <div
         style={{
-          ...cadre,
+          ...frame,
           background: alpha(C.inkFaded, 0.14),
           display: "flex",
           alignItems: "center",
@@ -536,7 +536,7 @@ function Affiche({ titre, src }: { titre: string; src: string }) {
           color: alpha(C.ink, 0.35),
         }}
       >
-        {initialsOf(titre)}
+        {initialsOf(title)}
       </div>
     );
 
@@ -546,7 +546,7 @@ function Affiche({ titre, src }: { titre: string; src: string }) {
       alt=""
       loading="lazy"
       onError={() => setCassée(true)}
-      style={{ ...cadre, objectFit: "cover" }}
+      style={{ ...frame, objectFit: "cover" }}
     />
   );
 }
@@ -571,7 +571,7 @@ function CeQuiManque({
      the Import tab, and that is where the tour explains it. */
   if (!apiKey) return null;
 
-  const chercher = async () => {
+  const search = async () => {
     setState("en-cours");
     setMsg("");
     try {
@@ -596,18 +596,18 @@ function CeQuiManque({
           .filter(Boolean)
           .map(String)
       );
-      const parTitre = new Set(films.map((f) => filmKey(f)));
+      const byTitle = new Set(films.map((f) => filmKey(f)));
 
-      const reste = (tout as Manquant[])
+      const rest = (tout as Manquant[])
         .filter((c) => c.title && !parTmdb.has(String(c.tmdbId)))
-        .filter((c) => !parTitre.has(filmKey({ title: c.title, year: c.year || "" })))
+        .filter((c) => !byTitle.has(filmKey({ title: c.title, year: c.year || "" })))
         .sort((a, b) => (b.year || 0) - (a.year || 0));
 
-      setManquants(reste);
+      setManquants(rest);
       setState("fait");
       setMsg(
-        reste.length
-          ? `${reste.length} film(s) que vous n'avez pas — à ce titre-là.`
+        rest.length
+          ? `${rest.length} film(s) que vous n'avez pas — à ce titre-là.`
           : "Rien ne manque : vous avez tout ce que TMDB lui connaît."
       );
     } catch (e) {
@@ -616,7 +616,7 @@ function CeQuiManque({
     }
   };
 
-  const ajouter = (c: Manquant) => {
+  const add = (c: Manquant) => {
     onAddToWatchlist(
       makeFilm({
         title: c.title,
@@ -635,11 +635,7 @@ function CeQuiManque({
     <div data-tour="credits-tmdb" style={{ marginTop: 34 }}>
       <SectionTitle
         action={
-          <button
-            onClick={chercher}
-            disabled={state === "en-cours"}
-            style={chipLook(false, C.pine)}
-          >
+          <button onClick={search} disabled={state === "en-cours"} style={chipLook(false, C.pine)}>
             {state === "en-cours" ? <Loader2 size={11} /> : <Download size={11} />} demander à TMDB
           </button>
         }
@@ -658,7 +654,7 @@ function CeQuiManque({
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
         {manquants.map((c) => {
-          const dedans = ajoutés.has(c.tmdbId);
+          const inside = ajoutés.has(c.tmdbId);
           return (
             <div
               key={c.tmdbId}
@@ -683,7 +679,7 @@ function CeQuiManque({
                   out a stored image and would have nothing to bring out
                   here. Fallback to the initials when TMDB has no
                   poster. */}
-              <Affiche titre={c.title} src={c.poster} />
+              <Affiche title={c.title} src={c.poster} />
               <div
                 style={{
                   fontFamily: F.title,
@@ -703,11 +699,11 @@ function CeQuiManque({
                 {c.voteAverage ? ` · ${c.voteAverage.toFixed(1)}/10` : ""}
               </div>
               <button
-                onClick={() => ajouter(c)}
-                disabled={dedans}
-                style={{ ...chipLook(dedans, C.ochre), cursor: dedans ? "default" : "pointer" }}
+                onClick={() => add(c)}
+                disabled={inside}
+                style={{ ...chipLook(inside, C.ochre), cursor: inside ? "default" : "pointer" }}
               >
-                {dedans ? "dans À voir" : "+ à voir"}
+                {inside ? "dans À voir" : "+ à voir"}
               </button>
             </div>
           );

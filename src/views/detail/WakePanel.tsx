@@ -69,7 +69,7 @@ const QUOTAS = { people: 4, subjects: 4, crowd: 2 };
    argument, and one may disagree — which supposes having
    understood. */
 function Proposition({
-  titre,
+  title,
   year,
   raison,
   affiche,
@@ -77,7 +77,7 @@ function Proposition({
   aside,
   unfolded,
 }: {
-  titre: string;
+  title: string;
   year: number | string | null;
   raison: string;
   affiche: ReactNode;
@@ -120,7 +120,7 @@ function Proposition({
             gap: 6,
           }}
         >
-          <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{titre}</span>
+          <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{title}</span>
           {aside && (
             <span style={{ fontFamily: F.mono, fontSize: 9, color: C.ochre, flexShrink: 0 }}>
               {aside}
@@ -330,7 +330,7 @@ function ManqueLesSujets() {
 /* What is said of an empty column. Never nothing: a mute column reads
    "it is broken", and one will not know it is simply that the binder is
    still small. */
-function Rien({ children }: { children: ReactNode }) {
+function Nothing({ children }: { children: ReactNode }) {
   return (
     <div
       style={{
@@ -379,7 +379,7 @@ export function WakePanel({
   /* This film has NOTHING a subject connection could bear on. We look
      at the pivot and not at the collection: it is the pivot one is
      looking at, and it is its own lack that explains what one reads. */
-  const sansSujets =
+  const noSubjects =
     !(film.motifs || []).length && !(film.themes || []).length && !(film.keywords || []).length;
 
   /* THE TWO SOURCES MERGED, THEN THE QUOTAS.
@@ -394,14 +394,14 @@ export function WakePanel({
       const déjà = parFilm.get(v.film.id);
       if (!déjà || v.score > déjà.score) parFilm.set(v.film.id, v);
     }
-    const tous = [...parFilm.values()].sort(
+    const all = [...parFilm.values()].sort(
       (a, b) => b.score - a.score || a.film.title.localeCompare(b.film.title, "fr")
     );
-    return byQuotas(tous, (v) => familyOf(v.links), QUOTAS);
+    return byQuotas(all, (v) => familyOf(v.links), QUOTAS);
   }, [maison, renfort]);
 
   const [dehors, setDehors] = useState<FarNeighbour[] | null>(null);
-  const [cherche, setCherche] = useState(false);
+  const [query, setQuery] = useState(false);
   /* The unfolded proposal — one at a time only: two open synopses would
      turn the column into an article. */
   const [ouvert, setOuvert] = useState<number | null>(null);
@@ -433,7 +433,7 @@ export function WakePanel({
     setMisDeCôté(new Set());
     if (!apiKey) return;
     let alive = true;
-    setCherche(true);
+    setQuery(true);
     harvestTheWake(film, apiKey)
       .then((récoltes) => {
         if (!alive) return;
@@ -450,7 +450,7 @@ export function WakePanel({
         if (alive) setDehors([]);
       })
       .finally(() => {
-        if (alive) setCherche(false);
+        if (alive) setQuery(false);
       });
     return () => {
       alive = false;
@@ -499,7 +499,8 @@ export function WakePanel({
     <Cardstock tour="detail-sillage" style={{ marginTop: 18 }}>
       <SectionTitle icon={<Waves size={15} color={C.cobalt} />}>Dans le sillage</SectionTitle>
       <Guideline>
-        ce qui tient de « {film.title} » — par l&apos;équipe, les sujets, les gens à l&apos;affiche
+        ce qui tient de « {film.title} » — par l&apos;équipe, les sujets, les people à
+        l&apos;affiche
       </Guideline>
 
       <div
@@ -523,13 +524,13 @@ export function WakePanel({
           >
             CHEZ VOUS
           </div>
-          {!apiKey && sansSujets && <ManqueLesSujets />}
+          {!apiKey && noSubjects && <ManqueLesSujets />}
           <div style={{ minHeight: HAUTEUR_MINIMALE }}>
             {chezVous.length ? (
               chezVous.map((v) => (
                 <Proposition
                   key={v.key}
-                  titre={v.film.title}
+                  title={v.film.title}
                   year={v.film.year}
                   raison={v.reason}
                   aside={v.film.status === "watchlist" ? "à voir" : undefined}
@@ -538,11 +539,11 @@ export function WakePanel({
                 />
               ))
             ) : (
-              <Rien>
+              <Nothing>
                 Rien dans le classeur ne tient encore de celui-ci. Les rapprochements se font sur
                 l&apos;équipe, les motifs et les gens à l&apos;affiche : compléter les fiches par
                 TMDB en fait apparaître beaucoup d&apos;un coup.
-              </Rien>
+              </Nothing>
             )}
           </div>
         </div>
@@ -563,16 +564,16 @@ export function WakePanel({
           <div style={{ minHeight: HAUTEUR_MINIMALE }}>
             {!apiKey ? (
               <NoKey what="chercher au-dehors ce qui tient de ce film" />
-            ) : cherche ? (
-              <Rien>
+            ) : query ? (
+              <Nothing>
                 <Compass size={13} style={{ verticalAlign: "-2px", marginRight: 5 }} />
                 on regarde du côté de l&apos;équipe…
-              </Rien>
+              </Nothing>
             ) : dehors?.length ? (
               dehors.map((v) => (
                 <Proposition
                   key={v.key}
-                  titre={v.title}
+                  title={v.title}
                   year={v.year}
                   raison={v.reason}
                   aside={misDeCôté.has(v.tmdbId) ? "à voir" : undefined}
@@ -615,10 +616,10 @@ export function WakePanel({
                 />
               ))
             ) : (
-              <Rien>
+              <Nothing>
                 Rien de ce côté — soit ce film n&apos;a pas d&apos;équipe renseignée sur TMDB, soit
                 tout ce qu&apos;on trouve est déjà chez vous.
-              </Rien>
+              </Nothing>
             )}
           </div>
         </div>

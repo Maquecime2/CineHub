@@ -49,16 +49,16 @@ export function TonightDrawer({
   const [minutes, setMinutes] = useState<number | null>(null);
   const [humeur, setHumeur] = useState<string[]>([]);
   const [langues, setLangues] = useState<string[]>([]);
-  const [rang, setRang] = useState(0);
+  const [rank, setRang] = useState(0);
   const [guessed, setGuessed] = useState<Map<string, string[]>>(new Map());
-  const [cherche, setCherche] = useState(false);
+  const [query, setQuery] = useState(false);
 
   const apiKey = useTmdbKey();
-  const envie: Craving = { minutes, mood: humeur, languages: langues };
+  const craving: Craving = { minutes, mood: humeur, languages: langues };
 
   const dispo = useMemo(() => listLanguages(films), [films]);
-  const propositions = useMemo(
-    () => rankTheEvening(films, envie, guessed),
+  const suggestions = useMemo(
+    () => rankTheEvening(films, craving, guessed),
     // `envie` is rebuilt on every render: we depend on its parts
     [films, minutes, humeur, langues, guessed]
   );
@@ -84,41 +84,41 @@ export function TonightDrawer({
      evening. */
   useEffect(() => {
     if (!apiKey || humeur.length === 0) return;
-    const toGuess = propositions
+    const toGuess = suggestions
       .slice(0, PLAFOND_DEVINETTE)
       .map((p) => p.film)
       .filter((f) => f.tmdbId && !guessed.has(f.id));
     if (toGuess.length === 0) return;
 
     let alive = true;
-    setCherche(true);
+    setQuery(true);
     pooled(
       toGuess.map((f) => async () => {
-        const mots = await fetchKeywords(f.tmdbId, apiKey);
-        return [f.id, suggestMotifs(mots).map((m) => m.id)] as [string, string[]];
+        const words = await fetchKeywords(f.tmdbId, apiKey);
+        return [f.id, suggestMotifs(words).map((m) => m.id)] as [string, string[]];
       }),
       { concurrency: 5 }
     )
       .then((paires: ([string, string[]] | null)[]) => {
         if (!alive) return;
-        setGuessed((avant) => {
-          const suite = new Map(avant);
+        setGuessed((before) => {
+          const next = new Map(before);
           /* The films whose guess failed are marked EMPTY and not left
              absent: without that trace, the effect would ask for them
              again on every render, indefinitely. */
-          for (const f of toGuess) suite.set(f.id, []);
-          for (const p of paires) if (p) suite.set(p[0], p[1]);
-          return suite;
+          for (const f of toGuess) next.set(f.id, []);
+          for (const p of paires) if (p) next.set(p[0], p[1]);
+          return next;
         });
       })
       .finally(() => {
-        if (alive) setCherche(false);
+        if (alive) setQuery(false);
       });
 
     return () => {
       alive = false;
     };
-  }, [apiKey, humeur, propositions, guessed]);
+  }, [apiKey, humeur, suggestions, guessed]);
 
   // Escape closes, as everywhere else
   useEffect(() => {
@@ -129,9 +129,9 @@ export function TonightDrawer({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const choix = propositions[rang] || null;
-  const bascule = (liste: string[], v: string) =>
-    liste.includes(v) ? liste.filter((x) => x !== v) : [...liste, v];
+  const choice = suggestions[rank] || null;
+  const toggle = (list: string[], v: string) =>
+    list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
 
   /* MOUNTED ON THE BODY OF THE PAGE, NOT WHERE IT IS CALLED FROM.
 
@@ -226,7 +226,7 @@ export function TonightDrawer({
               {HUMEURS.map((m) => (
                 <button
                   key={m.id}
-                  onClick={() => setHumeur((h) => bascule(h, m.id))}
+                  onClick={() => setHumeur((h) => toggle(h, m.id))}
                   style={puce(humeur.includes(m.id), C.cobalt)}
                 >
                   {m.label}
@@ -243,7 +243,7 @@ export function TonightDrawer({
                 {dispo.slice(0, 8).map(({ code, n }) => (
                   <button
                     key={code}
-                    onClick={() => setLangues((l) => bascule(l, code))}
+                    onClick={() => setLangues((l) => toggle(l, code))}
                     style={puce(langues.includes(code), C.moss)}
                   >
                     {languageName(code)} · {n}
@@ -254,7 +254,7 @@ export function TonightDrawer({
           )}
 
           <div style={{ borderTop: `1px dashed ${C.line}`, paddingTop: 18 }}>
-            {cherche && (
+            {query && (
               <div
                 style={{
                   display: "flex",
@@ -270,20 +270,20 @@ export function TonightDrawer({
               </div>
             )}
 
-            {!choix ? (
+            {!choice ? (
               <div style={{ fontFamily: F.hand, fontSize: 18, color: C.inkFaded }}>
-                {propositions.length === 0
+                {suggestions.length === 0
                   ? "Rien dans « à voir » ne répond — ou la liste est vide."
                   : "Vous les avez tous passés en revue."}
               </div>
             ) : (
               <Carte
-                choix={choix}
-                rang={rang}
-                total={propositions.length}
+                choice={choice}
+                rank={rank}
+                total={suggestions.length}
                 onAutre={() => setRang((r) => r + 1)}
                 onOuvrir={() => {
-                  onOpen(choix.film.id);
+                  onOpen(choice.film.id);
                   onClose();
                 }}
               />
@@ -296,19 +296,19 @@ export function TonightDrawer({
 }
 
 function Carte({
-  choix,
-  rang,
+  choice,
+  rank,
   total,
   onAutre,
   onOuvrir,
 }: {
-  choix: ReturnType<typeof rankTheEvening>[number];
-  rang: number;
+  choice: ReturnType<typeof rankTheEvening>[number];
+  rank: number;
   total: number;
   onAutre: () => void;
   onOuvrir: () => void;
 }) {
-  const f = choix.film;
+  const f = choice.film;
   return (
     <div data-tour="soir-carte">
       <div style={{ display: "flex", gap: 14 }}>
@@ -326,7 +326,7 @@ function Carte({
               a sentence can — and it is what makes one want to watch, or
               not. */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 9 }}>
-            {choix.reasons.map((r, i) => (
+            {choice.reasons.map((r, i) => (
               <span
                 key={i}
                 style={{
@@ -352,18 +352,18 @@ function Carte({
         </button>
         <button
           onClick={onAutre}
-          disabled={rang + 1 >= total}
+          disabled={rank + 1 >= total}
           style={{
             ...puce(false, C.slate),
             padding: "5px 12px",
-            opacity: rang + 1 >= total ? 0.4 : 1,
-            cursor: rang + 1 >= total ? "default" : "pointer",
+            opacity: rank + 1 >= total ? 0.4 : 1,
+            cursor: rank + 1 >= total ? "default" : "pointer",
           }}
         >
           <Dice5 size={11} /> une autre
         </button>
         <span style={{ fontFamily: F.mono, fontSize: 9, color: C.inkFaded, marginLeft: "auto" }}>
-          {rang + 1} / {total}
+          {rank + 1} / {total}
         </span>
       </div>
     </div>
@@ -378,7 +378,7 @@ const nu = {
   alignItems: "center",
 };
 
-const puce = (on: boolean, teinte: string = C.burgundy) => ({
+const puce = (on: boolean, tint: string = C.burgundy) => ({
   all: "unset" as const,
   ...tap,
   cursor: "pointer",
@@ -390,8 +390,8 @@ const puce = (on: boolean, teinte: string = C.burgundy) => ({
   letterSpacing: 0.5,
   padding: "3px 9px",
   borderRadius: 12,
-  border: `1px solid ${teinte}`,
-  background: on ? teinte : "transparent",
-  color: on ? C.card : teinte,
+  border: `1px solid ${tint}`,
+  background: on ? tint : "transparent",
+  color: on ? C.card : tint,
   transition: "background var(--motion-fast) ease, color var(--motion-fast) ease",
 });

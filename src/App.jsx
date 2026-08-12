@@ -89,8 +89,8 @@ export default function App() {
      card where it was chosen is DEDUCED; putting it back to "film"
      inside an effect would cost one more render on every change of
      card. */
-  const [chosenTab, setChosenTab] = useState({ pour: null, onglet: "film" });
-  const detailTab = chosenTab.pour === selectedId ? chosenTab.onglet : "film";
+  const [chosenTab, setChosenTab] = useState({ pour: null, tab: "film" });
+  const detailTab = chosenTab.pour === selectedId ? chosenTab.tab : "film";
   /* Stable from one render to the next: the tour uses it inside an
      effect, and a function rebuilt on every pass would restart it
      endlessly. Hence the ref — it carries the current card without
@@ -102,10 +102,7 @@ export default function App() {
   useEffect(() => {
     openCard.current = selectedId;
   }, [selectedId]);
-  const setDetailTab = useCallback(
-    (onglet) => setChosenTab({ pour: openCard.current, onglet }),
-    []
-  );
+  const setDetailTab = useCallback((tab) => setChosenTab({ pour: openCard.current, tab }), []);
   /* The person open in the Credits view, by their normalized key.
      Alongside `selectedId` and not instead of it: you open a person FROM
      a card, and going back to the card must not have forgotten which. */
@@ -342,9 +339,9 @@ export default function App() {
   const writeRank = useRef(0);
   const commitFilms = (next) => {
     setFilms(next);
-    const rang = ++writeRank.current;
+    const rank = ++writeRank.current;
     saveFilms(next).then((dated) => {
-      if (rang === writeRank.current) setFilms(dated);
+      if (rank === writeRank.current) setFilms(dated);
     });
   };
 
@@ -826,7 +823,7 @@ export default function App() {
             /* THE TAB IS HELD HERE, as the view already is: the guided
                tour must be able to open "Links" before going there to
                find the red thread. See `visiteOuvreOnglet`. */
-            onglet={detailTab}
+            tab={detailTab}
             onTab={setDetailTab}
             onBack={() => {
               setView(backView);

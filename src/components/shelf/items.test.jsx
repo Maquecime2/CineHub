@@ -135,8 +135,8 @@ describe("CategoryBox — un segment de boîte", () => {
     expect(
       within(seg({ items: items.slice(0, 2), last: false })).getByText("Polars")
     ).toBeInTheDocument();
-    const suite = seg({ items: items.slice(2), first: false });
-    expect(within(suite).queryByText("Polars")).toBeNull();
+    const next = seg({ items: items.slice(2), first: false });
+    expect(within(next).queryByText("Polars")).toBeNull();
   });
 
   it("compte toujours la boîte entière, pas la tranche", () => {
@@ -244,54 +244,54 @@ describe("DecorItem — écrire sur l'intercalaire", () => {
     return { onLabel, onEdit, user: userEvent.setup() };
   };
 
-  const champ = () => screen.getByLabelText("Nom de l'intercalaire");
-  const carton = () => screen.getByTitle(/Polars|Intercalaire/);
+  const field = () => screen.getByLabelText("Nom de l'intercalaire");
+  const cardstock = () => screen.getByTitle(/Polars|Intercalaire/);
 
   it("ouvre un champ garni du nom, au clic sur le carton", async () => {
     const { user } = board();
     expect(screen.queryByLabelText("Nom de l'intercalaire")).not.toBeInTheDocument();
-    await user.click(carton());
-    expect(champ()).toHaveValue("Polars");
+    await user.click(cardstock());
+    expect(field()).toHaveValue("Polars");
   });
 
   it("écrit le nom à la validation", async () => {
     const { user, onLabel } = board();
-    await user.click(carton());
-    await user.clear(champ());
-    await user.type(champ(), "Années 70{Enter}");
+    await user.click(cardstock());
+    await user.clear(field());
+    await user.type(field(), "Années 70{Enter}");
     expect(onLabel).toHaveBeenCalledExactlyOnceWith("d1", "Années 70");
   });
 
   it("écrit aussi en quittant le champ", async () => {
     const { user, onLabel } = board();
-    await user.click(carton());
-    await user.type(champ(), " noirs");
+    await user.click(cardstock());
+    await user.type(field(), " noirs");
     await user.tab();
     expect(onLabel).toHaveBeenCalledExactlyOnceWith("d1", "Polars noirs");
   });
 
   it("Échap renonce et rend son nom au carton", async () => {
     const { user, onLabel } = board();
-    await user.click(carton());
-    await user.clear(champ());
-    await user.type(champ(), "bêtise{Escape}");
+    await user.click(cardstock());
+    await user.clear(field());
+    await user.type(field(), "bêtise{Escape}");
     expect(onLabel).not.toHaveBeenCalled();
     expect(screen.getByText("Polars")).toBeInTheDocument();
   });
 
   it("n'écrit rien quand le nom n'a pas bougé", async () => {
     const { user, onLabel } = board();
-    await user.click(carton());
+    await user.click(cardstock());
     await user.keyboard("{Enter}");
     expect(onLabel).not.toHaveBeenCalled();
   });
 
   it("ne se glisse pas pendant qu'on l'écrit", async () => {
     const { user } = board();
-    const before = carton();
+    const before = cardstock();
     expect(before).toHaveAttribute("draggable", "true");
     await user.click(before);
-    expect(carton()).toHaveAttribute("draggable", "false");
+    expect(cardstock()).toHaveAttribute("draggable", "false");
   });
 
   /* Naming is an offer and not a compulsory step: many cards serve only
@@ -305,7 +305,7 @@ describe("DecorItem — écrire sur l'intercalaire", () => {
 
   it("un carton vierge ouvre son panneau plutôt qu'un champ", async () => {
     const { user, onEdit } = board({ label: "" });
-    await user.click(carton());
+    await user.click(cardstock());
     expect(onEdit).toHaveBeenCalledExactlyOnceWith("d1");
     expect(screen.queryByLabelText("Nom de l'intercalaire")).not.toBeInTheDocument();
   });
@@ -358,7 +358,7 @@ describe("FilmBox — le compte des séances", () => {
   const séances = (n) =>
     Array.from({ length: n }, (_, i) => ({ date: `202${i}-01-01`, rating: null }));
 
-  const compteur = (n) => {
+  const counter = (n) => {
     document.body.innerHTML = "";
     render(
       <FilmBox
@@ -373,18 +373,18 @@ describe("FilmBox — le compte des séances", () => {
   };
 
   it("annonce un film qu'on a revu", () => {
-    expect(compteur(3)).toHaveTextContent("×3");
+    expect(counter(3)).toHaveTextContent("×3");
   });
 
   /* A "×1" on every edge would be noise across the whole library: what one
      looks for is the films one rewatches, and they only stand out if the
      others keep quiet. */
   it("se tait pour un film vu une seule fois", () => {
-    expect(compteur(1)).toBeNull();
+    expect(counter(1)).toBeNull();
   });
 
   it("se tait pour un film dont on ne sait rien", () => {
-    expect(compteur(0)).toBeNull();
+    expect(counter(0)).toBeNull();
   });
 });
 

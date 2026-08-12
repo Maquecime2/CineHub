@@ -56,8 +56,8 @@ import { motifById } from "../domain/motifs";
 import { languageName, countryName } from "../names";
 import type { Film } from "../types";
 
-const MOIS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
-const MOIS_LONG = [
+const MONTHS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
+const MONTHS_LONG = [
   "janvier",
   "février",
   "mars",
@@ -80,8 +80,8 @@ const MOIS_LONG = [
 const enClair = (iso: string | null, withYear = false): string => {
   if (!iso) return "—";
   const [a, m, j] = iso.split("-");
-  const jour = `${Number(j)} ${MOIS_LONG[Number(m) - 1] || ""}`.trim();
-  return withYear ? `${jour} ${a}` : jour;
+  const day = `${Number(j)} ${MONTHS_LONG[Number(m) - 1] || ""}`.trim();
+  return withYear ? `${day} ${a}` : day;
 };
 
 /** 5,430 minutes → "90 h 30". Nobody reads an account in minutes. */
@@ -99,12 +99,12 @@ const enHeures = (minutes: number): string => {
    THE CARD — the piece every board reuses
    ------------------------------------------------------------ */
 function Cardstock({
-  titre,
+  title,
   seed,
   children,
   style,
 }: {
-  titre: string;
+  title: string;
   /** Enough to draw a STABLE lean: a card that wriggles on a re-render
       no longer looks like a laid object. */
   seed: string;
@@ -112,7 +112,7 @@ function Cardstock({
   style?: CSSProperties;
 }) {
   const penche = tiltOf(seed);
-  const punaise = Math.abs(hash(seed)) % 3 === 0;
+  const pin = Math.abs(hash(seed)) % 3 === 0;
   return (
     <div
       /* A card is not cut in two between two pages: see
@@ -135,20 +135,20 @@ function Cardstock({
         ...style,
       }}
     >
-      {punaise ? (
+      {pin ? (
         <PushPin style={{ top: -6, right: 16 }} />
       ) : (
         <Tape color={C.ochre} width={52} style={{ top: -9, right: 20 }} rotate={5} />
       )}
-      <Label>{titre}</Label>
+      <Label>{title}</Label>
       <div style={{ flex: 1, minHeight: 0 }}>{children}</div>
     </div>
   );
 }
 
 /** What is written when a card has nothing to show. */
-function Rien({ quoi }: { quoi: string }) {
-  return <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded }}>{quoi}</div>;
+function Nothing({ what }: { what: string }) {
+  return <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded }}>{what}</div>;
 }
 
 /* A large number, with its caption below. The piece that carries the
@@ -197,17 +197,17 @@ function Chiffre({
 function Barres({
   values,
   légendes,
-  graine,
+  seed,
 }: {
   values: number[];
   légendes: string[];
-  graine: string | number;
+  seed: string | number;
 }) {
   const W = 300;
   const H = 108;
   const max = Math.max(1, ...values);
   const pas = W / Math.max(1, values.length);
-  const largeur = pas * 0.56;
+  const width = pas * 0.56;
   /* Beyond eight columns, a four-figure year bumps into its neighbour:
      we keep only the last two, which are enough to follow a decade. */
   const étroit = values.length > 8;
@@ -221,15 +221,15 @@ function Barres({
       style={{ display: "block", marginTop: 6 }}
     >
       {values.map((n, i) => {
-        const g = i * pas + (pas - largeur) / 2;
-        const d = g + largeur;
-        const haut = H - (n / max) * (H - 6);
-        const jitter = (k: number) => (seededRand(hash(`${graine}-${i}-${k}`)) - 0.5) * 2.2;
+        const g = i * pas + (pas - width) / 2;
+        const d = g + width;
+        const top = H - (n / max) * (H - 6);
+        const jitter = (k: number) => (seededRand(hash(`${seed}-${i}-${k}`)) - 0.5) * 2.2;
         return (
           <g key={i}>
             {n > 0 && (
               <path
-                d={`M${g + jitter(1)} ${H} L${g + jitter(2)} ${haut + jitter(3)} L${d + jitter(4)} ${haut + jitter(5)} L${d + jitter(6)} ${H} Z`}
+                d={`M${g + jitter(1)} ${H} L${g + jitter(2)} ${top + jitter(3)} L${d + jitter(4)} ${top + jitter(5)} L${d + jitter(6)} ${H} Z`}
                 fill={alpha(C.burgundy, 0.72)}
                 stroke={C.burgundy}
                 strokeWidth="0.9"
@@ -241,7 +241,7 @@ function Barres({
             {n > 0 && n >= max * 0.34 && (
               <text
                 x={(g + d) / 2}
-                y={haut - 3}
+                y={top - 3}
                 textAnchor="middle"
                 style={{ fontFamily: F.mono, fontSize: 7.5, fill: C.inkFaded }}
               >
@@ -279,17 +279,17 @@ function Palmares({
   items,
   total,
   ink = C.ochre,
-  vide = "rien à noter",
+  empty = "rien à noter",
   onPick,
 }: {
   items: { name: string; n: number }[];
   total: number;
   ink?: string;
-  vide?: string;
+  empty?: string;
   /** Makes each name clickable. Absent: the ranking stays plain text. */
   onPick?: (name: string) => void;
 }) {
-  if (items.length === 0) return <Rien quoi={vide} />;
+  if (items.length === 0) return <Nothing what={empty} />;
   const max = Math.max(1, ...items.map((i) => i.n));
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 3 }}>
@@ -348,16 +348,16 @@ function Palmares({
 /* ------------------------------------------------------------
    BOARD I — THE COUNT AND THE RHYTHM
    ------------------------------------------------------------ */
-function PlancheCompte({ a }: { a: Almanac }) {
+function PlateCount({ a }: { a: Almanac }) {
   const r = a.rhythm;
   const clé = String(a.period);
-  const toujours = a.period === "always";
+  const always = a.period === "always";
   /* The days actually covered, so as to say "one screening every so
      many days" without assuming a calendar year. */
   const span = r.density > 0 ? (r.days / r.density) * 100 : 365;
   return (
     <div style={GRILLE_2x2}>
-      <Cardstock titre="Le compte" seed={`count-${clé}`}>
+      <Cardstock title="Le compte" seed={`count-${clé}`}>
         <div
           style={{
             display: "grid",
@@ -380,7 +380,7 @@ function PlancheCompte({ a }: { a: Almanac }) {
             textAlign: "center",
           }}
         >
-          du {enClair(a.firstWatch, toujours)} au {enClair(a.lastWatch, toujours)}
+          du {enClair(a.firstWatch, always)} au {enClair(a.lastWatch, always)}
         </div>
       </Cardstock>
 
@@ -392,29 +392,29 @@ function PlancheCompte({ a }: { a: Almanac }) {
           real 2×2 it would push the two bottom cards into a third row
           the grid does not declare — and the board would start
           overflowing again through the very place we had just closed. */}
-      <Cardstock titre={toujours ? "Les années" : "Les mois"} seed={`mois-${clé}`}>
-        {toujours ? (
+      <Cardstock title={always ? "Les années" : "Les mois"} seed={`mois-${clé}`}>
+        {always ? (
           <Barres
             values={a.byYear.map((y) => y.screenings)}
             légendes={a.byYear.map((y) => String(y.year))}
-            graine={clé}
+            seed={clé}
           />
         ) : (
-          <Barres values={a.byMonth} légendes={MOIS} graine={clé} />
+          <Barres values={a.byMonth} légendes={MONTHS} seed={clé} />
         )}
       </Cardstock>
 
-      <Cardstock titre="Le rythme" seed={`rythme-${clé}`}>
+      <Cardstock title="Le rythme" seed={`rythme-${clé}`}>
         <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 6 }}>
           <Tally label="Jours avec séance" value={r.days} ink={C.pine} />
           <Tally
-            label={toujours ? "De la période" : "De l'année"}
+            label={always ? "De la période" : "De l'année"}
             value={`${r.density.toFixed(1)} %`}
           />
           <Tally label="Plus longue drought" value={`${r.drought} j`} />
           <Tally
             label="Mois le plus dense"
-            value={r.moisLePlusDense ? MOIS_LONG[r.moisLePlusDense - 1] || "—" : "—"}
+            value={r.moisLePlusDense ? MONTHS_LONG[r.moisLePlusDense - 1] || "—" : "—"}
           />
         </div>
         <div style={{ marginTop: 8, fontFamily: F.hand, fontSize: 15, color: C.inkFaded }}>
@@ -422,9 +422,9 @@ function PlancheCompte({ a }: { a: Almanac }) {
         </div>
       </Cardstock>
 
-      <Cardstock titre="Les heures de cinéma" seed={`heures-${clé}`}>
+      <Cardstock title="Les heures de cinéma" seed={`heures-${clé}`}>
         {a.screenTime.minutes === 0 ? (
-          <Rien quoi="aucune durée connue — le bouton « compléter les fiches », dans l'onglet Import, va les chercher" />
+          <Nothing what="aucune durée connue — le bouton « compléter les fiches », dans l'onglet Import, va les chercher" />
         ) : (
           <>
             <div style={{ marginTop: 8 }}>
@@ -469,9 +469,9 @@ function PlancheCompte({ a }: { a: Almanac }) {
             {/* A TOTAL THAT ANNOUNCES ITSELF AS A FLOOR. Saying nothing
                 of the screenings with no runtime would give a false
                 figure with the poise of a right one. */}
-            {a.screenTime.sansDuree > 0 && (
+            {a.screenTime.noRuntime > 0 && (
               <div style={{ marginTop: 8, fontFamily: F.hand, fontSize: 15, color: C.inkFaded }}>
-                au moins — {a.screenTime.sansDuree} séance(s) sans durée connue
+                au moins — {a.screenTime.noRuntime} séance(s) sans durée known
               </div>
             )}
           </>
@@ -484,15 +484,15 @@ function PlancheCompte({ a }: { a: Almanac }) {
 /* ------------------------------------------------------------
    BOARD II — TASTES
    ------------------------------------------------------------ */
-function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
+function PlateTastes({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
   const maxHisto = Math.max(1, ...a.ratingHistogram);
   const clé = String(a.period);
-  const toujours = a.period === "always";
+  const always = a.period === "always";
   return (
     <div style={GRILLE_2x2}>
-      <Cardstock titre="Les notes" seed={`notes-${clé}`}>
+      <Cardstock title="Les notes" seed={`notes-${clé}`}>
         {a.ratingAvg == null ? (
-          <Rien quoi={toujours ? "aucune séance notée" : "aucune séance notée cette année"} />
+          <Nothing what={always ? "aucune séance notée" : "aucune séance notée cette année"} />
         ) : (
           <>
             <div
@@ -560,9 +560,9 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
         )}
       </Cardstock>
 
-      <Cardstock titre="L'âge de ce que vous regardez" seed={`age-${clé}`}>
+      <Cardstock title="L'âge de ce que vous regardez" seed={`age-${clé}`}>
         {a.age.mean == null ? (
-          <Rien quoi="aucune année de sortie renseignée" />
+          <Nothing what="aucune année de sortie renseignée" />
         ) : (
           <>
             <div
@@ -604,9 +604,9 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
         )}
       </Cardstock>
 
-      <Cardstock titre="Les décennies visitées" seed={`decennies-${clé}`}>
+      <Cardstock title="Les décennies visitées" seed={`decennies-${clé}`}>
         {a.decades.length === 0 ? (
-          <Rien quoi="aucune année de sortie renseignée" />
+          <Nothing what="aucune année de sortie renseignée" />
         ) : (
           <div style={{ display: "flex", alignItems: "flex-end", gap: 4, marginTop: 10 }}>
             {a.decades.map((d) => {
@@ -653,9 +653,9 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
       {/* WHAT HAS MOVED — outside the year, and that is deliberate: a
           film one re-rates does so over a decade, not over twelve
           months. */}
-      <Cardstock titre="Ce qui a changé d'avis" seed="drift">
+      <Cardstock title="Ce qui a changé d'avis" seed="drift">
         {drifts.length === 0 ? (
-          <Rien quoi="aucune note n'a bougé entre deux séances" />
+          <Nothing what="aucune note n'a bougé entre deux séances" />
         ) : (
           <>
             <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
@@ -703,7 +703,7 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
               ))}
             </div>
             <div style={{ marginTop: 8, fontFamily: F.hand, fontSize: 15, color: C.inkFaded }}>
-              all années confondues — on ne se ravise pas en douze mois
+              toutes années confondues — on ne se ravise pas en douze mois
             </div>
           </>
         )}
@@ -715,13 +715,13 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
 /* ------------------------------------------------------------
    BOARD III — THE PEOPLE AND THE WORLD
    ------------------------------------------------------------ */
-function PlancheGens({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (name: string) => void }) {
+function PlatePeople({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (name: string) => void }) {
   const g = a.geography;
   const clé = String(a.period);
-  const toujours = a.period === "always";
+  const always = a.period === "always";
   return (
     <div style={GRILLE_2x2}>
-      <Cardstock titre="Les cinéastes" seed={`cineastes-${clé}`}>
+      <Cardstock title="Les cinéastes" seed={`cineastes-${clé}`}>
         {/* The names lead to the credits: the almanac says who comes
             back, the folder says what one has of that person. Two
             neighbouring questions that had no path towards each
@@ -729,14 +729,11 @@ function PlancheGens({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (name: st
         <Palmares items={a.topDirectors.slice(0, 4)} total={a.count} onPick={onOpenPerson} />
       </Cardstock>
 
-      <Cardstock titre="Les genres" seed={`genres-${clé}`}>
+      <Cardstock title="Les genres" seed={`genres-${clé}`}>
         <Palmares items={a.topGenres.slice(0, 4)} total={a.count} ink={C.moss} />
       </Cardstock>
 
-      <Cardstock
-        titre={toujours ? "Les fidélités" : "Fidélités et découvertes"}
-        seed={`gens-${clé}`}
-      >
+      <Cardstock title={always ? "Les fidélités" : "Fidélités et découvertes"} seed={`gens-${clé}`}>
         {/* THREE TIMES IN A YEAR IS NOT AN ACCIDENT: it is a crossing
             of a body of work, and that is what a film lover wants to see
             named. The discoveries are the other side — the names whose
@@ -750,10 +747,10 @@ function PlancheGens({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (name: st
         {a.loyalties.directors.length === 0 &&
         a.loyalties.actors.length === 0 &&
         a.newDirectors.length === 0 ? (
-          <Rien
-            quoi={
-              toujours
-                ? `personne ne revient ${SEUIL_TOUJOURS} fois ou plus`
+          <Nothing
+            what={
+              always
+                ? `personne ne revient ${THRESHOLD_ALWAYS} fois ou plus`
                 : "rien qui revienne trois fois, ni aucun name nouveau"
             }
           />
@@ -803,9 +800,9 @@ function PlancheGens({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (name: st
         )}
       </Cardstock>
 
-      <Cardstock titre="Le monde traversé" seed={`monde-${clé}`}>
+      <Cardstock title="Le monde traversé" seed={`monde-${clé}`}>
         {g.countryCount === 0 ? (
-          <Rien quoi="aucun pays renseigné — « compléter les fiches », dans l'onglet Import, va les chercher" />
+          <Nothing what="aucun pays renseigné — « compléter les fiches », dans l'onglet Import, va les chercher" />
         ) : (
           <>
             <div style={{ marginTop: 6 }}>
@@ -847,22 +844,22 @@ function PlancheGens({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (name: st
    photography, the music and the screenplay. This board is made of the
    two axes that were missing, plus the half of the gap to the public
    that was never shown. */
-function PlancheSujets({ a }: { a: Almanac }) {
+function PlateSubjects({ a }: { a: Almanac }) {
   const clé = String(a.period);
   const s = a.subjects;
   const ar = a.craftspeople;
   return (
     <div style={GRILLE_2x2}>
-      <Cardstock titre="Les sujets" seed={`subjects-${clé}`}>
+      <Cardstock title="Les sujets" seed={`subjects-${clé}`}>
         <Palmares
           items={s.keywords.slice(0, 5)}
           total={a.count}
           ink={C.ochre}
-          vide="aucun mot-clé — « compléter les fiches », dans l'onglet Import, va les chercher"
+          empty="aucun mot-clé — « compléter les fiches », dans l'onglet Import, va les chercher"
         />
       </Cardstock>
 
-      <Cardstock titre="Les motifs suivis" seed={`motifs-${clé}`}>
+      <Cardstock title="Les motifs suivis" seed={`motifs-${clé}`}>
         {/* The domain returns IDENTIFIERS, as it returns country codes:
             it is here that they are read in French. A pattern removed
             from the catalogue since then keeps its identifier rather
@@ -873,29 +870,29 @@ function PlancheSujets({ a }: { a: Almanac }) {
             .map((m) => ({ name: motifById(m.name)?.label ?? m.name, n: m.n }))}
           total={a.count}
           ink={C.pine}
-          vide="aucun motif posé — ils se choisissent sur une fiche, sous la critique"
+          empty="aucun motif posé — ils se choisissent sur une fiche, sous la critique"
         />
       </Cardstock>
 
-      <Cardstock titre="Les artisans" seed={`craftspeople-${clé}`}>
+      <Cardstock title="Les artisans" seed={`craftspeople-${clé}`}>
         {/* With no threshold, unlike the loyalties: nobody says to
             themselves "I follow a cinematographer's work", and that is
             precisely why showing it teaches something. We only keep what
             COMES BACK — a name seen once is not a loyalty, it is a
             credit list. */}
-        <MétierSuivi label="IMAGE" gens={ar.image} />
-        <MétierSuivi label="MUSIQUE" gens={ar.musique} />
-        <MétierSuivi label="SCÉNARIO" gens={ar.scénario} />
+        <MétierSuivi label="IMAGE" people={ar.image} />
+        <MétierSuivi label="MUSIQUE" people={ar.musique} />
+        <MétierSuivi label="SCÉNARIO" people={ar.scénario} />
         {[ar.image, ar.musique, ar.scénario].every(
           (g) => g.filter((x) => x.n > 1).length === 0
         ) && (
-          <Rien quoi="personne ne revient deux fois derrière la caméra — « compléter les fiches », dans l'onglet Import, remplit les équipes" />
+          <Nothing what="personne ne revient deux fois derrière la caméra — « compléter les fiches », dans l'onglet Import, remplit les équipes" />
         )}
       </Cardstock>
 
-      <Cardstock titre="Plus tendre, plus sévère" seed={`ecart-${clé}`}>
+      <Cardstock title="Plus tendre, plus sévère" seed={`ecart-${clé}`}>
         {a.gap.n === 0 ? (
-          <Rien quoi="aucune séance notée dont on connaisse aussi la note publique" />
+          <Nothing what="aucune séance notée dont on connaisse aussi la note publique" />
         ) : (
           <>
             {/* THE TWO MEANS IN THE CLEAR. The tastes board already
@@ -929,8 +926,8 @@ function PlancheSujets({ a }: { a: Almanac }) {
 }
 
 /** One trade of `crew` — mute when nobody comes back to it twice. */
-function MétierSuivi({ label, gens }: { label: string; gens: { name: string; n: number }[] }) {
-  const suivis = gens.filter((g) => g.n > 1).slice(0, 3);
+function MétierSuivi({ label, people }: { label: string; people: { name: string; n: number }[] }) {
+  const suivis = people.filter((g) => g.n > 1).slice(0, 3);
   if (suivis.length === 0) return null;
   return (
     <div style={{ marginBottom: 7 }}>
@@ -1007,11 +1004,11 @@ const GRILLE_2x2: CSSProperties = {
    LE LIVRET
    ------------------------------------------------------------ */
 
-const PLANCHES = [
-  { titre: "Le compte et le rythme", tampon: "I" },
-  { titre: "Les goûts", tampon: "II" },
-  { titre: "Les gens et le monde", tampon: "III" },
-  { titre: "Les sujets et les artisans", tampon: "IV" },
+const PLATES = [
+  { title: "Le compte et le rythme", stamp: "I" },
+  { title: "Les goûts", stamp: "II" },
+  { title: "Les gens et le monde", stamp: "III" },
+  { title: "Les sujets et les artisans", stamp: "IV" },
 ];
 
 /* The height the header reserves for itself. Hard-coded, and that is
@@ -1024,7 +1021,7 @@ const ENTETE = 178;
    view says it again when there is nothing to show. Copied out, yes:
    writing it in full in the sentence "nobody comes back six times" is
    worth more than a number imported for a single sentence. */
-const SEUIL_TOUJOURS = 6;
+const THRESHOLD_ALWAYS = 6;
 
 export function AlmanacView({
   films,
@@ -1056,7 +1053,7 @@ export function AlmanacView({
      exists. */
   const period = choisie != null && périodes.includes(choisie) ? choisie : (périodes[0] ?? null);
 
-  const [planche, setPlanche] = useState(0);
+  const [plate, setPlate] = useState(0);
 
   const a: Almanac | null = useMemo(
     () => (period == null ? null : almanacFor(films, period)),
@@ -1070,12 +1067,12 @@ export function AlmanacView({
      unguessable, and the year has its own pills. */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const cible = e.target as HTMLElement | null;
+      const target = e.target as HTMLElement | null;
       // do not steal the arrow from somebody who is typing
-      if (cible && /^(INPUT|TEXTAREA)$/.test(cible.tagName)) return;
-      if (cible?.isContentEditable) return;
-      if (e.key === "ArrowRight") setPlanche((p) => Math.min(p + 1, PLANCHES.length - 1));
-      if (e.key === "ArrowLeft") setPlanche((p) => Math.max(p - 1, 0));
+      if (target && /^(INPUT|TEXTAREA)$/.test(target.tagName)) return;
+      if (target?.isContentEditable) return;
+      if (e.key === "ArrowRight") setPlate((p) => Math.min(p + 1, PLATES.length - 1));
+      if (e.key === "ArrowLeft") setPlate((p) => Math.max(p - 1, 0));
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -1121,7 +1118,7 @@ export function AlmanacView({
     return (
       <div style={{ padding: "34px 44px 70px", maxWidth: 760, position: "relative" }}>
         <StampCorner text="ALMANACH" />
-        <Titre />
+        <Title />
         <div
           style={{
             marginTop: 26,
@@ -1143,12 +1140,12 @@ export function AlmanacView({
   /* The rank is taken from the PERIODS and not from the years: the
      arrows must be able to reach "toujours", which opens the
      booklet. */
-  const rang = périodes.indexOf(period);
+  const rank = périodes.indexOf(period);
   const allerAnnée = (pas: number) => {
-    const suivante = périodes[rang + pas];
+    const suivante = périodes[rank + pas];
     if (suivante != null) setChoisie(suivante);
   };
-  const toujours = period === "always";
+  const always = period === "always";
 
   return (
     <div
@@ -1175,7 +1172,7 @@ export function AlmanacView({
 
       {/* ---- L'EN-TÊTE, de hauteur arrêtée ---- */}
       <div style={{ flexShrink: 0, height: ENTETE, boxSizing: "border-box" }}>
-        <Titre />
+        <Title />
 
         <div
           data-tour="almanac-year"
@@ -1183,9 +1180,9 @@ export function AlmanacView({
         >
           <button
             onClick={() => allerAnnée(1)}
-            disabled={rang >= périodes.length - 1}
+            disabled={rank >= périodes.length - 1}
             aria-label="période précédente"
-            style={flecheStyle(rang < périodes.length - 1)}
+            style={arrowStyle(rank < périodes.length - 1)}
           >
             <ChevronLeft size={17} />
           </button>
@@ -1196,21 +1193,21 @@ export function AlmanacView({
               /* "TOUJOURS" is longer than a vintage: it fits in the
                  same width by going down one size, rather than by
                  pushing the pills to the right. */
-              fontSize: toujours ? 30 : 42,
-              fontStyle: toujours ? "italic" : "normal",
+              fontSize: always ? 30 : 42,
+              fontStyle: always ? "italic" : "normal",
               color: C.burgundy,
               lineHeight: 1,
               minWidth: 118,
               textAlign: "center",
             }}
           >
-            {toujours ? "always" : period}
+            {always ? "always" : period}
           </div>
           <button
             onClick={() => allerAnnée(-1)}
-            disabled={rang <= 0}
+            disabled={rank <= 0}
             aria-label="période suivante"
-            style={flecheStyle(rang > 0)}
+            style={arrowStyle(rank > 0)}
           >
             <ChevronRight size={17} />
           </button>
@@ -1248,7 +1245,7 @@ export function AlmanacView({
                 key={String(p)}
                 onClick={() => setChoisie(p)}
                 aria-pressed={p === period}
-                style={anneeStyle(p === period)}
+                style={yearStyle(p === period)}
               >
                 {p === "always" ? "TOUJOURS" : p}
               </button>
@@ -1258,7 +1255,7 @@ export function AlmanacView({
           {/* THE YEAR IN A BOX — the only thing here that leaves the
               browser, and which exists only for one year: the image is
               built around a vintage written large. */}
-          {!toujours && (
+          {!always && (
             <button
               onClick={emporter}
               data-tour="almanac-export"
@@ -1299,28 +1296,28 @@ export function AlmanacView({
           style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14 }}
         >
           <button
-            onClick={() => setPlanche((p) => Math.max(p - 1, 0))}
-            disabled={planche === 0}
+            onClick={() => setPlate((p) => Math.max(p - 1, 0))}
+            disabled={plate === 0}
             aria-label="planche précédente"
-            style={flecheStyle(planche > 0)}
+            style={arrowStyle(plate > 0)}
           >
             <ChevronLeft size={16} />
           </button>
-          {PLANCHES.map((p, i) => (
+          {PLATES.map((p, i) => (
             <button
-              key={p.tampon}
-              onClick={() => setPlanche(i)}
-              aria-pressed={i === planche}
-              style={plancheStyle(i === planche)}
+              key={p.stamp}
+              onClick={() => setPlate(i)}
+              aria-pressed={i === plate}
+              style={plateStyle(i === plate)}
             >
-              {p.tampon} · {p.titre}
+              {p.stamp} · {p.title}
             </button>
           ))}
           <button
-            onClick={() => setPlanche((p) => Math.min(p + 1, PLANCHES.length - 1))}
-            disabled={planche === PLANCHES.length - 1}
+            onClick={() => setPlate((p) => Math.min(p + 1, PLATES.length - 1))}
+            disabled={plate === PLATES.length - 1}
             aria-label="planche suivante"
-            style={flecheStyle(planche < PLANCHES.length - 1)}
+            style={arrowStyle(plate < PLATES.length - 1)}
           >
             <ChevronRight size={16} />
           </button>
@@ -1334,20 +1331,20 @@ export function AlmanacView({
       <div
         /* `key`: without it React reuses the same node and the entry
            animation never replays. See the same pattern in `App`. */
-        key={`${period}:${planche}`}
+        key={`${period}:${plate}`}
         data-enters
         style={{ flex: 1, minHeight: 0, paddingBottom: 22, position: "relative", zIndex: 2 }}
       >
-        {planche === 0 && <PlancheCompte a={a} />}
-        {planche === 1 && <PlancheGouts a={a} drifts={drifts} />}
-        {planche === 2 && <PlancheGens a={a} onOpenPerson={onOpenPerson} />}
-        {planche === 3 && <PlancheSujets a={a} />}
+        {plate === 0 && <PlateCount a={a} />}
+        {plate === 1 && <PlateTastes a={a} drifts={drifts} />}
+        {plate === 2 && <PlatePeople a={a} onOpenPerson={onOpenPerson} />}
+        {plate === 3 && <PlateSubjects a={a} />}
       </div>
     </div>
   );
 }
 
-function Titre() {
+function Title() {
   return (
     <>
       <div
@@ -1392,11 +1389,11 @@ function peauPosée(): BoxPalette {
   };
 }
 
-const flecheStyle = (actif: boolean): CSSProperties => ({
+const arrowStyle = (active: boolean): CSSProperties => ({
   all: "unset",
   ...tapSquare,
-  cursor: actif ? "pointer" : "default",
-  opacity: actif ? 1 : 0.28,
+  cursor: active ? "pointer" : "default",
+  opacity: active ? 1 : 0.28,
   color: C.inkFaded,
   border: `1px solid ${C.line}`,
   borderRadius: "50%",
@@ -1408,7 +1405,7 @@ const flecheStyle = (actif: boolean): CSSProperties => ({
   justifyContent: "center",
 });
 
-const anneeStyle = (actif: boolean): CSSProperties => ({
+const yearStyle = (active: boolean): CSSProperties => ({
   all: "unset",
   ...tap,
   cursor: "pointer",
@@ -1420,13 +1417,13 @@ const anneeStyle = (actif: boolean): CSSProperties => ({
      "20…" instead of a vintage. */
   flexShrink: 0,
   whiteSpace: "nowrap",
-  color: actif ? C.card : C.inkFaded,
-  background: actif ? C.burgundy : "transparent",
-  border: `1px solid ${actif ? C.burgundy : C.line}`,
+  color: active ? C.card : C.inkFaded,
+  background: active ? C.burgundy : "transparent",
+  border: `1px solid ${active ? C.burgundy : C.line}`,
   borderRadius: "var(--tag-radius)",
 });
 
-const plancheStyle = (actif: boolean): CSSProperties => ({
+const plateStyle = (active: boolean): CSSProperties => ({
   all: "unset",
   ...tap,
   cursor: "pointer",
@@ -1435,8 +1432,8 @@ const plancheStyle = (actif: boolean): CSSProperties => ({
   letterSpacing: "var(--tag-tracking)",
   textTransform: "var(--tag-transform)" as never,
   padding: "5px 11px",
-  color: actif ? C.card : C.inkFaded,
-  background: actif ? C.slate : "transparent",
-  border: `1px solid ${actif ? C.slate : C.line}`,
+  color: active ? C.card : C.inkFaded,
+  background: active ? C.slate : "transparent",
+  border: `1px solid ${active ? C.slate : C.line}`,
   borderRadius: "var(--tag-radius)",
 });

@@ -28,9 +28,9 @@ const aujourdhui = () => new Date().toISOString().slice(0, 10);
 const gap = (d: number): string => {
   const signe = d > 0 ? "+" : "−";
   const n = Math.abs(d);
-  const entier = Math.floor(n);
-  const demi = n - entier >= 0.5;
-  return `${signe}${entier || ""}${demi ? "½" : ""}`;
+  const whole = Math.floor(n);
+  const half = n - whole >= 0.5;
+  return `${signe}${whole || ""}${half ? "½" : ""}`;
 };
 
 export function WatchLog({ film, onUpdate }: { film: Film; onUpdate: (film: Film) => void }) {

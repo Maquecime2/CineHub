@@ -45,10 +45,10 @@ import {
 } from "../services/server";
 
 export function ListsView({ connected }: { connected: boolean }) {
-  const [listes, setListes] = useState<List[]>([]);
+  const [lists, setListes] = useState<List[]>([]);
   const [defis, setDefis] = useState<Challenge[]>([]);
   const [ouverte, setOuverte] = useState<string | null>(null);
-  const [titre, setTitre] = useState("");
+  const [title, setTitre] = useState("");
 
   const relire = useCallback(async () => {
     if (!connected) return;
@@ -83,7 +83,7 @@ export function ListsView({ connected }: { connected: boolean }) {
   }
 
   const nouvelle = async () => {
-    const nom = titre.trim();
+    const nom = title.trim();
     if (!nom) return;
     const { id } = await createList({ titre: nom });
     setTitre("");
@@ -97,13 +97,13 @@ export function ListsView({ connected }: { connected: boolean }) {
         <Label>Une nouvelle liste</Label>
         <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
           <input
-            value={titre}
+            value={title}
             onChange={(e) => setTitre(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && nouvelle()}
             placeholder="Les films qu'il faut avoir vus en mars"
             style={{ ...underlineInput, fontFamily: F.hand, fontSize: 17 }}
           />
-          <button onClick={nouvelle} style={bouton(C.ink)}>
+          <button onClick={nouvelle} style={button(C.ink)}>
             <Plus size={12} /> OUVRIR
           </button>
         </div>
@@ -117,12 +117,12 @@ export function ListsView({ connected }: { connected: boolean }) {
 
       <div data-tour="lists-mine" style={{ marginBottom: 34 }}>
         <Label>Vos listes</Label>
-        {listes.length === 0 && <Guideline>Aucune liste pour l'instant.</Guideline>}
+        {lists.length === 0 && <Guideline>Aucune liste pour l'instant.</Guideline>}
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 6 }}>
-          {listes.map((l) => (
-            <UneListe
+          {lists.map((l) => (
+            <OneList
               key={l.id}
-              liste={l}
+              list={l}
               ouverte={ouverte === l.id}
               onOuvrir={() => setOuverte(ouverte === l.id ? null : l.id)}
               onChange={relire}
@@ -153,13 +153,13 @@ export function ListsView({ connected }: { connected: boolean }) {
    ONE LIST, UNFOLDED
    ------------------------------------------------------------ */
 
-function UneListe({
-  liste,
+function OneList({
+  list,
   ouverte,
   onOuvrir,
   onChange,
 }: {
-  liste: List;
+  list: List;
   ouverte: boolean;
   onOuvrir: () => void;
   onChange: () => Promise<void>;
@@ -169,27 +169,27 @@ function UneListe({
   const [invite, setInvite] = useState("");
   const [souci, setSouci] = useState<string | null>(null);
   const [defi, setDefi] = useState({
-    titre: "",
-    debut: moisCourant().debut,
-    fin: moisCourant().fin,
+    title: "",
+    start: moisCourant().start,
+    end: moisCourant().end,
   });
 
   const relire = useCallback(async () => {
-    const r = await readList(liste.id);
+    const r = await readList(list.id);
     setOeuvres(r.oeuvres);
     setMembres(r.membres);
-  }, [liste.id]);
+  }, [list.id]);
 
   useEffect(() => {
     if (ouverte) relire().catch(() => {});
   }, [ouverte, relire]);
 
-  const inviter = async () => {
+  const sendInvite = async () => {
     const nom = invite.trim().toLowerCase();
     if (!nom) return;
     setSouci(null);
     try {
-      await inviteToList(liste.id, nom);
+      await inviteToList(list.id, nom);
       setInvite("");
       await relire();
     } catch {
@@ -199,10 +199,17 @@ function UneListe({
     }
   };
 
-  const lancer = async () => {
-    if (!defi.titre.trim()) return;
-    await createChallenge({ listeId: liste.id, ...defi, titre: defi.titre.trim() });
-    setDefi({ ...defi, titre: "" });
+  const run = async () => {
+    if (!defi.title.trim()) return;
+    /* The server's vocabulary is French; the form's is not. The mapping
+       happens here, at the boundary, and nowhere else. */
+    await createChallenge({
+      listeId: list.id,
+      titre: defi.title.trim(),
+      debut: defi.start,
+      fin: defi.end,
+    });
+    setDefi({ ...defi, title: "" });
     await onChange();
   };
 
@@ -223,12 +230,12 @@ function UneListe({
         }}
       >
         <span style={{ fontFamily: F.title, fontStyle: "italic", fontSize: 20, color: C.ink }}>
-          {liste.titre}
+          {list.titre}
         </span>
         <span style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>
-          {liste.oeuvres} film{liste.oeuvres > 1 ? "s" : ""}
-          {liste.publique ? " · publique" : ""}
-          {liste.mienne ? "" : ` · chez ${liste.proprietaire}`}
+          {list.oeuvres} film{list.oeuvres > 1 ? "s" : ""}
+          {list.publique ? " · publique" : ""}
+          {list.mienne ? "" : ` · chez ${list.proprietaire}`}
         </span>
       </button>
 
@@ -263,9 +270,9 @@ function UneListe({
                 <span style={{ fontFamily: F.mono, fontSize: 9, color: C.inkFaded }}>{o.par}</span>
               )}
               <button
-                onClick={() => removeFromList(liste.id, o.tmdb_id).then(relire)}
+                onClick={() => removeFromList(list.id, o.tmdb_id).then(relire)}
                 title="Retirer de la liste"
-                style={{ ...petit, color: C.burgundy }}
+                style={{ ...small, color: C.burgundy }}
               >
                 <X size={12} />
               </button>
@@ -274,19 +281,19 @@ function UneListe({
 
           {/* Co-building is a right to write, not ownership: only the
               owner invites, renames and publishes. */}
-          {liste.mienne && (
+          {list.mienne && (
             <>
               <div style={{ display: "flex", gap: 8, alignItems: "flex-end", marginTop: 14 }}>
                 <input
                   value={invite}
                   onChange={(e) => setInvite(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && inviter()}
+                  onKeyDown={(e) => e.key === "Enter" && sendInvite()}
                   placeholder="inviter quelqu'un à écrire"
                   autoCapitalize="none"
                   spellCheck={false}
                   style={{ ...underlineInput, fontFamily: F.mono, fontSize: 12 }}
                 />
-                <button onClick={inviter} style={bouton(C.pine)}>
+                <button onClick={sendInvite} style={button(C.pine)}>
                   <UserPlus size={12} /> INVITER
                 </button>
               </div>
@@ -301,9 +308,9 @@ function UneListe({
                     <span key={m} style={jeton}>
                       {m}
                       <button
-                        onClick={() => removeFromListMembers(liste.id, m).then(relire)}
+                        onClick={() => removeFromListMembers(list.id, m).then(relire)}
                         title={`Retirer ${m}`}
-                        style={{ ...petit, color: C.burgundy }}
+                        style={{ ...small, color: C.burgundy }}
                       >
                         <X size={10} />
                       </button>
@@ -316,18 +323,18 @@ function UneListe({
                 <label style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>
                   <input
                     type="checkbox"
-                    checked={liste.publique}
+                    checked={list.publique}
                     onChange={(e) =>
-                      editList(liste.id, { publique: e.target.checked }).then(onChange)
+                      editList(list.id, { publique: e.target.checked }).then(onChange)
                     }
                   />{" "}
                   visible de qui vous suit
                 </label>
                 <span style={{ flex: 1 }} />
                 <button
-                  onClick={() => deleteList(liste.id).then(onChange)}
+                  onClick={() => deleteList(list.id).then(onChange)}
                   title="Effacer cette liste"
-                  style={{ ...petit, color: C.burgundy }}
+                  style={{ ...small, color: C.burgundy }}
                 >
                   <Trash2 size={12} />
                 </button>
@@ -338,29 +345,29 @@ function UneListe({
           {/* Starting a challenge requires the right to write in the
               list — otherwise anybody starts a challenge on a stranger's
               list, who would see it appear without having wanted it. */}
-          {(liste.mienne || liste.membre) && (
+          {(list.mienne || list.membre) && (
             <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px dashed ${C.line}` }}>
               <Label>Lancer un défi sur cette liste</Label>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
                 <input
-                  value={defi.titre}
-                  onChange={(e) => setDefi({ ...defi, titre: e.target.value })}
+                  value={defi.title}
+                  onChange={(e) => setDefi({ ...defi, title: e.target.value })}
                   placeholder="Mars chez Varda"
                   style={{ ...underlineInput, fontFamily: F.hand, fontSize: 16, flex: "1 1 160px" }}
                 />
                 <input
                   type="date"
-                  value={defi.debut}
-                  onChange={(e) => setDefi({ ...defi, debut: e.target.value })}
+                  value={defi.start}
+                  onChange={(e) => setDefi({ ...defi, start: e.target.value })}
                   style={{ ...underlineInput, fontFamily: F.mono, fontSize: 11, width: 130 }}
                 />
                 <input
                   type="date"
-                  value={defi.fin}
-                  onChange={(e) => setDefi({ ...defi, fin: e.target.value })}
+                  value={defi.end}
+                  onChange={(e) => setDefi({ ...defi, end: e.target.value })}
                   style={{ ...underlineInput, fontFamily: F.mono, fontSize: 11, width: 130 }}
                 />
-                <button onClick={lancer} style={bouton(C.burgundy)}>
+                <button onClick={run} style={button(C.burgundy)}>
                   LANCER
                 </button>
               </div>
@@ -408,7 +415,7 @@ function UnDefi({ defi, onChange }: { defi: Challenge; onChange: () => Promise<v
               .then(onChange)
               .then(relire)
           }
-          style={bouton(defi.dedans ? C.slate : C.pine)}
+          style={button(defi.dedans ? C.slate : C.pine)}
         >
           {defi.dedans ? "SORTIR" : "PARTICIPER"}
         </button>
@@ -416,7 +423,7 @@ function UnDefi({ defi, onChange }: { defi: Challenge; onChange: () => Promise<v
           <button
             onClick={() => deleteChallenge(defi.id).then(onChange)}
             title="Effacer ce défi"
-            style={{ ...petit, color: C.burgundy }}
+            style={{ ...small, color: C.burgundy }}
           >
             <Trash2 size={12} />
           </button>
@@ -479,10 +486,10 @@ function UnDefi({ defi, onChange }: { defi: Challenge; onChange: () => Promise<v
 function moisCourant() {
   const d = new Date();
   const deux = (n: number) => String(n).padStart(2, "0");
-  const debut = `${d.getFullYear()}-${deux(d.getMonth() + 1)}-01`;
-  const dernier = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-  const fin = `${dernier.getFullYear()}-${deux(dernier.getMonth() + 1)}-${deux(dernier.getDate())}`;
-  return { debut, fin };
+  const start = `${d.getFullYear()}-${deux(d.getMonth() + 1)}-01`;
+  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  const end = `${last.getFullYear()}-${deux(last.getMonth() + 1)}-${deux(last.getDate())}`;
+  return { start, end };
 }
 
 const Page = ({ children }: { children: ReactNode }) => (
@@ -515,7 +522,7 @@ const Guideline = ({ children }: { children: ReactNode }) => (
   </div>
 );
 
-const bouton = (encre: string) => ({
+const button = (ink: string) => ({
   all: "unset" as const,
   ...tap,
   cursor: "pointer",
@@ -525,11 +532,11 @@ const bouton = (encre: string) => ({
   fontSize: 10,
   letterSpacing: 1,
   color: C.card,
-  background: encre,
-  border: `1px solid ${encre}`,
+  background: ink,
+  border: `1px solid ${ink}`,
 });
 
-const petit = {
+const small = {
   all: "unset" as const,
   ...tap,
   cursor: "pointer",

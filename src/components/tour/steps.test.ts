@@ -15,7 +15,7 @@ import { TOURS, tourForView } from "./steps";
    `View` union: a type does not survive compilation, and it is precisely
    here that we want it readable at run time. `skinlab` is not one of
    them — it is a development tool, not a view. */
-const VUES = [
+const VIEWS = [
   "library",
   "watchlist",
   "credits",
@@ -30,7 +30,7 @@ const VUES = [
 ] as const;
 
 describe("la visite couvre le produit", () => {
-  it.each(VUES)("« %s » a sa visite", (vue) => {
+  it.each(VIEWS)("« %s » a sa visite", (vue) => {
     const t = tourForView(vue);
     expect(t, `la vue « ${vue} » n'a pas de visite — voir CLAUDE.md`).toBeDefined();
     expect(t!.steps.length).toBeGreaterThan(0);
@@ -39,23 +39,25 @@ describe("la visite couvre le produit", () => {
   it("n'a pas de visite orpheline", () => {
     for (const clé of Object.keys(TOURS)) {
       if (clé === "global") continue;
-      expect(VUES).toContain(clé as (typeof VUES)[number]);
+      expect(VIEWS).toContain(clé as (typeof VIEWS)[number]);
     }
   });
 });
 
 describe("les étapes se tiennent", () => {
-  const toutes = Object.entries(TOURS).flatMap(([id, t]) => t.steps.map((s, i) => ({ id, i, s })));
+  const allOfThem = Object.entries(TOURS).flatMap(([id, t]) =>
+    t.steps.map((s, i) => ({ id, i, s }))
+  );
 
   it("dit toujours quelque chose", () => {
-    for (const { id, i, s } of toutes) {
+    for (const { id, i, s } of allOfThem) {
       expect(s.title.trim(), `${id}[${i}]`).not.toBe("");
       expect(s.body.trim(), `${id}[${i}]`).not.toBe("");
     }
   });
 
   it("ne vise que par un attribut de visite", () => {
-    for (const { id, i, s } of toutes) {
+    for (const { id, i, s } of allOfThem) {
       if (s.target === null) continue;
       expect(s.target, `${id}[${i}]`).toMatch(/^\[data-(tour|tab-rail)/);
     }

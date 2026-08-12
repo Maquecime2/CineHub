@@ -48,7 +48,7 @@ interface Candidat {
   lang: string;
 }
 
-const TMDB_FICHE = "https://www.themoviedb.org/movie/";
+const TMDB_CARD = "https://www.themoviedb.org/movie/";
 
 /* A poster "from TMDB": the one we have the right to replace without
    destroying anything chosen. All the rest — a pasted address, an image
@@ -64,12 +64,12 @@ export function TmdbLink({ film, onUpdate }: { film: Film; onUpdate: (f: Film) =
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const chercher = async (titre?: string) => {
+  const search = async (title?: string) => {
     if (!apiKey) {
       setMsg("Aucune clé TMDB — à régler au pied du rail d'onglets.");
       return;
     }
-    const q = (titre ?? query).trim() || film.title;
+    const q = (title ?? query).trim() || film.title;
     setBusy(true);
     setMsg("recherche…");
     setCandidats(null);
@@ -135,7 +135,7 @@ export function TmdbLink({ film, onUpdate }: { film: Film; onUpdate: (f: Film) =
           onClick={() => {
             setOpen((o) => !o);
             setQuery(film.title);
-            if (!open && !candidats) chercher(film.title);
+            if (!open && !candidats) search(film.title);
           }}
           style={{
             all: "unset",
@@ -165,7 +165,7 @@ export function TmdbLink({ film, onUpdate }: { film: Film; onUpdate: (f: Film) =
           <>
             <span>#{film.tmdbId}</span>
             <a
-              href={`${TMDB_FICHE}${film.tmdbId}`}
+              href={`${TMDB_CARD}${film.tmdbId}`}
               target="_blank"
               rel="noreferrer"
               style={{
@@ -190,10 +190,10 @@ export function TmdbLink({ film, onUpdate }: { film: Film; onUpdate: (f: Film) =
               value={query}
               placeholder="titre à chercher"
               onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && chercher()}
+              onKeyDown={(e) => e.key === "Enter" && search()}
             />
             <button
-              onClick={() => chercher()}
+              onClick={() => search()}
               disabled={busy}
               title="chercher ce titre sur TMDB"
               style={{
@@ -226,23 +226,23 @@ export function TmdbLink({ film, onUpdate }: { film: Film; onUpdate: (f: Film) =
               }}
             >
               {candidats.map((c) => {
-                const actuel = String(film.tmdbId) === String(c.tmdbId);
+                const current = String(film.tmdbId) === String(c.tmdbId);
                 return (
                   <button
                     key={c.tmdbId}
-                    onClick={() => !actuel && relier(c)}
-                    disabled={busy || actuel}
+                    onClick={() => !current && relier(c)}
+                    disabled={busy || current}
                     title={c.overview || undefined}
                     style={{
                       all: "unset",
-                      cursor: actuel || busy ? "default" : "pointer",
+                      cursor: current || busy ? "default" : "pointer",
                       display: "flex",
                       gap: 8,
                       alignItems: "flex-start",
                       padding: 5,
-                      border: `1px solid ${actuel ? C.burgundy : C.line}`,
-                      background: actuel ? C.paperDark : "transparent",
-                      opacity: busy && !actuel ? 0.5 : 1,
+                      border: `1px solid ${current ? C.burgundy : C.line}`,
+                      background: current ? C.paperDark : "transparent",
+                      opacity: busy && !current ? 0.5 : 1,
                     }}
                   >
                     {c.poster ? (
@@ -265,7 +265,7 @@ export function TmdbLink({ film, onUpdate }: { film: Film; onUpdate: (f: Film) =
                       <div style={{ fontFamily: F.body, fontSize: 12.5, color: C.ink }}>
                         {c.title}
                         {c.year ? ` (${c.year})` : ""}
-                        {actuel && (
+                        {current && (
                           <Check
                             size={11}
                             color={C.burgundy}

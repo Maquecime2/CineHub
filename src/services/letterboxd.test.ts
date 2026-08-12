@@ -263,8 +263,8 @@ describe("lire une page de watchlist", () => {
   /* An empty watchlist says so: Letterboxd lays a "No films yet" in
      `.empty-text`. That is what tells it apart from a failed page. */
   it("accepte en revanche une watchlist réellement vide", () => {
-    const vide = `<html><body><p class="empty-text">No films yet</p></body></html>`;
-    expect(parseWatchlistPage(vide).rows).toEqual([]);
+    const empty = `<html><body><p class="empty-text">No films yet</p></body></html>`;
+    expect(parseWatchlistPage(empty).rows).toEqual([]);
   });
 });
 

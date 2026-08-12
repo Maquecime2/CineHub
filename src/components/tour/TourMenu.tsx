@@ -50,10 +50,9 @@ export function TourMenu({
         </div>
 
         <button onClick={() => onPlay("global")} style={porte}>
-          <span style={titre}>{TOURS.global!.label}</span>
+          <span style={title}>{TOURS.global!.label}</span>
           <span style={sous}>
-            le tour du classeur, d&apos;un onglet à l&apos;autre — {TOURS.global!.steps.length}{" "}
-            steps
+            le tour du classeur, d&apos;un tab à l&apos;other — {TOURS.global!.steps.length} steps
           </span>
         </button>
 
@@ -62,7 +61,7 @@ export function TourMenu({
             not answer — which reads as a failure. */}
         {page ? (
           <button onClick={() => onPlay(view)} style={porte}>
-            <span style={titre}>Cette page</span>
+            <span style={title}>Cette page</span>
             <span style={sous}>
               {page.label.toLowerCase()} — {page.steps.length}{" "}
               {page.steps.length > 1 ? "étapes" : "étape"}
@@ -103,7 +102,7 @@ const porte: CSSProperties = {
   border: `1px solid ${C.line}`,
 };
 
-const titre: CSSProperties = {
+const title: CSSProperties = {
   display: "block",
   fontFamily: F.title,
   fontStyle: "italic",

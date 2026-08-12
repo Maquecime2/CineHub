@@ -60,8 +60,8 @@ const quandDit = (le: number | null): string => {
   if (secondes < 90) return "à l'instant";
   const minutes = Math.round(secondes / 60);
   if (minutes < 60) return `il y a ${minutes} minutes`;
-  const heures = Math.round(minutes / 60);
-  if (heures < 24) return `il y a ${heures} heure${heures > 1 ? "s" : ""}`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `il y a ${hours} heure${hours > 1 ? "s" : ""}`;
   return new Date(le).toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
 };
 
@@ -82,11 +82,11 @@ export function AccountDrawer({
   const [souci, setSouci] = useState<string | null>(null);
   const [request, setRequest] = useState<ConfirmRequest | null>(null);
 
-  const tenter = async (quoi: (p: string) => Promise<Person>) => {
+  const tenter = async (what: (p: string) => Promise<Person>) => {
     setSouci(null);
     setBusy(true);
     try {
-      const personne = await quoi(pseudo.trim().toLowerCase());
+      const personne = await what(pseudo.trim().toLowerCase());
       /* AN ACCOUNT THAT CHANGES STARTS OVER. Keeping the old one's read
          cursor would make the binder believe it had already seen all of
          the new one's collection — which would stay invisible. */
@@ -233,19 +233,19 @@ export function AccountDrawer({
             <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginBottom: 12 }}>
               {/* We explain the passkey in one sentence: nobody should
                   have to know what WebAuthn is in order to sign up. */}
-              Pas de mot de passe : votre téléphone ou votre ordinateur signe à votre place, avec ce
-              qui le déverrouille déjà.
+              Pas de word de passe : votre téléphone ou votre ordinateur signe à votre place, avec
+              ce qui le déverrouille déjà.
             </div>
 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button
                 disabled={busy || pseudo.trim().length < 3}
                 onClick={() => tenter(signUp)}
-                style={bouton(C.burgundy, busy || pseudo.trim().length < 3)}
+                style={button(C.burgundy, busy || pseudo.trim().length < 3)}
               >
                 <UserPlus size={12} /> CRÉER UN COMPTE
               </button>
-              <button disabled={busy} onClick={() => tenter(signIn)} style={bouton(C.ink, busy)}>
+              <button disabled={busy} onClick={() => tenter(signIn)} style={button(C.ink, busy)}>
                 <KeyRound size={12} /> J'EN AI DÉJÀ UN
               </button>
             </div>
@@ -264,7 +264,7 @@ export function AccountDrawer({
           </>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <Partager />
+            <Share />
 
             <Blocages />
 
@@ -278,7 +278,7 @@ export function AccountDrawer({
                 forgetSync();
                 onChangement(null);
               }}
-              style={bouton(C.ink, false)}
+              style={button(C.ink, false)}
             >
               <LogOut size={12} /> SE DÉCONNECTER
             </button>
@@ -303,20 +303,20 @@ export function AccountDrawer({
                       const tout = await myData();
                       /* A file, not a screen: what one takes away must
                          be readable elsewhere, and in ten years. */
-                      const lien = document.createElement("a");
-                      lien.href = URL.createObjectURL(
+                      const link = document.createElement("a");
+                      link.href = URL.createObjectURL(
                         new Blob([JSON.stringify(tout, null, 2)], { type: "application/json" })
                       );
-                      lien.download = `cine-hub-${report.person!.pseudo}.json`;
-                      lien.click();
-                      URL.revokeObjectURL(lien.href);
+                      link.download = `cine-hub-${report.person!.pseudo}.json`;
+                      link.click();
+                      URL.revokeObjectURL(link.href);
                     } catch (e) {
                       setSouci((e as Error).message || "L'export a échoué.");
                     } finally {
                       setBusy(false);
                     }
                   }}
-                  style={bouton(C.slate, busy)}
+                  style={button(C.slate, busy)}
                 >
                   <Download size={12} /> TOUT EMPORTER
                 </button>
@@ -345,7 +345,7 @@ export function AccountDrawer({
                     })
                   }
                   style={{
-                    ...bouton(C.burgundy, busy),
+                    ...button(C.burgundy, busy),
                     background: "transparent",
                     color: C.burgundy,
                   }}
@@ -382,7 +382,7 @@ export function AccountDrawer({
               the phone is a note lost. But it cannot be guessed, so it is
               said — and sharing, for its part, will send only the public
               part of the card (see `publicPart`). */}
-          Votre collection entière est copiée sur votre compte, notes et séances comprises. Rien
+          Votre collection entière est copiée sur votre compte, notes et séances comprises. Nothing
           n'est public : le partage se décide fiche par fiche, et n'emportera jamais vos notes.
         </div>
       </div>
@@ -390,7 +390,7 @@ export function AccountDrawer({
   );
 }
 
-const bouton = (encre: string, off: boolean) => ({
+const button = (ink: string, off: boolean) => ({
   all: "unset" as const,
   ...tap,
   cursor: off ? "default" : "pointer",
@@ -401,8 +401,8 @@ const bouton = (encre: string, off: boolean) => ({
   fontSize: 10.5,
   letterSpacing: 1,
   color: C.card,
-  background: encre,
-  border: `1px solid ${encre}`,
+  background: ink,
+  border: `1px solid ${ink}`,
 });
 
 /* ============================================================
@@ -456,7 +456,7 @@ const bouton = (encre: string, off: boolean) => ({
    above: there is nothing to undo, and a "nobody" heading on such a
    subject teaches nobody anything. */
 function Blocages() {
-  const [liste, setListe] = useState<string[] | null>(null);
+  const [list, setListe] = useState<string[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   const relire = () =>
@@ -470,7 +470,7 @@ function Blocages() {
     relire();
   }, []);
 
-  if (!liste?.length) return null;
+  if (!list?.length) return null;
 
   const rendreLaParole = async (pseudo: string) => {
     setBusy(pseudo);
@@ -486,7 +486,7 @@ function Blocages() {
     <div style={{ borderTop: `1px dashed ${C.line}`, paddingTop: 14 }}>
       <Label>Ceux que vous avez fait taire</Label>
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
-        {liste.map((pseudo) => (
+        {list.map((pseudo) => (
           <div key={pseudo} style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <VolumeX size={13} style={{ flexShrink: 0, color: C.inkFaded }} aria-hidden />
             <span
@@ -552,7 +552,7 @@ function Rappels() {
 
   if (!state?.possible) return null;
 
-  const basculer = async () => {
+  const toggle = async () => {
     setBusy(true);
     try {
       if (state.subscribed) await unsubscribeFromPush();
@@ -576,7 +576,7 @@ function Rappels() {
         </div>
       ) : (
         <>
-          <button onClick={basculer} disabled={busy} style={bouton(C.pine, state.subscribed)}>
+          <button onClick={toggle} disabled={busy} style={button(C.pine, state.subscribed)}>
             <Bell size={12} /> {state.subscribed ? "NE PLUS ME RAPPELER" : "ME RAPPELER MES DÉFIS"}
           </button>
           <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 6 }}>
@@ -589,7 +589,7 @@ function Rappels() {
   );
 }
 
-function Partager() {
+function Share() {
   const [state, setState] = useState<Sharing | null>(null);
   const [jeton, setJeton] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -645,19 +645,19 @@ function Partager() {
             ["lien", "PAR LIEN"],
             ["publique", "TOUT LE MONDE"],
           ] as [Sharing, string][]
-        ).map(([clé, mot]) => (
+        ).map(([clé, word]) => (
           <button
             key={clé}
             disabled={busy}
             onClick={() => régler(clé)}
             style={{
-              ...bouton(state === clé ? C.burgundy : C.ink, busy),
+              ...button(state === clé ? C.burgundy : C.ink, busy),
               background: state === clé ? C.burgundy : "transparent",
               color: state === clé ? C.card : C.inkFaded,
               borderColor: state === clé ? C.burgundy : C.line,
             }}
           >
-            {mot}
+            {word}
           </button>
         ))}
       </div>
@@ -692,7 +692,7 @@ function Partager() {
               navigator.clipboard?.writeText(adresse);
               setCopied(true);
             }}
-            style={bouton(C.slate, false)}
+            style={button(C.slate, false)}
           >
             {copied ? <Check size={12} /> : <LinkIcon size={12} />} {copied ? "COPIÉ" : "COPIER"}
           </button>

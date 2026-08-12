@@ -42,7 +42,7 @@ export function RepairPanel({ films, onImport }: RepairPanelProps) {
 
   if (suspectes.length === 0) return null;
 
-  const bascule = (id: string) =>
+  const toggle = (id: string) =>
     setChoisies((s) => {
       const n = new Set(s);
       if (n.has(id)) n.delete(id);
@@ -50,7 +50,7 @@ export function RepairPanel({ films, onImport }: RepairPanelProps) {
       return n;
     });
 
-  const toutes = () =>
+  const allOfThem = () =>
     setChoisies((s) =>
       s.size === suspectes.length ? new Set() : new Set(suspectes.map((f) => f.id))
     );
@@ -58,7 +58,7 @@ export function RepairPanel({ films, onImport }: RepairPanelProps) {
   /* We go back through `onImport` rather than a writing path of our
      own: it is the same field-by-field merge as the import, and a single
      place where the writing can go wrong. */
-  const remettre = () => {
+  const putBack = () => {
     const toPutBack = suspectes.filter((f) => choisies.has(f.id));
     if (!toPutBack.length) return;
     setRequest({
@@ -142,7 +142,7 @@ export function RepairPanel({ films, onImport }: RepairPanelProps) {
             <input
               type="checkbox"
               checked={choisies.has(f.id)}
-              onChange={() => bascule(f.id)}
+              onChange={() => toggle(f.id)}
               style={{ flexShrink: 0 }}
             />
             <span style={{ flex: 1 }}>
@@ -161,7 +161,7 @@ export function RepairPanel({ films, onImport }: RepairPanelProps) {
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
         <button
-          onClick={toutes}
+          onClick={allOfThem}
           style={{
             all: "unset",
             ...tap,
@@ -176,7 +176,7 @@ export function RepairPanel({ films, onImport }: RepairPanelProps) {
           {choisies.size === suspectes.length ? "TOUT DÉCOCHER" : "TOUT COCHER"}
         </button>
         <button
-          onClick={remettre}
+          onClick={putBack}
           disabled={choisies.size === 0}
           style={{
             all: "unset",

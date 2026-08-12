@@ -89,11 +89,11 @@ describe("appartenance à un rayon", () => {
   });
 
   it("un film à voir n'est jamais de chevet : on ne revoit pas ce qu'on n'a pas vu", () => {
-    const aVoir = film("a", { bedside: true, status: "watchlist" });
-    expect(kindOf(aVoir)).toBe("main");
-    expect(belongs.bedside(aVoir)).toBe(false);
+    const toWatch = film("a", { bedside: true, status: "watchlist" });
+    expect(kindOf(toWatch)).toBe("main");
+    expect(belongs.bedside(toWatch)).toBe(false);
     // and it does not vanish for all that: the collection takes it in
-    expect(belongs.main(aVoir)).toBe(true);
+    expect(belongs.main(toWatch)).toBe(true);
   });
 });
 

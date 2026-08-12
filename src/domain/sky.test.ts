@@ -164,9 +164,9 @@ describe("suggestLinks", () => {
   it("links two films that share a cinematographer", () => {
     const a = film("A", { crew: { image: ["Decaë"] } });
     const b = film("B", { crew: { image: ["Decaë"] } });
-    const liens = suggestLinks([a, b]);
-    expect(liens).toHaveLength(1);
-    expect(liens[0]).toMatchObject({
+    const links = suggestLinks([a, b]);
+    expect(links).toHaveLength(1);
+    expect(links[0]).toMatchObject({
       kind: "crew",
       why: [{ role: "image", name: "Decaë" }],
     });
@@ -193,9 +193,9 @@ describe("suggestLinks", () => {
   it("strings only one edge for two reasons, but gives them all", () => {
     const a = film("A", { crew: { image: ["Decaë"], musique: ["Rubinstein"] } });
     const b = film("B", { crew: { image: ["Decaë"], musique: ["Rubinstein"] } });
-    const liens = suggestLinks([a, b]);
-    expect(liens).toHaveLength(1);
-    expect(liens[0]!.why!.map((w) => `${w.role}·${w.name}`).sort()).toEqual([
+    const links = suggestLinks([a, b]);
+    expect(links).toHaveLength(1);
+    expect(links[0]!.why!.map((w) => `${w.role}·${w.name}`).sort()).toEqual([
       "image·Decaë",
       "musique·Rubinstein",
     ]);

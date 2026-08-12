@@ -196,8 +196,8 @@ describe("une cible absente ne bloque pas la visite", () => {
     render(<TourOverlay tourId="almanac" onClose={onClose} onView={vi.fn()} />);
 
     // we do reach the second to last…
-    const avant = steps[steps.length - 2]!;
-    expect(await screen.findByText(avant.title)).toBeInTheDocument();
+    const before = steps[steps.length - 2]!;
+    expect(await screen.findByText(before.title)).toBeInTheDocument();
     await userEvent.click(screen.getByText(/suivant|terminer/i));
 
     /* …and the last, deprived of a target, does not hold the tour up: it

@@ -1004,7 +1004,7 @@ export function ReserveDrawer({
 
 /* The case one opens. A preview only: the full folder stays the card, one
    goes there with a click from here. */
-export function CasePreview({ film, onClose, onOpenFile }) {
+export function CellPreview({ film, onClose, onOpenFile }) {
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === "Escape") onClose();

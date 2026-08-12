@@ -312,14 +312,14 @@ export interface Subjects {
 }
 
 export function subjects(films: Film[], period: Period, howMany = 6): Subjects {
-  const mots: string[] = [];
-  const mot: string[] = [];
+  const keywords: string[] = [];
+  const motifIds: string[] = [];
   for (const { film, watch } of screeningsOf(films)) {
     if (!inPeriod(watch.date, period)) continue;
-    mots.push(...(film.keywords || []));
-    mot.push(...(film.motifs || []));
+    keywords.push(...(film.keywords || []));
+    motifIds.push(...(film.motifs || []));
   }
-  return { keywords: ranking(mots, howMany), motifs: ranking(mot, howMany) };
+  return { keywords: ranking(keywords, howMany), motifs: ranking(motifIds, howMany) };
 }
 
 /* ------------------------------------------------------------
@@ -429,7 +429,7 @@ export interface ScreenTime {
   moyenne: number | null;
   plusLong: { film: Film; runtime: number } | null;
   /** Screenings whose runtime is missing — enough to say the total is a floor. */
-  sansDuree: number;
+  noRuntime: number;
 }
 
 /* THE HOURS OF CINEMA.
@@ -442,20 +442,20 @@ export interface ScreenTime {
 export function screenTime(films: Film[], period: Period): ScreenTime {
   let minutes = 0;
   let n = 0;
-  let sansDuree = 0;
+  let noRuntime = 0;
   let plusLong: { film: Film; runtime: number } | null = null;
 
   for (const { film, watch } of screeningsOf(films)) {
     if (!inPeriod(watch.date, period)) continue;
     if (film.runtime == null || film.runtime <= 0) {
-      sansDuree += 1;
+      noRuntime += 1;
       continue;
     }
     minutes += film.runtime;
     n += 1;
     if (!plusLong || film.runtime > plusLong.runtime) plusLong = { film, runtime: film.runtime };
   }
-  return { minutes, moyenne: n ? minutes / n : null, plusLong, sansDuree };
+  return { minutes, moyenne: n ? minutes / n : null, plusLong, noRuntime };
 }
 
 export interface Geography {
@@ -645,8 +645,8 @@ export function almanacFor(films: Film[], period: Period): Almanac {
 
   const byMonth = Array(12).fill(0) as number[];
   for (const { watch } of year) {
-    const mois = Number(watch.date.slice(5, 7));
-    if (mois >= 1 && mois <= 12) byMonth[mois - 1] = (byMonth[mois - 1] as number) + 1;
+    const month = Number(watch.date.slice(5, 7));
+    if (month >= 1 && month <= 12) byMonth[month - 1] = (byMonth[month - 1] as number) + 1;
   }
 
   /* A rewatch is a screening that is not its film's FIRST, with the whole
@@ -655,8 +655,8 @@ export function almanacFor(films: Film[], period: Period): Almanac {
      about what the year brought. */
   const firstSeen = new Map<string, string>();
   for (const { film, watch } of all) {
-    const connue = firstSeen.get(film.id);
-    if (!connue || watch.date < connue) firstSeen.set(film.id, watch.date);
+    const known = firstSeen.get(film.id);
+    if (!known || watch.date < known) firstSeen.set(film.id, watch.date);
   }
   const rewatches = year.filter(({ film, watch }) => watch.date !== firstSeen.get(film.id)).length;
 

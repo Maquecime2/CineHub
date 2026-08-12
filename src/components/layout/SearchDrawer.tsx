@@ -57,18 +57,18 @@ export function SearchDrawer({
   const [q, setQ] = useState("");
   const { phone } = useViewport();
   const [curseur, setCurseur] = useState(0);
-  const champ = useRef<HTMLInputElement>(null);
+  const field = useRef<HTMLInputElement>(null);
 
   const trouvailles = useMemo(
     () => searchEverywhere(q, { films, notes, threads }),
     [q, films, notes, threads]
   );
-  const groupes = useMemo(() => groupByKind(trouvailles), [trouvailles]);
+  const groups = useMemo(() => groupByKind(trouvailles), [trouvailles]);
   /* The FLATTENED list, in the order it is drawn: it is what the arrows
      walk through. Rebuilding the order on the fly in the key handler
      would make it diverge from the display at the first change of
      layout. */
-  const plate = useMemo(() => groupes.flatMap((g) => g.items), [groupes]);
+  const plate = useMemo(() => groups.flatMap((g) => g.items), [groups]);
 
   useEffect(() => {
     setCurseur(0);
@@ -76,7 +76,7 @@ export function SearchDrawer({
 
   // the field takes focus at once: one opens this drawer in order to type
   useEffect(() => {
-    champ.current?.focus();
+    field.current?.focus();
   }, []);
 
   const ouvrirCelui = (t: Hit) => {
@@ -153,7 +153,7 @@ export function SearchDrawer({
         >
           <Search size={17} color={C.inkFaded} />
           <input
-            ref={champ}
+            ref={field}
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="un titre, un nom, un motif, un mot que vous avez écrit…"
@@ -172,14 +172,14 @@ export function SearchDrawer({
 
         <div style={{ overflowY: "auto", padding: "8px 0 12px" }}>
           {q.trim().length < 2 ? (
-            <Mot>
+            <Word>
               Deux lettres suffisent. La question est posée aux films, aux gens des génériques, aux
               motifs, aux fils et aux pages du carnet — d'un coup.
-            </Mot>
+            </Word>
           ) : plate.length === 0 ? (
-            <Mot>Rien de ce nom dans le classeur.</Mot>
+            <Word>Rien de ce nom dans le classeur.</Word>
           ) : (
-            groupes.map((g) => {
+            groups.map((g) => {
               const nature = NATURES[g.kind];
               const Icon = nature.icon;
               return (
@@ -199,13 +199,13 @@ export function SearchDrawer({
                     <Icon size={11} /> {nature.title.toUpperCase()}
                   </div>
                   {g.items.map((t) => {
-                    const rang = plate.indexOf(t);
-                    const targeted = rang === curseur;
+                    const rank = plate.indexOf(t);
+                    const targeted = rank === curseur;
                     return (
                       <button
                         key={t.key}
                         onClick={() => ouvrirCelui(t)}
-                        onMouseEnter={() => setCurseur(rang)}
+                        onMouseEnter={() => setCurseur(rank)}
                         aria-current={targeted ? "true" : undefined}
                         style={{
                           all: "unset",
@@ -267,7 +267,7 @@ export function SearchDrawer({
   );
 }
 
-function Mot({ children }: { children: ReactNode }) {
+function Word({ children }: { children: ReactNode }) {
   return (
     <div
       style={{

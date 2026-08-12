@@ -406,7 +406,7 @@ export function ImportView({
         </div>
         <div style={{ fontFamily: F.body, fontSize: 13, color: C.inkFaded, marginBottom: 12 }}>
           Sans fichier, directement depuis votre profil public. <strong>Séances</strong> ne rend que
-          vos cinquante dernières : c'est de quoi tenir la collection à jour, pas de quoi la bâtir.{" "}
+          vos cinquante dernières : c'est de what tenir la collection à day, pas de what la bâtir.{" "}
           <strong>Watchlist</strong> la relève entière, page après page.
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
@@ -977,7 +977,7 @@ export function ImportView({
                     color: C.inkFaded,
                   }}
                 >
-                  …et {diff.toCreate.length - 60} autres
+                  …et {diff.toCreate.length - 60} others
                 </div>
               )}
             </div>
@@ -1055,8 +1055,8 @@ export function ImportView({
               lineHeight: 1.35,
             }}
           >
-            {dropped.length} fiche(s) « à voir » venues de Letterboxd n'y figurent plus. Rien n'est
-            removed : à vous de les garder ou de les ranger.
+            {dropped.length} card(s) « à voir » venues de Letterboxd n'y figurent plus. Nothing
+            n'est removed : à vous de les garder ou de les ranger.
           </div>
           <div style={{ maxHeight: 180, overflowY: "auto" }}>
             {dropped.map((f) => (
@@ -1078,8 +1078,8 @@ export function ImportView({
       )}
 
       <div style={{ marginTop: 26, fontFamily: F.hand, fontSize: 17, color: C.inkFaded }}>
-        {films.length} film(s) déjà au catalogue — un réimport met à jour les fiches existantes au
-        lieu de les dupliquer.
+        {films.length} film(s) déjà au catalogue — un réimport met à day les cards existantes au
+        lieu de les duplicate.
       </div>
 
       <div data-tour="import-complete">

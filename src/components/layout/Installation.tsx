@@ -23,7 +23,7 @@ import { Layer } from "../ui/Layer";
    (30): it informs, it does not interrupt. */
 const Z = 25;
 
-function Fiche({
+function Card({
   children,
   tour,
   onFermer,
@@ -87,19 +87,19 @@ function Fiche({
   );
 }
 
-const Titre = ({ children }: { children: ReactNode }) => (
+const Title = ({ children }: { children: ReactNode }) => (
   <div style={{ fontFamily: F.title, fontStyle: "italic", fontSize: 18, color: C.ink }}>
     {children}
   </div>
 );
 
-const Phrase = ({ children }: { children: ReactNode }) => (
+const Line = ({ children }: { children: ReactNode }) => (
   <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded, marginTop: 2 }}>
     {children}
   </div>
 );
 
-const bouton = {
+const button = {
   all: "unset" as const,
   ...tap,
   cursor: "pointer",
@@ -126,38 +126,36 @@ export function Installation({
   onDismiss: () => void;
 }) {
   return (
-    <Fiche tour="install" onFermer={onDismiss}>
-      <Titre>Le classeur tient sur votre écran d'accueil</Titre>
+    <Card tour="install" onFermer={onDismiss}>
+      <Title>Le classeur tient sur votre écran d'accueil</Title>
       {apple ? (
-        <Phrase>
+        <Line>
           Touchez <Share size={13} style={{ verticalAlign: -2 }} /> en bas de Safari, puis « Sur
           l'écran d'accueil ». Il s'ouvrira en plein écran, et même sans réseau.
-        </Phrase>
+        </Line>
       ) : (
         <>
-          <Phrase>
-            Il s'ouvre alors en plein écran, sans barre d'adresse, et même sans réseau.
-          </Phrase>
-          <button onClick={onInstall} style={bouton}>
+          <Line>Il s'ouvre alors en plein écran, sans barre d'adresse, et même sans réseau.</Line>
+          <button onClick={onInstall} style={button}>
             <Download size={12} /> INSTALLER
           </button>
         </>
       )}
-    </Fiche>
+    </Card>
   );
 }
 
 /** A brand-new version is waiting to be laid down. */
 export function UpdateCard({ onReload }: { onReload: () => void }) {
   return (
-    <Fiche tour="maj">
-      <Titre>Une nouvelle version est prête</Titre>
+    <Card tour="maj">
+      <Title>Une nouvelle version est prête</Title>
       {/* We replace NOTHING without saying so: an application that
           updates itself while one is writing a note loses the note. */}
-      <Phrase>Elle s'installera au rechargement. Rien de ce que vous avez rangé ne bouge.</Phrase>
-      <button onClick={onReload} style={bouton}>
+      <Line>Elle s'installera au rechargement. Rien de ce que vous avez rangé ne bouge.</Line>
+      <button onClick={onReload} style={button}>
         <RefreshCw size={12} /> RECHARGER
       </button>
-    </Fiche>
+    </Card>
   );
 }

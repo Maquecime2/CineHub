@@ -65,16 +65,16 @@ describe("splitRow — le découpage d'une rangée en lignes de bois", () => {
      line overflow its board — the overflow pushing the whole page,
      horizontal scrollbar included. */
   it("fait payer au gros mobilier les cases qu'il occupe", () => {
-    const petit = makeDecor({ id: "d1", motif: "plant" });
-    const gros = makeDecor({ id: "d2", motif: "plant", size: 4.6 });
+    const small = makeDecor({ id: "d1", motif: "plant" });
+    const big = makeDecor({ id: "d2", motif: "plant", size: 4.6 });
     // at calibre M it lets two cases fit; in XXXL it takes all three cells
-    expect(shape(splitRow([petit, filmItem("a"), filmItem("b")], 3))).toEqual([["d1", "a", "b"]]);
-    expect(shape(splitRow([gros, filmItem("a"), filmItem("b")], 3))).toEqual([["d2"], ["a", "b"]]);
+    expect(shape(splitRow([small, filmItem("a"), filmItem("b")], 3))).toEqual([["d1", "a", "b"]]);
+    expect(shape(splitRow([big, filmItem("a"), filmItem("b")], 3))).toEqual([["d2"], ["a", "b"]]);
   });
 
   it("renvoie à la ligne ce qu'un gros décor ne laisse plus tenir", () => {
-    const gros = makeDecor({ id: "d1", motif: "plant", size: 2.2 });
-    expect(shape(splitRow([filmItem("a"), gros, filmItem("b")], 3))).toEqual([["a", "d1"], ["b"]]);
+    const big = makeDecor({ id: "d1", motif: "plant", size: 2.2 });
+    expect(shape(splitRow([filmItem("a"), big, filmItem("b")], 3))).toEqual([["a", "d1"], ["b"]]);
   });
 
   /* The cost holds INSIDE a box too. It did not, and that is where the
@@ -82,15 +82,15 @@ describe("splitRow — le découpage d'une rangée en lignes de bois", () => {
      objects, an XXXL decor swelled the card well beyond its board, and the
      card pushed the page. */
   it("fait payer ses cases au gros mobilier rangé dans une boîte", () => {
-    const gros = makeDecor({ id: "d1", motif: "plant", size: 4.6 });
-    const cat = makeCat({ id: "c1", items: [...films("a", "b"), gros, filmItem("c")] });
+    const big = makeDecor({ id: "d1", motif: "plant", size: 4.6 });
+    const cat = makeCat({ id: "c1", items: [...films("a", "b"), big, filmItem("c")] });
     // two films, then the decor alone on its line (three cells), then the rest
     expect(shape(splitRow([cat], 3))).toEqual([["c1[2]^"], ["c1[1]"], ["c1[1]$"]]);
   });
 
   it("emporte au moins un objet par tranche de boîte, même démesuré", () => {
-    const gros = makeDecor({ id: "d1", motif: "plant", size: 4.6 });
-    const cat = makeCat({ id: "c1", items: [gros, filmItem("a")] });
+    const big = makeDecor({ id: "d1", motif: "plant", size: 4.6 });
+    const cat = makeCat({ id: "c1", items: [big, filmItem("a")] });
     expect(shape(splitRow([cat], 1))).toEqual([["c1[1]^"], ["c1[1]$"]]);
   });
 

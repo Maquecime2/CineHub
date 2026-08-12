@@ -344,7 +344,7 @@ interface Thread {
   force: Strength;
 }
 
-const FILS: Thread[] = [
+const THREADS: Thread[] = [
   {
     de: "demo-alien",
     vers: "demo-blade-runner",
@@ -397,14 +397,14 @@ const LIVRE: Omit<LinkedWork, "id"> & { owner: string } = {
  * but an array is not.
  */
 export function demoFilms(maintenant = Date.now()): Film[] {
-  const films = BROUILLONS.map((b, rang) =>
+  const films = BROUILLONS.map((b, rank) =>
     makeFilm({
       ...b,
       /* Arranged in the order of the table, from the most recently
          added to the oldest: that is what the wall's default sort
          expects. */
-      addedAt: maintenant - rang * 86_400_000,
-      updatedAt: maintenant - rang * 86_400_000,
+      addedAt: maintenant - rank * 86_400_000,
+      updatedAt: maintenant - rank * 86_400_000,
       /* `watchedAt` is the reflection of `watches`, and the store does
          not realign it by itself on reading: we lay it here, at the
          source. */
@@ -414,33 +414,33 @@ export function demoFilms(maintenant = Date.now()): Film[] {
   );
 
   const parId = new Map(films.map((f) => [f.id, f]));
-  const ajouter = (id: string, lien: LinkedWork) => {
+  const add = (id: string, link: LinkedWork) => {
     const f = parId.get(id);
-    if (f) f.linkedWorks = [...f.linkedWorks, lien];
+    if (f) f.linkedWorks = [...f.linkedWorks, link];
   };
 
-  for (const [rang, fil] of FILS.entries()) {
+  for (const [rank, fil] of THREADS.entries()) {
     const a = parId.get(fil.de);
     const b = parId.get(fil.vers);
     if (!a || !b) continue;
-    const pairId = `${DEMO_PREFIX}pair-${rang}`;
-    const moitié = (cible: Film, relation: Relation): LinkedWork => ({
-      id: `${DEMO_PREFIX}lien-${rang}-${cible.id}`,
+    const pairId = `${DEMO_PREFIX}pair-${rank}`;
+    const moitié = (target: Film, relation: Relation): LinkedWork => ({
+      id: `${DEMO_PREFIX}lien-${rank}-${target.id}`,
       pairId,
       type: "film",
-      filmId: cible.id,
-      title: cible.title,
-      creator: cible.director,
+      filmId: target.id,
+      title: target.title,
+      creator: target.director,
       note: fil.note,
       relation,
       force: fil.force,
     });
-    ajouter(a.id, moitié(b, fil.relation));
-    ajouter(b.id, moitié(a, inverseOf(fil.relation)!));
+    add(a.id, moitié(b, fil.relation));
+    add(b.id, moitié(a, inverseOf(fil.relation)!));
   }
 
   const { owner, ...livre } = LIVRE;
-  ajouter(owner, { id: `${DEMO_PREFIX}lien-livre`, ...livre });
+  add(owner, { id: `${DEMO_PREFIX}lien-livre`, ...livre });
 
   return films;
 }

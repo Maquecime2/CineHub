@@ -420,8 +420,8 @@ const importTour: Tour = {
    that catches it, not the user. */
 const from = (view: View, tour: Tour, ...names: string[]): TourStep[] =>
   names.map((nom) => {
-    const cible = at(nom);
-    const s = tour.steps.find((x) => x.target === cible);
+    const target = at(nom);
+    const s = tour.steps.find((x) => x.target === target);
     if (!s) throw new Error(`Visite globale : « ${nom} » n'existe pas dans « ${tour.label} »`);
     return { ...s, view };
   });

@@ -24,7 +24,7 @@ import { getImage } from "../../db";
 
 /* Below that, no sentence fits: we put a sign only, and the tooltip
    carries the rest. */
-const ASSEZ_GRAND = 120;
+const BIG_ENOUGH = 120;
 
 export function IdbImage({
   imageKey,
@@ -74,7 +74,7 @@ export function IdbImage({
 
   useLayoutEffect(() => {
     if (state !== "absente" || !box.current) return;
-    setLarge(box.current.getBoundingClientRect().width >= ASSEZ_GRAND);
+    setLarge(box.current.getBoundingClientRect().width >= BIG_ENOUGH);
   }, [state]);
 
   if (state === "trouvée" && url) {

@@ -60,7 +60,7 @@ export function HideFromSharing({ film, signedIn }: { film: Film; signedIn: bool
      be a box with no effect. */
   if (hiddenNow == null || partage == null || partage === "privee") return null;
 
-  const basculer = async () => {
+  const toggle = async () => {
     setBusy(true);
     try {
       const r = await hideCard(film.id, !hiddenNow);
@@ -74,7 +74,7 @@ export function HideFromSharing({ film, signedIn }: { film: Film; signedIn: bool
     <div data-tour="detail-partage" style={{ marginTop: 18 }}>
       <Label>Ce que les autres en voient</Label>
       <button
-        onClick={basculer}
+        onClick={toggle}
         disabled={busy}
         style={{
           all: "unset",

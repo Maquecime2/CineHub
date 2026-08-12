@@ -79,21 +79,15 @@ type TextField = "review" | "notes";
    for its target, exactly as it already opens the view. A purely local
    tab would make four of the seven steps of the "detail" tour impossible
    to play. See `onglet` in `TourStep`. */
-export type OngletFiche = "film" | "mots" | "liens";
+export type CardTab = "film" | "mots" | "liens";
 
-const ONGLETS: { clé: OngletFiche; label: string }[] = [
+const CARD_TABS: { clé: CardTab; label: string }[] = [
   { clé: "film", label: "LE FILM" },
   { clé: "mots", label: "MES MOTS" },
   { clé: "liens", label: "LES LIENS" },
 ];
 
-function BarreOnglets({
-  valeur,
-  onChange,
-}: {
-  valeur: OngletFiche;
-  onChange: (o: OngletFiche) => void;
-}) {
+function TabBar({ valeur, onChange }: { valeur: CardTab; onChange: (o: CardTab) => void }) {
   return (
     <div
       role="tablist"
@@ -107,13 +101,13 @@ function BarreOnglets({
         paddingBottom: 9,
       }}
     >
-      {ONGLETS.map((o) => {
-        const actif = o.clé === valeur;
+      {CARD_TABS.map((o) => {
+        const active = o.clé === valeur;
         return (
           <button
             key={o.clé}
             role="tab"
-            aria-selected={actif}
+            aria-selected={active}
             onClick={() => onChange(o.clé)}
             style={{
               all: "unset",
@@ -125,9 +119,9 @@ function BarreOnglets({
               fontFamily: F.mono,
               fontSize: 11,
               letterSpacing: "var(--tag-tracking)",
-              color: actif ? C.card : C.inkFaded,
-              background: actif ? C.burgundy : "transparent",
-              border: `1px solid ${actif ? C.burgundy : C.line}`,
+              color: active ? C.card : C.inkFaded,
+              background: active ? C.burgundy : "transparent",
+              border: `1px solid ${active ? C.burgundy : C.line}`,
               borderRadius: "var(--tag-radius)",
             }}
           >
@@ -181,8 +175,8 @@ interface DetailViewProps {
    * test or of an isolated mount. When present, it wins: that is what
    * lets the guided tour open the tab of its target.
    */
-  onglet?: OngletFiche;
-  onTab?: (o: OngletFiche) => void;
+  tab?: CardTab;
+  onTab?: (o: CardTab) => void;
 }
 
 export function DetailView({
@@ -204,15 +198,15 @@ export function DetailView({
   onDeleteMotif,
   onHideMotif,
   signedIn = false,
-  onglet: ongletContrôlé,
+  tab: ongletContrôlé,
   onTab,
 }: DetailViewProps) {
   const apiKey = useTmdbKey();
   /* The local fallback follows the controlled one rather than fight it:
      one or the other answers, never both at once. */
-  const [ongletLocal, setOngletLocal] = useState<OngletFiche>("film");
-  const onglet = ongletContrôlé ?? ongletLocal;
-  const changerOnglet = (o: OngletFiche) => {
+  const [ongletLocal, setOngletLocal] = useState<CardTab>("film");
+  const tab = ongletContrôlé ?? ongletLocal;
+  const changeTab = (o: CardTab) => {
     setOngletLocal(o);
     onTab?.(o);
   };
@@ -337,9 +331,9 @@ export function DetailView({
     setProposés([]);
     if (!film.tmdbId || !apiKey) return;
     fetchKeywords(film.tmdbId, apiKey)
-      .then((mots: { id?: number; name?: string }[]) => {
+      .then((words: { id?: number; name?: string }[]) => {
         if (!alive) return;
-        setProposés(suggestMotifs(mots));
+        setProposés(suggestMotifs(words));
         /* WE STORE THEM ON THE WAY. They were asked for and then thrown
            away: only the pattern proposals came out of them, and the
            wake then had nothing thematic to hold on to. Keeping them
@@ -351,7 +345,7 @@ export function DetailView({
         if (film.keywords == null)
           onUpdate({
             ...film,
-            keywords: mots.map((m) => m.name || "").filter(Boolean),
+            keywords: words.map((m) => m.name || "").filter(Boolean),
           });
       })
       .catch(() => {});
@@ -487,12 +481,12 @@ export function DetailView({
         </div>
       </div>
 
-      <BarreOnglets valeur={onglet} onChange={changerOnglet} />
+      <TabBar valeur={tab} onChange={changeTab} />
 
       {/* ============================================================
           TAB "LE FILM" — what the work IS
           ============================================================ */}
-      {onglet === "film" && (
+      {tab === "film" && (
         <div style={{ display: "flex", gap: 34, flexWrap: "wrap", alignItems: "flex-start" }}>
           <div style={{ flex: "1 1 420px", minWidth: 0, maxWidth: 620 }}>
             <Cardstock tour="detail-catalog">
@@ -619,7 +613,7 @@ export function DetailView({
       {/* ============================================================
           TAB "MES MOTS" — what YOU have made of it
           ============================================================ */}
-      {onglet === "mots" && (
+      {tab === "mots" && (
         <div style={{ display: "flex", gap: 34, flexWrap: "wrap", alignItems: "flex-start" }}>
           {/* 760 px: beyond that, the eye loses the next line on coming
             back to the margin. It is the only column that has a reason to
@@ -764,13 +758,13 @@ export function DetailView({
                 onSupprimer={
                   onDeleteMotif
                     ? (motif) => {
-                        const combien = films.filter((f) =>
+                        const howMany = films.filter((f) =>
                           (f.motifs || []).includes(motif.id)
                         ).length;
                         setRequest({
                           title: `Supprimer « ${motif.label} » ?`,
-                          body: combien
-                            ? `Ce motif est posé sur ${combien} fiche${combien > 1 ? "s" : ""} — il en sera retiré.`
+                          body: howMany
+                            ? `Ce motif est posé sur ${howMany} fiche${howMany > 1 ? "s" : ""} — il en sera retiré.`
                             : "Ce motif n'est posé sur aucune fiche.",
                           action: "supprimer le motif",
                           severe: true,
@@ -889,7 +883,7 @@ export function DetailView({
       {/* ============================================================
           TAB "LES LIENS" — what the film touches around it
           ============================================================ */}
-      {onglet === "liens" && (
+      {tab === "liens" && (
         <div style={{ display: "flex", gap: 34, flexWrap: "wrap", alignItems: "flex-start" }}>
           {/* THE RED THREAD, MOUNTED AS A COLUMN.
 

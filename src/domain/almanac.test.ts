@@ -485,7 +485,7 @@ describe("screenTime", () => {
     const s = screenTime(films, 2024);
     expect(s.minutes).toBe(210);
     expect(s.moyenne).toBe(105);
-    expect(s.sansDuree).toBe(1);
+    expect(s.noRuntime).toBe(1);
     expect(s.plusLong?.runtime).toBe(120);
   });
 
@@ -498,7 +498,7 @@ describe("screenTime", () => {
     ];
     const s = screenTime(films, 2024);
     expect(s.moyenne).toBe(100);
-    expect(s.sansDuree).toBe(1);
+    expect(s.noRuntime).toBe(1);
   });
 
   it("counts twice a film watched twice — we did watch it twice", () => {
@@ -507,7 +507,7 @@ describe("screenTime", () => {
   });
 
   it("returns nothing from an empty year", () => {
-    expect(screenTime([], 2024)).toMatchObject({ minutes: 0, moyenne: null, sansDuree: 0 });
+    expect(screenTime([], 2024)).toMatchObject({ minutes: 0, moyenne: null, noRuntime: 0 });
   });
 });
 

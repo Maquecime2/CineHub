@@ -124,7 +124,7 @@ export function ConstellationView({
   const [portee, setPortee] = useState(1);
   /* The films crossed, so that one can retrace one's steps. */
   const [chemin, setChemin] = useState<string[]>([]);
-  const [cherche, setCherche] = useState("");
+  const [query, setQuery] = useState("");
 
   /* THE PINS — the films one went and fetched oneself.
 
@@ -138,25 +138,25 @@ export function ConstellationView({
      lit ones: a thread just created must appear without one having to
      light it. */
   const [mutedThreads, setMutedThreads] = useState<string[]>([]);
-  const filsActifs = useMemo(
+  const activeThreads = useMemo(
     () => fils.filter((f) => !mutedThreads.includes(f.id)),
     [fils, mutedThreads]
   );
 
   const W = 1100,
     H = 760;
-  const complet = useMemo(
+  const full = useMemo(
     () =>
       crews
-        ? buildSkyWithCrew(films, { tags, genres }, {}, { threads: filsActifs, pinned: pins })
-        : buildSky(films, { tags, genres }, { threads: filsActifs, pinned: pins }),
-    [films, tags, genres, crews, filsActifs, pins]
+        ? buildSkyWithCrew(films, { tags, genres }, {}, { threads: activeThreads, pinned: pins })
+        : buildSky(films, { tags, genres }, { threads: activeThreads, pinned: pins }),
+    [films, tags, genres, crews, activeThreads, pins]
   );
   /* The cutting out happens AFTER the building: the whole chart still
      exists, we merely show a part of it. */
   const { nodes, links } = useMemo(
-    () => (foyer ? neighbourhood(complet.nodes, complet.links, foyer, portee) : complet),
-    [complet, foyer, portee]
+    () => (foyer ? neighbourhood(full.nodes, full.links, foyer, portee) : full),
+    [full, foyer, portee]
   );
 
   const linkedTotal = useMemo(
@@ -169,11 +169,11 @@ export function ConstellationView({
      from which one will travel furthest. */
   const departs = useMemo(
     () =>
-      [...complet.nodes]
+      [...full.nodes]
         .filter((n) => n.kind === "film")
         .sort((a, b) => b.degree - a.degree)
         .slice(0, 40),
-    [complet.nodes]
+    [full.nodes]
   );
 
   /* SEARCHING THE WHOLE COLLECTION, AND NOT ONLY THE SKY.
@@ -188,23 +188,23 @@ export function ConstellationView({
      the sky, alone, and becomes the focus — from where one sees what it
      might join. */
   const auCiel = useMemo(
-    () => new Set(complet.nodes.filter((n) => n.kind === "film").map((n) => n.filmId as string)),
-    [complet.nodes]
+    () => new Set(full.nodes.filter((n) => n.kind === "film").map((n) => n.filmId as string)),
+    [full.nodes]
   );
   const results = useMemo(
-    () => (cherche.trim() ? searchFilms(films, cherche, 12) : []),
-    [films, cherche]
+    () => (query.trim() ? searchFilms(films, query, 12) : []),
+    [films, query]
   );
 
   const pin = (filmId: string) => {
     setPins((cur) => (cur.includes(filmId) ? cur : [...cur, filmId]));
     poserFoyer(`f:${filmId}`);
-    setCherche("");
+    setQuery("");
   };
 
   const poserFoyer = (id: string) => {
-    setFoyer((actuel) => {
-      if (actuel && actuel !== id) setChemin((c) => [...c, actuel]);
+    setFoyer((current) => {
+      if (current && current !== id) setChemin((c) => [...c, current]);
       return id;
     });
     setMoved({});
@@ -420,7 +420,7 @@ export function ConstellationView({
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
             {fils.map((fil) => {
               const on = !mutedThreads.includes(fil.id);
-              const encre = catInk(fil.color);
+              const ink = catInk(fil.color);
               const motif = fil.motif ? motifById(fil.motif) : undefined;
               return (
                 <button
@@ -442,9 +442,9 @@ export function ConstellationView({
                     fontSize: 10,
                     padding: "3px 10px",
                     borderRadius: "var(--tag-radius)",
-                    border: `1px solid ${encre}`,
-                    color: on ? C.card : encre,
-                    background: on ? encre : "transparent",
+                    border: `1px solid ${ink}`,
+                    color: on ? C.card : ink,
+                    background: on ? ink : "transparent",
                   }}
                 >
                   <Spool size={11} />
@@ -543,7 +543,7 @@ export function ConstellationView({
 
           The films offered are the most linked: they are the ones from
           which one will travel furthest. */}
-      {foyer == null && complet.nodes.length > 0 && (
+      {foyer == null && full.nodes.length > 0 && (
         <div
           data-tour="constellation-start"
           style={{
@@ -563,8 +563,8 @@ export function ConstellationView({
             proche en proche
           </div>
           <input
-            value={cherche}
-            onChange={(e) => setCherche(e.target.value)}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
             placeholder="chercher dans toute la collection…"
             style={{
               width: "100%",
@@ -582,7 +582,7 @@ export function ConstellationView({
             }}
           />
           <Résultats
-            cherche={cherche}
+            query={query}
             results={results}
             departs={departs}
             auCiel={auCiel}
@@ -626,14 +626,14 @@ export function ConstellationView({
             FOYER
           </span>
           <span style={{ fontFamily: F.title, fontSize: 17, fontWeight: 700, color: C.ink }}>
-            {complet.nodes.find((n) => n.id === foyer)?.label ?? "—"}
+            {full.nodes.find((n) => n.id === foyer)?.label ?? "—"}
           </span>
           {chemin.length > 0 && (
-            <button onClick={revenir} style={petitBouton(false)}>
+            <button onClick={revenir} style={smallButton(false)}>
               ← REVENIR ({chemin.length})
             </button>
           )}
-          <button onClick={() => setPortee(portee === 1 ? 2 : 1)} style={petitBouton(portee === 2)}>
+          <button onClick={() => setPortee(portee === 1 ? 2 : 1)} style={smallButton(portee === 2)}>
             {portee === 1 ? "ÉLARGIR" : "RESSERRER"}
           </button>
           <button
@@ -641,7 +641,7 @@ export function ConstellationView({
               setFoyer(null);
               setChemin([]);
             }}
-            style={petitBouton(false)}
+            style={smallButton(false)}
           >
             CHANGER DE DÉPART
           </button>
@@ -661,8 +661,8 @@ export function ConstellationView({
       {foyer != null && (
         <div style={{ marginTop: 12, position: "relative", zIndex: 3 }}>
           <input
-            value={cherche}
-            onChange={(e) => setCherche(e.target.value)}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
             placeholder="sauter à un autre film…"
             style={{
               width: "100%",
@@ -679,9 +679,9 @@ export function ConstellationView({
               marginBottom: 8,
             }}
           />
-          {cherche.trim() && (
+          {query.trim() && (
             <Résultats
-              cherche={cherche}
+              query={query}
               results={results}
               departs={departs}
               auCiel={auCiel}
@@ -898,13 +898,13 @@ export function ConstellationView({
                    drawn in the thread's tint, in a continuous but thin
                    stroke — it gathers without claiming to link two by
                    two. */
-                const filDeRassemblement = l.kind === "thread";
+                const gatheringThread = l.kind === "thread";
                 const d = `M ${a.x} ${a.y} Q ${mx} ${my}, ${b.x} ${b.y}`;
                 /* What the thread tells when aimed at: the kinship
                    found by the machine, or the relation one has written
                    oneself — which reads in the direction of the
                    stroke. */
-                const raisons = filDeRassemblement
+                const raisons = gatheringThread
                   ? (byId.get(l.a)?.label ?? "")
                   : peer
                     ? /* La relation nommée, puis CE QU'ON A ÉCRIT SOUS LE
@@ -929,10 +929,10 @@ export function ConstellationView({
                     ? () => onLinkFilm(l.a.slice(2), l.b.slice(2), raisons)
                     : undefined;
                 const vise = hoverLink === i;
-                const teinteDuFil = filDeRassemblement
+                const threadTint = gatheringThread
                   ? catInk(byId.get(l.a)?.color || "burgundy")
                   : null;
-                const encre = teinteDuFil ?? (crew ? inkOf(l) : peer ? C.burgundy : C.vermillion);
+                const ink = threadTint ?? (crew ? inkOf(l) : peer ? C.burgundy : C.vermillion);
                 // a strong link thickens the stroke: it is the only thing it has to say here
                 const épaisseurPeer = 1.4 + strengthOf(l.force) * 0.6;
                 return (
@@ -940,7 +940,7 @@ export function ConstellationView({
                     <path
                       d={d}
                       fill="none"
-                      stroke={encre}
+                      stroke={ink}
                       /* A thread one can click must say so BEFORE one
                          clicks: on hover it thickens and darkens, which
                          no tooltip does fast enough. */
@@ -949,12 +949,12 @@ export function ConstellationView({
                           ? (peer ? épaisseurPeer : 1.4) + 1.2
                           : peer
                             ? épaisseurPeer
-                            : filDeRassemblement
+                            : gatheringThread
                               ? 1.2
                               : 1.4
                       }
                       strokeDasharray={
-                        peer ? "none" : crew ? "7 6" : filDeRassemblement ? "1 5" : "2.5 4"
+                        peer ? "none" : crew ? "7 6" : gatheringThread ? "1 5" : "2.5 4"
                       }
                       strokeLinecap="round"
                       opacity={
@@ -965,7 +965,7 @@ export function ConstellationView({
                               ? 0.8
                               : crew
                                 ? 0.5
-                                : filDeRassemblement
+                                : gatheringThread
                                   ? 0.55
                                   : 0.6
                           : 0.08
@@ -987,7 +987,7 @@ export function ConstellationView({
                           height={19}
                           rx={2}
                           fill={C.card}
-                          stroke={encre}
+                          stroke={ink}
                           strokeWidth="0.8"
                         />
                         <text
@@ -1268,21 +1268,21 @@ export function ConstellationView({
    the chart is not greyed out — it is offered, because pinning it is
    precisely what one came to do. */
 function Résultats({
-  cherche,
+  query,
   results,
   departs,
   auCiel,
   onFoyer,
   onÉpingler,
 }: {
-  cherche: string;
+  query: string;
   results: Film[];
   departs: PlacedNode[] | SkyNode[];
   auCiel: Set<string>;
   onFoyer: (nodeId: string) => void;
   onÉpingler: (filmId: string) => void;
 }) {
-  if (!cherche.trim())
+  if (!query.trim())
     return (
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
         {departs.slice(0, 12).map((n) => (
@@ -1340,7 +1340,7 @@ const departStyle: CSSProperties = {
   background: C.card,
 };
 
-const petitBouton = (actif: boolean): CSSProperties => ({
+const smallButton = (active: boolean): CSSProperties => ({
   all: "unset",
   ...tap,
   cursor: "pointer",
@@ -1348,8 +1348,8 @@ const petitBouton = (actif: boolean): CSSProperties => ({
   fontSize: 10,
   letterSpacing: "var(--tag-tracking)",
   padding: "3px 9px",
-  color: actif ? C.card : C.inkFaded,
-  background: actif ? C.slate : "transparent",
-  border: `1px solid ${actif ? C.slate : C.line}`,
+  color: active ? C.card : C.inkFaded,
+  background: active ? C.slate : "transparent",
+  border: `1px solid ${active ? C.slate : C.line}`,
   borderRadius: "var(--tag-radius)",
 });

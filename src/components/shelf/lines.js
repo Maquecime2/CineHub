@@ -16,7 +16,7 @@ import { decorSpanOf } from "./items";
 
 /* The cell: a case and its gap to the neighbour. It is this whole file's
    unit — the line holds `cap` of them, and nothing else measures here. */
-const CASE = BOX_W + GAP_X;
+const CELL = BOX_W + GAP_X;
 
 /* WHAT AN OBJECT COSTS ITS LINE.
 
@@ -30,7 +30,7 @@ const CASE = BOX_W + GAP_X;
    So the decor pays its width, rounded up to the cell. What no longer fits
    goes to the next line, which is what one wants: a shelf is read top to
    bottom, never left to right. */
-const costOf = (it) => (it.t === "d" ? Math.max(1, Math.ceil(decorSpanOf(it) / CASE)) : 1);
+const costOf = (it) => (it.t === "d" ? Math.max(1, Math.ceil(decorSpanOf(it) / CELL)) : 1);
 
 /* What we hold when nothing has been measured yet, and what we hold if
    the browser cannot measure. Ten, like the new row. */

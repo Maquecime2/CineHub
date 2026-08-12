@@ -74,10 +74,10 @@ describe("il couvre ce que la visite montre", () => {
      ignored when displaying, hence invisible — and the step shows
      emptiness. */
   it("pose des motifs qui existent vraiment au catalogue", () => {
-    const connus = new Set(MOTIFS.map((m) => m.id));
+    const known = new Set(MOTIFS.map((m) => m.id));
     const placed = films.flatMap((f) => f.motifs);
     expect(placed.length).toBeGreaterThan(5);
-    for (const m of placed) expect(connus.has(m), `motif inconnu : ${m}`).toBe(true);
+    for (const m of placed) expect(known.has(m), `motif inconnu : ${m}`).toBe(true);
   });
 
   /* Step "L'almanach": a single year does not make a vintage, and

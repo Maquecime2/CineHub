@@ -246,11 +246,11 @@ export function SkinLab() {
       </div>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 22 }}>
-        <button onClick={() => setSeule(null)} style={filtreStyle(seule === null)}>
+        <button onClick={() => setSeule(null)} style={filterStyle(seule === null)}>
           toutes
         </button>
         {SKINS.map((s) => (
-          <button key={s.key} onClick={() => setSeule(s.key)} style={filtreStyle(seule === s.key)}>
+          <button key={s.key} onClick={() => setSeule(s.key)} style={filterStyle(seule === s.key)}>
             {s.key}
           </button>
         ))}
@@ -271,15 +271,15 @@ export function SkinLab() {
   );
 }
 
-const filtreStyle = (actif: boolean): CSSProperties => ({
+const filterStyle = (active: boolean): CSSProperties => ({
   all: "unset",
   cursor: "pointer",
   fontFamily: F.mono,
   fontSize: 10.5,
   letterSpacing: 1,
   padding: "4px 9px",
-  color: actif ? C.card : C.inkFaded,
-  background: actif ? C.ink : "transparent",
-  border: `1px solid ${actif ? C.ink : C.line}`,
+  color: active ? C.card : C.inkFaded,
+  background: active ? C.ink : "transparent",
+  border: `1px solid ${active ? C.ink : C.line}`,
   borderRadius: 2,
 });

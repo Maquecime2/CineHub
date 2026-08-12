@@ -22,9 +22,9 @@ import { myLists, addToList, serverConfigured, type List } from "../../services/
 import type { Film } from "../../types";
 
 export function AddToList({ film, signedIn }: { film: Film; signedIn: boolean }) {
-  const [listes, setListes] = useState<List[]>([]);
-  const [choix, setChoix] = useState("");
-  const [dit, setDit] = useState<string | null>(null);
+  const [lists, setListes] = useState<List[]>([]);
+  const [choice, setChoix] = useState("");
+  const [told, setDit] = useState<string | null>(null);
 
   useEffect(() => {
     if (!serverConfigured() || !signedIn || !film.tmdbId) return;
@@ -39,11 +39,11 @@ export function AddToList({ film, signedIn }: { film: Film; signedIn: boolean })
     };
   }, [signedIn, film.tmdbId]);
 
-  if (!film.tmdbId || listes.length === 0) return null;
+  if (!film.tmdbId || lists.length === 0) return null;
 
   const ranger = async () => {
-    if (!choix) return;
-    const r = await addToList(choix, {
+    if (!choice) return;
+    const r = await addToList(choice, {
       tmdbId: film.tmdbId!,
       titre: film.title,
       annee: film.year,
@@ -58,7 +58,7 @@ export function AddToList({ film, signedIn }: { film: Film; signedIn: boolean })
       <Label>Ranger dans une liste</Label>
       <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
         <select
-          value={choix}
+          value={choice}
           onChange={(e) => {
             setChoix(e.target.value);
             setDit(null);
@@ -75,7 +75,7 @@ export function AddToList({ film, signedIn }: { film: Film; signedIn: boolean })
           }}
         >
           <option value="">choisir…</option>
-          {listes.map((l) => (
+          {lists.map((l) => (
             <option key={l.id} value={l.id}>
               {l.titre}
             </option>
@@ -83,23 +83,25 @@ export function AddToList({ film, signedIn }: { film: Film; signedIn: boolean })
         </select>
         <button
           onClick={ranger}
-          disabled={!choix}
+          disabled={!choice}
           style={{
             all: "unset",
             ...tap,
-            cursor: choix ? "pointer" : "not-allowed",
+            cursor: choice ? "pointer" : "not-allowed",
             gap: 5,
             padding: "6px 10px",
             fontFamily: F.mono,
             fontSize: 10,
             letterSpacing: 1,
             color: C.card,
-            background: choix ? C.moss : C.line,
+            background: choice ? C.moss : C.line,
           }}
         >
           <ListPlus size={12} /> RANGER
         </button>
-        {dit && <span style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded }}>{dit}</span>}
+        {told && (
+          <span style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded }}>{told}</span>
+        )}
       </div>
     </div>
   );

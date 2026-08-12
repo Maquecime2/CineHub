@@ -48,7 +48,7 @@ export function Elsewhere({ film, signedIn }: { film: Film; signedIn: boolean })
 
   if (!echo || echo.collections === 0) return null;
 
-  const cacher = (pseudo: string) =>
+  const hide = (pseudo: string) =>
     setEcho((e) => (e ? { ...e, avis: e.avis.filter((a) => a.pseudo !== pseudo) } : e));
 
   return (
@@ -82,7 +82,7 @@ export function Elsewhere({ film, signedIn }: { film: Film; signedIn: boolean })
       </div>
 
       {echo.avis.map((a) => (
-        <AvisLu key={`${a.pseudo}-${a.fiche}`} avis={a} onSilence={() => cacher(a.pseudo)} />
+        <AvisLu key={`${a.pseudo}-${a.fiche}`} avis={a} onSilence={() => hide(a.pseudo)} />
       ))}
     </div>
   );
@@ -91,7 +91,7 @@ export function Elsewhere({ film, signedIn }: { film: Film; signedIn: boolean })
 function AvisLu({ avis, onSilence }: { avis: Echo["avis"][number]; onSilence: () => void }) {
   const [fait, setFait] = useState<string | null>(null);
 
-  const faireTaire = async () => {
+  const mute = async () => {
     await block(avis.pseudo);
     onSilence();
   };
@@ -140,14 +140,10 @@ function AvisLu({ avis, onSilence }: { avis: Echo["avis"][number]; onSilence: ()
           <span style={{ fontFamily: F.mono, fontSize: 9, color: C.inkFaded }}>{fait}</span>
         ) : (
           <>
-            <button onClick={dire} title="Signaler" style={petit}>
+            <button onClick={dire} title="Signaler" style={small}>
               <Flag size={11} />
             </button>
-            <button
-              onClick={faireTaire}
-              title={`Ne plus rien voir de ${avis.pseudo}`}
-              style={petit}
-            >
+            <button onClick={mute} title={`Ne plus rien voir de ${avis.pseudo}`} style={small}>
               <UserMinus size={11} />
             </button>
           </>
@@ -170,7 +166,7 @@ function AvisLu({ avis, onSilence }: { avis: Echo["avis"][number]; onSilence: ()
   );
 }
 
-const petit = {
+const small = {
   all: "unset" as const,
   ...tap,
   cursor: "pointer",

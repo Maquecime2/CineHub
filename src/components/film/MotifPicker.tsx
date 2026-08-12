@@ -35,7 +35,7 @@ const rubrique = {
   marginBottom: 4,
 } as const;
 
-const chipStyle = (encre: string, actif: boolean) => ({
+const chipStyle = (ink: string, active: boolean) => ({
   all: "unset" as const,
   ...tap,
   cursor: "pointer",
@@ -51,9 +51,9 @@ const chipStyle = (encre: string, actif: boolean) => ({
   fontSize: 10.5,
   padding: "3px 10px",
   borderRadius: "var(--tag-radius)",
-  border: `1px solid ${encre}`,
-  color: actif ? C.card : encre,
-  background: actif ? encre : "transparent",
+  border: `1px solid ${ink}`,
+  color: active ? C.card : ink,
+  background: active ? ink : "transparent",
 });
 
 /** A motif laid on the card, scratched out if it tells the ending. */

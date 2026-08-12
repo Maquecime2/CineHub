@@ -27,7 +27,7 @@ const Z = 200;
 /** The hole's margin around the target — the object shown can breathe. */
 const PAD = 8;
 
-const BULLE_BASE = 300;
+const BUBBLE_BASE = 300;
 /** Distance between the hole's edge and the card. */
 const GAP = 16;
 
@@ -124,9 +124,9 @@ export function TourOverlay({ tourId, onClose, onView, onTab }: TourOverlayProps
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: Z, pointerEvents: "none" }}>
-      <Voile hole={hole} onSkip={skip} />
-      {hole && <Cadre hole={hole} />}
-      <Bulle
+      <Veil hole={hole} onSkip={skip} />
+      {hole && <Frame hole={hole} />}
+      <Bubble
         step={step}
         hole={hole}
         index={i}
@@ -152,28 +152,28 @@ const grow = (r: Rect, p: number): Rect => ({
 /* Four panels. Clicking beside what we are showing waves the tour away —
    it is the gesture everybody tries, and refusing it would hold the user
    hostage. */
-function Voile({ hole, onSkip }: { hole: Rect | null; onSkip: () => void }) {
-  const encre = alpha(C.ink, 0.62);
-  const commun: CSSProperties = {
+function Veil({ hole, onSkip }: { hole: Rect | null; onSkip: () => void }) {
+  const ink = alpha(C.ink, 0.62);
+  const shared: CSSProperties = {
     position: "fixed",
-    background: encre,
+    background: ink,
     pointerEvents: "auto",
     transition: "all var(--motion-slow) var(--motion-ease)",
   };
-  if (!hole) return <div onClick={onSkip} style={{ ...commun, inset: 0 }} />;
-  const bas = hole.top + hole.height;
-  const droite = hole.left + hole.width;
+  if (!hole) return <div onClick={onSkip} style={{ ...shared, inset: 0 }} />;
+  const bottom = hole.top + hole.height;
+  const right = hole.left + hole.width;
   return (
     <>
       <div
         onClick={onSkip}
-        style={{ ...commun, top: 0, left: 0, right: 0, height: Math.max(hole.top, 0) }}
+        style={{ ...shared, top: 0, left: 0, right: 0, height: Math.max(hole.top, 0) }}
       />
-      <div onClick={onSkip} style={{ ...commun, top: bas, left: 0, right: 0, bottom: 0 }} />
+      <div onClick={onSkip} style={{ ...shared, top: bottom, left: 0, right: 0, bottom: 0 }} />
       <div
         onClick={onSkip}
         style={{
-          ...commun,
+          ...shared,
           top: hole.top,
           left: 0,
           width: Math.max(hole.left, 0),
@@ -182,14 +182,14 @@ function Voile({ hole, onSkip }: { hole: Rect | null; onSkip: () => void }) {
       />
       <div
         onClick={onSkip}
-        style={{ ...commun, top: hole.top, left: droite, right: 0, height: hole.height }}
+        style={{ ...shared, top: hole.top, left: right, right: 0, height: hole.height }}
       />
     </>
   );
 }
 
 /** The hole's outline — without it, the void reads as an accident. */
-function Cadre({ hole }: { hole: Rect }) {
+function Frame({ hole }: { hole: Rect }) {
   return (
     <div
       aria-hidden
@@ -211,7 +211,7 @@ function Cadre({ hole }: { hole: Rect }) {
 
 /* ---------- the card ---------- */
 
-function Bulle({
+function Bubble({
   step,
   hole,
   index,
@@ -251,7 +251,7 @@ function Bulle({
         position: "fixed",
         /* It only shrinks when it has to: on a desktop it is the same
            card as before, to the pixel. */
-        width: `min(${BULLE_BASE}px, calc(100vw - 24px))`,
+        width: `min(${BUBBLE_BASE}px, calc(100vw - 24px))`,
         maxWidth: "100%",
         boxSizing: "border-box",
         padding: "18px 20px 14px",
@@ -315,12 +315,12 @@ function Bulle({
         <span style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>
           {index + 1} / {total}
         </span>
-        <button onClick={onSkip} style={lien}>
+        <button onClick={onSkip} style={link}>
           passer
         </button>
         <div style={{ flex: 1 }} />
         {index > 0 && (
-          <button onClick={onPrev} style={lien}>
+          <button onClick={onPrev} style={link}>
             retour
           </button>
         )}
@@ -345,7 +345,7 @@ function Bulle({
   );
 }
 
-const lien: CSSProperties = {
+const link: CSSProperties = {
   all: "unset",
   cursor: "pointer",
   fontFamily: F.mono,
@@ -364,24 +364,24 @@ function placer(hole: Rect | null, placement: TourStep["placement"]): CSSPropert
   const H = window.innerHeight;
   /* The card shrinks with the window: the measurement used to place it
      must say the same thing as the one that draws it. */
-  const BULLE_W = Math.min(BULLE_BASE, W - 24);
+  const BUBBLE_W = Math.min(BUBBLE_BASE, W - 24);
   /* Height unknown before measuring: we take a cautious upper bound
      rather than doing a render round trip for one pixel. */
-  const HAUT = 230;
+  const TOP = 230;
 
   if (!hole || placement === "center") {
-    return { top: Math.max(20, H / 2 - HAUT / 2), left: Math.max(20, W / 2 - BULLE_W / 2) };
+    return { top: Math.max(20, H / 2 - TOP / 2), left: Math.max(20, W / 2 - BUBBLE_W / 2) };
   }
 
-  const bas = hole.top + hole.height;
-  const droite = hole.left + hole.width;
-  const cote = placement || "right";
+  const bottom = hole.top + hole.height;
+  const right = hole.left + hole.width;
+  const side = placement || "right";
 
-  const essais: Record<string, { top: number; left: number }> = {
-    right: { top: hole.top, left: droite + GAP },
-    left: { top: hole.top, left: hole.left - BULLE_W - GAP },
-    bottom: { top: bas + GAP, left: hole.left },
-    top: { top: hole.top - HAUT - GAP, left: hole.left },
+  const tries: Record<string, { top: number; left: number }> = {
+    right: { top: hole.top, left: right + GAP },
+    left: { top: hole.top, left: hole.left - BUBBLE_W - GAP },
+    bottom: { top: bottom + GAP, left: hole.left },
+    top: { top: hole.top - TOP - GAP, left: hole.left },
   };
   const oppose: Record<string, string> = {
     right: "left",
@@ -391,16 +391,16 @@ function placer(hole: Rect | null, placement: TourStep["placement"]): CSSPropert
   };
 
   const tient = (p: { top: number; left: number }) =>
-    p.left >= 8 && p.left + BULLE_W <= W - 8 && p.top >= 8 && p.top + HAUT <= H - 8;
+    p.left >= 8 && p.left + BUBBLE_W <= W - 8 && p.top >= 8 && p.top + TOP <= H - 8;
 
-  const choix = tient(essais[cote]!)
-    ? essais[cote]!
-    : tient(essais[oppose[cote]!]!)
-      ? essais[oppose[cote]!]!
-      : essais[cote]!;
+  const choice = tient(tries[side]!)
+    ? tries[side]!
+    : tient(tries[oppose[side]!]!)
+      ? tries[oppose[side]!]!
+      : tries[side]!;
 
   return {
-    top: Math.min(Math.max(choix.top, 8), Math.max(8, H - HAUT - 8)),
-    left: Math.min(Math.max(choix.left, 8), Math.max(8, W - BULLE_W - 8)),
+    top: Math.min(Math.max(choice.top, 8), Math.max(8, H - TOP - 8)),
+    left: Math.min(Math.max(choice.left, 8), Math.max(8, W - BUBBLE_W - 8)),
   };
 }

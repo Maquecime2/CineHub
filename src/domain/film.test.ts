@@ -71,9 +71,9 @@ describe("dating what has changed", () => {
   it("stamp touches only what moved, and returns the rest intact", () => {
     const a = base({ id: "a" });
     const b = base({ id: "b" });
-    const suite = stamp([a, b], [{ ...a, rating: 5 }, { ...b }], 5000);
-    expect(suite[0]!.updatedAt).toBe(5000);
-    expect(suite[1]).toBe(b);
+    const next = stamp([a, b], [{ ...a, rating: 5 }, { ...b }], 5000);
+    expect(next[0]!.updatedAt).toBe(5000);
+    expect(next[1]).toBe(b);
   });
 
   it("nothing moved: it is the array we were given that comes back", () => {

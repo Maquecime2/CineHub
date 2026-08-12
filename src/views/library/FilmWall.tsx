@@ -48,9 +48,9 @@ const MARGE = "900px";
 
 /* Below this number we do nothing: the observation costs more than it
    brings back, and a wall of forty cards has never struggled. */
-const SEUIL = 60;
+const THRESHOLD = 60;
 
-function Case({
+function Cell({
   film,
   look,
   onOpen,
@@ -110,7 +110,7 @@ export function FilmWall({
   look?: WallLook;
 }) {
   const gap = gapOf(look);
-  const windowed = films.length >= SEUIL;
+  const windowed = films.length >= THRESHOLD;
 
   return (
     <div
@@ -123,7 +123,7 @@ export function FilmWall({
     >
       {films.map((f) =>
         windowed ? (
-          <Case key={f.id} film={f} look={look} onOpen={onOpen} />
+          <Cell key={f.id} film={f} look={look} onOpen={onOpen} />
         ) : (
           <FilmPolaroid key={f.id} film={f} look={look} onClick={() => onOpen(f.id)} />
         )

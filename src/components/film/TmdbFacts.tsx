@@ -68,7 +68,7 @@ function Fait({ nom, children }: { nom: string; children: ReactNode }) {
 /* What we say of an absent field. A dash, and not silence: silence gets
    confused with "this field does not exist", whereas here it means "TMDB
    did not give it to us", which calls for the button. */
-const VIDE = <span style={{ color: C.line }}>—</span>;
+const EMPTY = <span style={{ color: C.line }}>—</span>;
 
 const TRADES: [key: string, nom: string][] = [
   ["image", "IMAGE"],
@@ -95,7 +95,7 @@ function Names({
   separator?: string;
   onOpenPerson?: (nom: string) => void;
 }) {
-  if (!names.length) return VIDE;
+  if (!names.length) return EMPTY;
   return (
     <>
       {names.map((nom, i) => (
@@ -239,11 +239,11 @@ export function TmdbFacts({
         </button>
       </div>
 
-      <Fait nom="DURÉE">{film.runtime != null ? `${film.runtime} min` : VIDE}</Fait>
-      <Fait nom="PAYS">{pays || VIDE}</Fait>
-      <Fait nom="LANGUE">{film.language ? languageName(film.language) : VIDE}</Fait>
+      <Fait nom="DURÉE">{film.runtime != null ? `${film.runtime} min` : EMPTY}</Fait>
+      <Fait nom="PAYS">{pays || EMPTY}</Fait>
+      <Fait nom="LANGUE">{film.language ? languageName(film.language) : EMPTY}</Fait>
       <Fait nom="NOTE TMDB">
-        {film.tmdbRating != null ? `${film.tmdbRating.toFixed(1)} / 10` : VIDE}
+        {film.tmdbRating != null ? `${film.tmdbRating.toFixed(1)} / 10` : EMPTY}
       </Fait>
       {TRADES.map(([key, nom]) => (
         <Fait key={key} nom={nom}>
@@ -258,8 +258,8 @@ export function TmdbFacts({
           why — the line is empty, and the "refresh" button just above goes
           and fetches them. A dash says "TMDB did not give it to us"; an
           absent line would say nothing at all. */}
-      <Fait nom="MOTS-CLÉS">{film.keywords?.length ? film.keywords.join(" · ") : VIDE}</Fait>
-      <Fait nom="ID TMDB">{film.tmdbId ?? VIDE}</Fait>
+      <Fait nom="MOTS-CLÉS">{film.keywords?.length ? film.keywords.join(" · ") : EMPTY}</Fait>
+      <Fait nom="ID TMDB">{film.tmdbId ?? EMPTY}</Fait>
 
       {msg && (
         <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded, marginTop: 6 }}>

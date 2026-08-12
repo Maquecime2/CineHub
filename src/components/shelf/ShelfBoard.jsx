@@ -36,7 +36,7 @@ import {
   wallBoxOf,
 } from "./constants";
 import { DropMark, angleOf, rotatedBoxOfWall } from "./items";
-import { Shelf, ReserveDrawer, CasePreview, DecorCabinet, ItemPalette } from "./layout";
+import { Shelf, ReserveDrawer, CellPreview, DecorCabinet, ItemPalette } from "./layout";
 
 /* A pattern whose tint changes nothing: an imported image that is not
    line work, or an SVG whose ink we could not name. The house patterns
@@ -757,7 +757,7 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
         />
       )}
       {preview && filmsById.get(preview) && (
-        <CasePreview
+        <CellPreview
           film={filmsById.get(preview)}
           onClose={() => setPreview(null)}
           onOpenFile={onOpen}

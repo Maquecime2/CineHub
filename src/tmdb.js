@@ -119,8 +119,8 @@ const RECUSED = new Set([401, 403, 503]);
    completion run up on a single card. */
 const MINUTE = 60_000;
 const waitAfter = (res, attempt) => {
-  const dit = Number(res.headers.get("retry-after"));
-  if (Number.isFinite(dit) && dit > 0) return Math.min(dit * 1000, MINUTE);
+  const told = Number(res.headers.get("retry-after"));
+  if (Number.isFinite(told) && told > 0) return Math.min(told * 1000, MINUTE);
   return 1000 * (attempt + 1);
 };
 

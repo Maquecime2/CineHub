@@ -40,7 +40,7 @@ import {
 export function ThreadView({ connected }: { connected: boolean }) {
   const [abonnements, setAbonnements] = useState<Profile[]>([]);
   const [nouvelles, setNouvelles] = useState<NewsItem[] | null>(null);
-  const [cherche, setCherche] = useState("");
+  const [query, setQuery] = useState("");
   const [trouve, setTrouve] = useState<Profile | null>(null);
   const [souci, setSouci] = useState<string | null>(null);
 
@@ -77,10 +77,10 @@ export function ThreadView({ connected }: { connected: boolean }) {
     );
   }
 
-  const chercher = async () => {
+  const search = async () => {
     setSouci(null);
     setTrouve(null);
-    const nom = cherche.trim().toLowerCase();
+    const nom = query.trim().toLowerCase();
     if (!nom) return;
     try {
       setTrouve(await profileOf(nom));
@@ -92,7 +92,7 @@ export function ThreadView({ connected }: { connected: boolean }) {
     }
   };
 
-  const basculer = async (profil: Profile) => {
+  const toggle = async (profil: Profile) => {
     const suit = profil.suivi ?? abonnements.some((a) => a.pseudo === profil.pseudo);
     if (suit) await unfollow(profil.pseudo);
     else await follow(profil.pseudo);
@@ -107,15 +107,15 @@ export function ThreadView({ connected }: { connected: boolean }) {
         <Label>Chercher quelqu'un</Label>
         <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
           <input
-            value={cherche}
-            onChange={(e) => setCherche(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && chercher()}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && search()}
             placeholder="son pseudonyme"
             autoCapitalize="none"
             spellCheck={false}
             style={{ ...underlineInput, fontFamily: F.mono, fontSize: 13 }}
           />
-          <button onClick={chercher} style={bouton(C.ink)}>
+          <button onClick={search} style={button(C.ink)}>
             <Search size={12} /> VOIR
           </button>
         </div>
@@ -144,10 +144,10 @@ export function ThreadView({ connected }: { connected: boolean }) {
                 {trouve.films} film{trouve.films > 1 ? "s" : ""} montrés
               </div>
             </div>
-            <a href={`#/chez/${trouve.pseudo}`} style={lien}>
+            <a href={`#/chez/${trouve.pseudo}`} style={link}>
               SA COLLECTION
             </a>
-            <button onClick={() => basculer(trouve)} style={bouton(C.burgundy)}>
+            <button onClick={() => toggle(trouve)} style={button(C.burgundy)}>
               {trouve.suivi ? <UserMinus size={12} /> : <UserPlus size={12} />}
               {trouve.suivi ? "NE PLUS SUIVRE" : "SUIVRE"}
             </button>
@@ -183,7 +183,7 @@ export function ThreadView({ connected }: { connected: boolean }) {
                     Saying so avoids believing in a breakdown. */}
                 {a.ouverte === false && <em style={{ opacity: 0.7 }}>refermée</em>}
                 <button
-                  onClick={() => basculer(a)}
+                  onClick={() => toggle(a)}
                   title={`Ne plus suivre ${a.pseudo}`}
                   style={{ ...tap, all: "unset", cursor: "pointer", color: C.burgundy }}
                 >
@@ -303,7 +303,7 @@ const Guideline = ({ children }: { children: ReactNode }) => (
   </div>
 );
 
-const bouton = (encre: string) => ({
+const button = (ink: string) => ({
   all: "unset" as const,
   ...tap,
   cursor: "pointer",
@@ -313,11 +313,11 @@ const bouton = (encre: string) => ({
   fontSize: 10,
   letterSpacing: 1,
   color: C.card,
-  background: encre,
-  border: `1px solid ${encre}`,
+  background: ink,
+  border: `1px solid ${ink}`,
 });
 
-const lien = {
+const link = {
   fontFamily: F.mono,
   fontSize: 10,
   letterSpacing: 1,

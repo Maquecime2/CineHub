@@ -46,7 +46,7 @@ describe("le catalogue de peaux", () => {
     }
   });
 
-  it("a un fond de page et une forme d'onglet", () => {
+  it("a un fond de page et une forme d'tab", () => {
     for (const skin of SKINS) {
       expect(skin.page.trim().length).toBeGreaterThan(0);
       expect(skin.tag.radius).toMatch(/px$/);
@@ -135,7 +135,7 @@ describe("poser une peau", () => {
   /* A single link element, reused: creating one per attempt would leave
      behind as many stylesheets as skins tried, and the last one DECLARED
      would win — not the last one chosen. */
-  it("ne laisse qu'un seul lien de polices, quoi qu'on essaie", () => {
+  it("ne laisse qu'un seul link de polices, what qu'on essaie", () => {
     applySkin("japon");
     const premier = document.getElementById("skin-fonts") as HTMLLinkElement;
     applySkin("pastel");
@@ -144,7 +144,7 @@ describe("poser une peau", () => {
     expect(premier.href).toContain("Quicksand");
   });
 
-  it("garde le choix d'une fois sur l'autre", () => {
+  it("garde le choice d'une fois sur l'other", () => {
     expect(loadSkinKey()).toBe(DEFAULT_SKIN);
     saveSkinKey("herbier");
     expect(localStorage.getItem(SKIN_KEY)).toBe("herbier");

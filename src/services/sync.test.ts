@@ -38,12 +38,12 @@ vi.mock("./server", () => ({
     }
     return faux.received.shift() ?? { jusqua: depuis, encore: false, fiches: [] };
   },
-  push: async (fiches: unknown[]) => {
+  push: async (cards: unknown[]) => {
     if (faux.throwsOnSend) {
       throw new ErreurServeurFausse(faux.throwsOnSend.message, faux.throwsOnSend.code);
     }
-    faux.pushed.push(fiches);
-    return { rangees: fiches.length, perimees: 0, illisibles: 0 };
+    faux.pushed.push(cards);
+    return { rangees: cards.length, perimees: 0, illisibles: 0 };
   },
   DOCS_PER_SEND: 200,
   pullDocsFrom: async (depuis: number) =>
@@ -58,7 +58,7 @@ const { synchronise, forgetSync, pending } = await import("./sync");
 const { loadFilms, saveFilms, forgetCache } = await import("./collection");
 const { makeFilm } = await import("../domain/film");
 
-const fiche = (p: Record<string, unknown> = {}) => makeFilm({ title: "Playtime", ...p });
+const card = (p: Record<string, unknown> = {}) => makeFilm({ title: "Playtime", ...p });
 
 beforeEach(async () => {
   localStorage.clear();
@@ -81,7 +81,7 @@ describe("un tour complet", () => {
     /* Pushing first would send cards about to be replaced: work for
        nothing, and a window during which the server carries a version we
        are about to abandon. */
-    await saveFilms([fiche({ id: "local", updatedAt: 5000 })]);
+    await saveFilms([card({ id: "local", updatedAt: 5000 })]);
     faux.received = [
       {
         jusqua: 12,
@@ -111,9 +111,9 @@ describe("un tour complet", () => {
 
   it("découpe les gros envois", async () => {
     await saveFilms([
-      fiche({ id: "a", updatedAt: 5000 }),
-      fiche({ id: "b", updatedAt: 5000 }),
-      fiche({ id: "c", updatedAt: 5000 }),
+      card({ id: "a", updatedAt: 5000 }),
+      card({ id: "b", updatedAt: 5000 }),
+      card({ id: "c", updatedAt: 5000 }),
     ]);
     await synchronise(() => {});
     expect(faux.pushed.map((p) => p.length)).toEqual([2, 1]);
@@ -138,7 +138,7 @@ describe("un tour complet", () => {
 
 describe("quand le réseau manque", () => {
   it("l'appareil reste où il était, et le dit sans rougir", async () => {
-    await saveFilms([fiche({ id: "local", updatedAt: 5000 })]);
+    await saveFilms([card({ id: "local", updatedAt: 5000 })]);
     faux.jetteAuTirage = { code: 0, message: "Le serveur ne répond pas." };
 
     const report = await synchronise(() => {});
@@ -147,7 +147,7 @@ describe("quand le réseau manque", () => {
   });
 
   it("et rattrape tout au retour du réseau", async () => {
-    await saveFilms([fiche({ id: "local", updatedAt: 5000 })]);
+    await saveFilms([card({ id: "local", updatedAt: 5000 })]);
     faux.throwsOnSend = { code: 0, message: "coupé" };
     expect((await synchronise(() => {})).state).toBe("waiting");
     expect(faux.pushed).toEqual([]);
@@ -169,7 +169,7 @@ describe("quand le réseau manque", () => {
 describe("sans compte", () => {
   it("rien ne part, et ce n'est pas une panne", async () => {
     faux.person = null;
-    await saveFilms([fiche({ id: "local", updatedAt: 5000 })]);
+    await saveFilms([card({ id: "local", updatedAt: 5000 })]);
     const report = await synchronise(() => {});
     expect(report.state).toBe("no-account");
     expect(faux.pushed).toEqual([]);
@@ -178,7 +178,7 @@ describe("sans compte", () => {
 
 describe("ce qui attend", () => {
   it("se compte sans rien demander au réseau", async () => {
-    await saveFilms([fiche({ id: "a", updatedAt: 5000 })]);
+    await saveFilms([card({ id: "a", updatedAt: 5000 })]);
     expect(pending()).toBe(1);
     await synchronise(() => {});
     expect(pending()).toBe(0);
@@ -187,15 +187,15 @@ describe("ce qui attend", () => {
   it("une fiche effacée compte comme une chose à dire", async () => {
     /* `a` is the SAME object from one save to the next: only `b`
        leaves, and it is its departure we want to see counted. */
-    const a = fiche({ id: "a" });
-    await saveFilms([a, fiche({ id: "b" })]);
+    const a = card({ id: "a" });
+    await saveFilms([a, card({ id: "b" })]);
     await synchronise(() => {});
     await saveFilms([a]);
     expect(pending()).toBe(1);
 
     await synchronise(() => {});
-    const dernier = faux.pushed.at(-1)!.at(-1) as { id: string; supprimee?: boolean };
-    expect(dernier).toMatchObject({ id: "b", supprimee: true });
+    const last = faux.pushed.at(-1)!.at(-1) as { id: string; supprimee?: boolean };
+    expect(last).toMatchObject({ id: "b", supprimee: true });
   });
 });
 

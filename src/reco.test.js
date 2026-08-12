@@ -72,9 +72,9 @@ describe("affinity", () => {
 
   it("ne pénalise pas un genre inconnu : le découvrir n'est pas un défaut", () => {
     const taste = buildTaste(collection());
-    const inconnu = affinity(candidate({ genres: ["Documentaire"] }), taste);
+    const unknown = affinity(candidate({ genres: ["Documentaire"] }), taste);
     const neutre = affinity(candidate({ genres: [] }), taste);
-    expect(inconnu).toBeCloseTo(neutre);
+    expect(unknown).toBeCloseTo(neutre);
   });
 
   it("récompense un film remonté par une fiche aimée", () => {
@@ -174,8 +174,8 @@ describe("nicheScore", () => {
   });
 
   it("ignore l'écart à la collection, piloté par son propre curseur", () => {
-    const sansDrift = nicheScore({ ...f, drift: 0 }, DEFAULT_QUERY.niche);
-    expect(nicheScore(f, DEFAULT_QUERY.niche)).toBe(sansDrift);
+    const noDrift = nicheScore({ ...f, drift: 0 }, DEFAULT_QUERY.niche);
+    expect(nicheScore(f, DEFAULT_QUERY.niche)).toBe(noDrift);
   });
 });
 
@@ -203,8 +203,8 @@ describe("rank", () => {
     const connu = candidate({ tmdbId: 1, title: "Connu", voteCount: 45000, genres: ["Drame"] });
     const rare = candidate({ tmdbId: 2, title: "Rare", voteCount: 60, genres: ["Drame"] });
 
-    const grandPublic = rank([connu, rare], taste, query({ nichePref: 0 }));
-    expect(grandPublic[0].title).toBe("Connu");
+    const mainstream = rank([connu, rare], taste, query({ nichePref: 0 }));
+    expect(mainstream[0].title).toBe("Connu");
 
     const pepite = rank([connu, rare], taste, query({ nichePref: 1 }));
     expect(pepite[0].title).toBe("Rare");
@@ -212,8 +212,8 @@ describe("rank", () => {
 
   it("le curseur drift transforme l'écart en atout ou en pénalité", () => {
     const familier = candidate({ tmdbId: 1, title: "Familier", genres: ["Drame"], year: 2005 });
-    const depaysant = candidate({ tmdbId: 2, title: "Dépaysant", genres: ["Western"], year: 1935 });
-    const args = [[familier, depaysant], taste];
+    const faraway = candidate({ tmdbId: 2, title: "Dépaysant", genres: ["Western"], year: 1935 });
+    const args = [[familier, faraway], taste];
 
     expect(rank(...args, query({ driftPref: 1, nichePref: 0.5 }))[0].title).toBe("Dépaysant");
     expect(rank(...args, query({ driftPref: 0, nichePref: 0.5 }))[0].title).toBe("Familier");
@@ -224,25 +224,25 @@ describe("rank", () => {
        the reco bonus — among other candidates. Without diversification the
        six would hog the head and the page would speak of one film only. */
     const from = { title: "Le film aimé", rating: 5 };
-    const grappe = Array.from({ length: 6 }, (_, i) =>
+    const cluster = Array.from({ length: 6 }, (_, i) =>
       candidate({ tmdbId: 100 + i, title: `Grappe ${i}`, sources: [{ kind: "reco", from }] })
     );
-    const autres = Array.from({ length: 5 }, (_, i) =>
+    const others = Array.from({ length: 5 }, (_, i) =>
       candidate({ tmdbId: 300 + i, title: `Autre ${i}` })
     );
 
-    const out = rank([...grappe, ...autres], taste, query(), 8);
+    const out = rank([...cluster, ...others], taste, query(), 8);
     // the first 7 places are composed before any carrying over to the tail
-    const enTete = out.slice(0, 7).filter((c) => c.title.startsWith("Grappe"));
-    expect(enTete).toHaveLength(2);
+    const atTheTop = out.slice(0, 7).filter((c) => c.title.startsWith("Grappe"));
+    expect(atTheTop).toHaveLength(2);
   });
 
   it("repousse les évincés en fin de liste au lieu de les perdre", () => {
     const from = { title: "Le film aimé", rating: 5 };
-    const grappe = Array.from({ length: 5 }, (_, i) =>
+    const cluster = Array.from({ length: 5 }, (_, i) =>
       candidate({ tmdbId: 200 + i, sources: [{ kind: "reco", from }] })
     );
-    expect(rank(grappe, taste, query())).toHaveLength(5);
+    expect(rank(cluster, taste, query())).toHaveLength(5);
   });
 
   it("respecte la limite demandée", () => {
@@ -255,8 +255,8 @@ describe("rank", () => {
   });
 
   it("fonctionne sans profil : le filtre décide seul", () => {
-    const vide = buildTaste([]);
-    const out = rank([candidate(), candidate()], vide, query());
+    const empty = buildTaste([]);
+    const out = rank([candidate(), candidate()], empty, query());
     expect(out).toHaveLength(2);
     expect(out.every((c) => Number.isFinite(c.score))).toBe(true);
   });

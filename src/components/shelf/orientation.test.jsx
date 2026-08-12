@@ -94,28 +94,28 @@ describe("l'orientation d'un objet", () => {
    which is also the drop target — claims the bounding box's width, and what
    one sees becomes again what takes up the room. */
 describe("la place que prend un objet tourné", () => {
-  const largeur = (over) => {
+  const width = (over) => {
     const item = { ...makeDecor({ motif: "plant" }), ...over };
     const { container } = render(<DecorItem item={item} ctx={{}} onLabel={noop} {...dnd} />);
     return Number.parseInt(container.querySelector("[data-shelf-item]").style.width, 10);
   };
 
   it("s'élargit quand l'objet penche", () => {
-    expect(largeur({ rot: 45 })).toBeGreaterThan(largeur({ rot: 0 }));
+    expect(width({ rot: 45 })).toBeGreaterThan(width({ rot: 0 }));
   });
 
   /* A square laid down by a quarter turn falls back on itself: it is the
      same bounding box, and therefore the same room. */
   it("rend sa place au carré remis d'équerre", () => {
-    expect(largeur({ rot: 90 })).toBe(largeur({ rot: 0 }));
+    expect(width({ rot: 90 })).toBe(width({ rot: 0 }));
   });
 
   it("compte pareil à gauche et à droite", () => {
-    expect(largeur({ rot: -40 })).toBe(largeur({ rot: 40 }));
+    expect(width({ rot: -40 })).toBe(width({ rot: 40 }));
   });
 
   it("passe par un maximum à mi-chemin", () => {
-    expect(largeur({ rot: 45 })).toBeGreaterThan(largeur({ rot: 90 }));
+    expect(width({ rot: 45 })).toBeGreaterThan(width({ rot: 90 }));
   });
 
   /* The gap to the neighbour belongs entirely to the RIGHT: it is a
@@ -125,15 +125,15 @@ describe("la place que prend un objet tourné", () => {
     const item = { ...makeDecor({ motif: "divider" }), rot: 2 };
     const { container } = render(<DecorItem item={item} ctx={{}} onLabel={noop} {...dnd} />);
     const env = container.querySelector("[data-shelf-item]");
-    const carton = container.querySelector("[draggable]");
-    const dx = Number(carton.style.transform.match(/translate\((-?\d+)px/)[1]);
-    const w = Number.parseInt(carton.style.width, 10);
-    const h = Number.parseInt(carton.style.height, 10);
-    const cadre = rotatedBox(w, h, 2);
+    const cardstock = container.querySelector("[draggable]");
+    const dx = Number(cardstock.style.transform.match(/translate\((-?\d+)px/)[1]);
+    const w = Number.parseInt(cardstock.style.width, 10);
+    const h = Number.parseInt(cardstock.style.height, 10);
+    const frame = rotatedBox(w, h, 2);
     // the card is aligned left, not centred
-    expect(dx).toBe(cadre.dx);
+    expect(dx).toBe(frame.dx);
     // and the whole gap to the neighbour stays on the right
-    expect(Number.parseInt(env.style.width, 10) - cadre.width).toBe(GAP_X);
+    expect(Number.parseInt(env.style.width, 10) - frame.width).toBe(GAP_X);
   });
 
   /* The card pivots on its FOOT: the bounding box starts from the side the
@@ -142,8 +142,8 @@ describe("la place que prend un objet tourné", () => {
   it("réserve la place là où la tête penche, et pas ailleurs", () => {
     const item = { ...makeDecor({ motif: "divider" }), rot: 30 };
     const { container } = render(<DecorItem item={item} ctx={{}} onLabel={noop} {...dnd} />);
-    const carton = container.querySelector("[draggable]");
-    const [, dx] = carton.style.transform.match(/translate\((-?\d+)px, (-?\d+)px\)/) || [];
+    const cardstock = container.querySelector("[draggable]");
+    const [, dx] = cardstock.style.transform.match(/translate\((-?\d+)px, (-?\d+)px\)/) || [];
     // leaning right, the head shifts the box: the card backs off to the left
     expect(Number(dx)).toBeLessThan(0);
   });
@@ -158,18 +158,18 @@ describe("la place que prend un objet tourné", () => {
   });
 
   it("mesure le carton sur sa hauteur, pas sur sa tranche", () => {
-    const carton = (rot) => {
+    const cardstock = (rot) => {
       const item = { ...makeDecor({ motif: "divider" }), rot };
       const { container } = render(<DecorItem item={item} ctx={{}} onLabel={noop} {...dnd} />);
       return Number.parseInt(container.querySelector("[data-shelf-item]").style.width, 10);
     };
     // lying down, it claims its case height instead of its thirty pixels
-    expect(carton(90)).toBeGreaterThan(carton(0) * 3);
+    expect(cardstock(90)).toBeGreaterThan(cardstock(0) * 3);
   });
 });
 
 describe("l'intercalaire, repris pour qu'on le voie", () => {
-  const carton = (over = {}) => {
+  const cardstock = (over = {}) => {
     const item = { ...makeDecor({ motif: "divider", color: "burgundy" }), ...over };
     const { container } = render(<DecorItem item={item} ctx={{}} onLabel={noop} {...dnd} />);
     return container.querySelector("[draggable]");
@@ -178,7 +178,7 @@ describe("l'intercalaire, repris pour qu'on le voie", () => {
   /* The body carried the kraft common to the cases: among twelve edges of
      the same paper, what separates had the colour of what it separates. */
   it("porte sa propre encre et non le papier des boîtiers", () => {
-    const el = carton();
+    const el = cardstock();
     /* The wash is a `backgroundImage` and no longer a composite
        `background`: the card took an opaque backdrop underneath so that the
        wall no longer shows through it, and the two do not fit in the same
@@ -189,19 +189,19 @@ describe("l'intercalaire, repris pour qu'on le voie", () => {
   });
 
   it("dresse un onglet plein en tête", () => {
-    const head = carton().firstChild;
+    const head = cardstock().firstChild;
     expect(head.style.background).toBe("rgb(140, 58, 52)");
     expect(Number.parseInt(head.style.height, 10)).toBeGreaterThan(10);
   });
 
   it("écrit son nom sous l'onglet, à l'encre sombre", () => {
-    const el = carton({ label: "Polars" });
+    const el = cardstock({ label: "Polars" });
     const nom = [...el.querySelectorAll("span")].find((s) => s.textContent === "Polars");
     expect(nom.style.color).toBe("var(--c-ink)");
     expect(Number.parseInt(nom.style.marginTop, 10)).toBeGreaterThan(0);
   });
 
   it("est plus large qu'une tranche", () => {
-    expect(Number.parseInt(carton().style.width, 10)).toBeGreaterThan(26);
+    expect(Number.parseInt(cardstock().style.width, 10)).toBeGreaterThan(26);
   });
 });

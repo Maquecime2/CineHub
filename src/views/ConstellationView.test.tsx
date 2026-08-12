@@ -20,7 +20,7 @@ const monter = (props: Partial<Parameters<typeof ConstellationView>[0]> = {}) =>
   return { onOpen };
 };
 
-const chercher = async (texte: string) => {
+const search = async (texte: string) => {
   const user = userEvent.setup();
   await user.type(screen.getByPlaceholderText(/chercher dans toute la collection/), texte);
   return user;
@@ -29,32 +29,32 @@ const chercher = async (texte: string) => {
 describe("la recherche de la constellation", () => {
   it("trouve un film que rien ne relie, et le marque hors carte", async () => {
     monter();
-    await chercher("playtime");
+    await search("playtime");
     expect(screen.getByRole("button", { name: /Playtime/ })).toBeInTheDocument();
     expect(screen.getByText("épingler")).toBeInTheDocument();
   });
 
   it("cherche aussi sur le réalisateur", async () => {
     monter();
-    await chercher("tati");
+    await search("tati");
     expect(screen.getByRole("button", { name: /Playtime/ })).toBeInTheDocument();
   });
 
   it("marque « au ciel » un film déjà placé", async () => {
     monter();
-    await chercher("samou");
+    await search("samou");
     expect(screen.getByText("au ciel")).toBeInTheDocument();
   });
 
   it("dit franchement quand la collection n'a rien de ce nom", async () => {
     monter();
-    await chercher("zzz");
+    await search("zzz");
     expect(screen.getByText(/rien de ce nom/)).toBeInTheDocument();
   });
 
   it("épingler un film hors carte le fait entrer au ciel et devenir le foyer", async () => {
     monter();
-    const user = await chercher("playtime");
+    const user = await search("playtime");
     await user.click(screen.getByRole("button", { name: /Playtime/ }));
     // the focus is laid on it: the chart composes itself around
     expect(screen.getByText("FOYER")).toBeInTheDocument();

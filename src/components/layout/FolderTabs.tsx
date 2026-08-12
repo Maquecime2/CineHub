@@ -150,7 +150,7 @@ function Tab({
   return (
     <button
       data-tour={`tab-${t.key}`}
-      data-tab-onglet
+      data-tab-tab
       onClick={onClick}
       title={t.label}
       aria-label={t.label}
