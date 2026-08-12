@@ -1,35 +1,33 @@
 /* ============================================================
-   COMPLÉTER LES FICHES — remplir les trous depuis TMDB
+   COMPLETING THE CARDS — filling the holes from TMDB
    ============================================================
 
-   Une fiche ancienne ne porte ni casting, ni durée, ni pays : ces
-   champs sont arrivés après elle, et `migrate` ne peut que les poser
-   vides — il tourne au chargement, hors ligne et sans clé.
+   An old card carries neither cast, nor runtime, nor country: those
+   fields arrived after it, and `migrate` can only lay them empty — it
+   runs at load time, offline and with no key.
 
-   Jusqu'ici le seul chemin pour les remplir était de redéposer son
-   export Letterboxd, ce qui est absurde : le fichier ne contient rien
-   de tout cela, il ne sert qu'à déclencher les appels TMDB. On déclenche
-   donc les appels directement, depuis la collection elle-même.
+   Until now the only path to filling them was to drop one's Letterboxd
+   export again, which is absurd: the file contains none of that, it only
+   serves to trigger the TMDB calls. So we trigger the calls directly,
+   from the collection itself.
 
-   RIEN DE NEUF SOUS LE CAPOT. On fabrique des lignes d'import à partir
-   des fiches, et on les passe à la chaîne existante — `enrichRows`, qui
-   a déjà le cache, la limite de concurrence et le compte-rendu de
-   progression, puis `diffImport`, qui montre avant d'écrire. Un second
-   chemin d'écriture serait un second endroit où la fusion peut se
-   tromper.
+   NOTHING NEW UNDER THE HOOD. We build import rows out of the cards, and
+   we pass them to the existing chain — `enrichRows`, which already has
+   the cache, the concurrency limit and the progress report, then
+   `diffImport`, which shows before writing. A second writing path would
+   be a second place where the merge can go wrong.
 
-   DEUX GARDE-FOUS, ET LE SECOND EST LE PLUS IMPORTANT.
+   TWO GUARD RAILS, AND THE SECOND IS THE MORE IMPORTANT.
 
-   1. On n'interroge que les fiches INCOMPLÈTES. Sans ce tri, compléter
-      trois films en demanderait cinq cents à TMDB.
+   1. We only query the INCOMPLETE cards. Without that sorting,
+      completing three films would ask TMDB for five hundred.
 
-   2. On écarte `toCreate`. `diffImport` crée une fiche quand rien ne
-      correspond ; or ici chaque ligne SORT d'une fiche. Une
-      non-correspondance ne peut donc signifier qu'une chose : la clé
-      d'appariement ne se retrouve pas elle-même — ce qui arrive, le
-      `slugOf` du projet ayant un défaut connu sur les titres commençant
-      par « Les ». Laisser passer la création ferait alors un DOUBLON de
-      la fiche qu'on voulait compléter. */
+   2. We set `toCreate` aside. `diffImport` creates a card when nothing
+      matches; but here every row COMES OUT of a card. A non-match can
+      therefore mean only one thing: the matching key does not find
+      itself — which happens, the project's `slugOf` having a known flaw
+      on titles beginning with "Les". Letting the creation through would
+      then make a DUPLICATE of the very card one wanted to complete. */
 import { useState } from "react";
 import { Sparkles, Tags } from "lucide-react";
 import { C, F } from "../../theme/tokens";
@@ -52,9 +50,9 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
   const [msg, setMsg] = useState("");
 
   const àFaire = films.filter(isIncomplete);
-  /* Les fiches sans le moindre mot-clé — l'absence ET le vide. Une
-     collection entière a été figée à `[]` par un défaut de récolte, et
-     `isIncomplete` ne peut pas les voir : voir `domain/film`. */
+  /* The cards without a single keyword — the absence AND the emptiness.
+     A whole collection was frozen at `[]` by a harvest flaw, and
+     `isIncomplete` cannot see them: see `domain/film`. */
   const sansSujets = films.filter(withoutKeywords);
 
   const lancer = async (cibles: Film[]) => {
@@ -64,9 +62,9 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
     setDiff(null);
     setProgress({ done: 0, total: cibles.length });
 
-    /* Une ligne par fiche. `tmdbId` quand on l'a : il évite une
-       recherche par titre, et surtout les faux positifs de
-       `searchMovie`, qui prend le premier résultat sans comparer. */
+    /* One row per card. `tmdbId` when we have it: it avoids a search by
+       title, and above all the false positives of `searchMovie`, which
+       takes the first result without comparing. */
     const rows: ImportRow[] = cibles.map((f) => ({
       title: f.title,
       year: f.year,
@@ -81,15 +79,14 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
         onProgress: (d: number, t: number) => setProgress({ done: d, total: t }),
       } as never);
 
-      /* `keepStatus` N'EST PAS UNE PRÉCAUTION, C'EST LE SUJET.
+      /* `keepStatus` IS NOT A PRECAUTION, IT IS THE POINT.
 
-         Ce panneau va chercher une durée et un casting : il n'a rien
-         appris sur ce que vous avez vu. Le statut passé ici ne servait
-         qu'aux fiches créées — et comme on n'en crée aucune, on l'a cru
-         inerte. Il ne l'était pas : `diffImport` s'en sert aussi pour
-         faire passer « à voir » → « vu » les fiches existantes, et
-         compléter sa collection vidait la watchlist dans la
-         vidéothèque. */
+         This panel goes and fetches a runtime and a cast: it has learned
+         nothing about what you have watched. The status passed here only
+         served the created cards — and since we create none, it was
+         believed inert. It was not: `diffImport` also uses it to move
+         existing cards from "à voir" to "vu", and completing one's
+         collection emptied the watchlist into the film library. */
       const brut = diffImport(films, res.rows as ImportRow[], "watched", {
         keepStatus: true,
       });
@@ -109,7 +106,7 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
 
   const écrire = () => {
     if (!diff) return;
-    // toCreate est délibérément vidé : voir l'en-tête du fichier
+    // toCreate is deliberately emptied: see the file's header
     onImport({ toCreate: [], toUpdate: diff.toUpdate, unchanged: diff.unchanged });
     setMsg(`${diff.toUpdate.length} fiche(s) complétée(s).`);
     setDiff(null);

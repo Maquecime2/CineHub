@@ -7,7 +7,7 @@ import type { Divider, Film, Note, ShelfViews } from "../../types";
 import type { Thread } from "../../domain/threads";
 import type { StoredVocabulary as Vocabulaire } from "../../domain/motifs";
 
-/** Ce que `posterStats` rapporte de la base d'images. */
+/** What `posterStats` brings back from the image database. */
 interface PosterStats {
   count: number;
   bytes: number;
@@ -55,7 +55,7 @@ export function BackupPanel({
 
   const download = async () => {
     setMsg("préparation…");
-    // db.js est encore en JavaScript : ses paramètres n'ont pas de type déclaré
+    // db.js is still in JavaScript: its parameters have no declared type
     const data = await exportBackup({ films, notes, dividers, views, fils, motifs } as never);
     const url = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: "application/json" }));
     const a = document.createElement("a");
@@ -76,11 +76,11 @@ export function BackupPanel({
         fils: fl,
         motifs: mo,
       } = await importBackup(JSON.parse(await file.text()));
-      /* BUG CONNU, comportement conservé tel quel par le refactor : la
-         sauvegarde v4 contient les vues d'étagère et `importBackup` les
-         renvoie, mais elles ne sont pas transmises ici. À la restauration,
-         App retombe donc sur la reconstruction depuis les intercalaires et
-         le rangement enregistré est perdu. */
+      /* KNOWN BUG, behaviour kept as it is by the refactor: the v4
+         backup contains the shelf views and `importBackup` returns them,
+         but they are not passed on here. On restoring, App therefore
+         falls back on rebuilding from the dividers and the recorded
+         arrangement is lost. */
       setMsg(
         `${onRestore({
           films: f as Film[],

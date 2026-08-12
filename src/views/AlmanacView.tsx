@@ -1,40 +1,39 @@
 /* ============================================================
-   VUE — L'ALMANACH, en quatre planches qu'on feuillette
+   VIEW — THE ALMANAC, in four boards one leafs through
    ============================================================
 
-   La page de comptes d'un archiviste : ce que l'year a contenu, tenu à
-   la main sur des cartons posés de travers, et non une grille de
-   compteurs. Le calcul entier vit dans `domain/almanac` — cette vue ne
-   fait que dessiner ce qu'il rend, et n'a donc aucune règle à elle.
+   An archivist's page of accounts: what the year contained, kept by hand
+   on cards laid askew, and not a grid of counters. The whole computation
+   lives in `domain/almanac` — this view only draws what it returns, and
+   therefore has no rule of its own.
 
-   POURQUOI PLUSIEURS PLANCHES, ET AUCUN DÉFILEMENT.
+   WHY SEVERAL BOARDS, AND NO SCROLLING.
 
-   Une page d'almanach se regarde, elle ne se déroule pas : ce qui
-   dépasse du bord n'existe pas pour le lecteur, et une barre de
-   défilement à droite d'un bilan annuel avoue qu'on a renoncé à le
-   composer. Mais un bilan qui tient dans un écran ne dit pas
-   grand-chose.
+   A page of an almanac is looked at, it does not unroll: what goes past
+   the edge does not exist for the reader, and a scrollbar to the right
+   of a yearly account confesses that composing it was given up. But an
+   account that fits in one screen does not say much.
 
-   D'où le livret. Chaque planche occupe EXACTEMENT la hauteur
-   disponible, et l'on tourne la page — à la flèche, au clavier, ou en
-   cliquant une pastille. Quatre planches valent quatre fois la place
-   sans coûter un seul pixel de défilement.
+   Hence the booklet. Each board takes up EXACTLY the available height,
+   and one turns the page — with the arrow, with the keyboard, or by
+   clicking a pill. Four boards are worth four times the room without
+   costing a single pixel of scrolling.
 
-   CE QUI GARANTIT QU'AUCUNE NE DÉBORDE. Les planches sont des grilles à
-   lignes fixes, jamais des flux : la hauteur est décidée d'avance et
-   répartie, au lieu d'être subie. Et surtout, ce qui pourrait être long
-   est tronqué PAR LE CALCUL — un ranking rend quatre lignes, pas
-   quarante. Un `overflow: hidden` aurait caché la donnée sans le dire,
-   ce qui est pire qu'une barre de défilement.
+   WHAT GUARANTEES THAT NONE OVERFLOWS. The boards are grids with fixed
+   rows, never flows: the height is decided in advance and shared out,
+   instead of being suffered. And above all, what could be long is
+   truncated BY THE COMPUTATION — a ranking returns four lines, not
+   forty. An `overflow: hidden` would have hidden the data without saying
+   so, which is worse than a scrollbar.
 
-   LES BARRES SONT TRACÉES, PAS TRACÉES-PAR-UNE-BIBLIOTHÈQUE. Douze
-   rectangles au trait irrégulier valent mieux qu'une dépendance de
-   graphiques, et ils sont les seuls à pouvoir tenir sur les quatorze
-   peaux : leur encre est un jeton, pas une couleur.
+   THE BARS ARE DRAWN, NOT DRAWN-BY-A-LIBRARY. Twelve rectangles with an
+   irregular stroke are worth more than a charting dependency, and they
+   are the only ones able to hold on the fourteen skins: their ink is a
+   token, not a colour.
 
-   PAS UNE COULEUR EN DUR ICI. Une seule suffirait à casser la moitié des
-   peaux — la planche de contrôle (`views/dev/SkinLab`) est là pour le
-   voir venir. */
+   NOT ONE HARD-CODED COLOUR HERE. A single one would suffice to break
+   half the skins — the control board (`views/dev/SkinLab`) is there to
+   see it coming. */
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { ChevronLeft, ChevronRight, Download } from "lucide-react";
@@ -73,11 +72,11 @@ const MOIS_LONG = [
   "décembre",
 ];
 
-/* « 2024-03-07 » → « 7 mars ». L'year est tue parce qu'elle est already
-   dans le titre de la page — mais seulement quand le titre EST une
-   year : « du 25 janvier au 24 décembre » sur un bilan qui couvre sept
-   years laisse croire à une seule year, et c'est justement la chose que
-   ce bilan doit démentir. */
+/* "2024-03-07" → "7 mars". The year is left unsaid because it is
+   already in the page's title — but only when the title IS a year: "du
+   25 janvier au 24 décembre" on an account covering seven years makes
+   one believe in a single year, and that is precisely the thing this
+   account must deny. */
 const enClair = (iso: string | null, avecAnnée = false): string => {
   if (!iso) return "—";
   const [a, m, j] = iso.split("-");
@@ -85,19 +84,19 @@ const enClair = (iso: string | null, avecAnnée = false): string => {
   return avecAnnée ? `${jour} ${a}` : jour;
 };
 
-/** 5 430 minutes → « 90 h 30 ». Person ne lit un bilan en minutes. */
+/** 5,430 minutes → "90 h 30". Nobody reads an account in minutes. */
 const enHeures = (minutes: number): string => {
   const h = Math.floor(minutes / 60);
   const m = Math.round(minutes % 60);
   return m ? `${h} h ${String(m).padStart(2, "0")}` : `${h} h`;
 };
 
-/* Les namesIn de countries et de languages se traduisent dans `namesIn`, et non dans
-   le domaine : `geography` rend des codes ISO parce qu'il ne sait pas
-   dans quelle langue on le lira. La fiche s'en sert aussi. */
+/* The names of countries and languages are translated in `namesIn`, and
+   not in the domain: `geography` returns ISO codes because it does not
+   know in which language it will be read. The film card uses it too. */
 
 /* ------------------------------------------------------------
-   LE CARTON — la pièce que all les planches réemploient
+   THE CARD — the piece every board reuses
    ------------------------------------------------------------ */
 function Cardstock({
   titre,
@@ -106,8 +105,8 @@ function Cardstock({
   style,
 }: {
   titre: string;
-  /** De quoi tirer une inclinaison STABLE : un carton qui gigote au re-rendu
-      ne ressemble plus à un objet posé. */
+  /** Enough to draw a STABLE lean: a card that wriggles on a re-render
+      no longer looks like a laid object. */
   seed: string;
   children: ReactNode;
   style?: CSSProperties;
@@ -116,8 +115,8 @@ function Cardstock({
   const punaise = Math.abs(hash(seed)) % 3 === 0;
   return (
     <div
-      /* Un carton ne se coupe pas en deux entre deux pages : voir
-         `theme/print.css`, qui s'accroche à cet attribut. */
+      /* A card is not cut in two between two pages: see
+         `theme/print.css`, which hooks onto this attribute. */
       data-print-block
       style={{
         position: "relative",
@@ -126,10 +125,10 @@ function Cardstock({
         boxShadow: "3px 5px 12px rgba(30,20,10,0.22)",
         padding: "13px 15px 12px",
         transform: `rotate(${Number(penche) / 7}deg)`,
-        /* `minHeight: 0` est ce qui autorise vraiment une case de grille
-           à se serrer. Sans lui, un enfant de grille refuse de descendre
-           sous la taille de son contenu, et c'est la PLANCHE qui grandit
-           — donc la page qui défile, précisément ce qu'on interdit. */
+        /* `minHeight: 0` is what really allows a grid cell to tighten.
+           Without it, a grid child refuses to go below the size of its
+           content, and it is the BOARD that grows — hence the page that
+           scrolls, precisely what is forbidden. */
         minHeight: 0,
         display: "flex",
         flexDirection: "column",
@@ -147,13 +146,13 @@ function Cardstock({
   );
 }
 
-/** Ce qu'on écrit quand un carton n'a rien à montrer. */
+/** What is written when a card has nothing to show. */
 function Rien({ quoi }: { quoi: string }) {
   return <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded }}>{quoi}</div>;
 }
 
-/* Un grand nombre, avec sa légende dessous. La pièce qui porte les
-   planches : c'est elle qu'on lit en trois secondes. */
+/* A large number, with its caption below. The piece that carries the
+   boards: it is what one reads in three seconds. */
 function Chiffre({
   valeur,
   legende,
@@ -184,17 +183,17 @@ function Chiffre({
 }
 
 /* ------------------------------------------------------------
-   LES DOUZE MOIS, À L'ENCRE
+   THE TWELVE MONTHS, IN INK
    ------------------------------------------------------------
 
-   Chaque barre est un quadrilatère dont les quatre coins bougent d'un
-   cheveu — tiré de l'year et du mois, donc toujours le même. Un
-   rectangle parfait dans une page manuscrite se voit tout de suite ;
-   un rectangle qui tremble ne se voit pas du tout, ce qui est le but. */
-/* Douze mois ou sept années : c'est la même barre, et le même dessin.
-   Le graphique ne connaît que des values et leurs légendes — lui faire
-   croire qu'il count des mois aurait obligé à l'écrire deux fois le
-   jour où l'on a voulu lire une pratique entière. */
+   Each bar is a quadrilateral whose four corners move by a hair — drawn
+   from the year and the month, hence always the same. A perfect
+   rectangle in a handwritten page shows at once; a rectangle that
+   trembles does not show at all, which is the point. */
+/* Twelve months or seven years: it is the same bar, and the same
+   drawing. The chart knows only values and their captions — making it
+   believe it was counting months would have forced writing it twice the
+   day we wanted to read a whole practice. */
 function Barres({
   values,
   légendes,
@@ -209,9 +208,8 @@ function Barres({
   const max = Math.max(1, ...values);
   const pas = W / Math.max(1, values.length);
   const largeur = pas * 0.56;
-  /* Au-delà de huit colonnes, une year sur quatre chiffres se cogne à
-     sa voisine : on ne keep que les deux derniers, qui suffisent à
-     follow une décennie. */
+  /* Beyond eight columns, a four-figure year bumps into its neighbour:
+     we keep only the last two, which are enough to follow a decade. */
   const étroit = values.length > 8;
 
   return (
@@ -272,11 +270,11 @@ function Barres({
   );
 }
 
-/* Une petite règle horizontale : la part de chaque entrée d'un ranking.
+/* A small horizontal rule: the share of each entry of a ranking.
 
-   Le nombre de lignes est TRONQUÉ PAR L'APPELANT, jamais masqué ici :
-   c'est ce qui garantit qu'une planche ne déborde pas sans qu'on le
-   sache. */
+   The number of lines is TRUNCATED BY THE CALLER, never hidden here:
+   that is what guarantees a board does not overflow without anyone
+   knowing. */
 function Palmares({
   items,
   total,
@@ -288,7 +286,7 @@ function Palmares({
   total: number;
   ink?: string;
   vide?: string;
-  /** Rend chaque name cliquable. Absent : le ranking reste du texte. */
+  /** Makes each name clickable. Absent: the ranking stays plain text. */
   onPick?: (name: string) => void;
 }) {
   if (items.length === 0) return <Rien quoi={vide} />;
@@ -308,8 +306,8 @@ function Palmares({
             }}
           >
             {onPick ? (
-              /* Un pointillé d'encre, comme sur la fiche film : le
-                 carnet ne souligne pas en bleu ce qu'on peut follow. */
+              /* A dotted line of ink, as on the film card: the notebook
+                 does not underline in blue what one can follow. */
               <button
                 onClick={() => onPick(it.name)}
                 title={`Ce que j'ai de ${it.name}`}
@@ -348,14 +346,14 @@ function Palmares({
 }
 
 /* ------------------------------------------------------------
-   PLANCHE I — LE COMPTE ET LE RYTHME
+   BOARD I — THE COUNT AND THE RHYTHM
    ------------------------------------------------------------ */
 function PlancheCompte({ a }: { a: Almanac }) {
   const r = a.rhythm;
   const clé = String(a.period);
   const toujours = a.period === "always";
-  /* Les days réellement couverts, pour dire « une séance tous les tant
-     de days » sans supposer une year civile. */
+  /* The days actually covered, so as to say "one screening every so
+     many days" without assuming a calendar year. */
   const span = r.density > 0 ? (r.days / r.density) * 100 : 365;
   return (
     <div style={GRILLE_2x2}>
@@ -483,7 +481,7 @@ function PlancheCompte({ a }: { a: Almanac }) {
 }
 
 /* ------------------------------------------------------------
-   PLANCHE II — LES GOÛTS
+   BOARD II — TASTES
    ------------------------------------------------------------ */
 function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
   const maxHisto = Math.max(1, ...a.ratingHistogram);
@@ -616,9 +614,9 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
           <div style={{ display: "flex", alignItems: "flex-end", gap: 4, marginTop: 10 }}>
             {a.decades.map((d) => {
               const max = Math.max(...a.decades.map((x) => x.n));
-              /* La note moyenne de la décennie, sous sa barre : c'est ce
-                 rapprochement — howMany, et aimés comment — qui montre un
-                 biais qu'on ne se connaît pas. */
+              /* The decade's average rating, under its bar: it is that
+                 juxtaposition — how many, and loved how much — that shows
+                 a bias one does not know one has. */
               const note = a.ratingByDecade.find((x) => x.decade === d.decade);
               return (
                 <div key={d.decade} style={{ flex: 1, textAlign: "center" }}>
@@ -718,7 +716,7 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
 }
 
 /* ------------------------------------------------------------
-   PLANCHE III — LES GENS ET LE MONDE
+   BOARD III — THE PEOPLE AND THE WORLD
    ------------------------------------------------------------ */
 function PlancheGens({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (name: string) => void }) {
   const g = a.geography;
@@ -841,16 +839,16 @@ function PlancheGens({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (name: st
 }
 
 /* ------------------------------------------------------------
-   PLANCHE IV — DE QUOI ÇA PARLAIT, ET QUI L'A FABRIQUÉ
+   BOARD IV — WHAT IT WAS ABOUT, AND WHO MADE IT
    ------------------------------------------------------------
 
-   Les trois premières planches disent COMBIEN, COMMENT NOTÉ et PAR QUI
-   — genres, countries, languages, cinéastes, interprètes. Aucune ne disait DE
-   QUOI, alors que la fiche porte des mots-clés depuis TMDB et des
-   motifs depuis le catalogue commun ; ni PAR QUI D'AUTRE, alors que
-   `crew` porte l'image, la musique et le scénario. Cette planche est
-   faite des deux axes qui manquaient, plus la moitié de l'gap au
-   public qui n'était jamais montrée. */
+   The first three boards say HOW MANY, HOW RATED and BY WHOM — genres,
+   countries, languages, film-makers, performers. None said ABOUT WHAT,
+   although the card has carried keywords from TMDB and patterns from the
+   common catalogue; nor BY WHOM ELSE, although `crew` carries the
+   photography, the music and the screenplay. This board is made of the
+   two axes that were missing, plus the half of the gap to the public
+   that was never shown. */
 function PlancheSujets({ a }: { a: Almanac }) {
   const clé = String(a.period);
   const s = a.subjects;
@@ -932,7 +930,7 @@ function PlancheSujets({ a }: { a: Almanac }) {
   );
 }
 
-/** Un métier de `crew` — muet quand personne n'y revient deux fois. */
+/** One trade of `crew` — mute when nobody comes back to it twice. */
 function MétierSuivi({ label, gens }: { label: string; gens: { name: string; n: number }[] }) {
   const suivis = gens.filter((g) => g.n > 1).slice(0, 3);
   if (suivis.length === 0) return null;
@@ -946,7 +944,7 @@ function MétierSuivi({ label, gens }: { label: string; gens: { name: string; n:
   );
 }
 
-/** Trois films et leur gap à la foule, en points sur dix. */
+/** Three films and their gap to the crowd, in points out of ten. */
 function ÉcartListe({
   label,
   films,
@@ -986,19 +984,18 @@ function ÉcartListe({
   );
 }
 
-/* Deux colonnes, deux rangées — et des rangées EN FRACTIONS, ce qui est
-   toute l'astuce : `1fr` répartit la hauteur disponible au lieu de la
-   demander au contenu. La planche fait donc exactement la taille qu'on
-   lui donne, quoi qu'elle contienne.
+/* Two columns, two rows — and rows IN FRACTIONS, which is the whole
+   trick: `1fr` shares out the available height instead of asking the
+   content for it. So the board is exactly the size it is given, whatever
+   it contains.
 
-   ELLE EN ANNONÇAIT DEUX ET EN POSAIT TROIS. `repeat(3, 1fr)` sous un
-   commentaire qui disait « deux colonnes » : les planches se
-   remplissaient donc à trois cartons en haut et un seul en bas, deux
-   cases vides derrière, et chaque carton faisait un tiers de moins que
-   ce pour quoi son contenu était écrit. C'est de là que venaient les
-   troncatures partout — les ranking, les titles, « Fidélités et
-   découvertes ». Rétablir le 2×2 les fait disparaître d'elles-mêmes,
-   sans rien borner. */
+   IT ANNOUNCED TWO AND LAID THREE. `repeat(3, 1fr)` under a comment that
+   said "two columns": the boards therefore filled up with three cards on
+   top and a single one below, two empty cells behind, and each card was
+   a third smaller than what its content had been written for. That is
+   where the truncations everywhere came from — the rankings, the titles,
+   "Fidélités et découvertes". Restoring the 2×2 makes them disappear on
+   their own, without bounding anything. */
 const GRILLE_2x2: CSSProperties = {
   height: "100%",
   display: "grid",
@@ -1019,16 +1016,16 @@ const PLANCHES = [
   { titre: "Les subjects et les craftspeople", tampon: "IV" },
 ];
 
-/* La hauteur que l'en-tête se réserve. En dur, et c'est le prix du
-   non-défilement : la planche prend « tout le reste », et « le reste »
-   doit être un nombre. Mesurer l'en-tête à chaque rendu coûterait un
-   observateur de redimensionnement pour gagner quelques pixels. */
+/* The height the header reserves for itself. Hard-coded, and that is
+   the price of not scrolling: the board takes "all the rest", and "the
+   rest" must be a number. Measuring the header on every render would
+   cost a resize observer to gain a few pixels. */
 const ENTETE = 178;
 
-/* Le threshold de fidélité sur toute une pratique — le domaine le fixe, la
-   vue le redit quand il n'y a rien à montrer. Recopié, oui : l'écrire en
-   all lettres dans la phrase « personne ne revient six fois » vaut
-   mieux qu'un nombre importé pour une seule phrase. */
+/* The loyalty threshold over a whole practice — the domain sets it, the
+   view says it again when there is nothing to show. Copied out, yes:
+   writing it in full in the sentence "nobody comes back six times" is
+   worth more than a number imported for a single sentence. */
 const SEUIL_TOUJOURS = 6;
 
 export function AlmanacView({
@@ -1036,29 +1033,29 @@ export function AlmanacView({
   onOpenPerson,
 }: {
   films: Film[];
-  /** Ouvre le dossier de quelqu'un au générique. */
+  /** Opens the folder of somebody in the credits. */
   onOpenPerson?: (name: string) => void;
 }) {
   const années = useMemo(() => yearsCovered(films), [films]);
 
-  /* LES PÉRIODES QU'ON PEUT FEUILLETER : « toujours » d'abord, puis les
-     années de la plus récente à la plus ancienne.
+  /* THE PERIODS ONE CAN LEAF THROUGH: "toujours" first, then the years
+     from the most recent to the oldest.
 
-     En tête et non à la fin : c'est la page de keep du livret, celle
-     qui dit de quoi l'ensemble est fait avant d'entrer dans le détail
-     d'une year. Elle ne paraît qu'à partir de deux années couvertes —
-     sur une seule, « toujours » et « cette year » sont la même page,
-     et l'offrir deux fois ne ferait qu'un doublon à feuilleter. */
+     At the head and not at the end: it is the booklet's title page, the
+     one that says what the whole is made of before going into the detail
+     of one year. It only appears from two covered years on — with a
+     single one, "toujours" and "cette année" are the same page, and
+     offering it twice would only make a duplicate to leaf through. */
   const périodes: Period[] = useMemo(
     () => (années.length > 1 ? ["always", ...années] : années),
     [années]
   );
 
   const [choisie, setChoisie] = useState<Period | null>(null);
-  /* La period regardée : celle qu'on a choisie tant qu'elle existe
-     encore — supprimer la dernière séance d'une year la fait
-     disparaître de la list, et on ne doit pas rester sur une page qui
-     n'existe plus. */
+  /* The period being looked at: the one chosen as long as it still
+     exists — deleting the last screening of a year makes it disappear
+     from the list, and one must not stay on a page that no longer
+     exists. */
   const period = choisie != null && périodes.includes(choisie) ? choisie : (périodes[0] ?? null);
 
   const [planche, setPlanche] = useState(0);
@@ -1069,14 +1066,14 @@ export function AlmanacView({
   );
   const drifts = useMemo(() => driftHighlights(films, 4), [films]);
 
-  /* LES FLÈCHES DU CLAVIER TOURNENT LA PAGE. C'est le geste d'un livret,
-     et il ne coûte rien à qui ne le connaît pas. Elles ne changent PAS
-     l'year : deux sens de navigation sur la même touche seraient
-     indevinables, et l'year a ses propres pastilles. */
+  /* THE KEYBOARD ARROWS TURN THE PAGE. It is a booklet's gesture, and
+     it costs nothing to whoever does not know it. They do NOT change the
+     year: two directions of navigation on the same key would be
+     unguessable, and the year has its own pills. */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const cible = e.target as HTMLElement | null;
-      // ne pas voler la flèche à qui est en train d'écrire
+      // do not steal the arrow from somebody who is typing
       if (cible && /^(INPUT|TEXTAREA)$/.test(cible.tagName)) return;
       if (cible?.isContentEditable) return;
       if (e.key === "ArrowRight") setPlanche((p) => Math.min(p + 1, PLANCHES.length - 1));
@@ -1086,15 +1083,15 @@ export function AlmanacView({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  /* L'IMAGE À EMPORTER. « en cours » plutôt qu'un booléen : le dessin
-     attend le chargement des affiches, et un bouton qui ne dit rien
-     pendant deux secondes passe pour cassé. */
+  /* THE IMAGE TO TAKE AWAY. "en cours" rather than a boolean: the
+     drawing waits for the posters to load, and a button that says
+     nothing for two seconds passes for broken. */
   const [boîte, setBoîte] = useState<"repos" | "en cours" | "raté">("repos");
   const emporter = async () => {
-    /* L'IMAGE EST COMPOSÉE AUTOUR D'UN MILLÉSIME — il s'y écrit en gros
-       caractères. Sur « toujours », il n'y en a pas, et le bouton ne
-       paraît pas : mieux vaut ne rien proposer qu'une image qui
-       inventerait une year. */
+    /* THE IMAGE IS COMPOSED AROUND A VINTAGE — it is written on it in
+       large characters. On "toujours" there is none, and the button does
+       not appear: better offer nothing than an image that would invent a
+       year. */
     if (typeof period !== "number" || a == null) return;
     setBoîte("en cours");
     try {
@@ -1145,9 +1142,9 @@ export function AlmanacView({
     );
   }
 
-  /* Le rang se prend dans les PÉRIODES et non dans les années : les
-     flèches doivent pouvoir atteindre « toujours », qui ouvre le
-     livret. */
+  /* The rank is taken from the PERIODS and not from the years: the
+     arrows must be able to reach "toujours", which opens the
+     booklet. */
   const rang = périodes.indexOf(period);
   const allerAnnée = (pas: number) => {
     const suivante = périodes[rang + pas];
@@ -1160,14 +1157,14 @@ export function AlmanacView({
       style={{
         padding: "22px 34px 0",
         position: "relative",
-        /* La page entière tient dans la fenêtre : c'est ici que le
-           non-défilement se décide, et nulle part ailleurs.
+        /* The whole page fits in the window: it is here that the
+           absence of scrolling is decided, and nowhere else.
 
-           `100vh` SUPPOSE QUE L'ALMANACH COMMENCE EN HAUT DE LA COLONNE,
-           et cette supposition n'est vraie que parce que rien ne se pose
-           jamais au-dessus de lui dans le flux. Le bandeau de la
-           collection d'exemple a failli la rompre : il passe par
-           `Calque`, précisément pour ne rien déplacer. */
+           `100vh` ASSUMES THE ALMANAC STARTS AT THE TOP OF THE COLUMN,
+           and that assumption is only true because nothing is ever laid
+           above it in the flow. The example collection's banner nearly
+           broke it: it goes through `Calque`, precisely so as to
+           displace nothing. */
         height: "100vh",
         boxSizing: "border-box",
         display: "flex",
@@ -1198,9 +1195,9 @@ export function AlmanacView({
             style={{
               fontFamily: F.title,
               fontWeight: 700,
-              /* « TOUJOURS » est plus long qu'un millésime : il tient
-                 dans la même largeur en descendant d'un corps, plutôt
-                 qu'en poussant les pastilles vers la droite. */
+              /* "TOUJOURS" is longer than a vintage: it fits in the
+                 same width by going down one size, rather than by
+                 pushing the pills to the right. */
               fontSize: toujours ? 30 : 42,
               fontStyle: toujours ? "italic" : "normal",
               color: C.burgundy,
@@ -1243,8 +1240,8 @@ export function AlmanacView({
               maxWidth: 380,
               overflowX: "auto",
               overflowY: "hidden",
-              /* Sans cela, un objet flex se laisse push par son
-                 contenu au lieu de défiler. */
+              /* Without this, a flex item lets itself be pushed by its
+                 content instead of scrolling. */
               minWidth: 0,
               paddingBottom: 2,
               scrollbarWidth: "thin",
@@ -1339,8 +1336,8 @@ export function AlmanacView({
 
       {/* ---- LA PLANCHE ---- */}
       <div
-        /* `key` : sans elle React réemploie le même nœud et l'animation
-           d'entrée ne se rejoue jamais. Voir le même motif dans `App`. */
+        /* `key`: without it React reuses the same node and the entry
+           animation never replays. See the same pattern in `App`. */
         key={`${period}:${planche}`}
         data-enters
         style={{ flex: 1, minHeight: 0, paddingBottom: 22, position: "relative", zIndex: 2 }}
@@ -1374,15 +1371,15 @@ function Titre() {
   );
 }
 
-/* LA PEAU POSÉE, EN VALEURS RÉSOLUES.
+/* THE SKIN IN PLACE, IN RESOLVED VALUES.
 
-   Les jetons sont des renvois : `C.paper` vaut la chaîne
-   « var(--c-paper) », qui ne veut rien dire pour un canevas. On demande
-   donc au document ce qu'elles valent AU MOMENT du clic — l'image sort
-   ainsi dans la peau qu'on avait posée, y compris une peau de nuit.
+   The tokens are references: `C.paper` is the string "var(--c-paper)",
+   which means nothing to a canvas. So we ask the document what they are
+   worth AT THE MOMENT of the click — the image thus comes out in the
+   skin that was laid on, including a night skin.
 
-   Lu ici et non dans le service : c'est la vue qui a le droit de
-   regarder le document. */
+   Read here and not in the service: it is the view that has the right to
+   look at the document. */
 function peauPosée(): BoxPalette {
   const s = getComputedStyle(document.documentElement);
   const v = (name: string, repli: string) => s.getPropertyValue(name).trim() || repli;
@@ -1423,8 +1420,8 @@ const anneeStyle = (actif: boolean): CSSProperties => ({
   fontSize: 10.5,
   letterSpacing: "var(--tag-tracking)",
   padding: "3px 7px",
-  /* La barre défile : une pastille qui se laisse comprimer donnerait
-     « 20… » au lieu d'un millésime. */
+  /* The bar scrolls: a pill that lets itself be squeezed would give
+     "20…" instead of a vintage. */
   flexShrink: 0,
   whiteSpace: "nowrap",
   color: actif ? C.card : C.inkFaded,

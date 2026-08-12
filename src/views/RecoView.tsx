@@ -14,21 +14,21 @@ import { filmKey } from "../domain/importing";
 import { atHomeSuggestions, type Nature } from "../domain/athome";
 import type { Film, Year } from "../types";
 
-/** Un film proposé par TMDB, une fois classé. */
+/** A film proposed by TMDB, once ranked. */
 interface Candidate {
   tmdbId: number;
   title: string;
   year: Year;
   poster: string;
   genres: string[];
-  /** Les motifs de la suggestion, prêts à lire. */
+  /** The reasons for the suggestion, ready to read. */
   reasons: string[];
-  /** Note TMDB, et part de niche calculée par `rank`. */
+  /** TMDB rating, and the niche share computed by `rank`. */
   voteAverage: number;
   niche: number;
 }
 
-/** Les réglages du bulletin de commande. Voir `DEFAULT_QUERY` dans reco.js. */
+/** The settings of the order form. See `DEFAULT_QUERY` in reco.js. */
 interface Query {
   yearFrom: string;
   yearTo: string;
@@ -43,24 +43,24 @@ interface Query {
   niche: { obscurity: boolean; foreign: boolean; age: boolean };
 }
 
-/** Les deux listes de genres, seules clés de `Query` qui portent un tableau. */
+/** The two genre lists, the only keys of `Query` carrying an array. */
 type GenreKey = "withGenres" | "withoutGenres";
 
-/** Les trois facteurs qui composent la « niche », et leur intitulé. */
+/** The three factors that make up the "niche", and their labels. */
 const NICHE_FACTORS: [keyof Query["niche"], string][] = [
   ["obscurity", "peu vu"],
   ["foreign", "non anglophone"],
   ["age", "ancien"],
 ];
 /* ============================================================
-   VUE — RECOMMANDATIONS : un bulletin de commande adressé aux
-   archives. On y règle ce qu'on cherche — et surtout à quelle
-   profondeur — puis on dépouille ce qui remonte.
+   VIEW — RECOMMENDATIONS: an order form addressed to the archives.
+   One sets on it what one is looking for — and above all at what
+   depth — then one goes through what comes back.
    ============================================================ */
 
-/* Les langues proposées : celles qui reviennent le plus souvent quand on
-   sort du circuit anglophone. La liste n'a pas à être exhaustive, seulement
-   à éviter d'avoir à taper un code ISO de mémoire. */
+/* The languages offered: those that come back most often when one
+   leaves the English-speaking circuit. The list does not have to be
+   exhaustive, only to spare having to type an ISO code from memory. */
 const RECO_LANGS = [
   ["", "toutes"],
   ["ja", "japonais"],
@@ -80,8 +80,8 @@ const RECO_LANGS = [
   ["en", "anglais"],
 ];
 
-/* Un curseur annoté à ses deux bouts : sans les étiquettes, personne ne sait
-   si push à droite rend le résultat plus pointu ou moins. */
+/* A slider annotated at both ends: without the labels, nobody knows
+   whether pushing to the right makes the result sharper or less so. */
 function Dial({
   label,
   left,
@@ -158,9 +158,10 @@ function Chip({
   );
 }
 
-/* La carte de résultat : l'affiche du mur, telle quelle, augmentée du motif
-   de la recommandation et d'un bouton pour la ranger. La fiche film est un
-   `<button>` entier — le geste « mettre de côté » vit donc à côté, pas dedans. */
+/* The result card: the wall's poster, as it is, augmented with the
+   reason for the recommendation and a button to file it. The film card
+   is a whole `<button>` — so the "set aside" gesture lives beside it,
+   not inside it. */
 function RecoCard({
   c,
   director,
@@ -168,11 +169,11 @@ function RecoCard({
   added,
 }: {
   c: Candidate;
-  /* Rapporté après coup (voir `useDirectors`), d'où les TROIS états : un
-     nom, la chaîne vide quand TMDB n'en connaît pas — la fiche dira
-     « anonyme » —, et `undefined` tant que la réponse n'est pas là. Les
-     confondre ferait annoncer « anonyme » à chaque affiche pendant une
-     seconde, c'est-à-dire dire faux le temps du chargement. */
+  /* Brought back afterwards (see `useDirectors`), hence the THREE
+     states: a name, the empty string when TMDB knows none — the card
+     will say "anonyme" —, and `undefined` as long as the answer is not
+     there. Confusing them would announce "anonyme" on every poster for a
+     second, that is to say say something false while loading. */
   director?: string;
   onAdd: () => void;
   added: boolean;
@@ -238,22 +239,22 @@ function RecoCard({
   );
 }
 
-/* LES RÉALISATEURS DES PROPOSITIONS, rapportés APRÈS le classement.
+/* THE DIRECTORS OF THE PROPOSALS, brought back AFTER the ranking.
 
-   `/discover` rend des films sans équipe : le nom demande un appel de
-   plus, par film. Le faire à la récolte le paierait pour des centaines
-   de candidats dont trente-neuf sur quarante seront écartés ; le faire
-   ici ne le paie que pour ce qui est affiché, et le cache d'une semaine
-   fait le reste quand deux recherches se recoupent.
+   `/discover` returns films with no crew: the name requires one more
+   call, per film. Doing it at harvest time would pay for it on hundreds
+   of candidates of which thirty-nine out of forty will be set aside;
+   doing it here only pays for what is displayed, and the one-week cache
+   does the rest when two searches overlap.
 
-   Un seul état, cumulatif : bouger un curseur reclasse la même récolte,
-   et les noms déjà connus doivent survivre au reclassement. */
+   A single state, cumulative: moving a slider re-ranks the same harvest,
+   and the names already known must survive the re-ranking. */
 function useDirectors(results: Candidate[] | null, apiKey: string) {
   const [noms, setNoms] = useState<Record<number, string>>({});
 
   const ids = (results || []).map((c) => c.tmdbId);
-  // la clé de l'effet est la LISTE, pas le tableau : `results` est un
-  // nouvel objet à chaque coup de curseur, la liste des identifiants non
+  // the effect's key is the LIST, not the array: `results` is a new
+  // object at every slider move, the list of identifiers is not
   const clé = ids.join(",");
 
   useEffect(() => {
@@ -264,8 +265,8 @@ function useDirectors(results: Candidate[] | null, apiKey: string) {
     pooled(
       manquants.map((id) => async () => {
         const nom = await directorOf(id, apiKey);
-        // on publie au fil de l'eau : quarante affiches ne doivent pas
-        // attendre la dernière réponse pour se nommer toutes ensemble
+        // we publish as we go: forty posters must not wait for the last
+        // answer to name themselves all at once
         if (vivant) setNoms((n) => (id in n ? n : { ...n, [id]: nom }));
       }),
       { concurrency: 5 }
@@ -280,16 +281,15 @@ function useDirectors(results: Candidate[] | null, apiKey: string) {
 }
 
 /* ------------------------------------------------------------
-   CHEZ VOUS — ce que la collection propose d'elle-même
+   AT YOUR PLACE — what the collection proposes on its own
    ------------------------------------------------------------
 
-   Le bureau des découvertes ne savait regarder que dehors, et, sans clé
-   TMDB, il ne montrait RIEN : un titre, et un encadré expliquant
-   comment le rendre utile. Un onglet entier réduit à un mode d'emploi.
+   The discoveries desk only knew how to look outwards, and, with no TMDB
+   key, it showed NOTHING: a title, and a box explaining how to make it
+   useful. A whole tab reduced to a set of instructions.
 
-   Ces propositions-ci ne demandent le réseau à personne. Elles passent
-   donc AVANT — et cet onglet a désormais quelque chose à dire dès la
-   première visite. */
+   These proposals ask the network of nobody. So they come FIRST — and
+   this tab now has something to say from the first visit. */
 function ChezVous({
   suggestions,
   onOpen,
@@ -363,9 +363,9 @@ function ChezVous({
   );
 }
 
-/* Une teinte par nature : on doit voir d'un coup d'œil que la liste
-   regarde la collection sous trois angles, et non qu'elle répète la
-   même chose six fois. */
+/* One tint per kind: one must see at a glance that the list looks at
+   the collection from three angles, and not that it repeats the same
+   thing six times. */
 const TEINTE: Record<Nature, string> = {
   rewatch: C.burgundy,
   motif: C.plum,
@@ -392,7 +392,7 @@ export function RecoView({
 }: {
   films: Film[];
   onAddToWatchlist: (f: Film) => void;
-  /** Ouvre une fiche de la collection — les propositions « chez vous ». */
+  /** Opens a card of the collection — the "chez vous" proposals. */
   onOpen?: (id: string) => void;
 }) {
   const [query, setQuery] = useState<Query>(DEFAULT_QUERY);
@@ -404,17 +404,17 @@ export function RecoView({
 
   const apiKey = useTmdbKey();
   const taste = useMemo(() => buildTaste(films), [films]);
-  /* Calculé ICI et non dans le bloc : le message de clé manquante doit
-     savoir s'il y a quelque chose au-dessus de lui pour en parler. */
+  /* Computed HERE and not in the block: the missing-key message must
+     know whether there is something above it to speak of. */
   const maison = useMemo(() => atHomeSuggestions(films), [films]);
   const allGenres = useMemo(
     () => Array.from(new Set(films.flatMap((f) => f.genres || []))).sort(),
     [films]
   );
 
-  /* Ce qui est déjà au mur ne doit jamais revenir en suggestion. Les fiches
-     anciennes n'ont pas de tmdbId : on retombe sur la clé titre + année, la
-     même que l'import utilise pour ne pas dupliquer. */
+  /* What is already on the wall must never come back as a suggestion.
+     The old cards have no tmdbId: we fall back on the title + year key,
+     the same one the import uses so as not to duplicate. */
   const isSeen = useMemo(() => {
     const ids = new Set(
       films
@@ -454,9 +454,10 @@ export function RecoView({
     setProgress(null);
   };
 
-  /* Le classement est pur : bouger un curseur reclasse la même récolte, sans
-     redemander quoi que ce soit au réseau. C'est ce qui rend les curseurs
-     lisibles — on voit l'effet du réglage, pas celui d'un nouveau tirage. */
+  /* The ranking is pure: moving a slider re-ranks the same harvest,
+     without asking the network for anything again. That is what makes
+     the sliders legible — one sees the effect of the setting, not that
+     of a new draw. */
   const results = useMemo(() => (raw ? rank(raw, taste, query, 40) : null), [raw, taste, query]);
   const directors = useDirectors(results, apiKey);
 
@@ -467,8 +468,8 @@ export function RecoView({
         year: c.year || "",
         poster: c.poster,
         genres: c.genres,
-        // on le connaît maintenant : la fiche rangée part nommée, au lieu
-        // d'attendre un « compléter les fiches » pour redemander la même chose
+        // we know it now: the filed card leaves named, instead of
+        // waiting for a "complete the cards" to ask for the same thing again
         director: directors[c.tmdbId] || "",
         status: "watchlist",
         tmdbId: c.tmdbId,

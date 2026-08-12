@@ -1,20 +1,20 @@
 /* ============================================================
-   RETROUVER SA WATCHLIST — le panneau de réparation
+   FINDING ONE'S WATCHLIST AGAIN — the repair panel
    ============================================================
 
-   « Compléter les fiches » a longtemps fait passer « à voir » → « vu »
-   les fiches qu'il enrichissait. Le bouton est réparé (`keepStatus`,
-   dans `importing`), mais les collections déjà basculées restent
-   basculées : la correction ne remonte pas le temps.
+   "Completing the cards" long moved the cards it enriched from "à voir"
+   to "vu". The button is fixed (`keepStatus`, in `importing`), but the
+   collections already flipped stay flipped: the fix does not go back in
+   time.
 
-   `domain/repairs` sait DÉSIGNER les fiches suspectes — une fiche
-   « vue » qui ne porte aucune trace de visionnage. Il ne sait pas, et ne
-   peut pas savoir, laquelle était vraiment une envie. Ce panneau est
-   donc une LISTE À COCHER et non un bouton : la machine propose, l'œil
-   dispose, et rien ne s'écrit avant la confirmation.
+   `domain/repairs` knows how to POINT AT the suspicious cards — a "seen"
+   card carrying no trace of a viewing. It does not know, and cannot
+   know, which one really was a wish. So this panel is a CHECKLIST and
+   not a button: the machine proposes, the eye disposes, and nothing is
+   written before the confirmation.
 
-   Il ne s'affiche que s'il a quelque chose à dire. Une collection saine
-   ne doit pas porter en permanence le souvenir d'un bug. */
+   It only shows if it has something to say. A healthy collection must
+   not permanently carry the memory of a bug. */
 import { useMemo, useState } from "react";
 import { Undo2 } from "lucide-react";
 import { C, F } from "../../theme/tokens";
@@ -31,10 +31,11 @@ interface RepairPanelProps {
 
 export function RepairPanel({ films, onImport }: RepairPanelProps) {
   const suspectes = useMemo(() => flippedByMistake(films), [films]);
-  /* Rien de coché au départ. Décocher trente fiches sur trois cents est
-     un travail ; cocher celles qu'on reconnaît en est un autre — mais le
-     second se trompe dans le sens qui ne coûte rien. « TOUT COCHER » est
-     là pour qui reconnaît sa watchlist entière d'un coup d'œil. */
+  /* Nothing ticked at the start. Unticking thirty cards out of three
+     hundred is work; ticking the ones one recognises is another kind —
+     but the second errs in the direction that costs nothing. "TOUT
+     COCHER" is there for whoever recognises their whole watchlist at a
+     glance. */
   const [choisies, setChoisies] = useState<Set<string>>(new Set());
   const [request, setRequest] = useState<ConfirmRequest | null>(null);
   const [bilan, setBilan] = useState("");
@@ -54,9 +55,9 @@ export function RepairPanel({ films, onImport }: RepairPanelProps) {
       s.size === suspectes.length ? new Set() : new Set(suspectes.map((f) => f.id))
     );
 
-  /* On repasse par `onImport` plutôt que par un chemin d'écriture à soi :
-     c'est la même fusion champ par champ que l'import, et un seul endroit
-     où l'écriture peut se tromper. */
+  /* We go back through `onImport` rather than a writing path of our
+     own: it is the same field-by-field merge as the import, and a single
+     place where the writing can go wrong. */
   const remettre = () => {
     const àRemettre = suspectes.filter((f) => choisies.has(f.id));
     if (!àRemettre.length) return;
