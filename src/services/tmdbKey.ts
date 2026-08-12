@@ -15,7 +15,7 @@
 
    Ce module tient donc la clé en UN point, prévient tout le monde quand
    elle change, et donne à chaque vue de quoi dire son manque à voix
-   haute (voir `SansCle`).
+   haute (voir `NoKey`).
    ============================================================ */
 import { useSyncExternalStore } from "react";
 import { KEYS, store } from "./storage";

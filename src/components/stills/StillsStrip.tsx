@@ -4,7 +4,7 @@ import { C, F } from "../../theme/tokens";
 import { underlineInput, tap } from "../../theme/styles";
 import { tiltOf } from "../../domain/seeded";
 import { deleteImage } from "../../db";
-import { Carton, Consigne, TitreSection } from "../ui";
+import { Cardstock, Guideline, SectionTitle } from "../ui";
 import { IdbImage } from "./IdbImage";
 import { STILL_TOKEN } from "./tokens";
 import type { Film } from "../../types";
@@ -58,8 +58,8 @@ export function StillsStrip({
   };
 
   return (
-    <Carton>
-      <TitreSection
+    <Cardstock>
+      <SectionTitle
         icon={<Clapperboard size={15} color={C.burgundy} />}
         action={
           <>
@@ -97,12 +97,12 @@ export function StillsStrip({
         }
       >
         La pellicule
-      </TitreSection>
-      <Consigne>
+      </SectionTitle>
+      <Guideline>
         {stills.length === 0
           ? "aucune capture — Ctrl+V colle directement une image du presse-papier"
           : "Ctrl+V pour coller · « insérer » place la vignette à l'endroit du curseur"}
-      </Consigne>
+      </Guideline>
 
       {stills.length > 0 && (
         <div
@@ -256,6 +256,6 @@ export function StillsStrip({
           })}
         </div>
       )}
-    </Carton>
+    </Cardstock>
   );
 }

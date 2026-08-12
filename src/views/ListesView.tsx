@@ -64,10 +64,10 @@ export function ListesView({ connecte }: { connecte: boolean }) {
   if (!serveurConfigure()) {
     return (
       <Page>
-        <Consigne>
+        <Guideline>
           Aucun serveur n'est réglé : les listes et les défis se partagent, et il n'y a personne
           avec qui.
-        </Consigne>
+        </Guideline>
       </Page>
     );
   }
@@ -75,9 +75,9 @@ export function ListesView({ connecte }: { connecte: boolean }) {
   if (!connecte) {
     return (
       <Page>
-        <Consigne>
+        <Guideline>
           Il faut un compte — le bouton au pied du rail. Votre vidéothèque, elle, n'en a pas besoin.
-        </Consigne>
+        </Guideline>
       </Page>
     );
   }
@@ -116,7 +116,7 @@ export function ListesView({ connecte }: { connecte: boolean }) {
 
       <div data-tour="listes-mes-listes" style={{ marginBottom: 34 }}>
         <Label>Vos listes</Label>
-        {listes.length === 0 && <Consigne>Aucune liste pour l'instant.</Consigne>}
+        {listes.length === 0 && <Guideline>Aucune liste pour l'instant.</Guideline>}
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 6 }}>
           {listes.map((l) => (
             <UneListe
@@ -133,10 +133,10 @@ export function ListesView({ connecte }: { connecte: boolean }) {
       <div data-tour="listes-defis">
         <Label>Les défis</Label>
         {defis.length === 0 && (
-          <Consigne>
+          <Guideline>
             Aucun défi. Un défi est une liste plus une période : ouvrez une liste ci-dessus pour en
             lancer un.
-          </Consigne>
+          </Guideline>
         )}
         <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 8 }}>
           {defis.map((d) => (
@@ -233,7 +233,9 @@ function UneListe({
 
       {ouverte && (
         <div style={{ padding: "0 12px 14px" }}>
-          {oeuvres.length === 0 && <Consigne>Vide. Rangez-y des films depuis leur fiche.</Consigne>}
+          {oeuvres.length === 0 && (
+            <Guideline>Vide. Rangez-y des films depuis leur fiche.</Guideline>
+          )}
           {oeuvres.map((o) => (
             <div
               key={o.tmdb_id}
@@ -424,7 +426,7 @@ function UnDefi({ defi, onChange }: { defi: Defi; onChange: () => Promise<void> 
           serveur compte, il ne recopie pas — et ne compte que des gens
           qui ont demandé à participer. */}
       <div style={{ marginTop: 8 }}>
-        {avancement?.length === 0 && <Consigne>Person n'y participe encore.</Consigne>}
+        {avancement?.length === 0 && <Guideline>Person n'y participe encore.</Guideline>}
         {(avancement ?? []).map((a) => (
           <div
             key={a.pseudo}
@@ -506,7 +508,7 @@ const Page = ({ children }: { children: ReactNode }) => (
   </div>
 );
 
-const Consigne = ({ children }: { children: ReactNode }) => (
+const Guideline = ({ children }: { children: ReactNode }) => (
   <div style={{ fontFamily: F.hand, fontSize: 17, color: C.inkFaded, marginTop: 8 }}>
     {children}
   </div>

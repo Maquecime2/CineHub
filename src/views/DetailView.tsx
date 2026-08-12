@@ -19,8 +19,15 @@ import { uid, withWatches, initialsOf } from "../domain/film";
 import { searchFilms } from "../domain/search";
 import { putImage } from "../db";
 import { imageSize, shrinkImage } from "../services/images";
-import { Carton, Confirmation, Consigne, Label, InkStars, TitreSection } from "../components/ui";
-import type { DemandeConfirmation } from "../components/ui";
+import {
+  Cardstock,
+  Confirmation,
+  Guideline,
+  Label,
+  InkStars,
+  SectionTitle,
+} from "../components/ui";
+import type { ConfirmRequest } from "../components/ui";
 import { TagEditor } from "../components/ui/TagEditor";
 import { MotifPicker } from "../components/film/MotifPicker";
 import { MOTIFS, suggestMotifs } from "../domain/motifs";
@@ -210,10 +217,10 @@ export function DetailView({
     setOngletLocal(o);
     onOnglet?.(o);
   };
-  /* Une seule demande à la fois, portée par la vue : les trois gestes qui
+  /* Une seule request à la fois, portée par la vue : les trois gestes qui
      la lèvent — supprimer la fiche, la mettre de côté, supprimer un motif —
      n'ont rien à partager sinon le fait qu'on puisse s'être trompé. */
-  const [demande, setDemande] = useState<DemandeConfirmation | null>(null);
+  const [request, setRequest] = useState<ConfirmRequest | null>(null);
   const [linkType, setLinkType] = useState<LinkType>("book");
   const [linkTitle, setLinkTitle] = useState("");
   const [linkCreator, setLinkCreator] = useState("");
@@ -484,7 +491,7 @@ export function DetailView({
       {onglet === "film" && (
         <div style={{ display: "flex", gap: 34, flexWrap: "wrap", alignItems: "flex-start" }}>
           <div style={{ flex: "1 1 420px", minWidth: 0, maxWidth: 620 }}>
-            <Carton tour="detail-catalog">
+            <Cardstock tour="detail-catalog">
               <Label>Fiche catalogue</Label>
               {/* Titre, année, réalisateur·rice et genres : en lecture ici, et
                 rattrapables d'un clic — c'est la seule façon de corriger une
@@ -552,7 +559,7 @@ export function DetailView({
                 </>
               )}
               {/* LE JOURNAL EST PARTI DANS « MES MOTS », et c'est le
-                découpage lui-même qui le demande : une séance datée est
+                découpage lui-même qui le request : une séance datée est
                 ce que VOUS avez fait du film, pas ce qu'il est. Il est
                 aussi ce qui vaut le plus de place, et il en avait deux
                 cent quarante pixels dans la colonne d'affiche. */}
@@ -587,7 +594,7 @@ export function DetailView({
                   des deux autres : ce que les autres voient de cette
                   fiche, et le droit de la leur retirer. */}
               <EcarterDuPartage film={film} connecte={connecte} />
-            </Carton>
+            </Cardstock>
           </div>
 
           {/* L'IDENTITÉ, ET NON LE RANGEMENT — d'où un carton à part, et
@@ -597,9 +604,9 @@ export function DetailView({
               vos mots. On ne s'en sert qu'une fois par fiche, et jamais
               sur la plupart. */}
           <div style={{ flex: "1 1 260px", maxWidth: 380, minWidth: 0 }}>
-            <Carton tour="detail-identite">
+            <Cardstock tour="detail-identite">
               <TmdbLink film={film} onUpdate={onUpdate} />
-            </Carton>
+            </Cardstock>
           </div>
         </div>
       )}
@@ -616,9 +623,9 @@ export function DetailView({
               donnée la plus riche de la fiche et la seule que l'almanach
               lise ; il n'avait qu'un quart de colonne. */}
             {film.status !== "watchlist" && (
-              <Carton tour="detail-watchlog" style={{ marginBottom: 18 }}>
+              <Cardstock tour="detail-watchlog" style={{ marginBottom: 18 }}>
                 <WatchLog film={film} onUpdate={onUpdate} />
-              </Carton>
+              </Cardstock>
             )}
             <Paperclip
               size={26}
@@ -634,7 +641,7 @@ export function DetailView({
             {/* Le champ actif reçoit les captures qu'on insère. Le liseré n'est
               plus une auréole posée AUTOUR du bloc mais le filet du carton
               lui-même, qui change d'encre : c'est le même objet, désigné. */}
-            <Carton
+            <Cardstock
               tour="detail-review"
               onFocusCapture={() => setFocusField("review")}
               style={{
@@ -653,8 +660,8 @@ export function DetailView({
                 }}
                 placeholder="Écrivez ici, à main levée…"
               />
-            </Carton>
-            <Carton
+            </Cardstock>
+            <Cardstock
               onFocusCapture={() => setFocusField("notes")}
               style={{
                 marginTop: 18,
@@ -673,7 +680,7 @@ export function DetailView({
                 }}
                 placeholder="Scènes, citations, fragments…"
               />
-            </Carton>
+            </Cardstock>
 
             {/* LA PELLICULE, SOUS LE TEXTE QU'ELLE ILLUSTRE.
 
@@ -713,18 +720,18 @@ export function DetailView({
               gap: 18,
             }}
           >
-            <Carton>
+            <Cardstock>
               <Label>Mots-clés</Label>
               <TagEditor
                 tags={film.themes || []}
                 allTags={allTags}
                 onChange={(themes) => onUpdate({ ...film, themes })}
               />
-            </Carton>
+            </Cardstock>
             {/* Les motifs, sous les mots-clés et non à leur place : les uns
               sont vos mots, les autres le vocabulaire commun sur lequel
               une question peut porter. */}
-            <Carton tour="detail-tags">
+            <Cardstock tour="detail-tags">
               <Label>Motifs</Label>
               <MotifPicker
                 motifs={film.motifs || []}
@@ -751,23 +758,23 @@ export function DetailView({
                         const combien = films.filter((f) =>
                           (f.motifs || []).includes(motif.id)
                         ).length;
-                        setDemande({
-                          titre: `Supprimer « ${motif.label} » ?`,
-                          corps: combien
+                        setRequest({
+                          title: `Supprimer « ${motif.label} » ?`,
+                          body: combien
                             ? `Ce motif est posé sur ${combien} fiche${combien > 1 ? "s" : ""} — il en sera retiré.`
                             : "Ce motif n'est posé sur aucune fiche.",
                           action: "supprimer le motif",
-                          grave: true,
+                          severe: true,
                           onConfirm: () => onSupprimerMotif(motif.id),
                         });
                       }
                     : undefined
                 }
               />
-            </Carton>
+            </Cardstock>
             {/* Les deux rangements de l'étagère, atteignables sans y aller :
               ils changent le rayon, pas la fiche. */}
-            <Carton style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <Cardstock style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <Label>Ce qu'on en fait</Label>
               {/* Pas de bedside pour un film qu'on n'a pas vu : le rayon
                   est celui qu'on revoit, et l'étagère de la watchlist ne
@@ -799,16 +806,15 @@ export function DetailView({
                 </button>
               )}
               <button
-                /* Remettre en rayon ne demande rien : c'est le geste qui
+                /* Remettre en rayon ne request rien : c'est le geste qui
                  défait l'autre, et faire confirmer un retour en arrière
                  apprend surtout à cliquer sans lire. */
                 onClick={() => {
                   const remise = { ...film, archived: !film.archived, bedside: false };
                   if (film.archived) return onUpdate({ ...film, archived: false });
-                  setDemande({
-                    titre: "Mettre cette fiche de côté ?",
-                    corps:
-                      "Elle quitte le mur et la constellation, sans être détruite — on la remet en rayon quand on veut.",
+                  setRequest({
+                    title: "Mettre cette fiche de côté ?",
+                    body: "Elle quitte le mur et la constellation, sans être détruite — on la remet en rayon quand on veut.",
                     action: "mettre de côté",
                     onConfirm: () => onUpdate(remise),
                   });
@@ -840,12 +846,11 @@ export function DetailView({
                 les confonde, et l'un des deux ne se rattrape pas. */}
               <button
                 onClick={() =>
-                  setDemande({
-                    titre: `Supprimer « ${film.title} » ?`,
-                    corps:
-                      "La fiche, ses notes, ses captures et ses fils partent avec elle. Rien ne se rattrape — « mettre de côté » range sans détruire.",
+                  setRequest({
+                    title: `Supprimer « ${film.title} » ?`,
+                    body: "La fiche, ses notes, ses captures et ses fils partent avec elle. Rien ne se rattrape — « mettre de côté » range sans détruire.",
                     action: "supprimer",
-                    grave: true,
+                    severe: true,
                     onConfirm: () => onDelete(film.id),
                   })
                 }
@@ -866,7 +871,7 @@ export function DetailView({
               >
                 <Trash2 size={12} /> supprimer définitivement
               </button>
-            </Carton>
+            </Cardstock>
           </div>
         </div>
       )}
@@ -888,13 +893,13 @@ export function DetailView({
             autres colonnes : c'est là qu'il était, l'ordre de lecture ne
             change pas. */}
           <div style={{ flex: "1 1 380px", minWidth: 0 }}>
-            <Carton tour="detail-thread">
-              <TitreSection icon={<Link2 size={15} color={C.burgundy} />}>
+            <Cardstock tour="detail-thread">
+              <SectionTitle icon={<Link2 size={15} color={C.burgundy} />}>
                 Le fil rouge
-              </TitreSection>
-              <Consigne>
+              </SectionTitle>
+              <Guideline>
                 les œuvres qui répondent à ce film — livres, peintures, autres films
-              </Consigne>
+              </Guideline>
 
               <ThreadBoard
                 film={film}
@@ -1129,7 +1134,7 @@ export function DetailView({
                   <Plus size={13} /> relier
                 </button>
               </div>
-            </Carton>
+            </Cardstock>
             {/* LE SILLAGE, SOUS LE FIL ROUGE ET DANS LE MÊME ONGLET.
 
               Il était tout en bas de la page entière, après les motifs.
@@ -1148,7 +1153,7 @@ export function DetailView({
           </div>
         </div>
       )}
-      <Confirmation demande={demande} onClose={() => setDemande(null)} />
+      <Confirmation request={request} onClose={() => setRequest(null)} />
       {lightbox != null && (
         <StillLightbox
           stills={stills}

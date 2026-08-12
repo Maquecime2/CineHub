@@ -19,7 +19,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { Bookmark, Compass, Waves } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { hueOf } from "../../theme/ink";
-import { Carton, Consigne, SansCle, TitreSection } from "../../components/ui";
+import { Cardstock, Guideline, NoKey, SectionTitle } from "../../components/ui";
 import { PosterArt } from "../../components/film/PosterArt";
 import { initialsOf, makeFilm } from "../../domain/film";
 import { wakeAtHome, familyOf, byQuotas } from "../../domain/wake";
@@ -495,11 +495,11 @@ export function SillagePanel({
   };
 
   return (
-    <Carton tour="detail-sillage" style={{ marginTop: 18 }}>
-      <TitreSection icon={<Waves size={15} color={C.cobalt} />}>Dans le sillage</TitreSection>
-      <Consigne>
+    <Cardstock tour="detail-sillage" style={{ marginTop: 18 }}>
+      <SectionTitle icon={<Waves size={15} color={C.cobalt} />}>Dans le sillage</SectionTitle>
+      <Guideline>
         ce qui tient de « {film.title} » — par l&apos;équipe, les sujets, les gens à l&apos;affiche
-      </Consigne>
+      </Guideline>
 
       <div
         style={{
@@ -561,7 +561,7 @@ export function SillagePanel({
           </div>
           <div style={{ minHeight: HAUTEUR_MINIMALE }}>
             {!apiKey ? (
-              <SansCle quoi="chercher au-dehors ce qui tient de ce film" />
+              <NoKey what="chercher au-dehors ce qui tient de ce film" />
             ) : cherche ? (
               <Rien>
                 <Compass size={13} style={{ verticalAlign: "-2px", marginRight: 5 }} />
@@ -622,6 +622,6 @@ export function SillagePanel({
           </div>
         </div>
       </div>
-    </Carton>
+    </Cardstock>
   );
 }

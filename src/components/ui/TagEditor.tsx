@@ -1,9 +1,9 @@
 /* ============================================================
-   MOTS-CLÉS — le champ `themes` du modèle, rendu vraiment utilisable.
-   Il existait depuis le début mais n'était saisissable qu'à la création,
-   en une ligne séparée par des virgules. Ici : ajout, suppression, et
-   suggestions tirées des mots-clés déjà employés ailleurs, pour éviter
-   qu'« Solitude » et « solitude » deviennent deux étiquettes distinctes.
+   KEYWORDS — the model's `themes` field, made genuinely usable.
+   It had existed from the start but could only be entered at creation
+   time, on one comma-separated line. Here: adding, removing, and
+   suggestions drawn from the keywords already used elsewhere, so that
+   "Solitude" and "solitude" do not become two distinct tags.
    ============================================================ */
 import { useState } from "react";
 import { X } from "lucide-react";
@@ -36,11 +36,10 @@ export function TagChip({
         display: "inline-flex",
         alignItems: "center",
         gap: 5,
-        /* Une puce est un enfant de rangée souple, et un enfant souple ne
-           descend jamais sous la largeur de son contenu : un mot-clé plus
-           long que sa colonne poussait donc la page entière vers la
-           droite. On la laisse aller à la ligne DANS la puce plutôt que
-           de rogner le mot ou d'écrêter la vue. */
+        /* A chip is a flex-row child, and a flex child never goes below
+           the width of its content: a keyword longer than its column
+           therefore pushed the whole page to the right. We let it wrap
+           INSIDE the chip rather than clip the word or crop the view. */
         maxWidth: "100%",
         whiteSpace: "normal",
         fontFamily: F.mono,
@@ -85,7 +84,7 @@ export function TagEditor({
   const add = (raw: string) => {
     const t = clean(raw);
     if (!t) return;
-    // on réutilise la casse déjà en usage plutôt que d'en créer une variante
+    // we reuse the casing already in use rather than create a variant of it
     const existing = allTags.find((x) => x.toLowerCase() === t.toLowerCase());
     const final = existing || t;
     if (!tags.some((x) => x.toLowerCase() === final.toLowerCase())) onChange([...tags, final]);

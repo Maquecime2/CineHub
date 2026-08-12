@@ -305,8 +305,8 @@ export interface ImportDiff {
 
 export interface SkyNode {
   id: string;
-  /** `fil` : un rassemblement nommé, qui n'est ni un film ni une œuvre. */
-  kind: "film" | "work" | "fil";
+  /** `thread`: a named gathering, which is neither a film nor a work. */
+  kind: "film" | "work" | "thread";
   label: string;
   sub: string;
   /** Nombre d'arêtes : dose la taille de l'astre et décide s'il est étiqueté. */
@@ -320,8 +320,8 @@ export interface SkyNode {
   /** Fils seulement : la clé de teinte du fil, et le motif qui l'alimente. */
   color?: string;
   motif?: string | null;
-  /** Vrai quand l'astre ne tient au ciel que parce qu'on l'y a épinglé. */
-  épinglé?: boolean;
+  /** True when the star only holds in the sky because it was pinned there. */
+  pinned?: boolean;
 }
 
 /** Un nœud une fois placé par la relaxation. */
@@ -336,7 +336,7 @@ export interface SkyLink {
    * les génériques — elle se dessine autrement, parce que la carte doit
    * dire du premier coup d'œil ce qui vient de vous.
    */
-  kind: "cite" | "peer" | "crew" | "fil";
+  kind: "cite" | "peer" | "crew" | "thread";
   /** Les raisons qui justifient un fil "crew" — de quoi l'expliquer en une ligne. */
   why?: Kinship[];
   /** "peer" seulement : la nature du lien, telle qu'écrite du côté `a`. */
@@ -359,7 +359,7 @@ export type KinshipRole =
 
 export interface Kinship {
   role: KinshipRole;
-  nom: string;
+  name: string;
 }
 
 /** Restreint la carte du ciel à un sous-ensemble de la collection. */

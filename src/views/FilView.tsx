@@ -59,10 +59,10 @@ export function FilView({ connecte }: { connecte: boolean }) {
   if (!serveurConfigure()) {
     return (
       <Page>
-        <Consigne>
+        <Guideline>
           Aucun serveur n'est réglé : le classeur vit entièrement chez vous, et il n'y a personne à
           suivre.
-        </Consigne>
+        </Guideline>
       </Page>
     );
   }
@@ -70,10 +70,10 @@ export function FilView({ connecte }: { connecte: boolean }) {
   if (!connecte) {
     return (
       <Page>
-        <Consigne>
+        <Guideline>
           Il faut un compte pour suivre quelqu'un — le bouton au pied du rail. Votre collection,
           elle, n'en a pas besoin.
-        </Consigne>
+        </Guideline>
       </Page>
     );
   }
@@ -199,13 +199,13 @@ export function FilView({ connecte }: { connecte: boolean }) {
       {/* ---- le fil ---- */}
       <div data-tour="fil-nouvelles">
         <Label>Dernièrement, chez eux</Label>
-        {nouvelles === null && <Consigne>Ouverture…</Consigne>}
+        {nouvelles === null && <Guideline>Ouverture…</Guideline>}
         {nouvelles?.length === 0 && (
-          <Consigne>
+          <Guideline>
             {abonnements.length === 0
               ? "Vous ne suivez encore personne. Cherchez un pseudonyme ci-dessus."
               : "Rien de neuf chez les gens que vous suivez."}
-          </Consigne>
+          </Guideline>
         )}
         {nouvelles && nouvelles.length > 0 && (
           <div
@@ -298,7 +298,7 @@ const Page = ({ children }: { children: ReactNode }) => (
   </div>
 );
 
-const Consigne = ({ children }: { children: ReactNode }) => (
+const Guideline = ({ children }: { children: ReactNode }) => (
   <div style={{ fontFamily: F.hand, fontSize: 18, color: C.inkFaded, marginTop: 8 }}>
     {children}
   </div>

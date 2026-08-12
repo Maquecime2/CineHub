@@ -16,7 +16,7 @@ import { X, Dice5, ArrowRight, Loader2 } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { PosterArt } from "../../components/film/PosterArt";
-import { Label, SansCle } from "../../components/ui";
+import { Label, NoKey } from "../../components/ui";
 import { initialsOf } from "../../domain/film";
 import { MOTIFS, suggestMotifs } from "../../domain/motifs";
 import { rankTheEvening, listLanguages, SLOTS, type Craving } from "../../domain/tonight";
@@ -215,7 +215,7 @@ export function SoirDrawer({
               /* Sans clé, les motifs d'une fiche non vue n'existent pas et
                rien ne peut les deviner. On le dit plutôt que de laisser
                une molette qui ne répond à rien. */
-              <SansCle quoi="deviner l'humeur d'un film que vous n'avez pas encore annoté" />
+              <NoKey what="deviner l'humeur d'un film que vous n'avez pas encore annoté" />
             )}
             {!apiKey && (
               <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, margin: "6px 0" }}>

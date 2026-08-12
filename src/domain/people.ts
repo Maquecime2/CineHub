@@ -76,7 +76,7 @@ interface Draft {
 export const rolesOnFilm = (f: Film, key: string): KinshipRole[] => {
   const seen = new Set<KinshipRole>();
   for (const k of kinshipsOf(f))
-    if (isPersonRole(k.role) && normalize(k.nom.trim()) === key) seen.add(k.role);
+    if (isPersonRole(k.role) && normalize(k.name.trim()) === key) seen.add(k.role);
   return PERSON_ROLES.filter((r) => seen.has(r));
 };
 
@@ -156,7 +156,7 @@ export function census(films: Film[]): Person[] {
     const seenHere = new Set<string>();
     for (const k of kinshipsOf(f)) {
       if (!isPersonRole(k.role)) continue;
-      const name = k.nom.trim();
+      const name = k.name.trim();
       if (!name) continue;
       const key = normalize(name);
       if (!key) continue;

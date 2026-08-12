@@ -1,6 +1,6 @@
 import { C, F } from "../../theme/tokens";
 
-/* une ligne de bordereau : intitulé à gauche, chiffre tamponné à droite */
+/* a docket line: label on the left, figure stamped on the right */
 export function Tally({
   label,
   value,

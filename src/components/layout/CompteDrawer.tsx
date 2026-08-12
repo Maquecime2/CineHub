@@ -30,7 +30,7 @@ import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { Calque } from "../ui/Calque";
 import { Label } from "../ui";
-import { Confirmation, type DemandeConfirmation } from "../ui/Confirmation";
+import { Confirmation, type ConfirmRequest } from "../ui/Confirmation";
 import {
   ADRESSE,
   effacerMonCompte,
@@ -80,7 +80,7 @@ export function CompteDrawer({
   const [pseudo, setPseudo] = useState("");
   const [occupé, setOccupé] = useState(false);
   const [souci, setSouci] = useState<string | null>(null);
-  const [demande, setDemande] = useState<DemandeConfirmation | null>(null);
+  const [request, setRequest] = useState<ConfirmRequest | null>(null);
 
   const tenter = async (quoi: (p: string) => Promise<Person>) => {
     setSouci(null);
@@ -328,13 +328,13 @@ export function CompteDrawer({
                 <button
                   disabled={occupé}
                   onClick={() =>
-                    setDemande({
-                      titre: "Effacer votre compte ?",
-                      corps: `La copie de votre collection sur le serveur est effacée, avec vos clés d'accès et vos sessions. Votre classeur, lui, reste entier sur cet appareil — mais vos autres appareils ne se synchroniseront plus.`,
+                    setRequest({
+                      title: "Effacer votre compte ?",
+                      body: `La copie de votre collection sur le serveur est effacée, avec vos clés d'accès et vos sessions. Votre classeur, lui, reste entier sur cet appareil — mais vos autres appareils ne se synchroniseront plus.`,
                       action: "EFFACER LE COMPTE",
-                      grave: true,
+                      severe: true,
                       onConfirm: async () => {
-                        setDemande(null);
+                        setRequest(null);
                         setOccupé(true);
                         try {
                           await effacerMonCompte();
@@ -365,7 +365,7 @@ export function CompteDrawer({
           </div>
         )}
 
-        <Confirmation demande={demande} onClose={() => setDemande(null)} />
+        <Confirmation request={request} onClose={() => setRequest(null)} />
 
         <div
           style={{
@@ -573,7 +573,7 @@ function Rappels() {
       <Label>Les rappels</Label>
       {état.refusee ? (
         /* Le refus est définitif dans la plupart des navigateurs : il
-           n'y a pas de seconde demande à faire, seulement un réglage à
+           n'y a pas de seconde request à faire, seulement un réglage à
            rouvrir à la main. Le dire vaut mieux qu'un bouton qui
            échoue. */
         <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded, marginTop: 4 }}>

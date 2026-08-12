@@ -14,7 +14,7 @@ import {
   buildSkyWithCrew,
   neighbourhood,
   relax,
-  voisinDansLaDirection,
+  neighbourInDirection,
 } from "../domain/sky";
 import type { Direction } from "../domain/sky";
 import { CoffeeRing, StampCorner, InkUnderline } from "../components/atmosphere";
@@ -146,8 +146,8 @@ export function ConstellationView({
   const complet = useMemo(
     () =>
       équipes
-        ? buildSkyWithCrew(films, { tags, genres }, {}, { fils: filsActifs, pinned: épingles })
-        : buildSky(films, { tags, genres }, { fils: filsActifs, pinned: épingles }),
+        ? buildSkyWithCrew(films, { tags, genres }, {}, { threads: filsActifs, pinned: épingles })
+        : buildSky(films, { tags, genres }, { threads: filsActifs, pinned: épingles }),
     [films, tags, genres, équipes, filsActifs, épingles]
   );
   /* La découpe se fait APRÈS la construction : la carte entière existe
@@ -250,21 +250,21 @@ export function ConstellationView({
      répondre différemment à la même touche. */
   const ouvrirOuFoyer = (n: PlacedNode) => {
     if (n.kind === "work") return;
-    if (n.kind === "fil") poserFoyer(n.id);
+    if (n.kind === "thread") poserFoyer(n.id);
     else if (n.id === foyer) onOpen(n.filmId as string);
     else poserFoyer(n.id);
   };
 
   const auClavier = (e: ReactKeyboardEvent<SVGSVGElement>) => {
     const flèches: Record<string, Direction> = {
-      ArrowUp: "haut",
-      ArrowDown: "bas",
-      ArrowLeft: "gauche",
-      ArrowRight: "droite",
+      ArrowUp: "up",
+      ArrowDown: "down",
+      ArrowLeft: "left",
+      ArrowRight: "right",
     };
     const direction = flèches[e.key];
     if (direction) {
-      const suivant = voisinDansLaDirection(placed, curseur, direction);
+      const suivant = neighbourInDirection(placed, curseur, direction);
       /* On n'avale la touche QUE si l'on s'est déplacé : sinon la page
          ne défilerait plus alors qu'il n'y a rien de ce côté, et l'on
          croirait la carte figée. */
@@ -296,7 +296,7 @@ export function ConstellationView({
     [
       n.label,
       n.sub,
-      n.kind === "film" ? "film" : n.kind === "fil" ? "fil" : "œuvre",
+      n.kind === "film" ? "film" : n.kind === "thread" ? "fil" : "œuvre",
       n.id === foyer ? "foyer de la carte" : "",
       `${n.degree} lien${n.degree > 1 ? "s" : ""}`,
     ]
@@ -324,7 +324,7 @@ export function ConstellationView({
       ? 7 + (n.rating || 0) * 1.6
       : /* Un fil est plus gros que ses membres : il en est le centre, et
            sa taille dit combien il en rassemble. */
-        n.kind === "fil"
+        n.kind === "thread"
         ? 11 + Math.min(n.degree, 10)
         : 4 + Math.min(n.refs ?? 0, 4);
 
@@ -894,7 +894,7 @@ export function ConstellationView({
                 /* Un fil (le rassemblement) n'est pas une parenté : il se
                    trace à la teinte du fil, en trait continu mais fin —
                    il rassemble sans prétendre relier deux à deux. */
-                const filDeRassemblement = l.kind === "fil";
+                const filDeRassemblement = l.kind === "thread";
                 const d = `M ${a.x} ${a.y} Q ${mx} ${my}, ${b.x} ${b.y}`;
                 /* Ce que le fil raconte quand on le vise : la parenté
                    trouvée par la machine, ou la relation qu'on a écrite
@@ -918,7 +918,7 @@ export function ConstellationView({
                       l.kind === "cite"
                       ? l.note ||
                         [linkTypeOf(nb.type || "other").label, nb.sub].filter(Boolean).join(" · ")
-                      : (l.why || []).map((w) => `${w.role} · ${w.nom}`).join(", ");
+                      : (l.why || []).map((w) => `${w.role} · ${w.name}`).join(", ");
                 const fixer =
                   crew && onLinkFilm
                     ? () => onLinkFilm(l.a.slice(2), l.b.slice(2), raisons)
@@ -1037,7 +1037,7 @@ export function ConstellationView({
                 const on = !lit || lit.has(n.id);
                 const isHover = hover === n.id || curseur === n.id;
                 const ink =
-                  n.kind === "fil"
+                  n.kind === "thread"
                     ? catInk(n.color || "burgundy")
                     : n.kind === "film"
                       ? C.burgundy
@@ -1048,7 +1048,7 @@ export function ConstellationView({
                    sur une carte qu'on parcourt : le nom du fil reste
                    gratté tant qu'on ne l'a pas dévoilé d'un survol. */
                 const gratté =
-                  n.kind === "fil" && !!n.motif && !!motifById(n.motif)?.spoiler && !isHover;
+                  n.kind === "thread" && !!n.motif && !!motifById(n.motif)?.spoiler && !isHover;
                 return (
                   <g
                     key={n.id}
@@ -1088,7 +1088,7 @@ export function ConstellationView({
                       /* Un fil ne s'ouvre pas — il n'a pas de fiche : le
                          prendre pour foyer montre tout ce qu'il rassemble,
                          et c'est exactement la question qu'on lui pose. */
-                      if (n.kind === "fil") poserFoyer(n.id);
+                      if (n.kind === "thread") poserFoyer(n.id);
                       else if (n.id === foyer) onOpen(n.filmId as string);
                       else poserFoyer(n.id);
                     }}
@@ -1117,13 +1117,13 @@ export function ConstellationView({
                     />
                     <circle
                       r={r}
-                      fill={n.kind === "fil" ? alpha(ink, 0.28) : ink}
-                      stroke={n.kind === "fil" ? ink : C.card}
-                      strokeWidth={n.kind === "fil" ? 2 : 1.6}
+                      fill={n.kind === "thread" ? alpha(ink, 0.28) : ink}
+                      stroke={n.kind === "thread" ? ink : C.card}
+                      strokeWidth={n.kind === "thread" ? 2 : 1.6}
                     />
                     {/* L'astre épinglé se distingue : rien ne le retient au
                         ciel qu'un geste, et le cercle en pointillé le dit. */}
-                    {n.épinglé && (
+                    {n.pinned && (
                       <circle
                         r={r + 8}
                         fill="none"
@@ -1151,9 +1151,9 @@ export function ConstellationView({
                            clair : écrites ainsi, elles restaient celles
                            du carnet sous les treize autres peaux. */
                         fontFamily: n.kind === "work" ? F.mono : F.title,
-                        fontSize: n.kind === "work" ? 10.5 : n.kind === "fil" ? 16 : 15,
+                        fontSize: n.kind === "work" ? 10.5 : n.kind === "thread" ? 16 : 15,
                         fontWeight: n.kind === "work" ? 400 : 700,
-                        fontStyle: n.kind === "fil" ? "italic" : "normal",
+                        fontStyle: n.kind === "thread" ? "italic" : "normal",
                         fill: C.ink,
                         pointerEvents: "none",
                       }}

@@ -168,7 +168,7 @@ describe("suggestLinks", () => {
     expect(liens).toHaveLength(1);
     expect(liens[0]).toMatchObject({
       kind: "crew",
-      why: [{ role: "image", nom: "Decaë" }],
+      why: [{ role: "image", name: "Decaë" }],
     });
   });
 
@@ -194,7 +194,7 @@ describe("suggestLinks", () => {
     const b = film("B", { crew: { image: ["Decaë"], musique: ["Rubinstein"] } });
     const liens = suggestLinks([a, b]);
     expect(liens).toHaveLength(1);
-    expect(liens[0]!.why!.map((w) => `${w.role}·${w.nom}`).sort()).toEqual([
+    expect(liens[0]!.why!.map((w) => `${w.role}·${w.name}`).sort()).toEqual([
       "image·Decaë",
       "musique·Rubinstein",
     ]);
@@ -276,7 +276,7 @@ describe("suggestLinks — la nature des parentés", () => {
   it("relie deux films par un mot-clé partagé", () => {
     const a = film("A", { themes: ["solitude urbaine"] });
     const b = film("B", { themes: ["solitude urbaine"] });
-    expect(suggestLinks([a, b])[0]!.why).toEqual([{ role: "thème", nom: "solitude urbaine" }]);
+    expect(suggestLinks([a, b])[0]!.why).toEqual([{ role: "thème", name: "solitude urbaine" }]);
   });
 
   it("applique le même seuil aux mots-clés qu'aux personnes", () => {
@@ -357,24 +357,24 @@ describe("les fils au ciel", () => {
     const a = film("A", { motifs: ["hero-dies"] });
     const b = film("B", { motifs: ["hero-dies"] });
     const fil = makeThread({ label: "Le héros meurt", motif: "hero-dies" });
-    const { nodes, links } = buildSky([a, b], {}, { fils: [fil] });
+    const { nodes, links } = buildSky([a, b], {}, { threads: [fil] });
 
     expect(nodes.filter((n) => n.kind === "film")).toHaveLength(2);
-    const astre = nodes.find((n) => n.kind === "fil");
+    const astre = nodes.find((n) => n.kind === "thread");
     expect(astre?.label).toBe("Le héros meurt");
-    expect(links.filter((l) => l.kind === "fil")).toHaveLength(2);
+    expect(links.filter((l) => l.kind === "thread")).toHaveLength(2);
   });
 
   it("n'accroche pas au ciel un fil que personne ne porte", () => {
     const fil = makeThread({ label: "Vide", motif: "hero-dies" });
-    const { nodes } = buildSky([film("A")], {}, { fils: [fil] });
+    const { nodes } = buildSky([film("A")], {}, { threads: [fil] });
     expect(nodes).toEqual([]);
   });
 
   it("ne dédouble pas un film à la fois relié et membre d'un fil", () => {
     const a = film("A", { linkedWorks: [nighthawks()], motifs: ["hero-dies"] });
     const fil = makeThread({ label: "x", motif: "hero-dies" });
-    const { nodes } = buildSky([a], {}, { fils: [fil] });
+    const { nodes } = buildSky([a], {}, { threads: [fil] });
     expect(nodes.filter((n) => n.filmId === a.id)).toHaveLength(1);
   });
 });
@@ -384,13 +384,13 @@ describe("les épingles", () => {
     const a = film("A");
     const { nodes } = buildSky([a, film("B")], {}, { pinned: [a.id] });
     expect(nodes.map((n) => n.filmId)).toEqual([a.id]);
-    expect(nodes[0]?.épinglé).toBe(true);
+    expect(nodes[0]?.pinned).toBe(true);
   });
 
   it("ne marque pas comme épinglé un film que ses propres fils tiennent déjà", () => {
     const a = film("A", { linkedWorks: [nighthawks()] });
     const { nodes } = buildSky([a], {}, { pinned: [a.id] });
-    expect(nodes.find((n) => n.filmId === a.id)?.épinglé).toBe(false);
+    expect(nodes.find((n) => n.filmId === a.id)?.pinned).toBe(false);
   });
 
   it("ignore une épingle qui ne désigne aucune fiche", () => {

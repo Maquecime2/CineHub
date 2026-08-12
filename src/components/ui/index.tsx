@@ -1,5 +1,5 @@
 /* ============================================================
-   PRIMITIVES — les petites pièces réemployées d'une vue à l'autre.
+   PRIMITIVES — the small pieces reused from one view to the next.
    ============================================================ */
 import { useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
@@ -7,7 +7,7 @@ import { Star, KeyRound } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { ouvrirReglageTmdb } from "../../services/tmdbKey";
 
-/** La note, en étoiles d'encre. Un clic sur une étoile déjà pleine la coupe en deux. */
+/** The rating, in ink stars. Clicking an already full star halves it. */
 export function InkStars({
   value = 0,
   onChange,
@@ -52,20 +52,20 @@ export function InkStars({
 }
 
 /* ============================================================
-   LE CARTON — le contenant commun des blocs d'une fiche
+   THE CARDSTOCK — the shared container of a card's blocks
    ============================================================
 
-   Chaque bloc s'était fait sa propre boîte au fil du temps : la fiche
-   catalogue avait un filet et un fond, la pellicule et le fil rouge
-   n'avaient rien du tout, et les champs de texte flottaient sur le
-   papier. Mis côte à côte en colonnes, ça ne se lisait plus comme une
-   fiche mais comme quatre pages différentes posées ensemble.
+   Each block had made itself its own box over time: the catalogue card
+   had a rule and a background, the filmstrip and the red thread had
+   nothing at all, and the text fields floated on the paper. Set side by
+   side in columns, it no longer read as one card but as four different
+   pages laid together.
 
-   Un seul contenant, donc. Ce qu'il porte garde SON registre — le titre
-   italique d'une grande section n'est pas l'intitulé d'un champ, et les
-   confondre effacerait ce qui distingue « La pellicule » de « Mots-clés ».
-   On unifie la boîte, pas ce qu'on écrit dessus. */
-export function Carton({
+   One container, then. What it carries keeps ITS OWN register — a large
+   section's italic title is not a field's label, and confusing the two
+   would erase what tells "La pellicule" from "Mots-clés". We unify the
+   box, not what is written on it. */
+export function Cardstock({
   children,
   style,
   onFocusCapture,
@@ -73,9 +73,9 @@ export function Carton({
 }: {
   children: ReactNode;
   style?: CSSProperties;
-  /** Le carton d'un champ sert aussi à savoir où l'on écrit. */
+  /** A field's cardstock also serves to know where one is writing. */
   onFocusCapture?: () => void;
-  /** Nom de l'ancre que la visite guidée vient chercher ici. */
+  /** Name of the anchor the guided tour comes looking for here. */
   tour?: string;
 }) {
   return (
@@ -96,18 +96,18 @@ export function Carton({
 }
 
 /* ============================================================
-   IL MANQUE UNE CLÉ — le manque, dit à voix haute
+   A KEY IS MISSING — the lack, said out loud
    ============================================================
 
-   Sans clé TMDB, huit écrans s'éteignaient en silence : les Découvertes
-   ne découvraient rien, le tiroir du soir ne proposait rien, le choix
-   d'affiche n'offrait aucune affiche. Une vue vide ne dit pas « il
-   manque un réglage » — elle dit « il n'y a rien », et on referme.
+   With no TMDB key, eight screens went dark in silence: Discoveries
+   discovered nothing, the evening drawer suggested nothing, the poster
+   picker offered no poster. An empty view does not say "a setting is
+   missing" — it says "there is nothing here", and you close it again.
 
-   Ce cartouche prend la place que le contenu aurait prise, et il porte
-   ce qu'il faut pour sortir du manque : un bouton qui ouvre le tiroir.
-   On ne renvoie donc jamais `null` faute de clé ; on renvoie ceci. */
-export function SansCle({ quoi, style }: { quoi: string; style?: CSSProperties }) {
+   This cartouche takes the place the content would have taken, and it
+   carries what is needed to get out of the lack: a button that opens the
+   drawer. So we never return `null` for want of a key; we return this. */
+export function NoKey({ what, style }: { what: string; style?: CSSProperties }) {
   return (
     <div
       style={{
@@ -123,14 +123,13 @@ export function SansCle({ quoi, style }: { quoi: string; style?: CSSProperties }
     >
       <KeyRound size={13} color={C.inkFaded} style={{ transform: "translateY(2px)" }} />
       <span style={{ fontFamily: F.hand, fontSize: 14, color: C.inkFaded }}>
-        Il manque une clé TMDB pour {quoi}.
+        Il manque une clé TMDB pour {what}.
       </span>
-      {/* DEUX REMÈDES, ET LE SECOND N'EN DEMANDE AUCUN. Depuis que le
-          serveur relaie TMDB, un compte ouvert dispense entièrement de
-          clé — c'est même la première chose que le compte apporte au
-          lieu de recopier ailleurs ce qu'on avait déjà. Le dire ICI,
-          là où le manque se fait sentir, plutôt que dans un écran que
-          personne n'ouvre. */}
+      {/* TWO REMEDIES, AND THE SECOND ASKS FOR NONE. Since the server
+          relays TMDB, an open account does away with the key entirely —
+          it is even the first thing an account brings, instead of copying
+          elsewhere what we already had. Say it HERE, where the lack makes
+          itself felt, rather than in a screen nobody opens. */}
       <button
         onClick={ouvrirReglageTmdb}
         style={{
@@ -151,11 +150,11 @@ export function SansCle({ quoi, style }: { quoi: string; style?: CSSProperties }
   );
 }
 
-/* Le titre d'une grande section : l'icône, le nom à la plume, le filet
-   qui court jusqu'au bout, et de quoi poser un bouton au bord. C'était la
-   mise en tête de la pellicule ; le fil rouge en avait une presque
-   pareille, à un filet près. Une seule maintenant. */
-export function TitreSection({
+/* A large section's title: the icon, the name in pen, the rule running
+   to the end, and room to set a button at the edge. It was the
+   filmstrip's heading; the red thread had an almost identical one, give
+   or take a rule. Only one now. */
+export function SectionTitle({
   icon,
   children,
   action,
@@ -187,8 +186,8 @@ export function TitreSection({
   );
 }
 
-/** La ligne de conduite sous un titre de section, à main levée. */
-export function Consigne({ children }: { children: ReactNode }) {
+/** The line of guidance under a section title, in a free hand. */
+export function Guideline({ children }: { children: ReactNode }) {
   return (
     <div style={{ fontFamily: F.hand, fontSize: 17, color: C.inkFaded, margin: "0 0 12px" }}>
       {children}
@@ -196,7 +195,7 @@ export function Consigne({ children }: { children: ReactNode }) {
   );
 }
 
-/** L'intitulé d'un champ, tapé à la machine. */
+/** A field's label, typed on a machine. */
 export function Label({ children }: { children: ReactNode }) {
   return (
     <div
@@ -213,18 +212,18 @@ export function Label({ children }: { children: ReactNode }) {
     </div>
   );
 }
-/* Un champ qui se lit comme une liste séparée par des virgules.
+/* A field that reads as a comma-separated list.
 
-   Naïvement, on rendait `value={liste.join(", ")}` et on renvoyait le
-   découpage à chaque frappe. Mais taper la virgule produit un dernier
-   morceau vide, que le découpage jette : le `join` recomposait aussitôt
-   la même chaîne SANS la virgule, et le curseur reculait d'un cran. Il
-   devenait impossible d'ouvrir un second genre.
+   Naively, we rendered `value={list.join(", ")}` and returned the split
+   on every keystroke. But typing the comma produces a last empty piece,
+   which the split throws away: the `join` immediately recomposed the same
+   string WITHOUT the comma, and the caret moved back one notch. Opening a
+   second genre became impossible.
 
-   On garde donc le TEXTE tel qu'il est tapé tant que le champ est vivant,
-   et on ne renvoie la liste que découpée à côté. La chaîne ne se
-   recompose depuis la liste que lorsque celle-ci change par ailleurs
-   (TMDB qui remplit la fiche, une remise à zéro du formulaire). */
+   So we keep the TEXT as it is typed for as long as the field is alive,
+   and only return the list split off to the side. The string is only
+   recomposed from the list when that list changes elsewhere (TMDB filling
+   the card in, a form being reset). */
 export function CommaInput({
   value,
   onChange,
@@ -265,4 +264,4 @@ export function CommaInput({
 
 export { Tally } from "./Tally";
 export { Confirmation } from "./Confirmation";
-export type { DemandeConfirmation } from "./Confirmation";
+export type { ConfirmRequest } from "./Confirmation";

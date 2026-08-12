@@ -1,13 +1,13 @@
-/* LES VIGNETTES D'ATELIER — et le volet qui choisit une surface.
+/* THE STUDIO SWATCHES — and the panel that picks a surface.
 
-   Tout ceci vivait dans `shelf/DecorStudio`, où c'était juste. Ça n'y
-   suffit plus : le mur des fiches se peint désormais avec les mêmes
-   peintures, les mêmes papiers peints et les mêmes textures, et deux
-   nuanciers qui se ressemblent finiraient par diverger.
+   All of this lived in `shelf/DecorStudio`, where it was right. That is
+   no longer enough: the card wall is now painted with the same paints,
+   the same wallpapers and the same textures, and two swatch books that
+   look alike would end up drifting apart.
 
-   Chaque vignette est rendue par le MÊME moteur que la surface qu'elle
-   propose (`theme/surfaces`) : un aperçu qui se dessinerait autrement
-   finirait par mentir, et c'est toujours l'aperçu qui aurait tort. */
+   Every swatch is rendered by the SAME engine as the surface it offers
+   (`theme/surfaces`): a preview that drew itself differently would end up
+   lying, and it is always the preview that would be wrong. */
 import { C, F } from "../../theme/tokens";
 import {
   PAINTS,
@@ -19,7 +19,7 @@ import {
 } from "../../theme/surfaces";
 import { CAT_FAMILIES, catInk } from "../shelf/constants";
 
-/** Le format de panneau d'atelier : posé à droite, il laisse voir derrière. */
+/** The studio panel format: set on the right, it leaves the view behind it. */
 export const STUDIO_BOX = {
   position: "fixed",
   right: 40,
@@ -52,8 +52,8 @@ export const Grid = ({ children }) => (
   <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>{children}</div>
 );
 
-/* Une vignette. Elle porte le style qu'elle propose, et le cadre d'encre
-   dit lequel est retenu — le même signe que les pastilles de couleur. */
+/* One swatch. It wears the style it offers, and the ink frame says which
+   one is kept — the same sign as the colour dots. */
 export const Swatch = ({ on, onClick, title, style, w = 42, h = 28, children }) => (
   <button
     onClick={onClick}
@@ -97,8 +97,8 @@ export const NoneSwatch = ({ on, onClick, label = "aucun" }) => (
   </Swatch>
 );
 
-/* Un bouton d'option en toutes lettres, pour ce qui ne se montre pas en
-   vignette — une finition, un calibre, un écartement. */
+/* An option button spelled out, for what a swatch cannot show — a
+   finish, a gauge, a spacing. */
 export const OptionButton = ({ on, onClick, children, title }) => (
   <button
     onClick={onClick}
@@ -156,7 +156,7 @@ export function SurfaceTab({ decor, set }) {
         ))}
       </Grid>
 
-      {/* L'encre n'a de sens qu'avec une trame à teinter. */}
+      {/* The ink only means something with a pattern to tint. */}
       {decor?.pattern && (
         <>
           <Title>ENCRE DU MOTIF</Title>

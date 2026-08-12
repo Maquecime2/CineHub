@@ -20,7 +20,7 @@ import { Undo2 } from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { Tally, Confirmation } from "../../components/ui";
-import type { DemandeConfirmation } from "../../components/ui";
+import type { ConfirmRequest } from "../../components/ui";
 import { flippedByMistake } from "../../domain/repairs";
 import type { Film, ImportDiff } from "../../types";
 
@@ -36,7 +36,7 @@ export function RepairPanel({ films, onImport }: RepairPanelProps) {
      second se trompe dans le sens qui ne coûte rien. « TOUT COCHER » est
      là pour qui reconnaît sa watchlist entière d'un coup d'œil. */
   const [choisies, setChoisies] = useState<Set<string>>(new Set());
-  const [demande, setDemande] = useState<DemandeConfirmation | null>(null);
+  const [request, setRequest] = useState<ConfirmRequest | null>(null);
   const [bilan, setBilan] = useState("");
 
   if (suspectes.length === 0) return null;
@@ -60,10 +60,9 @@ export function RepairPanel({ films, onImport }: RepairPanelProps) {
   const remettre = () => {
     const àRemettre = suspectes.filter((f) => choisies.has(f.id));
     if (!àRemettre.length) return;
-    setDemande({
-      titre: `Remettre ${àRemettre.length} fiche(s) en « à voir » ?`,
-      corps:
-        "Elles quittent la vidéothèque pour l'onglet À voir. Rien n'est effacé : notes, motifs et fils restent attachés, et une fiche remise se rebascule d'un clic depuis son dossier.",
+    setRequest({
+      title: `Remettre ${àRemettre.length} fiche(s) en « à voir » ?`,
+      body: "Elles quittent la vidéothèque pour l'onglet À voir. Rien n'est effacé : notes, motifs et fils restent attachés, et une fiche remise se rebascule d'un clic depuis son dossier.",
       action: "REMETTRE EN « À VOIR »",
       onConfirm: () => {
         onImport({
@@ -73,7 +72,7 @@ export function RepairPanel({ films, onImport }: RepairPanelProps) {
         });
         setBilan(`${àRemettre.length} fiche(s) remise(s) dans « À voir ».`);
         setChoisies(new Set());
-        setDemande(null);
+        setRequest(null);
       },
     });
   };
@@ -201,7 +200,7 @@ export function RepairPanel({ films, onImport }: RepairPanelProps) {
         <div style={{ fontFamily: F.hand, fontSize: 17, color: C.pine, marginTop: 8 }}>{bilan}</div>
       )}
 
-      <Confirmation demande={demande} onClose={() => setDemande(null)} />
+      <Confirmation request={request} onClose={() => setRequest(null)} />
     </div>
   );
 }

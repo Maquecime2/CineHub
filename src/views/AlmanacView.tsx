@@ -99,7 +99,7 @@ const enHeures = (minutes: number): string => {
 /* ------------------------------------------------------------
    LE CARTON — la pièce que toutes les planches réemploient
    ------------------------------------------------------------ */
-function Carton({
+function Cardstock({
   titre,
   seed,
   children,
@@ -359,7 +359,7 @@ function PlancheCompte({ a }: { a: Almanac }) {
   const étendue = r.densite > 0 ? (r.jours / r.densite) * 100 : 365;
   return (
     <div style={GRILLE_2x2}>
-      <Carton titre="Le compte" seed={`compte-${clé}`}>
+      <Cardstock titre="Le compte" seed={`compte-${clé}`}>
         <div
           style={{
             display: "grid",
@@ -384,7 +384,7 @@ function PlancheCompte({ a }: { a: Almanac }) {
         >
           du {enClair(a.firstWatch, toujours)} au {enClair(a.lastWatch, toujours)}
         </div>
-      </Carton>
+      </Cardstock>
 
       {/* Douze mois pour une année, une colonne par année pour toute une
           pratique : c'est la même barre, et la graduation change seule. */}
@@ -393,7 +393,7 @@ function PlancheCompte({ a }: { a: Almanac }) {
           un vrai 2×2, il pousserait les deux cartons du bas dans une
           troisième rangée que la grille ne déclare pas — et la planche
           se remettrait à déborder par où on venait de la refermer. */}
-      <Carton titre={toujours ? "Les années" : "Les mois"} seed={`mois-${clé}`}>
+      <Cardstock titre={toujours ? "Les années" : "Les mois"} seed={`mois-${clé}`}>
         {toujours ? (
           <Barres
             valeurs={a.byYear.map((y) => y.séances)}
@@ -403,9 +403,9 @@ function PlancheCompte({ a }: { a: Almanac }) {
         ) : (
           <Barres valeurs={a.byMonth} légendes={MOIS} graine={clé} />
         )}
-      </Carton>
+      </Cardstock>
 
-      <Carton titre="Le rythme" seed={`rythme-${clé}`}>
+      <Cardstock titre="Le rythme" seed={`rythme-${clé}`}>
         <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 6 }}>
           <Tally label="Jours avec séance" value={r.jours} ink={C.pine} />
           <Tally
@@ -421,9 +421,9 @@ function PlancheCompte({ a }: { a: Almanac }) {
         <div style={{ marginTop: 8, fontFamily: F.hand, fontSize: 15, color: C.inkFaded }}>
           {r.jours > 0 ? `une séance tous les ${(étendue / r.jours).toFixed(1)} jours` : ""}
         </div>
-      </Carton>
+      </Cardstock>
 
-      <Carton titre="Les heures de cinéma" seed={`heures-${clé}`}>
+      <Cardstock titre="Les heures de cinéma" seed={`heures-${clé}`}>
         {a.screenTime.minutes === 0 ? (
           <Rien quoi="aucune durée connue — le bouton « compléter les fiches », dans l'onglet Import, va les chercher" />
         ) : (
@@ -477,7 +477,7 @@ function PlancheCompte({ a }: { a: Almanac }) {
             )}
           </>
         )}
-      </Carton>
+      </Cardstock>
     </div>
   );
 }
@@ -491,7 +491,7 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
   const toujours = a.période === "toujours";
   return (
     <div style={GRILLE_2x2}>
-      <Carton titre="Les notes" seed={`notes-${clé}`}>
+      <Cardstock titre="Les notes" seed={`notes-${clé}`}>
         {a.ratingAvg == null ? (
           <Rien quoi={toujours ? "aucune séance notée" : "aucune séance notée cette année"} />
         ) : (
@@ -559,9 +559,9 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
             )}
           </>
         )}
-      </Carton>
+      </Cardstock>
 
-      <Carton titre="L'âge de ce que vous regardez" seed={`age-${clé}`}>
+      <Cardstock titre="L'âge de ce que vous regardez" seed={`age-${clé}`}>
         {a.age.moyen == null ? (
           <Rien quoi="aucune année de sortie renseignée" />
         ) : (
@@ -607,9 +607,9 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
             )}
           </>
         )}
-      </Carton>
+      </Cardstock>
 
-      <Carton titre="Les décennies visitées" seed={`decennies-${clé}`}>
+      <Cardstock titre="Les décennies visitées" seed={`decennies-${clé}`}>
         {a.decades.length === 0 ? (
           <Rien quoi="aucune année de sortie renseignée" />
         ) : (
@@ -654,11 +654,11 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
             })}
           </div>
         )}
-      </Carton>
+      </Cardstock>
 
       {/* CE QUI A BOUGÉ — hors de l'année, et c'est délibéré : un film
           qu'on réévalue le fait sur une décennie, pas sur douze mois. */}
-      <Carton titre="Ce qui a changé d'avis" seed="drift">
+      <Cardstock titre="Ce qui a changé d'avis" seed="drift">
         {drifts.length === 0 ? (
           <Rien quoi="aucune note n'a bougé entre deux séances" />
         ) : (
@@ -712,7 +712,7 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
             </div>
           </>
         )}
-      </Carton>
+      </Cardstock>
     </div>
   );
 }
@@ -726,18 +726,21 @@ function PlancheGens({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (nom: str
   const toujours = a.période === "toujours";
   return (
     <div style={GRILLE_2x2}>
-      <Carton titre="Les cinéastes" seed={`cineastes-${clé}`}>
+      <Cardstock titre="Les cinéastes" seed={`cineastes-${clé}`}>
         {/* Les noms mènent au générique : l'almanach dit qui revient,
             le dossier dit ce qu'on a de cette personne. Deux questions
             voisines qui n'avaient aucun chemin l'une vers l'autre. */}
         <Palmares items={a.topDirectors.slice(0, 4)} total={a.count} onPick={onOpenPerson} />
-      </Carton>
+      </Cardstock>
 
-      <Carton titre="Les genres" seed={`genres-${clé}`}>
+      <Cardstock titre="Les genres" seed={`genres-${clé}`}>
         <Palmares items={a.topGenres.slice(0, 4)} total={a.count} ink={C.moss} />
-      </Carton>
+      </Cardstock>
 
-      <Carton titre={toujours ? "Les fidélités" : "Fidélités et découvertes"} seed={`gens-${clé}`}>
+      <Cardstock
+        titre={toujours ? "Les fidélités" : "Fidélités et découvertes"}
+        seed={`gens-${clé}`}
+      >
         {/* TROIS FOIS DANS UNE ANNÉE N'EST PAS UN HASARD : c'est une
             traversée d'œuvre, et c'est ce qu'un cinéphile veut voir
             nommé. Les découvertes sont l'autre face — les noms dont
@@ -802,9 +805,9 @@ function PlancheGens({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (nom: str
             )}
           </div>
         )}
-      </Carton>
+      </Cardstock>
 
-      <Carton titre="Le monde traversé" seed={`monde-${clé}`}>
+      <Cardstock titre="Le monde traversé" seed={`monde-${clé}`}>
         {g.nbPays === 0 ? (
           <Rien quoi="aucun pays renseigné — « compléter les fiches », dans l'onglet Import, va les chercher" />
         ) : (
@@ -832,7 +835,7 @@ function PlancheGens({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (nom: str
             )}
           </>
         )}
-      </Carton>
+      </Cardstock>
     </div>
   );
 }
@@ -854,16 +857,16 @@ function PlancheSujets({ a }: { a: Almanac }) {
   const ar = a.artisans;
   return (
     <div style={GRILLE_2x2}>
-      <Carton titre="Les sujets" seed={`sujets-${clé}`}>
+      <Cardstock titre="Les sujets" seed={`sujets-${clé}`}>
         <Palmares
           items={s.motsClés.slice(0, 5)}
           total={a.count}
           ink={C.ochre}
           vide="aucun mot-clé — « compléter les fiches », dans l'onglet Import, va les chercher"
         />
-      </Carton>
+      </Cardstock>
 
-      <Carton titre="Les motifs suivis" seed={`motifs-${clé}`}>
+      <Cardstock titre="Les motifs suivis" seed={`motifs-${clé}`}>
         {/* Le domaine rend des IDENTIFIANTS, comme il rend des codes
             pays : c'est ici qu'on les lit en français. Un motif retiré
             du catalogue depuis garde son identifiant plutôt que de
@@ -876,9 +879,9 @@ function PlancheSujets({ a }: { a: Almanac }) {
           ink={C.pine}
           vide="aucun motif posé — ils se choisissent sur une fiche, sous la critique"
         />
-      </Carton>
+      </Cardstock>
 
-      <Carton titre="Les artisans" seed={`artisans-${clé}`}>
+      <Cardstock titre="Les artisans" seed={`artisans-${clé}`}>
         {/* Sans seuil, contrairement aux fidélités : personne ne se dit
             « je suis le travail d'un chef opérateur », et c'est justement
             pour cela que le montrer apprend quelque chose. On ne garde
@@ -892,9 +895,9 @@ function PlancheSujets({ a }: { a: Almanac }) {
         ) && (
           <Rien quoi="personne ne revient deux fois derrière la caméra — « compléter les fiches », dans l'onglet Import, remplit les équipes" />
         )}
-      </Carton>
+      </Cardstock>
 
-      <Carton titre="Plus tendre, plus sévère" seed={`ecart-${clé}`}>
+      <Cardstock titre="Plus tendre, plus sévère" seed={`ecart-${clé}`}>
         {a.écart.n === 0 ? (
           <Rien quoi="aucune séance notée dont on connaisse aussi la note publique" />
         ) : (
@@ -924,7 +927,7 @@ function PlancheSujets({ a }: { a: Almanac }) {
             </div>
           </>
         )}
-      </Carton>
+      </Cardstock>
     </div>
   );
 }

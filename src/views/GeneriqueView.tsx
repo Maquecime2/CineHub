@@ -15,7 +15,7 @@ import { ArrowLeft, Users, Search, Download, Loader2 } from "lucide-react";
 import { C, F, alpha } from "../theme/tokens";
 import { underlineInput, tap } from "../theme/styles";
 import { StampCorner, PushPin } from "../components/atmosphere";
-import { Carton, TitreSection, Consigne, Label, InkStars } from "../components/ui";
+import { Cardstock, SectionTitle, Guideline, Label, InkStars } from "../components/ui";
 import { PosterArt } from "../components/film/PosterArt";
 import { census, searchPeople, rolesOnFilm, PERSON_ROLES, type Person } from "../domain/people";
 import { initialsOf, makeFilm } from "../domain/film";
@@ -133,10 +133,10 @@ function Répertoire({
       >
         Le générique
       </div>
-      <Consigne>
+      <Guideline>
         Les noms que votre collection porte déjà — celles et ceux qui ont réalisé, joué, éclairé,
         composé, écrit. {gens.length} en tout.
-      </Consigne>
+      </Guideline>
 
       {inconnue && (
         <div style={{ fontFamily: F.hand, fontSize: 17, color: C.burgundy, marginBottom: 10 }}>
@@ -345,13 +345,13 @@ function Dossier({
           </div>
         )}
       </div>
-      <Consigne>
+      <Guideline>
         {p.roles.map((r) => ROLE_COURT[r]).join(", ")} — {p.films.length} film
         {p.films.length > 1 ? "s" : ""} chez vous
         {p.toWatch > 0 ? `, dont ${p.toWatch} en attente` : ""}.
-      </Consigne>
+      </Guideline>
 
-      <Carton tour="generique-dossier" style={{ marginTop: 8 }}>
+      <Cardstock tour="generique-dossier" style={{ marginTop: 8 }}>
         <div style={{ display: "flex", gap: 34, flexWrap: "wrap" }}>
           <Chiffre nom="VOTRE NOTE">
             {p.rating != null ? (
@@ -366,7 +366,7 @@ function Dossier({
           <Chiffre nom="ÉCART AU PUBLIC">{écartLisible(p.gap)}</Chiffre>
           <Chiffre nom="SÉANCES">{p.screenings || "—"}</Chiffre>
         </div>
-      </Carton>
+      </Cardstock>
 
       {/* Les motifs inconnus du catalogue sont ignorés à l'affichage et
           non effacés de la fiche — la règle est la même partout. On les
@@ -450,9 +450,9 @@ function Rayon({
   if (films.length === 0) return null;
   return (
     <div style={{ marginTop: 26 }}>
-      <TitreSection>
+      <SectionTitle>
         {titre} ({films.length})
-      </TitreSection>
+      </SectionTitle>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginTop: 12 }}>
         {films.map((f) => {
           const rôles = rolesOnFilm(f, clé);
@@ -631,7 +631,7 @@ function CeQuiManque({
 
   return (
     <div data-tour="generique-tmdb" style={{ marginTop: 34 }}>
-      <TitreSection
+      <SectionTitle
         action={
           <button
             onClick={chercher}
@@ -643,10 +643,10 @@ function CeQuiManque({
         }
       >
         Ce qu'il me manque
-      </TitreSection>
-      <Consigne>
+      </SectionTitle>
+      <Guideline>
         Sa filmographie complète, moins ce que vous avez déjà. Rien n'est ajouté sans vous.
-      </Consigne>
+      </Guideline>
 
       {msg && (
         <div style={{ fontFamily: F.hand, fontSize: 17, color: C.inkFaded, marginBottom: 10 }}>

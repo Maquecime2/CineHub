@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { C, F } from "../theme/tokens";
 import { underlineInput, tap } from "../theme/styles";
-import { Label, TitreSection, Consigne, SansCle } from "../components/ui";
+import { Label, SectionTitle, Guideline, NoKey } from "../components/ui";
 import { StampCorner, InkUnderline, CoffeeRing } from "../components/atmosphere";
 import { useTmdbKey } from "../services/tmdbKey";
 import { buildTaste } from "../taste";
@@ -299,11 +299,11 @@ function ChezVous({
 }) {
   return (
     <div data-tour="reco-maison" style={{ marginTop: 26, position: "relative", zIndex: 2 }}>
-      <TitreSection>Chez vous</TitreSection>
-      <Consigne>
+      <SectionTitle>Chez vous</SectionTitle>
+      <Guideline>
         Deux cents fiches vues, et l'on tourne autour des douze dernières. Voici les autres — rien
         d'ici ne sort du navigateur.
-      </Consigne>
+      </Guideline>
       <div
         style={{
           display: "grid",
@@ -549,7 +549,7 @@ export function RecoView({
               ? "Les propositions ci-dessus viennent de votre collection et n'ont besoin de rien. Pour en chercher au-dehors, il faut une clé — elle reste dans ce navigateur et sert aussi à l'enrichissement des fiches."
               : "Chercher des films au-dehors demande une clé — elle reste dans ce navigateur et sert aussi à l'enrichissement des fiches."}
           </div>
-          <SansCle quoi="chercher au-dehors" style={{ marginTop: 10 }} />
+          <NoKey what="chercher au-dehors" style={{ marginTop: 10 }} />
         </div>
       ) : (
         <>
