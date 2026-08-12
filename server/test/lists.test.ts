@@ -59,8 +59,8 @@ afterEach(async () => {
   await db.close();
 });
 
-describe("one list", () => {
-  it("est fermée by défaut, et invisible aux autres", async () => {
+describe("a list", () => {
+  it("is closed by default, and invisible to others", async () => {
     const me = await count("mine");
     const other = await count("other");
     const id = await createList(me.cookie);
@@ -74,7 +74,7 @@ describe("one list", () => {
     expect(refus.json()).toEqual(fantome.json());
   });
 
-  it("contient des œuvres et non des cards, et jamais two fois la même", async () => {
+  it("holds works and not cards, and never the same one twice", async () => {
     /* Une list de cards serait la list des exemplaires de quelqu'un :
        her ne voudrait rien dire chez un other, et se viderait at day
        où son author erased one card. */
@@ -88,7 +88,7 @@ describe("one list", () => {
     expect(r.json().works[0]).toMatchObject({ tmdb_id: "550", by: "mine" });
   });
 
-  it("refuse ce qui n'est pas un identifiant d'œuvre", async () => {
+  it("refuses what is not a work identifier", async () => {
     const me = await count("mine");
     const id = await createList(me.cookie);
     const r = await app.inject({
@@ -100,14 +100,14 @@ describe("one list", () => {
     expect(r.statusCode).toBe(400);
   });
 
-  it("one adresse mal tapée répond 404, et non one panne", async () => {
+  it("a mistyped address answers 404, and not a breakdown", async () => {
     const me = await count("mine");
     expect((await readTheList(me.cookie, "pas-un-uuid")).statusCode).toBe(404);
   });
 });
 
-describe("co-construire", () => {
-  it("laisse écrire, et pas administer", async () => {
+describe("co-building", () => {
+  it("lets you write, and not administer", async () => {
     const me = await count("mine");
     const ami = await count("ami");
     const id = await createList(me.cookie);
@@ -135,7 +135,7 @@ describe("co-construire", () => {
     expect(effacer.statusCode).toBe(403);
   });
 
-  it("on n'invite pas quelqu'un qu'on a done taire", async () => {
+  it("one does not invite somebody one has silenced", async () => {
     const me = await count("mine");
     await count("genant");
     const id = await createList(me.cookie);
@@ -149,7 +149,7 @@ describe("co-construire", () => {
     expect(r.statusCode).toBe(404);
   });
 
-  it("partir ne demande la permission de person", async () => {
+  it("leaving asks nobody's permission", async () => {
     const me = await count("mine");
     const ami = await count("ami");
     const id = await createList(me.cookie);
@@ -168,7 +168,7 @@ describe("co-construire", () => {
     expect((await readTheList(ami.cookie, id)).statusCode).toBe(404);
   });
 
-  it("un visiteur d'one list is_public ne lit pas qui la tient", async () => {
+  it("a visitor to a public list does not read who holds it", async () => {
     const me = await count("mine");
     const ami = await count("ami");
     const passant = await count("passant");
@@ -184,7 +184,7 @@ describe("co-construire", () => {
   });
 });
 
-describe("un défi", () => {
+describe("a challenge", () => {
   const vu = (date: string) => ({ watches: [{ date }] });
 
   async function defiDEssai() {
@@ -203,7 +203,7 @@ describe("un défi", () => {
     return { me, list, id };
   }
 
-  it("count ce qui a été vu PENDANT la période, et rien d'other", async () => {
+  it("counts what was seen DURING the period, and nothing else", async () => {
     const { me, id } = await defiDEssai();
     await app.inject({
       method: "PUT",
@@ -229,7 +229,7 @@ describe("un défi", () => {
     expect(r.json().challenge.works).toBe(2);
   });
 
-  it("count aussi les vieilles cards, d'before at journal", async () => {
+  it("counts the old cards too, from before the log", async () => {
     const { me, id } = await defiDEssai();
     await app.inject({
       method: "PUT",
@@ -254,7 +254,7 @@ describe("un défi", () => {
     expect(r.json().progress[0].done).toBe(1);
   });
 
-  it("ne tombe pas sur un journal mal formé", async () => {
+  it("does not fall over on a malformed log", async () => {
     /* `watches` traverse des clients de toutes les époques :
        `jsonb_array_elements` sur ce qui n'est pas un tableau ferait
        tomber la requête ENTIÈRE, et l'progress de everything at monde avec. */
@@ -279,7 +279,7 @@ describe("un défi", () => {
     expect(r.json().progress[0].done).toBe(1);
   });
 
-  it("ne metric que ceux qui ont demandé à y être", async () => {
+  it("measures only those who asked to be in it", async () => {
     const { me, list, id } = await defiDEssai();
     const other = await count("other");
     await app.inject({
@@ -320,7 +320,7 @@ describe("un défi", () => {
     expect(r.json().progress).toContainEqual({ pseudo: "other", done: 1 });
   });
 
-  it("ne rend jamais at journal him-même, seulement un nombre", async () => {
+  it("never returns the log itself, only a number", async () => {
     const { me, id } = await defiDEssai();
     await app.inject({
       method: "PUT",
@@ -347,13 +347,13 @@ describe("un défi", () => {
     expect(text).not.toContain("2026-03-12");
   });
 
-  it("qui at lance y participe", async () => {
+  it("whoever starts it takes part in it", async () => {
     const { id } = await defiDEssai();
     const list = (await app.inject({ method: "GET", url: `/challenges/${id}` })).statusCode;
     expect(list).toBe(401);
   });
 
-  it("ne se bâtit pas sur la list is_public d'un inconnu", async () => {
+  it("is not built on a stranger's public list", async () => {
     /* Sinon n'importe qui lance un défi sur la list de quelqu'un, qui
        at verrait apparaître sans l'avoir voulu. */
     const isOwner = await count("proprio");
@@ -369,7 +369,7 @@ describe("un défi", () => {
     expect(r.statusCode).toBe(404);
   });
 
-  it("refuse one ends_on before son début", async () => {
+  it("refuses an end before its beginning", async () => {
     const me = await count("mine");
     const list = await createList(me.cookie);
     const r = await app.inject({
@@ -386,7 +386,7 @@ describe("un défi", () => {
     expect(r.statusCode).toBe(400);
   });
 
-  it("se quitte toujours, même when la list s'est refermée", async () => {
+  it("can always be left, even when the list has closed again", async () => {
     const { me, list, id } = await defiDEssai();
     const other = await count("other");
     await app.inject({
@@ -421,7 +421,7 @@ describe("un défi", () => {
     expect(r.json().progress.map((a: { pseudo: string }) => a.pseudo)).toEqual(["mine"]);
   });
 
-  it("s'erased avec sa list", async () => {
+  it("is erased with its list", async () => {
     const { me, list, id } = await defiDEssai();
     await app.inject({
       method: "DELETE",

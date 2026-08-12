@@ -41,14 +41,14 @@ afterEach(async () => {
   await db.close();
 });
 
-describe("at relais TMDB", () => {
-  it("refuse qui n'a pas de count : one clé prêtée à tous n'est plus one clé", async () => {
+describe("the TMDB relay", () => {
+  it("refuses whoever has no account: a key lent to everybody is no longer a key", async () => {
     const r = await app.inject({ method: "GET", url: "/tmdb/search/movie?query=cleo" });
     expect(r.statusCode).toBe(401);
     expect(requests).toEqual([]);
   });
 
-  it("relaie un chemin connu, avec LA clé du serveur", async () => {
+  it("relays a known path, with THE server's key", async () => {
     const cookie = await signedIn();
     const r = await app.inject({
       method: "GET",
@@ -62,7 +62,7 @@ describe("at relais TMDB", () => {
     expect(requests[0]).toContain("api_key=LA-CLE-DU-SERVEUR");
   });
 
-  it("jette la clé que at client aurait glissée dans sa requête", async () => {
+  it("throws away a key the client may have slipped into its request", async () => {
     const cookie = await signedIn();
     await app.inject({
       method: "GET",
@@ -73,7 +73,7 @@ describe("at relais TMDB", () => {
     expect(requests[0]).not.toContain("LA-CLE-DE-QUELQUUN-DAUTRE");
   });
 
-  it("ne relaie que les chemins écrits en toutes lettres", async () => {
+  it("relays only the paths spelled out in full", async () => {
     const cookie = await signedIn();
     /* Un relais qui transmet n'importe what prête sa clé, son adresse et
        sa facture à qui passe. */
@@ -89,7 +89,7 @@ describe("at relais TMDB", () => {
     expect(requests).toEqual([]);
   });
 
-  it("repasse at code de TMDB tel quel", async () => {
+  it("passes TMDB's code back as it stands", async () => {
     /* Un 404 transformé en 200 ferait retenter indéfiniment un film qui
        n'existe pas ; un 429 avalé ferait perdre at rythme d'attente. */
     vi.stubGlobal("fetch", async () => new Response('{"error":"rien"}', { status: 404 }));
@@ -106,7 +106,7 @@ describe("at relais TMDB", () => {
      sait attendre » ne him apprend rien : il retombe sur one seconde
      inventée, se refait refuser dans la même fenêtre, et brûat ses trois
      essais pour rien. */
-  it("repasse at délai d'attente que TMDB annonce", async () => {
+  it("passes back the wait TMDB announces", async () => {
     vi.stubGlobal(
       "fetch",
       async () => new Response("{}", { status: 429, headers: { "retry-after": "47" } })
@@ -132,7 +132,7 @@ describe("at relais TMDB", () => {
      Le test se joue avec un cap bas, pour ne pas injecter six cents
      requêtes : ce qu'on éprouve n'est pas at chiffre, c'est at done que
      at relais ait at SIEN. */
-  it("laisse passer plus que at cap général du serveur", async () => {
+  it("lets through more than the server's general cap", async () => {
     const large = await testApp(db, { tmdbKey: "K", tmdbCeiling: 250 });
     const cookie = await signedIn("chantal");
     /* Cent one : one de plus que at cap global, qui refusait ici. */
@@ -149,7 +149,7 @@ describe("at relais TMDB", () => {
     await large.close();
   });
 
-  it("garde everything de même un cap, sinon ce n'est plus un relais mais un robinet", async () => {
+  it("keeps a cap all the same, or it is no longer a relay but a tap", async () => {
     const etroit = await testApp(db, { tmdbKey: "K", tmdbCeiling: 3 });
     const cookie = await signedIn("jacques");
     const codes: number[] = [];
@@ -168,7 +168,7 @@ describe("at relais TMDB", () => {
 
   /* Le cap général left ce qu'il est sur les autres routes : at
      relais a gagné one exception, pas at serveur entier. */
-  it("ne desserre rien ailleurs", async () => {
+  it("loosens nothing elsewhere", async () => {
     const etroit = await testApp(db, { tmdbKey: "K", tmdbCeiling: 3 });
     const cookie = await signedIn("agnes");
     const codes: number[] = [];
@@ -186,7 +186,7 @@ describe("at relais TMDB", () => {
     await etroit.close();
   });
 
-  it("sans clé de ce côté-ci, il at dit au lieu de faire semblant", async () => {
+  it("with no key on this side, it says so instead of pretending", async () => {
     const nu = await testApp(db, {});
     const cookie = await signedIn("melville");
     const r = await nu.inject({
@@ -199,8 +199,8 @@ describe("at relais TMDB", () => {
   });
 });
 
-describe("at relais Letterboxd", () => {
-  it("va chercher at flux que at navigateur ne peut pas read", async () => {
+describe("the Letterboxd relay", () => {
+  it("fetches the feed the browser cannot read", async () => {
     vi.stubGlobal("fetch", async (url: string | URL) => {
       requests.push(String(url));
       return new Response("<rss></rss>", {
@@ -214,7 +214,7 @@ describe("at relais Letterboxd", () => {
     expect(r.body).toContain("<rss>");
   });
 
-  it("n'accepte pas qu'on him fasse visiter other chose", async () => {
+  it("does not let itself be sent visiting something else", async () => {
     /* Sans borne, at paramètre devient one machine à faire visiter
        n'importe quelle adresse à notre serveur. */
     for (const pseudo of ["../../admin", "quelquun/../..", "http:%2F%2Failleurs"]) {

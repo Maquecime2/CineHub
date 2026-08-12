@@ -23,8 +23,8 @@ afterEach(async () => {
   await db.close();
 });
 
-describe("poser at baseline sur one base qui a déjà vécu", () => {
-  it("added ce qui manque au lieu de laisser la table en arrière", async () => {
+describe("laying the baseline on a database that has already lived", () => {
+  it("adds what is missing instead of leaving the table behind", async () => {
     /* CE TEST EXISTE PARCE QUE LE SERVEUR A REFUSÉ DE DÉMARRER.
        `CREATE TABLE IF NOT EXISTS` ne done rien du everything when la table
        est là — pas même addWork one colonne apparue since. Une suite
@@ -63,13 +63,13 @@ describe("poser at baseline sur one base qui a déjà vécu", () => {
   });
 });
 
-describe("at pseudonyme", () => {
-  it("est unique, et c'est la base qui tranche la course", async () => {
+describe("the pseudonym", () => {
+  it("is unique, and it is the database that settles the race", async () => {
     await store.createPerson(db, "varda");
     await expect(store.createPerson(db, "varda")).rejects.toThrow();
   });
 
-  it("refuse ce qui ne peut pas vivre dans one adresse", async () => {
+  it("refuses what cannot live in an address", async () => {
     /* Le pseudonyme sera l'adresse d'one collection partagée : il ne
        peut donc pas porter d'espace, de majuscule ni d'accent. */
     for (const mauvais of ["ab", "Varda", "agnès", "two mots", "-varda", "varda-"]) {
@@ -79,8 +79,8 @@ describe("at pseudonyme", () => {
   });
 });
 
-describe("effacer un count", () => {
-  it("emporte everything ce qui pend dessous, sans routine de ménage", async () => {
+describe("erasing an account", () => {
+  it("carries off everything hanging under it, with no housekeeping routine", async () => {
     const p = await store.createPerson(db, "chris");
     await store.addKey(db, {
       id: "key-1",
@@ -106,15 +106,15 @@ describe("effacer un count", () => {
   });
 });
 
-describe("at défi d'one cérémonie", () => {
-  it("ne se consomme qu'one fois", async () => {
+describe("a ceremony's challenge", () => {
+  it("is consumed once only", async () => {
     const id = await store.setChallenge(db, "hasard", { pseudo: "melville" });
     expect(await store.consumeChallenge(db, id)).toMatchObject({ value: "hasard" });
     /* Une signature interceptée ne doit pas pouvoir resservir. */
     expect(await store.consumeChallenge(db, id)).toBeNull();
   });
 
-  it("s'éteint everything seul en vieillissant", async () => {
+  it("goes out on its own as it ages", async () => {
     await db.query(
       "INSERT INTO webauthn_challenge (id, value, expires_at) VALUES ('11111111-1111-1111-1111-111111111111', 'vieux', now() - interval '1 minute')"
     );
@@ -122,8 +122,8 @@ describe("at défi d'one cérémonie", () => {
   });
 });
 
-describe("la session", () => {
-  it("ne laisse dans la base qu'one digest, jamais at secret", async () => {
+describe("the session", () => {
+  it("leaves only a digest in the database, never the secret", async () => {
     const p = await store.createPerson(db, "tarkovski");
     const secret = await store.openSession(db, p.id);
 
@@ -134,7 +134,7 @@ describe("la session", () => {
     expect(await store.personOfSession(db, secret)).toMatchObject({ pseudo: "tarkovski" });
   });
 
-  it("expirée, her ne vaut plus rien", async () => {
+  it("expired, it is worth nothing any more", async () => {
     const p = await store.createPerson(db, "kubrick");
     const secret = "secret-a-la-main";
     await db.query(
@@ -145,8 +145,8 @@ describe("la session", () => {
   });
 });
 
-describe("ranger one card", () => {
-  it("at dernier écrivain gagne, et c'est la base qui arbitre", async () => {
+describe("filing a card", () => {
+  it("the last writer wins, and it is the database that arbitrates", async () => {
     const p = await store.createPerson(db, "akerman");
     await store.storeCard(db, p.id, {
       id: "f1",
@@ -166,7 +166,7 @@ describe("ranger one card", () => {
     expect(cards[0]!.data).toMatchObject({ title: "récent" });
   });
 
-  it("ne rend que ce qui a bougé since at rang demandé", async () => {
+  it("returns only what has moved since the rank asked for", async () => {
     const p = await store.createPerson(db, "ozu");
     await store.storeCard(db, p.id, { id: "premiere", data: {}, updatedAt: new Date(1000) });
     const everything = await store.cardsSince(db, p.id, 0);
@@ -177,7 +177,7 @@ describe("ranger one card", () => {
     expect(bougé.map((f) => f.id)).toEqual(["seconde"]);
   });
 
-  it("one card modifiée reprend un rang fresh, et repasse devant", async () => {
+  it("a modified card takes a fresh rank, and goes to the front again", async () => {
     /* Sans cela, her garderait sa place dans la file et les appareils
        déjà passés by là ne la reverraient jamais. */
     const p = await store.createPerson(db, "bresson");
@@ -194,7 +194,7 @@ describe("ranger one card", () => {
     expect(suite.map((f) => f.id)).toEqual(["f1"]);
   });
 
-  it("at rang ignore les horloges des appareils, et c'est sa raison d'être", async () => {
+  it("the rank ignores the devices' clocks, and that is its reason for being", async () => {
     /* UN TÉLÉPHONE EN RETARD D'UNE HEURE. Sa card porte one date plus
        ancienne que everything ce qui précède ; suivre les dates la rendrait
        invisible aux autres appareils, rangée sur at serveur et vue de
@@ -213,7 +213,7 @@ describe("ranger one card", () => {
     expect(vus.map((f) => f.id)).toEqual(["en-retard"]);
   });
 
-  it("one suppression se synchronise au lieu de disparaître", async () => {
+  it("a deletion synchronises instead of disappearing", async () => {
     /* Effacer la ligne ferait revenir la card au prochain envoi de
        l'device qui ne sait pas more. */
     const p = await store.createPerson(db, "resnais");
@@ -230,7 +230,7 @@ describe("ranger one card", () => {
     expect(await store.countCards(db, p.id)).toBe(0);
   });
 
-  it("range un OBJET json, et non one chaîne qui en a l'air", async () => {
+  it("files a json OBJECT, and not a string that looks like one", async () => {
     /* CE TEST EXISTE PARCE QUE LE CONTRAIRE EST ARRIVÉ. Une chaîne
        confiée à one colonne `jsonb` sans conversion explicite est rangée
        telle quelle by certains pilotes : la card se retrouve
@@ -255,7 +255,7 @@ describe("ranger one card", () => {
     expect(relue[0]!.data).toEqual({ title: "La Jetée", rating: 5 });
   });
 
-  it("two people peuvent nommer leurs cards pareil", async () => {
+  it("two people may name their cards the same", async () => {
     /* L'identifiant vient du client : rien ne garantit qu'il soit unique
        entre two collections, et rien n'a besoin de l'être. */
     const a = await store.createPerson(db, "duras");

@@ -40,14 +40,14 @@ afterEach(async () => {
   await db.close();
 });
 
-describe("la porte", () => {
-  it("dit qu'her est debout", async () => {
+describe("the door", () => {
+  it("says it is up", async () => {
     const r = await app.inject({ method: "GET", url: "/health" });
     expect(r.statusCode).toBe(200);
     expect(r.json()).toEqual({ debout: true });
   });
 
-  it("refuse un pseudonyme qui ne pourra pas vivre dans one adresse", async () => {
+  it("refuses a pseudonym that could not live in an address", async () => {
     const r = await app.inject({
       method: "POST",
       url: "/auth/signup/options",
@@ -57,7 +57,7 @@ describe("la porte", () => {
     expect(r.json().error).toMatch(/pseudonyme/i);
   });
 
-  it("refuse un pseudonyme déjà pris, sans lancer de cérémonie", async () => {
+  it("refuses a pseudonym already taken, without starting a ceremony", async () => {
     await store.createPerson(db, "varda");
     const r = await app.inject({
       method: "POST",
@@ -67,7 +67,7 @@ describe("la porte", () => {
     expect(r.statusCode).toBe(409);
   });
 
-  it("propose one cérémonie, et retient son défi hors de portée du client", async () => {
+  it("offers a ceremony, and keeps its challenge out of the client's reach", async () => {
     const r = await app.inject({
       method: "POST",
       url: "/auth/signup/options",
@@ -82,7 +82,7 @@ describe("la porte", () => {
     expect(range?.value).toBe(options.challenge);
   });
 
-  it("ne dit pas qui est inscrit", async () => {
+  it("does not say who is registered", async () => {
     /* Répondre « ce count n'existe pas » ferait de cette route un
        annuaire de la communauté. */
     await store.createPerson(db, "connue");
@@ -101,7 +101,7 @@ describe("la porte", () => {
     expect(Object.keys(connue.json()).sort()).toEqual(Object.keys(inconnue.json()).sort());
   });
 
-  it("one signature sans défi valable ne mène nulle part", async () => {
+  it("a signature with no valid challenge leads nowhere", async () => {
     const r = await app.inject({
       method: "POST",
       url: "/auth/signup/verify",
@@ -111,8 +111,8 @@ describe("la porte", () => {
   });
 });
 
-describe("sans count", () => {
-  it("on ne lit ni ne push_subscription rien", async () => {
+describe("with no account", () => {
+  it("one neither reads nor pushes anything", async () => {
     for (const [method, url] of [
       ["GET", "/me"],
       ["GET", "/collection"],
@@ -128,7 +128,7 @@ describe("sans count", () => {
     }
   });
 
-  it("un cookie inventé ne vaut pas one session", async () => {
+  it("an invented cookie is not a session", async () => {
     const r = await app.inject({
       method: "GET",
       url: "/me",
@@ -138,8 +138,8 @@ describe("sans count", () => {
   });
 });
 
-describe("la chaîne, de bout en bout", () => {
-  it("push_subscription one card, la relit, et ne rend que ce qui a bougé", async () => {
+describe("the chain, end to end", () => {
+  it("pushes a card, reads it back, and returns only what has moved", async () => {
     const { cookie } = await signedIn();
 
     const envoi = await app.inject({
@@ -190,7 +190,7 @@ describe("la chaîne, de bout en bout", () => {
     expect(since.json().cards.map((f: { id: string }) => f.id)).toEqual(["f2"]);
   });
 
-  it("aucune card n'est écartée du sharing by distraction", async () => {
+  it("no card is set aside from sharing by inattention", async () => {
     const { cookie } = await signedIn();
     await app.inject({
       method: "PUT",
@@ -204,7 +204,7 @@ describe("la chaîne, de bout en bout", () => {
     expect(r.json().cards[0].hidden).toBe(false);
   });
 
-  it("one collection ne voit pas celle du voisin", async () => {
+  it("one collection does not see the neighbour's", async () => {
     const a = await signedIn("duras");
     const b = await signedIn("godard");
     await app.inject({
@@ -222,7 +222,7 @@ describe("la chaîne, de bout en bout", () => {
     expect(chezB.json().cards).toEqual([]);
   });
 
-  it("un envoi trop gros est refusé plutôt qu'avalé", async () => {
+  it("a send that is too big is refused rather than swallowed", async () => {
     const { cookie } = await signedIn();
     const cards = Array.from({ length: 501 }, (_, i) => ({
       id: `f${i}`,
@@ -238,7 +238,7 @@ describe("la chaîne, de bout en bout", () => {
     expect(r.statusCode).toBe(413);
   });
 
-  it("one card sans date ni identifiant est ignorée, pas fatale", async () => {
+  it("a card with no date and no identifier is ignored, not fatal", async () => {
     const { cookie } = await signedIn();
     const r = await app.inject({
       method: "PUT",
@@ -249,7 +249,7 @@ describe("la chaîne, de bout en bout", () => {
     expect(r.json()).toMatchObject({ filed: 1, unreadable: 1, stale: 0 });
   });
 
-  it("at count rendu distingue ce qui est écrit de ce qui est reçu", async () => {
+  it("the count returned tells what was written from what was received", async () => {
     /* Un client qui vide sa file d'attente sur la foi de ce count
        croirait avoir envoyé ce que la base a écarté. */
     const { cookie } = await signedIn();
@@ -271,8 +271,8 @@ describe("la chaîne, de bout en bout", () => {
   });
 });
 
-describe("ce qui est à soi", () => {
-  it("s'emporte en entier", async () => {
+describe("what is one's own", () => {
+  it("is carried away whole", async () => {
     const { cookie } = await signedIn("kiarostami");
     await app.inject({
       method: "PUT",
@@ -286,7 +286,7 @@ describe("ce qui est à soi", () => {
     expect(r.json().cards).toHaveLength(1);
   });
 
-  it("et se reprend : at count effacé, la session ne vaut plus rien", async () => {
+  it("and is taken back: the account erased, the session is worth nothing", async () => {
     const { cookie } = await signedIn("pialat");
     const erased = await app.inject({ method: "DELETE", url: "/my-account", headers: { cookie } });
     expect(erased.json()).toEqual({ erased: true });
@@ -295,7 +295,7 @@ describe("ce qui est à soi", () => {
     expect(apres.statusCode).toBe(401);
   });
 
-  it("la déconnexion removed at cookie et la session", async () => {
+  it("signing out removes the cookie and the session", async () => {
     const { cookie } = await signedIn();
     const r = await app.inject({ method: "POST", url: "/signout", headers: { cookie } });
     expect(cookieOf(r)).toMatch(/^session=/);

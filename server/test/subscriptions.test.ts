@@ -38,8 +38,8 @@ afterEach(async () => {
   await db.close();
 });
 
-describe("trouver quelqu'un", () => {
-  it("on ne trouve que ceux qui ont choisi d'être trouvables", async () => {
+describe("finding somebody", () => {
+  it("one finds only those who chose to be findable", async () => {
     const fermee = await count("discrete");
     const open = await count("varda");
     await openUp(open.cookie);
@@ -54,14 +54,14 @@ describe("trouver quelqu'un", () => {
     expect(fermee).toBeTruthy();
   });
 
-  it("un sharing by LIEN n'ouvre pas de profil", async () => {
+  it("sharing by LINK does not open a profile", async () => {
     /* Un lien se donne à quelqu'un ; il ne rend pas trouvable. */
     const p = await count("varda");
     await openUp(p.cookie, "lien");
     expect((await app.inject({ method: "GET", url: "/profiles/varda" })).statusCode).toBe(404);
   });
 
-  it("at profil dit ce qu'il montre, et rien de la person", async () => {
+  it("the profile says what it shows, and nothing of the person", async () => {
     const p = await count("varda");
     await push(p.cookie, [
       { id: "f1", updatedAt: 1, data: { title: "Cléo" } },
@@ -76,8 +76,8 @@ describe("trouver quelqu'un", () => {
   });
 });
 
-describe("suivre", () => {
-  it("est un gesture qu'on done seul, et qu'on refait sans dommage", async () => {
+describe("following", () => {
+  it("is a gesture one makes alone, and remakes without harm", async () => {
     const me = await count("mine");
     const her = await count("varda");
     await openUp(her.cookie);
@@ -103,7 +103,7 @@ describe("suivre", () => {
     expect(list.json().subscriptions.map((a: { pseudo: string }) => a.pseudo)).toEqual(["varda"]);
   });
 
-  it("on ne s'subscribed pas à un silence", async () => {
+  it("one does not subscribe to a silence", async () => {
     const me = await count("mine");
     await count("discrete");
     const r = await app.inject({
@@ -114,7 +114,7 @@ describe("suivre", () => {
     expect(r.statusCode).toBe(404);
   });
 
-  it("on ne se suit pas soi-même", async () => {
+  it("one does not follow oneself", async () => {
     /* Sinon son propre fil se remplit de ce qu'on vient d'écrire. */
     const me = await count("mine");
     await openUp(me.cookie);
@@ -126,7 +126,7 @@ describe("suivre", () => {
     expect(r.statusCode).toBe(400);
   });
 
-  it("se désabonner left possible when l'other s'est refermé", async () => {
+  it("unfollowing stays possible when the other has closed up", async () => {
     /* Passer by at profil public l'aurait rendu impossible — on serait
        abonné à vie à quelqu'un devenu invisible. */
     const me = await count("mine");
@@ -150,8 +150,8 @@ describe("suivre", () => {
   });
 });
 
-describe("at fil", () => {
-  it("ne montre que ce que les gens suivis montrent", async () => {
+describe("the feed", () => {
+  it("shows only what the people followed show", async () => {
     const me = await count("mine");
     const suivie = await count("varda");
     const other = await count("inconnue");
@@ -166,7 +166,7 @@ describe("at fil", () => {
     expect(r.json().news.map((n: { film: { title: string } }) => n.film.title)).toEqual(["Cléo"]);
   });
 
-  it("n'emporte jamais les notes ni at journal", async () => {
+  it("never carries off the notes or the log", async () => {
     const me = await count("mine");
     const her = await count("varda");
     await openUp(her.cookie);
@@ -194,7 +194,7 @@ describe("at fil", () => {
     expect("watchedAt" in film).toBe(false);
   });
 
-  it("se tait when la person suivie se referme", async () => {
+  it("falls silent when the followed person closes up", async () => {
     const me = await count("mine");
     const her = await count("varda");
     await openUp(her.cookie);
@@ -208,7 +208,7 @@ describe("at fil", () => {
     expect(r.json().news).toEqual([]);
   });
 
-  it("one card écartée n'apparaît pas non plus", async () => {
+  it("a card set aside does not appear either", async () => {
     const me = await count("mine");
     const her = await count("varda");
     await openUp(her.cookie);
@@ -232,7 +232,7 @@ describe("at fil", () => {
     expect(titres).toEqual(["Playtime"]);
   });
 
-  it("se lit page by page, du plus récent au plus ancien", async () => {
+  it("reads page by page, from the most recent to the oldest", async () => {
     const me = await count("mine");
     const her = await count("varda");
     await openUp(her.cookie);
@@ -254,7 +254,7 @@ describe("at fil", () => {
     expect(suite.json().news).toEqual([]);
   });
 
-  it("il faut un count pour avoir un fil", async () => {
+  it("an account is needed to have a feed", async () => {
     expect((await app.inject({ method: "GET", url: "/feed" })).statusCode).toBe(401);
   });
 });

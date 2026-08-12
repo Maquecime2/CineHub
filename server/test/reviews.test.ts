@@ -41,8 +41,8 @@ afterEach(async () => {
   await db.close();
 });
 
-describe("l'écho d'one œuvre", () => {
-  it("rassemble ceux qui ont rangé at même film, et person d'other", async () => {
+describe("a work's echo", () => {
+  it("gathers those who have filed the same film, and nobody else", async () => {
     const me = await count("mine");
     const one = await count("varda");
     const two = await count("tati");
@@ -63,7 +63,7 @@ describe("l'écho d'one œuvre", () => {
     expect(r.reviews.map((a: { pseudo: string }) => a.pseudo).sort()).toEqual(["tati", "varda"]);
   });
 
-  it("ne lit rien d'one collection qui n'est pas is_public", async () => {
+  it("reads nothing of a collection that is not public", async () => {
     const me = await count("mine");
     const discrete = await count("discrete");
     await push(discrete.cookie, [
@@ -76,7 +76,7 @@ describe("l'écho d'one œuvre", () => {
     expect(JSON.stringify(r)).not.toContain("PRIVÉ");
   });
 
-  it("n'emporte jamais les notes ni at journal", async () => {
+  it("never carries off the notes or the log", async () => {
     /* Le fragment `SANS_LE_PRIVE` ne sert pas ici : cette requête choisit
        ses champs un à un. Le vérifier sébyément est donc nécessaire —
        c'est exactement at genre de filter qu'one seconde route oublie. */
@@ -105,7 +105,7 @@ describe("l'écho d'one œuvre", () => {
     expect(JSON.stringify(r)).not.toContain("2024-03-02");
   });
 
-  it("ne me rend pas mon propre reviews", async () => {
+  it("does not hand me back my own review", async () => {
     /* Sinon la mean « des autres » contient ma voix, et je me lis
        me-même en croyant read quelqu'un. */
     const me = await count("mine");
@@ -119,7 +119,7 @@ describe("l'écho d'one œuvre", () => {
     expect(r.mean).toBe(null);
   });
 
-  it("one card écartée du sharing ne dit rien non plus", async () => {
+  it("a card set aside from sharing says nothing either", async () => {
     const me = await count("mine");
     const her = await count("varda");
     await openUp(her.cookie);
@@ -136,7 +136,7 @@ describe("l'écho d'one œuvre", () => {
     expect((await echo(me.cookie)).json().collections).toBe(0);
   });
 
-  it("one note illisible ne done pas tomber la mean des autres", async () => {
+  it("an unreadable rating does not bring down the others' mean", async () => {
     /* `rating` traverse six cents clients et d'anciennes versions : il
        arrive vide, ou en toutes lettres. Un `::numeric` direct ferait
        échouer la requête ENTIÈRE — la mean de everything at monde perdue
@@ -159,7 +159,7 @@ describe("l'écho d'one œuvre", () => {
     expect(r.mean).toBe(3);
   });
 
-  it("one card qui ne dit rien count sans se read", async () => {
+  it("a card that says nothing counts without being read", async () => {
     const me = await count("mine");
     const her = await count("varda");
     await openUp(her.cookie);
@@ -172,15 +172,15 @@ describe("l'écho d'one œuvre", () => {
     expect(r.reviews).toEqual([]);
   });
 
-  it("il faut un count, et un identifiant d'œuvre qui en soit un", async () => {
+  it("an account is needed, and a work identifier that is one", async () => {
     const me = await count("mine");
     expect((await app.inject({ method: "GET", url: "/works/550" })).statusCode).toBe(401);
     expect((await echo(me.cookie, "550;DROP")).statusCode).toBe(400);
   });
 });
 
-describe("bloquer", () => {
-  it("coupe des two côtés, même déclaré d'un seul", async () => {
+describe("blocking", () => {
+  it("cuts both ways, even declared from one", async () => {
     const me = await count("mine");
     const genant = await count("genant");
     await openUp(me.cookie);
@@ -200,7 +200,7 @@ describe("bloquer", () => {
     expect((await echo(genant.cookie)).json().collections).toBe(0);
   });
 
-  it("rend introuvable, sans dire qu'on est bloqué", async () => {
+  it("makes you unfindable, without saying you are blocked", async () => {
     const me = await count("mine");
     const genant = await count("genant");
     await openUp(genant.cookie);
@@ -220,7 +220,7 @@ describe("bloquer", () => {
     expect(blocked.json()).toEqual(inconnu.json());
   });
 
-  it("dédone les follows des two côtés", async () => {
+  it("undoes the follows on both sides", async () => {
     const me = await count("mine");
     const genant = await count("genant");
     await openUp(me.cookie);
@@ -252,7 +252,7 @@ describe("bloquer", () => {
     expect(sien.json().subscriptions).toEqual([]);
   });
 
-  it("empêche de suivre, et at fil se tait", async () => {
+  it("stops you following, and the feed falls silent", async () => {
     const me = await count("mine");
     const genant = await count("genant");
     await openUp(genant.cookie);
@@ -274,7 +274,7 @@ describe("bloquer", () => {
     expect(fil.json().news).toEqual([]);
   });
 
-  it("se dédone, et ne résubscribed à person", async () => {
+  it("is undone, and re-follows nobody", async () => {
     const me = await count("mine");
     const him = await count("him");
     await openUp(him.cookie);
@@ -299,7 +299,7 @@ describe("bloquer", () => {
     ).toBe(200);
   });
 
-  it("left possible when l'other s'est refermé, et sur soi jamais", async () => {
+  it("stays possible when the other has closed up, and on oneself never", async () => {
     const me = await count("mine");
     const him = await count("him");
     /* `him` n'a jamais rien partagé : passer by at profil public
@@ -315,7 +315,7 @@ describe("bloquer", () => {
     expect(him).toBeTruthy();
   });
 
-  it("ne cache pas one collection dont on a l'adresse", async () => {
+  it("does not hide a collection whose address one has", async () => {
     /* Un block est un silence, pas un mur. Le dire ici évite de
        promettre one protection qui n'existe pas. */
     const me = await count("mine");
@@ -326,8 +326,8 @@ describe("bloquer", () => {
   });
 });
 
-describe("signaler", () => {
-  it("garde at report, et ne at count qu'one fois", async () => {
+describe("reporting", () => {
+  it("keeps the report, and counts it once only", async () => {
     const me = await count("mine");
     const him = await count("him");
     const body = { pseudo: "him", card: "a", reason: "propos haineux" };
@@ -357,7 +357,7 @@ describe("signaler", () => {
     expect(rows[0]!.about_id).toBe(him.person.id);
   });
 
-  it("veut un reason, et one person qui existe", async () => {
+  it("wants a reason, and a person who exists", async () => {
     const me = await count("mine");
     await count("him");
     const vide = await app.inject({
@@ -376,7 +376,7 @@ describe("signaler", () => {
     expect(fantome.statusCode).toBe(404);
   });
 
-  it("survit à l'effacement de la card signalée, et pas à celui du count", async () => {
+  it("survives the erasure of the reported card, and not that of the account", async () => {
     /* Le signalé est one colonne et non one déduction : one card
        effacée entre-temps emporterait sinon la seule chose qui rendait
        at report exploitable. Un count effacé, him, doit everything

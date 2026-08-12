@@ -40,8 +40,8 @@ afterEach(async () => {
   await db.close();
 });
 
-describe("by défaut, on ne sharing rien", () => {
-  it("one collection est muette tant qu'on ne l'a pas open", async () => {
+describe("by default, nothing is shared", () => {
+  it("a collection is mute until it has been opened", async () => {
     const { cookie } = await signedIn("varda");
     await push(cookie, [{ id: "f1", updatedAt: 1, data: { title: "Cléo de 5 à 7" } }]);
 
@@ -49,7 +49,7 @@ describe("by défaut, on ne sharing rien", () => {
     expect(r.statusCode).toBe(404);
   });
 
-  it("et un count qui n'existe pas répond exactement pareil", async () => {
+  it("and an account that does not exist answers exactly the same", async () => {
     /* Sinon la route devient un annuaire : « 404 » d'un côté, « privé »
        de l'other, et l'on sait qui est inscrit. */
     const { cookie } = await signedIn("varda");
@@ -62,8 +62,8 @@ describe("by défaut, on ne sharing rien", () => {
   });
 });
 
-describe("ce qu'un visiteur voit", () => {
-  it("les films, la note et la review — jamais les notes ni at journal", async () => {
+describe("what a visitor sees", () => {
+  it("the films, the rating and the review — never the notes or the log", async () => {
     const { cookie } = await signedIn("varda");
     await push(cookie, [
       {
@@ -101,7 +101,7 @@ describe("ce qu'un visiteur voit", () => {
     expect(Object.keys(r.json()).sort()).toEqual(["films", "pseudo"]);
   });
 
-  it("one card écartée left chez her", async () => {
+  it("a card set aside stays at home", async () => {
     const { cookie } = await signedIn("varda");
     await push(cookie, [
       { id: "montrable", updatedAt: 1, data: { title: "Playtime" } },
@@ -132,7 +132,7 @@ describe("ce qu'un visiteur voit", () => {
      Rien ne l'aurait signalé : la card ne change pas d'apparence chez
      soi, seulement chez les autres. C'est exactement l'espèce de défaut
      qui se découvre by quelqu'un d'other. */
-  it("left écartée après one modification de la card", async () => {
+  it("stays set aside after a change to the card", async () => {
     const { cookie } = await signedIn("varda");
     await push(cookie, [
       { id: "montrable", updatedAt: 1, data: { title: "Playtime" } },
@@ -156,7 +156,7 @@ describe("ce qu'un visiteur voit", () => {
     expect(r.json().films.map((f: { title: string }) => f.title)).toEqual(["Playtime"]);
   });
 
-  it("dit lesquelles sont écartées, pour que at classeur puisse at montrer", async () => {
+  it("says which ones are set aside, so the binder can show it", async () => {
     const { cookie } = await signedIn("varda");
     await push(cookie, [
       { id: "f1", updatedAt: 1, data: { title: "A" } },
@@ -184,7 +184,7 @@ describe("ce qu'un visiteur voit", () => {
     ).toEqual([]);
   });
 
-  it("ne dit à person ce qu'un other a écarté", async () => {
+  it("tells nobody what somebody else has set aside", async () => {
     const me = await signedIn("varda");
     const him = await signedIn("melville");
     await push(him.cookie, [{ id: "s1", updatedAt: 1, data: { title: "Le Samouraï" } }]);
@@ -203,7 +203,7 @@ describe("ce qu'un visiteur voit", () => {
     expect(r.json().ids).toEqual([]);
   });
 
-  it("one card effacée ne revient pas by la porte du sharing", async () => {
+  it("an erased card does not come back through the sharing door", async () => {
     const { cookie } = await signedIn("varda");
     await push(cookie, [{ id: "f1", updatedAt: 1, data: { title: "Playtime" } }]);
     await push(cookie, [{ id: "f1", updatedAt: 2, deleted: true, data: {} }]);
@@ -214,8 +214,8 @@ describe("ce qu'un visiteur voit", () => {
   });
 });
 
-describe("at sharing by lien", () => {
-  it("s'ouvre à qui a at token, et à person d'other", async () => {
+describe("sharing by link", () => {
+  it("opens to whoever has the token, and to nobody else", async () => {
     const { cookie } = await signedIn("varda");
     await push(cookie, [{ id: "f1", updatedAt: 1, data: { title: "Le Bonheur" } }]);
     const { token } = (await setSharing(cookie, "lien")).json();
@@ -232,7 +232,7 @@ describe("at sharing by lien", () => {
     expect(avec.json().films[0].title).toBe("Le Bonheur");
   });
 
-  it("se referme, et at lien distribué ne vaut plus rien", async () => {
+  it("closes again, and the link handed out is worth nothing", async () => {
     const { cookie } = await signedIn("varda");
     await push(cookie, [{ id: "f1", updatedAt: 1, data: {} }]);
     const { token } = (await setSharing(cookie, "lien")).json();
@@ -243,7 +243,7 @@ describe("at sharing by lien", () => {
     ).toBe(404);
   });
 
-  it("rouvrir donne un token NEUF : se raviser veut dire quelque chose", async () => {
+  it("reopening gives a FRESH token: changing one's mind has to mean something", async () => {
     /* Reprendre l'ancien ferait revivre tous les liens distribués la
        fois d'before — y compris celui qu'on avait voulu couper. */
     const { cookie } = await signedIn("varda");
@@ -258,8 +258,8 @@ describe("at sharing by lien", () => {
   });
 });
 
-describe("qui décide", () => {
-  it("person d'other que soi", async () => {
+describe("who decides", () => {
+  it("nobody but oneself", async () => {
     const a = await signedIn("duras");
     const b = await signedIn("godard");
     await push(a.cookie, [{ id: "f1", updatedAt: 1, data: { title: "India Song" } }]);
@@ -278,13 +278,13 @@ describe("qui décide", () => {
     expect(vol.statusCode).toBe(404);
   });
 
-  it("et il faut un count pour régler what que ce soit", async () => {
+  it("and an account is needed to set anything at all", async () => {
     expect((await app.inject({ method: "PUT", url: "/sharing", payload: {} })).statusCode).toBe(
       401
     );
   });
 
-  it("un réglage inventé est refusé", async () => {
+  it("an invented setting is refused", async () => {
     const { cookie } = await signedIn("varda");
     const r = await setSharing(cookie, "au-monde-entier-sauf-mon-frere");
     expect(r.statusCode).toBe(400);

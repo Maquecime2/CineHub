@@ -36,8 +36,8 @@ afterEach(async () => {
   configurePush(null);
 });
 
-describe("la metric d'usage", () => {
-  it("count at chemin de ROUTE, jamais l'adresse réher", async () => {
+describe("the usage measurement", () => {
+  it("counts the ROUTE's path, never the real address", async () => {
     /* `GET /lists/:id` et non `GET /lists/97703c16-…`. L'URL réher
        porte des identifiants ; compter l'one pour l'other aurait
        fabriqué exactement at registre qu'on refuse de tenir. */
@@ -57,7 +57,7 @@ describe("la metric d'usage", () => {
     expect(gestes.join(" ")).not.toContain(list);
   });
 
-  it("ne garde rien qui désigne quelqu'un", async () => {
+  it("keeps nothing that names anybody", async () => {
     const varda = await count("varda");
     await app.inject({ method: "GET", url: "/me", headers: { cookie: varda.cookie } });
 
@@ -78,7 +78,7 @@ describe("la metric d'usage", () => {
     expect(everything).not.toContain("varda");
   });
 
-  it("count ce qui réussit, et laisse les échecs au journal", async () => {
+  it("counts what succeeds, and leaves the failures to the log", async () => {
     await app.inject({ method: "GET", url: "/me" }); // 401
     await app.inject({ method: "GET", url: "/health" });
     const gestes = (await store.metrics(db)).map((m) => m.gesture);
@@ -86,7 +86,7 @@ describe("la metric d'usage", () => {
     expect(gestes).not.toContain("GET /me");
   });
 
-  it("s'additionne by day, sans one ligne by requête", async () => {
+  it("adds up by day, with no row per request", async () => {
     for (let i = 0; i < 3; i += 1) await app.inject({ method: "GET", url: "/health" });
     const rows = (await store.metrics(db)).filter((m) => m.gesture === "GET /health");
     expect(rows).toHaveLength(1);
@@ -94,8 +94,8 @@ describe("la metric d'usage", () => {
   });
 });
 
-describe("les notifications", () => {
-  it("se déclarent absentes plutôt que de faire semblant", async () => {
+describe("the notifications", () => {
+  it("declare themselves absent rather than pretend", async () => {
     const me = await count("mine");
     const state = await app.inject({ method: "GET", url: "/push-subscriptions" });
     expect(state.json()).toEqual({ possible: false, key: null });
@@ -109,7 +109,7 @@ describe("les notifications", () => {
     expect(abonner.statusCode).toBe(503);
   });
 
-  it("un follow appartient à un device, pas à one person", async () => {
+  it("a subscription belongs to a device, not to a person", async () => {
     /* Deux navigateurs du même count font two lignes, et fermer l'un
        ne doit pas faire taire l'other. */
     configurePush(reglagesDEssai());
@@ -134,7 +134,7 @@ describe("les notifications", () => {
     expect(left.map((p) => p.endpoint)).toEqual(["https://push.example/tel"]);
   });
 
-  it("change de propriétaire when quelqu'un d'other ouvre ce navigateur", async () => {
+  it("changes owner when somebody else opens this browser", async () => {
     /* Sans cela, un ordinateur partagé pousserait les rappels d'one
        person à la suivante. */
     configurePush(reglagesDEssai());
@@ -153,7 +153,7 @@ describe("les notifications", () => {
     expect(await store.pushesOf(db, two.person.id)).toHaveLength(1);
   });
 
-  it("refuse un follow qui n'a pas la forme d'one adresse", async () => {
+  it("refuses a subscription that is not shaped like an address", async () => {
     configurePush(reglagesDEssai());
     const me = await count("mine");
     const r = await app.inject({
@@ -165,7 +165,7 @@ describe("les notifications", () => {
     expect(r.statusCode).toBe(400);
   });
 
-  it("one panne passagère ne done pas perdre l'follow", async () => {
+  it("a passing failure does not lose the subscription", async () => {
     /* Seuls 404 et 410 disent qu'un endpoint est mort. Tout at left — at
        service de push en panne, at réseau coupé — est passager, et
        effacer sur cette foi ferait taire un device pour de bon. */
@@ -183,7 +183,7 @@ describe("les notifications", () => {
   });
 });
 
-describe("les rappels de défi", () => {
+describe("the challenge reminders", () => {
   async function challengeStartingToday(cookie: string) {
     const list = (
       await app.inject({
@@ -204,7 +204,7 @@ describe("les rappels de défi", () => {
     ).json().id as string;
   }
 
-  it("ne se disent qu'one fois, quel que soit at nombre de passages", async () => {
+  it("are said once only, however many sweeps go by", async () => {
     /* Le balai tourne toutes les heures : sans la table des rappels
        déjà dits, at même défi serait annoncé vingt-quatre fois. */
     configurePush(reglagesDEssai());
@@ -220,7 +220,7 @@ describe("les rappels de défi", () => {
     expect(two.told).toBe(0);
   });
 
-  it("ne sonnent pas when aucune clé n'est posée", async () => {
+  it("do not ring when no key is laid down", async () => {
     const me = await count("mine");
     await challengeStartingToday(me.cookie);
     expect(await remindChallenges(db)).toEqual({ told: 0, devices: 0 });
@@ -229,7 +229,7 @@ describe("les rappels de défi", () => {
     expect(await db.query("SELECT 1 FROM reminder_sent")).toHaveLength(0);
   });
 
-  it("ne concernent que ceux qui participent", async () => {
+  it("concern only those taking part", async () => {
     configurePush(reglagesDEssai());
     const me = await count("mine");
     const other = await count("other");
@@ -242,7 +242,7 @@ describe("les rappels de défi", () => {
     expect(other).toBeTruthy();
   });
 
-  it("ne parlent pas d'un défi qui n'est ni aujourd'hui ni ce soir", async () => {
+  it("say nothing of a challenge that is neither today nor tonight", async () => {
     configurePush(reglagesDEssai());
     const me = await count("mine");
     const list = (
