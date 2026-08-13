@@ -368,12 +368,12 @@ export default function App() {
   /* Writing a motif of one's own. Making it SET on the open card at
      once: you never create one in the abstract, but because you have
      just watched that film and no word said it. */
-  const createMotif = (label, famille, spoiler) => {
+  const createMotif = (label, family, spoiler) => {
     const clean = (label || "").trim();
     if (!clean) return null;
     const existing = [...customMotifs()].find((m) => m.label.toLowerCase() === clean.toLowerCase());
     if (existing) return existing.id;
-    const motif = makeCustomMotif(clean, famille, spoiler);
+    const motif = makeCustomMotif(clean, family, spoiler);
     commitVocabulary({ ...vocabulary, custom: [...vocabulary.custom, motif] });
     return motif.id;
   };
@@ -423,7 +423,7 @@ export default function App() {
   };
 
   /* Opening somebody from a card. The key is normalized HERE and once
-     only: the Credits view files its dossiers under the same one, and
+     only: the Credits view files its person pages under the same one, and
      two ways of writing it would make two people. */
   const openPerson = (name) => {
     setPerson(normalize(name));
@@ -674,7 +674,7 @@ export default function App() {
   const constellationFilms = useMemo(() => watched.filter((f) => !f.archived), [watched]);
   // the wall we come from: "I have seen it" from the watchlist must lead back to the right place
   /* We come back from where we came. A card opened from a person's
-     dossier leads back to that dossier — otherwise, following a
+     person page leads back to that page — otherwise, following a
      cinematographer from film to film would mean finding them again
      every time. */
   const backView = who ? "credits" : selectedFilm?.status === "watchlist" ? "watchlist" : "library";

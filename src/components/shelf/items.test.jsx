@@ -399,7 +399,7 @@ describe("carryGhost — what one carries under the cursor", () => {
     carryGhost({ dataTransfer: { setDragImage }, clientX: 120, clientY: 80 }, node);
 
     const [ghost, dx, dy] = setDragImage.mock.calls[0];
-    expect(ghost).not.toBe(node); // la copie, jamais l'original pris dans la rangée
+    expect(ghost).not.toBe(node); // the copy, never the original taken from the row
     expect([ghost.style.width, ghost.style.height]).toEqual(["96px", "144px"]);
     // grabbed where the hand took it, so that nothing jumps at the start
     expect([dx, dy]).toEqual([20, 30]);

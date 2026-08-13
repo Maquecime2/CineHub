@@ -405,7 +405,7 @@ export async function fetchKeywords(tmdbId, apiKey) {
    ============================================================ */
 
 const DISC_KEY = "tmdb-disc";
-const DISC_TTL = 7 * 24 * 3600 * 1000; // une semaine : assez frais, assez économe
+const DISC_TTL = 7 * 24 * 3600 * 1000; // one week: fresh enough, thrifty enough
 
 /* A cache with an expiry, distinct from `tmdb-cache`: this one
    memorises lists of candidates, which age (a film comes out, a rating

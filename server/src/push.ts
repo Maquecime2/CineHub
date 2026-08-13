@@ -49,10 +49,10 @@ export const publicKeyForPush = (): string | null => configured?.publicKey ?? nu
 export async function pushTo(
   db: Db,
   personId: string,
-  /* `title` and `body` STAY FRENCH: they are the payload the browser's
-     service worker reads (`public/push.js` shows `m.title` and `m.body`).
-     Renaming them here would silence every notification, and neither side
-     would report an error. */
+  /* `title` and `body` ARE THE PAYLOAD the browser's service worker
+     reads (`public/push.js` shows `m.title` and `m.body`). The two
+     spellings have to change together: renaming one side alone silences
+     every notification, and neither side reports an error. */
   message: { title: string; body: string; url?: string }
 ): Promise<number> {
   if (!configured) return 0;
@@ -98,7 +98,7 @@ export async function remindChallenges(db: Db): Promise<{ told: number; devices:
 
     told += 1;
     devices += await pushTo(db, r.person_id, {
-      title: r.when === "starts_on" ? "Un défi commence" : "Dernier day",
+      title: r.when === "starts_on" ? "Un défi commence" : "Dernier jour",
       body:
         r.when === "starts_on"
           ? `« ${r.title} » démarre aujourd'hui.`

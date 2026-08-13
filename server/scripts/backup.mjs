@@ -29,18 +29,22 @@ if (!url) {
   process.exit(1);
 }
 
-const dossier = process.env.SAUVEGARDES || "sauvegardes";
+/* The environment variables are a contract with whoever deploys this,
+   written into a cron line or a systemd unit that does not live in this
+   repository. So each one is read under both spellings; the French one
+   can be dropped once the deployments have caught up. */
+const folder = process.env.BACKUPS || process.env.SAUVEGARDES || "sauvegardes";
 /* Seven, because a week is the real delay between a blunder and the
    moment one notices it. Keeping everything ends up filling the disk,
    which is another way of stopping the server. */
-const GARDER = Number(process.env.SAUVEGARDES_GARDEES || 7);
+const KEEP = Number(process.env.BACKUPS_KEPT || process.env.SAUVEGARDES_GARDEES || 7);
 
-await mkdir(dossier, { recursive: true });
+await mkdir(folder, { recursive: true });
 
-const horodatage = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-const fichier = join(dossier, `cinehub-${horodatage}.dump`);
+const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+const file = join(folder, `cinehub-${stamp}.dump`);
 
-console.log(`sauvegarde → ${fichier}`);
+console.log(`sauvegarde → ${file}`);
 
 /* `pg_dump` is called as a PROCESS, not as a library: it is Postgres's
    own tool, it knows its format better than we do, and a backup written
@@ -49,7 +53,7 @@ console.log(`sauvegarde → ${fichier}`);
 const code = await new Promise((resolve) => {
   const p = spawn(
     process.env.PG_DUMP || "pg_dump",
-    ["--format=custom", "--no-owner", "--no-privileges", "--file", fichier, url],
+    ["--format=custom", "--no-owner", "--no-privileges", "--file", file, url],
     { stdio: ["ignore", "inherit", "inherit"] }
   );
   p.on("error", (e) => {
@@ -64,12 +68,12 @@ const code = await new Promise((resolve) => {
 
 if (code !== 0) process.exit(code || 1);
 
-const { size } = await stat(fichier);
+const { size } = await stat(file);
 /* AN EMPTY BACKUP IS WORSE THAN NONE: it reassures. A valid Postgres
    dump always weighs more than a few hundred bytes, even on a fresh
    database. */
 if (size < 1024) {
-  console.error(`⚠ ${size} octets seulement — cette sauvegarde n'en est pas one.`);
+  console.error(`⚠ ${size} octets seulement — cette sauvegarde n'en est pas une.`);
   process.exit(1);
 }
 console.log(`  ${(size / 1024 / 1024).toFixed(2)} Mo`);
@@ -77,17 +81,17 @@ console.log(`  ${(size / 1024 / 1024).toFixed(2)} Mo`);
 /* The rotation comes AFTER the size check: erasing the old ones on the
    strength of a new one that failed would be the one way to turn a
    backup failure into data loss. */
-const anciennes = (await readdir(dossier))
+const old = (await readdir(folder))
   .filter((f) => f.startsWith("cinehub-") && f.endsWith(".dump"))
   .sort()
   .reverse()
-  .slice(GARDER);
-for (const f of anciennes) {
-  await unlink(join(dossier, f));
+  .slice(KEEP);
+for (const f of old) {
+  await unlink(join(folder, f));
   console.log(`  effacée : ${f}`);
 }
 
-console.log("\nPour la relire — sur one base VIDE, jamais by-dessus la vivante :");
+console.log("\nPour la relire — sur une base VIDE, jamais par-dessus la vivante :");
 console.log(`  createdb cinehub_essai`);
-console.log(`  pg_restore --no-owner --dbname=cinehub_essai ${fichier}`);
-console.log("Et at faire pour de vrai one fois, before d'en avoir besoin.");
+console.log(`  pg_restore --no-owner --dbname=cinehub_essai ${file}`);
+console.log("Et à le faire pour de vrai une fois, avant d'en avoir besoin.");

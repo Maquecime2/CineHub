@@ -159,7 +159,7 @@ export function AccountDrawer({
             : "Un compte sert à retrouver votre collection ailleurs. Le classeur marche très bien sans."}
         </div>
 
-        {/* ---- l'état ---- */}
+        {/* ---- the state ---- */}
         <Label>Synchronisation</Label>
         <div
           style={{
@@ -233,8 +233,8 @@ export function AccountDrawer({
             <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginBottom: 12 }}>
               {/* We explain the passkey in one sentence: nobody should
                   have to know what WebAuthn is in order to sign up. */}
-              Pas de word de pass : votre téléphone ou votre ordinateur sign à votre place, withCrew
-              ce qui at déverrouille existing.
+              Pas de mot de passe : votre téléphone ou votre ordinateur signe à votre place, avec ce
+              qui le déverrouille déjà.
             </div>
 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -384,9 +384,8 @@ export function AccountDrawer({
               the phone is a noted lost. But it cannot be guessed, so it is
               said — and sharing, for its part, will send only the public
               part of the card (see `publicPart`). */}
-          Votre collection entière est copiée sur votre count, notes et screenings comprises.
-          Nothing n'est public : le partage se décide fiche par fiche, et n'emportera never vos
-          notes.
+          Votre collection entière est copiée sur votre compte, notes et séances comprises. Rien
+          n'est public : le partage se décide fiche par fiche, et n'emportera jamais vos notes.
         </div>
       </div>
     </Layer>

@@ -49,7 +49,7 @@ export async function createPerson(db: Db, pseudo: string): Promise<Person> {
     "INSERT INTO person (id, pseudo) VALUES ($1, $2) RETURNING id, pseudo, email",
     [randomUUID(), pseudo]
   );
-  if (!p) throw new Error("person non créée");
+  if (!p) throw new Error("person not created");
   return p;
 }
 
@@ -151,7 +151,7 @@ export async function sweepChallenges(db: Db): Promise<void> {
    THE SESSIONS
    ------------------------------------------------------------ */
 
-const VIE_SESSION_MS = 30 * 24 * 60 * 60 * 1000;
+const SESSION_LIFE_MS = 30 * 24 * 60 * 60 * 1000;
 
 /* THE COOKIE CARRIES A SECRET, THE DATABASE KEEPS ONLY ITS DIGEST.
    A leak of the sessions table then hands over no usable session: it is
@@ -166,7 +166,7 @@ export async function openSession(db: Db, personId: string): Promise<string> {
   await db.query("INSERT INTO session (digest, person_id, expires_at) VALUES ($1, $2, $3)", [
     fingerprintOf(secret),
     personId,
-    new Date(Date.now() + VIE_SESSION_MS),
+    new Date(Date.now() + SESSION_LIFE_MS),
   ]);
   return secret;
 }
@@ -677,7 +677,7 @@ export async function echoOfWork(
 }
 
 /* ------------------------------------------------------------
-   SE PROTÉGER : bloquer, signaler
+   PROTECTING ONESELF — blocking, reporting
    ------------------------------------------------------------ */
 
 /** Is there a block between these two, in either direction? */
@@ -753,7 +753,7 @@ export async function report(
 }
 
 /* ------------------------------------------------------------
-   LES LISTES, ET LES ÉPREUVES QU'ON EN TIRE
+   THE LISTS, AND THE CHALLENGES DRAWN FROM THEM
    ------------------------------------------------------------ */
 
 export interface ListRow {
@@ -1132,7 +1132,7 @@ export async function metrics(
 }
 
 /* ------------------------------------------------------------
-   LES NOTIFICATIONS POUSSÉES
+   THE PUSH NOTIFICATIONS
    ------------------------------------------------------------ */
 
 export interface PushRow {

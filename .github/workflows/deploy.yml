@@ -1,4 +1,4 @@
-name: Déploiement GitHub Pages
+name: Deploy to GitHub Pages
 
 on:
   push:
@@ -10,8 +10,8 @@ permissions:
   pages: write
   id-token: write
 
-# Un seul déploiement à la fois ; on laisse finir celui qui est en cours
-# plutôt que de l'interrompre au milieu d'une publication.
+# One deployment at a time; we let the one in flight finish rather than
+# interrupt it in the middle of a publication.
 concurrency:
   group: pages
   cancel-in-progress: false
@@ -29,8 +29,8 @@ jobs:
 
       - run: npm ci
 
-      # GITHUB_ACTIONS étant défini, vite.config.js bascule la base sur
-      # /CineHub/ — le chemin sous lequel Pages sert un site de projet.
+      # With GITHUB_ACTIONS defined, vite.config.ts switches the base to
+      # /CineHub/ — the path under which Pages serves a project site.
       - run: npm run build
 
       - uses: actions/configure-pages@v6

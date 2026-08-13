@@ -348,8 +348,8 @@ describe("newDirectors", () => {
   it("keeps only the filmmakers seen for the FIRST time that year", () => {
     const films = [
       seen("A", ["2019-01-01"], { director: "Varda" }),
-      seen("B", ["2024-01-01"], { director: "Varda" }), // pas une découverte
-      seen("C", ["2024-01-02"], { director: "Akerman" }), // une découverte
+      seen("B", ["2024-01-01"], { director: "Varda" }), // not a discovery
+      seen("C", ["2024-01-02"], { director: "Akerman" }), // a discovery
     ];
     expect(newDirectors(films, 2024)).toEqual(["Akerman"]);
   });

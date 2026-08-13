@@ -1563,7 +1563,7 @@ function DecorWorkshop({ onBack }) {
         {/* Two neighbouring gestures that do not do the same thing:
             saying it once here is better than a shelf that empties without
             warning. */}
-        masquer retire du cabinet sans toucher aux étagères ; supprimer retire des two
+        masquer retire du cabinet sans toucher aux étagères ; supprimer retire des deux
       </CabinetNote>
     </div>
   );

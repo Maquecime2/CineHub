@@ -33,7 +33,7 @@ button.chip[aria-pressed="true"]{background:var(--ink);color:var(--card);border-
 .shelf::after{content:"";position:absolute;left:0;right:0;bottom:0;height:12px;border-radius:1px;
   background:linear-gradient(var(--wood),#5E442A);box-shadow:0 3px 0 rgba(0,0,0,.18)}
 .shelf.chevet{background:rgba(140,58,52,.05);border:1px dashed rgba(140,58,52,.35);border-bottom:none;border-radius:3px 3px 0 0}
-/* boîtier vu de tranche */
+/* a case seen edge-on */
 .box{position:relative;width:94px;height:150px;margin-bottom:12px;cursor:pointer;flex:0 0 auto;
   transform-origin:bottom center;transition:transform .18s ease, filter .18s}
 .box:hover{transform:translateY(-7px) rotate(-1.2deg)}
@@ -48,7 +48,7 @@ button.chip[aria-pressed="true"]{background:var(--ink);color:var(--card);border-
   background:var(--burgundy);border:2px solid var(--card);z-index:4}
 .box .yr{position:absolute;top:4px;left:14px;background:rgba(246,239,222,.88);color:var(--ink);
   font-family:'Special Elite',monospace;font-size:9px;padding:1px 4px;z-index:3}
-/* ouverture du boîtier */
+/* the case opening */
 .stage{position:fixed;inset:0;background:rgba(43,38,32,.55);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
 .stage.on{display:flex}
 .case{width:min(760px,96vw);perspective:1400px}

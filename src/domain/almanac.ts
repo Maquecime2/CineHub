@@ -529,7 +529,7 @@ export interface Almanac {
 }
 
 /* ------------------------------------------------------------
-   L'ÉCART À LA NOTE PUBLIQUE
+   THE GAP FROM THE PUBLIC RATING
    ------------------------------------------------------------
 
    `tmdbRating` has been stored on every card from the start, and the type
@@ -719,7 +719,7 @@ export function almanacFor(films: Film[], period: Period): Almanac {
 }
 
 /* ------------------------------------------------------------
-   LES FILMS DE L'ANNÉE
+   THE FILMS OF THE YEAR
    ------------------------------------------------------------
 
    The almanac counts screenings; a picture to take away shows POSTERS,

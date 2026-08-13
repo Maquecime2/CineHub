@@ -732,7 +732,7 @@ export function ConstellationView({
         </div>
       ) : (
         <>
-          {/* la légende, façon cartouche de carte ancienne */}
+          {/* the legend, in the manner of an old map's cartouche */}
           <div
             style={{
               fontFamily: F.mono,
@@ -858,7 +858,7 @@ export function ConstellationView({
                 setHover(null);
               }}
             >
-              {/* le quadrillage effacé d'une carte astronomique */}
+              {/* the faded grid of an astronomical chart */}
               <defs>
                 <pattern id="sky-grid" width="55" height="55" patternUnits="userSpaceOnUse">
                   <path
@@ -909,19 +909,19 @@ export function ConstellationView({
                 const reasons = gatheringThread
                   ? (byId.get(l.a)?.label ?? "")
                   : peer
-                    ? /* La relation nommée, puis CE QU'ON A ÉCRIT SOUS LE
-                         LIEN. Un fil peut n'avoir ni l'une ni l'autre :
-                         il reste un fil, et il doit le dire — sans ce
-                         repli, le trait le plus fort de la carte était le
-                         seul à se survoler en silence. */
+                    ? /* THE NAMED RELATION, then WHAT WAS WRITTEN UNDER THE
+                         LINK. A thread may have neither: it is still a
+                         thread, and it has to say so — without that
+                         fallback, the strongest line on the map was the
+                         only one to hover in silence. */
                       [relationDef(l.relation)?.label, l.note].filter(Boolean).join(" — ") ||
                       "fil écrit à la main"
-                    : /* UN RENVOI VERS UNE ŒUVRE PARLE, LUI AUSSI. La
-                         branche « équipe » ramassait aussi les citations,
-                         qui n'ont pas de `why` : le fil vers le livre
-                         était donc muet. Il dit ce qu'on a écrit sous le
-                         lien, et à défaut la nature de l'œuvre visée avec
-                         son auteur. */
+                    : /* A POINTER TO A WORK SPEAKS TOO. The "crew" branch
+                         also gathered the citations, which have no
+                         `why`: the thread to the book was therefore
+                         mute. It says what was written under the link,
+                         and failing that the nature of the work aimed at
+                         with its author. */
                       l.kind === "cite"
                       ? l.note ||
                         [linkTypeOf(nb.type || "other").label, nb.sub].filter(Boolean).join(" · ")
@@ -1093,7 +1093,7 @@ export function ConstellationView({
                     onClick={(e) => {
                       if (n.kind === "work") return;
                       const s = pressAt.current;
-                      if (s && Math.hypot(e.clientX - s.x, e.clientY - s.y) > 4) return; // c'était un glissé
+                      if (s && Math.hypot(e.clientX - s.x, e.clientY - s.y) > 4) return; // that was a drag
                       /* A thread does not open — it has no card: taking
                          it as the focus shows everything it gathers, and
                          that is exactly the question one asks of it. */

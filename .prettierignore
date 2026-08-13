@@ -3,5 +3,5 @@ coverage
 node_modules
 package-lock.json
 
-# Maquette de style autonome, mise en forme à la main.
-etagere.html
+# A standalone style mock-up, laid out by hand.
+shelf.html

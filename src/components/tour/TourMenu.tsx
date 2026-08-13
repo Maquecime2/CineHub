@@ -52,7 +52,8 @@ export function TourMenu({
         <button onClick={() => onPlay("global")} style={carries}>
           <span style={title}>{TOURS.global!.label}</span>
           <span style={under}>
-            le tour du classeur, d&apos;un tab à l&apos;other — {TOURS.global!.steps.length} steps
+            le tour du classeur, d&apos;un onglet à l&apos;autre — {TOURS.global!.steps.length}{" "}
+            étapes
           </span>
         </button>
 

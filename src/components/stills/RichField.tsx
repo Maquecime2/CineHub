@@ -33,7 +33,7 @@ export function RichField({
 }: RichFieldProps) {
   const ref = useRef<HTMLDivElement | null>(null);
   const lastEmitted = useRef(value); // ce que le champ vient de produire
-  const pendingCaret = useRef<number | null>(null); // où replacer le curseur après un rendu
+  const pendingCaret = useRef<number | null>(null); // where to put the caret back after a render
   const urls = useStillUrls(stills);
 
   /* Returns the text with the token added, without writing anything: it

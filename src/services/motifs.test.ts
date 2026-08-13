@@ -18,7 +18,7 @@ import { normalizeVocabulary } from "./motifs";
    ============================================================ */
 describe("a vocabulary written before the switch", () => {
   const oldShape = (family: unknown) => ({
-    perso: [{ id: "il-pleut", label: "Il pleut", famille: family }],
+    perso: [{ id: "il-pleut", label: "Il pleut", family: family }],
     hiddenOnes: ["hero-dies"],
   });
 

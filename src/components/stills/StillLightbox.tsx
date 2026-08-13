@@ -123,7 +123,7 @@ export function StillLightbox({
           </button>
         )}
 
-        {/* la zone centrale est entièrement sûre, marges comprises */}
+        {/* the central area is entirely safe, margins included */}
         <div
           style={{
             flex: 1,

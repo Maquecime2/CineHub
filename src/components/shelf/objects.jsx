@@ -221,11 +221,11 @@ export const Pennant = ({ color, ...p }) => (
 export const Tape = ({ color, ...p }) => (
   <Sketch color={color} {...p}>
     <g transform="rotate(-18 50 50)">
-      {/* la bande, vue à travers */}
+      {/* the strip, seen through */}
       <path d="M8 40 L92 40 L92 60 L8 60 Z" {...wash(color, 0.14)} />
       {/* the two edges, cleaner than the ends */}
       <path d="M8 40 L92 40 M8 60 L92 60" />
-      {/* les bouts déchirés */}
+      {/* the torn ends */}
       <path d="M8 40 L13 45 L8 50 L13 55 L8 60" strokeWidth="2.4" />
       <path d="M92 40 L87 45 L92 50 L87 55 L92 60" strokeWidth="2.4" />
       {/* the fold down the middle, which catches the light */}

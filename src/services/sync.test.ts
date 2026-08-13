@@ -12,7 +12,7 @@ const fake = {
   person: { id: "p1", pseudo: "varda" } as { id: string; pseudo: string } | null,
   received: [] as { upTo: number; more?: boolean; cards: unknown[] }[],
   pushed: [] as unknown[][],
-  jetteAuTirage: null as null | { code: number; message: string },
+  throwsOnPull: null as null | { code: number; message: string },
   throwsOnSend: null as null | { code: number; message: string },
   docsReceived: [] as { upTo: number; more?: boolean; documents: unknown[] }[],
   docsPushed: [] as unknown[][],
@@ -33,8 +33,8 @@ vi.mock("./server", () => ({
   serverConfigured: () => true,
   whoAmI: async () => fake.person,
   pullFrom: async (since: number) => {
-    if (fake.jetteAuTirage) {
-      throw new FakeServerError(fake.jetteAuTirage.message, fake.jetteAuTirage.code);
+    if (fake.throwsOnPull) {
+      throw new FakeServerError(fake.throwsOnPull.message, fake.throwsOnPull.code);
     }
     return fake.received.shift() ?? { upTo: since, more: false, cards: [] };
   },
@@ -67,7 +67,7 @@ beforeEach(async () => {
   fake.person = { id: "p1", pseudo: "varda" };
   fake.received = [];
   fake.pushed = [];
-  fake.jetteAuTirage = null;
+  fake.throwsOnPull = null;
   fake.throwsOnSend = null;
   fake.docsReceived = [];
   fake.docsPushed = [];
@@ -139,7 +139,7 @@ describe("one full round", () => {
 describe("when the network is missing", () => {
   it("the device stays where it was, and says so without blushing", async () => {
     await saveFilms([card({ id: "local", updatedAt: 5000 })]);
-    fake.jetteAuTirage = { code: 0, message: "Le serveur ne répond pas." };
+    fake.throwsOnPull = { code: 0, message: "Le serveur ne répond pas." };
 
     const report = await synchronise(() => {});
     expect(report.state).toBe("waiting");
@@ -159,7 +159,7 @@ describe("when the network is missing", () => {
   });
 
   it("a real server error is told apart from an absent network", async () => {
-    fake.jetteAuTirage = { code: 500, message: "ça a cassé" };
+    fake.throwsOnPull = { code: 500, message: "ça a cassé" };
     const report = await synchronise(() => {});
     expect(report.state).toBe("error");
     expect(report.message).toBe("ça a cassé");

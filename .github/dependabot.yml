@@ -1,8 +1,8 @@
 version: 2
 
 updates:
-  # Les mises à jour sont groupées : sur un projet solo, une PR par paquet
-  # transformerait Dependabot en bruit qu'on finit par ignorer.
+  # The updates are grouped: on a one-person project, one PR per package
+  # would turn Dependabot into noise one ends up ignoring.
   - package-ecosystem: npm
     directory: /
     schedule:
@@ -10,9 +10,9 @@ updates:
       day: monday
     open-pull-requests-limit: 3
     groups:
-      # react et react-dom doivent monter ensemble : séparés, chacun casse la
-      # dépendance de pair de l'autre et les deux PR échouent à l'installation.
-      # Pas de `update-types` ici — c'est justement la majeure qu'il faut grouper.
+      # react and react-dom must go up together: apart, each breaks the
+      # other's peer dependency and both PRs fail to install. No
+      # `update-types` here — the major is precisely what must be grouped.
       react:
         patterns: [react, react-dom, "@types/react", "@types/react-dom"]
       dev-dependencies:

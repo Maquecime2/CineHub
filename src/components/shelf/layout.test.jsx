@@ -163,7 +163,7 @@ describe("DecorCabinet", () => {
 });
 
 /* ------------------------------------------------------------
-   ItemPalette — le nuancier, une fois élargi
+   ItemPalette — the swatch book, once widened
    ------------------------------------------------------------ */
 
 describe("ItemPalette — the colours on offer", () => {

@@ -67,7 +67,7 @@ export function Elsewhere({ film, signedIn }: { film: Film; signedIn: boolean })
       >
         <Users size={12} />
         <span>
-          {echo.collections} vidéothèque{echo.collections > 1 ? "s" : ""} at range
+          {echo.collections} vidéothèque{echo.collections > 1 ? "s" : ""} le range
           {echo.collections > 1 ? "nt" : ""}
         </span>
         {echo.mean !== null && (

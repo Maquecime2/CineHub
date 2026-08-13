@@ -109,8 +109,8 @@ describe("what gets shared", () => {
 
   it("a field added tomorrow goes out with the rest, rather than being forgotten", () => {
     /* That is why we name what we SET ASIDE, and not what we keep. */
-    const f = { ...makeFilm({ title: "Elephant" }), nouveauChamp: "présent" } as unknown as Film;
-    expect((publicPart(f) as Record<string, unknown>).nouveauChamp).toBe("présent");
+    const f = { ...makeFilm({ title: "Elephant" }), freshField: "présent" } as unknown as Film;
+    expect((publicPart(f) as Record<string, unknown>).freshField).toBe("présent");
   });
 });
 

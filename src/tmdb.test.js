@@ -53,7 +53,7 @@ describe("enrichRows — cache", () => {
     const calls = fetchMock.mock.calls.length;
     const second = await enrichRows(rows, "k");
     expect(second.resolved).toBe(1);
-    expect(fetchMock.mock.calls.length).toBe(calls); // rien n'est redemandé
+    expect(fetchMock.mock.calls.length).toBe(calls); // nothing is asked for again
   });
 
   it("does not remember a network failure: the next re-import tries again", async () => {

@@ -236,8 +236,8 @@ export function ThreadView({ connected }: { connected: boolean }) {
                     <div style={{ fontFamily: F.title, fontSize: 14, color: C.ink }}>
                       {String(n.film.title || "")}
                     </div>
-                    {/* « chez untel », et non « untel a done ceci » : on
-                        montre un état, on ne raconte pas un geste. */}
+                    {/* "at so-and-so's", and not "so-and-so did this": we show a
+                        state, we do not tell a gesture. */}
                     <a
                       href={`#/chez/${n.pseudo}`}
                       style={{

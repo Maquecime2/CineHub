@@ -51,9 +51,9 @@ describe("the usage measurement", () => {
     ).json().id;
     await app.inject({ method: "GET", url: `/lists/${list}`, headers: { cookie: me.cookie } });
 
-    const gestes = (await store.metrics(db)).map((m) => m.gesture);
-    expect(gestes).toContain("GET /lists/:id");
-    expect(gestes.join(" ")).not.toContain(list);
+    const gestures = (await store.metrics(db)).map((m) => m.gesture);
+    expect(gestures).toContain("GET /lists/:id");
+    expect(gestures.join(" ")).not.toContain(list);
   });
 
   it("keeps nothing that names anybody", async () => {
@@ -80,9 +80,9 @@ describe("the usage measurement", () => {
   it("counts what succeeds, and leaves the failures to the log", async () => {
     await app.inject({ method: "GET", url: "/me" }); // 401
     await app.inject({ method: "GET", url: "/health" });
-    const gestes = (await store.metrics(db)).map((m) => m.gesture);
-    expect(gestes).toContain("GET /health");
-    expect(gestes).not.toContain("GET /me");
+    const gestures = (await store.metrics(db)).map((m) => m.gesture);
+    expect(gestures).toContain("GET /health");
+    expect(gestures).not.toContain("GET /me");
   });
 
   it("adds up by day, with no row per request", async () => {

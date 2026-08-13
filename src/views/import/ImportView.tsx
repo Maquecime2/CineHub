@@ -294,8 +294,8 @@ export function ImportView({
         un fichier à la fois, dans l'ordre indiqué ci-dessous
       </div>
 
-      {/* L'export Letterboxd est un zip de plusieurs CSV : chacun ne contient
-          qu'une partie de l'histoire, d'où l'ordre conseillé. */}
+      {/* The Letterboxd export is a zip of several CSVs: each holds only
+          part of the story, hence the recommended order. */}
       <div
         style={{
           border: `1px solid ${C.line}`,
@@ -591,7 +591,7 @@ export function ImportView({
         </div>
       )}
 
-      {/* ---- vérification de la lecture du fichier ---- */}
+      {/* ---- checking that the file was read ---- */}
       {stats && (
         <div
           style={{
@@ -705,7 +705,7 @@ export function ImportView({
         </div>
       )}
 
-      {/* ---- réalisateurs via TMDB ---- */}
+      {/* ---- directors via TMDB ---- */}
       {rows.length > 0 && (
         <div
           style={{
@@ -847,7 +847,7 @@ export function ImportView({
         </div>
       )}
 
-      {/* ---- diff avant écriture ---- */}
+      {/* ---- the diff, before writing ---- */}
       {diff && (
         <div style={{ marginTop: 22 }}>
           <Label>Ce qui va être écrit</Label>

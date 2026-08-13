@@ -386,7 +386,7 @@ export const readFeed = (before?: number | null) =>
   call<{ upTo: number | null; news: NewsItem[] }>(`/feed${before ? `?before=${before}` : ""}`);
 
 /* ------------------------------------------------------------
-   CE QU'ON DIT D'UNE ŒUVRE, ET COMMENT ON S'EN PROTÈGE
+   WHAT IS SAID ABOUT A WORK, AND HOW ONE IS PROTECTED FROM IT
    ------------------------------------------------------------ */
 
 export interface Opinion {

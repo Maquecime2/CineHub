@@ -82,7 +82,7 @@ export const PosterArt = React.memo(function PosterArt({
       style={{
         overflow: "hidden",
         ...(plain
-          ? // le boîtier impose déjà ses dimensions : l'affiche s'y coule
+          ? // the case already sets the dimensions: the poster pours into them
             { position: "absolute", inset: 0, background: "#1c1712" }
           : {
               position: "relative",

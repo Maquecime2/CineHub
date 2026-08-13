@@ -135,8 +135,8 @@ function Directory({
         Le générique
       </div>
       <Guideline>
-        Les noms que votre collection carries existing — celles et ceux qui ont réalisé, joué,
-        éclairé, composé, written. {people.length} en everything.
+        Les noms que votre collection porte déjà — celles et ceux qui ont réalisé, joué, éclairé,
+        composé, écrit. {people.length} en tout.
       </Guideline>
 
       {unknown && (
@@ -353,7 +353,7 @@ function Dossier({
         {p.toWatch > 0 ? `, dont ${p.toWatch} en attente` : ""}.
       </Guideline>
 
-      <Cardstock tour="credits-dossier" style={{ marginTop: 8 }}>
+      <Cardstock tour="credits-page" style={{ marginTop: 8 }}>
         <div style={{ display: "flex", gap: 34, flexWrap: "wrap" }}>
           <Figure name="VOTRE NOTE">
             {p.rating != null ? (
@@ -514,7 +514,7 @@ interface Missing {
    TMDB knows films whose poster it does not have, and a hole in a row
    reads as a loading failure. */
 function Poster({ title, src }: { title: string; src: string }) {
-  const [cassée, setCassée] = useState(false);
+  const [broken, setBroken] = useState(false);
   const frame = {
     width: "100%",
     aspectRatio: "2 / 3",
@@ -522,7 +522,7 @@ function Poster({ title, src }: { title: string; src: string }) {
     display: "block",
   } as const;
 
-  if (!src || cassée)
+  if (!src || broken)
     return (
       <div
         style={{
@@ -545,7 +545,7 @@ function Poster({ title, src }: { title: string; src: string }) {
       src={src}
       alt=""
       loading="lazy"
-      onError={() => setCassée(true)}
+      onError={() => setBroken(true)}
       style={{ ...frame, objectFit: "cover" }}
     />
   );
@@ -564,7 +564,7 @@ function WhatIsMissing({
   const [state, setState] = useState<"repos" | "en-cours" | "fait">("repos");
   const [msg, setMsg] = useState("");
   const [manquants, setManquants] = useState<Missing[]>([]);
-  const [ajoutés, setAjoutés] = useState<Set<number>>(new Set());
+  const [addedIds, setAddedIds] = useState<Set<number>>(new Set());
 
   /* Without a key the button does not exist: offering an action that
      cannot succeed is worse than offering nothing. The key is laid from
@@ -628,7 +628,7 @@ function WhatIsMissing({
         source: "tmdb",
       })
     );
-    setAjoutés((s) => new Set(s).add(c.tmdbId));
+    setAddedIds((s) => new Set(s).add(c.tmdbId));
   };
 
   return (
@@ -654,7 +654,7 @@ function WhatIsMissing({
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
         {manquants.map((c) => {
-          const inside = ajoutés.has(c.tmdbId);
+          const inside = addedIds.has(c.tmdbId);
           return (
             <div
               key={c.tmdbId}

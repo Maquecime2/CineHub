@@ -2,27 +2,28 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <!-- viewport-fit=cover : sans lui, `env(safe-area-inset-*)` vaut zéro
-         partout et la barre d'onglets du téléphone se range sous la barre
-         d'accueil d'iOS. maximum-scale n'y est pas, délibérément : brider
-         le zoom d'un site plein de petites affiches, c'est le rendre
-         inutilisable à qui en a besoin. -->
+    <!-- viewport-fit=cover: without it, `env(safe-area-inset-*)` is zero
+         everywhere and the phone's tab bar files itself under iOS's home
+         bar. maximum-scale is deliberately absent: capping the zoom on a
+         site full of small posters makes it unusable to whoever needs
+         it. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Ciné Hub</title>
 
-    <!-- CE QUE LE MANIFESTE NE DIT PAS À IOS.
+    <!-- WHAT THE MANIFEST DOES NOT TELL IOS.
 
-         Safari ignore le manifeste pour l'icône, le nom et le plein
-         écran : il lit ces balises-là, et elles seules. Sans elles, un
-         classeur posé sur l'écran d'accueil d'un iPhone prend une
-         capture de la page en guise d'icône, s'appelle « Ciné Hub » en
-         entier sous l'icône, et rouvre une barre d'adresse. -->
+         Safari ignores the manifest for the icon, the name and full
+         screen: it reads these tags, and only these. Without them, a
+         binder laid on an iPhone's home screen takes a snapshot of the
+         page for an icon, calls itself "Ciné Hub" in full underneath,
+         and reopens an address bar. -->
     <link rel="apple-touch-icon" href="/icone-pomme-180.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Ciné Hub" />
-    <!-- La barre d'état prend le carton du carnet plutôt que le blanc du
-         navigateur. `theme-color` vaut pour Android et le bureau. -->
+    <!-- The status bar takes the notebook's cardstock rather than the
+         browser's white. `theme-color` holds for Android and the
+         desktop. -->
     <meta name="theme-color" content="#EEE3CC" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   </head>

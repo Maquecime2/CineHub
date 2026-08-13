@@ -196,11 +196,11 @@ function Figure({
    day we wanted to read a whole practice. */
 function Bars({
   values,
-  légendes,
+  legends,
   seed,
 }: {
   values: number[];
-  légendes: string[];
+  legends: string[];
   seed: string | number;
 }) {
   const W = 300;
@@ -254,12 +254,12 @@ function Bars({
               textAnchor="middle"
               style={{ fontFamily: F.mono, fontSize: narrow ? 7 : 8, fill: C.inkFaded }}
             >
-              {narrow ? (légendes[i] || "").slice(-2) : légendes[i]}
+              {narrow ? (legends[i] || "").slice(-2) : legends[i]}
             </text>
           </g>
         );
       })}
-      {/* la ligne de sol, tracée à main levée */}
+      {/* the ground line, drawn freehand */}
       <path
         d={`M0 ${H} C ${W * 0.3} ${H - 1.2}, ${W * 0.6} ${H + 1.2}, ${W} ${H}`}
         fill="none"
@@ -396,11 +396,11 @@ function PlateCount({ a }: { a: Almanac }) {
         {always ? (
           <Bars
             values={a.byYear.map((y) => y.screenings)}
-            légendes={a.byYear.map((y) => String(y.year))}
+            legends={a.byYear.map((y) => String(y.year))}
             seed={key}
           />
         ) : (
-          <Bars values={a.byMonth} légendes={MONTHS} seed={key} />
+          <Bars values={a.byMonth} legends={MONTHS} seed={key} />
         )}
       </Cardstock>
 
@@ -471,7 +471,7 @@ function PlateCount({ a }: { a: Almanac }) {
                 figure with the poise of a right one. */}
             {a.screenTime.noRuntime > 0 && (
               <div style={{ marginTop: 8, fontFamily: F.hand, fontSize: 15, color: C.inkFaded }}>
-                au moins — {a.screenTime.noRuntime} séance(s) sans durée known
+                au moins — {a.screenTime.noRuntime} séance(s) sans durée connue
               </div>
             )}
           </>
@@ -1087,14 +1087,14 @@ export function AlmanacView({
   /* THE IMAGE TO TAKE AWAY. "en cours" rather than a boolean: the
      drawing waits for the posters to load, and a button that says
      nothing for two seconds passes for broken. */
-  const [box, setBoîte] = useState<"repos" | "en cours" | "raté">("repos");
+  const [box, setBox] = useState<"repos" | "en cours" | "raté">("repos");
   const takeAway = async () => {
     /* THE IMAGE IS COMPOSED AROUND A VINTAGE — it is written on it in
        large characters. On "toujours" there is none, and the button does
        not appear: better offer nothing than an image that would invent a
        year. */
     if (typeof period !== "number" || a == null) return;
-    setBoîte("en cours");
+    setBox("en cours");
     try {
       const blob = await drawYearInBox(
         {
@@ -1113,10 +1113,10 @@ export function AlmanacView({
         skinApplied()
       );
       download(blob, `cine-hub-${period}.png`);
-      setBoîte("repos");
+      setBox("repos");
     } catch (e) {
       console.error(e);
-      setBoîte("raté");
+      setBox("raté");
     }
   };
 
@@ -1176,7 +1176,7 @@ export function AlmanacView({
       <StampCorner text="ALMANACH" />
       <CoffeeRing style={{ left: 420, top: 210 }} rotate={-24} />
 
-      {/* ---- L'EN-TÊTE, de hauteur arrêtée ---- */}
+      {/* ---- THE HEADER, of settled height ---- */}
       <div style={{ flexShrink: 0, height: HEADER, boxSizing: "border-box" }}>
         <Title />
 

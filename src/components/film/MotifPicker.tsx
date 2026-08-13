@@ -59,16 +59,16 @@ const chipStyle = (ink: string, active: boolean) => ({
 /** A motif laid on the card, scratched out if it tells the ending. */
 function MotifChip({
   motif,
-  révélé,
-  onRévéler,
+  revealed,
+  onReveal,
   onRemove,
 }: {
   motif: Motif;
-  révélé: boolean;
-  onRévéler: () => void;
+  revealed: boolean;
+  onReveal: () => void;
   onRemove: () => void;
 }) {
-  const isHiddenHere = !!motif.spoiler && !révélé;
+  const isHiddenHere = !!motif.spoiler && !revealed;
   return (
     <span
       style={{
@@ -76,7 +76,7 @@ function MotifChip({
         background: isHiddenHere ? alpha(C.ink, 0.12) : "transparent",
         cursor: isHiddenHere ? "pointer" : "default",
       }}
-      onClick={isHiddenHere ? onRévéler : undefined}
+      onClick={isHiddenHere ? onReveal : undefined}
       title={isHiddenHere ? "Ce motif raconte la fin — cliquez pour le lire" : undefined}
     >
       {isHiddenHere ? (
@@ -106,7 +106,7 @@ export function MotifPicker({
   onChange,
   suggestions = [],
   onMakeThread,
-  onCréer,
+  onCreate,
   onSupprimer,
   onHide,
   hiddenOnes = [],
@@ -118,7 +118,7 @@ export function MotifPicker({
   /** Turn this motif into a question asked of the whole collection. */
   onMakeThread?: (motifId: string) => void;
   /** Add a motif to the vocabulary. Absent: the list stays read-only. */
-  onCréer?: (label: string, famille: MotifFamily, spoiler: boolean) => void;
+  onCreate?: (label: string, family: MotifFamily, spoiler: boolean) => void;
   /** Remove one of your own — the confirmation and the tidying are the caller's. */
   onSupprimer?: (motif: Motif) => void;
   /** Set one of the catalogue's aside, or put it back. */
@@ -128,9 +128,9 @@ export function MotifPicker({
 }) {
   const [open, setOuvert] = useState(false);
   const [q, setQ] = useState("");
-  const [révélés, setRévélés] = useState<string[]>([]);
+  const [revealedIds, setRevealedIds] = useState<string[]>([]);
   const [neuf, setNeuf] = useState("");
-  const [famille, setFamille] = useState<MotifFamily>("narrative");
+  const [family, setFamille] = useState<MotifFamily>("narrative");
   const [spoiler, setSpoiler] = useState(false);
 
   /* `motifsOf` and not a filter on the catalogue: a motif of yours is not
@@ -152,8 +152,8 @@ export function MotifPicker({
           <MotifChip
             key={m.id}
             motif={m}
-            révélé={révélés.includes(m.id)}
-            onRévéler={() => setRévélés((c) => [...c, m.id])}
+            revealed={revealedIds.includes(m.id)}
+            onReveal={() => setRevealedIds((c) => [...c, m.id])}
             onRemove={() => strike(m.id)}
           />
         ))}
@@ -239,11 +239,11 @@ export function MotifPicker({
                   {m.label}
                 </button>
               ))}
-              {onCréer &&
+              {onCreate &&
                 !foundIds.some((m) => m.label.toLowerCase() === q.trim().toLowerCase()) && (
                   <button
                     onClick={() => {
-                      onCréer(q, famille, spoiler);
+                      onCreate(q, family, spoiler);
                       setQ("");
                     }}
                     style={{ ...chipStyle(C.cobalt, false), borderStyle: "dashed" }}
@@ -333,7 +333,7 @@ export function MotifPicker({
               The catalogue cannot foresee everything, and the moment one
               notices is exactly this one: one has just gone through the
               list without finding one's idea in it. */}
-          {onCréer && (
+          {onCreate && (
             <div style={{ borderTop: `1px solid ${C.line}`, paddingTop: 10, marginTop: 4 }}>
               <div style={section}>LE VÔTRE</div>
               <input
@@ -342,7 +342,7 @@ export function MotifPicker({
                 onKeyDown={(e) => {
                   if (e.key !== "Enter" || !neuf.trim()) return;
                   e.preventDefault();
-                  onCréer(neuf, famille, spoiler);
+                  onCreate(neuf, family, spoiler);
                   setNeuf("");
                   setSpoiler(false);
                 }}
@@ -360,7 +360,7 @@ export function MotifPicker({
                 }}
               >
                 <select
-                  value={famille}
+                  value={family}
                   onChange={(e) => setFamille(e.target.value as MotifFamily)}
                   aria-label="Famille du motif"
                   style={{

@@ -163,7 +163,7 @@ interface DetailViewProps {
   /** Your own vocabulary: your patterns, and the catalogue ones set aside. */
   vocabulary?: { custom: Motif[]; hidden: string[] };
   /** Returns the identifier of the written pattern, to lay it on the card at once. */
-  onCreateMotif?: (label: string, famille: MotifFamily, spoiler: boolean) => string | null;
+  onCreateMotif?: (label: string, family: MotifFamily, spoiler: boolean) => string | null;
   onDeleteMotif?: (motifId: string) => void;
   onHideMotif?: (motifId: string, hidden: boolean) => void;
   /** An account is open: the card can then read what is said of it elsewhere. */
@@ -232,7 +232,7 @@ export function DetailView({
   const [lightbox, setLightbox] = useState<number | null>(null); // index de la capture ouverte
   const [focusField, setFocusField] = useState<TextField>("review"); // champ où « insérer » écrit
   const [busy, setBusy] = useState(0);
-  const inserters = useRef<Partial<Record<TextField, (token: string) => string>>>({}); // insertion à la position du curseur
+  const inserters = useRef<Partial<Record<TextField, (token: string) => string>>>({}); // insertion at the caret's position
   const insertToken = (n: number) => {
     const next = inserters.current[focusField]?.(`[img:${n}]`);
     if (next != null) onUpdate({ ...film, [focusField]: next });
@@ -325,15 +325,15 @@ export function DetailView({
   /* WHAT TMDB PROPOSES — asked for when the card opens, and only if one
      has a key and an identifier. A single call, never in bulk: these are
      proposals to be read over, not a harvest. */
-  const [proposés, setProposés] = useState<Motif[]>([]);
+  const [suggested, setSuggested] = useState<Motif[]>([]);
   useEffect(() => {
     let alive = true;
-    setProposés([]);
+    setSuggested([]);
     if (!film.tmdbId || !apiKey) return;
     fetchKeywords(film.tmdbId, apiKey)
       .then((words: { id?: number; name?: string }[]) => {
         if (!alive) return;
-        setProposés(suggestMotifs(words));
+        setSuggested(suggestMotifs(words));
         /* WE STORE THEM ON THE WAY. They were asked for and then thrown
            away: only the pattern proposals came out of them, and the
            wake then had nothing thematic to hold on to. Keeping them
@@ -738,7 +738,7 @@ export function DetailView({
               <Label>Motifs</Label>
               <MotifPicker
                 motifs={film.motifs || []}
-                suggestions={proposés}
+                suggestions={suggested}
                 onChange={(motifs) => onUpdate({ ...film, motifs })}
                 onMakeThread={onMakeThread}
                 hiddenOnes={hiddenOnes}
@@ -746,10 +746,10 @@ export function DetailView({
                 /* Creating and laying are one single gesture: one does
                  not write a pattern in the abstract, but because one is
                  looking at THIS film and no word said it. */
-                onCréer={
+                onCreate={
                   onCreateMotif
-                    ? (label, famille, spoiler) => {
-                        const id = onCreateMotif(label, famille, spoiler);
+                    ? (label, family, spoiler) => {
+                        const id = onCreateMotif(label, family, spoiler);
                         if (id && !(film.motifs || []).includes(id))
                           onUpdate({ ...film, motifs: [...(film.motifs || []), id] });
                       }

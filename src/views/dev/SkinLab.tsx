@@ -87,7 +87,7 @@ function Specimen() {
         détache vraiment du papier.
       </div>
 
-      {/* LE CARTON POSÉ — la pièce la plus employée du site */}
+      {/* THE CARDSTOCK LAID DOWN — the site's most used piece */}
       <div
         style={{
           position: "relative",
@@ -158,7 +158,7 @@ function Specimen() {
         <TapeResidue style={{ position: "relative", marginTop: 4 }} w={60} />
       </div>
 
-      {/* LE CHAMP DE SAISIE — souvent oublié, souvent illisible */}
+      {/* THE INPUT FIELD — often forgotten, often unreadable */}
       <input
         readOnly
         value="un champ souligné"

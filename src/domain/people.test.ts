@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { census, dossierOf, rolesOnFilm, searchPeople } from "./people";
+import { census, pageOf, rolesOnFilm, searchPeople } from "./people";
 import { makeFilm } from "./film";
 import type { Film } from "../types";
 
@@ -163,13 +163,13 @@ describe("searchPeople", () => {
   });
 });
 
-describe("dossierOf", () => {
+describe("pageOf", () => {
   it("returns null for a stranger", () => {
-    expect(dossierOf([film("A", { director: "Ozu" })], "kurosawa")).toBeNull();
+    expect(pageOf([film("A", { director: "Ozu" })], "kurosawa")).toBeNull();
   });
 
   it("finds somebody by their normalized key", () => {
-    expect(dossierOf([film("A", { director: "Agnès Varda" })], "agnes varda")?.name).toBe(
+    expect(pageOf([film("A", { director: "Agnès Varda" })], "agnes varda")?.name).toBe(
       "Agnès Varda"
     );
   });

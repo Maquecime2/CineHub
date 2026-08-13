@@ -230,9 +230,9 @@ function ViewSwitcher({
               >
                 + NOUVELLE VUE
               </button>
-              {/* Une étagère par cinéaste : une ligne et une boîte par
-                  réalisateur. C'est une vue comme les autres une fois
-                  posée — on la range ensuite à la main si l'on veut. */}
+              {/* One shelf per film-maker: a line and a box per director.
+                  It is a view like any other once laid down — one files
+                  it by hand afterwards if one wants. */}
               <button
                 onClick={() => {
                   onCreateByDirector();
@@ -282,10 +282,10 @@ function ViewSwitcher({
               ))}
             </div>
 
-            {/* Le bois est le choix rapide ; l'atelier est la porte à
-                côté, pour qui veut peindre le mur et changer la matière
-                de la planche. Il vit ICI, avec les pastilles, parce que
-                le décor appartient à la VUE — pas à un rayon. */}
+            {/* The wood is the quick choice; the workshop is the door
+                next to it, for whoever wants to paint the wall and change
+                the plank's material. It lives HERE, with the swatches,
+                because the decor belongs to the VIEW — not to a shelf. */}
             <button
               onClick={() => {
                 onDecor();
@@ -480,7 +480,7 @@ export function LibraryView({
               ? (b.year || 0) - (a.year || 0)
               : sortBy === "rating"
                 ? (b.rating || 0) - (a.rating || 0)
-                : // les films jamais datés glissent en fin de liste plutôt qu'en tête
+                : // films that were never dated slide to the end of the list, not the head
                   sortBy === "watched"
                   ? (b.watchedAt || "").localeCompare(a.watchedAt || "")
                   : (b.addedAt || 0) - (a.addedAt || 0);
@@ -544,22 +544,22 @@ export function LibraryView({
         {cfg.subtitle}
       </div>
 
-      {/* Pas de `z-index` sur cette barre, et c'est délibéré.
+      {/* No `z-index` on this bar, and that is deliberate.
 
-          Elle en portait un — le même 2 que le reste du contenu, pour
-          passer devant les taches de café. Mais un `z-index` sur un
-          élément positionné ouvre un CONTEXTE D'EMPILEMENT, et tout ce
-          qu'il contient s'y trouve enfermé : les 43 du menu des vues ne
-          valaient plus qu'à l'intérieur de la barre, laquelle restait à 2
-          parmi ses frères. L'étagère, elle aussi à 2 mais PLUS BAS dans le
-          document, passait donc devant le bas du menu déroulant — juste
-          là où se trouvent les pastilles de bois. Elles s'affichaient, et
-          le clic allait au rayon derrière.
+          It carried one — the same 2 as the rest of the content, so as to
+          pass in front of the coffee stains. But a `z-index` on a
+          positioned element opens a STACKING CONTEXT, and everything it
+          contains is shut inside: the views menu's 43 was worth something
+          only within the bar, which stayed at 2 among its siblings. The
+          shelf, also at 2 but LOWER in the document, therefore passed in
+          front of the bottom of the drop-down — exactly where the wood
+          swatches are. They showed, and the click went to the shelf
+          behind.
 
-          Sans `z-index`, la barre n'enferme plus rien : le menu compare
-          son 43 au 2 de l'étagère dans un contexte commun, et gagne. Les
-          taches de café restent derrière sans qu'on ait à le demander —
-          elles sont AVANT dans le document et ne captent aucun clic. */}
+          With no `z-index`, the bar shuts nothing in: the menu compares
+          its 43 with the shelf's 2 in a shared context, and wins. The
+          coffee stains stay behind without being asked — they come
+          BEFORE in the document and catch no click. */}
       <div
         style={{
           display: "flex",
@@ -651,8 +651,8 @@ export function LibraryView({
           </div>
         )}
         <div data-tour="wall-sort">
-          {/* Sur le mur, trier est un état. Sur l'étagère, l'agencement EST
-              l'état : ranger devient un geste qu'on donne une fois. */}
+          {/* On the wall, sorting is a state. On the shelf, the arrangement
+              IS the state: filing becomes a gesture one makes once. */}
           <Label>{mode === "shelf" ? "Ranger" : "Trier"}</Label>
           <div
             style={{
@@ -732,9 +732,9 @@ export function LibraryView({
             ))}
           </div>
         </div>
-        {/* Le nombre de films par ligne ne se règle plus ici : il appartient
-            à chaque rangée, dans sa gouttière. Ce qui se choisit à ce
-            niveau, c'est la vue — l'étagère tout entière. */}
+        {/* The number of films per line is no longer set here: it belongs
+            to each row, in its gutter. What is chosen at this level is
+            the view — the whole shelf. */}
         {mode === "shelf" && (
           <ViewSwitcher
             views={shelfViews}
@@ -749,11 +749,11 @@ export function LibraryView({
             onDecor={() => setStudio(true)}
           />
         )}
-        {/* LA QUESTION DU SOIR — sur la liste « à voir », et là seulement.
+        {/* THE EVENING'S QUESTION — on the "à voir" list, and there only.
 
-            La vidéothèque n'a pas à la poser : ce qu'elle contient est
-            déjà vu. C'est la pile des intentions qui, elle, ne savait
-            que s'empiler. */}
+            The film library has no call to ask it: what it holds has
+            already been seen. It is the pile of intentions that knew
+            nothing but how to pile up. */}
         {wall === "watchlist" && (
           <div data-tour="soir-ouvrir">
             <Label>Ce soir</Label>
@@ -805,8 +805,8 @@ export function LibraryView({
         {mode === "wall" && (
           <div data-tour="wall-decor">
             <Label>Décor</Label>
-            {/* En écho à « ATELIER DÉCO… » de l'étagère : le mur aussi se
-                peint, et ses fiches aussi ont un calibre. */}
+            {/* Echoing the shelf's "ATELIER DÉCO…": the wall is painted too,
+                and its cards have a size of their own. */}
             <button
               onClick={() => setWallStudio(true)}
               title="Peindre le mur, régler la taille et le désordre des fiches"
@@ -840,9 +840,9 @@ export function LibraryView({
 
       {mode === "shelf" ? (
         <div data-tour="wall-films" style={{ position: "relative", zIndex: 2 }}>
-          {/* L'étagère reçoit la collection ENTIÈRE du mur, jamais la liste
-              filtrée : c'est l'agencement qui commande l'ordre, et la
-              recherche ne fait qu'éteindre ce qu'elle ne trouve pas. */}
+          {/* The shelf receives the wall's WHOLE collection, never the
+              filtered list: it is the arrangement that commands the
+              order, and the search only dims what it does not find. */}
           <ShelfBoard
             films={scope}
             doc={shelfView}
@@ -908,8 +908,9 @@ export function LibraryView({
           )}
         </div>
       )}
-      {/* Le tiroir est monté hors des deux présentations : la question du
-          soir ne change pas selon qu'on regarde un mur ou une étagère. */}
+      {/* The drawer is mounted outside both presentations: the evening's
+          question does not change with whether one is looking at a wall
+          or at a shelf. */}
       {soir && (
         <TonightDrawer
           films={allFilms.length ? allFilms : films}
@@ -934,16 +935,16 @@ function WallEmpty({ films, cfg }) {
         color: C.inkFaded,
       }}
     >
-      {/* LES CADRES FANTÔMES.
+      {/* THE GHOST FRAMES.
 
-          Seulement quand la collection est VIDE POUR DE BON. Un tamis
-          qui ne laisse rien passer n'est pas un mur nu : montrer là des
-          emplacements à remplir laisserait croire qu'on a perdu des
-          fiches, alors qu'il suffit d'élargir la recherche.
+          Only when the collection is EMPTY FOR GOOD. A sieve that lets
+          nothing through is not a bare wall: showing places to fill there
+          would make one believe cards had been lost, when widening the
+          search is all it takes.
 
-          Ils ne sont pas décoratifs : ils disent la FORME de ce qui
-          viendra — six affiches, punaisées de travers — et une invite
-          seule ne le dit pas. */}
+          They are not decorative: they say the SHAPE of what is coming —
+          six posters, pinned askew — and an invitation on its own does
+          not say it. */}
       {never && (
         <div
           aria-hidden

@@ -80,7 +80,7 @@ describe("the steps hold together", () => {
 
      The rule holds ONLY for this tour: it is the product's only view
      that has tabs. */
-  it("every step of the film dossier says its divider", () => {
+  it("every step of the film page says its divider", () => {
     for (const [i, s] of TOURS.detail!.steps.entries()) {
       expect(s.tab, `detail[${i}] : ${s.title}`).toBeDefined();
     }
@@ -110,7 +110,7 @@ describe("the steps hold together", () => {
    `optional` and gets skipped after seven hundred milliseconds of opaque
    veil, at worst it leaves the tour stuck. None of the tests above
    catches it, because they only read `steps.ts` — and that is exactly
-   how "credits-dossier" was able to stay in the global tour,
+   how "credits-page" was able to stay in the global tour,
    permanently dead, without anything saying so.
 
    SO WE READ THE FILES. Two forms of anchor coexist in the project and
@@ -127,9 +127,9 @@ describe("the steps hold together", () => {
    into a served module URL, which is not a file path. */
 const SRC = join(process.cwd(), "src");
 
-const files = (dossier: string): string[] =>
-  readdirSync(dossier, { withFileTypes: true }).flatMap((e) => {
-    const path = join(dossier, e.name);
+const files = (folder: string): string[] =>
+  readdirSync(folder, { withFileTypes: true }).flatMap((e) => {
+    const path = join(folder, e.name);
     if (e.isDirectory()) return files(path);
     return /\.(tsx?|jsx?)$/.test(e.name) && !/\.test\./.test(e.name) ? [path] : [];
   });

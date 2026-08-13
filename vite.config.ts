@@ -1,11 +1,12 @@
-/* `defineConfig` vient de vitest et non de vite : c'est lui qui connaît la
-   section `test` en plus de toute la configuration Vite habituelle. */
+/* `defineConfig` comes from vitest and not from vite: it is the one that
+   knows the `test` section on top of the whole usual Vite config. */
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
-/* GitHub Pages sert le site sous /CineHub/ (project site). En local on reste à
-   la racine, sinon le serveur de dev répondrait sur une sous-URL inutile. */
+/* GitHub Pages serves the site under /CineHub/ (a project site). Locally
+   we stay at the root, or the dev server would answer on a pointless
+   sub-URL. */
 const base = process.env.GITHUB_ACTIONS ? "/CineHub/" : "/";
 
 export default defineConfig({
@@ -13,22 +14,22 @@ export default defineConfig({
   plugins: [
     react(),
     /* ============================================================
-       LE CLASSEUR S'INSTALLE
+       THE BINDER INSTALLS ITSELF
        ============================================================
 
-       Une vidéothèque personnelle qu'il faut aller chercher dans un
-       onglet n'est pas un classeur : c'est un signet. Posée sur l'écran
-       d'accueil, elle s'ouvre d'un doigt, en plein écran, sans barre
-       d'adresse — et surtout SANS RÉSEAU.
+       A personal film library one has to go and find in a tab is not a
+       binder: it is a bookmark. Laid on the home screen it opens with one
+       finger, full screen, with no address bar — and above all WITH NO
+       NETWORK.
 
-       Le hors-ligne n'est pas un supplément ici, c'est la vérité de
-       l'application : les films vivent dans `localStorage` et IndexedDB,
-       et rien de ce qu'on regarde n'a besoin d'un serveur. Une collection
-       qu'on ne peut pas ouvrir dans le métro serait absurde.
+       Offline is not an extra here, it is the truth of the application:
+       the films live in `localStorage` and IndexedDB, and nothing one
+       looks at needs a server. A collection one cannot open on the
+       underground would be absurd.
 
-       `prompt` et non `autoUpdate` : une application qui se remplace
-       toute seule pendant qu'on écrit une note perd ce qu'on écrivait.
-       On prévient, et c'est la main qui décide — voir `Installation`. */
+       `prompt` and not `autoUpdate`: an application that replaces itself
+       while somebody is writing a note loses what they were writing. We
+       warn, and the hand decides — see `Installation`. */
     VitePWA({
       registerType: "prompt",
       includeAssets: ["icone-pomme-180.png"],
@@ -38,22 +39,22 @@ export default defineConfig({
         description:
           "Un classeur de films : ce que vous avez vu, ce que vous en pensez, et ce qu'il vous reste à voir. Tout reste chez vous.",
         lang: "fr",
-        /* `.` et non `/` : le site vit sous /CineHub/ en ligne et à la
-           racine en local. Une adresse absolue enverrait l'icône de
-           l'écran d'accueil sur une page qui n'existe pas. */
+        /* `.` and not `/`: the site lives under /CineHub/ online and at
+           the root locally. An absolute address would send the home
+           screen's icon to a page that does not exist. */
         start_url: ".",
         display: "standalone",
         background_color: "#EEE3CC",
-        /* La couleur de la barre système : le carton du carnet, pas une
-           couleur d'accent. C'est le prolongement de la page, et c'est
-           tout l'effet d'une application installée. */
+        /* The system bar's colour: the notebook's cardstock, not an
+           accent colour. It is the page carrying on, and that is the
+           whole effect of an installed application. */
         theme_color: "#EEE3CC",
         icons: [
           { src: "icone-192.png", sizes: "192x192", type: "image/png" },
           { src: "icone-512.png", sizes: "512x512", type: "image/png" },
-          /* L'icône masquable est la même fiche, posée plus au centre :
-             Android découpe l'icône à sa guise — cercle, écusson, goutte —
-             et ne garantit que les quatre cinquièmes du milieu. */
+          /* The maskable icon is the same card, laid more towards the
+             centre: Android cuts the icon as it pleases — circle, shield,
+             droplet — and guarantees only the middle four fifths. */
           {
             src: "icone-masque-512.png",
             sizes: "512x512",
@@ -64,21 +65,25 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,png,svg,woff2}"],
-        /* LE SERVICE WORKER EST FABRIQUÉ, PAS ÉCRIT : c'est le greffon
-           qui le génère, avec la liste des fichiers précachés. On ne
-           peut donc pas y ajouter un gestionnaire à la main sans le
-           remplacer entièrement — `importScripts` est la porte prévue
-           pour cela, et `public/push.js` la franchit. */
+        /* THE SERVICE WORKER IS BUILT, NOT WRITTEN: the plugin generates
+           it, with the list of precached files. So no handler can be
+           added to it by hand without replacing it entirely —
+           `importScripts` is the door meant for that, and
+           `public/push.js` goes through it. */
         importScripts: ["push.js"],
-        /* Une collection enrichie par TMDB tient dans quelques mégaoctets
-           de JavaScript ; le défaut de deux mégaoctets laissait le plus
-           gros morceau hors du précache, donc hors ligne. */
+        /* A collection enriched by TMDB fits in a few megabytes of
+           JavaScript; the two-megabyte default left the biggest chunk out
+           of the precache, and therefore out of reach offline. */
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+        /* THE CACHE NAMES KEEP THEIR FRENCH SPELLING. They name caches
+           already sitting in installed browsers: renaming them does not
+           translate anything, it orphans what is in them and downloads
+           four hundred posters again. */
         runtimeCaching: [
           {
-            /* Les affiches sont immuables : une adresse TMDB désigne pour
-               toujours la même image. On les garde longtemps, et on les
-               sert du cache avant même de demander au réseau. */
+            /* Posters are immutable: a TMDB address names the same image
+               for ever. We keep them a long time, and serve them from the
+               cache before even asking the network. */
             urlPattern: /^https:\/\/image\.tmdb\.org\/.*/i,
             handler: "CacheFirst",
             options: {
@@ -88,8 +93,8 @@ export default defineConfig({
             },
           },
           {
-            /* Les fiches TMDB, elles, changent : on demande d'abord, et le
-               cache n'est qu'un filet pour le jour sans réseau. */
+            /* TMDB's cards, for their part, change: we ask first, and the
+               cache is only a net for the day there is no network. */
             urlPattern: /^https:\/\/api\.themoviedb\.org\/.*/i,
             handler: "NetworkFirst",
             options: {
@@ -100,9 +105,9 @@ export default defineConfig({
             },
           },
           {
-            /* Les fontes viennent d'un CDN et ne changent jamais. Sans
-               elles en cache, le classeur hors ligne s'ouvrait dans la
-               fonte du système — méconnaissable. */
+            /* The fonts come from a CDN and never change. Without them in
+               the cache, the offline binder opened in the system font —
+               unrecognisable. */
             urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
             handler: "CacheFirst",
             options: {
@@ -117,12 +122,12 @@ export default defineConfig({
   ],
   server: {
     port: 5173,
-    /* Le flux Letterboxd n'autorise pas la lecture depuis une autre
-       origine : le navigateur refuse la réponse. En développement, c'est
-       le serveur Vite qui va la chercher — il n'est pas un navigateur, la
-       règle ne le concerne pas. En ligne, le site est un GitHub Pages
-       statique et n'a personne pour faire ce travail : il passe par le
-       relais réglé dans `services/letterboxd`. */
+    /* The Letterboxd feed does not allow reading from another origin:
+       the browser refuses the response. In development it is the Vite
+       server that goes and fetches it — it is not a browser, the rule
+       does not concern it. Online the site is a static GitHub Pages and
+       has nobody to do that work: it goes through the relay set in
+       `services/letterboxd`. */
     proxy: {
       "/lb-rss": {
         target: "https://letterboxd.com",
@@ -132,8 +137,8 @@ export default defineConfig({
     },
   },
   test: {
-    /* jsdom pour tout le monde : les modules purs (taste, reco) s'en accommodent
-       sans rien changer, et les tests de composants en ont besoin. */
+    /* jsdom for everyone: the pure modules (taste, reco) put up with it
+       without changing a thing, and the component tests need it. */
     environment: "jsdom",
     globals: true,
     setupFiles: ["src/setupTests.ts"],

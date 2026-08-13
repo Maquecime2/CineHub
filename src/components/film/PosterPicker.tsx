@@ -18,7 +18,7 @@ export function PosterPicker({ film, onUpdate }: { film: Film; onUpdate: (f: Fil
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
-  const [gallery, setGallery] = useState<PosterChoice[] | null>(null); // affiches proposées par TMDB
+  const [gallery, setGallery] = useState<PosterChoice[] | null>(null); // the posters TMDB offers
   const [galleryMsg, setGalleryMsg] = useState("");
   const ref = useRef<HTMLInputElement | null>(null);
   const apiKey = useTmdbKey();
@@ -65,7 +65,7 @@ export function PosterPicker({ film, onUpdate }: { film: Film; onUpdate: (f: Fil
     setBusy(true);
     try {
       // the poster too is kept as it is: no re-encoding
-      const key = `${film.id}-${Date.now()}`; // clé neuve : le cache d'image ne resservira pas l'ancienne
+      const key = `${film.id}-${Date.now()}`; // a fresh key: the image cache will not serve the old one again
       await putImage(key, file);
       if (isIdbPoster(film.poster)) await deleteImage(idbKeyOf(film.poster));
       onUpdate({ ...film, poster: IDB_PREFIX + key });

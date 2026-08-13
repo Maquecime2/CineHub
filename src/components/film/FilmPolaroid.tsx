@@ -117,7 +117,7 @@ export function FilmPolaroid({
           >
             {film.title}
           </div>
-          {/* la légende manuscrite, écrite au dos puis recopiée devant */}
+          {/* the handwritten caption, written on the back then copied out front */}
           <div
             style={{
               fontFamily: F.hand,
@@ -173,7 +173,7 @@ export function FilmPolaroid({
           </div>
         </div>
         <FileNumber id={film.id} style={{ bottom: 6, right: 10 }} />
-        {/* coin corné : un pli d'ombre en bas à droite */}
+        {/* a dog-eared corner: a fold of shadow bottom right */}
         <div
           style={{
             position: "absolute",

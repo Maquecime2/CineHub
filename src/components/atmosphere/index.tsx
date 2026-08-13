@@ -22,7 +22,7 @@ import { fileNoOf } from "../../domain/seeded";
 export function PaperGrain() {
   return (
     <>
-      {/* fibres du papier — de longues stries irrégulières */}
+      {/* the paper's fibres — long, irregular streaks */}
       <div
         style={{
           position: "fixed",

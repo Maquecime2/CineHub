@@ -226,7 +226,7 @@ export const FilmBox = React.memo(function FilmBox({
             const s = pressAt.current;
             pressAt.current = null;
             if (!s || dragged.current) return;
-            if (Math.hypot(e.clientX - s.x, e.clientY - s.y) > 5) return; // c'était un glissé
+            if (Math.hypot(e.clientX - s.x, e.clientY - s.y) > 5) return; // that was a drag
             onOpen(film.id);
           }}
           // keyboard only: a mouse click has already been handled on release

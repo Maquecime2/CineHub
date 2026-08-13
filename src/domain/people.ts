@@ -7,7 +7,7 @@
    not ask "and Decaë, what have I got of his".
 
    Nothing more is collected, nothing is written anywhere: a person's
-   dossier is RECOMPOSED on every read from the films, like a thread
+   page is RECOMPOSED on every read from the films, like a thread
    (`domain/threads`). A person is not an entity you file away, it is a
    question you put to the collection.
    ============================================================ */
@@ -119,7 +119,7 @@ const compose = ({ key, spellings, roles, films }: Draft): Person => {
     name: dominantSpelling(spellings),
     roles: PERSON_ROLES.filter((r) => roles.has(r)),
     /* Most recently added first: it is the film we have just filed that
-       makes us open somebody's dossier. */
+       makes us open somebody's page. */
     films: [...films].sort((a, b) => b.addedAt - a.addedAt).map((f) => f.id),
     watched: films.filter((f) => f.status === "watched").length,
     toWatch: films.filter((f) => f.status === "watchlist").length,
@@ -177,8 +177,8 @@ export function census(films: Film[]): Person[] {
     .sort((a, b) => b.films.length - a.films.length || a.name.localeCompare(b.name, "fr"));
 }
 
-/** A person's dossier, or `null` if the collection does not know them. */
-export const dossierOf = (films: Film[], key: string): Person | null =>
+/** A person's page, or `null` if the collection does not know them. */
+export const pageOf = (films: Film[], key: string): Person | null =>
   census(films).find((p) => p.key === key) || null;
 
 /**

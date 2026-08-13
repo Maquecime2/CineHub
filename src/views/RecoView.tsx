@@ -396,7 +396,7 @@ export function RecoView({
   onOpen?: (id: string) => void;
 }) {
   const [query, setQuery] = useState<Query>(DEFAULT_QUERY);
-  const [raw, setRaw] = useState<Candidate[] | null>(null); // candidats bruts, indépendants des curseurs
+  const [raw, setRaw] = useState<Candidate[] | null>(null); // the raw candidates, independent of the dials
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState("");
   const [added, setAdded] = useState<Set<number>>(() => new Set());

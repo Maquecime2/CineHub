@@ -24,14 +24,14 @@ const KNOWN_FAMILIES = new Set(FAMILIES.map((f) => f.id));
 
 /** The shape stored before this module was translated. */
 type StoredShape = Partial<StoredVocabulary> & { perso?: unknown; hiddenOnes?: unknown };
-type StoredMotif = Partial<Motif> & { famille?: unknown };
+type StoredMotif = Partial<Motif> & { family?: unknown };
 
 /* A motif's family, whichever spelling it was written in. An unknown
    family must not make the motif invisible: better to file it somewhere
    than to lose it. */
 const familyOf = (m: StoredMotif): MotifFamily => {
   if (m.family && KNOWN_FAMILIES.has(m.family)) return m.family;
-  return migrateMotifFamily(m.family ?? m.famille) ?? "narrative";
+  return migrateMotifFamily(m.family ?? m.family) ?? "narrative";
 };
 
 /** What comes off the disk: we trust nothing about its shape. */

@@ -62,11 +62,11 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
      up, and the document's `data-dragging` attribute. */
   const dragRef = useRef(null); // { type, id, node, create? }
   const overRef = useRef({}); // { kind, rowId, catId, overId, side, afterRowId }
-  const markRef = useRef(null); // le repère de dépôt, hors React
-  const spreadRef = useRef([]); // les couches écartées, à remettre d'aplomb
-  const litRef = useRef(null); // la cible actuellement éclairée
+  const markRef = useRef(null); // the drop marker, outside React
+  const spreadRef = useRef([]); // the layers pushed aside, to be set straight again
+  const litRef = useRef(null); // the target currently lit
   const measureRef = useRef(new WeakMap()); // les rectangles du glissement en cours
-  const tailRef = useRef(new WeakMap()); // le dernier objet de chaque rangée survolée
+  const tailRef = useRef(new WeakMap()); // the last object of each row hovered
   const [preview, setPreview] = useState(null);
   const [drawer, setDrawer] = useState(false);
   const [cabinet, setCabinet] = useState(null);
@@ -319,7 +319,7 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
 
   const onDragStart = useCallback((type, id, node, grab) => {
     dragRef.current = { type, id, node, grab };
-    if (node) node.style.opacity = "0.35"; // le boîtier soulevé, sans passer par React
+    if (node) node.style.opacity = "0.35"; // the case lifted, without going through React
     document.documentElement.dataset.dragging = "1";
   }, []);
 
@@ -488,7 +488,7 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     placeMark(r.left + r.width / 2 - MARK_W / 2, r.top + r.height / 2 - MARK_H / 2, 90);
   }, []);
 
-  const onShelfOver = useCallback(() => {}, []); // le repère suffit à dire où l'on va
+  const onShelfOver = useCallback(() => {}, []); // the marker is enough to say where one is going
 
   /* Dropping.
 

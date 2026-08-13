@@ -177,7 +177,7 @@ const credits: Tour = {
       optional: true,
     },
     {
-      target: at("credits-dossier"),
+      target: at("credits-page"),
       title: "Ce que quelqu'un vaut chez vous",
       body: "Votre note moyenne sur ses films, et votre écart à la note publique : où vous êtes plus tendre, où vous êtes plus sévère que la foule. Puis ses films, ce qui revient chez lui, et depuis quand.",
       placement: "right",
@@ -445,14 +445,14 @@ const global: Tour = {
     },
     ...from("library", library, "wall-search", "wall-mode", "wall-films"),
     ...from("watchlist", watchlist, "wall-films", "soir-ouvrir"),
-    /* NOT `credits-dossier` HERE, AND THAT IS A FIX.
+    /* NOT `credits-page` HERE, AND THAT IS A FIX.
        Its anchor only exists once a person is SELECTED, and the global
        tour arrives on a closed directory: the step was therefore
        permanently dead, even on a full collection. It stays in the
        Credits tour, where a folder has been opened. */
     ...from("credits", credits, "credits-search", "credits-roles"),
     /* NOT `reco-dials` EITHER, and for the same reason as
-       `credits-dossier` above: the two dials live INSIDE the order
+       `credits-page` above: the two dials live INSIDE the order
        form, which the view does not mount at all without a TMDB key. On
        a new binder — which never has one — the step opened Discoveries,
        looked for an absent anchor for seven hundred milliseconds of

@@ -234,12 +234,12 @@ function Unfold({
   v,
   director,
   alreadySetAside,
-  onMettreDeCôté,
+  onSetAside,
 }: {
   v: FarNeighbour;
   director: string;
   alreadySetAside: boolean;
-  onMettreDeCôté: () => void;
+  onSetAside: () => void;
 }) {
   return (
     <div style={{ padding: "2px 4px 12px 58px" }}>
@@ -267,7 +267,7 @@ function Unfold({
         }}
       >
         <button
-          onClick={onMettreDeCôté}
+          onClick={onSetAside}
           disabled={alreadySetAside}
           style={{
             all: "unset",
@@ -408,8 +408,8 @@ export function WakePanel({
   /* The directors already asked for, by TMDB identifier. `discover` and
      `recommendations` return films, not crews: the name is asked for
      separately, and only for the one being opened. */
-  const [réals, setRéals] = useState<Record<number, string>>({});
-  const [misDeCôté, setMisDeCôté] = useState<Set<number>>(() => new Set());
+  const [directors, setDirectors] = useState<Record<number, string>>({});
+  const [setAsideIds, setSetAsideIds] = useState<Set<number>>(() => new Set());
 
   /* WHAT ONE OWNS IS READ AT HARVEST TIME, AND IS NOT TRACKED.
 
@@ -430,19 +430,19 @@ export function WakePanel({
     setDehors(null);
     setRenfort([]);
     setOuvert(null);
-    setMisDeCôté(new Set());
+    setSetAsideIds(new Set());
     if (!apiKey) return;
     let alive = true;
     setQuery(true);
     harvestTheWake(film, apiKey)
-      .then((récoltes) => {
+      .then((harvested) => {
         if (!alive) return;
         /* The SAME harvest serves both columns: what it brings back
            that you already own feeds the left, the rest the right. That
            is what gives connections by subject without having to ask for
            the keywords of five hundred cards. */
-        setRenfort(reinforcementFromOutside(récoltes, byTmdbId(films), film.id));
-        setDehors(mergeAfar(récoltes, { alreadyHere: alreadyInTheBinder(films), quotas: QUOTAS }));
+        setRenfort(reinforcementFromOutside(harvested, byTmdbId(films), film.id));
+        setDehors(mergeAfar(harvested, { alreadyHere: alreadyInTheBinder(films), quotas: QUOTAS }));
       })
       /* A network failure returns an EMPTY list and not `null`: the
          column must say "nothing found" rather than spin for ever. */
@@ -465,9 +465,9 @@ export function WakePanel({
      unfolding is already worth it for its synopsis and its button. */
   const unfold = (v: FarNeighbour) => {
     setOuvert((o) => (o === v.tmdbId ? null : v.tmdbId));
-    if (réals[v.tmdbId] != null || !apiKey) return;
+    if (directors[v.tmdbId] != null || !apiKey) return;
     directorOf(v.tmdbId, apiKey)
-      .then((name: string) => setRéals((r) => ({ ...r, [v.tmdbId]: name })))
+      .then((name: string) => setDirectors((r) => ({ ...r, [v.tmdbId]: name })))
       .catch(() => {});
   };
 
@@ -486,20 +486,20 @@ export function WakePanel({
            down the column, and — far worse — an invalid poster written
            into the collection at every setting aside. */
         poster: v.poster || "",
-        director: réals[v.tmdbId] || "",
+        director: directors[v.tmdbId] || "",
         status: "watchlist",
         tmdbId: v.tmdbId,
         source: "tmdb",
       })
     );
-    setMisDeCôté((s) => new Set(s).add(v.tmdbId));
+    setSetAsideIds((s) => new Set(s).add(v.tmdbId));
   };
 
   return (
     <Cardstock tour="detail-sillage" style={{ marginTop: 18 }}>
       <SectionTitle icon={<Waves size={15} color={C.cobalt} />}>Dans le sillage</SectionTitle>
       <Guideline>
-        ce qui fits de « {film.title} » — per l&apos;équipe, les sujets, les people à l&apos;affiche
+        ce qui tient de « {film.title} » — par l&apos;équipe, les sujets, les gens à l&apos;affiche
       </Guideline>
 
       <div
@@ -575,15 +575,15 @@ export function WakePanel({
                   title={v.title}
                   year={v.year}
                   raison={v.reason}
-                  aside={misDeCôté.has(v.tmdbId) ? "à voir" : undefined}
+                  aside={setAsideIds.has(v.tmdbId) ? "à voir" : undefined}
                   onClick={() => unfold(v)}
                   unfolded={
                     open === v.tmdbId ? (
                       <Unfold
                         v={v}
-                        director={réals[v.tmdbId] || ""}
-                        alreadySetAside={misDeCôté.has(v.tmdbId)}
-                        onMettreDeCôté={() => setAside(v)}
+                        director={directors[v.tmdbId] || ""}
+                        alreadySetAside={setAsideIds.has(v.tmdbId)}
+                        onSetAside={() => setAside(v)}
                       />
                     ) : undefined
                   }

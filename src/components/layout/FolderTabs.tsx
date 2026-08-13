@@ -102,8 +102,8 @@ const TABS: {
    condition is static, so the import of the board falls to tree
    shaking. */
 const DEV_TABS: typeof TABS = import.meta.env.DEV
-  ? /* En encre et non dans l'une des huit teintes : les onglets du
-       produit sont pris, et un outil ne doit pas se déguiser en vue. */
+  ? /* In ink and not in one of the eight tints: the product's tabs are
+       taken, and a tool must not disguise itself as a view. */
     [{ key: "skinlab", label: "Peaux ⚙", color: C.ink, icon: Settings }]
   : [];
 

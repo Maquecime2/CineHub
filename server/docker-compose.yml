@@ -1,11 +1,11 @@
-# Le Postgres de développement, et rien d'autre. Le serveur, lui, tourne
-# en clair sur la machine : on veut le voir redémarrer à chaque frappe.
+# The development Postgres, and nothing else. The server itself runs in
+# the open on the machine: we want to watch it restart on every keystroke.
 #
 #   docker compose up -d
 #   npm run dev
 #
-# Les identifiants sont volontairement les mêmes que dans `.env.exemple` :
-# cette base n'écoute que sur la machine et ne contient que des essais.
+# The credentials are deliberately the same as in `.env.exemple`: this
+# database listens on the machine only and holds nothing but trials.
 services:
   base:
     image: postgres:17-alpine
