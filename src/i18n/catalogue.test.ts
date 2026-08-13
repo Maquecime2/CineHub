@@ -75,3 +75,82 @@ describe("the two catalogues", () => {
     expect(suspects.filter((p) => !ON_PURPOSE.includes(p))).toEqual([]);
   });
 });
+
+/* ============================================================
+   EVERY KEY THE SOURCE ASKS FOR EXISTS
+   ============================================================
+
+   Parity above answers "do the two sides agree?", which is not the same
+   question as "is what the screens ask for actually there?". A key that
+   is in NEITHER catalogue is in parity with itself, and i18next does not
+   raise: it prints the key. That is how `shelf.kinds.main.tag` came to be
+   displayed, in full, under a shelf.
+
+   So the sources are read, every literal `t("…")` is collected, and each
+   one is looked up. Only literals — a key built from a variable cannot be
+   checked here, and the two that are built that way are checked by the
+   test below instead.
+   ============================================================ */
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
+
+/* From the working directory rather than from `import.meta.url`: under
+   the jsdom environment that URL is not a file one, and resolving it
+   throws before a single assertion runs. Vitest runs from the root of
+   the package. */
+const SRC = join(process.cwd(), "src");
+
+const sources = (dir: string): string[] =>
+  readdirSync(dir).flatMap((name) => {
+    const path = join(dir, name);
+    if (statSync(path).isDirectory()) return name === "i18n" ? [] : sources(path);
+    return /\.(ts|tsx|js|jsx)$/.test(name) && !/\.test\./.test(name) ? [path] : [];
+  });
+
+const at = (tree: Tree, path: string): unknown =>
+  path
+    .split(".")
+    .reduce<unknown>(
+      (node, key) => (node && typeof node === "object" ? (node as Tree)[key] : undefined),
+      tree
+    );
+
+/* A PLURAL IS FILED UNDER SEVERAL NAMES AND CALLED BY ONE. `t("x", {count})`
+   reads `x_one` or `x_other` depending on the number, and `x` itself
+   never exists — so a sweep that only looked for the name as written
+   would report every plural in the application as missing, and the real
+   absences would be lost in the noise. */
+const SUFFIXES = ["", "_one", "_other", "_zero", "_many", "_few"];
+const has = (tree: Tree, path: string): boolean =>
+  SUFFIXES.some((s) => at(tree, path + s) !== undefined);
+
+describe("the keys the screens ask for", () => {
+  it("all exist, in both catalogues", () => {
+    const missing = new Set<string>();
+    for (const file of sources(SRC)) {
+      const text = readFileSync(file, "utf8");
+      for (const match of text.matchAll(/\bt\(\s*"([a-zA-Z][\w.]*\.[\w.]+)"/g)) {
+        const key = match[1]!;
+        if (!has(fr as unknown as Tree, key) || !has(en as unknown as Tree, key)) {
+          missing.add(`${key}  (${file.slice(SRC.length)})`);
+        }
+      }
+    }
+    expect([...missing].sort()).toEqual([]);
+  });
+
+  /* THE TWO KEYS BUILT FROM A VARIABLE. `shelf.kinds.<kind>.title` and
+     `….tag` are composed at render time from the three shelf kinds, so
+     the sweep above cannot see them — and it was exactly there that a key
+     was printed on screen instead of a sentence. They are named here by
+     hand, which is the price of composing a key. */
+  it("includes the ones composed at render time", () => {
+    for (const kind of ["bedside", "main", "reserve"]) {
+      for (const leaf of ["title", "tag"]) {
+        const key = `shelf.kinds.${kind}.${leaf}`;
+        expect(has(fr as unknown as Tree, key), `fr ${key}`).toBe(true);
+        expect(has(en as unknown as Tree, key), `en ${key}`).toBe(true);
+      }
+    }
+  });
+});

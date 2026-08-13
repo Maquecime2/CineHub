@@ -201,7 +201,14 @@ export const FilmBox = React.memo(function FilmBox({
           the release handled here rather than let through.
 
           It rides ABOVE the leaning layer so that a neighbour parting
-          does not carry it off mid-click. */}
+          does not carry it off mid-click.
+
+          AND IT SITS INSIDE THE CASE, not on its corner. The wrapper
+          carries `content-visibility: auto`, which implies PAINT
+          containment: anything drawn outside its box is clipped, so a
+          badge hung at `top: -7` was cut in half by the very rule that
+          keeps a shelf of five hundred cases cheap to draw. Nothing
+          reported it — clipping is not an error, it is a scissor. */}
       {filing && hover && (
         <button
           onPointerDown={(e) => e.stopPropagation()}
@@ -222,17 +229,24 @@ export const FilmBox = React.memo(function FilmBox({
             all: "unset",
             ...tap,
             position: "absolute",
-            top: -7,
-            right: -5,
+            /* Inside the box, and low rather than high: the top of a
+               case carries the title, the foot carries nothing. */
+            bottom: 4,
+            right: 4,
             zIndex: 4,
             cursor: "pointer",
-            padding: 4,
-            color: C.card,
-            background: C.moss,
-            boxShadow: `0 1px 4px ${alpha(C.ink, 0.4)}`,
+            display: "grid",
+            placeItems: "center",
+            width: 18,
+            height: 18,
+            color: C.ink,
+            background: C.paper,
+            border: `1px solid ${alpha(C.ink, 0.35)}`,
+            boxShadow: `0 1px 3px ${alpha(C.ink, 0.45)}`,
+            transform: "rotate(-4deg)",
           }}
         >
-          <ListPlus size={11} />
+          <ListPlus size={10} />
         </button>
       )}
 

@@ -129,6 +129,8 @@ const fr = {
     offline: "Impossible de joindre TMDB — êtes-vous en ligne ?",
     whereFrom:
       "une clé est gratuite : compte TMDB → Paramètres → API. Sans elle, le classeur marche entièrement — seuls l'enrichissement et les propositions venues du dehors se taisent.",
+    relayServes:
+      "Votre serveur fournit déjà TMDB tant que vous êtes connecté : cette clé ne servira qu'une fois déconnecté, ou si le serveur est éteint.",
     remove: "retirer la clé de cette machine",
     missing: "Aucune clé TMDB — à régler au pied du rail d'onglets.",
   },
@@ -394,6 +396,7 @@ const fr = {
     noneFileable_other:
       "Aucun de ces {{count}} films n'a d'identité TMDB : complétez-les depuis l'onglet Import et ils pourront rejoindre une liste.",
     select: "CHOISIR",
+    stamp: "CHOISI",
     selectDone: "TERMINER",
     selected_one: "{{count}} film choisi",
     selected_other: "{{count}} films choisis",
@@ -950,6 +953,7 @@ const fr = {
     category: "CATÉGORIE",
     undoCategory: "défaire la catégorie",
     nameThisDivider: "Cliquez pour nommer cet intercalaire",
+    shelfAimed: "rayon visé : {{shelf}}",
     kinds: {
       bedside: {
         title: "Films de chevet",
@@ -957,6 +961,16 @@ const fr = {
       },
       main: {
         title: "La collection",
+        /* PAS DE LÉGENDE, ET LA CLÉ EXISTE QUAND MÊME. Le code demandait
+           `shelf.kinds.main.tag` avec `defaultValue: ""` — mais i18next
+           tient une valeur par défaut VIDE pour une absence de valeur par
+           défaut, et rend alors la clé : « shelf.kinds.main.tag » s'est
+           donc affiché tel quel sous l'étagère. Une chaîne d'un espace
+           dirait la même chose au lecteur et mentirait au test qui refuse
+           les phrases vides ; c'est le code qui ne demande plus rien pour
+           ce rayon-là, et cette clé porte ce qu'il faut si un jour on veut
+           l'écrire. */
+        tag: "tout ce qu'on garde",
       },
       reserve: {
         title: "Mis de côté",

@@ -124,6 +124,8 @@ const en = {
     offline: "Cannot reach TMDB — are you online?",
     whereFrom:
       "a key is free: TMDB account → Settings → API. Without one the binder works entirely — only the enrichment and the proposals from outside go quiet.",
+    relayServes:
+      "Your server already provides TMDB while you are signed in: this key will only be used once you sign out, or if the server is down.",
     remove: "take the key off this machine",
     missing: "No TMDB key — to be set at the foot of the tab rail.",
   },
@@ -381,6 +383,7 @@ const en = {
     noneFileable_other:
       "None of these {{count}} films has a TMDB identity: complete them from the Import tab and they will be able to join a list.",
     select: "CHOOSE",
+    stamp: "CHOSEN",
     selectDone: "DONE",
     selected_one: "{{count}} film chosen",
     selected_other: "{{count}} films chosen",
@@ -931,6 +934,7 @@ const en = {
     category: "CATEGORY",
     undoCategory: "undo the category",
     nameThisDivider: "Click to name this divider",
+    shelfAimed: "shelf aimed at: {{shelf}}",
     kinds: {
       bedside: {
         title: "Bedside films",
@@ -938,6 +942,7 @@ const en = {
       },
       main: {
         title: "The collection",
+        tag: "everything one keeps",
       },
       reserve: {
         title: "Set aside",

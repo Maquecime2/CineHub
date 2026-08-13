@@ -1406,7 +1406,13 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     return reply.send({ subscribed: false });
   });
 
-  app.get("/health", async () => ({ debout: true }));
+  /* `tmdb` SAYS WHETHER THE RELAY HAS A KEY OF ITS OWN, and it is not
+     idle curiosity: without it the binder cannot tell a person whether
+     the key it is asking them for is needed. Signed in against a server
+     that relays TMDB, one needs no key at all; against a server started
+     without `TMDB_KEY`, one needs one exactly as before. The screen was
+     asking in both cases, with the same words. */
+  app.get("/health", async () => ({ debout: true, tmdb: !!settings.tmdbKey }));
 
   /* ------------------------------------------------------------
      THE SERVICE DOOR — double-locked, and for good reasons

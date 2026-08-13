@@ -32,7 +32,6 @@ import {
   readList,
   readChallenge,
   myChallenges,
-  myLists,
   leaveChallenge,
   joinChallenge,
   removeFromListMembers,
@@ -45,6 +44,7 @@ import {
   type List,
   type ListWork,
 } from "../services/server";
+import { refreshLists } from "../hooks/useMyLists";
 import { useTmdbKey } from "../services/tmdbKey";
 import { searchMovies } from "../tmdb";
 
@@ -62,10 +62,16 @@ export function ListsView({ connected }: { connected: boolean }) {
   const [opened, setOpened] = useState<string | null>(null);
   const [title, setTitle] = useState("");
 
+  /* THROUGH THE SHARED STORE, NOT AROUND IT. This view held its own
+     copy of "my lists" and the badges on the wall held another: a list
+     opened here did not appear under a poster until something else
+     happened to refresh them, and one that was erased here went on being
+     offered. Two sources of truth for one question is one too many —
+     `refreshLists` reads the server and tells everybody. */
   const reread = useCallback(async () => {
     if (!connected) return;
-    const [l, d] = await Promise.all([myLists(), myChallenges()]);
-    setLists(l.lists);
+    const [l, d] = await Promise.all([refreshLists(), myChallenges()]);
+    setLists(l);
     setChallenges(d.challenges);
   }, [connected]);
 

@@ -17,6 +17,7 @@ import { X, KeyRound, Check, Loader2 } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { checkApiKey } from "../../tmdb";
 import { writtenKey, setTmdbKey } from "../../services/tmdbKey";
+import { accountOpen, relayServesTmdb } from "../../services/server";
 
 /* The same band as the skin picker: they are two drawers of the same
    rail, and the `z-index` budget reserves 59–60 for them. */
@@ -41,6 +42,20 @@ type Attempt = { state: "repos" | "essai" | "bonne" | "mauvaise"; message?: stri
 export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
   const [key, setKey] = useState(writtenKey);
+  /* Asked once, and only when there is somebody to ask for: the relay
+     refuses anyone who is not signed in, so its key is of no use to a
+     visitor either way. */
+  const [relayServes, setRelayServes] = useState(false);
+  useEffect(() => {
+    if (!accountOpen()) return;
+    let alive = true;
+    relayServesTmdb()
+      .then((yes) => alive && setRelayServes(yes))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
   const [essai, setEssai] = useState<Attempt>({ state: "repos" });
 
   /* Escape closes, as everywhere else: a drawer one can only close with
@@ -113,6 +128,27 @@ export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
         <div style={{ fontFamily: F.hand, fontSize: 14, color: C.inkFaded, marginBottom: 10 }}>
           {t("tmdbKey.note")}
         </div>
+
+        {/* WHETHER THIS KEY IS NEEDED AT ALL DEPENDS ON THE SERVER, and
+            the panel used to ask for it in both cases with the same
+            words. Signed in against a server that relays TMDB, the key
+            below is never used — Discoveries, the posters and the wake
+            already work. It stays reachable, because it is what answers
+            the moment one signs out. */}
+        {relayServes && (
+          <div
+            style={{
+              fontFamily: F.hand,
+              fontSize: 14,
+              color: C.pine,
+              marginBottom: 10,
+              paddingLeft: 8,
+              borderLeft: `2px solid ${C.pine}`,
+            }}
+          >
+            {t("tmdbKey.relayServes")}
+          </div>
+        )}
 
         <label
           htmlFor="tmdb-key-champ"

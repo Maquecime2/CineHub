@@ -857,7 +857,11 @@ export default function App() {
               setView(backView);
               setSelectedId(null);
             }}
-            backTo={who ? i18n.t("detail.backToCredits") : undefined}
+            /* `credits.` AND NOT `detail.`: the sentence has always lived
+                 with the credits, and this asked for it under the card's
+                 own heading — so the back link read
+                 "detail.backToCredits", in full, on screen. */
+            backTo={who ? i18n.t("credits.backToCredits") : undefined}
             onUpdate={updateFilm}
             onDelete={deleteFilm}
             onLinkFilm={linkFilms}

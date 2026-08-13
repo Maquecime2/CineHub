@@ -10,6 +10,7 @@
    serves elsewhere than on the wall (the discoveries), and those places
    asked for nothing. */
 import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ListPlus, Check } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
@@ -64,6 +65,8 @@ export function FilmPolaroid({
      make a wall of buttons, which is not a wall of films. Focus counts
      as being near — a badge reachable only by mouse is a badge half the
      people never get. */
+  const { t } = useTranslation();
+  const chosenWord = t("lists.stamp");
   const [near, setNear] = useState(false);
   const press = useRef<ReturnType<typeof setTimeout> | null>(null);
   const badge = useRef<HTMLButtonElement | null>(null);
@@ -266,46 +269,63 @@ export function FilmPolaroid({
         />
       </button>
 
-      {/* THE MARK OF A CHOSEN CARD — a rubber stamp, not a checkbox.
+      {/* THE MARK OF A CHOSEN CARD — a stamp, not a checkbox.
 
-          The first draft drew a little square with a tick, which is what
-          a form does; on a wall of paper photographs it read as a piece
-          of somebody else's interface laid on top. A stamp belongs to
-          the same world as the pins, the tape and the folder numbers:
-          it sits ON the print, at an angle, and the card underneath goes
-          on being a card.
+          Two drafts were wrong before this one, and in the same way. A
+          little square with a tick is what a FORM does; a ringed
+          checkmark is what an application does. Laid on a wall of paper
+          photographs, both read as somebody else's interface put on top
+          of the pictures — which is exactly what this project's
+          direction refuses.
 
-          It is a corner mark rather than a wash over the whole card:
-          one chooses films by looking at them, and a wall of
-          half-erased posters is a wall one can no longer read. */}
+          So: while one is choosing, every card wears a faint pencil
+          frame — that is the affordance, and it says "these are being
+          sorted" without printing a control on each one. The chosen card
+          takes an ink stamp across its corner, tilted AGAINST the card's
+          own tilt so it reads as pressed on rather than printed with.
+
+          The wording is the catalogue's, not this file's: a stamp that
+          says CHOISI to an English reader would be the same mistake in
+          another key. */}
       {selecting && (
         <div
           aria-hidden
           style={{
             position: "absolute",
-            top: nudge + 6,
-            left: 6,
-            width: 26,
-            height: 26,
-            display: "grid",
-            placeItems: "center",
-            borderRadius: "50%",
-            transform: `rotate(${tilt > 0 ? -11 : 11}deg)`,
-            border: `2px solid ${selected ? C.burgundy : alpha(C.inkFaded, 0.4)}`,
-            background: selected ? alpha(C.burgundy, 0.12) : alpha(C.card, 0.55),
-            color: selected ? C.burgundy : "transparent",
-            transition:
-              "color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease), background var(--motion-fast) var(--motion-ease)",
+            inset: `${nudge}px 0 0 0`,
             pointerEvents: "none",
+            border: `1.5px dashed ${alpha(C.inkFaded, selected ? 0.65 : 0.3)}`,
+            transform: `rotate(${tilt}deg)`,
+            transition: "border-color var(--motion-fast) var(--motion-ease)",
+          }}
+        />
+      )}
+      {selecting && selected && (
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            top: nudge + 14,
+            left: -4,
+            zIndex: 6,
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            padding: "3px 7px",
+            fontFamily: F.mono,
+            fontSize: 9.5,
+            letterSpacing: 1.5,
+            color: C.burgundy,
+            background: alpha(C.card, 0.82),
+            border: `1.5px solid ${C.burgundy}`,
+            transform: `rotate(${tilt > 0 ? -7 : 7}deg)`,
+            boxShadow: `0 1px 3px ${alpha(C.ink, 0.25)}`,
           }}
         >
-          <Check size={15} strokeWidth={3} />
+          <Check size={11} strokeWidth={3} /> {chosenWord}
         </div>
       )}
 
-      {/* THE BADGE THAT FILES. Not inside the card's button, and it stops
-          the click going through: touching it must open the choosing of a
-          list, never the film's card underneath. */}
       {onFile && !selecting && (
         <button
           ref={badge}
@@ -327,10 +347,18 @@ export function FilmPolaroid({
             right: 4,
             zIndex: 6,
             cursor: "pointer",
-            padding: 5,
-            color: C.card,
-            background: C.moss,
-            boxShadow: `0 1px 4px ${alpha(C.ink, 0.35)}`,
+            display: "grid",
+            placeItems: "center",
+            width: 24,
+            height: 24,
+            /* A PAPER TAB, INKED — not a coloured button. The wall is
+               kraft, ink and cardboard; a filled green square was the one
+               thing on it that came from another world. */
+            color: C.ink,
+            background: C.paper,
+            border: `1px solid ${alpha(C.ink, 0.4)}`,
+            transform: "rotate(-5deg)",
+            boxShadow: `0 2px 5px ${alpha(C.ink, 0.35)}`,
             /* `visibility` as well as opacity: an invisible badge that
                still takes clicks would swallow the poster's own. */
             opacity: near || fileOpen ? 1 : 0,
@@ -338,7 +366,7 @@ export function FilmPolaroid({
             transition: "opacity var(--motion-fast) var(--motion-ease)",
           }}
         >
-          <ListPlus size={13} />
+          <ListPlus size={12} />
         </button>
       )}
     </div>

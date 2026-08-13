@@ -162,9 +162,14 @@ describe("DecorCabinet", () => {
     expect(onDragStart).toHaveBeenCalledWith("divider", expect.anything());
   });
 
+  /* IT USED TO ASSERT THE BROKEN SENTENCE. "rayon targeted" is what an
+     automated FR→EN pass left behind, hard-coded in the component; the
+     test pinned it there, and so made the damage look deliberate. The
+     sentence is in the catalogues now, and this reads the shelf's name
+     rather than the wreckage around it. */
   it("says which shelf is being aimed at", () => {
     open();
-    expect(screen.getByText(/rayon targeted/)).toHaveTextContent("La collection");
+    expect(screen.getByText(/rayon visé/)).toHaveTextContent("La collection");
   });
 });
 

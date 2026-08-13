@@ -215,6 +215,36 @@ export function watchAccount(fn: Watcher): () => void {
   };
 }
 
+/* ============================================================
+   DOES THIS SERVER RELAY TMDB?
+   ============================================================
+
+   The binder asks everybody for a TMDB key, and for somebody signed in
+   against a server that HAS one that request is pure noise: the relay
+   answers, the key is never used, and the panel goes on saying a key is
+   missing. But it is not always noise — a server started without
+   `TMDB_KEY` answers 503, and then the key one types is the only way
+   Discoveries and the posters work at all.
+
+   So we ask, once, and cache the answer: it changes when the server is
+   restarted, not while somebody is reading a screen. */
+let relayKnown: boolean | null = null;
+
+export async function relayServesTmdb(): Promise<boolean> {
+  if (relayKnown !== null) return relayKnown;
+  if (!serverConfigured()) return false;
+  try {
+    const r = await call<{ tmdb?: boolean }>("/health");
+    relayKnown = r.tmdb === true;
+  } catch {
+    /* Unreachable: we say nothing rather than promise a relay that may
+       not be there. The key panel then behaves exactly as it always
+       has. */
+    return false;
+  }
+  return relayKnown;
+}
+
 /** What the server holds, in a single object — to take it away with you. */
 export const myData = () => call<Record<string, unknown>>("/my-data");
 

@@ -639,7 +639,14 @@ export function Shelf({
         >
           {count} film{count > 1 ? "s" : ""}
         </div>
-        {(tag ?? t(`shelf.kinds.${kind}.tag`, { defaultValue: "" })) && (
+        {/* THE MAIN SHELF WEARS NO CAPTION, and asking for one anyway
+            is what printed a key on screen: `defaultValue: ""` looks
+            like "nothing to say", but i18next takes an EMPTY default for
+            an absent one and hands back the key —
+            "shelf.kinds.main.tag", in full, under the shelf. So the
+            shelves that have a caption are named, and the one that has
+            none is not asked. */}
+        {(tag ?? (kind === "main" ? "" : t(`shelf.kinds.${kind}.tag`))) && (
           <div
             style={{
               fontFamily: F.hand,
@@ -648,7 +655,7 @@ export function Shelf({
               transform: "rotate(-3deg)",
             }}
           >
-            {tag ?? t(`shelf.kinds.${kind}.tag`, { defaultValue: "" })}
+            {tag ?? (kind === "main" ? "" : t(`shelf.kinds.${kind}.tag`))}
           </div>
         )}
         <div style={{ flex: 1 }} />
@@ -1819,7 +1826,7 @@ export function DecorCabinet({ kind, onDragStart, onDragEnd, onClose }) {
             onDragEnd={onDragEnd}
           />
           <CabinetNote style={{ marginTop: 10 }}>
-            rayon targeted : {t(`shelf.kinds.${kind}.title`, { defaultValue: kind })}
+            {t("shelf.shelfAimed", { shelf: t(`shelf.kinds.${kind}.title`) })}
           </CabinetNote>
         </div>
       )}
