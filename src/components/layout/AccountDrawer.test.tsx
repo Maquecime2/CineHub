@@ -42,6 +42,8 @@ vi.mock("../../services/server", () => ({
   }),
   addKey: vi.fn(),
   forgetKey: vi.fn(),
+  makePairingCode: vi.fn(),
+  claimPairingCode: vi.fn(),
 }));
 
 vi.mock("../../services/push", () => ({
@@ -69,9 +71,9 @@ const build = (signedIn = true) =>
   render(
     <AccountDrawer
       report={report(signedIn)}
-      onFermer={vi.fn()}
+      onClose={vi.fn()}
       onSync={vi.fn()}
-      onChangement={vi.fn()}
+      onAccountChange={vi.fn()}
     />
   );
 

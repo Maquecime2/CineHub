@@ -1605,8 +1605,8 @@ function DecorWorkshop({ onBack }) {
                       onClick={() => showCustomDecor(d.key, !d.shown).catch(() => {})}
                       label={
                         d.shown
-                          ? `Ne plus montrer « ${decorLabel(d, t)} »`
-                          : `Montrer « ${decorLabel(d, t)} » à mes amis`
+                          ? t("shelf.decorHide", { label: decorLabel(d, t) })
+                          : t("shelf.decorShow", { label: decorLabel(d, t) })
                       }
                     >
                       {d.shown ? <Users size={12} /> : <UserX size={12} />}

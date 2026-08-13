@@ -69,7 +69,7 @@ import type { SyncReport } from "../../services/sync";
    at a time. */
 type Say = (key: string, values?: Record<string, string | number>) => string;
 
-const quandDit = (at: number | null, t: Say, lang: string): string => {
+const whenSaid = (at: number | null, t: Say, lang: string): string => {
   if (!at) return t("account.never");
   const seconds = Math.round((Date.now() - at) / 1000);
   if (seconds < 90) return t("account.justNow");
@@ -82,25 +82,25 @@ const quandDit = (at: number | null, t: Say, lang: string): string => {
 
 export function AccountDrawer({
   report,
-  onFermer,
+  onClose,
   onSync,
-  onChangement,
+  onAccountChange,
 }: {
   report: SyncReport;
-  onFermer: () => void;
+  onClose: () => void;
   onSync: () => void;
   /** The account has changed: the application must find its bearings again. */
-  onChangement: (person: Person | null) => void;
+  onAccountChange: (person: Person | null) => void;
 }) {
   const { t, i18n } = useTranslation();
   const [pseudo, setPseudo] = useState("");
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
-  const [souci, setSouci] = useState<string | null>(null);
+  const [trouble, setTrouble] = useState<string | null>(null);
   const [request, setRequest] = useState<ConfirmRequest | null>(null);
 
-  const tenter = async (what: (p: string) => Promise<Person>) => {
-    setSouci(null);
+  const attempt = async (what: (p: string) => Promise<Person>) => {
+    setTrouble(null);
     setBusy(true);
     try {
       const who = await what(pseudo.trim().toLowerCase());
@@ -108,31 +108,31 @@ export function AccountDrawer({
          cursor would make the binder believe it had already seen all of
          the new one's collection — which would stay invisible. */
       forgetSync();
-      onChangement(who);
+      onAccountChange(who);
     } catch (e) {
       /* Refusing one's own fingerprint is not an error to dramatise: one
          changes one's mind, and that is all. */
       const m = (e as Error).message || "";
-      setSouci(/NotAllowed|abort/i.test(m) ? t("account.cancelled") : m || t("account.failed"));
+      setTrouble(/NotAllowed|abort/i.test(m) ? t("account.cancelled") : m || t("account.failed"));
     } finally {
       setBusy(false);
     }
   };
 
-  /* The same shape as `tenter` above, and for the same reason: an
+  /* The same shape as `attempt` above, and for the same reason: an
      account that changes must start over, or the read cursor of the old
      one would make the binder believe it had already seen all of the new
      one's collection. */
   const claim = async () => {
-    setSouci(null);
+    setTrouble(null);
     setBusy(true);
     try {
       const who = await claimPairingCode(code);
       setCode("");
       forgetSync();
-      onChangement(who);
+      onAccountChange(who);
     } catch (e) {
-      setSouci((e as Error).message || t("account.failed"));
+      setTrouble((e as Error).message || t("account.failed"));
     } finally {
       setBusy(false);
     }
@@ -143,7 +143,7 @@ export function AccountDrawer({
   return (
     <Layer>
       <div
-        onClick={onFermer}
+        onClick={onClose}
         data-veil
         style={{ position: "fixed", inset: 0, zIndex: 59, background: alpha(C.ink, 0.45) }}
       />
@@ -181,7 +181,7 @@ export function AccountDrawer({
             </span>
           </div>
           <button
-            onClick={onFermer}
+            onClick={onClose}
             aria-label={t("common.close")}
             style={{ ...tap, all: "unset", cursor: "pointer", marginLeft: "auto" }}
           >
@@ -217,7 +217,7 @@ export function AccountDrawer({
             {report.state === "no-account" && t("account.allStaysHere")}
             {report.state === "running" && t("account.running")}
             {report.state === "up-to-date" &&
-              t("account.upToDate", { when: quandDit(report.at, t, i18n.language) })}
+              t("account.upToDate", { when: whenSaid(report.at, t, i18n.language) })}
             {/* "0 CARDS ARE WAITING FOR THE NETWORK" MEANS NOTHING, and
                 that is nonetheless what showed when the server was
                 unreachable without our having changed anything: an empty
@@ -272,12 +272,12 @@ export function AccountDrawer({
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button
                 disabled={busy || pseudo.trim().length < 3}
-                onClick={() => tenter(signUp)}
+                onClick={() => attempt(signUp)}
                 style={button(C.burgundy, busy || pseudo.trim().length < 3)}
               >
                 <UserPlus size={12} /> {t("account.signUp")}
               </button>
-              <button disabled={busy} onClick={() => tenter(signIn)} style={button(C.ink, busy)}>
+              <button disabled={busy} onClick={() => attempt(signIn)} style={button(C.ink, busy)}>
                 <KeyRound size={12} /> {t("account.signIn")}
               </button>
             </div>
@@ -333,7 +333,7 @@ export function AccountDrawer({
                 {t("account.pairClaimNote")}
               </div>
             </div>
-            {souci && (
+            {trouble && (
               <div
                 style={{
                   marginTop: 12,
@@ -342,7 +342,7 @@ export function AccountDrawer({
                   color: C.burgundy,
                 }}
               >
-                {souci}
+                {trouble}
               </div>
             )}
           </>
@@ -362,7 +362,7 @@ export function AccountDrawer({
                 /* The collection STAYS: signing out is not being
                    dispossessed. Only the link with the server is cut. */
                 forgetSync();
-                onChangement(null);
+                onAccountChange(null);
               }}
               style={button(C.ink, false)}
             >
@@ -383,7 +383,7 @@ export function AccountDrawer({
                 <button
                   disabled={busy}
                   onClick={async () => {
-                    setSouci(null);
+                    setTrouble(null);
                     setBusy(true);
                     try {
                       const everything = await myData();
@@ -399,7 +399,7 @@ export function AccountDrawer({
                       link.click();
                       URL.revokeObjectURL(link.href);
                     } catch (e) {
-                      setSouci((e as Error).message || t("account.exportFailed"));
+                      setTrouble((e as Error).message || t("account.exportFailed"));
                     } finally {
                       setBusy(false);
                     }
@@ -423,9 +423,9 @@ export function AccountDrawer({
                         try {
                           await deleteMyAccount();
                           forgetSync();
-                          onChangement(null);
+                          onAccountChange(null);
                         } catch (e) {
-                          setSouci((e as Error).message || t("account.deleteFailed"));
+                          setTrouble((e as Error).message || t("account.deleteFailed"));
                         } finally {
                           setBusy(false);
                         }
@@ -443,8 +443,8 @@ export function AccountDrawer({
               </div>
             </div>
 
-            {souci && (
-              <div style={{ fontFamily: F.hand, fontSize: 16, color: C.burgundy }}>{souci}</div>
+            {trouble && (
+              <div style={{ fontFamily: F.hand, fontSize: 16, color: C.burgundy }}>{trouble}</div>
             )}
           </div>
         )}
@@ -544,15 +544,15 @@ const button = (ink: string, off: boolean) => ({
    subject teaches nobody anything. */
 function Blocks() {
   const { t } = useTranslation();
-  const [list, setListe] = useState<string[] | null>(null);
+  const [list, setList] = useState<string[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   const reread = () =>
     myBlocks()
-      .then((r) => setListe(r.blocks))
+      .then((r) => setList(r.blocks))
       /* With no server or offline: we stay quiet, we do not show an
          error for a heading that may have nothing to say. */
-      .catch(() => setListe(null));
+      .catch(() => setList(null));
 
   useEffect(() => {
     reread();
@@ -560,7 +560,7 @@ function Blocks() {
 
   if (!list?.length) return null;
 
-  const rendreLaParole = async (pseudo: string) => {
+  const giveSpeechBack = async (pseudo: string) => {
     setBusy(pseudo);
     try {
       await unblock(pseudo);
@@ -592,7 +592,7 @@ function Blocks() {
               {pseudo}
             </span>
             <button
-              onClick={() => rendreLaParole(pseudo)}
+              onClick={() => giveSpeechBack(pseudo)}
               disabled={busy === pseudo}
               aria-label={t("account.unblockOne", { pseudo })}
               style={{
@@ -649,8 +649,8 @@ function Devices({ lang }: { lang: string }) {
   const [keys, setKeys] = useState<DeviceKey[] | null>(null);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
-  const [souci, setSouci] = useState<string | null>(null);
-  const [said, setDit] = useState<string | null>(null);
+  const [trouble, setTrouble] = useState<string | null>(null);
+  const [said, setSaid] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -675,24 +675,24 @@ function Devices({ lang }: { lang: string }) {
     (k.transports.includes("hybrid") ? t("account.devicePhone") : t("account.deviceThisOne"));
 
   const add = async (where: "phone" | "here") => {
-    setSouci(null);
-    setDit(null);
+    setTrouble(null);
+    setSaid(null);
     setBusy(true);
     try {
       setKeys(await addKey(name.trim() || undefined, where));
       setName("");
-      setDit(t("account.deviceAdded"));
+      setSaid(t("account.deviceAdded"));
     } catch (e) {
       const m = (e as Error).message || "";
-      setSouci(/NotAllowed|abort/i.test(m) ? t("account.cancelled") : m || t("account.failed"));
+      setTrouble(/NotAllowed|abort/i.test(m) ? t("account.cancelled") : m || t("account.failed"));
     } finally {
       setBusy(false);
     }
   };
 
   const forget = async (k: DeviceKey) => {
-    setSouci(null);
-    setDit(null);
+    setTrouble(null);
+    setSaid(null);
     setBusy(true);
     try {
       setKeys(await forgetKey(k.id));
@@ -700,7 +700,7 @@ function Devices({ lang }: { lang: string }) {
       /* The refusal to remove the last key is the SERVER's sentence, and
          we show it as it stands. Repeating the rule here would make two
          copies of it, of which only one would stay true. */
-      setSouci((e as Error).message || t("account.failed"));
+      setTrouble((e as Error).message || t("account.failed"));
     } finally {
       setBusy(false);
     }
@@ -738,7 +738,7 @@ function Devices({ lang }: { lang: string }) {
                 {"  "}
                 {k.seen_at
                   ? t("account.deviceSeen", {
-                      when: quandDit(new Date(k.seen_at).getTime(), t, lang),
+                      when: whenSaid(new Date(k.seen_at).getTime(), t, lang),
                     })
                   : t("account.deviceNeverSeen")}
               </span>
@@ -815,7 +815,9 @@ function Devices({ lang }: { lang: string }) {
         </div>
       )}
       {said && <div style={{ fontFamily: F.hand, fontSize: 16, color: C.pine }}>{said}</div>}
-      {souci && <div style={{ fontFamily: F.hand, fontSize: 16, color: C.burgundy }}>{souci}</div>}
+      {trouble && (
+        <div style={{ fontFamily: F.hand, fontSize: 16, color: C.burgundy }}>{trouble}</div>
+      )}
     </div>
   );
 }
@@ -952,7 +954,7 @@ function Reminders() {
 function Share() {
   const { t } = useTranslation();
   const [state, setState] = useState<Sharing | null>(null);
-  const [token, setJeton] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -967,7 +969,7 @@ function Share() {
       .then((r) => {
         if (!alive) return;
         setState(r.sharing);
-        setJeton(r.token);
+        setToken(r.token);
       })
       /* Offline: we stay mute rather than marking an invented state.
          Clicking a mode will set it and say so. */
@@ -977,19 +979,19 @@ function Share() {
     };
   }, []);
 
-  const adresse =
+  const address =
     state === "publique"
-      ? `${location.origin}${location.pathname}#/chez/${pseudoDeLaPage()}`
+      ? `${location.origin}${location.pathname}#/chez/${pseudoOfThePage()}`
       : token
-        ? `${location.origin}${location.pathname}#/chez/${pseudoDeLaPage()}?jeton=${token}`
+        ? `${location.origin}${location.pathname}#/chez/${pseudoOfThePage()}?jeton=${token}`
         : null;
 
-  const set = async (voulu: Sharing) => {
+  const set = async (wanted: Sharing) => {
     setBusy(true);
     try {
-      const r = await setSharing(voulu);
+      const r = await setSharing(wanted);
       setState(r.sharing);
-      setJeton(r.token);
+      setToken(r.token);
       setCopied(false);
     } finally {
       setBusy(false);
@@ -1030,11 +1032,11 @@ function Share() {
         {state === "publique" && t("account.shareEveryoneNote")}
       </div>
 
-      {adresse && (
+      {address && (
         <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 8 }}>
           <input
             readOnly
-            value={adresse}
+            value={address}
             onFocus={(e) => e.currentTarget.select()}
             style={{
               flex: 1,
@@ -1050,7 +1052,7 @@ function Share() {
           />
           <button
             onClick={() => {
-              navigator.clipboard?.writeText(adresse);
+              navigator.clipboard?.writeText(address);
               setCopied(true);
             }}
             style={button(C.slate, false)}
@@ -1075,5 +1077,5 @@ function Share() {
 /* The handle is already shown at the head of the drawer: we re-read it
    from the document rather than passing it down as a prop through three
    components for a single address line. */
-const pseudoDeLaPage = (): string =>
+const pseudoOfThePage = (): string =>
   document.querySelector("[data-pseudo]")?.getAttribute("data-pseudo") || "";

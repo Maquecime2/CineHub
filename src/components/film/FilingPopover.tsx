@@ -26,6 +26,7 @@
    report, and because one list is rarely the only one.
    ============================================================ */
 import { useEffect, useRef, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import { C, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
@@ -45,6 +46,7 @@ export function FilingPopover({
   onClose: () => void;
   children: ReactNode;
 }) {
+  const { t } = useTranslation();
   const box = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -99,7 +101,7 @@ export function FilingPopover({
       >
         <button
           onClick={onClose}
-          aria-label="fermer"
+          aria-label={t("common.close")}
           style={{
             all: "unset",
             ...tap,

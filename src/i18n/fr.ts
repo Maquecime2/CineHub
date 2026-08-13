@@ -941,6 +941,8 @@ const fr = {
     decorFrom: "de {{pseudo}}",
     decorShown: "montré à mes amis",
     decorTake: "Prendre « {{label}} »",
+    decorShow: "Montrer « {{label}} » à mes amis",
+    decorHide: "Ne plus montrer « {{label}} »",
     cabinet: "CABINET DE CURIOSITÉS",
     dragOntoShelf: "glissez-les sur une planche, entre deux boîtiers",
     dragToBack: "glissez-les au fond du rayon, où vous voulez",
@@ -1170,6 +1172,30 @@ const fr = {
   },
 
   listsView: {
+    /* CES HUIT PHRASES ÉTAIENT ÉCRITES EN DUR DANS LA VUE, et une passe
+       de traduction automatique les avait abîmées sans que rien ne le
+       signale : « une nouvelle list », « on y range les films since leur
+       fiche », « sous at catalogue ». Un texte en dur échappe aux deux
+       catalogues, donc au test de parité — il n'y avait personne pour
+       s'apercevoir qu'il ne voulait plus rien dire. */
+    newList: "Une nouvelle liste",
+    newListPlaceholder: "Les films qu'il faut avoir vus en mars",
+    open: "OUVRIR",
+    fillNote:
+      "On y range les films depuis leur fiche, depuis la pastille d'une affiche, ou en cherchant chez TMDB dans la liste ouverte.",
+    yours: "Vos listes",
+    none: "Aucune liste pour l'instant.",
+    noChallenges:
+      "Aucun défi. Un défi est une liste plus une période : ouvrez une liste ci-dessus pour en lancer un.",
+    empty: "Vide.",
+    removeWork: "Retirer de la liste",
+    public: "publique",
+    at: "chez {{pseudo}}",
+    noServer:
+      "Aucun serveur n'est réglé : les listes et les défis se partagent, et il n'y a personne avec qui.",
+    noAccount:
+      "Il faut un compte — le bouton au pied du rail. Votre vidéothèque, elle, n'en a pas besoin.",
+    nobodyToInvite: "Personne à inviter sous « {{pseudo}} ».",
     challenges: "Les défis",
     inviteSomebody: "inviter quelqu'un à écrire",
     startChallenge: "Lancer un défi sur cette liste",

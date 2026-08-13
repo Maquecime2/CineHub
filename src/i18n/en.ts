@@ -922,6 +922,8 @@ const en = {
     decorFrom: "from {{pseudo}}",
     decorShown: "shown to my friends",
     decorTake: "Take “{{label}}”",
+    decorShow: "Show “{{label}}” to my friends",
+    decorHide: "Stop showing “{{label}}”",
     cabinet: "CABINET OF CURIOSITIES",
     dragOntoShelf: "drag them onto a board, between two cases",
     dragToBack: "drag them to the back of the shelf, wherever you like",
@@ -1146,6 +1148,24 @@ const en = {
   },
 
   listsView: {
+    newList: "A new list",
+    newListPlaceholder: "The films to have seen by March",
+    open: "OPEN",
+    fillNote:
+      "Films are filed into it from their card, from a poster's badge, or by searching TMDB inside the open list.",
+    yours: "Your lists",
+    none: "No list yet.",
+    noChallenges:
+      "No challenge. A challenge is a list and a period: open a list above to start one.",
+    empty: "Empty.",
+    removeWork: "Remove from the list",
+    public: "public",
+    at: "at {{pseudo}}'s",
+    noServer:
+      "No server is set: lists and challenges are things one shares, and there is nobody to share them with.",
+    noAccount:
+      "It takes an account — the button at the foot of the rail. Your video library does not need one.",
+    nobodyToInvite: "Nobody to invite under “{{pseudo}}”.",
     challenges: "The challenges",
     inviteSomebody: "invite somebody to write",
     startChallenge: "Start a challenge on this list",

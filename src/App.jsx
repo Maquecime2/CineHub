@@ -747,9 +747,9 @@ export default function App() {
       {accountOpen && (
         <AccountDrawer
           report={synchro}
-          onFermer={() => setAccountOpen(false)}
+          onClose={() => setAccountOpen(false)}
           onSync={rerunSync}
-          onChangement={() => {
+          onAccountChange={() => {
             setAccountOpen(false);
             rerunSync();
           }}

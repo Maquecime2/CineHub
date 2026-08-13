@@ -61,17 +61,17 @@ export const refreshLists = (): Promise<List[]> => {
 export const knownLists = (): List[] | null => cache;
 
 export function useMyLists(active = true): List[] | null {
-  const [lists, setListes] = useState<List[] | null>(cache);
+  const [lists, setLists] = useState<List[] | null>(cache);
 
   useEffect(() => {
     if (!active || !serverConfigured()) return;
-    watchers.add(setListes);
+    watchers.add(setLists);
     /* Already read: we do not ask again on every mount — that is the
        whole point of holding it outside the component. */
     if (cache === null) void loadLists();
-    else setListes(cache);
+    else setLists(cache);
     return () => {
-      watchers.delete(setListes);
+      watchers.delete(setLists);
     };
   }, [active]);
 

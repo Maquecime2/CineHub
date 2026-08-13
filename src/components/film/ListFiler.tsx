@@ -54,7 +54,7 @@ export function ListFiler({
   const lists = useMyLists();
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
-  const [told, setDit] = useState<string | null>(null);
+  const [said, setSaid] = useState<string | null>(null);
 
   /* The lists have not arrived, or the server refused to say: we show
      nothing rather than an empty menu that looks broken. */
@@ -62,7 +62,7 @@ export function ListFiler({
 
   const file = async (listId: string) => {
     setBusy(true);
-    setDit(null);
+    setSaid(null);
     try {
       /* ONE CALL PER WORK, AND THE SERVER MAKES IT HARMLESS: the pair
          (list, work) is the primary key over there, so filing the same
@@ -70,7 +70,7 @@ export function ListFiler({
          it is the same gesture, and it deserves the same calm answer. */
       const answers = await Promise.all(works.map((w) => addToList(listId, w)));
       const fresh = answers.filter((r) => r.fresh).length;
-      setDit(
+      setSaid(
         works.length === 1
           ? answers[0]!.fresh
             ? t("lists.filed")
@@ -84,7 +84,7 @@ export function ListFiler({
          the line above, and, in the multiple selection, took the footer
          bar down with it. The panel is closed by whoever opened it. */
     } catch (e) {
-      setDit((e as Error).message || t("lists.filingFailed"));
+      setSaid((e as Error).message || t("lists.filingFailed"));
     } finally {
       setBusy(false);
     }
@@ -94,7 +94,7 @@ export function ListFiler({
     const title = name.trim();
     if (!title) return;
     setBusy(true);
-    setDit(null);
+    setSaid(null);
     try {
       const { id } = await createList({ title });
       /* Every other badge on screen reads the same store: the new list
@@ -103,13 +103,13 @@ export function ListFiler({
       setName("");
       await file(id);
     } catch (e) {
-      setDit((e as Error).message || t("lists.creationFailed"));
+      setSaid((e as Error).message || t("lists.creationFailed"));
       setBusy(false);
     }
   };
 
   return (
-    <div data-tour="ranger-listes" style={{ minWidth: compact ? 210 : undefined }}>
+    <div data-tour="file-in-list" style={{ minWidth: compact ? 210 : undefined }}>
       {!compact && <Label>{t("lists.fileIn")}</Label>}
 
       {works.length === 0 ? (
@@ -205,7 +205,7 @@ export function ListFiler({
         </>
       )}
 
-      {told && (
+      {said && (
         <div
           style={{
             display: "flex",
@@ -217,7 +217,7 @@ export function ListFiler({
             color: C.inkFaded,
           }}
         >
-          <Check size={12} aria-hidden /> {told}
+          <Check size={12} aria-hidden /> {said}
         </div>
       )}
     </div>

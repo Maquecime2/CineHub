@@ -57,16 +57,16 @@ interface TmdbHit {
 
 export function ListsView({ connected }: { connected: boolean }) {
   const { t } = useTranslation();
-  const [lists, setListes] = useState<List[]>([]);
-  const [challenges, setDefis] = useState<Challenge[]>([]);
-  const [ouverte, setOuverte] = useState<string | null>(null);
-  const [title, setTitre] = useState("");
+  const [lists, setLists] = useState<List[]>([]);
+  const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const [opened, setOpened] = useState<string | null>(null);
+  const [title, setTitle] = useState("");
 
   const reread = useCallback(async () => {
     if (!connected) return;
     const [l, d] = await Promise.all([myLists(), myChallenges()]);
-    setListes(l.lists);
-    setDefis(d.challenges);
+    setLists(l.lists);
+    setChallenges(d.challenges);
   }, [connected]);
 
   useEffect(() => {
@@ -76,10 +76,7 @@ export function ListsView({ connected }: { connected: boolean }) {
   if (!serverConfigured()) {
     return (
       <Page>
-        <Guideline>
-          Aucun serveur n'est réglé : les listes et les défis se partagent, et il n'y a personne
-          avec qui.
-        </Guideline>
+        <Guideline>{t("listsView.noServer")}</Guideline>
       </Page>
     );
   }
@@ -87,56 +84,54 @@ export function ListsView({ connected }: { connected: boolean }) {
   if (!connected) {
     return (
       <Page>
-        <Guideline>
-          Il faut un compte — le bouton au pied du rail. Votre vidéothèque, elle, n'en a pas besoin.
-        </Guideline>
+        <Guideline>{t("listsView.noAccount")}</Guideline>
       </Page>
     );
   }
 
-  const freshOne = async () => {
+  const openOne = async () => {
     const name = title.trim();
     if (!name) return;
     const { id } = await createList({ title: name });
-    setTitre("");
+    setTitle("");
     await reread();
-    setOuverte(id);
+    setOpened(id);
   };
 
   return (
     <Page>
       <div data-tour="lists-new" style={{ maxWidth: 460, marginBottom: 28 }}>
-        <Label>Une nouvelle list</Label>
+        <Label>{t("listsView.newList")}</Label>
         <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
           <input
             value={title}
-            onChange={(e) => setTitre(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && freshOne()}
-            placeholder="Les films qu'il faut avoir vus en mars"
+            onChange={(e) => setTitle(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && openOne()}
+            placeholder={t("listsView.newListPlaceholder")}
             style={{ ...underlineInput, fontFamily: F.hand, fontSize: 17 }}
           />
-          <button onClick={freshOne} style={button(C.ink)}>
-            <Plus size={12} /> OUVRIR
+          <button onClick={openOne} style={button(C.ink)}>
+            <Plus size={12} /> {t("listsView.open")}
           </button>
         </div>
         {/* The gesture of filling a list starts from the CARD: that is
             where one has the film in front of one's eyes, and its work
             identifier. */}
         <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 6 }}>
-          On y range les films since leur fiche — « ranger dans une list », sous at catalogue.
+          {t("listsView.fillNote")}
         </div>
       </div>
 
       <div data-tour="lists-mine" style={{ marginBottom: 34 }}>
-        <Label>Vos lists</Label>
-        {lists.length === 0 && <Guideline>Aucune list pour l'instant.</Guideline>}
+        <Label>{t("listsView.yours")}</Label>
+        {lists.length === 0 && <Guideline>{t("listsView.none")}</Guideline>}
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 6 }}>
           {lists.map((l) => (
             <OneList
               key={l.id}
               list={l}
-              ouverte={ouverte === l.id}
-              onOuvrir={() => setOuverte(ouverte === l.id ? null : l.id)}
+              opened={opened === l.id}
+              onToggle={() => setOpened(opened === l.id ? null : l.id)}
               onChange={reread}
             />
           ))}
@@ -145,12 +140,7 @@ export function ListsView({ connected }: { connected: boolean }) {
 
       <div data-tour="lists-challenges">
         <Label>{t("listsView.challenges")}</Label>
-        {challenges.length === 0 && (
-          <Guideline>
-            Aucun défi. Un défi est une liste plus une période : ouvrez une liste ci-dessus pour en
-            lancer un.
-          </Guideline>
-        )}
+        {challenges.length === 0 && <Guideline>{t("listsView.noChallenges")}</Guideline>}
         <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 8 }}>
           {challenges.map((d) => (
             <OneChallenge key={d.id} challenge={d} onChange={reread} />
@@ -167,21 +157,21 @@ export function ListsView({ connected }: { connected: boolean }) {
 
 function OneList({
   list,
-  ouverte,
-  onOuvrir,
+  opened,
+  onToggle,
   onChange,
 }: {
   list: List;
-  ouverte: boolean;
-  onOuvrir: () => void;
+  opened: boolean;
+  onToggle: () => void;
   onChange: () => Promise<void>;
 }) {
   const { t } = useTranslation();
-  const [works, setOeuvres] = useState<ListWork[]>([]);
-  const [members, setMembres] = useState<string[]>([]);
-  const [invite, setInvite] = useState("");
-  const [souci, setSouci] = useState<string | null>(null);
-  const [challenge, setDefi] = useState({
+  const [works, setWorks] = useState<ListWork[]>([]);
+  const [members, setMembers] = useState<string[]>([]);
+  const [invite, setInvitee] = useState("");
+  const [trouble, setTrouble] = useState<string | null>(null);
+  const [challenge, setDraft] = useState({
     title: "",
     start: currentMonth().start,
     end: currentMonth().end,
@@ -189,26 +179,26 @@ function OneList({
 
   const reread = useCallback(async () => {
     const r = await readList(list.id);
-    setOeuvres(r.works);
-    setMembres(r.members);
+    setWorks(r.works);
+    setMembers(r.members);
   }, [list.id]);
 
   useEffect(() => {
-    if (ouverte) reread().catch(() => {});
-  }, [ouverte, reread]);
+    if (opened) reread().catch(() => {});
+  }, [opened, reread]);
 
   const sendInvite = async () => {
     const name = invite.trim().toLowerCase();
     if (!name) return;
-    setSouci(null);
+    setTrouble(null);
     try {
       await inviteToList(list.id, name);
-      setInvite("");
+      setInvitee("");
       await reread();
     } catch {
       /* The server answers the same thing for "does not exist" and "you
          two have blocked each other": we take up that silence. */
-      setSouci(`Personne à inviter sous « ${name} ».`);
+      setTrouble(t("listsView.nobodyToInvite", { pseudo: name }));
     }
   };
 
@@ -220,14 +210,14 @@ function OneList({
       starts_on: challenge.start,
       ends_on: challenge.end,
     });
-    setDefi({ ...challenge, title: "" });
+    setDraft({ ...challenge, title: "" });
     await onChange();
   };
 
   return (
     <div style={{ background: C.card, border: `1px solid ${C.line}` }}>
       <button
-        onClick={onOuvrir}
+        onClick={onToggle}
         style={{
           all: "unset",
           ...tap,
@@ -245,12 +235,12 @@ function OneList({
         </span>
         <span style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>
           {list.works} film{list.works > 1 ? "s" : ""}
-          {list.is_public ? " · publique" : ""}
-          {list.mienne ? "" : ` · chez ${list.owner}`}
+          {list.is_public ? ` · ${t("listsView.public")}` : ""}
+          {list.mienne ? "" : ` · ${t("listsView.at", { pseudo: list.owner })}`}
         </span>
       </button>
 
-      {ouverte && (
+      {opened && (
         <div style={{ padding: "0 12px 14px" }}>
           {works.length === 0 && <Guideline>{t("lists.searchNote")}</Guideline>}
           {works.map((o) => (
@@ -280,7 +270,7 @@ function OneList({
               )}
               <button
                 onClick={() => removeFromList(list.id, o.tmdb_id).then(reread)}
-                title="Retirer de la list"
+                title={t("listsView.removeWork")}
                 style={{ ...small, color: C.burgundy }}
               >
                 <X size={12} />
@@ -297,7 +287,7 @@ function OneList({
               <div style={{ display: "flex", gap: 8, alignItems: "flex-end", marginTop: 14 }}>
                 <input
                   value={invite}
-                  onChange={(e) => setInvite(e.target.value)}
+                  onChange={(e) => setInvitee(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && sendInvite()}
                   placeholder={t("listsView.inviteSomebody")}
                   autoCapitalize="none"
@@ -308,9 +298,9 @@ function OneList({
                   <UserPlus size={12} /> INVITER
                 </button>
               </div>
-              {souci && (
+              {trouble && (
                 <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 4 }}>
-                  {souci}
+                  {trouble}
                 </div>
               )}
               {members.length > 0 && (
@@ -362,20 +352,20 @@ function OneList({
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
                 <input
                   value={challenge.title}
-                  onChange={(e) => setDefi({ ...challenge, title: e.target.value })}
+                  onChange={(e) => setDraft({ ...challenge, title: e.target.value })}
                   placeholder="Mars chez Varda"
                   style={{ ...underlineInput, fontFamily: F.hand, fontSize: 16, flex: "1 1 160px" }}
                 />
                 <input
                   type="date"
                   value={challenge.start}
-                  onChange={(e) => setDefi({ ...challenge, start: e.target.value })}
+                  onChange={(e) => setDraft({ ...challenge, start: e.target.value })}
                   style={{ ...underlineInput, fontFamily: F.mono, fontSize: 11, width: 130 }}
                 />
                 <input
                   type="date"
                   value={challenge.end}
-                  onChange={(e) => setDefi({ ...challenge, end: e.target.value })}
+                  onChange={(e) => setDraft({ ...challenge, end: e.target.value })}
                   style={{ ...underlineInput, fontFamily: F.mono, fontSize: 11, width: 130 }}
                 />
                 <button onClick={run} style={button(C.burgundy)}>
@@ -414,8 +404,8 @@ function FillFromTmdb({ list, onFiled }: { list: List; onFiled: () => Promise<vo
   const [q, setQ] = useState("");
   const [found, setFound] = useState<TmdbHit[] | null>(null);
   const [busy, setBusy] = useState(false);
-  const [souci, setSouci] = useState<string | null>(null);
-  const [filed, setRangés] = useState<ReadonlySet<number>>(new Set());
+  const [trouble, setTrouble] = useState<string | null>(null);
+  const [filed, setFiled] = useState<ReadonlySet<number>>(new Set());
 
   /* One writes in a list one may write in. A stranger's public list is
      read here, not filled. */
@@ -432,12 +422,12 @@ function FillFromTmdb({ list, onFiled }: { list: List; onFiled: () => Promise<vo
     const title = q.trim();
     if (!title) return;
     setBusy(true);
-    setSouci(null);
+    setTrouble(null);
     try {
       setFound(await searchMovies({ title, apiKey, limit: 8 }));
     } catch (e) {
       setFound(null);
-      setSouci((e as Error).message || t("lists.searchNobody"));
+      setTrouble((e as Error).message || t("lists.searchNobody"));
     } finally {
       setBusy(false);
     }
@@ -451,10 +441,10 @@ function FillFromTmdb({ list, onFiled }: { list: List; onFiled: () => Promise<vo
         title: hit.title,
         year: hit.year ?? undefined,
       });
-      setRangés((was) => new Set(was).add(hit.tmdbId));
+      setFiled((was) => new Set(was).add(hit.tmdbId));
       await onFiled();
     } catch (e) {
-      setSouci((e as Error).message || t("lists.filingFailed"));
+      setTrouble((e as Error).message || t("lists.filingFailed"));
     } finally {
       setBusy(false);
     }
@@ -517,9 +507,9 @@ function FillFromTmdb({ list, onFiled }: { list: List; onFiled: () => Promise<vo
         </div>
       ))}
 
-      {souci && (
+      {trouble && (
         <div style={{ fontFamily: F.hand, fontSize: 15, color: C.burgundy, marginTop: 6 }}>
-          {souci}
+          {trouble}
         </div>
       )}
     </div>
