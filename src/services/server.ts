@@ -132,10 +132,15 @@ export async function whoAmI(): Promise<Person | null> {
   try {
     const who = readPerson(await call<PersonReply>("/me"));
     noteAccount(who.id);
+    rememberPerson(who);
     return who;
   } catch (e) {
     if ((e as ServerError).code === 0) throw e;
+    /* A REFUSAL, not a silence: the server answered, and it answered
+       that we are nobody. The hunch is wrong and must go — keeping it
+       would show a name to somebody whose session has expired. */
     noteAccount(null);
+    rememberPerson(null);
     return null;
   }
 }
@@ -143,6 +148,7 @@ export async function whoAmI(): Promise<Person | null> {
 export async function signOut(): Promise<void> {
   await call("/signout", { method: "POST" }).catch(() => {});
   noteAccount(null);
+  rememberPerson(null);
 }
 
 /* ------------------------------------------------------------
@@ -164,6 +170,30 @@ export async function signOut(): Promise<void> {
    `whoAmI` corrects that hunch on the first round trip, and it is the
    one that is authoritative. */
 let account: string | null = store.get<string>("synchro-account", "") || null;
+
+/* ============================================================
+   THE LAST PERSON WE KNEW ABOUT — a hunch, kept on disk
+   ============================================================
+
+   The identifier above answers "is an account open?", which is enough
+   for the TMDB relay and for nothing else: the screens need a NAME, and
+   they had no way to know one until a round trip came back. So on every
+   reload, for as long as the first synchronisation took, the lists view
+   said "it takes an account" and the drawer offered to create one — to
+   somebody who has had one for months.
+
+   This is the same hunch as `account`, carrying one field more. It is
+   corrected by `whoAmI` on the first round trip, and it grants nothing:
+   the cookie is what opens doors, and the server is the only thing that
+   reads it. Being wrong here shows a name for a second, and the routes
+   go on answering 401 exactly as before. */
+const LAST_PERSON = "synchro-person";
+
+export const lastKnownPerson = (): Person | null => store.get<Person | null>(LAST_PERSON, null);
+
+const rememberPerson = (who: Person | null): void => {
+  store.set(LAST_PERSON, who);
+};
 
 type Watcher = () => void;
 const watchers = new Set<Watcher>();
@@ -218,6 +248,7 @@ export async function signUp(pseudo: string): Promise<Person> {
     })
   );
   noteAccount(who.id);
+  rememberPerson(who);
   return who;
 }
 
@@ -235,6 +266,7 @@ export async function signIn(pseudo: string): Promise<Person> {
     })
   );
   noteAccount(who.id);
+  rememberPerson(who);
   return who;
 }
 
@@ -316,6 +348,7 @@ export const claimPairingCode = (code: string) =>
   }).then((r) => {
     const who = readPerson(r);
     noteAccount(who.id);
+    rememberPerson(who);
     return who;
   });
 

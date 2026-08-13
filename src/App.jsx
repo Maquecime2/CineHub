@@ -265,7 +265,11 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const { report: synchro, synchronise: rerunSync } = useSync(loaded, setFilms, rereadDocuments);
+  const {
+    report: synchro,
+    synchronise: rerunSync,
+    noteAccount,
+  } = useSync(loaded, setFilms, rereadDocuments);
 
   const installation = useInstallation();
   const {
@@ -749,7 +753,12 @@ export default function App() {
           report={synchro}
           onClose={() => setAccountOpen(false)}
           onSync={rerunSync}
-          onAccountChange={() => {
+          onAccountChange={(person) => {
+            /* THE PERSON IS PASSED ON, NOT DROPPED. It used to be
+               ignored, so who one is only became true once a whole
+               synchronisation had come back — and the drawer went on
+               offering to sign up somebody who had just signed in. */
+            noteAccount(person);
             setAccountOpen(false);
             rerunSync();
           }}
