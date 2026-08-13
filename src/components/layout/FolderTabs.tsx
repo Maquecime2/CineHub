@@ -20,6 +20,7 @@ import {
   Settings,
   Search,
   KeyRound,
+  Languages,
 } from "lucide-react";
 import { C, alpha } from "../../theme/tokens";
 import { useViewport } from "../../hooks/useViewport";
@@ -48,6 +49,8 @@ interface FolderTabsProps {
   onSearch: () => void;
   /** Opens the site skin picker. */
   onSkin: () => void;
+  /** Opens the language picker. */
+  onLanguage: () => void;
   /** Opens the guided tour menu. */
   onHelp: () => void;
   /** Opens the TMDB key setting. */
@@ -318,6 +321,7 @@ export function FolderTabs({
   onAdd,
   onSearch,
   onSkin,
+  onLanguage,
   onHelp,
   onKey,
   onAccount,
@@ -598,6 +602,20 @@ export function FolderTabs({
             tour="skin"
             label="Changer la peau du site"
             icon={Palette}
+            finger={phone}
+          />
+
+          {/* THE LANGUAGE, beside the skin.
+
+            The same kind of decision, taken in the same corner: how the
+            binder presents itself. Its label is the ONE that must not
+            follow the language — somebody looking for their own tongue
+            reads it written in itself. */}
+          <RoundAction
+            onClick={onLanguage}
+            tour="language"
+            label="Français / English"
+            icon={Languages}
             finger={phone}
           />
 

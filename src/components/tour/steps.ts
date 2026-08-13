@@ -488,6 +488,13 @@ const global: Tour = {
       placement: "right",
       view: "library",
     },
+    {
+      target: at("language"),
+      title: "Français ou anglais",
+      body: "Le classeur se lit dans les deux langues, et le choix reste sur cet appareil : lu en français sur le téléphone, en anglais au bureau, sans que l'un impose à l'autre. Ce que vous avez écrit — vos notes, vos critiques, vos motifs — ne bouge pas : c'est à vous, pas au produit.",
+      placement: "right",
+      view: "library",
+    },
     /* THE BINDER INSTALLS ITSELF — and the card that offers it does not
        always appear: the browser decides on its own that a site is
        installable, and the card vanishes as soon as it has been waved

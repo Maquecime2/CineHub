@@ -3,6 +3,7 @@ import { pruneOrphans } from "./db";
 import { CAT_KEYS } from "./shelf-views";
 import { C, F, FONT_IMPORT } from "./theme/tokens";
 import { applySkin, loadSkinKey, saveSkinKey } from "./theme/applySkin";
+import { loadLanguage, setLanguage } from "./i18n";
 import { uid, migrate, editLinkedWork } from "./domain/film";
 import { normalize } from "./domain/search";
 import { inverseOf, strengthOf } from "./domain/relations";
@@ -18,6 +19,7 @@ import { FolderTabs } from "./components/layout/FolderTabs";
 import { useViewport } from "./hooks/useViewport";
 import { usePointerDrag } from "./hooks/usePointerDrag";
 import { SkinPicker } from "./components/layout/SkinPicker";
+import { LanguagePicker } from "./components/layout/LanguagePicker";
 import { Installation, UpdateCard } from "./components/layout/Installation";
 import { AccountDrawer } from "./components/layout/AccountDrawer";
 import { TmdbKeyPanel } from "./components/layout/TmdbKeyPanel";
@@ -142,6 +144,11 @@ export default function App() {
 
   const [skin, setSkin] = useState(loadSkinKey);
   const [skinPicker, setSkinPicker] = useState(false);
+  /* The language lives in i18next, not in React: `setLanguage` writes it
+     there, and `useTranslation` re-renders whoever reads a sentence. This
+     state only says whether the picker is open. */
+  const [languagePicker, setLanguagePicker] = useState(false);
+  const [language, setLanguageState] = useState(loadLanguage);
   /* The TMDB key's drawer. It registers with the service so that any
      screen deprived of a key can say "set it here" without a callback
      crossing ten components that have nothing to do with it. */
@@ -727,6 +734,7 @@ export default function App() {
         onAdd={() => setShowModal(true)}
         onSearch={() => setSearch(true)}
         onSkin={() => setSkinPicker(true)}
+        onLanguage={() => setLanguagePicker(true)}
         onKey={() => setKeyPanel(true)}
         onHelp={() => setTourMenu((o) => !o)}
         onAccount={() => setAccountOpen(true)}
@@ -745,6 +753,17 @@ export default function App() {
       )}
       {skinPicker && (
         <SkinPicker skin={skin} onPick={setSkin} onClose={() => setSkinPicker(false)} />
+      )}
+      {languagePicker && (
+        <LanguagePicker
+          language={language}
+          onPick={(lang) => {
+            setLanguage(lang);
+            setLanguageState(lang);
+            setLanguagePicker(false);
+          }}
+          onClose={() => setLanguagePicker(false)}
+        />
       )}
       {keyPanel && <TmdbKeyPanel onClose={() => setKeyPanel(false)} />}
       {search && (
