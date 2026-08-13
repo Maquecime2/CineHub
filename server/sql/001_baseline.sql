@@ -577,6 +577,36 @@ CREATE TABLE IF NOT EXISTS challenge_participant (
 CREATE INDEX IF NOT EXISTS challenge_participant_person ON challenge_participant(person_id);
 
 -- ------------------------------------------------------------
+-- THE PAIRING CODES
+-- ------------------------------------------------------------
+-- A PASSKEY IS SIGNED FOR A DOMAIN, and that is what makes it
+-- unphishable — but it is also what shuts an account inside one machine.
+-- On `localhost` each computer IS its own domain, so the QR ceremony
+-- cannot help there at all: the two machines have no domain in common to
+-- sign for.
+--
+-- So there is a second door, and it does not go through WebAuthn. The
+-- machine already signed in makes a short code; the other one types it
+-- and gets a session. From there the ordinary synchronisation brings
+-- everything back, and the new machine registers a passkey of its own.
+--
+-- WHAT MAKES A SHORT CODE ACCEPTABLE, since it is worth an account:
+--   - it lives ten minutes, and the row carries its own expiry;
+--   - it is consumed ONCE (`DELETE … RETURNING`, atomically);
+--   - only its DIGEST is kept, as for sessions: a leak of this table
+--     hands over nothing usable;
+--   - the claim route is rate limited, which is what makes guessing a
+--     fifty-bit code hopeless rather than merely unlikely.
+CREATE TABLE IF NOT EXISTS pairing_code (
+  digest        text PRIMARY KEY,           -- sha256 of the code
+  person_id     uuid NOT NULL REFERENCES person(id) ON DELETE CASCADE,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  expires_at    timestamptz NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS pairing_code_stale ON pairing_code(expires_at);
+
+-- ------------------------------------------------------------
 -- THE DECORATION OBJECTS
 -- ------------------------------------------------------------
 -- A DECOR IS AN OBJECT, NOT A PRIVATE MEDIUM OF ONE MORE KIND, and this

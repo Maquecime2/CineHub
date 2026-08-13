@@ -206,7 +206,7 @@ describe("the imported motif, as the shelf sees it", () => {
 });
 
 /* ============================================================
-   PARTAGER UNE PIÈCE, ET EN PRENDRE UNE
+   SHARING A PIECE, AND TAKING ONE
 
    Three things, and the first is the one that would go wrong silently.
 
@@ -224,44 +224,44 @@ describe("the imported motif, as the shelf sees it", () => {
    AND GIVING BACK A COPY IS NOT WITHDRAWING A PIECE. The server tells
    the two apart; what is tested here is that the client asks it to.
    ============================================================ */
-describe("les objets partagés", () => {
-  const svgHostile = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><script>alert(1)</script><rect width="10" height="10" fill="#333"/></svg>`;
+describe("the shared objects", () => {
+  const hostileSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><script>alert(1)</script><rect width="10" height="10" fill="#333"/></svg>`;
 
-  it("existe sur l'étagère sans identité serveur", async () => {
-    const entry = await addCustomDecor(pngFile("galet.png"));
-    /* Aucune adresse distante, et pourtant l'objet est là : c'est
-       exactement ce qu'on veut d'un geste hors ligne. */
+  it("exists on the shelf with no server identity", async () => {
+    const entry = await addCustomDecor(pngFile("pebble.png"));
+    /* No remote address, and yet the object is there: which is exactly
+       what one wants of an offline gesture. */
     expect(entry.remoteId).toBeUndefined();
     expect(customDecorByKey(entry.key)).toBeTruthy();
   });
 
-  it("écarte le script d'un SVG reçu, comme d'un SVG importé", () => {
-    const cleaned = sanitizeSvg(svgHostile, { wall: false });
+  it("strips the script from a received SVG, as from an imported one", () => {
+    const cleaned = sanitizeSvg(hostileSvg, { wall: false });
     expect(cleaned).toBeTruthy();
     expect(cleaned.markup).not.toContain("script");
     expect(cleaned.markup).not.toContain("alert");
   });
 
-  it("refuse ce qui n'est pas un dessin lisible", () => {
-    /* Un markup que l'assainisseur refuse n'est ni gardé ni montré :
-       `takeCustomDecor` rend `null` sur cette réponse-là. */
-    expect(sanitizeSvg("bonjour", { wall: false })).toBeNull();
+  it("refuses what is not a readable drawing", () => {
+    /* A markup the sanitiser refuses is neither kept nor shown:
+       `takeCustomDecor` answers `null` on that reply. */
+    expect(sanitizeSvg("hello", { wall: false })).toBeNull();
   });
 
-  it("une pièce reprise garde son auteur et son identité", async () => {
-    const entry = await addCustomDecor(pngFile("emprunt.png"));
-    /* On simule ce que `takeCustomDecor` écrit, sans le réseau : ce qui
-       compte ici est que le registre porte les deux champs — sans eux,
-       l'atelier ne saurait ni créditer l'auteur ni cacher
-       l'interrupteur de partage sur la pièce d'autrui. */
+  it("a taken piece keeps its author and its identity", async () => {
+    const entry = await addCustomDecor(pngFile("borrowed.png"));
+    /* We stand in for what `takeCustomDecor` writes, without the
+       network: what counts here is that the register carries both
+       fields — without them the workshop could neither credit the
+       author nor hide the sharing switch on somebody else's piece. */
     setCustomDecor(
       listCustomDecor().map((d) =>
         d.key === entry.key ? { ...d, remoteId: "d-1234", owner: "anna" } : d
       )
     );
-    const repris = customDecorByKey(entry.key);
-    expect(repris.owner).toBe("anna");
-    /* Et son image reste comptée parmi celles qu'on ne purge pas. */
-    expect(customDecorImageKeys()).toContain(repris.imageKey);
+    const taken = customDecorByKey(entry.key);
+    expect(taken.owner).toBe("anna");
+    /* And its image is still counted among those we do not purge. */
+    expect(customDecorImageKeys()).toContain(taken.imageKey);
   });
 });

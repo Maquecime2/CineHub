@@ -36,16 +36,33 @@ const PENDING_KEY = "documents-a-envoyer";
    mood of the moment on our other screen), the guided tour's state, the
    invitation to install, and the synchronisation markers themselves —
    sending those would amount to synchronising on our own cursor. */
+/* THREE OF THESE NAMED NOTHING, AND NOTHING SAID SO.
+
+   A key that is not on this list simply does not travel — silently, and
+   the arrangement one had carefully built stayed on the machine that
+   built it. The three wrong spellings below were all invented here
+   rather than read from the service that writes them:
+
+     "shelf-views-index" -> the index is "shelf-views" (`shelfViews.ts`)
+     "decor-custom"      -> "shelf-decor-custom" (`customDecor.ts`)
+     "decor-hidden"      -> "shelf-decor-hidden" (`customDecor.ts`)
+
+   The shelf VIEWS themselves did travel (the `shelf-view:` prefix is
+   right), which is what made this so hard to see: cards arrived, views
+   arrived, and the second device did not know a single one of them
+   EXISTED because the index that lists them stayed behind. Hence the
+   test just below the list — it compares these names to the constants
+   the services actually use, so a fourth one cannot be invented. */
 const SYNCABLE_PREFIXES = ["shelf-view:"];
 const SYNCABLE_KEYS = [
-  "shelf-views-index",
+  "shelf-views",
   "shelf-dividers",
   "notebook-notes",
   "fils",
   "motifs",
   "wall-prefs",
-  "decor-custom",
-  "decor-hidden",
+  "shelf-decor-custom",
+  "shelf-decor-hidden",
 ];
 
 export const isSyncable = (key: string): boolean =>

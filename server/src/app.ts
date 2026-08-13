@@ -338,9 +338,67 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     return { keys: await store.keyCards(db, person.id) };
   });
 
+  /* ------------------------------------------------------------
+     PAIRING BY CODE — the door the passkeys cannot open
+     ------------------------------------------------------------
+
+     A PASSKEY IS SIGNED FOR A DOMAIN, and on `localhost` each computer
+     is its own: the two machines have no domain in common, so there is
+     nothing for a telephone to sign for and the QR ceremony cannot
+     help. Which is precisely the case of somebody running this at home
+     on two computers — that is to say the case that matters most.
+
+     So: the machine already signed in makes a code, the other one types
+     it, and gets a session. From there the ordinary synchronisation
+     brings the collection, the arrangement and the cabinet back, and
+     the new machine registers a passkey of its own so it never needs a
+     code again.
+
+     THE CODE IS WORTH AN ACCOUNT FOR TEN MINUTES, and is treated
+     accordingly: ten minutes, one use, digest only in the table, and
+     the ceiling below on the route that spends it. */
+
+  app.post("/auth/pair", async (req) => {
+    const person = await requireAccount(req);
+    return { code: await store.makePairingCode(db, person.id), minutes: 10 };
+  });
+
+  app.post(
+    "/auth/pair/claim",
+    {
+      /* TEN TRIES AN HOUR PER ADDRESS. This is what turns fifty bits of
+         code into something unguessable in practice rather than merely
+         in theory — the general ceiling, a hundred a minute, would let
+         somebody try six thousand. */
+      config: { rateLimit: { max: 10, timeWindow: "1 hour" } },
+    },
+    async (req, reply) => {
+      const { code } = (req.body ?? {}) as { code?: string };
+      const personId = code ? await store.spendPairingCode(db, code) : null;
+      /* ONE ANSWER FOR EVERY FAILURE — unknown, expired, already spent.
+         Telling them apart would say whether a code once existed. */
+      if (!personId) {
+        return reply.code(401).send({ error: "Ce code n'est plus valable. Demandez-en un autre." });
+      }
+      const person = await store.findById(db, personId);
+      if (!person) return reply.code(401).send({ error: "Compte introuvable." });
+
+      await setCookie(reply, await store.openSession(db, person.id));
+      return { person };
+    }
+  );
+
   app.post("/auth/keys/options", async (req) => {
     const person = await requireAccount(req);
     const known = await store.keysOf(db, person.id);
+    /* TWO REASONS TO ADD A KEY, AND THEY WANT OPPOSITE ANSWERS.
+       "A telephone" is the one that unlocks other computers later, and
+       it needs `cross-platform`. "This machine" is what somebody does
+       just after arriving here with a pairing code — and forcing
+       `cross-platform` there would offer them a QR code for the
+       computer they are sitting at. */
+    const { where } = (req.body ?? {}) as { where?: "phone" | "here" };
+    const here = where === "here";
 
     const options = await generateRegistrationOptions({
       rpName: "Ciné Hub",
@@ -352,14 +410,17 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
          paired a device they have not. */
       excludeCredentials: known.map((c) => ({ id: c.id, transports: c.transports as never })),
       authenticatorSelection: {
-        /* The whole point of the route. `platform` would offer Windows
-           Hello, that is to say this computer again — the one place the
-           key is of no use to us. */
-        authenticatorAttachment: "cross-platform",
-        /* Required, and not merely preferred as at sign-up: a key that
-           is not discoverable cannot be offered by a telephone which has
-           never seen this site. */
-        residentKey: "required",
+        /* `cross-platform` is what makes the browser offer "a
+           telephone" and its QR code rather than the local sensor —
+           and `platform` is what makes it offer the local sensor when
+           that is exactly what was asked for. */
+        authenticatorAttachment: here ? "platform" : "cross-platform",
+        /* Required for a telephone: a key that is not discoverable
+           cannot be offered by a device which has never seen this site.
+           Merely preferred for the machine one is sitting at, which will
+           be named at sign-in anyway — and some platform authenticators
+           refuse outright when it is demanded. */
+        residentKey: here ? "preferred" : "required",
         userVerification: "preferred",
       },
       attestationType: "none",

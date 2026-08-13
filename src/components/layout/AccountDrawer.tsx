@@ -48,6 +48,8 @@ import {
   myKeys,
   addKey,
   forgetKey,
+  makePairingCode,
+  claimPairingCode,
   type DeviceKey,
   type Sharing,
   type Person,
@@ -92,6 +94,7 @@ export function AccountDrawer({
 }) {
   const { t, i18n } = useTranslation();
   const [pseudo, setPseudo] = useState("");
+  const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [souci, setSouci] = useState<string | null>(null);
   const [request, setRequest] = useState<ConfirmRequest | null>(null);
@@ -111,6 +114,25 @@ export function AccountDrawer({
          changes one's mind, and that is all. */
       const m = (e as Error).message || "";
       setSouci(/NotAllowed|abort/i.test(m) ? t("account.cancelled") : m || t("account.failed"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /* The same shape as `tenter` above, and for the same reason: an
+     account that changes must start over, or the read cursor of the old
+     one would make the binder believe it had already seen all of the new
+     one's collection. */
+  const claim = async () => {
+    setSouci(null);
+    setBusy(true);
+    try {
+      const who = await claimPairingCode(code);
+      setCode("");
+      forgetSync();
+      onChangement(who);
+    } catch (e) {
+      setSouci((e as Error).message || t("account.failed"));
     } finally {
       setBusy(false);
     }
@@ -258,6 +280,58 @@ export function AccountDrawer({
               <button disabled={busy} onClick={() => tenter(signIn)} style={button(C.ink, busy)}>
                 <KeyRound size={12} /> {t("account.signIn")}
               </button>
+            </div>
+
+            {/* ------------------------------------------------------
+                ARRIVING FROM ANOTHER MACHINE
+
+                The handle above needs a passkey THIS computer holds, and
+                it holds none: that is the whole situation of a second
+                computer. On a real domain the telephone answers for it;
+                on `localhost` — two machines, two domains, nothing in
+                common to sign for — nothing can, and a code is the only
+                way across.
+
+                It is placed under the sign-in rather than beside it: it
+                is the second thing one tries, after finding out that the
+                first cannot work here.
+                ------------------------------------------------------ */}
+            <div style={{ borderTop: `1px dashed ${C.line}`, marginTop: 16, paddingTop: 12 }}>
+              <Label>{t("account.pairClaimTitle")}</Label>
+              <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}>
+                <input
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => e.key === "Enter" && claim()}
+                  placeholder="XXXXXXXXXX"
+                  autoCapitalize="characters"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  maxLength={12}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    ...tap,
+                    padding: "10px 12px",
+                    background: C.card,
+                    border: `1px solid ${C.line}`,
+                    fontFamily: F.mono,
+                    fontSize: 15,
+                    letterSpacing: 3,
+                    color: C.ink,
+                  }}
+                />
+                <button
+                  disabled={busy || code.trim().length < 8}
+                  onClick={claim}
+                  style={button(C.pine, busy || code.trim().length < 8)}
+                >
+                  {t("account.pairClaim")}
+                </button>
+              </div>
+              <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 6 }}>
+                {t("account.pairClaimNote")}
+              </div>
             </div>
             {souci && (
               <div
@@ -600,12 +674,12 @@ function Devices({ lang }: { lang: string }) {
     k.device ||
     (k.transports.includes("hybrid") ? t("account.devicePhone") : t("account.deviceThisOne"));
 
-  const add = async () => {
+  const add = async (where: "phone" | "here") => {
     setSouci(null);
     setDit(null);
     setBusy(true);
     try {
-      setKeys(await addKey(name.trim() || undefined));
+      setKeys(await addKey(name.trim() || undefined, where));
       setName("");
       setDit(t("account.deviceAdded"));
     } catch (e) {
@@ -710,14 +784,29 @@ function Devices({ lang }: { lang: string }) {
             color: C.ink,
           }}
         />
-        <button onClick={add} disabled={busy} style={button(C.burgundy, busy)}>
+        <button onClick={() => add("phone")} disabled={busy} style={button(C.burgundy, busy)}>
           <Smartphone size={12} /> {busy ? t("account.addingDevice") : t("account.addDevice")}
+        </button>
+        {/* THE MACHINE ONE IS SITTING AT, which is what somebody wants
+            immediately after arriving here with a pairing code. It asks
+            the browser for the LOCAL sensor — offering a QR code for the
+            computer under one's hands would be absurd. */}
+        <button
+          onClick={() => add("here")}
+          disabled={busy}
+          title={t("account.addThisDevice")}
+          aria-label={t("account.addThisDevice")}
+          style={{ ...button(C.slate, busy), padding: "8px 10px" }}
+        >
+          <Laptop size={12} />
         </button>
       </div>
 
       <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 7 }}>
         {t("account.devicesNote")}
       </div>
+
+      <Pairing />
       {keys.length < 2 && (
         <div
           style={{ fontFamily: F.mono, fontSize: 9, color: alpha(C.inkFaded, 0.75), marginTop: 6 }}
@@ -727,6 +816,81 @@ function Devices({ lang }: { lang: string }) {
       )}
       {said && <div style={{ fontFamily: F.hand, fontSize: 16, color: C.pine }}>{said}</div>}
       {souci && <div style={{ fontFamily: F.hand, fontSize: 16, color: C.burgundy }}>{souci}</div>}
+    </div>
+  );
+}
+
+/* ============================================================
+   A PAIRING CODE — the door the passkeys cannot open
+   ============================================================
+
+   A passkey is signed for a DOMAIN, which is what makes it unphishable
+   and also what shuts an account inside one machine. On `localhost`
+   each computer is its own domain: two machines at home have nothing in
+   common to sign for, so the telephone and its QR code are of no use
+   there whatsoever — the one case where somebody most obviously wants
+   their binder on both screens.
+
+   A code crosses that. It is worth an account for ten minutes, so it is
+   shown once, here, and never stored: what the other machine gets from
+   it is a session, and the first thing it should do with that session is
+   register a passkey of its own.
+   ============================================================ */
+function Pairing() {
+  const { t } = useTranslation();
+  const [code, setCode] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const ask = async () => {
+    setBusy(true);
+    try {
+      setCode((await makePairingCode()).code);
+      setCopied(false);
+    } catch {
+      /* Offline: nothing to show, and nothing to apologise for. */
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div style={{ marginTop: 10 }}>
+      {code ? (
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <span
+            style={{
+              flex: 1,
+              padding: "8px 10px",
+              background: C.card,
+              border: `1px dashed ${C.burgundy}`,
+              fontFamily: F.mono,
+              fontSize: 16,
+              letterSpacing: 3,
+              color: C.ink,
+              textAlign: "center",
+            }}
+          >
+            {code}
+          </span>
+          <button
+            onClick={() => {
+              navigator.clipboard?.writeText(code);
+              setCopied(true);
+            }}
+            style={button(C.slate, false)}
+          >
+            {copied ? <Check size={12} /> : <LinkIcon size={12} />}
+          </button>
+        </div>
+      ) : (
+        <button onClick={ask} disabled={busy} style={button(C.ink, busy)}>
+          <KeyRound size={12} /> {t("account.pairMake")}
+        </button>
+      )}
+      <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 6 }}>
+        {code ? t("account.pairMadeNote") : t("account.pairNote")}
+      </div>
     </div>
   );
 }

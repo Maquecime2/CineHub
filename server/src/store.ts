@@ -1168,6 +1168,59 @@ export async function listById(db: Db, id: string): Promise<ListRow | null> {
  * parameter to receive them.
  */
 /* ------------------------------------------------------------
+   THE PAIRING CODES
+   ------------------------------------------------------------
+   The second door into an account, for the case a passkey cannot cover:
+   two machines with no domain in common — `localhost` on each of them —
+   have nothing to sign for, so the QR ceremony has nothing to work
+   with.
+
+   The code is worth an account for ten minutes, which is why it is
+   treated exactly like a session secret: only the digest is kept, and it
+   is consumed in the same statement that reads it. */
+
+const PAIRING_LIFE_MS = 10 * 60 * 1000;
+
+/* NO `I`, NO `O`, NO `0`, NO `1`. This is read off one screen and typed
+   on another, by somebody who did not choose it: the pairs that look
+   alike in most fonts are simply not in the alphabet. Ten characters of
+   this make about fifty bits — with a rate limit in front, that is out
+   of reach of guessing. */
+const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+export async function makePairingCode(db: Db, personId: string): Promise<string> {
+  const bytes = randomBytes(10);
+  const code = [...bytes].map((b) => ALPHABET[b % ALPHABET.length]).join("");
+  await db.query("INSERT INTO pairing_code (digest, person_id, expires_at) VALUES ($1, $2, $3)", [
+    fingerprintOf(code),
+    personId,
+    new Date(Date.now() + PAIRING_LIFE_MS),
+  ]);
+  return code;
+}
+
+/**
+ * Spends a code, and says whose account it opens.
+ *
+ * Read and delete in ONE statement: between a separate SELECT and
+ * DELETE, the same code could be spent twice.
+ */
+export async function spendPairingCode(db: Db, code: string): Promise<string | null> {
+  const row = await one<{ person_id: string }>(
+    db,
+    `DELETE FROM pairing_code
+      WHERE digest = $1 AND expires_at > now()
+      RETURNING person_id`,
+    [fingerprintOf((code || "").trim().toUpperCase())]
+  );
+  return row?.person_id ?? null;
+}
+
+export async function sweepPairingCodes(db: Db): Promise<void> {
+  await db.query("DELETE FROM pairing_code WHERE expires_at <= now()");
+}
+
+/* ------------------------------------------------------------
    THE DECORATION OBJECTS
    ------------------------------------------------------------
    A decor is the only thing somebody uploads that ANOTHER PERSON may

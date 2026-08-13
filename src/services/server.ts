@@ -268,11 +268,15 @@ export const myKeys = () => call<{ keys: DeviceKey[] }>("/auth/keys").then((r) =
  * The `device` is only a name to recognise it by in the list; it is not
  * checked and carries no authority.
  */
-export async function addKey(device?: string): Promise<DeviceKey[]> {
+export async function addKey(
+  device?: string,
+  /** `"phone"` asks for the QR ceremony; `"here"` for this machine's own sensor. */
+  where: "phone" | "here" = "phone"
+): Promise<DeviceKey[]> {
   const { startRegistration } = await import("@simplewebauthn/browser");
   const { challenge, options } = await call<{ challenge: string; options: object }>(
     "/auth/keys/options",
-    { method: "POST" }
+    { method: "POST", body: JSON.stringify({ where }) }
   );
   const response = await startRegistration({ optionsJSON: options as never });
   const r = await call<{ keys: DeviceKey[] }>("/auth/keys/verify", {
@@ -289,6 +293,31 @@ export const forgetKey = (id: string) =>
   call<{ keys: DeviceKey[] }>(`/auth/keys/${encodeURIComponent(id)}`, {
     method: "DELETE",
   }).then((r) => r.keys);
+
+/* ---------- PAIRING BY CODE ----------
+
+   THE DOOR THE PASSKEYS CANNOT OPEN. A passkey is signed for a domain,
+   and on `localhost` each computer is its own: two machines at home have
+   no domain in common, so there is nothing for a telephone to sign for
+   and the QR ceremony cannot help at all.
+
+   A code can. Ten minutes, one use, and what it buys is a session — from
+   which the ordinary synchronisation brings back the collection, the
+   arrangement, the cabinet, and the machine registers a passkey of its
+   own so it never needs a code again. */
+
+export const makePairingCode = () =>
+  call<{ code: string; minutes: number }>("/auth/pair", { method: "POST" });
+
+export const claimPairingCode = (code: string) =>
+  call<PersonReply>("/auth/pair/claim", {
+    method: "POST",
+    body: JSON.stringify({ code: code.trim().toUpperCase() }),
+  }).then((r) => {
+    const who = readPerson(r);
+    noteAccount(who.id);
+    return who;
+  });
 
 /* ------------------------------------------------------------
    LES MÉDIAS, ET LES OBJETS DE DÉCORATION
@@ -657,8 +686,14 @@ export const removeFromListMembers = (id: string, pseudo: string) =>
 
 export const myChallenges = () => call<{ challenges: Challenge[] }>("/challenges");
 
+/* `listId`, AND THE SERVER READS NOTHING ELSE. It used to be sent as
+   `listeId` — a leftover of the French vocabulary — so the route found
+   no list identifier at all, failed its UUID test, and answered "Liste
+   inconnue" with a 404 on a list that was right there. Nothing on either
+   side reported a mismatch: an undefined field is not an error, it is an
+   absent one. */
 export const createChallenge = (d: {
-  listeId: string;
+  listId: string;
   title: string;
   starts_on: string;
   ends_on: string;

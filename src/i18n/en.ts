@@ -97,6 +97,16 @@ const en = {
     forgetDeviceOne: "Remove {{device}}",
     deviceSeen: "used {{when}}",
     deviceNeverSeen: "never used",
+    addThisDevice: "Register THIS machine's key",
+    pairMake: "GIVE A CODE TO ANOTHER COMPUTER",
+    pairNote:
+      "On localhost each computer is a domain of its own, so the telephone's key is of no use there. A code crosses that — it is worth your account for ten minutes.",
+    pairMadeNote:
+      "Type it on the other computer, under “Coming from another machine”. It lasts ten minutes and works once. Over there, register that machine's own key afterwards.",
+    pairClaimTitle: "Coming from another machine",
+    pairClaim: "ENTER",
+    pairClaimNote:
+      "The code is asked for from the computer already signed in, under “My devices”. Your collection, your shelf and your objects will follow at the first synchronisation.",
     deviceLastNote: "Your last key cannot be removed: without it, nothing opens this account.",
   },
 

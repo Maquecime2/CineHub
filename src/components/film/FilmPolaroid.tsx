@@ -9,7 +9,7 @@
    The look is OPTIONAL, and its absence means "as before": the card also
    serves elsewhere than on the wall (the discoveries), and those places
    asked for nothing. */
-import { useRef, useState, type ReactNode } from "react";
+import { useRef, useState } from "react";
 import { ListPlus, Check } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
@@ -34,7 +34,7 @@ export function FilmPolaroid({
   look = NEUTRAL_WALL_LOOK,
   onFile,
   fileLabel,
-  filing,
+  fileOpen = false,
   selecting = false,
   selected = false,
 }: {
@@ -42,13 +42,19 @@ export function FilmPolaroid({
   onClick: () => void;
   look?: WallLook;
   /**
-   * Opens the filing panel for this card. Absent, no badge appears — the
-   * card also serves where there is nothing to file into (Discoveries).
+   * Opens the filing panel for this card, and hands over WHERE the badge
+   * is on screen.
+   *
+   * THE PANEL ITSELF IS NOT RENDERED HERE, and that is a fix rather than
+   * a preference. Hung inside the card it was clipped by the wall's
+   * grid, and — worse — a windowed wall unmounts the cards it has
+   * scrolled past, so the panel vanished mid-gesture. One panel, in a
+   * layer, positioned from this rectangle.
    */
-  onFile?: () => void;
+  onFile?: (at: DOMRect) => void;
   fileLabel?: string;
-  /** The panel itself, when this is the card whose panel is open. */
-  filing?: ReactNode;
+  /** This is the card whose panel is open: the badge stays lit. */
+  fileOpen?: boolean;
   /** The wall is choosing several films: the card wears a mark. */
   selecting?: boolean;
   selected?: boolean;
@@ -60,6 +66,12 @@ export function FilmPolaroid({
      people never get. */
   const [near, setNear] = useState(false);
   const press = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const badge = useRef<HTMLButtonElement | null>(null);
+
+  const openFiling = () => {
+    const at = badge.current?.getBoundingClientRect();
+    if (at) onFile?.(at);
+  };
 
   /* On a touchscreen there is no hovering, so the badge answers to a
      LONG PRESS instead — the gesture that already means "and what else
@@ -69,7 +81,10 @@ export function FilmPolaroid({
     press.current = setTimeout(() => {
       press.current = null;
       setNear(true);
-      onFile();
+      /* One frame, so the badge is laid out before we measure it: it is
+         invisible until `near` is true, and an element that has not been
+         positioned yet measures as a point at the top left. */
+      requestAnimationFrame(openFiling);
     }, 500);
   };
   const holdEnd = () => {
@@ -251,28 +266,40 @@ export function FilmPolaroid({
         />
       </button>
 
-      {/* THE MARK OF A CHOSEN CARD. It is laid on the corner rather than
-          dimming the whole card: one chooses films by looking at them,
-          and a wall of half-erased posters is a wall one can no longer
-          read. */}
+      {/* THE MARK OF A CHOSEN CARD — a rubber stamp, not a checkbox.
+
+          The first draft drew a little square with a tick, which is what
+          a form does; on a wall of paper photographs it read as a piece
+          of somebody else's interface laid on top. A stamp belongs to
+          the same world as the pins, the tape and the folder numbers:
+          it sits ON the print, at an angle, and the card underneath goes
+          on being a card.
+
+          It is a corner mark rather than a wash over the whole card:
+          one chooses films by looking at them, and a wall of
+          half-erased posters is a wall one can no longer read. */}
       {selecting && (
         <div
           aria-hidden
           style={{
             position: "absolute",
-            top: nudge + 4,
-            left: 4,
-            width: 22,
-            height: 22,
+            top: nudge + 6,
+            left: 6,
+            width: 26,
+            height: 26,
             display: "grid",
             placeItems: "center",
-            background: selected ? C.burgundy : alpha(C.card, 0.9),
-            border: `1px solid ${selected ? C.burgundy : C.line}`,
-            boxShadow: `0 1px 3px ${alpha(C.ink, 0.3)}`,
+            borderRadius: "50%",
+            transform: `rotate(${tilt > 0 ? -11 : 11}deg)`,
+            border: `2px solid ${selected ? C.burgundy : alpha(C.inkFaded, 0.4)}`,
+            background: selected ? alpha(C.burgundy, 0.12) : alpha(C.card, 0.55),
+            color: selected ? C.burgundy : "transparent",
+            transition:
+              "color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease), background var(--motion-fast) var(--motion-ease)",
             pointerEvents: "none",
           }}
         >
-          {selected && <Check size={13} color={C.card} />}
+          <Check size={15} strokeWidth={3} />
         </div>
       )}
 
@@ -281,14 +308,16 @@ export function FilmPolaroid({
           list, never the film's card underneath. */}
       {onFile && !selecting && (
         <button
+          ref={badge}
           onClick={(e) => {
             e.stopPropagation();
             e.preventDefault();
-            onFile();
+            openFiling();
           }}
           draggable={false}
           onDragStart={(e) => e.preventDefault()}
           aria-label={fileLabel}
+          aria-expanded={fileOpen}
           title={fileLabel}
           style={{
             all: "unset",
@@ -302,35 +331,15 @@ export function FilmPolaroid({
             color: C.card,
             background: C.moss,
             boxShadow: `0 1px 4px ${alpha(C.ink, 0.35)}`,
-            opacity: near || filing ? 1 : 0,
+            /* `visibility` as well as opacity: an invisible badge that
+               still takes clicks would swallow the poster's own. */
+            opacity: near || fileOpen ? 1 : 0,
+            visibility: near || fileOpen ? "visible" : "hidden",
             transition: "opacity var(--motion-fast) var(--motion-ease)",
           }}
         >
           <ListPlus size={13} />
         </button>
-      )}
-
-      {/* ANCHORED TO ITS BUTTON, THEREFORE IT STAYS IN THE COLUMN.
-          `Layer` is the rule for anything `fixed` (see CLAUDE.md); a menu
-          hanging from the thing that opened it is the stated exception —
-          taking it out of the column would break the anchoring it exists
-          for. */}
-      {filing && (
-        <div
-          style={{
-            position: "absolute",
-            top: nudge + 30,
-            right: 0,
-            zIndex: 7,
-            padding: "10px 12px 12px",
-            background: C.paper,
-            border: `1px solid ${C.line}`,
-            boxShadow: `0 8px 22px ${alpha(C.ink, 0.3)}`,
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {filing}
-        </div>
       )}
     </div>
   );

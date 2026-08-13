@@ -214,10 +214,8 @@ function OneList({
 
   const run = async () => {
     if (!challenge.title.trim()) return;
-    /* The server's vocabulary is French; the form's is not. The mapping
-       happens here, at the boundary, and nowhere else. */
     await createChallenge({
-      listeId: list.id,
+      listId: list.id,
       title: challenge.title.trim(),
       starts_on: challenge.start,
       ends_on: challenge.end,

@@ -101,6 +101,16 @@ const fr = {
     forgetDeviceOne: "Retirer {{device}}",
     deviceSeen: "vu {{when}}",
     deviceNeverSeen: "jamais servi",
+    addThisDevice: "Enregistrer la clé de CETTE machine",
+    pairMake: "DONNER UN CODE À UN AUTRE PC",
+    pairNote:
+      "Sur localhost, chaque ordinateur est un domaine à lui seul : la clé du téléphone n'y sert à rien. Un code passe outre — il vaut votre compte pendant dix minutes.",
+    pairMadeNote:
+      "Tapez-le sur l'autre ordinateur, sous « Venir d'une autre machine ». Il vaut dix minutes et ne sert qu'une fois. Là-bas, enregistrez ensuite la clé de cette machine-là.",
+    pairClaimTitle: "Venir d'une autre machine",
+    pairClaim: "ENTRER",
+    pairClaimNote:
+      "Le code se demande depuis l'ordinateur déjà connecté, dans « Mes appareils ». Votre collection, votre étagère et vos objets suivront à la première synchronisation.",
     deviceLastNote:
       "Votre dernière clé ne peut pas être retirée : sans elle, plus rien n'ouvre ce compte.",
   },

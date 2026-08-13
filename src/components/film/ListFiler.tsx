@@ -45,12 +45,10 @@ export function ListFiler({
   /** Films in the selection that have no `tmdbId` — counted, not hidden. */
   strangers = 0,
   compact = false,
-  onDone,
 }: {
   works: Fileable[];
   strangers?: number;
   compact?: boolean;
-  onDone?: () => void;
 }) {
   const { t } = useTranslation();
   const lists = useMyLists();
@@ -81,7 +79,10 @@ export function ListFiler({
             ? t("lists.allAlreadyThere")
             : t("lists.filedCount", { count: fresh })
       );
-      onDone?.();
+      /* NOTHING IS CLOSED HERE, and that is the whole correction. Filing
+         used to shut the panel — which destroyed the message just set on
+         the line above, and, in the multiple selection, took the footer
+         bar down with it. The panel is closed by whoever opened it. */
     } catch (e) {
       setDit((e as Error).message || t("lists.filingFailed"));
     } finally {

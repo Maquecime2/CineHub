@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FilmPolaroid } from "../../components/film/FilmPolaroid";
 import { DEFAULT_WALL_LOOK, scaleOf, gapOf, type WallLook } from "./wallLook";
 import type { Film } from "../../types";
@@ -107,11 +107,11 @@ function Cell({
    not as six props threaded through `Cell`: the wall does not decide any
    of this, it only passes it on. */
 export interface Filing {
-  /** Which card's panel is open, if any. */
+  /** Which card's badge is open, if any. */
   openFor: string | null;
-  onOpenFor: (id: string | null) => void;
-  /** The panel's content, built by whoever owns the selection. */
-  panelFor: (film: Film) => ReactNode;
+  /** The rectangle is the badge's, in screen coordinates: the panel is
+      rendered once, in a layer, and placed from it. */
+  onOpenFor: (id: string | null, at?: DOMRect) => void;
   label: string;
   /** Choosing several: the card wears a mark and the click chooses. */
   selecting: boolean;
@@ -141,9 +141,9 @@ function Card({
          both on the same click would make every choice a coin toss
          between choosing and leaving the wall. */
       onClick={() => (filing.selecting ? filing.onChoose(film.id) : onOpen(film.id))}
-      onFile={() => filing.onOpenFor(open ? null : film.id)}
+      onFile={(at) => filing.onOpenFor(open ? null : film.id, at)}
       fileLabel={filing.label}
-      filing={open ? filing.panelFor(film) : undefined}
+      fileOpen={open}
       selecting={filing.selecting}
       selected={filing.chosen.has(film.id)}
     />

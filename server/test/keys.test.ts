@@ -194,6 +194,20 @@ describe("the other devices", () => {
     expect(await store.countKeys(db, anna.person.id)).toBeGreaterThanOrEqual(1);
   });
 
+  it("offers this machine's own sensor when that is what was asked", async () => {
+    const anna = await account("anna");
+    const r = await app.inject({
+      method: "POST",
+      url: "/auth/keys/options",
+      headers: { cookie: anna.cookie },
+      payload: { where: "here" },
+    });
+    /* Offering a QR code for the computer under one's hands would be
+       absurd — and it is exactly what somebody does right after
+       arriving with a pairing code. */
+    expect(r.json().options.authenticatorSelection.authenticatorAttachment).toBe("platform");
+  });
+
   it("lets the telephone's key present itself at sign-in", async () => {
     const anna = await account("anna");
     await hangKey(anna.person.id, "the-telephone", ["hybrid", "internal"]);
@@ -208,5 +222,101 @@ describe("the other devices", () => {
        that path is the whole of this feature. */
     expect(options.allowCredentials).toHaveLength(1);
     expect(options.allowCredentials[0].transports).toContain("hybrid");
+  });
+});
+
+/* ============================================================
+   THE PAIRING CODE
+
+   The door the passkeys cannot open: on `localhost` each computer is
+   its own domain, so two machines at home have nothing in common to
+   sign for and the QR ceremony is of no use whatsoever. A code crosses
+   that — which means it is worth an account, and everything below is
+   about what keeps that acceptable.
+   ============================================================ */
+describe("the pairing code", () => {
+  const claim = (code: string) =>
+    app.inject({ method: "POST", url: "/auth/pair/claim", payload: { code } });
+
+  it("is not made without a session", async () => {
+    expect((await app.inject({ method: "POST", url: "/auth/pair" })).statusCode).toBe(401);
+  });
+
+  it("opens the account on a machine that holds no key", async () => {
+    const anna = await account("anna");
+    const { code } = (
+      await app.inject({ method: "POST", url: "/auth/pair", headers: { cookie: anna.cookie } })
+    ).json();
+
+    const r = await claim(code);
+    expect(r.statusCode).toBe(200);
+    expect(r.json().person.pseudo).toBe("anna");
+    /* A session, which is the whole point: from there the ordinary
+       synchronisation brings everything back. */
+    expect(r.headers["set-cookie"]).toBeTruthy();
+  });
+
+  it("works once, and once only", async () => {
+    const anna = await account("anna");
+    const { code } = (
+      await app.inject({ method: "POST", url: "/auth/pair", headers: { cookie: anna.cookie } })
+    ).json();
+
+    expect((await claim(code)).statusCode).toBe(200);
+    expect((await claim(code)).statusCode).toBe(401);
+  });
+
+  it("reads what was shown, whatever the case and the spaces", async () => {
+    const anna = await account("anna");
+    const { code } = (
+      await app.inject({ method: "POST", url: "/auth/pair", headers: { cookie: anna.cookie } })
+    ).json();
+    /* It is read off one screen and typed on another: the shape it
+       comes back in is not ours to insist on. */
+    expect((await claim(`  ${code.toLowerCase()} `)).statusCode).toBe(200);
+  });
+
+  it("says nothing about a code that never existed", async () => {
+    /* Unknown, expired, already spent — one answer for all three.
+       Telling them apart would say whether a code once existed. */
+    const unknown = await claim("ABCDEFGHJK");
+    expect(unknown.statusCode).toBe(401);
+
+    const anna = await account("anna");
+    const { code } = (
+      await app.inject({ method: "POST", url: "/auth/pair", headers: { cookie: anna.cookie } })
+    ).json();
+    await claim(code);
+    expect((await claim(code)).json().error).toBe(unknown.json().error);
+  });
+
+  it("dies of old age", async () => {
+    const anna = await account("anna");
+    const { code } = (
+      await app.inject({ method: "POST", url: "/auth/pair", headers: { cookie: anna.cookie } })
+    ).json();
+    /* The expiry is in the row and the clause is in the DELETE: we age
+       the row rather than the clock. */
+    await db.query("UPDATE pairing_code SET expires_at = now() - interval '1 minute'");
+    expect((await claim(code)).statusCode).toBe(401);
+  });
+
+  it("carries no readable code in the table", async () => {
+    const anna = await account("anna");
+    const { code } = (
+      await app.inject({ method: "POST", url: "/auth/pair", headers: { cookie: anna.cookie } })
+    ).json();
+    const rows = await db.query<{ digest: string }>("SELECT digest FROM pairing_code");
+    /* Same reasoning as the sessions: a leak of this table hands over
+       nothing usable. */
+    expect(rows[0]!.digest).not.toBe(code);
+    expect(rows[0]!.digest).toHaveLength(64);
+  });
+
+  it("goes with the person it opens", async () => {
+    const anna = await account("anna");
+    await app.inject({ method: "POST", url: "/auth/pair", headers: { cookie: anna.cookie } });
+    await store.deletePerson(db, anna.person.id);
+    expect(await db.query("SELECT 1 FROM pairing_code")).toEqual([]);
   });
 });
