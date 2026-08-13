@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
-import { getImage } from "../../db";
-import { customDecorByKey } from "../../services/customDecor";
+import { readMedia } from "../../services/media";
+import { customDecorByKey, sanitizeSvg } from "../../services/customDecor";
 
 /* The drawing of an imported pattern.
 
@@ -34,8 +34,22 @@ export function CustomDraw({
     if (!imageKey) return;
     let objectUrl: string | null = null,
       alive = true;
-    getImage(imageKey)
-      .then(async (blob: Blob | undefined) => {
+    /* THE VAULT FIRST, THE CONTAINER NEXT — and an SVG coming back from
+       the container is CLEANED AGAIN before it is kept.
+
+       That second cleaning is not belt and braces. Until the mirror
+       existed, everything in the vault had been put there by
+       `addCustomDecor`, which sanitises; presuming it clean was
+       presuming our own work. A blob fetched from somebody else's shelf
+       breaks that presumption, and this component injects the markup
+       inline — so it is vetted on ARRIVAL, and a markup the sanitiser
+       refuses is never cached and never shown. */
+    readMedia(imageKey, async (raw) => {
+      if (!inline) return raw;
+      const cleaned = sanitizeSvg(await raw.text(), { wall: !!spec?.wall });
+      return cleaned ? new Blob([cleaned.markup], { type: "image/svg+xml" }) : null;
+    })
+      .then(async (blob: Blob | null) => {
         if (!alive || !blob) return;
         if (inline) {
           const text = await blob.text();

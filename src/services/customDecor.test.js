@@ -28,6 +28,7 @@ const {
   toggleDecorHidden,
   isDecorHidden,
   listHiddenDecor,
+  setCustomDecor,
   CUSTOM_PREFIX,
 } = await import("./customDecor");
 
@@ -201,5 +202,66 @@ describe("the imported motif, as the shelf sees it", () => {
     const { decorSpec } = await import("../components/shelf/constants");
     const entry = await addCustomDecor(pngFile());
     expect(decorSpec(entry.key).draw).toBe(decorSpec(entry.key).draw);
+  });
+});
+
+/* ============================================================
+   SHARING A PIECE, AND TAKING ONE
+
+   Three things, and the first is the one that would go wrong silently.
+
+   AN OBJECT IS ADDED OFFLINE AND STAYS ADDED. Importing must not wait
+   for a round trip, must not fail because of one, and the piece must be
+   on the shelf before anything is asked of the network. It climbs at the
+   next synchronisation, which is what gives it a `remoteId`.
+
+   A PIECE TAKEN FROM SOMEBODY IS VETTED ON ARRIVAL. `sanitizeSvg` used
+   to run at import only, and what sat in the vault was presumed clean —
+   which it was, since we had cleaned it ourselves. A blob fetched from
+   another person's container breaks that presumption, and `CustomDraw`
+   injects the markup inline.
+
+   AND GIVING BACK A COPY IS NOT WITHDRAWING A PIECE. The server tells
+   the two apart; what is tested here is that the client asks it to.
+   ============================================================ */
+describe("the shared objects", () => {
+  const hostileSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><script>alert(1)</script><rect width="10" height="10" fill="#333"/></svg>`;
+
+  it("exists on the shelf with no server identity", async () => {
+    const entry = await addCustomDecor(pngFile("pebble.png"));
+    /* No remote address, and yet the object is there: which is exactly
+       what one wants of an offline gesture. */
+    expect(entry.remoteId).toBeUndefined();
+    expect(customDecorByKey(entry.key)).toBeTruthy();
+  });
+
+  it("strips the script from a received SVG, as from an imported one", () => {
+    const cleaned = sanitizeSvg(hostileSvg, { wall: false });
+    expect(cleaned).toBeTruthy();
+    expect(cleaned.markup).not.toContain("script");
+    expect(cleaned.markup).not.toContain("alert");
+  });
+
+  it("refuses what is not a readable drawing", () => {
+    /* A markup the sanitiser refuses is neither kept nor shown:
+       `takeCustomDecor` answers `null` on that reply. */
+    expect(sanitizeSvg("hello", { wall: false })).toBeNull();
+  });
+
+  it("a taken piece keeps its author and its identity", async () => {
+    const entry = await addCustomDecor(pngFile("borrowed.png"));
+    /* We stand in for what `takeCustomDecor` writes, without the
+       network: what counts here is that the register carries both
+       fields — without them the workshop could neither credit the
+       author nor hide the sharing switch on somebody else's piece. */
+    setCustomDecor(
+      listCustomDecor().map((d) =>
+        d.key === entry.key ? { ...d, remoteId: "d-1234", owner: "anna" } : d
+      )
+    );
+    const taken = customDecorByKey(entry.key);
+    expect(taken.owner).toBe("anna");
+    /* And its image is still counted among those we do not purge. */
+    expect(customDecorImageKeys()).toContain(taken.imageKey);
   });
 });

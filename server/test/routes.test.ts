@@ -41,10 +41,24 @@ afterEach(async () => {
 });
 
 describe("the door", () => {
-  it("says it is up", async () => {
+  it("says it is up, and whether it relays TMDB", async () => {
     const r = await app.inject({ method: "GET", url: "/health" });
     expect(r.statusCode).toBe(200);
-    expect(r.json()).toEqual({ debout: true });
+    /* `tmdb` is what lets the binder stop asking for a key it will never
+       use: signed in against a server that has one, the key panel says
+       so instead of announcing a key is missing. This app was built with
+       no `tmdbKey`, so the honest answer is false. */
+    expect(r.json()).toEqual({ debout: true, tmdb: false });
+  });
+
+  it("announces the relay when the server carries a key", async () => {
+    const withKey = await testApp(db, { tmdbKey: "une-cle" });
+    try {
+      const r = await withKey.inject({ method: "GET", url: "/health" });
+      expect(r.json().tmdb).toBe(true);
+    } finally {
+      await withKey.close();
+    }
   });
 
   it("refuses a pseudonym that could not live in an address", async () => {

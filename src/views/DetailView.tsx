@@ -19,6 +19,7 @@ import { underlineInput, tap } from "../theme/styles";
 import { uid, withWatches, initialsOf } from "../domain/film";
 import { searchFilms } from "../domain/search";
 import { putImage } from "../db";
+import { noteMedia } from "../services/media";
 import { imageSize, shrinkImage } from "../services/images";
 import {
   Cardstock,
@@ -260,6 +261,12 @@ export function DetailView({
         const thumbKey = `${key}-thumb`;
         await putImage(key, file);
         await putImage(thumbKey, await shrinkImage(file, 480));
+        /* Both of them: the thumbnail is what the strip shows on the
+           other device, so sending only the original would leave the
+           second machine decoding 4K for a hundred pixels — when it
+           displayed anything at all. */
+        noteMedia(key);
+        noteMedia(thumbKey);
         const dim = await imageSize(file);
         added.push({
           id: uid(),

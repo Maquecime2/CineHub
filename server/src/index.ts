@@ -21,6 +21,7 @@ import { fileURLToPath } from "node:url";
 import { buildApp } from "./app.ts";
 import { openPostgres, applySchema } from "./db.ts";
 import { configurePush } from "./push.ts";
+import { configureMedia, mediaAvailable, readConnectionString } from "./media.ts";
 
 /** The current name, or the one it used to have. */
 const env = (current: string, legacy: string): string | undefined =>
@@ -60,6 +61,20 @@ configurePush(
       }
     : null
 );
+
+/* THE MEDIA MIRROR IS OPTIONAL, exactly like the notifications above.
+   With no connection string the routes answer "no service", the blobs
+   stay in each browser's IndexedDB as they always have, and a card seen
+   on a second computer goes on saying "stayed on the other device".
+
+   THE CONNECTION STRING NEVER REACHES A BROWSER. The server signs a
+   ticket for ONE blob, valid a quarter of an hour, and hands that over
+   instead — which is the whole reason this is done here rather than with
+   a `VITE_` variable baked into the bundle.
+
+   The container itself must allow the site's origin in PUT and GET; that
+   is set on Azure's side, and `.env.exemple` says so. */
+configureMedia(readConnectionString(process.env.AZURE_BLOBS, process.env.AZURE_CONTAINER));
 
 const db = await openPostgres(dbUrl);
 
@@ -113,6 +128,9 @@ for (const o of origin
 }
 if (!vapidPub || !vapidPriv) {
   console.log("  notifications : éteintes (VAPID_PUBLIC / VAPID_PRIVATE absentes)");
+}
+if (!mediaAvailable()) {
+  console.log("  médias : gardés sur chaque appareil (AZURE_BLOBS / AZURE_CONTAINER absentes)");
 }
 if (devDoor && development) {
   console.log("  ⚠ porte de développement open : POST /dev/session");

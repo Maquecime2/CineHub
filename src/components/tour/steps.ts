@@ -143,6 +143,28 @@ const library: Tour = {
       placement: "top",
       optional: true,
     },
+    /* FILING WITHOUT OPENING THE CARD. The badge hides until the hand is
+       near, which is what makes the wall a wall and not a wall of
+       buttons — and also what makes it impossible to find by chance.
+       Hence the step.
+
+       `needsServer` AND `optional`: a list lives on the server, so with
+       none the badge is not even mounted; and with a server but an empty
+       binder there is no poster to point at either. */
+    {
+      target: at("wall-films"),
+      needsServer: true,
+      ...says("library", "file"),
+      placement: "top",
+      optional: true,
+    },
+    {
+      target: at("wall-choose"),
+      needsServer: true,
+      ...says("library", "choose"),
+      placement: "bottom",
+      optional: true,
+    },
   ],
 };
 
@@ -240,6 +262,18 @@ const detail: Tour = {
       target: at("detail-tags"),
       tab: "mots",
       ...says("detail", "tags"),
+      placement: "left",
+      optional: true,
+    },
+    /* FILING FROM THE CARD. The anchor has existed for a long time and
+       no step described it; and what it does has changed — one can now
+       make the list from here, where before the whole section vanished
+       until a list existed elsewhere. */
+    {
+      target: at("detail-lists"),
+      tab: "film",
+      needsServer: true,
+      ...says("detail", "lists"),
       placement: "left",
       optional: true,
     },
@@ -502,6 +536,20 @@ const global: Tour = {
       view: "library",
       optional: true,
     },
+    /* THE OTHER DEVICES, in that same drawer. This one is not a comfort:
+       a passkey does not leave the machine that made it, so an account
+       opened on one computer stays shut inside it until a second key —
+       a telephone's — is hung on it. Nobody thinks of doing that before
+       the evening they need it, which is exactly why the tour says it
+       on the first. */
+    {
+      target: at("compte"),
+      needsServer: true,
+      ...says("global", "devices"),
+      placement: "right",
+      view: "library",
+      optional: true,
+    },
     /* THE REMINDERS live in the same drawer as the account and sharing,
        and the step says so there too. `optional`: with no server, with
        no keys laid on it, or in a browser that cannot receive a
@@ -584,6 +632,15 @@ const lists: Tour = {
       target: at("lists-mine"),
       ...says("lists", "mine"),
       placement: "bottom",
+      optional: true,
+    },
+    /* FILLING A LIST FROM TMDB. The search only exists inside an
+       OPEN list one may write in: on arriving here with nothing opened
+       there is no anchor, hence `optional`. */
+    {
+      target: at("lists-search"),
+      ...says("lists", "search"),
+      placement: "top",
       optional: true,
     },
     {

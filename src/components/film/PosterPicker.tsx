@@ -5,6 +5,7 @@ import { underlineInput, tap } from "../../theme/styles";
 import { Label } from "../ui";
 import { useTmdbKey } from "../../services/tmdbKey";
 import { IDB_PREFIX, isIdbPoster, idbKeyOf, putImage, deleteImage } from "../../db";
+import { noteMedia, forgetMedia } from "../../services/media";
 import { listPosters } from "../../tmdb";
 import type { Film } from "../../types";
 
@@ -69,7 +70,14 @@ export function PosterPicker({ film, onUpdate }: { film: Film; onUpdate: (f: Fil
       // the poster too is kept as it is: no re-encoding
       const key = `${film.id}-${Date.now()}`; // a fresh key: the image cache will not serve the old one again
       await putImage(key, file);
-      if (isIdbPoster(film.poster)) await deleteImage(idbKeyOf(film.poster));
+      /* One line, and it is the only thing this screen has to know about
+         the mirror: the upload happens later, at the next
+         synchronisation, and never on the path of this gesture. */
+      noteMedia(key);
+      if (isIdbPoster(film.poster)) {
+        await deleteImage(idbKeyOf(film.poster));
+        forgetMedia(idbKeyOf(film.poster));
+      }
       onUpdate({ ...film, poster: IDB_PREFIX + key });
     } catch (e) {
       console.error(e);

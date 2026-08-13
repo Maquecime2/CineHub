@@ -132,10 +132,15 @@ export async function whoAmI(): Promise<Person | null> {
   try {
     const who = readPerson(await call<PersonReply>("/me"));
     noteAccount(who.id);
+    rememberPerson(who);
     return who;
   } catch (e) {
     if ((e as ServerError).code === 0) throw e;
+    /* A REFUSAL, not a silence: the server answered, and it answered
+       that we are nobody. The hunch is wrong and must go — keeping it
+       would show a name to somebody whose session has expired. */
     noteAccount(null);
+    rememberPerson(null);
     return null;
   }
 }
@@ -143,6 +148,7 @@ export async function whoAmI(): Promise<Person | null> {
 export async function signOut(): Promise<void> {
   await call("/signout", { method: "POST" }).catch(() => {});
   noteAccount(null);
+  rememberPerson(null);
 }
 
 /* ------------------------------------------------------------
@@ -163,14 +169,55 @@ export async function signOut(): Promise<void> {
 
    `whoAmI` corrects that hunch on the first round trip, and it is the
    one that is authoritative. */
-let account: string | null = store.get<string>("synchro-account", "") || null;
+/* Read here and by `media.remotePath`, which spells it out on its side —
+   the two must not drift apart again. */
+const ACCOUNT_KEY = "synchro-account";
+
+let account: string | null = store.get<string>(ACCOUNT_KEY, "") || null;
+
+/* ============================================================
+   THE LAST PERSON WE KNEW ABOUT — a hunch, kept on disk
+   ============================================================
+
+   The identifier above answers "is an account open?", which is enough
+   for the TMDB relay and for nothing else: the screens need a NAME, and
+   they had no way to know one until a round trip came back. So on every
+   reload, for as long as the first synchronisation took, the lists view
+   said "it takes an account" and the drawer offered to create one — to
+   somebody who has had one for months.
+
+   This is the same hunch as `account`, carrying one field more. It is
+   corrected by `whoAmI` on the first round trip, and it grants nothing:
+   the cookie is what opens doors, and the server is the only thing that
+   reads it. Being wrong here shows a name for a second, and the routes
+   go on answering 401 exactly as before. */
+const LAST_PERSON = "synchro-person";
+
+export const lastKnownPerson = (): Person | null => store.get<Person | null>(LAST_PERSON, null);
+
+const rememberPerson = (who: Person | null): void => {
+  store.set(LAST_PERSON, who);
+};
 
 type Watcher = () => void;
 const watchers = new Set<Watcher>();
 
+/* THE IDENTIFIER IS WRITTEN DOWN, and this is the only place it is.
+ *
+ * Two readers depend on it and neither could see it before: the seed at
+ * the top of this file, which is why the hunch it describes was empty on
+ * every reload; and `media.remotePath`, which builds the private prefix
+ * `p/<person id>/<key>` out of it. Without the second, every poster and
+ * every screenshot had NO ADDRESS — no address, no ticket, nothing
+ * uploaded, and no error anywhere to say so. The decors were spared
+ * because their branch reads a decor's server id, never this one.
+ *
+ * `noteAccount` is the single door the value changes through, so the
+ * write belongs here rather than at each of `whoAmI`'s call sites. */
 function noteAccount(id: string | null): void {
   if (account === id) return;
   account = id;
+  store.set(ACCOUNT_KEY, id ?? "");
   for (const fn of watchers) fn();
 }
 
@@ -183,6 +230,36 @@ export function watchAccount(fn: Watcher): () => void {
   return () => {
     watchers.delete(fn);
   };
+}
+
+/* ============================================================
+   DOES THIS SERVER RELAY TMDB?
+   ============================================================
+
+   The binder asks everybody for a TMDB key, and for somebody signed in
+   against a server that HAS one that request is pure noise: the relay
+   answers, the key is never used, and the panel goes on saying a key is
+   missing. But it is not always noise — a server started without
+   `TMDB_KEY` answers 503, and then the key one types is the only way
+   Discoveries and the posters work at all.
+
+   So we ask, once, and cache the answer: it changes when the server is
+   restarted, not while somebody is reading a screen. */
+let relayKnown: boolean | null = null;
+
+export async function relayServesTmdb(): Promise<boolean> {
+  if (relayKnown !== null) return relayKnown;
+  if (!serverConfigured()) return false;
+  try {
+    const r = await call<{ tmdb?: boolean }>("/health");
+    relayKnown = r.tmdb === true;
+  } catch {
+    /* Unreachable: we say nothing rather than promise a relay that may
+       not be there. The key panel then behaves exactly as it always
+       has. */
+    return false;
+  }
+  return relayKnown;
 }
 
 /** What the server holds, in a single object — to take it away with you. */
@@ -218,6 +295,7 @@ export async function signUp(pseudo: string): Promise<Person> {
     })
   );
   noteAccount(who.id);
+  rememberPerson(who);
   return who;
 }
 
@@ -235,8 +313,169 @@ export async function signIn(pseudo: string): Promise<Person> {
     })
   );
   noteAccount(who.id);
+  rememberPerson(who);
   return who;
 }
+
+/* ------------------------------------------------------------
+   LES AUTRES APPAREILS
+   ------------------------------------------------------------
+
+   A PASSKEY DOES NOT TRAVEL. The one Windows Hello made stays in that
+   computer: no export takes it out, no cloud carries it. So an account
+   opened on one machine was shut inside it, and the way out is not to
+   move that key — it is to add a SECOND one, held by something that goes
+   about with you.
+
+   A telephone is that something. Register its passkey here, and any
+   other computer can then sign in by showing a QR code for it to scan:
+   nothing to type, nothing to copy, and the key itself never crosses. */
+
+export interface DeviceKey {
+  id: string;
+  device: string | null;
+  transports: string[];
+  created_at: string;
+  seen_at: string | null;
+}
+
+export const myKeys = () => call<{ keys: DeviceKey[] }>("/auth/keys").then((r) => r.keys);
+
+/**
+ * Registers a new passkey on the account that is already open.
+ *
+ * The `device` is only a name to recognise it by in the list; it is not
+ * checked and carries no authority.
+ */
+export async function addKey(
+  device?: string,
+  /** `"phone"` asks for the QR ceremony; `"here"` for this machine's own sensor. */
+  where: "phone" | "here" = "phone"
+): Promise<DeviceKey[]> {
+  const { startRegistration } = await import("@simplewebauthn/browser");
+  const { challenge, options } = await call<{ challenge: string; options: object }>(
+    "/auth/keys/options",
+    { method: "POST", body: JSON.stringify({ where }) }
+  );
+  const response = await startRegistration({ optionsJSON: options as never });
+  const r = await call<{ keys: DeviceKey[] }>("/auth/keys/verify", {
+    method: "POST",
+    body: JSON.stringify({ challenge, response, device }),
+  });
+  return r.keys;
+}
+
+/* The server refuses to remove the last one — with a sentence, which the
+   drawer displays as it stands. We do not repeat the rule here: two
+   copies of a rule become one true and one false. */
+export const forgetKey = (id: string) =>
+  call<{ keys: DeviceKey[] }>(`/auth/keys/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  }).then((r) => r.keys);
+
+/* ---------- PAIRING BY CODE ----------
+
+   THE DOOR THE PASSKEYS CANNOT OPEN. A passkey is signed for a domain,
+   and on `localhost` each computer is its own: two machines at home have
+   no domain in common, so there is nothing for a telephone to sign for
+   and the QR ceremony cannot help at all.
+
+   A code can. A week, one use, and what it buys is a session — from
+   which the ordinary synchronisation brings back the collection, the
+   arrangement, the cabinet, and the machine registers a passkey of its
+   own so it never needs a code again. */
+
+export const makePairingCode = () =>
+  call<{ code: string; days: number }>("/auth/pair", { method: "POST" });
+
+export const claimPairingCode = (code: string) =>
+  call<PersonReply>("/auth/pair/claim", {
+    method: "POST",
+    body: JSON.stringify({ code: code.trim().toUpperCase() }),
+  }).then((r) => {
+    const who = readPerson(r);
+    noteAccount(who.id);
+    rememberPerson(who);
+    return who;
+  });
+
+/* ------------------------------------------------------------
+   LES MÉDIAS, ET LES OBJETS DE DÉCORATION
+   ------------------------------------------------------------
+
+   The container's key stays on the server; what comes back here is a
+   signature for ONE blob, valid a quarter of an hour. So these calls
+   look odd on purpose — they fetch permission, and the bytes then travel
+   between the browser and Azure without passing through the server at
+   all. */
+
+export const mediaTickets = (paths: string[]) =>
+  call<{ tickets: { path: string; url: string }[] }>("/media/tickets", {
+    method: "POST",
+    body: JSON.stringify({ paths }),
+  }).then((r) => r.tickets);
+
+/** A read ticket, or `null` when there is nothing there for us. */
+export const mediaTicket = (path: string) =>
+  call<{ url: string }>(`/media/ticket?path=${encodeURIComponent(path)}`)
+    .then((r) => r.url)
+    /* A 404 here means "not there, or not yours", deliberately without
+       distinction: this is not an error to show, it is an answer. */
+    .catch(() => null);
+
+/* Erasing is writing, so the server checks the same thing: a decor one
+   has merely COPIED answers 404 here, and that is the wanted answer. */
+export const mediaDeleteTicket = (path: string) =>
+  call<{ url: string }>(`/media?path=${encodeURIComponent(path)}`, { method: "DELETE" })
+    .then((r) => r.url)
+    .catch(() => null);
+
+export interface RemoteDecor {
+  id: string;
+  owner: string;
+  label: string;
+  wall: string;
+  kind: "raster" | "svg";
+  tintable: boolean;
+  bytes: number;
+  is_public: boolean;
+  mine?: boolean;
+}
+
+export const myRemoteDecor = () => call<{ decor: RemoteDecor[] }>("/decor").then((r) => r.decor);
+
+/** What the people one follows have put on show. */
+export const sharedDecor = () =>
+  call<{ decor: RemoteDecor[] }>("/decor/shared").then((r) => r.decor);
+
+export const createRemoteDecor = (d: {
+  label: string;
+  wall?: string;
+  kind?: "raster" | "svg";
+  tintable?: boolean;
+  bytes?: number;
+}) =>
+  call<{ decor: RemoteDecor; path: string }>("/decor", {
+    method: "POST",
+    body: JSON.stringify(d),
+  });
+
+export const showDecor = (id: string, is_public: boolean) =>
+  call<{ decor: RemoteDecor }>(`/decor/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify({ is_public }),
+  });
+
+/* ONE ROUTE, TWO GESTURES, AND THE SERVER TELLS THEM APART. Its author
+   WITHDRAWS the piece; anybody else gives back their own copy, and the
+   original does not move. `withdrawn` says which of the two happened. */
+export const dropRemoteDecor = (id: string) =>
+  call<{ withdrawn: boolean }>(`/decor/${encodeURIComponent(id)}`, { method: "DELETE" });
+
+export const takeRemoteDecor = (id: string) =>
+  call<{ decor: RemoteDecor; path: string }>(`/decor/${encodeURIComponent(id)}/copy`, {
+    method: "POST",
+  });
 
 /* ------------------------------------------------------------
    LA COLLECTION
@@ -527,8 +766,14 @@ export const removeFromListMembers = (id: string, pseudo: string) =>
 
 export const myChallenges = () => call<{ challenges: Challenge[] }>("/challenges");
 
+/* `listId`, AND THE SERVER READS NOTHING ELSE. It used to be sent as
+   `listeId` — a leftover of the French vocabulary — so the route found
+   no list identifier at all, failed its UUID test, and answered "Liste
+   inconnue" with a 404 on a list that was right there. Nothing on either
+   side reported a mismatch: an undefined field is not an error, it is an
+   absent one. */
 export const createChallenge = (d: {
-  listeId: string;
+  listId: string;
   title: string;
   starts_on: string;
   ends_on: string;

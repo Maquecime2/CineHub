@@ -84,6 +84,34 @@ const en = {
     shareEveryoneNote: "Whoever knows your handle.",
     shareLinkNote: "Whoever holds the link. It cannot be guessed, and is cut whenever you like.",
     shareNeverNote: "Your notes and your viewing log are never shown.",
+    mediaCors:
+      "Your posters and screenshots are not going out: the browser refuses the upload before even sending it. A CORS rule on the Azure container is almost always what is missing — allow the site's origin in PUT and GET. Your images stay whole on this device meanwhile.",
+    mediaRefused:
+      "The container refused the upload ({{detail}}). A 403 most often comes from a clock that has drifted: the signature is dated. Your images stay whole on this device.",
+    devices: "My devices",
+    devicesNote:
+      "A passkey does not travel: this computer's stays in it. Add your telephone's here — then on another computer choose “another device” when signing in, and scan the code it shows.",
+    addDevice: "ADD A DEVICE",
+    addingDevice: "waiting for the device…",
+    deviceThisOne: "this device",
+    devicePhone: "telephone or key",
+    deviceAdded: "Device added.",
+    deviceNamePlaceholder: "my telephone",
+    forgetDevice: "REMOVE",
+    forgetDeviceOne: "Remove {{device}}",
+    deviceSeen: "used {{when}}",
+    deviceNeverSeen: "never used",
+    addThisDevice: "Register THIS machine's key",
+    pairMake: "GIVE A CODE TO ANOTHER COMPUTER",
+    pairNote:
+      "On localhost each computer is a domain of its own, so the telephone's key is of no use there. A code crosses that — it is worth your account for seven days.",
+    pairMadeNote:
+      "Type it on the other computer, under “Coming from another machine”. It lasts seven days and works once. Over there, register that machine's own key afterwards, and the code has no further use.",
+    pairClaimTitle: "Coming from another machine",
+    pairClaim: "ENTER",
+    pairClaimNote:
+      "The code is asked for from the computer already signed in, under “My devices”. Your collection, your shelf and your objects will follow at the first synchronisation.",
+    deviceLastNote: "Your last key cannot be removed: without it, nothing opens this account.",
   },
 
   tmdbKey: {
@@ -100,6 +128,8 @@ const en = {
     offline: "Cannot reach TMDB — are you online?",
     whereFrom:
       "a key is free: TMDB account → Settings → API. Without one the binder works entirely — only the enrichment and the proposals from outside go quiet.",
+    relayServes:
+      "Your server already provides TMDB while you are signed in: this key will only be used once you sign out, or if the server is down.",
     remove: "take the key off this machine",
     missing: "No TMDB key — to be set at the foot of the tab rail.",
   },
@@ -276,6 +306,7 @@ const en = {
     title: "POSTER VAULT AND BACKUP",
     postersStored: "posters filed in the store",
     spaceUsed: "space taken",
+    mediaWaiting: "media waiting to be sent",
     note: "Everything is stored on this machine, stills at their original quality. Export now and then: clearing the browser's data would erase the collection.",
     preparing: "preparing…",
     downloaded_one: "backup of {{count}} card downloaded.",
@@ -336,6 +367,39 @@ const en = {
   lists: {
     filed: "filed",
     alreadyThere: "was already there",
+    fileIn: "File in a list",
+    fileThis: "File this film in a list",
+    fileThese_one: "File {{count}} film",
+    fileThese_other: "File {{count}} films",
+    filedCount_one: "{{count}} filed",
+    filedCount_other: "{{count}} filed",
+    allAlreadyThere: "they were already there",
+    filingFailed: "The filing failed.",
+    creationFailed: "The list could not be created.",
+    newListPlaceholder: "a new list…",
+    createAndFile: "Create the list and file into it",
+    strangers_one:
+      "{{count}} film stays out: it has no TMDB identity, and a list holds works, not copies.",
+    strangers_other:
+      "{{count}} films stay out: they have no TMDB identity, and a list holds works, not copies.",
+    noneFileable_one:
+      "This film has no TMDB identity: complete it from the Import tab and it will be able to join a list.",
+    noneFileable_other:
+      "None of these {{count}} films has a TMDB identity: complete them from the Import tab and they will be able to join a list.",
+    select: "CHOOSE",
+    stamp: "CHOSEN",
+    selectDone: "DONE",
+    selected_one: "{{count}} film chosen",
+    selected_other: "{{count}} films chosen",
+    selectNone: "Touch the posters you want to file.",
+    search: "SEARCH",
+    searchPlaceholder: "a title to add…",
+    searchNote: "Search TMDB: a list can hold a film your binder does not have yet.",
+    searching: "searching…",
+    searchNobody: "TMDB finds nothing by that title.",
+    searchNeedsKey: "Searching needs a TMDB key — it is set at the foot of the tab rail.",
+    add: "ADD",
+    added: "added",
   },
 
   elsewhere: {
@@ -862,6 +926,11 @@ const en = {
     noColour: "no colour",
     hidden: "hidden",
     nothingImported: "nothing imported yet",
+    decorFrom: "from {{pseudo}}",
+    decorShown: "shown to my friends",
+    decorTake: "Take “{{label}}”",
+    decorShow: "Show “{{label}}” to my friends",
+    decorHide: "Stop showing “{{label}}”",
     cabinet: "CABINET OF CURIOSITIES",
     dragOntoShelf: "drag them onto a board, between two cases",
     dragToBack: "drag them to the back of the shelf, wherever you like",
@@ -869,6 +938,7 @@ const en = {
     category: "CATEGORY",
     undoCategory: "undo the category",
     nameThisDivider: "Click to name this divider",
+    shelfAimed: "shelf aimed at: {{shelf}}",
     kinds: {
       bedside: {
         title: "Bedside films",
@@ -876,6 +946,7 @@ const en = {
       },
       main: {
         title: "The collection",
+        tag: "everything one keeps",
       },
       reserve: {
         title: "Set aside",
@@ -1086,6 +1157,24 @@ const en = {
   },
 
   listsView: {
+    newList: "A new list",
+    newListPlaceholder: "The films to have seen by March",
+    open: "OPEN",
+    fillNote:
+      "Films are filed into it from their card, from a poster's badge, or by searching TMDB inside the open list.",
+    yours: "Your lists",
+    none: "No list yet.",
+    noChallenges:
+      "No challenge. A challenge is a list and a period: open a list above to start one.",
+    empty: "Empty.",
+    removeWork: "Remove from the list",
+    public: "public",
+    at: "at {{pseudo}}'s",
+    noServer:
+      "No server is set: lists and challenges are things one shares, and there is nobody to share them with.",
+    noAccount:
+      "It takes an account — the button at the foot of the rail. Your video library does not need one.",
+    nobodyToInvite: "Nobody to invite under “{{pseudo}}”.",
     challenges: "The challenges",
     inviteSomebody: "invite somebody to write",
     startChallenge: "Start a challenge on this list",
@@ -1213,6 +1302,14 @@ const en = {
         title: "Filing with a finger",
         body: "On the shelf and on the wall, you move things by dragging. With a finger, hold the object down for a moment: it takes hold, and swiping stops scrolling. A marker shows the slot it will fall into.",
       },
+      file: {
+        title: "Filing into a list, without opening the card",
+        body: "Move the hand over a poster: a badge appears at the top right, and it opens the choosing of a list. With a finger, hold the poster down. You can make the list on the way — no need to go and open one elsewhere first.",
+      },
+      choose: {
+        title: "Several films at once",
+        body: "“Choose” changes what a click does: posters tick instead of opening, and a bar at the foot files the whole selection into the same list. Films with no TMDB identity stay out, and the bar says so rather than passing over them.",
+      },
     },
 
     watchlist: {
@@ -1276,6 +1373,10 @@ const en = {
       tags: {
         title: "Keywords and motifs",
         body: "The keywords are yours. The motifs are a shared vocabulary — “the hero dies”, “it rains at the end” — that a question can bear on, and that a thread can be drawn from.",
+      },
+      lists: {
+        title: "Filing this film into a list",
+        body: "Choose a list, or type a name to make one on the spot. A film with no TMDB identity is filed nowhere: a list holds works, not copies — the same card in somebody else's house would not be yours.",
       },
       identity: {
         title: "The right TMDB card",
@@ -1395,11 +1496,15 @@ const en = {
       label: "Lists and challenges",
       new: {
         title: "Opening a list",
-        body: "A list holds works and not your cards: it therefore means the same thing in somebody else's house, and does not empty the day you erase a film. You file into it from the film's card, under the catalogue.",
+        body: "A list holds works and not your cards: it therefore means the same thing in somebody else's house, and does not empty the day you erase a film. You file into it from the card, from a poster's badge, or from here.",
       },
       mine: {
         title: "Yours, and the shared ones",
         body: "Each list opens in a click. You can invite somebody to write in it: they add and remove films, they do not rename the list and do not erase it. Closed by default — making it visible is a tick box.",
+      },
+      search: {
+        title: "Pouring in a film you have not got",
+        body: "Search TMDB from the open list: that is the whole point of holding works rather than copies. “Come and see this in March” is said about films one has precisely not got yet — from a card alone, those could never be proposed.",
       },
       challenges: {
         title: "A challenge is a list and a period",
@@ -1444,6 +1549,10 @@ const en = {
       sharing: {
         title: "Showing your library",
         body: "In that same drawer: nobody, by secret link, or everybody. The link cannot be guessed and is cut whenever you like. A visitor sees your films, your numbered scores and your reviews — never your notebook nor your viewing log. And a single card is set apart, from its folder, under the catalogue card.",
+      },
+      devices: {
+        title: "The same account on another computer",
+        body: "A passkey does not travel: this machine's stays in it. In that same drawer, “My devices” registers your telephone's — then on any other computer, choose “another device” when signing in and scan the code it shows. Nothing to type, nothing to copy out.",
       },
       reminders: {
         title: "Being reminded of your challenges",

@@ -152,10 +152,29 @@ export function referencedKeys(films) {
    whole cabinet. */
 export async function pruneOrphans(films) {
   const kept = referencedKeys(films);
+  /* Decor objects live in the same store with no film citing them —
+     INCLUDING the ones taken from a friend, which `customDecorImageKeys`
+     lists like any other. Without this line the first purge would carry
+     off the whole cabinet. */
   for (const k of customDecorImageKeys()) kept.add(k);
   const keys = await allImageKeys();
   const dead = keys.filter((k) => !kept.has(k));
-  for (const k of dead) await deleteImage(k);
+
+  /* THE MIRROR IS TIDIED TOO, or the container fills up with ghosts
+     nobody names any more. Only what is OURS to erase: `DELETE /media`
+     asks for write permission, so a decor merely copied from somebody
+     answers 404 there, which is exactly right — dropping our copy does
+     not reach the original. */
+  const { forgetMedia, dropMedia } = await import("./services/media");
+
+  for (const k of dead) {
+    await deleteImage(k);
+    forgetMedia(k);
+    /* Offline, no account, no container: the ghost stays over there and
+       the next purge on a connected day will get it. Not worth failing a
+       local tidy-up for. */
+    await dropMedia(k);
+  }
   return dead.length;
 }
 

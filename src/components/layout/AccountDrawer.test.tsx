@@ -34,6 +34,16 @@ vi.mock("../../services/server", () => ({
   mySharing: vi.fn(async () => ({ partage: "privee", token: null })),
   signOut: vi.fn(),
   signUp: vi.fn(),
+  /* "My devices" reads its keys on mount. It answers nothing here — the
+     section then stays quiet, exactly as it does offline, and these
+     scenarios keep the drawer they were written against. */
+  myKeys: vi.fn(async () => {
+    throw new Error("hors ligne");
+  }),
+  addKey: vi.fn(),
+  forgetKey: vi.fn(),
+  makePairingCode: vi.fn(),
+  claimPairingCode: vi.fn(),
 }));
 
 vi.mock("../../services/push", () => ({
@@ -61,9 +71,9 @@ const build = (signedIn = true) =>
   render(
     <AccountDrawer
       report={report(signedIn)}
-      onFermer={vi.fn()}
+      onClose={vi.fn()}
       onSync={vi.fn()}
-      onChangement={vi.fn()}
+      onAccountChange={vi.fn()}
     />
   );
 

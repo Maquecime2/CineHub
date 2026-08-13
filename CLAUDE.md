@@ -63,8 +63,20 @@ là pour que la règle ne dépende pas de la seule bonne volonté.
 
 `server/` est un second paquet, avec ses propres dépendances et ses
 propres contrôles (`cd server && npm test && npm run typecheck`). Il n'est
-pas dans la liste ci-dessous : le client ne l'appelle pas encore, et il
-doit continuer de fonctionner entièrement hors ligne.
+pas dans la liste ci-dessous.
+
+**Le client l'appelle, et abondamment** — `src/services/server.ts`, lu par
+une vingtaine de fichiers : comptes par clés d'accès, synchro des fiches
+et des documents, partage, listes et défis, relais TMDB, miroir des
+médias. Ce qui reste vrai, et qui ne se négocie pas : **sans adresse de
+serveur, sans compte ou sans réseau, le classeur marche entier.** Toute
+fonctionnalité qui dépend du dehors est donc INVISIBLE en son absence,
+jamais grisée : `serverConfigured()` et `accountOpen()` sont les deux
+questions à poser avant de dessiner quoi que ce soit.
+
+Trois choses, à ce titre, ne sont jamais sur le chemin d'un geste : le
+dépôt d'un média, la montée d'un décor, l'envoi d'une fiche. On écrit en
+local, on rend la main, et la synchro suivante rattrape.
 
 - Le schéma est du **SQL qu'on lit** (`server/sql/001_baseline.sql`), pas la
   sortie d'un ORM. Les requêtes vivent toutes dans `server/src/store.ts`,
@@ -76,7 +88,21 @@ doit continuer de fonctionner entièrement hors ligne.
 - Ce qui protège quelqu'un est dans le SCHÉMA quand c'est possible —
   unicité, forme du pseudonyme, cascade d'effacement, refus d'une
   version périmée. Une règle écrite dans une route se contourne par la
-  route suivante.
+  route suivante. Quand le schéma ne suffit pas, la règle vit dans
+  `store.ts` en une seule requête : `canReadDecor` en est l'exemple, où
+  le blocage entre deux personnes l'emporte sur la vitrine — écrit en
+  trois vérifications plus une quatrième posée par-dessus, c'est la
+  quatrième qu'on finit par oublier.
+- **Les médias ont deux préfixes, et ce n'est pas cosmétique.**
+  `p/<id de personne>/<clé>` est privé et LE CHEMIN EST LA PREUVE : un
+  ticket n'est signé que pour son propre préfixe. `decor/<id>` est
+  partageable, et son droit de lecture se lit en base. Un décor rangé
+  sous le préfixe privé aurait obligé, le jour du partage, à signer sur
+  le préfixe privé d'autrui — et la garantie la plus simple du système
+  aurait sauté pour tout le monde, affiches comprises.
+- Un SVG venu du container d'autrui repasse par `sanitizeSvg` **à la
+  réception**. `CustomDraw` l'injecte en ligne ; l'assainissement au
+  dépôt ne compte pour rien dans cette décision.
 
 ## Vérifier
 

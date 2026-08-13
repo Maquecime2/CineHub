@@ -54,8 +54,12 @@ export const PosterArt = React.memo(function PosterArt({
     }
     let url: string | null = null,
       alive = true;
-    import("../../db")
-      .then(({ getImage }) => getImage(idbKeyOf(film.poster)))
+    /* The vault first, then the mirror on the container: `readMedia`
+       does both, and the dynamic import stays for the same reason it was
+       there — a wall of five hundred cards must not pull the storage
+       modules in before it has a poster to show. */
+    import("../../services/media")
+      .then(({ readMedia }) => readMedia(idbKeyOf(film.poster)))
       .then((blob) => {
         if (!alive || !blob) return;
         url = URL.createObjectURL(blob);

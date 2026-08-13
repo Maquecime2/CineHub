@@ -217,6 +217,51 @@ describe("the rest of the binder", () => {
     expect(keys).toEqual(expect.arrayContaining(["shelf-view:abc", "notebook-notes", "fils"]));
   });
 
+  /* THE NAMES ARE COMPARED TO THE SERVICES THAT WRITE THEM, and not
+     re-typed. Three of them had been invented in `documents.ts` —
+     "shelf-views-index" for an index called "shelf-views",
+     "decor-custom" and "decor-hidden" for keys prefixed "shelf-" — so
+     those three documents never travelled at all. Nothing reported it:
+     a key that is not syncable is not an error, it is a silence, and
+     the second device simply found a binder with no arrangement and an
+     empty cabinet.
+
+     The shelf VIEWS did travel, which is what made it so hard to see —
+     they go by prefix. It was the index naming them that stayed
+     behind. */
+  it("names the documents by the constants that write them", async () => {
+    const { isSyncable } = await import("./documents");
+    const { VIEW_INDEX, viewKey } = await import("./shelfViews");
+    const { CUSTOM_DECOR_KEY, HIDDEN_DECOR_KEY } = await import("./customDecor");
+    const { KEYS } = await import("./storage");
+
+    for (const key of [
+      VIEW_INDEX,
+      viewKey("abc"),
+      CUSTOM_DECOR_KEY,
+      HIDDEN_DECOR_KEY,
+      KEYS.notes,
+      KEYS.dividers,
+    ]) {
+      expect(isSyncable(key), key).toBe(true);
+    }
+  });
+
+  it("carries the shelf index, the cabinet and the objects taken from friends", async () => {
+    const { store } = await import("./storage");
+    const { VIEW_INDEX } = await import("./shelfViews");
+    const { CUSTOM_DECOR_KEY, HIDDEN_DECOR_KEY } = await import("./customDecor");
+
+    store.set(VIEW_INDEX, ["abc"]);
+    store.set(CUSTOM_DECOR_KEY, [{ key: "custom:1", label: "une lampe" }]);
+    store.set(HIDDEN_DECOR_KEY, ["plant"]);
+
+    await synchronise(() => {});
+
+    const keys = fake.docsPushed.flat().map((d) => (d as { key: string }).key);
+    expect(keys).toEqual(expect.arrayContaining([VIEW_INDEX, CUSTOM_DECOR_KEY, HIDDEN_DECOR_KEY]));
+  });
+
   it("leaves here what describes THIS device", async () => {
     /* The chosen skin, the state of the tour, the synchronisation
        markers: sending them would impose one's mood of the moment on

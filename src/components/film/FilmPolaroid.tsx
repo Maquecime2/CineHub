@@ -9,7 +9,11 @@
    The look is OPTIONAL, and its absence means "as before": the card also
    serves elsewhere than on the wall (the discoveries), and those places
    asked for nothing. */
-import { C, F } from "../../theme/tokens";
+import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { ListPlus, Check } from "lucide-react";
+import { C, F, alpha } from "../../theme/tokens";
+import { tap } from "../../theme/styles";
 import { tapeColor } from "../../theme/ink";
 import { hash, tiltOf, usesPin, nudgeOf, pickFrom } from "../../domain/seeded";
 import { watchCount, initialsOf } from "../../domain/film";
@@ -29,11 +33,68 @@ export function FilmPolaroid({
   film,
   onClick,
   look = NEUTRAL_WALL_LOOK,
+  onFile,
+  fileLabel,
+  fileOpen = false,
+  selecting = false,
+  selected = false,
 }: {
   film: Film;
   onClick: () => void;
   look?: WallLook;
+  /**
+   * Opens the filing panel for this card, and hands over WHERE the badge
+   * is on screen.
+   *
+   * THE PANEL ITSELF IS NOT RENDERED HERE, and that is a fix rather than
+   * a preference. Hung inside the card it was clipped by the wall's
+   * grid, and — worse — a windowed wall unmounts the cards it has
+   * scrolled past, so the panel vanished mid-gesture. One panel, in a
+   * layer, positioned from this rectangle.
+   */
+  onFile?: (at: DOMRect) => void;
+  fileLabel?: string;
+  /** This is the card whose panel is open: the badge stays lit. */
+  fileOpen?: boolean;
+  /** The wall is choosing several films: the card wears a mark. */
+  selecting?: boolean;
+  selected?: boolean;
 }) {
+  /* THE BADGE SHOWS ITSELF WHEN THE HAND IS NEAR, and stays out of the
+     way otherwise: forty cards each wearing a permanent button would
+     make a wall of buttons, which is not a wall of films. Focus counts
+     as being near — a badge reachable only by mouse is a badge half the
+     people never get. */
+  const { t } = useTranslation();
+  const chosenWord = t("lists.stamp");
+  const [near, setNear] = useState(false);
+  const press = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const badge = useRef<HTMLButtonElement | null>(null);
+
+  const openFiling = () => {
+    const at = badge.current?.getBoundingClientRect();
+    if (at) onFile?.(at);
+  };
+
+  /* On a touchscreen there is no hovering, so the badge answers to a
+     LONG PRESS instead — the gesture that already means "and what else
+     can this do?" everywhere else on a telephone. */
+  const holdStart = () => {
+    if (!onFile) return;
+    press.current = setTimeout(() => {
+      press.current = null;
+      setNear(true);
+      /* One frame, so the badge is laid out before we measure it: it is
+         invisible until `near` is true, and an element that has not been
+         positioned yet measures as a point at the top left. */
+      requestAnimationFrame(openFiling);
+    }, 500);
+  };
+  const holdEnd = () => {
+    if (press.current) clearTimeout(press.current);
+    press.current = null;
+  };
+
   const f = scaleOf(look);
   const px = (n: number) => Math.round(n * f);
   const seenFilms = watchCount(film);
@@ -61,9 +122,30 @@ export function FilmPolaroid({
      (`gapOf`): the grid only sets the horizontal, the vertical is here, and
      a tight wall must be tight both ways. */
   return (
-    <div style={{ breakInside: "avoid", marginBottom: gapOf(look), paddingTop: nudge }}>
+    <div
+      style={{
+        breakInside: "avoid",
+        marginBottom: gapOf(look),
+        paddingTop: nudge,
+        /* The badge and the panel hang from HERE and not from the button
+           below: a button inside a button is not valid, and the browser
+           settles it by dropping one of the two. */
+        position: "relative",
+      }}
+      onMouseEnter={() => setNear(true)}
+      onMouseLeave={() => setNear(false)}
+      onFocus={() => setNear(true)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) setNear(false);
+      }}
+      onTouchStart={holdStart}
+      onTouchEnd={holdEnd}
+      onTouchMove={holdEnd}
+      onTouchCancel={holdEnd}
+    >
       <button
         onClick={onClick}
+        aria-pressed={selecting ? selected : undefined}
         style={{
           all: "unset",
           cursor: "pointer",
@@ -186,6 +268,107 @@ export function FilmPolaroid({
           }}
         />
       </button>
+
+      {/* THE MARK OF A CHOSEN CARD — a stamp, not a checkbox.
+
+          Two drafts were wrong before this one, and in the same way. A
+          little square with a tick is what a FORM does; a ringed
+          checkmark is what an application does. Laid on a wall of paper
+          photographs, both read as somebody else's interface put on top
+          of the pictures — which is exactly what this project's
+          direction refuses.
+
+          So: while one is choosing, every card wears a faint pencil
+          frame — that is the affordance, and it says "these are being
+          sorted" without printing a control on each one. The chosen card
+          takes an ink stamp across its corner, tilted AGAINST the card's
+          own tilt so it reads as pressed on rather than printed with.
+
+          The wording is the catalogue's, not this file's: a stamp that
+          says CHOISI to an English reader would be the same mistake in
+          another key. */}
+      {selecting && (
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            inset: `${nudge}px 0 0 0`,
+            pointerEvents: "none",
+            border: `1.5px dashed ${alpha(C.inkFaded, selected ? 0.65 : 0.3)}`,
+            transform: `rotate(${tilt}deg)`,
+            transition: "border-color var(--motion-fast) var(--motion-ease)",
+          }}
+        />
+      )}
+      {selecting && selected && (
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            top: nudge + 14,
+            left: -4,
+            zIndex: 6,
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            padding: "3px 7px",
+            fontFamily: F.mono,
+            fontSize: 9.5,
+            letterSpacing: 1.5,
+            color: C.burgundy,
+            background: alpha(C.card, 0.82),
+            border: `1.5px solid ${C.burgundy}`,
+            transform: `rotate(${tilt > 0 ? -7 : 7}deg)`,
+            boxShadow: `0 1px 3px ${alpha(C.ink, 0.25)}`,
+          }}
+        >
+          <Check size={11} strokeWidth={3} /> {chosenWord}
+        </div>
+      )}
+
+      {onFile && !selecting && (
+        <button
+          ref={badge}
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            openFiling();
+          }}
+          draggable={false}
+          onDragStart={(e) => e.preventDefault()}
+          aria-label={fileLabel}
+          aria-expanded={fileOpen}
+          title={fileLabel}
+          style={{
+            all: "unset",
+            ...tap,
+            position: "absolute",
+            top: nudge + 4,
+            right: 4,
+            zIndex: 6,
+            cursor: "pointer",
+            display: "grid",
+            placeItems: "center",
+            width: 24,
+            height: 24,
+            /* A PAPER TAB, INKED — not a coloured button. The wall is
+               kraft, ink and cardboard; a filled green square was the one
+               thing on it that came from another world. */
+            color: C.ink,
+            background: C.paper,
+            border: `1px solid ${alpha(C.ink, 0.4)}`,
+            transform: "rotate(-5deg)",
+            boxShadow: `0 2px 5px ${alpha(C.ink, 0.35)}`,
+            /* `visibility` as well as opacity: an invisible badge that
+               still takes clicks would swallow the poster's own. */
+            opacity: near || fileOpen ? 1 : 0,
+            visibility: near || fileOpen ? "visible" : "hidden",
+            transition: "opacity var(--motion-fast) var(--motion-ease)",
+          }}
+        >
+          <ListPlus size={12} />
+        </button>
+      )}
     </div>
   );
 }

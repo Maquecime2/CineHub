@@ -26,6 +26,8 @@ import {
   Link as LinkIcon,
   Bell,
   VolumeX,
+  Smartphone,
+  Laptop,
 } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
@@ -43,6 +45,12 @@ import {
   signUp,
   myBlocks,
   unblock,
+  myKeys,
+  addKey,
+  forgetKey,
+  makePairingCode,
+  claimPairingCode,
+  type DeviceKey,
   type Sharing,
   type Person,
 } from "../../services/server";
@@ -52,6 +60,7 @@ import {
   unsubscribeFromPush,
   type PushState,
 } from "../../services/push";
+import { mediaTrouble } from "../../services/media";
 import { forgetSync } from "../../services/sync";
 import type { SyncReport } from "../../services/sync";
 
@@ -61,7 +70,7 @@ import type { SyncReport } from "../../services/sync";
    at a time. */
 type Say = (key: string, values?: Record<string, string | number>) => string;
 
-const quandDit = (at: number | null, t: Say, lang: string): string => {
+const whenSaid = (at: number | null, t: Say, lang: string): string => {
   if (!at) return t("account.never");
   const seconds = Math.round((Date.now() - at) / 1000);
   if (seconds < 90) return t("account.justNow");
@@ -74,24 +83,25 @@ const quandDit = (at: number | null, t: Say, lang: string): string => {
 
 export function AccountDrawer({
   report,
-  onFermer,
+  onClose,
   onSync,
-  onChangement,
+  onAccountChange,
 }: {
   report: SyncReport;
-  onFermer: () => void;
+  onClose: () => void;
   onSync: () => void;
   /** The account has changed: the application must find its bearings again. */
-  onChangement: (person: Person | null) => void;
+  onAccountChange: (person: Person | null) => void;
 }) {
   const { t, i18n } = useTranslation();
   const [pseudo, setPseudo] = useState("");
+  const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
-  const [souci, setSouci] = useState<string | null>(null);
+  const [trouble, setTrouble] = useState<string | null>(null);
   const [request, setRequest] = useState<ConfirmRequest | null>(null);
 
-  const tenter = async (what: (p: string) => Promise<Person>) => {
-    setSouci(null);
+  const attempt = async (what: (p: string) => Promise<Person>) => {
+    setTrouble(null);
     setBusy(true);
     try {
       const who = await what(pseudo.trim().toLowerCase());
@@ -99,23 +109,46 @@ export function AccountDrawer({
          cursor would make the binder believe it had already seen all of
          the new one's collection — which would stay invisible. */
       forgetSync();
-      onChangement(who);
+      onAccountChange(who);
     } catch (e) {
       /* Refusing one's own fingerprint is not an error to dramatise: one
          changes one's mind, and that is all. */
       const m = (e as Error).message || "";
-      setSouci(/NotAllowed|abort/i.test(m) ? t("account.cancelled") : m || t("account.failed"));
+      setTrouble(/NotAllowed|abort/i.test(m) ? t("account.cancelled") : m || t("account.failed"));
     } finally {
       setBusy(false);
     }
   };
+
+  /* The same shape as `attempt` above, and for the same reason: an
+     account that changes must start over, or the read cursor of the old
+     one would make the binder believe it had already seen all of the new
+     one's collection. */
+  const claim = async () => {
+    setTrouble(null);
+    setBusy(true);
+    try {
+      const who = await claimPairingCode(code);
+      setCode("");
+      forgetSync();
+      onAccountChange(who);
+    } catch (e) {
+      setTrouble((e as Error).message || t("account.failed"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /* Read at render: it changes when a synchronisation runs, and the
+     drawer is opened after one, not during. */
+  const mediaSays = mediaTrouble();
 
   const signedIn = !!report.person;
 
   return (
     <Layer>
       <div
-        onClick={onFermer}
+        onClick={onClose}
         data-veil
         style={{ position: "fixed", inset: 0, zIndex: 59, background: alpha(C.ink, 0.45) }}
       />
@@ -153,7 +186,7 @@ export function AccountDrawer({
             </span>
           </div>
           <button
-            onClick={onFermer}
+            onClick={onClose}
             aria-label={t("common.close")}
             style={{ ...tap, all: "unset", cursor: "pointer", marginLeft: "auto" }}
           >
@@ -189,7 +222,7 @@ export function AccountDrawer({
             {report.state === "no-account" && t("account.allStaysHere")}
             {report.state === "running" && t("account.running")}
             {report.state === "up-to-date" &&
-              t("account.upToDate", { when: quandDit(report.at, t, i18n.language) })}
+              t("account.upToDate", { when: whenSaid(report.at, t, i18n.language) })}
             {/* "0 CARDS ARE WAITING FOR THE NETWORK" MEANS NOTHING, and
                 that is nonetheless what showed when the server was
                 unreachable without our having changed anything: an empty
@@ -210,6 +243,35 @@ export function AccountDrawer({
             </button>
           )}
         </div>
+
+        {/* WHAT THE CONTAINER REFUSED, SAID HERE. The blobs travel last
+            and outside the guard that watches the cards, so a container
+            in trouble leaves the synchronisation "up to date" — which is
+            true of the cards and says nothing of the posters. Without
+            this line the only trace was a row of failed uploads in the
+            browser's network panel, which is not a place one looks. */}
+        {signedIn && mediaSays.kind !== "none" && (
+          <div
+            style={{
+              display: "flex",
+              gap: 7,
+              padding: "9px 11px",
+              marginBottom: 18,
+              background: C.card,
+              borderLeft: `2px solid ${C.burgundy}`,
+              fontFamily: F.hand,
+              fontSize: 15,
+              color: C.inkFaded,
+            }}
+          >
+            <CloudOff size={14} style={{ flexShrink: 0, color: C.burgundy }} aria-hidden />
+            <span>
+              {mediaSays.kind === "cors"
+                ? t("account.mediaCors")
+                : t("account.mediaRefused", { detail: mediaSays.detail || "" })}
+            </span>
+          </div>
+        )}
 
         {/* ---- entrer, ou partir ---- */}
         {!signedIn ? (
@@ -244,16 +306,68 @@ export function AccountDrawer({
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button
                 disabled={busy || pseudo.trim().length < 3}
-                onClick={() => tenter(signUp)}
+                onClick={() => attempt(signUp)}
                 style={button(C.burgundy, busy || pseudo.trim().length < 3)}
               >
                 <UserPlus size={12} /> {t("account.signUp")}
               </button>
-              <button disabled={busy} onClick={() => tenter(signIn)} style={button(C.ink, busy)}>
+              <button disabled={busy} onClick={() => attempt(signIn)} style={button(C.ink, busy)}>
                 <KeyRound size={12} /> {t("account.signIn")}
               </button>
             </div>
-            {souci && (
+
+            {/* ------------------------------------------------------
+                ARRIVING FROM ANOTHER MACHINE
+
+                The handle above needs a passkey THIS computer holds, and
+                it holds none: that is the whole situation of a second
+                computer. On a real domain the telephone answers for it;
+                on `localhost` — two machines, two domains, nothing in
+                common to sign for — nothing can, and a code is the only
+                way across.
+
+                It is placed under the sign-in rather than beside it: it
+                is the second thing one tries, after finding out that the
+                first cannot work here.
+                ------------------------------------------------------ */}
+            <div style={{ borderTop: `1px dashed ${C.line}`, marginTop: 16, paddingTop: 12 }}>
+              <Label>{t("account.pairClaimTitle")}</Label>
+              <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}>
+                <input
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => e.key === "Enter" && claim()}
+                  placeholder="XXXXXXXXXX"
+                  autoCapitalize="characters"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  maxLength={12}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    ...tap,
+                    padding: "10px 12px",
+                    background: C.card,
+                    border: `1px solid ${C.line}`,
+                    fontFamily: F.mono,
+                    fontSize: 15,
+                    letterSpacing: 3,
+                    color: C.ink,
+                  }}
+                />
+                <button
+                  disabled={busy || code.trim().length < 8}
+                  onClick={claim}
+                  style={button(C.pine, busy || code.trim().length < 8)}
+                >
+                  {t("account.pairClaim")}
+                </button>
+              </div>
+              <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 6 }}>
+                {t("account.pairClaimNote")}
+              </div>
+            </div>
+            {trouble && (
               <div
                 style={{
                   marginTop: 12,
@@ -262,13 +376,15 @@ export function AccountDrawer({
                   color: C.burgundy,
                 }}
               >
-                {souci}
+                {trouble}
               </div>
             )}
           </>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <Share />
+
+            <Devices lang={i18n.language} />
 
             <Blocks />
 
@@ -280,7 +396,7 @@ export function AccountDrawer({
                 /* The collection STAYS: signing out is not being
                    dispossessed. Only the link with the server is cut. */
                 forgetSync();
-                onChangement(null);
+                onAccountChange(null);
               }}
               style={button(C.ink, false)}
             >
@@ -301,7 +417,7 @@ export function AccountDrawer({
                 <button
                   disabled={busy}
                   onClick={async () => {
-                    setSouci(null);
+                    setTrouble(null);
                     setBusy(true);
                     try {
                       const everything = await myData();
@@ -317,7 +433,7 @@ export function AccountDrawer({
                       link.click();
                       URL.revokeObjectURL(link.href);
                     } catch (e) {
-                      setSouci((e as Error).message || t("account.exportFailed"));
+                      setTrouble((e as Error).message || t("account.exportFailed"));
                     } finally {
                       setBusy(false);
                     }
@@ -341,9 +457,9 @@ export function AccountDrawer({
                         try {
                           await deleteMyAccount();
                           forgetSync();
-                          onChangement(null);
+                          onAccountChange(null);
                         } catch (e) {
-                          setSouci((e as Error).message || t("account.deleteFailed"));
+                          setTrouble((e as Error).message || t("account.deleteFailed"));
                         } finally {
                           setBusy(false);
                         }
@@ -361,8 +477,8 @@ export function AccountDrawer({
               </div>
             </div>
 
-            {souci && (
-              <div style={{ fontFamily: F.hand, fontSize: 16, color: C.burgundy }}>{souci}</div>
+            {trouble && (
+              <div style={{ fontFamily: F.hand, fontSize: 16, color: C.burgundy }}>{trouble}</div>
             )}
           </div>
         )}
@@ -462,15 +578,15 @@ const button = (ink: string, off: boolean) => ({
    subject teaches nobody anything. */
 function Blocks() {
   const { t } = useTranslation();
-  const [list, setListe] = useState<string[] | null>(null);
+  const [list, setList] = useState<string[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   const reread = () =>
     myBlocks()
-      .then((r) => setListe(r.blocks))
+      .then((r) => setList(r.blocks))
       /* With no server or offline: we stay quiet, we do not show an
          error for a heading that may have nothing to say. */
-      .catch(() => setListe(null));
+      .catch(() => setList(null));
 
   useEffect(() => {
     reread();
@@ -478,7 +594,7 @@ function Blocks() {
 
   if (!list?.length) return null;
 
-  const rendreLaParole = async (pseudo: string) => {
+  const giveSpeechBack = async (pseudo: string) => {
     setBusy(pseudo);
     try {
       await unblock(pseudo);
@@ -510,7 +626,7 @@ function Blocks() {
               {pseudo}
             </span>
             <button
-              onClick={() => rendreLaParole(pseudo)}
+              onClick={() => giveSpeechBack(pseudo)}
               disabled={busy === pseudo}
               aria-label={t("account.unblockOne", { pseudo })}
               style={{
@@ -537,6 +653,281 @@ function Blocks() {
           back. */}
       <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 7 }}>
         {t("account.unblockNote")}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   MY DEVICES — getting an account out of the computer it was born in
+   ============================================================
+
+   A PASSKEY BELONGS TO THE THING THAT HOLDS IT. The one Windows Hello
+   made lives in that computer and goes nowhere: nothing exports it,
+   nothing carries it. So an account opened on one machine was shut
+   inside it — and nothing in the binder said so, nor offered a way out.
+
+   THE WAY OUT IS NOT TO MOVE THAT KEY, IT IS TO ADD A SECOND ONE, held
+   by something that goes about with you. A telephone. Once it holds a
+   key of this account, ANY other computer signs in by showing a code for
+   it to scan: nothing to type, nothing to copy, and the key itself never
+   crosses.
+
+   THE SECTION SHOWS ITSELF EVEN WITH A SINGLE KEY, unlike `Blocks` above
+   which stays quiet when it has nothing to undo. The difference is the
+   point: with one key there is exactly one thing to do, and it is the
+   one nobody thinks of before the evening they need it.
+   ============================================================ */
+function Devices({ lang }: { lang: string }) {
+  const { t } = useTranslation();
+  const [keys, setKeys] = useState<DeviceKey[] | null>(null);
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [trouble, setTrouble] = useState<string | null>(null);
+  const [said, setSaid] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    myKeys()
+      .then((r) => alive && setKeys(r))
+      /* Offline, or a server that is out: the heading stays mute rather
+         than announcing a trouble one did not ask about. */
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (!keys) return null;
+
+  /* WHAT DISTINGUISHES A TELEPHONE FROM THIS COMPUTER, IN ONE WORD.
+     `hybrid` is the transport of the QR ceremony: a key that announces it
+     can be offered to a machine that has never seen it, which is the
+     whole subject of this section. `internal` alone stays home. */
+  const nameOf = (k: DeviceKey) =>
+    k.device ||
+    (k.transports.includes("hybrid") ? t("account.devicePhone") : t("account.deviceThisOne"));
+
+  const add = async (where: "phone" | "here") => {
+    setTrouble(null);
+    setSaid(null);
+    setBusy(true);
+    try {
+      setKeys(await addKey(name.trim() || undefined, where));
+      setName("");
+      setSaid(t("account.deviceAdded"));
+    } catch (e) {
+      const m = (e as Error).message || "";
+      setTrouble(/NotAllowed|abort/i.test(m) ? t("account.cancelled") : m || t("account.failed"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const forget = async (k: DeviceKey) => {
+    setTrouble(null);
+    setSaid(null);
+    setBusy(true);
+    try {
+      setKeys(await forgetKey(k.id));
+    } catch (e) {
+      /* The refusal to remove the last key is the SERVER's sentence, and
+         we show it as it stands. Repeating the rule here would make two
+         copies of it, of which only one would stay true. */
+      setTrouble((e as Error).message || t("account.failed"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    /* No `data-tour` of its own: the tour cannot open this drawer on
+       itself, so the step aims at the rail's account button and names
+       what is inside — as sharing and the reminders already do. */
+    <div style={{ borderTop: `1px dashed ${C.line}`, paddingTop: 14 }}>
+      <Label>{t("account.devices")}</Label>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
+        {keys.map((k) => (
+          <div key={k.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {k.transports.includes("hybrid") ? (
+              <Smartphone size={13} style={{ flexShrink: 0, color: C.inkFaded }} aria-hidden />
+            ) : (
+              <Laptop size={13} style={{ flexShrink: 0, color: C.inkFaded }} aria-hidden />
+            )}
+            <span
+              style={{
+                flex: 1,
+                minWidth: 0,
+                fontFamily: F.body,
+                fontSize: 13,
+                color: C.ink,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {nameOf(k)}
+              <span style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}>
+                {"  "}
+                {k.seen_at
+                  ? t("account.deviceSeen", {
+                      when: whenSaid(new Date(k.seen_at).getTime(), t, lang),
+                    })
+                  : t("account.deviceNeverSeen")}
+              </span>
+            </span>
+            <button
+              onClick={() => forget(k)}
+              disabled={busy || keys.length < 2}
+              aria-label={t("account.forgetDeviceOne", { device: nameOf(k) })}
+              style={{
+                all: "unset",
+                ...tap,
+                cursor: busy || keys.length < 2 ? "default" : "pointer",
+                opacity: busy || keys.length < 2 ? 0.35 : 1,
+                flexShrink: 0,
+                fontFamily: F.mono,
+                fontSize: 10,
+                letterSpacing: 1,
+                color: C.inkFaded,
+                borderBottom: `1px dashed ${C.line}`,
+              }}
+            >
+              {t("account.forgetDevice")}
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 10 }}>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder={t("account.deviceNamePlaceholder")}
+          maxLength={60}
+          style={{
+            flex: 1,
+            minWidth: 0,
+            ...tap,
+            padding: "8px 10px",
+            background: C.card,
+            border: `1px solid ${C.line}`,
+            fontFamily: F.mono,
+            fontSize: 11,
+            color: C.ink,
+          }}
+        />
+        <button onClick={() => add("phone")} disabled={busy} style={button(C.burgundy, busy)}>
+          <Smartphone size={12} /> {busy ? t("account.addingDevice") : t("account.addDevice")}
+        </button>
+        {/* THE MACHINE ONE IS SITTING AT, which is what somebody wants
+            immediately after arriving here with a pairing code. It asks
+            the browser for the LOCAL sensor — offering a QR code for the
+            computer under one's hands would be absurd. */}
+        <button
+          onClick={() => add("here")}
+          disabled={busy}
+          title={t("account.addThisDevice")}
+          aria-label={t("account.addThisDevice")}
+          style={{ ...button(C.slate, busy), padding: "8px 10px" }}
+        >
+          <Laptop size={12} />
+        </button>
+      </div>
+
+      <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 7 }}>
+        {t("account.devicesNote")}
+      </div>
+
+      <Pairing />
+      {keys.length < 2 && (
+        <div
+          style={{ fontFamily: F.mono, fontSize: 9, color: alpha(C.inkFaded, 0.75), marginTop: 6 }}
+        >
+          {t("account.deviceLastNote")}
+        </div>
+      )}
+      {said && <div style={{ fontFamily: F.hand, fontSize: 16, color: C.pine }}>{said}</div>}
+      {trouble && (
+        <div style={{ fontFamily: F.hand, fontSize: 16, color: C.burgundy }}>{trouble}</div>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   A PAIRING CODE — the door the passkeys cannot open
+   ============================================================
+
+   A passkey is signed for a DOMAIN, which is what makes it unphishable
+   and also what shuts an account inside one machine. On `localhost`
+   each computer is its own domain: two machines at home have nothing in
+   common to sign for, so the telephone and its QR code are of no use
+   there whatsoever — the one case where somebody most obviously wants
+   their binder on both screens.
+
+   A code crosses that. It is worth an account for a week — long enough
+   that one is not racing a timer to the other room — so it is shown
+   once, here, and never kept: what the other machine gets from it is a
+   session, and the first thing it should do with that session is
+   register a passkey of its own, after which the code is of no further
+   use to anybody.
+   ============================================================ */
+function Pairing() {
+  const { t } = useTranslation();
+  const [code, setCode] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const ask = async () => {
+    setBusy(true);
+    try {
+      setCode((await makePairingCode()).code);
+      setCopied(false);
+    } catch {
+      /* Offline: nothing to show, and nothing to apologise for. */
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div style={{ marginTop: 10 }}>
+      {code ? (
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <span
+            style={{
+              flex: 1,
+              padding: "8px 10px",
+              background: C.card,
+              border: `1px dashed ${C.burgundy}`,
+              fontFamily: F.mono,
+              fontSize: 16,
+              letterSpacing: 3,
+              color: C.ink,
+              textAlign: "center",
+            }}
+          >
+            {code}
+          </span>
+          <button
+            onClick={() => {
+              navigator.clipboard?.writeText(code);
+              setCopied(true);
+            }}
+            style={button(C.slate, false)}
+          >
+            {copied ? <Check size={12} /> : <LinkIcon size={12} />}
+          </button>
+        </div>
+      ) : (
+        <button onClick={ask} disabled={busy} style={button(C.ink, busy)}>
+          <KeyRound size={12} /> {t("account.pairMake")}
+        </button>
+      )}
+      <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 6 }}>
+        {code ? t("account.pairMadeNote") : t("account.pairNote")}
       </div>
     </div>
   );
@@ -597,7 +988,7 @@ function Reminders() {
 function Share() {
   const { t } = useTranslation();
   const [state, setState] = useState<Sharing | null>(null);
-  const [token, setJeton] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -612,7 +1003,7 @@ function Share() {
       .then((r) => {
         if (!alive) return;
         setState(r.sharing);
-        setJeton(r.token);
+        setToken(r.token);
       })
       /* Offline: we stay mute rather than marking an invented state.
          Clicking a mode will set it and say so. */
@@ -622,19 +1013,19 @@ function Share() {
     };
   }, []);
 
-  const adresse =
+  const address =
     state === "publique"
-      ? `${location.origin}${location.pathname}#/chez/${pseudoDeLaPage()}`
+      ? `${location.origin}${location.pathname}#/chez/${pseudoOfThePage()}`
       : token
-        ? `${location.origin}${location.pathname}#/chez/${pseudoDeLaPage()}?jeton=${token}`
+        ? `${location.origin}${location.pathname}#/chez/${pseudoOfThePage()}?jeton=${token}`
         : null;
 
-  const set = async (voulu: Sharing) => {
+  const set = async (wanted: Sharing) => {
     setBusy(true);
     try {
-      const r = await setSharing(voulu);
+      const r = await setSharing(wanted);
       setState(r.sharing);
-      setJeton(r.token);
+      setToken(r.token);
       setCopied(false);
     } finally {
       setBusy(false);
@@ -675,11 +1066,11 @@ function Share() {
         {state === "publique" && t("account.shareEveryoneNote")}
       </div>
 
-      {adresse && (
+      {address && (
         <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 8 }}>
           <input
             readOnly
-            value={adresse}
+            value={address}
             onFocus={(e) => e.currentTarget.select()}
             style={{
               flex: 1,
@@ -695,7 +1086,7 @@ function Share() {
           />
           <button
             onClick={() => {
-              navigator.clipboard?.writeText(adresse);
+              navigator.clipboard?.writeText(address);
               setCopied(true);
             }}
             style={button(C.slate, false)}
@@ -720,5 +1111,5 @@ function Share() {
 /* The handle is already shown at the head of the drawer: we re-read it
    from the document rather than passing it down as a prop through three
    components for a single address line. */
-const pseudoDeLaPage = (): string =>
+const pseudoOfThePage = (): string =>
   document.querySelector("[data-pseudo]")?.getAttribute("data-pseudo") || "";

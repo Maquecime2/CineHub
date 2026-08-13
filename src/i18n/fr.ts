@@ -88,6 +88,35 @@ const fr = {
     shareLinkNote: "Qui a le lien. Il ne se devine pas, et se coupe quand vous voulez.",
     shareEveryoneNote: "Qui connaît votre pseudonyme.",
     shareNeverNote: "Vos notes et votre journal de séances ne sont jamais montrés.",
+    mediaCors:
+      "Vos affiches et captures ne partent pas : le navigateur refuse le dépôt avant même de l'envoyer. Il manque presque toujours une règle CORS sur le container Azure — autorisez l'origine du site en PUT et en GET. Vos images restent entières sur cet appareil en attendant.",
+    mediaRefused:
+      "Le container a refusé le dépôt ({{detail}}). Un 403 vient le plus souvent d'une horloge décalée : la signature est datée. Vos images restent entières sur cet appareil.",
+    devices: "Mes appareils",
+    devicesNote:
+      "Une clé d'accès ne voyage pas : celle de cet ordinateur y reste. Ajoutez ici celle de votre téléphone — sur un autre PC, choisissez « un autre appareil » à la connexion et scannez le code affiché.",
+    addDevice: "AJOUTER UN APPAREIL",
+    addingDevice: "on attend l'appareil…",
+    deviceThisOne: "cet appareil",
+    devicePhone: "téléphone ou clé",
+    deviceAdded: "Appareil ajouté.",
+    deviceNamePlaceholder: "mon téléphone",
+    forgetDevice: "RETIRER",
+    forgetDeviceOne: "Retirer {{device}}",
+    deviceSeen: "vu {{when}}",
+    deviceNeverSeen: "jamais servi",
+    addThisDevice: "Enregistrer la clé de CETTE machine",
+    pairMake: "DONNER UN CODE À UN AUTRE PC",
+    pairNote:
+      "Sur localhost, chaque ordinateur est un domaine à lui seul : la clé du téléphone n'y sert à rien. Un code passe outre — il vaut votre compte pendant sept jours.",
+    pairMadeNote:
+      "Tapez-le sur l'autre ordinateur, sous « Venir d'une autre machine ». Il vaut sept jours et ne sert qu'une fois. Là-bas, enregistrez ensuite la clé de cette machine-là : le code n'aura plus lieu d'être.",
+    pairClaimTitle: "Venir d'une autre machine",
+    pairClaim: "ENTRER",
+    pairClaimNote:
+      "Le code se demande depuis l'ordinateur déjà connecté, dans « Mes appareils ». Votre collection, votre étagère et vos objets suivront à la première synchronisation.",
+    deviceLastNote:
+      "Votre dernière clé ne peut pas être retirée : sans elle, plus rien n'ouvre ce compte.",
   },
 
   tmdbKey: {
@@ -104,6 +133,8 @@ const fr = {
     offline: "Impossible de joindre TMDB — êtes-vous en ligne ?",
     whereFrom:
       "une clé est gratuite : compte TMDB → Paramètres → API. Sans elle, le classeur marche entièrement — seuls l'enrichissement et les propositions venues du dehors se taisent.",
+    relayServes:
+      "Votre serveur fournit déjà TMDB tant que vous êtes connecté : cette clé ne servira qu'une fois déconnecté, ou si le serveur est éteint.",
     remove: "retirer la clé de cette machine",
     missing: "Aucune clé TMDB — à régler au pied du rail d'onglets.",
   },
@@ -288,6 +319,7 @@ const fr = {
     title: "COFFRE À AFFICHES ET SAUVEGARDE",
     postersStored: "affiches rangées dans la base",
     spaceUsed: "place occupée",
+    mediaWaiting: "médias en attente d'envoi",
     note: "Tout est stocké sur cette machine, captures en qualité d'origine. Exportez de temps en temps : vider les données du navigateur effacerait la collection.",
     preparing: "préparation…",
     downloaded_one: "sauvegarde de {{count}} fiche téléchargée.",
@@ -348,6 +380,40 @@ const fr = {
   lists: {
     filed: "rangé",
     alreadyThere: "y était déjà",
+    fileIn: "Ranger dans une liste",
+    fileThis: "Ranger ce film dans une liste",
+    fileThese_one: "Ranger {{count}} film",
+    fileThese_other: "Ranger {{count}} films",
+    filedCount_one: "{{count}} rangé",
+    filedCount_other: "{{count}} rangés",
+    allAlreadyThere: "ils y étaient déjà",
+    filingFailed: "Le rangement a échoué.",
+    creationFailed: "La liste n'a pas pu être créée.",
+    newListPlaceholder: "une nouvelle liste…",
+    createAndFile: "Créer la liste et y ranger",
+    strangers_one:
+      "{{count}} film reste dehors : il n'a pas d'identité TMDB, et une liste range des œuvres, pas des copies.",
+    strangers_other:
+      "{{count}} films restent dehors : ils n'ont pas d'identité TMDB, et une liste range des œuvres, pas des copies.",
+    noneFileable_one:
+      "Ce film n'a pas d'identité TMDB : complétez-le depuis l'onglet Import et il pourra rejoindre une liste.",
+    noneFileable_other:
+      "Aucun de ces {{count}} films n'a d'identité TMDB : complétez-les depuis l'onglet Import et ils pourront rejoindre une liste.",
+    select: "CHOISIR",
+    stamp: "CHOISI",
+    selectDone: "TERMINER",
+    selected_one: "{{count}} film choisi",
+    selected_other: "{{count}} films choisis",
+    selectNone: "Touchez les affiches à ranger.",
+    search: "CHERCHER",
+    searchPlaceholder: "un titre à ajouter…",
+    searchNote:
+      "Cherchez chez TMDB : la liste peut accueillir un film que votre classeur n'a pas encore.",
+    searching: "on cherche…",
+    searchNobody: "TMDB ne trouve rien à ce titre.",
+    searchNeedsKey: "Il faut une clé TMDB pour chercher — elle se règle au pied du rail d'onglets.",
+    add: "AJOUTER",
+    added: "ajouté",
   },
 
   elsewhere: {
@@ -879,6 +945,11 @@ const fr = {
     noColour: "sans couleur",
     hidden: "masqué",
     nothingImported: "rien d'importé pour l'instant",
+    decorFrom: "de {{pseudo}}",
+    decorShown: "montré à mes amis",
+    decorTake: "Prendre « {{label}} »",
+    decorShow: "Montrer « {{label}} » à mes amis",
+    decorHide: "Ne plus montrer « {{label}} »",
     cabinet: "CABINET DE CURIOSITÉS",
     dragOntoShelf: "glissez-les sur une planche, entre deux boîtiers",
     dragToBack: "glissez-les au fond du rayon, où vous voulez",
@@ -886,6 +957,7 @@ const fr = {
     category: "CATÉGORIE",
     undoCategory: "défaire la catégorie",
     nameThisDivider: "Cliquez pour nommer cet intercalaire",
+    shelfAimed: "rayon visé : {{shelf}}",
     kinds: {
       bedside: {
         title: "Films de chevet",
@@ -893,6 +965,16 @@ const fr = {
       },
       main: {
         title: "La collection",
+        /* PAS DE LÉGENDE, ET LA CLÉ EXISTE QUAND MÊME. Le code demandait
+           `shelf.kinds.main.tag` avec `defaultValue: ""` — mais i18next
+           tient une valeur par défaut VIDE pour une absence de valeur par
+           défaut, et rend alors la clé : « shelf.kinds.main.tag » s'est
+           donc affiché tel quel sous l'étagère. Une chaîne d'un espace
+           dirait la même chose au lecteur et mentirait au test qui refuse
+           les phrases vides ; c'est le code qui ne demande plus rien pour
+           ce rayon-là, et cette clé porte ce qu'il faut si un jour on veut
+           l'écrire. */
+        tag: "tout ce qu'on garde",
       },
       reserve: {
         title: "Mis de côté",
@@ -1108,6 +1190,30 @@ const fr = {
   },
 
   listsView: {
+    /* CES HUIT PHRASES ÉTAIENT ÉCRITES EN DUR DANS LA VUE, et une passe
+       de traduction automatique les avait abîmées sans que rien ne le
+       signale : « une nouvelle list », « on y range les films since leur
+       fiche », « sous at catalogue ». Un texte en dur échappe aux deux
+       catalogues, donc au test de parité — il n'y avait personne pour
+       s'apercevoir qu'il ne voulait plus rien dire. */
+    newList: "Une nouvelle liste",
+    newListPlaceholder: "Les films qu'il faut avoir vus en mars",
+    open: "OUVRIR",
+    fillNote:
+      "On y range les films depuis leur fiche, depuis la pastille d'une affiche, ou en cherchant chez TMDB dans la liste ouverte.",
+    yours: "Vos listes",
+    none: "Aucune liste pour l'instant.",
+    noChallenges:
+      "Aucun défi. Un défi est une liste plus une période : ouvrez une liste ci-dessus pour en lancer un.",
+    empty: "Vide.",
+    removeWork: "Retirer de la liste",
+    public: "publique",
+    at: "chez {{pseudo}}",
+    noServer:
+      "Aucun serveur n'est réglé : les listes et les défis se partagent, et il n'y a personne avec qui.",
+    noAccount:
+      "Il faut un compte — le bouton au pied du rail. Votre vidéothèque, elle, n'en a pas besoin.",
+    nobodyToInvite: "Personne à inviter sous « {{pseudo}} ».",
     challenges: "Les défis",
     inviteSomebody: "inviter quelqu'un à écrire",
     startChallenge: "Lancer un défi sur cette liste",
@@ -1237,6 +1343,14 @@ const fr = {
         title: "Ranger au doigt",
         body: "Sur l'étagère et sur le mur, on déplace en glissant. Au doigt, gardez l'objet appuyé un instant : il se saisit, et le balayage cesse de faire défiler. Un repère montre la fente où il tombera.",
       },
+      file: {
+        title: "Ranger dans une liste, sans ouvrir la fiche",
+        body: "Passez la main sur une affiche : une pastille paraît en haut à droite, et elle ouvre le choix des listes. Au doigt, gardez l'affiche appuyée. Vous pouvez y créer la liste au passage — inutile d'aller l'ouvrir ailleurs d'abord.",
+      },
+      choose: {
+        title: "Plusieurs films d'un coup",
+        body: "« Choisir » change ce que fait un clic : les affiches se cochent au lieu de s'ouvrir, et une barre en bas range toute la sélection dans la même liste. Les films sans identité TMDB restent dehors, et la barre le dit plutôt que de les taire.",
+      },
     },
 
     watchlist: {
@@ -1300,6 +1414,10 @@ const fr = {
       tags: {
         title: "Mots-clés et motifs",
         body: "Les mots-clés sont les vôtres. Les motifs sont un vocabulaire commun — « le héros meurt », « il pleut à la fin » — sur lequel une question peut porter, et dont on tire un fil.",
+      },
+      lists: {
+        title: "Ranger ce film dans une liste",
+        body: "Choisissez une liste, ou tapez un nom pour la créer sur-le-champ. Un film sans identité TMDB ne se range nulle part : une liste contient des œuvres, pas des copies — la même fiche chez quelqu'un d'autre ne serait pas la vôtre.",
       },
       identity: {
         title: "La bonne fiche TMDB",
@@ -1419,11 +1537,15 @@ const fr = {
       label: "Listes et défis",
       new: {
         title: "Ouvrir une liste",
-        body: "Une liste contient des œuvres et non vos fiches : elle veut donc dire la même chose chez quelqu'un d'autre, et ne se vide pas le jour où vous effacez un film. On y range depuis la fiche du film, sous le catalogue.",
+        body: "Une liste contient des œuvres et non vos fiches : elle veut donc dire la même chose chez quelqu'un d'autre, et ne se vide pas le jour où vous effacez un film. On y range depuis la fiche, depuis la pastille d'une affiche, ou d'ici même.",
       },
       mine: {
         title: "Les vôtres, et celles à plusieurs",
         body: "Chaque liste s'ouvre d'un clic. Vous pouvez y inviter quelqu'un à écrire : il ajoute et retire des films, il ne renomme pas la liste et ne l'efface pas. Fermée par défaut — la rendre visible est une case à cocher.",
+      },
+      search: {
+        title: "Y verser un film que vous n'avez pas",
+        body: "Cherchez chez TMDB depuis la liste ouverte : c'est tout l'intérêt de ranger des œuvres et non des copies. « Venez voir ça en mars » se dit de films qu'on n'a justement pas encore — depuis une fiche, ceux-là ne pouvaient jamais être proposés.",
       },
       challenges: {
         title: "Un défi est une liste plus une période",
@@ -1468,6 +1590,10 @@ const fr = {
       sharing: {
         title: "Montrer sa vidéothèque",
         body: "Dans ce même tiroir : personne, par lien secret, ou tout le monde. Le lien ne se devine pas et se coupe quand vous voulez. Un visiteur voit vos films, vos notes chiffrées et vos critiques — jamais votre carnet ni votre journal de séances. Et une fiche s'écarte à part, depuis son dossier, sous la fiche catalogue.",
+      },
+      devices: {
+        title: "Le même compte sur un autre ordinateur",
+        body: "Une clé d'accès ne voyage pas : celle de cette machine y reste. Dans ce même tiroir, « Mes appareils » enregistre celle de votre téléphone — ensuite, sur n'importe quel autre ordinateur, choisissez « un autre appareil » à la connexion et scannez le code affiché. Rien à taper, rien à recopier.",
       },
       reminders: {
         title: "Se faire rappeler ses défis",

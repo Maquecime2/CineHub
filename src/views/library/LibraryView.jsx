@@ -15,6 +15,8 @@ import { THEMES } from "../../components/shelf/constants";
 import { DecorStudio } from "../../components/shelf/DecorStudio";
 import { SHELF_KINDS, sortIntoRows, patchViewDecor, clearViewDecor } from "../../shelf-views";
 import { FilmWall } from "./FilmWall";
+import { useWallFiling } from "./useWallFiling";
+import { FilingProvider } from "../../components/film/filing";
 import { TonightDrawer } from "./TonightDrawer";
 import { WallStudio } from "./WallStudio";
 import { wallLookOf, DEFAULT_WALL_LOOK } from "./wallLook";
@@ -354,6 +356,11 @@ export function LibraryView({
   // clicking the active sort again simply reverses the direction
   const pickSort = (k) => set(k === sortBy ? { desc: !desc } : { sortBy: k, desc: true });
 
+  /* Filing into a list: the badge on each poster and the bar for a
+     multiple choice. It answers nothing at all without a server or an
+     account — the wall is then exactly the wall it was. */
+  const filing = useWallFiling(films);
+
   const allGenres = useMemo(
     () => Array.from(new Set(films.flatMap((f) => f.genres || []))).sort(),
     [films]
@@ -513,41 +520,42 @@ export function LibraryView({
   }, [filtered, grouped, t]);
 
   return (
-    <div style={{ padding: "34px 44px 60px", position: "relative", overflow: "hidden" }}>
-      <CoffeeRing style={{ top: 10, right: 120 }} rotate={12} />
-      <CoffeeRing style={{ bottom: 40, left: -30, width: 100, height: 100 }} rotate={-40} />
-      <CoffeeRing style={{ top: 340, right: -40, width: 190, height: 190 }} rotate={70} />
-      <TapeResidue style={{ top: 96, right: 260 }} />
-      <TapeResidue style={{ bottom: 120, left: 180, opacity: 0.3 }} rotate={7} w={64} />
-      <StampCorner text={`${t(cfg.stamp)} · ${films.length}`} />
-      <div
-        style={{
-          fontFamily: F.title,
-          fontStyle: "italic",
-          fontWeight: 700,
-          fontSize: 46,
-          color: C.ink,
-          position: "relative",
-          zIndex: 2,
-        }}
-      >
-        {t(cfg.title)}
-      </div>
-      <InkUnderline width={cfg.underline} />
-      <div
-        style={{
-          fontFamily: F.hand,
-          fontSize: 22,
-          color: C.inkFaded,
-          marginTop: 2,
-          position: "relative",
-          zIndex: 2,
-        }}
-      >
-        {t(cfg.subtitle)}
-      </div>
+    <FilingProvider value={filing.context}>
+      <div style={{ padding: "34px 44px 60px", position: "relative", overflow: "hidden" }}>
+        <CoffeeRing style={{ top: 10, right: 120 }} rotate={12} />
+        <CoffeeRing style={{ bottom: 40, left: -30, width: 100, height: 100 }} rotate={-40} />
+        <CoffeeRing style={{ top: 340, right: -40, width: 190, height: 190 }} rotate={70} />
+        <TapeResidue style={{ top: 96, right: 260 }} />
+        <TapeResidue style={{ bottom: 120, left: 180, opacity: 0.3 }} rotate={7} w={64} />
+        <StampCorner text={`${t(cfg.stamp)} · ${films.length}`} />
+        <div
+          style={{
+            fontFamily: F.title,
+            fontStyle: "italic",
+            fontWeight: 700,
+            fontSize: 46,
+            color: C.ink,
+            position: "relative",
+            zIndex: 2,
+          }}
+        >
+          {t(cfg.title)}
+        </div>
+        <InkUnderline width={cfg.underline} />
+        <div
+          style={{
+            fontFamily: F.hand,
+            fontSize: 22,
+            color: C.inkFaded,
+            marginTop: 2,
+            position: "relative",
+            zIndex: 2,
+          }}
+        >
+          {t(cfg.subtitle)}
+        </div>
 
-      {/* No `z-index` on this bar, and that is deliberate.
+        {/* No `z-index` on this bar, and that is deliberate.
 
           It carried one — the same 2 as the rest of the content, so as to
           pass in front of the coffee stains. But a `z-index` on a
@@ -563,365 +571,373 @@ export function LibraryView({
           its 43 with the shelf's 2 in a shared context, and wins. The
           coffee stains stay behind without being asked — they come
           BEFORE in the document and catch no click. */}
-      <div
-        style={{
-          display: "flex",
-          gap: 24,
-          flexWrap: "wrap",
-          alignItems: "flex-end",
-          marginTop: 26,
-          marginBottom: 34,
-          borderBottom: `1px dashed ${C.line}`,
-          paddingBottom: 18,
-          position: "relative",
-        }}
-      >
-        <div data-tour="wall-search" style={{ minWidth: 200 }}>
-          <Label>{t("library.search")}</Label>
-          <input
-            style={underlineInput}
-            placeholder={t("library.searchPlaceholder")}
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-          />
-        </div>
-        <div data-tour="wall-filters">
-          <Label>{t("library.genre")}</Label>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {allGenres.length === 0 && (
-              <span style={{ color: C.inkFaded, fontSize: 13, fontStyle: "italic" }}>—</span>
-            )}
-            {allGenres.map((g) => {
-              // each genre carries its own ink — the labelling was not done on the same day
-              const ink = [C.burgundy, C.cobalt, C.moss, C.vermillion, C.slate][
-                Math.abs(hash(g)) % 5
-              ];
-              const on = genreFilter === g;
-              return (
-                <button
-                  key={g}
-                  onClick={() => setGenreFilter(on ? "" : g)}
-                  style={{
-                    all: "unset",
-                    ...tap,
-                    cursor: "pointer",
-                    fontFamily: F.mono,
-                    fontSize: 10.5,
-                    padding: "4px 11px",
-                    borderRadius: 14,
-                    border: `1px solid ${ink}`,
-                    color: on ? C.card : ink,
-                    background: on ? ink : "transparent",
-                    transform: `rotate(${(Math.abs(hash(g)) % 5) - 2}deg)`,
-                    boxShadow: on ? `1px 2px 4px ${ink}55` : "none",
-                    transition: "background .15s ease",
-                  }}
-                >
-                  {g}
-                </button>
-              );
-            })}
+        <div
+          style={{
+            display: "flex",
+            gap: 24,
+            flexWrap: "wrap",
+            alignItems: "flex-end",
+            marginTop: 26,
+            marginBottom: 34,
+            borderBottom: `1px dashed ${C.line}`,
+            paddingBottom: 18,
+            position: "relative",
+          }}
+        >
+          <div data-tour="wall-search" style={{ minWidth: 200 }}>
+            <Label>{t("library.search")}</Label>
+            <input
+              style={underlineInput}
+              placeholder={t("library.searchPlaceholder")}
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
           </div>
-        </div>
-        {allDecades.length > 0 && (
-          <div>
-            <Label>{t("library.decade")}</Label>
+          <div data-tour="wall-filters">
+            <Label>{t("library.genre")}</Label>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              {allDecades.map((d) => {
-                const on = decadeFilter === d;
+              {allGenres.length === 0 && (
+                <span style={{ color: C.inkFaded, fontSize: 13, fontStyle: "italic" }}>—</span>
+              )}
+              {allGenres.map((g) => {
+                // each genre carries its own ink — the labelling was not done on the same day
+                const ink = [C.burgundy, C.cobalt, C.moss, C.vermillion, C.slate][
+                  Math.abs(hash(g)) % 5
+                ];
+                const on = genreFilter === g;
                 return (
                   <button
-                    key={d}
-                    onClick={() => setDecadeFilter(on ? null : d)}
+                    key={g}
+                    onClick={() => setGenreFilter(on ? "" : g)}
                     style={{
                       all: "unset",
                       ...tap,
                       cursor: "pointer",
                       fontFamily: F.mono,
                       fontSize: 10.5,
-                      padding: "4px 9px",
-                      border: `1px solid ${on ? C.ink : C.line}`,
-                      color: on ? C.card : C.inkFaded,
-                      background: on ? C.ink : "transparent",
-                      transform: `rotate(${(Math.abs(hash(String(d))) % 3) - 1}deg)`,
+                      padding: "4px 11px",
+                      borderRadius: 14,
+                      border: `1px solid ${ink}`,
+                      color: on ? C.card : ink,
+                      background: on ? ink : "transparent",
+                      transform: `rotate(${(Math.abs(hash(g)) % 5) - 2}deg)`,
+                      boxShadow: on ? `1px 2px 4px ${ink}55` : "none",
+                      transition: "background .15s ease",
                     }}
                   >
-                    {d}s
+                    {g}
                   </button>
                 );
               })}
             </div>
           </div>
-        )}
-        <div data-tour="wall-sort">
-          {/* On the wall, sorting is a state. On the shelf, the arrangement
+          {allDecades.length > 0 && (
+            <div>
+              <Label>{t("library.decade")}</Label>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {allDecades.map((d) => {
+                  const on = decadeFilter === d;
+                  return (
+                    <button
+                      key={d}
+                      onClick={() => setDecadeFilter(on ? null : d)}
+                      style={{
+                        all: "unset",
+                        ...tap,
+                        cursor: "pointer",
+                        fontFamily: F.mono,
+                        fontSize: 10.5,
+                        padding: "4px 9px",
+                        border: `1px solid ${on ? C.ink : C.line}`,
+                        color: on ? C.card : C.inkFaded,
+                        background: on ? C.ink : "transparent",
+                        transform: `rotate(${(Math.abs(hash(String(d))) % 3) - 1}deg)`,
+                      }}
+                    >
+                      {d}s
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          <div data-tour="wall-sort">
+            {/* On the wall, sorting is a state. On the shelf, the arrangement
               IS the state: filing becomes a gesture one makes once. */}
-          <Label>{mode === "shelf" ? t("library.arrange") : t("library.sort")}</Label>
-          <div
-            style={{
-              display: "flex",
-              gap: 14,
-              fontFamily: F.mono,
-              fontSize: 11,
-            }}
-          >
-            {mode === "shelf"
-              ? ARRANGE.map(([k, l]) => (
-                  <span
-                    key={k}
-                    onClick={() => arrangeBy(k)}
-                    title={
-                      arrangedBy === k
-                        ? t("library.clickToReverse")
-                        : t("library.rewritesArrangement")
-                    }
-                    style={{
-                      cursor: "pointer",
-                      color: arrangedBy === k ? C.burgundy : C.inkFaded,
-                      borderBottom: `1px dashed ${C.line}`,
-                    }}
-                  >
-                    {t(l)}
-                    {arrangedBy === k && (
-                      <span style={{ marginLeft: 3 }}>{arrangedDesc ? "↓" : "↑"}</span>
-                    )}
-                  </span>
-                ))
-              : cfg.sorts.map(([k, l]) => (
-                  <span
-                    key={k}
-                    onClick={() => pickSort(k)}
-                    title={sortBy === k ? t("library.clickToReverse") : ""}
-                    style={{
-                      cursor: "pointer",
-                      color: sortBy === k ? C.burgundy : C.inkFaded,
-                      textDecoration: sortBy === k ? "underline" : "none",
-                    }}
-                  >
-                    {t(l)}
-                    {sortBy === k && <span style={{ marginLeft: 3 }}>{desc ? "↓" : "↑"}</span>}
-                  </span>
-                ))}
+            <Label>{mode === "shelf" ? t("library.arrange") : t("library.sort")}</Label>
+            <div
+              style={{
+                display: "flex",
+                gap: 14,
+                fontFamily: F.mono,
+                fontSize: 11,
+              }}
+            >
+              {mode === "shelf"
+                ? ARRANGE.map(([k, l]) => (
+                    <span
+                      key={k}
+                      onClick={() => arrangeBy(k)}
+                      title={
+                        arrangedBy === k
+                          ? t("library.clickToReverse")
+                          : t("library.rewritesArrangement")
+                      }
+                      style={{
+                        cursor: "pointer",
+                        color: arrangedBy === k ? C.burgundy : C.inkFaded,
+                        borderBottom: `1px dashed ${C.line}`,
+                      }}
+                    >
+                      {t(l)}
+                      {arrangedBy === k && (
+                        <span style={{ marginLeft: 3 }}>{arrangedDesc ? "↓" : "↑"}</span>
+                      )}
+                    </span>
+                  ))
+                : cfg.sorts.map(([k, l]) => (
+                    <span
+                      key={k}
+                      onClick={() => pickSort(k)}
+                      title={sortBy === k ? t("library.clickToReverse") : ""}
+                      style={{
+                        cursor: "pointer",
+                        color: sortBy === k ? C.burgundy : C.inkFaded,
+                        textDecoration: sortBy === k ? "underline" : "none",
+                      }}
+                    >
+                      {t(l)}
+                      {sortBy === k && <span style={{ marginLeft: 3 }}>{desc ? "↓" : "↑"}</span>}
+                    </span>
+                  ))}
+            </div>
           </div>
-        </div>
-        <div data-tour="wall-mode">
-          <Label>{t("library.presentation")}</Label>
-          <div style={{ display: "flex", marginTop: 2 }}>
-            {[
-              { k: "wall", l: t("library.wall"), icon: LayoutGrid },
-              { k: "shelf", l: t("library.shelf"), icon: Library },
-            ].map(({ k, l, icon: Icon }) => (
+          <div data-tour="wall-mode">
+            <Label>{t("library.presentation")}</Label>
+            <div style={{ display: "flex", marginTop: 2 }}>
+              {[
+                { k: "wall", l: t("library.wall"), icon: LayoutGrid },
+                { k: "shelf", l: t("library.shelf"), icon: Library },
+              ].map(({ k, l, icon: Icon }) => (
+                <button
+                  key={k}
+                  onClick={() => set({ mode: k })}
+                  style={{
+                    all: "unset",
+                    ...tap,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 5,
+                    padding: "5px 12px",
+                    fontFamily: F.mono,
+                    fontSize: 10.5,
+                    background: mode === k ? C.ink : "transparent",
+                    color: mode === k ? C.card : C.inkFaded,
+                    border: `1px solid ${mode === k ? C.ink : C.line}`,
+                    marginLeft: k === "shelf" ? -1 : 0,
+                  }}
+                >
+                  <Icon size={12} /> {l}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* The number of films per line is no longer set here: it belongs
+            to each row, in its gutter. What is chosen at this level is
+            the view — the whole shelf. */}
+          {mode === "shelf" && (
+            <ViewSwitcher
+              views={shelfViews}
+              active={shelfView}
+              onPick={onPickView}
+              onCreate={onCreateView}
+              onCreateByDirector={onCreateDirectorView}
+              onCopy={onCopyView}
+              onDelete={onDeleteView}
+              onRename={(name) => onShelfView({ ...shelfView, name })}
+              onTheme={(theme) => onShelfView({ ...shelfView, theme })}
+              onDecor={() => setStudio(true)}
+            />
+          )}
+          {/* THE EVENING'S QUESTION — on the "à voir" list, and there only.
+
+            The film library has no call to ask it: what it holds has
+            already been seen. It is the pile of intentions that knew
+            nothing but how to pile up. */}
+          {wall === "watchlist" && (
+            <div data-tour="soir-ouvrir">
+              <Label>Ce soir</Label>
               <button
-                key={k}
-                onClick={() => set({ mode: k })}
+                onClick={() => setSoir(true)}
+                title="Trouver quoi regarder ce soir"
                 style={{
                   all: "unset",
                   ...tap,
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
-                  gap: 5,
+                  gap: 6,
                   padding: "5px 12px",
+                  marginTop: 2,
                   fontFamily: F.mono,
                   fontSize: 10.5,
-                  background: mode === k ? C.ink : "transparent",
-                  color: mode === k ? C.card : C.inkFaded,
-                  border: `1px solid ${mode === k ? C.ink : C.line}`,
-                  marginLeft: k === "shelf" ? -1 : 0,
+                  color: C.card,
+                  background: C.burgundy,
+                  border: `1px solid ${C.burgundy}`,
                 }}
               >
-                <Icon size={12} /> {l}
+                <Dice5 size={12} /> LEQUEL CE SOIR ?
               </button>
-            ))}
-          </div>
-        </div>
-        {/* The number of films per line is no longer set here: it belongs
-            to each row, in its gutter. What is chosen at this level is
-            the view — the whole shelf. */}
-        {mode === "shelf" && (
-          <ViewSwitcher
-            views={shelfViews}
-            active={shelfView}
-            onPick={onPickView}
-            onCreate={onCreateView}
-            onCreateByDirector={onCreateDirectorView}
-            onCopy={onCopyView}
-            onDelete={onDeleteView}
-            onRename={(name) => onShelfView({ ...shelfView, name })}
-            onTheme={(theme) => onShelfView({ ...shelfView, theme })}
-            onDecor={() => setStudio(true)}
-          />
-        )}
-        {/* THE EVENING'S QUESTION — on the "à voir" list, and there only.
-
-            The film library has no call to ask it: what it holds has
-            already been seen. It is the pile of intentions that knew
-            nothing but how to pile up. */}
-        {wall === "watchlist" && (
-          <div data-tour="soir-ouvrir">
-            <Label>Ce soir</Label>
-            <button
-              onClick={() => setSoir(true)}
-              title="Trouver quoi regarder ce soir"
-              style={{
-                all: "unset",
-                ...tap,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "5px 12px",
-                marginTop: 2,
-                fontFamily: F.mono,
-                fontSize: 10.5,
-                color: C.card,
-                background: C.burgundy,
-                border: `1px solid ${C.burgundy}`,
-              }}
-            >
-              <Dice5 size={12} /> LEQUEL CE SOIR ?
-            </button>
-          </div>
-        )}
-        {mode === "wall" && (
-          <div>
-            <Label>Classer</Label>
-            <button
-              onClick={() => setGrouped((g) => !g)}
-              style={{
-                all: "unset",
-                ...tap,
-                cursor: "pointer",
-                padding: "5px 12px",
-                marginTop: 2,
-                fontFamily: F.mono,
-                fontSize: 10.5,
-                background: grouped ? C.pine : "transparent",
-                color: grouped ? C.card : C.inkFaded,
-                border: `1px solid ${grouped ? C.pine : C.line}`,
-              }}
-            >
-              {t("library.byDirector")}
-            </button>
-          </div>
-        )}
-        {mode === "wall" && (
-          <div data-tour="wall-decor">
-            <Label>{t("library.decor")}</Label>
-            {/* Echoing the shelf's "ATELIER DÉCO…": the wall is painted too,
+            </div>
+          )}
+          {mode === "wall" && (
+            <div>
+              <Label>Classer</Label>
+              <button
+                onClick={() => setGrouped((g) => !g)}
+                style={{
+                  all: "unset",
+                  ...tap,
+                  cursor: "pointer",
+                  padding: "5px 12px",
+                  marginTop: 2,
+                  fontFamily: F.mono,
+                  fontSize: 10.5,
+                  background: grouped ? C.pine : "transparent",
+                  color: grouped ? C.card : C.inkFaded,
+                  border: `1px solid ${grouped ? C.pine : C.line}`,
+                }}
+              >
+                {t("library.byDirector")}
+              </button>
+            </div>
+          )}
+          {mode === "wall" && (
+            <div data-tour="wall-decor">
+              <Label>{t("library.decor")}</Label>
+              {/* Echoing the shelf's "ATELIER DÉCO…": the wall is painted too,
                 and its cards have a size of their own. */}
-            <button
-              onClick={() => setWallStudio(true)}
-              title={t("library.wallStudioHint")}
-              style={{
-                all: "unset",
-                ...tap,
-                cursor: "pointer",
-                padding: "5px 12px",
-                marginTop: 2,
-                fontFamily: F.mono,
-                fontSize: 10.5,
-                color: C.burgundy,
-                border: `1px solid ${C.line}`,
-              }}
-            >
-              {t("library.wallStudio")}
-            </button>
-          </div>
-        )}
-        {mode === "wall" && asideCount > 0 && (
-          <div style={{ fontFamily: F.hand, fontSize: 18, color: C.inkFaded }}>
-            <button
-              onClick={() => set({ mode: "shelf" })}
-              style={{ all: "unset", cursor: "pointer", borderBottom: `1px dashed ${C.line}` }}
-            >
-              {t("library.setAside", { count: asideCount })}
-            </button>
-          </div>
-        )}
-      </div>
-
-      {mode === "shelf" ? (
-        <div data-tour="wall-films" style={{ position: "relative", zIndex: 2 }}>
-          {/* The shelf receives the wall's WHOLE collection, never the
-              filtered list: it is the arrangement that commands the
-              order, and the search only dims what it does not find. */}
-          <ShelfBoard
-            films={scope}
-            doc={shelfView}
-            onDoc={onShelfView}
-            onOpen={onOpen}
-            onUpdateMany={onUpdateMany}
-            dimSet={dimSet}
-          />
-          {studio && shelfView && (
-            <DecorStudio
-              view={shelfView}
-              onChange={(part, patch) => onShelfView(patchViewDecor(shelfView, part, patch))}
-              onReset={() => onShelfView(clearViewDecor(shelfView))}
-              onClose={() => setStudio(false)}
-            />
+              <button
+                onClick={() => setWallStudio(true)}
+                title={t("library.wallStudioHint")}
+                style={{
+                  all: "unset",
+                  ...tap,
+                  cursor: "pointer",
+                  padding: "5px 12px",
+                  marginTop: 2,
+                  fontFamily: F.mono,
+                  fontSize: 10.5,
+                  color: C.burgundy,
+                  border: `1px solid ${C.line}`,
+                }}
+              >
+                {t("library.wallStudio")}
+              </button>
+            </div>
+          )}
+          {mode === "wall" && asideCount > 0 && (
+            <div style={{ fontFamily: F.hand, fontSize: 18, color: C.inkFaded }}>
+              <button
+                onClick={() => set({ mode: "shelf" })}
+                style={{ all: "unset", cursor: "pointer", borderBottom: `1px dashed ${C.line}` }}
+              >
+                {t("library.setAside", { count: asideCount })}
+              </button>
+            </div>
           )}
         </div>
-      ) : (
-        /* THE WALL — the surface first, the cards on top.
+
+        {mode === "shelf" ? (
+          <div data-tour="wall-films" style={{ position: "relative", zIndex: 2 }}>
+            {/* FILING IS A PROPERTY OF A FILM, NOT OF A PRESENTATION. It
+              existed on the wall alone, which made it look like a
+              feature of one view; the shelf reads the same driver
+              through a context, and raises the same panel. */}
+            {filing.panel}
+            {/* The shelf receives the wall's WHOLE collection, never the
+              filtered list: it is the arrangement that commands the
+              order, and the search only dims what it does not find. */}
+            <ShelfBoard
+              films={scope}
+              doc={shelfView}
+              onDoc={onShelfView}
+              onOpen={onOpen}
+              onUpdateMany={onUpdateMany}
+              dimSet={dimSet}
+            />
+            {studio && shelfView && (
+              <DecorStudio
+                view={shelfView}
+                onChange={(part, patch) => onShelfView(patchViewDecor(shelfView, part, patch))}
+                onReset={() => onShelfView(clearViewDecor(shelfView))}
+                onClose={() => setStudio(false)}
+              />
+            )}
+          </div>
+        ) : (
+          /* THE WALL — the surface first, the cards on top.
 
            The background is painted by the SAME engine as the rows'
            (`wallStyle`): paint, wallpaper and texture. It overflows the
            content by twenty pixels so that the cards are not stuck to
            the edge, and the texture stays a layer of its own, blending
            in `multiply` — a background cannot do that alone. */
-        <div
-          data-tour="wall-films"
-          style={{ position: "relative", zIndex: 2, padding: look.decor ? 20 : 0, ...skin.frame }}
-        >
-          {skin.texture && (
-            <div
-              aria-hidden
-              style={{
-                position: "absolute",
-                inset: 0,
-                mixBlendMode: "multiply",
-                pointerEvents: "none",
-                ...skin.texture,
-              }}
-            />
-          )}
-          <div style={{ position: "relative" }}>
-            {filtered.length === 0 ? (
-              <WallEmpty films={films} cfg={cfg} />
-            ) : grouped ? (
-              groups.map(([director, list]) => (
-                <div key={director} style={{ marginBottom: 46 }}>
-                  <DirectorRule director={director} count={list.length} />
-                  <FilmWall films={list} onOpen={onOpen} look={look} />
-                </div>
-              ))
-            ) : (
-              <FilmWall films={filtered} onOpen={onOpen} look={look} />
+          <div
+            data-tour="wall-films"
+            style={{ position: "relative", zIndex: 2, padding: look.decor ? 20 : 0, ...skin.frame }}
+          >
+            {skin.texture && (
+              <div
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  mixBlendMode: "multiply",
+                  pointerEvents: "none",
+                  ...skin.texture,
+                }}
+              />
+            )}
+            <div style={{ position: "relative" }}>
+              {filtered.length > 0 && filing.bar}
+              {filtered.length === 0 ? (
+                <WallEmpty films={films} cfg={cfg} />
+              ) : grouped ? (
+                groups.map(([director, list]) => (
+                  <div key={director} style={{ marginBottom: 46 }}>
+                    <DirectorRule director={director} count={list.length} />
+                    <FilmWall films={list} onOpen={onOpen} look={look} filing={filing.bundle} />
+                  </div>
+                ))
+              ) : (
+                <FilmWall films={filtered} onOpen={onOpen} look={look} filing={filing.bundle} />
+              )}
+              {filing.panel}
+            </div>
+            {wallStudio && (
+              <WallStudio
+                look={look}
+                onChange={(patch) => set({ look: { ...look, ...patch } })}
+                onReset={() => set({ look: DEFAULT_WALL_LOOK })}
+                onClose={() => setWallStudio(false)}
+              />
             )}
           </div>
-          {wallStudio && (
-            <WallStudio
-              look={look}
-              onChange={(patch) => set({ look: { ...look, ...patch } })}
-              onReset={() => set({ look: DEFAULT_WALL_LOOK })}
-              onClose={() => setWallStudio(false)}
-            />
-          )}
-        </div>
-      )}
-      {/* The drawer is mounted outside both presentations: the evening's
+        )}
+        {/* The drawer is mounted outside both presentations: the evening's
           question does not change with whether one is looking at a wall
           or at a shelf. */}
-      {soir && (
-        <TonightDrawer
-          films={allFilms.length ? allFilms : films}
-          onClose={() => setSoir(false)}
-          onOpen={onOpen}
-        />
-      )}
-    </div>
+        {soir && (
+          <TonightDrawer
+            films={allFilms.length ? allFilms : films}
+            onClose={() => setSoir(false)}
+            onOpen={onOpen}
+          />
+        )}
+      </div>
+    </FilingProvider>
   );
 }
 

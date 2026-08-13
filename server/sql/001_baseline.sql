@@ -577,6 +577,104 @@ CREATE TABLE IF NOT EXISTS challenge_participant (
 CREATE INDEX IF NOT EXISTS challenge_participant_person ON challenge_participant(person_id);
 
 -- ------------------------------------------------------------
+-- THE PAIRING CODES
+-- ------------------------------------------------------------
+-- A PASSKEY IS SIGNED FOR A DOMAIN, and that is what makes it
+-- unphishable — but it is also what shuts an account inside one machine.
+-- On `localhost` each computer IS its own domain, so the QR ceremony
+-- cannot help there at all: the two machines have no domain in common to
+-- sign for.
+--
+-- So there is a second door, and it does not go through WebAuthn. The
+-- machine already signed in makes a short code; the other one types it
+-- and gets a session. From there the ordinary synchronisation brings
+-- everything back, and the new machine registers a passkey of its own.
+--
+-- WHAT MAKES A SHORT CODE ACCEPTABLE, since it is worth an account:
+--   - it is consumed ONCE (`DELETE … RETURNING`, atomically);
+--   - only its DIGEST is kept, as for sessions: a leak of this table
+--     hands over nothing usable;
+--   - the claim route is rate limited, which is what makes guessing a
+--     fifty-bit code hopeless rather than merely unlikely;
+--   - and it expires, the row carrying its own date.
+--
+-- THE LIFE IS A WEEK, and it is the one figure here that was chosen for
+-- the hand rather than for the arithmetic: pairing a second computer is
+-- not done in the ten minutes after thinking of it, and a code already
+-- dead by the time one sits down at the other machine is a code asked
+-- for three times over. The week is bought from the four guards above —
+-- so none of them may be relaxed later on the grounds that a code is
+-- "only" a short string.
+CREATE TABLE IF NOT EXISTS pairing_code (
+  digest        text PRIMARY KEY,           -- sha256 of the code
+  person_id     uuid NOT NULL REFERENCES person(id) ON DELETE CASCADE,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  expires_at    timestamptz NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS pairing_code_stale ON pairing_code(expires_at);
+
+-- ------------------------------------------------------------
+-- THE DECORATION OBJECTS
+-- ------------------------------------------------------------
+-- A DECOR IS AN OBJECT, NOT A PRIVATE MEDIUM OF ONE MORE KIND, and this
+-- table is what makes the difference real.
+--
+-- Everything else somebody uploads — an imported poster, a screenshot —
+-- belongs to that person alone, and the blob's path says so: `p/<person
+-- id>/…`, and a ticket is only ever issued for one's own prefix. That is
+-- the simplest guarantee in the whole system, and we do not want to lose
+-- it.
+--
+-- A decor is not like that. It outlives the card that saw it made, and
+-- it may be READ BY SOMEBODY ELSE. Filed under a private prefix, the day
+-- of sharing would have meant issuing tickets on other people's private
+-- prefix — so decors live under `decor/<id>` instead, and THE RIGHT TO
+-- READ ONE IS NOT DEDUCED FROM ITS PATH: it is read here.
+--
+-- The blob itself is not in this table. Only what is needed in order to
+-- name the object, to show it in a list, and to decide who may fetch it.
+CREATE TABLE IF NOT EXISTS decor (
+  id            uuid PRIMARY KEY,
+  owner_id      uuid NOT NULL REFERENCES person(id) ON DELETE CASCADE,
+  label         text NOT NULL CHECK (length(btrim(label)) BETWEEN 1 AND 60),
+  -- Which wall it was drawn for; free text, the client's vocabulary.
+  wall          text NOT NULL DEFAULT '',
+  -- An SVG is injected inline by the client and can therefore be
+  -- hostile; a raster cannot. The two are not handled alike over there,
+  -- so the difference is stated here rather than guessed from the blob.
+  kind          text NOT NULL DEFAULT 'raster' CHECK (kind IN ('raster','svg')),
+  tintable      boolean NOT NULL DEFAULT false,
+  bytes         integer NOT NULL DEFAULT 0,
+  -- Closed by default, like the lists and like everything else here.
+  -- The word is `is_public` and not a third régime of visibility beside
+  -- `person.sharing`: one vocabulary, already used by `list`.
+  is_public     boolean NOT NULL DEFAULT false,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  updated_at    timestamptz NOT NULL DEFAULT now(),
+  -- A tombstone, as for `card` and `doc`: erasing a row a copy points at
+  -- would take the piece back from those who adopted it.
+  deleted       boolean NOT NULL DEFAULT false
+);
+
+CREATE INDEX IF NOT EXISTS decor_owner ON decor(owner_id);
+CREATE INDEX IF NOT EXISTS decor_public ON decor(created_at) WHERE is_public AND NOT deleted;
+
+-- "I TOOK THIS ONE FROM SOMEBODY." And having taken it, one keeps it:
+-- this row is what gives a lasting right to read, even after the author
+-- has put the piece back to private. One does not take back what one has
+-- given — a shelf that empties itself because somebody elsewhere changed
+-- their mind is a shelf one stops trusting.
+CREATE TABLE IF NOT EXISTS decor_copy (
+  person_id     uuid NOT NULL REFERENCES person(id) ON DELETE CASCADE,
+  decor_id      uuid NOT NULL REFERENCES decor(id) ON DELETE CASCADE,
+  added_at      timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (person_id, decor_id)
+);
+
+CREATE INDEX IF NOT EXISTS decor_copy_decor ON decor_copy(decor_id);
+
+-- ------------------------------------------------------------
 -- THE USAGE MEASUREMENT
 -- ------------------------------------------------------------
 -- WHAT IT DOES NOT CONTAIN IS ITS DEFINITION. No person identifier, no

@@ -8,8 +8,10 @@ import { hueOf } from "../../theme/ink";
 import { tiltOf } from "../../domain/seeded";
 import { watchCount, initialsOf } from "../../domain/film";
 import { PosterArt } from "../film/PosterArt";
+import { useFiling } from "../film/filing";
 import { PushPin } from "../atmosphere";
-import { Palette } from "lucide-react";
+import { Palette, ListPlus } from "lucide-react";
+import { tap } from "../../theme/styles";
 import {
   BOX_W,
   BOX_H,
@@ -118,6 +120,11 @@ export const FilmBox = React.memo(function FilmBox({
   dim,
 }) {
   const [hover, setHover] = useState(false);
+  /* Read here rather than threaded down `Row` → `Line` → here: those are
+     memoised and rebuilt dozens of times a second under a drag, and one
+     more prop through that chain would be one more reason for a whole
+     row to redraw mid-gesture. */
+  const filing = useFiling();
   /* OPENING A CASE DESPITE THE DRAG AND DROP.
 
      `onClick` is not enough on a `draggable` element, and it is the
@@ -183,6 +190,66 @@ export const FilmBox = React.memo(function FilmBox({
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
+      {/* FILING FROM THE SHELF TOO.
+
+          The badge existed on the wall and not here, which made the
+          gesture look like a property of one presentation — it is a
+          property of a FILM. The shelf simply had the harder ground: a
+          case is ninety-six pixels of drag surface, so the badge must
+          neither take the `dragstart` nor the pointer that opens the
+          case. Hence `draggable={false}`, the stopped propagation, and
+          the release handled here rather than let through.
+
+          It rides ABOVE the leaning layer so that a neighbour parting
+          does not carry it off mid-click.
+
+          AND IT SITS INSIDE THE CASE, not on its corner. The wrapper
+          carries `content-visibility: auto`, which implies PAINT
+          containment: anything drawn outside its box is clipped, so a
+          badge hung at `top: -7` was cut in half by the very rule that
+          keeps a shelf of five hundred cases cheap to draw. Nothing
+          reported it — clipping is not an error, it is a scissor. */}
+      {filing && hover && (
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onPointerUp={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            filing.onFile(film, e.currentTarget.getBoundingClientRect());
+          }}
+          draggable={false}
+          onDragStart={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          aria-label={filing.label}
+          title={filing.label}
+          style={{
+            all: "unset",
+            ...tap,
+            position: "absolute",
+            /* Inside the box, and low rather than high: the top of a
+               case carries the title, the foot carries nothing. */
+            bottom: 4,
+            right: 4,
+            zIndex: 4,
+            cursor: "pointer",
+            display: "grid",
+            placeItems: "center",
+            width: 18,
+            height: 18,
+            color: C.ink,
+            background: C.paper,
+            border: `1px solid ${alpha(C.ink, 0.35)}`,
+            boxShadow: `0 1px 3px ${alpha(C.ink, 0.45)}`,
+            transform: "rotate(-4deg)",
+          }}
+        >
+          <ListPlus size={10} />
+        </button>
+      )}
+
       {/* The layer that tips when the neighbour parts. It is UNDER the
           wrapper and not merged with it: the wrapper is the drop target,
           and a target that slips away under the cursor makes the gesture

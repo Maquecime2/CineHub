@@ -54,10 +54,12 @@ function Cell({
   film,
   look,
   onOpen,
+  filing,
 }: {
   film: Film;
   look: WallLook;
   onOpen: (id: string) => void;
+  filing?: Filing;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
   /* `null`: the cell is mounted. A number: it is emptied, and that is
@@ -93,10 +95,58 @@ function Cell({
 
   return (
     <div ref={ref} style={emptiedAt == null ? undefined : { height: emptiedAt }}>
-      {emptiedAt == null && (
-        <FilmPolaroid film={film} look={look} onClick={() => onOpen(film.id)} />
-      )}
+      {emptiedAt == null && <Card film={film} look={look} onOpen={onOpen} filing={filing} />}
     </div>
+  );
+}
+
+/* ------------------------------------------------------------
+   FILING, SEEN FROM THE WALL
+   ------------------------------------------------------------
+   Everything the wall needs to know about it travels as ONE object, and
+   not as six props threaded through `Cell`: the wall does not decide any
+   of this, it only passes it on. */
+export interface Filing {
+  /** Which card's badge is open, if any. */
+  openFor: string | null;
+  /** The rectangle is the badge's, in screen coordinates: the panel is
+      rendered once, in a layer, and placed from it. */
+  onOpenFor: (id: string | null, at?: DOMRect) => void;
+  label: string;
+  /** Choosing several: the card wears a mark and the click chooses. */
+  selecting: boolean;
+  chosen: ReadonlySet<string>;
+  onChoose: (id: string) => void;
+}
+
+function Card({
+  film,
+  look,
+  onOpen,
+  filing,
+}: {
+  film: Film;
+  look: WallLook;
+  onOpen: (id: string) => void;
+  filing?: Filing;
+}) {
+  if (!filing) return <FilmPolaroid film={film} look={look} onClick={() => onOpen(film.id)} />;
+
+  const open = filing.openFor === film.id;
+  return (
+    <FilmPolaroid
+      film={film}
+      look={look}
+      /* WHILE CHOOSING, A CARD NO LONGER OPENS — it is picked. Keeping
+         both on the same click would make every choice a coin toss
+         between choosing and leaving the wall. */
+      onClick={() => (filing.selecting ? filing.onChoose(film.id) : onOpen(film.id))}
+      onFile={(at) => filing.onOpenFor(open ? null : film.id, at)}
+      fileLabel={filing.label}
+      fileOpen={open}
+      selecting={filing.selecting}
+      selected={filing.chosen.has(film.id)}
+    />
   );
 }
 
@@ -104,10 +154,12 @@ export function FilmWall({
   films,
   onOpen,
   look = DEFAULT_WALL_LOOK,
+  filing,
 }: {
   films: Film[];
   onOpen: (id: string) => void;
   look?: WallLook;
+  filing?: Filing;
 }) {
   const gap = gapOf(look);
   const windowed = films.length >= THRESHOLD;
@@ -123,9 +175,9 @@ export function FilmWall({
     >
       {films.map((f) =>
         windowed ? (
-          <Cell key={f.id} film={f} look={look} onOpen={onOpen} />
+          <Cell key={f.id} film={f} look={look} onOpen={onOpen} filing={filing} />
         ) : (
-          <FilmPolaroid key={f.id} film={f} look={look} onClick={() => onOpen(f.id)} />
+          <Card key={f.id} film={f} look={look} onOpen={onOpen} filing={filing} />
         )
       )}
     </div>
