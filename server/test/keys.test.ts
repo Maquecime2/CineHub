@@ -290,15 +290,30 @@ describe("the pairing code", () => {
     expect((await claim(code)).json().error).toBe(unknown.json().error);
   });
 
-  it("dies of old age", async () => {
+  it("lasts a week, and not a minute more", async () => {
+    const anna = await account("anna");
+    const { code, days } = (
+      await app.inject({ method: "POST", url: "/auth/pair", headers: { cookie: anna.cookie } })
+    ).json();
+    expect(days).toBe(7);
+
+    /* The row carries its own expiry and the clause is in the DELETE, so
+       we age the ROW rather than the clock — and by a week, which is
+       what makes this test say something about the life we chose rather
+       than merely about the existence of an expiry. */
+    await db.query("UPDATE pairing_code SET expires_at = expires_at - interval '8 days'");
+    expect((await claim(code)).statusCode).toBe(401);
+  });
+
+  it("is still good six days later", async () => {
     const anna = await account("anna");
     const { code } = (
       await app.inject({ method: "POST", url: "/auth/pair", headers: { cookie: anna.cookie } })
     ).json();
-    /* The expiry is in the row and the clause is in the DELETE: we age
-       the row rather than the clock. */
-    await db.query("UPDATE pairing_code SET expires_at = now() - interval '1 minute'");
-    expect((await claim(code)).statusCode).toBe(401);
+    /* A code already dead by the time one sits down at the other machine
+       is a code asked for three times over: the week is the point. */
+    await db.query("UPDATE pairing_code SET expires_at = expires_at - interval '6 days'");
+    expect((await claim(code)).statusCode).toBe(200);
   });
 
   it("carries no readable code in the table", async () => {

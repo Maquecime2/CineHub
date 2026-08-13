@@ -100,9 +100,9 @@ const en = {
     addThisDevice: "Register THIS machine's key",
     pairMake: "GIVE A CODE TO ANOTHER COMPUTER",
     pairNote:
-      "On localhost each computer is a domain of its own, so the telephone's key is of no use there. A code crosses that — it is worth your account for ten minutes.",
+      "On localhost each computer is a domain of its own, so the telephone's key is of no use there. A code crosses that — it is worth your account for seven days.",
     pairMadeNote:
-      "Type it on the other computer, under “Coming from another machine”. It lasts ten minutes and works once. Over there, register that machine's own key afterwards.",
+      "Type it on the other computer, under “Coming from another machine”. It lasts seven days and works once. Over there, register that machine's own key afterwards, and the code has no further use.",
     pairClaimTitle: "Coming from another machine",
     pairClaim: "ENTER",
     pairClaimNote:

@@ -354,13 +354,15 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
      the new machine registers a passkey of its own so it never needs a
      code again.
 
-     THE CODE IS WORTH AN ACCOUNT FOR TEN MINUTES, and is treated
-     accordingly: ten minutes, one use, digest only in the table, and
-     the ceiling below on the route that spends it. */
+     THE CODE IS WORTH AN ACCOUNT FOR AS LONG AS IT LIVES, and it lives
+     a week — one does not pair a second computer in the ten minutes
+     after thinking of it. The week is bought from the other guards,
+     which is why none of them may be relaxed: one single use, the
+     digest alone in the table, and the ceiling below. */
 
   app.post("/auth/pair", async (req) => {
     const person = await requireAccount(req);
-    return { code: await store.makePairingCode(db, person.id), minutes: 10 };
+    return { code: await store.makePairingCode(db, person.id), days: 7 };
   });
 
   app.post(

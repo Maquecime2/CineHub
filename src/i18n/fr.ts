@@ -104,9 +104,9 @@ const fr = {
     addThisDevice: "Enregistrer la clé de CETTE machine",
     pairMake: "DONNER UN CODE À UN AUTRE PC",
     pairNote:
-      "Sur localhost, chaque ordinateur est un domaine à lui seul : la clé du téléphone n'y sert à rien. Un code passe outre — il vaut votre compte pendant dix minutes.",
+      "Sur localhost, chaque ordinateur est un domaine à lui seul : la clé du téléphone n'y sert à rien. Un code passe outre — il vaut votre compte pendant sept jours.",
     pairMadeNote:
-      "Tapez-le sur l'autre ordinateur, sous « Venir d'une autre machine ». Il vaut dix minutes et ne sert qu'une fois. Là-bas, enregistrez ensuite la clé de cette machine-là.",
+      "Tapez-le sur l'autre ordinateur, sous « Venir d'une autre machine ». Il vaut sept jours et ne sert qu'une fois. Là-bas, enregistrez ensuite la clé de cette machine-là : le code n'aura plus lieu d'être.",
     pairClaimTitle: "Venir d'une autre machine",
     pairClaim: "ENTRER",
     pairClaimNote:

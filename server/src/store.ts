@@ -1175,11 +1175,17 @@ export async function listById(db: Db, id: string): Promise<ListRow | null> {
    have nothing to sign for, so the QR ceremony has nothing to work
    with.
 
-   The code is worth an account for ten minutes, which is why it is
-   treated exactly like a session secret: only the digest is kept, and it
-   is consumed in the same statement that reads it. */
+   A CODE IS WORTH AN ACCOUNT FOR AS LONG AS IT LIVES, and it lives a
+   week: pairing a second computer is not something one does in the ten
+   minutes after thinking of it, and a code that has expired by the time
+   one sits down at the other machine is a code one asks for three times.
 
-const PAIRING_LIFE_MS = 10 * 60 * 1000;
+   The week is bought from the OTHER guards, which is why none of them
+   may be relaxed: fifty bits of randomness, one single use, ten tries an
+   hour on the route that spends it, and only the digest in this table —
+   the same reasoning as a session secret, applied to what opens one. */
+
+const PAIRING_LIFE_MS = 7 * 24 * 60 * 60 * 1000;
 
 /* NO `I`, NO `O`, NO `0`, NO `1`. This is read off one screen and typed
    on another, by somebody who did not choose it: the pairs that look

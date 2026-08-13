@@ -831,10 +831,12 @@ function Devices({ lang }: { lang: string }) {
    there whatsoever — the one case where somebody most obviously wants
    their binder on both screens.
 
-   A code crosses that. It is worth an account for ten minutes, so it is
-   shown once, here, and never stored: what the other machine gets from
-   it is a session, and the first thing it should do with that session is
-   register a passkey of its own.
+   A code crosses that. It is worth an account for a week — long enough
+   that one is not racing a timer to the other room — so it is shown
+   once, here, and never kept: what the other machine gets from it is a
+   session, and the first thing it should do with that session is
+   register a passkey of its own, after which the code is of no further
+   use to anybody.
    ============================================================ */
 function Pairing() {
   const { t } = useTranslation();

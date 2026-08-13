@@ -591,12 +591,20 @@ CREATE INDEX IF NOT EXISTS challenge_participant_person ON challenge_participant
 -- everything back, and the new machine registers a passkey of its own.
 --
 -- WHAT MAKES A SHORT CODE ACCEPTABLE, since it is worth an account:
---   - it lives ten minutes, and the row carries its own expiry;
 --   - it is consumed ONCE (`DELETE … RETURNING`, atomically);
 --   - only its DIGEST is kept, as for sessions: a leak of this table
 --     hands over nothing usable;
 --   - the claim route is rate limited, which is what makes guessing a
---     fifty-bit code hopeless rather than merely unlikely.
+--     fifty-bit code hopeless rather than merely unlikely;
+--   - and it expires, the row carrying its own date.
+--
+-- THE LIFE IS A WEEK, and it is the one figure here that was chosen for
+-- the hand rather than for the arithmetic: pairing a second computer is
+-- not done in the ten minutes after thinking of it, and a code already
+-- dead by the time one sits down at the other machine is a code asked
+-- for three times over. The week is bought from the four guards above —
+-- so none of them may be relaxed later on the grounds that a code is
+-- "only" a short string.
 CREATE TABLE IF NOT EXISTS pairing_code (
   digest        text PRIMARY KEY,           -- sha256 of the code
   person_id     uuid NOT NULL REFERENCES person(id) ON DELETE CASCADE,

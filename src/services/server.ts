@@ -301,13 +301,13 @@ export const forgetKey = (id: string) =>
    no domain in common, so there is nothing for a telephone to sign for
    and the QR ceremony cannot help at all.
 
-   A code can. Ten minutes, one use, and what it buys is a session — from
+   A code can. A week, one use, and what it buys is a session — from
    which the ordinary synchronisation brings back the collection, the
    arrangement, the cabinet, and the machine registers a passkey of its
    own so it never needs a code again. */
 
 export const makePairingCode = () =>
-  call<{ code: string; minutes: number }>("/auth/pair", { method: "POST" });
+  call<{ code: string; days: number }>("/auth/pair", { method: "POST" });
 
 export const claimPairingCode = (code: string) =>
   call<PersonReply>("/auth/pair/claim", {
