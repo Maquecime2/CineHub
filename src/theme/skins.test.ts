@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import fr from "../i18n/fr";
+import en from "../i18n/en";
 import { SKINS, DEFAULT_SKIN, skinOf } from "./skins";
 import { applySkin, loadSkinKey, saveSkinKey, SKIN_KEY } from "./applySkin";
 import { C, F } from "./tokens";
@@ -9,7 +11,12 @@ describe("the catalogue of skins", () => {
   it("offers a good dozen of them, all distinct", () => {
     expect(SKINS.length).toBeGreaterThanOrEqual(10);
     expect(new Set(SKINS.map((s) => s.key)).size).toBe(SKINS.length);
-    expect(new Set(SKINS.map((s) => s.label)).size).toBe(SKINS.length);
+    /* The names live in the catalogue now: every skin must have one
+       there, in both languages, or the picker would offer a blank. */
+    for (const s of SKINS) {
+      expect(fr.skins, s.key).toHaveProperty(s.key);
+      expect(en.skins, s.key).toHaveProperty(s.key);
+    }
   });
 
   /* THIS TEST HAS ALREADY EARNED ITS KEEP. Three colours in that file

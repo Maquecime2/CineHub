@@ -31,10 +31,13 @@
    Both are explained where they live. */
 
 export type Skin = {
+  /**
+   * The key names the skin everywhere: on disk, on `data-skin`, and in
+   * the catalogue. THE WORDS LIVE IN `i18n/*` under `skins.<key>` — a
+   * label written here would be a fifteenth thing to translate in a file
+   * that is about colour.
+   */
   key: string;
-  label: string;
-  /** One line to say what one is looking at. It shows on the picker. */
-  note: string;
   /**
    * Is the background dark? Used for the preview, and for
    * `color-scheme`: that is the only way to tell the browser what
@@ -65,8 +68,6 @@ const KRAFT_PAGE = `
 export const SKINS: Skin[] = [
   {
     key: "carnet",
-    label: "Carnet d'archiviste",
-    note: "papier kraft, encre sépia, fil rouge",
     c: {
       paper: "#EEE3CC",
       paperDark: "#E2D3AE",
@@ -102,8 +103,6 @@ export const SKINS: Skin[] = [
 
   {
     key: "veilleuse",
-    label: "Veilleuse",
-    note: "le même carnet, lu de nuit",
     dark: true,
     c: {
       paper: "#211E1B",
@@ -143,8 +142,6 @@ export const SKINS: Skin[] = [
 
   {
     key: "cinematheque",
-    label: "Cinémathèque",
-    note: "velours rouge, dorures, écran encore noir",
     dark: true,
     c: {
       paper: "#17100F",
@@ -184,8 +181,6 @@ export const SKINS: Skin[] = [
 
   {
     key: "bauhaus",
-    label: "Bauhaus",
-    note: "trois couleurs primaires et pas une de plus",
     c: {
       paper: "#F2F0EB",
       paperDark: "#E2DFD7",
@@ -224,8 +219,6 @@ export const SKINS: Skin[] = [
      where it was. */
   {
     key: "nuit-americaine",
-    label: "Nuit américaine",
-    note: "le jour tourné pour la nuit, filtre bleu",
     dark: true,
     c: {
       paper: "#16202B",
@@ -273,8 +266,6 @@ export const SKINS: Skin[] = [
      which ended up being the colour of a whole decade. */
   {
     key: "kodachrome",
-    label: "Kodachrome",
-    note: "diapositive oubliée dans sa boîte",
     dark: true,
     c: {
       paper: "#1A1512",
@@ -314,8 +305,6 @@ export const SKINS: Skin[] = [
 
   {
     key: "herbier",
-    label: "Herbier",
-    note: "planches séchées, étiquettes manuscrites",
     c: {
       paper: "#F0EDE0",
       paperDark: "#DFDAC6",
@@ -353,8 +342,6 @@ export const SKINS: Skin[] = [
 
   {
     key: "bleu",
-    label: "Bleu d'architecte",
-    note: "traits blancs sur papier ozalid",
     dark: true,
     c: {
       paper: "#0E2A47",
@@ -394,8 +381,6 @@ export const SKINS: Skin[] = [
 
   {
     key: "pulp",
-    label: "Pulp",
-    note: "poche corné, orange criard, papier jauni",
     c: {
       paper: "#EDD9AE",
       paperDark: "#DCC28C",
@@ -434,8 +419,6 @@ export const SKINS: Skin[] = [
 
   {
     key: "fanzine",
-    label: "Fanzine",
-    note: "photocopie ratée, noir, blanc et un rouge",
     c: {
       paper: "#EDEDE8",
       paperDark: "#D8D8D2",
@@ -471,8 +454,6 @@ export const SKINS: Skin[] = [
 
   {
     key: "pastel",
-    label: "Pastel",
-    note: "tout est rond, tout est doux",
     c: {
       paper: "#FBF3F6",
       paperDark: "#F0E2EA",
@@ -514,8 +495,6 @@ export const SKINS: Skin[] = [
      on. */
   {
     key: "japon",
-    label: "Papier Japon",
-    note: "indigo, blanc cassé, un sceau rouge",
     c: {
       paper: "#F4F1E9",
       paperDark: "#E4DFD2",
@@ -553,8 +532,6 @@ export const SKINS: Skin[] = [
 
   {
     key: "sepia",
-    label: "Sépia",
-    note: "une photographie qu'on a trop regardée",
     c: {
       paper: "#E8DAC3",
       paperDark: "#D6C4A6",
@@ -600,8 +577,6 @@ export const SKINS: Skin[] = [
      with one another: they clash, and that is precisely the point. */
   {
     key: "affiche",
-    label: "Affiche polonaise",
-    note: "papier grisâtre, trois encres qui se cognent",
     c: {
       paper: "#DCD8CE",
       paperDark: "#C7C2B6",

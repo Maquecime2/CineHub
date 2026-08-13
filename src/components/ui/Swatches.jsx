@@ -8,6 +8,7 @@
    Every swatch is rendered by the SAME engine as the surface it offers
    (`theme/surfaces`): a preview that drew itself differently would end up
    lying, and it is always the preview that would be wrong. */
+import { useTranslation } from "react-i18next";
 import { C, F } from "../../theme/tokens";
 import {
   PAINTS,
@@ -121,6 +122,7 @@ export const OptionButton = ({ on, onClick, children, title }) => (
 
 /** The panel of a surface: paint, wallpaper, its ink, texture. */
 export function SurfaceTab({ decor, set }) {
+  const { t } = useTranslation();
   const ink = decor?.patternInk ? catInk(decor.patternInk) : undefined;
   const pattern = patternLayer(decor?.pattern, ink);
 
@@ -129,12 +131,12 @@ export function SurfaceTab({ decor, set }) {
       <Title top={4}>PEINTURE</Title>
       <Grid>
         <NoneSwatch on={!decor?.paint} onClick={() => set({ paint: null })} />
-        {Object.entries(PAINTS).map(([k, p]) => (
+        {Object.keys(PAINTS).map((k) => (
           <Swatch
             key={k}
             on={decor?.paint === k}
             onClick={() => set({ paint: k })}
-            title={p.label}
+            title={t(`surfaces.paints.${k}`)}
             style={paintStyle(k)}
           />
         ))}
@@ -143,12 +145,12 @@ export function SurfaceTab({ decor, set }) {
       <Title>PAPIER PEINT</Title>
       <Grid>
         <NoneSwatch on={!decor?.pattern} onClick={() => set({ pattern: null })} />
-        {Object.entries(PATTERNS).map(([k, p]) => (
+        {Object.keys(PATTERNS).map((k) => (
           <Swatch
             key={k}
             on={decor?.pattern === k}
             onClick={() => set({ pattern: k })}
-            title={p.label}
+            title={t(`surfaces.patterns.${k}`)}
             /* The thumbnail shows the pattern ON the chosen paint: a
                pattern on a white background does not say what it will
                give. */
@@ -180,12 +182,12 @@ export function SurfaceTab({ decor, set }) {
       <Title>TEXTURE</Title>
       <Grid>
         <NoneSwatch on={!decor?.texture} onClick={() => set({ texture: null })} />
-        {Object.entries(TEXTURES).map(([k, t]) => (
+        {Object.keys(TEXTURES).map((k) => (
           <Swatch
             key={k}
             on={decor?.texture === k}
             onClick={() => set({ texture: k })}
-            title={t.label}
+            title={t(`surfaces.textures.${k}`)}
             style={paintStyle(decor?.paint)}
           >
             {/* the texture blends, it does not substitute: the thumbnail

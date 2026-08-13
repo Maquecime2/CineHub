@@ -48,25 +48,24 @@ export type PaintKey = keyof typeof PAINTS;
    only one layer among others on the row's frame, and a layer composes,
    it does not substitute. `dark` tells the caller the background is dark
    — enough to lighten what is written on it. */
-const wall = (label: string, top: string, bottom: string, dark = false) => ({
-  label,
+const wall = (top: string, bottom: string, dark = false) => ({
   dark,
   image: `linear-gradient(170deg, ${top}, ${bottom})`,
 });
 
 export const PAINTS = {
-  platre: wall("Plâtre", "#F2EADA", "#E6DCC6"),
-  lin: wall("Lin", "#EDE6D6", "#DED3BC"),
-  craie: wall("Craie", "#F4F1E8", "#E8E3D5"),
-  ocre: wall("Ocre pâle", "#F0E3C6", "#E1CFA6"),
-  terracotta: wall("Terracotta", "#E4C4AE", "#CFA48A"),
-  rose: wall("Rose ancien", "#EFD9D2", "#DDBEB6"),
-  sauge: wall("Sauge", "#DBE2D2", "#C2CDB6"),
-  eucalyptus: wall("Eucalyptus", "#CEDBD4", "#B2C4BB"),
-  ciel: wall("Ciel délavé", "#D8E2EA", "#BCCBD8"),
-  atelier: wall("Bleu de travail", "#9FB0BF", "#7E92A4", true),
-  anthracite: wall("Anthracite", "#4A4E55", "#33363C", true),
-  nuit: wall("Nuit", "#38414F", "#232936", true),
+  platre: wall("#F2EADA", "#E6DCC6"),
+  lin: wall("#EDE6D6", "#DED3BC"),
+  craie: wall("#F4F1E8", "#E8E3D5"),
+  ocre: wall("#F0E3C6", "#E1CFA6"),
+  terracotta: wall("#E4C4AE", "#CFA48A"),
+  rose: wall("#EFD9D2", "#DDBEB6"),
+  sauge: wall("#DBE2D2", "#C2CDB6"),
+  eucalyptus: wall("#CEDBD4", "#B2C4BB"),
+  ciel: wall("#D8E2EA", "#BCCBD8"),
+  atelier: wall("#9FB0BF", "#7E92A4", true),
+  anthracite: wall("#4A4E55", "#33363C", true),
+  nuit: wall("#38414F", "#232936", true),
 } as const;
 
 export const paintOf = (key?: string) => PAINTS[key as PaintKey] || PAINTS.platre;
@@ -87,23 +86,20 @@ export const paintStyle = (key?: string): CSSProperties => ({
 
 export type PatternKey = keyof typeof PATTERNS;
 
-type Pattern = { label: string; size: number; draw: (ink: string) => string };
+type Pattern = { size: number; draw: (ink: string) => string };
 
 export const PATTERNS: Record<string, Pattern> = {
   rayuresFines: {
-    label: "Rayures fines",
     size: 12,
     draw: (ink) =>
       svg(12, 12, `<rect x='0' y='0' width='1.5' height='12' fill='${ink}' opacity='0.16'/>`),
   },
   rayuresLarges: {
-    label: "Rayures larges",
     size: 48,
     draw: (ink) =>
       svg(48, 48, `<rect x='0' y='0' width='16' height='48' fill='${ink}' opacity='0.10'/>`),
   },
   quadrillage: {
-    label: "Quadrillage",
     size: 22,
     draw: (ink) =>
       svg(
@@ -114,7 +110,6 @@ export const PATTERNS: Record<string, Pattern> = {
       ),
   },
   damier: {
-    label: "Damier",
     size: 32,
     draw: (ink) =>
       svg(
@@ -125,7 +120,6 @@ export const PATTERNS: Record<string, Pattern> = {
       ),
   },
   pois: {
-    label: "Pois",
     size: 28,
     draw: (ink) =>
       svg(
@@ -136,7 +130,6 @@ export const PATTERNS: Record<string, Pattern> = {
       ),
   },
   chevrons: {
-    label: "Chevrons",
     size: 24,
     draw: (ink) =>
       svg(
@@ -146,7 +139,6 @@ export const PATTERNS: Record<string, Pattern> = {
       ),
   },
   ecailles: {
-    label: "Écailles",
     size: 30,
     draw: (ink) =>
       svg(
@@ -158,7 +150,6 @@ export const PATTERNS: Record<string, Pattern> = {
       ),
   },
   fleurs: {
-    label: "Petites fleurs",
     size: 40,
     draw: (ink) =>
       svg(
@@ -172,7 +163,6 @@ export const PATTERNS: Record<string, Pattern> = {
       ),
   },
   tirets: {
-    label: "Tirets",
     size: 20,
     draw: (ink) =>
       svg(
@@ -222,18 +212,15 @@ export type TextureKey = keyof typeof TEXTURES;
 
 export const TEXTURES = {
   grain: {
-    label: "Grain",
     style: { backgroundImage: GRAIN, mixBlendMode: "multiply" } as CSSProperties,
   },
   crepi: {
-    label: "Crépi",
     style: {
       backgroundImage: svgUrl(svg(180, 180, noise("c", "0.34", 3, 0.11, 11))),
       mixBlendMode: "multiply",
     } as CSSProperties,
   },
   toile: {
-    label: "Toile",
     style: {
       backgroundImage:
         `repeating-linear-gradient(0deg, ${alpha(C.ink, 0.047)} 0 1px, transparent 1px 4px), ` +
@@ -242,7 +229,6 @@ export const TEXTURES = {
     } as CSSProperties,
   },
   beton: {
-    label: "Béton",
     style: {
       backgroundImage: svgUrl(svg(220, 220, noise("b", "0.012 0.02", 4, 0.16, 5))),
       mixBlendMode: "multiply",
@@ -321,7 +307,6 @@ export type FinishKey = keyof typeof FINISHES;
 export type MaterialFamily = "bois" | "metal" | "verre" | "pierre" | "peint";
 
 type Material = {
-  label: string;
   family: MaterialFamily;
   top: string;
   bottom: string;
@@ -340,8 +325,7 @@ const VEINS = svgUrl(svg(240, 24, noise("w", "0.015 0.9", 3, 0.2, 7)));
 const BRUSH = `repeating-linear-gradient(90deg, #FFFFFF16 0 1px, #00000012 1px 3px)`;
 const STONE = svgUrl(svg(160, 160, noise("s", "0.5", 4, 0.14, 2)));
 
-const wood = (label: string, top: string, bottom: string): Material => ({
-  label,
+const wood = (top: string, bottom: string): Material => ({
   family: "bois",
   top,
   bottom,
@@ -355,16 +339,15 @@ export const MATERIALS: Record<string, Material> = {
      must find its shelf again, down to the grain.
 
      THEIR KEYS STAY FRENCH: they are what a decor carries on disk. */
-  chene: wood("Chêne", "#7A5B3A", "#5E442A"),
-  noyer: wood("Noyer", "#5A3E28", "#3B2818"),
-  teck: wood("Teck", "#8B5E34", "#6A4423"),
-  ebene: wood("Ébène", "#3A322C", "#211C18"),
-  bouleau: wood("Bouleau", "#D8C4A0", "#BCA47E"),
-  ceruse: wood("Cérusé", "#C9B99C", "#A8967A"),
-  merisier: wood("Merisier", "#9B5B42", "#7A422F"),
+  chene: wood("#7A5B3A", "#5E442A"),
+  noyer: wood("#5A3E28", "#3B2818"),
+  teck: wood("#8B5E34", "#6A4423"),
+  ebene: wood("#3A322C", "#211C18"),
+  bouleau: wood("#D8C4A0", "#BCA47E"),
+  ceruse: wood("#C9B99C", "#A8967A"),
+  merisier: wood("#9B5B42", "#7A422F"),
 
   acier: {
-    label: "Acier brossé",
     family: "metal",
     top: "#B9BFC4",
     bottom: "#8B9298",
@@ -372,7 +355,6 @@ export const MATERIALS: Record<string, Material> = {
     sheen: "#FFFFFF55",
   },
   laiton: {
-    label: "Laiton",
     family: "metal",
     top: "#D6B36A",
     bottom: "#9A7B33",
@@ -380,7 +362,6 @@ export const MATERIALS: Record<string, Material> = {
     sheen: "#FFF3C980",
   },
   noirMat: {
-    label: "Noir mat",
     family: "metal",
     top: "#3B3D40",
     bottom: "#25272A",
@@ -388,7 +369,6 @@ export const MATERIALS: Record<string, Material> = {
   },
 
   verre: {
-    label: "Verre",
     family: "verre",
     top: "#DCE9EE",
     bottom: "#B9CFD8",
@@ -397,7 +377,6 @@ export const MATERIALS: Record<string, Material> = {
     shadow: "0 2px 0 rgba(0,0,0,0.08)",
   },
   verreFume: {
-    label: "Verre fumé",
     family: "verre",
     top: "#8E9096",
     bottom: "#6B6D73",
@@ -407,21 +386,18 @@ export const MATERIALS: Record<string, Material> = {
   },
 
   beton: {
-    label: "Béton ciré",
     family: "pierre",
     top: "#B7B3AC",
     bottom: "#95918A",
     texture: STONE,
   },
   ardoise: {
-    label: "Ardoise",
     family: "pierre",
     top: "#5E646B",
     bottom: "#42474D",
     texture: STONE,
   },
   marbre: {
-    label: "Marbre",
     family: "pierre",
     top: "#EDEAE4",
     bottom: "#D2CEC6",
@@ -432,27 +408,19 @@ export const MATERIALS: Record<string, Material> = {
   /* The painted: the board takes on a plain tint and no longer has any
      substance of its own. This is the family where the finish really
      shows. */
-  blanc: { label: "Laqué blanc", family: "peint", top: "#F4F1E9", bottom: "#DFDACD" },
-  vert: { label: "Vert atelier", family: "peint", top: "#4E6B58", bottom: "#3A5142" },
-  bleu: { label: "Bleu nuit", family: "peint", top: "#3C4E68", bottom: "#2A374B" },
-  rouge: { label: "Rouge grenat", family: "peint", top: "#7E3A38", bottom: "#5E2A29" },
-  moutarde: { label: "Moutarde", family: "peint", top: "#C09338", bottom: "#96702A" },
+  blanc: { family: "peint", top: "#F4F1E9", bottom: "#DFDACD" },
+  vert: { family: "peint", top: "#4E6B58", bottom: "#3A5142" },
+  bleu: { family: "peint", top: "#3C4E68", bottom: "#2A374B" },
+  rouge: { family: "peint", top: "#7E3A38", bottom: "#5E2A29" },
+  moutarde: { family: "peint", top: "#C09338", bottom: "#96702A" },
 };
 
 export const MATERIAL_KEYS = Object.keys(MATERIALS);
 
-export const FAMILY_LABELS: Record<MaterialFamily, string> = {
-  bois: "Bois",
-  metal: "Métal",
-  verre: "Verre",
-  pierre: "Pierre",
-  peint: "Peint",
-};
-
 export const FINISHES = {
-  mat: { label: "Mat", sheen: 0, shadow: "0 3px 0 rgba(0,0,0,0.18)" },
-  satine: { label: "Satiné", sheen: 1, shadow: "0 3px 0 rgba(0,0,0,0.2)" },
-  laque: { label: "Laqué", sheen: 1.8, shadow: "0 3px 1px rgba(0,0,0,0.26)" },
+  mat: { sheen: 0, shadow: "0 3px 0 rgba(0,0,0,0.18)" },
+  satine: { sheen: 1, shadow: "0 3px 0 rgba(0,0,0,0.2)" },
+  laque: { sheen: 1.8, shadow: "0 3px 1px rgba(0,0,0,0.26)" },
 } as const;
 
 const OAK = MATERIALS.chene as Material;
