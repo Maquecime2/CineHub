@@ -169,7 +169,11 @@ export async function signOut(): Promise<void> {
 
    `whoAmI` corrects that hunch on the first round trip, and it is the
    one that is authoritative. */
-let account: string | null = store.get<string>("synchro-account", "") || null;
+/* Read here and by `media.remotePath`, which spells it out on its side —
+   the two must not drift apart again. */
+const ACCOUNT_KEY = "synchro-account";
+
+let account: string | null = store.get<string>(ACCOUNT_KEY, "") || null;
 
 /* ============================================================
    THE LAST PERSON WE KNEW ABOUT — a hunch, kept on disk
@@ -198,9 +202,22 @@ const rememberPerson = (who: Person | null): void => {
 type Watcher = () => void;
 const watchers = new Set<Watcher>();
 
+/* THE IDENTIFIER IS WRITTEN DOWN, and this is the only place it is.
+ *
+ * Two readers depend on it and neither could see it before: the seed at
+ * the top of this file, which is why the hunch it describes was empty on
+ * every reload; and `media.remotePath`, which builds the private prefix
+ * `p/<person id>/<key>` out of it. Without the second, every poster and
+ * every screenshot had NO ADDRESS — no address, no ticket, nothing
+ * uploaded, and no error anywhere to say so. The decors were spared
+ * because their branch reads a decor's server id, never this one.
+ *
+ * `noteAccount` is the single door the value changes through, so the
+ * write belongs here rather than at each of `whoAmI`'s call sites. */
 function noteAccount(id: string | null): void {
   if (account === id) return;
   account = id;
+  store.set(ACCOUNT_KEY, id ?? "");
   for (const fn of watchers) fn();
 }
 

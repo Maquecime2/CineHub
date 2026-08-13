@@ -36,7 +36,7 @@
    by the prefix alone. `remotePath` is where the two meet.
    ============================================================ */
 import { store } from "./storage";
-import { getImage, putImage } from "../db";
+import { getImage, putImage, allImageKeys } from "../db";
 import {
   accountOpen,
   serverConfigured,
@@ -67,15 +67,31 @@ export function noteMedia(key: string): void {
   if (!list.includes(key)) store.set(PENDING_KEY, [...list, key]);
 }
 
-/** It is over there now. */
-function markSent(key: string): void {
-  const done = sent();
-  if (!done.includes(key)) store.set(SENT_KEY, [...done, key]);
+/* THE REGISTERS ARE SETTLED ONCE PER BATCH, NOT ONCE PER BLOB.
+ *
+ * Both lists live in one `localStorage` entry each, so touching one blob
+ * used to re-serialise the whole array — and the array is as long as the
+ * vault. Fifty screenshots meant fifty rewrites of a growing list of a
+ * thousand keys, which is quadratic work on the main thread, in a
+ * synchronous API, while somebody is looking at the shelf.
+ *
+ * `arrived` is what got there, `vanished` what is no longer in the vault
+ * to send. One read, one write, whatever the size of the batch. */
+function settle(arrived: string[], vanished: string[]): void {
+  if (!arrived.length && !vanished.length) return;
+  const leaving = new Set([...arrived, ...vanished]);
+  const done = new Set(sent());
+  for (const k of vanished) done.delete(k);
+  for (const k of arrived) done.add(k);
+  store.set(SENT_KEY, [...done]);
   store.set(
     PENDING_KEY,
-    pending().filter((k) => k !== key)
+    pending().filter((k) => !leaving.has(k))
   );
 }
+
+/** It is over there now. */
+const markSent = (key: string): void => settle([key], []);
 
 /** How many are waiting — shown in the backup panel. */
 export const mediaPending = (): number => pending().length;
@@ -141,21 +157,128 @@ export type MediaTrouble = { kind: "cors" | "refused" | "none"; detail?: string 
 let lastTrouble: MediaTrouble = { kind: "none" };
 export const mediaTrouble = (): MediaTrouble => lastTrouble;
 
+/* THE ROLL CALL — because `noteMedia` only knows about the future.
+ *
+ * The register is filled at the moment a blob is WRITTEN, and that leaves
+ * a whole population outside it: everything already in the vault when the
+ * mirror was plugged in. Those blobs are in no register, so `pushMedia`
+ * never looks at them, and no number of synchronisations changes that —
+ * the screenshots of a binder kept for a year simply never left.
+ *
+ * The decors never had the problem: `pushNewDecor` runs at every
+ * synchronisation and notes their blob when the object gets its server
+ * identity. This is the same catching-up, for everything else.
+ *
+ * It reads KEYS, never blobs, and skips what the two registers already
+ * name — so it costs one `getAllKeys` per synchronisation, and says
+ * nothing on the second run.
+ *
+ * The decor keys are left out on purpose: their address depends on a
+ * server identity they may not have yet (`remotePath` answers `null`),
+ * and enrolling them here would park them in the register for good,
+ * inflating the "waiting" count with blobs nobody is waiting for.
+ * `pushNewDecor` notes them at the right moment.
+ */
+async function enrolExistingMedia(): Promise<void> {
+  const keys: unknown[] = await allImageKeys().catch(() => []);
+  const known = new Set([...sent(), ...pending()]);
+  const fresh = keys.filter(
+    (k): k is string => typeof k === "string" && !known.has(k) && !k.startsWith(DECOR_IMAGE_PREFIX)
+  );
+  if (fresh.length) store.set(PENDING_KEY, [...pending(), ...fresh]);
+}
+
+/* Fifty at a time: the route refuses more. */
+const BATCH = 50;
+
+/* AND AT MOST SO MANY BATCHES IN ONE SYNCHRONISATION.
+ *
+ * `pushMedia` used to send ONE batch and return, so a binder catching up
+ * on a thousand screenshots needed twenty synchronisations to do it —
+ * which reads, from the outside, exactly like a mirror that never
+ * finishes. It now drains the queue, and stops on the first batch that
+ * moves nothing: a container refusing every PUT is refused twenty times
+ * over otherwise. */
+const ROUNDS = 40;
+
+/* HOW MANY BLOBS TRAVEL AT ONCE.
+ *
+ * One at a time made the catching-up as long as the sum of a thousand
+ * round trips, most of it spent waiting rather than sending. Four is
+ * chosen against the browser's own ceiling — six connections per host —
+ * and leaves room for the synchronisation of the cards, which is going
+ * on at the same time and matters more: a poster that arrives a minute
+ * later costs nothing, a card that does not arrive costs a note.
+ *
+ * It is deliberately not tunable. A number one can raise is a number
+ * somebody raises to twenty, and twenty parallel uploads on a telephone
+ * is how a browser tab runs out of memory holding twenty blobs. */
+const LANES = 4;
+
+/**
+ * Runs `job` over `items`, `lanes` of them in flight at a time.
+ *
+ * A pool rather than a `Promise.all` over slices of four: with slices,
+ * every lane waits for the slowest of its group before the next one
+ * starts, which on a batch holding one 4 MB screenshot among forty small
+ * ones is most of the time spent idle. Here a lane that finishes takes
+ * the next item immediately.
+ *
+ * `job` MUST NOT THROW — a rejection here would escape into `pushMedia`,
+ * whose whole promise is that a container in trouble cannot sink the
+ * synchronisation of the cards. The one caller catches everything.
+ */
+async function inLanes<T>(
+  items: T[],
+  lanes: number,
+  job: (item: T) => Promise<void>
+): Promise<void> {
+  let next = 0;
+  const lane = async (): Promise<void> => {
+    /* `next++` reads and increments with nothing able to run in between:
+       JavaScript hands the lane back only at an `await`. Two lanes can
+       therefore never be given the same item. */
+    while (next < items.length) await job(items[next++]!);
+  };
+  await Promise.all(Array.from({ length: Math.min(lanes, items.length) }, lane));
+}
+
 export async function pushMedia(): Promise<number> {
   if (!usable()) return 0;
-  const waiting = pending();
-  if (waiting.length === 0) return 0;
+  await enrolExistingMedia();
 
-  /* Fifty at a time: the route refuses more, and a person who has just
-     imported three hundred screenshots is exactly the person this must
-     not choke on. */
-  const batch = waiting.slice(0, 50);
+  let done = 0;
+  for (let round = 0; round < ROUNDS; round++) {
+    const { sent: moved, progress } = await pushBatch();
+    done += moved;
+    /* Nothing left to send, or nothing getting through. Either way there
+       is no sense in asking for fifty more tickets. */
+    if (progress === 0) break;
+  }
+  return done;
+}
+
+interface BatchResult {
+  /** How many reached the container. */
+  sent: number;
+  /** How many left the queue, ghosts included — the drain's signal. */
+  progress: number;
+}
+
+async function pushBatch(): Promise<BatchResult> {
+  const none = { sent: 0, progress: 0 };
+  const waiting = pending();
+  if (waiting.length === 0) return none;
+
+  const batch = waiting.slice(0, BATCH);
   const paths = new Map<string, string>();
   for (const key of batch) {
     const path = remotePath(key);
     if (path) paths.set(path, key);
   }
-  if (paths.size === 0) return 0;
+  /* Every key in this batch is addressless — decors with no server
+     identity yet. Going round again would hand back the same fifty. */
+  if (paths.size === 0) return none;
 
   let tickets: { path: string; url: string }[];
   try {
@@ -163,20 +286,29 @@ export async function pushMedia(): Promise<number> {
   } catch {
     /* No container, offline, or a refusal: the blobs stay here, which is
        where they were safe anyway. */
-    return 0;
+    return none;
   }
 
-  let done = 0;
-  for (const { path, url } of tickets) {
+  const arrived: string[] = [];
+  const vanished: string[] = [];
+  /* THE REASON IS DECIDED AFTER THE BATCH, NOT DURING IT.
+     Sequentially, "the last failure wins" was a defensible rule because
+     the last failure was a knowable thing. In lanes it is whichever
+     request happened to finish last, which is weather. So the failures
+     are collected and read at the end, in a fixed order of severity. */
+  let silent = false;
+  let refused: string | null = null;
+
+  await inLanes(tickets, LANES, async ({ path, url }) => {
     const key = paths.get(path);
-    if (!key) continue;
+    if (!key) return;
     const blob = await getImage(key).catch(() => null);
     /* The blob is gone from the vault since it was noted — erased with
        its card, most likely. Nothing to send, and nothing to keep
        waiting for either. */
     if (!blob) {
-      forgetMedia(key);
-      continue;
+      vanished.push(key);
+      return;
     }
     try {
       const r = await fetch(url, {
@@ -195,12 +327,10 @@ export async function pushMedia(): Promise<number> {
            refused with no other explanation. The status is kept as it
            stands — inventing a diagnosis would be worse than quoting
            one. */
-        lastTrouble = { kind: "refused", detail: `${r.status} ${r.statusText}`.trim() };
-        continue;
+        refused ??= `${r.status} ${r.statusText}`.trim();
+        return;
       }
-      markSent(key);
-      done += 1;
-      if (lastTrouble.kind !== "none") lastTrouble = { kind: "none" };
+      arrived.push(key);
     } catch {
       /* THE REQUEST NEVER WENT OUT, and for a container that has just
          been created there is one overwhelmingly likely reason: no CORS
@@ -209,10 +339,23 @@ export async function pushMedia(): Promise<number> {
          difficulty — it is indistinguishable, here, from being offline,
          which is why the sentence names the likely cause rather than
          asserting it. */
-      lastTrouble = { kind: "cors" };
+      silent = true;
     }
-  }
-  return done;
+  });
+
+  /* A request that never went out says more than one that was answered:
+     it names a container the browser will not talk to at all, where a
+     403 names one blob's signature. So it is read first — and a batch
+     where everything arrived says so, whatever came before. */
+  if (silent) lastTrouble = { kind: "cors" };
+  else if (refused) lastTrouble = { kind: "refused", detail: refused };
+  else if (arrived.length) lastTrouble = { kind: "none" };
+
+  settle(arrived, vanished);
+  /* A BATCH THAT ONLY BURIED GHOSTS IS STILL PROGRESS. The queue got
+     shorter, so the drain must go round again — counting arrivals alone
+     would stop it in front of a run of blobs erased with their cards. */
+  return { sent: arrived.length, progress: arrived.length + vanished.length };
 }
 
 /**

@@ -27,6 +27,7 @@ vi.mock("../db", () => ({
   putImage: async (k, blob) => vault.set(k, blob),
   getImage: async (k) => vault.get(k),
   deleteImage: async (k) => void vault.delete(k),
+  allImageKeys: async () => [...vault.keys()],
 }));
 
 /* The container, standing in for Azure: a ticket is a URL, and fetching
@@ -34,7 +35,8 @@ vi.mock("../db", () => ({
 const container = new Map();
 let signedOut = false;
 
-const tickets = vi.fn(async (paths) => paths.map((path) => ({ path, url: `ticket:${path}` })));
+const grantTickets = async (paths) => paths.map((path) => ({ path, url: `ticket:${path}` }));
+const tickets = vi.fn(grantTickets);
 const ticket = vi.fn(async (path) => (container.has(path) ? `ticket:${path}` : null));
 
 vi.mock("./server", () => ({
@@ -50,11 +52,26 @@ vi.mock("./customDecor", () => ({
   remoteIdOfDecor: (key) => (key === "decor:known" ? "d-1234" : undefined),
 }));
 
+/* HOW MANY UPLOADS ARE IN THE AIR AT ONCE. Counted here because it is
+   the only place that can see it: a lane is not an object one can ask. */
+let inFlight = 0;
+let peakInFlight = 0;
+/* Set by a test to make the container refuse. */
+let putAnswer = null;
+
 /* `fetch` is the only door to the container: PUT files, GET serves,
    DELETE removes. */
 globalThis.fetch = vi.fn(async (url, options = {}) => {
   const path = String(url).replace(/^ticket:/, "");
   if (options.method === "PUT") {
+    inFlight += 1;
+    peakInFlight = Math.max(peakInFlight, inFlight);
+    /* A real upload takes time, and without some here every PUT would
+       finish before the next lane ever started — the test would pass on
+       a sequential implementation. */
+    await new Promise((r) => setTimeout(r, 1));
+    inFlight -= 1;
+    if (putAnswer) return putAnswer;
     container.set(path, options.body);
     return { ok: true };
   }
@@ -66,8 +83,16 @@ globalThis.fetch = vi.fn(async (url, options = {}) => {
   return blob ? { ok: true, blob: async () => blob } : { ok: false };
 });
 
-const { noteMedia, mediaPending, remotePath, pushMedia, readMedia, dropMedia, forgetMedia } =
-  await import("./media");
+const {
+  noteMedia,
+  mediaPending,
+  remotePath,
+  pushMedia,
+  readMedia,
+  dropMedia,
+  forgetMedia,
+  mediaTrouble,
+} = await import("./media");
 
 const ME = "3f1a2b4c-5d6e-4f70-8192-a3b4c5d6e7f8";
 
@@ -77,7 +102,13 @@ beforeEach(() => {
   vault.clear();
   container.clear();
   signedOut = false;
-  tickets.mockClear();
+  /* Reset, not merely cleared: a test that makes the container refuse
+     must not leave the refusal behind for the next one. */
+  tickets.mockReset();
+  tickets.mockImplementation(grantTickets);
+  inFlight = 0;
+  peakInFlight = 0;
+  putAnswer = null;
   ticket.mockClear();
   globalThis.fetch.mockClear();
 });
@@ -145,6 +176,130 @@ describe("putting down", () => {
     /* Offline, the blob stays here — which is where it was safe
        anyway. */
     expect(mediaPending()).toBe(1);
+  });
+
+  /* ============================================================
+     THE BLOBS THAT WERE ALREADY THERE
+
+     `noteMedia` is called where a blob is BORN, which says nothing about
+     the ones born before the mirror existed. They sat in the vault, in
+     no register, and no number of synchronisations moved them: the
+     screenshots of a binder kept for a year simply never left. The
+     decors were spared only because `pushNewDecor` re-notes them at
+     every synchronisation.
+     ============================================================ */
+  it("sends the captures that were in the vault before any register", async () => {
+    vault.set("still-abc-1", new Blob(["png"]));
+    vault.set("still-abc-1-thumb", new Blob(["png"]));
+    /* Nobody ever called `noteMedia` for these. */
+    expect(mediaPending()).toBe(0);
+
+    expect(await pushMedia()).toBe(2);
+    expect(container.get(`p/${ME}/still-abc-1`)).toBeInstanceOf(Blob);
+    expect(container.get(`p/${ME}/still-abc-1-thumb`)).toBeInstanceOf(Blob);
+  });
+
+  it("does not enrol a decor, whose address may not exist yet", async () => {
+    /* An object added offline has no server identity, so `remotePath`
+       answers `null`: enrolling it here would park it in the register
+       for good. `pushNewDecor` notes it once it has an address. */
+    vault.set("decor:brand-new", new Blob(["svg"]));
+
+    expect(await pushMedia()).toBe(0);
+    expect(mediaPending()).toBe(0);
+  });
+
+  it("recites the roll call only once", async () => {
+    vault.set("still-abc-1", new Blob(["png"]));
+    expect(await pushMedia()).toBe(1);
+
+    tickets.mockClear();
+    expect(await pushMedia()).toBe(0);
+    expect(tickets).not.toHaveBeenCalled();
+  });
+
+  /* ============================================================
+     THE BACKLOG DRAINS IN ONE GO
+
+     One batch per synchronisation meant a binder catching up on a
+     thousand screenshots needed twenty of them — which looks, from the
+     shelf, exactly like a mirror that never finishes.
+     ============================================================ */
+  it("empties a queue longer than one batch in a single synchronisation", async () => {
+    for (let i = 0; i < 120; i++) vault.set(`still-${i}`, new Blob(["png"]));
+
+    expect(await pushMedia()).toBe(120);
+    expect(mediaPending()).toBe(0);
+    /* Three rounds of fifty, fifty, twenty — not one hundred and twenty
+       requests for tickets. */
+    expect(tickets).toHaveBeenCalledTimes(3);
+  });
+
+  it("stops going round when nothing is getting through", async () => {
+    for (let i = 0; i < 120; i++) vault.set(`still-${i}`, new Blob(["png"]));
+    tickets.mockRejectedValue(new Error("503"));
+
+    expect(await pushMedia()).toBe(0);
+    /* One refusal is enough to know: asking twice more would be three
+       failures where the first said everything. */
+    expect(tickets).toHaveBeenCalledTimes(1);
+    expect(mediaPending()).toBe(120);
+  });
+
+  /* ============================================================
+     THE BLOBS TRAVEL SEVERAL AT A TIME
+
+     One PUT at a time made the catching-up as long as the sum of a
+     thousand round trips, nearly all of it spent waiting. Several lanes
+     is the fix; the ceiling is what keeps it from becoming the problem.
+     ============================================================ */
+  it("keeps several uploads in the air at once", async () => {
+    for (let i = 0; i < 12; i++) vault.set(`still-${i}`, new Blob(["png"]));
+
+    expect(await pushMedia()).toBe(12);
+    /* Sequential would peak at one — this is the whole point. */
+    expect(peakInFlight).toBeGreaterThan(1);
+  });
+
+  it("never exceeds its own ceiling", async () => {
+    for (let i = 0; i < 60; i++) vault.set(`still-${i}`, new Blob(["png"]));
+
+    await pushMedia();
+    /* Four lanes, and a queue longer than the batch must not turn into
+       sixty simultaneous uploads on somebody's telephone. */
+    expect(peakInFlight).toBeLessThanOrEqual(4);
+  });
+
+  it("loses none of them, however they interleave", async () => {
+    for (let i = 0; i < 60; i++) vault.set(`still-${i}`, new Blob([`png-${i}`]));
+
+    expect(await pushMedia()).toBe(60);
+    expect(mediaPending()).toBe(0);
+    for (let i = 0; i < 60; i++) {
+      expect(container.get(`p/${ME}/still-${i}`)).toBeInstanceOf(Blob);
+    }
+  });
+
+  /* THE REASON NO LONGER DEPENDS ON WHO FINISHED LAST. Sequentially,
+     "the last failure wins" was knowable; in lanes it is weather. */
+  it("says nothing is wrong when the whole batch arrived", async () => {
+    for (let i = 0; i < 12; i++) vault.set(`still-${i}`, new Blob(["png"]));
+
+    await pushMedia();
+    expect(mediaTrouble().kind).toBe("none");
+  });
+
+  it("quotes the container's refusal rather than guessing", async () => {
+    for (let i = 0; i < 12; i++) vault.set(`still-${i}`, new Blob(["png"]));
+    putAnswer = { ok: false, status: 403, statusText: "Server failed to authenticate" };
+
+    expect(await pushMedia()).toBe(0);
+    expect(mediaTrouble()).toEqual({
+      kind: "refused",
+      detail: "403 Server failed to authenticate",
+    });
+    /* Refused is not lost: they are still waiting for the next go. */
+    expect(mediaPending()).toBe(12);
   });
 
   it("does not sink the batch when the container refuses", async () => {
