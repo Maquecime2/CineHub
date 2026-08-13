@@ -53,7 +53,7 @@ là pour que la règle ne dépende pas de la seule bonne volonté.
   voisins de colonne — un panneau à 45 y perd contre n'importe quoi du
   dehors, puisque seul le 2 de la colonne compte.
   Tout panneau, voile, tiroir ou repère en `position: fixed` passe donc par
-  `<Calque>` (`src/components/ui/Calque.tsx`), qui le rend dans le corps du
+  `<Layer>` (`src/components/ui/Layer.tsx`), qui le rend dans le corps du
   document. La règle vaut aussi pour ce qui se place en coordonnées d'écran
   calculées à la main, comme le repère de dépôt de l'étagère.
   Exception assumée : un menu ancré à son bouton (`position: absolute` sous
@@ -66,8 +66,8 @@ propres contrôles (`cd server && npm test && npm run typecheck`). Il n'est
 pas dans la liste ci-dessous : le client ne l'appelle pas encore, et il
 doit continuer de fonctionner entièrement hors ligne.
 
-- Le schéma est du **SQL qu'on lit** (`server/sql/001_socle.sql`), pas la
-  sortie d'un ORM. Les requêtes vivent toutes dans `server/src/depot.ts`,
+- Le schéma est du **SQL qu'on lit** (`server/sql/001_baseline.sql`), pas la
+  sortie d'un ORM. Les requêtes vivent toutes dans `server/src/store.ts`,
   en paramètres numérotés — une valeur passée en `$1` ne peut jamais
   devenir de la syntaxe.
 - Les tests du serveur parlent à un **vrai Postgres** compilé en
@@ -81,13 +81,20 @@ doit continuer de fonctionner entièrement hors ligne.
 ## Vérifier
 
 `npm run dev`, `npm test`, **`npm run lint`**, **`npx prettier --check .`**,
-`npm run build`.
+**`npm run typecheck`**, `npm run build`.
 
-Les deux contrôles en gras manquaient à cette liste, et l'intégration
+Les trois contrôles en gras manquaient à cette liste, et l'intégration
 continue, elle, les fait échouer — trois `React.ReactNode` écrits sans
 importer `React`, et dix-neuf fichiers mal formatés, sont passés jusque
 dans `main` sans que personne les voie. Un contrôle absent de la liste
 des contrôles est un contrôle qu'on ne fait pas.
+
+**`npm run typecheck` n'est PAS couvert par `npm run build`.** Vite
+transpile sans vérifier les types : un champ renommé dans un `interface`
+et pas chez ceux qui le lisent passe le build ET les tests, puis casse à
+l'écran. Quatre erreurs de ce genre — `STRENGTHS[].valeur` et
+`SkyNode.couleur` — ont survécu à `npm test` et à `npm run build` avant
+que `tsc` ne les nomme.
 
 - Les 197 avertissements du lint sont tolérés ; ce sont les ERREURS qui
   arrêtent tout. On écrit `import type { ReactNode } from "react"` et

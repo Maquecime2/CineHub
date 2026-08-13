@@ -11,8 +11,8 @@ const studio = (view = {}) => {
   return { onChange, onReset, user: userEvent.setup() };
 };
 
-describe("l'atelier déco", () => {
-  it("écrit dans la bonne facette, une clé à la fois", async () => {
+describe("the decor workshop", () => {
+  it("writes into the right facet, one key at a time", async () => {
     const { onChange, user } = studio();
     await user.click(screen.getByLabelText("Terracotta"));
     expect(onChange).toHaveBeenCalledWith("wall", { paint: "terracotta" });
@@ -22,46 +22,46 @@ describe("l'atelier déco", () => {
     expect(onChange).toHaveBeenCalledWith("plank", { material: "laiton" });
   });
 
-  /* « Rien » est un choix, pas une absence de bouton : sans lui, on pose
-     un papier peint et on ne peut plus l'enlever. Le nul est ce que
-     `patchViewDecor` comprend comme un effacement. */
-  it("sait retirer une couche posée", async () => {
+  /* "Nothing" is a choice, not an absence of button: without it, one lays
+     a wallpaper and can no longer remove it. Null is what `patchViewDecor`
+     understands as an erasure. */
+  it("knows how to take off a layer that is laid down", async () => {
     const view = patchViewDecor({}, "wall", { pattern: "pois" });
     const { onChange, user } = studio(view);
-    const aucuns = screen.getAllByLabelText("aucun");
-    // celui de la rangée des papiers peints est le deuxième
-    await user.click(aucuns[1]);
+    const none = screen.getAllByLabelText("aucun");
+    // the wallpaper row's is the second one
+    await user.click(none[1]);
     expect(onChange).toHaveBeenCalledWith("wall", { pattern: null });
   });
 
-  /* Un réglage qui ne toucherait à rien ne s'offre pas : l'encre n'a de
-     sens qu'avec une trame à teinter, la finition qu'avec une matière à
-     vernir. */
-  it("cache l'encre tant qu'aucun papier peint n'est posé", () => {
+  /* A setting that would touch nothing is not offered: ink only makes
+     sense with a weave to tint, the finish only with a material to
+     varnish. */
+  it("hides the ink as long as no wallpaper is laid", () => {
     studio();
     expect(screen.queryByText("ENCRE DU MOTIF")).toBeNull();
   });
 
-  it("montre l'encre dès qu'une trame est posée", () => {
+  it("shows the ink as soon as a weave is laid", () => {
     studio(patchViewDecor({}, "wall", { pattern: "damier" }));
     expect(screen.getByText("ENCRE DU MOTIF")).toBeTruthy();
   });
 
-  it("cache la finition tant qu'aucune matière n'est choisie", async () => {
+  it("hides the finish as long as no material is chosen", async () => {
     const { user } = studio();
     await user.click(screen.getByRole("button", { name: "PLANCHE" }));
     expect(screen.queryByText("FINITION")).toBeNull();
   });
 
-  /* La porte de sortie, et ce qui rend l'exploration sans risque. Elle
-     ne s'affiche pas quand il n'y a rien à défaire. */
-  it("n'offre le retour au thème que s'il y a un décor", async () => {
-    const nom = "Effacer le décor et revenir au bois du thème";
+  /* The way out, and what makes the exploring riskless. It does not show
+     when there is nothing to undo. */
+  it("offers the way back to the theme only if there is a decor", async () => {
+    const name = "Effacer le décor et revenir au bois du thème";
     studio();
-    expect(screen.queryByTitle(nom)).toBeNull();
+    expect(screen.queryByTitle(name)).toBeNull();
 
     const { onReset, user } = studio(patchViewDecor({}, "plank", { material: "verre" }));
-    await user.click(screen.getByTitle(nom));
+    await user.click(screen.getByTitle(name));
     expect(onReset).toHaveBeenCalled();
   });
 });

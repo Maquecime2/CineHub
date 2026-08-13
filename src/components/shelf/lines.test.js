@@ -4,8 +4,8 @@ import { splitRow, useRowCap, FALLBACK_CAP } from "./lines";
 import { BOX_W, GAP_X } from "./constants";
 import { makeCat, makeDecor, filmItem } from "../../shelf-views";
 
-/* Une ligne se lit comme on la voit : chaque segment rendu par sa longueur
-   en cases, et une boîte par le nombre de films qu'elle y pose. */
+/* A line is read as one sees it: each segment returned by its length in
+   cells, and a box by the number of films it lays there. */
 const shape = (lines) =>
   lines.map((line) =>
     line.map((s) =>
@@ -17,8 +17,8 @@ const shape = (lines) =>
 
 const films = (...ids) => ids.map(filmItem);
 
-describe("splitRow — le découpage d'une rangée en lignes de bois", () => {
-  it("pose autant de boîtiers que la ligne a de cases, puis passe à la suivante", () => {
+describe("splitRow — cutting a row into lines of wood", () => {
+  it("lays as many cases as the line has cells, then moves to the next", () => {
     expect(shape(splitRow(films("a", "b", "c", "d", "e"), 2))).toEqual([
       ["a", "b"],
       ["c", "d"],
@@ -26,18 +26,18 @@ describe("splitRow — le découpage d'une rangée en lignes de bois", () => {
     ]);
   });
 
-  it("rend une ligne vide plutôt qu'aucune : elle a quand même sa planche", () => {
+  it("returns an empty line rather than none: it still has its plank", () => {
     expect(splitRow([], 4)).toEqual([[]]);
   });
 
-  /* Le cœur de l'affaire : la boîte ne se replie plus sur elle-même, elle
-     DÉBORDE — et la ligne du dessous vient avec son bois. */
-  it("coupe une boîte trop grande en segments, un par ligne", () => {
+  /* The heart of the matter: the box no longer wraps inside itself, it
+     OVERFLOWS — and the line below comes with its wood. */
+  it("cuts a box that is too big into segments, one per line", () => {
     const cat = makeCat({ id: "c1", items: films("a", "b", "c", "d", "e") });
     expect(shape(splitRow([cat], 2))).toEqual([["c1[2]^"], ["c1[2]"], ["c1[1]$"]]);
   });
 
-  it("laisse la boîte démarrer sur les cases qui restent", () => {
+  it("lets the box start on the cells that are left", () => {
     const cat = makeCat({ id: "c1", items: films("x", "y", "z") });
     expect(shape(splitRow([filmItem("a"), cat, filmItem("b")], 3))).toEqual([
       ["a", "c1[2]^"],
@@ -45,74 +45,74 @@ describe("splitRow — le découpage d'une rangée en lignes de bois", () => {
     ]);
   });
 
-  it("tient une boîte entière sur une ligne quand elle y tient", () => {
+  it("holds a whole box on one line when it fits", () => {
     const cat = makeCat({ id: "c1", items: films("x", "y") });
     expect(shape(splitRow([cat, filmItem("a")], 4))).toEqual([["c1[2]^$", "a"]]);
   });
 
-  it("donne sa case à une boîte vide : elle porte l'invite", () => {
+  it("gives an empty box its cell: it carries the invitation", () => {
     const cat = makeCat({ id: "c1", items: [] });
     expect(shape(splitRow([cat, filmItem("a")], 2))).toEqual([["c1[0]^$", "a"]]);
   });
 
-  it("compte le mobilier comme un boîtier", () => {
+  it("counts furniture as a case", () => {
     const d = makeDecor({ id: "d1", motif: "plant" });
     expect(shape(splitRow([filmItem("a"), d, filmItem("b")], 2))).toEqual([["a", "d1"], ["b"]]);
   });
 
-  /* Un décor ne vaut une case que tant qu'il en fait la taille. Aux
-     grands calibres il en occupe deux ou trois, et n'en payer qu'une
-     faisait déborder la ligne de sa planche — le débord poussant la page
-     entière, barre de défilement horizontale comprise. */
-  it("fait payer au gros mobilier les cases qu'il occupe", () => {
-    const petit = makeDecor({ id: "d1", motif: "plant" });
-    const gros = makeDecor({ id: "d2", motif: "plant", size: 4.6 });
-    // au calibre M il laisse tenir deux boîtiers ; en XXXL il prend les trois cases
-    expect(shape(splitRow([petit, filmItem("a"), filmItem("b")], 3))).toEqual([["d1", "a", "b"]]);
-    expect(shape(splitRow([gros, filmItem("a"), filmItem("b")], 3))).toEqual([["d2"], ["a", "b"]]);
+  /* A decor is worth one cell only as long as it is that size. At the
+     large calibres it takes two or three, and paying for only one made the
+     line overflow its board — the overflow pushing the whole page,
+     horizontal scrollbar included. */
+  it("makes big furniture pay for the cells it takes", () => {
+    const small = makeDecor({ id: "d1", motif: "plant" });
+    const big = makeDecor({ id: "d2", motif: "plant", size: 4.6 });
+    // at calibre M it lets two cases fit; in XXXL it takes all three cells
+    expect(shape(splitRow([small, filmItem("a"), filmItem("b")], 3))).toEqual([["d1", "a", "b"]]);
+    expect(shape(splitRow([big, filmItem("a"), filmItem("b")], 3))).toEqual([["d2"], ["a", "b"]]);
   });
 
-  it("renvoie à la ligne ce qu'un gros décor ne laisse plus tenir", () => {
-    const gros = makeDecor({ id: "d1", motif: "plant", size: 2.2 });
-    expect(shape(splitRow([filmItem("a"), gros, filmItem("b")], 3))).toEqual([["a", "d1"], ["b"]]);
+  it("wraps what a big decor no longer leaves room for", () => {
+    const big = makeDecor({ id: "d1", motif: "plant", size: 2.2 });
+    expect(shape(splitRow([filmItem("a"), big, filmItem("b")], 3))).toEqual([["a", "d1"], ["b"]]);
   });
 
-  /* Le coût vaut aussi DANS une boîte. Il n'y valait pas, et c'est par
-     là que le débord revenait : la boîte tranchait son contenu au nombre
-     d'objets, un décor en XXXL y gonflait le carton bien au-delà de sa
-     planche, et le carton poussait la page. */
-  it("fait payer ses cases au gros mobilier rangé dans une boîte", () => {
-    const gros = makeDecor({ id: "d1", motif: "plant", size: 4.6 });
-    const cat = makeCat({ id: "c1", items: [...films("a", "b"), gros, filmItem("c")] });
-    // deux films, puis le décor seul sur sa ligne (trois cases), puis le reste
+  /* The cost holds INSIDE a box too. It did not, and that is where the
+     overflow came back from: the box cut its content by the number of
+     objects, an XXXL decor swelled the card well beyond its board, and the
+     card pushed the page. */
+  it("makes big furniture filed in a box pay for its cells", () => {
+    const big = makeDecor({ id: "d1", motif: "plant", size: 4.6 });
+    const cat = makeCat({ id: "c1", items: [...films("a", "b"), big, filmItem("c")] });
+    // two films, then the decor alone on its line (three cells), then the rest
     expect(shape(splitRow([cat], 3))).toEqual([["c1[2]^"], ["c1[1]"], ["c1[1]$"]]);
   });
 
-  it("emporte au moins un objet par tranche de boîte, même démesuré", () => {
-    const gros = makeDecor({ id: "d1", motif: "plant", size: 4.6 });
-    const cat = makeCat({ id: "c1", items: [gros, filmItem("a")] });
+  it("takes at least one object per box slice, however oversized", () => {
+    const big = makeDecor({ id: "d1", motif: "plant", size: 4.6 });
+    const cat = makeCat({ id: "c1", items: [big, filmItem("a")] });
     expect(shape(splitRow([cat], 1))).toEqual([["c1[1]^"], ["c1[1]$"]]);
   });
 
-  /* Une planche trop étroite pour l'objet n'a rien de mieux à offrir que
-     sa ligne entière : ouvrir une ligne vide devant lui ne ferait que
-     repousser le problème d'un cran, indéfiniment. */
-  it("donne la ligne entière à un décor plus large qu'elle", () => {
-    const énorme = makeDecor({ id: "d1", motif: "plant", size: 4.6 });
-    expect(shape(splitRow([énorme, filmItem("a")], 1))).toEqual([["d1"], ["a"]]);
+  /* A board too narrow for the object has nothing better to offer than its
+     whole line: opening an empty line in front of it would only push the
+     problem one notch further, indefinitely. */
+  it("gives the whole line to a decor wider than it is", () => {
+    const huge = makeDecor({ id: "d1", motif: "plant", size: 4.6 });
+    expect(shape(splitRow([huge, filmItem("a")], 1))).toEqual([["d1"], ["a"]]);
   });
 
-  it("tient avec une seule case par ligne", () => {
+  it("holds up with a single cell per line", () => {
     const cat = makeCat({ id: "c1", items: films("x", "y") });
     expect(shape(splitRow([cat], 1))).toEqual([["c1[1]^"], ["c1[1]$"]]);
   });
 
-  it("se rabat sur une case plutôt que de boucler sur un compte absurde", () => {
+  it("falls back on one cell rather than loop on an absurd count", () => {
     expect(shape(splitRow(films("a", "b"), 0))).toEqual([["a"], ["b"]]);
     expect(shape(splitRow(films("a", "b"), -3))).toEqual([["a"], ["b"]]);
   });
 
-  it("garde des clés distinctes pour deux segments de la même boîte", () => {
+  it("keeps distinct keys for two segments of the same box", () => {
     const cat = makeCat({ id: "c1", items: films("x", "y", "z") });
     const keys = splitRow([cat], 2)
       .flat()
@@ -121,12 +121,12 @@ describe("splitRow — le découpage d'une rangée en lignes de bois", () => {
   });
 });
 
-/* « auto » n'est plus l'absence de compte, c'est le compte de la LARGEUR.
-   jsdom ne met rien en page et n'a pas de `ResizeObserver` : on lui en
-   prête un, et on lui dicte la largeur. Ce qu'on garde ici, c'est
-   l'arithmétique et la retenue — celle qui évite de rendre la rangée à
-   chaque pixel de la poignée de fenêtre. */
-describe("useRowCap — le compte d'une largeur", () => {
+/* "auto" is no longer the absence of a count, it is the WIDTH's count.
+   jsdom lays nothing out and has no `ResizeObserver`: we lend it one, and
+   dictate the width to it. What we keep here is the arithmetic and the
+   hold-back — the one that avoids rendering the row at every pixel of the
+   window handle. */
+describe("useRowCap — the count a width allows", () => {
   const SLOT = BOX_W + GAP_X;
   let observed;
 
@@ -151,8 +151,8 @@ describe("useRowCap — le compte d'une largeur", () => {
     current: { getBoundingClientRect: () => ({ width }) },
   });
 
-  /* Le DERNIER observateur posé, et non le premier : React peut monter un
-     effet deux fois, et le premier a alors déjà été lâché. */
+  /* The LAST observer laid down, and not the first: React can mount an
+     effect twice, and the first has then already been released. */
   const grow = (width) =>
     act(() => {
       observed.at(-1).cb([{ contentRect: { width } }]);
@@ -163,21 +163,21 @@ describe("useRowCap — le compte d'une largeur", () => {
     vi.unstubAllGlobals();
   });
 
-  it("rend le compte écrit sans rien mesurer", () => {
+  it("returns the written count without measuring anything", () => {
     stub();
     const { result } = renderHook(() => useRowCap(rowOf(2000), 4));
     expect(result.current).toBe(4);
     expect(observed).toHaveLength(0);
   });
 
-  it("mesure dès la pose, sans attendre un redimensionnement", () => {
+  it("measures on mount, without waiting for a resize", () => {
     stub();
-    // six cases pleines, plus la marge intérieure et un fond de case
+    // six full cells, plus the inner padding and one cell's floor
     const { result } = renderHook(() => useRowCap(rowOf(20 + 6 * SLOT + 40), null));
     expect(result.current).toBe(6);
   });
 
-  it("suit la largeur quand elle change", () => {
+  it("follows the width when it changes", () => {
     stub();
     const ref = rowOf(20 + 10 * SLOT);
     const { result } = renderHook(() => useRowCap(ref, null));
@@ -186,7 +186,7 @@ describe("useRowCap — le compte d'une largeur", () => {
     expect(result.current).toBe(3);
   });
 
-  it("ne descend jamais sous une case", () => {
+  it("never goes below one cell", () => {
     stub();
     const ref = rowOf(1000);
     const { result } = renderHook(() => useRowCap(ref, null));
@@ -194,19 +194,19 @@ describe("useRowCap — le compte d'une largeur", () => {
     expect(result.current).toBe(1);
   });
 
-  it("ignore une largeur nulle : ce n'est pas une rangée étroite", () => {
+  it("ignores a zero width: that is not a narrow row", () => {
     stub();
     const { result } = renderHook(() => useRowCap(rowOf(0), null));
     expect(result.current).toBe(FALLBACK_CAP);
   });
 
-  it("se rabat sur un compte tenable là où l'on ne sait pas mesurer", () => {
+  it("falls back on a workable count where measuring is impossible", () => {
     vi.stubGlobal("ResizeObserver", undefined);
     const { result } = renderHook(() => useRowCap(rowOf(900), null));
     expect(result.current).toBe(FALLBACK_CAP);
   });
 
-  it("lâche ce qu'il observait quand la rangée s'en va", () => {
+  it("lets go of what it was watching when the row leaves", () => {
     stub();
     const { unmount } = renderHook(() => useRowCap(rowOf(900), null));
     unmount();

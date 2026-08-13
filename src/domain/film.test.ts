@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
-  aChangé,
+  hasChanged,
   editLinkedWork,
-  horodater,
+  stamp,
   makeFilm,
   mergeWatches,
   migrate,
-  partiePublique,
+  publicPart,
   ratingDrift,
   uid,
   watchCount,
@@ -15,81 +15,81 @@ import {
 import type { Film, LinkedWork } from "../types";
 
 describe("uid", () => {
-  it("ne se répète pas", () => {
+  it("does not repeat itself", () => {
     const ids = new Set(Array.from({ length: 500 }, () => uid()));
     expect(ids.size).toBe(500);
   });
 
-  it("se trie dans l'ordre des naissances, y compris dans la même milliseconde", () => {
-    /* C'est la moitié de l'intérêt d'un UUID v7 : un index de base de
-       données qui reçoit des clés croissantes ne se fragmente pas.
+  it("sorts in birth order, including within the same millisecond", () => {
+    /* That is half the point of a UUID v7: a database index receiving
+       increasing keys does not fragment.
 
-       Deux cents fiches d'un même import naissent dans la MÊME
-       milliseconde : sans compteur, leur ordre retombe sur le hasard, et
-       la promesse ne vaut plus là où elle sert le plus. */
+       Two hundred cards from the same import are born in the SAME
+       millisecond: with no counter, their order falls back on randomness,
+       and the promise no longer holds where it is most useful. */
     const ids = Array.from({ length: 200 }, () => uid());
     expect([...ids].sort()).toEqual(ids);
     expect(new Set(ids).size).toBe(200);
   });
 
-  it("annonce sa version, pour qui la lira de l'autre côté", () => {
+  it("announces its version, for whoever reads it on the other side", () => {
     expect(uid()).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}$/);
   });
 
-  it("sans générateur cryptographique, on écrit quand même la fiche", () => {
-    const vrai = crypto.randomUUID;
-    // @ts-expect-error — on simule un navigateur qui ne l'a pas
+  it("with no cryptographic generator, the card still gets written", () => {
+    const real = crypto.randomUUID;
+    // @ts-expect-error — we simulate a browser that does not have it
     crypto.randomUUID = undefined;
     try {
       expect(uid().length).toBeGreaterThan(8);
     } finally {
-      crypto.randomUUID = vrai;
+      crypto.randomUUID = real;
     }
   });
 });
 
-describe("dater ce qui a changé", () => {
+describe("dating what has changed", () => {
   const base = (p: Partial<Film> = {}): Film => makeFilm({ id: "a", updatedAt: 1000, ...p });
 
-  it("une recopie à l'identique n'est pas un changement", () => {
+  it("an identical copy is not a change", () => {
     const f = base();
-    expect(aChangé(f, { ...f })).toBe(false);
+    expect(hasChanged(f, { ...f })).toBe(false);
   });
 
-  it("une valeur composée qui bouge en est un", () => {
+  it("a composite value that moves is one", () => {
     const f = base();
-    expect(aChangé(f, { ...f, motifs: ["pluie"] })).toBe(true);
-    expect(aChangé(f, { ...f, watches: [{ date: "2020-01-01", rating: 4 }] })).toBe(true);
+    expect(hasChanged(f, { ...f, motifs: ["pluie"] })).toBe(true);
+    expect(hasChanged(f, { ...f, watches: [{ date: "2020-01-01", rating: 4 }] })).toBe(true);
   });
 
-  it("la date de modification elle-même ne compte pas comme un changement", () => {
-    /* Sinon toute écriture en provoquerait une autre, indéfiniment. */
+  it("the modification date itself does not count as a change", () => {
+    /* Otherwise every write would cause another, indefinitely. */
     const f = base();
-    expect(aChangé(f, { ...f, updatedAt: 9999 })).toBe(false);
+    expect(hasChanged(f, { ...f, updatedAt: 9999 })).toBe(false);
   });
 
-  it("horodater ne touche que ce qui a bougé, et rend le reste intact", () => {
+  it("stamp touches only what moved, and returns the rest intact", () => {
     const a = base({ id: "a" });
     const b = base({ id: "b" });
-    const suite = horodater([a, b], [{ ...a, rating: 5 }, { ...b }], 5000);
-    expect(suite[0]!.updatedAt).toBe(5000);
-    expect(suite[1]).toBe(b);
+    const next = stamp([a, b], [{ ...a, rating: 5 }, { ...b }], 5000);
+    expect(next[0]!.updatedAt).toBe(5000);
+    expect(next[1]).toBe(b);
   });
 
-  it("rien n'a bougé : c'est le tableau reçu qui revient", () => {
+  it("nothing moved: it is the array we were given that comes back", () => {
     const a = base();
-    const reçu = [a];
-    expect(horodater([a], reçu, 5000)).toBe(reçu);
+    const received = [a];
+    expect(stamp([a], received, 5000)).toBe(received);
   });
 
-  it("une fiche jamais vue est une fiche qui a changé", () => {
-    const neuve = base({ id: "neuf" });
-    expect(horodater([], [neuve], 5000)[0]!.updatedAt).toBe(5000);
+  it("a card never seen before is a card that has changed", () => {
+    const fresh = base({ id: "neuf" });
+    expect(stamp([], [fresh], 5000)[0]!.updatedAt).toBe(5000);
   });
 });
 
-describe("ce qui se partage", () => {
-  it("le carnet intime et le journal des séances ne sortent pas", () => {
+describe("what gets shared", () => {
+  it("the private notebook and the screening log do not go out", () => {
     const f = makeFilm({
       title: "Beau travail",
       notes: "à revoir avec P.",
@@ -97,25 +97,25 @@ describe("ce qui se partage", () => {
       review: "la danse de la fin",
       rating: 5,
     });
-    const publié = partiePublique(f) as Record<string, unknown>;
-    expect("notes" in publié).toBe(false);
-    expect("watches" in publié).toBe(false);
-    /* Ce qu'on publie quand on publie : c'est le propos d'une
-       vidéothèque partagée. */
-    expect(publié.review).toBe("la danse de la fin");
-    expect(publié.rating).toBe(5);
-    expect(publié.title).toBe("Beau travail");
+    const published = publicPart(f) as Record<string, unknown>;
+    expect("notes" in published).toBe(false);
+    expect("watches" in published).toBe(false);
+    /* What one publishes when one publishes: that is the point of a
+       shared video library. */
+    expect(published.review).toBe("la danse de la fin");
+    expect(published.rating).toBe(5);
+    expect(published.title).toBe("Beau travail");
   });
 
-  it("un champ ajouté demain part avec le reste, plutôt que d'être oublié", () => {
-    /* C'est pour cela qu'on nomme ce qu'on ÉCARTE, et non ce qu'on garde. */
-    const f = { ...makeFilm({ title: "Elephant" }), nouveauChamp: "présent" } as unknown as Film;
-    expect((partiePublique(f) as Record<string, unknown>).nouveauChamp).toBe("présent");
+  it("a field added tomorrow goes out with the rest, rather than being forgotten", () => {
+    /* That is why we name what we SET ASIDE, and not what we keep. */
+    const f = { ...makeFilm({ title: "Elephant" }), freshField: "présent" } as unknown as Film;
+    expect((publicPart(f) as Record<string, unknown>).freshField).toBe("présent");
   });
 });
 
 describe("makeFilm", () => {
-  it("donne une fiche complète même sans rien fournir", () => {
+  it("gives a complete card even with nothing supplied", () => {
     const f = makeFilm();
     expect(f.id).toBeTruthy();
     expect(f.status).toBe("watched");
@@ -123,15 +123,15 @@ describe("makeFilm", () => {
     expect(f.order).toBeNull();
   });
 
-  it("laisse le contenu fourni l'emporter sur les valeurs par défaut", () => {
+  it("lets the supplied content win over the default values", () => {
     expect(makeFilm({ title: "Stalker", status: "watchlist" })).toMatchObject({
       title: "Stalker",
       status: "watchlist",
     });
   });
 
-  it("ne partage pas ses tableaux entre deux fiches", () => {
-    // un tableau par défaut partagé ferait apparaître un genre dans toute la collection
+  it("does not share its arrays between two cards", () => {
+    // a shared default array would make one genre appear across the whole collection
     const a = makeFilm();
     const b = makeFilm();
     a.genres.push("Drame");
@@ -140,15 +140,15 @@ describe("makeFilm", () => {
 });
 
 describe("migrate", () => {
-  it("complète les fiches d'avant les champs récents", () => {
-    const vieille = { id: "x", title: "Stalker", rating: 4 };
-    const [f] = migrate([vieille]);
+  it("completes cards from before the recent fields", () => {
+    const old = { id: "x", title: "Stalker", rating: 4 };
+    const [f] = migrate([old]);
     expect(f).toMatchObject({
       id: "x",
       title: "Stalker",
       rating: 4,
       status: "watched",
-      chevet: false,
+      bedside: false,
       archived: false,
       order: null,
     });
@@ -156,29 +156,87 @@ describe("migrate", () => {
     expect(f!.linkedWorks).toEqual([]);
   });
 
-  /* D'une fiche d'avant le journal on ne sait qu'une chose : elle a été
-     vue tel jour, et notée ainsi. L'écrire est plus juste que de laisser
-     un compteur à zéro sous un film qui porte une date de séance. */
-  it("bâtit une première séance à partir de la date déjà connue", () => {
+  /* ============================================================
+     THE TRANSLATION MUST COST A BINDER ALREADY KEPT NOTHING
+
+     Two fields changed name when the code moved to English, and both are
+     written to disk: `chevet` became `bedside`, and `Relation`'s values
+     changed vocabulary. `migrate` is the only door a card comes in
+     through — so this is where reading the old spellings back is proved,
+     or nowhere.
+     ============================================================ */
+  it("reads `chevet` back on a card from before the translation", () => {
+    const [f] = migrate([{ id: "x", title: "Stalker", chevet: true } as never]);
+    expect(f!.bedside).toBe(true);
+    // and the old spelling does not survive the read-back
+    expect(f as unknown as Record<string, unknown>).not.toHaveProperty("chevet");
+  });
+
+  it("does not take the absence of `chevet` for a top shelf", () => {
+    expect(migrate([{ id: "x", title: "Stalker" }])[0]!.bedside).toBe(false);
+  });
+
+  it("translates the relations written before the switch, without losing direction", () => {
+    const [f] = migrate([
+      {
+        id: "a",
+        title: "Stalker",
+        linkedWorks: [
+          { id: "w1", type: "film", filmId: "b", relation: "suite-de" },
+          { id: "w2", type: "film", filmId: "c", relation: "écho" },
+        ],
+      } as never,
+    ]);
+    expect(f!.linkedWorks.map((w) => w.relation)).toEqual(["sequel-to", "echo"]);
+  });
+
+  it("leaves an already translated relation intact", () => {
+    const [f] = migrate([
+      {
+        id: "a",
+        title: "Stalker",
+        linkedWorks: [{ id: "w1", type: "film", filmId: "b", relation: "precedes" }],
+      } as never,
+    ]);
+    expect(f!.linkedWorks[0]!.relation).toBe("precedes");
+  });
+
+  /* A link with no relation is the ordinary case — the kind of the
+     thread is optional. The migration must not invent one for it. */
+  it("does not invent a relation where there was none", () => {
+    const [f] = migrate([
+      {
+        id: "a",
+        title: "Stalker",
+        linkedWorks: [{ id: "w1", type: "livre", title: "Roadside Picnic" }],
+      } as never,
+    ]);
+    expect(f!.linkedWorks[0]!.relation).toBeUndefined();
+  });
+
+  /* Of a card from before the log we know only one thing: it was seen on
+     such a day, and rated so. Writing that down is truer than leaving a
+     counter at zero under a film that carries a screening date. */
+  it("builds a first screening from the date already known", () => {
     const [f] = migrate([{ id: "x", title: "Stalker", rating: 4, watchedAt: "2019-03-02" }]);
     expect(f!.watches).toEqual([{ date: "2019-03-02", rating: 4 }]);
   });
 
-  it("n'invente aucune séance pour un film jamais daté", () => {
+  it("invents no screening for a film that was never dated", () => {
     expect(migrate([{ id: "x", title: "Stalker" }])[0]!.watches).toEqual([]);
   });
 
-  /* LE TEST QUI PROTÈGE DE LA RÉSURRECTION. Un journal vidé à la main est
-     un tableau VIDE, pas un champ absent : les confondre le remplirait à
-     nouveau au chargement suivant — et `migrate` réécrit aussitôt dans le
-     stockage, donc la séance reviendrait pour de bon. */
-  it("laisse vide un journal que l'on a vidé, même si la date demeure", () => {
-    const vidé = { id: "x", title: "Stalker", rating: 4, watchedAt: "2019-03-02", watches: [] };
-    expect(migrate([vidé])[0]!.watches).toEqual([]);
-    expect(migrate(migrate([vidé]))[0]!.watches).toEqual([]);
+  /* THE TEST THAT GUARDS AGAINST RESURRECTION. A log emptied by hand is
+     an EMPTY array, not a missing field: confusing the two would fill it
+     again on the next load — and `migrate` writes straight back to
+     storage, so the screening would come back for good. */
+  it("leaves empty a log that was emptied, even if the date remains", () => {
+    const emptied = { id: "x", title: "Stalker", rating: 4, watchedAt: "2019-03-02", watches: [] };
+    expect(migrate([emptied])[0]!.watches).toEqual([]);
+    expect(migrate(migrate([emptied]))[0]!.watches).toEqual([]);
   });
 
-  it("range le journal du plus récent au plus ancien", () => {
+  it("files the log from the most recent to the oldest", () => {
     const [f] = migrate([
       {
         id: "x",
@@ -193,44 +251,78 @@ describe("migrate", () => {
   });
 });
 
-describe("les motifs, sur une fiche d'avant", () => {
-  it("apparaissent vides sans rien effacer d'autre", () => {
+describe("motifs, on a card from before", () => {
+  it("come up empty without erasing anything else", () => {
     const [f] = migrate([{ title: "Playtime", themes: ["ville"] }]);
     expect(f?.motifs).toEqual([]);
     expect(f?.themes).toEqual(["ville"]);
   });
 
-  it("ne réécrivent pas ceux déjà posés", () => {
-    const [f] = migrate([{ title: "x", motifs: ["heros-meurt"] }]);
-    expect(f?.motifs).toEqual(["heros-meurt"]);
+  it("do not rewrite those already set", () => {
+    const [f] = migrate([{ title: "x", motifs: ["hero-dies"] }]);
+    expect(f?.motifs).toEqual(["hero-dies"]);
+  });
+
+  /* ============================================================
+     THE MOTIF IDENTIFIERS CHANGED LANGUAGE
+
+     This is the riskiest migration of the whole translation: sixty-nine
+     identifiers, written on every card in the binder, and nothing in the
+     data says which spelling they belong to. `migrate` is the only door —
+     so the proof is made here.
+     ============================================================ */
+  it("translates the identifiers written before the switch", () => {
+    const [f] = migrate([{ title: "x", motifs: ["heros-meurt", "melancolie"] } as never]);
+    expect(f?.motifs).toEqual(["hero-dies", "melancholy"]);
+  });
+
+  it("lets through a motif the catalogue does not know", () => {
+    /* Same rule as on display: an unknown motif is ignored, never erased
+       from the card. A motif YOU created carries an identifier taken from
+       its label, and has no business in the table of old spellings. */
+    const [f] = migrate([{ title: "x", motifs: ["il-pleut-sans-arret"] } as never]);
+    expect(f?.motifs).toEqual(["il-pleut-sans-arret"]);
+  });
+
+  it("creates no duplicate when both spellings live side by side", () => {
+    /* A card synchronised between a migrated device and one that is not
+       yet can carry both. They designate the same motif: the card keeps
+       only one. */
+    const [f] = migrate([{ title: "x", motifs: ["heros-meurt", "hero-dies"] } as never]);
+    expect(f?.motifs).toEqual(["hero-dies"]);
+  });
+
+  it("does not choke on a `motifs` field that is not a list", () => {
+    const [f] = migrate([{ title: "x", motifs: "melancolie" } as never]);
+    expect(f?.motifs).toEqual([]);
   });
 });
 
-describe("le journal des séances", () => {
+describe("the screening log", () => {
   const w = (date: string, rating: number | null = null) => ({ date, rating });
 
-  /* La date est la clé, et c'est ce qui rend un réimport inoffensif :
-     repasser trois fois le même diary.csv ne fait pas un film vu neuf
-     fois. */
-  it("ne compte qu'une séance par date", () => {
+  /* The date is the key, and that is what makes a re-import harmless:
+     running the same diary.csv through three times does not make a film
+     seen nine times. */
+  it("counts only one screening per date", () => {
     expect(mergeWatches([w("2024-01-01", 4)], [w("2024-01-01", 4)])).toHaveLength(1);
   });
 
-  it("complète une séance sans effacer une note déjà connue", () => {
+  it("completes a screening without erasing a rating already known", () => {
     expect(mergeWatches([w("2024-01-01", 4)], [w("2024-01-01", null)])).toEqual([
       { date: "2024-01-01", rating: 4 },
     ]);
   });
 
-  it("laisse une note plus récente corriger la précédente", () => {
+  it("lets a more recent rating correct the previous one", () => {
     expect(mergeWatches([w("2024-01-01", 4)], [w("2024-01-01", 5)])).toEqual([
       { date: "2024-01-01", rating: 5 },
     ]);
   });
 
-  /* `watchedAt` n'est plus la vérité mais le reflet du journal : les deux
-     ne peuvent pas diverger puisqu'on ne les écrit qu'ensemble. */
-  it("recale la date de dernière séance sur le journal", () => {
+  /* `watchedAt` is no longer the truth but the log's reflection: the two
+     cannot drift apart since they are only ever written together. */
+  it("realigns the last-screening date with the log", () => {
     const f = withWatches(makeFilm({ watchedAt: "1999-01-01" }), [
       w("2019-03-02", 4),
       w("2024-01-01", 5),
@@ -239,17 +331,17 @@ describe("le journal des séances", () => {
     expect(watchCount(f)).toBe(2);
   });
 
-  it("rend la date à null quand on retire la dernière séance", () => {
+  it("returns the date to null when the last screening is removed", () => {
     expect(withWatches(makeFilm({ watchedAt: "2024-01-01" }), []).watchedAt).toBeNull();
   });
 
-  it("écarte une séance sans date, qui n'est pas une séance", () => {
+  it("rules out a screening with no date, which is not a screening", () => {
     expect(mergeWatches([{ date: "", rating: 4 }])).toEqual([]);
   });
 });
 
-describe("la variation de note d'une séance à l'autre", () => {
-  it("mesure l'écart avec la fois d'avant", () => {
+describe("how the rating varies from one screening to the next", () => {
+  it("measures the gap with the time before", () => {
     expect(
       ratingDrift([
         { date: "2024-01-01", rating: 5 },
@@ -258,9 +350,9 @@ describe("la variation de note d'une séance à l'autre", () => {
     ).toEqual([1.5, null]);
   });
 
-  /* Une séance non notée n'a rien à dire : elle ne rompt pas la chaîne,
-     on compare à la dernière fois où l'on s'est prononcé. */
-  it("enjambe une séance qu'on n'a pas notée", () => {
+  /* An unrated screening has nothing to say: it does not break the
+     chain, we compare against the last time we gave a verdict. */
+  it("steps over a screening that was not rated", () => {
     expect(
       ratingDrift([
         { date: "2024-01-01", rating: 5 },
@@ -270,31 +362,31 @@ describe("la variation de note d'une séance à l'autre", () => {
     ).toEqual([1, null, null]);
   });
 
-  it("ramène l'année à un nombre", () => {
-    // le tri par année faisait de l'arithmétique sur des chaînes venues du CSV
+  it("brings the year back to a number", () => {
+    // sorting by year was doing arithmetic on strings that came out of the CSV
     expect(migrate([{ title: "a", year: "1979" as unknown as number }])[0]!.year).toBe(1979);
   });
 
-  it("garde l'année vide quand elle est inconnue", () => {
+  it("keeps the year empty when it is unknown", () => {
     expect(migrate([{ title: "a", year: "" }])[0]!.year).toBe("");
     expect(migrate([{ title: "a", year: null as unknown as number }])[0]!.year).toBe("");
-    // une année illisible ne doit pas devenir NaN
+    // an unreadable year must not become NaN
     expect(migrate([{ title: "a", year: "s.d." as unknown as number }])[0]!.year).toBe("");
   });
 
-  it("ne connaît que deux statuts", () => {
+  it("knows only two statuses", () => {
     expect(migrate([{ title: "a", status: "watchlist" }])[0]!.status).toBe("watchlist");
     expect(
       migrate([{ title: "a", status: "n'importe quoi" as unknown as "watched" }])[0]!.status
     ).toBe("watched");
   });
 
-  it("préserve un rangement manuel déjà effectué", () => {
+  it("preserves an arrangement already made by hand", () => {
     expect(migrate([{ title: "a", order: 0 }])[0]!.order).toBe(0);
     expect(migrate([{ title: "a", order: 7 }])[0]!.order).toBe(7);
   });
 
-  it("accepte une collection absente", () => {
+  it("accepts a missing collection", () => {
     expect(migrate(null)).toEqual([]);
     expect(migrate(undefined)).toEqual([]);
   });
@@ -310,18 +402,18 @@ describe("editLinkedWork", () => {
     ...over,
   });
 
-  /* Le premier fil d'une fiche. Le `!` est assumé : chaque cas d'essai
-     en pose un, et une absence doit casser le test plutôt que d'être
-     contournée par un point d'interrogation qui la rendrait muette. */
+  /* A card's first thread. The `!` is deliberate: every test case sets
+     one, and an absence must break the test rather than be worked around
+     by a question mark that would silence it. */
   const worksOf = (films: Film[], id: string) => films.find((f) => f.id === id)!.linkedWorks;
   const firstOf = (films: Film[], id: string) => worksOf(films, id)[0]!;
 
-  /* Une mention libre : rien ne la contredit ailleurs, elle s'écrit donc
-     entièrement à la main. */
-  describe("une mention libre", () => {
+  /* A free mention: nothing contradicts it elsewhere, so it is written
+     entirely by hand. */
+  describe("a free mention", () => {
     const base = () => [makeFilm({ id: "a", linkedWorks: [work()] })];
 
-    it("réécrit tout ce qu'on lui donne", () => {
+    it("rewrites everything it is given", () => {
       const out = editLinkedWork(base(), "a", "w1", {
         type: "film",
         title: "Hiroshima mon amour",
@@ -337,7 +429,7 @@ describe("editLinkedWork", () => {
       });
     });
 
-    it("garde ce que le correctif ne mentionne pas", () => {
+    it("keeps what the patch does not mention", () => {
       const out = editLinkedWork(base(), "a", "w1", { note: "autrement" });
       expect(firstOf(out, "a")).toMatchObject({
         title: "Lol V. Stein",
@@ -347,20 +439,20 @@ describe("editLinkedWork", () => {
       });
     });
 
-    it("émonde les blancs", () => {
+    it("trims the whitespace", () => {
       const out = editLinkedWork(base(), "a", "w1", { title: "  Le Vice-consul  ", note: "  x  " });
       expect(firstOf(out, "a")).toMatchObject({ title: "Le Vice-consul", note: "x" });
     });
 
-    it("refuse de la vider de son titre — un fil sans titre n'a plus rien à dire", () => {
+    it("refuses to empty it of its title — a thread with no title has nothing left to say", () => {
       const films = base();
       expect(editLinkedWork(films, "a", "w1", { title: "   " })).toBe(films);
     });
   });
 
-  /* Un renvoi vers une fiche du mur : son titre appartient à la fiche
-     d'en face, sa note appartient au lien. */
-  describe("un renvoi réciproque", () => {
+  /* A cross-reference to a card on the wall: its title belongs to the
+     card opposite, its note belongs to the link. */
+  describe("a reciprocal cross-reference", () => {
     const base = () => [
       makeFilm({
         id: "a",
@@ -372,13 +464,13 @@ describe("editLinkedWork", () => {
       }),
     ];
 
-    it("porte la note aux deux bouts du fil", () => {
+    it("carries the note to both ends of the thread", () => {
       const out = editLinkedWork(base(), "a", "wa", { note: "deux regards sur un musée" });
       expect(firstOf(out, "a").note).toBe("deux regards sur un musée");
       expect(firstOf(out, "b").note).toBe("deux regards sur un musée");
     });
 
-    it("ignore titre, auteur et type : ils sont la fiche d'en face", () => {
+    it("ignores title, author and type: they belong to the card opposite", () => {
       const out = editLinkedWork(base(), "a", "wa", {
         title: "MENSONGE",
         creator: "MENSONGE",
@@ -386,45 +478,45 @@ describe("editLinkedWork", () => {
         note: "n",
       });
       expect(firstOf(out, "a")).toMatchObject({ title: "B", creator: "Duras", type: "film" });
-      // et la moitié d'en face garde le sien, qui n'a jamais été en cause
+      // and the half opposite keeps its own, which was never in question
       expect(firstOf(out, "b")).toMatchObject({ title: "A", type: "film", note: "n" });
     });
 
-    /* La relation appartient au lien, comme la note — mais elle se
-       RENVERSE d'un bout à l'autre. Écrire la même des deux côtés ferait
-       dire à chaque film qu'il est la suite de l'autre, ce qui ne se voit
-       qu'en ouvrant la seconde fiche. */
-    it("renverse la relation sur la moitié d'en face", () => {
-      const out = editLinkedWork(base(), "a", "wa", { relation: "suite-de", force: 3 });
-      expect(firstOf(out, "a")).toMatchObject({ relation: "suite-de", force: 3 });
-      expect(firstOf(out, "b")).toMatchObject({ relation: "précède", force: 3 });
+    /* The relation belongs to the link, like the note — but it FLIPS
+       from one end to the other. Writing the same one on both sides
+       would tell each film it is the sequel to the other, which only
+       shows on opening the second card. */
+    it("flips the relation on the half opposite", () => {
+      const out = editLinkedWork(base(), "a", "wa", { relation: "sequel-to", force: 3 });
+      expect(firstOf(out, "a")).toMatchObject({ relation: "sequel-to", force: 3 });
+      expect(firstOf(out, "b")).toMatchObject({ relation: "precedes", force: 3 });
     });
 
-    it("garde une relation symétrique telle quelle", () => {
-      const out = editLinkedWork(base(), "a", "wa", { relation: "diptyque" });
-      expect(firstOf(out, "b").relation).toBe("diptyque");
+    it("keeps a symmetric relation as it is", () => {
+      const out = editLinkedWork(base(), "a", "wa", { relation: "diptych" });
+      expect(firstOf(out, "b").relation).toBe("diptych");
     });
 
-    it("ne touche pas aux fils des autres fiches", () => {
+    it("does not touch the threads of other cards", () => {
       const films = [...base(), makeFilm({ id: "c", linkedWorks: [work({ id: "wc" })] })];
       const out = editLinkedWork(films, "a", "wa", { note: "n" });
       expect(firstOf(out, "c").note).toBe("le même vide");
     });
 
-    /* Une moitié orpheline — la fiche d'en face supprimée hors de ce
-       chemin — ne doit pas empêcher d'annoter celle qui reste. */
-    it("annote encore quand la fiche d'en face a disparu", () => {
-      const seul = [
+    /* An orphaned half — the card opposite deleted outside this path —
+       must not stop us annotating the one that remains. */
+    it("still annotates when the card opposite has vanished", () => {
+      const alone = [
         makeFilm({
           id: "a",
           linkedWorks: [work({ id: "wa", type: "film", filmId: "disparu", pairId: "p" })],
         }),
       ];
-      expect(firstOf(editLinkedWork(seul, "a", "wa", { note: "n" }), "a").note).toBe("n");
+      expect(firstOf(editLinkedWork(alone, "a", "wa", { note: "n" }), "a").note).toBe("n");
     });
   });
 
-  it("laisse la collection intacte quand le fil n'existe pas", () => {
+  it("leaves the collection intact when the thread does not exist", () => {
     const films = [makeFilm({ id: "a", linkedWorks: [work()] })];
     expect(editLinkedWork(films, "a", "inconnu", { note: "n" })).toBe(films);
     expect(editLinkedWork(films, "inconnu", "w1", { note: "n" })).toBe(films);

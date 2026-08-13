@@ -5,27 +5,26 @@ import { C, F, alpha } from "../../theme/tokens";
 import { getImage } from "../../db";
 
 /* ============================================================
-   UNE IMAGE DU COFFRE — et ce qu'on montre quand elle n'y est pas
+   AN IMAGE FROM THE VAULT — and what we show when it is not there
    ============================================================
 
-   Les captures et les affiches importées depuis un disque vivent en
-   IndexedDB, sur l'appareil qui les a rangées. La FICHE, elle, voyage :
-   un second appareil connaît donc la liste des captures d'un film, leur
-   légende et leur place, sans posséder une seule des images.
+   The stills and the posters imported from a disk live in IndexedDB, on
+   the device that filed them. The CARD, on the other hand, travels: so a
+   second device knows the list of a film's stills, their captions and
+   their places, without owning a single one of the images.
 
-   Il rendait alors un rectangle de carton, muet. Signalé en essai comme
-   un défaut de synchronisation — ce qui était une lecture RAISONNABLE :
-   rien à l'écran ne distinguait « cette image n'est pas ici » de « cette
-   image ne s'affiche pas ». Un cadre vide sans un mot ressemble toujours
-   à une panne.
+   It then drew a rectangle of cardstock, mute. Reported in testing as a
+   synchronisation fault — which was a REASONABLE reading: nothing on
+   screen told "this image is not here" from "this image will not
+   display". An empty frame with not a word always looks like a failure.
 
-   On le dit donc, et l'on adapte le propos à la place : une vignette de
-   vingt-deux pixels ne peut porter qu'un signe, une capture pleine page
-   mérite une phrase. */
+   So we say it, and we fit what we say to the room: a twenty-two pixel
+   thumbnail can carry only a sign, a full-page still deserves a
+   sentence. */
 
-/* En dessous, aucune phrase ne tient : on ne met qu'un signe, et
-   l'infobulle porte le reste. */
-const ASSEZ_GRAND = 120;
+/* Below that, no sentence fits: we put a sign only, and the tooltip
+   carries the rest. */
+const BIG_ENOUGH = 120;
 
 export function IdbImage({
   imageKey,
@@ -38,57 +37,57 @@ export function IdbImage({
   style?: CSSProperties;
   onClick?: () => void;
 }) {
-  /* TROIS ÉTATS, ET NON DEUX. « Pas encore d'URL » couvrait à la fois la
-     lecture en cours et l'absence définitive : annoncer une image
-     manquante pendant qu'on la cherche ferait clignoter un reproche à
-     chaque ouverture. */
-  const [état, setÉtat] = useState<"cherche" | "trouvée" | "absente">("cherche");
+  /* THREE STATES, AND NOT TWO. "No URL yet" covered both the read in
+     progress and the definitive absence: announcing a missing image
+     while we are still looking for it would make a reproach blink on
+     every opening. */
+  const [state, setState] = useState<"cherche" | "trouvée" | "absente">("cherche");
   const [url, setUrl] = useState<string | null>(null);
-  const boîte = useRef<HTMLDivElement | null>(null);
+  const box = useRef<HTMLDivElement | null>(null);
   const [large, setLarge] = useState(true);
 
   useEffect(() => {
     let objectUrl: string | null = null;
-    let vivant = true;
-    setÉtat("cherche");
+    let alive = true;
+    setState("cherche");
     getImage(imageKey)
       .then((blob: Blob | undefined) => {
-        if (!vivant) return;
+        if (!alive) return;
         if (!blob) {
-          setÉtat("absente");
+          setState("absente");
           return;
         }
         objectUrl = URL.createObjectURL(blob);
         setUrl(objectUrl);
-        setÉtat("trouvée");
+        setState("trouvée");
       })
       .catch(() => {
-        /* Le coffre refuse — mode privé, base verrouillée. Pour qui
-           regarde, c'est la même chose qu'une image absente. */
-        if (vivant) setÉtat("absente");
+        /* The vault refuses — private mode, locked database. For
+           whoever is looking, it is the same as a missing image. */
+        if (alive) setState("absente");
       });
     return () => {
-      vivant = false;
+      alive = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [imageKey]);
 
   useLayoutEffect(() => {
-    if (état !== "absente" || !boîte.current) return;
-    setLarge(boîte.current.getBoundingClientRect().width >= ASSEZ_GRAND);
-  }, [état]);
+    if (state !== "absente" || !box.current) return;
+    setLarge(box.current.getBoundingClientRect().width >= BIG_ENOUGH);
+  }, [state]);
 
-  if (état === "trouvée" && url) {
+  if (state === "trouvée" && url) {
     return <img src={url} alt={alt} onClick={onClick} style={style} />;
   }
 
-  /* Pendant la recherche : le carton d'avant, sans un mot. C'est
-     l'affaire de quelques millisecondes. */
-  if (état === "cherche") return <div style={{ ...style, background: C.paperDark }} />;
+  /* While looking: the cardstock as before, without a word. It is a
+     matter of a few milliseconds. */
+  if (state === "cherche") return <div style={{ ...style, background: C.paperDark }} />;
 
   return (
     <div
-      ref={boîte}
+      ref={box}
       onClick={onClick}
       title="Cette image est restée sur l'appareil qui l'a importée : les captures ne se synchronisent pas encore."
       style={{

@@ -1,23 +1,23 @@
 /* ============================================================
-   LE GÉNÉRIQUE — ce que la collection sait des gens
+   THE CREDITS — what the collection knows about people
 
-   Les noms étaient déjà là. Chaque fiche porte sa réalisation, ses huit
-   premiers rôles et son équipe par métier, et ces trois champs ne
-   servaient qu'à UNE chose : tracer les pointillés de la constellation.
-   On ne pouvait pas demander « et Decaë, qu'est-ce que j'ai de lui ».
+   The names were already there. Every card carries its director, its
+   first eight roles and its crew by trade, and those three fields served
+   ONE purpose only: drawing the constellation's dotted lines. You could
+   not ask "and Decaë, what have I got of his".
 
-   Rien n'est collecté de plus, rien n'est écrit nulle part : un dossier
-   de personne se RECOMPOSE à chaque lecture depuis les films, comme un
-   fil (`domain/fils`). Une personne n'est pas une entité qu'on range,
-   c'est une question qu'on pose à la collection.
+   Nothing more is collected, nothing is written anywhere: a person's
+   page is RECOMPOSED on every read from the films, like a thread
+   (`domain/threads`). A person is not an entity you file away, it is a
+   question you put to the collection.
    ============================================================ */
-import { parentésDe } from "./sky";
-import { normaliser } from "./search";
+import { kinshipsOf } from "./sky";
+import { normalize } from "./search";
 import { watchCount } from "./film";
 import type { Film, KinshipRole, Year } from "../types";
 
-/** Les rôles qui désignent quelqu'un. `thème` n'est pas une personne. */
-export const RÔLES: KinshipRole[] = [
+/** The roles that designate somebody. `thème` is not a person. */
+export const PERSON_ROLES: KinshipRole[] = [
   "réalisation",
   "interprétation",
   "image",
@@ -25,109 +25,109 @@ export const RÔLES: KinshipRole[] = [
   "scénario",
 ];
 
-const estUnRôleDePersonne = (r: KinshipRole): boolean => r !== "thème";
+const isPersonRole = (r: KinshipRole): boolean => r !== "thème";
 
-export interface Personne {
-  /** `normaliser(nom)` — l'identité, insensible à la casse et aux accents. */
-  clé: string;
-  /** L'orthographe la plus fréquente dans la collection. */
-  nom: string;
-  /** À quels titres cette personne apparaît, dans l'ordre de `RÔLES`. */
-  rôles: KinshipRole[];
-  /** Ses films chez vous, toutes casquettes confondues, les plus récents d'abord. */
+export interface Person {
+  /** `normalize(name)` — the identity, insensitive to case and accents. */
+  key: string;
+  /** The most frequent spelling in the collection. */
+  name: string;
+  /** The capacities this person appears in, in `PERSON_ROLES` order. */
+  roles: KinshipRole[];
+  /** Their films at your place, all hats together, most recent first. */
   films: string[];
-  vus: number;
-  àVoir: number;
-  /** Le nombre de séances tenues sur ses films — un revu compte deux fois. */
-  séances: number;
+  watched: number;
+  toWatch: number;
+  /** The number of screenings held on their films — a rewatch counts twice. */
+  screenings: number;
   /**
-   * La moyenne de VOS notes, sur ses films vus ET notés. Un zéro veut
-   * dire « pas noté » et non « exécuté » : le faire entrer dans la
-   * moyenne ferait passer pour tiède quelqu'un qu'on n'a simplement pas
-   * jugé. `null` quand aucun de ses films n'est noté.
+   * The average of YOUR ratings, over their films watched AND rated. A
+   * zero means "not rated" and not "panned": letting it into the average
+   * would make someone we simply have not judged look lukewarm. `null`
+   * when none of their films is rated.
    */
-  note: number | null;
+  rating: number | null;
   /**
-   * Votre note ramenée sur dix, moins la note publique. Positif : vous
-   * êtes plus tendre que la foule ; négatif : plus sévère.
+   * Your rating brought onto ten, minus the public rating. Positive: you
+   * are gentler than the crowd; negative: harsher.
    *
-   * C'est la première exploitation réelle de `tmdbRating`, dont le type
-   * dit depuis le début qu'il est là « de quoi mesurer son propre
-   * écart ». Ne compte que les fiches où LES DEUX notes existent —
-   * comparer à un vide donnerait un écart inventé.
+   * This is the first real use of `tmdbRating`, whose type has said from
+   * the start that it is there "to measure one's own gap". Only counts
+   * the cards where BOTH ratings exist — comparing against a void would
+   * give an invented gap.
    */
-  écart: number | null;
-  /** De son film le plus ancien au plus récent. `null` si aucune année connue. */
-  période: [Year, Year] | null;
-  /** Les motifs qui reviennent chez elle : vus sur deux de ses films au moins. */
+  gap: number | null;
+  /** From their oldest film to their most recent. `null` if no year is known. */
+  period: [Year, Year] | null;
+  /** The motifs that recur with them: seen on at least two of their films. */
   motifs: string[];
 }
 
-/* Ce qu'on accumule en balayant, avant de faire les comptes. */
-interface Brouillon {
-  clé: string;
-  /** Chaque orthographe rencontrée et son nombre d'occurrences. */
-  graphies: Map<string, number>;
-  rôles: Set<KinshipRole>;
+/* What we accumulate while sweeping, before doing the sums. */
+interface Draft {
+  key: string;
+  /** Every spelling met, and how many times. */
+  spellings: Map<string, number>;
+  roles: Set<KinshipRole>;
   films: Film[];
 }
 
-/** À quels titres cette personne apparaît sur CE film. */
-export const rôlesSurLeFilm = (f: Film, clé: string): KinshipRole[] => {
-  const vus = new Set<KinshipRole>();
-  for (const k of parentésDe(f))
-    if (estUnRôleDePersonne(k.role) && normaliser(k.nom.trim()) === clé) vus.add(k.role);
-  return RÔLES.filter((r) => vus.has(r));
+/** The capacities this person appears in on THIS film. */
+export const rolesOnFilm = (f: Film, key: string): KinshipRole[] => {
+  const seen = new Set<KinshipRole>();
+  for (const k of kinshipsOf(f))
+    if (isPersonRole(k.role) && normalize(k.name.trim()) === key) seen.add(k.role);
+  return PERSON_ROLES.filter((r) => seen.has(r));
 };
 
-const graphieDominante = (graphies: Map<string, number>): string => {
-  let meilleure = "";
-  let meilleurCompte = -1;
-  /* À égalité, la première rencontrée gagne — l'ordre de la collection
-     est stable, donc le nom affiché ne change pas d'un rendu à l'autre.
-     Une personne dont le nom danserait serait une personne différente à
-     chaque coup d'œil. */
-  for (const [graphie, n] of graphies)
-    if (n > meilleurCompte) {
-      meilleure = graphie;
-      meilleurCompte = n;
+const dominantSpelling = (spellings: Map<string, number>): string => {
+  let best = "";
+  let bestCount = -1;
+  /* On a tie the first one met wins — the collection's order is stable,
+     so the displayed name does not change from one render to the next. A
+     person whose name danced about would be a different person at every
+     glance. */
+  for (const [spelling, n] of spellings)
+    if (n > bestCount) {
+      best = spelling;
+      bestCount = n;
     }
-  return meilleure;
+  return best;
 };
 
-const moyenne = (xs: number[]): number | null =>
+const average = (xs: number[]): number | null =>
   xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
 
-const composer = ({ clé, graphies, rôles, films }: Brouillon): Personne => {
-  const notes: number[] = [];
-  const écarts: number[] = [];
-  const années: number[] = [];
-  const compteMotifs = new Map<string, number>();
+const compose = ({ key, spellings, roles, films }: Draft): Person => {
+  const ratings: number[] = [];
+  const gaps: number[] = [];
+  const years: number[] = [];
+  const motifCounts = new Map<string, number>();
 
   for (const f of films) {
     if (f.rating > 0) {
-      notes.push(f.rating);
-      // sur cinq d'un côté, sur dix de l'autre : on parle la même langue avant de soustraire
-      if (f.tmdbRating != null) écarts.push(f.rating * 2 - f.tmdbRating);
+      ratings.push(f.rating);
+      // out of five on one side, out of ten on the other: speak the same language before subtracting
+      if (f.tmdbRating != null) gaps.push(f.rating * 2 - f.tmdbRating);
     }
-    if (f.year) années.push(Number(f.year));
-    for (const id of f.motifs || []) compteMotifs.set(id, (compteMotifs.get(id) || 0) + 1);
+    if (f.year) years.push(Number(f.year));
+    for (const id of f.motifs || []) motifCounts.set(id, (motifCounts.get(id) || 0) + 1);
   }
 
   return {
-    clé,
-    nom: graphieDominante(graphies),
-    rôles: RÔLES.filter((r) => rôles.has(r)),
-    /* Les plus récemment ajoutés d'abord : c'est le film qu'on vient de
-       ranger qui nous fait ouvrir le dossier de quelqu'un. */
+    key,
+    name: dominantSpelling(spellings),
+    roles: PERSON_ROLES.filter((r) => roles.has(r)),
+    /* Most recently added first: it is the film we have just filed that
+       makes us open somebody's page. */
     films: [...films].sort((a, b) => b.addedAt - a.addedAt).map((f) => f.id),
-    vus: films.filter((f) => f.status === "watched").length,
-    àVoir: films.filter((f) => f.status === "watchlist").length,
-    séances: films.reduce((n, f) => n + watchCount(f), 0),
-    note: moyenne(notes),
-    écart: moyenne(écarts),
-    période: années.length ? [Math.min(...années), Math.max(...années)] : null,
-    motifs: [...compteMotifs.entries()]
+    watched: films.filter((f) => f.status === "watched").length,
+    toWatch: films.filter((f) => f.status === "watchlist").length,
+    screenings: films.reduce((n, f) => n + watchCount(f), 0),
+    rating: average(ratings),
+    gap: average(gaps),
+    period: years.length ? [Math.min(...years), Math.max(...years)] : null,
+    motifs: [...motifCounts.entries()]
       .filter(([, n]) => n >= 2)
       .sort((a, b) => b[1] - a[1])
       .map(([id]) => id),
@@ -135,72 +135,72 @@ const composer = ({ clé, graphies, rôles, films }: Brouillon): Personne => {
 };
 
 /**
- * Tout le monde, le mieux fourni d'abord.
+ * Everybody, the best furnished first.
  *
- * Pas d'index, pas de cache : à quelques milliers de fiches et huit noms
- * chacune, un balayage se fait en moins d'une image, là où un index
- * serait une structure de plus à tenir à jour à chaque écriture. C'est le
- * même raisonnement que dans `domain/search`, et la vue mémoïse.
+ * No index, no cache: at a few thousand cards and eight names each, a
+ * sweep takes less than a frame, where an index would be one more
+ * structure to keep up to date on every write. It is the same reasoning
+ * as in `domain/search`, and the view memoises.
  *
- * Les fiches ARCHIVÉES comptent : les avoir mises de côté ne retire pas
- * quelqu'un de leur générique, pas plus que ça ne les rend non vues —
- * l'almanach fait déjà ce choix pour les séances.
+ * ARCHIVED cards count: having set them aside does not take somebody out
+ * of their credits, any more than it makes them unwatched — the almanac
+ * already makes that choice for screenings.
  */
-export function recenser(films: Film[]): Personne[] {
-  const brouillons = new Map<string, Brouillon>();
+export function census(films: Film[]): Person[] {
+  const drafts = new Map<string, Draft>();
 
   for (const f of films) {
-    /* Un même nom peut revenir plusieurs fois sur une fiche (réalisateur
-       ET scénariste) : on ne veut le film qu'une fois dans sa liste, mais
-       les deux rôles. */
-    const vusIci = new Set<string>();
-    for (const k of parentésDe(f)) {
-      if (!estUnRôleDePersonne(k.role)) continue;
-      const nom = k.nom.trim();
-      if (!nom) continue;
-      const clé = normaliser(nom);
-      if (!clé) continue;
+    /* The same name can come round more than once on a card (director AND
+       screenwriter): we want the film only once in their list, but both
+       roles. */
+    const seenHere = new Set<string>();
+    for (const k of kinshipsOf(f)) {
+      if (!isPersonRole(k.role)) continue;
+      const name = k.name.trim();
+      if (!name) continue;
+      const key = normalize(name);
+      if (!key) continue;
 
-      let b = brouillons.get(clé);
-      if (!b) brouillons.set(clé, (b = { clé, graphies: new Map(), rôles: new Set(), films: [] }));
-      b.rôles.add(k.role);
-      b.graphies.set(nom, (b.graphies.get(nom) || 0) + 1);
-      if (!vusIci.has(clé)) {
-        vusIci.add(clé);
+      let b = drafts.get(key);
+      if (!b) drafts.set(key, (b = { key, spellings: new Map(), roles: new Set(), films: [] }));
+      b.roles.add(k.role);
+      b.spellings.set(name, (b.spellings.get(name) || 0) + 1);
+      if (!seenHere.has(key)) {
+        seenHere.add(key);
         b.films.push(f);
       }
     }
   }
 
-  return [...brouillons.values()]
-    .map(composer)
-    .sort((a, b) => b.films.length - a.films.length || a.nom.localeCompare(b.nom, "fr"));
+  return [...drafts.values()]
+    .map(compose)
+    .sort((a, b) => b.films.length - a.films.length || a.name.localeCompare(b.name, "fr"));
 }
 
-/** Le dossier d'une personne, ou `null` si la collection ne la connaît pas. */
-export const dossierDe = (films: Film[], clé: string): Personne | null =>
-  recenser(films).find((p) => p.clé === clé) || null;
+/** A person's page, or `null` if the collection does not know them. */
+export const pageOf = (films: Film[], key: string): Person | null =>
+  census(films).find((p) => p.key === key) || null;
 
 /**
- * Chercher dans le répertoire.
+ * Searching the directory.
  *
- * Sur le nom seul, et volontairement : on tape « decae » pour trouver
- * Decaë, pas pour trouver les films où il a travaillé — c'est la
- * recherche du mur qui répond à cette question-là.
+ * On the name alone, and deliberately: you type "decae" to find Decaë,
+ * not to find the films he worked on — that is the question the wall's
+ * search answers.
  */
-export const chercherPersonnes = (gens: Personne[], q: string): Personne[] => {
-  const t = normaliser(q.trim());
-  if (!t) return gens;
-  const touche = gens.filter((p) => p.clé.includes(t));
-  /* Celui dont un MOT commence par ce qu'on tape passe devant. Le rang
-     ne se prend pas sur le nom entier comme pour un titre de film
-     (`domain/search`) : on tape presque toujours le patronyme, qui est
-     le dernier mot, et « ozu » doit trouver Ozu avant Kurozu. */
-  const parMot = (clé: string) => (clé.split(/[\s-]+/).some((mot) => mot.startsWith(t)) ? 0 : 1);
-  return touche.sort(
+export const searchPeople = (people: Person[], q: string): Person[] => {
+  const t = normalize(q.trim());
+  if (!t) return people;
+  const hits = people.filter((p) => p.key.includes(t));
+  /* Whoever has a WORD starting with what you type goes first. The rank
+     is not taken on the whole name as it is for a film title
+     (`domain/search`): you almost always type the surname, which is the
+     last word, and "ozu" must find Ozu before Kurozu. */
+  const byWord = (key: string) => (key.split(/[\s-]+/).some((word) => word.startsWith(t)) ? 0 : 1);
+  return hits.sort(
     (a, b) =>
-      parMot(a.clé) - parMot(b.clé) ||
+      byWord(a.key) - byWord(b.key) ||
       b.films.length - a.films.length ||
-      a.nom.localeCompare(b.nom, "fr")
+      a.name.localeCompare(b.name, "fr")
   );
 };

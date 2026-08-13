@@ -1,11 +1,11 @@
 /* ============================================================
-   IndexedDB — le coffre à images.
+   IndexedDB — the image vault.
 
-   localStorage plafonne à ~5 Mo pour toute l'application et ne sait
-   stocker que du texte : une affiche devait y être encodée en base64,
-   soit un tiers de poids en plus. IndexedDB stocke le Blob tel quel et
-   dispose de plusieurs gigaoctets. Les fiches, elles, restent en
-   localStorage : elles sont petites, et l'accès synchrone y est commode.
+   localStorage caps at ~5 MB for the whole application and can only
+   store text: a poster had to be base64-encoded into it, a third more
+   weight. IndexedDB stores the Blob as it is and has several gigabytes.
+   The cards themselves stay in localStorage: they are small, and
+   synchronous access is convenient there.
    ============================================================ */
 
 import {
@@ -17,10 +17,7 @@ import {
 } from "./services/customDecor";
 
 const DB_NAME = "cine-hub";
-/* Version 2 : un second magasin, `docs`, pour ce qui n'est pas une image.
-   La collection y descend — voir `services/collection`. Une base déjà
-   créée passe par `onupgradeneeded` sans rien perdre : on n'ajoute qu'un
-   magasin, on ne touche pas à celui des images. */
+/* Version 2: a second store, `docs`, for what is not an image. */
 const DB_VERSION = 2;
 const POSTERS = "posters";
 const DOCS = "docs";
@@ -40,25 +37,25 @@ function openDb() {
       if (!db.objectStoreNames.contains(POSTERS)) db.createObjectStore(POSTERS);
       if (!db.objectStoreNames.contains(DOCS)) db.createObjectStore(DOCS);
     };
-    /* DEUX ONGLETS, ET LE CLASSEUR N'OUVRE PLUS.
+    /* TWO TABS, AND THE BINDER NO LONGER OPENS.
 
-       Changer la version de la base demande un verrou exclusif. Tant
-       qu'un autre onglet tient une connexion à l'ancienne version, le
-       navigateur ne refuse pas : IL ATTEND, en silence, et `onsuccess`
-       ne vient jamais. Une promesse qui ne se résout ni ne se rejette
-       laisse l'application sur son écran d'ouverture, indéfiniment —
-       observé, la première fois, avec deux onglets ouverts sur le site.
+       Changing the database's version requires an exclusive lock. As
+       long as another tab holds a connection to the old version, the
+       browser does not refuse: IT WAITS, in silence, and `onsuccess`
+       never comes. A promise that neither resolves nor rejects leaves
+       the application on its opening screen, indefinitely — observed,
+       the first time, with two tabs open on the site.
 
-       On rejette donc explicitement : le dépôt sait retomber sur le
-       `localStorage`, et mieux vaut un classeur qui s'ouvre en mode
-       dégradé qu'un classeur qui n'ouvre pas. */
-    req.onblocked = () => reject(new Error("base verrouillée par un autre onglet"));
+       So we reject explicitly: the store knows how to fall back on
+       `localStorage`, and a binder that opens in a degraded mode beats a
+       binder that does not open. */
+    req.onblocked = () => reject(new Error("database locked by another tab"));
     req.onsuccess = () => {
       const db = req.result;
-      /* ET SURTOUT : NE PAS ÊTRE CELUI QUI BLOQUE. Quand un autre onglet
-         demande la version suivante, on ferme la nôtre au lieu de la
-         retenir. Sans cette ligne, c'est l'onglet d'à côté qui reste sur
-         son écran d'ouverture. */
+      /* AND ABOVE ALL: DO NOT BE THE ONE BLOCKING. When another tab asks
+         for the next version, we close ours instead of holding on to it.
+         Without this line, it is the tab next door that stays on its
+         opening screen. */
       db.onversionchange = () => {
         db.close();
         dbPromise = null;
@@ -88,14 +85,14 @@ async function tx(mode, fn, magasin = POSTERS) {
   });
 }
 
-/* Le magasin s'appelle encore « posters » — il stocke désormais aussi les
-   captures d'écran, mais renommer casserait les bases déjà créées. */
-/* ---------- les documents ----------
-   Tout ce qui n'est pas une image et ne tient plus dans les cinq
-   mégaoctets du `localStorage` : la collection, d'abord. On range des
-   objets JavaScript tels quels — IndexedDB les clone, sans passer par
-   une chaîne de caractères. */
-export const putDoc = (key, valeur) => tx("readwrite", (s) => s.put(valeur, key), DOCS);
+/* The store is still called "posters" — it now holds the screenshots
+   too, but renaming it would break the databases already created. */
+/* ---------- the documents ----------
+   Everything that is not an image and no longer fits in `localStorage`'s
+   five megabytes: the collection, first of all. We file JavaScript
+   objects as they are — IndexedDB clones them, without going through a
+   string. */
+export const putDoc = (key, value) => tx("readwrite", (s) => s.put(value, key), DOCS);
 export const getDoc = (key) => tx("readonly", (s) => s.get(key), DOCS);
 
 export const putImage = (key, blob) => tx("readwrite", (s) => s.put(blob, key));
@@ -103,20 +100,20 @@ export const getImage = (key) => tx("readonly", (s) => s.get(key));
 export const deleteImage = (key) => tx("readwrite", (s) => s.delete(key));
 export const allImageKeys = () => tx("readonly", (s) => s.getAllKeys());
 
-/* LES ANCIENS NOMS EN `*Poster` SONT PARTIS, et le commentaire qui les
-   gardait — « conservés pour les appels existants » — n'était plus vrai
-   depuis longtemps : il n'en restait aucun. Le seul endroit qui s'en
-   servait encore était `posterStats`, juste dessous, c'est-à-dire ce
-   fichier appelant ses propres alias.
+/* THE OLD `*Poster` NAMES ARE GONE, and the comment that kept them —
+   "kept for the existing calls" — had not been true for a long time:
+   there were none left. The only place still using them was
+   `posterStats`, just below, that is to say this file calling its own
+   aliases.
 
-   `deleteDoc` et `idbAvailable` sont partis avec, pour la même raison.
-   Le second avait un remplaçant en face sans que personne ne le dise :
-   `services/collection` répond à la même question par `coffreDisponible`,
-   avec un délai en plus — une base verrouillée par un autre onglet ne
-   répond jamais, et `idbAvailable` aurait attendu indéfiniment. */
+   `deleteDoc` and `idbAvailable` went with them, for the same reason.
+   The second had a replacement opposite without anyone saying so:
+   `services/collection` answers the same question with `vaultAvailable`,
+   with a timeout on top — a database locked by another tab never
+   answers, and `idbAvailable` would have waited forever. */
 
-/* Combien de place occupent réellement les affiches — affiché dans les
-   réglages d'import, parce qu'un quota invisible est un quota qu'on dépasse. */
+/* How much room the posters really take — shown in the import settings,
+   because an invisible quota is a quota you go past. */
 export async function posterStats() {
   const keys = await allImageKeys();
   let bytes = 0;
@@ -129,30 +126,30 @@ export async function posterStats() {
     const est = await navigator.storage?.estimate?.();
     quota = est ? { usage: est.usage, quota: est.quota } : null;
   } catch {
-    /* estimate() n'est pas partout */
+    /* estimate() is not everywhere */
   }
   return { count: keys.length, bytes, quota };
 }
 
-/* Toutes les clés d'images qu'une collection référence : affiches ET captures.
-   Oublier les captures ici les ferait effacer à la première purge. */
+/* Every image key a collection references: posters AND stills. Forgetting
+   the stills here would have them erased on the first purge. */
 export function referencedKeys(films) {
   const keys = new Set();
   for (const f of films) {
     if (isIdbPoster(f.poster)) keys.add(idbKeyOf(f.poster));
     for (const s of f.stills || []) {
       if (s.key) keys.add(s.key);
-      if (s.thumbKey) keys.add(s.thumbKey); // la vignette est dérivée mais référencée
+      if (s.thumbKey) keys.add(s.thumbKey); // the thumbnail is derived but referenced
     }
   }
   return keys;
 }
 
-/* Efface les images devenues orphelines (films supprimés).
+/* Erases the images that have become orphans (films deleted).
 
-   Les objets de déco importés vivent dans le même magasin sans qu'aucun
-   film ne les cite : sans cette ligne, la première purge emporterait tout
-   le cabinet de l'utilisateur. */
+   Imported decor objects live in the same store without any film citing
+   them: without this line, the first purge would carry off the user's
+   whole cabinet. */
 export async function pruneOrphans(films) {
   const kept = referencedKeys(films);
   for (const k of customDecorImageKeys()) kept.add(k);
@@ -162,9 +159,9 @@ export async function pruneOrphans(films) {
   return dead.length;
 }
 
-/* ---------- sauvegarde ----------
-   Un seul fichier .json contenant fiches, notes et affiches encodées :
-   de quoi repartir après un nettoyage du navigateur ou sur une autre machine. */
+/* ---------- backup ----------
+   A single .json file holding cards, notes and encoded posters: enough
+   to start again after clearing the browser, or on another machine. */
 
 const blobToDataUrl = (blob) =>
   new Promise((res, rej) => {
@@ -186,8 +183,8 @@ export async function exportBackup({
 }) {
   const images = {};
   const customDecor = listCustomDecor();
-  /* Les objets importés partent avec le reste : ce sont des images que
-     l'utilisateur a apportées, pas des réglages qu'on saurait refaire. */
+  /* Imported objects go out with the rest: they are images the user
+     brought in, not settings we would know how to rebuild. */
   for (const key of [...referencedKeys(films), ...customDecor.map((d) => d.imageKey)]) {
     const blob = await getImage(key);
     if (blob) images[key] = await blobToDataUrl(blob);
@@ -195,20 +192,21 @@ export async function exportBackup({
   return {
     format: "cine-hub-backup",
     customDecor,
-    // et le tri qu'on a fait dans le cabinet : ce sont des choix, pas des images
+    // and the sorting done in the cabinet: those are choices, not images
     hiddenDecor: listHiddenDecor(),
-    /* v3 ajoutait les intercalaires de l'étagère : ce sont des données
-       saisies à la main, pas des réglages, elles ont leur place ici.
-       v4 leur succède avec les vues, qui portent désormais tout le
-       rangement. Les intercalaires continuent d'être émis : une v4
-       relue par une version antérieure y retrouve son étagère.
-       v5 ajoute les objets de déco importés — le cabinet qu'on s'est
-       fait soi-même est aussi peu refaisable qu'une fiche.
-       v6 ajoute les fils de la constellation : un fil est une question
-       qu'on a posée à sa collection, et rien ne saurait la reposer.
-       v7 ajoute le vocabulaire : les motifs qu'on s'est écrits, et ceux du
-       catalogue qu'on a écartés. Le catalogue, lui, n'y est pas — il vit
-       dans le code, et le recopier ici figerait la version du jour. */
+    /* v3 added the shelf's dividers: they are data typed by hand, not
+       settings, and they belong here. v4 succeeds it with the views,
+       which now carry the whole arrangement. The dividers go on being
+       emitted: a v4 read back by an earlier version finds its shelf
+       again.
+       v5 adds the imported decor objects — a cabinet you made yourself is
+       as unrepeatable as a card.
+       v6 adds the constellation's threads: a thread is a question you put
+       to your collection, and nothing could put it again.
+       v7 adds the vocabulary: the motifs you wrote yourself, and those of
+       the catalogue you set aside. The catalogue itself is not in it — it
+       lives in the code, and copying it here would freeze the version of
+       the day. */
     version: 7,
     exportedAt: new Date().toISOString(),
     films,
@@ -224,29 +222,28 @@ export async function exportBackup({
 export async function importBackup(data) {
   if (data?.format !== "cine-hub-backup")
     throw new Error("Ce fichier n'est pas une sauvegarde Ciné Hub.");
-  // v1 ne connaissait que les affiches, sous la clé « posters »
+  // v1 knew only the posters, under the "posters" key
   const images = data.images || data.posters || {};
   for (const [key, dataUrl] of Object.entries(images)) {
     await putImage(key, await dataUrlToBlob(dataUrl));
   }
-  /* Les objets importés remplacent le cabinet en place plutôt que de s'y
-     ajouter : une sauvegarde restaure un état, elle ne fusionne pas.
-     Antérieur à v5, le fichier n'en a pas — et le cabinet reste vide,
-     ce qu'il était de toute façon à cette époque-là. */
+  /* Imported objects replace the cabinet in place rather than adding to
+     it: a backup restores a state, it does not merge.
+     Earlier than v5, the file has none — and the cabinet stays empty,
+     which is what it was at that time anyway. */
   setCustomDecor(data.customDecor || []);
   setHiddenDecor(data.hiddenDecor || []);
-  /* v1 et v2 ne connaissaient pas l'étagère : pas d'intercalaires à
-     restaurer. v3 en a mais pas de vues — `views: null` dit à l'appelant
-     de les refabriquer depuis les intercalaires plutôt que de laisser
-     l'étagère vide. */
+  /* v1 and v2 knew nothing of the shelf: no dividers to restore. v3 has
+     some but no views — `views: null` tells the caller to rebuild them
+     from the dividers rather than leaving the shelf empty. */
   return {
     films: data.films || [],
     notes: data.notes || [],
     dividers: data.dividers || [],
     views: data.views?.byWall ? data.views : null,
-    // antérieur à v6 : pas de fils, et il n'y en avait pas à cette époque
+    // earlier than v6: no threads, and there were none at that time
     fils: data.fils || [],
-    // idem pour le vocabulaire, arrivé en v7
+    // likewise for the vocabulary, which arrived in v7
     motifs: data.motifs || null,
   };
 }

@@ -1,59 +1,59 @@
 /* ============================================================
-   LES PEAUX — de quoi le site entier est fait
+   THE SKINS — what the whole site is made of
    ============================================================
 
-   Une peau n'est pas une palette. Changer huit couleurs et garder la
-   même typographie, le même grain de papier et les mêmes onglets de
-   carton, c'est repeindre un carnet d'archiviste en bleu : on obtient un
-   carnet d'archiviste bleu. Une peau change donc quatre choses à la
-   fois, et c'est ce qui fait qu'on passe vraiment d'un monde à l'autre :
+   A skin is not a palette. Changing eight colours and keeping the same
+   typography, the same paper grain and the same card tabs is repainting
+   an archivist's notebook in blue: one gets a blue archivist's notebook.
+   So a skin changes four things at once, and that is what makes one
+   really pass from one world to another:
 
-     - LES TEINTES — les quatorze jetons de `tokens`.
-     - LA TYPOGRAPHIE — les quatre rôles, avec les familles à charger.
-     - LE FOND DE PAGE — pas une couleur, une recette : le kraft a des
-       nappes plus claires là où la lumière tombe, une planche contact a
-       ses perforations, une nuit américaine a sa lune froide.
-     - LA FORME ET L'ATMOSPHÈRE — l'angle d'un onglet, le grain du
-       papier, les ronds de café. Une affiche imprimée n'a pas de tache
-       de café : ce n'est pas une couleur qui le dit.
+     - THE TINTS — the fourteen tokens of `tokens`.
+     - THE TYPOGRAPHY — the four roles, with the families to load.
+     - THE PAGE BACKGROUND — not a colour, a recipe: the kraft has
+       lighter patches where the light falls, a contact sheet has its
+       perforations, a day-for-night has its cold moon.
+     - THE SHAPE AND THE ATMOSPHERE — the angle of a tab, the grain of
+       the paper, the coffee rings. A printed poster has no coffee stain:
+       it is not a colour that says so.
 
-   LES NOMS DES JETONS NE VEULENT PLUS DIRE LEUR COULEUR. `burgundy`
-   désigne « la teinte chaude qui porte l'identité » — un indigo dans le
-   papier Japon, un orangé de diapositive dans le Kodachrome. Les
-   renommer aurait touché six cent treize lignes pour ne rien changer à
-   ce qu'on voit.
+   THE TOKEN NAMES NO LONGER MEAN THEIR COLOUR. `burgundy` designates
+   "the warm tint that carries the identity" — an indigo in the Japanese
+   paper, a slide orange in the Kodachrome. Renaming them would have
+   touched six hundred and thirteen lines to change nothing of what one
+   sees.
 
-   Ce que les peaux NE touchent PAS :
-     - le nuancier des objets rangés (`theme/palette`), qui appartient au
-       rangement de l'utilisateur et non à l'habillage du site ;
-     - le décor d'une vue d'étagère (`theme/surfaces`), choisi vue par
-       vue et pour la même raison.
-   Les deux sont expliqués là où ils vivent. */
+   What the skins do NOT touch:
+     - the palette of the filed objects (`theme/palette`), which belongs
+       to the user's own filing and not to the site's dress;
+     - the decor of a shelf view (`theme/surfaces`), chosen view by view
+       and for the same reason.
+   Both are explained where they live. */
 
 export type Skin = {
   key: string;
   label: string;
-  /** Une ligne pour dire ce qu'on regarde. Elle s'affiche au choix. */
+  /** One line to say what one is looking at. It shows on the picker. */
   note: string;
   /**
-   * Le fond est-il sombre ? Sert à l'aperçu, et à `color-scheme` : c'est
-   * ce drapeau qui, via l'attribut `data-dark`, dit au navigateur sur
-   * quel fond il dessine ce qu'il dessine lui-même — listes déroulantes
-   * ouvertes, cases à cocher, barres de défilement. Le mentir rend ces
-   * morceaux-là illisibles, et eux seuls.
+   * Is the background dark? Used for the preview, and for
+   * `color-scheme`: that is the only way to tell the browser what
+   * background it draws on what it draws itself — open dropdowns, check
+   * boxes, scrollbars. Lying about it makes those pieces unreadable, and
+   * only those.
    */
   dark?: boolean;
   c: Record<string, string>;
   fonts: { title: string; body: string; hand: string; mono: string };
-  /** Ce qu'il faut demander à Google, tel quel dans l'adresse. */
+  /** What to ask Google for, exactly as it goes in the URL. */
   google: string[];
-  /** Le fond de la page. Une recette entière, pas une couleur. */
+  /** The page's background. A whole recipe, not a colour. */
   page: string;
   tag: { radius: string; tracking: string; transform: string };
-  /* L'atmosphère est faite d'opacités et non de drapeaux : un grain à
-     demi effacé est un réglage utile, et un `false` ne l'aurait pas
-     permis. Zéro éteint. */
-  atm: { grain: number; stain: number; vignette: number };
+  /* The atmosphere is made of opacities and not of flags: a grain at a
+     third is not a grain switched off, and a skin can dose what it keeps
+     rather than choosing between everything and nothing. */
+  atm: { grain: number; stain: number; thumb: number };
 };
 
 const KRAFT_PAGE = `
@@ -97,7 +97,7 @@ export const SKINS: Skin[] = [
     ],
     page: KRAFT_PAGE,
     tag: { radius: "3px", tracking: "1.5px", transform: "none" },
-    atm: { grain: 1, stain: 1, vignette: 1 },
+    atm: { grain: 1, stain: 1, thumb: 1 },
   },
 
   {
@@ -138,7 +138,7 @@ export const SKINS: Skin[] = [
       radial-gradient(circle at 78% 72%, #262220 0%, transparent 44%),
       #211E1B`,
     tag: { radius: "3px", tracking: "1.5px", transform: "none" },
-    atm: { grain: 0.6, stain: 0.35, vignette: 1 },
+    atm: { grain: 0.6, stain: 0.35, thumb: 1 },
   },
 
   {
@@ -179,7 +179,7 @@ export const SKINS: Skin[] = [
       radial-gradient(circle at 50% 110%, #241413 0%, transparent 50%),
       #17100F`,
     tag: { radius: "0px", tracking: "3px", transform: "uppercase" },
-    atm: { grain: 0.5, stain: 0, vignette: 1 },
+    atm: { grain: 0.5, stain: 0, thumb: 1 },
   },
 
   {
@@ -211,17 +211,17 @@ export const SKINS: Skin[] = [
     google: ["Archivo+Black", "Archivo:wght@400;500;700", "Space+Mono:wght@400;700"],
     page: `#F2F0EB`,
     tag: { radius: "0px", tracking: "2px", transform: "uppercase" },
-    atm: { grain: 0, stain: 0, vignette: 0 },
+    atm: { grain: 0, stain: 0, thumb: 0 },
   },
 
-  /* LA NUIT AMÉRICAINE — le jour tourné pour la nuit.
+  /* DAY FOR NIGHT — daylight shot for night.
 
-     Le procédé consiste à filmer en plein soleil, à sous-exposer et à
-     poser un filtre bleu : on obtient une nuit où tout garde ses ombres
-     de midi. La peau fait exactement cela — un fond bleu-gris qui n'est
-     pas noir, des ombres portées trop nettes pour l'heure qu'il prétend
-     être, et une seule chaleur, l'ambre du projecteur, pour rappeler que
-     le soleil est resté là. */
+     The technique is to film in full sun, underexpose, and lay a blue
+     filter over it: you get a night where everything keeps its midday
+     shadows. The skin does exactly that — a blue-grey background that is
+     not black, drop shadows too crisp for the hour it claims to be, and
+     one warmth only, the projector's amber, to remind you the sun stayed
+     where it was. */
   {
     key: "nuit-americaine",
     label: "Nuit américaine",
@@ -260,17 +260,17 @@ export const SKINS: Skin[] = [
       radial-gradient(circle at 20% 90%, #1B2938 0%, transparent 50%),
       linear-gradient(170deg, #1B2836, #101821)`,
     tag: { radius: "1px", tracking: "2px", transform: "uppercase" },
-    atm: { grain: 0.45, stain: 0, vignette: 1 },
+    atm: { grain: 0.45, stain: 0, thumb: 1 },
   },
 
-  /* LE KODACHROME — une diapositive oubliée dans sa boîte.
+  /* KODACHROME — a slide forgotten in its box.
 
-     Ce qu'on regarde d'une diapositive, c'est d'abord son cadre : un
-     rectangle sombre qui isole l'image et fait paraître les couleurs
-     plus fortes qu'elles ne sont. D'où un fond presque noir mais tiré
-     vers le brun de la boîte, et des teintes qui ne se retiennent pas —
-     l'orangé et le cyan que ce film rendait mieux que tous les autres,
-     et qui ont fini par être la couleur de toute une décennie. */
+     What you look at on a slide is first of all its frame: a dark
+     rectangle that isolates the image and makes the colours look
+     stronger than they are. Hence a background almost black but pulled
+     towards the brown of the box, and tints that hold nothing back — the
+     orange and the cyan this film rendered better than any other, and
+     which ended up being the colour of a whole decade. */
   {
     key: "kodachrome",
     label: "Kodachrome",
@@ -309,7 +309,7 @@ export const SKINS: Skin[] = [
       radial-gradient(circle at 88% 92%, #2A1D16 0%, transparent 45%),
       #110E0C`,
     tag: { radius: "0px", tracking: "2px", transform: "uppercase" },
-    atm: { grain: 0.7, stain: 0.2, vignette: 1 },
+    atm: { grain: 0.7, stain: 0.2, thumb: 1 },
   },
 
   {
@@ -348,7 +348,7 @@ export const SKINS: Skin[] = [
       radial-gradient(circle at 75% 80%, #E9E5D2 0%, transparent 45%),
       #F0EDE0`,
     tag: { radius: "8px", tracking: "1px", transform: "none" },
-    atm: { grain: 0.8, stain: 0.5, vignette: 0.6 },
+    atm: { grain: 0.8, stain: 0.5, thumb: 0.6 },
   },
 
   {
@@ -389,7 +389,7 @@ export const SKINS: Skin[] = [
       repeating-linear-gradient(90deg, #ffffff0a 0 1px, transparent 1px 28px),
       linear-gradient(160deg, #124063, #0A2038)`,
     tag: { radius: "0px", tracking: "2.5px", transform: "uppercase" },
-    atm: { grain: 0.3, stain: 0, vignette: 0.8 },
+    atm: { grain: 0.3, stain: 0, thumb: 0.8 },
   },
 
   {
@@ -429,7 +429,7 @@ export const SKINS: Skin[] = [
       radial-gradient(circle at 80% 85%, #E3C88F 0%, transparent 45%),
       #EDD9AE`,
     tag: { radius: "2px", tracking: "1.5px", transform: "uppercase" },
-    atm: { grain: 1, stain: 0.8, vignette: 1 },
+    atm: { grain: 1, stain: 0.8, thumb: 1 },
   },
 
   {
@@ -466,7 +466,7 @@ export const SKINS: Skin[] = [
     ],
     page: `#EDEDE8`,
     tag: { radius: "0px", tracking: "1px", transform: "uppercase" },
-    atm: { grain: 1, stain: 0.3, vignette: 0 },
+    atm: { grain: 1, stain: 0.3, thumb: 0 },
   },
 
   {
@@ -501,16 +501,17 @@ export const SKINS: Skin[] = [
       radial-gradient(circle at 82% 80%, #EDF3FD 0%, transparent 50%),
       #FBF3F6`,
     tag: { radius: "14px", tracking: "0.5px", transform: "none" },
-    atm: { grain: 0, stain: 0, vignette: 0 },
+    atm: { grain: 0, stain: 0, thumb: 0 },
   },
 
-  /* LE PAPIER JAPON — indigo, blanc cassé, un sceau rouge.
+  /* JAPANESE PAPER — indigo, off-white, one red seal.
 
-     Une page qui laisse presque tout vide, et où le peu qui est écrit
-     porte d'autant plus. Deux encres suffisent : l'indigo, qui écrit, et
-     le vermillon du sceau, qui n'écrit rien mais dit à qui c'est. Les
-     autres jetons sont donc tenus bas — un nuancier bavard casserait le
-     silence sur lequel cette peau est bâtie. */
+     A page that leaves almost everything empty, and where the little
+     that is written carries all the more. Two inks are enough: the
+     indigo, which writes, and the seal's vermilion, which writes nothing
+     but says whose it is. The other tokens are therefore kept low — a
+     talkative swatch book would break the silence this skin is built
+     on. */
   {
     key: "japon",
     label: "Papier Japon",
@@ -547,7 +548,7 @@ export const SKINS: Skin[] = [
       radial-gradient(circle at 80% 90%, #ECE7DA 0%, transparent 50%),
       #F4F1E9`,
     tag: { radius: "1px", tracking: "2px", transform: "none" },
-    atm: { grain: 0.9, stain: 0.2, vignette: 0.4 },
+    atm: { grain: 0.9, stain: 0.2, thumb: 0.4 },
   },
 
   {
@@ -587,17 +588,16 @@ export const SKINS: Skin[] = [
       radial-gradient(circle at 50% 100%, #D2BE9C 0%, transparent 55%),
       #E8DAC3`,
     tag: { radius: "2px", tracking: "1.5px", transform: "none" },
-    atm: { grain: 1, stain: 0.6, vignette: 1 },
+    atm: { grain: 1, stain: 0.6, thumb: 1 },
   },
 
-  /* L'AFFICHE POLONAISE — papier grisâtre, aplats criards.
+  /* THE POLISH POSTER — greyish paper, garish flat tints.
 
-     L'école polonaise d'affiche de cinéma n'avait ni photographie ni
-     budget : elle avait un mauvais papier, trois encres, et le droit de
-     dessiner le film au lieu de le photographier. D'où ce fond gris —
-     jamais blanc, le blanc coûtait cher — et des couleurs qui ne
-     cherchent pas à s'accorder entre elles : elles se cognent, et c'est
-     précisément le sujet. */
+     The Polish school of film posters had neither photography nor
+     budget: it had bad paper, three inks, and the right to draw the film
+     instead of photographing it. Hence this grey background — never
+     white, white cost too much — and colours that do not seek to agree
+     with one another: they clash, and that is precisely the point. */
   {
     key: "affiche",
     label: "Affiche polonaise",
@@ -630,7 +630,7 @@ export const SKINS: Skin[] = [
       radial-gradient(circle at 70% 15%, #E4E0D6 0%, transparent 50%),
       #DCD8CE`,
     tag: { radius: "0px", tracking: "1.5px", transform: "uppercase" },
-    atm: { grain: 1, stain: 0.15, vignette: 0.3 },
+    atm: { grain: 1, stain: 0.15, thumb: 0.3 },
   },
 ];
 

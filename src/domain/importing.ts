@@ -1,12 +1,12 @@
 /* ============================================================
-   IMPORT — lecture CSV, appariement, fusion
+   IMPORT — reading the CSV, matching, merging
    ============================================================ */
 import Papa from "papaparse";
 import { makeFilm, mergeWatches, withWatches } from "./film";
 import type { Film, FilmStatus, ImportDiff, ImportRow, ParsedCsv, Year } from "../types";
 
-/* Clé d'appariement : casse, accents, ponctuation et article initial
-   neutralisés, pour que « Le Samouraï » et « Le Samourai » soient un seul film. */
+/* The matching key: case, accents, punctuation and leading article all
+   neutralised, so that "Le Samouraï" and "Le Samourai" are one film. */
 export const slugOf = (title = ""): string =>
   title
     .toLowerCase()
@@ -18,8 +18,9 @@ export const slugOf = (title = ""): string =>
 export const filmKey = (f: { title: string; year?: Year }): string =>
   `${slugOf(f.title)}|${f.year || ""}`;
 
-/* Une note absente vaut null (« non noté »), pas 0 : la nuance décide
-   si un réimport doit écraser une note existante ou la laisser tranquille. */
+/* A missing rating is null ("not rated"), not 0: the distinction decides
+   whether a re-import should overwrite an existing rating or leave it
+   alone. */
 export const parseRating = (raw: unknown): number | null => {
   if (raw == null) return null;
   const s = String(raw).trim().replace(",", ".");
@@ -37,9 +38,9 @@ const pick = (row: CsvRow, names: string[]): string => {
   return "";
 };
 
-/* Lit un export Letterboxd (ratings / diary / watched / watchlist).
-   Retourne les lignes dédoublonnées, le type de fichier deviné et de quoi
-   vérifier ce qui a réellement été lu. */
+/* Reads a Letterboxd export (ratings / diary / watched / watchlist).
+   Returns the deduplicated rows, the guessed file kind, and enough to
+   check what was actually read. */
 export function parseLetterboxdCsv(file: File): Promise<ParsedCsv> {
   return new Promise((resolve, reject) => {
     Papa.parse<CsvRow>(file, {
@@ -47,9 +48,9 @@ export function parseLetterboxdCsv(file: File): Promise<ParsedCsv> {
       skipEmptyLines: true,
       complete: (res) => {
         const headers = res.meta?.fields || [];
-        // watched.csv et watchlist.csv ont les mêmes colonnes (Date, Name,
-        // Year, URI) : seul le nom du fichier les distingue. On s'y fie donc
-        // d'abord, et on retombe sur les colonnes s'il a été renommé.
+        // watched.csv and watchlist.csv have the same columns (Date, Name,
+        // Year, URI): only the file name tells them apart. So we trust that
+        // first, and fall back on the columns if it has been renamed.
         const name = (file.name || "").toLowerCase();
         const hasRating = headers.some((h) => /^rating$/i.test(h));
         const hasWatchedDate = headers.some((h) => /^watched date$/i.test(h));
@@ -62,7 +63,7 @@ export function parseLetterboxdCsv(file: File): Promise<ParsedCsv> {
               : "watchlist";
 
         let skippedNoTitle = 0;
-        let extraWatches = 0; // les séances en plus, qui ne sont PAS des doublons
+        let extraWatches = 0; // the additional screenings, which are NOT duplicates
         const byKey = new Map<string, ImportRow>();
 
         for (const r of res.data) {
@@ -72,16 +73,16 @@ export function parseLetterboxdCsv(file: File): Promise<ParsedCsv> {
             continue;
           }
           const yearRaw = pick(r, ["Year", "year"]);
-          /* UNE DATE N'EST PAS UNE SÉANCE. « Watched Date » (diary) en est
-             une : elle dit le jour où le film a été vu. « Date » n'en est
-             jamais une — c'est le jour où la fiche a été ajoutée dans
-             watched.csv, celui où la note a été posée dans ratings.csv.
-             En faire une séance donnait à un film vu UNE fois deux
-             entrées au journal dès qu'on déposait watched.csv puis
-             diary.csv, et un « ×2 » sur une fiche que personne n'avait
-             revue. Elle reste bonne à dater la fiche, et à rien d'autre. */
-          const seance = pick(r, ["Watched Date"]);
-          const watchedAt = seance || pick(r, ["Date", "date"]);
+          /* A DATE IS NOT A SCREENING. "Watched Date" (diary) is one: it
+             says the day the film was seen. "Date" never is — it is the
+             day the card was added in watched.csv, the day the rating was
+             set in ratings.csv. Turning it into a screening gave a film
+             seen ONCE two entries in the log as soon as you dropped
+             watched.csv and then diary.csv, and a "×2" on a card nobody
+             had watched again. It is still good for dating the card, and
+             for nothing else. */
+          const screening = pick(r, ["Watched Date"]);
+          const watchedAt = screening || pick(r, ["Date", "date"]);
           const rating = parseRating(pick(r, ["Rating", "rating"]) || null);
           const rewatch = /^(yes|true|1)$/i.test(pick(r, ["Rewatch", "rewatch"]));
           const row: ImportRow = {
@@ -90,17 +91,17 @@ export function parseLetterboxdCsv(file: File): Promise<ParsedCsv> {
             rating,
             watchedAt: watchedAt || null,
             uri: pick(r, ["Letterboxd URI"]) || null,
-            /* La séance que porte CETTE ligne — s'il y en a une. Seul
-               diary.csv en consigne ; watched.csv et ratings.csv disent
-               qu'un film a été vu et noté, jamais quand. */
-            watches: seance ? [{ date: seance, rating, ...(rewatch && { rewatch }) }] : [],
+            /* The screening THIS line carries — if it carries one. Only
+               diary.csv records them; watched.csv and ratings.csv say that
+               a film was seen and rated, never when. */
+            watches: screening ? [{ date: screening, rating, ...(rewatch && { rewatch }) }] : [],
           };
-          /* diary.csv a une ligne par visionnage. On les EMPILE désormais :
-             elles ne se contredisent pas, elles se suivent. La fiche, elle,
-             reste unique — c'est le journal qui s'allonge, pas la
-             vidéothèque. Les champs de tête (note, date) continuent de
-             refléter la séance la plus récente, pour que toute la fusion
-             d'aval garde le même regard qu'avant. */
+          /* diary.csv has one line per viewing. We now STACK them: they do
+             not contradict each other, they follow one another. The card
+             stays unique — it is the log that gets longer, not the video
+             library. The head fields (rating, date) go on reflecting the
+             most recent screening, so that all the downstream merging
+             keeps the same view as before. */
           const k = filmKey(row);
           const prev = byKey.get(k);
           if (!prev) {
@@ -125,9 +126,9 @@ export function parseLetterboxdCsv(file: File): Promise<ParsedCsv> {
           stats: {
             lines: res.data.length,
             total: rows.length,
-            /* Une revoyure n'est pas un doublon : c'est une séance de plus,
-               et l'annoncer comme un rebut donnerait à croire qu'on a perdu
-               quelque chose alors qu'on vient justement de le garder. */
+            /* A rewatch is not a duplicate: it is one more screening, and
+               announcing it as a reject would suggest we had lost
+               something when we have in fact just kept it. */
             duplicatesInFile: res.data.length - skippedNoTitle - rows.length - extraWatches,
             withRating: rows.filter((r) => r.rating != null).length,
             withoutRating: rows.filter((r) => r.rating == null).length,
@@ -141,43 +142,43 @@ export function parseLetterboxdCsv(file: File): Promise<ParsedCsv> {
 }
 
 export interface DiffOptions {
-  /* LE FICHIER FAIT AUTORITÉ SUR LES SÉANCES : son journal REMPLACE
-     celui de la fiche au lieu de le compléter.
+  /* THE FILE IS AUTHORITATIVE ON SCREENINGS: its log REPLACES the card's
+     instead of completing it.
 
-     Par défaut on complète, et c'est la bonne règle : un `diary.csv`
-     apporte des séances anciennes qu'on n'avait pas, et rien ne doit se
-     perdre. Mais compléter ne sait pas défaire, et une fiche qui a
-     récolté une séance qui n'en était pas une la garde pour toujours.
-     Redéposer le diary en le déclarant SEUL MAÎTRE remet le journal
-     d'aplomb — c'est le seul chemin qui retire une séance sans qu'on
-     l'ait retirée à la main. */
+     By default we complete, and that is the right rule: a `diary.csv`
+     brings old screenings we did not have, and nothing must be lost. But
+     completing does not know how to undo, and a card that has picked up a
+     screening that was not one keeps it forever. Dropping the diary in
+     again and declaring it SOLE MASTER puts the log straight — it is the
+     only path that removes a screening without one having been removed by
+     hand. */
   authoritativeWatches?: boolean;
-  /* NE PAS TOUCHER AU STATUT DES FICHES EXISTANTES.
+  /* DO NOT TOUCH THE STATUS OF EXISTING CARDS.
 
-     `status` sert deux choses très différentes : il décide du rayon des
-     fiches CRÉÉES, et il fait passer « à voir » → « vu » les fiches
-     existantes qu'un export de films vus mentionne. La seconde est juste
-     quand on dépose un diary — c'est même tout l'intérêt.
+     `status` serves two very different purposes: it decides which shelf
+     CREATED cards land on, and it flips existing cards from "to watch" →
+     "watched" when an export of watched films mentions them. The second
+     is right when you drop a diary in — it is the whole point.
 
-     Elle est catastrophique quand l'appelant ne parle pas de visionnage.
-     « Compléter les fiches » enrichit depuis TMDB et passait `"watched"`
-     faute de mieux, en croyant ce statut inerte puisqu'il ne crée rien :
-     il a vidé des watchlists entières dans la vidéothèque, d'un seul
-     bouton, sur les fiches les plus incomplètes — c'est-à-dire justement
-     celles qu'on n'a pas vues.
+     It is catastrophic when the caller is not talking about viewing at
+     all. "Complete the cards" enriches from TMDB and passed `"watched"`
+     for want of anything better, believing that status inert since it
+     creates nothing: it emptied whole watchlists into the video library,
+     at the touch of one button, on the most incomplete cards — that is to
+     say, precisely the ones we had not seen.
 
-     D'où cet interrupteur, et son nom : ce que l'appelant refuse de
-     décider doit s'écrire, pas se déduire. */
-  garderStatut?: boolean;
+     Hence this switch, and its name: what the caller refuses to decide
+     must be written down, not inferred. */
+  keepStatus?: boolean;
 }
 
-/* Compare le CSV à la vidéothèque sans rien écrire : c'est ce diff qui est
-   montré à l'écran avant validation. */
+/* Compares the CSV against the video library without writing anything:
+   this diff is what gets shown on screen before confirmation. */
 export function diffImport(
   existing: Film[],
   rows: ImportRow[],
   status: FilmStatus,
-  { authoritativeWatches = false, garderStatut = false }: DiffOptions = {}
+  { authoritativeWatches = false, keepStatus = false }: DiffOptions = {}
 ): ImportDiff {
   const byTmdb = new Map(existing.filter((f) => f.tmdbId).map((f) => [String(f.tmdbId), f]));
   const byKey = new Map(existing.map((f) => [filmKey(f), f]));
@@ -206,100 +207,99 @@ export function diffImport(
         rating: r.rating ?? 0,
         status,
         source: "letterboxd",
-        /* Quand la source sait dans quel ordre les fiches ont été mises
-           de côté, on la croit : sinon les cinq cents films d'un même
-           relevé porteraient tous la même milliseconde, et le tri « par
-           ajout » rendrait un ordre au hasard. */
+        /* When the source knows in what order the cards were set aside, we
+           believe it: otherwise the five hundred films of a single export
+           would all carry the same millisecond, and sorting "by date
+           added" would return a random order. */
         ...(r.addedAt ? { addedAt: r.addedAt } : null),
       });
-      /* `withWatches` pose le journal ET la date : les écrire séparément
-         serait le premier endroit où les deux pourraient diverger. Un film
-         « à voir » n'a évidemment aucune séance. */
+      /* `withWatches` sets the log AND the date: writing them separately
+         would be the first place the two could drift apart. A film "to
+         watch" obviously has no screening. */
       const made = status === "watched" ? withWatches(fresh, r.watches || []) : fresh;
-      /* Une fiche sans séance peut quand même être datée : watched.csv
-         sait qu'on a vu le film, pas quand. La date approchée vaut mieux
-         qu'un vide — c'est elle qui range la vidéothèque — mais elle
-         n'entre pas au journal pour autant. */
+      /* A card with no screening can still be dated: watched.csv knows we
+         saw the film, not when. An approximate date beats a void — it is
+         what files the video library — but it does not enter the log for
+         all that. */
       if (status === "watched" && !made.watchedAt && r.watchedAt) made.watchedAt = r.watchedAt;
       toCreate.push(made);
       continue;
     }
 
-    // Fusion prudente : la note du CSV fait autorité, mais tout ce qui a été
-    // écrit à la main (critique, notes, thèmes, fil rouge) est intouchable.
+    // Cautious merging: the CSV's rating is authoritative, but everything
+    // written by hand (review, notes, themes, red thread) is untouchable.
     const changes: Partial<Film> = {};
     if (r.rating != null && r.rating !== match.rating) changes.rating = r.rating;
     if (r.director && !match.director) changes.director = r.director;
     if (r.genres?.length && !(match.genres || []).length) changes.genres = r.genres;
-    /* LE CASTING SE COMBLE, IL NE SE CORRIGE PAS. Comme les genres :
-       on ne remplit que le vide. Une fiche d'avant la récolte le reçoit
-       au premier réimport ; une fiche qui en a déjà un le garde, parce
-       qu'on ne sait pas si c'est TMDB ou la main qui l'a écrit. */
+    /* THE CAST IS FILLED IN, IT IS NOT CORRECTED. Like the genres: we only
+       fill the void. A card from before the harvest receives one on the
+       first re-import; a card that already has one keeps it, because we do
+       not know whether TMDB or a hand wrote it. */
     if (r.cast?.length && !(match.cast || []).length) changes.cast = r.cast;
     if (r.crew && Object.keys(r.crew).length && !Object.keys(match.crew || {}).length)
       changes.crew = r.crew;
-    /* Durée, langue, pays, note du public : mêmes règles que ci-dessus —
-       on ne remplit que le vide. `== null` et non `!match.runtime` : une
-       fiche dont la durée est connue ne doit pas être réinterrogée, et
-       zéro n'est pas une durée absente mais une donnée fausse qu'on
-       n'écrit jamais (voir `getDetails`). */
+    /* Runtime, language, countries, public rating: same rules as above —
+       we only fill the void. `== null` and not `!match.runtime`: a card
+       whose runtime is known must not be queried again, and zero is not a
+       missing runtime but wrong data we never write (see `getDetails`). */
     if (r.runtime != null && match.runtime == null) changes.runtime = r.runtime;
     if (r.language && !match.language) changes.language = r.language;
     if (r.countries?.length && !(match.countries || []).length) changes.countries = r.countries;
     if (r.tmdbRating != null && match.tmdbRating == null) changes.tmdbRating = r.tmdbRating;
-    /* LES MOTS-CLÉS S'ÉCRIVENT MÊME VIDES, et c'est indispensable.
+    /* KEYWORDS ARE WRITTEN EVEN WHEN EMPTY, and that is indispensable.
 
-       La règle « on ne remplit que le vide » suffit partout ailleurs.
-       Ici elle boucle : une réponse SANS mot-clé n'écrirait rien, la
-       fiche resterait « jamais demandée », et « compléter » la
-       redemanderait à chaque passage jusqu'à la fin des temps. On écrit
-       donc la liste, fût-elle vide — c'est elle qui dit « on a demandé ».
+       The "only fill the void" rule is enough everywhere else. Here it
+       loops: a response with NO keyword would write nothing, the card
+       would stay "never asked", and "complete" would ask for it again on
+       every pass until the end of time. So we write the list, empty or
+       not — it is what says "we asked".
 
-       Ils ne sont PAS vos motifs et n'y touchent pas : ceux-là ne
-       s'écrivent qu'à la main, et une récolte n'a rien à y dire. */
-    /* On comble l'absence — et aussi le VIDE, quand on rapporte enfin
-       quelque chose. C'est ce qui rend « redemander les mots-clés »
-       capable de réparer les fiches figées à `[]` par l'ancien défaut.
-       Une liste déjà remplie n'est jamais écrasée. */
+       They are NOT your motifs and do not touch them: those are only ever
+       written by hand, and a harvest has nothing to say about them. */
+    /* We fill the absence — and the EMPTINESS too, when we finally bring
+       something back. That is what makes "ask for the keywords again" able
+       to repair the cards frozen at `[]` by the old fault. A list already
+       filled is never overwritten. */
     if (r.keywords && (match.keywords == null || (r.keywords.length && !match.keywords.length)))
       changes.keywords = r.keywords;
-    // une affiche choisie à la main n'est jamais remplacée par celle de TMDB
+    // a poster chosen by hand is never replaced by TMDB's
     if (r.poster && !match.poster) changes.poster = r.poster;
     if (r.year && !match.year) changes.year = r.year;
     if (r.tmdbId && !match.tmdbId) changes.tmdbId = r.tmdbId;
-    /* LE JOURNAL SE COMPLÈTE, IL NE SE REMPLACE PAS. Un `diary.csv`
-       apporte des séances anciennes qu'on n'avait pas ; la fusion se fait
-       par date, donc repasser le même fichier ne compte rien deux fois.
-       On n'écrit que si le compte a bougé — sinon la fiche partirait dans
-       « modifiés » pour rien à chaque réimport. */
+    /* THE LOG IS COMPLETED, IT IS NOT REPLACED. A `diary.csv` brings old
+       screenings we did not have; the merging is done by date, so running
+       the same file through again counts nothing twice. We only write if
+       the count has moved — otherwise the card would go into "modified"
+       for nothing on every re-import. */
     if (status === "watched" && r.watches?.length) {
       const watches = authoritativeWatches
         ? mergeWatches(r.watches)
         : mergeWatches(match.watches, r.watches);
-      /* On compare les DATES et non le nombre : en mode autorité, un
-         journal peut se retrouver aussi long qu'avant tout en ayant
-         changé de séances. */
+      /* We compare the DATES and not the count: in authoritative mode a
+         log can end up as long as before while having changed
+         screenings. */
       const dates = (w: { date: string }[]) => w.map((x) => x.date).join("|");
       if (dates(watches) !== dates(match.watches || [])) {
         changes.watches = watches;
-        /* La date suit le journal, elle ne se règle jamais toute seule.
-           Elle avance seule d'ordinaire ; quand le fichier fait autorité,
-           elle recule aussi — sinon la fiche garderait la date d'une
-           séance qu'on vient justement d'effacer. */
+        /* The date follows the log, it never sets itself. It moves forward
+           on its own as a rule; when the file is authoritative, it moves
+           back too — otherwise the card would keep the date of a screening
+           we have just erased. */
         if (authoritativeWatches) changes.watchedAt = watches[0]?.date ?? null;
         else if ((watches[0]?.date || "") > (match.watchedAt || ""))
           changes.watchedAt = watches[0]!.date;
       }
     }
-    // Une date sans séance consignée (ratings.csv) doit quand même AVANCER.
+    // A date with no recorded screening (ratings.csv) must still MOVE FORWARD.
     if (
       status === "watched" &&
       r.watchedAt &&
       r.watchedAt > (changes.watchedAt || match.watchedAt || "")
     )
       changes.watchedAt = r.watchedAt;
-    // un film « à voir » qui apparaît dans un export de films vus a été vu
-    if (!garderStatut && status === "watched" && match.status !== "watched")
+    // a film "to watch" that appears in an export of watched films has been seen
+    if (!keepStatus && status === "watched" && match.status !== "watched")
       changes.status = "watched";
 
     if (Object.keys(changes).length) toUpdate.push({ film: match, changes });

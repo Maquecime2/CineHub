@@ -6,8 +6,8 @@
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
 
-    /* La migration se fait fichier par fichier : le JS existant doit continuer
-       de compiler à côté du TS, sans être vérifié tant qu'il n'est pas porté. */
+    /* The migration happens file by file: the existing JS must go on
+       compiling beside the TS, unchecked until it has been ported. */
     "allowJs": true,
     "checkJs": false,
 
@@ -17,8 +17,9 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
 
-    /* Vite transpile fichier par fichier : il ne voit jamais le programme
-       entier, d'où ces contraintes. Le typage réel passe par `npm run typecheck`. */
+    /* Vite transpiles file by file: it never sees the whole program,
+       hence these constraints. The real typing goes through
+       `npm run typecheck`. */
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "noEmit": true,
@@ -27,12 +28,12 @@
     "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true,
 
-    /* `vite/client` donne `import.meta.env` : sans lui, le seul endroit qui
-       demande « suis-je en développement ? » (le relais du flux Letterboxd)
-       ne compile pas. */
-    /* `vite-plugin-pwa/react` déclare le module virtuel `virtual:pwa-register/react`,
-       qui n'existe qu'au moment de la construction : sans lui, le bandeau de
-       mise à jour ne compile pas. */
+    /* `vite/client` gives `import.meta.env`: without it, the one place
+       that asks "am I in development?" (the Letterboxd feed's relay) does
+       not compile. */
+    /* `vite-plugin-pwa/react` declares the virtual module
+       `virtual:pwa-register/react`, which only exists at build time:
+       without it, the update banner does not compile. */
     "types": [
       "node",
       "vite/client",

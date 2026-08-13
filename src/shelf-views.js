@@ -1,71 +1,72 @@
 /* ============================================================
-   LES VUES DE L'ÉTAGÈRE — le rangement, hors du film
+   THE SHELF VIEWS — the arrangement, kept out of the film
    ============================================================
 
-   Jusqu'ici, la place d'un boîtier était un numéro `order` écrit SUR le
-   film. Un film n'ayant qu'un `order`, la collection n'avait qu'un seul
-   rangement possible : impossible d'en tenir deux mises en scène.
+   Until now, a case's place was an `order` number written ON the film.
+   Since a film has only one `order`, the collection had only one
+   possible arrangement: two stagings could not be kept at once.
 
-   Le rangement déménage donc ici, dans un document « vue » : rangées,
-   catégories, décors et thème. Les drapeaux du film (`chevet`,
-   `archived`) disent sur QUEL rayon il se trouve ; la vue dit OÙ sur ce
-   rayon. C'est la seule règle à retenir, et tout le reste en découle.
+   So the arrangement moves out here, into a "view" document: rows,
+   categories, decors and theme. The film's flags (`bedside`, `archived`)
+   say WHICH shelf it is on; the view says WHERE on that shelf. That is
+   the only rule to remember, and all the rest follows from it.
 
-   Ce module est volontairement pur — aucun React, aucun localStorage.
-   C'est la couche où une erreur ne se voit pas à l'écran mais corrompt
-   des données, d'où les tests qui l'accompagnent. */
+   This module is deliberately pure — no React, no localStorage. It is
+   the layer where a mistake does not show on screen but corrupts data,
+   hence the tests that go with it. */
 
 import { CAT_KEYS } from "./theme/palette";
 
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
-export const SHELF_KINDS = ["chevet", "main", "reserve"];
+export const SHELF_KINDS = ["bedside", "main", "reserve"];
 
-/* À quel rayon un film appartient. Repris tel quel de `ShelfBoard` : ce
-   sont les drapeaux du film, et eux seuls, qui en décident.
+/* Which shelf a film belongs to. Taken as it was from `ShelfBoard`: it
+   is the film's flags, and they alone, that decide.
 
-   Sauf un cas, qui n'est pas une exception mais la définition du rayon :
-   « films de chevet », c'est CEUX QU'ON REVOIT. Un film qu'on n'a pas
-   encore vu ne peut pas en être. Le drapeau reste inscrit sur la fiche —
-   on ne le perd pas en mettant un film à voir — mais tant qu'il est à
-   voir, il se range dans la collection. Sans quoi la watchlist ouvrait
-   un rayon « ceux qu'on revoit » qui ne veut rien dire, et ShelfBoard,
-   qui le masque, y aurait perdu des films. */
-const revu = (f) => f.status !== "watchlist";
+   Except in one case, which is not an exception but the shelf's very
+   definition: "bedside films" means THE ONES WE WATCH AGAIN. A film we
+   have not seen yet cannot be one. The flag stays written on the card —
+   we do not lose it by putting a film on the watchlist — but as long as
+   it is to watch, it files in the main collection. Otherwise the
+   watchlist opened a "the ones we watch again" shelf that means nothing,
+   and ShelfBoard, which hides it, would have lost films in it. */
+const rewatched = (f) => f.status !== "watchlist";
 
 export const belongs = {
-  chevet: (f) => f.chevet && revu(f) && !f.archived,
-  main: (f) => (!f.chevet || !revu(f)) && !f.archived,
+  bedside: (f) => f.bedside && rewatched(f) && !f.archived,
+  main: (f) => (!f.bedside || !rewatched(f)) && !f.archived,
   reserve: (f) => f.archived,
 };
 
-export const kindOf = (f) => (f.archived ? "reserve" : f.chevet && revu(f) ? "chevet" : "main");
+export const kindOf = (f) =>
+  f.archived ? "reserve" : f.bedside && rewatched(f) ? "bedside" : "main";
 
-/* Les couleurs offertes aux catégories. La liste n'est plus recopiée
-   ici : elle se DÉDUIT du nuancier (`theme/palette`), qui reste pur et
-   n'entraîne donc pas React dans ce module. On stocke toujours la CLÉ et
-   jamais l'hexadécimal. */
+/* The colours offered to the categories. The list is no longer copied
+   here: it is DEDUCED from the swatch book (`theme/palette`), which
+   stays pure and therefore does not drag React into this module. We
+   always store the KEY and never the hex value. */
 export { CAT_KEYS };
 
-/* De quoi on remplit une planche neuve. Ce n'est PLUS ce qu'elle affiche :
-   une rangée naît « auto » et prend le compte de sa largeur (voir
-   `useRowCap`, dans `components/shelf/lines.js`) — c'était l'ancien défaut
-   de dix qui se voyait, sur un écran large, comme une rangée à moitié vide
-   et un mystère dans la gouttière. Ce nombre-ci ne sert qu'à DÉBITER : une
-   collection versée d'un coup prend des planches par dizaines plutôt qu'une
-   seule sans fin. Ce qui est écrit dans la gouttière, lui, est toujours un
-   choix qu'on a fait. */
+/* What we fill a new board with. It is NO LONGER what it displays: a row
+   is born "auto" and takes the count of its own width (see `useRowCap`,
+   in `components/shelf/lines.js`) — that was the old default of ten,
+   which showed on a wide screen as a half-empty row and a mystery in the
+   gutter. This number only serves to CUT UP: a collection poured in at
+   once takes boards by the dozen rather than one endless board. What is
+   written in the gutter, on the other hand, is always a choice
+   somebody made. */
 export const DEFAULT_CAP = 10;
 
-/* Le tiroir des mis de côté ne fait que 250 px de large : deux boîtiers y
-   tiennent, pas dix. Lui donner le compte de la collection le ferait
-   replier chaque rangée en colonne. */
+/* The set-aside drawer is only 250 px wide: two cases fit in it, not
+   ten. Giving it the collection's count would fold every row into a
+   column. */
 export const DRAWER_CAP = 2;
 
-/* Un compte n'est jamais un nombre imposé : c'est le MAXIMUM qu'une
-   planche accepte. Elle peut en porter moins — parce qu'il n'y a plus de
-   films, ou parce que la largeur disponible ne suit pas. Rien ne va
-   jamais rappeler un boîtier en arrière pour la remplir. */
+/* A count is never an imposed number: it is the MAXIMUM a board
+   accepts. It can carry fewer — because there are no films left, or
+   because the available width does not follow. Nothing will ever call a
+   case back to fill it. */
 export const capFor = (kind) => (kind === "reserve" ? DRAWER_CAP : DEFAULT_CAP);
 
 const chunk = (arr, n) => {
@@ -75,49 +76,49 @@ const chunk = (arr, n) => {
   return out;
 };
 
-/* v2 : les rangées ont un compte, et le surplus déborde sur la suivante.
-   Les vues de la v1 ont été fabriquées avec un rayon entier versé dans
-   une seule rangée — il faut les reprendre au chargement, sans quoi elles
-   restent une grosse ligne unique jusqu'à ce qu'on y touche. */
+/* v2: rows have a count, and the surplus spills onto the next one. The
+   v1 views were built with a whole shelf poured into a single row — they
+   have to be taken in hand on load, otherwise they stay one big single
+   line until somebody touches them. */
 export const VIEW_VERSION = 2;
 
 export function upgradeView(view) {
   if ((view.version || 1) >= VIEW_VERSION) return view;
   const shelves = {};
   for (const kind of SHELF_KINDS) {
-    /* On ne touche plus aux rangées. Une vue de la v1 versait son rayon
-       dans une seule rangée sans compte, et c'était le défaut : elle
-       s'étirait en une bande sans fin. Elle se replie maintenant en
-       lignes de bois, chacune avec sa planche — la grosse ligne unique
-       est devenue une étagère, il n'y a plus rien à reprendre. */
+    /* We no longer touch the rows. A v1 view poured its shelf into a
+       single row with no count, and that was the flaw: it stretched into
+       an endless band. It now folds into wooden lines, each with its
+       board — the one big line has become a shelf, and there is nothing
+       left to take in hand. */
     shelves[kind] = view.shelves?.[kind] || makeShelf();
   }
   return reflowView(drainUnplaced({ ...view, version: VIEW_VERSION, shelves }));
 }
 
-/* Un sas qui deborde n'est plus un sas, c'est un tas. Au-dela de ce qu'une
-   planche accepte, son contenu prend des planches — juste avant lui, pour
-   que l'ordre soit conserve. */
+/* An airlock that overflows is no longer an airlock, it is a heap. Past
+   what a board accepts, its content takes boards — just before it, so
+   that the order is kept. */
 export function drainUnplaced(view) {
   const shelves = {};
   let changed = false;
   for (const kind of SHELF_KINDS) {
     const shelf = view.shelves[kind];
     const rows = shelf.rows;
-    const sas = rows[rows.length - 1];
+    const airlock = rows[rows.length - 1];
     const cap = capFor(kind);
-    if (!sas || !isUnplaced(sas) || sas.items.length <= cap) {
+    if (!airlock || !isUnplaced(airlock) || airlock.items.length <= cap) {
       shelves[kind] = shelf;
       continue;
     }
-    /* Les planches vides qui précèdent le sas sont des restes — celle que
-       la migration laissait devant un rayon entier tombé dans le tas. On
-       les reprend plutôt que de poser les nouvelles derrière elles. */
+    /* The empty boards before the airlock are leftovers — the one the
+       migration left in front of a whole shelf fallen into the heap. We
+       take them back rather than laying the new ones behind them. */
     let keep = rows.slice(0, -1);
     while (keep.length && !keep[keep.length - 1].items.length) keep = keep.slice(0, -1);
-    // une planche, qui remplira sa largeur — pas des paquets de dix
-    const born = [makeRow({ items: sas.items })];
-    shelves[kind] = { ...shelf, rows: [...keep, ...born, { ...sas, items: [] }] };
+    // one board, which will fill its width — not packets of ten
+    const born = [makeRow({ items: airlock.items })];
+    shelves[kind] = { ...shelf, rows: [...keep, ...born, { ...airlock, items: [] }] };
     changed = true;
   }
   return changed ? { ...view, shelves } : view;
@@ -135,13 +136,12 @@ export const makeRow = ({ id, kind = "normal", perRow = null, label = "", items 
   items,
 });
 
-/* Une boîte n'a plus de compte à elle. Elle en avait un, et il en
-   existait donc deux, qui se contredisaient : celui de la rangée disait
-   combien d'objets tiennent sur la ligne, celui de la boîte combien de
-   films tiennent DANS la boîte, et la boîte se repliait sur elle-même
-   sans que rien ne vienne porter ses lignes du haut. Le compte est
-   maintenant celui de la ligne de bois, et il n'y en a qu'un : la boîte
-   prend les cases qui restent puis déborde sur la ligne du dessous. */
+/* A box no longer has a count of its own. It used to, and so there were
+   two, which contradicted each other: the row's said how many objects
+   fit on the line, the box's how many films fit IN the box, and the box
+   folded in on itself with nothing to carry its upper lines. The count
+   is now the wooden line's, and there is only one: the box takes the
+   cells that are left and then spills onto the line below. */
 export const makeCat = ({ id, label = "Catégorie", color = CAT_KEYS[0], items = [] } = {}) => ({
   t: "c",
   id: id || `c_${uid()}`,
@@ -150,17 +150,16 @@ export const makeCat = ({ id, label = "Catégorie", color = CAT_KEYS[0], items =
   items,
 });
 
-/* `label` ne sert qu'aux motifs qui écrivent — l'intercalaire, pour
-   l'instant. Les autres le portent vide et ne le montrent jamais : un
-   champ inerte sur un objet coûte moins cher qu'une seconde sorte de
-   décor à faire voyager partout.
+/* `label` only serves the motifs that write — the divider, for now. The
+   others carry it empty and never show it: an inert field on an object
+   costs less than a second sort of decor to carry everywhere.
 
-   `rot` est ABSENT et non pas zéro, et la différence compte : sans lui,
-   l'objet prend le guingois semé de son identifiant — chaque bibelot de
-   travers à sa façon, ce qui est tout ce qui empêche une étagère de
-   ressembler à une planche de catalogue. Zéro veut dire « d'aplomb, et
-   je l'ai voulu ». On n'écrit donc ce champ que lorsqu'une main l'a
-   réglé, et une vue d'avant l'orientation reste identique au pixel. */
+   `rot` is ABSENT and not zero, and the difference matters: without it,
+   the object takes the lean sown from its identifier — every trinket
+   askew in its own way, which is all that keeps a shelf from looking
+   like a catalogue plate. Zero means "upright, and I meant it". So we
+   only write this field once a hand has set it, and a view from before
+   orientation stays identical to the pixel. */
 export const makeDecor = ({ id, motif, size = 1, color = "ochre", label = "" } = {}) => ({
   t: "d",
   id: id || `d_${uid()}`,
@@ -170,11 +169,11 @@ export const makeDecor = ({ id, motif, size = 1, color = "ochre", label = "" } =
   label,
 });
 
-/* Un décor ACCROCHÉ. Même objet qu'un décor posé, à deux nombres près :
-   il ne vit pas dans une rangée mais sur le fond du rayon, et il lui
-   faut donc une place à lui. `x` et `y` sont des POURCENTAGES du cadre
-   du rayon — un rayon qui gagne une ligne, une fenêtre qu'on rétrécit,
-   et l'objet garde sa place relative au lieu de sortir du cadre. */
+/* A HUNG decor. The same object as one laid down, give or take two
+   numbers: it does not live in a row but on the shelf's back, and so it
+   needs a place of its own. `x` and `y` are PERCENTAGES of the shelf's
+   frame — a shelf that gains a line, a window shrunk, and the object
+   keeps its relative place instead of leaving the frame. */
 export const makeWallDecor = ({ id, motif, size = 1, color = "ochre", x = 50, y = 30 } = {}) => ({
   ...makeDecor({ id, motif, size, color }),
   x,
@@ -183,15 +182,15 @@ export const makeWallDecor = ({ id, motif, size = 1, color = "ochre", x = 50, y 
 
 export const filmItem = (id) => ({ t: "f", id });
 
-/* Un rayon neuf : une rangée pour ranger, et la rangée d'arrivée qui
-   recueille ce qu'on n'a pas encore placé. Cette dernière est une
-   institution, pas un accident : sans elle, un film importé n'aurait
-   nulle part où apparaître et deviendrait invisible. */
+/* A new shelf: one row for filing, and the arrivals row that gathers
+   what has not been placed yet. The latter is an institution, not an
+   accident: without it, an imported film would have nowhere to appear
+   and would become invisible. */
 export const makeShelf = () => ({
   rows: [makeRow(), makeRow({ kind: "unplaced" })],
-  /* Ce qui est accroché au fond. Un rayon d'avant les objets muraux n'a
-     pas ce tableau : partout où on le lit, on lit `shelf.wall || []`
-     plutôt que d'aller réécrire toutes les vues déjà enregistrées. */
+  /* What is hung on the back. A shelf from before the wall objects does
+     not have this array: everywhere it is read, we read `shelf.wall ||
+     []` rather than going and rewriting every view already saved. */
   wall: [],
 });
 
@@ -209,42 +208,42 @@ export const makeView = ({
   theme,
   createdAt: now,
   updatedAt: now,
-  /* `decor` est VOLONTAIREMENT absent d'une vue neuve — voir plus bas. */
-  shelves: { chevet: makeShelf(), main: makeShelf(), reserve: makeShelf() },
+  /* `decor` is DELIBERATELY absent from a new view — see below. */
+  shelves: { bedside: makeShelf(), main: makeShelf(), reserve: makeShelf() },
 });
 
 /* ------------------------------------------------------------
-   LE DÉCOR — ce dont la vue est faite, au-delà du thème
+   THE DECOR — what the view is made of, beyond the theme
    ------------------------------------------------------------
 
-   `theme` ne réglait que trois choses, et le mur n'avait aucune
-   peinture. Le décor ouvre le reste :
+   `theme` only set three things, and the wall had no paint at all. The
+   decor opens up the rest:
 
      decor?: {
        wall?:  { paint?, pattern?, patternInk?, texture? },
        plank?: { material?, finish? },
      }
 
-   TOUT Y EST FACULTATIF, ET LE CHAMP LUI-MÊME AUSSI. C'est la même règle
-   que `rot` sur un décor ou que `wall` sur un rayon : absent veut dire
-   « comme avant », et une vue enregistrée avant ce jour doit rester
-   identique au pixel. Rien n'écrit `decor` tant qu'une main n'a pas
-   réglé quelque chose ; `theme` reste la source par défaut, et l'efface
-   rend la vue à son thème.
+   EVERYTHING IN IT IS OPTIONAL, AND SO IS THE FIELD ITSELF. It is the
+   same rule as `rot` on a decor or `wall` on a shelf: absent means "as
+   before", and a view saved before today must stay identical to the
+   pixel. Nothing writes `decor` until a hand has set something; `theme`
+   stays the default source, and erasing gives the view back to its
+   theme.
 
-   Aucune migration à écrire pour autant : toutes les transformations de
-   ce module reconstruisent la vue par étalement (`{ ...view, ... }`), si
-   bien qu'un champ de plus voyage sans qu'on ait à le nommer nulle part.
-   Ce qui suit n'est donc que la façon de le LIRE et de l'ÉCRIRE, en un
-   seul endroit. */
+   No migration to write for all that: every transformation in this
+   module rebuilds the view by spreading (`{ ...view, ... }`), so that
+   one more field travels without our having to name it anywhere. What
+   follows is therefore only the way to READ it and to WRITE it, in one
+   place. */
 
 export const wallDecorOf = (view) => view.decor?.wall || null;
 export const plankDecorOf = (view) => view.decor?.plank || null;
 
-/* Retoucher une facette du décor. Une valeur nulle EFFACE le réglage —
-   c'est ainsi que « revenir au thème » se dit, et la vue se débarrasse
-   des objets vides au passage plutôt que de traîner un `decor: {}` qui
-   voudrait dire la même chose qu'une absence. */
+/* Retouching one facet of the decor. A null value ERASES the setting —
+   that is how "go back to the theme" is said, and the view rids itself
+   of the empty objects on the way rather than dragging a `decor: {}`
+   around that would mean the same thing as an absence. */
 export function patchViewDecor(view, part, patch) {
   const before = view.decor?.[part] || {};
   const merged = { ...before, ...patch };
@@ -260,7 +259,7 @@ export function patchViewDecor(view, part, patch) {
   return next;
 }
 
-/* Rendre la vue à son thème : plus de décor du tout. */
+/* Give the view back to its theme: no decor at all. */
 export function clearViewDecor(view) {
   if (!view.decor) return view;
   const next = { ...view };
@@ -272,10 +271,10 @@ export function clearViewDecor(view) {
    Petits outils de structure
    ------------------------------------------------------------ */
 
-/* `map` qui rend le tableau d'origine quand rien n'a bougé. C'est ce qui
-   permet à `reconcileView` de ne pas fabriquer un nouvel objet à chaque
-   rendu — sans quoi la mémoïsation des rangées ne servirait à rien et un
-   `setState` sans rapport repeindrait les cent boîtiers du rayon. */
+/* A `map` that returns the original array when nothing moved. That is
+   what lets `reconcileView` avoid building a new object on every render
+   — otherwise memoising the rows would be pointless and an unrelated
+   `setState` would repaint the shelf's hundred cases. */
 const mapSame = (arr, fn) => {
   let changed = false;
   const out = new Array(arr.length);
@@ -293,7 +292,7 @@ const filterSame = (arr, keep) => {
 
 export const isUnplaced = (row) => row.kind === "unplaced";
 
-/* Tous les ids de films d'une vue, catégories comprises. */
+/* Every film id in a view, categories included. */
 export function filmIdsOf(view) {
   const ids = [];
   for (const kind of SHELF_KINDS) {
@@ -308,20 +307,21 @@ export function filmIdsOf(view) {
 }
 
 /* ------------------------------------------------------------
-   Réconciliation — la vue face à la collection réelle
+   Reconciliation — the view against the real collection
    ------------------------------------------------------------
 
-   Une vue est un agencement, pas une source de vérité : les films
-   naissent, changent de rayon et meurent ailleurs. On la ramène donc à
-   la réalité à chaque rendu, sans jamais écrire — l'écriture n'a lieu
-   qu'à la prochaine vraie mutation, via `commitView`.
+   A view is an arrangement, not a source of truth: films are born,
+   change shelf and die elsewhere. So we bring it back to reality on
+   every render, without ever writing — the write only happens on the
+   next real mutation, through `commitView`.
 
-   Trois torts à réparer, dans cet ordre :
-     - un id qui ne désigne plus rien, ou plus ce rayon : on le retire ;
-     - un id présent deux fois : on ne garde que le premier ;
-     - un film du rayon qui ne figure nulle part : il tombe dans la
-       rangée d'arrivée. C'est l'invariant « rien n'est jamais
-       invisible », et c'est lui qui rend l'archivage réversible. */
+   Three wrongs to right, in that order:
+     - an id that no longer points at anything, or no longer at this
+       shelf: we take it out;
+     - an id present twice: we keep only the first;
+     - a film on the shelf that appears nowhere: it falls into the
+       arrivals row. That is the invariant "nothing is ever invisible",
+       and it is what makes archiving reversible. */
 export function reconcileView(view, films) {
   const byId = new Map(films.map((f) => [f.id, f]));
   const seen = new Set();
@@ -335,9 +335,9 @@ export function reconcileView(view, films) {
       const f = byId.get(id);
       return !!f && belongs[kind](f);
     };
-    /* Un film ne peut occuper qu'une place : le premier venu la garde.
-       On marque au passage tout ce qu'on a vu, pour savoir ensuite qui
-       manque à l'appel. */
+    /* A film can occupy only one place: the first comer keeps it. We
+       mark everything we saw on the way, so as to know afterwards who is
+       missing. */
     const keepFilm = (id) => {
       if (!here(id) || seen.has(id)) return false;
       seen.add(id);
@@ -348,10 +348,10 @@ export function reconcileView(view, films) {
       const items = filterSame(
         mapSame(row.items, (it) => {
           if (it.t !== "c") return it;
-          /* Seuls les films sont confrontés à la collection : un décor
-             posé dans une boîte n'existe que dans la vue, rien au-dehors
-             ne peut le démentir. Le filtrer comme un film le ferait
-             disparaître au premier rendu. */
+          /* Only films are checked against the collection: a decor laid
+             in a box exists only in the view, and nothing outside can
+             contradict it. Filtering it like a film would make it
+             disappear on the first render. */
           const sub = filterSame(it.items, (s) => (s.t === "f" ? keepFilm(s.id) : true));
           return sub === it.items ? it : { ...it, items: sub };
         }),
@@ -362,8 +362,8 @@ export function reconcileView(view, films) {
 
     rows = ensureUnplaced(rows);
 
-    /* Ce que la vue ignore encore. L'ordre d'arrivée est celui de la
-       collection : c'est le seul dont on dispose ici. */
+    /* What the view does not know about yet. The order of arrival is the
+       collection's: it is the only one available here. */
     const missing = [];
     for (const f of films)
       if (belongs[kind](f) && !seen.has(f.id)) {
@@ -388,9 +388,9 @@ export function reconcileView(view, films) {
   return shelvesChanged ? { ...view, shelves } : view;
 }
 
-/* Exactement une rangée d'arrivée, toujours en dernier. Si l'utilisateur
-   n'en a aucune (vue fabriquée à la main, document d'une version
-   antérieure), on la pose ; s'il en a plusieurs, on les fond. */
+/* Exactly one arrivals row, always last. If the user has none (a view
+   built by hand, a document from an earlier version), we lay one down;
+   if they have several, we melt them together. */
 function ensureUnplaced(rows) {
   const idx = rows.map((r, i) => (isUnplaced(r) ? i : -1)).filter((i) => i >= 0);
   if (idx.length === 1 && idx[0] === rows.length - 1) return rows;
@@ -407,20 +407,19 @@ function ensureUnplaced(rows) {
 }
 
 /* ------------------------------------------------------------
-   Déplacer — l'unique mutation
+   Moving — the one mutation
    ------------------------------------------------------------
 
-   Tous les dépôts passent par ici : entre deux boîtiers, dans une
-   catégorie, dans le vide d'une rangée, sur une couture (qui crée une
-   rangée), ou dans la rangée d'arrivée. On retire d'abord l'item d'où
-   qu'il vienne, PUIS on calcule l'index de destination : les indices
-   d'après-retrait sont les seuls justes, et `overId` ne désigne jamais
-   l'item déplacé.
+   Every drop goes through here: between two cases, into a category, into
+   a row's empty space, onto a seam (which creates a row), or into the
+   arrivals row. We first take the item out of wherever it came from,
+   THEN compute the destination index: post-removal indices are the only
+   correct ones, and `overId` never designates the item being moved.
 
-   `drag` : { id } pour un déplacement, { create } pour une création
-   (un décor sorti du cabinet n'existe pas encore).
-   `target` : { kind, rowId, catId, overId, side } ou { kind, afterRowId }
-   pour une couture. */
+   `drag`: { id } for a move, { create } for a creation (a decor taken
+   out of the cabinet does not exist yet).
+   `target`: { kind, rowId, catId, overId, side } or { kind, afterRowId }
+   for a seam. */
 export function moveItem(view, drag, target) {
   const created = drag.create || null;
   let moved = created;
@@ -442,12 +441,12 @@ export function moveItem(view, drag, target) {
   const kind = target.kind;
   let rows = shelves[kind].rows;
 
-  // une couture : la rangée n'existe pas encore, on l'ouvre
+  // a seam: the row does not exist yet, we open it
   if (target.afterRowId !== undefined) {
     const at = rows.findIndex((r) => r.id === target.afterRowId);
     const above = at >= 0 ? rows[at] : null;
-    // la nouvelle rangée hérite du cap de celle du dessus : une ligne
-    // ouverte sous une ligne de 6 veut presque toujours 6 elle aussi
+    // the new row inherits the cap of the one above: a line opened under
+    // a line of 6 almost always wants 6 as well
     const row = makeRow({
       perRow: above && !isUnplaced(above) ? above.perRow : null,
       items: [moved],
@@ -465,12 +464,12 @@ export function moveItem(view, drag, target) {
     const catAt = row.items.findIndex((it) => it.t === "c" && it.id === target.catId);
     if (catAt < 0) return view;
     const cat = row.items[catAt];
-    /* Une boîte accepte tout, sauf une autre boîte : emboîter des
-       conteneurs donnerait un arbre là où le modèle tient à un rangement
-       plat, et il n'y a rien à y gagner qu'une profondeur de plus à
-       parcourir partout.
-       Les décors, eux, y entrent : un intercalaire dans une catégorie,
-       c'est la sous-division dont on a besoin quand la boîte grossit. */
+    /* A box accepts anything, except another box: nesting containers
+       would give a tree where the model holds to a flat arrangement, and
+       there is nothing to gain from it but one more depth to walk
+       everywhere.
+       Decors, on the other hand, do go in: a divider inside a category
+       is the subdivision needed when the box grows. */
     if (moved.t === "c") return view;
     const items = insertAt(cat.items, moved, target.overId, target.side);
     const nextItems = [...row.items];
@@ -486,17 +485,17 @@ export function moveItem(view, drag, target) {
   return withRows(view, shelves, kind, rows);
 }
 
-/* ACCROCHER — l'autre dépôt.
+/* HANGING — the other kind of drop.
 
-   Un objet mural ne s'insère pas entre deux voisins : il n'a pas de
-   voisins. Il ne connaît qu'un rayon et un point, et c'est pourquoi il
-   ne passe pas par `moveItem` — l'index, la couture, la boîte, la
-   rangée d'arrivée, rien de tout cela n'a de sens pour lui. Le décrocher
-   d'un rayon pour le raccrocher à un autre reste possible : on le retire
-   de tous les murs avant de le poser sur le sien.
+   A wall object does not slot in between two neighbours: it has no
+   neighbours. It knows only a shelf and a point, and that is why it does
+   not go through `moveItem` — the index, the seam, the box, the arrivals
+   row, none of that means anything to it. Unhooking it from one shelf to
+   hook it onto another stays possible: we take it off every wall before
+   laying it on its own.
 
-   `drag` : { id } pour un déplacement, { create } pour un objet qui sort
-   du cabinet et n'existe pas encore. */
+   `drag`: { id } for a move, { create } for an object coming out of the
+   cabinet that does not exist yet. */
 export function pinToWall(view, kind, drag, at) {
   const shelves = {};
   let moved = drag.create || null;
@@ -504,7 +503,7 @@ export function pinToWall(view, kind, drag, at) {
   for (const k of SHELF_KINDS) {
     const shelf = view.shelves[k];
     const wall = shelf.wall || [];
-    // un objet déjà accroché ne l'est qu'à un seul mur : le premier trouvé
+    // an object already hung is hung on one wall only: the first found
     const found = moved ? null : wall.find((it) => it.id === drag.id);
     if (!found) {
       shelves[k] = shelf;
@@ -534,8 +533,8 @@ const withRows = (view, shelves, kind, rows) => ({
   shelves: { ...shelves, [kind]: { ...shelves[kind], rows } },
 });
 
-/* Insérer devant/derrière `overId`, ou en fin de conteneur s'il n'y a
-   personne à viser (le vide d'une rangée, une catégorie encore vide). */
+/* Insert before/after `overId`, or at the end of the container if there
+   is nobody to aim at (a row's empty space, a still-empty category). */
 function insertAt(items, item, overId, side) {
   if (!overId) return [...items, item];
   const i = items.findIndex((it) => it.id === overId);
@@ -544,8 +543,8 @@ function insertAt(items, item, overId, side) {
   return [...items.slice(0, at), item, ...items.slice(at)];
 }
 
-/* Retirer un item d'un rayon, où qu'il soit — au premier niveau ou dans
-   une catégorie. Rend `null` si le rayon ne le contient pas. */
+/* Take an item off a shelf, wherever it is — at the top level or inside
+   a category. Returns `null` if the shelf does not contain it. */
 function takeItem(shelf, id) {
   for (let r = 0; r < shelf.rows.length; r++) {
     const row = shelf.rows[r];
@@ -571,14 +570,13 @@ function takeItem(shelf, id) {
 }
 
 /* ------------------------------------------------------------
-   Le mobilier : rangées, catégories, décors
+   The furniture: rows, categories, decors
    ------------------------------------------------------------
 
-   Toutes ces opérations partagent une règle : un film n'est jamais
-   détruit par un geste de rangement. Vider une ligne, la supprimer,
-   défaire une catégorie — les boîtiers qui s'y trouvaient retombent dans
-   la rangée d'arrivée. Ce qu'on supprime vraiment, ce sont les meubles :
-   la ligne, la boîte, le bibelot. */
+   All these operations share one rule: a film is never destroyed by a
+   filing gesture. Emptying a line, deleting it, undoing a category — the
+   cases that were in it fall back into the arrivals row. What really
+   gets deleted is the furniture: the line, the box, the trinket. */
 
 const shelfOfRow = (view, rowId) =>
   SHELF_KINDS.find((k) => view.shelves[k].rows.some((r) => r.id === rowId)) || null;
@@ -591,7 +589,7 @@ const mapShelf = (view, kind, fn) => ({
   },
 });
 
-/* Rendre des films à la rangée d'arrivée du rayon. */
+/* Give films back to the shelf's arrivals row. */
 const toUnplaced = (rows, ids) => {
   if (!ids.length) return rows;
   const at = rows.length - 1;
@@ -600,13 +598,13 @@ const toUnplaced = (rows, ids) => {
   return out;
 };
 
-/* Tous les FILMS d'une rangée, catégories comprises — et eux seuls.
+/* Every FILM in a row, categories included — and them alone.
 
-   C'est ce qui part vers la rangée d'arrivée quand on défait le meuble
-   qui les portait. Les décors n'y vont pas : un bibelot est du mobilier,
-   et le mobilier disparaît avec le meuble. C'était déjà le sort d'un
-   décor posé à même une rangée qu'on supprime ; ceux qui vivent
-   maintenant dans une boîte suivent la même règle. */
+   That is what goes to the arrivals row when the piece of furniture
+   carrying them is undone. The decors do not go: a trinket is furniture,
+   and furniture disappears with the furniture. That was already the fate
+   of a decor laid straight on a row being deleted; those that now live
+   inside a box follow the same rule. */
 const filmsInRow = (row) =>
   row.items.flatMap((it) =>
     it.t === "f"
@@ -622,8 +620,8 @@ export function patchRow(view, rowId, patch) {
   return mapShelf(view, kind, (rows) => rows.map((r) => (r.id === rowId ? { ...r, ...patch } : r)));
 }
 
-/* Ouvrir une ligne. `where` vaut "before", "after" ou "end" — et « end »
-   veut dire avant la rangée d'arrivée, qui garde toujours le dernier mot. */
+/* Open a line. `where` is "before", "after" or "end" — and "end" means
+   before the arrivals row, which always keeps the last word. */
 export function addRow(view, kind, refRowId, where = "after") {
   const rows = view.shelves[kind].rows;
   const ref = rows.findIndex((r) => r.id === refRowId);
@@ -632,7 +630,7 @@ export function addRow(view, kind, refRowId, where = "after") {
   let at;
   if (where === "end" || ref < 0) at = Math.max(0, rows.length - 1);
   else at = where === "before" ? ref : ref + 1;
-  // jamais après la rangée d'arrivée
+  // never after the arrivals row
   at = Math.min(at, rows.length - 1);
   return mapShelf(view, kind, (rs) => [...rs.slice(0, at), row, ...rs.slice(at)]);
 }
@@ -641,7 +639,7 @@ export function removeRow(view, rowId) {
   const kind = shelfOfRow(view, rowId);
   if (!kind) return view;
   const row = view.shelves[kind].rows.find((r) => r.id === rowId);
-  if (!row || isUnplaced(row)) return view; // la rangée d'arrivée ne se supprime pas
+  if (!row || isUnplaced(row)) return view; // the arrivals row cannot be deleted
   return mapShelf(view, kind, (rows) =>
     toUnplaced(
       rows.filter((r) => r.id !== rowId),
@@ -694,7 +692,7 @@ export function patchCat(view, catId, patch) {
 export function removeCat(view, catId) {
   const found = findCat(view, catId);
   if (!found) return view;
-  // seuls les films retombent dans le sas ; les décors partent avec la boîte
+  // only films fall back into the airlock; decors go with the box
   const ids = found.cat.items.filter((s) => s.t === "f").map((s) => s.id);
   return mapShelf(view, found.kind, (rows) =>
     toUnplaced(
@@ -706,14 +704,14 @@ export function removeCat(view, catId) {
   );
 }
 
-/* Un décor vit à deux profondeurs depuis qu'il entre dans les boîtes :
-   posé sur la planche, ou rangé dans une catégorie. Ces deux fonctions
-   partagent donc la même descente — sans quoi retoucher un intercalaire
-   glissé dans une boîte ne trouverait rien et ne dirait rien.
+/* A decor lives at two depths now that it goes into the boxes: laid on
+   the board, or filed inside a category. So these two functions share
+   the same descent — otherwise retouching a divider slipped into a box
+   would find nothing and say nothing.
 
-   `edit` rend le tableau d'items retouché, ou le MÊME tableau quand le
-   décor n'y est pas : c'est ce qui permet de savoir qu'on a trouvé sans
-   parcourir deux fois. */
+   `edit` returns the retouched item array, or the SAME array when the
+   decor is not in it: that is what lets us know we found it without
+   walking through twice. */
 const mapDecorIn = (items, id, edit) => {
   const top = edit(items);
   if (top !== items) return top;
@@ -730,9 +728,9 @@ const mapDecorIn = (items, id, edit) => {
 
 const withDecor = (view, id, edit) => {
   for (const kind of SHELF_KINDS) {
-    /* Le mur d'abord : c'est un tableau plat, et le même `edit` y
-       travaille sans rien savoir de plus. Sans cette passe, retoucher la
-       couleur d'un cadre accroché ne trouvait rien et ne disait rien. */
+    /* The wall first: it is a flat array, and the same `edit` works on
+       it knowing nothing more. Without this pass, retouching the colour
+       of a hung frame found nothing and said nothing. */
     const shelf = view.shelves[kind];
     const wall = shelf.wall || [];
     const hung = edit(wall);
@@ -753,8 +751,8 @@ const withDecor = (view, id, edit) => {
   return view;
 };
 
-/* Retirer un décor : c'est le seul objet qu'un geste supprime vraiment,
-   parce qu'il ne contient rien qu'on puisse regretter. */
+/* Removing a decor: it is the only object a gesture really deletes,
+   because it contains nothing anyone could regret. */
 export function removeDecor(view, id) {
   return withDecor(view, id, (items) =>
     items.some((it) => it.t === "d" && it.id === id) ? items.filter((it) => it.id !== id) : items
@@ -770,18 +768,18 @@ export function patchDecor(view, id, patch) {
 }
 
 /* ------------------------------------------------------------
-   Le débordement — une planche pleine pousse sur la suivante
+   Overflow — a full board pushes onto the next
    ------------------------------------------------------------
 
-   Le compte d'une rangée ne la REPLIE pas sur elle-même : il dit combien
-   de boîtiers elle TIENT. Poser douze films sur une planche de cinq ne
-   fabrique pas trois lignes sous une même planche — cela remplit la
-   planche, et le reste va sur celle d'en dessous, en cascade. C'est ce
-   que fait une étagère, et c'était le vrai défaut du premier jet :
-   régler une ligne à cinq entassait tout le rayon en accordéon.
+   A row's count does not FOLD it in on itself: it says how many cases it
+   HOLDS. Laying twelve films on a board of five does not make three
+   lines under one board — it fills the board, and the rest goes onto the
+   one below, cascading. That is what a shelf does, and it was the first
+   draft's real flaw: setting a line to five piled the whole shelf into
+   an accordion.
 
-   Le surplus qui arrive au bout ouvre des rangées neuves AVANT la rangée
-   d'arrivée — celle-ci reste ce qu'elle est, un sas, jamais un rayon. */
+   The surplus that reaches the end opens new rows BEFORE the arrivals
+   row — that one stays what it is, an airlock, never a shelf. */
 export function reflowShelf(view, kind) {
   const rows = view.shelves[kind].rows;
   const out = [];
@@ -791,7 +789,7 @@ export function reflowShelf(view, kind) {
 
   for (const row of rows) {
     if (isUnplaced(row)) {
-      // ce qui déborde encore prend des planches neuves, pas le sas
+      // what still overflows takes new boards, not the airlock
       for (const part of carry.length ? chunk(carry, lastCap) : []) {
         out.push(makeRow({ items: part }));
         changed = true;
@@ -824,17 +822,17 @@ export function reflowView(view) {
   return next;
 }
 
-/* Étaler une collection sur des planches neuves. Sert à une vue qu'on
-   vient de créer : la laisser entièrement dans le sas donnerait une
-   étagère vide et un tas, ce qui n'est pas un rangement.
+/* Spreading a collection over new boards. Serves a view just created:
+   leaving it entirely in the airlock would give an empty shelf and a
+   heap, which is not an arrangement.
 
-   UNE rangée, et non plus des paquets de dix. Une rangée ne montre que ce
-   qu'elle CONTIENT : la débiter par dix, c'était poser dix boîtiers sur
-   une planche qui en tient quinze et laisser un tiers de bois nu — un
-   rayon neuf avait l'air à moitié vide sur un grand écran. Elle prend
-   donc tout, remplit la largeur et se replie en autant de lignes de bois
-   qu'il faut. On coupe ensuite là où l'on veut, en lâchant un boîtier sur
-   une couture. `cap` reste pour qui veut des paquets choisis. */
+   ONE row, and no longer packets of ten. A row shows only what it
+   CONTAINS: cutting it up by tens meant laying ten cases on a board that
+   holds fifteen and leaving a third of the wood bare — a new shelf
+   looked half empty on a large screen. So it takes everything, fills the
+   width and folds into as many wooden lines as it needs. We cut where we
+   want afterwards, by dropping a case on a seam. `cap` stays for whoever
+   wants packets of their own choosing. */
 export function layoutView(view, films, cap = null) {
   const shelves = {};
   for (const kind of SHELF_KINDS) {
@@ -847,33 +845,32 @@ export function layoutView(view, films, cap = null) {
   return { ...view, shelves };
 }
 
-/* Le cinéaste d'un film, ou le nom qu'on donne à son absence. Le mur
-   regroupé emploie déjà exactement ce libellé : deux endroits qui
-   montrent la même chose doivent la nommer pareil. */
+/* A film's filmmaker, or the name we give to their absence. The grouped
+   wall already uses exactly this label: two places showing the same
+   thing must name it the same way. */
 export const UNKNOWN_DIRECTOR = "Réalisateur inconnu";
 
 export const directorOf = (film) => film.director?.trim() || UNKNOWN_DIRECTOR;
 
-/* UNE ÉTAGÈRE PAR CINÉASTE — une ligne par réalisateur, et sur cette
-   ligne une boîte à son nom qui tient ses films.
+/* ONE SHELF PER FILMMAKER — one line per director, and on that line a
+   box in their name holding their films.
 
-   La boîte n'est pas une décoration : c'est elle qui rend la ligne
-   manipulable. Poser les films à même la rangée avec un simple libellé
-   dans la gouttière aurait donné le même dessin, mais le premier
-   glissement aurait mélangé deux cinéastes sans rien pour s'y opposer.
-   Une boîte se déplace pleine, se referme, et refuse ce qui n'est pas un
-   film — la ligne garde son sens toute seule.
+   The box is not a decoration: it is what makes the line workable.
+   Laying the films straight on the row with a simple label in the gutter
+   would have given the same drawing, but the first drag would have mixed
+   two filmmakers with nothing to stand in the way. A box moves full,
+   closes, and refuses anything that is not a film — the line keeps its
+   meaning on its own.
 
-   L'ordre est celui du mur regroupé, repris à l'identique : les plus
-   fréquentés d'abord, puis l'alphabet, et les sans-nom en dernier. C'est
-   là que se lisent les habitudes.
+   The order is the grouped wall's, taken over as it is: the most
+   frequented first, then the alphabet, and the nameless last. That is
+   where the habits read.
 
-   Le résultat est une vue ORDINAIRE. Rien ne la marque, rien ne la
-   régénère : une fois posée, elle se réarrange à la main comme les
-   autres, et les films qui arrivent ensuite tombent dans la rangée
-   d'arrivée. Une vue qui se referait toute seule à chaque chargement
-   effacerait le rangement de l'utilisateur, ce que ce modèle refuse
-   partout ailleurs. */
+   The result is an ORDINARY view. Nothing marks it, nothing regenerates
+   it: once laid down, it is rearranged by hand like the others, and the
+   films that arrive later fall into the arrivals row. A view that rebuilt
+   itself on every load would erase the user's arrangement, which this
+   model refuses everywhere else. */
 export function layoutByDirector(view, films, { cap = null } = {}) {
   const shelves = {};
   let colorAt = 0;
@@ -900,10 +897,10 @@ export function layoutByDirector(view, films, { cap = null } = {}) {
       )
       .map(([name, list]) =>
         makeRow({
-          /* Pas de compte écrit : la rangée prend celui de sa largeur, et
-             la boîte du cinéaste s'y coupe en autant de lignes de bois
-             qu'il faut — une filmographie de trente titres tient ainsi
-             dans son carton au lieu de partir en bande sans fin. */
+          /* No count written: the row takes that of its width, and the
+             filmmaker's box cuts itself into as many wooden lines as it
+             needs — a filmography of thirty titles thus fits in its
+             cardstock instead of running off in an endless band. */
           items: [
             makeCat({
               label: name,
@@ -922,18 +919,17 @@ export function layoutByDirector(view, films, { cap = null } = {}) {
 }
 
 /* ------------------------------------------------------------
-   Ranger — le tri devenu un verbe
+   Filing — sorting turned into a verb
    ------------------------------------------------------------
 
-   « Trier » était un mode : il se battait avec les intercalaires, qui
-   n'avaient pas de place définie hors du rangement à la main. Ranger est
-   maintenant un geste ponctuel : il réécrit l'agencement une fois, et
-   l'agencement reste.
+   "Sort" was a mode: it fought with the dividers, which had no defined
+   place outside the hand-made arrangement. Filing is now a one-off
+   gesture: it rewrites the arrangement once, and the arrangement stays.
 
-   Les catégories et les décors ne bougent pas d'un pouce — ce sont des
-   objets qu'on a posés là exprès. Seuls les films circulent : ceux du
-   premier niveau se redistribuent dans les emplacements qu'ils
-   occupaient déjà, ceux d'une catégorie se trient entre eux. */
+   The categories and the decors do not move an inch — they are objects
+   somebody put there on purpose. Only the films circulate: those at the
+   top level redistribute themselves into the slots they already
+   occupied, those in a category sort among themselves. */
 export function sortIntoRows(view, kind, compare) {
   const shelf = view.shelves[kind];
   const slots = [];
@@ -948,11 +944,11 @@ export function sortIntoRows(view, kind, compare) {
   slots.forEach(([r, i], n) => {
     rows[r].items[i] = sorted[n];
   });
-  /* Dans une boîte, même règle qu'au premier niveau : les films se
-     redistribuent dans les emplacements qu'ils occupaient, et ce qui
-     n'est pas un film ne bouge pas. Trier le tableau entier passerait le
-     comparateur — écrit pour des films — sur des intercalaires, et les
-     ferait glisser au petit bonheur au milieu du classement. */
+  /* Inside a box, the same rule as at the top level: the films
+     redistribute themselves into the slots they occupied, and what is
+     not a film does not move. Sorting the whole array would run the
+     comparator — written for films — over dividers, and would slide them
+     about at random in the middle of the ranking. */
   for (const row of rows) {
     for (let i = 0; i < row.items.length; i++) {
       const it = row.items[i];
@@ -975,19 +971,19 @@ export function sortIntoRows(view, kind, compare) {
    Migration — l'ancien rangement devient une vue
    ------------------------------------------------------------ */
 
-/* Le comparateur du mémo `shelves` d'avant, reproduit à l'identique : la
-   migration doit rendre exactement ce que l'étagère « à la main »
-   affichait, sans quoi l'utilisateur retrouverait son rayon rebattu. */
+/* The comparator of the old `shelves` memo, reproduced identically: the
+   migration must return exactly what the "by hand" shelf displayed,
+   otherwise the user would find their shelf reshuffled. */
 const LEGACY_RANK = (o) => (o == null ? Number.MAX_SAFE_INTEGER : o);
 
 export function buildViewsFromLegacy({ films = [], dividers = [], wallPrefs = {}, now = 0 } = {}) {
   const views = [];
   for (const wall of ["watched", "watchlist"]) {
     const pool = films.filter((f) => (f.status === "watchlist") === (wall === "watchlist"));
-    /* Le mur d'avant réglait son compte pour tout le rayon. Quand il en
-       avait un, c'était un CHOIX : on le reprend tel quel, écrit dans la
-       gouttière. Quand il était sur « auto », on ne lui en invente pas un
-       — les rangées naissent auto et remplissent leur largeur. */
+    /* The old wall set its count for the whole shelf. When it had one,
+       that was a CHOICE: we take it as it is, written into the gutter.
+       When it was on "auto", we do not invent one for it — rows are born
+       auto and fill their width. */
     const legacyPref = (() => {
       const p = wallPrefs[wall]?.perRow;
       return p && p !== "auto" ? p : null;
@@ -998,11 +994,11 @@ export function buildViewsFromLegacy({ films = [], dividers = [], wallPrefs = {}
 
     for (const kind of SHELF_KINDS) {
       const mine = pool.filter(belongs[kind]);
-      /* Les films jamais rangés à la main portent `order: null`, que
-         l'ancien tri repoussait en fin de rayon. Les fondre dans la
-         suite les ferait avaler par la DERNIÈRE catégorie migrée, alors
-         qu'ils n'ont jamais été placés nulle part : ils vont dans la
-         rangée d'arrivée. */
+      /* Films never arranged by hand carry `order: null`, which the old
+         sort pushed to the end of the shelf. Melting them into the rest
+         would have them swallowed by the LAST category migrated, when
+         they have never been placed anywhere: they go into the arrivals
+         row. */
       const placed = mine.filter((f) => typeof f.order === "number");
       const never = mine.filter((f) => typeof f.order !== "number");
 
@@ -1018,14 +1014,14 @@ export function buildViewsFromLegacy({ films = [], dividers = [], wallPrefs = {}
       ].sort((a, b) => a.order - b.order || a.tie - b.tie);
 
       const rows = [];
-      // le compte ÉCRIT dans la gouttière : seulement s'il fut voulu
+      // the count WRITTEN in the gutter: only if it was meant
       let want = kind === "reserve" ? null : legacyPref;
       let loose = []; // les films libres, en attente de planches
       let cat = null;
 
-      /* On débite au compte VOULU, et sur « auto » on ne débite pas : une
-         planche sans compte remplit sa largeur et se replie en lignes de
-         bois, la couper par dix la laisserait à moitié nue. */
+      /* We cut up at the count MEANT, and on "auto" we do not cut up: a
+         board with no count fills its width and folds into wooden lines,
+         and cutting it by tens would leave it half bare. */
       const flushLoose = () => {
         for (const part of chunk(loose, want))
           if (part.length) rows.push(makeRow({ perRow: want, items: part }));
@@ -1034,9 +1030,9 @@ export function buildViewsFromLegacy({ films = [], dividers = [], wallPrefs = {}
 
       for (const it of merged) {
         if (it.type === "divider") {
-          /* Un intercalaire ouvrait une ligne et donnait son compte : il
-             devient une RANGÉE, et son libellé la catégorie qui en occupe
-             la tête et avale ce qui suivait. */
+          /* A divider opened a line and gave it its count: it becomes a
+             ROW, and its label the category that takes its head and
+             swallows what followed. */
           flushLoose();
           cat = makeCat({
             label: it.divider.label || "Catégorie",
@@ -1051,12 +1047,12 @@ export function buildViewsFromLegacy({ films = [], dividers = [], wallPrefs = {}
         }
       }
       flushLoose();
-      /* Les films jamais rangés à la main n'ont pas de place VOULUE, mais
-         ils ont une place : c'est toute la collection de qui n'a jamais
-         touché au rangement manuel. Les verser dans le sas d'arrivée
-         faisait de l'étagère un rayon vide et un tas de cinquante
-         boîtiers sur une ligne sans fin. Ils prennent donc des planches,
-         comme les autres. Le sas ne sert qu'à ce qui ARRIVE ensuite. */
+      /* Films never arranged by hand have no MEANT place, but they do
+         have a place: it is the whole collection of anyone who never
+         touched the manual arrangement. Pouring them into the arrivals
+         airlock made the shelf an empty run and a heap of fifty cases on
+         one endless line. So they take boards, like the others. The
+         airlock only serves what ARRIVES afterwards. */
       loose = never.map((f) => filmItem(f.id));
       flushLoose();
       if (!rows.length) rows.push(makeRow({ perRow: want }));
@@ -1066,16 +1062,16 @@ export function buildViewsFromLegacy({ films = [], dividers = [], wallPrefs = {}
     }
     views.push(view);
 
-    /* Une seconde vue, offerte d'emblée : l'étagère par cinéaste. Elle
-       arrive APRÈS le rangement d'origine, qui reste donc la vue ouverte
-       par défaut — on propose un autre regard, on n'en impose pas un.
-       Un mur sans le moindre film n'en a pas besoin : deux étagères vides
-       à choisir ne sont pas un choix. */
+    /* A second view, offered from the start: the shelf by filmmaker. It
+       comes AFTER the original arrangement, which therefore stays the
+       view opened by default — we offer another way of looking, we do
+       not impose one. A wall without a single film does not need it: two
+       empty shelves to choose between are not a choice. */
     if (pool.length) {
       views.push(
-        /* Sans `cap` : chaque rayon garde le sien, et le tiroir sa
-           largeur de tiroir. Le compte hérité de l'ancien mur n'a de sens
-           que pour la vue qui reproduit ce mur. */
+        /* No `cap`: each shelf keeps its own, and the drawer its
+           drawer's width. The count inherited from the old wall only
+           means anything for the view that reproduces that wall. */
         layoutByDirector(makeView({ wall, name: "Par réalisateur", theme: "kraft", now }), pool)
       );
     }
@@ -1083,9 +1079,9 @@ export function buildViewsFromLegacy({ films = [], dividers = [], wallPrefs = {}
   return views;
 }
 
-/* Cloner une vue : nouveaux identifiants pour tout ce qui est
-   agencement, mêmes identifiants pour les films — ce sont les mêmes
-   films, rangés autrement. */
+/* Cloning a view: new identifiers for everything that is arrangement,
+   the same identifiers for the films — they are the same films, filed
+   differently. */
 export function duplicateView(view, { name, now = 0 } = {}) {
   const shelves = {};
   for (const kind of SHELF_KINDS) {
@@ -1101,11 +1097,11 @@ export function duplicateView(view, { name, now = 0 } = {}) {
               ? {
                   ...it,
                   id: `c_${uid()}`,
-                  /* Un décor rangé dans une boîte est du mobilier comme
-                     celui posé sur la planche : il lui faut un identifiant
-                     neuf, sans quoi les deux vues se partageraient le
-                     même bibelot et le retirer d'un côté le retirerait
-                     de l'autre. */
+                  /* A decor filed in a box is furniture just like one
+                     laid on the board: it needs a fresh identifier,
+                     otherwise the two views would share the same trinket
+                     and removing it on one side would remove it on the
+                     other. */
                   items: it.items.map((s) => (s.t === "f" ? { ...s } : { ...s, id: `d_${uid()}` })),
                 }
               : { ...it, id: `d_${uid()}` }

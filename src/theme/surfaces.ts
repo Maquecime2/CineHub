@@ -1,66 +1,53 @@
 /* ============================================================
-   LES SURFACES — de quoi sont faits le mur et le bois
+   SURFACES — the matter a shelf can be made of
    ============================================================
 
-   Une vue ne choisissait qu'un `theme` : deux stops de dégradé pour la
-   planche, une teinte de papier, une encre. Le mur, lui, n'avait aucune
-   peinture. Ce module est l'endroit — le seul — où une CLÉ devient une
-   apparence.
+   Paper, wood, metal, glass, stone. This module is the place — the only
+   one — where a key becomes a texture, and it is deliberately kept apart
+   from `palette`: a colour is a decision of the eye, a material is a
+   decision of the hand.
 
-   Deux règles le tiennent :
-
-   1. ON NE SERT QUE DES STYLES. Ni `layout.jsx` ni le panneau de réglage
-      n'ont à connaître un dégradé ou une turbulence ; ils demandent
-      « peinture lin » et reçoivent des `CSSProperties`. C'est ce qui
-      permet à la vignette d'aperçu de l'Atelier d'être, littéralement,
-      la même surface que l'étagère — deux catalogues finiraient par
-      diverger, et c'est toujours l'aperçu qui aurait tort.
-
-   2. TOUT EST PROCÉDURAL. Les textures sont du SVG en adresse-données,
-      selon la technique déjà éprouvée par `GRAIN` : aucun fichier à
-      livrer, aucune requête, et un motif se reteinte sans qu'on ait à
-      redessiner une image.
-
-   Le catalogue de teintes, lui, N'EST PAS ici. `patternLayer` reçoit une
-   couleur déjà résolue plutôt qu'une clé : les surfaces ignorent la
-   palette des objets, et la palette ignore les surfaces. */
+   EVERYTHING IS DRAWN, nothing is downloaded. The patterns are SVG data
+   URIs built here, from a filtered noise: an image file would have to be
+   fetched, cached, and would not follow the ink it is tinted with.
+   ============================================================ */
 
 import type { CSSProperties } from "react";
 import { C, GRAIN, alpha } from "./tokens";
 
-/* L'adresse-données, faite une bonne fois. Le pourcent AVANT le dièse —
-   l'ordre inverse ré-échapperait le pourcent qu'on vient d'écrire. Les
-   deux y passent forcément : une couleur commence par un dièse, et
-   `width='100%'` est dans presque chaque motif. */
+/* The data URI, made once and for all. The percent sign BEFORE the hash
+   — the other way round would re-escape the percent we have just
+   written. Both necessarily come up: a colour starts with a hash, and
+   `width='100%'` is in almost every pattern. */
 const svgUrl = (markup: string): string =>
   `url("data:image/svg+xml;utf8,${markup.replace(/%/g, "%25").replace(/#/g, "%23")}")`;
 
 const svg = (w: number, h: number, body: string): string =>
   `<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}' viewBox='0 0 ${w} ${h}'>${body}</svg>`;
 
-/* Un bruit filtré, du même moule que `GRAIN` mais réglable. `freq`
-   accepte deux nombres : c'est ce qui distingue un grain de plâtre
-   (isotrope) d'un veinage de bois (étiré à l'horizontale). */
+/* A filtered noise, from the same mould as `GRAIN` but adjustable.
+   `freq` accepts two numbers: that is what tells a plaster grain
+   (isotropic) from a wood grain (stretched horizontally). */
 const noise = (id: string, freq: string, octaves: number, alpha: number, seed = 3): string =>
   `<filter id='${id}'><feTurbulence type='fractalNoise' baseFrequency='${freq}' numOctaves='${octaves}' seed='${seed}' stitchTiles='stitch'/>` +
   `<feColorMatrix type='matrix' values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 ${alpha} 0'/></filter>` +
   `<rect width='100%' height='100%' filter='url(#${id})'/>`;
 
 /* ------------------------------------------------------------
-   LA PEINTURE — le fond du mur
+   THE PAINT — the background of the wall
    ------------------------------------------------------------
 
-   Un dégradé très doux plutôt qu'un aplat : un mur est éclairé par
-   quelque chose. Il reste assez pâle pour qu'un boîtier posé devant se
-   détache — c'est la contrainte qui a écarté les teintes saturées, sauf
-   les trois sombres, qui assument d'être un fond de nuit. */
+   A very soft gradient rather than a flat tint: a wall is lit by
+   something. It stays pale enough for a case laid in front of it to
+   stand out — that is the constraint which ruled out the saturated
+   tints, save the three dark ones, which own being a night sky. */
 
 export type PaintKey = keyof typeof PAINTS;
 
-/* On garde l'IMAGE et non un `background` tout fait : la peinture n'est
-   qu'une couche parmi d'autres sur le cadre du rayon, et une couche se
-   compose, elle ne se substitue pas. `dark` dit à l'appelant que le fond
-   est sombre — de quoi éclaircir ce qui s'écrit dessus. */
+/* We keep the IMAGE and not a ready-made `background`: the paint is
+   only one layer among others on the row's frame, and a layer composes,
+   it does not substitute. `dark` tells the caller the background is dark
+   — enough to lighten what is written on it. */
 const wall = (label: string, top: string, bottom: string, dark = false) => ({
   label,
   dark,
@@ -89,14 +76,14 @@ export const paintStyle = (key?: string): CSSProperties => ({
 });
 
 /* ------------------------------------------------------------
-   LE PAPIER PEINT — une trame qui se répète
+   THE WALLPAPER — a pattern that repeats
    ------------------------------------------------------------
 
-   Chaque motif est une fonction de l'encre : la même trame donne autant
-   d'ambiances que la palette a de teintes. On les dessine volontairement
-   PÂLES — un mur est derrière les boîtiers, pas devant eux — et
-   l'opacité vit dans le markup plutôt que sur la couche, pour qu'une
-   texture posée par-dessus ne la dilue pas une seconde fois. */
+   Every pattern is a function of the ink: the same weave gives as many
+   moods as the palette has tints. We deliberately draw them PALE — a
+   wall is behind the cases, not in front of them — and the opacity lives
+   in the markup rather than on the layer, so that a texture laid on top
+   does not dilute it a second time. */
 
 export type PatternKey = keyof typeof PATTERNS;
 
@@ -199,20 +186,20 @@ export const PATTERNS: Record<string, Pattern> = {
 
 export const PATTERN_KEYS = Object.keys(PATTERNS);
 
-/* L'ENCRE PAR DÉFAUT D'UNE TRAME, ET POURQUOI ELLE EST ÉCRITE EN DUR.
+/* THE DEFAULT INK OF A PATTERN, AND WHY IT IS HARD-CODED.
 
-   C'était `C.inkFaded`. Depuis que les jetons sont des renvois à des
-   variables CSS, ce n'en est plus une couleur utilisable ici : la trame
-   part dans une adresse-données SVG, et un `var()` écrit dans un
-   document SVG embarqué ne résout rien — il n'a pas la racine du
-   document pour parent. Le motif devenait invisible, sans un mot.
+   It used to be `C.inkFaded`. Since the tokens became references to CSS
+   variables, that is no longer a colour usable here: the pattern leaves
+   inside an SVG data URL, and a `var()` written in an embedded SVG
+   document resolves to nothing — it does not have the document root for
+   a parent. The pattern became invisible, without a word.
 
-   C'est la même contrainte que celle qui garde le nuancier des objets en
-   hexadécimaux (voir `theme/palette`) : tout ce qui entre dans un SVG
-   embarqué doit être une couleur, pas un renvoi vers une couleur. */
+   It is the same constraint that keeps the objects' palette in
+   hexadecimals (see `theme/palette`): whatever enters an embedded SVG
+   must be a colour, not a reference to a colour. */
 const DEFAULT_INK = "#6E6153";
 
-/* `ink` est une couleur RÉSOLUE, jamais une clé — voir l'en-tête. */
+/* `ink` is a RESOLVED colour, never a key — see the header. */
 export const patternLayer = (key?: string, ink: string = DEFAULT_INK): CSSProperties | null => {
   const p = PATTERNS[key as string];
   if (!p) return null;
@@ -224,12 +211,12 @@ export const patternLayer = (key?: string, ink: string = DEFAULT_INK): CSSProper
 };
 
 /* ------------------------------------------------------------
-   LA TEXTURE — ce qui passe par-dessus tout
+   THE TEXTURE — what goes over everything
    ------------------------------------------------------------
 
-   En `multiply`, comme le grain de papier de l'atmosphère : une texture
-   ASSOMBRIT le fond au lieu de le recouvrir, sinon elle effacerait la
-   peinture qu'on vient de choisir. */
+   In `multiply`, like the atmosphere's paper grain: a texture DARKENS
+   the background instead of covering it, otherwise it would erase the
+   paint one has just chosen. */
 
 export type TextureKey = keyof typeof TEXTURES;
 
@@ -267,25 +254,24 @@ export const textureLayer = (key?: string): CSSProperties | null =>
   TEXTURES[key as TextureKey]?.style || null;
 
 /* ------------------------------------------------------------
-   LE MUR ASSEMBLÉ — les trois couches en un seul geste
+   THE ASSEMBLED WALL — the three layers in one gesture
    ------------------------------------------------------------
 
-   Peinture et papier peint ne sont PAS des éléments de plus : ce sont
-   des couches de fond sur le cadre du rayon, qui en portait déjà une (la
-   teinte du rayon de chevet). C'est délibéré, et c'est la contrainte
-   qui compte ici : le dépôt d'un objet accroché mesure `data-wall-layer`
-   pour convertir un pixel en pourcentage, et tout enfant de plus dans ce
-   cadre risquerait de déplacer ce que ce rect vaut. Un fond ne déplace
-   rien.
+   Paint and wallpaper are NOT extra elements: they are background layers
+   on the row's frame, which already carried one (the tint of the bedside
+   row). That is deliberate, and it is the constraint that matters here:
+   dropping a hung object measures `data-wall-layer` to convert a pixel
+   into a percentage, and any extra child inside that frame would risk
+   shifting what that rect is worth. A background shifts nothing.
 
-   Seule la texture reste un calque à elle : elle se fond en `multiply`,
-   ce qu'un fond ne sait pas faire tout seul.
+   Only the texture stays a layer of its own: it blends in `multiply`,
+   which a background cannot do by itself.
 
-   L'ordre des couches est celui d'un empilement — le papier peint DEVANT
-   la peinture, donc écrit avant elle. Et `tint` en dernier, comme
-   couleur de fond : c'est la seule qui ne soit pas une image.
+   The order of the layers is that of a stack — the wallpaper IN FRONT OF
+   the paint, hence written before it. And `tint` last, as a background
+   colour: it is the only one that is not an image.
 
-   `ink` est une couleur résolue, jamais une clé. */
+   `ink` is a resolved colour, never a key. */
 export function wallStyle(
   decor?: { paint?: string; pattern?: string; texture?: string } | null,
   ink: string = DEFAULT_INK,
@@ -301,10 +287,10 @@ export function wallStyle(
   }
   if (decor?.paint) {
     images.push(paintOf(decor.paint).image);
-    /* `auto` et non `cover` : un dégradé n'a pas de dimensions propres et
-       remplit déjà sa boîte. La liste des tailles doit seulement rester
-       aussi longue que celle des images, sans quoi elle se répète et le
-       motif reprend la taille du dégradé. */
+    /* `auto` and not `cover`: a gradient has no dimensions of its own and
+       already fills its box. The list of sizes only has to stay as long
+       as the list of images, otherwise it repeats and the pattern takes
+       the gradient's size. */
     sizes.push("auto");
   }
 
@@ -319,17 +305,16 @@ export function wallStyle(
 }
 
 /* ------------------------------------------------------------
-   LES MATÉRIAUX — de quoi la planche est faite
+   THE MATERIALS — what the board is made of
    ------------------------------------------------------------
 
-   Une planche n'était que deux stops de dégradé. Elle a maintenant une
-   FAMILLE, et la famille décide de ce qui se passe au-delà de la
-   couleur : le bois a un veinage étiré, le métal des bandes fines et un
-   reflet haut, le verre laisse voir à travers et pose une ombre plus
-   légère, la pierre a un grain gros.
+   A board was only two gradient stops. It now has a FAMILY, and the
+   family decides what happens beyond the colour: wood has a stretched
+   graining, metal thin bands and a high sheen, glass lets one see
+   through and casts a lighter shadow, stone has a coarse grain.
 
-   `finish` ne s'applique qu'aux matériaux qui ont quelque chose à
-   vernir — c'est un ajout d'éclat, pas une sixième famille. */
+   `finish` only applies to the materials that have something to varnish
+   — it is an addition of gloss, not a sixth family. */
 
 export type MaterialKey = keyof typeof MATERIALS;
 export type FinishKey = keyof typeof FINISHES;
@@ -340,13 +325,13 @@ type Material = {
   family: MaterialFamily;
   top: string;
   bottom: string;
-  /* La couche de matière, sous la couleur. Absente = un aplat dégradé,
-     ce qui est exactement l'étagère d'avant les matériaux. */
+  /* The layer of matter, under the colour. Absent = a plain gradient,
+     which is exactly the shelf from before the materials. */
   texture?: string;
-  /* L'ombre portée sous la planche. Le verre en veut une plus légère :
-     ce qui est translucide ne pèse pas. */
+  /* The drop shadow under the board. Glass wants a lighter one: what is
+     translucent does not weigh. */
   shadow?: string;
-  /* Un liseré de lumière sur l'arête haute. */
+  /* A line of light on the top edge. */
   sheen?: string;
   alpha?: number;
 };
@@ -365,9 +350,11 @@ const wood = (label: string, top: string, bottom: string): Material => ({
 });
 
 export const MATERIALS: Record<string, Material> = {
-  /* Les bois. `chene`, `noyer`, `ceruse` reprennent au hexadécimal près
-     les teintes des thèmes d'origine — un décor qui les choisit doit
-     retrouver son étagère, au veinage près. */
+  /* The woods. `chene`, `noyer` and `ceruse` take up, hex code for hex
+     code, the tints of the original themes — a decor that chooses them
+     must find its shelf again, down to the grain.
+
+     THEIR KEYS STAY FRENCH: they are what a decor carries on disk. */
   chene: wood("Chêne", "#7A5B3A", "#5E442A"),
   noyer: wood("Noyer", "#5A3E28", "#3B2818"),
   teck: wood("Teck", "#8B5E34", "#6A4423"),
@@ -442,8 +429,9 @@ export const MATERIALS: Record<string, Material> = {
     sheen: "#FFFFFF66",
   },
 
-  /* Le peint : la planche prend une teinte franche et n'a plus de
-     matière propre. C'est la famille où la finition se voit vraiment. */
+  /* The painted: the board takes on a plain tint and no longer has any
+     substance of its own. This is the family where the finish really
+     shows. */
   blanc: { label: "Laqué blanc", family: "peint", top: "#F4F1E9", bottom: "#DFDACD" },
   vert: { label: "Vert atelier", family: "peint", top: "#4E6B58", bottom: "#3A5142" },
   bleu: { label: "Bleu nuit", family: "peint", top: "#3C4E68", bottom: "#2A374B" },
@@ -467,12 +455,12 @@ export const FINISHES = {
   laque: { label: "Laqué", sheen: 1.8, shadow: "0 3px 1px rgba(0,0,0,0.26)" },
 } as const;
 
-const CHENE = MATERIALS.chene as Material;
-export const materialOf = (key?: string): Material => MATERIALS[key as string] || CHENE;
+const OAK = MATERIALS.chene as Material;
+export const materialOf = (key?: string): Material => MATERIALS[key as string] || OAK;
 
-/* L'ombre par défaut de la planche — celle d'avant les matériaux, au
-   pixel près. Elle vit ici parce que `materialStyle` doit pouvoir la
-   rendre telle quelle. */
+/* The board's default shadow — the one from before the materials, to the
+   pixel. It lives here because `materialStyle` must be able to return it
+   as it is. */
 export const PLANK_SHADOW = "0 3px 0 rgba(0,0,0,0.18)";
 
 export const materialStyle = (key?: string, finish?: string): CSSProperties => {
@@ -480,9 +468,9 @@ export const materialStyle = (key?: string, finish?: string): CSSProperties => {
   const f = FINISHES[finish as FinishKey] || FINISHES.satine;
   const base = `linear-gradient(${m.top}, ${m.bottom})`;
 
-  /* L'ordre des couches est celui d'un empilement : le reflet en
-     premier (donc au-dessus), la matière ensuite, la couleur au fond.
-     L'inverse peindrait la couleur PAR-DESSUS son propre veinage. */
+  /* The order of the layers is that of a stack: the sheen first (hence
+     on top), the substance next, the colour at the bottom. The reverse
+     would paint the colour OVER its own graining. */
   const layers: string[] = [];
   if (m.sheen && f.sheen)
     layers.push(

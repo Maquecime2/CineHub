@@ -1,28 +1,28 @@
 /* ============================================================
-   RETROUVER LES FICHES BASCULÉES PAR ERREUR
+   FINDING THE CARDS FLIPPED BY MISTAKE
    ============================================================
 
-   « Compléter les fiches » a longtemps fait passer « à voir » → « vu »
-   les fiches qu'il enrichissait (voir `garderStatut` dans `importing`).
-   Le bouton est réparé, mais les collections déjà basculées ne se
-   réparent pas toutes seules : rien, dans les données, ne dit « ce film
-   était à voir hier ».
+   "Complete the cards" spent a long time flipping the cards it enriched
+   from "to watch" → "watched" (see `keepStatus` in `importing`). The
+   button is fixed, but collections already flipped do not repair
+   themselves: nothing in the data says "this film was on the watchlist
+   yesterday".
 
-   RIEN — SAUF UNE EMPREINTE. Une fiche basculée par ce chemin porte la
-   trace de ce qui NE lui est jamais arrivé : l'enrichissement TMDB
-   n'écrit ni séance, ni date, ni note, ni texte. Une fiche « vue » qui
-   n'a aucune des quatre n'a jamais été ouverte par personne — elle est
-   presque sûrement une envie, pas un souvenir.
+   NOTHING — EXCEPT A FINGERPRINT. A card flipped along that path carries
+   the trace of what NEVER happened to it: TMDB enrichment writes no
+   screening, no date, no rating, no text. A "watched" card with none of
+   the four has never been opened by anyone — it is almost certainly a
+   wish, not a memory.
 
-   « Presque » est le mot important, et c'est pourquoi ce module ne fait
-   que DÉSIGNER. Un film réellement vu, jamais noté, jamais daté et
-   jamais commenté existe — rare, mais il existe. La liste se relit donc
-   fiche par fiche avant qu'on écrive quoi que ce soit, et l'appelant
-   décide. */
+   "Almost" is the important word, and that is why this module only ever
+   POINTS THINGS OUT. A film genuinely watched, never rated, never dated
+   and never commented on does exist — rare, but it exists. So the list is
+   read back card by card before anything is written, and the caller
+   decides. */
 import type { Film } from "../types";
 
-/** Les quatre traces qu'un visionnage laisse, et qu'un enrichissement ne laisse pas. */
-export const porteUneTraceDeVisionnage = (f: Film): boolean =>
+/** The four traces a viewing leaves, and that an enrichment does not. */
+export const hasWatchTrace = (f: Film): boolean =>
   (f.watches || []).length > 0 ||
   !!f.watchedAt ||
   (f.rating || 0) > 0 ||
@@ -30,15 +30,15 @@ export const porteUneTraceDeVisionnage = (f: Film): boolean =>
   !!(f.notes || "").trim();
 
 /**
- * Les fiches « vues » qui ressemblent à des envies.
+ * The "watched" cards that look like wishes.
  *
- * Triées comme on les relira : les venues de Letterboxd d'abord — ce sont
- * celles qu'un relevé de watchlist avait posées, et les plus probables —
- * puis par titre.
+ * Sorted the way they will be read back: the ones from Letterboxd first —
+ * those are the ones a watchlist export had laid down, and the most
+ * likely — then by title.
  */
-export const basculéesParErreur = (films: Film[]): Film[] =>
+export const flippedByMistake = (films: Film[]): Film[] =>
   films
-    .filter((f) => f.status === "watched" && !f.archived && !porteUneTraceDeVisionnage(f))
+    .filter((f) => f.status === "watched" && !f.archived && !hasWatchTrace(f))
     .sort(
       (a, b) =>
         Number(b.source === "letterboxd") - Number(a.source === "letterboxd") ||

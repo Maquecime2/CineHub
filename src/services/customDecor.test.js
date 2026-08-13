@@ -1,18 +1,17 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
-/* Le registre range ses images dans IndexedDB, dont jsdom ne dispose
-   pas : on remplace le coffre par une Map, ce qui suffit à vérifier
-   qu'une image est bien écrite quand on importe et bien effacée quand on
-   supprime. */
+/* The registry stores its images in IndexedDB, which jsdom does not
+   have: we replace the vault with a Map, which is enough to check that
+   an image is indeed written on import and indeed erased on delete. */
 const vault = new Map();
 vi.mock("../db", () => ({
   putImage: async (k, blob) => vault.set(k, blob),
   getImage: async (k) => vault.get(k),
   deleteImage: async (k) => void vault.delete(k),
 }));
-/* Un JPEG ne se fabrique pas sous jsdom (ni canvas, ni décodeur d'image) :
-   ce que `shrinkImage` rend n'a pas d'importance ici, seulement qu'il
-   rende quelque chose. */
+/* A JPEG cannot be built under jsdom (no canvas, no image decoder):
+   what `shrinkImage` returns does not matter here, only that it returns
+   something. */
 vi.mock("./images", () => ({
   shrinkImage: async (file) => new Blob([`shrunk:${file.name}`]),
   imageSize: async () => ({ w: 10, h: 10 }),
@@ -41,8 +40,8 @@ beforeEach(() => {
   refreshCustomDecor();
 });
 
-describe("le registre des objets importés", () => {
-  it("range l'image et retient le motif", async () => {
+describe("the register of imported objects", () => {
+  it("files the image and remembers the motif", async () => {
     const entry = await addCustomDecor(pngFile(), { wall: false });
     expect(entry.key.startsWith(CUSTOM_PREFIX)).toBe(true);
     expect(entry.label).toBe("chouette");
@@ -52,54 +51,54 @@ describe("le registre des objets importés", () => {
     expect(customDecorByKey(entry.key)).toMatchObject({ label: "chouette" });
   });
 
-  it("emporte l'image en supprimant le motif", async () => {
+  it("takes the image away when the motif is deleted", async () => {
     const entry = await addCustomDecor(pngFile());
     await removeCustomDecor(entry.key);
     expect(listCustomDecor()).toHaveLength(0);
     expect(vault.has(entry.imageKey)).toBe(false);
   });
 
-  /* Le préfixe est ce qui empêche un import de recouvrir `plant` ou
-     `divider` : sans lui, deux objets porteraient la même clé et
-     l'étagère afficherait l'un pour l'autre. */
-  it("ne peut pas prendre la clé d'un motif de la maison", async () => {
+  /* The prefix is what keeps an import from covering `plant` or
+     `divider`: without it, two objects would carry the same key and the
+     shelf would show one for the other. */
+  it("cannot take the key of one of the house motifs", async () => {
     const a = await addCustomDecor(pngFile("plant.png"));
     expect(a.key).not.toBe("plant");
     const b = await addCustomDecor(pngFile("plant.png"));
     expect(b.key).not.toBe(a.key);
   });
 
-  it("refuse ce qui n'est pas une image", async () => {
+  it("refuses what is not an image", async () => {
     await expect(
       addCustomDecor(new File(["x"], "notes.txt", { type: "text/plain" }))
     ).rejects.toThrow(/n'est pas une image/);
     expect(listCustomDecor()).toHaveLength(0);
   });
 
-  it("cite ses images, pour qu'une purge ne les emporte pas", async () => {
+  it("names its images, so a purge does not carry them off", async () => {
     const entry = await addCustomDecor(pngFile());
     expect(customDecorImageKeys()).toContain(entry.imageKey);
   });
 
-  it("survit au rechargement", async () => {
+  it("survives a reload", async () => {
     const entry = await addCustomDecor(pngFile());
     refreshCustomDecor(); // comme si la page repartait de localStorage
     expect(customDecorByKey(entry.key)?.label).toBe(entry.label);
   });
 });
 
-describe("masquer un motif de la maison", () => {
-  it("le sort du cabinet sans le supprimer", async () => {
+describe("hiding one of the house motifs", () => {
+  it("takes it out of the cabinet without deleting it", async () => {
     const { shelfDecorTypes, decorSpec } = await import("../components/shelf/constants");
     toggleDecorHidden("plant");
     expect(shelfDecorTypes().map((d) => d.key)).not.toContain("plant");
-    /* Il reste RÉSOLVABLE : une plante déjà posée sur une étagère
-       continue de s'afficher, masquer n'est pas supprimer. */
+    /* It remains RESOLVABLE: a plant already laid on a shelf goes on
+       being displayed, hiding is not deleting. */
     expect(decorSpec("plant")).toBeTruthy();
     expect(isDecorHidden("plant")).toBe(true);
   });
 
-  it("se défait du même geste", async () => {
+  it("is undone by the same gesture", async () => {
     const { shelfDecorTypes } = await import("../components/shelf/constants");
     toggleDecorHidden("cactus");
     toggleDecorHidden("cactus");
@@ -107,24 +106,24 @@ describe("masquer un motif de la maison", () => {
     expect(shelfDecorTypes().map((d) => d.key)).toContain("cactus");
   });
 
-  it("vaut aussi pour un objet importé et pour ce qui s'accroche", async () => {
+  it("holds for an imported object and for what hangs, too", async () => {
     const { wallDecorTypes, shelfDecorTypes } = await import("../components/shelf/constants");
-    const mien = await addCustomDecor(pngFile("mien.png"));
-    toggleDecorHidden(mien.key);
+    const mine = await addCustomDecor(pngFile("mien.png"));
+    toggleDecorHidden(mine.key);
     toggleDecorHidden("frame");
-    expect(shelfDecorTypes().map((d) => d.key)).not.toContain(mien.key);
+    expect(shelfDecorTypes().map((d) => d.key)).not.toContain(mine.key);
     expect(wallDecorTypes().map((d) => d.key)).not.toContain("frame");
   });
 
-  it("survit au rechargement", () => {
+  it("survives a reload", () => {
     toggleDecorHidden("mug");
     refreshCustomDecor();
     expect(listHiddenDecor()).toContain("mug");
   });
 });
 
-describe("le nettoyage d'un SVG", () => {
-  it("retire le script et les gestionnaires", () => {
+describe("cleaning an SVG", () => {
+  it("strips the script and the handlers", () => {
     const { markup } = sanitizeSvg(
       `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><script>alert(1)</script><rect onclick="alert(2)" stroke="#000"/></svg>`
     );
@@ -132,7 +131,7 @@ describe("le nettoyage d'un SVG", () => {
     expect(markup).not.toContain("onclick");
   });
 
-  it("remplace l'encre par currentColor quand il y en a", () => {
+  it("replaces the ink with currentColor where there is any", () => {
     const { markup, tintable } = sanitizeSvg(
       `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 0" stroke="#123456"/></svg>`
     );
@@ -140,7 +139,7 @@ describe("le nettoyage d'un SVG", () => {
     expect(markup).toContain("currentColor");
   });
 
-  it("trouve aussi l'encre écrite en style", () => {
+  it("finds ink written as a style too", () => {
     const { tintable, markup } = sanitizeSvg(
       `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 0" style="fill: #abc; opacity: .5"/></svg>`
     );
@@ -149,55 +148,56 @@ describe("le nettoyage d'un SVG", () => {
     expect(markup).toContain("opacity");
   });
 
-  /* Un dessin sans trait nommé — tout en dégradés, ou sans peinture
-     déclarée — n'est pas teintable, et le panneau lui retire alors ses
-     pastilles de couleur. */
-  it("ne se dit pas teintable quand il n'y a rien à teindre", () => {
+  /* A drawing with no named stroke — all in gradients, or with no
+     declared paint — is not tintable, and the panel then takes its
+     colour pills away from it. */
+  it("does not call itself tintable when there is nothing to tint", () => {
     const { tintable } = sanitizeSvg(
       `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 0" fill="none"/></svg>`
     );
     expect(tintable).toBe(false);
   });
 
-  it("appuie le dessin en bas s'il se pose, en haut s'il s'accroche", () => {
-    const posé = sanitizeSvg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"/>`);
-    const accroché = sanitizeSvg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"/>`, {
+  it("sets the drawing at the bottom if it stands, at the top if it hangs", () => {
+    const placedKey = sanitizeSvg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"/>`);
+    const hung = sanitizeSvg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"/>`, {
       wall: true,
     });
-    expect(posé.markup).toContain("xMidYMax");
-    expect(accroché.markup).toContain("xMidYMin");
+    expect(placedKey.markup).toContain("xMidYMax");
+    expect(hung.markup).toContain("xMidYMin");
   });
 
-  it("rend null sur ce qui n'est pas un SVG", () => {
+  it("returns null on what is not an SVG", () => {
     expect(sanitizeSvg("bonjour")).toBe(null);
   });
 });
 
-describe("le motif importé, tel que l'étagère le voit", () => {
-  it("entre dans la bonne famille du cabinet", async () => {
+describe("the imported motif, as the shelf sees it", () => {
+  it("goes into the right family of the cabinet", async () => {
     const { shelfDecorTypes, wallDecorTypes, decorSpec, isWallMotif } =
       await import("../components/shelf/constants");
-    const posé = await addCustomDecor(pngFile("galet.png"), { wall: false });
-    const accroché = await addCustomDecor(svgFile(`<svg viewBox="0 0 1 1"/>`, "guirlande.svg"), {
+    const placedKey = await addCustomDecor(pngFile("galet.png"), { wall: false });
+    const hung = await addCustomDecor(svgFile(`<svg viewBox="0 0 1 1"/>`, "guirlande.svg"), {
       wall: true,
     });
 
-    expect(shelfDecorTypes().map((d) => d.key)).toContain(posé.key);
-    expect(wallDecorTypes().map((d) => d.key)).toContain(accroché.key);
-    // et les motifs de la maison sont toujours là, en tête
+    expect(shelfDecorTypes().map((d) => d.key)).toContain(placedKey.key);
+    expect(wallDecorTypes().map((d) => d.key)).toContain(hung.key);
+    // and the house patterns are still there, at the head
     expect(shelfDecorTypes().map((d) => d.key)).toContain("plant");
 
-    expect(isWallMotif(accroché.key)).toBe(true);
-    expect(isWallMotif(posé.key)).toBe(false);
-    expect(decorSpec(posé.key)).toMatchObject({ label: "galet", custom: true });
+    expect(isWallMotif(hung.key)).toBe(true);
+    expect(isWallMotif(placedKey.key)).toBe(false);
+    expect(decorSpec(placedKey.key)).toMatchObject({ label: "galet", custom: true });
     expect(decorSpec("plant")?.custom).toBeUndefined();
     expect(decorSpec("fantôme")).toBeUndefined();
   });
 
-  /* `decorSpec` est appelé au rendu de chaque objet posé : s'il rendait un
-     composant neuf à chaque fois, React démonterait et remonterait
-     l'image — donc la relirait dans IndexedDB — à chaque survol. */
-  it("rend toujours le même dessin pour le même motif", async () => {
+  /* `decorSpec` is called when rendering every laid object: if it
+     returned a brand-new component each time, React would unmount and
+     remount the image — hence re-read it from IndexedDB — on every
+     hover. */
+  it("always returns the same drawing for the same motif", async () => {
     const { decorSpec } = await import("../components/shelf/constants");
     const entry = await addCustomDecor(pngFile());
     expect(decorSpec(entry.key).draw).toBe(decorSpec(entry.key).draw);

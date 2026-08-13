@@ -6,8 +6,8 @@ import {
   loadOnboarding,
   markDone,
   markSkipped,
-  markSemé,
-  doitSemer,
+  markSeeded,
+  shouldSeed,
   resetOnboarding,
   shouldHint,
 } from "./onboarding";
@@ -15,105 +15,105 @@ import { KEYS } from "./storage";
 
 beforeEach(() => localStorage.clear());
 
-describe("ce que le classeur retient de l'accueil", () => {
-  it("part de rien : c'est une première ouverture", () => {
-    expect(loadOnboarding()).toEqual({ done: [], skipped: false, hints: 0, semé: false });
+describe("what the binder remembers of the welcome", () => {
+  it("starts from nothing: this is a first opening", () => {
+    expect(loadOnboarding()).toEqual({ done: [], skipped: false, hints: 0, seeded: false });
     expect(isFirstRun()).toBe(true);
   });
 
-  it("n'inscrit pas deux fois la même visite", () => {
+  it("does not record the same tour twice", () => {
     markDone("global");
     markDone("global");
     expect(loadOnboarding().done).toEqual(["global"]);
   });
 
-  it("ne rappelle rien tant que rien n'a été écarté", () => {
+  it("reminds of nothing as long as nothing has been dismissed", () => {
     expect(shouldHint()).toBe(false);
   });
 
-  it("rappelle après un abandon, et se tait au bout de trois", () => {
+  it("reminds after a walk-out, and falls silent after three", () => {
     markSkipped();
     expect(shouldHint()).toBe(true);
     for (let i = 0; i < HINT_MAX; i++) bumpHint();
     expect(shouldHint()).toBe(false);
   });
 
-  /* Le rappel ne sert qu'à retrouver une visite jamais faite : l'avoir
-     menée à son terme après coup doit le faire taire, même si le
-     compteur n'est pas au bout. */
-  it("se tait dès que la visite complète a été faite", () => {
+  /* The reminder only serves to find a tour never taken: having carried
+     it to its end after the fact must silence it, even if the counter
+     has not run out. */
+  it("falls silent as soon as the full tour has been taken", () => {
     markSkipped();
     markDone("global");
     expect(shouldHint()).toBe(false);
   });
 
-  it("oublie tout sur demande", () => {
+  it("forgets everything on request", () => {
     markSkipped();
     markDone("library");
     resetOnboarding();
     expect(isFirstRun()).toBe(true);
   });
 
-  /* Une valeur écrite par une version antérieure, ou par une main
-     malheureuse, ne doit pas faire planter l'ouverture. */
-  it("survit à une valeur abîmée", () => {
+  /* A value written by an earlier version, or by an unlucky hand, must
+     not crash the opening. */
+  it("survives a damaged value", () => {
     localStorage.setItem(KEYS.onboarding, JSON.stringify({ done: "oui", hints: -4 }));
-    expect(loadOnboarding()).toEqual({ done: [], skipped: false, hints: 0, semé: false });
+    expect(loadOnboarding()).toEqual({ done: [], skipped: false, hints: 0, seeded: false });
   });
 
-  it("survit à ce qui n'est même pas du JSON", () => {
+  it("survives what is not even JSON", () => {
     localStorage.setItem(KEYS.onboarding, "{{{");
     expect(isFirstRun()).toBe(true);
   });
 });
 
 /* ============================================================
-   LE SEMIS N'A LIEU QU'UNE FOIS
+   THE SOWING HAPPENS ONLY ONCE
 
-   `isFirstRun` ne pouvait pas porter cette question : il retombe à faux
-   dès qu'une visite est jouée ou écartée, mais il redevient VRAI pour
-   qui n'a jamais fait ni l'un ni l'autre. S'y fier aurait fait revenir
-   les douze films d'exemple le lendemain du jour où quelqu'un a vidé sa
-   collection à la main — au pire moment possible.
+   `isFirstRun` could not carry this question: it falls back to false as
+   soon as a tour is played or dismissed, but it becomes TRUE again for
+   whoever has done neither. Trusting it would have brought the twelve
+   example films back the day after somebody emptied their collection by
+   hand — at the worst possible moment.
    ============================================================ */
-describe("le classeur de démonstration ne se sème qu'une fois", () => {
-  it("reste à semer sur une première ouverture", () => {
-    expect(doitSemer()).toBe(true);
+describe("the demonstration binder is sown only once", () => {
+  it("is still to be sown on a first opening", () => {
+    expect(shouldSeed()).toBe(true);
   });
 
-  it("ne se ressème plus une fois semé", () => {
-    markSemé();
-    expect(doitSemer()).toBe(false);
+  it("is not sown again once sown", () => {
+    markSeeded();
+    expect(shouldSeed()).toBe(false);
   });
 
-  it("survit au rechargement", () => {
-    markSemé();
-    /* Rien en mémoire : `loadOnboarding` relit le magasin à chaque
-       appel, ce qui est exactement ce qu'on veut vérifier ici. */
-    expect(loadOnboarding().semé).toBe(true);
-    expect(doitSemer()).toBe(false);
+  it("survives a reload", () => {
+    markSeeded();
+    /* Nothing in memory: `loadOnboarding` re-reads the store at every
+       call, which is exactly what we want to check here. */
+    expect(loadOnboarding().seeded).toBe(true);
+    expect(shouldSeed()).toBe(false);
   });
 
-  /* LE CAS QUI A MOTIVÉ LE CHAMP : un classeur vidé à la main, par
-     quelqu'un qui n'a jamais joué ni écarté la visite. `isFirstRun` dit
-     « oui » — et il a raison de son point de vue. Le semis doit dire
-     « non » quand même. */
-  it("ne ressème pas un classeur vidé par quelqu'un qui n'a rien visité", () => {
-    markSemé();
+  /* THE CASE THAT MOTIVATED THE FIELD: a binder emptied by hand, by
+     somebody who has never played nor dismissed the tour. `isFirstRun`
+     says "yes" — and it is right from its point of view. The sowing must
+     say "no" all the same. */
+  it("does not re-sow a binder emptied by somebody who took no tour", () => {
+    markSeeded();
     expect(isFirstRun()).toBe(true);
-    expect(doitSemer()).toBe(false);
+    expect(shouldSeed()).toBe(false);
   });
 
-  it("ne survit pas à un oubli général, qui rejoue tout l'accueil", () => {
-    markSemé();
+  it("does not survive a general forgetting, which replays the whole welcome", () => {
+    markSeeded();
     resetOnboarding();
-    expect(doitSemer()).toBe(true);
+    expect(shouldSeed()).toBe(true);
   });
 
-  /* Une valeur écrite avant ce champ ne le porte pas : l'absence doit se
-     lire « pas encore semé », et non « déjà fait ». */
-  it("lit une valeur d'avant comme un classeur jamais semé", () => {
+  /* A value written before this field does not carry it: the absence
+     must read "not sown yet", and not "already done". */
+  it("reads an earlier value as a binder never sown", () => {
     localStorage.setItem(KEYS.onboarding, JSON.stringify({ done: ["global"], hints: 1 }));
-    expect(doitSemer()).toBe(true);
+    expect(shouldSeed()).toBe(true);
   });
 });

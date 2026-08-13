@@ -1,93 +1,91 @@
 /* ============================================================
-   MODÈLE — une fiche film, une seule définition
+   MODEL — a film card, one single definition
    ============================================================ */
-import { inverseDe } from "./relations";
+import { inverseOf, migrateRelation } from "./relations";
+import { migrateMotifIds } from "./motifs";
 import type { Film, LinkedWork, LinkPatch, Watch } from "../types";
 
 /* ============================================================
-   L'IDENTIFIANT D'UNE FICHE — bon pour une collection, pas pour deux
+   A CARD'S IDENTIFIER — good for one collection, not for two
    ============================================================
 
-   Huit caractères de `Math.random` suffisent tant qu'un classeur ne
-   parle qu'à lui-même : la chance de deux fiches identiques dans une
-   seule collection est nulle en pratique. Le jour où deux classeurs se
-   parlent, cette chance devient celle de deux collections qui se
-   heurtent — et `Math.random` n'a jamais promis d'être unique ailleurs
-   que chez soi.
+   Eight characters of `Math.random` are enough as long as a binder only
+   talks to itself: the chance of two identical cards within a single
+   collection is nil in practice. The day two binders talk to each other,
+   that chance becomes the chance of two collections colliding — and
+   `Math.random` never promised to be unique anywhere but at home.
 
-   UUID version 7 : quarante-huit bits de temps en tête, le reste au
-   hasard du générateur cryptographique. Deux propriétés qu'on veut
-   toutes les deux — unique entre machines, et TRIABLE dans l'ordre où
-   les fiches sont nées, ce qui fait d'un index de base de données un
-   index qui ne se fragmente pas.
+   UUID version 7: forty-eight bits of time up front, the rest from the
+   cryptographic generator. Two properties we want both of — unique
+   across machines, and SORTABLE in the order the cards were born, which
+   makes a database index one that does not fragment.
 
-   ON NE REÉCRIT PAS LES ANCIENS, et c'est délibéré. Un identifiant de
-   fiche est cité partout ailleurs : les rangées d'une étagère listent
-   des identifiants, les fils rouges en relient deux, les renvois d'une
-   fiche à l'autre en portent. Les renuméroter voudrait dire réécrire
-   d'un seul geste six magasins qui ne sont pas versionnés ensemble, et
-   un seul oubli casse un lien sans que rien ne le signale. L'unicité
-   entre machines sera de toute façon assurée par le compte qui les
-   porte, et deux collections ne se comparent pas par nos identifiants
-   mais par `tmdbId`, qui désigne l'ŒUVRE et non la fiche. */
-/* LE COMPTEUR QUI MANQUAIT — l'horodatage seul ne suffit pas.
+   WE DO NOT REWRITE THE OLD ONES, and that is deliberate. A card's
+   identifier is quoted everywhere else: a shelf's rows list identifiers,
+   red threads join two of them, cross-references from one card to another
+   carry them. Renumbering would mean rewriting in one gesture six stores
+   that are not versioned together, and a single omission breaks a link
+   with nothing to flag it. Uniqueness across machines will be guaranteed
+   anyway by the account that holds them, and two collections are not
+   compared by our identifiers but by `tmdbId`, which designates the WORK
+   and not the card. */
+/* THE COUNTER THAT WAS MISSING — the timestamp alone is not enough.
 
-   Une milliseconde, c'est long : un import en pose deux cents dedans.
-   Toutes ces fiches portent alors le MÊME temps en tête, et l'ordre
-   retombe sur le hasard qui suit — c'est-à-dire sur rien. La promesse
-   « triable dans l'ordre des naissances » était fausse là où elle
-   servait le plus, et c'est le test qui l'a dit.
+   A millisecond is long: an import lays two hundred cards inside one. All
+   those cards then carry the SAME time up front, and the order falls back
+   on the randomness that follows — which is to say, on nothing. The
+   promise "sortable in birth order" was false exactly where it was most
+   useful, and it was the test that said so.
 
-   Douze bits de compteur juste après le marqueur de version, remis à
-   zéro à chaque milliseconde nouvelle : c'est la méthode que la norme
-   prévoit pour cela. Quatre mille quatre-vingt-seize fiches dans la
-   même milliseconde le feraient déborder — on emprunte alors une
-   milliseconde à l'avenir plutôt que de rendre deux fois le même rang. */
-let dernièreMs = 0;
-let compteur = 0;
+   Twelve bits of counter right after the version marker, reset to zero on
+   every new millisecond: that is the method the standard provides for
+   this. Four thousand and ninety-six cards in the same millisecond would
+   overflow it — we then borrow a millisecond from the future rather than
+   hand out the same rank twice. */
+let lastMs = 0;
+let counter = 0;
 
 export const uid = (): string => {
-  const hasard = crypto.randomUUID?.();
-  if (!hasard) {
-    /* Sans générateur cryptographique — un vieux navigateur, un contexte
-       non sécurisé — on retombe sur l'ancienne recette plutôt que de
-       refuser d'écrire une fiche. */
+  const random = crypto.randomUUID?.();
+  if (!random) {
+    /* With no cryptographic generator — an old browser, an insecure
+       context — we fall back on the old recipe rather than refuse to
+       write a card. */
     return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
   }
 
   let ms = Date.now();
-  if (ms > dernièreMs) {
-    dernièreMs = ms;
-    compteur = 0;
+  if (ms > lastMs) {
+    lastMs = ms;
+    counter = 0;
   } else {
-    /* Même milliseconde — ou horloge qui recule, ce qui arrive à la
-       remise à l'heure : on garde notre temps à nous, qui ne recule
-       jamais. */
-    ms = dernièreMs;
-    compteur += 1;
-    if (compteur > 0xfff) {
-      dernièreMs = ms + 1;
-      ms = dernièreMs;
-      compteur = 0;
+    /* Same millisecond — or a clock going backwards, which happens when
+       it is reset: we keep our own time, which never goes back. */
+    ms = lastMs;
+    counter += 1;
+    if (counter > 0xfff) {
+      lastMs = ms + 1;
+      ms = lastMs;
+      counter = 0;
     }
   }
 
-  /* Un UUID s'écrit 8-4-4-4-12. On remplace les douze premiers
-     demi-octets par l'horodatage, le marqueur de version par 7, et les
-     douze bits suivants par le compteur ; la variante et les
-     soixante-deux bits de queue restent ceux du navigateur. */
-  const temps = ms.toString(16).padStart(12, "0").slice(-12);
-  const rang = compteur.toString(16).padStart(3, "0");
+  /* A UUID is written 8-4-4-4-12. We replace the first twelve nibbles
+     with the timestamp, the version marker with 7, and the next twelve
+     bits with the counter; the variant and the trailing sixty-two bits
+     stay the browser's. */
+  const time = ms.toString(16).padStart(12, "0").slice(-12);
+  const rank = counter.toString(16).padStart(3, "0");
   return (
-    temps.slice(0, 8) +
+    time.slice(0, 8) +
     "-" +
-    temps.slice(8, 12) +
+    time.slice(8, 12) +
     "-7" +
-    rang +
+    rank +
     "-" +
-    hasard.slice(19, 23) +
+    random.slice(19, 23) +
     "-" +
-    hasard.slice(24)
+    random.slice(24)
   );
 };
 
@@ -96,50 +94,50 @@ export const makeFilm = (partial: Partial<Film> = {}): Film => ({
   title: "",
   year: "",
   director: "",
-  poster: "", // URL TMDB, adresse collée, ou image réduite en data URI
-  stills: [], // captures d'écran : { id, key (IndexedDB), caption }
+  poster: "", // TMDB URL, pasted address, or a shrunken image as a data URI
+  stills: [], // screenshots: { id, key (IndexedDB), caption }
   genres: [],
-  cast: [], // les huit premiers rôles ; voir `types`
-  crew: {}, // image · musique · scénario
-  runtime: null, // `null` et non 0 : une durée inconnue s'écarte des moyennes
+  cast: [], // the first eight roles; see `types`
+  crew: {}, // photography · music · screenplay
+  runtime: null, // `null` and not 0: an unknown runtime stays out of the averages
   language: "",
   countries: [],
   tmdbRating: null,
   themes: [],
-  motifs: [], // le vocabulaire commun ; voir `domain/motifs`
+  motifs: [], // the shared vocabulary; see `domain/motifs`
   rating: 0,
   review: "",
   notes: "",
   linkedWorks: [],
   addedAt: Date.now(),
-  /* Née maintenant, donc modifiée maintenant. Le dépôt la réécrira à
-     chaque changement réel — voir `horodater`. */
+  /* Born now, therefore modified now. The store will rewrite it on every
+     real change — see `stamp`. */
   updatedAt: Date.now(),
   status: "watched",
-  chevet: false, // le rayon du haut : ceux qu'on revoit
-  /* Mis de côté : la fiche quitte le mur et la constellation sans être
-     détruite. C'est le contraire d'une suppression — elle reste entière,
-     rangée dans la réserve de l'étagère, et revient d'un glissement. */
+  bedside: false, // the top shelf: the ones we watch again
+  /* Set aside: the card leaves the wall and the constellation without
+     being destroyed. It is the opposite of a deletion — it stays whole,
+     stored in the shelf's reserve, and comes back with one drag. */
   archived: false,
-  order: null, // rang manuel sur l'étagère ; null = jamais rangé à la main
+  order: null, // manual rank on the shelf; null = never arranged by hand
   watchedAt: null,
-  watches: [], // le journal des séances ; voir `withWatches`
+  watches: [], // the screening log; see `withWatches`
   tmdbId: null,
   source: "manual",
   ...partial,
 });
 
-/* L'AFFICHE DE SECOURS — les initiales du titre.
+/* THE FALLBACK POSTER — the title's initials.
 
-   La règle est UNE : les premières lettres des deux premiers mots. Elle
-   était recopiée sous chaque endroit qui dessine un film — `FilmPolaroid`,
-   `shelf/items`, `shelf/layout` — et l'export de l'almanach en aurait
-   fait une quatrième copie.
+   The rule is ONE: the first letters of the first two words. It was
+   copied under every place that draws a film — `FilmPolaroid`,
+   `shelf/items`, `shelf/layout` — and the almanac export would have made
+   a fourth copy of it.
 
-   Pire : la fiche en appliquait une AUTRE, `title.slice(0, 2)`. « Sans
-   toit ni loi » devenait « SN » au mur et « SA » sur sa propre fiche,
-   pour le même film. Deux images d'une même chose qui ne se ressemblent
-   pas, c'est la chose qu'on cesse de reconnaître. */
+   Worse: the card applied ANOTHER one, `title.slice(0, 2)`. "Sans toit ni
+   loi" became "SN" on the wall and "SA" on its own card, for the same
+   film. Two images of the same thing that do not look alike is the thing
+   you stop recognising. */
 export const initialsOf = (title = ""): string =>
   title
     .split(" ")
@@ -149,69 +147,69 @@ export const initialsOf = (title = ""): string =>
     .join("")
     .toUpperCase();
 
-/* CE QU'EST UNE FICHE INCOMPLÈTE — au sens de ce que TMDB sait remplir.
+/* WHAT AN INCOMPLETE CARD IS — in the sense of what TMDB can fill in.
 
-   Le casting est le meilleur témoin : TMDB en donne un pour presque tout
-   film de fiction, et son absence signale une fiche qui n'a jamais vu la
-   récolte. La durée le confirme.
+   The cast is the best witness: TMDB gives one for almost every fiction
+   film, and its absence signals a card that has never seen the harvest.
+   The runtime confirms it.
 
-   On ne regarde PAS les pays ni la langue, et c'est délibéré : TMDB en
-   laisse légitimement sans pour un court-métrage obscur. Les prendre
-   pour un manque ferait réinterroger éternellement les mêmes fiches, à
-   chaque passage, sans que rien ne change jamais. */
+   We do NOT look at countries or language, and that is deliberate: TMDB
+   legitimately leaves them empty for an obscure short. Taking those for a
+   gap would mean re-querying the same cards forever, on every pass,
+   without anything ever changing. */
 export const isIncomplete = (f: Pick<Film, "cast" | "runtime" | "keywords">): boolean =>
   (f.cast || []).length === 0 ||
   f.runtime == null ||
-  /* Les mots-clés se testent sur l'ABSENCE et non sur le vide, et c'est
-     ce qui les distingue des pays et de la langue écartés ci-dessus. Un
-     film dont TMDB n'a aucun mot-clé repart avec une liste vide, qui est
-     une réponse : il ne sera pas redemandé. Une fiche d'avant leur
-     récolte, elle, n'a rien du tout — et c'est cette différence-là qui
-     fait qu'on peut compléter une fois sans boucler. */
+  /* Keywords are tested on ABSENCE and not on emptiness, and that is what
+     tells them apart from the countries and language ruled out above. A
+     film TMDB has no keyword for comes back with an empty list, which is
+     an answer: it will not be asked again. A card from before their
+     harvest has nothing at all — and it is that difference which lets us
+     complete once without looping. */
   f.keywords == null;
 
-/* CE QU'UN RATTRAPAGE EXPLICITE VA CHERCHER — et c'est plus large.
+/* WHAT AN EXPLICIT CATCH-UP GOES AFTER — and it is broader.
 
-   `isIncomplete` s'interdit le vide, pour ne pas boucler à chaque
-   passage. Mais une collection entière a été figée à `[]` par un défaut
-   de récolte (voir `getDetails`), et rien de ce qui répare ne pouvait
-   plus la toucher. Il fallait donc un geste qui vise AUSSI le vide.
+   `isIncomplete` rules out emptiness, so as not to loop on every pass.
+   But a whole collection was frozen at `[]` by a harvesting fault (see
+   `getDetails`), and nothing that repairs could reach it any more. So we
+   needed a gesture that ALSO targets emptiness.
 
-   Il n'est pas automatique, et ne doit pas l'être : sur cinq cents
-   fiches, cela fait cinq cents appels. C'est à l'utilisateur de le
-   demander, une fois, en connaissance du nombre. */
-export const sansMotsClés = (f: Pick<Film, "keywords">): boolean => !(f.keywords || []).length;
+   It is not automatic, and must not be: on five hundred cards, that makes
+   five hundred calls. It is for the user to ask for it, once, knowing the
+   number. */
+export const withoutKeywords = (f: Pick<Film, "keywords">): boolean => !(f.keywords || []).length;
 
 /* ------------------------------------------------------------
-   LE JOURNAL DES SÉANCES
+   THE SCREENING LOG
    ------------------------------------------------------------
 
-   Un film vu trois fois n'est pas un film vu. La fiche ne portait qu'une
-   date et qu'une note, et tout le reste était jeté à la lecture du CSV —
-   alors que `diary.csv` et le flux Letterboxd donnent, l'un comme
-   l'autre, une ligne par séance avec la note de ce jour-là.
+   A film seen three times is not a film seen. The card carried only one
+   date and one rating, and all the rest was thrown away when reading the
+   CSV — whereas `diary.csv` and the Letterboxd feed both give one line
+   per screening with that day's rating.
 
-   `watches` est la VÉRITÉ, `watchedAt` en est le reflet. Les deux ne
-   peuvent pas diverger parce qu'on ne les écrit qu'ici. */
+   `watches` is the TRUTH, `watchedAt` is its reflection. The two cannot
+   drift apart because we only write them here. */
 
-/** De la plus récente à la plus ancienne. */
+/** From the most recent to the oldest. */
 export const sortWatches = (w: Watch[]): Watch[] =>
   [...w].sort((a, b) => (b.date || "").localeCompare(a.date || ""));
 
 export const watchCount = (film: Pick<Film, "watches">): number => (film.watches || []).length;
 
-/* UNE SÉANCE PAR DATE, ET C'EST CE QUI REND UN RÉIMPORT INOFFENSIF.
+/* ONE SCREENING PER DATE, AND THAT IS WHAT MAKES A RE-IMPORT HARMLESS.
 
-   Repasser le même `diary.csv` trois fois ne doit pas donner un film vu
-   neuf fois. La date est donc la clé : deux entrées du même jour sont la
-   même séance, et la seconde ne fait que compléter la première — une
-   note retrouvée ne doit pas être effacée par une séance qui n'en porte
-   pas. C'est exactement le genre de dérive que personne ne remarque
-   avant six mois de réimports. */
-export const mergeWatches = (...lots: (Watch[] | undefined)[]): Watch[] => {
+   Running the same `diary.csv` through three times must not give a film
+   seen nine times. The date is therefore the key: two entries from the
+   same day are the same screening, and the second only completes the
+   first — a rating recovered must not be erased by a screening that
+   carries none. That is exactly the kind of drift nobody notices until
+   six months of re-imports have gone by. */
+export const mergeWatches = (...batches: (Watch[] | undefined)[]): Watch[] => {
   const byDate = new Map<string, Watch>();
-  for (const lot of lots)
-    for (const w of lot || []) {
+  for (const batch of batches)
+    for (const w of batch || []) {
       if (!w?.date) continue;
       const prev = byDate.get(w.date);
       byDate.set(w.date, prev ? { ...prev, ...w, rating: w.rating ?? prev.rating } : w);
@@ -219,15 +217,15 @@ export const mergeWatches = (...lots: (Watch[] | undefined)[]): Watch[] => {
   return sortWatches([...byDate.values()]);
 };
 
-/** Le seul chemin pour écrire des séances : il recale `watchedAt` avec. */
+/** The only path for writing screenings: it realigns `watchedAt` with them. */
 export const withWatches = <T extends Partial<Film>>(film: T, watches: Watch[]): T => {
   const merged = mergeWatches(watches);
   return { ...film, watches: merged, watchedAt: merged[0]?.date ?? null };
 };
 
-/* La note a-t-elle bougé depuis la fois d'avant ? On compare à la
-   dernière séance NOTÉE, et non à la précédente : un revisionnage sans
-   note ne rompt pas la chaîne, il n'a simplement rien à en dire. */
+/* Has the rating moved since last time? We compare against the last RATED
+   screening, and not the previous one: a rewatch with no rating does not
+   break the chain, it simply has nothing to say about it. */
 export const ratingDrift = (watches: Watch[]): (number | null)[] => {
   const ordered = sortWatches(watches);
   return ordered.map((w, i) => {
@@ -237,182 +235,193 @@ export const ratingDrift = (watches: Watch[]): (number | null)[] => {
   });
 };
 
-/* D'une fiche d'avant le journal, on ne sait qu'une chose : elle a été
-   vue une fois, tel jour, et notée ainsi. On l'écrit — c'est vrai, et
-   c'est mieux que de laisser un compteur à zéro sous un film qui porte
-   une date de séance.
+/* Of a card from before the log, we know only one thing: it was seen
+   once, on such a day, and rated so. We write that down — it is true, and
+   it beats leaving a counter at zero under a film that carries a
+   screening date.
 
-   Le test porte sur `Array.isArray` et NON sur la longueur : un journal
-   que l'utilisateur a vidé à la main est un tableau vide, pas un champ
-   absent. Le confondre avec « jamais migré » ressusciterait la séance au
-   chargement suivant — et `migrate` réécrit aussitôt dans le
-   `localStorage`, donc la résurrection serait définitive. */
+   The test is on `Array.isArray` and NOT on the length: a log the user
+   emptied by hand is an empty array, not a missing field. Confusing it
+   with "never migrated" would resurrect the screening on the next load —
+   and `migrate` writes straight back into `localStorage`, so the
+   resurrection would be permanent. */
 const seedWatches = (f: Partial<Film>): Watch[] => {
   if (Array.isArray(f.watches)) return f.watches;
   return f.watchedAt ? [{ date: f.watchedAt, rating: f.rating || null }] : [];
 };
 
-/* Les fiches enregistrées avant ces champs sont complétées au chargement.
-   On en profite pour ramener `year` à un nombre : le tri par année faisait
-   jusqu'ici de l'arithmétique sur des chaînes venues du CSV. */
-export const migrate = (films: Partial<Film>[] | null | undefined): Film[] =>
-  (films || []).map((f) => ({
+/* THE SHAPE STORED BEFORE THIS MODULE WAS TRANSLATED.
+
+   `migrate` is the ONLY door cards come in through, which is what makes
+   renaming a stored field safe: the old spelling is read here, once, and
+   the next write uses the new one. `chevet` became `bedside`, and the
+   relations carried by `linkedWorks` changed vocabulary at the same
+   time (see `migrateRelation`). */
+type StoredFilm = Partial<Film> & { chevet?: unknown };
+
+/* Cards saved before these fields existed are completed on load. We take
+   the opportunity to bring `year` back to a number: sorting by year was
+   until now doing arithmetic on strings that came out of the CSV. */
+export const migrate = (films: StoredFilm[] | null | undefined): Film[] =>
+  (films || []).map(({ chevet, ...f }) => ({
     ...makeFilm(),
     ...f,
     year: f.year === "" || f.year == null ? "" : Number(f.year) || "",
     status: f.status === "watchlist" ? ("watchlist" as const) : ("watched" as const),
-    chevet: !!f.chevet,
+    bedside: !!(f.bedside ?? chevet),
     archived: !!f.archived,
     order: typeof f.order === "number" ? f.order : null,
-    /* UNE FICHE D'AVANT N'A PAS DE DATE DE MODIFICATION, et lui donner
-       « maintenant » serait un mensonge utile aujourd'hui et coûteux
-       demain : à la première synchronisation, toute la collection se
-       prétendrait fraîche et écraserait ce qui viendrait d'en face. On
-       prend donc la date d'AJOUT, qui est la dernière chose vraie qu'on
-       sache de cette fiche. */
+    /* A CARD FROM BEFORE HAS NO MODIFICATION DATE, and giving it "now"
+       would be a lie that helps today and costs tomorrow: on the first
+       synchronisation the whole collection would claim to be fresh and
+       overwrite whatever came from the other side. So we take the date it
+       was ADDED, which is the last true thing we know about that card. */
     updatedAt: typeof f.updatedAt === "number" ? f.updatedAt : f.addedAt || Date.now(),
     genres: f.genres || [],
-    /* Les fiches d'avant le casting n'en portent pas. On ne va PAS le
-       chercher ici : `migrate` tourne au chargement, hors ligne et sans
-       clé TMDB. C'est un réimport qui le remplira, et le diff le
-       montrera avant de l'écrire. */
+    /* Cards from before the cast do not carry one. We do NOT go and fetch
+       it here: `migrate` runs on load, offline and with no TMDB key. It is
+       a re-import that will fill it, and the diff will show it before
+       writing. */
     cast: f.cast || [],
     crew: f.crew || {},
-    /* Comme le casting : les fiches d'avant ne les portent pas, et on ne
-       va PAS les chercher ici — `migrate` tourne au chargement, hors
-       ligne et sans clé. C'est le bouton « compléter les fiches » de
-       l'onglet Import qui les remplit, diff à l'appui.
+    /* Like the cast: cards from before do not carry them, and we do NOT go
+       and fetch them here — `migrate` runs on load, offline and keyless.
+       It is the Import tab's "complete the cards" button that fills them,
+       diff in hand.
 
-       `?? null` et non `|| null` : une durée légitime ne peut pas valoir
-       zéro, mais la note TMDB d'un film inconnu, si — et `||`
-       l'écraserait sans distinguer « zéro » de « absent ». */
+       `?? null` and not `|| null`: a legitimate runtime cannot be zero,
+       but an unknown film's TMDB rating can — and `||` would crush it
+       without telling "zero" from "absent". */
     runtime: f.runtime ?? null,
     language: f.language || "",
     countries: f.countries || [],
     tmdbRating: f.tmdbRating ?? null,
-    /* PAS DE REPLI SUR LA LISTE VIDE, contrairement à tous ses voisins :
-       « jamais demandé » et « demandé, il n'y en a pas » doivent rester
-       distincts, sans quoi la complétion tourne en rond. Voir `types`. */
+    /* NO FALLBACK TO THE EMPTY LIST, unlike all its neighbours: "never
+       asked" and "asked, there are none" must stay distinct, otherwise
+       completion goes round in circles. See `types`. */
     keywords: f.keywords,
     themes: f.themes || [],
-    motifs: f.motifs || [],
-    linkedWorks: f.linkedWorks || [],
+    motifs: migrateMotifIds(f.motifs),
+    linkedWorks: (f.linkedWorks || []).map((w) => ({
+      ...w,
+      relation: migrateRelation(w.relation),
+    })),
     stills: f.stills || [],
     watches: sortWatches(seedWatches(f)),
   }));
 
 /* ------------------------------------------------------------
-   DATER CE QUI A VRAIMENT CHANGÉ
+   DATING WHAT ACTUALLY CHANGED
    ------------------------------------------------------------
 
-   La règle est simple à dire et facile à rater : `updatedAt` doit
-   changer quand la FICHE change, et pas quand l'objet change.
+   The rule is easy to state and easy to get wrong: `updatedAt` must
+   change when the CARD changes, and not when the object changes.
 
-   Toute l'application travaille par recopie — `films.map(f => ...)`
-   refait un objet neuf pour chacun des mille films alors qu'un seul a
-   bougé. Dater sur l'identité des objets daterait donc toute la
-   collection à chaque note tapée, et la première synchronisation
-   renverrait mille fiches au lieu d'une.
+   The whole application works by copying — `films.map(f => ...)` makes a
+   fresh object for each of a thousand films when only one has moved.
+   Dating on object identity would therefore date the whole collection on
+   every note typed, and the first synchronisation would send back a
+   thousand cards instead of one.
 
-   On compare donc les VALEURS, champ par champ. Le coût est celui d'une
-   comparaison par film et par écriture, ce qui se mesure en
-   microsecondes ; le mensonge évité, lui, se mesure en mégaoctets sur
-   le réseau de quelqu'un. */
+   So we compare VALUES, field by field. The cost is one comparison per
+   film per write, which is measured in microseconds; the lie avoided is
+   measured in megabytes on somebody's network. */
 
-/** Les champs qui ne comptent pas dans « la fiche a-t-elle changé ». */
-const HORS_COMPARAISON = new Set(["updatedAt"]);
+/** The fields that do not count towards "has the card changed". */
+const NOT_COMPARED = new Set(["updatedAt"]);
 
-const mêmeValeur = (a: unknown, b: unknown): boolean => {
+const sameValue = (a: unknown, b: unknown): boolean => {
   if (a === b) return true;
   if (a == null || b == null) return false;
   if (typeof a !== "object" || typeof b !== "object") return false;
-  /* Les parties composées d'une fiche — le journal des séances, les
-     renvois, les captures — sont de petites structures de données
-     pures : les comparer sérialisées est exact et suffisamment rapide. */
+  /* A card's composite parts — the screening log, the cross-references,
+     the stills — are small pure data structures: comparing them
+     serialised is exact and fast enough. */
   return JSON.stringify(a) === JSON.stringify(b);
 };
 
-/** Deux états d'une même fiche disent-ils autre chose l'un de l'autre ? */
-export const aChangé = (avant: Film | undefined, après: Film): boolean => {
-  if (!avant) return true;
-  const clés = new Set([...Object.keys(avant), ...Object.keys(après)]);
-  for (const c of clés) {
-    if (HORS_COMPARAISON.has(c)) continue;
-    if (!mêmeValeur(avant[c as keyof Film], après[c as keyof Film])) return true;
+/** Do two states of the same card say anything different from each other? */
+export const hasChanged = (before: Film | undefined, after: Film): boolean => {
+  if (!before) return true;
+  const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
+  for (const c of keys) {
+    if (NOT_COMPARED.has(c)) continue;
+    if (!sameValue(before[c as keyof Film], after[c as keyof Film])) return true;
   }
   return false;
 };
 
 /**
- * Repose la date de modification sur les seules fiches qui ont bougé.
+ * Puts the modification date back on the cards that moved, and on those
+ * only.
  *
- * Rend le MÊME objet pour une fiche inchangée : les vues sont mémoïsées
- * sur l'identité, et rendre une copie de chaque fiche à chaque écriture
- * referait toute l'étagère à chaque frappe.
+ * Returns the SAME object for an unchanged card: the views are memoised
+ * on identity, and returning a copy of every card on every write would
+ * redo the whole shelf on every keystroke.
  */
-export const horodater = (avant: Film[], après: Film[], maintenant = Date.now()): Film[] => {
-  const parId = new Map(avant.map((f) => [f.id, f]));
-  let bougé = false;
-  const suite = après.map((f) => {
-    const vieux = parId.get(f.id);
-    if (!aChangé(vieux, f)) {
-      if (vieux && vieux !== f) bougé = true;
-      return vieux ?? f;
+export const stamp = (before: Film[], after: Film[], now = Date.now()): Film[] => {
+  const byId = new Map(before.map((f) => [f.id, f]));
+  let moved = false;
+  const next = after.map((f) => {
+    const old = byId.get(f.id);
+    if (!hasChanged(old, f)) {
+      if (old && old !== f) moved = true;
+      return old ?? f;
     }
-    bougé = true;
-    return { ...f, updatedAt: maintenant };
+    moved = true;
+    return { ...f, updatedAt: now };
   });
-  /* Rien n'a bougé, pas même une recopie : on rend le tableau reçu.
-     Rendre un tableau neuf ferait re-rendre toutes les vues qui
-     l'observent, pour dire exactement la même chose. */
-  return bougé ? suite : après;
+  /* Nothing moved, not even a copy: we return the array we were given.
+     Returning a fresh array would re-render every view watching it, to
+     say exactly the same thing. */
+  return moved ? next : after;
 };
 
 /* ------------------------------------------------------------
-   CE QUI SE PARTAGE, ET CE QUI NE SORT PAS D'ICI
+   WHAT GETS SHARED, AND WHAT NEVER LEAVES HERE
    ------------------------------------------------------------
 
-   La séparation se pose MAINTENANT, pendant qu'il n'y a pas de serveur
-   pour la rendre urgente. Le jour où une collection se publie, la
-   question « qu'est-ce qui part ? » se posera au milieu d'un
-   formulaire, dans la précipitation, et la réponse facile sera « tout ».
+   The separation is drawn NOW, while there is no server to make it
+   urgent. The day a collection gets published, the question "what goes
+   out?" will come up in the middle of a form, in a hurry, and the easy
+   answer will be "everything".
 
-   Deux choses ne sortent jamais, quelle que soit la visibilité choisie :
-   les NOTES, qui sont un carnet intime et non une critique, et le
-   JOURNAL DES SÉANCES, qui dit avec quelle régularité on a passé ses
-   soirées — un relevé de présence dont personne d'autre n'a l'usage.
+   Two things never go out, whatever visibility is chosen: the NOTES,
+   which are a private notebook and not a review, and the SCREENING LOG,
+   which says how regularly someone spent their evenings — an attendance
+   record nobody else has any use for.
 
-   La critique, la note chiffrée et la date de dernière séance, elles,
-   sont ce qu'on publie quand on publie : c'est le propos même d'une
-   vidéothèque partagée. */
+   The review, the numeric rating and the last screening date, on the
+   other hand, are what you publish when you publish: that is the very
+   point of a shared video library. */
 export type FilmPublic = Omit<Film, "notes" | "watches">;
 
-export const partiePublique = (f: Film): FilmPublic => {
-  /* Nommés pour être écartés : une extraction par liste blanche
-     laisserait tomber en silence tout champ ajouté plus tard, et une
-     fiche publiée perdrait des morceaux sans que rien ne le dise. */
-  const { notes: _notes, watches: _watches, ...reste } = f;
-  return reste;
+export const publicPart = (f: Film): FilmPublic => {
+  /* Named in order to be left out: a whitelist extraction would silently
+     drop any field added later, and a published card would lose pieces
+     with nothing to say so. */
+  const { notes: _notes, watches: _watches, ...rest } = f;
+  return rest;
 };
 
 /* ------------------------------------------------------------
-   Le fil rouge — retoucher un lien déjà tendu
+   The red thread — reworking a link already strung
    ------------------------------------------------------------ */
 
-/* Ce qu'un fil accepte qu'on réécrive dépend de sa nature, et la règle
-   vit ICI plutôt que dans le formulaire : une mention libre s'écrit
-   entièrement à la main, tandis qu'un renvoi vers une fiche du mur tient
-   son titre et son auteur de CETTE fiche. Les réécrire de ce côté-ci
-   ferait mentir la carte — deux noms pour une même œuvre, selon le bout
-   par lequel on la regarde.
+/* What a thread allows to be rewritten depends on its nature, and the
+   rule lives HERE rather than in the form: a free mention is written
+   entirely by hand, whereas a cross-reference to a card on the wall takes
+   its title and its author from THAT card. Rewriting them from this side
+   would make the map lie — two names for the same work, depending on
+   which end you look at it from.
 
-   La note, elle, appartient au lien et non à l'une des deux fiches :
-   elle dit la résonance ENTRE elles. Elle vaut donc des deux côtés, et la
-   moitié réciproque la reçoit avec. C'est la même raison qui fait que
-   défaire un lien le défait aux deux bouts.
+   The note, on the other hand, belongs to the link and not to either of
+   the two cards: it says the resonance BETWEEN them. So it holds on both
+   sides, and the reciprocal half receives it too. It is the same reason
+   that makes undoing a link undo it at both ends.
 
-   Fonction pure sur la collection entière : c'est la seule façon
-   d'atteindre les deux moitiés d'un même fil en une écriture. */
+   A pure function over the whole collection: it is the only way to reach
+   both halves of the same thread in a single write. */
 export const editLinkedWork = (
   films: Film[],
   ownerId: string,
@@ -425,13 +434,13 @@ export const editLinkedWork = (
 
   const note = (patch.note ?? work.note ?? "").trim();
   const title = (patch.title ?? work.title ?? "").trim();
-  // un fil sans titre n'aurait plus rien à dire : on laisse tout en place
+  // a thread with no title would have nothing left to say: we leave it all in place
   if (!work.filmId && !title) return films;
 
-  /* La relation et la force appartiennent au lien, comme la note : elles
-     disent ce qui se passe ENTRE les deux fiches. Elles valent donc des
-     deux côtés — mais la relation s'y renverse (voir `inverseDe`), sans
-     quoi chaque film se déclarerait la suite de l'autre. */
+  /* The relation and the strength belong to the link, like the note: they
+     say what happens BETWEEN the two cards. So they hold on both sides —
+     but the relation flips over there (see `inverseOf`), otherwise each
+     film would declare itself the sequel of the other. */
   const relation = patch.relation ?? work.relation;
   const force = patch.force ?? work.force;
 
@@ -450,12 +459,12 @@ export const editLinkedWork = (
         ...f,
         linkedWorks: (f.linkedWorks || []).map((w) => (w.id === workId ? { ...w, ...next } : w)),
       };
-    // la moitié d'en face : la note, la force, la relation inversée — jamais le reste
+    // the half opposite: the note, the strength, the flipped relation — never the rest
     if (work.pairId && f.id === work.filmId)
       return {
         ...f,
         linkedWorks: (f.linkedWorks || []).map((w) =>
-          w.pairId === work.pairId ? { ...w, note, force, relation: inverseDe(relation) } : w
+          w.pairId === work.pairId ? { ...w, note, force, relation: inverseOf(relation) } : w
         ),
       };
     return f;

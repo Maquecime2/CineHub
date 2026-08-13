@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { ThreadBoard } from "./ThreadBoard";
 import type { Film, LinkedWork } from "../../types";
 
-/* Un film réduit à ce dont le panneau d'enquête a besoin. */
+/* A film reduced to what the investigation board needs. */
 const film = (id: string, extra: Partial<Film> = {}): Film =>
   ({
     id,
@@ -19,7 +19,7 @@ const film = (id: string, extra: Partial<Film> = {}): Film =>
     review: "",
     notes: "",
     status: "watched",
-    chevet: false,
+    bedside: false,
     archived: false,
     linkedWorks: [],
     ...extra,
@@ -57,14 +57,14 @@ const openEditor = async (title = "Le Ravissement de Lol V. Stein") => {
   return user;
 };
 
-describe("ThreadBoard — retoucher un fil", () => {
-  it("ne montre pas les champs tant qu'on n'a pas demandé à écrire", () => {
+describe("ThreadBoard — editing a thread", () => {
+  it("does not show the fields until writing has been asked for", () => {
     board();
     expect(screen.queryByLabelText("Titre de l'œuvre")).not.toBeInTheDocument();
     expect(screen.getByText("Le Ravissement de Lol V. Stein")).toBeInTheDocument();
   });
 
-  it("ouvre la fiche garnie de ce qui y est déjà écrit", async () => {
+  it("opens the card filled with what is already written on it", async () => {
     board();
     await openEditor();
     expect(screen.getByLabelText("Titre de l'œuvre")).toHaveValue("Le Ravissement de Lol V. Stein");
@@ -73,7 +73,7 @@ describe("ThreadBoard — retoucher un fil", () => {
     expect(screen.getByLabelText("Nature de l'œuvre")).toHaveValue("book");
   });
 
-  it("rend la retouche complète d'une mention libre", async () => {
+  it("returns the full edit of a free mention", async () => {
     const { onEdit } = board();
     const user = await openEditor();
 
@@ -91,14 +91,14 @@ describe("ThreadBoard — retoucher un fil", () => {
     });
   });
 
-  it("referme la fiche une fois notée", async () => {
+  it("closes the card once it is written down", async () => {
     board();
     const user = await openEditor();
     await user.click(screen.getByRole("button", { name: /NOTER/ }));
     expect(screen.queryByLabelText("Titre de l'œuvre")).not.toBeInTheDocument();
   });
 
-  it("renonce sans rien écrire, et rend son texte d'origine à la fiche", async () => {
+  it("gives up without writing anything, and hands the card its original text back", async () => {
     const { onEdit } = board();
     const user = await openEditor();
 
@@ -110,7 +110,7 @@ describe("ThreadBoard — retoucher un fil", () => {
     expect(screen.getByText("Le Ravissement de Lol V. Stein")).toBeInTheDocument();
   });
 
-  it("Échap renonce, Entrée note", async () => {
+  it("Escape gives up, Enter writes down", async () => {
     const { onEdit } = board();
     let user = await openEditor();
     await user.keyboard("{Escape}");
@@ -124,10 +124,10 @@ describe("ThreadBoard — retoucher un fil", () => {
     );
   });
 
-  /* La règle du modèle, vue du formulaire : un renvoi vers une fiche du
-     mur tient son titre de CETTE fiche. On ne le propose donc pas — ce
-     serait offrir une retouche que `App` refuserait d'écrire. */
-  describe("un renvoi vers une fiche du mur", () => {
+  /* The model's rule, seen from the form: a reference to a card on the
+     wall takes its title from THAT card. So we do not offer it — that
+     would be offering an edit `App` would refuse to write. */
+  describe("a pointer to a card on the wall", () => {
     const linked = () =>
       board({
         film: film("f1", {
@@ -138,26 +138,26 @@ describe("ThreadBoard — retoucher un fil", () => {
         films: [film("f2", { title: "Les Statues meurent aussi" })],
       });
 
-    it("n'offre à réécrire que ce qui appartient au lien", async () => {
+    it("offers for rewriting only what belongs to the link", async () => {
       linked();
       await openEditor("Les Statues meurent aussi");
-      // le titre et l'auteur appartiennent à la fiche d'en face
+      // the title and the author belong to the card opposite
       expect(screen.queryByLabelText("Titre de l'œuvre")).not.toBeInTheDocument();
       expect(screen.queryByLabelText("Auteur·rice / artiste")).not.toBeInTheDocument();
       expect(screen.queryByLabelText("Nature de l'œuvre")).not.toBeInTheDocument();
-      // la note, la nature du lien et sa force disent ce qui se passe ENTRE les deux
+      // the note, the link's kind and its strength say what happens BETWEEN the two
       expect(screen.getByLabelText("Pourquoi ce lien ?")).toBeInTheDocument();
       expect(screen.getByLabelText("Nature du lien")).toBeInTheDocument();
-      expect(screen.getByLabelText("Force du lien")).toBeInTheDocument();
+      expect(screen.getByLabelText("Strength du lien")).toBeInTheDocument();
     });
 
-    it("montre quand même de quoi on parle", async () => {
+    it("still shows what is being talked about", async () => {
       linked();
       await openEditor("Les Statues meurent aussi");
       expect(screen.getByText("Les Statues meurent aussi")).toBeInTheDocument();
     });
 
-    it("n'envoie que ce qui appartient au lien", async () => {
+    it("sends only what belongs to the link", async () => {
       const { onEdit } = linked();
       const user = await openEditor("Les Statues meurent aussi");
       await user.clear(screen.getByLabelText("Pourquoi ce lien ?"));
@@ -170,19 +170,19 @@ describe("ThreadBoard — retoucher un fil", () => {
       });
     });
 
-    it("envoie la nature du lien qu'on vient de choisir", async () => {
+    it("sends the kind of link just chosen", async () => {
       const { onEdit } = linked();
       const user = await openEditor("Les Statues meurent aussi");
-      await user.selectOptions(screen.getByLabelText("Nature du lien"), "suite-de");
+      await user.selectOptions(screen.getByLabelText("Nature du lien"), "sequel-to");
       await user.click(screen.getByRole("button", { name: /NOTER/ }));
       expect(onEdit).toHaveBeenCalledWith(
         "w1",
-        expect.objectContaining({ relation: "suite-de", force: 2 })
+        expect.objectContaining({ relation: "sequel-to", force: 2 })
       );
     });
   });
 
-  it("détacher reste possible, et distinct de retoucher", async () => {
+  it("detaching stays possible, and distinct from editing", async () => {
     const { onRemove, onEdit } = board();
     const user = userEvent.setup();
     await user.click(

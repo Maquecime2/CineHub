@@ -17,18 +17,18 @@ import {
   wallStyle,
 } from "./surfaces";
 
-/* Le contrat de ce module tient en trois phrases : toute clé du
-   catalogue donne un style, une clé inconnue ne jette jamais, et rien
-   de ce qu'on met dans une adresse-données ne peut la casser. */
+/* This module's contract holds in three sentences: every key of the
+   catalogue gives a style, an unknown key never throws, and nothing put
+   into a data URL can break it. */
 
-describe("le catalogue", () => {
-  it("donne un fond à chaque peinture", () => {
+describe("the catalogue", () => {
+  it("gives every paint a ground", () => {
     for (const key of Object.keys(PAINTS)) {
       expect(paintStyle(key).backgroundImage).toBeTruthy();
     }
   });
 
-  it("donne une trame à chaque papier peint", () => {
+  it("gives every wallpaper a weave", () => {
     for (const key of PATTERN_KEYS) {
       const layer = patternLayer(key, "#8C3A34");
       expect(layer?.backgroundImage).toContain("data:image/svg+xml");
@@ -37,39 +37,39 @@ describe("le catalogue", () => {
     expect(PATTERN_KEYS.length).toBeGreaterThan(5);
   });
 
-  it("donne une couche à chaque texture", () => {
+  it("gives every texture a layer", () => {
     for (const key of Object.keys(TEXTURES)) {
       const layer = textureLayer(key);
       expect(layer?.backgroundImage).toBeTruthy();
-      // une texture assombrit le fond, elle ne le recouvre pas
+      // a texture darkens the background, it does not cover it
       expect(layer?.mixBlendMode).toBe("multiply");
     }
   });
 
-  it("donne un fond et une ombre à chaque matériau", () => {
+  it("gives every material a ground and a shadow", () => {
     for (const key of MATERIAL_KEYS) {
       const style = materialStyle(key);
       expect(style.background).toBeTruthy();
       expect(style.boxShadow).toBeTruthy();
     }
-    // les cinq familles sont représentées
+    // the five families are represented
     const families = new Set(MATERIAL_KEYS.map((k) => materialOf(k).family));
     expect(families).toEqual(new Set(["bois", "metal", "verre", "pierre", "peint"]));
   });
 });
 
-describe("une clé inconnue", () => {
-  it("retombe sur le défaut sans jeter", () => {
+describe("an unknown key", () => {
+  it("falls back on the default without throwing", () => {
     expect(paintOf("n'existe pas")).toBe(PAINTS.platre);
     expect(materialOf("n'existe pas")).toBe(MATERIALS.chene);
     expect(paintStyle(undefined).backgroundImage).toBeTruthy();
     expect(materialStyle(undefined, "vernis inconnu").background).toBeTruthy();
   });
 
-  /* Un papier peint et une texture sont des couches FACULTATIVES : leur
-     absence doit se lire comme telle et non comme un style vide, sinon
-     l'appelant poserait un calque transparent par-dessus le mur. */
-  it("rend null pour une couche facultative", () => {
+  /* A wallpaper and a texture are OPTIONAL layers: their absence must
+     read as such and not as an empty style, otherwise the caller would
+     lay a transparent layer over the wall. */
+  it("returns null for an optional layer", () => {
     expect(patternLayer(undefined)).toBeNull();
     expect(patternLayer("n'existe pas")).toBeNull();
     expect(textureLayer(undefined)).toBeNull();
@@ -77,12 +77,12 @@ describe("une clé inconnue", () => {
   });
 });
 
-describe("les adresses-données", () => {
-  /* Le dièse d'une couleur et le pourcent d'une largeur sont les deux
-     caractères qui rompent une adresse-données SVG. Le pourcent doit
-     être échappé AVANT le dièse, faute de quoi le `%23` qu'on vient
-     d'écrire se ferait ré-échapper en `%2523`. */
-  it("échappent le dièse et le pourcent, dans cet ordre", () => {
+describe("the data URLs", () => {
+  /* The hash of a colour and the per cent of a width are the two
+     characters that break an SVG data URL. The per cent must be escaped
+     BEFORE the hash, failing which the `%23` just written would be
+     re-escaped into `%2523`. */
+  it("escape the hash and the percent, in that order", () => {
     const layer = patternLayer("pois", "#8C3A34");
     const url = String(layer?.backgroundImage);
     expect(url).toContain("%238C3A34");
@@ -90,61 +90,61 @@ describe("les adresses-données", () => {
     expect(url).not.toContain("%2523");
   });
 
-  it("ne laissent pas de guillemet double casser l'attribut", () => {
+  it("do not let a double quote break the attribute", () => {
     for (const key of PATTERN_KEYS) {
       expect(PATTERNS[key]?.draw("#000000")).not.toContain('"');
     }
   });
 });
 
-describe("les finitions", () => {
-  it("changent l'éclat sans changer la couleur", () => {
+describe("the finishes", () => {
+  it("change the sheen without changing the colour", () => {
     const mat = materialStyle("acier", "mat");
-    const laque = materialStyle("acier", "laque");
-    expect(mat.background).not.toBe(laque.background);
-    // la couleur de fond, elle, est la même dans les deux
-    for (const s of [mat, laque]) expect(String(s.background)).toContain("#B9BFC4");
+    const lacquer = materialStyle("acier", "laque");
+    expect(mat.background).not.toBe(lacquer.background);
+    // the background colour, though, is the same in both
+    for (const s of [mat, lacquer]) expect(String(s.background)).toContain("#B9BFC4");
   });
 
-  it("laisse le verre translucide et son ombre légère", () => {
+  it("leaves glass translucent and its shadow light", () => {
     const style = materialStyle("verre");
     expect(style.opacity).toBeLessThan(1);
     expect(style.boxShadow).not.toBe(PLANK_SHADOW);
   });
 
-  it("connaît trois finitions", () => {
+  it("knows three finishes", () => {
     expect(Object.keys(FINISHES)).toEqual(["mat", "satine", "laque"]);
   });
 });
 
-describe("le mur assemblé", () => {
-  /* Le contrat de non-régression : sans décor, le rayon retrouve
-     exactement le style qu'il avait avant les peintures — un fond, la
-     teinte du rayon ou rien, et pas une couche de plus. */
-  it("sans décor, rend le rayon d'avant au caractère près", () => {
-    const nu = wallStyle(null, undefined, null);
-    expect(nu.frame).toEqual({ background: "transparent" });
-    expect(nu.texture).toBeNull();
+describe("the assembled wall", () => {
+  /* The non-regression contract: with no decor, the row gets back
+     exactly the style it had before the paints — a background, the row's
+     tint or nothing, and not one layer more. */
+  it("with no decor, returns the earlier shelf character for character", () => {
+    const bare = wallStyle(null, undefined, null);
+    expect(bare.frame).toEqual({ background: "transparent" });
+    expect(bare.texture).toBeNull();
 
-    const chevet = wallStyle(undefined, undefined, "#8C3A340D");
-    expect(chevet.frame).toEqual({ background: "#8C3A340D" });
+    const bedside = wallStyle(undefined, undefined, "#8C3A340D");
+    expect(bedside.frame).toEqual({ background: "#8C3A340D" });
   });
 
-  it("empile le papier peint DEVANT la peinture", () => {
+  it("stacks the wallpaper IN FRONT OF the paint", () => {
     const { frame } = wallStyle({ paint: "sauge", pattern: "pois" }, "#3E5B4B");
     const images = String(frame.backgroundImage);
-    // la première couche citée est celle du dessus
+    // the first layer named is the one on top
     expect(images.indexOf("data:image/svg+xml")).toBeLessThan(images.indexOf("linear-gradient"));
   });
 
-  /* Une liste de tailles plus courte que la liste d'images se RÉPÈTE en
-     CSS : le motif reprendrait alors la taille du dégradé et cesserait
-     de se répéter. Les deux listes doivent avoir la même longueur. */
-  it("donne autant de tailles que d'images", () => {
+  /* A list of sizes shorter than the list of images REPEATS in CSS: the
+     pattern would then take the gradient's size and stop repeating. The
+     two lists must have the same length. */
+  it("gives as many sizes as images", () => {
     const { frame } = wallStyle({ paint: "nuit", pattern: "damier" });
-    /* Compter les couches, et non les virgules : un dégradé en contient,
-       une adresse-données aussi, et une couleur composée encore. On ne
-       coupe donc qu'aux virgules de profondeur zéro. */
+    /* Count the layers, and not the commas: a gradient contains some, a
+       data URL too, and a composed colour again. So we only cut at the
+       commas of depth zero. */
     const count = (s: string) => {
       let depth = 0,
         n = 1;
@@ -158,14 +158,14 @@ describe("le mur assemblé", () => {
     expect(count(String(frame.backgroundSize))).toBe(count(String(frame.backgroundImage)));
   });
 
-  it("sort la texture à part, pour qu'elle se fonde", () => {
+  it("hands the texture back separately, so it can blend", () => {
     const { frame, texture } = wallStyle({ paint: "lin", texture: "crepi" });
     expect(texture?.mixBlendMode).toBe("multiply");
-    // et elle n'a pas atterri dans le fond du cadre
+    // and it has not landed in the frame's background
     expect(String(frame.backgroundImage)).not.toContain(String(texture?.backgroundImage));
   });
 
-  it("garde la teinte du rayon sous la peinture", () => {
+  it("keeps the shelf's tint under the paint", () => {
     const { frame } = wallStyle({ paint: "craie" }, undefined, "#8C3A340D");
     expect(frame.background).toBe("#8C3A340D");
     expect(frame.backgroundImage).toBeTruthy();

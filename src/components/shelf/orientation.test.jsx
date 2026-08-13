@@ -13,55 +13,55 @@ const angleRendu = (el) => {
   return m && Number(m[1]);
 };
 
-describe("l'orientation d'un objet", () => {
-  /* Le guingois semé est ce qui fait qu'une étagère ressemble à une
-     étagère : tant que personne n'a rien réglé, il doit rester intact. */
-  it("garde le guingois de son identifiant tant qu'on n'y touche pas", () => {
+describe("an object's orientation", () => {
+  /* The sown lopsidedness is what makes a shelf look like a shelf: as long
+     as nobody has set anything, it must stay intact. */
+  it("keeps the crookedness of its identifier as long as nobody touches it", () => {
     const d = makeDecor({ motif: "plant" });
     expect(angleOf(d)).toBe(tiltOf(d.id));
     expect(angleOf(d, true)).toBe(leanOf(d.id));
   });
 
-  it("obéit à l'angle réglé", () => {
+  it("obeys the angle that is set", () => {
     const d = makeDecor({ motif: "plant" });
     expect(angleOf({ ...d, rot: 37 })).toBe(37);
   });
 
-  /* Zéro est la réponse la plus demandée — « remets-le droit » — et
-     serait avalée par un `||`. */
-  it("sait qu'un objet peut être voulu d'aplomb", () => {
+  /* Zero is the most requested answer — "put it back straight" — and would
+     be swallowed by a `||`. */
+  it("knows an object can be wanted upright", () => {
     const d = makeDecor({ motif: "plant" });
     expect(angleOf({ ...d, rot: 0 })).toBe(0);
   });
 
-  it("rend la main au hasard quand on efface le réglage", () => {
+  it("hands back to chance when the setting is erased", () => {
     const d = makeDecor({ motif: "plant" });
     expect(angleOf({ ...d, rot: null })).toBe(tiltOf(d.id));
   });
 
-  it("tourne un objet posé", () => {
+  it("turns an object laid down", () => {
     const item = { ...makeDecor({ motif: "plant" }), rot: -25 };
     const { container } = render(<DecorItem item={item} ctx={{}} onLabel={noop} {...dnd} />);
     expect(angleRendu(container.querySelector("[draggable]"))).toBe(-25);
   });
 
-  it("tourne un objet accroché", () => {
+  it("turns an object hung up", () => {
     const item = { ...makeWallDecor({ motif: "frame" }), rot: 90 };
     const { container } = render(<WallItem item={item} {...dnd} />);
     expect(angleRendu(container.querySelector("[data-wall-item] > div"))).toBe(90);
   });
 
-  /* Les objets accrochés cessent de recevoir le curseur le temps d'un
-     geste, pour ne pas voler les dépôts du rayon qu'ils débordent. Mais
-     un glissement dont la SOURCE cesse d'être testable est annulé net :
-     l'objet qu'on tient doit s'exclure de la règle, sans quoi on ne peut
-     plus reprendre un objet volant une fois posé. */
-  it("se marque comme celui qu'on tient, le temps du geste", () => {
+  /* Hanging objects stop receiving the cursor for the length of a gesture,
+     so as not to steal the drops of the shelf they overflow. But a drag
+     whose SOURCE stops being hit-testable is cancelled outright: the object
+     one is holding must exclude itself from the rule, without which a
+     flying object cannot be picked up again once laid. */
+  it("marks itself as the one being held, for the length of the gesture", () => {
     const { container } = render(<WallItem item={makeWallDecor({ motif: "frame" })} {...dnd} />);
     const el = container.querySelector("[data-wall-item]");
     expect(el.dataset.dragSelf).toBeUndefined();
 
-    // jsdom n'attache pas de presse-papiers de glissement : on le fournit
+    // jsdom attaches no drag clipboard: we supply one
     fireEvent.dragStart(el, { dataTransfer: { effectAllowed: "" } });
     expect(el.dataset.dragSelf).toBe("1");
 
@@ -69,140 +69,139 @@ describe("l'orientation d'un objet", () => {
     expect(el.dataset.dragSelf).toBeUndefined();
   });
 
-  /* La prise faisait la taille du dessin debout : un objet couché se
-     voyait sur toute sa longueur mais ne s'attrapait qu'au milieu. */
-  it("donne à la prise d'un objet accroché la taille qu'il occupe vraiment", () => {
-    const prise = (rot) => {
+  /* The grip was the size of the drawing upright: an object lying down was
+     seen along its whole length but could only be caught in the middle. */
+  it("gives a hung object's grip the size it really takes", () => {
+    const grip = (rot) => {
       const { container } = render(
         <WallItem item={{ ...makeWallDecor({ motif: "frame" }), rot }} {...dnd} />
       );
       return Number.parseInt(container.querySelector("[data-wall-item]").style.width, 10);
     };
-    expect(prise(45)).toBeGreaterThan(prise(0));
-    expect(prise(90)).toBe(prise(0));
+    expect(grip(45)).toBeGreaterThan(grip(0));
+    expect(grip(90)).toBe(grip(0));
   });
 
-  it("laisse le carton s'appuyer quand rien n'est réglé", () => {
+  it("lets the cardstock lean when nothing is set", () => {
     const item = makeDecor({ motif: "divider" });
     const { container } = render(<DecorItem item={item} ctx={{}} onLabel={noop} {...dnd} />);
     expect(angleRendu(container.querySelector("[draggable]"))).toBe(Number(leanOf(item.id)));
   });
 });
 
-/* Une rotation CSS ne déplace rien : l'objet couché traversait les
-   boîtiers voisins sans jamais leur demander la place. L'enveloppe — qui
-   est aussi la cible de dépôt — réclame donc la largeur du cadre
-   englobant, et ce qu'on voit redevient ce qui prend la place. */
-describe("la place que prend un objet tourné", () => {
-  const largeur = (over) => {
+/* A CSS rotation moves nothing: the object lying down crossed the
+   neighbouring cases without ever asking them for room. So the wrapper —
+   which is also the drop target — claims the bounding box's width, and what
+   one sees becomes again what takes up the room. */
+describe("the room a turned object takes", () => {
+  const width = (over) => {
     const item = { ...makeDecor({ motif: "plant" }), ...over };
     const { container } = render(<DecorItem item={item} ctx={{}} onLabel={noop} {...dnd} />);
     return Number.parseInt(container.querySelector("[data-shelf-item]").style.width, 10);
   };
 
-  it("s'élargit quand l'objet penche", () => {
-    expect(largeur({ rot: 45 })).toBeGreaterThan(largeur({ rot: 0 }));
+  it("widens as the object leans", () => {
+    expect(width({ rot: 45 })).toBeGreaterThan(width({ rot: 0 }));
   });
 
-  /* Un carré couché d'un quart de tour retombe sur lui-même : c'est le
-     même cadre englobant, et donc la même place. */
-  it("rend sa place au carré remis d'équerre", () => {
-    expect(largeur({ rot: 90 })).toBe(largeur({ rot: 0 }));
+  /* A square laid down by a quarter turn falls back on itself: it is the
+     same bounding box, and therefore the same room. */
+  it("gives its room back to a square put straight again", () => {
+    expect(width({ rot: 90 })).toBe(width({ rot: 0 }));
   });
 
-  it("compte pareil à gauche et à droite", () => {
-    expect(largeur({ rot: -40 })).toBe(largeur({ rot: 40 }));
+  it("counts the same on the left and on the right", () => {
+    expect(width({ rot: -40 })).toBe(width({ rot: 40 }));
   });
 
-  it("passe par un maximum à mi-chemin", () => {
-    expect(largeur({ rot: 45 })).toBeGreaterThan(largeur({ rot: 90 }));
+  it("goes through a maximum half way", () => {
+    expect(width({ rot: 45 })).toBeGreaterThan(width({ rot: 90 }));
   });
 
-  /* L'écart au voisin appartient tout entier à la DROITE : c'est un
-     `marginRight` qu'on a déménagé dans l'enveloppe. Centrer le carton
-     dedans le coupait en deux et ouvrait à gauche un trou que rien ne
-     tenait. */
-  it("ne laisse rien traîner à gauche du carton", () => {
+  /* The gap to the neighbour belongs entirely to the RIGHT: it is a
+     `marginRight` that was moved into the wrapper. Centring the card inside
+     it cut it in two and opened a hole on the left that nothing held. */
+  it("leaves nothing hanging to the left of the cardstock", () => {
     const item = { ...makeDecor({ motif: "divider" }), rot: 2 };
     const { container } = render(<DecorItem item={item} ctx={{}} onLabel={noop} {...dnd} />);
     const env = container.querySelector("[data-shelf-item]");
-    const carton = container.querySelector("[draggable]");
-    const dx = Number(carton.style.transform.match(/translate\((-?\d+)px/)[1]);
-    const w = Number.parseInt(carton.style.width, 10);
-    const h = Number.parseInt(carton.style.height, 10);
-    const cadre = rotatedBox(w, h, 2);
-    // le carton est calé à gauche, pas centré
-    expect(dx).toBe(cadre.dx);
-    // et tout l'écart au voisin reste à droite
-    expect(Number.parseInt(env.style.width, 10) - cadre.width).toBe(GAP_X);
+    const cardstock = container.querySelector("[draggable]");
+    const dx = Number(cardstock.style.transform.match(/translate\((-?\d+)px/)[1]);
+    const w = Number.parseInt(cardstock.style.width, 10);
+    const h = Number.parseInt(cardstock.style.height, 10);
+    const frame = rotatedBox(w, h, 2);
+    // the card is aligned left, not centred
+    expect(dx).toBe(frame.dx);
+    // and the whole gap to the neighbour stays on the right
+    expect(Number.parseInt(env.style.width, 10) - frame.width).toBe(GAP_X);
   });
 
-  /* Le carton pivote sur son PIED : le cadre englobant part du côté vers
-     lequel la tête penche, et l'enveloppe qui le centrait sagement le
-     laissait sortir en haut, sur le boîtier d'à côté. */
-  it("réserve la place là où la tête penche, et pas ailleurs", () => {
+  /* The card pivots on its FOOT: the bounding box starts from the side the
+     head leans towards, and the wrapper that dutifully centred it let it
+     come out at the top, over the case next door. */
+  it("keeps the room where the head leans, and nowhere else", () => {
     const item = { ...makeDecor({ motif: "divider" }), rot: 30 };
     const { container } = render(<DecorItem item={item} ctx={{}} onLabel={noop} {...dnd} />);
-    const carton = container.querySelector("[draggable]");
-    const [, dx] = carton.style.transform.match(/translate\((-?\d+)px, (-?\d+)px\)/) || [];
-    // penchée à droite, la tête déporte le cadre : le carton recule vers la gauche
+    const cardstock = container.querySelector("[draggable]");
+    const [, dx] = cardstock.style.transform.match(/translate\((-?\d+)px, (-?\d+)px\)/) || [];
+    // leaning right, the head shifts the box: the card backs off to the left
     expect(Number(dx)).toBeLessThan(0);
   });
 
-  it("repose le pied sur la planche quand l'objet se couche", () => {
+  it("sets the foot back on the plank when the object lies down", () => {
     const item = { ...makeDecor({ motif: "plant" }), rot: 90 };
     const { container } = render(<DecorItem item={item} ctx={{}} onLabel={noop} {...dnd} />);
     const el = container.querySelector("[draggable]");
     const dy = Number(el.style.transform.match(/translate\(-?\d+px, (-?\d+)px\)/)?.[1]);
-    // sans ce relèvement, le coin bas passait sous le bois
+    // without this lift, the bottom corner passed under the wood
     expect(dy).toBeLessThan(0);
   });
 
-  it("mesure le carton sur sa hauteur, pas sur sa tranche", () => {
-    const carton = (rot) => {
+  it("measures the cardstock by its height, not by its edge", () => {
+    const cardstock = (rot) => {
       const item = { ...makeDecor({ motif: "divider" }), rot };
       const { container } = render(<DecorItem item={item} ctx={{}} onLabel={noop} {...dnd} />);
       return Number.parseInt(container.querySelector("[data-shelf-item]").style.width, 10);
     };
-    // couché, il réclame sa hauteur de boîtier au lieu de ses trente pixels
-    expect(carton(90)).toBeGreaterThan(carton(0) * 3);
+    // lying down, it claims its case height instead of its thirty pixels
+    expect(cardstock(90)).toBeGreaterThan(cardstock(0) * 3);
   });
 });
 
-describe("l'intercalaire, repris pour qu'on le voie", () => {
-  const carton = (over = {}) => {
+describe("the divider, redrawn so it can be seen", () => {
+  const cardstock = (over = {}) => {
     const item = { ...makeDecor({ motif: "divider", color: "burgundy" }), ...over };
     const { container } = render(<DecorItem item={item} ctx={{}} onLabel={noop} {...dnd} />);
     return container.querySelector("[draggable]");
   };
 
-  /* Le corps portait le kraft commun aux boîtiers : entre douze tranches
-     du même papier, ce qui sépare avait la couleur de ce qu'il sépare. */
-  it("porte sa propre encre et non le papier des boîtiers", () => {
-    const el = carton();
-    /* Le lavis est un `backgroundImage` et non plus un `background`
-       composite : le carton a pris un fond opaque dessous pour que le mur
-       ne le traverse plus, et les deux ne tiennent pas dans la même
-       propriété. C'est le lavis qu'on interroge — le fond, lui, doit
-       justement être neutre. */
+  /* The body carried the kraft common to the cases: among twelve edges of
+     the same paper, what separates had the colour of what it separates. */
+  it("carries its own ink and not the cases' paper", () => {
+    const el = cardstock();
+    /* The wash is a `backgroundImage` and no longer a composite
+       `background`: the card took an opaque backdrop underneath so that the
+       wall no longer shows through it, and the two do not fit in the same
+       property. It is the wash we are asking about — the backdrop, for its
+       part, must precisely be neutral. */
     expect(el.style.backgroundImage).toContain("140, 58, 52");
     expect(el.style.backgroundImage).not.toContain("216, 198, 156");
   });
 
-  it("dresse un onglet plein en tête", () => {
-    const head = carton().firstChild;
+  it("stands a solid tab at its head", () => {
+    const head = cardstock().firstChild;
     expect(head.style.background).toBe("rgb(140, 58, 52)");
     expect(Number.parseInt(head.style.height, 10)).toBeGreaterThan(10);
   });
 
-  it("écrit son nom sous l'onglet, à l'encre sombre", () => {
-    const el = carton({ label: "Polars" });
-    const nom = [...el.querySelectorAll("span")].find((s) => s.textContent === "Polars");
-    expect(nom.style.color).toBe("var(--c-ink)");
-    expect(Number.parseInt(nom.style.marginTop, 10)).toBeGreaterThan(0);
+  it("writes its name under the tab, in dark ink", () => {
+    const el = cardstock({ label: "Polars" });
+    const name = [...el.querySelectorAll("span")].find((s) => s.textContent === "Polars");
+    expect(name.style.color).toBe("var(--c-ink)");
+    expect(Number.parseInt(name.style.marginTop, 10)).toBeGreaterThan(0);
   });
 
-  it("est plus large qu'une tranche", () => {
-    expect(Number.parseInt(carton().style.width, 10)).toBeGreaterThan(26);
+  it("is wider than a spine", () => {
+    expect(Number.parseInt(cardstock().style.width, 10)).toBeGreaterThan(26);
   });
 });

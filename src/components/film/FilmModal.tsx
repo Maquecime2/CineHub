@@ -27,15 +27,15 @@ export function FilmModal({ onClose, onSave }: { onClose: () => void; onSave: (f
         inset: 0,
         background: "rgba(20,15,10,0.55)",
         display: "flex",
-        /* AU TELEPHONE, LA FICHE MONTE DU BAS PLUTOT QUE DE FLOTTER AU
-           MILIEU.
+        /* ON A PHONE, THE CARD RISES FROM THE BOTTOM RATHER THAN
+           FLOATING IN THE MIDDLE.
 
-           Une carte centree suppose une marge tout autour, et sur trois
-           cent quatre-vingt-dix pixels cette marge est du vide qu'on
-           paie deux fois : en largeur de champ, et en hauteur — le
-           clavier logiciel occupe la moitie basse de l'ecran, et une
-           carte centree se retrouve poussee sous lui. Ancree en bas,
-           elle s'arrete ou le clavier commence. */
+           A centred card assumes a margin all around, and on three
+           hundred and ninety pixels that margin is emptiness paid for
+           twice: in field width, and in height — the soft keyboard takes
+           the lower half of the screen, and a centred card ends up pushed
+           under it. Anchored at the bottom, it stops where the keyboard
+           begins. */
         alignItems: phone ? "flex-end" : "center",
         justifyContent: "center",
         zIndex: 50,
@@ -48,9 +48,9 @@ export function FilmModal({ onClose, onSave }: { onClose: () => void; onSave: (f
         style={{
           background: C.card,
           width: "min(520px, 100%)",
-          /* Le voile ne porte plus de retrait au telephone : c'est la
-             feuille qui prend ses marges, et sa marge du bas doit passer
-             au-dessus de la barre d'accueil du systeme. */
+          /* The veil no longer carries an inset on a phone: it is the
+             sheet that takes its margins, and its bottom margin must pass
+             above the system's home bar. */
           margin: phone ? "0 8px" : undefined,
           marginBottom: phone ? "max(8px, var(--safe-bottom))" : undefined,
           maxHeight: phone ? "calc(100dvh - 24px)" : "88vh",

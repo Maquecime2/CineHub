@@ -1,33 +1,32 @@
 /* ============================================================
-   LES OBJETS IMPORTÉS — le cabinet qu'on remplit soi-même.
+   IMPORTED OBJECTS — the cabinet one fills oneself.
 
-   Les motifs de la maison sont dessinés à la main dans `objects.jsx` et
-   listés dans `constants.tsx` : c'est un fond de catalogue, il ne bouge
-   pas. Ceux-ci viennent du disque de l'utilisateur, et vivent donc là où
-   vivent déjà ses images — les métadonnées en localStorage, parce
-   qu'elles sont minuscules et qu'on veut les lire sans attendre, l'image
-   elle-même dans IndexedDB, parce qu'un PNG n'a rien à faire dans un
-   quota de cinq méga-octets.
+   The house patterns are drawn by hand in `objects.jsx` and listed in
+   `constants.tsx`: that is a catalogue backlist, it does not move. These
+   ones come from the user's disk, and therefore live where their images
+   already live — the metadata in localStorage, because it is tiny and we
+   want to read it without waiting, the image itself in IndexedDB,
+   because a PNG has no business inside a five-megabyte quota.
 
-   Le préfixe `custom:` sur la clé n'est pas décoratif : c'est lui qui
-   garantit qu'un import ne viendra jamais recouvrir `plant` ou
-   `divider`, et qui permet à n'importe quel appelant de reconnaître un
-   motif importé sans consulter le registre.
+   The `custom:` prefix on the key is not decorative: it is what
+   guarantees an import will never come and cover `plant` or `divider`,
+   and what lets any caller recognise an imported pattern without
+   consulting the registry.
    ============================================================ */
 import { store } from "./storage";
 import { shrinkImage } from "./images";
 import { putImage, deleteImage } from "../db";
 
 export type CustomDecor = {
-  /** `custom:<id>` — la valeur écrite dans `item.motif`. */
+  /** `custom:<id>` — the value written into `item.motif`. */
   key: string;
   label: string;
-  /** S'accroche au fond du rayon plutôt que de se poser sur une planche. */
+  /** Hangs on the back of the row rather than resting on a board. */
   wall: boolean;
   kind: "raster" | "svg";
-  /** Un SVG dont on a su remplacer l'encre : la couleur lui parle encore. */
+  /** An SVG whose ink we managed to replace: colour still speaks to it. */
   tintable: boolean;
-  /** La clé du blob dans IndexedDB, préfixée pour ne pas se mêler aux affiches. */
+  /** The blob's key in IndexedDB, prefixed so as not to mix with posters. */
   imageKey: string;
   addedAt: string;
 };
@@ -39,10 +38,10 @@ export const DECOR_IMAGE_PREFIX = "decor:";
 export const isCustomMotif = (motif: string): boolean =>
   typeof motif === "string" && motif.startsWith(CUSTOM_PREFIX);
 
-/* Le registre est lu par `decorSpec`, appelé au rendu de chaque objet
-   posé : passer par localStorage à chaque fois reviendrait à parser du
-   JSON cent fois par image. On garde donc la liste en mémoire, et
-   localStorage n'est plus que le lieu où elle survit au rechargement. */
+/* The registry is read by `decorSpec`, called when rendering every laid
+   object: going through localStorage each time would mean parsing JSON a
+   hundred times per image. So we keep the list in memory, and
+   localStorage is no more than where it survives a reload. */
 let cache: CustomDecor[] | null = null;
 const listeners = new Set<() => void>();
 
@@ -63,7 +62,7 @@ export const listCustomDecor = (): CustomDecor[] => read();
 export const customDecorByKey = (key: string): CustomDecor | undefined =>
   read().find((d) => d.key === key);
 
-/** Toutes les images que le registre référence — pour ne pas les purger. */
+/** Every image the registry references — so as not to purge them. */
 export const customDecorImageKeys = (): string[] => read().map((d) => d.imageKey);
 
 export const subscribeCustomDecor = (fn: () => void): (() => void) => {
@@ -71,26 +70,26 @@ export const subscribeCustomDecor = (fn: () => void): (() => void) => {
   return () => listeners.delete(fn);
 };
 
-/** Le cache est un raccourci, pas une source : une restauration le vide. */
+/** The cache is a shortcut, not a source: a restore empties it. */
 export const refreshCustomDecor = (): void => {
   cache = null;
   hiddenCache = null;
   for (const fn of listeners) fn();
 };
 
-/* ---------- LES MOTIFS MASQUÉS ----------
+/* ---------- HIDDEN PATTERNS ----------
 
-   Les quinze dessins de la maison ne se suppriment pas : ils sont dans
-   le code, et les effacer voudrait dire effacer du code. Mais personne
-   n'a besoin des quinze, et un cabinet où l'on ne trouve plus les siens
-   au milieu de ceux qu'on n'utilise pas est un cabinet en désordre.
+   The fifteen house drawings cannot be deleted: they are in the code,
+   and erasing them would mean erasing code. But nobody needs all
+   fifteen, and a cabinet where one can no longer find one's own among
+   those one does not use is a cabinet in disarray.
 
-   On les MASQUE donc : ils quittent le panneau, et rien d'autre. Un
-   objet déjà posé sur une étagère continue de s'afficher — masquer est
-   un geste de rangement, pas une suppression, et faire disparaître d'un
-   coup un carton nommé et six bibelots placés serait une punition pour
-   avoir voulu faire du tri. Le panneau de gestion le dit, et le geste
-   se défait d'un clic au même endroit. */
+   So we HIDE them: they leave the panel, and nothing else. An object
+   already laid on a shelf goes on being displayed — hiding is a tidying
+   gesture, not a deletion, and making a named box and six placed
+   trinkets vanish at a stroke would be a punishment for having wanted to
+   sort things out. The management panel says so, and the gesture is
+   undone with one click in the same place. */
 export const HIDDEN_DECOR_KEY = "shelf-decor-hidden";
 
 let hiddenCache: string[] | null = null;
@@ -118,18 +117,18 @@ export const toggleDecorHidden = (key: string): void =>
 export const setHiddenDecor = (list: string[]): void =>
   writeHidden(Array.isArray(list) ? list : []);
 
-/* ---------- l'encre d'un SVG ----------
+/* ---------- the ink of an SVG ----------
 
-   Un dessin importé n'a aucune raison de suivre nos conventions, mais
-   s'il porte des traits nommés on peut lui rendre ce que les motifs de
-   la maison ont : la teinte que l'utilisateur choisit. `currentColor`
-   suffit — c'est la couleur CSS héritée, et le composant d'affichage n'a
-   plus qu'à la poser sur le parent.
+   An imported drawing has no reason to follow our conventions, but if it
+   carries named strokes we can give it what the house patterns have: the
+   tint the user chooses. `currentColor` is enough — it is the inherited
+   CSS colour, and the display component has only to lay it on the
+   parent.
 
-   On en profite pour retirer ce qu'un SVG venu du dehors n'a pas à
-   emporter : du script, des gestionnaires d'événements, des références à
-   des ressources distantes. Le fichier est réécrit une fois, à l'import,
-   et c'est cette version-là qu'on rangera. */
+   We take the chance to strip what an SVG from outside has no business
+   carrying: script, event handlers, references to remote resources. The
+   file is rewritten once, at import time, and it is that version we
+   shall store. */
 const PAINT_ATTRS = ["fill", "stroke"] as const;
 
 export function sanitizeSvg(
@@ -148,23 +147,23 @@ export function sanitizeSvg(
     for (const attr of Array.from(el.attributes)) {
       const name = attr.name.toLowerCase();
       if (name.startsWith("on")) el.removeAttribute(attr.name);
-      /* Un `href` local (`#gradient`) sert au dessin ; un href distant
-         est une requête qu'on n'a pas demandée. */
+      /* A local `href` (`#gradient`) serves the drawing; a remote href
+         is a request nobody asked for. */
       if ((name === "href" || name === "xlink:href") && !attr.value.trim().startsWith("#"))
         el.removeAttribute(attr.name);
     }
     for (const paint of PAINT_ATTRS) {
       const v = el.getAttribute(paint);
-      /* `none` dit « ne peins pas », et `url(...)` renvoie à un dégradé
-         qu'on ne saurait pas teinter : dans les deux cas on ne touche à
-         rien. */
+      /* `none` says "do not paint", and `url(...)` refers to a gradient
+         we would not know how to tint: in both cases we touch
+         nothing. */
       if (!v || v === "none" || v.trim().startsWith("url(")) continue;
       el.setAttribute(paint, "currentColor");
       tintable = true;
     }
-    /* Les mêmes peintures peuvent se cacher dans un `style` : les y
-       laisser ferait un dessin à moitié teinté, ce qui est pire que pas
-       teinté du tout. */
+    /* The same paints can hide inside a `style`: leaving them there
+       would make a half-tinted drawing, which is worse than not tinted
+       at all. */
     const style = el.getAttribute("style");
     if (style && /(^|[;\s])(fill|stroke)\s*:/i.test(style)) {
       const next = style.replace(
@@ -180,10 +179,10 @@ export function sanitizeSvg(
     }
   }
 
-  /* Le dessin doit remplir la case qu'on lui donne, et s'y appuyer comme
-     les motifs de la maison : ce qui se pose touche le bas de sa case,
-     ce qui s'accroche pend depuis le haut. Sans `viewBox`, l'échelle n'a
-     pas de sens et on laisse le fichier tel quel. */
+  /* The drawing must fill the cell it is given, and lean on it like the
+     house patterns: what is laid down touches the bottom of its cell,
+     what hangs dangles from the top. Without a `viewBox` the scale means
+     nothing and we leave the file as it is. */
   svg.setAttribute("width", "100%");
   svg.setAttribute("height", "100%");
   if (svg.getAttribute("viewBox"))
@@ -202,7 +201,7 @@ const baseName = (name: string) => name.replace(/\.[^.]+$/, "").trim();
 let seq = 0;
 const newId = () => `${Date.now().toString(36)}${(seq++).toString(36)}`;
 
-/** Importe une image comme nouveau motif. Rejette ce qui n'est pas une image. */
+/** Imports an image as a new pattern. Rejects what is not an image. */
 export async function addCustomDecor(
   file: File,
   { label, wall = false }: { label?: string; wall?: boolean } = {}
@@ -223,9 +222,9 @@ export async function addCustomDecor(
     tintable = cleaned.tintable;
     await putImage(imageKey, new Blob([cleaned.markup], { type: "image/svg+xml" }));
   } else {
-    /* Un objet de déco ne dépasse jamais quelques dizaines de pixels à
-       l'écran : 320 px suffisent, et une photo d'appareil rangée telle
-       quelle remplirait la base pour rien. */
+    /* A decor object never exceeds a few dozen pixels on screen: 320 px
+       is plenty, and a camera photo stored as it comes would fill the
+       database for nothing. */
     await putImage(imageKey, await shrinkImage(file, 320));
   }
 
@@ -240,7 +239,7 @@ export async function addCustomDecor(
   };
 
   if (!write([...read(), entry])) {
-    // le registre n'a pas tenu : l'image n'a plus personne pour la nommer
+    // the registry did not hold: the image has nobody left to name it
     await deleteImage(imageKey).catch(() => {});
     throw new Error("Espace de stockage plein — l'objet n'a pas été ajouté.");
   }
@@ -254,9 +253,9 @@ export async function removeCustomDecor(key: string): Promise<void> {
   await deleteImage(entry.imageKey).catch(console.error);
 }
 
-/* ---------- sauvegarde ----------
-   Le registre entre dans le fichier de sauvegarde comme les fiches : ce
-   sont des données que l'utilisateur a apportées, pas des réglages. */
+/* ---------- backup ----------
+   The registry goes into the backup file like the cards do: this is data
+   the user brought in, not settings. */
 export const setCustomDecor = (list: CustomDecor[]): void => {
   write(Array.isArray(list) ? list : []);
 };

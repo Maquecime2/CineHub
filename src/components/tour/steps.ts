@@ -1,61 +1,60 @@
 /* ============================================================
-   LA VISITE — ce que le classeur raconte de lui-même
+   THE TOUR — what the binder tells about itself
 
    ┌──────────────────────────────────────────────────────────┐
-   │ CE FICHIER SUIT LE PRODUIT.                              │
-   │ Toute fonctionnalité ajoutée, modifiée, renommée ou      │
-   │ retirée se répercute ICI dans le même changement, et sur │
-   │ l'attribut `data-tour` de la cible. Une visite qui       │
-   │ décrit l'ancien produit est un mensonge de plus.         │
+   │ THIS FILE FOLLOWS THE PRODUCT.                           │
+   │ Every feature added, changed, renamed or removed is      │
+   │ echoed HERE in the same change, and on the target's      │
+   │ `data-tour` attribute. A tour that describes the old     │
+   │ product is one more lie.                                 │
    └──────────────────────────────────────────────────────────┘
 
-   Une visite par vue, plus une visite « global » qui les traverse en
-   n'en gardant que l'essentiel. La visite globale ne réécrit pas les
-   textes : elle PIOCHE dans les visites de page, faute de quoi les deux
-   divergeraient au premier changement.
+   One tour per view, plus a "global" tour that crosses them keeping only
+   the essentials. The global tour does not rewrite the texts: it PICKS
+   from the page tours, failing which the two would diverge at the first
+   change.
    ============================================================ */
 import type { View } from "../layout/FolderTabs";
-import { serveurConfigure } from "../../services/serveur";
+import { serverConfigured } from "../../services/server";
 
 export interface TourStep {
-  /** Sélecteur CSS de ce qu'on montre. `null` : bulle au centre. */
+  /** CSS selector of what we are showing. `null`: bubble in the centre. */
   target: string | null;
   title: string;
   body: string;
-  /** Vue à ouvrir avant l'étape — c'est ce qui fait voyager la visite. */
+  /** View to open before the step — that is what makes the tour travel. */
   view?: View;
   /**
-   * Intercalaire du dossier film à ouvrir avant l'étape.
+   * Tab of the film folder to open before the step.
    *
-   * MÊME MÉCANIQUE QUE `view`, ÉTENDUE D'UN CRAN — et surtout pas une
-   * seconde mécanique à côté : `TourOverlay` appelle `onOnglet` dans le
-   * même effet qu'il appelle `onView`, et pour la même raison. Depuis
-   * que la fiche se lit en trois intercalaires, quatre des sept étapes
-   * du tour « detail » visent des cartons que l'onglet ouvert ne montre
-   * pas ; sans ce champ elles seraient sautées comme des cibles
-   * absentes.
+   * THE SAME MECHANISM AS `view`, EXTENDED BY ONE NOTCH — and above all
+   * not a second mechanism beside it: `TourOverlay` calls `onTab` in the
+   * same effect where it calls `onView`, and for the same reason. Since
+   * the card is read in three tabs, four of the seven steps of the
+   * "detail" tour aim at cards that the open tab does not show; without
+   * this field they would be skipped like absent targets.
    *
-   * Les valeurs sont celles de `OngletFiche` (`views/DetailView`),
-   * recopiées ici plutôt qu'importées : `steps.ts` décrit le produit et
-   * ne dépend d'aucune vue — `View` lui-même n'y est qu'un type.
+   * The values are those of `FolderTab` (`views/DetailView`), copied here
+   * rather than imported: `steps.ts` describes the product and depends on
+   * no view — `View` itself is only a type in it.
    */
-  onglet?: "film" | "mots" | "liens";
+  tab?: "film" | "mots" | "liens";
   placement?: "right" | "bottom" | "left" | "top" | "center";
   /**
-   * Cible absente ⇒ étape sautée sans bruit. Vrai de tout ce qui dépend
-   * du contenu : une collection vide n'a ni affiche, ni rangée, ni fiche.
+   * Target absent ⇒ step skipped without a sound. True of everything that
+   * depends on content: an empty collection has neither poster, nor row,
+   * nor card.
    */
   optional?: boolean;
   /**
-   * L'étape n'existe pas du tout sans serveur.
+   * The step does not exist at all without a server.
    *
-   * `optional` ne suffit pas pour celles qui OUVRENT une vue : le
-   * changement de vue a lieu AVANT qu'on cherche la cible (voir
-   * `TourOverlay`), de sorte qu'une étape sautée aurait quand même fait
-   * clignoter une page qui n'a plus d'onglet. On la retire donc en
-   * amont, plutôt que de la sauter en aval.
+   * `optional` is not enough for those that OPEN a view: the change of
+   * view happens BEFORE we look for the target (see `TourOverlay`), so a
+   * skipped step would still have made a page with no tab left blink. So
+   * we remove it upstream, rather than skipping it downstream.
    */
-  exigeUnServeur?: boolean;
+  needsServer?: boolean;
 }
 
 export interface Tour {
@@ -66,7 +65,7 @@ export interface Tour {
 /** Raccourci de lecture : `[data-tour="…"]`. */
 const at = (name: string) => `[data-tour="${name}"]`;
 
-/* ---------- les visites de page ---------- */
+/* ---------- the page tours ---------- */
 
 const library: Tour = {
   label: "La vidéothèque",
@@ -117,14 +116,14 @@ const library: Tour = {
       placement: "top",
       optional: true,
     },
-    /* LE GESTE QUI NE SE DEVINE PAS, et qui n'existait pas avant que
-       l'application se tienne dans une main. Au doigt, un balayage fait
-       défiler : la saisie doit donc s'annoncer autrement, et c'est
-       l'appui maintenu qui s'en charge. Personne ne le trouve tout seul.
+    /* THE GESTURE THAT CANNOT BE GUESSED, and which did not exist before
+       the application fitted in one hand. With a finger, a swipe
+       scrolls: so grabbing has to announce itself otherwise, and the
+       long press takes care of it. Nobody finds it on their own.
 
-       `optional` comme les autres étapes qui visent du contenu : un
-       classeur vide n'a pas d'affiche à montrer, et doit pouvoir jouer
-       la visite en entier. */
+       `optional` like the other steps that aim at content: an empty
+       binder has no poster to show, and must be able to play the tour in
+       full. */
     {
       target: at("wall-films"),
       title: "Ranger au doigt",
@@ -161,31 +160,31 @@ const watchlist: Tour = {
   ],
 };
 
-const generique: Tour = {
+const credits: Tour = {
   label: "Le générique",
   steps: [
     {
-      target: at("generique-search"),
+      target: at("credits-search"),
       title: "Les noms que vous avez déjà",
       body: "Réalisation, interprétation, image, musique, scénario : ces noms dorment dans vos fiches depuis le premier import. Ici, ils forment un répertoire — et chacun mène à ce que vous avez de cette personne.",
       placement: "bottom",
     },
     {
-      target: at("generique-roles"),
+      target: at("credits-roles"),
       title: "À quel titre",
       body: "Les tamis se cumulent, comme sur le mur. Par défaut le répertoire ne montre que celles et ceux qu'on croise au moins deux fois — les autres sont à un clic, sous « de passage ».",
       placement: "bottom",
       optional: true,
     },
     {
-      target: at("generique-dossier"),
+      target: at("credits-page"),
       title: "Ce que quelqu'un vaut chez vous",
       body: "Votre note moyenne sur ses films, et votre écart à la note publique : où vous êtes plus tendre, où vous êtes plus sévère que la foule. Puis ses films, ce qui revient chez lui, et depuis quand.",
       placement: "right",
       optional: true,
     },
     {
-      target: at("generique-tmdb"),
+      target: at("credits-tmdb"),
       title: "Ce qu'il me manque",
       body: "Sa filmographie complète, moins ce que vous avez : de quoi envoyer les absents dans « À voir » d'un clic. Ne paraît qu'avec une clé TMDB posée, depuis l'onglet Import.",
       placement: "top",
@@ -199,15 +198,15 @@ const detail: Tour = {
   steps: [
     {
       target: at("detail-catalog"),
-      onglet: "film",
+      tab: "film",
       title: "La fiche catalogue",
-      body: "Ce que le film est : titre, année, réalisation, genres, et tout ce que TMDB rapporte. Chaque champ se corrige d'un clic — c'est la seule façon de rattraper un import mal identifié. Les noms soulignés d'un pointillé ouvrent leur dossier au générique.",
+      body: "Ce que le film est : titre, année, réalisation, genres, et tout ce que TMDB rapporte. Chaque champ se corrige d'un clic — c'est la seule façon de rattraper un import mal identifié. Les names soulignés d'un pointillé ouvrent leur dossier au générique.",
       placement: "right",
       optional: true,
     },
     {
       target: at("detail-watchlog"),
-      onglet: "mots",
+      tab: "mots",
       title: "Le journal des séances",
       body: "Une ligne par visionnage, avec sa date et sa note. C'est lui qui sait qu'un film a été revu quatre fois, et qui nourrit l'almanach.",
       placement: "right",
@@ -215,15 +214,15 @@ const detail: Tour = {
     },
     {
       target: at("detail-ailleurs"),
-      onglet: "film",
+      tab: "film",
       title: "Ce qu'on en dit ailleurs",
       body: "Quand un compte est ouvert, la fiche montre ce que d'autres vidéothèques publiques disent du même film : leur moyenne — sans la vôtre — et leurs critiques. Chacune se signale, et son auteur se fait taire d'un geste — le tiroir du compte liste ceux que vous avez fait taire, et leur rend la parole. Sans serveur ni compte, cette section n'existe pas.",
       placement: "right",
       optional: true,
     },
     {
-      target: at("detail-partage"),
-      onglet: "film",
+      target: at("detail-sharing"),
+      tab: "film",
       title: "La retirer du partage",
       body: "Un film qu'on assume chez soi sans vouloir l'afficher : cette fiche-là quitte votre collection partagée, et elle seule. Elle reste au mur, dans l'almanach et dans la constellation — c'est le dehors qui l'ignore. Ne paraît qu'avec un compte, et seulement si vous montrez votre collection à quelqu'un.",
       placement: "right",
@@ -231,7 +230,7 @@ const detail: Tour = {
     },
     {
       target: at("detail-review"),
-      onglet: "mots",
+      tab: "mots",
       title: "Vos mots",
       body: "La critique et les notes libres. Les photogrammes déposés sur la fiche s'y insèrent dans le texte, à l'endroit du curseur.",
       placement: "left",
@@ -239,15 +238,15 @@ const detail: Tour = {
     },
     {
       target: at("detail-tags"),
-      onglet: "mots",
-      title: "Mots-clés et motifs",
+      tab: "mots",
+      title: "Mots-keys et motifs",
       body: "Les mots-clés sont les vôtres. Les motifs sont un vocabulaire commun — « le héros meurt », « il pleut à la fin » — sur lequel une question peut porter, et dont on tire un fil.",
       placement: "left",
       optional: true,
     },
     {
       target: at("detail-identite"),
-      onglet: "film",
+      tab: "film",
       title: "La bonne fiche TMDB",
       body: "L'import retient le premier titre trouvé, et se trompe sur les homonymes — deux « Resurrection » ne sont pas le même film. Ici on cherche le vrai et on relie la fiche : l'équipe, la durée, le pays et les mots-clés sont réécrits, vos mots et vos séances ne bougent pas. Le signe qui trahit l'erreur, c'est un sillage qui vous propose le film que vous regardez déjà.",
       placement: "left",
@@ -255,7 +254,7 @@ const detail: Tour = {
     },
     {
       target: at("detail-thread"),
-      onglet: "liens",
+      tab: "liens",
       title: "Le fil rouge",
       body: "Relier deux films, en disant pourquoi : un motif partagé, une filiation, une réponse. Ces liens sont ce que la constellation dessine.",
       placement: "left",
@@ -263,13 +262,12 @@ const detail: Tour = {
     },
     {
       target: at("detail-sillage"),
-      onglet: "liens",
+      tab: "liens",
       title: "Dans le sillage",
       body: "Dix propositions par colonne, en trois parts : quatre tenues par les gens qui ont fait les films — même chef opérateur, même compositeur, quelqu'un à l'affiche des deux —, quatre par ce dont ils parlent, motifs et sujets communs, et deux par la foule, « vu par les mêmes gens ». Chacune dit pourquoi elle est là. À gauche votre classeur ; à droite TMDB, qui ne montre que ce que vous n'avez pas : cliquez une proposition pour lire son résumé sans quitter la page, et la mettre de côté d'un bouton.",
       placement: "top",
-      /* Optionnelle : une collection d'un seul film n'a pas de sillage,
-         et la visite doit pouvoir se jouer en entier sur un classeur
-         vide. */
+      /* Optional: a collection of a single film has no wake, and the
+         tour must be able to play in full on an empty binder. */
       optional: true,
     },
   ],
@@ -341,7 +339,7 @@ const almanac: Tour = {
     {
       target: at("almanac-year"),
       title: "Une année, ou toujours",
-      body: "L'almanach lit le journal des séances : il ne compte que les vraies séances, à leur date, et non la date d'ajout des fiches. « TOUJOURS », en tête, ouvre le même bilan sur toute votre pratique — les douze mois y deviennent vos années.",
+      body: "L'almanach lit le journal des séances : il ne compte que les vraies séances, à leur date, et non la date d'ajout des fiches. « TOUJOURS », en tête, ouvre le même report sur toute votre pratique — les douze mois y deviennent vos années.",
       placement: "bottom",
       optional: true,
     },
@@ -413,18 +411,18 @@ const importTour: Tour = {
   ],
 };
 
-/* ---------- la visite globale ---------- */
+/* ---------- the global tour ---------- */
 
-/* Prend quelques étapes d'une visite de page et les rattache à sa vue.
-   On désigne les étapes PAR LEUR CIBLE et non par leur rang : insérer
-   une étape au milieu d'une visite de page ne doit pas changer en
-   silence ce que la visite globale raconte. Une cible inconnue lève —
-   c'est le test de couverture qui l'attrape, pas l'utilisateur. */
-const from = (view: View, tour: Tour, ...noms: string[]): TourStep[] =>
-  noms.map((nom) => {
-    const cible = at(nom);
-    const s = tour.steps.find((x) => x.target === cible);
-    if (!s) throw new Error(`Visite globale : « ${nom} » n'existe pas dans « ${tour.label} »`);
+/* Takes a few steps of a page tour and attaches them to its view. We
+   designate the steps BY THEIR TARGET and not by their rank: inserting a
+   step in the middle of a page tour must not silently change what the
+   global tour tells. An unknown target throws — it is the coverage test
+   that catches it, not the user. */
+const from = (view: View, tour: Tour, ...names: string[]): TourStep[] =>
+  names.map((name) => {
+    const target = at(name);
+    const s = tour.steps.find((x) => x.target === target);
+    if (!s) throw new Error(`Visite globale : « ${name} » n'existe pas dans « ${tour.label} »`);
     return { ...s, view };
   });
 
@@ -447,23 +445,23 @@ const global: Tour = {
     },
     ...from("library", library, "wall-search", "wall-mode", "wall-films"),
     ...from("watchlist", watchlist, "wall-films", "soir-ouvrir"),
-    /* PAS `generique-dossier` ICI, ET C'EST UNE CORRECTION.
-       Son ancre n'existe qu'une fois une personne SÉLECTIONNÉE, et la
-       visite globale arrive sur un répertoire fermé : l'étape était donc
-       morte en permanence, même sur une collection pleine. Elle reste
-       dans la visite du Générique, où l'on a pu ouvrir un dossier. */
-    ...from("generique", generique, "generique-search", "generique-roles"),
-    /* PAS `reco-dials` NON PLUS, et pour la même raison que
-       `generique-dossier` ci-dessus : les deux molettes vivent DANS le
-       bulletin de commande, que la vue ne monte pas du tout sans clé
-       TMDB. Sur un classeur neuf — qui n'en a jamais — l'étape ouvrait
-       les Découvertes, cherchait une ancre absente pendant sept cents
-       millisecondes de voile opaque, puis passait sans rien dire.
+    /* NOT `credits-page` HERE, AND THAT IS A FIX.
+       Its anchor only exists once a person is SELECTED, and the global
+       tour arrives on a closed directory: the step was therefore
+       permanently dead, even on a full collection. It stays in the
+       Credits tour, where a folder has been opened. */
+    ...from("credits", credits, "credits-search", "credits-roles"),
+    /* NOT `reco-dials` EITHER, and for the same reason as
+       `credits-page` above: the two dials live INSIDE the order
+       form, which the view does not mount at all without a TMDB key. On
+       a new binder — which never has one — the step opened Discoveries,
+       looked for an absent anchor for seven hundred milliseconds of
+       opaque veil, then moved on without a word.
 
-       `reco-maison`, lui, reste : les propositions tirées de votre
-       propre collection ne demandent aucune clé, et c'est précisément
-       ce que cette étape raconte. Les molettes gardent leur place dans
-       la visite des Découvertes, où l'on arrive avec ce qu'on a. */
+       `reco-maison`, for its part, stays: the suggestions drawn from
+       your own collection ask for no key, and that is precisely what
+       this step tells. The dials keep their place in the Discoveries
+       tour, where one arrives with what one has. */
     ...from("reco", reco, "reco-maison"),
     ...from("constellation", constellation, "constellation-start", "constellation-teams"),
     ...from("almanac", almanac, "almanac-year"),
@@ -490,22 +488,22 @@ const global: Tour = {
       placement: "right",
       view: "library",
     },
-    /* LE CLASSEUR S'INSTALLE — et la fiche qui le propose ne paraît pas
-       toujours : le navigateur décide seul qu'un site est installable,
-       et elle disparaît dès qu'on l'a écartée deux fois ou qu'elle est
-       déjà posée. `optional`, donc, comme tout ce qui dépend de ce
-       qu'on a sous les yeux. */
+    /* THE BINDER INSTALLS ITSELF — and the card that offers it does not
+       always appear: the browser decides on its own that a site is
+       installable, and the card vanishes as soon as it has been waved
+       away twice or is already laid down. `optional`, then, like
+       everything that depends on what is before our eyes. */
     {
-      target: at("installer"),
+      target: at("install"),
       title: "Le poser sur l'écran d'accueil",
       body: "Installé, le classeur s'ouvre en plein écran, sans barre d'adresse, et fonctionne sans réseau — vos films sont chez vous, pas sur un serveur. Sur iPhone, c'est Partager puis « Sur l'écran d'accueil ».",
       placement: "top",
       view: "library",
       optional: true,
     },
-    /* LE COMPTE — `optional` parce que l'action n'est montée que si un
-       serveur est réglé. Sans serveur, il n'y a rien à montrer et la
-       visite passe outre sans le dire. */
+    /* THE ACCOUNT — `optional` because the action is only mounted if a
+       server is set. With no server there is nothing to show and the
+       tour passes over it without saying so. */
     {
       target: at("compte"),
       title: "Retrouver sa collection ailleurs",
@@ -514,10 +512,10 @@ const global: Tour = {
       view: "library",
       optional: true,
     },
-    /* LE PARTAGE VIT DANS LE MÊME TIROIR QUE LE COMPTE, et l'étape le
-       dit là aussi : il n'existe qu'avec un compte, et une seconde
-       ancre pour un panneau que la visite ne peut pas ouvrir seule
-       montrerait le vide. */
+    /* SHARING LIVES IN THE SAME DRAWER AS THE ACCOUNT, and the step says
+       so there too: it only exists with an account, and a second anchor
+       for a panel the tour cannot open on its own would show the
+       void. */
     {
       target: at("compte"),
       title: "Montrer sa vidéothèque",
@@ -526,10 +524,10 @@ const global: Tour = {
       view: "library",
       optional: true,
     },
-    /* LES RAPPELS vivent dans le même tiroir que le compte et le
-       partage, et l'étape le dit là aussi. `optional` : sans serveur,
-       sans clés posées dessus, ou dans un navigateur qui ne sait pas
-       recevoir de notification, l'action n'est même pas montée. */
+    /* THE REMINDERS live in the same drawer as the account and sharing,
+       and the step says so there too. `optional`: with no server, with
+       no keys laid on it, or in a browser that cannot receive a
+       notification, the action is not even mounted. */
     {
       target: at("compte"),
       title: "Se faire rappeler ses défis",
@@ -538,17 +536,17 @@ const global: Tour = {
       view: "library",
       optional: true,
     },
-    /* LES DÉFIS, en dernier avant l'au revoir : c'est la seule chose de
-       ce classeur qui se fasse à plusieurs, et elle suppose tout le
-       reste. `optional` comme le compte — sans serveur, la vue
-       n'affiche qu'une phrase, et il n'y a pas de repère à montrer. */
+    /* THE CHALLENGES, last before the goodbye: it is the only thing in
+       this binder done with other people, and it presupposes all the
+       rest. `optional` like the account — with no server the view shows
+       only a sentence, and there is no landmark to point at. */
     {
-      target: at("listes-defis"),
-      exigeUnServeur: true,
+      target: at("lists-challenges"),
+      needsServer: true,
       title: "Se lancer quelque chose",
       body: "Une liste plus une période fait un défi. Personne ne coche « vu » : l'avancement se calcule depuis votre journal de séances, et le serveur n'en tire qu'un nombre — vos dates ne sortent pas d'ici.",
       placement: "top",
-      view: "listes",
+      view: "lists",
       optional: true,
     },
     {
@@ -568,29 +566,29 @@ const global: Tour = {
   ],
 };
 
-/* LE FIL — la seule vue qui ne parle pas de votre collection. Ses
-   etapes sont `optional` : sans serveur, sans compte, ou sans personne
-   suivie, la moitie de ces reperes n'existe pas, et une visite qui
-   pointe le vide est pire qu'une visite plus courte. */
-const fil: Tour = {
+/* THE FEED — the only view that does not speak of your collection. Its
+   steps are `optional`: with no server, no account, or nobody followed,
+   half these landmarks do not exist, and a tour that points at the void
+   is worse than a shorter tour. */
+const thread: Tour = {
   label: "Le fil",
   steps: [
     {
-      target: at("fil-chercher"),
+      target: at("thread-search"),
       title: "Trouver quelqu'un",
       body: "On cherche par pseudonyme, et on ne trouve que les gens qui ont choisi de montrer leur collection. Il n'y a pas d'annuaire : ce classeur n'est pas un reseau social, et personne n'y figure sans l'avoir voulu.",
       placement: "bottom",
       optional: true,
     },
     {
-      target: at("fil-abonnements"),
+      target: at("thread-follows"),
       title: "Ceux que vous suivez",
       body: "Suivre est un geste qu'on fait seul et qu'on defait seul : personne n'accepte, personne n'est prevenu. Si quelqu'un referme sa collection, il reste dans la liste — son fil se tait, et reparlera s'il rouvre.",
       placement: "bottom",
       optional: true,
     },
     {
-      target: at("fil-nouvelles"),
+      target: at("thread-news"),
       title: "Ce qu'ils regardent",
       body: "Les films recemment touches chez les gens que vous suivez, avec leur note et leur critique. Jamais leurs notes personnelles ni leur journal de seances — pas plus que les votres ne sortent d'ici.",
       placement: "top",
@@ -599,28 +597,28 @@ const fil: Tour = {
   ],
 };
 
-/* LES LISTES ET LES DEFIS. Memes precautions que le fil : sans serveur
-   ni compte, rien de tout cela n'existe, et une visite qui pointe le
-   vide est pire qu'une visite plus courte. */
-const listes: Tour = {
+/* THE LISTS AND THE CHALLENGES. The same precautions as the feed: with
+   no server or account, none of this exists, and a tour that points at
+   the void is worse than a shorter tour. */
+const lists: Tour = {
   label: "Listes et defis",
   steps: [
     {
-      target: at("listes-nouvelle"),
+      target: at("lists-new"),
       title: "Ouvrir une liste",
       body: "Une liste contient des oeuvres et non vos fiches : elle veut donc dire la meme chose chez quelqu'un d'autre, et ne se vide pas le jour ou vous effacez un film. On y range depuis la fiche du film, sous le catalogue.",
       placement: "bottom",
       optional: true,
     },
     {
-      target: at("listes-mes-listes"),
+      target: at("lists-mine"),
       title: "Les votres, et celles a plusieurs",
       body: "Chaque liste s'ouvre d'un clic. Vous pouvez y inviter quelqu'un a ecrire : il ajoute et retire des films, il ne renomme pas la liste et ne l'efface pas. Fermee par defaut — la rendre visible est une case a cocher.",
       placement: "bottom",
       optional: true,
     },
     {
-      target: at("listes-defis"),
+      target: at("lists-challenges"),
       title: "Un defi est une liste plus une periode",
       body: "Personne ne coche « vu » : l'avancement se calcule depuis votre journal de seances, et seules les seances datees dans la periode comptent. Le serveur en tire un nombre, jamais vos dates — et seulement pour ceux qui ont demande a participer.",
       placement: "top",
@@ -629,32 +627,32 @@ const listes: Tour = {
   ],
 };
 
-/* ---------- le registre ---------- */
+/* ---------- the registry ---------- */
 
-/* CE QUI N'EXISTE PAS NE SE VISITE PAS. Sans serveur — le cas du site
-   publié — le fil et les défis n'ont pas d'onglet ; leurs étapes n'ont
-   donc rien à montrer, et la visite doit décrire le produit tel qu'il
-   est chez celui qui la joue. */
-const élaguer = (t: Tour): Tour =>
-  serveurConfigure() ? t : { ...t, steps: t.steps.filter((s) => !s.exigeUnServeur) };
+/* WHAT DOES NOT EXIST IS NOT VISITED. With no server — the published
+   site's case — the feed and the challenges have no tab; their steps
+   therefore have nothing to show, and the tour must describe the product
+   as it is for whoever is playing it. */
+const prune = (t: Tour): Tour =>
+  serverConfigured() ? t : { ...t, steps: t.steps.filter((s) => !s.needsServer) };
 
 export const TOURS: Record<string, Tour> = Object.fromEntries(
   Object.entries({
     global,
     library,
     watchlist,
-    generique,
+    credits,
     detail,
     reco,
     constellation,
     almanac,
     notebook,
     import: importTour,
-    fil,
-    listes,
-  }).map(([clé, t]) => [clé, élaguer(t)])
+    thread,
+    lists,
+  }).map(([key, t]) => [key, prune(t)])
 );
 
-/** La visite d'une vue, s'il y en a une. `detail` en a une, `skinlab` non. */
+/** A view's tour, if there is one. `detail` has one, `skinlab` does not. */
 export const tourForView = (view: string): Tour | undefined =>
   view === "global" ? undefined : TOURS[view];

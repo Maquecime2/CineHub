@@ -1,33 +1,33 @@
 /* ============================================================
-   LES MOTIFS D'UNE FICHE — on choisit, on n'écrit pas
+   A CARD'S MOTIFS — one chooses, one does not write
    ============================================================
 
-   La différence avec `TagEditor` est tout le sujet : là-bas on tape ce
-   qu'on veut, ici on prend dans une liste. Un champ libre redonnerait
-   « fin triste » et « ça finit mal », et c'est justement ce qu'on essaie
-   de ne plus avoir.
+   The difference from `TagEditor` is the whole subject: there you type
+   whatever you want, here you take from a list. A free field would give
+   back "sad ending" and "it ends badly", and that is precisely what we
+   are trying not to have any more.
 
-   LES MOTIFS QUI RACONTENT LA FIN SE POSENT COMME LES AUTRES, MAIS NE
-   S'AFFICHENT PAS COMME EUX. Ranger sa collection ne doit pas gâcher les
-   films qu'on n'a pas encore vus : un motif `spoiler` reste gratté tant
-   qu'on ne l'a pas dévoilé, et le dévoilement ne vaut que pour la fiche
-   ouverte — il ne s'enregistre nulle part.
+   THE MOTIFS THAT TELL THE ENDING ARE LAID LIKE THE OTHERS, BUT ARE NOT
+   SHOWN LIKE THEM. Filing one's collection must not spoil the films one
+   has not seen yet: a `spoiler` motif stays scratched out until it is
+   revealed, and the revealing counts only for the open card — it is
+   saved nowhere.
    ============================================================ */
 import { useMemo, useState } from "react";
 import { Eye, EyeOff, Plus, Spool, Trash2, X } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { underlineInput, tap } from "../../theme/styles";
 import {
-  FAMILLES,
-  chercheMotifs,
-  estPerso,
+  FAMILIES,
+  searchMotifs,
+  isCustom,
   motifById,
-  motifsDe,
-  parFamille,
+  motifsOf,
+  byFamily,
 } from "../../domain/motifs";
-import type { Motif, MotifFamille } from "../../domain/motifs";
+import type { Motif, MotifFamily } from "../../domain/motifs";
 
-const rubrique = {
+const section = {
   fontFamily: F.mono,
   fontSize: 9.5,
   color: C.inkFaded,
@@ -35,51 +35,51 @@ const rubrique = {
   marginBottom: 4,
 } as const;
 
-const chipStyle = (encre: string, actif: boolean) => ({
+const chipStyle = (ink: string, active: boolean) => ({
   all: "unset" as const,
   ...tap,
   cursor: "pointer",
   display: "inline-flex",
   alignItems: "center",
   gap: 5,
-  /* Même règle que `TagChip` : « Une fin heureuse à laquelle on ne croit
-     pas » est plus large que la colonne où il se pose, et sans ceci il la
-     pousse. Il passe à la ligne dans la puce. */
+  /* The same rule as `TagChip`: "A happy ending nobody believes in" is
+     wider than the column it is laid in, and without this it pushes it.
+     It wraps inside the chip. */
   maxWidth: "100%",
   whiteSpace: "normal" as const,
   fontFamily: F.mono,
   fontSize: 10.5,
   padding: "3px 10px",
   borderRadius: "var(--tag-radius)",
-  border: `1px solid ${encre}`,
-  color: actif ? C.card : encre,
-  background: actif ? encre : "transparent",
+  border: `1px solid ${ink}`,
+  color: active ? C.card : ink,
+  background: active ? ink : "transparent",
 });
 
-/** Un motif posé sur la fiche, gratté s'il raconte la fin. */
+/** A motif laid on the card, scratched out if it tells the ending. */
 function MotifChip({
   motif,
-  révélé,
-  onRévéler,
+  revealed,
+  onReveal,
   onRemove,
 }: {
   motif: Motif;
-  révélé: boolean;
-  onRévéler: () => void;
+  revealed: boolean;
+  onReveal: () => void;
   onRemove: () => void;
 }) {
-  const caché = !!motif.spoiler && !révélé;
+  const isHiddenHere = !!motif.spoiler && !revealed;
   return (
     <span
       style={{
-        ...chipStyle(caché ? C.inkFaded : C.pine, false),
-        background: caché ? alpha(C.ink, 0.12) : "transparent",
-        cursor: caché ? "pointer" : "default",
+        ...chipStyle(isHiddenHere ? C.inkFaded : C.pine, false),
+        background: isHiddenHere ? alpha(C.ink, 0.12) : "transparent",
+        cursor: isHiddenHere ? "pointer" : "default",
       }}
-      onClick={caché ? onRévéler : undefined}
-      title={caché ? "Ce motif raconte la fin — cliquez pour le lire" : undefined}
+      onClick={isHiddenHere ? onReveal : undefined}
+      title={isHiddenHere ? "Ce motif raconte la fin — cliquez pour le lire" : undefined}
     >
-      {caché ? (
+      {isHiddenHere ? (
         <>
           <Eye size={10} />
           motif de fin
@@ -105,75 +105,75 @@ export function MotifPicker({
   motifs = [],
   onChange,
   suggestions = [],
-  onFaireUnFil,
-  onCréer,
+  onMakeThread,
+  onCreate,
   onSupprimer,
-  onMasquer,
-  masqués = [],
+  onHide,
+  hiddenOnes = [],
 }: {
   motifs?: string[];
   onChange: (next: string[]) => void;
-  /** Ce que TMDB propose. Rien n'entre sans un clic. */
+  /** What TMDB offers. Nothing enters without a click. */
   suggestions?: Motif[];
-  /** Faire de ce motif une question posée à toute la collection. */
-  onFaireUnFil?: (motifId: string) => void;
-  /** Ajouter un motif au vocabulaire. Absent : la liste reste en lecture. */
-  onCréer?: (label: string, famille: MotifFamille, spoiler: boolean) => void;
-  /** Retirer l'un des vôtres — la confirmation et le ménage sont à l'appelant. */
+  /** Turn this motif into a question asked of the whole collection. */
+  onMakeThread?: (motifId: string) => void;
+  /** Add a motif to the vocabulary. Absent: the list stays read-only. */
+  onCreate?: (label: string, family: MotifFamily, spoiler: boolean) => void;
+  /** Remove one of your own — the confirmation and the tidying are the caller's. */
   onSupprimer?: (motif: Motif) => void;
-  /** Écarter l'un du catalogue, ou le remettre. */
-  onMasquer?: (motifId: string, masqué: boolean) => void;
-  /** Ceux du catalogue déjà écartés, pour les proposer au retour. */
-  masqués?: Motif[];
+  /** Set one of the catalogue's aside, or put it back. */
+  onHide?: (motifId: string, hidden: boolean) => void;
+  /** Those of the catalogue already set aside, to offer them back. */
+  hiddenOnes?: Motif[];
 }) {
-  const [ouvert, setOuvert] = useState(false);
+  const [open, setOuvert] = useState(false);
   const [q, setQ] = useState("");
-  const [révélés, setRévélés] = useState<string[]>([]);
+  const [revealedIds, setRevealedIds] = useState<string[]>([]);
   const [neuf, setNeuf] = useState("");
-  const [famille, setFamille] = useState<MotifFamille>("récit");
+  const [family, setFamille] = useState<MotifFamily>("narrative");
   const [spoiler, setSpoiler] = useState(false);
 
-  /* `motifsDe` et non un filtre sur le catalogue : un motif à vous n'est
-     pas dans `MOTIFS`, et la fiche l'aurait perdu à l'affichage. */
-  const posés = useMemo(() => motifsDe({ motifs }), [motifs]);
-  const familles = useMemo(() => parFamille(), [ouvert, motifs]);
-  const trouvés = useMemo(() => (q.trim() ? chercheMotifs(q) : []), [q]);
-  const àProposer = suggestions.filter((m) => !motifs.includes(m.id));
+  /* `motifsOf` and not a filter on the catalogue: a motif of yours is not
+     in `MOTIFS`, and the card would have lost it on display. */
+  const placed = useMemo(() => motifsOf({ motifs }), [motifs]);
+  const families = useMemo(() => byFamily(), [open, motifs]);
+  const foundIds = useMemo(() => (q.trim() ? searchMotifs(q) : []), [q]);
+  const toOffer = suggestions.filter((m) => !motifs.includes(m.id));
 
-  const poser = (id: string) => {
+  const lay = (id: string) => {
     if (!motifs.includes(id)) onChange([...motifs, id]);
   };
-  const ôter = (id: string) => onChange(motifs.filter((x) => x !== id));
+  const strike = (id: string) => onChange(motifs.filter((x) => x !== id));
 
   return (
     <div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 6 }}>
-        {posés.map((m) => (
+        {placed.map((m) => (
           <MotifChip
             key={m.id}
             motif={m}
-            révélé={révélés.includes(m.id)}
-            onRévéler={() => setRévélés((c) => [...c, m.id])}
-            onRemove={() => ôter(m.id)}
+            revealed={revealedIds.includes(m.id)}
+            onReveal={() => setRevealedIds((c) => [...c, m.id])}
+            onRemove={() => strike(m.id)}
           />
         ))}
-        {posés.length === 0 && (
+        {placed.length === 0 && (
           <span style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded }}>aucun motif</span>
         )}
       </div>
 
-      {/* Ce que TMDB propose, en pointillé et jamais posé d'office : ses
-          mots-clés vont du très juste au franchement faux, et ils
-          serviront ensuite à bâtir la carte. */}
-      {àProposer.length > 0 && (
+      {/* What TMDB offers, dotted and never laid automatically: its
+          keywords range from the very apt to the frankly wrong, and they
+          will then serve to build the map. */}
+      {toOffer.length > 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
           <span style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded, marginRight: 2 }}>
             PROPOSÉ PAR TMDB —
           </span>
-          {àProposer.map((m) => (
+          {toOffer.map((m) => (
             <button
               key={m.id}
-              onClick={() => poser(m.id)}
+              onClick={() => lay(m.id)}
               style={{ ...chipStyle(C.ochre, false), borderStyle: "dashed" }}
             >
               <Plus size={10} />
@@ -183,12 +183,12 @@ export function MotifPicker({
         </div>
       )}
 
-      {posés.length > 0 && onFaireUnFil && (
+      {placed.length > 0 && onMakeThread && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
-          {posés.map((m) => (
+          {placed.map((m) => (
             <button
               key={m.id}
-              onClick={() => onFaireUnFil(m.id)}
+              onClick={() => onMakeThread(m.id)}
               title={`Rassembler tous les films portant « ${m.label} »`}
               style={{ ...chipStyle(C.slate, false), fontSize: 9.5 }}
             >
@@ -211,10 +211,10 @@ export function MotifPicker({
           borderBottom: `1px solid ${C.burgundy}`,
         }}
       >
-        {ouvert ? "REFERMER LA LISTE" : "CHOISIR DES MOTIFS"}
+        {open ? "REFERMER LA LISTE" : "CHOISIR DES MOTIFS"}
       </button>
 
-      {ouvert && (
+      {open && (
         <div style={{ marginTop: 10, border: `1px dashed ${C.line}`, padding: "12px 14px" }}>
           <input
             autoFocus
@@ -225,25 +225,25 @@ export function MotifPicker({
           />
           {q.trim() ? (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-              {trouvés.length === 0 && (
+              {foundIds.length === 0 && (
                 <span style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded }}>
                   aucun motif de ce nom
                 </span>
               )}
-              {trouvés.map((m) => (
+              {foundIds.map((m) => (
                 <button
                   key={m.id}
-                  onClick={() => poser(m.id)}
-                  style={chipStyle(estPerso(m.id) ? C.cobalt : C.pine, motifs.includes(m.id))}
+                  onClick={() => lay(m.id)}
+                  style={chipStyle(isCustom(m.id) ? C.cobalt : C.pine, motifs.includes(m.id))}
                 >
                   {m.label}
                 </button>
               ))}
-              {onCréer &&
-                !trouvés.some((m) => m.label.toLowerCase() === q.trim().toLowerCase()) && (
+              {onCreate &&
+                !foundIds.some((m) => m.label.toLowerCase() === q.trim().toLowerCase()) && (
                   <button
                     onClick={() => {
-                      onCréer(q, famille, spoiler);
+                      onCreate(q, family, spoiler);
                       setQ("");
                     }}
                     style={{ ...chipStyle(C.cobalt, false), borderStyle: "dashed" }}
@@ -254,8 +254,8 @@ export function MotifPicker({
                 )}
             </div>
           ) : (
-            familles.map((f) => (
-              <div key={f.famille} style={{ marginBottom: 10 }}>
+            families.map((f) => (
+              <div key={f.family} style={{ marginBottom: 10 }}>
                 <div
                   style={{
                     fontFamily: F.mono,
@@ -279,19 +279,19 @@ export function MotifPicker({
                       }}
                     >
                       <button
-                        onClick={() => (motifs.includes(m.id) ? ôter(m.id) : poser(m.id))}
-                        style={chipStyle(estPerso(m.id) ? C.cobalt : C.pine, motifs.includes(m.id))}
+                        onClick={() => (motifs.includes(m.id) ? strike(m.id) : lay(m.id))}
+                        style={chipStyle(isCustom(m.id) ? C.cobalt : C.pine, motifs.includes(m.id))}
                       >
                         {m.label}
                       </button>
-                      {/* CE QU'ON PEUT FAIRE D'UN MOTIF DÉPEND DE SON ORIGINE.
+                      {/* WHAT CAN BE DONE WITH A MOTIF DEPENDS ON WHERE IT COMES FROM.
 
-                          Le vôtre se SUPPRIME : il n'existe que dans vos
-                          données, personne d'autre ne le remettra. Celui du
-                          catalogue se MASQUE seulement — l'effacer de vos
-                          données le verrait revenir à la prochaine mise à
-                          jour, ce qui est pire que de ne pas l'avoir enlevé. */}
-                      {estPerso(m.id) && onSupprimer && (
+                          Yours is DELETED: it exists only in your data,
+                          nobody else will put it back. The catalogue's is
+                          only HIDDEN — erasing it from your data would see
+                          it return at the next update, which is worse
+                          than not having removed it. */}
+                      {isCustom(m.id) && onSupprimer && (
                         <button
                           onClick={() => onSupprimer(m)}
                           aria-label={"Supprimer le motif " + m.label}
@@ -306,9 +306,9 @@ export function MotifPicker({
                           <Trash2 size={10} />
                         </button>
                       )}
-                      {!estPerso(m.id) && onMasquer && (
+                      {!isCustom(m.id) && onHide && (
                         <button
-                          onClick={() => onMasquer(m.id, true)}
+                          onClick={() => onHide(m.id, true)}
                           aria-label={"Écarter le motif " + m.label}
                           style={{
                             all: "unset",
@@ -328,21 +328,21 @@ export function MotifPicker({
             ))
           )}
 
-          {/* CRÉER LE SIEN, LÀ OÙ L'ON CHERCHAIT.
+          {/* CREATING ONE'S OWN, WHERE ONE WAS LOOKING.
 
-              Le catalogue ne peut pas tout prévoir, et le moment où l'on
-              s'en aperçoit est exactement celui-ci : on vient de parcourir
-              la liste sans y trouver son idée. */}
-          {onCréer && (
+              The catalogue cannot foresee everything, and the moment one
+              notices is exactly this one: one has just gone through the
+              list without finding one's idea in it. */}
+          {onCreate && (
             <div style={{ borderTop: `1px solid ${C.line}`, paddingTop: 10, marginTop: 4 }}>
-              <div style={rubrique}>LE VÔTRE</div>
+              <div style={section}>LE VÔTRE</div>
               <input
                 value={neuf}
                 onChange={(e) => setNeuf(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key !== "Enter" || !neuf.trim()) return;
                   e.preventDefault();
-                  onCréer(neuf, famille, spoiler);
+                  onCreate(neuf, family, spoiler);
                   setNeuf("");
                   setSpoiler(false);
                 }}
@@ -360,8 +360,8 @@ export function MotifPicker({
                 }}
               >
                 <select
-                  value={famille}
-                  onChange={(e) => setFamille(e.target.value as MotifFamille)}
+                  value={family}
+                  onChange={(e) => setFamille(e.target.value as MotifFamily)}
                   aria-label="Famille du motif"
                   style={{
                     ...underlineInput,
@@ -371,7 +371,7 @@ export function MotifPicker({
                     fontSize: 10,
                   }}
                 >
-                  {FAMILLES.map((f) => (
+                  {FAMILIES.map((f) => (
                     <option key={f.id} value={f.id}>
                       {f.label}
                     </option>
@@ -399,17 +399,17 @@ export function MotifPicker({
             </div>
           )}
 
-          {/* Ce qu'on a écarté reste rappelable : masquer n'est pas jeter, et
-              un vocabulaire qu'on ne peut pas rouvrir se referme pour de bon
-              à la première hésitation. */}
-          {onMasquer && masqués.length > 0 && (
+          {/* What has been set aside stays recallable: hiding is not
+              throwing away, and a vocabulary one cannot reopen closes for
+              good at the first hesitation. */}
+          {onHide && hiddenOnes.length > 0 && (
             <div style={{ borderTop: `1px solid ${C.line}`, paddingTop: 10, marginTop: 10 }}>
-              <div style={rubrique}>ÉCARTÉS ({masqués.length})</div>
+              <div style={section}>ÉCARTÉS ({hiddenOnes.length})</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                {masqués.map((m) => (
+                {hiddenOnes.map((m) => (
                   <button
                     key={m.id}
-                    onClick={() => onMasquer(m.id, false)}
+                    onClick={() => onHide(m.id, false)}
                     title="Le remettre dans la liste"
                     style={{ ...chipStyle(C.inkFaded, false), borderStyle: "dashed" }}
                   >

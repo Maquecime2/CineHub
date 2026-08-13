@@ -1,40 +1,39 @@
 /* ============================================================
-   L'IMPRESSION — une fiche cartonnée, un état de comptes
+   PRINTING — a card-stock sheet, a statement of accounts
    ============================================================
 
-   Une archive qu'on ne peut pas sortir du navigateur n'est une archive
-   qu'à moitié. Imprimer est le geste le plus ancien qui soit, et c'est
-   le seul, avec l'image de l'almanach, qui fasse exister une fiche
-   ailleurs qu'à l'écran.
+   An archive one cannot get out of the browser is only half an archive.
+   Printing is the oldest gesture there is, and it is the only one, along
+   with the almanac image, that makes a card exist anywhere but on the
+   screen.
 
-   TROIS DÉCISIONS, ET ELLES SE TIENNENT.
+   THREE DECISIONS, AND THEY HOLD TOGETHER.
 
-   1. Ce qui sert à NAVIGUER disparaît. Un onglet de classeur, un rail,
-      un bouton n'ont aucun sens sur du papier — ils n'y sont plus des
-      objets, seulement de l'encre perdue.
+   1. What serves NAVIGATION disappears. A binder tab, a rail, a button
+      make no sense on paper — there they are no longer objects, only
+      wasted ink.
 
-   2. Ce qui imite la MATIÈRE disparaît aussi, et c'est moins évident :
-      le grain, le vignettage et les taches de café sont là pour donner
-      au papier de l'écran l'air d'être du papier. Sur du vrai papier,
-      ils ne font que le salir — et un aplat de fond mange une cartouche
-      d'encre pour rien.
+   2. What imitates SUBSTANCE disappears too, and that is less obvious:
+      the grain, the vignetting and the coffee stains are there to give
+      the screen's paper the look of paper. On real paper they only dirty
+      it — and a flat background eats an ink cartridge for nothing.
 
-   3. Ce qui reste s'aplatit. Les ombres portées et les inclinaisons
-      disent la profondeur ; une feuille n'en a pas.
+   3. What remains flattens out. Drop shadows and leans speak of depth;
+      a sheet has none.
 
-   `!important` est ici justifié et non paresseux : tout le site se
-   dessine en styles EN LIGNE, contre lesquels une feuille de styles
-   perd toujours. C'est la seule façon d'atteindre ce qui doit l'être. */
+   `!important` is justified here and not lazy: the whole site draws
+   itself in INLINE styles, against which a stylesheet always loses. It
+   is the only way to reach what must be reached. */
 
 @media print {
-  /* le fond de page, quelle que soit la peau posée */
+  /* the page background, whatever skin is laid on */
   html,
   body,
   #root > div {
     background: #fff !important;
   }
 
-  /* LA NAVIGATION ET LES GESTES — rien de tout cela n'existe sur papier. */
+  /* NAVIGATION AND GESTURES — none of that exists on paper. */
   [data-tab-rail],
   [data-tab-rail] ~ *,
   [data-veil],
@@ -46,9 +45,9 @@
     display: none !important;
   }
 
-  /* SAUF les champs qui PORTENT du texte : une critique tapée dans un
-     `textarea` est le contenu même de la fiche, pas une commande. On la
-     rend donc comme du texte, bord et fond retirés. */
+  /* EXCEPT the fields that CARRY text: a review typed in a `textarea`
+     is the very content of the card, not a command. So we render it as
+     text, border and background removed. */
   [data-print-text] {
     display: block !important;
     border: none !important;
@@ -58,19 +57,19 @@
     overflow: visible !important;
   }
 
-  /* LA MATIÈRE SIMULÉE — grain, fibres, vignettage, taches, ruban. */
+  /* SIMULATED SUBSTANCE — grain, fibres, vignetting, stains, tape. */
   svg[width="150"],
   [style*="mix-blend-mode"] {
     display: none !important;
   }
 
-  /* Les couches d'atmosphère sont posées en `position: fixed` sur toute
-     la fenêtre : imprimées, elles couvriraient chaque page d'un voile. */
+  /* The atmosphere layers are laid in `position: fixed` over the whole
+     window: printed, they would cover every page with a veil. */
   [style*="position: fixed"] {
     display: none !important;
   }
 
-  /* LA PROFONDEUR — ombres et guingois. */
+  /* DEPTH — shadows and skew. */
   * {
     box-shadow: none !important;
     text-shadow: none !important;
@@ -81,14 +80,14 @@
     transform: none !important;
   }
 
-  /* Un carton ne se coupe pas en deux entre deux pages. */
+  /* A card is not cut in two between two pages. */
   [data-print-block] {
     break-inside: avoid;
     page-break-inside: avoid;
   }
 
-  /* Les liens gardent leur adresse : une fiche imprimée qui renvoie
-     à TMDB doit dire où. */
+  /* Links keep their address: a printed card that points to TMDB must
+     say where. */
   a[href^="http"]::after {
     content: " (" attr(href) ")";
     font-size: 9pt;

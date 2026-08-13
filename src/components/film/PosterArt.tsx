@@ -1,7 +1,7 @@
 /* ============================================================
-   AFFICHE — la vraie si on en a une, l'émulsion virée sinon.
-   Le grain et le bord déchiré restent par-dessus l'image : une
-   affiche collée dans un carnet, pas une vignette de catalogue.
+   POSTER — the real one if we have it, the tinted emulsion otherwise.
+   The grain and the torn edge stay over the image: a poster glued into a
+   notebook, not a catalogue thumbnail.
    ============================================================ */
 import React, { useEffect, useState } from "react";
 import { F, GRAIN } from "../../theme/tokens";
@@ -13,26 +13,26 @@ import type { Film } from "../../types";
 
 interface PosterArtProps {
   film: Film;
-  /** Ne vaut que pour l'émulsion de substitution ; ignoré s'il y a une affiche. */
+  /** Counts only for the substitute emulsion; ignored if there is a poster. */
   height?: number;
   initials: string;
   clipSeed?: number;
   plain?: boolean;
   /**
-   * Différer le décodage de l'image. Vrai partout où l'on en montre
-   * beaucoup à la fois ; faux sur une fiche isolée, qu'on veut voir
-   * tout de suite. Par défaut, le mode `plain` — l'étagère — l'active.
+   * Defer decoding the image. True everywhere many are shown at once;
+   * false on an isolated card, which one wants to see straight away. By
+   * default, the `plain` mode — the shelf — turns it on.
    */
   lazy?: boolean;
 }
 
-/* `height` ne vaut que pour l'émulsion de substitution, en paysage. Une vraie
-   affiche est en portrait 2:3 : la forcer dans une bande la réduirait à une
-   tranche. Quand il y en a une, la zone prend donc le format de l'affiche. */
-/* `plain` : la même affiche, mais dans un rectangle franc. Sur l'étagère, le
-   bord déchiré d'une découpe collée se battrait avec l'arête du boîtier ; la
-   fiche, elle, garde le déchiré. Tout le reste — IndexedDB, repli, grain —
-   est commun, et doit le rester. */
+/* `height` counts only for the substitute emulsion, in landscape. A real
+   poster is 2:3 portrait: forcing it into a band would reduce it to a
+   slice. When there is one, the area therefore takes the poster's shape. */
+/* `plain`: the same poster, but in a clean rectangle. On the shelf, the
+   torn edge of a glued cut-out would fight with the case's arris; the
+   card keeps the tear. All the rest — IndexedDB, fallback, grain — is
+   shared, and must stay so. */
 export const PosterArt = React.memo(function PosterArt({
   film,
   height = 0,
@@ -45,8 +45,8 @@ export const PosterArt = React.memo(function PosterArt({
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const hue = hueOf(film.id);
 
-  // une affiche « idb: » vit dans IndexedDB : on la sort en URL d'objet le
-  // temps de l'afficher, et on la relâche en partant pour ne pas fuiter.
+  // an "idb:" poster lives in IndexedDB: we take it out as an object URL
+  // for as long as it is shown, and release it on leaving so as not to leak.
   useEffect(() => {
     if (!isIdbPoster(film.poster)) {
       setBlobUrl(null);
@@ -73,16 +73,16 @@ export const PosterArt = React.memo(function PosterArt({
   }, [film.poster]);
 
   const src = broken ? null : isIdbPoster(film.poster) ? blobUrl : film.poster || null;
-  /* Un boîtier fait 96 px de large : y charger l'affiche en 342 px, c'est
-     décoder trois fois plus de pixels que ce qu'on montre. TMDB sert la
-     même image en plus petit, il suffit de le lui demander. */
+  /* A case is 96 px wide: loading the poster into it at 342 px means
+     decoding three times more pixels than we show. TMDB serves the same
+     image smaller, one only has to ask. */
   const smallSrc = plain && src ? src.replace(POSTER_BASE, POSTER_THUMB) : src;
   return (
     <div
       style={{
         overflow: "hidden",
         ...(plain
-          ? // le boîtier impose déjà ses dimensions : l'affiche s'y coule
+          ? // the case already sets the dimensions: the poster pours into them
             { position: "absolute", inset: 0, background: "#1c1712" }
           : {
               position: "relative",
@@ -96,22 +96,23 @@ export const PosterArt = React.memo(function PosterArt({
           src={smallSrc ?? undefined}
           alt=""
           onError={() => setBroken(true)}
-          /* Sur l'étagère, une affiche par boîtier : cent images à décoder,
-             à garder en mémoire et à rastériser. `lazy` n'en décode que ce
-             qui est à l'écran, `async` ne bloque pas le fil principal — et
-             c'est ce fil qui doit rester libre pour suivre la souris. */
-          /* LE MUR CHARGEAIT TOUT, ET C'ÉTAIT LE PLUS CHER.
+          /* On the shelf, one poster per case: a hundred images to
+             decode, to keep in memory and to rasterise. `lazy` decodes
+             only what is on screen, `async` does not block the main
+             thread — and it is that thread that must stay free to follow
+             the mouse. */
+          /* THE WALL LOADED EVERYTHING, AND IT WAS THE MOST EXPENSIVE.
 
-             `plain` désignait l'étagère, et le reste — dont le mur
-             d'affiches, qui en montre cinq cents — décodait en `eager`.
-             Le critère n'était pas le bon : ce qui compte n'est pas la
-             forme de la découpe mais le NOMBRE d'images à l'écran.
-             `lazy` le dit maintenant en toutes lettres, et sa valeur par
-             défaut garde le comportement d'avant partout ailleurs. */
+             `plain` designated the shelf, and the rest — including the
+             poster wall, which shows five hundred — decoded `eager`. The
+             criterion was not the right one: what counts is not the shape
+             of the cut-out but the NUMBER of images on screen. `lazy` now
+             says so in so many words, and its default value keeps the
+             previous behaviour everywhere else. */
           loading={lazy ? "lazy" : "eager"}
           decoding="async"
-          // `contain` : une affiche au format inhabituel est montrée entière,
-          // jamais rognée — quitte à laisser un liseré sur les côtés
+          // `contain`: a poster in an unusual format is shown whole,
+          // never cropped — even if it leaves a border on the sides
           style={{
             position: "absolute",
             inset: 0,
@@ -161,11 +162,11 @@ export const PosterArt = React.memo(function PosterArt({
           </div>
         </>
       )}
-      {/* `mixBlendMode` oblige le navigateur à recomposer tout ce qui est
-          dessous à chaque repeint. Sur une fiche isolée c'est indolore ;
-          sur un rayon de cent boîtiers qu'on fait glisser, c'est ce qui
-          coûte le plus cher. À 96 px de large le fondu ne se voit pas :
-          les boîtiers prennent le grain en simple superposition. */}
+      {/* `mixBlendMode` forces the browser to recompose everything
+          underneath on every repaint. On an isolated card that is
+          painless; on a shelf of a hundred cases being dragged, it is
+          what costs the most. At 96 px wide the blend does not show:
+          the cases take the grain as a plain overlay. */}
       <div
         style={{
           position: "absolute",

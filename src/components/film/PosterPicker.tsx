@@ -7,7 +7,7 @@ import { IDB_PREFIX, isIdbPoster, idbKeyOf, putImage, deleteImage } from "../../
 import { listPosters } from "../../tmdb";
 import type { Film } from "../../types";
 
-/** Une affiche proposée par TMDB. */
+/** A poster proposed by TMDB. */
 interface PosterChoice {
   full: string;
   thumb: string;
@@ -18,14 +18,14 @@ export function PosterPicker({ film, onUpdate }: { film: Film; onUpdate: (f: Fil
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
-  const [gallery, setGallery] = useState<PosterChoice[] | null>(null); // affiches proposées par TMDB
+  const [gallery, setGallery] = useState<PosterChoice[] | null>(null); // the posters TMDB offers
   const [galleryMsg, setGalleryMsg] = useState("");
   const ref = useRef<HTMLInputElement | null>(null);
   const apiKey = useTmdbKey();
 
-  /* La voie par défaut : TMDB connaît en général plusieurs affiches par film
-     (pays, rééditions, versions sans texte). Autant les proposer plutôt que
-     d'imposer la première venue. */
+  /* The default path: TMDB usually knows several posters per film
+     (countries, reissues, textless versions). Better to offer them than to
+     impose the first that comes. */
   const loadGallery = async () => {
     if (!apiKey) {
       setGalleryMsg("Aucune clé TMDB — à régler au pied du rail d'onglets.");
@@ -55,7 +55,7 @@ export function PosterPicker({ film, onUpdate }: { film: Film; onUpdate: (f: Fil
     setGallery(null);
   };
 
-  // ouvrir le panneau propose directement les affiches TMDB
+  // opening the panel offers the TMDB posters straight away
   useEffect(() => {
     if (open && gallery === null && !galleryMsg && apiKey) loadGallery();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -64,8 +64,8 @@ export function PosterPicker({ film, onUpdate }: { film: Film; onUpdate: (f: Fil
   const fromFile = async (file: File) => {
     setBusy(true);
     try {
-      // l'affiche aussi est conservée telle quelle : pas de ré-encodage
-      const key = `${film.id}-${Date.now()}`; // clé neuve : le cache d'image ne resservira pas l'ancienne
+      // the poster too is kept as it is: no re-encoding
+      const key = `${film.id}-${Date.now()}`; // a fresh key: the image cache will not serve the old one again
       await putImage(key, file);
       if (isIdbPoster(film.poster)) await deleteImage(idbKeyOf(film.poster));
       onUpdate({ ...film, poster: IDB_PREFIX + key });
@@ -112,7 +112,7 @@ export function PosterPicker({ film, onUpdate }: { film: Film; onUpdate: (f: Fil
         padding: "12px 14px",
       }}
     >
-      {/* les affiches officielles d'abord : c'est le cas courant */}
+      {/* the official posters first: that is the common case */}
       <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
         <Label>Affiches TMDB</Label>
         <button

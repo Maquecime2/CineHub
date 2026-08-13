@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { slugOf, filmKey, parseRating, diffImport, parseLetterboxdCsv } from "./importing";
-import { makeFilm, withWatches, isIncomplete, sansMotsClés } from "./film";
+import { makeFilm, withWatches, isIncomplete, withoutKeywords } from "./film";
 import type { Film, ImportRow } from "../types";
 
 const row = (partial: Partial<ImportRow> = {}): ImportRow => ({
@@ -13,114 +13,114 @@ const row = (partial: Partial<ImportRow> = {}): ImportRow => ({
 });
 
 describe("slugOf", () => {
-  it("neutralise casse, accents et ponctuation", () => {
+  it("neutralises case, accents and punctuation", () => {
     expect(slugOf("Le Samouraï")).toBe(slugOf("le samourai"));
     expect(slugOf("WALL·E")).toBe("walle");
   });
 
-  it("neutralise l'article initial", () => {
+  it("neutralises the leading article", () => {
     expect(slugOf("The Godfather")).toBe(slugOf("Godfather"));
     expect(slugOf("La Jetée")).toBe(slugOf("Jetée"));
     expect(slugOf("Le Samouraï")).toBe(slugOf("Samourai"));
   });
 
-  /* BUG CONNU, comportement figé volontairement.
+  /* KNOWN BUG, behaviour deliberately pinned down.
 
-     Dans `^(le|la|les|the|a|an|l')`, l'alternance est ordonnée et n'exige pas
-     de limite de mot. Deux conséquences :
+     In `^(le|la|les|the|a|an|l')`, the alternation is ordered and does not
+     require a word boundary. Two consequences:
 
-     - « Les » matche `le` en premier et laisse un « s » orphelin ;
-     - `a` précède `l'` et n'est suivi d'aucun `\b`, donc TOUT titre commençant
-       par un « a » perd sa première lettre (« Alien » → « lien »).
+     - "Les" matches `le` first and leaves an orphan "s";
+     - `a` comes before `l'` and is followed by no `\b`, so EVERY title
+       starting with an "a" loses its first letter ("Alien" → "lien").
 
-     L'appariement reste cohérent tant que les deux côtés passent par `slugOf` :
-     c'est seulement face à une variante sans article (« L'Avventura » contre
-     « Avventura ») que la clé diverge.
+     Matching stays consistent as long as both sides go through `slugOf`:
+     it is only against a variant with no article ("L'Avventura" versus
+     "Avventura") that the key diverges.
 
-     Corriger la regex changerait la clé de toutes les fiches déjà enregistrées
-     concernées : au réimport suivant, elles ne s'apparieraient plus et seraient
-     recréées en double. La correction demande donc une migration des données,
-     pas seulement un « les|le » et un `\b`. Le test fixe l'existant pour qu'une
-     correction future soit un choix visible. */
-  it("mange une lettre de trop sur « Les » et sur les titres en « a » — écart assumé", () => {
+     Fixing the regex would change the key of every card already saved
+     that is affected: on the next re-import they would no longer match
+     and would be recreated as duplicates. So the fix asks for a data
+     migration, not merely a "les|le" and a `\b`. This test pins the
+     existing behaviour down so that a future fix is a visible choice. */
+  it("eats one letter too many on « Les » and on titles in « a » — accepted gap", () => {
     expect(slugOf("Les Diaboliques")).toBe("sdiaboliques");
     expect(slugOf("Alien")).toBe("lien");
     expect(slugOf("L'Avventura")).not.toBe(slugOf("Avventura"));
 
-    // l'appariement reste bon tant que les deux côtés s'écrivent pareil
+    // matching stays right as long as both sides are written the same way
     expect(slugOf("Les Diaboliques")).toBe(slugOf("les diaboliques"));
     expect(slugOf("Alien")).toBe(slugOf("ALIEN"));
   });
 
-  it("ne retire l'article qu'en tête", () => {
-    // « la » au milieu ne doit pas disparaître, sinon des titres distincts fusionnent
+  it("only strips the article at the head", () => {
+    // "la" in the middle must not vanish, otherwise distinct titles merge
     expect(slugOf("Fanny et Alexandre")).toBe("fannyetalexandre");
   });
 
-  it("accepte l'absence de titre sans lever", () => {
+  it("accepts a missing title without throwing", () => {
     expect(slugOf()).toBe("");
     expect(slugOf("")).toBe("");
   });
 });
 
 describe("filmKey", () => {
-  it("apparie deux orthographes du même film sorti la même année", () => {
+  it("matches two spellings of the same film released the same year", () => {
     expect(filmKey({ title: "Le Samouraï", year: 1967 })).toBe(
       filmKey({ title: "Le Samourai", year: 1967 })
     );
   });
 
-  it("sépare deux films de même titre mais d'années différentes", () => {
-    // les remakes ne doivent pas écraser l'original
+  it("separates two films with the same title but different years", () => {
+    // remakes must not overwrite the original
     expect(filmKey({ title: "Psycho", year: 1960 })).not.toBe(
       filmKey({ title: "Psycho", year: 1998 })
     );
   });
 
-  it("traite l'année absente comme une valeur à part entière", () => {
+  it("treats a missing year as a value in its own right", () => {
     expect(filmKey({ title: "Psycho" })).toBe("psycho|");
   });
 });
 
 describe("parseRating", () => {
-  it("distingue « non noté » de la note zéro", () => {
-    // c'est la nuance qui décide si un réimport écrase une note existante
+  it("tells 'not rated' from a rating of zero", () => {
+    // that is the distinction that decides whether a re-import overwrites an existing rating
     expect(parseRating(null)).toBeNull();
     expect(parseRating("")).toBeNull();
     expect(parseRating("   ")).toBeNull();
     expect(parseRating(0)).toBe(0);
   });
 
-  it("accepte la virgule décimale", () => {
+  it("accepts the decimal comma", () => {
     expect(parseRating("3,5")).toBe(3.5);
   });
 
-  it("arrondit au demi-point", () => {
+  it("rounds to the half point", () => {
     expect(parseRating(3.7)).toBe(3.5);
     expect(parseRating(3.8)).toBe(4);
   });
 
-  it("borne entre 0 et 5", () => {
+  it("bounds between 0 and 5", () => {
     expect(parseRating(9)).toBe(5);
     expect(parseRating(-2)).toBe(0);
   });
 
-  it("rejette ce qui n'est pas un nombre", () => {
+  it("rejects what is not a number", () => {
     expect(parseRating("abc")).toBeNull();
     expect(parseRating(NaN)).toBeNull();
   });
 });
 
-/* UNE DATE N'EST PAS UNE SÉANCE, et c'est de cette confusion que venait
-   le « ×2 » sous des films vus une seule fois : watched.csv datait la
-   fiche du jour où elle avait été AJOUTÉE, diary.csv du jour où le film
-   avait été vu, et la fiche récoltait les deux. */
-describe("parseLetterboxdCsv — ce qui compte pour une séance", () => {
-  const fichier = (nom: string, contenu: string) => new File([contenu], nom, { type: "text/csv" });
+/* A DATE IS NOT A SCREENING, and it is from that confusion that the "×2"
+   under films seen only once came: watched.csv dated the card from the day
+   it had been ADDED, diary.csv from the day the film had been seen, and
+   the card picked up both. */
+describe("parseLetterboxdCsv — what counts as a screening", () => {
+  const file = (name: string, content: string) => new File([content], name, { type: "text/csv" });
 
-  it("ne tire aucune séance de watched.csv, mais en date la fiche", async () => {
+  it("draws no screening from watched.csv, but dates the card with it", async () => {
     const { rows, kind } = await parseLetterboxdCsv(
-      fichier(
+      file(
         "watched.csv",
         "Date,Name,Year,Letterboxd URI\n2021-04-12,Stalker,1979,https://boxd.it/x\n"
       )
@@ -130,17 +130,17 @@ describe("parseLetterboxdCsv — ce qui compte pour une séance", () => {
     expect(rows[0]!.watchedAt).toBe("2021-04-12");
   });
 
-  it("ne tire aucune séance de ratings.csv non plus", async () => {
+  it("draws no screening from ratings.csv either", async () => {
     const { rows } = await parseLetterboxdCsv(
-      fichier("ratings.csv", "Date,Name,Year,Rating\n2021-04-12,Stalker,1979,4.5\n")
+      file("ratings.csv", "Date,Name,Year,Rating\n2021-04-12,Stalker,1979,4.5\n")
     );
     expect(rows[0]!.watches).toEqual([]);
     expect(rows[0]!.rating).toBe(4.5);
   });
 
-  it("tire la séance de diary.csv, qui seul dit QUAND", async () => {
+  it("draws the screening from diary.csv, which alone says WHEN", async () => {
     const { rows } = await parseLetterboxdCsv(
-      fichier(
+      file(
         "diary.csv",
         "Date,Name,Year,Rating,Rewatch,Watched Date\n2024-02-01,Stalker,1979,4.0,Yes,2024-01-30\n"
       )
@@ -149,23 +149,23 @@ describe("parseLetterboxdCsv — ce qui compte pour une séance", () => {
     expect(rows[0]!.watchedAt).toBe("2024-01-30");
   });
 
-  /* Le scénario exact du bug : les deux fichiers l'un après l'autre. La
-     fiche doit finir avec UNE séance, celle du diary. */
-  it("ne compte qu'une séance pour un film passé par watched.csv puis diary.csv", async () => {
-    const vus = await parseLetterboxdCsv(
-      fichier("watched.csv", "Date,Name,Year\n2021-04-12,Stalker,1979\n")
+  /* The bug's exact scenario: the two files one after the other. The card
+     must end up with ONE screening, the diary's. */
+  it("counts only one screening for a film that went through watched.csv then diary.csv", async () => {
+    const watched = await parseLetterboxdCsv(
+      file("watched.csv", "Date,Name,Year\n2021-04-12,Stalker,1979\n")
     );
-    const journal = await parseLetterboxdCsv(
-      fichier("diary.csv", "Date,Name,Year,Watched Date\n2024-02-01,Stalker,1979,2024-01-30\n")
+    const diary = await parseLetterboxdCsv(
+      file("diary.csv", "Date,Name,Year,Watched Date\n2024-02-01,Stalker,1979,2024-01-30\n")
     );
-    const créé = diffImport([], vus.rows, "watched").toCreate[0]!;
-    const { toUpdate } = diffImport([créé], journal.rows, "watched");
+    const created = diffImport([], watched.rows, "watched").toCreate[0]!;
+    const { toUpdate } = diffImport([created], diary.rows, "watched");
     expect(toUpdate[0]!.changes.watches).toHaveLength(1);
   });
 });
 
 describe("diffImport", () => {
-  it("crée les films absents de la vidéothèque", () => {
+  it("creates the films missing from the video library", () => {
     const { toCreate, toUpdate, unchanged } = diffImport(
       [],
       [row({ title: "Stalker", year: 1979, rating: 4.5 })],
@@ -182,9 +182,9 @@ describe("diffImport", () => {
     });
   });
 
-  /* Le test qui compte : la promesse faite à l'utilisateur est qu'un réimport
-     ne détruit jamais ce qu'il a écrit à la main. */
-  it("ne touche jamais au travail écrit à la main", () => {
+  /* The test that counts: the promise made to the user is that a
+     re-import never destroys what they wrote by hand. */
+  it("never touches work written by hand", () => {
     const existing: Film = makeFilm({
       title: "Stalker",
       year: 1979,
@@ -204,11 +204,11 @@ describe("diffImport", () => {
     );
 
     expect(toUpdate).toHaveLength(1);
-    // seule la note change ; rien d'autre n'est proposé à l'écriture
+    // only the rating changes; nothing else is offered for writing
     expect(toUpdate[0]!.changes).toEqual({ rating: 5 });
   });
 
-  it("complète un champ vide sans écraser un champ rempli", () => {
+  it("fills an empty field without overwriting a filled one", () => {
     const existing = makeFilm({
       title: "Stalker",
       year: 1979,
@@ -231,14 +231,14 @@ describe("diffImport", () => {
     );
 
     const changes = toUpdate[0]!.changes;
-    // le réalisateur et l'affiche étaient déjà renseignés : on n'y touche pas
+    // the director and the poster were already set: we do not touch them
     expect(changes.director).toBeUndefined();
     expect(changes.poster).toBeUndefined();
-    // les genres manquaient : on les accepte
+    // the genres were missing: we accept them
     expect(changes.genres).toEqual(["Science-fiction"]);
   });
 
-  it("apparie par tmdbId en priorité, même si le titre a changé", () => {
+  it("matches by tmdbId first, even if the title has changed", () => {
     const existing = makeFilm({ title: "Ancien titre", year: 1979, tmdbId: 1234 });
     const { toCreate, toUpdate } = diffImport(
       [existing],
@@ -249,29 +249,29 @@ describe("diffImport", () => {
     expect(toUpdate[0]!.film.id).toBe(existing.id);
   });
 
-  it("fait avancer la date de séance, jamais reculer", () => {
+  it("moves the screening date forward, never back", () => {
     const existing = makeFilm({ title: "Stalker", year: 1979, watchedAt: "2024-01-01" });
 
-    const plusRecent = diffImport(
+    const newer = diffImport(
       [existing],
       [row({ title: "Stalker", year: 1979, watchedAt: "2025-06-01" })],
       "watched"
     );
-    expect(plusRecent.toUpdate[0]!.changes.watchedAt).toBe("2025-06-01");
+    expect(newer.toUpdate[0]!.changes.watchedAt).toBe("2025-06-01");
 
-    // un ratings.csv importé après un diary ne doit pas ramener une date ancienne
-    const plusAncien = diffImport(
+    // a ratings.csv imported after a diary must not bring an old date back
+    const older = diffImport(
       [existing],
       [row({ title: "Stalker", year: 1979, watchedAt: "2023-01-01" })],
       "watched"
     );
-    expect(plusAncien.unchanged).toHaveLength(1);
+    expect(older.unchanged).toHaveLength(1);
   });
 
-  /* LE JOURNAL SE COMPLÈTE, IL NE SE REMPLACE PAS : un diary.csv apporte
-     des séances anciennes qu'on n'avait pas, et elles doivent entrer sans
-     déloger celles qu'on avait déjà. */
-  it("ajoute au journal les séances que l'import apporte", () => {
+  /* THE LOG IS COMPLETED, IT IS NOT REPLACED: a diary.csv brings old
+     screenings we did not have, and they must come in without dislodging
+     the ones we already had. */
+  it("adds to the log the screenings the import brings", () => {
     const existing = withWatches(makeFilm({ title: "Stalker", year: 1979 }), [
       { date: "2024-01-01", rating: 4 },
     ]);
@@ -288,17 +288,17 @@ describe("diffImport", () => {
       "watched"
     );
     expect(toUpdate[0]!.changes.watches).toHaveLength(2);
-    // une séance plus ancienne ne fait pas reculer la date de dernière séance
+    // an older screening does not push the last-screening date back
     expect(toUpdate[0]!.changes.watchedAt).toBeUndefined();
   });
 
-  /* LA RÉPARATION. Compléter ne sait pas défaire : une fiche qui a
-     récolté une séance qui n'en était pas une la garderait pour toujours.
-     Déclarer le fichier SEUL MAÎTRE est le seul chemin qui retire une
-     séance sans qu'on l'ait retirée à la main. */
-  it("remplace le journal quand le fichier fait autorité", () => {
+  /* THE REPAIR. Completing does not know how to undo: a card that has
+     picked up a screening that was not one would keep it forever.
+     Declaring the file SOLE MASTER is the only path that removes a
+     screening without one having been removed by hand. */
+  it("replaces the log when the file is authoritative", () => {
     const existing = withWatches(makeFilm({ title: "Stalker", year: 1979 }), [
-      { date: "2021-04-12", rating: null }, // la séance fantôme, venue de watched.csv
+      { date: "2021-04-12", rating: null }, // the phantom screening, from watched.csv
       { date: "2024-01-30", rating: 4 },
     ]);
     const { toUpdate } = diffImport(
@@ -317,10 +317,10 @@ describe("diffImport", () => {
     expect(toUpdate[0]!.changes.watches).toEqual([{ date: "2024-01-30", rating: 4 }]);
   });
 
-  /* Effacer la séance la plus récente doit faire RECULER la date de la
-     fiche : la laisser en place daterait le film d'une séance qu'on vient
-     justement de dire inexistante. */
-  it("fait reculer la date quand le fichier qui fait autorité efface la dernière séance", () => {
+  /* Erasing the most recent screening must move the card's date BACK:
+     leaving it in place would date the film from a screening we have just
+     declared non-existent. */
+  it("moves the date back when the authoritative file erases the last screening", () => {
     const existing = withWatches(makeFilm({ title: "Stalker", year: 1979 }), [
       { date: "2019-03-02", rating: 3 },
       { date: "2025-06-01", rating: null },
@@ -341,19 +341,27 @@ describe("diffImport", () => {
     expect(toUpdate[0]!.changes.watchedAt).toBe("2019-03-02");
   });
 
-  it("ne touche à rien quand le fichier qui fait autorité dit la même chose", () => {
-    const séances = [{ date: "2024-01-30", rating: 4 }];
-    const existing = withWatches(makeFilm({ title: "Stalker", year: 1979, rating: 4 }), séances);
+  it("touches nothing when the authoritative file says the same thing", () => {
+    const screenings = [{ date: "2024-01-30", rating: 4 }];
+    const existing = withWatches(makeFilm({ title: "Stalker", year: 1979, rating: 4 }), screenings);
     const { unchanged } = diffImport(
       [existing],
-      [row({ title: "Stalker", year: 1979, rating: 4, watchedAt: "2024-01-30", watches: séances })],
+      [
+        row({
+          title: "Stalker",
+          year: 1979,
+          rating: 4,
+          watchedAt: "2024-01-30",
+          watches: screenings,
+        }),
+      ],
       "watched",
       { authoritativeWatches: true }
     );
     expect(unchanged).toHaveLength(1);
   });
 
-  it("reporte l'ordre d'ajout que la source connaît", () => {
+  it("carries over the order of addition the source knows", () => {
     const { toCreate } = diffImport(
       [],
       [
@@ -365,22 +373,30 @@ describe("diffImport", () => {
     expect(toCreate.map((f) => f.addedAt)).toEqual([5_000, 1_000]);
   });
 
-  /* LE POINT D'IDEMPOTENCE. Repasser le même fichier ne doit rien
-     compter deux fois — sinon le compteur enfle à chaque réimport, et
-     personne ne s'en aperçoit avant six mois. */
-  it("ne compte rien deux fois quand on repasse le même fichier", () => {
-    const séances = [{ date: "2024-01-01", rating: 4 }];
-    const existing = withWatches(makeFilm({ title: "Stalker", year: 1979, rating: 4 }), séances);
+  /* THE IDEMPOTENCE POINT. Running the same file through again must not
+     count anything twice — otherwise the counter swells on every
+     re-import, and nobody notices for six months. */
+  it("counts nothing twice when the same file is run through again", () => {
+    const screenings = [{ date: "2024-01-01", rating: 4 }];
+    const existing = withWatches(makeFilm({ title: "Stalker", year: 1979, rating: 4 }), screenings);
     const { toUpdate, unchanged } = diffImport(
       [existing],
-      [row({ title: "Stalker", year: 1979, rating: 4, watchedAt: "2024-01-01", watches: séances })],
+      [
+        row({
+          title: "Stalker",
+          year: 1979,
+          rating: 4,
+          watchedAt: "2024-01-01",
+          watches: screenings,
+        }),
+      ],
       "watched"
     );
     expect(toUpdate).toHaveLength(0);
     expect(unchanged).toHaveLength(1);
   });
 
-  it("pose le journal sur un film qu'il vient de créer", () => {
+  it("sets the log on a film it has just created", () => {
     const { toCreate } = diffImport(
       [],
       [
@@ -400,7 +416,7 @@ describe("diffImport", () => {
     expect(toCreate[0]!.watchedAt).toBe("2024-01-01");
   });
 
-  it("ne consigne aucune séance pour un film seulement « à voir »", () => {
+  it("records no screening for a film that is only 'to watch'", () => {
     const { toCreate } = diffImport(
       [],
       [row({ title: "Stalker", year: 1979, watches: [{ date: "2024-01-01", rating: 4 }] })],
@@ -410,13 +426,57 @@ describe("diffImport", () => {
     expect(toCreate[0]!.watchedAt).toBeNull();
   });
 
-  it("fait passer « à voir » en « vu » quand le film apparaît dans un export de films vus", () => {
+  it("flips 'to watch' to 'watched' when the film appears in an export of watched films", () => {
     const existing = makeFilm({ title: "Stalker", year: 1979, status: "watchlist" });
     const { toUpdate } = diffImport([existing], [row({ title: "Stalker", year: 1979 })], "watched");
     expect(toUpdate[0]!.changes.status).toBe("watched");
   });
 
-  it("ne repasse pas un film vu en « à voir » lors d'un import de watchlist", () => {
+  /* ============================================================
+     `keepStatus` — THE SWITCH THAT SAVES A WATCHLIST
+
+     "Complete the cards" enriches from TMDB and passed `"watched"` for
+     want of anything better, believing that status inert since it creates
+     nothing. It emptied whole watchlists into the video library, at the
+     touch of one button, on the most incomplete cards — that is to say,
+     precisely the ones we had not seen.
+     ============================================================ */
+  it("leaves an existing card's status alone when asked to", () => {
+    const existing = makeFilm({ title: "Stalker", year: 1979, status: "watchlist" });
+    const { toUpdate, unchanged } = diffImport(
+      [existing],
+      [row({ title: "Stalker", year: 1979 })],
+      "watched",
+      { keepStatus: true }
+    );
+    expect(toUpdate).toHaveLength(0);
+    expect(unchanged).toHaveLength(1);
+  });
+
+  it("still lets the other fields through while keeping the status", () => {
+    /* The switch guards the status and nothing else: an enrichment must
+       go on filling what is missing. */
+    const existing = makeFilm({ title: "Stalker", year: 1979, status: "watchlist" });
+    const { toUpdate } = diffImport(
+      [existing],
+      [row({ title: "Stalker", year: 1979, runtime: 161 })],
+      "watched",
+      { keepStatus: true }
+    );
+    expect(toUpdate[0]!.changes).toEqual({ runtime: 161 });
+    expect(toUpdate[0]!.changes.status).toBeUndefined();
+  });
+
+  it("still decides the shelf of the cards it creates", () => {
+    /* `status` serves two purposes; `keepStatus` only disarms the second.
+       A card the import creates must still land where it was asked to. */
+    const { toCreate } = diffImport([], [row({ title: "Neuf", year: 1979 })], "watched", {
+      keepStatus: true,
+    });
+    expect(toCreate[0]!.status).toBe("watched");
+  });
+
+  it("does not put a watched film back to 'to watch' on a watchlist import", () => {
     const existing = makeFilm({ title: "Stalker", year: 1979, status: "watched" });
     const { unchanged } = diffImport(
       [existing],
@@ -426,7 +486,7 @@ describe("diffImport", () => {
     expect(unchanged).toHaveLength(1);
   });
 
-  it("range en « inchangé » ce qui n'apporte rien", () => {
+  it("files as 'unchanged' what brings nothing", () => {
     const existing = makeFilm({ title: "Stalker", year: 1979, rating: 4 });
     const { toCreate, toUpdate, unchanged } = diffImport(
       [existing],
@@ -438,7 +498,7 @@ describe("diffImport", () => {
     expect(unchanged).toHaveLength(1);
   });
 
-  it("n'écrase pas une note existante quand le CSV n'en porte pas", () => {
+  it("does not overwrite an existing rating when the CSV carries none", () => {
     const existing = makeFilm({ title: "Stalker", year: 1979, rating: 4.5 });
     const { unchanged } = diffImport(
       [existing],
@@ -449,58 +509,57 @@ describe("diffImport", () => {
   });
 });
 
-describe("diffImport — le casting", () => {
-  it("pose casting et équipe sur une fiche créée", () => {
+describe("diffImport — the cast", () => {
+  it("sets cast and crew on a created card", () => {
     const r = row({ cast: ["Delon"], crew: { image: ["Decaë"] } });
     const { toCreate } = diffImport([], [r], "watched");
     expect(toCreate[0]).toMatchObject({ cast: ["Delon"], crew: { image: ["Decaë"] } });
   });
 
-  it("laisse une fiche créée sans casting avec des formes vides, jamais undefined", () => {
+  it("leaves a created card with no cast holding empty shapes, never undefined", () => {
     const { toCreate } = diffImport([], [row()], "watched");
     expect(toCreate[0]!.cast).toEqual([]);
     expect(toCreate[0]!.crew).toEqual({});
   });
 
-  it("comble le casting d'une fiche qui n'en avait pas", () => {
-    const ancienne = makeFilm({ title: "Un film", year: 1975, cast: [], crew: {} });
+  it("fills the cast of a card that had none", () => {
+    const old = makeFilm({ title: "Un film", year: 1975, cast: [], crew: {} });
     const r = row({ cast: ["Delon"], crew: { musique: ["Rubinstein"] } });
-    const { toUpdate } = diffImport([ancienne], [r], "watched");
+    const { toUpdate } = diffImport([old], [r], "watched");
     expect(toUpdate[0]!.changes).toMatchObject({
       cast: ["Delon"],
       crew: { musique: ["Rubinstein"] },
     });
   });
 
-  it("ne remplace pas un casting déjà là", () => {
-    const ancienne = makeFilm({
+  it("does not replace a cast that is already there", () => {
+    const old = makeFilm({
       title: "Un film",
       year: 1975,
       cast: ["Quelqu'un"],
       crew: { image: ["Untel"] },
     });
     const r = row({ cast: ["Delon"], crew: { image: ["Decaë"] } });
-    const { toUpdate, unchanged } = diffImport([ancienne], [r], "watched");
+    const { toUpdate, unchanged } = diffImport([old], [r], "watched");
     expect(toUpdate).toEqual([]);
     expect(unchanged).toHaveLength(1);
   });
 
-  /* Le diff est ce qu'on montre AVANT d'écrire : un casting nouvellement
-     récolté doit y paraître comme une modification proposée, et non
-     s'écrire en douce. */
-  it("fait sortir en « modifiés » une fiche que seul le casting change", () => {
-    const ancienne = makeFilm({ title: "Un film", year: 1975 });
-    const { toUpdate, unchanged } = diffImport([ancienne], [row({ cast: ["Delon"] })], "watched");
+  /* The diff is what we show BEFORE writing: a newly harvested cast must
+     appear in it as a proposed change, and not be written on the sly. */
+  it("brings out under 'modified' a card that only the cast changes", () => {
+    const old = makeFilm({ title: "Un film", year: 1975 });
+    const { toUpdate, unchanged } = diffImport([old], [row({ cast: ["Delon"] })], "watched");
     expect(unchanged).toEqual([]);
     expect(Object.keys(toUpdate[0]!.changes)).toEqual(["cast"]);
   });
 });
 
-describe("diffImport — durée, langue, pays, note du public", () => {
-  it("comble ce qui manque", () => {
-    const ancienne = makeFilm({ title: "Un film", year: 1975 });
+describe("diffImport — runtime, language, countries, public rating", () => {
+  it("fills what is missing", () => {
+    const old = makeFilm({ title: "Un film", year: 1975 });
     const r = row({ runtime: 116, language: "fr", countries: ["FR"], tmdbRating: 7.8 });
-    expect(diffImport([ancienne], [r], "watched").toUpdate[0]!.changes).toMatchObject({
+    expect(diffImport([old], [r], "watched").toUpdate[0]!.changes).toMatchObject({
       runtime: 116,
       language: "fr",
       countries: ["FR"],
@@ -508,8 +567,8 @@ describe("diffImport — durée, langue, pays, note du public", () => {
     });
   });
 
-  it("ne corrige jamais ce qui est déjà là", () => {
-    const ancienne = makeFilm({
+  it("never corrects what is already there", () => {
+    const old = makeFilm({
       title: "Un film",
       year: 1975,
       runtime: 100,
@@ -518,114 +577,114 @@ describe("diffImport — durée, langue, pays, note du public", () => {
       tmdbRating: 6,
     });
     const r = row({ runtime: 116, language: "fr", countries: ["FR"], tmdbRating: 7.8 });
-    expect(diffImport([ancienne], [r], "watched").unchanged).toHaveLength(1);
+    expect(diffImport([old], [r], "watched").unchanged).toHaveLength(1);
   });
 
-  /* Une durée inconnue vaut `null`, jamais 0 : un zéro entrerait dans
-     les moyennes de l'almanach et les fausserait en silence. */
-  it("n'écrit pas une durée absente", () => {
-    const ancienne = makeFilm({ title: "Un film", year: 1975 });
-    const { unchanged } = diffImport([ancienne], [row({ runtime: null })], "watched");
+  /* An unknown runtime is `null`, never 0: a zero would enter the
+     almanac's averages and skew them silently. */
+  it("does not write a missing runtime", () => {
+    const old = makeFilm({ title: "Un film", year: 1975 });
+    const { unchanged } = diffImport([old], [row({ runtime: null })], "watched");
     expect(unchanged).toHaveLength(1);
   });
 
-  /* Le piège de `||` : une fiche notée 0 par le public est RENSEIGNÉE.
-     La réinterroger à chaque import la ferait sortir en « modifiés »
-     pour rien, indéfiniment. */
-  it("laisse tranquille une note du public qui vaut zéro", () => {
-    const ancienne = makeFilm({ title: "Un film", year: 1975, tmdbRating: 0 });
-    const { unchanged } = diffImport([ancienne], [row({ tmdbRating: 7.8 })], "watched");
+  /* The `||` trap: a card the public rated 0 IS filled in. Querying it
+     again on every import would bring it out under "modified" for
+     nothing, indefinitely. */
+  it("leaves a public rating of zero alone", () => {
+    const old = makeFilm({ title: "Un film", year: 1975, tmdbRating: 0 });
+    const { unchanged } = diffImport([old], [row({ tmdbRating: 7.8 })], "watched");
     expect(unchanged).toHaveLength(1);
   });
 });
 
 /* ============================================================
-   LES MOTS-CLÉS — la chaîne d'écriture, bout à bout
+   THE KEYWORDS — the writing chain, end to end
    ============================================================
 
-   C'est le seul renseignement THÉMATIQUE qui arrive tout seul : motifs
-   et thèmes se posent à la main, et sur une collection importée ils
-   restent vides. Sans les mots-clés, le sillage d'un film ne sait
-   rapprocher que des noms de personnes.
+   It is the only THEMATIC piece of information that arrives on its own:
+   motifs and themes are set by hand, and on an imported collection they
+   stay empty. Without keywords, a film's wake can only bring people's
+   names together.
 
-   D'où ces tests : la faille, si elle existe, est dans la fusion — pas
-   dans le rapprochement, qui a les siens. */
-describe("diffImport — les mots-clés", () => {
-  it("comble une fiche qui n'en a jamais eu", () => {
-    const ancienne = makeFilm({ title: "Un film", year: 1975 });
-    expect(ancienne.keywords).toBeUndefined();
-    const { toUpdate } = diffImport([ancienne], [row({ keywords: ["time loop"] })], "watched");
+   Hence these tests: the flaw, if there is one, is in the merging — not
+   in the connecting, which has tests of its own. */
+describe("diffImport — the keywords", () => {
+  it("fills a card that never had any", () => {
+    const old = makeFilm({ title: "Un film", year: 1975 });
+    expect(old.keywords).toBeUndefined();
+    const { toUpdate } = diffImport([old], [row({ keywords: ["time loop"] })], "watched");
     expect(toUpdate[0]!.changes).toMatchObject({ keywords: ["time loop"] });
   });
 
-  /* LE CAS QUI BOUCLE. Un film dont TMDB n'a aucun mot-clé doit repartir
-     avec une liste VIDE : c'est elle qui dit « on a demandé ». Sans
-     cette écriture, la fiche reste « jamais demandée » et « compléter »
-     la redemande à chaque passage, sans fin. */
-  it("écrit la liste même vide, sinon la complétion tourne en rond", () => {
-    const ancienne = makeFilm({ title: "Un film", year: 1975 });
-    const { toUpdate } = diffImport([ancienne], [row({ keywords: [] })], "watched");
+  /* THE CASE THAT LOOPS. A film TMDB has no keyword for must come back
+     with an EMPTY list: that is what says "we asked". Without that write,
+     the card stays "never asked" and "complete" asks for it again on
+     every pass, without end. */
+  it("writes the list even when empty, otherwise completion goes round in circles", () => {
+    const old = makeFilm({ title: "Un film", year: 1975 });
+    const { toUpdate } = diffImport([old], [row({ keywords: [] })], "watched");
     expect(toUpdate[0]!.changes).toMatchObject({ keywords: [] });
   });
 
-  /* ▲ LA RÉPARATION. Un défaut de récolte a figé des collections
-     entières à `[]` — « demandé, il n'y en a pas » — et plus rien ne
-     pouvait les toucher, tout ce qui remplit ne visant que l'absence.
-     On comble donc AUSSI le vide, dès lors qu'on rapporte du contenu. */
-  it("répare une fiche figée à vide quand on rapporte enfin des mots-clés", () => {
-    const figée = makeFilm({ title: "Un film", year: 1975, keywords: [] });
-    const { toUpdate } = diffImport([figée], [row({ keywords: ["neo-noir"] })], "watched");
+  /* ▲ THE REPAIR. A harvesting fault froze whole collections at `[]` —
+     "asked, there are none" — and nothing could touch them any more,
+     since everything that fills only targets absence. So we fill the
+     EMPTINESS too, as soon as we bring content back. */
+  it("repairs a card frozen empty when we finally bring keywords back", () => {
+    const frozen = makeFilm({ title: "Un film", year: 1975, keywords: [] });
+    const { toUpdate } = diffImport([frozen], [row({ keywords: ["neo-noir"] })], "watched");
     expect(toUpdate[0]!.changes).toMatchObject({ keywords: ["neo-noir"] });
   });
 
-  it("ne redemande pas une fiche qui a déjà répondu vide", () => {
-    const ancienne = makeFilm({ title: "Un film", year: 1975, keywords: [] });
-    const { unchanged } = diffImport([ancienne], [row({ keywords: [] })], "watched");
+  it("does not ask again for a card that has already answered empty", () => {
+    const old = makeFilm({ title: "Un film", year: 1975, keywords: [] });
+    const { unchanged } = diffImport([old], [row({ keywords: [] })], "watched");
     expect(unchanged).toHaveLength(1);
   });
 
-  it("n'écrase pas des mots-clés déjà posés", () => {
-    const ancienne = makeFilm({ title: "Un film", year: 1975, keywords: ["neo-noir"] });
-    const { unchanged } = diffImport([ancienne], [row({ keywords: ["autre chose"] })], "watched");
+  it("does not overwrite keywords already set", () => {
+    const old = makeFilm({ title: "Un film", year: 1975, keywords: ["neo-noir"] });
+    const { unchanged } = diffImport([old], [row({ keywords: ["autre chose"] })], "watched");
     expect(unchanged).toHaveLength(1);
   });
 
-  it("les pose sur une fiche créée par l'import", () => {
+  it("sets them on a card created by the import", () => {
     const { toCreate } = diffImport([], [row({ keywords: ["heist"] })], "watched");
     expect(toCreate[0]!.keywords).toEqual(["heist"]);
   });
 });
 
-describe("isIncomplete — ce que « compléter les fiches » va chercher", () => {
-  it("retient une fiche complète mais sans mots-clés", () => {
+describe("isIncomplete — what 'complete the cards' goes after", () => {
+  it("keeps a complete card that has no keywords", () => {
     const f = makeFilm({ title: "Un film", cast: ["Quelqu'un"], runtime: 100 });
     expect(isIncomplete(f)).toBe(true);
   });
 
-  /* Sans cette distinction, une fiche dont TMDB n'a aucun mot-clé serait
-     réinterrogée éternellement — le défaut contre lequel l'en-tête de
-     `isIncomplete` met déjà en garde pour les pays et la langue. */
-  it("laisse tranquille une fiche qui a répondu vide", () => {
+  /* Without this distinction, a card TMDB has no keyword for would be
+     queried again forever — the flaw `isIncomplete`'s header already
+     warns about for countries and language. */
+  it("leaves alone a card that has answered empty", () => {
     const f = makeFilm({ title: "Un film", cast: ["Quelqu'un"], runtime: 100, keywords: [] });
     expect(isIncomplete(f)).toBe(false);
   });
 });
 
-describe("sansMotsClés — ce que le rattrapage explicite vise", () => {
-  /* Plus large que `isIncomplete`, et c'est tout son objet : celui-ci
-     s'interdit le vide pour ne pas boucler à chaque passage, mais une
-     collection figée à `[]` a besoin qu'on la vise quand même. */
-  it("retient une fiche qui n'a jamais été interrogée", () => {
-    expect(sansMotsClés(makeFilm({ title: "Un film" }))).toBe(true);
+describe("withoutKeywords — what the explicit catch-up targets", () => {
+  /* Broader than `isIncomplete`, and that is its whole point: that one
+     rules out emptiness so as not to loop on every pass, but a collection
+     frozen at `[]` needs to be targeted all the same. */
+  it("keeps a card that has never been queried", () => {
+    expect(withoutKeywords(makeFilm({ title: "Un film" }))).toBe(true);
   });
 
-  it("retient une fiche figée à vide, que `isIncomplete` laisse passer", () => {
-    const figée = makeFilm({ title: "Un film", cast: ["Quelqu'un"], runtime: 100, keywords: [] });
-    expect(isIncomplete(figée)).toBe(false);
-    expect(sansMotsClés(figée)).toBe(true);
+  it("keeps a card frozen empty, which `isIncomplete` lets through", () => {
+    const frozen = makeFilm({ title: "Un film", cast: ["Quelqu'un"], runtime: 100, keywords: [] });
+    expect(isIncomplete(frozen)).toBe(false);
+    expect(withoutKeywords(frozen)).toBe(true);
   });
 
-  it("laisse tranquille une fiche qui en porte", () => {
-    expect(sansMotsClés(makeFilm({ title: "Un film", keywords: ["neo-noir"] }))).toBe(false);
+  it("leaves alone a card that carries some", () => {
+    expect(withoutKeywords(makeFilm({ title: "Un film", keywords: ["neo-noir"] }))).toBe(false);
   });
 });

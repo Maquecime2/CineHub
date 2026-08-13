@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { checkApiKey, enrichRows } from "./tmdb";
-import { PAR_LE_SERVEUR, setTmdbKey } from "./services/tmdbKey";
+import { VIA_SERVER, setTmdbKey } from "./services/tmdbKey";
 
 const CACHE_KEY = "tmdb-cache";
 
-/* Une réponse TMDB minimale : seulement ce que `searchMovie` et `getDetails` lisent. */
+/* A minimal TMDB response: only what `searchMovie` and `getDetails` read. */
 const okFetch = () =>
   vi.fn(async (url) => ({
     ok: true,
@@ -19,10 +19,10 @@ const okFetch = () =>
             release_date: "1967-10-25",
             poster_path: "/p.jpg",
             credits: { crew: [{ job: "Director", name: "Jean-Pierre Melville" }] },
-            /* `append_to_response` demande AUSSI les mots-clés, et TMDB
-               les rend toujours — fût-ce sous forme de liste vide. Sans
-               eux, le mock déclenche le repli sur l'endpoint dédié et
-               fait donc un appel de plus que la réalité. */
+            /* `append_to_response` ALSO asks for the keywords, and TMDB
+               always returns them — be it as an empty list. Without them
+               the mock triggers the fallback on the dedicated endpoint
+               and therefore makes one call more than reality. */
             keywords: { keywords: [{ id: 1, name: "hitman" }] },
           },
   }));
@@ -42,7 +42,7 @@ describe("enrichRows — cache", () => {
   beforeEach(() => localStorage.clear());
   afterEach(() => vi.unstubAllGlobals());
 
-  it("mémorise un film résolu et n'interroge plus TMDB au réimport", async () => {
+  it("remembers a resolved film and asks TMDB nothing on re-import", async () => {
     const fetchMock = okFetch();
     vi.stubGlobal("fetch", fetchMock);
 
@@ -53,10 +53,10 @@ describe("enrichRows — cache", () => {
     const calls = fetchMock.mock.calls.length;
     const second = await enrichRows(rows, "k");
     expect(second.resolved).toBe(1);
-    expect(fetchMock.mock.calls.length).toBe(calls); // rien n'est redemandé
+    expect(fetchMock.mock.calls.length).toBe(calls); // nothing is asked for again
   });
 
-  it("ne mémorise pas un échec réseau : le réimport suivant retente", async () => {
+  it("does not remember a network failure: the next re-import tries again", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => {
@@ -71,18 +71,18 @@ describe("enrichRows — cache", () => {
     expect((await enrichRows(rows, "k")).resolved).toBe(1);
   });
 
-  it("mémorise un « introuvable », mais le laisse se périmer", async () => {
+  it('remembers a "not found", but lets it go stale', async () => {
     vi.stubGlobal("fetch", emptySearch());
     const out = await enrichRows(rows, "k");
     expect(out.failed).toBe(1);
 
-    // dans les trente jours, on ne redemande rien
+    // within thirty days, we ask for nothing again
     const fresh = emptySearch();
     vi.stubGlobal("fetch", fresh);
     await enrichRows(rows, "k");
     expect(fresh.mock.calls.length).toBe(0);
 
-    // au-delà, l'échec est oublié et la recherche repart
+    // beyond that, the failure is forgotten and the search sets off again
     const stale = cache();
     const [k] = Object.keys(stale);
     stale[k] = { miss: Date.now() - 31 * 24 * 3600 * 1000 };
@@ -92,53 +92,54 @@ describe("enrichRows — cache", () => {
     expect((await enrichRows(rows, "k")).resolved).toBe(1);
   });
 
-  it("retente les échecs mémorisés par les versions précédentes (null sans date)", async () => {
+  it("retries the failures earlier versions remembered (null with no date)", async () => {
     localStorage.setItem(CACHE_KEY, JSON.stringify({ "le samouraï|1967": null }));
     vi.stubGlobal("fetch", okFetch());
     expect((await enrichRows(rows, "k")).resolved).toBe(1);
   });
 });
 
-/* Le flux Letterboxd donne l'identifiant TMDB de chaque séance. Le
-   chercher quand même serait un appel de trop, et surtout `searchMovie`
-   retient le PREMIER résultat sans comparer les titres — c'est de là que
-   viennent les faux positifs, et un identifiant n'en produit aucun. */
-describe("enrichRows — quand la ligne porte déjà son identifiant", () => {
+/* The Letterboxd feed gives the TMDB identifier of every screening.
+   Searching for it anyway would be one call too many, and above all
+   `searchMovie` keeps the FIRST result without comparing titles — that
+   is where the false positives come from, and an identifier produces
+   none. */
+describe("enrichRows — when the row already carries its identifier", () => {
   beforeEach(() => localStorage.clear());
   afterEach(() => vi.unstubAllGlobals());
 
-  const parId = [{ title: "Le Samouraï", year: 1967, tmdbId: 42 }];
+  const perId = [{ title: "Le Samouraï", year: 1967, tmdbId: 42 }];
 
-  it("va droit au détail, sans passer par la recherche", async () => {
+  it("goes straight to the details, without going through the search", async () => {
     const fetchMock = okFetch();
     vi.stubGlobal("fetch", fetchMock);
 
-    const out = await enrichRows(parId, "k");
+    const out = await enrichRows(perId, "k");
     expect(out.resolved).toBe(1);
     expect(out.rows[0].director).toBe("Jean-Pierre Melville");
 
     const urls = fetchMock.mock.calls.map(([u]) => String(u));
     expect(urls.some((u) => u.includes("/search/movie"))).toBe(false);
-    // un seul appel là où le titre en demandait deux
+    // a single call where the title required two
     expect(urls).toHaveLength(1);
     expect(urls[0]).toContain("/movie/42");
   });
 
-  it("mémorise sous l'identifiant et ne redemande rien", async () => {
+  it("remembers under the identifier and asks for nothing again", async () => {
     const fetchMock = okFetch();
     vi.stubGlobal("fetch", fetchMock);
-    await enrichRows(parId, "k");
+    await enrichRows(perId, "k");
     expect(Object.keys(cache())).toEqual(["id:42"]);
 
     const calls = fetchMock.mock.calls.length;
-    await enrichRows(parId, "k");
+    await enrichRows(perId, "k");
     expect(fetchMock.mock.calls.length).toBe(calls);
   });
 
-  /* Deux films peuvent porter le même titre la même année. Sous une clé
-     de titre, le second prendrait le réalisateur et l'affiche du
-     premier — sans que rien ne le signale. */
-  it("ne confond pas deux homonymes de la même année", async () => {
+  /* Two films can carry the same title in the same year. Under a title
+     key, the second would take the first one's director and poster —
+     with nothing to flag it. */
+  it("does not confuse two namesakes from the same year", async () => {
     vi.stubGlobal("fetch", okFetch());
     await enrichRows(
       [
@@ -152,11 +153,11 @@ describe("enrichRows — quand la ligne porte déjà son identifiant", () => {
 });
 
 /* ------------------------------------------------------------
-   LA RÉCOLTE DU CASTING
+   THE HARVEST OF THE CAST
    ------------------------------------------------------------ */
 
-/* Une réponse complète : générique fourni, équipe mêlée de métiers
-   qu'on ne retient pas. */
+/* A complete response: full credits, a crew mixed with trades we do not
+   keep. */
 const castFetch = () =>
   vi.fn(async (url) => ({
     ok: true,
@@ -175,7 +176,7 @@ const castFetch = () =>
                 { job: "Director of Photography", name: "Decaë" },
                 { job: "Original Music Composer", name: "Rubinstein" },
                 { job: "Screenplay", name: "Melville" },
-                { job: "Third Assistant Editor", name: "Personne" },
+                { job: "Third Assistant Editor", name: "Person" },
               ],
               cast: Array.from({ length: 20 }, (_, i) => ({ name: `Acteur ${i}` })),
             },
@@ -186,7 +187,7 @@ describe("enrichRows — casting", () => {
   beforeEach(() => localStorage.clear());
   afterEach(() => vi.unstubAllGlobals());
 
-  it("ne retient que les huit premiers rôles", async () => {
+  it("keeps only the first eight roles", async () => {
     vi.stubGlobal("fetch", castFetch());
     const { rows: out } = await enrichRows([{ title: "Le Samouraï", year: 1967 }], "k");
     expect(out[0].cast).toHaveLength(8);
@@ -194,7 +195,7 @@ describe("enrichRows — casting", () => {
     expect(out[0].cast[7]).toBe("Acteur 7");
   });
 
-  it("range l'équipe par métier, et jette les métiers qu'on ne suit pas", async () => {
+  it("files the crew by trade, and throws away the trades one does not follow", async () => {
     vi.stubGlobal("fetch", castFetch());
     const { rows: out } = await enrichRows([{ title: "Le Samouraï", year: 1967 }], "k");
     expect(out[0].crew).toEqual({
@@ -204,12 +205,13 @@ describe("enrichRows — casting", () => {
     });
   });
 
-  /* Le cache d'avant la récolte ne porte ni `cast` ni `crew`. Il était
-     servi tel quel, et la fiche ressortait aussi vide qu'elle était
-     entrée — d'où « compléter les fiches ne fait rien » : l'appel avait
-     bien lieu, mais il revenait du `localStorage`. Une entrée d'une
-     forme périmée n'est pas une réponse : on la jette et on redemande. */
-  it("redemande une entrée mémorisée avant la récolte, au lieu de la servir tronquée", async () => {
+  /* The cache from before the harvest carries neither `cast` nor
+     `crew`. It was served as it was, and the card came out as empty as
+     it went in — hence "completing the cards does nothing": the call did
+     take place, but it came back from `localStorage`. An entry of an
+     out-of-date shape is not an answer: we throw it away and ask
+     again. */
+  it("asks again for an entry remembered before the harvest, instead of serving it truncated", async () => {
     localStorage.setItem(
       CACHE_KEY,
       JSON.stringify({ "le samouraï|1967": { tmdbId: 42, director: "Melville", genres: [] } })
@@ -222,7 +224,7 @@ describe("enrichRows — casting", () => {
     expect(out[0].crew).toMatchObject({ image: ["Decaë"] });
   });
 
-  it("n'invente pas d'équipe quand TMDB n'en donne pas", async () => {
+  it("does not invent a crew when TMDB gives none", async () => {
     vi.stubGlobal("fetch", okFetch());
     const { rows: out } = await enrichRows([{ title: "Le Samouraï", year: 1967 }], "k");
     expect(out[0].cast).toEqual([]);
@@ -231,7 +233,7 @@ describe("enrichRows — casting", () => {
 });
 
 /* ------------------------------------------------------------
-   DURÉE, LANGUE, PAYS, NOTE DU PUBLIC
+   RUNTIME, LANGUAGE, COUNTRY, PUBLIC RATING
    ------------------------------------------------------------ */
 const detailsFetch = (extra) =>
   vi.fn(async (url) => ({
@@ -250,11 +252,11 @@ const detailsFetch = (extra) =>
           },
   }));
 
-describe("enrichRows — durée, langue, pays, note", () => {
+describe("enrichRows — runtime, language, country, rating", () => {
   beforeEach(() => localStorage.clear());
   afterEach(() => vi.unstubAllGlobals());
 
-  it("récolte les quatre champs", async () => {
+  it("harvests the four fields", async () => {
     vi.stubGlobal(
       "fetch",
       detailsFetch({
@@ -273,7 +275,7 @@ describe("enrichRows — durée, langue, pays, note", () => {
     });
   });
 
-  it("ne garde que deux pays d'une coproduction qui en aligne six", async () => {
+  it("keeps only two countries of a co-production that lines up six", async () => {
     vi.stubGlobal(
       "fetch",
       detailsFetch({
@@ -284,20 +286,20 @@ describe("enrichRows — durée, langue, pays, note", () => {
     expect(out[0].countries).toEqual(["FR", "IT"]);
   });
 
-  /* TMDB rend 0 pour une durée qu'il ignore. Le garder ferait entrer un
-     zéro dans les moyennes de l'almanach sans qu'on sache pourquoi. */
-  it("traduit une durée de zéro en « inconnue »", async () => {
+  /* TMDB returns 0 for a runtime it does not know. Keeping it would let
+     a zero into the almanac's averages without anyone knowing why. */
+  it('turns a runtime of zero into "unknown"', async () => {
     vi.stubGlobal("fetch", detailsFetch({ runtime: 0, vote_average: 0 }));
     const { rows: out } = await enrichRows([{ title: "Le Samouraï", year: 1967 }], "k");
     expect(out[0].runtime).toBeNull();
     expect(out[0].tmdbRating).toBeNull();
   });
 
-  /* Le pays manquait sur presque toute la collection pour cette seule
-     raison : ces champs sont arrivés après les entrées qui les
-     attendaient, et le cache servait les vieilles réponses sans savoir
-     qu'il était en retard. */
-  it("redemande une entrée mémorisée avant ces champs", async () => {
+  /* The country was missing on almost the whole collection for this one
+     reason: these fields arrived after the entries that were waiting for
+     them, and the cache served the old answers without knowing it was
+     behind. */
+  it("asks again for an entry remembered before these fields", async () => {
     localStorage.setItem(
       CACHE_KEY,
       JSON.stringify({ "le samouraï|1967": { tmdbId: 42, director: "Melville", genres: [] } })
@@ -319,9 +321,9 @@ describe("enrichRows — durée, langue, pays, note", () => {
     });
   });
 
-  /* Une entrée de la forme courante, elle, reste servie sans un appel :
-     le cache garde sa raison d'être. */
-  it("sert sans redemander une entrée de la forme courante", async () => {
+  /* An entry of the current shape, though, is still served without a
+     call: the cache keeps its reason to exist. */
+  it("serves an entry of the current shape without asking again", async () => {
     vi.stubGlobal("fetch", detailsFetch({ runtime: 105 }));
     await enrichRows([{ title: "Le Samouraï", year: 1967 }], "k");
     const fetchMock = detailsFetch({ runtime: 105 });
@@ -333,20 +335,20 @@ describe("enrichRows — durée, langue, pays, note", () => {
 });
 
 /* ============================================================
-   LES MOTS-CLÉS — « absent » n'est PAS « vide »
+   THE KEYWORDS — "absent" is NOT "empty"
    ============================================================
 
-   Confondre les deux a figé des collections entières. Une réponse où la
-   ressource jointe n'est pas revenue devenait `[]`, c'est-à-dire une
-   AFFIRMATION — « on a demandé, ce film n'en a pas ». Or tout ce qui
-   répare (`isIncomplete`, la fiche ouverte, la fusion d'import) ne vise
-   que l'absence : la fiche devenait irréparable, sans qu'aucune erreur
-   ne soit levée nulle part. */
-describe("enrichRows — les mots-clés", () => {
+   Confusing the two froze whole collections. A response where the joined
+   resource did not come back became `[]`, that is to say an ASSERTION —
+   "we asked, this film has none". But everything that repairs
+   (`isIncomplete`, the opened card, the import merge) targets absence
+   only: the card became unrepairable, without any error being raised
+   anywhere. */
+describe("enrichRows — the keywords", () => {
   beforeEach(() => localStorage.clear());
   afterEach(() => vi.unstubAllGlobals());
 
-  const détail = (extra) =>
+  const detailPart = (extra) =>
     vi.fn(async (url) => ({
       ok: true,
       status: 200,
@@ -359,31 +361,32 @@ describe("enrichRows — les mots-clés", () => {
             : { id: 42, release_date: "1967-10-25", credits: { crew: [] }, ...extra },
     }));
 
-  it("rapporte les mots-clés de la ressource jointe", async () => {
-    vi.stubGlobal("fetch", détail({ keywords: { keywords: [{ id: 1, name: "hitman" }] } }));
+  it("brings back the keywords from the appended resource", async () => {
+    vi.stubGlobal("fetch", detailPart({ keywords: { keywords: [{ id: 1, name: "hitman" }] } }));
     const out = await enrichRows(rows, "k");
     expect(out.rows[0].keywords).toEqual(["hitman"]);
   });
 
-  /* Présent mais vide : c'est une vraie réponse. On l'écrit, et la fiche
-     ne sera plus redemandée — sans quoi « compléter » boucle sans fin. */
-  it("garde la liste vide quand TMDB dit qu'il n'y en a pas", async () => {
-    vi.stubGlobal("fetch", détail({ keywords: { keywords: [] } }));
+  /* Present but empty: that is a real answer. We write it, and the card
+     will not be asked for again — failing which "complete" loops
+     endlessly. */
+  it("keeps the list empty when TMDB says there are none", async () => {
+    vi.stubGlobal("fetch", detailPart({ keywords: { keywords: [] } }));
     const out = await enrichRows(rows, "k");
     expect(out.rows[0].keywords).toEqual([]);
   });
 
-  /* Absent : on ne sait pas. On retombe sur l'endpoint dédié plutôt que
-     d'inventer une réponse. */
-  it("retombe sur l'endpoint dédié quand la ressource jointe manque", async () => {
-    vi.stubGlobal("fetch", détail({}));
+  /* Absent: we do not know. We fall back on the dedicated endpoint
+     rather than invent an answer. */
+  it("falls back on the dedicated endpoint when the appended resource is missing", async () => {
+    vi.stubGlobal("fetch", detailPart({}));
     const out = await enrichRows(rows, "k");
     expect(out.rows[0].keywords).toEqual(["de secours"]);
   });
 
-  /* Et si le repli échoue à son tour, on rend `undefined` — jamais `[]`.
-     C'est ce qui laisse la fiche réparable. */
-  it("rend « on ne sait pas » plutôt qu'une liste vide quand tout échoue", async () => {
+  /* And if the fallback fails in its turn, we return `undefined` —
+     never `[]`. That is what leaves the card repairable. */
+  it('returns "we do not know" rather than an empty list when everything fails', async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url) => ({
@@ -404,14 +407,14 @@ describe("enrichRows — les mots-clés", () => {
 });
 
 /* ============================================================
-   PAR SOI, OU PAR LE SERVEUR
+   BY ONESELF, OR THROUGH THE SERVER
 
-   L'aiguillage est la seule ligne de tout le classeur qui décide si une
-   requête part chez TMDB avec une clé, ou chez notre serveur avec un
-   cookie. Elle ne se voit pas à l'usage — les deux chemins rendent la
-   même chose — et se casserait donc en silence.
+   The switch is the only line in the whole binder that decides whether a
+   request leaves for TMDB with a key, or for our server with a cookie.
+   It does not show in use — both paths return the same thing — and would
+   therefore break in silence.
    ============================================================ */
-describe("le relais du serveur", () => {
+describe("the server's relay", () => {
   beforeEach(() => {
     localStorage.clear();
   });
@@ -419,40 +422,40 @@ describe("le relais du serveur", () => {
     vi.unstubAllGlobals();
   });
 
-  const réponse = (status, corps = {}, entetes = {}) => ({
+  const response = (status, corps = {}, entetes = {}) => ({
     ok: status >= 200 && status < 300,
     status,
     headers: new Headers(entetes),
     json: async () => corps,
   });
 
-  it("passe par le serveur, sans clé, avec le cookie", async () => {
+  it("goes through the server, with no key, with the cookie", async () => {
     const appels = [];
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url, opts) => {
         appels.push({ url: String(url), opts });
-        return réponse(200, {});
+        return response(200, {});
       })
     );
 
-    expect((await checkApiKey(PAR_LE_SERVEUR)).ok).toBe(true);
+    expect((await checkApiKey(VIA_SERVER)).ok).toBe(true);
     expect(appels).toHaveLength(1);
     expect(appels[0].url).toContain("/tmdb/configuration");
     expect(appels[0].url).not.toContain("api.themoviedb.org");
-    /* La clé du serveur est la sienne : on n'a rien à envoyer, et
-       envoyer quelque chose serait envoyer la clé de quelqu'un vers un
-       endroit qui n'en veut pas. */
+    /* The server's key is its own: we have nothing to send, and sending
+       something would mean sending somebody's key to a place that does
+       not want it. */
     expect(appels[0].url).not.toContain("api_key");
-    /* Sans cette ligne, le serveur voit un inconnu : le cookie vient
-       d'une autre origine que la page. */
+    /* Without this line the server sees a stranger: the cookie comes
+       from an origin other than the page. */
     expect(appels[0].opts?.credentials).toBe("include");
   });
 
-  it("redescend sur la clé posée quand le relais se récuse", async () => {
-    /* 401 : la session a expiré pendant que l'onglet dormait. 503 : le
-       serveur tourne sans clé de son côté. Ni l'un ni l'autre ne dit
-       que TMDB n'a rien — et une clé dort peut-être à côté. */
+  it("drops back to the key on file when the relay recuses itself", async () => {
+    /* 401: the session expired while the tab was asleep. 503: the
+       server is running without a key on its side. Neither of the two
+       says TMDB has nothing — and a key may be sleeping next door. */
     for (const code of [401, 403, 503]) {
       setTmdbKey("la-mienne");
       const appels = [];
@@ -460,11 +463,11 @@ describe("le relais du serveur", () => {
         "fetch",
         vi.fn(async (url) => {
           appels.push(String(url));
-          return String(url).includes("/tmdb/") ? réponse(code) : réponse(200, {});
+          return String(url).includes("/tmdb/") ? response(code) : response(200, {});
         })
       );
 
-      expect((await checkApiKey(PAR_LE_SERVEUR)).ok, `code ${code}`).toBe(true);
+      expect((await checkApiKey(VIA_SERVER)).ok, `code ${code}`).toBe(true);
       expect(appels, `code ${code}`).toHaveLength(2);
       expect(appels[1]).toContain("api.themoviedb.org");
       expect(appels[1]).toContain("api_key=la-mienne");
@@ -472,88 +475,38 @@ describe("le relais du serveur", () => {
     }
   });
 
-  it("ne contourne PAS un chemin que le relais ne connaît pas", async () => {
-    /* Un 404 du relais est une liste à corriger, pas un incident à
-       rattraper : repartir en douce vers TMDB rendrait le défaut
-       invisible pour toujours. */
+  it("does NOT go round a path the relay does not know", async () => {
+    /* A 404 from the relay is a list to be fixed, not an incident to
+       recover from: quietly setting off towards TMDB would make the flaw
+       invisible for ever. */
     setTmdbKey("la-mienne");
     const appels = [];
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url) => {
         appels.push(String(url));
-        return réponse(404);
+        return response(404);
       })
     );
 
-    expect((await checkApiKey(PAR_LE_SERVEUR)).ok).toBe(false);
+    expect((await checkApiKey(VIA_SERVER)).ok).toBe(false);
     expect(appels).toHaveLength(1);
   });
 
   /* ============================================================
-     LE 429 DU RELAIS, ET LE TEMPS QU'IL FAUT VRAIMENT ATTENDRE
+     THE RELAY'S 429, AND HOW LONG ONE REALLY MUST WAIT
      ============================================================
 
-     Le relais a son propre plafond par minute, et « compléter les
-     fiches » le franchit forcément : c'est un travail long, une requête
-     par film, cinq à la fois. Le 429 est donc NORMAL sur ce chemin — ce
-     qui ne l'était pas, c'est la suite.
+     The relay has its own ceiling per minute, and "completing the cards"
+     necessarily crosses it: it is long work, one request per film, five
+     at a time. The 429 is therefore NORMAL on this path — what was not,
+     is what followed.
 
-     La voie du relais attendait une seconde, puis deux, puis trois, en
-     dur, sans lire `retry-after`. Sur une fenêtre d'une minute, les
-     trois essais retombaient dans la fenêtre qui venait de les
-     rejeter : trois refus, et le remplissage s'arrêtait là. */
-  it("attend le délai que le relais annonce, et non une seconde inventée", async () => {
-    vi.useFakeTimers();
-    try {
-      const appels = [];
-      vi.stubGlobal(
-        "fetch",
-        vi.fn(async (url) => {
-          appels.push(String(url));
-          return appels.length === 1 ? réponse(429, {}, { "retry-after": "47" }) : réponse(200, {});
-        })
-      );
-
-      const promesse = checkApiKey(PAR_LE_SERVEUR);
-      /* Une seconde ne suffit plus : c'était exactement le défaut. */
-      await vi.advanceTimersByTimeAsync(1500);
-      expect(appels).toHaveLength(1);
-      await vi.advanceTimersByTimeAsync(46_000);
-      expect(appels).toHaveLength(2);
-      expect((await promesse).ok).toBe(true);
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  /* L'en-tête peut manquer — un serveur qui ne le pose pas, ou une
-     réponse d'une autre origine dont il n'est pas exposé. On retombe
-     alors sur l'escalier plutôt que de renoncer. */
-  it("retombe sur une attente en escalier quand rien n'est annoncé", async () => {
-    vi.useFakeTimers();
-    try {
-      const appels = [];
-      vi.stubGlobal(
-        "fetch",
-        vi.fn(async (url) => {
-          appels.push(String(url));
-          return appels.length === 1 ? réponse(429) : réponse(200, {});
-        })
-      );
-
-      const promesse = checkApiKey(PAR_LE_SERVEUR);
-      await vi.advanceTimersByTimeAsync(1500);
-      expect(appels).toHaveLength(2);
-      expect((await promesse).ok).toBe(true);
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  /* Un délai déraisonnable ne doit pas retenir un remplissage entier sur
-     une seule fiche : on rend la main plutôt que de dormir une heure. */
-  it("ne dort jamais plus d'une minute, quoi qu'on lui dise", async () => {
+     The relay's path waited one second, then two, then three, hard
+     coded, without reading `retry-after`. Over a one-minute window, the
+     three attempts fell back into the window that had just rejected
+     them: three refusals, and the filling stopped there. */
+  it("waits the delay the relay announces, and not an invented second", async () => {
     vi.useFakeTimers();
     try {
       const appels = [];
@@ -562,27 +515,79 @@ describe("le relais du serveur", () => {
         vi.fn(async (url) => {
           appels.push(String(url));
           return appels.length === 1
-            ? réponse(429, {}, { "retry-after": "3600" })
-            : réponse(200, {});
+            ? response(429, {}, { "retry-after": "47" })
+            : response(200, {});
         })
       );
 
-      const promesse = checkApiKey(PAR_LE_SERVEUR);
-      await vi.advanceTimersByTimeAsync(61_000);
+      const promise = checkApiKey(VIA_SERVER);
+      /* One second is no longer enough: that was exactly the flaw. */
+      await vi.advanceTimersByTimeAsync(1500);
+      expect(appels).toHaveLength(1);
+      await vi.advanceTimersByTimeAsync(46_000);
       expect(appels).toHaveLength(2);
-      expect((await promesse).ok).toBe(true);
+      expect((await promise).ok).toBe(true);
     } finally {
       vi.useRealTimers();
     }
   });
 
-  it("sans compte ni relais, rien ne change", async () => {
+  /* The header may be missing — a server that does not lay it, or a
+     response from another origin where it is not exposed. We then fall
+     back on the staircase rather than give up. */
+  it("falls back on a stepped wait when nothing is announced", async () => {
+    vi.useFakeTimers();
+    try {
+      const appels = [];
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (url) => {
+          appels.push(String(url));
+          return appels.length === 1 ? response(429) : response(200, {});
+        })
+      );
+
+      const promise = checkApiKey(VIA_SERVER);
+      await vi.advanceTimersByTimeAsync(1500);
+      expect(appels).toHaveLength(2);
+      expect((await promise).ok).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  /* An unreasonable delay must not hold a whole filling back on a
+     single card: we hand back control rather than sleep for an hour. */
+  it("never sleeps longer than a minute, whatever it is told", async () => {
+    vi.useFakeTimers();
+    try {
+      const appels = [];
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (url) => {
+          appels.push(String(url));
+          return appels.length === 1
+            ? response(429, {}, { "retry-after": "3600" })
+            : response(200, {});
+        })
+      );
+
+      const promise = checkApiKey(VIA_SERVER);
+      await vi.advanceTimersByTimeAsync(61_000);
+      expect(appels).toHaveLength(2);
+      expect((await promise).ok).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("with no account and no relay, nothing changes", async () => {
     const appels = [];
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url) => {
         appels.push(String(url));
-        return réponse(200, {});
+        return response(200, {});
       })
     );
 

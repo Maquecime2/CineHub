@@ -1,14 +1,13 @@
 /* ============================================================
-   LE MONTREUR — un voile percé, et une fiche bristol qui explique
+   THE GUIDE — a pierced veil, and an index card that explains
 
-   Le voile n'est pas un carré à trou en `clip-path` mais QUATRE
-   rectangles autour de la cible. C'est plus simple à animer, et surtout
-   le trou reste un vrai vide : ce qu'on montre demeure cliquable, et
-   l'on pourra un jour demander à l'utilisateur de faire le geste plutôt
-   que de le regarder.
+   The veil is not a square with a `clip-path` hole but FOUR rectangles
+   around the target. That is simpler to animate, and above all the hole
+   stays a real void: what we point at remains clickable, and one day we
+   may ask the user to make the gesture rather than watch it.
 
-   Rien n'y est écrit : le moteur ne connaît que des étapes, et les
-   étapes vivent dans `steps.ts`.
+   Nothing is written in it: the engine knows only steps, and the steps
+   live in `steps.ts`.
    ============================================================ */
 import { useCallback, useEffect, useState } from "react";
 import type { CSSProperties } from "react";
@@ -22,52 +21,53 @@ import type { TourStep } from "./steps";
 import { useTourTarget } from "./useTourTarget";
 import type { Rect } from "./useTourTarget";
 
-/** Au-dessus de tout : modale 50, panneau de peaux 60, tiroirs 60. */
+/** Above everything: modal 50, skin panel 60, drawers 60. */
 const Z = 200;
 
-/** Marge du trou autour de la cible — l'objet montré respire. */
+/** The hole's margin around the target — the object shown can breathe. */
 const PAD = 8;
 
-const BULLE_BASE = 300;
-/** Distance entre le bord du trou et la fiche. */
+const BUBBLE_BASE = 300;
+/** Distance between the hole's edge and the card. */
 const GAP = 16;
 
 interface TourOverlayProps {
-  /** Clé de `TOURS`. `null` : aucune visite en cours. */
+  /** Key of `TOURS`. `null`: no tour under way. */
   tourId: string | null;
   onClose: () => void;
-  /** Ouvre une vue — c'est ce qui permet à la visite globale de voyager. */
+  /** Opens a view — that is what lets the global tour travel. */
   onView: (view: string) => void;
   /**
-   * Ouvre un intercalaire du dossier film.
+   * Opens a tab of the film folder.
    *
-   * Le pendant exact de `onView`, un cran plus bas : depuis que la fiche
-   * se lit en trois onglets, une étape qui vise le fil rouge doit
-   * pouvoir ouvrir « Les liens » avant de chercher sa cible, faute de
-   * quoi elle passerait pour une cible absente et serait sautée.
+   * The exact counterpart of `onView`, one notch lower: since the card is
+   * read in three tabs, a step aiming at the red thread must be able to
+   * open "Links" before looking for its target, failing which it would
+   * pass for a missing target and be skipped.
    */
-  onOnglet?: (onglet: string) => void;
+  onTab?: (tab: string) => void;
 }
 
-export function TourOverlay({ tourId, onClose, onView, onOnglet }: TourOverlayProps) {
+export function TourOverlay({ tourId, onClose, onView, onTab }: TourOverlayProps) {
   const tour = tourId ? TOURS[tourId] : undefined;
   const [i, setI] = useState(0);
 
-  /* Une visite relancée repart du début : reprendre au milieu de la
-     précédente serait la plus mauvaise des surprises. */
+  /* A tour restarted begins again from the start: picking up in the
+     middle of the previous one would be the worst kind of surprise. */
   useEffect(() => {
     setI(0);
   }, [tourId]);
 
   const step: TourStep | undefined = tour?.steps[i];
 
-  /* LA VUE D'ABORD, LA CIBLE ENSUITE. Le changement de vue est demandé
-     pendant le rendu de l'étape — c'est un effet, pas un calcul — et la
-     recherche de la cible attend ensuite que React ait posé le nœud. */
+  /* THE VIEW FIRST, THE TARGET SECOND. The change of view is asked for
+     during the step's render — it is an effect, not a computation — and
+     the search for the target then waits for React to have laid the
+     node. */
   useEffect(() => {
     if (step?.view) onView(step.view);
-    if (step?.onglet) onOnglet?.(step.onglet);
-  }, [step, onView, onOnglet]);
+    if (step?.tab) onTab?.(step.tab);
+  }, [step, onView, onTab]);
 
   const { rect, status } = useTourTarget(step?.target ?? null, i);
 
@@ -91,10 +91,10 @@ export function TourOverlay({ tourId, onClose, onView, onOnglet }: TourOverlayPr
 
   const prev = useCallback(() => setI((n) => Math.max(0, n - 1)), []);
 
-  /* UNE CIBLE INTROUVABLE NE BLOQUE PAS. Une collection vide n'a ni
-     affiche ni rangée, et la moitié des étapes visent du contenu : sans
-     cette échappatoire, la première visite d'un classeur neuf resterait
-     plantée sur un voile opaque. */
+  /* A TARGET THAT CANNOT BE FOUND DOES NOT BLOCK. An empty collection
+     has neither poster nor row, and half the steps aim at content:
+     without this escape hatch, a new binder's first tour would stay
+     stuck on an opaque veil. */
   useEffect(() => {
     if (!step || !step.target || status !== "missing") return;
     if (!step.optional) return;
@@ -117,16 +117,16 @@ export function TourOverlay({ tourId, onClose, onView, onOnglet }: TourOverlayPr
 
   if (!tour || !step) return null;
 
-  /* Une étape sans cible, ou dont la cible se fait attendre, se joue au
-     centre sur voile plein : mieux vaut une bulle centrée qu'un trou qui
-     saute d'un coin à l'autre pendant que la vue s'ouvre. */
+  /* A step with no target, or whose target keeps us waiting, plays in
+     the centre on a full veil: better a centred bubble than a hole
+     jumping from one corner to another while the view opens. */
   const hole = step.target && status === "found" && rect ? grow(rect, PAD) : null;
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: Z, pointerEvents: "none" }}>
-      <Voile hole={hole} onSkip={skip} />
-      {hole && <Cadre hole={hole} />}
-      <Bulle
+      <Veil hole={hole} onSkip={skip} />
+      {hole && <Frame hole={hole} />}
+      <Bubble
         step={step}
         hole={hole}
         index={i}
@@ -147,33 +147,33 @@ const grow = (r: Rect, p: number): Rect => ({
   height: r.height + p * 2,
 });
 
-/* ---------- le voile ---------- */
+/* ---------- the veil ---------- */
 
-/* Quatre volets. Cliquer à côté de ce qu'on montre écarte la visite —
-   c'est le geste que tout le monde tente, et le refuser serait tenir
-   l'utilisateur en otage. */
-function Voile({ hole, onSkip }: { hole: Rect | null; onSkip: () => void }) {
-  const encre = alpha(C.ink, 0.62);
-  const commun: CSSProperties = {
+/* Four panels. Clicking beside what we are showing waves the tour away —
+   it is the gesture everybody tries, and refusing it would hold the user
+   hostage. */
+function Veil({ hole, onSkip }: { hole: Rect | null; onSkip: () => void }) {
+  const ink = alpha(C.ink, 0.62);
+  const shared: CSSProperties = {
     position: "fixed",
-    background: encre,
+    background: ink,
     pointerEvents: "auto",
     transition: "all var(--motion-slow) var(--motion-ease)",
   };
-  if (!hole) return <div onClick={onSkip} style={{ ...commun, inset: 0 }} />;
-  const bas = hole.top + hole.height;
-  const droite = hole.left + hole.width;
+  if (!hole) return <div onClick={onSkip} style={{ ...shared, inset: 0 }} />;
+  const bottom = hole.top + hole.height;
+  const right = hole.left + hole.width;
   return (
     <>
       <div
         onClick={onSkip}
-        style={{ ...commun, top: 0, left: 0, right: 0, height: Math.max(hole.top, 0) }}
+        style={{ ...shared, top: 0, left: 0, right: 0, height: Math.max(hole.top, 0) }}
       />
-      <div onClick={onSkip} style={{ ...commun, top: bas, left: 0, right: 0, bottom: 0 }} />
+      <div onClick={onSkip} style={{ ...shared, top: bottom, left: 0, right: 0, bottom: 0 }} />
       <div
         onClick={onSkip}
         style={{
-          ...commun,
+          ...shared,
           top: hole.top,
           left: 0,
           width: Math.max(hole.left, 0),
@@ -182,14 +182,14 @@ function Voile({ hole, onSkip }: { hole: Rect | null; onSkip: () => void }) {
       />
       <div
         onClick={onSkip}
-        style={{ ...commun, top: hole.top, left: droite, right: 0, height: hole.height }}
+        style={{ ...shared, top: hole.top, left: right, right: 0, height: hole.height }}
       />
     </>
   );
 }
 
-/** Le liseré du trou — sans lui, le vide se lit comme un accident. */
-function Cadre({ hole }: { hole: Rect }) {
+/** The hole's outline — without it, the void reads as an accident. */
+function Frame({ hole }: { hole: Rect }) {
   return (
     <div
       aria-hidden
@@ -209,9 +209,9 @@ function Cadre({ hole }: { hole: Rect }) {
   );
 }
 
-/* ---------- la fiche ---------- */
+/* ---------- the card ---------- */
 
-function Bulle({
+function Bubble({
   step,
   hole,
   index,
@@ -230,17 +230,17 @@ function Bulle({
   onSkip: () => void;
   label: string;
 }) {
-  /* AUCUN CÔTÉ N'EST LIBRE SUR UN TÉLÉPHONE.
+  /* NO SIDE IS FREE ON A PHONE.
 
-     Une fiche de trois cents pixels posée « à droite » d'une cible, dans
-     une fenêtre de trois cent quatre-vingt-dix, n'a pas de droite : le
-     bornage la ramenait sur la cible, et la visite montrait alors une
-     chose en la cachant. Au centre, elle ne cache que le voile — et le
-     trou, lui, continue de désigner. */
+     A three-hundred-pixel card laid "to the right" of a target, in a
+     window three hundred and ninety wide, has no right: the clamping
+     brought it back over the target, and the tour then showed a thing by
+     hiding it. In the centre it hides only the veil — and the hole goes
+     on pointing. */
   const { phone } = useViewport();
-  const pos = placer(hole, phone ? "center" : step.placement);
-  /* L'inclinaison est semée sur le rang de l'étape : la même fiche
-     penche toujours pareil, comme tout le désordre du site. */
+  const pos = place(hole, phone ? "center" : step.placement);
+  /* The tilt is sown from the step's rank: the same card always leans
+     the same way, like all the site's disorder. */
   const tilt = Number(tiltOf(`bulle-${index}`)) / 2.4;
 
   return (
@@ -249,9 +249,9 @@ function Bulle({
       aria-live="polite"
       style={{
         position: "fixed",
-        /* Elle ne rétrécit qu'au besoin : sur un bureau, c'est la même
-           fiche qu'avant, au pixel. */
-        width: `min(${BULLE_BASE}px, calc(100vw - 24px))`,
+        /* It only shrinks when it has to: on a desktop it is the same
+           card as before, to the pixel. */
+        width: `min(${BUBBLE_BASE}px, calc(100vw - 24px))`,
         maxWidth: "100%",
         boxSizing: "border-box",
         padding: "18px 20px 14px",
@@ -315,12 +315,12 @@ function Bulle({
         <span style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>
           {index + 1} / {total}
         </span>
-        <button onClick={onSkip} style={lien}>
+        <button onClick={onSkip} style={link}>
           passer
         </button>
         <div style={{ flex: 1 }} />
         {index > 0 && (
-          <button onClick={onPrev} style={lien}>
+          <button onClick={onPrev} style={link}>
             retour
           </button>
         )}
@@ -345,7 +345,7 @@ function Bulle({
   );
 }
 
-const lien: CSSProperties = {
+const link: CSSProperties = {
   all: "unset",
   cursor: "pointer",
   fontFamily: F.mono,
@@ -354,34 +354,34 @@ const lien: CSSProperties = {
   borderBottom: `1px dashed ${C.line}`,
 };
 
-/* ---------- où poser la fiche ---------- */
+/* ---------- where to lay the card ---------- */
 
-/* Le côté demandé n'est qu'un vœu : si la fiche déborde, on la replie
-   du côté opposé, et à défaut on la borne dans la fenêtre. Une bulle à
-   moitié hors de l'écran est pire que mal placée. */
-function placer(hole: Rect | null, placement: TourStep["placement"]): CSSProperties {
+/* The requested side is only a wish: if the card overflows, we fold it
+   to the opposite side, and failing that we clamp it inside the window. A
+   bubble half off the screen is worse than badly placed. */
+function place(hole: Rect | null, placement: TourStep["placement"]): CSSProperties {
   const W = window.innerWidth;
   const H = window.innerHeight;
-  /* La fiche se rétrécit avec la fenêtre : la mesure qui sert à la
-     placer doit dire la même chose que celle qui la dessine. */
-  const BULLE_W = Math.min(BULLE_BASE, W - 24);
-  /* Hauteur inconnue avant mesure : on prend une borne haute prudente
-     plutôt que de faire un aller-retour de rendu pour un pixel. */
-  const HAUT = 230;
+  /* The card shrinks with the window: the measurement used to place it
+     must say the same thing as the one that draws it. */
+  const BUBBLE_W = Math.min(BUBBLE_BASE, W - 24);
+  /* Height unknown before measuring: we take a cautious upper bound
+     rather than doing a render round trip for one pixel. */
+  const TOP = 230;
 
   if (!hole || placement === "center") {
-    return { top: Math.max(20, H / 2 - HAUT / 2), left: Math.max(20, W / 2 - BULLE_W / 2) };
+    return { top: Math.max(20, H / 2 - TOP / 2), left: Math.max(20, W / 2 - BUBBLE_W / 2) };
   }
 
-  const bas = hole.top + hole.height;
-  const droite = hole.left + hole.width;
-  const cote = placement || "right";
+  const bottom = hole.top + hole.height;
+  const right = hole.left + hole.width;
+  const side = placement || "right";
 
-  const essais: Record<string, { top: number; left: number }> = {
-    right: { top: hole.top, left: droite + GAP },
-    left: { top: hole.top, left: hole.left - BULLE_W - GAP },
-    bottom: { top: bas + GAP, left: hole.left },
-    top: { top: hole.top - HAUT - GAP, left: hole.left },
+  const tries: Record<string, { top: number; left: number }> = {
+    right: { top: hole.top, left: right + GAP },
+    left: { top: hole.top, left: hole.left - BUBBLE_W - GAP },
+    bottom: { top: bottom + GAP, left: hole.left },
+    top: { top: hole.top - TOP - GAP, left: hole.left },
   };
   const oppose: Record<string, string> = {
     right: "left",
@@ -390,17 +390,17 @@ function placer(hole: Rect | null, placement: TourStep["placement"]): CSSPropert
     top: "bottom",
   };
 
-  const tient = (p: { top: number; left: number }) =>
-    p.left >= 8 && p.left + BULLE_W <= W - 8 && p.top >= 8 && p.top + HAUT <= H - 8;
+  const fits = (p: { top: number; left: number }) =>
+    p.left >= 8 && p.left + BUBBLE_W <= W - 8 && p.top >= 8 && p.top + TOP <= H - 8;
 
-  const choix = tient(essais[cote]!)
-    ? essais[cote]!
-    : tient(essais[oppose[cote]!]!)
-      ? essais[oppose[cote]!]!
-      : essais[cote]!;
+  const choice = fits(tries[side]!)
+    ? tries[side]!
+    : fits(tries[oppose[side]!]!)
+      ? tries[oppose[side]!]!
+      : tries[side]!;
 
   return {
-    top: Math.min(Math.max(choix.top, 8), Math.max(8, H - HAUT - 8)),
-    left: Math.min(Math.max(choix.left, 8), Math.max(8, W - BULLE_W - 8)),
+    top: Math.min(Math.max(choice.top, 8), Math.max(8, H - TOP - 8)),
+    left: Math.min(Math.max(choice.left, 8), Math.max(8, W - BUBBLE_W - 8)),
   };
 }

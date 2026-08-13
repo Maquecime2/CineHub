@@ -1,69 +1,69 @@
 /* ============================================================
-   L'ALMANACH — la collection regardée dans le temps
+   THE ALMANAC — the collection looked at through time
    ============================================================
 
-   Le journal des séances est la donnée la plus riche de la fiche, et
-   jusqu'ici la moins regardée : `WatchLog` la montre film par film, ce
-   qui répond à « combien de fois celui-là » et jamais à « qu'ai-je fait
-   de cette année ». Ce module répond à la seconde question.
+   The screening log is the card's richest data, and until now the least
+   looked at: `WatchLog` shows it film by film, which answers "how many
+   times that one" and never "what did I do with this year". This module
+   answers the second question.
 
-   IL COMPTE DES SÉANCES, PAS DES FICHES, et c'est toute la différence.
-   Un mois où l'on a revu six fois le même film n'est pas un mois où l'on
-   a vu six films — mais ce n'est pas non plus un mois où l'on a vu un
-   film. Les deux nombres sont donnés, jamais l'un pour l'autre.
+   IT COUNTS SCREENINGS, NOT CARDS, and that is the whole difference. A
+   month in which the same film was watched six times is not a month in
+   which six films were watched — but neither is it a month in which one
+   film was watched. Both numbers are given, never one for the other.
 
-   Pur, hors ligne, sans React : comme tout `domain/`. */
+   Pure, offline, React-free: like all of `domain/`. */
 import { sortWatches } from "./film";
 import type { Film, Watch } from "../types";
 
-/* Une séance rapportée à son film — la forme sur laquelle tout le
-   module travaille, parce que compter des années, des réalisateurs et
-   des décennies demande de savoir DE QUEL FILM chaque séance vient. */
-interface Séance {
+/* A screening tied back to its film — the shape the whole module works
+   on, because counting years, directors and decades means knowing WHICH
+   FILM each screening comes from. */
+interface Screening {
   film: Film;
   watch: Watch;
 }
 
-/** `YYYY-MM-DD` → l'année, ou `null` si la date ne dit rien. */
-const anneeDe = (date: string | null | undefined): number | null => {
-  const an = Number((date || "").slice(0, 4));
-  return Number.isInteger(an) && an > 1800 ? an : null;
+/** `YYYY-MM-DD` → the year, or `null` if the date says nothing. */
+const yearOf = (date: string | null | undefined): number | null => {
+  const year = Number((date || "").slice(0, 4));
+  return Number.isInteger(year) && year > 1800 ? year : null;
 };
 
-/* CE QU'ON REGARDE : une année, ou toute la pratique.
+/* WHAT WE LOOK AT: one year, or the whole practice.
 
-   L'almanach n'a longtemps su répondre que par année. C'était le bon
-   découpage pour commencer — on fait le bilan d'une année, pas d'un
-   trimestre — mais il laissait sans réponse la question qui vient
-   ensuite : « et depuis le début ? ». Une collection tenue sept ans a
-   une forme que sept bilans annuels lus à la suite ne montrent pas.
+   For a long time the almanac could only answer by year. That was the
+   right cut to begin with — you take stock of a year, not of a quarter —
+   but it left the question that comes next unanswered: "and since the
+   beginning?". A collection kept for seven years has a shape that seven
+   annual reports read one after another do not show.
 
-   Plutôt que de doubler chaque fonction, la période devient un
-   paramètre. Presque tout se généralise sans un mot de plus : compter
-   des séances, des pays ou des décennies ne demande jamais de savoir
-   sur quelle durée. Le peu qui résiste — la densité, rapportée à
-   l'année civile — est traité là où il résiste. */
-export type Période = number | "toujours";
+   Rather than doubling every function, the period becomes a parameter.
+   Almost everything generalises without another word: counting
+   screenings, countries or decades never needs to know over what span.
+   The little that resists — density, related to the calendar year — is
+   dealt with where it resists. */
+export type Period = number | "always";
 
-/** La séance tombe-t-elle dans la période ? Une date illisible, jamais. */
-const dansLaPériode = (date: string | null | undefined, p: Période): boolean => {
-  const an = anneeDe(date);
-  return an != null && (p === "toujours" || an === p);
+/** Does the screening fall inside the period? An unreadable date, never. */
+const inPeriod = (date: string | null | undefined, p: Period): boolean => {
+  const year = yearOf(date);
+  return year != null && (p === "always" || year === p);
 };
 
-/* TOUTES LES SÉANCES DE LA COLLECTION.
+/* EVERY SCREENING IN THE COLLECTION.
 
-   Les fiches mises de côté comptent : les avoir archivées ne les rend
-   pas non vues. Celles de la liste « à voir », en revanche, n'ont rien
-   à faire ici — une séance sur un film qu'on n'a pas vu n'existe pas,
-   et si le journal en porte une, c'est le statut qui est en retard.
+   Cards set aside count: having archived them does not make them
+   unwatched. Those on the watchlist, on the other hand, have no business
+   here — a screening of a film we have not seen does not exist, and if
+   the log carries one, it is the status that is lagging.
 
-   `migrate` garantit un `watches` non nul et sème la séance d'une fiche
-   d'avant le journal depuis `watchedAt`. On ne refait donc PAS ce
-   travail ici : un film sans séance dans son journal est un film sans
-   date, et il est juste qu'il ne pèse sur aucun mois. */
-const séancesDe = (films: Film[]): Séance[] => {
-  const out: Séance[] = [];
+   `migrate` guarantees a non-null `watches` and seeds the screening of a
+   pre-log card from `watchedAt`. So we do NOT redo that work here: a film
+   with no screening in its log is a film with no date, and it is right
+   that it should weigh on no month at all. */
+const screeningsOf = (films: Film[]): Screening[] => {
+  const out: Screening[] = [];
   for (const film of films) {
     if (film.status === "watchlist") continue;
     for (const watch of film.watches || []) if (watch?.date) out.push({ film, watch });
@@ -71,28 +71,27 @@ const séancesDe = (films: Film[]): Séance[] => {
   return out;
 };
 
-/** Les années où il s'est passé quelque chose, de la plus récente à la plus ancienne. */
+/** The years something happened in, from the most recent to the oldest. */
 export function yearsCovered(films: Film[]): number[] {
-  const ans = new Set<number>();
-  for (const { watch } of séancesDe(films)) {
-    const an = anneeDe(watch.date);
-    if (an) ans.add(an);
+  const years = new Set<number>();
+  for (const { watch } of screeningsOf(films)) {
+    const year = yearOf(watch.date);
+    if (year) years.add(year);
   }
-  return [...ans].sort((a, b) => b - a);
+  return [...years].sort((a, b) => b - a);
 }
 
-/* LA PLUS LONGUE SUITE DE JOURS CONSÉCUTIFS.
+/* THE LONGEST RUN OF CONSECUTIVE DAYS.
 
-   Sur des dates `YYYY-MM-DD` triées, on compare chaque jour au
-   précédent + 1. Le passage par `Date` est ce qui rend les fins de mois
-   et les années bissextiles gratuites — les compter à la main sur des
-   chaînes est exactement le genre de calcul qu'on croit juste jusqu'au
-   29 février.
+   On sorted `YYYY-MM-DD` dates, we compare each day with the previous
+   one + 1. Going through `Date` is what makes month ends and leap years
+   free — counting them by hand on strings is exactly the kind of
+   calculation you believe correct until 29 February.
 
-   `Date.UTC` et non `new Date(chaîne)` : le second lit une date nue en
-   UTC mais une date horodatée en local, et l'écart d'un fuseau suffit à
-   faire glisser une séance de minuit d'un jour. */
-const enJours = (date: string): number => {
+   `Date.UTC` and not `new Date(string)`: the latter reads a bare date as
+   UTC but a timestamped one as local, and one timezone's offset is enough
+   to slide a midnight screening by a day. */
+const inDays = (date: string): number => {
   const parts = date.split("-").map(Number);
   const a = parts[0] || 0;
   const m = parts[1] || 1;
@@ -101,50 +100,50 @@ const enJours = (date: string): number => {
 };
 
 export function longestStreak(dates: string[]): number {
-  const jours = [...new Set(dates.filter(Boolean).map(enJours))].sort((a, b) => a - b);
-  if (jours.length === 0) return 0;
-  let meilleure = 1;
-  let courante = 1;
-  for (let i = 1; i < jours.length; i++) {
-    courante = jours[i] === (jours[i - 1] as number) + 1 ? courante + 1 : 1;
-    if (courante > meilleure) meilleure = courante;
+  const days = [...new Set(dates.filter(Boolean).map(inDays))].sort((a, b) => a - b);
+  if (days.length === 0) return 0;
+  let best = 1;
+  let current = 1;
+  for (let i = 1; i < days.length; i++) {
+    current = days[i] === (days[i - 1] as number) + 1 ? current + 1 : 1;
+    if (current > best) best = current;
   }
-  return meilleure;
+  return best;
 }
 
-/** Les valeurs les plus fréquentes, du plus au moins — à égalité, l'ordre alphabétique. */
-const palmarès = (valeurs: string[], combien: number): { nom: string; n: number }[] => {
-  const compte = new Map<string, number>();
-  for (const v of valeurs) {
-    const nom = (v || "").trim();
-    if (nom) compte.set(nom, (compte.get(nom) || 0) + 1);
+/** The most frequent values, from most to least — on a tie, alphabetical order. */
+const ranking = (values: string[], howMany: number): { name: string; n: number }[] => {
+  const count = new Map<string, number>();
+  for (const v of values) {
+    const name = (v || "").trim();
+    if (name) count.set(name, (count.get(name) || 0) + 1);
   }
-  return [...compte.entries()]
-    .map(([nom, n]) => ({ nom, n }))
-    .sort((a, b) => b.n - a.n || a.nom.localeCompare(b.nom))
-    .slice(0, combien);
+  return [...count.entries()]
+    .map(([name, n]) => ({ name, n }))
+    .sort((a, b) => b.n - a.n || a.name.localeCompare(b.name))
+    .slice(0, howMany);
 };
 
 /* ============================================================
-   CE QUI RÉVÈLE UN GOÛT
+   WHAT REVEALS A TASTE
    ============================================================
 
-   Un compte ne dit rien de personne : tout le monde regarde des films.
-   Ce qui distingue une collection d'une autre, c'est l'ÂGE de ce qu'on
-   regarde, les pays qu'on visite, les gens qu'on suit, et le rythme
-   auquel on y va. Les fonctions qui suivent répondent à cela.
+   A count says nothing about anyone: everybody watches films. What tells
+   one collection from another is the AGE of what is watched, the
+   countries visited, the people followed, and the rhythm of it. The
+   functions that follow answer that.
 
-   Chacune est exportée et se teste seule, mais toutes sont appelées par
-   `almanacFor` : la vue n'a qu'un appel à faire, et ne peut pas oublier
-   d'en faire un. */
+   Each is exported and tests on its own, but all of them are called by
+   `almanacFor`: the view has only one call to make, and cannot forget to
+   make one. */
 
-/** L'année de sortie d'une fiche, ou `null` — le type `Year` admet le vide. */
-const sortieDe = (film: Film): number | null => {
+/** A card's release year, or `null` — the `Year` type allows emptiness. */
+const releaseOf = (film: Film): number | null => {
   const n = typeof film.year === "number" ? film.year : Number(film.year);
   return Number.isFinite(n) && n > 0 ? n : null;
 };
 
-const médiane = (xs: number[]): number | null => {
+const median = (xs: number[]): number | null => {
   if (xs.length === 0) return null;
   const t = [...xs].sort((a, b) => a - b);
   const m = Math.floor(t.length / 2);
@@ -152,650 +151,652 @@ const médiane = (xs: number[]): number | null => {
 };
 
 export interface AgeOfFilms {
-  /** Écart moyen, en années, entre la sortie du film et la séance. */
-  moyen: number | null;
+  /** Mean gap, in years, between the film's release and the screening. */
+  mean: number | null;
   median: number | null;
-  /** Part des séances portant sur un film de plus de vingt ans, en %. */
-  partPatrimoine: number | null;
-  /** Le plus vieux film vu dans l'année. */
-  plusAncien: { film: Film; year: number } | null;
+  /** Share of screenings of a film more than twenty years old, in %. */
+  heritageShare: number | null;
+  /** The oldest film watched in the year. */
+  oldest: { film: Film; year: number } | null;
 }
 
-/* L'ÂGE DE CE QU'ON REGARDE.
+/* THE AGE OF WHAT WE WATCH.
 
-   « Vous regardez des films vieux de trente-quatre ans en moyenne » dit
-   quelque chose qu'aucun compte ne dit. La médiane l'accompagne parce
-   qu'elle résiste à un muet de 1920 qui, seul, décalerait la moyenne de
-   dix ans à lui tout seul.
+   "You watch films thirty-four years old on average" says something no
+   count says. The median goes with it because it resists a 1920 silent
+   film which, on its own, would shift the mean by ten years all by
+   itself.
 
-   Les fiches sans année de sortie sont ÉCARTÉES et non comptées zéro :
-   un film sans date donnerait un âge de deux mille ans. */
-export function ageOfFilms(films: Film[], période: Période): AgeOfFilms {
-  const âges: number[] = [];
-  let plusAncien: { film: Film; year: number } | null = null;
+   Cards with no release year are RULED OUT and not counted as zero: a
+   film with no date would give an age of two thousand years. */
+export function ageOfFilms(films: Film[], period: Period): AgeOfFilms {
+  const ages: number[] = [];
+  let oldest: { film: Film; year: number } | null = null;
 
-  for (const { film, watch } of séancesDe(films)) {
-    if (!dansLaPériode(watch.date, période)) continue;
-    const sortie = sortieDe(film);
-    if (sortie == null) continue;
-    /* L'âge se compte depuis l'année de LA SÉANCE, et non depuis celle
-       de la période. Sur une année les deux se confondent ; sur toute
-       une pratique, prendre une année fixe donnerait à un film vu en
-       2019 l'âge qu'il a aujourd'hui. */
-    âges.push((anneeDe(watch.date) as number) - sortie);
-    if (!plusAncien || sortie < plusAncien.year) plusAncien = { film, year: sortie };
+  for (const { film, watch } of screeningsOf(films)) {
+    if (!inPeriod(watch.date, period)) continue;
+    const release = releaseOf(film);
+    if (release == null) continue;
+    /* Age is counted from THE SCREENING's year, and not from the
+       period's. Over one year the two coincide; over a whole practice,
+       taking a fixed year would give a film watched in 2019 the age it
+       has today. */
+    ages.push((yearOf(watch.date) as number) - release);
+    if (!oldest || release < oldest.year) oldest = { film, year: release };
   }
 
-  if (âges.length === 0)
-    return { moyen: null, median: null, partPatrimoine: null, plusAncien: null };
+  if (ages.length === 0) return { mean: null, median: null, heritageShare: null, oldest: null };
 
   return {
-    moyen: âges.reduce((s, a) => s + a, 0) / âges.length,
-    median: médiane(âges),
-    partPatrimoine: (âges.filter((a) => a > 20).length / âges.length) * 100,
-    plusAncien,
+    mean: ages.reduce((s, a) => s + a, 0) / ages.length,
+    median: median(ages),
+    heritageShare: (ages.filter((a) => a > 20).length / ages.length) * 100,
+    oldest,
   };
 }
 
-/* LA NOTE MOYENNE PAR DÉCENNIE — le biais qu'on ne se connaît pas.
+/* THE MEAN RATING BY DECADE — the bias you do not know you have.
 
-   On note peut-être les années 70 d'une demi-étoile au-dessus de tout le
-   reste, sans l'avoir jamais remarqué. Seules les séances NOTÉES entrent
-   ici ; une décennie sans aucune note n'apparaît pas plutôt que
-   d'apparaître à zéro. */
+   You may be rating the 1970s half a star above everything else, without
+   ever having noticed. Only RATED screenings come in here; a decade with
+   no rating at all does not appear, rather than appearing at zero. */
 export function ratingByDecade(
   films: Film[],
-  période: Période
+  period: Period
 ): { decade: number; avg: number; n: number }[] {
-  const par = new Map<number, { somme: number; n: number }>();
-  for (const { film, watch } of séancesDe(films)) {
-    if (!dansLaPériode(watch.date, période) || watch.rating == null) continue;
-    const sortie = sortieDe(film);
-    if (sortie == null) continue;
-    const d = Math.floor(sortie / 10) * 10;
-    const lot = par.get(d) || { somme: 0, n: 0 };
-    lot.somme += watch.rating;
-    lot.n += 1;
-    par.set(d, lot);
+  const per = new Map<number, { sum: number; n: number }>();
+  for (const { film, watch } of screeningsOf(films)) {
+    if (!inPeriod(watch.date, period) || watch.rating == null) continue;
+    const release = releaseOf(film);
+    if (release == null) continue;
+    const d = Math.floor(release / 10) * 10;
+    const batch = per.get(d) || { sum: 0, n: 0 };
+    batch.sum += watch.rating;
+    batch.n += 1;
+    per.set(d, batch);
   }
-  return [...par.entries()]
-    .map(([decade, { somme, n }]) => ({ decade, avg: somme / n, n }))
+  return [...per.entries()]
+    .map(([decade, { sum, n }]) => ({ decade, avg: sum / n, n }))
     .sort((a, b) => a.decade - b.decade);
 }
 
-/* LES CINÉASTES DÉCOUVERTS CETTE ANNÉE.
+/* THE FILMMAKERS DISCOVERED THIS YEAR.
 
-   « Découvert » et non « vu » : on regarde le journal ENTIER pour savoir
-   si ce nom était déjà apparu avant. Un réalisateur qu'on suit depuis
-   dix ans n'est pas une découverte, même si on l'a revu cette année —
-   et c'est justement la distinction qui a de la valeur.
+   "Discovered" and not "watched": we look at the WHOLE log to know
+   whether that name had already appeared before. A director you have
+   followed for ten years is not a discovery, even if you watched them
+   again this year — and that is precisely the distinction that has
+   value.
 
-   SUR « TOUJOURS », LA QUESTION SE DISSOUT : tout le monde a bien été
-   découvert un jour, et la réponse serait la liste entière des cinéastes
-   de la collection — vraie, et sans aucun intérêt. On rend donc une
-   liste vide, qui se lit « cette question n'a pas de réponse ici », et
-   la planche montre autre chose à cette place. */
-export function newDirectors(films: Film[], période: Période): string[] {
-  if (période === "toujours") return [];
-  const première = new Map<string, number>();
-  for (const { film, watch } of séancesDe(films)) {
-    const an = anneeDe(watch.date);
-    if (an == null) continue;
-    for (const nom of noms(film.director)) {
-      const vu = première.get(nom);
-      if (vu == null || an < vu) première.set(nom, an);
+   ON "ALWAYS", THE QUESTION DISSOLVES: everybody was indeed discovered
+   one day, and the answer would be the collection's entire list of
+   filmmakers — true, and of no interest whatsoever. So we return an
+   empty list, which reads "this question has no answer here", and the
+   plate shows something else in that place. */
+export function newDirectors(films: Film[], period: Period): string[] {
+  if (period === "always") return [];
+  const firstSeen = new Map<string, number>();
+  for (const { film, watch } of screeningsOf(films)) {
+    const year = yearOf(watch.date);
+    if (year == null) continue;
+    for (const name of namesIn(film.director)) {
+      const seen = firstSeen.get(name);
+      if (seen == null || year < seen) firstSeen.set(name, year);
     }
   }
-  return [...première.entries()]
-    .filter(([, an]) => an === période)
-    .map(([nom]) => nom)
+  return [...firstSeen.entries()]
+    .filter(([, year]) => year === period)
+    .map(([name]) => name)
     .sort((a, b) => a.localeCompare(b));
 }
 
-/** « Coen, Coen » ou « Powell & Pressburger » — un champ, plusieurs personnes. */
-const noms = (champ: string): string[] =>
-  (champ || "")
+/** Coen, Coen or Powell & Pressburger — one field, several people. */
+const namesIn = (field: string): string[] =>
+  (field || "")
     .split(",")
     .map((n) => n.trim())
     .filter(Boolean);
 
 export interface Loyalties {
-  /** Cinéastes vus au moins `seuil` fois dans la période. */
-  directors: { nom: string; n: number }[];
-  /** Interprètes retrouvés au moins `seuil` fois dans la période. */
-  actors: { nom: string; n: number }[];
+  /** Filmmakers watched at least `threshold` times within the period. */
+  directors: { name: string; n: number }[];
+  /** Performers met again at least `threshold` times within the period. */
+  actors: { name: string; n: number }[];
 }
 
-/* LES FIDÉLITÉS. Trois fois dans une année n'est pas un hasard : c'est
-   une traversée d'œuvre, et c'est la chose qu'un cinéphile veut voir
-   nommée. En deçà, c'est du bruit.
+/* LOYALTIES. Three times in one year is no accident: it is a crossing
+   of a body of work, and it is the thing a film lover wants to see
+   named. Below that, it is noise.
 
-   Sur toute une pratique, trois fois ne dit plus rien — on y arrive en
-   flânant. L'appelant relève donc le seuil : c'est un réglage de
-   lecture, pas une règle du domaine, et le paramètre existait déjà. */
-export function loyalties(films: Film[], période: Période, seuil = 3): Loyalties {
-  const réal: string[] = [];
-  const acteurs: string[] = [];
-  for (const { film, watch } of séancesDe(films)) {
-    if (!dansLaPériode(watch.date, période)) continue;
-    réal.push(...noms(film.director));
-    acteurs.push(...(film.cast || []));
+   Over a whole practice, three times no longer says anything — you get
+   there by strolling. So the caller raises the threshold: it is a
+   reading setting, not a rule of the domain, and the parameter already
+   existed. */
+export function loyalties(films: Film[], period: Period, threshold = 3): Loyalties {
+  const directorNames: string[] = [];
+  const actors: string[] = [];
+  for (const { film, watch } of screeningsOf(films)) {
+    if (!inPeriod(watch.date, period)) continue;
+    directorNames.push(...namesIn(film.director));
+    actors.push(...(film.cast || []));
   }
-  const garde = (liste: string[]) => palmarès(liste, 99).filter((x) => x.n >= seuil);
-  return { directors: garde(réal), actors: garde(acteurs) };
+  const keep = (list: string[]) => ranking(list, 99).filter((x) => x.n >= threshold);
+  return { directors: keep(directorNames), actors: keep(actors) };
 }
 
 /* ------------------------------------------------------------
-   LES SUJETS DE L'ANNÉE
+   THE YEAR'S SUBJECTS
    ------------------------------------------------------------
 
-   L'almanach savait dire les genres, les pays, les langues, les
-   cinéastes et les interprètes — c'est-à-dire QUI et D'OÙ, jamais DE
-   QUOI. C'était le seul axe manquant, et le plus intéressant : « une
-   année de boucles temporelles et de deuils » dit autre chose qu'« une
-   année de drames français ».
+   The almanac could say the genres, the countries, the languages, the
+   filmmakers and the performers — that is to say WHO and FROM WHERE,
+   never ABOUT WHAT. It was the only axis missing, and the most
+   interesting: "a year of time loops and bereavements" says something
+   other than "a year of French dramas".
 
-   DEUX LISTES ET NON UNE, parce que les deux vocabulaires ne sont pas
-   de la même main. Les mots-clés viennent de TMDB, en anglais, tels
-   quels. Les motifs sont le vocabulaire commun du projet, et ce sont des
-   IDENTIFIANTS : « boucle-temporelle » se lit « Le temps se répète » une
-   fois passé par `motifById`. Les mélanger donnerait une liste où
-   l'anglais brut côtoie des identifiants à tirets, et où le compte d'un
-   même sujet se retrouverait scindé en deux lignes.
+   TWO LISTS AND NOT ONE, because the two vocabularies are not from the
+   same hand. The keywords come from TMDB, in English, as they are. The
+   motifs are the project's shared vocabulary, and they are IDENTIFIERS:
+   "time-loop" reads "Le temps se répète" once it has been through
+   `motifById`. Mixing them would give a list where raw English rubs
+   shoulders with hyphenated identifiers, and where the count of one
+   subject would end up split across two lines.
 
-   Rendus bruts, comme les codes pays de `geography` : traduire est un
-   travail d'affichage, et le domaine ne sait pas dans quelle langue on
-   le lira. */
-export interface Sujets {
-  /** Les mots-clés TMDB les plus vus — en anglais, tels que reçus. */
-  motsClés: { nom: string; n: number }[];
-  /** Les motifs du catalogue, par `id` : la vue les traduit. */
-  motifs: { nom: string; n: number }[];
+   Returned raw, like `geography`'s country codes: translating is display
+   work, and the domain does not know what language it will be read in. */
+export interface Subjects {
+  /** The most-watched TMDB keywords — in English, as received. */
+  keywords: { name: string; n: number }[];
+  /** The catalogue's motifs, by `id`: the view translates them. */
+  motifs: { name: string; n: number }[];
 }
 
-export function sujets(films: Film[], période: Période, combien = 6): Sujets {
-  const mots: string[] = [];
-  const mot: string[] = [];
-  for (const { film, watch } of séancesDe(films)) {
-    if (!dansLaPériode(watch.date, période)) continue;
-    mots.push(...(film.keywords || []));
-    mot.push(...(film.motifs || []));
+export function subjects(films: Film[], period: Period, howMany = 6): Subjects {
+  const keywords: string[] = [];
+  const motifIds: string[] = [];
+  for (const { film, watch } of screeningsOf(films)) {
+    if (!inPeriod(watch.date, period)) continue;
+    keywords.push(...(film.keywords || []));
+    motifIds.push(...(film.motifs || []));
   }
-  return { motsClés: palmarès(mots, combien), motifs: palmarès(mot, combien) };
+  return { keywords: ranking(keywords, howMany), motifs: ranking(motifIds, howMany) };
 }
 
 /* ------------------------------------------------------------
-   LES ARTISANS SUIVIS
+   THE CRAFTSPEOPLE FOLLOWED
    ------------------------------------------------------------
 
-   `loyalties` ne regarde que la réalisation et l'interprétation, c'est-
-   à-dire les deux noms qu'on connaît déjà. Or `crew` porte l'image et la
-   musique depuis le début, et c'est là que se cachent les fidélités
-   qu'on ne s'était pas vu contracter : personne ne se dit « je suis le
-   travail d'un chef opérateur », et pourtant.
+   `loyalties` only looks at directing and performing, that is to say the
+   two fields we already know about. But `crew` has carried the
+   cinematography and the music from the start, and that is where the
+   loyalties hide that we never noticed ourselves contracting: nobody
+   says to themselves "I follow a cinematographer's work", and yet.
 
-   Pas de seuil, contrairement aux fidélités : deux films d'un même chef
-   opérateur dans une année est déjà une remarque, là où deux films d'un
-   même cinéaste n'en est pas une. Le palmarès rend ce qu'il trouve, et
-   la vue décide de ne montrer que ce qui revient. */
-export interface Artisans {
-  /** Chefs opérateurs, du plus vu au moins. */
-  image: { nom: string; n: number }[];
-  /** Compositeurs. */
-  musique: { nom: string; n: number }[];
-  /** Scénaristes — le troisième métier que `crew` connaît. */
-  scénario: { nom: string; n: number }[];
+   No threshold, unlike the loyalties: two films by the same
+   cinematographer in one year is already worth a remark, where two films
+   by the same filmmaker is not. The ranking returns what it finds, and
+   the view decides to show only what recurs.
+
+   THE KEYS STAY FRENCH, and they must: they are the ones used to index
+   `film.crew`, which is written to disk as `{ image, musique, scénario }`.
+   Translating them here would look for trades that do not exist and
+   return three empty lists, without raising a thing. */
+export interface Craftspeople {
+  /** Cinematographers, from most watched to least. */
+  image: { name: string; n: number }[];
+  /** Composers. */
+  musique: { name: string; n: number }[];
+  /** Screenwriters — the third trade `crew` knows about. */
+  scénario: { name: string; n: number }[];
 }
 
-export function artisans(films: Film[], période: Période, combien = 5): Artisans {
-  const par: Record<string, string[]> = { image: [], musique: [], scénario: [] };
-  for (const { film, watch } of séancesDe(films)) {
-    if (!dansLaPériode(watch.date, période)) continue;
-    for (const métier of Object.keys(par)) par[métier]!.push(...((film.crew || {})[métier] || []));
+export function craftspeople(films: Film[], period: Period, howMany = 5): Craftspeople {
+  const by: Record<string, string[]> = { image: [], musique: [], scénario: [] };
+  for (const { film, watch } of screeningsOf(films)) {
+    if (!inPeriod(watch.date, period)) continue;
+    for (const trade of Object.keys(by)) by[trade]!.push(...((film.crew || {})[trade] || []));
   }
   return {
-    image: palmarès(par.image!, combien),
-    musique: palmarès(par.musique!, combien),
-    scénario: palmarès(par.scénario!, combien),
+    image: ranking(by.image!, howMany),
+    musique: ranking(by.musique!, howMany),
+    scénario: ranking(by.scénario!, howMany),
   };
 }
 
 export interface Rhythm {
-  /** Jours distincts où l'on a vu quelque chose. */
-  jours: number;
-  /** Part des jours de la période, en % — la densité de la pratique. */
-  densite: number;
-  /** Le plus long intervalle sans aucune séance, en jours. */
-  disette: number;
-  /** Le mois le plus dense, de 1 à 12 ; `null` si la période est vide. */
+  /** Distinct days on which something was watched. */
+  days: number;
+  /** Share of the period's days, in % — the density of the practice. */
+  density: number;
+  /** The longest gap with no screening at all, in days. */
+  drought: number;
+  /** The densest month, 1 to 12; `null` if the period is empty. */
   moisLePlusDense: number | null;
 }
 
 /* LE RYTHME.
 
-   La disette se mesure ENTRE la première et la dernière séance de
-   l'année, et non depuis le 1er janvier : une année commencée en mars
-   n'a pas connu deux mois de disette, elle n'avait simplement pas
-   commencé. Compter les bords ferait passer tout nouvel arrivant pour un
-   cinéphile intermittent.
+   The drought is measured BETWEEN the first and the last screening of
+   the year, and not from 1 January: a year that started in March did not
+   go through two months of drought, it simply had not started. Counting
+   the edges would make every newcomer look like an intermittent film
+   lover.
 
-   LA DENSITÉ EST LA SEULE CHOSE QUI NE SE GÉNÉRALISE PAS TOUTE SEULE.
-   Rapportée à trois cent soixante-cinq jours, elle n'a de sens que sur
-   une année ; sur sept ans, elle dirait sept cents pour cent. Sur
-   « toujours », le dénominateur devient donc l'étendue RÉELLEMENT
-   couverte, de la première séance à la dernière — la même règle que la
-   disette, et pour la même raison : on ne reproche pas à quelqu'un les
-   années où il ne tenait pas encore de journal. */
-export function rhythm(films: Film[], période: Période): Rhythm {
-  const jours = new Set<number>();
-  const parMois = Array(12).fill(0) as number[];
-  for (const { watch } of séancesDe(films)) {
-    if (!dansLaPériode(watch.date, période)) continue;
-    jours.add(enJours(watch.date));
+   THE DENSITY IS THE ONLY THING THAT DOES NOT GENERALISE BY ITSELF.
+   Related to three hundred and sixty-five days, it only makes sense over
+   one year; over seven years it would say seven hundred per cent. On
+   "always", the denominator therefore becomes the span ACTUALLY covered,
+   from the first screening to the last — the same rule as the drought,
+   and for the same reason: we do not hold against someone the years in
+   which they were not yet keeping a log. */
+export function rhythm(films: Film[], period: Period): Rhythm {
+  const days = new Set<number>();
+  const perMonth = Array(12).fill(0) as number[];
+  for (const { watch } of screeningsOf(films)) {
+    if (!inPeriod(watch.date, period)) continue;
+    days.add(inDays(watch.date));
     const m = Number(watch.date.slice(5, 7));
-    if (m >= 1 && m <= 12) parMois[m - 1] = (parMois[m - 1] as number) + 1;
+    if (m >= 1 && m <= 12) perMonth[m - 1] = (perMonth[m - 1] as number) + 1;
   }
 
-  const triés = [...jours].sort((a, b) => a - b);
-  let disette = 0;
-  for (let i = 1; i < triés.length; i++)
-    disette = Math.max(disette, (triés[i] as number) - (triés[i - 1] as number) - 1);
+  const sorted = [...days].sort((a, b) => a - b);
+  let drought = 0;
+  for (let i = 1; i < sorted.length; i++)
+    drought = Math.max(drought, (sorted[i] as number) - (sorted[i - 1] as number) - 1);
 
-  const étendue =
-    période === "toujours"
-      ? triés.length > 1
-        ? (triés[triés.length - 1] as number) - (triés[0] as number) + 1
-        : triés.length
-      : période % 4 === 0 && (période % 100 !== 0 || période % 400 === 0)
+  const span =
+    period === "always"
+      ? sorted.length > 1
+        ? (sorted[sorted.length - 1] as number) - (sorted[0] as number) + 1
+        : sorted.length
+      : period % 4 === 0 && (period % 100 !== 0 || period % 400 === 0)
         ? 366
         : 365;
 
-  const max = Math.max(...parMois);
+  const max = Math.max(...perMonth);
   return {
-    jours: jours.size,
-    densite: étendue > 0 ? (jours.size / étendue) * 100 : 0,
-    disette,
-    moisLePlusDense: max > 0 ? parMois.indexOf(max) + 1 : null,
+    days: days.size,
+    density: span > 0 ? (days.size / span) * 100 : 0,
+    drought,
+    moisLePlusDense: max > 0 ? perMonth.indexOf(max) + 1 : null,
   };
 }
 
 export interface ScreenTime {
-  /** Minutes cumulées des séances dont on connaît la durée. */
+  /** Cumulative minutes of the screenings whose runtime is known. */
   minutes: number;
-  /** Durée moyenne d'une séance ; `null` si aucune durée n'est connue. */
+  /** A screening's mean runtime; `null` if no runtime is known. */
   moyenne: number | null;
-  plusLong: { film: Film; runtime: number } | null;
-  /** Séances dont la durée manque — de quoi dire que le total est un plancher. */
-  sansDuree: number;
+  longest: { film: Film; runtime: number } | null;
+  /** Screenings whose runtime is missing — enough to say the total is a floor. */
+  noRuntime: number;
 }
 
-/* LES HEURES DE CINÉMA.
+/* THE HOURS OF CINEMA.
 
-   Les séances sans durée connue sont comptées À PART et non ignorées en
-   silence : « quatre-vingt-douze heures » sur une collection à moitié
-   renseignée est un chiffre faux, « quatre-vingt-douze heures, et douze
-   séances dont on ignore la durée » est un chiffre honnête. C'est aussi
-   ce qui donne envie d'aller cliquer « compléter les fiches ». */
-export function screenTime(films: Film[], période: Période): ScreenTime {
+   Screenings with no known runtime are counted SEPARATELY and not
+   silently ignored: "ninety-two hours" on a half-filled collection is a
+   false figure, "ninety-two hours, and twelve screenings whose runtime is
+   unknown" is an honest one. It is also what makes you want to go and
+   click "complete the cards". */
+export function screenTime(films: Film[], period: Period): ScreenTime {
   let minutes = 0;
   let n = 0;
-  let sansDuree = 0;
-  let plusLong: { film: Film; runtime: number } | null = null;
+  let noRuntime = 0;
+  let longest: { film: Film; runtime: number } | null = null;
 
-  for (const { film, watch } of séancesDe(films)) {
-    if (!dansLaPériode(watch.date, période)) continue;
+  for (const { film, watch } of screeningsOf(films)) {
+    if (!inPeriod(watch.date, period)) continue;
     if (film.runtime == null || film.runtime <= 0) {
-      sansDuree += 1;
+      noRuntime += 1;
       continue;
     }
     minutes += film.runtime;
     n += 1;
-    if (!plusLong || film.runtime > plusLong.runtime) plusLong = { film, runtime: film.runtime };
+    if (!longest || film.runtime > longest.runtime) longest = { film, runtime: film.runtime };
   }
-  return { minutes, moyenne: n ? minutes / n : null, plusLong, sansDuree };
+  return { minutes, moyenne: n ? minutes / n : null, longest, noRuntime };
 }
 
 export interface Geography {
-  /** Codes ISO 3166-1, du plus vu au moins. */
-  pays: { nom: string; n: number }[];
+  /** ISO 3166-1 codes, from the most watched to the least. */
+  countries: { name: string; n: number }[];
   /** Codes ISO 639-1. */
-  langues: { nom: string; n: number }[];
-  /** Combien de pays distincts l'année a traversés. */
-  nbPays: number;
+  languages: { name: string; n: number }[];
+  /** How many distinct countries the year crossed. */
+  countryCount: number;
 }
 
-/* LA GÉOGRAPHIE. On rend des CODES et non des noms : traduire « JP » en
-   « Japon » est un choix de langue d'affichage, qui appartient à la vue.
-   Le domaine ne sait pas dans quelle langue on le lira. */
-export function geography(films: Film[], période: Période): Geography {
-  const pays: string[] = [];
-  const langues: string[] = [];
-  for (const { film, watch } of séancesDe(films)) {
-    if (!dansLaPériode(watch.date, période)) continue;
-    pays.push(...(film.countries || []));
-    if (film.language) langues.push(film.language);
+/* GEOGRAPHY. We return CODES and not names: translating "JP" into
+   "Japon" is a display-language choice, and it belongs to the view. The
+   domain does not know what language it will be read in. */
+export function geography(films: Film[], period: Period): Geography {
+  const countries: string[] = [];
+  const languages: string[] = [];
+  for (const { film, watch } of screeningsOf(films)) {
+    if (!inPeriod(watch.date, period)) continue;
+    countries.push(...(film.countries || []));
+    if (film.language) languages.push(film.language);
   }
   return {
-    pays: palmarès(pays, 6),
-    langues: palmarès(langues, 6),
-    nbPays: new Set(pays).size,
+    countries: ranking(countries, 6),
+    languages: ranking(languages, 6),
+    countryCount: new Set(countries).size,
   };
 }
 
 export interface Almanac {
-  période: Période;
-  /** Séances de la période — revoyures comprises. */
+  period: Period;
+  /** The period's screenings — rewatches included. */
   count: number;
-  /** Fiches distinctes touchées : le nombre de films, et non de soirées. */
+  /** Distinct cards touched: the number of films, not of evenings. */
   titles: number;
-  /** Séances portant sur un film déjà vu auparavant, ici ou avant la période. */
+  /** Screenings of a film already seen before, here or before the period. */
   rewatches: number;
-  /** Douze cases, janvier en tête. Des séances, toujours. */
+  /** Twelve slots, January first. Screenings, always. */
   byMonth: number[];
   /**
-   * Une case par année couverte, de la plus ancienne à la plus récente.
-   * Vide sur une période annuelle : `byMonth` y répond déjà, et la même
-   * information dessinée deux fois n'en fait pas une de plus.
+   * One slot per year covered, from the oldest to the most recent. Empty
+   * on a yearly period: `byMonth` already answers that, and the same
+   * information drawn twice does not make it two.
    */
-  byYear: { year: number; séances: number; titres: number; note: number | null }[];
-  /** Moyenne des séances NOTÉES ; `null` quand aucune ne l'est. */
+  byYear: { year: number; screenings: number; titles: number; rating: number | null }[];
+  /** Mean of the RATED screenings; `null` when none is. */
   ratingAvg: number | null;
-  /** Onze cases : 0, 0.5, 1 … 5. */
+  /** Eleven bins: 0, 0.5, 1 … 5. */
   ratingHistogram: number[];
-  /** Les décennies de sortie visitées, de la plus ancienne à la plus récente. */
+  /** The release decades visited, from the oldest to the most recent. */
   decades: { decade: number; n: number }[];
-  topDirectors: { nom: string; n: number }[];
-  topGenres: { nom: string; n: number }[];
+  topDirectors: { name: string; n: number }[];
+  topGenres: { name: string; n: number }[];
   longestStreak: number;
   firstWatch: string | null;
   lastWatch: string | null;
-  /* Ce qui révèle un goût, plutôt que ce qui le compte. Chacun se
-     calcule aussi seul — voir les fonctions du même nom plus haut. */
+  /* What reveals a taste, rather than what counts it. Each also computes
+     on its own — see the functions of the same name above. */
   age: AgeOfFilms;
   ratingByDecade: { decade: number; avg: number; n: number }[];
   newDirectors: string[];
   loyalties: Loyalties;
-  /** De quoi l'année a parlé : mots-clés TMDB et motifs du catalogue. */
-  sujets: Sujets;
-  /** Les métiers de l'ombre, que `loyalties` ne regardait pas. */
-  artisans: Artisans;
+  /** What the year was about: TMDB keywords and catalogue motifs. */
+  subjects: Subjects;
+  /** The trades in the shadows, which `loyalties` did not look at. */
+  craftspeople: Craftspeople;
   rhythm: Rhythm;
   screenTime: ScreenTime;
   geography: Geography;
-  écart: ÉcartAuPublic;
+  gap: GapToPublic;
 }
 
 /* ------------------------------------------------------------
-   L'ÉCART À LA NOTE PUBLIQUE
+   THE GAP FROM THE PUBLIC RATING
    ------------------------------------------------------------
 
-   `tmdbRating` est stocké sur chaque fiche depuis le début, et le type
-   dit sans détour à quoi il sert : « de quoi mesurer son propre écart ».
-   Le Générique s'en sert par personne ; il manquait la même mesure à
-   l'échelle de la pratique — êtes-vous plus tendre ou plus sévère que la
+   `tmdbRating` has been stored on every card from the start, and the type
+   says plainly what it is for: "enough to measure one's own gap". The
+   Credits view uses it per person; the same measure was missing at the
+   scale of the practice — are you gentler or harsher than the
    foule, et sur quoi.
 
-   Ne comptent que les séances où LES DEUX notes existent : comparer à un
-   vide donnerait un écart inventé. Les notes sont ramenées sur dix, la
-   vôtre étant sur cinq — soustraire deux échelles différentes est une
+   Only the screenings where BOTH ratings exist count: comparing against
+   a void would give an invented gap. The ratings are brought onto ten,
+   yours being out of five — subtracting two different scales is a
    faute qu'aucun signe ne trahit ensuite. */
-export interface ÉcartAuPublic {
-  /** Votre moyenne, sur dix, sur les séances comparables. */
-  vous: number | null;
-  /** La moyenne publique des mêmes films. */
+export interface GapToPublic {
+  /** Your mean, out of ten, over the comparable screenings. */
+  you: number | null;
+  /** The public mean for the same films. */
   public: number | null;
-  /** `vous - public`. Positif : vous êtes plus tendre. */
-  écart: number | null;
-  /** Séances comparables — sur combien la mesure porte. */
+  /** `you - public`. Positive: you are gentler. */
+  gap: number | null;
+  /** Comparable screenings — what the measure rests on. */
   n: number;
-  /** Là où vous êtes le plus au-dessus de la foule, puis le plus en dessous. */
-  plusTendre: { film: Film; delta: number }[];
-  plusSévère: { film: Film; delta: number }[];
+  /** Where you are furthest above the crowd, then furthest below. */
+  mostGenerous: { film: Film; delta: number }[];
+  mostSevere: { film: Film; delta: number }[];
 }
 
-export function écartAuPublic(films: Film[], période: Période, combien = 3): ÉcartAuPublic {
-  let sommeVous = 0;
-  let sommePublic = 0;
+export function gapToPublic(films: Film[], period: Period, howMany = 3): GapToPublic {
+  let sumYou = 0;
+  let sumPublic = 0;
   let n = 0;
-  /* Par FILM et non par séance : un film revu quatre fois pèserait
-     quatre fois dans un palmarès de trois lignes, et le remplirait à lui
-     seul. On garde sa meilleure note de la période. */
-  const parFilm = new Map<string, { film: Film; vous: number }>();
+  /* By FILM and not by screening: a film watched four times would weigh
+     four times in a three-line ranking, and would fill it on its own. We
+     keep its best rating within the period. */
+  const byFilm = new Map<string, { film: Film; you: number }>();
 
-  for (const { film, watch } of séancesDe(films)) {
-    if (!dansLaPériode(watch.date, période)) continue;
+  for (const { film, watch } of screeningsOf(films)) {
+    if (!inPeriod(watch.date, period)) continue;
     if (watch.rating == null || film.tmdbRating == null) continue;
-    const vous = watch.rating * 2;
-    sommeVous += vous;
-    sommePublic += film.tmdbRating;
+    const you = watch.rating * 2;
+    sumYou += you;
+    sumPublic += film.tmdbRating;
     n += 1;
-    const déjà = parFilm.get(film.id);
-    if (!déjà || vous > déjà.vous) parFilm.set(film.id, { film, vous });
+    const already = byFilm.get(film.id);
+    if (!already || you > already.you) byFilm.set(film.id, { film, you });
   }
 
-  const deltas = [...parFilm.values()]
-    .map(({ film, vous }) => ({ film, delta: vous - (film.tmdbRating as number) }))
+  const deltas = [...byFilm.values()]
+    .map(({ film, you }) => ({ film, delta: you - (film.tmdbRating as number) }))
     .sort((a, b) => b.delta - a.delta);
 
   return {
-    vous: n ? sommeVous / n : null,
-    public: n ? sommePublic / n : null,
-    écart: n ? (sommeVous - sommePublic) / n : null,
+    you: n ? sumYou / n : null,
+    public: n ? sumPublic / n : null,
+    gap: n ? (sumYou - sumPublic) / n : null,
     n,
-    plusTendre: deltas.filter((d) => d.delta > 0).slice(0, combien),
-    plusSévère: deltas
+    mostGenerous: deltas.filter((d) => d.delta > 0).slice(0, howMany),
+    mostSevere: deltas
       .filter((d) => d.delta < 0)
-      .slice(-combien)
+      .slice(-howMany)
       .reverse(),
   };
 }
 
 /* ------------------------------------------------------------
-   ANNÉE PAR ANNÉE
+   YEAR BY YEAR
    ------------------------------------------------------------
 
-   Ce que douze barres de mois racontent d'une année, N barres d'années
-   le racontent d'une pratique : les creux, la montée, l'année où l'on
-   s'est mis à tenir le journal. C'est la seule chose que le bilan de
-   toujours ne pouvait pas emprunter au bilan annuel — il fallait une
-   graduation de plus. */
-export function parAnnée(
+   What twelve monthly bars tell about a year, N yearly bars tell about a
+   practice: the troughs, the climb, the year the log started being kept.
+   It is the only thing the "always" report could not borrow from the
+   yearly account — it needed one more graduation. */
+export function byYear(
   films: Film[]
-): { year: number; séances: number; titres: number; note: number | null }[] {
-  const par = new Map<
+): { year: number; screenings: number; titles: number; rating: number | null }[] {
+  const per = new Map<
     number,
-    { séances: number; films: Set<string>; somme: number; notées: number }
+    { screenings: number; films: Set<string>; sum: number; rated: number }
   >();
-  for (const { film, watch } of séancesDe(films)) {
-    const an = anneeDe(watch.date);
-    if (an == null) continue;
-    const lot = par.get(an) || { séances: 0, films: new Set<string>(), somme: 0, notées: 0 };
-    lot.séances += 1;
-    lot.films.add(film.id);
+  for (const { film, watch } of screeningsOf(films)) {
+    const year = yearOf(watch.date);
+    if (year == null) continue;
+    const batch = per.get(year) || { screenings: 0, films: new Set<string>(), sum: 0, rated: 0 };
+    batch.screenings += 1;
+    batch.films.add(film.id);
     if (watch.rating != null) {
-      lot.somme += watch.rating;
-      lot.notées += 1;
+      batch.sum += watch.rating;
+      batch.rated += 1;
     }
-    par.set(an, lot);
+    per.set(year, batch);
   }
-  return [...par.entries()]
+  return [...per.entries()]
     .map(([year, l]) => ({
       year,
-      séances: l.séances,
-      titres: l.films.size,
-      note: l.notées ? l.somme / l.notées : null,
+      screenings: l.screenings,
+      titles: l.films.size,
+      rating: l.rated ? l.sum / l.rated : null,
     }))
     .sort((a, b) => a.year - b.year);
 }
 
-/* CE QU'UNE ANNÉE CONTIENT.
+/* WHAT A YEAR CONTAINS.
 
-   Une seule traversée par question, et aucune ne suppose l'autre : une
-   collection vide, une année sans séance et une séance sans note
-   donnent toutes les trois une réponse — jamais une exception, jamais
-   un `NaN`. C'est ce qui permet à la vue de ne rien tester avant de
-   dessiner. */
-export function almanacFor(films: Film[], période: Période): Almanac {
-  const toutes = séancesDe(films);
-  const année = toutes.filter(({ watch }) => dansLaPériode(watch.date, période));
+   One sweep per question, and none assumes another: an empty collection,
+   a year with no screening and a screening with no rating all three give
+   an answer — never an exception, never a `NaN`. That is what lets the
+   view test nothing before drawing. */
+export function almanacFor(films: Film[], period: Period): Almanac {
+  const all = screeningsOf(films);
+  const year = all.filter(({ watch }) => inPeriod(watch.date, period));
 
-  const notées = année.filter(({ watch }) => watch.rating != null);
-  const somme = notées.reduce((s, { watch }) => s + (watch.rating || 0), 0);
+  const rated = year.filter(({ watch }) => watch.rating != null);
+  const sum = rated.reduce((s, { watch }) => s + (watch.rating || 0), 0);
 
   const byMonth = Array(12).fill(0) as number[];
-  for (const { watch } of année) {
-    const mois = Number(watch.date.slice(5, 7));
-    if (mois >= 1 && mois <= 12) byMonth[mois - 1] = (byMonth[mois - 1] as number) + 1;
+  for (const { watch } of year) {
+    const month = Number(watch.date.slice(5, 7));
+    if (month >= 1 && month <= 12) byMonth[month - 1] = (byMonth[month - 1] as number) + 1;
   }
 
-  /* Une revoyure est une séance qui n'est pas la PREMIÈRE de son film,
-     journal entier à l'appui — revoir en mars un film découvert l'année
-     d'avant est une revoyure, et le compter comme une découverte serait
-     mentir sur ce que l'année a apporté. */
-  const première = new Map<string, string>();
-  for (const { film, watch } of toutes) {
-    const connue = première.get(film.id);
-    if (!connue || watch.date < connue) première.set(film.id, watch.date);
+  /* A rewatch is a screening that is not its film's FIRST, with the whole
+     log to back it up — watching again in March a film discovered the
+     year before is a rewatch, and counting it as a discovery would lie
+     about what the year brought. */
+  const firstSeen = new Map<string, string>();
+  for (const { film, watch } of all) {
+    const known = firstSeen.get(film.id);
+    if (!known || watch.date < known) firstSeen.set(film.id, watch.date);
   }
-  const rewatches = année.filter(({ film, watch }) => watch.date !== première.get(film.id)).length;
+  const rewatches = year.filter(({ film, watch }) => watch.date !== firstSeen.get(film.id)).length;
 
   const ratingHistogram = Array(11).fill(0) as number[];
-  for (const { watch } of notées) {
+  for (const { watch } of rated) {
     const case_ = Math.round((watch.rating || 0) * 2);
     if (case_ >= 0 && case_ <= 10) ratingHistogram[case_] = (ratingHistogram[case_] as number) + 1;
   }
 
-  /* Les décennies se lisent sur l'ANNÉE DE SORTIE du film, qui peut
-     manquer — le type `Year` autorise la chaîne vide, héritée des CSV
-     sans colonne d'année. Ces fiches sont écartées du décompte et non
-     rangées en l'an zéro. */
-  const parDécennie = new Map<number, number>();
-  for (const { film } of année) {
-    const sortie = typeof film.year === "number" ? film.year : Number(film.year);
-    if (!Number.isFinite(sortie) || sortie <= 0) continue;
-    const d = Math.floor(sortie / 10) * 10;
-    parDécennie.set(d, (parDécennie.get(d) || 0) + 1);
+  /* Decades are read from the film's RELEASE YEAR, which can be missing
+     — the `Year` type allows the empty string, inherited from CSVs with
+     no year column. Those cards are ruled out of the count rather than
+     filed under year zero. */
+  const byDecade = new Map<number, number>();
+  for (const { film } of year) {
+    const release = typeof film.year === "number" ? film.year : Number(film.year);
+    if (!Number.isFinite(release) || release <= 0) continue;
+    const d = Math.floor(release / 10) * 10;
+    byDecade.set(d, (byDecade.get(d) || 0) + 1);
   }
 
-  const dates = année.map(({ watch }) => watch.date).sort();
+  const dates = year.map(({ watch }) => watch.date).sort();
 
   return {
-    période,
-    count: année.length,
-    titles: new Set(année.map(({ film }) => film.id)).size,
+    period,
+    count: year.length,
+    titles: new Set(year.map(({ film }) => film.id)).size,
     rewatches,
     byMonth,
-    byYear: période === "toujours" ? parAnnée(films) : [],
-    ratingAvg: notées.length ? somme / notées.length : null,
+    byYear: period === "always" ? byYear(films) : [],
+    ratingAvg: rated.length ? sum / rated.length : null,
     ratingHistogram,
-    decades: [...parDécennie.entries()]
+    decades: [...byDecade.entries()]
       .map(([decade, n]) => ({ decade, n }))
       .sort((a, b) => a.decade - b.decade),
-    topDirectors: palmarès(
-      année.map(({ film }) => film.director),
+    topDirectors: ranking(
+      year.map(({ film }) => film.director),
       6
     ),
-    topGenres: palmarès(
-      année.flatMap(({ film }) => film.genres || []),
+    topGenres: ranking(
+      year.flatMap(({ film }) => film.genres || []),
       6
     ),
     longestStreak: longestStreak(dates),
     firstWatch: dates[0] ?? null,
     lastWatch: dates[dates.length - 1] ?? null,
-    age: ageOfFilms(films, période),
-    ratingByDecade: ratingByDecade(films, période),
-    newDirectors: newDirectors(films, période),
-    /* Trois fois dans une année est une traversée d'œuvre ; trois fois
-       en sept ans, une coïncidence. Le seuil suit la période. */
-    loyalties: loyalties(films, période, période === "toujours" ? 6 : 3),
-    sujets: sujets(films, période),
-    artisans: artisans(films, période),
-    rhythm: rhythm(films, période),
-    screenTime: screenTime(films, période),
-    geography: geography(films, période),
-    écart: écartAuPublic(films, période),
+    age: ageOfFilms(films, period),
+    ratingByDecade: ratingByDecade(films, period),
+    newDirectors: newDirectors(films, period),
+    /* Three times in one year is a crossing of a body of work; three times
+       in seven, a coincidence. The threshold follows the period. */
+    loyalties: loyalties(films, period, period === "always" ? 6 : 3),
+    subjects: subjects(films, period),
+    craftspeople: craftspeople(films, period),
+    rhythm: rhythm(films, period),
+    screenTime: screenTime(films, period),
+    geography: geography(films, period),
+    gap: gapToPublic(films, period),
   };
 }
 
 /* ------------------------------------------------------------
-   LES FILMS DE L'ANNÉE
+   THE FILMS OF THE YEAR
    ------------------------------------------------------------
 
-   L'almanach compte des séances ; une image à emporter montre des
-   AFFICHES, et donc des films — un film revu trois fois n'y paraît
-   qu'une, avec la meilleure note qu'il a reçue cette année-là.
+   The almanac counts screenings; a picture to take away shows POSTERS,
+   and therefore films — a film watched three times appears only once, with
+   the best rating it received that year.
 
-   L'ordre est celui du mérite puis du calendrier : à note égale, le plus
-   récemment vu d'abord. Sans note, un film ne passe pas devant un film
-   noté — mais il passe, parce que ne pas avoir noté n'est pas un
+   The order is that of merit then of the calendar: on an equal rating, the
+   most recently watched first. With no rating, a film does not go ahead of
+   a rated one — but it does go, because not having rated is not a
    jugement. */
 export interface FilmOfYear {
   film: Film;
-  /** La meilleure note reçue cette année-là ; `null` si aucune séance n'est notée. */
+  /** The best rating received that year; `null` if no screening is rated. */
   rating: number | null;
-  /** Séances de l'année pour ce film. */
+  /** The year's screenings for this film. */
   n: number;
-  /** La dernière séance de l'année. */
+  /** The year's last screening. */
   date: string;
 }
 
-export function filmsOfYear(films: Film[], période: Période): FilmOfYear[] {
-  const par = new Map<string, FilmOfYear>();
-  for (const { film, watch } of séancesDe(films)) {
-    if (!dansLaPériode(watch.date, période)) continue;
-    const vu = par.get(film.id);
-    if (!vu) {
-      par.set(film.id, { film, rating: watch.rating, n: 1, date: watch.date });
+export function filmsOfYear(films: Film[], period: Period): FilmOfYear[] {
+  const per = new Map<string, FilmOfYear>();
+  for (const { film, watch } of screeningsOf(films)) {
+    if (!inPeriod(watch.date, period)) continue;
+    const seen = per.get(film.id);
+    if (!seen) {
+      per.set(film.id, { film, rating: watch.rating, n: 1, date: watch.date });
       continue;
     }
-    vu.n += 1;
-    if (watch.rating != null && (vu.rating == null || watch.rating > vu.rating))
-      vu.rating = watch.rating;
-    if (watch.date > vu.date) vu.date = watch.date;
+    seen.n += 1;
+    if (watch.rating != null && (seen.rating == null || watch.rating > seen.rating))
+      seen.rating = watch.rating;
+    if (watch.date > seen.date) seen.date = watch.date;
   }
-  return [...par.values()].sort(
+  return [...per.values()].sort(
     (a, b) => (b.rating ?? -1) - (a.rating ?? -1) || b.date.localeCompare(a.date)
   );
 }
 
 /* ------------------------------------------------------------
-   CE QUI A BOUGÉ
+   WHAT HAS MOVED
    ------------------------------------------------------------
 
-   La trouvaille la plus personnelle de l'almanach n'est pas un compte :
-   c'est un film qu'on avait mis trois étoiles et qui en vaut cinq dix
-   ans plus tard. `ratingDrift` sait déjà le calculer sur une fiche ; il
-   ne manquait qu'un endroit d'où regarder toute la collection.
+   The almanac's most personal find is not a count: it is a film we had
+   given three stars and that is worth five ten years later.
+   `ratingDrift` already knows how to compute it on one card; all that
+   was missing was a place to look at the whole collection from.
 
-   On garde l'écart le plus GRAND en valeur absolue, et on ne retient
-   que le sens dans lequel il penche — un film qui monte puis redescend
-   a bien bougé deux fois, mais ce qu'on veut voir est son amplitude. */
+   We keep the LARGEST gap in absolute value, and we only retain the
+   direction it leans in — a film that goes up then comes back down did
+   move twice, but what we want to see is its amplitude. */
 export interface Drift {
   film: Film;
-  /** Signé : positif si la note a monté. */
+  /** Signed: positive if the rating went up. */
   delta: number;
   from: number;
   to: number;
-  /** La séance qui porte cet écart. */
+  /** The screening that carries this gap. */
   date: string;
 }
 
-export function driftHighlights(films: Film[], combien = 5): Drift[] {
+export function driftHighlights(films: Film[], howMany = 5): Drift[] {
   const out: Drift[] = [];
   for (const film of films) {
     if (film.status === "watchlist") continue;
-    const ordonnées = sortWatches(film.watches || []);
-    let meilleur: Drift | null = null;
-    ordonnées.forEach((w, i) => {
+    const ordered = sortWatches(film.watches || []);
+    let best: Drift | null = null;
+    ordered.forEach((w, i) => {
       if (w.rating == null) return;
-      const avant = ordonnées.slice(i + 1).find((p) => p.rating != null);
-      if (!avant) return;
-      const delta = w.rating - (avant.rating as number);
+      const before = ordered.slice(i + 1).find((p) => p.rating != null);
+      if (!before) return;
+      const delta = w.rating - (before.rating as number);
       if (delta === 0) return;
-      if (!meilleur || Math.abs(delta) > Math.abs(meilleur.delta))
-        meilleur = { film, delta, from: avant.rating as number, to: w.rating, date: w.date };
+      if (!best || Math.abs(delta) > Math.abs(best.delta))
+        best = { film, delta, from: before.rating as number, to: w.rating, date: w.date };
     });
-    if (meilleur) out.push(meilleur);
+    if (best) out.push(best);
   }
-  return out.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, combien);
+  return out.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, howMany);
 }

@@ -40,13 +40,13 @@ import {
   clearViewDecor,
 } from "./shelf-views";
 
-/* Un film réduit à ce dont l'étagère a besoin. */
+/* A film reduced to what the shelf needs. */
 const film = (id, extra = {}) => ({
   id,
   title: id,
   addedAt: 1000,
   status: "watched",
-  chevet: false,
+  bedside: false,
   archived: false,
   order: null,
   ...extra,
@@ -56,64 +56,64 @@ const unplacedOf = (view, kind) => view.shelves[kind].rows.at(-1);
 const rowsOf = (view, kind) => view.shelves[kind].rows;
 const idsIn = (row) => row.items.map((it) => it.id);
 
-/* TOUS les identifiants d'objets d'une vue, boîtes ouvertes comprises.
+/* ALL the object identifiers of a view, opened boxes included.
 
-   Il servait à écrire « ce bibelot n'est plus nulle part », et cela se
-   disait jusqu'ici en cherchant son id dans le JSON de la vue entière.
-   Mais une vue est pleine d'identifiants tirés au sort, et « d1 » finit
-   par tomber au milieu de l'un d'eux — `r_nd1p7is9…` — un jour sur
-   quelques dizaines. Le test échouait alors sans que rien ne soit cassé.
+   It served to write "this trinket is nowhere any more", and that was
+   said until now by looking for its id in the JSON of the whole view.
+   But a view is full of randomly drawn identifiers, and "d1" ends up
+   falling in the middle of one of them — `r_nd1p7is9…` — one day out of
+   a few dozen. The test then failed with nothing broken.
 
-   On regarde donc les identifiants comme des identifiants, et non comme
-   une sous-chaîne d'un gros texte. */
+   So we look at identifiers as identifiers, and not as a substring of a
+   big text. */
 const allItemIds = (view) =>
   Object.values(view.shelves)
     .flatMap((s) => s.rows)
     .flatMap((r) => r.items)
     .flatMap((it) => (it.t === "c" ? [it.id, ...(it.items || []).map((i) => i.id)] : [it.id]));
 
-/* Une boîte, où qu'elle soit posée dans la vue. */
+/* A box, wherever it is laid in the view. */
 const catIn = (view, catId, kind = "main") =>
   rowsOf(view, kind)
     .flatMap((r) => r.items)
     .find((it) => it.t === "c" && it.id === catId);
 
-describe("appartenance à un rayon", () => {
-  it("les drapeaux du film, et eux seuls, décident du rayon", () => {
+describe("which shelf a film belongs to", () => {
+  it("the film's flags, and they alone, decide the shelf", () => {
     expect(kindOf(film("a"))).toBe("main");
-    expect(kindOf(film("a", { chevet: true }))).toBe("chevet");
+    expect(kindOf(film("a", { bedside: true }))).toBe("bedside");
     expect(kindOf(film("a", { archived: true }))).toBe("reserve");
-    // archivé l'emporte : un film de chevet mis de côté est mis de côté
-    expect(kindOf(film("a", { chevet: true, archived: true }))).toBe("reserve");
-    expect(belongs.chevet(film("a", { chevet: true, archived: true }))).toBe(false);
+    // archived wins: a bedside film set aside is set aside
+    expect(kindOf(film("a", { bedside: true, archived: true }))).toBe("reserve");
+    expect(belongs.bedside(film("a", { bedside: true, archived: true }))).toBe(false);
   });
 
-  it("un film à voir n'est jamais de chevet : on ne revoit pas ce qu'on n'a pas vu", () => {
-    const aVoir = film("a", { chevet: true, status: "watchlist" });
-    expect(kindOf(aVoir)).toBe("main");
-    expect(belongs.chevet(aVoir)).toBe(false);
-    // et il ne disparaît pas pour autant : la collection le recueille
-    expect(belongs.main(aVoir)).toBe(true);
+  it("a film to watch is never a bedside one: you do not rewatch what you have not seen", () => {
+    const toWatch = film("a", { bedside: true, status: "watchlist" });
+    expect(kindOf(toWatch)).toBe("main");
+    expect(belongs.bedside(toWatch)).toBe(false);
+    // and it does not vanish for all that: the collection takes it in
+    expect(belongs.main(toWatch)).toBe(true);
   });
 });
 
 describe("reconcileView", () => {
-  it("recueille dans la rangée d'arrivée tout film que la vue ignore", () => {
+  it("gathers into the arrivals row every film the view does not know", () => {
     const view = makeView({ wall: "watched" });
     const films = [film("f1"), film("f2")];
     const next = reconcileView(view, films);
     expect(idsIn(unplacedOf(next, "main"))).toEqual(["f1", "f2"]);
   });
 
-  it("rend le MÊME objet quand rien n'a changé", () => {
+  it("returns the SAME object when nothing has changed", () => {
     const films = [film("f1")];
     const once = reconcileView(makeView(), films);
-    // la stabilité référentielle est ce qui permet de mémoïser les
-    // rangées : un nouvel objet à chaque rendu repeindrait tout le rayon
+    // referential stability is what allows memoising the rows: a new
+    // object on every render would repaint the whole shelf
     expect(reconcileView(once, films)).toBe(once);
   });
 
-  it("retire un film supprimé, où qu'il se trouve", () => {
+  it("takes out a deleted film, wherever it sits", () => {
     const cat = makeCat({ items: [filmItem("f2")] });
     const view = makeView();
     view.shelves.main.rows[0].items = [filmItem("f1"), cat];
@@ -121,7 +121,7 @@ describe("reconcileView", () => {
     expect(filmIdsOf(next)).toEqual(["f1"]);
   });
 
-  it("déménage un film archivé du rayon principal vers l'arrivée du tiroir", () => {
+  it("moves an archived film from the main shelf to the drawer's arrivals", () => {
     const view = makeView();
     view.shelves.main.rows[0].items = [filmItem("f1")];
     const next = reconcileView(view, [film("f1", { archived: true })]);
@@ -129,14 +129,14 @@ describe("reconcileView", () => {
     expect(idsIn(unplacedOf(next, "reserve"))).toEqual(["f1"]);
   });
 
-  it("dédoublonne : un film n'occupe qu'une place", () => {
+  it("de-duplicates: a film takes one place and no more", () => {
     const view = makeView();
     view.shelves.main.rows[0].items = [filmItem("f1"), filmItem("f1")];
     const next = reconcileView(view, [film("f1")]);
     expect(filmIdsOf(next)).toEqual(["f1"]);
   });
 
-  it("garantit une seule rangée d'arrivée, en dernier", () => {
+  it("guarantees a single arrivals row, and last", () => {
     const view = makeView();
     view.shelves.main.rows = [
       makeRow({ kind: "unplaced", items: [filmItem("f1")] }),
@@ -163,7 +163,7 @@ describe("moveItem", () => {
     return view;
   };
 
-  it("réordonne dans une rangée", () => {
+  it("reorders within a row", () => {
     const next = moveItem(
       seed(),
       { id: "f2" },
@@ -172,20 +172,20 @@ describe("moveItem", () => {
     expect(idsIn(rowsOf(next, "main")[0])).toEqual(["f2", "f1", "c1"]);
   });
 
-  it("déplace vers une autre rangée, en fin quand rien n'est visé", () => {
+  it("moves to another row, at the end when nothing is aimed at", () => {
     const next = moveItem(seed(), { id: "f1" }, { kind: "main", rowId: "r2" });
     expect(idsIn(rowsOf(next, "main")[0])).toEqual(["f2", "c1"]);
     expect(idsIn(rowsOf(next, "main")[1])).toEqual(["f1"]);
   });
 
-  it("fait entrer un film dans une catégorie", () => {
+  it("puts a film into a category", () => {
     const next = moveItem(seed(), { id: "f1" }, { kind: "main", rowId: "r1", catId: "c1" });
     const cat = rowsOf(next, "main")[0].items.find((i) => i.id === "c1");
     expect(cat.items.map((i) => i.id)).toEqual(["f3", "f1"]);
     expect(idsIn(rowsOf(next, "main")[0])).toEqual(["f2", "c1"]);
   });
 
-  it("fait ressortir un film d'une catégorie", () => {
+  it("takes a film back out of a category", () => {
     const next = moveItem(
       seed(),
       { id: "f3" },
@@ -196,15 +196,15 @@ describe("moveItem", () => {
     expect(idsIn(rowsOf(next, "main")[0])).toEqual(["f3", "f1", "f2", "c1"]);
   });
 
-  it("refuse d'emboîter une catégorie dans une catégorie", () => {
+  it("refuses to nest a category inside a category", () => {
     const view = seed();
     const next = moveItem(view, { id: "c1" }, { kind: "main", rowId: "r1", catId: "c1" });
     expect(next).toBe(view);
   });
 
-  /* Ce que le refus ci-dessus oblige l'étagère à faire : une boîte qu'on
-     promène au-dessus d'une autre se range À CÔTÉ d'elle. */
-  it("range une catégorie à côté d'une autre, dans la rangée", () => {
+  /* What the refusal above forces the shelf to do: a box walked over
+     another one is stored NEXT TO it. */
+  it("files a category beside another, in the row", () => {
     const view = seed();
     view.shelves.main.rows[0].items.push(makeCat({ id: "c2", items: [] }));
     const next = moveItem(
@@ -215,9 +215,9 @@ describe("moveItem", () => {
     expect(idsIn(rowsOf(next, "main")[0])).toEqual(["f1", "f2", "c2", "c1"]);
   });
 
-  /* Un décor, lui, ENTRE : c'est la sous-division dont on a besoin quand
-     une boîte grossit. Seule une boîte reste dehors. */
-  it("fait entrer un décor dans une catégorie", () => {
+  /* A decor, though, GOES IN: it is the subdivision one needs when a
+     box grows. Only a box stays outside. */
+  it("puts a decor into a category", () => {
     const view = seed();
     view.shelves.main.rows[0].items.push(makeDecor({ id: "d1", motif: "coffee" }));
     const next = moveItem(view, { id: "d1" }, { kind: "main", rowId: "r1", catId: "c1" });
@@ -225,7 +225,7 @@ describe("moveItem", () => {
     expect(idsIn(rowsOf(next, "main")[0])).toEqual(["f1", "f2", "c1"]);
   });
 
-  it("le vise à la place voulue dans la boîte, comme un boîtier", () => {
+  it("aims it at the wanted place in the box, like a case", () => {
     const view = seed();
     view.shelves.main.rows[0].items.push(makeDecor({ id: "d1", motif: "coffee" }));
     const next = moveItem(
@@ -236,7 +236,7 @@ describe("moveItem", () => {
     expect(catIn(next, "c1").items.map((i) => i.id)).toEqual(["d1", "f3"]);
   });
 
-  it("le laisse aussi se ranger à côté de la boîte", () => {
+  it("lets it file itself beside the box too", () => {
     const view = seed();
     view.shelves.main.rows[0].items.push(makeDecor({ id: "d1", motif: "coffee" }));
     const next = moveItem(
@@ -248,7 +248,7 @@ describe("moveItem", () => {
     expect(catIn(next, "c1").items.map((i) => i.id)).toEqual(["f3"]);
   });
 
-  it("ressort un décor d'une boîte sans toucher aux films qui restent", () => {
+  it("takes a decor out of a box without touching the films left in it", () => {
     let view = seed();
     view.shelves.main.rows[0].items.push(makeDecor({ id: "d1", motif: "coffee" }));
     view = moveItem(view, { id: "d1" }, { kind: "main", rowId: "r1", catId: "c1" });
@@ -257,14 +257,14 @@ describe("moveItem", () => {
     expect(idsIn(rowsOf(out, "main")[1])).toEqual(["d1"]);
   });
 
-  it("déplace une catégorie entière vers une autre rangée", () => {
+  it("moves a whole category to another row", () => {
     const next = moveItem(seed(), { id: "c1" }, { kind: "main", rowId: "r2" });
     expect(idsIn(rowsOf(next, "main")[1])).toEqual(["c1"]);
     const cat = rowsOf(next, "main")[1].items[0];
     expect(cat.items.map((i) => i.id)).toEqual(["f3"]);
   });
 
-  it("une couture ouvre une rangée qui hérite du cap de celle du dessus", () => {
+  it("a seam opens a row that inherits the setting of the one above", () => {
     const view = seed();
     view.shelves.main.rows[0].perRow = 6;
     const next = moveItem(view, { id: "f1" }, { kind: "main", afterRowId: "r1" });
@@ -274,30 +274,30 @@ describe("moveItem", () => {
     expect(rows[1].perRow).toBe(6);
   });
 
-  it("crée un décor sorti du cabinet", () => {
+  it("creates a decor taken from the cabinet", () => {
     const decor = makeDecor({ id: "d1", motif: "coffee" });
     const next = moveItem(seed(), { create: decor }, { kind: "main", rowId: "r2" });
     expect(rowsOf(next, "main")[1].items[0]).toMatchObject({ t: "d", motif: "coffee" });
   });
 
-  it("traverse les rayons", () => {
+  it("crossing the shelves", () => {
     const view = seed();
     const next = moveItem(
       view,
       { id: "f1" },
-      { kind: "chevet", rowId: rowsOf(view, "chevet")[0].id }
+      { kind: "bedside", rowId: rowsOf(view, "bedside")[0].id }
     );
-    expect(idsIn(rowsOf(next, "chevet")[0])).toEqual(["f1"]);
+    expect(idsIn(rowsOf(next, "bedside")[0])).toEqual(["f1"]);
     expect(idsIn(rowsOf(next, "main")[0])).toEqual(["f2", "c1"]);
   });
 
-  it("ne fait rien si la rangée visée n'existe pas", () => {
+  it("does nothing when the aimed-at row does not exist", () => {
     const view = seed();
     expect(moveItem(view, { id: "f1" }, { kind: "main", rowId: "inconnue" })).toBe(view);
   });
 });
 
-describe("le mobilier", () => {
+describe("the furniture", () => {
   const seed = () => {
     const view = makeView();
     view.shelves.main.rows = [
@@ -316,12 +316,12 @@ describe("le mobilier", () => {
     return view;
   };
 
-  it("règle et nomme une ligne", () => {
+  it("sets and names a line", () => {
     const next = patchRow(seed(), "r1", { perRow: 4, label: "Les cultes" });
     expect(rowsOf(next, "main")[0]).toMatchObject({ perRow: 4, label: "Les cultes" });
   });
 
-  it("ouvre une ligne au-dessus, en dessous, ou à la fin — jamais après l'arrivée", () => {
+  it("opens a line above, below, or at the end — never after the arrivals", () => {
     const before = addRow(seed(), "main", "r1", "before");
     expect(rowsOf(before, "main")[0].id).not.toBe("r1");
 
@@ -334,39 +334,39 @@ describe("le mobilier", () => {
     expect(rows).toHaveLength(4);
   });
 
-  it("la nouvelle ligne hérite du compte de celle du dessus", () => {
+  it("the new line inherits the count of the one above", () => {
     const next = addRow(seed(), "main", "r1", "after");
     expect(rowsOf(next, "main")[1].perRow).toBe(6);
   });
 
-  it("supprimer une ligne rend ses films à l'arrivée, y compris ceux d'une catégorie", () => {
+  it("deleting a line gives its films back to the arrivals, a category's included", () => {
     const next = removeRow(seed(), "r1");
     expect(rowsOf(next, "main").map((r) => r.id)).toEqual(["r2", "r3"]);
     expect(idsIn(unplacedOf(next, "main")).sort()).toEqual(["f1", "f2"]);
   });
 
-  it("refuse de supprimer la rangée d'arrivée", () => {
+  it("refuses to delete the arrivals row", () => {
     const view = seed();
     expect(removeRow(view, "r3")).toBe(view);
   });
 
-  it("vider une ligne la garde mais rend ses films", () => {
+  it("emptying a line keeps it but gives its films back", () => {
     const next = clearRow(seed(), "r1");
     expect(rowsOf(next, "main")[0].items).toEqual([]);
     expect(idsIn(unplacedOf(next, "main")).sort()).toEqual(["f1", "f2"]);
   });
 
-  it("défaire une catégorie rend ses films et ne touche pas au reste", () => {
+  it("undoing a category gives its films back and touches nothing else", () => {
     const next = removeCat(seed(), "c1");
     expect(rowsOf(next, "main")[0].items.map((i) => i.id)).toEqual(["f1", "d1"]);
     expect(idsIn(unplacedOf(next, "main"))).toEqual(["f2"]);
   });
 
-  /* Une ligne n'est pas « une catégorie et sa suite » : c'est une liste
-     libre. On doit pouvoir en poser autant qu'on veut, côte à côte, et
-     glisser des films entre elles — c'est ce que l'intercalaire d'avant,
-     qui ouvrait forcément la ligne, interdisait. */
-  it("accepte autant de catégories qu'on veut sur une même ligne", () => {
+  /* A line is not "a category and its continuation": it is a free list.
+     One must be able to lay as many as one wants, side by side, and
+     slide films between them — which is what the previous divider, which
+     necessarily opened the line, forbade. */
+  it("accepts as many categories as one wants on one line", () => {
     let view = seed();
     view = addCat(view, "r1", makeCat({ id: "c2", label: "Polars" }));
     view = addCat(view, "r1", makeCat({ id: "c3", label: "Westerns" }));
@@ -377,7 +377,7 @@ describe("le mobilier", () => {
       "Westerns",
     ]);
 
-    // et elles se réordonnent librement, y compris devant un film
+    // and they reorder freely, including in front of a film
     const moved = moveItem(
       view,
       { id: "c3" },
@@ -386,7 +386,7 @@ describe("le mobilier", () => {
     expect(rowsOf(moved, "main")[0].items.map((i) => i.id)).toEqual(["c3", "f1", "c1", "d1", "c2"]);
   });
 
-  it("un film entre dans l'une puis passe dans l'autre", () => {
+  it("a film goes into one, then over to the other", () => {
     let view = addCat(seed(), "r1", makeCat({ id: "c2" }));
     view = moveItem(view, { id: "f1" }, { kind: "main", rowId: "r1", catId: "c1" });
     view = moveItem(view, { id: "f1" }, { kind: "main", rowId: "r1", catId: "c2" });
@@ -395,25 +395,25 @@ describe("le mobilier", () => {
     expect(items.find((i) => i.id === "c2").items.map((i) => i.id)).toEqual(["f1"]);
   });
 
-  it("repeint et renomme une catégorie", () => {
+  it("repaints and renames a category", () => {
     const next = patchCat(seed(), "c1", { color: "moss", label: "Polars" });
     expect(rowsOf(next, "main")[0].items[1]).toMatchObject({ color: "moss", label: "Polars" });
   });
 
-  it("le décor, lui, se retire pour de bon", () => {
+  it("a decor, for its part, is taken away for good", () => {
     const next = removeDecor(seed(), "d1");
     expect(rowsOf(next, "main")[0].items.map((i) => i.id)).toEqual(["f1", "c1"]);
     expect(patchDecor(next, "d1", { size: 2 })).toBe(next);
   });
 
-  it("redimensionne un décor", () => {
+  it("resizes a decor", () => {
     const next = patchDecor(seed(), "d1", { size: 1.5, color: "cobalt" });
     expect(rowsOf(next, "main")[0].items[2]).toMatchObject({ size: 1.5, color: "cobalt" });
   });
 });
 
-describe("le débordement", () => {
-  it("une planche pleine pousse le surplus sur la suivante", () => {
+describe("overflow", () => {
+  it("a full plank pushes the surplus onto the next", () => {
     const view = makeView();
     view.shelves.main.rows = [
       makeRow({
@@ -428,7 +428,7 @@ describe("le débordement", () => {
     expect(rows.map(idsIn)).toEqual([["a", "b"], ["c", "d"], []]);
   });
 
-  it("cascade, et ouvre des planches neuves avant le sas d'arrivée", () => {
+  it("cascades, and opens fresh planks before the arrivals airlock", () => {
     const view = makeView();
     view.shelves.main.rows = [
       makeRow({ id: "r1", perRow: 2, items: ["a", "b", "c", "d", "e", "f", "g"].map(filmItem) }),
@@ -436,12 +436,12 @@ describe("le débordement", () => {
     ];
     const rows = rowsOf(reflowShelf(view, "main"), "main");
     expect(rows.map(idsIn)).toEqual([["a", "b"], ["c", "d"], ["e", "f"], ["g"], ["z"]]);
-    // le sas reste le sas : il n'a pas recueilli le surplus
+    // the airlock stays the airlock: it has not taken in the surplus
     expect(isUnplaced(rows.at(-1))).toBe(true);
     expect(rows.filter(isUnplaced)).toHaveLength(1);
   });
 
-  it("ne touche à rien quand tout tient déjà", () => {
+  it("touches nothing when everything already fits", () => {
     const view = makeView();
     view.shelves.main.rows = [
       makeRow({ perRow: 4, items: [filmItem("a")] }),
@@ -450,7 +450,7 @@ describe("le débordement", () => {
     expect(reflowShelf(view, "main")).toBe(view);
   });
 
-  it("une rangée « auto » ne déborde pas — elle suit la largeur", () => {
+  it('an "auto" row does not overflow — it follows the width', () => {
     const view = makeView();
     view.shelves.main.rows = [
       makeRow({ perRow: null, items: ["a", "b", "c"].map(filmItem) }),
@@ -459,7 +459,7 @@ describe("le débordement", () => {
     expect(reflowShelf(view, "main")).toBe(view);
   });
 
-  it("une catégorie compte pour un objet, et n'est jamais coupée", () => {
+  it("a category counts as one object, and is never cut", () => {
     const view = makeView();
     view.shelves.main.rows = [
       makeRow({
@@ -479,10 +479,10 @@ describe("le débordement", () => {
   });
 });
 
-describe("upgradeView — reprendre une vue deja enregistree", () => {
-  /* Le cas rencontre pour de vrai : une vue fabriquee par la v1, ou tout
-     un rayon avait ete verse dans UNE rangee sans compte. Sans reprise au
-     chargement, elle reste une seule grosse ligne. */
+describe("upgradeView — taking up a view already saved", () => {
+  /* The case met for real: a view built by v1, where a whole shelf had
+     been poured into ONE row with no count. Without being taken up at
+     load time, it stays a single big line. */
   const v1 = () => {
     const view = makeView();
     view.version = 1;
@@ -497,11 +497,11 @@ describe("upgradeView — reprendre une vue deja enregistree", () => {
     return view;
   };
 
-  /* La grosse ligne unique de la v1 n'est plus un défaut à réparer : sans
-     compte, elle se replie d'elle-même en lignes de bois, chacune avec sa
-     planche. On la laisse donc telle quelle plutôt que de la débiter par
-     dix, ce qui laisserait chaque planche à moitié nue. */
-  it("laisse en l'état un rayon versé d'un coup : il se replie tout seul", () => {
+  /* The single big line of v1 is no longer a flaw to repair: with no
+     count, it folds itself into wooden lines, each with its board. So we
+     leave it as it is rather than cut it up by tens, which would leave
+     every board half bare. */
+  it("leaves a shelf poured in at once as it is: it folds itself back", () => {
     const out = upgradeView(v1());
     const rows = rowsOf(out, "main");
     expect(out.version).toBe(2);
@@ -509,17 +509,17 @@ describe("upgradeView — reprendre une vue deja enregistree", () => {
     expect(rows.every((r) => r.perRow == null)).toBe(true);
   });
 
-  it("n'y touche plus une fois reprise", () => {
+  it("does not touch it again once taken up", () => {
     const once = upgradeView(v1());
     expect(upgradeView(once)).toBe(once);
   });
 
-  it("ne perd aucun film au passage", () => {
+  it("loses no film on the way", () => {
     const before = filmIdsOf(v1()).sort();
     expect(filmIdsOf(upgradeView(v1())).sort()).toEqual(before);
   });
 
-  it("respecte un compte deja choisi par l'utilisateur", () => {
+  it("respects a count the user has already chosen", () => {
     const view = v1();
     view.shelves.main.rows[0].perRow = 4;
     const rows = rowsOf(upgradeView(view), "main");
@@ -530,32 +530,32 @@ describe("upgradeView — reprendre une vue deja enregistree", () => {
 });
 
 describe("layoutView", () => {
-  it("étale une collection sur une planche qui remplira sa largeur", () => {
+  it("spreads a collection over a plank that will fill its width", () => {
     const films = Array.from({ length: 23 }, (_, i) => film(`f${i}`));
     const out = layoutView(makeView(), films);
     const rows = rowsOf(out, "main");
     expect(rows.filter((r) => !isUnplaced(r)).map((r) => r.items.length)).toEqual([23]);
     expect(idsIn(unplacedOf(out, "main"))).toEqual([]);
-    // rien d'imposé : la rangée prendra le compte de sa largeur
+    // nothing imposed: the row will take the count of its width
     expect(rows.every((r) => r.perRow == null)).toBe(true);
   });
 
-  it("répartit selon les drapeaux du film", () => {
+  it("sorts by the film's flags", () => {
     const out = layoutView(makeView(), [
       film("a"),
-      film("b", { chevet: true }),
+      film("b", { bedside: true }),
       film("c", { archived: true }),
     ]);
     expect(idsIn(rowsOf(out, "main")[0])).toEqual(["a"]);
-    expect(idsIn(rowsOf(out, "chevet")[0])).toEqual(["b"]);
+    expect(idsIn(rowsOf(out, "bedside")[0])).toEqual(["b"]);
     expect(idsIn(rowsOf(out, "reserve")[0])).toEqual(["c"]);
   });
 });
 
-/* Un décor rangé DANS une boîte : plusieurs fonctions du modèle ne
-   savaient chercher qu'au premier niveau, et l'auraient perdu en
+/* A decor stored INSIDE a box: several functions of the model only knew
+   how to search at the first level, and would have lost it in
    silence. */
-describe("un décor dans une catégorie", () => {
+describe("a decor inside a category", () => {
   const seed = () => {
     const view = makeView();
     view.shelves.main.rows = [
@@ -573,50 +573,50 @@ describe("un décor dans une catégorie", () => {
     return view;
   };
 
-  it("survit à la réconciliation — rien dehors ne peut le démentir", () => {
+  it("survives reconciliation — nothing outside can contradict it", () => {
     const out = reconcileView(seed(), [film("f1"), film("f2")]);
     expect(catIn(out, "c1").items.map((i) => i.id)).toEqual(["f1", "d1", "f2"]);
   });
 
-  it("ne compte pas pour un film", () => {
+  it("does not count as a film", () => {
     expect(filmIdsOf(seed()).sort()).toEqual(["f1", "f2"]);
   });
 
-  it("se retouche et se retire là où il est", () => {
+  it("is edited and removed where it stands", () => {
     expect(catIn(patchDecor(seed(), "d1", { label: "Polars" }), "c1").items[1].label).toBe(
       "Polars"
     );
     expect(catIn(removeDecor(seed(), "d1"), "c1").items.map((i) => i.id)).toEqual(["f1", "f2"]);
   });
 
-  it("ne bouge pas quand on range la boîte", () => {
+  it("does not move when the box is filed", () => {
     const out = sortIntoRows(seed(), "main", (a, b) => a.id.localeCompare(b.id));
-    // le décor garde sa place ; seuls les films se redistribuent autour
+    // the decor keeps its place; only the films redistribute around it
     expect(catIn(out, "c1").items.map((i) => i.id)).toEqual(["f1", "d1", "f2"]);
   });
 
-  it("part avec la boîte qu'on défait, les films revenant au sas", () => {
+  it("leaves with the box one undoes, the films going back to the airlock", () => {
     const out = removeCat(seed(), "c1");
     expect(idsIn(unplacedOf(out, "main")).sort()).toEqual(["f1", "f2"]);
     expect(filmIdsOf(out).sort()).toEqual(["f1", "f2"]);
-    // le bibelot est du mobilier : il disparaît avec le meuble
+    // the trinket is furniture: it vanishes with the piece of furniture
     expect(allItemIds(out)).not.toContain("d1");
   });
 
-  it("reçoit un identifiant neuf quand la vue est dupliquée", () => {
+  it("gets a fresh identifier when the view is duplicated", () => {
     const copy = duplicateView(seed(), { now: 1 });
     const inner = copy.shelves.main.rows[0].items[0].items;
     expect(inner.map((i) => i.t)).toEqual(["f", "d", "f"]);
-    // les films sont les mêmes films ; le bibelot, lui, est un autre bibelot
+    // the films are the same films; the trinket, though, is another trinket
     expect(inner[0].id).toBe("f1");
     expect(inner[1].id).not.toBe("d1");
   });
 });
 
-describe("les objets accrochés au mur", () => {
+describe("the objects hung on the wall", () => {
   const wallOf = (view, kind = "main") => view.shelves[kind].wall || [];
 
-  it("accroche au point qu'on lui donne, sans toucher aux rangées", () => {
+  it("hangs at the point it is given, without touching the rows", () => {
     const v = makeView();
     const before = rowsOf(v, "main");
     const next = pinToWall(
@@ -630,19 +630,19 @@ describe("les objets accrochés au mur", () => {
     expect(rowsOf(next, "main")).toBe(before);
   });
 
-  it("décroche d'un rayon pour raccrocher à l'autre, sans se dédoubler", () => {
+  it("unhooks from one shelf to hang on the other, without doubling itself", () => {
     let v = pinToWall(
       makeView(),
       "main",
       { create: makeWallDecor({ id: "w1", motif: "frame" }) },
       { x: 10, y: 10 }
     );
-    v = pinToWall(v, "chevet", { id: "w1" }, { x: 80, y: 60 });
+    v = pinToWall(v, "bedside", { id: "w1" }, { x: 80, y: 60 });
     expect(wallOf(v, "main")).toHaveLength(0);
-    expect(wallOf(v, "chevet")).toEqual([expect.objectContaining({ id: "w1", x: 80, y: 60 })]);
+    expect(wallOf(v, "bedside")).toEqual([expect.objectContaining({ id: "w1", x: 80, y: 60 })]);
   });
 
-  it("se laisse retoucher et retirer comme un décor posé", () => {
+  it("is edited and removed like a decor laid down", () => {
     let v = pinToWall(
       makeView(),
       "main",
@@ -655,7 +655,7 @@ describe("les objets accrochés au mur", () => {
     expect(wallOf(v)).toHaveLength(0);
   });
 
-  it("ne bouge pas quand on lui donne un id qu'aucun mur ne porte", () => {
+  it("does not move when given an id no wall carries", () => {
     const v = makeView();
     expect(pinToWall(v, "main", { id: "personne" }, { x: 5, y: 5 })).toBe(v);
   });
@@ -678,11 +678,11 @@ describe("layoutByDirector", () => {
       .flatMap((r) => r.items)
       .filter((it) => it.t === "c");
 
-  it("donne une ligne et une boîte par réalisateur", () => {
+  it("gives one line and one box per director", () => {
     const out = layoutByDirector(makeView(), cast);
     const placed = rowsOf(out, "main").filter((r) => !isUnplaced(r));
     expect(placed).toHaveLength(4);
-    // une ligne ne porte QUE sa boîte : c'est elle qui tient les films
+    // a line carries ONLY its box: it is the box that holds the films
     expect(placed.every((r) => r.items.length === 1 && r.items[0].t === "c")).toBe(true);
     expect(catsOf(out, "main").map((c) => c.label)).toEqual([
       "Varda",
@@ -692,31 +692,31 @@ describe("layoutByDirector", () => {
     ]);
   });
 
-  it("ordonne comme le mur regroupé : les plus fréquentés, puis l'alphabet, les sans-nom en dernier", () => {
+  it("orders like the grouped wall: the most visited, then the alphabet, the nameless last", () => {
     const cats = catsOf(layoutByDirector(makeView(), cast), "main");
     expect(cats.map((c) => c.items.length)).toEqual([3, 2, 1, 1]);
-    // Denis et l'inconnu ont un film chacun : l'inconnu passe apres
+    // Denis and the unknown have one film each: the unknown comes after
     expect(cats.at(-1).label).toBe(UNKNOWN_DIRECTOR);
   });
 
-  it("ne perd aucun film, et n'en laisse aucun dans la rangée d'arrivée", () => {
+  it("loses no film, and leaves none in the arrivals row", () => {
     const out = layoutByDirector(makeView(), cast);
     expect(filmIdsOf(out).sort()).toEqual(cast.map((f) => f.id).sort());
     expect(idsIn(unplacedOf(out, "main"))).toEqual([]);
   });
 
-  it("répartit selon les drapeaux, chaque rayon ayant ses propres cinéastes", () => {
+  it("sorts by the flags, each shelf having its own film-makers", () => {
     const out = layoutByDirector(makeView(), [
       film("a", { director: "Varda" }),
-      film("b", { director: "Varda", chevet: true }),
+      film("b", { director: "Varda", bedside: true }),
       film("c", { director: "Akerman", archived: true }),
     ]);
     expect(catsOf(out, "main").map((c) => c.label)).toEqual(["Varda"]);
-    expect(catsOf(out, "chevet").map((c) => c.label)).toEqual(["Varda"]);
+    expect(catsOf(out, "bedside").map((c) => c.label)).toEqual(["Varda"]);
     expect(catsOf(out, "reserve").map((c) => c.label)).toEqual(["Akerman"]);
   });
 
-  it("d'un mur vide fait une étagère vide, jamais une vue sans rangée", () => {
+  it("makes an empty shelf out of an empty wall, never a view with no row", () => {
     const out = layoutByDirector(makeView(), []);
     for (const kind of SHELF_KINDS) {
       const rows = rowsOf(out, kind);
@@ -725,15 +725,15 @@ describe("layoutByDirector", () => {
     }
   });
 
-  it("survit à reconcileView sans rien deplacer", () => {
+  it("survives reconcileView without moving anything", () => {
     const out = layoutByDirector(makeView(), cast);
-    // la vue est deja juste : la reconciliation ne doit rien avoir a dire
+    // the view is already right: the reconciliation must have nothing to say
     expect(reconcileView(out, cast)).toBe(out);
   });
 });
 
 describe("sortIntoRows", () => {
-  it("trie les films sans déplacer catégories ni décors", () => {
+  it("sorts the films without moving categories or decors", () => {
     const view = makeView();
     const cat = makeCat({ id: "c1", items: [filmItem("b"), filmItem("a")] });
     const decor = makeDecor({ id: "d1", motif: "pin" });
@@ -744,11 +744,11 @@ describe("sortIntoRows", () => {
     ];
     const next = sortIntoRows(view, "main", (x, y) => x.id.localeCompare(y.id));
     const rows = rowsOf(next, "main");
-    // les emplacements de la catégorie et du décor sont inchangés
+    // the positions of the category and of the decor are unchanged
     expect(rows[0].items.map((i) => i.id)).toEqual(["c", "c1", "m", "d1"]);
     expect(rows[1].items.map((i) => i.id)).toEqual(["z"]);
     expect(rows[0].items[1].items.map((i) => i.id)).toEqual(["a", "b"]);
-    // la rangée d'arrivée n'est pas rangée : ce n'est pas un rangement
+    // the destination row is not tidied: this is not a tidying
     expect(idsIn(rows[2])).toEqual(["zz"]);
   });
 });
@@ -770,10 +770,10 @@ describe("buildViewsFromLegacy", () => {
 
   const build = () => buildViewsFromLegacy({ films, dividers, wallPrefs });
 
-  it("chaque intercalaire devient une rangée dont la catégorie avale ce qui suivait", () => {
+  it("each divider becomes a row whose category swallows what followed it", () => {
     const view = build().find((v) => v.wall === "watched");
     const rows = rowsOf(view, "main");
-    // f1 seul avant le premier carton, puis Cultes(f2,f3), puis Polars(f4)
+    // f1 alone before the first cardstock, then Cultes(f2,f3), then Polars(f4)
     expect(idsIn(rows[0])).toEqual(["f1"]);
     expect(rows[0].perRow).toBe(6);
 
@@ -786,31 +786,31 @@ describe("buildViewsFromLegacy", () => {
     expect(rows[2].items[0].items.map((i) => i.id)).toEqual(["f4"]);
   });
 
-  it("les films jamais rangés prennent des planches, sans tomber dans la dernière catégorie", () => {
+  it("films never filed take planks, without falling into the last category", () => {
     const view = build().find((v) => v.wall === "watched");
-    // le point de correction : `order: null` valait MAX_SAFE_INTEGER dans
-    // l'ancien tri, donc ils seraient tombés dans « Polars »
+    // the point of the fix: `order: null` was worth MAX_SAFE_INTEGER in
+    // the old sort, so they would have fallen into "Polars"
     expect(rowsOf(view, "main")[2].items[0].items.map((i) => i.id)).toEqual(["f4"]);
-    /* Et ils ne s'entassent pas non plus dans le sas : celui de qui n'a
-       jamais rangé à la main, c'est TOUTE sa collection — l'étagère
-       n'aurait alors montré qu'un rayon vide et une ligne sans fin. */
+    /* And neither do they pile up in the airlock: for whoever has never
+       tidied by hand, that is their WHOLE collection — the shelf would
+       then have shown nothing but an empty row and an endless line. */
     expect(idsIn(unplacedOf(view, "main"))).toEqual([]);
     expect(idsIn(rowsOf(view, "main")[3])).toEqual(["nul1", "nul2"]);
   });
 
-  it("une collection jamais rangée à la main prend une planche, pas le sas", () => {
-    const jamais = Array.from({ length: 25 }, (_, i) => film(`x${i}`, { order: null, addedAt: i }));
-    const view = buildViewsFromLegacy({ films: jamais }).find((v) => v.wall === "watched");
+  it("a collection never filed by hand takes a plank, not the airlock", () => {
+    const never = Array.from({ length: 25 }, (_, i) => film(`x${i}`, { order: null, addedAt: i }));
+    const view = buildViewsFromLegacy({ films: never }).find((v) => v.wall === "watched");
     const rows = rowsOf(view, "main");
-    // sans compte voulu, une seule rangée : elle remplira sa largeur
+    // with no wanted count, a single row: it will fill its width
     expect(rows.filter((r) => !isUnplaced(r)).map((r) => r.items.length)).toEqual([25]);
     expect(idsIn(unplacedOf(view, "main"))).toEqual([]);
   });
 
-  it("débite en revanche au compte que le mur d'avant avait choisi", () => {
-    const jamais = Array.from({ length: 25 }, (_, i) => film(`x${i}`, { order: null, addedAt: i }));
+  it("cuts, on the other hand, to the count the earlier wall had chosen", () => {
+    const never = Array.from({ length: 25 }, (_, i) => film(`x${i}`, { order: null, addedAt: i }));
     const view = buildViewsFromLegacy({
-      films: jamais,
+      films: never,
       wallPrefs: { watched: { perRow: 6 } },
     }).find((v) => v.wall === "watched");
     const rows = rowsOf(view, "main").filter((r) => !isUnplaced(r));
@@ -818,7 +818,7 @@ describe("buildViewsFromLegacy", () => {
     expect(rows.every((r) => r.perRow === 6)).toBe(true);
   });
 
-  it("un sas déjà débordé se vide sur des planches, en gardant l'ordre", () => {
+  it("an airlock already overflowing empties onto planks, keeping the order", () => {
     const view = makeView();
     view.version = 1;
     view.shelves.main.rows = [
@@ -831,18 +831,19 @@ describe("buildViewsFromLegacy", () => {
     expect(filmIdsOf(upgradeView(view))).toEqual(Array.from({ length: 23 }, (_, i) => `s${i}`));
   });
 
-  it("donne des couleurs distinctes aux catégories voisines", () => {
+  it("gives neighbouring categories distinct colours", () => {
     const view = build().find((v) => v.wall === "watched");
     const rows = rowsOf(view, "main");
     expect(rows[1].items[0].color).not.toBe(rows[2].items[0].color);
     expect(CAT_KEYS).toContain(rows[1].items[0].color);
   });
 
-  it("offre le rangement d'origine, puis l'étagère par cinéaste au mur qui a des films", () => {
+  it("offers the original filing, then the shelf by film-maker to a wall that has films", () => {
     const views = build();
-    /* L'origine d'abord : c'est elle qui reste la vue ouverte par défaut,
-       et le second regard ne s'impose pas. Le mur watchlist est vide dans
-       ce jeu d'essai, et deux étagères vides ne sont pas un choix. */
+    /* The original first: it is the one that stays the view opened by
+       default, and the second glance does not impose itself. The
+       watchlist wall is empty in this test set, and two empty shelves
+       are not a choice. */
     expect(views.map((v) => `${v.wall} · ${v.name}`)).toEqual([
       "watched · Rangement d'origine",
       "watched · Par réalisateur",
@@ -851,23 +852,23 @@ describe("buildViewsFromLegacy", () => {
     for (const v of views) expect(Object.keys(v.shelves).sort()).toEqual([...SHELF_KINDS].sort());
   });
 
-  it("est déterministe : deux exécutions donnent le même agencement", () => {
+  it("is deterministic: two runs give the same arrangement", () => {
     const strip = (v) => JSON.stringify(v, (k, x) => (k === "id" ? "#" : x));
     expect(build().map(strip)).toEqual(build().map(strip));
   });
 
-  it("n'oublie aucun film — chaque vue couvre à elle seule la collection de son mur", () => {
+  it("forgets no film — each view on its own covers its wall's collection", () => {
     const ids = films.map((f) => f.id).sort();
     const views = build();
     for (const v of views.filter((v) => v.wall === "watched"))
       expect(filmIdsOf(v).sort()).toEqual(ids);
-    // et le mur d'en face ne revendique rien qui ne soit à lui
+    // and the wall opposite claims nothing that is not its own
     expect(views.filter((v) => v.wall === "watchlist").flatMap(filmIdsOf)).toEqual([]);
   });
 });
 
 describe("duplicateView", () => {
-  it("renouvelle les identifiants d'agencement et garde ceux des films", () => {
+  it("renews the arrangement identifiers and keeps the films'", () => {
     const view = makeView();
     view.shelves.main.rows[0].items = [
       makeCat({ id: "c1", items: [filmItem("f1")] }),
@@ -879,23 +880,23 @@ describe("duplicateView", () => {
     expect(copy.shelves.main.rows[0].id).not.toBe(view.shelves.main.rows[0].id);
     expect(copy.shelves.main.rows[0].items[0].id).not.toBe("c1");
     expect(filmIdsOf(copy)).toEqual(filmIdsOf(view));
-    // et l'original n'a pas bougé
+    // and the original has not moved
     expect(view.shelves.main.rows[0].items[0].id).toBe("c1");
   });
 });
 
 /* ------------------------------------------------------------
-   Le décor — un champ qui n'existe que si on y a touché
+   The decor — a field that exists only if it has been touched
    ------------------------------------------------------------ */
 
-describe("le décor de la vue", () => {
-  it("est absent d'une vue neuve", () => {
+describe("the view's decor", () => {
+  it("is absent from a fresh view", () => {
     expect(makeView()).not.toHaveProperty("decor");
     expect(wallDecorOf(makeView())).toBeNull();
     expect(plankDecorOf(makeView())).toBeNull();
   });
 
-  it("s'écrit facette par facette, sans toucher aux autres", () => {
+  it("is written facet by facet, without touching the others", () => {
     let v = patchViewDecor(makeView(), "wall", { paint: "sauge" });
     v = patchViewDecor(v, "plank", { material: "laiton" });
     v = patchViewDecor(v, "wall", { pattern: "pois" });
@@ -904,41 +905,40 @@ describe("le décor de la vue", () => {
     expect(plankDecorOf(v)).toEqual({ material: "laiton" });
   });
 
-  /* Un `decor: {}` et une absence de décor voudraient dire la même
-     chose ; deux façons de dire une chose, c'est une de trop, et c'est
-     celle qui se lit comme « il y a un décor » qu'on écarte. */
-  it("disparaît entièrement quand son dernier réglage s'efface", () => {
+  /* A `decor: {}` and an absence of decor would mean the same thing;
+     two ways of saying one thing is one too many, and it is the one that
+     reads as "there is a decor" that we set aside. */
+  it("disappears entirely when its last setting is erased", () => {
     const v = patchViewDecor(makeView(), "wall", { paint: "nuit" });
     expect(patchViewDecor(v, "wall", { paint: null })).not.toHaveProperty("decor");
   });
 
-  it("s'efface d'un coup pour revenir au thème", () => {
+  it("clears at one go to come back to the theme", () => {
     let v = patchViewDecor(makeView(), "wall", { paint: "nuit" });
     v = patchViewDecor(v, "plank", { material: "verre" });
     const back = clearViewDecor(v);
     expect(back).not.toHaveProperty("decor");
     expect(back.theme).toBe("kraft");
-    // et l'original n'a pas bougé
+    // and the original has not moved
     expect(v.decor.wall.paint).toBe("nuit");
   });
 
-  /* La raison pour laquelle il n'y a aucune migration à écrire : toutes
-     les transformations reconstruisent la vue par étalement. Si l'une
-     d'elles se mettait un jour à énumérer les champs à la main, c'est
-     ce test qui le dirait. */
-  it("survit aux transformations d'agencement", () => {
+  /* The reason why there is no migration to write: every transformation
+     rebuilds the view by spreading. If one of them ever started listing
+     the fields by hand, this test is what would say so. */
+  it("survives the arrangement transformations", () => {
     let v = patchViewDecor(makeView(), "wall", { paint: "terracotta", texture: "crepi" });
     v.shelves.main.rows[0].items = [filmItem("f1")];
 
     const films = [{ id: "f1", status: "watched" }];
-    for (const passe of [
+    for (const pass of [
       (x) => upgradeView({ ...x, version: 1 }),
       (x) => reflowView(x),
       (x) => reconcileView(x, films),
       (x) => duplicateView(x),
-      (x) => moveItem(x, { id: "f1" }, { kind: "chevet", rowId: x.shelves.chevet.rows[0].id }),
+      (x) => moveItem(x, { id: "f1" }, { kind: "bedside", rowId: x.shelves.bedside.rows[0].id }),
     ]) {
-      expect(wallDecorOf(passe(v))).toEqual({ paint: "terracotta", texture: "crepi" });
+      expect(wallDecorOf(pass(v))).toEqual({ paint: "terracotta", texture: "crepi" });
     }
   });
 });

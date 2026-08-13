@@ -14,7 +14,7 @@ import {
   buildSkyWithCrew,
   neighbourhood,
   relax,
-  voisinDansLaDirection,
+  neighbourInDirection,
 } from "../domain/sky";
 import type { Direction } from "../domain/sky";
 import { CoffeeRing, StampCorner, InkUnderline } from "../components/atmosphere";
@@ -22,17 +22,17 @@ import type { Film, KinshipRole, LinkType, PlacedNode, SkyLink, SkyNode } from "
 import { Label } from "../components/ui";
 import { TagChip } from "../components/ui/TagEditor";
 import { catInk } from "../theme/palette";
-import { relationDef, forceDe } from "../domain/relations";
+import { relationDef, strengthOf } from "../domain/relations";
 import { linkTypeOf } from "../components/film/linkTypes";
 import { motifById } from "../domain/motifs";
 import { searchFilms } from "../domain/search";
-import type { Fil } from "../domain/fils";
+import type { Thread } from "../domain/threads";
 
 /* ============================================================
-   VUE — CONSTELLATION : une carte du ciel tracée à l'encre.
-   Chaque film est une étoile, chaque œuvre liée un astre plus
-   discret. Une œuvre citée par deux films devient un pont : c'est
-   là que les constellations se forment.
+   VIEW — CONSTELLATION: a sky chart drawn in ink.
+   Every film is a star, every linked work a more discreet body. A
+   work cited by two films becomes a bridge: that is where the
+   constellations form.
    ============================================================ */
 const LEGEND: [LinkType, string][] = [
   ["film", "Film"],
@@ -48,10 +48,11 @@ const LINK_INK: Record<LinkType, string> = {
   other: C.ochre,
 };
 
-/* UNE ENCRE PAR NATURE DE PARENTÉ. « Decaë » ne dit rien ; « image ·
-   Decaë » dit qu'on suit un chef opérateur, et la couleur le dit sans
-   qu'on ait à lire. `thème` est à part — c'est la seule qui vienne de
-   vous et non d'un générique — d'où l'encre de l'identité. */
+/* ONE INK PER KIND OF KINSHIP. "Decaë" says nothing; "image · Decaë"
+   says one is following a cinematographer, and the colour says it
+   without one having to read. `thème` stands apart — it is the only one
+   that comes from you and not from a credit list — hence the ink of
+   identity. */
 const KIN_INK: Record<KinshipRole, string> = {
   réalisation: C.slate,
   interprétation: C.ochre,
@@ -61,7 +62,7 @@ const KIN_INK: Record<KinshipRole, string> = {
   thème: C.burgundy,
 };
 
-/** L'encre d'un fil suggéré : celle de sa première raison. */
+/** The ink of a suggested thread: that of its first reason. */
 const inkOf = (l: SkyLink): string => {
   const r = l.why?.[0]?.role;
   return r ? KIN_INK[r] : C.slate;
@@ -74,18 +75,18 @@ export function ConstellationView({
 }: {
   films: Film[];
   onOpen: (id: string) => void;
-  /** Fixer une parenté suggérée : elle devient un vrai fil rouge, réciproque. */
+  /** Fixes a suggested kinship: it becomes a real red thread, reciprocal. */
   onLinkFilm?: (fromId: string, toId: string, note?: string) => void;
-  /** Les rassemblements nommés — « les films où le héros meurt ». */
-  fils?: Fil[];
+  /** The named gatherings — "the films where the hero dies". */
+  fils?: Thread[];
 }) {
   const [hover, setHover] = useState<string | null>(null);
-  /** Le fil visé, par son rang — de quoi l'épaissir et l'étiqueter. */
+  /** The aimed-at thread, by its rank — enough to thicken and label it. */
   const [hoverLink, setHoverLink] = useState<number | null>(null);
   const [drag, setDrag] = useState<string | null>(null);
   const [moved, setMoved] = useState<Record<string, PlacedNode>>({});
   const svgRef = useRef<SVGSVGElement | null>(null);
-  // d'où le pointeur est parti : au-delà de quelques pixels, c'est un glissé, pas un clic
+  // where the pointer set off from: beyond a few pixels it is a drag, not a click
   const pressAt = useRef<{ x: number; y: number } | null>(null);
 
   const [tags, setTags] = useState<string[]>([]);
@@ -102,59 +103,60 @@ export function ConstellationView({
   const toggle = (setter: Dispatch<SetStateAction<string[]>>) => (v: string) =>
     setter((cur) => (cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v]));
 
-  /* SUIVRE LES ÉQUIPES — éteint par défaut, et ce n'est pas de la
-     timidité : la carte à la main est la promesse de cet écran, et une
-     seconde couche allumée d'office ferait passer pour vôtre ce qui
-     vient de la machine. On l'allume quand on veut voir plus loin. */
-  const [équipes, setÉquipes] = useState(false);
+  /* FOLLOWING THE CREWS — off by default, and that is not timidity: the
+     hand-drawn chart is this screen's promise, and a second layer lit by
+     default would pass off as yours what comes from the machine. One
+     lights it when one wants to see further. */
+  const [crews, setÉquipes] = useState(false);
 
-  /* LE FOYER — le remède au fouillis, et il n'est pas graphique.
+  /* THE FOCUS — the remedy for the tangle, and it is not a graphical
+     one.
 
-     Un graphe de deux cents astres ne se lit à AUCUNE disposition : ce
-     n'est pas un problème de placement mais de quantité. Et le lecteur
-     n'a de toute façon qu'une question à la fois — « qu'est-ce qui tient
-     près de celui-ci ». On part donc d'un film et l'on montre ses
-     voisins ; cliquer un voisin déplace le foyer sur lui.
+     A graph of two hundred bodies cannot be read in ANY layout: it is
+     not a problem of placement but of quantity. And the reader has only
+     one question at a time anyway — "what holds close to this one". So
+     we start from a film and show its neighbours; clicking a neighbour
+     moves the focus onto it.
 
-     `null` veut dire « la carte entière », qui reste joignable d'un
-     bouton : le fouillis est parfois ce qu'on est venu voir. */
+     `null` means "the whole chart", which stays one button away: the
+     tangle is sometimes what one came to see. */
   const [foyer, setFoyer] = useState<string | null>(null);
   const [portee, setPortee] = useState(1);
-  /* Les films traversés, pour pouvoir revenir sur ses pas. */
-  const [chemin, setChemin] = useState<string[]>([]);
-  const [cherche, setCherche] = useState("");
+  /* The films crossed, so that one can retrace one's steps. */
+  const [path, setChemin] = useState<string[]>([]);
+  const [query, setQuery] = useState("");
 
-  /* LES ÉPINGLES — les films qu'on est allé chercher soi-même.
+  /* THE PINS — the films one went and fetched oneself.
 
-     Ils ne tiennent au ciel par aucun fil : c'est la recherche qui les y
-     a posés, et c'est très bien ainsi — on cherche justement un film
-     qu'on n'a pas encore relié, pour voir ce qu'il pourrait rejoindre.
-     Comme les positions attrapées à la souris, ils ne survivent pas à la
-     page : ce sont des gestes, pas des données. */
-  const [épingles, setÉpingles] = useState<string[]>([]);
-  /* Les fils qu'on a éteints. On garde les ÉTEINTS et non les allumés :
-     un fil qu'on vient de créer doit apparaître sans qu'on ait à
-     l'allumer. */
-  const [filsÉteints, setFilsÉteints] = useState<string[]>([]);
-  const filsActifs = useMemo(
-    () => fils.filter((f) => !filsÉteints.includes(f.id)),
-    [fils, filsÉteints]
+     They hold to the sky by no thread: it is the search that laid them
+     there, and that is quite right — one is precisely looking for a film
+     not yet linked, to see what it might join. Like the positions
+     grabbed with the mouse, they do not survive the page: they are
+     gestures, not data. */
+  const [pins, setPins] = useState<string[]>([]);
+  /* The threads one has put out. We keep the ONES PUT OUT and not the
+     lit ones: a thread just created must appear without one having to
+     light it. */
+  const [mutedThreads, setMutedThreads] = useState<string[]>([]);
+  const activeThreads = useMemo(
+    () => fils.filter((f) => !mutedThreads.includes(f.id)),
+    [fils, mutedThreads]
   );
 
   const W = 1100,
     H = 760;
-  const complet = useMemo(
+  const full = useMemo(
     () =>
-      équipes
-        ? buildSkyWithCrew(films, { tags, genres }, {}, { fils: filsActifs, pinned: épingles })
-        : buildSky(films, { tags, genres }, { fils: filsActifs, pinned: épingles }),
-    [films, tags, genres, équipes, filsActifs, épingles]
+      crews
+        ? buildSkyWithCrew(films, { tags, genres }, {}, { threads: activeThreads, pinned: pins })
+        : buildSky(films, { tags, genres }, { threads: activeThreads, pinned: pins }),
+    [films, tags, genres, crews, activeThreads, pins]
   );
-  /* La découpe se fait APRÈS la construction : la carte entière existe
-     toujours, on n'en montre qu'une part. */
+  /* The cutting out happens AFTER the building: the whole chart still
+     exists, we merely show a part of it. */
   const { nodes, links } = useMemo(
-    () => (foyer ? neighbourhood(complet.nodes, complet.links, foyer, portee) : complet),
-    [complet, foyer, portee]
+    () => (foyer ? neighbourhood(full.nodes, full.links, foyer, portee) : full),
+    [full, foyer, portee]
   );
 
   const linkedTotal = useMemo(
@@ -163,54 +165,54 @@ export function ConstellationView({
   );
   const placed = useMemo(() => relax(nodes, links, W, H), [nodes, links]);
 
-  /* Les films par lesquels commencer : les plus reliés d'abord, ce sont
-     ceux depuis lesquels on ira le plus loin. */
+  /* The films to start from: the most linked first, they are the ones
+     from which one will travel furthest. */
   const departs = useMemo(
     () =>
-      [...complet.nodes]
+      [...full.nodes]
         .filter((n) => n.kind === "film")
         .sort((a, b) => b.degree - a.degree)
         .slice(0, 40),
-    [complet.nodes]
+    [full.nodes]
   );
 
-  /* CHERCHER DANS TOUTE LA COLLECTION, ET PAS SEULEMENT AU CIEL.
+  /* SEARCHING THE WHOLE COLLECTION, AND NOT ONLY THE SKY.
 
-     La recherche ne regardait que les astres déjà placés — c'est-à-dire
-     les films déjà reliés. Or on cherche presque toujours l'inverse : un
-     film auquel on pense, dont on ne sait plus s'il est relié, et qu'on
-     voudrait justement raccrocher à quelque chose. Ne rien trouver
-     laissait croire qu'il n'était pas dans la collection.
+     The search looked only at the bodies already placed — that is, at
+     the films already linked. But one almost always searches for the
+     opposite: a film one is thinking of, no longer knowing whether it is
+     linked, and which one would precisely like to hook onto something.
+     Finding nothing made one believe it was not in the collection.
 
-     Un résultat hors carte s'épingle donc d'un clic : il entre au ciel,
-     seul, et devient le foyer — d'où l'on voit ce qu'il pourrait
-     rejoindre. */
-  const auCiel = useMemo(
-    () => new Set(complet.nodes.filter((n) => n.kind === "film").map((n) => n.filmId as string)),
-    [complet.nodes]
+     So a result outside the chart is pinned with one click: it enters
+     the sky, alone, and becomes the focus — from where one sees what it
+     might join. */
+  const inTheSky = useMemo(
+    () => new Set(full.nodes.filter((n) => n.kind === "film").map((n) => n.filmId as string)),
+    [full.nodes]
   );
-  const résultats = useMemo(
-    () => (cherche.trim() ? searchFilms(films, cherche, 12) : []),
-    [films, cherche]
+  const results = useMemo(
+    () => (query.trim() ? searchFilms(films, query, 12) : []),
+    [films, query]
   );
 
-  const épingler = (filmId: string) => {
-    setÉpingles((cur) => (cur.includes(filmId) ? cur : [...cur, filmId]));
-    poserFoyer(`f:${filmId}`);
-    setCherche("");
+  const pin = (filmId: string) => {
+    setPins((cur) => (cur.includes(filmId) ? cur : [...cur, filmId]));
+    setFocus(`f:${filmId}`);
+    setQuery("");
   };
 
-  const poserFoyer = (id: string) => {
-    setFoyer((actuel) => {
-      if (actuel && actuel !== id) setChemin((c) => [...c, actuel]);
+  const setFocus = (id: string) => {
+    setFoyer((current) => {
+      if (current && current !== id) setChemin((c) => [...c, current]);
       return id;
     });
     setMoved({});
   };
-  const revenir = () => {
+  const goBack = () => {
     setChemin((c) => {
-      const precedent = c[c.length - 1];
-      setFoyer(precedent ?? null);
+      const previous = c[c.length - 1];
+      setFoyer(previous ?? null);
       return c.slice(0, -1);
     });
     setMoved({});
@@ -220,90 +222,90 @@ export function ConstellationView({
   const byId = useMemo(() => new Map(placed.map((p) => [p.id, p])), [placed]);
 
   /* ------------------------------------------------------------
-     LE PARCOURS AU CLAVIER
+     TRAVELLING BY KEYBOARD
      ------------------------------------------------------------
 
-     La carte ne se lisait qu'au pointeur. Sans souris, aucun chemin
-     n'existait vers un astre : la vue la plus riche du classeur était
-     la seule entièrement fermée.
+     The chart could only be read with the pointer. Without a mouse, no
+     path existed towards a body: the richest view of the binder was the
+     only entirely closed one.
 
-     UN SEUL ARRÊT DE TABULATION pour tout le ciel, et les flèches à
-     l'intérieur. Rendre trois cents astres tabulables ferait trois cents
-     pressions pour traverser la vue, ce qui est une façon polie de la
-     garder fermée. C'est le motif habituel des grilles et des cartes.
+     A SINGLE TAB STOP for the whole sky, and the arrows inside it.
+     Making three hundred bodies tabbable would mean three hundred key
+     presses to cross the view, which is a polite way of keeping it
+     closed. It is the usual pattern of grids and maps.
 
-     `curseur` double le survol plutôt que de le remplacer : les deux
-     désignent « l'astre dont on parle en ce moment », et la mise en
-     lumière des voisins doit répondre aux deux de la même façon. */
+     `curseur` doubles the hover rather than replace it: both designate
+     "the body being spoken of right now", and the lighting up of the
+     neighbours must answer to both the same way. */
   const [curseur, setCurseur] = useState<string | null>(null);
-  const astreCourant = curseur ? byId.get(curseur) : undefined;
+  const currentStar = curseur ? byId.get(curseur) : undefined;
 
-  /* Un astre effacé par un changement de filtre ne doit pas laisser un
-     curseur fantôme derrière lui — ni la voix de synthèse annoncer un
-     astre qui n'est plus là. */
+  /* A body erased by a change of filter must not leave a ghost cursor
+     behind it — nor the synthetic voice announce a body that is no
+     longer there. */
   useEffect(() => {
     if (curseur && !byId.has(curseur)) setCurseur(null);
   }, [byId, curseur]);
 
-  /* Le même geste qu'un clic, pour que le clavier et le pointeur ne
-     puissent pas diverger : deux copies de cette règle finiraient par
-     répondre différemment à la même touche. */
-  const ouvrirOuFoyer = (n: PlacedNode) => {
+  /* The same gesture as a click, so that keyboard and pointer cannot
+     diverge: two copies of this rule would end up answering the same key
+     differently. */
+  const openOrFocus = (n: PlacedNode) => {
     if (n.kind === "work") return;
-    if (n.kind === "fil") poserFoyer(n.id);
+    if (n.kind === "thread") setFocus(n.id);
     else if (n.id === foyer) onOpen(n.filmId as string);
-    else poserFoyer(n.id);
+    else setFocus(n.id);
   };
 
-  const auClavier = (e: ReactKeyboardEvent<SVGSVGElement>) => {
-    const flèches: Record<string, Direction> = {
-      ArrowUp: "haut",
-      ArrowDown: "bas",
-      ArrowLeft: "gauche",
-      ArrowRight: "droite",
+  const byKeyboard = (e: ReactKeyboardEvent<SVGSVGElement>) => {
+    const arrows: Record<string, Direction> = {
+      ArrowUp: "up",
+      ArrowDown: "down",
+      ArrowLeft: "left",
+      ArrowRight: "right",
     };
-    const direction = flèches[e.key];
+    const direction = arrows[e.key];
     if (direction) {
-      const suivant = voisinDansLaDirection(placed, curseur, direction);
-      /* On n'avale la touche QUE si l'on s'est déplacé : sinon la page
-         ne défilerait plus alors qu'il n'y a rien de ce côté, et l'on
-         croirait la carte figée. */
-      if (suivant) {
+      const next = neighbourInDirection(placed, curseur, direction);
+      /* We only swallow the key IF we have moved: otherwise the page
+         would stop scrolling while there is nothing on that side, and
+         one would believe the chart frozen. */
+      if (next) {
         e.preventDefault();
-        setCurseur(suivant.id);
+        setCurseur(next.id);
       }
       return;
     }
-    if ((e.key === "Enter" || e.key === " ") && astreCourant) {
+    if ((e.key === "Enter" || e.key === " ") && currentStar) {
       e.preventDefault();
-      ouvrirOuFoyer(astreCourant);
+      openOrFocus(currentStar);
       return;
     }
-    /* Échap repose le curseur sans quitter la carte : on sort de
-       l'exploration, pas de la vue. Une seconde pression laisse le
-       navigateur faire ce qu'il veut. */
+    /* Escape puts the cursor down without leaving the chart: one leaves
+       the exploration, not the view. A second press lets the browser do
+       as it pleases. */
     if (e.key === "Escape" && curseur) {
       e.preventDefault();
       setCurseur(null);
     }
   };
 
-  /* Ce que le lecteur d'écran annonce. Un film porte sa note, une œuvre
-     son type, un fil ce qu'il rassemble — la même chose que l'étiquette
-     visible, parce que deux descriptions différentes du même astre
-     seraient deux cartes différentes. */
-  const direLAstre = (n: PlacedNode): string =>
+  /* What the screen reader announces. A film carries its rating, a work
+     its type, a thread what it gathers — the same thing as the visible
+     label, because two different descriptions of the same body would be
+     two different charts. */
+  const describeStar = (n: PlacedNode): string =>
     [
       n.label,
       n.sub,
-      n.kind === "film" ? "film" : n.kind === "fil" ? "fil" : "œuvre",
+      n.kind === "film" ? "film" : n.kind === "thread" ? "fil" : "œuvre",
       n.id === foyer ? "foyer de la carte" : "",
       `${n.degree} lien${n.degree > 1 ? "s" : ""}`,
     ]
       .filter(Boolean)
       .join(", ");
 
-  // l'ensemble des astres qu'un survol met en lumière
+  // the set of bodies a hover lights up
   const lit = useMemo(() => {
     if (!hover) return null;
     const set = new Set<string>([hover]);
@@ -324,7 +326,7 @@ export function ConstellationView({
       ? 7 + (n.rating || 0) * 1.6
       : /* Un fil est plus gros que ses membres : il en est le centre, et
            sa taille dit combien il en rassemble. */
-        n.kind === "fil"
+        n.kind === "thread"
         ? 11 + Math.min(n.degree, 10)
         : 4 + Math.min(n.refs ?? 0, 4);
 
@@ -356,7 +358,7 @@ export function ConstellationView({
           zIndex: 2,
         }}
       >
-        {équipes
+        {crews
           ? "vos fils, et les parentés trouvées dans les génériques"
           : "seulement ce que vous avez relié à la main — attrapez une étoile pour la déplacer"}
       </div>
@@ -365,7 +367,7 @@ export function ConstellationView({
       <button
         onClick={() => setÉquipes((v) => !v)}
         data-tour="constellation-teams"
-        aria-pressed={équipes}
+        aria-pressed={crews}
         style={{
           all: "unset",
           ...tap,
@@ -380,8 +382,8 @@ export function ConstellationView({
           fontSize: 10.5,
           letterSpacing: "var(--tag-tracking)",
           padding: "5px 11px",
-          color: équipes ? C.card : C.slate,
-          background: équipes ? C.slate : "transparent",
+          color: crews ? C.card : C.slate,
+          background: crews ? C.slate : "transparent",
           border: `1px solid ${C.slate}`,
           borderRadius: "var(--tag-radius)",
         }}
@@ -389,7 +391,7 @@ export function ConstellationView({
         <Users size={13} />
         SUIVRE LES ÉQUIPES
       </button>
-      {équipes && (
+      {crews && (
         <div
           style={{
             fontFamily: F.hand,
@@ -405,10 +407,10 @@ export function ConstellationView({
         </div>
       )}
 
-      {/* LES FILS. À la différence des filtres ci-dessous, ils PEUPLENT le
-          ciel : un fil y fait entrer ses membres, reliés ou non. C'est ce
-          qui permet de demander « les films où le héros meurt » et de
-          l'obtenir dessiné, plutôt que de fouiller une liste. */}
+      {/* THE THREADS. Unlike the filters below, they POPULATE the sky: a
+          thread brings its members in, linked or not. That is what makes
+          it possible to ask for "les films où le héros meurt" and get it
+          drawn, rather than dig through a list. */}
       {fils.length > 0 && (
         <div
           data-tour="constellation-fils"
@@ -416,16 +418,18 @@ export function ConstellationView({
         >
           <Label>Fils</Label>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
-            {fils.map((fil) => {
-              const on = !filsÉteints.includes(fil.id);
-              const encre = catInk(fil.couleur);
-              const motif = fil.motif ? motifById(fil.motif) : undefined;
+            {fils.map((thread) => {
+              const on = !mutedThreads.includes(thread.id);
+              const ink = catInk(thread.color);
+              const motif = thread.motif ? motifById(thread.motif) : undefined;
               return (
                 <button
-                  key={fil.id}
+                  key={thread.id}
                   onClick={() =>
-                    setFilsÉteints((cur) =>
-                      cur.includes(fil.id) ? cur.filter((x) => x !== fil.id) : [...cur, fil.id]
+                    setMutedThreads((cur) =>
+                      cur.includes(thread.id)
+                        ? cur.filter((x) => x !== thread.id)
+                        : [...cur, thread.id]
                     )
                   }
                   title={motif ? `alimenté par « ${motif.label} »` : "fil composé à la main"}
@@ -440,13 +444,13 @@ export function ConstellationView({
                     fontSize: 10,
                     padding: "3px 10px",
                     borderRadius: "var(--tag-radius)",
-                    border: `1px solid ${encre}`,
-                    color: on ? C.card : encre,
-                    background: on ? encre : "transparent",
+                    border: `1px solid ${ink}`,
+                    color: on ? C.card : ink,
+                    background: on ? ink : "transparent",
                   }}
                 >
                   <Spool size={11} />
-                  {fil.label}
+                  {thread.label}
                 </button>
               );
             })}
@@ -454,7 +458,7 @@ export function ConstellationView({
         </div>
       )}
 
-      {/* filtres : mots-clés et genres. Ils réduisent le ciel, ils ne le peuplent pas. */}
+      {/* filters: keywords and genres. They shrink the sky, they do not populate it. */}
       {(allTags.length > 0 || allGenres.length > 0) && (
         <div
           style={{
@@ -468,7 +472,7 @@ export function ConstellationView({
           {allTags.length > 0 && (
             <div style={{ marginBottom: 10 }}>
               <Label>
-                Mots-clés {tags.length > 0 && <span style={{ color: C.pine }}>· cumulatifs</span>}
+                Mots-keys {tags.length > 0 && <span style={{ color: C.pine }}>· cumulatifs</span>}
               </Label>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
                 {allTags.map((t) => (
@@ -534,14 +538,14 @@ export function ConstellationView({
         </div>
       )}
 
-      {/* LE CHOIX DU DÉPART — tant qu'aucun foyer n'est posé, on ne
-          montre pas le graphe. C'est tout le remède : au lieu de subir
-          deux cents astres et de chercher par où entrer, on choisit un
-          film, et la carte se compose autour de lui.
+      {/* THE CHOICE OF A STARTING POINT — as long as no focus is laid,
+          we do not show the graph. That is the whole remedy: instead of
+          suffering two hundred bodies and looking for a way in, one
+          chooses a film, and the chart composes itself around it.
 
-          Les films proposés sont les plus reliés : ce sont ceux depuis
-          lesquels on ira le plus loin. */}
-      {foyer == null && complet.nodes.length > 0 && (
+          The films offered are the most linked: they are the ones from
+          which one will travel furthest. */}
+      {foyer == null && full.nodes.length > 0 && (
         <div
           data-tour="constellation-start"
           style={{
@@ -561,8 +565,8 @@ export function ConstellationView({
             proche en proche
           </div>
           <input
-            value={cherche}
-            onChange={(e) => setCherche(e.target.value)}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
             placeholder="chercher dans toute la collection…"
             style={{
               width: "100%",
@@ -579,13 +583,13 @@ export function ConstellationView({
               marginBottom: 10,
             }}
           />
-          <Résultats
-            cherche={cherche}
-            résultats={résultats}
+          <Results
+            query={query}
+            results={results}
             departs={departs}
-            auCiel={auCiel}
-            onFoyer={poserFoyer}
-            onÉpingler={épingler}
+            inTheSky={inTheSky}
+            onFoyer={setFocus}
+            onÉpingler={pin}
           />
           <button
             onClick={() => setFoyer(null)}
@@ -606,8 +610,8 @@ export function ConstellationView({
         </div>
       )}
 
-      {/* LE FIL D'ARIANE — on avance de proche en proche, il faut donc
-          pouvoir revenir sur ses pas. */}
+      {/* THE BREADCRUMB TRAIL — one advances step by step, so one must
+          be able to retrace one's steps. */}
       {foyer != null && (
         <div
           style={{
@@ -624,14 +628,14 @@ export function ConstellationView({
             FOYER
           </span>
           <span style={{ fontFamily: F.title, fontSize: 17, fontWeight: 700, color: C.ink }}>
-            {complet.nodes.find((n) => n.id === foyer)?.label ?? "—"}
+            {full.nodes.find((n) => n.id === foyer)?.label ?? "—"}
           </span>
-          {chemin.length > 0 && (
-            <button onClick={revenir} style={petitBouton(false)}>
-              ← REVENIR ({chemin.length})
+          {path.length > 0 && (
+            <button onClick={goBack} style={smallButton(false)}>
+              ← REVENIR ({path.length})
             </button>
           )}
-          <button onClick={() => setPortee(portee === 1 ? 2 : 1)} style={petitBouton(portee === 2)}>
+          <button onClick={() => setPortee(portee === 1 ? 2 : 1)} style={smallButton(portee === 2)}>
             {portee === 1 ? "ÉLARGIR" : "RESSERRER"}
           </button>
           <button
@@ -639,7 +643,7 @@ export function ConstellationView({
               setFoyer(null);
               setChemin([]);
             }}
-            style={petitBouton(false)}
+            style={smallButton(false)}
           >
             CHANGER DE DÉPART
           </button>
@@ -649,17 +653,18 @@ export function ConstellationView({
         </div>
       )}
 
-      {/* LA RECHERCHE RESTE À PORTÉE UNE FOIS LE FOYER POSÉ.
+      {/* THE SEARCH STAYS WITHIN REACH ONCE THE FOCUS IS LAID.
 
-          Elle ne servait qu'à choisir un départ et disparaissait ensuite —
-          or c'est en explorant qu'on pense à un film, et il fallait
-          revenir en arrière pour l'atteindre. C'est aussi le seul moyen de
-          sauter d'un bout du ciel à l'autre sans repasser par les voisins. */}
+          It only served to choose a starting point and vanished
+          afterwards — but it is while exploring that one thinks of a
+          film, and one had to go back to reach it. It is also the only
+          way to jump from one end of the sky to the other without going
+          through the neighbours. */}
       {foyer != null && (
         <div style={{ marginTop: 12, position: "relative", zIndex: 3 }}>
           <input
-            value={cherche}
-            onChange={(e) => setCherche(e.target.value)}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
             placeholder="sauter à un autre film…"
             style={{
               width: "100%",
@@ -676,14 +681,14 @@ export function ConstellationView({
               marginBottom: 8,
             }}
           />
-          {cherche.trim() && (
-            <Résultats
-              cherche={cherche}
-              résultats={résultats}
+          {query.trim() && (
+            <Results
+              query={query}
+              results={results}
               departs={departs}
-              auCiel={auCiel}
-              onFoyer={poserFoyer}
-              onÉpingler={épingler}
+              inTheSky={inTheSky}
+              onFoyer={setFocus}
+              onÉpingler={pin}
             />
           )}
         </div>
@@ -727,7 +732,7 @@ export function ConstellationView({
         </div>
       ) : (
         <>
-          {/* la légende, façon cartouche de carte ancienne */}
+          {/* the legend, in the manner of an old map's cartouche */}
           <div
             style={{
               fontFamily: F.mono,
@@ -741,7 +746,7 @@ export function ConstellationView({
           >
             {placed.filter((n) => n.kind === "film").length} FILM(S) RELIÉ(S) · {links.length}{" "}
             FIL(S)
-            {équipes && ` · DONT ${links.filter((l) => l.kind === "crew").length} PAR LES ÉQUIPES`}
+            {crews && ` · DONT ${links.filter((l) => l.kind === "crew").length} PAR LES ÉQUIPES`}
             {(tags.length || genres.length) > 0 && ` · ${linkedTotal} RELIÉ(S) AU TOTAL`}
           </div>
           <div
@@ -755,7 +760,7 @@ export function ConstellationView({
               zIndex: 2,
             }}
           >
-            {équipes &&
+            {crews &&
               (Object.keys(KIN_INK) as KinshipRole[]).map((r) => (
                 <span
                   key={r}
@@ -813,21 +818,21 @@ export function ConstellationView({
               ref={svgRef}
               data-tour="constellation-ciel"
               viewBox={`0 0 ${W} ${H}`}
-              /* UN SEUL ARRÊT DE TABULATION POUR TOUTE LA CARTE, et les
-                 flèches à l'intérieur : trois cents astres tabulables
-                 demanderaient trois cents pressions pour traverser la
-                 vue. `application` prévient le lecteur d'écran qu'il
-                 doit laisser passer les flèches au lieu de les prendre
-                 pour sa propre navigation. */
+              /* A SINGLE TAB STOP FOR THE WHOLE CHART, and the arrows
+                 inside it: three hundred tabbable bodies would ask for
+                 three hundred key presses to cross the view.
+                 `application` warns the screen reader that it must let
+                 the arrows through instead of taking them for its own
+                 navigation. */
               role="application"
               tabIndex={0}
               aria-label="Carte du ciel — flèches pour aller d'un astre à l'autre, Entrée pour l'ouvrir, Échap pour lâcher"
               aria-activedescendant={curseur ? `astre-${curseur}` : undefined}
-              onKeyDown={auClavier}
+              onKeyDown={byKeyboard}
               onFocus={() => {
-                /* Entrer dans la carte pose le curseur quelque part :
-                   un cadre au focus sans rien de désigné dedans ne dit
-                   pas quoi faire de la touche suivante. */
+                /* Entering the chart lays the cursor somewhere: a
+                   focused frame with nothing designated inside it does
+                   not say what to do with the next key. */
                 if (!curseur) setCurseur(foyer ?? placed[0]?.id ?? null);
               }}
               onBlur={() => setCurseur(null)}
@@ -853,7 +858,7 @@ export function ConstellationView({
                 setHover(null);
               }}
             >
-              {/* le quadrillage effacé d'une carte astronomique */}
+              {/* the faded grid of an astronomical chart */}
               <defs>
                 <pattern id="sky-grid" width="55" height="55" patternUnits="userSpaceOnUse">
                   <path
@@ -874,7 +879,7 @@ export function ConstellationView({
               </defs>
               <rect width={W} height={H} fill="url(#sky-grid)" />
 
-              {/* les fils : caténaire légère, comme sur le panneau d'enquête */}
+              {/* the threads: a light catenary, as on the investigation board */}
               {links.map((l, i) => {
                 const na = byId.get(l.a),
                   nb = byId.get(l.b);
@@ -884,84 +889,85 @@ export function ConstellationView({
                 const on = !lit || (lit.has(l.a) && lit.has(l.b));
                 const mx = (a.x + b.x) / 2,
                   my = (a.y + b.y) / 2 + Math.abs(b.x - a.x) * 0.09 + 10;
-                // fiche à fiche : un trait plein, c'est le lien le plus fort
+                // card to card: a solid stroke, it is the strongest link
                 const peer = l.kind === "peer";
-                /* UNE PARENTÉ NE SE DESSINE PAS COMME UN FIL ROUGE.
-                   Pointillé long et pâle, à l'encre de l'ardoise : ce
-                   qui vient de la machine doit se distinguer de ce qui
-                   vient de vous sans qu'on ait à cliquer pour le savoir. */
+                /* A KINSHIP IS NOT DRAWN LIKE A RED THREAD. A long,
+                   pale dashed line, in slate ink: what comes from the
+                   machine must be told apart from what comes from you
+                   without having to click to find out. */
                 const crew = l.kind === "crew";
-                /* Un fil (le rassemblement) n'est pas une parenté : il se
-                   trace à la teinte du fil, en trait continu mais fin —
-                   il rassemble sans prétendre relier deux à deux. */
-                const filDeRassemblement = l.kind === "fil";
+                /* A thread (the gathering) is not a kinship: it is
+                   drawn in the thread's tint, in a continuous but thin
+                   stroke — it gathers without claiming to link two by
+                   two. */
+                const gatheringThread = l.kind === "thread";
                 const d = `M ${a.x} ${a.y} Q ${mx} ${my}, ${b.x} ${b.y}`;
-                /* Ce que le fil raconte quand on le vise : la parenté
-                   trouvée par la machine, ou la relation qu'on a écrite
-                   soi-même — laquelle se lit dans le sens du trait. */
-                const raisons = filDeRassemblement
+                /* What the thread tells when aimed at: the kinship
+                   found by the machine, or the relation one has written
+                   oneself — which reads in the direction of the
+                   stroke. */
+                const reasons = gatheringThread
                   ? (byId.get(l.a)?.label ?? "")
                   : peer
-                    ? /* La relation nommée, puis CE QU'ON A ÉCRIT SOUS LE
-                         LIEN. Un fil peut n'avoir ni l'une ni l'autre :
-                         il reste un fil, et il doit le dire — sans ce
-                         repli, le trait le plus fort de la carte était le
-                         seul à se survoler en silence. */
+                    ? /* THE NAMED RELATION, then WHAT WAS WRITTEN UNDER THE
+                         LINK. A thread may have neither: it is still a
+                         thread, and it has to say so — without that
+                         fallback, the strongest line on the map was the
+                         only one to hover in silence. */
                       [relationDef(l.relation)?.label, l.note].filter(Boolean).join(" — ") ||
                       "fil écrit à la main"
-                    : /* UN RENVOI VERS UNE ŒUVRE PARLE, LUI AUSSI. La
-                         branche « équipe » ramassait aussi les citations,
-                         qui n'ont pas de `why` : le fil vers le livre
-                         était donc muet. Il dit ce qu'on a écrit sous le
-                         lien, et à défaut la nature de l'œuvre visée avec
-                         son auteur. */
+                    : /* A POINTER TO A WORK SPEAKS TOO. The "crew" branch
+                         also gathered the citations, which have no
+                         `why`: the thread to the book was therefore
+                         mute. It says what was written under the link,
+                         and failing that the nature of the work aimed at
+                         with its author. */
                       l.kind === "cite"
                       ? l.note ||
                         [linkTypeOf(nb.type || "other").label, nb.sub].filter(Boolean).join(" · ")
-                      : (l.why || []).map((w) => `${w.role} · ${w.nom}`).join(", ");
+                      : (l.why || []).map((w) => `${w.role} · ${w.name}`).join(", ");
                 const fixer =
                   crew && onLinkFilm
-                    ? () => onLinkFilm(l.a.slice(2), l.b.slice(2), raisons)
+                    ? () => onLinkFilm(l.a.slice(2), l.b.slice(2), reasons)
                     : undefined;
-                const vise = hoverLink === i;
-                const teinteDuFil = filDeRassemblement
-                  ? catInk(byId.get(l.a)?.couleur || "burgundy")
+                const aimed = hoverLink === i;
+                const threadTint = gatheringThread
+                  ? catInk(byId.get(l.a)?.color || "burgundy")
                   : null;
-                const encre = teinteDuFil ?? (crew ? inkOf(l) : peer ? C.burgundy : C.vermillion);
-                // un lien fort épaissit le trait : c'est la seule chose qu'il ait à dire ici
-                const épaisseurPeer = 1.4 + forceDe(l.force) * 0.6;
+                const ink = threadTint ?? (crew ? inkOf(l) : peer ? C.burgundy : C.vermillion);
+                // a strong link thickens the stroke: it is the only thing it has to say here
+                const peerThickness = 1.4 + strengthOf(l.force) * 0.6;
                 return (
                   <g key={i}>
                     <path
                       d={d}
                       fill="none"
-                      stroke={encre}
-                      /* Un fil qu'on peut cliquer doit le dire AVANT
-                         qu'on clique : au survol il s'épaissit et
-                         s'assombrit, ce qu'aucune infobulle ne fait
-                         assez vite. */
+                      stroke={ink}
+                      /* A thread one can click must say so BEFORE one
+                         clicks: on hover it thickens and darkens, which
+                         no tooltip does fast enough. */
                       strokeWidth={
-                        vise
-                          ? (peer ? épaisseurPeer : 1.4) + 1.2
+                        aimed
+                          ? (peer ? peerThickness : 1.4) + 1.2
                           : peer
-                            ? épaisseurPeer
-                            : filDeRassemblement
+                            ? peerThickness
+                            : gatheringThread
                               ? 1.2
                               : 1.4
                       }
                       strokeDasharray={
-                        peer ? "none" : crew ? "7 6" : filDeRassemblement ? "1 5" : "2.5 4"
+                        peer ? "none" : crew ? "7 6" : gatheringThread ? "1 5" : "2.5 4"
                       }
                       strokeLinecap="round"
                       opacity={
                         on
-                          ? vise
+                          ? aimed
                             ? 1
                             : peer
                               ? 0.8
                               : crew
                                 ? 0.5
-                                : filDeRassemblement
+                                : gatheringThread
                                   ? 0.55
                                   : 0.6
                           : 0.08
@@ -971,19 +977,19 @@ export function ConstellationView({
                         pointerEvents: "none",
                       }}
                     />
-                    {/* L'ÉTIQUETTE, au milieu du fil et seulement au
-                        survol : elle nomme la nature de la parenté, ce
-                        qu'une couleur seule ne peut pas faire. */}
-                    {vise && raisons && (
+                    {/* THE LABEL, in the middle of the thread and only
+                        on hover: it names the kind of the kinship, which
+                        a colour alone cannot do. */}
+                    {aimed && reasons && (
                       <g style={{ pointerEvents: "none" }}>
                         <rect
-                          x={mx - Math.min(raisons.length * 3.4, 190) / 2 - 6}
+                          x={mx - Math.min(reasons.length * 3.4, 190) / 2 - 6}
                           y={(a.y + b.y) / 2 + 2}
-                          width={Math.min(raisons.length * 3.4, 190) + 12}
+                          width={Math.min(reasons.length * 3.4, 190) + 12}
                           height={19}
                           rx={2}
                           fill={C.card}
-                          stroke={encre}
+                          stroke={ink}
                           strokeWidth="0.8"
                         />
                         <text
@@ -992,22 +998,23 @@ export function ConstellationView({
                           textAnchor="middle"
                           style={{ fontFamily: F.mono, fontSize: 10, fill: C.ink }}
                         >
-                          {raisons.length > 54 ? `${raisons.slice(0, 53)}…` : raisons}
+                          {reasons.length > 54 ? `${reasons.slice(0, 53)}…` : reasons}
                         </text>
                       </g>
                     )}
-                    {/* CE QUI REÇOIT LA SOURIS, et il est large.
+                    {/* WHAT RECEIVES THE MOUSE, and it is wide.
 
-                        Un trait d'un pixel et demi ne se vise pas : il
-                        faut l'atteindre au pixel près, et une caténaire
-                        n'est même pas droite. D'où ce chemin transparent
-                        posé par-dessus, épais de vingt-six pixels — assez
-                        pour qu'on tombe dessus sans y penser, assez fin
-                        pour que deux fils voisins restent distincts.
+                        A stroke a pixel and a half thick cannot be
+                        aimed at: one has to hit it to the pixel, and a
+                        catenary is not even straight. Hence this
+                        transparent path laid over it, twenty-six pixels
+                        thick — wide enough to fall on without thinking,
+                        thin enough for two neighbouring threads to stay
+                        distinct.
 
-                        Il existe pour TOUT fil et non plus seulement pour
-                        ceux qu'on peut fixer : le survol doit nommer la
-                        parenté même quand il n'y a rien à cliquer. */}
+                        It exists for EVERY thread and no longer only for
+                        those one can fix: the hover must name the
+                        kinship even when there is nothing to click. */}
                     <path
                       d={d}
                       fill="none"
@@ -1018,13 +1025,13 @@ export function ConstellationView({
                       onPointerLeave={() => setHoverLink(null)}
                       onClick={fixer}
                     >
-                      {/* L'infobulle du navigateur double l'étiquette
-                          dessinée : elle survit au fil qu'on vise en
-                          bord de ciel, et c'est elle que lisent les
-                          outils qui ne voient pas le SVG. Tout fil en a
-                          une, pas seulement celui qu'on peut fixer. */}
-                      {(fixer || raisons) && (
-                        <title>{fixer ? `Fixer ce fil — ${raisons}` : raisons}</title>
+                      {/* The browser's tooltip doubles the drawn label:
+                          it survives on a thread aimed at the edge of
+                          the sky, and it is what the tools that do not
+                          see the SVG read. Every thread has one, not
+                          only the one that can be fixed. */}
+                      {(fixer || reasons) && (
+                        <title>{fixer ? `Fixer ce fil — ${reasons}` : reasons}</title>
                       )}
                     </path>
                   </g>
@@ -1037,25 +1044,26 @@ export function ConstellationView({
                 const on = !lit || lit.has(n.id);
                 const isHover = hover === n.id || curseur === n.id;
                 const ink =
-                  n.kind === "fil"
-                    ? catInk(n.couleur || "burgundy")
+                  n.kind === "thread"
+                    ? catInk(n.color || "burgundy")
                     : n.kind === "film"
                       ? C.burgundy
                       : n.type
                         ? LINK_INK[n.type]
                         : C.ochre;
-                /* Un motif qui raconte la fin ne s'affiche pas en clair
-                   sur une carte qu'on parcourt : le nom du fil reste
-                   gratté tant qu'on ne l'a pas dévoilé d'un survol. */
-                const gratté =
-                  n.kind === "fil" && !!n.motif && !!motifById(n.motif)?.spoiler && !isHover;
+                /* A pattern that gives the ending away is not displayed
+                   in the clear on a chart one walks through: the
+                   thread's name stays scratched out until revealed by a
+                   hover. */
+                const scratched =
+                  n.kind === "thread" && !!n.motif && !!motifById(n.motif)?.spoiler && !isHover;
                 return (
                   <g
                     key={n.id}
                     id={`astre-${n.id}`}
                     role="option"
                     aria-selected={curseur === n.id}
-                    aria-label={direLAstre(n)}
+                    aria-label={describeStar(n)}
                     transform={`translate(${p.x},${p.y})`}
                     style={{
                       cursor: n.kind === "work" ? "grab" : "pointer",
@@ -1069,36 +1077,37 @@ export function ConstellationView({
                       pressAt.current = { x: e.clientX, y: e.clientY };
                       setDrag(n.id);
                     }}
-                    /* UN CLIC DÉPLACE LE FOYER, IL N'OUVRE PLUS LA FICHE.
+                    /* A CLICK MOVES THE FOCUS, IT NO LONGER OPENS THE
+                       CARD.
 
-                       C'est le geste de l'exploration : on avance de
-                       proche en proche, et quitter la carte à chaque
-                       astre rendrait le parcours impossible. Ouvrir la
-                       fiche reste à un double-clic, et la légende le
-                       dit — un geste qu'on ne devine pas doit être
-                       écrit quelque part.
+                       It is the gesture of exploration: one advances
+                       step by step, and leaving the chart at every body
+                       would make the journey impossible. Opening the
+                       card remains a double-click away, and the legend
+                       says so — a gesture one cannot guess must be
+                       written down somewhere.
 
-                       Le foyer lui-même fait exception : recliquer
-                       dessus n'aurait rien à recentrer, alors il
-                       ouvre. */
+                       The focus itself is an exception: clicking it
+                       again would have nothing to recentre, so it
+                       opens. */
                     onClick={(e) => {
                       if (n.kind === "work") return;
                       const s = pressAt.current;
-                      if (s && Math.hypot(e.clientX - s.x, e.clientY - s.y) > 4) return; // c'était un glissé
-                      /* Un fil ne s'ouvre pas — il n'a pas de fiche : le
-                         prendre pour foyer montre tout ce qu'il rassemble,
-                         et c'est exactement la question qu'on lui pose. */
-                      if (n.kind === "fil") poserFoyer(n.id);
+                      if (s && Math.hypot(e.clientX - s.x, e.clientY - s.y) > 4) return; // that was a drag
+                      /* A thread does not open — it has no card: taking
+                         it as the focus shows everything it gathers, and
+                         that is exactly the question one asks of it. */
+                      if (n.kind === "thread") setFocus(n.id);
                       else if (n.id === foyer) onOpen(n.filmId as string);
-                      else poserFoyer(n.id);
+                      else setFocus(n.id);
                     }}
                     onDoubleClick={() => n.kind === "film" && onOpen(n.filmId as string)}
                   >
-                    {/* L'ANNEAU DU CURSEUR CLAVIER. Le halo du survol ne
-                        suffit pas : il est diffus par nature, et « où
-                        suis-je » doit se voir d'un coup d'œil sans avoir
-                        à comparer deux lueurs. Un trait franc, donc, et
-                        seulement au clavier. */}
+                    {/* THE KEYBOARD CURSOR'S RING. The hover's halo is
+                        not enough: it is diffuse by nature, and "where
+                        am I" must show at a glance without having to
+                        compare two glows. A plain stroke, then, and only
+                        with the keyboard. */}
                     {curseur === n.id && (
                       <circle
                         r={r + 11}
@@ -1108,7 +1117,7 @@ export function ConstellationView({
                         strokeDasharray="3 3"
                       />
                     )}
-                    {/* halo : les astres les plus cités brillent le plus fort */}
+                    {/* halo: the most cited bodies shine the brightest */}
                     <circle
                       r={r + 7}
                       fill={ink}
@@ -1117,13 +1126,14 @@ export function ConstellationView({
                     />
                     <circle
                       r={r}
-                      fill={n.kind === "fil" ? alpha(ink, 0.28) : ink}
-                      stroke={n.kind === "fil" ? ink : C.card}
-                      strokeWidth={n.kind === "fil" ? 2 : 1.6}
+                      fill={n.kind === "thread" ? alpha(ink, 0.28) : ink}
+                      stroke={n.kind === "thread" ? ink : C.card}
+                      strokeWidth={n.kind === "thread" ? 2 : 1.6}
                     />
-                    {/* L'astre épinglé se distingue : rien ne le retient au
-                        ciel qu'un geste, et le cercle en pointillé le dit. */}
-                    {n.épinglé && (
+                    {/* The pinned body stands apart: nothing holds it to
+                        the sky but a gesture, and the dashed circle says
+                        so. */}
+                    {n.pinned && (
                       <circle
                         r={r + 8}
                         fill="none"
@@ -1147,18 +1157,18 @@ export function ConstellationView({
                       y={-r - 11}
                       textAnchor="middle"
                       style={{
-                        /* Les rôles, et non deux polices nommées en
-                           clair : écrites ainsi, elles restaient celles
-                           du carnet sous les treize autres peaux. */
+                        /* The roles, and not two typefaces named in the
+                           clear: written that way, they stayed the
+                           notebook's under the thirteen other skins. */
                         fontFamily: n.kind === "work" ? F.mono : F.title,
-                        fontSize: n.kind === "work" ? 10.5 : n.kind === "fil" ? 16 : 15,
+                        fontSize: n.kind === "work" ? 10.5 : n.kind === "thread" ? 16 : 15,
                         fontWeight: n.kind === "work" ? 400 : 700,
-                        fontStyle: n.kind === "fil" ? "italic" : "normal",
+                        fontStyle: n.kind === "thread" ? "italic" : "normal",
                         fill: C.ink,
                         pointerEvents: "none",
                       }}
                     >
-                      {gratté
+                      {scratched
                         ? "•".repeat(Math.min(n.label.length, 14))
                         : n.label.length > 30
                           ? n.label.slice(0, 29) + "…"
@@ -1183,13 +1193,13 @@ export function ConstellationView({
                 );
               })}
             </svg>
-            {/* CE QUE LA VOIX DIT PENDANT QU'ON SE DÉPLACE.
+            {/* WHAT THE VOICE SAYS WHILE ONE MOVES ABOUT.
 
-                `aria-activedescendant` suffit en théorie, mais les
-                lecteurs d'écran le suivent inégalement à l'intérieur
-                d'un SVG. Une région vivante dit la même chose par un
-                chemin qui, lui, marche partout. Elle est hors de l'écran
-                et non `display: none` : ce qui est masqué n'est pas lu. */}
+                `aria-activedescendant` is enough in theory, but screen
+                readers follow it unevenly inside an SVG. A live region
+                says the same thing by a path that does work everywhere.
+                It is off screen and not `display: none`: what is hidden
+                is not read. */}
             <div
               aria-live="polite"
               aria-atomic="true"
@@ -1202,7 +1212,7 @@ export function ConstellationView({
                 whiteSpace: "nowrap",
               }}
             >
-              {astreCourant ? direLAstre(astreCourant) : ""}
+              {currentStar ? describeStar(currentStar) : ""}
             </div>
           </div>
 
@@ -1220,17 +1230,17 @@ export function ConstellationView({
             <span style={{ fontFamily: F.hand, fontSize: 18, color: C.inkFaded }}>
               {placed.filter((n) => n.kind === "film").length} film(s),{" "}
               {placed.filter((n) => n.kind === "work").length} œuvre(s) —{" "}
-              {placed.filter((n) => (n.refs ?? 0) > 1).length} pont(s) entre deux films
+              {placed.filter((n) => (n.refs ?? 0) > 1).length} pont(s) entre two films
             </span>
-            {(Object.keys(moved).length > 0 || épingles.length > 0) && (
+            {(Object.keys(moved).length > 0 || pins.length > 0) && (
               <button
-                /* Remettre le ciel en place, c'est aussi retirer les
-                   épingles : ce sont deux gestes de la même main, et les
-                   laisser survivre au balayage donnerait un ciel « remis
-                   en place » qui ne l'est pas. */
+                /* Putting the sky back in place also means removing the
+                   pins: they are two gestures of the same hand, and
+                   letting them survive the sweep would give a sky "put
+                   back in place" that is not. */
                 onClick={() => {
                   setMoved({});
-                  setÉpingles([]);
+                  setPins([]);
                 }}
                 style={{
                   all: "unset",
@@ -1252,29 +1262,29 @@ export function ConstellationView({
   );
 }
 
-/* LA LISTE DES DÉPARTS, ET CE QU'ELLE MONTRE QUAND ON CHERCHE.
+/* THE LIST OF DEPARTURES, AND WHAT IT SHOWS WHEN ONE SEARCHES.
 
-   Sans recherche : les films les plus reliés, ceux depuis lesquels on ira
-   le plus loin. Avec : la collection ENTIÈRE, chaque résultat marqué selon
-   qu'il est déjà au ciel ou non. Un film hors carte ne se grise pas — il
-   se propose, parce que l'épingler est justement ce qu'on est venu
-   faire. */
-function Résultats({
-  cherche,
-  résultats,
+   With no search: the most linked films, the ones from which one will
+   travel furthest. With one: the WHOLE collection, each result marked
+   according to whether it is already in the sky or not. A film outside
+   the chart is not greyed out — it is offered, because pinning it is
+   precisely what one came to do. */
+function Results({
+  query,
+  results,
   departs,
-  auCiel,
+  inTheSky,
   onFoyer,
   onÉpingler,
 }: {
-  cherche: string;
-  résultats: Film[];
+  query: string;
+  results: Film[];
   departs: PlacedNode[] | SkyNode[];
-  auCiel: Set<string>;
+  inTheSky: Set<string>;
   onFoyer: (nodeId: string) => void;
   onÉpingler: (filmId: string) => void;
 }) {
-  if (!cherche.trim())
+  if (!query.trim())
     return (
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
         {departs.slice(0, 12).map((n) => (
@@ -1286,7 +1296,7 @@ function Résultats({
       </div>
     );
 
-  if (résultats.length === 0)
+  if (results.length === 0)
     return (
       <div style={{ fontFamily: F.hand, fontSize: 17, color: C.inkFaded }}>
         rien de ce nom dans la collection.
@@ -1295,22 +1305,22 @@ function Résultats({
 
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-      {résultats.map((f) => {
-        const placé = auCiel.has(f.id);
+      {results.map((f) => {
+        const placedItem = inTheSky.has(f.id);
         return (
           <button
             key={f.id}
-            onClick={() => (placé ? onFoyer(`f:${f.id}`) : onÉpingler(f.id))}
-            title={placé ? "Prendre pour foyer" : "L'épingler au ciel et partir de lui"}
+            onClick={() => (placedItem ? onFoyer(`f:${f.id}`) : onÉpingler(f.id))}
+            title={placedItem ? "Prendre pour foyer" : "L'épingler au ciel et partir de lui"}
             style={{
               ...departStyle,
-              borderStyle: placé ? "solid" : "dashed",
-              color: placé ? C.ink : C.inkFaded,
+              borderStyle: placedItem ? "solid" : "dashed",
+              color: placedItem ? C.ink : C.inkFaded,
             }}
           >
             {f.title}
             <span style={{ opacity: 0.6, marginLeft: 6, fontFamily: F.mono, fontSize: 9.5 }}>
-              {placé ? "au ciel" : "épingler"}
+              {placedItem ? "au ciel" : "épingler"}
             </span>
           </button>
         );
@@ -1332,7 +1342,7 @@ const departStyle: CSSProperties = {
   background: C.card,
 };
 
-const petitBouton = (actif: boolean): CSSProperties => ({
+const smallButton = (active: boolean): CSSProperties => ({
   all: "unset",
   ...tap,
   cursor: "pointer",
@@ -1340,8 +1350,8 @@ const petitBouton = (actif: boolean): CSSProperties => ({
   fontSize: 10,
   letterSpacing: "var(--tag-tracking)",
   padding: "3px 9px",
-  color: actif ? C.card : C.inkFaded,
-  background: actif ? C.slate : "transparent",
-  border: `1px solid ${actif ? C.slate : C.line}`,
+  color: active ? C.card : C.inkFaded,
+  background: active ? C.slate : "transparent",
+  border: `1px solid ${active ? C.slate : C.line}`,
   borderRadius: "var(--tag-radius)",
 });

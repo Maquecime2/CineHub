@@ -1,14 +1,14 @@
 import { defineConfig } from "vitest/config";
 
-/* Sans ce fichier, vitest remonte jusqu'à la configuration du CLIENT —
-   qui ne cherche des tests que dans `src/` et monte un DOM. Le serveur
-   n'a besoin ni de l'un ni de l'autre. */
+/* Without this file, vitest walks up to the CLIENT's configuration —
+   which looks for tests in `src/` only, and mounts a DOM. The server
+   needs neither. */
 export default defineConfig({
   test: {
     include: ["test/**/*.test.ts"],
     environment: "node",
-    /* Un Postgres en WebAssembly démarre en une fraction de seconde,
-       mais une base neuve par test finit par compter. */
+    /* A Postgres in WebAssembly starts in a fraction of a second, but a
+       fresh database per test adds up in the end. */
     testTimeout: 20000,
   },
 });

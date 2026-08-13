@@ -1,28 +1,28 @@
 /* ============================================================
-   ATMOSPHÈRE — grain, taches, texture
+   ATMOSPHERE — grain, stains, texture
 
-   Rien ici n'est interactif : ce sont les traces d'usage d'un objet réel
-   qu'on pose derrière et autour du contenu. Regroupés dans un seul fichier
-   parce qu'ils ne s'emploient jamais isolément — une page en pose trois ou
-   quatre à la fois.
+   Nothing here is interactive: these are the marks of use of a real
+   object, laid behind and around the content. Gathered into one file
+   because they are never used on their own — a page lays three or four
+   of them at a time.
    ============================================================ */
 import type { CSSProperties } from "react";
 import { C, F, GRAIN, alpha } from "../../theme/tokens";
 import { fileNoOf } from "../../domain/seeded";
 
-/* LE PAPIER LUI-MEME — fibres, grain, vignettage.
+/* THE PAPER ITSELF — fibres, grain, vignetting.
 
-   Les trois couches ne disparaissent pas, elles se FONDENT : leur
-   opacite est multipliee par un reglage de la peau. Le Bauhaus met zero
-   et le papier n'existe plus ; une peau de nuit garde un tiers de grain.
-   Un booleen n'aurait pas permis le tiers.
+   The three layers do not disappear, they FADE: their opacity is
+   multiplied by a setting from the skin. The Bauhaus sets zero and the
+   paper no longer exists; a night skin keeps a third of the grain. A
+   boolean would not have allowed the third.
 
-   La valeur de repli est 1 : sans peau posee — au tout premier rendu —
-   le papier est celui qu'il a toujours ete. */
+   The fallback value is 1: with no skin applied — on the very first
+   render — the paper is the one it has always been. */
 export function PaperGrain() {
   return (
     <>
-      {/* fibres du papier — de longues stries irrégulières */}
+      {/* the paper's fibres — long, irregular streaks */}
       <div
         style={{
           position: "fixed",
@@ -45,7 +45,7 @@ export function PaperGrain() {
           zIndex: 1,
         }}
       />
-      {/* vignettage — les bords d'une page qu'on a trop manipulée */}
+      {/* vignetting — the edges of a page handled too often */}
       <div
         style={{
           position: "fixed",
@@ -61,12 +61,11 @@ export function PaperGrain() {
   );
 }
 
-/* LES TACHES — rond de cafe, residu de scotch.
+/* THE STAINS — coffee ring, tape residue.
 
-   Elles disent « papeterie » plus fort que n'importe quelle couleur :
-   le Bauhaus ou une affiche imprimee n'en veulent aucune, et ce n'est
-   pas leur teinte qui peut le dire. Elles se fondent donc, elles aussi,
-   par un reglage de la peau. */
+   They say "stationery" louder than any colour: the Bauhaus or a printed
+   poster want none of them, and it is not their tint that can say so. So
+   they too fade, through a setting from the skin. */
 export function CoffeeRing({ style, rotate = 0 }: { style?: CSSProperties; rotate?: number }) {
   return (
     <svg
@@ -82,7 +81,7 @@ export function CoffeeRing({ style, rotate = 0 }: { style?: CSSProperties; rotat
         ...style,
       }}
     >
-      {/* anneau irrégulier : le café ne sèche jamais en cercle parfait */}
+      {/* an irregular ring: coffee never dries in a perfect circle */}
       <path
         d="M75 14 C 108 14 137 40 138 74 C 139 110 110 138 75 137 C 40 136 12 108 13 73 C 14 39 42 14 75 14 Z"
         fill="none"
@@ -98,7 +97,7 @@ export function CoffeeRing({ style, rotate = 0 }: { style?: CSSProperties; rotat
   );
 }
 
-/* résidu de scotch arraché — un rectangle plus clair et brillant sur le fond */
+/* torn tape residue — a lighter, shinier rectangle on the background */
 export function TapeResidue({
   style,
   rotate = -18,
@@ -125,7 +124,7 @@ export function TapeResidue({
   );
 }
 
-/* soulignement tracé à main levée sous un titre */
+/* a freehand underline drawn under a title */
 export function InkUnderline({
   width = 260,
   color = C.burgundy,
@@ -162,7 +161,7 @@ export function InkUnderline({
   );
 }
 
-/* numéro d'inventaire tamponné dans un coin */
+/* an inventory number stamped in a corner */
 export function FileNumber({ id, style }: { id: string; style?: CSSProperties }) {
   return (
     <div

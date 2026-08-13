@@ -1,14 +1,14 @@
 /* ============================================================
-   POLAROID / FICHE FILM
+   POLAROID / FILM CARD
    ============================================================
 
-   Toutes les cotes étaient écrites en dur. Elles passent maintenant par
-   un facteur unique, lu dans l'allure du mur (`views/library/wallLook`) :
-   une fiche est un objet, elle grandit d'un bloc.
+   All the dimensions were written by hand. They now go through a single
+   factor, read from the wall's look (`views/library/wallLook`): a card is
+   an object, it grows as one block.
 
-   L'allure est FACULTATIVE, et son absence vaut « comme avant » : la
-   fiche sert aussi ailleurs qu'au mur (les découvertes), et ces
-   endroits-là n'ont rien demandé. */
+   The look is OPTIONAL, and its absence means "as before": the card also
+   serves elsewhere than on the wall (the discoveries), and those places
+   asked for nothing. */
 import { C, F } from "../../theme/tokens";
 import { tapeColor } from "../../theme/ink";
 import { hash, tiltOf, usesPin, nudgeOf, pickFrom } from "../../domain/seeded";
@@ -36,30 +36,30 @@ export function FilmPolaroid({
 }) {
   const f = scaleOf(look);
   const px = (n: number) => Math.round(n * f);
-  const vus = watchCount(film);
+  const seenFilms = watchCount(film);
 
-  /* Le désordre reste SEMÉ par l'identifiant — on ne fait que le doser.
-     À « rangé », le facteur vaut zéro et le mur est au cordeau sans
-     qu'aucune fiche n'ait perdu son tirage : remonter d'un cran retrouve
-     exactement le mur qu'on avait. */
+  /* The disorder stays SOWN from the identifier — we only dose it. At
+     "tidy", the factor is zero and the wall is dead straight without any
+     card having lost its draw: going up one notch finds again exactly the
+     wall one had. */
   const mess = messOf(look);
   const tilt = Number(tiltOf(film.id)) * mess;
   const nudge = Math.round(nudgeOf(film.id) * mess * f);
 
   const tape = tapeColor(film.id);
-  // « au hasard » consulte le tirage ; les autres modes tranchent pour tout le mur
+  // "at random" consults the draw; the other modes decide for the whole wall
   const hang = look?.hang || "auto";
   const pinned = hang === "auto" ? usesPin(film.id) : hang === "pin";
   const bare = hang === "none";
 
   const initials = initialsOf(film.title);
-  // l'ombre tombe du côté opposé à l'inclinaison — la photo n'est pas plaquée à plat
+  // the shadow falls opposite the tilt — the photo is not pressed flat
   const rest = `${tilt > 0 ? -3 : 3}px 7px 15px rgba(30,20,10,0.3), 0 1px 2px rgba(30,20,10,0.4)`;
   const lift = `${tilt > 0 ? -6 : 6}px 18px 30px rgba(30,20,10,0.38), 0 2px 3px rgba(30,20,10,0.3)`;
 
-  /* L'écart au voisin du dessous est le MÊME que celui du voisin de droite
-     (`gapOf`) : la grille ne pose que l'horizontal, le vertical est ici, et
-     un mur serré doit l'être dans les deux sens. */
+  /* The gap to the neighbour below is the SAME as the one to the right
+     (`gapOf`): the grid only sets the horizontal, the vertical is here, and
+     a tight wall must be tight both ways. */
   return (
     <div style={{ breakInside: "avoid", marginBottom: gapOf(look), paddingTop: nudge }}>
       <button
@@ -87,9 +87,9 @@ export function FilmPolaroid({
           e.currentTarget.style.zIndex = "auto";
         }}
       >
-        {/* La punaise et le ruban gardent leur taille : ce sont des objets
-            posés SUR la fiche, pas des morceaux d'elle. Seul leur point
-            d'accroche suit le bord, qui a bougé. */}
+        {/* The pin and the tape keep their size: they are objects laid ON
+            the card, not pieces of it. Only their anchor point follows
+            the edge, which has moved. */}
         {bare ? null : pinned ? (
           <PushPin
             color={pickFrom([C.burgundy, C.cobalt, C.moss], Math.abs(hash(film.id)))}
@@ -102,8 +102,8 @@ export function FilmPolaroid({
             style={{ top: -10, left: "50%", marginLeft: -35 }}
           />
         )}
-        {/* `lazy` : une fiche paraît rarement seule — le mur en aligne
-            cinq cents, et les Découvertes quarante. */}
+        {/* `lazy`: a card rarely appears alone — the wall lines up five
+            hundred of them, and Discoveries forty. */}
         <PosterArt film={film} height={px(150)} initials={initials} lazy />
         <div style={{ paddingTop: px(14), textAlign: "left" }}>
           <div
@@ -117,7 +117,7 @@ export function FilmPolaroid({
           >
             {film.title}
           </div>
-          {/* la légende manuscrite, écrite au dos puis recopiée devant */}
+          {/* the handwritten caption, written on the back then copied out front */}
           <div
             style={{
               fontFamily: F.hand,
@@ -129,7 +129,7 @@ export function FilmPolaroid({
           >
             {film.year || "s.d."} · {film.director || "anonyme"}
           </div>
-          {/* pas d'étoiles sur un film pas encore vu : rien à noter */}
+          {/* no stars on a film not yet seen: nothing to rate */}
           <div style={{ marginTop: px(8), display: "flex", alignItems: "center", gap: px(6) }}>
             {film.status === "watchlist" ? (
               <span
@@ -145,20 +145,21 @@ export function FilmPolaroid({
             ) : (
               <InkStars value={film.rating || 0} size={px(12)} />
             )}
-            {/* LE COMPTE DES SÉANCES, à partir de deux seulement — un
-                « ×1 » sous chaque vignette serait du bruit sur tout le mur.
+            {/* THE COUNT OF SCREENINGS, from two only — a "×1" under
+                every thumbnail would be noise across the whole wall.
 
-                Il se pose JUSTE APRÈS les étoiles et non poussé à droite :
-                le coin bas-droite appartient déjà au numéro de dossier et
-                au pli d'ombre, qui l'auraient recouvert. */}
-            {vus > 1 && (
+                It is laid JUST AFTER the stars and not pushed to the
+                right: the bottom-right corner already belongs to the
+                folder number and the shadow fold, which would have
+                covered it. */}
+            {seenFilms > 1 && (
               <span
-                aria-label={`vu ${vus} fois`}
-                /* Il tenait la taille du « À VOIR » — dix pixels, celle
-                   d'une mention de service. Mais une fiche du mur se lit
-                   de loin, et le compte y est une INFORMATION, pas une
-                   étiquette : il se cale sur la légende manuscrite, à
-                   côté d'étoiles qui font déjà douze. */
+                aria-label={`vu ${seenFilms} fois`}
+                /* It used to take the size of the "TO WATCH" — ten
+                   pixels, that of a service mention. But a wall card is
+                   read from afar, and the count is INFORMATION there, not
+                   a label: it lines up on the handwritten caption, beside
+                   stars that already make twelve. */
                 style={{
                   fontFamily: F.mono,
                   fontSize: px(14),
@@ -166,13 +167,13 @@ export function FilmPolaroid({
                   lineHeight: 1,
                 }}
               >
-                ×{vus}
+                ×{seenFilms}
               </span>
             )}
           </div>
         </div>
         <FileNumber id={film.id} style={{ bottom: 6, right: 10 }} />
-        {/* coin corné : un pli d'ombre en bas à droite */}
+        {/* a dog-eared corner: a fold of shadow bottom right */}
         <div
           style={{
             position: "absolute",

@@ -1,29 +1,28 @@
 /* ============================================================
-   POSER UNE PEAU — l'écrire sur la racine, charger ses polices
+   PUTTING A SKIN ON — writing it on the root, loading its fonts
    ============================================================
 
-   Tout le travail tient en une phrase : on écrit des variables CSS sur
-   `documentElement`. Rien ne remonte à React, aucun composant n'est
-   averti, et c'est précisément ce qu'on voulait — six cent treize
-   lectures de jetons dans vingt-neuf fichiers changent d'un coup sans
-   qu'aucune d'elles ait à savoir qu'une peau existe.
+   The whole job fits in one sentence: we write CSS variables on
+   `documentElement`. Nothing goes back up to React, no component is
+   told, and that is precisely what we wanted — six hundred and thirteen
+   token reads across twenty-nine files change at once without any of
+   them having to know a skin exists.
 
-   Les styles en ligne gagnent contre une feuille de styles, mais les
-   variables écrites ici ne SONT pas des styles en ligne des composants :
-   elles sont écrites sur un autre élément, l'ancêtre de tous. Un jeton
-   lu comme `var(--c-paper)` remonte donc jusqu'à elles, et le `:root` de
-   `FONT_IMPORT` ne sert que de dernier recours — au premier rendu, avant
-   qu'une ligne de JavaScript ait tourné. */
+   Inline styles beat a style sheet, but the variables written here are
+   NOT the components' inline styles: they are written on another
+   element, the ancestor of all. A token read as `var(--c-paper)`
+   therefore climbs up to them, and `FONT_IMPORT`'s `:root` only serves
+   as a last resort — on the first render, before a line of JavaScript
+   has run. */
 
 import { skinOf, DEFAULT_SKIN, type Skin } from "./skins";
 
 export const SKIN_KEY = "site-skin";
 
-/* Le lien vers Google. UN SEUL élément, réutilisé : en créer un par
-   changement de peau laisserait derrière soi autant de feuilles de
-   styles que d'essais, dont les `@font-face` continueraient de
-   s'appliquer — la dernière déclarée gagnerait, ce qui n'est pas
-   forcément la dernière choisie. */
+/* The link to Google. ONE element only, reused: creating one per skin
+   change would leave behind as many style sheets as attempts, whose
+   `@font-face` rules would go on applying — the last declared would win,
+   which is not necessarily the last chosen. */
 const LINK_ID = "skin-fonts";
 
 const fontHref = (skin: Skin): string =>
@@ -40,27 +39,27 @@ function loadFonts(skin: Skin): void {
     link.rel = "stylesheet";
     document.head.appendChild(link);
   }
-  // réécrire la même adresse relancerait un chargement pour rien
+  // rewriting the same address would start a load for nothing
   if (link.href !== href) link.href = href;
 }
 
-/* Un jeton en camel devient une variable en tirets : `paperDark` s'écrit
-   `--c-paper-dark`. La correspondance est ici et nulle part ailleurs —
-   `tokens` la suppose, ce fichier la produit. */
+/* A camel-cased token becomes a hyphenated variable: `paperDark` is
+   written `--c-paper-dark`. The mapping is here and nowhere else —
+   `tokens` assumes it, this file produces it. */
 const varName = (key: string): string =>
   `--c-${key.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)}`;
 
-/* TOUT CE QU'UNE PEAU ÉCRIT, sous forme de paires — et non posé.
+/* EVERYTHING A SKIN WRITES, as pairs — and not applied.
 
-   Séparé de la pose parce que la racine du document n'est pas le seul
-   endroit où une peau peut vivre : l'écran de contrôle en montre
-   quatorze À LA FOIS, chacune sur un fragment de page, et il lui faut
-   les mêmes variables sous forme de style. Les variables CSS cascadent —
-   un jeton lu comme `var(--c-paper)` remonte au plus proche ancêtre qui
-   la porte, que ce soit `documentElement` ou un simple `div`.
+   Kept apart from applying because the document's root is not the only
+   place a skin can live: the control screen shows fourteen AT ONCE, each
+   on a fragment of the page, and it needs the same variables in the form
+   of a style. CSS variables cascade — a token read as `var(--c-paper)`
+   climbs to the nearest ancestor carrying it, be that `documentElement`
+   or a plain `div`.
 
-   Une seule définition, donc, pour les deux usages : la correspondance
-   `paperDark` → `--c-paper-dark` ne se réécrit nulle part ailleurs. */
+   One definition, then, for both uses: the mapping `paperDark` →
+   `--c-paper-dark` is not rewritten anywhere else. */
 export function skinVars(skin: Skin): Record<string, string> {
   const vars: Record<string, string> = {};
   for (const [token, color] of Object.entries(skin.c)) vars[varName(token)] = color;
@@ -76,13 +75,13 @@ export function skinVars(skin: Skin): Record<string, string> {
   vars["--tag-tracking"] = skin.tag.tracking;
   vars["--tag-transform"] = skin.tag.transform;
 
-  /* L'atmosphère en opacités : le grain du papier, les taches de café et
-     le vignettage se fondent au lieu de disparaître d'un coup, et une
-     peau peut n'en garder qu'un tiers. Les composants les lisent avec
-     une valeur de repli à 1 — ils marchent donc sans peau posée. */
+  /* Atmosphere as opacities: the paper's grain, the coffee stains and
+     the vignetting fade instead of vanishing at once, and a skin can
+     keep only a third of them. The components read them with a fallback
+     of 1 — so they work with no skin applied. */
   vars["--atm-grain"] = String(skin.atm.grain);
   vars["--atm-stain"] = String(skin.atm.stain);
-  vars["--atm-vignette"] = String(skin.atm.vignette);
+  vars["--atm-vignette"] = String(skin.atm.thumb);
 
   return vars;
 }
@@ -93,7 +92,8 @@ export function applySkin(key?: string): Skin {
 
   for (const [name, value] of Object.entries(skinVars(skin))) root.setProperty(name, value);
 
-  /* De quoi écrire une règle qui dépende du fond sans le mesurer. */
+  /* Enough to write a rule that depends on the background without
+     measuring it. */
   document.documentElement.dataset.skin = skin.key;
   document.documentElement.dataset.dark = skin.dark ? "1" : "0";
 
@@ -113,6 +113,6 @@ export const saveSkinKey = (key: string): void => {
   try {
     localStorage.setItem(SKIN_KEY, key);
   } catch {
-    /* un rangement plein ne doit pas empêcher de changer de peau */
+    /* a full store must not stop somebody changing skin */
   }
 };

@@ -1,40 +1,39 @@
 /* ============================================================
-   VUE — L'ALMANACH, en quatre planches qu'on feuillette
+   VIEW — THE ALMANAC, in four boards one leafs through
    ============================================================
 
-   La page de comptes d'un archiviste : ce que l'année a contenu, tenu à
-   la main sur des cartons posés de travers, et non une grille de
-   compteurs. Le calcul entier vit dans `domain/almanac` — cette vue ne
-   fait que dessiner ce qu'il rend, et n'a donc aucune règle à elle.
+   An archivist's page of accounts: what the year contained, kept by hand
+   on cards laid askew, and not a grid of counters. The whole computation
+   lives in `domain/almanac` — this view only draws what it returns, and
+   therefore has no rule of its own.
 
-   POURQUOI PLUSIEURS PLANCHES, ET AUCUN DÉFILEMENT.
+   WHY SEVERAL BOARDS, AND NO SCROLLING.
 
-   Une page d'almanach se regarde, elle ne se déroule pas : ce qui
-   dépasse du bord n'existe pas pour le lecteur, et une barre de
-   défilement à droite d'un bilan annuel avoue qu'on a renoncé à le
-   composer. Mais un bilan qui tient dans un écran ne dit pas
-   grand-chose.
+   A page of an almanac is looked at, it does not unroll: what goes past
+   the edge does not exist for the reader, and a scrollbar to the right
+   of a yearly account confesses that composing it was given up. But an
+   account that fits in one screen does not say much.
 
-   D'où le livret. Chaque planche occupe EXACTEMENT la hauteur
-   disponible, et l'on tourne la page — à la flèche, au clavier, ou en
-   cliquant une pastille. Quatre planches valent quatre fois la place
-   sans coûter un seul pixel de défilement.
+   Hence the booklet. Each board takes up EXACTLY the available height,
+   and one turns the page — with the arrow, with the keyboard, or by
+   clicking a pill. Four boards are worth four times the room without
+   costing a single pixel of scrolling.
 
-   CE QUI GARANTIT QU'AUCUNE NE DÉBORDE. Les planches sont des grilles à
-   lignes fixes, jamais des flux : la hauteur est décidée d'avance et
-   répartie, au lieu d'être subie. Et surtout, ce qui pourrait être long
-   est tronqué PAR LE CALCUL — un palmarès rend quatre lignes, pas
-   quarante. Un `overflow: hidden` aurait caché la donnée sans le dire,
-   ce qui est pire qu'une barre de défilement.
+   WHAT GUARANTEES THAT NONE OVERFLOWS. The boards are grids with fixed
+   rows, never flows: the height is decided in advance and shared out,
+   instead of being suffered. And above all, what could be long is
+   truncated BY THE COMPUTATION — a ranking returns four lines, not
+   forty. An `overflow: hidden` would have hidden the data without saying
+   so, which is worse than a scrollbar.
 
-   LES BARRES SONT TRACÉES, PAS TRACÉES-PAR-UNE-BIBLIOTHÈQUE. Douze
-   rectangles au trait irrégulier valent mieux qu'une dépendance de
-   graphiques, et ils sont les seuls à pouvoir tenir sur les quatorze
-   peaux : leur encre est un jeton, pas une couleur.
+   THE BARS ARE DRAWN, NOT DRAWN-BY-A-LIBRARY. Twelve rectangles with an
+   irregular stroke are worth more than a charting dependency, and they
+   are the only ones able to hold on the fourteen skins: their ink is a
+   token, not a colour.
 
-   PAS UNE COULEUR EN DUR ICI. Une seule suffirait à casser la moitié des
-   peaux — la planche de contrôle (`views/dev/SkinLab`) est là pour le
-   voir venir. */
+   NOT ONE HARD-CODED COLOUR HERE. A single one would suffice to break
+   half the skins — the control board (`views/dev/SkinLab`) is there to
+   see it coming. */
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { ChevronLeft, ChevronRight, Download } from "lucide-react";
@@ -47,18 +46,18 @@ import {
   yearsCovered,
   type Almanac,
   type Drift,
-  type Période,
+  type Period,
 } from "../domain/almanac";
-import { drawYearInBox, telecharger, type BoxPalette } from "../services/yearInBox";
+import { drawYearInBox, download, type BoxPalette } from "../services/yearInBox";
 import { hash, seededRand, tiltOf } from "../domain/seeded";
 import { CoffeeRing, InkUnderline, PushPin, StampCorner, Tape } from "../components/atmosphere";
 import { InkStars, Label, Tally } from "../components/ui";
 import { motifById } from "../domain/motifs";
-import { nomLangue, nomPays } from "../noms";
+import { languageName, countryName } from "../names";
 import type { Film } from "../types";
 
-const MOIS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
-const MOIS_LONG = [
+const MONTHS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
+const MONTHS_LONG = [
   "janvier",
   "février",
   "mars",
@@ -73,51 +72,51 @@ const MOIS_LONG = [
   "décembre",
 ];
 
-/* « 2024-03-07 » → « 7 mars ». L'année est tue parce qu'elle est déjà
-   dans le titre de la page — mais seulement quand le titre EST une
-   année : « du 25 janvier au 24 décembre » sur un bilan qui couvre sept
-   ans laisse croire à une seule année, et c'est justement la chose que
-   ce bilan doit démentir. */
-const enClair = (iso: string | null, avecAnnée = false): string => {
+/* "2024-03-07" → "7 mars". The year is left unsaid because it is
+   already in the page's title — but only when the title IS a year: "du
+   25 janvier au 24 décembre" on an account covering seven years makes
+   one believe in a single year, and that is precisely the thing this
+   account must deny. */
+const spellDate = (iso: string | null, withYear = false): string => {
   if (!iso) return "—";
   const [a, m, j] = iso.split("-");
-  const jour = `${Number(j)} ${MOIS_LONG[Number(m) - 1] || ""}`.trim();
-  return avecAnnée ? `${jour} ${a}` : jour;
+  const day = `${Number(j)} ${MONTHS_LONG[Number(m) - 1] || ""}`.trim();
+  return withYear ? `${day} ${a}` : day;
 };
 
-/** 5 430 minutes → « 90 h 30 ». Personne ne lit un bilan en minutes. */
-const enHeures = (minutes: number): string => {
+/** 5,430 minutes → "90 h 30". Nobody reads an account in minutes. */
+const inHours = (minutes: number): string => {
   const h = Math.floor(minutes / 60);
   const m = Math.round(minutes % 60);
   return m ? `${h} h ${String(m).padStart(2, "0")}` : `${h} h`;
 };
 
-/* Les noms de pays et de langues se traduisent dans `noms`, et non dans
-   le domaine : `geography` rend des codes ISO parce qu'il ne sait pas
-   dans quelle langue on le lira. La fiche s'en sert aussi. */
+/* The names of countries and languages are translated in `namesIn`, and
+   not in the domain: `geography` returns ISO codes because it does not
+   know in which language it will be read. The film card uses it too. */
 
 /* ------------------------------------------------------------
-   LE CARTON — la pièce que toutes les planches réemploient
+   THE CARD — the piece every board reuses
    ------------------------------------------------------------ */
-function Carton({
-  titre,
+function Cardstock({
+  title,
   seed,
   children,
   style,
 }: {
-  titre: string;
-  /** De quoi tirer une inclinaison STABLE : un carton qui gigote au re-rendu
-      ne ressemble plus à un objet posé. */
+  title: string;
+  /** Enough to draw a STABLE lean: a card that wriggles on a re-render
+      no longer looks like a laid object. */
   seed: string;
   children: ReactNode;
   style?: CSSProperties;
 }) {
-  const penche = tiltOf(seed);
-  const punaise = Math.abs(hash(seed)) % 3 === 0;
+  const leans = tiltOf(seed);
+  const pin = Math.abs(hash(seed)) % 3 === 0;
   return (
     <div
-      /* Un carton ne se coupe pas en deux entre deux pages : voir
-         `theme/print.css`, qui s'accroche à cet attribut. */
+      /* A card is not cut in two between two pages: see
+         `theme/print.css`, which hooks onto this attribute. */
       data-print-block
       style={{
         position: "relative",
@@ -125,36 +124,36 @@ function Carton({
         border: `1px solid ${C.line}`,
         boxShadow: "3px 5px 12px rgba(30,20,10,0.22)",
         padding: "13px 15px 12px",
-        transform: `rotate(${Number(penche) / 7}deg)`,
-        /* `minHeight: 0` est ce qui autorise vraiment une case de grille
-           à se serrer. Sans lui, un enfant de grille refuse de descendre
-           sous la taille de son contenu, et c'est la PLANCHE qui grandit
-           — donc la page qui défile, précisément ce qu'on interdit. */
+        transform: `rotate(${Number(leans) / 7}deg)`,
+        /* `minHeight: 0` is what really allows a grid cell to tighten.
+           Without it, a grid child refuses to go below the size of its
+           content, and it is the BOARD that grows — hence the page that
+           scrolls, precisely what is forbidden. */
         minHeight: 0,
         display: "flex",
         flexDirection: "column",
         ...style,
       }}
     >
-      {punaise ? (
+      {pin ? (
         <PushPin style={{ top: -6, right: 16 }} />
       ) : (
         <Tape color={C.ochre} width={52} style={{ top: -9, right: 20 }} rotate={5} />
       )}
-      <Label>{titre}</Label>
+      <Label>{title}</Label>
       <div style={{ flex: 1, minHeight: 0 }}>{children}</div>
     </div>
   );
 }
 
-/** Ce qu'on écrit quand un carton n'a rien à montrer. */
-function Rien({ quoi }: { quoi: string }) {
-  return <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded }}>{quoi}</div>;
+/** What is written when a card has nothing to show. */
+function Nothing({ what }: { what: string }) {
+  return <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded }}>{what}</div>;
 }
 
-/* Un grand nombre, avec sa légende dessous. La pièce qui porte les
-   planches : c'est elle qu'on lit en trois secondes. */
-function Chiffre({
+/* A large number, with its caption below. The piece that carries the
+   boards: it is what one reads in three seconds. */
+function Figure({
   valeur,
   legende,
   ink = C.ink,
@@ -184,35 +183,34 @@ function Chiffre({
 }
 
 /* ------------------------------------------------------------
-   LES DOUZE MOIS, À L'ENCRE
+   THE TWELVE MONTHS, IN INK
    ------------------------------------------------------------
 
-   Chaque barre est un quadrilatère dont les quatre coins bougent d'un
-   cheveu — tiré de l'année et du mois, donc toujours le même. Un
-   rectangle parfait dans une page manuscrite se voit tout de suite ;
-   un rectangle qui tremble ne se voit pas du tout, ce qui est le but. */
-/* Douze mois ou sept années : c'est la même barre, et le même dessin.
-   Le graphique ne connaît que des valeurs et leurs légendes — lui faire
-   croire qu'il compte des mois aurait obligé à l'écrire deux fois le
-   jour où l'on a voulu lire une pratique entière. */
-function Barres({
-  valeurs,
-  légendes,
-  graine,
+   Each bar is a quadrilateral whose four corners move by a hair — drawn
+   from the year and the month, hence always the same. A perfect
+   rectangle in a handwritten page shows at once; a rectangle that
+   trembles does not show at all, which is the point. */
+/* Twelve months or seven years: it is the same bar, and the same
+   drawing. The chart knows only values and their captions — making it
+   believe it was counting months would have forced writing it twice the
+   day we wanted to read a whole practice. */
+function Bars({
+  values,
+  legends,
+  seed,
 }: {
-  valeurs: number[];
-  légendes: string[];
-  graine: string | number;
+  values: number[];
+  legends: string[];
+  seed: string | number;
 }) {
   const W = 300;
   const H = 108;
-  const max = Math.max(1, ...valeurs);
-  const pas = W / Math.max(1, valeurs.length);
-  const largeur = pas * 0.56;
-  /* Au-delà de huit colonnes, une année sur quatre chiffres se cogne à
-     sa voisine : on ne garde que les deux derniers, qui suffisent à
-     suivre une décennie. */
-  const étroit = valeurs.length > 8;
+  const max = Math.max(1, ...values);
+  const step = W / Math.max(1, values.length);
+  const width = step * 0.56;
+  /* Beyond eight columns, a four-figure year bumps into its neighbour:
+     we keep only the last two, which are enough to follow a decade. */
+  const narrow = values.length > 8;
 
   return (
     <svg
@@ -222,28 +220,28 @@ function Barres({
       preserveAspectRatio="none"
       style={{ display: "block", marginTop: 6 }}
     >
-      {valeurs.map((n, i) => {
-        const g = i * pas + (pas - largeur) / 2;
-        const d = g + largeur;
-        const haut = H - (n / max) * (H - 6);
-        const jitter = (k: number) => (seededRand(hash(`${graine}-${i}-${k}`)) - 0.5) * 2.2;
+      {values.map((n, i) => {
+        const g = i * step + (step - width) / 2;
+        const d = g + width;
+        const top = H - (n / max) * (H - 6);
+        const jitter = (k: number) => (seededRand(hash(`${seed}-${i}-${k}`)) - 0.5) * 2.2;
         return (
           <g key={i}>
             {n > 0 && (
               <path
-                d={`M${g + jitter(1)} ${H} L${g + jitter(2)} ${haut + jitter(3)} L${d + jitter(4)} ${haut + jitter(5)} L${d + jitter(6)} ${H} Z`}
+                d={`M${g + jitter(1)} ${H} L${g + jitter(2)} ${top + jitter(3)} L${d + jitter(4)} ${top + jitter(5)} L${d + jitter(6)} ${H} Z`}
                 fill={alpha(C.burgundy, 0.72)}
                 stroke={C.burgundy}
                 strokeWidth="0.9"
                 strokeLinejoin="round"
               />
             )}
-            {/* Le compte au-dessus de la barre, mais seulement quand il y
-                a la place : douze nombres serrés ne se lisent pas. */}
+            {/* The count above the bar, but only when there is room:
+                twelve numbers squeezed together cannot be read. */}
             {n > 0 && n >= max * 0.34 && (
               <text
                 x={(g + d) / 2}
-                y={haut - 3}
+                y={top - 3}
                 textAnchor="middle"
                 style={{ fontFamily: F.mono, fontSize: 7.5, fill: C.inkFaded }}
               >
@@ -254,14 +252,14 @@ function Barres({
               x={(g + d) / 2}
               y={H + 11}
               textAnchor="middle"
-              style={{ fontFamily: F.mono, fontSize: étroit ? 7 : 8, fill: C.inkFaded }}
+              style={{ fontFamily: F.mono, fontSize: narrow ? 7 : 8, fill: C.inkFaded }}
             >
-              {étroit ? (légendes[i] || "").slice(-2) : légendes[i]}
+              {narrow ? (legends[i] || "").slice(-2) : legends[i]}
             </text>
           </g>
         );
       })}
-      {/* la ligne de sol, tracée à main levée */}
+      {/* the ground line, drawn freehand */}
       <path
         d={`M0 ${H} C ${W * 0.3} ${H - 1.2}, ${W * 0.6} ${H + 1.2}, ${W} ${H}`}
         fill="none"
@@ -272,31 +270,31 @@ function Barres({
   );
 }
 
-/* Une petite règle horizontale : la part de chaque entrée d'un palmarès.
+/* A small horizontal rule: the share of each entry of a ranking.
 
-   Le nombre de lignes est TRONQUÉ PAR L'APPELANT, jamais masqué ici :
-   c'est ce qui garantit qu'une planche ne déborde pas sans qu'on le
-   sache. */
-function Palmares({
+   The number of lines is TRUNCATED BY THE CALLER, never hidden here:
+   that is what guarantees a board does not overflow without anyone
+   knowing. */
+function Honours({
   items,
   total,
   ink = C.ochre,
-  vide = "rien à noter",
+  empty = "rien à noter",
   onPick,
 }: {
-  items: { nom: string; n: number }[];
+  items: { name: string; n: number }[];
   total: number;
   ink?: string;
-  vide?: string;
-  /** Rend chaque nom cliquable. Absent : le palmarès reste du texte. */
-  onPick?: (nom: string) => void;
+  empty?: string;
+  /** Makes each name clickable. Absent: the ranking stays plain text. */
+  onPick?: (name: string) => void;
 }) {
-  if (items.length === 0) return <Rien quoi={vide} />;
+  if (items.length === 0) return <Nothing what={empty} />;
   const max = Math.max(1, ...items.map((i) => i.n));
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 3 }}>
       {items.map((it) => (
-        <div key={it.nom}>
+        <div key={it.name}>
           <div
             style={{
               display: "flex",
@@ -308,11 +306,11 @@ function Palmares({
             }}
           >
             {onPick ? (
-              /* Un pointillé d'encre, comme sur la fiche film : le
-                 carnet ne souligne pas en bleu ce qu'on peut suivre. */
+              /* A dotted line of ink, as on the film card: the notebook
+                 does not underline in blue what one can follow. */
               <button
-                onClick={() => onPick(it.nom)}
-                title={`Ce que j'ai de ${it.nom}`}
+                onClick={() => onPick(it.name)}
+                title={`Ce que j'ai de ${it.name}`}
                 style={{
                   all: "unset",
                   ...tap,
@@ -323,14 +321,14 @@ function Palmares({
                   borderBottom: `1px dotted ${C.inkFaded}`,
                 }}
               >
-                {it.nom}
+                {it.name}
               </button>
             ) : (
               <span
                 style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-                title={it.nom}
+                title={it.name}
               >
-                {it.nom}
+                {it.name}
               </span>
             )}
             <span style={{ fontFamily: F.mono, fontSize: 11, color: C.inkFaded, flexShrink: 0 }}>
@@ -348,18 +346,18 @@ function Palmares({
 }
 
 /* ------------------------------------------------------------
-   PLANCHE I — LE COMPTE ET LE RYTHME
+   BOARD I — THE COUNT AND THE RHYTHM
    ------------------------------------------------------------ */
-function PlancheCompte({ a }: { a: Almanac }) {
+function PlateCount({ a }: { a: Almanac }) {
   const r = a.rhythm;
-  const clé = String(a.période);
-  const toujours = a.période === "toujours";
-  /* Les jours réellement couverts, pour dire « une séance tous les tant
-     de jours » sans supposer une année civile. */
-  const étendue = r.densite > 0 ? (r.jours / r.densite) * 100 : 365;
+  const key = String(a.period);
+  const always = a.period === "always";
+  /* The days actually covered, so as to say "one screening every so
+     many days" without assuming a calendar year. */
+  const span = r.density > 0 ? (r.days / r.density) * 100 : 365;
   return (
-    <div style={GRILLE_2x2}>
-      <Carton titre="Le compte" seed={`compte-${clé}`}>
+    <div style={GRID_2x2}>
+      <Cardstock title="Le compte" seed={`count-${key}`}>
         <div
           style={{
             display: "grid",
@@ -368,10 +366,10 @@ function PlancheCompte({ a }: { a: Almanac }) {
             marginTop: 8,
           }}
         >
-          <Chiffre valeur={a.count} legende="SÉANCES" ink={C.burgundy} />
-          <Chiffre valeur={a.titles} legende="FILMS" />
-          <Chiffre valeur={a.rewatches} legende="REVOYURES" />
-          <Chiffre valeur={a.longestStreak} legende="JOURS D'AFFILÉE" />
+          <Figure valeur={a.count} legende="SÉANCES" ink={C.burgundy} />
+          <Figure valeur={a.titles} legende="FILMS" />
+          <Figure valeur={a.rewatches} legende="REVOYURES" />
+          <Figure valeur={a.longestStreak} legende="JOURS D'AFFILÉE" />
         </div>
         <div
           style={{
@@ -382,77 +380,78 @@ function PlancheCompte({ a }: { a: Almanac }) {
             textAlign: "center",
           }}
         >
-          du {enClair(a.firstWatch, toujours)} au {enClair(a.lastWatch, toujours)}
+          du {spellDate(a.firstWatch, always)} au {spellDate(a.lastWatch, always)}
         </div>
-      </Carton>
+      </Cardstock>
 
-      {/* Douze mois pour une année, une colonne par année pour toute une
-          pratique : c'est la même barre, et la graduation change seule. */}
-      {/* PLUS DE `gridColumn: "span 2"` : il était la contrepartie des
-          trois colonnes, où il servait à combler la première rangée. Sur
-          un vrai 2×2, il pousserait les deux cartons du bas dans une
-          troisième rangée que la grille ne déclare pas — et la planche
-          se remettrait à déborder par où on venait de la refermer. */}
-      <Carton titre={toujours ? "Les années" : "Les mois"} seed={`mois-${clé}`}>
-        {toujours ? (
-          <Barres
-            valeurs={a.byYear.map((y) => y.séances)}
-            légendes={a.byYear.map((y) => String(y.year))}
-            graine={clé}
+      {/* Twelve months for a year, one column per year for a whole
+          practice: it is the same bar, and the graduation changes by
+          itself. */}
+      {/* NO MORE `gridColumn: "span 2"`: it was the counterpart of the
+          three columns, where it served to fill the first row up. On a
+          real 2×2 it would push the two bottom cards into a third row
+          the grid does not declare — and the board would start
+          overflowing again through the very place we had just closed. */}
+      <Cardstock title={always ? "Les années" : "Les mois"} seed={`mois-${key}`}>
+        {always ? (
+          <Bars
+            values={a.byYear.map((y) => y.screenings)}
+            legends={a.byYear.map((y) => String(y.year))}
+            seed={key}
           />
         ) : (
-          <Barres valeurs={a.byMonth} légendes={MOIS} graine={clé} />
+          <Bars values={a.byMonth} legends={MONTHS} seed={key} />
         )}
-      </Carton>
+      </Cardstock>
 
-      <Carton titre="Le rythme" seed={`rythme-${clé}`}>
+      <Cardstock title="Le rythme" seed={`rythme-${key}`}>
         <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 6 }}>
-          <Tally label="Jours avec séance" value={r.jours} ink={C.pine} />
+          <Tally label="Jours avec séance" value={r.days} ink={C.pine} />
           <Tally
-            label={toujours ? "De la période" : "De l'année"}
-            value={`${r.densite.toFixed(1)} %`}
+            label={always ? "De la période" : "De l'année"}
+            value={`${r.density.toFixed(1)} %`}
           />
-          <Tally label="Plus longue disette" value={`${r.disette} j`} />
+          <Tally label="Plus longue drought" value={`${r.drought} j`} />
           <Tally
             label="Mois le plus dense"
-            value={r.moisLePlusDense ? MOIS_LONG[r.moisLePlusDense - 1] || "—" : "—"}
+            value={r.moisLePlusDense ? MONTHS_LONG[r.moisLePlusDense - 1] || "—" : "—"}
           />
         </div>
         <div style={{ marginTop: 8, fontFamily: F.hand, fontSize: 15, color: C.inkFaded }}>
-          {r.jours > 0 ? `une séance tous les ${(étendue / r.jours).toFixed(1)} jours` : ""}
+          {r.days > 0 ? `une séance tous les ${(span / r.days).toFixed(1)} jours` : ""}
         </div>
-      </Carton>
+      </Cardstock>
 
-      <Carton titre="Les heures de cinéma" seed={`heures-${clé}`}>
+      <Cardstock title="Les heures de cinéma" seed={`heures-${key}`}>
         {a.screenTime.minutes === 0 ? (
-          <Rien quoi="aucune durée connue — le bouton « compléter les fiches », dans l'onglet Import, va les chercher" />
+          <Nothing what="aucune durée connue — le bouton « compléter les fiches », dans l'onglet Import, va les chercher" />
         ) : (
           <>
             <div style={{ marginTop: 8 }}>
-              <Chiffre
-                valeur={enHeures(a.screenTime.minutes)}
+              <Figure
+                valeur={inHours(a.screenTime.minutes)}
                 legende="DEVANT UN ÉCRAN"
                 ink={C.burgundy}
               />
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 10 }}>
               <Tally
-                label="Séance moyenne"
+                label="Screening moyenne"
                 value={a.screenTime.moyenne ? `${Math.round(a.screenTime.moyenne)} min` : "—"}
               />
-              {a.screenTime.plusLong && (
+              {a.screenTime.longest && (
                 <Tally
                   label="Le plus long"
-                  value={`${a.screenTime.plusLong.runtime} min`}
+                  value={`${a.screenTime.longest.runtime} min`}
                   ink={C.slate}
                 />
               )}
             </div>
-            {/* LE TITRE ALLAIT AVEC LA DURÉE, ET N'ÉTAIT PAS ÉCRIT.
-                `plusLong` porte le film entier depuis toujours ; on n'en
-                montrait que le nombre de minutes, qui ne dit rien tout
-                seul. */}
-            {a.screenTime.plusLong && (
+            {/* THE TITLE WENT WITH THE RUNTIME, AND WAS NOT WRITTEN.
+                `plusLong` has always carried the whole film; we only
+                showed the number of minutes, which says nothing on its
+                own. */}
+            {a.screenTime.longest && (
               <div
                 style={{
                   marginTop: 4,
@@ -464,36 +463,36 @@ function PlancheCompte({ a }: { a: Almanac }) {
                   whiteSpace: "nowrap",
                 }}
               >
-                {a.screenTime.plusLong.film.title}
+                {a.screenTime.longest.film.title}
               </div>
             )}
-            {/* UN TOTAL QUI S'ANNONCE COMME UN PLANCHER. Taire les séances
-                sans durée donnerait un chiffre faux avec l'aplomb d'un
-                chiffre juste. */}
-            {a.screenTime.sansDuree > 0 && (
+            {/* A TOTAL THAT ANNOUNCES ITSELF AS A FLOOR. Saying nothing
+                of the screenings with no runtime would give a false
+                figure with the poise of a right one. */}
+            {a.screenTime.noRuntime > 0 && (
               <div style={{ marginTop: 8, fontFamily: F.hand, fontSize: 15, color: C.inkFaded }}>
-                au moins — {a.screenTime.sansDuree} séance(s) sans durée connue
+                au moins — {a.screenTime.noRuntime} séance(s) sans durée connue
               </div>
             )}
           </>
         )}
-      </Carton>
+      </Cardstock>
     </div>
   );
 }
 
 /* ------------------------------------------------------------
-   PLANCHE II — LES GOÛTS
+   BOARD II — TASTES
    ------------------------------------------------------------ */
-function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
+function PlateTastes({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
   const maxHisto = Math.max(1, ...a.ratingHistogram);
-  const clé = String(a.période);
-  const toujours = a.période === "toujours";
+  const key = String(a.period);
+  const always = a.period === "always";
   return (
-    <div style={GRILLE_2x2}>
-      <Carton titre="Les notes" seed={`notes-${clé}`}>
+    <div style={GRID_2x2}>
+      <Cardstock title="Les notes" seed={`notes-${key}`}>
         {a.ratingAvg == null ? (
-          <Rien quoi={toujours ? "aucune séance notée" : "aucune séance notée cette année"} />
+          <Nothing what={always ? "aucune séance notée" : "aucune séance notée cette année"} />
         ) : (
           <>
             <div
@@ -529,11 +528,11 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
                 </div>
               ))}
             </div>
-            {/* L'ÉCART À LA FOULE, sous vos propres notes — c'est le même
-                sujet, et la planche ne peut pas porter un carton de plus
-                sans déborder. `tmdbRating` était stocké depuis le début
-                pour cette mesure exactement, et n'avait jamais servi. */}
-            {a.écart.écart != null && (
+            {/* THE GAP TO THE CROWD, under your own ratings — it is the
+                same subject, and the board cannot carry one more card
+                without overflowing. `tmdbRating` had been stored from the
+                start for exactly this measure, and had never served. */}
+            {a.gap.gap != null && (
               <div
                 style={{
                   marginTop: 9,
@@ -543,27 +542,27 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
                   textAlign: "center",
                 }}
               >
-                {Math.abs(a.écart.écart) < 0.15 ? (
-                  <>d'accord avec le public, sur {a.écart.n} séances</>
+                {Math.abs(a.gap.gap) < 0.15 ? (
+                  <>d'accord withCrew le public, sur {a.gap.n} screenings</>
                 ) : (
                   <>
                     plus{" "}
-                    <span style={{ color: a.écart.écart > 0 ? C.moss : C.vermillion }}>
-                      {a.écart.écart > 0 ? "tendre" : "sévère"}
+                    <span style={{ color: a.gap.gap > 0 ? C.moss : C.vermillion }}>
+                      {a.gap.gap > 0 ? "tendre" : "sévère"}
                     </span>{" "}
-                    que le public de {Math.abs(a.écart.écart).toFixed(1)} point
-                    {Math.abs(a.écart.écart) >= 2 ? "s" : ""}, sur {a.écart.n} séances
+                    que le public de {Math.abs(a.gap.gap).toFixed(1)} point
+                    {Math.abs(a.gap.gap) >= 2 ? "s" : ""}, sur {a.gap.n} screenings
                   </>
                 )}
               </div>
             )}
           </>
         )}
-      </Carton>
+      </Cardstock>
 
-      <Carton titre="L'âge de ce que vous regardez" seed={`age-${clé}`}>
-        {a.age.moyen == null ? (
-          <Rien quoi="aucune année de sortie renseignée" />
+      <Cardstock title="L'âge de ce que vous regardez" seed={`age-${key}`}>
+        {a.age.mean == null ? (
+          <Nothing what="aucune année de sortie renseignée" />
         ) : (
           <>
             <div
@@ -574,23 +573,19 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
                 marginTop: 8,
               }}
             >
-              <Chiffre
-                valeur={`${Math.round(a.age.moyen)} ans`}
-                legende="EN MOYENNE"
-                ink={C.pine}
-              />
-              <Chiffre
-                valeur={`${Math.round(a.age.partPatrimoine ?? 0)} %`}
+              <Figure valeur={`${Math.round(a.age.mean)} ans`} legende="EN MOYENNE" ink={C.pine} />
+              <Figure
+                valeur={`${Math.round(a.age.heritageShare ?? 0)} %`}
                 legende="DE PLUS DE 20 ANS"
               />
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 10 }}>
               <Tally label="Médiane" value={`${a.age.median} ans`} />
-              {a.age.plusAncien && (
-                <Tally label="Le plus ancien" value={a.age.plusAncien.year} ink={C.burgundy} />
+              {a.age.oldest && (
+                <Tally label="Le plus ancien" value={a.age.oldest.year} ink={C.burgundy} />
               )}
             </div>
-            {a.age.plusAncien && (
+            {a.age.oldest && (
               <div
                 style={{
                   marginTop: 6,
@@ -602,23 +597,23 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
                   whiteSpace: "nowrap",
                 }}
               >
-                {a.age.plusAncien.film.title}
+                {a.age.oldest.film.title}
               </div>
             )}
           </>
         )}
-      </Carton>
+      </Cardstock>
 
-      <Carton titre="Les décennies visitées" seed={`decennies-${clé}`}>
+      <Cardstock title="Les décennies visitées" seed={`decennies-${key}`}>
         {a.decades.length === 0 ? (
-          <Rien quoi="aucune année de sortie renseignée" />
+          <Nothing what="aucune année de sortie renseignée" />
         ) : (
           <div style={{ display: "flex", alignItems: "flex-end", gap: 4, marginTop: 10 }}>
             {a.decades.map((d) => {
               const max = Math.max(...a.decades.map((x) => x.n));
-              /* La note moyenne de la décennie, sous sa barre : c'est ce
-                 rapprochement — combien, et aimés comment — qui montre un
-                 biais qu'on ne se connaît pas. */
+              /* The decade's average rating, under its bar: it is that
+                 juxtaposition — how many, and loved how much — that shows
+                 a bias one does not know one has. */
               const note = a.ratingByDecade.find((x) => x.decade === d.decade);
               return (
                 <div key={d.decade} style={{ flex: 1, textAlign: "center" }}>
@@ -633,11 +628,10 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
                   <div style={{ fontFamily: F.mono, fontSize: 8.5, color: C.inkFaded }}>
                     {String(d.decade).slice(2)}
                   </div>
-                  {/* UNE MOYENNE SANS SON EFFECTIF EST UN CHIFFRE QUI
-                      BLUFFE : « 4,5 » sur une seule séance s'affichait
-                      exactement comme « 4,5 » sur quarante. `n` est
-                      calculé depuis le premier jour et n'avait jamais
-                      été écrit. */}
+                  {/* A MEAN WITHOUT ITS SAMPLE SIZE IS A FIGURE THAT
+                      BLUFFS: "4,5" on a single screening displayed
+                      exactly like "4,5" on forty. `n` has been computed
+                      since the first day and had never been written. */}
                   <div
                     style={{ fontFamily: F.mono, fontSize: 8.5, color: C.burgundy }}
                     title={note ? `${note.n} séance${note.n > 1 ? "s" : ""} notée(s)` : undefined}
@@ -654,13 +648,14 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
             })}
           </div>
         )}
-      </Carton>
+      </Cardstock>
 
-      {/* CE QUI A BOUGÉ — hors de l'année, et c'est délibéré : un film
-          qu'on réévalue le fait sur une décennie, pas sur douze mois. */}
-      <Carton titre="Ce qui a changé d'avis" seed="drift">
+      {/* WHAT HAS MOVED — outside the year, and that is deliberate: a
+          film one re-rates does so over a decade, not over twelve
+          months. */}
+      <Cardstock title="Ce qui a changé d'avis" seed="drift">
         {drifts.length === 0 ? (
-          <Rien quoi="aucune note n'a bougé entre deux séances" />
+          <Nothing what="aucune note n'a bougé entre deux séances" />
         ) : (
           <>
             <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
@@ -712,50 +707,51 @@ function PlancheGouts({ a, drifts }: { a: Almanac; drifts: Drift[] }) {
             </div>
           </>
         )}
-      </Carton>
+      </Cardstock>
     </div>
   );
 }
 
 /* ------------------------------------------------------------
-   PLANCHE III — LES GENS ET LE MONDE
+   BOARD III — THE PEOPLE AND THE WORLD
    ------------------------------------------------------------ */
-function PlancheGens({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (nom: string) => void }) {
+function PlatePeople({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (name: string) => void }) {
   const g = a.geography;
-  const clé = String(a.période);
-  const toujours = a.période === "toujours";
+  const key = String(a.period);
+  const always = a.period === "always";
   return (
-    <div style={GRILLE_2x2}>
-      <Carton titre="Les cinéastes" seed={`cineastes-${clé}`}>
-        {/* Les noms mènent au générique : l'almanach dit qui revient,
-            le dossier dit ce qu'on a de cette personne. Deux questions
-            voisines qui n'avaient aucun chemin l'une vers l'autre. */}
-        <Palmares items={a.topDirectors.slice(0, 4)} total={a.count} onPick={onOpenPerson} />
-      </Carton>
+    <div style={GRID_2x2}>
+      <Cardstock title="Les cinéastes" seed={`cineastes-${key}`}>
+        {/* The names lead to the credits: the almanac says who comes
+            back, the folder says what one has of that person. Two
+            neighbouring questions that had no path towards each
+            other. */}
+        <Honours items={a.topDirectors.slice(0, 4)} total={a.count} onPick={onOpenPerson} />
+      </Cardstock>
 
-      <Carton titre="Les genres" seed={`genres-${clé}`}>
-        <Palmares items={a.topGenres.slice(0, 4)} total={a.count} ink={C.moss} />
-      </Carton>
+      <Cardstock title="Les genres" seed={`genres-${key}`}>
+        <Honours items={a.topGenres.slice(0, 4)} total={a.count} ink={C.moss} />
+      </Cardstock>
 
-      <Carton titre={toujours ? "Les fidélités" : "Fidélités et découvertes"} seed={`gens-${clé}`}>
-        {/* TROIS FOIS DANS UNE ANNÉE N'EST PAS UN HASARD : c'est une
-            traversée d'œuvre, et c'est ce qu'un cinéphile veut voir
-            nommé. Les découvertes sont l'autre face — les noms dont
-            c'est la première apparition au journal, toutes années
-            confondues.
+      <Cardstock title={always ? "Les fidélités" : "Fidélités et découvertes"} seed={`gens-${key}`}>
+        {/* THREE TIMES IN A YEAR IS NOT AN ACCIDENT: it is a crossing
+            of a body of work, and that is what a film lover wants to see
+            named. The discoveries are the other side — the names whose
+            first appearance in the log this is, all years taken
+            together.
 
-            Sur « toujours », cette seconde face se dissout : tout le
-            monde a été découvert un jour. `newDirectors` rend alors une
-            liste vide, et le carton se referme sur les seules
-            fidélités — dont le seuil, lui, a monté. */}
+            On "toujours", that second side dissolves: everybody was
+            discovered one day. `newDirectors` then returns an empty
+            list, and the card closes on the loyalties alone — whose
+            threshold, for its part, has risen. */}
         {a.loyalties.directors.length === 0 &&
         a.loyalties.actors.length === 0 &&
         a.newDirectors.length === 0 ? (
-          <Rien
-            quoi={
-              toujours
-                ? `personne ne revient ${SEUIL_TOUJOURS} fois ou plus`
-                : "rien qui revienne trois fois, ni aucun nom nouveau"
+          <Nothing
+            what={
+              always
+                ? `personne ne revient ${THRESHOLD_ALWAYS} fois ou plus`
+                : "rien qui revienne trois fois, ni aucun name nouveau"
             }
           />
         ) : (
@@ -766,7 +762,7 @@ function PlancheGens({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (nom: str
                 <div style={{ fontFamily: F.body, fontSize: 12.5, color: C.ink }}>
                   {a.loyalties.directors
                     .slice(0, 3)
-                    .map((d) => `${d.nom} (${d.n})`)
+                    .map((d) => `${d.name} (${d.n})`)
                     .join(" · ")}
                 </div>
               </div>
@@ -777,7 +773,7 @@ function PlancheGens({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (nom: str
                 <div style={{ fontFamily: F.body, fontSize: 12.5, color: C.ink }}>
                   {a.loyalties.actors
                     .slice(0, 3)
-                    .map((d) => `${d.nom} (${d.n})`)
+                    .map((d) => `${d.name} (${d.n})`)
                     .join(" · ")}
                 </div>
               </div>
@@ -802,107 +798,107 @@ function PlancheGens({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (nom: str
             )}
           </div>
         )}
-      </Carton>
+      </Cardstock>
 
-      <Carton titre="Le monde traversé" seed={`monde-${clé}`}>
-        {g.nbPays === 0 ? (
-          <Rien quoi="aucun pays renseigné — « compléter les fiches », dans l'onglet Import, va les chercher" />
+      <Cardstock title="Le monde traversé" seed={`monde-${key}`}>
+        {g.countryCount === 0 ? (
+          <Nothing what="aucun pays renseigné — « compléter les fiches », dans l'onglet Import, va les chercher" />
         ) : (
           <>
             <div style={{ marginTop: 6 }}>
-              <Chiffre valeur={g.nbPays} legende="PAYS TRAVERSÉS" ink={C.cobalt} />
+              <Figure valeur={g.countryCount} legende="PAYS TRAVERSÉS" ink={C.cobalt} />
             </div>
             <div style={{ marginTop: 8 }}>
-              <Palmares
-                items={g.pays.slice(0, 3).map((p) => ({ nom: nomPays(p.nom), n: p.n }))}
+              <Honours
+                items={g.countries.slice(0, 3).map((p) => ({ name: countryName(p.name), n: p.n }))}
                 total={a.count}
                 ink={C.cobalt}
               />
             </div>
-            {g.langues.length > 0 && (
+            {g.languages.length > 0 && (
               <div style={{ marginTop: 8 }}>
                 <div style={{ fontFamily: F.mono, fontSize: 9, color: C.inkFaded }}>LANGUES</div>
                 <div style={{ fontFamily: F.body, fontSize: 12, color: C.ink }}>
-                  {g.langues
+                  {g.languages
                     .slice(0, 4)
-                    .map((l) => nomLangue(l.nom))
+                    .map((l) => languageName(l.name))
                     .join(" · ")}
                 </div>
               </div>
             )}
           </>
         )}
-      </Carton>
+      </Cardstock>
     </div>
   );
 }
 
 /* ------------------------------------------------------------
-   PLANCHE IV — DE QUOI ÇA PARLAIT, ET QUI L'A FABRIQUÉ
+   BOARD IV — WHAT IT WAS ABOUT, AND WHO MADE IT
    ------------------------------------------------------------
 
-   Les trois premières planches disent COMBIEN, COMMENT NOTÉ et PAR QUI
-   — genres, pays, langues, cinéastes, interprètes. Aucune ne disait DE
-   QUOI, alors que la fiche porte des mots-clés depuis TMDB et des
-   motifs depuis le catalogue commun ; ni PAR QUI D'AUTRE, alors que
-   `crew` porte l'image, la musique et le scénario. Cette planche est
-   faite des deux axes qui manquaient, plus la moitié de l'écart au
-   public qui n'était jamais montrée. */
-function PlancheSujets({ a }: { a: Almanac }) {
-  const clé = String(a.période);
-  const s = a.sujets;
-  const ar = a.artisans;
+   The first three boards say HOW MANY, HOW RATED and BY WHOM — genres,
+   countries, languages, film-makers, performers. None said ABOUT WHAT,
+   although the card has carried keywords from TMDB and patterns from the
+   common catalogue; nor BY WHOM ELSE, although `crew` carries the
+   photography, the music and the screenplay. This board is made of the
+   two axes that were missing, plus the half of the gap to the public
+   that was never shown. */
+function PlateSubjects({ a }: { a: Almanac }) {
+  const key = String(a.period);
+  const s = a.subjects;
+  const ar = a.craftspeople;
   return (
-    <div style={GRILLE_2x2}>
-      <Carton titre="Les sujets" seed={`sujets-${clé}`}>
-        <Palmares
-          items={s.motsClés.slice(0, 5)}
+    <div style={GRID_2x2}>
+      <Cardstock title="Les sujets" seed={`subjects-${key}`}>
+        <Honours
+          items={s.keywords.slice(0, 5)}
           total={a.count}
           ink={C.ochre}
-          vide="aucun mot-clé — « compléter les fiches », dans l'onglet Import, va les chercher"
+          empty="aucun mot-clé — « compléter les fiches », dans l'onglet Import, va les chercher"
         />
-      </Carton>
+      </Cardstock>
 
-      <Carton titre="Les motifs suivis" seed={`motifs-${clé}`}>
-        {/* Le domaine rend des IDENTIFIANTS, comme il rend des codes
-            pays : c'est ici qu'on les lit en français. Un motif retiré
-            du catalogue depuis garde son identifiant plutôt que de
-            disparaître — la même règle que sur la fiche. */}
-        <Palmares
+      <Cardstock title="Les motifs suivis" seed={`motifs-${key}`}>
+        {/* The domain returns IDENTIFIERS, as it returns country codes:
+            it is here that they are read in French. A pattern removed
+            from the catalogue since then keeps its identifier rather
+            than vanish — the same rule as on the card. */}
+        <Honours
           items={s.motifs
             .slice(0, 5)
-            .map((m) => ({ nom: motifById(m.nom)?.label ?? m.nom, n: m.n }))}
+            .map((m) => ({ name: motifById(m.name)?.label ?? m.name, n: m.n }))}
           total={a.count}
           ink={C.pine}
-          vide="aucun motif posé — ils se choisissent sur une fiche, sous la critique"
+          empty="aucun motif posé — ils se choisissent sur une fiche, sous la critique"
         />
-      </Carton>
+      </Cardstock>
 
-      <Carton titre="Les artisans" seed={`artisans-${clé}`}>
-        {/* Sans seuil, contrairement aux fidélités : personne ne se dit
-            « je suis le travail d'un chef opérateur », et c'est justement
-            pour cela que le montrer apprend quelque chose. On ne garde
-            que ce qui REVIENT — un nom vu une seule fois n'est pas une
-            fidélité, c'est un générique. */}
-        <MétierSuivi label="IMAGE" gens={ar.image} />
-        <MétierSuivi label="MUSIQUE" gens={ar.musique} />
-        <MétierSuivi label="SCÉNARIO" gens={ar.scénario} />
+      <Cardstock title="Les artisans" seed={`craftspeople-${key}`}>
+        {/* With no threshold, unlike the loyalties: nobody says to
+            themselves "I follow a cinematographer's work", and that is
+            precisely why showing it teaches something. We only keep what
+            COMES BACK — a name seen once is not a loyalty, it is a
+            credit list. */}
+        <TradeFollowed label="IMAGE" people={ar.image} />
+        <TradeFollowed label="MUSIQUE" people={ar.musique} />
+        <TradeFollowed label="SCÉNARIO" people={ar.scénario} />
         {[ar.image, ar.musique, ar.scénario].every(
           (g) => g.filter((x) => x.n > 1).length === 0
         ) && (
-          <Rien quoi="personne ne revient deux fois derrière la caméra — « compléter les fiches », dans l'onglet Import, remplit les équipes" />
+          <Nothing what="personne ne revient deux fois derrière la caméra — « compléter les fiches », dans l'onglet Import, remplit les équipes" />
         )}
-      </Carton>
+      </Cardstock>
 
-      <Carton titre="Plus tendre, plus sévère" seed={`ecart-${clé}`}>
-        {a.écart.n === 0 ? (
-          <Rien quoi="aucune séance notée dont on connaisse aussi la note publique" />
+      <Cardstock title="Plus tendre, plus sévère" seed={`ecart-${key}`}>
+        {a.gap.n === 0 ? (
+          <Nothing what="aucune séance notée dont on connaisse aussi la note publique" />
         ) : (
           <>
-            {/* LES DEUX MOYENNES EN CLAIR. La planche des goûts dit déjà
-                « plus tendre de 0,3 point » ; elle ne disait pas de quoi
-                à quoi. Les deux nombres étaient calculés depuis le
-                premier jour et n'avaient jamais été écrits. */}
+            {/* THE TWO MEANS IN THE CLEAR. The tastes board already
+                says "plus tendre de 0,3 point"; it did not say from what
+                to what. Both numbers had been computed since the first
+                day and had never been written. */}
             <div
               style={{
                 display: "grid",
@@ -911,40 +907,46 @@ function PlancheSujets({ a }: { a: Almanac }) {
                 marginTop: 8,
               }}
             >
-              <Chiffre
-                valeur={a.écart.vous?.toFixed(1) ?? "—"}
+              <Figure
+                valeur={a.gap.you?.toFixed(1) ?? "—"}
                 legende="VOUS, SUR 10"
                 ink={C.burgundy}
               />
-              <Chiffre valeur={a.écart.public?.toFixed(1) ?? "—"} legende="LE PUBLIC" />
+              <Figure valeur={a.gap.public?.toFixed(1) ?? "—"} legende="LE PUBLIC" />
             </div>
             <div style={{ marginTop: 9 }}>
-              <ÉcartListe label="VOS INDULGENCES" films={a.écart.plusTendre} ink={C.moss} />
-              <ÉcartListe label="VOS SÉVÉRITÉS" films={a.écart.plusSévère} ink={C.vermillion} />
+              <GapList label="VOS INDULGENCES" films={a.gap.mostGenerous} ink={C.moss} />
+              <GapList label="VOS SÉVÉRITÉS" films={a.gap.mostSevere} ink={C.vermillion} />
             </div>
           </>
         )}
-      </Carton>
+      </Cardstock>
     </div>
   );
 }
 
-/** Un métier de `crew` — muet quand personne n'y revient deux fois. */
-function MétierSuivi({ label, gens }: { label: string; gens: { nom: string; n: number }[] }) {
-  const suivis = gens.filter((g) => g.n > 1).slice(0, 3);
-  if (suivis.length === 0) return null;
+/** One trade of `crew` — mute when nobody comes back to it twice. */
+function TradeFollowed({
+  label,
+  people,
+}: {
+  label: string;
+  people: { name: string; n: number }[];
+}) {
+  const followed = people.filter((g) => g.n > 1).slice(0, 3);
+  if (followed.length === 0) return null;
   return (
     <div style={{ marginBottom: 7 }}>
       <div style={{ fontFamily: F.mono, fontSize: 9, color: C.inkFaded }}>{label}</div>
       <div style={{ fontFamily: F.body, fontSize: 12.5, color: C.ink }}>
-        {suivis.map((g) => `${g.nom} (${g.n})`).join(" · ")}
+        {followed.map((g) => `${g.name} (${g.n})`).join(" · ")}
       </div>
     </div>
   );
 }
 
-/** Trois films et leur écart à la foule, en points sur dix. */
-function ÉcartListe({
+/** Three films and their gap to the crowd, in points out of ten. */
+function GapList({
   label,
   films,
   ink,
@@ -983,20 +985,19 @@ function ÉcartListe({
   );
 }
 
-/* Deux colonnes, deux rangées — et des rangées EN FRACTIONS, ce qui est
-   toute l'astuce : `1fr` répartit la hauteur disponible au lieu de la
-   demander au contenu. La planche fait donc exactement la taille qu'on
-   lui donne, quoi qu'elle contienne.
+/* Two columns, two rows — and rows IN FRACTIONS, which is the whole
+   trick: `1fr` shares out the available height instead of asking the
+   content for it. So the board is exactly the size it is given, whatever
+   it contains.
 
-   ELLE EN ANNONÇAIT DEUX ET EN POSAIT TROIS. `repeat(3, 1fr)` sous un
-   commentaire qui disait « deux colonnes » : les planches se
-   remplissaient donc à trois cartons en haut et un seul en bas, deux
-   cases vides derrière, et chaque carton faisait un tiers de moins que
-   ce pour quoi son contenu était écrit. C'est de là que venaient les
-   troncatures partout — les palmarès, les titres, « Fidélités et
-   découvertes ». Rétablir le 2×2 les fait disparaître d'elles-mêmes,
-   sans rien borner. */
-const GRILLE_2x2: CSSProperties = {
+   IT ANNOUNCED TWO AND LAID THREE. `repeat(3, 1fr)` under a comment that
+   said "two columns": the boards therefore filled up with three cards on
+   top and a single one below, two empty cells behind, and each card was
+   a third smaller than what its content had been written for. That is
+   where the truncations everywhere came from — the rankings, the titles,
+   "Fidélités et découvertes". Restoring the 2×2 makes them disappear on
+   their own, without bounding anything. */
+const GRID_2x2: CSSProperties = {
   height: "100%",
   display: "grid",
   gridTemplateColumns: "repeat(2, 1fr)",
@@ -1009,121 +1010,121 @@ const GRILLE_2x2: CSSProperties = {
    LE LIVRET
    ------------------------------------------------------------ */
 
-const PLANCHES = [
-  { titre: "Le compte et le rythme", tampon: "I" },
-  { titre: "Les goûts", tampon: "II" },
-  { titre: "Les gens et le monde", tampon: "III" },
-  { titre: "Les sujets et les artisans", tampon: "IV" },
+const PLATES = [
+  { title: "Le compte et le rythme", stamp: "I" },
+  { title: "Les goûts", stamp: "II" },
+  { title: "Les gens et le monde", stamp: "III" },
+  { title: "Les sujets et les artisans", stamp: "IV" },
 ];
 
-/* La hauteur que l'en-tête se réserve. En dur, et c'est le prix du
-   non-défilement : la planche prend « tout le reste », et « le reste »
-   doit être un nombre. Mesurer l'en-tête à chaque rendu coûterait un
-   observateur de redimensionnement pour gagner quelques pixels. */
-const ENTETE = 178;
+/* The height the header reserves for itself. Hard-coded, and that is
+   the price of not scrolling: the board takes "all the rest", and "the
+   rest" must be a number. Measuring the header on every render would
+   cost a resize observer to gain a few pixels. */
+const HEADER = 178;
 
-/* Le seuil de fidélité sur toute une pratique — le domaine le fixe, la
-   vue le redit quand il n'y a rien à montrer. Recopié, oui : l'écrire en
-   toutes lettres dans la phrase « personne ne revient six fois » vaut
-   mieux qu'un nombre importé pour une seule phrase. */
-const SEUIL_TOUJOURS = 6;
+/* The loyalty threshold over a whole practice — the domain sets it, the
+   view says it again when there is nothing to show. Copied out, yes:
+   writing it in full in the sentence "nobody comes back six times" is
+   worth more than a number imported for a single sentence. */
+const THRESHOLD_ALWAYS = 6;
 
 export function AlmanacView({
   films,
   onOpenPerson,
 }: {
   films: Film[];
-  /** Ouvre le dossier de quelqu'un au générique. */
-  onOpenPerson?: (nom: string) => void;
+  /** Opens the folder of somebody in the credits. */
+  onOpenPerson?: (name: string) => void;
 }) {
-  const années = useMemo(() => yearsCovered(films), [films]);
+  const years = useMemo(() => yearsCovered(films), [films]);
 
-  /* LES PÉRIODES QU'ON PEUT FEUILLETER : « toujours » d'abord, puis les
-     années de la plus récente à la plus ancienne.
+  /* THE PERIODS ONE CAN LEAF THROUGH: "toujours" first, then the years
+     from the most recent to the oldest.
 
-     En tête et non à la fin : c'est la page de garde du livret, celle
-     qui dit de quoi l'ensemble est fait avant d'entrer dans le détail
-     d'une année. Elle ne paraît qu'à partir de deux années couvertes —
-     sur une seule, « toujours » et « cette année » sont la même page,
-     et l'offrir deux fois ne ferait qu'un doublon à feuilleter. */
-  const périodes: Période[] = useMemo(
-    () => (années.length > 1 ? ["toujours", ...années] : années),
-    [années]
+     At the head and not at the end: it is the booklet's title page, the
+     one that says what the whole is made of before going into the detail
+     of one year. It only appears from two covered years on — with a
+     single one, "toujours" and "cette année" are the same page, and
+     offering it twice would only make a duplicate to leaf through. */
+  const periods: Period[] = useMemo(
+    () => (years.length > 1 ? ["always", ...years] : years),
+    [years]
   );
 
-  const [choisie, setChoisie] = useState<Période | null>(null);
-  /* La période regardée : celle qu'on a choisie tant qu'elle existe
-     encore — supprimer la dernière séance d'une année la fait
-     disparaître de la liste, et on ne doit pas rester sur une page qui
-     n'existe plus. */
-  const période = choisie != null && périodes.includes(choisie) ? choisie : (périodes[0] ?? null);
+  const [choisie, setChoisie] = useState<Period | null>(null);
+  /* The period being looked at: the one chosen as long as it still
+     exists — deleting the last screening of a year makes it disappear
+     from the list, and one must not stay on a page that no longer
+     exists. */
+  const period = choisie != null && periods.includes(choisie) ? choisie : (periods[0] ?? null);
 
-  const [planche, setPlanche] = useState(0);
+  const [plate, setPlate] = useState(0);
 
   const a: Almanac | null = useMemo(
-    () => (période == null ? null : almanacFor(films, période)),
-    [films, période]
+    () => (period == null ? null : almanacFor(films, period)),
+    [films, period]
   );
   const drifts = useMemo(() => driftHighlights(films, 4), [films]);
 
-  /* LES FLÈCHES DU CLAVIER TOURNENT LA PAGE. C'est le geste d'un livret,
-     et il ne coûte rien à qui ne le connaît pas. Elles ne changent PAS
-     l'année : deux sens de navigation sur la même touche seraient
-     indevinables, et l'année a ses propres pastilles. */
+  /* THE KEYBOARD ARROWS TURN THE PAGE. It is a booklet's gesture, and
+     it costs nothing to whoever does not know it. They do NOT change the
+     year: two directions of navigation on the same key would be
+     unguessable, and the year has its own pills. */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const cible = e.target as HTMLElement | null;
-      // ne pas voler la flèche à qui est en train d'écrire
-      if (cible && /^(INPUT|TEXTAREA)$/.test(cible.tagName)) return;
-      if (cible?.isContentEditable) return;
-      if (e.key === "ArrowRight") setPlanche((p) => Math.min(p + 1, PLANCHES.length - 1));
-      if (e.key === "ArrowLeft") setPlanche((p) => Math.max(p - 1, 0));
+      const target = e.target as HTMLElement | null;
+      // do not steal the arrow from somebody who is typing
+      if (target && /^(INPUT|TEXTAREA)$/.test(target.tagName)) return;
+      if (target?.isContentEditable) return;
+      if (e.key === "ArrowRight") setPlate((p) => Math.min(p + 1, PLATES.length - 1));
+      if (e.key === "ArrowLeft") setPlate((p) => Math.max(p - 1, 0));
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  /* L'IMAGE À EMPORTER. « en cours » plutôt qu'un booléen : le dessin
-     attend le chargement des affiches, et un bouton qui ne dit rien
-     pendant deux secondes passe pour cassé. */
-  const [boîte, setBoîte] = useState<"repos" | "en cours" | "raté">("repos");
-  const emporter = async () => {
-    /* L'IMAGE EST COMPOSÉE AUTOUR D'UN MILLÉSIME — il s'y écrit en gros
-       caractères. Sur « toujours », il n'y en a pas, et le bouton ne
-       paraît pas : mieux vaut ne rien proposer qu'une image qui
-       inventerait une année. */
-    if (typeof période !== "number" || a == null) return;
-    setBoîte("en cours");
+  /* THE IMAGE TO TAKE AWAY. "en cours" rather than a boolean: the
+     drawing waits for the posters to load, and a button that says
+     nothing for two seconds passes for broken. */
+  const [box, setBox] = useState<"repos" | "en cours" | "raté">("repos");
+  const takeAway = async () => {
+    /* THE IMAGE IS COMPOSED AROUND A VINTAGE — it is written on it in
+       large characters. On "toujours" there is none, and the button does
+       not appear: better offer nothing than an image that would invent a
+       year. */
+    if (typeof period !== "number" || a == null) return;
+    setBox("en cours");
     try {
       const blob = await drawYearInBox(
         {
-          year: période,
-          films: filmsOfYear(films, période),
+          year: period,
+          films: filmsOfYear(films, period),
           count: a.count,
           titles: a.titles,
           rewatches: a.rewatches,
           ratingAvg: a.ratingAvg,
-          topDirector: a.topDirectors[0]?.nom ?? null,
+          topDirector: a.topDirectors[0]?.name ?? null,
           minutes: a.screenTime.minutes,
           decade: a.decades.length ? a.decades.reduce((m, d) => (d.n > m.n ? d : m)).decade : null,
-          country: a.geography.pays[0] ? nomPays(a.geography.pays[0].nom) : null,
-          ageMoyen: a.age.moyen,
+          country: a.geography.countries[0] ? countryName(a.geography.countries[0].name) : null,
+          ageMean: a.age.mean,
         },
-        peauPosée()
+        skinApplied()
       );
-      telecharger(blob, `cine-hub-${période}.png`);
-      setBoîte("repos");
+      download(blob, `cine-hub-${period}.png`);
+      setBox("repos");
     } catch (e) {
       console.error(e);
-      setBoîte("raté");
+      setBox("raté");
     }
   };
 
-  if (période == null || a == null) {
+  if (period == null || a == null) {
     return (
       <div style={{ padding: "34px 44px 70px", maxWidth: 760, position: "relative" }}>
         <StampCorner text="ALMANACH" />
-        <Titre />
+        <Title />
         <div
           style={{
             marginTop: 26,
@@ -1142,29 +1143,29 @@ export function AlmanacView({
     );
   }
 
-  /* Le rang se prend dans les PÉRIODES et non dans les années : les
-     flèches doivent pouvoir atteindre « toujours », qui ouvre le
-     livret. */
-  const rang = périodes.indexOf(période);
-  const allerAnnée = (pas: number) => {
-    const suivante = périodes[rang + pas];
-    if (suivante != null) setChoisie(suivante);
+  /* The rank is taken from the PERIODS and not from the years: the
+     arrows must be able to reach "toujours", which opens the
+     booklet. */
+  const rank = periods.indexOf(period);
+  const goToYear = (step: number) => {
+    const nextOne = periods[rank + step];
+    if (nextOne != null) setChoisie(nextOne);
   };
-  const toujours = période === "toujours";
+  const always = period === "always";
 
   return (
     <div
       style={{
         padding: "22px 34px 0",
         position: "relative",
-        /* La page entière tient dans la fenêtre : c'est ici que le
-           non-défilement se décide, et nulle part ailleurs.
+        /* The whole page fits in the window: it is here that the
+           absence of scrolling is decided, and nowhere else.
 
-           `100vh` SUPPOSE QUE L'ALMANACH COMMENCE EN HAUT DE LA COLONNE,
-           et cette supposition n'est vraie que parce que rien ne se pose
-           jamais au-dessus de lui dans le flux. Le bandeau de la
-           collection d'exemple a failli la rompre : il passe par
-           `Calque`, précisément pour ne rien déplacer. */
+           `100vh` ASSUMES THE ALMANAC STARTS AT THE TOP OF THE COLUMN,
+           and that assumption is only true because nothing is ever laid
+           above it in the flow. The example collection's banner nearly
+           broke it: it goes through `Layer`, precisely so as to
+           displace nothing. */
         height: "100vh",
         boxSizing: "border-box",
         display: "flex",
@@ -1175,19 +1176,19 @@ export function AlmanacView({
       <StampCorner text="ALMANACH" />
       <CoffeeRing style={{ left: 420, top: 210 }} rotate={-24} />
 
-      {/* ---- L'EN-TÊTE, de hauteur arrêtée ---- */}
-      <div style={{ flexShrink: 0, height: ENTETE, boxSizing: "border-box" }}>
-        <Titre />
+      {/* ---- THE HEADER, of settled height ---- */}
+      <div style={{ flexShrink: 0, height: HEADER, boxSizing: "border-box" }}>
+        <Title />
 
         <div
           data-tour="almanac-year"
           style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12 }}
         >
           <button
-            onClick={() => allerAnnée(1)}
-            disabled={rang >= périodes.length - 1}
+            onClick={() => goToYear(1)}
+            disabled={rank >= periods.length - 1}
             aria-label="période précédente"
-            style={flecheStyle(rang < périodes.length - 1)}
+            style={arrowStyle(rank < periods.length - 1)}
           >
             <ChevronLeft size={17} />
           </button>
@@ -1195,43 +1196,41 @@ export function AlmanacView({
             style={{
               fontFamily: F.title,
               fontWeight: 700,
-              /* « TOUJOURS » est plus long qu'un millésime : il tient
-                 dans la même largeur en descendant d'un corps, plutôt
-                 qu'en poussant les pastilles vers la droite. */
-              fontSize: toujours ? 30 : 42,
-              fontStyle: toujours ? "italic" : "normal",
+              /* "TOUJOURS" is longer than a vintage: it fits in the
+                 same width by going down one size, rather than by
+                 pushing the pills to the right. */
+              fontSize: always ? 30 : 42,
+              fontStyle: always ? "italic" : "normal",
               color: C.burgundy,
               lineHeight: 1,
               minWidth: 118,
               textAlign: "center",
             }}
           >
-            {toujours ? "toujours" : période}
+            {always ? "always" : period}
           </div>
           <button
-            onClick={() => allerAnnée(-1)}
-            disabled={rang <= 0}
+            onClick={() => goToYear(-1)}
+            disabled={rank <= 0}
             aria-label="période suivante"
-            style={flecheStyle(rang > 0)}
+            style={arrowStyle(rank > 0)}
           >
             <ChevronRight size={17} />
           </button>
 
-          {/* LES PASTILLES TIENNENT SUR UNE LIGNE, ET C'EST UNE CORRECTION.
+          {/* THE PILLS HOLD ON ONE LINE, AND THAT IS A FIX.
 
-              Elles étaient en `flexWrap: "wrap"` sous une largeur de
-              trois cent quatre-vingts pixels : au-delà de huit années
-              couvertes elles passaient sur deux lignes, au-delà de
-              quatorze sur trois. L'en-tête, lui, a une hauteur ARRÊTÉE
-              (`ENTETE`) — rien ne bornait donc ce débordement, et la
-              planche, qui porte `zIndex: 2`, passait par-dessus les
-              pastilles et les boutons de planche. Ils devenaient
-              incliquables sans que rien n'explique pourquoi.
+              They were in `flexWrap: "wrap"` under a width of three
+              hundred and eighty pixels: beyond eight covered years they
+              went onto two lines, beyond fourteen onto three. The
+              header, though, has a SETTLED height (`ENTETE`) — so
+              nothing bounded that overflow, and the board, which carries
+              `zIndex: 2`, passed over the pills and the board buttons.
+              They became unclickable with nothing to explain why.
 
-              Une ligne qui défile plutôt qu'un en-tête qui grandit :
-              c'est le parti pris du non-défilement de la page qu'on
-              préserve ici, et lui seul qui justifie une hauteur en dur
-              au-dessus. */}
+              One line that scrolls rather than a header that grows: it
+              is the page's no-scrolling stance that is preserved here,
+              and it alone that justifies a hard-coded height above. */}
           <div
             style={{
               display: "flex",
@@ -1240,38 +1239,38 @@ export function AlmanacView({
               maxWidth: 380,
               overflowX: "auto",
               overflowY: "hidden",
-              /* Sans cela, un objet flex se laisse pousser par son
-                 contenu au lieu de défiler. */
+              /* Without this, a flex item lets itself be pushed by its
+                 content instead of scrolling. */
               minWidth: 0,
               paddingBottom: 2,
               scrollbarWidth: "thin",
             }}
           >
-            {périodes.map((p) => (
+            {periods.map((p) => (
               <button
                 key={String(p)}
                 onClick={() => setChoisie(p)}
-                aria-pressed={p === période}
-                style={anneeStyle(p === période)}
+                aria-pressed={p === period}
+                style={yearStyle(p === period)}
               >
-                {p === "toujours" ? "TOUJOURS" : p}
+                {p === "always" ? "TOUJOURS" : p}
               </button>
             ))}
           </div>
 
-          {/* L'ANNÉE EN BOÎTE — la seule chose d'ici qui sorte du
-              navigateur, et qui n'existe que pour une année : l'image
-              est bâtie autour d'un millésime écrit en gros. */}
-          {!toujours && (
+          {/* THE YEAR IN A BOX — the only thing here that leaves the
+              browser, and which exists only for one year: the image is
+              built around a vintage written large. */}
+          {!always && (
             <button
-              onClick={emporter}
+              onClick={takeAway}
               data-tour="almanac-export"
-              disabled={boîte === "en cours"}
+              disabled={box === "en cours"}
               title="Une image de cette année, à garder ou à montrer"
               style={{
                 all: "unset",
                 ...tap,
-                cursor: boîte === "en cours" ? "progress" : "pointer",
+                cursor: box === "en cours" ? "progress" : "pointer",
                 marginLeft: "auto",
                 display: "flex",
                 alignItems: "center",
@@ -1284,13 +1283,13 @@ export function AlmanacView({
                 background: C.burgundy,
                 borderRadius: "var(--tag-radius)",
                 boxShadow: "2px 3px 7px rgba(0,0,0,0.28)",
-                opacity: boîte === "en cours" ? 0.6 : 1,
+                opacity: box === "en cours" ? 0.6 : 1,
               }}
             >
               <Download size={14} />
-              {boîte === "en cours"
+              {box === "en cours"
                 ? "on développe…"
-                : boîte === "raté"
+                : box === "raté"
                   ? "raté — réessayer"
                   : "l'année en boîte"}
             </button>
@@ -1303,28 +1302,28 @@ export function AlmanacView({
           style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14 }}
         >
           <button
-            onClick={() => setPlanche((p) => Math.max(p - 1, 0))}
-            disabled={planche === 0}
+            onClick={() => setPlate((p) => Math.max(p - 1, 0))}
+            disabled={plate === 0}
             aria-label="planche précédente"
-            style={flecheStyle(planche > 0)}
+            style={arrowStyle(plate > 0)}
           >
             <ChevronLeft size={16} />
           </button>
-          {PLANCHES.map((p, i) => (
+          {PLATES.map((p, i) => (
             <button
-              key={p.tampon}
-              onClick={() => setPlanche(i)}
-              aria-pressed={i === planche}
-              style={plancheStyle(i === planche)}
+              key={p.stamp}
+              onClick={() => setPlate(i)}
+              aria-pressed={i === plate}
+              style={plateStyle(i === plate)}
             >
-              {p.tampon} · {p.titre}
+              {p.stamp} · {p.title}
             </button>
           ))}
           <button
-            onClick={() => setPlanche((p) => Math.min(p + 1, PLANCHES.length - 1))}
-            disabled={planche === PLANCHES.length - 1}
+            onClick={() => setPlate((p) => Math.min(p + 1, PLATES.length - 1))}
+            disabled={plate === PLATES.length - 1}
             aria-label="planche suivante"
-            style={flecheStyle(planche < PLANCHES.length - 1)}
+            style={arrowStyle(plate < PLATES.length - 1)}
           >
             <ChevronRight size={16} />
           </button>
@@ -1336,22 +1335,22 @@ export function AlmanacView({
 
       {/* ---- LA PLANCHE ---- */}
       <div
-        /* `key` : sans elle React réemploie le même nœud et l'animation
-           d'entrée ne se rejoue jamais. Voir le même motif dans `App`. */
-        key={`${période}:${planche}`}
+        /* `key`: without it React reuses the same node and the entry
+           animation never replays. See the same pattern in `App`. */
+        key={`${period}:${plate}`}
         data-enters
         style={{ flex: 1, minHeight: 0, paddingBottom: 22, position: "relative", zIndex: 2 }}
       >
-        {planche === 0 && <PlancheCompte a={a} />}
-        {planche === 1 && <PlancheGouts a={a} drifts={drifts} />}
-        {planche === 2 && <PlancheGens a={a} onOpenPerson={onOpenPerson} />}
-        {planche === 3 && <PlancheSujets a={a} />}
+        {plate === 0 && <PlateCount a={a} />}
+        {plate === 1 && <PlateTastes a={a} drifts={drifts} />}
+        {plate === 2 && <PlatePeople a={a} onOpenPerson={onOpenPerson} />}
+        {plate === 3 && <PlateSubjects a={a} />}
       </div>
     </div>
   );
 }
 
-function Titre() {
+function Title() {
   return (
     <>
       <div
@@ -1371,18 +1370,18 @@ function Titre() {
   );
 }
 
-/* LA PEAU POSÉE, EN VALEURS RÉSOLUES.
+/* THE SKIN IN PLACE, IN RESOLVED VALUES.
 
-   Les jetons sont des renvois : `C.paper` vaut la chaîne
-   « var(--c-paper) », qui ne veut rien dire pour un canevas. On demande
-   donc au document ce qu'elles valent AU MOMENT du clic — l'image sort
-   ainsi dans la peau qu'on avait posée, y compris une peau de nuit.
+   The tokens are references: `C.paper` is the string "var(--c-paper)",
+   which means nothing to a canvas. So we ask the document what they are
+   worth AT THE MOMENT of the click — the image thus comes out in the
+   skin that was laid on, including a night skin.
 
-   Lu ici et non dans le service : c'est la vue qui a le droit de
-   regarder le document. */
-function peauPosée(): BoxPalette {
+   Read here and not in the service: it is the view that has the right to
+   look at the document. */
+function skinApplied(): BoxPalette {
   const s = getComputedStyle(document.documentElement);
-  const v = (nom: string, repli: string) => s.getPropertyValue(nom).trim() || repli;
+  const v = (name: string, repli: string) => s.getPropertyValue(name).trim() || repli;
   return {
     paper: v("--c-paper", "#EEE3CC"),
     card: v("--c-card", "#F6EFDE"),
@@ -1396,11 +1395,11 @@ function peauPosée(): BoxPalette {
   };
 }
 
-const flecheStyle = (actif: boolean): CSSProperties => ({
+const arrowStyle = (active: boolean): CSSProperties => ({
   all: "unset",
   ...tapSquare,
-  cursor: actif ? "pointer" : "default",
-  opacity: actif ? 1 : 0.28,
+  cursor: active ? "pointer" : "default",
+  opacity: active ? 1 : 0.28,
   color: C.inkFaded,
   border: `1px solid ${C.line}`,
   borderRadius: "50%",
@@ -1412,7 +1411,7 @@ const flecheStyle = (actif: boolean): CSSProperties => ({
   justifyContent: "center",
 });
 
-const anneeStyle = (actif: boolean): CSSProperties => ({
+const yearStyle = (active: boolean): CSSProperties => ({
   all: "unset",
   ...tap,
   cursor: "pointer",
@@ -1420,17 +1419,17 @@ const anneeStyle = (actif: boolean): CSSProperties => ({
   fontSize: 10.5,
   letterSpacing: "var(--tag-tracking)",
   padding: "3px 7px",
-  /* La barre défile : une pastille qui se laisse comprimer donnerait
-     « 20… » au lieu d'un millésime. */
+  /* The bar scrolls: a pill that lets itself be squeezed would give
+     "20…" instead of a vintage. */
   flexShrink: 0,
   whiteSpace: "nowrap",
-  color: actif ? C.card : C.inkFaded,
-  background: actif ? C.burgundy : "transparent",
-  border: `1px solid ${actif ? C.burgundy : C.line}`,
+  color: active ? C.card : C.inkFaded,
+  background: active ? C.burgundy : "transparent",
+  border: `1px solid ${active ? C.burgundy : C.line}`,
   borderRadius: "var(--tag-radius)",
 });
 
-const plancheStyle = (actif: boolean): CSSProperties => ({
+const plateStyle = (active: boolean): CSSProperties => ({
   all: "unset",
   ...tap,
   cursor: "pointer",
@@ -1439,8 +1438,8 @@ const plancheStyle = (actif: boolean): CSSProperties => ({
   letterSpacing: "var(--tag-tracking)",
   textTransform: "var(--tag-transform)" as never,
   padding: "5px 11px",
-  color: actif ? C.card : C.inkFaded,
-  background: actif ? C.slate : "transparent",
-  border: `1px solid ${actif ? C.slate : C.line}`,
+  color: active ? C.card : C.inkFaded,
+  background: active ? C.slate : "transparent",
+  border: `1px solid ${active ? C.slate : C.line}`,
   borderRadius: "var(--tag-radius)",
 });

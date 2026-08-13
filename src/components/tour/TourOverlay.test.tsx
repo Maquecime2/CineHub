@@ -1,10 +1,10 @@
 /* ============================================================
-   LE MONTREUR, À L'ÉPREUVE
+   THE GUIDE, PUT TO THE TEST
 
-   On ne vérifie pas la mise en page — jsdom ne mesure rien et tous les
-   rectangles y valent zéro. On vérifie ce qui ne se voit pas à l'œil et
-   qui casse en silence : la marche des étapes, l'abandon, le voyage
-   entre les vues, et l'échappatoire quand la cible n'existe pas.
+   We do not check the layout — jsdom measures nothing and every
+   rectangle in it is zero. We check what the eye cannot see and what
+   breaks in silence: the march of the steps, abandoning, travelling
+   between views, and the escape hatch when the target does not exist.
    ============================================================ */
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
@@ -13,10 +13,10 @@ import { TourOverlay } from "./TourOverlay";
 import { TOURS } from "./steps";
 import { loadOnboarding } from "../../services/onboarding";
 
-/* jsdom ne connaît ni `ResizeObserver` ni `scrollIntoView`, dont le
-   suivi de cible se sert : sans eux la recherche lève au premier nœud
-   trouvé, et l'on testerait un moteur qui ne tourne pas. */
-class FauxResizeObserver {
+/* jsdom knows neither `ResizeObserver` nor `scrollIntoView`, which the
+   target tracking uses: without them the search throws on the first node
+   found, and we would be testing an engine that is not running. */
+class FakeResizeObserver {
   observe() {}
   unobserve() {}
   disconnect() {}
@@ -25,12 +25,12 @@ class FauxResizeObserver {
 beforeEach(() => {
   cleanup();
   localStorage.clear();
-  vi.stubGlobal("ResizeObserver", FauxResizeObserver);
+  vi.stubGlobal("ResizeObserver", FakeResizeObserver);
   Element.prototype.scrollIntoView = vi.fn();
 });
 
-/** Une cible pour chaque ancre citée par la visite demandée. */
-function poserLesCibles(tourId: string) {
+/** One target for every anchor the requested tour names. */
+function layTargets(tourId: string) {
   for (const s of TOURS[tourId]!.steps) {
     const m = s.target?.match(/^\[data-tour="(.+)"\]$/);
     if (!m) continue;
@@ -40,35 +40,35 @@ function poserLesCibles(tourId: string) {
   }
 }
 
-describe("la visite se déroule", () => {
-  it("ouvre la première étape et compte les suivantes", async () => {
-    poserLesCibles("notebook");
+describe("the tour unrolls", () => {
+  it("opens the first step and counts the ones after", async () => {
+    layTargets("notebook");
     render(<TourOverlay tourId="notebook" onClose={vi.fn()} onView={vi.fn()} />);
 
-    const étape = TOURS.notebook!.steps[0]!;
-    expect(await screen.findByText(étape.title)).toBeInTheDocument();
+    const step = TOURS.notebook!.steps[0]!;
+    expect(await screen.findByText(step.title)).toBeInTheDocument();
     expect(screen.getByText(`1 / ${TOURS.notebook!.steps.length}`)).toBeInTheDocument();
   });
 
-  it("avance, revient, et n'offre pas de retour à la première étape", async () => {
-    poserLesCibles("import");
+  it("goes forward, comes back, and offers no way back from the first step", async () => {
+    layTargets("import");
     render(<TourOverlay tourId="import" onClose={vi.fn()} onView={vi.fn()} />);
-    const [un, deux] = TOURS.import!.steps;
+    const [un, two] = TOURS.import!.steps;
 
     expect(await screen.findByText(un!.title)).toBeInTheDocument();
     expect(screen.queryByText("retour")).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByText("SUIVANT"));
-    expect(await screen.findByText(deux!.title)).toBeInTheDocument();
+    expect(await screen.findByText(two!.title)).toBeInTheDocument();
 
     await userEvent.click(screen.getByText("retour"));
     expect(await screen.findByText(un!.title)).toBeInTheDocument();
   });
 
-  /* Terminer et abandonner n'écrivent PAS la même chose : c'est là-dessus
-     que se décide si le rappel paraîtra. */
-  it("terminer inscrit la visite comme faite", async () => {
-    poserLesCibles("notebook");
+  /* Finishing and abandoning do NOT write the same thing: that is what
+     decides whether the reminder will appear. */
+  it("finishing records the tour as taken", async () => {
+    layTargets("notebook");
     const onClose = vi.fn();
     render(<TourOverlay tourId="notebook" onClose={onClose} onView={vi.fn()} />);
 
@@ -78,8 +78,8 @@ describe("la visite se déroule", () => {
     expect(loadOnboarding().skipped).toBe(false);
   });
 
-  it("passer marque l'abandon sans inscrire la visite", async () => {
-    poserLesCibles("import");
+  it("skipping marks the walk-out without recording the tour", async () => {
+    layTargets("import");
     const onClose = vi.fn();
     render(<TourOverlay tourId="import" onClose={onClose} onView={vi.fn()} />);
 
@@ -88,8 +88,8 @@ describe("la visite se déroule", () => {
     expect(loadOnboarding()).toMatchObject({ done: [], skipped: true });
   });
 
-  it("Échap écarte la visite", async () => {
-    poserLesCibles("import");
+  it("Escape dismisses the tour", async () => {
+    layTargets("import");
     const onClose = vi.fn();
     render(<TourOverlay tourId="import" onClose={onClose} onView={vi.fn()} />);
     await screen.findByText(TOURS.import!.steps[0]!.title);
@@ -99,16 +99,16 @@ describe("la visite se déroule", () => {
     expect(loadOnboarding().skipped).toBe(true);
   });
 
-  it("ne montre rien quand aucune visite n'est demandée", () => {
+  it("shows nothing when no tour is asked for", () => {
     const { container } = render(<TourOverlay tourId={null} onClose={vi.fn()} onView={vi.fn()} />);
     expect(container).toBeEmptyDOMElement();
   });
 });
 
-describe("la visite globale voyage", () => {
-  it("demande la vue de sa première étape", async () => {
+describe("the global tour travels", () => {
+  it("asks for the view of its first step", async () => {
     const onView = vi.fn();
-    poserLesCibles("global");
+    layTargets("global");
     render(<TourOverlay tourId="global" onClose={vi.fn()} onView={onView} />);
 
     await screen.findByText(TOURS.global!.steps[0]!.title);
@@ -116,66 +116,64 @@ describe("la visite globale voyage", () => {
   });
 });
 
-describe("une cible absente ne bloque pas", () => {
-  /* Le cas du classeur neuf : la moitié des étapes visent du contenu
-     qui n'existe pas encore. Sans cette échappatoire, la toute première
-     visite resterait plantée sur un voile opaque. */
-  it("saute l'étape facultative dont la cible manque", async () => {
-    /* On ne pose QUE la seconde ancre : la première étape de la visite
-       de l'almanach est facultative et doit s'effacer. */
+describe("a missing target does not block", () => {
+  /* The new binder's case: half the steps aim at content that does not
+     exist yet. Without this escape hatch, the very first tour would stay
+     stuck on an opaque veil. */
+  it("skips the optional step whose target is missing", async () => {
+    /* We lay down ONLY the second anchor: the almanac tour's first step
+       is optional and must fade away. */
     const n = document.createElement("div");
     n.setAttribute("data-tour", "almanac-plates");
     document.body.appendChild(n);
 
     render(<TourOverlay tourId="almanac" onClose={vi.fn()} onView={vi.fn()} />);
 
-    /* Le titre se LIT dans la visite plutôt que de se recopier ici : ce
-       test parle du saut d'étape, pas du texte de la seconde, et une
-       reformulation du produit ne doit pas le faire échouer. */
-    const seconde = TOURS.almanac!.steps.find((s) => s.target?.includes("almanac-plates"))!;
-    expect(
-      await screen.findByText(seconde.title, undefined, { timeout: 3000 })
-    ).toBeInTheDocument();
+    /* The title is READ from the tour rather than copied here: this test
+       is about the step being skipped, not about the second one's text,
+       and a rewording of the product must not make it fail. */
+    const second = TOURS.almanac!.steps.find((s) => s.target?.includes("almanac-plates"))!;
+    expect(await screen.findByText(second.title, undefined, { timeout: 3000 })).toBeInTheDocument();
   });
 
-  /* L'ENVERS DU DÉCOR, ET C'EST LUI QUI A CASSÉ. Le montreur reste monté
-     en permanence : hors visite il suit une cible nulle, donc « absente ».
-     Quand une visite s'ouvrait, sa première étape se rendait une fois avec
-     cet état-là encore en mémoire — et si elle était facultative, elle se
-     faisait escamoter avant qu'on ait seulement cherché sa cible. La
-     visite d'une fiche s'ouvrait sur son étape 2.
+  /* THE OTHER SIDE OF THE SET, AND IT IS WHAT BROKE. The guide stays
+     mounted permanently: outside a tour it tracks a null target, hence
+     "missing". When a tour opened, its first step rendered once with
+     that state still in memory — and if it was optional, it got whisked
+     away before its target had even been looked for. A card's tour
+     opened on its step 2.
 
-     D'où le passage par `tourId={null}` : sans lui le montreur naît avec
-     la bonne visite, l'état vicié n'existe jamais, et le test passerait
-     même avec le bug. */
-  it("n'escamote pas la première étape quand sa cible est là", async () => {
-    poserLesCibles("detail");
+     Hence going through `tourId={null}`: without it the guide is born
+     with the right tour, the tainted state never exists, and the test
+     would pass even with the bug. */
+  it("does not spirit away the first step when its target is there", async () => {
+    layTargets("detail");
     const { rerender } = render(<TourOverlay tourId={null} onClose={vi.fn()} onView={vi.fn()} />);
     rerender(<TourOverlay tourId="detail" onClose={vi.fn()} onView={vi.fn()} />);
 
-    const première = TOURS.detail!.steps[0]!;
-    expect(première.optional, "le test ne vaut que si l'étape est facultative").toBe(true);
-    expect(await screen.findByText(première.title)).toBeInTheDocument();
+    const firstOne = TOURS.detail!.steps[0]!;
+    expect(firstOne.optional, "the test only means something if the step is optional").toBe(true);
+    expect(await screen.findByText(firstOne.title)).toBeInTheDocument();
     expect(screen.getByText(`1 / ${TOURS.detail!.steps.length}`)).toBeInTheDocument();
   });
 });
 
 /* ============================================================
-   L'ÉCHAPPATOIRE, DANS L'AUTRE SENS
+   THE ESCAPE HATCH, THE OTHER WAY ROUND
 
-   Un test veillait déjà à ce qu'une étape facultative dont la cible EST
-   là ne soit pas escamotée. Rien ne vérifiait la promesse inverse, que
-   `steps.ts` écrit pourtant noir sur blanc : « cible absente ⇒ étape
-   sautée sans bruit ».
+   A test already made sure an optional step whose target IS there does
+   not get whisked away. Nothing checked the reverse promise, which
+   `steps.ts` nonetheless writes in black and white: "target absent ⇒
+   step skipped without a sound".
 
-   Elle n'était jusqu'ici qu'une commodité pour les classeurs vides.
-   Elle est devenue une règle du produit le jour où « l'année en boîte »
-   a cessé de paraître sur la période « toujours » — l'image est bâtie
-   autour d'un millésime, et il n'y en a pas. Sans ce saut, la visite de
-   l'almanach s'arrêterait sur une bulle qui ne pointe rien.
+   Until now it was only a convenience for empty binders. It became a
+   rule of the product the day "the year in a box" stopped appearing on
+   the "always" period — the picture is built around a vintage, and there
+   is none. Without that skip, the almanac's tour would stop on a bubble
+   pointing at nothing.
    ============================================================ */
-describe("une cible absente ne bloque pas la visite", () => {
-  /** Les mêmes cibles, moins une — celle qu'on veut voir manquer. */
+describe("a missing target does not block the tour", () => {
+  /** The same targets, minus one — the one we want to see missing. */
   function poserSauf(tourId: string, absente: string) {
     for (const s of TOURS[tourId]!.steps) {
       const m = s.target?.match(/^\[data-tour="(.+)"\]$/);
@@ -186,27 +184,27 @@ describe("une cible absente ne bloque pas la visite", () => {
     }
   }
 
-  it("saute l'étape facultative dont la cible manque", async () => {
-    const étapes = TOURS.almanac!.steps;
-    const boîte = étapes.find((s) => s.target === '[data-tour="almanac-export"]')!;
-    expect(boîte.optional, "le test ne vaut que si l'étape est facultative").toBe(true);
+  it("skips the optional step whose target is missing", async () => {
+    const steps = TOURS.almanac!.steps;
+    const box = steps.find((s) => s.target === '[data-tour="almanac-export"]')!;
+    expect(box.optional, "the test only means something if the step is optional").toBe(true);
 
     poserSauf("almanac", "almanac-export");
     const onClose = vi.fn();
     render(<TourOverlay tourId="almanac" onClose={onClose} onView={vi.fn()} />);
 
-    // on arrive bien à l'avant-dernière…
-    const avant = étapes[étapes.length - 2]!;
-    expect(await screen.findByText(avant.title)).toBeInTheDocument();
+    // we do reach the second to last…
+    const before = steps[steps.length - 2]!;
+    expect(await screen.findByText(before.title)).toBeInTheDocument();
     await userEvent.click(screen.getByText(/suivant|terminer/i));
 
-    /* …et la dernière, privée de cible, ne retient pas la visite : elle
-       se termine à sa place.
+    /* …and the last, deprived of a target, does not hold the tour up: it
+       ends in its place.
 
-       On vérifie l'APPEL et non la disparition de la bulle : ici
-       `onClose` est un mock, et c'est l'appelant qui démonte le
-       montreur en vrai. Exiger que le texte s'efface testerait le
-       double, pas le composant. */
+       We check the CALL and not the bubble disappearing: here `onClose`
+       is a mock, and in real life it is the caller that unmounts the
+       guide. Requiring the text to vanish would test the double, not the
+       component. */
     await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 });

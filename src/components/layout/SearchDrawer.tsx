@@ -1,14 +1,14 @@
 /* ============================================================
-   CHERCHER PARTOUT — le tiroir
+   SEARCHING EVERYWHERE — the drawer
 
-   Une seule question posée à tout le classeur, et les réponses rangées
-   par nature. On y arrive par la loupe du pied de rail ou par Ctrl+K —
-   les deux, parce que le raccourci ne se devine pas et que le bouton ne
-   se retient pas.
+   A single question asked of the whole binder, and the answers filed by
+   kind. One gets there by the magnifier at the foot of the rail or by
+   Ctrl+K — both, because the shortcut cannot be guessed and the button
+   cannot be remembered.
 
-   Les flèches parcourent, Entrée ouvre, Échap referme : c'est ce qu'on
-   attend d'un champ de recherche, et rien de tout cela ne coûte quelque
-   chose à qui l'ignore et clique.
+   The arrows walk through, Enter opens, Escape closes: that is what one
+   expects of a search field, and none of it costs anything to whoever
+   ignores it and clicks.
    ============================================================ */
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
@@ -16,79 +16,79 @@ import { createPortal } from "react-dom";
 import { Search, Film as FilmIcon, User, Tag, Spline, NotebookPen } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
-import { chercherPartout, parGenres, type Genre, type Trouvaille } from "../../domain/partout";
-import type { Fil } from "../../domain/fils";
+import { searchEverywhere, groupByKind, type Kind, type Hit } from "../../domain/everywhere";
+import type { Thread } from "../../domain/threads";
 import type { Film, Note } from "../../types";
 import { useViewport } from "../../hooks/useViewport";
 
-/* Ce que chaque nature s'appelle une fois trouvée, et de quoi elle a
-   l'air. L'icône n'est pas décorative : c'est ce qui permet de lire
-   d'un coup d'œil qu'on regarde cinq natures et non une liste plate. */
-const NATURES: Record<Genre, { titre: string; icon: typeof Search; teinte: string }> = {
-  film: { titre: "Films", icon: FilmIcon, teinte: C.burgundy },
-  personne: { titre: "Au générique", icon: User, teinte: C.plum },
-  motif: { titre: "Motifs", icon: Tag, teinte: C.cobalt },
-  fil: { titre: "Fils", icon: Spline, teinte: C.vermillion },
-  page: { titre: "Carnet", icon: NotebookPen, teinte: C.pine },
+/* What each kind is called once found, and what it looks like. The icon
+   is not decorative: it is what allows one to read at a glance that one
+   is looking at five kinds and not a flat list. */
+const NATURES: Record<Kind, { title: string; icon: typeof Search; tint: string }> = {
+  film: { title: "Films", icon: FilmIcon, tint: C.burgundy },
+  person: { title: "Au générique", icon: User, tint: C.plum },
+  motif: { title: "Motifs", icon: Tag, tint: C.cobalt },
+  thread: { title: "Fils", icon: Spline, tint: C.vermillion },
+  page: { title: "Carnet", icon: NotebookPen, tint: C.pine },
 };
 
-export interface OuvrirTrouvaille {
+export interface OpenFinding {
   film: (id: string) => void;
-  personne: (clé: string) => void;
+  person: (key: string) => void;
   page: () => void;
-  /** Le mur, sa recherche posée sur le libellé du motif. */
+  /** The wall, its search set on the motif's label. */
   motif: (label: string) => void;
-  fil: () => void;
+  thread: () => void;
 }
 
 export function SearchDrawer({
   films,
   notes,
-  fils,
+  threads,
   onClose,
   ouvrir,
 }: {
   films: Film[];
   notes: Note[];
-  fils: Fil[];
+  threads: Thread[];
   onClose: () => void;
-  ouvrir: OuvrirTrouvaille;
+  ouvrir: OpenFinding;
 }) {
   const [q, setQ] = useState("");
   const { phone } = useViewport();
   const [curseur, setCurseur] = useState(0);
-  const champ = useRef<HTMLInputElement>(null);
+  const field = useRef<HTMLInputElement>(null);
 
-  const trouvailles = useMemo(
-    () => chercherPartout(q, { films, notes, fils }),
-    [q, films, notes, fils]
+  const findings = useMemo(
+    () => searchEverywhere(q, { films, notes, threads }),
+    [q, films, notes, threads]
   );
-  const groupes = useMemo(() => parGenres(trouvailles), [trouvailles]);
-  /* La liste APLATIE, dans l'ordre où elle est dessinée : c'est elle que
-     les flèches parcourent. Reconstruire l'ordre à la volée dans le
-     gestionnaire de touches le ferait diverger de l'affichage au premier
-     changement de mise en page. */
-  const plate = useMemo(() => groupes.flatMap((g) => g.items), [groupes]);
+  const groups = useMemo(() => groupByKind(findings), [findings]);
+  /* The FLATTENED list, in the order it is drawn: it is what the arrows
+     walk through. Rebuilding the order on the fly in the key handler
+     would make it diverge from the display at the first change of
+     layout. */
+  const plate = useMemo(() => groups.flatMap((g) => g.items), [groups]);
 
   useEffect(() => {
     setCurseur(0);
   }, [q]);
 
-  // le champ prend la main tout de suite : on ouvre ce tiroir pour taper
+  // the field takes focus at once: one opens this drawer in order to type
   useEffect(() => {
-    champ.current?.focus();
+    field.current?.focus();
   }, []);
 
-  const ouvrirCelui = (t: Trouvaille) => {
-    if (t.genre === "film" && t.filmId) ouvrir.film(t.filmId);
-    else if (t.genre === "personne" && t.personne) ouvrir.personne(t.personne);
-    else if (t.genre === "page") ouvrir.page();
-    else if (t.genre === "motif") ouvrir.motif(t.titre);
-    else if (t.genre === "fil") ouvrir.fil();
+  const openThat = (t: Hit) => {
+    if (t.kind === "film" && t.filmId) ouvrir.film(t.filmId);
+    else if (t.kind === "person" && t.person) ouvrir.person(t.person);
+    else if (t.kind === "page") ouvrir.page();
+    else if (t.kind === "motif") ouvrir.motif(t.title);
+    else if (t.kind === "thread") ouvrir.thread();
     onClose();
   };
 
-  const auClavier = (e: KeyboardEvent) => {
+  const byKeyboard = (e: KeyboardEvent) => {
     if (e.key === "Escape") return onClose();
     if (plate.length === 0) return;
     if (e.key === "ArrowDown") {
@@ -100,14 +100,14 @@ export function SearchDrawer({
     } else if (e.key === "Enter") {
       e.preventDefault();
       const t = plate[curseur];
-      if (t) ouvrirCelui(t);
+      if (t) openThat(t);
     }
   };
 
-  /* MONTÉ SUR LE CORPS DE LA PAGE. Les vues vivent dans la colonne
-     `[data-enters]`, dont la transformation d'entrée devient le repère
-     des `position: fixed` qu'elle contient. Le tiroir de la soirée et la
-     demande de confirmation ont déjà payé cette leçon. */
+  /* MOUNTED ON THE DOCUMENT BODY. The views live in the `[data-enters]`
+     column, whose entry transform becomes the reference for the
+     `position: fixed` it contains. The evening drawer and the
+     confirmation request have already paid for this lesson. */
   return createPortal(
     <>
       <div
@@ -117,16 +117,16 @@ export function SearchDrawer({
       <div
         role="dialog"
         aria-label="Chercher partout"
-        onKeyDown={auClavier}
+        onKeyDown={byKeyboard}
         style={{
           position: "fixed",
-          /* HUIT POUR CENT DE HAUTEUR, C'EST UNE MARGE DE BUREAU.
+          /* EIGHT PER CENT OF HEIGHT IS A DESKTOP MARGIN.
 
-             Sur un telephone, ces huit pour cent sont du vide au-dessus
-             du champ, et les soixante-dix-huit restants s'arretent bien
-             avant le bas de l'ecran : la liste des trouvailles tenait
-             sur trois lignes. La feuille part donc sous l'encoche et
-             descend aussi loin qu'elle peut. */
+             On a phone, those eight per cent are emptiness above the
+             field, and the remaining seventy-eight stop well before the
+             bottom of the screen: the list of finds fitted on three
+             lines. So the sheet starts under the notch and goes down as
+             far as it can. */
           top: `max(8vh, var(--safe-top))`,
           left: "50%",
           transform: "translateX(-50%)",
@@ -153,7 +153,7 @@ export function SearchDrawer({
         >
           <Search size={17} color={C.inkFaded} />
           <input
-            ref={champ}
+            ref={field}
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="un titre, un nom, un motif, un mot que vous avez écrit…"
@@ -172,18 +172,18 @@ export function SearchDrawer({
 
         <div style={{ overflowY: "auto", padding: "8px 0 12px" }}>
           {q.trim().length < 2 ? (
-            <Mot>
+            <Word>
               Deux lettres suffisent. La question est posée aux films, aux gens des génériques, aux
               motifs, aux fils et aux pages du carnet — d'un coup.
-            </Mot>
+            </Word>
           ) : plate.length === 0 ? (
-            <Mot>Rien de ce nom dans le classeur.</Mot>
+            <Word>Rien de ce nom dans le classeur.</Word>
           ) : (
-            groupes.map((g) => {
-              const nature = NATURES[g.genre];
+            groups.map((g) => {
+              const nature = NATURES[g.kind];
               const Icon = nature.icon;
               return (
-                <div key={g.genre} style={{ marginBottom: 6 }}>
+                <div key={g.kind} style={{ marginBottom: 6 }}>
                   <div
                     style={{
                       display: "flex",
@@ -193,20 +193,20 @@ export function SearchDrawer({
                       fontFamily: F.mono,
                       fontSize: 9,
                       letterSpacing: 1,
-                      color: nature.teinte,
+                      color: nature.tint,
                     }}
                   >
-                    <Icon size={11} /> {nature.titre.toUpperCase()}
+                    <Icon size={11} /> {nature.title.toUpperCase()}
                   </div>
                   {g.items.map((t) => {
-                    const rang = plate.indexOf(t);
-                    const visé = rang === curseur;
+                    const rank = plate.indexOf(t);
+                    const targeted = rank === curseur;
                     return (
                       <button
-                        key={t.clé}
-                        onClick={() => ouvrirCelui(t)}
-                        onMouseEnter={() => setCurseur(rang)}
-                        aria-current={visé ? "true" : undefined}
+                        key={t.key}
+                        onClick={() => openThat(t)}
+                        onMouseEnter={() => setCurseur(rank)}
+                        aria-current={targeted ? "true" : undefined}
                         style={{
                           all: "unset",
                           ...tap,
@@ -215,8 +215,8 @@ export function SearchDrawer({
                           width: "100%",
                           boxSizing: "border-box",
                           padding: "5px 18px",
-                          background: visé ? alpha(nature.teinte, 0.12) : "transparent",
-                          borderLeft: `3px solid ${visé ? nature.teinte : "transparent"}`,
+                          background: targeted ? alpha(nature.tint, 0.12) : "transparent",
+                          borderLeft: `3px solid ${targeted ? nature.tint : "transparent"}`,
                         }}
                       >
                         <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
@@ -228,17 +228,17 @@ export function SearchDrawer({
                               color: C.ink,
                             }}
                           >
-                            {t.titre}
+                            {t.title}
                           </span>
                           <span style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}>
-                            {t.sous}
+                            {t.subtitle}
                           </span>
                         </div>
-                        {/* CE QU'ON AVAIT ÉCRIT. Sans l'extrait, une
-                            recherche sur ses propres mots ne rend qu'une
-                            liste de titres — et l'on doit rouvrir chaque
-                            fiche pour savoir laquelle parlait de quoi. */}
-                        {t.extrait && (
+                        {/* WHAT ONE HAD WRITTEN. Without the excerpt, a
+                            search on one's own words returns only a list
+                            of titles — and one must reopen every card to
+                            know which one spoke of what. */}
+                        {t.excerpt && (
                           <div
                             style={{
                               fontFamily: F.hand,
@@ -250,7 +250,7 @@ export function SearchDrawer({
                               whiteSpace: "nowrap",
                             }}
                           >
-                            {t.extrait}
+                            {t.excerpt}
                           </div>
                         )}
                       </button>
@@ -267,7 +267,7 @@ export function SearchDrawer({
   );
 }
 
-function Mot({ children }: { children: ReactNode }) {
+function Word({ children }: { children: ReactNode }) {
   return (
     <div
       style={{

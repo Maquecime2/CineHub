@@ -1,10 +1,10 @@
 /* ============================================================
-   LE RAPPEL — une fiche scotchée qui dit où la visite se retrouve
+   THE REMINDER — a taped card saying where the tour can be found again
 
-   Écarter la visite est un droit ; ne plus jamais savoir qu'elle
-   existait est un piège. Cette fiche est le compromis : elle paraît une
-   fois, pointe le bouton d'aide, et s'efface toute seule. Au bout de
-   trois, on n'insiste plus — c'est un refus, pas un oubli.
+   Waving the tour away is a right; never knowing again that it existed
+   is a trap. This card is the compromise: it appears once, points at the
+   help button, and fades on its own. After three, we stop insisting —
+   that is a refusal, not an oversight.
    ============================================================ */
 import { useEffect, useState } from "react";
 import { CornerLeftDown, X } from "lucide-react";
@@ -12,7 +12,7 @@ import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { bumpHint } from "../../services/onboarding";
 
-/** Assez pour être lu deux fois, trop court pour gêner. */
+/** Long enough to be read twice, short enough not to be in the way. */
 const VIE_MS = 8000;
 
 export function TourHint({ onReplay, onDismiss }: { onReplay: () => void; onDismiss: () => void }) {
@@ -24,10 +24,10 @@ export function TourHint({ onReplay, onDismiss }: { onReplay: () => void; onDism
     return () => clearTimeout(t);
   }, []);
 
-  /* Deux temps : on éteint, PUIS on démonte. Retirer le nœud d'un coup
-     escamoterait la fiche au lieu de la laisser s'effacer — et sous
-     `prefers-reduced-motion` la durée vaut zéro, donc les deux temps
-     n'en font plus qu'un. */
+  /* Two beats: we fade out, THEN unmount. Removing the node in one go
+     would whisk the card away instead of letting it fade — and under
+     `prefers-reduced-motion` the duration is zero, so the two beats
+     become one. */
   useEffect(() => {
     if (!partie) return;
     const t = setTimeout(onDismiss, 400);
@@ -53,7 +53,7 @@ export function TourHint({ onReplay, onDismiss }: { onReplay: () => void; onDism
           "opacity var(--motion-slow) var(--motion-ease), transform var(--motion-slow) var(--motion-ease)",
       }}
     >
-      {/* le scotch, du côté du mur */}
+      {/* the tape, on the wall side */}
       <div
         aria-hidden
         style={{

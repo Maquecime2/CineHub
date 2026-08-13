@@ -1,25 +1,25 @@
 /* ============================================================
-   CE QUE TMDB SAIT DE CE FILM — et qu'on ne voyait nulle part
+   WHAT TMDB KNOWS OF THIS FILM — and which showed nowhere
    ============================================================
 
-   La récolte rapportait depuis longtemps la durée, la langue, le pays,
-   la note du public, le casting et trois métiers d'équipe. La fiche
-   n'en montrait AUCUN : ces champs alimentaient l'almanach et la
-   constellation, et n'avaient pas de place où être lus un par un.
+   The harvest had long been bringing back the runtime, the language, the
+   country, the public's rating, the cast and three crew trades. The card
+   showed NONE of them: those fields fed the almanac and the
+   constellation, and had no place where they could be read one by one.
 
-   C'est plus qu'un manque d'affichage, c'est un angle mort de
-   diagnostic. Quand l'almanach annonce trois pays pour deux cents
-   films, il n'y avait aucun moyen de savoir si TMDB ne les donnait pas,
-   si la récolte ne les demandait pas, ou si le cache servait de vieilles
-   réponses tronquées (c'était la troisième). Une fiche qui affiche ses
-   trous se répare ; une fiche muette se devine.
+   That is more than a display gap, it is a diagnostic blind spot. When
+   the almanac announced three countries for two hundred films, there was
+   no way to know whether TMDB was not giving them, whether the harvest
+   was not asking for them, or whether the cache was serving old truncated
+   answers (it was the third). A card that shows its holes gets repaired;
+   a mute card has to be guessed at.
 
-   D'où aussi le bouton : il redemande CE film à TMDB, sans passer par
-   le cache d'import — donc sans rien à purger, et sans avoir à relancer
-   les cinq cents autres pour vérifier une intuition sur un seul.
+   Hence the button too: it asks TMDB for THIS film again, without going
+   through the import cache — so with nothing to purge, and without having
+   to relaunch the other five hundred to check a hunch about one.
 
-   On ne remplit que le vide, comme partout ailleurs dans la fusion :
-   une donnée corrigée à la main n'est jamais écrasée par TMDB. */
+   We only fill the gaps, as everywhere else in the merge: data corrected
+   by hand is never overwritten by TMDB. */
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { RefreshCw } from "lucide-react";
@@ -27,15 +27,15 @@ import { C, F } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { getTmdbKey } from "../../services/tmdbKey";
 import { getDetails, searchMovie } from "../../tmdb";
-import { nomLangue, nomPays } from "../../noms";
+import { languageName, countryName } from "../../names";
 import type { Film } from "../../types";
 
-/** Une ligne « intitulé → valeur », ou rien du tout si on ne sait pas. */
-function Fait({ nom, children }: { nom: string; children: ReactNode }) {
+/** A "label → value" line, or nothing at all if we do not know. */
+function Done({ name, children }: { name: string; children: ReactNode }) {
   return (
-    /* `flexWrap` : l'intitulé réserve 74 px et la valeur ne sait pas
-       descendre sous son contenu — dans une colonne étroite, la ligne
-       débordait. Elle s'empile désormais. */
+    /* `flexWrap`: the label reserves 74 px and the value cannot go below
+       its content — in a narrow column, the line overflowed. It now
+       stacks. */
     <div
       style={{
         display: "flex",
@@ -54,7 +54,7 @@ function Fait({ nom, children }: { nom: string; children: ReactNode }) {
           minWidth: 74,
         }}
       >
-        {nom}
+        {name}
       </span>
       <span
         style={{ fontFamily: F.body, fontSize: 12.5, color: C.ink, flex: "1 1 120px", minWidth: 0 }}
@@ -65,46 +65,46 @@ function Fait({ nom, children }: { nom: string; children: ReactNode }) {
   );
 }
 
-/* Ce qu'on dit d'un champ absent. Un tiret, et non le silence : le
-   silence se confond avec « ce champ n'existe pas », alors qu'ici il
-   veut dire « TMDB ne nous l'a pas donné », ce qui appelle le bouton. */
-const VIDE = <span style={{ color: C.line }}>—</span>;
+/* What we say of an absent field. A dash, and not silence: silence gets
+   confused with "this field does not exist", whereas here it means "TMDB
+   did not give it to us", which calls for the button. */
+const EMPTY = <span style={{ color: C.line }}>—</span>;
 
-const MÉTIERS: [key: string, nom: string][] = [
+const TRADES: [key: string, name: string][] = [
   ["image", "IMAGE"],
   ["musique", "MUSIQUE"],
   ["scénario", "SCÉNARIO"],
 ];
 
-/* UNE LISTE DE NOMS QUI MÈNE QUELQUE PART.
+/* A LIST OF NAMES THAT LEADS SOMEWHERE.
 
-   Ces noms étaient du texte joint par des virgules : on lisait « Henri
-   Decaë » sans pouvoir demander ce qu'on avait d'autre de lui, alors que
-   la collection le savait depuis le début. Chacun ouvre désormais son
-   dossier au Générique.
+   These names were text joined by commas: one read "Henri Decaë" without
+   being able to ask what else one had of his, whereas the collection had
+   known since the start. Each of them now opens its folder in the
+   Credits.
 
-   Un pointillé d'encre, et non un bleu de lien : la direction artistique
-   est un carnet, et un carnet ne souligne pas en bleu ce qu'on peut
-   suivre — il l'écrit à la plume. */
-function Noms({
-  noms,
-  sépare = ", ",
+   A dotted ink line, and not a link blue: the art direction is a
+   notebook, and a notebook does not underline in blue what can be
+   followed — it writes it in ink. */
+function Names({
+  names,
+  separator = ", ",
   onOpenPerson,
 }: {
-  noms: string[];
-  sépare?: string;
-  onOpenPerson?: (nom: string) => void;
+  names: string[];
+  separator?: string;
+  onOpenPerson?: (name: string) => void;
 }) {
-  if (!noms.length) return VIDE;
+  if (!names.length) return EMPTY;
   return (
     <>
-      {noms.map((nom, i) => (
-        <span key={`${nom}-${i}`}>
-          {i > 0 && sépare}
+      {names.map((name, i) => (
+        <span key={`${name}-${i}`}>
+          {i > 0 && separator}
           {onOpenPerson ? (
             <button
-              onClick={() => onOpenPerson(nom)}
-              title={`Ce que j'ai de ${nom}`}
+              onClick={() => onOpenPerson(name)}
+              title={`Ce que j'ai de ${name}`}
               style={{
                 all: "unset",
                 ...tap,
@@ -119,10 +119,10 @@ function Noms({
                 e.currentTarget.style.color = "";
               }}
             >
-              {nom}
+              {name}
             </button>
           ) : (
-            nom
+            name
           )}
         </span>
       ))}
@@ -137,13 +137,13 @@ export function TmdbFacts({
 }: {
   film: Film;
   onUpdate: (f: Film) => void;
-  /** Absent : les noms restent du texte. La fiche ne sait pas naviguer. */
-  onOpenPerson?: (nom: string) => void;
+  /** Absent: the names stay text. The card does not know how to navigate. */
+  onOpenPerson?: (name: string) => void;
 }) {
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const rafraîchir = async () => {
+  const refresh = async () => {
     const apiKey = getTmdbKey();
     if (!apiKey) {
       setMsg("Aucune clé TMDB — à régler au pied du rail d'onglets.");
@@ -152,9 +152,9 @@ export function TmdbFacts({
     setBusy(true);
     setMsg("interrogation…");
     try {
-      /* L'identifiant quand on l'a : il évite une recherche, et surtout
-         les faux positifs de `searchMovie`, qui prend le premier
-         résultat sans comparer les titres. */
+      /* The identifier when we have it: it avoids a search, and above all
+         the false positives of `searchMovie`, which takes the first result
+         without comparing titles. */
       let id = film.tmdbId;
       if (!id) {
         const hit = await searchMovie({ title: film.title, year: film.year, apiKey });
@@ -177,17 +177,17 @@ export function TmdbFacts({
         changes.crew = info.crew;
       if (info.genres?.length && !(film.genres || []).length) changes.genres = info.genres;
       if (info.director && !film.director) changes.director = info.director;
-      /* Les mots-clés s'écrivent même vides : c'est la liste elle-même,
-         fût-elle de longueur zéro, qui dit « on a demandé ». Voir
-         `types` et `domain/importing`. */
+      /* The keywords are written even when empty: it is the list itself,
+         even of length zero, that says "we asked". See `types` and
+         `domain/importing`. */
       if (info.keywords && film.keywords == null) changes.keywords = info.keywords;
       if (!film.tmdbId) changes.tmdbId = id;
 
       const n = Object.keys(changes).length;
       if (n) onUpdate({ ...film, ...changes });
-      /* Distinguer « rien n'a changé » de « TMDB n'a rien » : le premier
-         veut dire que la fiche était déjà à jour, le second qu'il n'y a
-         rien à espérer d'un second clic. */
+      /* Telling "nothing changed" from "TMDB has nothing": the first
+         means the card was already up to date, the second that there is
+         nothing to hope for from a second click. */
       setMsg(
         n ? `${n} champ(s) complété(s).` : "TMDB ne donne rien de plus que ce qui est déjà là."
       );
@@ -198,7 +198,7 @@ export function TmdbFacts({
     }
   };
 
-  const pays = (film.countries || []).map(nomPays).join(", ");
+  const countries = (film.countries || []).map(countryName).join(", ");
   const crew = film.crew || {};
   const cast = film.cast || [];
 
@@ -218,7 +218,7 @@ export function TmdbFacts({
       >
         RELEVÉ TMDB
         <button
-          onClick={rafraîchir}
+          onClick={refresh}
           disabled={busy}
           title="redemander cette fiche à TMDB"
           style={{
@@ -239,28 +239,27 @@ export function TmdbFacts({
         </button>
       </div>
 
-      <Fait nom="DURÉE">{film.runtime != null ? `${film.runtime} min` : VIDE}</Fait>
-      <Fait nom="PAYS">{pays || VIDE}</Fait>
-      <Fait nom="LANGUE">{film.language ? nomLangue(film.language) : VIDE}</Fait>
-      <Fait nom="NOTE TMDB">
-        {film.tmdbRating != null ? `${film.tmdbRating.toFixed(1)} / 10` : VIDE}
-      </Fait>
-      {MÉTIERS.map(([key, nom]) => (
-        <Fait key={key} nom={nom}>
-          <Noms noms={crew[key] || []} onOpenPerson={onOpenPerson} />
-        </Fait>
+      <Done name="DURÉE">{film.runtime != null ? `${film.runtime} min` : EMPTY}</Done>
+      <Done name="PAYS">{countries || EMPTY}</Done>
+      <Done name="LANGUE">{film.language ? languageName(film.language) : EMPTY}</Done>
+      <Done name="NOTE TMDB">
+        {film.tmdbRating != null ? `${film.tmdbRating.toFixed(1)} / 10` : EMPTY}
+      </Done>
+      {TRADES.map(([key, name]) => (
+        <Done key={key} name={name}>
+          <Names names={crew[key] || []} onOpenPerson={onOpenPerson} />
+        </Done>
       ))}
-      <Fait nom="CASTING">
-        <Noms noms={cast} sépare=" · " onOpenPerson={onOpenPerson} />
-      </Fait>
-      {/* LES MOTS-CLÉS, MONTRÉS ET NON CACHÉS. Ils nourrissent le
-          sillage : quand celui-ci ne rapproche que par les noms, c'est
-          ici qu'on voit pourquoi — la ligne est vide, et le bouton
-          « rafraîchir » juste au-dessus va les chercher. Un tiret dit
-          « TMDB ne nous l'a pas donné » ; une ligne absente ne dirait
-          rien du tout. */}
-      <Fait nom="MOTS-CLÉS">{film.keywords?.length ? film.keywords.join(" · ") : VIDE}</Fait>
-      <Fait nom="ID TMDB">{film.tmdbId ?? VIDE}</Fait>
+      <Done name="CASTING">
+        <Names names={cast} separator=" · " onOpenPerson={onOpenPerson} />
+      </Done>
+      {/* THE KEYWORDS, SHOWN AND NOT HIDDEN. They feed the wake: when the
+          wake only brings things together by name, this is where one sees
+          why — the line is empty, and the "refresh" button just above goes
+          and fetches them. A dash says "TMDB did not give it to us"; an
+          absent line would say nothing at all. */}
+      <Done name="MOTS-CLÉS">{film.keywords?.length ? film.keywords.join(" · ") : EMPTY}</Done>
+      <Done name="ID TMDB">{film.tmdbId ?? EMPTY}</Done>
 
       {msg && (
         <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded, marginTop: 6 }}>

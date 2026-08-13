@@ -1,51 +1,55 @@
 /* ============================================================
-   LA PALETTE — les teintes qu'un objet rangé peut porter
+   THE PALETTE — the tints a filed object can carry
    ============================================================
 
-   ON STOCKE LA CLÉ ET JAMAIS L'HEXADÉCIMAL. C'est la règle de tout ce
-   fichier : retoucher une teinte ici repeint d'un coup toutes les
-   catégories et tous les bibelots déjà créés, au lieu de les figer à la
-   couleur du jour où on les a faits.
+   WE STORE THE KEY AND NEVER THE HEX. That is the rule of this whole
+   file: retouching a tint here repaints every category and every trinket
+   already made in one go, instead of freezing them at the colour of the
+   day they were made.
 
-   UNE SEULE LISTE. Il y en avait deux, tenues à la main : les clés dans
-   `shelf-views`, les couleurs dans `constants` — et une clé présente
-   dans l'une mais pas dans l'autre retombait silencieusement sur le
-   bordeaux. Les clés se DÉDUISENT maintenant des couleurs, et il n'y a
-   plus rien à synchroniser.
+   THE KEYS THEMSELVES STAY FRENCH. They are what a decor carries on
+   disk; translating them would repaint every object already filed with
+   the fallback burgundy.
 
-   Pourquoi ici et pas dans `constants` : `shelf-views` s'interdit React,
-   et `constants` est un fichier à JSX. Le seul endroit d'où les deux
-   peuvent lire est un module qui ne dépend d'aucun des deux.
+   ONE LIST ONLY. There used to be two, kept by hand: the keys in
+   `shelf-views`, the colours in `constants` — and a key present in one
+   but not the other fell back silently on burgundy. The keys are now
+   DEDUCED from the colours, and there is nothing left to keep in step.
 
-   L'ORDRE DES HUIT PREMIÈRES NE BOUGE PAS. `CAT_KEYS[0]` est la couleur
-   d'une catégorie neuve, et l'étagère par cinéaste distribue ses cartons
-   en parcourant cette liste : la réordonner rebattrait les couleurs de
-   toutes les vues qu'on referait. Les teintes ajoutées viennent donc
-   après, quoi qu'il arrive. Le regroupement par famille, lui, ne sert
-   qu'à l'affichage — voir `CAT_FAMILIES`. */
+   Why here and not in `constants`: `shelf-views` forbids itself React,
+   and `constants` is a file with JSX. The only place both can read from
+   is a module that depends on neither.
 
-/* CE NUANCIER NE SUIT PAS LA PEAU DU SITE, ET C'EST DÉLIBÉRÉ.
+   THE ORDER OF THE FIRST EIGHT DOES NOT MOVE. `CAT_KEYS[0]` is a new
+   category's colour, and the shelf by filmmaker hands out its cardstock
+   by walking this list: reordering it would reshuffle the colours of
+   every view we rebuilt. Tints added therefore come after, whatever
+   happens. The grouping by family only serves display — see
+   `CAT_FAMILIES`. */
 
-   Les huit premières teintes reprenaient les jetons de `tokens`, du
-   temps où ceux-ci étaient des hexadécimaux. Ils sont devenus des
-   renvois à des variables CSS, que la peau du jour réécrit — et une
-   couleur en renvoi ne peut PAS servir ici. Deux raisons, chacune
-   suffisante :
+/* THIS SWATCH BOOK DOES NOT FOLLOW THE SITE'S SKIN, AND THAT IS
+   DELIBERATE.
 
-   1. Ces teintes entrent dans des adresses-données SVG (les papiers
-      peints de `surfaces`, teintés par `catInk`). Un `var()` écrit dans
-      un document SVG embarqué ne résout rien : il n'a pas la racine du
-      document pour parent. Le motif serait simplement invisible.
+   The first eight tints used to take up `tokens`' values, back when
+   those were hex codes. They have become references to CSS variables,
+   which the skin of the day rewrites — and a colour held as a reference
+   CANNOT serve here. Two reasons, each sufficient:
 
-   2. On stocke la CLÉ. Un carton peint en `pine` doit rester le même
-      vert d'une peau à l'autre — c'est une décision de l'utilisateur sur
-      SON rangement, pas un élément de l'habillage du site. Une peau qui
-      repeindrait les cartons déplacerait ce qui ne lui appartient pas.
+   1. These tints go into SVG data URIs (the wallpapers in `surfaces`,
+      tinted by `catInk`). A `var()` written inside an embedded SVG
+      document resolves to nothing: it does not have the document's root
+      for a parent. The pattern would simply be invisible.
 
-   Les hexadécimaux sont donc écrits ici, en clair. Les huit premiers
-   sont ceux que `tokens` portait avant les peaux, au caractère près. */
+   2. We store the KEY. A cardstock painted `pine` must stay the same
+      green from one skin to the next — that is the user's decision about
+      THEIR filing, not a part of the site's dress. A skin that repainted
+      the cardstock would move what does not belong to it.
+
+   So the hex codes are written here, in plain sight. The first eight are
+   the ones `tokens` carried before the skins, character for
+   character. */
 export const CAT_COLORS = {
-  /* Les huit d'origine, à l'hexadécimal et au nom près. */
+  /* The original eight, hex code and name unchanged. */
   burgundy: "#8C3A34",
   ochre: "#B9862E",
   pine: "#3E5B4B",
@@ -55,28 +59,28 @@ export const CAT_COLORS = {
   moss: "#6E7A3A",
   ink: "#2B2620",
 
-  // chaudes
+  // warm
   brique: "#A24B3C",
   rouille: "#9C5A2A",
   corail: "#D07A5E",
   safran: "#D3A44B",
   prune: "#6E3A4E",
 
-  // froides
+  // cool
   ardoise: "#44586B",
   indigo: "#3C4372",
   canard: "#2F6068",
   turquoise: "#4E8C8A",
   lavande: "#7A7396",
 
-  // naturelles
+  // natural
   olive: "#7C7A34",
   sapin: "#2F4A3C",
   terre: "#7A5B3A",
   sable: "#C0A468",
   fougere: "#5A8250",
 
-  // neutres
+  // neutral
   encre: "#4A443C",
   taupe: "#8A7F6E",
   gris: "#6E7276",
@@ -89,13 +93,13 @@ export const CAT_KEYS = Object.keys(CAT_COLORS) as CatKey[];
 
 export const catInk = (key: string): string => CAT_COLORS[key as CatKey] || CAT_COLORS.burgundy;
 
-/* Ce que le sélecteur montre. Une grille de vingt-quatre pastilles sans
-   ordre est un nuancier qu'on parcourt du regard sans rien y trouver ;
-   par familles, on cherche « quelque chose de chaud » et on l'a.
+/* What the picker shows. A grid of twenty-four pills with no order is a
+   swatch book you scan without finding anything; by families, you look
+   for "something warm" and you have it.
 
-   C'est une VUE sur `CAT_COLORS`, pas une seconde liste : une clé
-   oubliée ici resterait parfaitement valide, elle ne serait simplement
-   pas offerte. Le test s'assure qu'aucune ne le soit. */
+   It is a VIEW on `CAT_COLORS`, not a second list: a key forgotten here
+   would stay perfectly valid, it would simply not be offered. The test
+   makes sure none is. */
 export const CAT_FAMILIES: { label: string; keys: CatKey[] }[] = [
   { label: "Chaudes", keys: ["burgundy", "vermillion", "brique", "rouille", "corail", "prune"] },
   { label: "Dorées", keys: ["ochre", "safran", "sable", "terre"] },

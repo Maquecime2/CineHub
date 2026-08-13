@@ -8,7 +8,7 @@ import { underlineInput, tap } from "../../theme/styles";
 import { Label, Tally, InkStars } from "../../components/ui";
 import { StampCorner } from "../../components/atmosphere";
 import { store } from "../../services/storage";
-import { cleEcrite, setTmdbKey, useTmdbKey } from "../../services/tmdbKey";
+import { writtenKey, setTmdbKey, useTmdbKey } from "../../services/tmdbKey";
 import { parseLetterboxdCsv, diffImport, filmKey } from "../../domain/importing";
 import {
   fetchLetterboxdFeed,
@@ -31,10 +31,10 @@ import type {
   Note,
   ShelfViews,
 } from "../../types";
-import type { Fil } from "../../domain/fils";
-import type { VocabulaireStocké as Vocabulaire } from "../../domain/motifs";
+import type { Thread } from "../../domain/threads";
+import type { StoredVocabulary as Vocabulary } from "../../domain/motifs";
 
-/** Les deux natures d'import proposées sous le relevé du fichier. */
+/** The two kinds of import offered under the file's reading. */
 const IMPORT_STATUSES: { k: FilmStatus; l: string }[] = [
   { k: "watched", l: "des films vus" },
   { k: "watchlist", l: "à voir" },
@@ -46,15 +46,15 @@ interface ImportViewProps {
   notes: Note[];
   dividers: Divider[];
   views: ShelfViews | null;
-  fils: Fil[];
-  motifs: Vocabulaire;
+  fils: Thread[];
+  motifs: Vocabulary;
   onRestore: (data: {
     films: Film[];
     notes: Note[];
     dividers: Divider[];
     views: ShelfViews | null;
-    fils: Fil[];
-    motifs: Vocabulaire;
+    fils: Thread[];
+    motifs: Vocabulary;
   }) => void;
 }
 
@@ -71,56 +71,56 @@ export function ImportView({
   const [rows, setRows] = useState<ImportRow[]>([]); // lignes lues, éventuellement enrichies
   const [stats, setStats] = useState<ImportStats | null>(null); // ce que le fichier contenait
   const [importStatus, setImportStatus] = useState<FilmStatus>("watched"); // vus / à voir
-  /* Décoché par défaut, et il faut que ça le reste : compléter ne perd
-     jamais rien, remplacer peut effacer des séances saisies à la main. */
+  /* Unticked by default, and it must stay that way: completing never
+     loses anything, replacing may erase screenings entered by hand. */
   const [autorite, setAutorite] = useState(false);
   const [fileName, setFileName] = useState("");
   const [error, setError] = useState("");
   const [done, setDone] = useState<{ created: number; updated: number; unchanged: number } | null>(
     null
-  ); // bilan après écriture
+  ); // report après écriture
 
-  /* Le champ d'ici garde son brouillon local — on tape une clé avant de
-     la valider — mais il n'est plus le SEUL endroit où elle se pose : le
-     tiroir au pied du rail écrit dans le même service, et poser la clé
-     là-bas doit se voir ici. */
-  /* DEUX CHOSES QUI SE RESSEMBLENT ET QU'IL NE FAUT PAS CONFONDRE.
+  /* The field here keeps its local draft — one types a key before
+     validating it — but it is no longer the ONLY place where it is laid:
+     the drawer at the foot of the rail writes to the same service, and
+     laying the key over there must show here. */
+  /* TWO THINGS THAT LOOK ALIKE AND MUST NOT BE CONFUSED.
 
-     `apiKey` est le contenu du CHAMP : ce qu'on est en train de taper,
-     et ce que « tester la clé » éprouve. Il doit donc rester la clé
-     écrite, et rien d'autre — on ne teste pas un jeton qu'on n'a pas
-     saisi.
+     `apiKey` is the content of the FIELD: what one is typing, and what
+     "test the key" tries out. So it must remain the written key, and
+     nothing else — one does not test a token one has not entered.
 
-     `deQuoi` est ce avec QUOI l'on appellera TMDB : la clé qu'on vient
-     de taper, sinon celle qui était déjà posée, sinon le relais du
-     serveur quand un compte est ouvert. C'est LUI qui commande les
-     boutons.
+     `deQuoi` is what one will call TMDB WITH: the key one has just
+     typed, otherwise the one already laid, otherwise the server's relay
+     when an account is open. IT is what commands the buttons.
 
-     Les avoir confondus laissait « il faut d'abord saisir une clé »
-     sous le nez de quelqu'un de connecté, qui n'en a précisément plus
-     besoin. */
-  const [apiKey, setApiKey] = useState(cleEcrite);
-  const posé = useTmdbKey();
-  const deQuoi = apiKey.trim() || posé;
-  const [useTmdb, setUseTmdb] = useState(() => !!deQuoi);
+     Confusing them left "you must first enter a key" under the nose of
+     somebody logged in, who precisely no longer needs one. */
+  const [apiKey, setApiKey] = useState(writtenKey);
+  const placedKey = useTmdbKey();
+  const wherewithal = apiKey.trim() || placedKey;
+  const [useTmdb, setUseTmdb] = useState(() => !!wherewithal);
   const [keyState, setKeyState] = useState("");
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null); // { done, total }
   const [tmdbReport, setTmdbReport] = useState<{ resolved: number; failed: number } | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
-  /* Le flux Letterboxd. Le pseudo se retient d'une fois sur l'autre — on
-     ne relève pas le flux d'un autre par accident. Le relais, lui, reste
-     replié : personne ne devrait avoir à le regarder tant qu'il marche. */
+  /* The Letterboxd feed. The username is remembered from one time to
+     the next — one does not read somebody else's feed by accident. The
+     relay stays folded away: nobody should have to look at it as long as
+     it works. */
   const [lbUser, setLbUser] = useState(() => store.get(USER_KEY, ""));
   const [relay, setRelay] = useState(() => store.get(RELAY_KEY, DEFAULT_RELAY));
   const [showRelay, setShowRelay] = useState(false);
   const [feeding, setFeeding] = useState(false);
-  /* Une watchlist se lit en plusieurs pages : le bouton dit laquelle,
-     sinon un profil de six cents films paraît figé une minute durant. */
+  /* A watchlist is read over several pages: the button says which one,
+     otherwise a profile of six hundred films looks frozen for a whole
+     minute. */
   const [pages, setPages] = useState<{ done: number; total: number } | null>(null);
-  /* Les fiches « à voir » venues de Letterboxd que la watchlist en ligne
-     ne porte plus. On les MONTRE sans y toucher : la watchlist relevée
-     dit ce qu'elle contient aujourd'hui, pas ce qu'il faut jeter. */
+  /* The "à voir" cards that came from Letterboxd and that the online
+     watchlist no longer carries. We SHOW them without touching them: the
+     watchlist read says what it contains today, not what should be
+     thrown away. */
   const [dropped, setDropped] = useState<Film[]>([]);
 
   const reset = () => {
@@ -130,7 +130,7 @@ export function ImportView({
     setError("");
     setTmdbReport(null);
     setProgress(null);
-    // un nouveau fichier ne fait pas autorité parce que le précédent l'a fait
+    // a new file is not authoritative because the previous one was
     setAutorite(false);
   };
 
@@ -150,9 +150,10 @@ export function ImportView({
     }
   };
 
-  /* Relever le flux revient exactement au même que déposer un fichier :
-     on remplit `rows` et `stats`, et tout l'aval — l'aperçu, le passage
-     TMDB, le diff, la validation — ne sait pas d'où ça vient. */
+  /* Reading the feed comes to exactly the same as dropping a file: we
+     fill `rows` and `stats`, and everything downstream — the preview,
+     the TMDB pass, the diff, the validation — does not know where it
+     came from. */
   const runFeed = async () => {
     reset();
     setDropped([]);
@@ -173,10 +174,10 @@ export function ImportView({
     setFeeding(false);
   };
 
-  /* Les envies qu'on a ici et que Letterboxd n'a plus. On ne regarde que
-     les fiches VENUES de Letterboxd : un film rangé depuis le bureau des
-     découvertes n'a jamais été sur ce compte, et l'annoncer comme retiré
-     serait un contresens. */
+  /* The wishes one has here and that Letterboxd no longer has. We look
+     only at the cards that CAME from Letterboxd: a film filed from the
+     discoveries desk has never been on that account, and announcing it
+     as removed would be a misreading. */
   const absentFrom = (parsed: ImportRow[]): Film[] => {
     const keys = new Set(parsed.map(filmKey));
     const ids = new Set(parsed.filter((r) => r.tmdbId).map((r) => String(r.tmdbId)));
@@ -189,9 +190,10 @@ export function ImportView({
     );
   };
 
-  /* La watchlist n'a pas de flux : elle se lit dans les pages publiques
-     du profil. Le relevé ressemble en tout au précédent — c'est voulu :
-     l'aval ne doit toujours pas savoir d'où viennent les lignes. */
+  /* The watchlist has no feed: it is read from the profile's public
+     pages. The reading looks in every respect like the previous one —
+     that is intended: downstream must still not know where the rows come
+     from. */
   const runWatchlist = async () => {
     reset();
     setDropped([]);
@@ -223,13 +225,13 @@ export function ImportView({
     setKeyState(r.ok ? "clé valide" : "clé refusée");
   };
 
-  // Le réalisateur n'est pas dans le CSV : on va le chercher avant de comparer,
-  // pour que l'aperçu montre déjà les fiches telles qu'elles seront écrites.
+  // The director is not in the CSV: we go and fetch it before comparing,
+  // so that the preview already shows the cards as they will be written.
   const runTmdb = async () => {
-    const key = deQuoi;
+    const key = wherewithal;
     if (!key) return;
-    /* On ne retient que ce qui a été TAPÉ : le jeton du relais n'est pas
-       une clé et n'a rien à faire sur le disque. */
+    /* We only keep what has been TYPED: the relay's token is not a key
+       and has no business on the disk. */
     if (apiKey.trim()) setTmdbKey(apiKey.trim());
     setProgress({ done: 0, total: rows.length });
     const res = await enrichRows(rows, key, {
@@ -240,7 +242,7 @@ export function ImportView({
     setProgress(null);
   };
 
-  // Rien n'est écrit tant que ce diff n'a pas été validé.
+  // Nothing is written until this diff has been validated.
   const diff = useMemo(
     () =>
       rows.length
@@ -249,9 +251,9 @@ export function ImportView({
     [films, rows, importStatus, autorite]
   );
 
-  /* Le choix « ce fichier fait autorité » n'a de sens que si le fichier
-     porte des séances : seul diary.csv et le flux en ont. */
-  const porteDesSeances = rows.some((r) => r.watches?.length);
+  /* The "this file is authoritative" choice only makes sense if the
+     file carries screenings: only diary.csv and the feed have any. */
+  const hasScreenings = rows.some((r) => r.watches?.length);
 
   const confirm = () => {
     if (!diff) return;
@@ -292,8 +294,8 @@ export function ImportView({
         un fichier à la fois, dans l'ordre indiqué ci-dessous
       </div>
 
-      {/* L'export Letterboxd est un zip de plusieurs CSV : chacun ne contient
-          qu'une partie de l'histoire, d'où l'ordre conseillé. */}
+      {/* The Letterboxd export is a zip of several CSVs: each holds only
+          part of the story, hence the recommended order. */}
       <div
         style={{
           border: `1px solid ${C.line}`,
@@ -379,9 +381,9 @@ export function ImportView({
         </div>
       </div>
 
-      {/* LE FLUX — pour la mise à jour, quand le zip est pour l'amorçage.
-          Il est placé APRÈS les fichiers et non avant : c'est le CSV qui
-          bâtit une vidéothèque, le flux ne fait que la tenir à jour. */}
+      {/* THE FEED — for updating, where the zip is for priming. It is
+          placed AFTER the files and not before: it is the CSV that
+          builds a film library, the feed merely keeps it up to date. */}
       <div
         data-tour="import-feed"
         style={{
@@ -404,7 +406,7 @@ export function ImportView({
         </div>
         <div style={{ fontFamily: F.body, fontSize: 13, color: C.inkFaded, marginBottom: 12 }}>
           Sans fichier, directement depuis votre profil public. <strong>Séances</strong> ne rend que
-          vos cinquante dernières : c'est de quoi tenir la collection à jour, pas de quoi la bâtir.{" "}
+          vos cinquante dernières : c'est de what tenir la collection à day, step de what la bâtir.{" "}
           <strong>Watchlist</strong> la relève entière, page après page.
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
@@ -420,9 +422,10 @@ export function ImportView({
               }}
             />
           </div>
-          {/* Deux relevés, un seul pseudo : les séances viennent du flux,
-              la watchlist des pages du profil — mais c'est le même compte,
-              et ce serait le redemander pour rien. */}
+          {/* Two readings, a single username: the screenings come from
+              the feed, the watchlist from the profile's pages — but it
+              is the same account, and asking again would be for
+              nothing. */}
           {(
             [
               ["SÉANCES", runFeed, feeding ? "…" : "SÉANCES"],
@@ -453,10 +456,11 @@ export function ImportView({
           ))}
         </div>
 
-        {/* Le relais, replié. Letterboxd n'autorise pas la lecture de son
-            flux depuis un autre site : il faut un intermédiaire, et celui
-            par défaut est un service public. Qui préfère le sien le colle
-            ici — c'est expliqué dans docs/relais-letterboxd.md. */}
+        {/* The relay, folded away. Letterboxd does not allow its feed
+            to be read from another site: an intermediary is needed, and
+            the default one is a public service. Whoever prefers their
+            own pastes it here — it is explained in
+            docs/relais-letterboxd.md. */}
         <button
           onClick={() => setShowRelay((v) => !v)}
           style={{
@@ -587,7 +591,7 @@ export function ImportView({
         </div>
       )}
 
-      {/* ---- vérification de la lecture du fichier ---- */}
+      {/* ---- checking that the file was read ---- */}
       {stats && (
         <div
           style={{
@@ -652,14 +656,14 @@ export function ImportView({
             </div>
           </div>
 
-          {/* LA RÉPARATION DES JOURNAILS. Longtemps, une fiche déposée par
-              watched.csv récoltait une séance à la date où elle avait été
-              AJOUTÉE, et diary.csv en ajoutait une seconde à la date où le
-              film avait été vu : un « ×2 » sous un film vu une fois. Le
-              premier travers est corrigé à la lecture, mais les fiches déjà
-              écrites gardent leur séance en trop — et compléter ne sait pas
-              défaire. Cette case le peut, une fois. */}
-          {porteDesSeances && importStatus === "watched" && (
+          {/* REPAIRING THE LOGS. For a long time, a card dropped by
+              watched.csv harvested a screening at the date it had been
+              ADDED, and diary.csv added a second one at the date the
+              film had been seen: a "×2" under a film seen once. The
+              first flaw is fixed at reading time, but the cards already
+              written keep their extra screening — and completing does
+              not know how to undo. This box can, once. */}
+          {hasScreenings && importStatus === "watched" && (
             <div style={{ marginTop: 16 }}>
               <label
                 style={{
@@ -701,7 +705,7 @@ export function ImportView({
         </div>
       )}
 
-      {/* ---- réalisateurs via TMDB ---- */}
+      {/* ---- directors via TMDB ---- */}
       {rows.length > 0 && (
         <div
           style={{
@@ -804,13 +808,13 @@ export function ImportView({
           ) : (
             <button
               onClick={runTmdb}
-              disabled={!deQuoi || !useTmdb}
+              disabled={!wherewithal || !useTmdb}
               style={{
                 all: "unset",
                 ...tap,
-                cursor: deQuoi ? "pointer" : "not-allowed",
+                cursor: wherewithal ? "pointer" : "not-allowed",
                 marginTop: 14,
-                background: deQuoi ? C.ochre : C.line,
+                background: wherewithal ? C.ochre : C.line,
                 color: C.card,
                 padding: "9px 16px",
                 fontFamily: F.mono,
@@ -843,7 +847,7 @@ export function ImportView({
         </div>
       )}
 
-      {/* ---- diff avant écriture ---- */}
+      {/* ---- the diff, before writing ---- */}
       {diff && (
         <div style={{ marginTop: 22 }}>
           <Label>Ce qui va être écrit</Label>
@@ -973,7 +977,7 @@ export function ImportView({
                     color: C.inkFaded,
                   }}
                 >
-                  …et {diff.toCreate.length - 60} autres
+                  …et {diff.toCreate.length - 60} others
                 </div>
               )}
             </div>
@@ -1016,11 +1020,12 @@ export function ImportView({
         </div>
       )}
 
-      {/* ---- ce que la watchlist en ligne ne porte plus ----
-          Un constat, et rien d'autre : aucun bouton, aucune écriture. Un
-          film retiré de la watchlist l'a parfois été parce qu'on l'a vu,
-          parfois par lassitude — l'appli n'a pas à trancher, et un mur
-          vidé tout seul serait la pire façon de l'apprendre. */}
+      {/* ---- what the online watchlist no longer carries ----
+          An observation, and nothing else: no button, no writing. A film
+          removed from the watchlist was sometimes removed because it was
+          seen, sometimes out of weariness — the application has no
+          business deciding, and a wall emptying itself would be the
+          worst way of finding out. */}
       {dropped.length > 0 && (
         <div
           style={{
@@ -1050,8 +1055,8 @@ export function ImportView({
               lineHeight: 1.35,
             }}
           >
-            {dropped.length} fiche(s) « à voir » venues de Letterboxd n'y figurent plus. Rien n'est
-            retiré : à vous de les garder ou de les ranger.
+            {dropped.length} card(s) « à voir » venues de Letterboxd n'y figurent plus. Nothing
+            n'est removed : à vous de les garder ou de les file.
           </div>
           <div style={{ maxHeight: 180, overflowY: "auto" }}>
             {dropped.map((f) => (
@@ -1073,23 +1078,23 @@ export function ImportView({
       )}
 
       <div style={{ marginTop: 26, fontFamily: F.hand, fontSize: 17, color: C.inkFaded }}>
-        {films.length} film(s) déjà au catalogue — un réimport met à jour les fiches existantes au
-        lieu de les dupliquer.
+        {films.length} film(s) existing au catalogue — un réimport met à day les cards existantes au
+        lieu de les duplicate.
       </div>
 
       <div data-tour="import-complete">
-        <CompletePanel films={films} apiKey={deQuoi} onImport={onImport} />
+        <CompletePanel films={films} apiKey={wherewithal} onImport={onImport} />
       </div>
 
-      {/* Placé APRÈS « compléter » et avant la sauvegarde : c'est
-          « compléter » qui a causé le dégât, et la sauvegarde est le
-          geste à faire avant de réparer. L'ordre raconte la marche à
-          suivre. Le panneau disparaît de lui-même quand il n'a plus
-          rien à proposer. */}
-      {/* Pas d'enveloppe ici : c'est le panneau lui-même qui porte son
-          `data-tour`. Une enveloppe vide garde une largeur, donc reste
-          une cible mesurable, et la visite s'arrêtait sur une bande
-          invisible au lieu de sauter l'étape. */}
+      {/* Placed AFTER "complete" and before the backup: it is
+          "complete" that caused the damage, and the backup is the
+          gesture to make before repairing. The order tells the procedure
+          to follow. The panel disappears by itself when it has nothing
+          left to offer. */}
+      {/* No wrapper here: it is the panel itself that carries its
+          `data-tour`. An empty wrapper keeps a width, hence stays a
+          measurable target, and the tour stopped on an invisible strip
+          instead of skipping the step. */}
       <RepairPanel films={films} onImport={onImport} />
 
       <div data-tour="import-backup">

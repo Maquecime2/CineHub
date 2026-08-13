@@ -1,14 +1,14 @@
 /* ============================================================
-   CONSTELLATION — une carte du ciel tracée à l'encre.
-   Chaque film est une étoile, chaque œuvre liée un astre plus
-   discret. Une œuvre citée par deux films devient un pont : c'est
-   là que les constellations se forment.
+   CONSTELLATION — a sky map drawn in ink.
+   Every film is a star, every linked work a more discreet body. A
+   work cited by two films becomes a bridge: that is where the
+   constellations form.
    ============================================================ */
 import { hash, seededRand } from "./seeded";
-import { forceDe } from "./relations";
-import { membresDuFil } from "./fils";
-import type { Fil } from "./fils";
-import type { Force } from "./relations";
+import { strengthOf } from "./relations";
+import { threadMembers } from "./threads";
+import type { Thread } from "./threads";
+import type { Strength } from "./relations";
 import type {
   Film,
   Kinship,
@@ -20,47 +20,47 @@ import type {
   SkyNode,
 } from "../types";
 
-// clé de fusion : deux fois « Nighthawks / Hopper » = un seul astre
+// merge key: twice "Nighthawks / Hopper" = a single star
 export const workKey = (w: LinkedWork): string =>
   `${w.type}::${w.title.trim().toLowerCase()}::${(w.creator || "").trim().toLowerCase()}`;
 
-/* Le ciel ne montre QUE ce que vous avez relié à la main.
+/* The sky shows ONLY what you linked by hand.
 
-   La version précédente plaçait chaque film de la collection et chaînait
-   entre eux tous ceux d'un même réalisateur : à quelques centaines de fiches,
-   tout se retrouvait relié à tout et le graphe s'effondrait en une masse
-   illisible. Un graphe qui montre toutes les relations n'en montre aucune.
-   Ici : seuls les films portant au moins un fil rouge entrent dans la carte. */
-/* La relation telle qu'elle est écrite du côté `a`, en allant vers `b`.
-   Les deux moitiés d'un fil portent des relations inverses : sans ce
-   choix, le sens du trait dépendrait de l'ordre de parcours de la
-   collection, et « fait suite à » se retournerait au hasard. */
-const côtéÉcritDe = (films: Film[], aId: string, bId: string) =>
+   The previous version placed every film in the collection and chained
+   together all those by one director: at a few hundred cards, everything
+   ended up linked to everything and the graph collapsed into an
+   unreadable mass. A graph that shows every relation shows none of them.
+   Here: only films carrying at least one red thread get onto the map. */
+/* The relation as it is written on `a`'s side, going towards `b`. A
+   thread's two halves carry inverse relations: without this choice, the
+   line's direction would depend on the order the collection is walked
+   in, and "fait suite à" would flip at random. */
+const sideWrittenFrom = (films: Film[], aId: string, bId: string) =>
   (films.find((f) => f.id === aId)?.linkedWorks || []).find((w) => w.filmId === bId);
 
-/* CE QUI ENTRE AU CIEL EN PLUS DES FILS ROUGES.
+/* WHAT GETS INTO THE SKY BESIDES THE RED THREADS.
 
-   La règle de `buildSky` — seuls les films reliés à la main — reste la
-   garde qui empêche le graphe de s'effondrer. Mais elle laissait deux
-   choses dehors, et ce sont justement les deux qu'on venait chercher :
+   `buildSky`'s rule — only films linked by hand — remains the guard that
+   keeps the graph from collapsing. But it left two things outside, and
+   they are precisely the two we came looking for:
 
-   — les FILS, qui sont un rassemblement nommé (« les films où le héros
-     meurt »). Un fil relie ses membres par construction : ils entrent
-     donc au ciel même sans qu'aucun fil rouge n'ait été tendu, sans quoi
-     poser la question ne montrerait rien ;
-   — les ÉPINGLES, un film qu'on est allé chercher à la main dans la
-     recherche. Un astre isolé, oui — mais posé exprès, par un geste, et
-     qui repart au premier coup de balai. */
+   — THREADS, which are a named gathering ("the films where the hero
+     dies"). A thread links its members by construction: so they get into
+     the sky even with no red thread strung, otherwise asking the question
+     would show nothing;
+   — PINS, a film we went and fetched by hand from the search. An isolated
+     star, yes — but set there on purpose, by a gesture, and gone at the
+     first sweep. */
 export interface SkyExtras {
-  fils?: Fil[];
-  /** Identifiants de films à faire entrer au ciel quoi qu'il arrive. */
+  threads?: Thread[];
+  /** Film ids to bring into the sky whatever happens. */
   pinned?: string[];
 }
 
 export function buildSky(
   films: Film[],
   { tags = [], genres = [] }: SkyFilters = {},
-  { fils = [], pinned = [] }: SkyExtras = {}
+  { threads = [], pinned = [] }: SkyExtras = {}
 ): { nodes: SkyNode[]; links: SkyLink[] } {
   const keeps = (f: Film) =>
     (tags.length === 0 || tags.every((t) => (f.themes || []).includes(t))) &&
@@ -69,20 +69,20 @@ export function buildSky(
   const pool = films.filter(keeps);
   const poolIds = new Set(pool.map((f) => f.id));
 
-  // un lien vers une fiche du mur devient une arête entre deux films ;
-  // une simple mention reste un astre distinct
+  // a link to a card on the wall becomes an edge between two films;
+  // a plain mention stays a separate star
   const worksOf = (f: Film) => (f.linkedWorks || []).filter((w) => !w.filmId);
   const peersOf = (f: Film) =>
     (f.linkedWorks || []).filter((w) => w.filmId && poolIds.has(w.filmId));
-  /* Les membres des fils et les épinglés entrent avec les reliés. On les
-     réunit AVANT de construire les nœuds : un film peut être les deux à
-     la fois, et le dédoublerait sinon. */
-  const parLesFils = new Set<string>();
-  for (const fil of fils) for (const id of membresDuFil(fil, pool)) parLesFils.add(id);
-  const épinglés = new Set(pinned.filter((id) => poolIds.has(id)));
+  /* Thread members and pinned films come in along with the linked ones.
+     We gather them BEFORE building the nodes: a film can be both at once,
+     and would otherwise be duplicated. */
+  const viaThreads = new Set<string>();
+  for (const thread of threads) for (const id of threadMembers(thread, pool)) viaThreads.add(id);
+  const pinnedIds = new Set(pinned.filter((id) => poolIds.has(id)));
 
   const connected = pool.filter(
-    (f) => worksOf(f).length + peersOf(f).length > 0 || parLesFils.has(f.id) || épinglés.has(f.id)
+    (f) => worksOf(f).length + peersOf(f).length > 0 || viaThreads.has(f.id) || pinnedIds.has(f.id)
   );
 
   const nodes: SkyNode[] = connected.map((f) => ({
@@ -93,7 +93,7 @@ export function buildSky(
     rating: f.rating || 0,
     filmId: f.id,
     degree: 0,
-    épinglé: épinglés.has(f.id) && worksOf(f).length + peersOf(f).length === 0,
+    pinned: pinnedIds.has(f.id) && worksOf(f).length + peersOf(f).length === 0,
   }));
   const nodeIds = new Set(nodes.map((n) => n.id));
   const links: SkyLink[] = [];
@@ -117,57 +117,57 @@ export function buildSky(
         nodes.push(node);
       }
       node.refs = (node.refs || 0) + 1;
-      /* La note voyage aussi sur un renvoi vers une œuvre : c'est là
-         qu'on a écrit POURQUOI le film et le livre se tiennent, et un
-         astre fusionné (même œuvre citée deux fois) ne peut pas la
-         porter — elle appartient au trait, pas à la cible. */
+      /* The note travels on a reference to a work too: that is where we
+         wrote WHY the film and the book hold together, and a merged star
+         (the same work cited twice) cannot carry it — it belongs to the
+         line, not to the target. */
       links.push({ a: `f:${f.id}`, b: `w:${k}`, kind: "cite", note: (w.note || "").trim() });
     });
-    // le lien est réciproque : une seule arête pour les deux moitiés
+    // the link is reciprocal: one edge only for both halves
     peersOf(f).forEach((w) => {
       if (!nodeIds.has(`f:${w.filmId}`)) return;
       const [a, b] = [f.id, w.filmId as string].sort();
       if (!links.some((l) => l.a === `f:${a}` && l.b === `f:${b}`)) {
-        /* L'arête est unique quand le fil, lui, est écrit des deux côtés
-           en relations inverses. On garde donc celle du bout `a`, pour que
-           « fait suite à » se lise toujours dans le sens du trait. */
-        const côtéA = a === f.id ? w : côtéÉcritDe(films, a as string, b as string);
+        /* The edge is unique where the thread is written on both sides in
+           inverse relations. So we keep the one from end `a`, so that
+           "fait suite à" always reads in the line's direction. */
+        const sideA = a === f.id ? w : sideWrittenFrom(films, a as string, b as string);
         links.push({
           a: `f:${a}`,
           b: `f:${b}`,
           kind: "peer",
-          relation: côtéA?.relation,
-          /* La note est ce qu'on a écrit soi-même sous le lien : c'est
-             elle qu'on veut lire au survol, avant le nom de la relation
-             qui, lui, se devine déjà au sens du trait. */
-          note: (côtéA?.note || w.note || "").trim(),
-          force: forceDe(w.force),
+          relation: sideA?.relation,
+          /* The note is what we wrote ourselves under the link: it is
+             what we want to read on hover, before the relation's name,
+             which is already guessable from the line's direction. */
+          note: (sideA?.note || w.note || "").trim(),
+          force: strengthOf(w.force),
         });
       }
     });
   });
 
-  /* Un fil est un astre à part entière plutôt qu'une couleur posée sur
-     ses membres : il porte un nom, on peut le prendre pour foyer, et ses
-     membres se rassemblent visiblement autour de lui. Un fil vide n'entre
-     pas — un nom seul au milieu du ciel ne dit rien. */
-  for (const fil of fils) {
-    const membres = membresDuFil(fil, connected);
-    if (membres.length === 0) continue;
-    const id = `t:${fil.id}`;
+  /* A thread is a star in its own right rather than a colour laid over
+     its members: it carries a name, it can be taken as a focus, and its
+     members visibly gather around it. An empty thread does not get in — a
+     name alone in the middle of the sky says nothing. */
+  for (const thread of threads) {
+    const members = threadMembers(thread, connected);
+    if (members.length === 0) continue;
+    const id = `t:${thread.id}`;
     nodes.push({
       id,
-      kind: "fil",
-      label: fil.label,
-      sub: `${membres.length} film${membres.length > 1 ? "s" : ""}`,
-      couleur: fil.couleur,
-      motif: fil.motif ?? null,
+      kind: "thread",
+      label: thread.label,
+      sub: `${members.length} film${members.length > 1 ? "s" : ""}`,
+      color: thread.color,
+      motif: thread.motif ?? null,
       degree: 0,
     });
-    for (const filmId of membres) links.push({ a: id, b: `f:${filmId}`, kind: "fil" });
+    for (const filmId of members) links.push({ a: id, b: `f:${filmId}`, kind: "thread" });
   }
 
-  // le degré sert à doser la taille et à n'étiqueter que les astres qui comptent
+  // degree sets the size and labels only the stars that matter
   const deg = new Map<string, number>();
   links.forEach((l) => {
     deg.set(l.a, (deg.get(l.a) || 0) + 1);
@@ -181,181 +181,184 @@ export function buildSky(
 }
 
 /* ============================================================
-   LES PARENTÉS TROUVÉES DANS LES GÉNÉRIQUES
+   THE KINSHIPS FOUND IN THE CREDITS
    ============================================================
 
-   `buildSky` ne montre que ce qu'on a relié à la main, et cette règle
-   reste intacte : c'est elle qui empêche le ciel de s'effondrer. Mais
-   elle a un coût — une collection neuve donne un onglet vide, et il faut
-   des heures de saisie avant que la carte ait quoi que ce soit à dire.
+   `buildSky` shows only what was linked by hand, and that rule stays
+   intact: it is what keeps the sky from collapsing. But it has a cost — a
+   fresh collection gives an empty tab, and it takes hours of typing
+   before the map has anything at all to say.
 
-   D'où ceci, À CÔTÉ et jamais à la place : des fils tirés du générique,
-   dessinés autrement, éteints par défaut.
+   Hence this, ALONGSIDE and never instead: threads drawn from the
+   credits, rendered differently, switched off by default.
 
-   LE SEUIL EST TOUT LE SUJET. Une personne présente dans deux ou trois
-   films dit quelque chose : un chef opérateur qu'on suit, un acteur
-   qu'on retrouve. Présente dans quinze, elle ne dit plus rien — elle
-   relierait tout à tout et ramènerait exactement la masse illisible que
-   la règle de `buildSky` avait chassée. Au-delà du seuil, la personne est
-   donc IGNORÉE, et non tracée en plus pâle : un fil qui ne veut rien dire
-   ne se rattrape pas à l'opacité. */
+   THE THRESHOLD IS THE WHOLE SUBJECT. A person present in two or three
+   films says something: a cinematographer you follow, an actor you meet
+   again. Present in fifteen, they no longer say anything — they would
+   link everything to everything and bring back exactly the unreadable
+   mass `buildSky`'s rule had driven out. Past the threshold the person is
+   therefore IGNORED, and not drawn paler: a thread that means nothing
+   cannot be rescued by opacity. */
 export interface SuggestOptions {
-  /** En deçà, ce n'est pas une parenté. */
+  /** Below this, it is not a kinship. */
   min?: number;
-  /** Au-delà, la personne est trop commune pour relier quoi que ce soit. */
+  /** Above this, the person is too common to link anything at all. */
   max?: number;
 }
 
-/* TOUT CE QUI PEUT APPARENTER DEUX FICHES, avec sa NATURE.
+/* EVERYTHING THAT CAN MAKE TWO CARDS KIN, with its KIND.
 
-   La version précédente aplatissait tout en une liste de noms, et
-   perdait le métier au passage : la carte pouvait dire « Decaë » mais
-   pas « image · Decaë ». Or c'est le métier qui donne son sens au fil —
-   suivre un chef opérateur et retrouver un acteur ne sont pas la même
-   curiosité.
+   The previous version flattened everything into a list of names, and
+   lost the trade on the way: the map could say "Decaë" but not "image ·
+   Decaë". Yet it is the trade that gives the thread its meaning —
+   following a cinematographer and meeting an actor again are not the same
+   curiosity.
 
-   `thème` est une source NOUVELLE, et la seule qui ne vienne pas d'un
-   générique : ce sont vos propres mots-clés. Elle obéit au même seuil
-   que les personnes — un mot posé sur quinze fiches ne relie rien de
-   plus qu'un acteur omniprésent. */
-/* Les métiers de `Film.crew` traduits en rôles de parenté. La table est
-   exportée avec la fonction : elles vont ensemble, et le Générique a
-   besoin de savoir quels métiers existent pour en faire des tamis. */
+   `thème` is a NEW source, and the only one that does not come from a
+   credit list: those are your own keywords. It obeys the same threshold
+   as people — a word set on fifteen cards links no more than an
+   omnipresent actor does. */
+/* `Film.crew`'s trades translated into kinship roles. The table is
+   exported with the function: they go together, and the Credits view
+   needs to know which trades exist in order to make sieves of them.
+
+   BOTH SIDES STAY FRENCH, for two different reasons. The keys are what is
+   written on disk (`crew: { image, musique, scénario }`); the values are
+   `KinshipRole`, which the Credits view DISPLAYS as it is — "2 films ·
+   réalisation". Translating either would break something visible. */
 export const CREW_ROLES: Record<string, KinshipRole> = {
   image: "image",
   musique: "musique",
   scénario: "scénario",
 };
 
-/* PUBLIQUE, et pour une raison : c'est la seule définition de « à quel
-   titre cette personne apparaît sur ce film ». Le Générique la relit pour
-   dresser son répertoire ; la recopier ferait diverger les deux vues au
-   premier métier qu'on ajouterait à `Film.crew`. Le rôle `thème` en sort
-   aussi — il n'est pas une personne, et c'est à l'appelant de l'écarter
-   s'il ne recense que des gens. */
-export const parentésDe = (f: Film): Kinship[] => {
+/* PUBLIC, and for a reason: this is the only definition of "in what
+   capacity this person appears on this film". The Credits view reads it
+   to draw up its directory; copying it would make the two views drift
+   apart at the first trade added to `Film.crew`. The `thème` role comes
+   out of it too — it is not a person, and it is up to the caller to rule
+   it out if it is only taking a census of people. */
+export const kinshipsOf = (f: Film): Kinship[] => {
   const out: Kinship[] = [];
-  for (const nom of (f.director || "").split(","))
-    if (nom.trim()) out.push({ role: "réalisation", nom: nom.trim() });
-  for (const nom of f.cast || []) if (nom.trim()) out.push({ role: "interprétation", nom });
-  for (const [métier, noms] of Object.entries(f.crew || {})) {
-    const role = CREW_ROLES[métier];
+  for (const name of (f.director || "").split(","))
+    if (name.trim()) out.push({ role: "réalisation", name: name.trim() });
+  for (const name of f.cast || []) if (name.trim()) out.push({ role: "interprétation", name });
+  for (const [trade, names] of Object.entries(f.crew || {})) {
+    const role = CREW_ROLES[trade];
     if (!role) continue;
-    for (const nom of noms) if (nom.trim()) out.push({ role, nom });
+    for (const name of names) if (name.trim()) out.push({ role, name });
   }
-  for (const t of f.themes || []) if (t.trim()) out.push({ role: "thème", nom: t });
+  for (const t of f.themes || []) if (t.trim()) out.push({ role: "thème", name: t });
   return out;
 };
 
-/* La clé d'unicité inclut le RÔLE : un compositeur qui joue aussi dans
-   deux films est deux parentés différentes, et les confondre ferait
-   disparaître l'une des deux. */
-const cléDe = (k: Kinship): string => `${k.role}::${k.nom.trim().toLowerCase()}`;
+/* The uniqueness key includes the ROLE: a composer who also acts in two
+   films is two different kinships, and conflating them would make one of
+   the two disappear. */
+const keyOf = (k: Kinship): string => `${k.role}::${k.name.trim().toLowerCase()}`;
 
 export function suggestLinks(films: Film[], { min = 2, max = 3 }: SuggestOptions = {}): SkyLink[] {
-  const parParenté = new Map<string, Set<string>>();
-  const lisible = new Map<string, Kinship>();
+  const byKinship = new Map<string, Set<string>>();
+  const readable = new Map<string, Kinship>();
 
   for (const f of films) {
-    for (const k of parentésDe(f)) {
-      const clé = cléDe(k);
-      if (clé.endsWith("::")) continue;
-      let lot = parParenté.get(clé);
-      if (!lot) parParenté.set(clé, (lot = new Set()));
-      lot.add(f.id);
-      if (!lisible.has(clé)) lisible.set(clé, { role: k.role, nom: k.nom.trim() });
+    for (const k of kinshipsOf(f)) {
+      const key = keyOf(k);
+      if (key.endsWith("::")) continue;
+      let batch = byKinship.get(key);
+      if (!batch) byKinship.set(key, (batch = new Set()));
+      batch.add(f.id);
+      if (!readable.has(key)) readable.set(key, { role: k.role, name: k.name.trim() });
     }
   }
 
-  /* Une arête par PAIRE, quel qu'en soit le nombre de raisons : deux
-     films qui partagent un chef opérateur ET un compositeur sont reliés
-     une fois, par un fil qui en donne deux. */
-  const arêtes = new Map<string, SkyLink>();
+  /* One edge per PAIR, whatever the number of reasons: two films that
+     share a cinematographer AND a composer are linked once, by a thread
+     that gives two of them. */
+  const edges = new Map<string, SkyLink>();
 
-  for (const [clé, lot] of parParenté) {
-    if (lot.size < min || lot.size > max) continue;
-    const raison = lisible.get(clé) as Kinship;
-    const ids = [...lot].sort();
+  for (const [key, batch] of byKinship) {
+    if (batch.size < min || batch.size > max) continue;
+    const reason = readable.get(key) as Kinship;
+    const ids = [...batch].sort();
     for (let i = 0; i < ids.length; i++)
       for (let j = i + 1; j < ids.length; j++) {
-        const paire = `${ids[i]}|${ids[j]}`;
-        const déjà = arêtes.get(paire);
-        if (déjà) déjà.why?.push(raison);
+        const pair = `${ids[i]}|${ids[j]}`;
+        const already = edges.get(pair);
+        if (already) already.why?.push(reason);
         else
-          arêtes.set(paire, {
+          edges.set(pair, {
             a: `f:${ids[i]}`,
             b: `f:${ids[j]}`,
             kind: "crew",
-            why: [raison],
+            why: [reason],
           });
       }
   }
 
-  return [...arêtes.values()];
+  return [...edges.values()];
 }
 
 /* ============================================================
-   LE VOISINAGE — ce qu'on montre quand on n'affiche pas tout
+   THE NEIGHBOURHOOD — what we show when we do not display everything
    ============================================================
 
-   Le remède au fouillis n'est pas un meilleur placement : c'est de NE
-   PAS TOUT MONTRER. Un graphe de deux cents astres ne se lit à aucune
-   disposition, et le lecteur n'a de toute façon qu'une question à la
-   fois — « qu'est-ce qui tient près de CELUI-CI ».
+   The cure for the clutter is not a better layout: it is NOT SHOWING
+   EVERYTHING. A graph of two hundred stars cannot be read in any
+   arrangement, and the reader only has one question at a time anyway —
+   "what holds close to THIS one".
 
-   On part donc d'un foyer et l'on rend ce qui est à `depth` pas de lui,
-   par un parcours en largeur sur les arêtes déjà construites. Rien à
-   changer dans `buildSky` ni `buildSkyWithCrew` : le sous-graphe se
-   taille APRÈS, ce qui laisse la carte entière disponible pour qui la
-   veut. */
+   So we start from a focus and return what is `depth` steps from it, by a
+   breadth-first walk over the edges already built. Nothing to change in
+   `buildSky` or `buildSkyWithCrew`: the subgraph is cut AFTERWARDS, which
+   leaves the whole map available for anyone who wants it. */
 export function neighbourhood(
   nodes: SkyNode[],
   links: SkyLink[],
   focusId: string,
   depth = 1
 ): { nodes: SkyNode[]; links: SkyLink[] } {
-  const existe = new Set(nodes.map((n) => n.id));
-  if (!existe.has(focusId)) return { nodes: [], links: [] };
+  const exists = new Set(nodes.map((n) => n.id));
+  if (!exists.has(focusId)) return { nodes: [], links: [] };
 
-  const voisins = new Map<string, string[]>();
+  const neighbours = new Map<string, string[]>();
   for (const l of links) {
-    if (!voisins.has(l.a)) voisins.set(l.a, []);
-    if (!voisins.has(l.b)) voisins.set(l.b, []);
-    voisins.get(l.a)?.push(l.b);
-    voisins.get(l.b)?.push(l.a);
+    if (!neighbours.has(l.a)) neighbours.set(l.a, []);
+    if (!neighbours.has(l.b)) neighbours.set(l.b, []);
+    neighbours.get(l.a)?.push(l.b);
+    neighbours.get(l.b)?.push(l.a);
   }
 
-  const gardés = new Set([focusId]);
+  const kept = new Set([focusId]);
   let front = [focusId];
   for (let d = 0; d < depth; d++) {
-    const suivant: string[] = [];
+    const next: string[] = [];
     for (const id of front)
-      for (const v of voisins.get(id) || [])
-        if (!gardés.has(v)) {
-          gardés.add(v);
-          suivant.push(v);
+      for (const v of neighbours.get(id) || [])
+        if (!kept.has(v)) {
+          kept.add(v);
+          next.push(v);
         }
-    front = suivant;
+    front = next;
   }
 
   return {
-    nodes: nodes.filter((n) => gardés.has(n.id)),
-    /* Une arête n'est gardée que si SES DEUX BOUTS le sont : un fil qui
-       part vers un astre qu'on n'affiche pas ne mène nulle part et fait
-       croire à un voisin invisible. */
-    links: links.filter((l) => gardés.has(l.a) && gardés.has(l.b)),
+    nodes: nodes.filter((n) => kept.has(n.id)),
+    /* An edge is only kept if BOTH ITS ENDS are: a thread running out to
+       a star we do not display leads nowhere and suggests an invisible
+       neighbour. */
+    links: links.filter((l) => kept.has(l.a) && kept.has(l.b)),
   };
 }
 
-/* LE CIEL, PARENTÉS COMPRISES.
+/* THE SKY, KINSHIPS INCLUDED.
 
-   Composé plutôt qu'inséré dans `buildSky` : la carte à la main reste
-   exactement ce qu'elle était, et l'ajout se lit comme ce qu'il est —
-   une couche par-dessus, qu'on retire en éteignant un interrupteur.
+   Composed rather than inserted into `buildSky`: the hand-made map stays
+   exactly what it was, and the addition reads as what it is — a layer on
+   top, removed by flicking a switch off.
 
-   Un film que SEULE une parenté relie n'est pas dans les nœuds de la
-   carte de base : on l'y ajoute ici, sans quoi l'arête pointerait dans
-   le vide. */
+   A film that ONLY a kinship links is not among the base map's nodes: we
+   add it here, otherwise the edge would point into the void. */
 export function buildSkyWithCrew(
   films: Film[],
   filters: SkyFilters = {},
@@ -364,31 +367,31 @@ export function buildSkyWithCrew(
 ): { nodes: SkyNode[]; links: SkyLink[] } {
   const base = buildSky(films, filters, extras);
 
-  /* Les mêmes filtres que la carte de base : suggérer par-dessus un
-     ciel restreint aux documentaires ne doit pas ramener le reste. */
+  /* The same filters as the base map: suggesting on top of a sky
+     restricted to documentaries must not bring the rest back. */
   const { tags = [], genres = [] } = filters;
   const pool = films.filter(
     (f) =>
       (tags.length === 0 || tags.every((t) => (f.themes || []).includes(t))) &&
       (genres.length === 0 || genres.some((g) => (f.genres || []).includes(g)))
   );
-  const parId = new Map(pool.map((f) => [f.id, f]));
+  const byId = new Map(pool.map((f) => [f.id, f]));
 
   const nodes = [...base.nodes];
-  const présents = new Set(nodes.map((n) => n.id));
+  const present = new Set(nodes.map((n) => n.id));
   const links = [...base.links];
 
-  for (const lien of suggestLinks(pool, options)) {
-    /* Une paire déjà tendue à la main n'a pas besoin qu'on la redouble :
-       le fil rouge dit déjà tout, et mieux. */
-    if (links.some((l) => l.kind === "peer" && l.a === lien.a && l.b === lien.b)) continue;
-    links.push(lien);
+  for (const link of suggestLinks(pool, options)) {
+    /* A pair already strung by hand does not need doubling: the red
+       thread already says it all, and better. */
+    if (links.some((l) => l.kind === "peer" && l.a === link.a && l.b === link.b)) continue;
+    links.push(link);
 
-    for (const id of [lien.a, lien.b]) {
-      if (présents.has(id)) continue;
-      const f = parId.get(id.slice(2));
+    for (const id of [link.a, link.b]) {
+      if (present.has(id)) continue;
+      const f = byId.get(id.slice(2));
       if (!f) continue;
-      présents.add(id);
+      present.add(id);
       nodes.push({
         id,
         kind: "film",
@@ -401,7 +404,7 @@ export function buildSkyWithCrew(
     }
   }
 
-  // le degré se recompte sur le graphe entier : il dose la taille des astres
+  // degree is recounted over the whole graph: it sets the stars' size
   const deg = new Map<string, number>();
   links.forEach((l) => {
     deg.set(l.a, (deg.get(l.a) || 0) + 1);
@@ -414,7 +417,7 @@ export function buildSkyWithCrew(
   return { nodes, links };
 }
 
-/* relaxation force-dirigée, déterministe : même collection = même ciel */
+/* force-directed relaxation, deterministic: same collection = same sky */
 export function relax(nodes: SkyNode[], links: SkyLink[], W: number, H: number): PlacedNode[] {
   if (nodes.length === 0) return [];
   const P: PlacedNode[] = nodes.map((n) => {
@@ -429,13 +432,13 @@ export function relax(nodes: SkyNode[], links: SkyLink[], W: number, H: number):
   const edges = links
     .map((l) => ({ i: index.get(l.a), j: index.get(l.b), kind: l.kind, force: l.force }))
     .filter(
-      (e): e is { i: number; j: number; kind: SkyLink["kind"]; force: Force | undefined } =>
+      (e): e is { i: number; j: number; kind: SkyLink["kind"]; force: Strength | undefined } =>
         e.i != null && e.j != null
     );
 
   for (let step = 0; step < 320; step++) {
     const cool = 1 - step / 320;
-    // répulsion : deux astres ne se superposent jamais
+    // repulsion: two stars never overlap
     for (let i = 0; i < P.length; i++) {
       for (let j = i + 1; j < P.length; j++) {
         const a = P[i] as PlacedNode;
@@ -453,16 +456,17 @@ export function relax(nodes: SkyNode[], links: SkyLink[], W: number, H: number):
         b.y += uy * f;
       }
     }
-    // ressorts : le fil tire les œuvres vers leur film
+    // springs: the thread pulls the works towards their film
     edges.forEach((e) => {
       const a = P[e.i] as PlacedNode;
       const b = P[e.j] as PlacedNode;
-      /* Un lien fort rapproche : c'est la seule chose que la carte sache
-         faire d'une force, et c'est déjà la bonne — deux films qu'on tient
-         pour le même film à deux reprises doivent se toucher. Un fil tient
-         ses membres en grappe autour de son nom, un peu plus lâche qu'une
-         œuvre citée pour laisser la place aux étiquettes. */
-      const rest = e.kind === "peer" ? 260 - forceDe(e.force) * 40 : e.kind === "fil" ? 170 : 128;
+      /* A strong link pulls closer: it is the only thing the map knows
+         how to do with a strength, and it is already the right one — two
+         films we hold to be the same film twice over must touch. A thread
+         holds its members clustered around its name, a little looser than
+         a cited work so as to leave room for the labels. */
+      const rest =
+        e.kind === "peer" ? 260 - strengthOf(e.force) * 40 : e.kind === "thread" ? 170 : 128;
       const dx = b.x - a.x,
         dy = b.y - a.y;
       const d = Math.sqrt(dx * dx + dy * dy) || 0.01;
@@ -474,14 +478,14 @@ export function relax(nodes: SkyNode[], links: SkyLink[], W: number, H: number):
       b.x -= ux * f;
       b.y -= uy * f;
     });
-    // gravité douce vers le centre de la feuille
+    // gentle gravity towards the centre of the sheet
     P.forEach((p) => {
       p.x += (W / 2 - p.x) * 0.006 * cool;
       p.y += (H / 2 - p.y) * 0.006 * cool;
     });
   }
 
-  // recadrage : le ciel occupe toute la feuille, quelle que soit la taille de la collection
+  // reframing: the sky fills the whole sheet, whatever the collection's size
   const pad = 90;
   const xs = P.map((p) => p.x),
     ys = P.map((p) => p.y);
@@ -493,7 +497,7 @@ export function relax(nodes: SkyNode[], links: SkyLink[], W: number, H: number):
     (W - pad * 2) / Math.max(maxX - minX, 1),
     (H - pad * 2) / Math.max(maxY - minY, 1)
   );
-  // on n'agrandit jamais au-delà du raisonnable : à deux étoiles, le ciel reste aéré
+  // we never magnify past reason: at two stars, the sky stays airy
   const s = Math.min(k, 1.6);
   const cx = (minX + maxX) / 2,
     cy = (minY + maxY) / 2;
@@ -506,71 +510,70 @@ export function relax(nodes: SkyNode[], links: SkyLink[], W: number, H: number):
 }
 
 /* ============================================================
-   PARCOURIR LE CIEL AU CLAVIER
+   WALKING THE SKY BY KEYBOARD
    ============================================================
 
-   La carte ne se lisait qu'au pointeur : survoler, glisser, cliquer.
-   Sans souris, il n'existait AUCUN chemin vers un astre — la vue la plus
-   riche du classeur était la seule entièrement fermée.
+   The map could only be read with a pointer: hover, drag, click. With no
+   mouse there was NO path at all to a star — the binder's richest view
+   was the only one entirely shut.
 
-   Les flèches y répondent, mais il fallait décider ce qu'elles veulent
-   dire. Suivre les arêtes du graphe (`neighbourhood`) était tentant :
-   c'est la structure. C'est pourtant le mauvais choix — l'utilisateur
-   VOIT une carte, et sur une carte « à droite » veut dire à droite. Une
-   flèche qui saute à l'autre bout du ciel parce que les deux astres sont
-   reliés donnerait le vertige plutôt qu'un parcours.
+   The arrow keys answer that, but we had to decide what they mean.
+   Following the graph's edges (`neighbourhood`) was tempting: that is the
+   structure. It is nonetheless the wrong choice — the user SEES a map,
+   and on a map "right" means right. An arrow that jumps to the far side
+   of the sky because the two stars are linked would give vertigo rather
+   than a walk.
 
-   On cherche donc géométriquement, dans un cône : ce qui est franchement
-   dans la direction demandée, et le plus proche parmi ceux-là.
-   ============================================================ */
+   So we search geometrically, within a cone: what is squarely in the
+   direction asked for, and the nearest among those. */
 
-export type Direction = "haut" | "bas" | "gauche" | "droite";
+export type Direction = "up" | "down" | "left" | "right";
 
-/* Un demi-cône de 45° : un astre doit être franchement dans la
-   direction, sinon les quatre flèches désigneraient toutes le même
-   voisin en diagonale et l'on tournerait en rond. */
-const COSINUS_MINIMUM = Math.SQRT1_2;
+/* A 45° half-cone: a star must be squarely in the direction, otherwise
+   all four arrows would point at the same diagonal neighbour and we would
+   go round in circles. */
+const MINIMUM_COSINE = Math.SQRT1_2;
 
-const VECTEURS: Record<Direction, { x: number; y: number }> = {
-  droite: { x: 1, y: 0 },
-  gauche: { x: -1, y: 0 },
-  // l'axe des ordonnées descend en SVG : « haut » est un y qui diminue
-  haut: { x: 0, y: -1 },
-  bas: { x: 0, y: 1 },
+const VECTORS: Record<Direction, { x: number; y: number }> = {
+  right: { x: 1, y: 0 },
+  left: { x: -1, y: 0 },
+  // the y axis points down in SVG: "up" is a decreasing y
+  up: { x: 0, y: -1 },
+  down: { x: 0, y: 1 },
 };
 
 /**
- * L'astre le plus proche dans cette direction, ou `null` s'il n'y a rien
- * de ce côté — auquel cas le curseur ne bouge pas, ce qui vaut mieux que
- * de sauter n'importe où.
+ * The nearest star in that direction, or `null` if there is nothing on
+ * that side — in which case the cursor does not move, which beats jumping
+ * anywhere at all.
  *
- * `depuis` inconnu : on rend le premier astre, pour que la première
- * flèche pressée fasse entrer dans la carte au lieu de ne rien faire.
+ * `from` unknown: we return the first star, so that the first arrow
+ * pressed brings you into the map rather than doing nothing.
  */
-export function voisinDansLaDirection(
+export function neighbourInDirection(
   placed: PlacedNode[],
-  depuis: string | null,
+  from: string | null,
   direction: Direction
 ): PlacedNode | null {
-  const origine = placed.find((p) => p.id === depuis);
-  if (!origine) return placed[0] ?? null;
+  const origin = placed.find((p) => p.id === from);
+  if (!origin) return placed[0] ?? null;
 
-  const v = VECTEURS[direction];
-  let meilleur: PlacedNode | null = null;
-  let meilleureDistance = Infinity;
+  const v = VECTORS[direction];
+  let best: PlacedNode | null = null;
+  let bestDistance = Infinity;
 
   for (const p of placed) {
-    if (p.id === origine.id) continue;
-    const dx = p.x - origine.x;
-    const dy = p.y - origine.y;
+    if (p.id === origin.id) continue;
+    const dx = p.x - origin.x;
+    const dy = p.y - origin.y;
     const distance = Math.hypot(dx, dy);
     if (distance === 0) continue;
-    // le cosinus de l'angle entre le déplacement et la direction voulue
-    if ((dx * v.x + dy * v.y) / distance < COSINUS_MINIMUM) continue;
-    if (distance < meilleureDistance) {
-      meilleureDistance = distance;
-      meilleur = p;
+    // the cosine of the angle between the move and the wanted direction
+    if ((dx * v.x + dy * v.y) / distance < MINIMUM_COSINE) continue;
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = p;
     }
   }
-  return meilleur;
+  return best;
 }

@@ -1,40 +1,43 @@
 /* ============================================================
-   CE QUE LE CLASSEUR FAIT D'UNE NOTIFICATION
+   WHAT THE BINDER MAKES OF A NOTIFICATION
    ============================================================
 
-   Ce fichier est chargé PAR le service worker fabriqué par le greffon
-   (`workbox.importScripts`). Il n'est pas le service worker : celui-là
-   est généré à la construction, avec la liste des fichiers précachés,
-   et on ne peut pas y écrire à la main sans le remplacer entièrement.
+   This file is loaded BY the service worker the plugin builds
+   (`workbox.importScripts`). It is not the service worker itself: that
+   one is generated at build time, with the list of precached files, and
+   there is no writing into it by hand without replacing it entirely.
 
-   Il tient en deux gestes, et n'en veut pas un troisième :
-   afficher ce qu'on a reçu, et ouvrir le classeur quand on y touche.
+   It holds two gestures, and wants no third: show what came in, and open
+   the binder when somebody touches it.
    ============================================================ */
-/* `self` est déjà connu d'ESLint dans un contexte de travailleur ; seul
-   `clients` a besoin d'être déclaré. */
+/* `self` is already known to ESLint in a worker context; only `clients`
+   needs declaring. */
 /* global clients */
 
 self.addEventListener("push", (e) => {
-  /* Un message vide arrive pour de vrai — certains services de push en
-     envoient pour maintenir la connexion, et Chrome exige alors qu'on
-     affiche quand même quelque chose sous peine de couper
-     l'abonnement. D'où le repli, plutôt qu'un `return`. */
-  let m = { titre: "Ciné Hub", corps: "" };
+  /* An empty message really does arrive — some push services send them
+     to keep the connection alive, and Chrome then insists something be
+     shown all the same, on pain of cutting the subscription off. Hence
+     the fallback, rather than a `return`.
+
+     THE KEYS ARE THE SERVER'S: `server/src/push.ts` sends `title` and
+     `body`. The two spellings change together or not at all — renaming
+     one side alone silences every notification, silently. */
+  let m = { title: "Ciné Hub", body: "" };
   try {
     if (e.data) m = { ...m, ...e.data.json() };
   } catch {
-    /* Ce n'était pas du JSON : on montre le titre seul plutôt que de
-       laisser une notification vide, que le système compterait comme
-       un abus. */
+    /* That was not JSON: we show the title alone rather than leave an
+       empty notification, which the system would count as an abuse. */
   }
 
   e.waitUntil(
-    self.registration.showNotification(m.titre, {
-      body: m.corps,
+    self.registration.showNotification(m.title, {
+      body: m.body,
       icon: "icone-192.png",
       badge: "icone-192.png",
-      /* Une seule notification de défi à la fois : la remplacer vaut
-         mieux que d'en empiler trois pour la même chose. */
+      /* One challenge notification at a time: replacing it is better
+         than stacking three for the same thing. */
       tag: m.tag || "cinehub",
       data: { url: m.url || "." },
     })
@@ -43,14 +46,13 @@ self.addEventListener("push", (e) => {
 
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
-  /* ON RÉUTILISE UN ONGLET DÉJÀ OUVERT plutôt que d'en ouvrir un
-     deuxième : le classeur installé n'a qu'une fenêtre, et en ouvrir
-     une seconde perdrait ce qui était en cours d'écriture dans la
-     première. */
+  /* WE REUSE A TAB THAT IS ALREADY OPEN rather than open a second one:
+     the installed binder has one window, and opening a second would lose
+     whatever was being written in the first. */
   e.waitUntil(
-    clients.matchAll({ type: "window", includeUncontrolled: true }).then((fenetres) => {
-      for (const f of fenetres) {
-        if ("focus" in f) return f.focus();
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
+      for (const w of windows) {
+        if ("focus" in w) return w.focus();
       }
       return clients.openWindow(e.notification.data?.url || ".");
     })

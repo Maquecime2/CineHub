@@ -1,14 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { CAT_COLORS, CAT_KEYS, CAT_FAMILIES, catInk } from "./palette";
 
-describe("la palette", () => {
-  /* LE TEST QUI COMPTE. `CAT_KEYS[0]` est la couleur d'une catégorie
-     neuve, et l'étagère par cinéaste distribue ses cartons en parcourant
-     cette liste dans l'ordre. L'élargir en tête, ou seulement bousculer
-     les huit d'origine, repeindrait toutes les vues qu'on referait — et
-     comme on stocke la clé, celles déjà faites changeraient de teinte
-     sur place. */
-  it("garde les huit d'origine en tête, dans leur ordre et à leur teinte", () => {
+describe("the palette", () => {
+  /* THE TEST THAT MATTERS. `CAT_KEYS[0]` is the colour of a brand-new
+     category, and the shelf by film-maker hands out its boxes by walking
+     this list in order. Widening it at the head, or merely shuffling the
+     original eight, would repaint every view one rebuilt — and since we
+     store the key, those already made would change tint in place. */
+  it("keeps the original eight at the head, in their order and at their tint", () => {
     expect(CAT_KEYS.slice(0, 8)).toEqual([
       "burgundy",
       "ochre",
@@ -29,29 +28,29 @@ describe("la palette", () => {
     expect(CAT_COLORS.ink).toBe("#2B2620");
   });
 
-  it("s'est vraiment élargie", () => {
+  it("has really widened", () => {
     expect(CAT_KEYS.length).toBeGreaterThanOrEqual(24);
   });
 
-  it("n'a qu'une seule liste : les clés se déduisent des couleurs", () => {
+  it("has a single list: the keys follow from the colours", () => {
     expect(CAT_KEYS).toEqual(Object.keys(CAT_COLORS));
     for (const k of CAT_KEYS) expect(catInk(k)).toBe(CAT_COLORS[k]);
   });
 
-  it("retombe sur le bordeaux pour une clé inconnue", () => {
+  it("falls back on the burgundy for an unknown key", () => {
     expect(catInk("n'existe pas")).toBe("#8C3A34");
   });
 
-  /* Les familles ne sont qu'une VUE sur le nuancier. Une clé absente de
-     l'affichage resterait parfaitement valide — mais elle serait
-     inatteignable, ce qui n'est pas une façon d'offrir une couleur. */
-  it("offre chaque teinte exactement une fois, et rien d'autre", () => {
+  /* The families are only a VIEW onto the palette. A key missing from
+     the display would remain perfectly valid — but it would be
+     unreachable, which is no way to offer a colour. */
+  it("offers each tint exactly once, and nothing else", () => {
     const shown = CAT_FAMILIES.flatMap((f) => f.keys);
     expect(new Set(shown).size).toBe(shown.length);
     expect([...shown].sort()).toEqual([...CAT_KEYS].sort());
   });
 
-  it("n'a que des hexadécimaux bien formés", () => {
+  it("has nothing but well-formed hex codes", () => {
     for (const k of CAT_KEYS) expect(CAT_COLORS[k]).toMatch(/^#[0-9A-F]{6}$/i);
   });
 });

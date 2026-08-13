@@ -1,29 +1,29 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderHook, act, cleanup } from "@testing-library/react";
 import { useInstallation, type Installation } from "./useInstallation";
-import { lireInstallation } from "../services/installation";
+import { readInstallState } from "../services/installation";
 
-/* L'invitation ne se fabrique pas : elle attend un événement que le
-   navigateur émet quand il juge le site installable, et qui NE REVIENT
-   PAS une fois passé. Tout le hook tient dans cette retenue-là, et rien
-   de tout cela ne se voit à la relecture. */
+/* The invitation is not manufactured: it awaits an event the browser
+   emits when it judges the site installable, and which DOES NOT COME
+   BACK once gone. The whole hook rests on that holding back, and none of
+   it shows on a re-reading. */
 
-/* `renderHook` monte le hook seul et rend sa dernière valeur : c'est
-   fait pour ça, et un composant-sonde qui écrirait dans une variable du
-   dessus est justement ce que les règles de React interdisent. */
-let sonde: { current: Installation };
+/* `renderHook` mounts the hook on its own and yields its last value:
+   that is what it is for, and a probe component writing into a variable
+   above is precisely what React's rules forbid. */
+let probe: { current: Installation };
 
-/** L'événement du navigateur, avec ce qu'il porte de promesses. */
-const inviter = (réponse: "accepted" | "dismissed" = "accepted") => {
-  /* `cancelable`, comme le vrai : c'est ce qui rend `preventDefault`
-     effectif, donc ce qui empêche la bannière que Chrome poserait de
-     lui-même par-dessus le rail. */
+/** The browser's event, with the promises it carries. */
+const offer = (answer: "accepted" | "dismissed" = "accepted") => {
+  /* `cancelable`, like the real one: that is what makes
+     `preventDefault` effective, hence what prevents the banner Chrome
+     would lay down of its own accord over the rail. */
   const ev = new Event("beforeinstallprompt", { cancelable: true }) as Event & {
     prompt: () => Promise<void>;
     userChoice: Promise<{ outcome: string }>;
   };
   ev.prompt = vi.fn().mockResolvedValue(undefined);
-  ev.userChoice = Promise.resolve({ outcome: réponse });
+  ev.userChoice = Promise.resolve({ outcome: answer });
   act(() => {
     window.dispatchEvent(ev);
   });
@@ -43,70 +43,70 @@ afterEach(() => {
 });
 
 describe("useInstallation", () => {
-  it("se tait tant que le navigateur n'a rien proposé", () => {
-    sonde = renderHook(() => useInstallation()).result;
-    expect(sonde.current.invite).toBe(false);
+  it("stays quiet as long as the browser has offered nothing", () => {
+    probe = renderHook(() => useInstallation()).result;
+    expect(probe.current.invite).toBe(false);
   });
 
-  it("attrape l'événement, et empêche la bannière du navigateur", () => {
-    sonde = renderHook(() => useInstallation()).result;
-    const ev = inviter();
-    expect(sonde.current.invite).toBe(true);
+  it("catches the event, and holds back the browser's banner", () => {
+    probe = renderHook(() => useInstallation()).result;
+    const ev = offer();
+    expect(probe.current.invite).toBe(true);
     expect(ev.defaultPrevented).toBe(true);
   });
 
-  it("installer ouvre la boîte du système et retient que c'est fait", async () => {
-    sonde = renderHook(() => useInstallation()).result;
-    const ev = inviter("accepted");
+  it("install opens the system's box and remembers it was done", async () => {
+    probe = renderHook(() => useInstallation()).result;
+    const ev = offer("accepted");
     await act(async () => {
-      await sonde.current.installer();
+      await probe.current.install();
     });
     expect(ev.prompt).toHaveBeenCalled();
-    expect(lireInstallation().posée).toBe(true);
-    expect(sonde.current.invite).toBe(false);
+    expect(readInstallState().installed).toBe(true);
+    expect(probe.current.invite).toBe(false);
   });
 
-  it("refuser la boîte compte comme « pas maintenant », pas comme un oui", async () => {
-    sonde = renderHook(() => useInstallation()).result;
-    inviter("dismissed");
+  it('refusing the box counts as "not now", not as a yes', async () => {
+    probe = renderHook(() => useInstallation()).result;
+    offer("dismissed");
     await act(async () => {
-      await sonde.current.installer();
+      await probe.current.install();
     });
-    expect(lireInstallation()).toEqual({ refus: 1, posée: false });
+    expect(readInstallState()).toEqual({ dismissals: 1, installed: false });
   });
 
-  it("écarter compte le refus, et deux refus ferment le sujet", () => {
-    sonde = renderHook(() => useInstallation()).result;
-    inviter();
-    act(() => sonde.current.écarter());
-    expect(sonde.current.invite).toBe(false);
-    expect(lireInstallation().refus).toBe(1);
+  it("dismissing counts the refusal, and two refusals close the subject", () => {
+    probe = renderHook(() => useInstallation()).result;
+    offer();
+    act(() => probe.current.dismiss());
+    expect(probe.current.invite).toBe(false);
+    expect(readInstallState().dismissals).toBe(1);
 
     cleanup();
-    sonde = renderHook(() => useInstallation()).result;
-    inviter();
-    act(() => sonde.current.écarter());
-    expect(lireInstallation().refus).toBe(2);
+    probe = renderHook(() => useInstallation()).result;
+    offer();
+    act(() => probe.current.dismiss());
+    expect(readInstallState().dismissals).toBe(2);
     cleanup();
 
-    /* Troisième ouverture : plus personne n'écoute, et l'événement du
-       navigateur ne réveille plus rien. */
-    sonde = renderHook(() => useInstallation()).result;
-    inviter();
-    expect(sonde.current.invite).toBe(false);
+    /* Third opening: nobody is listening any more, and the browser's
+       event wakes nothing up. */
+    probe = renderHook(() => useInstallation()).result;
+    offer();
+    expect(probe.current.invite).toBe(false);
   });
 
-  it("sur iOS, personne n'émettra jamais rien : on explique de nous-mêmes", () => {
+  it("on iOS nobody will ever emit anything: we explain it ourselves", () => {
     vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)" });
-    sonde = renderHook(() => useInstallation()).result;
-    expect(sonde.current.pomme).toBe(true);
-    expect(sonde.current.invite).toBe(true);
+    probe = renderHook(() => useInstallation()).result;
+    expect(probe.current.apple).toBe(true);
+    expect(probe.current.invite).toBe(true);
   });
 
-  it("déjà posée sur l'écran d'accueil : on n'en parle plus", () => {
+  it("already on the home screen: we say no more about it", () => {
     vi.stubGlobal("matchMedia", (q: string) => ({ matches: q.includes("standalone"), media: q }));
-    sonde = renderHook(() => useInstallation()).result;
-    inviter();
-    expect(sonde.current.invite).toBe(false);
+    probe = renderHook(() => useInstallation()).result;
+    offer();
+    expect(probe.current.invite).toBe(false);
   });
 });

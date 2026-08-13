@@ -1,25 +1,25 @@
 /* ============================================================
-   L'ANNÉE EN BOÎTE — une image à emporter
+   THE YEAR IN A BOX — an image to take away
    ============================================================
 
-   Sans routeur, aucune fiche n'a d'adresse : on ne peut envoyer à
-   personne un lien vers sa vidéothèque. Cette image est donc le SEUL
-   chemin par lequel quelque chose de la collection sort du navigateur,
-   ce qui justifie qu'elle soit composée pour elle-même et non
-   photographiée à la va-vite.
+   With no router, no card has an address: one cannot send anybody a link
+   to their film library. This image is therefore the ONLY path by which
+   something of the collection leaves the browser, which justifies its
+   being composed for itself rather than photographed in haste.
 
-   POURQUOI DESSINER, ET NON CAPTURER LA PAGE. Rien dans le navigateur ne
-   sait rendre du DOM en image : les bibliothèques qui le prétendent
-   reconstruisent la page dans un SVG et trébuchent sur tout ce qui fait
-   justement l'allure d'ici — polices distantes, `mix-blend-mode`,
-   `clip-path`, filtres. Une composition dessinée est plus courte à
-   écrire qu'une capture à réparer, et elle peut viser un format que
-   l'écran n'a pas : un portrait, fait pour être vu sur un téléphone.
+   WHY DRAW, AND NOT CAPTURE THE PAGE. Nothing in the browser knows how
+   to render DOM into an image: the libraries that claim to rebuild the
+   page inside an SVG and stumble on everything that makes the look of
+   this place — remote fonts, `mix-blend-mode`, `clip-path`, filters. A
+   drawn composition is shorter to write than a capture is to repair, and
+   it can aim at a format the screen does not have: a portrait, made to
+   be seen on a phone.
 
-   LES COULEURS LUI SONT DONNÉES. Ce module ne lit pas les jetons : les
-   variables CSS vivent sur le document, et un service ne le regarde pas.
-   C'est la vue qui les résout et les passe — l'image sort donc dans la
-   peau qu'on avait posée, ce qui est la moindre des choses. */
+   THE COLOURS ARE GIVEN TO IT. This module does not read the tokens: the
+   CSS variables live on the document, and a service does not look at it.
+   It is the view that resolves them and passes them on — so the image
+   comes out in the skin that was laid on, which is the least one can
+   expect. */
 import { getImage, isIdbPoster, idbKeyOf } from "../db";
 import { POSTER_BASE, POSTER_THUMB } from "../tmdb";
 import { initialsOf } from "../domain/film";
@@ -33,7 +33,7 @@ export interface BoxPalette {
   inkFaded: string;
   accent: string;
   line: string;
-  /** Les familles telles que la peau les déclare. */
+  /** The families as the skin declares them. */
   title: string;
   body: string;
   mono: string;
@@ -47,104 +47,104 @@ export interface BoxData {
   rewatches: number;
   ratingAvg: number | null;
   topDirector: string | null;
-  /* CE QUI TIENT DANS UN REGARD DE TROIS SECONDES, et rien de plus.
-     L'image reste une grille d'affiches : on enrichit le bandeau et le
-     pied, jamais le centre. Ce qui demande de lire deux fois appartient
-     à l'almanach. */
+  /* WHAT FITS IN A THREE-SECOND GLANCE, and nothing more. The image
+     remains a grid of posters: we enrich the banner and the foot, never
+     the centre. Whatever asks to be read twice belongs to the
+     almanac. */
   minutes: number;
-  /** La décennie la plus visitée — `null` si aucune fiche n'est datée. */
+  /** The most visited decade — `null` if no card is dated. */
   decade: number | null;
-  /** Le pays le plus vu, déjà traduit par la vue. */
+  /** The most watched country, already translated by the view. */
   country: string | null;
-  ageMoyen: number | null;
+  ageMean: number | null;
 }
 
-/* CHARGER UNE AFFICHE, D'OÙ QU'ELLE VIENNE.
+/* LOAD A POSTER, WHEREVER IT COMES FROM.
 
-   LE PROBLÈME DE FOND, ET IL NE VIENT PAS DE TMDB. Une image d'un autre
-   domaine SOUILLE le canevas, et `toBlob` refuse alors de rendre quoi
-   que ce soit — sans erreur au dessin, seulement à l'export. Il faut
-   donc obtenir l'affiche par une requête CORS, que TMDB honore
-   volontiers (`access-control-allow-origin: *`).
+   THE UNDERLYING PROBLEM, AND IT DOES NOT COME FROM TMDB. An image from
+   another domain TAINTS the canvas, and `toBlob` then refuses to render
+   anything at all — with no error while drawing, only at export time. So
+   the poster must be obtained through a CORS request, which TMDB honours
+   willingly (`access-control-allow-origin: *`).
 
-   SEULEMENT VOILÀ : LE MUR EST PASSÉ AVANT. `PosterArt` affiche ces
-   mêmes adresses par un `<img>` ordinaire, SANS `crossOrigin`. Le cache
-   HTTP en garde une réponse obtenue en mode « no-cors », et le
-   navigateur REFUSE de la réutiliser pour une requête CORS. Mesuré ici,
-   sur une adresse d'abord chargée comme le fait le mur :
+   ONLY HERE IS THE THING: THE WALL CAME FIRST. `PosterArt` displays
+   those same addresses through an ordinary `<img>`, WITHOUT
+   `crossOrigin`. The HTTP cache keeps a response obtained in "no-cors"
+   mode, and the browser REFUSES to reuse it for a CORS request. Measured
+   here, on an address first loaded the way the wall loads it:
 
-     <img crossOrigin>          → échec
-     fetch                      → échec
+     <img crossOrigin>          → failure
+     fetch                      → failure
      fetch { cache: "reload" }  → ok
      <img crossOrigin> + ?cors  → ok
 
-   Ce n'est donc ni le CDN ni le protocole qui manquent : c'est UNE
-   ENTRÉE DE CACHE de notre propre fait. Les deux chemins ci-dessous
-   sont donc écrits pour ne jamais la rencontrer.
+   So it is neither the CDN nor the protocol that is missing: it is A
+   CACHE ENTRY of our own making. The two paths below are therefore
+   written never to meet it.
 
-   `fetch` d'abord, avec `cache: "reload"` qui force la revalidation :
-   il rend un statut et un type, donc il peut écarter ce qui n'est pas
-   une image — TMDB sert ses erreurs en HTML, parfois sous un 200.
+   `fetch` first, with `cache: "reload"` which forces revalidation: it
+   returns a status and a type, so it can set aside what is not an image
+   — TMDB serves its errors in HTML, sometimes under a 200.
 
-   La balise ensuite, avec un paramètre d'URL qui lui donne sa propre
-   entrée : elle rattrape les environnements où un `fetch` CORS vers un
-   CDN d'images est barré alors qu'une image passe (extensions de vie
-   privée, panneaux intégrés).
+   The tag next, with a URL parameter that gives it its own entry: it
+   catches the environments where a CORS `fetch` towards an image CDN is
+   barred while an image gets through (privacy extensions, embedded
+   panels).
 
-   `canvasAccepte` tranche pour la balise : plutôt que de deviner si le
-   canevas est souillé, on le lui DEMANDE — un pixel peint, un pixel
-   relu. C'est la seule vérification qui ne suppose rien du navigateur,
-   et elle évite de composer mille trois cent cinquante pixels de haut
-   pour découvrir l'échec à la toute fin.
+   `canvasAccepts` settles it for the tag: rather than guessing whether
+   the canvas is tainted, we ASK it — one pixel painted, one pixel read
+   back. It is the only check that assumes nothing of the browser, and it
+   avoids composing one thousand three hundred and fifty pixels of height
+   only to discover the failure at the very end.
 
-   Les deux échouant, la case reçoit l'émulsion de secours — la même que
-   sur le mur. */
-async function chargerAffiche(poster: string): Promise<HTMLImageElement | null> {
+   Should both fail, the cell gets the fallback emulsion — the same as on
+   the wall. */
+async function loadPoster(poster: string): Promise<HTMLImageElement | null> {
   if (!poster) return null;
 
-  /* Ce qui vient d'IndexedDB ou d'un `data:` ne sort pas du domaine :
-     aucune de ces précautions ne le concerne. */
+  /* What comes from IndexedDB or from a `data:` does not leave the
+     domain: none of these precautions concern it. */
   if (isIdbPoster(poster)) {
     const blob = await getImage(idbKeyOf(poster)).catch(() => null);
     if (!blob) return null;
-    return await depuisBlob(blob);
+    return await fromBlob(blob);
   }
-  if (!/^https?:/.test(poster)) return await enImage(poster);
+  if (!/^https?:/.test(poster)) return await asImage(poster);
 
-  /* L'étagère demande les vignettes en w185 pour ne pas décoder du 342
-     dans un boîtier de 96 px. Ici on compose une image de mille pixels
-     de large : c'est la grande qu'il faut, quelle que soit celle que la
-     fiche a retenue. */
+  /* The shelf asks for thumbnails in w185 so as not to decode a 342 in a
+     96 px case. Here we compose an image a thousand pixels wide: it is
+     the large one we need, whichever one the card settled on. */
   const url = poster.replace(POSTER_THUMB, POSTER_BASE);
 
   const blob = await fetch(url, { cache: "reload" })
     .then((r) => (r.ok ? r.blob() : null))
     .catch(() => null);
-  // une erreur de TMDB est une page HTML, servie avec un 200 parfois
+  // an error from TMDB is an HTML page, sometimes served with a 200
   if (blob?.type.startsWith("image/")) {
-    const img = await depuisBlob(blob);
+    const img = await fromBlob(blob);
     if (img) return img;
   }
 
-  /* Le filet : une entrée de cache bien à elle, que le mur n'a pas pu
-     salir. Le séparateur tient compte d'une adresse qui porterait déjà
-     une requête — une affiche collée à la main peut en avoir une. */
-  const àPart = `${url}${url.includes("?") ? "&" : "?"}cors=1`;
-  const parBalise = await enImage(àPart, "anonymous");
-  return parBalise && canvasAccepte(parBalise) ? parBalise : null;
+  /* The safety net: a cache entry all of its own, which the wall could
+     not have dirtied. The separator takes account of an address that
+     would already carry a query — a poster pasted by hand may have
+     one. */
+  const apart = `${url}${url.includes("?") ? "&" : "?"}cors=1`;
+  const byTag = await asImage(apart, "anonymous");
+  return byTag && canvasAccepts(byTag) ? byTag : null;
 }
 
-async function depuisBlob(blob: Blob): Promise<HTMLImageElement | null> {
+async function fromBlob(blob: Blob): Promise<HTMLImageElement | null> {
   const objectUrl = URL.createObjectURL(blob);
   try {
-    return await enImage(objectUrl);
+    return await asImage(objectUrl);
   } finally {
     URL.revokeObjectURL(objectUrl);
   }
 }
 
-/** Une adresse, décodée en image — ou `null` si elle ne se laisse pas lire. */
-function enImage(src: string, crossOrigin?: string): Promise<HTMLImageElement | null> {
+/** An address, decoded into an image — or `null` if it will not be read. */
+function asImage(src: string, crossOrigin?: string): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
     const img = new Image();
     if (crossOrigin) img.crossOrigin = crossOrigin;
@@ -154,14 +154,14 @@ function enImage(src: string, crossOrigin?: string): Promise<HTMLImageElement | 
   });
 }
 
-/* CETTE IMAGE PEUT-ELLE ÊTRE EXPORTÉE ?
+/* CAN THIS IMAGE BE EXPORTED?
 
-   On ne le devine pas, on le demande : un canevas d'un pixel, l'image
-   dessus, et une tentative de relecture. Si l'image a souillé le
-   canevas, `getImageData` lève — et l'on sait AVANT d'avoir composé
-   mille trois cent cinquante pixels de haut, plutôt qu'à la toute fin,
-   quand l'échec emporterait l'image entière. */
-function canvasAccepte(img: HTMLImageElement): boolean {
+   We do not guess it, we ask: a one-pixel canvas, the image on it, and
+   an attempt to read it back. If the image has tainted the canvas,
+   `getImageData` throws — and we know BEFORE having composed one
+   thousand three hundred and fifty pixels of height, rather than at the
+   very end, when the failure would carry off the whole image. */
+function canvasAccepts(img: HTMLImageElement): boolean {
   try {
     const c = document.createElement("canvas");
     c.width = 1;
@@ -176,68 +176,68 @@ function canvasAccepte(img: HTMLImageElement): boolean {
   }
 }
 
-/** Coupe un texte trop long, à la lettre près pour la largeur donnée. */
-function tronquer(ctx: CanvasRenderingContext2D, texte: string, max: number): string {
-  if (ctx.measureText(texte).width <= max) return texte;
-  let t = texte;
+/** Cuts a text that is too long, to the letter for the given width. */
+function truncate(ctx: CanvasRenderingContext2D, text: string, max: number): string {
+  if (ctx.measureText(text).width <= max) return text;
+  let t = text;
   while (t.length > 1 && ctx.measureText(`${t}…`).width > max) t = t.slice(0, -1);
   return `${t}…`;
 }
 
 const W = 1080;
 const H = 1350;
-/* Douze au plus : c'est ce qui tient en portrait sans que les titres
-   deviennent illisibles, et une année se raconte bien en douze images,
-   même quand elle en compte deux cents. */
+/* Twelve at most: that is what fits in portrait without the titles
+   becoming illegible, and a year tells itself well in twelve images,
+   even when it counts two hundred. */
 const MAX = 12;
 
-/* LA GRILLE S'AJUSTE, ET DEUX FOIS PLUTÔT QU'UNE.
+/* THE GRID ADJUSTS, AND TWICE RATHER THAN ONCE.
 
-   En colonnes, parce qu'une année de deux films ne doit pas être
-   dessinée en quatre colonnes dont deux vides. En taille de case, parce
-   que déduire la hauteur de la largeur seule ne regarde pas le bas du
-   cadre : une grille de trois rangées calculée ainsi débordait de cent
-   soixante pixels sous l'image, et la dernière rangée n'existait tout
-   simplement pas. La case prend donc la plus petite des deux mesures —
-   celle que la largeur autorise, celle que la hauteur restante permet —
-   et la grille se centre dans ce qui reste. */
-interface Grille {
+   In columns, because a year of two films must not be drawn in four
+   columns of which two are empty. In cell size, because deducing the
+   height from the width alone does not look at the bottom of the frame:
+   a grid of three rows computed that way overflowed a hundred and sixty
+   pixels below the image, and the last row simply did not exist. So the
+   cell takes the smaller of the two measures — the one the width allows,
+   the one the remaining height permits — and the grid centres itself in
+   what is left. */
+interface Grid {
   cols: number;
-  largeur: number;
-  hauteur: number;
-  gauche: number;
-  espace: number;
-  /** Hauteur d'une rangée, légende comprise. */
-  pas: number;
+  width: number;
+  height: number;
+  left: number;
+  gap: number;
+  /** Height of one row, caption included. */
+  step: number;
 }
 
-const MARGE = 68;
-const ESPACE = 22;
-const HAUT = 300;
-/** Ce que la phrase du bas se réserve. */
-const PIED = 130;
-/** Titre et note, sous chaque boîtier. */
-const LEGENDE = 52;
+const MARGIN = 68;
+const GAP = 22;
+const TOP = 300;
+/** What the sentence at the bottom reserves for itself. */
+const FOOT = 130;
+/** Title and rating, under each case. */
+const CAPTION = 52;
 
-function grilleDe(n: number): Grille {
+function gridFor(n: number): Grid {
   const cols = n <= 2 ? Math.max(n, 1) : n <= 6 ? 3 : 4;
-  const rangs = Math.ceil(n / cols);
+  const rows = Math.ceil(n / cols);
 
-  const parLargeur = (W - MARGE * 2 - (cols - 1) * ESPACE) / cols;
-  const dispo = H - PIED - HAUT - rangs * (ESPACE + LEGENDE);
-  const parHauteur = dispo / rangs / 1.5;
+  const byWidth = (W - MARGIN * 2 - (cols - 1) * GAP) / cols;
+  const room = H - FOOT - TOP - rows * (GAP + CAPTION);
+  const byHeight = room / rows / 1.5;
 
-  const largeur = Math.max(60, Math.min(parLargeur, parHauteur));
-  const hauteur = largeur * 1.5;
-  const total = cols * largeur + (cols - 1) * ESPACE;
+  const width = Math.max(60, Math.min(byWidth, byHeight));
+  const height = width * 1.5;
+  const total = cols * width + (cols - 1) * GAP;
 
   return {
     cols,
-    largeur,
-    hauteur,
-    gauche: (W - total) / 2,
-    espace: ESPACE,
-    pas: hauteur + ESPACE + LEGENDE,
+    width,
+    height,
+    left: (W - total) / 2,
+    gap: GAP,
+    step: height + GAP + CAPTION,
   };
 }
 export async function drawYearInBox(data: BoxData, p: BoxPalette): Promise<Blob> {
@@ -250,16 +250,16 @@ export async function drawYearInBox(data: BoxData, p: BoxPalette): Promise<Blob>
   ctx.fillStyle = p.paper;
   ctx.fillRect(0, 0, W, H);
 
-  /* Le grain du papier, en points semés — pas la texture SVG du site,
-     qui est un filtre que le canevas ne connaît pas. Deux mille points à
-     trois pour cent d'opacité suffisent à ce que le fond ne soit pas un
-     aplat. */
+  /* The grain of the paper, in sown dots — not the site's SVG texture,
+     which is a filter the canvas knows nothing about. Two thousand dots
+     at three per cent opacity are enough for the background not to be a
+     flat tint. */
   ctx.fillStyle = p.ink;
   ctx.globalAlpha = 0.03;
   for (let i = 0; i < 2000; i++) ctx.fillRect(Math.random() * W, Math.random() * H, 1.5, 1.5);
   ctx.globalAlpha = 1;
 
-  /* ---- L'EN-TÊTE ---- */
+  /* ---- THE HEADER ---- */
   ctx.fillStyle = p.ink;
   ctx.textBaseline = "alphabetic";
   ctx.font = `28px ${p.mono}`;
@@ -270,7 +270,7 @@ export async function drawYearInBox(data: BoxData, p: BoxPalette): Promise<Blob>
   ctx.font = `bold 150px ${p.title}`;
   ctx.fillText(String(data.year), 68, 218);
 
-  // le trait à main levée sous l'année
+  // the freehand stroke under the year
   ctx.strokeStyle = p.accent;
   ctx.lineWidth = 5;
   ctx.lineCap = "round";
@@ -279,212 +279,212 @@ export async function drawYearInBox(data: BoxData, p: BoxPalette): Promise<Blob>
   ctx.bezierCurveTo(180, 231, 300, 245, 400, 236);
   ctx.stroke();
 
-  /* Les comptes, à droite de l'année : c'est la seule chose qu'un
-     regard de trois secondes retiendra. */
-  const lignes: [string, string][] = [
+  /* The counts, to the right of the year: it is the only thing a
+     three-second glance will retain. */
+  const lines: [string, string][] = [
     [String(data.count), data.count > 1 ? "séances" : "séance"],
     [String(data.titles), data.titles > 1 ? "films" : "film"],
     [String(data.rewatches), data.rewatches > 1 ? "revoyures" : "revoyure"],
   ];
-  if (data.ratingAvg != null) lignes.push([data.ratingAvg.toFixed(1), "de moyenne"]);
-  /* Les heures de cinéma, quand on les connaît. C'est la statistique la
-     plus parlante du lot, et la seule qui demande d'avoir complété ses
-     fiches — une collection qui ne l'a pas faite ne voit rien manquer. */
-  if (data.minutes > 0) lignes.push([`${Math.round(data.minutes / 60)} h`, "de cinéma"]);
+  if (data.ratingAvg != null) lines.push([data.ratingAvg.toFixed(1), "de moyenne"]);
+  /* The hours of cinema, when we know them. It is the most telling
+     statistic of the lot, and the only one that asks for completed
+     cards — a collection that has not done it sees nothing missing. */
+  if (data.minutes > 0) lines.push([`${Math.round(data.minutes / 60)} h`, "de cinéma"]);
 
-  /* LE BANDEAU SE MESURE AVANT DE S'ÉCRIRE, ET C'EST TOUT LE CORRECTIF.
+  /* THE BANNER MEASURES ITSELF BEFORE WRITING ITSELF, AND THAT IS THE
+     WHOLE FIX.
 
-     Il avançait d'un pas fixe — la largeur du mot, ou cent dix-huit
-     pixels, le plus grand des deux — sans jamais regarder où finit le
-     cadre. Quatre colonnes tenaient ; la cinquième, « x h de cinéma »,
-     qui n'apparaît que sur une collection aux fiches complétées,
-     partait au-delà du bord droit et sortait tronquée de l'image.
-     Autrement dit : plus la collection était renseignée, plus l'image
-     était abîmée.
+     It advanced by a fixed step — the width of the word, or a hundred
+     and eighteen pixels, whichever was greater — without ever looking at
+     where the frame ends. Four columns fitted; the fifth, "x h de
+     cinéma", which only appears on a collection with completed cards,
+     went past the right edge and came out of the image truncated. In
+     other words: the better filled in the collection, the more damaged
+     the image.
 
-     On mesure donc les cinq colonnes d'abord, et on en déduit
-     l'échelle qui les fait tenir entre l'année et la marge. Les
-     largeurs d'un texte étant proportionnelles à sa taille, un seul
-     relevé suffit à la calculer — pas de tâtonnement.
+     So we measure the five columns first, and deduce from them the scale
+     that makes them fit between the year and the margin. The widths of a
+     text being proportional to its size, a single reading is enough to
+     compute it — no trial and error.
 
-     Réduire plutôt qu'écarter : chacune de ces mentions a été jugée
-     digne du regard de trois secondes, et une image qui rétrécit ses
-     chiffres de quinze pour cent reste lisible là où une image qui en
-     escamote un ment sur l'année. */
+     Shrink rather than set aside: each of these mentions was judged
+     worthy of the three-second glance, and an image that shrinks its
+     figures by fifteen per cent stays legible where an image that
+     conjures one away lies about the year. */
   const X0 = 470;
-  const ÉCART = 26;
-  const dispo = W - MARGE - X0;
+  const SPACING = 26;
+  const room = W - MARGIN - X0;
 
   ctx.font = `bold 56px ${p.title}`;
-  const largeursN = lignes.map(([n]) => ctx.measureText(n).width);
+  const widthsN = lines.map(([n]) => ctx.measureText(n).width);
   ctx.font = `21px ${p.mono}`;
-  const largeursM = lignes.map(([, mot]) => ctx.measureText(mot).width);
-  const colonnes = lignes.map((_, i) => Math.max(largeursN[i]!, largeursM[i]!));
-  const voulu = colonnes.reduce((a, b) => a + b, 0) + ÉCART * (lignes.length - 1);
-  // jamais d'agrandissement : la composition a été réglée à l'échelle 1
-  const éch = Math.min(1, dispo / voulu);
+  const widthsW = lines.map(([, word]) => ctx.measureText(word).width);
+  const columns = lines.map((_, i) => Math.max(widthsN[i]!, widthsW[i]!));
+  const wanted = columns.reduce((a, b) => a + b, 0) + SPACING * (lines.length - 1);
+  // never any enlargement: the composition was tuned at scale 1
+  const scale = Math.min(1, room / wanted);
 
   let x = X0;
-  lignes.forEach(([n, mot], i) => {
+  lines.forEach(([n, word], i) => {
     ctx.fillStyle = p.ink;
-    ctx.font = `bold ${Math.round(56 * éch)}px ${p.title}`;
+    ctx.font = `bold ${Math.round(56 * scale)}px ${p.title}`;
     ctx.fillText(n, x, 196);
     ctx.fillStyle = p.inkFaded;
-    ctx.font = `${Math.round(21 * éch)}px ${p.mono}`;
-    ctx.fillText(mot, x, 196 + Math.round(30 * éch));
-    x += colonnes[i]! * éch + ÉCART * éch;
+    ctx.font = `${Math.round(21 * scale)}px ${p.mono}`;
+    ctx.fillText(word, x, 196 + Math.round(30 * scale));
+    x += columns[i]! * scale + SPACING * scale;
   });
 
-  /* ---- LA GRILLE D'AFFICHES ---- */
-  const douze = data.films.slice(0, MAX);
-  const { cols, largeur, hauteur, gauche, espace, pas } = grilleDe(douze.length);
-  const affiches = await Promise.all(douze.map((f) => chargerAffiche(f.film.poster)));
+  /* ---- THE GRID OF POSTERS ---- */
+  const twelve = data.films.slice(0, MAX);
+  const { cols, width, height, left, gap, step } = gridFor(twelve.length);
+  const posters = await Promise.all(twelve.map((f) => loadPoster(f.film.poster)));
 
-  douze.forEach((entrée, i) => {
+  twelve.forEach((entry, i) => {
     const col = i % cols;
-    const rang = Math.floor(i / cols);
-    const gx = gauche + col * (largeur + espace);
-    const gy = HAUT + rang * pas;
+    const row = Math.floor(i / cols);
+    const gx = left + col * (width + gap);
+    const gy = TOP + row * step;
 
     ctx.save();
-    /* Chaque boîtier penche d'un cheveu, toujours du même côté pour la
-       même case : posé à la main, pas aligné à la règle. */
-    ctx.translate(gx + largeur / 2, gy + hauteur / 2);
+    /* Each case leans by a hair, always to the same side for the same
+       cell: laid by hand, not aligned with a ruler. */
+    ctx.translate(gx + width / 2, gy + height / 2);
     ctx.rotate((((i * 37) % 11) - 5) * 0.0022);
-    ctx.translate(-largeur / 2, -hauteur / 2);
+    ctx.translate(-width / 2, -height / 2);
 
     ctx.shadowColor = "rgba(30,20,10,0.35)";
     ctx.shadowBlur = 14;
     ctx.shadowOffsetY = 6;
     ctx.fillStyle = p.card;
-    ctx.fillRect(-6, -6, largeur + 12, hauteur + 12);
+    ctx.fillRect(-6, -6, width + 12, height + 12);
     ctx.shadowColor = "transparent";
     ctx.shadowBlur = 0;
     ctx.shadowOffsetY = 0;
 
-    const img = affiches[i];
+    const img = posters[i];
     if (img) {
-      /* L'affiche remplit sa case sans se déformer : on rogne le
-         débord plutôt que d'étirer un visage. */
-      const rapport = Math.max(largeur / img.width, hauteur / img.height);
-      const dw = img.width * rapport;
-      const dh = img.height * rapport;
+      /* The poster fills its cell without distorting itself: we crop the
+         overflow rather than stretch a face. */
+      const ratio = Math.max(width / img.width, height / img.height);
+      const dw = img.width * ratio;
+      const dh = img.height * ratio;
       ctx.save();
       ctx.beginPath();
-      ctx.rect(0, 0, largeur, hauteur);
+      ctx.rect(0, 0, width, height);
       ctx.clip();
-      ctx.drawImage(img, (largeur - dw) / 2, (hauteur - dh) / 2, dw, dh);
+      ctx.drawImage(img, (width - dw) / 2, (height - dh) / 2, dw, dh);
       ctx.restore();
     } else {
-      /* L'ÉMULSION DE SECOURS — la même que sur le mur.
+      /* THE FALLBACK EMULSION — the same as on the wall.
 
-         Un film sans affiche n'est pas un trou : `PosterArt` lui fabrique
-         depuis toujours une émulsion virée, teinte tirée de son
-         identifiant, avec ses initiales dessus. Elle valait pour l'écran
-         et pas pour l'image, si bien qu'une année de films sans affiche
-         sortait en cartons blancs — alors qu'elle a une allure, et
-         qu'elle est reconnaissable.
+         A film without a poster is not a hole: `PosterArt` has always
+         built it a toned emulsion, its tint drawn from its identifier,
+         with its initials on top. It held for the screen and not for the
+         image, so that a year of films without posters came out in white
+         cards — whereas it has a look, and it is recognisable.
 
-         `hueOf` est la source de vérité de cette teinte
-         (`theme/ink.ts`) : on la lit ici plutôt que de la redéfinir,
-         pour que les deux ne puissent pas diverger. Elle rend un
-         hexadécimal et non un jeton — c'est ce qui permet à un service
-         de s'en servir sans regarder le document. */
-      const teinte = hueOf(entrée.film.id);
-      const fond = ctx.createLinearGradient(0, 0, largeur * 0.5, hauteur);
-      fond.addColorStop(0, teinte);
-      fond.addColorStop(0.6, teinte);
-      fond.addColorStop(1, "#1c1712");
-      ctx.fillStyle = fond;
-      ctx.fillRect(0, 0, largeur, hauteur);
+         `hueOf` is the source of truth for that tint (`theme/ink.ts`):
+         we read it here rather than redefining it, so that the two
+         cannot diverge. It returns a hexadecimal and not a token — that
+         is what lets a service use it without looking at the
+         document. */
+      const tint = hueOf(entry.film.id);
+      const back = ctx.createLinearGradient(0, 0, width * 0.5, height);
+      back.addColorStop(0, tint);
+      back.addColorStop(0.6, tint);
+      back.addColorStop(1, "#1c1712");
+      ctx.fillStyle = back;
+      ctx.fillRect(0, 0, width, height);
 
-      // la lumière qui tombe en haut à gauche, comme sur le mur
-      const lueur = ctx.createRadialGradient(
-        largeur * 0.3,
-        hauteur * 0.22,
+      // the light falling at the top left, as on the wall
+      const glow = ctx.createRadialGradient(
+        width * 0.3,
+        height * 0.22,
         0,
-        largeur * 0.3,
-        hauteur * 0.22,
-        hauteur * 0.62
+        width * 0.3,
+        height * 0.22,
+        height * 0.62
       );
-      lueur.addColorStop(0, "rgba(255,240,210,0.28)");
-      lueur.addColorStop(1, "rgba(255,240,210,0)");
-      ctx.fillStyle = lueur;
-      ctx.fillRect(0, 0, largeur, hauteur);
+      glow.addColorStop(0, "rgba(255,240,210,0.28)");
+      glow.addColorStop(1, "rgba(255,240,210,0)");
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, width, height);
 
       ctx.fillStyle = "rgba(243,234,216,0.8)";
-      ctx.font = `italic ${Math.round(largeur * 0.32)}px ${p.title}`;
+      ctx.font = `italic ${Math.round(width * 0.32)}px ${p.title}`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(initialsOf(entrée.film.title), largeur / 2, hauteur / 2);
+      ctx.fillText(initialsOf(entry.film.title), width / 2, height / 2);
       ctx.textAlign = "left";
       ctx.textBaseline = "alphabetic";
     }
 
     ctx.strokeStyle = p.line;
     ctx.lineWidth = 1;
-    ctx.strokeRect(0.5, 0.5, largeur - 1, hauteur - 1);
+    ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
 
-    // titre et note sous le boîtier
+    // title and rating under the case
     ctx.fillStyle = p.ink;
     ctx.font = `20px ${p.body}`;
-    ctx.fillText(tronquer(ctx, entrée.film.title, largeur), 0, hauteur + 27);
+    ctx.fillText(truncate(ctx, entry.film.title, width), 0, height + 27);
     ctx.fillStyle = p.inkFaded;
     ctx.font = `17px ${p.mono}`;
     const mention = [
-      entrée.rating != null ? `${entrée.rating}★` : null,
-      entrée.n > 1 ? `×${entrée.n}` : null,
+      entry.rating != null ? `${entry.rating}★` : null,
+      entry.n > 1 ? `×${entry.n}` : null,
     ]
       .filter(Boolean)
       .join("  ");
-    if (mention) ctx.fillText(mention, 0, hauteur + 49);
+    if (mention) ctx.fillText(mention, 0, height + 49);
 
     ctx.restore();
   });
 
-  /* ---- LE PIED ---- */
-  const phrase = data.topDirector
+  /* ---- THE FOOT ---- */
+  const sentence = data.topDirector
     ? `Le plus revu cette année : ${data.topDirector}.`
     : "Une année de séances, tenue à la main.";
   ctx.fillStyle = p.inkFaded;
   ctx.font = `italic 27px ${p.body}`;
-  ctx.fillText(tronquer(ctx, phrase, W - MARGE * 2), MARGE, H - 82);
+  ctx.fillText(truncate(ctx, sentence, W - MARGIN * 2), MARGIN, H - 82);
 
-  /* Le bandeau de portrait : la décennie, le pays, l'âge. Chaque mention
-     ne paraît que si on la connaît — un « — » à la place d'un pays dirait
-     seulement qu'on n'a pas rempli ses fiches, ce qui n'intéresse
-     personne sur une image qu'on montre. */
+  /* The portrait banner: the decade, the country, the age. Each mention
+     appears only if we know it — a "—" in place of a country would say
+     only that the cards have not been filled in, which interests nobody
+     on an image one shows around. */
   const mentions = [
     data.decade != null ? `années ${String(data.decade).slice(2)}` : null,
     data.country,
-    data.ageMoyen != null ? `${Math.round(data.ageMoyen)} ans de moyenne` : null,
+    data.ageMean != null ? `${Math.round(data.ageMean)} ans de moyenne` : null,
   ].filter(Boolean) as string[];
   if (mentions.length) {
     ctx.font = `21px ${p.mono}`;
-    ctx.fillText(tronquer(ctx, mentions.join("  ·  "), W - MARGE * 2), MARGE, H - 50);
+    ctx.fillText(truncate(ctx, mentions.join("  ·  "), W - MARGIN * 2), MARGIN, H - 50);
   }
 
   ctx.font = `19px ${p.mono}`;
-  ctx.fillText("CINÉ HUB · archive personnelle", MARGE, H - 22);
+  ctx.fillText("CINÉ HUB · archive personnelle", MARGIN, H - 22);
 
   return await new Promise<Blob>((resolve, reject) =>
     canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error("l'image n'a pas pu être close"))),
+      (blob) => (blob ? resolve(blob) : reject(new Error("l'image n'a pas pu être produite"))),
       "image/png"
     )
   );
 }
 
-/** Poser l'image dans les téléchargements, sous un nom qui se retrouve. */
-export function telecharger(blob: Blob, nom: string): void {
+/** Lays the image in the downloads, under a name one can find again. */
+export function download(blob: Blob, name: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = nom;
+  a.download = name;
   document.body.appendChild(a);
   a.click();
   a.remove();
-  /* Révoquer tout de suite couperait le téléchargement dans certains
-     navigateurs : on laisse passer une frame. */
+  /* Revoking straight away would cut the download short in some
+     browsers: we let one frame go by. */
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

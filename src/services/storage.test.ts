@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { store, flush, KEYS } from "./storage";
 
-describe("l'écriture différée", () => {
+describe("the deferred write", () => {
   beforeEach(() => {
     localStorage.clear();
     vi.useFakeTimers();
@@ -12,31 +12,31 @@ describe("l'écriture différée", () => {
     vi.useRealTimers();
   });
 
-  it("n'écrit pas tout de suite", () => {
+  it("does not write straight away", () => {
     store.setSoon(KEYS.films, [{ id: "a" }]);
     expect(localStorage.getItem(KEYS.films)).toBeNull();
-    expect(store.enAttente()).toBe(1);
+    expect(store.pending()).toBe(1);
   });
 
-  it("écrit après le délai", () => {
+  it("writes after the delay", () => {
     store.setSoon(KEYS.films, [{ id: "a" }]);
     vi.advanceTimersByTime(500);
     expect(JSON.parse(localStorage.getItem(KEYS.films)!)).toEqual([{ id: "a" }]);
-    expect(store.enAttente()).toBe(0);
+    expect(store.pending()).toBe(0);
   });
 
-  /* C'est tout l'objet du module : dix éditions d'affilée sur une
-     collection de cinq cents fiches ne doivent faire qu'une écriture. */
-  it("fond dix écritures en une, et garde la dernière", () => {
-    const espion = vi.spyOn(Storage.prototype, "setItem");
+  /* That is the whole point of the module: ten edits in a row on a
+     collection of five hundred cards must make one write only. */
+  it("melts ten writes into one, and keeps the last", () => {
+    const spy = vi.spyOn(Storage.prototype, "setItem");
     for (let i = 0; i < 10; i++) store.setSoon(KEYS.films, [{ id: `v${i}` }]);
     vi.advanceTimersByTime(500);
-    expect(espion).toHaveBeenCalledTimes(1);
+    expect(spy).toHaveBeenCalledTimes(1);
     expect(JSON.parse(localStorage.getItem(KEYS.films)!)).toEqual([{ id: "v9" }]);
-    espion.mockRestore();
+    spy.mockRestore();
   });
 
-  it("garde les clés distinctes séparées", () => {
+  it("keeps distinct keys apart", () => {
     store.setSoon(KEYS.films, ["f"]);
     store.setSoon(KEYS.notes, ["n"]);
     vi.advanceTimersByTime(500);
@@ -44,43 +44,43 @@ describe("l'écriture différée", () => {
     expect(JSON.parse(localStorage.getItem(KEYS.notes)!)).toEqual(["n"]);
   });
 
-  /* Le vidage est ce qui rend le report sûr : sans lui, différer
-     reviendrait à parier que l'onglet restera ouvert. */
-  it("écrit tout de suite quand on vide à la main", () => {
+  /* The flush is what makes deferring safe: without it, deferring would
+     amount to betting the tab will stay open. */
+  it("writes immediately when flushed by hand", () => {
     store.setSoon(KEYS.films, ["urgent"]);
     flush();
     expect(JSON.parse(localStorage.getItem(KEYS.films)!)).toEqual(["urgent"]);
   });
 
-  it("ne fait rien quand il n'y a rien à vider", () => {
-    const espion = vi.spyOn(Storage.prototype, "setItem");
+  it("does nothing when there is nothing to flush", () => {
+    const spy = vi.spyOn(Storage.prototype, "setItem");
     flush();
-    expect(espion).not.toHaveBeenCalled();
-    espion.mockRestore();
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
   });
 
-  it("écrit ce qui attend quand l'onglet passe en arrière-plan", () => {
+  it("writes what is waiting when the tab goes into the background", () => {
     store.setSoon(KEYS.films, ["caché"]);
     vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
     document.dispatchEvent(new Event("visibilitychange"));
     expect(JSON.parse(localStorage.getItem(KEYS.films)!)).toEqual(["caché"]);
   });
 
-  it("relit ce qu'il vient d'écrire", () => {
+  it("reads back what it has just written", () => {
     store.setSoon(KEYS.films, [{ id: "a" }]);
     flush();
     expect(store.get(KEYS.films, [])).toEqual([{ id: "a" }]);
   });
 });
 
-describe("la lecture", () => {
+describe("reading", () => {
   beforeEach(() => localStorage.clear());
 
-  it("rend le repli quand la clé n'existe pas", () => {
+  it("returns the fallback when the key does not exist", () => {
     expect(store.get("absente", "repli")).toBe("repli");
   });
 
-  it("rend le repli plutôt que de lever sur du JSON abîmé", () => {
+  it("returns the fallback rather than throwing on damaged JSON", () => {
     localStorage.setItem("cassée", "{ceci n'est pas du json");
     expect(store.get("cassée", [])).toEqual([]);
   });

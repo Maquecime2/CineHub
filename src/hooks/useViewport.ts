@@ -1,39 +1,37 @@
 /* ============================================================
-   LE GABARIT — la taille de la fenêtre, et la main qui la touche
+   THE FORMAT — the size of the window, and the hand that touches it
    ============================================================
 
-   Le classeur a été dessiné pour un bureau : un rail d'onglets sur la
-   tranche, des boîtiers de quatre-vingt-seize pixels, un glisser-déposer
-   à la souris. Rien de tout cela ne se lit sur un téléphone, et pour le
-   savoir il faut poser la question à la fenêtre.
+   The binder was drawn for a desk: a rail of tabs on the edge, cases of
+   ninety-six pixels, drag-and-drop with the mouse. None of that reads on
+   a phone, and to know it one must put the question to the window.
 
-   ELLE SE POSE UNE FOIS, ET PAS PAR COMPOSANT. Un `resize` écouté dans
-   chaque vue, c'est autant d'abonnements et autant de re-rendus à chaque
-   pixel de redimensionnement. `matchMedia` ne parle que quand le seuil
-   est FRANCHI : trois écouteurs pour toute l'application, et un re-rendu
-   au moment exact où la mise en page doit changer.
+   IT IS ASKED ONCE, AND NOT PER COMPONENT. A `resize` listened to in
+   every view is that many subscriptions and that many re-renders at
+   every pixel of resizing. `matchMedia` speaks only when the threshold
+   is CROSSED: three listeners for the whole application, and one
+   re-render at the exact moment the layout must change.
 
-   `useSyncExternalStore` plutôt qu'un `useState` dans un `useEffect` :
-   la valeur est lue au premier rendu, et non au second. Un rail qui
-   naît vertical pour devenir horizontal une trame plus tard, c'est un
-   saut que l'on voit. */
+   `useSyncExternalStore` rather than a `useState` inside a `useEffect`:
+   the value is read on the first render, not on the second. A rail born
+   vertical only to turn horizontal one frame later is a jump one
+   sees. */
 import { useSyncExternalStore } from "react";
 import { BP } from "../theme/tokens";
 
-/** Ce que la fenêtre répond. Les trois tailles s'excluent. */
+/** What the window answers. The three sizes are mutually exclusive. */
 export interface Viewport {
-  /** Sous le seuil `BP.phone` : une seule colonne, la navigation en pied. */
+  /** Below the `BP.phone` threshold: a single column, navigation at the foot. */
   phone: boolean;
-  /** Entre les deux seuils : le rail tient, les grilles se resserrent. */
+  /** Between the two thresholds: the rail holds, the grids tighten. */
   tablet: boolean;
-  /** Au-dessus de `BP.tablet` : le classeur tel qu'il a été dessiné. */
+  /** Above `BP.tablet`: the binder as it was drawn. */
   desk: boolean;
-  /* CE N'EST PAS LA MÊME QUESTION QUE LA LARGEUR. Une tablette posée en
-     paysage est large ET tactile ; un navigateur réduit à trois cents
-     pixels est étroit et se pilote à la souris. Les cibles de quarante-
-     quatre pixels et le glissement au doigt répondent à `coarse`, les
-     mises en page répondent à la largeur. Les confondre, c'est donner
-     des boutons de doigt à une souris. */
+  /* THIS IS NOT THE SAME QUESTION AS WIDTH. A tablet laid in landscape
+     is wide AND touch-driven; a browser shrunk to three hundred pixels
+     is narrow and driven with the mouse. Forty-four pixel targets and
+     finger dragging answer to `coarse`, layouts answer to width.
+     Confusing them means giving finger-sized buttons to a mouse. */
   coarse: boolean;
 }
 
@@ -47,11 +45,11 @@ const QUERIES = {
 type Key = keyof typeof QUERIES;
 const KEYS = Object.keys(QUERIES) as Key[];
 
-/* Un environnement sans `matchMedia` doit rendre le bureau plutôt que
-   rien : jsdom ne l'implémente pas de lui-même. La question se pose à
-   chaque appel et non une fois pour toutes à l'import — un test qui pose
-   sa doublure après le chargement du module resterait sinon face à la
-   réponse figée du premier instant. */
+/* An environment without `matchMedia` must render the desk rather than
+   nothing: jsdom does not implement it on its own. The question is asked
+   at every call and not once and for all at import time — otherwise a
+   test that lays down its stub after the module has loaded would be
+   stuck with the answer frozen at the first instant. */
 const supported = (): boolean =>
   typeof window !== "undefined" && typeof window.matchMedia === "function";
 
@@ -68,11 +66,11 @@ const listOf = (k: Key): MediaQueryList | undefined => {
 
 const DESK: Viewport = { phone: false, tablet: false, desk: true, coarse: false };
 
-/* L'INSTANTANÉ EST MIS EN CACHE, ET C'EST OBLIGATOIRE.
-   `useSyncExternalStore` compare l'ancienne et la nouvelle valeur par
-   identité. Fabriquer un objet neuf à chaque lecture lui ferait croire
-   à un changement à chaque rendu — et il boucle. On ne recompose donc
-   l'objet que lorsqu'une requête a vraiment parlé. */
+/* THE SNAPSHOT IS CACHED, AND THAT IS MANDATORY.
+   `useSyncExternalStore` compares the old and the new value by identity.
+   Building a fresh object at every read would make it believe in a
+   change at every render — and it loops. So we recompose the object only
+   when a query has really spoken. */
 let snapshot: Viewport = DESK;
 let dirty = true;
 
@@ -82,9 +80,9 @@ const read = (): Viewport => {
     const next = Object.fromEntries(
       KEYS.map((k) => [k, listOf(k)?.matches ?? false])
     ) as unknown as Viewport;
-    /* Aucune requête ne répond — un `matchMedia` bouchonné qui renvoie
-       toujours faux, ce que font la plupart des doublures de test. On
-       retombe alors sur le bureau plutôt que sur un gabarit sans nom. */
+    /* No query answers — a stubbed `matchMedia` that always returns
+       false, which is what most test doubles do. We then fall back on
+       the desk rather than on a nameless format. */
     if (!next.phone && !next.tablet) next.desk = true;
     snapshot = next;
     dirty = false;
@@ -103,10 +101,10 @@ const subscribe = (onChange: () => void): (() => void) => {
   return () => attached.forEach((l) => l.removeEventListener("change", fire));
 };
 
-/** Le gabarit courant. Un seul abonnement pour toute l'application. */
+/** The current format. A single subscription for the whole application. */
 export const useViewport = (): Viewport => useSyncExternalStore(subscribe, read, () => DESK);
 
-/** Pour les tests : oublier ce qui a été mesuré et mesurer de nouveau. */
+/** For tests: forget what was measured and measure again. */
 export const resetViewport = (): void => {
   KEYS.forEach((k) => delete lists[k]);
   dirty = true;

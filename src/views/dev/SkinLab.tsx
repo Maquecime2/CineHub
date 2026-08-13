@@ -1,31 +1,29 @@
 /* ============================================================
-   L'ÉCRAN DE CONTRÔLE DES PEAUX — quatorze mondes, côte à côte
+   THE SKIN CONTROL SCREEN — fourteen worlds, side by side
    ============================================================
 
-   Quatorze peaux veut dire que toute pièce nouvelle est un pari sur
-   quatorze rendus qu'on ne regarde jamais. On en avait la preuve : un
-   dégradé d'onglet écrit `${couleur}cc` a cessé de vouloir dire quoi que
-   ce soit le jour où les jetons sont devenus des renvois, et les onglets
-   ont perdu leur relief sans un mot — parce que personne ne les regardait
-   ailleurs que sur sa propre peau.
+   Fourteen skins means that every new piece is a bet on fourteen
+   renderings nobody ever looks at. We had the proof: a tab gradient
+   written `${couleur}cc` stopped meaning anything at all the day the
+   tokens became references, and the tabs lost their relief without a
+   word — because nobody looked at them anywhere but on their own skin.
 
-   Cette planche n'existe donc qu'EN DÉVELOPPEMENT, et elle ne montre pas
-   des couleurs : elle montre les VRAIS composants, ceux du site, rendus
-   quatorze fois. Une pastille de couleur aurait dit que le contraste
-   passe ; seul un titre au-dessus d'un fond dit s'il se lit.
+   So this board only exists IN DEVELOPMENT, and it does not show
+   colours: it shows the REAL components, the site's own, rendered
+   fourteen times. A colour pill would have said the contrast passes;
+   only a title above a background says whether it reads.
 
-   COMMENT UNE PEAU TIENT SUR UN FRAGMENT DE PAGE. `applySkin` écrit sur
-   la racine du document, ce qui ne permet qu'une peau à la fois. Mais les
-   variables CSS cascadent : les mêmes paires, posées en style sur un
-   `div`, habillent tout ce qu'il contient et rien d'autre. C'est à quoi
-   sert `skinVars`, qu'`applySkin` emploie de son côté — une seule
-   définition pour les deux.
+   HOW A SKIN HOLDS ON A FRAGMENT OF PAGE. `applySkin` writes on the
+   document root, which only allows one skin at a time. But CSS variables
+   cascade: the same pairs, laid as a style on a `div`, dress everything
+   it contains and nothing else. That is what `skinVars` is for, which
+   `applySkin` uses on its side — a single definition for both.
 
-   LES POLICES, ELLES, SONT TOUTES CHARGÉES ICI. Le choix de la peau s'en
-   dispense délibérément (quatorze jeux pour un panneau qu'on ouvre deux
-   fois), et ses vignettes affichent donc les polices de secours. Ce
-   compromis-là ne vaut pas sur une planche dont la typographie est
-   justement l'objet. */
+   THE TYPEFACES, THOUGH, ARE ALL LOADED HERE. The skin picker
+   deliberately does without them (fourteen sets for a panel one opens
+   twice), and its thumbnails therefore display the fallback typefaces.
+   That compromise does not hold on a board whose typography is precisely
+   the point. */
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import { C, F, alpha } from "../../theme/tokens";
@@ -42,13 +40,13 @@ import {
   TapeResidue,
 } from "../../components/atmosphere";
 
-/* Toutes les polices de toutes les peaux, en une seule requête. */
+/* Every typeface of every skin, in a single request. */
 const ALL_FONTS_ID = "skinlab-fonts";
 
 function useAllSkinFonts(): void {
   useEffect(() => {
-    const familles = [...new Set(SKINS.flatMap((s) => s.google))];
-    const href = `https://fonts.googleapis.com/css2?${familles
+    const families = [...new Set(SKINS.flatMap((s) => s.google))];
+    const href = `https://fonts.googleapis.com/css2?${families
       .map((f) => `family=${f}`)
       .join("&")}&display=swap`;
     let link = document.getElementById(ALL_FONTS_ID) as HTMLLinkElement | null;
@@ -59,19 +57,19 @@ function useAllSkinFonts(): void {
       document.head.appendChild(link);
     }
     if (link.href !== href) link.href = href;
-    /* On ne retire pas le lien en partant : les polices resteraient
-       chargées de toute façon, et les reposer à chaque aller-retour
-       coûterait plus que de le laisser en place. */
+    /* We do not remove the link on leaving: the typefaces would stay
+       loaded anyway, and laying them again at every round trip would
+       cost more than leaving it in place. */
   }, []);
 }
 
 /* ------------------------------------------------------------
-   L'ÉCHANTILLON — tout ce qui doit tenir sur chaque peau
+   THE SAMPLE — everything that must hold on every skin
    ------------------------------------------------------------
 
-   Rien ici n'est propre à la planche : ce sont les composants du site.
-   Ajouter une pièce au vocabulaire visuel veut dire l'ajouter ICI, sans
-   quoi elle échappe au contrôle. */
+   Nothing here is proper to the board: these are the site's components.
+   Adding a piece to the visual vocabulary means adding it HERE, failing
+   which it escapes the check. */
 function Specimen() {
   return (
     <div style={{ position: "relative", padding: "18px 20px 22px" }}>
@@ -89,7 +87,7 @@ function Specimen() {
         détache vraiment du papier.
       </div>
 
-      {/* LE CARTON POSÉ — la pièce la plus employée du site */}
+      {/* THE CARDSTOCK LAID DOWN — the site's most used piece */}
       <div
         style={{
           position: "relative",
@@ -112,7 +110,7 @@ function Specimen() {
         </div>
       </div>
 
-      {/* LES ACCENTS — les quatre teintes qui percent le fond, et un onglet */}
+      {/* THE ACCENTS — the four tints that pierce the background, and a tab */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 16 }}>
         {(["burgundy", "ochre", "pine", "slate", "cobalt", "vermillion", "moss"] as const).map(
           (t) => (
@@ -136,7 +134,7 @@ function Specimen() {
         )}
       </div>
 
-      {/* L'ONGLET DE CLASSEUR — le dégradé qui s'était éteint sans un mot */}
+      {/* THE BINDER TAB — the gradient that had gone out without a word */}
       <div style={{ display: "flex", gap: 8, marginTop: 14, alignItems: "flex-start" }}>
         {[C.burgundy, C.cobalt, C.pine].map((couleur, i) => (
           <span
@@ -160,7 +158,7 @@ function Specimen() {
         <TapeResidue style={{ position: "relative", marginTop: 4 }} w={60} />
       </div>
 
-      {/* LE CHAMP DE SAISIE — souvent oublié, souvent illisible */}
+      {/* THE INPUT FIELD — often forgotten, often unreadable */}
       <input
         readOnly
         value="un champ souligné"
@@ -195,19 +193,19 @@ const CARD: CSSProperties = {
 
 function SkinPanel({ skin }: { skin: Skin }) {
   return (
-    /* Le même attribut que sur la racine, et pour la même règle : c'est
-       lui qui dit au navigateur sur quel fond il dessine ses propres
-       morceaux. Sans lui, un fragment sombre garderait ici les listes et
-       les cases claires — soit exactement le défaut qu'on vient
-       inspecter. */
+    /* The same attribute as on the root, and for the same rule: it is
+       what tells the browser on which background it draws its own
+       pieces. Without it, a dark fragment would keep the lists and the
+       boxes light here — that is, exactly the flaw one came to
+       inspect. */
     <div
       data-dark={skin.dark ? "1" : "0"}
       style={{ ...CARD, ...skinVars(skin), background: skin.page } as CSSProperties}
     >
-      {/* L'EN-TÊTE EST HORS DE LA PEAU. Il doit rester lisible même quand
-          la peau qu'il annonce est, elle, en défaut — c'est justement ce
-          cas-là qu'on vient chercher ici. D'où des valeurs en dur, les
-          seules du fichier, et assumées. */}
+      {/* THE HEADER IS OUTSIDE THE SKIN. It must stay legible even when
+          the skin it announces is itself at fault — that is precisely
+          the case one comes looking for here. Hence hard-coded values,
+          the only ones in the file, and owned. */}
       <div
         style={{
           padding: "7px 12px",
@@ -233,9 +231,9 @@ function SkinPanel({ skin }: { skin: Skin }) {
 
 export function SkinLab() {
   useAllSkinFonts();
-  /* Une peau seule, en grand, quand on est venu en regarder UNE. */
+  /* A single skin, large, when one came to look at ONE. */
   const [seule, setSeule] = useState<string | null>(null);
-  const montrees = seule ? SKINS.filter((s) => s.key === seule) : SKINS;
+  const shownOnes = seule ? SKINS.filter((s) => s.key === seule) : SKINS;
 
   return (
     <div style={{ padding: "30px 40px 70px", position: "relative" }}>
@@ -248,11 +246,11 @@ export function SkinLab() {
       </div>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 22 }}>
-        <button onClick={() => setSeule(null)} style={filtreStyle(seule === null)}>
+        <button onClick={() => setSeule(null)} style={filterStyle(seule === null)}>
           toutes
         </button>
         {SKINS.map((s) => (
-          <button key={s.key} onClick={() => setSeule(s.key)} style={filtreStyle(seule === s.key)}>
+          <button key={s.key} onClick={() => setSeule(s.key)} style={filterStyle(seule === s.key)}>
             {s.key}
           </button>
         ))}
@@ -265,7 +263,7 @@ export function SkinLab() {
           gap: 22,
         }}
       >
-        {montrees.map((s) => (
+        {shownOnes.map((s) => (
           <SkinPanel key={s.key} skin={s} />
         ))}
       </div>
@@ -273,15 +271,15 @@ export function SkinLab() {
   );
 }
 
-const filtreStyle = (actif: boolean): CSSProperties => ({
+const filterStyle = (active: boolean): CSSProperties => ({
   all: "unset",
   cursor: "pointer",
   fontFamily: F.mono,
   fontSize: 10.5,
   letterSpacing: 1,
   padding: "4px 9px",
-  color: actif ? C.card : C.inkFaded,
-  background: actif ? C.ink : "transparent",
-  border: `1px solid ${actif ? C.ink : C.line}`,
+  color: active ? C.card : C.inkFaded,
+  background: active ? C.ink : "transparent",
+  border: `1px solid ${active ? C.ink : C.line}`,
   borderRadius: 2,
 });

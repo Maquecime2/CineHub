@@ -1,8 +1,8 @@
-/* Les contenants : la gouttière de réglage d'une rangée, la rangée
-   elle-même, le rayon, le tiroir des mis de côté, l'aperçu d'un boîtier
-   ouvert, le cabinet de décors et la palette d'un objet. */
+/* The containers: a row's setting gutter, the row itself, the shelf, the
+   drawer of things set aside, the preview of an open case, the decor
+   cabinet and an object's palette. */
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { Calque } from "../ui/Calque";
+import { Layer } from "../ui/Layer";
 import { X, Trash2, Upload, ChevronLeft, Eye, EyeOff } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap, tapSquare, COARSE, TAP } from "../../theme/styles";
@@ -52,24 +52,23 @@ const GutterAct = ({ label, onClick, ink = C.inkFaded }) => (
   </button>
 );
 
-/* LE COMPTE PAR LIGNE — « auto », ou un nombre qu'on écrit.
+/* THE COUNT PER LINE — "auto", or a number one writes.
 
-   C'était une rangée de boutons tirés d'une liste fermée : 3, 4, 5, 6, 8,
-   10, 12. Sept choix imposés, et rien pour qui en voulait sept, ou vingt.
-   Un champ ne ferme rien, et tient dans la moitié de la place.
+   It was a row of buttons drawn from a closed list: 3, 4, 5, 6, 8, 10,
+   12. Seven imposed choices, and nothing for whoever wanted seven, or
+   twenty. A field closes nothing, and fits in half the room.
 
-   « auto » n'est pas un nombre parmi les autres, c'est l'ABSENCE de
-   nombre écrit : la rangée se mesure et prend le compte de sa largeur
-   (voir `useRowCap`, dans `lines.js`). Elle laissait auparavant replier
-   le navigateur, qui ne sait pas poser de bois sous ce qu'il replie.
-   D'où un interrupteur à côté du champ plutôt qu'une valeur de plus
-   dedans — un zéro ou un champ vide auraient dit « aucun film par
-   ligne » aussi bien que
-   « autant qu'il en tient ».
+   "auto" is not a number among the others, it is the ABSENCE of a written
+   number: the row measures itself and takes the count of its width (see
+   `useRowCap`, in `lines.js`). It previously let the browser wrap, which
+   does not know how to lay wood under what it wraps. Hence a switch
+   beside the field rather than one more value inside it — a zero or an
+   empty field would have said "no films per line" just as well as "as
+   many as fit".
 
-   Le brouillon est local et ne remonte qu'à la validation : écrire à
-   chaque frappe ferait passer par 1 avant 12, et le rayon se replierait
-   sous les doigts à chaque chiffre tapé. */
+   The draft is local and only goes up on confirmation: writing at every
+   keystroke would pass through 1 before 12, and the shelf would fold up
+   under one's fingers at every digit typed. */
 export const PerRowField = React.memo(function PerRowField({ value, onChange, title, max }) {
   const [draft, setDraft] = useState(value == null ? "" : String(value));
   useEffect(() => {
@@ -80,14 +79,14 @@ export const PerRowField = React.memo(function PerRowField({ value, onChange, ti
 
   const commit = () => {
     const n = Math.round(Number(draft));
-    // un compte qui n'en est pas un rend la main à ce qui était réglé
+    // a count that is not one hands back to whatever was set
     if (!draft.trim() || !Number.isFinite(n) || n < 1) {
       setDraft(value == null ? "" : String(value));
       return;
     }
-    /* Le tiroir des mis de côté ne fait que 250 px : deux boîtiers y
-       tiennent. On ramène donc au possible plutôt que de refuser — on
-       corrige la main qui vise trop grand, on ne la repousse pas. */
+    /* The drawer of things set aside is only 250 px: two cases fit in it.
+       So we bring it back to what is possible rather than refusing — we
+       correct the hand that aims too big, we do not push it away. */
     const kept = max ? Math.min(n, max) : n;
     setDraft(String(kept));
     if (kept !== value) onChange(kept);
@@ -159,12 +158,11 @@ export const PerRowField = React.memo(function PerRowField({ value, onChange, ti
   );
 });
 
-/* LA GOUTTIÈRE — le réglage d'une rangée, à sa gauche.
+/* THE GUTTER — a row's setting, to its left.
 
-   Le nombre de films par ligne était un réglage de MUR, le même pour
-   toute l'étagère, qu'un intercalaire pouvait seulement surcharger en
-   ouvrant sa ligne. Il appartient maintenant à la rangée elle-même, et
-   se règle là où on la regarde. */
+   The number of films per line was a WALL setting, the same for the whole
+   shelf, which a divider could only override by opening its line. It now
+   belongs to the row itself, and is set where one looks at it. */
 const RowGutter = React.memo(function RowGutter({ row, shown, acts, capMax }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(row.label || "");
@@ -176,13 +174,12 @@ const RowGutter = React.memo(function RowGutter({ row, shown, acts, capMax }) {
     <div
       style={{
         position: "relative",
-        /* LA GOUTTIÈRE S'ÉLARGIT AU DOIGT, ET C'EST LE SEUL ENDROIT OÙ
-           ELLE LE FAIT. Sa languette est la porte des réglages de la
-           rangée — nommer la ligne, fixer le nombre de boîtiers. Vingt-
-           deux pixels de côté se visent à la souris ; au doigt, la
-           languette se manque, et avec elle tout ce qu'elle ouvre. On
-           paie dix-huit pixels de largeur de rayon, sur une bande qui
-           défile déjà horizontalement. */
+        /* THE GUTTER WIDENS UNDER A FINGER, AND IT IS THE ONLY PLACE IT
+           DOES. Its tab is the door to the row's settings — naming the
+           line, fixing the number of cases. Twenty-two pixels a side can
+           be aimed at with a mouse; with a finger, the tab is missed, and
+           with it everything it opens. We pay eighteen pixels of shelf
+           width, on a band that already scrolls horizontally. */
         width: COARSE ? TAP : 26,
         flexShrink: 0,
         display: "flex",
@@ -212,7 +209,7 @@ const RowGutter = React.memo(function RowGutter({ row, shown, acts, capMax }) {
           fontFamily: F.mono,
           fontSize: 9.5,
           color: C.inkFaded,
-          // discrète tant qu'on ne s'occupe pas de la rangée
+          // discreet as long as one is not dealing with the row
           opacity: open || shown ? 1 : 0.45,
           transition: "opacity .15s ease",
         }}
@@ -244,7 +241,7 @@ const RowGutter = React.memo(function RowGutter({ row, shown, acts, capMax }) {
 
       {open && (
         <>
-          {/* cliquer ailleurs referme : un réglage ne reste pas ouvert */}
+          {/* clicking elsewhere closes it again: a setting does not stay open */}
           <div
             onClick={() => setOpen(false)}
             data-veil
@@ -366,15 +363,15 @@ const RowGutter = React.memo(function RowGutter({ row, shown, acts, capMax }) {
   );
 });
 
-/* LA PLANCHE — le bois d'UNE ligne. Il y en a autant que de lignes, et
-   c'est tout le propos : une bande de boîtiers qui n'a rien dessous
-   n'est pas une étagère.
+/* THE BOARD — the wood of ONE line. There are as many as there are
+   lines, and that is the whole point: a band of cases with nothing under
+   it is not a shelf.
 
-   Elle n'est plus forcément du bois. Mais tant que la vue n'a pas choisi
-   de matériau, elle est CE QU'ELLE ÉTAIT : les deux stops du thème, à
-   l'hexadécimal près, sans veinage ni reflet. Le matériau n'est pas une
-   reformulation de l'existant, c'est une porte à côté — et c'est ce qui
-   permet d'affirmer qu'une vue d'hier est identique au pixel. */
+   It is no longer necessarily wood. But as long as the view has not
+   chosen a material, it is WHAT IT WAS: the theme's two stops, to the
+   hexadecimal, with no grain or sheen. The material is not a restatement
+   of what exists, it is a door beside it — and that is what allows one to
+   claim that yesterday's view is identical to the pixel. */
 const Plank = React.memo(function Plank({ theme, plank }) {
   const skin = plank?.material
     ? materialStyle(plank.material, plank.finish)
@@ -397,19 +394,18 @@ const Plank = React.memo(function Plank({ theme, plank }) {
   );
 });
 
-/* UNE RANGÉE — sa gouttière, ses planches, et ce qui est posé dessus.
+/* A ROW — its gutter, its boards, and what is laid on them.
 
-   Une planche par rangée, et non plus une par rayon : c'est ce qu'est une
-   étagère, cela donne à la gouttière un objet contre quoi buter, et cela
-   fait de la rangée une chose qu'on voit.
+   One board per row, and no longer one per shelf: that is what a shelf
+   is, it gives the gutter something to butt against, and it makes the row
+   a thing one sees.
 
-   Et maintenant une planche par LIGNE de la rangée. Le repli était laissé
-   au navigateur, qui ne sait pas poser du bois : dès qu'une rangée passait
-   à la ligne, les boîtiers du haut flottaient au-dessus du vide. La rangée
-   découpe donc elle-même son contenu en lignes (`splitRow`), et chaque
-   ligne est une bande à elle, avec sa planche. Une boîte trop grande ne se
-   replie plus à l'intérieur d'elle-même : elle déborde sur la ligne du
-   dessous, bois compris. */
+   And now one board per LINE of the row. Wrapping was left to the
+   browser, which does not know how to lay wood: as soon as a row wrapped,
+   the cases at the top floated above the void. So the row cuts its own
+   content into lines (`splitRow`), and each line is a band of its own,
+   with its board. A box that is too big no longer wraps inside itself: it
+   overflows onto the line below, wood included. */
 const ShelfRow = React.memo(function ShelfRow({
   row,
   kind,
@@ -430,9 +426,9 @@ const ShelfRow = React.memo(function ShelfRow({
   const [shown, setShown] = useState(false);
   const ctx = useMemo(() => ({ kind, rowId: row.id, catId: null }), [kind, row.id]);
 
-  /* La mesure se prend sur l'enveloppe, qui n'a pas de marge intérieure :
-     ce sont les BANDES qui la portent, et on la retire donc à la main —
-     sinon la dernière case déborderait de sa planche. */
+  /* The measurement is taken on the wrapper, which has no inner padding:
+     it is the BANDS that carry it, and we therefore take it off by hand —
+     otherwise the last cell would overflow its board. */
   const measure = useRef(null);
   const padX = bare ? 4 : 20;
   const cap = useRowCap(measure, row.perRow, padX);
@@ -495,7 +491,7 @@ const ShelfRow = React.memo(function ShelfRow({
 
   const drawn = lines.map((line) => line.map(draw).filter(Boolean));
   const empty = drawn.every((line) => line.length === 0);
-  // la ligne d'arrivée vide ne se montre pas : elle n'a rien à dire
+  // the empty arrivals line does not show itself: it has nothing to say
   const hidden = empty && isUnplaced(row);
 
   return (
@@ -509,11 +505,11 @@ const ShelfRow = React.memo(function ShelfRow({
         <div ref={measure} style={{ flex: 1, minWidth: 0, marginLeft: hidden && !bare ? 26 : 0 }}>
           {drawn.map((nodes, i) => (
             <div
-              /* Chaque LIGNE est une rangée aux yeux du glissement : la
-                 cible se dit en voisin (`overId`) et non en numéro, donc
-                 découper la bande ne dérange rien — et lâcher dans le vide
-                 d'une ligne vise désormais la fin de CETTE ligne, ce qui
-                 est ce qu'on montrait du doigt. */
+              /* Every LINE is a row in the drag's eyes: the target is
+                 stated as a neighbour (`overId`) and not as a number, so
+                 cutting the band disturbs nothing — and letting go in a
+                 line's emptiness now aims at the end of THAT line, which
+                 is what one was pointing at. */
               key={i}
               data-shelf-row
               onDragOver={(e) => dnd.onRowOver(e, ctx)}
@@ -543,13 +539,13 @@ const ShelfRow = React.memo(function ShelfRow({
                 </div>
               )}
               {nodes}
-              {/* la planche de CETTE ligne */}
+              {/* THIS line's board */}
               {!hidden && <Plank theme={theme} plank={plank} />}
             </div>
           ))}
         </div>
       </div>
-      {/* la couture : y lâcher un boîtier ouvre une rangée neuve */}
+      {/* the seam: letting a case go there opens a new row */}
       {!isLast && (
         <div
           data-row-seam
@@ -565,8 +561,8 @@ const ShelfRow = React.memo(function ShelfRow({
   );
 });
 
-/* Un rayon : ses rangées, empilées dans son cadre. La planche n'est plus
-   ici — chaque rangée porte la sienne. */
+/* A shelf: its rows, stacked in its frame. The board is no longer here —
+   each row carries its own. */
 export function Shelf({
   kind,
   title,
@@ -580,8 +576,8 @@ export function Shelf({
   films,
   theme,
   plankDecor,
-  /* Le décor du MUR, tel que la vue l'a enregistré — ou rien, et le
-     rayon reste celui d'avant les peintures. */
+  /* The WALL's decor, as the view saved it — or nothing, and the shelf
+     stays the one from before the paintwork. */
   wallDecor,
   dim,
   onEditCat,
@@ -592,14 +588,14 @@ export function Shelf({
   const cfg = SHELF_KIND[kind];
   const rows = shelf?.rows || [];
 
-  /* Le fond du rayon, teinte du rayon comprise : trois choses qui se
-     disputaient la même propriété se composent maintenant en un endroit.
-     Recalculé au changement de décor seulement — c'est un style qui vit
-     sur le nœud que le glissement survole cent fois par geste. */
+  /* The shelf's background, shelf tint included: three things that fought
+     over the same property are now composed in one place. Recomputed only
+     when the decor changes — it is a style that lives on the node the drag
+     hovers a hundred times per gesture. */
   const skin = useMemo(
-    /* Sans encre choisie, on n'en invente pas une : `catInk` rendrait du
-       bordeaux pour une clé absente, là où un papier peint sans consigne
-       veut la teinte discrète du module. */
+    /* With no ink chosen, we do not invent one: `catInk` would return
+       burgundy for an absent key, where a wallpaper with no instruction
+       wants the module's discreet tint. */
     () =>
       wallStyle(
         wallDecor,
@@ -610,10 +606,10 @@ export function Shelf({
   );
 
   return (
-    /* Le débordement volontaire des décors — un anneau de café, un ruban
-       qui mord sur le bord — est rogné ici, au plus près : sur le rayon
-       lui-même, qui ne contient rien de `position: fixed`. `clip` et non
-       `hidden`, qui ferait de ce bloc un conteneur de défilement. */
+    /* The decors' deliberate overflow — a coffee ring, a ribbon biting
+       over the edge — is clipped here, as close as possible: on the shelf
+       itself, which contains nothing in `position: fixed`. `clip` and not
+       `hidden`, which would make this block a scrolling container. */
     <div style={{ marginTop: 26, overflowX: "clip" }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 4 }}>
         <div
@@ -691,8 +687,8 @@ export function Shelf({
         }}
         onDrop={(e) => {
           e.preventDefault();
-          /* Le seul dépôt qui sache OÙ, au pixel près : c'est le cadre du
-             rayon qui sert de repère aux objets accrochés. */
+          /* The only drop that knows WHERE, to the pixel: it is the
+             shelf's frame that serves as reference for hanging objects. */
           dnd.onDrop(kind, e, true);
         }}
         style={{
@@ -707,8 +703,8 @@ export function Shelf({
           transition: "background .15s ease",
         }}
       >
-        {/* la teinte du thème, à l'intérieur du rayon SEULEMENT : repeindre
-            le fond de la page se battrait avec le vignettage du papier */}
+        {/* the theme's tint, inside the shelf ONLY: repainting the page
+            background would fight with the paper's vignetting */}
         {theme.tint && (
           <div
             style={{
@@ -721,10 +717,10 @@ export function Shelf({
             }}
           />
         )}
-        {/* LA TEXTURE DU MUR — la seule des trois couches qui soit un
-            calque, parce qu'elle se fond et qu'un fond ne se fond pas.
-            Même façon d'être que la teinte juste au-dessus : au fond, en
-            multiply, et transparente au curseur. */}
+        {/* THE WALL'S TEXTURE — the only one of the three layers that is
+            an overlay, because it blends and a background does not blend.
+            The same way of being as the tint just above: at the back, in
+            multiply, and transparent to the cursor. */}
         {skin.texture && (
           <div
             aria-hidden
@@ -756,37 +752,37 @@ export function Shelf({
           />
         ))}
 
-        {/* LE MUR — une couche à part, par-dessus les rangées.
+        {/* THE WALL — a layer apart, over the rows.
 
-            Elle était d'abord AU FOND, ce qui était juste : un cadre est
-            accroché derrière l'étagère, pas devant. Mais une rangée occupe
-            toute la largeur du rayon et cent-soixante-dix pixels de haut ;
-            empilées, elles recouvraient le mur en entier. Les objets
-            accrochés étaient donc dessinés dessous et INJOIGNABLES — le
-            clic allait toujours à la rangée.
+            It was at first AT THE BACK, which was right: a frame is hung
+            behind the shelf, not in front. But a row takes the shelf's
+            whole width and a hundred and seventy pixels of height;
+            stacked, they covered the wall entirely. So the hanging objects
+            were drawn underneath and UNREACHABLE — the click always went
+            to the row.
 
-            La couche passe donc devant, et ne laisse passer le curseur
-            que sur les objets eux-mêmes : le reste du mur reste une zone
-            de dépôt pour les rangées. C'est aussi ce qui rend ces objets
-            visibles, ce qu'ils n'étaient qu'à peine.
+            So the layer moves in front, and only lets the cursor through
+            on the objects themselves: the rest of the wall stays a drop
+            zone for the rows. That is also what makes those objects
+            visible, which they barely were.
 
-            Elle est bornée par `inset: 0`, et c'est elle — pas le cadre du
-            rayon — que le dépôt mesure : les deux doivent compter dans la
-            même boîte, sinon les dix pixels de marge du rayon décalent
-            tout ce qu'on pose. */}
-        {/* La couche ne rogne plus. `overflow: hidden` était la ceinture
-            de la borne posée au dépôt : un objet ne pouvant pas dépasser
-            de son rayon, il ne pouvait pas intercepter ce qu'on lâchait
-            sur le rayon voisin. Les deux sont tombés ensemble — on veut
-            désormais pouvoir punaiser dans un angle, quitte à ce que
-            l'objet morde sur le bord, et l'interception se règle
-            autrement (voir `tokens.ts` : le temps d'un glissement, un
-            objet accroché ne reçoit plus le curseur).
+            It is bounded by `inset: 0`, and it is that layer — not the
+            shelf's frame — that the drop measures: both must count in the
+            same box, otherwise the shelf's ten pixels of margin shift
+            everything one lays down. */}
+        {/* The layer no longer clips. `overflow: hidden` was the belt to
+            the clamp set at the drop: an object being unable to stick out
+            of its shelf, it could not intercept what one let go on the
+            neighbouring shelf. The two fell together — we now want to be
+            able to pin in a corner, even if the object bites over the
+            edge, and the interception is settled otherwise (see
+            `tokens.ts`: for the length of a drag, a hanging object no
+            longer receives the cursor).
 
-            Elle reste `inset: 0` : c'est elle, et non le cadre du rayon,
-            que le dépôt mesure — les deux doivent compter dans la même
-            boîte, sinon les dix pixels de marge du rayon décalent tout ce
-            qu'on pose. */}
+            It stays `inset: 0`: it is that layer, and not the shelf's
+            frame, that the drop measures — both must count in the same
+            box, otherwise the shelf's ten pixels of margin shift
+            everything one lays down. */}
         <div
           data-wall-layer
           style={{
@@ -811,13 +807,13 @@ export function Shelf({
   );
 }
 
-/* LE TIROIR — les mis de côté.
+/* THE DRAWER — the things set aside.
 
-   En bas de page, ce rayon obligeait à traverser toute la collection pour
-   y déposer un film ; et comme il grandissait avec le temps, il repoussait
-   la collection vers le haut. Sur le côté, il est atteignable de partout et
-   ne prend de la place que lorsqu'on l'ouvre. Fermé, il reste une cible :
-   glisser un boîtier sur sa languette l'ouvre tout seul. */
+   At the bottom of the page, this shelf forced one to cross the whole
+   collection to drop a film into it; and since it grew with time, it
+   pushed the collection upwards. On the side, it is reachable from
+   anywhere and only takes room when one opens it. Closed, it stays a
+   target: dragging a case onto its tab opens it by itself. */
 const DRAWER_W = 250;
 
 export function ReserveDrawer({
@@ -840,8 +836,8 @@ export function ReserveDrawer({
   const filled = rows.some((r) => r.items.length);
 
   return (
-    <Calque>
-      {/* la languette, toujours accrochée au bord */}
+    <Layer>
+      {/* the tab, always hooked to the edge */}
       <button
         data-drawer-tab
         onClick={() => setOpen(!open)}
@@ -902,7 +898,7 @@ export function ReserveDrawer({
           boxShadow: open ? "-8px 0 24px rgba(30,20,10,0.22)" : "none",
           display: "flex",
           flexDirection: "column",
-          // fermé, il ne doit intercepter ni clic ni survol
+          // closed, it must intercept neither click nor hover
           visibility: open ? "visible" : "hidden",
         }}
       >
@@ -992,9 +988,9 @@ export function ReserveDrawer({
                 onEditDecor={onEditDecor}
                 onDecorLabel={onDecorLabel}
                 isLast={i === rows.length - 1}
-                /* Dans un tiroir de 250 px, le réglage par ligne n'a rien à
-                 régler : la largeur décide. La rangée y va donc nue, ce
-                 qui rend les 26 px de gouttière aux boîtiers. */
+                /* In a drawer of 250 px, the per-line setting has nothing
+                 to set: the width decides. So the row goes in bare, which
+                 gives the gutter's 26 px back to the cases. */
                 bare
                 capMax={2}
               />
@@ -1002,13 +998,13 @@ export function ReserveDrawer({
           )}
         </div>
       </div>
-    </Calque>
+    </Layer>
   );
 }
 
-/* Le boîtier qu'on ouvre. Aperçu seulement : le dossier complet reste
-   la fiche, on y va d'un clic depuis ici. */
-export function CasePreview({ film, onClose, onOpenFile }) {
+/* The case one opens. A preview only: the full folder stays the card, one
+   goes there with a click from here. */
+export function CellPreview({ film, onClose, onOpenFile }) {
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === "Escape") onClose();
@@ -1019,7 +1015,7 @@ export function CasePreview({ film, onClose, onOpenFile }) {
 
   const initials = initialsOf(film.title);
   return (
-    <Calque>
+    <Layer>
       <div
         onClick={onClose}
         style={{
@@ -1068,7 +1064,7 @@ export function CasePreview({ film, onClose, onOpenFile }) {
             >
               <X size={18} />
             </button>
-            {/* le rabat, qui s'ouvre vers la gauche */}
+            {/* the flap, which opens to the left */}
             <div
               style={{
                 position: "absolute",
@@ -1165,7 +1161,7 @@ export function CasePreview({ film, onClose, onOpenFile }) {
                     {g}
                   </span>
                 ))}
-                {film.chevet && (
+                {film.bedside && (
                   <span
                     style={{
                       fontFamily: F.mono,
@@ -1232,21 +1228,21 @@ export function CasePreview({ film, onClose, onOpenFile }) {
           </div>
         </div>
       </div>
-    </Calque>
+    </Layer>
   );
 }
 
-/* Le rangement à la main. Déposer écrit un `order` sur chaque boîtier du
-   rayon d'arrivée : sans numéro stable, l'ordre repartirait au tri par
-   défaut au prochain rendu. */
-/* Le cabinet de curiosités : ce qu'on peut poser sur une planche. Chaque
-   motif s'en tire au glisser — et ce glissement-là ne DÉPLACE rien, il
-   CRÉE : l'objet n'existe pas encore quand on l'empoigne. */
-/* Une famille du cabinet. Il y en a deux et elles ne se posent pas du
-   même geste : l'une se glisse sur une planche, entre deux boîtiers ;
-   l'autre au fond du rayon, où l'on veut. Les mêlanger dans une seule
-   grille laissait l'utilisateur découvrir la différence en ratant son
-   dépôt. */
+/* Filing by hand. Dropping writes an `order` on every case of the
+   arrival shelf: without a stable number, the order would go back to the
+   default sort at the next render. */
+/* The cabinet of curiosities: what one can lay on a board. Every pattern
+   is pulled out of it by dragging — and that drag MOVES nothing, it
+   CREATES: the object does not exist yet when one grabs it. */
+/* A family of the cabinet. There are two and they are not laid down with
+   the same gesture: one is dragged onto a board, between two cases; the
+   other to the back of the shelf, wherever one wants. Mixing them in a
+   single grid left the user to discover the difference by botching their
+   drop. */
 const DecorFamily = ({ title = "À POSER", hint, types, onDragStart, onDragEnd }) => (
   <>
     <div
@@ -1289,10 +1285,10 @@ const DecorFamily = ({ title = "À POSER", hint, types, onDragStart, onDragEnd }
               justifyContent: "center",
             }}
           >
-            {/* Un motif qui se DRESSE n'a pas de dessin : il est fait de
-                papier et de bordures, comme la boîte. Le cabinet en montre
-                donc une maquette, au lieu de chercher un composant qui
-                n'existe pas. */}
+            {/* A pattern that STANDS UP has no drawing: it is made of
+                paper and borders, like the box. So the cabinet shows a
+                mock-up of it, instead of looking for a component that does
+                not exist. */}
             {d.tall ? (
               <div
                 style={{
@@ -1304,8 +1300,8 @@ const DecorFamily = ({ title = "À POSER", hint, types, onDragStart, onDragEnd }
                   marginBottom: 6,
                 }}
               >
-                {/* la maquette porte le même onglet que le carton : c'est
-                    à lui qu'on le reconnaît une fois posé */}
+                {/* the mock-up carries the same tab as the card: it is by
+                    that tab that one recognises it once laid */}
                 <DividerHead ink={C.ochre} height={9} />
               </div>
             ) : (
@@ -1318,10 +1314,10 @@ const DecorFamily = ({ title = "À POSER", hint, types, onDragStart, onDragEnd }
   </>
 );
 
-/* Le registre des motifs importés, lu comme une source extérieure : le
-   cabinet et l'atelier en montrent la même liste, et un import fait
-   depuis l'un doit apparaître dans l'autre sans qu'on les ait câblés
-   l'un à l'autre. */
+/* The register of imported patterns, read as an outside source: the
+   cabinet and the workshop show the same list, and an import made from
+   one must appear in the other without our having wired them to each
+   other. */
 const useCustomDecor = () =>
   useSyncExternalStore(subscribeCustomDecor, listCustomDecor, listCustomDecor);
 
@@ -1359,15 +1355,15 @@ const CabinetNote = ({ children, ...p }) => (
   </div>
 );
 
-/* L'ATELIER — ce qu'on apporte soi-même au cabinet.
+/* THE WORKSHOP — what one brings to the cabinet oneself.
 
-   Les quinze motifs de la maison sont dessinés dans le code : c'est un
-   fond de catalogue, il ne bouge pas et ne se supprime pas. Ici on
-   ajoute les siens, et on ne peut retirer que ceux-là.
+   The fifteen house patterns are drawn in the code: they are a catalogue
+   backlist, they do not move and cannot be deleted. Here one adds one's
+   own, and only those can be removed.
 
-   La famille se choisit AVANT l'import, et non après : elle décide de la
-   façon dont le dessin s'appuie dans sa case — posé sur le bas, accroché
-   par le haut — et c'est écrit dans le fichier au moment où on le range. */
+   The family is chosen BEFORE the import, and not after: it decides how
+   the drawing rests in its cell — laid on the bottom, hooked by the top —
+   and it is written into the file at the moment one files it. */
 function DecorWorkshop({ onBack }) {
   const custom = useCustomDecor();
   const hiddenKeys = useHiddenDecor();
@@ -1380,8 +1376,8 @@ function DecorWorkshop({ onBack }) {
     setError(null);
     setBusy(true);
     try {
-      /* Un fichier refusé n'annule pas les autres : on importe ce qui
-         passe et on ne rapporte que ce qui a échoué. */
+      /* A refused file does not cancel the others: we import what gets
+         through and report only what failed. */
       const failed = [];
       for (const file of Array.from(files)) {
         try {
@@ -1415,8 +1411,8 @@ function DecorWorkshop({ onBack }) {
         une image, et elle rejoint le cabinet — png, jpg ou svg
       </CabinetNote>
 
-      {/* La famille d'abord : c'est elle qui décide où l'objet se posera,
-          et la choisir après coup voudrait dire réécrire le fichier. */}
+      {/* The family first: it is what decides where the object will be
+          laid, and choosing it afterwards would mean rewriting the file. */}
       <div style={{ display: "flex", marginBottom: 8 }}>
         {[
           [false, "à poser"],
@@ -1501,7 +1497,7 @@ function DecorWorkshop({ onBack }) {
               key={d.key}
               label={d.label}
               note={`${d.wall ? "à accrocher" : "à poser"}${d.tintable ? "" : " · sans couleur"}`}
-              vignette={
+              thumb={
                 <CustomDraw
                   motif={d.key}
                   color={C.ochre}
@@ -1520,9 +1516,9 @@ function DecorWorkshop({ onBack }) {
           ))
         )}
 
-        {/* Les dessins de la maison ne se suppriment pas — ils sont dans
-            le code. Mais on n'a pas besoin des quinze, et le cabinet se
-            range en les retirant du panneau. */}
+        {/* The house drawings cannot be deleted — they are in the code.
+            But one does not need all fifteen, and the cabinet is tidied by
+            removing them from the panel. */}
         <WorkshopSection title="CEUX DE LA MAISON" />
         {DECOR_TYPES.map((d) => {
           const hidden = hiddenKeys.includes(d.key);
@@ -1533,7 +1529,7 @@ function DecorWorkshop({ onBack }) {
               label={d.label}
               note={d.wall ? "à accrocher" : "à poser"}
               dim={hidden}
-              vignette={
+              thumb={
                 d.tall ? (
                   <div
                     style={{
@@ -1564,9 +1560,9 @@ function DecorWorkshop({ onBack }) {
       </div>
 
       <CabinetNote style={{ marginTop: 8 }}>
-        {/* Deux gestes voisins qui ne font pas la même chose : le dire
-            une fois ici vaut mieux qu'une étagère qui se vide sans
-            prévenir. */}
+        {/* Two neighbouring gestures that do not do the same thing:
+            saying it once here is better than a shelf that empties without
+            warning. */}
         masquer retire du cabinet sans toucher aux étagères ; supprimer retire des deux
       </CabinetNote>
     </div>
@@ -1600,17 +1596,17 @@ const RowButton = ({ onClick, label, children }) => (
   </button>
 );
 
-/* Une ligne de l'atelier : la vignette, le nom, et le geste qu'on peut
-   faire dessus. La même pour un objet importé et pour un dessin de la
-   maison — ils se lisent dans la même liste, ils doivent se ressembler. */
-const DecorRow = ({ label, note, vignette, action, dim }) => (
+/* A line of the workshop: the thumbnail, the name, and the gesture one
+   can make on it. The same for an imported object and for a house
+   drawing — they are read in the same list, they must look alike. */
+const DecorRow = ({ label, note, thumb, action, dim }) => (
   <div
     style={{
       display: "flex",
       alignItems: "center",
       gap: 8,
       padding: "4px 0",
-      // un motif masqué reste lisible, mais s'efface de moitié
+      // a hidden pattern stays readable, but fades by half
       opacity: dim ? 0.42 : 1,
     }}
   >
@@ -1627,7 +1623,7 @@ const DecorRow = ({ label, note, vignette, action, dim }) => (
         justifyContent: "center",
       }}
     >
-      {vignette}
+      {thumb}
     </div>
     <div style={{ flex: 1, minWidth: 0 }}>
       <div
@@ -1652,11 +1648,11 @@ const DecorRow = ({ label, note, vignette, action, dim }) => (
 
 export function DecorCabinet({ kind, onDragStart, onDragEnd, onClose }) {
   const [managing, setManaging] = useState(false);
-  // le registre bouge sous le cabinet dès qu'on importe depuis l'atelier
+  // the register moves under the cabinet as soon as one imports from the workshop
   useCustomDecor();
 
   return (
-    <Calque>
+    <Layer>
       <div onClick={onClose} data-veil style={{ position: "fixed", inset: 0, zIndex: 44 }} />
       {managing ? (
         <DecorWorkshop onBack={() => setManaging(false)} />
@@ -1700,41 +1696,40 @@ export function DecorCabinet({ kind, onDragStart, onDragEnd, onClose }) {
             onDragEnd={onDragEnd}
           />
           <CabinetNote style={{ marginTop: 10 }}>
-            rayon visé : {SHELF_KIND[kind]?.title || kind}
+            rayon targeted : {SHELF_KIND[kind]?.title || kind}
           </CabinetNote>
         </div>
       )}
-    </Calque>
+    </Layer>
   );
 }
 
-/* L'ORIENTATION — de combien l'objet penche, et qui l'a décidé.
+/* THE ORIENTATION — how far the object leans, and who decided.
 
-   Tout ce qui se pose sur cette étagère est de travers, et c'est voulu :
-   le guingois vient de l'identifiant de l'objet, chacun le sien, et
-   c'est ce qui empêche une rangée de ressembler à une planche de
-   catalogue. Mais le hasard ne sait pas qu'un cadre doit parfois être
-   droit, ni qu'une image importée peut arriver couchée.
+   Everything laid on this shelf is askew, and that is intended: the
+   lopsidedness comes from the object's identifier, each its own, and it is
+   what stops a row looking like a catalogue plate. But chance does not
+   know that a frame must sometimes be straight, nor that an imported image
+   can arrive lying down.
 
-   D'où un CURSEUR, et deux recours à côté. Le curseur parce que
-   l'orientation est une grandeur continue : on la vise à l'œil, sur
-   l'objet, et le tour entier tient dans un geste. Les deux boutons d'un
-   cran de cinq degrés d'avant demandaient dix-huit clics pour coucher un
-   cadre — un réglage qu'on abandonne avant de l'atteindre. Le curseur
-   natif donne en prime les flèches du clavier, que les boutons n'avaient
-   jamais offertes.
+   Hence a SLIDER, and two fallbacks beside it. The slider because
+   orientation is a continuous quantity: one aims at it by eye, on the
+   object, and the whole turn fits in one gesture. The two five-degree step
+   buttons of before asked for eighteen clicks to lay a frame down — a
+   setting one gives up before reaching it. The native slider gives the
+   keyboard arrows into the bargain, which the buttons had never offered.
 
-   Les recours sont ceux qu'un curseur ne sait pas donner : remettre
-   d'aplomb tombe pile sur zéro, que la main rate d'un degré ; rendre la
-   main au hasard sort de l'échelle, puisque « pas de réglage » n'est pas
-   un angle. Et tant qu'on n'a rien touché, le champ affiche l'angle SEMÉ
-   plutôt qu'un zéro : c'est celui qu'on a sous les yeux, et l'écart entre
-   les deux est exactement ce qu'on vient régler. */
+   The fallbacks are the ones a slider cannot give: putting back upright
+   falls exactly on zero, which the hand misses by a degree; handing back
+   to chance leaves the scale, since "no setting" is not an angle. And as
+   long as one has touched nothing, the field shows the SOWN angle rather
+   than a zero: it is the one before one's eyes, and the gap between the
+   two is exactly what one has come to set. */
 const clampRot = (deg) => (((deg % 360) + 540) % 360) - 180;
 
 const OrientField = ({ angle, seeded, onChange }) => {
-  const réglé = angle != null;
-  const shown = Math.round(clampRot(Number(réglé ? angle : seeded) || 0));
+  const setValue = angle != null;
+  const shown = Math.round(clampRot(Number(setValue ? angle : seeded) || 0));
 
   return (
     <>
@@ -1761,8 +1756,8 @@ const OrientField = ({ angle, seeded, onChange }) => {
           title="Faire tourner l'objet"
           style={{ flex: 1, minWidth: 0, accentColor: C.ink, cursor: "pointer" }}
         />
-        {/* Zéro se rate d'un degré à la main : le compte est aussi le
-            bouton qui y retombe. */}
+        {/* Zero is missed by a degree by hand: the count is also the
+            button that falls back on it. */}
         <button
           onClick={() => onChange(0)}
           title="Remettre d'aplomb"
@@ -1781,8 +1776,8 @@ const OrientField = ({ angle, seeded, onChange }) => {
           {shown > 0 ? `+${shown}°` : `${shown}°`}
         </button>
       </div>
-      {/* Rendre la main au hasard n'a de sens que si on la lui a prise. */}
-      {réglé && (
+      {/* Handing back to chance only makes sense if one took it from chance. */}
+      {setValue && (
         <button
           onClick={() => onChange(null)}
           title="Rendre à l'objet son guingois d'origine"
@@ -1803,9 +1798,9 @@ const OrientField = ({ angle, seeded, onChange }) => {
   );
 };
 
-/* Le petit panneau d'un objet posé — couleur, taille, retrait. Sert aux
-   catégories comme aux décors : ce sont les deux seules choses de
-   l'étagère dont on choisit la teinte. */
+/* The little panel of a laid object — colour, size, inset. Serves the
+   categories as well as the decors: they are the shelf's only two things
+   whose tint one chooses. */
 export function ItemPalette({
   title,
   color,
@@ -1815,17 +1810,17 @@ export function ItemPalette({
   onRemove,
   onClose,
   removeLabel,
-  /* Plus de compte ici : une boîte n'a pas de largeur à elle. Elle suit
-     celle de la ligne de bois, réglée dans la gouttière de la rangée —
-     un seul compte, à un seul endroit. */
-  /* Le nom d'un intercalaire. Seul motif à écrire, donc seul à ouvrir ce
-     champ — les autres décors n'ont rien à dire. */
+  /* No count here any more: a box has no width of its own. It follows the
+     wood line's, set in the row's gutter — a single count, in a single
+     place. */
+  /* A divider's name. The only pattern that writes, hence the only one to
+     open this field — the other decors have nothing to say. */
   label,
   onLabel,
-  /* L'orientation. `rot` peut être absent : l'objet est alors au guingois
-     que son identifiant lui a semé, et `seededRot` dit lequel — le champ
-     doit pouvoir montrer l'angle qu'on VOIT, pas un zéro qui n'est vrai
-     nulle part. */
+  /* The orientation. `rot` can be absent: the object is then at the
+     lopsidedness its identifier sowed for it, and `seededRot` says which —
+     the field must be able to show the angle one SEES, not a zero that is
+     true nowhere. */
   rot,
   seededRot,
   onRot,
@@ -1837,7 +1832,7 @@ export function ItemPalette({
   const commitLabel = () => onLabel?.(draft.trim());
 
   return (
-    <Calque>
+    <Layer>
       <div onClick={onClose} data-veil style={{ position: "fixed", inset: 0, zIndex: 44 }} />
       <div
         style={{
@@ -1907,14 +1902,14 @@ export function ItemPalette({
           </div>
         )}
 
-        {/* Un objet importé qu'on ne sait pas teinter n'a pas de couleur :
-            sans `onColor`, la rangée de pastilles disparaît au lieu de
-            promettre un réglage qui ne ferait rien. */}
-        {/* Par familles, et non plus en une seule bande. Huit pastilles
-            se parcouraient du regard ; vingt-quatre alignées ne sont
-            plus un choix mais un nuancier, où l'on cherche « quelque
-            chose de chaud » sans le trouver. Les intitulés sont menus :
-            ils rangent, ils ne s'annoncent pas. */}
+        {/* An imported object we cannot tint has no colour: without
+            `onColor`, the row of swatches disappears instead of promising
+            a setting that would do nothing. */}
+        {/* By families, and no longer in a single band. Eight swatches
+            could be taken in at a glance; twenty-four in a row are no
+            longer a choice but a colour chart, where one looks for
+            "something warm" without finding it. The headings are small:
+            they file, they do not announce themselves. */}
         {onColor && (
           <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
             {CAT_FAMILIES.map((fam) => (
@@ -1967,11 +1962,11 @@ export function ItemPalette({
             >
               TAILLE
             </div>
-            {/* Sept calibres ne tiennent plus sur une ligne de deux cent
-                vingt pixels : la bande se replie, et les boutons portent
-                alors leur propre filet plutôt que de se coller l'un à
-                l'autre — deux bords accolés d'un rang à l'autre feraient
-                un damier au lieu d'une réglette. */}
+            {/* Seven calibres no longer fit on a line of two hundred and
+                twenty pixels: the band wraps, and the buttons then carry
+                their own hairline rather than sticking to one another —
+                two edges joined from one rank to the next would make a
+                chequerboard instead of a ruler. */}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
               {DECOR_SIZES.map(([l, v]) => (
                 <button
@@ -2012,13 +2007,13 @@ export function ItemPalette({
           {removeLabel}
         </button>
       </div>
-    </Calque>
+    </Layer>
   );
 }
 
-/* L'ÉTAGÈRE — le rangement à la main, et rien d'autre.
+/* THE SHELF — filing by hand, and nothing else.
 
-   Il n'y a plus de « mode manuel » : la vue EST l'agencement. Le tri n'a
-   pas disparu, il a changé de nature — c'est un geste qu'on donne
-   (« ranger par note »), et non plus un état qui se battrait avec les
-   catégories. */
+   There is no "manual mode" any more: the view IS the arrangement.
+   Sorting has not disappeared, it has changed nature — it is a gesture one
+   gives ("sort by rating"), and no longer a state that would fight with
+   the categories. */

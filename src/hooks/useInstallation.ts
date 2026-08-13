@@ -1,92 +1,92 @@
 /* ============================================================
-   L'INVITATION À INSTALLER — attendue, jamais provoquée
+   THE INVITATION TO INSTALL — awaited, never provoked
    ============================================================
 
-   Le navigateur décide seul qu'un site mérite d'être installé, et il le
-   dit par un événement, `beforeinstallprompt`. On ne peut pas le
-   déclencher ; on peut seulement l'ATTRAPER et le garder de côté, parce
-   qu'une fois passé il ne revient pas. C'est cet événement retenu qui
-   ouvrira la boîte du système, plus tard, sur un geste de la main.
+   The browser decides on its own that a site deserves installing, and it
+   says so with an event, `beforeinstallprompt`. We cannot trigger it; we
+   can only CATCH it and keep it aside, because once gone it does not
+   come back. It is that retained event which will open the system's
+   dialog, later, on a gesture of the hand.
 
-   `preventDefault` n'annule rien : il empêche seulement la bannière que
-   Chrome poserait de lui-même, en bas de l'écran, par-dessus le rail —
-   pour que l'invitation vienne du classeur et lui ressemble.
+   `preventDefault` cancels nothing: it only prevents the banner Chrome
+   would lay down of its own accord, at the bottom of the screen, over
+   the rail — so that the invitation comes from the binder and looks like
+   it.
 
-   IOS N'ÉMET RIEN, et c'est la moitié des téléphones. Là-bas il n'y a
-   pas de bouton possible : seulement une phrase qui dit où trouver
-   « Sur l'écran d'accueil » dans le menu de partage. */
+   IOS EMITS NOTHING, and that is half the phones. Over there no button
+   is possible: only a sentence saying where to find "Add to Home Screen"
+   in the share menu. */
 import { useCallback, useEffect, useState } from "react";
-import { estIOS, noterPosée, noterRefus, peutProposer } from "../services/installation";
+import { isIOS, noteInstalled, noteDismissal, mayOffer } from "../services/installation";
 
-/** Ce que le navigateur passe dans `beforeinstallprompt`. */
-interface ÉvénementInstall extends Event {
+/** What the browser passes in `beforeinstallprompt`. */
+interface InstallEvent extends Event {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
 export interface Installation {
-  /** L'invitation a lieu d'être montrée. */
+  /** There is reason to show the invitation. */
   invite: boolean;
-  /** Sur iOS, on explique au lieu de proposer. */
-  pomme: boolean;
-  /** Ouvre la boîte du système. Sans effet sur iOS. */
-  installer: () => Promise<void>;
-  /** « Non merci » — deux fois, et on se tait pour de bon. */
-  écarter: () => void;
+  /** On iOS, we explain instead of offering. */
+  apple: boolean;
+  /** Opens the system dialog. No effect on iOS. */
+  install: () => Promise<void>;
+  /** "No thanks" — twice, and we keep quiet for good. */
+  dismiss: () => void;
 }
 
 export function useInstallation(): Installation {
-  const [attendu, setAttendu] = useState<ÉvénementInstall | null>(null);
+  const [held, setHeld] = useState<InstallEvent | null>(null);
   const [invite, setInvite] = useState(false);
-  const pomme = estIOS();
+  const apple = isIOS();
 
   useEffect(() => {
-    if (!peutProposer()) return;
+    if (!mayOffer()) return;
 
-    const surInvite = (e: Event) => {
+    const onInvite = (e: Event) => {
       e.preventDefault();
-      setAttendu(e as ÉvénementInstall);
+      setHeld(e as InstallEvent);
       setInvite(true);
     };
-    /* Installée depuis l'invitation OU depuis le menu du navigateur : dans
-       les deux cas on n'a plus rien à proposer. */
-    const surPosée = () => {
-      noterPosée();
+    /* Installed from the invitation OR from the browser's menu: either
+       way we have nothing left to offer. */
+    const onInstalled = () => {
+      noteInstalled();
       setInvite(false);
-      setAttendu(null);
+      setHeld(null);
     };
 
-    window.addEventListener("beforeinstallprompt", surInvite);
-    window.addEventListener("appinstalled", surPosée);
+    window.addEventListener("beforeinstallprompt", onInvite);
+    window.addEventListener("appinstalled", onInstalled);
 
-    /* Sur iOS, aucun événement ne viendra jamais : c'est à nous
-       d'ouvrir la bouche, et seulement si l'on n'a pas déjà été
-       éconduit. */
-    if (pomme) setInvite(true);
+    /* On iOS no event will ever come: it is up to us to open our mouth,
+       and only if we have not already been shown the door. */
+    if (apple) setInvite(true);
 
     return () => {
-      window.removeEventListener("beforeinstallprompt", surInvite);
-      window.removeEventListener("appinstalled", surPosée);
+      window.removeEventListener("beforeinstallprompt", onInvite);
+      window.removeEventListener("appinstalled", onInstalled);
     };
-  }, [pomme]);
+  }, [apple]);
 
-  const installer = useCallback(async () => {
-    if (!attendu) return;
-    await attendu.prompt();
-    const { outcome } = await attendu.userChoice;
-    /* Refuser la boîte du système n'est pas refuser le classeur : on
-       compte ce refus comme un « pas maintenant », et l'événement est
-       consommé de toute façon. */
-    if (outcome === "accepted") noterPosée();
-    else noterRefus();
-    setAttendu(null);
+  const install = useCallback(async () => {
+    if (!held) return;
+    await held.prompt();
+    const { outcome } = await held.userChoice;
+    /* Refusing the system dialog is not refusing the binder: we count
+       that refusal as a "not now", and the event is consumed
+       anyway. */
+    if (outcome === "accepted") noteInstalled();
+    else noteDismissal();
+    setHeld(null);
     setInvite(false);
-  }, [attendu]);
+  }, [held]);
 
-  const écarter = useCallback(() => {
-    noterRefus();
+  const dismiss = useCallback(() => {
+    noteDismissal();
     setInvite(false);
   }, []);
 
-  return { invite, pomme, installer, écarter };
+  return { invite, apple, install, dismiss };
 }

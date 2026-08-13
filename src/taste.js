@@ -1,17 +1,16 @@
 /* ============================================================
-   PROFIL DE GOÛT — ce que la collection dit de vous.
+   THE TASTE PROFILE — what the collection says of the eye
+   ============================================================
 
-   Pur, sans réseau, sans état : une collection entre, un profil
-   sort. Tout le reste (récolte TMDB, scoring) s'appuie dessus.
+   Not a recommendation, a MEASUREMENT: which genres, which decades,
+   which languages come back, and with what ratings. `reco` and `tonight`
+   both read it, and neither redefines it.
    ============================================================ */
 
-/* Une note n'est pas une fréquence : voir dix films d'un cinéaste et les
-   détester ne fait pas de lui un goût. Le poids traduit donc l'adhésion, pas
-   l'exposition — et il devient négatif en dessous de 2,5 étoiles.
-
-   Un film vu mais non noté (rating 0) compte quand même, faiblement : dans un
-   import Letterboxd, la majorité des fiches n'ont pas de note, et les ignorer
-   viderait le profil de la plupart de sa matière. */
+/* A rating is not a frequency: watching ten films by a filmmaker and
+   rating them all two stars says something quite different from watching
+   two and loving them. So the weight carries the sign of the judgement,
+   and an unrated card is worth a mild positive rather than a zero. */
 export const weightOf = (rating) => (!rating ? 0.35 : (rating - 2.5) / 2.5);
 
 const bump = (map, key, w) => {
@@ -19,8 +18,9 @@ const bump = (map, key, w) => {
   map.set(key, (map.get(key) || 0) + w);
 };
 
-/* Ramène la plus forte valeur absolue à 1 : deux collections de tailles très
-   différentes produisent alors des scores comparables. */
+/* Brings the largest absolute value back to 1: two collections of very
+   different sizes then give comparable profiles, and a threshold written
+   in the code means the same thing in both. */
 const normalize = (map) => {
   let max = 0;
   map.forEach((v) => {
@@ -32,7 +32,7 @@ const normalize = (map) => {
   return out;
 };
 
-/* Un champ « réalisateur » peut porter plusieurs noms (« Coen, Coen »). */
+/* A "director" field can carry several names ("Coen, Coen"). */
 export const directorsOf = (f) =>
   (f.director || "")
     .split(",")
@@ -42,11 +42,9 @@ export const directorsOf = (f) =>
 export const decadeOf = (year) => (year ? Math.floor(Number(year) / 10) * 10 : null);
 
 /**
- * Construit le profil à partir des films VUS. La watchlist n'exprime pas un
- * goût constaté mais une intention — elle sert seulement à ne pas
- * recommander ce qui est déjà mis de côté.
- *
- * @param {Array} films toute la collection, watchlist comprise
+ * Builds the profile from the films WATCHED. The watchlist does not
+ * express an observed taste but an intention — it only serves to avoid
+ * recommending what has already been set aside.
  */
 export function buildTaste(films = []) {
   const watched = films.filter((f) => f.status !== "watchlist");
@@ -66,12 +64,11 @@ export function buildTaste(films = []) {
     if (f.rating) ratedN++;
     directorsOf(f).forEach((d) => bump(directors, d, w));
     (f.genres || []).forEach((g) => bump(genres, g, w));
-    // les mots-clés sont saisis à la main : rares, mais jamais subis
+    // keywords are typed by hand: rare, but never imposed
     (f.themes || []).forEach((t) => bump(themes, t, w * 1.4));
     const dec = decadeOf(f.year);
     if (dec) bump(decades, dec, w);
-    // absent des fiches importées jusqu'ici : le profil de langue reste
-    // souvent vide, et le scoring doit s'en accommoder
+    // missing from the cards imported so far: the language profile stays
     if (f.lang) bump(languages, f.lang, w);
     if (f.year) {
       yearSum += Number(f.year);
@@ -92,8 +89,8 @@ export function buildTaste(films = []) {
     themes: normalize(themes),
     decades: normalize(decades),
     languages: normalize(languages),
-    // les ensembles connus servent à écarter les candidats déjà vus, mais
-    // aussi à mesurer le dépaysement : ce qui n'y figure pas est nouveau
+    // the known sets serve to rule out candidates already seen, but also
+    // to measure the change of scene: what is not in them is new
     seenGenres: new Set(genres.keys()),
     seenDecades: new Set(decades.keys()),
     seenLanguages: new Set(languages.keys()),
@@ -101,13 +98,13 @@ export function buildTaste(films = []) {
     spread,
     total: watched.length,
     rated: ratedN,
-    // au-dessous de quoi le profil ne dit rien de fiable
+    // below which the profile says nothing reliable
     isEmpty: watched.length < 3,
   };
 }
 
-/* Les films les mieux notés — la matière première des « parce que vous avez
-   aimé X ». On exige un tmdbId : sans lui, TMDB n'a rien à quoi se raccrocher. */
+/* The best-rated films — the raw material of the "because you loved"
+   suggestions. */
 export function favorites(films = [], n = 12) {
   return films
     .filter((f) => f.status !== "watchlist" && f.tmdbId && (f.rating || 0) >= 4)
@@ -115,8 +112,9 @@ export function favorites(films = [], n = 12) {
     .slice(0, n);
 }
 
-/* Les cinéastes de tête. Un seul film noté 5 ne fait pas un cinéaste de
-   chevet : on demande soit plusieurs fiches, soit une adhésion très nette. */
+/* The leading filmmakers. A single film rated 5 does not make a
+   filmmaker you follow: we ask either for several cards, or for a very
+   clear endorsement. */
 export function topDirectors(films = [], taste, n = 5) {
   const counts = new Map();
   films

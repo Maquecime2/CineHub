@@ -5,7 +5,7 @@ import type { Still } from "../../types";
 
 type Part = { kind: "text"; value: string } | { kind: "still"; n: number };
 
-/* Le texte d'une critique, en lecture seule (sert encore au carnet). */
+/* A review's text, read-only (still serves the notebook). */
 export function RichText({
   text,
   stills,

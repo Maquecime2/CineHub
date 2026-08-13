@@ -11,16 +11,16 @@ interface RichFieldProps {
   onChange: (text: string) => void;
   stills: Still[];
   onOpenStill: (i: number) => void;
-  /** Reçoit une fonction qui rend le texte augmenté d'un jeton au curseur. */
+  /** Receives a function returning the text with a token at the cursor. */
   onInsertToken?: (fn: (token: string) => string) => void;
   placeholder?: string;
   minHeight?: number;
 }
 
-/* Le champ d'écriture : on y tape normalement, et les captures insérées
-   s'y affichent en vignette au milieu des phrases. Un textarea ne peut
-   contenir que du texte brut — d'où un champ éditable riche, dont la
-   source de vérité reste la chaîne à jetons enregistrée dans la fiche. */
+/* The writing field: you type in it normally, and the stills inserted
+   show as thumbnails among the sentences. A textarea can only hold plain
+   text — hence a rich editable field, whose source of truth stays the
+   token string saved on the card. */
 export function RichField({
   label,
   value,
@@ -33,12 +33,12 @@ export function RichField({
 }: RichFieldProps) {
   const ref = useRef<HTMLDivElement | null>(null);
   const lastEmitted = useRef(value); // ce que le champ vient de produire
-  const pendingCaret = useRef<number | null>(null); // où replacer le curseur après un rendu
+  const pendingCaret = useRef<number | null>(null); // where to put the caret back after a render
   const urls = useStillUrls(stills);
 
-  /* Renvoie le texte augmenté du jeton, sans rien écrire : c'est l'appelant
-     qui décide quand enregistrer. Une fonction qui déclencherait elle-même
-     une sauvegarde écraserait les captures enregistrées juste avant. */
+  /* Returns the text with the token added, without writing anything: it
+     is the caller that decides when to save. A function that triggered a
+     save itself would overwrite the stills saved just before. */
   const withTokenAtCursor = (token: string) => {
     const el = ref.current;
     const sel = window.getSelection();
@@ -53,21 +53,21 @@ export function RichField({
     onInsertToken?.(withTokenAtCursor);
   });
 
-  /* On ne réécrit le contenu que si la valeur vient d'ailleurs (insertion,
-     chargement, suppression d'une capture) : réécrire à chaque frappe ferait
-     sauter le curseur. */
+  /* We only rewrite the content if the value comes from elsewhere
+     (insertion, load, deletion of a still): rewriting on every keystroke
+     would make the cursor jump. */
   const lastSig = useRef("");
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    // les URL des blobs arrivent après coup : sans les suivre, les vignettes
-    // resteraient des images vides larges de quelques pixels
+    // the blob URLs arrive afterwards: without following them, the
+    // thumbnails would stay empty images a few pixels wide
     const sig = (stills || []).map((s) => urls[s.key] || "").join("|");
     const textChanged = value !== lastEmitted.current;
     const urlsChanged = sig !== lastSig.current;
     if (!textChanged && !urlsChanged && el.dataset.ready === "1") return;
 
-    // un re-rendu déplace le curseur : on note où il était pour l'y remettre
+    // a re-render moves the cursor: we note where it was to put it back
     const sel = window.getSelection();
     const focused = document.activeElement === el;
     const keep =
@@ -107,7 +107,7 @@ export function RichField({
         onBlur={emit}
         data-placeholder={placeholder}
         onClick={(e) => {
-          // cliquer une vignette ouvre la capture, sans casser la saisie
+          // clicking a thumbnail opens the still, without breaking the input
           const n = (e.target as HTMLElement)?.dataset?.still;
           if (n) {
             e.preventDefault();
@@ -115,7 +115,7 @@ export function RichField({
           }
         }}
         onPaste={(e) => {
-          // le collage d'images est traité plus haut ; ici on force le texte brut
+          // pasting images is handled above; here we force plain text
           const hasImage = [...(e.clipboardData?.items || [])].some(
             (i) => i.kind === "file" && i.type.startsWith("image/")
           );

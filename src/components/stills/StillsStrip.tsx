@@ -4,7 +4,7 @@ import { C, F } from "../../theme/tokens";
 import { underlineInput, tap } from "../../theme/styles";
 import { tiltOf } from "../../domain/seeded";
 import { deleteImage } from "../../db";
-import { Carton, Consigne, TitreSection } from "../ui";
+import { Cardstock, Guideline, SectionTitle } from "../ui";
 import { IdbImage } from "./IdbImage";
 import { STILL_TOKEN } from "./tokens";
 import type { Film } from "../../types";
@@ -14,15 +14,15 @@ interface StillsStripProps {
   onUpdate: (f: Film) => void;
   onOpen: (i: number) => void;
   onInsert: (n: number) => void;
-  /** Index de la capture à mettre en avant, par exemple après insertion. */
+  /** Index of the still to bring forward, for instance after insertion. */
   highlight?: number | null;
   onAddFiles: (files: FileList | null) => void;
-  /** Nombre de captures encore en cours d'ajout ; 0 quand il n'y a rien à attendre. */
+  /** Number of stills still being added; 0 when there is nothing to wait for. */
   busy?: number;
 }
 
-/* La pellicule : toutes les captures du film, en bande. Chaque vignette
-   porte son numéro — celui qu'on écrit entre crochets dans le texte. */
+/* The film strip: all the film's stills, in a band. Each thumbnail
+   carries its number — the one written in brackets in the text. */
 export function StillsStrip({
   film,
   onUpdate,
@@ -36,8 +36,8 @@ export function StillsStrip({
   const fileRef = useRef<HTMLInputElement | null>(null);
   const stills = film.stills || [];
 
-  /* Retirer une capture décale les numéros : les jetons [img:N] du texte
-     sont réécrits pour continuer de désigner les bonnes images. */
+  /* Removing a still shifts the numbers: the [img:N] tokens in the text
+     are rewritten so as to go on pointing at the right images. */
   const remove = async (idx: number) => {
     const still = stills[idx];
     if (!still) return;
@@ -58,8 +58,8 @@ export function StillsStrip({
   };
 
   return (
-    <Carton>
-      <TitreSection
+    <Cardstock>
+      <SectionTitle
         icon={<Clapperboard size={15} color={C.burgundy} />}
         action={
           <>
@@ -97,29 +97,27 @@ export function StillsStrip({
         }
       >
         La pellicule
-      </TitreSection>
-      <Consigne>
+      </SectionTitle>
+      <Guideline>
         {stills.length === 0
           ? "aucune capture — Ctrl+V colle directement une image du presse-papier"
           : "Ctrl+V pour coller · « insérer » place la vignette à l'endroit du curseur"}
-      </Consigne>
+      </Guideline>
 
       {stills.length > 0 && (
         <div
-          /* LES CAPTURES SE REPLIENT, ELLES NE DÉFILENT PLUS.
+          /* THE STILLS FOLD, THEY NO LONGER SCROLL.
 
-             C'était une bande à défilement horizontal : au-delà de six
-             ou sept captures, la moitié de la planche vivait hors du
-             cadre, et rien ne le disait — une barre grise sous des
-             photos ne se lit pas comme « il y en a d'autres ». On ne
-             sait pas ce qu'on a sans traîner la souris dessus, ce qui
-             est le contraire de l'idée : des tirages posés sur une
-             table se voient tous à la fois.
+             It was a horizontally scrolling band: past six or seven
+             stills, half the plate lived outside the frame, and nothing
+             said so — a grey bar under some photos does not read as
+             "there are more". You cannot know what you have without
+             dragging the mouse over it, which is the opposite of the
+             idea: prints laid on a table are all seen at once.
 
-             `wrap` et rien d'autre. Les vignettes gardent leur calibre
-             — les rétrécir pour tout faire tenir sur une ligne les
-             rendrait illisibles, et une planche-contact assume ses
-             rangées. */
+             `wrap` and nothing else. The thumbnails keep their size —
+             shrinking them to fit everything on one line would make
+             them unreadable, and a contact sheet owns its rows. */
           style={{
             display: "flex",
             flexWrap: "wrap",
@@ -146,7 +144,7 @@ export function StillsStrip({
                 }}
               >
                 <div style={{ position: "relative", cursor: "zoom-in" }} onClick={() => onOpen(i)}>
-                  {/* fond sombre : la capture garde son format, on ne la rogne pas */}
+                  {/* dark background: the still keeps its format, we do not crop it */}
                   <IdbImage
                     imageKey={s.thumbKey || s.key}
                     style={{
@@ -206,7 +204,7 @@ export function StillsStrip({
                     {s.caption || "légender…"}
                   </div>
                 )}
-                {/* ce qui est réellement stocké — définition et poids d'origine */}
+                {/* what is actually stored — original size and weight */}
                 {(s.w ?? 0) > 0 && (
                   <div
                     style={{
@@ -256,6 +254,6 @@ export function StillsStrip({
           })}
         </div>
       )}
-    </Carton>
+    </Cardstock>
   );
 }

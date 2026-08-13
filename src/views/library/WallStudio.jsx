@@ -1,15 +1,16 @@
-/* L'ATELIER DU MUR — le pendant de l'atelier déco, côté fiches.
+/* THE WALL WORKSHOP — the counterpart of the decor workshop, on the
+   cards' side.
 
-   L'étagère se règle depuis longtemps ; le mur, lui, n'offrait rien. Il
-   reçoit ici les mêmes poignées, et surtout le MÊME nuancier : peinture,
-   papier peint, encre, texture viennent de `ui/Swatches`, extraits de
-   l'atelier de l'étagère précisément pour que les deux surfaces ne
-   divergent jamais.
+   The shelf has been adjustable for a long time; the wall offered
+   nothing. It gets the same handles here, and above all the SAME
+   palette: paint, wallpaper, ink and texture come from `ui/Swatches`,
+   extracted from the shelf's workshop precisely so that the two surfaces
+   never diverge.
 
-   Deux volets, parce qu'il y a deux choses à régler : ce sur quoi les
-   fiches sont accrochées, et les fiches elles-mêmes. */
+   Two panels, because there are two things to adjust: what the cards are
+   hung on, and the cards themselves. */
 import { useState } from "react";
-import { Calque } from "../../components/ui/Calque";
+import { Layer } from "../../components/ui/Layer";
 import { X, RotateCcw } from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
@@ -20,9 +21,9 @@ const Row = ({ children }) => (
   <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>{children}</div>
 );
 
-/* Un réglage = un titre et une rangée de choix tirés de son catalogue.
-   Les quatre se ressemblent parce qu'ils font la même chose : nommer une
-   clé et la retenir. */
+/* One setting = one title and one row of choices drawn from its
+   catalogue. The four look alike because they do the same thing: name a
+   key and remember it. */
 const Choice = ({ title, catalog, value, onPick, top }) => (
   <>
     <Title top={top}>{title}</Title>
@@ -52,9 +53,9 @@ function CardsTab({ look, set }) {
         value={look.spread}
         onPick={(spread) => set({ spread })}
       />
-      {/* « Rangé » ne retire pas le désordre, il le met à zéro : le tirage
-          de chaque fiche est intact, et remonter d'un cran rend au mur
-          exactement l'allure qu'il avait. */}
+      {/* "Rangé" does not remove the disorder, it sets it to zero: the
+          draw of each card is intact, and going back up one notch gives
+          the wall exactly the look it had. */}
       <Choice
         title="DÉSORDRE"
         catalog={MESSES}
@@ -73,11 +74,11 @@ const TABS = [
 
 export function WallStudio({ look, onChange, onReset, onClose }) {
   const [tab, setTab] = useState("cards");
-  // le décor est vide au départ : rien n'est écrit tant qu'on ne choisit rien
+  // the decor is empty at the start: nothing is written until something is chosen
   const setDecor = (patch) => onChange({ decor: { ...(look.decor || {}), ...patch } });
 
   return (
-    <Calque>
+    <Layer>
       <div onClick={onClose} data-veil style={{ position: "fixed", inset: 0, zIndex: 44 }} />
       <div style={STUDIO_BOX}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
@@ -109,8 +110,8 @@ export function WallStudio({ look, onChange, onReset, onClose }) {
           >
             <RotateCcw size={11} /> D'ORIGINE
           </button>
-          {/* Une croix seule n'a pas de nom : sans étiquette, un lecteur
-              d'écran annonce « bouton » et rien d'autre. */}
+          {/* A cross on its own has no name: without a label, a screen
+              reader announces "button" and nothing else. */}
           <button
             onClick={onClose}
             aria-label="Fermer l'atelier"
@@ -147,6 +148,6 @@ export function WallStudio({ look, onChange, onReset, onClose }) {
             : "ce mur est à cette collection — l'autre garde le sien"}
         </div>
       </div>
-    </Calque>
+    </Layer>
   );
 }

@@ -1,30 +1,29 @@
 /* ============================================================
-   DEUX FICHES SCOTCHÉES EN BAS DE PAGE
+   TWO CARDS TAPED AT THE BOTTOM OF THE PAGE
 
-   La première invite à poser le classeur sur l'écran d'accueil. La
-   seconde dit qu'une nouvelle version attend. Elles ne paraissent
-   jamais ensemble : on ne demande pas deux choses à la fois.
+   The first invites you to lay the binder on the home screen. The second
+   says a new version is waiting. They never appear together: we do not
+   ask two things at once.
 
-   Elles empruntent leur forme au rappel de la visite — une fiche de
-   bristol posée de travers, avec son bout de ruban adhésif. Ce n'est pas
-   une coquetterie : c'est ce qui distingue une phrase du classeur d'une
-   bannière du navigateur, et l'on veut justement que celle-ci ne
-   ressemble pas à celle-là.
+   They borrow their shape from the tour's reminder — an index card laid
+   askew, with its strip of tape. That is not an affectation: it is what
+   distinguishes a sentence from the binder from a browser banner, and
+   what we want precisely is for the former not to look like the latter.
 
-   Montées par `Calque`, comme tout ce qui flotte : la colonne de vue est
-   un contexte d'empilement et se transforme le temps d'une animation.
+   Mounted by `Layer`, like everything that floats: the view column is a
+   stacking context and transforms itself for the length of an animation.
    ============================================================ */
 import type { ReactNode } from "react";
 import { Download, RefreshCw, Share, X } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
-import { Calque } from "../ui/Calque";
+import { Layer } from "../ui/Layer";
 
-/* La fiche vit au-dessus de la barre du bas (20) et au-dessous de tout
-   panneau ouvert (30) : elle informe, elle n'interrompt pas. */
+/* The card lives above the bottom bar (20) and below any open panel
+   (30): it informs, it does not interrupt. */
 const Z = 25;
 
-function Fiche({
+function Card({
   children,
   tour,
   onFermer,
@@ -34,15 +33,15 @@ function Fiche({
   onFermer?: () => void;
 }) {
   return (
-    <Calque>
+    <Layer>
       <div
         data-tour={tour}
         style={{
           position: "fixed",
           left: "max(12px, var(--safe-left))",
           right: "max(12px, var(--safe-right))",
-          /* Au-dessus de la barre du bas quand elle existe : la fiche ne
-             doit pas cacher les onglets qu'elle invite à garder. */
+          /* Above the bottom bar when there is one: the card must not
+             hide the tabs it invites you to keep. */
           bottom: "calc(66px + var(--safe-bottom))",
           zIndex: Z,
           margin: "0 auto",
@@ -58,7 +57,7 @@ function Fiche({
           animation: "sheetIn var(--motion-slow) var(--motion-ease) backwards",
         }}
       >
-        {/* le bout de ruban : la fiche est scotchée, pas posée */}
+        {/* the strip of tape: the card is taped, not laid */}
         <div
           aria-hidden
           style={{
@@ -84,23 +83,23 @@ function Fiche({
           </button>
         )}
       </div>
-    </Calque>
+    </Layer>
   );
 }
 
-const Titre = ({ children }: { children: ReactNode }) => (
+const Title = ({ children }: { children: ReactNode }) => (
   <div style={{ fontFamily: F.title, fontStyle: "italic", fontSize: 18, color: C.ink }}>
     {children}
   </div>
 );
 
-const Phrase = ({ children }: { children: ReactNode }) => (
+const Line = ({ children }: { children: ReactNode }) => (
   <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded, marginTop: 2 }}>
     {children}
   </div>
 );
 
-const bouton = {
+const button = {
   all: "unset" as const,
   ...tap,
   cursor: "pointer",
@@ -115,50 +114,48 @@ const bouton = {
   border: `1px solid ${C.burgundy}`,
 };
 
-/** L'invitation à poser le classeur sur l'écran d'accueil. */
+/** The invitation to lay the binder on the home screen. */
 export function Installation({
-  pomme,
-  onInstaller,
-  onÉcarter,
+  apple,
+  onInstall,
+  onDismiss,
 }: {
-  /** Sur iOS on explique le geste : aucune boîte de dialogue n'existe. */
-  pomme: boolean;
-  onInstaller: () => void;
-  onÉcarter: () => void;
+  /** On iOS we explain the gesture: no dialog box exists. */
+  apple: boolean;
+  onInstall: () => void;
+  onDismiss: () => void;
 }) {
   return (
-    <Fiche tour="installer" onFermer={onÉcarter}>
-      <Titre>Le classeur tient sur votre écran d'accueil</Titre>
-      {pomme ? (
-        <Phrase>
+    <Card tour="install" onFermer={onDismiss}>
+      <Title>Le classeur tient sur votre écran d'accueil</Title>
+      {apple ? (
+        <Line>
           Touchez <Share size={13} style={{ verticalAlign: -2 }} /> en bas de Safari, puis « Sur
           l'écran d'accueil ». Il s'ouvrira en plein écran, et même sans réseau.
-        </Phrase>
+        </Line>
       ) : (
         <>
-          <Phrase>
-            Il s'ouvre alors en plein écran, sans barre d'adresse, et même sans réseau.
-          </Phrase>
-          <button onClick={onInstaller} style={bouton}>
+          <Line>Il s'ouvre alors en plein écran, sans barre d'adresse, et même sans réseau.</Line>
+          <button onClick={onInstall} style={button}>
             <Download size={12} /> INSTALLER
           </button>
         </>
       )}
-    </Fiche>
+    </Card>
   );
 }
 
-/** Une version neuve attend d'être posée. */
-export function MiseÀJour({ onRecharger }: { onRecharger: () => void }) {
+/** A brand-new version is waiting to be laid down. */
+export function UpdateCard({ onReload }: { onReload: () => void }) {
   return (
-    <Fiche tour="maj">
-      <Titre>Une nouvelle version est prête</Titre>
-      {/* On ne remplace RIEN sans le dire : une application qui se met à
-          jour toute seule pendant qu'on écrit une note perd la note. */}
-      <Phrase>Elle s'installera au rechargement. Rien de ce que vous avez rangé ne bouge.</Phrase>
-      <button onClick={onRecharger} style={bouton}>
+    <Card tour="maj">
+      <Title>Une nouvelle version est prête</Title>
+      {/* We replace NOTHING without saying so: an application that
+          updates itself while one is writing a note loses the note. */}
+      <Line>Elle s'installera au rechargement. Rien de ce que vous avez rangé ne bouge.</Line>
+      <button onClick={onReload} style={button}>
         <RefreshCw size={12} /> RECHARGER
       </button>
-    </Fiche>
+    </Card>
   );
 }

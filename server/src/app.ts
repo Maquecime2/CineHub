@@ -1,16 +1,15 @@
 /* ============================================================
-   LE SERVEUR — ce qu'il accepte de faire, et rien de plus
+   THE SERVER — what it agrees to do, and nothing more
    ============================================================
 
-   Squelette : les comptes par clé d'accès, une session, et deux routes
-   de collection qui prouvent la chaîne de bout en bout. Le reste du
-   communautaire (profils, abonnements, avis, listes) viendra dessus,
-   sur ce socle-là.
+   The skeleton: passkey accounts, a session, and the two collection
+   routes that prove the chain end to end. The rest of the community
+   half (profiles, follows, reviews, lists) is built on top, on that
+   baseline.
 
-   CE QUI EST DÉJÀ LÀ ALORS QUE RIEN NE L'EXIGE : la limitation de
-   débit, l'export et l'effacement de compte. Ce ne sont pas des
-   fonctions à ajouter plus tard — ce sont des propriétés qu'on n'ajoute
-   jamais si elles ne sont pas là au premier jour.
+   WHAT IS ALREADY HERE THOUGH NOTHING DEMANDS IT: rate limiting, export
+   and account erasure. They are not features to add later — they are
+   properties one never adds at all if they are not there on day one.
    ============================================================ */
 import { randomBytes } from "node:crypto";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
@@ -23,536 +22,535 @@ import {
   generateAuthenticationOptions,
   verifyAuthenticationResponse,
 } from "@simplewebauthn/server";
-import type { Base } from "./base.ts";
-import * as depot from "./depot.ts";
-import { poserLesRelais } from "./relais.ts";
-import { clePublique, pousseesPossibles, rappelerLesDefis } from "./pousse.ts";
+import type { Db } from "./db.ts";
+import * as store from "./store.ts";
+import { registerRelays } from "./relay.ts";
+import { publicKeyForPush, pushAvailable, remindChallenges } from "./push.ts";
 
-export interface Reglages {
-  base: Base;
-  /** Le domaine que les clés d'accès signeront. `localhost` en développement. */
-  domaine: string;
+export interface Settings {
+  db: Db;
+  /** The domain the passkeys will sign for. `localhost` in development. */
+  domain: string;
   /**
-   * Les origines du client, séparées par des virgules.
+   * The client's origins, comma-separated.
    *
-   * PLUSIEURS, PARCE QU'IL Y EN A PLUSIEURS EN VRAI : le serveur de
-   * développement (5173) et l'aperçu de la version construite (4173)
-   * ne sont pas la même origine, et l'on veut essayer la PWA contre le
-   * même serveur. La PREMIÈRE sert de référence aux clés d'accès —
-   * une clé signée pour une origine ne vaut rien sur une autre.
+   * SEVERAL, BECAUSE THERE REALLY ARE SEVERAL: the development server
+   * (5173) and the preview of the built version (4173) are not the same
+   * origin, and we want to try the PWA against the same server. The
+   * FIRST one is the reference for the passkeys — a key signed for one
+   * origin is worth nothing on another.
    */
-  origine: string;
-  /** Cookies `Secure` : faux en développement, où il n'y a pas de HTTPS. */
-  securise?: boolean;
+  origin: string;
+  /** `Secure` cookies: false in development, where there is no HTTPS. */
+  secure?: boolean;
   /**
-   * La clé TMDB, si l'on en a une de ce côté-ci.
+   * The TMDB key, if there is one on this side.
    *
-   * Absente, le relais répond « pas de service » et le classeur continue
-   * d'utiliser celle que la personne a saisie chez elle. C'est
-   * volontairement dégradable : le serveur est un confort, pas une
-   * condition d'usage.
+   * Missing, the relay answers "no service" and the binder goes on using
+   * the one the person typed in at home. This is deliberately
+   * degradable: the server is a comfort, not a condition of use.
    */
-  cleTmdb?: string;
+  tmdbKey?: string;
   /**
-   * Requêtes TMDB par minute et par adresse, pour le relais seul.
+   * TMDB requests per minute per address, for the relay alone.
    *
-   * Le plafond général du serveur — cent par minute — vise les routes
-   * qui écrivent. Le relais, lui, sert un travail long et légitime :
-   * remplir trois cents fiches en demande trois cents. Voir
-   * `PLAFOND_TMDB_DEFAUT` dans `relais.ts`.
+   * The server's general ceiling — a hundred a minute — targets the
+   * routes that write. The relay serves a long and legitimate job:
+   * filling three hundred cards asks for three hundred. See
+   * `DEFAULT_TMDB_CEILING` in `relay.ts`.
    */
-  plafondTmdb?: number;
+  tmdbCeiling?: number;
   /**
-   * Ouvre `POST /dev/session`, qui crée un compte et une session sans
-   * clé d'accès. Jamais vrai en production — voir `index.ts`.
+   * Opens `POST /dev/session`, which creates an account and a session
+   * with no passkey. Never true in production — see `index.ts`.
    */
-  porteDev?: boolean;
+  devDoor?: boolean;
 }
 
 const COOKIE = "session";
 
-/* Le pseudonyme est une adresse publique autant qu'un nom : il vivra
-   dans l'URL d'une collection partagée. On refuse donc ici ce que le
-   schéma refuse aussi, pour répondre par une phrase plutôt que par une
-   erreur de base de données. */
+/* The pseudonym is a public address as much as a name: it will live in
+   the URL of a shared collection. So we refuse here what the schema
+   refuses too, in order to answer with a sentence rather than with a
+   database error. */
 const PSEUDO_OK = /^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])$/;
 
-/* Les listes et les défis sont nommés par le SERVEUR, en UUID : une
-   route qui passerait n'importe quel texte à une colonne `uuid` répond
-   500 sur une adresse mal tapée, là où 404 est la vérité. */
+/* Lists and challenges are named by the SERVER, as UUIDs: a route that
+   handed any text at all to a `uuid` column answers 500 on a mistyped
+   address, where 404 is the truth. */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const JOUR = /^\d{4}-\d{2}-\d{2}$/;
 
-export async function construireApp(reglages: Reglages): Promise<FastifyInstance> {
-  const { base, domaine, origine } = reglages;
+export async function buildApp(settings: Settings): Promise<FastifyInstance> {
+  const { db, domain, origin } = settings;
   const app = Fastify({ logger: false });
 
-  /* UN CORPS VIDE N'EST PAS UN CORPS ILLISIBLE.
+  /* AN EMPTY BODY IS NOT AN UNREADABLE BODY.
 
-     Par défaut, Fastify refuse en 400 toute requête annonçant du JSON
-     sans rien envoyer. Or un client qui pose un `content-type` sur tous
-     ses appels — ce qui est la chose normale à faire — envoie
-     exactement cela quand la route ne demande aucune donnée. La
-     déconnexion échouait donc en silence : le navigateur croyait avoir
-     fermé la session, le serveur la gardait ouverte.
+     By default, Fastify refuses with a 400 any request that announces
+     JSON and sends nothing. But a client that sets a `content-type` on
+     all of its calls — which is the normal thing to do — sends exactly
+     that whenever the route asks for no data. Signing out therefore
+     failed in silence: the browser believed it had closed the session,
+     the server kept it open.
 
-     Le défaut a survécu à quarante tests parce qu'`inject`, sans charge
-     utile, n'annonce pas de `content-type` : la question qui échouait
-     n'était jamais posée. */
-  app.addContentTypeParser("application/json", { parseAs: "string" }, (_req, corps, fait) => {
+     The fault survived forty tests because `inject`, with no payload,
+     announces no `content-type`: the question that failed was never
+     asked. */
+  app.addContentTypeParser("application/json", { parseAs: "string" }, (_req, body, done) => {
     try {
-      fait(null, corps ? JSON.parse(corps as string) : {});
+      done(null, body ? JSON.parse(body as string) : {});
     } catch {
-      fait(new Error("JSON illisible"), undefined);
+      done(new Error("JSON illisible"), undefined);
     }
   });
 
   await app.register(cookie);
-  const origines = origine
+  const origins = origin
     .split(",")
     .map((o) => o.trim())
     .filter(Boolean);
   await app.register(cors, {
-    origin: origines,
-    /* Sans cela le navigateur n'enverrait pas le cookie de session : une
-       requête d'une origine à l'autre est anonyme par défaut. */
+    origin: origins,
+    /* Without this the browser would not send the session cookie: a
+       cross-origin request is anonymous by default. */
     credentials: true,
-    /* LES MÉTHODES S'ÉNUMÈRENT, ET L'OUBLI NE SE VOIT PAS EN TEST.
-       Par défaut, le préflet n'autorise que GET, HEAD et POST : le
-       navigateur refusait donc le PUT de la collection AVANT de
-       l'envoyer, et le serveur n'en voyait pas la trace. Les tests non
-       plus — `inject` appelle la route directement, sans préflet, donc
-       sans jamais poser la question qui échouait. */
+    /* THE METHODS ARE LISTED, AND FORGETTING ONE DOES NOT SHOW IN THE
+       TESTS. By default the preflight allows only GET, HEAD and POST:
+       the browser was therefore refusing the collection's PUT BEFORE
+       sending it, and the server saw no trace of it. Nor did the tests —
+       `inject` calls the route directly, with no preflight, so it never
+       asks the question that was failing. */
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    /* UN EN-TÊTE QU'ON N'EXPOSE PAS EST UN EN-TÊTE QU'ON N'ENVOIE PAS.
+    /* A HEADER ONE DOES NOT EXPOSE IS A HEADER ONE DOES NOT SEND.
 
-       Sur une requête d'une origine à l'autre, le navigateur ne laisse
-       lire au JavaScript qu'une poignée d'en-têtes ; tous les autres
-       sont là, dans la réponse, et `headers.get()` rend `null`. Le
-       serveur répondait donc « réessaie dans 47 secondes » à un client
-       qui ne pouvait pas l'entendre, et qui retentait au bout d'une —
-       trois fois, dans la même fenêtre, pour se faire refuser trois
-       fois. Le rythme d'attente était écrit des deux côtés et ne
-       traversait pas. */
+       On a cross-origin request the browser lets JavaScript read only a
+       handful of headers; all the others are there, in the response, and
+       `headers.get()` returns `null`. So the server was answering "try
+       again in 47 seconds" to a client that could not hear it, and which
+       tried again after one — three times, inside the same window, to be
+       refused three times. The waiting rhythm was written on both sides
+       and did not cross. */
     exposedHeaders: ["retry-after"],
   });
-  /* CENT REQUÊTES PAR MINUTE ET PAR ADRESSE. Ce n'est pas contre une
-     attaque sérieuse — il faudrait un pare-feu devant — mais contre la
-     boucle d'un client mal réglé, qui coûte le même argent. */
+  /* A HUNDRED REQUESTS PER MINUTE PER ADDRESS. Not against a serious
+     attack — that would need a firewall in front — but against the loop
+     of a badly set client, which costs the same money. */
   await app.register(rateLimit, { max: 100, timeWindow: "1 minute" });
 
   /* ------------------------------------------------------------
-     LA MESURE D'USAGE — ce qu'elle refuse de savoir la définit
+     THE USAGE MEASUREMENT — what it refuses to know defines it
      ------------------------------------------------------------
-     Un compteur par JOUR et par GESTE. Pas d'identifiant de personne,
-     pas d'adresse, pas de navigateur, pas d'heure : rien qui permette
-     de recomposer la journée de quelqu'un.
+     One counter per DAY and per GESTURE. No person identifier, no
+     address, no browser, no time of day: nothing that would let
+     somebody's day be recomposed.
 
-     Le geste est la MÉTHODE et le CHEMIN DE ROUTE — `GET /listes/:id`
-     et non `GET /listes/97703c16-…`. L'URL réelle porte des
-     identifiants ; le chemin de route, non. Compter l'une pour l'autre
-     aurait fabriqué exactement le registre qu'on refuse de tenir.
+     The gesture is the METHOD and the ROUTE PATH — `GET /lists/:id` and
+     not `GET /lists/97703c16-…`. The real URL carries identifiers; the
+     route path does not. Counting one for the other would have built
+     exactly the register we refuse to keep.
 
-     Ce compteur est délibérément aveugle à « combien de personnes » :
-     y répondre demanderait ce qu'on ne garde pas. C'est le prix, et il
-     est payé sciemment. */
+     This counter is deliberately blind to "how many people": answering
+     that would need what we do not keep. That is the price, and it is
+     paid knowingly. */
   app.addHook("onResponse", async (req, reply) => {
     const chemin = req.routeOptions?.url;
     if (!chemin) return;
-    /* Une écriture par requête serait payer la mesure plus cher que le
-       service. Les échecs ne comptent pas non plus : ce sont des
-       incidents, et le journal du serveur est là pour eux. */
+    /* One write per request would make the measurement cost more than
+       the service. Failures do not count either: those are incidents, and
+       the server log is there for them. */
     if (reply.statusCode >= 400) return;
-    depot.compter(base, `${req.method} ${chemin}`).catch(() => {});
+    store.countGesture(db, `${req.method} ${chemin}`).catch(() => {});
   });
 
-  /** Qui parle ? `null` si personne. */
-  const quiEst = async (req: FastifyRequest) => {
+  /** Who is speaking? `null` if nobody. */
+  const whoIs = async (req: FastifyRequest) => {
     const secret = req.cookies[COOKIE];
     if (!secret) return null;
-    return depot.personneDeSession(base, secret);
+    return store.personOfSession(db, secret);
   };
 
-  /** Les routes qui exigent un compte passent par ici. */
-  const exigerUnCompte = async (req: FastifyRequest) => {
-    const personne = await quiEst(req);
-    if (!personne) {
+  /** The routes that require an account go through here. */
+  const requireAccount = async (req: FastifyRequest) => {
+    const person = await whoIs(req);
+    if (!person) {
       const e = new Error("il faut être connecté") as Error & { statusCode?: number };
       e.statusCode = 401;
       throw e;
     }
-    return personne;
+    return person;
   };
 
   /* ------------------------------------------------------------
-     S'INSCRIRE — première clé d'accès
+     SIGNING UP — a first passkey
      ------------------------------------------------------------ */
 
-  app.post("/auth/inscription/options", async (req, reply) => {
+  app.post("/auth/signup/options", async (req, reply) => {
     const { pseudo } = (req.body ?? {}) as { pseudo?: string };
-    const nom = (pseudo || "").trim().toLowerCase();
-    if (!PSEUDO_OK.test(nom)) {
+    const name = (pseudo || "").trim().toLowerCase();
+    if (!PSEUDO_OK.test(name)) {
       return reply.code(400).send({
-        erreur: "Un pseudonyme de 3 à 30 caractères : lettres sans accent, chiffres, tirets.",
+        error: "Un pseudonyme de 3 à 30 caractères : lettres sans accent, chiffres, tirets.",
       });
     }
-    if (await depot.trouverParPseudo(base, nom)) {
-      return reply.code(409).send({ erreur: "Ce pseudonyme est déjà pris." });
+    if (await store.findByPseudo(db, name)) {
+      return reply.code(409).send({ error: "Ce pseudonyme est déjà pris." });
     }
 
     const options = await generateRegistrationOptions({
       rpName: "Ciné Hub",
-      rpID: domaine,
-      userName: nom,
-      /* PAS DE CLÉ RÉSIDENTE IMPOSÉE, mais préférée : c'est elle qui
-         permet de se connecter sans taper son pseudonyme. « Preferred »
-         plutôt que « required » pour ne pas fermer la porte aux
-         authentificateurs qui n'en font pas. */
+      rpID: domain,
+      userName: name,
+      /* NO RESIDENT KEY REQUIRED, but preferred: it is what lets you
+         sign in without typing your username. "Preferred" rather than
+         "required" so as not to shut the door on authenticators that do
+         not make them. */
       authenticatorSelection: { residentKey: "preferred", userVerification: "preferred" },
       attestationType: "none",
     });
 
-    const defi = await depot.poserDefi(base, options.challenge, { pseudo: nom });
-    return { defi, options };
+    const challenge = await store.setChallenge(db, options.challenge, { pseudo: name });
+    return { challenge, options };
   });
 
-  app.post("/auth/inscription/verification", async (req, reply) => {
-    const { defi, reponse } = (req.body ?? {}) as { defi?: string; reponse?: unknown };
-    const attendu = defi ? await depot.consommerDefi(base, defi) : null;
-    if (!attendu?.pseudo) return reply.code(400).send({ erreur: "Défi inconnu ou expiré." });
+  app.post("/auth/signup/verify", async (req, reply) => {
+    const { challenge, response } = (req.body ?? {}) as { challenge?: string; response?: unknown };
+    const expected = challenge ? await store.consumeChallenge(db, challenge) : null;
+    if (!expected?.pseudo) return reply.code(400).send({ error: "Défi inconnu ou expiré." });
 
     const v = await verifyRegistrationResponse({
-      response: reponse as never,
-      expectedChallenge: attendu.valeur,
-      expectedOrigin: origines,
-      expectedRPID: domaine,
+      response: response as never,
+      expectedChallenge: expected.value,
+      expectedOrigin: origins,
+      expectedRPID: domain,
     });
     if (!v.verified || !v.registrationInfo) {
-      return reply.code(400).send({ erreur: "Cette clé n'a pas pu être vérifiée." });
+      return reply.code(400).send({ error: "Cette clé n'a pas pu être vérifiée." });
     }
 
-    /* La course entre deux inscriptions du même pseudonyme se joue ici :
-       c'est la contrainte d'unicité de la base qui tranche, pas notre
-       vérification d'il y a trois lignes. */
-    let personne;
+    /* The race between two registrations of the same username is settled
+       here: it is the database's uniqueness constraint that decides, not
+       our check three lines ago. */
+    let person;
     try {
-      personne = await depot.creerPersonne(base, attendu.pseudo);
+      person = await store.createPerson(db, expected.pseudo);
     } catch {
-      return reply.code(409).send({ erreur: "Ce pseudonyme est déjà pris." });
+      return reply.code(409).send({ error: "Ce pseudonyme est déjà pris." });
     }
 
     const { credential } = v.registrationInfo;
-    await depot.ajouterCle(base, {
+    await store.addKey(db, {
       id: credential.id,
-      personneId: personne.id,
-      clePublique: credential.publicKey,
-      compteur: credential.counter,
+      personId: person.id,
+      publicKey: credential.publicKey,
+      counter: credential.counter,
       transports: credential.transports ?? [],
     });
 
-    await poserLeCookie(reply, await depot.ouvrirSession(base, personne.id));
-    return { personne };
+    await setCookie(reply, await store.openSession(db, person.id));
+    return { person };
   });
 
   /* ------------------------------------------------------------
      SE CONNECTER
      ------------------------------------------------------------ */
 
-  app.post("/auth/connexion/options", async (req) => {
+  app.post("/auth/signin/options", async (req) => {
     const { pseudo } = (req.body ?? {}) as { pseudo?: string };
-    const nom = (pseudo || "").trim().toLowerCase();
-    const personne = nom ? await depot.trouverParPseudo(base, nom) : null;
+    const name = (pseudo || "").trim().toLowerCase();
+    const person = name ? await store.findByPseudo(db, name) : null;
 
-    /* UN PSEUDONYME INCONNU REÇOIT LA MÊME RÉPONSE QU'UN CONNU. Répondre
-       « ce compte n'existe pas » ferait de cette route un annuaire :
-       n'importe qui pourrait savoir qui est inscrit. On propose donc la
-       cérémonie dans tous les cas, et c'est la signature qui échouera. */
-    const cles = personne ? await depot.clesDe(base, personne.id) : [];
+    /* AN UNKNOWN USERNAME GETS THE SAME ANSWER AS A KNOWN ONE. Answering
+       "this account does not exist" would make this route a directory:
+       anybody could learn who is registered. So we offer the ceremony in
+       every case, and it is the signature that will fail. */
+    const cles = person ? await store.keysOf(db, person.id) : [];
     const options = await generateAuthenticationOptions({
-      rpID: domaine,
+      rpID: domain,
       allowCredentials: cles.map((c) => ({ id: c.id, transports: c.transports as never })),
       userVerification: "preferred",
     });
 
-    const defi = await depot.poserDefi(base, options.challenge, {
-      personneId: personne?.id,
+    const challenge = await store.setChallenge(db, options.challenge, {
+      personId: person?.id,
     });
-    return { defi, options };
+    return { challenge, options };
   });
 
-  app.post("/auth/connexion/verification", async (req, reply) => {
-    const { defi, reponse } = (req.body ?? {}) as { defi?: string; reponse?: { id?: string } };
-    const attendu = defi ? await depot.consommerDefi(base, defi) : null;
-    if (!attendu) return reply.code(400).send({ erreur: "Défi inconnu ou expiré." });
+  app.post("/auth/signin/verify", async (req, reply) => {
+    const { challenge, response } = (req.body ?? {}) as {
+      challenge?: string;
+      response?: { id?: string };
+    };
+    const expected = challenge ? await store.consumeChallenge(db, challenge) : null;
+    if (!expected) return reply.code(400).send({ error: "Défi inconnu ou expiré." });
 
-    const cle = reponse?.id ? await depot.cleParId(base, reponse.id) : null;
-    if (!cle) return reply.code(401).send({ erreur: "Clé inconnue." });
+    const key = response?.id ? await store.keyById(db, response.id) : null;
+    if (!key) return reply.code(401).send({ error: "Clé inconnue." });
 
     const v = await verifyAuthenticationResponse({
-      response: reponse as never,
-      expectedChallenge: attendu.valeur,
-      expectedOrigin: origines,
-      expectedRPID: domaine,
+      response: response as never,
+      expectedChallenge: expected.value,
+      expectedOrigin: origins,
+      expectedRPID: domain,
       credential: {
-        id: cle.id,
-        publicKey: new Uint8Array(cle.cle_publique),
-        counter: Number(cle.compteur),
-        transports: cle.transports as never,
+        id: key.id,
+        publicKey: new Uint8Array(key.public_key),
+        counter: Number(key.counter),
+        transports: key.transports as never,
       },
     });
-    if (!v.verified) return reply.code(401).send({ erreur: "Signature refusée." });
+    if (!v.verified) return reply.code(401).send({ error: "Signature refusée." });
 
-    await depot.noterUsage(base, cle.id, v.authenticationInfo.newCounter);
-    const personne = await depot.trouverParId(base, cle.personne_id);
-    if (!personne) return reply.code(401).send({ erreur: "Compte introuvable." });
+    await store.recordUsage(db, key.id, v.authenticationInfo.newCounter);
+    const person = await store.findById(db, key.person_id);
+    if (!person) return reply.code(401).send({ error: "Compte introuvable." });
 
-    await poserLeCookie(reply, await depot.ouvrirSession(base, personne.id));
-    return { personne };
+    await setCookie(reply, await store.openSession(db, person.id));
+    return { person };
   });
 
   /* ------------------------------------------------------------
      LA SESSION
      ------------------------------------------------------------ */
 
-  app.get("/moi", async (req, reply) => {
-    const personne = await quiEst(req);
-    if (!personne) return reply.code(401).send({ erreur: "Personne." });
-    return { personne, fiches: await depot.compterFiches(base, personne.id) };
+  app.get("/me", async (req, reply) => {
+    const person = await whoIs(req);
+    if (!person) return reply.code(401).send({ error: "Personne." });
+    return { person, cards: await store.countCards(db, person.id) };
   });
 
-  app.post("/deconnexion", async (req, reply) => {
+  app.post("/signout", async (req, reply) => {
     const secret = req.cookies[COOKIE];
-    if (secret) await depot.fermerSession(base, secret);
+    if (secret) await store.closeSession(db, secret);
     reply.clearCookie(COOKIE, { path: "/" });
-    return { fait: true };
+    return { done: true };
   });
 
   /* ------------------------------------------------------------
-     LA COLLECTION — la chaîne, prouvée de bout en bout
+     THE COLLECTION — the chain, proved end to end
      ------------------------------------------------------------
-     Ce n'est pas encore la synchronisation : c'est le couple de routes
-     sur lequel elle s'écrira. Pousser ce qui a changé, tirer ce qui a
-     changé depuis une date — le reste (file d'attente, fusion des
-     journaux) est du travail de client. */
+     This is not synchronisation yet: it is the pair of routes on which
+     synchronisation will be written. Push what has changed, pull what
+     has changed since a given point — the rest (the waiting queue, the
+     merging of logs) is the client's work. */
 
   app.get("/collection", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
-    const { depuis } = req.query as { depuis?: string };
-    const rang = depuis ? Number(depuis) : 0;
+    const person = await requireAccount(req);
+    const { since } = req.query as { since?: string };
+    const rang = since ? Number(since) : 0;
     if (!Number.isFinite(rang) || rang < 0) {
-      return reply.code(400).send({ erreur: "Rang de départ illisible." });
+      return reply.code(400).send({ error: "Rang de départ illisible." });
     }
 
-    const fiches = await depot.fichesDepuis(base, personne.id, rang);
-    /* `jusqua` EST UN RANG, PAS UNE HEURE. C'est le numéro d'ordre de la
-       dernière fiche rendue : le client le renvoie tel quel au prochain
-       tirage, et n'a aucune horloge à comparer avec le serveur.
+    const cards = await store.cardsSince(db, person.id, rang);
+    /* `upTo` IS A RANK, NOT A TIME. It is the sequence number of the
+       last card returned: the client sends it back as it is on the next
+       pull, and has no clock to compare with the server's.
 
-       Sans fiche, on rend le rang demandé — surtout pas zéro, qui
-       ferait tout retélécharger au prochain passage. */
-    const jusqua = fiches.length ? Number(fiches[fiches.length - 1]!.seq) : rang;
+       With no card, we return the rank asked for — certainly not zero,
+       which would re-download everything on the next pass. */
+    const upTo = cards.length ? Number(cards[cards.length - 1]!.seq) : rang;
     return {
-      jusqua,
-      /* Il en reste : le client rappellera avec le nouveau rang plutôt
-         que de croire qu'il a tout. */
-      encore: fiches.length === 500,
-      fiches: fiches.map((f) => ({
+      upTo,
+      /* There is more: the client will call again with the new rank
+         rather than believe it has everything. */
+      more: cards.length === 500,
+      cards: cards.map((f) => ({
         id: f.id,
         tmdbId: f.tmdb_id,
-        cachee: f.cachee,
-        supprimee: f.supprimee,
-        majLe: new Date(f.maj_le).getTime(),
-        donnees: f.donnees,
+        hidden: f.hidden,
+        deleted: f.deleted,
+        updatedAt: new Date(f.updated_at).getTime(),
+        data: f.data,
       })),
     };
   });
 
   app.put("/collection", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
-    const { fiches } = (req.body ?? {}) as { fiches?: unknown };
-    if (!Array.isArray(fiches)) {
-      return reply.code(400).send({ erreur: "Il faut un tableau de fiches." });
+    const person = await requireAccount(req);
+    const { cards } = (req.body ?? {}) as { cards?: unknown };
+    if (!Array.isArray(cards)) {
+      return reply.code(400).send({ error: "Il faut un tableau de cards." });
     }
-    /* UN PLAFOND, PARCE QU'UN CORPS SANS PLAFOND EST UNE PANNE QUI
-       ATTEND. Une collection entière se pousse en plusieurs paquets. */
-    if (fiches.length > 500) {
-      return reply.code(413).send({ erreur: "Cinq cents fiches par envoi au plus." });
+    /* A CEILING, BECAUSE A BODY WITH NO CEILING IS A BREAKDOWN IN
+       WAITING. A whole collection is pushed in several batches. */
+    if (cards.length > 500) {
+      return reply.code(413).send({ error: "Cinq cents cards by envoi au plus." });
     }
 
-    /* TROIS COMPTES ET NON UN SEUL, PARCE QUE « RANGÉES » MENTAIT.
-       La réponse annonçait le nombre de fiches REÇUES, alors que la
-       base en refuse silencieusement une partie — celles qu'un appareil
-       en retard pousse par-dessus une version plus fraîche. Un client
-       qui vide sa file d'attente sur la foi de ce compte croirait avoir
-       envoyé ce qui a été écarté. La distinction ne coûte rien
-       aujourd'hui et sera tout demain, quand la synchronisation lira
-       cette réponse pour décider quoi oublier. */
-    let rangees = 0;
-    let perimees = 0;
-    let illisibles = 0;
-    for (const f of fiches as Record<string, unknown>[]) {
+    /* THREE COUNTS AND NOT ONE, BECAUSE "FILED" WAS LYING.
+       The response announced the number of cards RECEIVED, while the
+       database silently refuses some of them — the ones a device running
+       late pushes over a fresher version. A client emptying its queue on
+       the strength of that count would believe it had sent what was in
+       fact turned away. The distinction costs nothing today and will be
+       everything tomorrow, when synchronisation reads this response to
+       decide what to forget. */
+    let filed = 0;
+    let stale = 0;
+    let unreadable = 0;
+    for (const f of cards as Record<string, unknown>[]) {
       const id = typeof f.id === "string" ? f.id : null;
-      const majLe = Number(f.majLe);
-      if (!id || !Number.isFinite(majLe)) {
-        illisibles += 1;
+      const updatedAt = Number(f.updatedAt);
+      if (!id || !Number.isFinite(updatedAt)) {
+        unreadable += 1;
         continue;
       }
-      const ecrite = await depot.rangerFiche(base, personne.id, {
+      const written = await store.storeCard(db, person.id, {
         id,
         tmdbId: f.tmdbId == null ? null : String(f.tmdbId),
-        cachee: f.cachee === true,
-        donnees: f.donnees ?? {},
-        majLe: new Date(majLe),
-        supprimee: f.supprimee === true,
+        hidden: f.hidden === true,
+        data: f.data ?? {},
+        updatedAt: new Date(updatedAt),
+        deleted: f.deleted === true,
       });
-      if (ecrite) rangees += 1;
-      else perimees += 1;
+      if (written) filed += 1;
+      else stale += 1;
     }
-    /* PAS DE `jusqua` ICI : un envoi ne dit pas où en est la lecture.
-       Le rang du client n'avance qu'au tirage, qui seul sait ce qu'il a
-       vraiment reçu — et repasser par là fait entrer les fiches des
-       autres appareils au passage. */
-    return { rangees, perimees, illisibles };
+    /* NO `upTo` HERE: a push says nothing about where reading has got
+       to. The client's rank only advances on a pull, which alone knows
+       what it really received — and going back through it brings in the
+       other devices' cards on the way. */
+    return { filed, stale, unreadable };
   });
 
   /* ------------------------------------------------------------
-     LE RESTE DU CLASSEUR
+     THE REST OF THE BINDER
      ------------------------------------------------------------
-     Agencements d'étagère, pages du carnet, fils, vocabulaire, décors.
-     Mêmes règles que les fiches, et volontairement les mêmes formes :
-     un `depuis` qui est un rang, un `jusqua` qu'on renvoie tel quel. */
+     Shelf arrangements, notebook pages, threads, vocabulary, decors.
+     The same rules as the cards, and deliberately the same shapes: a
+     `since` that is a rank, an `upTo` handed back as it stands. */
 
   app.get("/documents", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
-    const rang = Number((req.query as { depuis?: string }).depuis ?? 0);
+    const person = await requireAccount(req);
+    const rang = Number((req.query as { since?: string }).since ?? 0);
     if (!Number.isFinite(rang) || rang < 0) {
-      return reply.code(400).send({ erreur: "Rang de départ illisible." });
+      return reply.code(400).send({ error: "Rang de départ illisible." });
     }
-    const docs = await depot.docsDepuis(base, personne.id, rang);
+    const docs = await store.docsSince(db, person.id, rang);
     return {
-      jusqua: docs.length ? Number(docs[docs.length - 1]!.seq) : rang,
-      encore: docs.length === 200,
+      upTo: docs.length ? Number(docs[docs.length - 1]!.seq) : rang,
+      more: docs.length === 200,
       documents: docs.map((d) => ({
-        cle: d.cle,
-        supprime: d.supprime,
-        majLe: new Date(d.maj_le).getTime(),
-        contenu: d.contenu,
+        key: d.key,
+        deleted: d.deleted,
+        updatedAt: new Date(d.updated_at).getTime(),
+        content: d.content,
       })),
     };
   });
 
   app.put("/documents", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
+    const person = await requireAccount(req);
     const { documents } = (req.body ?? {}) as { documents?: unknown };
     if (!Array.isArray(documents)) {
-      return reply.code(400).send({ erreur: "Il faut un tableau de documents." });
+      return reply.code(400).send({ error: "Il faut un tableau de documents." });
     }
     if (documents.length > 200) {
-      return reply.code(413).send({ erreur: "Deux cents documents par envoi au plus." });
+      return reply.code(413).send({ error: "Deux cents documents by envoi au plus." });
     }
 
-    let ranges = 0;
-    let perimes = 0;
-    let illisibles = 0;
+    let filed = 0;
+    let stale = 0;
+    let unreadable = 0;
     for (const d of documents as Record<string, unknown>[]) {
-      const cle = typeof d.cle === "string" ? d.cle : null;
-      const majLe = Number(d.majLe);
-      if (!cle || !Number.isFinite(majLe)) {
-        illisibles += 1;
+      const key = typeof d.key === "string" ? d.key : null;
+      const updatedAt = Number(d.updatedAt);
+      if (!key || !Number.isFinite(updatedAt)) {
+        unreadable += 1;
         continue;
       }
-      const ecrit = await depot.rangerDoc(base, personne.id, {
-        cle,
-        contenu: d.contenu ?? null,
-        majLe: new Date(majLe),
-        supprime: d.supprime === true,
+      const ecrit = await store.storeDoc(db, person.id, {
+        key,
+        content: d.content ?? null,
+        updatedAt: new Date(updatedAt),
+        deleted: d.deleted === true,
       });
-      if (ecrit) ranges += 1;
-      else perimes += 1;
+      if (ecrit) filed += 1;
+      else stale += 1;
     }
-    return { ranges, perimes, illisibles };
+    return { filed, stale, unreadable };
   });
 
   /* ------------------------------------------------------------
-     PARTAGER SA COLLECTION
+     SHARING ONE'S COLLECTION
      ------------------------------------------------------------
-     La seule route de tout ce serveur qui réponde à quelqu'un qui n'a
-     pas de compte. Elle est donc écrite en se demandant, à chaque
-     ligne, ce qu'un inconnu pourrait en tirer. */
+     The only route in this whole server that answers somebody with no
+     account. It is therefore written asking, at every line, what a
+     stranger could get out of it. */
 
-  /* LIRE SON PROPRE RÉGLAGE DE PARTAGE — ce qui manquait pour le
-     dessiner. La route d'écriture existait seule, de sorte que le tiroir
-     du compte ouvrait sur trois boutons dont AUCUN n'était marqué : il
-     n'apprenait votre mode qu'au moment où vous en changiez, c'est-à-dire
-     trop tard pour vous aider à décider. La fiche, elle, ne pouvait pas
-     dire « les autres la voient » sans savoir si quelqu'un voit quoi que
-     ce soit.
+  /* READING ONE'S OWN SHARING SETTING — what was missing to draw it.
+     The write route existed on its own, so the account drawer opened on
+     three buttons of which NONE was marked: it only taught you your mode
+     at the moment you changed it, which is too late to help you decide.
+     And the card could not say "other people can see it" without knowing
+     whether anybody sees anything at all.
 
-     La personne de session porte déjà les deux valeurs : il n'y a rien à
-     aller chercher, seulement à répondre. */
-  app.get("/partage", async (req) => {
-    const personne = await exigerUnCompte(req);
-    return { partage: personne.partage ?? "privee", jeton: personne.jeton ?? null };
+     The session's person already carries both values: there is nothing
+     to go and fetch, only something to answer. */
+  app.get("/sharing", async (req) => {
+    const person = await requireAccount(req);
+    return { sharing: person.sharing ?? "privee", token: person.token ?? null };
   });
 
-  app.put("/partage", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
-    const { partage } = (req.body ?? {}) as { partage?: string };
-    if (!["privee", "lien", "publique"].includes(partage || "")) {
-      return reply.code(400).send({ erreur: "Partage inconnu." });
+  app.put("/sharing", async (req, reply) => {
+    const person = await requireAccount(req);
+    const { sharing } = (req.body ?? {}) as { sharing?: string };
+    if (!["privee", "lien", "publique"].includes(sharing || "")) {
+      return reply.code(400).send({ error: "Partage inconnu." });
     }
 
-    /* UN JETON NEUF À CHAQUE PASSAGE PAR « LIEN ». Reprendre l'ancien
-       ferait revivre tous les liens distribués la fois d'avant — y
-       compris celui qu'on avait justement voulu couper en repassant en
-       privé. Se raviser doit vouloir dire quelque chose. */
-    const jeton = partage === "lien" ? randomBytes(16).toString("base64url") : null;
-    await depot.reglerLePartage(base, personne.id, partage!, jeton);
-    return { partage, jeton };
+    /* A FRESH TOKEN ON EVERY PASS THROUGH "LINK". Taking the old one
+       back would revive every link handed out the time before — the one
+       we had gone private precisely in order to cut, included. Changing
+       one's mind has to mean something. */
+    const token = sharing === "lien" ? randomBytes(16).toString("base64url") : null;
+    await store.setSharing(db, person.id, sharing!, token);
+    return { sharing, token };
   });
 
-  /* CE QUI EST ÉCARTÉ DU PARTAGE, ET RIEN D'AUTRE.
+  /* WHAT IS SET ASIDE FROM SHARING, AND NOTHING ELSE.
 
-     La route d'à côté sait écarter une fiche depuis le premier jour ;
-     aucune ne savait dire lesquelles l'étaient. Le classeur ne pouvait
-     donc pas dessiner l'état d'un bouton qu'il n'avait aucun moyen de
-     lire — c'est pour cela que le bouton n'existait pas, alors que la
-     visite le promettait.
+     The route next door has known how to set a card aside since day one;
+     none of them could say which ones were. So the binder could not draw
+     the state of a button it had no way of reading — which is why the
+     button did not exist, while the tour promised it.
 
-     On rend des IDENTIFIANTS et rien de plus : c'est tout ce qu'il faut
-     pour cocher une case, et une liste de titres ferait voyager la
-     collection pour rien. */
-  app.get("/fiches-cachees", async (req) => {
-    const personne = await exigerUnCompte(req);
-    return { ids: await depot.fichesCachees(base, personne.id) };
+     We return IDENTIFIERS and nothing more: that is all it takes to
+     tick a box, and a list of titles would send the collection
+     travelling for nothing. */
+  app.get("/hidden-cards", async (req) => {
+    const person = await requireAccount(req);
+    return { ids: await store.hiddenCards(db, person.id) };
   });
 
-  app.put("/fiche/:id/cachee", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
+  app.put("/cards/:id/hidden", async (req, reply) => {
+    const person = await requireAccount(req);
     const { id } = req.params as { id: string };
-    const { cachee } = (req.body ?? {}) as { cachee?: boolean };
-    const fait = await depot.cacherFiche(base, personne.id, id, cachee === true);
-    if (!fait) return reply.code(404).send({ erreur: "Fiche inconnue." });
-    return { id, cachee: cachee === true };
+    const { hidden } = (req.body ?? {}) as { hidden?: boolean };
+    const done = await store.hideCard(db, person.id, id, hidden === true);
+    if (!done) return reply.code(404).send({ error: "Fiche inconnue." });
+    return { id, hidden: hidden === true };
   });
 
-  app.get("/chez/:pseudo", async (req, reply) => {
+  app.get("/collections/:pseudo", async (req, reply) => {
     const { pseudo } = req.params as { pseudo: string };
-    const { jeton } = req.query as { jeton?: string };
+    const { token } = req.query as { token?: string };
     if (!PSEUDO_OK.test(pseudo || "")) {
-      return reply.code(404).send({ erreur: "Pas de collection à cette adresse." });
+      return reply.code(404).send({ error: "Pas de collection à cette adresse." });
     }
 
-    const vue = await depot.collectionPubliqueDe(base, pseudo.toLowerCase(), jeton ?? null);
-    /* LE MÊME 404 DANS LES TROIS CAS : compte inexistant, compte qui ne
-       partage pas, jeton faux. Distinguer renseignerait un inconnu sur
-       qui est inscrit et sur qui garde une collection secrète — deux
-       choses qui ne le regardent pas. */
-    if (!vue) return reply.code(404).send({ erreur: "Pas de collection à cette adresse." });
+    const vue = await store.publicCollectionOf(db, pseudo.toLowerCase(), token ?? null);
+    /* THE SAME 404 IN ALL THREE CASES: no such account, an account that
+       does not share, a wrong token. Telling them apart would inform a
+       stranger about who is registered and who keeps a collection
+       secret — two things that are none of their business. */
+    if (!vue) return reply.code(404).send({ error: "Pas de collection à cette adresse." });
 
     return {
       pseudo: vue.pseudo,
-      films: vue.films.map((f) => ({ id: f.id, tmdbId: f.tmdb_id, ...f.donnees })),
+      films: vue.films.map((f) => ({ id: f.id, tmdbId: f.tmdb_id, ...f.data })),
     };
   });
 
@@ -560,585 +558,577 @@ export async function construireApp(reglages: Reglages): Promise<FastifyInstance
      SUIVRE QUELQU'UN, ET LIRE SON FIL
      ------------------------------------------------------------ */
 
-  app.get("/profils/:pseudo", async (req, reply) => {
+  app.get("/profiles/:pseudo", async (req, reply) => {
     const { pseudo } = req.params as { pseudo: string };
-    if (!PSEUDO_OK.test(pseudo || "")) return reply.code(404).send({ erreur: "Personne." });
+    if (!PSEUDO_OK.test(pseudo || "")) return reply.code(404).send({ error: "Personne." });
 
-    /* On lit la session sans l'exiger : connecté, on saura si l'on suit
-       déjà ; sinon le profil se consulte quand même. */
-    const moi = await quiEst(req);
-    const profil = await depot.profilPublicDe(base, pseudo.toLowerCase(), moi?.id);
-    /* MÊME RÉPONSE POUR « N'EXISTE PAS » ET « NE SE MONTRE PAS ». On ne
-       peut trouver que des gens qui ont choisi d'être trouvables. */
-    if (!profil) return reply.code(404).send({ erreur: "Personne." });
+    /* We read the session without requiring it: signed in, we will know
+       whether we already follow; otherwise the profile is still
+       readable. */
+    const me = await whoIs(req);
+    const profil = await store.publicProfileOf(db, pseudo.toLowerCase(), me?.id);
+    /* THE SAME ANSWER FOR "DOES NOT EXIST" AND "DOES NOT SHOW". You can
+       only find people who chose to be findable. */
+    if (!profil) return reply.code(404).send({ error: "Personne." });
     return profil;
   });
 
-  app.get("/abonnements", async (req) => {
-    const personne = await exigerUnCompte(req);
-    return { abonnements: await depot.abonnementsDe(base, personne.id) };
+  app.get("/follows", async (req) => {
+    const person = await requireAccount(req);
+    return { subscriptions: await store.subscriptionsOf(db, person.id) };
   });
 
-  app.put("/abonnements/:pseudo", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
+  app.put("/follows/:pseudo", async (req, reply) => {
+    const person = await requireAccount(req);
     const { pseudo } = req.params as { pseudo: string };
-    const cible = await depot.profilPublicDe(base, (pseudo || "").toLowerCase(), personne.id);
-    /* On ne peut suivre que ce qui se montre : suivre une collection
-       fermée serait s'abonner à un silence, et dirait au passage
-       qu'elle existe. Un blocage referme de la même façon — c'est le
-       profil qui n'existe plus, et non une interdiction annoncée. */
-    if (!cible) return reply.code(404).send({ erreur: "Personne." });
+    const target = await store.publicProfileOf(db, (pseudo || "").toLowerCase(), person.id);
+    /* One can only follow what shows itself: following a closed
+       collection would be subscribing to a silence, and would say in
+       passing that it exists. A block closes things the same way — it is
+       the profile that no longer exists, and not an announced ban. */
+    if (!target) return reply.code(404).send({ error: "Personne." });
 
-    const vise = await depot.trouverParPseudo(base, cible.pseudo);
-    if (!vise || vise.id === personne.id) {
-      return reply.code(400).send({ erreur: "On ne se suit pas soi-même." });
+    const about = await store.findByPseudo(db, target.pseudo);
+    if (!about || about.id === person.id) {
+      return reply.code(400).send({ error: "On ne se suit pas soi-même." });
     }
-    await depot.suivre(base, personne.id, vise.id);
-    return { pseudo: cible.pseudo, suivi: true };
+    await store.follow(db, person.id, about.id);
+    return { pseudo: target.pseudo, followed: true };
   });
 
-  app.delete("/abonnements/:pseudo", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
+  app.delete("/follows/:pseudo", async (req, reply) => {
+    const person = await requireAccount(req);
     const { pseudo } = req.params as { pseudo: string };
-    const vise = await depot.trouverParPseudo(base, (pseudo || "").toLowerCase());
-    /* Se désabonner de quelqu'un qui s'est refermé doit RESTER possible :
-       on ne passe donc pas par le profil public, qui n'existerait plus. */
-    if (vise) await depot.nePlusSuivre(base, personne.id, vise.id);
-    return reply.send({ pseudo, suivi: false });
+    const about = await store.findByPseudo(db, (pseudo || "").toLowerCase());
+    /* Unfollowing somebody who has closed up must STAY possible: so we
+       do not go through the public profile, which would no longer
+       exist. */
+    if (about) await store.unfollow(db, person.id, about.id);
+    return reply.send({ pseudo, followed: false });
   });
 
-  app.get("/fil", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
-    const { avant } = req.query as { avant?: string };
-    const borne = avant ? Number(avant) : null;
+  app.get("/feed", async (req, reply) => {
+    const person = await requireAccount(req);
+    const { before } = req.query as { before?: string };
+    const borne = before ? Number(before) : null;
     if (borne !== null && !Number.isFinite(borne)) {
-      return reply.code(400).send({ erreur: "Borne illisible." });
+      return reply.code(400).send({ error: "Borne illisible." });
     }
 
-    const nouvelles = await depot.filDe(base, personne.id, borne);
+    const news = await store.feedOf(db, person.id, borne);
     return {
-      /* Le rang de la dernière nouvelle rendue : le client le renvoie
-         pour lire la suite, sans se demander l'heure qu'il est. */
-      jusqua: nouvelles.length ? Number(nouvelles[nouvelles.length - 1]!.seq) : null,
-      nouvelles: nouvelles.map((n) => ({
+      /* The rank of the last item returned: the client sends it back to
+         read on, without wondering what time it is. */
+      upTo: news.length ? Number(news[news.length - 1]!.seq) : null,
+      news: news.map((n) => ({
         pseudo: n.pseudo,
         id: n.id,
         tmdbId: n.tmdb_id,
-        le: new Date(n.maj_le).getTime(),
-        film: n.donnees,
+        at: new Date(n.updated_at).getTime(),
+        film: n.data,
       })),
     };
   });
 
   /* ------------------------------------------------------------
-     CE QU'ON DIT D'UNE ŒUVRE
+     WHAT IS SAID ABOUT A WORK
      ------------------------------------------------------------
-     La lecture à l'envers : non plus « les films de cette personne »,
-     mais « les gens qui ont vu ce film ». Rien n'est publié pour cela —
-     les critiques lues ici sont celles des fiches, chez leurs auteurs,
-     dans les collections qu'ils ont choisi de rendre publiques. */
+     Reading backwards: no longer "this person's films" but "the people
+     who have seen this film". Nothing is published for it — the reviews
+     read here are the cards' own, at their authors', in the collections
+     they chose to make public. */
 
-  app.get("/oeuvres/:tmdbId", async (req, reply) => {
-    /* UN COMPTE EST EXIGÉ, alors que la collection partagée n'en demande
-       pas. La différence : là-bas on ouvre la porte de quelqu'un qui
-       vous a donné son adresse ; ici on interroge tout le monde à la
-       fois. Ouvrir cela aux inconnus ferait de ce serveur un moissonneur
-       d'avis, et de chaque critique une donnée publiquement aspirable. */
-    const personne = await exigerUnCompte(req);
+  app.get("/works/:tmdbId", async (req, reply) => {
+    /* AN ACCOUNT IS REQUIRED, whereas the shared collection asks for
+       none. The difference: over there you open the door of somebody who
+       gave you their address; here you question everybody at once.
+       Opening that to strangers would make this server a harvester of
+       reviews, and every review a publicly siphonable piece of data. */
+    const person = await requireAccount(req);
     const { tmdbId } = req.params as { tmdbId: string };
     if (!/^[0-9]{1,12}$/.test(tmdbId || "")) {
-      return reply.code(400).send({ erreur: "Identifiant d'œuvre illisible." });
+      return reply.code(400).send({ error: "Identifiant d'œuvre illisible." });
     }
-    return depot.echoDeLOeuvre(base, tmdbId, personne.id);
+    return store.echoOfWork(db, tmdbId, person.id);
   });
 
   /* ------------------------------------------------------------
-     SE PROTÉGER
+     PROTECTING ONESELF
      ------------------------------------------------------------
-     Elles arrivent avec la première chose que ce classeur publie, et
-     non « quand il y aura un problème » : le jour où il y en a un, ce
-     n'est plus le moment de développer. */
+     These arrive with the first thing this binder publishes, and not
+     "when there is a problem": the day there is one is no longer the
+     moment to start developing. */
 
-  app.get("/blocages", async (req) => {
-    const personne = await exigerUnCompte(req);
-    return { blocages: await depot.mesBlocages(base, personne.id) };
+  app.get("/blocks", async (req) => {
+    const person = await requireAccount(req);
+    return { blocks: await store.myBlocks(db, person.id) };
   });
 
-  app.put("/blocages/:pseudo", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
+  app.put("/blocks/:pseudo", async (req, reply) => {
+    const person = await requireAccount(req);
     const { pseudo } = req.params as { pseudo: string };
-    /* On bloque par le compte, PAS par le profil public : quelqu'un qui
-       s'est refermé après coup doit rester blocable, sans quoi il
-       suffirait de passer en privé pour redevenir inbloquable puis
-       ressortir. */
-    const vise = await depot.trouverParPseudo(base, (pseudo || "").toLowerCase());
-    if (!vise) return reply.code(404).send({ erreur: "Personne." });
-    if (vise.id === personne.id) {
-      return reply.code(400).send({ erreur: "On ne se bloque pas soi-même." });
+    /* We block by ACCOUNT, not by public profile: somebody who closes
+       up afterwards must stay blockable, or going private would be
+       enough to become unblockable again and then come back out. */
+    const about = await store.findByPseudo(db, (pseudo || "").toLowerCase());
+    if (!about) return reply.code(404).send({ error: "Personne." });
+    if (about.id === person.id) {
+      return reply.code(400).send({ error: "On ne se blocked pas soi-même." });
     }
-    await depot.bloquer(base, personne.id, vise.id);
-    return { pseudo: vise.pseudo, bloque: true };
+    await store.block(db, person.id, about.id);
+    return { pseudo: about.pseudo, blocked: true };
   });
 
-  app.delete("/blocages/:pseudo", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
+  app.delete("/blocks/:pseudo", async (req, reply) => {
+    const person = await requireAccount(req);
     const { pseudo } = req.params as { pseudo: string };
-    const vise = await depot.trouverParPseudo(base, (pseudo || "").toLowerCase());
-    if (vise) await depot.debloquer(base, personne.id, vise.id);
-    /* Débloquer ne réabonne à personne : le lien a été défait, il se
-       refait à la main. Reconstituer un abonnement qu'on a coupé serait
-       décider à la place de quelqu'un. */
-    return reply.send({ pseudo, bloque: false });
+    const about = await store.findByPseudo(db, (pseudo || "").toLowerCase());
+    if (about) await store.unblock(db, person.id, about.id);
+    /* Unblocking re-subscribes nobody: the link was undone, it is redone
+       by hand. Rebuilding a subscription somebody cut would be deciding
+       on their behalf. */
+    return reply.send({ pseudo, blocked: false });
   });
 
-  app.post("/signalements", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
-    const { pseudo, fiche, motif } = (req.body ?? {}) as {
+  app.post("/reports", async (req, reply) => {
+    const person = await requireAccount(req);
+    const { pseudo, card, reason } = (req.body ?? {}) as {
       pseudo?: string;
-      fiche?: string;
-      motif?: string;
+      card?: string;
+      reason?: string;
     };
-    const texte = (motif || "").trim();
-    if (!texte || texte.length > 500) {
-      return reply.code(400).send({ erreur: "Dites en une phrase ce qui ne va pas." });
+    const text = (reason || "").trim();
+    if (!text || text.length > 500) {
+      return reply.code(400).send({ error: "Dites en one phrase ce qui ne va pas." });
     }
-    const vise = pseudo ? await depot.trouverParPseudo(base, pseudo.toLowerCase()) : null;
-    if (!vise) return reply.code(404).send({ erreur: "Personne." });
+    const about = pseudo ? await store.findByPseudo(db, pseudo.toLowerCase()) : null;
+    if (!about) return reply.code(404).send({ error: "Personne." });
 
-    const neuf = await depot.signaler(base, personne.id, {
-      cibleType: "fiche",
-      cibleId: String(fiche || ""),
-      viseId: vise.id,
-      motif: texte,
+    const fresh = await store.report(db, person.id, {
+      targetType: "card",
+      targetId: String(card || ""),
+      aboutId: about.id,
+      reason: text,
     });
-    /* LA MÊME RÉPONSE QUE CE SOIT LE PREMIER SIGNALEMENT OU LE
-       DIXIÈME : « c'est noté » est vrai dans les deux cas, et savoir
-       qu'on avait déjà signalé n'apporte rien à qui vient de le faire. */
-    return { note: true, neuf };
+    /* THE SAME ANSWER WHETHER IT IS THE FIRST REPORT OR THE TENTH:
+       "noted" is true in both cases, and knowing one had already
+       reported adds nothing for somebody who has just done it. */
+    return { noted: true, fresh };
   });
 
   /* ------------------------------------------------------------
-     LES LISTES
+     THE LISTS
      ------------------------------------------------------------
-     Une liste contient des ŒUVRES et non des fiches : une liste de
-     fiches serait la liste des exemplaires de quelqu'un, elle ne
-     voudrait rien dire chez un autre et se viderait le jour où son
-     auteur efface une fiche. */
+     A list holds WORKS and not cards: a list of cards would be a list of
+     somebody's own copies, it would mean nothing at somebody else's and
+     would empty itself the day its author erased a card. */
 
-  /** Les droits sur une liste, ou la réponse déjà prête pour un refus. */
-  const droitsOu404 = async (req: FastifyRequest, reply: FastifyReply, personneId: string) => {
+  /** The rights over a list, or the refusal already made ready. */
+  const rightsOr404 = async (req: FastifyRequest, reply: FastifyReply, personId: string) => {
     const { id } = req.params as { id: string };
     if (!UUID.test(id || "")) {
-      reply.code(404).send({ erreur: "Liste inconnue." });
+      reply.code(404).send({ error: "Liste inconnue." });
       return null;
     }
-    const droits = await depot.droitsSurListe(base, id, personneId);
-    /* PAS DE 403 : une liste qu'on n'a pas le droit de lire répond
-       comme une liste qui n'existe pas. Distinguer dirait à un inconnu
-       que tel identifiant désigne quelque chose. */
-    if (!droits?.lire) {
-      reply.code(404).send({ erreur: "Liste inconnue." });
+    const rights = await store.rightsOnList(db, id, personId);
+    /* NO 403: a list you have no right to read answers like a list that
+       does not exist. Telling them apart would tell a stranger that a
+       given identifier designates something. */
+    if (!rights?.read) {
+      reply.code(404).send({ error: "Liste inconnue." });
       return null;
     }
-    return droits;
+    return rights;
   };
 
-  app.get("/listes", async (req) => {
-    const personne = await exigerUnCompte(req);
-    return { listes: await depot.mesListes(base, personne.id) };
+  app.get("/lists", async (req) => {
+    const person = await requireAccount(req);
+    return { lists: await store.myLists(db, person.id) };
   });
 
-  app.post("/listes", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
-    const { titre, intention, publique } = (req.body ?? {}) as {
-      titre?: string;
-      intention?: string;
-      publique?: boolean;
+  app.post("/lists", async (req, reply) => {
+    const person = await requireAccount(req);
+    const { title, intent, is_public } = (req.body ?? {}) as {
+      title?: string;
+      intent?: string;
+      is_public?: boolean;
     };
-    const nom = (titre || "").trim();
-    if (!nom || nom.length > 120) {
-      return reply.code(400).send({ erreur: "Il faut un titre, de 1 à 120 caractères." });
+    const name = (title || "").trim();
+    if (!name || name.length > 120) {
+      return reply.code(400).send({ error: "Il faut un title, de 1 à 120 caractères." });
     }
-    const id = await depot.creerListe(base, personne.id, {
-      titre: nom,
-      intention: (intention || "").trim(),
-      publique: publique === true,
+    const id = await store.createList(db, person.id, {
+      title: name,
+      intent: (intent || "").trim(),
+      is_public: is_public === true,
     });
     return { id };
   });
 
-  app.get("/listes/:id", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
-    const droits = await droitsOu404(req, reply, personne.id);
-    if (!droits) return reply;
+  app.get("/lists/:id", async (req, reply) => {
+    const person = await requireAccount(req);
+    const rights = await rightsOr404(req, reply, person.id);
+    if (!rights) return reply;
 
-    const liste = await depot.listeParId(base, droits.liste_id);
+    const list = await store.listById(db, rights.list_id);
     return {
-      liste: { ...liste, mienne: droits.administrer, membre: droits.ecrire },
-      oeuvres: await depot.oeuvresDe(base, droits.liste_id),
-      /* Les co-constructeurs ne se montrent qu'à ceux qui écrivent
-         dedans : un visiteur d'une liste publique lit des films, pas la
-         liste des gens qui la tiennent. */
-      membres: droits.ecrire ? await depot.membresDe(base, droits.liste_id) : [],
+      list: { ...list, mienne: rights.administer, isMember: rights.write },
+      works: await store.worksOf(db, rights.list_id),
+      /* The co-builders only show themselves to those who write in it: a
+         visitor to a public list reads films, not the list of the people
+         who keep it. */
+      members: rights.write ? await store.membersOf(db, rights.list_id) : [],
     };
   });
 
-  app.put("/listes/:id", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
-    const droits = await droitsOu404(req, reply, personne.id);
-    if (!droits) return reply;
-    /* RENOMMER, PUBLIER, EFFACER : le propriétaire seul. Co-construire
-       est un droit d'écriture, pas une propriété partagée — sans cette
-       asymétrie, une liste à six mains n'a plus personne pour en
-       répondre. */
-    if (!droits.administrer)
-      return reply.code(403).send({ erreur: "Cette liste n'est pas vôtre." });
+  app.put("/lists/:id", async (req, reply) => {
+    const person = await requireAccount(req);
+    const rights = await rightsOr404(req, reply, person.id);
+    if (!rights) return reply;
+    /* RENAME, PUBLISH, DELETE: the owner alone. Co-building is a right
+       to write, not shared ownership — without that asymmetry, a list
+       built by six hands has nobody left answering for it. */
+    if (!rights.administer) return reply.code(403).send({ error: "Cette list n'est pas vôtre." });
 
-    const { titre, intention, publique } = (req.body ?? {}) as {
-      titre?: string;
-      intention?: string;
-      publique?: boolean;
+    const { title, intent, is_public } = (req.body ?? {}) as {
+      title?: string;
+      intent?: string;
+      is_public?: boolean;
     };
-    if (titre !== undefined && !(titre.trim() && titre.trim().length <= 120)) {
-      return reply.code(400).send({ erreur: "Il faut un titre, de 1 à 120 caractères." });
+    if (title !== undefined && !(title.trim() && title.trim().length <= 120)) {
+      return reply.code(400).send({ error: "Il faut un title, de 1 à 120 caractères." });
     }
-    await depot.retoucherListe(base, droits.liste_id, {
-      titre: titre?.trim(),
-      intention: intention?.trim(),
-      publique,
+    await store.editList(db, rights.list_id, {
+      title: title?.trim(),
+      intent: intent?.trim(),
+      is_public,
     });
-    return { fait: true };
+    return { done: true };
   });
 
-  app.delete("/listes/:id", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
-    const droits = await droitsOu404(req, reply, personne.id);
-    if (!droits) return reply;
-    if (!droits.administrer)
-      return reply.code(403).send({ erreur: "Cette liste n'est pas vôtre." });
-    await depot.effacerListe(base, droits.liste_id);
-    return { efface: true };
+  app.delete("/lists/:id", async (req, reply) => {
+    const person = await requireAccount(req);
+    const rights = await rightsOr404(req, reply, person.id);
+    if (!rights) return reply;
+    if (!rights.administer) return reply.code(403).send({ error: "Cette list n'est pas vôtre." });
+    await store.deleteList(db, rights.list_id);
+    return { erased: true };
   });
 
-  app.post("/listes/:id/oeuvres", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
-    const droits = await droitsOu404(req, reply, personne.id);
-    if (!droits) return reply;
-    if (!droits.ecrire) return reply.code(403).send({ erreur: "On ne vous a rien demandé ici." });
+  app.post("/lists/:id/works", async (req, reply) => {
+    const person = await requireAccount(req);
+    const rights = await rightsOr404(req, reply, person.id);
+    if (!rights) return reply;
+    if (!rights.write) return reply.code(403).send({ error: "On ne vous a rien demandé ici." });
 
-    const { tmdbId, titre, annee } = (req.body ?? {}) as {
+    const { tmdbId, title, year } = (req.body ?? {}) as {
       tmdbId?: string | number;
-      titre?: string;
-      annee?: string;
+      title?: string;
+      year?: string;
     };
     if (!/^[0-9]{1,12}$/.test(String(tmdbId ?? ""))) {
-      return reply.code(400).send({ erreur: "Une œuvre se désigne par son identifiant TMDB." });
+      return reply.code(400).send({ error: "Une œuvre se désigne by son identifiant TMDB." });
     }
-    const neuf = await depot.ajouterALaListe(base, droits.liste_id, personne.id, {
+    const fresh = await store.addToList(db, rights.list_id, person.id, {
       tmdbId: String(tmdbId),
-      titre: (titre || "").slice(0, 200),
-      annee: annee ? String(annee).slice(0, 8) : null,
+      title: (title || "").slice(0, 200),
+      year: year ? String(year).slice(0, 8) : null,
     });
-    return { ajoute: true, neuf };
+    return { added: true, fresh };
   });
 
-  app.delete("/listes/:id/oeuvres/:tmdbId", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
-    const droits = await droitsOu404(req, reply, personne.id);
-    if (!droits) return reply;
-    if (!droits.ecrire) return reply.code(403).send({ erreur: "On ne vous a rien demandé ici." });
+  app.delete("/lists/:id/works/:tmdbId", async (req, reply) => {
+    const person = await requireAccount(req);
+    const rights = await rightsOr404(req, reply, person.id);
+    if (!rights) return reply;
+    if (!rights.write) return reply.code(403).send({ error: "On ne vous a rien demandé ici." });
     const { tmdbId } = req.params as { tmdbId: string };
-    await depot.retirerDeLaListe(base, droits.liste_id, tmdbId);
-    return { retire: true };
+    await store.removeFromList(db, rights.list_id, tmdbId);
+    return { removed: true };
   });
 
-  app.put("/listes/:id/membres/:pseudo", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
-    const droits = await droitsOu404(req, reply, personne.id);
-    if (!droits) return reply;
-    if (!droits.administrer)
-      return reply.code(403).send({ erreur: "Cette liste n'est pas vôtre." });
+  app.put("/lists/:id/members/:pseudo", async (req, reply) => {
+    const person = await requireAccount(req);
+    const rights = await rightsOr404(req, reply, person.id);
+    if (!rights) return reply;
+    if (!rights.administer) return reply.code(403).send({ error: "Cette list n'est pas vôtre." });
 
     const { pseudo } = req.params as { pseudo: string };
-    const invite = await depot.trouverParPseudo(base, (pseudo || "").toLowerCase());
-    if (!invite) return reply.code(404).send({ erreur: "Personne." });
-    if (invite.id === personne.id) {
-      return reply.code(400).send({ erreur: "Vous y écrivez déjà." });
+    const invite = await store.findByPseudo(db, (pseudo || "").toLowerCase());
+    if (!invite) return reply.code(404).send({ error: "Personne." });
+    if (invite.id === person.id) {
+      return reply.code(400).send({ error: "Vous y écrivez déjà." });
     }
-    /* On n'invite pas quelqu'un qu'on a fait taire, ni quelqu'un qui
-       nous a fait taire : ce serait rouvrir par une porte de côté ce
-       qu'un blocage vient de fermer. */
-    if (await depot.bloques(base, personne.id, invite.id)) {
-      return reply.code(404).send({ erreur: "Personne." });
+    /* We do not invite somebody we have silenced, nor somebody who has
+       silenced us: that would reopen through a side door what a block
+       has just closed. */
+    if (await store.blockedIds(db, person.id, invite.id)) {
+      return reply.code(404).send({ error: "Personne." });
     }
-    await depot.inviterALaListe(base, droits.liste_id, invite.id);
-    return { pseudo: invite.pseudo, membre: true };
+    await store.inviteToList(db, rights.list_id, invite.id);
+    return { pseudo: invite.pseudo, isMember: true };
   });
 
-  app.delete("/listes/:id/membres/:pseudo", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
-    const droits = await droitsOu404(req, reply, personne.id);
-    if (!droits) return reply;
+  app.delete("/lists/:id/members/:pseudo", async (req, reply) => {
+    const person = await requireAccount(req);
+    const rights = await rightsOr404(req, reply, person.id);
+    if (!rights) return reply;
     const { pseudo } = req.params as { pseudo: string };
-    const vise = await depot.trouverParPseudo(base, (pseudo || "").toLowerCase());
-    if (!vise) return reply.code(404).send({ erreur: "Personne." });
-    /* Le propriétaire renvoie qui il veut ; un membre ne peut renvoyer
-       que lui-même. Partir d'une liste ne demande la permission de
-       personne. */
-    if (!droits.administrer && vise.id !== personne.id) {
-      return reply.code(403).send({ erreur: "Cette liste n'est pas vôtre." });
+    const about = await store.findByPseudo(db, (pseudo || "").toLowerCase());
+    if (!about) return reply.code(404).send({ error: "Personne." });
+    /* The owner can remove whoever they like; a member can only remove
+       themselves. Leaving a list asks nobody's permission. */
+    if (!rights.administer && about.id !== person.id) {
+      return reply.code(403).send({ error: "Cette list n'est pas vôtre." });
     }
-    await depot.renvoyerDeLaListe(base, droits.liste_id, vise.id);
-    return { pseudo: vise.pseudo, membre: false };
+    await store.removeMemberFromList(db, rights.list_id, about.id);
+    return { pseudo: about.pseudo, isMember: false };
   });
 
   /* ------------------------------------------------------------
-     LES DÉFIS
+     THE CHALLENGES
      ------------------------------------------------------------
-     Une liste plus une période. L'avancement se CALCULE — personne ne
-     coche « vu », le classeur le sait déjà. */
+     A list plus a period. The progress is COMPUTED — nobody ticks
+     "seen", the binder knows already. */
 
-  app.get("/defis", async (req) => {
-    const personne = await exigerUnCompte(req);
-    return { defis: await depot.mesEpreuves(base, personne.id) };
+  app.get("/challenges", async (req) => {
+    const person = await requireAccount(req);
+    return { challenges: await store.myChallenges(db, person.id) };
   });
 
-  app.post("/defis", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
-    const { listeId, titre, debut, fin } = (req.body ?? {}) as {
-      listeId?: string;
-      titre?: string;
-      debut?: string;
-      fin?: string;
+  app.post("/challenges", async (req, reply) => {
+    const person = await requireAccount(req);
+    const { listId, title, starts_on, ends_on } = (req.body ?? {}) as {
+      listId?: string;
+      title?: string;
+      starts_on?: string;
+      ends_on?: string;
     };
-    const nom = (titre || "").trim();
-    if (!nom || nom.length > 120) {
-      return reply.code(400).send({ erreur: "Il faut un titre, de 1 à 120 caractères." });
+    const name = (title || "").trim();
+    if (!name || name.length > 120) {
+      return reply.code(400).send({ error: "Il faut un title, de 1 à 120 caractères." });
     }
-    if (!JOUR.test(debut || "") || !JOUR.test(fin || "") || fin! < debut!) {
-      return reply.code(400).send({ erreur: "Deux dates, et la fin après le début." });
+    if (!JOUR.test(starts_on || "") || !JOUR.test(ends_on || "") || ends_on! < starts_on!) {
+      return reply.code(400).send({ error: "Deux dates, et la ends_on après at début." });
     }
-    /* On ne bâtit un défi que sur une liste où l'on écrit : sinon
-       n'importe qui lance un défi sur la liste publique d'un inconnu,
-       qui le verrait apparaître sans l'avoir voulu. */
-    const droits = UUID.test(listeId || "")
-      ? await depot.droitsSurListe(base, listeId!, personne.id)
+    /* A challenge is only built on a list you write in: otherwise
+       anybody starts a challenge on a stranger's public list, and they
+       would see it appear without having wanted it. */
+    const rights = UUID.test(listId || "")
+      ? await store.rightsOnList(db, listId!, person.id)
       : null;
-    if (!droits?.ecrire) return reply.code(404).send({ erreur: "Liste inconnue." });
+    if (!rights?.write) return reply.code(404).send({ error: "Liste inconnue." });
 
-    const id = await depot.creerEpreuve(base, personne.id, {
-      listeId: droits.liste_id,
-      titre: nom,
-      debut: debut!,
-      fin: fin!,
+    const id = await store.createChallenge(db, person.id, {
+      listId: rights.list_id,
+      title: name,
+      starts_on: starts_on!,
+      ends_on: ends_on!,
     });
     return { id };
   });
 
-  app.get("/defis/:id", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
+  app.get("/challenges/:id", async (req, reply) => {
+    const person = await requireAccount(req);
     const { id } = req.params as { id: string };
-    const defi = UUID.test(id || "") ? await depot.epreuveParId(base, id) : null;
-    if (!defi) return reply.code(404).send({ erreur: "Défi inconnu." });
-    /* Le droit de voir un défi est celui de voir sa liste : il n'y a
-       pas deux confidentialités à tenir d'accord. */
-    const droits = await depot.droitsSurListe(base, defi.liste_id, personne.id);
-    if (!droits?.lire) return reply.code(404).send({ erreur: "Défi inconnu." });
+    const challenge = UUID.test(id || "") ? await store.challengeById(db, id) : null;
+    if (!challenge) return reply.code(404).send({ error: "Défi inconnu." });
+    /* The right to see a challenge is the right to see its list: there
+       are not two confidentialities to keep in agreement. */
+    const rights = await store.rightsOnList(db, challenge.list_id, person.id);
+    if (!rights?.read) return reply.code(404).send({ error: "Défi inconnu." });
 
     return {
-      defi,
-      oeuvres: await depot.oeuvresDe(base, defi.liste_id),
-      /* L'AVANCEMENT NE SORT DU JOURNAL QU'EN NOMBRE. Le journal des
-         séances ne quitte jamais une collection ; ici il ne quitte rien
-         non plus — on compte, on ne recopie pas. Et l'on ne compte que
-         des gens qui ont demandé à participer. */
-      avancement: await depot.avancementDe(base, defi.id),
+      challenge,
+      works: await store.worksOf(db, challenge.list_id),
+      /* PROGRESS LEAVES THE LOG AS A NUMBER AND NOTHING ELSE. The
+         screening log never leaves a collection; here it leaves nothing
+         either — we count, we do not copy. And we count only people who
+         have asked to take part. */
+      progress: await store.progressOf(db, challenge.id),
     };
   });
 
-  app.delete("/defis/:id", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
+  app.delete("/challenges/:id", async (req, reply) => {
+    const person = await requireAccount(req);
     const { id } = req.params as { id: string };
-    const defi = UUID.test(id || "") ? await depot.epreuveParId(base, id) : null;
-    if (!defi) return reply.code(404).send({ erreur: "Défi inconnu." });
-    const droits = await depot.droitsSurListe(base, defi.liste_id, personne.id);
-    if (!droits?.administrer) return reply.code(403).send({ erreur: "Ce défi n'est pas vôtre." });
-    await depot.effacerEpreuve(base, defi.id);
-    return { efface: true };
+    const challenge = UUID.test(id || "") ? await store.challengeById(db, id) : null;
+    if (!challenge) return reply.code(404).send({ error: "Défi inconnu." });
+    const rights = await store.rightsOnList(db, challenge.list_id, person.id);
+    if (!rights?.administer) return reply.code(403).send({ error: "Ce défi n'est pas vôtre." });
+    await store.deleteChallenge(db, challenge.id);
+    return { erased: true };
   });
 
-  app.put("/defis/:id/participation", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
+  app.put("/challenges/:id/participation", async (req, reply) => {
+    const person = await requireAccount(req);
     const { id } = req.params as { id: string };
-    const defi = UUID.test(id || "") ? await depot.epreuveParId(base, id) : null;
-    if (!defi) return reply.code(404).send({ erreur: "Défi inconnu." });
-    const droits = await depot.droitsSurListe(base, defi.liste_id, personne.id);
-    if (!droits?.lire) return reply.code(404).send({ erreur: "Défi inconnu." });
-    await depot.rejoindreEpreuve(base, defi.id, personne.id);
-    return { dedans: true };
+    const challenge = UUID.test(id || "") ? await store.challengeById(db, id) : null;
+    if (!challenge) return reply.code(404).send({ error: "Défi inconnu." });
+    const rights = await store.rightsOnList(db, challenge.list_id, person.id);
+    if (!rights?.read) return reply.code(404).send({ error: "Défi inconnu." });
+    await store.joinChallenge(db, challenge.id, person.id);
+    return { inside: true };
   });
 
-  app.delete("/defis/:id/participation", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
+  app.delete("/challenges/:id/participation", async (req, reply) => {
+    const person = await requireAccount(req);
     const { id } = req.params as { id: string };
-    if (!UUID.test(id || "")) return reply.code(404).send({ erreur: "Défi inconnu." });
-    /* Partir se fait TOUJOURS, sans vérifier qu'on avait le droit
-       d'entrer : quelqu'un dont la liste s'est refermée doit pouvoir
-       sortir d'un décompte qui le mesure encore. */
-    await depot.quitterEpreuve(base, id, personne.id);
-    return { dedans: false };
+    if (!UUID.test(id || "")) return reply.code(404).send({ error: "Défi inconnu." });
+    /* Leaving ALWAYS works, with no check that you had the right to come
+       in: somebody whose list has closed up must be able to get out of a
+       count that still measures them. */
+    await store.leaveChallenge(db, id, person.id);
+    return { inside: false };
   });
 
   /* ------------------------------------------------------------
-     CE QUI EST À SOI, ET LE DROIT DE PARTIR
+     WHAT IS YOURS, AND THE RIGHT TO LEAVE
      ------------------------------------------------------------ */
 
-  app.get("/mes-donnees", async (req) => {
-    const personne = await exigerUnCompte(req);
-    /* Tout ce que le serveur détient de quelqu'un, dans un seul objet :
-       c'est ce que le règlement appelle la portabilité, et c'est surtout
-       la moindre des choses. */
+  app.get("/my-data", async (req) => {
+    const person = await requireAccount(req);
+    /* Everything the server holds about somebody, in a single object:
+       it is what the regulation calls portability, and above all it is
+       the least we can do. */
     return {
-      personne,
-      fiches: await depot.fichesDepuis(base, personne.id, 0, 100000),
-      documents: await depot.docsDepuis(base, personne.id, 0, 100000),
+      person,
+      cards: await store.cardsSince(db, person.id, 0, 100000),
+      documents: await store.docsSince(db, person.id, 0, 100000),
     };
   });
 
-  app.delete("/mon-compte", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
-    await depot.effacerPersonne(base, personne.id);
+  app.delete("/my-account", async (req, reply) => {
+    const person = await requireAccount(req);
+    await store.deletePerson(db, person.id);
     reply.clearCookie(COOKIE, { path: "/" });
-    return { efface: true };
+    return { erased: true };
   });
 
   /* ------------------------------------------------------------
-     LES NOTIFICATIONS POUSSÉES
+     THE PUSH NOTIFICATIONS
      ------------------------------------------------------------
-     Une seule raison de sonner dans tout ce serveur : un défi qui
-     commence, un défi qui s'achève. Sans clés VAPID, ces routes
-     répondent « pas de service » et le classeur n'en montre pas le
-     réglage. */
+     One single reason to ring in this whole server: a challenge that
+     begins, a challenge that ends. With no VAPID keys these routes
+     answer "no service" and the binder does not even show the
+     setting. */
 
-  app.get("/poussees", async () => ({ possible: pousseesPossibles(), cle: clePublique() }));
+  app.get("/push-subscriptions", async () => ({
+    possible: pushAvailable(),
+    key: publicKeyForPush(),
+  }));
 
-  app.put("/poussees", async (req, reply) => {
-    const personne = await exigerUnCompte(req);
-    if (!pousseesPossibles()) {
-      return reply.code(503).send({ erreur: "Ce serveur n'envoie pas de notifications." });
+  app.put("/push-subscriptions", async (req, reply) => {
+    const person = await requireAccount(req);
+    if (!pushAvailable()) {
+      return reply.code(503).send({ error: "Ce serveur n'envoie pas de notifications." });
     }
-    const { point, p256dh, secret } = (req.body ?? {}) as {
-      point?: string;
+    const { endpoint, p256dh, secret } = (req.body ?? {}) as {
+      endpoint?: string;
       p256dh?: string;
       secret?: string;
     };
-    /* L'abonnement vient du NAVIGATEUR et le serveur ne peut pas le
-       vérifier : tout ce qu'il peut faire est refuser ce qui n'a pas la
-       forme d'une adresse, pour ne pas ranger n'importe quoi. */
-    if (!point || !/^https:\/\//.test(point) || !p256dh || !secret) {
-      return reply.code(400).send({ erreur: "Abonnement illisible." });
+    /* THE SUBSCRIPTION COMES FROM THE BROWSER and the server cannot
+       check it: all it can do is refuse what is not shaped like an
+       address, so as not to file just anything. */
+    if (!endpoint || !/^https:\/\//.test(endpoint) || !p256dh || !secret) {
+      return reply.code(400).send({ error: "Abonnement illisible." });
     }
-    await depot.rangerPousse(base, personne.id, { point, p256dh, secret });
-    return { abonne: true };
+    await store.storePush(db, person.id, { endpoint, p256dh, secret });
+    return { subscribed: true };
   });
 
-  app.delete("/poussees", async (req, reply) => {
-    await exigerUnCompte(req);
-    const { point } = (req.body ?? {}) as { point?: string };
-    /* On efface par le POINT et non par le compte : un ordinateur
-       partagé ne doit pas faire taire le téléphone de la même
-       personne. */
-    if (point) await depot.oublierPousse(base, point);
-    return reply.send({ abonne: false });
+  app.delete("/push-subscriptions", async (req, reply) => {
+    await requireAccount(req);
+    const { endpoint } = (req.body ?? {}) as { endpoint?: string };
+    /* We erase by ENDPOINT and not by account: a shared computer must
+       not silence the same person's phone. */
+    if (endpoint) await store.forgetPush(db, endpoint);
+    return reply.send({ subscribed: false });
   });
 
-  app.get("/sante", async () => ({ debout: true }));
+  app.get("/health", async () => ({ debout: true }));
 
   /* ------------------------------------------------------------
-     LA PORTE DE SERVICE — fermée à double tour, et pour de bonnes
-     raisons
+     THE SERVICE DOOR — double-locked, and for good reasons
      ------------------------------------------------------------
 
-     Une clé d'accès se signe avec une empreinte, un visage ou une clé
-     physique. Rien de tout cela n'existe dans un navigateur piloté, ce
-     qui rendait la synchronisation invérifiable de bout en bout : on
-     pouvait éprouver le serveur seul, le client seul, et jamais les
-     deux ensemble.
+     A passkey is signed with a fingerprint, a face or a physical key.
+     None of that exists in a driven browser, which made synchronisation
+     unverifiable end to end: one could try the server alone, the client
+     alone, and never the two together.
 
-     Cette route ouvre une session sans cérémonie — exactement ce que la
-     cérémonie aurait produit. C'est une porte dérobée, et elle est
-     traitée comme telle : il faut ET ne pas être en production, ET
-     avoir posé `PORTE_DEV=1` à la main. Les deux conditions sont lues
-     au démarrage, pas à la requête : une variable d'environnement
-     changée en douce ne la rouvre pas.
+     This route opens a session with no ceremony — exactly what the
+     ceremony would have produced. It is a back door, and it is treated
+     as one: it takes BOTH not being in production AND `DEV_DOOR=1` laid
+     down by hand. Both conditions are read at start-up, not per request:
+     an environment variable changed on the quiet does not reopen it.
 
-     Si vous lisez ceci en vous demandant si elle peut être active en
-     ligne : non, `index.ts` ne la propose jamais quand
-     `NODE_ENV=production`. */
-  if (reglages.porteDev) {
+     If you are reading this and wondering whether it can be live online:
+     no, `index.ts` never offers it when `NODE_ENV=production`. */
+  if (settings.devDoor) {
     app.post("/dev/session", async (req, reply) => {
       const { pseudo } = (req.body ?? {}) as { pseudo?: string };
-      const nom = (pseudo || `dev-${Date.now().toString(36)}`).toLowerCase();
-      const personne =
-        (await depot.trouverParPseudo(base, nom)) ?? (await depot.creerPersonne(base, nom));
-      poserLeCookie(reply, await depot.ouvrirSession(base, personne.id));
-      return { personne, avertissement: "porte de développement" };
+      const name = (pseudo || `dev-${Date.now().toString(36)}`).toLowerCase();
+      const person = (await store.findByPseudo(db, name)) ?? (await store.createPerson(db, name));
+      setCookie(reply, await store.openSession(db, person.id));
+      return { person, warning: "porte de développement" };
     });
   }
 
   /* ------------------------------------------------------------
-     LES RELAIS — la clé TMDB quitte le bundle
+     THE RELAYS — the TMDB key leaves the bundle
      ------------------------------------------------------------ */
-  poserLesRelais(app, {
-    cleTmdb: reglages.cleTmdb,
-    exigerUnCompte,
-    plafondTmdb: reglages.plafondTmdb,
+  registerRelays(app, {
+    tmdbKey: settings.tmdbKey,
+    requireAccount,
+    tmdbCeiling: settings.tmdbCeiling,
   });
 
   /* ------------------------------------------------------------
-     LE BALAYAGE
+     THE SWEEP
      ------------------------------------------------------------
-     Un défi expiré ne sert plus à rien et ne se consomme jamais : sans
-     balayage, la table grossit d'une ligne morte par cérémonie
-     abandonnée, indéfiniment. Toutes les heures suffit largement — la
-     validité d'un défi ne dépend pas de ce ménage, elle est vérifiée à
-     l'usage (`expire_le > now()`). Ceci n'est qu'une question de place.
+     An expired ceremony challenge is good for nothing and is never
+     consumed: with no sweep, the table grows by one dead row per
+     abandoned ceremony, for ever. Every hour is plenty — a challenge's
+     validity does not depend on this housekeeping, it is checked on use
+     (`expires_at > now()`). This is only a question of room.
 
-     `unref()` : ce minuteur ne doit pas retenir le processus en vie au
-     moment de s'arrêter, sinon `npm run dev` refuse de rendre la main. */
-  const balai = setInterval(
+     `unref()`: this timer must not hold the process alive when it is
+     time to stop, or `npm run dev` refuses to give the hand back. */
+  const sweeper = setInterval(
     () => {
-      depot.balayerDefis(base).catch(() => {});
-      /* LES RAPPELS PASSENT PAR LE MÊME BALAI, à l'heure : un défi qui
-         commence aujourd'hui est annoncé aujourd'hui, et la table des
-         rappels déjà dits empêche les vingt-trois autres passages de le
-         redire. Un vrai ordonnanceur serait une dépendance de plus pour
-         un serveur qui tourne sur une machine de bureau. */
-      rappelerLesDefis(base)
-        .then(({ dits }) => dits && console.log(`  ${dits} rappel(s) de défi envoyé(s)`))
-        .catch((e) => console.error("rappels :", e));
+      store.sweepChallenges(db).catch(() => {});
+      /* THE REMINDERS GO THROUGH THE SAME SWEEP, on the hour: a
+         challenge starting today is announced today, and the table of
+         reminders already given stops the other twenty-three passes from
+         saying it again. A real scheduler would be one more dependency
+         for a server running on a desktop machine. */
+      remindChallenges(db)
+        .then(({ told }) => told && console.log(`  ${told} challenge reminder(s) sent`))
+        .catch((e) => console.error("reminders:", e));
     },
     60 * 60 * 1000
   );
-  balai.unref();
-  app.addHook("onClose", async () => clearInterval(balai));
+  sweeper.unref();
+  app.addHook("onClose", async () => clearInterval(sweeper));
 
-  function poserLeCookie(reply: FastifyReply, secret: string) {
+  function setCookie(reply: FastifyReply, secret: string) {
     reply.setCookie(COOKIE, secret, {
       path: "/",
       httpOnly: true,
-      /* EN DÉVELOPPEMENT, `lax` SUFFIT ET EN LIGNE IL CASSE TOUT.
+      /* IN DEVELOPMENT `lax` IS ENOUGH; ONLINE IT BREAKS EVERYTHING.
 
-         Le client et le serveur partagent `localhost` en local : deux
-         ports d'un même hôte sont le même « site », et le cookie voyage.
-         En ligne, le classeur vit sur un domaine de pages statiques et
-         l'API sur un autre : la requête devient inter-sites, et `lax`
-         retient le cookie — la session existe et n'est jamais envoyée.
+         Locally the client and the server share `localhost`: two ports
+         of one host are the same "site", and the cookie travels. Online
+         the binder lives on a static-pages domain and the API on
+         another: the request becomes cross-site, `lax` holds the cookie
+         back — the session exists and is never sent.
 
-         `none` l'autorise, et n'a de sens qu'avec `Secure` : les deux
-         vont donc ensemble, et se règlent d'un seul interrupteur. */
-      sameSite: reglages.securise ? "none" : "lax",
-      secure: reglages.securise ?? false,
+         `none` allows it, and only makes sense with `Secure`: the two
+         therefore go together, and are set by one single switch. */
+      sameSite: settings.secure ? "none" : "lax",
+      secure: settings.secure ?? false,
       maxAge: 30 * 24 * 60 * 60,
     });
   }

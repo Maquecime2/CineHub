@@ -20,25 +20,25 @@ const field = (value, max) => {
   };
 };
 
-describe("PerRowField — auto, ou un nombre qu'on écrit", () => {
-  it("laisse écrire n'importe quel compte, pas seulement ceux d'une liste", () => {
+describe("PerRowField — auto, or a number one writes", () => {
+  it("lets any count be written, not only those from a list", () => {
     const { onChange } = field(6);
-    // 7 et 20 n'existaient dans aucun des sept boutons d'avant
+    // 7 and 20 existed in none of the seven buttons of before
     expect(screen.getByLabelText(TITLE)).toHaveValue(6);
     expect(onChange).not.toHaveBeenCalled();
   });
 
-  it("ne remonte le compte qu'à la validation, jamais à la frappe", async () => {
+  it("reports the count only on confirmation, never on the keystroke", async () => {
     const { onChange, user, input } = field(6);
     await user.clear(input());
     await user.type(input(), "12");
-    // sans cette retenue, le rayon se replierait a 1 puis a 12 sous les doigts
+    // without this hold-back, the shelf would fold to 1 then to 12 under one's fingers
     expect(onChange).not.toHaveBeenCalled();
     await user.keyboard("{Enter}");
     expect(onChange).toHaveBeenCalledExactlyOnceWith(12);
   });
 
-  it("valide aussi en quittant le champ", async () => {
+  it("confirms on leaving the field too", async () => {
     const { onChange, user, input } = field(6);
     await user.clear(input());
     await user.type(input(), "7");
@@ -46,7 +46,7 @@ describe("PerRowField — auto, ou un nombre qu'on écrit", () => {
     expect(onChange).toHaveBeenCalledExactlyOnceWith(7);
   });
 
-  it("Échap rend au champ le compte réglé", async () => {
+  it("Escape gives the field back the count that is set", async () => {
     const { onChange, user, input } = field(6);
     await user.clear(input());
     await user.type(input(), "99{Escape}");
@@ -54,7 +54,7 @@ describe("PerRowField — auto, ou un nombre qu'on écrit", () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
-  it.each(["0", "-3", "   "])("refuse « %s » et rend la main au réglage", async (bad) => {
+  it.each(["0", "-3", "   "])('refuses "%s" and hands back to the setting', async (bad) => {
     const { onChange, user, input } = field(6);
     await user.clear(input());
     await user.type(input(), `${bad}{Enter}`);
@@ -62,51 +62,51 @@ describe("PerRowField — auto, ou un nombre qu'on écrit", () => {
     expect(input()).toHaveValue(6);
   });
 
-  it("ramène au possible plutôt que de refuser, quand un maximum s'impose", async () => {
+  it("brings back to the possible rather than refuse, when a maximum applies", async () => {
     const { onChange, user, input } = field(1, 2);
     await user.clear(input());
     await user.type(input(), "10{Enter}");
-    // le tiroir ne tient que deux boîtiers : on corrige la main, on ne la repousse pas
+    // the drawer only holds two cases: we correct the hand, we do not push it away
     expect(onChange).toHaveBeenCalledExactlyOnceWith(2);
     expect(input()).toHaveValue(2);
   });
 
-  it("ne réécrit rien quand le compte demandé est déjà celui qui s'applique", async () => {
+  it("rewrites nothing when the count asked for is the one already in force", async () => {
     const { onChange, user, input } = field(2, 2);
     await user.clear(input());
     await user.type(input(), "10{Enter}");
-    // ramené à 2, qui est déjà le réglage : pas d'écriture pour rien
+    // brought back to 2, which is already the setting: no write for nothing
     expect(onChange).not.toHaveBeenCalled();
     expect(input()).toHaveValue(2);
   });
 
-  describe("le mode auto", () => {
-    it("s'annonce, et éteint le champ", () => {
+  describe("the auto mode", () => {
+    it("announces itself, and puts the field out", () => {
       field(null);
       expect(screen.getByLabelText(TITLE)).toBeDisabled();
       expect(screen.getByText("au fil de la largeur")).toBeInTheDocument();
     });
 
-    it("rend un compte ABSENT et non un nombre — c'est la largeur qui décide", async () => {
+    it("returns an ABSENT count and not a number — the width decides", async () => {
       const { onChange, user, auto } = field(6);
       await user.click(auto());
       expect(onChange).toHaveBeenCalledExactlyOnceWith(null);
     });
 
-    it("repose un compte quand on en ressort", async () => {
+    it("lays a count back down when one leaves it", async () => {
       const { onChange, user, auto } = field(null);
       await user.click(auto());
       expect(onChange).toHaveBeenCalledExactlyOnceWith(6);
     });
 
-    it("ne ressort jamais au-delà du maximum", async () => {
+    it("never comes back out above the maximum", async () => {
       const { onChange, user, auto } = field(null, 2);
       await user.click(auto());
       expect(onChange).toHaveBeenCalledExactlyOnceWith(2);
     });
   });
 
-  it("suit le réglage quand il change ailleurs", () => {
+  it("follows the setting when it changes elsewhere", () => {
     const { rerender, input } = field(6);
     rerender(4);
     expect(input()).toHaveValue(4);
@@ -115,39 +115,39 @@ describe("PerRowField — auto, ou un nombre qu'on écrit", () => {
   });
 });
 
-/* Le cabinet choisissait entre un pictogramme et un dessin, et supposait
-   que tout motif avait l'un ou l'autre. L'intercalaire n'a ni l'un ni
-   l'autre — il est fait de papier et de bordures — d'où un `<undefined />`
-   et un panneau qui ne s'ouvrait plus du tout.
+/* The cabinet chose between a pictogram and a drawing, and assumed every
+   pattern had one or the other. The divider has neither — it is made of
+   paper and borders — hence an `<undefined />` and a panel that no longer
+   opened at all.
 
-   Le vrai défaut n'était pas la vignette manquante mais l'absence de ce
-   test : rien ne rendait le cabinet, donc rien ne remarquait qu'un motif
-   n'y était pas montrable. On les parcourt donc tous, et un motif ajouté
-   demain sans de quoi se dessiner fera tomber ce test plutôt que la
-   page. */
+   The real defect was not the missing thumbnail but the absence of this
+   test: nothing rendered the cabinet, so nothing noticed that a pattern
+   was not showable in it. So we walk through them all, and a pattern added
+   tomorrow with nothing to draw itself with will bring this test down
+   rather than the page. */
 describe("DecorCabinet", () => {
   const open = () =>
     render(
       <DecorCabinet kind="main" onDragStart={vi.fn()} onDragEnd={vi.fn()} onClose={vi.fn()} />
     );
 
-  it("montre chaque motif du cabinet, quelle que soit sa façon de se dessiner", () => {
+  it("shows every motif in the cabinet, whatever way it draws itself", () => {
     open();
     for (const d of DECOR_TYPES) expect(screen.getByTitle(d.label)).toBeInTheDocument();
   });
 
-  it("les rend tous saisissables", () => {
+  it("makes them all grabbable", () => {
     open();
     for (const d of DECOR_TYPES)
       expect(screen.getByTitle(d.label)).toHaveAttribute("draggable", "true");
   });
 
-  it("sort un objet du cabinet par son motif", async () => {
+  it("takes an object out of the cabinet by its motif", async () => {
     const onDragStart = vi.fn();
     render(
       <DecorCabinet kind="main" onDragStart={onDragStart} onDragEnd={vi.fn()} onClose={vi.fn()} />
     );
-    // le glissement natif ne se simule pas ; l'événement, si
+    // the native drag cannot be simulated; the event can
     screen.getByTitle("Intercalaire").dispatchEvent(
       Object.assign(new Event("dragstart", { bubbles: true }), {
         dataTransfer: { effectAllowed: "" },
@@ -156,17 +156,17 @@ describe("DecorCabinet", () => {
     expect(onDragStart).toHaveBeenCalledWith("divider", expect.anything());
   });
 
-  it("dit sur quel rayon on vise", () => {
+  it("says which shelf is being aimed at", () => {
     open();
-    expect(screen.getByText(/rayon visé/)).toHaveTextContent("La collection");
+    expect(screen.getByText(/rayon targeted/)).toHaveTextContent("La collection");
   });
 });
 
 /* ------------------------------------------------------------
-   ItemPalette — le nuancier, une fois élargi
+   ItemPalette — the swatch book, once widened
    ------------------------------------------------------------ */
 
-describe("ItemPalette — les couleurs offertes", () => {
+describe("ItemPalette — the colours on offer", () => {
   const open = (props = {}) => {
     const onColor = vi.fn();
     render(
@@ -175,29 +175,30 @@ describe("ItemPalette — les couleurs offertes", () => {
     return { onColor, user: userEvent.setup() };
   };
 
-  it("offre toute la palette, et chaque teinte une seule fois", () => {
+  it("offers the whole palette, and each tint once only", () => {
     open();
     const swatches = CAT_KEYS.map((k) => screen.getByTitle(k));
     expect(swatches).toHaveLength(CAT_KEYS.length);
     expect(new Set(swatches).size).toBe(CAT_KEYS.length);
   });
 
-  it("range les pastilles par famille", () => {
+  it("files the swatches by family", () => {
     open();
     for (const fam of CAT_FAMILIES) expect(screen.getByText(fam.label.toUpperCase())).toBeTruthy();
   });
 
-  /* Ce qui remonte est la CLÉ, jamais l'hexadécimal : c'est l'invariant
-     qui permet de retoucher une teinte sans figer ce qui la porte. */
-  it("rend la clé de la teinte choisie", async () => {
+  /* What comes back up is the KEY, never the hexadecimal: it is the
+     invariant that allows a tint to be reworked without freezing what
+     carries it. */
+  it("returns the key of the tint chosen", async () => {
     const { onColor, user } = open();
     await user.click(screen.getByTitle("canard"));
     expect(onColor).toHaveBeenCalledWith("canard");
   });
 
-  /* Un objet importé qu'on ne sait pas teinter n'a pas de couleur : la
-     grille disparaît au lieu de promettre un réglage sans effet. */
-  it("ne montre aucune pastille sans onColor", () => {
+  /* An imported object we cannot tint has no colour: the grid disappears
+     instead of promising a setting with no effect. */
+  it("shows no swatch without onColor", () => {
     open({ onColor: undefined });
     expect(screen.queryByTitle("burgundy")).toBeNull();
   });

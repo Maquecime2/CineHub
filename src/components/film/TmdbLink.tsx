@@ -1,34 +1,32 @@
 /* ============================================================
-   LA BONNE FICHE TMDB — recoller une fiche à son vrai film
+   THE RIGHT TMDB RECORD — sticking a card back to its real film
    ============================================================
 
-   L'import résout cinq cents titres d'affilée, et `searchMovie` retient
-   le premier résultat sans comparer quoi que ce soit. Sur un titre
-   porté par plusieurs films — « Resurrection », « Solaris », « La Bête »
-   — il se trompe régulièrement, et la fiche vit ensuite avec l'identité
-   d'un autre : la mauvaise affiche, la mauvaise équipe, la mauvaise
-   durée.
+   The import resolves five hundred titles in a row, and `searchMovie`
+   keeps the first result without comparing anything at all. On a title
+   carried by several films — "Resurrection", "Solaris", "La Bête" — it
+   goes wrong regularly, and the card then lives with somebody else's
+   identity: the wrong poster, the wrong crew, the wrong runtime.
 
-   Le symptôme qui trahit l'erreur, c'est le sillage. TMDB, interrogé sur
-   l'identifiant enregistré, recommande le VRAI film, qui apparaît alors
-   à côté de lui-même comme s'il s'agissait d'un voisin. Une fiche qui
-   se propose elle-même dit qu'elle n'est pas la bonne.
+   The symptom that gives the error away is the wake. TMDB, asked about
+   the recorded identifier, recommends the REAL film, which then appears
+   beside itself as though it were a neighbour. A card that offers itself
+   is saying it is not the right one.
 
-   Rien ne permettait de le rattraper : `rafraîchir`, dans le relevé
-   TMDB, ne remplit que le vide et s'appuie sur l'identifiant déjà là —
-   il conforte l'erreur au lieu de la défaire. Il fallait un geste qui
-   CHANGE l'identifiant, et qui réécrive derrière lui tout ce qui en
-   découle. C'est celui-ci.
+   Nothing allowed one to catch it: `refresh`, in the TMDB report, only
+   fills the gaps and leans on the identifier already there — it confirms
+   the error instead of undoing it. What was needed was a gesture that
+   CHANGES the identifier, and rewrites behind it everything that follows
+   from it. This is that gesture.
 
-   Deux prudences le bordent :
+   Two precautions border it:
 
-   - on ne réécrit QUE ce qui vient de TMDB (équipe, durée, pays, note,
-     mots-clés). Vos mots, vos notes, vos motifs, vos séances ne sont pas
-     concernés : ils parlaient déjà du bon film, c'est l'étiquette qui
-     était fausse ;
-   - l'affiche n'est remplacée que si elle venait de TMDB elle aussi.
-     Une affiche choisie à la main ou déposée depuis le disque est un
-     choix, pas une donnée. */
+   - we rewrite ONLY what comes from TMDB (crew, runtime, country,
+     rating, keywords). Your words, your notes, your motifs, your
+     screenings are not concerned: they were already speaking of the right
+     film, it was the label that was wrong;
+   - the poster is replaced only if it came from TMDB too. A poster chosen
+     by hand or dropped in from disk is a choice, not data. */
 import { useState } from "react";
 import { Search, Check } from "lucide-react";
 import { C, F } from "../../theme/tokens";
@@ -39,7 +37,7 @@ import { isIdbPoster } from "../../db";
 import { searchMovies, getDetails, rememberResolution } from "../../tmdb";
 import type { Film } from "../../types";
 
-/** Un homonyme proposé par TMDB. */
+/** A namesake proposed by TMDB. */
 interface Candidat {
   tmdbId: number;
   title: string;
@@ -50,12 +48,12 @@ interface Candidat {
   lang: string;
 }
 
-const TMDB_FICHE = "https://www.themoviedb.org/movie/";
+const TMDB_CARD = "https://www.themoviedb.org/movie/";
 
-/* Une affiche « de TMDB » : celle qu'on a le droit de remplacer sans
-   rien détruire de choisi. Tout le reste — une adresse collée, une image
-   rangée dans IndexedDB — appartient à qui l'a mise là. */
-const affichéeParTmdb = (poster?: string) =>
+/* A poster "from TMDB": the one we have the right to replace without
+   destroying anything chosen. All the rest — a pasted address, an image
+   filed in IndexedDB — belongs to whoever put it there. */
+const shownByTmdb = (poster?: string) =>
   !poster || (!isIdbPoster(poster) && poster.includes("image.tmdb.org"));
 
 export function TmdbLink({ film, onUpdate }: { film: Film; onUpdate: (f: Film) => void }) {
@@ -66,19 +64,19 @@ export function TmdbLink({ film, onUpdate }: { film: Film; onUpdate: (f: Film) =
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const chercher = async (titre?: string) => {
+  const search = async (title?: string) => {
     if (!apiKey) {
       setMsg("Aucune clé TMDB — à régler au pied du rail d'onglets.");
       return;
     }
-    const q = (titre ?? query).trim() || film.title;
+    const q = (title ?? query).trim() || film.title;
     setBusy(true);
     setMsg("recherche…");
     setCandidats(null);
     try {
-      /* Sans l'année : on cherche précisément parce que l'année inscrite
-         peut être celle du mauvais film. Elle reste affichée sur chaque
-         proposition, ce qui suffit à trancher. */
+      /* Without the year: we search precisely because the year written
+         down may be the wrong film's. It stays shown on every suggestion,
+         which is enough to decide. */
       const list = (await searchMovies({ title: q, apiKey })) as Candidat[];
       setCandidats(list);
       setMsg(list.length ? "" : "TMDB ne connaît aucun film de ce titre.");
@@ -89,24 +87,24 @@ export function TmdbLink({ film, onUpdate }: { film: Film; onUpdate: (f: Film) =
     }
   };
 
-  const relier = async (c: Candidat) => {
+  const link = async (c: Candidat) => {
     if (!apiKey) return;
     setBusy(true);
     setMsg("récupération de la fiche…");
     try {
       const info = await getDetails(c.tmdbId, apiKey);
-      /* La correction entre aussi dans le cache d'import, qui associait
-         encore ce titre au mauvais identifiant. Sans cela, un réimport
-         du même fichier défait patiemment le travail. */
+      /* The correction also enters the import cache, which still
+         associated this title with the wrong identifier. Without that, a
+         reimport of the same file patiently undoes the work. */
       rememberResolution(film.title, film.year, info);
 
       onUpdate({
         ...film,
         tmdbId: info.tmdbId,
-        /* L'année suit l'identité : c'est elle qui distingue deux
-           homonymes, et la garder fausse laisserait la fiche à moitié
-           corrigée — l'almanach et la constellation la rangeraient
-           encore avec l'autre film. */
+        /* The year follows the identity: it is what tells two namesakes
+           apart, and keeping it wrong would leave the card half
+           corrected — the almanac and the constellation would still file
+           it with the other film. */
         year: info.year || film.year,
         director: info.director || "",
         genres: info.genres || [],
@@ -117,7 +115,7 @@ export function TmdbLink({ film, onUpdate }: { film: Film; onUpdate: (f: Film) =
         countries: info.countries || [],
         tmdbRating: info.tmdbRating ?? null,
         keywords: info.keywords || [],
-        poster: affichéeParTmdb(film.poster) ? info.poster || film.poster : film.poster,
+        poster: shownByTmdb(film.poster) ? info.poster || film.poster : film.poster,
       });
       setMsg(`relié à « ${c.title} »${c.year ? ` (${c.year})` : ""}.`);
       setCandidats(null);
@@ -137,7 +135,7 @@ export function TmdbLink({ film, onUpdate }: { film: Film; onUpdate: (f: Film) =
           onClick={() => {
             setOpen((o) => !o);
             setQuery(film.title);
-            if (!open && !candidats) chercher(film.title);
+            if (!open && !candidats) search(film.title);
           }}
           style={{
             all: "unset",
@@ -167,7 +165,7 @@ export function TmdbLink({ film, onUpdate }: { film: Film; onUpdate: (f: Film) =
           <>
             <span>#{film.tmdbId}</span>
             <a
-              href={`${TMDB_FICHE}${film.tmdbId}`}
+              href={`${TMDB_CARD}${film.tmdbId}`}
               target="_blank"
               rel="noreferrer"
               style={{
@@ -192,10 +190,10 @@ export function TmdbLink({ film, onUpdate }: { film: Film; onUpdate: (f: Film) =
               value={query}
               placeholder="titre à chercher"
               onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && chercher()}
+              onKeyDown={(e) => e.key === "Enter" && search()}
             />
             <button
-              onClick={() => chercher()}
+              onClick={() => search()}
               disabled={busy}
               title="chercher ce titre sur TMDB"
               style={{
@@ -228,23 +226,23 @@ export function TmdbLink({ film, onUpdate }: { film: Film; onUpdate: (f: Film) =
               }}
             >
               {candidats.map((c) => {
-                const actuel = String(film.tmdbId) === String(c.tmdbId);
+                const current = String(film.tmdbId) === String(c.tmdbId);
                 return (
                   <button
                     key={c.tmdbId}
-                    onClick={() => !actuel && relier(c)}
-                    disabled={busy || actuel}
+                    onClick={() => !current && link(c)}
+                    disabled={busy || current}
                     title={c.overview || undefined}
                     style={{
                       all: "unset",
-                      cursor: actuel || busy ? "default" : "pointer",
+                      cursor: current || busy ? "default" : "pointer",
                       display: "flex",
                       gap: 8,
                       alignItems: "flex-start",
                       padding: 5,
-                      border: `1px solid ${actuel ? C.burgundy : C.line}`,
-                      background: actuel ? C.paperDark : "transparent",
-                      opacity: busy && !actuel ? 0.5 : 1,
+                      border: `1px solid ${current ? C.burgundy : C.line}`,
+                      background: current ? C.paperDark : "transparent",
+                      opacity: busy && !current ? 0.5 : 1,
                     }}
                   >
                     {c.poster ? (
@@ -267,7 +265,7 @@ export function TmdbLink({ film, onUpdate }: { film: Film; onUpdate: (f: Film) =
                       <div style={{ fontFamily: F.body, fontSize: 12.5, color: C.ink }}>
                         {c.title}
                         {c.year ? ` (${c.year})` : ""}
-                        {actuel && (
+                        {current && (
                           <Check
                             size={11}
                             color={C.burgundy}
@@ -275,9 +273,9 @@ export function TmdbLink({ film, onUpdate }: { film: Film; onUpdate: (f: Film) =
                           />
                         )}
                       </div>
-                      {/* Le titre original et la langue : deux homonymes
-                          se départagent souvent là, quand l'année ne
-                          suffit pas. */}
+                      {/* The original title and the language: two
+                          namesakes are often told apart there, when the
+                          year is not enough. */}
                       <div style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}>
                         #{c.tmdbId}
                         {c.original && c.original !== c.title ? ` · ${c.original}` : ""}

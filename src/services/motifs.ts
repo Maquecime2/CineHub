@@ -1,45 +1,72 @@
 /* ============================================================
-   LE VOCABULAIRE, SUR LE DISQUE
+   THE VOCABULARY, ON DISK
    ============================================================
 
-   Seulement ce qui vous appartient : vos motifs, et la liste de ceux du
-   catalogue que vous avez écartés. Le catalogue lui-même n'est pas
-   recopié ici — le recopier figerait à jamais la version du jour où vous
-   avez ouvert l'application pour la première fois.
+   Only what belongs to you: your motifs, and the list of the catalogue's
+   that you have set aside. The catalogue itself is not copied here —
+   copying it would freeze forever the version of the day you first opened
+   the application.
+
+   THIS IS THE ONLY DOOR the stored vocabulary comes in through, and that
+   is what makes renaming its fields safe. Three of them changed name when
+   the code moved to English — `perso` became `custom`, `masqués` became
+   `hidden`, and each motif's `famille` became `family` — and the old
+   spellings are read right here, once. The next write uses the current
+   names only.
    ============================================================ */
 import { store } from "./storage";
-import { FAMILLES, poserVocabulaire } from "../domain/motifs";
-import type { Motif, VocabulaireStocké } from "../domain/motifs";
+import { FAMILIES, migrateMotifFamily, setVocabulary } from "../domain/motifs";
+import type { Motif, MotifFamily, StoredVocabulary } from "../domain/motifs";
 
 export const MOTIFS_KEY = "motifs";
 
-const FAMILLES_CONNUES = new Set(FAMILLES.map((f) => f.id));
+const KNOWN_FAMILIES = new Set(FAMILIES.map((f) => f.id));
 
-/** Ce qui sort du disque : on ne fait confiance à rien de sa forme. */
-export const normalizeVocabulaire = (raw: unknown): VocabulaireStocké => {
-  const brut = (raw || {}) as Partial<VocabulaireStocké>;
-  const perso = (Array.isArray(brut.perso) ? brut.perso : [])
-    .filter((m): m is Motif => !!m && typeof m === "object" && !!m.id && !!m.label)
+/** The shape stored before this module was translated. */
+type StoredShape = Partial<StoredVocabulary> & { perso?: unknown; hiddenOnes?: unknown };
+type StoredMotif = Partial<Motif> & { family?: unknown };
+
+/* A motif's family, whichever spelling it was written in. An unknown
+   family must not make the motif invisible: better to file it somewhere
+   than to lose it. */
+const familyOf = (m: StoredMotif): MotifFamily => {
+  if (m.family && KNOWN_FAMILIES.has(m.family)) return m.family;
+  return migrateMotifFamily(m.family ?? m.family) ?? "narrative";
+};
+
+/** What comes off the disk: we trust nothing about its shape. */
+export const normalizeVocabulary = (raw: unknown): StoredVocabulary => {
+  const stored = (raw || {}) as StoredShape;
+  const rawCustom = Array.isArray(stored.custom)
+    ? stored.custom
+    : Array.isArray(stored.perso)
+      ? (stored.perso as StoredMotif[])
+      : [];
+  const custom = rawCustom
+    .filter((m): m is StoredMotif => !!m && typeof m === "object" && !!m.id && !!m.label)
     .map((m) => ({
       id: String(m.id),
       label: String(m.label).trim(),
-      // une famille inconnue — renommée depuis — ne doit pas rendre le motif invisible
-      famille: FAMILLES_CONNUES.has(m.famille) ? m.famille : ("récit" as const),
+      family: familyOf(m),
       ...(m.spoiler ? { spoiler: true as const } : {}),
     }))
     .filter((m) => !!m.label);
-  const masqués = (Array.isArray(brut.masqués) ? brut.masqués : []).map(String);
-  return { perso, masqués };
+  const rawHidden = Array.isArray(stored.hidden)
+    ? stored.hidden
+    : Array.isArray(stored.hiddenOnes)
+      ? (stored.hiddenOnes as unknown[])
+      : [];
+  return { custom, hidden: rawHidden.map(String) };
 };
 
-export const loadVocabulaire = (): VocabulaireStocké => {
-  const v = normalizeVocabulaire(store.get(MOTIFS_KEY, {}));
-  // le registre du domaine est posé ici : c'est le seul chemin de lecture
-  poserVocabulaire(v);
+export const loadVocabulary = (): StoredVocabulary => {
+  const v = normalizeVocabulary(store.get(MOTIFS_KEY, {}));
+  // the domain's register is set here: it is the only reading path
+  setVocabulary(v);
   return v;
 };
 
-export const saveVocabulaire = (v: VocabulaireStocké): boolean => {
-  poserVocabulaire(v);
+export const saveVocabulary = (v: StoredVocabulary): boolean => {
+  setVocabulary(v);
   return store.set(MOTIFS_KEY, v);
 };

@@ -1,12 +1,12 @@
 /* ============================================================
-   RECOMMANDATIONS — récolte puis classement.
+   RECOMMENDATIONS — harvest, then ranking.
 
-   Deux étages nettement séparés :
-     · `gatherCandidates` parle à TMDB et ne juge rien ;
-     · `affinity` / `nicheScore` / `rank` sont purs et hors-ligne.
+   Two clearly separated storeys:
+     · `gatherCandidates` talks to TMDB and judges nothing;
+     · `affinity` / `nicheScore` / `rank` are pure and offline.
 
-   Cette séparation permet de rejouer un classement quand on bouge
-   un curseur, sans redemander quoi que ce soit au réseau.
+   That separation is what lets a ranking be replayed when a slider
+   moves, without asking the network for anything again.
    ============================================================ */
 
 import {
@@ -21,33 +21,33 @@ import { favorites, topDirectors, decadeOf } from "./taste";
 
 const clamp01 = (x) => Math.max(0, Math.min(1, x));
 
-/* Le seuil de crédibilité. En dessous, « peu vu » ne veut plus rien dire :
-   c'est du bruit de catalogue, pas une pépite. */
+/* The credibility floor. Below it, "little seen" no longer means
+   anything: it is catalogue noise, not a gem. */
 export const DEFAULT_MIN_VOTES = 30;
 
 export const DEFAULT_QUERY = {
   yearFrom: "",
   yearTo: "",
-  withGenres: [], // noms, tels que stockés dans les fiches
+  withGenres: [], // names, as stored on the cards
   withoutGenres: [],
-  language: "", // code ISO ; "" = indifférent
+  language: "", // ISO code; "" = no preference
   minVotes: DEFAULT_MIN_VOTES,
-  minRating: 6, // note TMDB plancher
-  nichePref: 0.5, // 0 = grand public · 1 = pépite
-  driftPref: 0.5, // 0 = dans mes goûts · 1 = hors des sentiers
+  minRating: 6, // TMDB rating floor
+  nichePref: 0.5, // 0 = mainstream · 1 = gem
+  driftPref: 0.5, // 0 = within my taste · 1 = off the beaten track
   excludeWatchlist: true,
-  // les facteurs de niche que l'on veut réellement faire jouer
+  // the niche factors we actually want to bring into play
   niche: { obscurity: true, foreign: true, age: true },
 };
 
 /* ============================================================
-   1. RÉCOLTE
+   1. HARVEST
    ============================================================ */
 
-/* Les requêtes `/discover` envoyées. Plusieurs tris plutôt qu'un seul : trier
-   par note moyenne remonte les confidentiels, trier par popularité remonte les
-   évidences — un curseur « niche » qui n'aurait qu'une seule source de
-   candidats ne pourrait rien arbitrer du tout. */
+/* The `/discover` queries sent. Several sorts rather than one: sorting
+   by average rating brings up the confidential, sorting by popularity
+   brings up the obvious — a "niche" slider with a single source of
+   candidates could arbitrate nothing at all. */
 function discoverPlans(query, taste, genreMap) {
   const ids = (names) => names.map((n) => genreMap.byName.get(n.toLowerCase())).filter(Boolean);
 
@@ -64,14 +64,14 @@ function discoverPlans(query, taste, genreMap) {
   if (withIds.length) base.with_genres = withIds.join(",");
   if (withoutIds.length) base.without_genres = withoutIds.join(",");
 
-  // à défaut de genres demandés, on part de ceux que la collection aime
+  // failing any requested genres, we start from those the collection likes
   if (!withIds.length && !taste.isEmpty) {
     const liked = [...taste.genres.entries()]
       .filter(([, w]) => w > 0.35)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 3);
     const likedIds = ids(liked.map(([n]) => n));
-    // `|` et non `,` : l'un OU l'autre, sinon l'intersection des trois est vide
+    // `|` and not `,`: one OR the other, otherwise the intersection of the three is empty
     if (likedIds.length) base.with_genres = likedIds.join("|");
   }
 
@@ -81,8 +81,8 @@ function discoverPlans(query, taste, genreMap) {
     { ...base, sort_by: "popularity.desc", page: "1" },
   ];
 
-  // un plafond de votes force TMDB à ne renvoyer QUE du confidentiel : sans
-  // lui, les mêmes classiques trustent les premières pages quel que soit le tri
+  // a vote ceiling forces TMDB to return ONLY the confidential: without
+  // it, the same classics hog the first pages whatever the sort
   if (query.nichePref > 0.35) {
     plans.push({ ...base, "vote_count.lte": "1200", sort_by: "vote_average.desc", page: "1" });
     plans.push({ ...base, "vote_count.lte": "1200", sort_by: "vote_average.desc", page: "2" });
@@ -91,12 +91,12 @@ function discoverPlans(query, taste, genreMap) {
 }
 
 /**
- * Interroge TMDB et fusionne tout ce qui remonte, sans rien classer.
+ * Queries TMDB and merges everything that comes back, ranking nothing.
  *
- * @param {object}   opts.taste    profil issu de buildTaste
- * @param {Array}    opts.films    la collection, pour les « parce que vous avez aimé »
- * @param {function} opts.isSeen   (candidate) => bool — l'exclusion appartient à l'appelant,
- *                                 qui seul connaît sa propre clé d'appariement
+ * @param {object}   opts.taste    profile coming from buildTaste
+ * @param {Array}    opts.films    the collection, for the "because you loved" lines
+ * @param {function} opts.isSeen   (candidate) => bool — the exclusion belongs to the
+ *                                 caller, who alone knows their own matching key
  * @returns {{ candidates: Array, genreMap, sourcesUsed }}
  */
 export async function gatherCandidates({
@@ -133,8 +133,8 @@ export async function gatherCandidates({
 
   const results = await pooled(tasks, { concurrency: 5, onProgress });
 
-  // fusion par tmdbId : un même film peut arriver par trois chemins, et c'est
-  // précisément un bon signe — on garde donc toutes ses provenances
+  // merging by tmdbId: the same film can arrive by three paths, and that
+  // is precisely a good sign — so we keep all its provenances
   const merged = new Map();
   for (const r of results) {
     if (!r?.list) continue;
@@ -162,42 +162,42 @@ export async function gatherCandidates({
 }
 
 /* ============================================================
-   2. AFFINITÉ — à quel point cela vous ressemble
+   2. AFFINITY — how much it looks like you
    ============================================================ */
 
 export function affinity(c, taste) {
-  if (taste.isEmpty) return 0.5; // sans profil, tout se vaut : c'est le filtre qui décide
+  if (taste.isEmpty) return 0.5; // with no profile everything is equal: the filter decides
 
-  // moyenne des poids de genre, les genres inconnus comptant pour zéro et non
-  // comme une pénalité : découvrir un genre absent n'est pas un défaut d'affinité
+  // mean of the genre weights, unknown genres counting as zero and not as
+  // a penalty: discovering an absent genre is not a lack of affinity
   const gs = c.genres.map((g) => taste.genres.get(g) || 0);
   const genre = gs.length ? gs.reduce((a, b) => a + b, 0) / gs.length : 0;
 
   const dec = decadeOf(c.year);
   const decade = dec ? taste.decades.get(dec) || 0 : 0;
 
-  // remonté par un film que vous avez aimé : le signal le plus direct dont
-  // on dispose, et le seul qui repose sur autre chose que des étiquettes
+  // brought up by a film you loved: the most direct signal we have, and
+  // the only one resting on something other than tags
   const fromLiked = c.sources.filter((s) => s.kind === "reco");
   const recoBonus = fromLiked.length ? Math.min(1, 0.55 + 0.15 * fromLiked.length) : 0;
 
   const byDirector = c.sources.some((s) => s.kind === "director");
   const dirBonus = byDirector ? 0.9 : 0;
 
-  // la note TMDB entre pour peu : elle dit la qualité perçue, pas l'accord
+  // the TMDB rating counts for little: it says perceived quality, not agreement
   const quality = clamp01((c.voteAverage - 5.5) / 3);
 
   const raw = 0.34 * genre + 0.12 * decade + 0.24 * recoBonus + 0.2 * dirBonus + 0.1 * quality;
-  return clamp01((raw + 0.25) / 1.25); // recentré : les poids négatifs peuvent tirer sous zéro
+  return clamp01((raw + 0.25) / 1.25); // recentred: negative weights can pull below zero
 }
 
 /* ============================================================
-   3. NICHE — à quel point c'est hors des radars
+   3. NICHE — how far off the radar it is
    ============================================================ */
 
-/* Un film de 1965 a mécaniquement moins de votes qu'un film de 2015 : compter
-   les votes bruts ferait de tout vieux film une pépite. On rapporte donc le
-   compte à ce qui est normal pour sa décennie. */
+/* A 1965 film mechanically has fewer votes than a 2015 one: counting raw
+   votes would make every old film a gem. So we relate the count to what
+   is normal for its decade. */
 const EXPECTED_VOTES = (year) => {
   if (!year) return 2000;
   if (year < 1950) return 400;
@@ -208,12 +208,12 @@ const EXPECTED_VOTES = (year) => {
 };
 
 export function nicheFactors(c, taste) {
-  // 1. obscurité — logarithmique : entre 200 et 2 000 votes il se passe bien
-  // plus de choses qu'entre 40 000 et 50 000
+  // 1. obscurity — logarithmic: between 200 and 2,000 votes a great deal
+  // happens; between 20,000 and 200,000, almost nothing
   const obscurity = clamp01(1 - Math.log10(Math.max(c.voteCount, 1)) / Math.log10(50000));
 
-  // 2. écart à la collection — délibérément indépendant de l'affinité :
-  // c'est l'axe du dépaysement, pas celui du désaccord
+  // 2. distance from the collection — deliberately independent of
+  // affinity: this is the axis of the change of scene, not disagreement
   const newGenres = c.genres.length
     ? c.genres.filter((g) => !taste.seenGenres.has(g)).length / c.genres.length
     : 0;
@@ -222,17 +222,17 @@ export function nicheFactors(c, taste) {
   const newLang = c.lang && taste.seenLanguages.size && !taste.seenLanguages.has(c.lang) ? 1 : 0;
   const drift = taste.isEmpty ? 0.5 : clamp01(0.5 * newGenres + 0.3 * newDecade + 0.2 * newLang);
 
-  /* 3. non-anglophone. On sait rarement quelles langues la collection
-     contient : les fiches importées ne portent pas ce champ. Sans cette
-     connaissance on s'en tient au fait brut « ce n'est pas de l'anglais » —
-     prétendre reconnaître une langue inédite alors qu'on n'en connaît aucune
-     ferait dire au facteur, et à la justification affichée, plus que ce que
-     les données permettent. */
+  /* 3. non-English. We rarely know which languages the collection
+     holds: imported cards do not carry that field. Without that
+     knowledge we stick to the bare fact "this is not English" —
+     claiming to recognise an unheard-of language while knowing none
+     at all would make the factor, and the reason displayed, say more
+     than the data allows. */
   const knowsLangs = taste.seenLanguages.size > 0;
   const foreign =
     !c.lang || c.lang === "en" ? 0 : !knowsLangs ? 0.7 : taste.seenLanguages.has(c.lang) ? 0.6 : 1;
 
-  // 4. ancienneté — rampe sous 1980, doublée d'un « peu vu pour son époque »
+  // 4. age — a ramp below 1980, doubled by a "little seen for its time"
   const old = !c.year ? 0 : clamp01((1985 - c.year) / 45);
   const rarity = clamp01(1 - c.voteCount / EXPECTED_VOTES(c.year));
   const age = clamp01(0.65 * old + 0.35 * old * rarity);
@@ -240,11 +240,11 @@ export function nicheFactors(c, taste) {
   return { obscurity, drift, foreign, age };
 }
 
-/* Les trois facteurs « obscurité / langue / ancienneté » composent le curseur
-   niche. Le quatrième — l'écart à la collection — est piloté séparément :
-   un film obscur peut être parfaitement dans vos habitudes, et un blockbuster
-   coréen parfaitement dépaysant. Les confondre reviendrait à n'offrir qu'un
-   seul bouton pour deux envies distinctes. */
+/* The three factors "obscurity / language / age" make up the niche
+   slider. The fourth — distance from the collection — is driven
+   separately: an obscure film can be perfectly within your habits, and
+   a Korean blockbuster perfectly disorienting. Conflating them would
+   amount to offering one slider where there are two questions. */
 export function nicheScore(factors, enabled = DEFAULT_QUERY.niche) {
   const parts = [];
   if (enabled.obscurity !== false) parts.push([factors.obscurity, 0.55]);
@@ -260,24 +260,24 @@ export function nicheScore(factors, enabled = DEFAULT_QUERY.niche) {
    ============================================================ */
 
 /**
- * Classe les candidats. Pur : rejouable à chaque coup de curseur.
- * @returns les candidats enrichis de { affinity, niche, factors, score, reasons }
+ * Ranks the candidates. Pure: replayable on every slider move.
+ * @returns the candidates enriched with { affinity, niche, factors, score, reasons }
  */
 export function rank(candidates, taste, query, limit = 40) {
   const nichePref = query.nichePref ?? 0.5;
   const driftPref = query.driftPref ?? 0.5;
-  // ramené dans [-1, 1] : à gauche du curseur, l'écart devient une pénalité
+  // brought into [-1, 1]: left of the slider, the gap becomes a penalty
   const driftCoef = (driftPref - 0.5) * 2;
 
   const scored = candidates.map((c) => {
     const factors = nicheFactors(c, taste);
     const aff = affinity(c, taste);
     const niche = nicheScore(factors, query.niche);
-    /* Le curseur doit être symétrique : poussé à droite il réclame du
-       confidentiel, poussé à gauche il doit réclamer du connu. L'affinité
-       seule ne dit rien de la notoriété — un chef-d'œuvre invisible ressemble
-       autant à vos goûts qu'un classique. D'où le terme de notoriété, qui ne
-       pèse que du côté gauche du curseur. */
+    /* The slider must be symmetric: pushed right it asks for the
+       confidential, pushed left it must ask for the well known.
+       Affinity alone says nothing about fame — an invisible masterpiece
+       resembles your taste as much as a classic. Hence the fame term,
+       which only weighs on the slider's left-hand side. */
     const known = 1 - factors.obscurity;
     const score =
       (1 - nichePref) * (0.75 * aff + 0.25 * known) +
@@ -288,8 +288,8 @@ export function rank(candidates, taste, query, limit = 40) {
 
   scored.sort((a, b) => b.score - a.score || b.voteAverage - a.voteAverage);
 
-  /* Diversification : sans elle, un seul film adoré fait remonter ses dix
-     recommandations d'affilée et la page ne parle plus que de lui. */
+  /* Diversification: without it, a single beloved film brings up its ten
+     recommendations in a row and the page talks about nothing else. */
   const perSource = new Map();
   const kept = [];
   const spill = [];
@@ -308,11 +308,11 @@ export function rank(candidates, taste, query, limit = 40) {
     kept.push(c);
     if (kept.length >= limit) break;
   }
-  // les évincés reviennent en fin de liste plutôt que de disparaître
+  // those bumped come back at the end of the list rather than vanishing
   return [...kept, ...spill].slice(0, limit);
 }
 
-/* Une recommandation qu'on ne peut pas justifier n'en est pas une. */
+/* A recommendation one cannot justify is not one. */
 export function reasonsFor(c, factors, taste) {
   const out = [];
 
