@@ -7,13 +7,20 @@ import {
   idFromLabel,
   makeCustomMotif,
   motifById,
+  motifLabel,
   motifsOf,
   byFamily,
   setVocabulary,
   suggestMotifs,
   allMotifs,
 } from "./motifs";
+import fr from "../i18n/fr";
 import { makeFilm } from "./film";
+
+/* The catalogue's own names, read the way the screen reads them: a
+   search must find what is on the page, not an identifier. */
+const name = (key: string): string =>
+  key.split(".").reduce<unknown>((node, k) => (node as Record<string, unknown>)?.[k], fr) as string;
 
 describe("the motif catalogue", () => {
   it("has no key twice", () => {
@@ -23,7 +30,10 @@ describe("the motif catalogue", () => {
 
   it("does carry the question that started it all", () => {
     const m = motifById("hero-dies");
-    expect(m?.label).toBe("Le héros meurt");
+    expect(m).toBeTruthy();
+    /* The words live in the catalogue now; the motif keeps the id, which
+       is the thing a card actually carries. */
+    expect(motifLabel(m!, name)).toBe("Le héros meurt");
     // and it gives the ending away: it must be scratched out on display
     expect(m?.spoiler).toBe(true);
   });
@@ -39,8 +49,8 @@ describe("the motif catalogue", () => {
   });
 
   it("searches case-insensitively", () => {
-    expect(searchMotifs("HÉROS").map((m) => m.id)).toContain("hero-dies");
-    expect(searchMotifs("")).toEqual([]);
+    expect(searchMotifs("HÉROS", name).map((m) => m.id)).toContain("hero-dies");
+    expect(searchMotifs("", name)).toEqual([]);
   });
 });
 
@@ -82,7 +92,7 @@ describe("your own motifs", () => {
   it("are searched like the others", () => {
     const mine = makeCustomMotif("Il pleut sans arrêt", "world");
     setVocabulary({ custom: [mine], hidden: [] });
-    expect(searchMotifs("pleut").map((m) => m.id)).toContain(mine.id);
+    expect(searchMotifs("pleut", name).map((m) => m.id)).toContain(mine.id);
   });
 });
 
@@ -92,14 +102,14 @@ describe("the motifs set aside", () => {
   it("leave the list you choose from", () => {
     setVocabulary({ custom: [], hidden: ["hero-dies"] });
     expect(allMotifs().some((m) => m.id === "hero-dies")).toBe(false);
-    expect(searchMotifs("héros").some((m) => m.id === "hero-dies")).toBe(false);
+    expect(searchMotifs("héros", name).some((m) => m.id === "hero-dies")).toBe(false);
   });
 
   /* Hiding is not erasing: a card that carries it must go on showing
      it, otherwise setting aside would quietly rewrite data. */
   it("stay readable on the cards that carry them", () => {
     setVocabulary({ custom: [], hidden: ["hero-dies"] });
-    expect(motifById("hero-dies")?.label).toBe("Le héros meurt");
+    expect(motifLabel(motifById("hero-dies")!, name)).toBe("Le héros meurt");
     expect(motifsOf(makeFilm({ motifs: ["hero-dies"] }))).toHaveLength(1);
     expect(isHidden("hero-dies")).toBe(true);
   });

@@ -40,46 +40,57 @@ une clé physique. La vérification des signatures est confiée à
 
 ## Les routes
 
-| Route                                 | Ce qu'elle fait                                                 |
-| ------------------------------------- | --------------------------------------------------------------- |
-| `POST /auth/inscription/options`      | Ouvre une inscription pour un pseudonyme libre                  |
-| `POST /auth/inscription/verification` | Enregistre la clé, crée le compte, ouvre la session             |
-| `POST /auth/connexion/options`        | Propose une cérémonie — même réponse si le compte est inconnu   |
-| `POST /auth/connexion/verification`   | Vérifie la signature et ouvre la session                        |
-| `GET /moi`                            | Qui est connecté, et combien de fiches                          |
-| `POST /deconnexion`                   | Ferme la session                                                |
-| `GET /collection?depuis=…`            | Ce qui a bougé depuis une date                                  |
-| `PUT /collection`                     | Range des fiches (500 par envoi au plus)                        |
-| `GET /tmdb/*`                         | Relais TMDB — onze chemins, la clé reste ici, compte exigé      |
-| `GET /letterboxd/:pseudo`             | Relais du flux RSS que le navigateur ne peut pas lire           |
-| `PUT /partage`                        | Personne, par lien, ou tout le monde — jeton neuf à chaque fois |
-| `PUT /fiche/:id/cachee`               | Écarter une fiche du partage, ou l'y remettre                   |
-| `GET /chez/:pseudo?jeton=…`           | La collection de quelqu'un, sans compte ni cookie               |
-| `GET /profils/:pseudo`                | Le profil de qui se montre — 404 pour les autres                |
-| `PUT /abonnements/:pseudo`            | Suivre. Sens unique, personne n'est prévenu                     |
-| `DELETE /abonnements/:pseudo`         | Ne plus suivre — possible même si l'autre s'est refermé         |
-| `GET /abonnements`                    | Qui vous suivez, et si leur collection est encore ouverte       |
-| `GET /fil?avant=…`                    | Ce que les gens suivis ont touché récemment                     |
-| `GET /oeuvres/:tmdbId`                | Ce que les collections publiques disent d'un film               |
-| `GET /blocages`                       | Qui vous avez fait taire                                        |
-| `PUT /blocages/:pseudo`               | Ne plus rien voir de quelqu'un — et lui non plus de vous        |
-| `DELETE /blocages/:pseudo`            | Le défaire ; les abonnements coupés ne reviennent pas           |
-| `POST /signalements`                  | Dire ce qui ne va pas ; deux fois vaut une                      |
-| `GET /listes`                         | Vos listes, et celles où l'on vous laisse écrire                |
-| `POST /listes`                        | En ouvrir une — fermée par défaut                               |
-| `GET/PUT/DELETE /listes/:id`          | La lire, la retoucher, l'effacer (propriétaire)                 |
-| `POST /listes/:id/oeuvres`            | Y ranger une œuvre, par son `tmdb_id`                           |
-| `DELETE /listes/:id/oeuvres/:tmdbId`  | L'en retirer                                                    |
-| `PUT/DELETE /listes/:id/membres/:qui` | Inviter à écrire, renvoyer — ou partir soi-même                 |
-| `GET /defis`                          | Les vôtres, ceux rejoints, ceux des gens suivis                 |
-| `POST /defis`                         | Une liste plus une période ; qui le lance y participe           |
-| `GET /defis/:id`                      | Ses œuvres, et où en est chaque participant                     |
-| `PUT/DELETE /defis/:id/participation` | Entrer, sortir — sortir se fait toujours                        |
-| `GET /mes-donnees`                    | Tout ce que le serveur détient de vous                          |
-| `DELETE /mon-compte`                  | L'efface, et tout ce qui pend dessous                           |
-| `GET /poussees`                       | Ce serveur envoie-t-il des notifications, et sa clé publique    |
-| `PUT/DELETE /poussees`                | Abonner cet appareil, ou le faire taire                         |
-| `GET /sante`                          | Debout ?                                                        |
+**Les chemins sont en anglais**, comme le reste du code depuis le
+passage à l'anglais. Ce tableau, lui, était resté en français pendant
+tout ce temps : il décrivait des routes qui n'existaient plus, ligne
+après ligne. On ne s'en aperçoit pas en lisant — on s'en aperçoit en
+appelant.
+
+| Route                                      | Ce qu'elle fait                                                 |
+| ------------------------------------------ | --------------------------------------------------------------- |
+| `POST /auth/signup/options`                | Ouvre une inscription pour un pseudonyme libre                  |
+| `POST /auth/signup/verify`                 | Enregistre la clé, crée le compte, ouvre la session             |
+| `POST /auth/signin/options`                | Propose une cérémonie — même réponse si le compte est inconnu   |
+| `POST /auth/signin/verify`                 | Vérifie la signature et ouvre la session                        |
+| `GET /me`                                  | Qui est connecté, et combien de fiches                          |
+| `POST /signout`                            | Ferme la session                                                |
+| `GET /collection?since=…`                  | Ce qui a bougé depuis un rang                                   |
+| `PUT /collection`                          | Range des fiches (500 par envoi au plus)                        |
+| `GET /documents?since=…`                   | Les documents qui ont bougé depuis un rang                      |
+| `PUT /documents`                           | Range des documents                                             |
+| `GET /tmdb/*`                              | Relais TMDB — onze chemins, la clé reste ici, compte exigé      |
+| `GET /letterboxd/:pseudo`                  | Relais du flux RSS que le navigateur ne peut pas lire           |
+| `GET /sharing`                             | Ce que vous partagez aujourd'hui, et le jeton s'il y en a un    |
+| `PUT /sharing`                             | Personne, par lien, ou tout le monde — jeton neuf à chaque fois |
+| `GET /hidden-cards`                        | Les fiches écartées du partage                                  |
+| `PUT /cards/:id/hidden`                    | En écarter une, ou l'y remettre                                 |
+| `GET /collections/:pseudo?token=…`         | La collection de quelqu'un, sans compte ni cookie               |
+| `GET /profiles/:pseudo`                    | Le profil de qui se montre — 404 pour les autres                |
+| `PUT /follows/:pseudo`                     | Suivre. Sens unique, personne n'est prévenu                     |
+| `DELETE /follows/:pseudo`                  | Ne plus suivre — possible même si l'autre s'est refermé         |
+| `GET /follows`                             | Qui vous suivez, et si leur collection est encore ouverte       |
+| `GET /feed?before=…`                       | Ce que les gens suivis ont touché récemment                     |
+| `GET /works/:tmdbId`                       | Ce que les collections publiques disent d'un film               |
+| `GET /blocks`                              | Qui vous avez fait taire                                        |
+| `PUT /blocks/:pseudo`                      | Ne plus rien voir de quelqu'un — et lui non plus de vous        |
+| `DELETE /blocks/:pseudo`                   | Le défaire ; les abonnements coupés ne reviennent pas           |
+| `POST /reports`                            | Dire ce qui ne va pas ; deux fois vaut une                      |
+| `GET /lists`                               | Vos listes, et celles où l'on vous laisse écrire                |
+| `POST /lists`                              | En ouvrir une — fermée par défaut                               |
+| `GET/PUT/DELETE /lists/:id`                | La lire, la retoucher, l'effacer (propriétaire)                 |
+| `POST /lists/:id/works`                    | Y ranger une œuvre, par son `tmdb_id`                           |
+| `DELETE /lists/:id/works/:tmdbId`          | L'en retirer                                                    |
+| `PUT/DELETE /lists/:id/members/:pseudo`    | Inviter à écrire, renvoyer — ou partir soi-même                 |
+| `GET /challenges`                          | Les vôtres, ceux rejoints, ceux des gens suivis                 |
+| `POST /challenges`                         | Une liste plus une période ; qui le lance y participe           |
+| `GET /challenges/:id`                      | Ses œuvres, et où en est chaque participant                     |
+| `DELETE /challenges/:id`                   | L'effacer — réservé à qui administre la liste                   |
+| `PUT/DELETE /challenges/:id/participation` | Entrer, sortir — sortir se fait toujours                        |
+| `GET /my-data`                             | Tout ce que le serveur détient de vous                          |
+| `DELETE /my-account`                       | L'efface, et tout ce qui pend dessous                           |
+| `GET /push-subscriptions`                  | Ce serveur envoie-t-il des notifications, et sa clé publique    |
+| `PUT/DELETE /push-subscriptions`           | Abonner cet appareil, ou le faire taire                         |
+| `GET /health`                              | Debout ?                                                        |
 
 ## Trois choix qui méritent d'être connus
 
@@ -87,7 +98,7 @@ une clé physique. La vérification des signatures est confiée à
 fuite de la table des sessions ne donne aucune session utilisable.
 
 **Le dernier écrivain gagne, et c'est la base qui arbitre.** La clause
-`WHERE fiche.maj_le < EXCLUDED.maj_le` refuse une version plus ancienne
+`WHERE card.updated_at < EXCLUDED.updated_at` refuse une version plus ancienne
 que celle déjà rangée. Lire puis écrire côté serveur laisserait un
 intervalle où deux appareils peuvent se doubler.
 
@@ -95,8 +106,8 @@ intervalle où deux appareils peuvent se doubler.
 fiche au prochain envoi de l'appareil qui ne sait pas encore : on garde
 une pierre tombale.
 
-**Le compte rendu d'un envoi distingue trois choses** — `rangees`,
-`perimees`, `illisibles`. Un client qui vide sa file d'attente sur la foi
+**Le compte rendu d'un envoi distingue trois choses** — `filed`,
+`stale`, `unreadable`. Un client qui vide sa file d'attente sur la foi
 d'un seul chiffre croirait avoir envoyé ce que la base a écarté.
 
 **Le relais TMDB exige un compte.** Sans cela, c'est un accès TMDB
@@ -107,11 +118,11 @@ transmet n'importe quoi prête sa clé, son adresse et sa facture.
 
 ## Ce qu'un visiteur voit, et ce qu'il ne verra jamais
 
-`GET /chez/:pseudo` est la **seule** route qui réponde à quelqu'un sans
+`GET /collections/:pseudo` est la **seule** route qui réponde à quelqu'un sans
 compte. Trois décisions la gouvernent :
 
 **Les notes et le journal des séances sont retirés dans la REQUÊTE**
-(`donnees - notes - watches - watchedAt`), pas dans la route. Une
+(`data - 'notes' - 'watches' - 'watchedAt'`), pas dans la route. Une
 route qui filtre est une route qu'on duplique un jour en oubliant la
 moitié du filtre ; une soustraction écrite dans la seule requête qui
 sert le public ne s'oublie pas.
@@ -136,14 +147,14 @@ d'abonnements, l'index `fiche_suite` suffit largement. Le jour où il ne
 suffira plus sera un vrai problème d'échelle, et pas avant.
 
 **On ne trouve que ceux qui se montrent.** Pas d'annuaire, pas de liste
-d'inscrits : `GET /profils/:pseudo` répond 404 pour un compte privé
+d'inscrits : `GET /profiles/:pseudo` répond 404 pour un compte privé
 exactement comme pour un compte inexistant. Un partage par LIEN n'ouvre
 pas de profil — un lien se donne à quelqu'un, il ne rend pas trouvable.
 
 ## Il n'y a pas de table d'avis
 
 C'est la décision de l'étape des avis partagés. Une critique existe
-déjà : elle est dans la fiche de son auteur, `donnees->>'review'`, et
+déjà : elle est dans la fiche de son auteur, `data->>'review'`, et
 elle s'y synchronise depuis la phase 4. La recopier ailleurs pour la
 « publier » créerait deux vérités qui divergeraient au premier oubli —
 une critique corrigée chez soi et restée fausse en public.
@@ -173,7 +184,7 @@ requête entière sur une seule fiche mal formée — la moyenne de tout le
 monde perdue pour une vieille fiche d'un inconnu. La forme se vérifie
 avant la conversion.
 
-**`GET /oeuvres/:tmdbId` exige un compte**, alors que la collection
+**`GET /works/:tmdbId` exige un compte**, alors que la collection
 partagée n'en demande pas. La différence : là-bas on ouvre la porte de
 quelqu'un qui vous a donné son adresse ; ici on interroge tout le monde
 à la fois. L'ouvrir aux inconnus ferait de ce serveur un moissonneur
@@ -233,7 +244,7 @@ le mot de l'écran.
 
 ## Le curseur est un rang, jamais une heure
 
-`GET /collection?depuis=` prend le **numéro d'ordre** de la dernière
+`GET /collection?since=` prend le **numéro d'ordre** de la dernière
 fiche vue, pas une date. Le serveur numérote ce qu'il reçoit (`seq`), et
 renumérote une fiche à chaque modification.
 
@@ -243,7 +254,7 @@ l'autre appareil — qui demande « ce qui a bougé depuis maintenant » — ne
 les verrait **jamais**. Elles seraient rangées sur le serveur, invisibles
 à tous, sans qu'aucune erreur ne le dise.
 
-Les dates du client (`maj_le`) gardent leur rôle : arbitrer entre deux
+Les dates du client (`updated_at`) gardent leur rôle : arbitrer entre deux
 versions d'une même fiche. Les deux ne se confondent pas.
 
 ## « Le serveur ne répond pas » alors qu'il tourne
