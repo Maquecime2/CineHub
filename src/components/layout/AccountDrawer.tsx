@@ -551,7 +551,7 @@ function Blocks() {
 }
 
 /* ============================================================
-   MES APPAREILS — sortir un compte de l'ordinateur où il est né
+   MY DEVICES — getting an account out of the computer it was born in
    ============================================================
 
    A PASSKEY BELONGS TO THE THING THAT HOLDS IT. The one Windows Hello
@@ -633,7 +633,7 @@ function Devices({ lang }: { lang: string }) {
   };
 
   return (
-    /* No `data-tour` of its own: the tour cannot open this drawer by
+    /* No `data-tour` of its own: the tour cannot open this drawer on
        itself, so the step aims at the rail's account button and names
        what is inside — as sharing and the reminders already do. */
     <div style={{ borderTop: `1px dashed ${C.line}`, paddingTop: 14 }}>

@@ -1,5 +1,5 @@
 /* ============================================================
-   LES MÉDIAS — un miroir, jamais l'original
+   THE MEDIA — a mirror, never the original
    ============================================================
 
    Until now nothing binary left the machine it was made on. The
@@ -99,7 +99,7 @@ export function configureMedia(s: AzureSettings | null): void {
 export const mediaAvailable = (): boolean => settings !== null;
 
 /* ------------------------------------------------------------
-   LA FORME D'UN CHEMIN
+   THE SHAPE OF A PATH
    ------------------------------------------------------------
    Checked BEFORE it goes anywhere near a URL. A key comes from the
    client, and the client is somebody's browser: the shapes below are
@@ -147,7 +147,7 @@ export async function allowed(
 }
 
 /* ------------------------------------------------------------
-   LE TICKET
+   THE TICKET
    ------------------------------------------------------------
    A signature for ONE blob and ONE verb, valid a quarter of an hour.
    Not for the container, not for a prefix: for the blob named in it. A

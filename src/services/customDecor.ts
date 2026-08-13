@@ -289,7 +289,7 @@ export async function removeCustomDecor(key: string): Promise<void> {
   if (entry.remoteId) await dropRemoteDecor(entry.remoteId).catch(() => {});
 }
 
-/* ---------- LE VERSANT SERVEUR ----------
+/* ---------- THE SERVER SIDE ----------
 
    A decor is the only thing one imports that somebody else may see. What
    follows is what makes that possible — and every line of it is written

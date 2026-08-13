@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 /* ============================================================
-   LE MIROIR DES MÉDIAS
+   THE MEDIA MIRROR
 
    IndexedDB stays the original and the container is a copy: everything
    worth testing here follows from that one sentence.
@@ -47,7 +47,7 @@ vi.mock("./server", () => ({
 
 vi.mock("./customDecor", () => ({
   DECOR_IMAGE_PREFIX: "decor:",
-  remoteIdOfDecor: (key) => (key === "decor:connu" ? "d-1234" : undefined),
+  remoteIdOfDecor: (key) => (key === "decor:known" ? "d-1234" : undefined),
 }));
 
 /* `fetch` is the only door to the container: PUT files, GET serves,
@@ -82,74 +82,74 @@ beforeEach(() => {
   globalThis.fetch.mockClear();
 });
 
-describe("l'adresse d'un blob", () => {
-  it("sépare le privé du partageable", () => {
+describe("a blob's address", () => {
+  it("keeps the private apart from the shareable", () => {
     expect(remotePath("still-abc-1")).toBe(`p/${ME}/still-abc-1`);
-    expect(remotePath("decor:connu")).toBe("decor/d-1234");
+    expect(remotePath("decor:known")).toBe("decor/d-1234");
   });
 
-  it("n'en donne aucune à un décor qui n'est pas encore monté", () => {
-    /* Un objet ajouté hors ligne existe sur l'étagère sans identité
-       serveur : il n'a pas d'adresse, et ce n'est pas une erreur. */
-    expect(remotePath("decor:tout-neuf")).toBeNull();
+  it("gives none to a decor that has not gone up yet", () => {
+    /* An object added offline exists on the shelf with no server
+       identity: it has no address, and that is not an error. */
+    expect(remotePath("decor:brand-new")).toBeNull();
   });
 
-  it("n'en donne aucune sans compte ouvert", () => {
+  it("gives none with no account open", () => {
     localStorage.removeItem("synchro-account");
     expect(remotePath("still-abc-1")).toBeNull();
   });
 });
 
-describe("le registre", () => {
-  it("ne note qu'une fois ce qui attend", () => {
-    noteMedia("une-affiche");
-    noteMedia("une-affiche");
+describe("the register", () => {
+  it("notes what is waiting only once", () => {
+    noteMedia("a-poster");
+    noteMedia("a-poster");
     expect(mediaPending()).toBe(1);
   });
 
-  it("oublie ce qui s'en est allé", () => {
-    noteMedia("une-affiche");
-    forgetMedia("une-affiche");
+  it("forgets what has gone", () => {
+    noteMedia("a-poster");
+    forgetMedia("a-poster");
     expect(mediaPending()).toBe(0);
   });
 });
 
-describe("déposer", () => {
-  it("envoie ce qui attend, et ne le renvoie pas", async () => {
-    vault.set("une-affiche", new Blob(["png"]));
-    noteMedia("une-affiche");
+describe("putting down", () => {
+  it("sends what is waiting, and does not send it again", async () => {
+    vault.set("a-poster", new Blob(["png"]));
+    noteMedia("a-poster");
 
     expect(await pushMedia()).toBe(1);
-    expect(container.get(`p/${ME}/une-affiche`)).toBeInstanceOf(Blob);
+    expect(container.get(`p/${ME}/a-poster`)).toBeInstanceOf(Blob);
     expect(mediaPending()).toBe(0);
 
-    /* Un second passage ne redemande aucun ticket : c'est tout l'objet
-       du registre. */
+    /* A second pass asks for no ticket at all: that is the whole point
+       of the register. */
     tickets.mockClear();
     expect(await pushMedia()).toBe(0);
     expect(tickets).not.toHaveBeenCalled();
   });
 
-  it("cesse d'attendre un blob effacé du coffre entre-temps", async () => {
-    noteMedia("disparue");
+  it("stops waiting for a blob erased from the vault in the meantime", async () => {
+    noteMedia("gone");
     expect(await pushMedia()).toBe(0);
     expect(mediaPending()).toBe(0);
   });
 
-  it("ne fait rien sans compte, et garde ce qui attend", async () => {
+  it("does nothing with no account, and keeps what is waiting", async () => {
     signedOut = true;
-    vault.set("une-affiche", new Blob(["png"]));
-    noteMedia("une-affiche");
+    vault.set("a-poster", new Blob(["png"]));
+    noteMedia("a-poster");
 
     expect(await pushMedia()).toBe(0);
-    /* Hors ligne, le blob reste ici — c'est-à-dire là où il était en
-       sûreté de toute façon. */
+    /* Offline, the blob stays here — which is where it was safe
+       anyway. */
     expect(mediaPending()).toBe(1);
   });
 
-  it("ne coule pas le paquet quand le container refuse", async () => {
-    vault.set("une-affiche", new Blob(["png"]));
-    noteMedia("une-affiche");
+  it("does not sink the batch when the container refuses", async () => {
+    vault.set("a-poster", new Blob(["png"]));
+    noteMedia("a-poster");
     tickets.mockRejectedValueOnce(new Error("503"));
 
     expect(await pushMedia()).toBe(0);
@@ -157,58 +157,59 @@ describe("déposer", () => {
   });
 });
 
-describe("lire", () => {
-  it("répond du coffre sans rien demander à personne", async () => {
-    vault.set("ici", new Blob(["png"]));
-    expect(await readMedia("ici")).toBeInstanceOf(Blob);
-    /* Cinq cents cartes qui interrogent chacune le serveur feraient un
-       mur que personne ne fait défiler. */
+describe("reading", () => {
+  it("answers from the vault without asking anybody anything", async () => {
+    vault.set("here", new Blob(["png"]));
+    expect(await readMedia("here")).toBeInstanceOf(Blob);
+    /* Five hundred cards each questioning the server would make a wall
+       nobody scrolls. */
     expect(ticket).not.toHaveBeenCalled();
   });
 
-  it("va chercher au container ce que le coffre n'a pas, et le range", async () => {
-    container.set(`p/${ME}/ailleurs`, new Blob(["png"]));
+  it("fetches from the container what the vault has not, and files it", async () => {
+    container.set(`p/${ME}/elsewhere`, new Blob(["png"]));
 
-    const blob = await readMedia("ailleurs");
+    const blob = await readMedia("elsewhere");
     expect(blob).toBeInstanceOf(Blob);
-    /* Rangé au passage : la deuxième lecture ne repart pas sur le
-       réseau. */
-    expect(vault.get("ailleurs")).toBeInstanceOf(Blob);
+    /* Filed on the way: the second read does not go back on the
+       network. */
+    expect(vault.get("elsewhere")).toBeInstanceOf(Blob);
     ticket.mockClear();
-    await readMedia("ailleurs");
+    await readMedia("elsewhere");
     expect(ticket).not.toHaveBeenCalled();
   });
 
-  it("rend null quand il n'y a rien nulle part", async () => {
-    /* C'est le moment où « restée sur l'autre appareil » dit vrai. */
-    expect(await readMedia("nulle-part")).toBeNull();
+  it("answers null when there is nothing anywhere", async () => {
+    /* That is the moment "stayed on the other device" tells the
+       truth. */
+    expect(await readMedia("nowhere")).toBeNull();
   });
 
-  it("passe les octets au contrôle avant de les garder", async () => {
+  it("puts the bytes through the vetting before keeping them", async () => {
     container.set(`p/${ME}/suspect`, new Blob(["<svg onload=alert(1)/>"]));
 
-    const refuse = await readMedia("suspect", async () => null);
-    expect(refuse).toBeNull();
-    /* CE QUI EST REFUSÉ N'EST PAS MIS EN CACHE. Sans cette ligne, le
-       markup écarté serait servi tel quel à la lecture suivante. */
+    const refused = await readMedia("suspect", async () => null);
+    expect(refused).toBeNull();
+    /* WHAT IS REFUSED IS NOT CACHED. Without this line, the discarded
+       markup would be served as it stands on the next read. */
     expect(vault.has("suspect")).toBe(false);
 
-    const propre = await readMedia("suspect", async () => new Blob(["<svg/>"]));
-    expect(await propre.text()).toBe("<svg/>");
+    const clean = await readMedia("suspect", async () => new Blob(["<svg/>"]));
+    expect(await clean.text()).toBe("<svg/>");
     expect(await vault.get("suspect").text()).toBe("<svg/>");
   });
 });
 
-describe("effacer", () => {
-  it("retire la copie du container", async () => {
-    container.set(`p/${ME}/vieille`, new Blob(["png"]));
-    await dropMedia("vieille");
-    expect(container.has(`p/${ME}/vieille`)).toBe(false);
+describe("erasing", () => {
+  it("removes the copy from the container", async () => {
+    container.set(`p/${ME}/old-one`, new Blob(["png"]));
+    await dropMedia("old-one");
+    expect(container.has(`p/${ME}/old-one`)).toBe(false);
   });
 
-  it("se tait quand il n'y a pas d'adresse", async () => {
-    /* Un décor jamais monté n'a rien à effacer là-bas, et un ménage
-       local ne doit pas s'arrêter pour autant. */
-    await expect(dropMedia("decor:tout-neuf")).resolves.toBeUndefined();
+  it("stays quiet when there is no address", async () => {
+    /* A decor that never went up has nothing to erase over there, and a
+       local tidy-up must not stop for it. */
+    await expect(dropMedia("decor:brand-new")).resolves.toBeUndefined();
   });
 });

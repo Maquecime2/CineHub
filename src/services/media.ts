@@ -1,5 +1,5 @@
 /* ============================================================
-   LES MÉDIAS — un miroir, et la vitre reste l'original
+   THE MEDIA — a mirror, and the vault stays the original
    ============================================================
 
    Until now nothing binary left the machine that made it. The
@@ -26,10 +26,10 @@
    the job of remembering would be four places to forget it in.
 
    ------------------------------------------------------------
-   L'ADRESSE D'UN BLOB N'EST PAS SA CLÉ
+   A BLOB'S ADDRESS IS NOT ITS KEY
 
-     decor:<id>  ->  decor/<id serveur>     partageable
-     tout le reste -> p/<id de personne>/<clé>   privé
+     decor:<id>       ->  decor/<server id>       shareable
+     everything else  ->  p/<person id>/<key>     private
 
    A decor may be READ BY SOMEBODY ELSE, so it is filed apart and its
    right to be read is decided by the server. Everything else is guarded
@@ -114,7 +114,7 @@ export function remotePath(key: string): string | null {
 const usable = (): boolean => serverConfigured() && accountOpen();
 
 /* ------------------------------------------------------------
-   DÉPOSER
+   PUTTING DOWN
    ------------------------------------------------------------ */
 
 /**
@@ -206,7 +206,7 @@ export async function dropMedia(key: string): Promise<void> {
 }
 
 /* ------------------------------------------------------------
-   RAPATRIER
+   FETCHING BACK
    ------------------------------------------------------------ */
 
 /**

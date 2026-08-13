@@ -55,22 +55,22 @@ afterEach(async () => {
   await db.close();
 });
 
-describe("les autres appareils", () => {
-  it("ne parle à personne sans session", async () => {
+describe("the other devices", () => {
+  it("speaks to nobody without a session", async () => {
     for (const [method, url] of [
       ["GET", "/auth/keys"],
       ["POST", "/auth/keys/options"],
       ["POST", "/auth/keys/verify"],
-      ["DELETE", "/auth/keys/quelconque"],
+      ["DELETE", "/auth/keys/whatever"],
     ] as const) {
       const r = await app.inject({ method, url });
       expect(r.statusCode, `${method} ${url}`).toBe(401);
     }
   });
 
-  it("propose une clé d'un AUTRE appareil, et exclut celles déjà là", async () => {
+  it("offers a key from ANOTHER device, and excludes the ones already here", async () => {
     const anna = await account("anna");
-    await hangKey(anna.person.id, "hello-de-ce-pc");
+    await hangKey(anna.person.id, "hello-on-this-pc");
 
     const r = await app.inject({
       method: "POST",
@@ -80,121 +80,123 @@ describe("les autres appareils", () => {
     expect(r.statusCode).toBe(200);
     const { options } = r.json();
 
-    /* Les deux mots qui font apparaître le QR du téléphone plutôt que le
-       capteur de ce PC-ci. */
+    /* The two words that bring up the telephone's QR code rather than
+       this computer's own sensor. */
     expect(options.authenticatorSelection.authenticatorAttachment).toBe("cross-platform");
     expect(options.authenticatorSelection.residentKey).toBe("required");
-    expect(options.excludeCredentials.map((c: { id: string }) => c.id)).toEqual(["hello-de-ce-pc"]);
+    expect(options.excludeCredentials.map((c: { id: string }) => c.id)).toEqual([
+      "hello-on-this-pc",
+    ]);
   });
 
-  it("refuse un défi ouvert pour quelqu'un d'autre", async () => {
+  it("refuses a challenge opened for somebody else", async () => {
     const anna = await account("anna");
     const bruno = await account("bruno");
 
-    const ouvert = await app.inject({
+    const opened = await app.inject({
       method: "POST",
       url: "/auth/keys/options",
       headers: { cookie: anna.cookie },
     });
-    const { challenge } = ouvert.json();
+    const { challenge } = opened.json();
 
-    const vole = await app.inject({
+    const stolen = await app.inject({
       method: "POST",
       url: "/auth/keys/verify",
       headers: { cookie: bruno.cookie },
       payload: { challenge, response: {} },
     });
-    expect(vole.statusCode).toBe(403);
+    expect(stolen.statusCode).toBe(403);
 
-    /* Et le défi est consommé au passage : le rejouer, même par son
-       propriétaire, ne mène nulle part. */
-    const rejoue = await app.inject({
+    /* And the challenge is consumed on the way: replaying it, even by
+       its owner, leads nowhere. */
+    const replayed = await app.inject({
       method: "POST",
       url: "/auth/keys/verify",
       headers: { cookie: anna.cookie },
       payload: { challenge, response: {} },
     });
-    expect(rejoue.statusCode).toBe(400);
+    expect(replayed.statusCode).toBe(400);
   });
 
-  it("montre les appareils sans livrer la clé publique", async () => {
+  it("shows the devices without handing over the public key", async () => {
     const anna = await account("anna");
-    await hangKey(anna.person.id, "le-pc");
-    await hangKey(anna.person.id, "le-telephone", ["hybrid", "internal"]);
+    await hangKey(anna.person.id, "the-pc");
+    await hangKey(anna.person.id, "the-telephone", ["hybrid", "internal"]);
 
     const { keys } = (
       await app.inject({ method: "GET", url: "/auth/keys", headers: { cookie: anna.cookie } })
     ).json();
 
     expect(keys).toHaveLength(2);
-    expect(keys.map((k: { id: string }) => k.id).sort()).toEqual(["le-pc", "le-telephone"]);
-    /* `hybrid` est ce qui, sur l'autre PC, allumera l'offre du QR. */
-    expect(keys.find((k: { id: string }) => k.id === "le-telephone").transports).toContain(
+    expect(keys.map((k: { id: string }) => k.id).sort()).toEqual(["the-pc", "the-telephone"]);
+    /* `hybrid` is what will light up the QR offer on the other PC. */
+    expect(keys.find((k: { id: string }) => k.id === "the-telephone").transports).toContain(
       "hybrid"
     );
     for (const k of keys) expect(k).not.toHaveProperty("public_key");
   });
 
-  it("ne voit pas les appareils des autres", async () => {
+  it("does not see other people's devices", async () => {
     const anna = await account("anna");
     const bruno = await account("bruno");
-    await hangKey(anna.person.id, "le-pc-d-anna");
+    await hangKey(anna.person.id, "annas-pc");
 
     const { keys } = (
       await app.inject({ method: "GET", url: "/auth/keys", headers: { cookie: bruno.cookie } })
     ).json();
     expect(keys).toEqual([]);
 
-    /* Et il ne la retire pas non plus : elle n'existe pas, de son côté. */
+    /* Nor does he remove it: on his side, it does not exist. */
     const r = await app.inject({
       method: "DELETE",
-      url: "/auth/keys/le-pc-d-anna",
+      url: "/auth/keys/annas-pc",
       headers: { cookie: bruno.cookie },
     });
     expect(r.statusCode).toBe(404);
     expect(await store.countKeys(db, anna.person.id)).toBe(1);
   });
 
-  it("retire une clé quand il en reste une, jamais la dernière", async () => {
+  it("removes a key while one is left, never the last", async () => {
     const anna = await account("anna");
-    await hangKey(anna.person.id, "le-pc");
-    await hangKey(anna.person.id, "le-telephone");
+    await hangKey(anna.person.id, "the-pc");
+    await hangKey(anna.person.id, "the-telephone");
 
-    const premier = await app.inject({
+    const first = await app.inject({
       method: "DELETE",
-      url: "/auth/keys/le-pc",
+      url: "/auth/keys/the-pc",
       headers: { cookie: anna.cookie },
     });
-    expect(premier.statusCode).toBe(200);
-    expect(premier.json().keys).toHaveLength(1);
+    expect(first.statusCode).toBe(200);
+    expect(first.json().keys).toHaveLength(1);
 
-    const dernier = await app.inject({
+    const last = await app.inject({
       method: "DELETE",
-      url: "/auth/keys/le-telephone",
+      url: "/auth/keys/the-telephone",
       headers: { cookie: anna.cookie },
     });
-    expect(dernier.statusCode).toBe(409);
+    expect(last.statusCode).toBe(409);
     expect(await store.countKeys(db, anna.person.id)).toBe(1);
   });
 
-  it("deux retraits simultanés ne vident pas le trousseau", async () => {
+  it("two simultaneous removals do not empty the keyring", async () => {
     const anna = await account("anna");
-    await hangKey(anna.person.id, "le-pc");
-    await hangKey(anna.person.id, "le-telephone");
+    await hangKey(anna.person.id, "the-pc");
+    await hangKey(anna.person.id, "the-telephone");
 
-    /* La garde est dans le SQL, pas dans le gestionnaire : comptée dans
-       la route puis appliquée après, elle laisserait passer ces deux-là. */
+    /* The guard is in the SQL, not in the handler: counted in the route
+       and applied afterwards, it would let these two through. */
     const [a, b] = await Promise.all([
-      store.forgetKey(db, anna.person.id, "le-pc"),
-      store.forgetKey(db, anna.person.id, "le-telephone"),
+      store.forgetKey(db, anna.person.id, "the-pc"),
+      store.forgetKey(db, anna.person.id, "the-telephone"),
     ]);
     expect([a, b].filter(Boolean).length).toBeGreaterThanOrEqual(1);
     expect(await store.countKeys(db, anna.person.id)).toBeGreaterThanOrEqual(1);
   });
 
-  it("laisse la clé du téléphone se présenter à la connexion", async () => {
+  it("lets the telephone's key present itself at sign-in", async () => {
     const anna = await account("anna");
-    await hangKey(anna.person.id, "le-telephone", ["hybrid", "internal"]);
+    await hangKey(anna.person.id, "the-telephone", ["hybrid", "internal"]);
 
     const r = await app.inject({
       method: "POST",
@@ -202,8 +204,8 @@ describe("les autres appareils", () => {
       payload: { pseudo: "anna" },
     });
     const { options } = r.json();
-    /* Sans les transports, le navigateur de l'autre PC n'offre pas le
-       QR : c'est ce chemin-là qui fait tout le point 2. */
+    /* Without the transports, the other PC's browser offers no QR code:
+       that path is the whole of this feature. */
     expect(options.allowCredentials).toHaveLength(1);
     expect(options.allowCredentials[0].transports).toContain("hybrid");
   });

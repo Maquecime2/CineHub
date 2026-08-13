@@ -4,7 +4,7 @@ import * as store from "../src/store.ts";
 import type { Db } from "../src/db.ts";
 
 /* ============================================================
-   LES OBJETS DE DÉCORATION, ET QUI PEUT LES VOIR
+   THE DECORATION OBJECTS, AND WHO MAY SEE THEM
 
    A decor is the only thing somebody uploads that another person may
    read. Everything else is guarded by the blob's path alone — one's own
@@ -39,118 +39,119 @@ afterEach(async () => {
   await db.close();
 });
 
-describe("les décors", () => {
-  it("refuse une pièce sans nom, ou d'une espèce inconnue", async () => {
+describe("the decoration objects", () => {
+  it("refuses a piece with no name, or of an unknown kind", async () => {
     const a = await anna();
     await expect(store.createDecor(db, { ownerId: a.id, label: "   " })).rejects.toThrow();
     await expect(
-      store.createDecor(db, { ownerId: a.id, label: "une lampe", kind: "gif" as never })
+      store.createDecor(db, { ownerId: a.id, label: "a lamp", kind: "gif" as never })
     ).rejects.toThrow();
   });
 
-  it("s'en va avec la personne qui l'a faite", async () => {
+  it("goes with the person who made it", async () => {
     const a = await anna();
     const b = await bruno();
-    const lampe = await store.createDecor(db, { ownerId: a.id, label: "une lampe" });
-    await store.editDecor(db, a.id, lampe.id, { is_public: true });
-    await store.copyDecor(db, b.id, lampe.id);
+    const lamp = await store.createDecor(db, { ownerId: a.id, label: "a lamp" });
+    await store.editDecor(db, a.id, lamp.id, { is_public: true });
+    await store.copyDecor(db, b.id, lamp.id);
 
     await store.deletePerson(db, a.id);
-    expect(await store.decorById(db, lampe.id)).toBeNull();
-    /* La copie part avec l'original : la cascade est dans le schéma. */
+    expect(await store.decorById(db, lamp.id)).toBeNull();
+    /* The copy goes with the original: the cascade is in the schema. */
     expect(await store.myDecor(db, b.id)).toEqual([]);
   });
 
-  it("reste privé par défaut, et invisible aux autres", async () => {
+  it("stays private by default, and invisible to others", async () => {
     const a = await anna();
     const b = await bruno();
-    const lampe = await store.createDecor(db, { ownerId: a.id, label: "une lampe" });
+    const lamp = await store.createDecor(db, { ownerId: a.id, label: "a lamp" });
 
-    expect(lampe.is_public).toBe(false);
-    expect(await store.canReadDecor(db, a.id, lampe.id)).toBe(true);
-    expect(await store.canReadDecor(db, b.id, lampe.id)).toBe(false);
+    expect(lamp.is_public).toBe(false);
+    expect(await store.canReadDecor(db, a.id, lamp.id)).toBe(true);
+    expect(await store.canReadDecor(db, b.id, lamp.id)).toBe(false);
     expect(await store.publicDecorOf(db, "anna")).toEqual([]);
   });
 
-  it("se montre à qui suit, une fois posé en vitrine", async () => {
+  it("shows itself to a follower once put on display", async () => {
     const a = await anna();
     const b = await bruno();
-    const lampe = await store.createDecor(db, { ownerId: a.id, label: "une lampe" });
-    await store.editDecor(db, a.id, lampe.id, { is_public: true });
+    const lamp = await store.createDecor(db, { ownerId: a.id, label: "a lamp" });
+    await store.editDecor(db, a.id, lamp.id, { is_public: true });
     await store.follow(db, b.id, a.id);
 
-    expect(await store.canReadDecor(db, b.id, lampe.id)).toBe(true);
-    expect((await store.sharedDecor(db, b.id)).map((d) => d.label)).toEqual(["une lampe"]);
+    expect(await store.canReadDecor(db, b.id, lamp.id)).toBe(true);
+    expect((await store.sharedDecor(db, b.id)).map((d) => d.label)).toEqual(["a lamp"]);
     expect((await store.publicDecorOf(db, "anna", b.id)).map((d) => d.owner)).toEqual(["anna"]);
   });
 
-  it("un blocage l'emporte sur la vitrine", async () => {
+  it("a block beats the display", async () => {
     const a = await anna();
     const b = await bruno();
-    const lampe = await store.createDecor(db, { ownerId: a.id, label: "une lampe" });
-    await store.editDecor(db, a.id, lampe.id, { is_public: true });
+    const lamp = await store.createDecor(db, { ownerId: a.id, label: "a lamp" });
+    await store.editDecor(db, a.id, lamp.id, { is_public: true });
     await store.follow(db, b.id, a.id);
     await store.block(db, b.id, a.id);
 
-    expect(await store.canReadDecor(db, b.id, lampe.id)).toBe(false);
+    expect(await store.canReadDecor(db, b.id, lamp.id)).toBe(false);
     expect(await store.sharedDecor(db, b.id)).toEqual([]);
     expect(await store.publicDecorOf(db, "anna", b.id)).toEqual([]);
-    /* Et dans l'autre sens aussi : bloquer agit des deux côtés. */
-    expect(await store.canReadDecor(db, a.id, lampe.id)).toBe(true);
+    /* And the other way round too: blocking works in both directions. */
+    expect(await store.canReadDecor(db, a.id, lamp.id)).toBe(true);
   });
 
-  it("une copie survit au retour en privé", async () => {
+  it("a copy survives a return to private", async () => {
     const a = await anna();
     const b = await bruno();
-    const lampe = await store.createDecor(db, { ownerId: a.id, label: "une lampe" });
-    await store.editDecor(db, a.id, lampe.id, { is_public: true });
-    expect(await store.copyDecor(db, b.id, lampe.id)).toBe(true);
+    const lamp = await store.createDecor(db, { ownerId: a.id, label: "a lamp" });
+    await store.editDecor(db, a.id, lamp.id, { is_public: true });
+    expect(await store.copyDecor(db, b.id, lamp.id)).toBe(true);
 
-    await store.editDecor(db, a.id, lampe.id, { is_public: false });
-    expect(await store.canReadDecor(db, b.id, lampe.id)).toBe(true);
+    await store.editDecor(db, a.id, lamp.id, { is_public: false });
+    expect(await store.canReadDecor(db, b.id, lamp.id)).toBe(true);
     expect((await store.myDecor(db, b.id)).map((d) => d.mine)).toEqual([false]);
   });
 
-  it("ne se copie pas sans le droit de le lire", async () => {
+  it("is not copied without the right to read it", async () => {
     const a = await anna();
     const b = await bruno();
-    const lampe = await store.createDecor(db, { ownerId: a.id, label: "une lampe" });
+    const lamp = await store.createDecor(db, { ownerId: a.id, label: "a lamp" });
 
-    expect(await store.copyDecor(db, b.id, lampe.id)).toBe(false);
+    expect(await store.copyDecor(db, b.id, lamp.id)).toBe(false);
     expect(await store.myDecor(db, b.id)).toEqual([]);
   });
 
-  it("le retrait par l'auteur ne reprend pas ce qui a été donné", async () => {
+  it("the author's withdrawal does not take back what was given", async () => {
     const a = await anna();
     const b = await bruno();
-    const lampe = await store.createDecor(db, { ownerId: a.id, label: "une lampe" });
-    await store.editDecor(db, a.id, lampe.id, { is_public: true });
-    await store.copyDecor(db, b.id, lampe.id);
+    const lamp = await store.createDecor(db, { ownerId: a.id, label: "a lamp" });
+    await store.editDecor(db, a.id, lamp.id, { is_public: true });
+    await store.copyDecor(db, b.id, lamp.id);
 
-    expect(await store.deleteDecor(db, a.id, lampe.id)).toBe(true);
-    /* L'objet a disparu des deux côtés — c'est le sens d'un retrait —
-       mais la LIGNE est toujours là : rien n'a cascadé sur les copies,
-       et le blob reste lisible le temps que le client range sa copie. */
-    expect(await store.decorById(db, lampe.id)).toBeNull();
+    expect(await store.deleteDecor(db, a.id, lamp.id)).toBe(true);
+    /* The object has gone from both sides — that is what withdrawing
+       means — but the ROW is still there: nothing cascaded onto the
+       copies, and the blob stays readable while the client tidies its
+       own copy away. */
+    expect(await store.decorById(db, lamp.id)).toBeNull();
     expect(await store.myDecor(db, b.id)).toEqual([]);
-    const reste = await db.query("SELECT deleted FROM decor WHERE id = $1", [lampe.id]);
-    expect(reste).toHaveLength(1);
+    const left = await db.query("SELECT deleted FROM decor WHERE id = $1", [lamp.id]);
+    expect(left).toHaveLength(1);
   });
 
-  it("n'est ni modifié ni retiré par quelqu'un d'autre", async () => {
+  it("is neither edited nor withdrawn by somebody else", async () => {
     const a = await anna();
     const b = await bruno();
-    const lampe = await store.createDecor(db, { ownerId: a.id, label: "une lampe" });
-    await store.editDecor(db, a.id, lampe.id, { is_public: true });
-    await store.copyDecor(db, b.id, lampe.id);
+    const lamp = await store.createDecor(db, { ownerId: a.id, label: "a lamp" });
+    await store.editDecor(db, a.id, lamp.id, { is_public: true });
+    await store.copyDecor(db, b.id, lamp.id);
 
-    expect(await store.editDecor(db, b.id, lampe.id, { label: "chez moi" })).toBe(false);
-    expect(await store.deleteDecor(db, b.id, lampe.id)).toBe(false);
-    expect(await store.ownsDecor(db, b.id, lampe.id)).toBe(false);
-    expect(await store.ownsDecor(db, a.id, lampe.id)).toBe(true);
+    expect(await store.editDecor(db, b.id, lamp.id, { label: "mine now" })).toBe(false);
+    expect(await store.deleteDecor(db, b.id, lamp.id)).toBe(false);
+    expect(await store.ownsDecor(db, b.id, lamp.id)).toBe(false);
+    expect(await store.ownsDecor(db, a.id, lamp.id)).toBe(true);
 
-    /* Rendre sa copie n'atteint pas l'original. */
-    await store.dropDecorCopy(db, b.id, lampe.id);
-    expect((await store.decorById(db, lampe.id))?.label).toBe("une lampe");
+    /* Giving back one's copy does not reach the original. */
+    await store.dropDecorCopy(db, b.id, lamp.id);
+    expect((await store.decorById(db, lamp.id))?.label).toBe("a lamp");
   });
 });

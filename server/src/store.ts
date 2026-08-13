@@ -1168,7 +1168,7 @@ export async function listById(db: Db, id: string): Promise<ListRow | null> {
  * parameter to receive them.
  */
 /* ------------------------------------------------------------
-   LES OBJETS DE DÉCORATION
+   THE DECORATION OBJECTS
    ------------------------------------------------------------
    A decor is the only thing somebody uploads that ANOTHER PERSON may
    read. Everything else — posters, screenshots — is guarded by its

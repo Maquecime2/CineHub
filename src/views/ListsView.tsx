@@ -393,7 +393,7 @@ function OneList({
 }
 
 /* ============================================================
-   REMPLIR UNE LISTE DEPUIS TMDB
+   FILLING A LIST FROM TMDB
    ============================================================
 
    The old note here said that filling a list from this view would have

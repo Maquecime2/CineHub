@@ -1111,7 +1111,7 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
   });
 
   /* ------------------------------------------------------------
-     LES MÉDIAS — un miroir des blobs, sur un container Azure
+     THE MEDIA — a mirror of the blobs, on an Azure container
      ------------------------------------------------------------
 
      Until now nothing binary left the machine that made it: the
@@ -1180,7 +1180,7 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
   });
 
   /* ------------------------------------------------------------
-     LES OBJETS DE DÉCORATION — et le rayon des autres
+     THE DECORATION OBJECTS — and other people's shelf
      ------------------------------------------------------------
      A decor is the only thing somebody uploads that another person may
      read, which is why it has a table of its own rather than living

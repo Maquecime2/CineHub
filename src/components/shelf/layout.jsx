@@ -1376,7 +1376,7 @@ const CabinetNote = ({ children, ...p }) => (
    The family is chosen BEFORE the import, and not after: it decides how
    the drawing rests in its cell — laid on the bottom, hooked by the top —
    and it is written into the file at the moment one files it. */
-/* ---------- CHEZ LES AUTRES ----------
+/* ---------- OTHER PEOPLE'S SHELF ----------
 
    The pieces the people one follows have put on show. It is the only
    place in this cabinet where something arrives from outside, and

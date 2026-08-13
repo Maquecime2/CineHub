@@ -1,5 +1,5 @@
 /* ============================================================
-   RANGER DEPUIS LE MUR — un film, ou trente
+   FILING FROM THE WALL — one film, or thirty
    ============================================================
 
    Everything the wall needs in order to file films lives here rather

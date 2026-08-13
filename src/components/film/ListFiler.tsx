@@ -1,5 +1,5 @@
 /* ============================================================
-   RANGER DANS UNE LISTE — le geste, partout où il se présente
+   FILING INTO A LIST — the gesture, wherever it comes up
    ============================================================
 
    THE GESTURE USED TO START FROM THE CARD ONLY, and the reasoning that

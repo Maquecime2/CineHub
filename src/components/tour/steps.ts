@@ -143,7 +143,7 @@ const library: Tour = {
       placement: "top",
       optional: true,
     },
-    /* RANGER SANS OUVRIR LA FICHE. The badge hides until the hand is
+    /* FILING WITHOUT OPENING THE CARD. The badge hides until the hand is
        near, which is what makes the wall a wall and not a wall of
        buttons — and also what makes it impossible to find by chance.
        Hence the step.
@@ -265,7 +265,7 @@ const detail: Tour = {
       placement: "left",
       optional: true,
     },
-    /* RANGER DEPUIS LA FICHE. The anchor has existed for a long time and
+    /* FILING FROM THE CARD. The anchor has existed for a long time and
        no step described it; and what it does has changed — one can now
        make the list from here, where before the whole section vanished
        until a list existed elsewhere. */
@@ -634,7 +634,7 @@ const lists: Tour = {
       placement: "bottom",
       optional: true,
     },
-    /* REMPLIR UNE LISTE DEPUIS TMDB. The search only exists inside an
+    /* FILLING A LIST FROM TMDB. The search only exists inside an
        OPEN list one may write in: on arriving here with nothing opened
        there is no anchor, hence `optional`. */
     {

@@ -6,7 +6,7 @@ import type { Db } from "../src/db.ts";
 import type { FastifyInstance } from "fastify";
 
 /* ============================================================
-   LES TICKETS D'ACCÈS AUX MÉDIAS
+   THE MEDIA ACCESS TICKETS
 
    The container's key never leaves the server: the browser is handed a
    signature for ONE blob, valid a quarter of an hour. So what has to be
@@ -35,8 +35,8 @@ let app: FastifyInstance;
 /* A fake account key: the signature is never checked here, only the
    decision to produce one at all. It is not a secret and stands for
    nothing real. */
-const FAUX = Buffer.from("cine-hub-pour-les-tests").toString("base64");
-const CHAINE = `DefaultEndpointsProtocol=https;AccountName=cinehub;AccountKey=${FAUX};EndpointSuffix=core.windows.net`;
+const FAKE = Buffer.from("cine-hub-for-the-tests").toString("base64");
+const STRING = `DefaultEndpointsProtocol=https;AccountName=cinehub;AccountKey=${FAKE};EndpointSuffix=core.windows.net`;
 
 async function account(pseudo: string) {
   const person = await store.createPerson(db, pseudo);
@@ -54,7 +54,7 @@ const ticket = (cookie: string, path: string) =>
 beforeEach(async () => {
   db = await testDb();
   app = await testApp(db);
-  configureMedia(readConnectionString(CHAINE, "medias"));
+  configureMedia(readConnectionString(STRING, "media"));
 });
 
 afterEach(async () => {
@@ -65,8 +65,8 @@ afterEach(async () => {
   await db.close();
 });
 
-describe("la lecture d'un chemin", () => {
-  it("reconnaît les deux branches, et rien d'autre", () => {
+describe("reading a path", () => {
+  it("recognises the two branches, and nothing else", () => {
     const who = "3f1a2b4c-5d6e-4f70-8192-a3b4c5d6e7f8";
     expect(readPath(`p/${who}/still-abc-1`)).toEqual({
       kind: "private",
@@ -80,9 +80,9 @@ describe("la lecture d'un chemin", () => {
       "p//x",
       `p/${who}/`,
       `p/${who}/../../secret`,
-      `p/pas-un-uuid/x`,
-      "decor/pas-un-uuid",
-      `decor/${who}/encore`,
+      `p/not-a-uuid/x`,
+      "decor/not-a-uuid",
+      `decor/${who}/more`,
       `${who}/x`,
       `p/${who}/${"x".repeat(121)}`,
     ]) {
@@ -90,16 +90,16 @@ describe("la lecture d'un chemin", () => {
     }
   });
 
-  it("refuse une chaîne de connexion incomplète plutôt que d'en deviner la moitié", () => {
-    expect(readConnectionString(undefined, "medias")).toBeNull();
-    expect(readConnectionString(CHAINE, undefined)).toBeNull();
-    expect(readConnectionString("AccountName=cinehub", "medias")).toBeNull();
-    expect(readConnectionString(CHAINE, "medias")?.account).toBe("cinehub");
+  it("refuses an incomplete connection string rather than guessing half of it", () => {
+    expect(readConnectionString(undefined, "media")).toBeNull();
+    expect(readConnectionString(STRING, undefined)).toBeNull();
+    expect(readConnectionString("AccountName=cinehub", "media")).toBeNull();
+    expect(readConnectionString(STRING, "media")?.account).toBe("cinehub");
   });
 });
 
-describe("les tickets", () => {
-  it("ne parle à personne sans session", async () => {
+describe("the tickets", () => {
+  it("speaks to nobody without a session", async () => {
     for (const [method, url] of [
       ["POST", "/media/tickets"],
       ["GET", "/media/ticket?path=x"],
@@ -109,14 +109,14 @@ describe("les tickets", () => {
     }
   });
 
-  it("se tait quand aucun container n'est réglé", async () => {
+  it("stays quiet when no container is set", async () => {
     configureMedia(null);
     const anna = await account("anna");
-    const r = await ticket(anna.cookie, `p/${anna.person.id}/une-affiche`);
+    const r = await ticket(anna.cookie, `p/${anna.person.id}/a-poster`);
     expect(r.statusCode).toBe(503);
   });
 
-  it("signe pour son propre préfixe", async () => {
+  it("signs for one's own prefix", async () => {
     const anna = await account("anna");
     const r = await app.inject({
       method: "POST",
@@ -127,46 +127,46 @@ describe("les tickets", () => {
     expect(r.statusCode).toBe(200);
     const { tickets } = r.json();
     expect(tickets).toHaveLength(1);
-    expect(tickets[0].url).toContain("/medias/p/");
-    /* Écriture : Azure compte « créer » et « écrire » séparément. */
+    expect(tickets[0].url).toContain("/media/p/");
+    /* Writing: Azure counts "create" and "write" separately. */
     expect(tickets[0].url).toMatch(/sp=(?=[^&]*c)(?=[^&]*w)/);
   });
 
-  it("ne signe RIEN pour le préfixe de quelqu'un d'autre", async () => {
+  it("signs NOTHING for somebody else's prefix", async () => {
     const anna = await account("anna");
     const bruno = await account("bruno");
 
-    const vol = await app.inject({
+    const theft = await app.inject({
       method: "POST",
       url: "/media/tickets",
       headers: { cookie: bruno.cookie },
       payload: { paths: [`p/${anna.person.id}/still-abc-1`] },
     });
-    expect(vol.json().tickets).toEqual([]);
+    expect(theft.json().tickets).toEqual([]);
     expect((await ticket(bruno.cookie, `p/${anna.person.id}/still-abc-1`)).statusCode).toBe(404);
   });
 
-  it("écarte un chemin fautif sans couler tout le paquet", async () => {
+  it("sets a faulty path aside without sinking the whole batch", async () => {
     const anna = await account("anna");
     const r = await app.inject({
       method: "POST",
       url: "/media/tickets",
       headers: { cookie: anna.cookie },
       payload: {
-        paths: [`p/${anna.person.id}/bon`, "n'importe quoi", `p/${anna.person.id}/bon-aussi`],
+        paths: [`p/${anna.person.id}/good`, "anything at all", `p/${anna.person.id}/good-too`],
       },
     });
-    /* Cinquante captures partent d'un coup : qu'une seule soit fautive
-       vaut un ticket manquant, pas quarante-neuf. */
+    /* Fifty screenshots go up at once: one of them being wrong is worth
+       one missing ticket, not forty-nine. */
     expect(r.json().tickets.map((t: { path: string }) => t.path)).toEqual([
-      `p/${anna.person.id}/bon`,
-      `p/${anna.person.id}/bon-aussi`,
+      `p/${anna.person.id}/good`,
+      `p/${anna.person.id}/good-too`,
     ]);
   });
 
-  it("refuse un paquet vide ou démesuré", async () => {
+  it("refuses an empty or outsized batch", async () => {
     const anna = await account("anna");
-    for (const paths of [[], new Array(51).fill(`p/${anna.person.id}/x`), "pas un tableau"]) {
+    for (const paths of [[], new Array(51).fill(`p/${anna.person.id}/x`), "not an array"]) {
       const r = await app.inject({
         method: "POST",
         url: "/media/tickets",
@@ -178,71 +178,71 @@ describe("les tickets", () => {
   });
 });
 
-describe("les tickets d'un décor", () => {
-  it("suivent le droit de le lire, pas le préfixe", async () => {
+describe("a decor's tickets", () => {
+  it("follow the right to read it, not the prefix", async () => {
     const anna = await account("anna");
     const bruno = await account("bruno");
-    const lampe = await store.createDecor(db, { ownerId: anna.person.id, label: "une lampe" });
-    const chemin = `decor/${lampe.id}`;
+    const lamp = await store.createDecor(db, { ownerId: anna.person.id, label: "a lamp" });
+    const path = `decor/${lamp.id}`;
 
-    expect((await ticket(bruno.cookie, chemin)).statusCode).toBe(404);
-    await store.editDecor(db, anna.person.id, lampe.id, { is_public: true });
-    expect((await ticket(bruno.cookie, chemin)).statusCode).toBe(200);
+    expect((await ticket(bruno.cookie, path)).statusCode).toBe(404);
+    await store.editDecor(db, anna.person.id, lamp.id, { is_public: true });
+    expect((await ticket(bruno.cookie, path)).statusCode).toBe(200);
 
-    /* Et un blocage l'emporte sur la vitrine, jusqu'ici compris. */
+    /* And a block beats the display, here included. */
     await store.block(db, bruno.person.id, anna.person.id);
-    expect((await ticket(bruno.cookie, chemin)).statusCode).toBe(404);
+    expect((await ticket(bruno.cookie, path)).statusCode).toBe(404);
   });
 
-  it("n'ouvrent l'écriture qu'à son auteur — copie comprise", async () => {
+  it("open writing to its author alone — a copy included", async () => {
     const anna = await account("anna");
     const bruno = await account("bruno");
-    const lampe = await store.createDecor(db, { ownerId: anna.person.id, label: "une lampe" });
-    await store.editDecor(db, anna.person.id, lampe.id, { is_public: true });
-    await store.copyDecor(db, bruno.person.id, lampe.id);
-    const chemin = `decor/${lampe.id}`;
+    const lamp = await store.createDecor(db, { ownerId: anna.person.id, label: "a lamp" });
+    await store.editDecor(db, anna.person.id, lamp.id, { is_public: true });
+    await store.copyDecor(db, bruno.person.id, lamp.id);
+    const path = `decor/${lamp.id}`;
 
-    /* Avoir pris une copie donne le droit de LIRE, jamais celui de
-       réécrire la pièce chez son auteur. */
-    expect(await allowed(db, bruno.person.id, chemin, "read")).toBe(true);
-    expect(await allowed(db, bruno.person.id, chemin, "write")).toBe(false);
-    expect(await allowed(db, anna.person.id, chemin, "write")).toBe(true);
+    /* Having taken a copy gives the right to READ, never the right to
+       rewrite the piece at its author's. */
+    expect(await allowed(db, bruno.person.id, path, "read")).toBe(true);
+    expect(await allowed(db, bruno.person.id, path, "write")).toBe(false);
+    expect(await allowed(db, anna.person.id, path, "write")).toBe(true);
 
-    const efface = await app.inject({
+    const erase = await app.inject({
       method: "DELETE",
-      url: `/media?path=${encodeURIComponent(chemin)}`,
+      url: `/media?path=${encodeURIComponent(path)}`,
       headers: { cookie: bruno.cookie },
     });
-    expect(efface.statusCode).toBe(404);
+    expect(erase.statusCode).toBe(404);
   });
 
-  it("un décor retiré ne se lit plus, même par son auteur", async () => {
+  it("a withdrawn decor is no longer read, even by its author", async () => {
     const anna = await account("anna");
-    const lampe = await store.createDecor(db, { ownerId: anna.person.id, label: "une lampe" });
-    await store.deleteDecor(db, anna.person.id, lampe.id);
-    expect((await ticket(anna.cookie, `decor/${lampe.id}`)).statusCode).toBe(404);
+    const lamp = await store.createDecor(db, { ownerId: anna.person.id, label: "a lamp" });
+    await store.deleteDecor(db, anna.person.id, lamp.id);
+    expect((await ticket(anna.cookie, `decor/${lamp.id}`)).statusCode).toBe(404);
   });
 });
 
-describe("le rayon des décors", () => {
-  it("crée la ligne AVANT le blob, et rend son chemin", async () => {
+describe("the decor shelf", () => {
+  it("makes the row BEFORE the blob, and hands back its path", async () => {
     const anna = await account("anna");
     const r = await app.inject({
       method: "POST",
       url: "/decor",
       headers: { cookie: anna.cookie },
-      payload: { label: "une lampe", kind: "svg", tintable: true },
+      payload: { label: "a lamp", kind: "svg", tintable: true },
     });
     expect(r.statusCode).toBe(201);
     const { decor, path } = r.json();
-    /* C'est cette ligne qui donne à l'objet l'identité que deux
-       personnes peuvent nommer — le blob suit. */
+    /* It is that row which gives the object the identity two people can
+       name — the blob follows. */
     expect(path).toBe(`decor/${decor.id}`);
     expect(decor.is_public).toBe(false);
     expect((await ticket(anna.cookie, path)).statusCode).toBe(200);
   });
 
-  it("refuse un nom vide ou une espèce inconnue", async () => {
+  it("refuses an empty name or an unknown kind", async () => {
     const anna = await account("anna");
     for (const payload of [
       { label: "  " },
@@ -259,71 +259,71 @@ describe("le rayon des décors", () => {
     }
   });
 
-  it("montre le rayon des autres, sans y mettre les siens", async () => {
+  it("shows other people's shelf, without putting one's own on it", async () => {
     const anna = await account("anna");
     const bruno = await account("bruno");
-    const lampe = await store.createDecor(db, { ownerId: anna.person.id, label: "une lampe" });
-    await store.editDecor(db, anna.person.id, lampe.id, { is_public: true });
-    await store.createDecor(db, { ownerId: bruno.person.id, label: "un cadre" });
+    const lamp = await store.createDecor(db, { ownerId: anna.person.id, label: "a lamp" });
+    await store.editDecor(db, anna.person.id, lamp.id, { is_public: true });
+    await store.createDecor(db, { ownerId: bruno.person.id, label: "a frame" });
     await store.follow(db, bruno.person.id, anna.person.id);
 
-    const chezLesAutres = (
+    const elsewhere = (
       await app.inject({ method: "GET", url: "/decor/shared", headers: { cookie: bruno.cookie } })
     ).json();
-    expect(chezLesAutres.decor.map((d: { label: string }) => d.label)).toEqual(["une lampe"]);
+    expect(elsewhere.decor.map((d: { label: string }) => d.label)).toEqual(["a lamp"]);
 
-    const chezMoi = (
+    const mine = (
       await app.inject({ method: "GET", url: "/decor", headers: { cookie: bruno.cookie } })
     ).json();
-    expect(chezMoi.decor.map((d: { label: string }) => d.label)).toEqual(["un cadre"]);
+    expect(mine.decor.map((d: { label: string }) => d.label)).toEqual(["a frame"]);
   });
 
-  it("distingue reprendre sa copie et retirer sa pièce", async () => {
+  it("tells giving back a copy from withdrawing a piece", async () => {
     const anna = await account("anna");
     const bruno = await account("bruno");
-    const lampe = await store.createDecor(db, { ownerId: anna.person.id, label: "une lampe" });
-    await store.editDecor(db, anna.person.id, lampe.id, { is_public: true });
+    const lamp = await store.createDecor(db, { ownerId: anna.person.id, label: "a lamp" });
+    await store.editDecor(db, anna.person.id, lamp.id, { is_public: true });
 
-    const prise = await app.inject({
+    const taken = await app.inject({
       method: "POST",
-      url: `/decor/${lampe.id}/copy`,
+      url: `/decor/${lamp.id}/copy`,
       headers: { cookie: bruno.cookie },
     });
-    expect(prise.statusCode).toBe(200);
+    expect(taken.statusCode).toBe(200);
 
-    /* Bruno rend sa copie : l'original ne bouge pas. */
-    const rendu = await app.inject({
+    /* Bruno gives his copy back: the original does not move. */
+    const given = await app.inject({
       method: "DELETE",
-      url: `/decor/${lampe.id}`,
+      url: `/decor/${lamp.id}`,
       headers: { cookie: bruno.cookie },
     });
-    expect(rendu.json().withdrawn).toBe(false);
-    expect((await store.decorById(db, lampe.id))?.label).toBe("une lampe");
+    expect(given.json().withdrawn).toBe(false);
+    expect((await store.decorById(db, lamp.id))?.label).toBe("a lamp");
 
-    /* Anna la retire : la pièce s'en va pour tout le monde. */
-    const retrait = await app.inject({
+    /* Anna withdraws it: the piece goes for everybody. */
+    const withdrawal = await app.inject({
       method: "DELETE",
-      url: `/decor/${lampe.id}`,
+      url: `/decor/${lamp.id}`,
       headers: { cookie: anna.cookie },
     });
-    expect(retrait.json().withdrawn).toBe(true);
-    expect(await store.decorById(db, lampe.id)).toBeNull();
+    expect(withdrawal.json().withdrawn).toBe(true);
+    expect(await store.decorById(db, lamp.id)).toBeNull();
   });
 
-  it("ne se renomme pas chez son auteur", async () => {
+  it("is not renamed at its author's", async () => {
     const anna = await account("anna");
     const bruno = await account("bruno");
-    const lampe = await store.createDecor(db, { ownerId: anna.person.id, label: "une lampe" });
-    await store.editDecor(db, anna.person.id, lampe.id, { is_public: true });
-    await store.copyDecor(db, bruno.person.id, lampe.id);
+    const lamp = await store.createDecor(db, { ownerId: anna.person.id, label: "a lamp" });
+    await store.editDecor(db, anna.person.id, lamp.id, { is_public: true });
+    await store.copyDecor(db, bruno.person.id, lamp.id);
 
     const r = await app.inject({
       method: "PUT",
-      url: `/decor/${lampe.id}`,
+      url: `/decor/${lamp.id}`,
       headers: { cookie: bruno.cookie },
-      payload: { label: "chez moi" },
+      payload: { label: "mine now" },
     });
     expect(r.statusCode).toBe(404);
-    expect((await store.decorById(db, lampe.id))?.label).toBe("une lampe");
+    expect((await store.decorById(db, lamp.id))?.label).toBe("a lamp");
   });
 });
