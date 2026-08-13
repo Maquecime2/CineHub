@@ -13,6 +13,7 @@ import {
   Users,
   Users2,
   ListChecks,
+  Puzzle,
   Compass,
   Sparkles,
   CalendarDays,
@@ -38,6 +39,7 @@ export type View =
   | "import"
   | "thread"
   | "lists"
+  | "quiz"
   | "detail"
   | "almanac"
   | "skinlab";
@@ -101,6 +103,19 @@ const TABS: {
     label: "views.lists",
     color: C.moss,
     icon: ListChecks,
+    needsServer: true,
+  },
+  /* And the quizzes last of all: a list is something one keeps, a quiz
+     is an evening. It carries the plum of the Credits — the eight tints
+     are taken, and the two never sit side by side in the rail.
+     NOT `HelpCircle`, WHICH IS THE HELP: that icon already means "the
+     guided tour" at the foot of this very rail, and one drawing standing
+     for two things is the sort of confusion a rail cannot afford. */
+  {
+    key: "quiz",
+    label: "views.quiz",
+    color: C.plum,
+    icon: Puzzle,
     needsServer: true,
   },
 ];

@@ -822,6 +822,7 @@ const fr = {
     import: "Import Letterboxd",
     thread: "Le fil",
     lists: "Listes et défis",
+    quiz: "Quizz",
     skinlab: "Peaux ⚙",
   },
 
@@ -1223,6 +1224,98 @@ const fr = {
     running: "en cours",
   },
 
+  quizView: {
+    heading: "Les quizz",
+    subheading: "ce qu'on croit savoir, tiré au sort et mis à l'épreuve entre amis",
+    newQuiz: "Composer un quizz",
+    newQuizPlaceholder: "Le quizz du samedi soir",
+    baskets: "Dans quelles catégories",
+    levelLabel: "Niveau",
+    sizeLabel: "Longueur",
+    deal: "TIRER",
+    dealNote:
+      "Les questions sont tirées au sort dans les catégories cochées, dosées selon le niveau : il y a toujours un peu de tout. Le tirage est figé — vos invités auront exactement les mêmes.",
+    thinBank:
+      "Ces catégories n'ont que {{available}} questions jouables pour {{size}} demandées : le quizz sera plus court.",
+    bankEmpty: "La banque est vide pour l'instant. Il n'y a rien à tirer.",
+    softened:
+      "La banque manquait de questions au niveau demandé : celui-ci a été complété avec le niveau voisin.",
+    yours: "Ceux que vous avez tirés",
+    noneDealt: "Aucun quizz tiré pour l'instant.",
+    given: "Ceux qu'on vous a donnés",
+    noneGiven: "Personne ne vous a encore invité à un quizz.",
+    by: "de {{pseudo}}",
+    questionCount_one: "{{count}} question",
+    questionCount_other: "{{count}} questions",
+    done: "terminé",
+    underway: "commencé",
+    untouched: "à faire",
+    difficulty: {
+      easy: "facile",
+      normal: "moyen",
+      hard: "difficile",
+    },
+    difficultyLabel: "Difficulté",
+    worth: "{{n}} pt",
+    points_one: "{{count}} point",
+    points_other: "{{count}} points",
+    progress: "{{done}} sur {{total}}",
+    noTakingBack: "Une réponse posée ne se reprend pas.",
+    allAnswered: "Toutes les questions sont répondues.",
+    finish: "TERMINER",
+    finishNote: "Terminer découvre les corrections, et ferme le quizz pour de bon.",
+    overForYou: "C'est fait. On ne le rejoue pas.",
+    yourScore: "{{score}} sur {{weight}}",
+    gotIt: "juste · {{points}}",
+    missedIt: "raté · c'était « {{answer}} »",
+    scores: "Les scores",
+    nobodyPlayed: "Personne n'y a encore touché.",
+    stillPlaying: "en cours",
+    players: "Qui joue",
+    nobodyYet: "Personne encore. Un quizz ne se voit que de ceux qu'on invite.",
+    invite: "INVITER",
+    invitePlaceholder: "un pseudonyme",
+    removePlayer: "Retirer cette personne",
+    nobodyToInvite: "Personne à inviter sous « {{pseudo}} ».",
+    deleteQuiz: "Effacer ce quizz",
+    tendBank: "TENIR LA BANQUE",
+    bankNote:
+      "Les catégories et leurs questions. C'est le stock où tout le monde vient tirer — vous ne composez pas de quizz ici, vous les rendez possibles.",
+    newCategory: "Une nouvelle catégorie",
+    newCategoryPlaceholder: "Nouvelle Vague, Hitchcock, affiches…",
+    addCategory: "AJOUTER",
+    noCategories: "Aucune catégorie. C'est par là que ça commence.",
+    deleteCategory: "Effacer cette catégorie",
+    noQuestions: "Aucune question dans cette catégorie.",
+    addQuestion: "Ajouter une question",
+    editQuestion: "Modifier cette question",
+    removeQuestion: "Retirer cette question",
+    needsOneRight: "une seule bonne réponse",
+    retired: "retirée",
+    retiredNote:
+      "Elle a déjà été tirée dans un quizz : elle n'est plus proposée, mais elle y reste lisible. Un score déjà fait ne se réécrit pas.",
+    revive: "La remettre en circulation",
+    choicesFrozen:
+      "L'énoncé est corrigé. Les propositions, elles, ne bougent plus : quelqu'un a déjà répondu à cette question.",
+    ask: "L'énoncé",
+    askPlaceholder: "Qui a réalisé Cléo de 5 à 7 ?",
+    choices: "Les propositions",
+    choicePlaceholder: "Proposition {{n}}",
+    markRight: "C'est celle-ci la bonne",
+    removeChoice: "Retirer cette proposition",
+    addChoice: "une proposition de plus",
+    hint: "L'explication",
+    hintPlaceholder: "Montrée une fois la réponse posée",
+    image: "L'image",
+    imagePlaceholder: "https://… ou bank/<id>/…",
+    save: "ENREGISTRER",
+    cancel: "ANNULER",
+    noServer:
+      "Aucun serveur n'est réglé : un quizz se joue à plusieurs, et il n'y a personne avec qui.",
+    noAccount:
+      "Il faut un compte — le bouton au pied du rail. Votre vidéothèque, elle, n'en a pas besoin.",
+  },
+
   constellation: {
     aFilm: "film",
     aThread: "fil",
@@ -1553,6 +1646,38 @@ const fr = {
       },
     },
 
+    quiz: {
+      label: "Les quizz",
+      compose: {
+        title: "Tirer un quizz",
+        body: "On ne les écrit pas, on les tire : cochez des catégories, un niveau, une longueur, et les questions viennent au hasard de la banque. Le dosage est fixe — un quizz difficile garde des respirations, un quizz facile garde une colle — et deux quizz de même niveau et même longueur pèsent le même nombre de points. C'est ce qui rend deux scores comparables.",
+      },
+      bank: {
+        title: "La banque",
+        body: "Elle est réservée : si ce bouton est là, c'est que vous pouvez la remplir. Des catégories, et dedans des questions classées facile, moyen ou difficile — les points suivent la difficulté, on ne les saisit pas. Vous ne composez pas de quizz ici : vous les rendez possibles, pour tout le monde.",
+      },
+      mine: {
+        title: "Ceux que vous avez tirés",
+        body: "Vous ne les avez pas écrits, alors vous les jouez comme les autres : pas d'aperçu des réponses, et un vrai score au classement. C'est ici qu'on invite ses potes — le tirage est figé, ils auront exactement vos questions, dans le même ordre.",
+      },
+      given: {
+        title: "Ceux qu'on vous a donnés",
+        body: "Ouvrez-en un et il commence. Vous répondez quand vous voulez, en plusieurs fois — mais une réponse posée ne se reprend pas, et une fois terminé, on ne le rejoue pas.",
+      },
+      playing: {
+        title: "Une question à la fois",
+        body: "La catégorie et les points sont annoncés avant l'énoncé. La bonne réponse ne descend qu'une fois le quizz terminé — elle n'est pas cachée à l'écran, elle n'est pas dans la réponse du serveur. Terminer découvre les corrections, et les explications avec.",
+      },
+      players: {
+        title: "Qui joue",
+        body: "On invite par pseudonyme, comme pour une liste. Il n'y a pas de classement public : les scores que vous comparez sont ceux des gens que vous avez invités, et un blocage l'emporte des deux côtés.",
+      },
+      scores: {
+        title: "Les scores",
+        body: "Rien n'est stocké : le score se recalcule depuis les réponses, à chaque fois. La barre se lit sur ce que vaut le quizz entier, pas sur le meilleur score — sinon une soirée où tout le monde s'est planté aurait l'air d'un triomphe. Une barre pâle est quelqu'un qui n'a pas fini.",
+      },
+    },
+
     global: {
       label: "Visite complète",
       welcome: {
@@ -1602,6 +1727,10 @@ const fr = {
       challenges: {
         title: "Se lancer quelque chose",
         body: "Une liste plus une période fait un défi. Personne ne coche « vu » : l'avancement se calcule depuis votre journal de séances, et le serveur n'en tire qu'un nombre — vos dates ne sortent pas d'ici.",
+      },
+      quiz: {
+        title: "Et se poser des questions",
+        body: "Un défi mesure ce qu'on regarde ; un quizz mesure ce qu'on croit savoir. On vous en donne un, vous y répondez quand vous voulez, et les scores se comparent entre invités. Une réponse posée ne se reprend pas, et un quizz terminé ne se rejoue pas.",
       },
       tmdbKey: {
         title: "La clé TMDB",

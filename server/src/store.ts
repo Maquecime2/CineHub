@@ -10,6 +10,8 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { Db } from "./db.ts";
 import { one } from "./db.ts";
+import { planDraw } from "./draw.ts";
+import type { Difficulty, Stock } from "./draw.ts";
 
 export interface Person {
   id: string;
@@ -17,6 +19,8 @@ export interface Person {
   email: string | null;
   sharing?: string;
   token?: string | null;
+  /** Writes quizzes. Laid down from the environment, never from a route. */
+  is_admin?: boolean;
 }
 
 export interface AccessKey {
@@ -32,21 +36,40 @@ export interface AccessKey {
    ------------------------------------------------------------ */
 
 export async function findByPseudo(db: Db, pseudo: string): Promise<Person | null> {
-  return one<Person>(db, "SELECT id, pseudo, email, sharing, token FROM person WHERE pseudo = $1", [
-    pseudo,
-  ]);
+  return one<Person>(
+    db,
+    "SELECT id, pseudo, email, sharing, token, is_admin FROM person WHERE pseudo = $1",
+    [pseudo]
+  );
 }
 
 export async function findById(db: Db, id: string): Promise<Person | null> {
-  return one<Person>(db, "SELECT id, pseudo, email, sharing, token FROM person WHERE id = $1", [
-    id,
-  ]);
+  return one<Person>(
+    db,
+    "SELECT id, pseudo, email, sharing, token, is_admin FROM person WHERE id = $1",
+    [id]
+  );
+}
+
+/**
+ * THE ONLY WAY TO BECOME AN ADMIN, and it does not go through the web.
+ *
+ * Replayed at every start-up from the `ADMINS` environment variable, so a
+ * database recreated from nothing finds its author again without anybody
+ * remembering to run an `UPDATE` by hand. Idempotent, and it grants only:
+ * taking the role away is done by removing the pseudonym from the
+ * environment and running the matching `UPDATE`, which is a deliberate
+ * enough gesture that it should not be one line of start-up code.
+ */
+export async function markAdmins(db: Db, pseudos: string[]): Promise<void> {
+  if (pseudos.length === 0) return;
+  await db.query("UPDATE person SET is_admin = true WHERE pseudo = ANY($1)", [pseudos]);
 }
 
 export async function createPerson(db: Db, pseudo: string): Promise<Person> {
   const p = await one<Person>(
     db,
-    "INSERT INTO person (id, pseudo) VALUES ($1, $2) RETURNING id, pseudo, email",
+    "INSERT INTO person (id, pseudo) VALUES ($1, $2) RETURNING id, pseudo, email, is_admin",
     [randomUUID(), pseudo]
   );
   if (!p) throw new Error("person not created");
@@ -230,7 +253,7 @@ export async function openSession(db: Db, personId: string): Promise<string> {
 export async function personOfSession(db: Db, secret: string): Promise<Person | null> {
   return one<Person>(
     db,
-    `SELECT p.id, p.pseudo, p.email, p.sharing, p.token
+    `SELECT p.id, p.pseudo, p.email, p.sharing, p.token, p.is_admin
        FROM session s JOIN person p ON p.id = s.person_id
       WHERE s.digest = $1 AND s.expires_at > now()`,
     [fingerprintOf(secret)]
@@ -1153,6 +1176,718 @@ export async function listById(db: Db, id: string): Promise<ListRow | null> {
       WHERE l.id = $1`,
     [id]
   );
+}
+
+/* ------------------------------------------------------------
+   THE BANK, AND THE QUIZZES DRAWN FROM IT
+   ------------------------------------------------------------
+   Two halves that barely speak. The BANK is stock — categories and
+   questions, written by an admin, owned by nobody. A QUIZ is a DEAL made
+   out of it: chosen once, frozen in `quiz_draw`, and played by everybody
+   invited in the same order.
+
+   The frozen deal is the whole reason a score can be compared, and it is
+   why nothing below ever re-draws an existing quiz. */
+
+export interface CategoryRow {
+  id: string;
+  label: string;
+  blurb: string;
+  /** Live questions, per level — what a draw has to work with. */
+  easy: number;
+  normal: number;
+  hard: number;
+}
+
+export interface BankQuestion {
+  id: string;
+  category_id: string;
+  ask: string;
+  hint: string;
+  image: string | null;
+  difficulty: string;
+  retired: boolean;
+  choices: { id: string; label: string; is_right: boolean }[];
+}
+
+/* ---- the categories ---- */
+
+/**
+ * Every category, with what it holds.
+ *
+ * THE COUNTS COME DOWN WITH THE LIST, because the screen that offers the
+ * baskets is the screen that must not offer an empty one. Asking for
+ * them separately would have meant a second round trip to answer a
+ * question the first one was already looking at the rows for.
+ */
+export async function categories(db: Db): Promise<CategoryRow[]> {
+  return db.query<CategoryRow>(
+    `SELECT c.id, c.label, c.blurb,
+            count(q.id) FILTER (WHERE q.difficulty = 'easy')::int AS easy,
+            count(q.id) FILTER (WHERE q.difficulty = 'normal')::int AS normal,
+            count(q.id) FILTER (WHERE q.difficulty = 'hard')::int AS hard
+       FROM quiz_category c
+       LEFT JOIN quiz_question q
+              ON q.category_id = c.id AND q.retired_at IS NULL
+      GROUP BY c.id, c.label, c.blurb
+      ORDER BY c.label`
+  );
+}
+
+export async function createCategory(
+  db: Db,
+  c: { label: string; blurb?: string }
+): Promise<string> {
+  const id = randomUUID();
+  await db.query("INSERT INTO quiz_category (id, label, blurb) VALUES ($1, $2, $3)", [
+    id,
+    c.label,
+    c.blurb ?? "",
+  ]);
+  return id;
+}
+
+export async function editCategory(
+  db: Db,
+  id: string,
+  c: { label?: string; blurb?: string }
+): Promise<void> {
+  await db.query(
+    "UPDATE quiz_category SET label = coalesce($2, label), blurb = coalesce($3, blurb) WHERE id = $1",
+    [id, c.label ?? null, c.blurb ?? null]
+  );
+}
+
+export async function deleteCategory(db: Db, id: string): Promise<void> {
+  await db.query("DELETE FROM quiz_category WHERE id = $1", [id]);
+}
+
+export async function categoryExists(db: Db, id: string): Promise<boolean> {
+  return (
+    (await one<{ id: string }>(db, "SELECT id FROM quiz_category WHERE id = $1", [id])) !== null
+  );
+}
+
+/* ---- the questions in it ---- */
+
+/**
+ * A category's questions, corrections included.
+ *
+ * NO `withAnswers` FLAG HERE, and that is not an oversight: this is the
+ * bank, and the only route that reads it is guarded by `requireAdmin`.
+ * The withholding happens in `drawnQuestions` below, which is what a
+ * player reads.
+ */
+export async function bankQuestions(db: Db, categoryId: string): Promise<BankQuestion[]> {
+  const rows = await db.query<Omit<BankQuestion, "choices"> & { retired: boolean }>(
+    `SELECT id, category_id, ask, hint, image, difficulty,
+            (retired_at IS NOT NULL) AS retired
+       FROM quiz_question WHERE category_id = $1
+      ORDER BY difficulty, created_at`,
+    [categoryId]
+  );
+  const choices = await db.query<{
+    id: string;
+    question_id: string;
+    label: string;
+    is_right: boolean;
+  }>(
+    `SELECT c.id, c.question_id, c.label, c.is_right
+       FROM quiz_choice c JOIN quiz_question q ON q.id = c.question_id
+      WHERE q.category_id = $1
+      ORDER BY c.rank`,
+    [categoryId]
+  );
+  return rows.map((q) => ({
+    ...q,
+    choices: choices
+      .filter((c) => c.question_id === q.id)
+      .map((c) => ({ id: c.id, label: c.label, is_right: c.is_right })),
+  }));
+}
+
+export async function addBankQuestion(
+  db: Db,
+  categoryId: string,
+  q: { ask: string; hint?: string; image?: string | null; difficulty?: string }
+): Promise<string> {
+  const id = randomUUID();
+  await db.query(
+    `INSERT INTO quiz_question (id, category_id, ask, hint, image, difficulty)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [id, categoryId, q.ask, q.hint ?? "", q.image ?? null, q.difficulty ?? "normal"]
+  );
+  return id;
+}
+
+export async function editBankQuestion(
+  db: Db,
+  questionId: string,
+  q: { ask?: string; hint?: string; image?: string | null; difficulty?: string }
+): Promise<void> {
+  await db.query(
+    `UPDATE quiz_question
+        SET ask = coalesce($2, ask),
+            hint = coalesce($3, hint),
+            image = CASE WHEN $4::boolean THEN $5 ELSE image END,
+            difficulty = coalesce($6, difficulty)
+      WHERE id = $1`,
+    [
+      questionId,
+      q.ask ?? null,
+      q.hint ?? null,
+      /* An image is the one field one may want to CLEAR, and `coalesce`
+         cannot tell "leave it" from "take it away". Hence the flag. */
+      q.image !== undefined,
+      q.image ?? null,
+      q.difficulty ?? null,
+    ]
+  );
+}
+
+/**
+ * WITHDRAWING A QUESTION IS NOT ERASING IT.
+ *
+ * A question already dealt into somebody's quiz must go on reading — a
+ * score already made is not rewritten because an admin thought better of
+ * a wording. So the bank stops dealing it, and the past keeps it. That
+ * is also what `ON DELETE RESTRICT` on `quiz_draw` enforces from
+ * underneath, for the day somebody reaches for a real `DELETE`.
+ *
+ * A question never dealt has nothing to protect: it goes for good.
+ */
+export async function retireBankQuestion(db: Db, questionId: string): Promise<"gone" | "retired"> {
+  const dealt = await one<{ quiz_id: string }>(
+    db,
+    "SELECT quiz_id FROM quiz_draw WHERE question_id = $1 LIMIT 1",
+    [questionId]
+  );
+  if (!dealt) {
+    await db.query("DELETE FROM quiz_question WHERE id = $1", [questionId]);
+    return "gone";
+  }
+  await db.query(
+    "UPDATE quiz_question SET retired_at = now() WHERE id = $1 AND retired_at IS NULL",
+    [questionId]
+  );
+  return "retired";
+}
+
+export async function reviveBankQuestion(db: Db, questionId: string): Promise<void> {
+  await db.query("UPDATE quiz_question SET retired_at = NULL WHERE id = $1", [questionId]);
+}
+
+export async function questionInCategory(
+  db: Db,
+  questionId: string,
+  categoryId: string
+): Promise<boolean> {
+  return (
+    (await one<{ id: string }>(
+      db,
+      "SELECT id FROM quiz_question WHERE id = $1 AND category_id = $2",
+      [questionId, categoryId]
+    )) !== null
+  );
+}
+
+/**
+ * The whole set of propositions, replaced.
+ *
+ * Not a diff: a proposition has no identity worth keeping across an edit
+ * — it is a line of text and a tick — and reconciling four of them would
+ * be more code than rewriting them, with a way to get it wrong.
+ *
+ * THE ONE THING IT MUST NOT DO is rewrite propositions somebody has
+ * already answered. `quiz_answer.choice_id` points at them, so replacing
+ * a dealt question's set would cascade the answers away and quietly
+ * change a score. Hence the refusal, in the same breath as the write.
+ */
+export async function setChoices(
+  db: Db,
+  questionId: string,
+  choices: { label: string; is_right: boolean }[]
+): Promise<boolean> {
+  const dealt = await one<{ quiz_id: string }>(
+    db,
+    "SELECT quiz_id FROM quiz_draw WHERE question_id = $1 LIMIT 1",
+    [questionId]
+  );
+  if (dealt) return false;
+  await db.query("DELETE FROM quiz_choice WHERE question_id = $1", [questionId]);
+  for (const [i, c] of choices.entries()) {
+    await db.query(
+      "INSERT INTO quiz_choice (id, question_id, rank, label, is_right) VALUES ($1, $2, $3, $4, $5)",
+      [randomUUID(), questionId, i + 1, c.label, c.is_right]
+    );
+  }
+  return true;
+}
+
+/** Can this question be dealt at all — exactly one right answer? */
+export async function dealable(db: Db, questionId: string): Promise<boolean> {
+  const r = await one<{ n: number }>(
+    db,
+    `SELECT count(*)::int AS n FROM quiz_choice
+      WHERE question_id = $1 AND is_right`,
+    [questionId]
+  );
+  return r?.n === 1;
+}
+
+/* ---- the draw ---- */
+
+export interface QuizRow {
+  id: string;
+  title: string;
+  level: string;
+  size: number;
+  softened: boolean;
+  owner: string;
+  /** The baskets it was drawn from. */
+  topics: string[];
+  /** Mine to invite into. */
+  mine?: boolean;
+  answered?: number;
+  finished?: boolean;
+}
+
+export interface DrawnQuestion {
+  id: string;
+  rank: number;
+  ask: string;
+  image: string | null;
+  points: number;
+  category: string;
+  /** Withheld until the attempt is over. */
+  hint?: string;
+  choices: { id: string; label: string; is_right?: boolean }[];
+  mine?: string | null;
+}
+
+export interface QuizScore {
+  pseudo: string;
+  score: number;
+  answered: number;
+  finished: boolean;
+}
+
+/**
+ * WHAT THE BANK HOLDS, for the levels a draw needs to plan against.
+ *
+ * Only DEALABLE questions are counted — live, and with exactly one right
+ * answer. A half-written question in the bank is stock that does not
+ * exist: planning against it would deal a question nobody can get right,
+ * and the plan would be a lie one question at a time.
+ */
+export async function stockOf(
+  db: Db,
+  categoryIds: string[]
+): Promise<{ categoryId: string; have: Record<string, number> }[]> {
+  const rows = await db.query<{ category_id: string; difficulty: string; n: number }>(
+    `SELECT q.category_id, q.difficulty, count(*)::int AS n
+       FROM quiz_question q
+      WHERE q.category_id = ANY($1)
+        AND q.retired_at IS NULL
+        AND (SELECT count(*) FROM quiz_choice c
+              WHERE c.question_id = q.id AND c.is_right) = 1
+      GROUP BY q.category_id, q.difficulty`,
+    [categoryIds]
+  );
+  return categoryIds.map((id) => ({
+    categoryId: id,
+    have: {
+      easy: rows.find((r) => r.category_id === id && r.difficulty === "easy")?.n ?? 0,
+      normal: rows.find((r) => r.category_id === id && r.difficulty === "normal")?.n ?? 0,
+      hard: rows.find((r) => r.category_id === id && r.difficulty === "hard")?.n ?? 0,
+    },
+  }));
+}
+
+/** `count` question identifiers, taken at random from one cell. */
+async function pick(
+  db: Db,
+  categoryId: string,
+  difficulty: string,
+  count: number,
+  already: string[]
+): Promise<string[]> {
+  const r = await db.query<{ id: string }>(
+    `SELECT q.id FROM quiz_question q
+      WHERE q.category_id = $1 AND q.difficulty = $2
+        AND q.retired_at IS NULL
+        AND NOT (q.id = ANY($4))
+        AND (SELECT count(*) FROM quiz_choice c
+              WHERE c.question_id = q.id AND c.is_right) = 1
+      ORDER BY random()
+      LIMIT $3`,
+    [categoryId, difficulty, count, already]
+  );
+  return r.map((x) => x.id);
+}
+
+/**
+ * THE DEAL, AND IT HAPPENS ONCE.
+ *
+ * The arithmetic of it — shares, mix, what to do when the bank is short
+ * — is in `draw.ts` and knows nothing of a database. This function does
+ * the two things that need one: ask what the stock is, and pick that
+ * many identifiers out of it at random.
+ *
+ * `ORDER BY random()` and not a shuffle in TypeScript: the rows never
+ * have to come out of the database to be shuffled, and a category with
+ * three hundred questions costs the same as one with three.
+ */
+export async function drawQuiz(
+  db: Db,
+  ownerId: string,
+  q: { title: string; categoryIds: string[]; level: string; size: number }
+): Promise<{ id: string; softened: boolean; drawn: number }> {
+  const stock = await stockOf(db, q.categoryIds);
+  const plan = planDraw(stock as Stock[], q.level as Difficulty, q.size, shuffled);
+
+  const chosen: string[] = [];
+  for (const cell of plan.cells) {
+    chosen.push(...(await pick(db, cell.categoryId, cell.difficulty, cell.count, chosen)));
+  }
+  /* The order the questions are asked in is chance too. Dealing them
+     category by category would have made every quiz read as a series of
+     little blocks, which is not what "a quiz on three subjects" means. */
+  const order = shuffled(chosen);
+
+  const id = randomUUID();
+  await db.query(
+    "INSERT INTO quiz (id, owner_id, title, level, size, softened) VALUES ($1, $2, $3, $4, $5, $6)",
+    [id, ownerId, q.title, q.level, q.size, plan.softened || order.length < q.size]
+  );
+  for (const categoryId of q.categoryIds) {
+    await db.query(
+      "INSERT INTO quiz_topic (quiz_id, category_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+      [id, categoryId]
+    );
+  }
+  for (const [i, questionId] of order.entries()) {
+    await db.query("INSERT INTO quiz_draw (quiz_id, question_id, rank) VALUES ($1, $2, $3)", [
+      id,
+      questionId,
+      i + 1,
+    ]);
+  }
+  return { id, softened: plan.softened || order.length < q.size, drawn: order.length };
+}
+
+/** Fisher-Yates. Not `sort(() => Math.random() - 0.5)`, which is not a shuffle. */
+function shuffled<T>(xs: T[]): T[] {
+  const out = [...xs];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j]!, out[i]!];
+  }
+  return out;
+}
+
+/** What somebody is allowed to do with a quiz. */
+export interface QuizRights {
+  read: boolean;
+  /** Invite, rename, erase. The dealer alone — nobody edits a deal. */
+  write: boolean;
+  owner_id: string;
+  quiz_id: string;
+}
+
+/**
+ * Somebody's rights over a quiz, in one query, blocks included.
+ *
+ * TWO LEVELS AND NO ROLE. Drawing a quiz is open to everybody, so
+ * `is_admin` has nothing to say here — it guards the bank, and only the
+ * bank. `read` is where the block lives, and it lives INSIDE this query
+ * rather than in a fourth check laid on top: the fourth check is the one
+ * that gets forgotten.
+ */
+export async function rightsOnQuiz(
+  db: Db,
+  quizId: string,
+  personId: string | null
+): Promise<QuizRights | null> {
+  const q = await one<{ id: string; owner_id: string; invited: boolean; blocked: boolean }>(
+    db,
+    `SELECT q.id, q.owner_id,
+            EXISTS (SELECT 1 FROM quiz_player x
+                     WHERE x.quiz_id = q.id AND x.person_id = $2) AS invited,
+            NOT ${NOT_BLOCKED("$2", "q.owner_id")} AS blocked
+       FROM quiz q WHERE q.id = $1`,
+    [quizId, personId]
+  );
+  if (!q) return null;
+  const isOwner = personId !== null && q.owner_id === personId;
+  return {
+    quiz_id: q.id,
+    owner_id: q.owner_id,
+    write: isOwner,
+    read: isOwner || (q.invited && !q.blocked),
+  };
+}
+
+/** The quizzes I dealt, and those I was invited to. */
+export async function myQuizzes(db: Db, personId: string): Promise<QuizRow[]> {
+  return db.query<QuizRow>(
+    `SELECT q.id, q.title, q.level, q.size, q.softened,
+            o.pseudo AS owner,
+            (q.owner_id = $1) AS mine,
+            coalesce((SELECT array_agg(c.label ORDER BY c.label)
+                        FROM quiz_topic t JOIN quiz_category c ON c.id = t.category_id
+                       WHERE t.quiz_id = q.id), '{}') AS topics,
+            (SELECT count(*) FROM quiz_answer a
+              WHERE a.quiz_id = q.id AND a.person_id = $1)::int AS answered,
+            EXISTS (SELECT 1 FROM quiz_attempt t
+                     WHERE t.quiz_id = q.id AND t.person_id = $1
+                       AND t.finished_at IS NOT NULL) AS finished
+       FROM quiz q JOIN person o ON o.id = q.owner_id
+      WHERE q.owner_id = $1
+         OR (EXISTS (SELECT 1 FROM quiz_player x
+                      WHERE x.quiz_id = q.id AND x.person_id = $1)
+             AND ${NOT_BLOCKED("$1", "q.owner_id")})
+      ORDER BY q.created_at DESC`,
+    [personId]
+  );
+}
+
+export async function quizById(db: Db, id: string): Promise<QuizRow | null> {
+  return one<QuizRow>(
+    db,
+    `SELECT q.id, q.title, q.level, q.size, q.softened, o.pseudo AS owner,
+            coalesce((SELECT array_agg(c.label ORDER BY c.label)
+                        FROM quiz_topic t JOIN quiz_category c ON c.id = t.category_id
+                       WHERE t.quiz_id = q.id), '{}') AS topics
+       FROM quiz q JOIN person o ON o.id = q.owner_id
+      WHERE q.id = $1`,
+    [id]
+  );
+}
+
+export async function renameQuiz(db: Db, quizId: string, title: string): Promise<void> {
+  await db.query("UPDATE quiz SET title = $2 WHERE id = $1", [quizId, title]);
+}
+
+export async function deleteQuiz(db: Db, quizId: string): Promise<void> {
+  await db.query("DELETE FROM quiz WHERE id = $1", [quizId]);
+}
+
+/**
+ * The questions a quiz was dealt, and THE FLAG THAT DECIDES WHETHER THE
+ * ANSWER IS IN THEM.
+ *
+ * `withAnswers` is false for somebody still playing, and that is the
+ * whole security of the exercise: `is_right` and `hint` never leave this
+ * process before the attempt is over, so opening the inspector shows the
+ * propositions and nothing else. Withholding them in the component that
+ * renders them would have shipped them anyway.
+ *
+ * NOTE THAT THE DEALER GETS NO PRIVILEGE HERE. Whoever drew the quiz did
+ * not write it — the bank did — so they play it on the same terms as the
+ * people they invited, and their score counts like anybody's.
+ */
+export async function drawnQuestions(
+  db: Db,
+  quizId: string,
+  o: { withAnswers: boolean; forPerson?: string | null }
+): Promise<DrawnQuestion[]> {
+  const rows = await db.query<{
+    id: string;
+    rank: number;
+    ask: string;
+    hint: string;
+    image: string | null;
+    points: number;
+    category: string;
+    mine: string | null;
+  }>(
+    `SELECT q.id, d.rank, q.ask, q.hint, q.image,
+            quiz_points(q.difficulty) AS points,
+            c.label AS category,
+            (SELECT a.choice_id FROM quiz_answer a
+              WHERE a.quiz_id = d.quiz_id AND a.question_id = q.id
+                AND a.person_id = $2) AS mine
+       FROM quiz_draw d
+       JOIN quiz_question q ON q.id = d.question_id
+       JOIN quiz_category c ON c.id = q.category_id
+      WHERE d.quiz_id = $1
+      ORDER BY d.rank`,
+    [quizId, o.forPerson ?? null]
+  );
+  const choices = await db.query<{
+    id: string;
+    question_id: string;
+    label: string;
+    is_right: boolean;
+  }>(
+    `SELECT c.id, c.question_id, c.label, c.is_right
+       FROM quiz_choice c
+       JOIN quiz_draw d ON d.question_id = c.question_id
+      WHERE d.quiz_id = $1
+      ORDER BY c.rank`,
+    [quizId]
+  );
+  return rows.map((q) => ({
+    id: q.id,
+    rank: q.rank,
+    ask: q.ask,
+    image: q.image,
+    points: q.points,
+    category: q.category,
+    ...(o.withAnswers ? { hint: q.hint } : {}),
+    mine: q.mine,
+    choices: choices
+      .filter((c) => c.question_id === q.id)
+      .map((c) => ({
+        id: c.id,
+        label: c.label,
+        ...(o.withAnswers ? { is_right: c.is_right } : {}),
+      })),
+  }));
+}
+
+/** What a quiz is worth in all — the same for two quizzes of a level. */
+export async function quizWeight(db: Db, quizId: string): Promise<number> {
+  const r = await one<{ n: number }>(
+    db,
+    `SELECT coalesce(sum(quiz_points(q.difficulty)), 0)::int AS n
+       FROM quiz_draw d JOIN quiz_question q ON q.id = d.question_id
+      WHERE d.quiz_id = $1`,
+    [quizId]
+  );
+  return r?.n ?? 0;
+}
+
+/* ---- who plays, and what they scored ---- */
+
+export async function playersOf(db: Db, quizId: string): Promise<string[]> {
+  const r = await db.query<{ pseudo: string }>(
+    `SELECT p.pseudo FROM quiz_player x JOIN person p ON p.id = x.person_id
+      WHERE x.quiz_id = $1 ORDER BY p.pseudo`,
+    [quizId]
+  );
+  return r.map((l) => l.pseudo);
+}
+
+export async function invitePlayer(db: Db, quizId: string, personId: string): Promise<void> {
+  await db.query(
+    "INSERT INTO quiz_player (quiz_id, person_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+    [quizId, personId]
+  );
+}
+
+export async function removePlayer(db: Db, quizId: string, personId: string): Promise<void> {
+  await db.query("DELETE FROM quiz_player WHERE quiz_id = $1 AND person_id = $2", [
+    quizId,
+    personId,
+  ]);
+}
+
+export interface Attempt {
+  started_at: string;
+  finished_at: string | null;
+}
+
+export async function myAttempt(db: Db, quizId: string, personId: string): Promise<Attempt | null> {
+  return one<Attempt>(
+    db,
+    "SELECT started_at, finished_at FROM quiz_attempt WHERE quiz_id = $1 AND person_id = $2",
+    [quizId, personId]
+  );
+}
+
+/** Opening one is idempotent — the primary key sees to it. */
+export async function startAttempt(db: Db, quizId: string, personId: string): Promise<void> {
+  await db.query(
+    "INSERT INTO quiz_attempt (quiz_id, person_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+    [quizId, personId]
+  );
+}
+
+/**
+ * Lay down one answer. Returns false when it changed nothing — already
+ * answered, or the attempt is closed.
+ *
+ * The `WHERE` on `finished_at IS NULL` is not a courtesy: without it, a
+ * request kept aside and replayed after the correction has been shown
+ * would score. The `ON CONFLICT DO NOTHING` says the other half — there
+ * is no changing one's mind once the answer is in. And the proposition
+ * must belong to a question THIS QUIZ WAS DEALT, which is the third
+ * condition below and the one a route would have forgotten.
+ */
+export async function answer(
+  db: Db,
+  quizId: string,
+  personId: string,
+  questionId: string,
+  choiceId: string
+): Promise<boolean> {
+  const r = await db.query(
+    `INSERT INTO quiz_answer (quiz_id, person_id, question_id, choice_id)
+     SELECT $1, $2, $3, $4
+      WHERE EXISTS (SELECT 1 FROM quiz_attempt t
+                     WHERE t.quiz_id = $1 AND t.person_id = $2 AND t.finished_at IS NULL)
+        AND EXISTS (SELECT 1 FROM quiz_choice c
+                     JOIN quiz_draw d ON d.question_id = c.question_id
+                    WHERE c.id = $4 AND d.question_id = $3 AND d.quiz_id = $1)
+     ON CONFLICT DO NOTHING
+     RETURNING question_id`,
+    [quizId, personId, questionId, choiceId]
+  );
+  return r.length > 0;
+}
+
+export async function finishAttempt(db: Db, quizId: string, personId: string): Promise<void> {
+  await db.query(
+    `UPDATE quiz_attempt SET finished_at = now()
+      WHERE quiz_id = $1 AND person_id = $2 AND finished_at IS NULL`,
+    [quizId, personId]
+  );
+}
+
+/**
+ * The scoreboard — and it is COMPUTED, never stored.
+ *
+ * A score column would be a second version of the truth, and the day the
+ * two disagreed there would be no telling which one was right. Here the
+ * answers are the truth, the points follow the difficulty through
+ * `quiz_points`, and the sum is a reading of both.
+ *
+ * Only people the reader may see appear: the dealer, and the invited
+ * players who are not blocked either way. A quiz has no public
+ * leaderboard, on purpose.
+ */
+export async function scoresOf(db: Db, quizId: string, personId: string): Promise<QuizScore[]> {
+  return db.query<QuizScore>(
+    `SELECT p.pseudo,
+            coalesce(sum(quiz_points(q.difficulty)) FILTER (WHERE c.is_right), 0)::int AS score,
+            count(a.question_id)::int AS answered,
+            (t.finished_at IS NOT NULL) AS finished
+       FROM quiz_attempt t
+       JOIN person p ON p.id = t.person_id
+       LEFT JOIN quiz_answer a ON a.quiz_id = t.quiz_id AND a.person_id = t.person_id
+       LEFT JOIN quiz_choice c ON c.id = a.choice_id
+       LEFT JOIN quiz_question q ON q.id = a.question_id
+      WHERE t.quiz_id = $1
+        AND ${NOT_BLOCKED("$2", "t.person_id")}
+      GROUP BY p.pseudo, t.finished_at
+      ORDER BY 2 DESC, p.pseudo`,
+    [quizId, personId]
+  );
+}
+
+/* ---- the media guard ----
+   A picture belongs to a QUESTION, which belongs to the bank — so the
+   right to look at one is not a right over a quiz. Anybody with an
+   account may read it: the bank is the common stock everybody draws
+   from, and a picture whose address is a pair of random identifiers is
+   not a secret worth building a second permission system for. Writing
+   is the admin's, like everything else in the bank. */
+
+export async function mayWriteBankMedia(db: Db, personId: string): Promise<boolean> {
+  const p = await findById(db, personId);
+  return p?.is_admin === true;
 }
 
 /* ------------------------------------------------------------

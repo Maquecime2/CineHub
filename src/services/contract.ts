@@ -28,6 +28,20 @@
 export interface Person {
   id: string;
   pseudo: string;
+  /**
+   * Writes quizzes, and nothing else — the one role there is.
+   *
+   * SPELLED AS THE DATABASE SPELLS IT, on purpose. This field comes
+   * straight off the `person` row and renaming it on the way through is
+   * precisely the drift this file was written after: a name that differs
+   * between the two halves reads as `undefined`, which here would mean
+   * "not an admin" and would hide the editor from the person who wrote
+   * every question.
+   *
+   * Optional because a server from before this existed answers without
+   * it, and reading its silence as "no" is the right answer.
+   */
+  is_admin?: boolean;
 }
 
 /** What the server answers when it says who somebody is. */

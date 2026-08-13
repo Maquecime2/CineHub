@@ -214,6 +214,22 @@ ALTER TABLE IF EXISTS person
   ADD COLUMN IF NOT EXISTS token text;
 
 -- ------------------------------------------------------------
+-- THE ONE ROLE
+-- ------------------------------------------------------------
+-- THIS FLAG IS NOT SET FROM THE WEB, EVER. It is laid down at start-up
+-- from the `ADMINS` environment variable, and no route reads it except to
+-- refuse. That is the whole reason it is safe to have at all: a role no
+-- request can grant cannot be escalated into, and the only way to become
+-- an admin is to have the deployment's environment — which is to say, to
+-- be the person who runs the server.
+--
+-- It buys exactly one thing today: writing quizzes. Everything else in
+-- this schema still answers to ownership, which is the right default; a
+-- role is a blunt instrument and this one is kept to a single edge.
+ALTER TABLE IF EXISTS person
+  ADD COLUMN IF NOT EXISTS is_admin boolean NOT NULL DEFAULT false;
+
+-- ------------------------------------------------------------
 -- THE PASSKEY
 -- ------------------------------------------------------------
 -- What the browser keeps is a pair of keys; what the server keeps is the
@@ -575,6 +591,190 @@ CREATE TABLE IF NOT EXISTS challenge_participant (
 );
 
 CREATE INDEX IF NOT EXISTS challenge_participant_person ON challenge_participant(person_id);
+
+-- ------------------------------------------------------------
+-- THE QUIZZES — A BANK, AND DRAWS MADE FROM IT
+-- ------------------------------------------------------------
+-- A CHALLENGE MEASURES WHAT ONE WATCHES; A QUIZ MEASURES WHAT ONE KNOWS.
+--
+-- THE SHAPE THAT MATTERS: NOBODY COMPOSES A QUIZ BY HAND. An admin fills
+-- a BANK — categories, and questions inside them, each classed easy,
+-- middling or hard. Anybody then DRAWS a quiz out of it: a few
+-- categories, a level, a length, and the server deals the questions.
+--
+-- Writing a quiz question by question was the first shape and it was
+-- worse in a way worth remembering: whoever wrote a quiz could never
+-- play it, and every evening cost somebody an hour of writing. A bank is
+-- filled once and dealt from for years.
+--
+-- THE DRAW IS FROZEN, and that is what makes a score worth comparing.
+-- The questions are chosen once, at creation, and written into
+-- `quiz_draw`; everybody invited answers those, in that order. Drawing
+-- afresh per player would have made two scores incomparable, which is
+-- the only thing this whole feature is for.
+
+-- THE OLD SHAPE, TAKEN DOWN. `quiz_question` used to hang off a quiz and
+-- carry its own `points`; it now hangs off a category and carries a
+-- difficulty instead. There is no sensible column-by-column migration
+-- between the two — the rows meant something else — and the shape never
+-- left this branch, so it is dropped rather than mended. The condition
+-- is the old column: a database that never saw it walks straight past.
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns
+              WHERE table_name = 'quiz_question' AND column_name = 'quiz_id') THEN
+    DROP TABLE IF EXISTS quiz_answer, quiz_attempt, quiz_player,
+                         quiz_choice, quiz_question, quiz CASCADE;
+  END IF;
+END $$;
+
+-- WHAT A QUESTION IS WORTH, IN ONE PLACE. The points are no longer typed
+-- in: they follow the difficulty, so a question cannot be easy and worth
+-- ten. Two quizzes of the same level and length therefore weigh exactly
+-- the same, which is the arithmetic behind "these scores are
+-- comparable". Written as a function because the scoreboard is not the
+-- only thing that will ever want to know.
+CREATE OR REPLACE FUNCTION quiz_points(difficulty text) RETURNS int
+  LANGUAGE sql IMMUTABLE AS
+  $$ SELECT CASE difficulty WHEN 'easy' THEN 1 WHEN 'hard' THEN 3 ELSE 2 END $$;
+
+CREATE TABLE IF NOT EXISTS quiz_category (
+  id            uuid PRIMARY KEY,
+  label         text NOT NULL UNIQUE CHECK (length(btrim(label)) BETWEEN 1 AND 60),
+  blurb         text NOT NULL DEFAULT '',
+  created_at    timestamptz NOT NULL DEFAULT now()
+);
+
+-- THE BANK. A question belongs to a category and to nobody: it is not
+-- owned, it is stock. Erasing the account that typed it in leaves it
+-- standing — the opposite would empty everybody's future evenings the
+-- day an admin left.
+CREATE TABLE IF NOT EXISTS quiz_question (
+  id            uuid PRIMARY KEY,
+  category_id   uuid NOT NULL REFERENCES quiz_category(id) ON DELETE CASCADE,
+  ask           text NOT NULL CHECK (length(btrim(ask)) BETWEEN 1 AND 400),
+  -- Shown once the answer is in, never before.
+  hint          text NOT NULL DEFAULT '',
+  -- Either a TMDB poster URL or a blob path under `bank/<category id>/…`.
+  -- Both are strings and neither is trusted: whoever renders it treats it
+  -- as an address, not as markup.
+  image         text,
+  difficulty    text NOT NULL DEFAULT 'normal'
+                CHECK (difficulty IN ('easy', 'normal', 'hard')),
+  created_at    timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS quiz_question_stock ON quiz_question(category_id, difficulty);
+
+CREATE TABLE IF NOT EXISTS quiz_choice (
+  id            uuid PRIMARY KEY,
+  question_id   uuid NOT NULL REFERENCES quiz_question(id) ON DELETE CASCADE,
+  rank          int NOT NULL,
+  label         text NOT NULL CHECK (length(btrim(label)) BETWEEN 1 AND 200),
+  is_right      boolean NOT NULL DEFAULT false,
+  UNIQUE (question_id, rank)
+);
+
+-- A QUIZ IS NOW A DRAW: who dealt it, out of what, and how it came out.
+-- It holds no question of its own — `quiz_draw` names them.
+CREATE TABLE IF NOT EXISTS quiz (
+  id            uuid PRIMARY KEY,
+  owner_id      uuid NOT NULL REFERENCES person(id) ON DELETE CASCADE,
+  title         text NOT NULL CHECK (length(btrim(title)) BETWEEN 1 AND 120),
+  level         text NOT NULL DEFAULT 'normal'
+                CHECK (level IN ('easy', 'normal', 'hard')),
+  -- Three formats and not a free number: the mix falls on whole
+  -- questions at 10, 20 and 30, and it is one decision fewer to make
+  -- when somebody just wants to start an evening.
+  size          int NOT NULL CHECK (size IN (10, 20, 30)),
+  -- TRUE when the bank could not fill the mix asked for and a
+  -- neighbouring level was used instead. Kept on the row rather than
+  -- recomputed, because the bank moves and the reason must stay true:
+  -- "a little gentler than asked, there were not enough hard ones" has
+  -- to go on being sayable a month later.
+  softened      boolean NOT NULL DEFAULT false,
+  created_at    timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS quiz_owner ON quiz(owner_id);
+
+-- What was asked for, kept for the telling. `SET NULL`-like behaviour is
+-- not wanted here: if a category goes, the quiz keeps its questions —
+-- they are named in `quiz_draw` — and merely stops being able to say
+-- which basket they came from.
+CREATE TABLE IF NOT EXISTS quiz_topic (
+  quiz_id       uuid NOT NULL REFERENCES quiz(id) ON DELETE CASCADE,
+  category_id   uuid NOT NULL REFERENCES quiz_category(id) ON DELETE CASCADE,
+  PRIMARY KEY (quiz_id, category_id)
+);
+
+-- THE DEAL ITSELF, and the reason a score means something: the same
+-- questions, in the same order, for everybody invited.
+--
+-- `ON DELETE RESTRICT` on the question, and it is deliberate: erasing a
+-- question out of the bank must NOT quietly shorten a quiz somebody is
+-- in the middle of playing, nor rewrite a score already made. The bank
+-- withdraws a question by refusing to deal it again — see
+-- `retired_at` — not by taking it out of the past.
+CREATE TABLE IF NOT EXISTS quiz_draw (
+  quiz_id       uuid NOT NULL REFERENCES quiz(id) ON DELETE CASCADE,
+  question_id   uuid NOT NULL REFERENCES quiz_question(id) ON DELETE RESTRICT,
+  rank          int NOT NULL,
+  PRIMARY KEY (quiz_id, question_id),
+  UNIQUE (quiz_id, rank)
+);
+
+-- Withdrawn from the bank: never dealt again, still readable in the
+-- quizzes that already hold it.
+ALTER TABLE IF EXISTS quiz_question
+  ADD COLUMN IF NOT EXISTS retired_at timestamptz;
+
+-- THE INVITATION, exactly as `list_member` is one: named people, and
+-- nobody else. A quiz has no public leaderboard by design — the scores
+-- one compares are the scores of people one invited.
+CREATE TABLE IF NOT EXISTS quiz_player (
+  quiz_id       uuid NOT NULL REFERENCES quiz(id) ON DELETE CASCADE,
+  person_id     uuid NOT NULL REFERENCES person(id) ON DELETE CASCADE,
+  added_at      timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (quiz_id, person_id)
+);
+
+CREATE INDEX IF NOT EXISTS quiz_player_person ON quiz_player(person_id);
+
+-- ONE ATTEMPT, AND THE PRIMARY KEY IS WHAT SAYS SO. "Once it is done you
+-- cannot do it again" is the rule that makes a score mean anything, and
+-- it is the kind of rule that a route enforces right up until the day a
+-- second route forgets to. Here a replayed request changes nothing,
+-- because there is no second row to have.
+--
+-- `finished_at` NULL is the other half of the request: one answers when
+-- one feels like it, over as many sittings as one likes, and the count of
+-- answers says where one had got to.
+CREATE TABLE IF NOT EXISTS quiz_attempt (
+  quiz_id       uuid NOT NULL REFERENCES quiz(id) ON DELETE CASCADE,
+  person_id     uuid NOT NULL REFERENCES person(id) ON DELETE CASCADE,
+  started_at    timestamptz NOT NULL DEFAULT now(),
+  finished_at   timestamptz,
+  PRIMARY KEY (quiz_id, person_id)
+);
+
+CREATE TABLE IF NOT EXISTS quiz_answer (
+  quiz_id       uuid NOT NULL,
+  person_id     uuid NOT NULL,
+  question_id   uuid NOT NULL,
+  choice_id     uuid NOT NULL REFERENCES quiz_choice(id) ON DELETE CASCADE,
+  answered_at   timestamptz NOT NULL DEFAULT now(),
+  -- Answering twice is answering once: no taking it back after seeing the
+  -- correction, and the key is what refuses it rather than a route.
+  PRIMARY KEY (quiz_id, person_id, question_id),
+  FOREIGN KEY (quiz_id, person_id)
+    REFERENCES quiz_attempt(quiz_id, person_id) ON DELETE CASCADE,
+  -- AND THE QUESTION MUST BE ONE THIS QUIZ WAS DEALT. Pointing at
+  -- `quiz_question` would have let somebody answer a question out of the
+  -- bank that their quiz never held; the key points at the DEAL instead,
+  -- so the impossible request has no row to land in.
+  FOREIGN KEY (quiz_id, question_id)
+    REFERENCES quiz_draw(quiz_id, question_id) ON DELETE CASCADE
+);
 
 -- ------------------------------------------------------------
 -- THE PAIRING CODES

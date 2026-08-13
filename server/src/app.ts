@@ -27,6 +27,7 @@ import * as store from "./store.ts";
 import { registerRelays } from "./relay.ts";
 import { publicKeyForPush, pushAvailable, remindChallenges } from "./push.ts";
 import { allowed, mediaAvailable, ticketFor } from "./media.ts";
+import { LEVELS, SIZES } from "./draw.ts";
 
 export interface Settings {
   db: Db;
@@ -81,6 +82,20 @@ const PSEUDO_OK = /^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])$/;
    address, where 404 is the truth. */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const JOUR = /^\d{4}-\d{2}-\d{2}$/;
+
+/* The three the schema accepts, and the three lengths on offer — read
+   from `draw.ts`, which is where the arithmetic that depends on them
+   lives. Two lists that agreed by hand would stop agreeing. */
+const DIFFICULTIES: string[] = LEVELS;
+
+/** What a question looks like once it has been read and found sound. */
+interface ReadQuestion {
+  ask: string;
+  hint: string;
+  image: string | null | undefined;
+  difficulty: string | undefined;
+  choices: { label: string; is_right: boolean }[];
+}
 
 export async function buildApp(settings: Settings): Promise<FastifyInstance> {
   const { db, domain, origin } = settings;
@@ -177,6 +192,24 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     if (!person) {
       const e = new Error("il faut être connecté") as Error & { statusCode?: number };
       e.statusCode = 401;
+      throw e;
+    }
+    return person;
+  };
+
+  /**
+   * The routes that write a quiz go through here.
+   *
+   * THE ROLE IS READ, NEVER WRITTEN. There is no route that grants it —
+   * `ADMINS` in the environment is the only door, laid down at start-up —
+   * so this guard has no counterpart to keep in agreement, and there is
+   * no sequence of requests that ends with somebody having it.
+   */
+  const requireAdmin = async (req: FastifyRequest) => {
+    const person = await requireAccount(req);
+    if (!person.is_admin) {
+      const e = new Error("réservé") as Error & { statusCode?: number };
+      e.statusCode = 403;
       throw e;
     }
     return person;
@@ -1171,6 +1204,401 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
        count that still measures them. */
     await store.leaveChallenge(db, id, person.id);
     return { inside: false };
+  });
+
+  /* ------------------------------------------------------------
+     THE BANK — categories and questions, and this half is reserved
+     ------------------------------------------------------------
+     `requireAdmin` guards everything here and nothing anywhere else:
+     the role exists to say who fills the stock, not who plays. Reading
+     the LIST of categories is open, because that is the menu one
+     composes a quiz from; reading the QUESTIONS in one is not, for the
+     obvious reason. */
+
+  app.get("/categories", async (req) => {
+    await requireAccount(req);
+    return { categories: await store.categories(db) };
+  });
+
+  app.post("/categories", async (req, reply) => {
+    await requireAdmin(req);
+    const { label, blurb } = (req.body ?? {}) as { label?: string; blurb?: string };
+    const name = (label || "").trim();
+    if (!name || name.length > 60) {
+      return reply.code(400).send({ error: "Il faut un nom, de 1 à 60 caractères." });
+    }
+    try {
+      return { id: await store.createCategory(db, { label: name, blurb: (blurb || "").trim() }) };
+    } catch {
+      /* The UNIQUE on the label. Two categories of the same name would
+         make the composing screen unreadable. */
+      return reply.code(409).send({ error: "Cette catégorie existe déjà." });
+    }
+  });
+
+  app.put("/categories/:id", async (req, reply) => {
+    await requireAdmin(req);
+    const { id } = req.params as { id: string };
+    if (!UUID.test(id || "") || !(await store.categoryExists(db, id))) {
+      return reply.code(404).send({ error: "Catégorie inconnue." });
+    }
+    const { label, blurb } = (req.body ?? {}) as { label?: string; blurb?: string };
+    if (label !== undefined && !(label.trim() && label.trim().length <= 60)) {
+      return reply.code(400).send({ error: "Il faut un nom, de 1 à 60 caractères." });
+    }
+    await store.editCategory(db, id, { label: label?.trim(), blurb: blurb?.trim() });
+    return { done: true };
+  });
+
+  app.delete("/categories/:id", async (req, reply) => {
+    await requireAdmin(req);
+    const { id } = req.params as { id: string };
+    if (!UUID.test(id || "") || !(await store.categoryExists(db, id))) {
+      return reply.code(404).send({ error: "Catégorie inconnue." });
+    }
+    /* A category that has been dealt cannot go: `quiz_draw` holds its
+       questions with `ON DELETE RESTRICT`, and a quiz already played
+       must not lose them. The database says so; we translate. */
+    try {
+      await store.deleteCategory(db, id);
+      return { erased: true };
+    } catch {
+      return reply
+        .code(409)
+        .send({ error: "Des quizz ont déjà tiré dedans. Retirez ses questions une à une." });
+    }
+  });
+
+  app.get("/categories/:id/questions", async (req, reply) => {
+    await requireAdmin(req);
+    const { id } = req.params as { id: string };
+    if (!UUID.test(id || "") || !(await store.categoryExists(db, id))) {
+      return reply.code(404).send({ error: "Catégorie inconnue." });
+    }
+    return { questions: await store.bankQuestions(db, id) };
+  });
+
+  /** What a question's body must look like, checked before it goes down. */
+  const readQuestion = (body: unknown): { ok?: ReadQuestion; error?: string } => {
+    const { ask, hint, image, difficulty, choices } = (body ?? {}) as {
+      ask?: string;
+      hint?: string;
+      image?: string | null;
+      difficulty?: string;
+      choices?: { label?: string; is_right?: boolean }[];
+    };
+    const asked = (ask || "").trim();
+    if (!asked || asked.length > 400) return { error: "Il faut un énoncé, de 1 à 400 caractères." };
+    if (difficulty !== undefined && !DIFFICULTIES.includes(difficulty)) {
+      return { error: "Difficulté inconnue." };
+    }
+    /* `image` is a stored ADDRESS and never markup: a blob path under
+       the bank's prefix, or an https URL. Anything else — a
+       `javascript:` scheme above all — is refused here rather than
+       guarded against in every place that renders it. */
+    if (image != null && image !== "" && !/^(https:\/\/|bank\/)/.test(image)) {
+      return { error: "Une image se désigne par son adresse." };
+    }
+    const props = (Array.isArray(choices) ? choices : [])
+      .map((c) => ({ label: (c?.label || "").trim(), is_right: c?.is_right === true }))
+      .filter((c) => c.label !== "");
+    if (props.some((c) => c.label.length > 200)) {
+      return { error: "Une proposition tient en 200 caractères." };
+    }
+    if (props.length > 8) return { error: "Huit propositions au plus." };
+    return {
+      ok: {
+        ask: asked,
+        hint: (hint || "").trim(),
+        /* `undefined` means "leave it", `null` means "take it away" —
+           the two are told apart all the way down to `store`. */
+        image: image === undefined ? undefined : image || null,
+        difficulty,
+        choices: props,
+      },
+    };
+  };
+
+  app.post("/categories/:id/questions", async (req, reply) => {
+    await requireAdmin(req);
+    const { id } = req.params as { id: string };
+    if (!UUID.test(id || "") || !(await store.categoryExists(db, id))) {
+      return reply.code(404).send({ error: "Catégorie inconnue." });
+    }
+    const read = readQuestion(req.body);
+    if (!read.ok) return reply.code(400).send({ error: read.error });
+
+    const questionId = await store.addBankQuestion(db, id, read.ok);
+    await store.setChoices(db, questionId, read.ok.choices);
+    return { id: questionId };
+  });
+
+  app.put("/categories/:id/questions/:qid", async (req, reply) => {
+    await requireAdmin(req);
+    const { id, qid } = req.params as { id: string; qid: string };
+    if (
+      !UUID.test(id || "") ||
+      !UUID.test(qid || "") ||
+      !(await store.questionInCategory(db, qid, id))
+    ) {
+      return reply.code(404).send({ error: "Question inconnue." });
+    }
+    const read = readQuestion(req.body);
+    if (!read.ok) return reply.code(400).send({ error: read.error });
+
+    await store.editBankQuestion(db, qid, read.ok);
+    /* THE PROPOSITIONS OF A DEALT QUESTION DO NOT MOVE. Somebody has
+       answered them; replacing them would cascade the answers away and
+       quietly rewrite a score. The wording and the picture may still be
+       corrected — a typo is worth fixing — which is why the refusal is
+       partial rather than a 409 on the whole edit. */
+    const moved = await store.setChoices(db, qid, read.ok.choices);
+    return { done: true, choicesFrozen: !moved };
+  });
+
+  app.delete("/categories/:id/questions/:qid", async (req, reply) => {
+    await requireAdmin(req);
+    const { id, qid } = req.params as { id: string; qid: string };
+    if (
+      !UUID.test(id || "") ||
+      !UUID.test(qid || "") ||
+      !(await store.questionInCategory(db, qid, id))
+    ) {
+      return reply.code(404).send({ error: "Question inconnue." });
+    }
+    /* Withdrawn, not erased, once it has been dealt: see the store. */
+    return { fate: await store.retireBankQuestion(db, qid) };
+  });
+
+  app.post("/categories/:id/questions/:qid/revival", async (req, reply) => {
+    await requireAdmin(req);
+    const { id, qid } = req.params as { id: string; qid: string };
+    if (
+      !UUID.test(id || "") ||
+      !UUID.test(qid || "") ||
+      !(await store.questionInCategory(db, qid, id))
+    ) {
+      return reply.code(404).send({ error: "Question inconnue." });
+    }
+    await store.reviveBankQuestion(db, qid);
+    return { revived: true };
+  });
+
+  /* ------------------------------------------------------------
+     THE QUIZZES — dealt out of the bank, and open to everybody
+     ------------------------------------------------------------
+     No role guards anything below. Whoever drew a quiz did not write
+     it, so they play it on the same terms as the people they invite —
+     including the withholding of the right answers, which is the line
+     that used to make an exception for an author and no longer needs
+     to. */
+
+  /** The rights over a quiz, or the refusal already made ready. */
+  const quizOr404 = async (req: FastifyRequest, reply: FastifyReply, personId: string) => {
+    const { id } = req.params as { id: string };
+    if (!UUID.test(id || "")) {
+      reply.code(404).send({ error: "Quiz inconnu." });
+      return null;
+    }
+    const rights = await store.rightsOnQuiz(db, id, personId);
+    /* NO 403 IN READING, as for the lists: a quiz one may not see
+       answers like a quiz that does not exist. */
+    if (!rights?.read) {
+      reply.code(404).send({ error: "Quiz inconnu." });
+      return null;
+    }
+    return rights;
+  };
+
+  app.get("/quizzes", async (req) => {
+    const person = await requireAccount(req);
+    return { quizzes: await store.myQuizzes(db, person.id) };
+  });
+
+  app.post("/quizzes", async (req, reply) => {
+    const person = await requireAccount(req);
+    const { title, categoryIds, level, size } = (req.body ?? {}) as {
+      title?: string;
+      categoryIds?: string[];
+      level?: string;
+      size?: number;
+    };
+    const name = (title || "").trim();
+    if (!name || name.length > 120) {
+      return reply.code(400).send({ error: "Il faut un titre, de 1 à 120 caractères." });
+    }
+    if (level !== undefined && !DIFFICULTIES.includes(level)) {
+      return reply.code(400).send({ error: "Niveau inconnu." });
+    }
+    if (!SIZES.includes(Number(size))) {
+      return reply.code(400).send({ error: "Dix, vingt ou trente questions." });
+    }
+    const wanted = Array.isArray(categoryIds) ? [...new Set(categoryIds)] : [];
+    if (wanted.length === 0 || wanted.some((c) => !UUID.test(String(c)))) {
+      return reply.code(400).send({ error: "Il faut au moins une catégorie." });
+    }
+    for (const c of wanted) {
+      if (!(await store.categoryExists(db, c))) {
+        return reply.code(404).send({ error: "Catégorie inconnue." });
+      }
+    }
+
+    const drawn = await store.drawQuiz(db, person.id, {
+      title: name,
+      categoryIds: wanted,
+      level: level ?? "normal",
+      size: Number(size),
+    });
+    /* A DRAW THAT CAME OUT EMPTY IS NOT A QUIZ. The bank held nothing
+       dealable in those baskets — no live question with exactly one
+       right answer — and handing back a quiz of zero questions would
+       have been a screen full of nothing with no reason given. */
+    if (drawn.drawn === 0) {
+      await store.deleteQuiz(db, drawn.id);
+      return reply
+        .code(409)
+        .send({ error: "Ces catégories n'ont pas encore de question jouable." });
+    }
+    return { id: drawn.id, softened: drawn.softened, drawn: drawn.drawn };
+  });
+
+  app.get("/quizzes/:id", async (req, reply) => {
+    const person = await requireAccount(req);
+    const rights = await quizOr404(req, reply, person.id);
+    if (!rights) return reply;
+
+    const attempt = await store.myAttempt(db, rights.quiz_id, person.id);
+    /* THE LINE THAT DECIDES EVERYTHING, and it now has no exception:
+       nobody sees the corrections until their own attempt is closed.
+       The dealer included — they did not write these questions. */
+    const withAnswers = attempt?.finished_at != null;
+    return {
+      quiz: { ...(await store.quizById(db, rights.quiz_id)), mine: rights.write },
+      questions: await store.drawnQuestions(db, rights.quiz_id, {
+        withAnswers,
+        forPerson: person.id,
+      }),
+      weight: await store.quizWeight(db, rights.quiz_id),
+      attempt,
+      /* The players only show themselves to whoever dealt the quiz. */
+      players: rights.write ? await store.playersOf(db, rights.quiz_id) : [],
+    };
+  });
+
+  app.put("/quizzes/:id", async (req, reply) => {
+    const person = await requireAccount(req);
+    const rights = await quizOr404(req, reply, person.id);
+    if (!rights) return reply;
+    if (!rights.write) return reply.code(403).send({ error: "Ce quiz n'est pas vôtre." });
+    const { title } = (req.body ?? {}) as { title?: string };
+    /* THE TITLE, AND NOTHING ELSE. A deal is not editable: changing its
+       level or its baskets would mean re-drawing, and re-drawing under
+       people who have started answering is how a leaderboard becomes a
+       lie. Another quiz costs one gesture. */
+    if (!title?.trim() || title.trim().length > 120) {
+      return reply.code(400).send({ error: "Il faut un titre, de 1 à 120 caractères." });
+    }
+    await store.renameQuiz(db, rights.quiz_id, title.trim());
+    return { done: true };
+  });
+
+  app.delete("/quizzes/:id", async (req, reply) => {
+    const person = await requireAccount(req);
+    const rights = await quizOr404(req, reply, person.id);
+    if (!rights) return reply;
+    if (!rights.write) return reply.code(403).send({ error: "Ce quiz n'est pas vôtre." });
+    await store.deleteQuiz(db, rights.quiz_id);
+    return { erased: true };
+  });
+
+  app.put("/quizzes/:id/players/:pseudo", async (req, reply) => {
+    const person = await requireAccount(req);
+    const rights = await quizOr404(req, reply, person.id);
+    if (!rights) return reply;
+    if (!rights.write) return reply.code(403).send({ error: "Ce quiz n'est pas vôtre." });
+    const { pseudo } = req.params as { pseudo: string };
+    const invite = await store.findByPseudo(db, (pseudo || "").toLowerCase());
+    if (!invite) return reply.code(404).send({ error: "Personne." });
+    if (invite.id === person.id) return reply.code(400).send({ error: "C'est votre quiz." });
+    /* As for a list: we do not invite somebody we have silenced, nor
+       somebody who has silenced us. */
+    if (await store.blockedIds(db, person.id, invite.id)) {
+      return reply.code(404).send({ error: "Personne." });
+    }
+    await store.invitePlayer(db, rights.quiz_id, invite.id);
+    return { pseudo: invite.pseudo, playing: true };
+  });
+
+  app.delete("/quizzes/:id/players/:pseudo", async (req, reply) => {
+    const person = await requireAccount(req);
+    const { id, pseudo } = req.params as { id: string; pseudo: string };
+    if (!UUID.test(id || "")) return reply.code(404).send({ error: "Quiz inconnu." });
+    const about = await store.findByPseudo(db, (pseudo || "").toLowerCase());
+    if (!about) return reply.code(404).send({ error: "Personne." });
+    /* The dealer removes whoever they like; anybody else can only remove
+       themselves. Walking away asks nobody's permission — and it is on
+       purpose that this does NOT erase the attempt: a score already made
+       stays made. */
+    if (about.id !== person.id) {
+      const rights = await store.rightsOnQuiz(db, id, person.id);
+      if (!rights?.write) return reply.code(403).send({ error: "Ce quiz n'est pas vôtre." });
+    }
+    await store.removePlayer(db, id, about.id);
+    return { pseudo: about.pseudo, playing: false };
+  });
+
+  /* ---- playing ---- */
+
+  app.post("/quizzes/:id/attempt", async (req, reply) => {
+    const person = await requireAccount(req);
+    const rights = await quizOr404(req, reply, person.id);
+    if (!rights) return reply;
+    /* Idempotent by the primary key: starting twice starts once, and a
+       second call does NOT reopen a finished attempt. */
+    await store.startAttempt(db, rights.quiz_id, person.id);
+    return { attempt: await store.myAttempt(db, rights.quiz_id, person.id) };
+  });
+
+  app.post("/quizzes/:id/attempt/answers", async (req, reply) => {
+    const person = await requireAccount(req);
+    const rights = await quizOr404(req, reply, person.id);
+    if (!rights) return reply;
+    const { questionId, choiceId } = (req.body ?? {}) as {
+      questionId?: string;
+      choiceId?: string;
+    };
+    if (!UUID.test(questionId || "") || !UUID.test(choiceId || "")) {
+      return reply.code(400).send({ error: "Une question, et une proposition." });
+    }
+    /* `store.answer` does the rest in ONE statement: the attempt must be
+       open, the proposition must belong to the question, and the
+       question must be one this quiz WAS DEALT. Written as three checks
+       here, the third is the one that gets forgotten. */
+    const laid = await store.answer(db, rights.quiz_id, person.id, questionId!, choiceId!);
+    if (!laid) return reply.code(409).send({ error: "Cette réponse est déjà posée." });
+    return { answered: true };
+  });
+
+  app.post("/quizzes/:id/attempt/finish", async (req, reply) => {
+    const person = await requireAccount(req);
+    const rights = await quizOr404(req, reply, person.id);
+    if (!rights) return reply;
+    await store.finishAttempt(db, rights.quiz_id, person.id);
+    return {
+      attempt: await store.myAttempt(db, rights.quiz_id, person.id),
+      /* Now, and only now, the corrections come down. */
+      questions: await store.drawnQuestions(db, rights.quiz_id, {
+        withAnswers: true,
+        forPerson: person.id,
+      }),
+    };
+  });
+
+  app.get("/quizzes/:id/scores", async (req, reply) => {
+    const person = await requireAccount(req);
+    const rights = await quizOr404(req, reply, person.id);
+    if (!rights) return reply;
+    return { scores: await store.scoresOf(db, rights.quiz_id, person.id) };
   });
 
   /* ------------------------------------------------------------

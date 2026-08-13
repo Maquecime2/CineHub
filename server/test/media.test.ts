@@ -66,7 +66,7 @@ afterEach(async () => {
 });
 
 describe("reading a path", () => {
-  it("recognises the two branches, and nothing else", () => {
+  it("recognises the three branches, and nothing else", () => {
     const who = "3f1a2b4c-5d6e-4f70-8192-a3b4c5d6e7f8";
     expect(readPath(`p/${who}/still-abc-1`)).toEqual({
       kind: "private",
@@ -74,6 +74,11 @@ describe("reading a path", () => {
       key: "still-abc-1",
     });
     expect(readPath(`decor/${who}`)).toEqual({ kind: "decor", decorId: who });
+    expect(readPath(`bank/${who}/question-1`)).toEqual({
+      kind: "bank",
+      categoryId: who,
+      key: "question-1",
+    });
 
     for (const wrong of [
       "",
@@ -83,6 +88,10 @@ describe("reading a path", () => {
       `p/not-a-uuid/x`,
       "decor/not-a-uuid",
       `decor/${who}/more`,
+      "bank/not-a-uuid/x",
+      `bank/${who}`,
+      `bank/${who}/`,
+      `bank/${who}/../../secret`,
       `${who}/x`,
       `p/${who}/${"x".repeat(121)}`,
     ]) {
@@ -221,6 +230,41 @@ describe("a decor's tickets", () => {
     const lamp = await store.createDecor(db, { ownerId: anna.person.id, label: "a lamp" });
     await store.deleteDecor(db, anna.person.id, lamp.id);
     expect((await ticket(anna.cookie, `decor/${lamp.id}`)).statusCode).toBe(404);
+  });
+});
+
+describe("the bank's tickets", () => {
+  /* THE WHOLE POINT OF THE THIRD PREFIX, in one test: a picture written
+     by an admin is READ by everybody who draws it. Under `p/<anna>/…`
+     this would have meant signing on somebody else's private prefix, and
+     the simplest guarantee in the system would have gone with it. */
+  it("open reading to any account, and writing to an admin", async () => {
+    const anna = await account("anna");
+    const bruno = await account("bruno");
+    await store.markAdmins(db, ["anna"]);
+    const category = await store.createCategory(db, { label: "nouvelle vague" });
+    const path = `bank/${category}/question-1`;
+
+    /* Common stock: bruno has drawn nothing yet and reads it all the
+       same. There is no secret in a film poster, and the alternative was
+       a second permission system guarding one. */
+    expect((await ticket(bruno.cookie, path)).statusCode).toBe(200);
+    expect((await ticket(anna.cookie, path)).statusCode).toBe(200);
+
+    expect(await allowed(db, anna.person.id, path, "write")).toBe(true);
+    expect(await allowed(db, bruno.person.id, path, "write")).toBe(false);
+  });
+
+  it("takes the writing back with the role", async () => {
+    const anna = await account("anna");
+    await store.markAdmins(db, ["anna"]);
+    const category = await store.createCategory(db, { label: "nouvelle vague" });
+    const path = `bank/${category}/question-1`;
+
+    expect(await allowed(db, anna.person.id, path, "write")).toBe(true);
+    await db.query("UPDATE person SET is_admin = false WHERE pseudo = 'anna'");
+    expect(await allowed(db, anna.person.id, path, "write")).toBe(false);
+    expect(await allowed(db, anna.person.id, path, "read")).toBe(true);
   });
 });
 

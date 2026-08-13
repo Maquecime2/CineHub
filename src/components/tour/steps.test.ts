@@ -27,6 +27,7 @@ const VIEWS = [
   "import",
   "thread",
   "lists",
+  "quiz",
   "detail",
   "almanac",
 ] as const;

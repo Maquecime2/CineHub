@@ -573,6 +573,18 @@ const global: Tour = {
       view: "lists",
       optional: true,
     },
+    /* AND THE QUIZZES RIGHT AFTER, because they are the same idea taken
+       one step further: the challenges measure what one watches, a quiz
+       what one knows. `quiz-new` and not `quiz-bank` — the bank belongs
+       to whoever fills it, and the global tour is run by everybody. */
+    {
+      target: at("quiz-new"),
+      needsServer: true,
+      ...says("global", "quiz"),
+      placement: "bottom",
+      view: "quiz",
+      optional: true,
+    },
     {
       target: at("tmdb-key"),
       ...says("global", "tmdbKey"),
@@ -652,6 +664,59 @@ const lists: Tour = {
   ],
 };
 
+/* THE QUIZZES. Every step is `optional`, and here that is not a
+   precaution but the shape of the view itself: `quiz-bank` is drawn only
+   for whoever may fill the bank, and the anchors inside a quiz only
+   exist once one has been unfolded. Somebody invited to play sees three
+   of these, and their tour must still run from end to end. */
+const quiz: Tour = {
+  label: label("quiz"),
+  steps: [
+    {
+      target: at("quiz-new"),
+      ...says("quiz", "compose"),
+      placement: "bottom",
+      optional: true,
+    },
+    {
+      target: at("quiz-bank"),
+      ...says("quiz", "bank"),
+      placement: "bottom",
+      optional: true,
+    },
+    {
+      target: at("quiz-mine"),
+      ...says("quiz", "mine"),
+      placement: "top",
+      optional: true,
+    },
+    {
+      target: at("quiz-given"),
+      ...says("quiz", "given"),
+      placement: "top",
+      optional: true,
+    },
+    {
+      target: at("quiz-playing"),
+      ...says("quiz", "playing"),
+      placement: "top",
+      optional: true,
+    },
+    {
+      target: at("quiz-players"),
+      ...says("quiz", "players"),
+      placement: "top",
+      optional: true,
+    },
+    {
+      target: at("quiz-scores"),
+      ...says("quiz", "scores"),
+      placement: "top",
+      optional: true,
+    },
+  ],
+};
+
 /* ---------- the registry ---------- */
 
 /* WHAT DOES NOT EXIST IS NOT VISITED. With no server — the published
@@ -675,6 +740,7 @@ export const TOURS: Record<string, Tour> = Object.fromEntries(
     import: importTour,
     thread,
     lists,
+    quiz,
   }).map(([key, t]) => [key, prune(t)])
 );
 

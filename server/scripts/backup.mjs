@@ -59,22 +59,42 @@ const code = await new Promise((resolve) => {
   p.on("error", (e) => {
     console.error(
       `pg_dump introuvable (${e.message}). Sous Windows il vit dans` +
-        ' "C:\\\\Program Files\\\\PostgreSQL\\\\17\\\\bin" — posez PG_DUMP sur son chemin complet.'
+        ' "C:\\\\Program Files\\\\PostgreSQL\\\\<version>\\\\bin" — posez PG_DUMP sur son' +
+        " chemin complet."
     );
+    /* AND IT MUST BE AT LEAST AS NEW AS THE SERVER. `pg_dump` flatly
+       refuses to read a database newer than itself — a 17 in front of an
+       18 server stops on "différence des versions" and no backup
+       happens. So the version in the path above is the SERVER's, not
+       whichever one happened to be lying about on the machine. */
     resolve(1);
   });
   p.on("close", resolve);
 });
 
-if (code !== 0) process.exit(code || 1);
+/* THE CORPSE IS CLEARED AWAY, AND THAT IS THE WHOLE POINT OF THIS
+   FUNCTION. `pg_dump --file` creates its file BEFORE it discovers it
+   cannot go on, so a refusal leaves a dated `.dump` of zero bytes lying
+   in the folder. It is the exact thing the note below warns about, one
+   step worse: a failed backup that looks like the newest one. Somebody
+   listing the folder in a hurry would read the date and be reassured.
+
+   It happened here, on the first run, over a version mismatch. */
+async function giveUp(why) {
+  console.error(why);
+  await unlink(file).catch(() => {});
+  console.error(`  ${file} effacée — une sauvegarde ratée ne reste pas dans le dossier.`);
+  process.exit(1);
+}
+
+if (code !== 0) await giveUp("pg_dump a refusé : rien n'a été sauvegardé.");
 
 const { size } = await stat(file);
 /* AN EMPTY BACKUP IS WORSE THAN NONE: it reassures. A valid Postgres
    dump always weighs more than a few hundred bytes, even on a fresh
    database. */
 if (size < 1024) {
-  console.error(`⚠ ${size} octets seulement — cette sauvegarde n'en est pas une.`);
-  process.exit(1);
+  await giveUp(`⚠ ${size} octets seulement — cette sauvegarde n'en est pas une.`);
 }
 console.log(`  ${(size / 1024 / 1024).toFixed(2)} Mo`);
 
