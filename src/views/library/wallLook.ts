@@ -22,14 +22,14 @@ export const CARD_SIZES = {
   S: { label: "petit", f: 0.78 },
   M: { label: "moyen", f: 1 },
   L: { label: "grand", f: 1.25 },
-  XL: { label: "très grand", f: 1.6 },
+  XL: { label: "wallLook.xl", f: 1.6 },
 } as const;
 
 /** The spacing between cards, independently of their size. */
 export const SPREADS = {
-  serre: { label: "serré", f: 0.5 },
+  serre: { label: "wallLook.tight", f: 0.5 },
   normal: { label: "normal", f: 1 },
-  aere: { label: "aéré", f: 1.6 },
+  aere: { label: "wallLook.airy", f: 1.6 },
 } as const;
 
 /* The disorder is not removed, it is DOSED: the leans and the offsets
@@ -38,9 +38,9 @@ export const SPREADS = {
    having changed its draw — going back up one notch finds exactly the
    disorder one had. */
 export const MESSES = {
-  range: { label: "rangé", f: 0 },
+  range: { label: "wallLook.tidy", f: 0 },
   naturel: { label: "naturel", f: 1 },
-  disperse: { label: "dispersé", f: 1.9 },
+  disperse: { label: "wallLook.scattered", f: 1.9 },
 } as const;
 
 /** What holds the card to the wall. `auto` lets the draw decide. */

@@ -15,6 +15,7 @@
    it. The colours, for their part, are right the first time, and they
    are what one looks at. */
 import type { CSSProperties } from "react";
+import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
@@ -38,11 +39,12 @@ const PANEL: CSSProperties = {
    DIRECTLY — not the document's variables, which are those of the skin
    in place and would make the fourteen thumbnails identical. */
 function SkinCard({ skin, on, onPick }: { skin: Skin; on: boolean; onPick: () => void }) {
+  const { t } = useTranslation();
   return (
     <button
       onClick={onPick}
       aria-pressed={on}
-      aria-label={skin.label}
+      aria-label={t(`skins.${skin.key}.label`)}
       style={{
         all: "unset",
         ...tap,
@@ -66,7 +68,7 @@ function SkinCard({ skin, on, onPick }: { skin: Skin; on: boolean; onPick: () =>
           textTransform: skin.tag.transform as never,
         }}
       >
-        {skin.label}
+        {t(`skins.${skin.key}.label`)}
       </div>
       <div
         style={{
@@ -76,7 +78,7 @@ function SkinCard({ skin, on, onPick }: { skin: Skin; on: boolean; onPick: () =>
           marginTop: 1,
         }}
       >
-        {skin.note}
+        {t(`skins.${skin.key}.note`)}
       </div>
       {/* the six tokens that carry the identity, in the order they are seen */}
       <div style={{ display: "flex", gap: 4, marginTop: 8 }}>

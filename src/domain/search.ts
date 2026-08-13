@@ -13,7 +13,8 @@
 
    No index: at a few thousand cards a sweep takes less than a frame, and
    an index would be one more structure to keep up to date on every write. */
-import { motifById } from "./motifs";
+import { motifById, motifLabel } from "./motifs";
+import type { NameOf } from "./motifs";
 import type { Film } from "../types";
 
 /* Exported under its full name: the Credits view uses it for a person's
@@ -47,15 +48,22 @@ export const normalize = (s: string): string =>
    "Kurosawa" wants the filmmaker, not the twelve cards where the name is
    mentioned in passing. But they want to find those when nothing else
    answers. */
-const fields = (f: Film): { text: string; rank: number }[] => [
+const fields = (f: Film, name: NameOf): { text: string; rank: number }[] => [
   { text: f.title || "", rank: 0 },
   { text: f.director || "", rank: 1 },
   { text: String(f.year || ""), rank: 2 },
   { text: (f.cast || []).join(" "), rank: 3 },
   { text: (f.themes || []).join(" "), rank: 4 },
   {
+    /* THE MOTIF NAMES COME FROM THE CALLER, and this is not a detail: a
+       catalogue motif has no label of its own any more — it has one per
+       language. Reading `.label` here found nothing at all, and a wall
+       search on "le héros meurt" quietly stopped answering. */
     text: (f.motifs || [])
-      .map((id) => motifById(id)?.label || "")
+      .map((id) => {
+        const m = motifById(id);
+        return m ? motifLabel(m, name) : "";
+      })
       .filter(Boolean)
       .join(" "),
     rank: 4,
@@ -79,11 +87,11 @@ const STILL_TOKEN = /\[img:\d+\]/g;
 const withoutTokens = (s: string | undefined): string => (s || "").replace(STILL_TOKEN, " ");
 
 /** The rank of the best field hit, or `null` if nothing answers. */
-export const scoreFilm = (f: Film, q: string): number | null => {
+export const scoreFilm = (f: Film, q: string, name: NameOf): number | null => {
   const t = normalize(q.trim());
   if (!t) return 0;
   let best: number | null = null;
-  for (const { text, rank } of fields(f)) {
+  for (const { text, rank } of fields(f, name)) {
     if (!text) continue;
     const n = normalize(text);
     if (!n.includes(t)) continue;
@@ -95,7 +103,8 @@ export const scoreFilm = (f: Film, q: string): number | null => {
   return best;
 };
 
-export const matchFilm = (f: Film, q: string): boolean => scoreFilm(f, q) !== null;
+export const matchFilm = (f: Film, q: string, name: NameOf): boolean =>
+  scoreFilm(f, q, name) !== null;
 
 /**
  * The films that answer, the most relevant first.
@@ -103,12 +112,12 @@ export const matchFilm = (f: Film, q: string): boolean => scoreFilm(f, q) !== nu
  * `limit = 0` means "all of them": the wall filters its whole collection
  * and has no reason to be cut short like a list of suggestions.
  */
-export const searchFilms = (films: Film[], q: string, limit = 12): Film[] => {
+export const searchFilms = (films: Film[], q: string, name: NameOf, limit = 12): Film[] => {
   const t = q.trim();
   if (!t) return limit > 0 ? films.slice(0, limit) : films;
   const scored: { f: Film; s: number }[] = [];
   for (const f of films) {
-    const s = scoreFilm(f, t);
+    const s = scoreFilm(f, t, name);
     if (s != null) scored.push({ f, s });
   }
   scored.sort((a, b) => a.s - b.s || a.f.title.localeCompare(b.f.title));

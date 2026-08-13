@@ -18,6 +18,7 @@
    downloaded.
    ============================================================ */
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Clapperboard, Star } from "lucide-react";
 import { C, F, alpha } from "../theme/tokens";
 import { PosterArt } from "../components/film/PosterArt";
@@ -43,6 +44,7 @@ export function readAddress(fragment: string = location.hash): Address | null {
 }
 
 export function SharedCollectionView({ address }: { address: Address }) {
+  const { t } = useTranslation();
   const [films, setFilms] = useState<SharedFilm[] | null>(null);
   const [souci, setSouci] = useState<string | null>(null);
 
@@ -57,9 +59,7 @@ export function SharedCollectionView({ address }: { address: Address }) {
            that silence rather than invent an explanation that would have
            one chance in three of being right. */
         setSouci(
-          (e as ServerError).code === 404
-            ? "Pas de collection à cette adresse. Le lien a peut-être été refermé."
-            : "Cette collection n'a pas pu être ouverte."
+          (e as ServerError).code === 404 ? t("shared.noCollection") : t("shared.couldNotOpen")
         );
       });
     return () => {

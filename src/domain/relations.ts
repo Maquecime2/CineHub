@@ -39,6 +39,7 @@ export type Relation =
 
 export interface RelationDef {
   id: Relation;
+  /** Catalogue key, under `relations.<id>` — never a sentence. */
   label: string;
   /** The other end of the thread. Equal to `id` when the relation is symmetric. */
   inverse: Relation;
@@ -47,21 +48,21 @@ export interface RelationDef {
 }
 
 export const RELATIONS: RelationDef[] = [
-  { id: "echo", label: "fait écho à", inverse: "echo" },
-  { id: "diptych", label: "forme un diptyque avec", inverse: "diptych" },
-  { id: "same-fate", label: "même destin que", inverse: "same-fate" },
+  { id: "echo", label: "relations.echo", inverse: "echo" },
+  { id: "diptych", label: "relations.diptych", inverse: "diptych" },
+  { id: "same-fate", label: "relations.same-fate", inverse: "same-fate" },
   /* "Answers" inverts to "was answered by" and NOT to "echo". Folding both
      onto the echo lost the direction of reading: the card opposite could
      no longer say which of the two had answered, and the information was
      nowhere to be found. */
-  { id: "answers", label: "répond à", inverse: "answered-by" },
-  { id: "answered-by", label: "a reçu une réponse de", inverse: "answers", derived: true },
-  { id: "adapts", label: "adapte", inverse: "adapted-into" },
-  { id: "adapted-into", label: "a été adapté par", inverse: "adapts", derived: true },
-  { id: "sequel-to", label: "fait suite à", inverse: "precedes" },
-  { id: "precedes", label: "précède", inverse: "sequel-to", derived: true },
-  { id: "remake-of", label: "refait", inverse: "remade-by" },
-  { id: "remade-by", label: "a été refait par", inverse: "remake-of", derived: true },
+  { id: "answers", label: "relations.answers", inverse: "answered-by" },
+  { id: "answered-by", label: "relations.answered-by", inverse: "answers", derived: true },
+  { id: "adapts", label: "relations.adapts", inverse: "adapted-into" },
+  { id: "adapted-into", label: "relations.adapted-into", inverse: "adapts", derived: true },
+  { id: "sequel-to", label: "relations.sequel-to", inverse: "precedes" },
+  { id: "precedes", label: "relations.precedes", inverse: "sequel-to", derived: true },
+  { id: "remake-of", label: "relations.remake-of", inverse: "remade-by" },
+  { id: "remade-by", label: "relations.remade-by", inverse: "remake-of", derived: true },
 ];
 
 const BY_ID = new Map(RELATIONS.map((r) => [r.id, r]));
@@ -87,9 +88,9 @@ export const isSymmetric = (r: Relation): boolean => BY_ID.get(r)?.inverse === r
    the line. */
 export type Strength = 1 | 2 | 3;
 export const STRENGTHS: { value: Strength; label: string }[] = [
-  { value: 1, label: "un fil ténu" },
-  { value: 2, label: "une vraie parenté" },
-  { value: 3, label: "le même film, deux fois" },
+  { value: 1, label: "relations.strength1" },
+  { value: 2, label: "relations.strength2" },
+  { value: 3, label: "relations.strength3" },
 ];
 
 export const strengthOf = (f: number | null | undefined): Strength =>

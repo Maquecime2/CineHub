@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { CSSProperties } from "react";
 import { ImageOff } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
@@ -41,6 +42,7 @@ export function IdbImage({
      progress and the definitive absence: announcing a missing image
      while we are still looking for it would make a reproach blink on
      every opening. */
+  const { t } = useTranslation();
   const [state, setState] = useState<"cherche" | "trouvée" | "absente">("cherche");
   const [url, setUrl] = useState<string | null>(null);
   const box = useRef<HTMLDivElement | null>(null);
@@ -89,7 +91,7 @@ export function IdbImage({
     <div
       ref={box}
       onClick={onClick}
-      title="Cette image est restée sur l'appareil qui l'a importée : les captures ne se synchronisent pas encore."
+      title={t("stills.notSynced")}
       style={{
         ...style,
         background: C.paperDark,

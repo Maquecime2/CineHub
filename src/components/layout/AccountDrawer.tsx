@@ -12,6 +12,7 @@
    say what is waiting, not what is missing.
    ============================================================ */
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   CloudOff,
   RefreshCw,
@@ -54,15 +55,21 @@ import {
 import { forgetSync } from "../../services/sync";
 import type { SyncReport } from "../../services/sync";
 
-const quandDit = (at: number | null): string => {
-  if (!at) return "jamais more";
+/* WHEN THE LAST SYNCHRONISATION WAS. The date at the end is formatted by
+   the reader's language and not by a hard-coded `fr-FR`: "12 January" and
+   "12 janvier" are the same instant, and only one of the two is readable
+   at a time. */
+type Say = (key: string, values?: Record<string, string | number>) => string;
+
+const quandDit = (at: number | null, t: Say, lang: string): string => {
+  if (!at) return t("account.never");
   const seconds = Math.round((Date.now() - at) / 1000);
-  if (seconds < 90) return "à l'instant";
+  if (seconds < 90) return t("account.justNow");
   const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `il y a ${minutes} minutes`;
+  if (minutes < 60) return t("account.minutesAgo", { count: minutes });
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return `il y a ${hours} heure${hours > 1 ? "s" : ""}`;
-  return new Date(at).toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
+  if (hours < 24) return t("account.hoursAgo", { count: hours });
+  return new Date(at).toLocaleDateString(lang, { day: "numeric", month: "long" });
 };
 
 export function AccountDrawer({
@@ -77,6 +84,7 @@ export function AccountDrawer({
   /** The account has changed: the application must find its bearings again. */
   onChangement: (person: Person | null) => void;
 }) {
+  const { t, i18n } = useTranslation();
   const [pseudo, setPseudo] = useState("");
   const [busy, setBusy] = useState(false);
   const [souci, setSouci] = useState<string | null>(null);
@@ -96,7 +104,7 @@ export function AccountDrawer({
       /* Refusing one's own fingerprint is not an error to dramatise: one
          changes one's mind, and that is all. */
       const m = (e as Error).message || "";
-      setSouci(/NotAllowed|abort/i.test(m) ? "Geste annulé." : m || "Ça n'a pas marché.");
+      setSouci(/NotAllowed|abort/i.test(m) ? t("account.cancelled") : m || t("account.failed"));
     } finally {
       setBusy(false);
     }
@@ -113,7 +121,7 @@ export function AccountDrawer({
       />
       <div
         role="dialog"
-        aria-label="Votre compte"
+        aria-label={t("account.title")}
         data-tour="compte-tiroir"
         style={{
           position: "fixed",
@@ -141,12 +149,12 @@ export function AccountDrawer({
             }}
           >
             <span data-pseudo={signedIn ? report.person!.pseudo : undefined}>
-              {signedIn ? report.person!.pseudo : "Votre compte"}
+              {signedIn ? report.person!.pseudo : t("account.title")}
             </span>
           </div>
           <button
             onClick={onFermer}
-            aria-label="Fermer"
+            aria-label={t("common.close")}
             style={{ ...tap, all: "unset", cursor: "pointer", marginLeft: "auto" }}
           >
             <X size={16} color={C.inkFaded} />
@@ -154,13 +162,11 @@ export function AccountDrawer({
         </div>
 
         <div style={{ fontFamily: F.hand, fontSize: 17, color: C.inkFaded, marginBottom: 20 }}>
-          {signedIn
-            ? "Votre collection se retrouve sur vos autres appareils."
-            : "Un compte sert à retrouver votre collection ailleurs. Le classeur marche très bien sans."}
+          {signedIn ? t("account.signedInNote") : t("account.signedOutNote")}
         </div>
 
         {/* ---- the state ---- */}
-        <Label>Synchronisation</Label>
+        <Label>{t("account.sync")}</Label>
         <div
           style={{
             display: "flex",
@@ -179,26 +185,25 @@ export function AccountDrawer({
           {report.state === "waiting" && <CloudOff size={14} color={C.inkFaded} />}
           {report.state === "running" && <RefreshCw size={14} color={C.inkFaded} />}
           <span style={{ flex: 1 }}>
-            {report.state === "absent" && "Aucun serveur réglé."}
-            {report.state === "no-account" && "Tout reste ici."}
-            {report.state === "running" && "En cours…"}
-            {report.state === "up-to-date" && `À jour, ${quandDit(report.at)}.`}
+            {report.state === "absent" && t("account.noServer")}
+            {report.state === "no-account" && t("account.allStaysHere")}
+            {report.state === "running" && t("account.running")}
+            {report.state === "up-to-date" &&
+              t("account.upToDate", { when: quandDit(report.at, t, i18n.language) })}
             {/* "0 CARDS ARE WAITING FOR THE NETWORK" MEANS NOTHING, and
                 that is nonetheless what showed when the server was
                 unreachable without our having changed anything: an empty
                 countdown instead of the one useful piece of news. */}
             {report.state === "waiting" &&
               (report.pending === 0
-                ? "Serveur injoignable. Rien à envoyer, rien de perdu."
-                : `${report.pending} fiche${report.pending > 1 ? "s" : ""} attend${
-                    report.pending > 1 ? "ent" : ""
-                  } le réseau.`)}
-            {report.state === "error" && (report.message || "Le serveur a refusé.")}
+                ? t("account.unreachable")
+                : t("account.pending", { count: report.pending }))}
+            {report.state === "error" && (report.message || t("account.refused"))}
           </span>
           {signedIn && (
             <button
               onClick={onSync}
-              title="Synchroniser maintenant"
+              title={t("account.syncNow")}
               style={{ ...tap, all: "unset", cursor: "pointer", color: C.burgundy }}
             >
               <RefreshCw size={14} />
@@ -209,7 +214,7 @@ export function AccountDrawer({
         {/* ---- entrer, ou partir ---- */}
         {!signedIn ? (
           <>
-            <Label>Pseudonyme</Label>
+            <Label>{t("account.handle")}</Label>
             <input
               value={pseudo}
               onChange={(e) => setPseudo(e.target.value)}
@@ -233,8 +238,7 @@ export function AccountDrawer({
             <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginBottom: 12 }}>
               {/* We explain the passkey in one sentence: nobody should
                   have to know what WebAuthn is in order to sign up. */}
-              Pas de mot de passe : votre téléphone ou votre ordinateur signe à votre place, avec ce
-              qui le déverrouille déjà.
+              {t("account.passkeyNote")}
             </div>
 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -243,10 +247,10 @@ export function AccountDrawer({
                 onClick={() => tenter(signUp)}
                 style={button(C.burgundy, busy || pseudo.trim().length < 3)}
               >
-                <UserPlus size={12} /> CRÉER UN COMPTE
+                <UserPlus size={12} /> {t("account.signUp")}
               </button>
               <button disabled={busy} onClick={() => tenter(signIn)} style={button(C.ink, busy)}>
-                <KeyRound size={12} /> J'EN AI DÉJÀ UN
+                <KeyRound size={12} /> {t("account.signIn")}
               </button>
             </div>
             {souci && (
@@ -280,7 +284,7 @@ export function AccountDrawer({
               }}
               style={button(C.ink, false)}
             >
-              <LogOut size={12} /> SE DÉCONNECTER
+              <LogOut size={12} /> {t("account.signOut")}
             </button>
 
             {/* ------------------------------------------------------
@@ -292,7 +296,7 @@ export function AccountDrawer({
                 file.
                 ------------------------------------------------------ */}
             <div style={{ borderTop: `1px dashed ${C.line}`, paddingTop: 14 }}>
-              <Label>Vos données</Label>
+              <Label>{t("account.yourData")}</Label>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
                 <button
                   disabled={busy}
@@ -313,23 +317,23 @@ export function AccountDrawer({
                       link.click();
                       URL.revokeObjectURL(link.href);
                     } catch (e) {
-                      setSouci((e as Error).message || "L'export a échoué.");
+                      setSouci((e as Error).message || t("account.exportFailed"));
                     } finally {
                       setBusy(false);
                     }
                   }}
                   style={button(C.slate, busy)}
                 >
-                  <Download size={12} /> TOUT EMPORTER
+                  <Download size={12} /> {t("account.takeEverything")}
                 </button>
 
                 <button
                   disabled={busy}
                   onClick={() =>
                     setRequest({
-                      title: "Effacer votre compte ?",
-                      body: `La copie de votre collection sur le serveur est effacée, avec vos clés d'accès et vos sessions. Votre classeur, lui, reste entier sur cet appareil — mais vos autres appareils ne se synchroniseront plus.`,
-                      action: "EFFACER LE COMPTE",
+                      title: t("account.deleteTitle"),
+                      body: t("account.deleteBody"),
+                      action: t("account.deleteAction"),
                       severe: true,
                       onConfirm: async () => {
                         setRequest(null);
@@ -339,7 +343,7 @@ export function AccountDrawer({
                           forgetSync();
                           onChangement(null);
                         } catch (e) {
-                          setSouci((e as Error).message || "L'effacement a échoué.");
+                          setSouci((e as Error).message || t("account.deleteFailed"));
                         } finally {
                           setBusy(false);
                         }
@@ -352,7 +356,7 @@ export function AccountDrawer({
                     color: C.burgundy,
                   }}
                 >
-                  <Trash2 size={12} /> EFFACER MON COMPTE
+                  <Trash2 size={12} /> {t("account.deleteMine")}
                 </button>
               </div>
             </div>
@@ -374,7 +378,7 @@ export function AccountDrawer({
             lineHeight: 1.7,
           }}
         >
-          {ADDRESS || "aucun serveur"}
+          {ADDRESS || t("account.noServerShort")}
           <br />
           {/* THIS SENTENCE SAID THE OPPOSITE OF WHAT HAPPENS, and I saw
               it lie by watching what actually left: the whole card is
@@ -384,8 +388,7 @@ export function AccountDrawer({
               the phone is a noted lost. But it cannot be guessed, so it is
               said — and sharing, for its part, will send only the public
               part of the card (see `publicPart`). */}
-          Votre collection entière est copiée sur votre compte, notes et séances comprises. Rien
-          n'est public : le partage se décide fiche par fiche, et n'emportera jamais vos notes.
+          {t("account.footer")}
         </div>
       </div>
     </Layer>
@@ -458,6 +461,7 @@ const button = (ink: string, off: boolean) => ({
    above: there is nothing to undo, and a "nobody" heading on such a
    subject teaches nobody anything. */
 function Blocks() {
+  const { t } = useTranslation();
   const [list, setListe] = useState<string[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -486,7 +490,7 @@ function Blocks() {
 
   return (
     <div style={{ borderTop: `1px dashed ${C.line}`, paddingTop: 14 }}>
-      <Label>Ceux que vous avez fait taire</Label>
+      <Label>{t("account.silenced")}</Label>
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
         {list.map((pseudo) => (
           <div key={pseudo} style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -508,7 +512,7 @@ function Blocks() {
             <button
               onClick={() => rendreLaParole(pseudo)}
               disabled={busy === pseudo}
-              aria-label={`Rendre la parole à ${pseudo}`}
+              aria-label={t("account.unblockOne", { pseudo })}
               style={{
                 all: "unset",
                 ...tap,
@@ -522,7 +526,7 @@ function Blocks() {
                 borderBottom: `1px dashed ${C.line}`,
               }}
             >
-              RENDRE LA PAROLE
+              {t("account.unblock")}
             </button>
           </div>
         ))}
@@ -532,14 +536,14 @@ function Blocks() {
           at the blocking; we reopen a door, we do not call somebody
           back. */}
       <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 7 }}>
-        Leurs critiques reparaîtront sous les fiches. Vous ne les suivrez pas pour autant — le
-        blocage avait défait le lien, et le défaire ne le renoue pas.
+        {t("account.unblockNote")}
       </div>
     </div>
   );
 }
 
 function Reminders() {
+  const { t } = useTranslation();
   const [state, setState] = useState<PushState | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -567,23 +571,22 @@ function Reminders() {
 
   return (
     <div style={{ borderTop: `1px dashed ${C.line}`, paddingTop: 14 }}>
-      <Label>Les rappels</Label>
+      <Label>{t("account.reminders")}</Label>
       {state.denied ? (
         /* The refusal is final in most browsers: there is no second
            request to make, only a setting to reopen by hand. Saying so is
            better than a button that fails. */
         <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded, marginTop: 4 }}>
-          Ce navigateur a refusé les notifications. Cela se rouvre dans ses réglages de site, pas
-          ici.
+          {t("account.notificationsDenied")}
         </div>
       ) : (
         <>
           <button onClick={toggle} disabled={busy} style={button(C.pine, state.subscribed)}>
-            <Bell size={12} /> {state.subscribed ? "NE PLUS ME RAPPELER" : "ME RAPPELER MES DÉFIS"}
+            <Bell size={12} />{" "}
+            {state.subscribed ? t("account.remindStop") : t("account.remindStart")}
           </button>
           <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 6 }}>
-            Un défi qui commence, un défi qui s'achève — rien d'autre ne vous sonnera. Le réglage
-            vaut pour cet appareil seulement.
+            {t("account.remindNote")}
           </div>
         </>
       )}
@@ -592,6 +595,7 @@ function Reminders() {
 }
 
 function Share() {
+  const { t } = useTranslation();
   const [state, setState] = useState<Sharing | null>(null);
   const [token, setJeton] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -639,13 +643,13 @@ function Share() {
 
   return (
     <div style={{ borderTop: `1px dashed ${C.line}`, paddingTop: 14 }}>
-      <Label>Montrer ma collection</Label>
+      <Label>{t("account.showCollection")}</Label>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
         {(
           [
-            ["privee", "PERSONNE"],
-            ["lien", "PAR LIEN"],
-            ["publique", "TOUT LE MONDE"],
+            ["privee", t("account.shareNobody")],
+            ["lien", t("account.shareLink")],
+            ["publique", t("account.shareEveryone")],
           ] as [Sharing, string][]
         ).map(([key, word]) => (
           <button
@@ -665,10 +669,10 @@ function Share() {
       </div>
 
       <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 8 }}>
-        {state === null && "Par défaut, personne ne voit votre collection."}
-        {state === "privee" && "Personne. Les liens déjà donnés ne valent plus rien."}
-        {state === "lien" && "Qui a at lien. Il ne se devine pas, et se coupe quand vous voulez."}
-        {state === "publique" && "Qui connaît votre pseudonyme."}
+        {state === null && t("account.shareDefaultNote")}
+        {state === "privee" && t("account.shareNobodyNote")}
+        {state === "lien" && t("account.shareLinkNote")}
+        {state === "publique" && t("account.shareEveryoneNote")}
       </div>
 
       {adresse && (
@@ -696,7 +700,8 @@ function Share() {
             }}
             style={button(C.slate, false)}
           >
-            {copied ? <Check size={12} /> : <LinkIcon size={12} />} {copied ? "COPIÉ" : "COPIER"}
+            {copied ? <Check size={12} /> : <LinkIcon size={12} />}{" "}
+            {copied ? t("common.copied") : t("common.copy")}
           </button>
         </div>
       )}
@@ -706,7 +711,7 @@ function Share() {
       <div
         style={{ fontFamily: F.mono, fontSize: 9, color: alpha(C.inkFaded, 0.75), marginTop: 8 }}
       >
-        Vos notes et votre journal de séances ne sont jamais montrés.
+        {t("account.shareNeverNote")}
       </div>
     </div>
   );

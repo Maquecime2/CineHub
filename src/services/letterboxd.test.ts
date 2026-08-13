@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
+import fr from "../i18n/fr";
+import en from "../i18n/en";
 import {
+  LetterboxdError,
   parseLetterboxdRss,
   parseWatchlistPage,
   fetchLetterboxdWatchlist,
@@ -136,10 +139,11 @@ describe("reading the Letterboxd feed", () => {
      page. Reading it in silence would give "no screening at all", and we
      would search on the side of the username while the real culprit is
      the relay. */
-  it("refuses an HTML page with a message that says what to check", () => {
+  it("refuses an HTML page with a code that says what to check", () => {
     expect(() => parseLetterboxdRss("<html><body>503 Service Unavailable</body></html>")).toThrow(
-      /pseudo|relais/i
+      LetterboxdError
     );
+    expect(codeOf(() => parseLetterboxdRss("<html><body>503</body></html>"))).toBe("notAFeed");
   });
 });
 
@@ -255,9 +259,7 @@ describe("reading one watchlist page", () => {
      emptied watchlist, and the screen would flag the whole collection as
      removed. */
   it("refuses a page that is not a watchlist", () => {
-    expect(() => parseWatchlistPage("<html><body>503 Service Unavailable</body></html>")).toThrow(
-      /pseudo|relais|public/i
-    );
+    expect(codeOf(() => parseWatchlistPage("<html><body>503</body></html>"))).toBe("notAWatchlist");
   });
 
   /* An empty watchlist says so: Letterboxd lays a "No films yet" in
@@ -333,6 +335,38 @@ describe("taking down a whole watchlist", () => {
   });
 
   it("refuses an empty handle before touching the network", async () => {
-    await expect(fetchLetterboxdWatchlist("  ")).rejects.toThrow(/pseudo/i);
+    await expect(fetchLetterboxdWatchlist("  ")).rejects.toBeInstanceOf(LetterboxdError);
+  });
+});
+
+/* THE CODE IS THE CONTRACT, and a code nobody wrote a sentence for shows
+   `letterboxd.notAFeed` on screen. Neither catalogue may forget one. */
+const codeOf = (run: () => unknown): string | undefined => {
+  try {
+    run();
+  } catch (e) {
+    return e instanceof LetterboxdError ? e.code : undefined;
+  }
+  return undefined;
+};
+
+describe("every failure code has a sentence", () => {
+  const CODES = [
+    "noHandle",
+    "relaySilent",
+    "notAFeed",
+    "notAWatchlist",
+    "feedStatus",
+    "watchlistStatus",
+  ];
+  it.each(CODES)("%s reads in both languages", (code) => {
+    for (const [name, tree] of [
+      ["fr", fr],
+      ["en", en],
+    ] as const)
+      expect(
+        (tree.letterboxd as Record<string, string>)[code]?.trim(),
+        `${code} is missing in ${name}`
+      ).toBeTruthy();
   });
 });

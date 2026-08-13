@@ -10,6 +10,8 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it, expect } from "vitest";
 import { TOURS, tourForView } from "./steps";
+import fr from "../../i18n/fr";
+import en from "../../i18n/en";
 
 /* The list of the product's views, copied by hand from `FolderTabs`'
    `View` union: a type does not survive compilation, and it is precisely
@@ -49,11 +51,44 @@ describe("the steps hold together", () => {
     t.steps.map((s, i) => ({ id, i, s }))
   );
 
-  it("always says something", () => {
+  /* SINCE THE STEPS HOLD KEYS AND NOT SENTENCES, a non-empty title proves
+     nothing: `tour.almanac.plates.title` is not empty, and shows exactly
+     that on screen if nobody wrote it in the catalogue. So we resolve.
+
+     In BOTH catalogues, and not only in French: the fallback would hand
+     the French sentence to an English reader without a sound, which is
+     the very slip the parity test exists for. */
+  const inThere = (tree: unknown, key: string): string | undefined => {
+    const leaf = key
+      .split(".")
+      .reduce<unknown>((node, k) => (node as Record<string, unknown> | undefined)?.[k], tree);
+    return typeof leaf === "string" ? leaf : undefined;
+  };
+
+  it("always says something, in both languages", () => {
     for (const { id, i, s } of allOfThem) {
-      expect(s.title.trim(), `${id}[${i}]`).not.toBe("");
-      expect(s.body.trim(), `${id}[${i}]`).not.toBe("");
+      for (const key of [s.title, s.body])
+        for (const [name, tree] of [
+          ["fr", fr],
+          ["en", en],
+        ] as const)
+          expect(
+            inThere(tree, key)?.trim(),
+            `${id}[${i}] : « ${key} » manque en ${name}`
+          ).toBeTruthy();
     }
+  });
+
+  it("every tour's label is in the catalogue", () => {
+    for (const [id, t] of Object.entries(TOURS))
+      for (const [name, tree] of [
+        ["fr", fr],
+        ["en", en],
+      ] as const)
+        expect(
+          inThere(tree, t.label)?.trim(),
+          `${id} : « ${t.label} » manque en ${name}`
+        ).toBeTruthy();
   });
 
   it("aims only through a tour attribute", () => {

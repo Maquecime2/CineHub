@@ -11,6 +11,12 @@ import { familyOf } from "./wake";
 import { makeFilm } from "./film";
 import type { Film } from "../types";
 
+import i18n from "../i18n";
+import { say } from "./wording";
+
+/** What a `Wording` really reads as on screen. The suite runs in French. */
+const said = (w: Parameters<typeof say>[0]) => say(w, i18n.t.bind(i18n));
+
 const cand = (tmdbId: number, title: string, extra: Partial<FarCandidate> = {}): FarCandidate => ({
   tmdbId,
   title,
@@ -74,7 +80,9 @@ describe("merging the provenances", () => {
       harvest("crowd", "", [cand(1, "Croisé")]),
       harvest("cinematography", "Roger Deakins", [cand(1, "Croisé")]),
     ];
-    expect(mergeAfar(r)[0]!.reason).toBe("du même chef op Roger Deakins · vu par les mêmes gens");
+    expect(said(mergeAfar(r)[0]!.reason)).toBe(
+      "du même chef op Roger Deakins · vu par les mêmes gens"
+    );
   });
 
   it("only counts beyond two paths", () => {
@@ -84,14 +92,14 @@ describe("merging the provenances", () => {
       harvest("crowd", "", [cand(1, "Croisé")]),
       harvest("actor", "Vedette", [cand(1, "Croisé")]),
     ];
-    expect(mergeAfar(r)[0]!.reason).toBe(
+    expect(said(mergeAfar(r)[0]!.reason)).toBe(
       "du même chef op Deakins · du même compositeur Zimmer, + 2"
     );
   });
 
   it("simply says where it comes from when there is only one path", () => {
     const r = [harvest("music", "Zbigniew Preisner", [cand(1, "Seul")])];
-    expect(mergeAfar(r)[0]!.reason).toBe("du même compositeur Zbigniew Preisner");
+    expect(said(mergeAfar(r)[0]!.reason)).toBe("du même compositeur Zbigniew Preisner");
   });
 
   it("puts a shared cinematographer ahead of a plain recommendation", () => {

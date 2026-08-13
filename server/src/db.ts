@@ -21,11 +21,13 @@
    tests. The same queries run on both sides — so the tests exercise the
    real SQL, constraints included, and not an imitation.
 
-   THE TABLE AND COLUMN NAMES STAY FRENCH throughout this package, and
-   they are the one thing here that is not code: they are written into a
-   database that may already hold somebody's collection. Renaming them is
-   a schema migration, not a translation, and it is deliberately left out
-   of this pass. Everything around them speaks English. */
+   THE TABLE AND COLUMN NAMES WERE FRENCH, AND THEY WERE MIGRATED — not
+   translated. They are written into a database that may already hold
+   somebody's collection, so the renaming is done in SQL, conditionally,
+   at the top of `sql/001_baseline.sql`: a base laid down under the old
+   names catches up on its own at the next start, and one laid down under
+   the new ones does not budge. That is the only way this file can claim
+   both spellings at once. */
 export interface Db {
   query<T = Record<string, unknown>>(text: string, values?: unknown[]): Promise<T[]>;
   /* A PREPARED STATEMENT CARRIES ONE COMMAND ONLY, and that is a rule of

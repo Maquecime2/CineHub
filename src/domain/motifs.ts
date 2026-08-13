@@ -23,13 +23,42 @@
    doors that apply it.
    ============================================================ */
 import type { Film } from "../types";
+import { saying, words, type Wording } from "./wording";
+
+/**
+ * How the caller turns a key into words.
+ *
+ * The domain does not know i18next and must not: it is `t`, passed in.
+ * A signature of one line rather than an import keeps this module
+ * testable without a catalogue.
+ */
+export type NameOf = (key: string, values?: Record<string, string | number>) => string;
+
+/**
+ * What to write under a motif.
+ *
+ * WHAT SOMEBODY TYPED IS NEVER TRANSLATED — their own motif keeps their
+ * own words, in both languages, exactly like a note or a review.
+ */
+export const motifLabel = (m: Motif, name: NameOf): string =>
+  m.label ?? name(`motifs.labels.${m.id}`);
+
+/** The same, for a domain that hands words on rather than showing them. */
+export const motifWording = (m: Motif): Wording =>
+  m.label !== undefined ? words(m.label) : saying(`motifs.labels.${m.id}`);
 
 export type MotifFamily = "fate" | "ending" | "narrative" | "figures" | "tone" | "world";
 
 export interface Motif {
   /** Stable key, never the label: it is what gets written on the card. */
   id: string;
-  label: string;
+  /**
+   * Present ONLY on a motif somebody wrote themselves, where it is their
+   * own words. A catalogue motif has none: it has a name in each
+   * language, kept under `motifs.labels.<id>`. Read the two through
+   * `motifLabel` rather than choosing here.
+   */
+  label?: string;
   family: MotifFamily;
   /**
    * A motif that gives the ending away. It is written like the others,
@@ -42,13 +71,13 @@ export interface Motif {
   tmdb?: (number | string)[];
 }
 
-export const FAMILIES: { id: MotifFamily; label: string }[] = [
-  { id: "fate", label: "Ce qui arrive aux personnages" },
-  { id: "ending", label: "La dernière image" },
-  { id: "narrative", label: "La façon de raconter" },
-  { id: "figures", label: "Les figures" },
-  { id: "tone", label: "Le ton" },
-  { id: "world", label: "Le monde" },
+export const FAMILIES: { id: MotifFamily }[] = [
+  { id: "fate" },
+  { id: "ending" },
+  { id: "narrative" },
+  { id: "figures" },
+  { id: "tone" },
+  { id: "world" },
 ];
 
 /* THE ORDER MATTERS: it is the display order, family by family, and it
@@ -57,80 +86,68 @@ export const MOTIFS: Motif[] = [
   /* --- what happens to the characters ------------------------------ */
   {
     id: "hero-dies",
-    label: "Le héros meurt",
     family: "fate",
     spoiler: true,
     tmdb: ["death of hero", "dying and death", "protagonist dies"],
   },
   {
     id: "sacrifice",
-    label: "Il se sacrifie",
     family: "fate",
     spoiler: true,
     tmdb: ["self sacrifice", "sacrifice", "heroic sacrifice"],
   },
   {
     id: "everyone-dies",
-    label: "Personne n'en réchappe",
     family: "fate",
     spoiler: true,
     tmdb: ["mass death", "massacre"],
   },
   {
     id: "sole-survivor",
-    label: "Un seul en réchappe",
     family: "fate",
     spoiler: true,
     tmdb: ["sole survivor", "survivor"],
   },
-  { id: "grief", label: "Le deuil d'un proche", family: "fate", tmdb: ["grief", "mourning"] },
+  { id: "grief", family: "fate", tmdb: ["grief", "mourning"] },
   {
     id: "revenge-fulfilled",
-    label: "La vengeance aboutit",
     family: "fate",
     spoiler: true,
     tmdb: ["revenge", "vengeance"],
   },
   {
     id: "revenge-in-vain",
-    label: "La vengeance ne répare rien",
     family: "fate",
     spoiler: true,
   },
   {
     id: "betrayal",
-    label: "Trahi par un proche",
     family: "fate",
     tmdb: ["betrayal", "traitor"],
   },
-  { id: "flight", label: "La fuite", family: "fate", tmdb: ["escape", "on the run", "manhunt"] },
+  { id: "flight", family: "fate", tmdb: ["escape", "on the run", "manhunt"] },
   {
     id: "downfall",
-    label: "L'ascension puis la chute",
     family: "fate",
     tmdb: ["rise and fall", "downfall"],
   },
   {
     id: "impossible-love",
-    label: "L'amour impossible",
     family: "fate",
     tmdb: ["forbidden love", "unrequited love", "impossible love"],
   },
   {
     id: "reunion",
-    label: "Se retrouver après des années",
     family: "fate",
     tmdb: ["reunion", "family reunion"],
   },
   {
     id: "confinement",
-    label: "Enfermé, littéralement",
     family: "fate",
     tmdb: ["prison", "captivity", "kidnapping"],
   },
   {
     id: "loss-of-reason",
-    label: "La raison qui s'en va",
     family: "fate",
     tmdb: ["insanity", "madness", "mental illness"],
   },
@@ -138,40 +155,34 @@ export const MOTIFS: Motif[] = [
   /* --- the last image ---------------------------------------------- */
   {
     id: "open-ending",
-    label: "Fin ouverte",
     family: "ending",
     spoiler: true,
     tmdb: ["open ending", "ambiguous ending"],
   },
   {
     id: "final-revelation",
-    label: "Tout bascule à la fin",
     family: "ending",
     spoiler: true,
     tmdb: ["twist ending", "plot twist", "surprise ending"],
   },
   {
     id: "back-to-the-start",
-    label: "On revient au point de départ",
     family: "ending",
     spoiler: true,
   },
   {
     id: "false-happy-ending",
-    label: "Une fin heureuse à laquelle on ne croit pas",
     family: "ending",
     spoiler: true,
   },
   {
     id: "final-freeze-frame",
-    label: "Un dernier plan qui se fige",
     family: "ending",
     spoiler: true,
     tmdb: ["freeze frame"],
   },
   {
     id: "distant-epilogue",
-    label: "Un épilogue des années après",
     family: "ending",
     spoiler: true,
   },
@@ -179,215 +190,183 @@ export const MOTIFS: Motif[] = [
   /* --- the way of telling ------------------------------------------ */
   {
     id: "non-linear-narrative",
-    label: "Récit désordonné",
     family: "narrative",
     tmdb: ["nonlinear timeline", "anachronic order"],
   },
   {
     id: "unreliable-narrator",
-    label: "Le narrateur ment",
     family: "narrative",
     tmdb: ["unreliable narrator"],
   },
   {
     id: "single-setting",
-    label: "Huis clos",
     family: "narrative",
     tmdb: ["one location", "single set"],
   },
-  { id: "ensemble-film", label: "Film choral", family: "narrative", tmdb: ["ensemble cast"] },
+  { id: "ensemble-film", family: "narrative", tmdb: ["ensemble cast"] },
   {
     id: "road-movie",
-    label: "Road movie",
     family: "narrative",
     tmdb: ["road movie", "road trip"],
   },
   {
     id: "story-within-a-story",
-    label: "Un film dans le film",
     family: "narrative",
     tmdb: ["film within a film", "filmmaking", "metafiction"],
   },
   {
     id: "voice-over",
-    label: "Porté par une voix off",
     family: "narrative",
     tmdb: ["voice over narration", "narration"],
   },
   {
     id: "real-time",
-    label: "En temps réel",
     family: "narrative",
     tmdb: ["real time", "one day"],
   },
   {
     id: "time-loop",
-    label: "La même journée qui recommence",
     family: "narrative",
     tmdb: ["time loop"],
   },
-  { id: "chapters", label: "Découpé en chapitres", family: "narrative", tmdb: ["anthology"] },
+  { id: "chapters", family: "narrative", tmdb: ["anthology"] },
   {
     id: "flashback",
-    label: "Raconté depuis après",
     family: "narrative",
     tmdb: ["flashback", "told in flashback"],
   },
-  { id: "mockumentary", label: "Faux documentaire", family: "narrative", tmdb: ["mockumentary"] },
+  { id: "mockumentary", family: "narrative", tmdb: ["mockumentary"] },
   {
     id: "long-take",
-    label: "De longs plans-séquences",
     family: "narrative",
     tmdb: ["long take", "one shot"],
   },
   {
     id: "literary-adaptation",
-    label: "Vient d'un livre",
     family: "narrative",
     tmdb: ["based on novel or book", "based on play"],
   },
 
   /* --- the figures -------------------------------------------------- */
-  { id: "the-double", label: "Le double", family: "figures", tmdb: ["doppelganger", "twins"] },
+  { id: "the-double", family: "figures", tmdb: ["doppelganger", "twins"] },
   {
     id: "lost-mentor",
-    label: "Le mentor qu'on perd",
     family: "figures",
     spoiler: true,
     tmdb: ["mentor"],
   },
   {
     id: "wrong-man",
-    label: "Le faux coupable",
     family: "figures",
     tmdb: ["wrongful conviction", "wrongly accused"],
   },
   {
     id: "child-witness",
-    label: "Un enfant qui regarde",
     family: "figures",
     tmdb: ["child protagonist", "coming of age"],
   },
   {
     id: "siblings",
-    label: "Une histoire de fratrie",
     family: "figures",
     tmdb: ["brother brother relationship", "sister sister relationship", "siblings"],
   },
   {
     id: "absent-father",
-    label: "Le père absent",
     family: "figures",
     tmdb: ["father son relationship", "absent father"],
   },
   {
     id: "mismatched-duo",
-    label: "Un duo dépareillé",
     family: "figures",
     tmdb: ["buddy", "odd couple"],
   },
   {
     id: "group-falling-apart",
-    label: "Une bande qui se défait",
     family: "figures",
     tmdb: ["friendship", "gang"],
   },
   {
     id: "artist-at-work",
-    label: "Quelqu'un qui fabrique quelque chose",
     family: "figures",
     tmdb: ["artist", "writer", "musician"],
   },
   {
     id: "authority-figure",
-    label: "L'institution comme adversaire",
     family: "figures",
     tmdb: ["bureaucracy", "corruption"],
   },
   {
     id: "ghost",
-    label: "Un mort qui reste là",
     family: "figures",
     tmdb: ["ghost", "haunting"],
   },
 
   /* --- the tone ------------------------------------------------------ */
-  { id: "melancholy", label: "Mélancolie", family: "tone", tmdb: ["melancholy", "loneliness"] },
-  { id: "slapstick", label: "Burlesque", family: "tone", tmdb: ["slapstick comedy", "farce"] },
+  { id: "melancholy", family: "tone", tmdb: ["melancholy", "loneliness"] },
+  { id: "slapstick", family: "tone", tmdb: ["slapstick comedy", "farce"] },
   {
     id: "unease",
-    label: "Malaise",
     family: "tone",
     tmdb: ["awkwardness", "psychological horror"],
   },
   {
     id: "contemplative",
-    label: "Contemplatif",
     family: "tone",
     tmdb: ["slow cinema", "meditative"],
   },
-  { id: "irony", label: "Ironie froide", family: "tone", tmdb: ["black comedy", "satire"] },
-  { id: "tenderness", label: "Tendresse", family: "tone", tmdb: ["heartwarming"] },
-  { id: "fever", label: "Fièvre, tout va trop vite", family: "tone", tmdb: ["frenetic"] },
-  { id: "sensuality", label: "Sensualité", family: "tone", tmdb: ["eroticism", "sensuality"] },
-  { id: "paranoia", label: "Paranoïa", family: "tone", tmdb: ["paranoia", "conspiracy"] },
-  { id: "dreamlike", label: "Onirique", family: "tone", tmdb: ["dream", "surrealism"] },
+  { id: "irony", family: "tone", tmdb: ["black comedy", "satire"] },
+  { id: "tenderness", family: "tone", tmdb: ["heartwarming"] },
+  { id: "fever", family: "tone", tmdb: ["frenetic"] },
+  { id: "sensuality", family: "tone", tmdb: ["eroticism", "sensuality"] },
+  { id: "paranoia", family: "tone", tmdb: ["paranoia", "conspiracy"] },
+  { id: "dreamlike", family: "tone", tmdb: ["dream", "surrealism"] },
 
   /* --- the world ----------------------------------------------------- */
   {
     id: "sprawling-city",
-    label: "La grande ville qui avale",
     family: "world",
     tmdb: ["urban setting", "megacity", "new york city"],
   },
   {
     id: "stifling-countryside",
-    label: "La campagne étouffante",
     family: "world",
     tmdb: ["rural setting", "small town", "village"],
   },
-  { id: "winter", label: "L'hiver, la neige", family: "world", tmdb: ["winter", "snow"] },
+  { id: "winter", family: "world", tmdb: ["winter", "snow"] },
   {
     id: "crushing-summer",
-    label: "Un été écrasant",
     family: "world",
     tmdb: ["summer", "heat wave"],
   },
-  { id: "sea", label: "La mer", family: "world", tmdb: ["ocean", "sea", "island"] },
+  { id: "sea", family: "world", tmdb: ["ocean", "sea", "island"] },
   {
     id: "near-future",
-    label: "Un futur tout proche",
     family: "world",
     tmdb: ["near future", "dystopia"],
   },
   {
     id: "after-the-end",
-    label: "Après la fin du monde",
     family: "world",
     tmdb: ["post-apocalyptic future", "apocalypse"],
   },
   {
     id: "war-in-the-background",
-    label: "La guerre, en arrière-plan",
     family: "world",
     tmdb: ["world war ii", "war", "occupation"],
   },
   {
     id: "world-of-work",
-    label: "Le travail, vraiment montré",
     family: "world",
     tmdb: ["workplace", "factory", "office"],
   },
   {
     id: "family-single-setting",
-    label: "La maison de famille",
     family: "world",
     tmdb: ["family drama", "dysfunctional family"],
   },
-  { id: "the-night", label: "Ça se passe la nuit", family: "world", tmdb: ["night", "one night"] },
+  { id: "the-night", family: "world", tmdb: ["night", "one night"] },
   {
     id: "exile",
-    label: "Loin de chez soi",
     family: "world",
     tmdb: ["immigration", "exile", "refugee"],
   },
@@ -490,26 +469,29 @@ export const motifById = (id: string): Motif | undefined =>
 export const motifsOf = (film: Pick<Film, "motifs">): Motif[] =>
   (film.motifs || []).map((id) => motifById(id)).filter((m): m is Motif => !!m);
 
-export const byFamily = (): { family: MotifFamily; label: string; motifs: Motif[] }[] => {
+export const byFamily = (): { family: MotifFamily; motifs: Motif[] }[] => {
   const inUse = allMotifs();
   return FAMILIES.map((f) => ({
     family: f.id,
-    label: f.label,
     motifs: inUse.filter((m) => m.family === f.id),
   })).filter((f) => f.motifs.length > 0);
 };
 
-/** Search in the catalogue, on the label AND the family. */
-export const searchMotifs = (q: string): Motif[] => {
-  const t = q.trim().toLowerCase();
-  if (!t) return [];
+/**
+ * Search in the catalogue, on the name AND the family.
+ *
+ * THE NAMES COME FROM OUTSIDE, and that is the whole point: a search must
+ * find what is ON SCREEN. Somebody reading in English types "the hero
+ * dies", somebody reading in French types "le héros meurt", and neither
+ * should have to know the other language to find the same motif.
+ */
+export const searchMotifs = (q: string, name: NameOf): Motif[] => {
+  const needle = q.trim().toLowerCase();
+  if (!needle) return [];
   return allMotifs().filter(
     (m) =>
-      m.label.toLowerCase().includes(t) ||
-      (FAMILIES.find((f) => f.id === m.family)
-        ?.label.toLowerCase()
-        .includes(t) ??
-        false)
+      motifLabel(m, name).toLowerCase().includes(needle) ||
+      name(`motifs.families.${m.family}`).toLowerCase().includes(needle)
   );
 };
 

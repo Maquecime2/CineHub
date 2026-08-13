@@ -22,6 +22,7 @@ import { initialsOf, makeFilm } from "../domain/film";
 import { filmKey } from "../domain/importing";
 import { motifById } from "../domain/motifs";
 import { tiltOf } from "../domain/seeded";
+import { useTranslation } from "react-i18next";
 import { useTmdbKey } from "../services/tmdbKey";
 import { searchPerson, personFilmography } from "../tmdb";
 import type { Film, KinshipRole } from "../types";
@@ -55,14 +56,8 @@ const THRESHOLD = 2;
 const isRegular = (p: Person): boolean =>
   p.films.length >= THRESHOLD || p.roles.some((r) => r !== "interprétation");
 
-const SHORT_ROLE: Record<KinshipRole, string> = {
-  réalisation: "réalisation",
-  interprétation: "interprétation",
-  image: "image",
-  musique: "musique",
-  scénario: "scénario",
-  thème: "thème",
-};
+/* The roles read from the catalogue, under `roles.<id>` — the ids stay
+   the French words because that is what a card carries on disk. */
 
 export function CreditsView({
   films,
@@ -103,6 +98,7 @@ function Directory({
   onOuvrir: (key: string) => void;
   unknown: boolean;
 }) {
+  const { t } = useTranslation();
   const [q, setQ] = useState("");
   const [roles, setRoles] = useState<KinshipRole[]>([]);
   const [all, setTous] = useState(false);
@@ -122,7 +118,7 @@ function Directory({
 
   return (
     <div style={{ padding: "34px 44px 70px", position: "relative" }}>
-      <StampCorner text="GÉNÉRIQUE" />
+      <StampCorner text={t("credits.stamp")} />
       <div
         style={{
           fontFamily: F.title,
@@ -132,16 +128,13 @@ function Directory({
           color: C.ink,
         }}
       >
-        Le générique
+        {t("views.credits")}
       </div>
-      <Guideline>
-        Les noms que votre collection porte déjà — celles et ceux qui ont réalisé, joué, éclairé,
-        composé, écrit. {people.length} en tout.
-      </Guideline>
+      <Guideline>{t("credits.intro", { count: people.length })}</Guideline>
 
       {unknown && (
         <div style={{ fontFamily: F.hand, fontSize: 17, color: C.burgundy, marginBottom: 10 }}>
-          Cette personne n'apparaît plus dans aucune fiche.
+          {t("credits.gone")}
         </div>
       )}
 
@@ -151,7 +144,7 @@ function Directory({
           data-tour="credits-search"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="un nom…"
+          placeholder={t("credits.namePlaceholder")}
           style={{ ...underlineInput, fontFamily: F.body, fontSize: 16, width: 260 }}
         />
       </div>
@@ -170,13 +163,13 @@ function Directory({
               onClick={() => setRoles((s) => (on ? s.filter((x) => x !== r) : [...s, r]))}
               style={chipLook(on)}
             >
-              {SHORT_ROLE[r]}
+              {t(`roles.${r}`)}
             </button>
           );
         })}
         {!q.trim() && hiddenCount > 0 && (
           <button onClick={() => setTous((t) => !t)} style={chipLook(all, C.slate)}>
-            {all ? "les habitués seulement" : `+ ${hiddenCount} de passage`}
+            {all ? t("credits.regularsOnly") : t("credits.passingThrough", { count: hiddenCount })}
           </button>
         )}
       </div>
@@ -187,12 +180,12 @@ function Directory({
            sentence, and the threshold's says where the others went. */
         <div style={{ fontFamily: F.hand, fontSize: 19, color: C.inkFaded }}>
           {people.length === 0
-            ? "Aucun nom pour l'instant. Complétez vos fiches par TMDB, depuis l'onglet Import, et le générique se remplira tout seul."
+            ? t("credits.noNames")
             : q.trim()
-              ? "Personne de ce nom."
+              ? t("credits.nobodyByThatName")
               : hiddenCount > 0
-                ? "Personne à ce titre parmi les habitués — ouvrez « de passage » pour voir le reste."
-                : "Personne à ce titre."}
+                ? t("credits.nobodyAmongRegulars")
+                : t("credits.nobodyInThatRole")}
         </div>
       ) : (
         <div
@@ -229,6 +222,7 @@ const chipLook = (on: boolean, tint: string = C.burgundy) => ({
 
 /** The card of a name in the directory — an index card, pinned up. */
 function Card({ p, onClick }: { p: Person; onClick: () => void }) {
+  const { t } = useTranslation();
   return (
     <button
       onClick={onClick}
@@ -272,7 +266,7 @@ function Card({ p, onClick }: { p: Person; onClick: () => void }) {
         }}
       >
         {p.roles
-          .map((r) => SHORT_ROLE[r])
+          .map((r) => t(`roles.${r}`))
           .join(" · ")
           .toUpperCase()}
       </div>
@@ -317,6 +311,7 @@ function Dossier({
   onOpen: (id: string) => void;
   onAddToWatchlist: (f: Film) => void;
 }) {
+  const { t } = useTranslation();
   const perId = useMemo(() => new Map(films.map((f) => [f.id, f])), [films]);
   const theirs = p.films.map((id) => perId.get(id)).filter(Boolean) as Film[];
   const seenFilms = theirs.filter((f) => f.status === "watched");
@@ -325,7 +320,7 @@ function Dossier({
   return (
     <div style={{ padding: "34px 44px 70px", maxWidth: 1000, position: "relative" }}>
       <button onClick={onRetour} style={back}>
-        <ArrowLeft size={13} /> le générique
+        <ArrowLeft size={13} /> {t("credits.backToCredits")}
       </button>
 
       <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
@@ -348,9 +343,11 @@ function Dossier({
         )}
       </div>
       <Guideline>
-        {p.roles.map((r) => SHORT_ROLE[r]).join(", ")} — {p.films.length} film
-        {p.films.length > 1 ? "s" : ""} chez vous
-        {p.toWatch > 0 ? `, dont ${p.toWatch} en attente` : ""}.
+        {t("credits.personIntro", {
+          roles: p.roles.map((r) => t(`roles.${r}`)).join(", "),
+          count: p.films.length,
+        })}
+        {p.toWatch > 0 ? t("credits.ofWhichWaiting", { count: p.toWatch }) : ""}.
       </Guideline>
 
       <Cardstock tour="credits-page" style={{ marginTop: 8 }}>
@@ -365,8 +362,8 @@ function Dossier({
               "—"
             )}
           </Figure>
-          <Figure name="ÉCART AU PUBLIC">{readableGap(p.gap)}</Figure>
-          <Figure name="SÉANCES">{p.screenings || "—"}</Figure>
+          <Figure name={t("credits.gapToPublic")}>{readableGap(p.gap, t)}</Figure>
+          <Figure name={t("almanac.viewings")}>{p.screenings || "—"}</Figure>
         </div>
       </Cardstock>
 
@@ -392,8 +389,8 @@ function Dossier({
         );
       })()}
 
-      <Shelf title="Vus" films={seenFilms} key={p.key} onOpen={onOpen} />
-      <Shelf title="En attente" films={wishlist} key={p.key} onOpen={onOpen} />
+      <Shelf title={t("credits.seen")} films={seenFilms} key={p.key} onOpen={onOpen} />
+      <Shelf title={t("credits.waiting")} films={wishlist} key={p.key} onOpen={onOpen} />
 
       <WhatIsMissing p={p} films={films} onAddToWatchlist={onAddToWatchlist} />
     </div>
@@ -427,13 +424,13 @@ function Figure({ name, children }: { name: string; children: ReactNode }) {
 
 /* "Vous êtes plus sévère de 0,8" reads by itself; "−0,8" asks one to
    remember which way round the subtraction was done. */
-function readableGap(gap: number | null) {
+function readableGap(gap: number | null, t: (k: string, v?: Record<string, string>) => string) {
   if (gap == null) return "—";
   const v = Math.abs(gap).toFixed(1);
-  if (Math.abs(gap) < 0.15) return <span style={{ fontSize: 19 }}>d'accord</span>;
+  if (Math.abs(gap) < 0.15) return <span style={{ fontSize: 19 }}>{t("credits.inAgreement")}</span>;
   return (
     <span style={{ fontSize: 19, color: gap > 0 ? C.moss : C.vermillion }}>
-      {gap > 0 ? "plus tendre" : "plus sévère"} de {v}
+      {t(gap > 0 ? "credits.gentlerBy" : "credits.harsherBy", { points: v })}
     </span>
   );
 }
@@ -449,6 +446,7 @@ function Shelf({
   key: string;
   onOpen: (id: string) => void;
 }) {
+  const { t } = useTranslation();
   if (films.length === 0) return null;
   return (
     <div style={{ marginTop: 26 }}>
@@ -478,7 +476,7 @@ function Shelf({
                   under every poster of a film-maker teaches nothing. */}
               <div style={{ fontFamily: F.mono, fontSize: 8.5, color: C.inkFaded, marginTop: 3 }}>
                 {f.year || ""}
-                {roles.length > 1 ? ` · ${roles.map((r) => SHORT_ROLE[r]).join(", ")}` : ""}
+                {roles.length > 1 ? ` · ${roles.map((r) => t(`roles.${r}`)).join(", ")}` : ""}
               </div>
             </button>
           );
@@ -560,6 +558,7 @@ function WhatIsMissing({
   films: Film[];
   onAddToWatchlist: (f: Film) => void;
 }) {
+  const { t } = useTranslation();
   const apiKey = useTmdbKey();
   const [state, setState] = useState<"repos" | "en-cours" | "fait">("repos");
   const [msg, setMsg] = useState("");
@@ -578,7 +577,7 @@ function WhatIsMissing({
       const hit = await searchPerson(p.name, apiKey);
       if (!hit) {
         setState("fait");
-        setMsg("TMDB ne connaît personne de ce nom.");
+        setMsg(t("credits.tmdbNobody"));
         return;
       }
       /* We ask about the best furnished title: it is the one for which
@@ -607,12 +606,12 @@ function WhatIsMissing({
       setState("fait");
       setMsg(
         rest.length
-          ? `${rest.length} film(s) que vous n'avez pas — à ce titre-là.`
-          : "Rien ne manque : vous avez tout ce que TMDB lui connaît."
+          ? t("credits.missingCount", { count: rest.length })
+          : t("credits.nothingMissing")
       );
     } catch (e) {
       setState("repos");
-      setMsg(`TMDB indisponible (${(e as Error).message}).`);
+      setMsg(t("credits.tmdbDown", { error: (e as Error).message }));
     }
   };
 
@@ -636,15 +635,14 @@ function WhatIsMissing({
       <SectionTitle
         action={
           <button onClick={search} disabled={state === "en-cours"} style={chipLook(false, C.pine)}>
-            {state === "en-cours" ? <Loader2 size={11} /> : <Download size={11} />} demander à TMDB
+            {state === "en-cours" ? <Loader2 size={11} /> : <Download size={11} />}{" "}
+            {t("credits.askTmdb")}
           </button>
         }
       >
-        Ce qu'il me manque
+        {t("credits.whatIsMissing")}
       </SectionTitle>
-      <Guideline>
-        Sa filmographie complète, moins ce que vous avez déjà. Rien n'est ajouté sans vous.
-      </Guideline>
+      <Guideline>{t("credits.missingNote")}</Guideline>
 
       {msg && (
         <div style={{ fontFamily: F.hand, fontSize: 17, color: C.inkFaded, marginBottom: 10 }}>
@@ -695,7 +693,7 @@ function WhatIsMissing({
               <div
                 style={{ fontFamily: F.mono, fontSize: 9, color: C.inkFaded, margin: "3px 0 7px" }}
               >
-                {c.year || "année inconnue"}
+                {c.year || t("credits.yearUnknown")}
                 {c.voteAverage ? ` · ${c.voteAverage.toFixed(1)}/10` : ""}
               </div>
               <button
@@ -703,7 +701,7 @@ function WhatIsMissing({
                 disabled={inside}
                 style={{ ...chipLook(inside, C.ochre), cursor: inside ? "default" : "pointer" }}
               >
-                {inside ? "dans À voir" : "+ à voir"}
+                {inside ? t("credits.inWatchlist") : t("credits.addToWatchlist")}
               </button>
             </div>
           );

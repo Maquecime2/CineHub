@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { C, F } from "../../theme/tokens";
 import { underlineInput, tap } from "../../theme/styles";
 import { Label } from "../ui";
@@ -15,6 +16,7 @@ interface PosterChoice {
 }
 
 export function PosterPicker({ film, onUpdate }: { film: Film; onUpdate: (f: Film) => void }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
@@ -28,7 +30,7 @@ export function PosterPicker({ film, onUpdate }: { film: Film; onUpdate: (f: Fil
      impose the first that comes. */
   const loadGallery = async () => {
     if (!apiKey) {
-      setGalleryMsg("Aucune clé TMDB — à régler au pied du rail d'onglets.");
+      setGalleryMsg(t("tmdbKey.missing"));
       return;
     }
     setGalleryMsg("recherche…");
@@ -42,7 +44,7 @@ export function PosterPicker({ film, onUpdate }: { film: Film; onUpdate: (f: Fil
       });
       if (tmdbId && !film.tmdbId) onUpdate({ ...film, tmdbId });
       setGallery(posters);
-      setGalleryMsg(posters.length ? "" : "Aucune affiche trouvée pour ce film.");
+      setGalleryMsg(posters.length ? "" : t("poster.noneFound"));
     } catch (e) {
       setGalleryMsg(`TMDB indisponible (${(e as Error).message}).`);
     }
@@ -71,7 +73,7 @@ export function PosterPicker({ film, onUpdate }: { film: Film; onUpdate: (f: Fil
       onUpdate({ ...film, poster: IDB_PREFIX + key });
     } catch (e) {
       console.error(e);
-      alert("Cette image n'a pas pu être enregistrée.");
+      alert(t("poster.couldNotSave"));
     }
     setBusy(false);
     setOpen(false);
@@ -192,7 +194,7 @@ export function PosterPicker({ film, onUpdate }: { film: Film; onUpdate: (f: Fil
         }}
       />
       <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 4 }}>
-        clic droit sur une affiche → « copier l'adresse de l'image », puis Entrée
+        {t("poster.pasteHint")}
       </div>
 
       <input

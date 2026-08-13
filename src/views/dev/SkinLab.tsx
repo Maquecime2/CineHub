@@ -27,6 +27,7 @@
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import { C, F, alpha } from "../../theme/tokens";
+import { useTranslation } from "react-i18next";
 import { SKINS, type Skin } from "../../theme/skins";
 import { skinVars } from "../../theme/applySkin";
 import { InkStars, Label, Tally } from "../../components/ui";
@@ -192,6 +193,7 @@ const CARD: CSSProperties = {
 };
 
 function SkinPanel({ skin }: { skin: Skin }) {
+  const { t } = useTranslation();
   return (
     /* The same attribute as on the root, and for the same rule: it is
        what tells the browser on which background it draws its own
@@ -218,7 +220,7 @@ function SkinPanel({ skin }: { skin: Skin }) {
           gap: 10,
         }}
       >
-        <span>{skin.label}</span>
+        <span>{t(`skins.${skin.key}.label`)}</span>
         <span style={{ opacity: 0.55 }}>
           {skin.key}
           {skin.dark ? " · nuit" : ""}

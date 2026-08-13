@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   CSSProperties,
@@ -17,6 +18,7 @@ import {
   neighbourInDirection,
 } from "../domain/sky";
 import type { Direction } from "../domain/sky";
+import { motifLabel } from "../domain/motifs";
 import { CoffeeRing, StampCorner, InkUnderline } from "../components/atmosphere";
 import type { Film, KinshipRole, LinkType, PlacedNode, SkyLink, SkyNode } from "../types";
 import { Label } from "../components/ui";
@@ -34,12 +36,9 @@ import type { Thread } from "../domain/threads";
    work cited by two films becomes a bridge: that is where the
    constellations form.
    ============================================================ */
-const LEGEND: [LinkType, string][] = [
-  ["film", "Film"],
-  ["book", "Livre"],
-  ["painting", "Peinture"],
-  ["other", "Autre œuvre"],
-];
+/* The legend reads its names from `linkTypes` — the same catalogue the
+   card's own picker uses, so the two can never drift apart. */
+const LEGEND: LinkType[] = ["film", "book", "painting", "other"];
 
 const LINK_INK: Record<LinkType, string> = {
   film: C.burgundy,
@@ -80,6 +79,7 @@ export function ConstellationView({
   /** The named gatherings — "the films where the hero dies". */
   fils?: Thread[];
 }) {
+  const { t } = useTranslation();
   const [hover, setHover] = useState<string | null>(null);
   /** The aimed-at thread, by its rank — enough to thicken and label it. */
   const [hoverLink, setHoverLink] = useState<number | null>(null);
@@ -192,8 +192,8 @@ export function ConstellationView({
     [full.nodes]
   );
   const results = useMemo(
-    () => (query.trim() ? searchFilms(films, query, 12) : []),
-    [films, query]
+    () => (query.trim() ? searchFilms(films, query, t, 12) : []),
+    [films, query, t]
   );
 
   const pin = (filmId: string) => {
@@ -298,9 +298,15 @@ export function ConstellationView({
     [
       n.label,
       n.sub,
-      n.kind === "film" ? "film" : n.kind === "thread" ? "fil" : "œuvre",
-      n.id === foyer ? "foyer de la carte" : "",
-      `${n.degree} lien${n.degree > 1 ? "s" : ""}`,
+      t(
+        n.kind === "film"
+          ? "constellation.aFilm"
+          : n.kind === "thread"
+            ? "constellation.aThread"
+            : "constellation.aWork"
+      ),
+      n.id === foyer ? t("constellation.mapFocus") : "",
+      t("constellation.linkCount", { count: n.degree }),
     ]
       .filter(Boolean)
       .join(", ");
@@ -358,9 +364,7 @@ export function ConstellationView({
           zIndex: 2,
         }}
       >
-        {crews
-          ? "vos fils, et les parentés trouvées dans les génériques"
-          : "seulement ce que vous avez relié à la main — attrapez une étoile pour la déplacer"}
+        {crews ? t("constellation.withCrews") : t("constellation.byHandOnly")}
       </div>
 
       {/* L'INTERRUPTEUR — la seconde couche, qu'on allume si on veut. */}
@@ -389,7 +393,7 @@ export function ConstellationView({
         }}
       >
         <Users size={13} />
-        SUIVRE LES ÉQUIPES
+        {t("constellation.followCrews")}
       </button>
       {crews && (
         <div
@@ -402,8 +406,7 @@ export function ConstellationView({
             zIndex: 2,
           }}
         >
-          en pointillé : une personne partagée par deux ou trois films. Cliquez un pointillé pour le
-          fixer — il devient alors un vrai fil rouge.
+          {t("constellation.dottedNote")}
         </div>
       )}
 
@@ -432,7 +435,11 @@ export function ConstellationView({
                         : [...cur, thread.id]
                     )
                   }
-                  title={motif ? `alimenté par « ${motif.label} »` : "fil composé à la main"}
+                  title={
+                    motif
+                      ? t("constellation.fedBy", { motif: motifLabel(motif, t) })
+                      : t("constellation.handmadeThread")
+                  }
                   style={{
                     all: "unset",
                     ...tap,
@@ -557,12 +564,11 @@ export function ConstellationView({
             zIndex: 3,
           }}
         >
-          <Label>Par où commencer</Label>
+          <Label>{t("constellation.whereToBegin")}</Label>
           <div
             style={{ fontFamily: F.hand, fontSize: 18, color: C.inkFaded, margin: "2px 0 10px" }}
           >
-            choisissez un film — la carte ne montrera que lui et ses voisins, et vous avancerez de
-            proche en proche
+            {t("constellation.whereToBeginNote")}
           </div>
           <input
             value={query}
@@ -605,7 +611,7 @@ export function ConstellationView({
             }}
             onClickCapture={() => setPortee(1)}
           >
-            OU VOIR TOUT LE CIEL, EN L&apos;ÉTAT
+            {t("constellation.showWholeSky")}
           </button>
         </div>
       )}
@@ -625,18 +631,18 @@ export function ConstellationView({
           }}
         >
           <span style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded, letterSpacing: 1 }}>
-            FOYER
+            {t("constellation.focus")}
           </span>
           <span style={{ fontFamily: F.title, fontSize: 17, fontWeight: 700, color: C.ink }}>
             {full.nodes.find((n) => n.id === foyer)?.label ?? "—"}
           </span>
           {path.length > 0 && (
             <button onClick={goBack} style={smallButton(false)}>
-              ← REVENIR ({path.length})
+              {t("constellation.goBack", { count: path.length })}
             </button>
           )}
           <button onClick={() => setPortee(portee === 1 ? 2 : 1)} style={smallButton(portee === 2)}>
-            {portee === 1 ? "ÉLARGIR" : "RESSERRER"}
+            {portee === 1 ? t("constellation.widen") : t("constellation.narrow")}
           </button>
           <button
             onClick={() => {
@@ -645,10 +651,10 @@ export function ConstellationView({
             }}
             style={smallButton(false)}
           >
-            CHANGER DE DÉPART
+            {t("constellation.changeStart")}
           </button>
           <span style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded }}>
-            un clic déplace le foyer · un double-clic ouvre la fiche
+            {t("constellation.clickHint")}
           </span>
         </div>
       )}
@@ -665,7 +671,7 @@ export function ConstellationView({
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="sauter à un autre film…"
+            placeholder={t("constellation.jumpTo")}
             style={{
               width: "100%",
               maxWidth: 320,
@@ -726,8 +732,8 @@ export function ConstellationView({
             }}
           >
             {tags.length || genres.length
-              ? "Aucun des films reliés ne porte ces mots-clés — élargissez la sélection."
-              : "Ouvrez un film, descendez au « fil rouge » et reliez-lui un livre, une peinture ou un autre film. Seuls les films reliés apparaissent ici."}
+              ? t("constellation.noneCarryThose")
+              : t("constellation.nothingLinkedYet")}
           </div>
         </div>
       ) : (
@@ -744,10 +750,16 @@ export function ConstellationView({
               zIndex: 2,
             }}
           >
-            {placed.filter((n) => n.kind === "film").length} FILM(S) RELIÉ(S) · {links.length}{" "}
-            FIL(S)
-            {crews && ` · DONT ${links.filter((l) => l.kind === "crew").length} PAR LES ÉQUIPES`}
-            {(tags.length || genres.length) > 0 && ` · ${linkedTotal} RELIÉ(S) AU TOTAL`}
+            {t("constellation.tally", {
+              films: placed.filter((n) => n.kind === "film").length,
+              threads: links.length,
+            })}
+            {crews &&
+              t("constellation.tallyCrews", {
+                count: links.filter((l) => l.kind === "crew").length,
+              })}
+            {(tags.length || genres.length) > 0 &&
+              t("constellation.tallyTotal", { count: linkedTotal })}
           </div>
           <div
             style={{
@@ -778,7 +790,7 @@ export function ConstellationView({
                   {r.toUpperCase()}
                 </span>
               ))}
-            {LEGEND.map(([k, l]) => (
+            {LEGEND.map((k) => (
               <span
                 key={k}
                 style={{
@@ -800,7 +812,7 @@ export function ConstellationView({
                     boxShadow: `0 0 6px ${LINK_INK[k]}88`,
                   }}
                 />
-                {l.toUpperCase()}
+                {t(`linkTypes.${k}`).toUpperCase()}
               </span>
             ))}
           </div>
@@ -826,7 +838,7 @@ export function ConstellationView({
                  navigation. */
               role="application"
               tabIndex={0}
-              aria-label="Carte du ciel — flèches pour aller d'un astre à l'autre, Entrée pour l'ouvrir, Échap pour lâcher"
+              aria-label={t("constellation.mapLabel")}
               aria-activedescendant={curseur ? `astre-${curseur}` : undefined}
               onKeyDown={byKeyboard}
               onFocus={() => {
@@ -914,8 +926,9 @@ export function ConstellationView({
                          thread, and it has to say so — without that
                          fallback, the strongest line on the map was the
                          only one to hover in silence. */
-                      [relationDef(l.relation)?.label, l.note].filter(Boolean).join(" — ") ||
-                      "fil écrit à la main"
+                      [relationDef(l.relation) ? t(relationDef(l.relation)!.label) : null, l.note]
+                        .filter(Boolean)
+                        .join(" — ") || t("constellation.handmadeThread")
                     : /* A POINTER TO A WORK SPEAKS TOO. The "crew" branch
                          also gathered the citations, which have no
                          `why`: the thread to the book was therefore
@@ -924,7 +937,9 @@ export function ConstellationView({
                          with its author. */
                       l.kind === "cite"
                       ? l.note ||
-                        [linkTypeOf(nb.type || "other").label, nb.sub].filter(Boolean).join(" · ")
+                        [t(`linkTypes.${linkTypeOf(nb.type || "other").key}`), nb.sub]
+                          .filter(Boolean)
+                          .join(" · ")
                       : (l.why || []).map((w) => `${w.role} · ${w.name}`).join(", ");
                 const fixer =
                   crew && onLinkFilm

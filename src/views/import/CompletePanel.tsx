@@ -29,6 +29,7 @@
       on titles beginning with "Les". Letting the creation through would
       then make a DUPLICATE of the very card one wanted to complete. */
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Sparkles, Tags } from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
@@ -45,6 +46,7 @@ interface CompletePanelProps {
 }
 
 export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
+  const { t } = useTranslation();
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [diff, setDiff] = useState<ImportDiff | null>(null);
   const [msg, setMsg] = useState("");
@@ -93,12 +95,12 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
       setDiff(raw);
       if (raw.toCreate.length)
         console.warn(
-          "compléter : lignes sans fiche correspondante, écartées",
+          "complete: rows with no matching card, set aside",
           raw.toCreate.map((f) => f.title)
         );
       if (res.failed) setMsg(`${res.failed} fiche(s) introuvable(s) chez TMDB.`);
     } catch (e) {
-      setMsg((e as Error).message || "TMDB n'a pas répondu.");
+      setMsg((e as Error).message || t("complete.noAnswer"));
     } finally {
       setProgress(null);
     }
@@ -108,7 +110,7 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
     if (!diff) return;
     // toCreate is deliberately emptied: see the file's header
     onImport({ toCreate: [], toUpdate: diff.toUpdate, unchanged: diff.unchanged });
-    setMsg(`${diff.toUpdate.length} fiche(s) complétée(s).`);
+    setMsg(t("complete.done", { count: diff.toUpdate.length }));
     setDiff(null);
   };
 
@@ -130,12 +132,12 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
           marginBottom: 10,
         }}
       >
-        COMPLÉTER LES FICHES DEPUIS TMDB
+        {t("complete.title")}
       </div>
 
       <Tally label="fiches dans la collection" value={films.length} />
       <Tally
-        label="fiches à compléter"
+        label={t("complete.toComplete")}
         value={toDo.length}
         ink={toDo.length ? C.burgundy : C.pine}
       />
@@ -146,7 +148,7 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
       {/* Emptiness counts as a lack: a card frozen at "asked for, there
           are none" has no more subjects than a card never queried, and
           it is that number one wants to see go down. */}
-      <Tally label="fiches sans mots-clés TMDB" value={noSubjects.length} ink={C.inkFaded} />
+      <Tally label={t("complete.noKeywords")} value={noSubjects.length} ink={C.inkFaded} />
 
       <div
         style={{
@@ -157,9 +159,7 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
           lineHeight: 1.35,
         }}
       >
-        {toDo.length === 0
-          ? "Tout est déjà rempli — rien à demander à TMDB."
-          : "Va chercher le casting, l’équipe, la durée, le pays, la langue et les mots-clés des fiches qui n’en ont pas. Les mots-clés sont ce qui permet au sillage d’un film de rapprocher deux fiches autrement que par les noms de leur équipe. Rien n’est écrit avant que vous ayez vu le détail."}
+        {toDo.length === 0 ? t("complete.allFull") : t("complete.intro")}
       </div>
 
       {progress && (
@@ -175,15 +175,15 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
             />
           </div>
           <div style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded, marginTop: 5 }}>
-            {progress.done} / {progress.total} interrogés…
+            {t("complete.asking", { done: progress.done, total: progress.total })}
           </div>
         </div>
       )}
 
       {diff && (
         <div style={{ margin: "12px 0" }}>
-          <Tally label="fiches à compléter" value={diff.toUpdate.length} ink={C.burgundy} />
-          <Tally label="fiches déjà à jour" value={diff.unchanged.length} />
+          <Tally label={t("complete.toComplete")} value={diff.toUpdate.length} ink={C.burgundy} />
+          <Tally label={t("complete.alreadyUpToDate")} value={diff.unchanged.length} />
           {diff.toUpdate.length > 0 && (
             <div
               style={{
@@ -233,7 +233,7 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
           }}
         >
           <Sparkles size={13} />
-          {progress ? "EN COURS…" : `COMPLÉTER ${toDo.length} FICHE(S)`}
+          {progress ? t("complete.running") : t("complete.completeN", { count: toDo.length })}
         </button>
 
         {/* THE KEYWORD CATCH-UP, separate and deliberate.
@@ -248,7 +248,7 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
           <button
             onClick={() => run(noSubjects)}
             disabled={!apiKey.trim() || !!progress}
-            title="Redemande les mots-clés, y compris pour les fiches qui avaient répondu vide"
+            title={t("complete.reaskHint")}
             style={{
               all: "unset",
               cursor: !apiKey.trim() || progress ? "default" : "pointer",
@@ -264,7 +264,7 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
             }}
           >
             <Tags size={13} />
-            REDEMANDER LES WORDS-CLÉS ({noSubjects.length})
+            {t("complete.reaskKeywords", { count: noSubjects.length })}
           </button>
         )}
 
@@ -282,14 +282,14 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
               fontSize: 10.5,
             }}
           >
-            ÉCRIRE LES {diff.toUpdate.length} MODIFICATIONS
+            {t("complete.writeChanges", { count: diff.toUpdate.length })}
           </button>
         )}
       </div>
 
       {!apiKey.trim() && (
         <div style={{ fontFamily: F.hand, fontSize: 16, color: C.burgundy, marginTop: 8 }}>
-          Il faut de quoi interroger TMDB : une clé, plus haut — ou un compte, qui vous en dispense.
+          {t("complete.needsKey")}
         </div>
       )}
       {msg && (

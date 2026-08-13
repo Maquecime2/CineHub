@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Clapperboard, Plus } from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { underlineInput, tap } from "../../theme/styles";
@@ -32,6 +33,7 @@ export function StillsStrip({
   onAddFiles,
   busy,
 }: StillsStripProps) {
+  const { t } = useTranslation();
   const [editing, setEditing] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const stills = film.stills || [];
@@ -101,7 +103,7 @@ export function StillsStrip({
       <Guideline>
         {stills.length === 0
           ? "aucune capture — Ctrl+V colle directement une image du presse-papier"
-          : "Ctrl+V pour coller · « insérer » place la vignette à l'endroit du curseur"}
+          : t("stills.pasteHint")}
       </Guideline>
 
       {stills.length > 0 && (
@@ -201,7 +203,7 @@ export function StillsStrip({
                       minHeight: 22,
                     }}
                   >
-                    {s.caption || "légender…"}
+                    {s.caption || t("stills.caption")}
                   </div>
                 )}
                 {/* what is actually stored — original size and weight */}

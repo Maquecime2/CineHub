@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { C, F } from "../theme/tokens";
 import { underlineInput, tap } from "../theme/styles";
 import { Label, SectionTitle, Guideline, NoKey } from "../components/ui";
@@ -8,6 +9,8 @@ import { buildTaste } from "../taste";
 import { gatherCandidates, rank, DEFAULT_QUERY } from "../reco";
 import { directorOf, pooled } from "../tmdb";
 import { makeFilm, initialsOf } from "../domain/film";
+import { say } from "../domain/wording";
+import { languageName } from "../names";
 import { FilmPolaroid } from "../components/film/FilmPolaroid";
 import { PosterArt } from "../components/film/PosterArt";
 import { filmKey } from "../domain/importing";
@@ -61,23 +64,26 @@ const NICHE_FACTORS: [keyof Query["niche"], string][] = [
 /* The languages offered: those that come back most often when one
    leaves the English-speaking circuit. The list does not have to be
    exhaustive, only to spare having to type an ISO code from memory. */
+/* Only the ISO codes: their names come from `names.ts`, which asks
+   `Intl` in whichever language is in force. Writing sixteen names here
+   would be sixteen more to translate, and `Intl` already knows them. */
 const RECO_LANGS = [
-  ["", "toutes"],
-  ["ja", "japonais"],
-  ["fr", "français"],
-  ["ko", "coréen"],
-  ["it", "italien"],
-  ["es", "espagnol"],
-  ["de", "allemand"],
-  ["zh", "chinois"],
-  ["ru", "russe"],
-  ["sv", "suédois"],
-  ["da", "danois"],
-  ["fa", "persan"],
-  ["hi", "hindi"],
-  ["pt", "portugais"],
-  ["pl", "polonais"],
-  ["en", "anglais"],
+  "",
+  "ja",
+  "fr",
+  "ko",
+  "it",
+  "es",
+  "de",
+  "zh",
+  "ru",
+  "sv",
+  "da",
+  "fa",
+  "hi",
+  "pt",
+  "pl",
+  "en",
 ];
 
 /* A slider annotated at both ends: without the labels, nobody knows
@@ -178,6 +184,7 @@ function RecoCard({
   onAdd: () => void;
   added: boolean;
 }) {
+  const { t } = useTranslation();
   const asFilm = useMemo(
     () =>
       makeFilm({
@@ -231,7 +238,7 @@ function RecoCard({
               background: added ? "transparent" : C.pine,
             }}
           >
-            {added ? "mis de côté" : "mettre de côté"}
+            {added ? t("wakePanel.setAsideDone") : t("wakePanel.setAside")}
           </button>
         </div>
       </div>
@@ -297,6 +304,7 @@ function AtHome({
   suggestions: ReturnType<typeof atHomeSuggestions>;
   onOpen: (id: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div data-tour="reco-maison" style={{ marginTop: 26, position: "relative", zIndex: 2 }}>
       <SectionTitle>Chez vous</SectionTitle>
@@ -327,7 +335,7 @@ function AtHome({
                     color: TINT[s.nature],
                   }}
                 >
-                  {s.label}
+                  {say(s.label, t)}
                 </div>
                 <div
                   style={{
@@ -352,7 +360,7 @@ function AtHome({
                     lineHeight: 1.2,
                   }}
                 >
-                  {s.reason}
+                  {say(s.reason, t)}
                 </div>
               </div>
             </div>
@@ -395,6 +403,7 @@ export function RecoView({
   /** Opens a card of the collection — the "chez vous" proposals. */
   onOpen?: (id: string) => void;
 }) {
+  const { t, i18n } = useTranslation();
   const [query, setQuery] = useState<Query>(DEFAULT_QUERY);
   const [raw, setRaw] = useState<Candidate[] | null>(null); // the raw candidates, independent of the dials
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
@@ -444,10 +453,7 @@ export function RecoView({
         onProgress: (done: number, total: number) => setProgress({ done, total }),
       });
       setRaw(candidates);
-      if (!candidates.length)
-        setError(
-          "Rien ne remonte avec ces réglages — élargissez les années ou baissez la note minimale."
-        );
+      if (!candidates.length) setError(t("reco.nothingComesBack"));
     } catch (e) {
       setError(`TMDB n'a pas répondu : ${(e as Error).message || e}`);
     }
@@ -546,9 +552,7 @@ export function RecoView({
               lineHeight: 1.5,
             }}
           >
-            {house.length > 0
-              ? "Les propositions ci-dessus viennent de votre collection et n'ont besoin de rien. Pour en chercher au-dehors, il faut une clé — elle reste dans ce navigateur et sert aussi à l'enrichissement des fiches."
-              : "Chercher des films au-dehors demande une clé — elle reste dans ce navigateur et sert aussi à l'enrichissement des fiches."}
+            {house.length > 0 ? t("reco.needsKeyWithHome") : t("reco.needsKey")}
           </div>
           <NoKey what="chercher au-dehors" style={{ marginTop: 10 }} />
         </div>
@@ -568,15 +572,15 @@ export function RecoView({
           >
             <div data-tour="reco-dials" style={{ display: "flex", gap: 34, flexWrap: "wrap" }}>
               <Dial
-                label="Degré de niche"
+                label={t("reco.obscurity")}
                 left="grand public"
-                right="pépite"
+                right={t("reco.gem")}
                 value={query.nichePref}
                 onChange={(v) => set("nichePref", v)}
               />
               <Dial
-                label="Dépaysement"
-                left="dans mes goûts"
+                label={t("reco.changeOfScene")}
+                left={t("reco.withinMyTastes")}
                 right="hors des sentiers"
                 value={query.driftPref}
                 onChange={(v) => set("driftPref", v)}
@@ -626,7 +630,7 @@ export function RecoView({
                 />
               </div>
               <div style={{ width: 92 }}>
-                <Label>À</Label>
+                <Label>{t("reco.to")}</Label>
                 <input
                   style={underlineInput}
                   value={query.yearTo}
@@ -645,15 +649,15 @@ export function RecoView({
                     fontSize: 12,
                   }}
                 >
-                  {RECO_LANGS.map(([v, l]) => (
+                  {RECO_LANGS.map((v) => (
                     <option key={v} value={v}>
-                      {l}
+                      {v ? languageName(v, i18n.language) : t("reco.allLanguages")}
                     </option>
                   ))}
                 </select>
               </div>
               <div style={{ width: 120 }}>
-                <Label>Note TMDB ≥</Label>
+                <Label>{t("reco.tmdbRatingAtLeast")}</Label>
                 <input
                   type="number"
                   min="0"
@@ -691,7 +695,7 @@ export function RecoView({
             {allGenres.length > 0 && (
               <>
                 <div style={{ marginTop: 16 }}>
-                  <Label>Genres recherchés</Label>
+                  <Label>{t("reco.genresSought")}</Label>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                     {allGenres.map((g) => (
                       <Chip
@@ -704,7 +708,7 @@ export function RecoView({
                   </div>
                 </div>
                 <div style={{ marginTop: 12 }}>
-                  <Label>Genres écartés</Label>
+                  <Label>{t("reco.genresSetAside")}</Label>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                     {allGenres.map((g) => (
                       <Chip

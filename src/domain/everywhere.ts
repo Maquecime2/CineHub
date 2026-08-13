@@ -18,7 +18,10 @@
    to date on every keystroke.
    ============================================================ */
 import { normalize, scoreFilm } from "./search";
-import { allMotifs, motifById } from "./motifs";
+import { allMotifs, motifById, motifLabel, motifWording } from "./motifs";
+import { say, saying, words } from "./wording";
+import type { NameOf } from "./motifs";
+import type { Wording } from "./wording";
 import { threadMembers } from "./threads";
 import { census } from "./people";
 import type { Thread } from "./threads";
@@ -31,9 +34,14 @@ export interface Hit {
   kind: Kind;
   /** Stable identity, prefixed by the kind: two kinds can share an id. */
   key: string;
-  title: string;
+  /**
+   * WORDINGS AND NOT SENTENCES — see `domain/wording`. A film's title is
+   * the user's and travels as it is; "on no card" is ours and has one
+   * sentence per language. Only the view knows which.
+   */
+  title: Wording;
   /** The context, in one line: the year and the director, the number of films… */
-  subtitle: string;
+  subtitle: Wording;
   /**
    * The passage where the word was found, when it comes from a long text.
    * That is what tells a useful search from a list of titles: you want to
@@ -104,7 +112,17 @@ const rankOf = (text: string, t: string, base: number): number | null => {
  * answers, and you would never know it existed. A cross-cutting search
  * that shows only one kind is not cross-cutting.
  */
-export function searchEverywhere(q: string, { films, notes, threads }: Corpus, perKind = 5): Hit[] {
+export function searchEverywhere(
+  q: string,
+  { films, notes, threads }: Corpus,
+  /* THE VOICE OF THE CALLER. The search must find what is ON SCREEN: a
+     motif reads "Mélancolie" or "Melancholy" depending on the reader, and
+     only the caller knows which. The language comes with it, for the one
+     date this module formats. */
+  voice: { name: NameOf; lang: string },
+  perKind = 5
+): Hit[] {
+  const { name, lang } = voice;
   const t = normalize(q.trim());
   if (t.length < 2) return [];
 
@@ -115,13 +133,13 @@ export function searchEverywhere(q: string, { films, notes, threads }: Corpus, p
      must find the same films, otherwise one of the two would be lying. */
   const byFilm: Hit[] = [];
   for (const f of films) {
-    const rank = scoreFilm(f, q);
+    const rank = scoreFilm(f, q, name);
     if (rank == null) continue;
     byFilm.push({
       kind: "film",
       key: `film:${f.id}`,
-      title: f.title,
-      subtitle: [f.year || null, f.director || null].filter(Boolean).join(" · "),
+      title: words(f.title),
+      subtitle: words([f.year || null, f.director || null].filter(Boolean).join(" · ")),
       /* The excerpt only ever comes from YOUR words: a title that was
          found does not need copying out underneath itself. */
       excerpt: excerptAround(f.review || "", q) || excerptAround(f.notes || "", q),
@@ -129,11 +147,9 @@ export function searchEverywhere(q: string, { films, notes, threads }: Corpus, p
       rank,
     });
   }
-  out.push(
-    ...byFilm
-      .sort((a, b) => a.rank - b.rank || a.title.localeCompare(b.title, "fr"))
-      .slice(0, perKind)
-  );
+  const byName = (a: Hit, b: Hit) =>
+    a.rank - b.rank || say(a.title, name).localeCompare(say(b.title, name), lang);
+  out.push(...byFilm.sort(byName).slice(0, perKind));
 
   /* ---- the notebook pages ---- */
   const byPage: Hit[] = [];
@@ -145,8 +161,8 @@ export function searchEverywhere(q: string, { films, notes, threads }: Corpus, p
     byPage.push({
       kind: "page",
       key: `page:${n.id}`,
-      title: n.title || "Sans titre",
-      subtitle: new Date(n.createdAt).toLocaleDateString("fr-FR"),
+      title: n.title ? words(n.title) : saying("search.untitled"),
+      subtitle: words(new Date(n.createdAt).toLocaleDateString(lang)),
       excerpt: excerptAround(n.body || "", q),
       noteId: n.id,
       rank,
@@ -159,21 +175,19 @@ export function searchEverywhere(q: string, { films, notes, threads }: Corpus, p
      found, but it presents itself for what it is. */
   const byMotif: Hit[] = [];
   for (const m of allMotifs()) {
-    const rank = rankOf(m.label, t, 1);
+    const rank = rankOf(motifLabel(m, name), t, 1);
     if (rank == null) continue;
     const n = films.filter((f) => (f.motifs || []).includes(m.id)).length;
     byMotif.push({
       kind: "motif",
       key: `motif:${m.id}`,
-      title: m.label,
+      title: motifWording(m),
       /* "carry it" and not just "cards": the count describes the MOTIF,
          whereas opening the result launches a search on its label — which
          additionally brings back the cards that talk about it without
          carrying it. Two different numbers, and one of the two must say
          what it is talking about. */
-      subtitle: n
-        ? `${n} fiche${n > 1 ? "s" : ""} le porte${n > 1 ? "nt" : ""}`
-        : "sur aucune fiche",
+      subtitle: n ? saying("search.carriedBy", { count: n }) : saying("search.onNoCard"),
       motifId: m.id,
       rank,
     });
@@ -191,13 +205,12 @@ export function searchEverywhere(q: string, { films, notes, threads }: Corpus, p
     byThread.push({
       kind: "thread",
       key: `thread:${thread.id}`,
-      title: thread.label,
-      subtitle: [
-        `${n} film${n > 1 ? "s" : ""}`,
-        thread.motif ? motifById(thread.motif)?.label : null,
-      ]
-        .filter(Boolean)
-        .join(" · "),
+      title: words(thread.label),
+      subtitle: (() => {
+        const m = thread.motif ? motifById(thread.motif) : undefined;
+        const count = name("search.filmCount", { count: n });
+        return words([count, m ? motifLabel(m, name) : null].filter(Boolean).join(" · "));
+      })(),
       excerpt: excerptAround(thread.note || "", q),
       threadId: thread.id,
       rank,
@@ -215,17 +228,17 @@ export function searchEverywhere(q: string, { films, notes, threads }: Corpus, p
     byPeople.push({
       kind: "person",
       key: `person:${p.key}`,
-      title: p.name,
-      subtitle: `${p.films.length} film${p.films.length > 1 ? "s" : ""} · ${p.roles.join(", ")}`,
+      title: words(p.name),
+      subtitle: words(
+        `${name("search.filmCount", { count: p.films.length })} · ${p.roles
+          .map((r) => name(`roles.${r}`))
+          .join(", ")}`
+      ),
       person: p.key,
       rank,
     });
   }
-  out.push(
-    ...byPeople
-      .sort((a, b) => a.rank - b.rank || a.title.localeCompare(b.title, "fr"))
-      .slice(0, perKind)
-  );
+  out.push(...byPeople.sort(byName).slice(0, perKind));
 
   return out;
 }

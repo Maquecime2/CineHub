@@ -82,15 +82,38 @@ const tagOf = (item: Element, name: string): string =>
   item.getElementsByTagName(name)[0]?.textContent?.trim() || "";
 
 /** Reads the feed and returns it in the shape the CSV import already produces. */
+/* ============================================================
+   THE ERRORS CARRY A CODE, AND THE VIEW PUTS IT INTO WORDS
+   ============================================================
+
+   A service is not a screen and does not know which language is being
+   read. It used to throw ready-made French sentences, which the import
+   view showed as they were — an English reader got "Le relais n'a pas
+   répondu" in the middle of an English page.
+
+   So it throws a `LetterboxdError` carrying a stable `code`. The view
+   reads `letterboxd.<code>` from the catalogue, and falls back on the
+   message for anything it does not know. The codes never move: they are
+   part of the contract, not of the wording. */
+export class LetterboxdError extends Error {
+  constructor(
+    readonly code: string,
+    readonly values: Record<string, string | number> = {}
+  ) {
+    /* The English message is the last resort, and is never shown when the
+       code is known. It only has to be readable in a stack trace. */
+    super(code);
+    this.name = "LetterboxdError";
+  }
+}
+
 export function parseLetterboxdRss(xml: string): ParsedCsv {
   const doc = new DOMParser().parseFromString(xml, "application/xml");
   /* A broken relay does not return an error: it returns an HTML page,
      which the XML reader refuses. Without this check we would read "zero
      films" and search a long while on the side of the username. */
   if (doc.querySelector("parsererror") || !doc.querySelector("rss, channel"))
-    throw new Error(
-      "La réponse n'est pas un flux Letterboxd. Vérifiez le pseudo, ou le relais si vous en avez réglé un."
-    );
+    throw new LetterboxdError("notAFeed");
 
   const items = [...doc.getElementsByTagName("item")];
   /* The feed mixes screenings and published lists. Only the prefix of
@@ -169,7 +192,7 @@ export function parseLetterboxdRss(xml: string): ParsedCsv {
 
 /** Reads a member's feed. Rejects with a message displayable as it is. */
 export async function fetchLetterboxdFeed(user: string, relay?: string): Promise<ParsedCsv> {
-  if (!user.trim()) throw new Error("Indiquez d'abord votre pseudo Letterboxd.");
+  if (!user.trim()) throw new LetterboxdError("noHandle");
   let res: Response;
   try {
     res = await fetch(feedUrl(user, relay));
@@ -177,9 +200,9 @@ export async function fetchLetterboxdFeed(user: string, relay?: string): Promise
     /* A `fetch` failure never says why — CORS, network, dead relay all
        look alike. We name the most likely cause instead of returning
        "Failed to fetch". */
-    throw new Error("Le relais n'a pas répondu. Il est peut-être hors service — voyez « relais ».");
+    throw new LetterboxdError("relaySilent");
   }
-  if (!res.ok) throw new Error(`Le flux a répondu ${res.status}. Le pseudo est-il le bon ?`);
+  if (!res.ok) throw new LetterboxdError("feedStatus", { status: res.status });
   return parseLetterboxdRss(await res.text());
 }
 
@@ -227,9 +250,7 @@ export function parseWatchlistPage(html: string): WatchlistPage {
      that distinction the two cases would look alike, and the second
      would tell itself as the first. */
   if (!posters.length && !doc.querySelector(".empty-text, .empty-watchlist, ul.poster-list"))
-    throw new Error(
-      "Cette page n'a pas la forme d'une watchlist Letterboxd. Vérifiez le pseudo, que le profil est public, ou le relais si vous en avez réglé un."
-    );
+    throw new LetterboxdError("notAWatchlist");
 
   let skippedNoTitle = 0;
   const rows: ImportRow[] = [];
@@ -287,12 +308,9 @@ async function fetchPage(url: string): Promise<string> {
   try {
     res = await fetch(url);
   } catch {
-    throw new Error("Le relais n'a pas répondu. Il est peut-être hors service — voyez « relais ».");
+    throw new LetterboxdError("relaySilent");
   }
-  if (!res.ok)
-    throw new Error(
-      `La watchlist a répondu ${res.status}. Le pseudo est-il le bon, et le profil public ?`
-    );
+  if (!res.ok) throw new LetterboxdError("watchlistStatus", { status: res.status });
   return res.text();
 }
 
@@ -302,7 +320,7 @@ export async function fetchLetterboxdWatchlist(
   relay?: string,
   { onProgress }: WatchlistOptions = {}
 ): Promise<ParsedCsv> {
-  if (!user.trim()) throw new Error("Indiquez d'abord votre pseudo Letterboxd.");
+  if (!user.trim()) throw new LetterboxdError("noHandle");
 
   const first = parseWatchlistPage(await fetchPage(watchlistUrl(user, 1, relay)));
   const total = Math.min(first.lastPage, MAX_PAGES);

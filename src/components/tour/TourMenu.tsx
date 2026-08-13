@@ -6,6 +6,7 @@
    by a global rule in the tokens).
    ============================================================ */
 import type { CSSProperties } from "react";
+import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
@@ -20,6 +21,7 @@ export function TourMenu({
   onPlay: (tourId: string) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const page = tourForView(view);
 
   return (
@@ -41,7 +43,7 @@ export function TourMenu({
       >
         <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
           <div style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 1, color: C.inkFaded }}>
-            LA VISITE GUIDÉE
+            {t("tour.ui.menuTitle")}
           </div>
           <div style={{ flex: 1 }} />
           <button onClick={onClose} style={{ all: "unset", cursor: "pointer", color: C.inkFaded }}>
@@ -50,10 +52,9 @@ export function TourMenu({
         </div>
 
         <button onClick={() => onPlay("global")} style={carries}>
-          <span style={title}>{TOURS.global!.label}</span>
+          <span style={title}>{t(TOURS.global!.label)}</span>
           <span style={under}>
-            le tour du classeur, d&apos;un onglet à l&apos;autre — {TOURS.global!.steps.length}{" "}
-            étapes
+            {t("tour.ui.globalNote", { count: TOURS.global!.steps.length })}
           </span>
         </button>
 
@@ -62,14 +63,16 @@ export function TourMenu({
             not answer — which reads as a failure. */}
         {page ? (
           <button onClick={() => onPlay(view)} style={carries}>
-            <span style={title}>Cette page</span>
+            <span style={title}>{t("tour.ui.thisPage")}</span>
             <span style={under}>
-              {page.label.toLowerCase()} — {page.steps.length}{" "}
-              {page.steps.length > 1 ? "étapes" : "étape"}
+              {t("tour.ui.pageNote", {
+                name: t(page.label).toLowerCase(),
+                count: page.steps.length,
+              })}
             </span>
           </button>
         ) : (
-          <div style={{ ...under, marginTop: 12 }}>cette page n&apos;a pas de visite à elle</div>
+          <div style={{ ...under, marginTop: 12 }}>{t("tour.ui.noPageTour")}</div>
         )}
 
         <div
@@ -83,7 +86,7 @@ export function TourMenu({
             lineHeight: 1.3,
           }}
         >
-          les flèches du clavier feuillettent, Échap referme
+          {t("tour.ui.keys")}
         </div>
       </div>
     </>

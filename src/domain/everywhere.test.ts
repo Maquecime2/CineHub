@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { searchEverywhere, excerptAround, groupByKind } from "./everywhere";
+import i18n from "../i18n";
+import { searchEverywhere as sweep, excerptAround, groupByKind } from "./everywhere";
+import { say } from "./wording";
 import { makeFilm } from "./film";
 import { makeThread } from "./threads";
 import type { Film, Note } from "../types";
@@ -21,6 +23,16 @@ const corpus = (
   threads: o.threads || [],
 });
 
+/* THE SEARCH NOW SPEAKS THROUGH THE CALLER. `setupTests` pins the suite
+   to French, so this wrapper is what a French reader really gets — and
+   the assertions below go on being written in the language they read. */
+const voice = { name: i18n.t.bind(i18n), lang: "fr" };
+const searchEverywhere = (q: string, corpus: Parameters<typeof sweep>[1], perKind?: number) =>
+  sweep(q, corpus, voice, perKind);
+
+/** A hit's title or subtitle, as the screen shows it. */
+const said = (w: Parameters<typeof say>[0]) => say(w, i18n.t.bind(i18n));
+
 const kinds = (t: ReturnType<typeof searchEverywhere>) => [...new Set(t.map((x) => x.kind))];
 
 describe("what triggers a search", () => {
@@ -38,7 +50,8 @@ describe("the films", () => {
   it("finds by the title", () => {
     const t = searchEverywhere("amar", corpus({ films: [film("Amarcord")] }));
     expect(t).toHaveLength(1);
-    expect(t[0]).toMatchObject({ kind: "film", title: "Amarcord" });
+    expect(t[0]!.kind).toBe("film");
+    expect(said(t[0]!.title)).toBe("Amarcord");
   });
 
   it("finds at last by a word from the REVIEW", () => {
@@ -46,7 +59,7 @@ describe("the films", () => {
        it was the only field we did not search. */
     const f = film("Un film", { review: "la scène du train m'a bouleversé" });
     const t = searchEverywhere("bouleversé", corpus({ films: [f] }));
-    expect(t.map((x) => x.title)).toEqual(["Un film"]);
+    expect(t.map((x) => said(x.title))).toEqual(["Un film"]);
   });
 
   it("finds by a word from the free notes", () => {
@@ -56,7 +69,7 @@ describe("the films", () => {
 
   it("puts the title before the review", () => {
     const films = [film("Quelqu'un cite Solaris", { review: "" }), film("Solaris", { review: "" })];
-    expect(searchEverywhere("solaris", corpus({ films }))[0]!.title).toBe("Solaris");
+    expect(said(searchEverywhere("solaris", corpus({ films }))[0]!.title)).toBe("Solaris");
   });
 
   it("does not answer 'img' for every illustrated card", () => {
@@ -76,7 +89,8 @@ describe("the notebook pages", () => {
   it("finds by a page's title", () => {
     const t = searchEverywhere("liste", corpus({ notes: [page("Ma liste", "rien")] }));
     expect(t).toHaveLength(1);
-    expect(t[0]).toMatchObject({ kind: "page", title: "Ma liste" });
+    expect(t[0]!.kind).toBe("page");
+    expect(said(t[0]!.title)).toBe("Ma liste");
   });
 
   it("finds by the body, and brings back the passage", () => {
@@ -89,7 +103,7 @@ describe("the notebook pages", () => {
 
   it("names an untitled page rather than returning an empty line", () => {
     const t = searchEverywhere("chose", corpus({ notes: [page("", "une chose")] }));
-    expect(t[0]!.title).toBe("Sans titre");
+    expect(said(t[0]!.title)).toBe("Sans titre");
   });
 });
 
@@ -98,16 +112,14 @@ describe("the motifs", () => {
     const films = [film("A", { motifs: ["melancholy"] }), film("B", { motifs: ["melancholy"] })];
     const t = searchEverywhere("mélanco", corpus({ films }));
     const m = t.find((x) => x.kind === "motif");
-    expect(m).toMatchObject({
-      title: "Mélancolie",
-      subtitle: "2 fiches le portent",
-      motifId: "melancholy",
-    });
+    expect(m!.motifId).toBe("melancholy");
+    expect(said(m!.title)).toBe("Mélancolie");
+    expect(said(m!.subtitle)).toBe("2 fiches le portent");
   });
 
   it("says plainly that a motif is set nowhere", () => {
     const m = searchEverywhere("mélanco", corpus()).find((x) => x.kind === "motif");
-    expect(m!.subtitle).toBe("sur aucune fiche");
+    expect(said(m!.subtitle)).toBe("sur aucune fiche");
   });
 });
 
@@ -115,7 +127,7 @@ describe("the threads", () => {
   it("finds a thread by its name", () => {
     const thread = makeThread({ label: "Les fins tristes", motif: null });
     const t = searchEverywhere("tristes", corpus({ threads: [thread] }));
-    expect(t.find((x) => x.kind === "thread")).toMatchObject({ title: "Les fins tristes" });
+    expect(said(t.find((x) => x.kind === "thread")!.title)).toBe("Les fins tristes");
   });
 
   it("finds a thread by what was written under it", () => {
@@ -131,16 +143,15 @@ describe("the people", () => {
   it("finds somebody from the credits, despite the accents", () => {
     const films = [film("A", { crew: { image: ["Henri Decaë"] } })];
     const t = searchEverywhere("decae", corpus({ films }));
-    expect(t.find((x) => x.kind === "person")).toMatchObject({
-      title: "Henri Decaë",
-      person: "henri decae",
-    });
+    const p = t.find((x) => x.kind === "person")!;
+    expect(p.person).toBe("henri decae");
+    expect(said(p.title)).toBe("Henri Decaë");
   });
 
   it("says in what capacity and over how many films", () => {
     const films = [film("A", { director: "Ozu" }), film("B", { director: "Ozu" })];
     const p = searchEverywhere("ozu", corpus({ films })).find((x) => x.kind === "person");
-    expect(p!.subtitle).toBe("2 films · réalisation");
+    expect(said(p!.subtitle)).toBe("2 films · réalisation");
   });
 });
 

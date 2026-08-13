@@ -2,6 +2,7 @@
    FORMULAIRE — NOUVEAU FILM
    ============================================================ */
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { underlineInput, ruledTextarea, tap, tapSquare } from "../../theme/styles";
@@ -12,10 +13,11 @@ import { useViewport } from "../../hooks/useViewport";
 
 const STATUSES: { k: FilmStatus; l: string }[] = [
   { k: "watched", l: "Film vu" },
-  { k: "watchlist", l: "À voir" },
+  { k: "watchlist", l: "views.watchlist" },
 ];
 
 export function FilmModal({ onClose, onSave }: { onClose: () => void; onSave: (f: Film) => void }) {
+  const { t } = useTranslation();
   const [f, setF] = useState<Film>(() => makeFilm());
   const set = <K extends keyof Film>(k: K, v: Film[K]) => setF((p) => ({ ...p, [k]: v }));
   const { phone } = useViewport();
@@ -98,7 +100,7 @@ export function FilmModal({ onClose, onSave }: { onClose: () => void; onSave: (f
             />
           </div>
           <div style={{ flex: 1 }}>
-            <Label>Année</Label>
+            <Label>{t("film.year")}</Label>
             <input
               style={underlineInput}
               value={f.year}
@@ -108,7 +110,7 @@ export function FilmModal({ onClose, onSave }: { onClose: () => void; onSave: (f
           </div>
         </div>
         <div style={{ marginTop: 16 }}>
-          <Label>Réalisateur·rice</Label>
+          <Label>{t("film.director")}</Label>
           <input
             style={underlineInput}
             value={f.director}
@@ -126,12 +128,12 @@ export function FilmModal({ onClose, onSave }: { onClose: () => void; onSave: (f
           />
         </div>
         <div style={{ marginTop: 16 }}>
-          <Label>Thèmes (virgules)</Label>
+          <Label>{t("film.themes")}</Label>
           <CommaInput
             style={underlineInput}
             value={f.themes}
             onChange={(v) => set("themes", v)}
-            placeholder="Mémoire, Solitude"
+            placeholder={t("film.themesPlaceholder")}
           />
         </div>
         <div style={{ marginTop: 18 }}>
@@ -165,7 +167,7 @@ export function FilmModal({ onClose, onSave }: { onClose: () => void; onSave: (f
           </div>
         )}
         <div style={{ marginTop: 16 }}>
-          <Label>Première impression</Label>
+          <Label>{t("film.firstImpression")}</Label>
           <textarea
             style={{ ...ruledTextarea, minHeight: 70 }}
             value={f.review}
@@ -192,7 +194,7 @@ export function FilmModal({ onClose, onSave }: { onClose: () => void; onSave: (f
             boxSizing: "border-box",
           }}
         >
-          ÉPINGLER CETTE FICHE AU MUR
+          {t("film.pinToWall")}
         </button>
       </div>
     </div>

@@ -29,6 +29,7 @@
    The trailing slash goes for the same reason: the paths already start
    with a slash, and "…:8787//me" is not "…:8787/me". */
 import { store } from "./storage";
+import { readPerson, type Person, type PersonReply } from "./contract";
 
 export const ADDRESS: string = (
   import.meta.env.VITE_SERVEUR || (import.meta.env.DEV ? "http://localhost:8787" : "")
@@ -41,10 +42,10 @@ export const serverConfigured = (): boolean => ADDRESS !== "";
 /** Where this page speaks from — it is what the server must allow. */
 export const originHere = (): string => (typeof location === "undefined" ? "?" : location.origin);
 
-export interface Person {
-  id: string;
-  pseudo: string;
-}
+/* The shape of a reply is not ours to invent: it is the server's, and it
+   is written in `contract.ts`, which both packages read. See that file —
+   it carries the failure that put it there. */
+export type { Person } from "./contract";
 
 export class ServerError extends Error {
   constructor(
@@ -129,9 +130,9 @@ async function call<T>(path: string, options: CallOptions = {}): Promise<T> {
  */
 export async function whoAmI(): Promise<Person | null> {
   try {
-    const r = await call<{ who: Person }>("/me");
-    noteAccount(r.who.id);
-    return r.who;
+    const who = readPerson(await call<PersonReply>("/me"));
+    noteAccount(who.id);
+    return who;
   } catch (e) {
     if ((e as ServerError).code === 0) throw e;
     noteAccount(null);
@@ -210,12 +211,14 @@ export async function signUp(pseudo: string): Promise<Person> {
     { method: "POST", body: JSON.stringify({ pseudo }) }
   );
   const response = await startRegistration({ optionsJSON: options as never });
-  const r = await call<{ who: Person }>("/auth/signup/verify", {
-    method: "POST",
-    body: JSON.stringify({ challenge, response }),
-  });
-  noteAccount(r.who.id);
-  return r.who;
+  const who = readPerson(
+    await call<PersonReply>("/auth/signup/verify", {
+      method: "POST",
+      body: JSON.stringify({ challenge, response }),
+    })
+  );
+  noteAccount(who.id);
+  return who;
 }
 
 export async function signIn(pseudo: string): Promise<Person> {
@@ -225,12 +228,14 @@ export async function signIn(pseudo: string): Promise<Person> {
     { method: "POST", body: JSON.stringify({ pseudo }) }
   );
   const response = await startAuthentication({ optionsJSON: options as never });
-  const r = await call<{ who: Person }>("/auth/signin/verify", {
-    method: "POST",
-    body: JSON.stringify({ challenge, response }),
-  });
-  noteAccount(r.who.id);
-  return r.who;
+  const who = readPerson(
+    await call<PersonReply>("/auth/signin/verify", {
+      method: "POST",
+      body: JSON.stringify({ challenge, response }),
+    })
+  );
+  noteAccount(who.id);
+  return who;
 }
 
 /* ------------------------------------------------------------

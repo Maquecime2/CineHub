@@ -14,6 +14,7 @@
    a rewatch with no rating does not break the chain, it simply has
    nothing to say about it. */
 import { X, Plus } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { C, F } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { Tally, InkStars } from "../ui";
@@ -34,6 +35,7 @@ const gap = (d: number): string => {
 };
 
 export function WatchLog({ film, onUpdate }: { film: Film; onUpdate: (film: Film) => void }) {
+  const { t } = useTranslation();
   const watches = sortWatches(film.watches || []);
   const drift = ratingDrift(watches);
 
@@ -93,8 +95,8 @@ export function WatchLog({ film, onUpdate }: { film: Film; onUpdate: (film: Film
           <span style={{ flex: 1 }} />
           <button
             onClick={() => remove(w.date)}
-            title="Retirer cette séance"
-            aria-label={`Retirer la séance du ${w.date}`}
+            title={t("watchlog.removeOne")}
+            aria-label={t("watchlog.removeOneOn", { date: w.date })}
             style={{ all: "unset", cursor: "pointer", color: C.inkFaded, opacity: 0.5 }}
           >
             <X size={11} />

@@ -18,9 +18,10 @@
    of anyone, and that is what makes them useful when no TMDB key is set.
    ============================================================ */
 import { sortWatches } from "./film";
-import { motifById } from "./motifs";
+import { motifById, motifWording } from "./motifs";
 import { directorsOf } from "../taste";
 import type { Film } from "../types";
+import { saying, words, type Wording } from "./wording";
 
 /**
  * The nature of a suggestion — this is not a ranking but three different
@@ -34,9 +35,10 @@ export interface Suggestion {
   nature: Nature;
   film: Film;
   /** The suggestion's heading, kept short. */
-  label: string;
+  /** What to write on it: our words, or the user's own. */
+  label: Wording;
   /** Why this one, in plain words. */
-  reason: string;
+  reason: Wording;
   /** Stable identity — two natures can point at the same film. */
   key: string;
 }
@@ -100,11 +102,13 @@ const daysSince = (t: number, now: number): number => Math.floor((now - t) / DAY
 
 /* "two years ago" reads; "913 days ago" asks for a calculation. Under a
    year we keep months, which stay meaningful. */
-const inPlainWords = (days: number): string => {
+/* HOW LONG AGO, IN ROUND TERMS. Returned as a wording rather than a
+   sentence: "two years" and "deux ans" do not decline the same way, and
+   the plural is the catalogue's job. */
+const inPlainWords = (days: number): Wording => {
   const years = Math.floor(days / 365);
-  if (years >= 1) return `${years} an${years > 1 ? "s" : ""}`;
-  const months = Math.max(1, Math.floor(days / 30));
-  return `${months} mois`;
+  if (years >= 1) return saying("athome.years", { count: years });
+  return saying("athome.months", { count: Math.max(1, Math.floor(days / 30)) });
 };
 
 /** The best rating a card has ever been given. */
@@ -143,8 +147,11 @@ function toRewatch(pool: Dated[], threshold: number): Suggestion[] {
     .map(({ film, days }) => ({
       nature: "rewatch" as const,
       film,
-      label: "À revoir",
-      reason: `${bestRating(film)}★, pas revu depuis ${inPlainWords(days)}`,
+      label: saying("athome.rewatch"),
+      reason: saying("athome.reason.rewatch", {
+        stars: bestRating(film),
+        since: inPlainWords(days),
+      }),
       key: `rewatch:${film.id}`,
     }));
 }
@@ -187,12 +194,18 @@ function neglectedMotifs(pool: Dated[], threshold: number): Suggestion[] {
     out.push({
       nature: "motif",
       film: pick.film,
-      label: motif.label,
-      reason: `${batch.length} films portent ce motif, plus aucun depuis ${inPlainWords(days)}`,
+      label: motifWording(motif),
+      reason: saying("athome.reason.motif", {
+        count: batch.length,
+        since: inPlainWords(days),
+      }),
       key: `motif:${id}`,
     });
   }
-  return out.sort((a, b) => a.label.localeCompare(b.label, "fr"));
+  /* NOT SORTED BY NAME HERE: the name depends on the language, and
+     alphabetical order is not the same in the two. The view, which knows
+     which one is in force, does the sorting. */
+  return out;
 }
 
 /* ------------------------------------------------------------
@@ -228,12 +241,16 @@ function neglectedDirectors(pool: Dated[], threshold: number): Suggestion[] {
     out.push({
       nature: "director",
       film: pick.film,
-      label: name,
-      reason: `${batch.length} films chez vous, ${average.toFixed(1)}★ de moyenne, plus rien depuis ${inPlainWords(days)}`,
+      label: words(name),
+      reason: saying("athome.reason.director", {
+        count: batch.length,
+        average: average.toFixed(1),
+        since: inPlainWords(days),
+      }),
       key: `director:${name.toLowerCase()}`,
     });
   }
-  return out.sort((a, b) => a.label.localeCompare(b.label, "fr"));
+  return out;
 }
 
 /* WHAT ONE SUGGESTION SAYS THAT ANOTHER DOES NOT.

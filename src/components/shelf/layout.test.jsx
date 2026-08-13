@@ -1,8 +1,14 @@
+import fr from "../../i18n/fr";
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PerRowField, DecorCabinet, ItemPalette } from "./layout";
-import { DECOR_TYPES, CAT_FAMILIES } from "./constants";
+import { DECOR_TYPES, CAT_FAMILIES, decorLabel } from "./constants";
+import i18n from "../../i18n";
+
+/* A house object has no `label` of its own any more — it has one per
+   language, under `shelf.decor.<key>`. */
+const named = (d) => decorLabel(d, i18n.t.bind(i18n));
 import { CAT_KEYS } from "../../shelf-views";
 
 const TITLE = "OBJETS SUR CETTE LIGNE";
@@ -133,13 +139,13 @@ describe("DecorCabinet", () => {
 
   it("shows every motif in the cabinet, whatever way it draws itself", () => {
     open();
-    for (const d of DECOR_TYPES) expect(screen.getByTitle(d.label)).toBeInTheDocument();
+    for (const d of DECOR_TYPES) expect(screen.getByTitle(named(d))).toBeInTheDocument();
   });
 
   it("makes them all grabbable", () => {
     open();
     for (const d of DECOR_TYPES)
-      expect(screen.getByTitle(d.label)).toHaveAttribute("draggable", "true");
+      expect(screen.getByTitle(named(d))).toHaveAttribute("draggable", "true");
   });
 
   it("takes an object out of the cabinet by its motif", async () => {
@@ -184,7 +190,9 @@ describe("ItemPalette — the colours on offer", () => {
 
   it("files the swatches by family", () => {
     open();
-    for (const fam of CAT_FAMILIES) expect(screen.getByText(fam.label.toUpperCase())).toBeTruthy();
+    /* The names live in the catalogue: the data only carries the key. */
+    for (const fam of CAT_FAMILIES)
+      expect(screen.getByText(fr.palette.families[fam.key].toUpperCase())).toBeTruthy();
   });
 
   /* What comes back up is the KEY, never the hexadecimal: it is the

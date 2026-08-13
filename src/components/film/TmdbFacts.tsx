@@ -21,6 +21,7 @@
    We only fill the gaps, as everywhere else in the merge: data corrected
    by hand is never overwritten by TMDB. */
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 import { RefreshCw } from "lucide-react";
 import { C, F } from "../../theme/tokens";
@@ -70,11 +71,8 @@ function Done({ name, children }: { name: string; children: ReactNode }) {
    did not give it to us", which calls for the button. */
 const EMPTY = <span style={{ color: C.line }}>—</span>;
 
-const TRADES: [key: string, name: string][] = [
-  ["image", "IMAGE"],
-  ["musique", "MUSIQUE"],
-  ["scénario", "SCÉNARIO"],
-];
+/* The trades, by the id a card carries. Their names read from `roles`. */
+const TRADES = ["image", "musique", "scénario"];
 
 /* A LIST OF NAMES THAT LEADS SOMEWHERE.
 
@@ -140,13 +138,14 @@ export function TmdbFacts({
   /** Absent: the names stay text. The card does not know how to navigate. */
   onOpenPerson?: (name: string) => void;
 }) {
+  const { t, i18n } = useTranslation();
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
 
   const refresh = async () => {
     const apiKey = getTmdbKey();
     if (!apiKey) {
-      setMsg("Aucune clé TMDB — à régler au pied du rail d'onglets.");
+      setMsg(t("tmdbKey.missing"));
       return;
     }
     setBusy(true);
@@ -159,7 +158,7 @@ export function TmdbFacts({
       if (!id) {
         const hit = await searchMovie({ title: film.title, year: film.year, apiKey });
         if (!hit) {
-          setMsg("TMDB ne connaît pas ce titre.");
+          setMsg(t("facts.unknownTitle"));
           return;
         }
         id = hit.id;
@@ -188,9 +187,7 @@ export function TmdbFacts({
       /* Telling "nothing changed" from "TMDB has nothing": the first
          means the card was already up to date, the second that there is
          nothing to hope for from a second click. */
-      setMsg(
-        n ? `${n} champ(s) complété(s).` : "TMDB ne donne rien de plus que ce qui est déjà là."
-      );
+      setMsg(n ? t("facts.filledIn", { count: n }) : t("facts.nothingMore"));
     } catch (e) {
       setMsg(`TMDB indisponible (${(e as Error).message}).`);
     } finally {
@@ -198,7 +195,7 @@ export function TmdbFacts({
     }
   };
 
-  const countries = (film.countries || []).map(countryName).join(", ");
+  const countries = (film.countries || []).map((c) => countryName(c, i18n.language)).join(", ");
   const crew = film.crew || {};
   const cast = film.cast || [];
 
@@ -216,11 +213,11 @@ export function TmdbFacts({
           marginBottom: 6,
         }}
       >
-        RELEVÉ TMDB
+        {t("facts.title")}
         <button
           onClick={refresh}
           disabled={busy}
-          title="redemander cette fiche à TMDB"
+          title={t("facts.refreshHint")}
           style={{
             all: "unset",
             ...tap,
@@ -235,22 +232,24 @@ export function TmdbFacts({
             color: C.pine,
           }}
         >
-          <RefreshCw size={11} /> rafraîchir
+          <RefreshCw size={11} /> {t("facts.refresh")}
         </button>
       </div>
 
-      <Done name="DURÉE">{film.runtime != null ? `${film.runtime} min` : EMPTY}</Done>
-      <Done name="PAYS">{countries || EMPTY}</Done>
-      <Done name="LANGUE">{film.language ? languageName(film.language) : EMPTY}</Done>
-      <Done name="NOTE TMDB">
+      <Done name={t("facts.runtime")}>{film.runtime != null ? `${film.runtime} min` : EMPTY}</Done>
+      <Done name={t("facts.country")}>{countries || EMPTY}</Done>
+      <Done name={t("facts.language")}>
+        {film.language ? languageName(film.language, i18n.language) : EMPTY}
+      </Done>
+      <Done name={t("facts.tmdbRating")}>
         {film.tmdbRating != null ? `${film.tmdbRating.toFixed(1)} / 10` : EMPTY}
       </Done>
-      {TRADES.map(([key, name]) => (
-        <Done key={key} name={name}>
+      {TRADES.map((key) => (
+        <Done key={key} name={t(`roles.${key}`).toUpperCase()}>
           <Names names={crew[key] || []} onOpenPerson={onOpenPerson} />
         </Done>
       ))}
-      <Done name="CASTING">
+      <Done name={t("facts.cast")}>
         <Names names={cast} separator=" · " onOpenPerson={onOpenPerson} />
       </Done>
       {/* THE KEYWORDS, SHOWN AND NOT HIDDEN. They feed the wake: when the
@@ -258,8 +257,10 @@ export function TmdbFacts({
           why — the line is empty, and the "refresh" button just above goes
           and fetches them. A dash says "TMDB did not give it to us"; an
           absent line would say nothing at all. */}
-      <Done name="MOTS-CLÉS">{film.keywords?.length ? film.keywords.join(" · ") : EMPTY}</Done>
-      <Done name="ID TMDB">{film.tmdbId ?? EMPTY}</Done>
+      <Done name={t("facts.keywords")}>
+        {film.keywords?.length ? film.keywords.join(" · ") : EMPTY}
+      </Done>
+      <Done name={t("facts.tmdbId")}>{film.tmdbId ?? EMPTY}</Done>
 
       {msg && (
         <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded, marginTop: 6 }}>

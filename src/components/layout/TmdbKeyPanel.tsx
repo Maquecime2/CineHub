@@ -11,6 +11,7 @@
    enrich an import — but it writes to the same place as this one.
    ============================================================ */
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { CSSProperties } from "react";
 import { X, KeyRound, Check, Loader2 } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
@@ -38,6 +39,7 @@ const PANEL: CSSProperties = {
 type Attempt = { state: "repos" | "essai" | "bonne" | "mauvaise"; message?: string };
 
 export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
   const [key, setKey] = useState(writtenKey);
   const [essai, setEssai] = useState<Attempt>({ state: "repos" });
 
@@ -78,15 +80,13 @@ export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
              absence of network both come out of it as a failure. So we do
              not decide in its place — we report what we know, and the two
              possible gestures. */
-          message: r.error
-            ? `Échec : ${r.error}. Clé erronée, ou TMDB injoignable.`
-            : "TMDB ne reconnaît pas cette clé.",
+          message: r.error ? t("tmdbKey.failedWith", { error: r.error }) : t("tmdbKey.unknown"),
         });
       }
     } catch {
       /* `checkApiKey` does not throw — but the day it did, a drawer
          stuck on "trying…" would be worse than the fault. */
-      setEssai({ state: "mauvaise", message: "Impossible de joindre TMDB — êtes-vous en ligne ?" });
+      setEssai({ state: "mauvaise", message: t("tmdbKey.offline") });
     }
   };
 
@@ -95,15 +95,15 @@ export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
   return (
     <>
       <div onClick={onClose} data-veil style={{ position: "fixed", inset: 0, zIndex: 59 }} />
-      <div style={PANEL} role="dialog" aria-label="Clé TMDB">
+      <div style={PANEL} role="dialog" aria-label={t("tmdbKey.title")}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
           <div style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 1, color: C.inkFaded }}>
-            CLÉ TMDB
+            {t("tmdbKey.kicker")}
           </div>
           <div style={{ flex: 1 }} />
           <button
             onClick={onClose}
-            aria-label="Fermer"
+            aria-label={t("common.close")}
             style={{ all: "unset", cursor: "pointer", color: C.inkFaded }}
           >
             <X size={13} />
@@ -111,15 +111,14 @@ export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
         </div>
 
         <div style={{ fontFamily: F.hand, fontSize: 14, color: C.inkFaded, marginBottom: 10 }}>
-          elle ouvre les Découvertes, les affiches, les fiches d&apos;équipe et le sillage — elle
-          reste sur votre machine, elle ne part nulle part
+          {t("tmdbKey.note")}
         </div>
 
         <label
           htmlFor="tmdb-key-champ"
           style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 1, color: C.inkFaded }}
         >
-          VOTRE CLÉ (API KEY V3)
+          {t("tmdbKey.field")}
         </label>
         <input
           id="tmdb-key-champ"
@@ -131,7 +130,7 @@ export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
           onKeyDown={(e) => {
             if (e.key === "Enter") void lay();
           }}
-          placeholder="collez-la ici"
+          placeholder={t("tmdbKey.placeholder")}
           spellCheck={false}
           autoComplete="off"
           style={{
@@ -164,7 +163,7 @@ export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
               opacity: essai.state === "essai" ? 0.6 : 1,
             }}
           >
-            {essai.state === "essai" ? "on essaie…" : "Essayer et enregistrer"}
+            {essai.state === "essai" ? t("tmdbKey.trying") : t("tmdbKey.tryAndSave")}
           </button>
           {essai.state === "essai" && <Loader2 size={13} color={C.inkFaded} />}
           {essai.state === "bonne" && (
@@ -178,7 +177,7 @@ export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
                 color: C.pine,
               }}
             >
-              <Check size={13} /> elle marche
+              <Check size={13} /> {t("tmdbKey.works")}
             </span>
           )}
         </div>
@@ -211,8 +210,7 @@ export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
             paddingTop: 8,
           }}
         >
-          une clé est gratuite : compte TMDB → Paramètres → API. Sans elle, le classeur marche
-          entièrement — seuls l&apos;enrichissement et les propositions venues du dehors se taisent.
+          {t("tmdbKey.whereFrom")}
         </div>
 
         {placedOne && (
@@ -235,7 +233,7 @@ export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
               textDecoration: "underline",
             }}
           >
-            <KeyRound size={12} /> retirer la clé de cette machine
+            <KeyRound size={12} /> {t("tmdbKey.remove")}
           </button>
         )}
       </div>

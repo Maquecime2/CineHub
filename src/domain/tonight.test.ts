@@ -3,6 +3,12 @@ import { rankTheEvening, listLanguages, SLOTS } from "./tonight";
 import { makeFilm } from "./film";
 import type { Film } from "../types";
 
+import i18n from "../i18n";
+import { say } from "./wording";
+
+/** What a `Wording` really reads as on screen. The suite runs in French. */
+const said = (w: Parameters<typeof say>[0]) => say(w, i18n.t.bind(i18n));
+
 const toWatch = (title: string, partial: Partial<Film> = {}) =>
   makeFilm({ title, status: "watchlist", ...partial });
 
@@ -50,7 +56,7 @@ describe("the time available", () => {
     );
     expect(order(out)).toEqual(["Un peu long", "Beaucoup trop long"]);
     expect(out[0]!.overrun).toBe(5);
-    expect(out[0]!.reasons.join(" ")).toContain("de trop");
+    expect(out[0]!.reasons.map(said).join(" ")).toContain("de trop");
   });
 
   it("does not rule out an unknown runtime, and says so", () => {
@@ -60,7 +66,7 @@ describe("the time available", () => {
     });
     expect(out).toHaveLength(1);
     expect(out[0]!.unknownRuntime).toBe(true);
-    expect(out[0]!.reasons).toContain("durée inconnue");
+    expect(out[0]!.reasons.map(said)).toContain("durée inconnue");
   });
 
   it("files the unknown runtime after what fits, before what overruns", () => {
@@ -93,7 +99,7 @@ describe("the mood", () => {
       { ...NO_CRAVING, mood: ["melancholy"] }
     );
     expect(order(out)[0]).toBe("Triste");
-    expect(out[0]!.reasons).toContain("mélancolie");
+    expect(out[0]!.reasons.map(said)).toContain("Mélancolie");
   });
 
   it("also reads the guessed motifs, which no unwatched card carries", () => {
@@ -163,7 +169,7 @@ describe("with no taste profile", () => {
       minutes: 120,
     });
     expect(out).toHaveLength(1);
-    expect(out[0]!.reasons.join(" ")).not.toContain("vous aimez");
+    expect(out[0]!.reasons.map(said).join(" ")).not.toContain("vous aimez");
   });
 });
 

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { matchFilm, searchFilms } from "./search";
+import i18n from "../i18n";
+import { matchFilm as match, searchFilms as sweep } from "./search";
 import { makeFilm } from "./film";
 
 const solaris = makeFilm({ id: "1", title: "Solaris", director: "Tarkovski", year: 1972 });
@@ -12,6 +13,14 @@ const amelie = makeFilm({
   motifs: ["hero-dies"],
 });
 const films = [other, solaris, amelie];
+
+/* The motif names come from the caller now — a film is findable by
+   "le héros meurt" only if somebody says what that motif is called.
+   `setupTests` pins the suite to French. */
+const name = i18n.t.bind(i18n);
+const matchFilm = (f: Parameters<typeof match>[0], q: string) => match(f, q, name);
+const searchFilms = (fs: Parameters<typeof sweep>[0], q: string, limit?: number) =>
+  sweep(fs, q, name, limit);
 
 describe("searching for a film", () => {
   it("finds on the title and on the director", () => {

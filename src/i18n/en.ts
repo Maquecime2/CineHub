@@ -1,0 +1,1468 @@
+/* ============================================================
+   THE ENGLISH CATALOGUE
+   ============================================================
+
+   It mirrors `fr.ts` key for key — the parity test refuses anything else.
+   What it does NOT do is translate word for word: the French says
+   "papier kraft, encre sépia, fil rouge" and the English says the same
+   thing to an English ear, which is not the same words.
+
+   The house voice carries over: concrete nouns, no exclamation marks, and
+   a sentence that says what a thing IS rather than what it does.
+   ============================================================ */
+
+const en = {
+  common: {
+    close: "Close",
+    cancel: "Cancel",
+    save: "Save",
+    delete: "Delete",
+    copy: "COPY",
+    copied: "COPIED",
+    loading: "loading…",
+    none: "none",
+  },
+
+  account: {
+    title: "Your account",
+    signedInNote: "Your collection is found again on your other devices.",
+    signedOutNote:
+      "An account is what finds your collection elsewhere. The binder works perfectly well without one.",
+    sync: "Synchronisation",
+    syncNow: "Synchronise now",
+    never: "not yet",
+    justNow: "just now",
+    minutesAgo: "{{count}} minutes ago",
+    hoursAgo_one: "{{count}} hour ago",
+    hoursAgo_other: "{{count}} hours ago",
+    noServer: "No server set.",
+    noServerShort: "no server",
+    allStaysHere: "Everything stays here.",
+    running: "Under way…",
+    upToDate: "Up to date, {{when}}.",
+    unreachable: "Server out of reach. Nothing to send, nothing lost.",
+    pending_one: "{{count}} card is waiting for the network.",
+    pending_other: "{{count}} cards are waiting for the network.",
+    refused: "The server refused.",
+    cancelled: "Gesture called off.",
+    failed: "That did not work.",
+    handle: "Handle",
+    passkeyNote:
+      "No password: your telephone or your computer signs in your place, with whatever already unlocks it.",
+    signUp: "CREATE AN ACCOUNT",
+    signIn: "I ALREADY HAVE ONE",
+    signOut: "SIGN OUT",
+    yourData: "Your data",
+    takeEverything: "TAKE EVERYTHING",
+    exportFailed: "The export failed.",
+    deleteTitle: "Erase your account?",
+    deleteBody:
+      "The copy of your collection on the server is erased, along with your passkeys and your sessions. Your binder stays whole on this device — but your other devices will synchronise no longer.",
+    deleteAction: "ERASE THE ACCOUNT",
+    deleteMine: "ERASE MY ACCOUNT",
+    deleteFailed: "The erasure failed.",
+    footer:
+      "Your whole collection is copied onto your account, notes and viewings included. Nothing is public: sharing is decided card by card, and will never carry your notes away.",
+    silenced: "Those you have silenced",
+    unblock: "GIVE THE VOICE BACK",
+    unblockOne: "Give {{pseudo}} their voice back",
+    unblockNote:
+      "Their reviews will show under the cards again. You will not be following them for all that — blocking undid the link, and undoing the block does not tie it again.",
+    reminders: "Reminders",
+    notificationsDenied:
+      "This browser refused notifications. That is reopened in its site settings, not here.",
+    remindStart: "REMIND ME OF MY CHALLENGES",
+    remindStop: "STOP REMINDING ME",
+    remindNote:
+      "A challenge starting, a challenge ending — nothing else will ring you. The setting holds for this device only.",
+    showCollection: "Show my collection",
+    shareNobody: "NOBODY",
+    shareLink: "BY LINK",
+    shareEveryone: "EVERYBODY",
+    shareDefaultNote: "By default, nobody sees your collection.",
+    shareNobodyNote: "Nobody. Links already given are worth nothing now.",
+    shareEveryoneNote: "Whoever knows your handle.",
+    shareLinkNote: "Whoever holds the link. It cannot be guessed, and is cut whenever you like.",
+    shareNeverNote: "Your notes and your viewing log are never shown.",
+  },
+
+  tmdbKey: {
+    title: "TMDB key",
+    kicker: "TMDB KEY",
+    note: "it opens the Discoveries, the posters, the crew cards and the wake — it stays on your machine, it goes nowhere",
+    field: "YOUR KEY (API KEY V3)",
+    placeholder: "paste it here",
+    trying: "trying…",
+    tryAndSave: "Try it and save",
+    works: "it works",
+    unknown: "TMDB does not recognise this key.",
+    failedWith: "Failed: {{error}}. Wrong key, or TMDB out of reach.",
+    offline: "Cannot reach TMDB — are you online?",
+    whereFrom:
+      "a key is free: TMDB account → Settings → API. Without one the binder works entirely — only the enrichment and the proposals from outside go quiet.",
+    remove: "take the key off this machine",
+    missing: "No TMDB key — to be set at the foot of the tab rail.",
+  },
+
+  search: {
+    films: "Films",
+    people: "In the credits",
+    motifs: "Motifs",
+    threads: "Threads",
+    pages: "Notebook",
+    placeholder: "a title, a name, a motif, a word you wrote yourself…",
+    fieldLabel: "Search the whole binder",
+    escape: "ESC",
+    prompt:
+      "Two letters are enough. The question goes to the films, the people in the credits, the motifs, the threads and the notebook pages — all at once.",
+    nothing: "Nothing by that name in the binder.",
+    untitled: "Untitled",
+    filmCount_one: "{{count}} film",
+    filmCount_other: "{{count}} films",
+    carriedBy_one: "{{count}} card carries it",
+    carriedBy_other: "{{count}} cards carry it",
+    onNoCard: "on no card",
+  },
+
+  roles: {
+    réalisation: "directing",
+    interprétation: "acting",
+    image: "cinematography",
+    musique: "music",
+    scénario: "screenwriting",
+    thème: "theme",
+  },
+
+  wake: {
+    namedLink: "{{link}} — {{value}}",
+    andMore: "{{start}}, + {{more}}",
+    link: {
+      cinematography: "same cinematographer",
+      music: "same composer",
+      directing: "same director",
+      writing: "same writer",
+      motif: "shared motif",
+      theme: "shared theme",
+      keyword: "shared subject",
+      actor: "billed in both",
+      crowd: "watched by the same people",
+    },
+    more: {
+      motif_one: "{{count}} motif",
+      motif_other: "{{count}} motifs",
+      keyword_one: "{{count}} shared subject",
+      keyword_other: "{{count}} shared subjects",
+      theme_one: "{{count}} theme",
+      theme_other: "{{count}} themes",
+      actor_one: "{{count}} billed name",
+      actor_other: "{{count}} billed names",
+      other_one: "{{count}} other",
+      other_other: "{{count}} others",
+    },
+    afar: {
+      named: "{{link}} {{value}}",
+      two: "{{first}} · {{second}}",
+      andCount: "{{two}}, + {{count}}",
+      cinematography: "same cinematographer,",
+      music: "same composer,",
+      directing: "same director,",
+      writing: "same writer,",
+      actor: "with",
+      motif: "same motif",
+      theme: "same theme",
+      keyword: "same subject",
+      crowd: "watched by the same people",
+    },
+  },
+
+  import: {
+    oneFileAtATime: "one file at a time, in the order given below",
+    whichFiles: "WHICH FILES TO DROP",
+    zipNote: "Letterboxd delivers a zip: unzip it, then drop these files one by one.",
+    file: {
+      watched: "every film watched — the base of the collection",
+      ratings: "your ratings; completes the cards already created",
+      diary: "each viewing, one by one: this is what counts the watches",
+      watchlist: "your wishes; lands in the “To watch” tab",
+    },
+    orderNote:
+      "The order matters little, but watched.csv first avoids forgetting the films watched without a rating. diary.csv is the only one carrying a line per viewing: it is where the watch count and the drift of your ratings come from. Nothing is ever duplicated — run the files through as often as you like.",
+    orReadProfile: "OR READ YOUR PROFILE",
+    profileNote:
+      "With no file, straight from your public profile. “Viewings” returns only your last fifty: enough to keep the collection up to date, not enough to build it. “Watchlist” reads the whole of it, page after page.",
+    letterboxdHandle: "Letterboxd handle",
+    handlePlaceholder: "your-handle",
+    viewings: "VIEWINGS",
+    watchlist: "WATCHLIST",
+    page: "PAGE {{done}}/{{total}}",
+    relayNote:
+      "Letterboxd forbids reading its feed from another site: a middleman goes and fetches it for you. The default one is a public service — it may slow down or vanish. {url} is replaced by the feed's address. Locally this setting is of no use: the development server relays it itself.",
+    noUsableRow: "No usable row found in this file.",
+    feedEmpty: "This feed contains no viewing.",
+    keyValid: "key valid",
+    keyRefused: "key refused",
+    linesRead: "lines read",
+    distinctFilms: "distinct films",
+    withRating: "with a rating",
+    withoutRating: "without a rating",
+    rewatchesGrouped: "rewatches grouped",
+    linesWithoutTitle: "lines with no title, ignored",
+    unreadableCsv: "This CSV file cannot be read.",
+    emptyWatchlist: "This watchlist is empty.",
+    tmdbApiKey: "TMDB API key",
+    pasteKeyHere: "paste your key here",
+    tmdbNote:
+      "Letterboxd exports neither the director nor the posters. TMDB finds both (free key at themoviedb.org).",
+    replaceLogNote:
+      "Ordinarily the logs complete each other, and nothing is lost. Ticked, the log of the films named is replaced by this one: that is what is needed to erase a viewing too many, and it is also what erases the viewings added by hand.",
+    directorsFound: "directors found",
+    filmsNotIdentified: "films not identified",
+    finished: "IMPORT FINISHED",
+    created: "cards created",
+    updated: "cards updated",
+    unchanged: "already up to date, unchanged",
+  },
+
+  letterboxd: {
+    noHandle: "Give your Letterboxd handle first.",
+    relaySilent: "The relay did not answer. It may be out of service — see “relay”.",
+    notAFeed:
+      "The answer is not a Letterboxd feed. Check the handle, or the relay if you have set one.",
+    notAWatchlist:
+      "This page does not have the shape of a Letterboxd watchlist. Check the handle, that the profile is public, or the relay if you have set one.",
+    feedStatus: "The feed answered {{status}}. Is the handle the right one?",
+    watchlistStatus:
+      "The watchlist answered {{status}}. Is the handle the right one, and the profile public?",
+  },
+
+  complete: {
+    title: "COMPLETE THE CARDS FROM TMDB",
+    toComplete: "cards to complete",
+    alreadyUpToDate: "cards already up to date",
+    noKeywords: "cards with no TMDB keywords",
+    allFull: "Everything is already filled in — nothing to ask TMDB for.",
+    intro:
+      "Goes and fetches the cast, the crew, the running time, the country, the language and the keywords of the cards that have none. The keywords are what lets a film's wake bring two cards together other than by their crew's names. Nothing is written before you have seen the detail.",
+    asking: "{{done}} / {{total}} asked…",
+    running: "UNDER WAY…",
+    completeN: "COMPLETE {{count}} CARD(S)",
+    reaskHint: "Asks for the keywords again, including for cards that came back empty",
+    reaskKeywords: "ASK FOR THE KEYWORDS AGAIN ({{count}})",
+    writeChanges: "WRITE THE {{count}} CHANGES",
+    needsKey:
+      "Something is needed to ask TMDB: a key, above — or an account, which does away with it.",
+    noAnswer: "TMDB did not answer.",
+    done_one: "{{count}} card completed.",
+    done_other: "{{count}} cards completed.",
+  },
+
+  repair: {
+    title: "FIND CARDS MOVED BY MISTAKE",
+    ticked: "ticked",
+    intro:
+      "An earlier version of “complete the cards” moved the cards it enriched to “watched”. Those cards have no viewing, no date, no rating and no text: nobody has ever opened them, they were probably wishes. Probably only — read the list again, a film watched and never written about looks just like one",
+    tickAll: "TICK EVERYTHING",
+    untickAll: "UNTICK EVERYTHING",
+    putBackN: "PUT {{count}} CARD(S) BACK IN “TO WATCH”",
+    confirmTitle: "Put {{count}} card(s) back in “to watch”?",
+    confirmBody:
+      "They leave the library for the To watch tab. Nothing is erased: notes, motifs and threads stay attached, and a card put back moves over again in one click from its folder.",
+    confirmAction: "PUT BACK IN “TO WATCH”",
+    done_one: "{{count}} card put back in “To watch”.",
+    done_other: "{{count}} cards put back in “To watch”.",
+  },
+
+  backup: {
+    title: "POSTER VAULT AND BACKUP",
+    postersStored: "posters filed in the store",
+    spaceUsed: "space taken",
+    note: "Everything is stored on this machine, stills at their original quality. Export now and then: clearing the browser's data would erase the collection.",
+    preparing: "preparing…",
+    downloaded_one: "backup of {{count}} card downloaded.",
+    downloaded_other: "backup of {{count}} cards downloaded.",
+  },
+
+  film: {
+    year: "Year",
+    director: "Director",
+    themes: "Themes (commas)",
+    themesPlaceholder: "Memory, Solitude",
+    firstImpression: "First impression",
+    pinToWall: "PIN THIS CARD TO THE WALL",
+  },
+
+  facts: {
+    title: "TMDB RECORD",
+    refresh: "refresh",
+    refreshHint: "ask TMDB for this card again",
+    unknownTitle: "TMDB does not know this title.",
+    filledIn_one: "{{count}} field filled in.",
+    filledIn_other: "{{count}} fields filled in.",
+    nothingMore: "TMDB gives nothing more than what is already here.",
+    runtime: "RUNNING TIME",
+    country: "COUNTRY",
+    language: "LANGUAGE",
+    tmdbRating: "TMDB RATING",
+    cast: "CAST",
+    keywords: "KEYWORDS",
+    tmdbId: "TMDB ID",
+  },
+
+  link: {
+    noFilmByThatTitle: "TMDB knows no film by that title.",
+    fetching: "fetching the card…",
+    linkedTo: "linked to “{{title}}”{{year}}.",
+    noIdentifier: "no identifier — the card is linked to nothing",
+    searchPlaceholder: "title to look for",
+    replacesNote:
+      "choosing replaces the crew, the running time, the country, the rating and the keywords — your words, your notes and your viewings do not move",
+  },
+
+  identity: {
+    found: "found: {{title}}{{year}}",
+  },
+
+  poster: {
+    noneFound: "No poster found for this film.",
+    couldNotSave: "This image could not be saved.",
+    pasteHint: "right-click a poster → “copy image address”, then Enter",
+  },
+
+  watchlog: {
+    removeOne: "Remove this viewing",
+    removeOneOn: "Remove the viewing of {{date}}",
+  },
+
+  lists: {
+    filed: "filed",
+    alreadyThere: "was already there",
+  },
+
+  elsewhere: {
+    filedBy_one: "{{count}} library files it",
+    filedBy_other: "{{count}} libraries file it",
+    reportPrompt: "What is wrong with what {{pseudo}} wrote?",
+    reported: "reported — we will read it",
+  },
+
+  sharing: {
+    hide: "TAKE OUT OF THE SHARING",
+    hidden: "TAKEN OUT OF THE SHARING",
+    shownNote:
+      "It appears in your shared collection, with its rating and your review. Your loose notes and your viewing log never leave.",
+  },
+
+  credits: {
+    stamp: "CREDITS",
+    intro:
+      "The names your collection already carries — those who directed, acted, lit, scored, wrote. {{count}} in all.",
+    gone: "This person appears on no card any more.",
+    namePlaceholder: "a name…",
+    regularsOnly: "regulars only",
+    passingThrough: "+ {{count}} passing through",
+    noNames:
+      "No names yet. Complete your cards through TMDB, from the Import tab, and the credits will fill themselves in.",
+    nobodyByThatName: "Nobody by that name.",
+    nobodyAmongRegulars:
+      "Nobody in that capacity among the regulars — open “passing through” to see the rest.",
+    nobodyInThatRole: "Nobody in that capacity.",
+    backToCredits: "the credits",
+    gapToPublic: "GAP TO THE PUBLIC",
+    inAgreement: "in agreement",
+    gentlerBy: "gentler by {{points}}",
+    harsherBy: "harsher by {{points}}",
+    personIntro_one: "{{roles}} — {{count}} film in your house",
+    personIntro_other: "{{roles}} — {{count}} films in your house",
+    ofWhichWaiting: ", of which {{count}} waiting",
+    seen: "Watched",
+    waiting: "Waiting",
+    whatIsMissing: "What I am missing",
+    missingNote:
+      "Their full filmography, minus what you already hold. Nothing is added without you.",
+    askTmdb: "ask TMDB",
+    tmdbNobody: "TMDB knows nobody by that name.",
+    tmdbDown: "TMDB unavailable ({{error}}).",
+    missingCount_one: "{{count}} film you do not have — in that capacity.",
+    missingCount_other: "{{count}} films you do not have — in that capacity.",
+    nothingMissing: "Nothing is missing: you hold everything TMDB knows of them.",
+    yearUnknown: "year unknown",
+    inWatchlist: "in To watch",
+    addToWatchlist: "+ to watch",
+  },
+
+  walls: {
+    sort: {
+      watched: "recently watched",
+      added: "added",
+      addedShort: "added",
+      title: "A–Z",
+      year: "year",
+      rating: "rating",
+      director: "director",
+    },
+    watched: {
+      stamp: "CATALOGUE",
+      title: "Your library",
+      subtitle: "a wall of posters, notes and memories of viewings",
+      emptyTitle: "The wall is still bare",
+      emptyBody: "Pin your first film to begin the collection.",
+    },
+    watchlist: {
+      stamp: "TO WATCH",
+      title: "The wishes corner",
+      subtitle: "the films set aside, waiting for an evening",
+      emptyTitle: "Nothing waiting yet",
+      emptyBody: "Import your Letterboxd watchlist, or pin a film “to watch”.",
+    },
+  },
+
+  library: {
+    search: "Search",
+    searchPlaceholder: "a title, a filmmaker…",
+    genre: "Genre",
+    decade: "Decade",
+    sort: "Sort",
+    arrange: "File",
+    clickToReverse: "click to reverse",
+    rewritesArrangement: "Rewrites this view's arrangement",
+    presentation: "Presentation",
+    wall: "WALL",
+    shelf: "SHELF",
+    byDirector: "BY DIRECTOR",
+    byDirectorAdd: "+ BY DIRECTOR",
+    oneRowPerDirector: "One row and one case per director",
+    unknownDirector: "Director unknown",
+    shelfWood: "SHELF WOOD",
+    decor: "Decor",
+    decorStudio: "DECOR WORKSHOP…",
+    decorHint: "Paint the wall, change the shelves' material",
+    wallStudio: "WALL WORKSHOP…",
+    wallStudioHint: "Paint the wall, set the size and the disorder of the cards",
+    setAside_one: "{{count}} film set aside — see the shelf",
+    setAside_other: "{{count}} films set aside — see the shelf",
+    nothingToShow: "Nothing to show",
+    tryAnotherSearch: "Try another search.",
+  },
+
+  almanac: {
+    emptyTitle: "No dated viewing yet.",
+    emptyBody:
+      "The almanac fills itself as soon as a card carries a date — by noting a viewing on a card, or by reading your log from the import tab.",
+    plate1: "The count and the rhythm",
+    plate2: "The tastes",
+    plate3: "The people and the world",
+    plate4: "The subjects and the craftspeople",
+    previousPeriod: "previous period",
+    nextPeriod: "next period",
+    previousPlate: "previous plate",
+    nextPlate: "next plate",
+    orArrows: "or the keyboard arrows",
+    exportHint: "An image of this year, to keep or to show",
+    yearInABox: "the year in a box",
+    developing: "developing…",
+    exportFailed: "failed — try again",
+    nothingToNote: "nothing to note",
+
+    viewings: "VIEWINGS",
+    daysInARow: "DAYS IN A ROW",
+    fromTo: "from {{from}} to {{to}}",
+    theYears: "The years",
+    theMonths: "The months",
+    daysWithViewing: "Days with a viewing",
+    ofThePeriod: "Of the period",
+    ofTheYear: "Of the year",
+    oneEvery: "one viewing every {{days}} days",
+    hoursOfCinema: "The hours of cinema",
+    inFrontOfAScreen: "IN FRONT OF A SCREEN",
+    noRuntimes:
+      "no running time known — the “complete the cards” button, in the Import tab, goes and fetches them",
+    atLeast_one: "at least — {{count}} viewing with no running time known",
+    atLeast_other: "at least — {{count}} viewings with no running time known",
+
+    noRatedViewing: "no rated viewing",
+    noRatedViewingThisYear: "no rated viewing this year",
+    starViewings_one: "{{stars}} ★ — {{count}} viewing",
+    starViewings_other: "{{stars}} ★ — {{count}} viewings",
+    agreeWithPublic: "in agreement with the public, over {{count}} viewings",
+    gentlerThan: "gentler than the public by {{points}} point(s), over {{count}} viewings",
+    harsherThan: "harsher than the public by {{points}} point(s), over {{count}} viewings",
+    noReleaseYear: "no release year on record",
+    median: "Median",
+    yearsOld_one: "{{count}} year",
+    yearsOld_other: "{{count}} years",
+    decadesVisited: "The decades visited",
+    ratedViewings_one: "{{count}} rated viewing",
+    ratedViewings_other: "{{count}} rated viewings",
+    changedMind: "What changed its mind",
+    noDrift: "no score moved between two viewings",
+    allYearsTogether: "all years together — one does not think again in twelve months",
+
+    filmmakers: "The filmmakers",
+    loyalties: "The loyalties",
+    loyaltiesAndFinds: "Loyalties and discoveries",
+    metAgain: "MET AGAIN",
+    discovered: "DISCOVERED ({{count}})",
+    worldCrossed: "The world crossed",
+    noCountry:
+      "no country on record — “complete the cards”, in the Import tab, goes and fetches them",
+    countriesCrossed: "COUNTRIES CROSSED",
+
+    noKeyword: "no keyword — “complete the cards”, in the Import tab, goes and fetches them",
+    noMotif: "no motif set — they are chosen on a card, under the review",
+    craftspeople: "The craftspeople",
+    noRecurringCrew:
+      "nobody comes back twice behind the camera — “complete the cards”, in the Import tab, fills the crews in",
+    gentlerHarsher: "Gentler, harsher",
+    noPublicScore: "no rated viewing whose public score is also known",
+    youOutOfTen: "YOU, OUT OF 10",
+    thePublic: "THE PUBLIC",
+    yourIndulgences: "YOUR INDULGENCES",
+    yourSeverities: "YOUR SEVERITIES",
+  },
+
+  yearInBox: {
+    title: "THE YEAR IN A BOX",
+    viewings_one: "viewing",
+    viewings_other: "viewings",
+    films_one: "film",
+    films_other: "films",
+    rewatches_one: "rewatch",
+    rewatches_other: "rewatches",
+    onAverage: "on average",
+    ofCinema: "of cinema",
+    mostWatched: "Most watched this year: {{name}}.",
+    aYearOfViewings: "A year of viewings, kept by hand.",
+    decade: "the {{decade}}s",
+    averageAge: "{{years}} years old on average",
+    signature: "CINÉ HUB · personal archive",
+    couldNotDraw: "the image could not be produced",
+  },
+
+  reco: {
+    allLanguages: "all",
+    obscurity: "Degree of obscurity",
+    gem: "gem",
+    changeOfScene: "Change of scene",
+    withinMyTastes: "within my tastes",
+    to: "To",
+    tmdbRatingAtLeast: "TMDB rating ≥",
+    genresSought: "Genres sought",
+    genresSetAside: "Genres set aside",
+    nothingComesBack:
+      "Nothing comes back with these settings — widen the years or lower the minimum rating.",
+    needsKey:
+      "Looking for films outside asks for a key — it stays in this browser and also serves to complete the cards.",
+    needsKeyWithHome:
+      "The proposals above come from your collection and need nothing. To look for some outside, a key is needed — it stays in this browser and also serves to complete the cards.",
+  },
+
+  shared: {
+    noCollection: "No collection at this address. The link may have been closed again.",
+    couldNotOpen: "This collection could not be opened.",
+  },
+
+  skinLab: {
+    typedLabel: "Typed label",
+    underlinedField: "an underlined field",
+  },
+
+  athome: {
+    rewatch: "Worth seeing again",
+    years_one: "{{count}} year",
+    years_other: "{{count}} years",
+    months_one: "{{count}} month",
+    months_other: "{{count}} months",
+    reason: {
+      rewatch: "{{stars}}★ in your house, and not seen again for {{since}}",
+      motif_one: "{{count}} film carries this motif, and nothing for {{since}}",
+      motif_other: "{{count}} films carry this motif, and nothing for {{since}}",
+      director_one: "{{count}} film in your house, {{average}}★ on average, nothing for {{since}}",
+      director_other:
+        "{{count}} films in your house, {{average}}★ on average, nothing for {{since}}",
+    },
+  },
+
+  tonight: {
+    fits: "{{minutes}} min — that fits",
+    overruns: "{{minutes}} min, which is {{over}} too many",
+    runtime: "{{minutes}} min",
+    unknownRuntime: "running time unknown",
+    genreYouLike: "a genre you like: {{genre}}",
+    waiting_one: "waiting for {{count}} year",
+    waiting_other: "waiting for {{count}} years",
+  },
+
+  install: {
+    title: "The binder fits on your home screen",
+    appleBefore: "Tap ",
+    appleAfter:
+      " at the bottom of Safari, then “Add to Home Screen”. It will open full screen, and even with no network.",
+    body: "It then opens full screen, with no address bar, and even with no network.",
+    action: "INSTALL",
+    dismiss: "Set aside",
+  },
+
+  update: {
+    title: "A new version is ready",
+    body: "It will lay itself down on the next reload. Nothing you have filed moves.",
+    action: "RELOAD",
+  },
+
+  demoBinder: {
+    films: {
+      chihiro: {
+        title: "Spirited Away",
+        genres: "Animation, Fantasy, Adventure",
+        themes: "childhood, work",
+        review:
+          "Seen again ten years on, and it is the train over the water that stays — not the monsters. The calmest film ever made about growing up.",
+      },
+      mulholland: {
+        title: "Mulholland Drive",
+        genres: "Thriller, Mystery, Drama",
+        themes: "cinema, dreams",
+        review:
+          "The blue box is not explained, it is undergone. It took me three viewings to stop looking for the key, and that is where the film began.",
+        notes: "Watch again thinking of Persona. The Silencio scene alone is worth the trip.",
+      },
+      mood: {
+        title: "In the Mood for Love",
+        genres: "Romance, Drama",
+        themes: "renunciation",
+        review:
+          "Two people who never touch, and the whole film is a caress. The slow motion on the staircase, every time.",
+      },
+      "jour-sans-fin": {
+        title: "Groundhog Day",
+        genres: "Comedy, Fantasy, Romance",
+        themes: "repetition",
+        review:
+          "The best comedy ever made about the idea that one only becomes somebody by wearing down.",
+      },
+      alien: {
+        title: "Alien",
+        genres: "Horror, Science fiction",
+        themes: "space, the body",
+        review:
+          "A film of corridors. Everything frightening is off screen, and the only thing one really sees is how tired the people are.",
+      },
+      "blade-runner": {
+        title: "Blade Runner",
+        genres: "Science fiction, Thriller",
+        themes: "memory, the artificial",
+        review:
+          "The closing monologue was written on set, and it is the finest thing in the film. The rain does the work of the score.",
+      },
+      "paris-texas": {
+        title: "Paris, Texas",
+        genres: "Drama",
+        themes: "abandonment, the desert",
+        review:
+          "The peep-show scene holds for fifteen minutes on two voices and a pane of glass. Nothing I have seen since comes near it.",
+      },
+      "perfect-days": {
+        title: "Perfect Days",
+        genres: "Drama",
+        themes: "routine, work",
+      },
+      "400-coups": {
+        title: "The 400 Blows",
+        genres: "Drama",
+        themes: "childhood, school",
+        review:
+          "The freeze frame on the beach is the first film ending that refuses to conclude. All the rest of the New Wave comes out of it.",
+      },
+      samourai: {
+        title: "Le Samouraï",
+        genres: "Crime, Drama",
+        themes: "solitude, the code",
+        review:
+          "Ten minutes without a word to open on. Melville films a ritual, not a trade — and Delon plays nothing, which is exactly what was needed.",
+      },
+      stalker: {
+        title: "Stalker",
+        genres: "Science fiction, Drama",
+        themes: "faith, desire",
+        review:
+          "Three men walk towards a room that grants wishes, and none of them dares go in. The film lasts as long as it takes to understand why.",
+        notes:
+          "Watched tired, to be seen again on a Sunday morning. The sepia passage on the way back went past me.",
+      },
+      portrait: {
+        title: "Portrait of a Lady on Fire",
+        genres: "Romance, Drama, History",
+        themes: "the gaze, painting",
+        review:
+          "A film about what it is to be looked at in return. The last shot holds on a face and an opera, and that is enough.",
+      },
+    },
+    threads: {
+      0: "The same man, three years later, and already the whole question: what is alive, and what merely looks it.",
+      1: "Forty years between the two, and the same gesture: filming a man who says nothing until the silence says something.",
+      2: "Two loves that hold entirely in what one does not dare do, and two last images that refuse to close.",
+      3: "Henri Decaë behind the camera on both. The same Paris, eight years apart: grey for a child running, grey for a man waiting.",
+    },
+    book: {
+      title: "Do Androids Dream of Electric Sheep?",
+      note: "The film keeps the question and throws the plot away. The novel, for its part, is a book about animals.",
+    },
+    note: {
+      title: "What I am after just now",
+      body: "Films that trust silence. Melville, Wenders, Sciamma in the second half — every time, the scene that counts is the one where nobody speaks.\n\nTo follow: the cinematographers rather than the directors. Decaë comes back twice without my having looked for him.",
+    },
+  },
+
+  demo: {
+    title: "These twelve films are not yours",
+    body: "An example, laid down so the tour has something to show. Keep it for the time it takes to go round, or take it away right now.",
+    remove: "TAKE THEM AWAY",
+  },
+
+  language: {
+    title: "Language",
+    close: "Close the language picker",
+    open: "The binder's language",
+    fr: "Français",
+    en: "English",
+    frNote: "le classeur dans sa langue d'origine",
+    enNote: "the binder, in English",
+  },
+
+  views: {
+    library: "Library",
+    watchlist: "To watch",
+    credits: "Credits",
+    reco: "Discoveries",
+    constellation: "Constellation",
+    almanac: "Almanac",
+    notebook: "Notebook",
+    import: "Letterboxd import",
+    thread: "The feed",
+    lists: "Lists and challenges",
+    skinlab: "Skins ⚙",
+  },
+
+  rail: {
+    addFilm: "Pin a new film",
+    searchAll: "Search everywhere",
+    searchAllHint: "Search everywhere (Ctrl+K)",
+    skin: "Change the skin of the site",
+    tmdbKey: "The TMDB key",
+    account: "Your account and synchronisation",
+    help: "The guided tour",
+  },
+
+  surfaces: {
+    paints: {
+      platre: "Plaster",
+      lin: "Linen",
+      craie: "Chalk",
+      ocre: "Pale ochre",
+      terracotta: "Terracotta",
+      rose: "Old rose",
+      sauge: "Sage",
+      eucalyptus: "Eucalyptus",
+      ciel: "Faded sky",
+      atelier: "Workwear blue",
+      anthracite: "Anthracite",
+      nuit: "Night",
+    },
+    patterns: {
+      rayuresFines: "Fine stripes",
+      rayuresLarges: "Wide stripes",
+      quadrillage: "Grid",
+      damier: "Chequerboard",
+      pois: "Dots",
+      chevrons: "Chevrons",
+      ecailles: "Scales",
+      fleurs: "Small flowers",
+      tirets: "Dashes",
+    },
+    textures: {
+      grain: "Grain",
+      crepi: "Render",
+      toile: "Canvas",
+      beton: "Concrete",
+    },
+    materials: {
+      chene: "Oak",
+      noyer: "Walnut",
+      teck: "Teak",
+      ebene: "Ebony",
+      bouleau: "Birch",
+      ceruse: "Limed oak",
+      merisier: "Cherry",
+      acier: "Brushed steel",
+      laiton: "Brass",
+      noirMat: "Matt black",
+      verre: "Glass",
+      verreFume: "Smoked glass",
+      beton: "Polished concrete",
+      ardoise: "Slate",
+      marbre: "Marble",
+      blanc: "Lacquered white",
+      vert: "Workshop green",
+      bleu: "Midnight blue",
+      rouge: "Garnet red",
+      moutarde: "Mustard",
+    },
+    families: {
+      bois: "Wood",
+      metal: "Metal",
+      verre: "Glass",
+      pierre: "Stone",
+      peint: "Painted",
+    },
+    finishes: {
+      mat: "Matt",
+      satine: "Satin",
+      laque: "Lacquered",
+    },
+  },
+
+  shelf: {
+    woods: {
+      kraft: "Kraft",
+      noyer: "Walnut",
+      ceruse: "Limed oak",
+      nuit: "Night",
+      atelier: "Workshop",
+    },
+    decor: {
+      divider: "Divider",
+      plant: "Houseplant",
+      cactus: "Cactus",
+      statuette: "Statuette",
+      cat: "Ceramic cat",
+      candle: "Candle",
+      mug: "Mug",
+      clock: "Alarm clock",
+      books: "Stack of books",
+      frame: "Photo frame",
+      postcard: "Postcard",
+      wallclock: "Wall clock",
+      garland: "Garland",
+      pennant: "Bunting",
+      ivy: "Hanging ivy",
+      tape: "Sticky tape",
+    },
+    unfiledFilms: "The films not filed yet",
+    rowSettings: "Settings for this row",
+    addCategoryHere: "+ a category here",
+    addRow: "Add a row at the end of the shelf",
+    closeDrawer: "Close the drawer",
+    openSetAside: "Open the films set aside",
+    close: "CLOSE",
+    setAside: "SET ASIDE",
+    toStand: "to stand",
+    toHang: "to hang",
+    toStandTitle: "TO STAND",
+    toHangTitle: "TO HANG",
+    categoryColour: "Colour of the category",
+    noColour: "no colour",
+    hidden: "hidden",
+    nothingImported: "nothing imported yet",
+    cabinet: "CABINET OF CURIOSITIES",
+    dragOntoShelf: "drag them onto a board, between two cases",
+    dragToBack: "drag them to the back of the shelf, wherever you like",
+    resetTilt: "Give the object back its original lean",
+    category: "CATEGORY",
+    undoCategory: "undo the category",
+    nameThisDivider: "Click to name this divider",
+    kinds: {
+      bedside: {
+        title: "Bedside films",
+        tag: "the ones you watch again",
+      },
+      main: {
+        title: "The collection",
+      },
+      reserve: {
+        title: "Set aside",
+        tag: "kept, not thrown away",
+      },
+    },
+  },
+  wallStudio: {
+    wallTab: "WALL",
+    cardsTab: "CARDS",
+    cardSize: "CARD SIZE",
+    spacing: "SPACING",
+    disorder: "DISORDER",
+    untouched: "the wall is still as it was found",
+    ownWall: "this wall belongs to this collection — the other keeps its own",
+  },
+
+  wallLook: {
+    xl: "very large",
+    tight: "tight",
+    airy: "airy",
+    tidy: "tidy",
+    scattered: "scattered",
+  },
+
+  decorStudio: {
+    material: "MATERIAL",
+    fromTheme: "from the theme",
+    reset: "Clear the decor and go back to the theme's wood",
+  },
+
+  stills: {
+    notSynced: "This image stayed on the device that imported it: stills do not synchronise yet.",
+    pasteHint: "Ctrl+V to paste · “insert” places the thumbnail where the cursor is",
+    caption: "caption…",
+    close: "close (Escape)",
+    previous: "previous (←)",
+  },
+
+  motifs: {
+    chooseMotifs: "CHOOSE MOTIFS",
+    closeList: "CLOSE THE LIST",
+    searchPlaceholder: "look for a motif…",
+    noneByThatName: "no motif by that name",
+    create: "create “{{name}}”",
+    yourOwn: "YOUR OWN",
+    newMotif: "New motif",
+    newPlaceholder: "“it rains without stopping”, then Enter",
+    familyOf: "Family of the motif",
+    tellsTheEnding: "it gives the ending away",
+    endingMotif: "ending motif",
+    spoilerHint: "This motif gives the ending away — click to read it",
+    suggestedByTmdb: "SUGGESTED BY TMDB —",
+    makeThread: "DRAW A THREAD",
+    gatherAll: "Gather every film carrying “{{name}}”",
+    removeOne: "Remove “{{name}}”",
+    deleteOne: "Delete the motif {{name}}",
+    hideOne: "Set the motif {{name}} aside",
+    putBack: "Put it back in the list",
+    setAside: "SET ASIDE ({{count}})",
+
+    families: {
+      fate: "What happens to the characters",
+      ending: "The last image",
+      narrative: "The way it is told",
+      figures: "The figures",
+      tone: "The tone",
+      world: "The world",
+    },
+    labels: {
+      "hero-dies": "The hero dies",
+      sacrifice: "He sacrifices himself",
+      "everyone-dies": "Nobody gets out",
+      "sole-survivor": "Only one gets out",
+      "revenge-fulfilled": "The revenge comes off",
+      "revenge-in-vain": "The revenge mends nothing",
+      betrayal: "Betrayed by someone close",
+      downfall: "The rise, then the fall",
+      "impossible-love": "The love that cannot be",
+      reunion: "Meeting again years later",
+      confinement: "Shut in, literally",
+      "loss-of-reason": "Reason going",
+      grief: "Mourning someone close",
+      flight: "On the run",
+      "open-ending": "An open ending",
+      "final-revelation": "Everything turns over at the end",
+      "back-to-the-start": "Back where we began",
+      "false-happy-ending": "A happy ending nobody believes",
+      "final-freeze-frame": "A last shot that freezes",
+      "distant-epilogue": "An epilogue years later",
+      "non-linear-narrative": "Told out of order",
+      "unreliable-narrator": "The narrator lies",
+      "single-setting": "One room, no way out",
+      "road-movie": "Road movie",
+      "story-within-a-story": "A film inside the film",
+      "voice-over": "Carried by a voice over",
+      "real-time": "In real time",
+      "time-loop": "The same day starting again",
+      flashback: "Told from afterwards",
+      "long-take": "Long unbroken takes",
+      "literary-adaptation": "Out of a book",
+      "ensemble-film": "An ensemble piece",
+      chapters: "Cut into chapters",
+      mockumentary: "A false documentary",
+      "lost-mentor": "The mentor one loses",
+      "wrong-man": "The wrong man",
+      "child-witness": "A child watching",
+      siblings: "A story of brothers and sisters",
+      "absent-father": "The absent father",
+      "mismatched-duo": "An ill-matched pair",
+      "group-falling-apart": "A gang coming apart",
+      "artist-at-work": "Somebody making something",
+      "authority-figure": "The institution as adversary",
+      ghost: "A dead man who stays",
+      "the-double": "The double",
+      unease: "Unease",
+      melancholy: "Melancholy",
+      contemplative: "Contemplative",
+      slapstick: "Slapstick",
+      irony: "Cold irony",
+      tenderness: "Tenderness",
+      fever: "Fever, everything too fast",
+      sensuality: "Sensuality",
+      paranoia: "Paranoia",
+      dreamlike: "Dreamlike",
+      "sprawling-city": "The big city swallowing it",
+      "stifling-countryside": "The stifling countryside",
+      "crushing-summer": "A crushing summer",
+      winter: "Winter, the snow",
+      sea: "The sea",
+      "the-night": "It happens at night",
+      "near-future": "A future close at hand",
+      "after-the-end": "After the end of the world",
+      "war-in-the-background": "The war, in the background",
+      "world-of-work": "Work, really shown",
+      "family-single-setting": "The family house",
+      exile: "Far from home",
+    },
+  },
+
+  palette: {
+    families: {
+      warm: "Warm",
+      golden: "Golden",
+      cool: "Cool",
+      green: "Green",
+      neutral: "Neutral",
+    },
+  },
+  relations: {
+    echo: "echoes",
+    diptych: "forms a diptych with",
+    "same-fate": "shares a fate with",
+    answers: "answers",
+    "answered-by": "was answered by",
+    adapts: "adapts",
+    "adapted-into": "was adapted by",
+    "sequel-to": "follows on from",
+    precedes: "comes before",
+    "remake-of": "remakes",
+    "remade-by": "was remade by",
+    strength1: "a slender thread",
+    strength2: "a real kinship",
+    strength3: "the same film, twice",
+  },
+
+  threads: {
+    linkedCard: "linked card",
+    workKind: "Kind of work",
+    resonance: "the resonance between the two",
+    saveHint: "Save (Enter)",
+    cancelHint: "Give up (Escape)",
+    cardDeleted: "card deleted",
+    rewriteNote: "Rewrite the note — the title belongs to the linked card",
+  },
+
+  detail: {
+    reviewPlaceholder: "Write here, freehand…",
+    notesPlaceholder: "Scenes, quotations, fragments…",
+    keywords: "Keywords",
+    motifOnNoCard: "This motif is set on no card.",
+    setAsideTitle: "Set this card aside?",
+    setAsideBody:
+      "It leaves the wall and the constellation, without being destroyed — it goes back on the shelf whenever you like.",
+    setAsideAction: "set aside",
+    deleteBody:
+      "The card, its notes, its stills and its threads go with it. Nothing can be caught back — “set aside” files without destroying.",
+    searchCollection: "Search the collection",
+    workTitle: "Title of the work",
+    title: "Title",
+    titleOnWallOrFree: "a title already on the wall, or a free title",
+    toWatchTag: "to watch",
+    noFurtherDetail: "— no further detail —",
+    resonance: "The resonance between the two",
+  },
+
+  wakePanel: {
+    setAside: "set aside",
+    setAsideDone: "set aside",
+    votes: "votes",
+    unrated: "unrated",
+  },
+
+  tonightDrawer: {
+    guessMood: "guess the mood of a film you have not written about yet",
+    nothingAnswers: "Nothing in “to watch” answers — or the list is empty.",
+    allReviewed: "You have been through them all.",
+  },
+
+  listsView: {
+    challenges: "The challenges",
+    inviteSomebody: "invite somebody to write",
+    startChallenge: "Start a challenge on this list",
+    deleteChallenge: "Erase this challenge",
+    upcoming: "upcoming",
+    finished: "finished",
+    running: "under way",
+  },
+
+  constellation: {
+    aFilm: "film",
+    aThread: "thread",
+    aWork: "work",
+    mapFocus: "focus of the map",
+    linkCount_one: "{{count}} link",
+    linkCount_other: "{{count}} links",
+    withCrews: "your threads, and the kinships found in the credits",
+    byHandOnly: "only what you linked by hand — grab a star to move it",
+    followCrews: "FOLLOW THE CREWS",
+    dottedNote:
+      "dotted: somebody shared by two or three films. Click a dotted line to pin it — it becomes a real red thread.",
+    fedBy: "fed by “{{motif}}”",
+    handmadeThread: "thread written by hand",
+    whereToBegin: "Where to begin",
+    whereToBeginNote:
+      "choose a film — the map will show only it and its neighbours, and you will move on from one to the next",
+    showWholeSky: "OR SEE THE WHOLE SKY, AS IT IS",
+    focus: "FOCUS",
+    goBack: "← BACK ({{count}})",
+    widen: "WIDEN",
+    narrow: "NARROW",
+    changeStart: "CHANGE THE STARTING POINT",
+    clickHint: "a click moves the focus · a double-click opens the card",
+    jumpTo: "jump to another film…",
+    noneCarryThose: "None of the linked films carries those keywords — widen the selection.",
+    nothingLinkedYet:
+      "Open a film, go down to the “red thread” and link it to a book, a painting or another film. Only linked films appear here.",
+    tally: "{{films}} LINKED FILM(S) · {{threads}} THREAD(S)",
+    tallyCrews: " · OF WHICH {{count}} BY THE CREWS",
+    tallyTotal: " · {{count}} LINKED IN ALL",
+    mapLabel:
+      "Sky map — arrows to move from one star to another, Enter to open it, Escape to let go",
+  },
+
+  linkTypes: {
+    book: "Book",
+    painting: "Painting",
+    film: "Film",
+    other: "Another work",
+  },
+
+  skins: {
+    carnet: { label: "Archivist's notebook", note: "kraft paper, sepia ink, a red thread" },
+    veilleuse: { label: "Night light", note: "the same notebook, read after dark" },
+    cinematheque: {
+      label: "Cinematheque",
+      note: "red velvet, gilding, the screen still black",
+    },
+    bauhaus: { label: "Bauhaus", note: "three primary colours and not one more" },
+    "nuit-americaine": {
+      label: "Day for night",
+      note: "daylight shot for night, through a blue filter",
+    },
+    kodachrome: { label: "Kodachrome", note: "a slide left forgotten in its box" },
+    herbier: { label: "Herbarium", note: "dried plates, handwritten labels" },
+    bleu: { label: "Architect's blue", note: "white lines on ozalid paper" },
+    pulp: { label: "Pulp", note: "a dog-eared paperback, loud orange, yellowed paper" },
+    fanzine: { label: "Fanzine", note: "a botched photocopy: black, white and one red" },
+    pastel: { label: "Pastel", note: "everything round, everything soft" },
+    japon: { label: "Japanese paper", note: "indigo, off-white, one red seal" },
+    sepia: { label: "Sepia", note: "a photograph looked at too often" },
+    affiche: { label: "Polish poster", note: "greyish paper, three inks knocking together" },
+  },
+
+  tour: {
+    ui: {
+      skip: "skip",
+      back: "back",
+      next: "NEXT",
+      finish: "DONE",
+      menuTitle: "THE GUIDED TOUR",
+      globalNote: "the tour of the binder, from one tab to the next — {{count}} steps",
+      thisPage: "This page",
+      pageNote_one: "{{name}} — {{count}} step",
+      pageNote_other: "{{name}} — {{count}} steps",
+      noPageTour: "this page has no tour of its own",
+      keys: "the keyboard arrows leaf through, Escape closes",
+      hintKicker: "THE TOUR",
+      hintBody: "It is waiting for you at the foot of the tabs, under the “?”.",
+      hintReplay: "pick it up now",
+      dismissHint: "Dismiss this reminder",
+    },
+
+    library: {
+      label: "The library",
+      search: {
+        title: "Searching",
+        body: "A title, a filmmaker, a word from your own review. On the wall, the search filters; on the shelf, it dims what it cannot find and leaves the arrangement standing. To search beyond the films — people, motifs, threads, the notebook — the magnifier, at the foot of the rail or at the end of the bottom bar, asks everything at once.",
+      },
+      mode: {
+        title: "The wall or the shelf",
+        body: "Two ways of looking at the same collection: a wall of pinned posters, or cases filed in rows that you move by hand.",
+      },
+      sort: {
+        title: "Sorting, or filing",
+        body: "On the wall, sorting is a passing state. On the shelf, filing is a gesture: it rewrites the arrangement once, then steps aside. Clicking the same verb again turns the row around.",
+      },
+      filters: {
+        title: "The sieves",
+        body: "Genres and decades stack up: two sieves laid one on the other. Clicking a lit label again takes it off.",
+      },
+      views: {
+        title: "Named views",
+        body: "On the shelf, each view is a filing of its own: its rows, its categories, its wood, its decor. You keep several, and “by director” builds one in a click.",
+      },
+      decor: {
+        title: "The workshop",
+        body: "The wall can be painted, and the cards have a gauge. On the shelf, the same button is called “Decor workshop” and lives in the views menu: the decor belongs to the view, not to the row.",
+      },
+      open: {
+        title: "A card opens",
+        body: "Click a poster to open its folder: that is where the review, the motifs and the red thread are kept.",
+      },
+      drag: {
+        title: "Filing with a finger",
+        body: "On the shelf and on the wall, you move things by dragging. With a finger, hold the object down for a moment: it takes hold, and swiping stops scrolling. A marker shows the slot it will fall into.",
+      },
+    },
+
+    watchlist: {
+      label: "To watch",
+      waiting: {
+        title: "What is waiting",
+        body: "The same wall, but films you have not seen yet. Open a card and the “I’VE SEEN IT” button moves it into the library, opening its viewing log.",
+      },
+      tonight: {
+        title: "Which one tonight?",
+        body: "The question the pile never knew how to hear. Say how much time you have and what state you are in: the binder decides, says why, and “another one” steps down a notch. This button exists only on this list — the library has already been watched.",
+      },
+      tools: {
+        title: "The same tools",
+        body: "Search, sieves, sorting, shelf and decor: this list is worked exactly like the library, and keeps settings of its own.",
+      },
+    },
+
+    credits: {
+      label: "The credits",
+      names: {
+        title: "The names you already have",
+        body: "Directing, acting, cinematography, music, screenwriting: these names have been asleep in your cards since the first import. Here they form a directory — and each one leads to what you hold of that person.",
+      },
+      roles: {
+        title: "In what capacity",
+        body: "The sieves stack up, as on the wall. By default the directory shows only those you meet at least twice — the rest are one click away, under “passing through”.",
+      },
+      page: {
+        title: "What somebody is worth in your house",
+        body: "Your average score on their films, and your gap to the public one: where you are gentler, where you are harsher than the crowd. Then their films, what keeps coming back in them, and since when.",
+      },
+      missing: {
+        title: "What I am missing",
+        body: "Their full filmography, minus what you hold: enough to send the absentees into “To watch” in a click. Appears only with a TMDB key laid down, from the Import tab.",
+      },
+    },
+
+    detail: {
+      label: "A film folder",
+      catalog: {
+        title: "The catalogue card",
+        body: "What the film is: title, year, direction, genres, and everything TMDB reports. Every field is corrected in a click — it is the only way to catch up with a badly identified import. Names underlined with a dotted rule open their folder in the credits.",
+      },
+      watchlog: {
+        title: "The viewing log",
+        body: "One line per viewing, with its date and its score. It is what knows a film has been seen again four times, and what feeds the almanac.",
+      },
+      elsewhere: {
+        title: "What is said elsewhere",
+        body: "With an account open, the card shows what other public libraries say of the same film: their average — without yours — and their reviews. Each one can be reported, and its author silenced in one gesture — the account drawer lists those you have silenced, and gives them their voice back. With no server and no account, this section does not exist.",
+      },
+      sharing: {
+        title: "Taking it out of the sharing",
+        body: "A film you stand by at home without wanting it on display: that card, and only that one, leaves your shared collection. It stays on the wall, in the almanac and in the constellation — it is the outside that ignores it. Appears only with an account, and only if you are showing your collection to somebody.",
+      },
+      review: {
+        title: "Your words",
+        body: "The review and the loose notes. Stills dropped on the card slot into the text, where the cursor is.",
+      },
+      tags: {
+        title: "Keywords and motifs",
+        body: "The keywords are yours. The motifs are a shared vocabulary — “the hero dies”, “it rains at the end” — that a question can bear on, and that a thread can be drawn from.",
+      },
+      identity: {
+        title: "The right TMDB card",
+        body: "The import keeps the first title it finds, and gets namesakes wrong — two “Resurrection”s are not the same film. Here you look for the real one and bind the card to it: crew, running time, country and keywords are rewritten, your words and your viewings do not move. The sign that betrays the error is a wake proposing the film you are already looking at.",
+      },
+      thread: {
+        title: "The red thread",
+        body: "Linking two films, and saying why: a shared motif, a lineage, an answer. These links are what the constellation draws.",
+      },
+      wake: {
+        title: "In the wake",
+        body: "Ten proposals per column, in three parts: four held by the people who made the films — same cinematographer, same composer, somebody billed in both —, four by what they talk about, shared motifs and subjects, and two by the crowd, “watched by the same people”. Each says why it is there. On the left your binder; on the right TMDB, which shows only what you do not have: click a proposal to read its summary without leaving the page, and set it aside with one button.",
+      },
+    },
+
+    reco: {
+      label: "The discoveries desk",
+      home: {
+        title: "Your own house first",
+        body: "Before going looking outside: what your collection already holds and you have left aside. A film you had loved, a motif nothing has made you meet again, a filmmaker you have not opened since. None of this leaves the browser, and no key is needed.",
+      },
+      dials: {
+        title: "Two dials",
+        body: "“Degree of obscurity” runs from the mainstream to the gem. “Change of scene” runs from your proven tastes to what steps outside them. All the rest of the order form is only fine-tuning.",
+      },
+      order: {
+        title: "The order form",
+        body: "Years, language, minimum score and vote count, genres sought or set aside. The proposals come from TMDB, read through what your collection already says about you.",
+      },
+    },
+
+    constellation: {
+      label: "The constellation",
+      start: {
+        title: "Where to begin",
+        body: "The map does not open on two hundred stars: you choose a film, it composes around it, and you move on from neighbour to neighbour.",
+      },
+      teams: {
+        title: "Following the crews",
+        body: "The second layer: dotted, the people shared by several films. Click a dotted line to pin it — it becomes a real red thread.",
+      },
+      threads: {
+        title: "The threads",
+        body: "A thread peoples the sky instead of narrowing it: it brings its members in, linked or not. That is what you get by drawing a thread from a motif, on a card.",
+      },
+      keyboard: {
+        title: "The map from the keyboard",
+        body: "The map can be crossed without a mouse: a tab enters it, the arrows go from one star to the nearest one in their direction, Enter takes it as the focus — or opens its card when it already is — and Escape lets the cursor go.",
+      },
+    },
+
+    almanac: {
+      label: "The almanac",
+      year: {
+        title: "One year, or ever",
+        body: "The almanac reads the viewing log: it counts only real viewings, at their date, and not the date the cards were added. “EVER”, at the top, opens the same report on your whole practice — the twelve months become your years there.",
+      },
+      plates: {
+        title: "Four plates",
+        body: "The count, the tastes, the people, then the subjects. The keyboard arrows leaf through. The last plate says what your films were about — keywords and motifs —, which cinematographers and composers you follow without knowing it, and on exactly which titles you are gentler or harsher than the crowd.",
+      },
+      export: {
+        title: "The year in a box",
+        body: "An image of the year, to keep or to show. It is the only thing here that leaves the browser. It is built around a vintage: on “ever”, the button fades away.",
+      },
+    },
+
+    notebook: {
+      label: "The notebook",
+      new: {
+        title: "A free page",
+        body: "Thoughts that belong to no film in particular. Pages are edited in place, and are filed from the most recent to the oldest.",
+      },
+    },
+
+    import: {
+      label: "Import and archives",
+      drop: {
+        title: "The docket",
+        body: "Letterboxd delivers a zip: drop its CSVs one by one. watched.csv first, diary.csv for the viewings. Nothing is ever duplicated — run the files through as often as you like.",
+      },
+      feed: {
+        title: "Or read the profile",
+        body: "With no file, straight from your public profile: recent viewings to keep the collection up to date, the whole watchlist page after page.",
+      },
+      complete: {
+        title: "Completing the cards",
+        body: "Letterboxd exports neither director nor poster: TMDB finds both. The key is free, and stays in this browser.",
+      },
+      repair: {
+        title: "Undoing a wrong move",
+        body: "Appears only if there is something to undo: the “seen” cards with no viewing, no score and no text, which were probably wishes. To be ticked one by one — the list proposes, you decide.",
+      },
+      backup: {
+        title: "The backup",
+        body: "Everything lives in this browser, and nowhere else. Clearing the site data erases the collection: the backup is the only net, take one away now and then.",
+      },
+    },
+
+    thread: {
+      label: "The feed",
+      find: {
+        title: "Finding somebody",
+        body: "You search by handle, and you find only people who have chosen to show their collection. There is no directory: this binder is not a social network, and nobody appears in it without having wanted to.",
+      },
+      follows: {
+        title: "Those you follow",
+        body: "Following is a gesture made alone and undone alone: nobody accepts, nobody is told. If somebody closes their collection again, they stay on the list — their feed goes quiet, and will speak again if they reopen.",
+      },
+      news: {
+        title: "What they are watching",
+        body: "Films recently touched by the people you follow, with their score and their review. Never their private notes nor their viewing log — no more than yours leave here.",
+      },
+    },
+
+    lists: {
+      label: "Lists and challenges",
+      new: {
+        title: "Opening a list",
+        body: "A list holds works and not your cards: it therefore means the same thing in somebody else's house, and does not empty the day you erase a film. You file into it from the film's card, under the catalogue.",
+      },
+      mine: {
+        title: "Yours, and the shared ones",
+        body: "Each list opens in a click. You can invite somebody to write in it: they add and remove films, they do not rename the list and do not erase it. Closed by default — making it visible is a tick box.",
+      },
+      challenges: {
+        title: "A challenge is a list and a period",
+        body: "Nobody ticks “seen”: progress is computed from your viewing log, and only viewings dated within the period count. The server draws a number from it, never your dates — and only for those who have asked to take part.",
+      },
+    },
+
+    global: {
+      label: "Full tour",
+      welcome: {
+        title: "Welcome to the binder",
+        body: "A few minutes to go round: the tabs, what is behind each of them, and the gestures that cannot be guessed. You can leave whenever you like — we will tell you where to pick up.",
+      },
+      rail: {
+        title: "The spine of the binder",
+        body: "Eight tabs, always there: on the left edge at a desk, laid along the bottom of the screen on a telephone, where the thumb reaches them. Each is a different way of looking at the same collection; hover over one — or press and hold — to read its name.",
+      },
+      addFilm: {
+        title: "Pinning a film",
+        body: "By hand, without going through the import: the pin opens a blank card. It sits at the foot of the rail at a desk, at the end of the bottom bar on a telephone.",
+      },
+      searchAll: {
+        title: "Searching everywhere",
+        body: "One question put to the whole binder at once: the films, the people in the credits, the motifs, the threads and the notebook pages. It searches right into your reviews, and shows you the passage. Ctrl+K opens it too.",
+      },
+      skin: {
+        title: "The skin of the site",
+        body: "Fourteen skins: the ground, the colours, the typefaces, the tabs. Your cases and the decor of your shelves keep their colours — those are your choices, not the skin.",
+      },
+      language: {
+        title: "French or English",
+        body: "The binder reads in both languages, and the choice stays on this device: read in French on the telephone, in English at the desk, without one imposing on the other. What you have written — your notes, your reviews, your motifs — does not move: it is yours, not the product's.",
+      },
+      install: {
+        title: "Laying it on the home screen",
+        body: "Installed, the binder opens full screen, with no address bar, and works with no network — your films are at home, not on a server. On iPhone it is Share, then “Add to Home Screen”.",
+      },
+      account: {
+        title: "Finding your collection elsewhere",
+        body: "An account links this binder to your other devices: what you file here is found there, and the other way round — the films, but also the arrangement of your shelves and the pages of your notebook. With no password: it is your telephone or your computer that signs.",
+      },
+      sharing: {
+        title: "Showing your library",
+        body: "In that same drawer: nobody, by secret link, or everybody. The link cannot be guessed and is cut whenever you like. A visitor sees your films, your numbered scores and your reviews — never your notebook nor your viewing log. And a single card is set apart, from its folder, under the catalogue card.",
+      },
+      reminders: {
+        title: "Being reminded of your challenges",
+        body: "Still in that drawer: the only thing that will ever ring you is a challenge starting or ending. Nothing else — neither other people's films, nor a nudge to come back. The setting holds for this device only.",
+      },
+      challenges: {
+        title: "Setting yourself something",
+        body: "A list and a period make a challenge. Nobody ticks “seen”: progress is computed from your viewing log, and the server draws only a number from it — your dates do not leave here.",
+      },
+      tmdbKey: {
+        title: "The TMDB key",
+        body: "It is optional: the binder works entirely without it. Laid down, it opens the Discoveries, the posters, the crew records and a film's wake — and it stays on your machine. An account does away with it entirely: the server then keeps its own, and you have nothing to ask anybody. Wherever one is missing, the screen tells you and brings you back here.",
+      },
+      replay: {
+        title: "Playing the tour again",
+        body: "This button reopens it whenever you like, in full or only for the page you are on. Happy collecting.",
+      },
+    },
+  },
+} as const;
+
+export default en;

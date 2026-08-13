@@ -4,6 +4,7 @@
    at import time, this is where we catch them up.
    ============================================================ */
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Check, Pencil, X } from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { underlineInput, tap } from "../../theme/styles";
@@ -36,6 +37,7 @@ export function FilmIdentity({
   /** Absent: the directing credit stays plain text. */
   onOpenPerson?: (name: string) => void;
 }) {
+  const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Draft>(() => ({
     title: film.title,
@@ -69,7 +71,7 @@ export function FilmIdentity({
   const relookup = async () => {
     const apiKey = getTmdbKey();
     if (!apiKey) {
-      setMsg("Aucune clé TMDB — à régler au pied du rail d'onglets.");
+      setMsg(t("tmdbKey.missing"));
       return;
     }
     if (!draft.title.trim()) return;
@@ -91,7 +93,10 @@ export function FilmIdentity({
       // a poster already chosen stays its own; we only fill a gap
       if (!poster && info.poster) setPoster(info.poster);
       setMsg(
-        `trouvé : ${hit.title}${hit.release_date ? ` (${hit.release_date.slice(0, 4)})` : ""}`
+        t("identity.found", {
+          title: hit.title,
+          year: hit.release_date ? ` (${hit.release_date.slice(0, 4)})` : "",
+        })
       );
     } catch (e) {
       setMsg(`TMDB indisponible (${(e as Error).message}).`);
@@ -203,7 +208,7 @@ export function FilmIdentity({
         autoFocus
       />
       <div style={{ marginTop: 10 }}>
-        <Label>Année</Label>
+        <Label>{t("film.year")}</Label>
         <input
           style={underlineInput}
           value={draft.year}
@@ -212,7 +217,7 @@ export function FilmIdentity({
         />
       </div>
       <div style={{ marginTop: 10 }}>
-        <Label>Réalisateur·rice</Label>
+        <Label>{t("film.director")}</Label>
         <input
           style={underlineInput}
           value={draft.director}

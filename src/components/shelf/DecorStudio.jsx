@@ -18,11 +18,12 @@
    theme" erases the whole decor: the view becomes again what its wood
    says of it. It is that way out that makes all the exploring
    riskless. */
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { Layer } from "../ui/Layer";
 import { X, RotateCcw } from "lucide-react";
 import { C, F } from "../../theme/tokens";
-import { MATERIALS, FINISHES, FAMILY_LABELS, materialStyle } from "../../theme/surfaces";
+import { MATERIALS, FINISHES, materialStyle } from "../../theme/surfaces";
 import {
   STUDIO_BOX,
   Title,
@@ -46,21 +47,26 @@ const byFamily = () => {
 };
 
 function PlankTab({ decor, set }) {
+  const { t } = useTranslation();
   return (
     <>
-      <Title top={4}>MATÉRIAU</Title>
-      <NoneSwatch on={!decor?.material} onClick={() => set({ material: null })} label="au thème" />
+      <Title top={4}>{t("decorStudio.material")}</Title>
+      <NoneSwatch
+        on={!decor?.material}
+        onClick={() => set({ material: null })}
+        label={t("decorStudio.fromTheme")}
+      />
 
       {byFamily().map(([family, keys]) => (
         <div key={family}>
-          <Title top={9}>{FAMILY_LABELS[family].toUpperCase()}</Title>
+          <Title top={9}>{t(`surfaces.families.${family}`).toUpperCase()}</Title>
           <Grid>
             {keys.map((k) => (
               <Swatch
                 key={k}
                 on={decor?.material === k}
                 onClick={() => set({ material: k })}
-                title={MATERIALS[k].label}
+                title={t(`surfaces.materials.${k}`)}
                 h={22}
                 /* The thumbnail is a SLICE of board, in the chosen
                    finish: it is what one will see under the cases. */
@@ -83,7 +89,7 @@ function PlankTab({ decor, set }) {
                 on={(decor?.finish || "satine") === k}
                 onClick={() => set({ finish: k })}
               >
-                {f.label}
+                {t(`surfaces.finishes.${k}`)}
               </OptionButton>
             ))}
           </div>
@@ -99,6 +105,7 @@ const TABS = [
 ];
 
 export function DecorStudio({ view, onChange, onReset, onClose }) {
+  const { t } = useTranslation();
   const [tab, setTab] = useState("wall");
   const decor = view?.decor?.[tab === "wall" ? "wall" : "plank"] || null;
   const set = (patch) => onChange(tab === "wall" ? "wall" : "plank", patch);
@@ -122,7 +129,7 @@ export function DecorStudio({ view, onChange, onReset, onClose }) {
           {view?.decor && (
             <button
               onClick={onReset}
-              title="Effacer le décor et revenir au bois du thème"
+              title={t("decorStudio.reset")}
               style={{
                 all: "unset",
                 cursor: "pointer",

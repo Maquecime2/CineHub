@@ -37,8 +37,9 @@ import type { CustomDecor } from "../../services/customDecor";
 import type { Film, ShelfKind } from "../../types";
 
 interface ShelfKindConfig {
-  title: string;
-  tag: string;
+  /* The title and the tag live in the catalogue, under
+     `shelf.kinds.<key>`: a shelf is a rule about cards, not a place to
+     keep a sentence. */
   /** What a card dropped in this shelf becomes. */
   patch: Partial<Film>;
   tint?: string;
@@ -47,16 +48,12 @@ interface ShelfKindConfig {
 
 export const SHELF_KIND: Record<ShelfKind, ShelfKindConfig> = {
   bedside: {
-    title: "Films de chevet",
-    tag: "ceux qu'on revoit",
     patch: { bedside: true, archived: false },
     tint: `${alpha(C.burgundy, 0.051)}`,
     border: C.burgundy,
   },
-  main: { title: "La collection", tag: "", patch: { bedside: false, archived: false } },
+  main: { patch: { bedside: false, archived: false } },
   reserve: {
-    title: "Mis de côté",
-    tag: "gardés, pas jetés",
     patch: { bedside: false, archived: true },
     tint: "transparent",
     border: C.line,
@@ -95,12 +92,11 @@ export { CAT_COLORS, CAT_FAMILIES, catInk } from "../../theme/palette";
    the shelf from before the themes: a migrated view must be identical to
    the pixel. */
 export const THEMES = {
-  kraft: { label: "Kraft", wood: ["#7A5B3A", "#5E442A"], tint: null, accent: C.burgundy },
-  noyer: { label: "Noyer", wood: ["#5A3E28", "#3B2818"], tint: "#2B262008", accent: C.ochre },
-  ceruse: { label: "Cérusé", wood: ["#C9B99C", "#A8967A"], tint: null, accent: C.pine },
-  nuit: { label: "Nuit", wood: ["#3A4250", "#252B36"], tint: "#5C6B7814", accent: C.cobalt },
+  kraft: { wood: ["#7A5B3A", "#5E442A"], tint: null, accent: C.burgundy },
+  noyer: { wood: ["#5A3E28", "#3B2818"], tint: "#2B262008", accent: C.ochre },
+  ceruse: { wood: ["#C9B99C", "#A8967A"], tint: null, accent: C.pine },
+  nuit: { wood: ["#3A4250", "#252B36"], tint: "#5C6B7814", accent: C.cobalt },
   atelier: {
-    label: "Atelier",
     wood: ["#8A6A3E", "#6B4F2A"],
     tint: "#B9862E10",
     accent: C.vermillion,
@@ -122,7 +118,13 @@ export const themeOf = (key: string) => THEMES[key as keyof typeof THEMES] || TH
    back of the shelf, wherever one wants, and takes nobody's place. */
 export interface DecorType {
   key: string;
-  label: string;
+  /**
+   * Present ONLY on an imported object, where it is what its owner typed.
+   * A house object has none: its name lives in the catalogue, under
+   * `shelf.decor.<key>`, because it has one in each language. Read the
+   * two through `decorLabel` rather than picking a side here.
+   */
+  label?: string;
   /** Comes from the user's disk, and not from `objects.jsx`. */
   custom?: boolean;
   /** For an imported pattern: does colour still speak to it? */
@@ -161,28 +163,28 @@ export const DECOR_TYPES: DecorType[] = [
      two edges, and not as a trinket set in front.
      `writes`: the only pattern to carry a name, hence the only one to
      open a text field in its panel. */
-  { key: "divider", label: "Intercalaire", tall: true, writes: true },
+  { key: "divider", tall: true, writes: true },
 
   // what is laid down
-  { key: "plant", label: "Plante verte", draw: Plant },
-  { key: "cactus", label: "Cactus", draw: Cactus },
-  { key: "statuette", label: "Statuette", draw: Statuette },
-  { key: "cat", label: "Chat en céramique", draw: Cat },
-  { key: "candle", label: "Bougie", draw: Candle },
-  { key: "mug", label: "Tasse", draw: Mug },
-  { key: "clock", label: "Réveil", draw: Clock },
-  { key: "books", label: "Pile de livres", draw: Books },
+  { key: "plant", draw: Plant },
+  { key: "cactus", draw: Cactus },
+  { key: "statuette", draw: Statuette },
+  { key: "cat", draw: Cat },
+  { key: "candle", draw: Candle },
+  { key: "mug", draw: Mug },
+  { key: "clock", draw: Clock },
+  { key: "books", draw: Books },
 
   // what hangs
-  { key: "frame", label: "Cadre photo", draw: Frame, wall: true },
-  { key: "postcard", label: "Carte postale", draw: Postcard, wall: true },
-  { key: "wallclock", label: "Horloge", draw: WallClock, wall: true },
-  { key: "garland", label: "Guirlande", draw: Garland, wall: true },
-  { key: "pennant", label: "Fanions", draw: Pennant, wall: true },
-  { key: "ivy", label: "Lierre suspendu", draw: Ivy, wall: true },
+  { key: "frame", draw: Frame, wall: true },
+  { key: "postcard", draw: Postcard, wall: true },
+  { key: "wallclock", draw: WallClock, wall: true },
+  { key: "garland", draw: Garland, wall: true },
+  { key: "pennant", draw: Pennant, wall: true },
+  { key: "ivy", draw: Ivy, wall: true },
   /* It arrives in XS: a strip of tape at the other wall objects' size
      would make a banner, and nobody sticks up a banner. */
-  { key: "tape", label: "Ruban adhésif", draw: Tape, wall: true, defaultSize: 0.42 },
+  { key: "tape", draw: Tape, wall: true, defaultSize: 0.42 },
 ];
 
 /* The two families, ready to display: the cabinet presents them under two
@@ -223,6 +225,16 @@ const specOf = (d: CustomDecor): DecorType => ({
   tintable: d.tintable,
   draw: customDraw(d.key),
 });
+
+/**
+ * What to write under an object.
+ *
+ * WHAT THE USER TYPED IS NEVER TRANSLATED: an imported object keeps its
+ * own name in both languages, exactly like a card's title or a note. Only
+ * the house objects, which we named ourselves, have two names.
+ */
+export const decorLabel = (d: DecorType, t: (key: string) => string): string =>
+  d.label ?? t(`shelf.decor.${d.key}`);
 
 /** An object's pattern, whether it comes from the house or from an import. */
 export const decorSpec = (motif: string): DecorType | undefined => {

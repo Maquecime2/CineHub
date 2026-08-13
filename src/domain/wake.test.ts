@@ -4,6 +4,12 @@ import type { Quotas } from "./wake";
 import { makeFilm } from "./film";
 import type { Film } from "../types";
 
+import i18n from "../i18n";
+import { say } from "./wording";
+
+/** What a `Wording` really reads as on screen. The suite runs in French. */
+const said = (w: Parameters<typeof say>[0]) => say(w, i18n.t.bind(i18n));
+
 const film = (title: string, extra: Partial<Film> = {}): Film =>
   makeFilm({ title, status: "watched", ...extra });
 
@@ -86,7 +92,12 @@ describe("what brings two cards together", () => {
        both would make two remarks for a single fact. */
     const a = film("A", { motifs: ["hero-dies"], keywords: ["death of hero"] });
     const b = film("B", { motifs: ["hero-dies"], keywords: ["death of hero"] });
-    expect(linksBetween(a, b)).toEqual([{ type: "motif", value: "Le héros meurt" }]);
+    /* The link now carries the motif's ID and not the French of the
+       day: a catalogue motif has one name per language, and the display
+       resolves it from `motifId`. */
+    expect(linksBetween(a, b)).toEqual([
+      { type: "motif", value: "hero-dies", motifId: "hero-dies" },
+    ]);
   });
 
   it("keeps a keyword that no shared motif covers", () => {
@@ -171,7 +182,7 @@ describe("what gets written under the poster", () => {
       crew: { image: ["Roger Deakins"] },
       motifs: ["hero-dies", "sacrifice"],
     });
-    expect(wakeAtHome(pivot, [neighbour])[0]!.reason).toBe(
+    expect(said(wakeAtHome(pivot, [neighbour])[0]!.reason)).toBe(
       "même chef op — Roger Deakins, + 2 motifs"
     );
   });
@@ -179,7 +190,9 @@ describe("what gets written under the poster", () => {
   it("counts nothing when there is only one link", () => {
     const pivot = film("Pivot", { director: "Chantal Akerman" });
     const neighbour = film("Voisin", { director: "Chantal Akerman" });
-    expect(wakeAtHome(pivot, [neighbour])[0]!.reason).toBe("même réalisation — Chantal Akerman");
+    expect(said(wakeAtHome(pivot, [neighbour])[0]!.reason)).toBe(
+      "même réalisation — Chantal Akerman"
+    );
   });
 });
 
