@@ -2,6 +2,7 @@
    VUE — IMPORT LETTERBOXD
    ============================================================ */
 import { useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Upload } from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { underlineInput, tap } from "../../theme/styles";
@@ -16,6 +17,7 @@ import {
   DEFAULT_RELAY,
   USER_KEY,
   RELAY_KEY,
+  LetterboxdError,
 } from "../../services/letterboxd";
 import { enrichRows, checkApiKey } from "../../tmdb";
 import { BackupPanel } from "./BackupPanel";
@@ -37,7 +39,7 @@ import type { StoredVocabulary as Vocabulary } from "../../domain/motifs";
 /** The two kinds of import offered under the file's reading. */
 const IMPORT_STATUSES: { k: FilmStatus; l: string }[] = [
   { k: "watched", l: "des films vus" },
-  { k: "watchlist", l: "à voir" },
+  { k: "watchlist", l: "views.watchlist" },
 ];
 
 interface ImportViewProps {
@@ -68,6 +70,15 @@ export function ImportView({
   motifs,
   onRestore,
 }: ImportViewProps) {
+  const { t } = useTranslation();
+
+  /* A `LetterboxdError` carries a CODE, not a sentence: the service does
+     not know which language is being read, and this is where we do. */
+  const saidError = (e: unknown): string =>
+    e instanceof LetterboxdError
+      ? t(`letterboxd.${e.code}`, e.values)
+      : String((e as Error)?.message || e);
+
   const [rows, setRows] = useState<ImportRow[]>([]); // lignes lues, éventuellement enrichies
   const [stats, setStats] = useState<ImportStats | null>(null); // ce que le fichier contenait
   const [importStatus, setImportStatus] = useState<FilmStatus>("watched"); // vus / à voir
@@ -144,9 +155,9 @@ export function ImportView({
       setRows(parsed);
       setStats(s);
       setImportStatus(kind);
-      if (parsed.length === 0) setError("Aucune ligne exploitable trouvée dans ce fichier.");
+      if (parsed.length === 0) setError(t("import.noUsableRow"));
     } catch {
-      setError("Impossible de lire ce fichier CSV.");
+      setError(t("import.unreadableCsv"));
     }
   };
 
@@ -167,9 +178,9 @@ export function ImportView({
       setStats(s);
       setImportStatus(kind);
       setFileName(`flux de ${lbUser.trim().replace(/^@/, "")}`);
-      if (parsed.length === 0) setError("Ce flux ne contient aucune séance.");
+      if (parsed.length === 0) setError(t("import.feedEmpty"));
     } catch (e) {
-      setError(String((e as Error)?.message || e));
+      setError(saidError(e));
     }
     setFeeding(false);
   };
@@ -211,9 +222,9 @@ export function ImportView({
       setImportStatus("watchlist");
       setFileName(`watchlist de ${pseudo}`);
       setDropped(absentFrom(parsed));
-      if (parsed.length === 0) setError("Cette watchlist est vide.");
+      if (parsed.length === 0) setError(t("import.emptyWatchlist"));
     } catch (e) {
-      setError(String((e as Error)?.message || e));
+      setError(saidError(e));
     }
     setPages(null);
     setFeeding(false);
@@ -222,7 +233,7 @@ export function ImportView({
   const testKey = async () => {
     setKeyState("…");
     const r = await checkApiKey(apiKey.trim());
-    setKeyState(r.ok ? "clé valide" : "clé refusée");
+    setKeyState(r.ok ? t("import.keyValid") : t("import.keyRefused"));
   };
 
   // The director is not in the CSV: we go and fetch it before comparing,
@@ -291,7 +302,7 @@ export function ImportView({
           marginBottom: 22,
         }}
       >
-        un fichier à la fois, dans l'ordre indiqué ci-dessous
+        {t("import.oneFileAtATime")}
       </div>
 
       {/* The Letterboxd export is a zip of several CSVs: each holds only
@@ -313,33 +324,33 @@ export function ImportView({
             marginBottom: 4,
           }}
         >
-          QUELS FICHIERS DÉPOSER
+          {t("import.whichFiles")}
         </div>
         <div style={{ fontFamily: F.body, fontSize: 13, color: C.inkFaded, marginBottom: 12 }}>
-          Letterboxd vous livre un zip : dézippez-le, puis déposez ces fichiers un par un.
+          {t("import.zipNote")}
         </div>
         {[
           {
             n: "watched.csv",
-            d: "tous les films vus — la base de la collection",
+            d: t("import.file.watched"),
             ink: C.pine,
             ordre: "1",
           },
           {
             n: "ratings.csv",
-            d: "vos notes ; complète les fiches déjà créées",
+            d: t("import.file.ratings"),
             ink: C.burgundy,
             ordre: "2",
           },
           {
             n: "diary.csv",
-            d: "chaque séance, une par une : c'est lui qui compte les visionnages",
+            d: t("import.file.diary"),
             ink: C.ochre,
             ordre: "3",
           },
           {
             n: "watchlist.csv",
-            d: "vos envies ; atterrit dans l'onglet « À voir »",
+            d: t("import.file.watchlist"),
             ink: C.cobalt,
             ordre: "4",
           },
@@ -374,10 +385,7 @@ export function ImportView({
             lineHeight: 1.35,
           }}
         >
-          L'ordre compte peu, mais watched.csv d'abord évite d'oublier les films vus sans note.
-          diary.csv est le seul à porter une ligne par séance : c'est de lui que viennent le nombre
-          de visionnages et l'évolution de vos notes. Rien n'est jamais dupliqué — repassez les
-          fichiers autant de fois que vous voulez.
+          {t("import.orderNote")}
         </div>
       </div>
 
@@ -402,20 +410,20 @@ export function ImportView({
             marginBottom: 4,
           }}
         >
-          OU RELEVER VOTRE PROFIL
+          {t("import.orReadProfile")}
         </div>
         <div style={{ fontFamily: F.body, fontSize: 13, color: C.inkFaded, marginBottom: 12 }}>
-          Sans fichier, directement depuis votre profil public. <strong>Séances</strong> ne rend que
-          vos cinquante dernières : c'est de what tenir la collection à day, step de what la bâtir.{" "}
-          <strong>Watchlist</strong> la relève entière, page après page.
+          {/* Three botched substitutions used to read here — "c'est de
+              what tenir la collection à day, step de what la bâtir". */}
+          {t("import.profileNote")}
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
           <div style={{ flex: 1, minWidth: 220 }}>
-            <Label>Pseudo Letterboxd</Label>
+            <Label>{t("import.letterboxdHandle")}</Label>
             <input
               style={underlineInput}
               value={lbUser}
-              placeholder="votre-pseudo"
+              placeholder={t("import.handlePlaceholder")}
               onChange={(e) => setLbUser(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && lbUser.trim() && !feeding) runFeed();
@@ -428,11 +436,13 @@ export function ImportView({
               nothing. */}
           {(
             [
-              ["SÉANCES", runFeed, feeding ? "…" : "SÉANCES"],
+              ["SÉANCES", runFeed, feeding ? "…" : t("import.viewings")],
               [
                 "WATCHLIST",
                 runWatchlist,
-                feeding && pages ? `PAGE ${pages.done}/${pages.total}` : "WATCHLIST",
+                feeding && pages
+                  ? t("import.page", { done: pages.done, total: pages.total })
+                  : t("import.watchlist"),
               ],
             ] as [string, () => void, string][]
           ).map(([k, run, label]) => (
@@ -494,10 +504,7 @@ export function ImportView({
                 lineHeight: 1.35,
               }}
             >
-              Letterboxd interdit la lecture de son flux depuis un autre site : un intermédiaire va
-              le chercher à votre place. Celui par défaut est un service public — il peut ralentir
-              ou disparaître. <code>{"{url}"}</code> est remplacé par l'adresse du flux. En local,
-              ce réglage ne sert pas : le serveur de développement relaie lui-même.
+              {t("import.relayNote")}
             </div>
           </div>
         )}
@@ -583,11 +590,11 @@ export function ImportView({
               marginBottom: 8,
             }}
           >
-            IMPORT TERMINÉ
+            {t("import.finished")}
           </div>
-          <Tally label="fiches créées" value={done.created} ink={C.pine} />
-          <Tally label="fiches mises à jour" value={done.updated} ink={C.ochre} />
-          <Tally label="déjà à jour, inchangées" value={done.unchanged} />
+          <Tally label={t("import.created")} value={done.created} ink={C.pine} />
+          <Tally label={t("import.updated")} value={done.updated} ink={C.ochre} />
+          <Tally label={t("import.unchanged")} value={done.unchanged} />
         </div>
       )}
 
@@ -612,20 +619,24 @@ export function ImportView({
           >
             CE QUE CONTIENT LE FICHIER
           </div>
-          <Tally label="lignes lues" value={stats.lines} />
-          <Tally label="films distincts" value={stats.total} />
+          <Tally label={t("import.linesRead")} value={stats.lines} />
+          <Tally label={t("import.distinctFilms")} value={stats.total} />
           <Tally
-            label="avec une note"
+            label={t("import.withRating")}
             value={stats.withRating}
             ink={stats.withRating ? C.pine : C.inkFaded}
           />
-          <Tally label="sans note" value={stats.withoutRating} />
+          <Tally label={t("import.withoutRating")} value={stats.withoutRating} />
           {stats.duplicatesInFile > 0 && (
-            <Tally label="revoyures regroupées" value={stats.duplicatesInFile} ink={C.ochre} />
+            <Tally
+              label={t("import.rewatchesGrouped")}
+              value={stats.duplicatesInFile}
+              ink={C.ochre}
+            />
           )}
           {stats.skippedNoTitle > 0 && (
             <Tally
-              label="lignes sans titre, ignorées"
+              label={t("import.linesWithoutTitle")}
               value={stats.skippedNoTitle}
               ink={C.burgundy}
             />
@@ -693,10 +704,7 @@ export function ImportView({
                       lineHeight: 1.35,
                     }}
                   >
-                    D&apos;ordinaire les journaux se complètent, et rien ne se perd. Coché, le
-                    journal des films cités est <strong>remplacé</strong> par celui-ci : c&apos;est
-                    ce qu&apos;il faut pour effacer une séance en trop, et c&apos;est aussi ce qui
-                    efface les séances ajoutées à la main.
+                    {t("import.replaceLogNote")}
                   </span>
                 </span>
               </label>
@@ -733,17 +741,16 @@ export function ImportView({
               margin: "6px 0 12px",
             }}
           >
-            Letterboxd n'exporte ni le réalisateur ni les affiches. TMDB retrouve les deux (clé
-            gratuite sur themoviedb.org).
+            {t("import.tmdbNote")}
           </div>
           <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
             <div style={{ flex: 1, minWidth: 220 }}>
-              <Label>Clé API TMDB</Label>
+              <Label>{t("import.tmdbApiKey")}</Label>
               <input
                 style={underlineInput}
                 value={apiKey}
                 type="password"
-                placeholder="collez votre clé ici"
+                placeholder={t("import.pasteKeyHere")}
                 onChange={(e) => {
                   setApiKey(e.target.value);
                   setKeyState("");
@@ -773,7 +780,7 @@ export function ImportView({
               style={{
                 fontFamily: F.hand,
                 fontSize: 17,
-                color: keyState === "clé valide" ? C.pine : C.burgundy,
+                color: keyState === t("import.keyValid") ? C.pine : C.burgundy,
                 marginTop: 6,
               }}
             >
@@ -827,9 +834,13 @@ export function ImportView({
 
           {tmdbReport && (
             <div style={{ marginTop: 12 }}>
-              <Tally label="réalisateurs trouvés" value={tmdbReport.resolved} ink={C.pine} />
+              <Tally label={t("import.directorsFound")} value={tmdbReport.resolved} ink={C.pine} />
               {tmdbReport.failed > 0 && (
-                <Tally label="films non identifiés" value={tmdbReport.failed} ink={C.burgundy} />
+                <Tally
+                  label={t("import.filmsNotIdentified")}
+                  value={tmdbReport.failed}
+                  ink={C.burgundy}
+                />
               )}
             </div>
           )}

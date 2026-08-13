@@ -2,6 +2,7 @@
    NAVIGATION — onglets de classeur
    ============================================================ */
 import { type ComponentType } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Pin,
   Palette,
@@ -67,6 +68,10 @@ interface FolderTabsProps {
 /* THE ICON IS NOT AN ORNAMENT: it is what is left of the tab when the
    window is too short for its words. So it must read on its own, and
    designate the view rather than its pretty metaphor. */
+/* `label` holds a CATALOGUE KEY, not a word: the rail is the one place
+   in the product that is always on screen, and a tab still reading
+   "Vidéothèque" under an English skin would be the most visible lie of
+   the lot. */
 const TABS: {
   key: View;
   label: string;
@@ -75,25 +80,25 @@ const TABS: {
   /** Worth nothing with no server: the tab does not appear at all. */
   needsServer?: boolean;
 }[] = [
-  { key: "library", label: "Vidéothèque", color: C.burgundy, icon: Clapperboard },
-  { key: "watchlist", label: "À voir", color: C.ochre, icon: Bookmark },
+  { key: "library", label: "views.library", color: C.burgundy, icon: Clapperboard },
+  { key: "watchlist", label: "views.watchlist", color: C.ochre, icon: Bookmark },
   /* The Credits look at the same collection from another angle: it
      belongs to the holdings group, beside the two walls, not the tools. */
-  { key: "credits", label: "Générique", color: C.plum, icon: Users },
-  { key: "reco", label: "Découvertes", color: C.vermillion, icon: Compass },
-  { key: "constellation", label: "Constellation", color: C.cobalt, icon: Sparkles },
-  { key: "almanac", label: "Almanach", color: C.moss, icon: CalendarDays },
-  { key: "notebook", label: "Carnet", color: C.pine, icon: NotebookPen },
-  { key: "import", label: "Import Letterboxd", color: C.slate, icon: FolderInput },
+  { key: "credits", label: "views.credits", color: C.plum, icon: Users },
+  { key: "reco", label: "views.reco", color: C.vermillion, icon: Compass },
+  { key: "constellation", label: "views.constellation", color: C.cobalt, icon: Sparkles },
+  { key: "almanac", label: "views.almanac", color: C.moss, icon: CalendarDays },
+  { key: "notebook", label: "views.notebook", color: C.pine, icon: NotebookPen },
+  { key: "import", label: "views.import", color: C.slate, icon: FolderInput },
   /* THE FEED IS THE LAST TAB, and not the first: the binder stays a
        personal video library, and what we look at in other people's
        homes comes after what we have in ours. */
-  { key: "thread", label: "Le fil", color: C.cobalt, icon: Users2, needsServer: true },
+  { key: "thread", label: "views.thread", color: C.cobalt, icon: Users2, needsServer: true },
   /* The lists and the challenges come after the feed: we look at what
        others are doing before starting something with them. */
   {
     key: "lists",
-    label: "Listes et défis",
+    label: "views.lists",
     color: C.moss,
     icon: ListChecks,
     needsServer: true,
@@ -107,7 +112,7 @@ const TABS: {
 const DEV_TABS: typeof TABS = import.meta.env.DEV
   ? /* In ink and not in one of the eight tints: the product's tabs are
        taken, and a tool must not disguise itself as a view. */
-    [{ key: "skinlab", label: "Peaux ⚙", color: C.ink, icon: Settings }]
+    [{ key: "skinlab", label: "views.skinlab", color: C.ink, icon: Settings }]
   : [];
 
 const DIMMED = "saturate(0.65) brightness(0.92)";
@@ -149,14 +154,16 @@ function Tab({
      time in three. */
   phone: boolean;
 }) {
+  const { t: say } = useTranslation();
   const Icon = t.icon;
+  const name = say(t.label);
   return (
     <button
       data-tour={`tab-${t.key}`}
       data-tab-tab
       onClick={onClick}
-      title={t.label}
-      aria-label={t.label}
+      title={name}
+      aria-label={name}
       aria-current={active ? "page" : undefined}
       style={{
         all: "unset",
@@ -357,6 +364,7 @@ export function FolderTabs({
      does not exist in the document is a tour that skips the step in
      silence. So the twelve targets stay mounted; it is the axis and the
      measurements that change. */
+  const { t } = useTranslation();
   const { phone } = useViewport();
 
   return (
@@ -527,7 +535,7 @@ export function FolderTabs({
           <button
             onClick={onAdd}
             data-tour="add-film"
-            title="Épingler un nouveau film"
+            title={t("rail.addFilm")}
             style={{
               all: "unset",
               cursor: "pointer",
@@ -569,8 +577,8 @@ export function FolderTabs({
           <button
             onClick={onSearch}
             data-tour="search-all"
-            title="Chercher partout (Ctrl+K)"
-            aria-label="Chercher partout"
+            title={t("rail.searchAllHint")}
+            aria-label={t("rail.searchAll")}
             style={{
               all: "unset",
               cursor: "pointer",
@@ -600,7 +608,7 @@ export function FolderTabs({
           <RoundAction
             onClick={onSkin}
             tour="skin"
-            label="Changer la peau du site"
+            label={t("rail.skin")}
             icon={Palette}
             finger={phone}
           />
@@ -629,7 +637,7 @@ export function FolderTabs({
           <RoundAction
             onClick={onKey}
             tour="tmdb-key"
-            label="La clé TMDB"
+            label={t("rail.tmdbKey")}
             icon={KeyRound}
             finger={phone}
           />
@@ -644,7 +652,7 @@ export function FolderTabs({
             <RoundAction
               onClick={onAccount}
               tour="compte"
-              label="Votre compte et la synchronisation"
+              label={t("rail.account")}
               icon={UserRound}
               finger={phone}
               badge={sync === "error" ? C.burgundy : sync === "waiting" ? C.inkFaded : null}
@@ -662,7 +670,7 @@ export function FolderTabs({
           <RoundAction
             onClick={onHelp}
             tour="help"
-            label="La visite guidée"
+            label={t("rail.help")}
             icon={HelpCircle}
             finger={phone}
           />

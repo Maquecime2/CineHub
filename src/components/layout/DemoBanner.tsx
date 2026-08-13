@@ -27,6 +27,7 @@
 import { Info, Trash2 } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
+import { useTranslation } from "react-i18next";
 import { Layer } from "../ui/Layer";
 
 /** Like the installation cards: above the bottom bar (20), below any
@@ -34,6 +35,7 @@ import { Layer } from "../ui/Layer";
 const Z = 25;
 
 export function DemoBanner({ onRemove }: { onRemove: () => void }) {
+  const { t } = useTranslation();
   return (
     <Layer>
       <div
@@ -78,11 +80,10 @@ export function DemoBanner({ onRemove }: { onRemove: () => void }) {
         <Info size={15} style={{ flexShrink: 0, marginTop: 3, color: C.ochre }} aria-hidden />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: F.title, fontStyle: "italic", fontSize: 18, color: C.ink }}>
-            Ces douze films ne sont pas à vous
+            {t("demo.title")}
           </div>
           <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded, marginTop: 2 }}>
-            Un exemple, posé pour que la visite ait quelque chose à montrer. Gardez-le le temps de
-            faire le tour, ou retirez-le tout de suite.
+            {t("demo.body")}
           </div>
           <button
             onClick={onRemove}
@@ -106,7 +107,7 @@ export function DemoBanner({ onRemove }: { onRemove: () => void }) {
               border: `1px solid ${C.burgundy}`,
             }}
           >
-            <Trash2 size={12} /> LES RETIRER
+            <Trash2 size={12} /> {t("demo.remove")}
           </button>
         </div>
       </div>

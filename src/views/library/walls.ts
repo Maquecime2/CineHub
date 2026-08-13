@@ -34,39 +34,40 @@ export interface WallConfig {
 /* The same wall serves the film library and the "à voir" list: only the
    header, the offered sorts and the prompt when there is nothing
    change. */
+/* CATALOGUE KEYS, NOT SENTENCES. `stamp`, `title`, `subtitle`, the name
+   of each sort and the two lines of the empty wall all read from the
+   catalogue: `LibraryView` resolves them. Only `defaultSort` and the sort
+   IDS are data — they are written into the saved wall settings. */
 export const WALLS: Record<FilmStatus, WallConfig> = {
   watched: {
-    stamp: "CATALOGUE",
-    title: "Votre vidéothèque",
-    subtitle: "un mur d'affiches, de notes et de souvenirs de séances",
+    stamp: "walls.watched.stamp",
+    title: "walls.watched.title",
+    subtitle: "walls.watched.subtitle",
     underline: 330,
     // the latest screening first: that is the order in which one remembers
     defaultSort: "watched",
     sorts: [
-      ["watched", "vus récemment"],
-      ["added", "ajoutés"],
-      ["title", "A–Z"],
-      ["year", "année"],
-      ["rating", "note"],
-      ["director", "réalisateur"],
+      ["watched", "walls.sort.watched"],
+      ["added", "walls.sort.added"],
+      ["title", "walls.sort.title"],
+      ["year", "walls.sort.year"],
+      ["rating", "walls.sort.rating"],
+      ["director", "walls.sort.director"],
     ],
-    empty: ["Le mur est encore vide", "Épinglez votre premier film pour commencer la collection."],
+    empty: ["walls.watched.emptyTitle", "walls.watched.emptyBody"],
   },
   watchlist: {
-    stamp: "À VOIR",
-    title: "Le coin des envies",
-    subtitle: "les films mis de côté, en attente d'une séance",
+    stamp: "walls.watchlist.stamp",
+    title: "walls.watchlist.title",
+    subtitle: "walls.watchlist.subtitle",
     underline: 300,
     defaultSort: "added",
     sorts: [
-      ["added", "ajoutés"],
-      ["title", "A–Z"],
-      ["year", "année"],
-      ["director", "réalisateur"],
+      ["added", "walls.sort.added"],
+      ["title", "walls.sort.title"],
+      ["year", "walls.sort.year"],
+      ["director", "walls.sort.director"],
     ],
-    empty: [
-      "Aucune envie en attente",
-      "Importez votre watchlist Letterboxd, ou épinglez un film « à voir ».",
-    ],
+    empty: ["walls.watchlist.emptyTitle", "walls.watchlist.emptyBody"],
   },
 };

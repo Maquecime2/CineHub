@@ -2,6 +2,7 @@
    VIEW — FILM LIBRARY: the wall, or the shelf and its views.
    ============================================================ */
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Pin, Plus, Trash2, LayoutGrid, Library, Paperclip, Dice5 } from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { underlineInput, tap, tapSquare } from "../../theme/styles";
@@ -33,6 +34,7 @@ function ViewSwitcher({
   onTheme,
   onDecor,
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState(active?.name || "");
@@ -238,7 +240,7 @@ function ViewSwitcher({
                   onCreateByDirector();
                   setOpen(false);
                 }}
-                title="Une ligne et une boîte par réalisateur"
+                title={t("library.oneRowPerDirector")}
                 style={{
                   all: "unset",
                   ...tap,
@@ -248,7 +250,7 @@ function ViewSwitcher({
                   color: C.inkFaded,
                 }}
               >
-                + PAR RÉALISATEUR
+                {t("library.byDirectorAdd")}
               </button>
             </div>
 
@@ -261,7 +263,7 @@ function ViewSwitcher({
                 margin: "12px 0 5px",
               }}
             >
-              BOIS DE L'ÉTAGÈRE
+              {t("library.shelfWood")}
             </div>
             <div style={{ display: "flex", gap: 5 }}>
               {Object.entries(THEMES).map(([k, t]) => (
@@ -291,7 +293,7 @@ function ViewSwitcher({
                 onDecor();
                 setOpen(false);
               }}
-              title="Peindre le mur, changer la matière des planches"
+              title={t("library.decorHint")}
               style={{
                 all: "unset",
                 ...tap,
@@ -303,7 +305,7 @@ function ViewSwitcher({
                 color: C.burgundy,
               }}
             >
-              ATELIER DÉCO…
+              {t("library.decorStudio")}
             </button>
           </div>
         </>
@@ -338,6 +340,7 @@ export function LibraryView({
   onCopyView,
   onDeleteView,
 }) {
+  const { t } = useTranslation();
   const cfg = WALLS[wall];
   /* Search, filter and sort live in App: opening a film unmounts this
      view, and a local state would be lost on the way back to the wall. */
@@ -413,7 +416,7 @@ export function LibraryView({
      showing only one. So we keep everything in place and DIM what does
      not answer: the collection stays readable as a shelf, and what one
      is looking for stands out on it. */
-  const matches = useCallback((f) => !q || matchFilm(f, q), [q]);
+  const matches = useCallback((f) => !q || matchFilm(f, q, t), [q, t]);
 
   const dimSet = useMemo(() => {
     if (mode !== "shelf" || (!q && !genreFilter && decadeFilter === null)) return null;
@@ -456,16 +459,19 @@ export function LibraryView({
     set({ arrangedBy: key, arrangedDesc: nextDesc });
   };
 
+  /* Catalogue keys, like the wall's sorts in `walls.ts`: the left-hand
+     item is the ID that gets written into the view's settings, the
+     right-hand one is only what is read. */
   const ARRANGE = [
-    ["title", "A–Z"],
-    ["year", "année"],
-    ["rating", "note"],
-    ["director", "réalisateur"],
-    ["added", "ajout"],
+    ["title", "walls.sort.title"],
+    ["year", "walls.sort.year"],
+    ["rating", "walls.sort.rating"],
+    ["director", "walls.sort.director"],
+    ["added", "walls.sort.addedShort"],
   ];
 
   const filtered = useMemo(() => {
-    let list = scope.filter((f) => (!q || matchFilm(f, q)) && passesFilters(f));
+    let list = scope.filter((f) => (!q || matchFilm(f, q, t)) && passesFilters(f));
     return [...list].sort((a, b) => {
       const cmp =
         // A–Z reads in the natural order: it is `desc` that reverses it
@@ -486,28 +492,25 @@ export function LibraryView({
                   : (b.addedAt || 0) - (a.addedAt || 0);
       return desc ? cmp : -cmp;
     });
-  }, [scope, q, passesFilters, sortBy, desc]);
+  }, [scope, q, passesFilters, sortBy, desc, t]);
 
   /* The grouping by director: one pile of cards per film-maker, the
      most frequented first — that is where habits can be read. */
   const groups = useMemo(() => {
     if (!grouped) return null;
+    const UNKNOWN_DIRECTOR = t("library.unknownDirector");
     const by = new Map();
     for (const f of filtered) {
-      const key = f.director?.trim() || "Réalisateur inconnu";
+      const key = f.director?.trim() || UNKNOWN_DIRECTOR;
       if (!by.has(key)) by.set(key, []);
       by.get(key).push(f);
     }
     return [...by.entries()].sort(
       (a, b) =>
         b[1].length - a[1].length ||
-        (a[0] === "Réalisateur inconnu"
-          ? 1
-          : b[0] === "Réalisateur inconnu"
-            ? -1
-            : a[0].localeCompare(b[0]))
+        (a[0] === UNKNOWN_DIRECTOR ? 1 : b[0] === UNKNOWN_DIRECTOR ? -1 : a[0].localeCompare(b[0]))
     );
-  }, [filtered, grouped]);
+  }, [filtered, grouped, t]);
 
   return (
     <div style={{ padding: "34px 44px 60px", position: "relative", overflow: "hidden" }}>
@@ -516,7 +519,7 @@ export function LibraryView({
       <CoffeeRing style={{ top: 340, right: -40, width: 190, height: 190 }} rotate={70} />
       <TapeResidue style={{ top: 96, right: 260 }} />
       <TapeResidue style={{ bottom: 120, left: 180, opacity: 0.3 }} rotate={7} w={64} />
-      <StampCorner text={`${cfg.stamp} · ${films.length}`} />
+      <StampCorner text={`${t(cfg.stamp)} · ${films.length}`} />
       <div
         style={{
           fontFamily: F.title,
@@ -528,7 +531,7 @@ export function LibraryView({
           zIndex: 2,
         }}
       >
-        {cfg.title}
+        {t(cfg.title)}
       </div>
       <InkUnderline width={cfg.underline} />
       <div
@@ -541,7 +544,7 @@ export function LibraryView({
           zIndex: 2,
         }}
       >
-        {cfg.subtitle}
+        {t(cfg.subtitle)}
       </div>
 
       {/* No `z-index` on this bar, and that is deliberate.
@@ -574,16 +577,16 @@ export function LibraryView({
         }}
       >
         <div data-tour="wall-search" style={{ minWidth: 200 }}>
-          <Label>Chercher</Label>
+          <Label>{t("library.search")}</Label>
           <input
             style={underlineInput}
-            placeholder="un titre, un·e cinéaste…"
+            placeholder={t("library.searchPlaceholder")}
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
         </div>
         <div data-tour="wall-filters">
-          <Label>Genre</Label>
+          <Label>{t("library.genre")}</Label>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {allGenres.length === 0 && (
               <span style={{ color: C.inkFaded, fontSize: 13, fontStyle: "italic" }}>—</span>
@@ -622,7 +625,7 @@ export function LibraryView({
         </div>
         {allDecades.length > 0 && (
           <div>
-            <Label>Décennie</Label>
+            <Label>{t("library.decade")}</Label>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               {allDecades.map((d) => {
                 const on = decadeFilter === d;
@@ -653,7 +656,7 @@ export function LibraryView({
         <div data-tour="wall-sort">
           {/* On the wall, sorting is a state. On the shelf, the arrangement
               IS the state: filing becomes a gesture one makes once. */}
-          <Label>{mode === "shelf" ? "Ranger" : "Trier"}</Label>
+          <Label>{mode === "shelf" ? t("library.arrange") : t("library.sort")}</Label>
           <div
             style={{
               display: "flex",
@@ -669,8 +672,8 @@ export function LibraryView({
                     onClick={() => arrangeBy(k)}
                     title={
                       arrangedBy === k
-                        ? "cliquer pour inverser"
-                        : "Réécrit l'agencement de cette vue"
+                        ? t("library.clickToReverse")
+                        : t("library.rewritesArrangement")
                     }
                     style={{
                       cursor: "pointer",
@@ -678,7 +681,7 @@ export function LibraryView({
                       borderBottom: `1px dashed ${C.line}`,
                     }}
                   >
-                    {l}
+                    {t(l)}
                     {arrangedBy === k && (
                       <span style={{ marginLeft: 3 }}>{arrangedDesc ? "↓" : "↑"}</span>
                     )}
@@ -688,25 +691,25 @@ export function LibraryView({
                   <span
                     key={k}
                     onClick={() => pickSort(k)}
-                    title={sortBy === k ? "cliquer pour inverser" : ""}
+                    title={sortBy === k ? t("library.clickToReverse") : ""}
                     style={{
                       cursor: "pointer",
                       color: sortBy === k ? C.burgundy : C.inkFaded,
                       textDecoration: sortBy === k ? "underline" : "none",
                     }}
                   >
-                    {l}
+                    {t(l)}
                     {sortBy === k && <span style={{ marginLeft: 3 }}>{desc ? "↓" : "↑"}</span>}
                   </span>
                 ))}
           </div>
         </div>
         <div data-tour="wall-mode">
-          <Label>Présentation</Label>
+          <Label>{t("library.presentation")}</Label>
           <div style={{ display: "flex", marginTop: 2 }}>
             {[
-              { k: "wall", l: "MUR", icon: LayoutGrid },
-              { k: "shelf", l: "ÉTAGÈRE", icon: Library },
+              { k: "wall", l: t("library.wall"), icon: LayoutGrid },
+              { k: "shelf", l: t("library.shelf"), icon: Library },
             ].map(({ k, l, icon: Icon }) => (
               <button
                 key={k}
@@ -798,18 +801,18 @@ export function LibraryView({
                 border: `1px solid ${grouped ? C.pine : C.line}`,
               }}
             >
-              PAR RÉALISATEUR
+              {t("library.byDirector")}
             </button>
           </div>
         )}
         {mode === "wall" && (
           <div data-tour="wall-decor">
-            <Label>Décor</Label>
+            <Label>{t("library.decor")}</Label>
             {/* Echoing the shelf's "ATELIER DÉCO…": the wall is painted too,
                 and its cards have a size of their own. */}
             <button
               onClick={() => setWallStudio(true)}
-              title="Peindre le mur, régler la taille et le désordre des fiches"
+              title={t("library.wallStudioHint")}
               style={{
                 all: "unset",
                 ...tap,
@@ -822,7 +825,7 @@ export function LibraryView({
                 border: `1px solid ${C.line}`,
               }}
             >
-              ATELIER DU MUR…
+              {t("library.wallStudio")}
             </button>
           </div>
         )}
@@ -832,7 +835,7 @@ export function LibraryView({
               onClick={() => set({ mode: "shelf" })}
               style={{ all: "unset", cursor: "pointer", borderBottom: `1px dashed ${C.line}` }}
             >
-              {asideCount} film{asideCount > 1 ? "s" : ""} de côté — voir l'étagère
+              {t("library.setAside", { count: asideCount })}
             </button>
           </div>
         )}
@@ -926,6 +929,7 @@ export function LibraryView({
    the sieve lets nothing through. These are two different emptinesses,
    and they are not said the same way. */
 function WallEmpty({ films, cfg }) {
+  const { t } = useTranslation();
   const never = films.length === 0;
   return (
     <div
@@ -1008,10 +1012,10 @@ function WallEmpty({ films, cfg }) {
           marginBottom: 6,
         }}
       >
-        {never ? cfg.empty[0] : "Rien à afficher"}
+        {t(never ? cfg.empty[0] : "library.nothingToShow")}
       </div>
       <div style={{ fontFamily: F.hand, fontSize: 19 }}>
-        {never ? cfg.empty[1] : "Essayez une autre recherche."}
+        {t(never ? cfg.empty[1] : "library.tryAnotherSearch")}
       </div>
     </div>
   );

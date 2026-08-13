@@ -16,6 +16,7 @@
    It only shows if it has something to say. A healthy collection must
    not permanently carry the memory of a bug. */
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Undo2 } from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
@@ -30,6 +31,7 @@ interface RepairPanelProps {
 }
 
 export function RepairPanel({ films, onImport }: RepairPanelProps) {
+  const { t } = useTranslation();
   const suspects = useMemo(() => flippedByMistake(films), [films]);
   /* Nothing ticked at the start. Unticking thirty cards out of three
      hundred is work; ticking the ones one recognises is another kind —
@@ -62,16 +64,16 @@ export function RepairPanel({ films, onImport }: RepairPanelProps) {
     const toPutBack = suspects.filter((f) => choisies.has(f.id));
     if (!toPutBack.length) return;
     setRequest({
-      title: `Remettre ${toPutBack.length} fiche(s) en « à voir » ?`,
-      body: "Elles quittent la vidéothèque pour l'onglet À voir. Rien n'est effacé : notes, motifs et fils restent attachés, et une fiche remise se rebascule d'un clic depuis son dossier.",
-      action: "REMETTRE EN « À VOIR »",
+      title: t("repair.confirmTitle", { count: toPutBack.length }),
+      body: t("repair.confirmBody"),
+      action: t("repair.confirmAction"),
       onConfirm: () => {
         onImport({
           toCreate: [],
           toUpdate: toPutBack.map((film) => ({ film, changes: { status: "watchlist" as const } })),
           unchanged: [],
         });
-        setReport(`${toPutBack.length} fiche(s) remise(s) dans « À voir ».`);
+        setReport(t("repair.done", { count: toPutBack.length }));
         setChoisies(new Set());
         setRequest(null);
       },
@@ -97,7 +99,7 @@ export function RepairPanel({ films, onImport }: RepairPanelProps) {
           marginBottom: 10,
         }}
       >
-        RETROUVER DES FICHES BASCULÉES PAR ERREUR
+        {t("repair.title")}
       </div>
 
       <Tally
@@ -105,7 +107,11 @@ export function RepairPanel({ films, onImport }: RepairPanelProps) {
         value={suspects.length}
         ink={C.ochre}
       />
-      <Tally label="cochées" value={choisies.size} ink={choisies.size ? C.pine : C.inkFaded} />
+      <Tally
+        label={t("repair.ticked")}
+        value={choisies.size}
+        ink={choisies.size ? C.pine : C.inkFaded}
+      />
 
       <div
         style={{
@@ -116,10 +122,7 @@ export function RepairPanel({ films, onImport }: RepairPanelProps) {
           lineHeight: 1.35,
         }}
       >
-        Une version antérieure de « compléter les fiches » faisait passer en « vu » les fiches
-        qu&apos;elle enrichissait. Ces fiches-là n&apos;ont ni séance, ni date, ni note, ni texte :
-        personne ne les a jamais ouvertes, elles étaient probablement des envies. Probablement
-        seulement — <strong>relisez la liste</strong>, un film vu et jamais commenté lui ressemble
+        {t("repair.intro")}
         trait pour trait. Faites une sauvegarde avant, elle est juste en dessous.
       </div>
 
@@ -173,7 +176,7 @@ export function RepairPanel({ films, onImport }: RepairPanelProps) {
             fontSize: 10.5,
           }}
         >
-          {choisies.size === suspects.length ? "TOUT DÉCOCHER" : "TOUT COCHER"}
+          {choisies.size === suspects.length ? t("repair.untickAll") : t("repair.tickAll")}
         </button>
         <button
           onClick={putBack}
@@ -194,7 +197,7 @@ export function RepairPanel({ films, onImport }: RepairPanelProps) {
           }}
         >
           <Undo2 size={13} />
-          REMETTRE {choisies.size} FICHE(S) EN « À VOIR »
+          {t("repair.putBackN", { count: choisies.size })}
         </button>
       </div>
 

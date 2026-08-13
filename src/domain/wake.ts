@@ -22,7 +22,9 @@
    ============================================================ */
 import { normalize } from "./search";
 import { directorsOf, weightOf } from "../taste";
-import { motifById } from "./motifs";
+import { motifById, motifWording } from "./motifs";
+import { saying, words } from "./wording";
+import type { Wording } from "./wording";
 import type { Film } from "../types";
 
 /** The nature of a connection — what makes two cards hold together. */
@@ -47,8 +49,20 @@ export type Link =
 
 export interface Match {
   type: Link;
-  /** What is shared: a name, a motif's label, a tag. */
+  /**
+   * What is shared, as it is WRITTEN in the collection: a name, a theme,
+   * a tag. It stays a plain string because it is also what the weighting
+   * matches on (`billingWeight` looks a name up by it) — translating it
+   * would break the lookup as well as the meaning.
+   */
   value: string;
+  /**
+   * Set on a motif, and only there. A catalogue motif has no label of its
+   * own — it has one per language — so the display resolves it from the
+   * id rather than from `value`, which holds the French of the day it was
+   * matched.
+   */
+  motifId?: string;
 }
 
 export interface Neighbour {
@@ -56,8 +70,8 @@ export interface Neighbour {
   score: number;
   /** The connections found, from the strongest to the weakest. */
   links: Match[];
-  /** Why this one, in plain words. */
-  reason: string;
+  /** Why this one, in plain words — a `Wording`, see `domain/wording`. */
+  reason: Wording;
   key: string;
 }
 
@@ -156,16 +170,18 @@ const peopleIn = (f: Film, role: string): string[] =>
 
 /* What we display in front of a name. "Roger Deakins" alone does not say
    what it is about; "même chef op — Roger Deakins" does. */
+/* The name of each kind of link — a catalogue KEY, since it is our word
+   and not the collection's. */
 const LABELS: Record<Link, string> = {
-  cinematography: "même chef op",
-  music: "même compositeur",
-  directing: "même réalisation",
-  writing: "même scénario",
-  motif: "motif partagé",
-  theme: "thème partagé",
-  keyword: "sujet commun",
-  actor: "à l'affiche des deux",
-  crowd: "vu par les mêmes gens",
+  cinematography: "wake.link.cinematography",
+  music: "wake.link.music",
+  directing: "wake.link.directing",
+  writing: "wake.link.writing",
+  motif: "wake.link.motif",
+  theme: "wake.link.theme",
+  keyword: "wake.link.keyword",
+  actor: "wake.link.actor",
+  crowd: "wake.link.crowd",
 };
 
 /* The best rating a card has ever been given — the same measure as
@@ -283,36 +299,39 @@ export function byQuotas<T>(
 /* How each kind of link is counted when it turns up in numbers. The
    trades are not in here: you do not share "three cinematographers", and
    if that happened, "+ 3 autres" stays true. */
-const PLURALS: Partial<Record<Link, (n: number) => string>> = {
-  motif: (n) => `motif${n > 1 ? "s" : ""}`,
-  keyword: (n) => `sujet${n > 1 ? "s" : ""} commun${n > 1 ? "s" : ""}`,
-  theme: (n) => `thème${n > 1 ? "s" : ""}`,
-  actor: (n) => (n > 1 ? "noms à l'affiche" : "nom à l'affiche"),
+const PLURALS: Partial<Record<Link, string>> = {
+  motif: "wake.more.motif",
+  keyword: "wake.more.keyword",
+  theme: "wake.more.theme",
+  actor: "wake.more.actor",
 };
 
 /* What we write under the title. We NAME the strongest link — that is the
    one that teaches something — and sum the rest up in a count. Listing
    everything would make four lines under every poster, and nobody would
    read any of it. */
-export function reasonFor(links: Match[]): string {
+export function reasonFor(links: Match[]): Wording {
   const [head, ...rest] = links;
-  if (!head) return "";
-  /* "Vu par les mêmes gens" is enough on its own: the name that would
-     follow is the film you already have in front of you. */
-  const start =
+  if (!head) return words("");
+  /* "Watched by the same people" is enough on its own: the name that
+     would follow is the film you already have in front of you. */
+  const named = head.motifId
+    ? motifWording(motifById(head.motifId) ?? { id: head.motifId, family: "narrative" })
+    : words(head.value);
+  const start: Wording =
     head.type === "crowd" || !head.value
-      ? LABELS[head.type]
-      : `${LABELS[head.type]} — ${head.value}`;
+      ? saying(LABELS[head.type])
+      : saying("wake.namedLink", { link: saying(LABELS[head.type]), value: named });
   if (!rest.length) return start;
   /* WHEN THE REST IS ALL OF ONE KIND, WE NAME IT. "+ 3 motifs" and
-     "+ 4 acteurs" read; "+ 3 autres" says nothing about what brings them
+     "+ 4 actors" read; "+ 3 others" says nothing about what brings them
      together, which is precisely what we came for. */
   const kinds = new Set(rest.map((l) => l.type));
-  if (kinds.size === 1) {
-    const type = rest[0]!.type;
-    return `${start}, + ${rest.length} ${PLURALS[type]?.(rest.length) ?? "autres"}`;
-  }
-  return `${start}, + ${rest.length} autre${rest.length > 1 ? "s" : ""}`;
+  const plural = kinds.size === 1 ? PLURALS[rest[0]!.type] : undefined;
+  return saying("wake.andMore", {
+    start,
+    more: saying(plural ?? "wake.more.other", { count: rest.length }),
+  });
 }
 
 /** Every connection between two cards, from the strongest to the weakest. */
@@ -346,7 +365,7 @@ export function linksBetween(pivot: Film, other: Film): Match[] {
     /* A motif unknown to the catalogue is ignored on display, never
        erased from the card: the rule holds throughout the project. */
     if (!motif) continue;
-    links.push({ type: "motif", value: motif.label });
+    links.push({ type: "motif", value: motif.id, motifId: motif.id });
     /* `motif.tmdb` mixes labels and numeric identifiers. We keep only the
        labels: `film.keywords` carries names, and an identifier does not
        compare against them. */

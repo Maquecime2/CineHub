@@ -320,9 +320,10 @@ export function DetailView({
     return searchFilms(
       films.filter((f) => f.id !== film.id && !already.has(f.id)),
       q,
+      t2,
       6
     );
-  }, [films, film.id, linkTitle, linkType, film.linkedWorks]);
+  }, [films, film.id, linkTitle, linkType, film.linkedWorks, t2]);
 
   /* WHAT TMDB PROPOSES — asked for when the card opens, and only if one
      has a key and an identifier. A single call, never in bulk: these are
@@ -661,7 +662,7 @@ export function DetailView({
                 onInsertToken={(fn) => {
                   inserters.current.review = fn;
                 }}
-                placeholder="Écrivez ici, à main levée…"
+                placeholder={t2("detail.reviewPlaceholder")}
               />
             </Cardstock>
             <Cardstock
@@ -681,7 +682,7 @@ export function DetailView({
                 onInsertToken={(fn) => {
                   inserters.current.notes = fn;
                 }}
-                placeholder="Scènes, citations, fragments…"
+                placeholder={t2("detail.notesPlaceholder")}
               />
             </Cardstock>
 
@@ -726,7 +727,7 @@ export function DetailView({
             }}
           >
             <Cardstock>
-              <Label>Mots-clés</Label>
+              <Label>{t2("detail.keywords")}</Label>
               <TagEditor
                 tags={film.themes || []}
                 allTags={allTags}
@@ -767,7 +768,7 @@ export function DetailView({
                           title: `Supprimer « ${motif.label} » ?`,
                           body: howMany
                             ? `Ce motif est posé sur ${howMany} fiche${howMany > 1 ? "s" : ""} — il en sera retiré.`
-                            : "Ce motif n'est posé sur aucune fiche.",
+                            : t2("detail.motifOnNoCard"),
                           action: "supprimer le motif",
                           severe: true,
                           onConfirm: () => onDeleteMotif(motif.id),
@@ -819,9 +820,9 @@ export function DetailView({
                   const putBackOne = { ...film, archived: !film.archived, bedside: false };
                   if (film.archived) return onUpdate({ ...film, archived: false });
                   setRequest({
-                    title: "Mettre cette fiche de côté ?",
-                    body: "Elle quitte le mur et la constellation, sans être détruite — on la remet en rayon quand on veut.",
-                    action: "mettre de côté",
+                    title: t2("detail.setAsideTitle"),
+                    body: t2("detail.setAsideBody"),
+                    action: t2("detail.setAsideAction"),
                     onConfirm: () => onUpdate(putBackOne),
                   });
                 }}
@@ -854,7 +855,7 @@ export function DetailView({
                 onClick={() =>
                   setRequest({
                     title: `Supprimer « ${film.title} » ?`,
-                    body: "La fiche, ses notes, ses captures et ses fils partent avec elle. Rien ne se rattrape — « mettre de côté » range sans détruire.",
+                    body: t2("detail.deleteBody"),
                     action: "supprimer",
                     severe: true,
                     onConfirm: () => onDelete(film.id),
@@ -950,7 +951,7 @@ export function DetailView({
                 </div>
                 <div style={{ flex: 1, minWidth: 180, position: "relative" }}>
                   <Label>
-                    {linkType === "film" ? "Chercher dans la collection" : "Titre de l'œuvre"}
+                    {linkType === "film" ? t2("detail.searchCollection") : t2("detail.workTitle")}
                   </Label>
                   {picked ? (
                     // a kept card: we show this is a real reference, not a text
@@ -988,7 +989,7 @@ export function DetailView({
                       value={linkTitle}
                       onChange={(e) => setLinkTitle(e.target.value)}
                       placeholder={
-                        linkType === "film" ? "un titre déjà au mur, ou un titre libre" : "Titre"
+                        linkType === "film" ? t2("detail.titleOnWallOrFree") : t2("detail.title")
                       }
                     />
                   )}
@@ -1044,7 +1045,7 @@ export function DetailView({
                           >
                             {s.year || "s.d."}
                             {s.director ? ` · ${s.director}` : ""}
-                            {s.status === "watchlist" ? " · à voir" : ""}
+                            {s.status === "watchlist" ? ` · ${t2("detail.toWatchTag")}` : ""}
                           </span>
                         </button>
                       ))}
@@ -1088,10 +1089,10 @@ export function DetailView({
                         onChange={(e) => setLinkRelation(e.target.value as Relation | "")}
                         style={{ ...underlineInput, fontFamily: F.mono, fontSize: 12 }}
                       >
-                        <option value="">— sans plus de précision —</option>
+                        <option value="">{t2("detail.noFurtherDetail")}</option>
                         {ENTERABLE_RELATIONS.map((r) => (
                           <option key={r.id} value={r.id}>
-                            {r.label}
+                            {t2(r.label)}
                           </option>
                         ))}
                       </select>
@@ -1105,7 +1106,7 @@ export function DetailView({
                       >
                         {STRENGTHS.map((f) => (
                           <option key={f.value} value={f.value}>
-                            {f.label}
+                            {t2(f.label)}
                           </option>
                         ))}
                       </select>
@@ -1118,7 +1119,7 @@ export function DetailView({
                     style={underlineInput}
                     value={linkNote}
                     onChange={(e) => setLinkNote(e.target.value)}
-                    placeholder="La résonance entre les deux"
+                    placeholder={t2("detail.resonance")}
                   />
                 </div>
                 <button

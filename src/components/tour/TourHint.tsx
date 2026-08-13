@@ -7,6 +7,7 @@
    that is a refusal, not an oversight.
    ============================================================ */
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { CornerLeftDown, X } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
@@ -16,6 +17,7 @@ import { bumpHint } from "../../services/onboarding";
 const VIE_MS = 8000;
 
 export function TourHint({ onReplay, onDismiss }: { onReplay: () => void; onDismiss: () => void }) {
+  const { t } = useTranslation();
   const [partie, setPartie] = useState(false);
 
   useEffect(() => {
@@ -69,7 +71,7 @@ export function TourHint({ onReplay, onDismiss }: { onReplay: () => void; onDism
       />
       <button
         onClick={() => setPartie(true)}
-        aria-label="Effacer ce rappel"
+        aria-label={t("tour.ui.dismissHint")}
         style={{
           all: "unset",
           ...tap,
@@ -84,7 +86,7 @@ export function TourHint({ onReplay, onDismiss }: { onReplay: () => void; onDism
       </button>
 
       <div style={{ fontFamily: F.mono, fontSize: 9, letterSpacing: 1.2, color: C.inkFaded }}>
-        LA VISITE
+        {t("tour.ui.hintKicker")}
       </div>
       <div
         style={{
@@ -95,7 +97,7 @@ export function TourHint({ onReplay, onDismiss }: { onReplay: () => void; onDism
           marginTop: 4,
         }}
       >
-        Elle vous attend au pied des onglets, sous le « ? ».
+        {t("tour.ui.hintBody")}
       </div>
       <button
         onClick={onReplay}
@@ -114,7 +116,7 @@ export function TourHint({ onReplay, onDismiss }: { onReplay: () => void; onDism
         }}
       >
         <CornerLeftDown size={12} />
-        la reprendre maintenant
+        {t("tour.ui.hintReplay")}
       </button>
     </div>
   );

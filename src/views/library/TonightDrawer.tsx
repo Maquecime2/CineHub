@@ -11,6 +11,8 @@
    makes sense.
    ============================================================ */
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { say } from "../../domain/wording";
 import { Layer } from "../../components/ui/Layer";
 import { X, Dice5, ArrowRight, Loader2 } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
@@ -46,6 +48,7 @@ export function TonightDrawer({
   onClose: () => void;
   onOpen: (id: string) => void;
 }) {
+  const { t, i18n } = useTranslation();
   const [minutes, setMinutes] = useState<number | null>(null);
   const [humeur, setHumeur] = useState<string[]>([]);
   const [langues, setLangues] = useState<string[]>([]);
@@ -215,7 +218,7 @@ export function TonightDrawer({
               /* Without a key, the patterns of an unseen card do not
                exist and nothing can guess them. We say so rather than
                leave a wheel that answers to nothing. */
-              <NoKey what="deviner l'humeur d'un film que vous n'avez pas encore annoté" />
+              <NoKey what={t("tonightDrawer.guessMood")} />
             )}
             {!apiKey && (
               <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, margin: "6px 0" }}>
@@ -246,7 +249,7 @@ export function TonightDrawer({
                     onClick={() => setLangues((l) => toggle(l, code))}
                     style={chip(langues.includes(code), C.moss)}
                   >
-                    {languageName(code)} · {n}
+                    {languageName(code, i18n.language)} · {n}
                   </button>
                 ))}
               </div>
@@ -273,8 +276,8 @@ export function TonightDrawer({
             {!choice ? (
               <div style={{ fontFamily: F.hand, fontSize: 18, color: C.inkFaded }}>
                 {suggestions.length === 0
-                  ? "Rien dans « à voir » ne répond — ou la liste est vide."
-                  : "Vous les avez tous passés en revue."}
+                  ? t("tonightDrawer.nothingAnswers")
+                  : t("tonightDrawer.allReviewed")}
               </div>
             ) : (
               <CravingCard
@@ -308,6 +311,7 @@ function CravingCard({
   onAutre: () => void;
   onOuvrir: () => void;
 }) {
+  const { t } = useTranslation();
   const f = choice.film;
   return (
     <div data-tour="soir-carte">
@@ -339,7 +343,7 @@ function CravingCard({
                   color: C.inkFaded,
                 }}
               >
-                {r}
+                {say(r, t)}
               </span>
             ))}
           </div>

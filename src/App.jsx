@@ -3,7 +3,7 @@ import { pruneOrphans } from "./db";
 import { CAT_KEYS } from "./shelf-views";
 import { C, F, FONT_IMPORT } from "./theme/tokens";
 import { applySkin, loadSkinKey, saveSkinKey } from "./theme/applySkin";
-import { loadLanguage, setLanguage } from "./i18n";
+import i18n, { loadLanguage, setLanguage } from "./i18n";
 import { uid, migrate, editLinkedWork } from "./domain/film";
 import { normalize } from "./domain/search";
 import { inverseOf, strengthOf } from "./domain/relations";
@@ -180,10 +180,14 @@ export default function App() {
          `services/demo` for what those twelve films contain, and why. */
       let migrated = loaded;
       if (!loaded.length && shouldSeed()) {
-        migrated = await saveFilms(demoFilms());
+        /* Sown in the language in force AT THAT MOMENT, and never sown
+           again: the example becomes the reader's own cards, which they
+           may rename and rewrite. Re-translating them on a change of
+           language would overwrite what somebody had just written. */
+        migrated = await saveFilms(demoFilms(i18n.t.bind(i18n)));
         /* The notebook only receives its page if it is empty: somebody
            may have written before having a single film. */
-        if (!store.get(KEYS.notes, []).length) store.set(KEYS.notes, demoNotes());
+        if (!store.get(KEYS.notes, []).length) store.set(KEYS.notes, demoNotes(i18n.t.bind(i18n)));
         markSeeded();
         if (!alive) return;
       }
@@ -844,7 +848,7 @@ export default function App() {
               setView(backView);
               setSelectedId(null);
             }}
-            backTo={who ? "RETOUR AU GÉNÉRIQUE" : undefined}
+            backTo={who ? i18n.t("detail.backToCredits") : undefined}
             onUpdate={updateFilm}
             onDelete={deleteFilm}
             onLinkFilm={linkFilms}

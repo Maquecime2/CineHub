@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Layer } from "../ui/Layer";
 import { X } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
@@ -32,6 +33,7 @@ export function StillLightbox({
   onClose: () => void;
   onIndex: (i: number) => void;
 }) {
+  const { t } = useTranslation();
   const still = stills[index];
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -85,7 +87,7 @@ export function StillLightbox({
           padding does not count and the target stays a thin strip */}
         <button
           onClick={onClose}
-          title="fermer (Échap)"
+          title={t("stills.close")}
           style={{
             all: "unset",
             ...tap,
@@ -108,7 +110,7 @@ export function StillLightbox({
         {stills.length > 1 && (
           <button
             onClick={() => onIndex((index - 1 + stills.length) % stills.length)}
-            title="précédente (←)"
+            title={t("stills.previous")}
             style={ARROW_COL}
             onMouseEnter={(e) => {
               e.currentTarget.style.background = "rgba(255,255,255,0.06)";

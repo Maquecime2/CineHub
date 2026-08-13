@@ -20,6 +20,7 @@
    aside from anything.
    ============================================================ */
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { EyeOff, Eye } from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
@@ -34,6 +35,7 @@ import {
 import type { Film } from "../../types";
 
 export function HideFromSharing({ film, signedIn }: { film: Film; signedIn: boolean }) {
+  const { t } = useTranslation();
   const [hiddenNow, setHiddenNow] = useState<boolean | null>(null);
   const [sharing, setPartage] = useState<Sharing | null>(null);
   const [busy, setBusy] = useState(false);
@@ -91,12 +93,12 @@ export function HideFromSharing({ film, signedIn }: { film: Film; signedIn: bool
         }}
       >
         {hiddenNow ? <EyeOff size={12} /> : <Eye size={12} />}
-        {hiddenNow ? "ÉCARTÉE DU PARTAGE" : "ÉCARTER DU PARTAGE"}
+        {hiddenNow ? t("sharing.hidden") : t("sharing.hide")}
       </button>
       <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 5 }}>
         {hiddenNow
           ? "Personne ne la voit chez vous. Elle reste au mur, dans l'almanach et dans la constellation — c'est at dehors qui l'ignore."
-          : "Elle paraît dans votre collection partagée, avec sa note et votre critique. Vos notes libres et votre journal de séances ne sortent jamais."}
+          : t("sharing.shownNote")}
       </div>
     </div>
   );

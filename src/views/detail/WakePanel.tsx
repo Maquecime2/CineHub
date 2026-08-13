@@ -15,6 +15,7 @@
    that something is missing nor how to get it.
    ============================================================ */
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { CSSProperties, ReactNode } from "react";
 import { Bookmark, Compass, Waves } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
@@ -24,6 +25,8 @@ import { PosterArt } from "../../components/film/PosterArt";
 import { initialsOf, makeFilm } from "../../domain/film";
 import { wakeAtHome, familyOf, byQuotas } from "../../domain/wake";
 import type { Neighbour } from "../../domain/wake";
+import { say } from "../../domain/wording";
+import type { Wording } from "../../domain/wording";
 import {
   mergeAfar,
   reinforcementFromOutside,
@@ -79,7 +82,7 @@ function Proposition({
 }: {
   title: string;
   year: number | string | null;
-  raison: string;
+  raison: Wording;
   affiche: ReactNode;
   onClick?: () => void;
   /** A note to the right of the title: "à voir", for instance. */
@@ -87,6 +90,7 @@ function Proposition({
   /** What unfolds under the proposal when one opens it. */
   unfolded?: ReactNode;
 }) {
+  const { t } = useTranslation();
   const content = (
     <>
       {/* THE POSTER'S CELL IS POSITIONED, AND IT HAS A SIZE.
@@ -139,7 +143,7 @@ function Proposition({
             lineHeight: 1.35,
           }}
         >
-          {raison}
+          {say(raison, t)}
         </div>
       </div>
     </>
@@ -241,6 +245,7 @@ function Unfold({
   alreadySetAside: boolean;
   onSetAside: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div style={{ padding: "2px 4px 12px 58px" }}>
       {director && (
@@ -284,10 +289,13 @@ function Unfold({
             background: alreadySetAside ? "transparent" : C.pine,
           }}
         >
-          <Bookmark size={11} /> {alreadySetAside ? "mis de côté" : "mettre de côté"}
+          <Bookmark size={11} />{" "}
+          {alreadySetAside ? t("wakePanel.setAsideDone") : t("wakePanel.setAside")}
         </button>
         <span style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}>
-          {v.voteAverage ? `${v.voteAverage.toFixed(1)} / 10 · ${v.voteCount} votes` : "pas noté"}
+          {v.voteAverage
+            ? `${v.voteAverage.toFixed(1)} / 10 · ${v.voteCount} ${t("wakePanel.votes")}`
+            : t("wakePanel.unrated")}
         </span>
       </div>
     </div>
@@ -359,6 +367,7 @@ export function WakePanel({
   /** Files a proposal from outside into the "à voir" list. */
   onAddToWatchlist?: (f: Film) => void;
 }) {
+  const { t } = useTranslation();
   const apiKey = useTmdbKey();
 
   /* The in-house half: pure, synchronous, and recomputed only when the
@@ -532,7 +541,7 @@ export function WakePanel({
                   title={v.film.title}
                   year={v.film.year}
                   raison={v.reason}
-                  aside={v.film.status === "watchlist" ? "à voir" : undefined}
+                  aside={v.film.status === "watchlist" ? t("detail.toWatchTag") : undefined}
                   onClick={() => onOpen(v.film.id)}
                   affiche={<Vignette film={v.film} />}
                 />
@@ -575,7 +584,7 @@ export function WakePanel({
                   title={v.title}
                   year={v.year}
                   raison={v.reason}
-                  aside={setAsideIds.has(v.tmdbId) ? "à voir" : undefined}
+                  aside={setAsideIds.has(v.tmdbId) ? t("detail.toWatchTag") : undefined}
                   onClick={() => unfold(v)}
                   unfolded={
                     open === v.tmdbId ? (

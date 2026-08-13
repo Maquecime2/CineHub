@@ -3,6 +3,12 @@ import { atHomeSuggestions } from "./athome";
 import { makeFilm } from "./film";
 import type { Film, Watch } from "../types";
 
+import i18n from "../i18n";
+import { say } from "./wording";
+
+/** What a `Wording` really reads as on screen. The suite runs in French. */
+const said = (w: Parameters<typeof say>[0]) => say(w, i18n.t.bind(i18n));
+
 /* A fixed reference date: everything this module computes is a duration
    since today, and a test that ages is a test that will one day pass
    without anyone knowing why. */
@@ -50,8 +56,9 @@ describe("to watch again", () => {
     const f = watched("Adoré", [{ date: daysAgo(1000), rating: 5 }], { rating: 5 });
     const s = suggestions([f]);
     expect(s).toHaveLength(1);
-    expect(s[0]).toMatchObject({ nature: "rewatch", label: "À revoir" });
-    expect(s[0]!.reason).toContain("2 ans");
+    expect(s[0]!.nature).toBe("rewatch");
+    expect(said(s[0]!.label)).toBe("À revoir");
+    expect(said(s[0]!.reason)).toContain("2 ans");
   });
 
   it("leaves a recently watched film alone", () => {
@@ -98,8 +105,8 @@ describe("a neglected motif", () => {
     const films = [withMotif(1, 900, 3, ["melancholy"]), withMotif(2, 800, 3.5, ["melancholy"])];
     const s = suggestions(films).find((x) => x.nature === "motif");
     expect(s).toBeDefined();
-    expect(s!.label).toBe("Mélancolie");
-    expect(s!.reason).toContain("2 films portent ce motif");
+    expect(said(s!.label)).toBe("Mélancolie");
+    expect(said(s!.reason)).toContain("2 films portent ce motif");
   });
 
   it("says nothing about a motif carried by a single card", () => {
@@ -136,8 +143,8 @@ describe("a neglected filmmaker", () => {
     const films = [byThem(1, 900, 4, "Ozu"), byThem(2, 800, 5, "Ozu")];
     const s = suggestions(films).find((x) => x.nature === "director");
     expect(s).toBeDefined();
-    expect(s!.label).toBe("Ozu");
-    expect(s!.reason).toContain("2 films chez vous");
+    expect(said(s!.label)).toBe("Ozu");
+    expect(said(s!.reason)).toContain("2 films chez vous");
   });
 
   it("does not invent a followed filmmaker out of a single film", () => {
@@ -154,7 +161,7 @@ describe("a neglected filmmaker", () => {
     const films = [byThem(1, 900, 5, "Coen, Coen"), byThem(2, 800, 5, "Coen, Coen")];
     const names = suggestions(films)
       .filter((x) => x.nature === "director")
-      .map((x) => x.label);
+      .map((x) => said(x.label));
     expect(names).toEqual(["Coen"]);
   });
 });

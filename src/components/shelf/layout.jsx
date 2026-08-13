@@ -166,6 +166,7 @@ export const PerRowField = React.memo(function PerRowField({ value, onChange, ti
    shelf, which a divider could only override by opening its line. It now
    belongs to the row itself, and is set where one looks at it. */
 const RowGutter = React.memo(function RowGutter({ row, shown, acts, capMax }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(row.label || "");
   useEffect(() => {
@@ -193,7 +194,7 @@ const RowGutter = React.memo(function RowGutter({ row, shown, acts, capMax }) {
     >
       <button
         onClick={() => setOpen((o) => !o)}
-        title={isUnplaced(row) ? "Les films pas encore rangés" : "Réglages de cette ligne"}
+        title={isUnplaced(row) ? t("shelf.unfiledFilms") : t("shelf.rowSettings")}
         style={{
           all: "unset",
           cursor: "pointer",
@@ -319,7 +320,7 @@ const RowGutter = React.memo(function RowGutter({ row, shown, acts, capMax }) {
                 }}
               />
               <GutterAct
-                label="+ une catégorie ici"
+                label={t("shelf.addCategoryHere")}
                 onClick={() => {
                   acts.addCat(row.id);
                   setOpen(false);
@@ -650,7 +651,7 @@ export function Shelf({
         <div style={{ flex: 1 }} />
         <button
           onClick={() => acts.addRow(null, "end", kind)}
-          title="Ajouter une ligne à la fin du rayon"
+          title={t("shelf.addRow")}
           style={{
             all: "unset",
             ...tap,
@@ -835,6 +836,7 @@ export function ReserveDrawer({
   onEditDecor,
   onDecorLabel,
 }) {
+  const { t } = useTranslation();
   const rows = shelf?.rows || [];
   const filled = rows.some((r) => r.items.length);
 
@@ -853,7 +855,7 @@ export function ReserveDrawer({
           e.preventDefault();
           dnd.onDrop("reserve", e);
         }}
-        title={open ? "Fermer le tiroir" : "Ouvrir les films mis de côté"}
+        title={open ? t("shelf.closeDrawer") : t("shelf.openSetAside")}
         style={{
           all: "unset",
           boxSizing: "border-box",
@@ -875,7 +877,7 @@ export function ReserveDrawer({
           transition: "right .26s cubic-bezier(.2,.8,.3,1), background .15s ease",
         }}
       >
-        {open ? "FERMER" : `MIS DE CÔTÉ${count ? ` · ${count}` : ""}`}
+        {open ? t("shelf.close") : `${t("shelf.setAside")}${count ? ` · ${count}` : ""}`}
       </button>
 
       <div
@@ -1246,8 +1248,9 @@ export function CellPreview({ film, onClose, onOpenFile }) {
    other to the back of the shelf, wherever one wants. Mixing them in a
    single grid left the user to discover the difference by botching their
    drop. */
-const DecorFamily = ({ title = "À POSER", hint, types, onDragStart, onDragEnd }) => {
+const DecorFamily = ({ title, hint, types, onDragStart, onDragEnd }) => {
   const { t } = useTranslation();
+  const heading = title ?? t("shelf.toStandTitle");
   return (
     <>
       <div
@@ -1259,7 +1262,7 @@ const DecorFamily = ({ title = "À POSER", hint, types, onDragStart, onDragEnd }
           margin: "10px 0 3px",
         }}
       >
-        {title}
+        {heading}
       </div>
       <div style={{ fontFamily: F.hand, fontSize: 14, color: C.inkFaded, marginBottom: 6 }}>
         {hint}
@@ -1422,8 +1425,8 @@ function DecorWorkshop({ onBack }) {
           laid, and choosing it afterwards would mean rewriting the file. */}
       <div style={{ display: "flex", marginBottom: 8 }}>
         {[
-          [false, "à poser"],
-          [true, "à accrocher"],
+          [false, "shelf.toStand"],
+          [true, "shelf.toHang"],
         ].map(([v, label], i) => (
           <button
             key={label}
@@ -1497,13 +1500,15 @@ function DecorWorkshop({ onBack }) {
       <div style={{ marginTop: 12, maxHeight: 300, overflowY: "auto" }}>
         <WorkshopSection title="LES MIENS" />
         {custom.length === 0 ? (
-          <CabinetNote>rien d'importé pour l'instant</CabinetNote>
+          <CabinetNote>{t("shelf.nothingImported")}</CabinetNote>
         ) : (
           custom.map((d) => (
             <DecorRow
               key={d.key}
               label={decorLabel(d, t)}
-              note={`${d.wall ? "à accrocher" : "à poser"}${d.tintable ? "" : " · sans couleur"}`}
+              note={`${t(d.wall ? "shelf.toHang" : "shelf.toStand")}${
+                d.tintable ? "" : ` · ${t("shelf.noColour")}`
+              }`}
               thumb={
                 <CustomDraw
                   motif={d.key}
@@ -1534,7 +1539,7 @@ function DecorWorkshop({ onBack }) {
             <DecorRow
               key={d.key}
               label={decorLabel(d, t)}
-              note={d.wall ? "à accrocher" : "à poser"}
+              note={t(d.wall ? "shelf.toHang" : "shelf.toStand")}
               dim={hidden}
               thumb={
                 d.tall ? (
@@ -1608,52 +1613,55 @@ const RowButton = ({ onClick, label, children }) => (
 /* A line of the workshop: the thumbnail, the name, and the gesture one
    can make on it. The same for an imported object and for a house
    drawing — they are read in the same list, they must look alike. */
-const DecorRow = ({ label, note, thumb, action, dim }) => (
-  <div
-    style={{
-      display: "flex",
-      alignItems: "center",
-      gap: 8,
-      padding: "4px 0",
-      // a hidden pattern stays readable, but fades by half
-      opacity: dim ? 0.42 : 1,
-    }}
-  >
+const DecorRow = ({ label, note, thumb, action, dim }) => {
+  const { t } = useTranslation();
+  return (
     <div
       style={{
-        width: 34,
-        height: 34,
-        flexShrink: 0,
-        overflow: "hidden",
-        border: `1px solid ${C.line}`,
-        background: C.paper,
         display: "flex",
         alignItems: "center",
-        justifyContent: "center",
+        gap: 8,
+        padding: "4px 0",
+        // a hidden pattern stays readable, but fades by half
+        opacity: dim ? 0.42 : 1,
       }}
     >
-      {thumb}
-    </div>
-    <div style={{ flex: 1, minWidth: 0 }}>
       <div
-        title={label}
         style={{
-          fontFamily: F.mono,
-          fontSize: 10,
-          color: C.ink,
-          whiteSpace: "nowrap",
+          width: 34,
+          height: 34,
+          flexShrink: 0,
           overflow: "hidden",
-          textOverflow: "ellipsis",
-          textDecoration: dim ? "line-through" : "none",
+          border: `1px solid ${C.line}`,
+          background: C.paper,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
         }}
       >
-        {label}
+        {thumb}
       </div>
-      <CabinetNote style={{ fontSize: 12 }}>{dim ? "masqué" : note}</CabinetNote>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          title={label}
+          style={{
+            fontFamily: F.mono,
+            fontSize: 10,
+            color: C.ink,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            textDecoration: dim ? "line-through" : "none",
+          }}
+        >
+          {label}
+        </div>
+        <CabinetNote style={{ fontSize: 12 }}>{dim ? t("shelf.hidden") : note}</CabinetNote>
+      </div>
+      {action}
     </div>
-    {action}
-  </div>
-);
+  );
+};
 
 export function DecorCabinet({ kind, onDragStart, onDragEnd, onClose }) {
   const { t } = useTranslation();
@@ -1669,7 +1677,7 @@ export function DecorCabinet({ kind, onDragStart, onDragEnd, onClose }) {
       ) : (
         <div style={CABINET_BOX}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
-            <CabinetTitle>CABINET DE CURIOSITÉS</CabinetTitle>
+            <CabinetTitle>{t("shelf.cabinet")}</CabinetTitle>
             <div style={{ flex: 1 }} />
             <button
               onClick={() => setManaging(true)}
@@ -1693,14 +1701,14 @@ export function DecorCabinet({ kind, onDragStart, onDragEnd, onClose }) {
             </button>
           </div>
           <DecorFamily
-            hint="glissez-les sur une planche, entre deux boîtiers"
+            hint={t("shelf.dragOntoShelf")}
             types={shelfDecorTypes()}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
           />
           <DecorFamily
-            title="À ACCROCHER"
-            hint="glissez-les au fond du rayon, où vous voulez"
+            title={t("shelf.toHangTitle")}
+            hint={t("shelf.dragToBack")}
             types={wallDecorTypes()}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
@@ -1738,6 +1746,7 @@ export function DecorCabinet({ kind, onDragStart, onDragEnd, onClose }) {
 const clampRot = (deg) => (((deg % 360) + 540) % 360) - 180;
 
 const OrientField = ({ angle, seeded, onChange }) => {
+  const { t } = useTranslation();
   const setValue = angle != null;
   const shown = Math.round(clampRot(Number(setValue ? angle : seeded) || 0));
 
@@ -1790,7 +1799,7 @@ const OrientField = ({ angle, seeded, onChange }) => {
       {setValue && (
         <button
           onClick={() => onChange(null)}
-          title="Rendre à l'objet son guingois d'origine"
+          title={t("shelf.resetTilt")}
           style={{
             all: "unset",
             cursor: "pointer",

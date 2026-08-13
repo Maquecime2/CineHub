@@ -12,6 +12,11 @@ import userEvent from "@testing-library/user-event";
 import { TourOverlay } from "./TourOverlay";
 import { TOURS } from "./steps";
 import { loadOnboarding } from "../../services/onboarding";
+import i18n from "../../i18n";
+
+/* The steps hold catalogue KEYS; the screen shows sentences. `setupTests`
+   pins the suite to French, so this is what the bubble really reads. */
+const said = (key: string) => i18n.t(key);
 
 /* jsdom knows neither `ResizeObserver` nor `scrollIntoView`, which the
    target tracking uses: without them the search throws on the first node
@@ -46,7 +51,7 @@ describe("the tour unrolls", () => {
     render(<TourOverlay tourId="notebook" onClose={vi.fn()} onView={vi.fn()} />);
 
     const step = TOURS.notebook!.steps[0]!;
-    expect(await screen.findByText(step.title)).toBeInTheDocument();
+    expect(await screen.findByText(said(step.title))).toBeInTheDocument();
     expect(screen.getByText(`1 / ${TOURS.notebook!.steps.length}`)).toBeInTheDocument();
   });
 
@@ -55,14 +60,14 @@ describe("the tour unrolls", () => {
     render(<TourOverlay tourId="import" onClose={vi.fn()} onView={vi.fn()} />);
     const [un, two] = TOURS.import!.steps;
 
-    expect(await screen.findByText(un!.title)).toBeInTheDocument();
+    expect(await screen.findByText(said(un!.title))).toBeInTheDocument();
     expect(screen.queryByText("retour")).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByText("SUIVANT"));
-    expect(await screen.findByText(two!.title)).toBeInTheDocument();
+    expect(await screen.findByText(said(two!.title))).toBeInTheDocument();
 
     await userEvent.click(screen.getByText("retour"));
-    expect(await screen.findByText(un!.title)).toBeInTheDocument();
+    expect(await screen.findByText(said(un!.title))).toBeInTheDocument();
   });
 
   /* Finishing and abandoning do NOT write the same thing: that is what
@@ -92,7 +97,7 @@ describe("the tour unrolls", () => {
     layTargets("import");
     const onClose = vi.fn();
     render(<TourOverlay tourId="import" onClose={onClose} onView={vi.fn()} />);
-    await screen.findByText(TOURS.import!.steps[0]!.title);
+    await screen.findByText(said(TOURS.import!.steps[0]!.title));
 
     await userEvent.keyboard("{Escape}");
     expect(onClose).toHaveBeenCalled();
@@ -111,7 +116,7 @@ describe("the global tour travels", () => {
     layTargets("global");
     render(<TourOverlay tourId="global" onClose={vi.fn()} onView={onView} />);
 
-    await screen.findByText(TOURS.global!.steps[0]!.title);
+    await screen.findByText(said(TOURS.global!.steps[0]!.title));
     expect(onView).toHaveBeenCalledWith(TOURS.global!.steps[0]!.view);
   });
 });
@@ -133,7 +138,9 @@ describe("a missing target does not block", () => {
        is about the step being skipped, not about the second one's text,
        and a rewording of the product must not make it fail. */
     const second = TOURS.almanac!.steps.find((s) => s.target?.includes("almanac-plates"))!;
-    expect(await screen.findByText(second.title, undefined, { timeout: 3000 })).toBeInTheDocument();
+    expect(
+      await screen.findByText(said(second.title), undefined, { timeout: 3000 })
+    ).toBeInTheDocument();
   });
 
   /* THE OTHER SIDE OF THE SET, AND IT IS WHAT BROKE. The guide stays
@@ -153,7 +160,7 @@ describe("a missing target does not block", () => {
 
     const firstOne = TOURS.detail!.steps[0]!;
     expect(firstOne.optional, "the test only means something if the step is optional").toBe(true);
-    expect(await screen.findByText(firstOne.title)).toBeInTheDocument();
+    expect(await screen.findByText(said(firstOne.title))).toBeInTheDocument();
     expect(screen.getByText(`1 / ${TOURS.detail!.steps.length}`)).toBeInTheDocument();
   });
 });
@@ -195,7 +202,7 @@ describe("a missing target does not block the tour", () => {
 
     // we do reach the second to last…
     const before = steps[steps.length - 2]!;
-    expect(await screen.findByText(before.title)).toBeInTheDocument();
+    expect(await screen.findByText(said(before.title))).toBeInTheDocument();
     await userEvent.click(screen.getByText(/suivant|terminer/i));
 
     /* …and the last, deprived of a target, does not hold the tour up: it

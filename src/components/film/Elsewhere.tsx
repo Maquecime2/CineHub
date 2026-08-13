@@ -20,6 +20,7 @@
    silence it.
    ============================================================ */
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Flag, Star, UserMinus, Users } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
@@ -28,6 +29,7 @@ import { block, echoOfWork, serverConfigured, report, type Echo } from "../../se
 import type { Film } from "../../types";
 
 export function Elsewhere({ film, signedIn }: { film: Film; signedIn: boolean }) {
+  const { t } = useTranslation();
   const [echo, setEcho] = useState<Echo | null>(null);
   const tmdbId = film.tmdbId;
 
@@ -67,7 +69,7 @@ export function Elsewhere({ film, signedIn }: { film: Film; signedIn: boolean })
       >
         <Users size={12} />
         <span>
-          {echo.collections} vidéothèque{echo.collections > 1 ? "s" : ""} le range
+          {t("elsewhere.filedBy", { count: echo.collections })}
           {echo.collections > 1 ? "nt" : ""}
         </span>
         {echo.mean !== null && (
@@ -95,6 +97,7 @@ function OneOpinion({
   opinion: Echo["reviews"][number];
   onSilence: () => void;
 }) {
+  const { t } = useTranslation();
   const [said, setSaid] = useState<string | null>(null);
 
   const mute = async () => {
@@ -106,10 +109,10 @@ function OneOpinion({
     /* `prompt` is ugly, and it is the right tool: a motif is stated in
        one sentence, and one more modal in an already dense card would be
        paid for in confusion, for a gesture made twice a year. */
-    const reason = window.prompt(`Qu'est-ce qui ne va pas dans ce qu'a écrit ${opinion.pseudo} ?`);
+    const reason = window.prompt(t("elsewhere.reportPrompt", { pseudo: opinion.pseudo }));
     if (!reason?.trim()) return;
     await report({ pseudo: opinion.pseudo, card: opinion.card, reason });
-    setSaid("signalé — nous le lirons");
+    setSaid(t("elsewhere.reported"));
   };
 
   return (

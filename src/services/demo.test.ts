@@ -10,11 +10,16 @@
    Each test below names the tour step it protects.
    ============================================================ */
 import { describe, it, expect } from "vitest";
+import i18n from "../i18n";
 import { DEMO_PREFIX, binderStillDemo, isDemo, demoFilms, demoNotes, withoutDemo } from "./demo";
+
+/* The example reads in the reader's language now; `setupTests` pins the
+   suite to French, which is what these assertions were written against. */
+const say = i18n.t.bind(i18n);
 import { MOTIFS } from "../domain/motifs";
 import { makeFilm } from "../domain/film";
 
-const films = demoFilms();
+const films = demoFilms(say);
 
 describe("the demonstration binder", () => {
   it("counts a dozen cards", () => {
@@ -27,7 +32,7 @@ describe("the demonstration binder", () => {
   });
 
   it("returns fresh cards on every call", () => {
-    expect(demoFilms()[0]).not.toBe(films[0]);
+    expect(demoFilms(say)[0]).not.toBe(films[0]);
   });
 
   it("has no identifier twice", () => {
@@ -165,7 +170,7 @@ describe("it covers what the tour shows", () => {
 
 describe("the demonstration notebook", () => {
   it("has one page, prefixed like the rest", () => {
-    const notes = demoNotes();
+    const notes = demoNotes(say);
     expect(notes.length).toBeGreaterThan(0);
     expect(notes.every((n) => n.id.startsWith(DEMO_PREFIX))).toBe(true);
   });

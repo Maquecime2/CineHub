@@ -163,28 +163,28 @@ export const DECOR_TYPES: DecorType[] = [
      two edges, and not as a trinket set in front.
      `writes`: the only pattern to carry a name, hence the only one to
      open a text field in its panel. */
-  { key: "divider", label: "Intercalaire", tall: true, writes: true },
+  { key: "divider", tall: true, writes: true },
 
   // what is laid down
-  { key: "plant", label: "Plante verte", draw: Plant },
-  { key: "cactus", label: "Cactus", draw: Cactus },
-  { key: "statuette", label: "Statuette", draw: Statuette },
-  { key: "cat", label: "Chat en céramique", draw: Cat },
-  { key: "candle", label: "Bougie", draw: Candle },
-  { key: "mug", label: "Tasse", draw: Mug },
-  { key: "clock", label: "Réveil", draw: Clock },
-  { key: "books", label: "Pile de livres", draw: Books },
+  { key: "plant", draw: Plant },
+  { key: "cactus", draw: Cactus },
+  { key: "statuette", draw: Statuette },
+  { key: "cat", draw: Cat },
+  { key: "candle", draw: Candle },
+  { key: "mug", draw: Mug },
+  { key: "clock", draw: Clock },
+  { key: "books", draw: Books },
 
   // what hangs
-  { key: "frame", label: "Cadre photo", draw: Frame, wall: true },
-  { key: "postcard", label: "Carte postale", draw: Postcard, wall: true },
-  { key: "wallclock", label: "Horloge", draw: WallClock, wall: true },
-  { key: "garland", label: "Guirlande", draw: Garland, wall: true },
-  { key: "pennant", label: "Fanions", draw: Pennant, wall: true },
-  { key: "ivy", label: "Lierre suspendu", draw: Ivy, wall: true },
+  { key: "frame", draw: Frame, wall: true },
+  { key: "postcard", draw: Postcard, wall: true },
+  { key: "wallclock", draw: WallClock, wall: true },
+  { key: "garland", draw: Garland, wall: true },
+  { key: "pennant", draw: Pennant, wall: true },
+  { key: "ivy", draw: Ivy, wall: true },
   /* It arrives in XS: a strip of tape at the other wall objects' size
      would make a banner, and nobody sticks up a banner. */
-  { key: "tape", label: "Ruban adhésif", draw: Tape, wall: true, defaultSize: 0.42 },
+  { key: "tape", draw: Tape, wall: true, defaultSize: 0.42 },
 ];
 
 /* The two families, ready to display: the cabinet presents them under two

@@ -24,8 +24,7 @@
    ============================================================ */
 
 export type Wording =
-  | { text: string; key?: never; values?: never }
-  | { key: string; values?: Values; text?: never };
+  { text: string; key?: never; values?: never } | { key: string; values?: Values; text?: never };
 
 /**
  * A wording may hold another: "not seen again for {{since}}" where the
@@ -54,7 +53,6 @@ export const say = (
   if (w.text !== undefined) return w.text;
   const values: Record<string, string | number> = {};
   for (const [name, value] of Object.entries(w.values ?? {}))
-    values[name] =
-      typeof value === "object" ? say(value, t) : (value as string | number);
+    values[name] = typeof value === "object" ? say(value, t) : (value as string | number);
   return t(w.key!, values);
 };

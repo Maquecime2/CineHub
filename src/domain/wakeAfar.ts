@@ -13,6 +13,8 @@
    ============================================================ */
 import { WEIGHTS, familyOf, byQuotas, scoreOfLinks } from "./wake";
 import type { Family, Link, Quotas, Match, Neighbour } from "./wake";
+import { saying, words } from "./wording";
+import type { Wording } from "./wording";
 import type { Film } from "../types";
 
 /** What a harvest brings back: films, and by which path. */
@@ -39,7 +41,8 @@ export interface FarNeighbour extends FarCandidate {
   score: number;
   /** Every provenance: a film can arrive by three paths. */
   via: { via: Link; value: string }[];
-  reason: string;
+  /** Why this one, in plain words — a `Wording`, see `domain/wording`. */
+  reason: Wording;
   key: string;
 }
 
@@ -71,16 +74,18 @@ export const VOTES_MINIMUM = 30;
 /* The same natures as the wake at home, but turned round: here the
    suggestion COMES FROM somewhere, over there it SHARES something. "du
    même chef op" and "même chef op" do not sit in the same sentence. */
+/* Catalogue KEYS, like `LABELS` in `wake`: our words, one sentence per
+   language. */
 const FAR_LABELS: Record<Link, string> = {
-  cinematography: "du même chef op",
-  music: "du même compositeur",
-  directing: "de la même réalisation",
-  writing: "du même scénario",
-  actor: "avec",
-  motif: "même motif",
-  theme: "même thème",
-  keyword: "même sujet",
-  crowd: "vu par les mêmes gens",
+  cinematography: "wake.afar.cinematography",
+  music: "wake.afar.music",
+  directing: "wake.afar.directing",
+  writing: "wake.afar.writing",
+  actor: "wake.afar.actor",
+  motif: "wake.afar.motif",
+  theme: "wake.afar.theme",
+  keyword: "wake.afar.keyword",
+  crowd: "wake.afar.crowd",
 };
 
 /* Perceived quality counts for very little, and only to break ties: it
@@ -90,8 +95,10 @@ const quality = (c: FarCandidate): number =>
   Math.max(0, Math.min(1, (c.voteAverage - 5.5) / 3)) * 0.4;
 
 /** A path, spelled out: "du même chef op Franz Lustig". */
-const spellPath = (p: FarNeighbour["via"][number]): string =>
-  p.via === "crowd" || !p.value ? FAR_LABELS[p.via] : `${FAR_LABELS[p.via]} ${p.value}`;
+const spellPath = (p: FarNeighbour["via"][number]): Wording =>
+  p.via === "crowd" || !p.value
+    ? saying(FAR_LABELS[p.via])
+    : saying("wake.afar.named", { link: saying(FAR_LABELS[p.via]), value: words(p.value) });
 
 /* A LINK IS NAMED, IT IS NOT COUNTED.
 
@@ -104,12 +111,12 @@ const spellPath = (p: FarNeighbour["via"][number]): string =>
    So we name the FIRST TWO paths. Beyond that, we count: three
    provenances written end to end make a line nobody reads any more, and
    the two strongest already carry the essentials. */
-function reasonFor(via: FarNeighbour["via"]): string {
+function reasonFor(via: FarNeighbour["via"]): Wording {
   const [head, second, ...rest] = via;
-  if (!head) return "";
+  if (!head) return words("");
   if (!second) return spellPath(head);
-  const two = `${spellPath(head)} · ${spellPath(second)}`;
-  return rest.length ? `${two}, + ${rest.length}` : two;
+  const two = saying("wake.afar.two", { first: spellPath(head), second: spellPath(second) });
+  return rest.length ? saying("wake.afar.andCount", { two, count: rest.length }) : two;
 }
 
 /* ============================================================
@@ -224,7 +231,7 @@ export function mergeAfar(
         ...c,
         via: [{ via: r.via, value: r.value }],
         score: WEIGHTS[r.via] + quality(c),
-        reason: "",
+        reason: words(""),
         key: `afar:${c.tmdbId}`,
       });
     }

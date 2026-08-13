@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { C, F } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { Tally } from "../../components/ui";
@@ -43,6 +44,7 @@ export function BackupPanel({
   motifs,
   onRestore,
 }: BackupPanelProps) {
+  const { t } = useTranslation();
   const [stats, setStats] = useState<PosterStats | null>(null);
   const [msg, setMsg] = useState("");
   const ref = useRef<HTMLInputElement | null>(null);
@@ -54,7 +56,7 @@ export function BackupPanel({
   }, [films]);
 
   const download = async () => {
-    setMsg("préparation…");
+    setMsg(t("backup.preparing"));
     // db.js is still in JavaScript: its parameters have no declared type
     const data = await exportBackup({ films, notes, dividers, views, fils, motifs } as never);
     const url = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: "application/json" }));
@@ -63,7 +65,7 @@ export function BackupPanel({
     a.download = `cine-hub-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    setMsg(`sauvegarde de ${films.length} fiche(s) téléchargée.`);
+    setMsg(t("backup.downloaded", { count: films.length }));
   };
 
   const restore = async (file: File) => {
@@ -114,12 +116,12 @@ export function BackupPanel({
           marginBottom: 10,
         }}
       >
-        COFFRE À AFFICHES ET SAUVEGARDE
+        {t("backup.title")}
       </div>
       {stats && (
         <>
-          <Tally label="affiches rangées dans la base" value={stats.count} />
-          <Tally label="place occupée" value={humanSize(stats.bytes)} />
+          <Tally label={t("backup.postersStored")} value={stats.count} />
+          <Tally label={t("backup.spaceUsed")} value={humanSize(stats.bytes)} />
           {stats.quota?.quota && (
             <Tally
               label="place disponible"
@@ -138,8 +140,7 @@ export function BackupPanel({
           lineHeight: 1.35,
         }}
       >
-        Tout est stocké sur cette machine, captures en qualité d'origine. Exportez de temps en temps
-        : vider les données du navigateur effacerait la collection.
+        {t("backup.note")}
       </div>
       <input
         ref={ref}

@@ -240,7 +240,14 @@ function gridFor(n: number): Grid {
     step: height + GAP + CAPTION,
   };
 }
-export async function drawYearInBox(data: BoxData, p: BoxPalette): Promise<Blob> {
+/* THE IMAGE SPEAKS THE READER'S LANGUAGE TOO, and it is the one thing
+   here that leaves the browser — an English reader showing "3 séances" to
+   a friend would be showing a bug. The service draws on a canvas, where
+   there is no component to hang a hook on, so `t` is passed in, exactly
+   as `domain/wording` does. */
+export type Say = (key: string, values?: Record<string, string | number>) => string;
+
+export async function drawYearInBox(data: BoxData, p: BoxPalette, t: Say): Promise<Blob> {
   const canvas = document.createElement("canvas");
   canvas.width = W;
   canvas.height = H;
@@ -264,7 +271,7 @@ export async function drawYearInBox(data: BoxData, p: BoxPalette): Promise<Blob>
   ctx.textBaseline = "alphabetic";
   ctx.font = `28px ${p.mono}`;
   ctx.fillStyle = p.inkFaded;
-  ctx.fillText("L'ANNÉE EN BOÎTE", 72, 96);
+  ctx.fillText(t("yearInBox.title"), 72, 96);
 
   ctx.fillStyle = p.accent;
   ctx.font = `bold 150px ${p.title}`;
@@ -282,15 +289,15 @@ export async function drawYearInBox(data: BoxData, p: BoxPalette): Promise<Blob>
   /* The counts, to the right of the year: it is the only thing a
      three-second glance will retain. */
   const lines: [string, string][] = [
-    [String(data.count), data.count > 1 ? "séances" : "séance"],
-    [String(data.titles), data.titles > 1 ? "films" : "film"],
-    [String(data.rewatches), data.rewatches > 1 ? "revoyures" : "revoyure"],
+    [String(data.count), t("yearInBox.viewings", { count: data.count })],
+    [String(data.titles), t("yearInBox.films", { count: data.titles })],
+    [String(data.rewatches), t("yearInBox.rewatches", { count: data.rewatches })],
   ];
-  if (data.ratingAvg != null) lines.push([data.ratingAvg.toFixed(1), "de moyenne"]);
+  if (data.ratingAvg != null) lines.push([data.ratingAvg.toFixed(1), t("yearInBox.onAverage")]);
   /* The hours of cinema, when we know them. It is the most telling
      statistic of the lot, and the only one that asks for completed
      cards — a collection that has not done it sees nothing missing. */
-  if (data.minutes > 0) lines.push([`${Math.round(data.minutes / 60)} h`, "de cinéma"]);
+  if (data.minutes > 0) lines.push([`${Math.round(data.minutes / 60)} h`, t("yearInBox.ofCinema")]);
 
   /* THE BANNER MEASURES ITSELF BEFORE WRITING ITSELF, AND THAT IS THE
      WHOLE FIX.
@@ -444,8 +451,8 @@ export async function drawYearInBox(data: BoxData, p: BoxPalette): Promise<Blob>
 
   /* ---- THE FOOT ---- */
   const sentence = data.topDirector
-    ? `Le plus revu cette année : ${data.topDirector}.`
-    : "Une année de séances, tenue à la main.";
+    ? t("yearInBox.mostWatched", { name: data.topDirector })
+    : t("yearInBox.aYearOfViewings");
   ctx.fillStyle = p.inkFaded;
   ctx.font = `italic 27px ${p.body}`;
   ctx.fillText(truncate(ctx, sentence, W - MARGIN * 2), MARGIN, H - 82);
@@ -455,9 +462,9 @@ export async function drawYearInBox(data: BoxData, p: BoxPalette): Promise<Blob>
      only that the cards have not been filled in, which interests nobody
      on an image one shows around. */
   const mentions = [
-    data.decade != null ? `années ${String(data.decade).slice(2)}` : null,
+    data.decade != null ? t("yearInBox.decade", { decade: String(data.decade).slice(2) }) : null,
     data.country,
-    data.ageMean != null ? `${Math.round(data.ageMean)} ans de moyenne` : null,
+    data.ageMean != null ? t("yearInBox.averageAge", { years: Math.round(data.ageMean) }) : null,
   ].filter(Boolean) as string[];
   if (mentions.length) {
     ctx.font = `21px ${p.mono}`;
@@ -465,11 +472,11 @@ export async function drawYearInBox(data: BoxData, p: BoxPalette): Promise<Blob>
   }
 
   ctx.font = `19px ${p.mono}`;
-  ctx.fillText("CINÉ HUB · archive personnelle", MARGIN, H - 22);
+  ctx.fillText(t("yearInBox.signature"), MARGIN, H - 22);
 
   return await new Promise<Blob>((resolve, reject) =>
     canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error("l'image n'a pas pu être produite"))),
+      (blob) => (blob ? resolve(blob) : reject(new Error(t("yearInBox.couldNotDraw")))),
       "image/png"
     )
   );

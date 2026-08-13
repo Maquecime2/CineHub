@@ -10,6 +10,6 @@ export const LINK_TYPES: { key: LinkType; icon: LucideIcon }[] = [
   { key: "other", icon: Sparkles },
 ];
 
-/** A work's type, falling back on "Autre œuvre" if the key is unknown. */
+/** A work's type, falling back on `other` if the key is unknown. */
 export const linkTypeOf = (key: string) =>
   LINK_TYPES.find((t) => t.key === key) ?? (LINK_TYPES[3] as (typeof LINK_TYPES)[number]);

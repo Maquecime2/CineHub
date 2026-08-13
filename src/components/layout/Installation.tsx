@@ -14,6 +14,7 @@
    stacking context and transforms itself for the length of an animation.
    ============================================================ */
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { Download, RefreshCw, Share, X } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
@@ -32,6 +33,7 @@ function Card({
   tour?: string;
   onFermer?: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <Layer>
       <div
@@ -76,7 +78,7 @@ function Card({
         {onFermer && (
           <button
             onClick={onFermer}
-            aria-label="Écarter"
+            aria-label={t("install.dismiss")}
             style={{ all: "unset", ...tap, cursor: "pointer", color: C.inkFaded }}
           >
             <X size={15} />
@@ -125,19 +127,24 @@ export function Installation({
   onInstall: () => void;
   onDismiss: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <Card tour="install" onFermer={onDismiss}>
-      <Title>Le classeur tient sur votre écran d'accueil</Title>
+      <Title>{t("install.title")}</Title>
       {apple ? (
+        /* The share icon sits INSIDE the sentence, and the two languages
+           do not put it in the same place — so the sentence is cut in
+           two around it rather than pasted together in one key. */
         <Line>
-          Touchez <Share size={13} style={{ verticalAlign: -2 }} /> en bas de Safari, puis « Sur
-          l'écran d'accueil ». Il s'ouvrira en plein écran, et même sans réseau.
+          {t("install.appleBefore")}
+          <Share size={13} style={{ verticalAlign: -2 }} />
+          {t("install.appleAfter")}
         </Line>
       ) : (
         <>
-          <Line>Il s'ouvre alors en plein écran, sans barre d'adresse, et même sans réseau.</Line>
+          <Line>{t("install.body")}</Line>
           <button onClick={onInstall} style={button}>
-            <Download size={12} /> INSTALLER
+            <Download size={12} /> {t("install.action")}
           </button>
         </>
       )}
@@ -147,14 +154,15 @@ export function Installation({
 
 /** A brand-new version is waiting to be laid down. */
 export function UpdateCard({ onReload }: { onReload: () => void }) {
+  const { t } = useTranslation();
   return (
     <Card tour="maj">
-      <Title>Une nouvelle version est prête</Title>
+      <Title>{t("update.title")}</Title>
       {/* We replace NOTHING without saying so: an application that
           updates itself while one is writing a note loses the note. */}
-      <Line>Elle s'installera au rechargement. Rien de ce que vous avez rangé ne bouge.</Line>
+      <Line>{t("update.body")}</Line>
       <button onClick={onReload} style={button}>
-        <RefreshCw size={12} /> RECHARGER
+        <RefreshCw size={12} /> {t("update.action")}
       </button>
     </Card>
   );

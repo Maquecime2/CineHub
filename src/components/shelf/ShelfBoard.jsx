@@ -1,5 +1,6 @@
 /* Filing by hand: this is where all the drag and drop lives. */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { C } from "../../theme/tokens";
 import {
   SHELF_KINDS,
@@ -51,6 +52,7 @@ const noTint = (motif) => {
 const hangs = (drag) => drag?.type === "wall";
 
 export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) {
+  const { t } = useTranslation();
   /* A drag changes NO React state. It was the last visible lag:
      `setDragId` at the start of the drag re-rendered the shelf, which
      dirtied the layout — and the first `getBoundingClientRect` of the
@@ -715,9 +717,9 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
       )}
       {cat && (
         <ItemPalette
-          title="CATÉGORIE"
+          title={t("shelf.category")}
           color={cat.color}
-          removeLabel="défaire la catégorie"
+          removeLabel={t("shelf.undoCategory")}
           onColor={(k) => acts.setCat(cat.id, { color: k })}
           onRemove={() => {
             acts.removeCat(cat.id);

@@ -50,8 +50,12 @@ function PlankTab({ decor, set }) {
   const { t } = useTranslation();
   return (
     <>
-      <Title top={4}>MATÉRIAU</Title>
-      <NoneSwatch on={!decor?.material} onClick={() => set({ material: null })} label="au thème" />
+      <Title top={4}>{t("decorStudio.material")}</Title>
+      <NoneSwatch
+        on={!decor?.material}
+        onClick={() => set({ material: null })}
+        label={t("decorStudio.fromTheme")}
+      />
 
       {byFamily().map(([family, keys]) => (
         <div key={family}>
@@ -101,6 +105,7 @@ const TABS = [
 ];
 
 export function DecorStudio({ view, onChange, onReset, onClose }) {
+  const { t } = useTranslation();
   const [tab, setTab] = useState("wall");
   const decor = view?.decor?.[tab === "wall" ? "wall" : "plank"] || null;
   const set = (patch) => onChange(tab === "wall" ? "wall" : "plank", patch);
@@ -124,7 +129,7 @@ export function DecorStudio({ view, onChange, onReset, onClose }) {
           {view?.decor && (
             <button
               onClick={onReset}
-              title="Effacer le décor et revenir au bois du thème"
+              title={t("decorStudio.reset")}
               style={{
                 all: "unset",
                 cursor: "pointer",

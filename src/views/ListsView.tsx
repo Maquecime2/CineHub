@@ -17,6 +17,7 @@
    sentence rather than offer dead buttons.
    ============================================================ */
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 import { ListChecks, Plus, Trash2, UserPlus, X } from "lucide-react";
 import { C, F, alpha } from "../theme/tokens";
@@ -45,6 +46,7 @@ import {
 } from "../services/server";
 
 export function ListsView({ connected }: { connected: boolean }) {
+  const { t } = useTranslation();
   const [lists, setListes] = useState<List[]>([]);
   const [challenges, setDefis] = useState<Challenge[]>([]);
   const [ouverte, setOuverte] = useState<string | null>(null);
@@ -132,7 +134,7 @@ export function ListsView({ connected }: { connected: boolean }) {
       </div>
 
       <div data-tour="lists-challenges">
-        <Label>Les défis</Label>
+        <Label>{t("listsView.challenges")}</Label>
         {challenges.length === 0 && (
           <Guideline>
             Aucun défi. Un défi est une liste plus une période : ouvrez une liste ci-dessus pour en
@@ -164,6 +166,7 @@ function OneList({
   onOuvrir: () => void;
   onChange: () => Promise<void>;
 }) {
+  const { t } = useTranslation();
   const [works, setOeuvres] = useState<ListWork[]>([]);
   const [members, setMembres] = useState<string[]>([]);
   const [invite, setInvite] = useState("");
@@ -286,7 +289,7 @@ function OneList({
                   value={invite}
                   onChange={(e) => setInvite(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && sendInvite()}
-                  placeholder="inviter quelqu'un à écrire"
+                  placeholder={t("listsView.inviteSomebody")}
                   autoCapitalize="none"
                   spellCheck={false}
                   style={{ ...underlineInput, fontFamily: F.mono, fontSize: 12 }}
@@ -345,7 +348,7 @@ function OneList({
               list, who would see it appear without having wanted it. */}
           {(list.mienne || list.isMember) && (
             <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px dashed ${C.line}` }}>
-              <Label>Lancer un défi sur cette liste</Label>
+              <Label>{t("listsView.startChallenge")}</Label>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
                 <input
                   value={challenge.title}
@@ -388,6 +391,7 @@ function OneChallenge({
   challenge: Challenge;
   onChange: () => Promise<void>;
 }) {
+  const { t } = useTranslation();
   const [progress, setAvancement] = useState<Progress[] | null>(null);
 
   const reread = useCallback(async () => {
@@ -401,7 +405,11 @@ function OneChallenge({
 
   const today = new Date().toISOString().slice(0, 10);
   const state =
-    today < challenge.starts_on ? "à venir" : today > challenge.ends_on ? "terminé" : "en cours";
+    today < challenge.starts_on
+      ? t("listsView.upcoming")
+      : today > challenge.ends_on
+        ? t("listsView.finished")
+        : t("listsView.running");
 
   return (
     <div style={{ background: C.card, border: `1px solid ${C.line}`, padding: "11px 13px" }}>
@@ -427,7 +435,7 @@ function OneChallenge({
         {challenge.per === null || challenge.inside ? (
           <button
             onClick={() => deleteChallenge(challenge.id).then(onChange)}
-            title="Effacer ce défi"
+            title={t("listsView.deleteChallenge")}
             style={{ ...small, color: C.burgundy }}
           >
             <Trash2 size={12} />

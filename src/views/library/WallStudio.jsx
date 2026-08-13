@@ -10,6 +10,7 @@
    Two panels, because there are two things to adjust: what the cards are
    hung on, and the cards themselves. */
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Layer } from "../../components/ui/Layer";
 import { X, RotateCcw } from "lucide-react";
 import { C, F } from "../../theme/tokens";
@@ -24,31 +25,35 @@ const Row = ({ children }) => (
 /* One setting = one title and one row of choices drawn from its
    catalogue. The four look alike because they do the same thing: name a
    key and remember it. */
-const Choice = ({ title, catalog, value, onPick, top }) => (
-  <>
-    <Title top={top}>{title}</Title>
-    <Row>
-      {Object.entries(catalog).map(([k, v]) => (
-        <OptionButton key={k} on={value === k} onClick={() => onPick(k)}>
-          {v.label}
-        </OptionButton>
-      ))}
-    </Row>
-  </>
-);
+const Choice = ({ title, catalog, value, onPick, top }) => {
+  const { t } = useTranslation();
+  return (
+    <>
+      <Title top={top}>{title}</Title>
+      <Row>
+        {Object.entries(catalog).map(([k, v]) => (
+          <OptionButton key={k} on={value === k} onClick={() => onPick(k)}>
+            {t(v.label)}
+          </OptionButton>
+        ))}
+      </Row>
+    </>
+  );
+};
 
 function CardsTab({ look, set }) {
+  const { t } = useTranslation();
   return (
     <>
       <Choice
-        title="TAILLE DES FICHES"
+        title={t("wallStudio.cardSize")}
         top={4}
         catalog={CARD_SIZES}
         value={look.size}
         onPick={(size) => set({ size })}
       />
       <Choice
-        title="ÉCARTEMENT"
+        title={t("wallStudio.spacing")}
         catalog={SPREADS}
         value={look.spread}
         onPick={(spread) => set({ spread })}
@@ -57,7 +62,7 @@ function CardsTab({ look, set }) {
           draw of each card is intact, and going back up one notch gives
           the wall exactly the look it had. */}
       <Choice
-        title="DÉSORDRE"
+        title={t("wallStudio.disorder")}
         catalog={MESSES}
         value={look.mess}
         onPick={(mess) => set({ mess })}
@@ -68,11 +73,12 @@ function CardsTab({ look, set }) {
 }
 
 const TABS = [
-  { key: "wall", label: "MUR" },
-  { key: "cards", label: "FICHES" },
+  { key: "wall", label: "wallStudio.wallTab" },
+  { key: "cards", label: "wallStudio.cardsTab" },
 ];
 
 export function WallStudio({ look, onChange, onReset, onClose }) {
+  const { t } = useTranslation();
   const [tab, setTab] = useState("cards");
   // the decor is empty at the start: nothing is written until something is chosen
   const setDecor = (patch) => onChange({ decor: { ...(look.decor || {}), ...patch } });
@@ -122,9 +128,9 @@ export function WallStudio({ look, onChange, onReset, onClose }) {
         </div>
 
         <div style={{ display: "flex", gap: 5, marginBottom: 4 }}>
-          {TABS.map((t) => (
-            <OptionButton key={t.key} on={tab === t.key} onClick={() => setTab(t.key)}>
-              {t.label}
+          {TABS.map((o) => (
+            <OptionButton key={o.key} on={tab === o.key} onClick={() => setTab(o.key)}>
+              {t(o.label)}
             </OptionButton>
           ))}
         </div>
@@ -144,8 +150,8 @@ export function WallStudio({ look, onChange, onReset, onClose }) {
           }}
         >
           {DEFAULT_WALL_LOOK.size === look.size && !look.decor
-            ? "le mur est encore tel qu'on l'a trouvé"
-            : "ce mur est à cette collection — l'autre garde le sien"}
+            ? t("wallStudio.untouched")
+            : t("wallStudio.ownWall")}
         </div>
       </div>
     </Layer>

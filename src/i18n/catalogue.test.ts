@@ -62,8 +62,16 @@ describe("the two catalogues", () => {
         .reduce<unknown>((node, key) => (node as Record<string, unknown>)[key], en);
       return typeof value === "string" && FRENCH_ONLY.test(value);
     });
-    /* `language.frNote` is French ON PURPOSE: it names French to somebody
-       reading English, and it names it in French. */
-    expect(suspects.filter((p) => p !== "language.frNote")).toEqual([]);
+    /* FRENCH ON PURPOSE, both of them, and for two different reasons:
+
+       — `language.frNote` names French to somebody reading English, and
+         it names it in French.
+       — `demoBinder.films.samourai.title` is a RELEASE TITLE. Melville's
+         film came out in the English-speaking world under its French
+         name, and "The Samurai" would send an English reader looking for
+         a film that does not exist. A title is not translated; it is
+         looked up. */
+    const ON_PURPOSE = ["language.frNote", "demoBinder.films.samourai.title"];
+    expect(suspects.filter((p) => !ON_PURPOSE.includes(p))).toEqual([]);
   });
 });

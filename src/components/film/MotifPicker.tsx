@@ -14,6 +14,7 @@
    saved nowhere.
    ============================================================ */
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Eye, EyeOff, Plus, Spool, Trash2, X } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { underlineInput, tap } from "../../theme/styles";
@@ -22,6 +23,7 @@ import {
   searchMotifs,
   isCustom,
   motifById,
+  motifLabel,
   motifsOf,
   byFamily,
 } from "../../domain/motifs";
@@ -68,7 +70,9 @@ function MotifChip({
   onReveal: () => void;
   onRemove: () => void;
 }) {
+  const { t } = useTranslation();
   const isHiddenHere = !!motif.spoiler && !revealed;
+  const name = motifLabel(motif, t);
   return (
     <span
       style={{
@@ -77,22 +81,22 @@ function MotifChip({
         cursor: isHiddenHere ? "pointer" : "default",
       }}
       onClick={isHiddenHere ? onReveal : undefined}
-      title={isHiddenHere ? "Ce motif raconte la fin — cliquez pour le lire" : undefined}
+      title={isHiddenHere ? t("motifs.spoilerHint") : undefined}
     >
       {isHiddenHere ? (
         <>
           <Eye size={10} />
-          motif de fin
+          {t("motifs.endingMotif")}
         </>
       ) : (
-        motif.label
+        name
       )}
       <button
         onClick={(e) => {
           e.stopPropagation();
           onRemove();
         }}
-        aria-label={`Retirer « ${motif.label} »`}
+        aria-label={t("motifs.removeOne", { name })}
         style={{ all: "unset", cursor: "pointer", display: "flex" }}
       >
         <X size={9} />
@@ -126,6 +130,7 @@ export function MotifPicker({
   /** Those of the catalogue already set aside, to offer them back. */
   hiddenOnes?: Motif[];
 }) {
+  const { t } = useTranslation();
   const [open, setOuvert] = useState(false);
   const [q, setQ] = useState("");
   const [revealedIds, setRevealedIds] = useState<string[]>([]);
@@ -137,7 +142,7 @@ export function MotifPicker({
      in `MOTIFS`, and the card would have lost it on display. */
   const placed = useMemo(() => motifsOf({ motifs }), [motifs]);
   const families = useMemo(() => byFamily(), [open, motifs]);
-  const foundIds = useMemo(() => (q.trim() ? searchMotifs(q) : []), [q]);
+  const foundIds = useMemo(() => (q.trim() ? searchMotifs(q, t) : []), [q, t]);
   const toOffer = suggestions.filter((m) => !motifs.includes(m.id));
 
   const lay = (id: string) => {
@@ -168,7 +173,7 @@ export function MotifPicker({
       {toOffer.length > 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
           <span style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded, marginRight: 2 }}>
-            PROPOSÉ PAR TMDB —
+            {t("motifs.suggestedByTmdb")}
           </span>
           {toOffer.map((m) => (
             <button
@@ -177,7 +182,7 @@ export function MotifPicker({
               style={{ ...chipStyle(C.ochre, false), borderStyle: "dashed" }}
             >
               <Plus size={10} />
-              {m.spoiler ? "motif de fin" : m.label}
+              {m.spoiler ? t("motifs.endingMotif") : motifLabel(m, t)}
             </button>
           ))}
         </div>
@@ -189,11 +194,11 @@ export function MotifPicker({
             <button
               key={m.id}
               onClick={() => onMakeThread(m.id)}
-              title={`Rassembler tous les films portant « ${m.label} »`}
+              title={t("motifs.gatherAll", { name: motifLabel(m, t) })}
               style={{ ...chipStyle(C.slate, false), fontSize: 9.5 }}
             >
               <Spool size={10} />
-              EN FAIRE UN FIL
+              {t("motifs.makeThread")}
             </button>
           ))}
         </div>
@@ -211,7 +216,7 @@ export function MotifPicker({
           borderBottom: `1px solid ${C.burgundy}`,
         }}
       >
-        {open ? "REFERMER LA LISTE" : "CHOISIR DES MOTIFS"}
+        {open ? t("motifs.closeList") : t("motifs.chooseMotifs")}
       </button>
 
       {open && (
@@ -220,14 +225,14 @@ export function MotifPicker({
             autoFocus
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="chercher un motif…"
+            placeholder={t("motifs.searchPlaceholder")}
             style={{ ...underlineInput, fontSize: 14, marginBottom: 10 }}
           />
           {q.trim() ? (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
               {foundIds.length === 0 && (
                 <span style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded }}>
-                  aucun motif de ce nom
+                  {t("motifs.noneByThatName")}
                 </span>
               )}
               {foundIds.map((m) => (
@@ -236,11 +241,13 @@ export function MotifPicker({
                   onClick={() => lay(m.id)}
                   style={chipStyle(isCustom(m.id) ? C.cobalt : C.pine, motifs.includes(m.id))}
                 >
-                  {m.label}
+                  {motifLabel(m, t)}
                 </button>
               ))}
               {onCreate &&
-                !foundIds.some((m) => m.label.toLowerCase() === q.trim().toLowerCase()) && (
+                !foundIds.some(
+                  (m) => motifLabel(m, t).toLowerCase() === q.trim().toLowerCase()
+                ) && (
                   <button
                     onClick={() => {
                       onCreate(q, family, spoiler);
@@ -249,7 +256,7 @@ export function MotifPicker({
                     style={{ ...chipStyle(C.cobalt, false), borderStyle: "dashed" }}
                   >
                     <Plus size={10} />
-                    créer « {q.trim()} »
+                    {t("motifs.create", { name: q.trim() })}
                   </button>
                 )}
             </div>
@@ -265,7 +272,7 @@ export function MotifPicker({
                     marginBottom: 4,
                   }}
                 >
-                  {f.label.toUpperCase()}
+                  {t(`motifs.families.${f.family}`).toUpperCase()}
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                   {f.motifs.map((m) => (
@@ -282,7 +289,7 @@ export function MotifPicker({
                         onClick={() => (motifs.includes(m.id) ? strike(m.id) : lay(m.id))}
                         style={chipStyle(isCustom(m.id) ? C.cobalt : C.pine, motifs.includes(m.id))}
                       >
-                        {m.label}
+                        {motifLabel(m, t)}
                       </button>
                       {/* WHAT CAN BE DONE WITH A MOTIF DEPENDS ON WHERE IT COMES FROM.
 
@@ -294,7 +301,7 @@ export function MotifPicker({
                       {isCustom(m.id) && onSupprimer && (
                         <button
                           onClick={() => onSupprimer(m)}
-                          aria-label={"Supprimer le motif " + m.label}
+                          aria-label={t("motifs.deleteOne", { name: motifLabel(m, t) })}
                           style={{
                             all: "unset",
                             ...tap,
@@ -309,7 +316,7 @@ export function MotifPicker({
                       {!isCustom(m.id) && onHide && (
                         <button
                           onClick={() => onHide(m.id, true)}
-                          aria-label={"Écarter le motif " + m.label}
+                          aria-label={t("motifs.hideOne", { name: motifLabel(m, t) })}
                           style={{
                             all: "unset",
                             ...tap,
@@ -335,7 +342,7 @@ export function MotifPicker({
               list without finding one's idea in it. */}
           {onCreate && (
             <div style={{ borderTop: `1px solid ${C.line}`, paddingTop: 10, marginTop: 4 }}>
-              <div style={section}>LE VÔTRE</div>
+              <div style={section}>{t("motifs.yourOwn")}</div>
               <input
                 value={neuf}
                 onChange={(e) => setNeuf(e.target.value)}
@@ -346,8 +353,8 @@ export function MotifPicker({
                   setNeuf("");
                   setSpoiler(false);
                 }}
-                aria-label="Nouveau motif"
-                placeholder="« il pleut sans arrêt », puis Entrée"
+                aria-label={t("motifs.newMotif")}
+                placeholder={t("motifs.newPlaceholder")}
                 style={{ ...underlineInput, fontSize: 13.5 }}
               />
               <div
@@ -362,7 +369,7 @@ export function MotifPicker({
                 <select
                   value={family}
                   onChange={(e) => setFamille(e.target.value as MotifFamily)}
-                  aria-label="Famille du motif"
+                  aria-label={t("motifs.familyOf")}
                   style={{
                     ...underlineInput,
                     flex: "1 1 140px",
@@ -373,7 +380,7 @@ export function MotifPicker({
                 >
                   {FAMILIES.map((f) => (
                     <option key={f.id} value={f.id}>
-                      {f.label}
+                      {t(`motifs.families.${f.id}`)}
                     </option>
                   ))}
                 </select>
@@ -393,7 +400,7 @@ export function MotifPicker({
                     checked={spoiler}
                     onChange={(e) => setSpoiler(e.target.checked)}
                   />
-                  il raconte la fin
+                  {t("motifs.tellsTheEnding")}
                 </label>
               </div>
             </div>
@@ -404,17 +411,17 @@ export function MotifPicker({
               good at the first hesitation. */}
           {onHide && hiddenOnes.length > 0 && (
             <div style={{ borderTop: `1px solid ${C.line}`, paddingTop: 10, marginTop: 10 }}>
-              <div style={section}>ÉCARTÉS ({hiddenOnes.length})</div>
+              <div style={section}>{t("motifs.setAside", { count: hiddenOnes.length })}</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                 {hiddenOnes.map((m) => (
                   <button
                     key={m.id}
                     onClick={() => onHide(m.id, false)}
-                    title="Le remettre dans la liste"
+                    title={t("motifs.putBack")}
                     style={{ ...chipStyle(C.inkFaded, false), borderStyle: "dashed" }}
                   >
                     <Eye size={9} />
-                    {m.label}
+                    {motifLabel(m, t)}
                   </button>
                 ))}
               </div>

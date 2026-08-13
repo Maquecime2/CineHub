@@ -14,6 +14,7 @@
    else's.
    ============================================================ */
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ListPlus } from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
@@ -22,6 +23,7 @@ import { myLists, addToList, serverConfigured, type List } from "../../services/
 import type { Film } from "../../types";
 
 export function AddToList({ film, signedIn }: { film: Film; signedIn: boolean }) {
+  const { t } = useTranslation();
   const [lists, setListes] = useState<List[]>([]);
   const [choice, setChoix] = useState("");
   const [told, setDit] = useState<string | null>(null);
@@ -50,7 +52,7 @@ export function AddToList({ film, signedIn }: { film: Film; signedIn: boolean })
     });
     /* "Already in it" is not an error: it is the same gesture, and it
        deserves the same calm answer. */
-    setDit(r.fresh ? "rangé" : "y était déjà");
+    setDit(r.fresh ? t("lists.filed") : t("lists.alreadyThere"));
   };
 
   return (

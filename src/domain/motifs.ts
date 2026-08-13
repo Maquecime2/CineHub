@@ -32,7 +32,7 @@ import { saying, words, type Wording } from "./wording";
  * A signature of one line rather than an import keeps this module
  * testable without a catalogue.
  */
-export type NameOf = (key: string) => string;
+export type NameOf = (key: string, values?: Record<string, string | number>) => string;
 
 /**
  * What to write under a motif.

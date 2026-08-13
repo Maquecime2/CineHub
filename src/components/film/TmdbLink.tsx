@@ -28,6 +28,7 @@
    - the poster is replaced only if it came from TMDB too. A poster chosen
      by hand or dropped in from disk is a choice, not data. */
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Search, Check } from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { underlineInput } from "../../theme/styles";
@@ -57,6 +58,7 @@ const shownByTmdb = (poster?: string) =>
   !poster || (!isIdbPoster(poster) && poster.includes("image.tmdb.org"));
 
 export function TmdbLink({ film, onUpdate }: { film: Film; onUpdate: (f: Film) => void }) {
+  const { t } = useTranslation();
   const apiKey = useTmdbKey();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -66,7 +68,7 @@ export function TmdbLink({ film, onUpdate }: { film: Film; onUpdate: (f: Film) =
 
   const search = async (title?: string) => {
     if (!apiKey) {
-      setMsg("Aucune clé TMDB — à régler au pied du rail d'onglets.");
+      setMsg(t("tmdbKey.missing"));
       return;
     }
     const q = (title ?? query).trim() || film.title;
@@ -79,7 +81,7 @@ export function TmdbLink({ film, onUpdate }: { film: Film; onUpdate: (f: Film) =
          which is enough to decide. */
       const list = (await searchMovies({ title: q, apiKey })) as Candidat[];
       setCandidats(list);
-      setMsg(list.length ? "" : "TMDB ne connaît aucun film de ce titre.");
+      setMsg(list.length ? "" : t("link.noFilmByThatTitle"));
     } catch (e) {
       setMsg(`TMDB indisponible (${(e as Error).message}).`);
     } finally {
@@ -90,7 +92,7 @@ export function TmdbLink({ film, onUpdate }: { film: Film; onUpdate: (f: Film) =
   const link = async (c: Candidat) => {
     if (!apiKey) return;
     setBusy(true);
-    setMsg("récupération de la fiche…");
+    setMsg(t("link.fetching"));
     try {
       const info = await getDetails(c.tmdbId, apiKey);
       /* The correction also enters the import cache, which still
@@ -117,7 +119,7 @@ export function TmdbLink({ film, onUpdate }: { film: Film; onUpdate: (f: Film) =
         keywords: info.keywords || [],
         poster: shownByTmdb(film.poster) ? info.poster || film.poster : film.poster,
       });
-      setMsg(`relié à « ${c.title} »${c.year ? ` (${c.year})` : ""}.`);
+      setMsg(t("link.linkedTo", { title: c.title, year: c.year ? ` (${c.year})` : "" }));
       setCandidats(null);
       setOpen(false);
     } catch (e) {
@@ -178,7 +180,7 @@ export function TmdbLink({ film, onUpdate }: { film: Film; onUpdate: (f: Film) =
             </a>
           </>
         ) : (
-          <span>aucun identifiant — la fiche n'est reliée à rien</span>
+          <span>{t("link.noIdentifier")}</span>
         )}
       </div>
 
@@ -188,7 +190,7 @@ export function TmdbLink({ film, onUpdate }: { film: Film; onUpdate: (f: Film) =
             <input
               style={{ ...underlineInput, flex: 1, minWidth: 0 }}
               value={query}
-              placeholder="titre à chercher"
+              placeholder={t("link.searchPlaceholder")}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && search()}
             />
@@ -289,8 +291,7 @@ export function TmdbLink({ film, onUpdate }: { film: Film; onUpdate: (f: Film) =
           )}
 
           <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 8 }}>
-            choisir remplace l'équipe, la durée, le pays, la note et les mots-clés — vos mots, vos
-            notes et vos séances ne bougent pas
+            {t("link.replacesNote")}
           </div>
         </div>
       )}

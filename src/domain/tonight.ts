@@ -19,7 +19,9 @@
    going to fetch them is I/O and this module does none.
    ============================================================ */
 import { buildTaste, decadeOf } from "../taste";
-import { motifById } from "./motifs";
+import { motifById, motifWording } from "./motifs";
+import { saying, words } from "./wording";
+import type { Wording } from "./wording";
 import type { Film } from "../types";
 
 export interface Craving {
@@ -33,8 +35,13 @@ export interface Craving {
 
 export interface Suggestion {
   film: Film;
-  /** What pushed it up, in plain words. */
-  reasons: string[];
+  /**
+   * What pushed it up, in plain words — WORDINGS and not sentences.
+   * "108 min — that fits" is ours and has one per language; a genre or a
+   * motif you wrote is yours and travels untranslated. See
+   * `domain/wording`.
+   */
+  reasons: Wording[];
   /** The card must say so: we do not pass an unknown off as a fact. */
   unknownRuntime: boolean;
   /** Minutes beyond the slot, if any. */
@@ -138,7 +145,7 @@ export function rankTheEvening(
 
   const suggestions = kept.map((f) => {
     const criteria: Criterion[] = [];
-    const reasons: string[] = [];
+    const reasons: Wording[] = [];
 
     /* ---- the time ---- */
     const runtime = f.runtime;
@@ -154,13 +161,13 @@ export function rankTheEvening(
           weight: 0.34,
           value: overrun === 0 ? 1 : clamp01(1 - overrun / MARGIN),
         });
-        if (overrun === 0) reasons.push(`${runtime} min — ça tient`);
-        else reasons.push(`${runtime} min, soit ${overrun} de trop`);
+        if (overrun === 0) reasons.push(saying("tonight.fits", { minutes: runtime }));
+        else reasons.push(saying("tonight.overruns", { minutes: runtime, over: overrun }));
       }
     } else if (!unknownRuntime) {
-      reasons.push(`${runtime} min`);
+      reasons.push(saying("tonight.runtime", { minutes: runtime }));
     }
-    if (unknownRuntime) reasons.push("durée inconnue");
+    if (unknownRuntime) reasons.push(saying("tonight.unknownRuntime"));
 
     /* ---- the mood ----
        The strongest criterion when it is set: it is the question we came
@@ -171,7 +178,7 @@ export function rankTheEvening(
       criteria.push({ weight: 0.44, value: hit.length / craving.mood.length });
       for (const id of hit) {
         const m = motifById(id);
-        if (m) reasons.push(m.label.toLowerCase());
+        if (m) reasons.push(motifWording(m));
       }
     }
 
@@ -202,13 +209,14 @@ export function rankTheEvening(
       const best = (f.genres || [])
         .map((g: string) => ({ g, w: taste.genres.get(g) || 0 }))
         .sort((a: { w: number }, b: { w: number }) => b.w - a.w)[0];
-      if (best && best.w > 0.35) reasons.push(`genre que vous aimez : ${best.g.toLowerCase()}`);
+      if (best && best.w > 0.35)
+        reasons.push(saying("tonight.genreYouLike", { genre: words(best.g.toLowerCase()) }));
     }
 
     /* ---- how long it has been waiting ---- */
     criteria.push({ weight: 0.08, value: age(f, oldest, youngest) });
     const waited = years(now - f.addedAt);
-    if (waited >= 1) reasons.push(`en attente depuis ${waited} an${waited > 1 ? "s" : ""}`);
+    if (waited >= 1) reasons.push(saying("tonight.waiting", { count: waited }));
 
     return {
       film: f,

@@ -11,6 +11,7 @@
    ============================================================ */
 import { useCallback, useEffect, useState } from "react";
 import type { CSSProperties } from "react";
+import { useTranslation } from "react-i18next";
 import { C, F, alpha } from "../../theme/tokens";
 import { useViewport } from "../../hooks/useViewport";
 import { tiltOf } from "../../domain/seeded";
@@ -237,6 +238,7 @@ function Bubble({
      brought it back over the target, and the tour then showed a thing by
      hiding it. In the centre it hides only the veil — and the hole goes
      on pointing. */
+  const { t } = useTranslation();
   const { phone } = useViewport();
   const pos = place(hole, phone ? "center" : step.placement);
   /* The tilt is sown from the step's rank: the same card always leans
@@ -276,7 +278,7 @@ function Bubble({
           textTransform: "uppercase",
         }}
       >
-        {label}
+        {t(label)}
       </div>
       <div
         style={{
@@ -288,7 +290,7 @@ function Bubble({
           marginTop: 2,
         }}
       >
-        {step.title}
+        {t(step.title)}
       </div>
       <div
         style={{
@@ -299,7 +301,7 @@ function Bubble({
           marginTop: 6,
         }}
       >
-        {step.body}
+        {t(step.body)}
       </div>
 
       <div
@@ -316,12 +318,12 @@ function Bubble({
           {index + 1} / {total}
         </span>
         <button onClick={onSkip} style={link}>
-          passer
+          {t("tour.ui.skip")}
         </button>
         <div style={{ flex: 1 }} />
         {index > 0 && (
           <button onClick={onPrev} style={link}>
-            retour
+            {t("tour.ui.back")}
           </button>
         )}
         <button
@@ -338,7 +340,7 @@ function Bubble({
             borderRadius: "var(--tag-radius)",
           }}
         >
-          {index + 1 >= total ? "TERMINER" : "SUIVANT"}
+          {index + 1 >= total ? t("tour.ui.finish") : t("tour.ui.next")}
         </button>
       </div>
     </div>

@@ -17,6 +17,9 @@ import { Search, Film as FilmIcon, User, Tag, Spline, NotebookPen } from "lucide
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { searchEverywhere, groupByKind, type Kind, type Hit } from "../../domain/everywhere";
+import { say as resolve } from "../../domain/wording";
+import type { Wording } from "../../domain/wording";
+import { useTranslation } from "react-i18next";
 import type { Thread } from "../../domain/threads";
 import type { Film, Note } from "../../types";
 import { useViewport } from "../../hooks/useViewport";
@@ -24,12 +27,13 @@ import { useViewport } from "../../hooks/useViewport";
 /* What each kind is called once found, and what it looks like. The icon
    is not decorative: it is what allows one to read at a glance that one
    is looking at five kinds and not a flat list. */
+/* `title` holds a catalogue key: the headings are ours, not the user's. */
 const NATURES: Record<Kind, { title: string; icon: typeof Search; tint: string }> = {
-  film: { title: "Films", icon: FilmIcon, tint: C.burgundy },
-  person: { title: "Au générique", icon: User, tint: C.plum },
-  motif: { title: "Motifs", icon: Tag, tint: C.cobalt },
-  thread: { title: "Fils", icon: Spline, tint: C.vermillion },
-  page: { title: "Carnet", icon: NotebookPen, tint: C.pine },
+  film: { title: "search.films", icon: FilmIcon, tint: C.burgundy },
+  person: { title: "search.people", icon: User, tint: C.plum },
+  motif: { title: "search.motifs", icon: Tag, tint: C.cobalt },
+  thread: { title: "search.threads", icon: Spline, tint: C.vermillion },
+  page: { title: "search.pages", icon: NotebookPen, tint: C.pine },
 };
 
 export interface OpenFinding {
@@ -54,15 +58,22 @@ export function SearchDrawer({
   onClose: () => void;
   ouvrir: OpenFinding;
 }) {
+  /* `say` and not `t`: the results are walked with `.map((t) => …)` all
+     through this file, and a translation shadowed by a search hit is the
+     kind of bug that compiles. */
+  const { t: say, i18n } = useTranslation();
   const [q, setQ] = useState("");
   const { phone } = useViewport();
   const [curseur, setCurseur] = useState(0);
   const field = useRef<HTMLInputElement>(null);
 
   const findings = useMemo(
-    () => searchEverywhere(q, { films, notes, threads }),
-    [q, films, notes, threads]
+    () => searchEverywhere(q, { films, notes, threads }, { name: say, lang: i18n.language }),
+    [q, films, notes, threads, say, i18n.language]
   );
+  /* A hit's title and subtitle are `Wording`s: the view is the only place
+     that knows the language, so it is here they become sentences. */
+  const said = (w: Wording) => resolve(w, say);
   const groups = useMemo(() => groupByKind(findings), [findings]);
   /* The FLATTENED list, in the order it is drawn: it is what the arrows
      walk through. Rebuilding the order on the fly in the key handler
@@ -83,7 +94,7 @@ export function SearchDrawer({
     if (t.kind === "film" && t.filmId) ouvrir.film(t.filmId);
     else if (t.kind === "person" && t.person) ouvrir.person(t.person);
     else if (t.kind === "page") ouvrir.page();
-    else if (t.kind === "motif") ouvrir.motif(t.title);
+    else if (t.kind === "motif") ouvrir.motif(said(t.title));
     else if (t.kind === "thread") ouvrir.thread();
     onClose();
   };
@@ -116,7 +127,7 @@ export function SearchDrawer({
       />
       <div
         role="dialog"
-        aria-label="Chercher partout"
+        aria-label={say("rail.searchAll")}
         onKeyDown={byKeyboard}
         style={{
           position: "fixed",
@@ -156,8 +167,8 @@ export function SearchDrawer({
             ref={field}
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="un titre, un nom, un motif, un mot que vous avez écrit…"
-            aria-label="Chercher dans tout le classeur"
+            placeholder={say("search.placeholder")}
+            aria-label={say("search.fieldLabel")}
             style={{
               all: "unset",
               ...tap,
@@ -167,17 +178,16 @@ export function SearchDrawer({
               color: C.ink,
             }}
           />
-          <span style={{ fontFamily: F.mono, fontSize: 9, color: C.inkFaded }}>ÉCHAP</span>
+          <span style={{ fontFamily: F.mono, fontSize: 9, color: C.inkFaded }}>
+            {say("search.escape")}
+          </span>
         </div>
 
         <div style={{ overflowY: "auto", padding: "8px 0 12px" }}>
           {q.trim().length < 2 ? (
-            <Word>
-              Deux lettres suffisent. La question est posée aux films, aux gens des génériques, aux
-              motifs, aux fils et aux pages du carnet — d'un coup.
-            </Word>
+            <Word>{say("search.prompt")}</Word>
           ) : plate.length === 0 ? (
-            <Word>Rien de ce nom dans le classeur.</Word>
+            <Word>{say("search.nothing")}</Word>
           ) : (
             groups.map((g) => {
               const nature = NATURES[g.kind];
@@ -196,7 +206,7 @@ export function SearchDrawer({
                       color: nature.tint,
                     }}
                   >
-                    <Icon size={11} /> {nature.title.toUpperCase()}
+                    <Icon size={11} /> {say(nature.title).toUpperCase()}
                   </div>
                   {g.items.map((t) => {
                     const rank = plate.indexOf(t);
@@ -228,10 +238,10 @@ export function SearchDrawer({
                               color: C.ink,
                             }}
                           >
-                            {t.title}
+                            {said(t.title)}
                           </span>
                           <span style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}>
-                            {t.subtitle}
+                            {said(t.subtitle)}
                           </span>
                         </div>
                         {/* WHAT ONE HAD WRITTEN. Without the excerpt, a

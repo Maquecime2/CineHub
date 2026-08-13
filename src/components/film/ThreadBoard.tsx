@@ -122,10 +122,10 @@ function ThreadCardEditor({
               color: C.inkFaded,
             }}
           >
-            <option value="">— sans plus de précision —</option>
+            <option value="">{tr("detail.noFurtherDetail")}</option>
             {RELATIONS.filter((r) => !r.derived || r.id === work.relation).map((r) => (
               <option key={r.id} value={r.id}>
-                {r.label}
+                {tr(r.label)}
               </option>
             ))}
           </select>
@@ -144,7 +144,7 @@ function ThreadCardEditor({
           >
             {STRENGTHS.map((f) => (
               <option key={f.value} value={f.value}>
-                {f.label}
+                {tr(f.label)}
               </option>
             ))}
           </select>
@@ -155,7 +155,7 @@ function ThreadCardEditor({
           <select
             value={type}
             onChange={(e) => setType(e.target.value as LinkType)}
-            aria-label="Nature de l'œuvre"
+            aria-label={tr("threads.workKind")}
             style={{
               ...scribble,
               fontFamily: F.mono,
@@ -173,7 +173,7 @@ function ThreadCardEditor({
             autoFocus
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            aria-label="Titre de l'œuvre"
+            aria-label={tr("detail.workTitle")}
             placeholder="Titre"
             style={{
               ...scribble,
@@ -197,13 +197,13 @@ function ThreadCardEditor({
         value={note}
         onChange={(e) => setNote(e.target.value)}
         aria-label="Pourquoi ce lien ?"
-        placeholder="la résonance entre les deux"
+        placeholder={tr("threads.resonance")}
         style={{ ...scribble, fontFamily: F.hand, fontSize: 17, color: C.inkFaded }}
       />
       <div style={{ display: "flex", gap: 10, marginTop: 2 }}>
         <button
           onClick={commit}
-          title="Enregistrer (Entrée)"
+          title={tr("threads.saveHint")}
           style={{
             all: "unset",
             ...tap,
@@ -220,7 +220,7 @@ function ThreadCardEditor({
         </button>
         <button
           onClick={onCancel}
-          title="Renoncer (Échap)"
+          title={tr("threads.cancelHint")}
           style={{
             all: "unset",
             ...tap,
@@ -503,12 +503,14 @@ export function ThreadBoard({ film, onRemove, onEdit, films = [], onOpen }: Thre
                         {linked && (
                           <span style={{ color: C.burgundy }}>
                             {" · "}
-                            {relationDef(w.relation)?.label ?? "fiche liée"}
+                            {relationDef(w.relation)
+                              ? tr(relationDef(w.relation)!.label)
+                              : tr("threads.linkedCard")}
                             {" " + "·".repeat(strengthOf(w.force))}
                           </span>
                         )}
                         {w.filmId && !linked && (
-                          <span style={{ color: C.inkFaded }}> · fiche supprimée</span>
+                          <span style={{ color: C.inkFaded }}> · {tr("threads.cardDeleted")}</span>
                         )}
                       </div>
                       {w.note && (
@@ -529,11 +531,7 @@ export function ThreadBoard({ film, onRemove, onEdit, films = [], onOpen }: Thre
                     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                       <button
                         onClick={() => setEditing(w.id)}
-                        title={
-                          w.filmId
-                            ? "Réécrire la note — le titre appartient à la fiche liée"
-                            : "Retoucher ce fil"
-                        }
+                        title={w.filmId ? tr("threads.rewriteNote") : "Retoucher ce fil"}
                         aria-label={`Retoucher « ${w.title} »`}
                         style={{ all: "unset", cursor: "pointer", color: C.inkFaded }}
                       >

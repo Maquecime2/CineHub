@@ -1,6 +1,7 @@
 /* The objects one lays on a board: the drop marker, the case, the decor
    and the category. */
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Layer } from "../ui/Layer";
 import { C, F, alpha } from "../../theme/tokens";
 import { hueOf } from "../../theme/ink";
@@ -20,6 +21,7 @@ import {
   MARK_PATHS,
   MARK_INK,
   decorSpec,
+  decorLabel,
   WALL_GRIP,
   wallBoxOf,
   catInk,
@@ -627,6 +629,7 @@ export const DecorItem = React.memo(function DecorItem({
   onEdit,
   onLabel,
 }) {
+  const { t } = useTranslation();
   const spec = decorSpec(item.motif);
   const [writing, setWriting] = useState(false);
   const [hover, setHover] = useState(false);
@@ -715,10 +718,10 @@ export const DecorItem = React.memo(function DecorItem({
           onMouseLeave={() => setHover(false)}
           title={
             writes
-              ? item.label || "Cliquez pour nommer cet intercalaire"
+              ? item.label || t("shelf.nameThisDivider")
               : spec.writes && item.label
                 ? item.label
-                : spec.label
+                : decorLabel(spec, t)
           }
           style={{
             position: "relative",
@@ -883,6 +886,7 @@ export const rotatedBoxOfWall = (item) => {
    back rather than on top, and it is also what one expects of a frame
    hung behind a shelf. */
 export const WallItem = React.memo(function WallItem({ item, onDragStart, onDragEnd, onEdit }) {
+  const { t } = useTranslation();
   const spec = decorSpec(item.motif);
   if (!spec) return null;
   const ink = catInk(item.color);
@@ -927,7 +931,7 @@ export const WallItem = React.memo(function WallItem({ item, onDragStart, onDrag
         onDragEnd(e);
       }}
       onClick={() => onEdit(item.id)}
-      title={spec.label}
+      title={decorLabel(spec, t)}
       style={{
         position: "absolute",
         left: `${item.x}%`,
@@ -1007,6 +1011,7 @@ export const CategoryBox = React.memo(function CategoryBox({
   onDecorLabel,
   acts,
 }) {
+  const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(cat.label);
   useEffect(() => {
@@ -1223,7 +1228,7 @@ export const CategoryBox = React.memo(function CategoryBox({
                 e.stopPropagation();
                 onEdit(cat.id);
               }}
-              title="Couleur de la catégorie"
+              title={t("shelf.categoryColour")}
               style={{ all: "unset", cursor: "pointer", color: C.inkFaded, display: "flex" }}
             >
               <Palette size={11} />
