@@ -92,6 +92,62 @@ const fr = {
     },
   },
 
+  shelf: {
+    woods: {
+      kraft: "Kraft",
+      noyer: "Noyer",
+      ceruse: "Cérusé",
+      nuit: "Nuit",
+      atelier: "Atelier",
+    },
+    decor: {
+      divider: "Intercalaire",
+      plant: "Plante verte",
+      cactus: "Cactus",
+      statuette: "Statuette",
+      cat: "Chat en céramique",
+      candle: "Bougie",
+      mug: "Tasse",
+      clock: "Réveil",
+      books: "Pile de livres",
+      frame: "Cadre photo",
+      postcard: "Carte postale",
+      wallclock: "Horloge",
+      garland: "Guirlande",
+      pennant: "Fanions",
+      ivy: "Lierre suspendu",
+      tape: "Ruban adhésif",
+    },
+    kinds: {
+      bedside: {
+        title: "Films de chevet",
+        tag: "ceux qu'on revoit",
+      },
+      main: {
+        title: "La collection",
+      },
+      reserve: {
+        title: "Mis de côté",
+        tag: "gardés, pas jetés",
+      },
+    },
+  },
+  palette: {
+    families: {
+      warm: "Chaudes",
+      golden: "Dorées",
+      cool: "Froides",
+      green: "Végétales",
+      neutral: "Neutres",
+    },
+  },
+  linkTypes: {
+    book: "Livre",
+    painting: "Peinture",
+    film: "Film",
+    other: "Autre œuvre",
+  },
+
   skins: {
     carnet: { label: "Carnet d'archiviste", note: "papier kraft, encre sépia, fil rouge" },
     veilleuse: { label: "Veilleuse", note: "le même carnet, lu de nuit" },

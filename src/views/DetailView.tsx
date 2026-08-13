@@ -1,6 +1,7 @@
 /* ============================================================
    VUE — DOSSIER FILM
    ============================================================ */
+import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -201,6 +202,7 @@ export function DetailView({
   tab: ongletContrôlé,
   onTab,
 }: DetailViewProps) {
+  const { t: t2 } = useTranslation();
   const apiKey = useTmdbKey();
   /* The local fallback follows the controlled one rather than fight it:
      one or the other answers, never both at once. */
@@ -941,7 +943,7 @@ export function DetailView({
                   >
                     {LINK_TYPES.map((t) => (
                       <option key={t.key} value={t.key}>
-                        {t.label}
+                        {t2(`linkTypes.${t.key}`)}
                       </option>
                     ))}
                   </select>

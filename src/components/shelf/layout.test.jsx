@@ -1,3 +1,4 @@
+import fr from "../../i18n/fr";
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -184,7 +185,9 @@ describe("ItemPalette — the colours on offer", () => {
 
   it("files the swatches by family", () => {
     open();
-    for (const fam of CAT_FAMILIES) expect(screen.getByText(fam.label.toUpperCase())).toBeTruthy();
+    /* The names live in the catalogue: the data only carries the key. */
+    for (const fam of CAT_FAMILIES)
+      expect(screen.getByText(fr.palette.families[fam.key].toUpperCase())).toBeTruthy();
   });
 
   /* What comes back up is the KEY, never the hexadecimal: it is the

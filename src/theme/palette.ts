@@ -100,13 +100,13 @@ export const catInk = (key: string): string => CAT_COLORS[key as CatKey] || CAT_
    It is a VIEW on `CAT_COLORS`, not a second list: a key forgotten here
    would stay perfectly valid, it would simply not be offered. The test
    makes sure none is. */
-export const CAT_FAMILIES: { label: string; keys: CatKey[] }[] = [
-  { label: "Chaudes", keys: ["burgundy", "vermillion", "brique", "rouille", "corail", "prune"] },
-  { label: "Dorées", keys: ["ochre", "safran", "sable", "terre"] },
+export const CAT_FAMILIES: { key: string; keys: CatKey[] }[] = [
+  { key: "warm", keys: ["burgundy", "vermillion", "brique", "rouille", "corail", "prune"] },
+  { key: "golden", keys: ["ochre", "safran", "sable", "terre"] },
   {
-    label: "Froides",
+    key: "cool",
     keys: ["cobalt", "slate", "ardoise", "indigo", "canard", "turquoise", "lavande"],
   },
-  { label: "Végétales", keys: ["pine", "sapin", "moss", "fougere", "olive"] },
-  { label: "Neutres", keys: ["ink", "encre", "gris", "taupe", "craie"] },
+  { key: "green", keys: ["pine", "sapin", "moss", "fougere", "olive"] },
+  { key: "neutral", keys: ["ink", "encre", "gris", "taupe", "craie"] },
 ];

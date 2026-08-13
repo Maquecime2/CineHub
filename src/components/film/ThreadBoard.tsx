@@ -1,6 +1,7 @@
 /* ============================================================
    PANNEAU D'ENQUÊTE — fils tendus mesurés en SVG
    ============================================================ */
+import { useTranslation } from "react-i18next";
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 /* Types only: the modern JSX transform does not put `React` in scope, and
    `React.CSSProperties` would be an unknown identifier there. */
@@ -48,6 +49,7 @@ function ThreadCardEditor({
   onCommit: (patch: LinkPatch) => void;
   onCancel: () => void;
 }) {
+  const { t: tr } = useTranslation();
   const [type, setType] = useState<LinkType>(work.type);
   const [title, setTitle] = useState(work.title);
   const [creator, setCreator] = useState(work.creator || "");
@@ -163,7 +165,7 @@ function ThreadCardEditor({
           >
             {LINK_TYPES.map((t) => (
               <option key={t.key} value={t.key}>
-                {t.label}
+                {tr(`linkTypes.${t.key}`)}
               </option>
             ))}
           </select>
@@ -243,6 +245,7 @@ interface Thread {
 }
 
 export function ThreadBoard({ film, onRemove, onEdit, films = [], onOpen }: ThreadBoardProps) {
+  const { t: tr } = useTranslation();
   // the cards still present behind the references: a deleted card leaves
   // the link readable but inert rather than a button that breaks
   const linkedFilms = useMemo(() => {
@@ -493,7 +496,7 @@ export function ThreadBoard({ film, onRemove, onEdit, films = [], onOpen }: Thre
                           marginTop: 3,
                         }}
                       >
-                        {type.label}
+                        {tr(`linkTypes.${type.key}`)}
                         {w.creator ? ` — ${w.creator}` : ""}
                         {/* The thread's kind is read from the side one is
                             on: "follows on from" here, "precedes" there. */}

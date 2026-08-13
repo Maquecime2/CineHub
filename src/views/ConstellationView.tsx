@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   CSSProperties,
@@ -80,6 +81,7 @@ export function ConstellationView({
   /** The named gatherings — "the films where the hero dies". */
   fils?: Thread[];
 }) {
+  const { t } = useTranslation();
   const [hover, setHover] = useState<string | null>(null);
   /** The aimed-at thread, by its rank — enough to thicken and label it. */
   const [hoverLink, setHoverLink] = useState<number | null>(null);
@@ -924,7 +926,9 @@ export function ConstellationView({
                          with its author. */
                       l.kind === "cite"
                       ? l.note ||
-                        [linkTypeOf(nb.type || "other").label, nb.sub].filter(Boolean).join(" · ")
+                        [t(`linkTypes.${linkTypeOf(nb.type || "other").key}`), nb.sub]
+                          .filter(Boolean)
+                          .join(" · ")
                       : (l.why || []).map((w) => `${w.role} · ${w.name}`).join(", ");
                 const fixer =
                   crew && onLinkFilm

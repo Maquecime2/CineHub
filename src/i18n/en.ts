@@ -90,6 +90,62 @@ const en = {
     },
   },
 
+  shelf: {
+    woods: {
+      kraft: "Kraft",
+      noyer: "Walnut",
+      ceruse: "Limed oak",
+      nuit: "Night",
+      atelier: "Workshop",
+    },
+    decor: {
+      divider: "Divider",
+      plant: "Houseplant",
+      cactus: "Cactus",
+      statuette: "Statuette",
+      cat: "Ceramic cat",
+      candle: "Candle",
+      mug: "Mug",
+      clock: "Alarm clock",
+      books: "Stack of books",
+      frame: "Photo frame",
+      postcard: "Postcard",
+      wallclock: "Wall clock",
+      garland: "Garland",
+      pennant: "Bunting",
+      ivy: "Hanging ivy",
+      tape: "Sticky tape",
+    },
+    kinds: {
+      bedside: {
+        title: "Bedside films",
+        tag: "the ones you watch again",
+      },
+      main: {
+        title: "The collection",
+      },
+      reserve: {
+        title: "Set aside",
+        tag: "kept, not thrown away",
+      },
+    },
+  },
+  palette: {
+    families: {
+      warm: "Warm",
+      golden: "Golden",
+      cool: "Cool",
+      green: "Green",
+      neutral: "Neutral",
+    },
+  },
+  linkTypes: {
+    book: "Book",
+    painting: "Painting",
+    film: "Film",
+    other: "Another work",
+  },
+
   skins: {
     carnet: { label: "Archivist's notebook", note: "kraft paper, sepia ink, a red thread" },
     veilleuse: { label: "Night light", note: "the same notebook, read after dark" },
