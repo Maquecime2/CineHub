@@ -14,7 +14,12 @@
    anything gets refused for good — the refusal is final in most
    browsers, and there is no second chance.
 
-   THE WIRE IS SHARED WITH `server/`. The route `/poussees` and the JSON
+   THE WIRE IS SHARED WITH `server/`, AND IT WAS BROKEN ON ONE SIDE ONLY.
+   These three calls went to `/poussees` long after the server had
+   renamed that route `/push-subscriptions`: every one of them answered
+   404, so notifications were simply off — and nothing said so, because
+   this module swallows its own failures by design (a comfort on top of
+   a comfort must not shout). The route `/push-subscriptions` and the JSON
    field names below are the server's vocabulary, not ours: they stay as
    they are until both sides are renamed in the same change. Translating
    them here alone would make every request 404 in silence.
@@ -41,7 +46,7 @@ const supported = (): boolean =>
 async function serverKey(): Promise<string | null> {
   if (!serverConfigured()) return null;
   try {
-    const r = await fetch(`${ADDRESS}/poussees`, { credentials: "include" });
+    const r = await fetch(`${ADDRESS}/push-subscriptions`, { credentials: "include" });
     if (!r.ok) return null;
     const { possible, cle } = (await r.json()) as { possible: boolean; cle: string | null };
     return possible ? cle : null;
@@ -79,7 +84,7 @@ export async function subscribeToPush(): Promise<boolean> {
   });
 
   const raw = sub.toJSON() as { keys?: { p256dh?: string; auth?: string } };
-  const r = await fetch(`${ADDRESS}/poussees`, {
+  const r = await fetch(`${ADDRESS}/push-subscriptions`, {
     method: "PUT",
     credentials: "include",
     headers: { "content-type": "application/json" },
@@ -106,7 +111,7 @@ export async function unsubscribeFromPush(): Promise<void> {
   /* We tell the server BEFORE unsubscribing: afterwards we no longer
      have the address to give it, and its row would go on pushing into
      the void until the first 410. */
-  await fetch(`${ADDRESS}/poussees`, {
+  await fetch(`${ADDRESS}/push-subscriptions`, {
     method: "DELETE",
     credentials: "include",
     headers: { "content-type": "application/json" },

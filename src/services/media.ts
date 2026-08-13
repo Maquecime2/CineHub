@@ -124,6 +124,23 @@ const usable = (): boolean => serverConfigured() && accountOpen();
  * caller (`services/sync`) catches nothing on our behalf: we throw for
  * nobody, and what did not go stays in the register for next time.
  */
+/* WHY THE LAST UPLOAD FAILED, IN WORDS SOMEBODY CAN ACT ON.
+
+   Every failure here used to be swallowed — deliberately, so that a
+   container in trouble could not sink a synchronisation of cards that
+   worked. But swallowed is not the same as invisible: the browser's
+   network panel showed rows of failed PUTs of 0 B, and the application
+   said "up to date". Nothing anywhere named the cause, which for a
+   container freshly made is almost always the same one — no CORS rule,
+   so the browser refuses the request BEFORE sending it and reports
+   nothing that reaches our `catch`.
+
+   So the reason is kept, and the drawer says it. */
+export type MediaTrouble = { kind: "cors" | "refused" | "none"; detail?: string };
+
+let lastTrouble: MediaTrouble = { kind: "none" };
+export const mediaTrouble = (): MediaTrouble => lastTrouble;
+
 export async function pushMedia(): Promise<number> {
   if (!usable()) return 0;
   const waiting = pending();
@@ -172,11 +189,27 @@ export async function pushMedia(): Promise<number> {
         },
         body: blob,
       });
-      if (!r.ok) continue;
+      if (!r.ok) {
+        /* AZURE ANSWERED, AND SAID NO. A 403 is almost always a clock:
+           the signature is timed, and a machine several minutes off is
+           refused with no other explanation. The status is kept as it
+           stands — inventing a diagnosis would be worse than quoting
+           one. */
+        lastTrouble = { kind: "refused", detail: `${r.status} ${r.statusText}`.trim() };
+        continue;
+      }
       markSent(key);
       done += 1;
+      if (lastTrouble.kind !== "none") lastTrouble = { kind: "none" };
     } catch {
-      /* Next time. */
+      /* THE REQUEST NEVER WENT OUT, and for a container that has just
+         been created there is one overwhelmingly likely reason: no CORS
+         rule on it, so the browser refuses the PUT before sending it and
+         tells JavaScript nothing at all. That silence is the whole
+         difficulty — it is indistinguishable, here, from being offline,
+         which is why the sentence names the likely cause rather than
+         asserting it. */
+      lastTrouble = { kind: "cors" };
     }
   }
   return done;

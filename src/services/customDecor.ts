@@ -21,6 +21,8 @@ import {
   serverConfigured,
   createRemoteDecor,
   dropRemoteDecor,
+  myRemoteDecor,
+  ServerError,
   showDecor,
   takeRemoteDecor,
   mediaTicket,
@@ -333,12 +335,69 @@ export async function pushNewDecor(): Promise<number> {
   return done;
 }
 
-/** Show this piece to the people who follow me — or stop showing it. */
+/**
+ * Show this piece to the people who follow me — or stop showing it.
+ *
+ * A 404 HERE MEANS OUR `remoteId` IS A GHOST, and it is the one failure
+ * worth handling rather than reporting. The registry of objects is
+ * itself a synchronised document, so an identifier written against one
+ * server travels to a machine talking to another — and after a database
+ * is rebuilt, or an account changed, every piece on the shelf points at
+ * a row that no longer exists. The switch then answered 404 for ever,
+ * silently, and no amount of trying again would have helped.
+ *
+ * So we forget the identifier. The next synchronisation sees an object
+ * with no address, creates it, sends its blob, and the shelf heals
+ * itself without anybody being told to do anything.
+ */
 export async function showCustomDecor(key: string, shown: boolean): Promise<void> {
   const entry = customDecorByKey(key);
   if (!entry?.remoteId) return;
-  await showDecor(entry.remoteId, shown);
-  patch(key, { shown });
+  try {
+    await showDecor(entry.remoteId, shown);
+    patch(key, { shown });
+  } catch (e) {
+    if ((e as ServerError).code === 404) {
+      forgetRemoteDecor(entry);
+      return;
+    }
+    throw e;
+  }
+}
+
+/* The object goes back to being local-only: no address, not on show,
+   and its blob queued afresh. */
+function forgetRemoteDecor(entry: CustomDecor): void {
+  patch(entry.key, { remoteId: undefined, shown: false });
+  forgetMedia(entry.imageKey);
+}
+
+/**
+ * Checks that what we believe about the server is still true.
+ *
+ * Called by the synchronisation, just before `pushNewDecor`: the two go
+ * together, since forgetting a ghost is only useful because the next
+ * line re-creates it.
+ */
+export async function healRemoteDecor(): Promise<number> {
+  if (!serverConfigured() || !accountOpen()) return 0;
+  let theirs: Set<string>;
+  try {
+    theirs = new Set((await myRemoteDecor()).map((d) => d.id));
+  } catch {
+    /* Offline, or a server that would not say: we believe what we
+       believed. Forgetting identifiers on a failed request would make
+       every outage duplicate the whole cabinet. */
+    return 0;
+  }
+  let healed = 0;
+  for (const d of read()) {
+    if (d.remoteId && !theirs.has(d.remoteId)) {
+      forgetRemoteDecor(d);
+      healed += 1;
+    }
+  }
+  return healed;
 }
 
 /**

@@ -84,6 +84,10 @@ const en = {
     shareEveryoneNote: "Whoever knows your handle.",
     shareLinkNote: "Whoever holds the link. It cannot be guessed, and is cut whenever you like.",
     shareNeverNote: "Your notes and your viewing log are never shown.",
+    mediaCors:
+      "Your posters and screenshots are not going out: the browser refuses the upload before even sending it. A CORS rule on the Azure container is almost always what is missing — allow the site's origin in PUT and GET. Your images stay whole on this device meanwhile.",
+    mediaRefused:
+      "The container refused the upload ({{detail}}). A 403 most often comes from a clock that has drifted: the signature is dated. Your images stay whole on this device.",
     devices: "My devices",
     devicesNote:
       "A passkey does not travel: this computer's stays in it. Add your telephone's here — then on another computer choose “another device” when signing in, and scan the code it shows.",

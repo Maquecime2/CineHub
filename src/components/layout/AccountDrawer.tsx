@@ -60,6 +60,7 @@ import {
   unsubscribeFromPush,
   type PushState,
 } from "../../services/push";
+import { mediaTrouble } from "../../services/media";
 import { forgetSync } from "../../services/sync";
 import type { SyncReport } from "../../services/sync";
 
@@ -137,6 +138,10 @@ export function AccountDrawer({
       setBusy(false);
     }
   };
+
+  /* Read at render: it changes when a synchronisation runs, and the
+     drawer is opened after one, not during. */
+  const mediaSays = mediaTrouble();
 
   const signedIn = !!report.person;
 
@@ -238,6 +243,35 @@ export function AccountDrawer({
             </button>
           )}
         </div>
+
+        {/* WHAT THE CONTAINER REFUSED, SAID HERE. The blobs travel last
+            and outside the guard that watches the cards, so a container
+            in trouble leaves the synchronisation "up to date" — which is
+            true of the cards and says nothing of the posters. Without
+            this line the only trace was a row of failed uploads in the
+            browser's network panel, which is not a place one looks. */}
+        {signedIn && mediaSays.kind !== "none" && (
+          <div
+            style={{
+              display: "flex",
+              gap: 7,
+              padding: "9px 11px",
+              marginBottom: 18,
+              background: C.card,
+              borderLeft: `2px solid ${C.burgundy}`,
+              fontFamily: F.hand,
+              fontSize: 15,
+              color: C.inkFaded,
+            }}
+          >
+            <CloudOff size={14} style={{ flexShrink: 0, color: C.burgundy }} aria-hidden />
+            <span>
+              {mediaSays.kind === "cors"
+                ? t("account.mediaCors")
+                : t("account.mediaRefused", { detail: mediaSays.detail || "" })}
+            </span>
+          </div>
+        )}
 
         {/* ---- entrer, ou partir ---- */}
         {!signedIn ? (

@@ -53,7 +53,7 @@ import {
   type Person,
 } from "./server";
 import { pushMedia } from "./media";
-import { pushNewDecor } from "./customDecor";
+import { pushNewDecor, healRemoteDecor } from "./customDecor";
 import type { Film } from "../types";
 
 const CURSOR_KEY = "synchro-rank";
@@ -273,6 +273,11 @@ export async function synchronise(onFilms: (films: Film[]) => void): Promise<Syn
        address for its blob to be put at. */
     let mediaOut = 0;
     try {
+      /* Ghost identifiers first: the registry of objects is itself a
+         synchronised document, so an address written against one server
+         can arrive on a machine talking to another. Forgetting those is
+         only useful because the next line re-creates them. */
+      await healRemoteDecor();
       await pushNewDecor();
       mediaOut = await pushMedia();
     } catch {

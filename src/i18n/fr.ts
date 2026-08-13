@@ -88,6 +88,10 @@ const fr = {
     shareLinkNote: "Qui a le lien. Il ne se devine pas, et se coupe quand vous voulez.",
     shareEveryoneNote: "Qui connaît votre pseudonyme.",
     shareNeverNote: "Vos notes et votre journal de séances ne sont jamais montrés.",
+    mediaCors:
+      "Vos affiches et captures ne partent pas : le navigateur refuse le dépôt avant même de l'envoyer. Il manque presque toujours une règle CORS sur le container Azure — autorisez l'origine du site en PUT et en GET. Vos images restent entières sur cet appareil en attendant.",
+    mediaRefused:
+      "Le container a refusé le dépôt ({{detail}}). Un 403 vient le plus souvent d'une horloge décalée : la signature est datée. Vos images restent entières sur cet appareil.",
     devices: "Mes appareils",
     devicesNote:
       "Une clé d'accès ne voyage pas : celle de cet ordinateur y reste. Ajoutez ici celle de votre téléphone — sur un autre PC, choisissez « un autre appareil » à la connexion et scannez le code affiché.",
