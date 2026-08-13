@@ -803,6 +803,7 @@ const en = {
     import: "Letterboxd import",
     thread: "The feed",
     lists: "Lists and challenges",
+    quiz: "Quizzes",
     skinlab: "Skins ⚙",
   },
 
@@ -1184,6 +1185,97 @@ const en = {
     running: "under way",
   },
 
+  quizView: {
+    heading: "The quizzes",
+    subheading: "what one thinks one knows, dealt at random and put to friends",
+    newQuiz: "Compose a quiz",
+    newQuizPlaceholder: "Saturday night's quiz",
+    baskets: "Out of which categories",
+    levelLabel: "Level",
+    sizeLabel: "Length",
+    deal: "DEAL",
+    dealNote:
+      "The questions are drawn at random from the categories ticked, dosed by level: there is always a bit of everything. The deal is frozen — the people you invite get exactly the same ones.",
+    thinBank:
+      "These categories hold only {{available}} playable questions for the {{size}} asked: the quiz will be shorter.",
+    bankEmpty: "The bank is empty for now. There is nothing to deal.",
+    softened:
+      "The bank was short of questions at the level asked for: this one was filled up from the neighbouring level.",
+    yours: "The ones you dealt",
+    noneDealt: "No quiz dealt yet.",
+    given: "The ones you were given",
+    noneGiven: "Nobody has invited you to a quiz yet.",
+    by: "by {{pseudo}}",
+    questionCount_one: "{{count}} question",
+    questionCount_other: "{{count}} questions",
+    done: "finished",
+    underway: "started",
+    untouched: "to do",
+    difficulty: {
+      easy: "easy",
+      normal: "middling",
+      hard: "hard",
+    },
+    difficultyLabel: "Difficulty",
+    worth: "{{n}} pt",
+    points_one: "{{count}} point",
+    points_other: "{{count}} points",
+    progress: "{{done}} of {{total}}",
+    noTakingBack: "An answer once laid down is not taken back.",
+    allAnswered: "Every question is answered.",
+    finish: "FINISH",
+    finishNote: "Finishing uncovers the corrections, and closes the quiz for good.",
+    overForYou: "That is done. It is not played again.",
+    yourScore: "{{score}} out of {{weight}}",
+    gotIt: "right · {{points}}",
+    missedIt: "missed · it was “{{answer}}”",
+    scores: "The scores",
+    nobodyPlayed: "Nobody has touched it yet.",
+    stillPlaying: "under way",
+    players: "Who plays",
+    nobodyYet: "Nobody yet. A quiz is seen only by those one invites.",
+    invite: "INVITE",
+    invitePlaceholder: "a pseudonym",
+    removePlayer: "Remove this person",
+    nobodyToInvite: "Nobody to invite under “{{pseudo}}”.",
+    deleteQuiz: "Erase this quiz",
+    tendBank: "TEND THE BANK",
+    bankNote:
+      "The categories and their questions. This is the stock everybody draws from — you do not compose quizzes here, you make them possible.",
+    newCategory: "A new category",
+    newCategoryPlaceholder: "New Wave, Hitchcock, posters…",
+    addCategory: "ADD",
+    noCategories: "No category. That is where it starts.",
+    deleteCategory: "Erase this category",
+    noQuestions: "No question in this category.",
+    addQuestion: "Add a question",
+    editQuestion: "Edit this question",
+    removeQuestion: "Withdraw this question",
+    needsOneRight: "one right answer only",
+    retired: "withdrawn",
+    retiredNote:
+      "It has already been dealt into a quiz: it is no longer offered, but it stays readable there. A score already made is not rewritten.",
+    revive: "Put it back into circulation",
+    choicesFrozen:
+      "The wording is corrected. The propositions do not move any more: somebody has already answered this question.",
+    ask: "The question",
+    askPlaceholder: "Who directed Cléo from 5 to 7?",
+    choices: "The propositions",
+    choicePlaceholder: "Proposition {{n}}",
+    markRight: "This is the right one",
+    removeChoice: "Remove this proposition",
+    addChoice: "one more proposition",
+    hint: "The explanation",
+    hintPlaceholder: "Shown once the answer is in",
+    image: "The picture",
+    imagePlaceholder: "https://… or bank/<id>/…",
+    save: "SAVE",
+    cancel: "CANCEL",
+    noServer: "No server is set: a quiz is played together, and there is nobody to play it with.",
+    noAccount:
+      "It takes an account — the button at the foot of the rail. Your video library does not need one.",
+  },
+
   constellation: {
     aFilm: "film",
     aThread: "thread",
@@ -1512,6 +1604,38 @@ const en = {
       },
     },
 
+    quiz: {
+      label: "The quizzes",
+      compose: {
+        title: "Dealing a quiz",
+        body: "One does not write them, one deals them: tick some categories, a level, a length, and the questions come at random out of the bank. The mix is fixed — a hard quiz keeps a couple of easy ones to breathe, an easy one keeps a sting — and two quizzes of the same level and length weigh the same number of points. That is what makes two scores comparable.",
+      },
+      bank: {
+        title: "The bank",
+        body: "It is reserved: if this button is here, you may fill it. Categories, and inside them questions classed easy, middling or hard — the points follow the difficulty, they are not typed in. You do not compose quizzes here: you make them possible, for everybody.",
+      },
+      mine: {
+        title: "The ones you dealt",
+        body: "You did not write them, so you play them like anybody else: no preview of the answers, and a real score on the board. This is where you invite your friends — the deal is frozen, they get exactly your questions, in the same order.",
+      },
+      given: {
+        title: "The ones you were given",
+        body: "Open one and it begins. You answer whenever you like, over as many sittings as you like — but an answer once laid down is not taken back, and once finished it is not played again.",
+      },
+      playing: {
+        title: "One question at a time",
+        body: "The category and the points are announced before the question. The right answer only comes down once the quiz is finished — it is not hidden on screen, it is not in the server's reply. Finishing uncovers the corrections, and the explanations with them.",
+      },
+      players: {
+        title: "Who plays",
+        body: "One invites by pseudonym, as for a list. There is no public leaderboard: the scores you compare are those of the people you invited, and a block wins in both directions.",
+      },
+      scores: {
+        title: "The scores",
+        body: "Nothing is stored: the score is recomputed from the answers, every time. The bar reads against what the whole quiz is worth, not against the best score — otherwise an evening where everybody floundered would look like a triumph. A pale bar is somebody who has not finished.",
+      },
+    },
+
     global: {
       label: "Full tour",
       welcome: {
@@ -1561,6 +1685,10 @@ const en = {
       challenges: {
         title: "Setting yourself something",
         body: "A list and a period make a challenge. Nobody ticks “seen”: progress is computed from your viewing log, and the server draws only a number from it — your dates do not leave here.",
+      },
+      quiz: {
+        title: "And asking each other things",
+        body: "A challenge measures what one watches; a quiz measures what one thinks one knows. You are given one, you answer whenever you like, and the scores are compared among the people invited. An answer once laid down is not taken back, and a finished quiz is not played again.",
       },
       tmdbKey: {
         title: "The TMDB key",

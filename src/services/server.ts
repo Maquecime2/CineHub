@@ -224,6 +224,21 @@ function noteAccount(id: string | null): void {
 /** Is an account open, as far as we know? */
 export const accountOpen = (): boolean => serverConfigured() && account !== null;
 
+/**
+ * May I write quizzes?
+ *
+ * A HUNCH, LIKE EVERYTHING ELSE ON THIS SIDE, and it grants nothing: it
+ * decides whether an editor is drawn, never whether a question is
+ * written. Every route that writes one asks the server, which asks the
+ * `person` row — so being wrong here shows an editor that answers 403,
+ * and nothing worse.
+ *
+ * It reads the same remembered person the screens read for a name, which
+ * is why it needs no round trip of its own and no cache to keep in
+ * agreement with anything.
+ */
+export const iAmAdmin = (): boolean => accountOpen() && lastKnownPerson()?.is_admin === true;
+
 /** Be told when the answer changes. Returns an unsubscribe. */
 export function watchAccount(fn: Watcher): () => void {
   watchers.add(fn);
@@ -796,3 +811,203 @@ export const leaveChallenge = (id: string) =>
   call<{ inside: boolean }>(`/challenges/${encodeURIComponent(id)}/participation`, {
     method: "DELETE",
   });
+
+/* ------------------------------------------------------------
+   THE BANK, AND THE QUIZZES DRAWN FROM IT
+   ------------------------------------------------------------
+   EVERY FIELD BELOW IS SPELLED AS THE SERVER SPELLS IT. The lists and
+   challenges just above do not — `liste_id` and `per` where the server
+   sends `list_id` and `by` — and each of those was a bug caught late,
+   because an absent field is not an error, it is `undefined`. */
+
+/** A basket, and what it holds — the counts decide whether to offer it. */
+export interface Category {
+  id: string;
+  label: string;
+  blurb: string;
+  easy: number;
+  normal: number;
+  hard: number;
+}
+
+/** A question as the BANK holds it: corrections included, admins only. */
+export interface BankQuestion {
+  id: string;
+  category_id: string;
+  ask: string;
+  hint: string;
+  image: string | null;
+  difficulty: string;
+  /** Withdrawn: never dealt again, still readable where it was dealt. */
+  retired: boolean;
+  choices: { id: string; label: string; is_right: boolean }[];
+}
+
+/** What the bank editor sends. */
+export interface QuestionDraft {
+  ask: string;
+  hint?: string;
+  image?: string | null;
+  difficulty?: string;
+  choices: { label: string; is_right: boolean }[];
+}
+
+export interface Quiz {
+  id: string;
+  title: string;
+  level: string;
+  size: number;
+  /** The bank was too thin for the mix, and the quiz says so. */
+  softened: boolean;
+  owner: string;
+  topics: string[];
+  /** Mine to invite into and to erase. Never a right to see the answers. */
+  mine?: boolean;
+  answered?: number;
+  finished?: boolean;
+}
+
+export interface QuizQuestion {
+  id: string;
+  rank: number;
+  ask: string;
+  image: string | null;
+  points: number;
+  category: string;
+  /** ABSENT while one is still playing — the server withholds them. */
+  hint?: string;
+  choices: { id: string; label: string; is_right?: boolean }[];
+  mine?: string | null;
+}
+
+export interface QuizAttempt {
+  started_at: string;
+  finished_at: string | null;
+}
+
+export interface QuizScore {
+  pseudo: string;
+  score: number;
+  answered: number;
+  finished: boolean;
+}
+
+/* ---- the bank ---- */
+
+export const quizCategories = () => call<{ categories: Category[] }>("/categories");
+
+export const createCategory = (c: { label: string; blurb?: string }) =>
+  call<{ id: string }>("/categories", { method: "POST", body: JSON.stringify(c) });
+
+export const editCategory = (id: string, c: { label?: string; blurb?: string }) =>
+  call<{ done: boolean }>(`/categories/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify(c),
+  });
+
+export const deleteCategory = (id: string) =>
+  call<{ erased: boolean }>(`/categories/${encodeURIComponent(id)}`, { method: "DELETE" });
+
+export const bankQuestions = (id: string) =>
+  call<{ questions: BankQuestion[] }>(`/categories/${encodeURIComponent(id)}/questions`);
+
+export const addBankQuestion = (id: string, q: QuestionDraft) =>
+  call<{ id: string }>(`/categories/${encodeURIComponent(id)}/questions`, {
+    method: "POST",
+    body: JSON.stringify(q),
+  });
+
+/**
+ * `choicesFrozen` comes back true when the question has already been
+ * dealt: the wording was corrected, the propositions were not. The
+ * screen has to say so — silently keeping the old four would look like
+ * the save had failed.
+ */
+export const editBankQuestion = (id: string, questionId: string, q: QuestionDraft) =>
+  call<{ done: boolean; choicesFrozen: boolean }>(
+    `/categories/${encodeURIComponent(id)}/questions/${encodeURIComponent(questionId)}`,
+    { method: "PUT", body: JSON.stringify(q) }
+  );
+
+/** `fate` is `"gone"` or `"retired"` — erased, or merely withdrawn. */
+export const removeBankQuestion = (id: string, questionId: string) =>
+  call<{ fate: "gone" | "retired" }>(
+    `/categories/${encodeURIComponent(id)}/questions/${encodeURIComponent(questionId)}`,
+    { method: "DELETE" }
+  );
+
+export const reviveBankQuestion = (id: string, questionId: string) =>
+  call<{ revived: boolean }>(
+    `/categories/${encodeURIComponent(id)}/questions/${encodeURIComponent(questionId)}/revival`,
+    { method: "POST" }
+  );
+
+/* ---- the quizzes ---- */
+
+export const myQuizzes = () => call<{ quizzes: Quiz[] }>("/quizzes");
+
+/**
+ * DEAL ONE. There is no editing afterwards but the title: re-drawing
+ * under people who have started answering is how a leaderboard becomes a
+ * lie, and another quiz costs one gesture.
+ */
+export const drawQuiz = (q: {
+  title: string;
+  categoryIds: string[];
+  level: string;
+  size: number;
+}) =>
+  call<{ id: string; softened: boolean; drawn: number }>("/quizzes", {
+    method: "POST",
+    body: JSON.stringify(q),
+  });
+
+export const readQuiz = (id: string) =>
+  call<{
+    quiz: Quiz;
+    questions: QuizQuestion[];
+    /** What the whole thing is worth — the same for two of a level. */
+    weight: number;
+    attempt: QuizAttempt | null;
+    players: string[];
+  }>(`/quizzes/${encodeURIComponent(id)}`);
+
+export const renameQuiz = (id: string, title: string) =>
+  call<{ done: boolean }>(`/quizzes/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify({ title }),
+  });
+
+export const deleteQuiz = (id: string) =>
+  call<{ erased: boolean }>(`/quizzes/${encodeURIComponent(id)}`, { method: "DELETE" });
+
+export const invitePlayer = (id: string, pseudo: string) =>
+  call<{ pseudo: string; playing: boolean }>(
+    `/quizzes/${encodeURIComponent(id)}/players/${encodeURIComponent(pseudo)}`,
+    { method: "PUT" }
+  );
+
+export const removePlayer = (id: string, pseudo: string) =>
+  call<{ pseudo: string; playing: boolean }>(
+    `/quizzes/${encodeURIComponent(id)}/players/${encodeURIComponent(pseudo)}`,
+    { method: "DELETE" }
+  );
+
+export const startQuiz = (id: string) =>
+  call<{ attempt: QuizAttempt }>(`/quizzes/${encodeURIComponent(id)}/attempt`, { method: "POST" });
+
+export const answerQuiz = (id: string, questionId: string, choiceId: string) =>
+  call<{ answered: boolean }>(`/quizzes/${encodeURIComponent(id)}/attempt/answers`, {
+    method: "POST",
+    body: JSON.stringify({ questionId, choiceId }),
+  });
+
+/** Closing it is what brings the corrections down — not a moment before. */
+export const finishQuiz = (id: string) =>
+  call<{ attempt: QuizAttempt; questions: QuizQuestion[] }>(
+    `/quizzes/${encodeURIComponent(id)}/attempt/finish`,
+    { method: "POST" }
+  );
+
+export const quizScores = (id: string) =>
+  call<{ scores: QuizScore[] }>(`/quizzes/${encodeURIComponent(id)}/scores`);

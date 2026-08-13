@@ -18,10 +18,11 @@
    answer "no service", and the whole of the rest carries on.
 
    ------------------------------------------------------------
-   THE ONE THING TO UNDERSTAND: TWO PREFIXES, TWO KINDS OF PROOF
+   THE ONE THING TO UNDERSTAND: THREE PREFIXES, TWO KINDS OF PROOF
 
      p/<person id>/<key>   private — a poster, a screenshot, a thumbnail
      decor/<decor id>      shareable — a decoration object
+     bank/<category id>/<key>  common — a picture inside a question
 
    For the private branch the PATH IS THE PROOF: a ticket is issued if
    and only if the prefix is the asker's own. It is the same guarantee as
@@ -34,6 +35,21 @@
    private prefix — and that simple guarantee would have been gone for
    everything, posters included. So they are filed apart, and their right
    to be read is asked of the database (`canReadDecor`).
+
+   A picture inside a quiz question is the same story told again, and
+   that is exactly why it gets its own prefix rather than an exception:
+   it is WRITTEN BY AN ADMIN TO BE LOOKED AT BY EVERYBODY WHO DRAWS IT.
+   Under `p/<admin>/…` every player would have needed a ticket on
+   somebody else's private prefix, and the sentence above would have
+   stopped being true.
+
+   Its branch is the simplest of the three, and deliberately so: the
+   bank is common stock, so ANY ACCOUNT MAY READ IT and only an admin
+   may write. There is no per-question right to look up, because there
+   is no per-question secret — a picture is not the answer, and its
+   address is already two random identifiers deep. Building a second
+   permission system to guard a film poster would have been ceremony
+   without a threat.
 
    Anything that falls in neither branch is refused. Not because we have
    thought of what else could be asked for, but because we have not.
@@ -109,18 +125,24 @@ export const mediaAvailable = (): boolean => settings !== null;
 const UUID = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
 const PRIVATE_PATH = new RegExp(`^p/(${UUID})/([A-Za-z0-9:_.-]{1,120})$`);
 const DECOR_PATH = new RegExp(`^decor/(${UUID})$`);
+const BANK_PATH = new RegExp(`^bank/(${UUID})/([A-Za-z0-9:_.-]{1,120})$`);
 
 export type Mode = "read" | "write";
 
 /** What a path turns out to be, once read. */
 export type Target =
-  { kind: "private"; personId: string; key: string } | { kind: "decor"; decorId: string } | null;
+  | { kind: "private"; personId: string; key: string }
+  | { kind: "decor"; decorId: string }
+  | { kind: "bank"; categoryId: string; key: string }
+  | null;
 
 export function readPath(path: string): Target {
   const mine = PRIVATE_PATH.exec(path);
   if (mine) return { kind: "private", personId: mine[1]!, key: mine[2]! };
   const decor = DECOR_PATH.exec(path);
   if (decor) return { kind: "decor", decorId: decor[1]! };
+  const bank = BANK_PATH.exec(path);
+  if (bank) return { kind: "bank", categoryId: bank[1]!, key: bank[2]! };
   return null;
 }
 
@@ -141,6 +163,9 @@ export async function allowed(
   const target = readPath(path);
   if (!target) return false;
   if (target.kind === "private") return target.personId === personId;
+  /* Common stock: anybody signed in reads it, only an admin writes. */
+  if (target.kind === "bank")
+    return mode === "write" ? store.mayWriteBankMedia(db, personId) : true;
   return mode === "write"
     ? store.ownsDecor(db, personId, target.decorId)
     : store.canReadDecor(db, personId, target.decorId);

@@ -106,6 +106,160 @@ describe("erasing an account", () => {
   });
 });
 
+describe("a quiz, as the schema holds it", () => {
+  /** A bank of two questions, and one quiz dealt out of it. */
+  async function written() {
+    const who = await store.createPerson(db, "maquecime");
+    await store.markAdmins(db, ["maquecime"]);
+    const category = await store.createCategory(db, { label: "nouvelle vague" });
+    for (const ask of ["Qui a fait Cléo ?", "Et Le Bonheur ?"]) {
+      const q = await store.addBankQuestion(db, category, { ask });
+      await store.setChoices(db, q, [
+        { label: "Varda", is_right: true },
+        { label: "Demy", is_right: false },
+      ]);
+    }
+    const { id: quiz } = await store.drawQuiz(db, who.id, {
+      title: "Un soir",
+      categoryIds: [category],
+      level: "normal",
+      size: 10,
+    });
+    const dealt = await db.query<{ question_id: string }>(
+      "SELECT question_id FROM quiz_draw WHERE quiz_id = $1 ORDER BY rank",
+      [quiz]
+    );
+    return { who, category, quiz, question: dealt[0]!.question_id };
+  }
+
+  it("refuses a difficulty it does not know", async () => {
+    const category = await store.createCategory(db, { label: "nouvelle vague" });
+    await expect(
+      db.query(
+        "INSERT INTO quiz_question (id, category_id, ask, difficulty) VALUES (gen_random_uuid(), $1, 'Quoi ?', 'impossible')",
+        [category]
+      )
+    ).rejects.toThrow();
+  });
+
+  it("refuses a length that is not one of the three", async () => {
+    const who = await store.createPerson(db, "maquecime");
+    await expect(
+      db.query(
+        "INSERT INTO quiz (id, owner_id, title, size) VALUES (gen_random_uuid(), $1, 'Titre', 17)",
+        [who.id]
+      )
+    ).rejects.toThrow();
+  });
+
+  it("prices a question by its difficulty, in the database itself", async () => {
+    /* The points are not a column and not a constant in TypeScript: one
+       function, read by the scoreboard and by anything that comes
+       later. A second table of values would drift from this one. */
+    const r = await db.query<{ e: number; n: number; h: number }>(
+      "SELECT quiz_points('easy') AS e, quiz_points('normal') AS n, quiz_points('hard') AS h"
+    );
+    expect(r[0]).toEqual({ e: 1, n: 2, h: 3 });
+  });
+
+  it("refuses an answer to a question this quiz was never dealt", async () => {
+    const { who, quiz, category } = await written();
+    const stray = await store.addBankQuestion(db, category, { ask: "Jamais tirée" });
+    await store.setChoices(db, stray, [{ label: "non", is_right: true }]);
+    const choice = (
+      await db.query<{ id: string }>("SELECT id FROM quiz_choice WHERE question_id = $1", [stray])
+    )[0]!;
+    await store.startAttempt(db, quiz, who.id);
+    /* The foreign key points at the DEAL, not at the bank: a question
+       out of the stock that this quiz never held has no row to land in,
+       whatever a route might one day forget to check. */
+    await expect(
+      db.query(
+        "INSERT INTO quiz_answer (quiz_id, person_id, question_id, choice_id) VALUES ($1, $2, $3, $4)",
+        [quiz, who.id, stray, choice.id]
+      )
+    ).rejects.toThrow();
+  });
+
+  it("will not let a dealt question be erased from under a quiz", async () => {
+    const { quiz, question } = await written();
+    /* `ON DELETE RESTRICT`. Erasing it would shorten a quiz somebody may
+       be halfway through, and silently rewrite a score already made. */
+    await expect(db.query("DELETE FROM quiz_question WHERE id = $1", [question])).rejects.toThrow();
+    expect((await db.query("SELECT 1 FROM quiz_draw WHERE quiz_id = $1", [quiz])).length).toBe(2);
+  });
+
+  it("keeps the bank when the admin who typed it in leaves", async () => {
+    const { who, category } = await written();
+    await store.deletePerson(db, who.id);
+    /* Questions are stock, not property. The opposite would empty
+       everybody's future evenings the day an admin closed their
+       account. */
+    const left = await store.bankQuestions(db, category);
+    expect(left.length).toBe(2);
+  });
+
+  it("holds one attempt per person, whatever the route asks", async () => {
+    const { who, quiz } = await written();
+    await store.startAttempt(db, quiz, who.id);
+    /* Not "the route refuses a second one": there is no second row to
+       have. That is what makes "once it is done you cannot do it again"
+       true down every path, including the ones written later. */
+    await expect(
+      db.query("INSERT INTO quiz_attempt (quiz_id, person_id) VALUES ($1, $2)", [quiz, who.id])
+    ).rejects.toThrow();
+    expect((await db.query("SELECT 1 FROM quiz_attempt")).length).toBe(1);
+  });
+
+  it("holds one answer per question, and refuses the correction after the fact", async () => {
+    const { who, quiz, question } = await written();
+    await store.startAttempt(db, quiz, who.id);
+    const choices = await db.query<{ id: string }>(
+      "SELECT id FROM quiz_choice WHERE question_id = $1 ORDER BY rank",
+      [question]
+    );
+    expect(await store.answer(db, quiz, who.id, question, choices[0]!.id)).toBe(true);
+    expect(await store.answer(db, quiz, who.id, question, choices[1]!.id)).toBe(false);
+  });
+
+  it("refuses an answer with no attempt behind it", async () => {
+    const { who, quiz, question } = await written();
+    const choice = (
+      await db.query<{ id: string }>("SELECT id FROM quiz_choice WHERE question_id = $1", [
+        question,
+      ])
+    )[0]!;
+    /* The foreign key on `(quiz_id, person_id)` says it: an answer hangs
+       off an attempt, and an attempt is the thing one may only open
+       once. Without it, answering without starting would have been a way
+       round the rule. */
+    await expect(
+      db.query(
+        "INSERT INTO quiz_answer (quiz_id, person_id, question_id, choice_id) VALUES ($1, $2, $3, $4)",
+        [quiz, who.id, question, choice.id]
+      )
+    ).rejects.toThrow();
+  });
+
+  it("takes the quizzes and the answers with it when the account goes", async () => {
+    const { who, quiz } = await written();
+    await store.startAttempt(db, quiz, who.id);
+    await store.deletePerson(db, who.id);
+    /* What was DEALT goes — the quiz, its deal, who played and what they
+       answered. What was STOCK stays: see the test above. */
+    for (const table of [
+      "quiz",
+      "quiz_topic",
+      "quiz_draw",
+      "quiz_player",
+      "quiz_attempt",
+      "quiz_answer",
+    ]) {
+      expect((await db.query(`SELECT 1 FROM ${table}`)).length, table).toBe(0);
+    }
+  });
+});
+
 describe("a ceremony's challenge", () => {
   it("is consumed once only", async () => {
     const id = await store.setChallenge(db, "hasard", { pseudo: "melville" });

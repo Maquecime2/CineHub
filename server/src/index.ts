@@ -22,6 +22,7 @@ import { buildApp } from "./app.ts";
 import { openPostgres, applySchema } from "./db.ts";
 import { configurePush } from "./push.ts";
 import { configureMedia, mediaAvailable, readConnectionString } from "./media.ts";
+import * as store from "./store.ts";
 
 /** The current name, or the one it used to have. */
 const env = (current: string, legacy: string): string | undefined =>
@@ -86,6 +87,25 @@ const schema = await readFile(
   "utf8"
 );
 await applySchema(db, schema);
+
+/* THE ONE ROLE, AND THE ONLY DOOR TO IT.
+
+   `ADMINS=maquecime,someone` names who may write quizzes. It is laid
+   down here, at every start-up, rather than by a route: a role no request
+   can grant is a role nobody can escalate into, and there is therefore no
+   screen to protect and no ceremony to get right.
+
+   Replaying it costs nothing and buys the thing that matters — a database
+   recreated from nothing finds its author again, without anybody
+   remembering an `UPDATE` at three in the morning. Taking the role back
+   is deliberately NOT done here: removing a pseudonym from this variable
+   leaves the flag standing, and that is the honest behaviour for a line
+   of start-up code that only ever grants. */
+const admins = (process.env.ADMINS || "")
+  .split(",")
+  .map((p) => p.trim().toLowerCase())
+  .filter(Boolean);
+await store.markAdmins(db, admins);
 
 const devDoor = env("DEV_DOOR", "PORTE_DEV") === "1";
 
