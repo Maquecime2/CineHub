@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getImage } from "../../db";
+import { readMedia } from "../../services/media";
 import type { Still } from "../../types";
 
 /* The stills' object URLs, shared: the same blob serves the strip, the
@@ -13,9 +13,11 @@ export function useStillUrls(stills: Still[]): Record<string, string> {
     Promise.all(
       (stills || []).map(async (s): Promise<[string, string] | null> => {
         // thumbnail if there is one: no point decoding 4K for 110 px
+        /* The vault first, the mirror next — `readMedia` does both, and
+           this hook does not have to know a container exists. */
         const blob =
-          (await getImage(s.thumbKey || s.key).catch(() => null)) ||
-          (await getImage(s.key).catch(() => null));
+          (await readMedia(s.thumbKey || s.key).catch(() => null)) ||
+          (await readMedia(s.key).catch(() => null));
         if (!blob) return null;
         const u = URL.createObjectURL(blob);
         made.push(u);

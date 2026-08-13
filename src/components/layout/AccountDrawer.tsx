@@ -26,6 +26,8 @@ import {
   Link as LinkIcon,
   Bell,
   VolumeX,
+  Smartphone,
+  Laptop,
 } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
@@ -43,6 +45,10 @@ import {
   signUp,
   myBlocks,
   unblock,
+  myKeys,
+  addKey,
+  forgetKey,
+  type DeviceKey,
   type Sharing,
   type Person,
 } from "../../services/server";
@@ -269,6 +275,8 @@ export function AccountDrawer({
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <Share />
+
+            <Devices lang={i18n.language} />
 
             <Blocks />
 
@@ -538,6 +546,187 @@ function Blocks() {
       <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 7 }}>
         {t("account.unblockNote")}
       </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   MES APPAREILS — sortir un compte de l'ordinateur où il est né
+   ============================================================
+
+   A PASSKEY BELONGS TO THE THING THAT HOLDS IT. The one Windows Hello
+   made lives in that computer and goes nowhere: nothing exports it,
+   nothing carries it. So an account opened on one machine was shut
+   inside it — and nothing in the binder said so, nor offered a way out.
+
+   THE WAY OUT IS NOT TO MOVE THAT KEY, IT IS TO ADD A SECOND ONE, held
+   by something that goes about with you. A telephone. Once it holds a
+   key of this account, ANY other computer signs in by showing a code for
+   it to scan: nothing to type, nothing to copy, and the key itself never
+   crosses.
+
+   THE SECTION SHOWS ITSELF EVEN WITH A SINGLE KEY, unlike `Blocks` above
+   which stays quiet when it has nothing to undo. The difference is the
+   point: with one key there is exactly one thing to do, and it is the
+   one nobody thinks of before the evening they need it.
+   ============================================================ */
+function Devices({ lang }: { lang: string }) {
+  const { t } = useTranslation();
+  const [keys, setKeys] = useState<DeviceKey[] | null>(null);
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [souci, setSouci] = useState<string | null>(null);
+  const [said, setDit] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    myKeys()
+      .then((r) => alive && setKeys(r))
+      /* Offline, or a server that is out: the heading stays mute rather
+         than announcing a trouble one did not ask about. */
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (!keys) return null;
+
+  /* WHAT DISTINGUISHES A TELEPHONE FROM THIS COMPUTER, IN ONE WORD.
+     `hybrid` is the transport of the QR ceremony: a key that announces it
+     can be offered to a machine that has never seen it, which is the
+     whole subject of this section. `internal` alone stays home. */
+  const nameOf = (k: DeviceKey) =>
+    k.device ||
+    (k.transports.includes("hybrid") ? t("account.devicePhone") : t("account.deviceThisOne"));
+
+  const add = async () => {
+    setSouci(null);
+    setDit(null);
+    setBusy(true);
+    try {
+      setKeys(await addKey(name.trim() || undefined));
+      setName("");
+      setDit(t("account.deviceAdded"));
+    } catch (e) {
+      const m = (e as Error).message || "";
+      setSouci(/NotAllowed|abort/i.test(m) ? t("account.cancelled") : m || t("account.failed"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const forget = async (k: DeviceKey) => {
+    setSouci(null);
+    setDit(null);
+    setBusy(true);
+    try {
+      setKeys(await forgetKey(k.id));
+    } catch (e) {
+      /* The refusal to remove the last key is the SERVER's sentence, and
+         we show it as it stands. Repeating the rule here would make two
+         copies of it, of which only one would stay true. */
+      setSouci((e as Error).message || t("account.failed"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    /* No `data-tour` of its own: the tour cannot open this drawer by
+       itself, so the step aims at the rail's account button and names
+       what is inside — as sharing and the reminders already do. */
+    <div style={{ borderTop: `1px dashed ${C.line}`, paddingTop: 14 }}>
+      <Label>{t("account.devices")}</Label>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
+        {keys.map((k) => (
+          <div key={k.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {k.transports.includes("hybrid") ? (
+              <Smartphone size={13} style={{ flexShrink: 0, color: C.inkFaded }} aria-hidden />
+            ) : (
+              <Laptop size={13} style={{ flexShrink: 0, color: C.inkFaded }} aria-hidden />
+            )}
+            <span
+              style={{
+                flex: 1,
+                minWidth: 0,
+                fontFamily: F.body,
+                fontSize: 13,
+                color: C.ink,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {nameOf(k)}
+              <span style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}>
+                {"  "}
+                {k.seen_at
+                  ? t("account.deviceSeen", {
+                      when: quandDit(new Date(k.seen_at).getTime(), t, lang),
+                    })
+                  : t("account.deviceNeverSeen")}
+              </span>
+            </span>
+            <button
+              onClick={() => forget(k)}
+              disabled={busy || keys.length < 2}
+              aria-label={t("account.forgetDeviceOne", { device: nameOf(k) })}
+              style={{
+                all: "unset",
+                ...tap,
+                cursor: busy || keys.length < 2 ? "default" : "pointer",
+                opacity: busy || keys.length < 2 ? 0.35 : 1,
+                flexShrink: 0,
+                fontFamily: F.mono,
+                fontSize: 10,
+                letterSpacing: 1,
+                color: C.inkFaded,
+                borderBottom: `1px dashed ${C.line}`,
+              }}
+            >
+              {t("account.forgetDevice")}
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 10 }}>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder={t("account.deviceNamePlaceholder")}
+          maxLength={60}
+          style={{
+            flex: 1,
+            minWidth: 0,
+            ...tap,
+            padding: "8px 10px",
+            background: C.card,
+            border: `1px solid ${C.line}`,
+            fontFamily: F.mono,
+            fontSize: 11,
+            color: C.ink,
+          }}
+        />
+        <button onClick={add} disabled={busy} style={button(C.burgundy, busy)}>
+          <Smartphone size={12} /> {busy ? t("account.addingDevice") : t("account.addDevice")}
+        </button>
+      </div>
+
+      <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 7 }}>
+        {t("account.devicesNote")}
+      </div>
+      {keys.length < 2 && (
+        <div
+          style={{ fontFamily: F.mono, fontSize: 9, color: alpha(C.inkFaded, 0.75), marginTop: 6 }}
+        >
+          {t("account.deviceLastNote")}
+        </div>
+      )}
+      {said && <div style={{ fontFamily: F.hand, fontSize: 16, color: C.pine }}>{said}</div>}
+      {souci && <div style={{ fontFamily: F.hand, fontSize: 16, color: C.burgundy }}>{souci}</div>}
     </div>
   );
 }

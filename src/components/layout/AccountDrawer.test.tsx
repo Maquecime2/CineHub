@@ -34,6 +34,14 @@ vi.mock("../../services/server", () => ({
   mySharing: vi.fn(async () => ({ partage: "privee", token: null })),
   signOut: vi.fn(),
   signUp: vi.fn(),
+  /* "My devices" reads its keys on mount. It answers nothing here — the
+     section then stays quiet, exactly as it does offline, and these
+     scenarios keep the drawer they were written against. */
+  myKeys: vi.fn(async () => {
+    throw new Error("hors ligne");
+  }),
+  addKey: vi.fn(),
+  forgetKey: vi.fn(),
 }));
 
 vi.mock("../../services/push", () => ({

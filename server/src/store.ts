@@ -85,13 +85,69 @@ export async function addKey(
     publicKey: Uint8Array;
     counter: number;
     transports: string[];
+    device?: string | null;
   }
 ): Promise<void> {
   await db.query(
-    `INSERT INTO access_key (id, person_id, public_key, counter, transports)
-     VALUES ($1, $2, $3, $4, $5)`,
-    [key.id, key.personId, Buffer.from(key.publicKey), key.counter, key.transports]
+    `INSERT INTO access_key (id, person_id, public_key, counter, transports, device)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [
+      key.id,
+      key.personId,
+      Buffer.from(key.publicKey),
+      key.counter,
+      key.transports,
+      key.device ?? null,
+    ]
   );
+}
+
+/* WHAT THE LIST OF KEYS SHOWS, AND WHAT IT WITHHOLDS.
+   The public key and the counter are of no use to somebody reading their
+   own devices, and an identifier printed in full is a handle for
+   somebody reading over their shoulder. So: the name they gave it, the
+   transports — which is what tells a telephone from a Windows Hello —
+   and the two dates. */
+export interface KeyCard {
+  id: string;
+  device: string | null;
+  transports: string[];
+  created_at: string;
+  seen_at: string | null;
+}
+
+export async function keyCards(db: Db, personId: string): Promise<KeyCard[]> {
+  return db.query<KeyCard>(
+    `SELECT id, device, transports, created_at, seen_at
+       FROM access_key WHERE person_id = $1 ORDER BY created_at`,
+    [personId]
+  );
+}
+
+export async function countKeys(db: Db, personId: string): Promise<number> {
+  const r = await one<{ n: string }>(
+    db,
+    "SELECT count(*)::text AS n FROM access_key WHERE person_id = $1",
+    [personId]
+  );
+  return Number(r?.n ?? 0);
+}
+
+/* THE LAST KEY IS NOT REMOVED, AND IT IS THE DATABASE THAT SAYS SO.
+   Checking the count in the route and deleting just after leaves a gap
+   in which two simultaneous requests each see two keys and each remove
+   one — the account locked out by a race. The subquery closes it: the
+   deletion only happens if a SECOND key exists at that instant.
+   Returns false when nothing was removed, whatever the reason. */
+export async function forgetKey(db: Db, personId: string, id: string): Promise<boolean> {
+  const gone = await db.query<{ id: string }>(
+    `DELETE FROM access_key
+      WHERE person_id = $1 AND id = $2
+        AND EXISTS (SELECT 1 FROM access_key o WHERE o.person_id = $1 AND o.id <> $2)
+      RETURNING id`,
+    [personId, id]
+  );
+  return gone.length > 0;
 }
 
 export async function recordUsage(db: Db, id: string, counter: number): Promise<void> {
@@ -1111,6 +1167,211 @@ export async function listById(db: Db, id: string): Promise<ListRow | null> {
  * absent-mindedly, hand it an account or an address — there is no
  * parameter to receive them.
  */
+/* ------------------------------------------------------------
+   LES OBJETS DE DÉCORATION
+   ------------------------------------------------------------
+   A decor is the only thing somebody uploads that ANOTHER PERSON may
+   read. Everything else — posters, screenshots — is guarded by its
+   blob's path alone (`p/<person id>/…`, and a ticket is only ever issued
+   for one's own prefix). That guarantee is worth keeping simple, so
+   decors were taken out from under it: they live at `decor/<id>`, and
+   the right to read one is decided HERE.
+
+   Which is the point of putting it here rather than in a route: a rule
+   written in a route is worked around by the next route. */
+
+export interface Decor {
+  id: string;
+  owner_id: string;
+  owner?: string;
+  label: string;
+  wall: string;
+  kind: "raster" | "svg";
+  tintable: boolean;
+  bytes: number;
+  is_public: boolean;
+  created_at: string;
+  updated_at: string;
+  mine?: boolean;
+}
+
+const DECOR_COLUMNS = `d.id, d.owner_id, d.label, d.wall, d.kind, d.tintable,
+                       d.bytes, d.is_public, d.created_at, d.updated_at`;
+
+export async function decorById(db: Db, id: string): Promise<Decor | null> {
+  return one<Decor>(db, `SELECT ${DECOR_COLUMNS} FROM decor d WHERE d.id = $1 AND NOT d.deleted`, [
+    id,
+  ]);
+}
+
+/** Mine, and the ones I took from somebody — with who made them. */
+export async function myDecor(db: Db, personId: string): Promise<Decor[]> {
+  return db.query<Decor>(
+    `SELECT ${DECOR_COLUMNS}, p.pseudo AS owner, (d.owner_id = $1) AS mine
+       FROM decor d
+       JOIN person p ON p.id = d.owner_id
+      WHERE NOT d.deleted
+        AND (d.owner_id = $1
+             OR EXISTS (SELECT 1 FROM decor_copy c
+                         WHERE c.decor_id = d.id AND c.person_id = $1))
+      ORDER BY d.created_at`,
+    [personId]
+  );
+}
+
+/**
+ * The shelf of what the people I follow have put on show.
+ *
+ * A BLOCK BEATS `is_public`. Somebody I have silenced does not come back
+ * in through the furniture — and the check is in the query, not laid
+ * over the result afterwards, so that no caller can forget it.
+ */
+export async function sharedDecor(db: Db, personId: string): Promise<Decor[]> {
+  return db.query<Decor>(
+    `SELECT ${DECOR_COLUMNS}, p.pseudo AS owner, false AS mine
+       FROM decor d
+       JOIN person p ON p.id = d.owner_id
+       JOIN follow a ON a.followed_id = d.owner_id AND a.follower_id = $1
+      WHERE d.is_public AND NOT d.deleted
+        AND NOT EXISTS (SELECT 1 FROM block b
+                         WHERE (b.blocker_id = $1 AND b.blocked_id = d.owner_id)
+                            OR (b.blocker_id = d.owner_id AND b.blocked_id = $1))
+      ORDER BY d.created_at DESC`,
+    [personId]
+  );
+}
+
+export async function publicDecorOf(db: Db, pseudo: string, asker?: string): Promise<Decor[]> {
+  return db.query<Decor>(
+    `SELECT ${DECOR_COLUMNS}, p.pseudo AS owner, false AS mine
+       FROM decor d
+       JOIN person p ON p.id = d.owner_id
+      WHERE p.pseudo = $1 AND d.is_public AND NOT d.deleted
+        AND ($2::uuid IS NULL OR NOT EXISTS (
+              SELECT 1 FROM block b
+               WHERE (b.blocker_id = $2 AND b.blocked_id = d.owner_id)
+                  OR (b.blocker_id = d.owner_id AND b.blocked_id = $2)))
+      ORDER BY d.created_at DESC`,
+    [pseudo, asker ?? null]
+  );
+}
+
+export async function createDecor(
+  db: Db,
+  d: {
+    ownerId: string;
+    label: string;
+    wall?: string;
+    kind?: "raster" | "svg";
+    tintable?: boolean;
+    bytes?: number;
+  }
+): Promise<Decor> {
+  const row = await one<Decor>(
+    db,
+    `INSERT INTO decor (id, owner_id, label, wall, kind, tintable, bytes)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     RETURNING id, owner_id, label, wall, kind, tintable, bytes, is_public,
+               created_at, updated_at`,
+    [
+      randomUUID(),
+      d.ownerId,
+      d.label,
+      d.wall ?? "",
+      d.kind ?? "raster",
+      d.tintable ?? false,
+      d.bytes ?? 0,
+    ]
+  );
+  if (!row) throw new Error("decor not created");
+  return row;
+}
+
+/** Only its author edits it — the `owner_id` in the clause says so. */
+export async function editDecor(
+  db: Db,
+  personId: string,
+  id: string,
+  patch: { label?: string; wall?: string; is_public?: boolean }
+): Promise<boolean> {
+  const done = await db.query<{ id: string }>(
+    `UPDATE decor SET label = coalesce($3, label),
+                      wall = coalesce($4, wall),
+                      is_public = coalesce($5, is_public),
+                      updated_at = now()
+      WHERE id = $2 AND owner_id = $1 AND NOT deleted
+      RETURNING id`,
+    [personId, id, patch.label ?? null, patch.wall ?? null, patch.is_public ?? null]
+  );
+  return done.length > 0;
+}
+
+/**
+ * The author withdraws their piece.
+ *
+ * A TOMBSTONE AND NOT A DELETION: `DELETE` would cascade onto
+ * `decor_copy` and take the object back from everybody who adopted it.
+ * Taking a piece off one's own wall is not reaching onto other people's.
+ */
+export async function deleteDecor(db: Db, personId: string, id: string): Promise<boolean> {
+  const done = await db.query<{ id: string }>(
+    `UPDATE decor SET deleted = true, is_public = false, updated_at = now()
+      WHERE id = $2 AND owner_id = $1 AND NOT deleted RETURNING id`,
+    [personId, id]
+  );
+  return done.length > 0;
+}
+
+/** Taking a copy — which is what makes the right to read it last. */
+export async function copyDecor(db: Db, personId: string, id: string): Promise<boolean> {
+  if (!(await canReadDecor(db, personId, id))) return false;
+  await db.query(
+    `INSERT INTO decor_copy (person_id, decor_id) VALUES ($1, $2)
+     ON CONFLICT (person_id, decor_id) DO NOTHING`,
+    [personId, id]
+  );
+  return true;
+}
+
+/** Giving it back — one's own copy only; the original is not touched. */
+export async function dropDecorCopy(db: Db, personId: string, id: string): Promise<void> {
+  await db.query("DELETE FROM decor_copy WHERE person_id = $1 AND decor_id = $2", [personId, id]);
+}
+
+/**
+ * MAY THIS PERSON FETCH THIS DECOR'S BLOB?
+ *
+ * Three ways to be allowed — being its author, it being on show, or
+ * holding a copy of it — and ONE that overrules all three: a block
+ * between the two, in either direction. That last clause is why the
+ * whole thing is a single query: written as three checks and a fourth
+ * laid on top, the fourth is the one somebody eventually forgets.
+ */
+export async function canReadDecor(db: Db, personId: string, id: string): Promise<boolean> {
+  const r = await db.query(
+    `SELECT 1 FROM decor d
+      WHERE d.id = $2 AND NOT d.deleted
+        AND (d.owner_id = $1
+             OR d.is_public
+             OR EXISTS (SELECT 1 FROM decor_copy c
+                         WHERE c.decor_id = d.id AND c.person_id = $1))
+        AND NOT EXISTS (SELECT 1 FROM block b
+                         WHERE (b.blocker_id = $1 AND b.blocked_id = d.owner_id)
+                            OR (b.blocker_id = d.owner_id AND b.blocked_id = $1))`,
+    [personId, id]
+  );
+  return r.length > 0;
+}
+
+/** May this person WRITE this decor's blob? Its author, and nobody else. */
+export async function ownsDecor(db: Db, personId: string, id: string): Promise<boolean> {
+  const r = await db.query("SELECT 1 FROM decor WHERE id = $2 AND owner_id = $1 AND NOT deleted", [
+    personId,
+    id,
+  ]);
+  return r.length > 0;
+}
+
 export async function countGesture(db: Db, gesture: string): Promise<void> {
   await db.query(
     `INSERT INTO metric (day, gesture, n) VALUES (current_date, $1, 1)

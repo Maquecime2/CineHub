@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { CSSProperties } from "react";
 import { ImageOff } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
-import { getImage } from "../../db";
+import { readMedia } from "../../services/media";
 
 /* ============================================================
    AN IMAGE FROM THE VAULT — and what we show when it is not there
@@ -52,8 +52,15 @@ export function IdbImage({
     let objectUrl: string | null = null;
     let alive = true;
     setState("cherche");
-    getImage(imageKey)
-      .then((blob: Blob | undefined) => {
+    /* THE VAULT FIRST, THE MIRROR NEXT. `readMedia` looks here, and only
+       goes asking the container if the image is not here — so this
+       screen no longer needs to know that a container exists at all.
+
+       WHICH IS WHY "absente" NOW MEANS SOMETHING ELSE than it did: not
+       "it is on the other device", but "it is nowhere we can reach".
+       Before the mirror, those two were the same sentence. */
+    readMedia(imageKey)
+      .then((blob: Blob | null) => {
         if (!alive) return;
         if (!blob) {
           setState("absente");

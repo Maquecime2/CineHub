@@ -52,6 +52,8 @@ import {
   pullDocsFrom,
   type Person,
 } from "./server";
+import { pushMedia } from "./media";
+import { pushNewDecor } from "./customDecor";
 import type { Film } from "../types";
 
 const CURSOR_KEY = "synchro-rank";
@@ -94,6 +96,17 @@ export interface SyncReport {
    * everything back.
    */
   documentsIn?: number;
+  /**
+   * Blobs that reached the container this time — posters, screenshots,
+   * decoration objects.
+   *
+   * They travel LAST and outside the guard that watches the rest: a
+   * container that refuses does not turn a synchronisation of cards that
+   * worked into a failure. Hence a separate count rather than a state:
+   * "up to date" here means the cards are, and this says how the mirror
+   * is getting on.
+   */
+  mediaOut?: number;
   message?: string;
 }
 
@@ -250,12 +263,28 @@ export async function synchronise(onFilms: (films: Film[]) => void): Promise<Syn
       forgetSentDocuments(slice.map((d) => d.key));
     }
 
+    /* ---------- 4. LES MÉDIAS ----------
+       Last, and OUTSIDE the try that guards the rest: a container that
+       refuses must not turn a synchronisation of cards that worked into
+       a failure. The blobs are a mirror — IndexedDB holds the originals,
+       and what did not go up stays in the register for next time.
+
+       The decors climb first: an object with no server identity has no
+       address for its blob to be put at. */
+    let mediaOut = 0;
+    try {
+      await pushNewDecor();
+      mediaOut = await pushMedia();
+    } catch {
+      /* Deliberately mute. See above. */
+    }
+
     /* An arrangement that changes asks for a view reload: the shelves
        are read on mount, not observed. We tell the caller rather than
        reloading the page under their fingers. */
     const at = Date.now();
     store.set(REPORT_KEY, { at, documentsIn: came });
-    return { state: "up-to-date", person, at, pending: 0, documentsIn: came };
+    return { state: "up-to-date", person, at, pending: 0, documentsIn: came, mediaOut };
   } catch (e) {
     const error = e as ServerError;
     const waiting = toSend(knownCollection(), knownGraves(), pendingToSend()).length;

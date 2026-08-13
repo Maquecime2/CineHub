@@ -4,7 +4,7 @@
 import { useTranslation } from "react-i18next";
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Layer } from "../ui/Layer";
-import { X, Trash2, Upload, ChevronLeft, Eye, EyeOff } from "lucide-react";
+import { X, Trash2, Upload, ChevronLeft, Eye, EyeOff, Users, UserX, Download } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap, tapSquare, COARSE, TAP } from "../../theme/styles";
 import { wallStyle, materialStyle, PLANK_SHADOW } from "../../theme/surfaces";
@@ -32,7 +32,10 @@ import {
   subscribeCustomDecor,
   addCustomDecor,
   removeCustomDecor,
+  showCustomDecor,
+  takeCustomDecor,
 } from "../../services/customDecor";
+import { accountOpen, serverConfigured, sharedDecor } from "../../services/server";
 import { CustomDraw } from "./CustomDraw";
 import { FilmBox, DecorItem, WallItem, CategoryBox, dividerSkin, DividerHead } from "./items";
 import { splitRow, useRowCap } from "./lines";
@@ -1373,6 +1376,76 @@ const CabinetNote = ({ children, ...p }) => (
    The family is chosen BEFORE the import, and not after: it decides how
    the drawing rests in its cell — laid on the bottom, hooked by the top —
    and it is written into the file at the moment one files it. */
+/* ---------- CHEZ LES AUTRES ----------
+
+   The pieces the people one follows have put on show. It is the only
+   place in this cabinet where something arrives from outside, and
+   everything about it is written so that its absence changes nothing:
+   with no server, no account or no network the section does not appear
+   at all, and the workshop is the workshop it has always been.
+
+   TAKING A COPY IS TAKING A COPY. It lands in "les miens" and stays
+   there — even if its author puts the piece back to private afterwards.
+   One does not take back what one has given, and a shelf that empties
+   itself because somebody elsewhere hesitated is a shelf one stops
+   trusting. */
+function SharedShelf() {
+  const { t } = useTranslation();
+  const [shelf, setShelf] = useState(null);
+  const [busy, setBusy] = useState(null);
+
+  useEffect(() => {
+    if (!serverConfigured() || !accountOpen()) return;
+    let alive = true;
+    sharedDecor()
+      .then((d) => alive && setShelf(d))
+      /* Quiet on failure: this heading may simply have nothing to say. */
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (!shelf?.length) return null;
+
+  const take = async (remote) => {
+    setBusy(remote.id);
+    try {
+      await takeCustomDecor(remote);
+      setShelf((was) => was.filter((d) => d.id !== remote.id));
+    } catch {
+      /* The cabinet says nothing: the piece is still over there. */
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <>
+      <WorkshopSection title="CHEZ LES AUTRES" />
+      {shelf.map((d) => (
+        <DecorRow
+          key={d.id}
+          label={d.label}
+          note={`${t(d.wall === "mur" ? "shelf.toHang" : "shelf.toStand")} · ${t(
+            "shelf.decorFrom",
+            { pseudo: d.owner }
+          )}`}
+          action={
+            <RowButton
+              onClick={() => take(d)}
+              disabled={busy === d.id}
+              label={t("shelf.decorTake", { label: d.label })}
+            >
+              <Download size={12} />
+            </RowButton>
+          }
+        />
+      ))}
+    </>
+  );
+}
+
 function DecorWorkshop({ onBack }) {
   const { t } = useTranslation();
   const custom = useCustomDecor();
@@ -1508,6 +1581,8 @@ function DecorWorkshop({ onBack }) {
               label={decorLabel(d, t)}
               note={`${t(d.wall ? "shelf.toHang" : "shelf.toStand")}${
                 d.tintable ? "" : ` · ${t("shelf.noColour")}`
+              }${d.owner ? ` · ${t("shelf.decorFrom", { pseudo: d.owner })}` : ""}${
+                d.shown ? ` · ${t("shelf.decorShown")}` : ""
               }`}
               thumb={
                 <CustomDraw
@@ -1517,16 +1592,39 @@ function DecorWorkshop({ onBack }) {
                 />
               }
               action={
-                <RowButton
-                  onClick={() => removeCustomDecor(d.key)}
-                  label={`Supprimer « ${decorLabel(d, t)} »`}
-                >
-                  <Trash2 size={12} />
-                </RowButton>
+                <div style={{ display: "flex", gap: 4 }}>
+                  {/* ON SHOW, OR NOT. Only appears once the object has a
+                      server identity: before that there is nothing to
+                      show it to anybody WITH, and a switch that does
+                      nothing is worse than no switch.
+
+                      Somebody else's piece has no switch at all — it is
+                      not ours to publish. */}
+                  {d.remoteId && !d.owner && (
+                    <RowButton
+                      onClick={() => showCustomDecor(d.key, !d.shown).catch(() => {})}
+                      label={
+                        d.shown
+                          ? `Ne plus montrer « ${decorLabel(d, t)} »`
+                          : `Montrer « ${decorLabel(d, t)} » à mes amis`
+                      }
+                    >
+                      {d.shown ? <Users size={12} /> : <UserX size={12} />}
+                    </RowButton>
+                  )}
+                  <RowButton
+                    onClick={() => removeCustomDecor(d.key)}
+                    label={`Supprimer « ${decorLabel(d, t)} »`}
+                  >
+                    <Trash2 size={12} />
+                  </RowButton>
+                </div>
               }
             />
           ))
         )}
+
+        <SharedShelf />
 
         {/* The house drawings cannot be deleted — they are in the code.
             But one does not need all fifteen, and the cabinet is tidied by
@@ -1599,12 +1697,19 @@ const WorkshopSection = ({ title }) => (
   </div>
 );
 
-const RowButton = ({ onClick, label, children }) => (
+const RowButton = ({ onClick, label, children, disabled = false }) => (
   <button
     onClick={onClick}
+    disabled={disabled}
     title={label}
     aria-label={label}
-    style={{ all: "unset", cursor: "pointer", color: C.inkFaded, display: "flex" }}
+    style={{
+      all: "unset",
+      cursor: disabled ? "default" : "pointer",
+      opacity: disabled ? 0.45 : 1,
+      color: C.inkFaded,
+      display: "flex",
+    }}
   >
     {children}
   </button>

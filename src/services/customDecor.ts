@@ -16,6 +16,17 @@
 import { store } from "./storage";
 import { shrinkImage } from "./images";
 import { putImage, deleteImage } from "../db";
+import {
+  accountOpen,
+  serverConfigured,
+  createRemoteDecor,
+  dropRemoteDecor,
+  showDecor,
+  takeRemoteDecor,
+  mediaTicket,
+  type RemoteDecor,
+} from "./server";
+import { noteMedia, forgetMedia } from "./media";
 
 export type CustomDecor = {
   /** `custom:<id>` — the value written into `item.motif`. */
@@ -29,6 +40,20 @@ export type CustomDecor = {
   /** The blob's key in IndexedDB, prefixed so as not to mix with posters. */
   imageKey: string;
   addedAt: string;
+  /**
+   * Its identity on the server, once it has gone up — and `undefined`
+   * until then.
+   *
+   * A DECOR IS ADDED OFFLINE AND STAYS ADDED. The object exists on the
+   * shelf the moment the file is read; it climbs at the next
+   * synchronisation, which is what fills this in. No decorating gesture
+   * waits for the network.
+   */
+  remoteId?: string;
+  /** Whose it is, when one has taken it from somebody — to credit them. */
+  owner?: string;
+  /** On show to the people who follow me. Closed by default, as ever. */
+  shown?: boolean;
 };
 
 export const CUSTOM_DECOR_KEY = "shelf-decor-custom";
@@ -251,6 +276,122 @@ export async function removeCustomDecor(key: string): Promise<void> {
   if (!entry) return;
   write(read().filter((d) => d.key !== key));
   await deleteImage(entry.imageKey).catch(console.error);
+  forgetMedia(entry.imageKey);
+
+  /* THE SERVER TELLS THE TWO GESTURES APART, and we let it: its author
+     withdraws the piece, anybody else gives back their own copy and the
+     original does not move. Sending the same request for both is only
+     possible BECAUSE the decision is made over there, where the
+     ownership is known.
+
+     Failing silently is right here: the object has already left this
+     shelf, which is what was asked. */
+  if (entry.remoteId) await dropRemoteDecor(entry.remoteId).catch(() => {});
+}
+
+/* ---------- LE VERSANT SERVEUR ----------
+
+   A decor is the only thing one imports that somebody else may see. What
+   follows is what makes that possible — and every line of it is written
+   so that its absence changes nothing: with no server, no account, or no
+   network, the cabinet is the cabinet it has always been. */
+
+/** The server identity behind a blob key, for `services/media`. */
+export const remoteIdOfDecor = (imageKey: string): string | undefined =>
+  read().find((d) => d.imageKey === imageKey)?.remoteId;
+
+const patch = (key: string, bits: Partial<CustomDecor>): void => {
+  write(read().map((d) => (d.key === key ? { ...d, ...bits } : d)));
+};
+
+/**
+ * Gives a server identity to the objects that have none yet.
+ *
+ * Called by the synchronisation, never by a gesture: importing an object
+ * must not wait for a round trip, and must not fail because of one.
+ */
+export async function pushNewDecor(): Promise<number> {
+  if (!serverConfigured() || !accountOpen()) return 0;
+  let done = 0;
+  for (const d of read()) {
+    if (d.remoteId) continue;
+    try {
+      const { decor } = await createRemoteDecor({
+        label: d.label,
+        wall: d.wall ? "mur" : "",
+        kind: d.kind,
+        tintable: d.tintable,
+      });
+      patch(d.key, { remoteId: decor.id });
+      /* Now that the object has an address, its blob has one too. */
+      noteMedia(d.imageKey);
+      done += 1;
+    } catch {
+      /* Next time. The object is on the shelf either way. */
+    }
+  }
+  return done;
+}
+
+/** Show this piece to the people who follow me — or stop showing it. */
+export async function showCustomDecor(key: string, shown: boolean): Promise<void> {
+  const entry = customDecorByKey(key);
+  if (!entry?.remoteId) return;
+  await showDecor(entry.remoteId, shown);
+  patch(key, { shown });
+}
+
+/**
+ * Takes a copy of somebody's piece.
+ *
+ * THE BYTES ARE VETTED ON ARRIVAL, WITHOUT EXCEPTION. `sanitizeSvg` used
+ * to run at import only, and what sat in IndexedDB was presumed clean —
+ * which it was, since we had cleaned it ourselves. The moment a blob can
+ * come from another person's container that presumption is worth
+ * nothing, and `CustomDraw` injects the markup inline. So it is cleaned
+ * again here, and a markup the sanitiser refuses is simply not kept.
+ */
+export async function takeCustomDecor(remote: RemoteDecor): Promise<CustomDecor | null> {
+  if (read().some((d) => d.remoteId === remote.id)) return null;
+
+  const { path } = await takeRemoteDecor(remote.id);
+  const url = await mediaTicket(path);
+  if (!url) return null;
+  const r = await fetch(url);
+  if (!r.ok) return null;
+  const raw = await r.blob();
+
+  const id = newId();
+  const imageKey = `${DECOR_IMAGE_PREFIX}${id}`;
+  let tintable = remote.tintable;
+
+  if (remote.kind === "svg") {
+    const cleaned = sanitizeSvg(await raw.text(), { wall: remote.wall === "mur" });
+    if (!cleaned) return null;
+    tintable = cleaned.tintable;
+    await putImage(imageKey, new Blob([cleaned.markup], { type: "image/svg+xml" }));
+  } else {
+    await putImage(imageKey, raw);
+  }
+
+  const entry: CustomDecor = {
+    key: `${CUSTOM_PREFIX}${id}`,
+    label: remote.label.slice(0, 40),
+    wall: remote.wall === "mur",
+    kind: remote.kind,
+    tintable,
+    imageKey,
+    addedAt: new Date().toISOString(),
+    remoteId: remote.id,
+    owner: remote.owner,
+  };
+  if (!write([...read(), entry])) {
+    await deleteImage(imageKey).catch(() => {});
+    throw new Error("Espace de stockage plein — l'objet n'a pas été ajouté.");
+  }
+  /* IT IS ALREADY OVER THERE — it came from there. Noting it as pending
+     would send somebody else's piece back up under our own prefix. */
+  return entry;
 }
 
 /* ---------- backup ----------

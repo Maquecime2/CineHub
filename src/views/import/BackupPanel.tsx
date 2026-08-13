@@ -4,6 +4,7 @@ import { C, F } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { Tally } from "../../components/ui";
 import { posterStats, exportBackup, importBackup } from "../../db";
+import { mediaPending } from "../../services/media";
 import type { Divider, Film, Note, ShelfViews } from "../../types";
 import type { Thread } from "../../domain/threads";
 import type { StoredVocabulary as Vocabulary } from "../../domain/motifs";
@@ -46,6 +47,7 @@ export function BackupPanel({
 }: BackupPanelProps) {
   const { t } = useTranslation();
   const [stats, setStats] = useState<PosterStats | null>(null);
+  const [waiting, setWaiting] = useState(0);
   const [msg, setMsg] = useState("");
   const ref = useRef<HTMLInputElement | null>(null);
 
@@ -53,6 +55,7 @@ export function BackupPanel({
     posterStats()
       .then(setStats)
       .catch(() => setStats(null));
+    setWaiting(mediaPending());
   }, [films]);
 
   const download = async () => {
@@ -128,6 +131,13 @@ export function BackupPanel({
               value={humanSize(stats.quota.quota - (stats.quota.usage || 0))}
               ink={C.pine}
             />
+          )}
+          {/* WHAT HAS NOT YET REACHED THE CONTAINER. Zero is not shown:
+              "0 médias en attente" is the same non-news as the empty
+              countdown the account drawer used to display, and this
+              panel already carries four numbers. */}
+          {waiting > 0 && (
+            <Tally label={t("backup.mediaWaiting")} value={waiting} ink={C.burgundy} />
           )}
         </>
       )}

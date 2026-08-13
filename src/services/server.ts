@@ -239,6 +239,136 @@ export async function signIn(pseudo: string): Promise<Person> {
 }
 
 /* ------------------------------------------------------------
+   LES AUTRES APPAREILS
+   ------------------------------------------------------------
+
+   A PASSKEY DOES NOT TRAVEL. The one Windows Hello made stays in that
+   computer: no export takes it out, no cloud carries it. So an account
+   opened on one machine was shut inside it, and the way out is not to
+   move that key — it is to add a SECOND one, held by something that goes
+   about with you.
+
+   A telephone is that something. Register its passkey here, and any
+   other computer can then sign in by showing a QR code for it to scan:
+   nothing to type, nothing to copy, and the key itself never crosses. */
+
+export interface DeviceKey {
+  id: string;
+  device: string | null;
+  transports: string[];
+  created_at: string;
+  seen_at: string | null;
+}
+
+export const myKeys = () => call<{ keys: DeviceKey[] }>("/auth/keys").then((r) => r.keys);
+
+/**
+ * Registers a new passkey on the account that is already open.
+ *
+ * The `device` is only a name to recognise it by in the list; it is not
+ * checked and carries no authority.
+ */
+export async function addKey(device?: string): Promise<DeviceKey[]> {
+  const { startRegistration } = await import("@simplewebauthn/browser");
+  const { challenge, options } = await call<{ challenge: string; options: object }>(
+    "/auth/keys/options",
+    { method: "POST" }
+  );
+  const response = await startRegistration({ optionsJSON: options as never });
+  const r = await call<{ keys: DeviceKey[] }>("/auth/keys/verify", {
+    method: "POST",
+    body: JSON.stringify({ challenge, response, device }),
+  });
+  return r.keys;
+}
+
+/* The server refuses to remove the last one — with a sentence, which the
+   drawer displays as it stands. We do not repeat the rule here: two
+   copies of a rule become one true and one false. */
+export const forgetKey = (id: string) =>
+  call<{ keys: DeviceKey[] }>(`/auth/keys/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  }).then((r) => r.keys);
+
+/* ------------------------------------------------------------
+   LES MÉDIAS, ET LES OBJETS DE DÉCORATION
+   ------------------------------------------------------------
+
+   The container's key stays on the server; what comes back here is a
+   signature for ONE blob, valid a quarter of an hour. So these calls
+   look odd on purpose — they fetch permission, and the bytes then travel
+   between the browser and Azure without passing through the server at
+   all. */
+
+export const mediaTickets = (paths: string[]) =>
+  call<{ tickets: { path: string; url: string }[] }>("/media/tickets", {
+    method: "POST",
+    body: JSON.stringify({ paths }),
+  }).then((r) => r.tickets);
+
+/** A read ticket, or `null` when there is nothing there for us. */
+export const mediaTicket = (path: string) =>
+  call<{ url: string }>(`/media/ticket?path=${encodeURIComponent(path)}`)
+    .then((r) => r.url)
+    /* A 404 here means "not there, or not yours", deliberately without
+       distinction: this is not an error to show, it is an answer. */
+    .catch(() => null);
+
+/* Erasing is writing, so the server checks the same thing: a decor one
+   has merely COPIED answers 404 here, and that is the wanted answer. */
+export const mediaDeleteTicket = (path: string) =>
+  call<{ url: string }>(`/media?path=${encodeURIComponent(path)}`, { method: "DELETE" })
+    .then((r) => r.url)
+    .catch(() => null);
+
+export interface RemoteDecor {
+  id: string;
+  owner: string;
+  label: string;
+  wall: string;
+  kind: "raster" | "svg";
+  tintable: boolean;
+  bytes: number;
+  is_public: boolean;
+  mine?: boolean;
+}
+
+export const myRemoteDecor = () => call<{ decor: RemoteDecor[] }>("/decor").then((r) => r.decor);
+
+/** What the people one follows have put on show. */
+export const sharedDecor = () =>
+  call<{ decor: RemoteDecor[] }>("/decor/shared").then((r) => r.decor);
+
+export const createRemoteDecor = (d: {
+  label: string;
+  wall?: string;
+  kind?: "raster" | "svg";
+  tintable?: boolean;
+  bytes?: number;
+}) =>
+  call<{ decor: RemoteDecor; path: string }>("/decor", {
+    method: "POST",
+    body: JSON.stringify(d),
+  });
+
+export const showDecor = (id: string, is_public: boolean) =>
+  call<{ decor: RemoteDecor }>(`/decor/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify({ is_public }),
+  });
+
+/* ONE ROUTE, TWO GESTURES, AND THE SERVER TELLS THEM APART. Its author
+   WITHDRAWS the piece; anybody else gives back their own copy, and the
+   original does not move. `withdrawn` says which of the two happened. */
+export const dropRemoteDecor = (id: string) =>
+  call<{ withdrawn: boolean }>(`/decor/${encodeURIComponent(id)}`, { method: "DELETE" });
+
+export const takeRemoteDecor = (id: string) =>
+  call<{ decor: RemoteDecor; path: string }>(`/decor/${encodeURIComponent(id)}/copy`, {
+    method: "POST",
+  });
+
+/* ------------------------------------------------------------
    LA COLLECTION
    ------------------------------------------------------------ */
 

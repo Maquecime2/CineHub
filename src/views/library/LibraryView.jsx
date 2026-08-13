@@ -15,6 +15,7 @@ import { THEMES } from "../../components/shelf/constants";
 import { DecorStudio } from "../../components/shelf/DecorStudio";
 import { SHELF_KINDS, sortIntoRows, patchViewDecor, clearViewDecor } from "../../shelf-views";
 import { FilmWall } from "./FilmWall";
+import { useWallFiling } from "./useWallFiling";
 import { TonightDrawer } from "./TonightDrawer";
 import { WallStudio } from "./WallStudio";
 import { wallLookOf, DEFAULT_WALL_LOOK } from "./wallLook";
@@ -353,6 +354,11 @@ export function LibraryView({
   const setGrouped = (fn) => set({ grouped: typeof fn === "function" ? fn(grouped) : fn });
   // clicking the active sort again simply reverses the direction
   const pickSort = (k) => set(k === sortBy ? { desc: !desc } : { sortBy: k, desc: true });
+
+  /* Filing into a list: the badge on each poster and the bar for a
+     multiple choice. It answers nothing at all without a server or an
+     account — the wall is then exactly the wall it was. */
+  const filing = useWallFiling(films);
 
   const allGenres = useMemo(
     () => Array.from(new Set(films.flatMap((f) => f.genres || []))).sort(),
@@ -888,17 +894,18 @@ export function LibraryView({
             />
           )}
           <div style={{ position: "relative" }}>
+            {filtered.length > 0 && filing.bar}
             {filtered.length === 0 ? (
               <WallEmpty films={films} cfg={cfg} />
             ) : grouped ? (
               groups.map(([director, list]) => (
                 <div key={director} style={{ marginBottom: 46 }}>
                   <DirectorRule director={director} count={list.length} />
-                  <FilmWall films={list} onOpen={onOpen} look={look} />
+                  <FilmWall films={list} onOpen={onOpen} look={look} filing={filing.bundle} />
                 </div>
               ))
             ) : (
-              <FilmWall films={filtered} onOpen={onOpen} look={look} />
+              <FilmWall films={filtered} onOpen={onOpen} look={look} filing={filing.bundle} />
             )}
           </div>
           {wallStudio && (

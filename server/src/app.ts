@@ -26,6 +26,7 @@ import type { Db } from "./db.ts";
 import * as store from "./store.ts";
 import { registerRelays } from "./relay.ts";
 import { publicKeyForPush, pushAvailable, remindChallenges } from "./push.ts";
+import { allowed, mediaAvailable, ticketFor } from "./media.ts";
 
 export interface Settings {
   db: Db;
@@ -308,6 +309,133 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
 
     await setCookie(reply, await store.openSession(db, person.id));
     return { person };
+  });
+
+  /* ------------------------------------------------------------
+     THE OTHER DEVICES — a second passkey on the same account
+     ------------------------------------------------------------
+
+     A PASSKEY BELONGS TO THE THING THAT HOLDS IT. The one Windows Hello
+     made lives in that computer and goes nowhere: no cloud carries it,
+     no export takes it out. An account opened on one machine was
+     therefore shut inside it, and nothing here opened the door — signing
+     up makes a first key and there was no second.
+
+     Hence these routes, and hence `cross-platform` below: it is that
+     word which makes the browser offer "a telephone" and its QR code
+     rather than the local sensor. Once the telephone holds a key of this
+     account, ANY other computer can sign in with it, by scanning —
+     `signin/options` already returns the transports we stored, and it is
+     `hybrid` among them that lights up the offer.
+
+     The whole thing rests on one thing being true: the challenge must
+     belong to the account that is speaking. Without that check, whoever
+     is signed in could finish a ceremony opened for somebody else and
+     hang their own key on that account. */
+
+  app.get("/auth/keys", async (req) => {
+    const person = await requireAccount(req);
+    return { keys: await store.keyCards(db, person.id) };
+  });
+
+  app.post("/auth/keys/options", async (req) => {
+    const person = await requireAccount(req);
+    const known = await store.keysOf(db, person.id);
+
+    const options = await generateRegistrationOptions({
+      rpName: "Ciné Hub",
+      rpID: domain,
+      userName: person.pseudo,
+      /* THE KEYS ALREADY HERE ARE EXCLUDED. Without this the telephone
+         that already holds one offers to make a second, indistinguishable
+         from the first in the list — and the person believes they have
+         paired a device they have not. */
+      excludeCredentials: known.map((c) => ({ id: c.id, transports: c.transports as never })),
+      authenticatorSelection: {
+        /* The whole point of the route. `platform` would offer Windows
+           Hello, that is to say this computer again — the one place the
+           key is of no use to us. */
+        authenticatorAttachment: "cross-platform",
+        /* Required, and not merely preferred as at sign-up: a key that
+           is not discoverable cannot be offered by a telephone which has
+           never seen this site. */
+        residentKey: "required",
+        userVerification: "preferred",
+      },
+      attestationType: "none",
+    });
+
+    const challenge = await store.setChallenge(db, options.challenge, { personId: person.id });
+    return { challenge, options };
+  });
+
+  app.post("/auth/keys/verify", async (req, reply) => {
+    const person = await requireAccount(req);
+    const { challenge, response, device } = (req.body ?? {}) as {
+      challenge?: string;
+      response?: unknown;
+      device?: string;
+    };
+    const expected = challenge ? await store.consumeChallenge(db, challenge) : null;
+    if (!expected) return reply.code(400).send({ error: "Défi inconnu ou expiré." });
+
+    /* THE CHALLENGE MUST BE THIS ACCOUNT'S. It has just been consumed, so
+       it cannot serve again — but consumed by the wrong person it would
+       hang a key on somebody else's account. */
+    if (expected.person_id !== person.id) {
+      return reply.code(403).send({ error: "Ce défi n'est pas le vôtre." });
+    }
+
+    const v = await verifyRegistrationResponse({
+      response: response as never,
+      expectedChallenge: expected.value,
+      expectedOrigin: origins,
+      expectedRPID: domain,
+    });
+    if (!v.verified || !v.registrationInfo) {
+      return reply.code(400).send({ error: "Cette clé n'a pas pu être vérifiée." });
+    }
+
+    const { credential } = v.registrationInfo;
+    try {
+      await store.addKey(db, {
+        id: credential.id,
+        personId: person.id,
+        publicKey: credential.publicKey,
+        counter: credential.counter,
+        transports: credential.transports ?? [],
+        device: (device || "").trim().slice(0, 60) || null,
+      });
+    } catch {
+      /* `access_key.id` is the primary key: the same authenticator
+         offered twice lands here rather than on a 500. */
+      return reply.code(409).send({ error: "Cet appareil est déjà enregistré." });
+    }
+
+    return { keys: await store.keyCards(db, person.id) };
+  });
+
+  app.delete("/auth/keys/:id", async (req, reply) => {
+    const person = await requireAccount(req);
+    const { id } = req.params as { id: string };
+    if (!(await store.forgetKey(db, person.id, id))) {
+      /* TWO REASONS TO ANSWER NO, AND THEY ARE NOT THE SAME NO.
+
+         The key is the only one left — a door we refuse to shut on
+         somebody — or it is not theirs at all. Counting the keys is not
+         enough to tell the two apart: whoever has none would be told
+         they are removing their last one, about a key they never had. So
+         we ask whether this key is theirs, and let the count speak only
+         then. */
+      const mine = await store.keyCards(db, person.id);
+      const isMine = mine.some((k) => k.id === id);
+      return reply.code(isMine ? 409 : 404).send({
+        error: isMine
+          ? "C'est votre dernière clé : la retirer vous mettrait dehors de votre propre compte."
+          : "Clé inconnue.",
+      });
+    }
+    return { keys: await store.keyCards(db, person.id) };
   });
 
   /* ------------------------------------------------------------
@@ -980,6 +1108,174 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
        count that still measures them. */
     await store.leaveChallenge(db, id, person.id);
     return { inside: false };
+  });
+
+  /* ------------------------------------------------------------
+     LES MÉDIAS — un miroir des blobs, sur un container Azure
+     ------------------------------------------------------------
+
+     Until now nothing binary left the machine that made it: the
+     synchronisation carries JSON, and a card seen on a second computer
+     showed "stayed on the other device" where its poster should have
+     been. These routes hand out the tickets that let the browser put a
+     blob down, and take one back, WITHOUT the container's key ever
+     reaching it.
+
+     The rule, in one line: `media.ts` reads the path, and the path says
+     which proof is required — one's own prefix for what is private,
+     `canReadDecor` for what can be shared. Nothing here decides that;
+     everything here asks. */
+
+  /** The verbatim sentence for a server with no container behind it. */
+  const noContainer = { error: "Ce serveur ne garde pas les médias." };
+
+  app.post("/media/tickets", async (req, reply) => {
+    const person = await requireAccount(req);
+    if (!mediaAvailable()) return reply.code(503).send(noContainer);
+    const { paths } = (req.body ?? {}) as { paths?: unknown };
+    if (!Array.isArray(paths) || paths.length === 0 || paths.length > 50) {
+      return reply.code(400).send({ error: "De un à cinquante chemins." });
+    }
+
+    /* A REFUSED PATH DOES NOT SINK THE WHOLE BATCH. Fifty screenshots go
+       up in one request; one of them being wrong is worth one missing
+       ticket, not fifty. The client sends again what it did not get. */
+    const tickets: { path: string; url: string }[] = [];
+    for (const p of paths) {
+      if (typeof p !== "string") continue;
+      if (!(await allowed(db, person.id, p, "write"))) continue;
+      const url = ticketFor(p, "write");
+      if (url) tickets.push({ path: p, url });
+    }
+    return { tickets };
+  });
+
+  app.get("/media/ticket", async (req, reply) => {
+    const person = await requireAccount(req);
+    if (!mediaAvailable()) return reply.code(503).send(noContainer);
+    const { path } = req.query as { path?: string };
+    /* ONE ANSWER FOR "NOT ALLOWED" AND FOR "DOES NOT EXIST", in the
+       spirit of `POST /auth/signin/options` above: telling the two apart
+       would make this route a directory of other people's furniture. */
+    if (!path || !(await allowed(db, person.id, path, "read"))) {
+      return reply.code(404).send({ error: "Rien à cette adresse." });
+    }
+    const url = ticketFor(path, "read");
+    if (!url) return reply.code(503).send(noContainer);
+    return { path, url };
+  });
+
+  app.delete("/media", async (req, reply) => {
+    const person = await requireAccount(req);
+    if (!mediaAvailable()) return reply.code(503).send(noContainer);
+    const { path } = req.query as { path?: string };
+    /* Erasing is writing: a decor one has merely COPIED is not one's own
+       to remove, and `allowed(…, "write")` is what says so. */
+    if (!path || !(await allowed(db, person.id, path, "write"))) {
+      return reply.code(404).send({ error: "Rien à cette adresse." });
+    }
+    const url = ticketFor(path, "write");
+    if (!url) return reply.code(503).send(noContainer);
+    return { path, url };
+  });
+
+  /* ------------------------------------------------------------
+     LES OBJETS DE DÉCORATION — et le rayon des autres
+     ------------------------------------------------------------
+     A decor is the only thing somebody uploads that another person may
+     read, which is why it has a table of its own rather than living
+     under a private prefix. Everything about who may see what is in
+     `store.canReadDecor`; these routes only carry the answers. */
+
+  app.get("/decor", async (req) => {
+    const person = await requireAccount(req);
+    return { decor: await store.myDecor(db, person.id) };
+  });
+
+  app.get("/decor/shared", async (req) => {
+    const person = await requireAccount(req);
+    return { decor: await store.sharedDecor(db, person.id) };
+  });
+
+  app.get("/decor/of/:pseudo", async (req, reply) => {
+    const me = await whoIs(req);
+    const { pseudo } = req.params as { pseudo: string };
+    if (!PSEUDO_OK.test(pseudo || "")) return reply.code(404).send({ error: "Personne." });
+    return { decor: await store.publicDecorOf(db, pseudo.toLowerCase(), me?.id) };
+  });
+
+  app.post("/decor", async (req, reply) => {
+    const person = await requireAccount(req);
+    const { label, wall, kind, tintable, bytes } = (req.body ?? {}) as Record<string, unknown>;
+    const name = typeof label === "string" ? label.trim() : "";
+    if (name.length < 1 || name.length > 60) {
+      return reply.code(400).send({ error: "Un nom de 1 à 60 caractères." });
+    }
+    if (kind !== undefined && kind !== "raster" && kind !== "svg") {
+      return reply.code(400).send({ error: "Une image ou un dessin, rien d'autre." });
+    }
+    const decor = await store.createDecor(db, {
+      ownerId: person.id,
+      label: name,
+      wall: typeof wall === "string" ? wall.slice(0, 40) : "",
+      kind: (kind as "raster" | "svg") ?? "raster",
+      tintable: tintable === true,
+      bytes: Number(bytes) || 0,
+    });
+    /* The blob has NOT been put down yet: the client now asks for a
+       write ticket on `decor/<id>` and uploads. Making the row first is
+       what gives the object the identity two people can name. */
+    return reply.code(201).send({ decor, path: `decor/${decor.id}` });
+  });
+
+  app.put("/decor/:id", async (req, reply) => {
+    const person = await requireAccount(req);
+    const { id } = req.params as { id: string };
+    if (!UUID.test(id || "")) return reply.code(404).send({ error: "Objet inconnu." });
+    const { label, wall, is_public } = (req.body ?? {}) as Record<string, unknown>;
+    const name = typeof label === "string" ? label.trim() : undefined;
+    if (name !== undefined && (name.length < 1 || name.length > 60)) {
+      return reply.code(400).send({ error: "Un nom de 1 à 60 caractères." });
+    }
+    const done = await store.editDecor(db, person.id, id, {
+      label: name,
+      wall: typeof wall === "string" ? wall.slice(0, 40) : undefined,
+      is_public: typeof is_public === "boolean" ? is_public : undefined,
+    });
+    /* Only its author edits it: co-building a list is one thing, taking
+       somebody's furniture and renaming it at their place is another. */
+    if (!done) return reply.code(404).send({ error: "Objet inconnu." });
+    return { decor: await store.decorById(db, id) };
+  });
+
+  app.delete("/decor/:id", async (req, reply) => {
+    const person = await requireAccount(req);
+    const { id } = req.params as { id: string };
+    if (!UUID.test(id || "")) return reply.code(404).send({ error: "Objet inconnu." });
+
+    /* TWO GESTURES UNDER ONE BUTTON, and they are not the same gesture.
+       The author WITHDRAWS the piece — a tombstone, so that the copies
+       already given are not reached. Somebody who merely took a copy
+       gives back THEIR copy, and the original does not move. */
+    if (await store.ownsDecor(db, person.id, id)) {
+      await store.deleteDecor(db, person.id, id);
+      return { withdrawn: true };
+    }
+    await store.dropDecorCopy(db, person.id, id);
+    return { withdrawn: false };
+  });
+
+  app.post("/decor/:id/copy", async (req, reply) => {
+    const person = await requireAccount(req);
+    const { id } = req.params as { id: string };
+    if (!UUID.test(id || "")) return reply.code(404).send({ error: "Objet inconnu." });
+    /* `copyDecor` asks `canReadDecor` itself — the right to take a copy
+       is exactly the right to look at it, and saying so twice would make
+       one of the two copies wrong one day. */
+    if (!(await store.copyDecor(db, person.id, id))) {
+      return reply.code(404).send({ error: "Objet inconnu." });
+    }
+    return { decor: await store.decorById(db, id), path: `decor/${id}` };
   });
 
   /* ------------------------------------------------------------

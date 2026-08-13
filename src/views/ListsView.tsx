@@ -19,7 +19,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
-import { ListChecks, Plus, Trash2, UserPlus, X } from "lucide-react";
+import { ListChecks, Plus, Search, Trash2, UserPlus, X } from "lucide-react";
 import { C, F, alpha } from "../theme/tokens";
 import { tap, underlineInput } from "../theme/styles";
 import { Label } from "../components/ui";
@@ -37,6 +37,7 @@ import {
   joinChallenge,
   removeFromListMembers,
   removeFromList,
+  addToList,
   editList,
   serverConfigured,
   type Progress,
@@ -44,6 +45,15 @@ import {
   type List,
   type ListWork,
 } from "../services/server";
+import { useTmdbKey } from "../services/tmdbKey";
+import { searchMovies } from "../tmdb";
+
+/** One TMDB result, as `searchMovies` hands it back. */
+interface TmdbHit {
+  tmdbId: number;
+  title: string;
+  year: number | null;
+}
 
 export function ListsView({ connected }: { connected: boolean }) {
   const { t } = useTranslation();
@@ -244,7 +254,7 @@ function OneList({
 
       {ouverte && (
         <div style={{ padding: "0 12px 14px" }}>
-          {works.length === 0 && <Guideline>Vide. Rangez-y des films since leur fiche.</Guideline>}
+          {works.length === 0 && <Guideline>{t("lists.searchNote")}</Guideline>}
           {works.map((o) => (
             <div
               key={o.tmdb_id}
@@ -279,6 +289,8 @@ function OneList({
               </button>
             </div>
           ))}
+
+          <FillFromTmdb list={list} onFiled={reread} />
 
           {/* Co-building is a right to write, not ownership: only the
               owner invites, renames and publishes. */}
@@ -374,6 +386,142 @@ function OneList({
               </div>
             </div>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   REMPLIR UNE LISTE DEPUIS TMDB
+   ============================================================
+
+   The old note here said that filling a list from this view would have
+   meant rebuilding a whole TMDB search in a place where there is nothing
+   to look at, and that the gesture therefore belonged to the card. Half
+   of that is still true — a card is the best place to file the film one
+   is reading about — but the conclusion no longer holds, for a reason
+   that has nothing to do with taste:
+
+   A LIST CAN HOLD A FILM THE BINDER DOES NOT. That is the whole point of
+   holding works rather than copies. "Come and see this in March" is
+   said about films one has not got; from the card alone, those were
+   precisely the ones that could never be proposed.
+
+   And the search costs little: the server already relays TMDB, so
+   somebody signed in needs no key of their own. */
+function FillFromTmdb({ list, onFiled }: { list: List; onFiled: () => Promise<void> }) {
+  const { t } = useTranslation();
+  const apiKey = useTmdbKey();
+  const [q, setQ] = useState("");
+  const [found, setFound] = useState<TmdbHit[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [souci, setSouci] = useState<string | null>(null);
+  const [filed, setRangés] = useState<ReadonlySet<number>>(new Set());
+
+  /* One writes in a list one may write in. A stranger's public list is
+     read here, not filled. */
+  if (!list.mienne && !list.isMember) return null;
+  if (!apiKey) {
+    return (
+      <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 12 }}>
+        {t("lists.searchNeedsKey")}
+      </div>
+    );
+  }
+
+  const look = async () => {
+    const title = q.trim();
+    if (!title) return;
+    setBusy(true);
+    setSouci(null);
+    try {
+      setFound(await searchMovies({ title, apiKey, limit: 8 }));
+    } catch (e) {
+      setFound(null);
+      setSouci((e as Error).message || t("lists.searchNobody"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const file = async (hit: TmdbHit) => {
+    setBusy(true);
+    try {
+      await addToList(list.id, {
+        tmdbId: hit.tmdbId,
+        title: hit.title,
+        year: hit.year ?? undefined,
+      });
+      setRangés((was) => new Set(was).add(hit.tmdbId));
+      await onFiled();
+    } catch (e) {
+      setSouci((e as Error).message || t("lists.filingFailed"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div data-tour="lists-search" style={{ marginTop: 14 }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && look()}
+          placeholder={t("lists.searchPlaceholder")}
+          style={{ ...underlineInput, fontFamily: F.hand, fontSize: 16 }}
+        />
+        <button onClick={look} disabled={busy} style={button(C.slate)}>
+          <Search size={12} /> {busy ? t("lists.searching") : t("lists.search")}
+        </button>
+      </div>
+
+      <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 6 }}>
+        {t("lists.searchNote")}
+      </div>
+
+      {found?.length === 0 && <Guideline>{t("lists.searchNobody")}</Guideline>}
+
+      {found?.map((hit) => (
+        <div
+          key={hit.tmdbId}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "4px 0",
+            borderBottom: `1px dashed ${alpha(C.line, 0.6)}`,
+          }}
+        >
+          <span style={{ flex: 1, minWidth: 0, fontFamily: F.title, fontSize: 15, color: C.ink }}>
+            {hit.title}
+            {hit.year ? (
+              <span style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>
+                {" "}
+                {hit.year}
+              </span>
+            ) : null}
+          </span>
+          <button
+            onClick={() => file(hit)}
+            disabled={busy || filed.has(hit.tmdbId)}
+            style={{
+              ...small,
+              color: filed.has(hit.tmdbId) ? C.moss : C.ink,
+              fontFamily: F.mono,
+              fontSize: 10,
+              letterSpacing: 1,
+            }}
+          >
+            {filed.has(hit.tmdbId) ? t("lists.added") : t("lists.add")}
+          </button>
+        </div>
+      ))}
+
+      {souci && (
+        <div style={{ fontFamily: F.hand, fontSize: 15, color: C.burgundy, marginTop: 6 }}>
+          {souci}
         </div>
       )}
     </div>

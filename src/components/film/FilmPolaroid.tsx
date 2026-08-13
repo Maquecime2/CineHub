@@ -9,7 +9,10 @@
    The look is OPTIONAL, and its absence means "as before": the card also
    serves elsewhere than on the wall (the discoveries), and those places
    asked for nothing. */
-import { C, F } from "../../theme/tokens";
+import { useRef, useState, type ReactNode } from "react";
+import { ListPlus, Check } from "lucide-react";
+import { C, F, alpha } from "../../theme/tokens";
+import { tap } from "../../theme/styles";
 import { tapeColor } from "../../theme/ink";
 import { hash, tiltOf, usesPin, nudgeOf, pickFrom } from "../../domain/seeded";
 import { watchCount, initialsOf } from "../../domain/film";
@@ -29,11 +32,51 @@ export function FilmPolaroid({
   film,
   onClick,
   look = NEUTRAL_WALL_LOOK,
+  onFile,
+  fileLabel,
+  filing,
+  selecting = false,
+  selected = false,
 }: {
   film: Film;
   onClick: () => void;
   look?: WallLook;
+  /**
+   * Opens the filing panel for this card. Absent, no badge appears — the
+   * card also serves where there is nothing to file into (Discoveries).
+   */
+  onFile?: () => void;
+  fileLabel?: string;
+  /** The panel itself, when this is the card whose panel is open. */
+  filing?: ReactNode;
+  /** The wall is choosing several films: the card wears a mark. */
+  selecting?: boolean;
+  selected?: boolean;
 }) {
+  /* THE BADGE SHOWS ITSELF WHEN THE HAND IS NEAR, and stays out of the
+     way otherwise: forty cards each wearing a permanent button would
+     make a wall of buttons, which is not a wall of films. Focus counts
+     as being near — a badge reachable only by mouse is a badge half the
+     people never get. */
+  const [near, setNear] = useState(false);
+  const press = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /* On a touchscreen there is no hovering, so the badge answers to a
+     LONG PRESS instead — the gesture that already means "and what else
+     can this do?" everywhere else on a telephone. */
+  const holdStart = () => {
+    if (!onFile) return;
+    press.current = setTimeout(() => {
+      press.current = null;
+      setNear(true);
+      onFile();
+    }, 500);
+  };
+  const holdEnd = () => {
+    if (press.current) clearTimeout(press.current);
+    press.current = null;
+  };
+
   const f = scaleOf(look);
   const px = (n: number) => Math.round(n * f);
   const seenFilms = watchCount(film);
@@ -61,9 +104,30 @@ export function FilmPolaroid({
      (`gapOf`): the grid only sets the horizontal, the vertical is here, and
      a tight wall must be tight both ways. */
   return (
-    <div style={{ breakInside: "avoid", marginBottom: gapOf(look), paddingTop: nudge }}>
+    <div
+      style={{
+        breakInside: "avoid",
+        marginBottom: gapOf(look),
+        paddingTop: nudge,
+        /* The badge and the panel hang from HERE and not from the button
+           below: a button inside a button is not valid, and the browser
+           settles it by dropping one of the two. */
+        position: "relative",
+      }}
+      onMouseEnter={() => setNear(true)}
+      onMouseLeave={() => setNear(false)}
+      onFocus={() => setNear(true)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) setNear(false);
+      }}
+      onTouchStart={holdStart}
+      onTouchEnd={holdEnd}
+      onTouchMove={holdEnd}
+      onTouchCancel={holdEnd}
+    >
       <button
         onClick={onClick}
+        aria-pressed={selecting ? selected : undefined}
         style={{
           all: "unset",
           cursor: "pointer",
@@ -186,6 +250,88 @@ export function FilmPolaroid({
           }}
         />
       </button>
+
+      {/* THE MARK OF A CHOSEN CARD. It is laid on the corner rather than
+          dimming the whole card: one chooses films by looking at them,
+          and a wall of half-erased posters is a wall one can no longer
+          read. */}
+      {selecting && (
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            top: nudge + 4,
+            left: 4,
+            width: 22,
+            height: 22,
+            display: "grid",
+            placeItems: "center",
+            background: selected ? C.burgundy : alpha(C.card, 0.9),
+            border: `1px solid ${selected ? C.burgundy : C.line}`,
+            boxShadow: `0 1px 3px ${alpha(C.ink, 0.3)}`,
+            pointerEvents: "none",
+          }}
+        >
+          {selected && <Check size={13} color={C.card} />}
+        </div>
+      )}
+
+      {/* THE BADGE THAT FILES. Not inside the card's button, and it stops
+          the click going through: touching it must open the choosing of a
+          list, never the film's card underneath. */}
+      {onFile && !selecting && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            onFile();
+          }}
+          draggable={false}
+          onDragStart={(e) => e.preventDefault()}
+          aria-label={fileLabel}
+          title={fileLabel}
+          style={{
+            all: "unset",
+            ...tap,
+            position: "absolute",
+            top: nudge + 4,
+            right: 4,
+            zIndex: 6,
+            cursor: "pointer",
+            padding: 5,
+            color: C.card,
+            background: C.moss,
+            boxShadow: `0 1px 4px ${alpha(C.ink, 0.35)}`,
+            opacity: near || filing ? 1 : 0,
+            transition: "opacity var(--motion-fast) var(--motion-ease)",
+          }}
+        >
+          <ListPlus size={13} />
+        </button>
+      )}
+
+      {/* ANCHORED TO ITS BUTTON, THEREFORE IT STAYS IN THE COLUMN.
+          `Layer` is the rule for anything `fixed` (see CLAUDE.md); a menu
+          hanging from the thing that opened it is the stated exception —
+          taking it out of the column would break the anchoring it exists
+          for. */}
+      {filing && (
+        <div
+          style={{
+            position: "absolute",
+            top: nudge + 30,
+            right: 0,
+            zIndex: 7,
+            padding: "10px 12px 12px",
+            background: C.paper,
+            border: `1px solid ${C.line}`,
+            boxShadow: `0 8px 22px ${alpha(C.ink, 0.3)}`,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {filing}
+        </div>
+      )}
     </div>
   );
 }

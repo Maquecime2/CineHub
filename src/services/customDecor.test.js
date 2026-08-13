@@ -28,6 +28,7 @@ const {
   toggleDecorHidden,
   isDecorHidden,
   listHiddenDecor,
+  setCustomDecor,
   CUSTOM_PREFIX,
 } = await import("./customDecor");
 
@@ -201,5 +202,66 @@ describe("the imported motif, as the shelf sees it", () => {
     const { decorSpec } = await import("../components/shelf/constants");
     const entry = await addCustomDecor(pngFile());
     expect(decorSpec(entry.key).draw).toBe(decorSpec(entry.key).draw);
+  });
+});
+
+/* ============================================================
+   PARTAGER UNE PIÈCE, ET EN PRENDRE UNE
+
+   Three things, and the first is the one that would go wrong silently.
+
+   AN OBJECT IS ADDED OFFLINE AND STAYS ADDED. Importing must not wait
+   for a round trip, must not fail because of one, and the piece must be
+   on the shelf before anything is asked of the network. It climbs at the
+   next synchronisation, which is what gives it a `remoteId`.
+
+   A PIECE TAKEN FROM SOMEBODY IS VETTED ON ARRIVAL. `sanitizeSvg` used
+   to run at import only, and what sat in the vault was presumed clean —
+   which it was, since we had cleaned it ourselves. A blob fetched from
+   another person's container breaks that presumption, and `CustomDraw`
+   injects the markup inline.
+
+   AND GIVING BACK A COPY IS NOT WITHDRAWING A PIECE. The server tells
+   the two apart; what is tested here is that the client asks it to.
+   ============================================================ */
+describe("les objets partagés", () => {
+  const svgHostile = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><script>alert(1)</script><rect width="10" height="10" fill="#333"/></svg>`;
+
+  it("existe sur l'étagère sans identité serveur", async () => {
+    const entry = await addCustomDecor(pngFile("galet.png"));
+    /* Aucune adresse distante, et pourtant l'objet est là : c'est
+       exactement ce qu'on veut d'un geste hors ligne. */
+    expect(entry.remoteId).toBeUndefined();
+    expect(customDecorByKey(entry.key)).toBeTruthy();
+  });
+
+  it("écarte le script d'un SVG reçu, comme d'un SVG importé", () => {
+    const cleaned = sanitizeSvg(svgHostile, { wall: false });
+    expect(cleaned).toBeTruthy();
+    expect(cleaned.markup).not.toContain("script");
+    expect(cleaned.markup).not.toContain("alert");
+  });
+
+  it("refuse ce qui n'est pas un dessin lisible", () => {
+    /* Un markup que l'assainisseur refuse n'est ni gardé ni montré :
+       `takeCustomDecor` rend `null` sur cette réponse-là. */
+    expect(sanitizeSvg("bonjour", { wall: false })).toBeNull();
+  });
+
+  it("une pièce reprise garde son auteur et son identité", async () => {
+    const entry = await addCustomDecor(pngFile("emprunt.png"));
+    /* On simule ce que `takeCustomDecor` écrit, sans le réseau : ce qui
+       compte ici est que le registre porte les deux champs — sans eux,
+       l'atelier ne saurait ni créditer l'auteur ni cacher
+       l'interrupteur de partage sur la pièce d'autrui. */
+    setCustomDecor(
+      listCustomDecor().map((d) =>
+        d.key === entry.key ? { ...d, remoteId: "d-1234", owner: "anna" } : d
+      )
+    );
+    const repris = customDecorByKey(entry.key);
+    expect(repris.owner).toBe("anna");
+    /* Et son image reste comptée parmi celles qu'on ne purge pas. */
+    expect(customDecorImageKeys()).toContain(repris.imageKey);
   });
 });
