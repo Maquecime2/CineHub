@@ -618,9 +618,9 @@ export const hideCard = (id: string, hidden: boolean) =>
 export async function collectionOf(
   pseudo: string,
   token?: string | null
-): Promise<{ pseudo: string; films: SharedFilm[] }> {
+): Promise<{ pseudo: string; stamp: string | null; films: SharedFilm[] }> {
   const q = token ? `?token=${encodeURIComponent(token)}` : "";
-  return call<{ pseudo: string; films: SharedFilm[] }>(
+  return call<{ pseudo: string; stamp: string | null; films: SharedFilm[] }>(
     `/collections/${encodeURIComponent(pseudo)}${q}`
   );
 }
@@ -631,6 +631,8 @@ export async function collectionOf(
 
 export interface Profile {
   pseudo: string;
+  /** Le cachet porté au comptoir, visible partout où le pseudonyme l'est. */
+  stamp?: string | null;
   films: number;
   followed?: boolean;
   /** For the subscriptions list: is their collection still open? */
@@ -639,6 +641,7 @@ export interface Profile {
 
 export interface NewsItem {
   pseudo: string;
+  stamp?: string | null;
   id: string;
   tmdbId: string | null;
   at: number;
@@ -669,6 +672,7 @@ export const readFeed = (before?: number | null) =>
 
 export interface Opinion {
   pseudo: string;
+  stamp?: string | null;
   /** The card's id at its author's — that is what gets reported. */
   card: string;
   rating: number | null;

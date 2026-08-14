@@ -405,6 +405,8 @@ const en = {
   },
 
   elsewhere: {
+    at: "at {{pseudo}}’s",
+    muteSomebody: "See nothing more from {{pseudo}}",
     filedBy_one: "{{count}} library files it",
     filedBy_other: "{{count}} libraries file it",
     reportPrompt: "What is wrong with what {{pseudo}} wrote?",
@@ -641,6 +643,10 @@ const en = {
   },
 
   shared: {
+    heading: "{{pseudo}}'s video library",
+    opening: "Opening…",
+    count_one: "{{count}} film — watched, rated, filed by somebody else.",
+    count_other: "{{count}} films — watched, rated, filed by somebody else.",
     noCollection: "No collection at this address. The link may have been closed again.",
     couldNotOpen: "This collection could not be opened.",
   },
@@ -1260,6 +1266,27 @@ const en = {
     guessMood: "guess the mood of a film you have not written about yet",
     nothingAnswers: "Nothing in “to watch” answers — or the list is empty.",
     allReviewed: "You have been through them all.",
+  },
+
+  threadView: {
+    heading: "The feed",
+    subheading: "what the people you follow are watching",
+    find: "Find somebody",
+    pseudoPlaceholder: "their pseudonym",
+    look: "LOOK",
+    shown_one: "{{count}} film shown",
+    shown_other: "{{count}} films shown",
+    theirCollection: "THEIR COLLECTION",
+    follow: "FOLLOW",
+    unfollow: "UNFOLLOW",
+    unfollowSomebody: "Stop following {{pseudo}}",
+    youFollow: "You follow",
+    closedAgain: "closed again",
+    lately: "Lately, at theirs",
+    opening: "Opening…",
+    followNobody: "You follow nobody. Look up a pseudonym above.",
+    nothingNew: "Nothing new at the people you follow.",
+    at: "at {{pseudo}}",
   },
 
   listsView: {

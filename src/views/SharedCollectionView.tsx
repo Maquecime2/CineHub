@@ -24,6 +24,8 @@ import { C, F, alpha } from "../theme/tokens";
 import { PosterArt } from "../components/film/PosterArt";
 import { collectionOf, ServerError, type SharedFilm } from "../services/server";
 import { tiltOf } from "../domain/seeded";
+import { Halftone, Marquee, Stamp, velvet } from "../components/atmosphere/hall";
+import { STAMP_INK, stampLabel } from "../components/play/stamps";
 import { initialsOf as initialesDe } from "../domain/film";
 
 /* THE ADDRESS OF A SHARED COLLECTION.
@@ -46,12 +48,17 @@ export function readAddress(fragment: string = location.hash): Address | null {
 export function SharedCollectionView({ address }: { address: Address }) {
   const { t } = useTranslation();
   const [films, setFilms] = useState<SharedFilm[] | null>(null);
+  const [stamp, setStamp] = useState<string | null>(null);
   const [souci, setSouci] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
     collectionOf(address.pseudo, address.token)
-      .then((r) => alive && setFilms(r.films))
+      .then((r) => {
+        if (!alive) return;
+        setFilms(r.films);
+        setStamp(r.stamp);
+      })
       .catch((e) => {
         if (!alive) return;
         /* THE SERVER ANSWERS 404 FOR THREE REASONS and says no more —
@@ -70,26 +77,49 @@ export function SharedCollectionView({ address }: { address: Address }) {
   return (
     <div style={{ minHeight: "100vh", padding: "34px 20px 60px" }}>
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
-          <Clapperboard size={22} color={C.burgundy} />
-          <h1
-            style={{
-              margin: 0,
-              fontFamily: F.title,
-              fontStyle: "italic",
-              fontWeight: 700,
-              fontSize: 38,
-              color: C.ink,
-            }}
-          >
-            La vidéothèque de {address.pseudo}
-          </h1>
+        {/* LE FRONTON D'UNE SALLE, et pas un en-tête de page.
+
+            C'est très souvent le PREMIER écran qu'un inconnu voit du
+            produit : quelqu'un envoie un lien, on l'ouvre, et on juge en
+            trois secondes. Une ligne de titre sur du papier disait « une
+            page web » ; un fronton dit « une salle », ce que le classeur
+            est. Le reste de la vue — les affiches, le papier — n'a pas
+            besoin d'en dire plus. */}
+        <div style={{ ...velvet(C.burgundy), position: "relative", padding: "0 0 18px" }}>
+          <Marquee />
+          <Halftone />
+          <div style={{ position: "relative", padding: "16px 20px 0" }}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
+              <Clapperboard size={22} color={C.card} />
+              <h1
+                style={{
+                  margin: 0,
+                  fontFamily: F.title,
+                  fontStyle: "italic",
+                  fontWeight: 700,
+                  fontSize: 38,
+                  color: C.card,
+                }}
+              >
+                {t("shared.heading", { pseudo: address.pseudo })}
+              </h1>
+              {stamp && (
+                <Stamp text={t(stampLabel(stamp))} ink={STAMP_INK[stamp] ?? C.ochre} tilt={-6} />
+              )}
+            </div>
+            <div
+              style={{
+                fontFamily: F.hand,
+                fontSize: 18,
+                color: alpha(C.card, 0.8),
+                marginTop: 4,
+              }}
+            >
+              {films ? t("shared.count", { count: films.length }) : souci || t("shared.opening")}
+            </div>
+          </div>
         </div>
-        <div style={{ fontFamily: F.hand, fontSize: 18, color: C.inkFaded, margin: "4px 0 26px" }}>
-          {films
-            ? `${films.length} film${films.length > 1 ? "s" : ""} — regardés, notés, rangés par quelqu'un d'autre.`
-            : souci || "Ouverture…"}
-        </div>
+        <div style={{ height: 26 }} />
 
         {films && (
           <div

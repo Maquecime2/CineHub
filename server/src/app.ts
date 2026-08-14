@@ -792,6 +792,7 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
 
     return {
       pseudo: vue.pseudo,
+      stamp: vue.stamp,
       films: vue.films.map((f) => ({ id: f.id, tmdbId: f.tmdb_id, ...f.data })),
     };
   });
@@ -864,6 +865,7 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
       upTo: news.length ? Number(news[news.length - 1]!.seq) : null,
       news: news.map((n) => ({
         pseudo: n.pseudo,
+        stamp: n.stamp ?? null,
         id: n.id,
         tmdbId: n.tmdb_id,
         at: new Date(n.updated_at).getTime(),

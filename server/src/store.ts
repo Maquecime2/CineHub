@@ -25,6 +25,8 @@ export interface Person {
   token?: string | null;
   /** Writes quizzes. Laid down from the environment, never from a route. */
   is_admin?: boolean;
+  /** Le cachet porté au comptoir, s'il y en a un. */
+  stamp?: string | null;
 }
 
 export interface AccessKey {
@@ -42,7 +44,7 @@ export interface AccessKey {
 export async function findByPseudo(db: Db, pseudo: string): Promise<Person | null> {
   return one<Person>(
     db,
-    "SELECT id, pseudo, email, sharing, token, is_admin FROM person WHERE pseudo = $1",
+    "SELECT id, pseudo, email, sharing, token, is_admin, stamp FROM person WHERE pseudo = $1",
     [pseudo]
   );
 }
@@ -490,7 +492,7 @@ export async function publicCollectionOf(
   db: Db,
   pseudo: string,
   token: string | null
-): Promise<{ pseudo: string; films: PublicCard[] } | null> {
+): Promise<{ pseudo: string; stamp: string | null; films: PublicCard[] } | null> {
   const p = await findByPseudo(db, pseudo);
   if (!p) return null;
   if (p.sharing === "publique") {
@@ -508,7 +510,7 @@ export async function publicCollectionOf(
       ORDER BY f.updated_at DESC`,
     [p.id]
   );
-  return { pseudo: p.pseudo, films };
+  return { pseudo: p.pseudo, stamp: p.stamp ?? null, films };
 }
 
 /** Take a card out of the sharing, or put it back in. */
@@ -541,6 +543,8 @@ export async function hiddenCards(db: Db, personId: string): Promise<string[]> {
 
 export interface Profile {
   pseudo: string;
+  /** Le cachet porté — visible partout où le pseudonyme l'est. */
+  stamp?: string | null;
   /** How many films their collection shows. */
   films: number;
   /** Am I already following them? */
@@ -582,7 +586,7 @@ export async function publicProfileOf(
       ).length > 0
     : undefined;
 
-  return { pseudo: p.pseudo, films: Number(n?.n ?? 0), followed };
+  return { pseudo: p.pseudo, stamp: p.stamp ?? null, films: Number(n?.n ?? 0), followed };
 }
 
 /* WHAT CUTS, AND STANDS IN THE WAY OF EVERY COMMUNITY READ.
@@ -615,7 +619,7 @@ export async function unfollow(db: Db, follower: string, followed: string): Prom
 /** Who I follow, with what their collection still shows. */
 export async function subscriptionsOf(db: Db, personId: string): Promise<Profile[]> {
   return db.query<Profile>(
-    `SELECT p.pseudo,
+    `SELECT p.pseudo, p.stamp,
             (SELECT count(*) FROM card f
               WHERE f.person_id = p.id AND NOT f.hidden AND NOT f.deleted)::int AS films,
             (p.sharing = 'publique') AS open
@@ -628,6 +632,8 @@ export async function subscriptionsOf(db: Db, personId: string): Promise<Profile
 
 export interface FeedItem {
   pseudo: string;
+  /** Le cachet que cette personne porte, ou rien. */
+  stamp?: string | null;
   seq: string | number;
   id: string;
   tmdb_id: string | null;
@@ -655,7 +661,7 @@ export async function feedOf(
   cap = 40
 ): Promise<FeedItem[]> {
   return db.query<FeedItem>(
-    `SELECT p.pseudo, f.seq, f.id, f.tmdb_id, ${WITHOUT_THE_PRIVATE}, f.updated_at
+    `SELECT p.pseudo, p.stamp, f.seq, f.id, f.tmdb_id, ${WITHOUT_THE_PRIVATE}, f.updated_at
        FROM follow a
        JOIN person p ON p.id = a.followed_id
        JOIN card f ON f.person_id = p.id
@@ -676,6 +682,7 @@ export async function feedOf(
 
 export interface Review {
   pseudo: string;
+  stamp?: string | null;
   /** The card's identifier at its author's: that is what gets reported. */
   card: string;
   rating: number | null;
@@ -740,7 +747,7 @@ export async function echoOfWork(
      neither a word nor a rating counts in the total and has nothing to
      read. Showing empty lines would pass silence off as an opinion. */
   const reviews = await db.query<Review>(
-    `SELECT p.pseudo, f.id AS card, ${RATING} AS rating,
+    `SELECT p.pseudo, p.stamp, f.id AS card, ${RATING} AS rating,
             NULLIF(f.data->>'review', '') AS review, f.updated_at AS at
        FROM card f JOIN person p ON p.id = f.person_id
       WHERE f.tmdb_id = $1 AND p.sharing = 'publique'

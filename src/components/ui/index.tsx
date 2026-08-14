@@ -212,24 +212,32 @@ export function Guideline({ children, tight }: { children: ReactNode; tight?: bo
 
 /* THE HEAD OF A VIEW — the icon, the name, the hand-written line.
 
-   The quiz and the lists drew it identically, to the pixel: same
-   padding, same width, same italic thirty-four, same eighteen in a free
-   hand. Only the icon, its tint and the two sentences changed. The
-   counter would have been a third copy. */
+   The quiz, the lists AND the feed drew it identically, to the pixel:
+   same padding, same italic thirty-four, same eighteen in a free hand.
+   Only the icon, its tint, the two sentences — and, for the feed, a
+   hundred pixels of width — ever changed. Three copies of one block in a
+   project of this size is what happens when the three files are never
+   read on the same day. The counter would have been the fourth. */
 export function ViewHeading({
   icon,
   title,
   blurb,
   children,
+  wide,
 }: {
   /** Already coloured by the caller: the tint belongs to the tab. */
   icon: ReactNode;
   title: string;
   blurb: string;
   children?: ReactNode;
+  /* LE FIL EST PLUS LARGE, et il l'a toujours été. Ses affiches se
+     rangent en grille, là où les autres vues alignent une colonne de
+     texte — cent pixels de plus, et c'est la seule chose que sa version
+     recopiée faisait autrement. */
+  wide?: boolean;
 }) {
   return (
-    <div style={{ padding: "34px 24px 70px", maxWidth: 1000 }}>
+    <div style={{ padding: "34px 24px 70px", maxWidth: wide ? 1100 : 1000 }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 4 }}>
         {icon}
         <h1

@@ -23,6 +23,8 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Flag, Star, UserMinus, Users } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
+import { Stamp } from "../atmosphere/hall";
+import { STAMP_INK, stampLabel } from "../play/stamps";
 import { tap } from "../../theme/styles";
 import { Label } from "../ui";
 import { block, echoOfWork, serverConfigured, report, type Echo } from "../../services/server";
@@ -129,8 +131,11 @@ function OneOpinion({
           href={`#/chez/${opinion.pseudo}`}
           style={{ fontFamily: F.mono, fontSize: 10, color: C.burgundy, textDecoration: "none" }}
         >
-          chez {opinion.pseudo}
+          {t("elsewhere.at", { pseudo: opinion.pseudo })}
         </a>
+        {opinion.stamp && (
+          <Stamp text={t(stampLabel(opinion.stamp))} ink={STAMP_INK[opinion.stamp] ?? C.burgundy} />
+        )}
         {opinion.rating !== null && (
           <span style={{ display: "flex", gap: 1 }} aria-label={`${opinion.rating} sur 5`}>
             {[1, 2, 3, 4, 5].map((n) => (
@@ -152,7 +157,11 @@ function OneOpinion({
             <button onClick={say} title="Signaler" style={small}>
               <Flag size={11} />
             </button>
-            <button onClick={mute} title={`Ne plus rien voir de ${opinion.pseudo}`} style={small}>
+            <button
+              onClick={mute}
+              title={t("elsewhere.muteSomebody", { pseudo: opinion.pseudo })}
+              style={small}
+            >
               <UserMinus size={11} />
             </button>
           </>

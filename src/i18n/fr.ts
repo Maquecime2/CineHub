@@ -419,6 +419,8 @@ const fr = {
   },
 
   elsewhere: {
+    at: "chez {{pseudo}}",
+    muteSomebody: "Ne plus rien voir de {{pseudo}}",
     filedBy_one: "{{count}} vidéothèque le range",
     filedBy_other: "{{count}} vidéothèques le rangent",
     reportPrompt: "Qu'est-ce qui ne va pas dans ce qu'a écrit {{pseudo}} ?",
@@ -656,6 +658,10 @@ const fr = {
   },
 
   shared: {
+    heading: "La vidéothèque de {{pseudo}}",
+    opening: "Ouverture…",
+    count_one: "{{count}} film — regardé, noté, rangé par quelqu'un d'autre.",
+    count_other: "{{count}} films — regardés, notés, rangés par quelqu'un d'autre.",
     noCollection: "Pas de collection à cette adresse. Le lien a peut-être été refermé.",
     couldNotOpen: "Cette collection n'a pas pu être ouverte.",
   },
@@ -1294,6 +1300,32 @@ const fr = {
     guessMood: "deviner l'humeur d'un film que vous n'avez pas encore annoté",
     nothingAnswers: "Rien dans « à voir » ne répond — ou la liste est vide.",
     allReviewed: "Vous les avez tous passés en revue.",
+  },
+
+  threadView: {
+    /* CES QUINZE PHRASES ÉTAIENT EN DUR, comme celles des listes, et la
+       même passe de traduction automatique en avait abîmé trois : « at
+       fil », « Vous ne suivez more person », « Rien de fresh chez les
+       gens que vous suivez ». Un texte en dur échappe aux deux
+       catalogues, donc au test de parité. */
+    heading: "Le fil",
+    subheading: "ce que regardent les gens que vous suivez",
+    find: "Chercher quelqu'un",
+    pseudoPlaceholder: "son pseudonyme",
+    look: "VOIR",
+    shown_one: "{{count}} film montré",
+    shown_other: "{{count}} films montrés",
+    theirCollection: "SA COLLECTION",
+    follow: "SUIVRE",
+    unfollow: "NE PLUS SUIVRE",
+    unfollowSomebody: "Ne plus suivre {{pseudo}}",
+    youFollow: "Vous suivez",
+    closedAgain: "refermée",
+    lately: "Dernièrement, chez eux",
+    opening: "Ouverture…",
+    followNobody: "Vous ne suivez personne. Cherchez un pseudonyme ci-dessus.",
+    nothingNew: "Rien de neuf chez les gens que vous suivez.",
+    at: "chez {{pseudo}}",
   },
 
   listsView: {
