@@ -46,6 +46,19 @@ export type Skin = {
    * only those.
    */
   dark?: boolean;
+  /**
+   * L'ARTICLE DE BOUTIQUE QUI L'OUVRE. Absent — et c'est le cas des
+   * quatorze premières — la peau est à tout le monde, hors ligne
+   * compris, et le restera : verrouiller une peau qui marchait déjà
+   * sans compte aurait été la reprendre à quelqu'un.
+   *
+   * LE VERROU EST AU CHOIX, PAS À L'APPLICATION. `applySkin` ignore ce
+   * champ et sert la peau qu'on lui demande, sans poser de question :
+   * autrement, un rechargement hors ligne retomberait sur « carnet », et
+   * le classeur se déguiserait tout seul. C'est `SkinPicker` qui lit ce
+   * champ, pour savoir quoi METTRE DANS LA GRILLE.
+   */
+  locked?: string;
   c: Record<string, string>;
   fonts: { title: string; body: string; hand: string; mono: string };
   /** What to ask Google for, exactly as it goes in the URL. */
@@ -606,6 +619,129 @@ export const SKINS: Skin[] = [
       #DCD8CE`,
     tag: { radius: "0px", tracking: "1.5px", transform: "uppercase" },
     atm: { grain: 1, stain: 0.15, thumb: 0.3 },
+  },
+  /* ------------------------------------------------------------
+     LES TROIS PEAUX DU COMPTOIR
+     ------------------------------------------------------------
+     Elles s'achètent, et elles sont EN PLUS. Les quatorze au-dessus ne
+     bougent pas d'une virgule : elles marchent sans serveur, sans compte
+     et sans réseau, et c'est une promesse du projet entier.
+
+     Sans compte, celles-ci n'existent tout simplement pas dans la grille
+     — invisibles, jamais grisées, comme tout ce qui dépend du dehors. */
+  {
+    key: "nitrate",
+    locked: "skin-nitrate",
+    dark: true,
+    c: {
+      paper: "#171310",
+      paperDark: "#0E0B09",
+      card: "#221C17",
+      ink: "#EDE2CE",
+      inkFaded: "#9C8D76",
+      burgundy: "#E4763A",
+      ochre: "#D9A441",
+      pine: "#6E9A72",
+      slate: "#7C8794",
+      line: "#4A3C2E",
+      cobalt: "#6E8FC0",
+      vermillion: "#F0623A",
+      moss: "#A3A85C",
+      plum: "#B075A8",
+    },
+    fonts: {
+      title: "'Cormorant Garamond', serif",
+      body: "'Crimson Pro', Georgia, serif",
+      hand: "'Kalam', cursive",
+      mono: "'Cutive Mono', monospace",
+    },
+    google: [
+      "Cormorant+Garamond:ital,wght@0,600;1,600",
+      "Crimson+Pro:wght@400;600",
+      "Kalam",
+      "Cutive+Mono",
+    ],
+    /* La pellicule qui brûle : une chaleur au centre, la nuit au bord. */
+    page: `
+      radial-gradient(ellipse at 50% 34%, #2B211A 0%, transparent 58%),
+      radial-gradient(circle at 82% 78%, #241A14 0%, transparent 44%),
+      #171310`,
+    tag: { radius: "2px", tracking: "2px", transform: "uppercase" },
+    atm: { grain: 1, stain: 0.35, thumb: 0.5 },
+  },
+  {
+    key: "drive-in",
+    locked: "skin-drive-in",
+    dark: true,
+    c: {
+      paper: "#101A2B",
+      paperDark: "#0A1220",
+      card: "#182742",
+      ink: "#F2E9DA",
+      inkFaded: "#93A2BC",
+      burgundy: "#F2557B",
+      ochre: "#F7C948",
+      pine: "#43B08A",
+      slate: "#8296B4",
+      line: "#2E4568",
+      cobalt: "#5AA9F0",
+      vermillion: "#FF7A4D",
+      moss: "#9BC46A",
+      plum: "#C57BE8",
+    },
+    fonts: {
+      title: "'Monoton', cursive",
+      body: "'Work Sans', sans-serif",
+      hand: "'Shadows Into Light', cursive",
+      mono: "'Share Tech Mono', monospace",
+    },
+    google: ["Monoton", "Work+Sans:wght@400;600", "Shadows+Into+Light", "Share+Tech+Mono"],
+    page: `
+      radial-gradient(ellipse at 50% 8%, #24406B 0%, transparent 52%),
+      radial-gradient(circle at 16% 88%, #1B2E4E 0%, transparent 46%),
+      #101A2B`,
+    tag: { radius: "12px", tracking: "1.8px", transform: "uppercase" },
+    atm: { grain: 0.5, stain: 0.1, thumb: 0.4 },
+  },
+  {
+    key: "cinemascope",
+    locked: "skin-cinemascope",
+    c: {
+      paper: "#EDE6DA",
+      paperDark: "#D9CFBD",
+      card: "#F7F2E7",
+      ink: "#231F1A",
+      inkFaded: "#6B6155",
+      burgundy: "#A8332C",
+      ochre: "#C08A1E",
+      pine: "#2F6152",
+      slate: "#546374",
+      line: "#BFB29A",
+      cobalt: "#2E5590",
+      vermillion: "#D2542A",
+      moss: "#6B7A34",
+      plum: "#71406B",
+    },
+    fonts: {
+      title: "'Playfair Display', serif",
+      body: "'Libre Baskerville', Georgia, serif",
+      hand: "'Caveat', cursive",
+      mono: "'Oswald', sans-serif",
+    },
+    google: [
+      "Playfair+Display:ital,wght@0,700;1,700",
+      "Libre+Baskerville",
+      "Caveat",
+      "Oswald:wght@300;500",
+    ],
+    /* Les deux bandes noires d'un format large, en haut et en bas. */
+    page: `
+      linear-gradient(180deg, #1B1815 0 26px, transparent 26px),
+      linear-gradient(0deg, #1B1815 0 26px, transparent 26px),
+      radial-gradient(circle at 30% 20%, #F5EFE3 0%, transparent 52%),
+      #EDE6DA`,
+    tag: { radius: "0px", tracking: "3px", transform: "uppercase" },
+    atm: { grain: 0.7, stain: 0.25, thumb: 0.6 },
   },
 ];
 

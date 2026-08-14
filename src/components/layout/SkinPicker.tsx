@@ -20,6 +20,8 @@ import { X } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { SKINS, type Skin } from "../../theme/skins";
+import { ownedItems } from "../../theme/owned";
+import { accountOpen } from "../../services/server";
 
 const PANEL: CSSProperties = {
   position: "fixed",
@@ -108,6 +110,11 @@ export function SkinPicker({
   onPick: (key: string) => void;
   onClose: () => void;
 }) {
+  /* Sans compte, on ne lit même pas ce qu'on possède : les peaux
+     verrouillées n'existent pas, et la question ne se pose pas. */
+  const mine = accountOpen() ? ownedItems() : [];
+  const offered = SKINS.filter((s) => !s.locked || mine.includes(s.locked));
+
   return (
     <>
       <div onClick={onClose} data-veil style={{ position: "fixed", inset: 0, zIndex: 59 }} />
@@ -143,7 +150,21 @@ export function SkinPicker({
           elle change tout — le fond, les couleurs, les polices, les onglets
         </div>
 
-        {SKINS.map((s) => (
+        {/* CE QU'ON NE PEUT PAS AVOIR N'EST PAS DESSINÉ.
+
+            Une peau verrouillée qu'on n'a pas achetée n'apparaît pas —
+            pas grisée, pas barrée, pas accompagnée d'un prix. C'est la
+            règle de tout ce qui dépend du dehors dans ce classeur, et
+            elle vaut ici plus qu'ailleurs : sans compte, la grille doit
+            être exactement celle qu'elle a toujours été, quatorze peaux
+            et rien qui laisse deviner qu'il en existe d'autres.
+
+            Le filtre est ICI et non dans `applySkin`, qui continue de
+            servir sans poser de question la peau qu'on lui demande. Une
+            peau achetée puis le réseau coupé reste appliquée : la clé
+            est en mémoire locale, et le classeur ne se déguise pas tout
+            seul au rechargement. */}
+        {offered.map((s) => (
           <SkinCard key={s.key} skin={s} on={s.key === skin} onPick={() => onPick(s.key)} />
         ))}
 

@@ -158,3 +158,60 @@ describe("laying a skin down", () => {
     expect(loadSkinKey()).toBe("herbier");
   });
 });
+
+/* ============================================================
+   CE QUI S'ACHÈTE, ET CE QUI RESTE DÛ À TOUT LE MONDE
+
+   Le classeur marche entier sans serveur, sans compte et sans réseau.
+   Ces trois tests disent la seule façon d'ajouter des peaux payantes
+   sans y toucher — et le premier est celui qui compte, parce qu'il
+   attraperait une régression qu'aucun écran ne montrerait : une peau
+   libre passée par mégarde derrière un prix ne se voit que chez ceux
+   qui ne l'ont pas.
+   ============================================================ */
+describe("les peaux du comptoir", () => {
+  const FREE = [
+    "carnet",
+    "veilleuse",
+    "cinematheque",
+    "bauhaus",
+    "nuit-americaine",
+    "kodachrome",
+    "herbier",
+    "bleu",
+    "pulp",
+    "fanzine",
+    "pastel",
+    "japon",
+    "sepia",
+    "affiche",
+  ];
+
+  it("laisse les quatorze premières libres, à jamais", () => {
+    for (const key of FREE) {
+      const skin = SKINS.find((s) => s.key === key);
+      expect(skin, `la peau « ${key} » a disparu du catalogue`).toBeDefined();
+      expect(skin!.locked, `la peau « ${key} » a été mise derrière un prix`).toBeUndefined();
+    }
+  });
+
+  it("nomme un article de boutique pour chaque peau verrouillée", () => {
+    /* L'identifiant est écrit dans `owned` côté serveur : une clé qui ne
+       correspond à rien serait une peau que personne ne peut ouvrir. */
+    for (const skin of SKINS.filter((s) => s.locked)) {
+      expect(skin.locked).toMatch(/^skin-[a-z-]+$/);
+      expect(skin.locked).toBe(`skin-${skin.key}`);
+    }
+  });
+
+  it("s'applique quand on la demande, verrouillée ou non", () => {
+    /* LE VERROU EST AU CHOIX, PAS À L'APPLICATION. Si `applySkin`
+       consultait ce champ, un rechargement hors ligne retomberait sur
+       « carnet » et le classeur se déguiserait tout seul. */
+    const locked = SKINS.find((s) => s.locked);
+    expect(locked).toBeDefined();
+    applySkin(locked!.key);
+    expect(document.documentElement.dataset.skin).toBe(locked!.key);
+    expect(skinOf(locked!.key).key).toBe(locked!.key);
+  });
+});

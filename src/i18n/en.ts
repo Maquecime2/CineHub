@@ -1458,6 +1458,9 @@ const en = {
     japon: { label: "Japanese paper", note: "indigo, off-white, one red seal" },
     sepia: { label: "Sepia", note: "a photograph looked at too often" },
     affiche: { label: "Polish poster", note: "greyish paper, three inks knocking together" },
+    nitrate: { label: "Nitrate", note: "film stock warming, night all around" },
+    "drive-in": { label: "Drive-in", note: "neon on a windscreen, a summer evening" },
+    cinemascope: { label: "Cinemascope", note: "two black bars, and everything else wider" },
   },
 
   tour: {

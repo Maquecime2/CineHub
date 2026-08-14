@@ -1504,6 +1504,9 @@ const fr = {
     japon: { label: "Papier Japon", note: "indigo, blanc cassé, un sceau rouge" },
     sepia: { label: "Sépia", note: "une photographie qu'on a trop regardée" },
     affiche: { label: "Affiche polonaise", note: "papier grisâtre, trois encres qui se cognent" },
+    nitrate: { label: "Nitrate", note: "la pellicule qui chauffe, la nuit autour" },
+    "drive-in": { label: "Drive-in", note: "néons sur pare-brise, un soir d'été" },
+    cinemascope: { label: "Cinémascope", note: "deux bandes noires, et tout le reste plus large" },
   },
 
   tour: {
