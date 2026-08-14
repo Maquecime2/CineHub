@@ -77,10 +77,24 @@ la forme de `ref` le plafonne à vie. Le vérifiable — quiz, défis, contribut
   des couches globales (modale, peaux, visite).
 - `src/views/` — une vue par onglet. `src/domain/` — la logique pure, testée.
   `src/services/` — la persistance et les entrées/sorties.
-- `src/components/layout/FolderTabs.tsx` — le rail d'onglets et ses trois
-  actions de pied : épingler un film, la peau du site, la visite. **L'union
-  `View` y est la source de vérité des vues** : `steps.test.ts` la LIT dans ce
-  fichier, il ne la recopie plus.
+- `src/components/layout/FolderTabs.tsx` — le rail et ses actions de pied
+  (épingler, chercher, importer, la peau, la langue, la clé, le compte, la
+  visite). **L'union `View` y est la source de vérité des vues** :
+  `steps.test.ts` la LIT dans ce fichier, il ne la recopie plus.
+  - **Le rail ne porte plus une vue par pastille, mais un GROUPE** : `GROUPS`
+    en tient trois — le classeur, explorer, le hall — et `SubTabs` déplie les
+    membres du groupe ouvert, au-dessus de la colonne et non dedans (la
+    colonne rejoue son animation d'entrée à chaque page). Une vue neuve entre
+    donc dans un groupe ; `groupOf` rend `undefined` pour `detail` et
+    `import`, qui sont des pages et non des onglets.
+  - `needsServer` est au niveau du GROUPE : sans serveur, le hall n'existe
+    pas — absent, jamais grisé.
+  - **Sur téléphone, ce sont les ACTIONS qui défilent, pas les onglets.**
+    L'inverse a coûté cinq pixels de large à la navigation entière, et un
+    bouton souple dans une barre qui défile rétrécit au lieu de défiler :
+    d'où le `flexShrink: 0` sur chacun.
+  - Le carnet n'est plus une vue : `components/layout/NotebookDrawer.tsx`,
+    ouvert depuis la barre du classeur. Les notes, elles, n'ont pas bougé.
 - `src/views/CounterView.tsx` — le comptoir : guichet, présentoir, carnet à
   souches. `src/components/play/` en tient les pièces.
 - Budget de `z-index` : grain 1, page et rail 2, la barre du bas du téléphone

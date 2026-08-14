@@ -1,7 +1,7 @@
 /* ============================================================
    NAVIGATION — onglets de classeur
    ============================================================ */
-import { type ComponentType } from "react";
+import { type ComponentType, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Pin,
@@ -17,7 +17,6 @@ import {
   Compass,
   Sparkles,
   CalendarDays,
-  NotebookPen,
   FolderInput,
   Settings,
   Search,
@@ -25,19 +24,26 @@ import {
   Languages,
   Coins,
 } from "lucide-react";
-import { C, alpha } from "../../theme/tokens";
+import { C, F, alpha } from "../../theme/tokens";
 import { PurseTally } from "../play/Tally";
 import { useViewport } from "../../hooks/useViewport";
 import { serverConfigured } from "../../services/server";
 
-/** The views reachable from the tabs. `detail` opens from a card. */
+/**
+ * The views reachable from the tabs. `detail` opens from a card, and
+ * `import` from the foot of the rail — neither belongs to a group.
+ *
+ * LE CARNET N'EST PLUS UNE VUE. Ses pages libres s'écrivent dans un
+ * tiroir ouvert depuis le classeur : voir `NotebookDrawer`. Ce qu'elles
+ * sont — la recherche transverse les lit, la synchro les emporte sous la
+ * clé `notebook-notes` — n'a pas bougé d'un pouce.
+ */
 export type View =
   | "library"
   | "watchlist"
   | "credits"
   | "reco"
   | "constellation"
-  | "notebook"
   | "import"
   | "thread"
   | "lists"
@@ -51,6 +57,8 @@ interface FolderTabsProps {
   view: View;
   setView: (v: View) => void;
   onAdd: () => void;
+  /** Ouvre l'import Letterboxd et la sauvegarde. */
+  onImport: () => void;
   /** Opens the search that crosses the whole binder. */
   onSearch: () => void;
   /** Opens the site skin picker. */
@@ -77,79 +85,144 @@ interface FolderTabsProps {
    in the product that is always on screen, and a tab still reading
    "Vidéothèque" under an English skin would be the most visible lie of
    the lot. */
-const TABS: {
+interface TabDef {
   key: View;
   label: string;
   color: string;
   icon: ComponentType<{ size?: number }>;
-  /** Worth nothing with no server: the tab does not appear at all. */
-  needsServer?: boolean;
-}[] = [
-  { key: "library", label: "views.library", color: C.burgundy, icon: Clapperboard },
-  { key: "watchlist", label: "views.watchlist", color: C.ochre, icon: Bookmark },
+}
+
+const TABS: Record<string, TabDef> = {
+  library: { key: "library", label: "views.library", color: C.burgundy, icon: Clapperboard },
+  watchlist: { key: "watchlist", label: "views.watchlist", color: C.ochre, icon: Bookmark },
   /* The Credits look at the same collection from another angle: it
      belongs to the holdings group, beside the two walls, not the tools. */
-  { key: "credits", label: "views.credits", color: C.plum, icon: Users },
-  { key: "reco", label: "views.reco", color: C.vermillion, icon: Compass },
-  { key: "constellation", label: "views.constellation", color: C.cobalt, icon: Sparkles },
-  { key: "almanac", label: "views.almanac", color: C.moss, icon: CalendarDays },
-  { key: "notebook", label: "views.notebook", color: C.pine, icon: NotebookPen },
-  { key: "import", label: "views.import", color: C.slate, icon: FolderInput },
-  /* THE FEED IS THE LAST TAB, and not the first: the binder stays a
-       personal video library, and what we look at in other people's
-       homes comes after what we have in ours. */
-  { key: "thread", label: "views.thread", color: C.cobalt, icon: Users2, needsServer: true },
-  /* The lists and the challenges come after the feed: we look at what
-       others are doing before starting something with them. */
-  {
-    key: "lists",
-    label: "views.lists",
-    color: C.moss,
-    icon: ListChecks,
-    needsServer: true,
+  credits: { key: "credits", label: "views.credits", color: C.plum, icon: Users },
+  reco: { key: "reco", label: "views.reco", color: C.vermillion, icon: Compass },
+  constellation: {
+    key: "constellation",
+    label: "views.constellation",
+    color: C.cobalt,
+    icon: Sparkles,
   },
-  /* And the quizzes last of all: a list is something one keeps, a quiz
-     is an evening. It carries the plum of the Credits — the eight tints
-     are taken, and the two never sit side by side in the rail.
+  almanac: { key: "almanac", label: "views.almanac", color: C.moss, icon: CalendarDays },
+  thread: { key: "thread", label: "views.thread", color: C.cobalt, icon: Users2 },
+  lists: { key: "lists", label: "views.lists", color: C.moss, icon: ListChecks },
+  /* The quizzes carry the plum of the Credits — the eight tints are
+     taken, and the two never sit in the same bar.
      NOT `HelpCircle`, WHICH IS THE HELP: that icon already means "the
      guided tour" at the foot of this very rail, and one drawing standing
      for two things is the sort of confusion a rail cannot afford. */
-  {
-    key: "quiz",
-    label: "views.quiz",
-    color: C.plum,
-    icon: Puzzle,
-    needsServer: true,
-  },
-  /* THE COUNTER CLOSES THE RAIL, because it is what the three tabs
-     before it add up to: what the feed, the challenges and the quizzes
-     have earned is spent here.
-
-     `Coins` AND NOT `Store`. A shop front would say "buy"; this tab is
-     first of all where one reads what one has, and the buying is the
+  quiz: { key: "quiz", label: "views.quiz", color: C.plum, icon: Puzzle },
+  /* `Coins` AND NOT `Store`. A shop front would say "buy"; the counter
+     is first of all where one reads what one has, and the buying is the
      third of its three bands. */
+  counter: { key: "counter", label: "views.counter", color: C.ochre, icon: Coins },
+  /* In ink and not in one of the eight tints: the product's tabs are
+     taken, and a tool must not disguise itself as a view. */
+  skinlab: { key: "skinlab", label: "views.skinlab", color: C.ink, icon: Settings },
+};
+
+/* ============================================================
+   TROIS PASTILLES, ET NON PLUS DOUZE
+   ============================================================
+
+   Le rail était une liste PLATE de douze onglets, sans une séparation,
+   alors que trois familles s'y lisaient à l'œil nu — et que deux d'entre
+   eux, la vidéothèque et « à voir », sont littéralement le même
+   composant. Douze cibles à parcourir chaque fois qu'on cherche où l'on
+   va, c'est douze décisions pour en prendre une.
+
+   Elles se regroupent donc, et le regroupement DIT quelque chose :
+
+   — LE CLASSEUR, ce qu'on possède : le mur, ce qu'on veut voir, et les
+     gens qui l'ont fait. Trois angles sur une seule collection.
+   — EXPLORER, ce qu'on n'a pas encore : les découvertes, les liens entre
+     les films, et l'année écoulée. Trois façons de regarder au-delà.
+   — LE HALL, les autres. Il a déjà son atmosphère à lui
+     (`atmosphere/hall`) — ticket, vitrine, fronton : quatre onglets se
+     la partageaient sans le dire, ils sont maintenant les quatre
+     guichets d'un même hall.
+
+   `needsServer` MONTE AU NIVEAU DU GROUPE. Sans serveur, le hall ne
+   paraît pas du tout — pas grisé, ABSENT, comme la règle du projet le
+   veut. Le rail tombe alors à deux pastilles, ce qui est encore la
+   bonne réponse : il n'y a personne en face.
+
+   L'UNION `View` NE BOUGE PAS POUR AUTANT, et c'est délibéré. Les vues
+   restent ce qu'elles sont, `App` les monte comme avant, chacune garde
+   sa visite guidée et son entrée dans `steps.ts`. Ce qui change est la
+   NAVIGATION : une pastille par famille, et les membres de la famille en
+   sous-onglets sous elle. Effacer les clés de vue aurait été réécrire
+   tout le produit pour ranger un rail. */
+export interface TabGroup {
+  key: string;
+  label: string;
+  color: string;
+  icon: ComponentType<{ size?: number }>;
+  /** Les vues du groupe, dans l'ordre où elles se lisent. */
+  members: View[];
+  /** Sans serveur, le groupe entier disparaît. */
+  needsServer?: boolean;
+}
+
+export const GROUPS: TabGroup[] = [
   {
-    key: "counter",
-    label: "views.counter",
+    key: "binder",
+    label: "groups.binder",
+    color: C.burgundy,
+    icon: Clapperboard,
+    members: ["library", "watchlist", "credits"],
+  },
+  {
+    key: "explore",
+    label: "groups.explore",
+    color: C.cobalt,
+    icon: Compass,
+    members: ["reco", "constellation", "almanac"],
+  },
+  {
+    key: "hall",
+    label: "groups.hall",
     color: C.ochre,
-    icon: Coins,
+    icon: Users2,
+    members: ["thread", "lists", "quiz", "counter"],
     needsServer: true,
   },
+  ...(import.meta.env.DEV
+    ? [
+        {
+          key: "skins",
+          label: "views.skinlab",
+          color: C.ink,
+          icon: Settings,
+          members: ["skinlab" as View],
+        },
+      ]
+    : []),
 ];
 
-/* The skin control tab is not a view of the product: it only appears in
-   development, and the production build does not even carry it — the
-   condition is static, so the import of the board falls to tree
-   shaking. */
-const DEV_TABS: typeof TABS = import.meta.env.DEV
-  ? /* In ink and not in one of the eight tints: the product's tabs are
-       taken, and a tool must not disguise itself as a view. */
-    [{ key: "skinlab", label: "views.skinlab", color: C.ink, icon: Settings }]
-  : [];
+/**
+ * Le groupe d'une vue, s'il y en a un.
+ *
+ * `detail` et `import` n'appartiennent à aucun : la fiche s'ouvre depuis
+ * une carte, l'import depuis le pied du rail. Le rail n'allume alors
+ * aucune pastille et la barre de sous-onglets se retire — ce sont des
+ * pages, pas des onglets, et le rail ne doit pas prétendre le contraire.
+ */
+export const groupOf = (view: View): TabGroup | undefined =>
+  GROUPS.find((g) => g.members.includes(view));
 
 const DIMMED = "saturate(0.65) brightness(0.92)";
 
-type TabDef = (typeof TABS)[number];
+/* Ce qu'il faut pour dessiner une pastille, et rien de plus : un groupe
+   du rail et un sous-onglet en portent autant l'un que l'autre. */
+interface Pill {
+  key: string;
+  label: string;
+  color: string;
+  icon: ComponentType<{ size?: number }>;
+}
 
 /* A TAB — AN ICON PILL.
 
@@ -169,7 +242,7 @@ function Tab({
   onClick,
   phone,
 }: {
-  t: TabDef;
+  t: Pill;
   active: boolean;
   onClick: () => void;
   /* ON A PHONE, THIS IS NO LONGER A BINDER TAB.
@@ -316,6 +389,12 @@ function RoundAction({
         cursor: "pointer",
         position: "relative",
         marginLeft: finger ? 0 : 8,
+        /* NE CÈDE RIEN. Dans une barre du bas qui défile, un bouton
+           souple ne défile pas : il rétrécit. Mesuré à trois cent
+           soixante-quinze pixels, les huit actions tombaient à dix-huit
+           pixels chacune — moins de la moitié du plancher sous lequel
+           une cible se rate une fois sur trois. */
+        flexShrink: 0,
         width: finger ? 40 : 26,
         height: finger ? 40 : 26,
         borderRadius: "50%",
@@ -354,10 +433,97 @@ function RoundAction({
   );
 }
 
+/* ============================================================
+   LA BARRE DE SOUS-ONGLETS — ce que la pastille contient
+   ============================================================
+
+   Elle se rend AU-DESSUS de la colonne de vue et non dedans : la colonne
+   porte `[data-enters]`, dont l'animation d'entrée rejoue à chaque
+   changement de page. Une barre placée dedans se serait redessinée sous
+   la main à chaque clic — or elle est précisément ce qui ne bouge pas
+   pendant qu'on tourne les pages du groupe.
+
+   ELLE SE RETIRE quand la vue n'appartient à aucun groupe (la fiche
+   d'un film, l'import) et quand le groupe n'a qu'un membre : une barre
+   d'un seul onglet ne propose rien, elle occupe une ligne.
+
+   Le patron est celui des onglets de la fiche (`views/DetailView`) :
+   des mots soulignés à l'encre, pas des pastilles — le rail dit déjà
+   « où l'on est » en couleur, et deux grammaires pour une navigation
+   font deux navigations. */
+export function SubTabs({
+  view,
+  setView,
+  extra,
+}: {
+  view: View;
+  setView: (v: View) => void;
+  /** Ce qui s'ouvre depuis le groupe sans être une vue — le carnet. */
+  extra?: ReactNode;
+}) {
+  const { t } = useTranslation();
+  const group = groupOf(view);
+  if (!group || (group.members.length < 2 && !extra)) return null;
+
+  return (
+    <div
+      data-sub-rail
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 18,
+        flexWrap: "wrap",
+        padding: "12px 44px 0",
+        /* Le trait est celui d'un intercalaire, pas d'une bordure de
+           panneau : il ne ferme rien, il sépare. */
+        borderBottom: `1px solid ${alpha(C.line, 0.9)}`,
+      }}
+    >
+      {group.members.map((key) => {
+        const tab = TABS[key];
+        if (!tab) return null;
+        const on = view === key;
+        const Icon = tab.icon;
+        return (
+          <button
+            key={key}
+            data-tour={`tab-${key}`}
+            onClick={() => setView(key)}
+            aria-current={on ? "page" : undefined}
+            style={{
+              all: "unset",
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "6px 2px 8px",
+              fontFamily: F.mono,
+              fontSize: 10.5,
+              letterSpacing: 1.2,
+              textTransform: "uppercase",
+              color: on ? tab.color : C.inkFaded,
+              /* Le trait sous l'onglet ouvert déborde d'un pixel sur
+                 celui de la barre : il le RECOUVRE, ce qui est ce que
+                 fait un intercalaire qu'on a tiré. */
+              boxShadow: on ? `inset 0 -2px 0 ${tab.color}` : "none",
+              marginBottom: -1,
+              transition: "color var(--motion-fast) ease",
+            }}
+          >
+            <Icon size={12} /> {t(tab.label)}
+          </button>
+        );
+      })}
+      {extra}
+    </div>
+  );
+}
+
 export function FolderTabs({
   view,
   setView,
   onAdd,
+  onImport,
   onSearch,
   onSkin,
   onLanguage,
@@ -382,7 +548,8 @@ export function FolderTabs({
      time — so the rail will never change shape along the way. Nor will
      the tour: its steps aiming at these views are `optional`, and an
      absent target is skipped without a sound. */
-  const tabs = [...TABS, ...DEV_TABS].filter((t) => !t.needsServer || serverConfigured());
+  const groups = GROUPS.filter((g) => !g.needsServer || serverConfigured());
+  const here = groupOf(view);
   /* THE RAIL LIES DOWN RATHER THAN DISAPPEARING.
 
      On a binder's left spine, eight stacked pills and four actions at the
@@ -496,33 +663,34 @@ export function FolderTabs({
             /* `minHeight: 0` is what really allows the shrinking:
                without it, a flexible child refuses to go below the size
                of its content. */
-            flex: "1 1 auto",
             minHeight: 0,
-            minWidth: 0,
             display: "flex",
             gap: 6,
             ...(phone
               ? {
-                  /* HERE, WE SCROLL — AND IT IS THE OPPOSITE OF THE RAIL.
+                  /* SUR TÉLÉPHONE, CE SONT LES ONGLETS QUI NE CÈDENT PAS.
 
-                     On the spine, nothing was to overflow: a scrollbar on
-                     a binder's back looks like nothing at all, and eight
-                     stacked pills fit in any window. Laid down, eight
-                     forty-pixel pills make three hundred and sixty-eight,
-                     and the four actions take two hundred more: in a
-                     window of three hundred and ninety, that does not
-                     fit, and never will.
+                     La barre du bas partageait sa largeur entre la liste
+                     des onglets, souple, et les actions, incompressibles.
+                     Avec douze pastilles c'était déjà tendu ; mesuré à
+                     trois cent soixante-quinze pixels, les actions en
+                     prenaient trois cent quarante-six et il RESTAIT CINQ
+                     PIXELS aux onglets — la navigation entière du produit,
+                     réduite à une fente. Elle défilait, donc rien ne
+                     paraissait cassé : elle était simplement introuvable.
 
-                     Horizontal filing, for its part, has an obvious
-                     finger gesture — we swipe. Its bar stays hidden
-                     (`[data-tab-rail]`, higher up in the tokens), the
-                     swipe does not. */
-                  overflowX: "auto",
-                  overflowY: "hidden",
+                     Depuis qu'ils sont trois, les onglets tiennent en
+                     cent quarante pixels sur n'importe quel téléphone.
+                     Ils ne cèdent donc plus rien, et ce sont les actions
+                     qui défilent au doigt — l'épingle et la loupe, les
+                     deux qu'on touche, arrivent en tête. */
+                  flex: "0 0 auto",
                   flexDirection: "row",
                   alignItems: "center",
                 }
               : {
+                  flex: "1 1 auto",
+                  minWidth: 0,
                   /* `clip` and not `hidden`: we want no scrolling axis
                      at all, only that nothing bleeds to the right. The
                      tabs slide six pixels on hover and carry a shadow —
@@ -535,13 +703,18 @@ export function FolderTabs({
                 }),
           }}
         >
-          {tabs.map((t) => (
+          {groups.map((g) => (
             <Tab
-              key={t.key}
-              t={t}
-              active={view === t.key}
+              key={g.key}
+              t={g}
+              active={here?.key === g.key}
               phone={phone}
-              onClick={() => setView(t.key)}
+              /* On entre TOUJOURS par le premier membre, et non par
+                 celui qu'on avait quitté : une pastille qui rouvre
+                 ailleurs selon l'humeur du souvenir est une pastille
+                 dont on ne sait plus ce qu'elle fait. La barre de
+                 sous-onglets, juste dessous, montre le reste. */
+              onClick={() => setView(g.members[0]!)}
             />
           ))}
         </div>
@@ -551,12 +724,25 @@ export function FolderTabs({
             right of the bar, outside the tabs' swipe, so that the thumb
             does not lose them while scrolling the list. */}
         <div
+          data-tab-actions
           style={{
-            flexShrink: 0,
             display: "flex",
             ...(phone
-              ? { flexDirection: "row", alignItems: "center", gap: 2 }
+              ? {
+                  /* Elles cèdent, et défilent : voir la note sur les
+                     onglets juste au-dessus. Leur barre de défilement est
+                     masquée comme celle du rail (`theme/tokens`) ; le
+                     balayage, lui, ne l'est pas. */
+                  flex: "1 1 auto",
+                  minWidth: 0,
+                  overflowX: "auto",
+                  overflowY: "hidden",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 2,
+                }
               : {
+                  flexShrink: 0,
                   paddingTop: 16,
                   flexDirection: "column",
                   alignItems: "flex-start",
@@ -578,6 +764,7 @@ export function FolderTabs({
                  last two hard to aim at. Forty everywhere, then, below
                  which a target is missed. */
               marginLeft: phone ? 0 : 4,
+              flexShrink: 0,
               width: phone ? 40 : 34,
               height: phone ? 40 : 34,
               borderRadius: "50%",
@@ -615,6 +802,7 @@ export function FolderTabs({
               all: "unset",
               cursor: "pointer",
               marginLeft: phone ? 0 : 6,
+              flexShrink: 0,
               width: phone ? 40 : 30,
               height: phone ? 40 : 30,
               borderRadius: "50%",
@@ -639,6 +827,26 @@ export function FolderTabs({
           {/* LE COMPTE, JUSTE AVANT LA PEAU. Le sélecteur affiche des
               prix : ce qu'on a et ce qu'il permet sont côte à côte. */}
           <PurseTally onOpen={() => setView("counter")} phone={phone} />
+
+          {/* L'IMPORT ET LA SAUVEGARDE, au pied du rail.
+
+              Il occupait une pastille du haut, à côté des vues, alors
+              qu'il n'en est pas une : on y va deux fois — le jour où
+              l'on arrive de Letterboxd, et le jour où l'on sauvegarde.
+              Sa place est ici, avec les réglages de tout.
+
+              PAS DANS LE TIROIR DU COMPTE, contrairement à ce qui avait
+              été prévu : ce tiroir n'est monté que si un serveur est
+              réglé, et l'import est justement ce dont on a besoin quand
+              il n'y en a pas. Un classeur sans serveur doit pouvoir
+              recevoir une collection et la sauvegarder. */}
+          <RoundAction
+            onClick={onImport}
+            tour="tab-import"
+            label={t("views.import")}
+            icon={FolderInput}
+            finger={phone}
+          />
 
           {/* THE SITE SKIN, at the foot of the binder's spine. */}
           <RoundAction
