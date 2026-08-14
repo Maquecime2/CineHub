@@ -824,7 +824,92 @@ const en = {
     thread: "The feed",
     lists: "Lists and challenges",
     quiz: "Quizzes",
+    counter: "The counter",
     skinlab: "Skins ⚙",
+  },
+
+  counter: {
+    heading: "The counter",
+    subheading: "what one has earned, what one does with it, and in front of whom",
+    noServer: "No server is set: a counter is a place one shares, and there is nobody here.",
+    noAccount:
+      "It takes an account — the button at the foot of the rail. Your video library does not need one.",
+    merit: "Merit",
+    tokens: "Tokens",
+    standing: "{{place}}th on the board",
+    ladder: {
+      world: "the world",
+      friends: "those I follow",
+      empty: "Nobody here yet.",
+      closed:
+        "You do not appear on the world's board. That is set in the account drawer, beside sharing.",
+    },
+    shop: {
+      title: "The display case",
+      stamp: "Stamps",
+      pack: "Packets",
+      skin: "Skins",
+      power: "Powers",
+      buy: "{{price}} tokens",
+      owned: "Owned",
+      wear: "wear",
+      takeOff: "take off",
+      short_one: "you are {{count}} token short",
+      short_other: "you are {{count}} tokens short",
+    },
+    items: {
+      "stamp-habitue": "The regular",
+      "stamp-noctambule": "The night owl",
+      "stamp-premiere-seance": "First screening",
+      "stamp-projectionniste": "The projectionist",
+      "pack-trois": "A packet of three",
+      "skin-nitrate": "Nitrate",
+      "skin-drive-in": "Drive-in",
+      "skin-cinemascope": "Cinemascope",
+      "power-halve": "Set two answers aside",
+      "power-redo": "Take a question back",
+      "power-extend": "Push a challenge back",
+    },
+    album: {
+      title: "The sheet",
+      opened: "The packet opens",
+      close: "Put away",
+    },
+  },
+
+  stamps: {
+    habitue: "regular",
+    noctambule: "night owl",
+    "premiere-seance": "1st screening",
+    projectionniste: "projectionist",
+  },
+
+  stickers: {
+    projecteur: "The projector",
+    fauteuil: "The seat",
+    bobine: "The reel",
+    ticket: "The ticket",
+    esquimau: "The ice cream",
+    rideau: "The curtain",
+    clap: "The clapperboard",
+    cadran: "The dial",
+    lanterne: "The lantern",
+    palme: "The palm",
+    nitrate: "The nitrate",
+  },
+
+  points: {
+    challenge: "challenge completed",
+    challenge_half: "challenge half way",
+    challenge_joined: "somebody joined you",
+    quiz: "quiz",
+    quiz_flawless: "flawless",
+    quiz_first: "first to finish",
+    watch: "a screening",
+    review: "a review",
+    rating: "a rating",
+    list_shared: "list shared",
+    bank_question: "question given to the bank",
   },
 
   rail: {
@@ -1678,6 +1763,25 @@ const en = {
       },
     },
 
+    counter: {
+      label: "The counter",
+      purse: {
+        title: "What you have earned",
+        body: "Two counters on one ticket. Merit adds up and never goes down: it is what ranks you. Tokens are the same figure, minus what you spend here — so buying something never costs you a place. One earns by finishing challenges, playing quizzes, keeping one's binder, and making other people's lists live.",
+      },
+      ladder: {
+        title: "In front of whom",
+        body: "“Those I follow”: the people you follow, and you. The world's board only appears if you have agreed to be on it — that is set in the account drawer, beside sharing. You always see yourself, even at the very bottom, and a block removes on both sides.",
+      },
+      shop: {
+        title: "The display case",
+        body: "Stamps to wear beside your pseudonym, packets of stickers, extra skins, and powers to spend during a game. Something too dear stays on the shelf and tells you what is missing. The binder's fourteen skins stay free and work with no account: what is sold here comes on top.",
+      },
+      album: {
+        title: "The sheet",
+        body: "Eleven stickers, drawn by hand, dealt by the server — reloading the page does not re-open a packet. The empty squares show what is missing without showing what it is, and doubles are counted: they are what one swaps.",
+      },
+    },
     global: {
       label: "Full tour",
       welcome: {
@@ -1731,6 +1835,10 @@ const en = {
       quiz: {
         title: "And asking each other things",
         body: "A challenge measures what one watches; a quiz measures what one thinks one knows. You are given one, you answer whenever you like, and the scores are compared among the people invited. An answer once laid down is not taken back, and a finished quiz is not played again.",
+      },
+      counter: {
+        title: "And the counter, at the end",
+        body: "A challenge finished, a quiz played, a list one keeps alive: all of it counts. The counter says what you have earned, where you stand, and what you may do with it — a stamp to wear, a packet to open. None of this exists without an account, and your video library does not need one.",
       },
       tmdbKey: {
         title: "The TMDB key",

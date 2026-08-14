@@ -23,6 +23,7 @@ import {
   Search,
   KeyRound,
   Languages,
+  Coins,
 } from "lucide-react";
 import { C, alpha } from "../../theme/tokens";
 import { useViewport } from "../../hooks/useViewport";
@@ -40,6 +41,7 @@ export type View =
   | "thread"
   | "lists"
   | "quiz"
+  | "counter"
   | "detail"
   | "almanac"
   | "skinlab";
@@ -116,6 +118,20 @@ const TABS: {
     label: "views.quiz",
     color: C.plum,
     icon: Puzzle,
+    needsServer: true,
+  },
+  /* THE COUNTER CLOSES THE RAIL, because it is what the three tabs
+     before it add up to: what the feed, the challenges and the quizzes
+     have earned is spent here.
+
+     `Coins` AND NOT `Store`. A shop front would say "buy"; this tab is
+     first of all where one reads what one has, and the buying is the
+     third of its three bands. */
+  {
+    key: "counter",
+    label: "views.counter",
+    color: C.ochre,
+    icon: Coins,
     needsServer: true,
   },
 ];

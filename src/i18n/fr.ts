@@ -844,7 +844,92 @@ const fr = {
     thread: "Le fil",
     lists: "Listes et défis",
     quiz: "Quizz",
+    counter: "Le comptoir",
     skinlab: "Peaux ⚙",
+  },
+
+  counter: {
+    heading: "Le comptoir",
+    subheading: "ce qu'on a gagné, ce qu'on en fait, et devant qui",
+    noServer: "Aucun serveur n'est réglé : le comptoir se tient à plusieurs, et il n'y a personne.",
+    noAccount:
+      "Il faut un compte — le bouton au pied du rail. Votre vidéothèque, elle, n'en a pas besoin.",
+    merit: "Mérite",
+    tokens: "Jetons",
+    standing: "{{place}}e au classement",
+    ladder: {
+      world: "le monde",
+      friends: "ceux que je suis",
+      empty: "Personne ici pour l'instant.",
+      closed:
+        "Vous ne figurez pas au classement du monde. Cela se règle dans le tiroir du compte, à côté du partage.",
+    },
+    shop: {
+      title: "Le présentoir",
+      stamp: "Tampons",
+      pack: "Pochettes",
+      skin: "Peaux",
+      power: "Pouvoirs",
+      buy: "{{price}} jetons",
+      owned: "Acquis",
+      wear: "porter",
+      takeOff: "retirer",
+      short_one: "il vous manque {{count}} jeton",
+      short_other: "il vous manque {{count}} jetons",
+    },
+    items: {
+      "stamp-habitue": "L'habitué",
+      "stamp-noctambule": "Le noctambule",
+      "stamp-premiere-seance": "Première séance",
+      "stamp-projectionniste": "Le projectionniste",
+      "pack-trois": "Une pochette de trois",
+      "skin-nitrate": "Nitrate",
+      "skin-drive-in": "Drive-in",
+      "skin-cinemascope": "Cinémascope",
+      "power-halve": "Écarter deux réponses",
+      "power-redo": "Reprendre une question",
+      "power-extend": "Prolonger un défi",
+    },
+    album: {
+      title: "La planche",
+      opened: "La pochette s'ouvre",
+      close: "Ranger",
+    },
+  },
+
+  stamps: {
+    habitue: "habitué",
+    noctambule: "noctambule",
+    "premiere-seance": "1re séance",
+    projectionniste: "projectionniste",
+  },
+
+  stickers: {
+    projecteur: "Le projecteur",
+    fauteuil: "Le fauteuil",
+    bobine: "La bobine",
+    ticket: "Le ticket",
+    esquimau: "L'esquimau",
+    rideau: "Le rideau",
+    clap: "Le clap",
+    cadran: "Le cadran",
+    lanterne: "La lanterne",
+    palme: "La palme",
+    nitrate: "Le nitrate",
+  },
+
+  points: {
+    challenge: "défi bouclé",
+    challenge_half: "défi à mi-chemin",
+    challenge_joined: "quelqu'un vous a rejoint",
+    quiz: "quiz",
+    quiz_flawless: "sans faute",
+    quiz_first: "premier fini",
+    watch: "une séance",
+    review: "une critique",
+    rating: "une note",
+    list_shared: "liste partagée",
+    bank_question: "question versée à la banque",
   },
 
   rail: {
@@ -1726,6 +1811,25 @@ const fr = {
       },
     },
 
+    counter: {
+      label: "Le comptoir",
+      purse: {
+        title: "Ce que vous avez gagné",
+        body: "Deux compteurs sur un même billet. Le mérite se cumule et ne descend jamais : c'est lui qui vous classe. Les jetons sont le même chiffre, moins ce que vous dépensez ici — acheter ne vous coûte donc jamais une place. On gagne en bouclant des défis, en jouant des quizz, en tenant son classeur, et en faisant vivre les listes des autres.",
+      },
+      ladder: {
+        title: "Devant qui",
+        body: "« Ceux que je suis » : les gens que vous suivez, et vous. Le classement du monde, lui, n'apparaît que si vous avez accepté d'y figurer — cela se règle dans le tiroir du compte, à côté du partage. Vous vous voyez toujours, même tout en bas, et un blocage retire des deux côtés.",
+      },
+      shop: {
+        title: "Le présentoir",
+        body: "Des tampons à porter à côté de votre pseudonyme, des pochettes de vignettes, des peaux en plus, et des pouvoirs à dépenser pendant une partie. Un article trop cher reste sur l'étal et vous dit ce qui manque. Les quatorze peaux du classeur, elles, restent libres et marchent sans compte : ce qui s'achète ici est en supplément.",
+      },
+      album: {
+        title: "La planche",
+        body: "Onze vignettes, dessinées à la main, tirées au sort par le serveur — recharger la page ne rejoue pas une pochette. Les cases vides montrent ce qui manque sans montrer quoi, et les doubles se comptent : c'est ce qu'on échange du regard.",
+      },
+    },
     global: {
       label: "Visite complète",
       welcome: {
@@ -1779,6 +1883,10 @@ const fr = {
       quiz: {
         title: "Et se poser des questions",
         body: "Un défi mesure ce qu'on regarde ; un quizz mesure ce qu'on croit savoir. On vous en donne un, vous y répondez quand vous voulez, et les scores se comparent entre invités. Une réponse posée ne se reprend pas, et un quizz terminé ne se rejoue pas.",
+      },
+      counter: {
+        title: "Et le comptoir, au bout",
+        body: "Un défi bouclé, un quizz joué, une liste qu'on fait vivre : tout cela se compte. Le comptoir dit ce que vous avez gagné, devant qui vous vous situez, et ce que vous pouvez en faire — un tampon à porter, une pochette à ouvrir. Rien de tout cela n'existe sans compte, et votre vidéothèque n'en a pas besoin.",
       },
       tmdbKey: {
         title: "La clé TMDB",

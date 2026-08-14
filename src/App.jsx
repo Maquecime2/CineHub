@@ -39,6 +39,7 @@ import { ImportView } from "./views/import/ImportView";
 import { ThreadView } from "./views/ThreadView";
 import { ListsView } from "./views/ListsView";
 import { QuizView } from "./views/QuizView";
+import { CounterView } from "./views/CounterView";
 import { viewKey, saveViewIndex, deleteViewKey, ensureViews } from "./services/shelfViews";
 import { ConstellationView } from "./views/ConstellationView";
 import { LibraryView } from "./views/library/LibraryView";
@@ -926,6 +927,7 @@ export default function App() {
         {view === "thread" && <ThreadView connected={!!synchro.person} />}
         {view === "lists" && <ListsView connected={!!synchro.person} />}
         {view === "quiz" && <QuizView connected={!!synchro.person} />}
+        {view === "counter" && <CounterView connected={!!synchro.person} />}
         {view === "skinlab" && import.meta.env.DEV && <SkinLab />}
         {view === "import" && (
           <ImportView

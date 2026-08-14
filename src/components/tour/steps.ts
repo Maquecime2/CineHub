@@ -603,6 +603,17 @@ const global: Tour = {
       view: "quiz",
       optional: true,
     },
+    /* AND THE COUNTER CLOSES IT, because it is what the two steps
+       before it add up to: a challenge finished and a quiz played are
+       what one spends here. */
+    {
+      target: at("counter-purse"),
+      needsServer: true,
+      ...says("global", "counter"),
+      placement: "bottom",
+      view: "counter",
+      optional: true,
+    },
     {
       target: at("tmdb-key"),
       ...says("global", "tmdbKey"),
@@ -741,6 +752,42 @@ const quiz: Tour = {
    site's case — the feed and the challenges have no tab; their steps
    therefore have nothing to show, and the tour must describe the product
    as it is for whoever is playing it. */
+
+/* THE COUNTER. Everything here is `optional`, and for once that is not
+   caution but arithmetic: on a first visit the purse is at zero, the
+   album is empty and nothing on the shelf is affordable. The tour has to
+   run from end to end on exactly that screen — which is the screen
+   almost everybody sees the first time. */
+const counter: Tour = {
+  label: label("counter"),
+  steps: [
+    {
+      target: at("counter-purse"),
+      ...says("counter", "purse"),
+      placement: "bottom",
+      optional: true,
+    },
+    {
+      target: at("counter-ladder"),
+      ...says("counter", "ladder"),
+      placement: "top",
+      optional: true,
+    },
+    {
+      target: at("counter-shop"),
+      ...says("counter", "shop"),
+      placement: "top",
+      optional: true,
+    },
+    {
+      target: at("counter-album"),
+      ...says("counter", "album"),
+      placement: "top",
+      optional: true,
+    },
+  ],
+};
+
 const prune = (t: Tour): Tour =>
   serverConfigured() ? t : { ...t, steps: t.steps.filter((s) => !s.needsServer) };
 
@@ -759,6 +806,7 @@ export const TOURS: Record<string, Tour> = Object.fromEntries(
     thread,
     lists,
     quiz,
+    counter,
   }).map(([key, t]) => [key, prune(t)])
 );
 
