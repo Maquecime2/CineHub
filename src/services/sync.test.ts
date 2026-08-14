@@ -311,6 +311,59 @@ describe("the rest of the binder", () => {
     expect(JSON.parse(localStorage.getItem("shelf-view:abc")!)).toMatchObject({ ici: true });
   });
 
+  /* ============================================================
+     THE FIRST CONNECTION ON A SECOND MACHINE
+
+     Signing in somewhere new used to date the untouched local defaults
+     at `Date.now()` — the newest date there is. The arrangement pulled a
+     second later was therefore refused as stale, and the push that
+     follows overwrote the server with the empty shelf: the arrangement
+     was lost on BOTH devices, and nothing anywhere said so.
+     ============================================================ */
+  it("the arrangement of the other machine wins over untouched defaults here", async () => {
+    const { store } = await import("./storage");
+    /* This machine has never arranged anything: what is in `localStorage`
+       is what the application wrote by itself, undated. */
+    localStorage.setItem("shelf-dividers", JSON.stringify([]));
+    fake.docsReceived = [
+      {
+        upTo: 7,
+        more: false,
+        documents: [{ key: "shelf-dividers", updatedAt: 8000, content: [{ label: "les polars" }] }],
+      },
+    ];
+
+    const report = await synchronise(() => {});
+
+    expect(report.documentsIn).toBe(1);
+    expect(store.get("shelf-dividers", null)).toEqual([{ label: "les polars" }]);
+    /* And it does not go straight back out as an empty shelf. */
+    const sent = fake.docsPushed.flat() as { key: string }[];
+    expect(sent.some((d) => d.key === "shelf-dividers")).toBe(false);
+  });
+
+  /* THE TOMBSTONE MUST CARRY THE SERVER'S WORD FOR IT.
+     `documents.ts` wrote `supprime` where the server reads `deleted` —
+     a leftover of the codebase's translation, on one side only. The
+     field was therefore never read, in either direction: erasing a
+     document here left the other device holding it, and merely handed
+     it a `null` in place of its copy. */
+  it("says a deleted document is deleted, in the server's own word", async () => {
+    const { store } = await import("./storage");
+    store.set("fils", [{ id: "un fil" }]);
+    await synchronise(() => {});
+
+    localStorage.removeItem("fils");
+    const { noteDocument } = await import("./documents");
+    noteDocument("fils");
+
+    fake.docsPushed = [];
+    await synchronise(() => {});
+
+    const sent = fake.docsPushed.flat() as { key: string; deleted?: boolean }[];
+    expect(sent.find((d) => d.key === "fils")).toMatchObject({ deleted: true });
+  });
+
   it("what has come in does not go back out", async () => {
     fake.docsReceived = [
       { upTo: 4, more: false, documents: [{ key: "fils", updatedAt: 8000, content: [] }] },

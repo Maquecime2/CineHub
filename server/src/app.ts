@@ -1620,13 +1620,41 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
   /** The verbatim sentence for a server with no container behind it. */
   const noContainer = { error: "Ce serveur ne garde pas les médias." };
 
-  app.post("/media/tickets", async (req, reply) => {
+  /* WHY THESE THREE ROUTES HAVE THEIR OWN CEILING.
+   *
+   * The general one — a hundred a minute — is aimed at the routes that
+   * WRITE, and it was right for them. A ticket writes nothing: it names
+   * one blob, for one verb, for a quarter of an hour, and only ever on a
+   * prefix the asker already owns.
+   *
+   * Under the general ceiling, a binder arriving on a second computer
+   * ran into it in seconds. Every screenshot on screen asks for its own
+   * ticket, so one film of twenty stills is twenty requests; the
+   * hundredth was refused with a 429, and `mediaTicket` — which turns
+   * every failure into `null` — reported that as "the image stayed on
+   * the other device". Somebody's whole collection of screenshots looked
+   * lost, and the server refusing them was our own.
+   *
+   * The batching just below is the real cure; this is what makes the
+   * cure hold on the day somebody opens six films at once. */
+  const ticketCeiling = { config: { rateLimit: { max: 600, timeWindow: "1 minute" } } };
+
+  app.post("/media/tickets", ticketCeiling, async (req, reply) => {
     const person = await requireAccount(req);
     if (!mediaAvailable()) return reply.code(503).send(noContainer);
-    const { paths } = (req.body ?? {}) as { paths?: unknown };
+    const body = (req.body ?? {}) as { paths?: unknown; mode?: unknown };
+    const { paths } = body;
     if (!Array.isArray(paths) || paths.length === 0 || paths.length > 50) {
       return reply.code(400).send({ error: "De un à cinquante chemins." });
     }
+    /* READING IN BATCHES TOO, AND IT IS THE SAME ROUTE.
+       Only the sending side batched, because only the sending side was
+       written knowing it would move a thousand blobs. The tirage asked
+       one by one — see the ceiling above for what that cost. The verb
+       still DEFAULTS to "write": it is what every existing caller means,
+       and a default that grants more than the caller asked for is how a
+       permission is widened by accident. */
+    const mode = body.mode === "read" ? "read" : "write";
 
     /* A REFUSED PATH DOES NOT SINK THE WHOLE BATCH. Fifty screenshots go
        up in one request; one of them being wrong is worth one missing
@@ -1634,14 +1662,14 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     const tickets: { path: string; url: string }[] = [];
     for (const p of paths) {
       if (typeof p !== "string") continue;
-      if (!(await allowed(db, person.id, p, "write"))) continue;
-      const url = ticketFor(p, "write");
+      if (!(await allowed(db, person.id, p, mode))) continue;
+      const url = ticketFor(p, mode);
       if (url) tickets.push({ path: p, url });
     }
     return { tickets };
   });
 
-  app.get("/media/ticket", async (req, reply) => {
+  app.get("/media/ticket", ticketCeiling, async (req, reply) => {
     const person = await requireAccount(req);
     if (!mediaAvailable()) return reply.code(503).send(noContainer);
     const { path } = req.query as { path?: string };

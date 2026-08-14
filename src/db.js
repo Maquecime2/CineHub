@@ -79,7 +79,32 @@ async function tx(mode, fn, magasin = POSTERS) {
       reject(e);
       return;
     }
-    t.oncomplete = () => resolve(result?.result !== undefined ? result.result : result);
+    /* AN ABSENT KEY IS `undefined`, NOT THE REQUEST THAT WENT LOOKING.
+     *
+     * This read `result?.result !== undefined ? result.result : result`,
+     * which is right for a `fn` that returns something other than a
+     * request — and catastrophic for `get` on a key that is not there:
+     * `request.result` is then `undefined`, so it fell back on the
+     * REQUEST OBJECT, and an `IDBRequest` is truthy.
+     *
+     * Every caller reads that as "the image is here". `readMedia` did:
+     * `const here = await getImage(key); if (here) return here;` — so it
+     * never once asked the mirror, for any missing image, for anybody.
+     * A binder arriving on a second computer showed "stayed on the other
+     * device" over every screenshot, and not one ticket request ever
+     * left the page. Further down, `URL.createObjectURL` was handed the
+     * request and threw "Overload resolution failed", which `IdbImage`
+     * caught and turned back into the same sentence.
+     *
+     * What the fallback is FOR is `fn`s that return no request at all.
+     * So we ask whether we HOLD a request, instead of guessing from the
+     * value — which is what the `undefined` test was doing.
+     *
+     * By the shape and not by `instanceof IDBRequest`: the class is a
+     * browser global, and the test environment has no IndexedDB at all.
+     * A rule that cannot be exercised is how this line got here. */
+    const isRequest = result && typeof result === "object" && "result" in result;
+    t.oncomplete = () => resolve(isRequest ? result.result : result);
     t.onerror = () => reject(t.error);
     t.onabort = () => reject(t.error);
   });

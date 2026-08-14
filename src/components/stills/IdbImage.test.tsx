@@ -16,17 +16,47 @@ import { render, screen, cleanup, waitFor } from "@testing-library/react";
 const coffre = new Map<string, Blob>();
 let refuse = false;
 
-vi.mock("../../db", () => ({
-  getImage: async (key: string) => {
-    if (refuse) throw new Error("coffre ferme");
-    return coffre.get(key);
+/* ------------------------------------------------------------
+   THE MIRROR, AND THE ACCOUNT IT NEEDS
+
+   `readMedia` looks in the vault first and asks the container next — but
+   the container answers nobody without an account. On a machine that has
+   just signed in, the account is unknown for the length of the first
+   round trip, and every image mounted in that window used to settle on
+   "absente" for good. Here the mirror is a second map, opened by the
+   account. */
+const conteneur = new Map<string, Blob>();
+let connecte = false;
+const guetteurs = new Set<() => void>();
+
+vi.mock("../../services/server", () => ({
+  accountOpen: () => connecte,
+  watchAccount: (fn: () => void) => {
+    guetteurs.add(fn);
+    return () => guetteurs.delete(fn);
   },
 }));
+
+vi.mock("../../services/media", () => ({
+  readMedia: async (key: string) => {
+    if (refuse) throw new Error("coffre ferme");
+    return coffre.get(key) ?? (connecte ? (conteneur.get(key) ?? null) : null);
+  },
+}));
+
+/** Somebody signs in: the account is known, and the watchers are told. */
+const seConnecter = () => {
+  connecte = true;
+  for (const fn of guetteurs) fn();
+};
 
 const { IdbImage } = await import("./IdbImage");
 
 beforeEach(() => {
   coffre.clear();
+  conteneur.clear();
+  connecte = false;
+  guetteurs.clear();
   refuse = false;
   /* jsdom measures nothing: without this stand-in, every box is zero and
      the wide version would never be put to the test. */
@@ -67,6 +97,22 @@ describe("an image from the vault", () => {
     coffre.set("k1", new Blob(["…"]));
     render(<IdbImage imageKey="k1" />);
     expect(screen.queryByText(/restée sur l'autre appareil/)).toBeNull();
+  });
+
+  it("asks the mirror again once the account is open", async () => {
+    /* The screenshot is in the container, and this machine has just
+       signed in: while the first `/me` round trip was in flight the
+       mirror refused, and the image settled on "absente". It must ask
+       again when the account arrives — nobody reloads a page to see a
+       screenshot. */
+    conteneur.set("k1", new Blob(["…"], { type: "image/png" }));
+    render(<IdbImage imageKey="k1" alt="une capture" />);
+    await waitFor(() =>
+      expect(screen.getByText(/restée sur l'autre appareil/)).toBeInTheDocument()
+    );
+
+    seConnecter();
+    await waitFor(() => expect(screen.getByAltText("une capture")).toBeInTheDocument());
   });
 
   it("in a thumbnail a sign is enough — the sentence would not fit", async () => {

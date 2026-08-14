@@ -374,6 +374,14 @@ function Playing({ quiz, onChange }: { quiz: Quiz; onChange: () => Promise<void>
   const [weight, setWeight] = useState(0);
   const [finished, setFinished] = useState(quiz.finished === true);
   const [busy, setBusy] = useState(false);
+  /* THE LEADERBOARD IS READ ONCE PER QUIZ, AND A QUIZ HAS ONE ID.
+     Which meant it was read once, full stop: closing one's attempt
+     changed nothing on screen — the score one had just earned appeared
+     only after a reload, and the natural reading of that is that the
+     answers were not counted. This counts the moments the board has
+     something new to say, and is what the board watches. */
+  const [round, setRound] = useState(0);
+  const again = useCallback(() => setRound((n) => n + 1), []);
 
   const reread = useCallback(async () => {
     const r = await readQuiz(quiz.id);
@@ -401,6 +409,10 @@ function Playing({ quiz, onChange }: { quiz: Quiz; onChange: () => Promise<void>
     try {
       await answerQuiz(quiz.id, questionId, choiceId);
       await reread();
+      /* One's own bar moves as one plays: the board shows the running
+         score of whoever has not finished, and it would otherwise stay
+         at whatever it was when the screen opened — zero. */
+      again();
     } catch {
       /* Already answered, or the attempt closed underneath us — either
          way the truth is on the server, so we go and read it. */
@@ -414,6 +426,7 @@ function Playing({ quiz, onChange }: { quiz: Quiz; onChange: () => Promise<void>
     const r = await finishQuiz(quiz.id);
     setQuestions(r.questions);
     setFinished(true);
+    again();
     await onChange();
   };
 
@@ -445,7 +458,7 @@ function Playing({ quiz, onChange }: { quiz: Quiz; onChange: () => Promise<void>
         </>
       )}
 
-      <Scoreboard quiz={quiz} weight={weight} />
+      <Scoreboard quiz={quiz} weight={weight} round={round} />
       {quiz.mine && <Guests quiz={quiz} players={players} onChange={reread} onGone={onChange} />}
     </div>
   );
@@ -554,15 +567,35 @@ function Correction({ questions, weight }: { questions: QuizQuestion[]; weight: 
 
 /* Only the people invited, and never anybody blocked either way — the
    server sees to both, and this file only draws what it sent. */
-function Scoreboard({ quiz, weight }: { quiz: Quiz; weight: number }) {
+function Scoreboard({
+  quiz,
+  weight,
+  /* Not a value, a signal: it says "there is something new to read", and
+     the quiz's id alone never said it. */
+  round,
+}: {
+  quiz: Quiz;
+  weight: number;
+  round: number;
+}) {
   const { t } = useTranslation();
   const [scores, setScores] = useState<QuizScore[]>([]);
 
   useEffect(() => {
+    let alive = true;
     quizScores(quiz.id)
-      .then((r) => setScores(r.scores))
-      .catch(() => setScores([]));
-  }, [quiz.id]);
+      .then((r) => {
+        if (alive) setScores(r.scores);
+      })
+      .catch(() => {
+        /* A refusal empties the board; a refusal that comes back AFTER a
+           later reading must not. */
+        if (alive) setScores([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [quiz.id, round]);
 
   return (
     <div data-tour="quiz-scores" style={{ marginTop: 18 }}>

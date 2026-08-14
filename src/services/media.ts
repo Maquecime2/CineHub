@@ -37,13 +37,7 @@
    ============================================================ */
 import { store } from "./storage";
 import { getImage, putImage, allImageKeys } from "../db";
-import {
-  accountOpen,
-  serverConfigured,
-  mediaTicket,
-  mediaTickets,
-  mediaDeleteTicket,
-} from "./server";
+import { accountOpen, serverConfigured, mediaTickets, mediaDeleteTicket } from "./server";
 import { remoteIdOfDecor, DECOR_IMAGE_PREFIX } from "./customDecor";
 
 /** What has already reached the container — so as not to send it twice. */
@@ -152,7 +146,17 @@ const usable = (): boolean => serverConfigured() && accountOpen();
    nothing that reaches our `catch`.
 
    So the reason is kept, and the drawer says it. */
-export type MediaTrouble = { kind: "cors" | "refused" | "none"; detail?: string };
+/* THE TIRAGE HAS ITS OWN WORD, AND IT IS NOT COSMETIC. Both sentences
+   for the two kinds below speak of a DEPOSIT — "your posters are not
+   going out", "the container refused the upload". Routing a failed READ
+   into them would have told somebody their images were failing to
+   leave, at the exact moment the images were failing to arrive: a wrong
+   sentence sends the reader looking in the wrong direction, which is
+   worse than the silence it replaces. */
+export type MediaTrouble = {
+  kind: "cors" | "refused" | "read-refused" | "none";
+  detail?: string;
+};
 
 let lastTrouble: MediaTrouble = { kind: "none" };
 export const mediaTrouble = (): MediaTrouble => lastTrouble;
@@ -397,6 +401,77 @@ export async function dropMedia(key: string): Promise<void> {
  * the only thing here that a wrong answer makes dangerous rather than
  * merely disappointing.
  */
+/* ------------------------------------------------------------
+   ONE REQUEST FOR A SCREENFUL OF TICKETS
+   ------------------------------------------------------------
+
+   `pullMedia` asked for its ticket alone, which read innocently: one
+   image, one ticket. On a screen it is not one image. A film's strip
+   mounts every thumbnail at once, so twenty stills asked for twenty
+   tickets in the same instant — and the server's general ceiling is a
+   hundred requests a minute.
+
+   A binder arriving on a second computer, where EVERYTHING is still to
+   be fetched, went through that ceiling in seconds. From then on every
+   ticket came back 429, `mediaTicket` turned it into `null`, and the
+   screen said "stayed on the other device" over blobs sitting in the
+   container. Measured on a real collection: 348 blobs expected, 210
+   missing here, and the first hundred tickets asked for came back with
+   the file's size. Not one of them was actually absent.
+
+   So the tickets asked for within the same MOMENT leave together,
+   exactly as the sending side has always done.
+
+   AND THE MOMENT IS MEASURED IN MILLISECONDS, NOT IN TICKS. The first
+   version of this closed the window on the next microtask, which
+   batched nothing at all: every caller reaches here only after its own
+   `getImage` has come back, and an IndexedDB read is a round trip. The
+   twenty thumbnails of a strip therefore arrive in twenty different
+   ticks, spread over a few milliseconds — a microtask window catches
+   exactly one of them each time, and we were back to one request per
+   image with a comment claiming otherwise.
+
+   Twenty milliseconds is chosen against what it costs: it is below the
+   threshold where somebody sees a delay, and it is far longer than the
+   spread of a screenful of vault reads. */
+const WINDOW_MS = 20;
+
+let batch: { paths: Set<string>; wait: Promise<Map<string, string>> } | null = null;
+
+function readTicket(path: string): Promise<string | null> {
+  if (!batch) {
+    const paths = new Set<string>();
+    const wait = new Promise<void>((go) => setTimeout(go, WINDOW_MS)).then(async () => {
+      batch = null;
+      const asked = [...paths];
+      const found = new Map<string, string>();
+      /* The route takes fifty at a time, and a screen can hold more. */
+      for (let i = 0; i < asked.length; i += BATCH) {
+        try {
+          for (const t of await mediaTickets(asked.slice(i, i + BATCH), "read")) {
+            found.set(t.path, t.url);
+          }
+        } catch (e) {
+          /* NAMED, NOT SWALLOWED, AND WITH ITS STATUS. This is the
+             failure that cost a collection its screenshots while the
+             drawer said nothing: a 429 and an absent image looked
+             exactly alike on screen. */
+          const err = e as { code?: number; message?: string };
+          const code = err?.code ? `${err.code} ` : "";
+          lastTrouble = {
+            kind: "read-refused",
+            detail: `${code}${err?.message || "tickets refusés"}`.trim(),
+          };
+        }
+      }
+      return found;
+    });
+    batch = { paths, wait };
+  }
+  batch.paths.add(path);
+  return batch.wait.then((found) => found.get(path) ?? null);
+}
+
 export async function pullMedia(
   key: string,
   vet?: (blob: Blob) => Promise<Blob | null>
@@ -406,7 +481,7 @@ export async function pullMedia(
   if (!path) return null;
 
   try {
-    const url = await mediaTicket(path);
+    const url = await readTicket(path);
     if (!url) return null;
     const r = await fetch(url);
     if (!r.ok) return null;

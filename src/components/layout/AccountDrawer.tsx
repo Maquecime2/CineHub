@@ -268,7 +268,16 @@ export function AccountDrawer({
             <span>
               {mediaSays.kind === "cors"
                 ? t("account.mediaCors")
-                : t("account.mediaRefused", { detail: mediaSays.detail || "" })}
+                : /* Which DIRECTION failed. The two sentences below are not
+                     interchangeable: one says nothing is leaving, the other
+                     that nothing is arriving, and sending somebody to look
+                     at the wrong end of the mirror costs hours. */
+                  t(
+                    mediaSays.kind === "read-refused"
+                      ? "account.mediaPullRefused"
+                      : "account.mediaRefused",
+                    { detail: mediaSays.detail || "" }
+                  )}
             </span>
           </div>
         )}
