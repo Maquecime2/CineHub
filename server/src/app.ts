@@ -99,6 +99,16 @@ interface ReadQuestion {
   choices: { label: string; is_right: boolean }[];
 }
 
+/**
+ * Ce que le préflight autorise.
+ *
+ * Exportée pour que `test/cors.test.ts` la compare aux routes réellement
+ * enregistrées : c'est la seule façon d'attraper un oubli, puisque
+ * `inject` ne fait pas de préflight et ne pose donc jamais la question
+ * qui échoue dans un navigateur.
+ */
+export const CORS_METHODS = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"];
+
 export async function buildApp(settings: Settings): Promise<FastifyInstance> {
   const { db, domain, origin } = settings;
   const app = Fastify({ logger: false });
@@ -138,8 +148,18 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
        the browser was therefore refusing the collection's PUT BEFORE
        sending it, and the server saw no trace of it. Nor did the tests —
        `inject` calls the route directly, with no preflight, so it never
-       asks the question that was failing. */
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+       asks the question that was failing.
+
+       IT HAPPENED A SECOND TIME, and this very paragraph did not stop
+       it: the counter arrived with two PATCH routes, the whole suite
+       stayed green, and the browser refused them on sight — "no answer
+       from the server", about a server that was answering.
+
+       A COMMENT IS NOT A GUARD. `test/cors.test.ts` now walks the route
+       table Fastify really registered and fails on any method missing
+       from this list. That is the check these lines had been standing
+       in for. */
+    methods: CORS_METHODS,
     /* A HEADER ONE DOES NOT EXPOSE IS A HEADER ONE DOES NOT SEND.
 
        On a cross-origin request the browser lets JavaScript read only a
