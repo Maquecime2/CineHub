@@ -28,6 +28,8 @@
    trier.
    ============================================================ */
 
+import { markStartedOver } from "./onboarding";
+
 /** Ce qui n'a pas pu être effacé, pour le dire plutôt que de le taire. */
 export interface WhatSurvived {
   local: boolean;
@@ -89,6 +91,20 @@ export async function forgetLocally(): Promise<WhatSurvived> {
   } catch {
     survived.images = true;
   }
+
+  /* ET ON REPOSE LA MARQUE « DÉJÀ OUVERT », tout de suite après.
+
+     Le stockage entier vient de partir, cette marque comprise — donc
+     sans cette ligne le classeur se croit neuf : il sème douze fiches de
+     démonstration dans ce qu'on vient de vider, et la synchro les pousse
+     sur le serveur qu'on vient de vider aussi. On efface tout, et on se
+     retrouve avec des films.
+
+     Elle est ici et pas dans l'écran qui appelle, parce que c'est une
+     conséquence de l'effacement et non une décision de l'écran : la
+     prochaine chose qui appellera `forgetLocally` aura le même besoin
+     sans avoir à y penser. */
+  markStartedOver();
 
   return survived;
 }

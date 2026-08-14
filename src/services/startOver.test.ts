@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { forgetLocally, startOver } from "./startOver";
+import { isFirstRun, shouldHint, shouldSeed } from "./onboarding";
 
 /* ============================================================
    TOUT EFFACER, VRAIMENT
@@ -30,6 +31,13 @@ const fakeIdb = (how: "success" | "error" | "blocked") => {
   return deleteDatabase;
 };
 
+/* CE QUI RESTE, ET C'EST VOULU : la marque « déjà ouvert ». Sans elle le
+   classeur se croit neuf et sème douze fiches de démonstration dans ce
+   qu'on vient de vider. Les tests comptent donc ce qui reste EN PLUS
+   d'elle, ce qui dit mieux l'intention que « zéro ». */
+const KEPT = "onboarding";
+const leftovers = () => Object.keys(localStorage).filter((k) => k !== KEPT);
+
 beforeEach(() => {
   localStorage.clear();
   sessionStorage.clear();
@@ -52,7 +60,7 @@ describe("effacer la mémoire du navigateur", () => {
 
     const survived = await forgetLocally();
 
-    expect(localStorage.length).toBe(0);
+    expect(leftovers()).toEqual([]);
     expect(sessionStorage.length).toBe(0);
     expect(survived).toEqual({ local: false, images: false });
   });
@@ -73,7 +81,7 @@ describe("effacer la mémoire du navigateur", () => {
     expect(survived.images).toBe(true);
     /* Mais le reste a bien été effacé : on ne renonce pas à la moitié
        qu'on peut faire. */
-    expect(localStorage.length).toBe(0);
+    expect(leftovers()).toEqual([]);
   });
 
   it("survit à une base qui refuse", async () => {
@@ -81,6 +89,33 @@ describe("effacer la mémoire du navigateur", () => {
     const survived = await forgetLocally();
     expect(survived.images).toBe(true);
     expect(survived.local).toBe(false);
+  });
+});
+
+describe("le classeur vidé ne se croit pas neuf", () => {
+  /* CE QUI S'EST PASSÉ EN VRAI : le bouton effaçait tout le stockage, y
+     compris la marque « déjà ouvert ». Le classeur se croyait à sa
+     première visite, semait douze fiches de démonstration dans ce qu'on
+     venait de vider, et la synchro les poussait sur le serveur qu'on
+     venait de vider aussi. On effaçait tout et on se retrouvait avec des
+     films. */
+  it("ne sème pas les fiches de démonstration", async () => {
+    fakeIdb("success");
+    await forgetLocally();
+    expect(shouldSeed()).toBe(false);
+  });
+
+  it("ne rejoue pas la visite", async () => {
+    fakeIdb("success");
+    await forgetLocally();
+    expect(isFirstRun()).toBe(false);
+  });
+
+  it("ne pose pas non plus le carton de rappel", async () => {
+    /* Quelqu'un qui sait effacer son classeur sait où est la visite. */
+    fakeIdb("success");
+    await forgetLocally();
+    expect(shouldHint()).toBe(false);
   });
 });
 
@@ -97,7 +132,7 @@ describe("effacer des deux côtés", () => {
     });
 
     expect(order).toEqual(["sait-qui"]);
-    expect(localStorage.length).toBe(0);
+    expect(leftovers()).toEqual([]);
   });
 
   it("efface le navigateur même si le serveur refuse", async () => {
@@ -120,6 +155,6 @@ describe("effacer des deux côtés", () => {
     fakeIdb("success");
     const survived = await startOver();
     expect(survived.server).toBe(false);
-    expect(localStorage.length).toBe(0);
+    expect(leftovers()).toEqual([]);
   });
 });

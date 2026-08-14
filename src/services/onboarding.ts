@@ -101,6 +101,30 @@ export function resetOnboarding(): OnboardingState {
   return save({ ...EMPTY });
 }
 
+/**
+ * UN CLASSEUR VIDÉ EXPRÈS N'EST PAS UN CLASSEUR NEUF.
+ *
+ * Le commentaire en tête de ce module dit qu'effacer les données du site
+ * rejoue l'accueil, et que c'est ce qu'on veut — c'est vrai quand on
+ * vide le stockage depuis le navigateur, où il n'y a aucune intention à
+ * lire. Ce n'en est plus une quand quelqu'un vient de cliquer « tout
+ * effacer » : il a demandé un classeur VIDE, pas une première visite. Et
+ * comme le bouton efface tout le stockage, il emporte au passage la
+ * marque qui disait « déjà ouvert ».
+ *
+ * Résultat, et c'est ce qui s'est passé : douze fiches de démonstration
+ * étaient semées dans le classeur qu'on venait de vider, puis la synchro
+ * les poussait sur le serveur qu'on venait de vider aussi. On effaçait
+ * tout et on se retrouvait avec des films.
+ *
+ * D'où cet état, écrit APRÈS l'effacement : rien n'est semé, la visite
+ * ne se relance pas, et le carton de rappel non plus — quelqu'un qui
+ * sait effacer son classeur sait où est la visite.
+ */
+export function markStartedOver(): OnboardingState {
+  return save({ done: [], skipped: true, hints: HINT_MAX, seeded: true });
+}
+
 /** Should we lay down the index card that says where to find the tour again? */
 export function shouldHint(s: OnboardingState = loadOnboarding()): boolean {
   return s.skipped && !s.done.includes("global") && s.hints < HINT_MAX;
