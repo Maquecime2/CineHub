@@ -230,14 +230,22 @@ export function ViewHeading({
   title: string;
   blurb: string;
   children?: ReactNode;
-  /* LE FIL EST PLUS LARGE, et il l'a toujours été. Ses affiches se
-     rangent en grille, là où les autres vues alignent une colonne de
-     texte — cent pixels de plus, et c'est la seule chose que sa version
-     recopiée faisait autrement. */
+  /* LE FIL PREND TOUTE LA LARGEUR, et lui seul.
+
+     Les autres vues alignent une COLONNE DE TEXTE : mille pixels y sont
+     une limite de lisibilité, pas une contrainte de place — une ligne
+     qui traverse un écran de vingt-sept pouces ne se lit plus, l'œil
+     perd le début en arrivant à la fin. Le fil, lui, range des AFFICHES
+     en grille, et une grille n'a pas ce problème : plus elle est large,
+     plus elle montre, et rien n'y devient plus difficile à lire.
+
+     Il portait cent pixels de plus dans sa version recopiée, ce qui
+     était la moitié du raisonnement — assez pour qu'on ne remarque pas
+     qu'il en manquait la moitié. */
   wide?: boolean;
 }) {
   return (
-    <div style={{ padding: "34px 24px 70px", maxWidth: wide ? 1100 : 1000 }}>
+    <div style={{ padding: "34px 24px 70px", maxWidth: wide ? "none" : 1000 }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 4 }}>
         {icon}
         <h1
