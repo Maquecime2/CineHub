@@ -27,9 +27,15 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 import { Check, Library, Pencil, Plus, Puzzle, Trash2, Undo2, UserPlus, X } from "lucide-react";
-import { C, F } from "../theme/tokens";
+import { C, F, alpha } from "../theme/tokens";
 import { bare, chip, hollow, inked, tap, underlineInput } from "../theme/styles";
 import { Guideline, Label, Meter, ViewHeading } from "../components/ui";
+import { FileNumber, InkUnderline } from "../components/atmosphere";
+import { Fold, Halftone, Stamp, Staple, perforated } from "../components/atmosphere/hall";
+import { PowerBar } from "../components/play/PowerBar";
+import { tiltOf } from "../domain/seeded";
+import type { Gain } from "../domain/points";
+import { refreshPurse } from "../hooks/usePurse";
 import {
   addBankQuestion,
   answerQuiz,
@@ -40,6 +46,9 @@ import {
   drawQuiz,
   editBankQuestion,
   finishQuiz,
+  halveQuestion,
+  myHoldings,
+  redoQuestion,
   iAmAdmin,
   invitePlayer,
   myQuizzes,
@@ -383,12 +392,26 @@ function Playing({ quiz, onChange }: { quiz: Quiz; onChange: () => Promise<void>
   const [round, setRound] = useState(0);
   const again = useCallback(() => setRound((n) => n + 1), []);
 
+  /* CE QUE LA PARTIE A COÛTÉ ET RAPPORTÉ. Les pouvoirs sont lus au
+     serveur — ce qu'on croit posséder ne décide de rien, il refusera
+     tout seul — et l'aide prise est gardée PAR QUESTION : le serveur
+     rend toujours les deux mêmes propositions écartées, donc revenir
+     sur une question ne rebat pas les cartes. */
+  const [powers, setPowers] = useState<Record<string, number>>({});
+  const [hidden, setHidden] = useState<Record<string, string[]>>({});
+  const [gains, setGains] = useState<Gain[]>([]);
+
   const reread = useCallback(async () => {
     const r = await readQuiz(quiz.id);
     setQuestions(r.questions);
     setPlayers(r.players);
     setWeight(r.weight);
     setFinished(r.attempt?.finished_at != null);
+    /* Un comptoir qui se tait ne doit pas empêcher de jouer : sans
+       pouvoirs, la barre ne se dessine simplement pas. */
+    myHoldings()
+      .then((h) => setPowers(h.powers))
+      .catch(() => setPowers({}));
   }, [quiz.id]);
 
   useEffect(() => {
@@ -426,8 +449,35 @@ function Playing({ quiz, onChange }: { quiz: Quiz; onChange: () => Promise<void>
     const r = await finishQuiz(quiz.id);
     setQuestions(r.questions);
     setFinished(true);
+    /* Ce que le serveur a RÉELLEMENT crédité, et pas ce que le barème
+       laissait espérer : une partie close deux fois ne paie qu'une. */
+    setGains(r.gains ?? []);
     again();
+    await refreshPurse();
     await onChange();
+  };
+
+  /* Un pouvoir se dépense sur le serveur, jamais ici. On ne fait que
+     ranger ce qu'il répond — et s'il refuse, on relit plutôt que de
+     deviner : c'est lui qui compte les pouvoirs, pas cet écran. */
+  const spend = async (power: "halve" | "redo") => {
+    if (!current || busy) return;
+    setBusy(true);
+    try {
+      if (power === "halve") {
+        const r = await halveQuestion(quiz.id, current.id);
+        setHidden((was) => ({ ...was, [current.id]: r.removed }));
+        setPowers((was) => ({ ...was, halve: r.left }));
+      } else {
+        const r = await redoQuestion(quiz.id, current.id);
+        setPowers((was) => ({ ...was, redo: r.left }));
+        await reread();
+      }
+    } catch {
+      await reread().catch(() => {});
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -437,7 +487,7 @@ function Playing({ quiz, onChange }: { quiz: Quiz; onChange: () => Promise<void>
       {finished ? (
         <>
           <Guideline tight>{t("quizView.overForYou")}</Guideline>
-          <Correction questions={questions} weight={weight} />
+          <Correction questions={questions} weight={weight} gains={gains} />
         </>
       ) : (
         <>
@@ -445,7 +495,21 @@ function Playing({ quiz, onChange }: { quiz: Quiz; onChange: () => Promise<void>
             {t("quizView.progress", { done: answered, total: questions.length })}
           </div>
           {current ? (
-            <Asked question={current} busy={busy} onPick={(c) => lay(current.id, c)} />
+            <>
+              <Asked
+                question={current}
+                busy={busy}
+                removed={hidden[current.id] ?? []}
+                onPick={(c) => lay(current.id, c)}
+              />
+              <PowerBar
+                powers={powers}
+                used={hidden[current.id] ? ["halve"] : []}
+                onUse={spend}
+                busy={busy}
+                tour="quiz-powers"
+              />
+            </>
           ) : (
             <Guideline tight>{t("quizView.allAnswered")}</Guideline>
           )}
@@ -464,31 +528,83 @@ function Playing({ quiz, onChange }: { quiz: Quiz; onChange: () => Promise<void>
   );
 }
 
-/** ONE QUESTION, ASKED. The only screen there is — nobody gets another. */
+/* ONE QUESTION, ASKED — the programme of the evening's screening.
+
+   A FOLDED SHEET, AND NOT A PANEL. It leans by its own sown angle, it is
+   stapled at the corner, it carries a crease down the third and a strip
+   of perforations along its edge: an object one has been handed, not a
+   form one fills in. That is the whole of the difference between this
+   screen and the one before it, and it costs four elements.
+
+   THE ANSWERS ARE FILING CARDS. They lift when the pointer passes — the
+   binder's one gesture for "this can be picked up", borrowed from the
+   polaroids on the wall — and their corner is turned. A card set aside
+   by a power stays in place, struck through: making it vanish would
+   shift the three others under the finger about to press one. */
 function Asked({
   question,
   busy,
+  removed,
   onPick,
 }: {
   question: QuizQuestion;
   busy: boolean;
+  /** Ce qu'un pouvoir a écarté. Le serveur en est seul juge. */
+  removed: readonly string[];
   onPick: (choiceId: string) => void;
 }) {
   const { t } = useTranslation();
   return (
-    <div style={{ marginTop: 12 }}>
-      <div style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>
+    <div
+      style={{
+        position: "relative",
+        marginTop: 14,
+        padding: "14px 16px 16px 26px",
+        background: C.card,
+        border: `1px solid ${C.line}`,
+        boxShadow: "2px 4px 10px rgba(30,20,10,0.18)",
+        transform: `rotate(${Number(tiltOf(question.id)) / 6}deg)`,
+      }}
+    >
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: 13,
+          ...perforated("y", { hole: C.paperDark, pitch: 15 }),
+        }}
+      />
+      <Staple style={{ top: 9, left: 24 }} />
+      <Fold at="38%" />
+      <FileNumber id={question.id} style={{ right: 10, bottom: 7 }} />
+
+      <div style={{ position: "relative", fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>
         {question.category} · {t("quizView.points", { count: question.points })}
       </div>
-      <div style={{ fontFamily: F.body, fontSize: 18, color: C.ink, marginTop: 4 }}>
+      <div
+        style={{
+          position: "relative",
+          fontFamily: F.title,
+          fontStyle: "italic",
+          fontSize: 20,
+          lineHeight: 1.3,
+          color: C.ink,
+          marginTop: 5,
+        }}
+      >
         {question.ask}
       </div>
+
       {question.image && (
         <img
           src={question.image}
           alt=""
           style={{
             display: "block",
+            position: "relative",
             maxWidth: "100%",
             maxHeight: 260,
             marginTop: 10,
@@ -496,55 +612,184 @@ function Asked({
           }}
         />
       )}
-      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 12 }}>
-        {question.choices.map((c) => (
-          <button
-            key={c.id}
-            onClick={() => onPick(c.id)}
-            style={{
-              ...tap,
-              all: "unset" as const,
-              cursor: busy ? "wait" : "pointer",
-              padding: "9px 12px",
-              border: `1px solid ${C.line}`,
-              background: C.paper,
-              fontFamily: F.body,
-              fontSize: 16,
-              color: C.ink,
-              transition: "background var(--motion-fast) var(--motion-ease)",
-            }}
-          >
-            {c.label}
-          </button>
-        ))}
+
+      <div
+        style={{
+          position: "relative",
+          display: "flex",
+          flexDirection: "column",
+          gap: 7,
+          marginTop: 14,
+        }}
+      >
+        {question.choices.map((c) => {
+          const out = removed.includes(c.id);
+          return (
+            <button
+              key={c.id}
+              onClick={() => !out && onPick(c.id)}
+              disabled={out || busy}
+              style={{
+                ...tap,
+                all: "unset" as const,
+                position: "relative",
+                cursor: out ? "default" : busy ? "wait" : "pointer",
+                padding: "10px 13px",
+                border: `1px solid ${C.line}`,
+                background: out
+                  ? alpha(C.paperDark, 0.5)
+                  : `linear-gradient(160deg, ${C.paper}, ${C.paperDark})`,
+                fontFamily: F.body,
+                fontSize: 16,
+                color: out ? C.inkFaded : C.ink,
+                textDecoration: out ? "line-through" : "none",
+                opacity: out ? 0.55 : 1,
+                boxShadow: out ? "none" : "1px 2px 3px rgba(30,20,10,0.12)",
+                transition:
+                  "transform var(--motion-fast) var(--motion-ease), box-shadow var(--motion-fast) var(--motion-ease)",
+              }}
+              onMouseEnter={(e) => {
+                if (out || busy) return;
+                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.boxShadow = "2px 4px 8px rgba(30,20,10,0.2)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "none";
+                e.currentTarget.style.boxShadow = out ? "none" : "1px 2px 3px rgba(30,20,10,0.12)";
+              }}
+            >
+              {/* Le coin corné, emprunté au polaroid : c'est ce qui fait
+                  qu'une fiche se lit comme une fiche. */}
+              {!out && (
+                <span
+                  aria-hidden
+                  style={{
+                    position: "absolute",
+                    right: 0,
+                    bottom: 0,
+                    width: 11,
+                    height: 11,
+                    background: `linear-gradient(135deg, transparent 50%, ${C.paperDark} 50%, ${alpha(C.ink, 0.2)} 100%)`,
+                  }}
+                />
+              )}
+              {c.label}
+            </button>
+          );
+        })}
       </div>
-      <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 8 }}>
+
+      <div
+        style={{
+          position: "relative",
+          fontFamily: F.hand,
+          fontSize: 15,
+          color: C.inkFaded,
+          marginTop: 9,
+        }}
+      >
         {t("quizView.noTakingBack")}
       </div>
     </div>
   );
 }
 
-/** What one got right, once it is too late to change any of it. */
-function Correction({ questions, weight }: { questions: QuizQuestion[]; weight: number }) {
+/* WHAT ONE GOT RIGHT, once it is too late to change any of it — and the
+   bill for it.
+
+   THE VERDICT IS A STAMP, NOT A COLOUR. Green for right and red for
+   wrong reads well on kraft paper and disappears entirely under five of
+   the fourteen skins: `nuit-americaine` and `kodachrome` both put a
+   warm red next to a warm green, and `bauhaus` flattens the two into
+   the same weight. A stamp carries its meaning in a WORD, and the tint
+   is only there to agree with it.
+
+   THE GAINS ARE ITEMISED. "Quiz: +18, sans faute: +15" says what one did
+   well; "+33" says one played. They come from the server, which is the
+   only thing that knows what was actually credited — a run replayed
+   after a lost connection pays nothing the second time, and the screen
+   must show that rather than a rate read from a table. */
+function Correction({
+  questions,
+  weight,
+  gains,
+}: {
+  questions: QuizQuestion[];
+  weight: number;
+  gains: readonly Gain[];
+}) {
   const { t } = useTranslation();
   const score = questions.reduce(
     (n, q) => n + (q.choices.find((c) => c.is_right)?.id === q.mine ? q.points : 0),
     0
   );
+
   return (
-    <div style={{ marginTop: 10 }}>
-      <div style={{ fontFamily: F.mono, fontSize: 11, color: C.ink }}>
-        {t("quizView.yourScore", { score, weight })}
+    <div style={{ marginTop: 12 }}>
+      {/* L'affiche de palmarès : le chiffre en grand, et ce qu'il a valu. */}
+      <div
+        style={{
+          position: "relative",
+          padding: "16px 18px 14px",
+          background: C.card,
+          border: `1px solid ${C.line}`,
+          boxShadow: "2px 4px 12px rgba(30,20,10,0.18)",
+        }}
+      >
+        <Halftone size={5} />
+        <div style={{ position: "relative", display: "flex", alignItems: "baseline", gap: 10 }}>
+          <span style={{ fontFamily: F.title, fontSize: 42, lineHeight: 1, color: C.ink }}>
+            {score}
+          </span>
+          <span style={{ fontFamily: F.mono, fontSize: 11, color: C.inkFaded }}>
+            {t("quizView.outOf", { weight })}
+          </span>
+        </div>
+        <InkUnderline width={170} />
+
+        {gains.length > 0 && (
+          <div
+            style={{
+              position: "relative",
+              marginTop: 10,
+              display: "flex",
+              flexDirection: "column",
+              gap: 3,
+            }}
+          >
+            {gains.map((g) => (
+              <div
+                key={g.kind}
+                style={{
+                  display: "flex",
+                  gap: 8,
+                  fontFamily: F.mono,
+                  fontSize: 10.5,
+                  color: C.inkFaded,
+                }}
+              >
+                <span>{t(`points.${g.kind}`)}</span>
+                <span style={{ flex: 1, borderBottom: `1px dotted ${C.line}` }} />
+                <span style={{ color: C.ochre }}>+{g.amount}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 14 }}>
         {questions.map((q) => {
           const right = q.choices.find((c) => c.is_right);
           const got = q.mine != null && right?.id === q.mine;
           return (
             <div
               key={q.id}
-              style={{ borderLeft: `2px solid ${got ? C.pine : C.burgundy}`, paddingLeft: 10 }}
+              style={{
+                position: "relative",
+                borderLeft: `2px solid ${got ? C.pine : C.burgundy}`,
+                paddingLeft: 11,
+                paddingRight: 76,
+              }}
             >
               <div style={{ fontFamily: F.body, fontSize: 15, color: C.ink }}>{q.ask}</div>
               <div style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded, marginTop: 3 }}>
@@ -552,11 +797,21 @@ function Correction({ questions, weight }: { questions: QuizQuestion[]; weight: 
                   ? t("quizView.gotIt", { points: q.points })
                   : t("quizView.missedIt", { answer: right?.label ?? "—" })}
               </div>
+              {/* Un liseré d'encre sous la bonne réponse manquée : on
+                  regarde ce qu'on aurait dû cocher, pas le verdict. */}
+              {!got && <InkUnderline width={140} color={C.burgundy} style={{ opacity: 0.4 }} />}
               {q.hint && (
                 <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 3 }}>
                   {q.hint}
                 </div>
               )}
+              <span style={{ position: "absolute", right: 0, top: 2 }}>
+                <Stamp
+                  text={got ? t("quizView.right") : t("quizView.wrong")}
+                  ink={got ? C.pine : C.burgundy}
+                  tilt={got ? -7 : 5}
+                />
+              </span>
             </div>
           );
         })}

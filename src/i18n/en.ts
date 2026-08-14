@@ -1305,6 +1305,13 @@ const en = {
   },
 
   quizView: {
+    right: "correct",
+    wrong: "to revisit",
+    outOf: "out of {{weight}} points",
+    power: {
+      halve: "set two aside",
+      redo: "take back",
+    },
     heading: "The quizzes",
     subheading: "what one thinks one knows, dealt at random and put to friends",
     newQuiz: "Compose a quiz",
@@ -1736,6 +1743,10 @@ const en = {
 
     quiz: {
       label: "The quizzes",
+      powers: {
+        title: "The powers",
+        body: "Bought at the counter, spent here. Setting two wrong answers aside always gives back THE SAME two if you ask again — otherwise one would pay once and peel the question bare. Taking back clears your answer to that question, once only, and the retake stays marked for the other players. With no power, this bar does not exist.",
+      },
       compose: {
         title: "Dealing a quiz",
         body: "One does not write them, one deals them: tick some categories, a level, a length, and the questions come at random out of the bank. The mix is fixed — a hard quiz keeps a couple of easy ones to breathe, an easy one keeps a sting — and two quizzes of the same level and length weigh the same number of points. That is what makes two scores comparable.",

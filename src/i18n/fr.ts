@@ -1350,6 +1350,13 @@ const fr = {
   },
 
   quizView: {
+    right: "vu juste",
+    wrong: "à revoir",
+    outOf: "sur {{weight}} points",
+    power: {
+      halve: "écarter deux",
+      redo: "reprendre",
+    },
     heading: "Les quizz",
     subheading: "ce qu'on croit savoir, tiré au sort et mis à l'épreuve entre amis",
     newQuiz: "Composer un quizz",
@@ -1784,6 +1791,10 @@ const fr = {
 
     quiz: {
       label: "Les quizz",
+      powers: {
+        title: "Les pouvoirs",
+        body: "Achetés au comptoir, dépensés ici. Écarter deux mauvaises réponses rend toujours LES MÊMES deux si vous redemandez — sinon on paierait une fois pour éplucher la question. Reprendre efface votre réponse à cette question-là, une seule fois, et la reprise reste marquée pour les autres joueurs. Sans pouvoir, cette barre n'existe pas.",
+      },
       compose: {
         title: "Tirer un quizz",
         body: "On ne les écrit pas, on les tire : cochez des catégories, un niveau, une longueur, et les questions viennent au hasard de la banque. Le dosage est fixe — un quizz difficile garde des respirations, un quizz facile garde une colle — et deux quizz de même niveau et même longueur pèsent le même nombre de points. C'est ce qui rend deux scores comparables.",

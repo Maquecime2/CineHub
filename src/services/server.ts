@@ -29,6 +29,7 @@
    The trailing slash goes for the same reason: the paths already start
    with a slash, and "…:8787//me" is not "…:8787/me". */
 import { store } from "./storage";
+import type { Gain } from "../domain/points";
 import { readPerson, type Person, type PersonReply } from "./contract";
 
 export const ADDRESS: string = (
@@ -1022,10 +1023,16 @@ export const answerQuiz = (id: string, questionId: string, choiceId: string) =>
 
 /** Closing it is what brings the corrections down — not a moment before. */
 export const finishQuiz = (id: string) =>
-  call<{ attempt: QuizAttempt; questions: QuizQuestion[] }>(
-    `/quizzes/${encodeURIComponent(id)}/attempt/finish`,
-    { method: "POST" }
-  );
+  call<{
+    attempt: QuizAttempt;
+    questions: QuizQuestion[];
+    /* CE QUI A ÉTÉ RÉELLEMENT CRÉDITÉ, ligne par ligne — et non ce que
+       le barème laissait espérer. Une partie close deux fois, sur une
+       connexion qui a lâché, ne paie qu'une seule fois, et l'écran doit
+       le dire plutôt que d'afficher un tarif. */
+    gains: Gain[];
+    purse: { merit: number; tokens: number };
+  }>(`/quizzes/${encodeURIComponent(id)}/attempt/finish`, { method: "POST" });
 
 export const quizScores = (id: string) =>
   call<{ scores: QuizScore[] }>(`/quizzes/${encodeURIComponent(id)}/scores`);

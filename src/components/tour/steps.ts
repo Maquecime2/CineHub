@@ -725,6 +725,16 @@ const quiz: Tour = {
       placement: "top",
       optional: true,
     },
+    /* LES POUVOIRS, s'il y en a. Le pas est `optional` comme les
+       autres, mais ici cela veut dire quelque chose de précis : presque
+       personne n'en a, et la barre ne se dessine pas du tout dans ce
+       cas — un pouvoir qu'on ne possède pas n'est ni grisé ni annoncé. */
+    {
+      target: at("quiz-powers"),
+      ...says("quiz", "powers"),
+      placement: "top",
+      optional: true,
+    },
     {
       target: at("quiz-playing"),
       ...says("quiz", "playing"),
