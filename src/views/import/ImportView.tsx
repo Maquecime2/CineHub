@@ -39,9 +39,16 @@ import type {
 import type { Thread } from "../../domain/threads";
 import type { StoredVocabulary as Vocabulary } from "../../domain/motifs";
 
-/** The two kinds of import offered under the file's reading. */
+/* LES DEUX LIBELLÉS ÉTAIENT FAUX, CHACUN À SA FAÇON — et sur l'écran
+   d'import, c'est-à-dire sur la porte. « des films vus » était du
+   français en dur, invisible à qui lit le classeur en anglais ; et
+   « views.watchlist » était une CLÉ de catalogue rendue telle quelle,
+   parce que personne ne la passait à `t()`. Le bouton d'à côté affichait
+   donc littéralement « views.watchlist ».
+
+   Les deux sont désormais des clés, et les deux passent par `t()`. */
 const IMPORT_STATUSES: { k: FilmStatus; l: string }[] = [
-  { k: "watched", l: "des films vus" },
+  { k: "watched", l: "import.asWatched" },
   { k: "watchlist", l: "views.watchlist" },
 ];
 
@@ -61,6 +68,9 @@ interface ImportViewProps {
     fils: Thread[];
     motifs: Vocabulary;
   }) => void;
+  /* Retourner au mur depuis le bilan. Facultatif : sans lui le bilan
+     reste ce qu'il était, trois nombres et rien d'autre. */
+  onSeeWall?: () => void;
 }
 
 export function ImportView({
@@ -72,6 +82,7 @@ export function ImportView({
   fils,
   motifs,
   onRestore,
+  onSeeWall,
 }: ImportViewProps) {
   const { t } = useTranslation();
 
@@ -613,6 +624,34 @@ export function ImportView({
           <Tally label={t("import.created")} value={done.created} ink={C.pine} />
           <Tally label={t("import.updated")} value={done.updated} ink={C.ochre} />
           <Tally label={t("import.unchanged")} value={done.unchanged} />
+          {/* LE BILAN MENAIT NULLE PART. Trois nombres, et l'écran
+              d'import restait ouvert : quelqu'un qui vient de verser six
+              cents films doit aller LES VOIR, et c'est le seul moment du
+              produit où l'on sait avec certitude ce qu'il veut faire
+              ensuite. Rien ne s'ouvre tout seul pour autant — on propose
+              la porte, on ne pousse personne dedans. */}
+          {onSeeWall && (done.created > 0 || done.updated > 0) && (
+            <button
+              onClick={onSeeWall}
+              style={{
+                all: "unset",
+                ...tap,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                marginTop: 12,
+                padding: "8px 14px",
+                background: C.pine,
+                color: C.card,
+                fontFamily: F.mono,
+                fontSize: 10.5,
+                letterSpacing: 1,
+              }}
+            >
+              {t("import.seeThem")}
+            </button>
+          )}
         </div>
       )}
 
@@ -679,7 +718,7 @@ export function ImportView({
                     border: `1px solid ${importStatus === o.k ? C.cobalt : C.line}`,
                   }}
                 >
-                  {o.l}
+                  {t(o.l)}
                 </button>
               ))}
             </div>
@@ -808,7 +847,22 @@ export function ImportView({
 
           {progress ? (
             <div style={{ marginTop: 14 }}>
-              <div style={{ height: 6, background: C.line, position: "relative" }}>
+              {/* UNE BARRE QUI SE VOIT DOIT AUSSI S'ENTENDRE. Elle n'était
+                  qu'un rectangle qui rétrécit : une synthèse vocale n'en
+                  tirait rien, sur la seule attente longue du produit.
+                  `aria-valuetext` porte la phrase déjà écrite en dessous,
+                  plutôt qu'un pourcentage nu. */}
+              <div
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={progress.total}
+                aria-valuenow={progress.done}
+                aria-valuetext={t("import.queried", {
+                  done: progress.done,
+                  total: progress.total,
+                })}
+                style={{ height: 6, background: C.line, position: "relative" }}
+              >
                 <div
                   style={{
                     position: "absolute",
@@ -827,7 +881,7 @@ export function ImportView({
                   marginTop: 6,
                 }}
               >
-                {progress.done} / {progress.total} interrogés…
+                {t("import.queried", { done: progress.done, total: progress.total })}
               </div>
             </div>
           ) : (

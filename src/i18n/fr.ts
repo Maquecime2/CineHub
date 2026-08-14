@@ -279,6 +279,9 @@ const fr = {
     directorsFound: "réalisateurs trouvés",
     filmsNotIdentified: "films non identifiés",
     finished: "IMPORT TERMINÉ",
+    seeThem: "ALLER LES VOIR",
+    asWatched: "des films vus",
+    queried: "{{done}} / {{total}} interrogés…",
     created: "fiches créées",
     updated: "fiches mises à jour",
     unchanged: "déjà à jour, inchangées",
@@ -574,6 +577,8 @@ const fr = {
     setAside_other: "{{count}} films de côté — voir l'étagère",
     nothingToShow: "Rien à afficher",
     tryAnotherSearch: "Essayez une autre recherche.",
+    emptyImport: "IMPORTER DEPUIS LETTERBOXD",
+    emptyAdd: "ÉPINGLER UN FILM",
   },
 
   almanac: {
@@ -853,8 +858,9 @@ const fr = {
 
   demo: {
     title: "Ces douze films ne sont pas à vous",
-    body: "Un exemple, posé pour que la visite ait quelque chose à montrer. Gardez-le le temps de faire le tour, ou retirez-le tout de suite.",
-    remove: "LES RETIRER",
+    body: "Un exemple, posé pour que vous ayez quelque chose à manipuler. Gardez-le le temps de faire le tour, versez vos films par-dessus, ou repartez d'un classeur vide.",
+    import: "IMPORTER MES FILMS",
+    remove: "PARTIR D'UN CLASSEUR VIDE",
   },
 
   language: {
@@ -1649,7 +1655,7 @@ const fr = {
       keys: "les flèches du clavier feuillettent, Échap referme",
       hintKicker: "LA VISITE",
       hintBody: "Elle vous attend au pied des onglets, sous le « ? ».",
-      hintReplay: "la reprendre maintenant",
+      hintReplay: "la faire maintenant",
       dismissHint: "Effacer ce rappel",
     },
 

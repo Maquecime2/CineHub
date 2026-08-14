@@ -50,7 +50,7 @@ import { DetailView } from "./views/DetailView";
 import { useNotes } from "./hooks/useNotes";
 import { useShelfViews } from "./hooks/useShelfViews";
 import { TourOverlay, TourHint, TourMenu } from "./components/tour";
-import { isFirstRun, shouldHint, shouldSeed, markSeeded } from "./services/onboarding";
+import { shouldHint, shouldSeed, markSeeded } from "./services/onboarding";
 import { binderStillDemo, demoFilms, demoNotes, withoutDemo, DEMO_PREFIX } from "./services/demo";
 import { DemoBanner } from "./components/layout/DemoBanner";
 import { readPlace, placeToHash, HOME } from "./domain/address";
@@ -321,13 +321,18 @@ export default function App() {
     updateServiceWorker,
   } = useRegisterSW();
 
-  /* The first opening starts the full tour — but AFTER the load,
-     otherwise it points at targets the binder has not laid down yet and
-     opens nothing but a veil over the waiting screen. */
+  /* LA VISITE NE S'IMPOSE PLUS, ELLE SE PROPOSE.
+     Elle s'ouvrait d'elle-même à la première seconde de la première
+     visite : un voile opaque sur un mur garni qu'on n'avait pas encore
+     eu le temps de regarder, et le premier geste offert à quelqu'un qui
+     découvre le produit était de s'en débarrasser. On laisse le mur se
+     manipuler, et le carton propose la visite à côté.
+
+     APRÈS LE CHARGEMENT quand même : le carton pointe le pied du rail,
+     qui n'est pas là tant que l'écran d'attente l'est. */
   useEffect(() => {
     if (!loaded) return;
-    if (isFirstRun()) setTourId("global");
-    else if (shouldHint()) setHint(true);
+    if (shouldHint()) setHint(true);
   }, [loaded]);
 
   const playTour = (id) => {
@@ -360,6 +365,17 @@ export default function App() {
   const openFilm = useCallback((id) => {
     setSelectedId(id);
     setView("detail");
+  }, []);
+
+  /* L'IMPORT S'OUVRE DE QUATRE ENDROITS depuis que la porte le propose :
+     le pied du rail, le carton de l'exemple, et les deux murs vides.
+     Une seule fonction, tenue, pour que les quatre fassent la même
+     chose — et surtout pour que `setSelectedId(null)` ne soit pas oublié
+     à l'un des quatre, ce qui rendrait une page d'import sous une fiche
+     restée ouverte. */
+  const openImport = useCallback(() => {
+    setView("import");
+    setSelectedId(null);
   }, []);
 
   /* ============================================================
@@ -899,10 +915,7 @@ export default function App() {
           setPerson(null);
         }}
         onAdd={() => setShowModal(true)}
-        onImport={() => {
-          setView("import");
-          setSelectedId(null);
-        }}
+        onImport={openImport}
         onSearch={() => setSearch(true)}
         onSkin={() => setSkinPicker(true)}
         onLanguage={() => setLanguagePicker(true)}
@@ -1038,6 +1051,8 @@ export default function App() {
                 onUpdateMany={updateMany}
                 {...viewProps("watched")}
                 onOpen={openFilm}
+                onImport={openImport}
+                onAdd={() => setShowModal(true)}
               />
             )}
             {view === "watchlist" && !selectedId && (
@@ -1051,6 +1066,8 @@ export default function App() {
                 onUpdateMany={updateMany}
                 {...viewProps("watchlist")}
                 onOpen={openFilm}
+                onImport={openImport}
+                onAdd={() => setShowModal(true)}
               />
             )}
             {view === "detail" && selectedFilm && (
@@ -1126,6 +1143,10 @@ export default function App() {
                 fils={fils}
                 motifs={vocabulary}
                 onRestore={restoreBackup}
+                onSeeWall={() => {
+                  setSelectedId(null);
+                  setView(HOME);
+                }}
               />
             )}
           </Suspense>
@@ -1171,7 +1192,7 @@ export default function App() {
           started scrolling by exactly that height. A taped card moves
           nothing, and it is the shape the binder already gives its other
           sentences (see `Installation`). */}
-      {binderStillDemo(films) && <DemoBanner onRemove={removeDemo} />}
+      {binderStillDemo(films) && <DemoBanner onRemove={removeDemo} onImport={openImport} />}
       {tourMenu && <TourMenu view={view} onPlay={playTour} onClose={() => setTourMenu(false)} />}
       <TourOverlay
         tourId={tourId}

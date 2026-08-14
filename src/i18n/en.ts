@@ -265,6 +265,9 @@ const en = {
     directorsFound: "directors found",
     filmsNotIdentified: "films not identified",
     finished: "IMPORT FINISHED",
+    seeThem: "GO AND SEE THEM",
+    asWatched: "films watched",
+    queried: "{{done}} / {{total}} queried…",
     created: "cards created",
     updated: "cards updated",
     unchanged: "already up to date, unchanged",
@@ -556,6 +559,8 @@ const en = {
     setAside_other: "{{count}} films set aside — see the shelf",
     nothingToShow: "Nothing to show",
     tryAnotherSearch: "Try another search.",
+    emptyImport: "IMPORT FROM LETTERBOXD",
+    emptyAdd: "PIN A FILM",
   },
 
   almanac: {
@@ -832,8 +837,9 @@ const en = {
 
   demo: {
     title: "These twelve films are not yours",
-    body: "An example, laid down so the tour has something to show. Keep it for the time it takes to go round, or take it away right now.",
-    remove: "TAKE THEM AWAY",
+    body: "An example, laid down so you have something to handle. Keep it while you look around, bring your own films in over it, or start from an empty binder.",
+    import: "IMPORT MY FILMS",
+    remove: "START FROM AN EMPTY BINDER",
   },
 
   language: {
@@ -1594,7 +1600,7 @@ const en = {
       keys: "the keyboard arrows leaf through, Escape closes",
       hintKicker: "THE TOUR",
       hintBody: "It is waiting for you at the foot of the tabs, under the “?”.",
-      hintReplay: "pick it up now",
+      hintReplay: "take it now",
       dismissHint: "Dismiss this reminder",
     },
 

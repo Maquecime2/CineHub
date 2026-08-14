@@ -3,7 +3,16 @@
    ============================================================ */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pin, Plus, Trash2, LayoutGrid, Library, Paperclip, Dice5 } from "lucide-react";
+import {
+  Pin,
+  Plus,
+  Trash2,
+  LayoutGrid,
+  Library,
+  Paperclip,
+  Dice5,
+  FolderInput,
+} from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { underlineInput, tap, tapSquare } from "../../theme/styles";
 import { hash, tiltOf } from "../../domain/seeded";
@@ -342,6 +351,10 @@ export function LibraryView({
   onCopyView,
   onDeleteView,
   onDeleteFilms,
+  /* Les deux portes du mur vide. Facultatives : `WallEmpty` n'en dessine
+     aucune sans elles, et le carré reste ce qu'il était. */
+  onImport,
+  onAdd,
 }) {
   const { t } = useTranslation();
   const cfg = WALLS[wall];
@@ -904,7 +917,7 @@ export function LibraryView({
             <div style={{ position: "relative" }}>
               {filtered.length > 0 && filing.bar}
               {filtered.length === 0 ? (
-                <WallEmpty films={films} cfg={cfg} />
+                <WallEmpty films={films} cfg={cfg} onImport={onImport} onAdd={onAdd} />
               ) : grouped ? (
                 groups.map(([director, list]) => (
                   <div key={director} style={{ marginBottom: 46 }}>
@@ -945,7 +958,7 @@ export function LibraryView({
 /* What one sees when the wall is empty — either the collection is, or
    the sieve lets nothing through. These are two different emptinesses,
    and they are not said the same way. */
-function WallEmpty({ films, cfg }) {
+function WallEmpty({ films, cfg, onImport, onAdd }) {
   const { t } = useTranslation();
   const never = films.length === 0;
   return (
@@ -1034,9 +1047,61 @@ function WallEmpty({ films, cfg }) {
       <div style={{ fontFamily: F.hand, fontSize: 19 }}>
         {t(never ? cfg.empty[1] : "library.tryAnotherSearch")}
       </div>
+
+      {/* LES PORTES, ET SEULEMENT SUR UN VRAI VIDE.
+
+          Un classeur vidé à la main ne resème jamais l'exemple — et il a
+          raison — donc il tombait sur ce carré, qui disait ce qu'il y
+          avait à savoir et ne proposait rien à faire. C'est le seul
+          écran du produit qui ne mène nulle part, et c'est celui d'une
+          première fois.
+
+          RIEN SOUS UN TAMIS QUI NE LAISSE RIEN PASSER : là, il y a des
+          films, ils sont juste filtrés. Proposer un import y répondrait
+          à côté de la question. */}
+      {never && (onImport || onAdd) && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            flexWrap: "wrap",
+            gap: 8,
+            marginTop: 22,
+          }}
+        >
+          {onImport && (
+            <button onClick={onImport} style={emptyDoor(C.card, C.pine, C.pine)}>
+              <FolderInput size={12} /> {t("library.emptyImport")}
+            </button>
+          )}
+          {onAdd && (
+            <button onClick={onAdd} style={emptyDoor(C.ink, "transparent", C.line)}>
+              <Plus size={12} /> {t("library.emptyAdd")}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
+
+/* Même forme pour les deux portes du vide : ce sont deux propositions,
+   et la première n'est mise en avant que par son encre. */
+const emptyDoor = (ink, fill, line) => ({
+  all: "unset",
+  ...tap,
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 6,
+  padding: "8px 14px",
+  fontFamily: F.mono,
+  fontSize: 10.5,
+  letterSpacing: 1,
+  color: ink,
+  background: fill,
+  border: `1px solid ${line}`,
+});
 
 /* The thin line separating two directors, when the wall is grouped. */
 function DirectorRule({ director, count }) {

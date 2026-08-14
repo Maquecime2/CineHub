@@ -125,9 +125,22 @@ export function markStartedOver(): OnboardingState {
   return save({ done: [], skipped: true, hints: HINT_MAX, seeded: true });
 }
 
-/** Should we lay down the index card that says where to find the tour again? */
+/**
+ * Faut-il poser le carton qui dit où trouver la visite ?
+ *
+ * LA CONDITION « APRÈS UN REFUS » A SAUTÉ, et c'est le changement de
+ * produit, pas un assouplissement. La visite s'ouvrait d'elle-même à la
+ * première seconde de la première visite : un voile opaque sur un mur
+ * qu'on n'a pas encore regardé, avant même d'avoir pu toucher une
+ * fiche. On MANIPULE d'abord, et le carton propose la visite à côté.
+ *
+ * Le carton devient donc la seule façon dont la visite s'annonce, d'où
+ * la règle : tant qu'elle n'a pas été faite, et tant qu'on n'a pas déjà
+ * insisté trois fois. Un refus reste un refus — `markSkipped` ne touche
+ * plus à rien ici, mais le compteur, lui, court toujours.
+ */
 export function shouldHint(s: OnboardingState = loadOnboarding()): boolean {
-  return s.skipped && !s.done.includes("global") && s.hints < HINT_MAX;
+  return !s.done.includes("global") && s.hints < HINT_MAX;
 }
 
 /** First opening: nothing done, nothing waved away. */

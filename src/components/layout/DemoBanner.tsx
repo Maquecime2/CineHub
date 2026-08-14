@@ -24,7 +24,7 @@
    time on a first opening. Without them, the offset is just a bit of
    margin.
    ============================================================ */
-import { Info, Trash2 } from "lucide-react";
+import { Info, Trash2, FolderInput } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { useTranslation } from "react-i18next";
@@ -34,7 +34,46 @@ import { Layer } from "../ui/Layer";
  *  open panel (30). It informs, it does not interrupt. */
 const Z = 25;
 
-export function DemoBanner({ onRemove }: { onRemove: () => void }) {
+/* Les deux sorties portent la même forme et ne diffèrent que par
+   l'encre : ce sont deux propositions, pas une action et son
+   repentir. */
+const door = (ink: string, fill: string, line: string) => ({
+  all: "unset" as const,
+  ...tap,
+  cursor: "pointer",
+  /* `tap` only sets flexible inline display on a touch screen; the icon
+     and the word must line up everywhere. */
+  display: "inline-flex" as const,
+  alignItems: "center" as const,
+  gap: 6,
+  padding: "6px 12px",
+  fontFamily: F.mono,
+  fontSize: 10.5,
+  letterSpacing: 1,
+  color: ink,
+  background: fill,
+  border: `1px solid ${line}`,
+});
+
+/* ============================================================
+   TROIS SORTIES, ET LA BONNE EN PREMIER
+   ============================================================
+
+   Ce carton n'offrait qu'un geste : jeter l'exemple. C'est la sortie la
+   moins utile des trois — elle rend un mur vide à quelqu'un qui vient
+   d'arriver, c'est-à-dire le seul écran du produit qui ne montre rien.
+
+   Or la question réelle, à cet instant, est « et MES films ? ». La
+   réponse est l'import, et c'est donc lui qui passe devant : il remplace
+   l'exemple au lieu de le retirer, ce qui est la seule sortie qui laisse
+   un classeur garni.
+
+   La troisième sortie ne porte pas de bouton, et c'est voulu : continuer
+   à jouer avec l'exemple, c'est ne rien faire. Un bouton « garder » sur
+   un carton qui informe demanderait de décider là où il n'y a rien à
+   décider.
+   ============================================================ */
+export function DemoBanner({ onRemove, onImport }: { onRemove: () => void; onImport: () => void }) {
   const { t } = useTranslation();
   return (
     <Layer>
@@ -85,30 +124,17 @@ export function DemoBanner({ onRemove }: { onRemove: () => void }) {
           <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded, marginTop: 2 }}>
             {t("demo.body")}
           </div>
-          <button
-            onClick={onRemove}
-            style={{
-              all: "unset",
-              ...tap,
-              cursor: "pointer",
-              /* `tap` only sets flexible inline display on a touch
-                 screen; the icon and the word must line up
-                 everywhere. */
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              marginTop: 8,
-              padding: "6px 12px",
-              fontFamily: F.mono,
-              fontSize: 10.5,
-              letterSpacing: 1,
-              color: C.card,
-              background: C.burgundy,
-              border: `1px solid ${C.burgundy}`,
-            }}
-          >
-            <Trash2 size={12} /> {t("demo.remove")}
-          </button>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+            <button onClick={onImport} style={door(C.card, C.pine, C.pine)}>
+              <FolderInput size={12} /> {t("demo.import")}
+            </button>
+            {/* Le retrait garde le bordeaux, mais il n'est plus plein :
+                jeter n'est pas l'action qu'on met en avant sur l'écran
+                d'arrivée de quelqu'un. */}
+            <button onClick={onRemove} style={door(C.burgundy, "transparent", C.burgundy)}>
+              <Trash2 size={12} /> {t("demo.remove")}
+            </button>
+          </div>
         </div>
       </div>
     </Layer>
