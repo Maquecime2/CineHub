@@ -36,6 +36,7 @@ import { PowerBar } from "../components/play/PowerBar";
 import { tiltOf } from "../domain/seeded";
 import type { Gain } from "../domain/points";
 import { refreshPurse } from "../hooks/usePurse";
+import { quizBank } from "../hooks/useHall";
 import {
   addBankQuestion,
   answerQuiz,
@@ -51,8 +52,6 @@ import {
   redoQuestion,
   iAmAdmin,
   invitePlayer,
-  myQuizzes,
-  quizCategories,
   quizScores,
   readQuiz,
   removeBankQuestion,
@@ -82,16 +81,25 @@ export function QuizView({ connected }: { connected: boolean }) {
   const [opened, setOpened] = useState<string | null>(null);
   const [tendingBank, setTendingBank] = useState(false);
 
+  /* Servi de mémoire à l'entrée, redemandé après un geste : voir
+     `hooks/useHall`. */
+  const show = useCallback((d: { quizzes: Quiz[]; categories: Category[] }) => {
+    setQuizzes(d.quizzes);
+    setCategories(d.categories);
+  }, []);
+
   const reread = useCallback(async () => {
     if (!connected) return;
-    const [q, c] = await Promise.all([myQuizzes(), quizCategories()]);
-    setQuizzes(q.quizzes);
-    setCategories(c.categories);
-  }, [connected]);
+    show(await quizBank.refresh());
+  }, [connected, show]);
 
   useEffect(() => {
-    reread().catch(() => {});
-  }, [reread]);
+    if (!connected) return;
+    quizBank
+      .load()
+      .then(show)
+      .catch(() => {});
+  }, [connected, show]);
 
   if (!serverConfigured()) {
     return (

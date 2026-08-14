@@ -44,14 +44,13 @@ import { priceGap } from "../domain/points";
 import { tiltOf } from "../domain/seeded";
 import { SKINS } from "../theme/skins";
 import { usePurse, refreshPurse } from "../hooks/usePurse";
+import { stall } from "../hooks/useHall";
 import {
   buy,
   iAmAdmin,
   ladder as readLadder,
-  myHoldings,
   serverConfigured,
   sell as sellBack,
-  shop as readShop,
   wear,
   type Holdings,
   type Rank,
@@ -86,16 +85,25 @@ export function CounterView({ connected }: { connected: boolean }) {
   const [opening, setOpening] = useState<string[] | null>(null);
   const [trouble, setTrouble] = useState<string | null>(null);
 
+  /* Servi de mémoire à l'entrée, redemandé après un geste : voir
+     `hooks/useHall`. Un achat passe par `reread`, donc par `refresh`. */
+  const show = useCallback((d: { items: ShopItem[]; held: Holdings | null }) => {
+    setItems(d.items);
+    setHeld(d.held);
+  }, []);
+
   const reread = useCallback(async () => {
     if (!connected) return;
-    const [shopItems, holdings] = await Promise.all([readShop(), myHoldings()]);
-    setItems(shopItems);
-    setHeld(holdings);
-  }, [connected]);
+    show(await stall.refresh());
+  }, [connected, show]);
 
   useEffect(() => {
-    reread().catch(() => {});
-  }, [reread]);
+    if (!connected) return;
+    stall
+      .load()
+      .then(show)
+      .catch(() => {});
+  }, [connected, show]);
 
   /* Le palmarès se relit à chaque changement d'onglet, et pas une fois
      pour toutes : deux tableaux gardés en mémoire seraient deux chiffres

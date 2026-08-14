@@ -8,6 +8,7 @@ import { F, GRAIN } from "../../theme/tokens";
 import { hueOf } from "../../theme/ink";
 import { tornClip } from "../../domain/seeded";
 import { isIdbPoster, idbKeyOf } from "../../db";
+import { holdMedia, releaseMedia } from "../../services/media";
 import { POSTER_BASE, POSTER_THUMB } from "../../tmdb";
 import type { Film } from "../../types";
 
@@ -22,9 +23,23 @@ interface PosterArtProps {
    * Defer decoding the image. True everywhere many are shown at once;
    * false on an isolated card, which one wants to see straight away. By
    * default, the `plain` mode — the shelf — turns it on.
+   *
+   * IT ALSO DECIDES THE EXPENSIVE EFFECTS, see below: it is the only
+   * prop that answers "how many of these are on screen at once", which
+   * is the question those effects turn on.
    */
   lazy?: boolean;
+  /**
+   * How wide the poster is actually drawn, in CSS pixels. Only used to
+   * tell the browser which size to fetch (`sizes`); with nothing, the
+   * full-size image is asked for as before.
+   */
+  width?: number;
 }
+
+/* A hold that failed holds nothing, so there is nothing to release. It
+   still has to be caught: an untouched rejection is an unhandled one. */
+const ignore = (): void => {};
 
 /* `height` counts only for the substitute emulsion, in landscape. A real
    poster is 2:3 portrait: forcing it into a band would reduce it to a
@@ -40,35 +55,41 @@ export const PosterArt = React.memo(function PosterArt({
   clipSeed = 0,
   plain = false,
   lazy = plain,
+  width = 0,
 }: PosterArtProps) {
   const [broken, setBroken] = useState(false);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const hue = hueOf(film.id);
 
-  // an "idb:" poster lives in IndexedDB: we take it out as an object URL
-  // for as long as it is shown, and release it on leaving so as not to leak.
+  /* An "idb:" poster lives in IndexedDB. We ask the mirror to HOLD it —
+     the object URL is shared and outlives this card, which is what makes
+     a wall one can scroll back up: see `holdMedia`. What we owe in
+     return is exactly one release per successful hold.
+
+     The dynamic `import()` that used to be here split nothing —
+     `services/media` is pulled in statically by the stills anyway — and
+     only cost every poster an extra microtask before it could start. */
   useEffect(() => {
     if (!isIdbPoster(film.poster)) {
       setBlobUrl(null);
       return;
     }
-    let url: string | null = null,
-      alive = true;
-    /* The vault first, then the mirror on the container: `readMedia`
-       does both, and the dynamic import stays for the same reason it was
-       there — a wall of five hundred cards must not pull the storage
-       modules in before it has a poster to show. */
-    import("../../services/media")
-      .then(({ readMedia }) => readMedia(idbKeyOf(film.poster)))
-      .then((blob) => {
-        if (!alive || !blob) return;
-        url = URL.createObjectURL(blob);
-        setBlobUrl(url);
-      })
-      .catch(() => setBroken(true));
+    const key = idbKeyOf(film.poster);
+    let alive = true;
+    const wait = holdMedia(key);
+    void wait.then((url) => {
+      if (!alive) return;
+      if (url) setBlobUrl(url);
+      else setBroken(true);
+    });
+    /* Released THROUGH the same promise, never beside it: unmounting
+       before the vault answers would otherwise release a hold that had
+       not happened yet, and the count would never come back to zero. */
     return () => {
       alive = false;
-      if (url) URL.revokeObjectURL(url);
+      void wait.then((url) => {
+        if (url) releaseMedia(key);
+      }, ignore);
     };
   }, [film.poster]);
 
@@ -80,7 +101,21 @@ export const PosterArt = React.memo(function PosterArt({
   /* A case is 96 px wide: loading the poster into it at 342 px means
      decoding three times more pixels than we show. TMDB serves the same
      image smaller, one only has to ask. */
-  const smallSrc = plain && src ? src.replace(POSTER_BASE, POSTER_THUMB) : src;
+  const remote = !!src && src.includes(POSTER_BASE);
+  const thumb = remote ? src!.replace(POSTER_BASE, POSTER_THUMB) : src;
+  const smallSrc = plain ? thumb : src;
+  /* AND THE WALL WAS ASKING FOR THE BIG ONE TOO, for the same reason the
+     shelf used to: the substitution was tied to `plain`, which names the
+     shelf and nothing else. But a card of a hundred and fifty pixels
+     decodes just as many pixels too many as a case does.
+
+     We do not choose for the browser, though — the wall's calibre is
+     adjustable, and at "grand" on a dense screen the small one would be
+     soft. `srcset` states the two sizes that exist, `sizes` states how
+     wide we are actually drawing it, and the browser does the arithmetic
+     with a screen density we do not have here. Without a stated width
+     nothing is proposed, and the behaviour is the one from before. */
+  const srcSet = remote && !plain && width ? `${thumb} 185w, ${src} 342w` : undefined;
   return (
     <div
       style={{
@@ -98,6 +133,8 @@ export const PosterArt = React.memo(function PosterArt({
       {src ? (
         <img
           src={smallSrc ?? undefined}
+          srcSet={srcSet}
+          sizes={srcSet ? `${width}px` : undefined}
           alt=""
           onError={() => setBroken(true)}
           /* On the shelf, one poster per case: a hundred images to
@@ -123,7 +160,14 @@ export const PosterArt = React.memo(function PosterArt({
             width: "100%",
             height: "100%",
             objectFit: "contain",
-            filter: "saturate(0.88) contrast(1.04)",
+            /* THE TINT IS A MOMENT'S EFFECT, AND IT WAS ON EVERY CARD.
+               A `filter` forces a compositing pass per image: on the
+               fiche it costs nothing, on a wall of five hundred it is
+               five hundred passes, redone at every repaint of the
+               scroll. Same criterion as `loading` just below — what
+               counts is the NUMBER on screen, which is what `lazy`
+               says. */
+            ...(lazy ? null : { filter: "saturate(0.88) contrast(1.04)" }),
           }}
         />
       ) : (
@@ -170,14 +214,22 @@ export const PosterArt = React.memo(function PosterArt({
           underneath on every repaint. On an isolated card that is
           painless; on a shelf of a hundred cases being dragged, it is
           what costs the most. At 96 px wide the blend does not show:
-          the cases take the grain as a plain overlay. */}
+          the cases take the grain as a plain overlay.
+
+          AND THE WALL WAS NOT A CASE, SO IT KEPT THE BLEND. `plain`
+          named the shelf; the poster wall, which shows five hundred at
+          once, fell on the other side of the test and blended every one
+          of them. The criterion is the same one the tint and `loading`
+          now use — `lazy`, which is the project's word for "there are
+          many of these on screen". The grain is merely laid on instead,
+          a shade lighter to make up for the blend it no longer gets. */}
       <div
         style={{
           position: "absolute",
           inset: 0,
           backgroundImage: GRAIN,
-          opacity: plain ? 0.22 : src ? 0.32 : 0.5,
-          ...(plain ? null : { mixBlendMode: "overlay" }),
+          opacity: lazy ? (src ? 0.22 : 0.42) : src ? 0.32 : 0.5,
+          ...(lazy ? null : { mixBlendMode: "overlay" }),
           pointerEvents: "none",
         }}
       />

@@ -20,73 +20,35 @@
    ici qu'on parle au serveur. Sans compte, personne n'appelle rien et
    le classeur garde ses quatorze peaux.
    ============================================================ */
-import { useEffect, useState } from "react";
 import { accountOpen, myHoldings, myPurse, serverConfigured, type Purse } from "../services/server";
 import { rememberOwned } from "../theme/owned";
+import { cachedResource, useCached } from "./cachedResource";
 
-let cache: Purse | null = null;
-let inFlight: Promise<Purse | null> | null = null;
+const purse = cachedResource<Purse | null>({
+  read: async () => {
+    const p = await myPurse();
+    /* Ce qu'on possède part en mémoire locale au passage : c'est ce qui
+       permet au sélecteur de peaux de se dessiner juste, dès le premier
+       rendu et même hors ligne ensuite. */
+    try {
+      const held = await myHoldings();
+      rememberOwned(held.items, held.worn.skin);
+    } catch {
+      /* Le compteur vaut d'être affiché même si la boutique se tait. */
+    }
+    return p;
+  },
+  onQuiet: null,
+  ready: () => serverConfigured() && accountOpen(),
+});
 
-type Watcher = (p: Purse | null) => void;
-const watchers = new Set<Watcher>();
-
-const tell = (p: Purse | null) => {
-  cache = p;
-  for (const fn of watchers) fn(p);
-};
-
-/** Demande au serveur, sauf si quelqu'un le fait déjà. */
-export function loadPurse(): Promise<Purse | null> {
-  if (inFlight) return inFlight;
-  if (!serverConfigured() || !accountOpen()) return Promise.resolve(null);
-
-  inFlight = myPurse()
-    .then(async (p) => {
-      tell(p);
-      /* Ce qu'on possède part en mémoire locale au passage : c'est ce
-         qui permet au sélecteur de peaux de se dessiner juste, dès le
-         premier rendu et même hors ligne ensuite. */
-      try {
-        const held = await myHoldings();
-        rememberOwned(held.items, held.worn.skin);
-      } catch {
-        /* Le compteur vaut d'être affiché même si la boutique se tait. */
-      }
-      return p;
-    })
-    /* UN SERVEUR QUI REFUSE NE DOIT PAS FAIRE PARLER LE CLASSEUR. Le
-       comptoir ne s'affiche pas, et le reste continue. */
-    .catch(() => {
-      tell(null);
-      return null;
-    })
-    .finally(() => {
-      inFlight = null;
-    });
-  return inFlight;
-}
+/** Demande au serveur, sauf si quelqu'un le fait déjà — ou si c'est frais. */
+export const loadPurse = purse.load;
 
 /** Après un achat, une fin de quiz, un défi soldé. */
-export const refreshPurse = (): Promise<Purse | null> => {
-  inFlight = null;
-  return loadPurse();
-};
+export const refreshPurse = purse.refresh;
 
 /** Ce qu'on sait déjà, sans aller-retour — pour un premier rendu. */
-export const knownPurse = (): Purse | null => cache;
+export const knownPurse = (): Purse | null => purse.known();
 
-export function usePurse(active = true): Purse | null {
-  const [purse, setPurse] = useState<Purse | null>(cache);
-
-  useEffect(() => {
-    if (!active || !serverConfigured() || !accountOpen()) return;
-    watchers.add(setPurse);
-    if (cache === null) void loadPurse();
-    else setPurse(cache);
-    return () => {
-      watchers.delete(setPurse);
-    };
-  }, [active]);
-
-  return purse;
-}
+export const usePurse = (active = true): Purse | null => useCached(purse, active);

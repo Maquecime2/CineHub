@@ -39,7 +39,6 @@ import {
   inviteToList,
   readList,
   readChallenge,
-  myChallenges,
   leaveChallenge,
   joinChallenge,
   removeFromListMembers,
@@ -54,7 +53,8 @@ import {
   type List,
   type ListWork,
 } from "../services/server";
-import { refreshLists } from "../hooks/useMyLists";
+import { refreshLists, loadLists } from "../hooks/useMyLists";
+import { challenges as challengeBoard } from "../hooks/useHall";
 import { useTmdbKey } from "../services/tmdbKey";
 import { searchMovies } from "../tmdb";
 
@@ -78,16 +78,27 @@ export function ListsView({ connected }: { connected: boolean }) {
      happened to refresh them, and one that was erased here went on being
      offered. Two sources of truth for one question is one too many —
      `refreshLists` reads the server and tells everybody. */
+  /* `null` est la réponse d'un serveur qui se tait, pas une liste de
+     listes : à l'écran, c'est la même chose qu'aucune. */
+  const show = useCallback((l: List[] | null, d: Challenge[]) => {
+    setLists(l ?? []);
+    setChallenges(d);
+  }, []);
+
   const reread = useCallback(async () => {
     if (!connected) return;
-    const [l, d] = await Promise.all([refreshLists(), myChallenges()]);
-    setLists(l);
-    setChallenges(d.challenges);
-  }, [connected]);
+    const [l, d] = await Promise.all([refreshLists(), challengeBoard.refresh()]);
+    show(l, d);
+  }, [connected, show]);
 
+  /* Servi de mémoire à l'entrée, redemandé après un geste : voir
+     `hooks/useHall`. */
   useEffect(() => {
-    reread().catch(() => {});
-  }, [reread]);
+    if (!connected) return;
+    Promise.all([loadLists(), challengeBoard.load()])
+      .then(([l, d]) => show(l, d))
+      .catch(() => {});
+  }, [connected, show]);
 
   if (!serverConfigured()) {
     return (

@@ -92,6 +92,8 @@ export const mediaPending = (): number => pending().length;
 
 /** A blob that has gone: it no longer waits, and no longer counts as sent. */
 export function forgetMedia(key: string): void {
+  /* And nothing goes on showing it from memory: see `forgetHeldMedia`. */
+  forgetHeldMedia(key);
   store.set(
     SENT_KEY,
     sent().filter((k) => k !== key)
@@ -510,4 +512,146 @@ export async function readMedia(
   const here = await getImage(key).catch(() => null);
   if (here) return here;
   return pullMedia(key, vet);
+}
+
+/* ------------------------------------------------------------
+   THE SAME BLOB, SHOWN TWICE, IS READ ONCE
+   ------------------------------------------------------------
+
+   The wall empties the cells nobody is looking at (`FilmWall`), and
+   that is the right thing: five hundred polaroids mounted at once
+   blocked the thread. But every card coming BACK on screen used to
+   redo, on its own account, the whole journey — a vault transaction, a
+   fresh `createObjectURL`, a full decode — and the one it had made
+   thirty seconds earlier was thrown away on the way out. One turn of
+   the wheel down and up over two hundred cards is two hundred
+   transactions for images the browser had already decoded.
+
+   So the object URLs are held here, and they outlive the component
+   that asked for them.
+
+   THE COUNT IS OF READERS, NOT OF RENDERS. `holdMedia` says "I am
+   showing this", `releaseMedia` says "I am no longer showing it", and
+   a blob is never revoked while somebody still has it in an `<img>` —
+   a revoked URL in a live `src` is a broken image, and it breaks the
+   one card that was right to be there.
+
+   A KEY AT ZERO READERS IS NOT DROPPED, IT IS PARKED. That is the
+   whole point: the parked ones are exactly the cards just scrolled
+   past, which are exactly the ones about to come back. They are
+   revoked only when the bench is full, oldest first — a ceiling
+   rather than a lifetime, because what decides the cost is how many
+   blobs are held in memory at once, not how long any one of them has
+   been there.
+
+   Three hundred is chosen against a telephone: it is more than any
+   screenful plus its margins, and small enough that a binder of five
+   thousand posters cannot hold them all. */
+const HELD_MAX = 300;
+
+interface Held {
+  url: string;
+  /** How many mounted views are showing it right now. */
+  refs: number;
+}
+
+const held = new Map<string, Held>();
+/** In-flight reads, so two cards asking at once make one transaction. */
+const reading = new Map<string, Promise<string | null>>();
+/** Keys at zero readers, oldest first: the bench, and the eviction order. */
+const parked: string[] = [];
+
+function unpark(key: string): void {
+  const at = parked.indexOf(key);
+  if (at >= 0) parked.splice(at, 1);
+}
+
+function park(key: string): void {
+  unpark(key);
+  parked.push(key);
+  while (parked.length > HELD_MAX) {
+    const old = parked.shift();
+    if (!old) break;
+    const entry = held.get(old);
+    /* Taken back up between parking and eviction: it is somebody's
+       image again, and it left the bench by another door. */
+    if (!entry || entry.refs > 0) continue;
+    URL.revokeObjectURL(entry.url);
+    held.delete(old);
+  }
+}
+
+/**
+ * An object URL for this key, kept alive until as many `releaseMedia`
+ * as there were `holdMedia`. `null` if the blob is nowhere to be found.
+ *
+ * The caller must release in its cleanup — and only the key it held.
+ */
+export function holdMedia(
+  key: string,
+  vet?: (blob: Blob) => Promise<Blob | null>
+): Promise<string | null> {
+  const seen = held.get(key);
+  if (seen) {
+    seen.refs++;
+    unpark(key);
+    return Promise.resolve(seen.url);
+  }
+
+  let wait = reading.get(key);
+  if (!wait) {
+    wait = readMedia(key, vet)
+      .then((blob) => {
+        if (!blob) return null;
+        /* Another reader made it while we were away. */
+        const already = held.get(key);
+        if (already) return already.url;
+        const url = URL.createObjectURL(blob);
+        held.set(key, { url, refs: 0 });
+        /* Parked from birth: a caller that unmounts before this
+           resolves never releases, and an entry nobody ever parks is
+           an entry nobody can ever evict. */
+        park(key);
+        return url;
+      })
+      .catch(() => null)
+      .finally(() => reading.delete(key));
+    reading.set(key, wait);
+  }
+
+  return wait.then((url) => {
+    if (!url) return null;
+    const entry = held.get(key);
+    /* Evicted between the read and here — a full bench and a slow
+       vault. The URL in hand is already revoked, so we say nothing
+       rather than hand back a broken one. */
+    if (!entry) return null;
+    entry.refs++;
+    unpark(key);
+    return entry.url;
+  });
+}
+
+/** One reader fewer. At zero the URL goes to the bench, not to the bin. */
+export function releaseMedia(key: string): void {
+  const entry = held.get(key);
+  if (!entry) return;
+  if (entry.refs > 0) entry.refs--;
+  if (entry.refs === 0) park(key);
+}
+
+/**
+ * The blob behind this key has changed or gone: whoever asks next must
+ * read it again rather than be served the picture of what it was.
+ *
+ * A URL somebody is still showing is NOT revoked — it would blank the
+ * image under their eyes. It is dropped from the register, so the next
+ * `holdMedia` makes a new one, and the old dies with its last reader.
+ */
+export function forgetHeldMedia(key: string): void {
+  const entry = held.get(key);
+  if (!entry) return;
+  held.delete(key);
+  unpark(key);
+  if (entry.refs === 0) URL.revokeObjectURL(entry.url);
 }

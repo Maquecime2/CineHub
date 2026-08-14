@@ -37,11 +37,21 @@ vi.mock("../../services/server", () => ({
   },
 }));
 
+/* `holdMedia` RATHER QUE `readMedia` : l'image n'est plus lue puis
+   relâchée à chaque montage, elle est TENUE — le mirroir garde l'URL et
+   la partage, ce qui est ce qui permet à une pellicule de vignettes de
+   défiler sans relire le coffre vingt fois. Le double ici en a la même
+   forme : une URL quand il y a un blob, `null` sinon, et un relâchement
+   par prise. */
+const relaches: string[] = [];
+
 vi.mock("../../services/media", () => ({
-  readMedia: async (key: string) => {
+  holdMedia: async (key: string) => {
     if (refuse) throw new Error("coffre ferme");
-    return coffre.get(key) ?? (connecte ? (conteneur.get(key) ?? null) : null);
+    const blob = coffre.get(key) ?? (connecte ? (conteneur.get(key) ?? null) : null);
+    return blob ? `blob:${key}` : null;
   },
+  releaseMedia: (key: string) => relaches.push(key),
 }));
 
 /** Somebody signs in: the account is known, and the watchers are told. */

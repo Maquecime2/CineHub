@@ -1,7 +1,6 @@
 /* ============================================================
    IMPORT — reading the CSV, matching, merging
    ============================================================ */
-import Papa from "papaparse";
 import { makeFilm, mergeWatches, withWatches } from "./film";
 import type { Film, FilmStatus, ImportDiff, ImportRow, ParsedCsv, Year } from "../types";
 
@@ -41,7 +40,16 @@ const pick = (row: CsvRow, names: string[]): string => {
 /* Reads a Letterboxd export (ratings / diary / watched / watchlist).
    Returns the deduplicated rows, the guessed file kind, and enough to
    check what was actually read. */
-export function parseLetterboxdCsv(file: File): Promise<ParsedCsv> {
+/* LE LECTEUR DE CSV N'ARRIVE QU'AVEC LE FICHIER.
+
+   `papaparse` ne sert qu'ici, c'est-à-dire au moment où quelqu'un dépose
+   une exportation Letterboxd — un geste rare, et le seul de
+   l'application. Importé en tête, il voyageait dans le paquet principal
+   et se chargeait chez tout le monde, y compris chez ceux qui n'ont
+   jamais eu de compte Letterboxd. Il se charge maintenant pendant que
+   l'on choisit le fichier, ce qui ne coûte aucune attente visible. */
+export async function parseLetterboxdCsv(file: File): Promise<ParsedCsv> {
+  const { default: Papa } = await import("papaparse");
   return new Promise((resolve, reject) => {
     Papa.parse<CsvRow>(file, {
       header: true,

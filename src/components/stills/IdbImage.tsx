@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { CSSProperties } from "react";
 import { ImageOff } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
-import { readMedia } from "../../services/media";
+import { holdMedia, releaseMedia } from "../../services/media";
 import { accountOpen, watchAccount } from "../../services/server";
 
 /* ============================================================
@@ -27,6 +27,10 @@ import { accountOpen, watchAccount } from "../../services/server";
 /* Below that, no sentence fits: we put a sign only, and the tooltip
    carries the rest. */
 const BIG_ENOUGH = 120;
+
+/* A hold that failed holds nothing, so there is nothing to release. It
+   still has to be caught: an untouched rejection is an unhandled one. */
+const ignore = (): void => {};
 
 export function IdbImage({
   imageKey,
@@ -66,24 +70,29 @@ export function IdbImage({
   const signedIn = useSyncExternalStore(watchAccount, accountOpen);
 
   useEffect(() => {
-    let objectUrl: string | null = null;
     let alive = true;
     setState("cherche");
-    /* THE VAULT FIRST, THE MIRROR NEXT. `readMedia` looks here, and only
+    /* THE VAULT FIRST, THE MIRROR NEXT. `holdMedia` looks here, and only
        goes asking the container if the image is not here — so this
        screen no longer needs to know that a container exists at all.
 
        WHICH IS WHY "absente" NOW MEANS SOMETHING ELSE than it did: not
        "it is on the other device", but "it is nowhere we can reach".
-       Before the mirror, those two were the same sentence. */
-    readMedia(imageKey)
-      .then((blob: Blob | null) => {
+       Before the mirror, those two were the same sentence.
+
+       And it HOLDS rather than reads: a strip of stills mounts and
+       unmounts its thumbnails as one scrolls the fiche, and the same
+       twenty images were being read out of the vault again each time.
+       One release per successful hold, through the same promise — see
+       `PosterArt` for why it cannot be done beside it. */
+    const wait = holdMedia(imageKey);
+    void wait
+      .then((objectUrl) => {
         if (!alive) return;
-        if (!blob) {
+        if (!objectUrl) {
           setState("absente");
           return;
         }
-        objectUrl = URL.createObjectURL(blob);
         setUrl(objectUrl);
         setState("trouvée");
       })
@@ -94,7 +103,9 @@ export function IdbImage({
       });
     return () => {
       alive = false;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      void wait.then((objectUrl) => {
+        if (objectUrl) releaseMedia(imageKey);
+      }, ignore);
     };
   }, [imageKey, signedIn]);
 
