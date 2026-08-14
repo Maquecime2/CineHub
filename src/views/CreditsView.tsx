@@ -9,22 +9,32 @@
    DIRECTORY, where one looks for somebody, and the FOLDER, where one
    looks at what one has of them.
    ============================================================ */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { ArrowLeft, Users, Search, Download, Loader2 } from "lucide-react";
 import { C, F, alpha } from "../theme/tokens";
 import { underlineInput, tap } from "../theme/styles";
 import { StampCorner, PushPin } from "../components/atmosphere";
-import { Cardstock, SectionTitle, Guideline, Label, InkStars } from "../components/ui";
+import { Cardstock, SectionTitle, Guideline, Label, InkStars, Honours } from "../components/ui";
 import { PosterArt } from "../components/film/PosterArt";
-import { census, searchPeople, rolesOnFilm, PERSON_ROLES, type Person } from "../domain/people";
+import {
+  census,
+  searchPeople,
+  rolesOnFilm,
+  standouts,
+  companions,
+  averageRating,
+  isRegular,
+  PERSON_ROLES,
+  type Person,
+} from "../domain/people";
 import { initialsOf, makeFilm } from "../domain/film";
 import { filmKey } from "../domain/importing";
 import { motifById } from "../domain/motifs";
 import { tiltOf } from "../domain/seeded";
 import { useTranslation } from "react-i18next";
 import { useTmdbKey } from "../services/tmdbKey";
-import { searchPerson, personFilmography } from "../tmdb";
+import { searchPerson, personFilmography, personPortrait } from "../tmdb";
 import type { Film, KinshipRole } from "../types";
 
 interface CreditsViewProps {
@@ -36,27 +46,12 @@ interface CreditsViewProps {
   onAddToWatchlist: (f: Film) => void;
 }
 
-/* THE THRESHOLD, AND WHAT IT REALLY AIMS AT.
+/* The threshold that keeps the directory walkable — and the reason for
+   it — now live in `domain/people`, beside the census that produces the
+   names: the head of the directory (`standouts`) obeys the same rule,
+   and two thresholds would have parted company at the first change.
 
-   A collection of a thousand films carries eight thousand names, most of
-   which have crossed only one card: displaying them all does not make a
-   more complete list, it makes a list nobody walks through. So the
-   directory only shows straight away those one meets twice — the same
-   ones the constellation's kinships keep.
-
-   But that noise comes from ONE source: the eight roles each card
-   carries. Film-makers, cinematographers, composers and screenwriters
-   are counted in dozens, not in thousands, and a global threshold erased
-   them wrongly — clicking "musique" on a collection where a single
-   composer is named returned emptiness, which reads as a defect and not
-   as a rule. So the threshold only applies to those whose acting is
-   their only title. */
-const THRESHOLD = 2;
-
-const isRegular = (p: Person): boolean =>
-  p.films.length >= THRESHOLD || p.roles.some((r) => r !== "interprétation");
-
-/* The roles read from the catalogue, under `roles.<id>` — the ids stay
+   The roles read from the catalogue, under `roles.<id>` — the ids stay
    the French words because that is what a card carries on disk. */
 
 export function CreditsView({
@@ -78,11 +73,94 @@ export function CreditsView({
         films={films}
         onRetour={() => onOpenPerson(null)}
         onOpen={onOpen}
+        onOpenPerson={onOpenPerson}
         onAddToWatchlist={onAddToWatchlist}
       />
     );
 
   return <Directory people={people} onOuvrir={onOpenPerson} unknown={!!who} />;
+}
+
+/* ============================================================
+   A FACE
+
+   TMDB has a photograph of most of the names a card carries, and the
+   credits showed none of them: a page of people that shows no people.
+
+   THREE RULES, AND THEY ARE THE WHOLE COMPONENT.
+
+   1. Never on the way. The initials are drawn AT ONCE, the photograph
+      slips in when it arrives, and a failure changes nothing on screen.
+      Nobody waits for a face to read a name.
+   2. Never on the full directory. A well-stocked collection carries
+      thousands of names; one call each would be thousands of calls. So
+      faces are only asked for where the names are few and chosen — the
+      head of the directory, and the folder's heading.
+   3. No key, no frame. Not a grey square, not a silhouette: the tab
+      simply has no photographs, exactly as "what is missing" has no
+      button. That is the binder's rule — what depends on the outside is
+      invisible without it, never greyed out.
+   ============================================================ */
+function Portrait({ name, size = 46 }: { name: string; size?: number }) {
+  const apiKey = useTmdbKey();
+  /* The face is kept WITH the name it belongs to, rather than wiped on
+     every change: a lone `src` had to be reset inside the effect, and
+     for one render Ozu wore Varda's face. */
+  const [got, setGot] = useState<{ name: string; src: string } | null>(null);
+  const [broken, setBroken] = useState("");
+
+  useEffect(() => {
+    if (!apiKey) return;
+    let alive = true;
+    /* A silent failure: the initials are already there, and an error
+       message about a decoration would be noise. */
+    personPortrait(name, apiKey)
+      .then((src: string) => {
+        if (alive) setGot({ name, src });
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [name, apiKey]);
+
+  if (!apiKey) return null;
+
+  const src = got?.name === name && broken !== name ? got.src : "";
+
+  const frame = {
+    width: size,
+    height: size,
+    flexShrink: 0,
+    borderRadius: "50%",
+    border: `1px solid ${C.line}`,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+    background: alpha(C.inkFaded, 0.14),
+  } as const;
+
+  if (!src)
+    return (
+      <div style={frame} aria-hidden>
+        <span style={{ fontFamily: F.title, fontSize: size * 0.38, color: alpha(C.ink, 0.35) }}>
+          {initialsOf(name)}
+        </span>
+      </div>
+    );
+
+  return (
+    <div style={frame}>
+      <img
+        src={src}
+        alt=""
+        loading="lazy"
+        onError={() => setBroken(name)}
+        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+      />
+    </div>
+  );
 }
 
 /* ============================================================
@@ -137,6 +215,8 @@ function Directory({
           {t("credits.gone")}
         </div>
       )}
+
+      <WhoCounts people={people} onOuvrir={onOuvrir} />
 
       <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "18px 0 14px" }}>
         <Search size={15} color={C.inkFaded} />
@@ -205,6 +285,95 @@ function Directory({
   );
 }
 
+/* ============================================================
+   WHO COUNTS — the head of the directory
+
+   The grid below answers "have you got any X", which one only asks
+   having already got the name in mind. Arriving with no name in mind,
+   the tab said nothing at all: a wall of a thousand strangers sorted by
+   how well furnished they are. These three rows say who is in there.
+
+   Each row goes out on its own when the collection does not carry it
+   (`standouts` returns it empty rather than short), and the whole head
+   goes with them — a heading followed by nothing is worse than no
+   heading. */
+function WhoCounts({ people, onOuvrir }: { people: Person[]; onOuvrir: (key: string) => void }) {
+  const { t } = useTranslation();
+  const { loyal, loved, newcomers } = useMemo(() => standouts(people), [people]);
+  const rows = [
+    { key: "loyalties", people: loyal },
+    { key: "loved", people: loved },
+    { key: "newcomers", people: newcomers },
+  ].filter((r) => r.people.length > 0);
+
+  if (rows.length === 0) return null;
+
+  return (
+    <div data-tour="credits-standouts" style={{ marginTop: 16 }}>
+      {rows.map((r) => (
+        <div key={r.key} style={{ marginBottom: 14 }}>
+          <Label>{t(`credits.${r.key}`)}</Label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {r.people.map((p) => (
+              <Badge key={p.key} p={p} onClick={() => onOuvrir(p.key)} />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** A name of the head: the face, the name, and what one has of them. */
+function Badge({ p, onClick }: { p: Person; onClick: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <button
+      onClick={onClick}
+      aria-label={`${p.name} — ${t("credits.filmCount", { count: p.films.length })}`}
+      style={{
+        all: "unset",
+        ...tap,
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        gap: 9,
+        background: C.card,
+        border: `1px solid ${C.line}`,
+        borderRadius: 2,
+        padding: "6px 12px 6px 7px",
+        boxShadow: "1px 1px 4px rgba(0,0,0,0.10)",
+        transition: "transform var(--motion-fast) var(--motion-ease)",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = "translateY(-2px)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = "none";
+      }}
+    >
+      <Portrait name={p.name} size={34} />
+      <span>
+        <span
+          style={{
+            display: "block",
+            fontFamily: F.title,
+            fontWeight: 700,
+            fontSize: 14.5,
+            color: C.ink,
+          }}
+        >
+          {p.name}
+        </span>
+        <span style={{ display: "block", fontFamily: F.mono, fontSize: 9, color: C.inkFaded }}>
+          {t("credits.filmCount", { count: p.films.length })}
+          {p.rating != null ? ` · ${p.rating.toFixed(1)}` : ""}
+        </span>
+      </span>
+    </button>
+  );
+}
+
 const chipLook = (on: boolean, tint: string = C.burgundy) => ({
   all: "unset" as const,
   ...tap,
@@ -229,7 +398,7 @@ function Card({ p, onClick }: { p: Person; onClick: () => void }) {
       /* The name is written in the card, but in three pieces: without
          this label, the card announces itself as "button" and nothing
          more. */
-      aria-label={`${p.name} — ${p.films.length} film${p.films.length > 1 ? "s" : ""}`}
+      aria-label={`${p.name} — ${t("credits.filmCount", { count: p.films.length })}`}
       style={{
         all: "unset",
         ...tap,
@@ -280,9 +449,7 @@ function Card({ p, onClick }: { p: Person; onClick: () => void }) {
           color: C.inkFaded,
         }}
       >
-        <span>
-          {p.films.length} film{p.films.length > 1 ? "s" : ""}
-        </span>
+        <span>{t("credits.filmCount", { count: p.films.length })}</span>
         {p.rating != null && (
           <>
             <span>·</span>
@@ -303,12 +470,14 @@ function Dossier({
   films,
   onRetour,
   onOpen,
+  onOpenPerson,
   onAddToWatchlist,
 }: {
   p: Person;
   films: Film[];
   onRetour: () => void;
   onOpen: (id: string) => void;
+  onOpenPerson: (key: string) => void;
   onAddToWatchlist: (f: Film) => void;
 }) {
   const { t } = useTranslation();
@@ -316,6 +485,9 @@ function Dossier({
   const theirs = p.films.map((id) => perId.get(id)).filter(Boolean) as Film[];
   const seenFilms = theirs.filter((f) => f.status === "watched");
   const wishlist = theirs.filter((f) => f.status === "watchlist");
+  const apiKey = useTmdbKey();
+  const mine = useMemo(() => averageRating(films), [films]);
+  const met = useMemo(() => companions(films, p.key), [films, p.key]);
 
   return (
     <div style={{ padding: "34px 44px 70px", maxWidth: 1000, position: "relative" }}>
@@ -323,8 +495,12 @@ function Dossier({
         <ArrowLeft size={13} /> {t("credits.backToCredits")}
       </button>
 
-      <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
-        <Users size={22} color={C.plum} />
+      {/* The face takes the icon's place when there is one to show: two
+          round marks side by side say the same thing twice. Without a
+          TMDB key `Portrait` renders nothing, and the heading would
+          have lost its mark — so the icon stays the fallback. */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        {apiKey ? <Portrait name={p.name} size={52} /> : <Users size={22} color={C.plum} />}
         <div
           style={{
             fontFamily: F.title,
@@ -352,7 +528,7 @@ function Dossier({
 
       <Cardstock tour="credits-page" style={{ marginTop: 8 }}>
         <div style={{ display: "flex", gap: 34, flexWrap: "wrap" }}>
-          <Figure name="VOTRE NOTE">
+          <Figure name={t("credits.yourRating")}>
             {p.rating != null ? (
               <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
                 {p.rating.toFixed(1)}
@@ -360,6 +536,21 @@ function Dossier({
               </span>
             ) : (
               "—"
+            )}
+          </Figure>
+          {/* THE GAP THAT WAS MISSING. The one beside it measures against
+              the crowd; this one measures against ONESELF, which is the
+              comparison one actually makes. Four out of five means two
+              different things depending on whether one usually gives
+              four or usually gives two. Same words, same colours as its
+              neighbour: two gaps read in two ways would be two riddles.
+              BROUGHT ONTO TEN, like its neighbour: side by side, "0.4"
+              and "0.8" for the same distance would be unreadable. */}
+          <Figure name={t("credits.gapToYou")}>
+            {readableGap(
+              p.rating != null && mine != null ? (p.rating - mine) * 2 : null,
+              t,
+              "ToYou"
             )}
           </Figure>
           <Figure name={t("credits.gapToPublic")}>{readableGap(p.gap, t)}</Figure>
@@ -377,7 +568,7 @@ function Dossier({
         if (!known.length) return null;
         return (
           <div style={{ marginTop: 20 }}>
-            <Label>Ce qui revient</Label>
+            <Label>{t("credits.whatRecurs")}</Label>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
               {known.map((m) => (
                 <span key={m!.id} style={chipLook(false, C.plum)}>
@@ -389,8 +580,39 @@ function Dossier({
         );
       })()}
 
-      <Shelf title={t("credits.seen")} films={seenFilms} key={p.key} onOpen={onOpen} />
-      <Shelf title={t("credits.waiting")} films={wishlist} key={p.key} onOpen={onOpen} />
+      {/* THE WAY OUT OF THE FOLDER.
+
+          One arrives here from a card, from the search or from the
+          almanac, and one left by a film or by the back button: a page
+          about people from which no person could be reached. A
+          film-maker's regular cinematographer, an actor's usual
+          director — the collection knew them and never said so.
+
+          The ranking is drawn by `Honours`, which already draws the
+          almanac's loyalties: the same question, and two nearly
+          identical rankings would have parted company at the third
+          change. */}
+      {met.length > 0 && (
+        <div style={{ marginTop: 24 }} data-tour="credits-companions">
+          <Label>{t("credits.companions")}</Label>
+          <div style={{ maxWidth: 420 }}>
+            <Honours
+              items={met.map((c) => ({ name: c.name, n: c.n }))}
+              total={p.films.length}
+              ink={C.plum}
+              empty={t("credits.noCompanion")}
+              onPick={(name) => onOpenPerson(met.find((c) => c.name === name)!.key)}
+              pickTitle={(name) => t("credits.whatIHaveOf", { name })}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* `key` is React's, and React eats it: named so, the prop never
+          reached the component, `rolesOnFilm` was asked about `undefined`
+          and no poster ever carried the capacity it was here under. */}
+      <Shelf title={t("credits.seen")} films={seenFilms} personKey={p.key} onOpen={onOpen} />
+      <Shelf title={t("credits.waiting")} films={wishlist} personKey={p.key} onOpen={onOpen} />
 
       <WhatIsMissing p={p} films={films} onAddToWatchlist={onAddToWatchlist} />
     </div>
@@ -423,14 +645,25 @@ function Figure({ name, children }: { name: string; children: ReactNode }) {
 }
 
 /* "Vous êtes plus sévère de 0,8" reads by itself; "−0,8" asks one to
-   remember which way round the subtraction was done. */
-function readableGap(gap: number | null, t: (k: string, v?: Record<string, string>) => string) {
+   remember which way round the subtraction was done.
+
+   `against` picks which of the two comparisons is being read — the crowd
+   or one's own average. The three sentences differ in each case ("you
+   agree with the public" and "as you rate everything else" are not the
+   same remark), the reading does not: same threshold, same colours,
+   same shape. */
+function readableGap(
+  gap: number | null,
+  t: (k: string, v?: Record<string, string>) => string,
+  against: "" | "ToYou" = ""
+) {
   if (gap == null) return "—";
   const v = Math.abs(gap).toFixed(1);
-  if (Math.abs(gap) < 0.15) return <span style={{ fontSize: 19 }}>{t("credits.inAgreement")}</span>;
+  if (Math.abs(gap) < 0.15)
+    return <span style={{ fontSize: 19 }}>{t(`credits.inAgreement${against}`)}</span>;
   return (
     <span style={{ fontSize: 19, color: gap > 0 ? C.moss : C.vermillion }}>
-      {t(gap > 0 ? "credits.gentlerBy" : "credits.harsherBy", { points: v })}
+      {t(gap > 0 ? `credits.gentlerBy${against}` : `credits.harsherBy${against}`, { points: v })}
     </span>
   );
 }
@@ -438,12 +671,12 @@ function readableGap(gap: number | null, t: (k: string, v?: Record<string, strin
 function Shelf({
   title,
   films,
-  key,
+  personKey,
   onOpen,
 }: {
   title: string;
   films: Film[];
-  key: string;
+  personKey: string;
   onOpen: (id: string) => void;
 }) {
   const { t } = useTranslation();
@@ -455,7 +688,7 @@ function Shelf({
       </SectionTitle>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginTop: 12 }}>
         {films.map((f) => {
-          const roles = rolesOnFilm(f, key);
+          const roles = rolesOnFilm(f, personKey);
           return (
             <button key={f.id} onClick={() => onOpen(f.id)} style={thumb}>
               <PosterArt film={f} height={150} initials={initialsOf(f.title)} />

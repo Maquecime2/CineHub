@@ -51,7 +51,7 @@ import {
 import { drawYearInBox, download, type BoxPalette } from "../services/yearInBox";
 import { hash, seededRand, tiltOf } from "../domain/seeded";
 import { CoffeeRing, InkUnderline, PushPin, StampCorner, Tape } from "../components/atmosphere";
-import { InkStars, Label, Tally } from "../components/ui";
+import { Honours, InkStars, Label, Nothing, Tally } from "../components/ui";
 import { useTranslation } from "react-i18next";
 import { motifById } from "../domain/motifs";
 import { languageName, countryName } from "../names";
@@ -142,11 +142,6 @@ function Cardstock({
       <div style={{ flex: 1, minHeight: 0 }}>{children}</div>
     </div>
   );
-}
-
-/** What is written when a card has nothing to show. */
-function Nothing({ what }: { what: string }) {
-  return <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded }}>{what}</div>;
 }
 
 /* A large number, with its caption below. The piece that carries the
@@ -265,83 +260,6 @@ function Bars({
         strokeWidth="1.1"
       />
     </svg>
-  );
-}
-
-/* A small horizontal rule: the share of each entry of a ranking.
-
-   The number of lines is TRUNCATED BY THE CALLER, never hidden here:
-   that is what guarantees a board does not overflow without anyone
-   knowing. */
-function Honours({
-  items,
-  total,
-  ink = C.ochre,
-  empty,
-  onPick,
-}: {
-  items: { name: string; n: number }[];
-  total: number;
-  ink?: string;
-  /** What to say when there is nothing. Omitted: a plain "nothing to note". */
-  empty?: string;
-  /** Makes each name clickable. Absent: the ranking stays plain text. */
-  onPick?: (name: string) => void;
-}) {
-  const { t } = useTranslation();
-  if (items.length === 0) return <Nothing what={empty ?? t("almanac.nothingToNote")} />;
-  const max = Math.max(1, ...items.map((i) => i.n));
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 3 }}>
-      {items.map((it) => (
-        <div key={it.name}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: 8,
-              fontFamily: F.body,
-              fontSize: 12.5,
-              color: C.ink,
-            }}
-          >
-            {onPick ? (
-              /* A dotted line of ink, as on the film card: the notebook
-                 does not underline in blue what one can follow. */
-              <button
-                onClick={() => onPick(it.name)}
-                title={`Ce que j'ai de ${it.name}`}
-                style={{
-                  all: "unset",
-                  ...tap,
-                  cursor: "pointer",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  borderBottom: `1px dotted ${C.inkFaded}`,
-                }}
-              >
-                {it.name}
-              </button>
-            ) : (
-              <span
-                style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-                title={it.name}
-              >
-                {it.name}
-              </span>
-            )}
-            <span style={{ fontFamily: F.mono, fontSize: 11, color: C.inkFaded, flexShrink: 0 }}>
-              {it.n}
-              {total > 0 ? ` · ${Math.round((it.n / total) * 100)}%` : ""}
-            </span>
-          </div>
-          <div style={{ height: 3.5, background: alpha(C.line, 0.5), marginTop: 2 }}>
-            <div style={{ height: "100%", width: `${(it.n / max) * 100}%`, background: ink }} />
-          </div>
-        </div>
-      ))}
-    </div>
   );
 }
 
@@ -740,11 +658,22 @@ function PlatePeople({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (name: st
             back, the folder says what one has of that person. Two
             neighbouring questions that had no path towards each
             other. */}
-        <Honours items={a.topDirectors.slice(0, 4)} total={a.count} onPick={onOpenPerson} />
+        <Honours
+          items={a.topDirectors.slice(0, 4)}
+          total={a.count}
+          empty={t("almanac.nothingToNote")}
+          onPick={onOpenPerson}
+          pickTitle={(name) => t("credits.whatIHaveOf", { name })}
+        />
       </Cardstock>
 
       <Cardstock title="Les genres" seed={`genres-${key}`}>
-        <Honours items={a.topGenres.slice(0, 4)} total={a.count} ink={C.moss} />
+        <Honours
+          items={a.topGenres.slice(0, 4)}
+          total={a.count}
+          ink={C.moss}
+          empty={t("almanac.nothingToNote")}
+        />
       </Cardstock>
 
       <Cardstock
@@ -838,6 +767,7 @@ function PlatePeople({ a, onOpenPerson }: { a: Almanac; onOpenPerson?: (name: st
                   .map((p) => ({ name: countryName(p.name, lang), n: p.n }))}
                 total={a.count}
                 ink={C.cobalt}
+                empty={t("almanac.nothingToNote")}
               />
             </div>
             {g.languages.length > 0 && (

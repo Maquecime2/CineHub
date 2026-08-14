@@ -194,6 +194,17 @@ const watchlist: Tour = {
 const credits: Tour = {
   label: label("credits"),
   steps: [
+    /* The head of the directory before the search: it is what one reads
+       on arriving, and the search only answers a name one already has in
+       mind. Optional, because a binder of three films carries no
+       shortlist — `standouts` hands its rows back empty rather than
+       short, and the whole head goes with them. */
+    {
+      target: at("credits-standouts"),
+      ...says("credits", "standouts"),
+      placement: "bottom",
+      optional: true,
+    },
     {
       target: at("credits-search"),
       ...says("credits", "names"),
@@ -209,6 +220,12 @@ const credits: Tour = {
       target: at("credits-page"),
       ...says("credits", "page"),
       placement: "right",
+      optional: true,
+    },
+    {
+      target: at("credits-companions"),
+      ...says("credits", "companions"),
+      placement: "top",
       optional: true,
     },
     {
@@ -457,12 +474,13 @@ const global: Tour = {
     },
     ...from("library", library, "wall-search", "wall-mode", "wall-films"),
     ...from("watchlist", watchlist, "wall-films", "soir-ouvrir"),
-    /* NOT `credits-page` HERE, AND THAT IS A FIX.
-       Its anchor only exists once a person is SELECTED, and the global
-       tour arrives on a closed directory: the step was therefore
-       permanently dead, even on a full collection. It stays in the
-       Credits tour, where a folder has been opened. */
-    ...from("credits", credits, "credits-search", "credits-roles"),
+    /* NOT `credits-page` NOR `credits-companions` HERE, AND THAT IS A
+       FIX. Their anchors only exist once a person is SELECTED, and the
+       global tour arrives on a closed directory: the steps would be
+       permanently dead, even on a full collection. They stay in the
+       Credits tour, where a folder has been opened. The head of the
+       directory, on the other hand, is right there on arriving. */
+    ...from("credits", credits, "credits-standouts", "credits-search", "credits-roles"),
     /* NOT `reco-dials` EITHER, and for the same reason as
        `credits-page` above: the two dials live INSIDE the order
        form, which the view does not mount at all without a TMDB key. On

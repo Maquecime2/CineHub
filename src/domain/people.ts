@@ -61,7 +61,34 @@ export interface Person {
   period: [Year, Year] | null;
   /** The motifs that recur with them: seen on at least two of their films. */
   motifs: string[];
+  /**
+   * When their most recently filed card was filed. Not a piece of
+   * information about the person — a piece of information about US, and
+   * the only one that tells a name we have just met from one that has
+   * been on the shelf for three years.
+   */
+  lastAdded: number;
 }
+
+/* THE THRESHOLD, AND WHAT IT REALLY AIMS AT.
+
+   A collection of a thousand films carries eight thousand names, most of
+   which have crossed only one card: displaying them all does not make a
+   more complete list, it makes a list nobody walks through. So the
+   directory only shows straight away those one meets twice — the same
+   ones the constellation's kinships keep.
+
+   But that noise comes from ONE source: the eight roles each card
+   carries. Film-makers, cinematographers, composers and screenwriters
+   are counted in dozens, not in thousands, and a global threshold erased
+   them wrongly — clicking "musique" on a collection where a single
+   composer is named returned emptiness, which reads as a defect and not
+   as a rule. So the threshold only applies to those whose acting is
+   their only title. */
+export const THRESHOLD = 2;
+
+export const isRegular = (p: Person): boolean =>
+  p.films.length >= THRESHOLD || p.roles.some((r) => r !== "interprétation");
 
 /* What we accumulate while sweeping, before doing the sums. */
 interface Draft {
@@ -131,6 +158,7 @@ const compose = ({ key, spellings, roles, films }: Draft): Person => {
       .filter(([, n]) => n >= 2)
       .sort((a, b) => b[1] - a[1])
       .map(([id]) => id),
+    lastAdded: films.reduce((t, f) => Math.max(t, f.addedAt), 0),
   };
 };
 
@@ -180,6 +208,143 @@ export function census(films: Film[]): Person[] {
 /** A person's page, or `null` if the collection does not know them. */
 export const pageOf = (films: Film[], key: string): Person | null =>
   census(films).find((p) => p.key === key) || null;
+
+/* ============================================================
+   WHO COUNTS — the head of the directory
+
+   A grid of names sorted by how well furnished they are answers a
+   question one rarely asks straight off. These three rows answer the one
+   we do ask on arriving: not "have you got any X", but "who is in
+   there".
+   ============================================================ */
+
+/** How many names a row shows. Beyond that it stops being a shortlist. */
+const HOW_MANY = 6;
+
+/**
+ * A row of two names is not a shortlist, it is the whole collection with
+ * a title on top — and it announces a ranking where there is only
+ * scarcity. Under this, the row does not exist.
+ */
+const ENOUGH = 3;
+
+export interface Standouts {
+  /** The best furnished, the ones one keeps coming back to. */
+  loyal: Person[];
+  /** Those you rate highest, on at least two films. */
+  loved: Person[];
+  /** The names your last cards brought in. */
+  newcomers: Person[];
+}
+
+const shortlist = (xs: Person[]): Person[] => (xs.length >= ENOUGH ? xs.slice(0, HOW_MANY) : []);
+
+const sameNames = (a: Person[], b: Person[]): boolean =>
+  a.length === b.length && a.every((p) => b.some((q) => q.key === p.key));
+
+export function standouts(people: Person[]): Standouts {
+  /* A FIDELITY IS A RETURN, not a title.
+
+     `isRegular` — the sieve that keeps the directory walkable — lets
+     through anyone bearing a role other than acting, INCLUDING on a
+     single film. Good for a directory, false for this heading: a row
+     called "your loyalties" naming a composer heard once says something
+     untrue. Here, and here only, it takes coming back.
+
+     `census` already hands them back best furnished first. */
+  const loyal = shortlist(people.filter((p) => p.films.length >= THRESHOLD));
+
+  const loved = shortlist(
+    people
+      .filter((p) => p.rating != null && p.films.length >= THRESHOLD)
+      .sort((a, b) => b.rating! - a.rating! || b.films.length - a.films.length)
+  );
+
+  /* Somebody already shown as a loyalty is not news. Without this, a
+     collection built in one go showed the same six names three times
+     over, which is worse than showing nothing. */
+  const already = new Set(loyal.map((p) => p.key));
+  const newcomers = shortlist(
+    people.filter((p) => !already.has(p.key)).sort((a, b) => b.lastAdded - a.lastAdded)
+  );
+
+  /* THE SAME SIX NAMES UNDER TWO HEADINGS IS NOT TWO ROWS.
+
+     On a well-stocked collection the two questions part company —
+     whom one comes back to is not whom one rates best. On a small one
+     they name exactly the same people, in a different order, and the
+     head reads as a bug. Below that, only the first row is kept. */
+  return {
+    loyal,
+    loved: sameNames(loyal, loved) ? [] : loved,
+    newcomers,
+  };
+}
+
+/**
+ * YOUR own average, over the whole collection.
+ *
+ * The gap already computed on a person is a gap to the PUBLIC, and it
+ * says nothing about the only comparison one actually makes: is this
+ * person above or below what I usually give? A four out of five means
+ * two different things depending on whether one rates everything four or
+ * everything two.
+ *
+ * Same rule as everywhere: a zero is "not rated", not "panned".
+ */
+export const averageRating = (films: Film[]): number | null =>
+  average(films.filter((f) => f.rating > 0).map((f) => f.rating));
+
+/* ============================================================
+   WHO COMES BACK WITH THEM
+   ============================================================ */
+
+export interface Companion {
+  /** Their normalised key — what one opens. */
+  key: string;
+  name: string;
+  /** On how many of this person's films they are named. */
+  n: number;
+}
+
+/**
+ * The people met on this person's films, the most frequent first.
+ *
+ * The constellation links FILMS to one another (`suggestLinks`); nothing
+ * until now linked one name to another, and a folder one cannot leave
+ * except by a film or the back button is a dead end. This is the way
+ * out: a film-maker's regular cinematographer, an actor's usual
+ * director.
+ *
+ * Counted BY FILM: somebody who directs and writes the same card is met
+ * once there, not twice.
+ */
+export function companions(films: Film[], key: string, howMany = 8): Companion[] {
+  const theirs = films.filter((f) => rolesOnFilm(f, key).length > 0);
+  const met = new Map<string, { name: string; n: number; spellings: Map<string, number> }>();
+
+  for (const f of theirs) {
+    const here = new Set<string>();
+    for (const k of kinshipsOf(f)) {
+      if (!isPersonRole(k.role)) continue;
+      const name = k.name.trim();
+      if (!name) continue;
+      const other = normalize(name);
+      if (!other || other === key || here.has(other)) continue;
+      here.add(other);
+
+      let e = met.get(other);
+      if (!e) met.set(other, (e = { name, n: 0, spellings: new Map() }));
+      e.n += 1;
+      e.spellings.set(name, (e.spellings.get(name) || 0) + 1);
+    }
+  }
+
+  return [...met.entries()]
+    .map(([k, e]) => ({ key: k, name: dominantSpelling(e.spellings), n: e.n }))
+    .sort((a, b) => b.n - a.n || a.name.localeCompare(b.name, "fr"))
+    .slice(0, howMany);
+}
 
 /**
  * Searching the directory.
