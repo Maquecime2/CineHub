@@ -18,7 +18,14 @@ export function useStillUrls(stills: Still[]): Record<string, string> {
         const blob =
           (await readMedia(s.thumbKey || s.key).catch(() => null)) ||
           (await readMedia(s.key).catch(() => null));
-        if (!blob) return null;
+        /* `instanceof`, not truthiness. A vault that answers with
+           anything else — it once answered with the `IDBRequest` that
+           went looking — made `createObjectURL` throw, and the throw
+           escaped into the `Promise.all`, which rejects on the FIRST
+           failure: one unreadable still and not a single thumbnail of
+           the film appeared. The guard costs nothing and it bounds the
+           damage to the one image concerned. */
+        if (!(blob instanceof Blob)) return null;
         const u = URL.createObjectURL(blob);
         made.push(u);
         return [s.key, u];
