@@ -16,6 +16,19 @@ carton ; la nouveauté n'entre qu'en accent. Concrètement :
   une durée écrite à la main lui échappe.
 - Le désordre visuel (inclinaisons, punaises, bords déchirés) est SEMÉ, jamais
   tiré au sort : `src/domain/seeded.ts`. Un mur qui gigote n'est pas un mur.
+- Les marques d'usage sont dans `src/components/atmosphere/` et jamais dans une
+  vue : `index.tsx` pour le papier (grain, café, ruban, punaise, tampon de
+  page), `hall.tsx` pour le volet communautaire, qui est LE HALL D'UNE SALLE —
+  ticket perforé, vitrine, fronton, trame d'impression, agrafe, pliure. Une vue
+  qui redessine l'un des deux est une vue qui vient de forker la DA.
+- **Les effets chers appartiennent aux MOMENTS, pas aux LISTES.** `mixBlendMode`,
+  `filter`, les ombres multiples : sur l'ouverture d'une pochette ou un tampon de
+  fin, oui ; sur les cinquante lignes d'un palmarès qui défile, jamais.
+- Un SVG embarqué ne résout pas un `var()` (`theme/surfaces.ts`) : toute texture
+  teintée prend son encre RÉSOLUE en argument. Les dégradés CSS, eux, lisent les
+  jetons — c'est pourquoi le hall les préfère.
+- **Le verdict se dit par un MOT, pas par une couleur.** Vert pour juste et rouge
+  pour faux disparaissent sous cinq des quatorze peaux. On tamponne.
 
 ## La visite guidée suit le produit
 
@@ -34,6 +47,30 @@ correspondant sur la cible.
 Le test `src/components/tour/steps.test.ts` refuse une vue sans visite : il est
 là pour que la règle ne dépende pas de la seule bonne volonté.
 
+## Le mérite s'écrit dans un journal
+
+Le volet communautaire compte des points : `merit_event` est un JOURNAL, et
+`purse` un cache qui se dit tel. Trois garanties, toutes dans le SCHÉMA :
+
+- L'unicité `(person, kind, ref)` fait qu'un fait ne paie qu'une fois. Aucun
+  appelant n'a à vérifier quoi que ce soit, et une requête rejouée est sans
+  effet — c'est ce qui permet de solder un défi « au premier qui regarde »
+  plutôt qu'avec une tâche de fond que ce serveur n'a pas.
+- `CHECK (tokens >= 0)` sur `purse` refuse le découvert. Un achat est UNE
+  instruction : le refus annule la dépense avec, donc personne n'est débité
+  pour rien.
+- `quiz_help` a une clé primaire, et elle ferme le seul vrai trou du lot :
+  « écarter deux mauvaises réponses » rend toujours LES MÊMES deux, sinon on
+  paie une fois et on épluche la question.
+
+**Aucune route ne prend un montant en entrée.** Le barème vit dans
+`server/src/points.ts` ; `src/domain/points.ts` en est une copie qui AFFICHE et
+ne crédite rien, et un test compare les deux tables.
+
+Ce qu'on déclare soi-même (séances, notes, critiques) est plafonné par jour, et
+la forme de `ref` le plafonne à vie. Le vérifiable — quiz, défis, contributions
+— porte le reste.
+
 ## Repères
 
 - `src/App.jsx` — l'orchestre : état des films, navigation par `view`, montage
@@ -41,7 +78,11 @@ là pour que la règle ne dépende pas de la seule bonne volonté.
 - `src/views/` — une vue par onglet. `src/domain/` — la logique pure, testée.
   `src/services/` — la persistance et les entrées/sorties.
 - `src/components/layout/FolderTabs.tsx` — le rail d'onglets et ses trois
-  actions de pied : épingler un film, la peau du site, la visite.
+  actions de pied : épingler un film, la peau du site, la visite. **L'union
+  `View` y est la source de vérité des vues** : `steps.test.ts` la LIT dans ce
+  fichier, il ne la recopie plus.
+- `src/views/CounterView.tsx` — le comptoir : guichet, présentoir, carnet à
+  souches. `src/components/play/` en tient les pièces.
 - Budget de `z-index` : grain 1, page et rail 2, la barre du bas du téléphone
   20, panneaux d'étagère 30–45, modale 50, peaux et tiroirs 59–60,
   visite 190–200.
@@ -58,6 +99,22 @@ là pour que la règle ne dépende pas de la seule bonne volonté.
   calculées à la main, comme le repère de dépôt de l'étagère.
   Exception assumée : un menu ancré à son bouton (`position: absolute` sous
   lui, avec son voile) reste dans la colonne — le sortir romprait l'ancrage.
+
+## Ce qui s'achète ne reprend rien
+
+Trois peaux se vendent au comptoir ; **les quatorze autres restent libres, hors
+ligne comprises, et le resteront**. Verrouiller une peau qui marchait déjà sans
+compte serait la reprendre à quelqu'un — un test nomme les quatorze pour que la
+règle ne dépende pas de la mémoire.
+
+`applySkin.ts` IGNORE le champ `locked` et sert la peau qu'on lui demande sans
+poser de question : s'il consultait le serveur, un rechargement hors ligne
+retomberait sur « carnet » et le classeur se déguiserait tout seul. **Le verrou
+est au choix (`SkinPicker`), jamais à l'application.**
+
+Les tampons et les vignettes échappent au problème autrement : ils n'existent
+que là où des pseudonymes se croisent. Sans compte, il n'y a personne à qui les
+montrer.
 
 ## Le serveur vit à côté, et le classeur vit sans lui
 
