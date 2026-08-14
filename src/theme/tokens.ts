@@ -211,6 +211,27 @@ body { background: ${C.paper}; }
    the first one would close the whole stylesheet.) */
 @keyframes drawerIn { from { opacity: 0; transform: translateX(26px); } to { opacity: 1; transform: none; } }
 
+/* THE FRONT OF HOUSE LIGHTING UP — the one animation that travels.
+
+   A cinema front runs its bulbs from one end to the other, and that is
+   what a gain at the counter borrows: it does not blink in place, it
+   PASSES. So the light is a background moved along, and not an opacity
+   turned up and down.
+
+   It plays ONCE, when something is earned, and never in a loop: a strip
+   of bulbs chasing each other forever behind a page one is reading is a
+   fairground, not a hall. Its duration is a multiple of the slow motion
+   token so that the reduced-motion block below takes it out with the
+   rest — an animation timed by hand would go on running for whoever had
+   asked the whole site to hold still.
+
+   The two stamps, on the other hand, do not travel: they FALL. A stamp
+   is brought down flat and lifts a little ink around itself, so it comes
+   in bigger than it lands, and settles. */
+@keyframes runLights { from { background-position-x: 0; } to { background-position-x: 240px; } }
+@keyframes stampDown { from { opacity: 0; transform: rotate(var(--stamp-tilt, -7deg)) scale(1.6); } 60% { opacity: 1; } to { opacity: var(--stamp-rest, 0.62); transform: rotate(var(--stamp-tilt, -7deg)) scale(1); } }
+@keyframes riseAway { from { opacity: 0; transform: translateY(6px); } 30% { opacity: 1; } to { opacity: 0; transform: translateY(-22px); } }
+
 /* During a drag, the drawer tab announces itself as a target. In CSS
    and not in React state: a setState here would re-render the whole row
    at the precise moment the mouse starts to move. */
