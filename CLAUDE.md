@@ -114,21 +114,63 @@ la forme de `ref` le plafonne à vie. Le vérifiable — quiz, défis, contribut
   Exception assumée : un menu ancré à son bouton (`position: absolute` sous
   lui, avec son voile) reste dans la colonne — le sortir romprait l'ancrage.
 
-## Ce qui s'achète ne reprend rien
+## Ce qui se paie, et la ligne que le paiement ne franchit pas
 
-Trois peaux se vendent au comptoir ; **les quatorze autres restent libres, hors
-ligne comprises, et le resteront**. Verrouiller une peau qui marchait déjà sans
-compte serait la reprendre à quelqu'un — un test nomme les quatorze pour que la
-règle ne dépende pas de la mémoire.
+Ce classeur se vend. Cette section dit où passe la ligne, parce que c'est la
+seule chose qu'on ne peut pas retrouver en lisant le code.
+
+**LE CLASSEUR NE SE PAIE JAMAIS.** Ranger, noter, chercher, importer, exporter,
+tenir ses séances, écrire ses critiques : gratuit, hors ligne, sans compte, et
+ça le reste. Un produit dont l'argument est « tes données sont à toi » ne peut
+pas mettre la lecture de ces données derrière une caisse — le jour où on le
+fait, on vend autre chose, et on ne peut plus dire la phrase.
+
+Ce qui se paie est donc **ce qui coûte au serveur ou n'existe que grâce à lui** :
+
+- **L'abonnement** ouvre le miroir des médias, les décors partagés et le hall.
+  On ne facture pas une fonctionnalité, on facture une CAPACITÉ qu'on héberge —
+  d'où le fait qu'il n'y ait rien à verrouiller côté classeur.
+- **Les peaux s'achètent en JETONS, et les jetons se GAGNENT.** Une seule peau
+  est donnée, celle avec laquelle le classeur a toujours été dessiné ; les
+  seize autres se prennent au comptoir. **On ne vend pas de jetons contre de
+  l'argent** : `merit_event` est un classement, et un classement qu'on peut
+  acheter ne mesure plus rien. C'est la seule règle de cette section qui
+  interdit un revenu, et elle est délibérée.
+
+### Cesser de payer ne reprend rien
+
+**Rien de ce qui est local ne se reprend, jamais.** L'abonnement qui s'arrête
+éteint ce qui vivait dehors — le miroir, le partage, le hall — et le classeur
+continue entier sur la machine, avec tout ce qu'il contient. C'est la même
+garantie que « sans serveur, le classeur marche entier », vue depuis la
+facturation, et c'est pour ça que les deux sections tiennent ensemble.
+
+Une peau achetée l'est pour toujours : `owned` n'a pas de date, et rien ne
+l'efface. Le droit dans le temps, lui, est celui de l'abonnement, et il vit dans
+le SCHÉMA comme le reste de ce qui protège quelqu'un — pas dans une route, qui
+se contourne par la route suivante.
+
+### Le verrou est au choix, jamais à l'application
 
 `applySkin.ts` IGNORE le champ `locked` et sert la peau qu'on lui demande sans
 poser de question : s'il consultait le serveur, un rechargement hors ligne
 retomberait sur « carnet » et le classeur se déguiserait tout seul. **Le verrou
-est au choix (`SkinPicker`), jamais à l'application.**
+est dans `SkinPicker`, jamais dans l'application de la peau.**
+
+Et il s'y applique AUSSI SANS SERVEUR : `isLocked` ne demande pas
+`serverConfigured()`. Une peau verrouillée se voit, avec son prix, sur un
+classeur qui n'a jamais parlé à personne — c'est la seule chose du produit qui
+donne une raison d'ouvrir un compte, et une vitrine cachée n'attire personne.
+Ce que ça ne change pas : on range, on note, on cherche, on importe, on exporte.
+Ce qu'on n'a pas, c'est le choix de la robe.
 
 Les tampons et les vignettes échappent au problème autrement : ils n'existent
 que là où des pseudonymes se croisent. Sans compte, il n'y a personne à qui les
 montrer.
+
+`src/theme/skins.test.ts` tient la règle : une seule peau libre, un prix entier
+sur chaque autre, un article de boutique pour chacune, et le même prix que
+`server/src/shop.ts` — qui est l'original, puisque c'est lui qui débite.
 
 ## Le serveur vit à côté, et le classeur vit sans lui
 

@@ -180,9 +180,12 @@ describe("les peaux du comptoir", () => {
      serait un classeur qui ne sait pas de quoi il a l'air au premier
      lancement.
 
-     Et sans serveur, `SkinPicker` les rend toutes libres : verrouiller
-     sur une économie qui n'existe pas serait une porte sur un mur. C'est
-     testé là-bas, avec le composant. */
+     ET LE VERROU TIENT AUSSI SANS SERVEUR. Ce commentaire disait
+     l'inverse — « sans serveur, `SkinPicker` les rend toutes libres » —
+     et `isLocked` ne demande `serverConfigured()` nulle part. Une peau
+     verrouillée se voit, avec son prix, sur un classeur qui n'a jamais
+     parlé à personne : c'est la seule chose du produit qui donne une
+     raison d'ouvrir un compte. */
   it("donne le carnet, et lui seul", () => {
     const free = SKINS.filter((s) => !s.locked).map((s) => s.key);
     expect(free).toEqual([DEFAULT_SKIN]);

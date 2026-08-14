@@ -253,20 +253,18 @@ export function SkinPicker({
           elle change tout — le fond, les couleurs, les polices, les onglets
         </div>
 
-        {/* CE QU'ON NE PEUT PAS AVOIR N'EST PAS DESSINÉ.
+        {/* TOUTES SONT DESSINÉES, VERROUILLÉES COMPRISES — voir
+            `isLocked` plus haut pour le pourquoi. Ce commentaire disait
+            l'inverse, « ce qu'on ne peut pas avoir n'est pas dessiné,
+            pas grisé, pas barré, pas accompagné d'un prix », et parlait
+            d'une grille de quatorze peaux libres. Il en reste une.
 
-            Une peau verrouillée qu'on n'a pas achetée n'apparaît pas —
-            pas grisée, pas barrée, pas accompagnée d'un prix. C'est la
-            règle de tout ce qui dépend du dehors dans ce classeur, et
-            elle vaut ici plus qu'ailleurs : sans compte, la grille doit
-            être exactement celle qu'elle a toujours été, quatorze peaux
-            et rien qui laisse deviner qu'il en existe d'autres.
-
-            Le filtre est ICI et non dans `applySkin`, qui continue de
-            servir sans poser de question la peau qu'on lui demande. Une
-            peau achetée puis le réseau coupé reste appliquée : la clé
-            est en mémoire locale, et le classeur ne se déguise pas tout
-            seul au rechargement. */}
+            Ce qui vaut d'être répété ici : le verrou est DANS CETTE
+            GRILLE et non dans `applySkin`, qui continue de servir sans
+            poser de question la peau qu'on lui demande. Une peau achetée
+            puis le réseau coupé reste appliquée : la clé est en mémoire
+            locale, et le classeur ne se déguise pas tout seul au
+            rechargement. */}
         {SKINS.map((s) => (
           <SkinCard
             key={s.key}
