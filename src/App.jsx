@@ -53,6 +53,7 @@ import { TourOverlay, TourHint, TourMenu } from "./components/tour";
 import { isFirstRun, shouldHint, shouldSeed, markSeeded } from "./services/onboarding";
 import { binderStillDemo, demoFilms, demoNotes, withoutDemo, DEMO_PREFIX } from "./services/demo";
 import { DemoBanner } from "./components/layout/DemoBanner";
+import { readPlace, placeToHash, HOME } from "./domain/address";
 
 /* ============================================================
    UNE VUE NE SE CHARGE QUE SI ON Y VA
@@ -112,8 +113,13 @@ export default function App() {
      domain's register that answers `motifById`, everywhere else. */
   const [vocabulary, setVocabulary] = useState({ custom: [], hidden: [] });
   const [loaded, setLoaded] = useState(false);
-  const [view, setView] = useState("library");
-  const [selectedId, setSelectedId] = useState(null);
+  /* L'ADRESSE OUVRE LA VUE, et pas l'inverse. Lue une seule fois, à la
+     construction : ensuite c'est l'état qui mène et l'adresse qui suit
+     (voir plus bas). `null` — adresse vide, ou collection partagée, qui
+     appartient à `main.jsx` — laisse le classeur s'ouvrir chez lui. */
+  const landing = useMemo(() => readPlace(), []);
+  const [view, setView] = useState(landing?.view ?? HOME);
+  const [selectedId, setSelectedId] = useState(landing?.film ?? null);
   /* THE OPEN TAB OF THE FILM FOLDER — "film", "words" or "links". Here
      and not in the card: the guided tour opens it as it opens a view.
      See `OngletFiche` in `views/DetailView`.
@@ -354,6 +360,78 @@ export default function App() {
     setSelectedId(id);
     setView("detail");
   }, []);
+
+  /* ============================================================
+     L'ÉTAT MÈNE, L'ADRESSE SUIT
+     ============================================================
+
+     Un seul sens d'écriture, et c'est ce qui évite la boucle. Ici on
+     n'écrit QUE l'adresse, jamais l'état ; l'effet d'en dessous ne lit
+     QUE l'adresse pour écrire l'état, et seulement quand le navigateur
+     l'a changée sous nos pieds.
+
+     `pushState` n'émet pas `hashchange` — c'est ce qui rend la
+     séparation praticable. Écrire `location.hash` en émettrait un, et
+     les deux effets se répondraient.
+
+     LE PREMIER PASSAGE REMPLACE AU LIEU D'EMPILER. Arriver sur `/` et y
+     pousser `#/mur` poserait une entrée d'historique vers la même page :
+     un retour arrière qui ne fait rien est pire que pas de retour du
+     tout, puisqu'il faut appuyer deux fois pour sortir. */
+  const addressWritten = useRef(false);
+  useEffect(() => {
+    const place = view === "detail" && selectedId ? { view, film: selectedId } : { view };
+    /* On ne touche pas à l'adresse d'une collection partagée : cette
+       page-là n'est pas la nôtre, et `main.jsx` recharge dessus. */
+    if (location.hash && !readPlace()) return;
+    const wanted = placeToHash(place);
+    /* LE DRAPEAU SE POSE AU PREMIER PASSAGE, PAS À LA PREMIÈRE ÉCRITURE.
+       La nuance a coûté une entrée d'historique : arrivé sur
+       `#/fiche/…`, l'adresse voulue est déjà la bonne, on ne l'écrivait
+       donc pas — et le drapeau restant baissé, le PREMIER changement de
+       vue remplaçait la fiche au lieu de s'empiler par-dessus. Revenir
+       en arrière sautait la fiche d'où l'on venait. */
+    const first = !addressWritten.current;
+    addressWritten.current = true;
+    if (location.hash === wanted) return;
+    if (first) history.replaceState(null, "", wanted);
+    else history.pushState(null, "", wanted);
+  }, [view, selectedId]);
+
+  /* Le retour arrière, l'avance, et l'adresse collée à la main. Les deux
+     événements plutôt qu'un : `popstate` couvre les boutons du
+     navigateur, `hashchange` la barre d'adresse. Ils se recouvrent
+     souvent, et se rejouer est sans effet — on écrit le même état. */
+  useEffect(() => {
+    const follow = () => {
+      const place = readPlace();
+      /* Rien à nous : soit l'adresse est vide, soit c'est une collection
+         partagée, et `main.jsx` s'en occupe en rechargeant. */
+      if (!place) return;
+      setView(place.view);
+      setSelectedId(place.film ?? null);
+    };
+    addEventListener("popstate", follow);
+    addEventListener("hashchange", follow);
+    return () => {
+      removeEventListener("popstate", follow);
+      removeEventListener("hashchange", follow);
+    };
+  }, []);
+
+  /* UNE FICHE QUI N'EXISTE PLUS. Un lien mis en favori, puis le film
+     supprimé — ou l'adresse d'un autre classeur. `DetailView` ne rend
+     rien sans sa fiche, donc sans cette ligne on resterait sur une
+     colonne vide, avec la bonne adresse et rien dedans.
+
+     APRÈS LE CHARGEMENT SEULEMENT : avant, la collection est vide et
+     toute fiche y semble morte. */
+  useEffect(() => {
+    if (!loaded || view !== "detail" || !selectedId) return;
+    if (films.some((f) => f.id === selectedId)) return;
+    setSelectedId(null);
+    setView(HOME);
+  }, [loaded, view, selectedId, films]);
 
   /* The counterpart of `visiteOuvreVue`, one notch lower: the film
      folder's tab. Stable for the same reason — the tour uses it inside
