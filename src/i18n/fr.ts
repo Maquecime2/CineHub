@@ -748,6 +748,17 @@ const fr = {
     action: "RECHARGER",
   },
 
+  /* LA CLÉ VIT DANS LA MACHINE, ET N'EN SORT PAS. On le dit sans
+     dramatiser et sans jargon : ni « passkey », ni « WebAuthn », qui ne
+     désignent rien pour qui vient de créer un compte en posant son
+     doigt. */
+  loneDevice: {
+    title: "Votre compte ne vit que sur cet appareil",
+    body: "La clé qui l'ouvre est enfermée dans cette machine : on ne peut ni la copier, ni la retrouver. Ajoutez-en une seconde, sur un téléphone, pendant que celle-ci fonctionne.",
+    action: "AJOUTER UN APPAREIL",
+    dismiss: "Écarter cet avertissement",
+  },
+
   /* THE EXAMPLE BINDER'S OWN WORDS. Twelve cards sown once, on the first
      opening, in the language then in force — see `services/demo`. Titles
      are the RELEASE titles of each country, not translations: an English

@@ -32,7 +32,7 @@ import { useViewport } from "./hooks/useViewport";
 import { usePointerDrag } from "./hooks/usePointerDrag";
 import { SkinPicker } from "./components/layout/SkinPicker";
 import { LanguagePicker } from "./components/layout/LanguagePicker";
-import { Installation, UpdateCard } from "./components/layout/Installation";
+import { Installation, UpdateCard, LoneDeviceCard } from "./components/layout/Installation";
 import { AccountDrawer } from "./components/layout/AccountDrawer";
 import { TmdbKeyPanel } from "./components/layout/TmdbKeyPanel";
 import { registerTmdbOpener } from "./services/tmdbKey";
@@ -55,6 +55,8 @@ import { binderStillDemo, demoFilms, demoNotes, withoutDemo, DEMO_PREFIX } from 
 import { DemoBanner } from "./components/layout/DemoBanner";
 import { readPlace, placeToHash, HOME } from "./domain/address";
 import { startMeasuring, pageSeen, doorEvent } from "./services/measure";
+import { mayNudge, noteNudge } from "./services/loneDevice";
+import { myKeys } from "./services/server";
 
 /* ============================================================
    UNE VUE NE SE CHARGE QUE SI ON Y VA
@@ -320,6 +322,36 @@ export default function App() {
     needRefresh: [updateReady],
     updateServiceWorker,
   } = useRegisterSW();
+
+  /* ============================================================
+     UN COMPTE QUI NE TIENT QU'À CET APPAREIL
+     ============================================================
+
+     La question ne se pose qu'avec un compte ouvert, et la réponse est
+     chez le serveur : c'est le nombre de clés qui dit si le compte est
+     enfermé dans cette machine. On la pose une fois, quand un compte
+     apparaît, et jamais si on a déjà assez insisté.
+
+     ELLE SE TAIT SUR UNE PANNE. Hors ligne, ou serveur muet, on ne sait
+     pas — et une alarme sur une ignorance serait pire que le silence. */
+  const [loneDevice, setLoneDevice] = useState(false);
+  useEffect(() => {
+    if (!synchro.person || !mayNudge()) return;
+    let alive = true;
+    myKeys()
+      .then((keys) => {
+        if (!alive || keys.length !== 1) return;
+        setLoneDevice(true);
+        /* Comptée à la POSE et non au renvoi : une carte qu'on ignore
+           en changeant d'onglet a été montrée quand même, et la compter
+           seulement quand on la ferme la ferait revenir sans fin. */
+        noteNudge();
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [synchro.person]);
 
   /* LA VISITE NE S'IMPOSE PLUS, ELLE SE PROPOSE.
      Elle s'ouvrait d'elle-même à la première seconde de la première
@@ -1170,8 +1202,21 @@ export default function App() {
           block of any `position: fixed` inside it: the veil would have
           anchored on the column instead of the window, and the hole
           would have aimed beside the mark on every change of view. */}
+      {/* UNE SEULE À LA FOIS, et dans cet ordre. La version neuve
+          d'abord : elle attend déjà, et rien d'autre ne se joue tant
+          qu'on n'a pas rechargé. Le compte seul ensuite, parce que c'est
+          le seul des trois qui puisse coûter quelque chose. L'invitation
+          à installer en dernier, qui ne perd rien à attendre. */}
       {updateReady ? (
         <UpdateCard onReload={() => updateServiceWorker(true)} />
+      ) : loneDevice ? (
+        <LoneDeviceCard
+          onOpenAccount={() => {
+            setLoneDevice(false);
+            setAccountOpen(true);
+          }}
+          onDismiss={() => setLoneDevice(false)}
+        />
       ) : (
         installation.invite && (
           <Installation

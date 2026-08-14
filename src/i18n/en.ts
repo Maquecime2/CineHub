@@ -731,6 +731,17 @@ const en = {
     action: "RELOAD",
   },
 
+  /* The key lives inside the machine and does not leave it. Said without
+     drama and without jargon: neither "passkey" nor "WebAuthn", which
+     name nothing to somebody who has just made an account with a
+     fingertip. */
+  loneDevice: {
+    title: "Your account only lives on this device",
+    body: "The key that opens it is locked inside this machine: it cannot be copied, and it cannot be recovered. Add a second one, on a phone, while this one still works.",
+    action: "ADD A DEVICE",
+    dismiss: "Dismiss this warning",
+  },
+
   demoBinder: {
     films: {
       chihiro: {

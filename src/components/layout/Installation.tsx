@@ -1,9 +1,11 @@
 /* ============================================================
-   TWO CARDS TAPED AT THE BOTTOM OF THE PAGE
+   TROIS CARTES SCOTCHÉES AU BAS DE LA PAGE
 
-   The first invites you to lay the binder on the home screen. The second
-   says a new version is waiting. They never appear together: we do not
-   ask two things at once.
+   La première invite à poser le classeur sur l'écran d'accueil. La
+   deuxième dit qu'une version neuve attend. La troisième prévient qu'un
+   compte ne tient qu'à l'appareil où il est né. Elles ne paraissent
+   JAMAIS ENSEMBLE : on ne demande pas deux choses à la fois, et c'est
+   `App` qui arbitre — la version d'abord, puisqu'elle attend déjà.
 
    They borrow their shape from the tour's reminder — an index card laid
    askew, with its strip of tape. That is not an affectation: it is what
@@ -15,7 +17,7 @@
    ============================================================ */
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Download, RefreshCw, Share, X } from "lucide-react";
+import { Download, RefreshCw, Share, Smartphone, X } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { Layer } from "../ui/Layer";
@@ -28,10 +30,16 @@ function Card({
   children,
   tour,
   onFermer,
+  /* LE BOUTON DE FERMETURE A UN NOM, et il doit dire CE QU'ON ferme.
+     Il était figé sur « écarter l'invitation à installer » : juste pour
+     la première carte, faux pour la troisième, et invisible à l'œil —
+     seule une synthèse vocale lit cette étiquette. */
+  dismissLabel = "install.dismiss",
 }: {
   children: ReactNode;
   tour?: string;
   onFermer?: () => void;
+  dismissLabel?: string;
 }) {
   const { t } = useTranslation();
   return (
@@ -78,7 +86,7 @@ function Card({
         {onFermer && (
           <button
             onClick={onFermer}
-            aria-label={t("install.dismiss")}
+            aria-label={t(dismissLabel)}
             style={{ all: "unset", ...tap, cursor: "pointer", color: C.inkFaded }}
           >
             <X size={15} />
@@ -148,6 +156,41 @@ export function Installation({
           </button>
         </>
       )}
+    </Card>
+  );
+}
+
+/* ============================================================
+   LE COMPTE NE TIENT QU'À CET APPAREIL
+   ============================================================
+
+   Une passkey vit dans la chose qui la détient et n'en sort pas : perdre
+   la machine, c'est perdre le compte. Le tiroir sait déjà tout faire —
+   lister les appareils, en ajouter par cérémonie QR, délivrer un code
+   d'appairage — mais il faut penser à l'ouvrir, et personne n'y pense
+   avant le soir où il en a besoin.
+
+   ELLE NE FAIT RIEN ELLE-MÊME, et c'est voulu : elle ouvre le tiroir. Y
+   recopier le geste aurait fait deux endroits pour poser un appareil,
+   dont un seul saurait dire lesquels sont déjà là.
+
+   `services/loneDevice` décide combien de fois on a le droit d'insister.
+   ============================================================ */
+export function LoneDeviceCard({
+  onOpenAccount,
+  onDismiss,
+}: {
+  onOpenAccount: () => void;
+  onDismiss: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <Card onFermer={onDismiss} dismissLabel="loneDevice.dismiss">
+      <Title>{t("loneDevice.title")}</Title>
+      <Line>{t("loneDevice.body")}</Line>
+      <button onClick={onOpenAccount} style={button}>
+        <Smartphone size={12} /> {t("loneDevice.action")}
+      </button>
     </Card>
   );
 }
