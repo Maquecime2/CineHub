@@ -430,9 +430,23 @@ export async function storeDoc(
   personId: string,
   d: { key: string; content: unknown; updatedAt: Date; deleted?: boolean }
 ): Promise<boolean> {
+  /* UNE PIERRE TOMBALE N'A PAS DE CONTENU, ET LA COLONNE EN EXIGE UN.
+     `content` est `jsonb NOT NULL` ; une suppression arrive avec `null`,
+     et l'insertion partait en 23502 — cinq cents, journal côté serveur,
+     rien de compréhensible côté classeur.
+
+     Le chemin n'avait JAMAIS été emprunté : le magasin local ne savait
+     pas effacer un document, il appelait `removeItem` en direct sans
+     rien mettre en attente. Le jour où il a su le dire, le serveur ne
+     savait pas l'entendre. Deux moitiés d'un même oubli, découvertes à
+     un jour d'écart.
+
+     `'null'::jsonb` est le JSON null — une valeur, pas une absence. La
+     colonne est satisfaite, le client relit `content: null` avec
+     `deleted: true`, et il sait déjà quoi en faire. */
   const ecrit = await db.query(
     `INSERT INTO doc (person_id, key, content, updated_at, deleted)
-     VALUES ($1, $2, $3, $4, $5)
+     VALUES ($1, $2, coalesce($3::jsonb, 'null'::jsonb), $4, $5)
      ON CONFLICT (person_id, key) DO UPDATE
         SET content = EXCLUDED.content,
             updated_at = EXCLUDED.updated_at,
