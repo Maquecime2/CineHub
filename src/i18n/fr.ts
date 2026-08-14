@@ -1297,6 +1297,12 @@ const fr = {
   },
 
   listsView: {
+    lastDays: "derniers jours",
+    settled: "Soldé",
+    extend: "PROLONGER D'UNE SEMAINE",
+    worth_one: "{{points}} points acquis — il reste {{count}} jour",
+    worth_other: "{{points}} points acquis — il reste {{count}} jours",
+    wasWorth: "{{points}} points, comptés.",
     /* CES HUIT PHRASES ÉTAIENT ÉCRITES EN DUR DANS LA VUE, et une passe
        de traduction automatique les avait abîmées sans que rien ne le
        signale : « une nouvelle list », « on y range les films since leur
@@ -1771,6 +1777,10 @@ const fr = {
 
     lists: {
       label: "Listes et défis",
+      extend: {
+        title: "Prolonger",
+        body: "Un pouvoir acheté au comptoir, dépensé ici : sept jours de plus, deux fois au maximum, et seulement dans la semaine qui suit la fin. On repousse, on ne ressuscite pas — et un défi dont les comptes sont déjà clos ne se prolonge plus, sans quoi le classement décrirait une période sur laquelle personne n'a été mesuré.",
+      },
       new: {
         title: "Ouvrir une liste",
         body: "Une liste contient des œuvres et non vos fiches : elle veut donc dire la même chose chez quelqu'un d'autre, et ne se vide pas le jour où vous effacez un film. On y range depuis la fiche, depuis la pastille d'une affiche, ou d'ici même.",
@@ -1785,7 +1795,7 @@ const fr = {
       },
       challenges: {
         title: "Un défi est une liste plus une période",
-        body: "Personne ne coche « vu » : l'avancement se calcule depuis votre journal de séances, et seules les séances datées dans la période comptent. Le serveur en tire un nombre, jamais vos dates — et seulement pour ceux qui ont demandé à participer.",
+        body: "Un défi, c'est une liste plus une période : on demande à y participer, et le classeur compte tout seul ce que chacun a vu dans les temps. Personne ne coche « vu ». Un défi bouclé rapporte des points au comptoir — la moitié en rapporte moins, et rien du tout en dessous.",
       },
     },
 

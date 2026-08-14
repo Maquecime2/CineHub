@@ -1263,6 +1263,12 @@ const en = {
   },
 
   listsView: {
+    lastDays: "last days",
+    settled: "Settled",
+    extend: "PUSH BACK A WEEK",
+    worth_one: "{{points}} points earned — {{count}} day left",
+    worth_other: "{{points}} points earned — {{count}} days left",
+    wasWorth: "{{points}} points, counted.",
     newList: "A new list",
     newListPlaceholder: "The films to have seen by March",
     open: "OPEN",
@@ -1723,6 +1729,10 @@ const en = {
 
     lists: {
       label: "Lists and challenges",
+      extend: {
+        title: "Pushing back",
+        body: "A power bought at the counter, spent here: seven more days, twice at most, and only within the week after the end. One pushes back, one does not resurrect — and a challenge already settled cannot be extended, or the board would describe a period nobody was measured over.",
+      },
       new: {
         title: "Opening a list",
         body: "A list holds works and not your cards: it therefore means the same thing in somebody else's house, and does not empty the day you erase a film. You file into it from the card, from a poster's badge, or from here.",
@@ -1737,7 +1747,7 @@ const en = {
       },
       challenges: {
         title: "A challenge is a list and a period",
-        body: "Nobody ticks “seen”: progress is computed from your viewing log, and only viewings dated within the period count. The server draws a number from it, never your dates — and only for those who have asked to take part.",
+        body: "A list and a period make a challenge: one asks to take part, and the binder counts by itself what each has seen in time. Nobody ticks “seen”. A challenge carried through earns points at the counter — half of one earns less, and under half earns nothing.",
       },
     },
 

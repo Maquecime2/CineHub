@@ -23,6 +23,12 @@ import { ListChecks, Plus, Search, Trash2, UserPlus, X } from "lucide-react";
 import { C, F, alpha } from "../theme/tokens";
 import { bare, chip, inked, tap, underlineInput } from "../theme/styles";
 import { Guideline, Label, Meter, ViewHeading } from "../components/ui";
+import { StampCorner, TapeResidue } from "../components/atmosphere";
+import { Halftone } from "../components/atmosphere/hall";
+import { daysLeft, mayExtend, needsSettling, stateOf } from "../domain/challenges";
+import { worthOfChallenge } from "../domain/points";
+import { tiltOf } from "../domain/seeded";
+import { refreshPurse } from "../hooks/usePurse";
 import {
   createList,
   createChallenge,
@@ -38,6 +44,8 @@ import {
   removeFromList,
   addToList,
   editList,
+  extendChallenge,
+  settleChallenge,
   serverConfigured,
   type Progress,
   type Challenge,
@@ -535,6 +543,7 @@ function OneChallenge({
 }) {
   const { t } = useTranslation();
   const [progress, setAvancement] = useState<Progress[] | null>(null);
+  const [ends, setEnds] = useState(challenge.ends_on);
 
   const reread = useCallback(async () => {
     const r = await readChallenge(challenge.id);
@@ -545,23 +554,97 @@ function OneChallenge({
     reread().catch(() => setAvancement([]));
   }, [reread]);
 
-  const today = new Date().toISOString().slice(0, 10);
-  const state =
-    today < challenge.starts_on
-      ? t("listsView.upcoming")
-      : today > challenge.ends_on
-        ? t("listsView.finished")
-        : t("listsView.running");
+  /* SOLDER À L'OUVERTURE, ET SANS RIEN ATTENDRE. Le serveur n'a pas de
+     tâche de fond : c'est le PREMIER qui regarde un défi fini qui en
+     clôt les comptes pour tout le monde, et la clé du journal fait que
+     les suivants ne paient personne deux fois. L'échec est avalé — un
+     défi qui s'affiche vaut mieux qu'un défi qui refuse de s'afficher
+     parce que le compteur boude. */
+  useEffect(() => {
+    if (!needsSettling({ ends_on: ends })) return;
+    settleChallenge(challenge.id)
+      .then((r) => {
+        if (r.awarded > 0) void refreshPurse();
+      })
+      .catch(() => {});
+  }, [challenge.id, ends]);
+
+  const state = stateOf({ starts_on: challenge.starts_on, ends_on: ends });
+  const left = daysLeft({ ends_on: ends });
+  const done = progress?.find((p) => p.pseudo === challenge.per)?.done ?? 0;
+
+  /* L'AFFICHE DIT SON ÉTAT AVANT DE DIRE SON TITRE. Un défi qui finit
+     demain et un défi qui finit dans trois semaines ne se signalent pas
+     de la même façon sur un panneau, et c'est la seule information qu'on
+     lit de loin. */
+  const BANNER: Record<string, { key: string; ink: string }> = {
+    upcoming: { key: "listsView.upcoming", ink: C.slate },
+    running: { key: "listsView.running", ink: C.pine },
+    "last-days": { key: "listsView.lastDays", ink: C.vermillion },
+    finished: { key: "listsView.finished", ink: C.inkFaded },
+  };
+  const banner = BANNER[state]!;
+
+  const push = async () => {
+    try {
+      const r = await extendChallenge(challenge.id);
+      setEnds(r.ends_on);
+      await onChange();
+    } catch {
+      /* Le serveur porte les cinq limites dans une seule instruction :
+         s'il refuse, il a raison, et il a rendu le pouvoir. */
+      await onChange();
+    }
+  };
 
   return (
-    <div style={{ background: C.card, border: `1px solid ${C.line}`, padding: "11px 13px" }}>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+    <div
+      data-print-block
+      style={{
+        position: "relative",
+        background: C.card,
+        border: `1px solid ${C.line}`,
+        padding: "11px 13px",
+        boxShadow: "2px 3px 9px rgba(30,20,10,0.16)",
+        transform: `rotate(${Number(tiltOf(challenge.id)) / 8}deg)`,
+        /* Le liseré rouge des derniers jours : une bordure et non une
+           couleur de fond, pour que le texte reste sur du papier. */
+        outline: state === "last-days" ? `2px dashed ${alpha(C.vermillion, 0.6)}` : undefined,
+        outlineOffset: 2,
+      }}
+    >
+      <Halftone size={5} />
+      <TapeResidue style={{ top: -8, left: 18 }} rotate={-14} w={64} />
+      {/* Le rabat « soldé », en travers, une fois les comptes clos. */}
+      {state === "finished" && <StampCorner text={t("listsView.settled")} />}
+
+      <div
+        style={{
+          position: "relative",
+          display: "flex",
+          alignItems: "baseline",
+          gap: 10,
+          flexWrap: "wrap",
+        }}
+      >
+        <span
+          style={{
+            fontFamily: F.mono,
+            fontSize: 9,
+            letterSpacing: 1.6,
+            textTransform: "uppercase",
+            color: C.card,
+            background: banner.ink,
+            padding: "3px 7px",
+          }}
+        >
+          {t(banner.key)}
+        </span>
         <span style={{ fontFamily: F.title, fontStyle: "italic", fontSize: 20, color: C.ink }}>
           {challenge.title}
         </span>
         <span style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>
-          {challenge.starts_on} → {challenge.ends_on} · {state} ·{" "}
-          {t("listsView.works", { count: challenge.works })} ·{" "}
+          {challenge.starts_on} → {ends} · {t("listsView.works", { count: challenge.works })} ·{" "}
           {t("listsView.fromList", { title: challenge.list })}
         </span>
         <span style={{ flex: 1 }} />
@@ -586,15 +669,67 @@ function OneChallenge({
         ) : null}
       </div>
 
+      {/* CE QUE ÇA VAUT, DIT PENDANT QUE ÇA COURT. Un chiffre qui tombe
+          à la fin sans avoir prévenu ne récompense rien : on annonce le
+          palier atteint et celui qui suit, tant qu'il reste des jours. */}
+      {state !== "upcoming" && challenge.inside && (
+        <div
+          style={{
+            position: "relative",
+            fontFamily: F.hand,
+            fontSize: 15,
+            color: C.inkFaded,
+            marginTop: 6,
+          }}
+        >
+          {state === "finished"
+            ? t("listsView.wasWorth", { points: worthOfChallenge(done, challenge.works) })
+            : t("listsView.worth", {
+                points: worthOfChallenge(done, challenge.works),
+                count: Math.max(0, left),
+              })}
+        </div>
+      )}
+
       {/* The progress leaves the log of screenings as a NUMBER only:
           the server counts, it does not copy out — and only counts
           people who have asked to take part. */}
-      <div style={{ marginTop: 8 }}>
+      <div style={{ position: "relative", marginTop: 8 }}>
         {progress?.length === 0 && <Guideline tight>{t("listsView.noParticipants")}</Guideline>}
         {(progress ?? []).map((a) => (
-          <Meter key={a.pseudo} name={a.pseudo} done={a.done} total={challenge.works} />
+          <Meter
+            key={a.pseudo}
+            name={a.pseudo}
+            done={a.done}
+            total={challenge.works}
+            ink={state === "finished" ? C.moss : C.burgundy}
+          />
         ))}
       </div>
+
+      {/* PROLONGER : le bouton n'existe que si les cinq bornes le
+          permettent — celles du client rejouent exactement celles de la
+          requête SQL, pour ne pas offrir un geste qui coûte un pouvoir
+          et se fait refuser. */}
+      {mayExtend(
+        { starts_on: challenge.starts_on, ends_on: ends, by: challenge.per },
+        challenge.per ?? null
+      ) && (
+        <button
+          onClick={push}
+          data-tour="lists-extend"
+          style={{
+            ...bare,
+            fontFamily: F.mono,
+            fontSize: 10,
+            letterSpacing: 1,
+            color: C.ochre,
+            marginTop: 8,
+          }}
+        >
+          {t("listsView.extend")}
+        </button>
+      )}
     </div>
   );
 }

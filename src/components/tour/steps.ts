@@ -690,6 +690,16 @@ const lists: Tour = {
       placement: "top",
       optional: true,
     },
+    /* PROLONGER. `optional` au sens fort : le bouton n'existe que pour
+       qui a lancé le défi, dans la semaine de sa fin, deux fois au plus
+       et avant que les comptes ne soient clos. Presque personne ne le
+       voit, et la visite doit passer quand même. */
+    {
+      target: at("lists-extend"),
+      ...says("lists", "extend"),
+      placement: "top",
+      optional: true,
+    },
   ],
 };
 
