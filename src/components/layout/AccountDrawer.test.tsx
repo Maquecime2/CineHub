@@ -32,6 +32,13 @@ vi.mock("../../services/server", () => ({
   signIn: vi.fn(),
   setSharing: vi.fn(async () => ({ partage: "privee", token: null })),
   mySharing: vi.fn(async () => ({ partage: "privee", token: null })),
+  /* "Where one agrees to be ranked" reads the purse on mount, like the
+     sharing section just above. It answers nothing here: the section
+     then stays quiet, exactly as it does offline. */
+  myPurse: vi.fn(async () => {
+    throw new Error("hors ligne");
+  }),
+  setLadder: vi.fn(),
   signOut: vi.fn(),
   signUp: vi.fn(),
   /* "My devices" reads its keys on mount. It answers nothing here — the

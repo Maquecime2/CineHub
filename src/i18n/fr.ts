@@ -28,6 +28,16 @@ const fr = {
   },
 
   account: {
+    appearOnBoard: "Apparaître au classement",
+    boardNobody: "NULLE PART",
+    boardFollowers: "CEUX QUI ME SUIVENT",
+    boardEveryone: "TOUT LE MONDE",
+    boardNobodyNote:
+      "Vous ne figurez sur le palmarès de personne. Vous vous voyez toujours vous-même, avec votre vrai rang.",
+    boardFollowersNote:
+      "Votre pseudonyme apparaît chez les gens qui vous suivent, et nulle part ailleurs.",
+    boardEveryoneNote:
+      "Votre pseudonyme peut apparaître au classement du monde. C'est autre chose que montrer sa collection, d'où ce réglage à part.",
     title: "Votre compte",
     signedInNote: "Votre collection se retrouve sur vos autres appareils.",
     signedOutNote:

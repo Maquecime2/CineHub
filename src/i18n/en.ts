@@ -24,6 +24,14 @@ const en = {
   },
 
   account: {
+    appearOnBoard: "Appear on the board",
+    boardNobody: "NOWHERE",
+    boardFollowers: "THOSE WHO FOLLOW ME",
+    boardEveryone: "EVERYONE",
+    boardNobodyNote: "You are on nobody's board. You always see yourself, with your true rank.",
+    boardFollowersNote: "Your pseudonym shows up for the people who follow you, and nowhere else.",
+    boardEveryoneNote:
+      "Your pseudonym may appear on the world's board. That is not the same as showing your collection, hence the separate setting.",
     title: "Your account",
     signedInNote: "Your collection is found again on your other devices.",
     signedOutNote:
