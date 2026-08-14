@@ -35,13 +35,12 @@ export const saveView = (view: ViewDoc) => {
   return ok;
 };
 
-export const deleteViewKey = (id: string) => {
-  try {
-    localStorage.removeItem(viewKey(id));
-  } catch {
-    /* nothing to do */
-  }
-};
+/* PAR LE MAGASIN, ET NON PAR `localStorage` EN DIRECT.
+
+   C'est ce détour qui pose la pierre tombale : sans lui la vue
+   disparaissait ici et restait là-bas, indéfiniment. Voir `store.remove`,
+   qui n'existait pas quand cette ligne a été écrite — d'où le contournement. */
+export const deleteViewKey = (id: string) => store.remove(viewKey(id));
 
 /* Build the views from the old arrangement, once.
 
@@ -97,4 +96,86 @@ export function ensureViews({
   }
   saveViewIndex(byWall);
   return { byWall, docs };
+}
+
+/* ============================================================
+   LES VUES ORPHELINES — présentes, et que rien ne liste
+   ============================================================
+
+   UN DOCUMENT DE VUE SANS ENTRÉE DANS L'INDEX EST INVISIBLE À JAMAIS.
+   Le classeur n'affiche que ce que l'index nomme ; le reste dort sur le
+   disque et sur le serveur sans que rien ne puisse y mener.
+
+   Cet état existe pour une raison précise, désormais corrigée :
+   supprimer une vue effaçait la clé sans poser de pierre tombale, donc
+   le document restait sur le serveur. Une collection y montrait
+   vingt-deux vues quand son index n'en nommait plus que quatre.
+
+   LA RÉCUPÉRATION EST UN GESTE, PAS UNE RÈGLE. Adopter d'office tout ce
+   qui traîne ferait revenir des vues que quelqu'un a supprimées exprès —
+   et les faire revenir sans l'avoir demandé est pire que les avoir
+   perdues. C'est donc au panneau de réparation d'appeler ceci, et à
+   personne d'autre.
+   ============================================================ */
+
+/** Les vues présentes sur le disque que l'index ne nomme pas. */
+export function orphanViews(): ViewDoc[] {
+  const idx = loadViewIndex();
+  const named = new Set(idx ? Object.values(idx.byWall).flat() : []);
+  const found: ViewDoc[] = [];
+  for (let i = 0; i < localStorage.length; i += 1) {
+    const key = localStorage.key(i);
+    if (!key || !key.startsWith("shelf-view:")) continue;
+    const id = key.slice("shelf-view:".length);
+    if (named.has(id)) continue;
+    const doc = loadView(id);
+    /* Un document illisible ou sans mur n'a nulle part où être rangé :
+       le proposer serait proposer de le perdre autrement. */
+    if (doc && (doc.wall === "watched" || doc.wall === "watchlist")) found.push(doc);
+  }
+  return found;
+}
+
+/**
+ * Remet les vues nommées dans l'index, à la fin de leur mur.
+ *
+ * À la FIN, et non au début : celles qu'on regarde n'ont pas à changer
+ * de place parce qu'on en a retrouvé d'autres.
+ */
+export function adoptViews(ids: string[]): number {
+  const idx = loadViewIndex();
+  const byWall: Record<FilmStatus, string[]> = {
+    watched: [...(idx?.byWall.watched ?? [])],
+    watchlist: [...(idx?.byWall.watchlist ?? [])],
+  };
+  let taken = 0;
+  for (const id of ids) {
+    const doc = loadView(id);
+    if (!doc || (doc.wall !== "watched" && doc.wall !== "watchlist")) continue;
+    if (byWall[doc.wall].includes(id)) continue;
+    byWall[doc.wall].push(id);
+    taken += 1;
+  }
+  if (taken > 0) saveViewIndex(byWall);
+  return taken;
+}
+
+/**
+ * Jeter des vues orphelines pour de bon.
+ *
+ * Elles partent PAR LE MAGASIN, donc une pierre tombale est posée et le
+ * serveur les efface au tour suivant. C'est tout l'objet de la
+ * correction qui a précédé : sans elle on ne pouvait pas jeter ce qu'on
+ * voyait ici, puisque la suppression n'allait nulle part.
+ *
+ * L'index n'est pas touché : par définition il ne les nomme pas.
+ */
+export function discardViews(ids: string[]): number {
+  let gone = 0;
+  for (const id of ids) {
+    if (!localStorage.getItem(viewKey(id))) continue;
+    deleteViewKey(id);
+    gone += 1;
+  }
+  return gone;
 }

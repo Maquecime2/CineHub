@@ -863,6 +863,31 @@ const fr = {
 
   /* THE NAMES OF THE TABS — read by the rail, and by anything that has
      to name a view outside it. */
+  orphanViews: {
+    discard: "SUPPRIMER DÉFINITIVEMENT",
+    discardTitle_one: "Supprimer {{count}} vue pour de bon ?",
+    discardTitle_other: "Supprimer {{count}} vues pour de bon ?",
+    discardBody:
+      "Elles partent d'ici et du serveur, cette fois vraiment — c'est ce que la suppression ne savait pas faire. Vos films ne bougent pas : une vue n'est qu'un rangement.",
+    none: "Aucune vue d'étagère à reprendre",
+    noneBlurb:
+      "Rien ne traîne sur cet appareil. Si vous savez qu'il en reste sur le serveur — supprimées ici avant que la suppression ne sache voyager — vous pouvez les redemander.",
+    refetch: "REDEMANDER LES VUES AU SERVEUR",
+    refetchTitle: "Redemander les vues d'étagère ?",
+    refetchBody:
+      "Le classeur va redescendre toutes les vues que le serveur détient, y compris celles que vous aviez supprimées ici. Elles apparaîtront alors dans cette liste, à cocher ou à laisser. Rien d'autre n'est touché.",
+    title_one: "{{count}} vue d'étagère retrouvée",
+    title_other: "{{count}} vues d'étagère retrouvées",
+    blurb:
+      "Elles sont bien là, mais rien ne les listait — un défaut corrigé depuis, qui laissait une vue supprimée traîner au lieu de partir. Cochez celles que vous voulez reprendre ; les autres restent où elles sont, et vous pouvez revenir.",
+    unnamed: "Vue sans nom",
+    action: "REPRENDRE",
+    confirmTitle_one: "Reprendre {{count}} vue ?",
+    confirmTitle_other: "Reprendre {{count}} vues ?",
+    confirmBody:
+      "Elles reviennent à la fin de leur mur, et se suppriment ensuite comme n'importe quelle vue.",
+  },
+
   views: {
     library: "Vidéothèque",
     watchlist: "À voir",

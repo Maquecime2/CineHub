@@ -263,6 +263,32 @@ export function catchUpDocuments(): boolean {
   return true;
 }
 
+/**
+ * Oublier ce qu'on savait de la date de certains documents.
+ *
+ * `fileIncomingDocument` refuse ce qui n'est pas plus récent que ce
+ * qu'on a — c'est ce qui empêche un serveur en retard d'écraser du
+ * travail. Mais cela empêche aussi de RÉCUPÉRER : un document effacé
+ * ici, dont la suppression n'est jamais partie, ne peut pas revenir
+ * puisque sa date locale est la plus fraîche des deux.
+ *
+ * Effacer ces dates rend donc le serveur souverain sur ces clés-là, le
+ * temps d'un tour. C'est un geste délibéré, réservé au panneau de
+ * réparation : appliqué largement, il rendrait n'importe quelle
+ * suppression réversible par accident.
+ */
+export function forgetDatesUnder(prefix: string): number {
+  const reg = register();
+  const kept: Record<string, number> = {};
+  let dropped = 0;
+  for (const [key, date] of Object.entries(reg)) {
+    if (key.startsWith(prefix)) dropped += 1;
+    else kept[key] = date;
+  }
+  if (dropped > 0) store.set(REGISTER_KEY, kept);
+  return dropped;
+}
+
 export function forgetDocuments(): void {
   store.set(PENDING_KEY, []);
 }

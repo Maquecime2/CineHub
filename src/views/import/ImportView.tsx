@@ -23,6 +23,7 @@ import { enrichRows, checkApiKey } from "../../tmdb";
 import { BackupPanel } from "./BackupPanel";
 import { CompletePanel } from "./CompletePanel";
 import { RepairPanel } from "./RepairPanel";
+import { OrphanViews } from "./OrphanViews";
 import type {
   Divider,
   Film,
@@ -1107,6 +1108,10 @@ export function ImportView({
           measurable target, and the tour stopped on an invisible strip
           instead of skipping the step. */}
       <RepairPanel films={films} onImport={onImport} />
+      {/* Les vues d'étagère que l'index ne nomme plus. Le rechargement
+          est le plus court chemin pour que le mur les reprenne : l'index
+          est lu au montage, et rien n'écoute son changement. */}
+      <OrphanViews onRecovered={() => location.reload()} />
 
       <div data-tour="import-backup">
         <BackupPanel

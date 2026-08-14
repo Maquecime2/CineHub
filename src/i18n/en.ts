@@ -840,6 +840,31 @@ const en = {
     enNote: "the binder, in English",
   },
 
+  orphanViews: {
+    discard: "DELETE FOR GOOD",
+    discardTitle_one: "Delete {{count}} view for good?",
+    discardTitle_other: "Delete {{count}} views for good?",
+    discardBody:
+      "They leave this device and the server, really this time — which is what deletion did not know how to do. Your films do not move: a view is only an arrangement.",
+    none: "No shelf view to take back",
+    noneBlurb:
+      "Nothing is lying about on this device. If you know some remain on the server — deleted here before deletion knew how to travel — you can ask for them again.",
+    refetch: "ASK THE SERVER FOR THE VIEWS",
+    refetchTitle: "Ask for the shelf views again?",
+    refetchBody:
+      "The binder will pull down every view the server holds, including the ones you deleted here. They will then appear in this list, to tick or to leave. Nothing else is touched.",
+    title_one: "{{count}} shelf view found again",
+    title_other: "{{count}} shelf views found again",
+    blurb:
+      "They are there, but nothing listed them — a fault since fixed, which left a deleted view lying about instead of going. Tick the ones you want back; the others stay where they are, and you can come back.",
+    unnamed: "Unnamed view",
+    action: "TAKE BACK",
+    confirmTitle_one: "Take {{count}} view back?",
+    confirmTitle_other: "Take {{count}} views back?",
+    confirmBody:
+      "They come back at the end of their wall, and are deleted afterwards like any view.",
+  },
+
   views: {
     library: "Library",
     watchlist: "To watch",

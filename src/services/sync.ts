@@ -40,6 +40,7 @@ import {
   fileIncomingDocument,
   sendAllDocuments,
   catchUpDocuments,
+  forgetDatesUnder,
 } from "./documents";
 import {
   DOCS_PER_SEND,
@@ -335,4 +336,21 @@ export function forgetSync(): void {
   forgetDocuments();
   store.set(ACCOUNT_KEY, "");
   store.set(REPORT_KEY, { at: null });
+}
+
+/**
+ * REDEMANDER TOUS LES DOCUMENTS AU SERVEUR.
+ *
+ * Le rang de lecture recule à zéro, donc le prochain tour redescend
+ * tout. Et les dates des clés visées sont oubliées, sans quoi rien
+ * n'entrerait : ce qui est déjà ici est toujours plus frais que ce qui
+ * arrive, et c'est exactement ce qui protège du serveur en retard.
+ *
+ * C'est donc un geste de RÉPARATION et non un bouton de confort : il
+ * rend le serveur souverain sur un préfixe, le temps d'un tour. Le
+ * panneau qui l'appelle le dit avant.
+ */
+export function refetchDocuments(prefix: string): number {
+  store.set(DOCS_CURSOR_KEY, 0);
+  return forgetDatesUnder(prefix);
 }

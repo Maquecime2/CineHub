@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { catchUpDocuments, documentsToSend } from "./documents";
+import { catchUpDocuments, documentsToSend, forgetSentDocuments } from "./documents";
+import { store } from "./storage";
 
 /* ============================================================
    LE RATTRAPAGE, QUAND LA LISTE CHANGE
@@ -46,5 +47,53 @@ describe("le rattrapage de la liste", () => {
     localStorage.setItem("tmdb-key", "abc");
     catchUpDocuments();
     expect(documentsToSend().map((d) => d.key)).toEqual([]);
+  });
+});
+
+/* ============================================================
+   EFFACER SE SYNCHRONISE AUSSI
+
+   Le magasin n'avait que `get` et `set`. Le service qui supprime une vue
+   d'étagère appelait donc `localStorage.removeItem` en direct, et aucune
+   pierre tombale n'était posée : le document restait sur le serveur pour
+   toujours.
+
+   Cela se lisait en base — vingt-deux vues stockées, quatre nommées par
+   l'index. Dix-huit supprimées ici, jamais effacées là-bas, qu'un
+   ordinateur neuf aurait redescendues sans que rien ne les liste.
+   ============================================================ */
+describe("supprimer un document", () => {
+  beforeEach(() => localStorage.clear());
+
+  /* `store` date ce qu'il écrit par un import DIFFÉRÉ — le registre
+     s'écrit lui-même à travers lui, et un import direct ferait une
+     boucle entre les deux modules. La note part donc au tour suivant. */
+  const settle = () => new Promise((r) => setTimeout(r, 0));
+
+  it("le met en attente comme une tombe", async () => {
+    store.set("shelf-view:v1", { id: "v1" });
+    await settle();
+    forgetSentDocuments(["shelf-view:v1"]);
+
+    store.remove("shelf-view:v1");
+    await settle();
+
+    const [gone] = documentsToSend().filter((d) => d.key === "shelf-view:v1");
+    expect(gone, "la suppression n'est pas partie").toBeDefined();
+    expect(gone!.deleted).toBe(true);
+    expect(gone!.content).toBeNull();
+  });
+
+  it("ne dit rien de ce qui ne voyage pas", async () => {
+    store.set("films", []);
+    store.remove("films");
+    await settle();
+    expect(documentsToSend().map((d) => d.key)).toEqual([]);
+  });
+
+  it("efface bel et bien la clé", () => {
+    store.set("shelf-view:v2", { id: "v2" });
+    store.remove("shelf-view:v2");
+    expect(localStorage.getItem("shelf-view:v2")).toBeNull();
   });
 });
