@@ -926,3 +926,178 @@ CREATE TABLE IF NOT EXISTS reminder_sent (
   created_at    timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (person_id, subject)
 );
+
+-- ------------------------------------------------------------
+-- THE MERIT AND THE TOKENS
+-- ------------------------------------------------------------
+-- A JOURNAL, NOT A BALANCE. A balance one cannot rebuild is a balance one
+-- cannot repair: the day a figure is wrong — and one will be — the only
+-- way back is to add the rows again and see what comes out.
+--
+-- TWO COUNTERS, AND ONE OF THEM NEVER GOES DOWN. `merit` is what one has
+-- earned since the beginning and it makes the ranking; `tokens` is the
+-- same figure minus what one has spent at the counter. Buying a thing
+-- must never cost a place in the leaderboard, or the shop becomes a
+-- punishment and nobody opens it twice.
+--
+-- THE IDEMPOTENCE IS IN THE KEY. `kind` plus `ref` names the FACT that
+-- paid: a challenge settled, an attempt finished, a screening of one film
+-- on one day. Replaying the request does not pay twice, because there is
+-- no second row to have — the same guarantee `quiz_attempt` gets from its
+-- primary key. No route has to remember to check.
+CREATE TABLE IF NOT EXISTS merit_event (
+  id            uuid PRIMARY KEY,
+  person_id     uuid NOT NULL REFERENCES person(id) ON DELETE CASCADE,
+  kind          text NOT NULL,
+  ref           text NOT NULL,
+  merit         int NOT NULL CHECK (merit >= 0),
+  tokens        int NOT NULL CHECK (tokens >= 0),
+  -- The day, and not the instant, because the daily ceiling on what one
+  -- merely DECLARES is counted by day. An index on a timestamp would
+  -- have made that count a scan.
+  earned_on     date NOT NULL DEFAULT current_date,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (person_id, kind, ref)
+);
+
+CREATE INDEX IF NOT EXISTS merit_event_person ON merit_event(person_id);
+CREATE INDEX IF NOT EXISTS merit_event_day ON merit_event(person_id, earned_on);
+
+-- THE SPENDING IS ANOTHER JOURNAL, and it cannot give merit back. The
+-- CHECK says so rather than a route saying it, which is the difference
+-- between a rule and a habit.
+CREATE TABLE IF NOT EXISTS token_spend (
+  id            uuid PRIMARY KEY,
+  person_id     uuid NOT NULL REFERENCES person(id) ON DELETE CASCADE,
+  item_id       text NOT NULL,
+  tokens        int NOT NULL CHECK (tokens > 0),
+  created_at    timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS token_spend_person ON token_spend(person_id);
+
+-- THE PURSE IS A CACHE, AND IT SAYS SO. It exists for one reason: the
+-- ranking sorts on merit, and sorting on a SUM() over the whole journal
+-- brings the table to its knees at the thousandth row.
+--
+-- It is written ONLY by the two statements that write the journals, in
+-- the same instruction, so it is never behind.
+--
+-- AND `CHECK (tokens >= 0)` IS THE OVERDRAFT GUARD. A purchase is one
+-- transaction: the spending is inserted and the purse is decremented
+-- together. If the balance would go under, the constraint fails and the
+-- WHOLE transaction is undone, the spending row included. There is no
+-- intermediate state in which somebody has been charged for nothing —
+-- and no route had to be careful about it.
+CREATE TABLE IF NOT EXISTS purse (
+  person_id     uuid PRIMARY KEY REFERENCES person(id) ON DELETE CASCADE,
+  merit         int NOT NULL DEFAULT 0 CHECK (merit >= 0),
+  tokens        int NOT NULL DEFAULT 0 CHECK (tokens >= 0),
+  updated_at    timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS purse_ladder ON purse(merit DESC, person_id);
+
+-- ------------------------------------------------------------
+-- WHO APPEARS IN A RANKING
+-- ------------------------------------------------------------
+-- A COLUMN OF ITS OWN, AND NOT `person.sharing`. "I show my collection"
+-- and "I compete in public" are not the same sentence, and `lien` — a
+-- collection reachable by whoever holds the address — is not a public
+-- name at all. Folding the two together would have published a pseudonym
+-- on the strength of a decision taken about something else.
+--
+-- The default is `suivis` and not `non`: following somebody is already a
+-- consented tie, and a friends' ranking that is empty on the first day is
+-- one nobody ever comes back to. `tous` is the only opt-in to the world.
+ALTER TABLE IF EXISTS person
+  ADD COLUMN IF NOT EXISTS ladder text NOT NULL DEFAULT 'suivis';
+
+DO $$ BEGIN
+  ALTER TABLE person ADD CONSTRAINT person_ladder_check
+    CHECK (ladder IN ('non', 'suivis', 'tous'));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- ------------------------------------------------------------
+-- THE COUNTER — what one owns, and what one wears
+-- ------------------------------------------------------------
+-- THE CATALOGUE IS NOT HERE. It lives in `src/shop.ts`, in TypeScript,
+-- because it is product CONTENT: it must be read in a review, it takes no
+-- concurrent write, and a table would have meant an admin screen to
+-- write for nobody. What belongs in the database is what people OWN —
+-- and there the schema does the guarding.
+
+-- One owns a thing once. The key refuses the second purchase; no route
+-- has to look first.
+CREATE TABLE IF NOT EXISTS owned (
+  person_id     uuid NOT NULL REFERENCES person(id) ON DELETE CASCADE,
+  item_id       text NOT NULL,
+  got_at        timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (person_id, item_id)
+);
+
+-- STICKERS ARE COLLECTED, SO THEY ARE COUNTED. A double is not an error
+-- to be swallowed: it is the thing one swaps, and it has to be visible.
+CREATE TABLE IF NOT EXISTS sticker (
+  person_id     uuid NOT NULL REFERENCES person(id) ON DELETE CASCADE,
+  sticker_id    text NOT NULL,
+  copies        int NOT NULL DEFAULT 1 CHECK (copies > 0),
+  first_at      timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (person_id, sticker_id)
+);
+
+-- POWERS ARE SPENT. The CHECK is what stops somebody playing one they do
+-- not have: the decrement carries `left_over > 0` in its own WHERE, and
+-- a statement that touches no row is the refusal. Reading then writing
+-- would have left a gap between the two.
+CREATE TABLE IF NOT EXISTS power (
+  person_id     uuid NOT NULL REFERENCES person(id) ON DELETE CASCADE,
+  kind          text NOT NULL CHECK (kind IN ('halve', 'redo', 'extend')),
+  left_over     int NOT NULL DEFAULT 0 CHECK (left_over >= 0),
+  PRIMARY KEY (person_id, kind)
+);
+
+-- WHAT ONE WEARS: two columns, not a table. One wears a single stamp and
+-- a single skin, and a table with a one-row primary key is a table too
+-- many. NULL means nothing worn, which is everybody's case to begin with.
+--
+-- `skin` is only here so a choice can be found again on another machine.
+-- It never dictates what is applied: `applySkin` serves what it is asked
+-- for, offline and with no account, and that is deliberate — a binder
+-- that changed its own clothes on reload would be a binder that needs the
+-- server to look like itself.
+ALTER TABLE IF EXISTS person ADD COLUMN IF NOT EXISTS stamp text;
+ALTER TABLE IF EXISTS person ADD COLUMN IF NOT EXISTS skin text;
+
+-- ------------------------------------------------------------
+-- THE HELP TAKEN ON A QUESTION
+-- ------------------------------------------------------------
+-- THE PRIMARY KEY IS THE WHOLE POINT. Without it, "remove two wrong
+-- answers" could be asked again and again on the same question, each
+-- time returning two OTHERS: one pays once and peels the question bare.
+-- With it, the second call returns the row already there, and charges
+-- nothing.
+--
+-- The foreign key points at the ATTEMPT and not at the person, so help
+-- taken disappears with the attempt it belonged to.
+CREATE TABLE IF NOT EXISTS quiz_help (
+  quiz_id       uuid NOT NULL,
+  person_id     uuid NOT NULL,
+  question_id   uuid NOT NULL REFERENCES quiz_question(id) ON DELETE CASCADE,
+  kind          text NOT NULL CHECK (kind IN ('halve', 'redo')),
+  removed       uuid[] NOT NULL DEFAULT '{}',
+  used_at       timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (quiz_id, person_id, question_id, kind),
+  FOREIGN KEY (quiz_id, person_id)
+    REFERENCES quiz_attempt(quiz_id, person_id) ON DELETE CASCADE
+);
+
+-- A challenge may be pushed back, twice at most, and the count lives with
+-- the challenge rather than in a journal nobody would join.
+ALTER TABLE IF EXISTS challenge
+  ADD COLUMN IF NOT EXISTS extensions int NOT NULL DEFAULT 0;
+
+DO $$ BEGIN
+  ALTER TABLE challenge ADD CONSTRAINT challenge_extensions_check
+    CHECK (extensions BETWEEN 0 AND 2);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;

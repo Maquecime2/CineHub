@@ -19,16 +19,20 @@ import { C, GRAIN, alpha } from "./tokens";
    — the other way round would re-escape the percent we have just
    written. Both necessarily come up: a colour starts with a hash, and
    `width='100%'` is in almost every pattern. */
-const svgUrl = (markup: string): string =>
+/* EXPORTED, AND NOT COPIED WHERE THEY ARE NEEDED. The order of the two
+   replacements above is a rule, not a taste, and a second hand-written
+   copy of it somewhere else would look right and escape wrong. The hall's
+   textures build their data URIs through these three and no others. */
+export const svgUrl = (markup: string): string =>
   `url("data:image/svg+xml;utf8,${markup.replace(/%/g, "%25").replace(/#/g, "%23")}")`;
 
-const svg = (w: number, h: number, body: string): string =>
+export const svg = (w: number, h: number, body: string): string =>
   `<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}' viewBox='0 0 ${w} ${h}'>${body}</svg>`;
 
 /* A filtered noise, from the same mould as `GRAIN` but adjustable.
    `freq` accepts two numbers: that is what tells a plaster grain
    (isotropic) from a wood grain (stretched horizontally). */
-const noise = (id: string, freq: string, octaves: number, alpha: number, seed = 3): string =>
+export const noise = (id: string, freq: string, octaves: number, alpha: number, seed = 3): string =>
   `<filter id='${id}'><feTurbulence type='fractalNoise' baseFrequency='${freq}' numOctaves='${octaves}' seed='${seed}' stitchTiles='stitch'/>` +
   `<feColorMatrix type='matrix' values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 ${alpha} 0'/></filter>` +
   `<rect width='100%' height='100%' filter='url(#${id})'/>`;

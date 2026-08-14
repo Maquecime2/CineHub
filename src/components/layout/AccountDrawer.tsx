@@ -22,6 +22,7 @@ import {
   Check,
   X,
   Download,
+  Eraser,
   Trash2,
   Link as LinkIcon,
   Bell,
@@ -37,9 +38,12 @@ import { Confirmation, type ConfirmRequest } from "../ui/Confirmation";
 import {
   ADDRESS,
   deleteMyAccount,
+  wipeMyData,
   myData,
   signIn,
   setSharing,
+  myPurse,
+  setLadder,
   mySharing,
   signOut,
   signUp,
@@ -62,6 +66,7 @@ import {
 } from "../../services/push";
 import { mediaTrouble } from "../../services/media";
 import { forgetSync } from "../../services/sync";
+import { startOver } from "../../services/startOver";
 import type { SyncReport } from "../../services/sync";
 
 /* WHEN THE LAST SYNCHRONISATION WAS. The date at the end is formatted by
@@ -392,6 +397,7 @@ export function AccountDrawer({
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <Share />
+            <Standing />
 
             <Devices lang={i18n.language} />
 
@@ -450,6 +456,50 @@ export function AccountDrawer({
                   style={button(C.slate, busy)}
                 >
                   <Download size={12} /> {t("account.takeEverything")}
+                </button>
+
+                {/* REPARTIR DE ZÉRO, entre exporter et s'en aller.
+
+                    Sa place est ici et pas ailleurs : c'est là qu'on
+                    vient quand on veut faire le ménage, et l'avoir mis
+                    à côté du bouton qui SUPPRIME oblige à écrire
+                    clairement ce qui les sépare. Les deux cartes de
+                    confirmation le disent, mot pour mot. */}
+                <button
+                  disabled={busy}
+                  onClick={() =>
+                    setRequest({
+                      title: t("account.wipeTitle"),
+                      body: t("account.wipeBody"),
+                      action: t("account.wipeAction"),
+                      severe: true,
+                      onConfirm: async () => {
+                        setRequest(null);
+                        setBusy(true);
+                        /* LES DEUX CÔTÉS, ET LE SERVEUR EN PREMIER.
+
+                           Le classeur est local d'abord : effacer le
+                           serveur seul laissait tous les films en place,
+                           et la synchro suivante les y aurait repoussés
+                           — le ménage défait par son propre envoi. */
+                        try {
+                          const survived = await startOver(wipeMyData);
+                          if (survived.local || survived.images) {
+                            setTrouble(t("account.wipePartly"));
+                            setBusy(false);
+                            return;
+                          }
+                          location.reload();
+                        } catch (e) {
+                          setTrouble((e as Error).message || t("account.wipeFailed"));
+                          setBusy(false);
+                        }
+                      },
+                    })
+                  }
+                  style={{ ...button(C.ochre, busy), background: "transparent", color: C.ochre }}
+                >
+                  <Eraser size={12} /> {t("account.wipeMine")}
                 </button>
 
                 <button
@@ -990,6 +1040,85 @@ function Reminders() {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------
+   OÙ L'ON ACCEPTE D'ÊTRE CLASSÉ
+   ------------------------------------------------------------
+
+   À CÔTÉ DU PARTAGE, ET PAS CONFONDU AVEC LUI. « Je montre ma
+   collection » et « je concours publiquement » ne sont pas la même
+   phrase, et c'est pour cela que le serveur en fait deux colonnes plutôt
+   qu'une. Les mettre dans le même bouton aurait publié un pseudonyme sur
+   la foi d'une décision prise à propos d'autre chose.
+
+   Le défaut est « ceux qui me suivent » : suivre quelqu'un est déjà un
+   lien consenti, et un classement d'amis vide au premier jour est un
+   classement qu'on ne rouvre pas.
+
+   On lit avant d'écrire, comme le partage juste au-dessus — sans quoi le
+   tiroir n'apprend votre réglage qu'au moment où vous le changez, donc
+   trop tard pour vous aider à décider. */
+function Standing() {
+  const { t } = useTranslation();
+  const [state, setState] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    myPurse()
+      .then((p) => alive && setState(p.ladder))
+      /* Hors ligne : on se tait plutôt que de marquer un état inventé. */
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const set = async (wanted: "non" | "suivis" | "tous") => {
+    setBusy(true);
+    try {
+      const r = await setLadder(wanted);
+      setState(r.ladder);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div style={{ borderTop: `1px dashed ${C.line}`, paddingTop: 14 }}>
+      <Label>{t("account.appearOnBoard")}</Label>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+        {(
+          [
+            ["non", t("account.boardNobody")],
+            ["suivis", t("account.boardFollowers")],
+            ["tous", t("account.boardEveryone")],
+          ] as ["non" | "suivis" | "tous", string][]
+        ).map(([key, word]) => (
+          <button
+            key={key}
+            disabled={busy}
+            onClick={() => set(key)}
+            style={{
+              ...button(state === key ? C.ochre : C.ink, busy),
+              background: state === key ? C.ochre : "transparent",
+              color: state === key ? C.card : C.inkFaded,
+              borderColor: state === key ? C.ochre : C.line,
+            }}
+          >
+            {word}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 8 }}>
+        {state === "non" && t("account.boardNobodyNote")}
+        {state === "suivis" && t("account.boardFollowersNote")}
+        {state === "tous" && t("account.boardEveryoneNote")}
+      </div>
     </div>
   );
 }

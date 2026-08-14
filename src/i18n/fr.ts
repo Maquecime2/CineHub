@@ -28,6 +28,24 @@ const fr = {
   },
 
   account: {
+    wipePartly:
+      "Une partie n'a pas pu être effacée. Fermez les autres onglets du classeur et réessayez.",
+    wipeMine: "Repartir de zéro",
+    wipeTitle: "Tout effacer, et garder le compte ?",
+    wipeBody:
+      "Vos fiches, vos documents, vos listes, vos défis, vos quiz, vos décors, vos abonnements et tout votre comptoir partent pour de bon — ici comme sur le serveur. Votre pseudonyme et vos clés d'accès restent : vous n'aurez pas à vous reconnecter. Les gens que vous avez bloqués le restent, et vos signalements aussi.",
+    wipeAction: "TOUT EFFACER",
+    wipeFailed: "Rien n'a pu être effacé.",
+    appearOnBoard: "Apparaître au classement",
+    boardNobody: "NULLE PART",
+    boardFollowers: "CEUX QUI ME SUIVENT",
+    boardEveryone: "TOUT LE MONDE",
+    boardNobodyNote:
+      "Vous ne figurez sur le palmarès de personne. Vous vous voyez toujours vous-même, avec votre vrai rang.",
+    boardFollowersNote:
+      "Votre pseudonyme apparaît chez les gens qui vous suivent, et nulle part ailleurs.",
+    boardEveryoneNote:
+      "Votre pseudonyme peut apparaître au classement du monde. C'est autre chose que montrer sa collection, d'où ce réglage à part.",
     title: "Votre compte",
     signedInNote: "Votre collection se retrouve sur vos autres appareils.",
     signedOutNote:
@@ -380,6 +398,13 @@ const fr = {
   },
 
   lists: {
+    deleteChosen_one: "Effacer {{count}} fiche",
+    deleteChosen_other: "Effacer {{count}} fiches",
+    deleteTitle_one: "Effacer {{count}} fiche ?",
+    deleteTitle_other: "Effacer {{count}} fiches ?",
+    deleteBody:
+      "Elles partent de votre vidéothèque avec leurs affiches, leurs notes et leur journal de séances. Ce qui se trouve dans une liste ou dans un défi n'y est rangé que par son identifiant TMDB : cela ne bouge pas.",
+    deleteAction: "EFFACER",
     filed: "rangé",
     alreadyThere: "y était déjà",
     fileIn: "Ranger dans une liste",
@@ -419,6 +444,8 @@ const fr = {
   },
 
   elsewhere: {
+    at: "chez {{pseudo}}",
+    muteSomebody: "Ne plus rien voir de {{pseudo}}",
     filedBy_one: "{{count}} vidéothèque le range",
     filedBy_other: "{{count}} vidéothèques le rangent",
     reportPrompt: "Qu'est-ce qui ne va pas dans ce qu'a écrit {{pseudo}} ?",
@@ -656,6 +683,10 @@ const fr = {
   },
 
   shared: {
+    heading: "La vidéothèque de {{pseudo}}",
+    opening: "Ouverture…",
+    count_one: "{{count}} film — regardé, noté, rangé par quelqu'un d'autre.",
+    count_other: "{{count}} films — regardés, notés, rangés par quelqu'un d'autre.",
     noCollection: "Pas de collection à cette adresse. Le lien a peut-être été refermé.",
     couldNotOpen: "Cette collection n'a pas pu être ouverte.",
   },
@@ -832,6 +863,31 @@ const fr = {
 
   /* THE NAMES OF THE TABS — read by the rail, and by anything that has
      to name a view outside it. */
+  orphanViews: {
+    discard: "SUPPRIMER DÉFINITIVEMENT",
+    discardTitle_one: "Supprimer {{count}} vue pour de bon ?",
+    discardTitle_other: "Supprimer {{count}} vues pour de bon ?",
+    discardBody:
+      "Elles partent d'ici et du serveur, cette fois vraiment — c'est ce que la suppression ne savait pas faire. Vos films ne bougent pas : une vue n'est qu'un rangement.",
+    none: "Aucune vue d'étagère à reprendre",
+    noneBlurb:
+      "Rien ne traîne sur cet appareil. Si vous savez qu'il en reste sur le serveur — supprimées ici avant que la suppression ne sache voyager — vous pouvez les redemander.",
+    refetch: "REDEMANDER LES VUES AU SERVEUR",
+    refetchTitle: "Redemander les vues d'étagère ?",
+    refetchBody:
+      "Le classeur va redescendre toutes les vues que le serveur détient, y compris celles que vous aviez supprimées ici. Elles apparaîtront alors dans cette liste, à cocher ou à laisser. Rien d'autre n'est touché.",
+    title_one: "{{count}} vue d'étagère retrouvée",
+    title_other: "{{count}} vues d'étagère retrouvées",
+    blurb:
+      "Elles sont bien là, mais rien ne les listait — un défaut corrigé depuis, qui laissait une vue supprimée traîner au lieu de partir. Cochez celles que vous voulez reprendre ; les autres restent où elles sont, et vous pouvez revenir.",
+    unnamed: "Vue sans nom",
+    action: "REPRENDRE",
+    confirmTitle_one: "Reprendre {{count}} vue ?",
+    confirmTitle_other: "Reprendre {{count}} vues ?",
+    confirmBody:
+      "Elles reviennent à la fin de leur mur, et se suppriment ensuite comme n'importe quelle vue.",
+  },
+
   views: {
     library: "Vidéothèque",
     watchlist: "À voir",
@@ -844,7 +900,92 @@ const fr = {
     thread: "Le fil",
     lists: "Listes et défis",
     quiz: "Quizz",
+    counter: "Le comptoir",
     skinlab: "Peaux ⚙",
+  },
+
+  counter: {
+    tally: "{{merit}} de mérite, {{tokens}} jetons — ouvrir le comptoir",
+    heading: "Le comptoir",
+    subheading: "ce qu'on a gagné, ce qu'on en fait, et devant qui",
+    noServer: "Aucun serveur n'est réglé : le comptoir se tient à plusieurs, et il n'y a personne.",
+    noAccount:
+      "Il faut un compte — le bouton au pied du rail. Votre vidéothèque, elle, n'en a pas besoin.",
+    merit: "Mérite",
+    tokens: "Jetons",
+    standing: "{{place}}e au classement",
+    ladder: {
+      world: "le monde",
+      friends: "ceux que je suis",
+      empty: "Personne ici pour l'instant.",
+      closed:
+        "Vous ne figurez pas au classement du monde. Cela se règle dans le tiroir du compte, à côté du partage.",
+    },
+    shop: {
+      sell: "RENDRE ({{price}})",
+      sellNote: "Réservé au rôle : rend l'article et vous rembourse, pour reprendre la boutique.",
+      title: "Le présentoir",
+      stamp: "Tampons",
+      pack: "Pochettes",
+      skin: "Peaux",
+      power: "Pouvoirs",
+      buy: "{{price}} jetons",
+      owned: "Acquis",
+      wear: "porter",
+      takeOff: "retirer",
+      short_one: "il vous manque {{count}} jeton",
+      short_other: "il vous manque {{count}} jetons",
+    },
+    items: {
+      "stamp-habitue": "L'habitué",
+      "stamp-noctambule": "Le noctambule",
+      "stamp-premiere-seance": "Première séance",
+      "stamp-projectionniste": "Le projectionniste",
+      "pack-trois": "Une pochette de trois",
+      "power-halve": "Écarter deux réponses",
+      "power-redo": "Reprendre une question",
+      "power-extend": "Prolonger un défi",
+    },
+    album: {
+      title: "La planche",
+      opened: "La pochette s'ouvre",
+      close: "Ranger",
+    },
+  },
+
+  stamps: {
+    habitue: "habitué",
+    noctambule: "noctambule",
+    "premiere-seance": "1re séance",
+    projectionniste: "projectionniste",
+  },
+
+  stickers: {
+    projecteur: "Le projecteur",
+    fauteuil: "Le fauteuil",
+    bobine: "La bobine",
+    ticket: "Le ticket",
+    esquimau: "L'esquimau",
+    rideau: "Le rideau",
+    clap: "Le clap",
+    cadran: "Le cadran",
+    lanterne: "La lanterne",
+    palme: "La palme",
+    nitrate: "Le nitrate",
+  },
+
+  points: {
+    challenge: "défi bouclé",
+    challenge_half: "défi à mi-chemin",
+    challenge_joined: "quelqu'un vous a rejoint",
+    quiz: "quiz",
+    quiz_flawless: "sans faute",
+    quiz_first: "premier fini",
+    watch: "une séance",
+    review: "une critique",
+    rating: "une note",
+    list_shared: "liste partagée",
+    bank_question: "question versée à la banque",
   },
 
   rail: {
@@ -1211,7 +1352,39 @@ const fr = {
     allReviewed: "Vous les avez tous passés en revue.",
   },
 
+  threadView: {
+    /* CES QUINZE PHRASES ÉTAIENT EN DUR, comme celles des listes, et la
+       même passe de traduction automatique en avait abîmé trois : « at
+       fil », « Vous ne suivez more person », « Rien de fresh chez les
+       gens que vous suivez ». Un texte en dur échappe aux deux
+       catalogues, donc au test de parité. */
+    heading: "Le fil",
+    subheading: "ce que regardent les gens que vous suivez",
+    find: "Chercher quelqu'un",
+    pseudoPlaceholder: "son pseudonyme",
+    look: "VOIR",
+    shown_one: "{{count}} film montré",
+    shown_other: "{{count}} films montrés",
+    theirCollection: "SA COLLECTION",
+    follow: "SUIVRE",
+    unfollow: "NE PLUS SUIVRE",
+    unfollowSomebody: "Ne plus suivre {{pseudo}}",
+    youFollow: "Vous suivez",
+    closedAgain: "refermée",
+    lately: "Dernièrement, chez eux",
+    opening: "Ouverture…",
+    followNobody: "Vous ne suivez personne. Cherchez un pseudonyme ci-dessus.",
+    nothingNew: "Rien de neuf chez les gens que vous suivez.",
+    at: "chez {{pseudo}}",
+  },
+
   listsView: {
+    lastDays: "derniers jours",
+    settled: "Soldé",
+    extend: "PROLONGER D'UNE SEMAINE",
+    worth_one: "{{points}} points acquis — il reste {{count}} jour",
+    worth_other: "{{points}} points acquis — il reste {{count}} jours",
+    wasWorth: "{{points}} points, comptés.",
     /* CES HUIT PHRASES ÉTAIENT ÉCRITES EN DUR DANS LA VUE, et une passe
        de traduction automatique les avait abîmées sans que rien ne le
        signale : « une nouvelle list », « on y range les films since leur
@@ -1243,9 +1416,35 @@ const fr = {
     upcoming: "à venir",
     finished: "terminé",
     running: "en cours",
+    /* LE MÊME OUBLI, LA SECONDE MOITIÉ. Onze phrases de plus dormaient
+       en dur — dont deux que la même passe automatique avait rendues
+       illisibles : « Person n'y participe more. » et « visible de qui
+       vous follows ». Le titre de la vue lui-même n'était nulle part
+       ailleurs que dans le JSX. */
+    heading: "Listes et défis",
+    subheading: "ce qu'on se donne à voir, seul ou à plusieurs",
+    invite: "INVITER",
+    removeMember: "Retirer {{pseudo}}",
+    publicNote: "visible par les gens qui vous suivent",
+    deleteList: "Effacer cette liste",
+    challengePlaceholder: "Mars chez Varda",
+    launch: "LANCER",
+    join: "PARTICIPER",
+    leave: "SORTIR",
+    noParticipants: "Personne n'y participe encore.",
+    works_one: "{{count}} film",
+    works_other: "{{count}} films",
+    fromList: "d'après « {{title}} »",
   },
 
   quizView: {
+    right: "vu juste",
+    wrong: "à revoir",
+    outOf: "sur {{weight}} points",
+    power: {
+      halve: "écarter deux",
+      redo: "reprendre",
+    },
     heading: "Les quizz",
     subheading: "ce qu'on croit savoir, tiré au sort et mis à l'épreuve entre amis",
     newQuiz: "Composer un quizz",
@@ -1281,7 +1480,7 @@ const fr = {
     points_one: "{{count}} point",
     points_other: "{{count}} points",
     progress: "{{done}} sur {{total}}",
-    noTakingBack: "Une réponse posée ne se reprend pas.",
+    noTakingBack: "Une réponse posée ne se reprend pas — sauf à y dépenser un pouvoir, une fois.",
     allAnswered: "Toutes les questions sont répondues.",
     finish: "TERMINER",
     finishNote: "Terminer découvre les corrections, et ferme le quizz pour de bon.",
@@ -1380,6 +1579,9 @@ const fr = {
   },
 
   skins: {
+    price: "{{price}} jetons",
+    short_one: "il vous faut {{count}} jeton",
+    short_other: "il vous faut {{count}} jetons",
     carnet: { label: "Carnet d'archiviste", note: "papier kraft, encre sépia, fil rouge" },
     veilleuse: { label: "Veilleuse", note: "le même carnet, lu de nuit" },
     cinematheque: {
@@ -1400,6 +1602,9 @@ const fr = {
     japon: { label: "Papier Japon", note: "indigo, blanc cassé, un sceau rouge" },
     sepia: { label: "Sépia", note: "une photographie qu'on a trop regardée" },
     affiche: { label: "Affiche polonaise", note: "papier grisâtre, trois encres qui se cognent" },
+    nitrate: { label: "Nitrate", note: "la pellicule qui chauffe, la nuit autour" },
+    "drive-in": { label: "Drive-in", note: "néons sur pare-brise, un soir d'été" },
+    cinemascope: { label: "Cinémascope", note: "deux bandes noires, et tout le reste plus large" },
   },
 
   tour: {
@@ -1657,6 +1862,10 @@ const fr = {
 
     lists: {
       label: "Listes et défis",
+      extend: {
+        title: "Prolonger",
+        body: "Un pouvoir acheté au comptoir, dépensé ici : sept jours de plus, deux fois au maximum, et seulement dans la semaine qui suit la fin. On repousse, on ne ressuscite pas — et un défi dont les comptes sont déjà clos ne se prolonge plus, sans quoi le classement décrirait une période sur laquelle personne n'a été mesuré.",
+      },
       new: {
         title: "Ouvrir une liste",
         body: "Une liste contient des œuvres et non vos fiches : elle veut donc dire la même chose chez quelqu'un d'autre, et ne se vide pas le jour où vous effacez un film. On y range depuis la fiche, depuis la pastille d'une affiche, ou d'ici même.",
@@ -1671,12 +1880,16 @@ const fr = {
       },
       challenges: {
         title: "Un défi est une liste plus une période",
-        body: "Personne ne coche « vu » : l'avancement se calcule depuis votre journal de séances, et seules les séances datées dans la période comptent. Le serveur en tire un nombre, jamais vos dates — et seulement pour ceux qui ont demandé à participer.",
+        body: "Un défi, c'est une liste plus une période : on demande à y participer, et le classeur compte tout seul ce que chacun a vu dans les temps. Personne ne coche « vu ». Un défi bouclé rapporte des points au comptoir — la moitié en rapporte moins, et rien du tout en dessous.",
       },
     },
 
     quiz: {
       label: "Les quizz",
+      powers: {
+        title: "Les pouvoirs",
+        body: "Achetés au comptoir, dépensés ici. Écarter deux mauvaises réponses rend toujours LES MÊMES deux si vous redemandez — sinon on paierait une fois pour éplucher la question. Reprendre efface votre réponse à cette question-là, une seule fois, et la reprise reste marquée pour les autres joueurs. Sans pouvoir, cette barre n'existe pas.",
+      },
       compose: {
         title: "Tirer un quizz",
         body: "On ne les écrit pas, on les tire : cochez des catégories, un niveau, une longueur, et les questions viennent au hasard de la banque. Le dosage est fixe — un quizz difficile garde des respirations, un quizz facile garde une colle — et deux quizz de même niveau et même longueur pèsent le même nombre de points. C'est ce qui rend deux scores comparables.",
@@ -1691,7 +1904,7 @@ const fr = {
       },
       given: {
         title: "Ceux qu'on vous a donnés",
-        body: "Ouvrez-en un et il commence. Vous répondez quand vous voulez, en plusieurs fois — mais une réponse posée ne se reprend pas, et une fois terminé, on ne le rejoue pas.",
+        body: "Ouvrez-en un et il commence. Vous répondez quand vous voulez, en plusieurs fois. Une réponse posée ne se reprend pas — sauf à dépenser un pouvoir acheté au comptoir, une seule fois par question, et la reprise reste marquée pour les autres joueurs. Une fois terminé, on ne le rejoue pas.",
       },
       playing: {
         title: "Une question à la fois",
@@ -1703,10 +1916,29 @@ const fr = {
       },
       scores: {
         title: "Les scores",
-        body: "Rien n'est stocké : le score se recalcule depuis les réponses, à chaque fois. La barre se lit sur ce que vaut le quizz entier, pas sur le meilleur score — sinon une soirée où tout le monde s'est planté aurait l'air d'un triomphe. Une barre pâle est quelqu'un qui n'a pas fini.",
+        body: "Rien n'est stocké : le score se recalcule depuis les réponses, à chaque fois. La barre se lit sur ce que vaut le quizz entier, pas sur le meilleur score — sinon une soirée où tout le monde s'est planté aurait l'air d'un triomphe. Une barre pâle est quelqu'un qui n'a pas fini. Terminer une partie rapporte son score en mérite, et quinze de plus pour un sans-faute.",
       },
     },
 
+    counter: {
+      label: "Le comptoir",
+      purse: {
+        title: "Ce que vous avez gagné",
+        body: "Deux compteurs sur un même billet. Le mérite se cumule et ne descend jamais : c'est lui qui vous classe. Les jetons sont le même chiffre, moins ce que vous dépensez ici — acheter ne vous coûte donc jamais une place. On gagne en bouclant des défis, en jouant des quizz, en tenant son classeur, et en faisant vivre les listes des autres.",
+      },
+      ladder: {
+        title: "Devant qui",
+        body: "« Ceux que je suis » : les gens que vous suivez, et vous. Le classement du monde, lui, n'apparaît que si vous avez accepté d'y figurer — cela se règle dans le tiroir du compte, à côté du partage. Vous vous voyez toujours, même tout en bas, et un blocage retire des deux côtés.",
+      },
+      shop: {
+        title: "Le présentoir",
+        body: "Des tampons à porter à côté de votre pseudonyme, des pochettes de vignettes, des peaux en plus, et des pouvoirs à dépenser pendant une partie. Un article trop cher reste sur l'étal et vous dit ce qui manque. Les quatorze peaux du classeur, elles, restent libres et marchent sans compte : ce qui s'achète ici est en supplément.",
+      },
+      album: {
+        title: "La planche",
+        body: "Onze vignettes, dessinées à la main, tirées au sort par le serveur — recharger la page ne rejoue pas une pochette. Les cases vides montrent ce qui manque sans montrer quoi, et les doubles se comptent : c'est ce qu'on échange du regard.",
+      },
+    },
     global: {
       label: "Visite complète",
       welcome: {
@@ -1760,6 +1992,10 @@ const fr = {
       quiz: {
         title: "Et se poser des questions",
         body: "Un défi mesure ce qu'on regarde ; un quizz mesure ce qu'on croit savoir. On vous en donne un, vous y répondez quand vous voulez, et les scores se comparent entre invités. Une réponse posée ne se reprend pas, et un quizz terminé ne se rejoue pas.",
+      },
+      counter: {
+        title: "Et le comptoir, au bout",
+        body: "Un défi bouclé, un quizz joué, une liste qu'on fait vivre : tout cela se compte. Le comptoir dit ce que vous avez gagné, devant qui vous vous situez, et ce que vous pouvez en faire — un tampon à porter, une pochette à ouvrir. Rien de tout cela n'existe sans compte, et votre vidéothèque n'en a pas besoin.",
       },
       tmdbKey: {
         title: "La clé TMDB",

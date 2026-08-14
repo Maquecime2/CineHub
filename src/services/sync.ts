@@ -39,6 +39,8 @@ import {
   forgetDocuments,
   fileIncomingDocument,
   sendAllDocuments,
+  catchUpDocuments,
+  forgetDatesUnder,
 } from "./documents";
 import {
   DOCS_PER_SEND,
@@ -165,6 +167,20 @@ export async function synchronise(onFilms: (films: Film[]) => void): Promise<Syn
     sendEverything();
     sendAllDocuments();
     store.set(ACCOUNT_KEY, person.id);
+  } else {
+    /* MÊME COMPTE, ET POURTANT UN RATTRAPAGE À FAIRE.
+
+       Le ramassage ci-dessus ne tourne qu'au PREMIER branchement. Or la
+       liste des documents qui voyagent s'est élargie après coup — trois
+       de ses clés étaient mal orthographiées — et ce qui avait été
+       arrangé avant n'est jamais reparti, ni ne repartira, sauf à y
+       retoucher. Voir `SYNCABLE_VERSION`.
+
+       Il ne ramasse QUE les orphelins, et il ne le fait qu'une fois par
+       version de la liste : réexpédier ce qui est déjà à jour
+       renverrait au serveur, à chaque tour, ce qu'il vient d'en
+       descendre. */
+    if (catchUpDocuments()) console.info("documents : rattrapage de la liste élargie");
   }
 
   try {
@@ -320,4 +336,21 @@ export function forgetSync(): void {
   forgetDocuments();
   store.set(ACCOUNT_KEY, "");
   store.set(REPORT_KEY, { at: null });
+}
+
+/**
+ * REDEMANDER TOUS LES DOCUMENTS AU SERVEUR.
+ *
+ * Le rang de lecture recule à zéro, donc le prochain tour redescend
+ * tout. Et les dates des clés visées sont oubliées, sans quoi rien
+ * n'entrerait : ce qui est déjà ici est toujours plus frais que ce qui
+ * arrive, et c'est exactement ce qui protège du serveur en retard.
+ *
+ * C'est donc un geste de RÉPARATION et non un bouton de confort : il
+ * rend le serveur souverain sur un préfixe, le temps d'un tour. Le
+ * panneau qui l'appelle le dit avant.
+ */
+export function refetchDocuments(prefix: string): number {
+  store.set(DOCS_CURSOR_KEY, 0);
+  return forgetDatesUnder(prefix);
 }

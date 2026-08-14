@@ -40,6 +40,17 @@ import {
   Tape,
   TapeResidue,
 } from "../../components/atmosphere";
+import {
+  Fold,
+  Halftone,
+  Marquee,
+  Stamp,
+  Staple,
+  Ticket,
+  glass,
+  perforated,
+  velvet,
+} from "../../components/atmosphere/hall";
 
 /* Every typeface of every skin, in a single request. */
 const ALL_FONTS_ID = "skinlab-fonts";
@@ -157,6 +168,73 @@ function Specimen() {
           </span>
         ))}
         <TapeResidue style={{ position: "relative", marginTop: 4 }} w={60} />
+      </div>
+
+      {/* THE FOYER — the shared side's own objects.
+
+          They are here because they are where the risk is: a ticket is
+          made of two paper tints against each other, the velvet is dark
+          by nature, and the stamp writes ink on ink. Under the five dark
+          skins, each of the three can turn to a single flat block
+          without anything failing anywhere. */}
+      <div style={{ marginTop: 20 }}>
+        <Marquee lit />
+        <div style={{ ...velvet(), position: "relative", padding: "14px 14px 16px" }}>
+          <Halftone />
+          <div style={{ position: "relative" }}>
+            <Ticket
+              tilt={-1.2}
+              stub={
+                <>
+                  <div style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 1.3 }}>
+                    MÉRITE
+                  </div>
+                  <div style={{ fontFamily: F.title, fontSize: 26, color: C.ink }}>428</div>
+                </>
+              }
+              counterfoil={
+                <>
+                  <div style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 1.3 }}>
+                    JETONS
+                  </div>
+                  <div style={{ fontFamily: F.title, fontSize: 26, color: C.ochre }}>91</div>
+                </>
+              }
+            />
+          </div>
+          <div style={{ ...glass, position: "absolute" }} />
+        </div>
+
+        {/* The folded programme, its staple and its edge of perforations */}
+        <div
+          style={{
+            position: "relative",
+            marginTop: 12,
+            padding: "12px 14px 12px 26px",
+            background: C.card,
+            border: `1px solid ${C.line}`,
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: 12,
+              ...perforated("y", { hole: C.paperDark }),
+            }}
+          />
+          <Staple style={{ top: 7, left: 22 }} />
+          <Fold at="46%" />
+          <div style={{ fontFamily: F.title, fontStyle: "italic", fontSize: 15, color: C.ink }}>
+            Le programme de la séance
+          </div>
+          <div style={{ marginTop: 6, display: "flex", gap: 6, alignItems: "center" }}>
+            <Stamp text="contrôlé" ink={C.pine} />
+            <Stamp text="à revoir" ink={C.burgundy} tilt={4} />
+          </div>
+        </div>
       </div>
 
       {/* THE INPUT FIELD — often forgotten, often unreadable */}

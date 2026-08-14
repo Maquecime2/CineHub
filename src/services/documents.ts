@@ -36,6 +36,8 @@ import { store } from "./storage";
 const REGISTER_KEY = "documents-maj";
 /** What is waiting to be sent — the keys, as for the cards. */
 const PENDING_KEY = "documents-a-envoyer";
+/* Quelle version de la liste ci-dessous ce navigateur a déjà rattrapée. */
+const SYNCABLE_VERSION_KEY = "documents-liste-version";
 
 /* WHAT SYNCHRONISES, AND WHAT MUST ABSOLUTELY NOT.
 
@@ -72,6 +74,30 @@ const SYNCABLE_KEYS = [
   "shelf-decor-custom",
   "shelf-decor-hidden",
 ];
+
+/**
+ * LA LISTE CHANGE, ET CE QUI EXISTAIT DÉJÀ DOIT REPARTIR.
+ *
+ * `sendAllDocuments` rattrape tout ce qui traîne — mais il ne tourne
+ * qu'au premier branchement d'un compte. Or les trois fautes
+ * d'orthographe ci-dessus ont été corrigées APRÈS que des gens se
+ * soient connectés : à leur premier branchement, `shelf-views`,
+ * `shelf-decor-custom` et `shelf-decor-hidden` n'étaient pas
+ * reconnaissables, donc pas ramassés. Et comme le compte n'a pas changé
+ * depuis, le rattrapage n'a jamais été rejoué.
+ *
+ * Résultat : une disposition d'étagères faite avant le correctif n'est
+ * jamais partie, et ne partira jamais — sauf à y retoucher, ce que rien
+ * ne dit. C'est le pire genre de perte, celle qu'on ne découvre qu'en
+ * changeant d'ordinateur.
+ *
+ * Ce numéro monte À CHAQUE FOIS QU'ON TOUCHE AUX DEUX LISTES au-dessus.
+ * La synchro le compare à celui qu'elle a retenu et rejoue le rattrapage
+ * quand ils diffèrent. Les documents non datés repartent en `DAWN`,
+ * c'est-à-dire en perdant contre tout ce que le serveur tient déjà :
+ * rattraper ne doit écraser personne.
+ */
+export const SYNCABLE_VERSION = 2;
 
 export const isSyncable = (key: string): boolean =>
   SYNCABLE_KEYS.includes(key) || SYNCABLE_PREFIXES.some((p) => key.startsWith(p));
@@ -195,6 +221,72 @@ export function sendAllDocuments(): void {
   for (const c of keys) if (!next[c]) next[c] = DAWN;
   store.set(REGISTER_KEY, next);
   store.set(PENDING_KEY, keys);
+}
+
+/**
+ * Rattraper une seule fois par version de la liste.
+ *
+ * Renvoie `true` si le rattrapage a eu lieu, pour que l'appelant puisse
+ * le dire dans ses journaux plutôt que de le faire en silence.
+ */
+export function catchUpDocuments(): boolean {
+  if (store.get<number>(SYNCABLE_VERSION_KEY, 0) >= SYNCABLE_VERSION) return false;
+  store.set(SYNCABLE_VERSION_KEY, SYNCABLE_VERSION);
+
+  /* LES ORPHELINS SEULEMENT, ET PAS TOUT LE MONDE.
+
+     `sendAllDocuments` remet en attente TOUTES les clés synchronisables,
+     ce qui est juste au premier branchement d'un compte — il n'y a rien
+     en face. Ici il y a déjà un serveur qui tient des documents, et
+     réexpédier ceux qui sont à jour renverrait vers lui, à chaque tour,
+     ce qu'il vient d'en descendre.
+
+     Un ORPHELIN est une clé présente ici sans date au registre : elle
+     n'a jamais été notée, donc jamais envoyée. C'est exactement la trace
+     que laisse une liste qui s'est élargie après coup. */
+  const reg = register();
+  const orphans: string[] = [];
+  for (let i = 0; i < localStorage.length; i += 1) {
+    const key = localStorage.key(i);
+    if (key && isSyncable(key) && !reg[key]) orphans.push(key);
+  }
+  if (orphans.length === 0) return false;
+
+  const dated = { ...reg };
+  for (const key of orphans) dated[key] = DAWN;
+  store.set(REGISTER_KEY, dated);
+  /* On AJOUTE à ce qui attend, on ne le remplace pas : un document
+     modifié à l'instant et pas encore parti ne doit pas disparaître de
+     la file parce qu'un rattrapage est passé. */
+  const waiting = pending();
+  store.set(PENDING_KEY, [...waiting, ...orphans.filter((k) => !waiting.includes(k))]);
+  return true;
+}
+
+/**
+ * Oublier ce qu'on savait de la date de certains documents.
+ *
+ * `fileIncomingDocument` refuse ce qui n'est pas plus récent que ce
+ * qu'on a — c'est ce qui empêche un serveur en retard d'écraser du
+ * travail. Mais cela empêche aussi de RÉCUPÉRER : un document effacé
+ * ici, dont la suppression n'est jamais partie, ne peut pas revenir
+ * puisque sa date locale est la plus fraîche des deux.
+ *
+ * Effacer ces dates rend donc le serveur souverain sur ces clés-là, le
+ * temps d'un tour. C'est un geste délibéré, réservé au panneau de
+ * réparation : appliqué largement, il rendrait n'importe quelle
+ * suppression réversible par accident.
+ */
+export function forgetDatesUnder(prefix: string): number {
+  const reg = register();
+  const kept: Record<string, number> = {};
+  let dropped = 0;
+  for (const [key, date] of Object.entries(reg)) {
+    if (key.startsWith(prefix)) dropped += 1;
+    else kept[key] = date;
+  }
+  if (dropped > 0) store.set(REGISTER_KEY, kept);
+  return dropped;
 }
 
 export function forgetDocuments(): void {

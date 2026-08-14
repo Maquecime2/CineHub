@@ -127,6 +127,33 @@ export const store = {
   },
 
   /**
+   * EFFACER UNE CLÉ, ET LE DIRE.
+   *
+   * Ce magasin n'avait que `get` et `set`. Les six services qui écrivent
+   * des documents passent tous par `set`, donc tous sont datés — mais
+   * celui qui EFFACE n'avait pas de porte, et appelait
+   * `localStorage.removeItem` en direct. Aucune pierre tombale n'était
+   * donc posée : le document restait sur le serveur pour toujours.
+   *
+   * Cela se lit en base. Une collection y montrait vingt-deux vues
+   * d'étagère quand son index n'en nommait plus que quatre : dix-huit
+   * vues supprimées ici, jamais effacées là-bas, qu'un ordinateur neuf
+   * aurait redescendues sans que rien ne les liste.
+   *
+   * `documentsToSend` savait déjà quoi en faire — une clé en attente et
+   * absente du disque part comme tombe. Il ne manquait que de la mettre
+   * en attente, et c'est ce que cette ligne fait.
+   */
+  remove: (k: string): void => {
+    try {
+      localStorage.removeItem(k);
+      void noteIfSyncable(k);
+    } catch (e) {
+      console.error(e);
+    }
+  },
+
+  /**
    * The deferred write, for what is large and often retouched.
    *
    * Successive calls on the same key replace each other: ten edits in a

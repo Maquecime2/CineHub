@@ -13,24 +13,31 @@ import { TOURS, tourForView } from "./steps";
 import fr from "../../i18n/fr";
 import en from "../../i18n/en";
 
-/* The list of the product's views, copied by hand from `FolderTabs`'
-   `View` union: a type does not survive compilation, and it is precisely
-   here that we want it readable at run time. `skinlab` is not one of
-   them — it is a development tool, not a view. */
-const VIEWS = [
-  "library",
-  "watchlist",
-  "credits",
-  "reco",
-  "constellation",
-  "notebook",
-  "import",
-  "thread",
-  "lists",
-  "quiz",
-  "detail",
-  "almanac",
-] as const;
+const SRC = join(process.cwd(), "src");
+
+/* THE LIST OF VIEWS IS READ, NOT COPIED.
+
+   It used to be written out by hand here, with a comment saying it came
+   from `FolderTabs`' `View` union — and that hand copy was a hole
+   straight through the net this file is. Adding a view to the product
+   and forgetting to add it here made NOTHING fail: the new view simply
+   was not looked at, which is precisely the case these tests exist to
+   catch. The safety net had the shape of the thing it was guarding
+   against.
+
+   So the union is parsed out of the source. A type does not survive
+   compilation, but it does survive as text, and this file already reads
+   the whole of `src/` to find the anchors — reading one file more costs
+   nothing and closes the hole for good.
+
+   `skinlab` drops out: it is a development tool, not a view. `detail` is
+   in the union and has its own tour, so it stays. */
+const VIEWS: string[] = (() => {
+  const source = readFileSync(join(SRC, "components/layout/FolderTabs.tsx"), "utf8");
+  const union = /export type View =([\s\S]*?);/.exec(source);
+  if (!union) throw new Error("l'union `View` est introuvable dans FolderTabs");
+  return [...union[1]!.matchAll(/"([\w-]+)"/g)].map((m) => m[1]!).filter((v) => v !== "skinlab");
+})();
 
 describe("the tour covers the product", () => {
   it.each(VIEWS)('"%s" has its tour', (vue) => {
@@ -161,7 +168,6 @@ describe("the steps hold together", () => {
    ============================================================ */
 /* The project root, and not `import.meta.url`: Vite rewrites the latter
    into a served module URL, which is not a file path. */
-const SRC = join(process.cwd(), "src");
 
 const files = (folder: string): string[] =>
   readdirSync(folder, { withFileTypes: true }).flatMap((e) => {

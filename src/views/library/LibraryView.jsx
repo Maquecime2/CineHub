@@ -341,6 +341,7 @@ export function LibraryView({
   onCreateDirectorView,
   onCopyView,
   onDeleteView,
+  onDeleteFilms,
 }) {
   const { t } = useTranslation();
   const cfg = WALLS[wall];
@@ -359,7 +360,7 @@ export function LibraryView({
   /* Filing into a list: the badge on each poster and the bar for a
      multiple choice. It answers nothing at all without a server or an
      account — the wall is then exactly the wall it was. */
-  const filing = useWallFiling(films);
+  const filing = useWallFiling(films, onDeleteFilms);
 
   const allGenres = useMemo(
     () => Array.from(new Set(films.flatMap((f) => f.genres || []))).sort(),

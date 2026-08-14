@@ -22,10 +22,12 @@
    ============================================================ */
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { ListPlus, X } from "lucide-react";
+import { ListPlus, Trash2, X } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { Layer } from "../../components/ui/Layer";
+import { Confirmation } from "../../components/ui";
+import type { ConfirmRequest } from "../../components/ui";
 import { ListFiler, type Fileable } from "../../components/film/ListFiler";
 import { FilingPopover } from "../../components/film/FilingPopover";
 import type { Filing as FilingHere } from "../../components/film/filing";
@@ -42,7 +44,17 @@ const fileable = (films: Film[]) => films.filter((f) => f.tmdbId);
 const worksOf = (films: Film[]): Fileable[] =>
   fileable(films).map((f) => ({ tmdbId: f.tmdbId!, title: f.title, year: f.year }));
 
-export function useWallFiling(films: Film[]): {
+export function useWallFiling(
+  films: Film[],
+  /* SUPPRIMER PLUSIEURS FICHES D'UN COUP. Le geste existait au fond
+     d'une fiche ouverte, une par une — donc pour faire du ménage il
+     fallait ouvrir, descendre, confirmer, revenir, recommencer. Ici on
+     coche et on efface.
+
+     La collection est réécrite UNE fois pour tout le lot : voir
+     `deleteFilms` dans `App`. */
+  onDeleteFilms?: (ids: string[]) => void
+): {
   bundle: Filing | undefined;
   /** The "choose" button and the footer bar, for the wall to place. */
   bar: ReactNode;
@@ -56,6 +68,7 @@ export function useWallFiling(films: Film[]): {
   const [open, setOpen] = useState<{ id: string; at: DOMRect } | null>(null);
   const [selecting, setSelecting] = useState(false);
   const [chosen, setChosen] = useState<ReadonlySet<string>>(new Set());
+  const [asking, setAsking] = useState<ConfirmRequest | null>(null);
 
   const byId = useMemo(() => new Map(films.map((f) => [f.id, f])), [films]);
 
@@ -74,9 +87,16 @@ export function useWallFiling(films: Film[]): {
       return next;
     });
 
-  /* `lists` is `null` while it is being read, and stays `null` if the
-     server refused: in both cases the wall is the wall it was. */
-  if (!lists) return { bundle: undefined, bar: null, panel: null, context: null };
+  /* CHOISIR N'EST PAS UNE FONCTION DE SERVEUR. Ce garde-fou renvoyait
+     tout à `null` tant que « mes listes » n'avait pas répondu — donc la
+     barre de sélection entière n'existait pas sans compte, ni sans
+     réseau. C'était sans conséquence tant qu'elle ne servait qu'à
+     classer dans une liste, qui est bien une fonction de serveur.
+
+     Elle sert maintenant aussi à SUPPRIMER, et une fiche est de la
+     donnée locale : la lier au réseau aurait rendu le ménage impossible
+     hors ligne. Seul le classeur de listes attend donc `lists`
+     maintenant ; le reste de la barre est là de toute façon. */
 
   const picked = [...chosen].map((id) => byId.get(id)).filter((f): f is Film => !!f);
   const openFilm = open ? byId.get(open.id) : undefined;
@@ -161,7 +181,7 @@ export function useWallFiling(films: Film[]): {
                 which erased the confirmation — the gesture undid the
                 only proof it had worked. One chooses thirty films to
                 file them into two lists as often as one. */}
-            {chosen.size > 0 && (
+            {chosen.size > 0 && lists && (
               <div style={{ flex: "0 1 250px", minWidth: 210 }}>
                 <ListFiler
                   compact
@@ -169,6 +189,43 @@ export function useWallFiling(films: Film[]): {
                   strangers={picked.length - fileable(picked).length}
                 />
               </div>
+            )}
+
+            {/* EFFACER, et c'est le seul geste de cette barre qui ne se
+                défait pas — d'où la carte de confirmation, qui nomme
+                combien de fiches partent. Les affiches suivent : une
+                affiche sans fiche n'est plus une affiche, c'est du poids
+                dans la mémoire du navigateur. */}
+            {chosen.size > 0 && onDeleteFilms && (
+              <button
+                onClick={() =>
+                  setAsking({
+                    title: t("lists.deleteTitle", { count: chosen.size }),
+                    body: t("lists.deleteBody"),
+                    action: t("lists.deleteAction"),
+                    severe: true,
+                    onConfirm: () => {
+                      onDeleteFilms([...chosen]);
+                      setAsking(null);
+                      stop();
+                    },
+                  })
+                }
+                style={{
+                  all: "unset",
+                  ...tap,
+                  cursor: "pointer",
+                  gap: 5,
+                  padding: "6px 10px",
+                  fontFamily: F.mono,
+                  fontSize: 10,
+                  letterSpacing: 1,
+                  color: C.burgundy,
+                  border: `1px solid ${alpha(C.burgundy, 0.5)}`,
+                }}
+              >
+                <Trash2 size={12} /> {t("lists.deleteChosen", { count: chosen.size })}
+              </button>
             )}
 
             <button
@@ -190,6 +247,7 @@ export function useWallFiling(films: Film[]): {
           </div>
         </Layer>
       )}
+      <Confirmation request={asking} onClose={() => setAsking(null)} />
     </>
   );
 

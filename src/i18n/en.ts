@@ -24,6 +24,21 @@ const en = {
   },
 
   account: {
+    wipePartly: "Part of it could not be erased. Close the binder's other tabs and try again.",
+    wipeMine: "Start from nothing",
+    wipeTitle: "Erase everything, and keep the account?",
+    wipeBody:
+      "Your cards, your documents, your lists, your challenges, your quizzes, your decors, your subscriptions and your whole counter go for good — here and on the server. Your pseudonym and your access keys stay: you will not have to sign in again. The people you have blocked stay blocked, and your reports stay too.",
+    wipeAction: "ERASE EVERYTHING",
+    wipeFailed: "Nothing could be erased.",
+    appearOnBoard: "Appear on the board",
+    boardNobody: "NOWHERE",
+    boardFollowers: "THOSE WHO FOLLOW ME",
+    boardEveryone: "EVERYONE",
+    boardNobodyNote: "You are on nobody's board. You always see yourself, with your true rank.",
+    boardFollowersNote: "Your pseudonym shows up for the people who follow you, and nowhere else.",
+    boardEveryoneNote:
+      "Your pseudonym may appear on the world's board. That is not the same as showing your collection, hence the separate setting.",
     title: "Your account",
     signedInNote: "Your collection is found again on your other devices.",
     signedOutNote:
@@ -367,6 +382,13 @@ const en = {
   },
 
   lists: {
+    deleteChosen_one: "Erase {{count}} card",
+    deleteChosen_other: "Erase {{count}} cards",
+    deleteTitle_one: "Erase {{count}} card?",
+    deleteTitle_other: "Erase {{count}} cards?",
+    deleteBody:
+      "They leave your video library with their posters, their notes and their screening log. What sits in a list or a challenge is filed there by its TMDB identifier only: that does not move.",
+    deleteAction: "ERASE",
     filed: "filed",
     alreadyThere: "was already there",
     fileIn: "File in a list",
@@ -405,6 +427,8 @@ const en = {
   },
 
   elsewhere: {
+    at: "at {{pseudo}}’s",
+    muteSomebody: "See nothing more from {{pseudo}}",
     filedBy_one: "{{count}} library files it",
     filedBy_other: "{{count}} libraries file it",
     reportPrompt: "What is wrong with what {{pseudo}} wrote?",
@@ -641,6 +665,10 @@ const en = {
   },
 
   shared: {
+    heading: "{{pseudo}}'s video library",
+    opening: "Opening…",
+    count_one: "{{count}} film — watched, rated, filed by somebody else.",
+    count_other: "{{count}} films — watched, rated, filed by somebody else.",
     noCollection: "No collection at this address. The link may have been closed again.",
     couldNotOpen: "This collection could not be opened.",
   },
@@ -812,6 +840,31 @@ const en = {
     enNote: "the binder, in English",
   },
 
+  orphanViews: {
+    discard: "DELETE FOR GOOD",
+    discardTitle_one: "Delete {{count}} view for good?",
+    discardTitle_other: "Delete {{count}} views for good?",
+    discardBody:
+      "They leave this device and the server, really this time — which is what deletion did not know how to do. Your films do not move: a view is only an arrangement.",
+    none: "No shelf view to take back",
+    noneBlurb:
+      "Nothing is lying about on this device. If you know some remain on the server — deleted here before deletion knew how to travel — you can ask for them again.",
+    refetch: "ASK THE SERVER FOR THE VIEWS",
+    refetchTitle: "Ask for the shelf views again?",
+    refetchBody:
+      "The binder will pull down every view the server holds, including the ones you deleted here. They will then appear in this list, to tick or to leave. Nothing else is touched.",
+    title_one: "{{count}} shelf view found again",
+    title_other: "{{count}} shelf views found again",
+    blurb:
+      "They are there, but nothing listed them — a fault since fixed, which left a deleted view lying about instead of going. Tick the ones you want back; the others stay where they are, and you can come back.",
+    unnamed: "Unnamed view",
+    action: "TAKE BACK",
+    confirmTitle_one: "Take {{count}} view back?",
+    confirmTitle_other: "Take {{count}} views back?",
+    confirmBody:
+      "They come back at the end of their wall, and are deleted afterwards like any view.",
+  },
+
   views: {
     library: "Library",
     watchlist: "To watch",
@@ -824,7 +877,93 @@ const en = {
     thread: "The feed",
     lists: "Lists and challenges",
     quiz: "Quizzes",
+    counter: "The counter",
     skinlab: "Skins ⚙",
+  },
+
+  counter: {
+    tally: "{{merit}} merit, {{tokens}} tokens — open the counter",
+    heading: "The counter",
+    subheading: "what one has earned, what one does with it, and in front of whom",
+    noServer: "No server is set: a counter is a place one shares, and there is nobody here.",
+    noAccount:
+      "It takes an account — the button at the foot of the rail. Your video library does not need one.",
+    merit: "Merit",
+    tokens: "Tokens",
+    standing: "{{place}}th on the board",
+    ladder: {
+      world: "the world",
+      friends: "those I follow",
+      empty: "Nobody here yet.",
+      closed:
+        "You do not appear on the world's board. That is set in the account drawer, beside sharing.",
+    },
+    shop: {
+      sell: "RETURN ({{price}})",
+      sellNote:
+        "Reserved to the role: gives the item back and refunds you, to run through the shop again.",
+      title: "The display case",
+      stamp: "Stamps",
+      pack: "Packets",
+      skin: "Skins",
+      power: "Powers",
+      buy: "{{price}} tokens",
+      owned: "Owned",
+      wear: "wear",
+      takeOff: "take off",
+      short_one: "you are {{count}} token short",
+      short_other: "you are {{count}} tokens short",
+    },
+    items: {
+      "stamp-habitue": "The regular",
+      "stamp-noctambule": "The night owl",
+      "stamp-premiere-seance": "First screening",
+      "stamp-projectionniste": "The projectionist",
+      "pack-trois": "A packet of three",
+      "power-halve": "Set two answers aside",
+      "power-redo": "Take a question back",
+      "power-extend": "Push a challenge back",
+    },
+    album: {
+      title: "The sheet",
+      opened: "The packet opens",
+      close: "Put away",
+    },
+  },
+
+  stamps: {
+    habitue: "regular",
+    noctambule: "night owl",
+    "premiere-seance": "1st screening",
+    projectionniste: "projectionist",
+  },
+
+  stickers: {
+    projecteur: "The projector",
+    fauteuil: "The seat",
+    bobine: "The reel",
+    ticket: "The ticket",
+    esquimau: "The ice cream",
+    rideau: "The curtain",
+    clap: "The clapperboard",
+    cadran: "The dial",
+    lanterne: "The lantern",
+    palme: "The palm",
+    nitrate: "The nitrate",
+  },
+
+  points: {
+    challenge: "challenge completed",
+    challenge_half: "challenge half way",
+    challenge_joined: "somebody joined you",
+    quiz: "quiz",
+    quiz_flawless: "flawless",
+    quiz_first: "first to finish",
+    watch: "a screening",
+    review: "a review",
+    rating: "a rating",
+    list_shared: "list shared",
+    bank_question: "question given to the bank",
   },
 
   rail: {
@@ -1177,7 +1316,34 @@ const en = {
     allReviewed: "You have been through them all.",
   },
 
+  threadView: {
+    heading: "The feed",
+    subheading: "what the people you follow are watching",
+    find: "Find somebody",
+    pseudoPlaceholder: "their pseudonym",
+    look: "LOOK",
+    shown_one: "{{count}} film shown",
+    shown_other: "{{count}} films shown",
+    theirCollection: "THEIR COLLECTION",
+    follow: "FOLLOW",
+    unfollow: "UNFOLLOW",
+    unfollowSomebody: "Stop following {{pseudo}}",
+    youFollow: "You follow",
+    closedAgain: "closed again",
+    lately: "Lately, at theirs",
+    opening: "Opening…",
+    followNobody: "You follow nobody. Look up a pseudonym above.",
+    nothingNew: "Nothing new at the people you follow.",
+    at: "at {{pseudo}}",
+  },
+
   listsView: {
+    lastDays: "last days",
+    settled: "Settled",
+    extend: "PUSH BACK A WEEK",
+    worth_one: "{{points}} points earned — {{count}} day left",
+    worth_other: "{{points}} points earned — {{count}} days left",
+    wasWorth: "{{points}} points, counted.",
     newList: "A new list",
     newListPlaceholder: "The films to have seen by March",
     open: "OPEN",
@@ -1203,9 +1369,30 @@ const en = {
     upcoming: "upcoming",
     finished: "finished",
     running: "under way",
+    heading: "Lists and challenges",
+    subheading: "what one gives oneself to watch, alone or together",
+    invite: "INVITE",
+    removeMember: "Remove {{pseudo}}",
+    publicNote: "visible to the people who follow you",
+    deleteList: "Erase this list",
+    challengePlaceholder: "March with Varda",
+    launch: "START",
+    join: "JOIN",
+    leave: "LEAVE",
+    noParticipants: "Nobody has joined yet.",
+    works_one: "{{count}} film",
+    works_other: "{{count}} films",
+    fromList: "after “{{title}}”",
   },
 
   quizView: {
+    right: "correct",
+    wrong: "to revisit",
+    outOf: "out of {{weight}} points",
+    power: {
+      halve: "set two aside",
+      redo: "take back",
+    },
     heading: "The quizzes",
     subheading: "what one thinks one knows, dealt at random and put to friends",
     newQuiz: "Compose a quiz",
@@ -1241,7 +1428,8 @@ const en = {
     points_one: "{{count}} point",
     points_other: "{{count}} points",
     progress: "{{done}} of {{total}}",
-    noTakingBack: "An answer once laid down is not taken back.",
+    noTakingBack:
+      "An answer once laid down is not taken back — unless a power is spent on it, once.",
     allAnswered: "Every question is answered.",
     finish: "FINISH",
     finishNote: "Finishing uncovers the corrections, and closes the quiz for good.",
@@ -1339,6 +1527,9 @@ const en = {
   },
 
   skins: {
+    price: "{{price}} tokens",
+    short_one: "{{count}} token needed",
+    short_other: "{{count}} tokens needed",
     carnet: { label: "Archivist's notebook", note: "kraft paper, sepia ink, a red thread" },
     veilleuse: { label: "Night light", note: "the same notebook, read after dark" },
     cinematheque: {
@@ -1359,6 +1550,9 @@ const en = {
     japon: { label: "Japanese paper", note: "indigo, off-white, one red seal" },
     sepia: { label: "Sepia", note: "a photograph looked at too often" },
     affiche: { label: "Polish poster", note: "greyish paper, three inks knocking together" },
+    nitrate: { label: "Nitrate", note: "film stock warming, night all around" },
+    "drive-in": { label: "Drive-in", note: "neon on a windscreen, a summer evening" },
+    cinemascope: { label: "Cinemascope", note: "two black bars, and everything else wider" },
   },
 
   tour: {
@@ -1614,6 +1808,10 @@ const en = {
 
     lists: {
       label: "Lists and challenges",
+      extend: {
+        title: "Pushing back",
+        body: "A power bought at the counter, spent here: seven more days, twice at most, and only within the week after the end. One pushes back, one does not resurrect — and a challenge already settled cannot be extended, or the board would describe a period nobody was measured over.",
+      },
       new: {
         title: "Opening a list",
         body: "A list holds works and not your cards: it therefore means the same thing in somebody else's house, and does not empty the day you erase a film. You file into it from the card, from a poster's badge, or from here.",
@@ -1628,12 +1826,16 @@ const en = {
       },
       challenges: {
         title: "A challenge is a list and a period",
-        body: "Nobody ticks “seen”: progress is computed from your viewing log, and only viewings dated within the period count. The server draws a number from it, never your dates — and only for those who have asked to take part.",
+        body: "A list and a period make a challenge: one asks to take part, and the binder counts by itself what each has seen in time. Nobody ticks “seen”. A challenge carried through earns points at the counter — half of one earns less, and under half earns nothing.",
       },
     },
 
     quiz: {
       label: "The quizzes",
+      powers: {
+        title: "The powers",
+        body: "Bought at the counter, spent here. Setting two wrong answers aside always gives back THE SAME two if you ask again — otherwise one would pay once and peel the question bare. Taking back clears your answer to that question, once only, and the retake stays marked for the other players. With no power, this bar does not exist.",
+      },
       compose: {
         title: "Dealing a quiz",
         body: "One does not write them, one deals them: tick some categories, a level, a length, and the questions come at random out of the bank. The mix is fixed — a hard quiz keeps a couple of easy ones to breathe, an easy one keeps a sting — and two quizzes of the same level and length weigh the same number of points. That is what makes two scores comparable.",
@@ -1648,7 +1850,7 @@ const en = {
       },
       given: {
         title: "The ones you were given",
-        body: "Open one and it begins. You answer whenever you like, over as many sittings as you like — but an answer once laid down is not taken back, and once finished it is not played again.",
+        body: "Open one and it begins. You answer whenever you like, over as many sittings as you like. An answer once laid down is not taken back — unless a power bought at the counter is spent on it, once per question, and the retake stays marked for the other players. Once finished it is not played again.",
       },
       playing: {
         title: "One question at a time",
@@ -1660,10 +1862,29 @@ const en = {
       },
       scores: {
         title: "The scores",
-        body: "Nothing is stored: the score is recomputed from the answers, every time. The bar reads against what the whole quiz is worth, not against the best score — otherwise an evening where everybody floundered would look like a triumph. A pale bar is somebody who has not finished.",
+        body: "Nothing is stored: the score is recomputed from the answers, every time. The bar reads against what the whole quiz is worth, not against the best score — otherwise an evening where everybody floundered would look like a triumph. A pale bar is somebody who has not finished. Finishing a game earns its score in merit, and fifteen more for a flawless run.",
       },
     },
 
+    counter: {
+      label: "The counter",
+      purse: {
+        title: "What you have earned",
+        body: "Two counters on one ticket. Merit adds up and never goes down: it is what ranks you. Tokens are the same figure, minus what you spend here — so buying something never costs you a place. One earns by finishing challenges, playing quizzes, keeping one's binder, and making other people's lists live.",
+      },
+      ladder: {
+        title: "In front of whom",
+        body: "“Those I follow”: the people you follow, and you. The world's board only appears if you have agreed to be on it — that is set in the account drawer, beside sharing. You always see yourself, even at the very bottom, and a block removes on both sides.",
+      },
+      shop: {
+        title: "The display case",
+        body: "Stamps to wear beside your pseudonym, packets of stickers, extra skins, and powers to spend during a game. Something too dear stays on the shelf and tells you what is missing. The binder's fourteen skins stay free and work with no account: what is sold here comes on top.",
+      },
+      album: {
+        title: "The sheet",
+        body: "Eleven stickers, drawn by hand, dealt by the server — reloading the page does not re-open a packet. The empty squares show what is missing without showing what it is, and doubles are counted: they are what one swaps.",
+      },
+    },
     global: {
       label: "Full tour",
       welcome: {
@@ -1717,6 +1938,10 @@ const en = {
       quiz: {
         title: "And asking each other things",
         body: "A challenge measures what one watches; a quiz measures what one thinks one knows. You are given one, you answer whenever you like, and the scores are compared among the people invited. An answer once laid down is not taken back, and a finished quiz is not played again.",
+      },
+      counter: {
+        title: "And the counter, at the end",
+        body: "A challenge finished, a quiz played, a list one keeps alive: all of it counts. The counter says what you have earned, where you stand, and what you may do with it — a stamp to wear, a packet to open. None of this exists without an account, and your video library does not need one.",
       },
       tmdbKey: {
         title: "The TMDB key",

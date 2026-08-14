@@ -21,8 +21,16 @@ import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 import { ListChecks, Plus, Search, Trash2, UserPlus, X } from "lucide-react";
 import { C, F, alpha } from "../theme/tokens";
-import { tap, underlineInput } from "../theme/styles";
-import { Label } from "../components/ui";
+import { bare, chip, inked, tap, underlineInput } from "../theme/styles";
+import { Guideline, Label, Meter, ViewHeading } from "../components/ui";
+import { StampCorner, TapeResidue } from "../components/atmosphere";
+import { Halftone } from "../components/atmosphere/hall";
+import { daysLeft, mayExtend, needsSettling, stateOf } from "../domain/challenges";
+import { worthOfChallenge } from "../domain/points";
+import { tiltOf } from "../domain/seeded";
+import { refreshPurse } from "../hooks/usePurse";
+import { useShop } from "../hooks/useShop";
+import { BuyChip } from "../components/play/Buy";
 import {
   createList,
   createChallenge,
@@ -38,6 +46,8 @@ import {
   removeFromList,
   addToList,
   editList,
+  extendChallenge,
+  settleChallenge,
   serverConfigured,
   type Progress,
   type Challenge,
@@ -82,7 +92,7 @@ export function ListsView({ connected }: { connected: boolean }) {
   if (!serverConfigured()) {
     return (
       <Page>
-        <Guideline>{t("listsView.noServer")}</Guideline>
+        <Guideline tight>{t("listsView.noServer")}</Guideline>
       </Page>
     );
   }
@@ -90,7 +100,7 @@ export function ListsView({ connected }: { connected: boolean }) {
   if (!connected) {
     return (
       <Page>
-        <Guideline>{t("listsView.noAccount")}</Guideline>
+        <Guideline tight>{t("listsView.noAccount")}</Guideline>
       </Page>
     );
   }
@@ -116,7 +126,7 @@ export function ListsView({ connected }: { connected: boolean }) {
             placeholder={t("listsView.newListPlaceholder")}
             style={{ ...underlineInput, fontFamily: F.hand, fontSize: 17 }}
           />
-          <button onClick={openOne} style={button(C.ink)}>
+          <button onClick={openOne} style={inked(C.ink)}>
             <Plus size={12} /> {t("listsView.open")}
           </button>
         </div>
@@ -130,7 +140,7 @@ export function ListsView({ connected }: { connected: boolean }) {
 
       <div data-tour="lists-mine" style={{ marginBottom: 34 }}>
         <Label>{t("listsView.yours")}</Label>
-        {lists.length === 0 && <Guideline>{t("listsView.none")}</Guideline>}
+        {lists.length === 0 && <Guideline tight>{t("listsView.none")}</Guideline>}
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 6 }}>
           {lists.map((l) => (
             <OneList
@@ -146,7 +156,7 @@ export function ListsView({ connected }: { connected: boolean }) {
 
       <div data-tour="lists-challenges">
         <Label>{t("listsView.challenges")}</Label>
-        {challenges.length === 0 && <Guideline>{t("listsView.noChallenges")}</Guideline>}
+        {challenges.length === 0 && <Guideline tight>{t("listsView.noChallenges")}</Guideline>}
         <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 8 }}>
           {challenges.map((d) => (
             <OneChallenge key={d.id} challenge={d} onChange={reread} />
@@ -248,7 +258,7 @@ function OneList({
 
       {opened && (
         <div style={{ padding: "0 12px 14px" }}>
-          {works.length === 0 && <Guideline>{t("lists.searchNote")}</Guideline>}
+          {works.length === 0 && <Guideline tight>{t("lists.searchNote")}</Guideline>}
           {works.map((o) => (
             <div
               key={o.tmdb_id}
@@ -277,7 +287,7 @@ function OneList({
               <button
                 onClick={() => removeFromList(list.id, o.tmdb_id).then(reread)}
                 title={t("listsView.removeWork")}
-                style={{ ...small, color: C.burgundy }}
+                style={{ ...bare, color: C.burgundy }}
               >
                 <X size={12} />
               </button>
@@ -300,8 +310,8 @@ function OneList({
                   spellCheck={false}
                   style={{ ...underlineInput, fontFamily: F.mono, fontSize: 12 }}
                 />
-                <button onClick={sendInvite} style={button(C.pine)}>
-                  <UserPlus size={12} /> INVITER
+                <button onClick={sendInvite} style={inked(C.pine)}>
+                  <UserPlus size={12} /> {t("listsView.invite")}
                 </button>
               </div>
               {trouble && (
@@ -312,12 +322,12 @@ function OneList({
               {members.length > 0 && (
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
                   {members.map((m) => (
-                    <span key={m} style={token}>
+                    <span key={m} style={chip}>
                       {m}
                       <button
                         onClick={() => removeFromListMembers(list.id, m).then(reread)}
-                        title={`Retirer ${m}`}
-                        style={{ ...small, color: C.burgundy }}
+                        title={t("listsView.removeMember", { pseudo: m })}
+                        style={{ ...bare, color: C.burgundy }}
                       >
                         <X size={10} />
                       </button>
@@ -335,13 +345,13 @@ function OneList({
                       editList(list.id, { is_public: e.target.checked }).then(onChange)
                     }
                   />{" "}
-                  visible de qui vous follows
+                  {t("listsView.publicNote")}
                 </label>
                 <span style={{ flex: 1 }} />
                 <button
                   onClick={() => deleteList(list.id).then(onChange)}
-                  title="Effacer cette list"
-                  style={{ ...small, color: C.burgundy }}
+                  title={t("listsView.deleteList")}
+                  style={{ ...bare, color: C.burgundy }}
                 >
                   <Trash2 size={12} />
                 </button>
@@ -359,7 +369,7 @@ function OneList({
                 <input
                   value={challenge.title}
                   onChange={(e) => setDraft({ ...challenge, title: e.target.value })}
-                  placeholder="Mars chez Varda"
+                  placeholder={t("listsView.challengePlaceholder")}
                   style={{ ...underlineInput, fontFamily: F.hand, fontSize: 16, flex: "1 1 160px" }}
                 />
                 <input
@@ -374,8 +384,8 @@ function OneList({
                   onChange={(e) => setDraft({ ...challenge, end: e.target.value })}
                   style={{ ...underlineInput, fontFamily: F.mono, fontSize: 11, width: 130 }}
                 />
-                <button onClick={run} style={button(C.burgundy)}>
-                  LANCER
+                <button onClick={run} style={inked(C.burgundy)}>
+                  {t("listsView.launch")}
                 </button>
               </div>
             </div>
@@ -466,7 +476,7 @@ function FillFromTmdb({ list, onFiled }: { list: List; onFiled: () => Promise<vo
           placeholder={t("lists.searchPlaceholder")}
           style={{ ...underlineInput, fontFamily: F.hand, fontSize: 16 }}
         />
-        <button onClick={look} disabled={busy} style={button(C.slate)}>
+        <button onClick={look} disabled={busy} style={inked(C.slate)}>
           <Search size={12} /> {busy ? t("lists.searching") : t("lists.search")}
         </button>
       </div>
@@ -475,7 +485,7 @@ function FillFromTmdb({ list, onFiled }: { list: List; onFiled: () => Promise<vo
         {t("lists.searchNote")}
       </div>
 
-      {found?.length === 0 && <Guideline>{t("lists.searchNobody")}</Guideline>}
+      {found?.length === 0 && <Guideline tight>{t("lists.searchNobody")}</Guideline>}
 
       {found?.map((hit) => (
         <div
@@ -501,7 +511,7 @@ function FillFromTmdb({ list, onFiled }: { list: List; onFiled: () => Promise<vo
             onClick={() => file(hit)}
             disabled={busy || filed.has(hit.tmdbId)}
             style={{
-              ...small,
+              ...bare,
               color: filed.has(hit.tmdbId) ? C.moss : C.ink,
               fontFamily: F.mono,
               fontSize: 10,
@@ -535,6 +545,7 @@ function OneChallenge({
 }) {
   const { t } = useTranslation();
   const [progress, setAvancement] = useState<Progress[] | null>(null);
+  const [ends, setEnds] = useState(challenge.ends_on);
 
   const reread = useCallback(async () => {
     const r = await readChallenge(challenge.id);
@@ -545,23 +556,106 @@ function OneChallenge({
     reread().catch(() => setAvancement([]));
   }, [reread]);
 
-  const today = new Date().toISOString().slice(0, 10);
-  const state =
-    today < challenge.starts_on
-      ? t("listsView.upcoming")
-      : today > challenge.ends_on
-        ? t("listsView.finished")
-        : t("listsView.running");
+  /* SOLDER À L'OUVERTURE, ET SANS RIEN ATTENDRE. Le serveur n'a pas de
+     tâche de fond : c'est le PREMIER qui regarde un défi fini qui en
+     clôt les comptes pour tout le monde, et la clé du journal fait que
+     les suivants ne paient personne deux fois. L'échec est avalé — un
+     défi qui s'affiche vaut mieux qu'un défi qui refuse de s'afficher
+     parce que le compteur boude. */
+  useEffect(() => {
+    if (!needsSettling({ ends_on: ends })) return;
+    settleChallenge(challenge.id)
+      .then((r) => {
+        if (r.awarded > 0) void refreshPurse();
+      })
+      .catch(() => {});
+  }, [challenge.id, ends]);
+
+  const catalogue = useShop();
+  const sold = catalogue.find((i) => i.power === "extend");
+  const powerHeld = sold?.held ?? 0;
+  const canExtend = mayExtend(
+    { starts_on: challenge.starts_on, ends_on: ends, by: challenge.per },
+    challenge.per ?? null
+  );
+
+  const state = stateOf({ starts_on: challenge.starts_on, ends_on: ends });
+  const left = daysLeft({ ends_on: ends });
+  const done = progress?.find((p) => p.pseudo === challenge.per)?.done ?? 0;
+
+  /* L'AFFICHE DIT SON ÉTAT AVANT DE DIRE SON TITRE. Un défi qui finit
+     demain et un défi qui finit dans trois semaines ne se signalent pas
+     de la même façon sur un panneau, et c'est la seule information qu'on
+     lit de loin. */
+  const BANNER: Record<string, { key: string; ink: string }> = {
+    upcoming: { key: "listsView.upcoming", ink: C.slate },
+    running: { key: "listsView.running", ink: C.pine },
+    "last-days": { key: "listsView.lastDays", ink: C.vermillion },
+    finished: { key: "listsView.finished", ink: C.inkFaded },
+  };
+  const banner = BANNER[state]!;
+
+  const push = async () => {
+    try {
+      const r = await extendChallenge(challenge.id);
+      setEnds(r.ends_on);
+      await onChange();
+    } catch {
+      /* Le serveur porte les cinq limites dans une seule instruction :
+         s'il refuse, il a raison, et il a rendu le pouvoir. */
+      await onChange();
+    }
+  };
 
   return (
-    <div style={{ background: C.card, border: `1px solid ${C.line}`, padding: "11px 13px" }}>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+    <div
+      data-print-block
+      style={{
+        position: "relative",
+        background: C.card,
+        border: `1px solid ${C.line}`,
+        padding: "11px 13px",
+        boxShadow: "2px 3px 9px rgba(30,20,10,0.16)",
+        transform: `rotate(${Number(tiltOf(challenge.id)) / 8}deg)`,
+        /* Le liseré rouge des derniers jours : une bordure et non une
+           couleur de fond, pour que le texte reste sur du papier. */
+        outline: state === "last-days" ? `2px dashed ${alpha(C.vermillion, 0.6)}` : undefined,
+        outlineOffset: 2,
+      }}
+    >
+      <Halftone size={5} />
+      <TapeResidue style={{ top: -8, left: 18 }} rotate={-14} w={64} />
+      {/* Le rabat « soldé », en travers, une fois les comptes clos. */}
+      {state === "finished" && <StampCorner text={t("listsView.settled")} />}
+
+      <div
+        style={{
+          position: "relative",
+          display: "flex",
+          alignItems: "baseline",
+          gap: 10,
+          flexWrap: "wrap",
+        }}
+      >
+        <span
+          style={{
+            fontFamily: F.mono,
+            fontSize: 9,
+            letterSpacing: 1.6,
+            textTransform: "uppercase",
+            color: C.card,
+            background: banner.ink,
+            padding: "3px 7px",
+          }}
+        >
+          {t(banner.key)}
+        </span>
         <span style={{ fontFamily: F.title, fontStyle: "italic", fontSize: 20, color: C.ink }}>
           {challenge.title}
         </span>
         <span style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>
-          {challenge.starts_on} → {challenge.ends_on} · {state} · {challenge.works} film
-          {challenge.works > 1 ? "s" : ""} · d'après « {challenge.list} »
+          {challenge.starts_on} → {ends} · {t("listsView.works", { count: challenge.works })} ·{" "}
+          {t("listsView.fromList", { title: challenge.list })}
         </span>
         <span style={{ flex: 1 }} />
         <button
@@ -570,68 +664,101 @@ function OneChallenge({
               .then(onChange)
               .then(reread)
           }
-          style={button(challenge.inside ? C.slate : C.pine)}
+          style={inked(challenge.inside ? C.slate : C.pine)}
         >
-          {challenge.inside ? "SORTIR" : "PARTICIPER"}
+          {challenge.inside ? t("listsView.leave") : t("listsView.join")}
         </button>
         {challenge.per === null || challenge.inside ? (
           <button
             onClick={() => deleteChallenge(challenge.id).then(onChange)}
             title={t("listsView.deleteChallenge")}
-            style={{ ...small, color: C.burgundy }}
+            style={{ ...bare, color: C.burgundy }}
           >
             <Trash2 size={12} />
           </button>
         ) : null}
       </div>
 
+      {/* CE QUE ÇA VAUT, DIT PENDANT QUE ÇA COURT. Un chiffre qui tombe
+          à la fin sans avoir prévenu ne récompense rien : on annonce le
+          palier atteint et celui qui suit, tant qu'il reste des jours. */}
+      {state !== "upcoming" && challenge.inside && (
+        <div
+          style={{
+            position: "relative",
+            fontFamily: F.hand,
+            fontSize: 15,
+            color: C.inkFaded,
+            marginTop: 6,
+          }}
+        >
+          {state === "finished"
+            ? t("listsView.wasWorth", { points: worthOfChallenge(done, challenge.works) })
+            : t("listsView.worth", {
+                points: worthOfChallenge(done, challenge.works),
+                count: Math.max(0, left),
+              })}
+        </div>
+      )}
+
       {/* The progress leaves the log of screenings as a NUMBER only:
           the server counts, it does not copy out — and only counts
           people who have asked to take part. */}
-      <div style={{ marginTop: 8 }}>
-        {progress?.length === 0 && <Guideline>Person n'y participe more.</Guideline>}
+      <div style={{ position: "relative", marginTop: 8 }}>
+        {progress?.length === 0 && <Guideline tight>{t("listsView.noParticipants")}</Guideline>}
         {(progress ?? []).map((a) => (
-          <div
+          <Meter
             key={a.pseudo}
-            style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 5 }}
-          >
-            <span
-              style={{
-                fontFamily: F.mono,
-                fontSize: 10.5,
-                color: C.ink,
-                width: 110,
-                flexShrink: 0,
-              }}
-            >
-              {a.pseudo}
-            </span>
-            <span
-              style={{
-                flex: 1,
-                height: 7,
-                background: alpha(C.ink, 0.08),
-                position: "relative",
-                overflow: "hidden",
-              }}
-            >
-              <span
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  right: "auto",
-                  width: `${challenge.works ? (100 * a.done) / challenge.works : 0}%`,
-                  background: C.burgundy,
-                  transition: "width var(--motion-slow) var(--motion-ease)",
-                }}
-              />
-            </span>
-            <span style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>
-              {a.done}/{challenge.works}
-            </span>
-          </div>
+            name={a.pseudo}
+            done={a.done}
+            total={challenge.works}
+            ink={state === "finished" ? C.moss : C.burgundy}
+          />
         ))}
       </div>
+
+      {/* PROLONGER : le bouton n'existe que si les cinq bornes le
+          permettent — celles du client rejouent exactement celles de la
+          requête SQL, pour ne pas offrir un geste qui coûte un pouvoir
+          et se fait refuser. */}
+      {/* PROLONGER — le pouvoir s'achète ICI s'il manque.
+
+          C'est le seul moment où on le veut : devant un défi qui finit
+          demain et qu'on n'a pas bouclé. Au comptoir, « prolonger un
+          défi » est une ligne abstraite qu'on n'achète pas. */}
+      {canExtend && powerHeld === 0 && sold && (
+        <div
+          style={{
+            position: "relative",
+            marginTop: 8,
+            display: "flex",
+            alignItems: "baseline",
+            gap: 8,
+          }}
+        >
+          <span style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}>
+            {t("listsView.extend")}
+          </span>
+          <BuyChip item={sold.id} price={sold.price} onBought={reread} compact />
+        </div>
+      )}
+
+      {canExtend && powerHeld > 0 && (
+        <button
+          onClick={push}
+          data-tour="lists-extend"
+          style={{
+            ...bare,
+            fontFamily: F.mono,
+            fontSize: 10,
+            letterSpacing: 1,
+            color: C.ochre,
+            marginTop: 8,
+          }}
+        >
+          {t("listsView.extend")}
+        </button>
+      )}
     </div>
   );
 }
@@ -647,64 +774,17 @@ function currentMonth() {
   return { start, end };
 }
 
-const Page = ({ children }: { children: ReactNode }) => (
-  <div style={{ padding: "34px 24px 70px", maxWidth: 1000 }}>
-    <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 4 }}>
-      <ListChecks size={22} color={C.moss} />
-      <h1
-        style={{
-          margin: 0,
-          fontFamily: F.title,
-          fontStyle: "italic",
-          fontWeight: 700,
-          fontSize: 34,
-          color: C.ink,
-        }}
-      >
-        Listes et défis
-      </h1>
-    </div>
-    <div style={{ fontFamily: F.hand, fontSize: 18, color: C.inkFaded, marginBottom: 24 }}>
-      ce qu'on se donne à voir, seul ou à plusieurs
-    </div>
-    {children}
-  </div>
-);
-
-const Guideline = ({ children }: { children: ReactNode }) => (
-  <div style={{ fontFamily: F.hand, fontSize: 17, color: C.inkFaded, marginTop: 8 }}>
-    {children}
-  </div>
-);
-
-const button = (ink: string) => ({
-  all: "unset" as const,
-  ...tap,
-  cursor: "pointer",
-  gap: 6,
-  padding: "7px 12px",
-  fontFamily: F.mono,
-  fontSize: 10,
-  letterSpacing: 1,
-  color: C.card,
-  background: ink,
-  border: `1px solid ${ink}`,
-});
-
-const small = {
-  all: "unset" as const,
-  ...tap,
-  cursor: "pointer",
-  color: C.inkFaded,
-};
-
-const token = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 5,
-  padding: "3px 8px",
-  border: `1px solid ${C.line}`,
-  fontFamily: F.mono,
-  fontSize: 10,
-  color: C.inkFaded,
+/* The head of the view — see `ViewHeading`, shared with the quiz and the
+   counter. Only the icon, the tint and the two sentences belong here. */
+const Page = ({ children }: { children: ReactNode }) => {
+  const { t } = useTranslation();
+  return (
+    <ViewHeading
+      icon={<ListChecks size={22} color={C.moss} />}
+      title={t("listsView.heading")}
+      blurb={t("listsView.subheading")}
+    >
+      {children}
+    </ViewHeading>
+  );
 };

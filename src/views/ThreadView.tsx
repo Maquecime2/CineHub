@@ -18,11 +18,14 @@
    network, which it is not.
    ============================================================ */
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 import { Search, UserPlus, UserMinus, Users } from "lucide-react";
 import { C, F, alpha } from "../theme/tokens";
-import { tap, underlineInput } from "../theme/styles";
-import { Label } from "../components/ui";
+import { bare, inked, underlineInput } from "../theme/styles";
+import { Guideline, Label, ViewHeading } from "../components/ui";
+import { Stamp } from "../components/atmosphere/hall";
+import { STAMP_INK, stampLabel } from "../components/play/stamps";
 import { PosterArt } from "../components/film/PosterArt";
 import { initialsOf } from "../domain/film";
 import { tiltOf } from "../domain/seeded";
@@ -38,6 +41,7 @@ import {
 } from "../services/server";
 
 export function ThreadView({ connected }: { connected: boolean }) {
+  const { t } = useTranslation();
   const [subscriptions, setAbonnements] = useState<Profile[]>([]);
   const [news, setNouvelles] = useState<NewsItem[] | null>(null);
   const [query, setQuery] = useState("");
@@ -104,19 +108,19 @@ export function ThreadView({ connected }: { connected: boolean }) {
     <Page>
       {/* ---- chercher quelqu'un ---- */}
       <div data-tour="thread-search" style={{ marginBottom: 26, maxWidth: 420 }}>
-        <Label>Chercher quelqu'un</Label>
+        <Label>{t("threadView.find")}</Label>
         <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && search()}
-            placeholder="son pseudonyme"
+            placeholder={t("threadView.pseudoPlaceholder")}
             autoCapitalize="none"
             spellCheck={false}
             style={{ ...underlineInput, fontFamily: F.mono, fontSize: 13 }}
           />
-          <button onClick={search} style={button(C.ink)}>
-            <Search size={12} /> VOIR
+          <button onClick={search} style={inked(C.ink)}>
+            <Search size={12} /> {t("threadView.look")}
           </button>
         </div>
         {souci && (
@@ -137,19 +141,35 @@ export function ThreadView({ connected }: { connected: boolean }) {
             }}
           >
             <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: F.title, fontStyle: "italic", fontSize: 19, color: C.ink }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  gap: 7,
+                  fontFamily: F.title,
+                  fontStyle: "italic",
+                  fontSize: 19,
+                  color: C.ink,
+                }}
+              >
                 {trouve.pseudo}
+                {trouve.stamp && (
+                  <Stamp
+                    text={t(stampLabel(trouve.stamp))}
+                    ink={STAMP_INK[trouve.stamp] ?? C.burgundy}
+                  />
+                )}
               </div>
               <div style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>
-                {trouve.films} film{trouve.films > 1 ? "s" : ""} montrés
+                {t("threadView.shown", { count: trouve.films })}
               </div>
             </div>
             <a href={`#/chez/${trouve.pseudo}`} style={link}>
-              SA COLLECTION
+              {t("threadView.theirCollection")}
             </a>
-            <button onClick={() => toggle(trouve)} style={button(C.burgundy)}>
+            <button onClick={() => toggle(trouve)} style={inked(C.burgundy)}>
               {trouve.followed ? <UserMinus size={12} /> : <UserPlus size={12} />}
-              {trouve.followed ? "NE PLUS SUIVRE" : "SUIVRE"}
+              {trouve.followed ? t("threadView.unfollow") : t("threadView.follow")}
             </button>
           </div>
         )}
@@ -158,7 +178,7 @@ export function ThreadView({ connected }: { connected: boolean }) {
       {/* ---- qui l'on suit ---- */}
       {subscriptions.length > 0 && (
         <div data-tour="thread-follows" style={{ marginBottom: 30 }}>
-          <Label>Vous suivez</Label>
+          <Label>{t("threadView.youFollow")}</Label>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
             {subscriptions.map((a) => (
               <span
@@ -178,14 +198,19 @@ export function ThreadView({ connected }: { connected: boolean }) {
                 <a href={`#/chez/${a.pseudo}`} style={{ color: C.ink, textDecoration: "none" }}>
                   {a.pseudo}
                 </a>
+                {a.stamp && (
+                  <Stamp text={t(stampLabel(a.stamp))} ink={STAMP_INK[a.stamp] ?? C.burgundy} />
+                )}
                 {/* A collection closed again does not vanish from the
                     list: one stays subscribed, and the feed goes quiet.
                     Saying so avoids believing in a breakdown. */}
-                {a.ouverte === false && <em style={{ opacity: 0.7 }}>refermée</em>}
+                {a.ouverte === false && (
+                  <em style={{ opacity: 0.7 }}>{t("threadView.closedAgain")}</em>
+                )}
                 <button
                   onClick={() => toggle(a)}
-                  title={`Ne plus suivre ${a.pseudo}`}
-                  style={{ ...tap, all: "unset", cursor: "pointer", color: C.burgundy }}
+                  title={t("threadView.unfollowSomebody", { pseudo: a.pseudo })}
+                  style={{ ...bare, color: C.burgundy }}
                 >
                   <UserMinus size={12} />
                 </button>
@@ -195,15 +220,13 @@ export function ThreadView({ connected }: { connected: boolean }) {
         </div>
       )}
 
-      {/* ---- at fil ---- */}
+      {/* ---- le fil ---- */}
       <div data-tour="thread-news">
-        <Label>Dernièrement, chez eux</Label>
-        {news === null && <Guideline>Ouverture…</Guideline>}
+        <Label>{t("threadView.lately")}</Label>
+        {news === null && <Guideline tight>{t("threadView.opening")}</Guideline>}
         {news?.length === 0 && (
-          <Guideline>
-            {subscriptions.length === 0
-              ? "Vous ne suivez more person. Cherchez un pseudonyme ci-dessus."
-              : "Rien de fresh chez les gens que vous suivez."}
+          <Guideline tight>
+            {subscriptions.length === 0 ? t("threadView.followNobody") : t("threadView.nothingNew")}
           </Guideline>
         )}
         {news && news.length > 0 && (
@@ -247,8 +270,16 @@ export function ThreadView({ connected }: { connected: boolean }) {
                         textDecoration: "none",
                       }}
                     >
-                      chez {n.pseudo}
+                      {t("threadView.at", { pseudo: n.pseudo })}
                     </a>
+                    {n.stamp && (
+                      <span style={{ marginLeft: 5 }}>
+                        <Stamp
+                          text={t(stampLabel(n.stamp))}
+                          ink={STAMP_INK[n.stamp] ?? C.burgundy}
+                        />
+                      </span>
+                    )}
                     {n.film.review ? (
                       <div
                         style={{
@@ -273,49 +304,24 @@ export function ThreadView({ connected }: { connected: boolean }) {
   );
 }
 
-const Page = ({ children }: { children: ReactNode }) => (
-  <div style={{ padding: "34px 24px 70px", maxWidth: 1100 }}>
-    <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 4 }}>
-      <Users size={22} color={C.cobalt} />
-      <h1
-        style={{
-          margin: 0,
-          fontFamily: F.title,
-          fontStyle: "italic",
-          fontWeight: 700,
-          fontSize: 34,
-          color: C.ink,
-        }}
-      >
-        Le fil
-      </h1>
-    </div>
-    <div style={{ fontFamily: F.hand, fontSize: 18, color: C.inkFaded, marginBottom: 24 }}>
-      ce que regardent les gens que vous suivez
-    </div>
-    {children}
-  </div>
-);
-
-const Guideline = ({ children }: { children: ReactNode }) => (
-  <div style={{ fontFamily: F.hand, fontSize: 18, color: C.inkFaded, marginTop: 8 }}>
-    {children}
-  </div>
-);
-
-const button = (ink: string) => ({
-  all: "unset" as const,
-  ...tap,
-  cursor: "pointer",
-  gap: 6,
-  padding: "7px 12px",
-  fontFamily: F.mono,
-  fontSize: 10,
-  letterSpacing: 1,
-  color: C.card,
-  background: ink,
-  border: `1px solid ${ink}`,
-});
+/* La tête de la vue — voir `ViewHeading`, partagé avec les listes, le
+   quiz et le comptoir. C'était la TROISIÈME copie de ce bloc dans le
+   projet, avec son `Guideline` et son `button` : le fil ne se lit jamais
+   en même temps que les deux autres, et c'est ainsi qu'un bloc se
+   recopie sans que personne ne le voie. */
+const Page = ({ children }: { children: ReactNode }) => {
+  const { t } = useTranslation();
+  return (
+    <ViewHeading
+      icon={<Users size={22} color={C.cobalt} />}
+      title={t("threadView.heading")}
+      blurb={t("threadView.subheading")}
+      wide
+    >
+      {children}
+    </ViewHeading>
+  );
+};
 
 const link = {
   fontFamily: F.mono,

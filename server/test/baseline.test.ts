@@ -61,6 +61,27 @@ describe("laying the baseline on a database that has already lived", () => {
     expect((await store.cardsSince(blank, p.id, 0))[0]!.seq).toBeTruthy();
     await blank.close();
   });
+
+  it("survives being laid down a second time, whole", async () => {
+    /* THE FILE IS REPLAYED AT EVERY START-UP. Everything in it is
+       therefore written to be harmless the second time — but nothing
+       checked that, and the suite above only ever proves it for the one
+       table it rebuilds by hand.
+
+       A single `ADD CONSTRAINT` written without its `EXCEPTION WHEN
+       duplicate_object` is enough to stop the server from ever booting
+       again, and it would boot perfectly on a fresh database. */
+    const twice = await testDb();
+    const baseline = await readFile(
+      fileURLToPath(new URL("../sql/001_baseline.sql", import.meta.url)),
+      "utf8"
+    );
+    await expect(twice.exec(baseline)).resolves.not.toThrow();
+
+    const p = await store.createPerson(twice, "rohmer");
+    expect(p.id).toBeTruthy();
+    await twice.close();
+  });
 });
 
 describe("the pseudonym", () => {

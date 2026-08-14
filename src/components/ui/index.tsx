@@ -187,11 +187,146 @@ export function SectionTitle({
   );
 }
 
-/** The line of guidance under a section title, in a free hand. */
-export function Guideline({ children }: { children: ReactNode }) {
+/* The line of guidance under a section title, in a free hand.
+
+   TWO SPACINGS, AND THE REASON IS THE NEIGHBOUR ABOVE. Under a section
+   title, the line breathes below and not above — the title has already
+   made the gap. Under a paragraph or a field, it is the other way round.
+   The quiz and the lists had each re-declared the second version at the
+   foot of their file rather than pass a word here, and that is how a
+   primitive gets forked in silence. */
+export function Guideline({ children, tight }: { children: ReactNode; tight?: boolean }) {
   return (
-    <div style={{ fontFamily: F.hand, fontSize: 17, color: C.inkFaded, margin: "0 0 12px" }}>
+    <div
+      style={{
+        fontFamily: F.hand,
+        fontSize: 17,
+        color: C.inkFaded,
+        margin: tight ? "8px 0 0" : "0 0 12px",
+      }}
+    >
       {children}
+    </div>
+  );
+}
+
+/* THE HEAD OF A VIEW — the icon, the name, the hand-written line.
+
+   The quiz, the lists AND the feed drew it identically, to the pixel:
+   same padding, same italic thirty-four, same eighteen in a free hand.
+   Only the icon, its tint, the two sentences — and, for the feed, a
+   hundred pixels of width — ever changed. Three copies of one block in a
+   project of this size is what happens when the three files are never
+   read on the same day. The counter would have been the fourth. */
+export function ViewHeading({
+  icon,
+  title,
+  blurb,
+  children,
+  wide,
+}: {
+  /** Already coloured by the caller: the tint belongs to the tab. */
+  icon: ReactNode;
+  title: string;
+  blurb: string;
+  children?: ReactNode;
+  /* LE FIL EST PLUS LARGE, et il l'a toujours été. Ses affiches se
+     rangent en grille, là où les autres vues alignent une colonne de
+     texte — cent pixels de plus, et c'est la seule chose que sa version
+     recopiée faisait autrement. */
+  wide?: boolean;
+}) {
+  return (
+    <div style={{ padding: "34px 24px 70px", maxWidth: wide ? 1100 : 1000 }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 4 }}>
+        {icon}
+        <h1
+          style={{
+            margin: 0,
+            fontFamily: F.title,
+            fontStyle: "italic",
+            fontWeight: 700,
+            fontSize: 34,
+            color: C.ink,
+          }}
+        >
+          {title}
+        </h1>
+      </div>
+      <div style={{ fontFamily: F.hand, fontSize: 18, color: C.inkFaded, marginBottom: 24 }}>
+        {blurb}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/* THE SHARE OF ONE SINGLE THING — a bar, a name, a count.
+
+   Not to be confused with `Honours` just below, which ranks SEVERAL
+   lines against each other and scales them on the largest. Here there is
+   one row, and the bar says a fraction of a whole known in advance: four
+   films seen out of nine, eleven answers out of twenty. The quiz and the
+   lists had the same seven pixels of height, the same faded ground and
+   the same fixed column of a hundred and ten for the name — twice.
+
+   The width transition goes through `--motion-slow`, so that a progress
+   that moves does not jump, and so that reduced motion switches it off
+   with everything else. */
+export function Meter({
+  name,
+  done,
+  total,
+  ink = C.burgundy,
+  faded,
+  note,
+}: {
+  /** Absent: the bar alone, with no column of name. */
+  name?: string;
+  done: number;
+  total: number;
+  ink?: string;
+  /** The share is drawn, but paler — a thing begun and not finished. */
+  faded?: boolean;
+  /** What is added after the count: "still playing", a date, a rank. */
+  note?: string;
+}) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 5 }}>
+      {name !== undefined && (
+        <span
+          style={{ fontFamily: F.mono, fontSize: 10.5, color: C.ink, width: 110, flexShrink: 0 }}
+        >
+          {name}
+        </span>
+      )}
+      <span
+        style={{
+          flex: 1,
+          height: 7,
+          background: alpha(C.ink, 0.08),
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        {/* Against the WHOLE, never against the best of the rows: a bar
+            that filled the width because everybody did badly would
+            flatter the entire table. */}
+        <span
+          style={{
+            position: "absolute",
+            inset: 0,
+            right: "auto",
+            width: `${total ? (100 * done) / total : 0}%`,
+            background: faded ? alpha(ink, 0.4) : ink,
+            transition: "width var(--motion-slow) var(--motion-ease)",
+          }}
+        />
+      </span>
+      <span style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>
+        {done}/{total}
+        {note ? ` · ${note}` : ""}
+      </span>
     </div>
   );
 }

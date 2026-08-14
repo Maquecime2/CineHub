@@ -97,8 +97,20 @@ describe("what a visitor sees", () => {
     expect("notes" in film).toBe(false);
     expect("watches" in film).toBe(false);
     expect("watchedAt" in film).toBe(false);
-    /* And nothing of the person beyond their pseudonym. */
-    expect(Object.keys(r.json()).sort()).toEqual(["films", "pseudo"]);
+    /* AND NOTHING OF THE PERSON THEY DID NOT CHOOSE TO SHOW.
+
+       The pseudonym, and the stamp worn beside it. A stamp is bought at
+       the counter and PUT ON deliberately: it is a decoration of the
+       public name, and it appears everywhere that name does — the feed,
+       the boards, a work's echo. Somebody holding this address already
+       has the pseudonym; the stamp adds nothing they could not see by
+       following the person.
+
+       The list stays exhaustive on purpose. Everything else about an
+       account — the address, the way it shares, the role, the counts —
+       must go on failing this line the day somebody widens the reply
+       without meaning to. */
+    expect(Object.keys(r.json()).sort()).toEqual(["films", "pseudo", "stamp"]);
   });
 
   it("a card set aside stays at home", async () => {

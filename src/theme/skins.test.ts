@@ -158,3 +158,78 @@ describe("laying a skin down", () => {
     expect(loadSkinKey()).toBe("herbier");
   });
 });
+
+/* ============================================================
+   CE QUI S'ACHÈTE, ET CE QUI RESTE DÛ À TOUT LE MONDE
+
+   Le classeur marche entier sans serveur, sans compte et sans réseau.
+   Ces trois tests disent la seule façon d'ajouter des peaux payantes
+   sans y toucher — et le premier est celui qui compte, parce qu'il
+   attraperait une régression qu'aucun écran ne montrerait : une peau
+   libre passée par mégarde derrière un prix ne se voit que chez ceux
+   qui ne l'ont pas.
+   ============================================================ */
+describe("les peaux du comptoir", () => {
+  /* LA RÈGLE A CHANGÉ, ET LE GARDE-FOU AVEC. Il disait « les quatorze
+     premières restent libres à jamais » ; elles sont devenues payantes,
+     et le « à jamais » n'était pas de mon ressort. Ce qui reste vrai,
+     et qui est maintenant ce qu'on garde :
+
+     UNE PEAU EST DONNÉE, et c'est celle avec laquelle le classeur a
+     toujours été dessiné. Un catalogue où même le carnet s'achèterait
+     serait un classeur qui ne sait pas de quoi il a l'air au premier
+     lancement.
+
+     Et sans serveur, `SkinPicker` les rend toutes libres : verrouiller
+     sur une économie qui n'existe pas serait une porte sur un mur. C'est
+     testé là-bas, avec le composant. */
+  it("donne le carnet, et lui seul", () => {
+    const free = SKINS.filter((s) => !s.locked).map((s) => s.key);
+    expect(free).toEqual([DEFAULT_SKIN]);
+  });
+
+  it("met un prix sur chaque peau verrouillée, et rien qu'un entier positif", () => {
+    for (const skin of SKINS.filter((s) => s.locked)) {
+      expect(`${skin.key} = ${skin.price}`).toMatch(/= [1-9][0-9]*$/);
+      expect(Number.isInteger(skin.price)).toBe(true);
+    }
+    /* Et l'inverse : un prix sans verrou serait un prix que personne ne
+       paie, sur une peau que tout le monde a. */
+    for (const skin of SKINS.filter((s) => !s.locked)) expect(skin.price).toBeUndefined();
+  });
+
+  it("nomme un article de boutique pour chaque peau verrouillée", () => {
+    /* L'identifiant est écrit dans `owned` côté serveur : une clé qui ne
+       correspond à rien serait une peau que personne ne peut ouvrir. */
+    for (const skin of SKINS.filter((s) => s.locked)) {
+      expect(skin.locked).toBe(`skin-${skin.key}`);
+    }
+  });
+
+  it("dit le même prix que le serveur", async () => {
+    /* LE SEUL GARDE-FOU DU DOUBLON. Le catalogue du serveur est
+       l'original — c'est lui qui débite. Celui-ci n'existe que pour
+       afficher « il vous faut 180 jetons » dans le sélecteur, sans
+       aller-retour. Une divergence ne casserait rien : elle afficherait
+       un prix, en prélèverait un autre, et personne ne s'en apercevrait
+       avant de compter. */
+    const { SHOP } = await import("../../server/src/shop");
+    for (const skin of SKINS.filter((s) => s.locked)) {
+      const sold = SHOP.find((i) => i.id === skin.locked);
+      expect(sold, `« ${skin.key} » est verrouillée mais ne se vend nulle part`).toBeDefined();
+      expect(sold!.price, `le prix de « ${skin.key} »`).toBe(skin.price);
+      expect(sold!.grants).toBe(skin.key);
+    }
+  });
+
+  it("s'applique quand on la demande, verrouillée ou non", () => {
+    /* LE VERROU EST AU CHOIX, PAS À L'APPLICATION. Si `applySkin`
+       consultait ce champ, un rechargement hors ligne retomberait sur
+       « carnet » et le classeur se déguiserait tout seul. */
+    const locked = SKINS.find((s) => s.locked);
+    expect(locked).toBeDefined();
+    applySkin(locked!.key);
+    expect(document.documentElement.dataset.skin).toBe(locked!.key);
+    expect(skinOf(locked!.key).key).toBe(locked!.key);
+  });
+});

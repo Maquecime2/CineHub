@@ -29,6 +29,7 @@
    The trailing slash goes for the same reason: the paths already start
    with a slash, and "…:8787//me" is not "…:8787/me". */
 import { store } from "./storage";
+import type { Gain } from "../domain/points";
 import { readPerson, type Person, type PersonReply } from "./contract";
 
 export const ADDRESS: string = (
@@ -617,9 +618,9 @@ export const hideCard = (id: string, hidden: boolean) =>
 export async function collectionOf(
   pseudo: string,
   token?: string | null
-): Promise<{ pseudo: string; films: SharedFilm[] }> {
+): Promise<{ pseudo: string; stamp: string | null; films: SharedFilm[] }> {
   const q = token ? `?token=${encodeURIComponent(token)}` : "";
-  return call<{ pseudo: string; films: SharedFilm[] }>(
+  return call<{ pseudo: string; stamp: string | null; films: SharedFilm[] }>(
     `/collections/${encodeURIComponent(pseudo)}${q}`
   );
 }
@@ -630,6 +631,8 @@ export async function collectionOf(
 
 export interface Profile {
   pseudo: string;
+  /** Le cachet porté au comptoir, visible partout où le pseudonyme l'est. */
+  stamp?: string | null;
   films: number;
   followed?: boolean;
   /** For the subscriptions list: is their collection still open? */
@@ -638,6 +641,7 @@ export interface Profile {
 
 export interface NewsItem {
   pseudo: string;
+  stamp?: string | null;
   id: string;
   tmdbId: string | null;
   at: number;
@@ -668,6 +672,7 @@ export const readFeed = (before?: number | null) =>
 
 export interface Opinion {
   pseudo: string;
+  stamp?: string | null;
   /** The card's id at its author's — that is what gets reported. */
   card: string;
   rating: number | null;
@@ -1022,10 +1027,141 @@ export const answerQuiz = (id: string, questionId: string, choiceId: string) =>
 
 /** Closing it is what brings the corrections down — not a moment before. */
 export const finishQuiz = (id: string) =>
-  call<{ attempt: QuizAttempt; questions: QuizQuestion[] }>(
-    `/quizzes/${encodeURIComponent(id)}/attempt/finish`,
-    { method: "POST" }
-  );
+  call<{
+    attempt: QuizAttempt;
+    questions: QuizQuestion[];
+    /* CE QUI A ÉTÉ RÉELLEMENT CRÉDITÉ, ligne par ligne — et non ce que
+       le barème laissait espérer. Une partie close deux fois, sur une
+       connexion qui a lâché, ne paie qu'une seule fois, et l'écran doit
+       le dire plutôt que d'afficher un tarif. */
+    gains: Gain[];
+    purse: { merit: number; tokens: number };
+  }>(`/quizzes/${encodeURIComponent(id)}/attempt/finish`, { method: "POST" });
 
 export const quizScores = (id: string) =>
   call<{ scores: QuizScore[] }>(`/quizzes/${encodeURIComponent(id)}/scores`);
+
+/* ------------------------------------------------------------
+   LE COMPTOIR — la bourse, les palmarès, la boutique
+   ------------------------------------------------------------
+
+   AUCUNE DE CES FONCTIONS N'ENVOIE UN MONTANT. Ce qu'une chose vaut se
+   lit sur le serveur, contre un fait qu'il vient d'écrire lui-même ; le
+   classeur en garde une copie (`domain/points.ts`) pour ANNONCER un
+   chiffre sans aller-retour, jamais pour en réclamer un.
+
+   Comme partout ici, l'absence de serveur ou de compte ne se gère pas
+   par un message d'erreur : la vue entière ne se dessine pas. */
+
+/** Les deux compteurs, et où l'on se situe. */
+export interface Purse {
+  /** Cumulé, jamais dépensé : c'est lui qui classe. */
+  merit: number;
+  /** Le même chiffre, moins ce qui est passé au comptoir. */
+  tokens: number;
+  /** Sa vraie place au classement mondial, même hors de la page. */
+  standing: number | null;
+  /** « non », « suivis » ou « tous » — où l'on accepte d'apparaître. */
+  ladder: string;
+}
+
+export interface Rank {
+  pseudo: string;
+  merit: number;
+  rank: number;
+  me: boolean;
+  stamp: string | null;
+}
+
+export interface ShopItem {
+  id: string;
+  kind: "stamp" | "pack" | "skin" | "power";
+  price: number;
+  /** Pour une peau : la clé qu'elle ouvre dans le catalogue du classeur. */
+  grants?: string;
+  power?: string;
+  draws?: number;
+  owned?: boolean;
+  /** Pour un pouvoir : combien il en reste. */
+  held?: number;
+}
+
+export interface Holdings {
+  items: string[];
+  stickers: { sticker_id: string; copies: number }[];
+  powers: Record<string, number>;
+  worn: { stamp: string | null; skin: string | null };
+}
+
+export const myPurse = () => call<Purse>("/purse");
+
+export const ladder = (scope: "world" | "friends") =>
+  call<{ ranks: Rank[] }>(`/ladder/${scope}`).then((r) => r.ranks);
+
+export const setLadder = (ladder: "non" | "suivis" | "tous") =>
+  call<{ ladder: string }>("/ladder/mine", {
+    method: "PATCH",
+    body: JSON.stringify({ ladder }),
+  });
+
+export const shop = () => call<{ items: ShopItem[] }>("/shop").then((r) => r.items);
+
+export const myHoldings = () => call<Holdings>("/shop/mine");
+
+/** Le hasard d'une pochette est tiré et écrit SUR LE SERVEUR : recharger
+    la page ne le rejoue pas. `drawn` est ce qui vient d'en sortir. */
+export const buy = (item: string) =>
+  call<{ purse: { merit: number; tokens: number }; drawn: string[] }>("/shop/buy", {
+    method: "POST",
+    body: JSON.stringify({ item }),
+  });
+
+/**
+ * Tout effacer, et garder le compte.
+ *
+ * Le geste entre « j'efface mon comptoir » et « je m'en vais » : on
+ * garde son pseudonyme et ses clés d'accès, on perd tout le reste. Les
+ * blocages et les signalements survivent — le premier protège, le second
+ * appartient à la modération.
+ */
+export const wipeMyData = () =>
+  call<{ erased: boolean; kept: string[] }>("/my-data", { method: "DELETE" });
+
+/** Rendre un article — réservé au rôle, pour reprendre la boutique. */
+export const sell = (item: string) =>
+  call<{ merit: number; tokens: number }>("/shop/sell", {
+    method: "POST",
+    body: JSON.stringify({ item }),
+  });
+
+export const wear = (what: { stamp?: string | null; skin?: string | null }) =>
+  call<{ stamp: string | null; skin: string | null }>("/shop/worn", {
+    method: "PATCH",
+    body: JSON.stringify(what),
+  });
+
+/* ---- les pouvoirs ---- */
+
+/** Rend les propositions à masquer — jamais la bonne réponse, et
+    toujours les MÊMES si on redemande. */
+export const halveQuestion = (quizId: string, questionId: string) =>
+  call<{ removed: string[]; left: number }>(
+    `/quizzes/${encodeURIComponent(quizId)}/questions/${encodeURIComponent(questionId)}/halve`,
+    { method: "POST" }
+  );
+
+export const redoQuestion = (quizId: string, questionId: string) =>
+  call<{ left: number }>(
+    `/quizzes/${encodeURIComponent(quizId)}/questions/${encodeURIComponent(questionId)}/redo`,
+    { method: "POST" }
+  );
+
+export const extendChallenge = (id: string) =>
+  call<{ ends_on: string; extensions: number }>(`/challenges/${encodeURIComponent(id)}/extend`, {
+    method: "POST",
+  });
+
+/** Clôt les comptes d'un défi fini. Le premier qui regarde solde pour
+    tout le monde ; les suivants ne paient personne deux fois. */
+export const settleChallenge = (id: string) =>
+  call<{ awarded: number }>(`/challenges/${encodeURIComponent(id)}/settle`, { method: "POST" });

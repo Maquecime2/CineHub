@@ -11,7 +11,7 @@
    and account erasure. They are not features to add later — they are
    properties one never adds at all if they are not there on day one.
    ============================================================ */
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomInt } from "node:crypto";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
@@ -28,6 +28,8 @@ import { registerRelays } from "./relay.ts";
 import { publicKeyForPush, pushAvailable, remindChallenges } from "./push.ts";
 import { allowed, mediaAvailable, ticketFor } from "./media.ts";
 import { LEVELS, SIZES } from "./draw.ts";
+import { RATE } from "./points.ts";
+import { SHOP } from "./shop.ts";
 
 export interface Settings {
   db: Db;
@@ -97,6 +99,16 @@ interface ReadQuestion {
   choices: { label: string; is_right: boolean }[];
 }
 
+/**
+ * Ce que le préflight autorise.
+ *
+ * Exportée pour que `test/cors.test.ts` la compare aux routes réellement
+ * enregistrées : c'est la seule façon d'attraper un oubli, puisque
+ * `inject` ne fait pas de préflight et ne pose donc jamais la question
+ * qui échoue dans un navigateur.
+ */
+export const CORS_METHODS = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"];
+
 export async function buildApp(settings: Settings): Promise<FastifyInstance> {
   const { db, domain, origin } = settings;
   const app = Fastify({ logger: false });
@@ -136,8 +148,18 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
        the browser was therefore refusing the collection's PUT BEFORE
        sending it, and the server saw no trace of it. Nor did the tests —
        `inject` calls the route directly, with no preflight, so it never
-       asks the question that was failing. */
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+       asks the question that was failing.
+
+       IT HAPPENED A SECOND TIME, and this very paragraph did not stop
+       it: the counter arrived with two PATCH routes, the whole suite
+       stayed green, and the browser refused them on sight — "no answer
+       from the server", about a server that was answering.
+
+       A COMMENT IS NOT A GUARD. `test/cors.test.ts` now walks the route
+       table Fastify really registered and fails on any method missing
+       from this list. That is the check these lines had been standing
+       in for. */
+    methods: CORS_METHODS,
     /* A HEADER ONE DOES NOT EXPOSE IS A HEADER ONE DOES NOT SEND.
 
        On a cross-origin request the browser lets JavaScript read only a
@@ -631,6 +653,22 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
       });
       if (written) filed += 1;
       else stale += 1;
+
+      /* THE COUNTER IS NEVER ON THE WAY OF THE GESTURE. Filing a film
+         must not wait on a ledger, and must not fail because of one:
+         the card is already written above, and whatever happens here is
+         swallowed. A merit lost is a merit; a card lost is somebody's
+         evening. */
+      if (written) {
+        try {
+          await store.awardFromCard(db, person.id, {
+            tmdb_id: f.tmdbId == null ? null : String(f.tmdbId),
+            data: (f.data ?? {}) as Record<string, unknown>,
+          });
+        } catch {
+          /* nothing: see above */
+        }
+      }
     }
     /* NO `upTo` HERE: a push says nothing about where reading has got
        to. The client's rank only advances on a pull, which alone knows
@@ -774,6 +812,7 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
 
     return {
       pseudo: vue.pseudo,
+      stamp: vue.stamp,
       films: vue.films.map((f) => ({ id: f.id, tmdbId: f.tmdb_id, ...f.data })),
     };
   });
@@ -846,6 +885,7 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
       upTo: news.length ? Number(news[news.length - 1]!.seq) : null,
       news: news.map((n) => ({
         pseudo: n.pseudo,
+        stamp: n.stamp ?? null,
         id: n.id,
         tmdbId: n.tmdb_id,
         at: new Date(n.updated_at).getTime(),
@@ -1192,6 +1232,21 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     const rights = await store.rightsOnList(db, challenge.list_id, person.id);
     if (!rights?.read) return reply.code(404).send({ error: "Défi inconnu." });
     await store.joinChallenge(db, challenge.id, person.id);
+    /* Somebody joining pays the person who started it — but only that
+       once, and only for that person: the reference carries both, so
+       leaving and coming back is not a way to make a friend rich. */
+    if (challenge.by) {
+      const author = await store.findByPseudo(db, challenge.by);
+      if (author && author.id !== person.id) {
+        await store.award(
+          db,
+          author.id,
+          "challenge_joined",
+          `${challenge.id}:${person.id}`,
+          RATE.challenge_joined
+        );
+      }
+    }
     return { inside: true };
   });
 
@@ -1584,8 +1639,16 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     const rights = await quizOr404(req, reply, person.id);
     if (!rights) return reply;
     await store.finishAttempt(db, rights.quiz_id, person.id);
+    /* THE PRICING COMES AFTER THE CLOSING, and it is idempotent by the
+       journal's key: a double click credits once. It is returned line by
+       line because the end screen prints them — "quiz: +18", "sans
+       faute: +15" — and a single total would have said nothing about
+       what one did well. */
+    const gains = await store.awardQuiz(db, rights.quiz_id, person.id);
     return {
       attempt: await store.myAttempt(db, rights.quiz_id, person.id),
+      gains,
+      purse: await store.purseOf(db, person.id),
       /* Now, and only now, the corrections come down. */
       questions: await store.drawnQuestions(db, rights.quiz_id, {
         withAnswers: true,
@@ -1599,6 +1662,196 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     const rights = await quizOr404(req, reply, person.id);
     if (!rights) return reply;
     return { scores: await store.scoresOf(db, rights.quiz_id, person.id) };
+  });
+
+  /* ------------------------------------------------------------
+     THE COUNTER — the purse, the boards, the shop
+     ------------------------------------------------------------
+
+     Everything below needs an account, and that is not a restriction
+     to work around: with no account there is nobody to be ranked
+     against and nobody to show a stamp to. The binder hides this whole
+     tab rather than greying it out, which is the rule everywhere here.
+
+     NOT ONE OF THESE ROUTES TAKES AN AMOUNT. What a thing is worth is
+     read from `points.ts`, against a fact the server has just written
+     down itself. A body that carried a number of points would be a body
+     somebody could write.
+  */
+
+  app.get("/purse", async (req) => {
+    const person = await requireAccount(req);
+    return {
+      ...(await store.purseOf(db, person.id)),
+      standing: await store.myStanding(db, person.id),
+      ladder: await store.ladderOf(db, person.id),
+    };
+  });
+
+  app.get("/ladder/:scope", async (req, reply) => {
+    const person = await requireAccount(req);
+    const { scope } = req.params as { scope: string };
+    if (scope === "friends") return { ranks: await store.friendsLadder(db, person.id) };
+    if (scope === "world") return { ranks: await store.globalLadder(db, person.id) };
+    return reply.code(404).send({ error: "Classement inconnu." });
+  });
+
+  app.patch("/ladder/mine", async (req, reply) => {
+    const person = await requireAccount(req);
+    const { ladder } = (req.body ?? {}) as { ladder?: string };
+    /* The three words are checked here so the answer is a sentence
+       rather than a constraint violation — the column's CHECK is still
+       what makes it true. */
+    if (!["non", "suivis", "tous"].includes(ladder || "")) {
+      return reply.code(400).send({ error: "Il faut « non », « suivis » ou « tous »." });
+    }
+    await store.setLadder(db, person.id, ladder!);
+    return { ladder };
+  });
+
+  app.get("/shop", async (req) => {
+    const person = await requireAccount(req);
+    const held = await store.holdingsOf(db, person.id);
+    /* The catalogue is the same for everybody; what changes is what one
+       already has. Sent together so the shop can be drawn in one pass. */
+    return {
+      items: SHOP.map((i) => ({
+        ...i,
+        owned: held.items.includes(i.id),
+        held: i.power ? (held.powers[i.power] ?? 0) : undefined,
+      })),
+    };
+  });
+
+  app.get("/shop/mine", async (req) => {
+    const person = await requireAccount(req);
+    return store.holdingsOf(db, person.id);
+  });
+
+  app.post("/shop/buy", async (req, reply) => {
+    const person = await requireAccount(req);
+    const { item } = (req.body ?? {}) as { item?: string };
+    if (!item) return reply.code(400).send({ error: "Il faut un article." });
+    try {
+      /* THE CHANCE IS DRAWN HERE, with real randomness, and written down
+         before this answer leaves. A packet drawn in the browser would
+         be reopened by reloading the page until it pleased. */
+      return await store.buy(db, person.id, item, (max) => randomInt(max));
+    } catch (e) {
+      if (e instanceof store.ShopRefusal) {
+        return reply.code(409).send({ error: e.message });
+      }
+      throw e;
+    }
+  });
+
+  /* RENDRE UN ARTICLE — réservé au rôle, et c'est un outil.
+     ------------------------------------------------------------
+
+     Il sert à reprendre la boutique article par article sans vider son
+     compte, ce qu'aucun geste ordinaire ne permet : un tampon acheté
+     l'est pour de bon, et c'est très bien ainsi.
+
+     `requireAdmin` plutôt que la porte de développement parce que le
+     rôle ne s'obtient QUE par l'environnement du déploiement — aucune
+     route ne l'accorde, aucun écran ne le demande. Quelqu'un qui l'a
+     tient déjà la base de données ; lui rendre un tampon ne lui donne
+     rien qu'il n'ait déjà.
+
+     Et le chemin d'achat n'est pas touché : on rend, puis on rachète
+     PAR LA VRAIE PORTE, refus du doublon compris. */
+  app.post("/shop/sell", async (req, reply) => {
+    const person = await requireAdmin(req);
+    const { item } = (req.body ?? {}) as { item?: string };
+    if (!item) return reply.code(400).send({ error: "Il faut un article." });
+    const back = await store.sell(db, person.id, item);
+    if (back === "not-owned") return reply.code(409).send({ error: "Vous ne l'avez pas acheté." });
+    return back;
+  });
+
+  app.patch("/shop/worn", async (req, reply) => {
+    const person = await requireAccount(req);
+    const body = (req.body ?? {}) as { stamp?: string | null; skin?: string | null };
+    for (const what of ["stamp", "skin"] as const) {
+      if (!(what in body)) continue;
+      const value = body[what] ?? null;
+      /* A single statement decides: a row that comes back is the
+         permission, no row is the refusal. There is no reading first. */
+      if (!(await store.wear(db, person.id, what, value))) {
+        return reply.code(403).send({ error: "Vous ne possédez pas cela." });
+      }
+    }
+    return (await store.holdingsOf(db, person.id)).worn;
+  });
+
+  /* ------------------------------------------------------------
+     THE POWERS — spent on a question, or on a period
+     ------------------------------------------------------------ */
+
+  app.post("/quizzes/:id/questions/:qid/halve", async (req, reply) => {
+    const person = await requireAccount(req);
+    const rights = await quizOr404(req, reply, person.id);
+    if (!rights) return reply;
+    const { qid } = req.params as { qid: string };
+    if (!UUID.test(qid || "")) return reply.code(404).send({ error: "Question inconnue." });
+
+    const got = await store.halveFor(db, rights.quiz_id, person.id, qid);
+    if (got === "no-power") return reply.code(402).send({ error: "Il vous faut ce pouvoir." });
+    if (got === "closed") return reply.code(409).send({ error: "Cette partie est finie." });
+    return {
+      removed: got.removed,
+      left: (await store.holdingsOf(db, person.id)).powers.halve ?? 0,
+    };
+  });
+
+  app.post("/quizzes/:id/questions/:qid/redo", async (req, reply) => {
+    const person = await requireAccount(req);
+    const rights = await quizOr404(req, reply, person.id);
+    if (!rights) return reply;
+    const { qid } = req.params as { qid: string };
+    if (!UUID.test(qid || "")) return reply.code(404).send({ error: "Question inconnue." });
+
+    const got = await store.redoAnswer(db, rights.quiz_id, person.id, qid);
+    if (got === "no-power") return reply.code(402).send({ error: "Il vous faut ce pouvoir." });
+    if (got === "closed") return reply.code(409).send({ error: "Cette partie est finie." });
+    if (got === "already") return reply.code(409).send({ error: "Déjà repris une fois." });
+    return { left: (await store.holdingsOf(db, person.id)).powers.redo ?? 0 };
+  });
+
+  app.post("/challenges/:id/extend", async (req, reply) => {
+    const person = await requireAccount(req);
+    const { id } = req.params as { id: string };
+    if (!UUID.test(id || "")) return reply.code(404).send({ error: "Défi inconnu." });
+    if (!(await store.spendPower(db, person.id, "extend"))) {
+      return reply.code(402).send({ error: "Il vous faut ce pouvoir." });
+    }
+    const pushed = await store.extendChallenge(db, id, person.id);
+    /* THE POWER IS GIVEN BACK WHEN THE PUSH IS REFUSED. All five limits
+       live in the one statement, so the only way to know is to try — and
+       trying must not cost thirty tokens. */
+    if (!pushed) {
+      await store.givePower(db, person.id, "extend");
+      return reply.code(409).send({ error: "Ce défi ne peut plus être prolongé." });
+    }
+    return pushed;
+  });
+
+  /**
+   * Close a finished challenge's accounts.
+   *
+   * NO SCHEDULED TASK: the first person to open a challenge whose period
+   * is over settles it for everybody, and the journal's key means the
+   * second and the tenth to look pay nobody twice. A daemon kept alive
+   * for a handful of rows would have been the other way.
+   */
+  app.post("/challenges/:id/settle", async (req, reply) => {
+    const person = await requireAccount(req);
+    const { id } = req.params as { id: string };
+    const challenge = UUID.test(id || "") ? await store.challengeById(db, id) : null;
+    if (!challenge) return reply.code(404).send({ error: "Défi inconnu." });
+    const rights = await store.rightsOnList(db, challenge.list_id, person.id);
+    if (!rights?.read) return reply.code(404).send({ error: "Défi inconnu." });
+    return { awarded: await store.settleChallenge(db, challenge.id) };
   });
 
   /* ------------------------------------------------------------
@@ -1813,6 +2066,17 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     };
   });
 
+  /* REPARTIR DE ZÉRO SANS S'EN ALLER — le geste qui manquait entre les
+     deux autres. Le compte, le pseudonyme et les clés d'accès restent ;
+     tout ce qu'ils portaient s'en va. Voir `store.wipeEverything` pour
+     ce qui survit, et pourquoi : un blocage protège, un signalement
+     appartient à la modération. */
+  app.delete("/my-data", async (req) => {
+    const person = await requireAccount(req);
+    await store.wipeEverything(db, person.id);
+    return { erased: true, kept: ["compte", "clés d'accès", "blocages", "signalements"] };
+  });
+
   app.delete("/my-account", async (req, reply) => {
     const person = await requireAccount(req);
     await store.deletePerson(db, person.id);
@@ -1894,6 +2158,57 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
       const person = (await store.findByPseudo(db, name)) ?? (await store.createPerson(db, name));
       setCookie(reply, await store.openSession(db, person.id));
       return { person, warning: "porte de développement" };
+    });
+
+    /* LE COFFRE — de quoi tout racheter, autant de fois qu'on veut.
+       ------------------------------------------------------------
+
+       POURQUOI ICI ET NON SUR LE RÔLE D'ADMIN. La demande était « un
+       admin peut reprendre ses articles à l'infini », et le but énoncé
+       était d'essayer la boutique. Mis dans `store.buy`, cela aurait
+       ajouté au chemin d'achat une branche que l'usage normal
+       n'emprunte jamais : le seul code qui touche à l'argent gagnerait
+       un cas jamais exercé, et les trois garanties que le schéma tient —
+       on ne possède qu'une fois, on ne descend pas sous zéro, une
+       dépense est une instruction — devraient composer avec une
+       exception. Ce sont exactement les garanties qu'on veut essayer.
+
+       Ici, le chemin d'achat n'est pas touché du tout : on remet la
+       bourse à flot et on efface ce qu'on possède, puis on rachète PAR
+       LA VRAIE PORTE. Ce qui est éprouvé est donc ce qui tourne en
+       production, y compris le refus d'acheter deux fois le même tampon.
+
+       Et cela n'existe pas en ligne : `index.ts` ne propose cette porte
+       que hors production ET sur `DEV_DOOR=1`. */
+    app.post("/dev/coffers", async (req) => {
+      const person = await requireAccount(req);
+      const { tokens = 100000, wipe = true } = (req.body ?? {}) as {
+        tokens?: number;
+        wipe?: boolean;
+      };
+
+      if (wipe) {
+        /* Ce qu'on possède s'en va, pour que chaque achat se rejoue —
+           l'ouverture d'une pochette comme le refus du doublon. Le
+           journal des gains, lui, reste : c'est la mémoire de ce qui a
+           payé, et l'effacer masquerait un double crédit. */
+        for (const table of ["owned", "sticker", "power", "token_spend"]) {
+          await db.query(`DELETE FROM ${table} WHERE person_id = $1`, [person.id]);
+        }
+        await db.query("UPDATE person SET stamp = NULL, skin = NULL WHERE id = $1", [person.id]);
+      }
+
+      await db.query(
+        `INSERT INTO purse (person_id, merit, tokens) VALUES ($1, $2, $2)
+         ON CONFLICT (person_id) DO UPDATE SET tokens = $2, updated_at = now()`,
+        [person.id, Math.max(0, Math.min(2_000_000_000, Math.trunc(tokens)))]
+      );
+
+      return {
+        ...(await store.purseOf(db, person.id)),
+        wiped: wipe,
+        warning: "porte de développement",
+      };
     });
   }
 

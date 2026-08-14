@@ -46,6 +46,28 @@ export type Skin = {
    * only those.
    */
   dark?: boolean;
+  /**
+   * L'ARTICLE DE BOUTIQUE QUI L'OUVRE, et son prix en jetons.
+   *
+   * UNE SEULE PEAU EST DONNÉE : le carnet d'archiviste, celle avec
+   * laquelle le classeur a toujours été dessiné. Les seize autres
+   * s'achètent au comptoir — c'est ce qu'on gagne à jouer.
+   *
+   * ET VERROUILLÉES MÊME SANS SERVEUR. Elles se VOIENT quand même, avec
+   * leur prix : c'est la seule chose du classeur qui donne une raison
+   * d'ouvrir un compte, et une vitrine cachée n'attire personne. Ce qui
+   * reste entier hors ligne, c'est tout le reste — ranger, noter,
+   * chercher, importer, exporter. Ce qu'on n'a pas, c'est le choix de la
+   * robe, et on voit laquelle.
+   *
+   * LE VERROU EST AU CHOIX, PAS À L'APPLICATION. `applySkin` ignore ces
+   * deux champs et sert la peau qu'on lui demande, sans poser de
+   * question : autrement, un rechargement hors ligne retomberait sur
+   * « carnet », et le classeur se déguiserait tout seul.
+   */
+  locked?: string;
+  /** Ce qu'elle coûte. Le serveur porte le même chiffre, et un test compare. */
+  price?: number;
   c: Record<string, string>;
   fonts: { title: string; body: string; hand: string; mono: string };
   /** What to ask Google for, exactly as it goes in the URL. */
@@ -103,6 +125,8 @@ export const SKINS: Skin[] = [
 
   {
     key: "veilleuse",
+    locked: "skin-veilleuse",
+    price: 60,
     dark: true,
     c: {
       paper: "#211E1B",
@@ -142,6 +166,8 @@ export const SKINS: Skin[] = [
 
   {
     key: "cinematheque",
+    locked: "skin-cinematheque",
+    price: 180,
     dark: true,
     c: {
       paper: "#17100F",
@@ -181,6 +207,8 @@ export const SKINS: Skin[] = [
 
   {
     key: "bauhaus",
+    locked: "skin-bauhaus",
+    price: 120,
     c: {
       paper: "#F2F0EB",
       paperDark: "#E2DFD7",
@@ -219,6 +247,8 @@ export const SKINS: Skin[] = [
      where it was. */
   {
     key: "nuit-americaine",
+    locked: "skin-nuit-americaine",
+    price: 200,
     dark: true,
     c: {
       paper: "#16202B",
@@ -266,6 +296,8 @@ export const SKINS: Skin[] = [
      which ended up being the colour of a whole decade. */
   {
     key: "kodachrome",
+    locked: "skin-kodachrome",
+    price: 200,
     dark: true,
     c: {
       paper: "#1A1512",
@@ -305,6 +337,8 @@ export const SKINS: Skin[] = [
 
   {
     key: "herbier",
+    locked: "skin-herbier",
+    price: 90,
     c: {
       paper: "#F0EDE0",
       paperDark: "#DFDAC6",
@@ -342,6 +376,8 @@ export const SKINS: Skin[] = [
 
   {
     key: "bleu",
+    locked: "skin-bleu",
+    price: 90,
     dark: true,
     c: {
       paper: "#0E2A47",
@@ -381,6 +417,8 @@ export const SKINS: Skin[] = [
 
   {
     key: "pulp",
+    locked: "skin-pulp",
+    price: 140,
     c: {
       paper: "#EDD9AE",
       paperDark: "#DCC28C",
@@ -419,6 +457,8 @@ export const SKINS: Skin[] = [
 
   {
     key: "fanzine",
+    locked: "skin-fanzine",
+    price: 140,
     c: {
       paper: "#EDEDE8",
       paperDark: "#D8D8D2",
@@ -454,6 +494,8 @@ export const SKINS: Skin[] = [
 
   {
     key: "pastel",
+    locked: "skin-pastel",
+    price: 90,
     c: {
       paper: "#FBF3F6",
       paperDark: "#F0E2EA",
@@ -495,6 +537,8 @@ export const SKINS: Skin[] = [
      on. */
   {
     key: "japon",
+    locked: "skin-japon",
+    price: 180,
     c: {
       paper: "#F4F1E9",
       paperDark: "#E4DFD2",
@@ -532,6 +576,8 @@ export const SKINS: Skin[] = [
 
   {
     key: "sepia",
+    locked: "skin-sepia",
+    price: 60,
     c: {
       paper: "#E8DAC3",
       paperDark: "#D6C4A6",
@@ -577,6 +623,8 @@ export const SKINS: Skin[] = [
      with one another: they clash, and that is precisely the point. */
   {
     key: "affiche",
+    locked: "skin-affiche",
+    price: 160,
     c: {
       paper: "#DCD8CE",
       paperDark: "#C7C2B6",
@@ -606,6 +654,140 @@ export const SKINS: Skin[] = [
       #DCD8CE`,
     tag: { radius: "0px", tracking: "1.5px", transform: "uppercase" },
     atm: { grain: 1, stain: 0.15, thumb: 0.3 },
+  },
+  /* ------------------------------------------------------------
+     LES TROIS PEAUX DU COMPTOIR
+     ------------------------------------------------------------
+     Elles s'achètent, et elles sont EN PLUS. Les quatorze au-dessus ne
+     bougent pas d'une virgule : elles marchent sans serveur, sans compte
+     et sans réseau, et c'est une promesse du projet entier.
+
+     Sans compte, celles-ci n'existent tout simplement pas dans la grille
+     — invisibles, jamais grisées, comme tout ce qui dépend du dehors. */
+  {
+    key: "nitrate",
+    locked: "skin-nitrate",
+    price: 250,
+    dark: true,
+    c: {
+      paper: "#171310",
+      paperDark: "#0E0B09",
+      card: "#221C17",
+      ink: "#EDE2CE",
+      inkFaded: "#9C8D76",
+      burgundy: "#E4763A",
+      ochre: "#D9A441",
+      pine: "#6E9A72",
+      slate: "#7C8794",
+      line: "#4A3C2E",
+      cobalt: "#6E8FC0",
+      vermillion: "#F0623A",
+      moss: "#A3A85C",
+      plum: "#B075A8",
+    },
+    fonts: {
+      title: "'Cormorant Garamond', serif",
+      body: "'Crimson Pro', Georgia, serif",
+      hand: "'Kalam', cursive",
+      mono: "'Cutive Mono', monospace",
+    },
+    google: [
+      "Cormorant+Garamond:ital,wght@0,600;1,600",
+      "Crimson+Pro:wght@400;600",
+      "Kalam",
+      "Cutive+Mono",
+    ],
+    /* La pellicule qui brûle : une chaleur au centre, la nuit au bord. */
+    page: `
+      radial-gradient(ellipse at 50% 34%, #2B211A 0%, transparent 58%),
+      radial-gradient(circle at 82% 78%, #241A14 0%, transparent 44%),
+      #171310`,
+    tag: { radius: "2px", tracking: "2px", transform: "uppercase" },
+    atm: { grain: 1, stain: 0.35, thumb: 0.5 },
+  },
+  {
+    key: "drive-in",
+    locked: "skin-drive-in",
+    price: 250,
+    dark: true,
+    c: {
+      paper: "#101A2B",
+      paperDark: "#0A1220",
+      card: "#182742",
+      ink: "#F2E9DA",
+      inkFaded: "#93A2BC",
+      burgundy: "#F2557B",
+      ochre: "#F7C948",
+      pine: "#43B08A",
+      slate: "#8296B4",
+      line: "#2E4568",
+      cobalt: "#5AA9F0",
+      vermillion: "#FF7A4D",
+      moss: "#9BC46A",
+      plum: "#C57BE8",
+    },
+    fonts: {
+      title: "'Monoton', cursive",
+      body: "'Work Sans', sans-serif",
+      hand: "'Shadows Into Light', cursive",
+      mono: "'Share Tech Mono', monospace",
+    },
+    google: ["Monoton", "Work+Sans:wght@400;600", "Shadows+Into+Light", "Share+Tech+Mono"],
+    page: `
+      radial-gradient(ellipse at 50% 8%, #24406B 0%, transparent 52%),
+      radial-gradient(circle at 16% 88%, #1B2E4E 0%, transparent 46%),
+      #101A2B`,
+    tag: { radius: "12px", tracking: "1.8px", transform: "uppercase" },
+    atm: { grain: 0.5, stain: 0.1, thumb: 0.4 },
+  },
+  {
+    key: "cinemascope",
+    locked: "skin-cinemascope",
+    price: 320,
+    /* L'IMAGE PROJETÉE, ET NON LA PAGE QUI L'ENCADRE.
+
+       La première version posait deux bandes noires EN DUR en haut et en
+       bas du fond de page. Sur une page qui défile, ce ne sont pas des
+       caches de format large : c'est une barre noire au milieu de ce
+       qu'on lit, qui reste où elle est pendant que le texte passe
+       dessous. Et sa palette était celle du carnet à trois teintes près,
+       donc la peau la plus chère était la moins reconnaissable.
+
+       Ici la salle est éteinte et l'écran est allumé : une nappe de
+       lumière large et basse au centre, la nuit qui reprend vers les
+       bords. C'est un dégradé, donc cela suit le défilement au lieu de
+       lui résister, et l'on reconnaît la peau au premier coup d'œil. */
+    dark: true,
+    c: {
+      paper: "#14161A",
+      paperDark: "#0D0F12",
+      card: "#1E2229",
+      ink: "#EAE6DD",
+      inkFaded: "#8C939E",
+      burgundy: "#E3A94F",
+      ochre: "#D8C583",
+      pine: "#5FA68C",
+      slate: "#7F8B9B",
+      line: "#39404A",
+      cobalt: "#6E9BD8",
+      vermillion: "#E4744D",
+      moss: "#9CB16A",
+      plum: "#AC88C6",
+    },
+    fonts: {
+      title: "'Anton', sans-serif",
+      body: "'Barlow', sans-serif",
+      hand: "'Caveat', cursive",
+      mono: "'IBM Plex Mono', monospace",
+    },
+    google: ["Anton", "Barlow:wght@400;600", "Caveat", "IBM+Plex+Mono:wght@400;600"],
+    page: `
+      radial-gradient(ellipse 130% 55% at 50% 42%, #262C35 0%, transparent 68%),
+      radial-gradient(ellipse 80% 30% at 50% 40%, #313945 0%, transparent 70%),
+      linear-gradient(180deg, #0B0D10 0%, #14161A 34%, #14161A 66%, #0B0D10 100%),
+      #14161A`,
+    tag: { radius: "0px", tracking: "3px", transform: "uppercase" },
+    atm: { grain: 0.35, stain: 0.08, thumb: 0.55 },
   },
 ];
 
