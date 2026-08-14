@@ -54,6 +54,7 @@ import { isFirstRun, shouldHint, shouldSeed, markSeeded } from "./services/onboa
 import { binderStillDemo, demoFilms, demoNotes, withoutDemo, DEMO_PREFIX } from "./services/demo";
 import { DemoBanner } from "./components/layout/DemoBanner";
 import { readPlace, placeToHash, HOME } from "./domain/address";
+import { startMeasuring, pageSeen, doorEvent } from "./services/measure";
 
 /* ============================================================
    UNE VUE NE SE CHARGE QUE SI ON Y VA
@@ -393,10 +394,21 @@ export default function App() {
        en arrière sautait la fiche d'où l'on venait. */
     const first = !addressWritten.current;
     addressWritten.current = true;
+    /* LA VUE SE RAPPORTE ICI, où l'on sait qu'elle a changé — y compris
+       au premier passage, qui est l'arrivée et donc la page qui compte
+       le plus. `pageSeen` coupe l'identifiant d'une fiche ; on lui passe
+       l'endroit et jamais l'adresse, pour qu'il n'y ait pas deux façons
+       de l'appeler dont une mauvaise. */
+    pageSeen(place);
     if (location.hash === wanted) return;
     if (first) history.replaceState(null, "", wanted);
     else history.pushState(null, "", wanted);
   }, [view, selectedId]);
+
+  /* La mesure se charge une fois, et seulement si une instance est
+     réglée. Sans elle, rien de tout cela n'existe — pas de script, pas
+     de requête. */
+  useEffect(startMeasuring, []);
 
   /* Le retour arrière, l'avance, et l'adresse collée à la main. Les deux
      événements plutôt qu'un : `popstate` couvre les boutons du
@@ -494,6 +506,9 @@ export default function App() {
     commitFilms(withoutDemo(films));
     notebook.replaceAll(notebook.notes.filter((n) => !n.id.startsWith(DEMO_PREFIX)));
     setSelectedId(null);
+    /* Retirer l'exemple est le geste de quelqu'un qui a décidé de rester
+       — c'est à ce titre qu'on le compte, et non pour l'exemple. */
+    doorEvent("porte:demo-retiree");
   };
 
   const commitThreads = (next) => {

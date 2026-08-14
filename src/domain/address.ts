@@ -104,6 +104,24 @@ export function placeToHash(place: Place): string {
 }
 
 /**
+ * L'adresse qu'on a le droit de RAPPORTER, qui n'est pas celle qu'on affiche.
+ *
+ * ICI EST LA LIGNE, et elle vaut plus que tout le reste de ce module :
+ * `#/fiche/demo-mood` dit quel film quelqu'un possède. Envoyé à une
+ * instance de mesure, fût-elle la nôtre, c'est du contenu de collection
+ * qui sort — dans un produit dont l'argument est que la collection ne
+ * sort pas. On rapporte donc `#/fiche` et jamais l'identifiant.
+ *
+ * Le corollaire, qui n'est pas facultatif : la mesure d'audience doit
+ * être en suivi MANUEL. Laissée en automatique, elle lit `location.href`
+ * telle quelle et renvoie l'identifiant — cette fonction n'aurait alors
+ * servi à rien.
+ */
+export function placeToPage(place: Place): string {
+  return place.view === "detail" ? "#/fiche" : placeToHash(place);
+}
+
+/**
  * Lit une adresse du classeur.
  *
  * Rend `null` pour tout ce qui n'est pas à nous — l'adresse vide, une

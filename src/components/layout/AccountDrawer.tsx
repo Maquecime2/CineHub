@@ -59,6 +59,7 @@ import {
   type Person,
 } from "../../services/server";
 import { keepTheVault } from "../../services/persistence";
+import { doorEvent } from "../../services/measure";
 import {
   pushState,
   subscribeToPush,
@@ -115,6 +116,11 @@ export function AccountDrawer({
          cursor would make the binder believe it had already seen all of
          the new one's collection — which would stay invisible. */
       forgetSync();
+      /* OUVRIR un compte est un geste de la porte ; en REJOINDRE un ne
+         l'est pas — c'est quelqu'un qui était déjà là. Les deux passent
+         par cette fonction, d'où la comparaison plutôt qu'un second
+         paramètre à poser sur les deux boutons. */
+      if (what === signUp) doorEvent("porte:compte-cree");
       /* L'AUTRE MOMENT OÙ ON DEMANDE LE REMPART. Poser une passkey est
          le geste d'engagement le plus net du produit, et il vient de
          passer par une empreinte : le navigateur ne demandera pas mieux.

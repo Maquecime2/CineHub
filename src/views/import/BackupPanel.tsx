@@ -6,6 +6,7 @@ import { Tally } from "../../components/ui";
 import { posterStats, exportBackup, importBackup } from "../../db";
 import { mediaPending } from "../../services/media";
 import { vaultState, keepTheVault, type Vault } from "../../services/persistence";
+import { doorEvent } from "../../services/measure";
 import type { Divider, Film, Note, ShelfViews } from "../../types";
 import type { Thread } from "../../domain/threads";
 import type { StoredVocabulary as Vocabulary } from "../../domain/motifs";
@@ -70,7 +71,13 @@ export function BackupPanel({
 
   /* Ici la demande vient de la personne, donc `force` : le drapeau
      « on a déjà demandé » ne doit pas rendre un bouton inerte. */
-  const protect = async () => setVault(await keepTheVault({ force: true }));
+  const protect = async () => {
+    const now = await keepTheVault({ force: true });
+    setVault(now);
+    /* On ne compte que l'accord. Un refus est du navigateur, pas de la
+       personne, et le compter mêlerait deux choses différentes. */
+    if (now === "kept") doorEvent("porte:coffre-protege");
+  };
 
   const download = async () => {
     setMsg(t("backup.preparing"));

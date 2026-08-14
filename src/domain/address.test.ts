@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readPlace, placeToHash, samePlace, HOME } from "./address";
+import { readPlace, placeToHash, placeToPage, samePlace, HOME } from "./address";
 import { readAddress } from "../views/SharedCollectionView";
 
 /* ============================================================
@@ -92,6 +92,30 @@ describe("ce qui n'est pas à nous", () => {
   it("refuse un identifiant de fiche qui n'en a pas la forme", () => {
     for (const bad of ["#/fiche/", "#/fiche/a b", "#/fiche/a.b", `#/fiche/${"x".repeat(65)}`]) {
       expect(readPlace(bad), bad).toBeNull();
+    }
+  });
+});
+
+/* ============================================================
+   CELUI-CI EST LE TEST QUI PROTÈGE QUELQU'UN.
+
+   L'adresse affichée porte l'identifiant du film ; celle qu'on rapporte
+   ne doit jamais le porter. Une régression ici ne se verrait sur aucun
+   écran — elle se verrait dans le tableau de bord de la mesure, sous la
+   forme de la collection de chaque personne, une ligne par film.
+   ============================================================ */
+describe("l'adresse qu'on rapporte", () => {
+  it("ne fait jamais sortir l'identifiant d'une fiche", () => {
+    expect(placeToPage({ view: "detail", film: "demo-mood" })).toBe("#/fiche");
+    expect(placeToPage({ view: "detail", film: "tt0118694" })).toBe("#/fiche");
+    for (const film of ["a", "un-titre-tres-personnel", "42"]) {
+      expect(placeToPage({ view: "detail", film })).not.toContain(film);
+    }
+  });
+
+  it("laisse les autres vues telles quelles — elles ne disent rien de personne", () => {
+    for (const view of ["library", "watchlist", "quiz", "counter"] as const) {
+      expect(placeToPage({ view })).toBe(placeToHash({ view }));
     }
   });
 });

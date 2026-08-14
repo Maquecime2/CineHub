@@ -10,6 +10,7 @@ import { Label, Tally, InkStars } from "../../components/ui";
 import { StampCorner } from "../../components/atmosphere";
 import { store } from "../../services/storage";
 import { keepTheVault } from "../../services/persistence";
+import { doorEvent } from "../../services/measure";
 import { writtenKey, setTmdbKey, useTmdbKey } from "../../services/tmdbKey";
 import { parseLetterboxdCsv, diffImport, filmKey } from "../../domain/importing";
 import {
@@ -152,6 +153,12 @@ export function ImportView({
     setDropped([]);
     setDone(null);
     setFileName(file.name);
+    /* LANCÉ, ET PAS ENCORE ABOUTI. C'est l'écart entre les deux qui dit
+       quelque chose : un import déposé mais jamais confirmé est un
+       bordereau qu'on n'a pas su lire, et c'est ce qu'on veut voir.
+       Le NOM DU FICHIER ne part pas — il n'est pas dans l'événement, et
+       la liste des événements est fermée pour que ça reste vrai. */
+    doorEvent("porte:import-lance");
     try {
       const { rows: parsed, stats: s, kind } = await parseLetterboxdCsv(file);
       setRows(parsed);
@@ -279,6 +286,7 @@ export function ImportView({
        Sans `await`, et sans que le résultat compte : l'import est fait,
        il est écrit, et rien de ce qui suit ne doit retenir la main. */
     if (diff.toCreate.length) void keepTheVault();
+    doorEvent("porte:import-abouti");
     setDone({
       created: diff.toCreate.length,
       updated: diff.toUpdate.length,
