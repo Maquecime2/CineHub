@@ -2715,7 +2715,7 @@ export async function wear(
    ------------------------------------------------------------ */
 
 /** Take one power off the shelf. False when there was none to take. */
-async function spendPower(db: Db, personId: string, kind: PowerKind): Promise<boolean> {
+export async function spendPower(db: Db, personId: string, kind: PowerKind): Promise<boolean> {
   const rows = await db.query(
     `UPDATE power SET left_over = left_over - 1
       WHERE person_id = $1 AND kind = $2 AND left_over > 0
@@ -2723,6 +2723,23 @@ async function spendPower(db: Db, personId: string, kind: PowerKind): Promise<bo
     [personId, kind]
   );
   return rows.length > 0;
+}
+
+/**
+ * Put one back.
+ *
+ * `extendChallenge` carries all five of its limits inside a single
+ * statement, which is what makes them impossible to get round — and also
+ * means the only way to know whether a push is allowed is to try it. So
+ * the power is taken first and given back when the statement refuses:
+ * finding out must not cost thirty tokens.
+ */
+export async function givePower(db: Db, personId: string, kind: PowerKind): Promise<void> {
+  await db.query(
+    `INSERT INTO power (person_id, kind, left_over) VALUES ($1, $2, 1)
+     ON CONFLICT (person_id, kind) DO UPDATE SET left_over = power.left_over + 1`,
+    [personId, kind]
+  );
 }
 
 /**

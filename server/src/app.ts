@@ -11,7 +11,7 @@
    and account erasure. They are not features to add later — they are
    properties one never adds at all if they are not there on day one.
    ============================================================ */
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomInt } from "node:crypto";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
@@ -28,6 +28,8 @@ import { registerRelays } from "./relay.ts";
 import { publicKeyForPush, pushAvailable, remindChallenges } from "./push.ts";
 import { allowed, mediaAvailable, ticketFor } from "./media.ts";
 import { LEVELS, SIZES } from "./draw.ts";
+import { RATE } from "./points.ts";
+import { SHOP } from "./shop.ts";
 
 export interface Settings {
   db: Db;
@@ -631,6 +633,22 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
       });
       if (written) filed += 1;
       else stale += 1;
+
+      /* THE COUNTER IS NEVER ON THE WAY OF THE GESTURE. Filing a film
+         must not wait on a ledger, and must not fail because of one:
+         the card is already written above, and whatever happens here is
+         swallowed. A merit lost is a merit; a card lost is somebody's
+         evening. */
+      if (written) {
+        try {
+          await store.awardFromCard(db, person.id, {
+            tmdb_id: f.tmdbId == null ? null : String(f.tmdbId),
+            data: (f.data ?? {}) as Record<string, unknown>,
+          });
+        } catch {
+          /* nothing: see above */
+        }
+      }
     }
     /* NO `upTo` HERE: a push says nothing about where reading has got
        to. The client's rank only advances on a pull, which alone knows
@@ -1192,6 +1210,21 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     const rights = await store.rightsOnList(db, challenge.list_id, person.id);
     if (!rights?.read) return reply.code(404).send({ error: "Défi inconnu." });
     await store.joinChallenge(db, challenge.id, person.id);
+    /* Somebody joining pays the person who started it — but only that
+       once, and only for that person: the reference carries both, so
+       leaving and coming back is not a way to make a friend rich. */
+    if (challenge.by) {
+      const author = await store.findByPseudo(db, challenge.by);
+      if (author && author.id !== person.id) {
+        await store.award(
+          db,
+          author.id,
+          "challenge_joined",
+          `${challenge.id}:${person.id}`,
+          RATE.challenge_joined
+        );
+      }
+    }
     return { inside: true };
   });
 
@@ -1584,8 +1617,16 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     const rights = await quizOr404(req, reply, person.id);
     if (!rights) return reply;
     await store.finishAttempt(db, rights.quiz_id, person.id);
+    /* THE PRICING COMES AFTER THE CLOSING, and it is idempotent by the
+       journal's key: a double click credits once. It is returned line by
+       line because the end screen prints them — "quiz: +18", "sans
+       faute: +15" — and a single total would have said nothing about
+       what one did well. */
+    const gains = await store.awardQuiz(db, rights.quiz_id, person.id);
     return {
       attempt: await store.myAttempt(db, rights.quiz_id, person.id),
+      gains,
+      purse: await store.purseOf(db, person.id),
       /* Now, and only now, the corrections come down. */
       questions: await store.drawnQuestions(db, rights.quiz_id, {
         withAnswers: true,
@@ -1599,6 +1640,172 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     const rights = await quizOr404(req, reply, person.id);
     if (!rights) return reply;
     return { scores: await store.scoresOf(db, rights.quiz_id, person.id) };
+  });
+
+  /* ------------------------------------------------------------
+     THE COUNTER — the purse, the boards, the shop
+     ------------------------------------------------------------
+
+     Everything below needs an account, and that is not a restriction
+     to work around: with no account there is nobody to be ranked
+     against and nobody to show a stamp to. The binder hides this whole
+     tab rather than greying it out, which is the rule everywhere here.
+
+     NOT ONE OF THESE ROUTES TAKES AN AMOUNT. What a thing is worth is
+     read from `points.ts`, against a fact the server has just written
+     down itself. A body that carried a number of points would be a body
+     somebody could write.
+  */
+
+  app.get("/purse", async (req) => {
+    const person = await requireAccount(req);
+    return {
+      ...(await store.purseOf(db, person.id)),
+      standing: await store.myStanding(db, person.id),
+      ladder: await store.ladderOf(db, person.id),
+    };
+  });
+
+  app.get("/ladder/:scope", async (req, reply) => {
+    const person = await requireAccount(req);
+    const { scope } = req.params as { scope: string };
+    if (scope === "friends") return { ranks: await store.friendsLadder(db, person.id) };
+    if (scope === "world") return { ranks: await store.globalLadder(db, person.id) };
+    return reply.code(404).send({ error: "Classement inconnu." });
+  });
+
+  app.patch("/ladder/mine", async (req, reply) => {
+    const person = await requireAccount(req);
+    const { ladder } = (req.body ?? {}) as { ladder?: string };
+    /* The three words are checked here so the answer is a sentence
+       rather than a constraint violation — the column's CHECK is still
+       what makes it true. */
+    if (!["non", "suivis", "tous"].includes(ladder || "")) {
+      return reply.code(400).send({ error: "Il faut « non », « suivis » ou « tous »." });
+    }
+    await store.setLadder(db, person.id, ladder!);
+    return { ladder };
+  });
+
+  app.get("/shop", async (req) => {
+    const person = await requireAccount(req);
+    const held = await store.holdingsOf(db, person.id);
+    /* The catalogue is the same for everybody; what changes is what one
+       already has. Sent together so the shop can be drawn in one pass. */
+    return {
+      items: SHOP.map((i) => ({
+        ...i,
+        owned: held.items.includes(i.id),
+        held: i.power ? (held.powers[i.power] ?? 0) : undefined,
+      })),
+    };
+  });
+
+  app.get("/shop/mine", async (req) => {
+    const person = await requireAccount(req);
+    return store.holdingsOf(db, person.id);
+  });
+
+  app.post("/shop/buy", async (req, reply) => {
+    const person = await requireAccount(req);
+    const { item } = (req.body ?? {}) as { item?: string };
+    if (!item) return reply.code(400).send({ error: "Il faut un article." });
+    try {
+      /* THE CHANCE IS DRAWN HERE, with real randomness, and written down
+         before this answer leaves. A packet drawn in the browser would
+         be reopened by reloading the page until it pleased. */
+      return await store.buy(db, person.id, item, (max) => randomInt(max));
+    } catch (e) {
+      if (e instanceof store.ShopRefusal) {
+        return reply.code(409).send({ error: e.message });
+      }
+      throw e;
+    }
+  });
+
+  app.patch("/shop/worn", async (req, reply) => {
+    const person = await requireAccount(req);
+    const body = (req.body ?? {}) as { stamp?: string | null; skin?: string | null };
+    for (const what of ["stamp", "skin"] as const) {
+      if (!(what in body)) continue;
+      const value = body[what] ?? null;
+      /* A single statement decides: a row that comes back is the
+         permission, no row is the refusal. There is no reading first. */
+      if (!(await store.wear(db, person.id, what, value))) {
+        return reply.code(403).send({ error: "Vous ne possédez pas cela." });
+      }
+    }
+    return (await store.holdingsOf(db, person.id)).worn;
+  });
+
+  /* ------------------------------------------------------------
+     THE POWERS — spent on a question, or on a period
+     ------------------------------------------------------------ */
+
+  app.post("/quizzes/:id/questions/:qid/halve", async (req, reply) => {
+    const person = await requireAccount(req);
+    const rights = await quizOr404(req, reply, person.id);
+    if (!rights) return reply;
+    const { qid } = req.params as { qid: string };
+    if (!UUID.test(qid || "")) return reply.code(404).send({ error: "Question inconnue." });
+
+    const got = await store.halveFor(db, rights.quiz_id, person.id, qid);
+    if (got === "no-power") return reply.code(402).send({ error: "Il vous faut ce pouvoir." });
+    if (got === "closed") return reply.code(409).send({ error: "Cette partie est finie." });
+    return {
+      removed: got.removed,
+      left: (await store.holdingsOf(db, person.id)).powers.halve ?? 0,
+    };
+  });
+
+  app.post("/quizzes/:id/questions/:qid/redo", async (req, reply) => {
+    const person = await requireAccount(req);
+    const rights = await quizOr404(req, reply, person.id);
+    if (!rights) return reply;
+    const { qid } = req.params as { qid: string };
+    if (!UUID.test(qid || "")) return reply.code(404).send({ error: "Question inconnue." });
+
+    const got = await store.redoAnswer(db, rights.quiz_id, person.id, qid);
+    if (got === "no-power") return reply.code(402).send({ error: "Il vous faut ce pouvoir." });
+    if (got === "closed") return reply.code(409).send({ error: "Cette partie est finie." });
+    if (got === "already") return reply.code(409).send({ error: "Déjà repris une fois." });
+    return { left: (await store.holdingsOf(db, person.id)).powers.redo ?? 0 };
+  });
+
+  app.post("/challenges/:id/extend", async (req, reply) => {
+    const person = await requireAccount(req);
+    const { id } = req.params as { id: string };
+    if (!UUID.test(id || "")) return reply.code(404).send({ error: "Défi inconnu." });
+    if (!(await store.spendPower(db, person.id, "extend"))) {
+      return reply.code(402).send({ error: "Il vous faut ce pouvoir." });
+    }
+    const pushed = await store.extendChallenge(db, id, person.id);
+    /* THE POWER IS GIVEN BACK WHEN THE PUSH IS REFUSED. All five limits
+       live in the one statement, so the only way to know is to try — and
+       trying must not cost thirty tokens. */
+    if (!pushed) {
+      await store.givePower(db, person.id, "extend");
+      return reply.code(409).send({ error: "Ce défi ne peut plus être prolongé." });
+    }
+    return pushed;
+  });
+
+  /**
+   * Close a finished challenge's accounts.
+   *
+   * NO SCHEDULED TASK: the first person to open a challenge whose period
+   * is over settles it for everybody, and the journal's key means the
+   * second and the tenth to look pay nobody twice. A daemon kept alive
+   * for a handful of rows would have been the other way.
+   */
+  app.post("/challenges/:id/settle", async (req, reply) => {
+    const person = await requireAccount(req);
+    const { id } = req.params as { id: string };
+    const challenge = UUID.test(id || "") ? await store.challengeById(db, id) : null;
+    if (!challenge) return reply.code(404).send({ error: "Défi inconnu." });
+    const rights = await store.rightsOnList(db, challenge.list_id, person.id);
+    if (!rights?.read) return reply.code(404).send({ error: "Défi inconnu." });
+    return { awarded: await store.settleChallenge(db, challenge.id) };
   });
 
   /* ------------------------------------------------------------
