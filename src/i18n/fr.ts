@@ -1430,7 +1430,7 @@ const fr = {
     points_one: "{{count}} point",
     points_other: "{{count}} points",
     progress: "{{done}} sur {{total}}",
-    noTakingBack: "Une réponse posée ne se reprend pas.",
+    noTakingBack: "Une réponse posée ne se reprend pas — sauf à y dépenser un pouvoir, une fois.",
     allAnswered: "Toutes les questions sont répondues.",
     finish: "TERMINER",
     finishNote: "Terminer découvre les corrections, et ferme le quizz pour de bon.",
@@ -1851,7 +1851,7 @@ const fr = {
       },
       given: {
         title: "Ceux qu'on vous a donnés",
-        body: "Ouvrez-en un et il commence. Vous répondez quand vous voulez, en plusieurs fois — mais une réponse posée ne se reprend pas, et une fois terminé, on ne le rejoue pas.",
+        body: "Ouvrez-en un et il commence. Vous répondez quand vous voulez, en plusieurs fois. Une réponse posée ne se reprend pas — sauf à dépenser un pouvoir acheté au comptoir, une seule fois par question, et la reprise reste marquée pour les autres joueurs. Une fois terminé, on ne le rejoue pas.",
       },
       playing: {
         title: "Une question à la fois",
@@ -1863,7 +1863,7 @@ const fr = {
       },
       scores: {
         title: "Les scores",
-        body: "Rien n'est stocké : le score se recalcule depuis les réponses, à chaque fois. La barre se lit sur ce que vaut le quizz entier, pas sur le meilleur score — sinon une soirée où tout le monde s'est planté aurait l'air d'un triomphe. Une barre pâle est quelqu'un qui n'a pas fini.",
+        body: "Rien n'est stocké : le score se recalcule depuis les réponses, à chaque fois. La barre se lit sur ce que vaut le quizz entier, pas sur le meilleur score — sinon une soirée où tout le monde s'est planté aurait l'air d'un triomphe. Une barre pâle est quelqu'un qui n'a pas fini. Terminer une partie rapporte son score en mérite, et quinze de plus pour un sans-faute.",
       },
     },
 

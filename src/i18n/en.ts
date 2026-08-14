@@ -1380,7 +1380,8 @@ const en = {
     points_one: "{{count}} point",
     points_other: "{{count}} points",
     progress: "{{done}} of {{total}}",
-    noTakingBack: "An answer once laid down is not taken back.",
+    noTakingBack:
+      "An answer once laid down is not taken back — unless a power is spent on it, once.",
     allAnswered: "Every question is answered.",
     finish: "FINISH",
     finishNote: "Finishing uncovers the corrections, and closes the quiz for good.",
@@ -1798,7 +1799,7 @@ const en = {
       },
       given: {
         title: "The ones you were given",
-        body: "Open one and it begins. You answer whenever you like, over as many sittings as you like — but an answer once laid down is not taken back, and once finished it is not played again.",
+        body: "Open one and it begins. You answer whenever you like, over as many sittings as you like. An answer once laid down is not taken back — unless a power bought at the counter is spent on it, once per question, and the retake stays marked for the other players. Once finished it is not played again.",
       },
       playing: {
         title: "One question at a time",
@@ -1810,7 +1811,7 @@ const en = {
       },
       scores: {
         title: "The scores",
-        body: "Nothing is stored: the score is recomputed from the answers, every time. The bar reads against what the whole quiz is worth, not against the best score — otherwise an evening where everybody floundered would look like a triumph. A pale bar is somebody who has not finished.",
+        body: "Nothing is stored: the score is recomputed from the answers, every time. The bar reads against what the whole quiz is worth, not against the best score — otherwise an evening where everybody floundered would look like a triumph. A pale bar is somebody who has not finished. Finishing a game earns its score in merit, and fifteen more for a flawless run.",
       },
     },
 
