@@ -80,12 +80,22 @@ export function useWallFiling(
     setOpen(null);
   };
 
-  const choose = (id: string) =>
-    setChosen((was) => {
-      const next = new Set(was);
-      if (!next.delete(id)) next.add(id);
-      return next;
-    });
+  const choose = useCallback(
+    (id: string) =>
+      setChosen((was) => {
+        const next = new Set(was);
+        if (!next.delete(id)) next.add(id);
+        return next;
+      }),
+    []
+  );
+
+  const openFor = useCallback(
+    (id: string | null, at?: DOMRect) => setOpen(id && at ? { id, at } : null),
+    []
+  );
+
+  const onFile = useCallback((film: Film, at: DOMRect) => setOpen({ id: film.id, at }), []);
 
   /* CHOISIR N'EST PAS UNE FONCTION DE SERVEUR. Ce garde-fou renvoyait
      tout à `null` tant que « mes listes » n'avait pas répondu — donc la
@@ -101,14 +111,24 @@ export function useWallFiling(
   const picked = [...chosen].map((id) => byId.get(id)).filter((f): f is Film => !!f);
   const openFilm = open ? byId.get(open.id) : undefined;
 
-  const bundle: Filing = {
-    openFor: open?.id ?? null,
-    onOpenFor: (id, at) => setOpen(id && at ? { id, at } : null),
-    label: t("lists.fileThis"),
-    selecting,
-    chosen,
-    onChoose: choose,
-  };
+  /* THE BUNDLE IS MEMOISED, AND IT IS NOT A DETAIL.
+     It goes down to every card on the wall, and a fresh object literal
+     at each render made `FilmPolaroid`'s `memo` a pure formality — one
+     letter typed in the search redrew five hundred cards, gradients,
+     shadows and rotations included. Which is also why the three
+     functions above are held rather than written here. */
+  const fileThis = t("lists.fileThis");
+  const bundle: Filing = useMemo(
+    () => ({
+      openFor: open?.id ?? null,
+      onOpenFor: openFor,
+      label: fileThis,
+      selecting,
+      chosen,
+      onChoose: choose,
+    }),
+    [open?.id, openFor, fileThis, selecting, chosen, choose]
+  );
 
   /* ONE PANEL FOR THE WHOLE WALL, in a layer, placed from the badge that
      opened it. Hung inside its card it was clipped by the grid, and a
@@ -251,17 +271,14 @@ export function useWallFiling(
     </>
   );
 
-  return {
-    bundle,
-    bar,
-    panel,
-    /* The shelf raises the SAME panel by the same means — one film,
-       anchored to the badge that asked. It is the badge on the wall that
-       is threaded as a prop and the one on the shelf that is read from a
-       context; what they open is one object. */
-    context: {
-      label: t("lists.fileThis"),
-      onFile: (film, at) => setOpen({ id: film.id, at }),
-    },
-  };
+  /* The shelf raises the SAME panel by the same means — one film,
+     anchored to the badge that asked. It is the badge on the wall that
+     is threaded as a prop and the one on the shelf that is read from a
+     context; what they open is one object.
+
+     Memoised for the same reason as the bundle: a context value rebuilt
+     at every render re-renders every case on the shelf that reads it. */
+  const context: FilingHere = useMemo(() => ({ label: fileThis, onFile }), [fileThis, onFile]);
+
+  return { bundle, bar, panel, context };
 }

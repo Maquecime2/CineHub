@@ -165,6 +165,20 @@ const library: Tour = {
       placement: "bottom",
       optional: true,
     },
+    /* LE CARNET, QUI N'EST PLUS UN ONGLET. Il avait sa visite à lui,
+       pour une pastille permanente du rail et une seule étape. Il
+       s'ouvre maintenant en tiroir depuis la barre du classeur, et sa
+       phrase se dit ici, dans la visite de la vue d'où on le tire.
+
+       Elle vise le BOUTON et non le tiroir : le tiroir n'est pas ouvert
+       quand la visite passe, et la visite ne l'ouvre pas — elle montre
+       où il se trouve, ce qui est précisément ce qu'on ne devine plus
+       depuis qu'il a quitté le rail. */
+    {
+      target: at("notebook-open"),
+      ...says("library", "notebook"),
+      placement: "bottom",
+    },
   ],
 };
 
@@ -397,17 +411,6 @@ const almanac: Tour = {
   ],
 };
 
-const notebook: Tour = {
-  label: label("notebook"),
-  steps: [
-    {
-      target: at("notebook-new"),
-      ...says("notebook", "new"),
-      placement: "right",
-    },
-  ],
-};
-
 const importTour: Tour = {
   label: label("import"),
   steps: [
@@ -495,7 +498,9 @@ const global: Tour = {
     ...from("reco", reco, "reco-maison"),
     ...from("constellation", constellation, "constellation-start", "constellation-teams"),
     ...from("almanac", almanac, "almanac-year"),
-    ...from("notebook", notebook, "notebook-new"),
+    /* Le carnet se prend dans la visite du classeur, puisqu'il s'y
+       ouvre : il n'a plus d'onglet, donc plus de visite à lui. */
+    ...from("library", library, "notebook-open"),
     ...from("import", importTour, "import-drop", "import-backup"),
     {
       target: at("add-film"),
@@ -821,7 +826,6 @@ export const TOURS: Record<string, Tour> = Object.fromEntries(
     reco,
     constellation,
     almanac,
-    notebook,
     import: importTour,
     thread,
     lists,

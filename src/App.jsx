@@ -1,4 +1,13 @@
-import { useState, useEffect, useMemo, useRef, useLayoutEffect, useCallback } from "react";
+import {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useLayoutEffect,
+  useCallback,
+  lazy,
+  Suspense,
+} from "react";
 import { pruneOrphans } from "./db";
 import { CAT_KEYS } from "./shelf-views";
 import { C, F, FONT_IMPORT } from "./theme/tokens";
@@ -15,7 +24,10 @@ import { store, KEYS } from "./services/storage";
 import { loadFilms, knownCollection, saveFilms, forgetCache } from "./services/collection";
 import { PaperGrain } from "./components/atmosphere";
 import { FilmModal } from "./components/film/FilmModal";
-import { FolderTabs } from "./components/layout/FolderTabs";
+import { useTranslation } from "react-i18next";
+import { NotebookPen } from "lucide-react";
+import { FolderTabs, SubTabs, groupOf } from "./components/layout/FolderTabs";
+import { NotebookDrawer } from "./components/layout/NotebookDrawer";
 import { useViewport } from "./hooks/useViewport";
 import { usePointerDrag } from "./hooks/usePointerDrag";
 import { SkinPicker } from "./components/layout/SkinPicker";
@@ -31,26 +43,46 @@ import { useInstallation } from "./hooks/useInstallation";
 import { useRegisterSW } from "virtual:pwa-register/react";
 import { SearchDrawer } from "./components/layout/SearchDrawer";
 import { WALLS } from "./views/library/walls";
-import { NotebookView } from "./views/NotebookView";
-import { CreditsView } from "./views/CreditsView";
-import { RecoView } from "./views/RecoView";
-import { DetailView } from "./views/DetailView";
-import { ImportView } from "./views/import/ImportView";
-import { ThreadView } from "./views/ThreadView";
-import { ListsView } from "./views/ListsView";
-import { QuizView } from "./views/QuizView";
-import { CounterView } from "./views/CounterView";
 import { viewKey, saveViewIndex, deleteViewKey, ensureViews } from "./services/shelfViews";
-import { ConstellationView } from "./views/ConstellationView";
 import { LibraryView } from "./views/library/LibraryView";
-import { AlmanacView } from "./views/AlmanacView";
-import { SkinLab } from "./views/dev/SkinLab";
+import { DetailView } from "./views/DetailView";
+
 import { useNotes } from "./hooks/useNotes";
 import { useShelfViews } from "./hooks/useShelfViews";
 import { TourOverlay, TourHint, TourMenu } from "./components/tour";
 import { isFirstRun, shouldHint, shouldSeed, markSeeded } from "./services/onboarding";
 import { binderStillDemo, demoFilms, demoNotes, withoutDemo, DEMO_PREFIX } from "./services/demo";
 import { DemoBanner } from "./components/layout/DemoBanner";
+
+/* ============================================================
+   UNE VUE NE SE CHARGE QUE SI ON Y VA
+   ============================================================
+
+   Les treize vues étaient importées ici, donc rassemblées dans un seul
+   paquet de neuf cent quarante kilo-octets, donc payées EN ENTIER au
+   premier écran — l'almanach, la constellation et les quizz compris,
+   par quelqu'un qui n'y mettra peut-être jamais les pieds. Sur un
+   téléphone en 4G, c'est la vidéothèque qui attend le quizz.
+
+   Deux restent en dur, et c'est délibéré : le classeur est ce qu'on
+   ouvre, et la fiche est ce qu'on ouvre juste après. Les découper
+   n'économiserait rien et ajouterait une attente au geste le plus
+   fréquent de l'application.
+
+   Les vues exportent leur composant sous leur nom et non par défaut ;
+   `lazy` veut un `default`, d'où le petit passage de l'un à l'autre. */
+const lazyView = (load, name) => lazy(() => load().then((m) => ({ default: m[name] })));
+
+const CreditsView = lazyView(() => import("./views/CreditsView"), "CreditsView");
+const RecoView = lazyView(() => import("./views/RecoView"), "RecoView");
+const ImportView = lazyView(() => import("./views/import/ImportView"), "ImportView");
+const ThreadView = lazyView(() => import("./views/ThreadView"), "ThreadView");
+const ListsView = lazyView(() => import("./views/ListsView"), "ListsView");
+const QuizView = lazyView(() => import("./views/QuizView"), "QuizView");
+const CounterView = lazyView(() => import("./views/CounterView"), "CounterView");
+const ConstellationView = lazyView(() => import("./views/ConstellationView"), "ConstellationView");
+const AlmanacView = lazyView(() => import("./views/AlmanacView"), "AlmanacView");
+const SkinLab = lazyView(() => import("./views/dev/SkinLab"), "SkinLab");
 
 /* The original kraft, for the very first render — before a skin has been
    applied. The same recipe lives in `theme/skins`, under the "carnet"
@@ -145,6 +177,9 @@ export default function App() {
   }, []);
 
   const [skin, setSkin] = useState(loadSkinKey);
+  const { t } = useTranslation();
+  /* Le carnet est un tiroir, plus un onglet : voir `NotebookDrawer`. */
+  const [notebookOpen, setNotebook] = useState(false);
   const [skinPicker, setSkinPicker] = useState(false);
   /* The language lives in i18next, not in React: `setLanguage` writes it
      there, and `useTranslation` re-renders whoever reads a sentence. This
@@ -309,6 +344,17 @@ export default function App() {
     setSelectedId(null);
   }, []);
 
+  /* OPENING A FILM'S FOLDER — one function, and it is HELD.
+     Five views were each writing the same two lines as an inline arrow,
+     so every one of them received a brand-new `onOpen` at every render
+     of this component. That prop travels all the way down to each card
+     of the wall, where it defeated the memoisation that is supposed to
+     keep five hundred of them from redrawing together. */
+  const openFilm = useCallback((id) => {
+    setSelectedId(id);
+    setView("detail");
+  }, []);
+
   /* The counterpart of `visiteOuvreVue`, one notch lower: the film
      folder's tab. Stable for the same reason — the tour uses it inside
      an effect, and a function rebuilt on every render would restart it
@@ -463,7 +509,13 @@ export default function App() {
       setPerson(key);
       setView("credits");
     },
-    page: () => setView("notebook"),
+    /* Une page du carnet trouvée par la recherche : le carnet n'étant
+       plus une vue, on revient au classeur et on tire le tiroir. */
+    page: () => {
+      setSelectedId(null);
+      setView("library");
+      setNotebook(true);
+    },
     motif: (label) => {
       setSelectedId(null);
       setUiFor("watched")({ ...wallUi.watched, q: label });
@@ -754,6 +806,10 @@ export default function App() {
           setPerson(null);
         }}
         onAdd={() => setShowModal(true)}
+        onImport={() => {
+          setView("import");
+          setSelectedId(null);
+        }}
         onSearch={() => setSearch(true)}
         onSkin={() => setSkinPicker(true)}
         onLanguage={() => setLanguagePicker(true)}
@@ -823,139 +879,174 @@ export default function App() {
           first render. The key also carries the open card — moving from
           one film to another through the red thread is a change of page,
           and must read as one. */}
-      <div
-        data-enters
-        key={`${view}:${selectedId || who || ""}`}
-        style={{ flex: 1, minWidth: 0, position: "relative", zIndex: 2 }}
-      >
-        {view === "library" && !selectedId && (
-          <LibraryView
-            onDeleteFilms={deleteFilms}
-            wall="watched"
-            films={watched}
-            ui={wallUi.watched}
-            setUi={setUiFor("watched")}
-            onUpdateMany={updateMany}
-            {...viewProps("watched")}
-            onOpen={(id) => {
-              setSelectedId(id);
-              setView("detail");
-            }}
-          />
-        )}
-        {view === "watchlist" && !selectedId && (
-          <LibraryView
-            onDeleteFilms={deleteFilms}
-            wall="watchlist"
-            films={watchlist}
-            allFilms={films}
-            ui={wallUi.watchlist}
-            setUi={setUiFor("watchlist")}
-            onUpdateMany={updateMany}
-            {...viewProps("watchlist")}
-            onOpen={(id) => {
-              setSelectedId(id);
-              setView("detail");
-            }}
-          />
-        )}
-        {view === "detail" && selectedFilm && (
-          <DetailView
-            film={selectedFilm}
-            films={films}
-            signedIn={!!synchro.person}
-            /* THE TAB IS HELD HERE, as the view already is: the guided
+      {/* LA COLONNE, ET LA BARRE QUI NE TOURNE PAS AVEC ELLE.
+
+          Les sous-onglets se rendent AU-DESSUS de `[data-enters]` et non
+          dedans : cette colonne rejoue son animation d'entrée à chaque
+          changement de page, et une barre placée dedans se redessinerait
+          sous la main à chaque clic. Or elle est exactement ce qui reste
+          en place pendant qu'on tourne les pages du groupe. */}
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+        <SubTabs
+          view={view}
+          setView={setView}
+          /* LE CARNET S'OUVRE D'ICI, et n'est plus une vue. Il tient sa
+             place dans la barre du classeur — parmi les pages qu'on
+             écrit sur sa collection — mais il ouvre un tiroir : ce sont
+             quelques pages libres, pas un onglet permanent du rail. */
+          extra={
+            groupOf(view)?.key === "binder" ? (
+              <button
+                data-tour="notebook-open"
+                onClick={() => setNotebook(true)}
+                title={t("notebook.title")}
+                style={{
+                  all: "unset",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  marginLeft: "auto",
+                  padding: "6px 2px 8px",
+                  fontFamily: F.mono,
+                  fontSize: 10.5,
+                  letterSpacing: 1.2,
+                  textTransform: "uppercase",
+                  color: C.pine,
+                }}
+              >
+                <NotebookPen size={12} /> {t("notebook.title")}
+              </button>
+            ) : null
+          }
+        />
+        <div
+          data-enters
+          key={`${view}:${selectedId || who || ""}`}
+          style={{ flex: 1, minWidth: 0, position: "relative", zIndex: 2 }}
+        >
+          {/* L'ATTENTE EST UNE PAGE DE PAPIER, PAS UN TOURNIQUET.
+            Une vue chargée à la demande met quelques dizaines de
+            millisecondes à arriver, et ce qu'on met dans ce trou est vu
+            à chaque premier passage sur un onglet. Un rond qui tourne y
+            serait la seule pièce d'interface venue d'ailleurs, dans une
+            application qui est un carnet. Une feuille vide de la hauteur
+            de la colonne ne dit rien, ce qui est exactement ce qu'il y a
+            à dire pendant si peu de temps — et surtout elle ne fait pas
+            sauter la mise en page en arrivant. */}
+          <Suspense fallback={<div style={{ minHeight: "60vh" }} aria-hidden />}>
+            {view === "library" && !selectedId && (
+              <LibraryView
+                onDeleteFilms={deleteFilms}
+                wall="watched"
+                films={watched}
+                ui={wallUi.watched}
+                setUi={setUiFor("watched")}
+                onUpdateMany={updateMany}
+                {...viewProps("watched")}
+                onOpen={openFilm}
+              />
+            )}
+            {view === "watchlist" && !selectedId && (
+              <LibraryView
+                onDeleteFilms={deleteFilms}
+                wall="watchlist"
+                films={watchlist}
+                allFilms={films}
+                ui={wallUi.watchlist}
+                setUi={setUiFor("watchlist")}
+                onUpdateMany={updateMany}
+                {...viewProps("watchlist")}
+                onOpen={openFilm}
+              />
+            )}
+            {view === "detail" && selectedFilm && (
+              <DetailView
+                film={selectedFilm}
+                films={films}
+                signedIn={!!synchro.person}
+                /* THE TAB IS HELD HERE, as the view already is: the guided
                tour must be able to open "Links" before going there to
                find the red thread. See `visiteOuvreOnglet`. */
-            tab={detailTab}
-            onTab={setDetailTab}
-            onBack={() => {
-              setView(backView);
-              setSelectedId(null);
-            }}
-            /* `credits.` AND NOT `detail.`: the sentence has always lived
+                tab={detailTab}
+                onTab={setDetailTab}
+                onBack={() => {
+                  setView(backView);
+                  setSelectedId(null);
+                }}
+                /* `credits.` AND NOT `detail.`: the sentence has always lived
                  with the credits, and this asked for it under the card's
                  own heading — so the back link read
                  "detail.backToCredits", in full, on screen. */
-            backTo={who ? i18n.t("credits.backToCredits") : undefined}
-            onUpdate={updateFilm}
-            onDelete={deleteFilm}
-            onLinkFilm={linkFilms}
-            onRemoveLink={removeLink}
-            onEditLink={editLink}
-            onMakeThread={makeThreadFromMotif}
-            vocabulary={vocabulary}
-            onCreateMotif={createMotif}
-            onDeleteMotif={deleteMotif}
-            onHideMotif={hideMotif}
-            onOpen={(id) => setSelectedId(id)}
-            onOpenPerson={openPerson}
-            onAddToWatchlist={addFilm}
-          />
-        )}
-        {view === "credits" && (
-          <CreditsView
-            films={films}
-            who={who}
-            onOpenPerson={setPerson}
-            onOpen={(id) => {
-              setSelectedId(id);
-              setView("detail");
-            }}
-            onAddToWatchlist={addFilm}
-          />
-        )}
-        {view === "reco" && (
-          <RecoView
-            films={films}
-            onAddToWatchlist={addFilm}
-            onOpen={(id) => {
-              setSelectedId(id);
-              setView("detail");
-            }}
-          />
-        )}
-        {view === "constellation" && (
-          <ConstellationView
-            films={constellationFilms}
-            fils={fils}
-            onLinkFilm={linkFilms}
-            onOpen={(id) => {
-              setSelectedId(id);
-              setView("detail");
-            }}
-          />
-        )}
-        {view === "notebook" && (
-          <NotebookView
-            notes={notebook.notes}
-            onAdd={notebook.add}
-            onUpdate={notebook.update}
-            onDelete={notebook.remove}
-          />
-        )}
-        {/* The almanac reads the screening log: so it looks at the cards
+                backTo={who ? i18n.t("credits.backToCredits") : undefined}
+                onUpdate={updateFilm}
+                onDelete={deleteFilm}
+                onLinkFilm={linkFilms}
+                onRemoveLink={removeLink}
+                onEditLink={editLink}
+                onMakeThread={makeThreadFromMotif}
+                vocabulary={vocabulary}
+                onCreateMotif={createMotif}
+                onDeleteMotif={deleteMotif}
+                onHideMotif={hideMotif}
+                onOpen={(id) => setSelectedId(id)}
+                onOpenPerson={openPerson}
+                onAddToWatchlist={addFilm}
+              />
+            )}
+            {view === "credits" && (
+              <CreditsView
+                films={films}
+                who={who}
+                onOpenPerson={setPerson}
+                onOpen={openFilm}
+                onAddToWatchlist={addFilm}
+              />
+            )}
+            {view === "reco" && (
+              <RecoView films={films} onAddToWatchlist={addFilm} onOpen={openFilm} />
+            )}
+            {view === "constellation" && (
+              <ConstellationView
+                films={constellationFilms}
+                fils={fils}
+                onLinkFilm={linkFilms}
+                onOpen={openFilm}
+              />
+            )}
+            {/* The almanac reads the screening log: so it looks at the cards
             WATCHED, including those set aside in the reserve — having
             archived them does not make them unwatched. */}
-        {view === "almanac" && <AlmanacView films={watched} onOpenPerson={openPerson} />}
-        {view === "thread" && <ThreadView connected={!!synchro.person} />}
-        {view === "lists" && <ListsView connected={!!synchro.person} />}
-        {view === "quiz" && <QuizView connected={!!synchro.person} />}
-        {view === "counter" && <CounterView connected={!!synchro.person} />}
-        {view === "skinlab" && import.meta.env.DEV && <SkinLab />}
-        {view === "import" && (
-          <ImportView
-            onImport={importFilms}
-            films={films}
-            notes={notebook.notes}
-            dividers={dividers}
-            views={views}
-            fils={fils}
-            motifs={vocabulary}
-            onRestore={restoreBackup}
-          />
-        )}
+            {view === "almanac" && <AlmanacView films={watched} onOpenPerson={openPerson} />}
+            {view === "thread" && <ThreadView connected={!!synchro.person} />}
+            {view === "lists" && <ListsView connected={!!synchro.person} />}
+            {view === "quiz" && <QuizView connected={!!synchro.person} />}
+            {view === "counter" && <CounterView connected={!!synchro.person} />}
+            {view === "skinlab" && import.meta.env.DEV && <SkinLab />}
+            {view === "import" && (
+              <ImportView
+                onImport={importFilms}
+                films={films}
+                notes={notebook.notes}
+                dividers={dividers}
+                views={views}
+                fils={fils}
+                motifs={vocabulary}
+                onRestore={restoreBackup}
+              />
+            )}
+          </Suspense>
+        </div>
       </div>
+      {notebookOpen && (
+        <NotebookDrawer
+          notes={notebook.notes}
+          onAdd={notebook.add}
+          onUpdate={notebook.update}
+          onDelete={notebook.remove}
+          onClose={() => setNotebook(false)}
+        />
+      )}
       {showModal && <FilmModal onClose={() => setShowModal(false)} onSave={addFilm} />}
 
       {/* THE TOUR, outside the animated column.

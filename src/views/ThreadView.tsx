@@ -29,9 +29,8 @@ import { STAMP_INK, stampLabel } from "../components/play/stamps";
 import { PosterArt } from "../components/film/PosterArt";
 import { initialsOf } from "../domain/film";
 import { tiltOf } from "../domain/seeded";
+import { feed } from "../hooks/useHall";
 import {
-  readFeed,
-  mySubscriptions,
   unfollow,
   profileOf,
   serverConfigured,
@@ -48,16 +47,26 @@ export function ThreadView({ connected }: { connected: boolean }) {
   const [trouve, setTrouve] = useState<Profile | null>(null);
   const [souci, setSouci] = useState<string | null>(null);
 
+  /* SERVI DE MÉMOIRE À L'ENTRÉE, REDEMANDÉ APRÈS UN GESTE. `App` démonte
+     la vue à chaque changement d'onglet : sans cela, un aller-retour au
+     comptoir relisait le fil entier. Voir `hooks/useHall`. */
+  const show = useCallback((d: { subscriptions: Profile[]; news: NewsItem[] }) => {
+    setAbonnements(d.subscriptions);
+    setNouvelles(d.news);
+  }, []);
+
   const reread = useCallback(async () => {
     if (!connected) return;
-    const [a, f] = await Promise.all([mySubscriptions(), readFeed()]);
-    setAbonnements(a.subscriptions);
-    setNouvelles(f.news);
-  }, [connected]);
+    show(await feed.refresh());
+  }, [connected, show]);
 
   useEffect(() => {
-    reread().catch(() => setNouvelles([]));
-  }, [reread]);
+    if (!connected) return;
+    feed
+      .load()
+      .then(show)
+      .catch(() => setNouvelles([]));
+  }, [connected, show]);
 
   if (!serverConfigured()) {
     return (

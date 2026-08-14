@@ -9,7 +9,7 @@
    The look is OPTIONAL, and its absence means "as before": the card also
    serves elsewhere than on the wall (the discoveries), and those places
    asked for nothing. */
-import { useRef, useState } from "react";
+import { memo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ListPlus, Check } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
@@ -29,7 +29,18 @@ import {
 } from "../../views/library/wallLook";
 import type { Film } from "../../types";
 
-export function FilmPolaroid({
+/* MEMOISED, LIKE THE POSTER INSIDE IT.
+
+   Nothing here depends on anything but its props, and the wall re-renders
+   for reasons that concern one card at a time at most — a letter typed in
+   the search, a badge opened, a film chosen. Without this, each of those
+   redrew every mounted card, gradients, shadows and rotations included.
+
+   The bargain only holds if the props are STABLE: an object or an arrow
+   rebuilt at every render defeats it silently. That is why `Filing`
+   travels as one memoised bundle (`useWallFiling`) and why the wall's
+   handlers are held rather than written inline. */
+export const FilmPolaroid = memo(function FilmPolaroid({
   film,
   onClick,
   look = NEUTRAL_WALL_LOOK,
@@ -114,8 +125,12 @@ export function FilmPolaroid({
   const bare = hang === "none";
 
   const initials = initialsOf(film.title);
-  // the shadow falls opposite the tilt — the photo is not pressed flat
-  const rest = `${tilt > 0 ? -3 : 3}px 7px 15px rgba(30,20,10,0.3), 0 1px 2px rgba(30,20,10,0.4)`;
+  /* The shadow falls opposite the tilt — the photo is not pressed flat.
+     AT REST IT IS ONE SHADOW, NOT TWO. The second, a one-pixel contact
+     line, is invisible under a fifteen-pixel blur and cost a whole extra
+     shadow pass on each of five hundred cards. Under the hand, where
+     there is one card, the pair is kept: that is a moment. */
+  const rest = `${tilt > 0 ? -3 : 3}px 7px 15px rgba(30,20,10,0.34)`;
   const lift = `${tilt > 0 ? -6 : 6}px 18px 30px rgba(30,20,10,0.38), 0 2px 3px rgba(30,20,10,0.3)`;
 
   /* The gap to the neighbour below is the SAME as the one to the right
@@ -186,7 +201,10 @@ export function FilmPolaroid({
         )}
         {/* `lazy`: a card rarely appears alone — the wall lines up five
             hundred of them, and Discoveries forty. */}
-        <PosterArt film={film} height={px(150)} initials={initials} lazy />
+        {/* The width is the card's inner one — the column minus the two
+            paddings — so the browser can pick the poster size it will
+            actually draw rather than the biggest one that exists. */}
+        <PosterArt film={film} height={px(150)} width={px(186)} initials={initials} lazy />
         <div style={{ paddingTop: px(14), textAlign: "left" }}>
           <div
             style={{
@@ -371,4 +389,4 @@ export function FilmPolaroid({
       )}
     </div>
   );
-}
+});

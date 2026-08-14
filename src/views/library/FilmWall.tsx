@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { FilmPolaroid } from "../../components/film/FilmPolaroid";
 import { DEFAULT_WALL_LOOK, scaleOf, gapOf, type WallLook } from "./wallLook";
 import type { Film } from "../../types";
@@ -50,7 +50,7 @@ const EDGE_MARGIN = "900px";
    brings back, and a wall of forty cards has never struggled. */
 const THRESHOLD = 60;
 
-function Cell({
+const Cell = memo(function Cell({
   film,
   look,
   onOpen,
@@ -98,7 +98,7 @@ function Cell({
       {emptiedAt == null && <Card film={film} look={look} onOpen={onOpen} filing={filing} />}
     </div>
   );
-}
+});
 
 /* ------------------------------------------------------------
    FILING, SEEN FROM THE WALL
@@ -119,7 +119,15 @@ export interface Filing {
   onChoose: (id: string) => void;
 }
 
-function Card({
+/* MEMOISED, and its two handlers HELD.
+
+   `FilmPolaroid` is memoised too, and that is worth nothing if what one
+   hands it is rebuilt at every render. Written inline, `onClick` and
+   `onFile` were new functions on every pass — so every letter typed in
+   the search redrew all the mounted cards. The chain only holds end to
+   end: `films` keeps its objects, `Filing` is memoised in
+   `useWallFiling`, `onOpen` is held in `App`, and these two here. */
+const Card = memo(function Card({
   film,
   look,
   onOpen,
@@ -130,25 +138,39 @@ function Card({
   onOpen: (id: string) => void;
   filing?: Filing;
 }) {
-  if (!filing) return <FilmPolaroid film={film} look={look} onClick={() => onOpen(film.id)} />;
+  const id = film.id;
+  const open = filing?.openFor === id;
+  const selecting = filing?.selecting ?? false;
+  const onChoose = filing?.onChoose;
+  const onOpenFor = filing?.onOpenFor;
 
-  const open = filing.openFor === film.id;
+  /* WHILE CHOOSING, A CARD NO LONGER OPENS — it is picked. Keeping both
+     on the same click would make every choice a coin toss between
+     choosing and leaving the wall. */
+  const click = useCallback(
+    () => (selecting && onChoose ? onChoose(id) : onOpen(id)),
+    [selecting, onChoose, onOpen, id]
+  );
+  const file = useCallback(
+    (at: DOMRect) => onOpenFor?.(open ? null : id, at),
+    [onOpenFor, open, id]
+  );
+
+  if (!filing) return <FilmPolaroid film={film} look={look} onClick={click} />;
+
   return (
     <FilmPolaroid
       film={film}
       look={look}
-      /* WHILE CHOOSING, A CARD NO LONGER OPENS — it is picked. Keeping
-         both on the same click would make every choice a coin toss
-         between choosing and leaving the wall. */
-      onClick={() => (filing.selecting ? filing.onChoose(film.id) : onOpen(film.id))}
-      onFile={(at) => filing.onOpenFor(open ? null : film.id, at)}
+      onClick={click}
+      onFile={file}
       fileLabel={filing.label}
       fileOpen={open}
       selecting={filing.selecting}
       selected={filing.chosen.has(film.id)}
     />
   );
-}
+});
 
 export function FilmWall({
   films,

@@ -895,13 +895,32 @@ const fr = {
     reco: "Découvertes",
     constellation: "Constellation",
     almanac: "Almanach",
-    notebook: "Carnet",
     import: "Import Letterboxd",
     thread: "Le fil",
     lists: "Listes et défis",
     quiz: "Quizz",
     counter: "Le comptoir",
     skinlab: "Peaux ⚙",
+  },
+
+  /* Les trois familles du rail. Un groupe se nomme par ce qu'il
+     CONTIENT, jamais par le verbe qu'on y fait : « le classeur » dit ce
+     qu'on possède, et les trois vues dessous en sont les angles. */
+  groups: {
+    binder: "Le classeur",
+    explore: "Explorer",
+    hall: "Le hall",
+  },
+
+  notebook: {
+    title: "Le carnet",
+    stamp: "CARNET",
+    subtitle: "des pensées libres, qui n'appartiennent à aucun film en particulier",
+    add: "AJOUTER LA PAGE",
+    titlePlaceholder: "Titre de la note",
+    bodyPlaceholder: "Écrivez librement…",
+    untitled: "Sans titre",
+    empty: "le carnet attend sa première page…",
   },
 
   counter: {
@@ -1670,6 +1689,10 @@ const fr = {
         title: "Plusieurs films d'un coup",
         body: "« Choisir » change ce que fait un clic : les affiches se cochent au lieu de s'ouvrir, et une barre en bas range toute la sélection dans la même liste. Les films sans identité TMDB restent dehors, et la barre le dit plutôt que de les taire.",
       },
+      notebook: {
+        title: "Le carnet",
+        body: "Des pages libres, qui n'appartiennent à aucun film : une idée, une liste à faire, ce qu'on s'est dit en sortant. Elles s'ouvrent en tiroir depuis cette barre, se retrouvent dans la recherche qui traverse tout, et partent avec la sauvegarde.",
+      },
     },
 
     watchlist: {
@@ -1809,14 +1832,6 @@ const fr = {
       export: {
         title: "L'année en boîte",
         body: "Une image de l'année, à garder ou à montrer. C'est la seule chose d'ici qui sorte du navigateur. Elle est bâtie autour d'un millésime : sur « toujours », le bouton s'efface.",
-      },
-    },
-
-    notebook: {
-      label: "Le carnet",
-      new: {
-        title: "Une page libre",
-        body: "Des pensées qui n'appartiennent à aucun film en particulier. Les pages s'éditent sur place, et se rangent de la plus récente à la plus ancienne.",
       },
     },
 

@@ -872,13 +872,31 @@ const en = {
     reco: "Discoveries",
     constellation: "Constellation",
     almanac: "Almanac",
-    notebook: "Notebook",
     import: "Letterboxd import",
     thread: "The feed",
     lists: "Lists and challenges",
     quiz: "Quizzes",
     counter: "The counter",
     skinlab: "Skins ⚙",
+  },
+
+  /* The rail's three families. A group is named after what it HOLDS,
+     never after the verb one does in it. */
+  groups: {
+    binder: "The binder",
+    explore: "Explore",
+    hall: "The hall",
+  },
+
+  notebook: {
+    title: "The notebook",
+    stamp: "NOTEBOOK",
+    subtitle: "free thoughts, belonging to no film in particular",
+    add: "ADD THE PAGE",
+    titlePlaceholder: "Title of the note",
+    bodyPlaceholder: "Write freely…",
+    untitled: "Untitled",
+    empty: "the notebook is waiting for its first page…",
   },
 
   counter: {
@@ -1616,6 +1634,10 @@ const en = {
         title: "Several films at once",
         body: "“Choose” changes what a click does: posters tick instead of opening, and a bar at the foot files the whole selection into the same list. Films with no TMDB identity stay out, and the bar says so rather than passing over them.",
       },
+      notebook: {
+        title: "The notebook",
+        body: "Free pages, belonging to no film: an idea, a list to make, what you said to each other on the way out. They open as a drawer from this bar, are found again by the search that crosses everything, and leave with the backup.",
+      },
     },
 
     watchlist: {
@@ -1755,14 +1777,6 @@ const en = {
       export: {
         title: "The year in a box",
         body: "An image of the year, to keep or to show. It is the only thing here that leaves the browser. It is built around a vintage: on “ever”, the button fades away.",
-      },
-    },
-
-    notebook: {
-      label: "The notebook",
-      new: {
-        title: "A free page",
-        body: "Thoughts that belong to no film in particular. Pages are edited in place, and are filed from the most recent to the oldest.",
       },
     },
 

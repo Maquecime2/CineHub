@@ -182,8 +182,12 @@ body { background: ${C.paper}; }
    nothing — the edge of a binder has none — and it would eat eleven of
    the rail's forty-six pixels of width. We remove it without removing
    the scrolling: the wheel and the keyboard still work. */
-[data-tab-rail] { scrollbar-width: none; }
-[data-tab-rail]::-webkit-scrollbar { width: 0; height: 0; }
+/* [data-tab-actions] est la même chose au pied du rail : sur téléphone,
+   ce sont LES ACTIONS qui défilent, et non plus les onglets. Voir
+   FolderTabs — et pas d'accent grave dans ce bloc, il est lui-même
+   écrit dans un gabarit de chaîne. */
+[data-tab-rail], [data-tab-actions] { scrollbar-width: none; }
+[data-tab-rail]::-webkit-scrollbar, [data-tab-actions]::-webkit-scrollbar { width: 0; height: 0; }
 
 /* the wheel scrolls a folder, not a web page */
 ::-webkit-scrollbar { width: 11px; height: 11px; }

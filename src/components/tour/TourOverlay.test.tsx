@@ -46,13 +46,17 @@ function layTargets(tourId: string) {
 }
 
 describe("the tour unrolls", () => {
+  /* L'ALMANACH ET NON LE CARNET. Le carnet servait ici parce qu'il
+     n'avait qu'une étape ; il n'a plus de visite du tout depuis qu'il
+     est un tiroir du classeur et non plus un onglet. L'almanach le
+     remplace : trois étapes, aucune qui demande un serveur. */
   it("opens the first step and counts the ones after", async () => {
-    layTargets("notebook");
-    render(<TourOverlay tourId="notebook" onClose={vi.fn()} onView={vi.fn()} />);
+    layTargets("almanac");
+    render(<TourOverlay tourId="almanac" onClose={vi.fn()} onView={vi.fn()} />);
 
-    const step = TOURS.notebook!.steps[0]!;
+    const step = TOURS.almanac!.steps[0]!;
     expect(await screen.findByText(said(step.title))).toBeInTheDocument();
-    expect(screen.getByText(`1 / ${TOURS.notebook!.steps.length}`)).toBeInTheDocument();
+    expect(screen.getByText(`1 / ${TOURS.almanac!.steps.length}`)).toBeInTheDocument();
   });
 
   it("goes forward, comes back, and offers no way back from the first step", async () => {
@@ -73,13 +77,19 @@ describe("the tour unrolls", () => {
   /* Finishing and abandoning do NOT write the same thing: that is what
      decides whether the reminder will appear. */
   it("finishing records the tour as taken", async () => {
-    layTargets("notebook");
+    layTargets("almanac");
     const onClose = vi.fn();
-    render(<TourOverlay tourId="notebook" onClose={onClose} onView={vi.fn()} />);
+    render(<TourOverlay tourId="almanac" onClose={onClose} onView={vi.fn()} />);
+
+    /* Jusqu'au bout, puisqu'il n'y a plus de visite d'une seule étape :
+       c'est la DERNIÈRE qui porte « TERMINER », et c'est elle qu'on
+       vient éprouver. */
+    for (let i = 1; i < TOURS.almanac!.steps.length; i++)
+      await userEvent.click(await screen.findByText("SUIVANT"));
 
     await userEvent.click(await screen.findByText("TERMINER"));
     expect(onClose).toHaveBeenCalled();
-    expect(loadOnboarding().done).toContain("notebook");
+    expect(loadOnboarding().done).toContain("almanac");
     expect(loadOnboarding().skipped).toBe(false);
   });
 

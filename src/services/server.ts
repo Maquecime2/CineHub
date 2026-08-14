@@ -68,6 +68,47 @@ interface CallOptions {
   method?: string;
   body?: string;
   headers?: Record<string, string>;
+  /** De quoi renoncer : un appelant qui part, ou le délai ci-dessous. */
+  signal?: AbortSignal;
+}
+
+/* ------------------------------------------------------------
+   AUCUNE REQUÊTE NE DURE INDÉFINIMENT
+   ------------------------------------------------------------
+
+   `fetch` n'a pas de délai. Un réseau qui accepte la connexion puis ne
+   répond jamais — un portail captif d'hôtel, une 4G qui s'éteint en
+   plein vol — laisse la promesse en suspens pour toujours, et le tour
+   de l'onglet à côté avec.
+
+   Ça comptait peu tant que chaque écran demandait pour son compte.
+   Depuis que les réponses sont mises en commun (`hooks/cachedResource`),
+   une promesse qui ne revient jamais est une promesse que TOUT LE MONDE
+   attend : la garde « quelqu'un le fait déjà » sert alors la requête
+   morte à chaque nouveau demandeur, et la vue ne se remplit plus jamais.
+   Un refus au bout de trente secondes se rattrape ; une attente sans fin,
+   non.
+
+   Trente secondes : bien au-delà de ce que met une requête lente sur un
+   réseau lent, bien en deçà de ce qu'une personne accepte de regarder. */
+const PATIENCE_MS = 30_000;
+
+/* `AbortSignal.timeout` est récent, et cette fonction est le passage
+   obligé de tout ce qui parle au serveur : là où il manque — un
+   environnement de test, un navigateur ancien — on se passe du délai
+   plutôt que de casser l'appel. */
+const patience = (): AbortSignal | undefined =>
+  typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function"
+    ? AbortSignal.timeout(PATIENCE_MS)
+    : undefined;
+
+/* Deux raisons de renoncer, un seul signal — et `AbortSignal.any` est
+   aussi récent que le précédent, d'où le repli sur celui qu'on a. */
+function giveUpOn(caller?: AbortSignal): AbortSignal | undefined {
+  const clock = patience();
+  if (!caller) return clock;
+  if (!clock) return caller;
+  return typeof AbortSignal.any === "function" ? AbortSignal.any([caller, clock]) : caller;
 }
 
 async function call<T>(path: string, options: CallOptions = {}): Promise<T> {
@@ -77,6 +118,7 @@ async function call<T>(path: string, options: CallOptions = {}): Promise<T> {
   try {
     res = await fetch(`${ADDRESS}${path}`, {
       ...options,
+      signal: giveUpOn(options.signal),
       credentials: "include",
       headers: {
         /* THE `content-type` IS ONLY SET IF THERE IS SOMETHING TO
