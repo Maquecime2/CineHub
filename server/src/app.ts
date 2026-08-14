@@ -2082,6 +2082,17 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     };
   });
 
+  /* REPARTIR DE ZÉRO SANS S'EN ALLER — le geste qui manquait entre les
+     deux autres. Le compte, le pseudonyme et les clés d'accès restent ;
+     tout ce qu'ils portaient s'en va. Voir `store.wipeEverything` pour
+     ce qui survit, et pourquoi : un blocage protège, un signalement
+     appartient à la modération. */
+  app.delete("/my-data", async (req) => {
+    const person = await requireAccount(req);
+    await store.wipeEverything(db, person.id);
+    return { erased: true, kept: ["compte", "clés d'accès", "blocages", "signalements"] };
+  });
+
   app.delete("/my-account", async (req, reply) => {
     const person = await requireAccount(req);
     await store.deletePerson(db, person.id);

@@ -2627,6 +2627,73 @@ export class ShopRefusal extends Error {}
  * the page cannot reroll a disappointing packet.
  */
 /**
+ * Tout effacer, et garder le compte.
+ *
+ * ENTRE « J'EFFACE MON COMPTOIR » ET « JE M'EN VAIS », il manquait le
+ * geste du milieu : repartir de zéro en gardant son pseudonyme et ses
+ * clés d'accès. Sans lui, essayer le classeur pour de bon obligeait à
+ * supprimer le compte et à refaire une cérémonie WebAuthn — ce qui, sur
+ * `localhost`, ne se refait pas toujours du premier coup.
+ *
+ * CE QUI PART : les fiches, les documents, les listes et ce qu'elles
+ * contiennent, les défis, les quiz tirés, les tentatives, les décors,
+ * les abonnements, et tout le comptoir.
+ *
+ * CE QUI RESTE, ET CHAQUE FOIS POUR UNE RAISON :
+ *
+ *   - `person`, `access_key`, `session` — c'est la définition du geste :
+ *     on reste soi, on ne se reconnecte pas.
+ *   - `block` — un blocage PROTÈGE. L'effacer rendrait à quelqu'un qu'on
+ *     a écarté l'accès qu'on lui avait retiré, et ce n'est pas ce qu'on
+ *     demande en voulant faire le ménage. Une remise à zéro qui
+ *     réexpose est une remise à zéro qu'on regrette.
+ *   - `report` — ce qu'on a signalé regarde la modération, pas la
+ *     personne signalée : le retirer effacerait le travail d'autrui.
+ *
+ * ET LES MÉDIAS DÉPOSÉS RESTENT DANS LE CONTAINER. Ils vivent sous
+ * `p/<id>/…`, hors base ; les effacer demande de parler à Azure, ce que
+ * `DELETE /media` sait faire fiche par fiche. Le dire est plus honnête
+ * que de laisser croire que tout est parti.
+ */
+export async function wipeEverything(db: Db, personId: string): Promise<void> {
+  /* Les listes et les quiz dont on est PROPRIÉTAIRE emportent leurs
+     contenus par cascade : membres, œuvres, défis, participations,
+     tirages, réponses. Le reste est ce qu'on a laissé chez les autres. */
+  await db.query("DELETE FROM list WHERE owner_id = $1", [personId]);
+  await db.query("DELETE FROM quiz WHERE owner_id = $1", [personId]);
+  await db.query("DELETE FROM decor WHERE owner_id = $1", [personId]);
+
+  for (const table of [
+    "card",
+    "doc",
+    "list_member",
+    "challenge_participant",
+    "quiz_player",
+    "quiz_attempt",
+    "decor_copy",
+    "merit_event",
+    "token_spend",
+    "owned",
+    "sticker",
+    "power",
+    "purse",
+    "reminder_sent",
+  ]) {
+    await db.query(`DELETE FROM ${table} WHERE person_id = $1`, [personId]);
+  }
+
+  /* Les abonnements partent dans les deux sens : ceux qu'on suivait, et
+     ceux qui nous suivaient. Garder les seconds laisserait des gens
+     abonnés au vide. */
+  await db.query("DELETE FROM follow WHERE follower_id = $1 OR followed_id = $1", [personId]);
+
+  await db.query(
+    "UPDATE person SET sharing = 'privee', token = NULL, stamp = NULL, skin = NULL WHERE id = $1",
+    [personId]
+  );
+}
+
+/**
  * Tout effacer du comptoir, et repartir de zéro.
  *
  * CE QUE CELA EFFACE, ET CE QUE CELA NE TOUCHE PAS. Les deux journaux,

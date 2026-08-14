@@ -23,11 +23,15 @@
    WHAT IS AND IS NOT FOR SALE
    ------------------------------------------------------------
 
-   Nothing that already works offline may be put behind a price. The
-   binder's fourteen skins stay free and stay available with no server,
-   no account and no network — that is a promise the whole project is
-   built on. The three skins sold here are NEW ones; not one of the
-   fourteen is touched.
+   UNE SEULE PEAU EST DONNÉE : le carnet d'archiviste, celle avec
+   laquelle le classeur a toujours été dessiné. Les seize autres
+   s'achètent — c'est ce qu'on gagne à jouer.
+
+   ET VERROUILLÉES MÊME SANS SERVEUR. Elles se voient, avec leur prix,
+   sur un classeur qui n'a jamais parlé à personne : c'est la seule
+   chose du produit qui donne une raison d'ouvrir un compte. Le classeur
+   MARCHE toujours entier hors ligne — ranger, noter, chercher, importer,
+   exporter ; ce qu'on n'a pas, c'est le choix de la robe.
 
    The stamps and the stickers are safe for a different reason: they only
    exist where pseudonyms meet. With no account there is nobody to show
@@ -61,7 +65,35 @@ export const SHOP: readonly ShopItem[] = [
   /* THE PACKET — three stickers, drawn by the server (see `draw`). */
   { id: "pack-trois", kind: "pack", price: 25, draws: 3 },
 
-  /* THE SKINS — new ones. The fourteen that exist stay free. */
+  /* LES PEAUX — toutes, sauf le carnet d'archiviste.
+
+     C'ÉTAIT TROIS PEAUX NEUVES, et les quatorze existantes restaient
+     libres. Le produit a tranché autrement : une seule est donnée — celle
+     avec laquelle le classeur a toujours été dessiné — et les seize
+     autres sont ce qu'on gagne à jouer.
+
+     LES PRIX SONT ÉCRITS DEUX FOIS, ici et dans `src/theme/skins.ts`.
+     C'est un doublon assumé, comme le barème : le sélecteur de peaux doit
+     pouvoir annoncer « il vous faut 180 jetons » sans aller-retour, et
+     il s'ouvre dans le rail, à tout moment. `skins.test.ts` compare les
+     deux catalogues article par article — une divergence afficherait un
+     prix et en prélèverait un autre.
+
+     `grants` porte la clé de la peau et non son article : c'est elle que
+     `SkinPicker` compare, et les deux ne s'écrivent pas pareil. */
+  { id: "skin-veilleuse", kind: "skin", price: 60, grants: "veilleuse" },
+  { id: "skin-sepia", kind: "skin", price: 60, grants: "sepia" },
+  { id: "skin-herbier", kind: "skin", price: 90, grants: "herbier" },
+  { id: "skin-bleu", kind: "skin", price: 90, grants: "bleu" },
+  { id: "skin-pastel", kind: "skin", price: 90, grants: "pastel" },
+  { id: "skin-bauhaus", kind: "skin", price: 120, grants: "bauhaus" },
+  { id: "skin-pulp", kind: "skin", price: 140, grants: "pulp" },
+  { id: "skin-fanzine", kind: "skin", price: 140, grants: "fanzine" },
+  { id: "skin-affiche", kind: "skin", price: 160, grants: "affiche" },
+  { id: "skin-cinematheque", kind: "skin", price: 180, grants: "cinematheque" },
+  { id: "skin-japon", kind: "skin", price: 180, grants: "japon" },
+  { id: "skin-nuit-americaine", kind: "skin", price: 200, grants: "nuit-americaine" },
+  { id: "skin-kodachrome", kind: "skin", price: 200, grants: "kodachrome" },
   { id: "skin-nitrate", kind: "skin", price: 250, grants: "nitrate" },
   { id: "skin-drive-in", kind: "skin", price: 250, grants: "drive-in" },
   { id: "skin-cinemascope", kind: "skin", price: 320, grants: "cinemascope" },

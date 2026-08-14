@@ -26,6 +26,7 @@ import {
   Coins,
 } from "lucide-react";
 import { C, alpha } from "../../theme/tokens";
+import { PurseTally } from "../play/Tally";
 import { useViewport } from "../../hooks/useViewport";
 import { serverConfigured } from "../../services/server";
 
@@ -634,6 +635,10 @@ export function FolderTabs({
           >
             <Search size={14} />
           </button>
+
+          {/* LE COMPTE, JUSTE AVANT LA PEAU. Le sélecteur affiche des
+              prix : ce qu'on a et ce qu'il permet sont côte à côte. */}
+          <PurseTally onOpen={() => setView("counter")} phone={phone} />
 
           {/* THE SITE SKIN, at the foot of the binder's spine. */}
           <RoundAction

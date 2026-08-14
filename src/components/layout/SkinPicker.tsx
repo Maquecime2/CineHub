@@ -14,14 +14,18 @@
    a panel one opens twice costs far more than what the preview gains by
    it. The colours, for their part, are right the first time, and they
    are what one looks at. */
+import { useState } from "react";
 import type { CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
-import { X } from "lucide-react";
+import { Lock, X } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
-import { SKINS, type Skin } from "../../theme/skins";
+import { DEFAULT_SKIN, SKINS, type Skin } from "../../theme/skins";
 import { ownedItems } from "../../theme/owned";
 import { accountOpen } from "../../services/server";
+import { usePurse } from "../../hooks/usePurse";
+import { BuyChip } from "../play/Buy";
+import { refreshOwned } from "../../theme/owned";
 
 const PANEL: CSSProperties = {
   position: "fixed",
@@ -37,30 +41,40 @@ const PANEL: CSSProperties = {
   boxShadow: "2px 8px 24px rgba(20,14,8,0.4)",
 };
 
-/* What the skin gives to be seen, in small. We read its values
-   DIRECTLY — not the document's variables, which are those of the skin
-   in place and would make the fourteen thumbnails identical. */
-function SkinCard({ skin, on, onPick }: { skin: Skin; on: boolean; onPick: () => void }) {
+/* CE QU'UNE PEAU DONNE À VOIR, EN PETIT — et ce qu'il faut pour l'avoir.
+
+   ON LIT LES VALEURS DE LA PEAU, PAS CELLES DU DOCUMENT : celles-ci sont
+   celles de la peau en place, et les dix-sept vignettes seraient
+   identiques.
+
+   L'ÉCHANTILLON PÂLIT, LA BARRE D'ACHAT NON. C'était l'erreur de la
+   première version : l'opacité était posée sur TOUTE la vignette, donc
+   sur le bouton aussi — et un bouton à cinquante-cinq pour cent est un
+   bouton désactivé, quoi qu'il dise. On ne voyait pas qu'on pouvait
+   acheter.
+
+   La barre vit donc HORS de l'échantillon, sur le fond du site et non
+   sur celui de la peau. Ce n'est pas qu'une question d'opacité : cela
+   dit à quoi elle appartient. L'échantillon montre ce qu'on aurait ; la
+   barre est le magasin, et le magasin n'est pas en vitrine. */
+function SkinCard({
+  skin,
+  on,
+  locked,
+  onBought,
+  onPick,
+}: {
+  skin: Skin;
+  on: boolean;
+  /** Verrouillée : on la voit, on ne la porte pas encore. */
+  locked: boolean;
+  onBought: () => void;
+  onPick: () => void;
+}) {
   const { t } = useTranslation();
-  return (
-    <button
-      onClick={onPick}
-      aria-pressed={on}
-      aria-label={t(`skins.${skin.key}.label`)}
-      style={{
-        all: "unset",
-        ...tap,
-        cursor: "pointer",
-        boxSizing: "border-box",
-        display: "block",
-        width: "100%",
-        marginBottom: 8,
-        padding: "10px 12px",
-        background: skin.page,
-        border: on ? `2px solid ${C.ink}` : `1px solid ${C.line}`,
-        borderRadius: skin.tag.radius,
-      }}
-    >
+
+  const sample = (
+    <>
       <div
         style={{
           fontFamily: skin.fonts.title,
@@ -73,12 +87,7 @@ function SkinCard({ skin, on, onPick }: { skin: Skin; on: boolean; onPick: () =>
         {t(`skins.${skin.key}.label`)}
       </div>
       <div
-        style={{
-          fontFamily: skin.fonts.hand,
-          fontSize: 13,
-          color: skin.c.inkFaded,
-          marginTop: 1,
-        }}
+        style={{ fontFamily: skin.fonts.hand, fontSize: 13, color: skin.c.inkFaded, marginTop: 1 }}
       >
         {t(`skins.${skin.key}.note`)}
       </div>
@@ -97,7 +106,80 @@ function SkinCard({ skin, on, onPick }: { skin: Skin; on: boolean; onPick: () =>
           />
         ))}
       </div>
-    </button>
+    </>
+  );
+
+  if (!locked) {
+    return (
+      <button
+        onClick={onPick}
+        aria-pressed={on}
+        aria-label={t(`skins.${skin.key}.label`)}
+        style={{
+          all: "unset",
+          ...tap,
+          cursor: "pointer",
+          boxSizing: "border-box",
+          display: "block",
+          width: "100%",
+          marginBottom: 8,
+          padding: "10px 12px",
+          background: skin.page,
+          border: on ? `2px solid ${C.ink}` : `1px solid ${C.line}`,
+          borderRadius: skin.tag.radius,
+        }}
+      >
+        {sample}
+      </button>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        marginBottom: 8,
+        border: `1px solid ${C.line}`,
+        borderRadius: skin.tag.radius,
+        overflow: "hidden",
+      }}
+    >
+      {/* L'échantillon, en retrait : ce qu'on n'a pas encore. */}
+      <div
+        aria-label={t(`skins.${skin.key}.label`)}
+        style={{
+          position: "relative",
+          padding: "10px 12px",
+          background: skin.page,
+          opacity: 0.62,
+          filter: "saturate(0.8)",
+        }}
+      >
+        {sample}
+        <Lock
+          size={13}
+          color={skin.c.ink}
+          style={{ position: "absolute", top: 10, right: 11, opacity: 0.7 }}
+        />
+      </div>
+
+      {/* LE MAGASIN, à pleine intensité et sur le papier du site. */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 8,
+          padding: "7px 10px",
+          background: C.paperDark,
+          borderTop: `1px solid ${C.line}`,
+        }}
+      >
+        <span style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 1, color: C.inkFaded }}>
+          {t("skins.price", { price: skin.price })}
+        </span>
+        <BuyChip item={skin.locked!} price={skin.price ?? 0} onBought={onBought} compact />
+      </div>
+    </div>
   );
 }
 
@@ -110,10 +192,31 @@ export function SkinPicker({
   onPick: (key: string) => void;
   onClose: () => void;
 }) {
-  /* Sans compte, on ne lit même pas ce qu'on possède : les peaux
-     verrouillées n'existent pas, et la question ne se pose pas. */
+  usePurse();
+  const [, again] = useState(0);
   const mine = accountOpen() ? ownedItems() : [];
-  const offered = SKINS.filter((s) => !s.locked || mine.includes(s.locked));
+
+  /* Une peau achetée doit apparaître déverrouillée SANS RECHARGER : ce
+     qu'on possède vit en mémoire locale, rafraîchie depuis le serveur,
+     et ce compteur force la grille à se redessiner ensuite. */
+  const reread = () => {
+    void refreshOwned().then(() => again((n: number) => n + 1));
+  };
+
+  /* VERROUILLÉES PARTOUT, Y COMPRIS SANS SERVEUR — et c'est délibéré.
+
+     J'avais posé l'exception inverse : hors ligne, tout libre, pour ne
+     rien retirer à qui n'a pas de compte. Le produit a tranché
+     autrement, et l'argument se tient : ces seize peaux SE VOIENT, avec
+     leur prix, sur un classeur qui n'a jamais parlé à un serveur. C'est
+     la seule chose de tout le projet qui donne une raison d'en ouvrir
+     un, et une vitrine cachée n'attire personne.
+
+     Ce que cela ne change pas : le classeur MARCHE entier sans compte.
+     On range, on note, on cherche, on importe, on exporte. Ce qu'on n'a
+     pas, c'est le choix de la robe — et on voit exactement laquelle,
+     et à quel prix. */
+  const isLocked = (s: Skin) => !!s.locked && !mine.includes(s.locked) && s.key !== DEFAULT_SKIN;
 
   return (
     <>
@@ -164,8 +267,15 @@ export function SkinPicker({
             peau achetée puis le réseau coupé reste appliquée : la clé
             est en mémoire locale, et le classeur ne se déguise pas tout
             seul au rechargement. */}
-        {offered.map((s) => (
-          <SkinCard key={s.key} skin={s} on={s.key === skin} onPick={() => onPick(s.key)} />
+        {SKINS.map((s) => (
+          <SkinCard
+            key={s.key}
+            skin={s}
+            on={s.key === skin}
+            locked={isLocked(s)}
+            onBought={reread}
+            onPick={() => onPick(s.key)}
+          />
         ))}
 
         {/* What the skin does not touch, said once rather than never:

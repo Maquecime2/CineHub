@@ -1116,6 +1116,17 @@ export const buy = (item: string) =>
     body: JSON.stringify({ item }),
   });
 
+/**
+ * Tout effacer, et garder le compte.
+ *
+ * Le geste entre « j'efface mon comptoir » et « je m'en vais » : on
+ * garde son pseudonyme et ses clés d'accès, on perd tout le reste. Les
+ * blocages et les signalements survivent — le premier protège, le second
+ * appartient à la modération.
+ */
+export const wipeMyData = () =>
+  call<{ erased: boolean; kept: string[] }>("/my-data", { method: "DELETE" });
+
 /** Tout effacer du comptoir. Ne touche ni aux fiches, ni aux listes,
     ni aux défis, ni aux gens qu'on suit — pour ça il y a `deleteMyAccount`. */
 export const wipeCounter = () =>

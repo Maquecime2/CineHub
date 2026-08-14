@@ -80,6 +80,25 @@ export function rememberOwned(items: string[], skin: string | null): void {
   }
 }
 
+/**
+ * Relire au serveur ce qu'on possède, tout de suite.
+ *
+ * La bourse le fait au démarrage ; ceci sert au moment précis où l'on
+ * vient d'acheter une peau et où la grille doit se redessiner
+ * déverrouillée. Sans lui, il faudrait recharger la page pour porter ce
+ * qu'on vient de payer — ce qui se lit comme un achat qui n'a pas pris.
+ */
+export async function refreshOwned(): Promise<string[]> {
+  const { myHoldings } = await import("../services/server");
+  try {
+    const held = await myHoldings();
+    rememberOwned(held.items, held.worn.skin);
+    return held.items;
+  } catch {
+    return ownedItems();
+  }
+}
+
 /** À la fermeture d'un compte : ce qui appartenait à quelqu'un s'en va. */
 export function forgetOwned(): void {
   const store = readable();

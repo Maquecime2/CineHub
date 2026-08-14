@@ -22,6 +22,7 @@ import {
   Check,
   X,
   Download,
+  Eraser,
   Trash2,
   Link as LinkIcon,
   Bell,
@@ -37,6 +38,7 @@ import { Confirmation, type ConfirmRequest } from "../ui/Confirmation";
 import {
   ADDRESS,
   deleteMyAccount,
+  wipeMyData,
   myData,
   signIn,
   setSharing,
@@ -64,6 +66,7 @@ import {
 } from "../../services/push";
 import { mediaTrouble } from "../../services/media";
 import { forgetSync } from "../../services/sync";
+import { forgetOwned } from "../../theme/owned";
 import type { SyncReport } from "../../services/sync";
 
 /* WHEN THE LAST SYNCHRONISATION WAS. The date at the end is formatted by
@@ -453,6 +456,46 @@ export function AccountDrawer({
                   style={button(C.slate, busy)}
                 >
                   <Download size={12} /> {t("account.takeEverything")}
+                </button>
+
+                {/* REPARTIR DE ZÉRO, entre exporter et s'en aller.
+
+                    Sa place est ici et pas ailleurs : c'est là qu'on
+                    vient quand on veut faire le ménage, et l'avoir mis
+                    à côté du bouton qui SUPPRIME oblige à écrire
+                    clairement ce qui les sépare. Les deux cartes de
+                    confirmation le disent, mot pour mot. */}
+                <button
+                  disabled={busy}
+                  onClick={() =>
+                    setRequest({
+                      title: t("account.wipeTitle"),
+                      body: t("account.wipeBody"),
+                      action: t("account.wipeAction"),
+                      severe: true,
+                      onConfirm: async () => {
+                        setRequest(null);
+                        setBusy(true);
+                        try {
+                          await wipeMyData();
+                          forgetOwned();
+                          /* La synchro repart de zéro elle aussi : sans
+                             cela le classeur repousserait au serveur les
+                             fiches qu'on vient d'y effacer, et le ménage
+                             serait défait par le premier envoi. */
+                          forgetSync();
+                          location.reload();
+                        } catch (e) {
+                          setTrouble((e as Error).message || t("account.wipeFailed"));
+                        } finally {
+                          setBusy(false);
+                        }
+                      },
+                    })
+                  }
+                  style={{ ...button(C.ochre, busy), background: "transparent", color: C.ochre }}
+                >
+                  <Eraser size={12} /> {t("account.wipeMine")}
                 </button>
 
                 <button

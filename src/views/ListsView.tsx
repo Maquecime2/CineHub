@@ -29,6 +29,8 @@ import { daysLeft, mayExtend, needsSettling, stateOf } from "../domain/challenge
 import { worthOfChallenge } from "../domain/points";
 import { tiltOf } from "../domain/seeded";
 import { refreshPurse } from "../hooks/usePurse";
+import { useShop } from "../hooks/useShop";
+import { BuyChip } from "../components/play/Buy";
 import {
   createList,
   createChallenge,
@@ -569,6 +571,14 @@ function OneChallenge({
       .catch(() => {});
   }, [challenge.id, ends]);
 
+  const catalogue = useShop();
+  const sold = catalogue.find((i) => i.power === "extend");
+  const powerHeld = sold?.held ?? 0;
+  const canExtend = mayExtend(
+    { starts_on: challenge.starts_on, ends_on: ends, by: challenge.per },
+    challenge.per ?? null
+  );
+
   const state = stateOf({ starts_on: challenge.starts_on, ends_on: ends });
   const left = daysLeft({ ends_on: ends });
   const done = progress?.find((p) => p.pseudo === challenge.per)?.done ?? 0;
@@ -711,10 +721,29 @@ function OneChallenge({
           permettent — celles du client rejouent exactement celles de la
           requête SQL, pour ne pas offrir un geste qui coûte un pouvoir
           et se fait refuser. */}
-      {mayExtend(
-        { starts_on: challenge.starts_on, ends_on: ends, by: challenge.per },
-        challenge.per ?? null
-      ) && (
+      {/* PROLONGER — le pouvoir s'achète ICI s'il manque.
+
+          C'est le seul moment où on le veut : devant un défi qui finit
+          demain et qu'on n'a pas bouclé. Au comptoir, « prolonger un
+          défi » est une ligne abstraite qu'on n'achète pas. */}
+      {canExtend && powerHeld === 0 && sold && (
+        <div
+          style={{
+            position: "relative",
+            marginTop: 8,
+            display: "flex",
+            alignItems: "baseline",
+            gap: 8,
+          }}
+        >
+          <span style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}>
+            {t("listsView.extend")}
+          </span>
+          <BuyChip item={sold.id} price={sold.price} onBought={reread} compact />
+        </div>
+      )}
+
+      {canExtend && powerHeld > 0 && (
         <button
           onClick={push}
           data-tour="lists-extend"

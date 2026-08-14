@@ -28,6 +28,12 @@ const fr = {
   },
 
   account: {
+    wipeMine: "Repartir de zéro",
+    wipeTitle: "Tout effacer, et garder le compte ?",
+    wipeBody:
+      "Vos fiches, vos documents, vos listes, vos défis, vos quiz, vos décors, vos abonnements et tout votre comptoir partent pour de bon — ici comme sur le serveur. Votre pseudonyme et vos clés d'accès restent : vous n'aurez pas à vous reconnecter. Les gens que vous avez bloqués le restent, et vos signalements aussi.",
+    wipeAction: "TOUT EFFACER",
+    wipeFailed: "Rien n'a pu être effacé.",
     appearOnBoard: "Apparaître au classement",
     boardNobody: "NULLE PART",
     boardFollowers: "CEUX QUI ME SUIVENT",
@@ -865,6 +871,7 @@ const fr = {
   },
 
   counter: {
+    tally: "{{merit}} de mérite, {{tokens}} jetons — ouvrir le comptoir",
     heading: "Le comptoir",
     subheading: "ce qu'on a gagné, ce qu'on en fait, et devant qui",
     noServer: "Aucun serveur n'est réglé : le comptoir se tient à plusieurs, et il n'y a personne.",
@@ -1547,6 +1554,9 @@ const fr = {
   },
 
   skins: {
+    price: "{{price}} jetons",
+    short_one: "il vous faut {{count}} jeton",
+    short_other: "il vous faut {{count}} jetons",
     carnet: { label: "Carnet d'archiviste", note: "papier kraft, encre sépia, fil rouge" },
     veilleuse: { label: "Veilleuse", note: "le même carnet, lu de nuit" },
     cinematheque: {

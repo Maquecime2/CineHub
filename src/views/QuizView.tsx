@@ -506,6 +506,7 @@ function Playing({ quiz, onChange }: { quiz: Quiz; onChange: () => Promise<void>
                 powers={powers}
                 used={hidden[current.id] ? ["halve"] : []}
                 onUse={spend}
+                onBought={reread}
                 busy={busy}
                 tour="quiz-powers"
               />

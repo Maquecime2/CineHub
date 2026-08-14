@@ -24,6 +24,12 @@ const en = {
   },
 
   account: {
+    wipeMine: "Start from nothing",
+    wipeTitle: "Erase everything, and keep the account?",
+    wipeBody:
+      "Your cards, your documents, your lists, your challenges, your quizzes, your decors, your subscriptions and your whole counter go for good — here and on the server. Your pseudonym and your access keys stay: you will not have to sign in again. The people you have blocked stay blocked, and your reports stay too.",
+    wipeAction: "ERASE EVERYTHING",
+    wipeFailed: "Nothing could be erased.",
     appearOnBoard: "Appear on the board",
     boardNobody: "NOWHERE",
     boardFollowers: "THOSE WHO FOLLOW ME",
@@ -843,6 +849,7 @@ const en = {
   },
 
   counter: {
+    tally: "{{merit}} merit, {{tokens}} tokens — open the counter",
     heading: "The counter",
     subheading: "what one has earned, what one does with it, and in front of whom",
     noServer: "No server is set: a counter is a place one shares, and there is nobody here.",
@@ -1496,6 +1503,9 @@ const en = {
   },
 
   skins: {
+    price: "{{price}} tokens",
+    short_one: "{{count}} token needed",
+    short_other: "{{count}} tokens needed",
     carnet: { label: "Archivist's notebook", note: "kraft paper, sepia ink, a red thread" },
     veilleuse: { label: "Night light", note: "the same notebook, read after dark" },
     cinematheque: {
