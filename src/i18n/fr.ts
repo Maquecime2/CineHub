@@ -92,6 +92,8 @@ const fr = {
       "Vos affiches et captures ne partent pas : le navigateur refuse le dépôt avant même de l'envoyer. Il manque presque toujours une règle CORS sur le container Azure — autorisez l'origine du site en PUT et en GET. Vos images restent entières sur cet appareil en attendant.",
     mediaRefused:
       "Le container a refusé le dépôt ({{detail}}). Un 403 vient le plus souvent d'une horloge décalée : la signature est datée. Vos images restent entières sur cet appareil.",
+    mediaPullRefused:
+      "Les affiches et captures faites sur vos autres appareils n'ont pas pu être rapatriées ({{detail}}). Un 429 veut dire que le serveur a refusé le débit, pas que les images sont perdues : elles sont intactes sur le container, et la prochaine ouverture réessaiera.",
     devices: "Mes appareils",
     devicesNote:
       "Une clé d'accès ne voyage pas : celle de cet ordinateur y reste. Ajoutez ici celle de votre téléphone — sur un autre PC, choisissez « un autre appareil » à la connexion et scannez le code affiché.",

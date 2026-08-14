@@ -1,9 +1,10 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import type { CSSProperties } from "react";
 import { ImageOff } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { readMedia } from "../../services/media";
+import { accountOpen, watchAccount } from "../../services/server";
 
 /* ============================================================
    AN IMAGE FROM THE VAULT — and what we show when it is not there
@@ -48,6 +49,22 @@ export function IdbImage({
   const box = useRef<HTMLDivElement | null>(null);
   const [large, setLarge] = useState(true);
 
+  /* ASKING AGAIN WHEN THE ACCOUNT ARRIVES.
+   *
+   * `readMedia` falls back on the mirror, and the mirror needs an
+   * account: `pullMedia` refuses outright while `accountOpen()` is false,
+   * and `remotePath` has no private prefix to build without the person's
+   * identifier. On a machine that has JUST signed in, both are false for
+   * the length of the first `/me` round trip — and every image mounted in
+   * that window settled on "absente" and never asked again. A binder
+   * opened on a second computer therefore showed "restée sur l'autre
+   * appareil" over screenshots sitting in the container, for the whole
+   * session.
+   *
+   * So the lookup depends on the answer to "is an account open", exactly
+   * as `tmdbKey` does — signing in re-runs it, without a reload. */
+  const signedIn = useSyncExternalStore(watchAccount, accountOpen);
+
   useEffect(() => {
     let objectUrl: string | null = null;
     let alive = true;
@@ -79,7 +96,7 @@ export function IdbImage({
       alive = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [imageKey]);
+  }, [imageKey, signedIn]);
 
   useLayoutEffect(() => {
     if (state !== "absente" || !box.current) return;

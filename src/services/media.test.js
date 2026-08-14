@@ -37,13 +37,15 @@ let signedOut = false;
 
 const grantTickets = async (paths) => paths.map((path) => ({ path, url: `ticket:${path}` }));
 const tickets = vi.fn(grantTickets);
-const ticket = vi.fn(async (path) => (container.has(path) ? `ticket:${path}` : null));
 
+/* `mediaTicket`, at the singular, is not mocked here any more: this
+   module stopped calling it when the tirage started batching, and a
+   stand-in for a function nobody calls is a stand-in that will one day
+   be believed. `customDecor` still uses it, and mocks it on its side. */
 vi.mock("./server", () => ({
   serverConfigured: () => true,
   accountOpen: () => !signedOut,
   mediaTickets: (...a) => tickets(...a),
-  mediaTicket: (...a) => ticket(...a),
   mediaDeleteTicket: async (path) => `ticket:${path}`,
 }));
 
@@ -109,7 +111,6 @@ beforeEach(() => {
   inFlight = 0;
   peakInFlight = 0;
   putAnswer = null;
-  ticket.mockClear();
   globalThis.fetch.mockClear();
 });
 
@@ -318,7 +319,57 @@ describe("reading", () => {
     expect(await readMedia("here")).toBeInstanceOf(Blob);
     /* Five hundred cards each questioning the server would make a wall
        nobody scrolls. */
-    expect(ticket).not.toHaveBeenCalled();
+    expect(tickets).not.toHaveBeenCalled();
+  });
+
+  /* ============================================================
+     A SCREENFUL OF IMAGES IS ONE REQUEST, NOT A SCREENFUL OF THEM
+
+     The sending side batched from the first day; the tirage asked one
+     ticket per image. A film's strip mounts every thumbnail at once, so
+     twenty stills meant twenty requests — and the server's own ceiling
+     is a hundred a minute. A binder arriving on a second computer, with
+     everything still to fetch, went through it in seconds; from then on
+     every ticket came back 429, and the screen said "stayed on the
+     other device" over blobs that were sitting in the container.
+
+     Measured on a real collection before the fix: 210 blobs missing
+     locally, and of the hundred tickets that got through, a hundred
+     answered with the file's size. Not one was actually absent.
+     ============================================================ */
+  it("asks for a screenful of tickets in one request", async () => {
+    for (let i = 0; i < 20; i += 1) container.set(`p/${ME}/vue-${i}`, new Blob(["png"]));
+
+    /* NOT ALL IN THE SAME TICK, because that is not how they arrive.
+       Every caller reaches the ticket only after its own vault read has
+       come back, so a strip's thumbnails land in twenty different ticks
+       spread over a few milliseconds. A window closed on the next
+       microtask batches exactly one of them — and the first version of
+       this test, calling them all at once, could not see that. */
+    const blobs = await Promise.all(
+      Array.from({ length: 20 }, async (_, i) => {
+        await new Promise((r) => setTimeout(r, i % 5));
+        return readMedia(`vue-${i}`);
+      })
+    );
+
+    expect(blobs.every((b) => b instanceof Blob)).toBe(true);
+    expect(tickets).toHaveBeenCalledTimes(1);
+    expect(tickets.mock.calls[0][0]).toHaveLength(20);
+    /* And in READ, never in write: a tirage that asked for write tickets
+       would hand out the right to overwrite what it came to read. */
+    expect(tickets.mock.calls[0][1]).toBe("read");
+  });
+
+  it("cuts a batch the route would refuse", async () => {
+    /* The route takes fifty at a time and answers 400 beyond. A shelf
+       can hold more than fifty. */
+    for (let i = 0; i < 120; i += 1) container.set(`p/${ME}/mur-${i}`, new Blob(["png"]));
+
+    await Promise.all(Array.from({ length: 120 }, (_, i) => readMedia(`mur-${i}`)));
+
+    expect(tickets).toHaveBeenCalledTimes(3);
+    for (const [paths] of tickets.mock.calls) expect(paths.length).toBeLessThanOrEqual(50);
   });
 
   it("fetches from the container what the vault has not, and files it", async () => {
@@ -329,9 +380,9 @@ describe("reading", () => {
     /* Filed on the way: the second read does not go back on the
        network. */
     expect(vault.get("elsewhere")).toBeInstanceOf(Blob);
-    ticket.mockClear();
+    tickets.mockClear();
     await readMedia("elsewhere");
-    expect(ticket).not.toHaveBeenCalled();
+    expect(tickets).not.toHaveBeenCalled();
   });
 
   it("answers null when there is nothing anywhere", async () => {

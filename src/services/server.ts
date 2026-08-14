@@ -124,10 +124,25 @@ async function call<T>(path: string, options: CallOptions = {}): Promise<T> {
  * NOT BEING SIGNED IN AND NOT BEING ABLE TO ASK ARE TWO DIFFERENT
  * THINGS. Swallowing both into a `null` made the drawer say "everything
  * stays here" — that is, "you have no account" — to somebody who has one
- * and whose train is going through a tunnel. A refusal from the server
- * (401) returns `null`; an absence of network THROWS, and the caller
- * will know to say "waiting" rather than erase somebody.
- */
+ * and whose train is going through a tunnel. A refusal of the SESSION
+ * returns `null`; anything else THROWS, and the caller will know to say
+ * "waiting" rather than erase somebody.
+ *
+ * AND THE LINE RAN IN THE WRONG PLACE, which cost a whole collection of
+ * screenshots. It used to be drawn between "the network is silent"
+ * (code 0) and "the server answered" — so a 429, a 500, a gateway in
+ * trouble all meant "you are nobody". The 429 is the one that happened:
+ * the general ceiling is a hundred requests a minute, a binder arriving
+ * on a second computer goes through it in seconds, and `/me` was among
+ * the refused. The account was then erased on this side, `accountOpen()`
+ * went false, and `pullMedia` returned BEFORE making any request at all
+ * — not one ticket left the page, and every screenshot on screen said
+ * it had stayed on the other device.
+ *
+ * Only 401 and 403 answer the question "who are you"; every other code
+ * says the question was not answered. */
+const SESSION_REFUSED = [401, 403];
+
 export async function whoAmI(): Promise<Person | null> {
   try {
     const who = readPerson(await call<PersonReply>("/me"));
@@ -135,7 +150,7 @@ export async function whoAmI(): Promise<Person | null> {
     rememberPerson(who);
     return who;
   } catch (e) {
-    if ((e as ServerError).code === 0) throw e;
+    if (!SESSION_REFUSED.includes((e as ServerError).code)) throw e;
     /* A REFUSAL, not a silence: the server answered, and it answered
        that we are nobody. The hunch is wrong and must go — keeping it
        would show a name to somebody whose session has expired. */
@@ -424,10 +439,10 @@ export const claimPairingCode = (code: string) =>
    between the browser and Azure without passing through the server at
    all. */
 
-export const mediaTickets = (paths: string[]) =>
+export const mediaTickets = (paths: string[], mode: "read" | "write" = "write") =>
   call<{ tickets: { path: string; url: string }[] }>("/media/tickets", {
     method: "POST",
-    body: JSON.stringify({ paths }),
+    body: JSON.stringify({ paths, mode }),
   }).then((r) => r.tickets);
 
 /** A read ticket, or `null` when there is nothing there for us. */
@@ -532,13 +547,16 @@ export interface DocToPush {
   key: string;
   updatedAt: number;
   content: unknown;
-  supprime?: boolean;
+  /* The server's word, and the only one: it reads `deleted` on the way in
+     and writes `deleted` on the way out. Spelling it `supprime` here left
+     every tombstone unread in both directions. */
+  deleted?: boolean;
 }
 
 export interface PulledDocs {
   upTo: number;
   more?: boolean;
-  documents: { key: string; updatedAt: number; supprime?: boolean; content: unknown }[];
+  documents: { key: string; updatedAt: number; deleted?: boolean; content: unknown }[];
 }
 
 export const pullDocsFrom = (since: number): Promise<PulledDocs> =>

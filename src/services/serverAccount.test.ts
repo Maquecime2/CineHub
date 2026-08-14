@@ -71,3 +71,66 @@ describe("the account identifier on disk", () => {
     expect(remotePath("still-abc-1")).toBeNull();
   });
 });
+
+/* ============================================================
+   A SERVER THAT CANNOT ANSWER HAS NOT SAID WE ARE NOBODY
+
+   `whoAmI` erased the account on every reply that was not a network
+   silence — a 429, a 500, a gateway in trouble all meant "you have no
+   account". The 429 is the one that happened: the general ceiling is a
+   hundred requests a minute, a binder arriving on a second computer
+   goes through it in seconds, and `/me` was among the refused.
+
+   What followed was silent and total. `accountOpen()` went false, so
+   `pullMedia` returned before making a single request: not one ticket
+   left the page, and every screenshot on screen said it had stayed on
+   the other device — with the blobs sitting in the container all along.
+   ============================================================ */
+describe("what counts as being nobody", () => {
+  const answer = (status: number) => {
+    globalThis.fetch = vi.fn(async () => ({
+      ok: status < 400,
+      status,
+      json: async () => ({ person: { id: ME, pseudo: "maquecime" } }),
+    })) as unknown as typeof fetch;
+  };
+
+  /* THROUGH A REAL TRANSITION, not straight to 200. `noteAccount` writes
+     nothing when the value has not changed, so a test that merely calls
+     `whoAmI` after `localStorage.clear()` leaves the disk empty while
+     the module still believes it wrote — and then measures nothing. */
+  const signIn = async () => {
+    answer(401);
+    await whoAmI();
+    answer(200);
+    await whoAmI();
+  };
+
+  it("keeps the account when the server is merely refusing the traffic", async () => {
+    await signIn();
+
+    answer(429);
+    await expect(whoAmI()).rejects.toThrow();
+    /* THE ADDRESS SURVIVES, which is the whole point: without it there
+       is no `p/<id>/<key>`, and the screenshots stop being asked for. */
+    expect(remotePath("still-abc-1")).toBe(`p/${ME}/still-abc-1`);
+  });
+
+  it("keeps it through a server that has broken down", async () => {
+    await signIn();
+
+    answer(500);
+    await expect(whoAmI()).rejects.toThrow();
+    expect(remotePath("still-abc-1")).toBe(`p/${ME}/still-abc-1`);
+  });
+
+  it("lets it go when the session itself is refused", async () => {
+    await signIn();
+
+    /* 401 is the server answering the question: nobody. Keeping the
+       hunch here would show a name to somebody whose session expired. */
+    answer(401);
+    expect(await whoAmI()).toBeNull();
+    expect(remotePath("still-abc-1")).toBeNull();
+  });
+});

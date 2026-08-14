@@ -88,6 +88,8 @@ const en = {
       "Your posters and screenshots are not going out: the browser refuses the upload before even sending it. A CORS rule on the Azure container is almost always what is missing — allow the site's origin in PUT and GET. Your images stay whole on this device meanwhile.",
     mediaRefused:
       "The container refused the upload ({{detail}}). A 403 most often comes from a clock that has drifted: the signature is dated. Your images stay whole on this device.",
+    mediaPullRefused:
+      "The posters and screenshots made on your other devices could not be fetched back ({{detail}}). A 429 means the server refused the traffic, not that the images are lost: they are whole on the container, and the next opening will try again.",
     devices: "My devices",
     devicesNote:
       "A passkey does not travel: this computer's stays in it. Add your telephone's here — then on another computer choose “another device” when signing in, and scan the code it shows.",
