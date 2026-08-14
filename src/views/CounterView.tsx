@@ -42,6 +42,7 @@ import { STAMP_INK, stampLabel } from "../components/play/stamps";
 import { StickerArt } from "../components/play/stickers";
 import { priceGap } from "../domain/points";
 import { tiltOf } from "../domain/seeded";
+import { SKINS } from "../theme/skins";
 import { usePurse, refreshPurse } from "../hooks/usePurse";
 import {
   buy,
@@ -289,7 +290,7 @@ function Article({
     <div
       style={{
         position: "relative",
-        width: 132,
+        width: 148,
         padding: "10px 11px 11px",
         background: C.card,
         border: `1px solid ${C.line}`,
@@ -299,7 +300,7 @@ function Article({
     >
       {item.owned && <StampCorner text={t("counter.shop.owned")} />}
 
-      <div style={{ height: 52, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ height: 54, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <Preview item={item} />
       </div>
 
@@ -372,21 +373,73 @@ function Preview({ item }: { item: ShopItem }) {
       </div>
     );
   }
-  if (item.kind === "skin") {
-    return (
-      <div
-        style={{
-          width: 46,
-          height: 40,
-          border: `1px solid ${C.line}`,
-          background: `linear-gradient(140deg, ${C.paper}, ${C.paperDark} 55%, ${C.ochre})`,
-        }}
-      />
-    );
-  }
+  if (item.kind === "skin") return <SkinPreview granted={item.grants} />;
   return (
     <div style={{ width: 40, height: 40, opacity: 0.75 }}>
       <StickerArt id="vig-clap" rarity="rare" />
+    </div>
+  );
+}
+
+/* CE QU'UNE PEAU DONNE À VOIR, EN PETIT.
+
+   ON LIT LES VALEURS DE LA PEAU, PAS CELLES DU DOCUMENT. C'est la même
+   règle que le sélecteur de peaux — et elle est écrite là-bas parce que
+   l'oublier rend toutes les vignettes identiques. Ici c'était pire : la
+   vignette montrait la peau EN PLACE, donc les trois articles se
+   ressemblaient, et se ressemblaient d'autant plus qu'ils ressemblaient
+   à l'écran qu'on avait déjà sous les yeux. On achetait à l'aveugle.
+
+   Son fond, son titre dans SA fonte, et les six teintes qui portent
+   l'identité. La fonte n'est pas encore chargée tant que la peau n'est
+   pas appliquée — le navigateur retombe sur la famille de repli, et le
+   dégradé plus les six pastilles suffisent à distinguer un nitrate d'un
+   drive-in. */
+function SkinPreview({ granted }: { granted?: string }) {
+  const skin = SKINS.find((s) => s.key === granted);
+  if (!skin) return <div style={{ width: 46, height: 40 }} />;
+  return (
+    <div
+      style={{
+        width: 92,
+        height: 50,
+        padding: "5px 6px",
+        boxSizing: "border-box",
+        background: skin.page,
+        border: `1px solid ${alpha(skin.c.ink!, 0.35)}`,
+        borderRadius: skin.tag.radius,
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          fontFamily: skin.fonts.title,
+          fontSize: 11,
+          lineHeight: 1.1,
+          color: skin.c.ink,
+          letterSpacing: skin.tag.tracking,
+          textTransform: skin.tag.transform as never,
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        }}
+      >
+        Aa
+      </div>
+      <div style={{ display: "flex", gap: 2.5, marginTop: 5 }}>
+        {["burgundy", "ochre", "pine", "slate", "cobalt", "vermillion"].map((k) => (
+          <span
+            key={k}
+            style={{
+              width: 11,
+              height: 11,
+              borderRadius: skin.tag.radius,
+              background: skin.c[k],
+              border: `1px solid ${alpha(skin.c.ink!, 0.2)}`,
+            }}
+          />
+        ))}
+      </div>
     </div>
   );
 }

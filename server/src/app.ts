@@ -2124,6 +2124,57 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
       setCookie(reply, await store.openSession(db, person.id));
       return { person, warning: "porte de développement" };
     });
+
+    /* LE COFFRE — de quoi tout racheter, autant de fois qu'on veut.
+       ------------------------------------------------------------
+
+       POURQUOI ICI ET NON SUR LE RÔLE D'ADMIN. La demande était « un
+       admin peut reprendre ses articles à l'infini », et le but énoncé
+       était d'essayer la boutique. Mis dans `store.buy`, cela aurait
+       ajouté au chemin d'achat une branche que l'usage normal
+       n'emprunte jamais : le seul code qui touche à l'argent gagnerait
+       un cas jamais exercé, et les trois garanties que le schéma tient —
+       on ne possède qu'une fois, on ne descend pas sous zéro, une
+       dépense est une instruction — devraient composer avec une
+       exception. Ce sont exactement les garanties qu'on veut essayer.
+
+       Ici, le chemin d'achat n'est pas touché du tout : on remet la
+       bourse à flot et on efface ce qu'on possède, puis on rachète PAR
+       LA VRAIE PORTE. Ce qui est éprouvé est donc ce qui tourne en
+       production, y compris le refus d'acheter deux fois le même tampon.
+
+       Et cela n'existe pas en ligne : `index.ts` ne propose cette porte
+       que hors production ET sur `DEV_DOOR=1`. */
+    app.post("/dev/coffers", async (req) => {
+      const person = await requireAccount(req);
+      const { tokens = 100000, wipe = true } = (req.body ?? {}) as {
+        tokens?: number;
+        wipe?: boolean;
+      };
+
+      if (wipe) {
+        /* Ce qu'on possède s'en va, pour que chaque achat se rejoue —
+           l'ouverture d'une pochette comme le refus du doublon. Le
+           journal des gains, lui, reste : c'est la mémoire de ce qui a
+           payé, et l'effacer masquerait un double crédit. */
+        for (const table of ["owned", "sticker", "power", "token_spend"]) {
+          await db.query(`DELETE FROM ${table} WHERE person_id = $1`, [person.id]);
+        }
+        await db.query("UPDATE person SET stamp = NULL, skin = NULL WHERE id = $1", [person.id]);
+      }
+
+      await db.query(
+        `INSERT INTO purse (person_id, merit, tokens) VALUES ($1, $2, $2)
+         ON CONFLICT (person_id) DO UPDATE SET tokens = $2, updated_at = now()`,
+        [person.id, Math.max(0, Math.min(2_000_000_000, Math.trunc(tokens)))]
+      );
+
+      return {
+        ...(await store.purseOf(db, person.id)),
+        wiped: wipe,
+        warning: "porte de développement",
+      };
+    });
   }
 
   /* ------------------------------------------------------------

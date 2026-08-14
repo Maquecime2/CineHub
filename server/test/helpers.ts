@@ -38,7 +38,13 @@ export async function testDb(): Promise<Db> {
   return db;
 }
 
-export async function testApp(db: Db, extra: { tmdbKey?: string; tmdbCeiling?: number } = {}) {
+export async function testApp(
+  db: Db,
+  /* `devDoor` est ici pour que le coffre de développement puisse être
+     essayé DANS LES DEUX ÉTATS. Une porte de service dont on ne vérifie
+     que l'ouverture est une porte dont on ne sait pas si elle ferme. */
+  extra: { tmdbKey?: string; tmdbCeiling?: number; devDoor?: boolean } = {}
+) {
   return buildApp({
     db,
     domain: "localhost",
