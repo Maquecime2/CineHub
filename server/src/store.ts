@@ -11,6 +11,10 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { Db } from "./db.ts";
 import { one } from "./db.ts";
 import { planDraw } from "./draw.ts";
+import { CHALLENGE_HALF, DECLARED, DECLARED_CEILING, RATE, REVIEW_LENGTH } from "./points.ts";
+import type { Kind } from "./points.ts";
+import { draw, itemById } from "./shop.ts";
+import type { PowerKind, Rng } from "./shop.ts";
 import type { Difficulty, Stock } from "./draw.ts";
 
 export interface Person {
@@ -2258,5 +2262,599 @@ export async function remindersDueToday(
             CASE WHEN e.starts_on = current_date THEN 'starts_on' ELSE 'ends_on' END AS when
        FROM challenge e JOIN challenge_participant ep ON ep.challenge_id = e.id
       WHERE e.starts_on = current_date OR e.ends_on = current_date`
+  );
+}
+
+/* ============================================================
+   THE MERIT, THE TOKENS, AND THE COUNTER
+   ============================================================
+
+   Everything below writes to a JOURNAL and lets the schema do the
+   guarding. The three rules it leans on are worth naming once, because
+   almost every query here is short only because of them:
+
+   - `merit_event` is unique on (person, kind, ref). Paying twice for the
+     same fact is impossible, so no caller has to check first.
+   - `purse` refuses to go under zero. An overdraft therefore undoes the
+     whole purchase, spending row included, and no route has to be
+     careful.
+   - `owned` and `power` have keys that say what they mean. Owning twice
+     and playing what one has not are refused by the table.
+
+   AND EVERY WRITE HERE IS ONE STATEMENT. There is no transaction helper
+   in `Db` — deliberately, since there was nothing to wrap until now —
+   so atomicity comes from putting the whole thing in a single command
+   through data-modifying CTEs. Two statements in a row would have left a
+   gap in which somebody is charged for nothing.
+   ============================================================ */
+
+export interface Purse {
+  merit: number;
+  tokens: number;
+}
+
+/** One line of the end-of-quiz reckoning: what paid, and how much. */
+export interface Gain {
+  kind: Kind;
+  amount: number;
+}
+
+/**
+ * Write down a gain, and credit both counters — once and once only.
+ *
+ * Returns what was actually credited, which is zero when the fact had
+ * already paid, or when the day's declarative ceiling is reached. A
+ * caller that wants to say "+3" on the screen must therefore use THIS
+ * figure and not the rate it asked for.
+ */
+export async function award(
+  db: Db,
+  personId: string,
+  kind: Kind,
+  ref: string,
+  amount: number
+): Promise<number> {
+  if (amount <= 0) return 0;
+  const rows = await db.query<{ credited: number }>(
+    `WITH allowed AS (
+       SELECT $5::int AS amount
+        WHERE NOT ($3 = ANY($6::text[]))
+           OR (SELECT coalesce(sum(merit), 0) FROM merit_event
+                WHERE person_id = $2
+                  AND earned_on = current_date
+                  AND kind = ANY($6::text[])) + $5 <= $7
+     ),
+     put AS (
+       INSERT INTO merit_event (id, person_id, kind, ref, merit, tokens)
+       SELECT $1, $2, $3, $4, amount, amount FROM allowed
+       ON CONFLICT (person_id, kind, ref) DO NOTHING
+       RETURNING merit
+     ),
+     bag AS (
+       INSERT INTO purse (person_id, merit, tokens)
+       SELECT $2, merit, merit FROM put
+       ON CONFLICT (person_id) DO UPDATE
+         SET merit = purse.merit + EXCLUDED.merit,
+             tokens = purse.tokens + EXCLUDED.tokens,
+             updated_at = now()
+       RETURNING 1
+     )
+     SELECT coalesce((SELECT merit FROM put), 0)::int AS credited`,
+    [randomUUID(), personId, kind, ref, amount, DECLARED as unknown as string[], DECLARED_CEILING]
+  );
+  return rows[0]?.credited ?? 0;
+}
+
+export async function purseOf(db: Db, personId: string): Promise<Purse> {
+  const row = await one<Purse>(db, "SELECT merit, tokens FROM purse WHERE person_id = $1", [
+    personId,
+  ]);
+  /* No row is not an error: it is somebody who has not earned anything
+     yet, and an empty purse reads better than a screen that fails. */
+  return row ?? { merit: 0, tokens: 0 };
+}
+
+/* ------------------------------------------------------------
+   WHAT PAYS, AND WHEN
+   ------------------------------------------------------------ */
+
+/**
+ * The end of an attempt, priced.
+ *
+ * Called AFTER `finishAttempt`, and idempotent through the journal's
+ * key: finishing twice — a double click, a retried request — credits
+ * once. It returns the lines it actually wrote, which is what the end
+ * screen prints.
+ */
+export async function awardQuiz(db: Db, quizId: string, personId: string): Promise<Gain[]> {
+  const row = await one<{ score: number; weight: number; first: boolean; players: number }>(
+    db,
+    `SELECT coalesce(sum(quiz_points(q.difficulty)) FILTER (WHERE c.is_right), 0)::int AS score,
+            (SELECT coalesce(sum(quiz_points(qq.difficulty)), 0)::int
+               FROM quiz_draw d JOIN quiz_question qq ON qq.id = d.question_id
+              WHERE d.quiz_id = $1) AS weight,
+            NOT EXISTS (SELECT 1 FROM quiz_attempt o
+                         WHERE o.quiz_id = $1 AND o.person_id <> $2
+                           AND o.finished_at IS NOT NULL) AS first,
+            (SELECT count(*)::int FROM quiz_attempt a WHERE a.quiz_id = $1) AS players
+       FROM quiz_attempt t
+       LEFT JOIN quiz_answer a ON a.quiz_id = t.quiz_id AND a.person_id = t.person_id
+       LEFT JOIN quiz_choice c ON c.id = a.choice_id
+       LEFT JOIN quiz_question q ON q.id = a.question_id
+      WHERE t.quiz_id = $1 AND t.person_id = $2 AND t.finished_at IS NOT NULL
+      GROUP BY t.quiz_id`,
+    [quizId, personId]
+  );
+  if (!row) return [];
+
+  const gains: Gain[] = [];
+  const put = async (kind: Kind, amount: number) => {
+    const got = await award(db, personId, kind, quizId, amount);
+    if (got > 0) gains.push({ kind, amount: got });
+  };
+
+  await put("quiz", row.score);
+  /* A flawless run on a quiz worth nothing is not flawless, it is empty. */
+  if (row.weight > 0 && row.score === row.weight) await put("quiz_flawless", RATE.quiz_flawless);
+  /* Being first only means something when somebody else was playing. */
+  if (row.first && row.players >= 2) await put("quiz_first", RATE.quiz_first);
+  return gains;
+}
+
+/**
+ * Close the accounts of a challenge whose period is over.
+ *
+ * NO SCHEDULED TASK: this server has none, and inventing one to pay out
+ * a challenge would be a daemon to keep alive for a handful of rows. The
+ * FIRST person to open a finished challenge settles it for everybody,
+ * and the journal's key means the second, the third and the tenth to
+ * look pay nobody twice.
+ *
+ * Returns how many people were paid, which is zero on the second call.
+ */
+export async function settleChallenge(db: Db, challengeId: string): Promise<number> {
+  const done = await db.query<{ person_id: string; done: number; works: number }>(
+    `SELECT ep.person_id,
+            (SELECT count(*) FROM list_item li
+              WHERE li.list_id = e.list_id AND ${SEEN_DURING})::int AS done,
+            (SELECT count(*) FROM list_item li WHERE li.list_id = e.list_id)::int AS works
+       FROM challenge_participant ep
+       JOIN challenge e ON e.id = ep.challenge_id
+      WHERE ep.challenge_id = $1
+        AND e.ends_on < current_date`,
+    [challengeId]
+  );
+
+  let paid = 0;
+  for (const p of done) {
+    /* An empty challenge pays nothing: everybody has "finished" a list
+       of no films, and that would have been the cheapest merit going. */
+    if (p.works === 0) continue;
+    const share = p.done / p.works;
+    const kind: Kind | null =
+      share >= 1 ? "challenge" : share >= CHALLENGE_HALF ? "challenge_half" : null;
+    if (!kind) continue;
+    if ((await award(db, p.person_id, kind, challengeId, RATE[kind])) > 0) paid++;
+  }
+  return paid;
+}
+
+/**
+ * What a card says one did, priced — and nothing else in the server
+ * takes a client's word for anything.
+ *
+ * It is called after the card is written and its failure is swallowed by
+ * the caller: filing a film must never wait on, nor fail because of, a
+ * counter. `ref` carries the day for a screening and the work alone for
+ * a rating or a review, which is what makes a library worth what it is
+ * worth ONCE instead of at every synchronisation.
+ */
+export async function awardFromCard(
+  db: Db,
+  personId: string,
+  card: { tmdb_id?: string | null; data?: Record<string, unknown> | null }
+): Promise<number> {
+  const tmdb = card.tmdb_id;
+  const data = card.data;
+  if (!tmdb || !data) return 0;
+  let total = 0;
+
+  const watches = Array.isArray(data.watches) ? (data.watches as { date?: string }[]) : [];
+  const days = new Set<string>();
+  for (const w of watches) if (typeof w?.date === "string") days.add(w.date.slice(0, 10));
+  const fallback = typeof data.watchedAt === "string" ? data.watchedAt.slice(0, 10) : null;
+  if (fallback) days.add(fallback);
+  for (const day of days) total += await award(db, personId, "watch", `${tmdb}:${day}`, RATE.watch);
+
+  const review = typeof data.review === "string" ? data.review.trim() : "";
+  if (review.length >= REVIEW_LENGTH)
+    total += await award(db, personId, "review", tmdb, RATE.review);
+
+  if (typeof data.rating === "number" && data.rating > 0)
+    total += await award(db, personId, "rating", tmdb, RATE.rating);
+
+  return total;
+}
+
+/* ------------------------------------------------------------
+   THE RANKINGS
+   ------------------------------------------------------------
+
+   TWO OF THEM, AND THE SAME TWO GUARDS IN BOTH.
+
+   `rank()` is computed inside the window, BEFORE the `LIMIT`: the number
+   shown is the real place, not the row's index in a page of fifty.
+
+   `p.id = $1` is in both `WHERE`s, unconditionally. One always sees
+   oneself — even having asked to appear nowhere, even far below the
+   fiftieth. A ranking one cannot find oneself in is not a ranking.
+
+   And `NOT_BLOCKED`, which looks both ways like everywhere else: a block
+   declared on one side removes the two people from each other's boards.
+*/
+
+export interface Rank {
+  pseudo: string;
+  merit: number;
+  rank: number;
+  me: boolean;
+  stamp: string | null;
+}
+
+/** The world's board — only those who asked to be on it. */
+export async function globalLadder(db: Db, personId: string, cap = 50): Promise<Rank[]> {
+  return db.query<Rank>(
+    `SELECT pseudo, merit, rank, me, stamp FROM (
+       SELECT p.pseudo, w.merit, p.stamp,
+              rank() OVER (ORDER BY w.merit DESC)::int AS rank,
+              (p.id = $1) AS me
+         FROM purse w JOIN person p ON p.id = w.person_id
+        WHERE w.merit > 0
+          AND (p.id = $1 OR p.ladder = 'tous')
+          AND ${NOT_BLOCKED("$1", "p.id")}
+     ) board
+     ORDER BY merit DESC, pseudo
+     LIMIT $2`,
+    [personId, cap]
+  );
+}
+
+/**
+ * The friends' board — the people I follow, and me.
+ *
+ * "Friend" is `follow` and nothing else: no request, no acceptance, no
+ * second table. The tie is one-way, which is honest — I may watch
+ * somebody who does not watch me — and it is already the tie the feed is
+ * built on, so there is only one thing to understand.
+ */
+export async function friendsLadder(db: Db, personId: string): Promise<Rank[]> {
+  return db.query<Rank>(
+    `SELECT p.pseudo, w.merit, p.stamp,
+            rank() OVER (ORDER BY w.merit DESC)::int AS rank,
+            (p.id = $1) AS me
+       FROM purse w JOIN person p ON p.id = w.person_id
+      WHERE (p.id = $1
+             OR (EXISTS (SELECT 1 FROM follow f
+                          WHERE f.follower_id = $1 AND f.followed_id = p.id)
+                 AND p.ladder IN ('suivis', 'tous')))
+        AND ${NOT_BLOCKED("$1", "p.id")}
+      ORDER BY w.merit DESC, p.pseudo`,
+    [personId]
+  );
+}
+
+/** My real place in the world's board, even when I am far off the page. */
+export async function myStanding(db: Db, personId: string): Promise<number | null> {
+  const row = await one<{ place: number }>(
+    db,
+    `SELECT (1 + count(*))::int AS place
+       FROM purse w JOIN person p ON p.id = w.person_id
+      WHERE p.ladder = 'tous'
+        AND w.merit > coalesce((SELECT merit FROM purse WHERE person_id = $1), 0)`,
+    [personId]
+  );
+  return row?.place ?? null;
+}
+
+export async function setLadder(db: Db, personId: string, ladder: string): Promise<void> {
+  /* The CHECK on the column is what refuses a value that is not one of
+     the three; this passes it through rather than repeating the list. */
+  await db.query("UPDATE person SET ladder = $2 WHERE id = $1", [personId, ladder]);
+}
+
+export async function ladderOf(db: Db, personId: string): Promise<string> {
+  const row = await one<{ ladder: string }>(db, "SELECT ladder FROM person WHERE id = $1", [
+    personId,
+  ]);
+  return row?.ladder ?? "suivis";
+}
+
+/* ------------------------------------------------------------
+   THE SHOP
+   ------------------------------------------------------------ */
+
+export interface Holdings {
+  items: string[];
+  stickers: { sticker_id: string; copies: number }[];
+  powers: Record<string, number>;
+  worn: { stamp: string | null; skin: string | null };
+}
+
+export async function holdingsOf(db: Db, personId: string): Promise<Holdings> {
+  const [items, stickers, powers, worn] = await Promise.all([
+    db.query<{ item_id: string }>("SELECT item_id FROM owned WHERE person_id = $1", [personId]),
+    db.query<{ sticker_id: string; copies: number }>(
+      "SELECT sticker_id, copies FROM sticker WHERE person_id = $1 ORDER BY first_at",
+      [personId]
+    ),
+    db.query<{ kind: string; left_over: number }>(
+      "SELECT kind, left_over FROM power WHERE person_id = $1 AND left_over > 0",
+      [personId]
+    ),
+    one<{ stamp: string | null; skin: string | null }>(
+      db,
+      "SELECT stamp, skin FROM person WHERE id = $1",
+      [personId]
+    ),
+  ]);
+  return {
+    items: items.map((i) => i.item_id),
+    stickers,
+    powers: Object.fromEntries(powers.map((p) => [p.kind, p.left_over])),
+    worn: worn ?? { stamp: null, skin: null },
+  };
+}
+
+export class ShopRefusal extends Error {}
+
+/**
+ * Buy one thing.
+ *
+ * THE PAYMENT IS ONE STATEMENT, and the `CHECK (tokens >= 0)` on the
+ * purse is what refuses an overdraft: if the balance would go under, the
+ * constraint fails and the spending row is undone with it. There is no
+ * moment in which somebody has paid and received nothing.
+ *
+ * The chance of a packet is drawn HERE, inside that same statement's
+ * transaction, and written down before the answer leaves — so reloading
+ * the page cannot reroll a disappointing packet.
+ */
+export async function buy(
+  db: Db,
+  personId: string,
+  itemId: string,
+  rng: Rng
+): Promise<{ purse: Purse; drawn: string[] }> {
+  const item = itemById(itemId);
+  if (!item) throw new ShopRefusal("cet article n'existe pas");
+
+  /* Owning a stamp or a skin twice is refused BEFORE paying, and by a
+     read rather than by the key: `owned`'s primary key would have made
+     the insert do nothing while the tokens had already gone. */
+  if (item.kind === "stamp" || item.kind === "skin") {
+    const had = await one(db, "SELECT 1 FROM owned WHERE person_id = $1 AND item_id = $2", [
+      personId,
+      itemId,
+    ]);
+    if (had) throw new ShopRefusal("vous l'avez déjà");
+  }
+
+  let paid: { merit: number; tokens: number } | null = null;
+  try {
+    paid = await one<Purse>(
+      db,
+      `WITH spend AS (
+         INSERT INTO token_spend (id, person_id, item_id, tokens)
+         VALUES ($1, $2, $3, $4) RETURNING tokens
+       )
+       UPDATE purse SET tokens = tokens - (SELECT tokens FROM spend), updated_at = now()
+        WHERE person_id = $2
+       RETURNING merit, tokens`,
+      [randomUUID(), personId, itemId, item.price]
+    );
+  } catch {
+    /* The CHECK fired: the purse would have gone under. */
+    throw new ShopRefusal("pas assez de jetons");
+  }
+  /* No purse at all means nothing has ever been earned — the update
+     touched no row, and the spending row went with it. */
+  if (!paid) throw new ShopRefusal("pas assez de jetons");
+
+  const drawn: string[] = [];
+  if (item.kind === "pack") {
+    for (const s of draw(rng, item.draws ?? 1)) {
+      await db.query(
+        `INSERT INTO sticker (person_id, sticker_id) VALUES ($1, $2)
+         ON CONFLICT (person_id, sticker_id) DO UPDATE SET copies = sticker.copies + 1`,
+        [personId, s]
+      );
+      drawn.push(s);
+    }
+  } else if (item.kind === "power") {
+    await db.query(
+      `INSERT INTO power (person_id, kind, left_over) VALUES ($1, $2, 1)
+       ON CONFLICT (person_id, kind) DO UPDATE SET left_over = power.left_over + 1`,
+      [personId, item.power]
+    );
+  } else {
+    await db.query(
+      "INSERT INTO owned (person_id, item_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+      [personId, itemId]
+    );
+  }
+
+  return { purse: paid, drawn };
+}
+
+/**
+ * Wear a stamp, or a skin — or take one off with `null`.
+ *
+ * THE CHECK IS IN THE STATEMENT. Reading "do they own it" and then
+ * writing would have been two commands with a gap between them; here
+ * a row that comes back is the permission, and no row is the refusal.
+ */
+export async function wear(
+  db: Db,
+  personId: string,
+  what: "stamp" | "skin",
+  itemId: string | null
+): Promise<boolean> {
+  const rows = await db.query(
+    `UPDATE person SET ${what} = $2
+      WHERE id = $1
+        AND ($2::text IS NULL
+             OR EXISTS (SELECT 1 FROM owned WHERE person_id = $1 AND item_id = $2))
+     RETURNING id`,
+    [personId, itemId]
+  );
+  return rows.length > 0;
+}
+
+/* ------------------------------------------------------------
+   THE POWERS, AND WHAT THEY MAY NOT DO
+   ------------------------------------------------------------ */
+
+/** Take one power off the shelf. False when there was none to take. */
+async function spendPower(db: Db, personId: string, kind: PowerKind): Promise<boolean> {
+  const rows = await db.query(
+    `UPDATE power SET left_over = left_over - 1
+      WHERE person_id = $1 AND kind = $2 AND left_over > 0
+     RETURNING left_over`,
+    [personId, kind]
+  );
+  return rows.length > 0;
+}
+
+/**
+ * Take two wrong answers away from a question.
+ *
+ * THE RESULT IS REMEMBERED, and that is the whole design. Without
+ * `quiz_help`'s primary key, asking again would return two OTHER wrong
+ * answers each time: one pays once and strips the question bare. Here
+ * the second call returns the same pair and charges nothing.
+ *
+ * The right answer is never among what is returned, and this is also the
+ * only place in the server that touches `is_right` before an attempt is
+ * closed — which is why it returns identifiers to hide and not the
+ * question.
+ */
+export async function halveFor(
+  db: Db,
+  quizId: string,
+  personId: string,
+  questionId: string
+): Promise<{ removed: string[] } | "no-power" | "closed"> {
+  const already = await one<{ removed: string[] }>(
+    db,
+    `SELECT removed FROM quiz_help
+      WHERE quiz_id = $1 AND person_id = $2 AND question_id = $3 AND kind = 'halve'`,
+    [quizId, personId, questionId]
+  );
+  if (already) return { removed: already.removed };
+
+  const open = await one(
+    db,
+    `SELECT 1 FROM quiz_attempt
+      WHERE quiz_id = $1 AND person_id = $2 AND finished_at IS NULL`,
+    [quizId, personId]
+  );
+  if (!open) return "closed";
+  if (!(await spendPower(db, personId, "halve"))) return "no-power";
+
+  const rows = await db.query<{ id: string }>(
+    `SELECT c.id FROM quiz_choice c
+       JOIN quiz_draw d ON d.question_id = c.question_id AND d.quiz_id = $1
+      WHERE c.question_id = $2 AND NOT c.is_right
+      ORDER BY c.rank
+      LIMIT 2`,
+    [quizId, questionId]
+  );
+  const removed = rows.map((r) => r.id);
+  await db.query(
+    `INSERT INTO quiz_help (quiz_id, person_id, question_id, kind, removed)
+     VALUES ($1, $2, $3, 'halve', $4::uuid[])`,
+    [quizId, personId, questionId, removed]
+  );
+  return { removed };
+}
+
+/**
+ * Take an answer back, once per question.
+ *
+ * The mark stays in `quiz_help` after the answer is gone: a question one
+ * has had a second go at must not look, to the other players, like a
+ * question one got right first time.
+ */
+export async function redoAnswer(
+  db: Db,
+  quizId: string,
+  personId: string,
+  questionId: string
+): Promise<"done" | "no-power" | "closed" | "already"> {
+  const already = await one(
+    db,
+    `SELECT 1 FROM quiz_help
+      WHERE quiz_id = $1 AND person_id = $2 AND question_id = $3 AND kind = 'redo'`,
+    [quizId, personId, questionId]
+  );
+  if (already) return "already";
+
+  const open = await one(
+    db,
+    "SELECT 1 FROM quiz_attempt WHERE quiz_id = $1 AND person_id = $2 AND finished_at IS NULL",
+    [quizId, personId]
+  );
+  if (!open) return "closed";
+  if (!(await spendPower(db, personId, "redo"))) return "no-power";
+
+  await db.query(
+    `INSERT INTO quiz_help (quiz_id, person_id, question_id, kind) VALUES ($1, $2, $3, 'redo')`,
+    [quizId, personId, questionId]
+  );
+  await db.query(
+    "DELETE FROM quiz_answer WHERE quiz_id = $1 AND person_id = $2 AND question_id = $3",
+    [quizId, personId, questionId]
+  );
+  return "done";
+}
+
+/** Which questions of mine carry a mark, and what it hides. */
+export async function helpOf(
+  db: Db,
+  quizId: string,
+  personId: string
+): Promise<{ question_id: string; kind: string; removed: string[] }[]> {
+  return db.query(
+    "SELECT question_id, kind, removed FROM quiz_help WHERE quiz_id = $1 AND person_id = $2",
+    [quizId, personId]
+  );
+}
+
+/**
+ * Push a challenge's end back by a week.
+ *
+ * ALL FIVE LIMITS ARE IN THE ONE STATEMENT, and the fifth is the one
+ * that would have been forgotten in a route: a challenge already SETTLED
+ * may not be extended. The journal's key would refuse to pay a second
+ * time anyway, but the board would still have been left describing a
+ * period that no longer matches what was paid for.
+ */
+export async function extendChallenge(
+  db: Db,
+  challengeId: string,
+  personId: string
+): Promise<{ ends_on: string; extensions: number } | null> {
+  return one<{ ends_on: string; extensions: number }>(
+    db,
+    `UPDATE challenge
+        SET ends_on = ends_on + 7, extensions = extensions + 1
+      WHERE id = $1
+        AND created_by = $2
+        AND extensions < 2
+        AND ends_on >= current_date - 7
+        AND NOT EXISTS (SELECT 1 FROM merit_event
+                         WHERE kind IN ('challenge', 'challenge_half') AND ref = $1::text)
+     RETURNING to_char(ends_on, 'YYYY-MM-DD') AS ends_on, extensions`,
+    [challengeId, personId]
   );
 }
