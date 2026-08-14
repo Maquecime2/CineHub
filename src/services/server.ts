@@ -1029,3 +1029,110 @@ export const finishQuiz = (id: string) =>
 
 export const quizScores = (id: string) =>
   call<{ scores: QuizScore[] }>(`/quizzes/${encodeURIComponent(id)}/scores`);
+
+/* ------------------------------------------------------------
+   LE COMPTOIR — la bourse, les palmarès, la boutique
+   ------------------------------------------------------------
+
+   AUCUNE DE CES FONCTIONS N'ENVOIE UN MONTANT. Ce qu'une chose vaut se
+   lit sur le serveur, contre un fait qu'il vient d'écrire lui-même ; le
+   classeur en garde une copie (`domain/points.ts`) pour ANNONCER un
+   chiffre sans aller-retour, jamais pour en réclamer un.
+
+   Comme partout ici, l'absence de serveur ou de compte ne se gère pas
+   par un message d'erreur : la vue entière ne se dessine pas. */
+
+/** Les deux compteurs, et où l'on se situe. */
+export interface Purse {
+  /** Cumulé, jamais dépensé : c'est lui qui classe. */
+  merit: number;
+  /** Le même chiffre, moins ce qui est passé au comptoir. */
+  tokens: number;
+  /** Sa vraie place au classement mondial, même hors de la page. */
+  standing: number | null;
+  /** « non », « suivis » ou « tous » — où l'on accepte d'apparaître. */
+  ladder: string;
+}
+
+export interface Rank {
+  pseudo: string;
+  merit: number;
+  rank: number;
+  me: boolean;
+  stamp: string | null;
+}
+
+export interface ShopItem {
+  id: string;
+  kind: "stamp" | "pack" | "skin" | "power";
+  price: number;
+  /** Pour une peau : la clé qu'elle ouvre dans le catalogue du classeur. */
+  grants?: string;
+  power?: string;
+  draws?: number;
+  owned?: boolean;
+  /** Pour un pouvoir : combien il en reste. */
+  held?: number;
+}
+
+export interface Holdings {
+  items: string[];
+  stickers: { sticker_id: string; copies: number }[];
+  powers: Record<string, number>;
+  worn: { stamp: string | null; skin: string | null };
+}
+
+export const myPurse = () => call<Purse>("/purse");
+
+export const ladder = (scope: "world" | "friends") =>
+  call<{ ranks: Rank[] }>(`/ladder/${scope}`).then((r) => r.ranks);
+
+export const setLadder = (ladder: "non" | "suivis" | "tous") =>
+  call<{ ladder: string }>("/ladder/mine", {
+    method: "PATCH",
+    body: JSON.stringify({ ladder }),
+  });
+
+export const shop = () => call<{ items: ShopItem[] }>("/shop").then((r) => r.items);
+
+export const myHoldings = () => call<Holdings>("/shop/mine");
+
+/** Le hasard d'une pochette est tiré et écrit SUR LE SERVEUR : recharger
+    la page ne le rejoue pas. `drawn` est ce qui vient d'en sortir. */
+export const buy = (item: string) =>
+  call<{ purse: { merit: number; tokens: number }; drawn: string[] }>("/shop/buy", {
+    method: "POST",
+    body: JSON.stringify({ item }),
+  });
+
+export const wear = (what: { stamp?: string | null; skin?: string | null }) =>
+  call<{ stamp: string | null; skin: string | null }>("/shop/worn", {
+    method: "PATCH",
+    body: JSON.stringify(what),
+  });
+
+/* ---- les pouvoirs ---- */
+
+/** Rend les propositions à masquer — jamais la bonne réponse, et
+    toujours les MÊMES si on redemande. */
+export const halveQuestion = (quizId: string, questionId: string) =>
+  call<{ removed: string[]; left: number }>(
+    `/quizzes/${encodeURIComponent(quizId)}/questions/${encodeURIComponent(questionId)}/halve`,
+    { method: "POST" }
+  );
+
+export const redoQuestion = (quizId: string, questionId: string) =>
+  call<{ left: number }>(
+    `/quizzes/${encodeURIComponent(quizId)}/questions/${encodeURIComponent(questionId)}/redo`,
+    { method: "POST" }
+  );
+
+export const extendChallenge = (id: string) =>
+  call<{ ends_on: string; extensions: number }>(`/challenges/${encodeURIComponent(id)}/extend`, {
+    method: "POST",
+  });
+
+/** Clôt les comptes d'un défi fini. Le premier qui regarde solde pour
+    tout le monde ; les suivants ne paient personne deux fois. */
+export const settleChallenge = (id: string) =>
+  call<{ awarded: number }>(`/challenges/${encodeURIComponent(id)}/settle`, { method: "POST" });
