@@ -388,10 +388,13 @@ export function Stamp({
           textTransform: "uppercase",
           whiteSpace: "nowrap",
           verticalAlign: "middle",
-          mixBlendMode: "multiply",
-          opacity: 0.78,
+          /* Les deux valeurs viennent des jetons : `multiply` sur du
+             papier clair, rien du tout sur une peau sombre — où il ne
+             pourrait que noircir une encre claire. Voir `tokens`. */
+          mixBlendMode: "var(--stamp-blend)" as never,
+          opacity: "var(--stamp-ink)" as never,
           "--stamp-tilt": `${tilt}deg`,
-          "--stamp-rest": 0.78,
+          "--stamp-rest": "var(--stamp-ink)",
           transform: `rotate(${tilt}deg)`,
           animation: "stampDown var(--motion-slow) var(--motion-ease) backwards",
         } as CSSProperties
