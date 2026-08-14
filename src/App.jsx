@@ -483,6 +483,18 @@ export default function App() {
     setSelectedId(null);
   };
 
+  /* PLUSIEURS D'UN COUP, DEPUIS LE MUR. Passer par `deleteFilm` en
+     boucle aurait écrit la collection autant de fois qu'on supprime de
+     films — et chaque écriture repart en synchro. Un seul filtre, une
+     seule écriture, une seule tombe posée par fiche. */
+  const deleteFilms = (ids) => {
+    const gone = new Set(ids);
+    if (gone.size === 0) return;
+    const next = films.filter((f) => !gone.has(f.id));
+    commitFilms(next);
+    pruneOrphans(next).catch(console.error);
+  };
+
   /* Linking two cards means writing on both sides: opening one or the
      other must show the same thread. The two halves share a pairId,
      which is what lets them be undone together. */
@@ -818,6 +830,7 @@ export default function App() {
       >
         {view === "library" && !selectedId && (
           <LibraryView
+            onDeleteFilms={deleteFilms}
             wall="watched"
             films={watched}
             ui={wallUi.watched}
@@ -832,6 +845,7 @@ export default function App() {
         )}
         {view === "watchlist" && !selectedId && (
           <LibraryView
+            onDeleteFilms={deleteFilms}
             wall="watchlist"
             films={watchlist}
             allFilms={films}

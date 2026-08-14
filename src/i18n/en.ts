@@ -382,6 +382,13 @@ const en = {
   },
 
   lists: {
+    deleteChosen_one: "Erase {{count}} card",
+    deleteChosen_other: "Erase {{count}} cards",
+    deleteTitle_one: "Erase {{count}} card?",
+    deleteTitle_other: "Erase {{count}} cards?",
+    deleteBody:
+      "They leave your video library with their posters, their notes and their screening log. What sits in a list or a challenge is filed there by its TMDB identifier only: that does not move.",
+    deleteAction: "ERASE",
     filed: "filed",
     alreadyThere: "was already there",
     fileIn: "File in a list",

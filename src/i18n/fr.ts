@@ -398,6 +398,13 @@ const fr = {
   },
 
   lists: {
+    deleteChosen_one: "Effacer {{count}} fiche",
+    deleteChosen_other: "Effacer {{count}} fiches",
+    deleteTitle_one: "Effacer {{count}} fiche ?",
+    deleteTitle_other: "Effacer {{count}} fiches ?",
+    deleteBody:
+      "Elles partent de votre vidéothèque avec leurs affiches, leurs notes et leur journal de séances. Ce qui se trouve dans une liste ou dans un défi n'y est rangé que par son identifiant TMDB : cela ne bouge pas.",
+    deleteAction: "EFFACER",
     filed: "rangé",
     alreadyThere: "y était déjà",
     fileIn: "Ranger dans une liste",
