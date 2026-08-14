@@ -1243,6 +1243,25 @@ const fr = {
     upcoming: "à venir",
     finished: "terminé",
     running: "en cours",
+    /* LE MÊME OUBLI, LA SECONDE MOITIÉ. Onze phrases de plus dormaient
+       en dur — dont deux que la même passe automatique avait rendues
+       illisibles : « Person n'y participe more. » et « visible de qui
+       vous follows ». Le titre de la vue lui-même n'était nulle part
+       ailleurs que dans le JSX. */
+    heading: "Listes et défis",
+    subheading: "ce qu'on se donne à voir, seul ou à plusieurs",
+    invite: "INVITER",
+    removeMember: "Retirer {{pseudo}}",
+    publicNote: "visible par les gens qui vous suivent",
+    deleteList: "Effacer cette liste",
+    challengePlaceholder: "Mars chez Varda",
+    launch: "LANCER",
+    join: "PARTICIPER",
+    leave: "SORTIR",
+    noParticipants: "Personne n'y participe encore.",
+    works_one: "{{count}} film",
+    works_other: "{{count}} films",
+    fromList: "d'après « {{title}} »",
   },
 
   quizView: {

@@ -301,7 +301,7 @@ function OneList({
                   style={{ ...underlineInput, fontFamily: F.mono, fontSize: 12 }}
                 />
                 <button onClick={sendInvite} style={inked(C.pine)}>
-                  <UserPlus size={12} /> INVITER
+                  <UserPlus size={12} /> {t("listsView.invite")}
                 </button>
               </div>
               {trouble && (
@@ -316,7 +316,7 @@ function OneList({
                       {m}
                       <button
                         onClick={() => removeFromListMembers(list.id, m).then(reread)}
-                        title={`Retirer ${m}`}
+                        title={t("listsView.removeMember", { pseudo: m })}
                         style={{ ...bare, color: C.burgundy }}
                       >
                         <X size={10} />
@@ -335,12 +335,12 @@ function OneList({
                       editList(list.id, { is_public: e.target.checked }).then(onChange)
                     }
                   />{" "}
-                  visible de qui vous follows
+                  {t("listsView.publicNote")}
                 </label>
                 <span style={{ flex: 1 }} />
                 <button
                   onClick={() => deleteList(list.id).then(onChange)}
-                  title="Effacer cette list"
+                  title={t("listsView.deleteList")}
                   style={{ ...bare, color: C.burgundy }}
                 >
                   <Trash2 size={12} />
@@ -359,7 +359,7 @@ function OneList({
                 <input
                   value={challenge.title}
                   onChange={(e) => setDraft({ ...challenge, title: e.target.value })}
-                  placeholder="Mars chez Varda"
+                  placeholder={t("listsView.challengePlaceholder")}
                   style={{ ...underlineInput, fontFamily: F.hand, fontSize: 16, flex: "1 1 160px" }}
                 />
                 <input
@@ -375,7 +375,7 @@ function OneList({
                   style={{ ...underlineInput, fontFamily: F.mono, fontSize: 11, width: 130 }}
                 />
                 <button onClick={run} style={inked(C.burgundy)}>
-                  LANCER
+                  {t("listsView.launch")}
                 </button>
               </div>
             </div>
@@ -560,8 +560,9 @@ function OneChallenge({
           {challenge.title}
         </span>
         <span style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>
-          {challenge.starts_on} → {challenge.ends_on} · {state} · {challenge.works} film
-          {challenge.works > 1 ? "s" : ""} · d'après « {challenge.list} »
+          {challenge.starts_on} → {challenge.ends_on} · {state} ·{" "}
+          {t("listsView.works", { count: challenge.works })} ·{" "}
+          {t("listsView.fromList", { title: challenge.list })}
         </span>
         <span style={{ flex: 1 }} />
         <button
@@ -572,7 +573,7 @@ function OneChallenge({
           }
           style={inked(challenge.inside ? C.slate : C.pine)}
         >
-          {challenge.inside ? "SORTIR" : "PARTICIPER"}
+          {challenge.inside ? t("listsView.leave") : t("listsView.join")}
         </button>
         {challenge.per === null || challenge.inside ? (
           <button
@@ -589,7 +590,7 @@ function OneChallenge({
           the server counts, it does not copy out — and only counts
           people who have asked to take part. */}
       <div style={{ marginTop: 8 }}>
-        {progress?.length === 0 && <Guideline tight>Person n'y participe more.</Guideline>}
+        {progress?.length === 0 && <Guideline tight>{t("listsView.noParticipants")}</Guideline>}
         {(progress ?? []).map((a) => (
           <Meter key={a.pseudo} name={a.pseudo} done={a.done} total={challenge.works} />
         ))}
@@ -611,12 +612,15 @@ function currentMonth() {
 
 /* The head of the view — see `ViewHeading`, shared with the quiz and the
    counter. Only the icon, the tint and the two sentences belong here. */
-const Page = ({ children }: { children: ReactNode }) => (
-  <ViewHeading
-    icon={<ListChecks size={22} color={C.moss} />}
-    title="Listes et défis"
-    blurb="ce qu'on se donne à voir, seul ou à plusieurs"
-  >
-    {children}
-  </ViewHeading>
-);
+const Page = ({ children }: { children: ReactNode }) => {
+  const { t } = useTranslation();
+  return (
+    <ViewHeading
+      icon={<ListChecks size={22} color={C.moss} />}
+      title={t("listsView.heading")}
+      blurb={t("listsView.subheading")}
+    >
+      {children}
+    </ViewHeading>
+  );
+};
