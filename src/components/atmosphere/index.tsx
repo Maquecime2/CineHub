@@ -244,10 +244,12 @@ export function StampCorner({ text }: { text: string }) {
         fontSize: 11,
         letterSpacing: 1.8,
         transform: "rotate(-7deg)",
-        opacity: 0.62,
+        /* Le grand cachet de page suit la même règle que le petit : un
+           `multiply` sur une peau sombre l'éteint. Voir `tokens`. */
+        opacity: "var(--stamp-page)" as never,
         pointerEvents: "none",
         borderRadius: 2,
-        mixBlendMode: "multiply",
+        mixBlendMode: "var(--stamp-blend)" as never,
         zIndex: 3,
       }}
     >

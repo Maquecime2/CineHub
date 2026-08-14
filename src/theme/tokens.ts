@@ -408,6 +408,29 @@ html, body { overscroll-behavior-y: contain; }
 [data-dark="1"] { color-scheme: dark; }
 [data-dark="0"] { color-scheme: light; }
 
+/* L'ENCRE D'UN TAMPON, ET POURQUOI ELLE VIT ICI.
+
+   (Aucun accent grave dans ce commentaire : il est DANS un littéral
+   gabarit, et le premier fermerait la feuille de style au milieu d'une
+   phrase. L'avertissement est déjà écrit plus haut ; il vient de mordre
+   une fois de plus.)
+
+   Un tampon s'imprime en multiply : c'est ce qui lui donne l'air d'avoir
+   été absorbé par le papier au lieu d'être posé dessus, et c'est juste
+   sur les douze peaux claires.
+
+   Sur les cinq peaux sombres, multiply ne peut que NOIRCIR — et l'encre
+   y est claire, puisqu'elle suit les jetons. Le cachet disparaissait
+   donc exactement là où le fond était le plus soigné : sur le velours du
+   comptoir, à peine un rectangle plus foncé.
+
+   Ces trois valeurs vivent donc ici, comme le grain et les taches, et le
+   même attribut les bascule. Elles sont lues en var() DANS des styles en
+   ligne — un style en ligne bat toujours une feuille de style, donc une
+   règle visant une classe n'aurait rien pu contre elles. */
+:root { --stamp-blend: multiply; --stamp-ink: .78; --stamp-page: .62; }
+[data-dark="1"] { --stamp-blend: normal; --stamp-ink: .95; --stamp-page: .8; }
+
 /* WHERE color-scheme IS NOT ENOUGH. The entries of a list inherit the
    transparent background of their select, which the browser then
    resolves onto ITS OWN canvas and not onto the skin's card. So we give
