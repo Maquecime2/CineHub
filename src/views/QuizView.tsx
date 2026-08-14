@@ -27,9 +27,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 import { Check, Library, Pencil, Plus, Puzzle, Trash2, Undo2, UserPlus, X } from "lucide-react";
-import { C, F, alpha } from "../theme/tokens";
-import { tap, underlineInput } from "../theme/styles";
-import { Label } from "../components/ui";
+import { C, F } from "../theme/tokens";
+import { bare, chip, hollow, inked, tap, underlineInput } from "../theme/styles";
+import { Guideline, Label, Meter, ViewHeading } from "../components/ui";
 import {
   addBankQuestion,
   answerQuiz,
@@ -87,7 +87,7 @@ export function QuizView({ connected }: { connected: boolean }) {
   if (!serverConfigured()) {
     return (
       <Page>
-        <Guideline>{t("quizView.noServer")}</Guideline>
+        <Guideline tight>{t("quizView.noServer")}</Guideline>
       </Page>
     );
   }
@@ -95,7 +95,7 @@ export function QuizView({ connected }: { connected: boolean }) {
   if (!connected) {
     return (
       <Page>
-        <Guideline>{t("quizView.noAccount")}</Guideline>
+        <Guideline tight>{t("quizView.noAccount")}</Guideline>
       </Page>
     );
   }
@@ -113,7 +113,7 @@ export function QuizView({ connected }: { connected: boolean }) {
         <div data-tour="quiz-bank" style={{ marginBottom: 26 }}>
           <button
             onClick={() => setTendingBank(!tendingBank)}
-            style={tendingBank ? button(C.ink) : { ...button(C.ink), ...ghost }}
+            style={tendingBank ? inked(C.ink) : { ...inked(C.ink), ...hollow }}
           >
             <Library size={12} /> {t("quizView.tendBank")}
           </button>
@@ -125,7 +125,7 @@ export function QuizView({ connected }: { connected: boolean }) {
 
       <div data-tour="quiz-mine" style={{ marginTop: 34 }}>
         <Label>{t("quizView.yours")}</Label>
-        {mine.length === 0 && <Guideline>{t("quizView.noneDealt")}</Guideline>}
+        {mine.length === 0 && <Guideline tight>{t("quizView.noneDealt")}</Guideline>}
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 6 }}>
           {mine.map((q) => (
             <OneQuiz
@@ -141,7 +141,7 @@ export function QuizView({ connected }: { connected: boolean }) {
 
       <div data-tour="quiz-given" style={{ marginTop: 30 }}>
         <Label>{t("quizView.given")}</Label>
-        {given.length === 0 && <Guideline>{t("quizView.noneGiven")}</Guideline>}
+        {given.length === 0 && <Guideline tight>{t("quizView.noneGiven")}</Guideline>}
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 6 }}>
           {given.map((q) => (
             <OneQuiz
@@ -207,7 +207,7 @@ function Composer({
     return (
       <div data-tour="quiz-new">
         <Label>{t("quizView.newQuiz")}</Label>
-        <Guideline>{t("quizView.bankEmpty")}</Guideline>
+        <Guideline tight>{t("quizView.bankEmpty")}</Guideline>
       </div>
     );
   }
@@ -233,7 +233,7 @@ function Composer({
                 onClick={() => setPicked(on ? picked.filter((x) => x !== c.id) : [...picked, c.id])}
                 title={c.blurb || undefined}
                 style={{
-                  ...token,
+                  ...chip,
                   ...tap,
                   cursor: "pointer",
                   color: on ? C.card : C.inkFaded,
@@ -257,7 +257,7 @@ function Composer({
               <button
                 key={l}
                 onClick={() => setLevel(l)}
-                style={level === l ? button(C.ink) : { ...button(C.ink), ...ghost }}
+                style={level === l ? inked(C.ink) : { ...inked(C.ink), ...hollow }}
               >
                 {t(`quizView.difficulty.${l}`)}
               </button>
@@ -271,7 +271,7 @@ function Composer({
               <button
                 key={s}
                 onClick={() => setSize(s)}
-                style={size === s ? button(C.ink) : { ...button(C.ink), ...ghost }}
+                style={size === s ? inked(C.ink) : { ...inked(C.ink), ...hollow }}
               >
                 {s}
               </button>
@@ -281,7 +281,7 @@ function Composer({
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 16 }}>
-        <button onClick={deal} style={button(C.plum)}>
+        <button onClick={deal} style={inked(C.plum)}>
           <Plus size={12} /> {t("quizView.deal")}
         </button>
         {picked.length > 0 && available < size && (
@@ -343,7 +343,7 @@ function OneQuiz({
           {quiz.title}
         </span>
         {quiz.topics.map((c) => (
-          <span key={c} style={token}>
+          <span key={c} style={chip}>
             {c}
           </span>
         ))}
@@ -432,11 +432,11 @@ function Playing({ quiz, onChange }: { quiz: Quiz; onChange: () => Promise<void>
 
   return (
     <div data-tour="quiz-playing" style={{ borderTop: `1px solid ${C.line}`, padding: 13 }}>
-      {quiz.softened && <Guideline>{t("quizView.softened")}</Guideline>}
+      {quiz.softened && <Guideline tight>{t("quizView.softened")}</Guideline>}
 
       {finished ? (
         <>
-          <Guideline>{t("quizView.overForYou")}</Guideline>
+          <Guideline tight>{t("quizView.overForYou")}</Guideline>
           <Correction questions={questions} weight={weight} />
         </>
       ) : (
@@ -447,9 +447,9 @@ function Playing({ quiz, onChange }: { quiz: Quiz; onChange: () => Promise<void>
           {current ? (
             <Asked question={current} busy={busy} onPick={(c) => lay(current.id, c)} />
           ) : (
-            <Guideline>{t("quizView.allAnswered")}</Guideline>
+            <Guideline tight>{t("quizView.allAnswered")}</Guideline>
           )}
-          <button onClick={close} style={{ ...button(C.burgundy), marginTop: 16 }}>
+          <button onClick={close} style={{ ...inked(C.burgundy), marginTop: 16 }}>
             {t("quizView.finish")}
           </button>
           <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 6 }}>
@@ -600,42 +600,18 @@ function Scoreboard({
   return (
     <div data-tour="quiz-scores" style={{ marginTop: 18 }}>
       <Label>{t("quizView.scores")}</Label>
-      {scores.length === 0 && <Guideline>{t("quizView.nobodyPlayed")}</Guideline>}
+      {scores.length === 0 && <Guideline tight>{t("quizView.nobodyPlayed")}</Guideline>}
+      {/* The whole here is WHAT THE QUIZ IS WORTH, and not the best of
+          the scores — see `Meter`, which carries that decision now. */}
       {scores.map((s) => (
-        <div key={s.pseudo} style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 5 }}>
-          <span
-            style={{ fontFamily: F.mono, fontSize: 10.5, color: C.ink, width: 110, flexShrink: 0 }}
-          >
-            {s.pseudo}
-          </span>
-          <span
-            style={{
-              flex: 1,
-              height: 7,
-              background: alpha(C.ink, 0.08),
-              position: "relative",
-              overflow: "hidden",
-            }}
-          >
-            {/* Against what the QUIZ is worth, not against the best
-                score: a bar that filled the width because everybody did
-                badly would flatter the whole table. */}
-            <span
-              style={{
-                position: "absolute",
-                inset: 0,
-                right: "auto",
-                width: `${weight ? (100 * s.score) / weight : 0}%`,
-                background: s.finished ? C.burgundy : alpha(C.burgundy, 0.4),
-                transition: "width var(--motion-slow) var(--motion-ease)",
-              }}
-            />
-          </span>
-          <span style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>
-            {s.score}/{weight}
-            {!s.finished && ` · ${t("quizView.stillPlaying")}`}
-          </span>
-        </div>
+        <Meter
+          key={s.pseudo}
+          name={s.pseudo}
+          done={s.score}
+          total={weight}
+          faded={!s.finished}
+          note={s.finished ? undefined : t("quizView.stillPlaying")}
+        />
       ))}
     </div>
   );
@@ -675,18 +651,18 @@ function Guests({
       <Label>{t("quizView.players")}</Label>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
         {players.map((p) => (
-          <span key={p} style={token}>
+          <span key={p} style={chip}>
             {p}
             <button
               onClick={() => removePlayer(quiz.id, p).then(onChange)}
               title={t("quizView.removePlayer")}
-              style={small}
+              style={bare}
             >
               <X size={11} />
             </button>
           </span>
         ))}
-        {players.length === 0 && <Guideline>{t("quizView.nobodyYet")}</Guideline>}
+        {players.length === 0 && <Guideline tight>{t("quizView.nobodyYet")}</Guideline>}
       </div>
       <div style={{ display: "flex", gap: 8, alignItems: "flex-end", marginTop: 8 }}>
         <input
@@ -696,14 +672,14 @@ function Guests({
           placeholder={t("quizView.invitePlaceholder")}
           style={{ ...underlineInput, fontFamily: F.hand, fontSize: 16, maxWidth: 220 }}
         />
-        <button onClick={invite} style={button(C.ink)}>
+        <button onClick={invite} style={inked(C.ink)}>
           <UserPlus size={12} /> {t("quizView.invite")}
         </button>
         <span style={{ flex: 1 }} />
         <button
           onClick={() => deleteQuiz(quiz.id).then(onGone)}
           title={t("quizView.deleteQuiz")}
-          style={{ ...small, color: C.burgundy }}
+          style={{ ...bare, color: C.burgundy }}
         >
           <Trash2 size={13} />
         </button>
@@ -758,7 +734,7 @@ function Bank({ categories, onChange }: { categories: Category[]; onChange: () =
             style={{ ...underlineInput, fontFamily: F.hand, fontSize: 16 }}
           />
         </div>
-        <button onClick={make} style={button(C.ink)}>
+        <button onClick={make} style={inked(C.ink)}>
           <Plus size={12} /> {t("quizView.addCategory")}
         </button>
       </div>
@@ -769,7 +745,7 @@ function Bank({ categories, onChange }: { categories: Category[]; onChange: () =
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 14 }}>
-        {categories.length === 0 && <Guideline>{t("quizView.noCategories")}</Guideline>}
+        {categories.length === 0 && <Guideline tight>{t("quizView.noCategories")}</Guideline>}
         {categories.map((c) => (
           <OneCategory
             key={c.id}
@@ -839,7 +815,7 @@ function OneCategory({
             </div>
           )}
           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-            {questions.length === 0 && <Guideline>{t("quizView.noQuestions")}</Guideline>}
+            {questions.length === 0 && <Guideline tight>{t("quizView.noQuestions")}</Guideline>}
             {questions.map((q) =>
               editing === q.id ? (
                 <QuestionEditor
@@ -866,7 +842,7 @@ function OneCategory({
                     border: `1px solid ${dealable(q) ? "transparent" : C.burgundy}`,
                   }}
                 >
-                  <span style={{ ...token, borderColor: C.line }}>
+                  <span style={{ ...chip, borderColor: C.line }}>
                     {t(`quizView.difficulty.${q.difficulty}`)}
                   </span>
                   <span style={{ fontFamily: F.body, fontSize: 15, color: C.ink, flex: 1 }}>
@@ -885,7 +861,7 @@ function OneCategory({
                   <button
                     onClick={() => setEditing(q.id)}
                     title={t("quizView.editQuestion")}
-                    style={small}
+                    style={bare}
                   >
                     <Pencil size={12} />
                   </button>
@@ -895,7 +871,7 @@ function OneCategory({
                         reviveBankQuestion(category.id, q.id).then(reread).then(onChange)
                       }
                       title={t("quizView.revive")}
-                      style={small}
+                      style={bare}
                     >
                       <Undo2 size={12} />
                     </button>
@@ -908,7 +884,7 @@ function OneCategory({
                         await onChange();
                       }}
                       title={t("quizView.removeQuestion")}
-                      style={{ ...small, color: C.burgundy }}
+                      style={{ ...bare, color: C.burgundy }}
                     >
                       <Trash2 size={12} />
                     </button>
@@ -930,7 +906,7 @@ function OneCategory({
             />
           ) : (
             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-              <button onClick={() => setWriting(true)} style={button(C.ink)}>
+              <button onClick={() => setWriting(true)} style={inked(C.ink)}>
                 <Plus size={12} /> {t("quizView.addQuestion")}
               </button>
               <span style={{ flex: 1 }} />
@@ -944,7 +920,7 @@ function OneCategory({
                   }
                 }}
                 title={t("quizView.deleteCategory")}
-                style={{ ...small, color: C.burgundy }}
+                style={{ ...bare, color: C.burgundy }}
               >
                 <Trash2 size={13} />
               </button>
@@ -1018,7 +994,7 @@ function QuestionEditor({
             <button
               key={l}
               onClick={() => setDifficulty(l)}
-              style={difficulty === l ? button(C.ink) : { ...button(C.ink), ...ghost }}
+              style={difficulty === l ? inked(C.ink) : { ...inked(C.ink), ...hollow }}
             >
               {t(`quizView.difficulty.${l}`)} · {t("quizView.worth", { n: POINTS[l] })}
             </button>
@@ -1034,7 +1010,7 @@ function QuestionEditor({
               onClick={() => tick(i)}
               title={t("quizView.markRight")}
               style={{
-                ...small,
+                ...bare,
                 color: c.is_right ? C.pine : C.inkFaded,
                 opacity: c.is_right ? 1 : 0.45,
               }}
@@ -1052,7 +1028,7 @@ function QuestionEditor({
             <button
               onClick={() => setChoices(choices.filter((_, j) => j !== i))}
               title={t("quizView.removeChoice")}
-              style={small}
+              style={bare}
             >
               <X size={12} />
             </button>
@@ -1060,7 +1036,7 @@ function QuestionEditor({
         ))}
         <button
           onClick={() => setChoices([...choices, { label: "", is_right: false }])}
-          style={{ ...small, fontFamily: F.mono, fontSize: 10, marginTop: 6 }}
+          style={{ ...bare, fontFamily: F.mono, fontSize: 10, marginTop: 6 }}
         >
           + {t("quizView.addChoice")}
         </button>
@@ -1088,10 +1064,10 @@ function QuestionEditor({
       </div>
 
       <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-        <button onClick={save} style={button(C.ink)}>
+        <button onClick={save} style={inked(C.ink)}>
           {t("quizView.save")}
         </button>
-        <button onClick={onCancel} style={{ ...button(C.ink), ...ghost }}>
+        <button onClick={onCancel} style={{ ...inked(C.ink), ...hollow }}>
           {t("quizView.cancel")}
         </button>
       </div>
@@ -1102,74 +1078,18 @@ function QuestionEditor({
 /** What each level is worth. The same table as `quiz_points` in SQL. */
 const POINTS: Record<string, number> = { easy: 1, normal: 2, hard: 3 };
 
+/* The head of the view. Only the icon, the tint and the two sentences
+   belong to the quiz; the rest is `ViewHeading`, shared with the lists
+   and the counter. It stays a local name because three places call it. */
 const Page = ({ children }: { children: ReactNode }) => {
   const { t } = useTranslation();
   return (
-    <div style={{ padding: "34px 24px 70px", maxWidth: 1000 }}>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 4 }}>
-        <Puzzle size={22} color={C.plum} />
-        <h1
-          style={{
-            margin: 0,
-            fontFamily: F.title,
-            fontStyle: "italic",
-            fontWeight: 700,
-            fontSize: 34,
-            color: C.ink,
-          }}
-        >
-          {t("quizView.heading")}
-        </h1>
-      </div>
-      <div style={{ fontFamily: F.hand, fontSize: 18, color: C.inkFaded, marginBottom: 24 }}>
-        {t("quizView.subheading")}
-      </div>
+    <ViewHeading
+      icon={<Puzzle size={22} color={C.plum} />}
+      title={t("quizView.heading")}
+      blurb={t("quizView.subheading")}
+    >
       {children}
-    </div>
+    </ViewHeading>
   );
-};
-
-const Guideline = ({ children }: { children: ReactNode }) => (
-  <div style={{ fontFamily: F.hand, fontSize: 17, color: C.inkFaded, marginTop: 8 }}>
-    {children}
-  </div>
-);
-
-const button = (ink: string) => ({
-  all: "unset" as const,
-  ...tap,
-  cursor: "pointer",
-  gap: 6,
-  padding: "7px 12px",
-  fontFamily: F.mono,
-  fontSize: 10,
-  letterSpacing: 1,
-  color: C.card,
-  background: ink,
-  border: `1px solid ${ink}`,
-});
-
-/** The same button, hollow: a second choice beside a first one. */
-const ghost = {
-  color: C.ink,
-  background: "transparent",
-  border: `1px solid ${C.line}`,
-};
-
-const small = {
-  all: "unset" as const,
-  ...tap,
-  cursor: "pointer",
-  color: C.inkFaded,
-};
-
-const token = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 5,
-  padding: "3px 8px",
-  border: `1px solid ${C.line}`,
-  fontFamily: F.mono,
-  fontSize: 10,
-  color: C.inkFaded,
 };

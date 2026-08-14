@@ -77,6 +77,66 @@ export const underlineInput: CSSProperties = {
   boxSizing: "border-box",
 };
 
+/* ============================================================
+   LES QUATRE PIÈCES DU VOLET COMMUNAUTAIRE
+   ============================================================
+
+   Le quiz et les listes s'étaient fabriqué chacun leur bouton, leur
+   bouton creux, leur bouton nu et leur pastille — au caractère près les
+   mêmes, en bas de deux fichiers qui ne se lisent jamais ensemble. Deux
+   copies d'un même objet ne restent identiques que tant que personne n'y
+   touche, et la troisième vue à venir en aurait fait une troisième.
+
+   CE SONT DES STYLES ET NON DES COMPOSANTS, et c'est délibéré : les
+   trente endroits qui s'en servent les ÉTALENT pour en surcharger une
+   propriété — `{ ...inked(C.ink), ...hollow }`, `{ ...bare, color:
+   C.burgundy }`. Un composant aurait exigé un passe-plat `style` pour
+   rendre exactement le même service, en réécrivant trente balises au
+   passage. `tap` y est déjà inclus : c'est tout l'intérêt de ne le
+   décider qu'ici. */
+
+/** Le bouton plein : un pavé d'encre, ce qu'on fait par-dessus tout. */
+export const inked = (ink: string): CSSProperties => ({
+  all: "unset",
+  ...tap,
+  cursor: "pointer",
+  gap: 6,
+  padding: "7px 12px",
+  fontFamily: F.mono,
+  fontSize: 10,
+  letterSpacing: 1,
+  color: C.card,
+  background: ink,
+  border: `1px solid ${ink}`,
+});
+
+/** Le même bouton, creux : un second choix à côté d'un premier. */
+export const hollow: CSSProperties = {
+  color: C.ink,
+  background: "transparent",
+  border: `1px solid ${C.line}`,
+};
+
+/** Le bouton nu — une icône seule, sans pavé ni bordure. */
+export const bare: CSSProperties = {
+  all: "unset",
+  ...tap,
+  cursor: "pointer",
+  color: C.inkFaded,
+};
+
+/** La pastille : un mot encadré, tapé à la machine. */
+export const chip: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 5,
+  padding: "3px 8px",
+  border: `1px solid ${C.line}`,
+  fontFamily: F.mono,
+  fontSize: 10,
+  color: C.inkFaded,
+};
+
 export const ruledTextarea: CSSProperties = {
   width: "100%",
   background: "transparent",

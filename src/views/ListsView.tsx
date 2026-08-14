@@ -21,8 +21,8 @@ import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 import { ListChecks, Plus, Search, Trash2, UserPlus, X } from "lucide-react";
 import { C, F, alpha } from "../theme/tokens";
-import { tap, underlineInput } from "../theme/styles";
-import { Label } from "../components/ui";
+import { bare, chip, inked, tap, underlineInput } from "../theme/styles";
+import { Guideline, Label, Meter, ViewHeading } from "../components/ui";
 import {
   createList,
   createChallenge,
@@ -82,7 +82,7 @@ export function ListsView({ connected }: { connected: boolean }) {
   if (!serverConfigured()) {
     return (
       <Page>
-        <Guideline>{t("listsView.noServer")}</Guideline>
+        <Guideline tight>{t("listsView.noServer")}</Guideline>
       </Page>
     );
   }
@@ -90,7 +90,7 @@ export function ListsView({ connected }: { connected: boolean }) {
   if (!connected) {
     return (
       <Page>
-        <Guideline>{t("listsView.noAccount")}</Guideline>
+        <Guideline tight>{t("listsView.noAccount")}</Guideline>
       </Page>
     );
   }
@@ -116,7 +116,7 @@ export function ListsView({ connected }: { connected: boolean }) {
             placeholder={t("listsView.newListPlaceholder")}
             style={{ ...underlineInput, fontFamily: F.hand, fontSize: 17 }}
           />
-          <button onClick={openOne} style={button(C.ink)}>
+          <button onClick={openOne} style={inked(C.ink)}>
             <Plus size={12} /> {t("listsView.open")}
           </button>
         </div>
@@ -130,7 +130,7 @@ export function ListsView({ connected }: { connected: boolean }) {
 
       <div data-tour="lists-mine" style={{ marginBottom: 34 }}>
         <Label>{t("listsView.yours")}</Label>
-        {lists.length === 0 && <Guideline>{t("listsView.none")}</Guideline>}
+        {lists.length === 0 && <Guideline tight>{t("listsView.none")}</Guideline>}
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 6 }}>
           {lists.map((l) => (
             <OneList
@@ -146,7 +146,7 @@ export function ListsView({ connected }: { connected: boolean }) {
 
       <div data-tour="lists-challenges">
         <Label>{t("listsView.challenges")}</Label>
-        {challenges.length === 0 && <Guideline>{t("listsView.noChallenges")}</Guideline>}
+        {challenges.length === 0 && <Guideline tight>{t("listsView.noChallenges")}</Guideline>}
         <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 8 }}>
           {challenges.map((d) => (
             <OneChallenge key={d.id} challenge={d} onChange={reread} />
@@ -248,7 +248,7 @@ function OneList({
 
       {opened && (
         <div style={{ padding: "0 12px 14px" }}>
-          {works.length === 0 && <Guideline>{t("lists.searchNote")}</Guideline>}
+          {works.length === 0 && <Guideline tight>{t("lists.searchNote")}</Guideline>}
           {works.map((o) => (
             <div
               key={o.tmdb_id}
@@ -277,7 +277,7 @@ function OneList({
               <button
                 onClick={() => removeFromList(list.id, o.tmdb_id).then(reread)}
                 title={t("listsView.removeWork")}
-                style={{ ...small, color: C.burgundy }}
+                style={{ ...bare, color: C.burgundy }}
               >
                 <X size={12} />
               </button>
@@ -300,7 +300,7 @@ function OneList({
                   spellCheck={false}
                   style={{ ...underlineInput, fontFamily: F.mono, fontSize: 12 }}
                 />
-                <button onClick={sendInvite} style={button(C.pine)}>
+                <button onClick={sendInvite} style={inked(C.pine)}>
                   <UserPlus size={12} /> INVITER
                 </button>
               </div>
@@ -312,12 +312,12 @@ function OneList({
               {members.length > 0 && (
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
                   {members.map((m) => (
-                    <span key={m} style={token}>
+                    <span key={m} style={chip}>
                       {m}
                       <button
                         onClick={() => removeFromListMembers(list.id, m).then(reread)}
                         title={`Retirer ${m}`}
-                        style={{ ...small, color: C.burgundy }}
+                        style={{ ...bare, color: C.burgundy }}
                       >
                         <X size={10} />
                       </button>
@@ -341,7 +341,7 @@ function OneList({
                 <button
                   onClick={() => deleteList(list.id).then(onChange)}
                   title="Effacer cette list"
-                  style={{ ...small, color: C.burgundy }}
+                  style={{ ...bare, color: C.burgundy }}
                 >
                   <Trash2 size={12} />
                 </button>
@@ -374,7 +374,7 @@ function OneList({
                   onChange={(e) => setDraft({ ...challenge, end: e.target.value })}
                   style={{ ...underlineInput, fontFamily: F.mono, fontSize: 11, width: 130 }}
                 />
-                <button onClick={run} style={button(C.burgundy)}>
+                <button onClick={run} style={inked(C.burgundy)}>
                   LANCER
                 </button>
               </div>
@@ -466,7 +466,7 @@ function FillFromTmdb({ list, onFiled }: { list: List; onFiled: () => Promise<vo
           placeholder={t("lists.searchPlaceholder")}
           style={{ ...underlineInput, fontFamily: F.hand, fontSize: 16 }}
         />
-        <button onClick={look} disabled={busy} style={button(C.slate)}>
+        <button onClick={look} disabled={busy} style={inked(C.slate)}>
           <Search size={12} /> {busy ? t("lists.searching") : t("lists.search")}
         </button>
       </div>
@@ -475,7 +475,7 @@ function FillFromTmdb({ list, onFiled }: { list: List; onFiled: () => Promise<vo
         {t("lists.searchNote")}
       </div>
 
-      {found?.length === 0 && <Guideline>{t("lists.searchNobody")}</Guideline>}
+      {found?.length === 0 && <Guideline tight>{t("lists.searchNobody")}</Guideline>}
 
       {found?.map((hit) => (
         <div
@@ -501,7 +501,7 @@ function FillFromTmdb({ list, onFiled }: { list: List; onFiled: () => Promise<vo
             onClick={() => file(hit)}
             disabled={busy || filed.has(hit.tmdbId)}
             style={{
-              ...small,
+              ...bare,
               color: filed.has(hit.tmdbId) ? C.moss : C.ink,
               fontFamily: F.mono,
               fontSize: 10,
@@ -570,7 +570,7 @@ function OneChallenge({
               .then(onChange)
               .then(reread)
           }
-          style={button(challenge.inside ? C.slate : C.pine)}
+          style={inked(challenge.inside ? C.slate : C.pine)}
         >
           {challenge.inside ? "SORTIR" : "PARTICIPER"}
         </button>
@@ -578,7 +578,7 @@ function OneChallenge({
           <button
             onClick={() => deleteChallenge(challenge.id).then(onChange)}
             title={t("listsView.deleteChallenge")}
-            style={{ ...small, color: C.burgundy }}
+            style={{ ...bare, color: C.burgundy }}
           >
             <Trash2 size={12} />
           </button>
@@ -589,47 +589,9 @@ function OneChallenge({
           the server counts, it does not copy out — and only counts
           people who have asked to take part. */}
       <div style={{ marginTop: 8 }}>
-        {progress?.length === 0 && <Guideline>Person n'y participe more.</Guideline>}
+        {progress?.length === 0 && <Guideline tight>Person n'y participe more.</Guideline>}
         {(progress ?? []).map((a) => (
-          <div
-            key={a.pseudo}
-            style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 5 }}
-          >
-            <span
-              style={{
-                fontFamily: F.mono,
-                fontSize: 10.5,
-                color: C.ink,
-                width: 110,
-                flexShrink: 0,
-              }}
-            >
-              {a.pseudo}
-            </span>
-            <span
-              style={{
-                flex: 1,
-                height: 7,
-                background: alpha(C.ink, 0.08),
-                position: "relative",
-                overflow: "hidden",
-              }}
-            >
-              <span
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  right: "auto",
-                  width: `${challenge.works ? (100 * a.done) / challenge.works : 0}%`,
-                  background: C.burgundy,
-                  transition: "width var(--motion-slow) var(--motion-ease)",
-                }}
-              />
-            </span>
-            <span style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>
-              {a.done}/{challenge.works}
-            </span>
-          </div>
+          <Meter key={a.pseudo} name={a.pseudo} done={a.done} total={challenge.works} />
         ))}
       </div>
     </div>
@@ -647,64 +609,14 @@ function currentMonth() {
   return { start, end };
 }
 
+/* The head of the view — see `ViewHeading`, shared with the quiz and the
+   counter. Only the icon, the tint and the two sentences belong here. */
 const Page = ({ children }: { children: ReactNode }) => (
-  <div style={{ padding: "34px 24px 70px", maxWidth: 1000 }}>
-    <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 4 }}>
-      <ListChecks size={22} color={C.moss} />
-      <h1
-        style={{
-          margin: 0,
-          fontFamily: F.title,
-          fontStyle: "italic",
-          fontWeight: 700,
-          fontSize: 34,
-          color: C.ink,
-        }}
-      >
-        Listes et défis
-      </h1>
-    </div>
-    <div style={{ fontFamily: F.hand, fontSize: 18, color: C.inkFaded, marginBottom: 24 }}>
-      ce qu'on se donne à voir, seul ou à plusieurs
-    </div>
+  <ViewHeading
+    icon={<ListChecks size={22} color={C.moss} />}
+    title="Listes et défis"
+    blurb="ce qu'on se donne à voir, seul ou à plusieurs"
+  >
     {children}
-  </div>
+  </ViewHeading>
 );
-
-const Guideline = ({ children }: { children: ReactNode }) => (
-  <div style={{ fontFamily: F.hand, fontSize: 17, color: C.inkFaded, marginTop: 8 }}>
-    {children}
-  </div>
-);
-
-const button = (ink: string) => ({
-  all: "unset" as const,
-  ...tap,
-  cursor: "pointer",
-  gap: 6,
-  padding: "7px 12px",
-  fontFamily: F.mono,
-  fontSize: 10,
-  letterSpacing: 1,
-  color: C.card,
-  background: ink,
-  border: `1px solid ${ink}`,
-});
-
-const small = {
-  all: "unset" as const,
-  ...tap,
-  cursor: "pointer",
-  color: C.inkFaded,
-};
-
-const token = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 5,
-  padding: "3px 8px",
-  border: `1px solid ${C.line}`,
-  fontFamily: F.mono,
-  fontSize: 10,
-  color: C.inkFaded,
-};
