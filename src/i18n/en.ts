@@ -859,6 +859,9 @@ const en = {
         "You do not appear on the world's board. That is set in the account drawer, beside sharing.",
     },
     shop: {
+      sell: "RETURN ({{price}})",
+      sellNote:
+        "Reserved to the role: gives the item back and refunds you, to run through the shop again.",
       title: "The display case",
       stamp: "Stamps",
       pack: "Packets",
@@ -883,6 +886,12 @@ const en = {
       "power-halve": "Set two answers aside",
       "power-redo": "Take a question back",
       "power-extend": "Push a challenge back",
+    },
+    wipe: {
+      title: "Erase everything at the counter?",
+      body: "Your merit, your tokens, your stamps, your stickers and your powers go for good, and gains already counted become earnable again. Your films, your lists, your challenges and the people you follow do not move.",
+      action: "START FROM NOTHING",
+      note: "Erases the counter only. To close the whole account, that is in the account drawer.",
     },
     album: {
       title: "The sheet",

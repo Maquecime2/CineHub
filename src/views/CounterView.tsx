@@ -31,7 +31,8 @@ import { useTranslation } from "react-i18next";
 import { Coins } from "lucide-react";
 import { C, F, alpha } from "../theme/tokens";
 import { bare, inked } from "../theme/styles";
-import { Guideline, Label, ViewHeading } from "../components/ui";
+import { Confirmation, Guideline, Label, ViewHeading } from "../components/ui";
+import type { ConfirmRequest } from "../components/ui";
 import { Layer } from "../components/ui/Layer";
 import { CoffeeRing, StampCorner } from "../components/atmosphere";
 import { Halftone, Stamp, glass, perforated, velvet } from "../components/atmosphere/hall";
@@ -46,11 +47,14 @@ import { SKINS } from "../theme/skins";
 import { usePurse, refreshPurse } from "../hooks/usePurse";
 import {
   buy,
+  iAmAdmin,
   ladder as readLadder,
   myHoldings,
   serverConfigured,
+  sell as sellBack,
   shop as readShop,
   wear,
+  wipeCounter,
   type Holdings,
   type Rank,
   type ShopItem,
@@ -83,6 +87,7 @@ export function CounterView({ connected }: { connected: boolean }) {
   const [scope, setScope] = useState<"world" | "friends">("friends");
   const [opening, setOpening] = useState<string[] | null>(null);
   const [trouble, setTrouble] = useState<string | null>(null);
+  const [asking, setAsking] = useState<ConfirmRequest | null>(null);
 
   const reread = useCallback(async () => {
     if (!connected) return;
@@ -137,6 +142,37 @@ export function CounterView({ connected }: { connected: boolean }) {
     }
   };
 
+  /* Rendre : le serveur refuse à qui n'a pas le rôle, et cet écran ne
+     fait que ne pas dessiner le bouton. Les deux disent la même chose,
+     et c'est le serveur qui décide. */
+  const give = async (item: ShopItem) => {
+    setTrouble(null);
+    try {
+      await sellBack(item.id);
+      await refreshPurse();
+      await reread();
+    } catch (e) {
+      setTrouble((e as Error).message);
+    }
+  };
+
+  /* REPARTIR DE ZÉRO. Le seul geste du comptoir qui ne se défait pas,
+     donc le seul qui passe par une carte de confirmation — en bordeaux,
+     comme partout où le classeur efface pour de bon. */
+  const askToWipe = () =>
+    setAsking({
+      title: t("counter.wipe.title"),
+      body: t("counter.wipe.body"),
+      action: t("counter.wipe.action"),
+      severe: true,
+      onConfirm: () => {
+        setTrouble(null);
+        wipeCounter()
+          .then(() => Promise.all([refreshPurse(), reread()]))
+          .catch((e) => setTrouble((e as Error).message));
+      },
+    });
+
   const put = async (what: "stamp" | "skin", id: string | null) => {
     setTrouble(null);
     try {
@@ -168,6 +204,7 @@ export function CounterView({ connected }: { connected: boolean }) {
         worn={held?.worn ?? { stamp: null, skin: null }}
         onBuy={take}
         onWear={put}
+        onSell={give}
         trouble={trouble}
       />
 
@@ -175,7 +212,20 @@ export function CounterView({ connected }: { connected: boolean }) {
         <StickerSheet all={ALL_STICKERS} held={held?.stickers ?? []} tour="counter-album" />
       </div>
 
+      {/* Au PIED de la page, et pas près du guichet : on ne pose pas
+          l'effacement à côté du chiffre qu'il efface. */}
+      <div style={{ marginTop: 40, borderTop: `1px dashed ${C.line}`, paddingTop: 12 }}>
+        <button
+          onClick={askToWipe}
+          style={{ ...bare, fontFamily: F.mono, fontSize: 10, letterSpacing: 1, color: C.burgundy }}
+        >
+          {t("counter.wipe.action")}
+        </button>
+        <Guideline tight>{t("counter.wipe.note")}</Guideline>
+      </div>
+
       {opening && <Packet drawn={opening} onClose={() => setOpening(null)} />}
+      <Confirmation request={asking} onClose={() => setAsking(null)} />
     </Page>
   );
 }
@@ -199,6 +249,7 @@ function Shelf({
   worn,
   onBuy,
   onWear,
+  onSell,
   trouble,
 }: {
   items: ShopItem[];
@@ -206,6 +257,7 @@ function Shelf({
   worn: { stamp: string | null; skin: string | null };
   onBuy: (i: ShopItem) => void;
   onWear: (what: "stamp" | "skin", id: string | null) => void;
+  onSell: (i: ShopItem) => void;
   trouble: string | null;
 }) {
   const { t } = useTranslation();
@@ -241,6 +293,7 @@ function Shelf({
                     worn={worn}
                     onBuy={onBuy}
                     onWear={onWear}
+                    onSell={onSell}
                   />
                 ))}
               </div>
@@ -272,12 +325,14 @@ function Article({
   worn,
   onBuy,
   onWear,
+  onSell,
 }: {
   item: ShopItem;
   tokens: number;
   worn: { stamp: string | null; skin: string | null };
   onBuy: (i: ShopItem) => void;
   onWear: (what: "stamp" | "skin", id: string | null) => void;
+  onSell: (i: ShopItem) => void;
 }) {
   const { t } = useTranslation();
   const missing = priceGap(item.price, tokens);
@@ -285,6 +340,16 @@ function Article({
   const on =
     (item.kind === "stamp" && worn.stamp === item.id) ||
     (item.kind === "skin" && worn.skin === item.grants);
+
+  /* CE QU'ON PEUT RENDRE. Un achat ordinaire est définitif — c'est ce
+     qui donne son poids au geste — mais reprendre la boutique article
+     par article demande de pouvoir défaire. D'où ce bouton, qui n'existe
+     que pour le rôle, et le rôle ne s'obtient que par l'environnement du
+     déploiement.
+
+     Une pochette n'y figure pas : elle ne se possède pas, elle se
+     rachète autant qu'on veut. */
+  const returnable = iAmAdmin() && (item.owned || (item.held ?? 0) > 0);
 
   return (
     <div
@@ -341,6 +406,25 @@ function Article({
         <div style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded, marginTop: 4 }}>
           ×{item.held}
         </div>
+      )}
+
+      {returnable && (
+        <button
+          onClick={() => onSell(item)}
+          title={t("counter.shop.sellNote")}
+          style={{
+            ...bare,
+            display: "block",
+            marginTop: 5,
+            fontFamily: F.mono,
+            fontSize: 9,
+            letterSpacing: 1,
+            color: C.burgundy,
+            borderBottom: `1px dotted ${alpha(C.burgundy, 0.5)}`,
+          }}
+        >
+          {t("counter.shop.sell", { price: item.price })}
+        </button>
       )}
     </div>
   );

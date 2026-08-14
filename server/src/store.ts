@@ -2626,6 +2626,91 @@ export class ShopRefusal extends Error {}
  * transaction, and written down before the answer leaves — so reloading
  * the page cannot reroll a disappointing packet.
  */
+/**
+ * Tout effacer du comptoir, et repartir de zéro.
+ *
+ * CE QUE CELA EFFACE, ET CE QUE CELA NE TOUCHE PAS. Les deux journaux,
+ * la bourse, ce qu'on possède, les vignettes, les pouvoirs et ce qu'on
+ * portait — c'est-à-dire tout ce que le comptoir a écrit, et rien
+ * d'autre. Les fiches, les listes, les défis, les quiz et les gens qu'on
+ * suit ne bougent pas : effacer son mérite n'est pas quitter le
+ * classeur, et confondre les deux serait le genre de bouton qu'on
+ * regrette une fois.
+ *
+ * LE JOURNAL PART AVEC LE RESTE, ici et pas ailleurs. Rendre un article
+ * le garde, parce qu'il est la mémoire de ce qui a payé ; une remise à
+ * zéro, elle, doit rendre les mêmes faits repayables — sans quoi on
+ * repart de zéro sans pouvoir regagner quoi que ce soit, ce qui n'est
+ * pas repartir.
+ */
+export async function wipeCounter(db: Db, personId: string): Promise<void> {
+  for (const table of ["merit_event", "token_spend", "owned", "sticker", "power", "purse"]) {
+    await db.query(`DELETE FROM ${table} WHERE person_id = $1`, [personId]);
+  }
+  await db.query("UPDATE person SET stamp = NULL, skin = NULL WHERE id = $1", [personId]);
+}
+
+/**
+ * Rendre un article, et récupérer ce qu'il a coûté.
+ *
+ * LA LIGNE DE DÉPENSE EST EFFACÉE, ET PAS SEULEMENT COMPENSÉE. La bourse
+ * est un cache : elle doit rester égale à la somme des gains moins la
+ * somme des dépenses, et un test le vérifie. Recréditer sans retirer la
+ * dépense ferait diverger les deux, et la divergence ne casserait rien —
+ * elle mentirait, jusqu'au jour où quelqu'un compterait à la main.
+ *
+ * Le remboursement suit donc le PRIX PAYÉ, lu dans le journal, et non
+ * le prix affiché aujourd'hui : rendre un article dont le tarif a monté
+ * entre-temps ne doit pas être une façon de gagner des jetons.
+ *
+ * Tout tient dans une instruction. Deux se seraient laissé interrompre
+ * entre le remboursement et la reprise de l'objet.
+ */
+export async function sell(db: Db, personId: string, itemId: string): Promise<Purse | "not-owned"> {
+  const item = itemById(itemId);
+  if (!item) return "not-owned";
+
+  const back = await one<Purse>(
+    db,
+    `WITH gone AS (
+       DELETE FROM token_spend
+        WHERE id = (SELECT id FROM token_spend
+                     WHERE person_id = $1 AND item_id = $2
+                     ORDER BY created_at DESC LIMIT 1)
+       RETURNING tokens
+     ),
+     dropped AS (
+       DELETE FROM owned
+        WHERE person_id = $1 AND item_id = $2 AND EXISTS (SELECT 1 FROM gone)
+       RETURNING 1
+     ),
+     spent AS (
+       UPDATE power SET left_over = left_over - 1
+        WHERE person_id = $1 AND kind = $3 AND left_over > 0
+          AND EXISTS (SELECT 1 FROM gone)
+       RETURNING 1
+     ),
+     /* Ce qu'on ne possède plus, on ne le porte plus : un tampon resté
+        au revers d'un article rendu s'afficherait à côté de votre nom
+        sans que rien ne l'explique. */
+     bared AS (
+       UPDATE person
+          SET stamp = CASE WHEN stamp = $2 THEN NULL ELSE stamp END,
+              skin = CASE WHEN skin = $4 THEN NULL ELSE skin END
+        WHERE id = $1 AND EXISTS (SELECT 1 FROM gone)
+       RETURNING 1
+     )
+     UPDATE purse
+        SET tokens = tokens + (SELECT tokens FROM gone), updated_at = now()
+      WHERE person_id = $1 AND EXISTS (SELECT 1 FROM gone)
+     RETURNING merit, tokens`,
+    [personId, itemId, item.power ?? null, item.grants ?? null]
+  );
+
+  /* Aucune ligne : rien n'avait été payé pour cet article. */
+  return back ?? "not-owned";
+}
+
 export async function buy(
   db: Db,
   personId: string,

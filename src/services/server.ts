@@ -1116,6 +1116,18 @@ export const buy = (item: string) =>
     body: JSON.stringify({ item }),
   });
 
+/** Tout effacer du comptoir. Ne touche ni aux fiches, ni aux listes,
+    ni aux défis, ni aux gens qu'on suit — pour ça il y a `deleteMyAccount`. */
+export const wipeCounter = () =>
+  call<{ merit: number; tokens: number; wiped: boolean }>("/shop/mine", { method: "DELETE" });
+
+/** Rendre un article — réservé au rôle, pour reprendre la boutique. */
+export const sell = (item: string) =>
+  call<{ merit: number; tokens: number }>("/shop/sell", {
+    method: "POST",
+    body: JSON.stringify({ item }),
+  });
+
 export const wear = (what: { stamp?: string | null; skin?: string | null }) =>
   call<{ stamp: string | null; skin: string | null }>("/shop/worn", {
     method: "PATCH",

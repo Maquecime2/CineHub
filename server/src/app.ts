@@ -1745,6 +1745,46 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     }
   });
 
+  /* RENDRE UN ARTICLE — réservé au rôle, et c'est un outil.
+     ------------------------------------------------------------
+
+     Il sert à reprendre la boutique article par article sans vider son
+     compte, ce qu'aucun geste ordinaire ne permet : un tampon acheté
+     l'est pour de bon, et c'est très bien ainsi.
+
+     `requireAdmin` plutôt que la porte de développement parce que le
+     rôle ne s'obtient QUE par l'environnement du déploiement — aucune
+     route ne l'accorde, aucun écran ne le demande. Quelqu'un qui l'a
+     tient déjà la base de données ; lui rendre un tampon ne lui donne
+     rien qu'il n'ait déjà.
+
+     Et le chemin d'achat n'est pas touché : on rend, puis on rachète
+     PAR LA VRAIE PORTE, refus du doublon compris. */
+  app.post("/shop/sell", async (req, reply) => {
+    const person = await requireAdmin(req);
+    const { item } = (req.body ?? {}) as { item?: string };
+    if (!item) return reply.code(400).send({ error: "Il faut un article." });
+    const back = await store.sell(db, person.id, item);
+    if (back === "not-owned") return reply.code(409).send({ error: "Vous ne l'avez pas acheté." });
+    return back;
+  });
+
+  /* REPARTIR DE ZÉRO — et cela n'efface QUE le comptoir.
+
+     Les fiches, les listes, les défis, les quiz et les gens qu'on suit
+     ne bougent pas. Effacer son mérite n'est pas quitter le classeur, et
+     il existe déjà une route pour ça (`DELETE /my-account`) — confondre
+     les deux serait le genre de bouton qu'on ne regrette qu'une fois.
+
+     C'est le seul geste du comptoir qui ne se défait pas, et l'écran le
+     dit avant : une carte de confirmation en bordeaux, comme partout où
+     le classeur efface pour de bon. */
+  app.delete("/shop/mine", async (req) => {
+    const person = await requireAccount(req);
+    await store.wipeCounter(db, person.id);
+    return { merit: 0, tokens: 0, wiped: true };
+  });
+
   app.patch("/shop/worn", async (req, reply) => {
     const person = await requireAccount(req);
     const body = (req.body ?? {}) as { stamp?: string | null; skin?: string | null };

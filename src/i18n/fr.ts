@@ -881,6 +881,8 @@ const fr = {
         "Vous ne figurez pas au classement du monde. Cela se règle dans le tiroir du compte, à côté du partage.",
     },
     shop: {
+      sell: "RENDRE ({{price}})",
+      sellNote: "Réservé au rôle : rend l'article et vous rembourse, pour reprendre la boutique.",
       title: "Le présentoir",
       stamp: "Tampons",
       pack: "Pochettes",
@@ -905,6 +907,12 @@ const fr = {
       "power-halve": "Écarter deux réponses",
       "power-redo": "Reprendre une question",
       "power-extend": "Prolonger un défi",
+    },
+    wipe: {
+      title: "Tout effacer du comptoir ?",
+      body: "Votre mérite, vos jetons, vos tampons, vos vignettes et vos pouvoirs partent pour de bon, et les gains déjà comptés redeviennent gagnables. Vos films, vos listes, vos défis et les gens que vous suivez ne bougent pas.",
+      action: "REPARTIR DE ZÉRO",
+      note: "N'efface que le comptoir. Pour fermer le compte entier, c'est dans le tiroir du compte.",
     },
     album: {
       title: "La planche",
