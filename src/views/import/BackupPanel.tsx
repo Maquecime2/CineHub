@@ -5,6 +5,7 @@ import { tap } from "../../theme/styles";
 import { Tally } from "../../components/ui";
 import { posterStats, exportBackup, importBackup } from "../../db";
 import { mediaPending } from "../../services/media";
+import { vaultState, keepTheVault, type Vault } from "../../services/persistence";
 import type { Divider, Film, Note, ShelfViews } from "../../types";
 import type { Thread } from "../../domain/threads";
 import type { StoredVocabulary as Vocabulary } from "../../domain/motifs";
@@ -49,6 +50,9 @@ export function BackupPanel({
   const [stats, setStats] = useState<PosterStats | null>(null);
   const [waiting, setWaiting] = useState(0);
   const [msg, setMsg] = useState("");
+  /* `unknown` au départ, et pas `fragile` : tant qu'on n'a pas la
+     réponse, on n'annonce rien — surtout pas une alarme. */
+  const [vault, setVault] = useState<Vault>("unknown");
   const ref = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -57,6 +61,16 @@ export function BackupPanel({
       .catch(() => setStats(null));
     setWaiting(mediaPending());
   }, [films]);
+
+  /* L'état du coffre ne dépend pas de la collection : une seule lecture,
+     à l'ouverture du panneau. */
+  useEffect(() => {
+    void vaultState().then(setVault);
+  }, []);
+
+  /* Ici la demande vient de la personne, donc `force` : le drapeau
+     « on a déjà demandé » ne doit pas rendre un bouton inerte. */
+  const protect = async () => setVault(await keepTheVault({ force: true }));
 
   const download = async () => {
     setMsg(t("backup.preparing"));
@@ -139,6 +153,43 @@ export function BackupPanel({
           {waiting > 0 && (
             <Tally label={t("backup.mediaWaiting")} value={waiting} ink={C.burgundy} />
           )}
+        </>
+      )}
+      {/* LE REMPART, DIT PAR UN MOT ET PAS PAR UNE COULEUR — cinq des
+          peaux avalent le rouge et le vert. `unknown` ne dit rien du
+          tout : un navigateur sans l'API n'est pas un navigateur qui va
+          effacer, c'est un navigateur qui ne sait pas le dire, et une
+          alarme inventée use la confiance qu'on veut mériter. */}
+      {vault === "kept" && <Tally label={t("backup.vaultLabel")} value={t("backup.vaultKept")} />}
+      {vault === "fragile" && (
+        <>
+          <Tally label={t("backup.vaultLabel")} value={t("backup.vaultFragile")} ink={C.burgundy} />
+          <div
+            style={{
+              fontFamily: F.hand,
+              fontSize: 17,
+              color: C.inkFaded,
+              margin: "8px 0 10px",
+              lineHeight: 1.35,
+            }}
+          >
+            {t("backup.vaultNote")}
+          </div>
+          <button
+            onClick={protect}
+            style={{
+              all: "unset",
+              ...tap,
+              cursor: "pointer",
+              padding: "8px 14px",
+              border: `1px solid ${C.line}`,
+              color: C.ink,
+              fontFamily: F.mono,
+              fontSize: 10.5,
+            }}
+          >
+            {t("backup.vaultAsk")}
+          </button>
         </>
       )}
       <div

@@ -344,6 +344,12 @@ const fr = {
     preparing: "préparation…",
     downloaded_one: "sauvegarde de {{count}} fiche téléchargée.",
     downloaded_other: "sauvegarde de {{count}} fiches téléchargée.",
+    vaultLabel: "la parole du navigateur",
+    vaultKept: "garde le classeur",
+    vaultFragile: "peut effacer le classeur",
+    vaultNote:
+      "Par défaut un navigateur se réserve le droit de reprendre cette place — après quelques semaines sans visite, ou quand le disque se remplit. Le lui demander coûte un clic et règle la question.",
+    vaultAsk: "LUI DEMANDER DE GARDER LE CLASSEUR",
   },
 
   film: {
@@ -1855,7 +1861,7 @@ const fr = {
       },
       backup: {
         title: "La sauvegarde",
-        body: "Tout vit dans ce navigateur, et rien d'autre. Vider les données du site efface la collection : la sauvegarde est le seul filet, emportez-la de temps en temps.",
+        body: "Tout vit dans ce navigateur, et rien d'autre — c'est aussi là que ça se perd : vider les données du site efface la collection, et un navigateur laissé seul quelques semaines peut reprendre la place de lui-même. Demandez-lui de garder le classeur, et emportez une sauvegarde de temps en temps.",
       },
     },
 

@@ -9,6 +9,7 @@ import { underlineInput, tap } from "../../theme/styles";
 import { Label, Tally, InkStars } from "../../components/ui";
 import { StampCorner } from "../../components/atmosphere";
 import { store } from "../../services/storage";
+import { keepTheVault } from "../../services/persistence";
 import { writtenKey, setTmdbKey, useTmdbKey } from "../../services/tmdbKey";
 import { parseLetterboxdCsv, diffImport, filmKey } from "../../domain/importing";
 import {
@@ -270,6 +271,14 @@ export function ImportView({
   const confirm = () => {
     if (!diff) return;
     onImport(diff);
+    /* LE MOMENT DE DEMANDER LE REMPART. Quelqu'un qui vient de verser
+       sa collection entière a donné au navigateur exactement le signal
+       d'engagement que `persist()` attend, et a de quoi comprendre la
+       question si Firefox la pose. Au chargement, ni l'un ni l'autre.
+
+       Sans `await`, et sans que le résultat compte : l'import est fait,
+       il est écrit, et rien de ce qui suit ne doit retenir la main. */
+    if (diff.toCreate.length) void keepTheVault();
     setDone({
       created: diff.toCreate.length,
       updated: diff.toUpdate.length,

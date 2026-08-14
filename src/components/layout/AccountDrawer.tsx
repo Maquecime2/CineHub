@@ -58,6 +58,7 @@ import {
   type Sharing,
   type Person,
 } from "../../services/server";
+import { keepTheVault } from "../../services/persistence";
 import {
   pushState,
   subscribeToPush,
@@ -114,6 +115,12 @@ export function AccountDrawer({
          cursor would make the binder believe it had already seen all of
          the new one's collection — which would stay invisible. */
       forgetSync();
+      /* L'AUTRE MOMENT OÙ ON DEMANDE LE REMPART. Poser une passkey est
+         le geste d'engagement le plus net du produit, et il vient de
+         passer par une empreinte : le navigateur ne demandera pas mieux.
+         Sans `await` — le compte est ouvert, rien ne doit retenir la
+         main. */
+      void keepTheVault();
       onAccountChange(who);
     } catch (e) {
       /* Refusing one's own fingerprint is not an error to dramatise: one

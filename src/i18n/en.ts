@@ -328,6 +328,12 @@ const en = {
     preparing: "preparing…",
     downloaded_one: "backup of {{count}} card downloaded.",
     downloaded_other: "backup of {{count}} cards downloaded.",
+    vaultLabel: "the browser's word",
+    vaultKept: "keeps the binder",
+    vaultFragile: "may erase the binder",
+    vaultNote:
+      "By default a browser reserves the right to reclaim this space — after a few weeks without a visit, or when the disk fills up. Asking costs one click and settles it.",
+    vaultAsk: "ASK IT TO KEEP THE BINDER",
   },
 
   film: {
@@ -1800,7 +1806,7 @@ const en = {
       },
       backup: {
         title: "The backup",
-        body: "Everything lives in this browser, and nowhere else. Clearing the site data erases the collection: the backup is the only net, take one away now and then.",
+        body: "Everything lives in this browser, and nowhere else — which is also where it can be lost: clearing the site data erases the collection, and a browser left alone for weeks may reclaim the space itself. Ask it to keep the binder, and take a backup away now and then.",
       },
     },
 
