@@ -18,9 +18,17 @@
    those would mean six places not to forget. So we keep a register: one
    key, one date, written here and nowhere else.
 
-   THE WIRE FIELD NAMES (`key`, `updatedAt`, `contenu`, `supprime`) ARE THE
+   THE WIRE FIELD NAMES (`key`, `updatedAt`, `content`, `deleted`) ARE THE
    SERVER'S, not ours. They stay as they are until both sides are renamed
    in the same change.
+
+   THEY WERE RENAMED ON ONE SIDE ONLY, ONCE, and it cost every tombstone.
+   The server reads `deleted` and writes `deleted`; this file read and
+   wrote `supprime`, which the translation of the codebase left behind. A
+   document erased here therefore went out with `deleted` undefined — so
+   the other device was never told to erase it, and merely received a
+   `null` where its own copy had been. The two names must be the SAME
+   word, and this is the one the server uses.
    ============================================================ */
 import { store } from "./storage";
 
@@ -95,7 +103,7 @@ export function documentsToSend(): {
   key: string;
   updatedAt: number;
   content: unknown;
-  supprime?: boolean;
+  deleted?: boolean;
 }[] {
   return pending().map((key) => {
     const raw = localStorage.getItem(key);
@@ -104,7 +112,7 @@ export function documentsToSend(): {
       updatedAt: dateOf(key) || Date.now(),
       /* A document deleted here goes out like the cards: as a tombstone.
          Otherwise the other device would push it back. */
-      supprime: raw === null,
+      deleted: raw === null,
       content: raw === null ? null : safeParse(raw),
     };
   });
@@ -134,12 +142,12 @@ export function fileIncomingDocument(d: {
   key: string;
   updatedAt: number;
   content: unknown;
-  supprime?: boolean;
+  deleted?: boolean;
 }): boolean {
   if (!isSyncable(d.key)) return false;
   if (d.updatedAt <= dateOf(d.key)) return false;
 
-  if (d.supprime) localStorage.removeItem(d.key);
+  if (d.deleted) localStorage.removeItem(d.key);
   else store.set(d.key, d.content);
 
   /* We noted the date RECEIVED, and we do not put the key back on the
@@ -150,19 +158,41 @@ export function fileIncomingDocument(d: {
   return true;
 }
 
-/** On an account's first connection: everything we have must go out. */
+/**
+ * On an account's first connection: everything we have must go out.
+ *
+ * A DOCUMENT THAT NEVER HAD A DATE IS DATED AT THE DAWN OF TIME, and this
+ * is the whole of it. Dating them `Date.now()` looked harmless — the
+ * server refuses `updatedAt: 0`, so SOMETHING had to be written — but
+ * `now` is not a neutral value: it is the newest date there is. A machine
+ * signing in for the first time therefore declared its own untouched
+ * defaults — an empty shelf, no dividers, no threads — to be more recent
+ * than everything on the server, and the arbitration did exactly what it
+ * is meant to do:
+ *
+ *   - `fileIncomingDocument` refused the arrangement pulled a moment
+ *     later, since yesterday is older than now;
+ *   - the push that follows then overwrote the server with the empty
+ *     shelf, and the arrangement was gone for the OTHER device too.
+ *
+ * Somebody signing in on a second computer lost the arrangement of their
+ * shelves, and lost it everywhere. So the undated go out as ancient: they
+ * are still sent — an account with nothing in it takes them, having
+ * nothing to lose against — and they lose to anything the server already
+ * holds, which is the only reading of "I have never dated this" that does
+ * not destroy somebody's work.
+ */
+const DAWN = 1;
+
 export function sendAllDocuments(): void {
-  const now = Date.now();
   const reg = register();
   const keys: string[] = [];
   for (let i = 0; i < localStorage.length; i += 1) {
     const key = localStorage.key(i);
     if (key && isSyncable(key)) keys.push(key);
   }
-  /* A date for those that never had one — otherwise the server would
-     receive `updatedAt: 0` and refuse them all on the next round. */
   const next = { ...reg };
-  for (const c of keys) if (!next[c]) next[c] = now;
+  for (const c of keys) if (!next[c]) next[c] = DAWN;
   store.set(REGISTER_KEY, next);
   store.set(PENDING_KEY, keys);
 }
