@@ -445,10 +445,29 @@ const fr = {
       "Personne à ce titre parmi les habitués — ouvrez « de passage » pour voir le reste.",
     nobodyInThatRole: "Personne à ce titre.",
     backToCredits: "le générique",
+    filmCount_one: "{{count}} film",
+    filmCount_other: "{{count}} films",
+    loyalties: "Vos fidélités",
+    loved: "Ceux que vous notez le mieux",
+    newcomers: "Arrivés récemment",
+    whatIHaveOf: "ce que j'ai de {{name}}",
+    yourRating: "VOTRE NOTE",
+    whatRecurs: "Ce qui revient",
+    /* PAS « qui revient avec ». Sur quelqu'un que vous avez en deux
+       films, tout le monde est à une fois : un titre qui promet la
+       récurrence, suivi d'une liste de rencontres uniques, ment. Le
+       classement met bien les vraies fidélités en tête quand il y en
+       a. */
+    companions: "Croisés sur ses fiches",
+    noCompanion: "Personne d'autre n'est nommé sur ses fiches.",
     gapToPublic: "ÉCART AU PUBLIC",
     inAgreement: "d'accord",
     gentlerBy: "plus tendre de {{points}}",
     harsherBy: "plus sévère de {{points}}",
+    gapToYou: "ÉCART À VOTRE MOYENNE",
+    inAgreementToYou: "votre moyenne",
+    gentlerByToYou: "au-dessus de {{points}}",
+    harsherByToYou: "en dessous de {{points}}",
     personIntro_one: "{{roles}} — {{count}} film chez vous",
     personIntro_other: "{{roles}} — {{count}} films chez vous",
     ofWhichWaiting: ", dont {{count}} en attente",
@@ -1464,6 +1483,10 @@ const fr = {
 
     credits: {
       label: "Le générique",
+      standouts: {
+        title: "Qui compte, chez vous",
+        body: "Vos fidélités, celles et ceux que vous notez le mieux, et les noms que vos dernières fiches ont fait entrer. De quoi arriver ici sans avoir déjà un nom en tête.",
+      },
       names: {
         title: "Les noms que vous avez déjà",
         body: "Réalisation, interprétation, image, musique, scénario : ces noms dorment dans vos fiches depuis le premier import. Ici, ils forment un répertoire — et chacun mène à ce que vous avez de cette personne.",
@@ -1474,7 +1497,11 @@ const fr = {
       },
       page: {
         title: "Ce que quelqu'un vaut chez vous",
-        body: "Votre note moyenne sur ses films, et votre écart à la note publique : où vous êtes plus tendre, où vous êtes plus sévère que la foule. Puis ses films, ce qui revient chez lui, et depuis quand.",
+        body: "Votre note moyenne sur ses films, son écart à votre propre moyenne — au-dessus ou en dessous de ce que vous donnez d'habitude — et votre écart à la note publique. Puis ses films, ce qui revient chez lui, et depuis quand.",
+      },
+      companions: {
+        title: "Croisés sur ses fiches",
+        body: "Le chef opérateur d'un cinéaste, le réalisateur d'un acteur : les noms qu'on rencontre sur ses films, du plus fréquent au plus rare. Chacun ouvre son propre dossier — le générique se parcourt enfin de proche en proche.",
       },
       missing: {
         title: "Ce qu'il me manque",

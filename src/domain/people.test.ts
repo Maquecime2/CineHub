@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { census, pageOf, rolesOnFilm, searchPeople } from "./people";
+import {
+  averageRating,
+  census,
+  companions,
+  pageOf,
+  rolesOnFilm,
+  searchPeople,
+  standouts,
+} from "./people";
 import { makeFilm } from "./film";
 import type { Film } from "../types";
 
@@ -160,6 +168,154 @@ describe("searchPeople", () => {
 
   it("returns everybody on an empty search", () => {
     expect(searchPeople(people, "  ")).toHaveLength(3);
+  });
+});
+
+describe("standouts", () => {
+  /* Six directors, one film each: enough to fill the rows, and each of
+     them a "regular" by their role. */
+  const many = (n: number, make: (i: number) => Partial<Film>) =>
+    Array.from({ length: n }, (_, i) => film(`F${i}`, make(i)));
+
+  it("gives back nothing from an empty collection", () => {
+    expect(standouts([])).toEqual({ loyal: [], loved: [], newcomers: [] });
+  });
+
+  it("holds no row back on a collection too small to rank", () => {
+    /* Two names under a heading called "your loyalties" announce a
+       ranking where there is only scarcity. */
+    const people = census([film("A", { director: "Ozu" }), film("B", { director: "Varda" })]);
+    expect(standouts(people).loyal).toEqual([]);
+  });
+
+  it("caps each row", () => {
+    const people = census(
+      Array.from({ length: 9 }, (_, i) => [
+        film(`A${i}`, { director: `D${i}` }),
+        film(`B${i}`, { director: `D${i}` }),
+      ]).flat()
+    );
+    expect(standouts(people).loyal).toHaveLength(6);
+  });
+
+  it("calls nobody a loyalty on a single film", () => {
+    /* `isRegular` lets a composer heard once into the directory, and
+       that is right there — but a row named "your loyalties" naming
+       them says something untrue. */
+    const people = census(many(6, (i) => ({ director: `D${i}` })));
+    expect(standouts(people).loyal).toEqual([]);
+  });
+
+  it("leaves the loved row empty when nothing is rated", () => {
+    const people = census(many(6, (i) => ({ director: `D${i}` })));
+    expect(standouts(people).loved).toEqual([]);
+  });
+
+  it("ranks the loved by your rating, and only from two films", () => {
+    const people = census([
+      ...many(3, (i) => ({ director: "Ozu", rating: 5, year: 1950 + i })),
+      ...many(3, (i) => ({ director: "Varda", rating: 3, year: 1960 + i })),
+      ...many(3, (i) => ({ director: "Melville", rating: 4, year: 1970 + i })),
+      // rated by nobody, so a loyalty without being one of the loved
+      ...many(3, (i) => ({ director: "Tati", year: 1980 + i })),
+      // one film only: not judged on it
+      film("Once", { director: "Akerman", rating: 5 }),
+    ]);
+    expect(standouts(people).loved.map((p) => p.name)).toEqual(["Ozu", "Melville", "Varda"]);
+  });
+
+  it("drops the loved row when it names exactly the loyalties", () => {
+    /* The same three names under two headings, in a different order,
+       reads as a bug and not as two rankings. */
+    const people = census([
+      ...many(2, (i) => ({ director: "Ozu", rating: 5, year: 1950 + i })),
+      ...many(2, (i) => ({ director: "Varda", rating: 3, year: 1960 + i })),
+      ...many(2, (i) => ({ director: "Melville", rating: 4, year: 1970 + i })),
+    ]);
+    const { loyal, loved } = standouts(people);
+    expect(loyal.map((p) => p.name).sort()).toEqual(["Melville", "Ozu", "Varda"]);
+    expect(loved).toEqual([]);
+  });
+
+  it("does not show a loyalty a second time as a newcomer", () => {
+    /* A collection built in one go used to serve the same six names
+       under three headings, which is worse than showing nothing. */
+    const people = census(
+      Array.from({ length: 6 }, (_, i) => [
+        film(`A${i}`, { director: `D${i}`, addedAt: 1000 + i }),
+        film(`B${i}`, { director: `D${i}`, addedAt: 1000 + i }),
+      ]).flat()
+    );
+    const { loyal, newcomers } = standouts(people);
+    expect(loyal).not.toHaveLength(0);
+    expect(newcomers.filter((p) => loyal.some((l) => l.key === p.key))).toEqual([]);
+  });
+
+  it("puts the last cards filed first among the newcomers", () => {
+    const people = census([
+      ...many(6, (i) => ({ director: `D${i}`, addedAt: 1000 })),
+      film("Late", { cast: ["Nouvelle Venue", "Autre Venu", "Troisième Venu"], addedAt: 9000 }),
+    ]);
+    expect(
+      standouts(people)
+        .newcomers.slice(0, 3)
+        .map((p) => p.name)
+    ).toEqual(["Autre Venu", "Nouvelle Venue", "Troisième Venu"]);
+  });
+});
+
+describe("averageRating", () => {
+  it("is empty when nothing is rated", () => {
+    expect(averageRating([film("A"), film("B")])).toBeNull();
+  });
+
+  it("leaves the unrated cards out, rather than counting them as zero", () => {
+    expect(averageRating([film("A", { rating: 4 }), film("B", { rating: 0 })])).toBe(4);
+  });
+});
+
+describe("companions", () => {
+  it("gives back nobody when somebody is alone on their films", () => {
+    expect(companions([film("A", { director: "Ozu" })], "ozu")).toEqual([]);
+  });
+
+  it("counts by film and not by hat", () => {
+    /* Melville directs AND writes: met once on that card, not twice. */
+    const films = [
+      film("Le Cercle rouge", {
+        director: "Jean-Pierre Melville",
+        crew: { scénario: ["Jean-Pierre Melville"], image: ["Henri Decaë"] },
+      }),
+      film("Le Samouraï", {
+        director: "Jean-Pierre Melville",
+        crew: { image: ["Henri Decaë"] },
+      }),
+    ];
+    expect(companions(films, "henri decae")).toEqual([
+      { key: "jean-pierre melville", name: "Jean-Pierre Melville", n: 2 },
+    ]);
+  });
+
+  it("rules out keywords, which are not people", () => {
+    const films = [film("Stalker", { director: "Tarkovski", themes: ["la pluie"] })];
+    expect(companions(films, "tarkovski")).toEqual([]);
+  });
+
+  it("orders by how often one meets them", () => {
+    const films = [
+      film("A", { director: "Ozu", cast: ["Setsuko Hara", "Chishū Ryū"] }),
+      film("B", { director: "Ozu", cast: ["Chishū Ryū"] }),
+    ];
+    expect(companions(films, "ozu").map((c) => c.name)).toEqual(["Chishū Ryū", "Setsuko Hara"]);
+  });
+
+  it("keeps the most frequent spelling, like the census", () => {
+    const films = [
+      film("A", { director: "Melville", crew: { image: ["Henri Decaë"] } }),
+      film("B", { director: "Melville", crew: { image: ["Henri Decaë"] } }),
+      film("C", { director: "Melville", crew: { image: ["henri decae"] } }),
+    ];
+    expect(companions(films, "melville")[0]!.name).toBe("Henri Decaë");
   });
 });
 

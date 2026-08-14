@@ -537,6 +537,30 @@ export async function searchPerson(name, apiKey) {
   });
 }
 
+/* A FACE, FOR THE CREDITS.
+ *
+ * `searchPerson` throws away the `profile_path` that comes in the same
+ * answer, and we do not add it there: its cache entry `p:<name>` is
+ * already written in people's browsers, and "what is missing" reads it.
+ * An entry of its own costs one call and cannot serve a half-filled
+ * shape for a full one.
+ *
+ * Returns `""` — a real answer — for somebody TMDB has no photograph of,
+ * so that a face-less name is not asked for again every week.
+ *
+ * The failure is NOT caught here: `cachedList` only writes what the
+ * fetcher gave back, so a network cut files nothing, and the caller
+ * falls back on the initials.
+ */
+export async function personPortrait(name, apiKey) {
+  if (!name || !apiKey) return "";
+  return cachedList(`pp:${name.toLowerCase()}`, async () => {
+    const data = await get("/search/person", { query: name }, apiKey);
+    const hit = data.results?.[0];
+    return hit?.profile_path ? `${POSTER_THUMB}${hit.profile_path}` : "";
+  });
+}
+
 /* THE JOB TITLES, AS TMDB NAMES THEM, for each kinship role.
 
    An actor who has appeared in thirty films has not signed thirty films:

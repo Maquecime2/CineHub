@@ -431,10 +431,28 @@ const en = {
       "Nobody in that capacity among the regulars — open “passing through” to see the rest.",
     nobodyInThatRole: "Nobody in that capacity.",
     backToCredits: "the credits",
+    filmCount_one: "{{count}} film",
+    filmCount_other: "{{count}} films",
+    loyalties: "Your loyalties",
+    loved: "Those you rate highest",
+    newcomers: "Recently arrived",
+    whatIHaveOf: "what I have of {{name}}",
+    yourRating: "YOUR RATING",
+    whatRecurs: "What recurs",
+    /* NOT "who comes back with them". On somebody you hold in two
+       films, everybody is met once: a heading promising recurrence,
+       followed by a list of single meetings, lies. The ranking still
+       puts the real loyalties first when there are any. */
+    companions: "Met on their cards",
+    noCompanion: "Nobody else is named on their cards.",
     gapToPublic: "GAP TO THE PUBLIC",
     inAgreement: "in agreement",
     gentlerBy: "gentler by {{points}}",
     harsherBy: "harsher by {{points}}",
+    gapToYou: "GAP TO YOUR AVERAGE",
+    inAgreementToYou: "your average",
+    gentlerByToYou: "above by {{points}}",
+    harsherByToYou: "below by {{points}}",
     personIntro_one: "{{roles}} — {{count}} film in your house",
     personIntro_other: "{{roles}} — {{count}} films in your house",
     ofWhichWaiting: ", of which {{count}} waiting",
@@ -1422,6 +1440,10 @@ const en = {
 
     credits: {
       label: "The credits",
+      standouts: {
+        title: "Who counts, in your house",
+        body: "Your loyalties, those you rate highest, and the names your latest cards brought in. Enough to arrive here without already having a name in mind.",
+      },
       names: {
         title: "The names you already have",
         body: "Directing, acting, cinematography, music, screenwriting: these names have been asleep in your cards since the first import. Here they form a directory — and each one leads to what you hold of that person.",
@@ -1432,7 +1454,11 @@ const en = {
       },
       page: {
         title: "What somebody is worth in your house",
-        body: "Your average score on their films, and your gap to the public one: where you are gentler, where you are harsher than the crowd. Then their films, what keeps coming back in them, and since when.",
+        body: "Your average score on their films, their gap to your own average — above or below what you usually give — and your gap to the public score. Then their films, what keeps coming back in them, and since when.",
+      },
+      companions: {
+        title: "Met on their cards",
+        body: "A film-maker's cinematographer, an actor's director: the names you meet on their films, from the most frequent to the rarest. Each one opens its own folder — the credits can at last be walked through step by step.",
       },
       missing: {
         title: "What I am missing",

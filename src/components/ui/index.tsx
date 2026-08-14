@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { Star, KeyRound } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
+import { tap } from "../../theme/styles";
 import { openTmdbSettings } from "../../services/tmdbKey";
 
 /** The rating, in ink stars. Clicking an already full star halves it. */
@@ -212,6 +213,95 @@ export function Label({ children }: { children: ReactNode }) {
     </div>
   );
 }
+/** What is written when a section has nothing to show. */
+export function Nothing({ what }: { what: string }) {
+  return <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded }}>{what}</div>;
+}
+
+/* A small horizontal rule: the share of each entry of a ranking.
+
+   The number of lines is TRUNCATED BY THE CALLER, never hidden here:
+   that is what guarantees a board does not overflow without anyone
+   knowing.
+
+   It lived in the almanac, where it draws the loyalties and the trades.
+   The credits' folder asks the very same question of its own figures —
+   who comes back with this person — and a second, almost identical
+   ranking would have drifted from the first at the third change. */
+export function Honours({
+  items,
+  total,
+  ink = C.ochre,
+  empty,
+  onPick,
+  pickTitle,
+}: {
+  items: { name: string; n: number }[];
+  total: number;
+  ink?: string;
+  /** What to say when there is nothing. */
+  empty: string;
+  /** Makes each name clickable. Absent: the ranking stays plain text. */
+  onPick?: (name: string) => void;
+  /** The title borne by a clickable name — "what I have of them". */
+  pickTitle?: (name: string) => string;
+}) {
+  if (items.length === 0) return <Nothing what={empty} />;
+  const max = Math.max(1, ...items.map((i) => i.n));
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 3 }}>
+      {items.map((it) => (
+        <div key={it.name}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 8,
+              fontFamily: F.body,
+              fontSize: 12.5,
+              color: C.ink,
+            }}
+          >
+            {onPick ? (
+              /* A dotted line of ink, as on the film card: the notebook
+                 does not underline in blue what one can follow. */
+              <button
+                onClick={() => onPick(it.name)}
+                title={pickTitle ? pickTitle(it.name) : it.name}
+                style={{
+                  all: "unset",
+                  ...tap,
+                  cursor: "pointer",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  borderBottom: `1px dotted ${C.inkFaded}`,
+                }}
+              >
+                {it.name}
+              </button>
+            ) : (
+              <span
+                style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                title={it.name}
+              >
+                {it.name}
+              </span>
+            )}
+            <span style={{ fontFamily: F.mono, fontSize: 11, color: C.inkFaded, flexShrink: 0 }}>
+              {it.n}
+              {total > 0 ? ` · ${Math.round((it.n / total) * 100)}%` : ""}
+            </span>
+          </div>
+          <div style={{ height: 3.5, background: alpha(C.line, 0.5), marginTop: 2 }}>
+            <div style={{ height: "100%", width: `${(it.n / max) * 100}%`, background: ink }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* A field that reads as a comma-separated list.
 
    Naively, we rendered `value={list.join(", ")}` and returned the split
