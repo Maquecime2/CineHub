@@ -31,8 +31,7 @@ import { useTranslation } from "react-i18next";
 import { Coins } from "lucide-react";
 import { C, F, alpha } from "../theme/tokens";
 import { bare, inked } from "../theme/styles";
-import { Confirmation, Guideline, Label, ViewHeading } from "../components/ui";
-import type { ConfirmRequest } from "../components/ui";
+import { Guideline, Label, ViewHeading } from "../components/ui";
 import { Layer } from "../components/ui/Layer";
 import { CoffeeRing, StampCorner } from "../components/atmosphere";
 import { Halftone, Stamp, glass, perforated, velvet } from "../components/atmosphere/hall";
@@ -54,7 +53,6 @@ import {
   sell as sellBack,
   shop as readShop,
   wear,
-  wipeCounter,
   type Holdings,
   type Rank,
   type ShopItem,
@@ -87,7 +85,6 @@ export function CounterView({ connected }: { connected: boolean }) {
   const [scope, setScope] = useState<"world" | "friends">("friends");
   const [opening, setOpening] = useState<string[] | null>(null);
   const [trouble, setTrouble] = useState<string | null>(null);
-  const [asking, setAsking] = useState<ConfirmRequest | null>(null);
 
   const reread = useCallback(async () => {
     if (!connected) return;
@@ -156,23 +153,6 @@ export function CounterView({ connected }: { connected: boolean }) {
     }
   };
 
-  /* REPARTIR DE ZÉRO. Le seul geste du comptoir qui ne se défait pas,
-     donc le seul qui passe par une carte de confirmation — en bordeaux,
-     comme partout où le classeur efface pour de bon. */
-  const askToWipe = () =>
-    setAsking({
-      title: t("counter.wipe.title"),
-      body: t("counter.wipe.body"),
-      action: t("counter.wipe.action"),
-      severe: true,
-      onConfirm: () => {
-        setTrouble(null);
-        wipeCounter()
-          .then(() => Promise.all([refreshPurse(), reread()]))
-          .catch((e) => setTrouble((e as Error).message));
-      },
-    });
-
   const put = async (what: "stamp" | "skin", id: string | null) => {
     setTrouble(null);
     try {
@@ -212,20 +192,7 @@ export function CounterView({ connected }: { connected: boolean }) {
         <StickerSheet all={ALL_STICKERS} held={held?.stickers ?? []} tour="counter-album" />
       </div>
 
-      {/* Au PIED de la page, et pas près du guichet : on ne pose pas
-          l'effacement à côté du chiffre qu'il efface. */}
-      <div style={{ marginTop: 40, borderTop: `1px dashed ${C.line}`, paddingTop: 12 }}>
-        <button
-          onClick={askToWipe}
-          style={{ ...bare, fontFamily: F.mono, fontSize: 10, letterSpacing: 1, color: C.burgundy }}
-        >
-          {t("counter.wipe.action")}
-        </button>
-        <Guideline tight>{t("counter.wipe.note")}</Guideline>
-      </div>
-
       {opening && <Packet drawn={opening} onClose={() => setOpening(null)} />}
-      <Confirmation request={asking} onClose={() => setAsking(null)} />
     </Page>
   );
 }
@@ -278,7 +245,7 @@ function Shelf({
                   fontSize: 9.5,
                   letterSpacing: 1.4,
                   textTransform: "uppercase",
-                  color: alpha(C.card, 0.75),
+                  color: C.inkFaded,
                   marginBottom: 8,
                 }}
               >
@@ -302,7 +269,7 @@ function Shelf({
                 style={{
                   height: 1,
                   marginTop: 14,
-                  background: alpha(C.card, 0.18),
+                  background: alpha(C.ink, 0.12),
                 }}
               />
             </div>
@@ -379,7 +346,14 @@ function Article({
           minHeight: 34,
         }}
       >
-        {t(`counter.items.${item.id}`)}
+        {/* UNE PEAU A DÉJÀ UN NOM, et il est dans `skins.<clé>.label` —
+            celui que le sélecteur affiche. Lui en écrire un second sous
+            `counter.items` aurait été deux vérités pour une chose, et
+            c'est exactement ce qui vient de se voir : seize peaux ont
+            rejoint le catalogue et l'étal a montré leurs identifiants. */}
+        {item.kind === "skin" && item.grants
+          ? t(`skins.${item.grants}.label`)
+          : t(`counter.items.${item.id}`)}
       </div>
 
       {item.owned && wearable ? (

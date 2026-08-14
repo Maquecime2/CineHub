@@ -1127,11 +1127,6 @@ export const buy = (item: string) =>
 export const wipeMyData = () =>
   call<{ erased: boolean; kept: string[] }>("/my-data", { method: "DELETE" });
 
-/** Tout effacer du comptoir. Ne touche ni aux fiches, ni aux listes,
-    ni aux défis, ni aux gens qu'on suit — pour ça il y a `deleteMyAccount`. */
-export const wipeCounter = () =>
-  call<{ merit: number; tokens: number; wiped: boolean }>("/shop/mine", { method: "DELETE" });
-
 /** Rendre un article — réservé au rôle, pour reprendre la boutique. */
 export const sell = (item: string) =>
   call<{ merit: number; tokens: number }>("/shop/sell", {

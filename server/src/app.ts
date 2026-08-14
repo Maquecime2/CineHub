@@ -1769,22 +1769,6 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     return back;
   });
 
-  /* REPARTIR DE ZÉRO — et cela n'efface QUE le comptoir.
-
-     Les fiches, les listes, les défis, les quiz et les gens qu'on suit
-     ne bougent pas. Effacer son mérite n'est pas quitter le classeur, et
-     il existe déjà une route pour ça (`DELETE /my-account`) — confondre
-     les deux serait le genre de bouton qu'on ne regrette qu'une fois.
-
-     C'est le seul geste du comptoir qui ne se défait pas, et l'écran le
-     dit avant : une carte de confirmation en bordeaux, comme partout où
-     le classeur efface pour de bon. */
-  app.delete("/shop/mine", async (req) => {
-    const person = await requireAccount(req);
-    await store.wipeCounter(db, person.id);
-    return { merit: 0, tokens: 0, wiped: true };
-  });
-
   app.patch("/shop/worn", async (req, reply) => {
     const person = await requireAccount(req);
     const body = (req.body ?? {}) as { stamp?: string | null; skin?: string | null };

@@ -24,6 +24,7 @@ const en = {
   },
 
   account: {
+    wipePartly: "Part of it could not be erased. Close the binder's other tabs and try again.",
     wipeMine: "Start from nothing",
     wipeTitle: "Erase everything, and keep the account?",
     wipeBody:
@@ -887,18 +888,9 @@ const en = {
       "stamp-premiere-seance": "First screening",
       "stamp-projectionniste": "The projectionist",
       "pack-trois": "A packet of three",
-      "skin-nitrate": "Nitrate",
-      "skin-drive-in": "Drive-in",
-      "skin-cinemascope": "Cinemascope",
       "power-halve": "Set two answers aside",
       "power-redo": "Take a question back",
       "power-extend": "Push a challenge back",
-    },
-    wipe: {
-      title: "Erase everything at the counter?",
-      body: "Your merit, your tokens, your stamps, your stickers and your powers go for good, and gains already counted become earnable again. Your films, your lists, your challenges and the people you follow do not move.",
-      action: "START FROM NOTHING",
-      note: "Erases the counter only. To close the whole account, that is in the account drawer.",
     },
     album: {
       title: "The sheet",

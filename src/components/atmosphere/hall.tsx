@@ -301,8 +301,20 @@ export function Marquee({ lit, style }: { lit?: boolean; style?: CSSProperties }
    ------------------------------------------------------------
 
    Not a colour: a recipe, in the manner of the skins' page backgrounds.
-   A dark cloth catching the light from above, plus a fine noise so it
-   does not read as a flat panel of paint.
+   A recess in the paper, lit from above, with a fine noise so it does
+   not read as a flat panel of paint.
+
+   IL ÉTAIT EN VELOURS PRUNE, ET IL TRANCHAIT. `C.plum` est bien un
+   jeton, donc il suivait chaque peau — mais un accent SATURÉ sur une
+   grande surface reste un accent hors de sa place, quelle que soit la
+   peau : les dix-sept en faisaient une tache. Une teinte d'accent se
+   porte en petit ; une surface se porte en papier.
+
+   Il est donc creusé dans le papier plutôt que tendu d'étoffe. Le
+   présentoir se lit toujours comme un creux — c'est l'ombre interne qui
+   le dit, pas la couleur — et il ne se bat plus avec ce qu'on pose
+   dessus. Le tint reste réglable : la collection partagée s'en sert en
+   bordeaux, sur une bande étroite où l'accent est à sa place.
 
    It returns a style and not a component because it is a GROUND — it is
    spread onto the thing it belongs to, and a wrapping element would put
@@ -310,17 +322,17 @@ export function Marquee({ lit, style }: { lit?: boolean; style?: CSSProperties }
 
    The noise is black and needs no ink, which is what lets it go through
    an embedded SVG at all. */
-export function velvet(tint: string = C.plum): CSSProperties {
+export function velvet(tint: string = C.paperDark): CSSProperties {
   return {
     backgroundColor: tint,
     backgroundImage: [
-      `radial-gradient(ellipse at 50% -20%, ${alpha(C.card, 0.22)}, transparent 62%)`,
-      `linear-gradient(170deg, ${alpha(C.ink, 0.12)}, ${alpha(C.ink, 0.42)})`,
-      svgUrl(svg(180, 180, noise("velvet-n", "0.9", 2, 0.05))),
+      `radial-gradient(ellipse at 50% -20%, ${alpha(C.card, 0.35)}, transparent 62%)`,
+      `linear-gradient(170deg, ${alpha(C.ink, 0.04)}, ${alpha(C.ink, 0.17)})`,
+      svgUrl(svg(180, 180, noise("velvet-n", "0.9", 2, 0.04))),
     ].join(","),
     /* The inner vignette of the constellation's frame: it is what closes
        a surface without drawing a border around it. */
-    boxShadow: "inset 0 0 44px rgba(20,14,8,0.34)",
+    boxShadow: "inset 0 0 40px rgba(20,14,8,0.2)",
   };
 }
 

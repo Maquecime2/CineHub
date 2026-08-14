@@ -28,6 +28,8 @@ const fr = {
   },
 
   account: {
+    wipePartly:
+      "Une partie n'a pas pu être effacée. Fermez les autres onglets du classeur et réessayez.",
     wipeMine: "Repartir de zéro",
     wipeTitle: "Tout effacer, et garder le compte ?",
     wipeBody:
@@ -908,18 +910,9 @@ const fr = {
       "stamp-premiere-seance": "Première séance",
       "stamp-projectionniste": "Le projectionniste",
       "pack-trois": "Une pochette de trois",
-      "skin-nitrate": "Nitrate",
-      "skin-drive-in": "Drive-in",
-      "skin-cinemascope": "Cinémascope",
       "power-halve": "Écarter deux réponses",
       "power-redo": "Reprendre une question",
       "power-extend": "Prolonger un défi",
-    },
-    wipe: {
-      title: "Tout effacer du comptoir ?",
-      body: "Votre mérite, vos jetons, vos tampons, vos vignettes et vos pouvoirs partent pour de bon, et les gains déjà comptés redeviennent gagnables. Vos films, vos listes, vos défis et les gens que vous suivez ne bougent pas.",
-      action: "REPARTIR DE ZÉRO",
-      note: "N'efface que le comptoir. Pour fermer le compte entier, c'est dans le tiroir du compte.",
     },
     album: {
       title: "La planche",

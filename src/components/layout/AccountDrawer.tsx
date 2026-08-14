@@ -66,7 +66,7 @@ import {
 } from "../../services/push";
 import { mediaTrouble } from "../../services/media";
 import { forgetSync } from "../../services/sync";
-import { forgetOwned } from "../../theme/owned";
+import { startOver } from "../../services/startOver";
 import type { SyncReport } from "../../services/sync";
 
 /* WHEN THE LAST SYNCHRONISATION WAS. The date at the end is formatted by
@@ -476,18 +476,22 @@ export function AccountDrawer({
                       onConfirm: async () => {
                         setRequest(null);
                         setBusy(true);
+                        /* LES DEUX CÔTÉS, ET LE SERVEUR EN PREMIER.
+
+                           Le classeur est local d'abord : effacer le
+                           serveur seul laissait tous les films en place,
+                           et la synchro suivante les y aurait repoussés
+                           — le ménage défait par son propre envoi. */
                         try {
-                          await wipeMyData();
-                          forgetOwned();
-                          /* La synchro repart de zéro elle aussi : sans
-                             cela le classeur repousserait au serveur les
-                             fiches qu'on vient d'y effacer, et le ménage
-                             serait défait par le premier envoi. */
-                          forgetSync();
+                          const survived = await startOver(wipeMyData);
+                          if (survived.local || survived.images) {
+                            setTrouble(t("account.wipePartly"));
+                            setBusy(false);
+                            return;
+                          }
                           location.reload();
                         } catch (e) {
                           setTrouble((e as Error).message || t("account.wipeFailed"));
-                        } finally {
                           setBusy(false);
                         }
                       },

@@ -2694,30 +2694,6 @@ export async function wipeEverything(db: Db, personId: string): Promise<void> {
 }
 
 /**
- * Tout effacer du comptoir, et repartir de zéro.
- *
- * CE QUE CELA EFFACE, ET CE QUE CELA NE TOUCHE PAS. Les deux journaux,
- * la bourse, ce qu'on possède, les vignettes, les pouvoirs et ce qu'on
- * portait — c'est-à-dire tout ce que le comptoir a écrit, et rien
- * d'autre. Les fiches, les listes, les défis, les quiz et les gens qu'on
- * suit ne bougent pas : effacer son mérite n'est pas quitter le
- * classeur, et confondre les deux serait le genre de bouton qu'on
- * regrette une fois.
- *
- * LE JOURNAL PART AVEC LE RESTE, ici et pas ailleurs. Rendre un article
- * le garde, parce qu'il est la mémoire de ce qui a payé ; une remise à
- * zéro, elle, doit rendre les mêmes faits repayables — sans quoi on
- * repart de zéro sans pouvoir regagner quoi que ce soit, ce qui n'est
- * pas repartir.
- */
-export async function wipeCounter(db: Db, personId: string): Promise<void> {
-  for (const table of ["merit_event", "token_spend", "owned", "sticker", "power", "purse"]) {
-    await db.query(`DELETE FROM ${table} WHERE person_id = $1`, [personId]);
-  }
-  await db.query("UPDATE person SET stamp = NULL, skin = NULL WHERE id = $1", [personId]);
-}
-
-/**
  * Rendre un article, et récupérer ce qu'il a coûté.
  *
  * LA LIGNE DE DÉPENSE EST EFFACÉE, ET PAS SEULEMENT COMPENSÉE. La bourse
