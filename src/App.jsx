@@ -204,6 +204,53 @@ export default function App() {
     saveSkinKey(skin);
   }, [skin]);
 
+  /* ============================================================
+     LA PORTE EST UNE SESSION
+     ============================================================
+
+     Le classeur ne s'ouvre plus sans compte. On demande `/me` au
+     chargement, et la réponse se lit en TROIS états qui ne se
+     confondent jamais :
+
+       « asking »      on demande encore
+       « in »          une personne : le classeur
+       « out »         un refus : la porte, avec la visite et les démos
+       « unreachable » un silence : la reconnexion
+
+     LES DEUX DERNIERS SONT DISTINCTS ET DOIVENT LE RESTER. « Tu n'as pas
+     de compte » et « on n'arrive pas à joindre le serveur » n'appellent
+     pas le même geste, et les confondre proposerait une inscription à
+     quelqu'un qui a déjà un compte et vient d'entrer dans un tunnel.
+     `whoAmI` fait déjà la distinction — un 401/403 est un refus, tout le
+     reste remonte —, on ne fait que la rendre visible.
+
+     `attempt` sert au bouton « réessayer » : l'incrémenter rejoue
+     l'effet. Pas de réessai automatique — une page qui se relance seule
+     toutes les trois secondes martèle un serveur déjà en difficulté.
+
+     ELLE EST DÉCLARÉE ICI, TOUT EN HAUT, ET CE N'EST PAS COSMÉTIQUE.
+     Tout ce qui attend la porte doit pouvoir la citer dans ses
+     dépendances, et un tableau de dépendances est évalué PENDANT le
+     rendu — donc avant cette ligne si elle vivait plus bas. Le corps
+     d'un effet, lui, tourne après : lire `session` dedans marche même
+     déclarée plus bas, et c'est exactement ce qui rend le piège
+     invisible. Le chargement du coffre a passé une soirée à ne jamais
+     partir pour cette raison : il lisait `session` sans en dépendre,
+     ne voyait donc que le « asking » du premier rendu, et l'écran
+     d'attente restait à l'écran pour toujours. */
+  const [session, setSession] = useState("asking");
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    setSession((s) => (s === "asking" ? s : "asking"));
+    whoAmI()
+      .then((who) => alive && setSession(who ? "in" : "out"))
+      .catch(() => alive && setSession("unreachable"));
+    return () => {
+      alive = false;
+    };
+  }, [attempt]);
+
   /* LOADING HAS BECOME ASYNCHRONOUS, and that is the vault's price. The
      collection moves down into IndexedDB — several gigabytes instead of
      `localStorage`'s five megabytes, which was already warning that it
@@ -246,7 +293,11 @@ export default function App() {
     return () => {
       alive = false;
     };
-  }, []);
+    /* `session` EN DÉPENDANCE, sans quoi la garde ci-dessus est un
+       verrou qu'on ne rouvre jamais : au premier rendu elle vaut
+       « asking », l'effet renonce, et rien ne le rejoue quand la porte
+       s'ouvre. */
+  }, [session]);
 
   /* THE GUIDED TOUR. Three states only: the tour running, the help menu,
      and the reminder card. All the rest — which steps, in what order,
@@ -354,42 +405,6 @@ export default function App() {
      collection, and nowhere else. It only starts once the binder is
      loaded: synchronising an empty collection we have not read yet would
      erase everything on the first send. */
-  /* ============================================================
-     LA PORTE EST UNE SESSION
-     ============================================================
-
-     Le classeur ne s'ouvre plus sans compte. On demande `/me` au
-     chargement, et la réponse se lit en TROIS états qui ne se
-     confondent jamais :
-
-       « asking »      on demande encore
-       « in »          une personne : le classeur
-       « out »         un refus : la porte, avec la visite et les démos
-       « unreachable » un silence : la reconnexion
-
-     LES DEUX DERNIERS SONT DISTINCTS ET DOIVENT LE RESTER. « Tu n'as pas
-     de compte » et « on n'arrive pas à joindre le serveur » n'appellent
-     pas le même geste, et les confondre proposerait une inscription à
-     quelqu'un qui a déjà un compte et vient d'entrer dans un tunnel.
-     `whoAmI` fait déjà la distinction — un 401/403 est un refus, tout le
-     reste remonte —, on ne fait que la rendre visible.
-
-     `attempt` sert au bouton « réessayer » : l'incrémenter rejoue
-     l'effet. Pas de réessai automatique — une page qui se relance seule
-     toutes les trois secondes martèle un serveur déjà en difficulté. */
-  const [session, setSession] = useState("asking");
-  const [attempt, setAttempt] = useState(0);
-  useEffect(() => {
-    let alive = true;
-    setSession((s) => (s === "asking" ? s : "asking"));
-    whoAmI()
-      .then((who) => alive && setSession(who ? "in" : "out"))
-      .catch(() => alive && setSession("unreachable"));
-    return () => {
-      alive = false;
-    };
-  }, [attempt]);
-
   /* LES DOUZE DE LA VITRINE, et elles ne vont plus nulle part ailleurs.
 
      Elles étaient SEMÉES dans le classeur au premier lancement, avec un
