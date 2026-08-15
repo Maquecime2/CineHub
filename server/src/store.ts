@@ -836,6 +836,111 @@ export async function myBlocks(db: Db, personId: string): Promise<string[]> {
  * gesture is the same, and a moderation queue a human will have to read
  * must not swell with every repeated click.
  */
+/* ============================================================
+   LE BUREAU DE MODÉRATION
+   ============================================================
+
+   La table `report` existait, la route pour SIGNALER aussi, et son
+   `handled_at` n'a jamais été écrit une seule fois : rien ne savait
+   lister ce qui attendait, donc rien ne pouvait le traiter. Sur une
+   adresse ouverte au public ce n'est pas un confort, c'est une
+   obligation — un signalement qu'on ne peut pas lire vaut un
+   signalement qu'on refuse.
+
+   CE QUE CES REQUÊTES NE FONT PAS, et c'est délibéré : fermer un compte.
+   `deletePerson` existe et efface tout par cascade, ce qui est
+   irréversible et sans recours. Une décision pareille ne se prend pas
+   d'un clic dans une file d'attente ; elle se prend en dehors de
+   l'outil, et l'outil ne doit pas la rendre facile.
+
+   Ce qu'on offre à la place est RÉVERSIBLE : retirer la fiche du
+   partage, ce que son auteur pouvait déjà faire lui-même — même colonne,
+   même effet, et rien de détruit.
+   ============================================================ */
+
+export interface Report {
+  id: string;
+  target_type: string;
+  target_id: string;
+  reason: string;
+  created_at: Date;
+  /** Le pseudonyme visé, `null` si son compte a disparu depuis. */
+  about: string | null;
+  /** Combien de personnes DIFFÉRENTES ont signalé la même chose. */
+  echoes: number;
+}
+
+/**
+ * La file d'attente : ce qui n'a pas encore été traité.
+ *
+ * ON REGROUPE PAR CIBLE, et c'est ce qui rend la file lisible. Dix
+ * personnes signalant la même fiche font dix lignes dans la table — c'est
+ * juste, chacune a fait son geste — mais une seule chose à regarder. Le
+ * nombre d'échos est d'ailleurs l'information la plus utile de la
+ * ligne : il dit par où commencer.
+ *
+ * `author_id` n'en sort PAS. Traiter un signalement ne demande pas de
+ * savoir qui l'a fait, et l'afficher inviterait à en tenir compte —
+ * c'est le contenu qu'on juge, pas le plaignant.
+ */
+export async function reportsToHandle(db: Db, limit = 100): Promise<Report[]> {
+  return db.query<Report>(
+    `SELECT min(r.id::text)::uuid AS id,
+            r.target_type, r.target_id,
+            min(r.reason) AS reason,
+            min(r.created_at) AS created_at,
+            max(p.pseudo) AS about,
+            count(*)::int AS echoes
+       FROM report r
+       LEFT JOIN person p ON p.id = r.about_id
+      WHERE r.handled_at IS NULL
+      GROUP BY r.target_type, r.target_id
+      ORDER BY count(*) DESC, min(r.created_at) ASC
+      LIMIT $1`,
+    [limit]
+  );
+}
+
+/**
+ * Ce signalement est traité — et tous ceux qui visent la même chose.
+ *
+ * TOUTE LA CIBLE D'UN COUP, puisque c'est par cible qu'on a regardé.
+ * Clore une ligne sur dix laisserait neuf fois la même chose revenir
+ * dans la file, et on la rouvrirait neuf fois pour rien.
+ */
+export async function handleReports(db: Db, targetType: string, targetId: string): Promise<number> {
+  const r = await db.query(
+    `UPDATE report SET handled_at = now()
+      WHERE target_type = $1 AND target_id = $2 AND handled_at IS NULL
+      RETURNING id`,
+    [targetType, targetId]
+  );
+  return r.length;
+}
+
+/**
+ * Retirer du partage la fiche visée, sans savoir à qui elle est.
+ *
+ * `hideCard` demande le propriétaire ; ici on ne l'a pas, et le chercher
+ * d'abord ferait deux requêtes dont la première peut mentir — la fiche a
+ * pu changer de main ou disparaître entre les deux. L'identifiant d'une
+ * fiche est unique par personne, pas globalement, d'où le passage par
+ * `about_id` du signalement : c'est LUI qui dit chez qui regarder, et il
+ * a été écrit au moment du signalement précisément pour ça.
+ */
+export async function hideReported(db: Db, targetId: string): Promise<boolean> {
+  const r = await db.query(
+    `UPDATE card SET hidden = true, seq = nextval('card_seq')
+      WHERE id = $1
+        AND person_id IN (SELECT about_id FROM report
+                           WHERE target_type = 'card' AND target_id = $1
+                             AND about_id IS NOT NULL)
+      RETURNING id`,
+    [targetId]
+  );
+  return r.length > 0;
+}
+
 export async function report(
   db: Db,
   authorId: string,

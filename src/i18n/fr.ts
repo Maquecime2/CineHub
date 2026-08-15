@@ -961,6 +961,18 @@ const fr = {
     action: "OUVRIR UN COMPTE",
   },
 
+  /* LE BUREAU DE MODÉRATION. Il ne parle jamais du plaignant : on juge
+     un contenu, pas une personne qui se plaint. */
+  moderation: {
+    title: "CE QUI A ÉTÉ SIGNALÉ",
+    empty: "Rien n'attend.",
+    gone: "compte disparu",
+    echoes_one: "{{count}} signalement",
+    echoes_other: "{{count}} signalements",
+    hide: "RETIRER DU PARTAGE",
+    settle: "CLASSER",
+  },
+
   language: {
     title: "La langue",
     close: "Fermer le choix de langue",

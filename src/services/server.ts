@@ -295,6 +295,43 @@ export const accountOpen = (): boolean => serverConfigured() && account !== null
  * is why it needs no round trip of its own and no cache to keep in
  * agreement with anything.
  */
+/* ============================================================
+   LE BUREAU DE MODÉRATION — réservé au rôle
+   ============================================================
+
+   La file est REGROUPÉE PAR CIBLE côté serveur : dix personnes signalant
+   la même fiche font une ligne, avec le nombre d'échos. C'est lui qui
+   dit par où commencer, et c'est lui qui commande le tri.
+
+   Qui a signalé n'en sort pas : on juge un contenu, pas un plaignant.
+   ============================================================ */
+export interface ReportRow {
+  id: string;
+  target_type: string;
+  target_id: string;
+  reason: string;
+  created_at: string;
+  /** Le pseudonyme visé, `null` si son compte a disparu depuis. */
+  about: string | null;
+  echoes: number;
+}
+
+export const reportsToHandle = () =>
+  call<{ reports: ReportRow[] }>("/reports").then((r) => r.reports);
+
+/**
+ * Classer un signalement, et facultativement retirer la fiche du partage.
+ *
+ * `hide` est RÉVERSIBLE — c'est la colonne que l'auteur manipule
+ * lui-même. Fermer un compte ne passe pas par là : cette décision ne
+ * doit pas tenir dans un clic au milieu d'une file d'attente.
+ */
+export const handleReport = (targetType: string, targetId: string, hide = false) =>
+  call<{ closed: number; hidden: boolean }>("/reports/handle", {
+    method: "POST",
+    body: JSON.stringify({ targetType, targetId, hide }),
+  });
+
 export const iAmAdmin = (): boolean => accountOpen() && lastKnownPerson()?.is_admin === true;
 
 /** Be told when the answer changes. Returns an unsubscribe. */

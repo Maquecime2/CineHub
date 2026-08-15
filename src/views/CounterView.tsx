@@ -45,6 +45,7 @@ import { tiltOf } from "../domain/seeded";
 import { SKINS } from "../theme/skins";
 import { usePurse, refreshPurse } from "../hooks/usePurse";
 import { stall } from "../hooks/useHall";
+import { Moderation } from "../components/play/Moderation";
 import { HallWindow } from "../components/layout/HallWindow";
 import {
   buy,
@@ -205,6 +206,12 @@ export function CounterView({ connected }: { connected: boolean }) {
       <div style={{ marginTop: 30 }}>
         <StickerSheet all={ALL_STICKERS} held={held?.stickers ?? []} tour="counter-album" />
       </div>
+
+      {/* LE BUREAU DE MODÉRATION, EN DERNIER ET SOUS CONDITION. Il n'a
+          rien à faire dans la lecture ordinaire d'un comptoir : c'est du
+          travail, pas un plaisir. Il vient donc après l'album, et
+          seulement pour qui porte le rôle. */}
+      {iAmAdmin() && <Moderation />}
 
       {opening && <Packet drawn={opening} onClose={() => setOpening(null)} />}
     </Page>

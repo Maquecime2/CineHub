@@ -964,7 +964,7 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     };
     const text = (reason || "").trim();
     if (!text || text.length > 500) {
-      return reply.code(400).send({ error: "Dites en one phrase ce qui ne va pas." });
+      return reply.code(400).send({ error: "Dites en une phrase ce qui ne va pas." });
     }
     const about = pseudo ? await store.findByPseudo(db, pseudo.toLowerCase()) : null;
     if (!about) return reply.code(404).send({ error: "Personne." });
@@ -979,6 +979,49 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
        "noted" is true in both cases, and knowing one had already
        reported adds nothing for somebody who has just done it. */
     return { noted: true, fresh };
+  });
+
+  /* ------------------------------------------------------------
+     LE BUREAU DE MODÉRATION — réservé au rôle
+     ------------------------------------------------------------
+
+     La table des signalements existait et son `handled_at` n'a jamais
+     été écrit : rien ne savait lister ce qui attendait. Sur une adresse
+     ouverte au public, un signalement qu'on ne peut pas lire vaut un
+     signalement qu'on refuse.
+
+     `requireAdmin` et non `requireAccount` : la file dit qui est visé et
+     pourquoi, ce qui est exactement ce qu'on ne montre à personne
+     d'autre. */
+
+  app.get("/reports", async (req) => {
+    await requireAdmin(req);
+    return { reports: await store.reportsToHandle(db) };
+  });
+
+  /* CLORE, ET FACULTATIVEMENT RETIRER DU PARTAGE. Les deux gestes sont
+     dans une seule route parce qu'ils se font ensemble : on regarde, on
+     décide, on classe. Séparer aurait laissé la porte ouverte à une file
+     où l'on cache sans clore, donc où l'on recroise éternellement ce
+     qu'on a déjà traité.
+
+     `hide` est RÉVERSIBLE — c'est la colonne que l'auteur manipule
+     lui-même. Fermer un compte ne se fait pas ici : voir `store.ts` pour
+     pourquoi cette décision ne doit pas tenir dans un clic. */
+  app.post("/reports/handle", async (req, reply) => {
+    await requireAdmin(req);
+    const { targetType, targetId, hide } = (req.body ?? {}) as {
+      targetType?: string;
+      targetId?: string;
+      hide?: boolean;
+    };
+    if (!targetType || !targetId) {
+      return reply.code(400).send({ error: "Il faut dire quoi traiter." });
+    }
+    const hidden =
+      hide === true && targetType === "card" ? await store.hideReported(db, targetId) : false;
+    const closed = await store.handleReports(db, targetType, targetId);
+    return { closed, hidden };
   });
 
   /* ------------------------------------------------------------

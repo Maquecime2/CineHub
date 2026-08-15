@@ -939,6 +939,18 @@ const en = {
     action: "OPEN AN ACCOUNT",
   },
 
+  /* The moderation desk. It never speaks of the person who reported: a
+     content is judged, not a complainant. */
+  moderation: {
+    title: "WHAT HAS BEEN REPORTED",
+    empty: "Nothing is waiting.",
+    gone: "account gone",
+    echoes_one: "{{count}} report",
+    echoes_other: "{{count}} reports",
+    hide: "TAKE OUT OF SHARING",
+    settle: "FILE IT",
+  },
+
   language: {
     title: "Language",
     close: "Close the language picker",
