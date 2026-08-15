@@ -160,8 +160,22 @@ export function ceilingsFor(person: Holder): Ceilings {
  * relire la phrase.
  */
 export class QuotaReached extends Error {
-  constructor(readonly quel: "medias" | "decors" | "decors-octets" | "imports") {
+  /* ÉCRIT EN DEUX TEMPS, ET CE N'EST PAS UN STYLE.
+
+     C'était `constructor(readonly quel: …)` — une propriété de
+     paramètre, qui est de la syntaxe TypeScript à TRANSFORMER et non à
+     effacer. Le serveur tourne sous `--experimental-strip-types`, qui
+     efface les types sans rien transformer : il a refusé de démarrer,
+     net.
+
+     Et rien ne l'a vu, parce que `tsc --noEmit` l'accepte et que vitest
+     transforme avant d'exécuter. La suite de tests ne DÉMARRE jamais le
+     serveur — c'est ce trou que `npm run boot` bouche depuis. */
+  readonly quel: "medias" | "decors" | "decors-octets" | "imports";
+
+  constructor(quel: "medias" | "decors" | "decors-octets" | "imports") {
     super("Plafond atteint.");
     this.name = "QuotaReached";
+    this.quel = quel;
   }
 }

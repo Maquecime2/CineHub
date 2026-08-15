@@ -183,8 +183,21 @@ sur chaque autre, un article de boutique pour chacune, et le même prix que
 ## Le serveur EST le classeur
 
 `server/` est un second paquet, avec ses propres dépendances et ses
-propres contrôles (`cd server && npm test && npm run typecheck`). Il n'est
-pas dans la liste ci-dessous.
+propres contrôles (`cd server && npm test && npm run typecheck && npm run boot`).
+Il n'est pas dans la liste ci-dessous.
+
+**`npm run boot` EST LÀ PARCE QUE LES DEUX AUTRES NE SUFFISENT PAS.** Ce
+serveur ne se compile pas : il tourne en TypeScript direct sous
+`--experimental-strip-types`, qui EFFACE les types sans rien
+transformer. Une propriété de paramètre — `constructor(readonly x: T)` —,
+un `enum`, un `namespace` l'arrêtent net au démarrage. Or `tsc` les
+accepte, puisqu'elles sont valides, et vitest transforme avant
+d'exécuter : la suite de tests ne DÉMARRE jamais le serveur. Un
+`constructor(readonly quel: …)` est resté deux jours dans `limits.ts`, à
+travers tous les contrôles au vert, et n'a été trouvé qu'en lançant
+`npm run dev` à la main. `boot` charge chaque module par Node lui-même,
+avec le drapeau de production ; `node --check` ne voit rien, il ne
+valide que la syntaxe JavaScript.
 
 **LA PORTE EST UNE SESSION.** Au chargement, `App` demande `/me` et lit la
 réponse en trois états, qui ne se confondent jamais :
