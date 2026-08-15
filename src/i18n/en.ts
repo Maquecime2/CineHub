@@ -1399,6 +1399,10 @@ const en = {
     setAsideBody:
       "It leaves the wall and the constellation, without being destroyed — it goes back on the shelf whenever you like.",
     setAsideAction: "set aside",
+    shareImage: "SHARE AS IMAGE",
+    sharing: "drawing…",
+    shareSignature: "filed in Ciné Hub",
+    share: { shared: "shared", saved: "image saved" },
     deleteBody:
       "The card, its notes, its stills and its threads go with it. Nothing can be caught back — “set aside” files without destroying.",
     searchCollection: "Search the collection",

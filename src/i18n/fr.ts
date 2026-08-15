@@ -1437,6 +1437,10 @@ const fr = {
     setAsideBody:
       "Elle quitte le mur et la constellation, sans être détruite — on la remet en rayon quand on veut.",
     setAsideAction: "mettre de côté",
+    shareImage: "PARTAGER EN IMAGE",
+    sharing: "on dessine…",
+    shareSignature: "rangé dans Ciné Hub",
+    share: { shared: "partagé", saved: "image enregistrée" },
     deleteBody:
       "La fiche, ses notes, ses captures et ses fils partent avec elle. Rien ne se rattrape — « mettre de côté » range sans détruire.",
     searchCollection: "Chercher dans la collection",

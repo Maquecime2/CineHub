@@ -2,10 +2,12 @@
    VUE — DOSSIER FILM
    ============================================================ */
 import { useTranslation } from "react-i18next";
+import { shareCard } from "../services/shareImage";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Trash2,
+  Share2,
   Plus,
   Link2,
   Paperclip,
@@ -218,6 +220,10 @@ export function DetailView({
      pattern — have nothing in common but the fact that one may have made
      a mistake. */
   const [request, setRequest] = useState<ConfirmRequest | null>(null);
+  /* Ce que le partage a donné, dit À LA PLACE du libellé du bouton. Une
+     ligne de plus en dessous aurait fait sauter la colonne pour deux
+     mots. */
+  const [shared, setShared] = useState("");
   const [linkType, setLinkType] = useState<LinkType>("book");
   const [linkTitle, setLinkTitle] = useState("");
   const [linkCreator, setLinkCreator] = useState("");
@@ -855,6 +861,32 @@ export function DetailView({
                   </>
                 )}
               </button>
+              {/* PARTAGER LA FICHE EN IMAGE. Au-dessus de la sortie
+                définitive et sous les rangements : c'est un geste
+                ordinaire, pas une fin. Il dit ce qu'il a fait — partagé
+                ou enregistré ne sont pas la même nouvelle, et un silence
+                après un clic est ce qui fait recliquer. */}
+              <button
+                onClick={async () => {
+                  setShared(t2("detail.sharing"));
+                  const how = await shareCard(film, t2("detail.shareSignature"));
+                  setShared(how === "failed" ? "" : t2(`detail.share.${how}`));
+                }}
+                style={{
+                  all: "unset",
+                  ...tap,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 5,
+                  color: C.inkFaded,
+                  fontFamily: F.mono,
+                  fontSize: 10,
+                }}
+              >
+                <Share2 size={12} /> {shared || t2("detail.shareImage")}
+              </button>
+
               {/* The final exit keeps its distance from the two filings:
                 setting aside and deleting look alike enough to be
                 confused, and one of the two cannot be undone. */}
