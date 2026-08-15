@@ -945,6 +945,22 @@ const fr = {
     dismiss: "Garder la suppression",
   },
 
+  /* LA VITRINE DU HALL. Elle montre l'OFFRE et jamais le contenu des
+     autres : tout est fermé par défaut dans ce produit, et bâtir une
+     vitrine sur ce que personne n'a accepté de publier serait se
+     contredire. */
+  hallWindow: {
+    title: "Le hall",
+    body: "Quatre guichets qui n'existent qu'à plusieurs. Votre vidéothèque, elle, n'a besoin de rien de tout cela — elle marche entière, hors ligne et sans compte.",
+    thread: "Suivez qui vous voulez, et voyez ce qu'ils ont vu.",
+    lists: "Des listes à plusieurs, et des défis à période.",
+    quiz: "Des soirées de questions, tirées d'un panier commun.",
+    counter: "Ce que vous avez gagné, et ce que ça ouvre.",
+    price:
+      "Rien de tout cela ne s'achète : les jetons se gagnent en jouant, et une peau prise au comptoir vous reste pour toujours.",
+    action: "OUVRIR UN COMPTE",
+  },
+
   language: {
     title: "La langue",
     close: "Fermer le choix de langue",
@@ -1001,6 +1017,7 @@ const fr = {
      CONTIENT, jamais par le verbe qu'on y fait : « le classeur » dit ce
      qu'on possède, et les trois vues dessous en sont les angles. */
   groups: {
+    news: "du neuf",
     binder: "Le classeur",
     explore: "Explorer",
     hall: "Le hall",

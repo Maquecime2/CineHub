@@ -923,6 +923,22 @@ const en = {
     dismiss: "Keep the deletion",
   },
 
+  /* The hall's shop window. It shows the OFFER and never other people's
+     content: everything is closed by default in this product, and
+     building a window out of what nobody agreed to publish would
+     contradict that. */
+  hallWindow: {
+    title: "The hall",
+    body: "Four counters that only exist with other people. Your binder needs none of it — it works whole, offline and without an account.",
+    thread: "Follow whom you like, and see what they have watched.",
+    lists: "Lists made together, and challenges with a deadline.",
+    quiz: "Question evenings, drawn from a common basket.",
+    counter: "What you have earned, and what it opens.",
+    price:
+      "None of this is bought: tokens are earned by playing, and a skin taken at the counter is yours for good.",
+    action: "OPEN AN ACCOUNT",
+  },
+
   language: {
     title: "Language",
     close: "Close the language picker",
@@ -976,6 +992,7 @@ const en = {
   /* The rail's three families. A group is named after what it HOLDS,
      never after the verb one does in it. */
   groups: {
+    news: "something new",
     binder: "The binder",
     explore: "Explore",
     hall: "The hall",

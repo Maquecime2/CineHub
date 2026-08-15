@@ -42,6 +42,7 @@ import {
 import { AccountDrawer } from "./components/layout/AccountDrawer";
 import { TmdbKeyPanel } from "./components/layout/TmdbKeyPanel";
 import { registerTmdbOpener } from "./services/tmdbKey";
+import { registerAccountOpener } from "./services/accountDoor";
 import { useSync } from "./hooks/useSync";
 import { useInstallation } from "./hooks/useInstallation";
 /* The module only exists at build time: it is the plugin that makes it,
@@ -63,6 +64,8 @@ import { readPlace, placeToHash, HOME } from "./domain/address";
 import { shortcutOf } from "./domain/keys";
 import { startMeasuring, pageSeen, doorEvent } from "./services/measure";
 import { mayNudge, noteNudge } from "./services/loneDevice";
+import { markHallSeen, unseenNews } from "./services/hallNews";
+import { feed } from "./hooks/useHall";
 import { myKeys } from "./services/server";
 
 /* ============================================================
@@ -368,6 +371,13 @@ export default function App() {
      loaded: synchronising an empty collection we have not read yet would
      erase everything on the first send. */
   const [accountOpen, setAccountOpen] = useState(false);
+
+  /* LA VITRINE DU HALL OUVRE UN COMPTE SUR PLACE, au lieu de désigner
+     un bouton au pied du rail. Même arrangement que le cartouche de la
+     clé TMDB — et posé ICI, après la déclaration de l'état : écrit plus
+     haut avec les autres inscriptions, il lisait `setAccountOpen` avant
+     qu'elle existe. Ça marchait, et le lint le refusait avec raison. */
+  useEffect(() => registerAccountOpener(() => setAccountOpen(true)), []);
   /* RE-READ WHAT HAS JUST ARRIVED. The shelf arrangements, the notebook,
      the threads and the vocabulary are read on mount: when the
      synchronisation brings some in, they have to be asked of the disk
@@ -417,6 +427,35 @@ export default function App() {
      échoué », ce qui est une autre nouvelle qu'une jauge haute. */
   const [quota, setQuota] = useState(null);
   useEffect(() => watchQuota(setQuota), []);
+
+  /* ============================================================
+     DU NEUF AU HALL
+     ============================================================
+
+     Le fil se remplit pendant qu'on range ses fiches, et rien ne le
+     disait : il fallait aller voir, donc y penser, donc savoir qu'il y
+     avait quelque chose — ce qui est la question.
+
+     ON LIT LE CACHE, ON NE DEMANDE RIEN. `feed` est déjà chargé par la
+     vue du fil et tenu une minute (`hooks/useHall`) ; interroger le
+     serveur ici ferait une requête de plus à chaque ouverture, pour
+     dessiner un point. Sans compte ou sans serveur, `known()` rend
+     `null` et le point n'existe pas — ce qui est la bonne réponse.
+
+     ET IL S'ÉTEINT EN ENTRANT, pas en sortant : c'est le fait de
+     regarder qui compte, et quelqu'un qui ouvre le fil puis change
+     d'avis a quand même vu ce qu'il y avait. */
+  const [hallNews, setHallNews] = useState(false);
+  useEffect(() => {
+    const known = feed.known();
+    setHallNews(unseenNews(known?.news ?? [], synchro.person?.pseudo) > 0);
+  }, [view, synchro.person]);
+
+  useEffect(() => {
+    if (view !== "thread") return;
+    markHallSeen();
+    setHallNews(false);
+  }, [view]);
 
   const [loneDevice, setLoneDevice] = useState(false);
   useEffect(() => {
@@ -1057,6 +1096,7 @@ export default function App() {
         onHelp={() => setTourMenu((o) => !o)}
         onAccount={() => setAccountOpen(true)}
         sync={synchro.state}
+        hallNews={hallNews}
       />
       {accountOpen && (
         <AccountDrawer

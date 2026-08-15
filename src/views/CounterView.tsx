@@ -45,6 +45,7 @@ import { tiltOf } from "../domain/seeded";
 import { SKINS } from "../theme/skins";
 import { usePurse, refreshPurse } from "../hooks/usePurse";
 import { stall } from "../hooks/useHall";
+import { HallWindow } from "../components/layout/HallWindow";
 import {
   buy,
   iAmAdmin,
@@ -126,10 +127,15 @@ export function CounterView({ connected }: { connected: boolean }) {
       </Page>
     );
   }
+  /* LA VITRINE, ET NON UNE PHRASE. Les quatre guichets répondaient
+     chacun « il faut un compte — le bouton au pied du rail », ce qui
+     donne un itinéraire sans rien dire de ce qu'il y a derrière. Voir
+     `HallWindow` pour ce qu'elle montre, et surtout pour ce qu'elle se
+     refuse à montrer. */
   if (!connected) {
     return (
       <Page>
-        <Guideline tight>{t("counter.noAccount")}</Guideline>
+        <HallWindow />
       </Page>
     );
   }

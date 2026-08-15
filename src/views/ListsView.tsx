@@ -57,6 +57,7 @@ import { refreshLists, loadLists } from "../hooks/useMyLists";
 import { challenges as challengeBoard } from "../hooks/useHall";
 import { useTmdbKey } from "../services/tmdbKey";
 import { searchMovies } from "../tmdb";
+import { HallWindow } from "../components/layout/HallWindow";
 
 /** One TMDB result, as `searchMovies` hands it back. */
 interface TmdbHit {
@@ -114,10 +115,15 @@ export function ListsView({ connected }: { connected: boolean }) {
     );
   }
 
+  /* LA VITRINE, ET NON UNE PHRASE. Les quatre guichets répondaient
+     chacun « il faut un compte — le bouton au pied du rail », ce qui
+     donne un itinéraire sans rien dire de ce qu'il y a derrière. Voir
+     `HallWindow` pour ce qu'elle montre, et surtout pour ce qu'elle se
+     refuse à montrer. */
   if (!connected) {
     return (
       <Page>
-        <Guideline tight>{t("listsView.noAccount")}</Guideline>
+        <HallWindow />
       </Page>
     );
   }

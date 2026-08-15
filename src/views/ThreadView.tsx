@@ -30,6 +30,7 @@ import { PosterArt } from "../components/film/PosterArt";
 import { initialsOf } from "../domain/film";
 import { tiltOf } from "../domain/seeded";
 import { feed } from "../hooks/useHall";
+import { HallWindow } from "../components/layout/HallWindow";
 import {
   unfollow,
   profileOf,
@@ -79,13 +80,15 @@ export function ThreadView({ connected }: { connected: boolean }) {
     );
   }
 
+  /* LA VITRINE, ET NON UNE PHRASE. Les quatre guichets répondaient
+     chacun « il faut un compte — le bouton au pied du rail », ce qui
+     donne un itinéraire sans rien dire de ce qu'il y a derrière. Voir
+     `HallWindow` pour ce qu'elle montre, et surtout pour ce qu'elle se
+     refuse à montrer. */
   if (!connected) {
     return (
       <Page>
-        <Guideline>
-          Il faut un compte pour suivre quelqu'un — at bouton au pied du rail. Votre collection,
-          elle, n'en a pas besoin.
-        </Guideline>
+        <HallWindow />
       </Page>
     );
   }

@@ -76,6 +76,8 @@ interface FolderTabsProps {
    * server: the action is then not even mounted.
    */
   sync: "up-to-date" | "running" | "waiting" | "error" | "no-account" | "absent";
+  /** Du neuf au hall, qu'on n'a pas encore regardé. */
+  hallNews?: boolean;
 }
 
 /* THE ICON IS NOT AN ORNAMENT: it is what is left of the tab when the
@@ -241,10 +243,16 @@ function Tab({
   active,
   onClick,
   phone,
+  mark,
 }: {
   t: Pill;
   active: boolean;
   onClick: () => void;
+  /* UNE PASTILLE SUR LA PASTILLE : il y a du neuf derrière. Un POINT et
+     jamais un nombre — le rail fait trente-deux pixels de large, un
+     chiffre y serait illisible, et « combien » ne change de toute façon
+     rien à ce qu'on fait. Le compte exact se lit au guichet. */
+  mark?: boolean;
   /* ON A PHONE, THIS IS NO LONGER A BINDER TAB.
 
      The pill draws its shape from the spine it butts against: rounded on
@@ -267,13 +275,16 @@ function Tab({
       data-tour={`tab-${t.key}`}
       data-tab-tab
       onClick={onClick}
-      title={name}
-      aria-label={name}
+      title={mark ? `${name} — ${say("groups.news")}` : name}
+      aria-label={mark ? `${name} — ${say("groups.news")}` : name}
       aria-current={active ? "page" : undefined}
       style={{
         all: "unset",
         cursor: "pointer",
         boxSizing: "border-box",
+        /* Le point se pose en coordonnées de la pastille, donc elle doit
+           être son référent. */
+        position: "relative",
         width: phone ? 40 : 32,
         height: phone ? 40 : 32,
         /* AND THAT PACK DOWN RATHER THAN OVERFLOW.
@@ -334,6 +345,24 @@ function Tab({
       }}
     >
       <Icon size={16} />
+      {mark && (
+        <span
+          /* `aria-hidden` : la nouvelle est ANNONCÉE dans le nom du
+             bouton, pas dessinée deux fois. Une synthèse vocale qui lit
+             « le hall, point » n'apprend rien. */
+          aria-hidden
+          style={{
+            position: "absolute",
+            top: phone ? 6 : 4,
+            right: phone ? 6 : 5,
+            width: 7,
+            height: 7,
+            borderRadius: "50%",
+            background: C.card,
+            boxShadow: `0 0 0 1.5px ${alpha(C.ink, 0.45)}`,
+          }}
+        />
+      )}
     </button>
   );
 }
@@ -531,6 +560,7 @@ export function FolderTabs({
   onKey,
   onAccount,
   sync,
+  hallNews,
 }: FolderTabsProps) {
   /* TWO TABS THAT ONLY APPEAR IF THERE IS SOMEBODY OPPOSITE.
 
@@ -714,6 +744,10 @@ export function FolderTabs({
                  ailleurs selon l'humeur du souvenir est une pastille
                  dont on ne sait plus ce qu'elle fait. La barre de
                  sous-onglets, juste dessous, montre le reste. */
+              /* LE POINT NE VIT QUE SUR LE HALL, et il vient d'`App` :
+                 c'est lui qui tient le fil. Le rail ne lit rien du
+                 serveur — il dessine ce qu'on lui dit. */
+              mark={g.key === "hall" && hallNews}
               onClick={() => setView(g.members[0]!)}
             />
           ))}
