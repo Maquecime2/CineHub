@@ -1,11 +1,16 @@
 /* ============================================================
-   TROIS CARTES SCOTCHÉES AU BAS DE LA PAGE
+   QUATRE CARTES SCOTCHÉES AU BAS DE LA PAGE
 
-   La première invite à poser le classeur sur l'écran d'accueil. La
-   deuxième dit qu'une version neuve attend. La troisième prévient qu'un
-   compte ne tient qu'à l'appareil où il est né. Elles ne paraissent
-   JAMAIS ENSEMBLE : on ne demande pas deux choses à la fois, et c'est
-   `App` qui arbitre — la version d'abord, puisqu'elle attend déjà.
+   L'une invite à poser le classeur sur l'écran d'accueil. Une autre dit
+   qu'une version neuve attend. La troisième prévient qu'un compte ne
+   tient qu'à l'appareil où il est né. La quatrième, que le stockage se
+   remplit — ou qu'il a débordé.
+
+   Elles ne paraissent JAMAIS ENSEMBLE : on ne demande pas deux choses à
+   la fois, et c'est `App` qui arbitre. L'ordre y est écrit, et il se
+   lit par ce qu'on perd à attendre : le stockage plein d'abord, parce
+   qu'une écriture perdue ne se rattrape pas ; la version neuve ensuite,
+   qui attend déjà ; le compte seul ; l'installation en dernier.
 
    They borrow their shape from the tour's reminder — an index card laid
    askew, with its strip of tape. That is not an affectation: it is what
@@ -17,7 +22,7 @@
    ============================================================ */
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Download, RefreshCw, Share, Smartphone, X } from "lucide-react";
+import { Download, HardDriveDownload, RefreshCw, Share, Smartphone, X } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { Layer } from "../ui/Layer";
@@ -190,6 +195,47 @@ export function LoneDeviceCard({
       <Line>{t("loneDevice.body")}</Line>
       <button onClick={onOpenAccount} style={button}>
         <Smartphone size={12} /> {t("loneDevice.action")}
+      </button>
+    </Card>
+  );
+}
+
+/* ============================================================
+   LE STOCKAGE SE REMPLIT, OU IL A DÉBORDÉ
+   ============================================================
+
+   Deux nouvelles, et elles ne se disent pas de la même façon. « Ça se
+   remplit » laisse le temps d'agir. « L'écriture a échoué » veut dire
+   que ce qui est à l'écran n'est PAS sur le disque — on ferme l'onglet
+   en croyant avoir rangé, et on rouvre la collection d'hier.
+
+   La seconde passe donc devant TOUTES les autres cartes : une version
+   neuve peut attendre, une écriture perdue non.
+
+   Elle remplace un `alert()` dont la phrase était écrite en français
+   dans `services/storage`. Voir là-bas pourquoi ce module signale au
+   lieu de parler.
+   ============================================================ */
+export function QuotaCard({
+  failed,
+  megabytes,
+  onBackup,
+  onDismiss,
+}: {
+  /** L'écriture a échoué, par opposition à « la jauge est haute ». */
+  failed: boolean;
+  megabytes: number;
+  onBackup: () => void;
+  onDismiss: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <Card onFermer={onDismiss} dismissLabel="quota.dismiss">
+      <Title>{t(failed ? "quota.fullTitle" : "quota.title")}</Title>
+      <Line>{failed ? t("quota.fullBody") : t("quota.body", { megabytes })}</Line>
+      <Line>{t("quota.advice")}</Line>
+      <button onClick={onBackup} style={button}>
+        <HardDriveDownload size={12} /> {t("quota.action")}
       </button>
     </Card>
   );

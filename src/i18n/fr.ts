@@ -752,6 +752,21 @@ const fr = {
      dramatiser et sans jargon : ni « passkey », ni « WebAuthn », qui ne
      désignent rien pour qui vient de créer un compte en posant son
      doigt. */
+  /* DEUX NOUVELLES, ET DEUX PHRASES. « Ça se remplit » laisse le temps
+     d'agir ; « l'écriture a échoué » veut dire que ce qui est à l'écran
+     n'est pas sur le disque, ce qui n'est pas la même conversation. */
+  quota: {
+    title: "L'espace de rangement se remplit",
+    body: "Environ {{megabytes}} Mo utilisés sur les 5 que le navigateur accorde.",
+    fullTitle: "L'espace de rangement est plein",
+    fullBody:
+      "Votre dernière modification n'a PAS pu être écrite : elle est à l'écran, pas sur le disque. Emportez une sauvegarde avant de fermer cet onglet.",
+    advice:
+      "Les affiches importées depuis votre disque sont les plus lourdes : préférez une adresse d'image, ou l'enrichissement TMDB, qui ne rangent qu'un lien.",
+    action: "EXPORTER UNE SAUVEGARDE",
+    dismiss: "Écarter cet avertissement",
+  },
+
   loneDevice: {
     title: "Votre compte ne vit que sur cet appareil",
     body: "La clé qui l'ouvre est enfermée dans cette machine : on ne peut ni la copier, ni la retrouver. Ajoutez-en une seconde, sur un téléphone, pendant que celle-ci fonctionne.",

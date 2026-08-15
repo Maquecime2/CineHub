@@ -20,7 +20,7 @@ import { makeThread, normalizeThreads } from "./domain/threads";
 import { motifById, makeCustomMotif, customMotifs } from "./domain/motifs";
 import { loadThreads, saveThreads as saveThreadsToDisk } from "./services/threads";
 import { loadVocabulary, saveVocabulary, normalizeVocabulary } from "./services/motifs";
-import { store, KEYS } from "./services/storage";
+import { store, KEYS, watchQuota } from "./services/storage";
 import { loadFilms, knownCollection, saveFilms, forgetCache } from "./services/collection";
 import { PaperGrain } from "./components/atmosphere";
 import { FilmModal } from "./components/film/FilmModal";
@@ -32,7 +32,12 @@ import { useViewport } from "./hooks/useViewport";
 import { usePointerDrag } from "./hooks/usePointerDrag";
 import { SkinPicker } from "./components/layout/SkinPicker";
 import { LanguagePicker } from "./components/layout/LanguagePicker";
-import { Installation, UpdateCard, LoneDeviceCard } from "./components/layout/Installation";
+import {
+  Installation,
+  UpdateCard,
+  LoneDeviceCard,
+  QuotaCard,
+} from "./components/layout/Installation";
 import { AccountDrawer } from "./components/layout/AccountDrawer";
 import { TmdbKeyPanel } from "./components/layout/TmdbKeyPanel";
 import { registerTmdbOpener } from "./services/tmdbKey";
@@ -334,6 +339,13 @@ export default function App() {
 
      ELLE SE TAIT SUR UNE PANNE. Hors ligne, ou serveur muet, on ne sait
      pas — et une alarme sur une ignorance serait pire que le silence. */
+  /* LE STOCKAGE QUI SE REMPLIT. `services/storage` ne peut pas parler —
+     il est chargé avant l'écran et n'a pas de catalogue — donc il
+     signale, et c'est ici qu'on l'entend. `-1` veut dire « l'écriture a
+     échoué », ce qui est une autre nouvelle qu'une jauge haute. */
+  const [quota, setQuota] = useState(null);
+  useEffect(() => watchQuota(setQuota), []);
+
   const [loneDevice, setLoneDevice] = useState(false);
   useEffect(() => {
     if (!synchro.person || !mayNudge()) return;
@@ -1207,7 +1219,17 @@ export default function App() {
           qu'on n'a pas rechargé. Le compte seul ensuite, parce que c'est
           le seul des trois qui puisse coûter quelque chose. L'invitation
           à installer en dernier, qui ne perd rien à attendre. */}
-      {updateReady ? (
+      {quota !== null ? (
+        <QuotaCard
+          failed={quota < 0}
+          megabytes={Math.round(quota / 100_000) / 10}
+          onBackup={() => {
+            setQuota(null);
+            openImport();
+          }}
+          onDismiss={() => setQuota(null)}
+        />
+      ) : updateReady ? (
         <UpdateCard onReload={() => updateServiceWorker(true)} />
       ) : loneDevice ? (
         <LoneDeviceCard

@@ -735,6 +735,21 @@ const en = {
      drama and without jargon: neither "passkey" nor "WebAuthn", which
      name nothing to somebody who has just made an account with a
      fingertip. */
+  /* Two pieces of news, two sentences. "It is filling up" leaves time to
+     act; "the write failed" means what is on screen is not on the disk,
+     which is not the same conversation. */
+  quota: {
+    title: "The storage space is filling up",
+    body: "About {{megabytes}} MB used of the 5 the browser grants.",
+    fullTitle: "The storage space is full",
+    fullBody:
+      "Your last change could NOT be written: it is on screen, not on the disk. Take a backup away before closing this tab.",
+    advice:
+      "Posters brought in from your own disk are the heaviest: prefer an image address, or TMDB enrichment, which only file a link.",
+    action: "EXPORT A BACKUP",
+    dismiss: "Dismiss this warning",
+  },
+
   loneDevice: {
     title: "Your account only lives on this device",
     body: "The key that opens it is locked inside this machine: it cannot be copied, and it cannot be recovered. Add a second one, on a phone, while this one still works.",

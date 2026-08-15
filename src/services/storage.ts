@@ -38,19 +38,56 @@ const noteIfSyncable = async (key: string): Promise<void> => {
    fifths. */
 const WARN_THRESHOLD = 4_000_000;
 
-const ADVICE =
-  "Les affiches importées depuis votre disque sont les plus lourdes : préférez une adresse d'image (clic droit → copier l'adresse de l'image) ou l'enrichissement TMDB, qui ne stockent qu'un lien.";
+/* ------------------------------------------------------------
+   L'AVERTISSEMENT NE BLOQUE PLUS, ET IL SE TRADUIT
+   ------------------------------------------------------------
 
-/* Once per session, and not one more. A warning that repeats on every
-   keystroke is a warning you learn to click through without reading. */
-let warned = false;
+   C'était un `alert()`, avec sa phrase écrite en français DANS LE CODE.
+   Trois défauts en une ligne : il arrête la page au milieu d'une frappe,
+   il n'apparaît dans aucun catalogue donc il est en français pour tout
+   le monde, et une boîte du navigateur est exactement ce que cette
+   application passe son temps à ne pas être.
+
+   CE MODULE NE PEUT PAS TRADUIRE LUI-MÊME : il est chargé avant l'écran,
+   il n'a ni React ni catalogue, et lui en donner un le ferait dépendre
+   de la moitié de l'application pour poser une phrase. Il SIGNALE donc,
+   et quelqu'un d'autre le dit — même arrangement que le cartouche de la
+   clé TMDB (`registerTmdbOpener`), pour la même raison.
+
+   Un seul abonné à la fois : c'est `App` qui le monte, et il n'y en a
+   qu'un.
+   ------------------------------------------------------------ */
+type QuotaWatcher = (bytes: number) => void;
+
+let watcher: QuotaWatcher | null = null;
+
+/** Monté par `App`; rend de quoi se désabonner. */
+export function watchQuota(fn: QuotaWatcher): () => void {
+  watcher = fn;
+  /* CE QUI A ÉTÉ MANQUÉ AVANT L'ABONNEMENT N'EST PAS PERDU. Le premier
+     dépassement peut arriver pendant le chargement, donc avant que
+     l'écran soit là pour l'entendre. On le rejoue. */
+  if (warnedAt !== null) fn(warnedAt);
+  return () => {
+    if (watcher === fn) watcher = null;
+  };
+}
+
+/* Une fois par session, et pas une de plus : un avertissement qui revient
+   à chaque frappe est un avertissement qu'on apprend à écarter sans le
+   lire. On garde la TAILLE plutôt qu'un booléen, pour pouvoir la rejouer
+   à qui s'abonne trop tard. */
+let warnedAt: number | null = null;
 
 const warnIfLarge = (size: number): void => {
-  if (warned || size < WARN_THRESHOLD) return;
-  warned = true;
-  alert(
-    `L'espace de stockage se remplit (${Math.round(size / 100_000) / 10} Mo sur environ 5).\n\n${ADVICE}\n\nPensez à exporter une sauvegarde depuis l'onglet Import.`
-  );
+  if (warnedAt !== null || size < WARN_THRESHOLD) return;
+  warnedAt = size;
+  watcher?.(size);
+};
+
+/** Pour les tests, et pour repartir de zéro. */
+export const forgetQuotaWarning = (): void => {
+  warnedAt = null;
 };
 
 /* ------------------------------------------------------------
@@ -119,8 +156,17 @@ export const store = {
       return true;
     } catch (e) {
       console.error(e);
+      /* L'ÉCRITURE A ÉCHOUÉ, ce qui est pire que « ça se remplit » : ce
+         qui est à l'écran n'est PAS sur le disque. On le signale par le
+         même canal, avec la taille qu'on n'a pas pu écrire — l'écran
+         saura dire laquelle des deux phrases il faut.
+
+         `warnedAt` est forcé : la jauge a pu ne jamais être franchie
+         (une seule grosse valeur suffit à faire déborder), et se taire
+         ici serait se taire au seul moment qui compte vraiment. */
       if (String((e as Error)?.name || "").includes("Quota")) {
-        alert(`Espace de stockage plein.\n\n${ADVICE}`);
+        warnedAt = -1;
+        watcher?.(-1);
       }
       return false;
     }
