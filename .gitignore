@@ -17,6 +17,7 @@ coverage
 # personne ne sait quoi écrire dans son `.env`.
 !server/.env.exemple
 !.env.exemple
+!.env.deploiement.exemple
 
 # Éditeurs / OS
 .vscode

@@ -1,0 +1,97 @@
+# ============================================================
+#  LE DEVANT DE LA MAISON — TLS, en-têtes, et les vrais chemins
+# ============================================================
+#
+#  Caddy plutôt que nginx pour une raison précise : il obtient et
+#  renouvelle les certificats tout seul. Sur un VPS tenu par une
+#  personne, un certificat qui expire un dimanche est le genre de panne
+#  qu'on ne veut pas avoir à surveiller.
+#
+#  `{$DOMAINE}` et les autres viennent du `.env` lu par le compose.
+# ============================================================
+
+{$DOMAINE} {
+	root * /srv
+	encode gzip zstd
+
+	# ------------------------------------------------------------
+	#  LES VRAIS CHEMINS
+	# ------------------------------------------------------------
+	#  Le classeur navigue dans le FRAGMENT (`#/mur`), qui ne quitte
+	#  jamais le navigateur — mais une page demandée directement doit
+	#  quand même rendre l'application plutôt qu'un 404 de fichier
+	#  manquant. C'est aussi ce qui permettra un jour une page
+	#  d'atterrissage sur un vrai chemin, que les moteurs sachent lire.
+	try_files {path} /index.html
+	file_server
+
+	# ------------------------------------------------------------
+	#  LA POLITIQUE DE SÉCURITÉ DU CONTENU
+	# ------------------------------------------------------------
+	#  Chaque origine ci-dessous est là pour une raison nommée. Une
+	#  directive qu'on élargit « pour que ça marche » est une directive
+	#  qui ne protège plus rien.
+	#
+	#  `style-src 'unsafe-inline'` EST OBLIGATOIRE ET ASSUMÉ : le
+	#  classeur pose sa feuille de peau dans une balise `<style>` écrite
+	#  au rendu (`FONT_IMPORT`), et les dix-sept peaux réécrivent des
+	#  variables sur `documentElement`. Un nonce demanderait de le faire
+	#  traverser le rendu React jusqu'à cette balise ; c'est faisable et
+	#  ce n'est pas fait, donc on l'écrit ici plutôt que de le laisser
+	#  deviner.
+	#
+	#  `img-src` : `data:` pour les affiches collées à la main,
+	#  `blob:` pour celles qui viennent d'IndexedDB, `image.tmdb.org`
+	#  pour les douze de la vitrine et les fiches enrichies, et le
+	#  container pour le miroir.
+	#
+	#  `connect-src` : le serveur, la mesure, TMDB — que le classeur
+	#  appelle EN DIRECT quand quelqu'un pose sa propre clé —, le relais
+	#  Letterboxd, et le container.
+	#
+	#  PAS DE `frame-ancestors 'self'` PAR OUBLI : il est là, et c'est
+	#  lui qui empêche qu'on encadre le site dans une page tierce pour
+	#  faire cliquer à côté.
+	header {
+		Content-Security-Policy "default-src 'self'; script-src 'self' {$CSP_MESURE}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://image.tmdb.org {$CSP_MEDIAS}; font-src 'self'; connect-src 'self' {$CSP_SERVEUR} {$CSP_MESURE} {$CSP_MEDIAS} https://api.themoviedb.org https://corsproxy.io; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'"
+
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# Rien de tout cela n'est demandé par le classeur : on le dit
+		# plutôt que de laisser la porte entrouverte.
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+		-Server
+	}
+
+	# Le paquet JavaScript porte son empreinte dans son nom : il ne
+	# change jamais sous la même adresse, donc on le garde longtemps.
+	# `index.html`, lui, doit être relu à chaque fois, sans quoi une
+	# version neuve n'arrive jamais.
+	@empreinte path /assets/*
+	header @empreinte Cache-Control "public, max-age=31536000, immutable"
+	header /index.html Cache-Control "no-cache"
+	header /sw.js Cache-Control "no-cache"
+}
+
+# ------------------------------------------------------------
+#  LE SERVEUR, SUR SON SOUS-DOMAINE
+# ------------------------------------------------------------
+#  Une origine à lui : les cookies de session s'y posent, et `ORIGINES`
+#  côté serveur doit nommer celle du classeur — sans quoi le navigateur
+#  refuse les requêtes avant même qu'elles partent.
+{$DOMAINE_API} {
+	reverse_proxy serveur:8787
+	header -Server
+}
+
+# ------------------------------------------------------------
+#  LA MESURE
+# ------------------------------------------------------------
+#  Sur un sous-domaine à nous, ce qui est la moitié de l'intérêt
+#  d'héberger Umami soi-même : un script servi depuis un domaine tiers
+#  est ce que les bloqueurs découpent en premier.
+{$DOMAINE_MESURE} {
+	reverse_proxy mesure:3000
+	header -Server
+}
