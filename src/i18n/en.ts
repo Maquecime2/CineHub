@@ -951,6 +951,22 @@ const en = {
     settle: "FILE IT",
   },
 
+  /* The doorstep. Two screens that never blur together: a refusal means
+     "you have no account", a silence means "we cannot reach it", and
+     they do not call for the same gesture. */
+  doorstep: {
+    title: "Your film library, as a notebook",
+    body: "File your films, log your screenings, write down what you made of them. Here are twelve cards to see what it looks like — open an account to start your own.",
+    open: "OPEN AN ACCOUNT",
+    tour: "TAKE THE TOUR",
+    shelf: "Twelve example cards",
+    offlineTitle: "We cannot reach the server",
+    offlineBody:
+      "Your binder is safe — it is the road to it that is missing. Check your connection, then try again.",
+    retry: "TRY AGAIN",
+    retrying: "TRYING…",
+  },
+
   language: {
     title: "Language",
     close: "Close the language picker",

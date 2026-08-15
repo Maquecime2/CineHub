@@ -332,6 +332,24 @@ export const handleReport = (targetType: string, targetId: string, hide = false)
     body: JSON.stringify({ targetType, targetId, hide }),
   });
 
+/* ============================================================
+   LES AFFICHES DE LA VITRINE
+   ============================================================
+
+   La seule route de ce serveur qui ne demande pas de compte : douze
+   adresses fixes, aucune donnée de personne. Elle sert la page que
+   voient les gens qui n'en ont pas encore.
+
+   Elle rend `{}` sur la moindre difficulté — serveur muet, base neuve,
+   clé TMDB absente. Le classeur dessine alors les initiales sur une
+   émulsion teintée, ce qu'il a toujours su faire : la vitrine est moins
+   belle, elle n'est pas cassée.
+   ============================================================ */
+export const demoPosters = (): Promise<Record<string, string>> =>
+  call<{ posters: Record<string, string> }>("/demo/posters")
+    .then((r) => r.posters ?? {})
+    .catch(() => ({}));
+
 export const iAmAdmin = (): boolean => accountOpen() && lastKnownPerson()?.is_admin === true;
 
 /** Be told when the answer changes. Returns an unsubscribe. */

@@ -57,16 +57,16 @@ import { DetailView } from "./views/DetailView";
 import { useNotes } from "./hooks/useNotes";
 import { useShelfViews } from "./hooks/useShelfViews";
 import { TourOverlay, TourHint, TourMenu } from "./components/tour";
-import { shouldHint, shouldSeed, markSeeded } from "./services/onboarding";
-import { binderStillDemo, demoFilms, demoNotes, withoutDemo, DEMO_PREFIX } from "./services/demo";
-import { DemoBanner } from "./components/layout/DemoBanner";
+import { shouldHint } from "./services/onboarding";
+import { demoFilms } from "./services/demo";
+import { Doorstep, Unreachable } from "./components/layout/Doorstep";
 import { readPlace, placeToHash, HOME } from "./domain/address";
 import { shortcutOf } from "./domain/keys";
 import { startMeasuring, pageSeen, doorEvent } from "./services/measure";
 import { mayNudge, noteNudge } from "./services/loneDevice";
 import { markHallSeen, unseenNews } from "./services/hallNews";
 import { feed } from "./hooks/useHall";
-import { myKeys } from "./services/server";
+import { myKeys, whoAmI, demoPosters } from "./services/server";
 
 /* ============================================================
    UNE VUE NE SE CHARGE QUE SI ON Y VA
@@ -211,6 +211,10 @@ export default function App() {
      read from, moves what it finds upstairs down there, and completes
      cards from before the status/watchedAt/tmdbId fields on the way. */
   useEffect(() => {
+    /* RIEN NE SE CHARGE AVANT QUE LA PORTE SOIT PASSÉE. Le coffre est un
+       cache de ce que le serveur tient ; l'ouvrir pour quelqu'un qui
+       n'est pas entré montrerait la collection du dernier connecté. */
+    if (session !== "in") return;
     let alive = true;
     /* LE COFFRE S'OUVRE AVANT QU'ON LISE QUOI QUE CE SOIT. Le carnet et
        l'agencement des murs y vivent désormais ; leurs lectures sont
@@ -222,29 +226,9 @@ export default function App() {
       .then(loadFilms)
       .then(async (loaded) => {
         if (!alive) return;
-        /* THE DEMONSTRATION BINDER, AND ONLY HERE.
-
-           This is the only place where we know both that the collection is
-           empty and that it always has been. The sowing goes through the
-           store — never through `store.set` — so that the twelve cards go
-           down into the vault like the others, and it comes before
-           `ensureViews`: the shelf is then built on a real collection
-           instead of rebuilding itself on the next render. See
-           `services/demo` for what those twelve films contain, and why. */
-        let migrated = loaded;
-        if (!loaded.length && shouldSeed()) {
-          /* Sown in the language in force AT THAT MOMENT, and never sown
-             again: the example becomes the reader's own cards, which they
-             may rename and rewrite. Re-translating them on a change of
-             language would overwrite what somebody had just written. */
-          migrated = await saveFilms(demoFilms(i18n.t.bind(i18n)));
-          /* The notebook only receives its page if it is empty: somebody
-             may have written before having a single film. */
-          if (!store.get(KEYS.notes, []).length)
-            store.set(KEYS.notes, demoNotes(i18n.t.bind(i18n)));
-          markSeeded();
-          if (!alive) return;
-        }
+        /* PLUS DE SEMIS. Les douze fiches d'exemple vivent sur la
+           porte et nulle part ailleurs — voir `showcase` plus haut. */
+        const migrated = loaded;
         setFilms(migrated);
         notebook.load();
         const tabs = store.get("shelf-dividers", []);
@@ -370,6 +354,64 @@ export default function App() {
      collection, and nowhere else. It only starts once the binder is
      loaded: synchronising an empty collection we have not read yet would
      erase everything on the first send. */
+  /* ============================================================
+     LA PORTE EST UNE SESSION
+     ============================================================
+
+     Le classeur ne s'ouvre plus sans compte. On demande `/me` au
+     chargement, et la réponse se lit en TROIS états qui ne se
+     confondent jamais :
+
+       « asking »      on demande encore
+       « in »          une personne : le classeur
+       « out »         un refus : la porte, avec la visite et les démos
+       « unreachable » un silence : la reconnexion
+
+     LES DEUX DERNIERS SONT DISTINCTS ET DOIVENT LE RESTER. « Tu n'as pas
+     de compte » et « on n'arrive pas à joindre le serveur » n'appellent
+     pas le même geste, et les confondre proposerait une inscription à
+     quelqu'un qui a déjà un compte et vient d'entrer dans un tunnel.
+     `whoAmI` fait déjà la distinction — un 401/403 est un refus, tout le
+     reste remonte —, on ne fait que la rendre visible.
+
+     `attempt` sert au bouton « réessayer » : l'incrémenter rejoue
+     l'effet. Pas de réessai automatique — une page qui se relance seule
+     toutes les trois secondes martèle un serveur déjà en difficulté. */
+  const [session, setSession] = useState("asking");
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    setSession((s) => (s === "asking" ? s : "asking"));
+    whoAmI()
+      .then((who) => alive && setSession(who ? "in" : "out"))
+      .catch(() => alive && setSession("unreachable"));
+    return () => {
+      alive = false;
+    };
+  }, [attempt]);
+
+  /* LES DOUZE DE LA VITRINE, et elles ne vont plus nulle part ailleurs.
+
+     Elles étaient SEMÉES dans le classeur au premier lancement, avec un
+     carton qui s'excusait de les y avoir mises. Ça se tenait quand le
+     produit s'ouvrait sans compte : il fallait bien montrer quelque
+     chose. Maintenant que la porte les montre, les semer reviendrait à
+     poser douze films qui ne sont pas les siens dans la collection de
+     quelqu'un qui vient de payer — et le carton d'excuse avec.
+
+     Les affiches viennent du serveur ; sans elles, le classeur dessine
+     les initiales comme il l'a toujours fait. */
+  const { t: say } = useTranslation();
+  const [posters, setPosters] = useState({});
+  useEffect(() => {
+    if (session !== "out") return;
+    demoPosters().then(setPosters);
+  }, [session]);
+  const showcase = useMemo(
+    () => demoFilms(say).map((f) => (posters[f.id] ? { ...f, poster: posters[f.id] } : f)),
+    [say, posters]
+  );
+
   const [accountOpen, setAccountOpen] = useState(false);
 
   /* LA VITRINE DU HALL OUVRE UN COMPTE SUR PLACE, au lieu de désigner
@@ -667,24 +709,6 @@ export default function App() {
     saveFilms(next).then((dated) => {
       if (rank === writeRank.current) setFilms(dated);
     });
-  };
-
-  /* REMOVING THE EXAMPLE. The banner only shows as long as the binder is
-     NOTHING BUT the example: so we erase everything, without having to
-     sort. The notebook page goes with it — it talks about the twelve
-     films. */
-  const removeDemo = () => {
-    const before = films;
-    const beforeNotes = notebook.notes;
-    commitFilms(withoutDemo(films));
-    notebook.replaceAll(notebook.notes.filter((n) => !n.id.startsWith(DEMO_PREFIX)));
-    setSelectedId(null);
-    /* Pas de nettoyage à différer : l'exemple n'a PAS d'affiches — voir
-       `services/demo`, qui explique pourquoi. */
-    offerUndo({ label: "undo.demo", films: before, notes: beforeNotes });
-    /* Retirer l'exemple est le geste de quelqu'un qui a décidé de rester
-       — c'est à ce titre qu'on le compte, et non pour l'exemple. */
-    doorEvent("porte:demo-retiree");
   };
 
   const commitThreads = (next) => {
@@ -1042,7 +1066,47 @@ export default function App() {
      every time. */
   const backView = who ? "credits" : selectedFilm?.status === "watchlist" ? "watchlist" : "library";
 
-  if (!loaded) {
+  /* LES TROIS ÉCRANS DE LA PORTE, avant tout le reste. Ils viennent
+     AVANT `!loaded` : charger le classeur n'a de sens qu'une fois
+     entré, et l'écran d'attente parlerait d'une ouverture qui n'aura
+     pas lieu. */
+  if (session === "out") {
+    /* LE TIROIR ET LA VISITE VIENNENT AVEC, et ce n'est pas un détail :
+       la porte offre les deux gestes, et ils étaient montés PLUS BAS,
+       dans l'arbre du classeur, dont on sort par ce retour. Le bouton
+       « ouvrir un compte » a donc mis un instant `accountOpen` à vrai
+       sans que rien n'apparaisse — un bouton qui ne fait rien est pire
+       qu'un bouton absent. */
+    return (
+      <>
+        <PaperGrain />
+        <Doorstep films={showcase} onTour={() => setTourId("global")} />
+        {accountOpen && (
+          <AccountDrawer
+            report={synchro}
+            onClose={() => setAccountOpen(false)}
+            onSync={rerunSync}
+            /* Un compte qui s'ouvre depuis la porte fait entrer : on
+               repose la question au serveur plutôt que de deviner. */
+            onAccountChange={() => setAttempt((n) => n + 1)}
+          />
+        )}
+        {tourId && (
+          <TourOverlay
+            tourId={tourId}
+            onClose={closeTour}
+            onView={tourOpensView}
+            onTab={setDetailTab}
+          />
+        )}
+      </>
+    );
+  }
+  if (session === "unreachable") {
+    return <Unreachable busy={false} onRetry={() => setAttempt((n) => n + 1)} />;
+  }
+
+  if (!loaded || session === "asking") {
     return (
       <div
         style={{
@@ -1396,17 +1460,6 @@ export default function App() {
         )
       )}
 
-      {/* THE EXAMPLE ANNOUNCES ITSELF, AND ON EVERY VIEW: it is the whole
-          collection that is not yours, not one tab.
-
-          MOUNTED HERE AND NOT IN THE VIEW COLUMN, and through `Layer`
-          like everything that floats. Placed in the flow above the view,
-          it pushed everything down by some sixty pixels — and the
-          almanac, which promises to fit in the window with no scrollbar,
-          started scrolling by exactly that height. A taped card moves
-          nothing, and it is the shape the binder already gives its other
-          sentences (see `Installation`). */}
-      {binderStillDemo(films) && <DemoBanner onRemove={removeDemo} onImport={openImport} />}
       {tourMenu && <TourMenu view={view} onPlay={playTour} onClose={() => setTourMenu(false)} />}
       <TourOverlay
         tourId={tourId}

@@ -973,6 +973,22 @@ const fr = {
     settle: "CLASSER",
   },
 
+  /* LA PORTE. Deux écrans qui ne se confondent jamais : un refus du
+     serveur veut dire « tu n'as pas de compte », un silence veut dire
+     « on n'y arrive pas », et ils n'appellent pas le même geste. */
+  doorstep: {
+    title: "Votre vidéothèque, en carnet",
+    body: "Rangez vos films, notez vos séances, écrivez ce que vous en avez pensé. Voici douze fiches pour voir de quoi ça a l'air — ouvrez un compte pour commencer les vôtres.",
+    open: "OUVRIR UN COMPTE",
+    tour: "FAIRE LA VISITE",
+    shelf: "Douze fiches d'exemple",
+    offlineTitle: "On n'arrive pas à joindre le serveur",
+    offlineBody:
+      "Votre classeur est en sécurité — c'est le chemin jusqu'à lui qui manque. Vérifiez votre connexion, puis réessayez.",
+    retry: "RÉESSAYER",
+    retrying: "ON ESSAIE…",
+  },
+
   language: {
     title: "La langue",
     close: "Fermer le choix de langue",
