@@ -11,7 +11,7 @@
    ============================================================ */
 import { describe, it, expect } from "vitest";
 import i18n from "../i18n";
-import { DEMO_PREFIX, binderStillDemo, isDemo, demoFilms, demoNotes, withoutDemo } from "./demo";
+import { isDemo, demoFilms } from "./demo";
 
 /* The example reads in the reader's language now; `setupTests` pins the
    suite to French, which is what these assertions were written against. */
@@ -165,36 +165,5 @@ describe("it covers what the tour shows", () => {
      wondering what becomes of it offline. */
   it("depends on no remote image", () => {
     for (const f of films) expect(f.poster, f.title).toBe("");
-  });
-});
-
-describe("the demonstration notebook", () => {
-  it("has one page, prefixed like the rest", () => {
-    const notes = demoNotes(say);
-    expect(notes.length).toBeGreaterThan(0);
-    expect(notes.every((n) => n.id.startsWith(DEMO_PREFIX))).toBe(true);
-  });
-});
-
-describe("it is taken away in one gesture", () => {
-  it("recognises a binder that is nothing but the example", () => {
-    expect(binderStillDemo(films)).toBe(true);
-  });
-
-  it("stays quiet as soon as one card is yours", () => {
-    expect(binderStillDemo([...films, makeFilm({ title: "à moi" })])).toBe(false);
-  });
-
-  it("stays quiet on an empty binder too", () => {
-    expect(binderStillDemo([])).toBe(false);
-  });
-
-  it("leaves nothing behind it", () => {
-    expect(withoutDemo(films)).toHaveLength(0);
-  });
-
-  it("does not touch what is not the example", () => {
-    const mine = makeFilm({ title: "à moi" });
-    expect(withoutDemo([...films, mine])).toEqual([mine]);
   });
 });

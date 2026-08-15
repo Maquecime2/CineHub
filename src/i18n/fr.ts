@@ -116,7 +116,7 @@ const fr = {
     usageMedia: "affiches et captures en miroir",
     usageDecors: "objets de décor déposés",
     usageNote:
-      "Ces plafonds ne concernent que ce que le serveur héberge. Votre classeur, lui, ne se borne pas : ranger, noter, chercher, importer et exporter restent sans limite et sans compte.",
+      "Ces plafonds bornent la place que vous occupez chez nous, et rien d'autre : les fiches, elles, ne se comptent pas. Un abonnement les desserre sans rien ouvrir de plus.",
     devices: "Mes appareils",
     devicesNote:
       "Une clé d'accès ne voyage pas : celle de cet ordinateur y reste. Ajoutez ici celle de votre téléphone — sur un autre PC, choisissez « un autre appareil » à la connexion et scannez le code affiché.",
@@ -917,21 +917,21 @@ const fr = {
 
     privacy: "Ce que nous savons de vous",
     privacyLocal:
-      "Votre collection vit dans votre navigateur. Les fiches, les notes, les critiques, les séances, l'agencement de vos murs et vos affiches ne quittent votre machine que si vous ouvrez un compte, et uniquement pour être recopiés sur nos serveurs afin de vous être rendus sur vos autres appareils. Sans compte, nous ne savons rien de ce que vous rangez.",
+      "Votre collection vit sur nos serveurs. Les fiches, les notes, les critiques, les séances, l'agencement de vos murs et vos affiches y sont conservés pour vous être rendus sur chacun de vos appareils. Votre navigateur en garde une copie de travail, qui rend l'application instantanée — mais c'est la nôtre qui fait foi, et c'est pour cela qu'une session valide est nécessaire pour ouvrir le classeur.",
     privacyServer:
       "Avec un compte, nous conservons un pseudonyme que vous choisissez, les clés d'accès de vos appareils, la copie de votre collection et de vos documents, ainsi que ce que vous publiez volontairement dans le hall. Aucune adresse électronique n'est demandée, et aucun mot de passe n'existe.",
     privacyMeasure:
       "Nous mesurons la fréquentation du site avec une instance Umami que nous hébergeons nous-mêmes : pas de cookie, pas de profil, et jamais l'identifiant d'une fiche — l'adresse d'un film est tronquée avant d'être comptée, pour que la mesure ne puisse pas apprendre ce que vous possédez.",
     privacyRights:
-      "Vous pouvez à tout moment emporter tout ce que nous détenons, effacer les données de votre compte en gardant le compte, ou supprimer le compte entier : les trois gestes sont dans ce tiroir, et aucun ne touche à ce qui est sur votre machine.",
+      "Vous pouvez à tout moment emporter tout ce que nous détenons — un seul fichier, fiches et images comprises —, effacer les données de votre compte en le gardant, ou supprimer le compte entier. Les trois gestes sont dans ce tiroir. Emportez une sauvegarde de temps en temps : c'est le seul exemplaire qui ne dépende ni de nous ni du réseau.",
 
     terms: "Les conditions",
     termsFree:
-      "Le classeur est gratuit et le reste : ranger, noter, chercher, importer et exporter fonctionnent hors ligne, sans compte, et ne se paieront jamais.",
+      "Sans compte, vous voyez la visite guidée et douze fiches d'exemple : de quoi juger sur pièce, sans rien donner. Ouvrir un compte est gratuit et ouvre le produit entier — ranger, noter, chercher, importer, exporter, les séances, les critiques et le hall.",
     termsPaid:
-      "Ce qui se paie est ce que nous hébergeons — le miroir de vos médias, les décors partagés et le hall — parce que cela nous coûte. Les peaux, elles, s'achètent avec des jetons qui se gagnent en jouant, et ne se vendent pas contre de l'argent.",
+      "L'abonnement n'ouvre AUCUNE fonctionnalité de plus : il desserre les bornes de ce que nous hébergeons pour vous — le nombre d'affiches et de captures en miroir, les objets de décor, le nombre d'imports. On ne facture pas une fonction, on facture une place. Les peaux, elles, s'achètent avec des jetons qui se gagnent en jouant, et ne se vendent pas contre de l'argent.",
     termsStop:
-      "Si vous cessez de payer, rien de ce qui est local ne vous est repris : ce qui s'éteint est ce qui vivait chez nous. Une peau achetée l'est pour toujours.",
+      "Si vous cessez de payer, RIEN N'EST EFFACÉ. Vous gardez tout ce que vous aviez déposé, même au-delà des bornes du palier gratuit ; ce que vous ne pouvez plus faire, c'est en ajouter tant que vous êtes au-dessus. Une peau achetée l'est pour toujours.",
     termsConduct:
       "Dans le hall, on ne publie ni contenu illégal, ni contenu qui vise quelqu'un. Un compte qui s'en sert pour nuire peut être fermé, et vous pouvez bloquer ou signaler depuis les pages concernées.",
   },
@@ -955,7 +955,7 @@ const fr = {
      contredire. */
   hallWindow: {
     title: "Le hall",
-    body: "Quatre guichets qui n'existent qu'à plusieurs. Votre vidéothèque, elle, n'a besoin de rien de tout cela — elle marche entière, hors ligne et sans compte.",
+    body: "Quatre guichets qui n'existent qu'à plusieurs, et qui viennent avec le compte — sans supplément, sans abonnement.",
     thread: "Suivez qui vous voulez, et voyez ce qu'ils ont vu.",
     lists: "Des listes à plusieurs, et des défis à période.",
     quiz: "Des soirées de questions, tirées d'un panier commun.",
@@ -2095,7 +2095,7 @@ const fr = {
       },
       shop: {
         title: "Le présentoir",
-        body: "Des tampons à porter à côté de votre pseudonyme, des pochettes de vignettes, des peaux en plus, et des pouvoirs à dépenser pendant une partie. Un article trop cher reste sur l'étal et vous dit ce qui manque. Les quatorze peaux du classeur, elles, restent libres et marchent sans compte : ce qui s'achète ici est en supplément.",
+        body: "Des tampons à porter à côté de votre pseudonyme, des pochettes de vignettes, des peaux en plus, et des pouvoirs à dépenser pendant une partie. Un article trop cher reste sur l'étal et vous dit ce qui manque. Une seule peau est donnée ; les seize autres se prennent ici, en jetons — et les jetons se gagnent.",
       },
       album: {
         title: "La planche",
@@ -2158,7 +2158,7 @@ const fr = {
       },
       counter: {
         title: "Et le comptoir, au bout",
-        body: "Un défi bouclé, un quizz joué, une liste qu'on fait vivre : tout cela se compte. Le comptoir dit ce que vous avez gagné, devant qui vous vous situez, et ce que vous pouvez en faire — un tampon à porter, une pochette à ouvrir. Rien de tout cela n'existe sans compte, et votre vidéothèque n'en a pas besoin.",
+        body: "Un défi bouclé, un quizz joué, une liste qu'on fait vivre : tout cela se compte. Le comptoir dit ce que vous avez gagné, devant qui vous vous situez, et ce que vous pouvez en faire — un tampon à porter, une pochette à ouvrir. Tout cela vient avec le compte, et ne se paie qu'en jetons gagnés.",
       },
       tmdbKey: {
         title: "La clé TMDB",

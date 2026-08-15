@@ -22,18 +22,26 @@
       removing it in one gesture, and writing the red threads by hand
       without going through a registry of randomly drawn identifiers.
 
-   2. NO POSTERS. `image.tmdb.org` would serve real images, but the
-      binder is an offline application and a dead address gives twelve
-      broken rectangles where the application already knows how to draw
-      an emulsion tinted with the title's initials. The fallback is not a
-      makeshift here: it is the art direction.
+   2. LEURS AFFICHES VIENNENT DU SERVEUR, ET C'EST NEUF. Cette règle
+      disait « PAS D'AFFICHES » : `image.tmdb.org` sert de vraies images,
+      mais le classeur était une application hors ligne et une adresse
+      morte donne douze rectangles cassés là où le repli — les initiales
+      sur une émulsion teintée — est de la direction artistique et non un
+      pis-aller.
+
+      L'argument est tombé avec la porte de session : le classeur ne
+      s'ouvre plus sans réseau, et ces douze fiches sont devenues la
+      seule chose qu'on montre à qui n'a pas de compte. Une vitrine sans
+      images est une vitrine qu'on ne regarde pas. Le serveur résout les
+      adresses une fois (`server/src/demo.ts`) et `App` les pose sur les
+      fiches ; sans elles, le repli reprend la main, inchangé.
 
    3. We sow ONLY ONCE, and never more — see `seeded` in `onboarding`. A
       binder emptied by hand must stay empty.
    ============================================================ */
 import { makeFilm } from "../domain/film";
 import { inverseOf } from "../domain/relations";
-import type { Film, Strength, LinkedWork, Note, Relation, Watch } from "../types";
+import type { Film, Strength, LinkedWork, Relation, Watch } from "../types";
 
 /* The example's words come from the caller, exactly as in `yearInBox`: a
    service does not know which language is being read. */
@@ -43,21 +51,6 @@ export type Say = (key: string, values?: Record<string, unknown>) => string;
 export const DEMO_PREFIX = "demo-";
 
 export const isDemo = (f: Pick<Film, "id">): boolean => f.id.startsWith(DEMO_PREFIX);
-
-/**
- * Does the binder contain ONLY examples?
- *
- * That is the condition for the banner: as soon as one card is added by
- * hand, the binder is somebody's, and the warning has no reason left to
- * be — the twelve films remain, but they no longer lie about what one is
- * looking at.
- */
-export const binderStillDemo = (films: Pick<Film, "id">[]): boolean =>
-  films.length > 0 && films.every(isDemo);
-
-/** What remains once the examples have been removed. */
-export const withoutDemo = <T extends Pick<Film, "id">>(films: T[]): T[] =>
-  films.filter((f) => !isDemo(f));
 
 /* ------------------------------------------------------------
    Les fiches
@@ -409,16 +402,4 @@ export function demoFilms(t: Say, maintenant = Date.now()): Film[] {
   });
 
   return films;
-}
-
-/** The notebook page that comes with it — the notebook has its tour too. */
-export function demoNotes(t: Say, maintenant = Date.now()): Note[] {
-  return [
-    {
-      id: `${DEMO_PREFIX}note-1`,
-      title: t("demoBinder.note.title"),
-      body: t("demoBinder.note.body"),
-      createdAt: maintenant,
-    },
-  ];
 }

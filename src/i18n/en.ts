@@ -109,7 +109,7 @@ const en = {
     usageMedia: "posters and stills mirrored",
     usageDecors: "decoration objects filed",
     usageNote:
-      "These ceilings only cover what the server hosts. Your binder itself has no limit: filing, rating, searching, importing and exporting stay unbounded and account-free.",
+      "These ceilings bound the room you take up on our side, and nothing else: cards themselves are not counted. A subscription loosens them without opening anything more.",
     devices: "My devices",
     devicesNote:
       "A passkey does not travel: this computer's stays in it. Add your telephone's here — then on another computer choose “another device” when signing in, and scan the code it shows.",
@@ -895,21 +895,21 @@ const en = {
 
     privacy: "What we know about you",
     privacyLocal:
-      "Your collection lives in your browser. Cards, notes, reviews, screenings, the arrangement of your walls and your posters only leave your machine if you open an account, and only so they can be copied onto our servers and handed back to you on your other devices. With no account, we know nothing of what you file.",
+      "Your collection lives on our servers. Cards, notes, reviews, screenings, the arrangement of your walls and your posters are kept there so they can be handed back to you on every one of your devices. Your browser keeps a working copy, which makes the application instant — but ours is the one that counts, and that is why a valid session is needed to open the binder.",
     privacyServer:
       "With an account, we keep a handle you choose, the access keys of your devices, the copy of your collection and documents, and whatever you publish willingly in the hall. No email address is asked for, and no password exists.",
     privacyMeasure:
       "We measure site traffic with an Umami instance we host ourselves: no cookie, no profile, and never a card identifier — a film's address is trimmed before being counted, so the measurement cannot learn what you own.",
     privacyRights:
-      "At any time you can take away everything we hold, erase your account's data while keeping the account, or delete the account entirely: all three are in this drawer, and none of them touches what is on your machine.",
+      "At any time you can take away everything we hold — one single file, cards and images included —, erase your account's data while keeping the account, or delete the account entirely. All three are in this drawer. Take a backup away now and then: it is the only copy that depends neither on us nor on the network.",
 
     terms: "The terms",
     termsFree:
-      "The binder is free and stays free: filing, rating, searching, importing and exporting work offline, without an account, and will never be charged for.",
+      "With no account you get the guided tour and twelve example cards: enough to judge for yourself, without giving anything. Opening an account is free and opens the whole product — filing, rating, searching, importing, exporting, screenings, reviews and the hall.",
     termsPaid:
-      "What is paid for is what we host — the mirror of your media, shared decors and the hall — because it costs us. Skins are bought with tokens earned by playing, and are not sold for money.",
+      "The subscription opens NO extra feature: it loosens the bounds on what we host for you — how many posters and stills are mirrored, how many decoration objects, how many imports. We do not charge for a function, we charge for room. Skins are bought with tokens earned by playing, and are not sold for money.",
     termsStop:
-      "If you stop paying, nothing local is taken back from you: what goes dark is what lived on our side. A skin once bought is yours for good.",
+      "If you stop paying, NOTHING IS ERASED. You keep everything you had filed, even beyond the free tier's bounds; what you can no longer do is add more while you are above them. A skin once bought is yours for good.",
     termsConduct:
       "In the hall, nothing illegal and nothing aimed at a person. An account used to harm may be closed, and you can block or report from the pages concerned.",
   },
@@ -933,7 +933,7 @@ const en = {
      contradict that. */
   hallWindow: {
     title: "The hall",
-    body: "Four counters that only exist with other people. Your binder needs none of it — it works whole, offline and without an account.",
+    body: "Four counters that only exist with other people, and they come with the account — no supplement, no subscription.",
     thread: "Follow whom you like, and see what they have watched.",
     lists: "Lists made together, and challenges with a deadline.",
     quiz: "Question evenings, drawn from a common basket.",
@@ -2039,7 +2039,7 @@ const en = {
       },
       shop: {
         title: "The display case",
-        body: "Stamps to wear beside your pseudonym, packets of stickers, extra skins, and powers to spend during a game. Something too dear stays on the shelf and tells you what is missing. The binder's fourteen skins stay free and work with no account: what is sold here comes on top.",
+        body: "Stamps to wear beside your pseudonym, packets of stickers, extra skins, and powers to spend during a game. Something too dear stays on the shelf and tells you what is missing. One skin is given; the other sixteen are taken here, in tokens — and tokens are earned.",
       },
       album: {
         title: "The sheet",
@@ -2102,7 +2102,7 @@ const en = {
       },
       counter: {
         title: "And the counter, at the end",
-        body: "A challenge finished, a quiz played, a list one keeps alive: all of it counts. The counter says what you have earned, where you stand, and what you may do with it — a stamp to wear, a packet to open. None of this exists without an account, and your video library does not need one.",
+        body: "A challenge finished, a quiz played, a list one keeps alive: all of it counts. The counter says what you have earned, where you stand, and what you may do with it — a stamp to wear, a packet to open. All of it comes with the account, and is paid for only in earned tokens.",
       },
       tmdbKey: {
         title: "The TMDB key",
