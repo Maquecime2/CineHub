@@ -20,7 +20,7 @@ import { makeThread, normalizeThreads } from "./domain/threads";
 import { motifById, makeCustomMotif, customMotifs } from "./domain/motifs";
 import { loadThreads, saveThreads as saveThreadsToDisk } from "./services/threads";
 import { loadVocabulary, saveVocabulary, normalizeVocabulary } from "./services/motifs";
-import { store, KEYS, watchQuota } from "./services/storage";
+import { store, KEYS, watchQuota, hydrateVault } from "./services/storage";
 import { loadFilms, knownCollection, saveFilms, forgetCache } from "./services/collection";
 import { PaperGrain } from "./components/atmosphere";
 import { FilmModal } from "./components/film/FilmModal";
@@ -218,44 +218,53 @@ export default function App() {
      cards from before the status/watchedAt/tmdbId fields on the way. */
   useEffect(() => {
     let alive = true;
-    loadFilms().then(async (loaded) => {
-      if (!alive) return;
-      /* THE DEMONSTRATION BINDER, AND ONLY HERE.
-
-         This is the only place where we know both that the collection is
-         empty and that it always has been. The sowing goes through the
-         store — never through `store.set` — so that the twelve cards go
-         down into the vault like the others, and it comes before
-         `ensureViews`: the shelf is then built on a real collection
-         instead of rebuilding itself on the next render. See
-         `services/demo` for what those twelve films contain, and why. */
-      let migrated = loaded;
-      if (!loaded.length && shouldSeed()) {
-        /* Sown in the language in force AT THAT MOMENT, and never sown
-           again: the example becomes the reader's own cards, which they
-           may rename and rewrite. Re-translating them on a change of
-           language would overwrite what somebody had just written. */
-        migrated = await saveFilms(demoFilms(i18n.t.bind(i18n)));
-        /* The notebook only receives its page if it is empty: somebody
-           may have written before having a single film. */
-        if (!store.get(KEYS.notes, []).length) store.set(KEYS.notes, demoNotes(i18n.t.bind(i18n)));
-        markSeeded();
+    /* LE COFFRE S'OUVRE AVANT QU'ON LISE QUOI QUE CE SOIT. Le carnet et
+       l'agencement des murs y vivent désormais ; leurs lectures sont
+       restées synchrones grâce au miroir, mais le miroir doit être
+       monté. Tout ce qui lit un document — `notebook.load`,
+       `ensureViews`, les fils, le vocabulaire — passe plus bas dans
+       cette même chaîne, donc après. */
+    hydrateVault()
+      .then(loadFilms)
+      .then(async (loaded) => {
         if (!alive) return;
-      }
-      setFilms(migrated);
-      notebook.load();
-      const tabs = store.get("shelf-dividers", []);
-      setDividers(tabs);
-      setThreads(loadThreads());
-      setVocabulary(loadVocabulary());
-      /* The migration reads `order` and `status`, which the store has
-         just normalized: it must therefore come after, and work on the
-         migrated cards — not on what comes off the disk. */
-      setViews(
-        ensureViews({ films: migrated, dividers: tabs, wallPrefs: store.get("wall-prefs", {}) })
-      );
-      setLoaded(true);
-    });
+        /* THE DEMONSTRATION BINDER, AND ONLY HERE.
+
+           This is the only place where we know both that the collection is
+           empty and that it always has been. The sowing goes through the
+           store — never through `store.set` — so that the twelve cards go
+           down into the vault like the others, and it comes before
+           `ensureViews`: the shelf is then built on a real collection
+           instead of rebuilding itself on the next render. See
+           `services/demo` for what those twelve films contain, and why. */
+        let migrated = loaded;
+        if (!loaded.length && shouldSeed()) {
+          /* Sown in the language in force AT THAT MOMENT, and never sown
+             again: the example becomes the reader's own cards, which they
+             may rename and rewrite. Re-translating them on a change of
+             language would overwrite what somebody had just written. */
+          migrated = await saveFilms(demoFilms(i18n.t.bind(i18n)));
+          /* The notebook only receives its page if it is empty: somebody
+             may have written before having a single film. */
+          if (!store.get(KEYS.notes, []).length)
+            store.set(KEYS.notes, demoNotes(i18n.t.bind(i18n)));
+          markSeeded();
+          if (!alive) return;
+        }
+        setFilms(migrated);
+        notebook.load();
+        const tabs = store.get("shelf-dividers", []);
+        setDividers(tabs);
+        setThreads(loadThreads());
+        setVocabulary(loadVocabulary());
+        /* The migration reads `order` and `status`, which the store has
+           just normalized: it must therefore come after, and work on the
+           migrated cards — not on what comes off the disk. */
+        setViews(
+          ensureViews({ films: migrated, dividers: tabs, wallPrefs: store.get("wall-prefs", {}) })
+        );
+        setLoaded(true);
+      });
     return () => {
       alive = false;
     };

@@ -124,7 +124,20 @@ export function noteDocument(key: string, now = Date.now()): void {
 /** A document's date, or zero if it has never been noted. */
 export const dateOf = (key: string): number => register()[key] ?? 0;
 
-/** What is left to send, ready for the road. */
+/**
+ * What is left to send, ready for the road.
+ *
+ * IL LISAIT `localStorage.getItem` EN DIRECT, et c'est ce qui rendait ce
+ * module inconciliable avec le coffre. Une clé descendue dans IndexedDB
+ * y aurait rendu `null` — que la ligne ci-dessous interprète comme une
+ * SUPPRESSION. Le carnet ne serait pas resté sur place : il aurait été
+ * effacé sur l'autre appareil, par une pierre tombale que personne
+ * n'avait demandée.
+ *
+ * `store.has` et `store.get` regardent aux deux endroits. Ce module n'a
+ * plus à savoir où dort un document — c'est le magasin qui le sait, et
+ * lui seul.
+ */
 export function documentsToSend(): {
   key: string;
   updatedAt: number;
@@ -132,25 +145,17 @@ export function documentsToSend(): {
   deleted?: boolean;
 }[] {
   return pending().map((key) => {
-    const raw = localStorage.getItem(key);
+    const there = store.has(key);
     return {
       key: key,
       updatedAt: dateOf(key) || Date.now(),
       /* A document deleted here goes out like the cards: as a tombstone.
          Otherwise the other device would push it back. */
-      deleted: raw === null,
-      content: raw === null ? null : safeParse(raw),
+      deleted: !there,
+      content: there ? store.get<unknown>(key, null) : null,
     };
   });
 }
-
-const safeParse = (raw: string): unknown => {
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-};
 
 export function forgetSentDocuments(keys: string[]): void {
   const rest = pending().filter((c) => !keys.includes(c));
@@ -173,7 +178,10 @@ export function fileIncomingDocument(d: {
   if (!isSyncable(d.key)) return false;
   if (d.updatedAt <= dateOf(d.key)) return false;
 
-  if (d.deleted) localStorage.removeItem(d.key);
+  /* `store.remove` et non `localStorage.removeItem` : une clé coffrée
+     doit disparaître des DEUX endroits, sinon elle revient au prochain
+     chargement. */
+  if (d.deleted) store.remove(d.key);
   else store.set(d.key, d.content);
 
   /* We noted the date RECEIVED, and we do not put the key back on the
@@ -212,11 +220,10 @@ const DAWN = 1;
 
 export function sendAllDocuments(): void {
   const reg = register();
-  const keys: string[] = [];
-  for (let i = 0; i < localStorage.length; i += 1) {
-    const key = localStorage.key(i);
-    if (key && isSyncable(key)) keys.push(key);
-  }
+  /* `store.keys()` et non un parcours de `localStorage` par index : un
+     document au coffre y serait resté invisible, donc jamais rattrapé
+     et jamais envoyé. */
+  const keys = store.keys().filter(isSyncable);
   const next = { ...reg };
   for (const c of keys) if (!next[c]) next[c] = DAWN;
   store.set(REGISTER_KEY, next);
@@ -245,11 +252,7 @@ export function catchUpDocuments(): boolean {
      n'a jamais été notée, donc jamais envoyée. C'est exactement la trace
      que laisse une liste qui s'est élargie après coup. */
   const reg = register();
-  const orphans: string[] = [];
-  for (let i = 0; i < localStorage.length; i += 1) {
-    const key = localStorage.key(i);
-    if (key && isSyncable(key) && !reg[key]) orphans.push(key);
-  }
+  const orphans = store.keys().filter((key) => isSyncable(key) && !reg[key]);
   if (orphans.length === 0) return false;
 
   const dated = { ...reg };

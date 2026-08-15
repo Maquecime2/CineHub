@@ -29,6 +29,7 @@
    ============================================================ */
 
 import { markStartedOver } from "./onboarding";
+import { forgetVault } from "./storage";
 
 /** Ce qui n'a pas pu être effacé, pour le dire plutôt que de le taire. */
 export interface WhatSurvived {
@@ -49,6 +50,13 @@ const IMAGE_DB = "cine-hub";
  */
 export async function forgetLocally(): Promise<WhatSurvived> {
   const survived: WhatSurvived = { local: false, images: false };
+
+  /* LE MIROIR PART AVEC LE RESTE. Il tient en mémoire les documents
+     coffrés, et la page ne se recharge PAS quand l'effacement est
+     partiel : sans cette ligne, on continuerait à naviguer avec un
+     carnet que le disque n'a plus, et la première écriture le
+     réinstallerait au coffre. */
+  forgetVault();
 
   try {
     localStorage.clear();

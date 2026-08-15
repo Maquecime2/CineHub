@@ -119,6 +119,11 @@ async function tx(mode, fn, magasin = POSTERS) {
    string. */
 export const putDoc = (key, value) => tx("readwrite", (s) => s.put(value, key), DOCS);
 export const getDoc = (key) => tx("readonly", (s) => s.get(key), DOCS);
+export const deleteDoc = (key) => tx("readwrite", (s) => s.delete(key), DOCS);
+/* TOUT CE QUE LE MAGASIN TIENT, la collection comprise. Le tri est
+   l'affaire de l'appelant : `services/storage` ne monte en mémoire que
+   ce qu'il a déclaré coffrable, et `films` n'en est pas. */
+export const allDocKeys = () => tx("readonly", (s) => s.getAllKeys(), DOCS);
 
 export const putImage = (key, blob) => tx("readwrite", (s) => s.put(blob, key));
 export const getImage = (key) => tx("readonly", (s) => s.get(key));
