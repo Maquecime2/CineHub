@@ -40,6 +40,13 @@
 	#  ce n'est pas fait, donc on l'écrit ici plutôt que de le laisser
 	#  deviner.
 	#
+	#  LES POLICES VIENNENT DE GOOGLE, en deux temps : la feuille de
+	#  style depuis `fonts.googleapis.com` (`applySkin` la pose à chaque
+	#  changement de peau) et les fichiers depuis `fonts.gstatic.com`.
+	#  Deux domaines, deux directives. Trouvé en posant cette politique
+	#  sur `npm run preview` — sans quoi le site se serait affiché dans
+	#  la mauvaise fonte en production, sans un mot.
+	#
 	#  `img-src` : `data:` pour les affiches collées à la main,
 	#  `blob:` pour celles qui viennent d'IndexedDB, `image.tmdb.org`
 	#  pour les douze de la vitrine et les fiches enrichies, et le
@@ -53,7 +60,7 @@
 	#  lui qui empêche qu'on encadre le site dans une page tierce pour
 	#  faire cliquer à côté.
 	header {
-		Content-Security-Policy "default-src 'self'; script-src 'self' {$CSP_MESURE}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://image.tmdb.org {$CSP_MEDIAS}; font-src 'self'; connect-src 'self' {$CSP_SERVEUR} {$CSP_MESURE} {$CSP_MEDIAS} https://api.themoviedb.org https://corsproxy.io; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'"
+		Content-Security-Policy "default-src 'self'; script-src 'self' {$CSP_MESURE}; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https://image.tmdb.org {$CSP_MEDIAS}; font-src 'self' https://fonts.gstatic.com; connect-src 'self' {$CSP_SERVEUR} {$CSP_MESURE} {$CSP_MEDIAS} https://api.themoviedb.org https://corsproxy.io; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'"
 
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Content-Type-Options "nosniff"
