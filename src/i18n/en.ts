@@ -396,6 +396,10 @@ const en = {
   },
 
   lists: {
+    tagChosen_one: "Tag {{count}} card",
+    tagChosen_other: "Tag {{count}} cards",
+    tagTitle_one: "A word for {{count}} card",
+    tagTitle_other: "A word for {{count}} cards",
     deleteChosen_one: "Erase {{count}} card",
     deleteChosen_other: "Erase {{count}} cards",
     deleteTitle_one: "Erase {{count}} card?",

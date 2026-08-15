@@ -412,6 +412,10 @@ const fr = {
   },
 
   lists: {
+    tagChosen_one: "Étiqueter {{count}} fiche",
+    tagChosen_other: "Étiqueter {{count}} fiches",
+    tagTitle_one: "Un mot pour {{count}} fiche",
+    tagTitle_other: "Un mot pour {{count}} fiches",
     deleteChosen_one: "Effacer {{count}} fiche",
     deleteChosen_other: "Effacer {{count}} fiches",
     deleteTitle_one: "Effacer {{count}} fiche ?",

@@ -373,7 +373,7 @@ export function LibraryView({
   /* Filing into a list: the badge on each poster and the bar for a
      multiple choice. It answers nothing at all without a server or an
      account — the wall is then exactly the wall it was. */
-  const filing = useWallFiling(films, onDeleteFilms);
+  const filing = useWallFiling(films, onDeleteFilms, onUpdateMany);
 
   const allGenres = useMemo(
     () => Array.from(new Set(films.flatMap((f) => f.genres || []))).sort(),
