@@ -276,6 +276,32 @@ CREATE TABLE IF NOT EXISTS import_run (
 CREATE INDEX IF NOT EXISTS import_run_window ON import_run(person_id, ran_at DESC);
 
 -- ------------------------------------------------------------
+-- LES AFFICHES DE LA DÉMONSTRATION
+-- ------------------------------------------------------------
+-- Les douze fiches d'exemple sont la seule chose qu'on montre à qui n'a
+-- pas de compte. Elles se dessinaient jusqu'ici avec leurs initiales sur
+-- une émulsion teintée, faute de pouvoir joindre TMDB hors ligne — ce
+-- qui n'a plus lieu d'être maintenant que la porte est une session.
+--
+-- ON RETIENT L'ADRESSE, PAS L'IMAGE. Recopier douze affiches dans le
+-- container aurait lié la vitrine au stockage blob, qui est facultatif ;
+-- l'adresse du CDN de TMDB tient dans une ligne et se sert toute seule.
+--
+-- UNE TABLE ET NON UNE CONSTANTE, parce que la résolution passe par une
+-- RECHERCHE par titre et par année : elle peut se tromper, et il faut
+-- pouvoir corriger la ligne à la main sans redéployer. Elle ne se refait
+-- pas à chaque démarrage — ce qui est déjà résolu est laissé tranquille.
+CREATE TABLE IF NOT EXISTS demo_poster (
+  -- L'identifiant côté classeur : `demo-chihiro` et les onze autres.
+  demo_id       text PRIMARY KEY,
+  -- Le chemin TMDB, `/xxxx.jpg`. Vide quand la recherche n'a rien rendu :
+  -- on garde la ligne pour ne pas rechercher en boucle à chaque
+  -- démarrage un film que TMDB ne connaît pas sous ce titre.
+  path          text NOT NULL DEFAULT '',
+  resolved_at   timestamptz NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------------------------------
 -- THE PASSKEY
 -- ------------------------------------------------------------
 -- What the browser keeps is a pair of keys; what the server keeps is the

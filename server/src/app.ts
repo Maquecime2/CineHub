@@ -28,6 +28,7 @@ import { registerRelays } from "./relay.ts";
 import { publicKeyForPush, pushAvailable, remindChallenges } from "./push.ts";
 import { allowed, mediaAvailable, ticketFor } from "./media.ts";
 import { QuotaReached } from "./limits.ts";
+import { demoPosters } from "./demo.ts";
 import { LEVELS, SIZES } from "./draw.ts";
 import { RATE } from "./points.ts";
 import { SHOP } from "./shop.ts";
@@ -954,6 +955,20 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
        on their behalf. */
     return reply.send({ pseudo, blocked: false });
   });
+
+  /* ------------------------------------------------------------
+     LA VITRINE — la seule route ouverte à qui n'a pas de compte
+     ------------------------------------------------------------
+
+     Les douze fiches d'exemple sont ce qu'on montre avant l'inscription.
+     Cette route rend leurs AFFICHES, et rien d'autre : les textes sont
+     traduits par le classeur, qui seul sait dans quelle langue il se
+     lit.
+
+     PAS DE `requireAccount`, et c'est tout l'objet. La surface est
+     nulle : douze adresses fixes, aucune donnée de personne, rien
+     qu'un client puisse faire varier. */
+  app.get("/demo/posters", async () => ({ posters: await demoPosters(db) }));
 
   app.post("/reports", async (req, reply) => {
     const person = await requireAccount(req);

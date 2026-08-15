@@ -23,6 +23,7 @@ import { openPostgres, applySchema } from "./db.ts";
 import { configurePush } from "./push.ts";
 import { configureMedia, mediaAvailable, readConnectionString } from "./media.ts";
 import * as store from "./store.ts";
+import { resolveDemoPosters } from "./demo.ts";
 
 /** The current name, or the one it used to have. */
 const env = (current: string, legacy: string): string | undefined =>
@@ -106,6 +107,14 @@ const admins = (process.env.ADMINS || "")
   .map((p) => p.trim().toLowerCase())
   .filter(Boolean);
 await store.markAdmins(db, admins);
+
+/* LES AFFICHES DE LA VITRINE, une fois pour toutes.
+
+   Sans `await` : le serveur doit répondre pendant que douze recherches
+   TMDB se font, et la vitrine se garnit au démarrage suivant si le
+   réseau traîne. Sans clé, la fonction ne fait rien et le classeur
+   dessine ses initiales comme il l'a toujours fait. */
+void resolveDemoPosters(db, process.env.TMDB_KEY, (m) => console.warn(m)).catch(console.error);
 
 const devDoor = env("DEV_DOOR", "PORTE_DEV") === "1";
 
