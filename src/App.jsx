@@ -37,6 +37,7 @@ import {
   UpdateCard,
   LoneDeviceCard,
   QuotaCard,
+  UndoCard,
 } from "./components/layout/Installation";
 import { AccountDrawer } from "./components/layout/AccountDrawer";
 import { TmdbKeyPanel } from "./components/layout/TmdbKeyPanel";
@@ -269,6 +270,55 @@ export default function App() {
   const [tourId, setTourId] = useState(null);
   const [tourMenu, setTourMenu] = useState(false);
   const [hint, setHint] = useState(false);
+
+  /* ============================================================
+     ANNULER LE DERNIER GESTE
+     ============================================================
+
+     Trois gestes n'avaient pas de retour : supprimer une fiche, en
+     supprimer plusieurs depuis le mur, retirer l'exemple. Les deux
+     derniers se font d'un clic et sans confirmation.
+
+     LE NETTOYAGE DES ORPHELINES ATTEND LA FENÊTRE, et c'est la seule
+     chose difficile ici. `pruneOrphans` efface les affiches d'IndexedDB
+     ET du miroir : lancé tout de suite, il rendrait une annulation
+     menteuse — les fiches reviendraient sans leurs images. On garde donc
+     le nettoyage en attente, et il ne part que si personne n'annule.
+
+     UNE SEULE ANNULATION EN RÉSERVE. La suivante fait expirer la
+     précédente, nettoyage compris : empiler serait promettre de remonter
+     un historique qu'on ne tient pas.
+
+     SI L'ONGLET SE FERME PENDANT LA FENÊTRE, le nettoyage ne part pas et
+     des images restent orphelines. C'est sans gravité — `pruneOrphans`
+     repasse au prochain effacement — et c'est le bon sens du compromis :
+     une image de trop se rattrape, une image perdue non. */
+  const UNDO_MS = 8000;
+  const [undo, setUndo] = useState(null);
+  const undoHeld = useRef(null);
+  const undoTimer = useRef(null);
+
+  const closeUndo = useCallback((sweep) => {
+    if (undoTimer.current) {
+      clearTimeout(undoTimer.current);
+      undoTimer.current = null;
+    }
+    const held = undoHeld.current;
+    undoHeld.current = null;
+    setUndo(null);
+    if (sweep && held?.prune) held.prune();
+  }, []);
+
+  const offerUndo = useCallback(
+    (entry) => {
+      /* La précédente expire MAINTENANT, avec son nettoyage. */
+      closeUndo(true);
+      undoHeld.current = entry;
+      setUndo(entry);
+      undoTimer.current = setTimeout(() => closeUndo(true), UNDO_MS);
+    },
+    [closeUndo]
+  );
 
   /* PLACÉ APRÈS L'ÉTAT DE LA VISITE, ET PAS PLUS HAUT. Cet effet était
      écrit au-dessus, avec les autres écouteurs de clavier ; il y lisait
@@ -585,9 +635,14 @@ export default function App() {
      sort. The notebook page goes with it — it talks about the twelve
      films. */
   const removeDemo = () => {
+    const before = films;
+    const beforeNotes = notebook.notes;
     commitFilms(withoutDemo(films));
     notebook.replaceAll(notebook.notes.filter((n) => !n.id.startsWith(DEMO_PREFIX)));
     setSelectedId(null);
+    /* Pas de nettoyage à différer : l'exemple n'a PAS d'affiches — voir
+       `services/demo`, qui explique pourquoi. */
+    offerUndo({ label: "undo.demo", films: before, notes: beforeNotes });
     /* Retirer l'exemple est le geste de quelqu'un qui a décidé de rester
        — c'est à ce titre qu'on le compte, et non pour l'exemple. */
     doorEvent("porte:demo-retiree");
@@ -703,11 +758,18 @@ export default function App() {
   const updateMany = (patches) =>
     commitFilms(films.map((f) => (patches[f.id] ? { ...f, ...patches[f.id] } : f)));
   const deleteFilm = (id) => {
+    const before = films;
     const next = films.filter((f) => f.id !== id);
     commitFilms(next);
-    pruneOrphans(next).catch(console.error); // l'affiche part avec la fiche
     setView("library");
     setSelectedId(null);
+    /* L'affiche part avec la fiche — mais seulement quand la fenêtre
+       d'annulation s'est refermée. */
+    offerUndo({
+      label: "undo.film",
+      films: before,
+      prune: () => pruneOrphans(next).catch(console.error),
+    });
   };
 
   /* PLUSIEURS D'UN COUP, DEPUIS LE MUR. Passer par `deleteFilm` en
@@ -717,9 +779,15 @@ export default function App() {
   const deleteFilms = (ids) => {
     const gone = new Set(ids);
     if (gone.size === 0) return;
+    const before = films;
     const next = films.filter((f) => !gone.has(f.id));
     commitFilms(next);
-    pruneOrphans(next).catch(console.error);
+    offerUndo({
+      label: "undo.films",
+      count: gone.size,
+      films: before,
+      prune: () => pruneOrphans(next).catch(console.error),
+    });
   };
 
   /* Linking two cards means writing on both sides: opening one or the
@@ -1241,7 +1309,24 @@ export default function App() {
           qu'on n'a pas rechargé. Le compte seul ensuite, parce que c'est
           le seul des trois qui puisse coûter quelque chose. L'invitation
           à installer en dernier, qui ne perd rien à attendre. */}
-      {quota !== null ? (
+      {/* L'ANNULATION PASSE DEVANT TOUT : c'est la seule carte qui a une
+          date limite. Les autres disent un état qui sera encore là dans
+          une minute. */}
+      {undo ? (
+        <UndoCard
+          what={t(undo.label, { count: undo.count })}
+          onUndo={() => {
+            const held = undoHeld.current;
+            /* Sans balayage : le nettoyage tombe, donc les affiches
+               restent, donc les fiches reviennent entières. */
+            closeUndo(false);
+            if (!held) return;
+            commitFilms(held.films);
+            if (held.notes) notebook.replaceAll(held.notes);
+          }}
+          onDismiss={() => closeUndo(true)}
+        />
+      ) : quota !== null ? (
         <QuotaCard
           failed={quota < 0}
           megabytes={Math.round(quota / 100_000) / 10}

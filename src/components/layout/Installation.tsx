@@ -22,7 +22,7 @@
    ============================================================ */
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Download, HardDriveDownload, RefreshCw, Share, Smartphone, X } from "lucide-react";
+import { Download, HardDriveDownload, RefreshCw, Share, Smartphone, Undo2, X } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { Layer } from "../ui/Layer";
@@ -236,6 +236,45 @@ export function QuotaCard({
       <Line>{t("quota.advice")}</Line>
       <button onClick={onBackup} style={button}>
         <HardDriveDownload size={12} /> {t("quota.action")}
+      </button>
+    </Card>
+  );
+}
+
+/* ============================================================
+   ANNULER LE DERNIER GESTE
+   ============================================================
+
+   Supprimer une fiche, en supprimer trente depuis le mur, retirer
+   l'exemple : trois gestes sans retour, dont deux se font d'un clic et
+   sans confirmation.
+
+   ELLE PASSE DEVANT LES AUTRES CARTES, et c'est la seule qui le mérite :
+   les trois autres disent un état qui sera encore là dans une minute,
+   celle-ci a une DATE LIMITE. Une carte d'installation qui masquerait
+   une annulation de huit secondes ferait perdre la seule chose qui ne
+   se rattrape pas.
+
+   Elle ne montre pas de compte à rebours. Un chiffre qui décroît fait
+   courir ; on veut laisser lire, pas mettre la pression.
+   ============================================================ */
+export function UndoCard({
+  what,
+  onUndo,
+  onDismiss,
+}: {
+  /** Ce qui vient d'être fait, déjà mis en mots par l'appelant. */
+  what: string;
+  onUndo: () => void;
+  onDismiss: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <Card onFermer={onDismiss} dismissLabel="undo.dismiss">
+      <Title>{what}</Title>
+      <Line>{t("undo.body")}</Line>
+      <button onClick={onUndo} style={button}>
+        <Undo2 size={12} /> {t("undo.action")}
       </button>
     </Card>
   );

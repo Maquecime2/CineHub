@@ -906,6 +906,19 @@ const en = {
       "In the hall, nothing illegal and nothing aimed at a person. An account used to harm may be closed, and you can block or report from the pages concerned.",
   },
 
+  /* Undoing the last gesture. The title says WHAT WAS DONE, not "are you
+     sure": the question no longer arises, the deed is done, and we only
+     offer to come back on it. */
+  undo: {
+    film: "Card deleted",
+    films_one: "{{count}} card deleted",
+    films_other: "{{count}} cards deleted",
+    demo: "The example has been taken away",
+    body: "You can go back on this for a few seconds.",
+    action: "UNDO",
+    dismiss: "Keep the deletion",
+  },
+
   language: {
     title: "Language",
     close: "Close the language picker",

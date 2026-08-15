@@ -928,6 +928,19 @@ const fr = {
       "Dans le hall, on ne publie ni contenu illégal, ni contenu qui vise quelqu'un. Un compte qui s'en sert pour nuire peut être fermé, et vous pouvez bloquer ou signaler depuis les pages concernées.",
   },
 
+  /* ANNULER LE DERNIER GESTE. Le titre dit CE QUI A ÉTÉ FAIT, pas
+     « êtes-vous sûr » : la question ne se pose plus, le geste est fait,
+     et on offre seulement de revenir dessus. */
+  undo: {
+    film: "Fiche supprimée",
+    films_one: "{{count}} fiche supprimée",
+    films_other: "{{count}} fiches supprimées",
+    demo: "L'exemple a été retiré",
+    body: "Vous pouvez revenir en arrière pendant quelques secondes.",
+    action: "ANNULER",
+    dismiss: "Garder la suppression",
+  },
+
   language: {
     title: "La langue",
     close: "Fermer le choix de langue",
