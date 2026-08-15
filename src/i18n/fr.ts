@@ -1494,6 +1494,7 @@ const fr = {
       "On y range les films depuis leur fiche, depuis la pastille d'une affiche, ou en cherchant chez TMDB dans la liste ouverte.",
     yours: "Vos listes",
     none: "Aucune liste pour l'instant.",
+    loading: "on demande au serveur…",
     noChallenges:
       "Aucun défi. Un défi est une liste plus une période : ouvrez une liste ci-dessus pour en lancer un.",
     empty: "Vide.",

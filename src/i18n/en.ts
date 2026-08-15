@@ -1445,6 +1445,7 @@ const en = {
       "Films are filed into it from their card, from a poster's badge, or by searching TMDB inside the open list.",
     yours: "Your lists",
     none: "No list yet.",
+    loading: "asking the server…",
     noChallenges:
       "No challenge. A challenge is a list and a period: open a list above to start one.",
     empty: "Empty.",

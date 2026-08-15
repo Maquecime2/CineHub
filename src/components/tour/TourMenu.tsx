@@ -11,6 +11,7 @@ import { X } from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { TOURS, tourForView } from "./steps";
+import { useEscape } from "../../hooks/useEscape";
 
 export function TourMenu({
   view,
@@ -22,6 +23,7 @@ export function TourMenu({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
+  useEscape(onClose);
   const page = tourForView(view);
 
   return (

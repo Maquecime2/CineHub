@@ -214,6 +214,9 @@ body { background: ${C.paper}; }
    (No backtick in this comment: it lives INSIDE a template literal, and
    the first one would close the whole stylesheet.) */
 @keyframes drawerIn { from { opacity: 0; transform: translateX(26px); } to { opacity: 1; transform: none; } }
+/* L'attente d'une reponse : une opacite, et rien d'autre. Voir Waiting,
+   dans components/ui. (Pas d'accent grave ici : voir juste au-dessus.) */
+@keyframes waitingFade { from { opacity: 0.28; } to { opacity: 0.85; } }
 
 /* THE FRONT OF HOUSE LIGHTING UP — the one animation that travels.
 

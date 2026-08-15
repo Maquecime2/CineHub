@@ -210,6 +210,57 @@ export function Guideline({ children, tight }: { children: ReactNode; tight?: bo
   );
 }
 
+/* ============================================================
+   « PAS ENCORE » N'EST PAS « AUCUN »
+   ============================================================
+
+   Les vues du hall partaient d'un tableau vide et affichaient donc leur
+   phrase de vide — « vous n'avez aucune liste », « aucun défi en cours »
+   — PENDANT que la requête était en vol. Sur une connexion lente c'est
+   une affirmation fausse, et le contenu qui la remplace ensuite fait
+   sauter la mise en page par-dessus le marché.
+
+   Ce n'est pas un tourniquet : `App` a déjà tranché la question pour le
+   chargement d'une vue, et l'argument tient ici — un rond qui tourne
+   serait la seule pièce venue d'ailleurs dans une application qui est un
+   carnet. Ce sont donc des LIGNES RÉGLÉES, comme celles qu'on attend de
+   voir se remplir.
+
+   L'ANIMATION EST UNE OPACITÉ ET RIEN D'AUTRE. La direction artistique
+   réserve les effets chers aux moments, pas aux listes ; et sa durée
+   passe par `--motion-slow`, que le bloc `prefers-reduced-motion` met à
+   zéro tout seul.
+   ============================================================ */
+export function Waiting({ lines = 3, label }: { lines?: number; label?: string }) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      aria-label={label}
+      style={{ margin: "10px 0 12px", display: "flex", flexDirection: "column", gap: 9 }}
+    >
+      {Array.from({ length: lines }, (_, i) => (
+        <div
+          key={i}
+          aria-hidden
+          style={{
+            height: 1,
+            borderBottom: `1px solid ${C.line}`,
+            /* Des longueurs INÉGALES et TENUES : une ligne réglée qui
+               s'arrête au même endroit que sa voisine ne ressemble à
+               rien d'écrit. Elles sont dérivées de l'indice, jamais
+               tirées au sort — un cadre qui gigote n'est pas un cadre. */
+            width: `${[92, 74, 84, 63, 88][i % 5]}%`,
+            opacity: 0.75,
+            animation: "waitingFade var(--motion-slow) var(--motion-ease) infinite alternate",
+            animationDelay: `${i * 120}ms`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 /* THE HEAD OF A VIEW — the icon, the name, the hand-written line.
 
    The quiz, the lists AND the feed drew it identically, to the pixel:

@@ -22,7 +22,7 @@ import type { ReactNode } from "react";
 import { ListChecks, Plus, Search, Trash2, UserPlus, X } from "lucide-react";
 import { C, F, alpha } from "../theme/tokens";
 import { bare, chip, inked, tap, underlineInput } from "../theme/styles";
-import { Guideline, Label, Meter, ViewHeading } from "../components/ui";
+import { Guideline, Label, Meter, ViewHeading, Waiting } from "../components/ui";
 import { StampCorner, TapeResidue } from "../components/atmosphere";
 import { Halftone } from "../components/atmosphere/hall";
 import { daysLeft, mayExtend, needsSettling, stateOf } from "../domain/challenges";
@@ -69,6 +69,11 @@ export function ListsView({ connected }: { connected: boolean }) {
   const { t } = useTranslation();
   const [lists, setLists] = useState<List[]>([]);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
+  /* « PAS ENCORE » N'EST PAS « AUCUN ». Cette vue partait de deux
+     tableaux vides et affichait donc ses phrases de vide PENDANT que la
+     requête était en vol : sur une connexion lente, on lisait « vous
+     n'avez aucune liste » alors qu'on en a douze. */
+  const [settled, setSettled] = useState(false);
   const [opened, setOpened] = useState<string | null>(null);
   const [title, setTitle] = useState("");
 
@@ -83,6 +88,7 @@ export function ListsView({ connected }: { connected: boolean }) {
   const show = useCallback((l: List[] | null, d: Challenge[]) => {
     setLists(l ?? []);
     setChallenges(d);
+    setSettled(true);
   }, []);
 
   const reread = useCallback(async () => {
@@ -151,7 +157,8 @@ export function ListsView({ connected }: { connected: boolean }) {
 
       <div data-tour="lists-mine" style={{ marginBottom: 34 }}>
         <Label>{t("listsView.yours")}</Label>
-        {lists.length === 0 && <Guideline tight>{t("listsView.none")}</Guideline>}
+        {!settled && <Waiting label={t("listsView.loading")} />}
+        {settled && lists.length === 0 && <Guideline tight>{t("listsView.none")}</Guideline>}
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 6 }}>
           {lists.map((l) => (
             <OneList
@@ -167,7 +174,10 @@ export function ListsView({ connected }: { connected: boolean }) {
 
       <div data-tour="lists-challenges">
         <Label>{t("listsView.challenges")}</Label>
-        {challenges.length === 0 && <Guideline tight>{t("listsView.noChallenges")}</Guideline>}
+        {!settled && <Waiting lines={2} label={t("listsView.loading")} />}
+        {settled && challenges.length === 0 && (
+          <Guideline tight>{t("listsView.noChallenges")}</Guideline>
+        )}
         <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 8 }}>
           {challenges.map((d) => (
             <OneChallenge key={d.id} challenge={d} onChange={reread} />

@@ -16,6 +16,7 @@ import { X } from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { LANGUAGES, type Language } from "../../i18n/language";
+import { useEscape } from "../../hooks/useEscape";
 
 const PANEL: CSSProperties = {
   position: "fixed",
@@ -39,6 +40,7 @@ export function LanguagePicker({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
+  useEscape(onClose);
   return (
     <>
       <div onClick={onClose} data-veil style={{ position: "fixed", inset: 0, zIndex: 59 }} />

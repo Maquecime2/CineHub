@@ -59,6 +59,7 @@ import { shouldHint, shouldSeed, markSeeded } from "./services/onboarding";
 import { binderStillDemo, demoFilms, demoNotes, withoutDemo, DEMO_PREFIX } from "./services/demo";
 import { DemoBanner } from "./components/layout/DemoBanner";
 import { readPlace, placeToHash, HOME } from "./domain/address";
+import { shortcutOf } from "./domain/keys";
 import { startMeasuring, pageSeen, doorEvent } from "./services/measure";
 import { mayNudge, noteNudge } from "./services/loneDevice";
 import { myKeys } from "./services/server";
@@ -179,12 +180,18 @@ export default function App() {
 
      `metaKey` as much as `ctrlKey` — on a Mac, Ctrl+K clears to end of
      line in a field, and it is Cmd that commands. */
+  /* `/` OUVRE LA RECHERCHE, `?` LA VISITE, et `Ctrl+K` garde sa place.
+     Les deux premières sont des touches NUES : tout le soin est dans
+     `shortcutOf`, qui refuse de les prendre pendant qu'on écrit — une
+     barre oblique tapée dans une critique est une barre oblique. Voir
+     `domain/keys`, où la règle est écrite et éprouvée. */
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key?.toLowerCase() === "k" && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault();
-        setSearch((o) => !o);
-      }
+      const what = shortcutOf(e);
+      if (!what) return;
+      e.preventDefault();
+      if (what === "search") setSearch((o) => !o);
+      else setTourMenu((o) => !o);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

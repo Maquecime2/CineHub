@@ -10,6 +10,7 @@ import { CommaInput, InkStars, Label } from "../ui";
 import { makeFilm } from "../../domain/film";
 import type { Film, FilmStatus } from "../../types";
 import { useViewport } from "../../hooks/useViewport";
+import { useEscape } from "../../hooks/useEscape";
 
 const STATUSES: { k: FilmStatus; l: string }[] = [
   { k: "watched", l: "Film vu" },
@@ -18,6 +19,7 @@ const STATUSES: { k: FilmStatus; l: string }[] = [
 
 export function FilmModal({ onClose, onSave }: { onClose: () => void; onSave: (f: Film) => void }) {
   const { t } = useTranslation();
+  useEscape(onClose);
   const [f, setF] = useState<Film>(() => makeFilm());
   const set = <K extends keyof Film>(k: K, v: Film[K]) => setF((p) => ({ ...p, [k]: v }));
   const { phone } = useViewport();

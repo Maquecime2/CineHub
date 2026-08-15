@@ -26,6 +26,7 @@ import { accountOpen } from "../../services/server";
 import { usePurse } from "../../hooks/usePurse";
 import { BuyChip } from "../play/Buy";
 import { refreshOwned } from "../../theme/owned";
+import { useEscape } from "../../hooks/useEscape";
 
 const PANEL: CSSProperties = {
   position: "fixed",
@@ -193,6 +194,7 @@ export function SkinPicker({
   onClose: () => void;
 }) {
   usePurse();
+  useEscape(onClose);
   const [, again] = useState(0);
   const mine = accountOpen() ? ownedItems() : [];
 

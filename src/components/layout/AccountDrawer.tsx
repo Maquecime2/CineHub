@@ -74,6 +74,7 @@ import { mediaTrouble } from "../../services/media";
 import { forgetSync } from "../../services/sync";
 import { startOver } from "../../services/startOver";
 import type { SyncReport } from "../../services/sync";
+import { useEscape } from "../../hooks/useEscape";
 
 /* WHEN THE LAST SYNCHRONISATION WAS. The date at the end is formatted by
    the reader's language and not by a hard-coded `fr-FR`: "12 January" and
@@ -114,6 +115,14 @@ export function AccountDrawer({
      on n'en a pas encore qu'on veut savoir ce qu'on s'apprête à
      accepter. */
   const [legal, setLegal] = useState(false);
+
+  /* DEUX PANNEAUX EMPILÉS, UNE SEULE TOUCHE. Les mentions s'ouvrent
+     PAR-DESSUS ce tiroir : Échap doit refermer celles-ci d'abord, sinon
+     on se retrouve rendu au mur alors qu'on voulait revenir au compte.
+     Le panneau des mentions écoute aussi pour son propre compte — les
+     deux referment la même chose, donc l'ordre entre eux est sans
+     importance ; ce qui compte est que le tiroir, lui, s'abstienne. */
+  useEscape(() => (legal ? setLegal(false) : onClose()));
 
   const attempt = async (what: (p: string) => Promise<Person>) => {
     setTrouble(null);

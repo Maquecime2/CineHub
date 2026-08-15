@@ -29,6 +29,7 @@ import { tap } from "../../theme/styles";
 import { Layer } from "../ui/Layer";
 import { Label } from "../ui";
 import { OPERATOR, TERMS_SINCE, operatorNamed, orBlank } from "../../legal";
+import { useEscape } from "../../hooks/useEscape";
 
 const Para = ({ children }: { children: React.ReactNode }) => (
   <div
@@ -46,6 +47,7 @@ const Para = ({ children }: { children: React.ReactNode }) => (
 
 export function LegalPanel({ onClose }: { onClose: () => void }) {
   const { t, i18n } = useTranslation();
+  useEscape(onClose);
   const blank = t("legal.toFill");
   const since = new Date(TERMS_SINCE).toLocaleDateString(i18n.language, {
     day: "numeric",
