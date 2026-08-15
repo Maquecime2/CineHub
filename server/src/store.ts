@@ -14,6 +14,7 @@ import { planDraw } from "./draw.ts";
 import { CHALLENGE_HALF, DECLARED, DECLARED_CEILING, RATE, REVIEW_LENGTH } from "./points.ts";
 import type { Kind } from "./points.ts";
 import { draw, itemById } from "./shop.ts";
+import { DECOR_BYTES_CEILING, DECOR_CEILING, MEDIA_CEILING, QuotaReached } from "./limits.ts";
 import type { PowerKind, Rng } from "./shop.ts";
 import type { Difficulty, Stock } from "./draw.ts";
 
@@ -2086,10 +2087,23 @@ export async function createDecor(
     bytes?: number;
   }
 ): Promise<Decor> {
+  /* LE PLAFOND EST DANS L'INSERT, ET NON AUTOUR — même raison que le
+     plafond quotidien de `award` juste plus bas : entre lire le total et
+     écrire la ligne, deux requêtes concurrentes passent toutes les deux.
+     La CTE ne rend une ligne que si le compte ET le poids restent sous
+     leurs bornes ; sans elle, l'INSERT ne trouve rien à insérer et rend
+     `null`, que l'appelant lit comme un refus. */
   const row = await one<Decor>(
     db,
-    `INSERT INTO decor (id, owner_id, label, wall, kind, tintable, bytes)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `WITH tenu AS (
+       SELECT count(*)::int AS n, coalesce(sum(bytes), 0)::bigint AS poids
+         FROM decor WHERE owner_id = $2 AND NOT deleted
+     ),
+     permis AS (
+       SELECT 1 FROM tenu WHERE n < $8 AND poids + $7 <= $9
+     )
+     INSERT INTO decor (id, owner_id, label, wall, kind, tintable, bytes)
+     SELECT $1, $2, $3, $4, $5, $6, $7 FROM permis
      RETURNING id, owner_id, label, wall, kind, tintable, bytes, is_public,
                created_at, updated_at`,
     [
@@ -2100,10 +2114,107 @@ export async function createDecor(
       d.kind ?? "raster",
       d.tintable ?? false,
       d.bytes ?? 0,
+      DECOR_CEILING,
+      DECOR_BYTES_CEILING,
     ]
   );
-  if (!row) throw new Error("decor not created");
+  if (!row) {
+    /* PAS DE LIGNE VEUT DIRE « PLAFOND ATTEINT » : la CTE `permis` n'a
+       rien rendu, donc l'INSERT n'avait rien à insérer. On distingue
+       lequel des deux plafonds a mordu — le nombre d'abord, parce que
+       c'est celui qui protège vraiment. */
+    const tenu = await one<{ n: string; poids: string }>(
+      db,
+      `SELECT count(*)::text AS n, coalesce(sum(bytes), 0)::text AS poids
+         FROM decor WHERE owner_id = $1 AND NOT deleted`,
+      [d.ownerId]
+    );
+    throw new QuotaReached(Number(tenu?.n ?? 0) >= DECOR_CEILING ? "decors" : "decors-octets");
+  }
   return row;
+}
+
+/* ------------------------------------------------------------
+   LE REGISTRE DES MÉDIAS
+   ------------------------------------------------------------
+
+   Le serveur ne voit jamais les octets : il signe un ticket, le
+   navigateur dépose. Ce registre est donc la seule chose qui sache
+   combien de place un compte occupe, et la seule qui puisse la borner.
+
+   Voir `sql/001_baseline.sql` pour pourquoi la clé primaire fait le
+   plus gros du travail. */
+
+/**
+ * Note un chemin autorisé, et dit si le plafond le permettait.
+ *
+ * REDEMANDER UN TICKET POUR LE MÊME CHEMIN EST SANS EFFET et toujours
+ * accordé : le `ON CONFLICT` le dit, et c'est ce qui évite qu'une
+ * synchronisation répétée épuise un plafond. Le compte est donc celui
+ * des chemins distincts, pas celui des demandes.
+ */
+export async function noteMedia(
+  db: Db,
+  personId: string,
+  path: string,
+  bytes = 0
+): Promise<boolean> {
+  const rows = await db.query<{ ok: number }>(
+    `WITH deja AS (
+       SELECT 1 FROM media WHERE person_id = $1 AND path = $2
+     ),
+     permis AS (
+       SELECT 1 WHERE EXISTS (SELECT 1 FROM deja)
+          OR (SELECT count(*) FROM media WHERE person_id = $1) < $4
+     ),
+     mis AS (
+       INSERT INTO media (person_id, path, bytes)
+       SELECT $1, $2, $3 FROM permis
+       ON CONFLICT (person_id, path) DO NOTHING
+       RETURNING 1
+     )
+     SELECT 1::int AS ok FROM permis`,
+    [personId, path, bytes, MEDIA_CEILING]
+  );
+  return rows.length > 0;
+}
+
+/** Le média est parti du container : la ligne part avec. */
+export async function forgetMedia(db: Db, personId: string, path: string): Promise<void> {
+  await db.query("DELETE FROM media WHERE person_id = $1 AND path = $2", [personId, path]);
+}
+
+/** Ce qu'un compte occupe, et ce qu'il a le droit d'occuper. */
+export async function usageOf(
+  db: Db,
+  personId: string
+): Promise<{
+  media: number;
+  mediaCeiling: number;
+  decors: number;
+  decorCeiling: number;
+  decorBytes: number;
+  decorBytesCeiling: number;
+}> {
+  const m = await one<{ n: string }>(
+    db,
+    "SELECT count(*)::text AS n FROM media WHERE person_id = $1",
+    [personId]
+  );
+  const d = await one<{ n: string; poids: string }>(
+    db,
+    `SELECT count(*)::text AS n, coalesce(sum(bytes), 0)::text AS poids
+       FROM decor WHERE owner_id = $1 AND NOT deleted`,
+    [personId]
+  );
+  return {
+    media: Number(m?.n ?? 0),
+    mediaCeiling: MEDIA_CEILING,
+    decors: Number(d?.n ?? 0),
+    decorCeiling: DECOR_CEILING,
+    decorBytes: Number(d?.poids ?? 0),
+    decorBytesCeiling: DECOR_BYTES_CEILING,
+  };
 }
 
 /** Only its author edits it — the `owner_id` in the clause says so. */

@@ -338,6 +338,20 @@ export async function relayServesTmdb(): Promise<boolean> {
 /** What the server holds, in a single object — to take it away with you. */
 export const myData = () => call<Record<string, unknown>>("/my-data");
 
+/** Ce qu'un compte occupe chez nous, et ce qu'il a le droit d'occuper. */
+export interface Usage {
+  media: number;
+  mediaCeiling: number;
+  decors: number;
+  decorCeiling: number;
+  decorBytes: number;
+  decorBytesCeiling: number;
+}
+
+/* UN PLAFOND INVISIBLE EST UN PLAFOND QU'ON DÉCOUVRE EN LE HEURTANT, au
+   pire moment — celui où l'on vient de déposer quelque chose. */
+export const myUsage = () => call<Usage>("/my-usage");
+
 /**
 /**
  * Deletes the account and everything hanging from it.

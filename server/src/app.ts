@@ -27,6 +27,7 @@ import * as store from "./store.ts";
 import { registerRelays } from "./relay.ts";
 import { publicKeyForPush, pushAvailable, remindChallenges } from "./push.ts";
 import { allowed, mediaAvailable, ticketFor } from "./media.ts";
+import { QuotaReached } from "./limits.ts";
 import { LEVELS, SIZES } from "./draw.ts";
 import { RATE } from "./points.ts";
 import { SHOP } from "./shop.ts";
@@ -1913,13 +1914,27 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
        up in one request; one of them being wrong is worth one missing
        ticket, not fifty. The client sends again what it did not get. */
     const tickets: { path: string; url: string }[] = [];
+    /* CE QUI EST PLEIN N'EST PAS UNE ERREUR DE LOT. Un chemin refusé
+       vaut un ticket manquant, pas cinquante — même règle que ci-dessus
+       pour un chemin mal formé. Le client redemande ce qu'il n'a pas
+       reçu, et voit dans `full` qu'il n'y a plus la place. */
+    let full = false;
     for (const p of paths) {
       if (typeof p !== "string") continue;
       if (!(await allowed(db, person.id, p, mode))) continue;
+      /* LE REGISTRE NE NOTE QUE L'ÉCRITURE, et que le PRIVÉ. Lire ne
+         prend pas de place, et un décor est déjà compté par sa propre
+         ligne — le noter ici le compterait deux fois. */
+      if (mode === "write" && p.startsWith("p/")) {
+        if (!(await store.noteMedia(db, person.id, p))) {
+          full = true;
+          continue;
+        }
+      }
       const url = ticketFor(p, mode);
       if (url) tickets.push({ path: p, url });
     }
-    return { tickets };
+    return full ? { tickets, full: true } : { tickets };
   });
 
   app.get("/media/ticket", ticketCeiling, async (req, reply) => {
@@ -1948,6 +1963,12 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     }
     const url = ticketFor(path, "write");
     if (!url) return reply.code(503).send(noContainer);
+    /* LA LIGNE PART AVEC LE BLOB. On la retire ici plutôt qu'après le
+       DELETE effectif : le navigateur peut ne jamais s'en servir, et
+       une ligne de trop refuse un dépôt alors que la place est libre —
+       tandis qu'une ligne manquante ne coûte qu'un rang de plafond. On
+       penche du côté qui ne bloque personne. */
+    await store.forgetMedia(db, person.id, path);
     return { path, url };
   });
 
@@ -1986,14 +2007,33 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     if (kind !== undefined && kind !== "raster" && kind !== "svg") {
       return reply.code(400).send({ error: "Une image ou un dessin, rien d'autre." });
     }
-    const decor = await store.createDecor(db, {
-      ownerId: person.id,
-      label: name,
-      wall: typeof wall === "string" ? wall.slice(0, 40) : "",
-      kind: (kind as "raster" | "svg") ?? "raster",
-      tintable: tintable === true,
-      bytes: Number(bytes) || 0,
-    });
+    /* LE PLAFOND SE DIT, IL NE SE DEVINE PAS. `createDecor` refuse en
+       jetant, comme il refuse déjà une étiquette vide ; ici on traduit
+       ce refus en 409 et en une phrase qui nomme ce qui est plein —
+       « ça n'a pas marché » sur une armoire pleine est la pire des
+       réponses, parce qu'on recommence. */
+    let decor;
+    try {
+      decor = await store.createDecor(db, {
+        ownerId: person.id,
+        label: name,
+        wall: typeof wall === "string" ? wall.slice(0, 40) : "",
+        kind: (kind as "raster" | "svg") ?? "raster",
+        tintable: tintable === true,
+        bytes: Number(bytes) || 0,
+      });
+    } catch (e) {
+      if (e instanceof QuotaReached) {
+        return reply.code(409).send({
+          error:
+            e.quel === "decors"
+              ? "Votre armoire est pleine : retirez un objet avant d'en déposer un autre."
+              : "Vos objets pèsent déjà le maximum : retirez-en un avant d'en déposer un autre.",
+          quota: e.quel,
+        });
+      }
+      throw e;
+    }
     /* The blob has NOT been put down yet: the client now asks for a
        write ticket on `decor/<id>` and uploads. Making the row first is
        what gives the object the identity two people can name. */
@@ -2053,6 +2093,14 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
   /* ------------------------------------------------------------
      WHAT IS YOURS, AND THE RIGHT TO LEAVE
      ------------------------------------------------------------ */
+
+  /* CE QU'ON OCCUPE, ET CE QU'ON A LE DROIT D'OCCUPER.
+     Un plafond invisible est un plafond qu'on découvre en le heurtant,
+     au pire moment — celui où l'on vient de déposer quelque chose. */
+  app.get("/my-usage", async (req) => {
+    const person = await requireAccount(req);
+    return store.usageOf(db, person.id);
+  });
 
   app.get("/my-data", async (req) => {
     const person = await requireAccount(req);

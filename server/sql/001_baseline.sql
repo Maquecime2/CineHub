@@ -875,6 +875,42 @@ CREATE TABLE IF NOT EXISTS decor_copy (
 CREATE INDEX IF NOT EXISTS decor_copy_decor ON decor_copy(decor_id);
 
 -- ------------------------------------------------------------
+-- LE REGISTRE DES MÉDIAS — ce qu'on ne pouvait pas compter
+-- ------------------------------------------------------------
+-- LE SERVEUR NE VOIT JAMAIS LES OCTETS. Il délivre un ticket signé et le
+-- navigateur dépose directement dans le container : c'est ce qui permet
+-- de ne jamais faire transiter une affiche par nous, et c'est aussi ce
+-- qui rendait le dépôt privé RIGOUREUSEMENT SANS BORNE. Sur une adresse
+-- ouverte, une place illimitée qu'on héberge est une facture illimitée.
+--
+-- Cette table est donc le registre de ce qui a été autorisé. Elle ne
+-- garde pas le blob, seulement son chemin et ce que le client déclare
+-- peser.
+--
+-- LA CLÉ PRIMAIRE FAIT TOUT LE TRAVAIL, et c'est le même raisonnement
+-- que l'unicité de `merit_event` : redemander un ticket pour le MÊME
+-- chemin ne crée pas une seconde ligne. Un compteur incrémenté à chaque
+-- ticket aurait compté six fois une affiche qu'on redépose six fois, et
+-- le plafond serait devenu une punition pour qui synchronise souvent.
+--
+-- LE COMPTE EST DONC CELUI DES CHEMINS AUTORISÉS, et non celui des blobs
+-- réellement présents : un ticket qu'on ne se sert pas laisse une ligne.
+-- L'écart est borné et il penche du bon côté — on refuse un peu tôt
+-- plutôt qu'un peu tard —, et `DELETE /media` retire la ligne avec le
+-- blob, donc il se referme dès qu'on range.
+CREATE TABLE IF NOT EXISTS media (
+  person_id     uuid NOT NULL REFERENCES person(id) ON DELETE CASCADE,
+  -- Le chemin complet, préfixe compris : c'est lui la preuve côté
+  -- privé, et le garder entier évite d'avoir à le reconstruire.
+  path          text NOT NULL,
+  -- Déclaré par le client, donc indicatif — le plafond qui protège
+  -- vraiment est celui du NOMBRE, qu'on sait compter exactement.
+  bytes         integer NOT NULL DEFAULT 0 CHECK (bytes >= 0),
+  noted_at      timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (person_id, path)
+);
+
+-- ------------------------------------------------------------
 -- THE USAGE MEASUREMENT
 -- ------------------------------------------------------------
 -- WHAT IT DOES NOT CONTAIN IS ITS DEFINITION. No person identifier, no

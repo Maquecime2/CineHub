@@ -47,6 +47,11 @@ vi.mock("../../services/server", () => ({
   myKeys: vi.fn(async () => {
     throw new Error("hors ligne");
   }),
+  /* « La place chez nous » lit l'occupation au montage, et se tait de la
+     même façon quand le serveur ne répond pas. */
+  myUsage: vi.fn(async () => {
+    throw new Error("hors ligne");
+  }),
   addKey: vi.fn(),
   forgetKey: vi.fn(),
   makePairingCode: vi.fn(),

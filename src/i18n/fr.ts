@@ -112,6 +112,11 @@ const fr = {
       "Le container a refusé le dépôt ({{detail}}). Un 403 vient le plus souvent d'une horloge décalée : la signature est datée. Vos images restent entières sur cet appareil.",
     mediaPullRefused:
       "Les affiches et captures faites sur vos autres appareils n'ont pas pu être rapatriées ({{detail}}). Un 429 veut dire que le serveur a refusé le débit, pas que les images sont perdues : elles sont intactes sur le container, et la prochaine ouverture réessaiera.",
+    usage: "La place chez nous",
+    usageMedia: "affiches et captures en miroir",
+    usageDecors: "objets de décor déposés",
+    usageNote:
+      "Ces plafonds ne concernent que ce que le serveur héberge. Votre classeur, lui, ne se borne pas : ranger, noter, chercher, importer et exporter restent sans limite et sans compte.",
     devices: "Mes appareils",
     devicesNote:
       "Une clé d'accès ne voyage pas : celle de cet ordinateur y reste. Ajoutez ici celle de votre téléphone — sur un autre PC, choisissez « un autre appareil » à la connexion et scannez le code affiché.",

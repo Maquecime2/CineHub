@@ -33,7 +33,7 @@ import {
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { Layer } from "../ui/Layer";
-import { Label } from "../ui";
+import { Label, Tally } from "../ui";
 import { Confirmation, type ConfirmRequest } from "../ui/Confirmation";
 import {
   ADDRESS,
@@ -54,9 +54,11 @@ import {
   forgetKey,
   makePairingCode,
   claimPairingCode,
+  myUsage,
   type DeviceKey,
   type Sharing,
   type Person,
+  type Usage as UsageReport,
 } from "../../services/server";
 import { keepTheVault } from "../../services/persistence";
 import { doorEvent } from "../../services/measure";
@@ -413,6 +415,7 @@ export function AccountDrawer({
             <Standing />
 
             <Devices lang={i18n.language} />
+            <Usage />
 
             <Blocks />
 
@@ -750,6 +753,73 @@ function Blocks() {
    point: with one key there is exactly one thing to do, and it is the
    one nobody thinks of before the evening they need it.
    ============================================================ */
+/* ============================================================
+   CE QU'ON OCCUPE CHEZ NOUS
+   ============================================================
+
+   Le miroir des médias et les décors ont désormais un plafond — sans
+   quoi une place illimitée qu'on héberge est une facture illimitée. Un
+   plafond qui ne se voit pas est un plafond qu'on découvre en le
+   heurtant, c'est-à-dire au moment où l'on vient de déposer quelque
+   chose et où l'on ne comprend pas pourquoi ça n'a pas marché.
+
+   ELLE SE TAIT SUR UNE PANNE, comme la section des appareils juste
+   au-dessus : hors ligne on ne sait pas, et un compteur inventé vaut
+   moins que pas de compteur.
+
+   CE QU'ELLE NE MONTRE PAS : les fiches. Ranger et noter ne se paient
+   jamais et ne se bornent pas — les afficher ici, à côté de deux
+   jauges, laisserait croire le contraire.
+   ============================================================ */
+function Usage() {
+  const { t } = useTranslation();
+  const [usage, setUsage] = useState<UsageReport | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    myUsage()
+      .then((u) => alive && setUsage(u))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (!usage) return null;
+
+  return (
+    <div style={{ borderTop: `1px dashed ${C.line}`, paddingTop: 14 }}>
+      <Label>{t("account.usage")}</Label>
+      <div style={{ marginTop: 6 }}>
+        <Tally
+          label={t("account.usageMedia")}
+          value={`${usage.media} / ${usage.mediaCeiling}`}
+          /* LE VERDICT SE DIT PAR UN MOT, PAS PAR UNE COULEUR — mais un
+             compteur n'est pas un verdict. On teinte seulement quand il
+             ne reste presque rien, et la phrase en dessous le dit. */
+          ink={usage.media >= usage.mediaCeiling ? C.burgundy : undefined}
+        />
+        <Tally
+          label={t("account.usageDecors")}
+          value={`${usage.decors} / ${usage.decorCeiling}`}
+          ink={usage.decors >= usage.decorCeiling ? C.burgundy : undefined}
+        />
+      </div>
+      <div
+        style={{
+          fontFamily: F.hand,
+          fontSize: 15,
+          color: C.inkFaded,
+          marginTop: 6,
+          lineHeight: 1.35,
+        }}
+      >
+        {t("account.usageNote")}
+      </div>
+    </div>
+  );
+}
+
 function Devices({ lang }: { lang: string }) {
   const { t } = useTranslation();
   const [keys, setKeys] = useState<DeviceKey[] | null>(null);

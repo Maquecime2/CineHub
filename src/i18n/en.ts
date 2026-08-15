@@ -105,6 +105,11 @@ const en = {
       "The container refused the upload ({{detail}}). A 403 most often comes from a clock that has drifted: the signature is dated. Your images stay whole on this device.",
     mediaPullRefused:
       "The posters and screenshots made on your other devices could not be fetched back ({{detail}}). A 429 means the server refused the traffic, not that the images are lost: they are whole on the container, and the next opening will try again.",
+    usage: "Space on our side",
+    usageMedia: "posters and stills mirrored",
+    usageDecors: "decoration objects filed",
+    usageNote:
+      "These ceilings only cover what the server hosts. Your binder itself has no limit: filing, rating, searching, importing and exporting stay unbounded and account-free.",
     devices: "My devices",
     devicesNote:
       "A passkey does not travel: this computer's stays in it. Add your telephone's here — then on another computer choose “another device” when signing in, and scan the code it shows.",
