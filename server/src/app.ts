@@ -27,7 +27,7 @@ import * as store from "./store.ts";
 import { registerRelays } from "./relay.ts";
 import { publicKeyForPush, pushAvailable, remindChallenges } from "./push.ts";
 import { allowed, mediaAvailable, ticketFor } from "./media.ts";
-import { QuotaReached } from "./limits.ts";
+import { ceilingsFor, QuotaReached } from "./limits.ts";
 import { demoPosters } from "./demo.ts";
 import { LEVELS, SIZES } from "./draw.ts";
 import { RATE } from "./points.ts";
@@ -2155,6 +2155,44 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
   /* CE QU'ON OCCUPE, ET CE QU'ON A LE DROIT D'OCCUPER.
      Un plafond invisible est un plafond qu'on découvre en le heurtant,
      au pire moment — celui où l'on vient de déposer quelque chose. */
+  /* ------------------------------------------------------------
+     LES IMPORTS — demander avant, consommer après
+     ------------------------------------------------------------
+
+     Deux routes et non une, et l'écart entre elles est tout l'objet.
+
+     LE COÛT EST DANS L'ENRICHISSEMENT, PAS DANS L'ÉCRITURE. Six cents
+     films importés, ce sont six cents interrogations du relais TMDB, et
+     elles partent AVANT qu'on valide quoi que ce soit. Refuser
+     seulement à la validation ferait travailler quelqu'un — et notre
+     relais — pour lui dire non à la fin.
+
+     ON DEMANDE DONC AVANT (`GET`), pour le dire tout de suite, et on
+     CONSOMME APRÈS (`POST`), pour ne pas compter un bordereau que
+     quelqu'un a ouvert puis refermé. Un import abandonné ne coûte que
+     du relais, qui a son propre plafond par minute. */
+  app.get("/imports", async (req) => {
+    const person = await requireAccount(req);
+    const bornes = ceilingsFor(person);
+    const used = await store.importsInWindow(db, person.id);
+    return { used, ceiling: bornes.imports, allowed: used < bornes.imports };
+  });
+
+  app.post("/imports", async (req, reply) => {
+    const person = await requireAccount(req);
+    const ok = await store.noteImport(db, person.id);
+    const bornes = ceilingsFor(person);
+    const used = await store.importsInWindow(db, person.id);
+    if (!ok) {
+      return reply.code(409).send({
+        error: "Vous avez atteint votre nombre d'imports pour ce mois-ci.",
+        used,
+        ceiling: bornes.imports,
+      });
+    }
+    return { used, ceiling: bornes.imports, allowed: true };
+  });
+
   app.get("/my-usage", async (req) => {
     const person = await requireAccount(req);
     return store.usageOf(db, person.id);

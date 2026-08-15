@@ -1,7 +1,7 @@
 /* ============================================================
    VUE — IMPORT LETTERBOXD
    ============================================================ */
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Upload } from "lucide-react";
 import { C, F } from "../../theme/tokens";
@@ -11,6 +11,7 @@ import { StampCorner } from "../../components/atmosphere";
 import { store } from "../../services/storage";
 import { keepTheVault } from "../../services/persistence";
 import { doorEvent } from "../../services/measure";
+import { importAllowance, spendImport, type ImportAllowance } from "../../services/server";
 import { writtenKey, setTmdbKey, useTmdbKey } from "../../services/tmdbKey";
 import { parseLetterboxdCsv, diffImport, filmKey } from "../../domain/importing";
 import {
@@ -147,6 +148,15 @@ export function ImportView({
      watchlist read says what it contains today, not what should be
      thrown away. */
   const [dropped, setDropped] = useState<Film[]>([]);
+
+  /* CE QU'IL RESTE D'IMPORTS, demandé À L'ENTRÉE et non à la validation.
+     Le coût est dans l'enrichissement — six cents films, six cents
+     interrogations du relais — et il part avant qu'on valide : refuser
+     à la fin ferait travailler quelqu'un pour lui dire non après coup. */
+  const [allowance, setAllowance] = useState<ImportAllowance | null>(null);
+  useEffect(() => {
+    importAllowance().then(setAllowance);
+  }, []);
 
   const reset = () => {
     setRows([]);
@@ -286,8 +296,19 @@ export function ImportView({
      file carries screenings: only diary.csv and the feed have any. */
   const hasScreenings = rows.some((r) => r.watches?.length);
 
-  const confirm = () => {
+  const confirm = async () => {
     if (!diff) return;
+    /* ON CONSOMME AVANT D'ÉCRIRE. Le serveur est seul juge : il compte
+       dans la même requête qu'il écrit, donc deux onglets ne peuvent pas
+       passer ensemble. Un refus arrête tout — écrire quand même
+       laisserait la collection en avance sur ce qu'on a le droit de
+       faire. */
+    try {
+      setAllowance(await spendImport());
+    } catch (e) {
+      setError((e as Error).message || t("import.refused"));
+      return;
+    }
     onImport(diff);
     /* LE MOMENT DE DEMANDER LE REMPART. Quelqu'un qui vient de verser
        sa collection entière a donné au navigateur exactement le signal
@@ -333,6 +354,30 @@ export function ImportView({
       >
         {t("import.oneFileAtATime")}
       </div>
+
+      {/* CE QU'IL RESTE, DIT AVANT DE COMMENCER. Un plafond invisible se
+          découvre en le heurtant, c'est-à-dire après avoir déposé son
+          fichier et attendu six cents interrogations du relais. On ne
+          montre RIEN quand le palier ne compte pas : « imports
+          illimités » est une phrase qui n'apprend rien et qui occupe la
+          place où une vraie nouvelle devrait tenir. */}
+      {allowance?.ceiling != null && (
+        <div
+          style={{
+            marginBottom: 22,
+            padding: "9px 12px",
+            border: `1px solid ${allowance.allowed ? C.line : C.burgundy}`,
+            fontFamily: F.hand,
+            fontSize: 16,
+            color: allowance.allowed ? C.inkFaded : C.burgundy,
+            lineHeight: 1.35,
+          }}
+        >
+          {allowance.allowed
+            ? t("import.left", { count: allowance.ceiling - allowance.used })
+            : t("import.none")}
+        </div>
+      )}
 
       {/* The Letterboxd export is a zip of several CSVs: each holds only
           part of the story, hence the recommended order. */}

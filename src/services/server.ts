@@ -333,6 +333,52 @@ export const handleReport = (targetType: string, targetId: string, hide = false)
   });
 
 /* ============================================================
+   LES IMPORTS — ce qu'il en reste, et en consommer un
+   ============================================================
+
+   Le coût d'un import est dans l'ENRICHISSEMENT — six cents films, six
+   cents interrogations du relais — et il part avant qu'on valide. On
+   demande donc l'autorisation AVANT de faire travailler quelqu'un, et
+   on ne consomme qu'à la validation : un bordereau ouvert puis refermé
+   ne coûte rien.
+
+   `allowance` se tait sur une panne et rend « permis » : refuser un
+   import parce qu'on n'a pas su compter serait punir quelqu'un pour
+   notre propre silence. Le serveur, lui, refusera pour de bon à la
+   consommation s'il le faut — et c'est LUI qui décide.
+   ============================================================ */
+export interface ImportAllowance {
+  used: number;
+  /** `null` : ce palier ne compte pas les imports. */
+  ceiling: number | null;
+  allowed: boolean;
+}
+
+const readAllowance = (r: {
+  used: number;
+  ceiling: number;
+  allowed: boolean;
+}): ImportAllowance => ({
+  used: r.used,
+  /* `Infinity` ne traverse pas JSON — il en sort `null`. On le garde tel
+     quel plutôt que de le retraduire : « pas de plafond » se dessine
+     mieux avec une absence qu'avec un nombre. */
+  ceiling: Number.isFinite(r.ceiling) ? r.ceiling : null,
+  allowed: r.allowed,
+});
+
+export const importAllowance = (): Promise<ImportAllowance> =>
+  call<{ used: number; ceiling: number; allowed: boolean }>("/imports")
+    .then(readAllowance)
+    .catch(() => ({ used: 0, ceiling: null, allowed: true }));
+
+/** Consomme un import. Jette si le palier ne le permet plus. */
+export const spendImport = (): Promise<ImportAllowance> =>
+  call<{ used: number; ceiling: number; allowed: boolean }>("/imports", {
+    method: "POST",
+  }).then(readAllowance);
+
+/* ============================================================
    LES AFFICHES DE LA VITRINE
    ============================================================
 
