@@ -22,6 +22,7 @@
    LES FAITS DE L'ÉDITEUR VIENNENT DE `src/legal.ts`, pas d'ici : voir
    là-bas pourquoi ils ne sont pas dans le catalogue de traduction.
    ============================================================ */
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
@@ -31,7 +32,7 @@ import { Label } from "../ui";
 import { OPERATOR, TERMS_SINCE, operatorNamed, orBlank } from "../../legal";
 import { useEscape } from "../../hooks/useEscape";
 
-const Para = ({ children }: { children: React.ReactNode }) => (
+const Para = ({ children }: { children: ReactNode }) => (
   <div
     style={{
       fontFamily: F.hand,
