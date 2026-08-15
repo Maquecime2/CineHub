@@ -29,12 +29,14 @@ import {
   VolumeX,
   Smartphone,
   Laptop,
+  Scale,
 } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { Layer } from "../ui/Layer";
 import { Label, Tally } from "../ui";
 import { Confirmation, type ConfirmRequest } from "../ui/Confirmation";
+import { LegalPanel } from "./LegalPanel";
 import {
   ADDRESS,
   deleteMyAccount,
@@ -108,6 +110,10 @@ export function AccountDrawer({
   const [busy, setBusy] = useState(false);
   const [trouble, setTrouble] = useState<string | null>(null);
   const [request, setRequest] = useState<ConfirmRequest | null>(null);
+  /* Les mentions se lisent AVEC OU SANS COMPTE : c'est justement quand
+     on n'en a pas encore qu'on veut savoir ce qu'on s'apprête à
+     accepter. */
+  const [legal, setLegal] = useState(false);
 
   const attempt = async (what: (p: string) => Promise<Person>) => {
     setTrouble(null);
@@ -217,6 +223,30 @@ export function AccountDrawer({
         <div style={{ fontFamily: F.hand, fontSize: 17, color: C.inkFaded, marginBottom: 20 }}>
           {signedIn ? t("account.signedInNote") : t("account.signedOutNote")}
         </div>
+
+        {/* EN HAUT ET NON EN BAS DU TIROIR. Placé sous les trois boutons
+            d'effacement, le lien ne serait lu que par qui a déjà décidé
+            de partir — or ces conditions se lisent AVANT d'ouvrir un
+            compte, et le tiroir s'ouvre pour qui n'en a pas. */}
+        <button
+          onClick={() => setLegal(true)}
+          style={{
+            all: "unset",
+            ...tap,
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            marginBottom: 20,
+            fontFamily: F.mono,
+            fontSize: 10,
+            letterSpacing: 1,
+            color: C.inkFaded,
+            borderBottom: `1px solid ${C.line}`,
+          }}
+        >
+          <Scale size={11} /> {t("legal.title")}
+        </button>
 
         {/* ---- the state ---- */}
         <Label>{t("account.sync")}</Label>
@@ -559,6 +589,7 @@ export function AccountDrawer({
         )}
 
         <Confirmation request={request} onClose={() => setRequest(null)} />
+        {legal && <LegalPanel onClose={() => setLegal(false)} />}
 
         <div
           style={{

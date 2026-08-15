@@ -873,6 +873,39 @@ const en = {
     remove: "START FROM AN EMPTY BINDER",
   },
 
+  /* The texts a public address has to carry. The order of the privacy
+     section states the doctrine: what does NOT leave first, because that
+     is the product's promise and the first thing people come to check. */
+  legal: {
+    title: "Legal and terms",
+    since: "in force since {{date}}",
+    toFill: "to be filled in",
+    incomplete:
+      "These notices are incomplete: the publisher has not named itself yet. They must be completed before opening to the public.",
+    publisher: "The publisher",
+    hostedBy: "Hosting: {{host}}",
+
+    privacy: "What we know about you",
+    privacyLocal:
+      "Your collection lives in your browser. Cards, notes, reviews, screenings, the arrangement of your walls and your posters only leave your machine if you open an account, and only so they can be copied onto our servers and handed back to you on your other devices. With no account, we know nothing of what you file.",
+    privacyServer:
+      "With an account, we keep a handle you choose, the access keys of your devices, the copy of your collection and documents, and whatever you publish willingly in the hall. No email address is asked for, and no password exists.",
+    privacyMeasure:
+      "We measure site traffic with an Umami instance we host ourselves: no cookie, no profile, and never a card identifier — a film's address is trimmed before being counted, so the measurement cannot learn what you own.",
+    privacyRights:
+      "At any time you can take away everything we hold, erase your account's data while keeping the account, or delete the account entirely: all three are in this drawer, and none of them touches what is on your machine.",
+
+    terms: "The terms",
+    termsFree:
+      "The binder is free and stays free: filing, rating, searching, importing and exporting work offline, without an account, and will never be charged for.",
+    termsPaid:
+      "What is paid for is what we host — the mirror of your media, shared decors and the hall — because it costs us. Skins are bought with tokens earned by playing, and are not sold for money.",
+    termsStop:
+      "If you stop paying, nothing local is taken back from you: what goes dark is what lived on our side. A skin once bought is yours for good.",
+    termsConduct:
+      "In the hall, nothing illegal and nothing aimed at a person. An account used to harm may be closed, and you can block or report from the pages concerned.",
+  },
+
   language: {
     title: "Language",
     close: "Close the language picker",

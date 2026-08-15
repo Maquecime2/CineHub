@@ -894,6 +894,40 @@ const fr = {
     remove: "PARTIR D'UN CLASSEUR VIDE",
   },
 
+  /* LES TEXTES QU'UNE ADRESSE PUBLIQUE DOIT PORTER. L'ordre de la
+     confidentialité dit la doctrine : ce qui NE sort pas d'abord, parce
+     que c'est la promesse du produit et la première chose qu'on vient
+     vérifier. */
+  legal: {
+    title: "Mentions et conditions",
+    since: "en vigueur depuis le {{date}}",
+    toFill: "à compléter",
+    incomplete:
+      "Ces mentions sont incomplètes : l'éditeur ne s'est pas encore nommé. Elles doivent l'être avant toute ouverture au public.",
+    publisher: "L'éditeur",
+    hostedBy: "Hébergement : {{host}}",
+
+    privacy: "Ce que nous savons de vous",
+    privacyLocal:
+      "Votre collection vit dans votre navigateur. Les fiches, les notes, les critiques, les séances, l'agencement de vos murs et vos affiches ne quittent votre machine que si vous ouvrez un compte, et uniquement pour être recopiés sur nos serveurs afin de vous être rendus sur vos autres appareils. Sans compte, nous ne savons rien de ce que vous rangez.",
+    privacyServer:
+      "Avec un compte, nous conservons un pseudonyme que vous choisissez, les clés d'accès de vos appareils, la copie de votre collection et de vos documents, ainsi que ce que vous publiez volontairement dans le hall. Aucune adresse électronique n'est demandée, et aucun mot de passe n'existe.",
+    privacyMeasure:
+      "Nous mesurons la fréquentation du site avec une instance Umami que nous hébergeons nous-mêmes : pas de cookie, pas de profil, et jamais l'identifiant d'une fiche — l'adresse d'un film est tronquée avant d'être comptée, pour que la mesure ne puisse pas apprendre ce que vous possédez.",
+    privacyRights:
+      "Vous pouvez à tout moment emporter tout ce que nous détenons, effacer les données de votre compte en gardant le compte, ou supprimer le compte entier : les trois gestes sont dans ce tiroir, et aucun ne touche à ce qui est sur votre machine.",
+
+    terms: "Les conditions",
+    termsFree:
+      "Le classeur est gratuit et le reste : ranger, noter, chercher, importer et exporter fonctionnent hors ligne, sans compte, et ne se paieront jamais.",
+    termsPaid:
+      "Ce qui se paie est ce que nous hébergeons — le miroir de vos médias, les décors partagés et le hall — parce que cela nous coûte. Les peaux, elles, s'achètent avec des jetons qui se gagnent en jouant, et ne se vendent pas contre de l'argent.",
+    termsStop:
+      "Si vous cessez de payer, rien de ce qui est local ne vous est repris : ce qui s'éteint est ce qui vivait chez nous. Une peau achetée l'est pour toujours.",
+    termsConduct:
+      "Dans le hall, on ne publie ni contenu illégal, ni contenu qui vise quelqu'un. Un compte qui s'en sert pour nuire peut être fermé, et vous pouvez bloquer ou signaler depuis les pages concernées.",
+  },
+
   language: {
     title: "La langue",
     close: "Fermer le choix de langue",
