@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { testDb } from "./helpers.ts";
 import * as store from "../src/store.ts";
-import { DECOR_CEILING, MEDIA_CEILING, QuotaReached } from "../src/limits.ts";
+import { ceilingsFor, QuotaReached } from "../src/limits.ts";
 import type { Db } from "../src/db.ts";
 
 /* ============================================================
@@ -29,6 +29,13 @@ import type { Db } from "../src/db.ts";
    ET RANGER LIBÈRE LA PLACE, sans quoi un plafond atteint une fois
    l'est pour toujours.
    ============================================================ */
+
+/* LES BORNES D'UN COMPTE ORDINAIRE, c'est-à-dire gratuit : c'est le
+   palier par défaut du schéma, donc celui que ces comptes de test
+   portent. Les lire ici plutôt que d'écrire les constantes de référence
+   évite que ce fichier reparte en rouge à chaque fois qu'on retouche la
+   part accordée au gratuit. */
+const BORNES = ceilingsFor({});
 
 let db: Db;
 
@@ -62,7 +69,7 @@ describe("le registre des médias", () => {
 
   it("refuse au-delà du plafond, et laisse repasser ce qui est déjà noté", async () => {
     const a = await anna();
-    for (let i = 0; i < MEDIA_CEILING; i += 1) {
+    for (let i = 0; i < BORNES.media; i += 1) {
       expect(await store.noteMedia(db, a.id, `p/${a.id}/m${i}`)).toBe(true);
     }
     /* Plein : un chemin NEUF est refusé… */
@@ -70,12 +77,12 @@ describe("le registre des médias", () => {
     /* …mais un chemin DÉJÀ noté passe encore, sinon on ne pourrait plus
        resynchroniser ce qu'on a déjà déposé. */
     expect(await store.noteMedia(db, a.id, `p/${a.id}/m0`)).toBe(true);
-    expect((await store.usageOf(db, a.id)).media).toBe(MEDIA_CEILING);
+    expect((await store.usageOf(db, a.id)).media).toBe(BORNES.media);
   });
 
   it("libère la place quand on range", async () => {
     const a = await anna();
-    for (let i = 0; i < MEDIA_CEILING; i += 1) await store.noteMedia(db, a.id, `p/${a.id}/m${i}`);
+    for (let i = 0; i < BORNES.media; i += 1) await store.noteMedia(db, a.id, `p/${a.id}/m${i}`);
     expect(await store.noteMedia(db, a.id, `p/${a.id}/neuf`)).toBe(false);
 
     await store.forgetMedia(db, a.id, `p/${a.id}/m0`);
@@ -116,7 +123,7 @@ describe("le plafond des décors", () => {
 
   it("refuse au-delà du nombre, en nommant ce qui est plein", async () => {
     const a = await anna();
-    for (let i = 0; i < DECOR_CEILING; i += 1) {
+    for (let i = 0; i < BORNES.decors; i += 1) {
       await store.createDecor(db, { ownerId: a.id, label: `objet ${i}` });
     }
     await expect(store.createDecor(db, { ownerId: a.id, label: "de trop" })).rejects.toThrow(
@@ -179,7 +186,7 @@ describe("ce que le plafond ne touche pas", () => {
      avec la place qu'on occupe en médias. */
   it("laisse passer les fiches quand les médias sont pleins", async () => {
     const a = await anna();
-    for (let i = 0; i < MEDIA_CEILING; i += 1) await store.noteMedia(db, a.id, `p/${a.id}/m${i}`);
+    for (let i = 0; i < BORNES.media; i += 1) await store.noteMedia(db, a.id, `p/${a.id}/m${i}`);
     expect(await store.noteMedia(db, a.id, `p/${a.id}/neuf`)).toBe(false);
 
     await store.storeCard(db, a.id, {

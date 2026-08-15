@@ -114,82 +114,101 @@ la forme de `ref` le plafonne à vie. Le vérifiable — quiz, défis, contribut
   Exception assumée : un menu ancré à son bouton (`position: absolute` sous
   lui, avec son voile) reste dans la colonne — le sortir romprait l'ancrage.
 
-## Ce qui se paie, et la ligne que le paiement ne franchit pas
+## Trois paliers, et ce que chacun ouvre
 
-Ce classeur se vend. Cette section dit où passe la ligne, parce que c'est la
-seule chose qu'on ne peut pas retrouver en lisant le code.
+Ce classeur se vend, et le compte en est la porte. Cette section dit qui a le
+droit de quoi, parce que c'est la seule chose qu'on ne peut pas retrouver en
+lisant le code.
 
-**LE CLASSEUR NE SE PAIE JAMAIS.** Ranger, noter, chercher, importer, exporter,
-tenir ses séances, écrire ses critiques : gratuit, hors ligne, sans compte, et
-ça le reste. Un produit dont l'argument est « tes données sont à toi » ne peut
-pas mettre la lecture de ces données derrière une caisse — le jour où on le
-fait, on vend autre chose, et on ne peut plus dire la phrase.
+**IL Y A EU UNE AUTRE DOCTRINE, ET ELLE EST MORTE.** Ce fichier a promis
+pendant tout un chantier que « le classeur ne se paie jamais », qu'il marchait
+entier hors ligne et sans compte, et que ce qui dépendait du dehors était
+invisible en son absence. Ce n'est plus vrai, volontairement. Ce paragraphe
+reste parce qu'une doctrine renversée sans qu'on le dise laisse derrière elle
+des commentaires qui argumentent l'inverse du code — et on en lit encore.
 
-Ce qui se paie est donc **ce qui coûte au serveur ou n'existe que grâce à lui** :
+### Sans compte : la visite, et douze fiches à regarder
 
-- **L'abonnement** ouvre le miroir des médias, les décors partagés et le hall.
-  On ne facture pas une fonctionnalité, on facture une CAPACITÉ qu'on héberge —
-  d'où le fait qu'il n'y ait rien à verrouiller côté classeur.
-- **Les peaux s'achètent en JETONS, et les jetons se GAGNENT.** Une seule peau
-  est donnée, celle avec laquelle le classeur a toujours été dessiné ; les
-  seize autres se prennent au comptoir. **On ne vend pas de jetons contre de
-  l'argent** : `merit_event` est un classement, et un classement qu'on peut
-  acheter ne mesure plus rien. C'est la seule règle de cette section qui
-  interdit un revenu, et elle est délibérée.
+On voit la visite guidée et les douze fiches de démonstration, affiches
+comprises — elles viennent du serveur (`GET /demo`), qui les tient en stock
+commun. **On ne crée rien, on n'importe rien, on n'interroge pas TMDB.** Ce
+n'est pas un classeur bridé : c'est une vitrine, et elle n'a pas d'autre
+prétention.
 
-### Cesser de payer ne reprend rien
+### Avec un compte : tout, borné
 
-**Rien de ce qui est local ne se reprend, jamais.** L'abonnement qui s'arrête
-éteint ce qui vivait dehors — le miroir, le partage, le hall — et le classeur
-continue entier sur la machine, avec tout ce qu'il contient. C'est la même
-garantie que « sans serveur, le classeur marche entier », vue depuis la
-facturation, et c'est pour ça que les deux sections tiennent ensemble.
+Tout le produit s'ouvre — ranger, noter, chercher, importer, exporter, les
+séances, les critiques, le hall. **Une session valide est nécessaire pour
+ouvrir le classeur** : le coffre local reste un CACHE qui garde l'application
+rapide, il n'est plus la vérité. Sans réseau, on ne rentre pas.
+
+Ce qui est borné est ce qui COÛTE au serveur — le miroir des médias, les
+décors, le nombre d'imports. Les bornes vivent dans `server/src/limits.ts`, en
+une fonction du palier, et se règlent par l'environnement.
+
+### Avec un abonnement : les mêmes bornes, desserrées
+
+On ne facture pas une fonctionnalité, on facture une CAPACITÉ qu'on héberge.
+Le palier vit dans le SCHÉMA — une colonne `plan` sur `person` — comme le
+reste de ce qui protège quelqu'un ; une règle écrite dans une route se
+contourne par la route suivante. Il s'accorde à la main tant que la
+facturation n'existe pas.
+
+**L'ADMIN PASSE AU-DESSUS DE TOUT.** `ADMINS=maquecime` dans l'environnement,
+appliqué à chaque démarrage par `index.ts` : un rôle qu'aucune requête ne peut
+accorder est un rôle dans lequel personne ne peut monter.
+
+### Les jetons ne se vendent pas
+
+Une seule peau est donnée ; les seize autres se prennent au comptoir, **en
+jetons, et les jetons se GAGNENT**. On ne les vend pas contre de l'argent :
+`merit_event` est un classement, et un classement qu'on peut acheter ne mesure
+plus rien. C'est la seule règle de cette section qui interdit un revenu, et
+elle est délibérée.
 
 Une peau achetée l'est pour toujours : `owned` n'a pas de date, et rien ne
-l'efface. Le droit dans le temps, lui, est celui de l'abonnement, et il vit dans
-le SCHÉMA comme le reste de ce qui protège quelqu'un — pas dans une route, qui
-se contourne par la route suivante.
+l'efface. Un abonnement qui s'arrête ne la reprend pas.
 
 ### Le verrou est au choix, jamais à l'application
 
 `applySkin.ts` IGNORE le champ `locked` et sert la peau qu'on lui demande sans
-poser de question : s'il consultait le serveur, un rechargement hors ligne
-retomberait sur « carnet » et le classeur se déguiserait tout seul. **Le verrou
-est dans `SkinPicker`, jamais dans l'application de la peau.**
-
-Et il s'y applique AUSSI SANS SERVEUR : `isLocked` ne demande pas
-`serverConfigured()`. Une peau verrouillée se voit, avec son prix, sur un
-classeur qui n'a jamais parlé à personne — c'est la seule chose du produit qui
-donne une raison d'ouvrir un compte, et une vitrine cachée n'attire personne.
-Ce que ça ne change pas : on range, on note, on cherche, on importe, on exporte.
-Ce qu'on n'a pas, c'est le choix de la robe.
-
-Les tampons et les vignettes échappent au problème autrement : ils n'existent
-que là où des pseudonymes se croisent. Sans compte, il n'y a personne à qui les
-montrer.
+poser de question. **Le verrou est dans `SkinPicker`, jamais dans l'application
+de la peau** — sans quoi un rechargement ferait retomber le classeur sur
+« carnet » et il se déguiserait tout seul.
 
 `src/theme/skins.test.ts` tient la règle : une seule peau libre, un prix entier
 sur chaque autre, un article de boutique pour chacune, et le même prix que
 `server/src/shop.ts` — qui est l'original, puisque c'est lui qui débite.
 
-## Le serveur vit à côté, et le classeur vit sans lui
+## Le serveur EST le classeur
 
 `server/` est un second paquet, avec ses propres dépendances et ses
 propres contrôles (`cd server && npm test && npm run typecheck`). Il n'est
 pas dans la liste ci-dessous.
 
-**Le client l'appelle, et abondamment** — `src/services/server.ts`, lu par
-une vingtaine de fichiers : comptes par clés d'accès, synchro des fiches
-et des documents, partage, listes et défis, relais TMDB, miroir des
-médias. Ce qui reste vrai, et qui ne se négocie pas : **sans adresse de
-serveur, sans compte ou sans réseau, le classeur marche entier.** Toute
-fonctionnalité qui dépend du dehors est donc INVISIBLE en son absence,
-jamais grisée : `serverConfigured()` et `accountOpen()` sont les deux
-questions à poser avant de dessiner quoi que ce soit.
+**LA PORTE EST UNE SESSION.** Au chargement, `App` demande `/me` et lit la
+réponse en trois états, qui ne se confondent jamais :
 
-Trois choses, à ce titre, ne sont jamais sur le chemin d'un geste : le
-dépôt d'un média, la montée d'un décor, l'envoi d'une fiche. On écrit en
-local, on rend la main, et la synchro suivante rattrape.
+| Réponse          | Écran                                                     |
+| ---------------- | --------------------------------------------------------- |
+| Une personne     | Le classeur                                               |
+| Refus (401/403)  | La porte : visite, démos, « ouvrir un compte »            |
+| Silence (réseau) | La reconnexion : « on n'arrive pas à joindre le serveur » |
+
+`whoAmI` ([src/services/server.ts]) fait déjà cette distinction et il faut la
+garder : « tu n'es pas connecté » et « on n'y arrive pas » n'appellent pas le
+même geste, et les confondre est le défaut classique de ce genre de porte.
+
+**LE COFFRE LOCAL EST UN CACHE, PAS LA VÉRITÉ.** IndexedDB tient la collection
+pour que l'application soit instantanée et pour que la synchro sache quoi
+envoyer ; la copie qui fait foi est au serveur. Ce qui suit reste vrai et le
+reste : le dépôt d'un média, la montée d'un décor et l'envoi d'une fiche ne
+sont JAMAIS sur le chemin d'un geste. On écrit en local, on rend la main, la
+synchro rattrape.
+
+**UNE GARDE D'ÉCRAN N'EST PAS UNE GARDE.** La porte de session cache
+l'interface ; elle ne protège rien. Chaque route continue de demander son
+compte, et chaque plafond vit dans la requête qui écrit.
 
 - Le schéma est du **SQL qu'on lit** (`server/sql/001_baseline.sql`), pas la
   sortie d'un ORM. Les requêtes vivent toutes dans `server/src/store.ts`,
@@ -200,19 +219,22 @@ local, on rend la main, et la synchro suivante rattrape.
   éprouvées sont celles de la production.
 - Ce qui protège quelqu'un est dans le SCHÉMA quand c'est possible —
   unicité, forme du pseudonyme, cascade d'effacement, refus d'une
-  version périmée. Une règle écrite dans une route se contourne par la
-  route suivante. Quand le schéma ne suffit pas, la règle vit dans
-  `store.ts` en une seule requête : `canReadDecor` en est l'exemple, où
-  le blocage entre deux personnes l'emporte sur la vitrine — écrit en
-  trois vérifications plus une quatrième posée par-dessus, c'est la
-  quatrième qu'on finit par oublier.
-- **Les médias ont deux préfixes, et ce n'est pas cosmétique.**
+  version périmée, plafond appliqué DANS l'insert. Une règle écrite dans
+  une route se contourne par la route suivante. Quand le schéma ne suffit
+  pas, la règle vit dans `store.ts` en une seule requête : `canReadDecor`
+  en est l'exemple, où le blocage entre deux personnes l'emporte sur la
+  vitrine — écrit en trois vérifications plus une quatrième posée
+  par-dessus, c'est la quatrième qu'on finit par oublier.
+- **Les médias ont trois préfixes, et ce n'est pas cosmétique.**
   `p/<id de personne>/<clé>` est privé et LE CHEMIN EST LA PREUVE : un
   ticket n'est signé que pour son propre préfixe. `decor/<id>` est
-  partageable, et son droit de lecture se lit en base. Un décor rangé
-  sous le préfixe privé aurait obligé, le jour du partage, à signer sur
-  le préfixe privé d'autrui — et la garantie la plus simple du système
-  aurait sauté pour tout le monde, affiches comprises.
+  partageable, et son droit de lecture se lit en base. `bank/<catégorie>`
+  est du stock commun que tout le monde lit et que seul un admin écrit —
+  c'est là que vivent les affiches des douze démonstrations, puisqu'elles
+  se montrent à qui n'a pas de compte. Un décor rangé sous le préfixe
+  privé aurait obligé, le jour du partage, à signer sur le préfixe privé
+  d'autrui — et la garantie la plus simple du système aurait sauté pour
+  tout le monde, affiches comprises.
 - Un SVG venu du container d'autrui repasse par `sanitizeSvg` **à la
   réception**. `CustomDraw` l'injecte en ligne ; l'assainissement au
   dépôt ne compte pour rien dans cette décision.

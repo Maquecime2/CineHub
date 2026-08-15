@@ -10,15 +10,19 @@
    et il suffit d'une personne pour la faire.
 
    ------------------------------------------------------------
-   POURQUOI UN SEUL JEU DE CHIFFRES
+   TROIS PALIERS, UN SEUL JEU DE CHIFFRES
    ------------------------------------------------------------
 
-   Le produit va vers l'abonnement, donc vers des paliers. Ils
-   n'existent pas encore, et inventer une table de droits avant d'avoir
-   une facturation serait construire la moitié d'un mécanisme que
-   personne ne peut exercer. Ces plafonds sont donc CEUX DE TOUT LE
-   MONDE aujourd'hui, et le jour où un palier arrive, c'est ici qu'il
-   viendra chercher ses chiffres — pas dans quinze requêtes.
+   `plus` porte les chiffres de référence — ceux qu'on a choisis sur un
+   usage réel. `free` en tient la moitié, plus un import par mois. Et
+   l'ADMIN passe au-dessus de tout.
+
+   LES BORNES NE DÉCIDENT DE RIEN D'AUTRE. Un compte gratuit a le produit
+   ENTIER : les mêmes écrans, les mêmes gestes, le même hall. Ce qui
+   change est la place qu'il occupe chez nous, parce que c'est la seule
+   chose qui nous coûte. Verrouiller une fonctionnalité aurait demandé de
+   la verrouiller partout où elle se touche ; borner une capacité se fait
+   en un endroit, celui qui écrit.
 
    ILS SE RÈGLENT PAR L'ENVIRONNEMENT. Une instance qui héberge trois
    personnes et une qui en héberge trois mille n'ont pas la même idée de
@@ -26,21 +30,39 @@
    friction qui fait qu'on ne le change jamais.
 
    ------------------------------------------------------------
-   CE QU'ILS PROTÈGENT, ET CE QU'ILS NE TOUCHENT PAS
+   CE QU'ILS NE TOUCHENT PAS
    ------------------------------------------------------------
 
-   RIEN ICI NE CONCERNE LE CLASSEUR. Ranger, noter, chercher, importer,
-   exporter restent sans borne et sans compte : ces plafonds bornent ce
-   que le SERVEUR héberge — le miroir des médias et les décors —, ce qui
-   est exactement la ligne écrite dans `CLAUDE.md`. Un classeur qui
-   atteint son plafond de miroir continue entier sur la machine ; ce
-   qu'il perd, c'est la copie au chaud.
+   LES FICHES NE SE BORNENT PAS. Ranger et noter est le geste central du
+   produit ; le compter reviendrait à faire payer la lecture de ses
+   propres données. Ce sont le MIROIR des médias, les DÉCORS et les
+   IMPORTS qui sont bornés — les trois choses qui coûtent au serveur.
+
+   ------------------------------------------------------------
+   CE FICHIER N'IMPORTE RIEN DE `store.ts`, ET C'EST OBLIGATOIRE
+   ------------------------------------------------------------
+
+   Il en tirait `Person` pour typer `ceilingsFor`, et `store.ts` en tire
+   `ceilingsFor` : un cycle, que `tsc` a payé en saturant quatre
+   gigaoctets avant d'abandonner. Les deux champs dont on a besoin sont
+   décrits ici, en clair. C'est trois lignes de plus et zéro dépendance —
+   ce module dit ce qu'un compte a le droit d'occuper, il n'a aucune
+   raison de savoir ce qu'est un compte.
    ============================================================ */
+
+/** Le strict nécessaire pour décider d'un plafond. */
+export interface Holder {
+  plan?: string | null;
+  is_admin?: boolean | null;
+}
 
 const nombre = (raw: string | undefined, defaut: number): number => {
   const n = Number((raw ?? "").trim());
   return Number.isInteger(n) && n > 0 ? n : defaut;
 };
+
+/* Les chiffres de RÉFÉRENCE, ceux du palier `plus`. Le gratuit en prend
+   une part, définie juste en dessous. */
 
 /**
  * Combien de médias privés un compte peut faire autoriser.
@@ -72,6 +94,59 @@ export const DECOR_CEILING = nombre(process.env.PLAFOND_DECORS, 200);
 export const DECOR_BYTES_CEILING = nombre(process.env.PLAFOND_DECORS_OCTETS, 40 * 1024 * 1024);
 
 /**
+ * Combien d'imports par fenêtre de trente jours, en gratuit.
+ *
+ * UN. Un import Letterboxd de six cents films, c'est six cents
+ * interrogations du relais TMDB : c'est le geste le plus cher du
+ * produit, et le seul qu'on répète en boucle sans y penser. Le palier
+ * `plus` n'en compte pas.
+ */
+export const FREE_IMPORTS = nombre(process.env.PLAFOND_IMPORTS_GRATUIT, 1);
+
+/** La fraction des plafonds de référence que tient un compte gratuit. */
+const FREE_SHARE = 0.5;
+
+/** Ce qu'un palier accorde. `Infinity` veut dire « rien ne refuse ». */
+export interface Ceilings {
+  media: number;
+  decors: number;
+  decorBytes: number;
+  /** `Infinity` : on ne compte pas les imports de ce palier. */
+  imports: number;
+}
+
+/**
+ * Les bornes de cette personne-ci.
+ *
+ * ON PREND LA PERSONNE ET NON LE PALIER, et c'est délibéré : l'admin est
+ * un champ de la personne, pas un troisième palier. Passer `plan` seul
+ * aurait obligé chaque appelant à se souvenir de tester `is_admin`
+ * à côté — donc à l'oublier une fois.
+ */
+export function ceilingsFor(person: Holder): Ceilings {
+  /* L'ADMIN PASSE AU-DESSUS DE TOUT. `Infinity` plutôt qu'un très grand
+     nombre : une comparaison contre l'infini ne se trompe jamais, là où
+     un milliard finit par ressembler à une limite. */
+  if (person.is_admin) {
+    return { media: Infinity, decors: Infinity, decorBytes: Infinity, imports: Infinity };
+  }
+  if (person.plan === "plus") {
+    return {
+      media: MEDIA_CEILING,
+      decors: DECOR_CEILING,
+      decorBytes: DECOR_BYTES_CEILING,
+      imports: Infinity,
+    };
+  }
+  return {
+    media: Math.floor(MEDIA_CEILING * FREE_SHARE),
+    decors: Math.floor(DECOR_CEILING * FREE_SHARE),
+    decorBytes: Math.floor(DECOR_BYTES_CEILING * FREE_SHARE),
+    imports: FREE_IMPORTS,
+  };
+}
+
+/**
  * Le plafond est atteint.
  *
  * UNE ERREUR ET NON UNE VALEUR DE RETOUR, et c'est pour rester
@@ -85,7 +160,7 @@ export const DECOR_BYTES_CEILING = nombre(process.env.PLAFOND_DECORS_OCTETS, 40 
  * relire la phrase.
  */
 export class QuotaReached extends Error {
-  constructor(readonly quel: "medias" | "decors" | "decors-octets") {
+  constructor(readonly quel: "medias" | "decors" | "decors-octets" | "imports") {
     super("Plafond atteint.");
     this.name = "QuotaReached";
   }

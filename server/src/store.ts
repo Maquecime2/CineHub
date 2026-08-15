@@ -14,7 +14,7 @@ import { planDraw } from "./draw.ts";
 import { CHALLENGE_HALF, DECLARED, DECLARED_CEILING, RATE, REVIEW_LENGTH } from "./points.ts";
 import type { Kind } from "./points.ts";
 import { draw, itemById } from "./shop.ts";
-import { DECOR_BYTES_CEILING, DECOR_CEILING, MEDIA_CEILING, QuotaReached } from "./limits.ts";
+import { ceilingsFor, QuotaReached } from "./limits.ts";
 import type { PowerKind, Rng } from "./shop.ts";
 import type { Difficulty, Stock } from "./draw.ts";
 
@@ -26,6 +26,8 @@ export interface Person {
   token?: string | null;
   /** Writes quizzes. Laid down from the environment, never from a route. */
   is_admin?: boolean;
+  /** Ce que le compte a le droit d'occuper : voir `limits.ts`. */
+  plan?: string;
   /** Le cachet porté au comptoir, s'il y en a un. */
   stamp?: string | null;
 }
@@ -45,7 +47,7 @@ export interface AccessKey {
 export async function findByPseudo(db: Db, pseudo: string): Promise<Person | null> {
   return one<Person>(
     db,
-    "SELECT id, pseudo, email, sharing, token, is_admin, stamp FROM person WHERE pseudo = $1",
+    "SELECT id, pseudo, email, sharing, token, is_admin, plan, stamp FROM person WHERE pseudo = $1",
     [pseudo]
   );
 }
@@ -53,7 +55,7 @@ export async function findByPseudo(db: Db, pseudo: string): Promise<Person | nul
 export async function findById(db: Db, id: string): Promise<Person | null> {
   return one<Person>(
     db,
-    "SELECT id, pseudo, email, sharing, token, is_admin FROM person WHERE id = $1",
+    "SELECT id, pseudo, email, sharing, token, is_admin, plan FROM person WHERE id = $1",
     [id]
   );
 }
@@ -76,7 +78,7 @@ export async function markAdmins(db: Db, pseudos: string[]): Promise<void> {
 export async function createPerson(db: Db, pseudo: string): Promise<Person> {
   const p = await one<Person>(
     db,
-    "INSERT INTO person (id, pseudo) VALUES ($1, $2) RETURNING id, pseudo, email, is_admin",
+    "INSERT INTO person (id, pseudo) VALUES ($1, $2) RETURNING id, pseudo, email, is_admin, plan",
     [randomUUID(), pseudo]
   );
   if (!p) throw new Error("person not created");
@@ -260,7 +262,7 @@ export async function openSession(db: Db, personId: string): Promise<string> {
 export async function personOfSession(db: Db, secret: string): Promise<Person | null> {
   return one<Person>(
     db,
-    `SELECT p.id, p.pseudo, p.email, p.sharing, p.token, p.is_admin
+    `SELECT p.id, p.pseudo, p.email, p.sharing, p.token, p.is_admin, p.plan
        FROM session s JOIN person p ON p.id = s.person_id
       WHERE s.digest = $1 AND s.expires_at > now()`,
     [fingerprintOf(secret)]
@@ -836,6 +838,75 @@ export async function myBlocks(db: Db, personId: string): Promise<string[]> {
  * gesture is the same, and a moderation queue a human will have to read
  * must not swell with every repeated click.
  */
+/**
+ * Accorder ou retirer un palier.
+ *
+ * À LA MAIN TANT QU'IL N'Y A PAS DE FACTURATION, et c'est le seul
+ * endroit qui écrit cette colonne. Le jour où un prestataire de paiement
+ * arrive, c'est lui qui appellera ceci depuis son webhook — la surface à
+ * relire sera d'une fonction.
+ */
+export async function setPlan(db: Db, personId: string, plan: "free" | "plus"): Promise<boolean> {
+  const r = await db.query<{ id: string }>(
+    "UPDATE person SET plan = $2 WHERE id = $1 RETURNING id",
+    [personId, plan]
+  );
+  return r.length > 0;
+}
+
+/* ------------------------------------------------------------
+   LES IMPORTS — le geste le plus cher du produit
+   ------------------------------------------------------------
+
+   Six cents films importés, c'est six cents interrogations du relais
+   TMDB. On compte donc, sur une fenêtre GLISSANTE de trente jours : un
+   compteur remis à zéro le premier du mois donnerait deux imports à
+   cheval sur deux jours.
+
+   ON COMPTE À LA CONFIRMATION, pas au dépôt du fichier. Déposer un
+   bordereau pour voir ce qu'il contient ne coûte rien et ne doit rien
+   coûter ; ce qui compte est l'écriture dans la collection. */
+
+const IMPORT_WINDOW = "30 days";
+
+/** Combien d'imports sur les trente derniers jours. */
+export async function importsInWindow(db: Db, personId: string): Promise<number> {
+  const r = await one<{ n: string }>(
+    db,
+    `SELECT count(*)::text AS n FROM import_run
+      WHERE person_id = $1 AND ran_at > now() - interval '${IMPORT_WINDOW}'`,
+    [personId]
+  );
+  return Number(r?.n ?? 0);
+}
+
+/**
+ * Note un import, et dit si le palier le permettait.
+ *
+ * LE COMPTE ET L'ÉCRITURE SONT DANS LA MÊME REQUÊTE, pour la raison qui
+ * vaut partout ailleurs ici : entre lire un total et écrire une ligne,
+ * deux requêtes concurrentes passent toutes les deux. Deux imports
+ * lancés dans le même souffle depuis deux onglets en seraient un de
+ * trop.
+ */
+export async function noteImport(db: Db, personId: string): Promise<boolean> {
+  const bornes = ceilingsFor((await findById(db, personId)) ?? {});
+  /* Rien à compter pour un palier sans borne — et surtout rien à
+     écrire : une table qui grossit pour personne est une table qu'on
+     nettoiera un jour sans savoir pourquoi. */
+  if (bornes.imports === Infinity) return true;
+
+  const rows = await db.query<{ id: string }>(
+    `INSERT INTO import_run (id, person_id)
+     SELECT $1, $2
+      WHERE (SELECT count(*) FROM import_run
+              WHERE person_id = $2 AND ran_at > now() - interval '${IMPORT_WINDOW}') < $3
+     RETURNING id`,
+    [randomUUID(), personId, bornes.imports]
+  );
+  return rows.length > 0;
+}
+
 /* ============================================================
    LE BUREAU DE MODÉRATION
    ============================================================
@@ -2192,6 +2263,12 @@ export async function createDecor(
     bytes?: number;
   }
 ): Promise<Decor> {
+  /* LES BORNES VIENNENT DU PALIER, ET L'ADMIN N'EN A PAS. On lit la
+     personne ici plutôt que de la faire descendre : une signature qui
+     réclamerait les bornes serait une signature qu'on peut appeler avec
+     les mauvaises. */
+  const bornes = ceilingsFor((await findById(db, d.ownerId)) ?? {});
+
   /* LE PLAFOND EST DANS L'INSERT, ET NON AUTOUR — même raison que le
      plafond quotidien de `award` juste plus bas : entre lire le total et
      écrire la ligne, deux requêtes concurrentes passent toutes les deux.
@@ -2219,8 +2296,8 @@ export async function createDecor(
       d.kind ?? "raster",
       d.tintable ?? false,
       d.bytes ?? 0,
-      DECOR_CEILING,
-      DECOR_BYTES_CEILING,
+      bornes.decors,
+      bornes.decorBytes,
     ]
   );
   if (!row) {
@@ -2234,7 +2311,7 @@ export async function createDecor(
          FROM decor WHERE owner_id = $1 AND NOT deleted`,
       [d.ownerId]
     );
-    throw new QuotaReached(Number(tenu?.n ?? 0) >= DECOR_CEILING ? "decors" : "decors-octets");
+    throw new QuotaReached(Number(tenu?.n ?? 0) >= bornes.decors ? "decors" : "decors-octets");
   }
   return row;
 }
@@ -2264,6 +2341,7 @@ export async function noteMedia(
   path: string,
   bytes = 0
 ): Promise<boolean> {
+  const bornes = ceilingsFor((await findById(db, personId)) ?? {});
   const rows = await db.query<{ ok: number }>(
     `WITH deja AS (
        SELECT 1 FROM media WHERE person_id = $1 AND path = $2
@@ -2279,7 +2357,7 @@ export async function noteMedia(
        RETURNING 1
      )
      SELECT 1::int AS ok FROM permis`,
-    [personId, path, bytes, MEDIA_CEILING]
+    [personId, path, bytes, bornes.media]
   );
   return rows.length > 0;
 }
@@ -2300,7 +2378,16 @@ export async function usageOf(
   decorCeiling: number;
   decorBytes: number;
   decorBytesCeiling: number;
+  imports: number;
+  importCeiling: number;
+  plan: string;
 }> {
+  /* LES BORNES SORTENT AVEC LES CHIFFRES, sans quoi l'écran devrait
+     connaître les paliers pour savoir quoi comparer — et il les
+     connaîtrait mal le jour où ils changent. */
+  const person = await findById(db, personId);
+  const bornes = ceilingsFor(person ?? {});
+
   const m = await one<{ n: string }>(
     db,
     "SELECT count(*)::text AS n FROM media WHERE person_id = $1",
@@ -2314,11 +2401,14 @@ export async function usageOf(
   );
   return {
     media: Number(m?.n ?? 0),
-    mediaCeiling: MEDIA_CEILING,
+    mediaCeiling: bornes.media,
     decors: Number(d?.n ?? 0),
-    decorCeiling: DECOR_CEILING,
+    decorCeiling: bornes.decors,
     decorBytes: Number(d?.poids ?? 0),
-    decorBytesCeiling: DECOR_BYTES_CEILING,
+    decorBytesCeiling: bornes.decorBytes,
+    imports: await importsInWindow(db, personId),
+    importCeiling: bornes.imports,
+    plan: person?.plan === "plus" ? "plus" : "free",
   };
 }
 

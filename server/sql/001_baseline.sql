@@ -230,6 +230,52 @@ ALTER TABLE IF EXISTS person
   ADD COLUMN IF NOT EXISTS is_admin boolean NOT NULL DEFAULT false;
 
 -- ------------------------------------------------------------
+-- LE PALIER
+-- ------------------------------------------------------------
+-- Ce qu'un compte a le droit d'occuper chez nous. Il ne décide de rien
+-- d'autre : les fonctionnalités sont les mêmes des deux côtés, ce sont
+-- les BORNES qui changent — voir `src/limits.ts`, qui les tient toutes.
+--
+-- DANS LE SCHÉMA ET NON DANS UNE ROUTE, comme le reste de ce qui protège
+-- ou autorise quelqu'un. Une route qui accorderait un palier serait une
+-- route à protéger, et il n'y en a pas : la colonne s'écrit à la main
+-- tant que la facturation n'existe pas, et c'est elle que la facturation
+-- écrira le jour venu.
+--
+-- LE DÉFAUT EST `free`, ce qui veut dire que le palier généreux se donne
+-- explicitement. Un défaut à `plus` aurait ouvert les vannes à tout
+-- compte créé pendant que le paiement est en panne.
+ALTER TABLE IF EXISTS person
+  ADD COLUMN IF NOT EXISTS plan text NOT NULL DEFAULT 'free';
+
+ALTER TABLE IF EXISTS person DROP CONSTRAINT IF EXISTS person_plan_check;
+ALTER TABLE IF EXISTS person
+  ADD CONSTRAINT person_plan_check CHECK (plan IN ('free', 'plus'));
+
+-- ------------------------------------------------------------
+-- LES IMPORTS, ET COMBIEN ON EN A FAIT
+-- ------------------------------------------------------------
+-- Un import Letterboxd de six cents films, c'est six cents interrogations
+-- du relais TMDB : c'est le geste le plus cher du produit, et le seul
+-- qu'on puisse répéter en boucle sans y penser.
+--
+-- ON COMPTE À LA CONFIRMATION, PAS AU DÉPÔT DU FICHIER. Déposer un
+-- bordereau pour voir ce qu'il contient ne coûte rien et ne doit rien
+-- coûter ; ce qui compte est l'écriture dans la collection. Quelqu'un qui
+-- dépose trois fichiers avant de se décider n'a pas fait trois imports.
+--
+-- UNE LIGNE PAR IMPORT, et pas un compteur qu'on incrémente : on veut la
+-- fenêtre glissante de trente jours, donc les DATES. Un compteur remis à
+-- zéro le premier du mois donnerait deux imports à cheval sur deux jours.
+CREATE TABLE IF NOT EXISTS import_run (
+  id            uuid PRIMARY KEY,
+  person_id     uuid NOT NULL REFERENCES person(id) ON DELETE CASCADE,
+  ran_at        timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS import_run_window ON import_run(person_id, ran_at DESC);
+
+-- ------------------------------------------------------------
 -- THE PASSKEY
 -- ------------------------------------------------------------
 -- What the browser keeps is a pair of keys; what the server keeps is the
