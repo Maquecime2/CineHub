@@ -50,11 +50,38 @@ export function RichField({
      pas besoin d'avoir le focus pour savoir où l'on écrivait. */
   const lastCaret = useRef<number | null>(null);
 
+  /* OÙ EST LE CURSEUR, EN CARACTÈRES DU TEXTE SÉRIALISÉ.
+
+     ON MESURE CE QUI PRÉCÈDE, on ne cherche plus un point d'arrêt.
+
+     La version d'avant passait `{node, offset}` à `htmlToText`, qui ne
+     s'arrête QUE sur un nœud de texte. Or un champ éditable ancre très
+     souvent la sélection sur l'ÉLÉMENT — après une image, en fin de
+     ligne, sur une ligne vide — avec un décalage qui est un indice
+     d'enfant et non une position dans une chaîne. Le parcours ne
+     rencontrait alors jamais son arrêt, allait jusqu'au bout, et rendait
+     la longueur TOTALE : la vignette se posait à la fin du texte, quoi
+     qu'on ait visé.
+
+     C'est aussi ce qui rendait le défaut si difficile à croire, et une
+     épreuve avait beau exister, elle plaçait un `Range` sur un nœud de
+     texte — le seul cas qui marchait.
+
+     Cloner ce qui précède et le sérialiser répond pour TOUS les
+     ancrages, parce que la question posée au navigateur devient « que
+     contient l'intervalle » plutôt que « où t'arrêtes-tu ». */
   const caretNow = (): number | null => {
     const el = ref.current;
     const sel = window.getSelection();
-    if (!el || !sel?.rangeCount || !sel.anchorNode || !el.contains(sel.anchorNode)) return null;
-    return htmlToText(el, { node: sel.anchorNode, offset: sel.anchorOffset }).length;
+    if (!el || !sel?.rangeCount) return null;
+    const at = sel.getRangeAt(0);
+    if (!el.contains(at.startContainer)) return null;
+    const before = document.createRange();
+    before.setStart(el, 0);
+    before.setEnd(at.startContainer, at.startOffset);
+    const holder = document.createElement("div");
+    holder.appendChild(before.cloneContents());
+    return htmlToText(holder).length;
   };
 
   const rememberCaret = () => {

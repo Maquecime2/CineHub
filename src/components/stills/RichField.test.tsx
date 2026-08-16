@@ -80,4 +80,34 @@ describe("l'insertion d'une capture", () => {
 
     expect(insert()("[img:1]")).toBe("bon[img:1]jour");
   });
+
+  /* LE CAS QUI A RÉSISTÉ À DEUX CORRECTIONS, et le seul qu'aucune
+     épreuve ne couvrait : insérer JUSTE APRÈS une vignette déjà posée.
+
+     Là, le champ éditable n'ancre pas la sélection sur un nœud de texte
+     mais sur l'ÉLÉMENT, avec un décalage qui est un indice d'enfant. La
+     mesure d'avant cherchait un point d'arrêt sur un nœud de texte, ne
+     le rencontrait jamais, parcourait tout et rendait la longueur
+     TOTALE — la seconde vignette se posait à la fin du texte.
+
+     Les épreuves précédentes plaçaient toutes un `Range` sur du texte :
+     elles passaient, et la fonctionnalité ne marchait pas. */
+  it("pose la suivante juste après celle qui est déjà là", () => {
+    const { field, insert } = mount("avant[img:1]apres");
+
+    const img = field.querySelector("img");
+    expect(img).not.toBeNull();
+
+    /* Ancré sur l'ÉLÉMENT, après l'image : ce que fait le navigateur
+       quand on clique là, et ce que la mesure ne savait pas lire. */
+    const after = [...field.childNodes].indexOf(img!) + 1;
+    const sel = window.getSelection()!;
+    const range = document.createRange();
+    range.setStart(field, after);
+    range.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    expect(insert()("[img:2]")).toBe("avant[img:1][img:2]apres");
+  });
 });
