@@ -18,6 +18,7 @@ import { C, F, alpha } from "../../theme/tokens";
 import { checkApiKey } from "../../tmdb";
 import { writtenKey, setTmdbKey } from "../../services/tmdbKey";
 import { accountOpen, relayServesTmdb } from "../../services/server";
+import { useDialog } from "../../hooks/useDialog";
 
 /* The same band as the skin picker: they are two drawers of the same
    rail, and the `z-index` budget reserves 59–60 for them. */
@@ -40,6 +41,8 @@ const PANEL: CSSProperties = {
 type Attempt = { state: "repos" | "essai" | "bonne" | "mauvaise"; message?: string };
 
 export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
+  /* Le focus entre, tourne, et revient au bouton d'ouverture. */
+  const box = useDialog();
   const { t } = useTranslation();
   const [key, setKey] = useState(writtenKey);
   /* Asked once, and only when there is somebody to ask for: the relay
@@ -110,7 +113,7 @@ export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
   return (
     <>
       <div onClick={onClose} data-veil style={{ position: "fixed", inset: 0, zIndex: 59 }} />
-      <div style={PANEL} role="dialog" aria-label={t("tmdbKey.title")}>
+      <div ref={box} style={PANEL} role="dialog" aria-modal="true" aria-label={t("tmdbKey.title")}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
           <div style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 1, color: C.inkFaded }}>
             {t("tmdbKey.kicker")}

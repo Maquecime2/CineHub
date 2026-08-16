@@ -27,6 +27,7 @@ import { usePurse } from "../../hooks/usePurse";
 import { BuyChip } from "../play/Buy";
 import { refreshOwned } from "../../theme/owned";
 import { useEscape } from "../../hooks/useEscape";
+import { useDialog } from "../../hooks/useDialog";
 
 const PANEL: CSSProperties = {
   position: "fixed",
@@ -195,6 +196,10 @@ export function SkinPicker({
 }) {
   usePurse();
   useEscape(onClose);
+  /* LE FOCUS ENTRE, TOURNE, ET REVIENT. `useEscape` ne fait que la
+     touche ; ouvrir ce panneau au clavier laissait le curseur DERRIÈRE
+     le voile, dans une page qu'on ne voit plus. Voir `useDialog`. */
+  const box = useDialog();
   const [, again] = useState(0);
   const mine = accountOpen() ? ownedItems() : [];
 
@@ -223,7 +228,7 @@ export function SkinPicker({
   return (
     <>
       <div onClick={onClose} data-veil style={{ position: "fixed", inset: 0, zIndex: 59 }} />
-      <div style={PANEL}>
+      <div ref={box} role="dialog" aria-modal="true" aria-label="Peau du site" style={PANEL}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
           <div
             style={{
