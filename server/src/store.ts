@@ -3159,6 +3159,60 @@ export async function retireDecor(db: Db, id: string, retired: boolean): Promise
   return rows.length > 0;
 }
 
+/* ------------------------------------------------------------
+   EFFACER POUR DE BON
+   ------------------------------------------------------------
+
+   CE BLOC CONTREDIT CELUI D'AU-DESSUS, ET C'EST VOULU. « On retire, on
+   n'efface jamais » protégeait les étagères ; le studio a maintenant les
+   deux gestes, et le second est demandé en connaissance de cause. Ce qui
+   suit dit ce qu'il coûte, pour que personne n'ait à le redécouvrir.
+
+   `decor_won` N'A PAS DE CLÉ ÉTRANGÈRE vers `decor_def` — un identifiant
+   survit à sa définition, exprès. Effacer la seule définition laisserait
+   donc des lignes de possession qui ne désignent plus rien : un carré
+   vide, sans nom, que personne ne peut retirer de sa collection. On
+   efface donc LES DEUX. L'objet quitte la collection de ceux qui
+   l'avaient, ce qui est brutal mais lisible ; le fantôme ne l'était pas.
+
+   CE QU'ON NE PEUT PAS ATTEINDRE D'ICI : une vignette déjà POSÉE sur une
+   étagère est écrite dans le document de la vue, chez la personne. Elle
+   y laissera une place vide jusqu'à ce qu'elle l'enlève. Le nombre rendu
+   ici est ce qu'il faut pour prévenir avant de le faire.
+   ------------------------------------------------------------ */
+
+/** Combien de personnes possèdent cette vignette. À dire AVANT d'effacer. */
+export async function ownersOfDecor(db: Db, id: string): Promise<number> {
+  const row = await one<{ n: string }>(
+    db,
+    "SELECT count(*)::text AS n FROM decor_won WHERE decor_id = $1",
+    [id]
+  );
+  return Number(row?.n ?? 0);
+}
+
+export async function deleteDecorDef(db: Db, id: string): Promise<boolean> {
+  await db.query("DELETE FROM decor_won WHERE decor_id = $1", [id]);
+  const rows = await db.query("DELETE FROM decor_def WHERE id = $1 RETURNING id", [id]);
+  return rows.length > 0;
+}
+
+/**
+ * La pochette, et tout ce qu'elle contenait.
+ *
+ * `decor_def.pack_id` cascade déjà ; les possessions, non — elles n'ont
+ * pas de clé étrangère. On les efface donc à la main, AVANT, tant que la
+ * liste des vignettes de la pochette existe encore.
+ */
+export async function deletePackDef(db: Db, id: string): Promise<boolean> {
+  await db.query(
+    "DELETE FROM decor_won WHERE decor_id IN (SELECT id FROM decor_def WHERE pack_id = $1)",
+    [id]
+  );
+  const rows = await db.query("DELETE FROM pack_def WHERE id = $1 RETURNING id", [id]);
+  return rows.length > 0;
+}
+
 /**
  * L'article nommé, d'où qu'il vienne.
  *

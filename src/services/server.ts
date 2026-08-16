@@ -1336,7 +1336,7 @@ export const saveDecor = (s: {
   tintable?: boolean;
 }) => call<DecorDef>("/shop/decors", { method: "POST", body: JSON.stringify(s) });
 
-/** Retirer de l'étal, ou remettre — jamais effacer. */
+/** Sortir de l'étal, ou remettre. Ne reprend rien à personne. */
 export const retirePack = (id: string, back = false) =>
   call<{ id: string; retired: boolean }>(`/shop/packs/${id}${back ? "?back=1" : ""}`, {
     method: "DELETE",
@@ -1346,6 +1346,18 @@ export const retireWonDecor = (id: string, back = false) =>
   call<{ id: string; retired: boolean }>(`/shop/decors/${id}${back ? "?back=1" : ""}`, {
     method: "DELETE",
   });
+
+/* EFFACER, ce qui n'est PAS retirer : la vignette quitte aussi la
+   collection de ceux qui l'avaient tirée. Le nombre rendu est ce qu'on
+   vient de leur reprendre, et le serveur est le seul à pouvoir encore le
+   dire — après, la ligne n'existe plus. */
+export const deleteWonDecor = (id: string) =>
+  call<{ id: string; deleted: true; owners: number }>(`/shop/decors/${id}?forever=1`, {
+    method: "DELETE",
+  });
+
+export const deletePack = (id: string) =>
+  call<{ id: string; deleted: true }>(`/shop/packs/${id}?forever=1`, { method: "DELETE" });
 
 export const myHoldings = () => call<Holdings>("/shop/mine");
 

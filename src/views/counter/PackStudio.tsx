@@ -38,10 +38,12 @@
    `position: fixed` rendu dedans s'ancrerait sur elle.
    ============================================================ */
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { C, F, alpha } from "../../theme/tokens";
 import { bare, chip, inked, underlineInput } from "../../theme/styles";
 import { Label, Trouble, Waiting } from "../../components/ui";
+import { Confirmation, type ConfirmRequest } from "../../components/ui/Confirmation";
 import { Layer } from "../../components/ui/Layer";
 import { useDialog } from "../../hooks/useDialog";
 import { WonDraw } from "../../components/shelf/WonDraw";
@@ -51,6 +53,8 @@ import {
   packCatalogue,
   retirePack,
   retireWonDecor,
+  deletePack,
+  deleteWonDecor,
   savePack,
   saveDecor,
   type PackDef,
@@ -92,6 +96,10 @@ export function PackStudio({ onClose }: { onClose: () => void }) {
   const [open, setOpen] = useState<string | null>(null);
   const [trouble, setTrouble] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /* EFFACER NE SE FAIT PAS D'UN CLIC. Le geste reprend la vignette à
+     ceux qui l'ont tirée : il passe par la carte de confirmation du
+     projet, en `severe`, comme la suppression d'une fiche. */
+  const [request, setRequest] = useState<ConfirmRequest | null>(null);
 
   const reread = useCallback(async () => {
     try {
@@ -195,6 +203,29 @@ export function PackStudio({ onClose }: { onClose: () => void }) {
                     onRetire={() => guard(() => retirePack(p.id, p.retired))}
                     onRetirePiece={(s) => guard(() => retireWonDecor(s.id, s.retired))}
                     onAdd={(s) => guard(() => saveDecor(s))}
+                    onEditPiece={(s, patch) =>
+                      guard(() =>
+                        saveDecor({ id: s.id, packId: s.packId, media: s.media, ...patch })
+                      )
+                    }
+                    onDeletePack={() =>
+                      setRequest({
+                        title: t("counter.studio.deletePackTitle", { name: p.label.fr }),
+                        body: t("counter.studio.deletePackBody"),
+                        action: t("counter.studio.deleteForGood"),
+                        severe: true,
+                        onConfirm: () => guard(() => deletePack(p.id)),
+                      })
+                    }
+                    onDeletePiece={(s) =>
+                      setRequest({
+                        title: t("counter.studio.deleteTitle", { name: s.label.fr }),
+                        body: t("counter.studio.deleteBody"),
+                        action: t("counter.studio.deleteForGood"),
+                        severe: true,
+                        onConfirm: () => guard(() => deleteWonDecor(s.id)),
+                      })
+                    }
                     onTrouble={setTrouble}
                   />
                 ))
@@ -203,6 +234,7 @@ export function PackStudio({ onClose }: { onClose: () => void }) {
           )}
         </div>
       </div>
+      <Confirmation request={request} onClose={() => setRequest(null)} />
     </Layer>
   );
 }
@@ -294,6 +326,317 @@ function NewPack({
    UNE POCHETTE ET SON CONTENU
    ------------------------------------------------------------ */
 
+/* ------------------------------------------------------------
+   UNE POCHETTE ET SON CONTENU
+   ------------------------------------------------------------
+
+   TROIS CHOSES SE LISAIENT MAL, ET LES TROIS SONT ICI.
+
+   LA VIGNETTE NE SE VOYAIT PAS. `WonDraw` lit par défaut le cache de
+   l'étal, rempli par la lecture du hall : ce qu'on vient de déposer n'y
+   est pas, ce qui est retiré non plus. Le studio affichait donc un carré
+   vide à l'endroit exact où il faut voir ce qu'on publie. Il tient
+   `media` dans sa propre réponse, et le passe.
+
+   LA RARETÉ NE SE LISAIT NULLE PART. On la choisissait au dépôt et plus
+   jamais ensuite : rien, sur la grille, ne disait laquelle était dorée.
+   Elle est écrite sur chaque vignette — en toutes lettres, parce qu'un
+   liseré doré disparaît sous cinq des dix-sept peaux, et que le verdict
+   se dit par un MOT.
+
+   « RETIRÉ » ÉTAIT UNE OPACITÉ. Une vignette à 45 % ressemble à une
+   vignette qui charge. C'est un état : il s'écrit.
+   ------------------------------------------------------------ */
+
+/** Les trois raretés, dans l'ordre où on les regarde. */
+const RARITIES = ["gold", "rare", "common"] as const;
+
+const RARITY_INK: Record<string, string> = {
+  gold: C.ochre,
+  rare: C.cobalt,
+  common: C.slate,
+};
+
+function PieceCard({
+  piece,
+  busy,
+  onRetire,
+  onDelete,
+  onEdit,
+}: {
+  piece: Piece;
+  busy: boolean;
+  onRetire: () => void;
+  onDelete: () => void;
+  onEdit: () => void;
+}) {
+  const { t } = useTranslation();
+  const ink = RARITY_INK[piece.rarity] || C.slate;
+
+  return (
+    <div
+      style={{
+        width: 118,
+        padding: 8,
+        background: C.paper,
+        border: `1px solid ${piece.retired ? C.line : alpha(ink, 0.55)}`,
+        textAlign: "center",
+      }}
+    >
+      {/* Le fond de l'étagère sous la vignette : une image claire sur un
+          fond clair ne se juge pas, et c'est là-dessus qu'elle sera vue. */}
+      <div
+        style={{
+          height: 64,
+          padding: 4,
+          background: alpha(C.ink, 0.06),
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <WonDraw motif={`${WON_PREFIX}${piece.id}`} media={piece.media} />
+      </div>
+
+      <div
+        style={{
+          fontFamily: F.mono,
+          fontSize: 8.5,
+          letterSpacing: 0.6,
+          color: ink,
+          marginTop: 5,
+        }}
+      >
+        {t(`counter.studio.rarity.${piece.rarity}`).toUpperCase()}
+      </div>
+      <div
+        style={{
+          fontFamily: F.body,
+          fontSize: 11.5,
+          color: C.ink,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+        title={piece.label.fr}
+      >
+        {piece.label.fr}
+      </div>
+
+      {/* CE QUI NE SE DEVINE PAS D'UNE IMAGE se dit sous elle : un objet
+          qui se pend au fond de la rangée ne se pose pas sur la planche. */}
+      {(piece.wall || piece.tintable) && (
+        <div style={{ fontFamily: F.mono, fontSize: 8, color: C.inkFaded, marginTop: 1 }}>
+          {[
+            piece.wall ? t("counter.studio.wall") : null,
+            piece.tintable ? t("counter.studio.tintable") : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        </div>
+      )}
+
+      {piece.retired && (
+        <div style={{ fontFamily: F.mono, fontSize: 8.5, color: C.burgundy, marginTop: 3 }}>
+          {t("counter.studio.retired")}
+        </div>
+      )}
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          gap: 8,
+          marginTop: 5,
+          borderTop: `1px solid ${C.line}`,
+          paddingTop: 5,
+        }}
+      >
+        <button
+          disabled={busy}
+          onClick={onEdit}
+          style={{ ...bare, fontFamily: F.mono, fontSize: 8.5, color: C.slate }}
+        >
+          {t("counter.studio.edit")}
+        </button>
+        <button
+          disabled={busy}
+          onClick={onRetire}
+          style={{ ...bare, fontFamily: F.mono, fontSize: 8.5, color: C.inkFaded }}
+        >
+          {t(piece.retired ? "counter.studio.putBack" : "counter.studio.retire")}
+        </button>
+        <button
+          disabled={busy}
+          onClick={onDelete}
+          aria-label={t("counter.studio.deleteOne", { name: piece.label.fr })}
+          style={{ ...bare, display: "flex", color: C.burgundy }}
+        >
+          <Trash2 size={11} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------
+   RETOUCHER UNE VIGNETTE APRÈS COUP
+
+   Le nom venait du nom de FICHIER, et rien ne permettait d'en changer :
+   « cine hub 2026 » et « sans titre » sont restés tels quels sur l'étal.
+   La rareté, elle, se choisissait une fois pour toutes au dépôt. Tout
+   cela est une ligne de catalogue, et `upsertDecor` la réécrit déjà —
+   il n'y avait qu'à l'atteindre.
+   ------------------------------------------------------------ */
+
+function EditPiece({
+  piece,
+  busy,
+  onSave,
+  onClose,
+}: {
+  piece: Piece;
+  busy: boolean;
+  onSave: (patch: {
+    rarity: string;
+    labelFr: string;
+    labelEn: string;
+    wall: boolean;
+    tintable: boolean;
+  }) => void;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const [fr, setFr] = useState(piece.label.fr);
+  const [en, setEn] = useState(piece.label.en);
+  const [rarity, setRarity] = useState<string>(piece.rarity);
+  const [wall, setWall] = useState(!!piece.wall);
+  const [tintable, setTintable] = useState(!!piece.tintable);
+
+  return (
+    <div
+      style={{
+        marginTop: 10,
+        padding: "12px 14px",
+        border: `1px solid ${alpha(C.slate, 0.6)}`,
+        background: alpha(C.slate, 0.06),
+      }}
+    >
+      <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+        <div
+          style={{
+            width: 90,
+            height: 90,
+            flexShrink: 0,
+            padding: 6,
+            background: alpha(C.ink, 0.06),
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <WonDraw motif={`${WON_PREFIX}${piece.id}`} media={piece.media} />
+        </div>
+        <div style={{ flex: "1 1 240px", minWidth: 0 }}>
+          <label style={{ display: "block" }}>
+            <Small>{t("counter.studio.nameFr")}</Small>
+            <input value={fr} onChange={(e) => setFr(e.target.value)} style={underlineInput} />
+          </label>
+          <label style={{ display: "block", marginTop: 8 }}>
+            <Small>{t("counter.studio.nameEn")}</Small>
+            <input value={en} onChange={(e) => setEn(e.target.value)} style={underlineInput} />
+          </label>
+        </div>
+      </div>
+
+      <div
+        style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, marginTop: 12 }}
+      >
+        <Traits
+          rarity={rarity}
+          wall={wall}
+          tintable={tintable}
+          onRarity={setRarity}
+          onWall={setWall}
+          onTintable={setTintable}
+        />
+        <span style={{ flex: 1 }} />
+        <button onClick={onClose} style={{ ...bare, fontFamily: F.mono, fontSize: 10 }}>
+          {t("counter.studio.cancel")}
+        </button>
+        <button
+          disabled={busy || !fr.trim() || !en.trim()}
+          onClick={() => onSave({ rarity, labelFr: fr.trim(), labelEn: en.trim(), wall, tintable })}
+          style={{ ...inked(C.slate), fontSize: 10, opacity: busy || !fr.trim() ? 0.45 : 1 }}
+        >
+          {t("counter.studio.save")}
+        </button>
+      </div>
+      {/* L'identifiant, lui, ne bouge pas : il est écrit dans la
+          collection de ceux qui l'ont tirée. */}
+      <code style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}>{piece.id}</code>
+    </div>
+  );
+}
+
+/** Les trois réglages qu'une image ne dit pas d'elle-même. */
+function Traits({
+  rarity,
+  wall,
+  tintable,
+  onRarity,
+  onWall,
+  onTintable,
+}: {
+  rarity: string;
+  wall: boolean;
+  tintable: boolean;
+  onRarity: (r: string) => void;
+  onWall: (v: boolean) => void;
+  onTintable: (v: boolean) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <>
+      {RARITIES.map((r) => (
+        <button
+          key={r}
+          onClick={() => onRarity(r)}
+          aria-pressed={rarity === r}
+          style={{
+            ...chip,
+            ...(rarity === r
+              ? { background: alpha(RARITY_INK[r] as string, 0.28), borderColor: RARITY_INK[r] }
+              : null),
+          }}
+        >
+          {t(`counter.studio.rarity.${r}`)}
+        </button>
+      ))}
+      <button
+        onClick={() => onWall(!wall)}
+        aria-pressed={wall}
+        style={{
+          ...chip,
+          ...(wall ? { background: alpha(C.slate, 0.28), borderColor: C.slate } : null),
+        }}
+      >
+        {t("counter.studio.wall")}
+      </button>
+      <button
+        onClick={() => onTintable(!tintable)}
+        aria-pressed={tintable}
+        style={{
+          ...chip,
+          ...(tintable ? { background: alpha(C.slate, 0.28), borderColor: C.slate } : null),
+        }}
+      >
+        {t("counter.studio.tintable")}
+      </button>
+    </>
+  );
+}
+
 function PackRow({
   pack,
   inside,
@@ -301,8 +644,11 @@ function PackRow({
   onToggle,
   busy,
   onRetire,
+  onDeletePack,
   onRetirePiece,
+  onDeletePiece,
   onAdd,
+  onEditPiece,
   onTrouble,
 }: {
   pack: PackDef;
@@ -311,7 +657,13 @@ function PackRow({
   onToggle: () => void;
   busy: boolean;
   onRetire: () => void;
+  onDeletePack: () => void;
   onRetirePiece: (s: Piece) => void;
+  onDeletePiece: (s: Piece) => void;
+  onEditPiece: (
+    s: Piece,
+    patch: { rarity: string; labelFr: string; labelEn: string; wall: boolean; tintable: boolean }
+  ) => void;
   onAdd: (s: {
     id: string;
     packId: string;
@@ -325,13 +677,14 @@ function PackRow({
   onTrouble: (m: string) => void;
 }) {
   const { t } = useTranslation();
+  const [editing, setEditing] = useState<string | null>(null);
+  const open = inside.find((s) => s.id === editing);
 
   return (
     <div
       style={{
         borderTop: `1px solid ${C.line}`,
         padding: "10px 0",
-        opacity: pack.retired ? 0.55 : 1,
       }}
     >
       <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
@@ -357,53 +710,70 @@ function PackRow({
         <button disabled={busy} onClick={onRetire} style={chip}>
           {t(pack.retired ? "counter.studio.putBack" : "counter.studio.retire")}
         </button>
+        <button
+          disabled={busy}
+          onClick={onDeletePack}
+          aria-label={t("counter.studio.deletePackOne", { name: pack.label.fr })}
+          style={{ ...bare, display: "flex", color: C.burgundy }}
+        >
+          <Trash2 size={12} />
+        </button>
       </div>
 
       {openHere && (
         <div style={{ marginTop: 10 }}>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-            {inside.map((s) => (
-              <div
-                key={s.id}
-                style={{
-                  width: 78,
-                  padding: 6,
-                  background: C.paper,
-                  border: `1px solid ${C.line}`,
-                  opacity: s.retired ? 0.45 : 1,
-                  textAlign: "center",
-                }}
-              >
-                <div style={{ height: 48 }}>
-                  <WonDraw motif={`${WON_PREFIX}${s.id}`} />
-                </div>
+          {/* PAR RARETÉ, parce que c'est la question qu'on se pose en
+              regardant une pochette : ce qu'elle a de rare. Une rangée
+              par famille, et les vides ne se dessinent pas. */}
+          {RARITIES.map((r) => {
+            const lot = inside.filter((s) => s.rarity === r);
+            if (lot.length === 0) return null;
+            return (
+              <div key={r} style={{ marginBottom: 10 }}>
                 <div
                   style={{
                     fontFamily: F.mono,
-                    fontSize: 8.5,
-                    color: C.inkFaded,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
+                    fontSize: 9,
+                    letterSpacing: 1.2,
+                    color: RARITY_INK[r],
+                    marginBottom: 4,
                   }}
                 >
-                  {s.label.fr}
+                  {t(`counter.studio.rarity.${r}`).toUpperCase()} · {lot.length}
                 </div>
-                <button
-                  disabled={busy}
-                  onClick={() => onRetirePiece(s)}
-                  style={{ ...bare, fontFamily: F.mono, fontSize: 8.5, color: C.burgundy }}
-                >
-                  {t(s.retired ? "counter.studio.putBack" : "counter.studio.retire")}
-                </button>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                  {lot.map((s) => (
+                    <PieceCard
+                      key={s.id}
+                      piece={s}
+                      busy={busy}
+                      onRetire={() => onRetirePiece(s)}
+                      onDelete={() => onDeletePiece(s)}
+                      onEdit={() => setEditing(editing === s.id ? null : s.id)}
+                    />
+                  ))}
+                </div>
               </div>
-            ))}
-            {inside.length === 0 && (
-              <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded }}>
-                {t("counter.studio.emptyPack")}
-              </div>
-            )}
-          </div>
+            );
+          })}
+
+          {inside.length === 0 && (
+            <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded }}>
+              {t("counter.studio.emptyPack")}
+            </div>
+          )}
+
+          {open && (
+            <EditPiece
+              piece={open}
+              busy={busy}
+              onSave={(patch) => {
+                onEditPiece(open, patch);
+                setEditing(null);
+              }}
+              onClose={() => setEditing(null)}
+            />
+          )}
 
           <Drop
             packId={pack.id}
@@ -422,11 +792,18 @@ function PackRow({
    LE DÉPÔT D'UNE IMAGE
    ------------------------------------------------------------
 
-   Deux gestes en un : les octets partent chez Azure avec un ticket
-   signé, et la ligne de catalogue part au serveur. L'ORDRE EST CELUI-CI
-   et pas l'inverse — une ligne écrite avant l'image donnerait une
-   vignette qui existe et ne se montre pas, ce qui est la seule des deux
-   moitiés qu'on ne peut pas rattraper en réessayant.
+   CHOISIR UN FICHIER N'ENVOIE PLUS RIEN. Le geste partait d'un coup :
+   on ne voyait pas ce qu'on avait pris, le nom se déduisait du nom de
+   fichier — d'où « sans titre » et « cine hub 2026 » restés sur l'étal —
+   et il n'y avait pas de marche arrière. On voit maintenant l'image, en
+   grand, sur le fond de l'étagère ; on la nomme ; on règle sa rareté ;
+   et l'envoi est un second geste, qu'on peut ne pas faire.
+
+   L'ORDRE DES DEUX MOITIÉS N'A PAS CHANGÉ, et il ne doit pas : les
+   octets partent chez Azure avec un ticket signé, PUIS la ligne de
+   catalogue part au serveur. Une ligne écrite avant l'image donnerait
+   une vignette qui existe et ne se montre pas, ce qui est la seule des
+   deux moitiés qu'on ne rattrape pas en réessayant.
    ------------------------------------------------------------ */
 
 function Drop({
@@ -453,7 +830,7 @@ function Drop({
 }) {
   const { t } = useTranslation();
   const pick = useRef<HTMLInputElement>(null);
-  const [rarity, setRarity] = useState("common");
+  const [rarity, setRarity] = useState<string>("common");
   /* LES DEUX PROPRIÉTÉS QU'UNE IMAGE NE DIT PAS D'ELLE-MÊME, et c'est
      pour cela qu'on les demande ici plutôt que de les deviner :
 
@@ -470,24 +847,51 @@ function Drop({
   const [tintable, setTintable] = useState(false);
   const [sending, setSending] = useState(false);
 
-  const send = async (file: File) => {
+  /** Ce qu'on a choisi, pas encore envoyé. */
+  const [held, setHeld] = useState<{ file: File; url: string; ext: string } | null>(null);
+  const [fr, setFr] = useState("");
+  const [en, setEn] = useState("");
+
+  /* L'URL d'objet est une ressource, pas une valeur : gardée, elle fuit
+     à chaque image regardée puis abandonnée. */
+  useEffect(() => () => void (held && URL.revokeObjectURL(held.url)), [held]);
+
+  const hold = (file: File) => {
     const ext = KINDS[file.type];
     if (!ext) return onTrouble(t("counter.studio.badKind"));
     if (file.size > MAX_BYTES) return onTrouble(t("counter.studio.tooBig"));
-
     const name = slug(file.name.replace(/\.[^.]+$/, ""));
-    const id = `vig-${name || "sans-nom"}`;
+    if (taken.includes(`vig-${name || "sans-nom"}`)) return onTrouble(t("counter.studio.taken"));
+    onTrouble("");
+    setHeld({ file, url: URL.createObjectURL(file), ext });
+    setFr(name.replace(/-/g, " "));
+    setEn(name.replace(/-/g, " "));
+  };
+
+  const drop = () => {
+    if (held) URL.revokeObjectURL(held.url);
+    setHeld(null);
+    setFr("");
+    setEn("");
+  };
+
+  const send = async () => {
+    if (!held) return;
+    /* L'IDENTIFIANT SUIT LE NOM QU'ON VIENT D'ÉCRIRE, et non le nom du
+       fichier : c'est la seule occasion de le choisir, puisqu'il est
+       écrit dans la collection dès le premier tirage. */
+    const id = `vig-${slug(fr) || "sans-nom"}`;
     if (taken.includes(id)) return onTrouble(t("counter.studio.taken"));
 
-    const key = `decor/${id}.${ext}`;
+    const key = `decor/${id}.${held.ext}`;
     setSending(true);
     try {
       const [ticket] = await mediaTickets([`bank/${key}`], "write");
       if (!ticket) throw new Error(t("counter.studio.noTicket"));
       const put = await fetch(ticket.url, {
         method: "PUT",
-        headers: { "x-ms-blob-type": "BlockBlob", "content-type": file.type },
-        body: file,
+        headers: { "x-ms-blob-type": "BlockBlob", "content-type": held.file.type },
+        body: held.file,
       });
       if (!put.ok) throw new Error(`${put.status}`);
       /* L'image est en place : la ligne peut suivre. */
@@ -496,11 +900,12 @@ function Drop({
         packId,
         rarity,
         media: key,
-        labelFr: name.replace(/-/g, " "),
-        labelEn: name.replace(/-/g, " "),
+        labelFr: fr.trim(),
+        labelEn: en.trim() || fr.trim(),
         wall,
         tintable,
       });
+      drop();
     } catch (e) {
       onTrouble((e as Error).message);
     } finally {
@@ -514,7 +919,7 @@ function Drop({
       onDrop={(e) => {
         e.preventDefault();
         const file = e.dataTransfer.files[0];
-        if (file) void send(file);
+        if (file) hold(file);
       }}
       style={{
         marginTop: 10,
@@ -523,52 +928,107 @@ function Drop({
         background: alpha(C.slate, 0.05),
       }}
     >
-      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
-        {["common", "rare", "gold"].map((r) => (
-          <button
-            key={r}
-            onClick={() => setRarity(r)}
-            aria-pressed={rarity === r}
+      {held ? (
+        <>
+          <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+            {/* EN GRAND, ET SUR LE FOND DE L'ÉTAGÈRE. Une vignette se
+                juge à la taille où on la verra, sur la matière où elle
+                sera posée — pas en timbre-poste sur du blanc. */}
+            <div
+              style={{
+                width: 140,
+                height: 140,
+                flexShrink: 0,
+                padding: 10,
+                background: alpha(C.ink, 0.06),
+                border: `1px solid ${C.line}`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <img
+                src={held.url}
+                alt=""
+                style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }}
+              />
+            </div>
+            <div style={{ flex: "1 1 220px", minWidth: 0 }}>
+              <label style={{ display: "block" }}>
+                <Small>{t("counter.studio.nameFr")}</Small>
+                <input value={fr} onChange={(e) => setFr(e.target.value)} style={underlineInput} />
+              </label>
+              <label style={{ display: "block", marginTop: 8 }}>
+                <Small>{t("counter.studio.nameEn")}</Small>
+                <input value={en} onChange={(e) => setEn(e.target.value)} style={underlineInput} />
+              </label>
+              <code
+                style={{
+                  display: "block",
+                  fontFamily: F.mono,
+                  fontSize: 9.5,
+                  color: C.inkFaded,
+                  marginTop: 8,
+                }}
+              >
+                vig-{slug(fr) || "sans-nom"}
+              </code>
+            </div>
+          </div>
+
+          <div
             style={{
-              ...chip,
-              ...(rarity === r ? { background: alpha(C.ochre, 0.28), borderColor: C.ochre } : null),
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "center",
+              gap: 8,
+              marginTop: 12,
             }}
           >
-            {t(`counter.studio.rarity.${r}`)}
+            <Traits
+              rarity={rarity}
+              wall={wall}
+              tintable={tintable}
+              onRarity={setRarity}
+              onWall={setWall}
+              onTintable={setTintable}
+            />
+            <span style={{ flex: 1 }} />
+            <button
+              disabled={sending}
+              onClick={drop}
+              style={{ ...bare, fontFamily: F.mono, fontSize: 10 }}
+            >
+              {t("counter.studio.cancel")}
+            </button>
+            <button
+              disabled={busy || sending || !fr.trim()}
+              onClick={() => void send()}
+              style={{
+                ...inked(C.slate),
+                fontSize: 10,
+                opacity: busy || sending || !fr.trim() ? 0.45 : 1,
+              }}
+            >
+              {t(sending ? "counter.studio.sending" : "counter.studio.publish")}
+            </button>
+          </div>
+        </>
+      ) : (
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
+          <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, flex: "1 1 240px" }}>
+            {t("counter.studio.dropHint")}
+          </div>
+          <button
+            disabled={busy}
+            onClick={() => pick.current?.click()}
+            style={{ ...inked(C.slate), fontSize: 10 }}
+          >
+            {t("counter.studio.choose")}
           </button>
-        ))}
-        <button
-          onClick={() => setWall((w) => !w)}
-          aria-pressed={wall}
-          style={{
-            ...chip,
-            ...(wall ? { background: alpha(C.slate, 0.28), borderColor: C.slate } : null),
-          }}
-        >
-          {t("counter.studio.wall")}
-        </button>
-        <button
-          onClick={() => setTintable((v) => !v)}
-          aria-pressed={tintable}
-          style={{
-            ...chip,
-            ...(tintable ? { background: alpha(C.slate, 0.28), borderColor: C.slate } : null),
-          }}
-        >
-          {t("counter.studio.tintable")}
-        </button>
-        <span style={{ flex: 1 }} />
-        <button
-          disabled={busy || sending}
-          onClick={() => pick.current?.click()}
-          style={{ ...inked(C.slate), fontSize: 10 }}
-        >
-          {t(sending ? "counter.studio.sending" : "counter.studio.choose")}
-        </button>
-      </div>
-      <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 6 }}>
-        {t("counter.studio.dropHint")}
-      </div>
+        </div>
+      )}
+
       <input
         ref={pick}
         type="file"
@@ -576,7 +1036,7 @@ function Drop({
         style={{ display: "none" }}
         onChange={(e) => {
           const file = e.target.files?.[0];
-          if (file) void send(file);
+          if (file) hold(file);
           e.target.value = "";
         }}
       />

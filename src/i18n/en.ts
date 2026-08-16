@@ -1222,6 +1222,19 @@ const en = {
       },
     },
     studio: {
+      edit: "touch up",
+      save: "SAVE",
+      cancel: "cancel",
+      publish: "PUBLISH",
+      deleteOne: "Erase “{{name}}” for good",
+      deletePackOne: "Erase the pack “{{name}}” for good",
+      deleteForGood: "erase for good",
+      deleteTitle: "Erase “{{name}}”?",
+      deleteBody:
+        "This is not a withdrawal: the piece also leaves the collection of everyone who drew it, and leaves an empty place on the shelves where it was set. There is no going back on this.",
+      deletePackTitle: "Erase the pack “{{name}}”?",
+      deletePackBody:
+        "It goes with every piece in it, and with what people had drawn from it. There is no going back on this.",
       open: "THE OBJECT STUDIO",
       title: "The object studio",
       close: "close",

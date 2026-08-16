@@ -1862,10 +1862,18 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
   app.delete("/shop/packs/:id", async (req, reply) => {
     await requireAdmin(req);
     const { id } = req.params as { id: string };
-    const { back } = (req.query ?? {}) as { back?: string };
-    /* On retire, on ne supprime pas — et « remettre » est la même route
-       avec `?back=1`, parce qu'un retrait qu'on ne peut pas défaire est
-       une suppression qui n'ose pas dire son nom. */
+    const { back, forever } = (req.query ?? {}) as { back?: string; forever?: string };
+    /* DEUX GESTES, ET LE SECOND EST IRRÉVERSIBLE. « Retirer » sort de
+       l'étal sans rien reprendre à personne, et « remettre » est la même
+       route avec `?back=1`. `?forever=1` efface la pochette, ses
+       vignettes (la cascade) et les possessions qui allaient avec — voir
+       `deletePackDef`, qui dit ce que cela coûte. */
+    if (forever === "1") {
+      if (!(await store.deletePackDef(db, id))) {
+        return reply.code(404).send({ error: "Cette pochette n'existe pas." });
+      }
+      return { id, deleted: true };
+    }
     if (!(await store.retirePack(db, id, back !== "1"))) {
       return reply.code(404).send({ error: "Cette pochette n'existe pas." });
     }
@@ -1895,7 +1903,17 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
   app.delete("/shop/decors/:id", async (req, reply) => {
     await requireAdmin(req);
     const { id } = req.params as { id: string };
-    const { back } = (req.query ?? {}) as { back?: string };
+    const { back, forever } = (req.query ?? {}) as { back?: string; forever?: string };
+    if (forever === "1") {
+      /* Le nombre de possesseurs part avec la réponse : c'est ce que le
+         studio vient d'effacer chez les autres, et le seul endroit qui
+         puisse encore le dire. */
+      const owners = await store.ownersOfDecor(db, id);
+      if (!(await store.deleteDecorDef(db, id))) {
+        return reply.code(404).send({ error: "Cet objet n'existe pas." });
+      }
+      return { id, deleted: true, owners };
+    }
     if (!(await store.retireDecor(db, id, back !== "1"))) {
       return reply.code(404).send({ error: "Cet objet n'existe pas." });
     }

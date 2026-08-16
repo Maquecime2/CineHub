@@ -202,6 +202,56 @@ describe("retirer, et pas effacer", () => {
   });
 });
 
+/* ============================================================
+   EFFACER POUR DE BON
+
+   Le studio a désormais les DEUX gestes, et celui-ci est irréversible.
+   Ce qu'on éprouve ici n'est pas qu'il marche — c'est ce qu'il COÛTE,
+   parce que c'est cela qu'on oublie six mois plus tard : la vignette
+   quitte la collection de ceux qui l'avaient.
+
+   Le fantôme est l'autre moitié. `decor_won` n'a pas de clé étrangère
+   vers `decor_def` : n'effacer que la définition laisserait une ligne de
+   possession qui ne désigne plus rien, invisible et impossible à jeter.
+   ============================================================ */
+describe("effacer pour de bon", () => {
+  it("dit combien de gens la possèdent, avant", async () => {
+    const me = await person("chantal");
+    await store.award(db, me.id, "quiz", "seed", 100);
+    await store.buy(db, me.id, "pack-trois", sequence(0, 0, 0));
+    const won = (await store.holdingsOf(db, me.id)).decors[0]!.decor_id;
+    expect(await store.ownersOfDecor(db, won)).toBe(1);
+  });
+
+  it("emporte la vignette ET la possession, sans laisser de fantôme", async () => {
+    const me = await person("agnes");
+    await store.award(db, me.id, "quiz", "seed", 100);
+    await store.buy(db, me.id, "pack-trois", sequence(0, 0, 0));
+    const won = (await store.holdingsOf(db, me.id)).decors[0]!.decor_id;
+
+    expect(await store.deleteDecorDef(db, won)).toBe(true);
+    expect((await store.listDecors(db, "pack-trois")).map((s) => s.id)).not.toContain(won);
+    /* LA DIFFÉRENCE AVEC LE RETRAIT, en une ligne : la collection maigrit. */
+    expect((await store.holdingsOf(db, me.id)).decors).toHaveLength(0);
+    expect(await store.ownersOfDecor(db, won)).toBe(0);
+  });
+
+  it("rend faux pour une vignette qui n'existe pas", async () => {
+    expect(await store.deleteDecorDef(db, "vig-fantome")).toBe(false);
+  });
+
+  it("emporte la pochette, ses vignettes et ce qu'on en avait tiré", async () => {
+    const me = await person("claire");
+    await store.award(db, me.id, "quiz", "seed", 100);
+    await store.buy(db, me.id, "pack-trois", sequence(0, 0, 0));
+
+    expect(await store.deletePackDef(db, "pack-trois")).toBe(true);
+    expect((await store.listPacks(db, true)).map((p) => p.id)).not.toContain("pack-trois");
+    expect(await store.listDecors(db, "pack-trois")).toHaveLength(0);
+    expect((await store.holdingsOf(db, me.id)).decors).toHaveLength(0);
+  });
+});
+
 /* ------------------------------------------------------------
    CE QU'ON PORTE, MAINTENANT QU'IL Y EN A QUATRE
    ------------------------------------------------------------ */

@@ -178,8 +178,34 @@ peaux, pouvoirs. Les POCHETTES et les OBJETS D'ÉTAGÈRE vivent en base
 studio du comptoir, parce qu'une image et une rareté ne justifient pas un
 déploiement. `resolveItem` lit le code d'abord, la base ensuite : une ligne de
 `pack_def` ne peut donc pas usurper l'identifiant d'une peau et en changer le
-prix. **On retire, on n'efface jamais** : un identifiant est écrit dans la
-collection de tout le monde, et sur leurs étagères.
+prix.
+
+**LE STUDIO A DEUX GESTES, ET LE SECOND EST IRRÉVERSIBLE.** Ce fichier a promis
+« on retire, on n'efface jamais » — le retrait sort de l'étal sans rien
+reprendre à personne, parce qu'un identifiant est écrit dans la collection de
+tout le monde et sur leurs étagères. Ce n'est plus la seule porte, sur demande
+explicite : `?forever=1` efface pour de bon.
+
+Ce que cela coûte est écrit dans `deleteDecorDef` / `deletePackDef`
+(`server/src/store.ts`) et éprouvé dans `test/collection.test.ts`, parce que
+c'est ce qu'on oublie six mois plus tard :
+
+- **`decor_won` N'A PAS DE CLÉ ÉTRANGÈRE** vers `decor_def` — un identifiant
+  survit à sa définition, exprès. N'effacer que la définition laisserait une
+  ligne de possession qui ne désigne plus rien : un carré vide, sans nom, que
+  personne ne peut jeter. On efface donc **les deux**, et la vignette quitte la
+  collection de ceux qui l'avaient.
+- **Ce qui reste hors d'atteinte** : une vignette déjà POSÉE est écrite dans le
+  document de la vue, chez la personne. Elle y laisse une place vide. D'où le
+  nombre de possesseurs rendu par la route — c'est ce qu'on vient de leur
+  reprendre, et le serveur est le seul à pouvoir encore le dire.
+
+**LA RARETÉ SE LIT SUR CHAQUE VIGNETTE, EN TOUTES LETTRES.** Un liseré doré
+disparaît sous cinq des dix-sept peaux ; c'est la même règle que le verdict du
+quizz. Et le studio dessine ses vignettes en passant `media` à `WonDraw` :
+par défaut celui-ci lit le cache de l'étal, qui ne contient ni ce qu'on vient
+de déposer ni ce qui est retiré — le studio affichait donc des carrés vides à
+l'endroit exact où il faut voir ce qu'on publie.
 
 **LES BIBELOTS NE SE DÉPOSENT PLUS, ILS SE TIRENT.** Chacun montait les siens ;
 `POST /decor` n'existe plus, et l'atelier du cabinet ne propose plus d'importer.

@@ -65,15 +65,27 @@ function Ghost({ color, style }: { color?: string; style?: CSSProperties }) {
 
 export function WonDraw({
   motif,
+  media: given,
   color,
   style,
 }: {
   motif: string;
+  /**
+   * Le média, quand l'appelant le tient déjà.
+   *
+   * SANS LUI, LE DESSIN DÉPEND DU CACHE D'UN AUTRE ÉCRAN. `wonDecorByKey`
+   * lit ce que la dernière lecture de l'étal a rapporté : une vignette
+   * qu'on VIENT de déposer n'y est pas, une vignette RETIRÉE non plus.
+   * Le studio affichait donc des carrés vides à l'endroit précis où il
+   * faut voir ce qu'on publie. Il tient `media` dans sa propre réponse ;
+   * il le passe.
+   */
+  media?: string;
   color?: string;
   style?: CSSProperties;
 }) {
   const spec = wonDecorByKey(motif);
-  const media = spec?.media;
+  const media = given ?? spec?.media;
   const remote = !!media && media.includes("/");
   const [url, setUrl] = useState<string | null>(null);
   /* UNE IMAGE QUI NE VIENT PAS NE DOIT PAS LAISSER UNE ICÔNE CASSÉE.
@@ -99,7 +111,7 @@ export function WonDraw({
     };
   }, [remote, media]);
 
-  if (!spec) return null;
+  if (!media) return null;
 
   if (remote) {
     /* Rien tant que le ticket n'est pas là : une case qui clignote entre

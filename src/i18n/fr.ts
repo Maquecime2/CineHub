@@ -1252,6 +1252,19 @@ const fr = {
       },
     },
     studio: {
+      edit: "retoucher",
+      save: "ENREGISTRER",
+      cancel: "annuler",
+      publish: "DÉPOSER",
+      deleteOne: "Effacer « {{name}} » pour de bon",
+      deletePackOne: "Effacer la pochette « {{name}} » pour de bon",
+      deleteForGood: "effacer pour de bon",
+      deleteTitle: "Effacer « {{name}} » ?",
+      deleteBody:
+        "Ce n'est pas un retrait : la vignette quitte aussi la collection de ceux qui l'ont tirée, et laisse une place vide sur les étagères où elle était posée. On ne revient pas là-dessus.",
+      deletePackTitle: "Effacer la pochette « {{name}} » ?",
+      deletePackBody:
+        "Elle part avec toutes ses vignettes, et avec ce que les gens en avaient tiré. On ne revient pas là-dessus.",
       open: "LE STUDIO DES OBJETS",
       title: "Le studio des objets",
       close: "fermer",
