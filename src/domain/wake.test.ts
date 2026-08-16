@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { wakeAtHome, linksBetween, scoreOf, WEIGHTS, familyOf, byQuotas } from "./wake";
+import {
+  wakeAtHome,
+  linksBetween,
+  scoreOf,
+  WEIGHTS,
+  familyOf,
+  byQuotas,
+  reasonsInFull,
+} from "./wake";
 import type { Quotas } from "./wake";
 import { makeFilm } from "./film";
 import type { Film } from "../types";
@@ -193,6 +201,35 @@ describe("what gets written under the poster", () => {
     expect(said(wakeAtHome(pivot, [neighbour])[0]!.reason)).toBe(
       "même réalisation — Chantal Akerman"
     );
+  });
+
+  /* « + 2 MOTIFS » DIT COMBIEN ET PAS QUOI, or c'est exactement ce qu'on
+     est venu chercher : la raison est tout ce que ce panneau apporte. La
+     ligne garde son résumé — quatre lignes sous chaque affiche et plus
+     personne n'en lit une seule — et la liste complète va dans
+     l'infobulle. */
+  it("nomme chaque lien, tête comprise, pour l'infobulle", () => {
+    const pivot = film("Pivot", {
+      crew: { image: ["Roger Deakins"] },
+      motifs: ["hero-dies", "sacrifice"],
+    });
+    const neighbour = film("Voisin", {
+      crew: { image: ["Roger Deakins"] },
+      motifs: ["hero-dies", "sacrifice"],
+    });
+    const links = wakeAtHome(pivot, [neighbour])[0]!.links;
+    const full = reasonsInFull(links).map(said);
+
+    /* Autant de lignes que de liens : c'est ce que le résumé cache. */
+    expect(full).toHaveLength(links.length);
+    /* La tête y est AUSSI : une infobulle qui n'expliquerait que la fin
+       de la phrase qu'elle survole obligerait à recoller les morceaux. */
+    expect(full[0]).toBe("même chef op — Roger Deakins");
+    expect(full.filter((line) => line.startsWith("motif partagé"))).toHaveLength(2);
+  });
+
+  it("ne rend rien quand il n'y a aucun lien", () => {
+    expect(reasonsInFull([])).toEqual([]);
   });
 });
 

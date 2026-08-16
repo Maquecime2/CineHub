@@ -100,6 +100,20 @@ const spellPath = (p: FarNeighbour["via"][number]): Wording =>
     ? saying(FAR_LABELS[p.via])
     : saying("wake.afar.named", { link: saying(FAR_LABELS[p.via]), value: words(p.value) });
 
+/**
+ * TOUTES les provenances, nommées une par une.
+ *
+ * La ligne en nomme deux et compte le reste — trois provenances écrites
+ * bout à bout font une ligne que plus personne ne lit. Mais « + 2 » dit
+ * combien et pas QUOI, or c'est précisément ce qu'on est venu chercher :
+ * la raison est tout ce que ce panneau apporte.
+ *
+ * Elle rend tout, les deux de tête comprises : une infobulle qui
+ * n'expliquerait que la fin de la phrase qu'elle survole obligerait à
+ * recoller les morceaux.
+ */
+export const reasonsInFullAfar = (via: FarNeighbour["via"]): Wording[] => via.map(spellPath);
+
 /* A LINK IS NAMED, IT IS NOT COUNTED.
 
    The first draft wrote "du même chef op Franz Lustig, + 1 lien". That

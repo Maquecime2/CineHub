@@ -310,18 +310,38 @@ const PLURALS: Partial<Record<Link, string>> = {
    one that teaches something — and sum the rest up in a count. Listing
    everything would make four lines under every poster, and nobody would
    read any of it. */
+/* UN LIEN, NOMMÉ. Extrait de `reasonFor`, qui le faisait pour le seul
+   lien de tête : c'est la même phrase, et la liste complète en a besoin
+   pour tous les autres. */
+function wordsFor(link: Match): Wording {
+  /* "Watched by the same people" is enough on its own: the name that
+     would follow is the film you already have in front of you. */
+  const named = link.motifId
+    ? motifWording(motifById(link.motifId) ?? { id: link.motifId, family: "narrative" })
+    : words(link.value);
+  return link.type === "crowd" || !link.value
+    ? saying(LABELS[link.type])
+    : saying("wake.namedLink", { link: saying(LABELS[link.type]), value: named });
+}
+
+/**
+ * TOUS les liens, nommés un par un.
+ *
+ * « + 5 autres » dit combien et ne dit pas QUOI — or c'est précisément
+ * ce qu'on est venu chercher : la raison est tout ce que ce panneau
+ * apporte. La ligne garde son résumé, qui tient sous une affiche, et
+ * cette liste va dans l'infobulle.
+ *
+ * Elle rend TOUT, tête comprise, et pas seulement le reste : une
+ * infobulle qui n'expliquerait que la moitié de la phrase qu'elle
+ * survole obligerait à recoller les deux de tête.
+ */
+export const reasonsInFull = (links: Match[]): Wording[] => links.map(wordsFor);
+
 export function reasonFor(links: Match[]): Wording {
   const [head, ...rest] = links;
   if (!head) return words("");
-  /* "Watched by the same people" is enough on its own: the name that
-     would follow is the film you already have in front of you. */
-  const named = head.motifId
-    ? motifWording(motifById(head.motifId) ?? { id: head.motifId, family: "narrative" })
-    : words(head.value);
-  const start: Wording =
-    head.type === "crowd" || !head.value
-      ? saying(LABELS[head.type])
-      : saying("wake.namedLink", { link: saying(LABELS[head.type]), value: named });
+  const start = wordsFor(head);
   if (!rest.length) return start;
   /* WHEN THE REST IS ALL OF ONE KIND, WE NAME IT. "+ 3 motifs" and
      "+ 4 actors" read; "+ 3 others" says nothing about what brings them
