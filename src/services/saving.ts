@@ -77,6 +77,26 @@ export const onWritten = (fn: () => void): (() => void) => {
   return () => afterWrite.delete(fn);
 };
 
+/**
+ * Dire qu'on vient d'écrire, sans passer par la file.
+ *
+ * ELLE NE PRÉVENAIT QUE POUR LES ÉCRITURES DIFFÉRÉES, et c'était un trou :
+ * une note étoilée, un « je l'ai vu », une fiche effacée s'écrivent
+ * IMMÉDIATEMENT, donc ne passaient jamais par `fire` — et n'avançaient
+ * donc jamais la passe de synchronisation. La promesse « une passe dix
+ * secondes après la dernière écriture » n'était vraie que pour ce qu'on
+ * tape.
+ */
+export function noteWritten(): void {
+  for (const fn of [...afterWrite]) {
+    try {
+      fn();
+    } catch (e) {
+      console.error("[cinehub] un abonné de l'après-écriture a levé", e);
+    }
+  }
+}
+
 const move = (next: SaveState) => {
   if (state === next) return;
   state = next;
@@ -120,13 +140,7 @@ async function fire(only?: string): Promise<void> {
     move("saved");
     if (fade) clearTimeout(fade);
     fade = setTimeout(() => move("clean"), SAID_MS);
-    for (const fn of [...afterWrite]) {
-      try {
-        fn();
-      } catch (e) {
-        console.error("[cinehub] un abonné de l'après-écriture a levé", e);
-      }
-    }
+    noteWritten();
   }
 }
 

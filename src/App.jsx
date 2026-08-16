@@ -62,7 +62,7 @@ import { DetailView } from "./views/DetailView";
 import { useNotes } from "./hooks/useNotes";
 import { useShelfViews } from "./hooks/useShelfViews";
 import { countPlacedMotifs } from "./shelf-views";
-import { saveSoon, dropSoon } from "./services/saving";
+import { saveSoon, dropSoon, noteWritten } from "./services/saving";
 import { TourOverlay, TourHint, TourMenu } from "./components/tour";
 import { shouldHint } from "./services/onboarding";
 import { demoFilms } from "./services/demo";
@@ -753,7 +753,12 @@ export default function App() {
        l'insertion écrivait tout de suite, la frappe d'avant écrasait
        trois cents millisecondes plus tard. */
     dropSoon(FILMS);
-    write(next);
+    /* UNE ÉCRITURE IMMÉDIATE AVANCE LA PASSE, ELLE AUSSI. Elle ne le
+       faisait pas : seule la file différée prévenait, donc une note
+       étoilée ou une fiche effacée attendaient le rythme de cinq
+       minutes. Voir `noteWritten`. */
+    noteWritten();
+    return write(next);
   };
 
   /* LA MÊME CHOSE, MAIS PAS TOUT DE SUITE — pour ce qu'on TAPE.
@@ -1057,7 +1062,23 @@ export default function App() {
   const importFilms = ({ toCreate, toUpdate }) => {
     const patches = new Map(toUpdate.map(({ film, changes }) => [film.id, changes]));
     const merged = films.map((f) => (patches.has(f.id) ? { ...f, ...patches.get(f.id) } : f));
-    commitFilms([...toCreate, ...merged]);
+    /* ON SYNCHRONISE TOUT DE SUITE, ET SEULEMENT ICI.
+
+       Un import est le geste le plus gros du produit — six cents fiches
+       d'un coup — et le seul qu'on VALIDE par un bouton en sachant ce
+       qu'il contient. Le laisser dans la file voulait dire ouvrir le
+       tiroir du compte juste après et y lire « six cents fiches
+       attendent le réseau », ce qui se lit comme un import qui n'a pas
+       pris.
+
+       APRÈS L'ÉCRITURE, PAS AVANT : c'est `saveFilms` qui note ce qu'il
+       y a à envoyer, et une passe partie trop tôt trouverait la file
+       telle qu'elle était. D'où le `then` — `commitFilms` rend sa
+       promesse pour cette raison, et pour elle seule.
+
+       Une passe refusée ne casse rien : le rythme ordinaire reprend, et
+       tout est déjà sur le disque. */
+    commitFilms([...toCreate, ...merged]).then(() => rerunSync());
   };
 
   const selectedFilm = films.find((f) => f.id === selectedId);

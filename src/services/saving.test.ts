@@ -1,5 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { dropSoon, flushSaves, saveSoon, saveState, watchSaving } from "./saving";
+import {
+  dropSoon,
+  flushSaves,
+  noteWritten,
+  onWritten,
+  saveSoon,
+  saveState,
+  watchSaving,
+} from "./saving";
 
 /* ============================================================
    CE QUI S'ENREGISTRE, ET CE QUI NE DOIT PAS S'ÉCRASER
@@ -115,5 +123,49 @@ describe("ce qu'on annonce", () => {
     });
     await expect(flushSaves()).rejects.toThrow();
     expect(saveState()).toBe("saved");
+  });
+});
+
+describe("ce qui prévient la synchronisation", () => {
+  it("prévient quand la file part", async () => {
+    const seen = vi.fn();
+    const stop = onWritten(seen);
+    saveSoon("a", vi.fn());
+    await flushSaves();
+    stop();
+    expect(seen).toHaveBeenCalled();
+  });
+
+  /* LE TROU QUE CE BLOC FERME : une note étoilée, un « je l'ai vu », un
+     import s'écrivent IMMÉDIATEMENT et ne passent donc jamais par la
+     file. Ils n'avançaient jamais la passe de synchronisation, et la
+     promesse « une passe dix secondes après la dernière écriture »
+     n'était vraie que pour ce qu'on tape. */
+  it("prévient aussi pour une écriture immédiate", () => {
+    const seen = vi.fn();
+    const stop = onWritten(seen);
+    noteWritten();
+    stop();
+    expect(seen).toHaveBeenCalledTimes(1);
+  });
+
+  it("ne prévient plus après désabonnement", () => {
+    const seen = vi.fn();
+    onWritten(seen)();
+    noteWritten();
+    expect(seen).not.toHaveBeenCalled();
+  });
+
+  /* Un abonné maladroit ne prive pas les autres. */
+  it("prévient tout le monde même si l'un tombe", () => {
+    const second = vi.fn();
+    const stopA = onWritten(() => {
+      throw new Error("maladroit");
+    });
+    const stopB = onWritten(second);
+    expect(() => noteWritten()).not.toThrow();
+    stopA();
+    stopB();
+    expect(second).toHaveBeenCalled();
   });
 });
