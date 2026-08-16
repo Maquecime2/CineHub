@@ -2207,8 +2207,6 @@ const en = {
         body: "The review and the loose notes. Stills dropped on the card slot into the text, where the cursor is.",
       },
       tags: {
-        noneLaid: "no keyword",
-        addOne: "add a keyword, then Enter",
         title: "Keywords and motifs",
         body: "The keywords are yours. The motifs are a shared vocabulary — “the hero dies”, “it rains at the end” — that a question can bear on.",
       },
@@ -2496,6 +2494,10 @@ const en = {
     notABackup: "This file is not a Ciné Hub backup.",
     storageFull: "Storage is full — the object was not added.",
     viewNotSaved: "The arrangement could not be saved — storage is full.",
+  },
+  tags: {
+    noneLaid: "no keyword",
+    addOne: "add a keyword, then Enter",
   },
 } as const;
 

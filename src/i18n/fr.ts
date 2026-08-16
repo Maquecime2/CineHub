@@ -2280,8 +2280,6 @@ const fr = {
         body: "La critique et les notes libres. Les photogrammes déposés sur la fiche s'y insèrent dans le texte, à l'endroit du curseur.",
       },
       tags: {
-        noneLaid: "aucun mot-clé",
-        addOne: "ajouter un mot-clé, puis Entrée",
         title: "Mots-clés et motifs",
         body: "Les mots-clés sont les vôtres. Les motifs sont un vocabulaire commun — « le héros meurt », « il pleut à la fin » — sur lequel une question peut porter.",
       },
@@ -2569,6 +2567,12 @@ const fr = {
     notABackup: "Ce fichier n'est pas une sauvegarde Ciné Hub.",
     storageFull: "Espace de stockage plein — l'objet n'a pas été ajouté.",
     viewNotSaved: "Le rangement n'a pas pu être enregistré — espace de stockage plein.",
+  },
+  /* Les mots-clés libres du champ de saisie — à ne pas confondre avec
+     la section « tags » de la visite, qui les PRÉSENTE. */
+  tags: {
+    noneLaid: "aucun mot-clé",
+    addOne: "ajouter un mot-clé, puis Entrée",
   },
 } as const;
 

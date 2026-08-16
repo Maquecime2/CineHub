@@ -86,7 +86,8 @@ describe("the two catalogues", () => {
    raise: it prints the key. That is how `shelf.kinds.main.tag` came to be
    displayed, in full, under a shelf.
 
-   So the sources are read, every literal `t("…")` is collected, and each
+   So the sources are read, every literal `t("…")` is collected — under
+   any of the names the translator goes by — and each
    one is looked up. Only literals — a key built from a variable cannot be
    checked here, and the two that are built that way are checked by the
    test below instead.
@@ -129,7 +130,13 @@ describe("the keys the screens ask for", () => {
     const missing = new Set<string>();
     for (const file of sources(SRC)) {
       const text = readFileSync(file, "utf8");
-      for (const match of text.matchAll(/\bt\(\s*"([a-zA-Z][\w.]*\.[\w.]+)"/g)) {
+      /* THE TRANSLATOR IS NOT ALWAYS CALLED `t`. Where `t` is already
+         taken by a local — the cleaned-up word in `TagEditor`, the outer
+         card's own translator in `DetailView` — the hook is renamed `tr`
+         or `t2`. Looking only for `t(` left those files unchecked, and
+         `tags.noneLaid` was printed raw under a keyword field for
+         exactly that reason. */
+      for (const match of text.matchAll(/\b(?:t|tr|t2)\(\s*"([a-zA-Z][\w.]*\.[\w.]+)"/g)) {
         const key = match[1]!;
         if (!has(fr as unknown as Tree, key) || !has(en as unknown as Tree, key)) {
           missing.add(`${key}  (${file.slice(SRC.length)})`);
