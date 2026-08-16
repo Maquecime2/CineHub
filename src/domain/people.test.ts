@@ -6,6 +6,8 @@ import {
   pageOf,
   rolesOnFilm,
   searchPeople,
+  sortPeople,
+  type Person,
   standouts,
 } from "./people";
 import { makeFilm } from "./film";
@@ -328,5 +330,87 @@ describe("pageOf", () => {
     expect(pageOf([film("A", { director: "Agnès Varda" })], "agnes varda")?.name).toBe(
       "Agnès Varda"
     );
+  });
+});
+
+/* ============================================================
+   L'ORDRE DU RÉPERTOIRE
+
+   Quatre tris, et le seul qui demande à être éprouvé est celui des
+   NOTES : une personne qu'on n'a jamais notée n'a pas une mauvaise note,
+   elle n'en a pas — et la faire passer pour la pire serait pire que de
+   ne pas trier du tout.
+   ============================================================ */
+describe("sortPeople", () => {
+  const who = (name: string, extra: Partial<Person> = {}): Person =>
+    ({
+      key: name.toLowerCase(),
+      name,
+      roles: ["réalisation"],
+      films: ["f1"],
+      watched: 1,
+      toWatch: 0,
+      screenings: 1,
+      rating: null,
+      gap: null,
+      period: null,
+      motifs: [],
+      lastAdded: 0,
+      lastSeen: "",
+      ...extra,
+    }) as Person;
+
+  it("range par nombre de films, le mieux fourni d'abord", () => {
+    const out = sortPeople(
+      [who("Peu", { films: ["a"] }), who("Beaucoup", { films: ["a", "b", "c"] })],
+      "films"
+    );
+    expect(out.map((p) => p.name)).toEqual(["Beaucoup", "Peu"]);
+  });
+
+  it("range par note, la meilleure d'abord", () => {
+    const out = sortPeople([who("Moyen", { rating: 3 }), who("Aimé", { rating: 4.5 })], "rating");
+    expect(out.map((p) => p.name)).toEqual(["Aimé", "Moyen"]);
+  });
+
+  /* LE POINT DU BLOC. */
+  it("met les non notés à la fin, jamais devant", () => {
+    const out = sortPeople(
+      [who("Jamais noté"), who("Tiède", { rating: 1 }), who("Aimé", { rating: 5 })],
+      "rating"
+    );
+    expect(out.map((p) => p.name)).toEqual(["Aimé", "Tiède", "Jamais noté"]);
+  });
+
+  it("range par dernière séance, la plus récente d'abord", () => {
+    const out = sortPeople(
+      [who("Vieux", { lastSeen: "2020-01-01" }), who("Frais", { lastSeen: "2026-01-01" })],
+      "seen"
+    );
+    expect(out.map((p) => p.name)).toEqual(["Frais", "Vieux"]);
+  });
+
+  it("laisse ceux qu'on n'a jamais vus à la fin", () => {
+    const out = sortPeople([who("Jamais vu"), who("Vu", { lastSeen: "2024-05-05" })], "seen");
+    expect(out.map((p) => p.name)).toEqual(["Vu", "Jamais vu"]);
+  });
+
+  it("range par nom, accents compris", () => {
+    const out = sortPeople([who("Étienne"), who("Alain"), who("Zoé")], "name");
+    expect(out.map((p) => p.name)).toEqual(["Alain", "Étienne", "Zoé"]);
+  });
+
+  /* UN RÉPERTOIRE QUI GIGOTE N'EST PAS UN RÉPERTOIRE : à égalité, le
+     départage est le même partout et il est stable. */
+  it("départage toujours pareil", () => {
+    const a = [who("Bernard", { rating: 4 }), who("Alain", { rating: 4 })];
+    expect(sortPeople(a, "rating").map((p) => p.name)).toEqual(["Alain", "Bernard"]);
+    expect(sortPeople([...a].reverse(), "rating").map((p) => p.name)).toEqual(["Alain", "Bernard"]);
+  });
+
+  it("ne touche pas au tableau qu'on lui donne", () => {
+    const given = [who("B"), who("A")];
+    sortPeople(given, "name");
+    expect(given.map((p) => p.name)).toEqual(["B", "A"]);
   });
 });

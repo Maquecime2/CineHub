@@ -341,7 +341,7 @@ export function ImportView({
           color: C.ink,
         }}
       >
-        Bordereau d'import
+        {t("import.heading")}
       </div>
       <div
         style={{

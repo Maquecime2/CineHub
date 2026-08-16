@@ -492,7 +492,7 @@ export function RecoView({
     <div style={{ padding: "34px 44px 60px", position: "relative", overflow: "hidden" }}>
       <CoffeeRing style={{ top: 20, right: 160 }} rotate={-18} />
       <StampCorner text="BULLETIN DE COMMANDE" />
-      <div
+      <h1
         style={{
           fontFamily: F.title,
           fontStyle: "italic",
@@ -501,10 +501,11 @@ export function RecoView({
           color: C.ink,
           position: "relative",
           zIndex: 2,
+          margin: 0,
         }}
       >
-        Le bureau des découvertes
-      </div>
+        {t("reco.heading")}
+      </h1>
       <InkUnderline width={370} />
       <div
         style={{
@@ -516,7 +517,7 @@ export function RecoView({
           zIndex: 2,
         }}
       >
-        des films à voir, choisis d'après ce que dit votre collection
+        {t("reco.subheading")}
       </div>
 
       {/* AT YOUR PLACE, BEFORE THE REST, and outside the key check:

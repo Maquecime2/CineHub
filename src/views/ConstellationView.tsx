@@ -340,7 +340,7 @@ export function ConstellationView({
     <div style={{ padding: "34px 44px 60px", position: "relative", overflow: "hidden" }}>
       <StampCorner text="CARTE DU CIEL" />
       <CoffeeRing style={{ top: 150, right: 90 }} rotate={-25} />
-      <div
+      <h1
         style={{
           fontFamily: F.title,
           fontStyle: "italic",
@@ -349,10 +349,11 @@ export function ConstellationView({
           color: C.ink,
           position: "relative",
           zIndex: 2,
+          margin: 0,
         }}
       >
-        La constellation
-      </div>
+        {t("constellation.heading")}
+      </h1>
       <InkUnderline width={300} />
       <div
         style={{
