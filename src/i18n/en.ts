@@ -1432,6 +1432,7 @@ const en = {
   },
 
   stills: {
+    dragHint: "drag it into the text, wherever you like",
     notSynced: "This image stayed on the device that imported it: stills do not synchronise yet.",
     pasteHint: "Ctrl+V to paste · “insert” places the thumbnail where the cursor is",
     caption: "caption…",

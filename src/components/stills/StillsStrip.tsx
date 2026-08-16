@@ -7,7 +7,7 @@ import { tiltOf } from "../../domain/seeded";
 import { deleteImage } from "../../db";
 import { Cardstock, Guideline, SectionTitle } from "../ui";
 import { IdbImage } from "./IdbImage";
-import { STILL_TOKEN } from "./tokens";
+import { STILL_DRAG, STILL_TOKEN } from "./tokens";
 import type { Film } from "../../types";
 
 interface StillsStripProps {
@@ -20,6 +20,18 @@ interface StillsStripProps {
   onAddFiles: (files: FileList | null) => void;
   /** Number of stills still being added; 0 when there is nothing to wait for. */
   busy?: number;
+  /* LA PELLICULE EN COLONNE, À CÔTÉ DU TEXTE QU'ELLE ILLUSTRE.
+
+     Elle était sous les champs, en planche contact. Insérer une capture
+     voulait dire poser le curseur, descendre chercher la vignette,
+     cliquer, remonter — quatre gestes pour une image, et on les fait
+     dix fois. À droite de la critique, la vignette est à portée de
+     main : on la prend et on la pose dans la phrase.
+
+     Les vignettes rétrécissent, forcément — c'est le prix d'une colonne
+     — mais elles gardent leur numéro et leur légende, et un clic ouvre
+     toujours la capture en grand. */
+  narrow?: boolean;
 }
 
 /* The film strip: all the film's stills, in a band. Each thumbnail
@@ -32,6 +44,7 @@ export function StillsStrip({
   highlight,
   onAddFiles,
   busy,
+  narrow,
 }: StillsStripProps) {
   const { t } = useTranslation();
   const [editing, setEditing] = useState<string | null>(null);
@@ -123,7 +136,7 @@ export function StillsStrip({
           style={{
             display: "flex",
             flexWrap: "wrap",
-            gap: 16,
+            gap: narrow ? 10 : 16,
             paddingBottom: 12,
             alignItems: "flex-start",
           }}
@@ -133,9 +146,21 @@ export function StillsStrip({
             return (
               <div
                 key={s.id}
+                /* ON LA PREND ET ON LA POSE DANS LE TEXTE. Le champ
+                   n'écoute qu'un type à nous : un glissement venu
+                   d'ailleurs ne se fait pas lire comme un numéro de
+                   capture. Le bouton « insérer » reste, pour le clavier
+                   et pour qui préfère viser le curseur. */
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.effectAllowed = "copy";
+                  e.dataTransfer.setData(STILL_DRAG, String(i + 1));
+                }}
+                title={t("stills.dragHint")}
                 style={{
                   flexShrink: 0,
-                  width: 190,
+                  cursor: "grab",
+                  width: narrow ? "100%" : 190,
                   background: C.card,
                   padding: "9px 9px 10px",
                   boxShadow: lit
@@ -152,7 +177,7 @@ export function StillsStrip({
                     style={{
                       display: "block",
                       width: "100%",
-                      height: 108,
+                      height: narrow ? 84 : 108,
                       objectFit: "contain",
                       background: "#1c1712",
                     }}

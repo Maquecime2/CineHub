@@ -39,6 +39,7 @@ import { MOTIFS, suggestMotifs } from "../domain/motifs";
 import type { Motif, MotifFamily } from "../domain/motifs";
 import { fetchKeywords } from "../tmdb";
 import { useTmdbKey } from "../services/tmdbKey";
+import { useViewport } from "../hooks/useViewport";
 import { StampCorner, Tape } from "../components/atmosphere";
 import { PosterArt } from "../components/film/PosterArt";
 import { PosterPicker } from "../components/film/PosterPicker";
@@ -214,6 +215,11 @@ export function DetailView({
 }: DetailViewProps) {
   const { t: t2 } = useTranslation();
   const apiKey = useTmdbKey();
+  /* LA LARGEUR DÉCIDE, PAS LE DOIGT. Une pellicule en colonne veut de la
+     place ; sous le seuil du téléphone elle repasse dessous, parce que
+     deux cent trente pixels pris sur trois cent quatre-vingt-dix ne
+     laissent plus de quoi écrire. */
+  const { phone: narrow } = useViewport();
   /* Le repli sur `onUpdate` n'est pas une politesse : c'est ce qui fait
      que cette vue se monte seule, dans un test, sans le classeur. */
   const saveText = onUpdateSoon ?? onUpdate;
@@ -668,75 +674,102 @@ export function DetailView({
               border is no longer a halo laid AROUND the block but the
               card's own thin line, changing ink: it is the same object,
               pointed at. */}
-            <Cardstock
-              tour="detail-review"
-              onFocusCapture={() => setFocusField("review")}
+            {/* LA CRITIQUE ET SA PELLICULE, CÔTE À CÔTE.
+
+                La pellicule était SOUS les champs. Insérer une capture
+                demandait alors quatre gestes — poser le curseur,
+                descendre, cliquer, remonter — et on les fait dix fois
+                en écrivant. À droite, la vignette est à portée : on la
+                prend et on la pose dans la phrase.
+
+                ELLE PASSE DESSOUS SUR UN ÉCRAN ÉTROIT. Une colonne de
+                deux cent trente pixels prise sur trois cent quatre-vingt
+                -dix ne laisse plus de quoi écrire, et c'est le texte qui
+                compte ici. */}
+            <div
               style={{
-                borderColor: focusField === "review" && stills.length > 0 ? C.burgundy : C.line,
+                display: "flex",
+                flexDirection: narrow ? "column" : "row",
+                alignItems: "flex-start",
+                gap: 18,
               }}
             >
-              <RichField
-                label="Critique personnelle"
-                minHeight={120}
-                value={film.review || ""}
-                onChange={(review) => saveText({ ...film, review })}
-                stills={stills}
-                onOpenStill={setLightbox}
-                onInsertToken={(fn) => {
-                  inserters.current.review = fn;
-                }}
-                placeholder={t2("detail.reviewPlaceholder")}
-              />
-              {/* LA MENTION EST SOUS LA CRITIQUE, ET SOUS ELLE SEULE.
-                  C'est le seul texte long du produit — celui qu'on écrit
-                  d'un bloc, et le seul devant lequel on se demande si ça
-                  part quelque part. La répéter sous chaque champ en
-                  ferait un meuble. */}
-              <Saved />
-            </Cardstock>
-            <Cardstock
-              onFocusCapture={() => setFocusField("notes")}
-              style={{
-                marginTop: 18,
-                borderColor: focusField === "notes" && stills.length > 0 ? C.burgundy : C.line,
-              }}
-            >
-              <RichField
-                label="Notes libres"
-                minHeight={70}
-                value={film.notes || ""}
-                onChange={(notes) => saveText({ ...film, notes })}
-                stills={stills}
-                onOpenStill={setLightbox}
-                onInsertToken={(fn) => {
-                  inserters.current.notes = fn;
-                }}
-                placeholder={t2("detail.notesPlaceholder")}
-              />
-            </Cardstock>
+              <div style={{ flex: 1, minWidth: 0, width: narrow ? "100%" : undefined }}>
+                <Cardstock
+                  tour="detail-review"
+                  onFocusCapture={() => setFocusField("review")}
+                  style={{
+                    borderColor: focusField === "review" && stills.length > 0 ? C.burgundy : C.line,
+                  }}
+                >
+                  <RichField
+                    label="Critique personnelle"
+                    minHeight={120}
+                    value={film.review || ""}
+                    onChange={(review) => saveText({ ...film, review })}
+                    stills={stills}
+                    onOpenStill={setLightbox}
+                    onInsertToken={(fn) => {
+                      inserters.current.review = fn;
+                    }}
+                    placeholder={t2("detail.reviewPlaceholder")}
+                  />
+                  {/* LA MENTION EST SOUS LA CRITIQUE, ET SOUS ELLE SEULE.
+                      C'est le seul texte long du produit — celui qu'on
+                      écrit d'un bloc, et le seul devant lequel on se
+                      demande si ça part quelque part. La répéter sous
+                      chaque champ en ferait un meuble. */}
+                  <Saved />
+                </Cardstock>
+                <Cardstock
+                  onFocusCapture={() => setFocusField("notes")}
+                  style={{
+                    marginTop: 18,
+                    borderColor: focusField === "notes" && stills.length > 0 ? C.burgundy : C.line,
+                  }}
+                >
+                  <RichField
+                    label="Notes libres"
+                    minHeight={70}
+                    value={film.notes || ""}
+                    onChange={(notes) => saveText({ ...film, notes })}
+                    stills={stills}
+                    onOpenStill={setLightbox}
+                    onInsertToken={(fn) => {
+                      inserters.current.notes = fn;
+                    }}
+                    placeholder={t2("detail.notesPlaceholder")}
+                  />
+                </Cardstock>
+              </div>
 
-            {/* THE FILM STRIP, UNDER THE TEXT IT ILLUSTRATES.
-
-              It was right at the bottom of the page. But "insert" lays
-              the thumbnail where the cursor is, in the field one is
-              writing in: the board and the text answer each other at
-              every gesture, and keeping them two screens apart forced a
-              round trip for every image. */}
-            <div style={{ marginTop: 18 }}>
-              <StillsStrip
-                film={film}
-                /* PAS DE `onUpdateSoon` ICI, ET CE N'EST PAS UN OUBLI :
-                   la légende d'une capture part déjà au FLOU du champ,
-                   ce qui est plus fort qu'un délai — le geste de sortir
-                   du champ est une validation, et il n'y a rien à
-                   grouper puisqu'il n'arrive qu'une fois. */
-                onUpdate={onUpdate}
-                onOpen={setLightbox}
-                onInsert={insertToken}
-                highlight={lightbox}
-                onAddFiles={addStills}
-                busy={busy}
-              />
+              <div
+                style={{
+                  flexShrink: 0,
+                  width: narrow ? "100%" : 236,
+                  position: narrow ? undefined : "sticky",
+                  /* ELLE SUIT LE TEXTE QU'ON DÉROULE. Une critique
+                     longue laissait la pellicule loin au-dessus, et le
+                     geste redevenait un aller-retour. */
+                  top: 16,
+                }}
+              >
+                <StillsStrip
+                  film={film}
+                  narrow={!narrow}
+                  /* PAS DE `onUpdateSoon` ICI, ET CE N'EST PAS UN OUBLI :
+                     la légende d'une capture part déjà au FLOU du champ,
+                     ce qui est plus fort qu'un délai — le geste de sortir
+                     du champ est une validation, et il n'y a rien à
+                     grouper puisqu'il n'arrive qu'une fois. */
+                  onUpdate={onUpdate}
+                  onOpen={setLightbox}
+                  onInsert={insertToken}
+                  highlight={lightbox}
+                  onAddFiles={addStills}
+                  busy={busy}
+                />
+              </div>
             </div>
           </div>
 
