@@ -1181,6 +1181,7 @@ export default function App() {
          étagère de plus, et compter par vue aurait offert un exemplaire
          gratuit à chaque vue créée. */
       placed: placedMotifs,
+      onOpenPerson: openPerson,
       onShelfView: shelf.commit,
       onPickView: (next) => setUiFor(wall)({ ...wallUi[wall], viewId: next }),
       onCreateView: (name) => setUiFor(wall)({ ...wallUi[wall], viewId: shelf.create(wall, name) }),

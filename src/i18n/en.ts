@@ -1414,6 +1414,8 @@ const en = {
   },
 
   shelf: {
+    anonymous: "anonymous",
+    noDate: "n.d.",
     dropFilmsHere: "drop films here",
     bedsideStamp: "BEDSIDE FILM",
     manage: "MANAGE",

@@ -1002,7 +1002,7 @@ export function ReserveDrawer({
 
 /* The case one opens. A preview only: the full folder stays the card, one
    goes there with a click from here. */
-export function CellPreview({ film, onClose, onOpenFile }) {
+export function CellPreview({ film, onClose, onOpenFile, onOpenPerson }) {
   const { t } = useTranslation();
   useEffect(() => {
     const onKey = (e) => {
@@ -1138,7 +1138,28 @@ export function CellPreview({ film, onClose, onOpenFile }) {
                   marginTop: 2,
                 }}
               >
-                {film.director || "anonyme"} · {film.year || "s.d."}
+                {/* THE NAME IS A DOOR. It read as plain italic text, and
+                    the folder of somebody in the credits was reachable
+                    from the card but not from here — where one is
+                    precisely looking at who made this. Without the
+                    handler it stays what it was: a caller that knows no
+                    credits must not draw a dead link. */}
+                {film.director && onOpenPerson ? (
+                  <button
+                    onClick={() => onOpenPerson(film.director)}
+                    style={{
+                      all: "unset",
+                      ...tap,
+                      cursor: "pointer",
+                      borderBottom: `1px solid ${alpha(C.inkFaded, 0.5)}`,
+                    }}
+                  >
+                    {film.director}
+                  </button>
+                ) : (
+                  film.director || t("shelf.anonymous")
+                )}{" "}
+                · {film.year || t("shelf.noDate")}
               </div>
               {film.status !== "watchlist" && (
                 <div style={{ marginTop: 8 }}>
@@ -1187,6 +1208,15 @@ export function CellPreview({ film, onClose, onOpenFile }) {
                   </span>
                 )}
               </div>
+              {/* THE WHOLE REVIEW, AND IT SCROLLS.
+
+                  It used to be cut at two hundred and sixty characters,
+                  mid-word, with nothing saying more was there — one read
+                  "Déjà le p" and had to open the folder to find out. A
+                  height in pixels with `overflow: hidden` said the same
+                  thing twice and lied about it. The paragraphs are kept
+                  (`pre-wrap`): a review is written in paragraphs, and
+                  running them together is a second way of losing it. */}
               <div
                 style={{
                   fontFamily: F.body,
@@ -1194,12 +1224,13 @@ export function CellPreview({ film, onClose, onOpenFile }) {
                   lineHeight: 1.65,
                   color: C.ink,
                   marginTop: 14,
-                  maxHeight: 120,
-                  overflow: "hidden",
+                  whiteSpace: "pre-wrap",
+                  maxHeight: "34vh",
+                  overflowY: "auto",
                 }}
               >
                 {film.review?.trim() ? (
-                  film.review.replace(/\[img:\d+\]/g, "").slice(0, 260)
+                  film.review.replace(/\[img:\d+\]/g, "")
                 ) : (
                   <span style={{ fontStyle: "italic", color: C.inkFaded }}>
                     {t("shelf.noNoteYet")}

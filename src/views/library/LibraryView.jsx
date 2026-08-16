@@ -347,6 +347,7 @@ export function LibraryView({
   /* Ce qui est déjà posé, tous murs et toutes vues confondus : voir
      `countPlacedMotifs`. Le cabinet s'en sert pour dire ce qu'il reste. */
   placed,
+  onOpenPerson,
   onShelfView,
   onPickView,
   onCreateView,
@@ -882,6 +883,7 @@ export function LibraryView({
               onDoc={onShelfView}
               placed={placed}
               onOpen={onOpen}
+              onOpenPerson={onOpenPerson}
               onUpdateMany={onUpdateMany}
               dimSet={dimSet}
             />

@@ -1446,6 +1446,8 @@ const fr = {
   },
 
   shelf: {
+    anonymous: "anonyme",
+    noDate: "s.d.",
     dropFilmsHere: "glissez-y des films",
     bedsideStamp: "FILM DE CHEVET",
     manage: "GÉRER",

@@ -2,7 +2,7 @@ import fr from "../../i18n/fr";
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { PerRowField, DecorCabinet, ItemPalette } from "./layout";
+import { PerRowField, DecorCabinet, ItemPalette, CellPreview } from "./layout";
 import { DECOR_TYPES, CAT_FAMILIES, decorLabel } from "./constants";
 import i18n from "../../i18n";
 
@@ -212,5 +212,57 @@ describe("ItemPalette — the colours on offer", () => {
   it("shows no swatch without onColor", () => {
     open({ onColor: undefined });
     expect(screen.queryByTitle("burgundy")).toBeNull();
+  });
+});
+
+/* ============================================================
+   THE CELL PREVIEW — what one sees before opening the folder
+   ============================================================ */
+describe("CellPreview", () => {
+  const LONG =
+    "Le samouraï est mon premier Melville. Ayant entendu parler de ses autres films, " +
+    "je m'attendais probablement à un peu plus de profondeur dans le scénario. Ce n'est " +
+    "pas le cas, celui-ci est assez anecdotique, mais ça ne m'a pas empêché de me régaler. " +
+    "Déjà le personnage de Delon, mutique et méthodique, tient le film à lui seul.";
+
+  const film = {
+    id: "s",
+    title: "Le Samouraï",
+    director: "Jean-Pierre Melville",
+    year: 1967,
+    rating: 4,
+    genres: ["Crime"],
+    review: LONG,
+    status: "watched",
+  };
+
+  const show = (props = {}) =>
+    render(<CellPreview film={film} onClose={vi.fn()} onOpenFile={vi.fn()} {...props} />);
+
+  it("shows the review WHOLE", () => {
+    /* It was cut at 260 characters, mid-word, with nothing saying more
+       was there: one read "Déjà le p" and had to open the folder. */
+    show();
+    expect(screen.getByText(new RegExp(LONG.slice(-30)))).toBeInTheDocument();
+  });
+
+  it("keeps the image markers out of it", () => {
+    show({ film: { ...film, review: "avant [img:2] après" } });
+    expect(screen.queryByText(/\[img:/)).not.toBeInTheDocument();
+  });
+
+  it("opens the folder of whoever made it", () => {
+    const onOpenPerson = vi.fn();
+    show({ onOpenPerson });
+    return userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "Jean-Pierre Melville" }))
+      .then(() => expect(onOpenPerson).toHaveBeenCalledWith("Jean-Pierre Melville"));
+  });
+
+  it("draws no dead link when the caller knows no credits", () => {
+    show();
+    expect(screen.queryByRole("button", { name: "Jean-Pierre Melville" })).not.toBeInTheDocument();
+    expect(screen.getByText(/Jean-Pierre Melville/)).toBeInTheDocument();
   });
 });

@@ -53,7 +53,16 @@ const noTint = (motif) => {
    handler asks itself before doing anything at all. */
 const hangs = (drag) => drag?.type === "wall";
 
-export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet, placed }) {
+export function ShelfBoard({
+  films,
+  doc,
+  onDoc,
+  onOpen,
+  onOpenPerson,
+  onUpdateMany,
+  dimSet,
+  placed,
+}) {
   const { t } = useTranslation();
   /* A drag changes NO React state. It was the last visible lag:
      `setDragId` at the start of the drag re-rendered the shelf, which
@@ -896,6 +905,7 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet, pl
           film={filmsById.get(preview)}
           onClose={() => setPreview(null)}
           onOpenFile={onOpen}
+          onOpenPerson={onOpenPerson}
         />
       )}
     </div>
