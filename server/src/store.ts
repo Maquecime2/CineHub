@@ -2282,7 +2282,9 @@ export async function createDecor(
          FROM decor WHERE owner_id = $2 AND NOT deleted
      ),
      permis AS (
-       SELECT 1 FROM tenu WHERE n < $8 AND poids + $7 <= $9
+       SELECT 1 FROM tenu
+        WHERE ($8::bigint IS NULL OR n < $8::bigint)
+          AND ($9::bigint IS NULL OR poids + $7 <= $9::bigint)
      )
      INSERT INTO decor (id, owner_id, label, wall, kind, tintable, bytes)
      SELECT $1, $2, $3, $4, $5, $6, $7 FROM permis
@@ -2296,8 +2298,8 @@ export async function createDecor(
       d.kind ?? "raster",
       d.tintable ?? false,
       d.bytes ?? 0,
-      bornes.decors,
-      bornes.decorBytes,
+      borne(bornes.decors),
+      borne(bornes.decorBytes),
     ]
   );
   if (!row) {
@@ -2335,6 +2337,26 @@ export async function createDecor(
  * synchronisation répétée épuise un plafond. Le compte est donc celui
  * des chemins distincts, pas celui des demandes.
  */
+/**
+ * UN PLAFOND INFINI NE SE MET PAS DANS UNE REQUÊTE.
+ *
+ * `ceilingsFor` rend `Infinity` pour l'admin — « rien ne refuse » —, et
+ * c'est la bonne façon de l'écrire en TypeScript. Mais lié en paramètre,
+ * `Infinity` part sur le fil sous la forme du texte « Infinity », que
+ * Postgres refuse pour un entier : `22P02, invalid input syntax for type
+ * bigint`. La requête entière tombe, en 500, et l'admin — le seul compte
+ * qui ne devait JAMAIS être refusé — est le seul à ne plus pouvoir
+ * écrire un média ni déposer un décor.
+ *
+ * Le défaut avait déjà été rencontré une fois, et contourné sur place
+ * par un `if (bornes.imports === Infinity) return true` dans
+ * `noteImport`. Un contournement à un endroit sur trois est ce qui a
+ * laissé les deux autres. On convertit donc À LA SOURCE : `null`
+ * traverse la frontière sans mentir, et le SQL le lit comme « pas de
+ * plafond ».
+ */
+const borne = (n: number): number | null => (Number.isFinite(n) ? n : null);
+
 export async function noteMedia(
   db: Db,
   personId: string,
@@ -2348,7 +2370,8 @@ export async function noteMedia(
      ),
      permis AS (
        SELECT 1 WHERE EXISTS (SELECT 1 FROM deja)
-          OR (SELECT count(*) FROM media WHERE person_id = $1) < $4
+          OR $4::bigint IS NULL
+          OR (SELECT count(*) FROM media WHERE person_id = $1) < $4::bigint
      ),
      mis AS (
        INSERT INTO media (person_id, path, bytes)
@@ -2357,7 +2380,7 @@ export async function noteMedia(
        RETURNING 1
      )
      SELECT 1::int AS ok FROM permis`,
-    [personId, path, bytes, bornes.media]
+    [personId, path, bytes, borne(bornes.media)]
   );
   return rows.length > 0;
 }

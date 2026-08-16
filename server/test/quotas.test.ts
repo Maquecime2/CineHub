@@ -197,3 +197,57 @@ describe("ce que le plafond ne touche pas", () => {
     expect(await store.countCards(db, a.id)).toBe(1);
   });
 });
+
+/* ============================================================
+   L'ADMIN N'A PAS DE PLAFOND, ET C'EST CE QUI LE CASSAIT
+
+   `ceilingsFor` rend `Infinity` pour le rôle — « rien ne refuse » —, et
+   c'est la bonne façon de l'écrire en TypeScript. Lié en paramètre,
+   `Infinity` part sous la forme du texte « Infinity », que Postgres
+   refuse pour un entier : `22P02`. La requête tombait en 500, et le seul
+   compte qui ne devait JAMAIS être refusé était le seul à ne plus
+   pouvoir écrire un média ni déposer un décor.
+
+   Le défaut avait déjà été rencontré et contourné SUR PLACE dans
+   `noteImport`. Un contournement à un endroit sur trois est précisément
+   ce qui a laissé les deux autres — d'où ces épreuves, une par endroit
+   qui lie un plafond.
+   ============================================================ */
+describe("un plafond infini", () => {
+  const admin = async (pseudo = "maquecime") => {
+    const p = await store.createPerson(db, pseudo);
+    await store.markAdmins(db, [pseudo]);
+    return p.id;
+  };
+
+  it("est bien infini, côté barème", () => {
+    expect(ceilingsFor({ is_admin: true }).media).toBe(Infinity);
+  });
+
+  it("laisse noter un média au lieu de lever", async () => {
+    const me = await admin();
+    await expect(store.noteMedia(db, me, `p/${me}/affiche-1`, 1000)).resolves.toBe(true);
+    await expect(store.noteMedia(db, me, `p/${me}/affiche-2`, 1000)).resolves.toBe(true);
+  });
+
+  it("laisse déposer un décor au lieu de lever", async () => {
+    const me = await admin();
+    await expect(
+      store.createDecor(db, { ownerId: me, label: "une lampe", bytes: 10_000 })
+    ).resolves.toMatchObject({ label: "une lampe" });
+  });
+
+  /* ET LE PLAFOND ORDINAIRE MORD TOUJOURS : la correction ne devait pas
+     transformer « pas de plafond pour l'admin » en « pas de plafond pour
+     personne ». */
+  it("ne desserre rien pour les autres", async () => {
+    const p = await store.createPerson(db, "ordinaire");
+    const ceiling = ceilingsFor({}).decors;
+    for (let i = 0; i < ceiling; i++) {
+      await store.createDecor(db, { ownerId: p.id, label: `objet ${i}`, bytes: 1 });
+    }
+    await expect(
+      store.createDecor(db, { ownerId: p.id, label: "celui de trop", bytes: 1 })
+    ).rejects.toThrow(QuotaReached);
+  });
+});
