@@ -3,6 +3,8 @@ import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
 import { SharedCollectionView, readAddress } from "./views/SharedCollectionView";
 import { applySkin, loadSkinKey } from "./theme/applySkin";
+import { Boundary } from "./components/ui/Boundary";
+import { FeedbackProvider } from "./components/ui/Feedback";
 import "./index.css";
 
 /* ============================================================
@@ -43,8 +45,23 @@ addEventListener("hashchange", () => {
   if (pageChanged) location.reload();
 });
 
+/* LA DIGUE ET L'ANNOTATION SONT MONTÉES ICI, AUTOUR DES DEUX PAGES.
+
+   La digue, parce que celle qui entoure la colonne de vue ne se protège
+   pas elle-même : un défaut dans le rail, dans une couche globale ou
+   dans le montage d'`App` lui-même la traverse, et il n'y avait aucune
+   frontière d'erreur dans tout le projet — donc une page blanche.
+
+   L'annotation, parce qu'elle est demandée depuis n'importe où : un
+   import qui se termine, une note prise, un achat. Un fournisseur à la
+   racine est ce qui permet de la dire sans passer une fonction de
+   composant en composant. */
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    {address ? <SharedCollectionView address={address} /> : <App />}
+    <Boundary>
+      <FeedbackProvider>
+        {address ? <SharedCollectionView address={address} /> : <App />}
+      </FeedbackProvider>
+    </Boundary>
   </React.StrictMode>
 );

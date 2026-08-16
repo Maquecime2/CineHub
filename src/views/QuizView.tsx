@@ -29,7 +29,7 @@ import type { ReactNode } from "react";
 import { Check, Library, Pencil, Plus, Puzzle, Trash2, Undo2, UserPlus, X } from "lucide-react";
 import { C, F, alpha } from "../theme/tokens";
 import { bare, chip, hollow, inked, tap, underlineInput } from "../theme/styles";
-import { Guideline, Label, Meter, ViewHeading } from "../components/ui";
+import { Guideline, Label, Meter, Trouble, ViewHeading, Waiting } from "../components/ui";
 import { FileNumber, InkUnderline } from "../components/atmosphere";
 import { Fold, Halftone, Stamp, Staple, perforated } from "../components/atmosphere/hall";
 import { PowerBar } from "../components/play/PowerBar";
@@ -81,12 +81,18 @@ export function QuizView({ connected }: { connected: boolean }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [opened, setOpened] = useState<string | null>(null);
   const [tendingBank, setTendingBank] = useState(false);
+  /* NULL VEUT DIRE « ON N'A PAS ENCORE DEMANDÉ », et c'est ce qui
+     distingue une soirée vide d'une soirée qu'on n'a pas pu lire. Les
+     deux montraient le même écran, c'est-à-dire aucun. */
+  const [loading, setLoading] = useState(true);
+  const [souci, setSouci] = useState<string | null>(null);
 
   /* Servi de mémoire à l'entrée, redemandé après un geste : voir
      `hooks/useHall`. */
   const show = useCallback((d: { quizzes: Quiz[]; categories: Category[] }) => {
     setQuizzes(d.quizzes);
     setCategories(d.categories);
+    setLoading(false);
   }, []);
 
   const reread = useCallback(async () => {
@@ -99,7 +105,10 @@ export function QuizView({ connected }: { connected: boolean }) {
     quizBank
       .load()
       .then(show)
-      .catch(() => {});
+      .catch((e: Error) => {
+        setLoading(false);
+        setSouci(e.message);
+      });
   }, [connected, show]);
 
   if (!serverConfigured()) {
@@ -146,9 +155,18 @@ export function QuizView({ connected }: { connected: boolean }) {
 
       <Composer categories={categories} onDrawn={reread} onOpen={setOpened} />
 
+      {souci && <Trouble>{souci}</Trouble>}
+
       <div data-tour="quiz-mine" style={{ marginTop: 34 }}>
         <Label>{t("quizView.yours")}</Label>
-        {mine.length === 0 && <Guideline tight>{t("quizView.noneDealt")}</Guideline>}
+        {/* TROIS ÉTATS ET PAS DEUX : on attend, il n'y a rien, ou on
+            n'a pas pu demander. Les deux derniers montraient la même
+            phrase — « aucune soirée » — y compris quand le serveur
+            avait refusé la requête. */}
+        {loading && <Waiting lines={2} />}
+        {!loading && mine.length === 0 && !souci && (
+          <Guideline tight>{t("quizView.noneDealt")}</Guideline>
+        )}
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 6 }}>
           {mine.map((q) => (
             <OneQuiz
@@ -164,7 +182,10 @@ export function QuizView({ connected }: { connected: boolean }) {
 
       <div data-tour="quiz-given" style={{ marginTop: 30 }}>
         <Label>{t("quizView.given")}</Label>
-        {given.length === 0 && <Guideline tight>{t("quizView.noneGiven")}</Guideline>}
+        {loading && <Waiting lines={2} />}
+        {!loading && given.length === 0 && !souci && (
+          <Guideline tight>{t("quizView.noneGiven")}</Guideline>
+        )}
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 6 }}>
           {given.map((q) => (
             <OneQuiz

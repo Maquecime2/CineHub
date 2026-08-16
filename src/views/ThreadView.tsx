@@ -23,7 +23,7 @@ import type { ReactNode } from "react";
 import { Search, UserPlus, UserMinus, Users } from "lucide-react";
 import { C, F, alpha } from "../theme/tokens";
 import { bare, inked, underlineInput } from "../theme/styles";
-import { Guideline, Label, ViewHeading } from "../components/ui";
+import { Guideline, Label, Trouble, ViewHeading, Waiting } from "../components/ui";
 import { Stamp } from "../components/atmosphere/hall";
 import { STAMP_INK, stampLabel } from "../components/play/stamps";
 import { PosterArt } from "../components/film/PosterArt";
@@ -66,16 +66,20 @@ export function ThreadView({ connected }: { connected: boolean }) {
     feed
       .load()
       .then(show)
-      .catch(() => setNouvelles([]));
+      /* LE FIL SE TAISAIT DE DEUX FAÇONS ET N'EN MONTRAIT QU'UNE. Une
+         liste vide et une requête refusée arrivaient toutes les deux
+         ici, et l'écran affichait la même chose : rien. On dit
+         maintenant laquelle des deux. */
+      .catch((e: Error) => {
+        setNouvelles([]);
+        setSouci(e.message);
+      });
   }, [connected, show]);
 
   if (!serverConfigured()) {
     return (
       <Page>
-        <Guideline>
-          Aucun serveur n'est réglé : le classeur vit entièrement chez vous, et il n'y a personne à
-          suivre.
-        </Guideline>
+        <Guideline>{t("threadView.noServer")}</Guideline>
       </Page>
     );
   }
@@ -104,7 +108,12 @@ export function ThreadView({ connected }: { connected: boolean }) {
       /* The server answers the same thing for "does not exist" and
          "does not show themselves": we take up that silence, without
          inventing which of the two. */
-      setSouci(`Personne ne sharing sa collection sous « ${name} ».`);
+      /* LA PHRASE ÉTAIT CASSÉE, et par un remplacement automatique :
+         elle disait « Personne ne sharing sa collection sous … » — un
+         mot français remplacé par sa traduction anglaise au milieu
+         d'une phrase française. Elle est écrite en dur depuis toujours ;
+         elle passe donc aux clés, comme le reste. */
+      setSouci(t("threadView.noSuchPerson", { name }));
     }
   };
 
@@ -135,11 +144,7 @@ export function ThreadView({ connected }: { connected: boolean }) {
             <Search size={12} /> {t("threadView.look")}
           </button>
         </div>
-        {souci && (
-          <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded, marginTop: 8 }}>
-            {souci}
-          </div>
-        )}
+        {souci && <Trouble>{souci}</Trouble>}
         {trouve && (
           <div
             style={{
@@ -235,7 +240,10 @@ export function ThreadView({ connected }: { connected: boolean }) {
       {/* ---- le fil ---- */}
       <div data-tour="thread-news">
         <Label>{t("threadView.lately")}</Label>
-        {news === null && <Guideline tight>{t("threadView.opening")}</Guideline>}
+        {/* LE SQUELETTE OFFICIEL, ET PAS UNE PHRASE. `Waiting` porte
+            `role="status"` et `aria-live` : une ligne de texte muette
+            dit à l'œil qu'on attend et ne le dit à personne d'autre. */}
+        {news === null && <Waiting lines={3} label={t("threadView.opening")} />}
         {news?.length === 0 && (
           <Guideline tight>
             {subscriptions.length === 0 ? t("threadView.followNobody") : t("threadView.nothingNew")}

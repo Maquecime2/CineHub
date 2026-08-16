@@ -22,7 +22,7 @@ import type { ReactNode } from "react";
 import { ListChecks, Plus, Search, Trash2, UserPlus, X } from "lucide-react";
 import { C, F, alpha } from "../theme/tokens";
 import { bare, chip, inked, tap, underlineInput } from "../theme/styles";
-import { Guideline, Label, Meter, ViewHeading, Waiting } from "../components/ui";
+import { Guideline, Label, Meter, Trouble, ViewHeading, Waiting } from "../components/ui";
 import { StampCorner, TapeResidue } from "../components/atmosphere";
 import { Halftone } from "../components/atmosphere/hall";
 import { daysLeft, mayExtend, needsSettling, stateOf } from "../domain/challenges";
@@ -31,6 +31,7 @@ import { tiltOf } from "../domain/seeded";
 import { refreshPurse } from "../hooks/usePurse";
 import { useShop } from "../hooks/useShop";
 import { BuyChip } from "../components/play/Buy";
+import { Confirmation, type ConfirmRequest } from "../components/ui/Confirmation";
 import {
   createList,
   createChallenge,
@@ -46,6 +47,7 @@ import {
   addToList,
   editList,
   extendChallenge,
+  secondWind,
   settleChallenge,
   serverConfigured,
   type Progress,
@@ -77,6 +79,11 @@ export function ListsView({ connected }: { connected: boolean }) {
   const [settled, setSettled] = useState(false);
   const [opened, setOpened] = useState<string | null>(null);
   const [title, setTitle] = useState("");
+  /* CE QUI A RATÉ EN OUVRANT LA PAGE. Distinct de `settled` : « on a
+     fini de demander » et « on a obtenu quelque chose » sont deux
+     phrases différentes, et les confondre annonçait « aucune liste » à
+     quelqu'un dont la requête venait d'être refusée. */
+  const [trouble, setTrouble] = useState<string | null>(null);
 
   /* THROUGH THE SHARED STORE, NOT AROUND IT. This view held its own
      copy of "my lists" and the badges on the wall held another: a list
@@ -104,7 +111,13 @@ export function ListsView({ connected }: { connected: boolean }) {
     if (!connected) return;
     Promise.all([loadLists(), challengeBoard.load()])
       .then(([l, d]) => show(l, d))
-      .catch(() => {});
+      /* `settled` passait à vrai même en cas d'échec, donc l'écran
+         annonçait « aucune liste » à quelqu'un dont la requête venait
+         d'être refusée. On distingue les deux maintenant. */
+      .catch((e: Error) => {
+        setSettled(true);
+        setTrouble(e.message);
+      });
   }, [connected, show]);
 
   if (!serverConfigured()) {
@@ -164,7 +177,10 @@ export function ListsView({ connected }: { connected: boolean }) {
       <div data-tour="lists-mine" style={{ marginBottom: 34 }}>
         <Label>{t("listsView.yours")}</Label>
         {!settled && <Waiting label={t("listsView.loading")} />}
-        {settled && lists.length === 0 && <Guideline tight>{t("listsView.none")}</Guideline>}
+        {trouble && <Trouble>{trouble}</Trouble>}
+        {settled && !trouble && lists.length === 0 && (
+          <Guideline tight>{t("listsView.none")}</Guideline>
+        )}
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 6 }}>
           {lists.map((l) => (
             <OneList
@@ -214,6 +230,7 @@ function OneList({
   const [members, setMembers] = useState<string[]>([]);
   const [invite, setInvitee] = useState("");
   const [trouble, setTrouble] = useState<string | null>(null);
+  const [request, setRequest] = useState<ConfirmRequest | null>(null);
   const [challenge, setDraft] = useState({
     title: "",
     start: currentMonth().start,
@@ -376,7 +393,18 @@ function OneList({
                 </label>
                 <span style={{ flex: 1 }} />
                 <button
-                  onClick={() => deleteList(list.id).then(onChange)}
+                  /* UNE LISTE EST PARTAGÉE : la supprimer ne retire pas
+                     seulement la sienne, elle la retire à ceux qu'on y a
+                     invités. Et il n'y a rien à annuler derrière. */
+                  onClick={() =>
+                    setRequest({
+                      title: t("listsView.confirmListTitle"),
+                      body: t("listsView.confirmListBody", { title: list.title }),
+                      action: t("common.delete"),
+                      severe: true,
+                      onConfirm: () => void deleteList(list.id).then(onChange),
+                    })
+                  }
                   title={t("listsView.deleteList")}
                   style={{ ...bare, color: C.burgundy }}
                 >
@@ -419,6 +447,7 @@ function OneList({
           )}
         </div>
       )}
+      <Confirmation request={request} onClose={() => setRequest(null)} />
     </div>
   );
 }
@@ -573,6 +602,7 @@ function OneChallenge({
   const { t } = useTranslation();
   const [progress, setAvancement] = useState<Progress[] | null>(null);
   const [ends, setEnds] = useState(challenge.ends_on);
+  const [request, setRequest] = useState<ConfirmRequest | null>(null);
 
   const reread = useCallback(async () => {
     const r = await readChallenge(challenge.id);
@@ -697,7 +727,17 @@ function OneChallenge({
         </button>
         {challenge.per === null || challenge.inside ? (
           <button
-            onClick={() => deleteChallenge(challenge.id).then(onChange)}
+            /* Un défi mesure des gens : le retirer efface aussi ce que
+               les autres y ont fait. */
+            onClick={() =>
+              setRequest({
+                title: t("listsView.confirmChallengeTitle"),
+                body: t("listsView.confirmChallengeBody", { title: challenge.title }),
+                action: t("common.delete"),
+                severe: true,
+                onConfirm: () => void deleteChallenge(challenge.id).then(onChange),
+              })
+            }
             title={t("listsView.deleteChallenge")}
             style={{ ...bare, color: C.burgundy }}
           >
@@ -786,6 +826,91 @@ function OneChallenge({
           {t("listsView.extend")}
         </button>
       )}
+
+      {/* ------------------------------------------------------------
+          LE SECOND SOUFFLE — ce qui rattrape un défi manqué
+          ------------------------------------------------------------
+
+          LA PROLONGATION NE COUVRAIT PAS CE CAS, ET C'EST TOUT L'OBJET :
+          elle est réservée à qui a CRÉÉ le défi, capée à deux, et
+          s'arrête une semaine après la fin. Un participant qui s'aperçoit
+          trop tard qu'il a laissé filer n'avait rien — le défi était
+          raté, et la seule voie était d'attendre le suivant.
+
+          Il ne s'affiche donc QUE sur un défi fini et non soldé, ce qui
+          est le seul moment où il sert : dessiné pendant qu'il court, il
+          serait un bouton qui ne fait rien. */}
+      {state === "finished" && (
+        <SecondWind challengeId={challenge.id} onPushed={setEnds} onChange={onChange} />
+      )}
+      <Confirmation request={request} onClose={() => setRequest(null)} />
+    </div>
+  );
+}
+
+function SecondWind({
+  challengeId,
+  onPushed,
+  onChange,
+}: {
+  challengeId: string;
+  onPushed: (ends: string) => void;
+  onChange: () => Promise<void> | void;
+}) {
+  const { t } = useTranslation();
+  const catalogue = useShop();
+  const sold = catalogue.find((i) => i.power === "second-wind");
+  const held = sold?.held ?? 0;
+  const [trouble, setTrouble] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  if (!sold) return null;
+
+  const blow = async () => {
+    if (busy) return;
+    setBusy(true);
+    setTrouble(null);
+    try {
+      const again = await secondWind(challengeId);
+      onPushed(again.ends_on);
+      await onChange();
+    } catch (e) {
+      /* Le serveur rend le pouvoir quand il refuse — essayer ne coûte
+         rien, et il faut le dire, sans quoi le clic a l'air perdu. */
+      setTrouble((e as Error).message);
+      await onChange();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div style={{ position: "relative", marginTop: 8 }}>
+      {held > 0 ? (
+        <button
+          onClick={blow}
+          disabled={busy}
+          data-tour="lists-second-wind"
+          style={{
+            ...bare,
+            fontFamily: F.mono,
+            fontSize: 10,
+            letterSpacing: 1,
+            color: C.pine,
+            cursor: busy ? "wait" : "pointer",
+          }}
+        >
+          {t("listsView.secondWind")}
+        </button>
+      ) : (
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+          <span style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}>
+            {t("listsView.secondWind")}
+          </span>
+          <BuyChip item={sold.id} price={sold.price} onBought={onChange} compact />
+        </div>
+      )}
+      {trouble && <Trouble>{trouble}</Trouble>}
     </div>
   );
 }

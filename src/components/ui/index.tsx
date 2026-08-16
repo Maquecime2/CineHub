@@ -412,6 +412,74 @@ export function Nothing({ what }: { what: string }) {
   return <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded }}>{what}</div>;
 }
 
+/* ============================================================
+   CE QUI A RATÉ — une seule forme, pour tout le classeur
+   ============================================================
+
+   IL Y EN AVAIT CINQ. `trouble` au comptoir, `souci` dans le fil, `msg`
+   au générique, `error` au bureau des découvertes, `keyState` dans le
+   cartouche — cinq noms, cinq styles écrits à la main, et cinq façons de
+   dire la même chose selon le fichier qu'on lisait.
+
+   ET AUCUNE N'ÉTAIT ANNONCÉE. Pas un `role="alert"` sur un seul message
+   d'erreur du produit : quelqu'un qui navigue à la voix cliquait, rien
+   ne se passait, et rien ne le lui disait non plus. C'est la raison
+   principale de ce composant — l'uniformité n'est que le bénéfice.
+
+   LE VERDICT SE DIT PAR UN MOT ET PAS PAR UNE COULEUR. Le bordeaux
+   disparaît sous cinq des dix-sept peaux ; c'est le trait vertical à
+   gauche, épais, qui reste lisible partout, et le texte qui porte le
+   sens. La couleur n'est qu'un accent de plus.
+   ============================================================ */
+export function Trouble({
+  children,
+  onRetry,
+  retryLabel,
+}: {
+  children: ReactNode;
+  /** Un rattrapage, quand il y en a un. Sans lui, on ne dessine rien. */
+  onRetry?: () => void;
+  retryLabel?: string;
+}) {
+  if (!children) return null;
+  return (
+    <div
+      role="alert"
+      style={{
+        display: "flex",
+        alignItems: "baseline",
+        gap: 10,
+        margin: "8px 0",
+        padding: "6px 10px 7px",
+        borderLeft: `3px solid ${C.burgundy}`,
+        background: alpha(C.burgundy, 0.07),
+        fontFamily: F.hand,
+        fontSize: 16,
+        color: C.ink,
+      }}
+    >
+      <span style={{ flex: 1 }}>{children}</span>
+      {onRetry && (
+        <button
+          onClick={onRetry}
+          style={{
+            all: "unset",
+            cursor: "pointer",
+            fontFamily: F.mono,
+            fontSize: 9.5,
+            letterSpacing: 1,
+            textTransform: "uppercase",
+            color: C.burgundy,
+            borderBottom: `1px dotted ${alpha(C.burgundy, 0.6)}`,
+          }}
+        >
+          {retryLabel ?? "réessayer"}
+        </button>
+      )}
+    </div>
+  );
+}
+
 /* A small horizontal rule: the share of each entry of a ranking.
 
    The number of lines is TRUNCATED BY THE CALLER, never hidden here:
