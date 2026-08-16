@@ -68,6 +68,7 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet, pl
   const overRef = useRef({}); // { kind, rowId, catId, overId, side, afterRowId }
   const markRef = useRef(null); // the drop marker, outside React
   const quickRef = useRef(null); // le classeur rapide, ouvert à la main
+  const wantQuick = useRef(false); // une fiche est en vol : on ouvrira au premier mouvement
   const spreadRef = useRef([]); // the layers pushed aside, to be set straight again
   const litRef = useRef(null); // the target currently lit
   const measureRef = useRef(new WeakMap()); // les rectangles du glissement en cours
@@ -310,6 +311,7 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet, pl
        render never receives it — and a forgotten mark would make that one
        object alone able to steal a drop at the next gesture. */
     for (const el of document.querySelectorAll("[data-drag-self]")) delete el.dataset.dragSelf;
+    wantQuick.current = false;
     if (quickRef.current) quickRef.current.style.display = "none";
     dragRef.current = null;
     overRef.current = {};
@@ -327,17 +329,25 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet, pl
     dragRef.current = { type, id, node, grab };
     if (node) node.style.opacity = "0.35"; // the case lifted, without going through React
     document.documentElement.dataset.dragging = "1";
-    /* LE CLASSEUR RAPIDE S'OUVRE À LA MAIN, comme le repère de dépôt.
+    /* LE CLASSEUR RAPIDE S'ARME ICI, ET S'OUVRE AU PREMIER MOUVEMENT.
 
-       Un `setState` ici redessinerait l'étagère au début de chaque
-       glissement — c'est la lenteur que tout ce fichier évite. Le
-       panneau est monté en permanence et caché ; on ne touche qu'à son
-       `display`.
+       Il s'ouvrait dès `dragstart`, et c'était un défaut : à cet
+       instant précis le navigateur est en train de capturer l'image de
+       glissement, et le curseur est encore SUR la case qu'on vient
+       d'attraper. Faire apparaître un panneau pile dessous faisait
+       avorter le glissement une fois sur deux — sur les cases du bord
+       où le panneau se posait, c'est-à-dire les premières de chaque
+       rangée.
+
+       On note donc l'intention, et c'est le premier `dragover` qui
+       ouvre : à ce moment le glissement est établi, et plus rien ne
+       peut l'interrompre. Déplacer le panneau d'un bord à l'autre
+       n'aurait fait que déplacer le défaut sur les dernières cases.
 
        POUR UNE FICHE SEULEMENT : on ne range pas un bibelot dans une
        catégorie de films, et un panneau qui s'ouvre sur un objet qu'il
        ne peut pas recevoir est un panneau qui ment. */
-    if (type === "film" && quickRef.current) quickRef.current.style.display = "block";
+    wantQuick.current = type === "film";
   }, []);
 
   /* Taking a decor out of the cabinet is MAKING it, not moving it: it
@@ -584,6 +594,42 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet, pl
     if (drag.type === "film") onUpdateMany({ [drag.id]: { ...SHELF_KIND[kind].patch } });
     reset();
   };
+
+  /* LE FILET DE SÉCURITÉ DU CLASSEUR RAPIDE.
+
+     Le panneau s'ouvre à la main et se referme dans `reset`, qui est
+     appelé par `drop` et par `dragend`. Or ce fichier dit lui-même,
+     à propos du marquage des objets pendus, que « ce `dragend` n'arrive
+     pas toujours — un nœud remplacé par le rendu du dépôt n'en reçoit
+     jamais ». C'est exactement le cas du classeur rapide : on y lâche
+     une fiche, elle change de rangée, son nœud est remplacé.
+
+     UN PANNEAU RESTÉ OUVERT NE FAIT PAS QUE TRAÎNER : il est en
+     `position: fixed` par-dessus la colonne, donc il INTERCEPTE le
+     premier appui sur ce qu'il recouvre. Un objet qu'on ne peut plus
+     attraper, sans rien à l'écran qui l'explique, est le pire des
+     défauts à retrouver.
+
+     L'écoute est posée sur le document, en capture, et ne fait que
+     refermer : elle ne peut donc rien casser d'autre. */
+  useEffect(() => {
+    const shut = () => {
+      wantQuick.current = false;
+      if (quickRef.current) quickRef.current.style.display = "none";
+    };
+    const open = () => {
+      if (!wantQuick.current || !quickRef.current) return;
+      quickRef.current.style.display = "block";
+    };
+    document.addEventListener("dragover", open, true);
+    document.addEventListener("dragend", shut, true);
+    document.addEventListener("drop", shut, true);
+    return () => {
+      document.removeEventListener("dragover", open, true);
+      document.removeEventListener("dragend", shut, true);
+      document.removeEventListener("drop", shut, true);
+    };
+  }, []);
 
   /* LES BOÎTES DE LA VUE, À PLAT.
 

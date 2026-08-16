@@ -15,9 +15,16 @@
    TOUJOURS au même endroit : on apprend le geste une fois, et il marche
    quel que soit l'endroit d'où l'on est parti.
 
-   À GAUCHE, parce que le cabinet des objets est à droite. Deux panneaux
-   flottants du même côté se recouvriraient pendant qu'on glisse un objet
-   au-dessus d'une boîte.
+   À DROITE, ET IL A COMMENCÉ À GAUCHE. Le raisonnement d'origine était
+   que le cabinet des objets occupe la droite ; il était juste sur le
+   papier et faux à l'usage. Les fiches d'une rangée commencent à
+   GAUCHE : le panneau s'ouvrait sur le premier appui, donc pile sous le
+   curseur de qui attrape la première case, et le glissement partait une
+   fois sur deux.
+
+   Les deux panneaux ne se croisent pas pour autant : le cabinet ne
+   s'ouvre que pour un objet, celui-ci que pour une fiche, et on ne
+   glisse jamais les deux à la fois.
 
    ------------------------------------------------------------
    IL N'EST PAS RENDU PAR REACT PENDANT LE GLISSEMENT
@@ -77,7 +84,7 @@ export const QuickFile = forwardRef<
         aria-hidden
         style={{
           position: "fixed",
-          left: 18,
+          right: 18,
           top: "50%",
           transform: "translateY(-50%)",
           zIndex: 46,
