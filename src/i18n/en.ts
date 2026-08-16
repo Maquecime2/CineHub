@@ -228,6 +228,7 @@ const en = {
   },
 
   import: {
+    heading: "Import docket",
     oneFileAtATime: "one file at a time, in the order given below",
     whichFiles: "WHICH FILES TO DROP",
     zipNote: "Letterboxd delivers a zip: unzip it, then drop these files one by one.",
@@ -333,6 +334,12 @@ const en = {
 
   backup: {
     title: "POSTER VAULT AND BACKUP",
+    confirmTitle: "Replace the whole binder?",
+    confirmBody_one:
+      "This backup holds {{count}} card. It will replace your cards, your notebook, your threads, your motifs and your shelves. Anything here and not in the backup will be lost.",
+    confirmBody_other:
+      "This backup holds {{count}} cards. They will replace your cards, your notebook, your threads, your motifs and your shelves. Anything here and not in the backup will be lost.",
+    confirmAction: "REPLACE",
     postersStored: "posters filed in the store",
     spaceUsed: "space taken",
     mediaWaiting: "media waiting to be sent",
@@ -469,6 +476,16 @@ const en = {
     intro:
       "The names your collection already carries — those who directed, acted, lit, scored, wrote. {{count}} in all.",
     gone: "This person appears on no card any more.",
+    sortBy: "sort",
+    sort: {
+      films: "film count",
+      rating: "my rating",
+      seen: "seen lately",
+      name: "alphabetical",
+    },
+    showing: "{{shown}} of {{total}}",
+    more_one: "show {{count}} more",
+    more_other: "show {{count}} more",
     namePlaceholder: "a name…",
     regularsOnly: "regulars only",
     passingThrough: "+ {{count}} passing through",
@@ -478,6 +495,11 @@ const en = {
     nobodyAmongRegulars:
       "Nobody in that capacity among the regulars — open “passing through” to see the rest.",
     nobodyInThatRole: "Nobody in that capacity.",
+    jumpPlaceholder: "jump to somebody…",
+    howItFills:
+      "This directory fills up from the cards. A card imported from elsewhere often carries only its director: the cast, the photography and the music arrive when you complete it from TMDB, on the import docket.",
+    showHidden_one: "show the name set aside",
+    showHidden_other: "show the {{count}} names set aside",
     backToCredits: "the credits",
     filmCount_one: "{{count}} film",
     filmCount_other: "{{count}} films",
@@ -670,7 +692,13 @@ const en = {
     couldNotDraw: "the image could not be produced",
   },
 
+  confirm: {
+    cancel: "CANCEL",
+  },
+
   reco: {
+    heading: "The discoveries desk",
+    subheading: "films to see, chosen from what your collection says",
     allLanguages: "all",
     obscurity: "Degree of obscurity",
     gem: "gem",
@@ -1035,6 +1063,9 @@ const en = {
     stamp: "NOTEBOOK",
     subtitle: "free thoughts, belonging to no film in particular",
     add: "ADD THE PAGE",
+    confirmTitle: "Delete this page?",
+    confirmNamed: "“{{title}}” and what it holds go for good. The notebook has no wastebasket.",
+    confirmBlank: "This page and what it holds go for good. The notebook has no wastebasket.",
     titlePlaceholder: "Title of the note",
     bodyPlaceholder: "Write freely…",
     untitled: "Untitled",
@@ -1063,32 +1094,126 @@ const en = {
       sellNote:
         "Reserved to the role: gives the item back and refunds you, to run through the shop again.",
       title: "The display case",
+      window: "Within reach, today",
+      /* The rows have their own namespace: one family is called
+         “title”, and `counter.shop.title` is already the case's own
+         name. See the French file for the whole reasoning. */
+      rows: {
+        stamp: "Stamps",
+        title: "Titles",
+        paper: "Papers",
+        pack: "Packets",
+        skin: "Skins",
+        power: "Powers",
+      },
       stamp: "Stamps",
       pack: "Packets",
       skin: "Skins",
       power: "Powers",
       buy: "{{price}} tokens",
+      buying: "…",
+      paid: "Paid",
+      nowWorn: "Worn.",
+      nowBare: "Taken off.",
       owned: "Owned",
       wear: "wear",
       takeOff: "take off",
       short_one: "you are {{count}} token short",
       short_other: "you are {{count}} tokens short",
+      sift: {
+        all: "everything",
+        afford: "within reach",
+        mine: "mine",
+      },
+      sort: {
+        cheap: "cheapest first",
+        dear: "dearest first",
+      },
+      nothing: {
+        all: "The stall is empty. That should not happen — do say so.",
+        afford: "Nothing within reach yet. One quiz, and we shall see.",
+        mine: "You have not taken anything here yet.",
+      },
+      earn: {
+        quiz_flawless: "a flawless quiz gives {{worth}}",
+        challenge: "a challenge seen through gives {{worth}}",
+      },
+    },
+    studio: {
+      open: "THE OBJECT STUDIO",
+      title: "The object studio",
+      close: "close",
+      blurb:
+        "Shelf objects and their packets live in the database: one adds them without redeploying. The pictures go to the common stock, which everybody may read. Nobody uploads their own any more: this is the one door an object comes through.",
+      none: "No packets yet.",
+      emptyPack: "This packet is empty: it will give nothing.",
+      nameFr: "Name (fr)",
+      nameEn: "Name (en)",
+      price: "Price",
+      create: "CREATE",
+      taken: "That identifier is taken already.",
+      summary: "{{price}} tokens · {{count}} objects",
+      retire: "retire",
+      putBack: "put back",
+      retired: "retired",
+      wall: "hangs",
+      tintable: "takes colour",
+      choose: "CHOOSE A PICTURE",
+      sending: "SENDING…",
+      dropHint: "Or drop a PNG, a WebP or an SVG here. 512 kB at most.",
+      badKind: "PNG, WebP or SVG only.",
+      tooBig: "That picture is too heavy: 512 kB at most.",
+      noTicket: "Media storage is not configured on this server.",
+      rarity: {
+        common: "common",
+        rare: "rare",
+        gold: "gold",
+      },
     },
     items: {
       "stamp-habitue": "The regular",
       "stamp-noctambule": "The night owl",
       "stamp-premiere-seance": "First screening",
       "stamp-projectionniste": "The projectionist",
-      "pack-trois": "A packet of three",
+      "pack-trois": "Surprise packet",
       "power-halve": "Set two answers aside",
       "power-redo": "Take a question back",
       "power-extend": "Push a challenge back",
+      "power-double": "Double stake",
+      "power-second-wind": "Second wind",
+      "paper-quadrille": "Squared paper",
+      "paper-millimetre": "Graph paper",
+      "paper-verge": "Laid paper",
+      "paper-calque": "Tracing paper",
+      "paper-ondule": "Corrugated card",
+      "paper-kraft-sombre": "Dark kraft",
+      "title-cinephile": "Cinephile",
+      "title-archiviste": "Archivist",
+      "title-projectionniste": "Projectionist",
+      "title-programmateur": "Programmer",
+      "title-conservateur": "Curator",
+      "title-doyen": "Doyen",
     },
     album: {
-      title: "The sheet",
+      title: "Your collection",
       opened: "The packet opens",
+      emptyPack: "It was empty. That is mended in the studio.",
+      whereToPlace:
+        "What you draw goes on a shelf: open the cabinet, from the binder, and your objects are waiting there beside the house drawings.",
       close: "Put away",
     },
+  },
+
+  /* What went wrong, in one place. See the French file. */
+  saving: {
+    saving: "…",
+    saved: "saved",
+  },
+
+  trouble: {
+    viewFell: "That page would not open.",
+    retry: "try again",
+    offline: "We cannot reach the server.",
   },
 
   stamps: {
@@ -1240,11 +1365,16 @@ const en = {
     setAside: "SET ASIDE",
     toStand: "to stand",
     toHang: "to hang",
+    leftToPlace_one: "{{count}} left to place",
+    leftToPlace_other: "{{count}} left to place",
+    leftToPlace_zero: "all placed",
     toStandTitle: "TO STAND",
     toHangTitle: "TO HANG",
     categoryColour: "Colour of the category",
     noColour: "no colour",
     hidden: "hidden",
+    wonAtCounter:
+      "New objects are won at the counter, by opening a packet. The ones you uploaded before stay here.",
     nothingImported: "nothing imported yet",
     decorFrom: "from {{pseudo}}",
     decorShown: "shown to my friends",
@@ -1258,6 +1388,9 @@ const en = {
     category: "CATEGORY",
     undoCategory: "undo the category",
     nameThisDivider: "Click to name this divider",
+    quickFile: "file it fast",
+    quickFileHint: "drop the card into a box, without crossing the page",
+    dropDecides: "the object lands where you drop it — any shelf, or the back.",
     shelfAimed: "shelf aimed at: {{shelf}}",
     kinds: {
       bedside: {
@@ -1444,6 +1577,8 @@ const en = {
   },
 
   detail: {
+    backToWall: "BACK TO THE WALL",
+    untitled: "Untitled",
     reviewPlaceholder: "Write here, freehand…",
     notesPlaceholder: "Scenes, quotations, fragments…",
     keywords: "Keywords",
@@ -1483,6 +1618,9 @@ const en = {
   threadView: {
     heading: "The feed",
     subheading: "what the people you follow are watching",
+    noServer:
+      "No server is set: the binder lives entirely on your machine, and there is nobody to follow.",
+    noSuchPerson: "Nobody is showing a collection under “{{name}}”.",
     find: "Find somebody",
     pseudoPlaceholder: "their pseudonym",
     look: "LOOK",
@@ -1504,6 +1642,7 @@ const en = {
   listsView: {
     lastDays: "last days",
     settled: "Settled",
+    secondWind: "SECOND WIND — seven more days, for you",
     extend: "PUSH BACK A WEEK",
     worth_one: "{{points}} points earned — {{count}} day left",
     worth_other: "{{points}} points earned — {{count}} days left",
@@ -1539,6 +1678,12 @@ const en = {
     invite: "INVITE",
     removeMember: "Remove {{pseudo}}",
     publicNote: "visible to the people who follow you",
+    confirmListTitle: "Delete this list?",
+    confirmListBody:
+      "“{{title}}” will go for the people you invited too. Nothing brings it back afterwards.",
+    confirmChallengeTitle: "Delete this challenge?",
+    confirmChallengeBody:
+      "“{{title}}” will go, along with what the participants did in it. Nothing brings it back afterwards.",
     deleteList: "Erase this list",
     challengePlaceholder: "March with Varda",
     launch: "START",
@@ -1650,6 +1795,7 @@ const en = {
   },
 
   constellation: {
+    heading: "The constellation",
     aFilm: "film",
     aThread: "thread",
     aWork: "work",
@@ -1969,6 +2115,10 @@ const en = {
 
     lists: {
       label: "Lists and challenges",
+      secondWind: {
+        title: "The second wind",
+        body: "A power bought at the counter, spent here — and the only one that is not a quiz power. Pushing back belongs to whoever set the challenge, twice at most, within the week after the end. The second wind belongs to whoever TAKES PART, works up to a month later, and consumes neither of the author's two pushes. What it does not do: reopen a challenge already settled.",
+      },
       extend: {
         title: "Pushing back",
         body: "A power bought at the counter, spent here: seven more days, twice at most, and only within the week after the end. One pushes back, one does not resurrect — and a challenge already settled cannot be extended, or the board would describe a period nobody was measured over.",
@@ -2039,11 +2189,19 @@ const en = {
       },
       shop: {
         title: "The display case",
-        body: "Stamps to wear beside your pseudonym, packets of stickers, extra skins, and powers to spend during a game. Something too dear stays on the shelf and tells you what is missing. One skin is given; the other sixteen are taken here, in tokens — and tokens are earned.",
+        body: "Six rows: stamps and titles to wear beside your pseudonym, papers that change the page's ground without touching the skin, the skins themselves, packets of stickers, and powers to spend during a game. Something too dear stays on the shelf, tells you what is missing and where to earn it. One skin is given; the other sixteen are taken here, in tokens — and tokens are earned.",
+      },
+      window: {
+        title: "What is within reach",
+        body: "The window shows only what your purse already allows, dearest first. It is the question one comes here to ask, and it goes away as soon as there is nothing left to afford.",
+      },
+      studio: {
+        title: "The object studio",
+        body: "Reserved to the role. Shelf objects and their packets live in the database: one creates a packet, drops pictures into it, and they appear on the stall without redeploying anything. It is the one door an object comes through — nobody uploads their own any more. One retires, one never erases: an identifier is written into everybody's collection, and onto their shelves.",
       },
       album: {
-        title: "The sheet",
-        body: "Eleven stickers, drawn by hand, dealt by the server — reloading the page does not re-open a packet. The empty squares show what is missing without showing what it is, and doubles are counted: they are what one swaps.",
+        title: "Your collection",
+        body: "A packet gives ONE object, dealt by the server — reloading the page replays nothing. The empty squares show what is missing without showing what it is, and doubles are counted. What you draw goes on a shelf, beside the house drawings; what comes out of a packet cannot be shared, or the shop would have no reason to exist.",
       },
     },
     global: {

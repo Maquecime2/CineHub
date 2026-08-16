@@ -9,24 +9,32 @@
    comptoir. Chacun le demandant pour son compte, ouvrir une page en
    coûterait quatre.
 
-   IL NE CHANGE QUE QUAND QUELQU'UN LE DÉCIDE. C'est une liste écrite en
-   TypeScript côté serveur, pas une table : la garder en mémoire n'a
-   aucun des inconvénients habituels d'un cache. Ce qui bouge, c'est
-   `owned` et `held`, et `refreshShop()` les reprend après chaque achat
-   — d'où une fenêtre de fraîcheur très longue, là où le fil ou les défis
-   en prennent une d'une minute.
+   IL NE CHANGE QUE QUAND QUELQU'UN LE DÉCIDE — mais « quelqu'un » n'est
+   plus seulement un déploiement. Le gros du catalogue est écrit en
+   TypeScript côté serveur ; les POCHETTES, elles, vivent en base et se
+   créent depuis le studio. La fenêtre de fraîcheur descend donc d'une
+   heure à dix minutes : c'est l'écart entre « une pochette ajoutée
+   apparaît au prochain rechargement » et « elle apparaît tout à
+   l'heure ». Ce qui bouge vite — `owned`, `held` — continue de passer
+   par `refreshShop()` après chaque achat, et le studio l'appelle en se
+   fermant.
+
+   CE CROCHET NE REND QUE LES ARTICLES. Le dictionnaire des vignettes
+   voyage avec la réponse, mais il n'intéresse que le comptoir, qui lit
+   `stall` : le donner ici obligerait le sélecteur de peaux et la barre
+   de pouvoirs à porter une liste dont ils n'ont que faire.
    ============================================================ */
 import { accountOpen, serverConfigured, shop, type ShopItem } from "../services/server";
 import { cachedResource, useCached } from "./cachedResource";
 
 const catalogue = cachedResource<ShopItem[]>({
-  read: shop,
+  read: () => shop().then((r) => r.items),
   /* Un comptoir qui se tait ne doit rien casser : les prix des peaux
      sont aussi écrits dans `theme/skins`, donc le sélecteur sait quand
      même quoi annoncer. */
   onQuiet: [],
   ready: () => serverConfigured() && accountOpen(),
-  freshFor: 60 * 60 * 1000,
+  freshFor: 10 * 60 * 1000,
 });
 
 export const loadShop = catalogue.load;

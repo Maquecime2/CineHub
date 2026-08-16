@@ -32,9 +32,11 @@ import {
   type Quiz,
   type Category,
   type ShopItem,
+  type DecorDef,
   type Holdings,
 } from "../services/server";
 import { cachedResource } from "./cachedResource";
+import { rememberWonDecor } from "../services/wonDecor";
 
 const ready = () => serverConfigured() && accountOpen();
 
@@ -65,12 +67,31 @@ export const quizBank = cachedResource<{ quizzes: Quiz[]; categories: Category[]
   ready,
 });
 
-/** L'étal du comptoir et ce qu'on y possède déjà. */
-export const stall = cachedResource<{ items: ShopItem[]; held: Holdings | null }>({
+/**
+ * L'étal du comptoir, ce qu'on y possède, et le catalogue des objets.
+ *
+ * LE CATALOGUE VOYAGE AVEC L'ÉTAL et non sur une requête à part : le
+ * présentoir dessine une pochette sur ce qu'elle contient, la collection
+ * a besoin du même dictionnaire pour nommer ce qu'on possède, et
+ * L'ÉTAGÈRE en a besoin pour dessiner ce qu'on y pose. Les séparer
+ * aurait fait deux requêtes pour un seul écran.
+ *
+ * ET C'EST ICI QUE L'ÉTAGÈRE APPREND. `rememberWonDecor` verse le
+ * catalogue et ce qu'on possède dans le registre que `decorSpec`
+ * consulte à chaque objet rendu — synchrone, hors ligne, sans attendre.
+ * Le faire dans la lecture plutôt que dans la vue est ce qui fait qu'un
+ * objet gagné se pose sur le mur sans qu'on ait ouvert le comptoir.
+ */
+export const stall = cachedResource<{
+  items: ShopItem[];
+  decors: DecorDef[];
+  held: Holdings | null;
+}>({
   read: async () => {
-    const [items, held] = await Promise.all([readShop(), myHoldings()]);
-    return { items, held };
+    const [shop, held] = await Promise.all([readShop(), myHoldings()]);
+    rememberWonDecor(shop.decors, held.decors);
+    return { items: shop.items, decors: shop.decors, held };
   },
-  onQuiet: { items: [], held: null },
+  onQuiet: { items: [], decors: [], held: null },
   ready,
 });

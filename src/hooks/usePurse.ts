@@ -32,7 +32,7 @@ const purse = cachedResource<Purse | null>({
        rendu et même hors ligne ensuite. */
     try {
       const held = await myHoldings();
-      rememberOwned(held.items, held.worn.skin);
+      rememberOwned(held.items, held.worn);
     } catch {
       /* Le compteur vaut d'être affiché même si la boutique se tait. */
     }

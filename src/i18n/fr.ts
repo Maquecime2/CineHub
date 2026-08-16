@@ -242,6 +242,7 @@ const fr = {
      emits these keys and nothing else — it is pure, and does not know
      which language is in force. */
   import: {
+    heading: "Bordereau d'import",
     oneFileAtATime: "un fichier à la fois, dans l'ordre indiqué ci-dessous",
     whichFiles: "QUELS FICHIERS DÉPOSER",
     zipNote: "Letterboxd vous livre un zip : dézippez-le, puis déposez ces fichiers un par un.",
@@ -349,6 +350,12 @@ const fr = {
 
   backup: {
     title: "COFFRE À AFFICHES ET SAUVEGARDE",
+    confirmTitle: "Remplacer tout le classeur ?",
+    confirmBody_one:
+      "Cette sauvegarde contient {{count}} fiche. Elle remplacera vos fiches, votre carnet, vos fils, vos motifs et vos étagères. Ce qui est ici et pas dans la sauvegarde sera perdu.",
+    confirmBody_other:
+      "Cette sauvegarde contient {{count}} fiches. Elles remplaceront vos fiches, votre carnet, vos fils, vos motifs et vos étagères. Ce qui est ici et pas dans la sauvegarde sera perdu.",
+    confirmAction: "REMPLACER",
     postersStored: "affiches rangées dans la base",
     spaceUsed: "place occupée",
     mediaWaiting: "médias en attente d'envoi",
@@ -486,6 +493,16 @@ const fr = {
     intro:
       "Les noms que votre collection porte déjà — celles et ceux qui ont réalisé, joué, éclairé, composé, écrit. {{count}} en tout.",
     gone: "Cette personne n'apparaît plus dans aucune fiche.",
+    sortBy: "trier",
+    sort: {
+      films: "nombre de films",
+      rating: "ma note",
+      seen: "vu récemment",
+      name: "alphabétique",
+    },
+    showing: "{{shown}} sur {{total}}",
+    more_one: "en voir {{count}} de plus",
+    more_other: "en voir {{count}} de plus",
     namePlaceholder: "un nom…",
     regularsOnly: "les habitués seulement",
     passingThrough: "+ {{count}} de passage",
@@ -495,6 +512,11 @@ const fr = {
     nobodyAmongRegulars:
       "Personne à ce titre parmi les habitués — ouvrez « de passage » pour voir le reste.",
     nobodyInThatRole: "Personne à ce titre.",
+    jumpPlaceholder: "aller à quelqu'un…",
+    howItFills:
+      "Ce répertoire se remplit avec les fiches. Une fiche importée d'ailleurs ne porte souvent que son réalisateur : l'interprétation, l'image et la musique arrivent en la complétant par TMDB, depuis le bordereau d'import.",
+    showHidden_one: "montrer le nom mis de côté",
+    showHidden_other: "montrer les {{count}} noms mis de côté",
     backToCredits: "le générique",
     filmCount_one: "{{count}} film",
     filmCount_other: "{{count}} films",
@@ -688,7 +710,13 @@ const fr = {
     couldNotDraw: "l'image n'a pas pu être produite",
   },
 
+  confirm: {
+    cancel: "RENONCER",
+  },
+
   reco: {
+    heading: "Le bureau des découvertes",
+    subheading: "des films à voir, choisis d'après ce que dit votre collection",
     allLanguages: "toutes",
     obscurity: "Degré de niche",
     gem: "pépite",
@@ -1060,6 +1088,11 @@ const fr = {
     stamp: "CARNET",
     subtitle: "des pensées libres, qui n'appartiennent à aucun film en particulier",
     add: "AJOUTER LA PAGE",
+    confirmTitle: "Supprimer cette page ?",
+    confirmNamed:
+      "« {{title}} » et ce qu'elle contient partent pour de bon. Le carnet n'a pas de corbeille.",
+    confirmBlank:
+      "Cette page et ce qu'elle contient partent pour de bon. Le carnet n'a pas de corbeille.",
     titlePlaceholder: "Titre de la note",
     bodyPlaceholder: "Écrivez librement…",
     untitled: "Sans titre",
@@ -1087,32 +1120,131 @@ const fr = {
       sell: "RENDRE ({{price}})",
       sellNote: "Réservé au rôle : rend l'article et vous rembourse, pour reprendre la boutique.",
       title: "Le présentoir",
+      window: "À votre portée, aujourd'hui",
+      /* LES RANGÉES ONT LEUR PROPRE OBJET, et pas la racine de `shop`.
+         Une famille s'appelle « title », et `counter.shop.title` est
+         déjà le nom du présentoir : la rangée des titres se serait
+         intitulée « Le présentoir ». Un espace de noms plutôt qu'une
+         exception dans le code qui lit. */
+      rows: {
+        stamp: "Tampons",
+        title: "Titres",
+        paper: "Papiers",
+        pack: "Pochettes",
+        skin: "Peaux",
+        power: "Pouvoirs",
+      },
+      /* Gardés : `Buy` et `PowerBar` les nomment encore. */
       stamp: "Tampons",
       pack: "Pochettes",
       skin: "Peaux",
       power: "Pouvoirs",
       buy: "{{price}} jetons",
+      buying: "…",
+      paid: "Encaissé",
+      nowWorn: "C'est porté.",
+      nowBare: "Retiré.",
       owned: "Acquis",
       wear: "porter",
       takeOff: "retirer",
       short_one: "il vous manque {{count}} jeton",
       short_other: "il vous manque {{count}} jetons",
+      sift: {
+        all: "tout",
+        afford: "à ma portée",
+        mine: "à moi",
+      },
+      sort: {
+        cheap: "du moins cher",
+        dear: "du plus cher",
+      },
+      nothing: {
+        all: "L'étal est vide. Cela ne devrait pas arriver — dites-le.",
+        afford: "Rien à votre portée pour l'instant. Un quiz, et on en reparle.",
+        mine: "Vous n'avez encore rien pris ici.",
+      },
+      earn: {
+        quiz_flawless: "un quiz sans faute en donne {{worth}}",
+        challenge: "un défi mené au bout en donne {{worth}}",
+      },
+    },
+    studio: {
+      open: "LE STUDIO DES OBJETS",
+      title: "Le studio des objets",
+      close: "fermer",
+      blurb:
+        "Les objets d'étagère et leurs pochettes vivent en base : on en ajoute sans redéployer. Les images partent dans le stock commun, que tout le monde peut lire. Personne ne dépose plus rien de son côté : c'est la seule porte par laquelle un bibelot entre.",
+      none: "Aucune pochette pour l'instant.",
+      emptyPack: "Cette pochette est vide : elle ne rendra rien.",
+      nameFr: "Nom (fr)",
+      nameEn: "Nom (en)",
+      price: "Prix",
+      create: "CRÉER",
+      taken: "Cet identifiant est déjà pris.",
+      summary: "{{price}} jetons · {{count}} objets",
+      retire: "retirer",
+      putBack: "remettre",
+      retired: "retirée",
+      wall: "se pend",
+      tintable: "prend la couleur",
+      choose: "CHOISIR UNE IMAGE",
+      sending: "ENVOI…",
+      dropHint: "Ou déposez un PNG, un WebP ou un SVG ici. 512 ko au plus.",
+      badKind: "PNG, WebP ou SVG seulement.",
+      tooBig: "Cette image est trop lourde : 512 ko au plus.",
+      noTicket: "Le dépôt de médias n'est pas configuré sur ce serveur.",
+      rarity: {
+        common: "commune",
+        rare: "rare",
+        gold: "dorée",
+      },
     },
     items: {
       "stamp-habitue": "L'habitué",
       "stamp-noctambule": "Le noctambule",
       "stamp-premiere-seance": "Première séance",
       "stamp-projectionniste": "Le projectionniste",
-      "pack-trois": "Une pochette de trois",
+      "pack-trois": "Pochette surprise",
       "power-halve": "Écarter deux réponses",
       "power-redo": "Reprendre une question",
       "power-extend": "Prolonger un défi",
+      "power-double": "Double mise",
+      "power-second-wind": "Second souffle",
+      "paper-quadrille": "Papier quadrillé",
+      "paper-millimetre": "Papier millimétré",
+      "paper-verge": "Papier vergé",
+      "paper-calque": "Calque",
+      "paper-ondule": "Carton ondulé",
+      "paper-kraft-sombre": "Kraft sombre",
+      "title-cinephile": "Cinéphile",
+      "title-archiviste": "Archiviste",
+      "title-projectionniste": "Projectionniste",
+      "title-programmateur": "Programmateur",
+      "title-conservateur": "Conservateur",
+      "title-doyen": "Doyen",
     },
     album: {
-      title: "La planche",
+      title: "Votre collection",
       opened: "La pochette s'ouvre",
+      emptyPack: "Elle était vide. Cela se répare au studio.",
+      whereToPlace:
+        "Ce qu'on tire se pose sur une étagère : ouvrez le cabinet, depuis le classeur, et vos objets y attendent avec les dessins de la maison.",
       close: "Ranger",
     },
+  },
+
+  /* CE QUI A RATÉ, EN UN SEUL ENDROIT. Les messages d'échec étaient
+     écrits dans le fichier de chacun, sous cinq noms différents ; ceux
+     qui sont partagés vivent ici. */
+  saving: {
+    saving: "…",
+    saved: "enregistré",
+  },
+
+  trouble: {
+    viewFell: "Cette page n'a pas voulu s'ouvrir.",
+    retry: "réessayer",
+    offline: "On n'arrive pas à joindre le serveur.",
   },
 
   stamps: {
@@ -1264,11 +1396,16 @@ const fr = {
     setAside: "MIS DE CÔTÉ",
     toStand: "à poser",
     toHang: "à accrocher",
+    leftToPlace_one: "il vous en reste {{count}} à poser",
+    leftToPlace_other: "il vous en reste {{count}} à poser",
+    leftToPlace_zero: "tous posés",
     toStandTitle: "À POSER",
     toHangTitle: "À ACCROCHER",
     categoryColour: "Couleur de la catégorie",
     noColour: "sans couleur",
     hidden: "masqué",
+    wonAtCounter:
+      "Les objets neufs se gagnent au comptoir, en ouvrant une pochette. Ceux que vous aviez déposés restent ici.",
     nothingImported: "rien d'importé pour l'instant",
     decorFrom: "de {{pseudo}}",
     decorShown: "montré à mes amis",
@@ -1282,6 +1419,9 @@ const fr = {
     category: "CATÉGORIE",
     undoCategory: "défaire la catégorie",
     nameThisDivider: "Cliquez pour nommer cet intercalaire",
+    quickFile: "classer vite",
+    quickFileHint: "lâchez la fiche dans une boîte, sans traverser la page",
+    dropDecides: "l'objet se pose là où vous le lâchez — n'importe quel rayon, ou le fond.",
     shelfAimed: "rayon visé : {{shelf}}",
     kinds: {
       bedside: {
@@ -1482,6 +1622,8 @@ const fr = {
   },
 
   detail: {
+    backToWall: "RETOUR AU MUR",
+    untitled: "Sans titre",
     reviewPlaceholder: "Écrivez ici, à main levée…",
     notesPlaceholder: "Scènes, citations, fragments…",
     keywords: "Mots-clés",
@@ -1526,6 +1668,13 @@ const fr = {
        catalogues, donc au test de parité. */
     heading: "Le fil",
     subheading: "ce que regardent les gens que vous suivez",
+    /* DEUX DE PLUS, ET ELLES ÉTAIENT ENCORE EN DUR — dont l'une abîmée
+       par la même passe automatique : « Personne ne sharing sa
+       collection sous … ». Le commentaire ci-dessus disait déjà
+       pourquoi ; il en restait deux qu'il ne couvrait pas. */
+    noServer:
+      "Aucun serveur n'est réglé : le classeur vit entièrement chez vous, et il n'y a personne à suivre.",
+    noSuchPerson: "Personne ne montre sa collection sous « {{name}} ».",
     find: "Chercher quelqu'un",
     pseudoPlaceholder: "son pseudonyme",
     look: "VOIR",
@@ -1547,6 +1696,7 @@ const fr = {
   listsView: {
     lastDays: "derniers jours",
     settled: "Soldé",
+    secondWind: "SECOND SOUFFLE — sept jours de plus, pour vous",
     extend: "PROLONGER D'UNE SEMAINE",
     worth_one: "{{points}} points acquis — il reste {{count}} jour",
     worth_other: "{{points}} points acquis — il reste {{count}} jours",
@@ -1593,6 +1743,12 @@ const fr = {
     invite: "INVITER",
     removeMember: "Retirer {{pseudo}}",
     publicNote: "visible par les gens qui vous suivent",
+    confirmListTitle: "Supprimer cette liste ?",
+    confirmListBody:
+      "« {{title}} » disparaîtra aussi pour les gens que vous y avez invités. Rien ne permet de la retrouver ensuite.",
+    confirmChallengeTitle: "Supprimer ce défi ?",
+    confirmChallengeBody:
+      "« {{title}} » disparaîtra avec ce que les participants y ont fait. Rien ne permet de le retrouver ensuite.",
     deleteList: "Effacer cette liste",
     challengePlaceholder: "Mars chez Varda",
     launch: "LANCER",
@@ -1704,6 +1860,9 @@ const fr = {
   },
 
   constellation: {
+    /* Le titre de la vue etait en dur, donc invisible aux deux
+       catalogues et au test de parite. */
+    heading: "La constellation",
     aFilm: "film",
     aThread: "fil",
     aWork: "œuvre",
@@ -2025,6 +2184,10 @@ const fr = {
 
     lists: {
       label: "Listes et défis",
+      secondWind: {
+        title: "Le second souffle",
+        body: "Un pouvoir acheté au comptoir, dépensé ici — et le seul qui ne soit pas du quizz. La prolongation appartient à qui a lancé le défi, deux fois au plus, dans la semaine de la fin. Le second souffle appartient à qui PARTICIPE, marche jusqu'à un mois après, et ne consomme aucun des deux reports de l'auteur. Ce qu'il ne fait pas : rouvrir un défi déjà soldé.",
+      },
       extend: {
         title: "Prolonger",
         body: "Un pouvoir acheté au comptoir, dépensé ici : sept jours de plus, deux fois au maximum, et seulement dans la semaine qui suit la fin. On repousse, on ne ressuscite pas — et un défi dont les comptes sont déjà clos ne se prolonge plus, sans quoi le classement décrirait une période sur laquelle personne n'a été mesuré.",
@@ -2095,11 +2258,19 @@ const fr = {
       },
       shop: {
         title: "Le présentoir",
-        body: "Des tampons à porter à côté de votre pseudonyme, des pochettes de vignettes, des peaux en plus, et des pouvoirs à dépenser pendant une partie. Un article trop cher reste sur l'étal et vous dit ce qui manque. Une seule peau est donnée ; les seize autres se prennent ici, en jetons — et les jetons se gagnent.",
+        body: "Six rangées : des tampons et des titres à porter à côté de votre pseudonyme, des papiers qui changent le fond de la page sans toucher à la peau, les peaux elles-mêmes, des pochettes de vignettes, et des pouvoirs à dépenser pendant une partie. Un article trop cher reste sur l'étal, vous dit ce qui manque et par où le gagner. Une seule peau est donnée ; les seize autres se prennent ici, en jetons — et les jetons se gagnent.",
+      },
+      window: {
+        title: "Ce qui est à votre portée",
+        body: "La vitrine ne montre que ce que votre bourse permet déjà, du plus cher au moins cher. C'est la question qu'on vient poser en arrivant, et elle disparaît dès qu'il n'y a plus rien à s'offrir.",
+      },
+      studio: {
+        title: "Le studio des objets",
+        body: "Réservé au rôle. Les objets d'étagère et leurs pochettes vivent en base : on crée une pochette, on y dépose des images, et elles apparaissent sur l'étal sans redéployer quoi que ce soit. C'est la seule porte par laquelle un bibelot entre — personne ne dépose plus les siens. On retire, on n'efface jamais : un identifiant est écrit dans les collections de tout le monde, et sur leurs étagères.",
       },
       album: {
-        title: "La planche",
-        body: "Onze vignettes, dessinées à la main, tirées au sort par le serveur — recharger la page ne rejoue pas une pochette. Les cases vides montrent ce qui manque sans montrer quoi, et les doubles se comptent : c'est ce qu'on échange du regard.",
+        title: "Votre collection",
+        body: "Une pochette rend UN objet, tiré par le serveur — recharger la page ne rejoue rien. Les cases vides montrent ce qui manque sans montrer quoi, et les doubles se comptent. Ce qu'on tire se pose sur une étagère, avec les dessins de la maison ; ce qui vient d'une pochette ne se partage pas, sinon la boutique n'aurait plus de raison d'être.",
       },
     },
     global: {

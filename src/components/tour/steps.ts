@@ -705,6 +705,15 @@ const lists: Tour = {
       placement: "top",
       optional: true,
     },
+    /* Et son pendant, plus rare encore : il ne s'affiche que sur un
+       défi FINI et non soldé, ce qui n'existe qu'à certains moments.
+       `optional`, pour la même raison que celui du dessus. */
+    {
+      target: at("lists-second-wind"),
+      ...says("lists", "secondWind"),
+      placement: "top",
+      optional: true,
+    },
   ],
 };
 
@@ -801,6 +810,24 @@ const counter: Tour = {
     {
       target: at("counter-shop"),
       ...says("counter", "shop"),
+      placement: "top",
+      optional: true,
+    },
+    /* LA VITRINE VISE DU CONTENU : elle ne s'affiche que si quelque
+       chose est à portée de bourse, ce qui n'est jamais le cas d'un
+       compte neuf. `optional` est donc obligatoire ici — une visite qui
+       s'arrête sur une cible absente est une visite qu'on ne finit
+       pas. C'est la règle du fichier, et elle vaut aussi pour le studio
+       juste en dessous, que seul le rôle voit. */
+    {
+      target: at("counter-window"),
+      ...says("counter", "window"),
+      placement: "bottom",
+      optional: true,
+    },
+    {
+      target: at("counter-studio"),
+      ...says("counter", "studio"),
       placement: "top",
       optional: true,
     },

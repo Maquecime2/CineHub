@@ -1230,24 +1230,61 @@ export interface Rank {
   stamp: string | null;
 }
 
+/** Les quatre familles qu'on PORTE, une à la fois chacune. */
+export type Wearable = "stamp" | "skin" | "paper" | "title";
+
+export type ShopKind = Wearable | "pack" | "power";
+
 export interface ShopItem {
   id: string;
-  kind: "stamp" | "pack" | "skin" | "power";
+  kind: ShopKind;
   price: number;
   /** Pour une peau : la clé qu'elle ouvre dans le catalogue du classeur. */
   grants?: string;
   power?: string;
   draws?: number;
+  /** Pour une pochette venue de la base : son libellé et sa couverture. */
+  label?: { fr: string; en: string };
+  cover?: string;
   owned?: boolean;
   /** Pour un pouvoir : combien il en reste. */
   held?: number;
 }
 
+/**
+ * Un objet d'étagère qui se gagne, tel que le serveur le décrit.
+ *
+ * `wall` et `tintable` sont les deux seules propriétés de dessin qui
+ * viennent de la base, et elles en viennent parce qu'elles ne se
+ * devinent pas d'une image : un objet qui se pend au fond de la rangée
+ * ne se pose pas sur la planche, et une encre qu'on peut remplacer ne se
+ * lit pas dans un PNG.
+ */
+export interface DecorDef {
+  id: string;
+  packId: string;
+  rarity: "common" | "rare" | "gold";
+  /** Clé de blob sous `bank/decor/…`, ou nom d'un dessin embarqué. */
+  media: string;
+  label: { fr: string; en: string };
+  wall: boolean;
+  tintable: boolean;
+}
+
 export interface Holdings {
   items: string[];
-  stickers: { sticker_id: string; copies: number }[];
+  decors: { decor_id: string; copies: number }[];
   powers: Record<string, number>;
-  worn: { stamp: string | null; skin: string | null };
+  worn: Record<Wearable, string | null>;
+}
+
+/** Une pochette, du point de vue de l'admin qui la règle. */
+export interface PackDef {
+  id: string;
+  price: number;
+  label: { fr: string; en: string };
+  cover: string | null;
+  retired: boolean;
 }
 
 export const myPurse = () => call<Purse>("/purse");
@@ -1261,7 +1298,51 @@ export const setLadder = (ladder: "non" | "suivis" | "tous") =>
     body: JSON.stringify({ ladder }),
   });
 
-export const shop = () => call<{ items: ShopItem[] }>("/shop").then((r) => r.items);
+/**
+ * Le présentoir : le catalogue, plus le dictionnaire des objets.
+ *
+ * LES OBJETS VOYAGENT AVEC, et pas sur une seconde requête : le
+ * présentoir dessine une pochette sur ce qu'elle contient, la collection
+ * a besoin du même dictionnaire pour nommer ce qu'on possède, et
+ * L'ÉTAGÈRE en a besoin pour dessiner ce qu'on y pose. Trois écrans, une
+ * réponse.
+ */
+export const shop = () => call<{ items: ShopItem[]; decors: DecorDef[] }>("/shop");
+
+/* ---- le studio des pochettes, réservé au rôle ---- */
+
+export const packCatalogue = () =>
+  call<{ packs: PackDef[]; decors: (DecorDef & { retired: boolean })[] }>("/shop/packs");
+
+export const savePack = (p: {
+  id: string;
+  price: number;
+  labelFr: string;
+  labelEn: string;
+  cover?: string | null;
+}) => call<PackDef>("/shop/packs", { method: "POST", body: JSON.stringify(p) });
+
+export const saveDecor = (s: {
+  id: string;
+  packId: string;
+  rarity: string;
+  media: string;
+  labelFr: string;
+  labelEn: string;
+  wall?: boolean;
+  tintable?: boolean;
+}) => call<DecorDef>("/shop/decors", { method: "POST", body: JSON.stringify(s) });
+
+/** Retirer de l'étal, ou remettre — jamais effacer. */
+export const retirePack = (id: string, back = false) =>
+  call<{ id: string; retired: boolean }>(`/shop/packs/${id}${back ? "?back=1" : ""}`, {
+    method: "DELETE",
+  });
+
+export const retireWonDecor = (id: string, back = false) =>
+  call<{ id: string; retired: boolean }>(`/shop/decors/${id}${back ? "?back=1" : ""}`, {
+    method: "DELETE",
+  });
 
 export const myHoldings = () => call<Holdings>("/shop/mine");
 
@@ -1291,11 +1372,24 @@ export const sell = (item: string) =>
     body: JSON.stringify({ item }),
   });
 
-export const wear = (what: { stamp?: string | null; skin?: string | null }) =>
-  call<{ stamp: string | null; skin: string | null }>("/shop/worn", {
+/**
+ * Porter, ou retirer avec `null`.
+ *
+ * ON ENVOIE L'IDENTIFIANT DE L'ARTICLE, toujours — y compris pour une
+ * peau, dont le serveur range la CLÉ. L'inverse était le comportement,
+ * et il était faux : la vérification de possession cherchait la clé dans
+ * la table des articles possédés, qui ne contient que des articles.
+ * Porter une peau achetée répondait 403, toujours.
+ */
+export const wear = (what: Partial<Record<Wearable, string | null>>) =>
+  call<Record<Wearable, string | null>>("/shop/worn", {
     method: "PATCH",
     body: JSON.stringify(what),
   });
+
+/** Le second souffle : relancer un défi qu'on a laissé filer. */
+export const secondWind = (challengeId: string) =>
+  call<{ ends_on: string }>(`/challenges/${challengeId}/second-wind`, { method: "POST" });
 
 /* ---- les pouvoirs ---- */
 

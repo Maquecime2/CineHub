@@ -27,6 +27,9 @@ import {
   Tape,
 } from "./objects";
 import { CustomDraw } from "./CustomDraw";
+import { WonDraw } from "./WonDraw";
+import { isWonMotif, listWonDecor, wonDecorByKey } from "../../services/wonDecor";
+import type { WonDecor } from "../../services/wonDecor";
 import {
   customDecorByKey,
   isCustomMotif,
@@ -217,6 +220,40 @@ const customDraw = (key: string) => {
   return Draw;
 };
 
+/* LES OBJETS GAGNÉS ONT LEUR PROPRE DESSIN ET LEUR PROPRE CACHE. Le
+   même raisonnement que juste au-dessus : `decorSpec` est appelé au
+   rendu de chaque objet posé, et fabriquer un composant à chaque fois
+   remonterait toute l'image à chaque survol. */
+const wonCache = new Map<string, ComponentType<{ color?: string; style?: CSSProperties }>>();
+
+const wonDraw = (key: string) => {
+  let Draw = wonCache.get(key);
+  if (!Draw) {
+    Draw = (props) => <WonDraw motif={key} {...props} />;
+    wonCache.set(key, Draw);
+  }
+  return Draw;
+};
+
+/* CE QU'ON A TIRÉ, VU COMME UN BIBELOT DU CABINET.
+
+   `custom: true` parce que le panneau s'en sert pour dire « celui-ci
+   n'est pas de la maison » — un objet gagné ne l'est pas davantage
+   qu'un objet déposé. Ce qui les sépare est ailleurs : celui-ci ne
+   s'efface pas et ne se partage pas, et le panneau ne lui offre donc ni
+   l'un ni l'autre. */
+const wonSpecOf = (d: WonDecor): DecorType => ({
+  key: d.key,
+  /* Le libellé vient de la base, dans les deux langues : ces objets
+     s'écrivent après la compilation, aucune clé ne peut les attendre.
+     Le français est le repli, comme partout ailleurs ici. */
+  label: d.label.fr,
+  wall: d.wall,
+  custom: true,
+  tintable: d.tintable,
+  draw: wonDraw(d.key),
+});
+
 const specOf = (d: CustomDecor): DecorType => ({
   key: d.key,
   label: d.label,
@@ -240,6 +277,15 @@ export const decorLabel = (d: DecorType, t: (key: string) => string): string =>
 export const decorSpec = (motif: string): DecorType | undefined => {
   const house = DECOR_BY_KEY[motif];
   if (house) return house;
+  /* TROIS ORIGINES MAINTENANT, ET L'ORDRE N'EST PAS INDIFFÉRENT : la
+     maison d'abord, parce qu'elle est un objet en mémoire et non une
+     recherche ; les deux autres ensuite, sur leur préfixe. Un motif qui
+     ne tombe dans aucune des trois rend `undefined`, et l'étagère
+     dessine un vide plutôt que d'échouer. */
+  if (isWonMotif(motif)) {
+    const won = wonDecorByKey(motif);
+    return won ? wonSpecOf(won) : undefined;
+  }
   const mine = isCustomMotif(motif) ? customDecorByKey(motif) : undefined;
   return mine ? specOf(mine) : undefined;
 };
@@ -251,6 +297,9 @@ export const decorSpec = (motif: string): DecorType | undefined => {
 export const shelfDecorTypes = (): DecorType[] =>
   [
     ...SHELF_DECOR,
+    ...listWonDecor()
+      .filter((d) => !d.wall)
+      .map(wonSpecOf),
     ...listCustomDecor()
       .filter((d) => !d.wall)
       .map(specOf),
@@ -258,6 +307,9 @@ export const shelfDecorTypes = (): DecorType[] =>
 export const wallDecorTypes = (): DecorType[] =>
   [
     ...WALL_DECOR,
+    ...listWonDecor()
+      .filter((d) => d.wall)
+      .map(wonSpecOf),
     ...listCustomDecor()
       .filter((d) => d.wall)
       .map(specOf),
