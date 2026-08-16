@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { store, KEYS } from "../services/storage";
-import { saveSoon } from "../services/saving";
+import { saveSoon, dropSoon } from "../services/saving";
 import type { Note } from "../types";
 
 /** The notebook: loose pages, belonging to no film. */
@@ -9,6 +9,11 @@ export function useNotes() {
 
   const save = (next: Note[]) => {
     setNotes(next);
+    /* UNE ÉCRITURE IMMÉDIATE ANNULE CELLE QUI ATTENDAIT. Créer ou
+       supprimer une page réécrit le carnet ENTIER ; laisser partir la
+       frappe d'avant trois cents millisecondes plus tard remettrait la
+       page qu'on vient d'effacer. */
+    dropSoon(KEYS.notes);
     store.set(KEYS.notes, next);
   };
 
@@ -21,7 +26,7 @@ export function useNotes() {
      bouton, en supprimer une aussi. */
   const saveText = (next: Note[]) => {
     setNotes(next);
-    saveSoon(() => {
+    saveSoon(KEYS.notes, () => {
       store.set(KEYS.notes, next);
     });
   };

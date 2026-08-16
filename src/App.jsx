@@ -62,7 +62,7 @@ import { DetailView } from "./views/DetailView";
 import { useNotes } from "./hooks/useNotes";
 import { useShelfViews } from "./hooks/useShelfViews";
 import { countPlacedMotifs } from "./shelf-views";
-import { saveSoon } from "./services/saving";
+import { saveSoon, dropSoon } from "./services/saving";
 import { TourOverlay, TourHint, TourMenu } from "./components/tour";
 import { shouldHint } from "./services/onboarding";
 import { demoFilms } from "./services/demo";
@@ -743,8 +743,16 @@ export default function App() {
     });
   };
 
+  const FILMS = "films";
+
   const commitFilms = (next) => {
     setFilms(next);
+    /* ET L'ÉCRITURE DIFFÉRÉE QUI ATTENDAIT EST ABANDONNÉE. Elle porte un
+       état PLUS ANCIEN que celui-ci, et partirait après lui : c'est ce
+       qui faisait disparaître une capture insérée dans une critique —
+       l'insertion écrivait tout de suite, la frappe d'avant écrasait
+       trois cents millisecondes plus tard. */
+    dropSoon(FILMS);
     write(next);
   };
 
@@ -766,7 +774,7 @@ export default function App() {
      passage en arrière-plan — voir `services/saving`. */
   const commitFilmsSoon = (next) => {
     setFilms(next);
-    saveSoon(() => write(next));
+    saveSoon(FILMS, () => write(next));
   };
 
   const commitThreads = (next) => {

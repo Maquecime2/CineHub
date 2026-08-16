@@ -60,8 +60,8 @@ export type SaveState = "clean" | "pending" | "saved";
 type Run = () => Promise<unknown> | void;
 
 let state: SaveState = "clean";
-let waiting: Run | null = null;
-let timer: ReturnType<typeof setTimeout> | null = null;
+/** Ce qui attend, par clé. Une clé = une chose qu'on réécrit en entier. */
+const waiting = new Map<string, { run: Run; timer: ReturnType<typeof setTimeout> }>();
 let fade: ReturnType<typeof setTimeout> | null = null;
 
 const listeners = new Set<() => void>();
@@ -96,16 +96,21 @@ export const watchSaving = (fn: () => void): (() => void) => {
   return () => listeners.delete(fn);
 };
 
-async function fire(): Promise<void> {
-  if (timer) {
-    clearTimeout(timer);
-    timer = null;
+async function fire(only?: string): Promise<void> {
+  const keys = only === undefined ? [...waiting.keys()] : waiting.has(only) ? [only] : [];
+  if (keys.length === 0) return;
+
+  const runs: Run[] = [];
+  for (const key of keys) {
+    const held = waiting.get(key);
+    if (!held) continue;
+    clearTimeout(held.timer);
+    waiting.delete(key);
+    runs.push(held.run);
   }
-  const run = waiting;
-  waiting = null;
-  if (!run) return;
+
   try {
-    await run();
+    for (const run of runs) await run();
   } finally {
     /* « ENREGISTRÉ » MÊME SI L'ÉCRITURE A LEVÉ, et c'est délibéré : le
        magasin retombe déjà sur `localStorage` quand le coffre refuse, et
@@ -131,19 +136,36 @@ async function fire(): Promise<void> {
  * Le geste remplace celui qui attendait : ils portent l'état complet, et
  * garder le précédent réécrirait un texte plus vieux par-dessus le neuf.
  */
-export function saveSoon(run: Run): void {
-  waiting = run;
+export function saveSoon(key: string, run: Run): void {
+  const held = waiting.get(key);
+  if (held) clearTimeout(held.timer);
   if (fade) {
     clearTimeout(fade);
     fade = null;
   }
   move("pending");
-  if (timer) clearTimeout(timer);
-  timer = setTimeout(() => void fire(), DELAY);
+  waiting.set(key, { run, timer: setTimeout(() => void fire(key), DELAY) });
+}
+
+/**
+ * Renoncer à ce qui attendait sur cette clé.
+ *
+ * Appelé par une écriture IMMÉDIATE de la même chose : elle est plus
+ * récente, elle porte l'état complet, et laisser partir l'ancienne
+ * reviendrait à écraser le neuf par du vieux trois cents millisecondes
+ * plus tard. C'est ce qui faisait disparaître une capture insérée dans
+ * une critique.
+ */
+export function dropSoon(key: string): void {
+  const held = waiting.get(key);
+  if (!held) return;
+  clearTimeout(held.timer);
+  waiting.delete(key);
+  if (waiting.size === 0) move("clean");
 }
 
 /** Tout de suite : au flou d'un champ, à la fermeture, avant de partir. */
-export const flushSaves = (): Promise<void> => fire();
+export const flushSaves = (key?: string): Promise<void> => fire(key);
 
 /* Le navigateur ne prévient pas deux fois. `pagehide` couvre la
    fermeture et la navigation ; le passage en arrière-plan couvre le
