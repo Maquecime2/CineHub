@@ -52,6 +52,7 @@ export type Kind =
   | "challenge_half"
   | "challenge_joined"
   | "quiz"
+  | "quiz_doubled"
   | "quiz_flawless"
   | "quiz_first"
   | "watch"
@@ -66,6 +67,16 @@ export const RATE: Record<Kind, number> = {
   challenge_half: 10,
   challenge_joined: 4,
   quiz: 0,
+  /* LA SEULE LIGNE DU BARÈME QUI NE PAIE PAS DE MÉRITE.
+
+     Elle vaut le score, comme `quiz` — d'où le zéro ici — mais elle
+     s'écrit avec `merit = 0` (voir `awardTokens`). Le raisonnement est à
+     l'envers de celui du haut de ce fichier, et volontairement : là-haut
+     on refuse qu'acheter coûte une place au classement ; ici on refuse
+     qu'acheter en gagne une. Le mérite mesure ce qu'on a fait ; les
+     jetons ne sont qu'une monnaie de boutique, et les doubler ne fausse
+     aucune mesure. */
+  quiz_doubled: 0,
   quiz_flawless: 15,
   quiz_first: 5,
   watch: 1,

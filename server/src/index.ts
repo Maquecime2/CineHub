@@ -19,7 +19,7 @@
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { buildApp } from "./app.ts";
-import { openPostgres, applySchema } from "./db.ts";
+import { openPostgres, applyAllSchemas } from "./db.ts";
 import { configurePush } from "./push.ts";
 import { configureMedia, mediaAvailable, readConnectionString } from "./media.ts";
 import * as store from "./store.ts";
@@ -83,11 +83,9 @@ const db = await openPostgres(dbUrl);
 /* The baseline schema is laid down at start-up rather than by a separate
    command: it is conditional from end to end, so replayable, and a server
    that starts on an empty database is a server that starts. */
-const schema = await readFile(
-  fileURLToPath(new URL("../sql/001_baseline.sql", import.meta.url)),
-  "utf8"
+await applyAllSchemas(db, (file) =>
+  readFile(fileURLToPath(new URL(`../sql/${file}`, import.meta.url)), "utf8")
 );
-await applySchema(db, schema);
 
 /* THE ONE ROLE, AND THE ONLY DOOR TO IT.
 

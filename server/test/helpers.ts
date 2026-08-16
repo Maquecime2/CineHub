@@ -16,7 +16,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
 import { buildApp } from "../src/app.ts";
-import { applySchema, type Db } from "../src/db.ts";
+import { applyAllSchemas, type Db } from "../src/db.ts";
 
 export async function testDb(): Promise<Db> {
   const pg = new PGlite();
@@ -30,11 +30,9 @@ export async function testDb(): Promise<Db> {
     },
     close: () => pg.close(),
   };
-  const baseline = await readFile(
-    fileURLToPath(new URL("../sql/001_baseline.sql", import.meta.url)),
-    "utf8"
+  await applyAllSchemas(db, (file) =>
+    readFile(fileURLToPath(new URL(`../sql/${file}`, import.meta.url)), "utf8")
   );
-  await applySchema(db, baseline);
   return db;
 }
 

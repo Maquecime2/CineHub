@@ -13,9 +13,9 @@ import { one } from "./db.ts";
 import { planDraw } from "./draw.ts";
 import { CHALLENGE_HALF, DECLARED, DECLARED_CEILING, RATE, REVIEW_LENGTH } from "./points.ts";
 import type { Kind } from "./points.ts";
-import { draw, itemById } from "./shop.ts";
+import { draw, DRAWS, itemById, isUnique, packItem, WEARABLE } from "./shop.ts";
 import { ceilingsFor, QuotaReached } from "./limits.ts";
-import type { PowerKind, Rng } from "./shop.ts";
+import type { DecorDef, PackDef, PowerKind, Rng, ShopItem, Wearable } from "./shop.ts";
 import type { Difficulty, Stock } from "./draw.ts";
 
 export interface Person {
@@ -2672,6 +2672,50 @@ export async function award(
   return rows[0]?.credited ?? 0;
 }
 
+/**
+ * Créditer des JETONS SEULS, sans toucher au mérite.
+ *
+ * C'est `award` avec une asymétrie de plus, et une seule chose la
+ * justifie : le mérite est le classement. Tout ce qu'on peut obtenir en
+ * DÉPENSANT des jetons doit donc s'arrêter à la bourse — sans quoi le
+ * palmarès mesure la capacité à réinvestir plutôt que ce qu'on a fait, et
+ * il cesse de mesurer quoi que ce soit.
+ *
+ * LE PLAFOND QUOTIDIEN NE S'APPLIQUE PAS ICI, et n'a pas à s'appliquer :
+ * il garde ce qu'on DÉCLARE soi-même, et rien de ce qui passe par cette
+ * fonction n'est déclaré — il faut avoir acheté un pouvoir avec des
+ * jetons déjà gagnés. L'idempotence, elle, reste celle du journal : la
+ * clé `(person, kind, ref)` est la même garantie qu'ailleurs, et c'est
+ * ce qui fait qu'une requête rejouée ne double rien deux fois.
+ */
+export async function awardTokens(
+  db: Db,
+  personId: string,
+  kind: Kind,
+  ref: string,
+  amount: number
+): Promise<number> {
+  if (amount <= 0) return 0;
+  const rows = await db.query<{ credited: number }>(
+    `WITH put AS (
+       INSERT INTO merit_event (id, person_id, kind, ref, merit, tokens)
+       VALUES ($1, $2, $3, $4, 0, $5)
+       ON CONFLICT (person_id, kind, ref) DO NOTHING
+       RETURNING tokens
+     ),
+     bag AS (
+       INSERT INTO purse (person_id, merit, tokens)
+       SELECT $2, 0, tokens FROM put
+       ON CONFLICT (person_id) DO UPDATE
+         SET tokens = purse.tokens + EXCLUDED.tokens, updated_at = now()
+       RETURNING 1
+     )
+     SELECT coalesce((SELECT tokens FROM put), 0)::int AS credited`,
+    [randomUUID(), personId, kind, ref, amount]
+  );
+  return rows[0]?.credited ?? 0;
+}
+
 export async function purseOf(db: Db, personId: string): Promise<Purse> {
   const row = await one<Purse>(db, "SELECT merit, tokens FROM purse WHERE person_id = $1", [
     personId,
@@ -2721,6 +2765,27 @@ export async function awardQuiz(db: Db, quizId: string, personId: string): Promi
   };
 
   await put("quiz", row.score);
+
+  /* LA DOUBLE MISE SE DÉPENSE ICI, ET SEULEMENT SI LA LIGNE A ÉTÉ ÉCRITE.
+     `gains` ne contient « quiz » que lorsque `award` a vraiment crédité —
+     une partie terminée deux fois n'écrit qu'une fois, par la clé du
+     journal. Regarder ce que `put` a poussé plutôt que le score évite de
+     brûler un pouvoir sur un double clic.
+
+     ELLE S'APPLIQUE À LA PROCHAINE PARTIE TERMINÉE, sans qu'on l'arme.
+     Le choix se fait donc à l'achat et non pendant la partie, ce qui est
+     la version la plus honnête de ce pouvoir : armer aurait voulu dire
+     voir son score avant de décider, et doubler à coup sûr n'est plus un
+     pari. */
+  const scored = gains.find((g) => g.kind === "quiz")?.amount ?? 0;
+  if (scored > 0 && (await spendPower(db, personId, "double"))) {
+    const extra = await awardTokens(db, personId, "quiz_doubled", quizId, scored);
+    /* Rendu si rien n'a été crédité — la même précaution que la
+       prolongation d'un défi : essayer ne doit pas coûter le pouvoir. */
+    if (extra > 0) gains.push({ kind: "quiz_doubled", amount: extra });
+    else await givePower(db, personId, "double");
+  }
+
   /* A flawless run on a quiz worth nothing is not flawless, it is empty. */
   if (row.weight > 0 && row.score === row.weight) await put("quiz_flawless", RATE.quiz_flawless);
   /* Being first only means something when somebody else was playing. */
@@ -2900,35 +2965,228 @@ export async function ladderOf(db: Db, personId: string): Promise<string> {
    THE SHOP
    ------------------------------------------------------------ */
 
+/* ------------------------------------------------------------
+   LES POCHETTES, ET LEURS VIGNETTES
+   ------------------------------------------------------------
+   La seule partie du catalogue qui vive en base. Le pourquoi est dans
+   `sql/002_collection.sql` ; ce qui suit n'est que la lecture et
+   l'écriture, et toute l'écriture est derrière `requireAdmin`.
+
+   ON RETIRE, ON NE SUPPRIME PAS, et c'est la seule chose à retenir
+   d'ici. Un identifiant de vignette est écrit dans l'album de tout le
+   monde et un identifiant de pochette dans `token_spend` : effacer une
+   définition ferait un trou dans une collection déjà remplie et une
+   ligne de dépense qui n'explique plus rien. `retired_at` sort du
+   tirage et de l'étal, et laisse le reste debout. */
+
+const packRow = (r: {
+  id: string;
+  price: number;
+  label_fr: string;
+  label_en: string;
+  cover_key: string | null;
+  retired_at: Date | null;
+}): PackDef => ({
+  id: r.id,
+  price: r.price,
+  label: { fr: r.label_fr, en: r.label_en },
+  cover: r.cover_key,
+  retired: r.retired_at !== null,
+});
+
+const decorRow = (r: {
+  id: string;
+  pack_id: string;
+  rarity: string;
+  media_key: string;
+  label_fr: string;
+  label_en: string;
+  wall: boolean;
+  tintable: boolean;
+  retired_at: Date | null;
+}): DecorDef => ({
+  id: r.id,
+  packId: r.pack_id,
+  rarity: r.rarity as DecorDef["rarity"],
+  media: r.media_key,
+  label: { fr: r.label_fr, en: r.label_en },
+  wall: r.wall,
+  tintable: r.tintable,
+  retired: r.retired_at !== null,
+});
+
+/** Les pochettes. `all` inclut les retirées — c'est la vue de l'admin. */
+export async function listPacks(db: Db, all = false): Promise<PackDef[]> {
+  const rows = await db.query<Parameters<typeof packRow>[0]>(
+    `SELECT id, price, label_fr, label_en, cover_key, retired_at
+       FROM pack_def ${all ? "" : "WHERE retired_at IS NULL"}
+      ORDER BY price, id`
+  );
+  return rows.map(packRow);
+}
+
+/** Les objets, tous ou ceux d'une pochette. */
+export async function listDecors(db: Db, packId?: string): Promise<DecorDef[]> {
+  const rows = await db.query<Parameters<typeof decorRow>[0]>(
+    `SELECT id, pack_id, rarity, media_key, label_fr, label_en, wall, tintable, retired_at
+       FROM decor_def ${packId ? "WHERE pack_id = $1" : ""}
+      ORDER BY pack_id, rarity, id`,
+    packId ? [packId] : []
+  );
+  return rows.map(decorRow);
+}
+
+export class CatalogueRefusal extends Error {}
+
+/* L'IDENTIFIANT EST SAISI PAR QUELQU'UN, DONC IL EST TAILLÉ ICI. Il
+   finit dans une clé de blob (`bank/decor/<clé>`) dont la forme est
+   vérifiée par `media.ts`, et dans une URL. Un identifiant refusé au
+   dépôt aurait donné une pochette qu'on ne peut pas illustrer, une
+   heure après l'avoir créée. */
+const SLUG = /^[a-z0-9][a-z0-9-]{1,60}$/;
+
+const slugOr = (id: string, quoi: string): string => {
+  if (!SLUG.test(id)) {
+    throw new CatalogueRefusal(`${quoi} : lettres minuscules, chiffres et tirets seulement.`);
+  }
+  return id;
+};
+
+export async function upsertPack(
+  db: Db,
+  p: {
+    id: string;
+    price: number;
+    labelFr: string;
+    labelEn: string;
+    cover?: string | null;
+  }
+): Promise<PackDef> {
+  slugOr(p.id, "l'identifiant de la pochette");
+  const row = await one<Parameters<typeof packRow>[0]>(
+    db,
+    `INSERT INTO pack_def (id, price, label_fr, label_en, cover_key)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (id) DO UPDATE
+       SET price = EXCLUDED.price,
+           label_fr = EXCLUDED.label_fr, label_en = EXCLUDED.label_en,
+           cover_key = EXCLUDED.cover_key
+     RETURNING id, price, label_fr, label_en, cover_key, retired_at`,
+    [p.id, p.price, p.labelFr, p.labelEn, p.cover ?? null]
+  );
+  /* Aucune ligne veut dire que le CHECK a parlé — un prix nul. On le
+     redit en français plutôt qu'en violation de contrainte. */
+  if (!row) throw new CatalogueRefusal("Prix hors bornes.");
+  return packRow(row);
+}
+
+export async function upsertDecor(
+  db: Db,
+  s: {
+    id: string;
+    packId: string;
+    rarity: string;
+    media: string;
+    labelFr: string;
+    labelEn: string;
+    wall?: boolean;
+    tintable?: boolean;
+  }
+): Promise<DecorDef> {
+  slugOr(s.id, "l'identifiant de l'objet");
+  if (!["common", "rare", "gold"].includes(s.rarity)) {
+    throw new CatalogueRefusal("La rareté est « common », « rare » ou « gold ».");
+  }
+  /* La clé étrangère refuserait aussi, mais avec un message que
+     personne ne lit. */
+  const pack = await one(db, "SELECT 1 FROM pack_def WHERE id = $1", [s.packId]);
+  if (!pack) throw new CatalogueRefusal("Cette pochette n'existe pas.");
+
+  const row = await one<Parameters<typeof decorRow>[0]>(
+    db,
+    `INSERT INTO decor_def
+       (id, pack_id, rarity, media_key, label_fr, label_en, wall, tintable)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     ON CONFLICT (id) DO UPDATE
+       SET pack_id = EXCLUDED.pack_id, rarity = EXCLUDED.rarity,
+           media_key = EXCLUDED.media_key,
+           label_fr = EXCLUDED.label_fr, label_en = EXCLUDED.label_en,
+           wall = EXCLUDED.wall, tintable = EXCLUDED.tintable
+     RETURNING id, pack_id, rarity, media_key, label_fr, label_en, wall, tintable, retired_at`,
+    [s.id, s.packId, s.rarity, s.media, s.labelFr, s.labelEn, s.wall ?? false, s.tintable ?? true]
+  );
+  if (!row) throw new CatalogueRefusal("Objet refusé.");
+  return decorRow(row);
+}
+
+/** Retirer, ou remettre. Jamais effacer : voir le commentaire du bloc. */
+export async function retirePack(db: Db, id: string, retired: boolean): Promise<boolean> {
+  const rows = await db.query("UPDATE pack_def SET retired_at = $2 WHERE id = $1 RETURNING id", [
+    id,
+    retired ? new Date() : null,
+  ]);
+  return rows.length > 0;
+}
+
+export async function retireDecor(db: Db, id: string, retired: boolean): Promise<boolean> {
+  const rows = await db.query("UPDATE decor_def SET retired_at = $2 WHERE id = $1 RETURNING id", [
+    id,
+    retired ? new Date() : null,
+  ]);
+  return rows.length > 0;
+}
+
+/**
+ * L'article nommé, d'où qu'il vienne.
+ *
+ * LE CODE D'ABORD, LA BASE ENSUITE. `SHOP` est une constante lue sans
+ * aller-retour ; la base n'est interrogée que pour ce qui n'y est pas,
+ * c'est-à-dire les pochettes. L'ordre n'est pas qu'une optimisation : il
+ * garantit qu'une ligne de `pack_def` ne peut pas usurper l'identifiant
+ * d'une peau et en changer le prix.
+ */
+export async function resolveItem(db: Db, id: string): Promise<ShopItem | undefined> {
+  const fixed = itemById(id);
+  if (fixed) return fixed;
+  const row = await one<Parameters<typeof packRow>[0]>(
+    db,
+    `SELECT id, price, label_fr, label_en, cover_key, retired_at
+       FROM pack_def WHERE id = $1 AND retired_at IS NULL`,
+    [id]
+  );
+  return row ? packItem(packRow(row)) : undefined;
+}
+
 export interface Holdings {
   items: string[];
-  stickers: { sticker_id: string; copies: number }[];
+  /** Les objets tirés, et en combien d'exemplaires. */
+  decors: { decor_id: string; copies: number }[];
   powers: Record<string, number>;
-  worn: { stamp: string | null; skin: string | null };
+  worn: Record<Wearable, string | null>;
 }
 
 export async function holdingsOf(db: Db, personId: string): Promise<Holdings> {
-  const [items, stickers, powers, worn] = await Promise.all([
+  const [items, decors, powers, worn] = await Promise.all([
     db.query<{ item_id: string }>("SELECT item_id FROM owned WHERE person_id = $1", [personId]),
-    db.query<{ sticker_id: string; copies: number }>(
-      "SELECT sticker_id, copies FROM sticker WHERE person_id = $1 ORDER BY first_at",
+    db.query<{ decor_id: string; copies: number }>(
+      "SELECT decor_id, copies FROM decor_won WHERE person_id = $1 ORDER BY first_at",
       [personId]
     ),
     db.query<{ kind: string; left_over: number }>(
       "SELECT kind, left_over FROM power WHERE person_id = $1 AND left_over > 0",
       [personId]
     ),
-    one<{ stamp: string | null; skin: string | null }>(
+    one<Record<Wearable, string | null>>(
       db,
-      "SELECT stamp, skin FROM person WHERE id = $1",
+      "SELECT stamp, skin, paper, title FROM person WHERE id = $1",
       [personId]
     ),
   ]);
   return {
     items: items.map((i) => i.item_id),
-    stickers,
+    decors,
     powers: Object.fromEntries(powers.map((p) => [p.kind, p.left_over])),
-    worn: worn ?? { stamp: null, skin: null },
+    worn: worn ?? { stamp: null, skin: null, paper: null, title: null },
   };
 }
 
@@ -2995,6 +3253,7 @@ export async function wipeEverything(db: Db, personId: string): Promise<void> {
     "token_spend",
     "owned",
     "sticker",
+    "decor_won",
     "power",
     "purse",
     "reminder_sent",
@@ -3030,7 +3289,7 @@ export async function wipeEverything(db: Db, personId: string): Promise<void> {
  * entre le remboursement et la reprise de l'objet.
  */
 export async function sell(db: Db, personId: string, itemId: string): Promise<Purse | "not-owned"> {
-  const item = itemById(itemId);
+  const item = await resolveItem(db, itemId);
   if (!item) return "not-owned";
 
   const back = await one<Purse>(
@@ -3055,11 +3314,18 @@ export async function sell(db: Db, personId: string, itemId: string): Promise<Pu
      ),
      /* Ce qu'on ne possède plus, on ne le porte plus : un tampon resté
         au revers d'un article rendu s'afficherait à côté de votre nom
-        sans que rien ne l'explique. */
+        sans que rien ne l'explique.
+
+        Les quatre colonnes portables, et deux façons de comparer : une
+        peau range sa CLÉ (son "grants"), les trois autres rangent
+        l'identifiant de l'article. C'est la même asymétrie que dans
+        "wear", et elle vient de SkinPicker, qui compare des clés. */
      bared AS (
        UPDATE person
           SET stamp = CASE WHEN stamp = $2 THEN NULL ELSE stamp END,
-              skin = CASE WHEN skin = $4 THEN NULL ELSE skin END
+              skin = CASE WHEN skin = $4 THEN NULL ELSE skin END,
+              paper = CASE WHEN paper = $2 THEN NULL ELSE paper END,
+              title = CASE WHEN title = $2 THEN NULL ELSE title END
         WHERE id = $1 AND EXISTS (SELECT 1 FROM gone)
        RETURNING 1
      )
@@ -3080,13 +3346,18 @@ export async function buy(
   itemId: string,
   rng: Rng
 ): Promise<{ purse: Purse; drawn: string[] }> {
-  const item = itemById(itemId);
+  const item = await resolveItem(db, itemId);
   if (!item) throw new ShopRefusal("cet article n'existe pas");
 
-  /* Owning a stamp or a skin twice is refused BEFORE paying, and by a
+  /* Owning a unique thing twice is refused BEFORE paying, and by a
      read rather than by the key: `owned`'s primary key would have made
-     the insert do nothing while the tokens had already gone. */
-  if (item.kind === "stamp" || item.kind === "skin") {
+     the insert do nothing while the tokens had already gone.
+
+     LA LISTE DES FAMILLES CONCERNÉES A QUITTÉ CETTE LIGNE. Elle disait
+     « tampon ou peau », et deux familles portables plus tard elle aurait
+     débité deux fois pour un papier. `isUnique` la tient dans le
+     catalogue, là où la famille est déclarée. */
+  if (isUnique(item)) {
     const had = await one(db, "SELECT 1 FROM owned WHERE person_id = $1 AND item_id = $2", [
       personId,
       itemId,
@@ -3117,10 +3388,15 @@ export async function buy(
 
   const drawn: string[] = [];
   if (item.kind === "pack") {
-    for (const s of draw(rng, item.draws ?? 1)) {
+    /* LE BASSIN EST LU APRÈS LE DÉBIT, dans la même transaction. Le lire
+       avant aurait voulu dire tirer dans un stock d'il y a un instant —
+       et surtout, une pochette vidée entre-temps aurait rendu des
+       objets qui n'existent plus. */
+    const stock = await listDecors(db, item.id);
+    for (const s of draw(rng, DRAWS, stock)) {
       await db.query(
-        `INSERT INTO sticker (person_id, sticker_id) VALUES ($1, $2)
-         ON CONFLICT (person_id, sticker_id) DO UPDATE SET copies = sticker.copies + 1`,
+        `INSERT INTO decor_won (person_id, decor_id) VALUES ($1, $2)
+         ON CONFLICT (person_id, decor_id) DO UPDATE SET copies = decor_won.copies + 1`,
         [personId, s]
       );
       drawn.push(s);
@@ -3151,16 +3427,39 @@ export async function buy(
 export async function wear(
   db: Db,
   personId: string,
-  what: "stamp" | "skin",
+  what: Wearable,
   itemId: string | null
 ): Promise<boolean> {
+  /* LE NOM DE COLONNE EST INTERPOLÉ, donc il ne vient pas du dehors.
+     `Wearable` le dit au compilateur ; cette ligne le dit à
+     l'exécution, parce qu'un `as` quelque part dans une route suffirait
+     à faire mentir le type. C'est la seule interpolation de tout ce
+     fichier, et c'est pour cela qu'elle est gardée deux fois. */
+  if (!(WEARABLE as readonly string[]).includes(what)) return false;
+
+  /* ON REÇOIT L'IDENTIFIANT DE L'ARTICLE, ON RANGE PARFOIS AUTRE CHOSE.
+     Une peau range sa CLÉ et non son article — `SkinPicker` compare des
+     clés, et c'est lui qui a raison, puisqu'il s'ouvre sans réseau.
+
+     C'EST AUSSI LA CORRECTION D'UN VRAI DÉFAUT. Le présentoir envoyait
+     déjà la clé (`item.grants ?? item.id`), et cette requête cherchait
+     cette clé dans `owned`, qui ne contient que des identifiants
+     d'articles : porter une peau achetée était refusé en 403, toujours.
+     Aucun test ne couvrait le cas — ils n'essayaient que des tampons,
+     pour qui les deux se confondent. La possession se vérifie donc
+     maintenant sur l'ARTICLE, et le rangement se fait sur ce que la
+     famille range. */
+  const item = itemId ? itemById(itemId) : null;
+  if (itemId && !item) return false;
+  const stored = item?.grants ?? itemId;
+
   const rows = await db.query(
-    `UPDATE person SET ${what} = $2
+    `UPDATE person SET ${what} = $3
       WHERE id = $1
         AND ($2::text IS NULL
              OR EXISTS (SELECT 1 FROM owned WHERE person_id = $1 AND item_id = $2))
      RETURNING id`,
-    [personId, itemId]
+    [personId, itemId, stored]
   );
   return rows.length > 0;
 }
@@ -3327,6 +3626,48 @@ export async function extendChallenge(
         AND NOT EXISTS (SELECT 1 FROM merit_event
                          WHERE kind IN ('challenge', 'challenge_half') AND ref = $1::text)
      RETURNING to_char(ends_on, 'YYYY-MM-DD') AS ends_on, extensions`,
+    [challengeId, personId]
+  );
+}
+
+/**
+ * Le second souffle : rouvrir un défi qu'on a laissé filer.
+ *
+ * TROIS DIFFÉRENCES AVEC LA PROLONGATION, et chacune est ce qu'on achète
+ * pour quarante-cinq jetons plutôt que trente :
+ *
+ * Elle est ouverte à QUI PARTICIPE et pas seulement à qui a créé — un
+ * défi raté l'est par le participant, et c'était à l'auteur seul de le
+ * rattraper.
+ *
+ * Elle marche APRÈS la date de fin, dans un mois de battement, là où la
+ * prolongation s'arrête à une semaine. C'est tout l'objet : on s'aperçoit
+ * qu'on a échoué APRÈS.
+ *
+ * Elle ne consomme PAS l'un des deux reports de l'auteur. Le pouvoir est
+ * son propre plafond, et il se paie.
+ *
+ * CE QUI NE CHANGE PAS EST LA SEULE GARANTIE QUI COMPTE : un défi déjà
+ * soldé ne se rouvre pas. La clé du journal empêcherait de payer deux
+ * fois, mais elle empêcherait AUSSI de payer le rattrapage — et
+ * quelqu'un aurait dépensé son pouvoir pour rien.
+ */
+export async function secondWind(
+  db: Db,
+  challengeId: string,
+  personId: string
+): Promise<{ ends_on: string } | null> {
+  return one<{ ends_on: string }>(
+    db,
+    `UPDATE challenge
+        SET ends_on = greatest(ends_on, current_date) + 7
+      WHERE id = $1
+        AND EXISTS (SELECT 1 FROM challenge_participant
+                     WHERE challenge_id = $1 AND person_id = $2)
+        AND ends_on >= current_date - 30
+        AND NOT EXISTS (SELECT 1 FROM merit_event
+                         WHERE kind IN ('challenge', 'challenge_half') AND ref = $1::text)
+     RETURNING to_char(ends_on, 'YYYY-MM-DD') AS ends_on`,
     [challengeId, personId]
   );
 }

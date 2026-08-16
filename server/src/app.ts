@@ -27,11 +27,12 @@ import * as store from "./store.ts";
 import { registerRelays } from "./relay.ts";
 import { publicKeyForPush, pushAvailable, remindChallenges } from "./push.ts";
 import { allowed, mediaAvailable, ticketFor } from "./media.ts";
-import { ceilingsFor, QuotaReached } from "./limits.ts";
+import { ceilingsFor } from "./limits.ts";
 import { demoPosters } from "./demo.ts";
 import { LEVELS, SIZES } from "./draw.ts";
 import { RATE } from "./points.ts";
-import { SHOP } from "./shop.ts";
+import { SHOP, WEARABLE, packItem } from "./shop.ts";
+import type { Wearable } from "./shop.ts";
 
 export interface Settings {
   db: Db;
@@ -1770,16 +1771,135 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
 
   app.get("/shop", async (req) => {
     const person = await requireAccount(req);
-    const held = await store.holdingsOf(db, person.id);
-    /* The catalogue is the same for everybody; what changes is what one
-       already has. Sent together so the shop can be drawn in one pass. */
+    /* LE PRÉSENTOIR EST DEUX CATALOGUES COUSUS EN UN. Le code tient les
+       familles qui demandent du code pour être rendues ; la base tient
+       les pochettes, qu'on veut pouvoir ajouter un dimanche. Le client
+       ne voit qu'une liste — c'est ici que la couture se fait, pour
+       qu'elle ne se refasse pas dans chaque écran. */
+    const [held, packs, decors] = await Promise.all([
+      store.holdingsOf(db, person.id),
+      store.listPacks(db),
+      store.listDecors(db),
+    ]);
+    const items = [...SHOP, ...packs.map(packItem)];
     return {
-      items: SHOP.map((i) => ({
+      items: items.map((i) => ({
         ...i,
         owned: held.items.includes(i.id),
         held: i.power ? (held.powers[i.power] ?? 0) : undefined,
       })),
+      /* LE CATALOGUE DES OBJETS VOYAGE AVEC, et pas sur une seconde
+         requête : le présentoir dessine une pochette entrouverte sur ce
+         qu'elle contient, la collection a besoin du même dictionnaire
+         pour nommer ce qu'on possède, ET L'ÉTAGÈRE en a besoin pour
+         dessiner ce qu'on y pose. Trois écrans, une réponse. */
+      decors: decors
+        .filter((d) => !d.retired)
+        .map((d) => ({
+          id: d.id,
+          packId: d.packId,
+          rarity: d.rarity,
+          media: d.media,
+          label: d.label,
+          wall: d.wall,
+          tintable: d.tintable,
+        })),
     };
+  });
+
+  /* ------------------------------------------------------------
+     LE STUDIO DES POCHETTES — écriture réservée au rôle
+     ------------------------------------------------------------
+
+     MÊME RAISON QUE `/shop/sell` : le rôle ne s'obtient QUE par
+     l'environnement du déploiement, aucune route ne l'accorde. Quelqu'un
+     qui l'a tient déjà la base ; lui laisser écrire une ligne de
+     catalogue ne lui donne rien qu'il n'ait déjà.
+
+     L'IMAGE NE PASSE PAS PAR ICI. Elle est déposée dans le container
+     avec un ticket signé (`/media/ticket`, préfixe `bank/decor/…`), et
+     seule la CLÉ arrive dans ce corps de requête. Un serveur qui relaie
+     des octets est un serveur qu'on peut remplir. */
+
+  app.get("/shop/packs", async (req) => {
+    const person = await requireAdmin(req);
+    void person;
+    const packs = await store.listPacks(db, true);
+    const decors = await store.listDecors(db);
+    return { packs, decors };
+  });
+
+  const catalogueOr409 = async <T>(reply: FastifyReply, run: () => Promise<T>) => {
+    try {
+      return await run();
+    } catch (e) {
+      if (e instanceof store.CatalogueRefusal) return reply.code(409).send({ error: e.message });
+      throw e;
+    }
+  };
+
+  app.post("/shop/packs", async (req, reply) => {
+    await requireAdmin(req);
+    const b = (req.body ?? {}) as Record<string, unknown>;
+    if (
+      typeof b.id !== "string" ||
+      typeof b.labelFr !== "string" ||
+      typeof b.labelEn !== "string"
+    ) {
+      return reply.code(400).send({ error: "Il faut un identifiant et deux libellés." });
+    }
+    return catalogueOr409(reply, () =>
+      store.upsertPack(db, {
+        id: b.id as string,
+        price: Number(b.price),
+        labelFr: b.labelFr as string,
+        labelEn: b.labelEn as string,
+        cover: typeof b.cover === "string" ? b.cover : null,
+      })
+    );
+  });
+
+  app.delete("/shop/packs/:id", async (req, reply) => {
+    await requireAdmin(req);
+    const { id } = req.params as { id: string };
+    const { back } = (req.query ?? {}) as { back?: string };
+    /* On retire, on ne supprime pas — et « remettre » est la même route
+       avec `?back=1`, parce qu'un retrait qu'on ne peut pas défaire est
+       une suppression qui n'ose pas dire son nom. */
+    if (!(await store.retirePack(db, id, back !== "1"))) {
+      return reply.code(404).send({ error: "Cette pochette n'existe pas." });
+    }
+    return { id, retired: back !== "1" };
+  });
+
+  app.post("/shop/decors", async (req, reply) => {
+    await requireAdmin(req);
+    const b = (req.body ?? {}) as Record<string, unknown>;
+    for (const k of ["id", "packId", "rarity", "media", "labelFr", "labelEn"]) {
+      if (typeof b[k] !== "string") return reply.code(400).send({ error: `Il manque « ${k} ».` });
+    }
+    return catalogueOr409(reply, () =>
+      store.upsertDecor(db, {
+        id: b.id as string,
+        packId: b.packId as string,
+        rarity: b.rarity as string,
+        media: b.media as string,
+        labelFr: b.labelFr as string,
+        labelEn: b.labelEn as string,
+        wall: b.wall === true,
+        tintable: b.tintable !== false,
+      })
+    );
+  });
+
+  app.delete("/shop/decors/:id", async (req, reply) => {
+    await requireAdmin(req);
+    const { id } = req.params as { id: string };
+    const { back } = (req.query ?? {}) as { back?: string };
+    if (!(await store.retireDecor(db, id, back !== "1"))) {
+      return reply.code(404).send({ error: "Cet objet n'existe pas." });
+    }
+    return { id, retired: back !== "1" };
   });
 
   app.get("/shop/mine", async (req) => {
@@ -1830,8 +1950,12 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
 
   app.patch("/shop/worn", async (req, reply) => {
     const person = await requireAccount(req);
-    const body = (req.body ?? {}) as { stamp?: string | null; skin?: string | null };
-    for (const what of ["stamp", "skin"] as const) {
+    const body = (req.body ?? {}) as Partial<Record<Wearable, string | null>>;
+    /* LA LISTE VIENT DU CATALOGUE, et non de cette ligne. Elle disait
+       « stamp, skin » et il a fallu deux familles de plus pour s'en
+       apercevoir : une route qui répète une liste est une route qui
+       oubliera de la mettre à jour. */
+    for (const what of WEARABLE) {
       if (!(what in body)) continue;
       const value = body[what] ?? null;
       /* A single statement decides: a row that comes back is the
@@ -1893,6 +2017,25 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
       return reply.code(409).send({ error: "Ce défi ne peut plus être prolongé." });
     }
     return pushed;
+  });
+
+  /* LE SECOND SOUFFLE — le premier pouvoir qui ne soit pas du quiz.
+     Même forme que la prolongation, refus compris : on prend le pouvoir,
+     on essaie, on le rend si la base refuse. Ce qu'il fait de plus est
+     documenté sur `store.secondWind`. */
+  app.post("/challenges/:id/second-wind", async (req, reply) => {
+    const person = await requireAccount(req);
+    const { id } = req.params as { id: string };
+    if (!UUID.test(id || "")) return reply.code(404).send({ error: "Défi inconnu." });
+    if (!(await store.spendPower(db, person.id, "second-wind"))) {
+      return reply.code(402).send({ error: "Il vous faut ce pouvoir." });
+    }
+    const again = await store.secondWind(db, id, person.id);
+    if (!again) {
+      await store.givePower(db, person.id, "second-wind");
+      return reply.code(409).send({ error: "Ce défi ne peut plus être relancé." });
+    }
+    return again;
   });
 
   /**
@@ -2055,48 +2198,31 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     return { decor: await store.publicDecorOf(db, pseudo.toLowerCase(), me?.id) };
   });
 
-  app.post("/decor", async (req, reply) => {
-    const person = await requireAccount(req);
-    const { label, wall, kind, tintable, bytes } = (req.body ?? {}) as Record<string, unknown>;
-    const name = typeof label === "string" ? label.trim() : "";
-    if (name.length < 1 || name.length > 60) {
-      return reply.code(400).send({ error: "Un nom de 1 à 60 caractères." });
-    }
-    if (kind !== undefined && kind !== "raster" && kind !== "svg") {
-      return reply.code(400).send({ error: "Une image ou un dessin, rien d'autre." });
-    }
-    /* LE PLAFOND SE DIT, IL NE SE DEVINE PAS. `createDecor` refuse en
-       jetant, comme il refuse déjà une étiquette vide ; ici on traduit
-       ce refus en 409 et en une phrase qui nomme ce qui est plein —
-       « ça n'a pas marché » sur une armoire pleine est la pire des
-       réponses, parce qu'on recommence. */
-    let decor;
-    try {
-      decor = await store.createDecor(db, {
-        ownerId: person.id,
-        label: name,
-        wall: typeof wall === "string" ? wall.slice(0, 40) : "",
-        kind: (kind as "raster" | "svg") ?? "raster",
-        tintable: tintable === true,
-        bytes: Number(bytes) || 0,
-      });
-    } catch (e) {
-      if (e instanceof QuotaReached) {
-        return reply.code(409).send({
-          error:
-            e.quel === "decors"
-              ? "Votre armoire est pleine : retirez un objet avant d'en déposer un autre."
-              : "Vos objets pèsent déjà le maximum : retirez-en un avant d'en déposer un autre.",
-          quota: e.quel,
-        });
-      }
-      throw e;
-    }
-    /* The blob has NOT been put down yet: the client now asks for a
-       write ticket on `decor/<id>` and uploads. Making the row first is
-       what gives the object the identity two people can name. */
-    return reply.code(201).send({ decor, path: `decor/${decor.id}` });
-  });
+  /* ------------------------------------------------------------
+     LE DÉPÔT D'UN OBJET N'EXISTE PLUS
+     ------------------------------------------------------------
+
+     `POST /decor` créait la ligne, puis le classeur demandait un ticket
+     d'écriture sur `decor/<id>` et envoyait l'image. C'était la SEULE
+     porte par laquelle un bibelot entrait, et elle est fermée : les
+     objets neufs sortent d'une pochette, tirés par le serveur.
+
+     TOUT LE RESTE DE `/decor` TIENT, ET C'EST VOULU. On lit toujours les
+     siens, on les partage, on en prend copie chez les autres, on les
+     efface. Ce qui a été déposé avant reste déposé — fermer la porte
+     d'entrée n'est pas vider la pièce, et personne ne perd ce qu'il a
+     mis sur son étagère.
+
+     `createDecor` reste dans `store.ts` : la synchronisation d'un
+     appareil qui n'a pas encore vu ce changement passe par elle, et le
+     jour où ces lignes-là auront toutes migré, c'est ce jour-là qu'on
+     retirera la fonction. Une fonction sans appelant se voit ; une
+     synchronisation qui échoue en silence, non.
+
+     LE TICKET D'ÉCRITURE, LUI, EST TOUJOURS SIGNÉ pour un décor qu'on
+     possède : `media.ts` le garde, parce que remplacer l'image d'un
+     objet qu'on a déjà n'est pas en déposer un neuf, et parce que la
+     synchronisation d'un second appareil en dépend. */
 
   app.put("/decor/:id", async (req, reply) => {
     const person = await requireAccount(req);
@@ -2336,7 +2462,7 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
            l'ouverture d'une pochette comme le refus du doublon. Le
            journal des gains, lui, reste : c'est la mémoire de ce qui a
            payé, et l'effacer masquerait un double crédit. */
-        for (const table of ["owned", "sticker", "power", "token_spend"]) {
+        for (const table of ["owned", "decor_won", "power", "token_spend"]) {
           await db.query(`DELETE FROM ${table} WHERE person_id = $1`, [person.id]);
         }
         await db.query("UPDATE person SET stamp = NULL, skin = NULL WHERE id = $1", [person.id]);

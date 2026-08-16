@@ -269,7 +269,18 @@ describe("the bank's tickets", () => {
 });
 
 describe("the decor shelf", () => {
-  it("makes the row BEFORE the blob, and hands back its path", async () => {
+  /* LA PORTE D'ENTRÉE EST FERMÉE, ET C'EST CE QU'ON ÉPROUVE.
+
+     `POST /decor` créait la ligne, puis le classeur demandait un ticket
+     d'écriture et envoyait l'image : c'était la SEULE façon dont un
+     bibelot entrait. Les objets neufs sortent maintenant d'une pochette,
+     tirés par le serveur.
+
+     Une route retirée ne casse aucun test tant que personne n'écrit
+     celui-ci : le client cesse simplement de l'appeler, et la route
+     survit des mois en attendant qu'on s'en aperçoive. Ici, elle doit
+     répondre 404, et si elle revient un jour, cette ligne le dira. */
+  it("n'a plus de porte pour déposer un objet", async () => {
     const anna = await account("anna");
     const r = await app.inject({
       method: "POST",
@@ -277,30 +288,19 @@ describe("the decor shelf", () => {
       headers: { cookie: anna.cookie },
       payload: { label: "a lamp", kind: "svg", tintable: true },
     });
-    expect(r.statusCode).toBe(201);
-    const { decor, path } = r.json();
-    /* It is that row which gives the object the identity two people can
-       name — the blob follows. */
-    expect(path).toBe(`decor/${decor.id}`);
-    expect(decor.is_public).toBe(false);
-    expect((await ticket(anna.cookie, path)).statusCode).toBe(200);
+    expect(r.statusCode).toBe(404);
   });
 
-  it("refuses an empty name or an unknown kind", async () => {
+  /* ET TOUT LE RESTE TIENT. Fermer l'entrée n'est pas vider la pièce :
+     ce qui a été déposé se lit, se partage, se prend en copie et
+     s'efface comme avant. Un ticket d'écriture reste signé pour un objet
+     qu'on possède — remplacer l'image d'un bibelot qu'on a déjà n'est
+     pas en déposer un neuf, et la synchronisation d'un second appareil
+     en dépend. */
+  it("laisse lire, et signer, ce qui est déjà là", async () => {
     const anna = await account("anna");
-    for (const payload of [
-      { label: "  " },
-      { label: "x".repeat(61) },
-      { label: "ok", kind: "gif" },
-    ]) {
-      const r = await app.inject({
-        method: "POST",
-        url: "/decor",
-        headers: { cookie: anna.cookie },
-        payload,
-      });
-      expect(r.statusCode, JSON.stringify(payload)).toBe(400);
-    }
+    const lamp = await store.createDecor(db, { ownerId: anna.person.id, label: "a lamp" });
+    expect((await ticket(anna.cookie, `decor/${lamp.id}`)).statusCode).toBe(200);
   });
 
   it("shows other people's shelf, without putting one's own on it", async () => {

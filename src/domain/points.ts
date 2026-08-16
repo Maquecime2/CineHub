@@ -25,6 +25,7 @@ export type Kind =
   | "challenge_half"
   | "challenge_joined"
   | "quiz"
+  | "quiz_doubled"
   | "quiz_flawless"
   | "quiz_first"
   | "watch"
@@ -39,6 +40,10 @@ export const RATE: Record<Kind, number> = {
   challenge_half: 10,
   challenge_joined: 4,
   quiz: 0,
+  /* La double mise vaut le score, comme `quiz` — et elle ne paie que des
+     JETONS, jamais de mérite. Voir l'original côté serveur : un
+     classement dont on peut acheter les points ne mesure plus rien. */
+  quiz_doubled: 0,
   quiz_flawless: 15,
   quiz_first: 5,
   watch: 1,
