@@ -122,12 +122,3 @@ export function placeCaret(root: HTMLElement, target: number): void {
   sel.removeAllRanges();
   sel.addRange(range);
 }
-
-/* LE TYPE DE DONNÉE D'UNE VIGNETTE QU'ON GLISSE.
-
-   Un type à nous, et pas `text/plain` : un glissement venu d'ailleurs —
-   un mot depuis une autre page, un fichier — ne doit pas se faire lire
-   comme un numéro de capture. Le champ ne réagit qu'à ce type-là, et
-   laisse passer tout le reste.
-*/
-export const STILL_DRAG = "application/x-cinehub-still";

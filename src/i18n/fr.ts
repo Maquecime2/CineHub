@@ -1472,10 +1472,11 @@ const fr = {
   },
 
   stills: {
-    dragHint: "glissez-la dans le texte, où vous voulez",
+    dragHint: "une fois posée, déplacez-la dans le texte",
     notSynced:
       "Cette image est restée sur l'appareil qui l'a importée : les captures ne se synchronisent pas encore.",
-    pasteHint: "Ctrl+V pour coller · « insérer » place la vignette à l'endroit du curseur",
+    pasteHint:
+      "Ctrl+V pour coller · « insérer » pose au curseur, puis déplacez la vignette dans le texte",
     caption: "légender…",
     close: "fermer (Échap)",
     previous: "précédente (←)",

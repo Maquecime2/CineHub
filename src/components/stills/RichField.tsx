@@ -1,8 +1,9 @@
 import { useEffect, useRef } from "react";
 import { ruledTextarea } from "../../theme/styles";
+import { C, alpha } from "../../theme/tokens";
 import { Label } from "../ui";
 import { useStillUrls } from "./useStillUrls";
-import { htmlToText, placeCaret, textToHtml, STILL_DRAG } from "./tokens";
+import { htmlToText, placeCaret, textToHtml } from "./tokens";
 import type { Still } from "../../types";
 
 interface RichFieldProps {
@@ -74,13 +75,11 @@ export function RichField({
   const withTokenAtCursor = (token: string) =>
     withTokenAt(token, caretNow() ?? lastCaret.current ?? value.length);
 
-  /* OÙ L'ON A LÂCHÉ, converti en position dans le texte.
+  /* OÙ L'ON SURVOLE, en `Range`.
 
      `caretPositionFromPoint` est la façon moderne, `caretRangeFromPoint`
-     celle de WebKit ; aucune des deux n'est partout, d'où les deux. Sans
-     l'une ni l'autre on retombe sur le curseur retenu, ce qui vaut mieux
-     que de refuser le geste. */
-  const caretFromPoint = (x: number, y: number): number | null => {
+     celle de WebKit ; aucune des deux n'est partout, d'où les deux. */
+  const rangeFromPoint = (x: number, y: number): Range | null => {
     const el = ref.current;
     if (!el) return null;
     const doc = document as Document & {
@@ -92,13 +91,39 @@ export function RichField({
     };
     const spot = doc.caretPositionFromPoint?.(x, y);
     if (spot?.offsetNode && el.contains(spot.offsetNode)) {
-      return htmlToText(el, { node: spot.offsetNode, offset: spot.offset }).length;
+      const range = document.createRange();
+      range.setStart(spot.offsetNode, spot.offset);
+      range.collapse(true);
+      return range;
     }
-    const range = doc.caretRangeFromPoint?.(x, y);
-    if (range?.startContainer && el.contains(range.startContainer)) {
-      return htmlToText(el, { node: range.startContainer, offset: range.startOffset }).length;
-    }
-    return null;
+    const got = doc.caretRangeFromPoint?.(x, y);
+    return got?.startContainer && el.contains(got.startContainer) ? got : null;
+  };
+
+  /* LE REPÈRE DE DÉPÔT, ÉCRIT À LA MAIN PLUTÔT QUE RENDU.
+
+     Un `setState` par mouvement de souris pendant un glissement
+     redessinerait le champ entier trente fois par seconde, et le champ
+     contient des images. C'est la règle de l'étagère, pour la même
+     raison. */
+  const markRef = useRef<HTMLDivElement | null>(null);
+
+  const hideMark = () => {
+    if (markRef.current) markRef.current.style.display = "none";
+  };
+
+  const showMark = (x: number, y: number) => {
+    const el = ref.current;
+    const mark = markRef.current;
+    if (!el || !mark) return;
+    const range = rangeFromPoint(x, y);
+    if (!range) return hideMark();
+    const at = range.getBoundingClientRect();
+    const box = el.getBoundingClientRect();
+    mark.style.display = "block";
+    mark.style.left = `${at.left - box.left + el.scrollLeft}px`;
+    mark.style.top = `${at.top - box.top + el.scrollTop}px`;
+    mark.style.height = `${at.height || parseFloat(getComputedStyle(el).lineHeight) || 18}px`;
   };
   useEffect(() => {
     onInsertToken?.(withTokenAtCursor);
@@ -150,73 +175,77 @@ export function RichField({
   return (
     <div>
       <Label>{label}</Label>
-      <div
-        ref={ref}
-        contentEditable
-        suppressContentEditableWarning
-        onInput={() => {
-          rememberCaret();
-          emit();
-        }}
-        onKeyUp={rememberCaret}
-        onMouseUp={rememberCaret}
-        onBlur={() => {
-          rememberCaret();
-          emit();
-        }}
-        /* LA PELLICULE SE LÂCHE DANS LE TEXTE, à l'endroit visé.
+      <div style={{ position: "relative" }}>
+        <div
+          ref={markRef}
+          aria-hidden
+          style={{
+            position: "absolute",
+            display: "none",
+            width: 2,
+            background: C.burgundy,
+            boxShadow: `0 0 0 1px ${alpha(C.burgundy, 0.35)}`,
+            pointerEvents: "none",
+            zIndex: 1,
+          }}
+        />
+        <div
+          ref={ref}
+          contentEditable
+          suppressContentEditableWarning
+          onInput={() => {
+            rememberCaret();
+            emit();
+          }}
+          onKeyUp={rememberCaret}
+          onMouseUp={rememberCaret}
+          onBlur={() => {
+            rememberCaret();
+            emit();
+          }}
+          /* ON MONTRE OÙ L'IMAGE VA TOMBER.
 
-           C'est le geste que le bouton « insérer » remplaçait mal :
-           poser le curseur, descendre, cliquer, revenir. Ici on prend la
-           vignette et on la pose où elle doit être. */
-        onDragOver={(e) => {
-          if (!e.dataTransfer.types.includes(STILL_DRAG)) return;
-          e.preventDefault();
-          e.dataTransfer.dropEffect = "copy";
-        }}
-        onDrop={(e) => {
-          /* ON VÉRIFIE LE TYPE, PAS SEULEMENT LE CONTENU. Lire
-             `getData` sans regarder ce qu'on lit fait entrer n'importe
-             quel glissement — un mot tiré d'une autre page, un fichier —
-             et le numéro devient `NaN` : le texte reçoit un `[img:NaN]`
-             que plus rien ne peut résoudre. C'est la même garde que
-             `dragover` juste au-dessus, et elle doit être aux deux
-             endroits : l'un décide de l'accueil, l'autre de l'effet. */
-          if (!e.dataTransfer.types.includes(STILL_DRAG)) return;
-          const n = Number(e.dataTransfer.getData(STILL_DRAG));
-          if (!Number.isInteger(n) || n < 1) return;
-          e.preventDefault();
-          const at = caretFromPoint(e.clientX, e.clientY);
-          if (at != null) lastCaret.current = at;
-          onChange(withTokenAt(`[img:${n}]`, at ?? lastCaret.current ?? value.length));
-        }}
-        data-placeholder={placeholder}
-        onClick={(e) => {
-          // clicking a thumbnail opens the still, without breaking the input
-          const n = (e.target as HTMLElement)?.dataset?.still;
-          if (n) {
+           Déplacer une vignette DANS le texte est un geste du navigateur
+           — le champ est éditable, il sait le faire, et `onInput` remet
+           le texte à jour derrière. Ce qu'il ne fait pas lisiblement,
+           c'est DIRE où le lâcher va poser l'image : le curseur natif
+           est un trait d'un pixel qu'on ne voit pas au milieu d'une
+           phrase, et on lâche à l'aveugle.
+
+           On dessine donc le nôtre, et on le retire dès que le geste
+           finit. Il ne participe à rien : c'est un repère, et le dépôt
+           reste celui du navigateur. */
+          onDragOver={(e) => showMark(e.clientX, e.clientY)}
+          onDragLeave={hideMark}
+          onDrop={hideMark}
+          data-placeholder={placeholder}
+          onClick={(e) => {
+            // clicking a thumbnail opens the still, without breaking the input
+            const n = (e.target as HTMLElement)?.dataset?.still;
+            if (n) {
+              e.preventDefault();
+              onOpenStill(Number(n) - 1);
+            }
+          }}
+          onPaste={(e) => {
+            // pasting images is handled above; here we force plain text
+            const hasImage = [...(e.clipboardData?.items || [])].some(
+              (i) => i.kind === "file" && i.type.startsWith("image/")
+            );
+            if (hasImage) return;
             e.preventDefault();
-            onOpenStill(Number(n) - 1);
-          }
-        }}
-        onPaste={(e) => {
-          // pasting images is handled above; here we force plain text
-          const hasImage = [...(e.clipboardData?.items || [])].some(
-            (i) => i.kind === "file" && i.type.startsWith("image/")
-          );
-          if (hasImage) return;
-          e.preventDefault();
-          document.execCommand("insertText", false, e.clipboardData.getData("text/plain"));
-        }}
-        style={{
-          ...ruledTextarea,
-          minHeight,
-          whiteSpace: "pre-wrap",
-          overflowWrap: "anywhere",
-          cursor: "text",
-          display: "block",
-        }}
-      />
+            document.execCommand("insertText", false, e.clipboardData.getData("text/plain"));
+          }}
+          style={{
+            ...ruledTextarea,
+            minHeight,
+            whiteSpace: "pre-wrap",
+            overflowWrap: "anywhere",
+            cursor: "text",
+            display: "block",
+          }}
+        />
+      </div>
     </div>
   );
 }

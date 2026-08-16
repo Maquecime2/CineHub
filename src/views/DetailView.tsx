@@ -647,18 +647,19 @@ export function DetailView({
           ============================================================ */}
       {tab === "mots" && (
         <div style={{ display: "flex", gap: 34, flexWrap: "wrap", alignItems: "flex-start" }}>
-          {/* 760 px: beyond that, the eye loses the next line on coming
-            back to the margin. It is the only column that has a reason to
-            be bounded. */}
-          <div style={{ flex: "1 1 420px", maxWidth: 760, minWidth: 0, position: "relative" }}>
-            {/* THE LOG OF SCREENINGS, AT THE HEAD OF YOUR WORDS. It is
-              the richest data on the card and the only one the almanac
-              reads; it had but a quarter of a column. */}
-            {film.status !== "watchlist" && (
-              <Cardstock tour="detail-watchlog" style={{ marginBottom: 18 }}>
-                <WatchLog film={film} onUpdate={onUpdate} />
-              </Cardstock>
-            )}
+          {/* LE PLAFOND EST DESCENDU SUR LA COLONNE DE TEXTE.
+
+              Il valait 760 px ICI, et la raison était juste : au-delà,
+              l'œil perd la ligne suivante en revenant à la marge. Mais
+              depuis que la pellicule s'est installée À CÔTÉ du texte, ce
+              plafond bornait les deux — la colonne de vignettes se
+              retrouvait à deux cent trente pixels sur un écran qui en
+              offrait mille, et n'affichait qu'une image de front.
+
+              Ce qui doit être borné est la LIGNE DE TEXTE, et elle
+              seule. Le plafond est donc posé plus bas, sur la colonne
+              d'écriture, et ce bloc prend la table. */}
+          <div style={{ flex: "1 1 420px", minWidth: 0, position: "relative" }}>
             <Paperclip
               size={26}
               color={C.inkFaded}
@@ -694,7 +695,28 @@ export function DetailView({
                 gap: 18,
               }}
             >
-              <div style={{ flex: 1, minWidth: 0, width: narrow ? "100%" : undefined }}>
+              <div
+                style={{
+                  flex: "1 1 420px",
+                  minWidth: 0,
+                  /* LA LIGNE DE TEXTE, ET C'EST TOUT CE QUI EST BORNÉ. */
+                  maxWidth: narrow ? undefined : 760,
+                  width: narrow ? "100%" : undefined,
+                }}
+              >
+                {/* LE JOURNAL DES SÉANCES OUVRE LA COLONNE. Il était
+                    AU-DESSUS de la rangée, donc la pellicule commençait
+                    une carte plus bas que lui et le haut de l'écran
+                    portait un vide à droite. Descendu ici, les deux
+                    colonnes partent de la même ligne.
+
+                    C'est la donnée la plus riche de la fiche et la seule
+                    que lit l'almanach ; elle avait un quart de colonne. */}
+                {film.status !== "watchlist" && (
+                  <Cardstock tour="detail-watchlog" style={{ marginBottom: 18 }}>
+                    <WatchLog film={film} onUpdate={onUpdate} />
+                  </Cardstock>
+                )}
                 <Cardstock
                   tour="detail-review"
                   onFocusCapture={() => setFocusField("review")}
@@ -745,8 +767,12 @@ export function DetailView({
 
               <div
                 style={{
-                  flexShrink: 0,
-                  width: narrow ? "100%" : 236,
+                  /* ELLE PREND CE QUI RESTE, et le rangement suit : la
+                     pellicule pose autant de colonnes que la place le
+                     permet, au lieu d'une seule file. */
+                  flex: narrow ? undefined : "1 1 300px",
+                  minWidth: 0,
+                  width: narrow ? "100%" : undefined,
                   position: narrow ? undefined : "sticky",
                   /* ELLE SUIT LE TEXTE QU'ON DÉROULE. Une critique
                      longue laissait la pellicule loin au-dessus, et le

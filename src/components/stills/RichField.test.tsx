@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, cleanup, fireEvent } from "@testing-library/react";
 import { RichField } from "./RichField";
-import { STILL_DRAG } from "./tokens";
 import type { Still } from "../../types";
 
 /* ============================================================
@@ -17,8 +16,11 @@ import type { Still } from "../../types";
    pas besoin d'avoir le focus pour savoir où l'on écrivait — et c'est
    exactement la situation dans laquelle on l'interroge.
 
-   ET UNE VIGNETTE SE LÂCHE DANS LE TEXTE, ce qui remplace le
-   va-et-vient par un seul geste.
+   LE GLISSEMENT DEPUIS LA PELLICULE A ÉTÉ RETIRÉ : deux façons de poser
+   la même image, dont une qui demande de viser un point dans un texte
+   qu'on ne voit pas encore. « Insérer » pose au curseur, et c'est DANS
+   le texte qu'on déplace ensuite la vignette — geste natif du champ
+   éditable, que le navigateur assure et que `onInput` resérialise.
    ============================================================ */
 
 vi.mock("./useStillUrls", () => ({ useStillUrls: () => ({}) }));
@@ -77,35 +79,5 @@ describe("l'insertion d'une capture", () => {
     sel.removeAllRanges();
 
     expect(insert()("[img:1]")).toBe("bon[img:1]jour");
-  });
-});
-
-describe("le lâcher d'une vignette", () => {
-  const drop = (field: HTMLElement, n: number) => {
-    const data = { [STILL_DRAG]: String(n) } as Record<string, string>;
-    fireEvent.drop(field, {
-      dataTransfer: {
-        types: [STILL_DRAG],
-        getData: (type: string) => data[type] ?? "",
-      },
-    });
-  };
-
-  it("écrit le jeton du numéro lâché", () => {
-    const { field, onChange } = mount("bonjour");
-    drop(field, 2);
-    expect(onChange).toHaveBeenCalledTimes(1);
-    expect(onChange.mock.calls[0]![0]).toContain("[img:2]");
-  });
-
-  /* UN GLISSEMENT VENU D'AILLEURS NE DOIT PAS ÊTRE LU COMME UNE
-     CAPTURE : un mot tiré depuis une autre page porte `text/plain`, et
-     le champ ne réagit qu'à un type à nous. */
-  it("ignore ce qui n'est pas une vignette", () => {
-    const { field, onChange } = mount("bonjour");
-    fireEvent.drop(field, {
-      dataTransfer: { types: ["text/plain"], getData: () => "n'importe quoi" },
-    });
-    expect(onChange).not.toHaveBeenCalled();
   });
 });
