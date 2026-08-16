@@ -37,6 +37,7 @@ import { TagEditor } from "../components/ui/TagEditor";
 import { MotifPicker } from "../components/film/MotifPicker";
 import { MOTIFS, suggestMotifs } from "../domain/motifs";
 import type { Motif, MotifFamily } from "../domain/motifs";
+import type { Thread } from "../domain/threads";
 import { fetchKeywords } from "../tmdb";
 import { useTmdbKey } from "../services/tmdbKey";
 import { useViewport } from "../hooks/useViewport";
@@ -88,16 +89,19 @@ type TextField = "review" | "notes";
 export type CardTab = "film" | "mots" | "liens";
 
 const CARD_TABS: { key: CardTab; label: string }[] = [
-  { key: "film", label: "LE FILM" },
-  { key: "mots", label: "MES MOTS" },
-  { key: "liens", label: "LES LIENS" },
+  /* The label is a KEY: the dividers are named in the catalogue like
+     everything else on screen. */
+  { key: "film", label: "detail.tabFilm" },
+  { key: "mots", label: "detail.tabWords" },
+  { key: "liens", label: "detail.tabLinks" },
 ];
 
 function TabBar({ valeur, onChange }: { valeur: CardTab; onChange: (o: CardTab) => void }) {
+  const { t: t2 } = useTranslation();
   return (
     <div
       role="tablist"
-      aria-label="Les parties du dossier"
+      aria-label={t2("detail.folderParts")}
       style={{
         display: "flex",
         gap: 6,
@@ -131,7 +135,7 @@ function TabBar({ valeur, onChange }: { valeur: CardTab; onChange: (o: CardTab) 
               borderRadius: "var(--tag-radius)",
             }}
           >
-            {o.label}
+            {t2(o.label)}
           </button>
         );
       })}
@@ -169,8 +173,12 @@ interface DetailViewProps {
   onOpenPerson?: (name: string) => void;
   /** Files a proposal from the wake into the "à voir" list. */
   onAddToWatchlist?: (f: Film) => void;
-  /** Turns a pattern into a question asked of the whole collection. */
-  onMakeThread?: (motifId: string) => void;
+  /** What was changed about the motifs' gatherings — the stars come from the cards. */
+  fils?: Thread[];
+  /** Lights a motif's star on the map, or puts it out. */
+  onStarMotif?: (motifId: string, on: boolean) => void;
+  /** Opens the map on this motif's gathering. */
+  onOpenInSky?: (motifId: string) => void;
   /** Your own vocabulary: your patterns, and the catalogue ones set aside. */
   vocabulary?: { custom: Motif[]; hidden: string[] };
   /** Returns the identifier of the written pattern, to lay it on the card at once. */
@@ -200,7 +208,9 @@ export function DetailView({
   films = [],
   onLinkFilm,
   onRemoveLink,
-  onMakeThread,
+  fils = [],
+  onStarMotif,
+  onOpenInSky,
   onEditLink,
   onOpen,
   onOpenPerson,
@@ -434,7 +444,7 @@ export function DetailView({
        we cap the review column (see below) and let all the rest — the
        poster, the rail, the red thread — take up the table. */
     <div style={{ padding: "34px 44px 70px", position: "relative" }}>
-      <StampCorner text="DOSSIER" />
+      <StampCorner text={t2("detail.stamp")} />
       <button
         onClick={onBack}
         style={{
@@ -522,7 +532,7 @@ export function DetailView({
         <div style={{ display: "flex", gap: 34, flexWrap: "wrap", alignItems: "flex-start" }}>
           <div style={{ flex: "1 1 420px", minWidth: 0, maxWidth: 620 }}>
             <Cardstock tour="detail-catalog">
-              <Label>Fiche catalogue</Label>
+              <Label>{t2("detail.catalogueCard")}</Label>
               {/* Title, year, director and genres: read-only here, and
                 fixable in one click — it is the only way to correct a
                 card the import identified wrongly. */}
@@ -561,7 +571,7 @@ export function DetailView({
                     width: "100%",
                   }}
                 >
-                  JE L'AI VU
+                  {t2("detail.iSawIt")}
                 </button>
               ) : (
                 <>
@@ -584,7 +594,7 @@ export function DetailView({
                       fontSize: 10,
                     }}
                   >
-                    remettre « à voir »
+                    {t2("detail.backToWatchlist")}
                   </button>
                 </>
               )}
@@ -725,7 +735,7 @@ export function DetailView({
                   }}
                 >
                   <RichField
-                    label="Critique personnelle"
+                    label={t2("detail.personalReview")}
                     minHeight={120}
                     value={film.review || ""}
                     onChange={(review) => saveText({ ...film, review })}
@@ -751,7 +761,7 @@ export function DetailView({
                   }}
                 >
                   <RichField
-                    label="Notes libres"
+                    label={t2("detail.freeNotes")}
                     minHeight={70}
                     value={film.notes || ""}
                     onChange={(notes) => saveText({ ...film, notes })}
@@ -831,12 +841,16 @@ export function DetailView({
               the ones are your words, the others the common vocabulary a
               question can bear on. */}
             <Cardstock tour="detail-tags">
-              <Label>Motifs</Label>
+              <Label>{t2("detail.motifs")}</Label>
               <MotifPicker
                 motifs={film.motifs || []}
                 suggestions={suggested}
                 onChange={(motifs) => onUpdate({ ...film, motifs })}
-                onMakeThread={onMakeThread}
+                films={films}
+                fils={fils}
+                onStar={onStarMotif}
+                onOpenInSky={onOpenInSky}
+                onOpenFilm={onOpen}
                 hiddenOnes={hiddenOnes}
                 onHide={onHideMotif}
                 /* Creating and laying are one single gesture: one does
@@ -874,7 +888,7 @@ export function DetailView({
             {/* The shelf's two filings, reachable without going there:
               they change the shelf, not the card. */}
             <Cardstock style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <Label>Ce qu'on en fait</Label>
+              <Label>{t2("detail.whatWeDoWithIt")}</Label>
               {/* No bedside for a film one has not seen: that shelf is
                   the one of what gets rewatched, and the watchlist's
                   shelf does not open it. The button would have changed
@@ -933,11 +947,11 @@ export function DetailView({
               >
                 {film.archived ? (
                   <>
-                    <ArchiveRestore size={12} /> remettre en rayon
+                    <ArchiveRestore size={12} /> {t2("detail.putBackOnShelf")}
                   </>
                 ) : (
                   <>
-                    <Archive size={12} /> mettre de côté
+                    <Archive size={12} /> {t2("detail.setAside")}
                   </>
                 )}
               </button>
@@ -995,7 +1009,7 @@ export function DetailView({
                   marginTop: 2,
                 }}
               >
-                <Trash2 size={12} /> supprimer définitivement
+                <Trash2 size={12} /> {t2("detail.deleteForGood")}
               </button>
             </Cardstock>
           </div>
@@ -1021,11 +1035,9 @@ export function DetailView({
           <div style={{ flex: "1 1 380px", minWidth: 0 }}>
             <Cardstock tour="detail-thread">
               <SectionTitle icon={<Link2 size={15} color={C.burgundy} />}>
-                Le fil rouge
+                {t2("detail.theRedThread")}
               </SectionTitle>
-              <Guideline>
-                les œuvres qui répondent à ce film — livres, peintures, autres films
-              </Guideline>
+              <Guideline>{t2("detail.redThreadHint")}</Guideline>
 
               <ThreadBoard
                 film={film}
@@ -1047,7 +1059,7 @@ export function DetailView({
                 }}
               >
                 <div>
-                  <Label>Type</Label>
+                  <Label>{t2("detail.linkKind")}</Label>
                   <select
                     value={linkType}
                     onChange={(e) => {
@@ -1182,17 +1194,17 @@ export function DetailView({
                           marginTop: 3,
                         }}
                       >
-                        pas au mur — sera relié comme simple mention
+                        {t2("detail.notOnTheWall")}
                       </div>
                     )}
                 </div>
                 <div style={{ flex: 1, minWidth: 140 }}>
-                  <Label>Auteur·rice / artiste</Label>
+                  <Label>{t2("detail.author")}</Label>
                   <input
                     style={underlineInput}
                     value={linkCreator}
                     onChange={(e) => setLinkCreator(e.target.value)}
-                    placeholder="Nom"
+                    placeholder={t2("detail.nameField")}
                     disabled={!!picked}
                   />
                 </div>
@@ -1202,7 +1214,7 @@ export function DetailView({
                 {picked && (
                   <>
                     <div style={{ minWidth: 160 }}>
-                      <Label>Nature du lien</Label>
+                      <Label>{t2("detail.linkNature")}</Label>
                       <select
                         value={linkRelation}
                         onChange={(e) => setLinkRelation(e.target.value as Relation | "")}
@@ -1217,7 +1229,7 @@ export function DetailView({
                       </select>
                     </div>
                     <div style={{ minWidth: 150 }}>
-                      <Label>Strength</Label>
+                      <Label>{t2("detail.linkStrength")}</Label>
                       <select
                         value={linkForce}
                         onChange={(e) => setLinkForce(strengthOf(Number(e.target.value)))}
@@ -1233,7 +1245,7 @@ export function DetailView({
                   </>
                 )}
                 <div style={{ flex: 1.4, minWidth: 180 }}>
-                  <Label>Pourquoi ce lien ?</Label>
+                  <Label>{t2("detail.whyThisLink")}</Label>
                   <input
                     style={underlineInput}
                     value={linkNote}

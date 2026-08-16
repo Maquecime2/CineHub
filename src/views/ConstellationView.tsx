@@ -7,7 +7,7 @@ import type {
   PointerEvent as ReactPointerEvent,
   KeyboardEvent as ReactKeyboardEvent,
 } from "react";
-import { Sparkles, Users, Spool } from "lucide-react";
+import { Sparkles, Users, Spool, SlidersHorizontal } from "lucide-react";
 import { C, F, alpha } from "../theme/tokens";
 import { tap } from "../theme/styles";
 import {
@@ -18,7 +18,6 @@ import {
   neighbourInDirection,
 } from "../domain/sky";
 import type { Direction } from "../domain/sky";
-import { motifLabel } from "../domain/motifs";
 import { CoffeeRing, StampCorner, InkUnderline } from "../components/atmosphere";
 import type { Film, KinshipRole, LinkType, PlacedNode, SkyLink, SkyNode } from "../types";
 import { Label } from "../components/ui";
@@ -28,7 +27,9 @@ import { relationDef, strengthOf } from "../domain/relations";
 import { linkTypeOf } from "../components/film/linkTypes";
 import { motifById } from "../domain/motifs";
 import { searchFilms } from "../domain/search";
+import { effectiveThreads, makeThread, threadLabel } from "../domain/threads";
 import type { Thread } from "../domain/threads";
+import { MotifPanel } from "../components/film/MotifPanel";
 
 /* ============================================================
    VIEW — CONSTELLATION: a sky chart drawn in ink.
@@ -71,13 +72,25 @@ export function ConstellationView({
   onOpen,
   onLinkFilm,
   fils = [],
+  focus = null,
+  onPatchThread,
+  onDeleteMotif,
 }: {
   films: Film[];
   onOpen: (id: string) => void;
   /** Fixes a suggested kinship: it becomes a real red thread, reciprocal. */
   onLinkFilm?: (fromId: string, toId: string, note?: string) => void;
-  /** The named gatherings — "the films where the hero dies". */
+  /**
+   * What was CHANGED about a motif's gathering, and nothing else — the
+   * stars themselves come from the cards (`effectiveThreads`).
+   */
   fils?: Thread[];
+  /** A star to land on, as `t:<motif>`. Set when arriving from a card. */
+  focus?: string | null;
+  /** Writes a deviation from the default, or erases it. */
+  onPatchThread?: (motifId: string, patch: Partial<Thread>) => void;
+  /** Deleting a motif of one's own, from its panel. */
+  onDeleteMotif?: (motifId: string) => void;
 }) {
   const { t } = useTranslation();
   const [hover, setHover] = useState<string | null>(null);
@@ -120,7 +133,10 @@ export function ConstellationView({
 
      `null` means "the whole chart", which stays one button away: the
      tangle is sometimes what one came to see. */
-  const [foyer, setFoyer] = useState<string | null>(null);
+  /* ARRIVING FROM A CARD LANDS ON THE GATHERING, not on the whole sky.
+     Sending the reader to the tangle and letting them find the star
+     themselves was the silent navigation this change came to end. */
+  const [foyer, setFoyer] = useState<string | null>(focus);
   const [portee, setPortee] = useState(1);
   /* The films crossed, so that one can retrace one's steps. */
   const [path, setChemin] = useState<string[]>([]);
@@ -134,23 +150,35 @@ export function ConstellationView({
      grabbed with the mouse, they do not survive the page: they are
      gestures, not data. */
   const [pins, setPins] = useState<string[]>([]);
-  /* The threads one has put out. We keep the ONES PUT OUT and not the
-     lit ones: a thread just created must appear without one having to
-     light it. */
-  const [mutedThreads, setMutedThreads] = useState<string[]>([]);
-  const activeThreads = useMemo(
-    () => fils.filter((f) => !mutedThreads.includes(f.id)),
-    [fils, mutedThreads]
+
+  /* THE STARS ARE NOT A LIST SOMEBODY WROTE.
+
+     They are read off the cards: a motif laid on two of them is a star,
+     and `fils` holds only what was CHANGED about one. Putting a star out
+     therefore writes `off` rather than sitting in a local state — which
+     is what it did, so every star came back lit on the next reload and
+     nobody could tell why. */
+  const activeThreads = useMemo(() => effectiveThreads(films, fils), [films, fils]);
+  const bandThreads = useMemo(
+    () => effectiveThreads(films, fils, { includeOff: true }),
+    [films, fils]
   );
+  /** The motif whose panel is open. */
+  const [panel, setPanel] = useState<string | null>(null);
 
   const W = 1100,
     H = 760;
   const full = useMemo(
     () =>
       crews
-        ? buildSkyWithCrew(films, { tags, genres }, {}, { threads: activeThreads, pinned: pins })
-        : buildSky(films, { tags, genres }, { threads: activeThreads, pinned: pins }),
-    [films, tags, genres, crews, activeThreads, pins]
+        ? buildSkyWithCrew(
+            films,
+            { tags, genres },
+            {},
+            { threads: activeThreads, pinned: pins, name: t }
+          )
+        : buildSky(films, { tags, genres }, { threads: activeThreads, pinned: pins, name: t }),
+    [films, tags, genres, crews, activeThreads, pins, t]
   );
   /* The cutting out happens AFTER the building: the whole chart still
      exists, we merely show a part of it. */
@@ -338,7 +366,7 @@ export function ConstellationView({
 
   return (
     <div style={{ padding: "34px 44px 60px", position: "relative", overflow: "hidden" }}>
-      <StampCorner text="CARTE DU CIEL" />
+      <StampCorner text={t("constellation.stamp")} />
       <CoffeeRing style={{ top: 150, right: 90 }} rotate={-25} />
       <h1
         style={{
@@ -411,59 +439,84 @@ export function ConstellationView({
         </div>
       )}
 
-      {/* THE THREADS. Unlike the filters below, they POPULATE the sky: a
-          thread brings its members in, linked or not. That is what makes
-          it possible to ask for "les films où le héros meurt" and get it
-          drawn, rather than dig through a list. */}
-      {fils.length > 0 && (
+      {/* THE MOTIFS. Unlike the filters below, they POPULATE the sky: a
+          motif brings its cards in, linked or not. That is what makes it
+          possible to ask for "the films where the hero dies" and get it
+          drawn, rather than dig through a list.
+
+          The chips show what IS on the map, put-out ones included — one
+          cannot light again a star one can no longer see. */}
+      {bandThreads.length > 0 && (
         <div
-          data-tour="constellation-fils"
+          data-tour="constellation-motifs"
           style={{ marginTop: 16, position: "relative", zIndex: 3 }}
         >
-          <Label>Fils</Label>
+          <Label>{t("constellation.motifs")}</Label>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
-            {fils.map((thread) => {
-              const on = !mutedThreads.includes(thread.id);
+            {bandThreads.map((thread) => {
+              const on = !thread.off;
               const ink = catInk(thread.color);
-              const motif = thread.motif ? motifById(thread.motif) : undefined;
+              const name = threadLabel(thread, t);
               return (
-                <button
-                  key={thread.id}
-                  onClick={() =>
-                    setMutedThreads((cur) =>
-                      cur.includes(thread.id)
-                        ? cur.filter((x) => x !== thread.id)
-                        : [...cur, thread.id]
-                    )
-                  }
-                  title={
-                    motif
-                      ? t("constellation.fedBy", { motif: motifLabel(motif, t) })
-                      : t("constellation.handmadeThread")
-                  }
-                  style={{
-                    all: "unset",
-                    ...tap,
-                    cursor: "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                    fontFamily: F.mono,
-                    fontSize: 10,
-                    padding: "3px 10px",
-                    borderRadius: "var(--tag-radius)",
-                    border: `1px solid ${ink}`,
-                    color: on ? C.card : ink,
-                    background: on ? ink : "transparent",
-                  }}
-                >
-                  <Spool size={11} />
-                  {thread.label}
-                </button>
+                <span key={thread.id} style={{ display: "inline-flex", alignItems: "center" }}>
+                  <button
+                    onClick={() => onPatchThread?.(thread.motif, { off: on })}
+                    title={t(on ? "constellation.putOut" : "constellation.lightUp", { name })}
+                    aria-pressed={on}
+                    style={{
+                      all: "unset",
+                      ...tap,
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      fontFamily: F.mono,
+                      fontSize: 10,
+                      padding: "3px 10px",
+                      borderRadius: "var(--tag-radius)",
+                      border: `1px solid ${ink}`,
+                      color: on ? C.card : ink,
+                      background: on ? ink : "transparent",
+                    }}
+                  >
+                    <Spool size={11} />
+                    {name}
+                  </button>
+                  {/* Everything one can do with a gathering lives behind
+                      this, and used to live nowhere: renaming it,
+                      recolouring it, writing under it, setting a card in
+                      or out by hand. */}
+                  <button
+                    onClick={() => setPanel(thread.motif)}
+                    aria-label={t("constellation.settingsOf", { name })}
+                    style={{
+                      all: "unset",
+                      ...tap,
+                      cursor: "pointer",
+                      color: C.inkFaded,
+                      display: "flex",
+                      marginLeft: 3,
+                    }}
+                  >
+                    <SlidersHorizontal size={11} />
+                  </button>
+                </span>
               );
             })}
           </div>
         </div>
+      )}
+
+      {panel && (
+        <MotifPanel
+          motifId={panel}
+          films={films}
+          thread={fils.find((f) => f.motif === panel) || makeThread({ motif: panel })}
+          onPatch={(patch) => onPatchThread?.(panel, patch)}
+          onDeleteMotif={onDeleteMotif}
+          onOpen={onOpen}
+          onClose={() => setPanel(null)}
+        />
       )}
 
       {/* filters: keywords and genres. They shrink the sky, they do not populate it. */}
@@ -496,7 +549,7 @@ export function ConstellationView({
           )}
           {allGenres.length > 0 && (
             <div>
-              <Label>Genres</Label>
+              <Label>{t("constellation.genres")}</Label>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
                 {allGenres.map((g) => {
                   const on = genres.includes(g);
@@ -540,7 +593,7 @@ export function ConstellationView({
                 fontSize: 10,
               }}
             >
-              tout afficher
+              {t("constellation.showAll")}
             </button>
           )}
         </div>
@@ -574,7 +627,7 @@ export function ConstellationView({
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="chercher dans toute la collection…"
+            placeholder={t("constellation.searchAll")}
             style={{
               width: "100%",
               maxWidth: 320,
@@ -929,7 +982,7 @@ export function ConstellationView({
                          only one to hover in silence. */
                       [relationDef(l.relation) ? t(relationDef(l.relation)!.label) : null, l.note]
                         .filter(Boolean)
-                        .join(" — ") || t("constellation.handmadeThread")
+                        .join(" — ") || t("constellation.plainLink")
                     : /* A POINTER TO A WORK SPEAKS TOO. The "crew" branch
                          also gathered the citations, which have no
                          `why`: the thread to the book was therefore
@@ -1268,7 +1321,7 @@ export function ConstellationView({
                   borderBottom: `1px solid ${C.burgundy}`,
                 }}
               >
-                REMETTRE LE CIEL EN PLACE
+                {t("constellation.resetTheSky")}
               </button>
             )}
           </div>
@@ -1300,6 +1353,7 @@ function Results({
   onFoyer: (nodeId: string) => void;
   onÉpingler: (filmId: string) => void;
 }) {
+  const { t } = useTranslation();
   if (!query.trim())
     return (
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
@@ -1315,7 +1369,7 @@ function Results({
   if (results.length === 0)
     return (
       <div style={{ fontFamily: F.hand, fontSize: 17, color: C.inkFaded }}>
-        rien de ce nom dans la collection.
+        {t("constellation.nothingByThatName")}
       </div>
     );
 

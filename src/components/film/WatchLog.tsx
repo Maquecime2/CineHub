@@ -55,7 +55,7 @@ export function WatchLog({ film, onUpdate }: { film: Film; onUpdate: (film: Film
 
   return (
     <div style={{ marginTop: 12 }}>
-      <Tally label="visionnages" value={watches.length} />
+      <Tally label={t("watchlog.viewingsLabel")} value={watches.length} />
 
       {watches.map((w, i) => (
         <div
@@ -75,13 +75,13 @@ export function WatchLog({ film, onUpdate }: { film: Film; onUpdate: (film: Film
           {w.rating != null ? (
             <InkStars value={w.rating} size={11} />
           ) : (
-            <span style={{ fontSize: 14, opacity: 0.7 }}>sans note</span>
+            <span style={{ fontSize: 14, opacity: 0.7 }}>{t("watchlog.noRating")}</span>
           )}
           {/* The drift only shows when there is a drift: an "=0" under
               every screening would say exactly nothing, three times. */}
           {drift[i] ? (
             <span
-              title="depuis la fois d'avant"
+              title={t("watchlog.sinceLastTime")}
               style={{
                 fontFamily: F.mono,
                 fontSize: 11,
@@ -119,7 +119,7 @@ export function WatchLog({ film, onUpdate }: { film: Film; onUpdate: (film: Film
           fontSize: 10,
         }}
       >
-        <Plus size={11} /> JE L&apos;AI REVU
+        <Plus size={11} /> {t("watchlog.iSawItAgain")}
       </button>
     </div>
   );

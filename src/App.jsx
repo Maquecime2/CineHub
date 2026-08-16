@@ -21,7 +21,13 @@ import i18n, { loadLanguage, setLanguage } from "./i18n";
 import { uid, migrate, editLinkedWork } from "./domain/film";
 import { normalize } from "./domain/search";
 import { inverseOf, strengthOf } from "./domain/relations";
-import { makeThread, normalizeThreads } from "./domain/threads";
+import {
+  makeThread,
+  normalizeThreads,
+  isPlainDefault,
+  countOfMotif,
+  STAR_FROM,
+} from "./domain/threads";
 import { motifById, makeCustomMotif, customMotifs } from "./domain/motifs";
 import { loadThreads, saveThreads as saveThreadsToDisk } from "./services/threads";
 import { loadVocabulary, saveVocabulary, normalizeVocabulary } from "./services/motifs";
@@ -127,6 +133,9 @@ export default function App() {
   /* The constellation's threads: questions put to the collection, which
      must stay put from one session to the next. */
   const [fils, setThreads] = useState([]);
+  /* The star to land on when the map is opened from a card, as
+     `t:<motif>`. Cleared by the map itself: it is a gesture, not data. */
+  const [skyFocus, setSkyFocus] = useState(null);
   /* The vocabulary: the motifs you wrote, and those of the catalogue you
      set aside. The catalogue itself lives in the code — see
      `domain/motifs`. The React state only serves to redraw: it is the
@@ -813,9 +822,11 @@ export default function App() {
      name. So we clean up, and that is why the confirmation announces the
      number of cards concerned.
 
-     The threads built on it lose their source and keep the members set
-     by hand: a thread is not destroyed by its motif disappearing, it
-     becomes a list again. */
+     ITS SETTINGS GO WITH IT. They used to be kept, with the motif set to
+     `null`: the gathering then held nothing — its members all came from
+     the motif — drew nothing on the map, and could be deleted from
+     nowhere. A ghost in `localStorage`, in short. The motif IS the
+     gathering now, so deleting one deletes the other. */
   const deleteMotif = (motifId) => {
     commitVocabulary({
       ...vocabulary,
@@ -828,9 +839,8 @@ export default function App() {
           : f
       )
     );
-    const touched = fils.filter((f) => f.motif === motifId);
-    if (touched.length)
-      commitThreads(fils.map((f) => (f.motif === motifId ? { ...f, motif: null } : f)));
+    if (fils.some((f) => f.motif === motifId))
+      commitThreads(fils.filter((f) => f.motif !== motifId));
   };
 
   /* Setting aside, and not deleting: a catalogue motif is not yours, and
@@ -965,31 +975,47 @@ export default function App() {
     );
   };
 
-  /* Turning a motif into a question put to the whole collection.
+  /* CHANGING SOMETHING ABOUT A MOTIF'S GATHERING.
 
-     The thread does NOT enumerate the films at the moment it is created:
-     it holds the motif, and recomposes itself on every read. That is
-     what makes a card tagged tomorrow enter it without anyone coming
-     back to it — a frozen thread would be wrong within a week.
+     Nothing is created here, because there is nothing to create: a motif
+     laid on two cards is already a star (`effectiveThreads`). What this
+     writes is a DEVIATION from that default — a name of one's own, a
+     colour, a note, a card set by hand, the star put out.
 
-     Setting the same motif again does not create a duplicate: we reopen
-     the one that already exists. */
-  const makeThreadFromMotif = (motifId) => {
-    const existing = fils.find((f) => f.motif === motifId);
-    if (existing) {
-      setView("constellation");
-      return;
-    }
-    const motif = motifById(motifId);
-    if (!motif) return;
-    commitThreads([
-      ...fils,
-      makeThread({
-        label: motif.label,
-        motif: motifId,
-        color: CAT_KEYS[fils.length % CAT_KEYS.length],
-      }),
-    ]);
+     And what stops saying anything is erased rather than kept: a row
+     equal to the default is a row that will contradict the catalogue the
+     day the motif is relabelled. `"fils"` holds the corrections, never a
+     second copy of the vocabulary.
+
+     The gathering does NOT enumerate the films: it holds the motif and
+     recomposes itself on every read. That is what makes a card tagged
+     tomorrow enter it without anyone coming back to it. */
+  const patchMotifThread = (motifId, patch) => {
+    const current = fils.find((f) => f.motif === motifId) || makeThread({ motif: motifId });
+    const next = { ...current, ...patch, motif: motifId, id: motifId };
+    const others = fils.filter((f) => f.motif !== motifId);
+    commitThreads(isPlainDefault(next) ? others : [...others, next]);
+  };
+
+  /* Putting a motif's star out, or lighting it back up.
+
+     Lighting one that the count already lights writes nothing — which is
+     the point: the common case leaves no trace at all. */
+  const setMotifStar = (motifId, on) =>
+    patchMotifThread(motifId, {
+      off: !on,
+      /* Lit by hand below the count, the gathering needs a member of its
+         own to exist at all — the motif alone would not reach `STAR_FROM`
+         and `effectiveThreads` would drop it on the next read. */
+      filmIds:
+        on && countOfMotif(motifId, films) < STAR_FROM && selectedId
+          ? [...new Set([...(fils.find((f) => f.motif === motifId)?.filmIds || []), selectedId])]
+          : fils.find((f) => f.motif === motifId)?.filmIds || [],
+    });
+
+  /* Opening the map on one gathering rather than on the whole sky. */
+  const openMotifInSky = (motifId) => {
+    setSkyFocus(`t:${motifId}`);
     setView("constellation");
   };
 
@@ -1500,7 +1526,9 @@ export default function App() {
                   onLinkFilm={linkFilms}
                   onRemoveLink={removeLink}
                   onEditLink={editLink}
-                  onMakeThread={makeThreadFromMotif}
+                  fils={fils}
+                  onStarMotif={setMotifStar}
+                  onOpenInSky={openMotifInSky}
                   vocabulary={vocabulary}
                   onCreateMotif={createMotif}
                   onDeleteMotif={deleteMotif}
@@ -1526,6 +1554,9 @@ export default function App() {
                 <ConstellationView
                   films={constellationFilms}
                   fils={fils}
+                  focus={skyFocus}
+                  onPatchThread={patchMotifThread}
+                  onDeleteMotif={deleteMotif}
                   onLinkFilm={linkFilms}
                   onOpen={openFilm}
                 />

@@ -331,7 +331,7 @@ export function ImportView({
 
   return (
     <div style={{ padding: "34px 44px 70px", maxWidth: 680, position: "relative" }}>
-      <StampCorner text="ARCHIVES" />
+      <StampCorner text={t("import.stamp")} />
       <div
         style={{
           fontFamily: F.title,
@@ -562,7 +562,7 @@ export function ImportView({
         </button>
         {showRelay && (
           <div style={{ marginTop: 8 }}>
-            <Label>Adresse du relais</Label>
+            <Label>{t("import.relayAddress")}</Label>
             <input
               style={underlineInput}
               value={relay}
@@ -595,7 +595,7 @@ export function ImportView({
       >
         <Upload size={24} color={C.burgundy} style={{ marginBottom: 10 }} />
         <div style={{ color: C.ink, fontFamily: F.body, fontSize: 14, marginBottom: 14 }}>
-          letterboxd.com → Settings → Import &amp; Export → Export your data
+          {t("import.letterboxdPath")}
         </div>
         <input
           ref={fileRef}
@@ -617,7 +617,7 @@ export function ImportView({
             fontSize: 11.5,
           }}
         >
-          CHOISIR UN FICHIER
+          {t("import.chooseAFile")}
         </button>
         {fileName && (
           <div
@@ -719,7 +719,7 @@ export function ImportView({
               marginBottom: 10,
             }}
           >
-            CE QUE CONTIENT LE FICHIER
+            {t("import.whatTheFileHolds")}
           </div>
           <Tally label={t("import.linesRead")} value={stats.lines} />
           <Tally label={t("import.distinctFilms")} value={stats.total} />
@@ -745,7 +745,7 @@ export function ImportView({
           )}
 
           <div style={{ marginTop: 16 }}>
-            <Label>Ces films sont</Label>
+            <Label>{t("import.theseFilmsAre")}</Label>
             <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
               {IMPORT_STATUSES.map((o) => (
                 <button
@@ -796,7 +796,7 @@ export function ImportView({
                   style={{ marginTop: 3 }}
                 />
                 <span>
-                  Ce relevé fait autorité sur les séances
+                  {t("import.thisLogIsAuthoritative")}
                   <span
                     style={{
                       display: "block",
@@ -833,7 +833,7 @@ export function ImportView({
               letterSpacing: 1,
             }}
           >
-            RÉALISATEUR·RICE, GENRES ET AFFICHES
+            {t("import.directorGenresPosters")}
           </div>
           <div
             style={{
@@ -978,7 +978,7 @@ export function ImportView({
       {/* ---- the diff, before writing ---- */}
       {diff && (
         <div style={{ marginTop: 22 }}>
-          <Label>Ce qui va être écrit</Label>
+          <Label>{t("import.whatWillBeWritten")}</Label>
           <div
             style={{
               display: "flex",
@@ -1013,7 +1013,7 @@ export function ImportView({
                   marginBottom: 4,
                 }}
               >
-                fiches existantes retouchées (vos critiques et notes libres sont conservées)
+                {t("import.existingCardsTouched")}
               </div>
               <div
                 style={{
@@ -1172,7 +1172,7 @@ export function ImportView({
               marginBottom: 4,
             }}
           >
-            PLUS DANS VOTRE WATCHLIST LETTERBOXD
+            {t("import.noLongerInWatchlist")}
           </div>
           <div
             style={{

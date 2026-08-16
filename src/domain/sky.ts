@@ -6,8 +6,9 @@
    ============================================================ */
 import { hash, seededRand } from "./seeded";
 import { strengthOf } from "./relations";
-import { threadMembers } from "./threads";
+import { threadLabel, threadMembers } from "./threads";
 import type { Thread } from "./threads";
+import type { NameOf } from "./motifs";
 import type { Strength } from "./relations";
 import type {
   Film,
@@ -55,12 +56,21 @@ export interface SkyExtras {
   threads?: Thread[];
   /** Film ids to bring into the sky whatever happens. */
   pinned?: string[];
+  /**
+   * How a gathering gets its name and its count into words.
+   *
+   * The domain does not know i18next and must not — see `NameOf` in
+   * `domain/motifs`. Without it a star was labelled with the raw
+   * override (empty, for the normal case) and counted "3 films" in
+   * French too.
+   */
+  name?: NameOf;
 }
 
 export function buildSky(
   films: Film[],
   { tags = [], genres = [] }: SkyFilters = {},
-  { threads = [], pinned = [] }: SkyExtras = {}
+  { threads = [], pinned = [], name }: SkyExtras = {}
 ): { nodes: SkyNode[]; links: SkyLink[] } {
   const keeps = (f: Film) =>
     (tags.length === 0 || tags.every((t) => (f.themes || []).includes(t))) &&
@@ -158,8 +168,8 @@ export function buildSky(
     nodes.push({
       id,
       kind: "thread",
-      label: thread.label,
-      sub: `${members.length} film${members.length > 1 ? "s" : ""}`,
+      label: name ? threadLabel(thread, name) : thread.label,
+      sub: name ? name("constellation.filmCount", { count: members.length }) : `${members.length}`,
       color: thread.color,
       motif: thread.motif ?? null,
       degree: 0,

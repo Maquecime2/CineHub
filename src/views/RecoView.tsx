@@ -307,7 +307,7 @@ function AtHome({
   const { t } = useTranslation();
   return (
     <div data-tour="reco-maison" style={{ marginTop: 26, position: "relative", zIndex: 2 }}>
-      <SectionTitle>Chez vous</SectionTitle>
+      <SectionTitle>{t("reco.atYourPlace")}</SectionTitle>
       <Guideline>
         Deux cents fiches vues, et l'on tourne autour des douze dernières. Voici les autres — rien
         d'ici ne sort du navigateur.
@@ -491,7 +491,7 @@ export function RecoView({
   return (
     <div style={{ padding: "34px 44px 60px", position: "relative", overflow: "hidden" }}>
       <CoffeeRing style={{ top: 20, right: 160 }} rotate={-18} />
-      <StampCorner text="BULLETIN DE COMMANDE" />
+      <StampCorner text={t("reco.stamp")} />
       <h1
         style={{
           fontFamily: F.title,
@@ -543,7 +543,7 @@ export function RecoView({
               marginBottom: 6,
             }}
           >
-            CLÉ TMDB MANQUANTE
+            {t("reco.missingTmdbKey")}
           </div>
           <div
             style={{
@@ -555,7 +555,7 @@ export function RecoView({
           >
             {house.length > 0 ? t("reco.needsKeyWithHome") : t("reco.needsKey")}
           </div>
-          <NoKey what="chercher au-dehors" style={{ marginTop: 10 }} />
+          <NoKey what={t("reco.searchOutside")} style={{ marginTop: 10 }} />
         </div>
       ) : (
         <>
@@ -606,7 +606,7 @@ export function RecoView({
                   letterSpacing: 1,
                 }}
               >
-                CE QUI FAIT LA NICHE
+                {t("reco.whatMakesTheNiche")}
               </span>
               {NICHE_FACTORS.map(([k, l]) => (
                 <Chip
@@ -640,7 +640,7 @@ export function RecoView({
                 />
               </div>
               <div style={{ width: 150 }}>
-                <Label>Langue d'origine</Label>
+                <Label>{t("reco.originalLanguage")}</Label>
                 <select
                   value={query.language}
                   onChange={(e) => set("language", e.target.value)}
@@ -670,7 +670,7 @@ export function RecoView({
                 />
               </div>
               <div style={{ width: 120 }}>
-                <Label>Votes ≥</Label>
+                <Label>{t("reco.votesAtLeast")}</Label>
                 <input
                   type="number"
                   min="0"
@@ -752,14 +752,14 @@ export function RecoView({
                 {progress ? `CONSULTATION… ${progress.done}/${progress.total}` : "CHERCHER"}
               </button>
               <Chip
-                label="ignorer aussi ma watchlist"
+                label={t("reco.ignoreWatchlist")}
                 ink={C.pine}
                 on={query.excludeWatchlist}
                 onClick={() => set("excludeWatchlist", !query.excludeWatchlist)}
               />
               {taste.isEmpty && (
                 <span style={{ fontFamily: F.hand, fontSize: 16, color: C.burgundy }}>
-                  collection trop mince pour un profil — seuls les filtres joueront
+                  {t("reco.tooThinForAProfile")}
                 </span>
               )}
             </div>

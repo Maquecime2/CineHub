@@ -66,7 +66,7 @@ function ViewSwitcher({
       <Label>Vue</Label>
       <button
         onClick={() => setOpen((o) => !o)}
-        title="Changer de rangement"
+        title={t("library.changeArrangement")}
         style={{
           all: "unset",
           ...tap,
@@ -172,7 +172,7 @@ function ViewSwitcher({
                     <>
                       <button
                         onClick={() => setRenaming(true)}
-                        title="Renommer"
+                        title={t("library.rename")}
                         style={{
                           all: "unset",
                           ...tap,
@@ -185,7 +185,7 @@ function ViewSwitcher({
                       </button>
                       <button
                         onClick={() => onCopy(v.id)}
-                        title="Dupliquer ce rangement"
+                        title={t("library.duplicateArrangement")}
                         style={{
                           all: "unset",
                           ...tap,
@@ -199,7 +199,7 @@ function ViewSwitcher({
                       {views.length > 1 && (
                         <button
                           onClick={() => onDelete(v.id)}
-                          title="Supprimer cette vue"
+                          title={t("library.deleteThisView")}
                           style={{
                             all: "unset",
                             ...tap,
@@ -784,10 +784,10 @@ export function LibraryView({
             nothing but how to pile up. */}
           {wall === "watchlist" && (
             <div data-tour="soir-ouvrir">
-              <Label>Ce soir</Label>
+              <Label>{t("library.tonight")}</Label>
               <button
                 onClick={() => setSoir(true)}
-                title="Trouver quoi regarder ce soir"
+                title={t("library.findWhatToWatch")}
                 style={{
                   all: "unset",
                   ...tap,
@@ -804,7 +804,7 @@ export function LibraryView({
                   border: `1px solid ${C.burgundy}`,
                 }}
               >
-                <Dice5 size={12} /> LEQUEL CE SOIR ?
+                <Dice5 size={12} /> {t("library.whichTonightStamp")}
               </button>
             </div>
           )}

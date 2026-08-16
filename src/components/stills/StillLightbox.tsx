@@ -185,14 +185,14 @@ export function StillLightbox({
               letterSpacing: 1,
             }}
           >
-            ÉCHAP POUR FERMER
+            {t("stills.escToClose")}
           </div>
         </div>
 
         {stills.length > 1 && (
           <button
             onClick={() => onIndex((index + 1) % stills.length)}
-            title="suivante (→)"
+            title={t("stills.next")}
             style={ARROW_COL}
             onMouseEnter={(e) => {
               e.currentTarget.style.background = "rgba(255,255,255,0.06)";

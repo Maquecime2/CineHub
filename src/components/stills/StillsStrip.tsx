@@ -111,7 +111,7 @@ export function StillsStrip({
           </>
         }
       >
-        La pellicule
+        {t("stills.theFilmStrip")}
       </SectionTitle>
       <Guideline>
         {stills.length === 0
@@ -294,7 +294,7 @@ export function StillsStrip({
                     onClick={() => onInsert(i + 1)}
                     style={{ all: "unset", cursor: "pointer", color: C.pine }}
                   >
-                    insérer
+                    {t("stills.insert")}
                   </button>
                   <button
                     onClick={() => remove(i)}

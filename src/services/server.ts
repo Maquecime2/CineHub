@@ -29,6 +29,9 @@
    The trailing slash goes for the same reason: the paths already start
    with a slash, and "…:8787//me" is not "…:8787/me". */
 import { store } from "./storage";
+/* A SERVICE HAS NO HOOK: it reads the catalogue from the instance, the
+   same way `Boundary` does. */
+import i18n from "../i18n";
 import type { Gain } from "../domain/points";
 import { readPerson, type Person, type PersonReply } from "./contract";
 
@@ -112,7 +115,7 @@ function giveUpOn(caller?: AbortSignal): AbortSignal | undefined {
 }
 
 async function call<T>(path: string, options: CallOptions = {}): Promise<T> {
-  if (!serverConfigured()) throw new ServerError("Aucun serveur réglé.", 0);
+  if (!serverConfigured()) throw new ServerError(i18n.t("account.noServer"), 0);
 
   let res: Response;
   try {

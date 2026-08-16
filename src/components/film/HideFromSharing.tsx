@@ -74,7 +74,7 @@ export function HideFromSharing({ film, signedIn }: { film: Film; signedIn: bool
 
   return (
     <div data-tour="detail-sharing" style={{ marginTop: 18 }}>
-      <Label>Ce que les autres en voient</Label>
+      <Label>{t("sharing.whatOthersSee")}</Label>
       <button
         onClick={toggle}
         disabled={busy}

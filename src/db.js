@@ -8,6 +8,7 @@
    synchronous access is convenient there.
    ============================================================ */
 
+import i18n from "./i18n";
 import {
   listCustomDecor,
   customDecorImageKeys,
@@ -269,8 +270,7 @@ export async function exportBackup({
 }
 
 export async function importBackup(data) {
-  if (data?.format !== "cine-hub-backup")
-    throw new Error("Ce fichier n'est pas une sauvegarde Ciné Hub.");
+  if (data?.format !== "cine-hub-backup") throw new Error(i18n.t("errors.notABackup"));
   // v1 knew only the posters, under the "posters" key
   const images = data.images || data.posters || {};
   for (const [key, dataUrl] of Object.entries(images)) {

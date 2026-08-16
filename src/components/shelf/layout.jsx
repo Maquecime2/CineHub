@@ -267,7 +267,7 @@ const RowGutter = React.memo(function RowGutter({ row, shown, acts, capMax }) {
             }}
           >
             <PerRowField
-              title="BOÎTIERS PAR LIGNE DE BOIS"
+              title={t("shelf.casesPerRow")}
               value={row.perRow ?? null}
               max={capMax}
               onChange={(n) => acts.setRow(row.id, { perRow: n })}
@@ -282,7 +282,7 @@ const RowGutter = React.memo(function RowGutter({ row, shown, acts, capMax }) {
                 margin: "12px 0 3px",
               }}
             >
-              NOM DE LA LIGNE
+              {t("shelf.rowNameLabel")}
             </div>
             <input
               value={draft}
@@ -294,7 +294,7 @@ const RowGutter = React.memo(function RowGutter({ row, shown, acts, capMax }) {
                   setOpen(false);
                 }
               }}
-              placeholder="sans nom"
+              placeholder={t("shelf.unnamed")}
               style={{
                 all: "unset",
                 boxSizing: "border-box",
@@ -309,14 +309,14 @@ const RowGutter = React.memo(function RowGutter({ row, shown, acts, capMax }) {
 
             <div style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 12 }}>
               <GutterAct
-                label="+ une ligne au-dessus"
+                label={t("shelf.rowAbove")}
                 onClick={() => {
                   acts.addRow(row.id, "before");
                   setOpen(false);
                 }}
               />
               <GutterAct
-                label="+ une ligne en dessous"
+                label={t("shelf.rowBelow")}
                 onClick={() => {
                   acts.addRow(row.id, "after");
                   setOpen(false);
@@ -332,14 +332,14 @@ const RowGutter = React.memo(function RowGutter({ row, shown, acts, capMax }) {
               {!isUnplaced(row) && (
                 <>
                   <GutterAct
-                    label="vider la ligne"
+                    label={t("shelf.emptyRow")}
                     onClick={() => {
                       acts.clearRow(row.id);
                       setOpen(false);
                     }}
                   />
                   <GutterAct
-                    label="supprimer la ligne"
+                    label={t("shelf.deleteRow")}
                     ink={C.burgundy}
                     onClick={() => {
                       acts.removeRow(row.id);
@@ -429,6 +429,7 @@ const ShelfRow = React.memo(function ShelfRow({
   isLast,
   bare,
 }) {
+  const { t } = useTranslation();
   const [shown, setShown] = useState(false);
   const ctx = useMemo(() => ({ kind, rowId: row.id, catId: null }), [kind, row.id]);
 
@@ -541,7 +542,7 @@ const ShelfRow = React.memo(function ShelfRow({
                     padding: "44px 4px",
                   }}
                 >
-                  ligne vide — glissez-y un boîtier
+                  {t("shelf.emptyRowHint")}
                 </div>
               )}
               {nodes}
@@ -909,13 +910,13 @@ export function ReserveDrawer({
                 color: C.ink,
               }}
             >
-              Mis de côté
+              {t("shelf.setAsideTitle")}
             </div>
             <div style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>{count}</div>
             <div style={{ flex: 1 }} />
             <button
               onClick={() => setOpen(false)}
-              title="Fermer"
+              title={t("common.close")}
               style={{ all: "unset", ...tapSquare, cursor: "pointer", color: C.inkFaded }}
             >
               <X size={16} />
@@ -929,11 +930,11 @@ export function ReserveDrawer({
               marginTop: 2,
             }}
           >
-            gardés, pas jetés
+            {t("shelf.keptNotThrown")}
           </div>
           <button
             onClick={() => acts.addRow(null, "end", "reserve")}
-            title="Ajouter une ligne"
+            title={t("shelf.addRow")}
             style={{
               all: "unset",
               ...tap,
@@ -1002,6 +1003,7 @@ export function ReserveDrawer({
 /* The case one opens. A preview only: the full folder stays the card, one
    goes there with a click from here. */
 export function CellPreview({ film, onClose, onOpenFile }) {
+  const { t } = useTranslation();
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === "Escape") onClose();
@@ -1168,7 +1170,7 @@ export function CellPreview({ film, onClose, onOpenFile }) {
                       padding: "3px 7px",
                     }}
                   >
-                    FILM DE CHEVET
+                    {t("shelf.bedsideStamp")}
                   </span>
                 )}
                 {film.archived && (
@@ -1181,7 +1183,7 @@ export function CellPreview({ film, onClose, onOpenFile }) {
                       padding: "3px 7px",
                     }}
                   >
-                    MIS DE CÔTÉ
+                    {t("shelf.setAsideStamp")}
                   </span>
                 )}
               </div>
@@ -1200,7 +1202,7 @@ export function CellPreview({ film, onClose, onOpenFile }) {
                   film.review.replace(/\[img:\d+\]/g, "").slice(0, 260)
                 ) : (
                   <span style={{ fontStyle: "italic", color: C.inkFaded }}>
-                    Pas encore de note. Le boîtier attend son feuillet.
+                    {t("shelf.noNoteYet")}
                   </span>
                 )}
               </div>
@@ -1219,7 +1221,7 @@ export function CellPreview({ film, onClose, onOpenFile }) {
                   letterSpacing: 1,
                 }}
               >
-                OUVRIR LE DOSSIER
+                {t("shelf.openTheFolder")}
               </button>
             </div>
           </div>
@@ -1446,7 +1448,7 @@ function SharedShelf() {
 
   return (
     <>
-      <WorkshopSection title="CHEZ LES AUTRES" />
+      <WorkshopSection title={t("shelf.atOthers")} />
       {shelf.map((d) => (
         <DecorRow
           key={d.id}
@@ -1494,19 +1496,19 @@ function DecorWorkshop({ onBack }) {
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
         <button
           onClick={onBack}
-          title="Revenir au cabinet"
-          aria-label="Revenir au cabinet"
+          title={t("shelf.backToCabinet")}
+          aria-label={t("shelf.backToCabinet")}
           style={{ all: "unset", cursor: "pointer", color: C.inkFaded, display: "flex" }}
         >
           <ChevronLeft size={13} />
         </button>
-        <CabinetTitle>MES OBJETS</CabinetTitle>
+        <CabinetTitle>{t("shelf.myObjects")}</CabinetTitle>
       </div>
 
       <CabinetNote style={{ marginBottom: 10 }}>{t("shelf.wonAtCounter")}</CabinetNote>
 
       <div style={{ marginTop: 12, maxHeight: 300, overflowY: "auto" }}>
-        <WorkshopSection title="LES MIENS" />
+        <WorkshopSection title={t("shelf.mine")} />
         {custom.length === 0 ? (
           <CabinetNote>{t("shelf.nothingImported")}</CabinetNote>
         ) : (
@@ -1564,7 +1566,7 @@ function DecorWorkshop({ onBack }) {
         {/* The house drawings cannot be deleted — they are in the code.
             But one does not need all fifteen, and the cabinet is tidied by
             removing them from the panel. */}
-        <WorkshopSection title="CEUX DE LA MAISON" />
+        <WorkshopSection title={t("shelf.ofTheHouse")} />
         {DECOR_TYPES.map((d) => {
           const hidden = hiddenKeys.includes(d.key);
           const Draw = d.draw;
@@ -1739,7 +1741,7 @@ export function DecorCabinet({ placed, onDragStart, onDragEnd, onClose }) {
             <div style={{ flex: 1 }} />
             <button
               onClick={() => setManaging(true)}
-              title="Importer ou supprimer vos propres objets"
+              title={t("shelf.manageYourObjects")}
               style={{
                 all: "unset",
                 cursor: "pointer",
@@ -1749,7 +1751,7 @@ export function DecorCabinet({ placed, onDragStart, onDragEnd, onClose }) {
                 color: C.burgundy,
               }}
             >
-              GÉRER
+              {t("shelf.manage")}
             </button>
             <button
               onClick={onClose}
@@ -1840,15 +1842,15 @@ const OrientField = ({ angle, seeded, onChange }) => {
           step={1}
           value={shown}
           onChange={(e) => onChange(Number(e.target.value))}
-          aria-label="Orientation"
-          title="Faire tourner l'objet"
+          aria-label={t("shelf.orientation")}
+          title={t("shelf.turnTheObject")}
           style={{ flex: 1, minWidth: 0, accentColor: C.ink, cursor: "pointer" }}
         />
         {/* Zero is missed by a degree by hand: the count is also the
             button that falls back on it. */}
         <button
           onClick={() => onChange(0)}
-          title="Remettre d'aplomb"
+          title={t("shelf.setItStraight")}
           style={{
             all: "unset",
             cursor: "pointer",
@@ -1879,7 +1881,7 @@ const OrientField = ({ angle, seeded, onChange }) => {
             color: C.inkFaded,
           }}
         >
-          au hasard
+          {t("shelf.atRandom")}
         </button>
       )}
     </>
@@ -1975,8 +1977,8 @@ export function ItemPalette({
                 if (e.key === "Enter") commitLabel();
                 if (e.key === "Escape") setDraft(label ?? "");
               }}
-              placeholder="sans nom"
-              aria-label="Nom de l'intercalaire"
+              placeholder={t("shelf.unnamed")}
+              aria-label={t("shelf.dividerName")}
               style={{
                 all: "unset",
                 boxSizing: "border-box",

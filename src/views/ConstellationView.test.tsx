@@ -62,10 +62,52 @@ describe("the constellation's search", () => {
   });
 });
 
-describe("the threads in the sky", () => {
-  it("offers to put them out one by one", () => {
-    const thread = makeThread({ id: "f1", label: "Le héros meurt", motif: "hero-dies" });
-    build({ fils: [thread] });
-    expect(screen.getByRole("button", { name: /Le héros meurt/ })).toBeInTheDocument();
+/* ============================================================
+   THE MOTIFS IN THE SKY
+
+   Nothing is promoted any more: laying one motif on two cards is the
+   whole gesture, and `fils` holds only what somebody CHANGED about the
+   star it makes.
+   ============================================================ */
+describe("the motifs in the sky", () => {
+  const twice = [
+    makeFilm({ id: "a", title: "A", motifs: ["hero-dies"] }),
+    makeFilm({ id: "b", title: "B", motifs: ["hero-dies"] }),
+  ];
+
+  it("shows a chip for a motif nobody stored anything about", () => {
+    render(<ConstellationView films={twice} onOpen={vi.fn()} />);
+    // named after the catalogue, since nothing renamed it
+    expect(screen.getByRole("button", { pressed: true })).toHaveTextContent(/héros meurt/i);
+  });
+
+  it("shows the name written by hand rather than the motif's own", () => {
+    const thread = makeThread({ motif: "hero-dies", label: "Les fins amères" });
+    render(<ConstellationView films={twice} fils={[thread]} onOpen={vi.fn()} />);
+    expect(screen.getByRole("button", { pressed: true })).toHaveTextContent("Les fins amères");
+  });
+
+  it("puts a star out by writing it down, not by remembering it locally", async () => {
+    /* It used to be a `useState` in this view, so every star came back
+       lit on the next reload and nobody could tell why. */
+    const onPatchThread = vi.fn();
+    render(<ConstellationView films={twice} onOpen={vi.fn()} onPatchThread={onPatchThread} />);
+    await userEvent.setup().click(screen.getByRole("button", { pressed: true }));
+    expect(onPatchThread).toHaveBeenCalledWith("hero-dies", { off: true });
+  });
+
+  it("still shows a put-out motif, so it can be lit again", () => {
+    const thread = makeThread({ motif: "hero-dies", off: true });
+    render(<ConstellationView films={twice} fils={[thread]} onOpen={vi.fn()} />);
+    expect(screen.getAllByRole("button", { pressed: false })).not.toHaveLength(0);
+  });
+
+  /* THE HALF OF THE MODEL THAT LED NOWHERE. A gathering could not be
+     renamed, recoloured, written under, or undone. */
+  it("opens the settings of a motif", async () => {
+    render(<ConstellationView films={twice} onOpen={vi.fn()} onPatchThread={vi.fn()} />);
+    await userEvent.setup().click(screen.getByRole("button", { name: /Réglages/ }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByLabelText(/NOMMER AUTREMENT/i)).toBeInTheDocument();
   });
 });

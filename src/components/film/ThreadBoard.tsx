@@ -109,7 +109,7 @@ function ThreadCardEditor({
           <select
             value={relation}
             onChange={(e) => setRelation(e.target.value as Relation | "")}
-            aria-label="Nature du lien"
+            aria-label={tr("detail.linkNature")}
             style={{
               ...scribble,
               /* Two selects side by side in a card of two hundred
@@ -132,7 +132,7 @@ function ThreadCardEditor({
           <select
             value={force}
             onChange={(e) => setForce(strengthOf(Number(e.target.value)))}
-            aria-label="Strength du lien"
+            aria-label={tr("detail.linkStrength")}
             style={{
               ...scribble,
               flex: "1 1 120px",
@@ -174,7 +174,7 @@ function ThreadCardEditor({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             aria-label={tr("detail.workTitle")}
-            placeholder="Titre"
+            placeholder={tr("detail.workTitle")}
             style={{
               ...scribble,
               fontFamily: F.title,
@@ -185,8 +185,8 @@ function ThreadCardEditor({
           <input
             value={creator}
             onChange={(e) => setCreator(e.target.value)}
-            aria-label="Auteur·rice / artiste"
-            placeholder="Auteur·rice"
+            aria-label={tr("detail.author")}
+            placeholder={tr("detail.authorShort")}
             style={{ ...scribble, fontFamily: F.mono, fontSize: 9.5 }}
           />
         </>
@@ -196,7 +196,7 @@ function ThreadCardEditor({
         autoFocus={locked}
         value={note}
         onChange={(e) => setNote(e.target.value)}
-        aria-label="Pourquoi ce lien ?"
+        aria-label={tr("detail.whyThisLink")}
         placeholder={tr("threads.resonance")}
         style={{ ...scribble, fontFamily: F.hand, fontSize: 17, color: C.inkFaded }}
       />
@@ -386,7 +386,7 @@ export function ThreadBoard({ film, onRemove, onEdit, films = [], onOpen }: Thre
             marginTop: 26,
           }}
         >
-          rien d'épinglé pour l'instant…
+          {tr("detail.nothingPinnedYet")}
         </div>
       ) : (
         <div

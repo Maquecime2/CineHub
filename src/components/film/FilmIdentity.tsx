@@ -200,7 +200,7 @@ export function FilmIdentity({
         padding: "10px 12px",
       }}
     >
-      <Label>Titre</Label>
+      <Label>{t("film.titleField")}</Label>
       <input
         style={underlineInput}
         value={draft.title}
@@ -222,21 +222,21 @@ export function FilmIdentity({
           style={underlineInput}
           value={draft.director}
           onChange={(e) => set("director", e.target.value)}
-          placeholder="Nom"
+          placeholder={t("film.nameField")}
         />
       </div>
       <div style={{ marginTop: 10 }}>
-        <Label>Genres (virgules)</Label>
+        <Label>{t("film.genresField")}</Label>
         <CommaInput
           style={underlineInput}
           value={draft.genres}
           onChange={(v) => set("genres", v)}
-          placeholder="Drame, Science-fiction"
+          placeholder={t("film.genresPlaceholder")}
         />
       </div>
 
       <button onClick={relookup} style={{ ...tinyButton(C.pine), marginTop: 12 }}>
-        retrouver sur TMDB
+        {t("identity.findOnTmdb")}
       </button>
       {msg && (
         <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded, marginTop: 4 }}>

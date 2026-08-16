@@ -164,7 +164,7 @@ export function BackupPanel({
           <Tally label={t("backup.spaceUsed")} value={humanSize(stats.bytes)} />
           {stats.quota?.quota && (
             <Tally
-              label="place disponible"
+              label={t("backup.spaceAvailable")}
               value={humanSize(stats.quota.quota - (stats.quota.usage || 0))}
               ink={C.pine}
             />
@@ -247,7 +247,7 @@ export function BackupPanel({
             fontSize: 10.5,
           }}
         >
-          EXPORTER MA COLLECTION
+          {t("backup.exportMine")}
         </button>
         <button
           onClick={() => ref.current?.click()}
@@ -262,7 +262,7 @@ export function BackupPanel({
             fontSize: 10.5,
           }}
         >
-          RESTAURER UNE SAUVEGARDE
+          {t("backup.restoreOne")}
         </button>
       </div>
       {msg && (

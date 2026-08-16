@@ -863,7 +863,7 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet, pl
       )}
       {decor && (
         <ItemPalette
-          title="OBJET"
+          title={t("shelf.objectStamp")}
           color={decor.color}
           size={decor.size}
           /* The field only appears for the patterns that write: passing

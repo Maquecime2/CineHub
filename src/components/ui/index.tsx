@@ -7,6 +7,7 @@ import { Star, KeyRound } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { openTmdbSettings } from "../../services/tmdbKey";
+import i18n from "../../i18n";
 
 /** The rating, in ink stars. Clicking an already full star halves it. */
 export function InkStars({
@@ -142,7 +143,7 @@ export function NoKey({ what, style }: { what: string; style?: CSSProperties }) 
           textDecoration: "underline",
         }}
       >
-        La régler ici
+        {i18n.t("tmdbKey.setItHere")}
       </button>
       <span style={{ fontFamily: F.hand, fontSize: 14, color: C.inkFaded }}>
         — ou ouvrez un compte, qui vous en dispense.
@@ -473,7 +474,7 @@ export function Trouble({
             borderBottom: `1px dotted ${alpha(C.burgundy, 0.6)}`,
           }}
         >
-          {retryLabel ?? "réessayer"}
+          {retryLabel ?? i18n.t("common.retry")}
         </button>
       )}
     </div>

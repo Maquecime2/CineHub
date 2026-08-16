@@ -7,6 +7,7 @@
    that is the difference between a write of a few dozen kilobytes and a
    write that brushes the quota. */
 import { store } from "./storage";
+import i18n from "../i18n";
 import { VIEW_VERSION, upgradeView, buildViewsFromLegacy } from "../shelf-views";
 import type { Divider, Film, FilmStatus, ShelfViews } from "../types";
 
@@ -31,7 +32,7 @@ const loadView = (id: string) => store.get<ViewDoc | null>(viewKey(id), null);
    believe their gesture was recorded. */
 export const saveView = (view: ViewDoc) => {
   const ok = store.set(viewKey(view.id), view);
-  if (!ok) alert("Le rangement n'a pas pu être enregistré — espace de stockage plein.");
+  if (!ok) alert(i18n.t("errors.viewNotSaved"));
   return ok;
 };
 

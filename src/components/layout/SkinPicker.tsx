@@ -194,6 +194,7 @@ export function SkinPicker({
   onPick: (key: string) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   usePurse();
   useEscape(onClose);
   /* LE FOCUS ENTRE, TOURNE, ET REVIENT. `useEscape` ne fait que la
@@ -228,7 +229,7 @@ export function SkinPicker({
   return (
     <>
       <div onClick={onClose} data-veil style={{ position: "fixed", inset: 0, zIndex: 59 }} />
-      <div ref={box} role="dialog" aria-modal="true" aria-label="Peau du site" style={PANEL}>
+      <div ref={box} role="dialog" aria-modal="true" aria-label={t("skins.siteSkin")} style={PANEL}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
           <div
             style={{
@@ -238,12 +239,12 @@ export function SkinPicker({
               color: C.inkFaded,
             }}
           >
-            PEAU DU SITE
+            {t("skins.siteSkinStamp")}
           </div>
           <div style={{ flex: 1 }} />
           <button
             onClick={onClose}
-            aria-label="Fermer le choix des peaux"
+            aria-label={t("skins.closeThePicker")}
             style={{ all: "unset", cursor: "pointer", color: C.inkFaded }}
           >
             <X size={13} />
@@ -257,7 +258,7 @@ export function SkinPicker({
             marginBottom: 10,
           }}
         >
-          elle change tout — le fond, les couleurs, les polices, les onglets
+          {t("skins.itChangesAll")}
         </div>
 
         {/* TOUTES SONT DESSINÉES, VERROUILLÉES COMPRISES — voir

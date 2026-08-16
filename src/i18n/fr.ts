@@ -17,6 +17,7 @@ const fr = {
   /* The words the whole product reuses. A "Fermer" written in fifteen
      files is fifteen chances of translating fourteen of them. */
   common: {
+    retry: "réessayer",
     close: "Fermer",
     cancel: "Annuler",
     save: "Enregistrer",
@@ -28,6 +29,7 @@ const fr = {
   },
 
   account: {
+    handlePlaceholder: "agnes-varda",
     wipePartly:
       "Une partie n'a pas pu être effacée. Fermez les autres onglets du classeur et réessayez.",
     wipeMine: "Repartir de zéro",
@@ -145,6 +147,7 @@ const fr = {
   },
 
   tmdbKey: {
+    setItHere: "La régler ici",
     title: "Clé TMDB",
     kicker: "CLÉ TMDB",
     note: "elle ouvre les Découvertes, les affiches, les fiches d'équipe et le sillage — elle reste sur votre machine, elle ne part nulle part",
@@ -242,6 +245,18 @@ const fr = {
      emits these keys and nothing else — it is pure, and does not know
      which language is in force. */
   import: {
+    whatTheFileHolds: "CE QUE CONTIENT LE FICHIER",
+    chooseAFile: "CHOISIR UN FICHIER",
+    thisLogIsAuthoritative: "Ce relevé fait autorité sur les séances",
+    noLongerInWatchlist: "PLUS DANS VOTRE WATCHLIST LETTERBOXD",
+    directorGenresPosters: "RÉALISATEUR·RICE, GENRES ET AFFICHES",
+    existingCardsTouched:
+      "fiches existantes retouchées (vos critiques et notes libres sont conservées)",
+    letterboxdPath: "letterboxd.com → Settings → Import & Export → Export your data",
+    stamp: "ARCHIVES",
+    relayAddress: "Adresse du relais",
+    theseFilmsAre: "Ces films sont",
+    whatWillBeWritten: "Ce qui va être écrit",
     heading: "Bordereau d'import",
     oneFileAtATime: "un fichier à la fois, dans l'ordre indiqué ci-dessous",
     whichFiles: "QUELS FICHIERS DÉPOSER",
@@ -312,6 +327,7 @@ const fr = {
   },
 
   complete: {
+    cardsInCollection: "fiches dans la collection",
     title: "COMPLÉTER LES FICHES DEPUIS TMDB",
     toComplete: "fiches à compléter",
     alreadyUpToDate: "fiches déjà à jour",
@@ -333,6 +349,7 @@ const fr = {
   },
 
   repair: {
+    seenWithoutTrace: "fiches « vues » sans aucune trace de visionnage",
     title: "RETROUVER DES FICHES BASCULÉES PAR ERREUR",
     ticked: "cochées",
     intro:
@@ -349,6 +366,9 @@ const fr = {
   },
 
   backup: {
+    exportMine: "EXPORTER MA COLLECTION",
+    restoreOne: "RESTAURER UNE SAUVEGARDE",
+    spaceAvailable: "place disponible",
     title: "COFFRE À AFFICHES ET SAUVEGARDE",
     confirmTitle: "Remplacer tout le classeur ?",
     confirmBody_one:
@@ -372,6 +392,15 @@ const fr = {
   },
 
   film: {
+    newCard: "Nouvelle fiche",
+    titleField: "Titre",
+    titlePlaceholder: "Le titre du film",
+    nameField: "Nom",
+    genresField: "Genres (virgules)",
+    genresPlaceholder: "Drame, Science-fiction",
+    thisCard: "Cette fiche",
+    yourRating: "Votre note",
+    feelingPlaceholder: "Ce que ce film vous a fait ressentir…",
     year: "Année",
     director: "Réalisateur·rice",
     themes: "Thèmes (virgules)",
@@ -398,6 +427,9 @@ const fr = {
   },
 
   link: {
+    seeOnTmdb: "voir sur TMDB",
+    itsTmdbCard: "Sa fiche TMDB",
+    searchThisTitle: "chercher ce titre sur TMDB",
     noFilmByThatTitle: "TMDB ne connaît aucun film de ce titre.",
     fetching: "récupération de la fiche…",
     linkedTo: "relié à « {{title}} »{{year}}.",
@@ -408,21 +440,29 @@ const fr = {
   },
 
   identity: {
+    findOnTmdb: "retrouver sur TMDB",
     found: "trouvé : {{title}}{{year}}",
   },
 
   poster: {
+    tmdbPosters: "Affiches TMDB",
+    orAnImageUrl: "Ou une adresse d'image",
     noneFound: "Aucune affiche trouvée pour ce film.",
     couldNotSave: "Cette image n'a pas pu être enregistrée.",
     pasteHint: "clic droit sur une affiche → « copier l'adresse de l'image », puis Entrée",
   },
 
   watchlog: {
+    iSawItAgain: "JE L'AI REVU",
+    noRating: "sans note",
+    viewingsLabel: "visionnages",
+    sinceLastTime: "depuis la fois d'avant",
     removeOne: "Retirer cette séance",
     removeOneOn: "Retirer la séance du {{date}}",
   },
 
   lists: {
+    toWatchStamp: "À VOIR",
     tagChosen_one: "Étiqueter {{count}} fiche",
     tagChosen_other: "Étiqueter {{count}} fiches",
     tagTitle_one: "Un mot pour {{count}} fiche",
@@ -473,6 +513,8 @@ const fr = {
   },
 
   elsewhere: {
+    label: "Ailleurs",
+    report: "Signaler",
     at: "chez {{pseudo}}",
     muteSomebody: "Ne plus rien voir de {{pseudo}}",
     filedBy_one: "{{count}} vidéothèque le range",
@@ -482,6 +524,7 @@ const fr = {
   },
 
   sharing: {
+    whatOthersSee: "Ce que les autres en voient",
     hide: "ÉCARTER DU PARTAGE",
     hidden: "ÉCARTÉE DU PARTAGE",
     shownNote:
@@ -587,6 +630,13 @@ const fr = {
   },
 
   library: {
+    tonight: "Ce soir",
+    whichTonightStamp: "LEQUEL CE SOIR ?",
+    changeArrangement: "Changer de rangement",
+    rename: "Renommer",
+    duplicateArrangement: "Dupliquer ce rangement",
+    deleteThisView: "Supprimer cette vue",
+    findWhatToWatch: "Trouver quoi regarder ce soir",
     search: "Chercher",
     searchPlaceholder: "un titre, un·e cinéaste…",
     genre: "Genre",
@@ -617,6 +667,29 @@ const fr = {
   },
 
   almanac: {
+    theCount: "Le compte",
+    filmsTally: "FILMS",
+    rewatchesTally: "REVOYURES",
+    theRhythm: "Le rythme",
+    longestDrought: "Plus longue disette",
+    densestMonth: "Mois le plus dense",
+    averageScreening: "Séance moyenne",
+    theLongest: "Le plus long",
+    theRatings: "Les notes",
+    theAge: "L'âge de ce que vous regardez",
+    onAverage: "EN MOYENNE",
+    overTwenty: "DE PLUS DE 20 ANS",
+    theOldest: "Le plus ancien",
+    theGenres: "Les genres",
+    theSubjects: "Les sujets",
+    motifsFollowed: "Les motifs suivis",
+    stamp: "ALMANACH",
+    heading: "L'almanach",
+    followed: "SUIVIS",
+    languages: "LANGUES",
+    nobodyReturns: "personne ne revient {{count}} fois ou plus",
+    nothingRecurring: "rien qui revienne trois fois, ni aucun nom nouveau",
+    always: "toujours",
     emptyTitle: "Aucune séance datée pour l'instant.",
     emptyBody:
       "L'almanach se remplit tout seul dès qu'une fiche porte une date — en notant une séance sur une fiche, ou en relevant son journal depuis l'onglet d'import.",
@@ -715,6 +788,15 @@ const fr = {
   },
 
   reco: {
+    whatMakesTheNiche: "CE QUI FAIT LA NICHE",
+    missingTmdbKey: "CLÉ TMDB MANQUANTE",
+    searchOutside: "chercher au-dehors",
+    tooThinForAProfile: "collection trop mince pour un profil — seuls les filtres joueront",
+    atYourPlace: "Chez vous",
+    stamp: "BULLETIN DE COMMANDE",
+    originalLanguage: "Langue d'origine",
+    votesAtLeast: "Votes ≥",
+    ignoreWatchlist: "ignorer aussi ma watchlist",
     heading: "Le bureau des découvertes",
     subheading: "des films à voir, choisis d'après ce que dit votre collection",
     allLanguages: "toutes",
@@ -735,6 +817,7 @@ const fr = {
   },
 
   shared: {
+    openMine: "OUVRIR LA MIENNE",
     heading: "La vidéothèque de {{pseudo}}",
     opening: "Ouverture…",
     count_one: "{{count}} film — regardé, noté, rangé par quelqu'un d'autre.",
@@ -1293,6 +1376,8 @@ const fr = {
   },
 
   surfaces: {
+    wallpaper: "PAPIER PEINT",
+    patternInk: "ENCRE DU MOTIF",
     paints: {
       platre: "Plâtre",
       lin: "Lin",
@@ -1361,6 +1446,35 @@ const fr = {
   },
 
   shelf: {
+    dropFilmsHere: "glissez-y des films",
+    bedsideStamp: "FILM DE CHEVET",
+    manage: "GÉRER",
+    myObjects: "MES OBJETS",
+    setAsideStamp: "MIS DE CÔTÉ",
+    setAsideTitle: "Mis de côté",
+    rowNameLabel: "NOM DE LA LIGNE",
+    openTheFolder: "OUVRIR LE DOSSIER",
+    noNoteYet: "Pas encore de note. Le boîtier attend son feuillet.",
+    atRandom: "au hasard",
+    keptNotThrown: "gardés, pas jetés",
+    emptyRowHint: "ligne vide — glissez-y un boîtier",
+    colourSizeIndent: "Couleur, taille, retrait",
+    objectStamp: "OBJET",
+    casesPerRow: "BOÎTIERS PAR LIGNE DE BOIS",
+    unnamed: "sans nom",
+    rowAbove: "+ une ligne au-dessus",
+    rowBelow: "+ une ligne en dessous",
+    emptyRow: "vider la ligne",
+    deleteRow: "supprimer la ligne",
+    atOthers: "CHEZ LES AUTRES",
+    mine: "LES MIENS",
+    ofTheHouse: "CEUX DE LA MAISON",
+    backToCabinet: "Revenir au cabinet",
+    manageYourObjects: "Importer ou supprimer vos propres objets",
+    orientation: "Orientation",
+    turnTheObject: "Faire tourner l'objet",
+    setItStraight: "Remettre d'aplomb",
+    dividerName: "Nom de l'intercalaire",
     woods: {
       kraft: "Kraft",
       noyer: "Noyer",
@@ -1448,6 +1562,10 @@ const fr = {
     },
   },
   wallStudio: {
+    studioStamp: "ATELIER DU MUR",
+    stamp: "ACCROCHE",
+    backToOriginal: "Revenir au mur d'origine",
+    closeStudio: "Fermer l'atelier",
     wallTab: "MUR",
     cardsTab: "FICHES",
     cardSize: "TAILLE DES FICHES",
@@ -1466,12 +1584,20 @@ const fr = {
   },
 
   decorStudio: {
+    stamp: "ATELIER DÉCO",
+    backToTheme: "AU THÈME",
+    belongsToThisView: "le décor appartient à cette vue — une autre garde le sien",
     material: "MATÉRIAU",
     fromTheme: "au thème",
     reset: "Effacer le décor et revenir au bois du thème",
   },
 
   stills: {
+    leftOnOtherDevice: "restée sur l'autre appareil",
+    escToClose: "ÉCHAP POUR FERMER",
+    theFilmStrip: "La pellicule",
+    insert: "insérer",
+    next: "suivante (→)",
     dragHint: "une fois posée, déplacez-la dans le texte",
     notSynced:
       "Cette image est restée sur l'appareil qui l'a importée : les captures ne se synchronisent pas encore.",
@@ -1498,8 +1624,17 @@ const fr = {
     endingMotif: "motif de fin",
     spoilerHint: "Ce motif raconte la fin — cliquez pour le lire",
     suggestedByTmdb: "PROPOSÉ PAR TMDB —",
-    makeThread: "EN FAIRE UN FIL",
-    gatherAll: "Rassembler tous les films portant « {{name}} »",
+    noneLaid: "aucun motif",
+    /* CE QUI REMPLACE « EN FAIRE UN FIL ». Le compte et l'étoile disent
+       l'état ; l'ancien bouton le cachait, et cliquer deux fois dessus
+       depuis deux fiches ne faisait rien de plus que la première. */
+    star: "Faire de « {{name}} » une étoile de la carte",
+    unstar: "Éteindre l'étoile de « {{name}} »",
+    showTheOthers: "Voir les {{count}} fiches qui le portent",
+    alsoCarriedBy_one: "PORTÉ PAR {{count}} FICHE",
+    alsoCarriedBy_other: "PORTÉ PAR {{count}} FICHES",
+    seeInTheSky: "LE VOIR DANS LA CARTE",
+    deleteThisOne: "SUPPRIMER CE MOTIF",
     removeOne: "Retirer « {{name}} »",
     deleteOne: "Supprimer le motif {{name}}",
     hideOne: "Écarter le motif {{name}}",
@@ -1624,6 +1759,32 @@ const fr = {
   },
 
   detail: {
+    nothingPinnedYet: "rien d'épinglé pour l'instant…",
+    iSawIt: "JE L'AI VU",
+    theRedThread: "Le fil rouge",
+    redThreadHint: "les œuvres qui répondent à ce film — livres, peintures, autres films",
+    setAside: "mettre de côté",
+    notOnTheWall: "pas au mur — sera relié comme simple mention",
+    putBackOnShelf: "remettre en rayon",
+    backToWatchlist: "remettre « à voir »",
+    deleteForGood: "supprimer définitivement",
+    authorShort: "Auteur·rice",
+    tabFilm: "LE FILM",
+    tabWords: "MES MOTS",
+    tabLinks: "LES LIENS",
+    folderParts: "Les parties du dossier",
+    stamp: "DOSSIER",
+    catalogueCard: "Fiche catalogue",
+    personalReview: "Critique personnelle",
+    freeNotes: "Notes libres",
+    motifs: "Motifs",
+    whatWeDoWithIt: "Ce qu'on en fait",
+    linkKind: "Type",
+    author: "Auteur·rice / artiste",
+    nameField: "Nom",
+    linkNature: "Nature du lien",
+    linkStrength: "Force du lien",
+    whyThisLink: "Pourquoi ce lien ?",
     backToWall: "RETOUR AU MUR",
     untitled: "Sans titre",
     reviewPlaceholder: "Écrivez ici, à main levée…",
@@ -1650,6 +1811,11 @@ const fr = {
   },
 
   wakePanel: {
+    atYourPlace: "CHEZ VOUS",
+    noSummary: "TMDB n'en donne aucun résumé.",
+    searchOutside: "chercher au-dehors ce qui tient de ce film",
+    lookingAtTheCrew: "on regarde du côté de l'équipe…",
+    label: "Dans le sillage",
     setAside: "mettre de côté",
     setAsideDone: "mis de côté",
     votes: "votes",
@@ -1657,6 +1823,14 @@ const fr = {
   },
 
   tonightDrawer: {
+    anotherOne: "une autre",
+    sayYourTime: "Dites le temps que vous avez, et dans quel état vous êtes.",
+    meanwhileMotifs: "en attendant, l'humeur se lit sur vos propres motifs.",
+    readingTmdb: "on lit ce que TMDB dit de ces films…",
+    doesntMatter: "peu importe",
+    itsCard: "sa fiche",
+    whichTonight: "Lequel ce soir ?",
+    imInTheMood: "Je suis d'humeur",
     guessMood: "deviner l'humeur d'un film que vous n'avez pas encore annoté",
     nothingAnswers: "Rien dans « à voir » ne répond — ou la liste est vide.",
     allReviewed: "Vous les avez tous passés en revue.",
@@ -1862,6 +2036,12 @@ const fr = {
   },
 
   constellation: {
+    resetTheSky: "REMETTRE LE CIEL EN PLACE",
+    nothingByThatName: "rien de ce nom dans la collection.",
+    showAll: "tout afficher",
+    stamp: "CARTE DU CIEL",
+    genres: "Genres",
+    searchAll: "chercher dans toute la collection…",
     /* Le titre de la vue etait en dur, donc invisible aux deux
        catalogues et au test de parite. */
     heading: "La constellation",
@@ -1876,8 +2056,33 @@ const fr = {
     followCrews: "SUIVRE LES ÉQUIPES",
     dottedNote:
       "en pointillé : une personne partagée par deux ou trois films. Cliquez un pointillé pour le fixer — il devient alors un vrai fil rouge.",
-    fedBy: "alimenté par « {{motif}} »",
-    handmadeThread: "fil écrit à la main",
+    plainLink: "fil écrit à la main",
+    motifs: "Motifs",
+    filmCount_one: "{{count}} film",
+    filmCount_other: "{{count}} films",
+    putOut: "Éteindre « {{name}} »",
+    lightUp: "Rallumer « {{name}} »",
+    settingsOf: "Réglages de « {{name}} »",
+    carriedBy_one: "posé sur {{count}} fiche",
+    carriedBy_other: "posé sur {{count}} fiches",
+    nameOfYourOwn: "LE NOMMER AUTREMENT",
+    colour: "SA COULEUR",
+    noteUnder: "CE QU'ON ÉCRIT DESSOUS",
+    whatItGathers_one: "IL RASSEMBLE {{count}} FICHE",
+    whatItGathers_other: "IL RASSEMBLE {{count}} FICHES",
+    gathersNothing: "il ne rassemble rien pour l'instant",
+    setByHand: "À LA MAIN",
+    setAsideOne: "Écarter « {{title}} »",
+    setAsideCount_one: "{{count}} FICHE ÉCARTÉE",
+    setAsideCount_other: "{{count}} FICHES ÉCARTÉES",
+    putBackOne: "La remettre dans le rassemblement",
+    addByHand: "Y METTRE UNE FICHE À LA MAIN",
+    searchATitle: "chercher un titre…",
+    putItOut: "ÉTEINDRE CETTE ÉTOILE",
+    lightItUp: "RALLUMER CETTE ÉTOILE",
+    backToPlain: "REVENIR AU DÉFAUT",
+    belowTheCount:
+      "Ce motif n'est posé que sur une fiche : c'est ce que vous y avez mis à la main qui le tient sur la carte. À partir de {{count}}, il s'allume tout seul.",
     whereToBegin: "Par où commencer",
     whereToBeginNote:
       "choisissez un film — la carte ne montrera que lui et ses voisins, et vous avancerez de proche en proche",
@@ -1907,6 +2112,10 @@ const fr = {
   },
 
   skins: {
+    siteSkinStamp: "PEAU DU SITE",
+    itChangesAll: "elle change tout — le fond, les couleurs, les polices, les onglets",
+    siteSkin: "Peau du site",
+    closeThePicker: "Fermer le choix des peaux",
     price: "{{price}} jetons",
     short_one: "il vous faut {{count}} jeton",
     short_other: "il vous faut {{count}} jetons",
@@ -2071,8 +2280,14 @@ const fr = {
         body: "La critique et les notes libres. Les photogrammes déposés sur la fiche s'y insèrent dans le texte, à l'endroit du curseur.",
       },
       tags: {
+        noneLaid: "aucun mot-clé",
+        addOne: "ajouter un mot-clé, puis Entrée",
         title: "Mots-clés et motifs",
-        body: "Les mots-clés sont les vôtres. Les motifs sont un vocabulaire commun — « le héros meurt », « il pleut à la fin » — sur lequel une question peut porter, et dont on tire un fil.",
+        body: "Les mots-clés sont les vôtres. Les motifs sont un vocabulaire commun — « le héros meurt », « il pleut à la fin » — sur lequel une question peut porter.",
+      },
+      motifStar: {
+        title: "Un motif devient une étoile",
+        body: "Le chiffre dit combien de fiches portent ce motif ; cliquez-le pour voir lesquelles, sans quitter celle-ci. Dès deux fiches, l'étoile s'allume toute seule dans la carte du ciel — l'éteindre ou la rallumer tient à ce seul bouton.",
       },
       lists: {
         title: "Ranger ce film dans une liste",
@@ -2119,8 +2334,8 @@ const fr = {
         body: "La seconde couche : en pointillé, les personnes partagées par plusieurs films. Cliquez un pointillé pour le fixer — il devient un vrai fil rouge.",
       },
       threads: {
-        title: "Les fils",
-        body: "Un fil peuple le ciel au lieu de le réduire : il y fait entrer ses membres, reliés ou non. C'est ce qu'on obtient en tirant un fil depuis un motif, sur une fiche.",
+        title: "Les motifs",
+        body: "Un motif peuple le ciel au lieu de le réduire : il y fait entrer les fiches qui le portent, reliées ou non. Une pastille éteint son étoile ; le bouton d'à côté ouvre ses réglages — le nommer autrement, le colorer, y mettre une fiche à la main.",
       },
       keyboard: {
         title: "La carte au clavier",
@@ -2342,6 +2557,18 @@ const fr = {
         body: "Ce bouton la rouvre quand vous voulez, en entier ou seulement pour la page où vous êtes. Bonne collection.",
       },
     },
+  },
+
+  boundary: {
+    title: "Cette page n'a pas voulu s'ouvrir.",
+    body: "Rien n'est perdu : le classeur garde ce qu'il a. On peut réessayer, ou changer d'onglet.",
+    detail: "le détail",
+  },
+
+  errors: {
+    notABackup: "Ce fichier n'est pas une sauvegarde Ciné Hub.",
+    storageFull: "Espace de stockage plein — l'objet n'a pas été ajouté.",
+    viewNotSaved: "Le rangement n'a pas pu être enregistré — espace de stockage plein.",
   },
 } as const;
 

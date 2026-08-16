@@ -348,7 +348,7 @@ export function AccountDrawer({
             <input
               value={pseudo}
               onChange={(e) => setPseudo(e.target.value)}
-              placeholder="agnes-varda"
+              placeholder={t("account.handlePlaceholder")}
               autoCapitalize="none"
               autoCorrect="off"
               spellCheck={false}

@@ -240,7 +240,7 @@ export const FilmPolaroid = memo(function FilmPolaroid({
                   letterSpacing: 1,
                 }}
               >
-                À VOIR
+                {t("lists.toWatchStamp")}
               </span>
             ) : (
               <InkStars value={film.rating || 0} size={px(12)} />

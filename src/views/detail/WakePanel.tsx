@@ -284,7 +284,7 @@ function Unfold({
         </div>
       ) : (
         <div style={{ fontFamily: F.hand, fontSize: 13.5, color: C.inkFaded }}>
-          TMDB n&apos;en donne aucun résumé.
+          {t("wakePanel.noSummary")}
         </div>
       )}
       <div
@@ -531,7 +531,9 @@ export function WakePanel({
 
   return (
     <Cardstock tour="detail-sillage" style={{ marginTop: 18 }}>
-      <SectionTitle icon={<Waves size={15} color={C.cobalt} />}>Dans le sillage</SectionTitle>
+      <SectionTitle icon={<Waves size={15} color={C.cobalt} />}>
+        {t("wakePanel.label")}
+      </SectionTitle>
       <Guideline>
         ce qui tient de « {film.title} » — par l&apos;équipe, les sujets, les gens à l&apos;affiche
       </Guideline>
@@ -555,7 +557,7 @@ export function WakePanel({
               marginBottom: 4,
             }}
           >
-            CHEZ VOUS
+            {t("wakePanel.atYourPlace")}
           </div>
           {!apiKey && noSubjects && <SubjectsMissing />}
           <div style={{ minHeight: MIN_HEIGHT }}>
@@ -597,11 +599,11 @@ export function WakePanel({
           </div>
           <div style={{ minHeight: MIN_HEIGHT }}>
             {!apiKey ? (
-              <NoKey what="chercher au-dehors ce qui tient de ce film" />
+              <NoKey what={t("wakePanel.searchOutside")} />
             ) : query ? (
               <Nothing>
                 <Compass size={13} style={{ verticalAlign: "-2px", marginRight: 5 }} />
-                on regarde du côté de l&apos;équipe…
+                {t("wakePanel.lookingAtTheCrew")}
               </Nothing>
             ) : dehors?.length ? (
               dehors.map((v) => (

@@ -154,7 +154,7 @@ export function TonightDrawer({
         />
         <div
           role="dialog"
-          aria-label="Lequel ce soir ?"
+          aria-label={t("tonightDrawer.whichTonight")}
           style={{
             position: "fixed",
             top: 0,
@@ -180,16 +180,20 @@ export function TonightDrawer({
                 color: C.ink,
               }}
             >
-              Lequel ce soir ?
+              {t("tonightDrawer.whichTonight")}
             </div>
-            <button onClick={onClose} aria-label="Fermer" style={{ ...nu, marginLeft: "auto" }}>
+            <button
+              onClick={onClose}
+              aria-label={t("common.close")}
+              style={{ ...nu, marginLeft: "auto" }}
+            >
               <X size={16} color={C.inkFaded} />
             </button>
           </div>
           <div
             style={{ fontFamily: F.hand, fontSize: 17, color: C.inkFaded, margin: "2px 0 20px" }}
           >
-            Dites le temps que vous avez, et dans quel état vous êtes.
+            {t("tonightDrawer.sayYourTime")}
           </div>
 
           {/* ---- le temps ---- */}
@@ -197,7 +201,7 @@ export function TonightDrawer({
             <Label>J'ai</Label>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               <button onClick={() => setMinutes(null)} style={chip(minutes === null)}>
-                peu importe
+                {t("tonightDrawer.doesntMatter")}
               </button>
               {SLOTS.map((c) => (
                 <button
@@ -213,7 +217,7 @@ export function TonightDrawer({
 
           {/* ---- l'humeur ---- */}
           <div data-tour="soir-humeur" style={{ marginBottom: 18 }}>
-            <Label>Je suis d'humeur</Label>
+            <Label>{t("tonightDrawer.imInTheMood")}</Label>
             {!apiKey && (
               /* Without a key, the patterns of an unseen card do not
                exist and nothing can guess them. We say so rather than
@@ -222,7 +226,7 @@ export function TonightDrawer({
             )}
             {!apiKey && (
               <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, margin: "6px 0" }}>
-                en attendant, l&apos;humeur se lit sur vos propres motifs.
+                {t("tonightDrawer.meanwhileMotifs")}
               </div>
             )}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
@@ -269,7 +273,7 @@ export function TonightDrawer({
                   marginBottom: 10,
                 }}
               >
-                <Loader2 size={12} /> on lit ce que TMDB dit de ces films…
+                <Loader2 size={12} /> {t("tonightDrawer.readingTmdb")}
               </div>
             )}
 
@@ -352,7 +356,7 @@ function CravingCard({
 
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 16 }}>
         <button onClick={onOuvrir} style={{ ...chip(true), padding: "5px 12px" }}>
-          <ArrowRight size={11} /> sa fiche
+          <ArrowRight size={11} /> {t("tonightDrawer.itsCard")}
         </button>
         <button
           onClick={onAutre}
@@ -364,7 +368,7 @@ function CravingCard({
             cursor: rank + 1 >= total ? "default" : "pointer",
           }}
         >
-          <Dice5 size={11} /> une autre
+          <Dice5 size={11} /> {t("tonightDrawer.anotherOne")}
         </button>
         <span style={{ fontFamily: F.mono, fontSize: 9, color: C.inkFaded, marginLeft: "auto" }}>
           {rank + 1} / {total}

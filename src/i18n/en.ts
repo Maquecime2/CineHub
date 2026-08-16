@@ -13,6 +13,7 @@
 
 const en = {
   common: {
+    retry: "try again",
     close: "Close",
     cancel: "Cancel",
     save: "Save",
@@ -24,6 +25,7 @@ const en = {
   },
 
   account: {
+    handlePlaceholder: "agnes-varda",
     wipePartly: "Part of it could not be erased. Close the binder's other tabs and try again.",
     wipeMine: "Start from nothing",
     wipeTitle: "Erase everything, and keep the account?",
@@ -137,6 +139,7 @@ const en = {
   },
 
   tmdbKey: {
+    setItHere: "Set it here",
     title: "TMDB key",
     kicker: "TMDB KEY",
     note: "it opens the Discoveries, the posters, the crew cards and the wake — it stays on your machine, it goes nowhere",
@@ -228,6 +231,17 @@ const en = {
   },
 
   import: {
+    whatTheFileHolds: "WHAT THE FILE HOLDS",
+    chooseAFile: "CHOOSE A FILE",
+    thisLogIsAuthoritative: "This log is authoritative on the screenings",
+    noLongerInWatchlist: "NO LONGER IN YOUR LETTERBOXD WATCHLIST",
+    directorGenresPosters: "DIRECTOR, GENRES AND POSTERS",
+    existingCardsTouched: "existing cards touched up (your reviews and free notes are kept)",
+    letterboxdPath: "letterboxd.com → Settings → Import & Export → Export your data",
+    stamp: "ARCHIVES",
+    relayAddress: "Relay address",
+    theseFilmsAre: "These films are",
+    whatWillBeWritten: "What is about to be written",
     heading: "Import docket",
     oneFileAtATime: "one file at a time, in the order given below",
     whichFiles: "WHICH FILES TO DROP",
@@ -296,6 +310,7 @@ const en = {
   },
 
   complete: {
+    cardsInCollection: "cards in the collection",
     title: "COMPLETE THE CARDS FROM TMDB",
     toComplete: "cards to complete",
     alreadyUpToDate: "cards already up to date",
@@ -317,6 +332,7 @@ const en = {
   },
 
   repair: {
+    seenWithoutTrace: "cards marked “seen” with no trace of a viewing",
     title: "FIND CARDS MOVED BY MISTAKE",
     ticked: "ticked",
     intro:
@@ -333,6 +349,9 @@ const en = {
   },
 
   backup: {
+    exportMine: "EXPORT MY COLLECTION",
+    restoreOne: "RESTORE A BACKUP",
+    spaceAvailable: "space available",
     title: "POSTER VAULT AND BACKUP",
     confirmTitle: "Replace the whole binder?",
     confirmBody_one:
@@ -356,6 +375,15 @@ const en = {
   },
 
   film: {
+    newCard: "New card",
+    titleField: "Title",
+    titlePlaceholder: "The film’s title",
+    nameField: "Name",
+    genresField: "Genres (commas)",
+    genresPlaceholder: "Drama, Science fiction",
+    thisCard: "This card",
+    yourRating: "Your rating",
+    feelingPlaceholder: "What this film made you feel…",
     year: "Year",
     director: "Director",
     themes: "Themes (commas)",
@@ -382,6 +410,9 @@ const en = {
   },
 
   link: {
+    seeOnTmdb: "see on TMDB",
+    itsTmdbCard: "Its TMDB card",
+    searchThisTitle: "search this title on TMDB",
     noFilmByThatTitle: "TMDB knows no film by that title.",
     fetching: "fetching the card…",
     linkedTo: "linked to “{{title}}”{{year}}.",
@@ -392,21 +423,29 @@ const en = {
   },
 
   identity: {
+    findOnTmdb: "find again on TMDB",
     found: "found: {{title}}{{year}}",
   },
 
   poster: {
+    tmdbPosters: "TMDB posters",
+    orAnImageUrl: "Or an image address",
     noneFound: "No poster found for this film.",
     couldNotSave: "This image could not be saved.",
     pasteHint: "right-click a poster → “copy image address”, then Enter",
   },
 
   watchlog: {
+    iSawItAgain: "I SAW IT AGAIN",
+    noRating: "no rating",
+    viewingsLabel: "viewings",
+    sinceLastTime: "since the time before",
     removeOne: "Remove this viewing",
     removeOneOn: "Remove the viewing of {{date}}",
   },
 
   lists: {
+    toWatchStamp: "TO WATCH",
     tagChosen_one: "Tag {{count}} card",
     tagChosen_other: "Tag {{count}} cards",
     tagTitle_one: "A word for {{count}} card",
@@ -456,6 +495,8 @@ const en = {
   },
 
   elsewhere: {
+    label: "Elsewhere",
+    report: "Report",
     at: "at {{pseudo}}’s",
     muteSomebody: "See nothing more from {{pseudo}}",
     filedBy_one: "{{count}} library files it",
@@ -465,6 +506,7 @@ const en = {
   },
 
   sharing: {
+    whatOthersSee: "What other people see of it",
     hide: "TAKE OUT OF THE SHARING",
     hidden: "TAKEN OUT OF THE SHARING",
     shownNote:
@@ -569,6 +611,13 @@ const en = {
   },
 
   library: {
+    tonight: "Tonight",
+    whichTonightStamp: "WHICH ONE TONIGHT?",
+    changeArrangement: "Change arrangement",
+    rename: "Rename",
+    duplicateArrangement: "Duplicate this arrangement",
+    deleteThisView: "Delete this view",
+    findWhatToWatch: "Find something to watch tonight",
     search: "Search",
     searchPlaceholder: "a title, a filmmaker…",
     genre: "Genre",
@@ -599,6 +648,29 @@ const en = {
   },
 
   almanac: {
+    theCount: "The count",
+    filmsTally: "FILMS",
+    rewatchesTally: "REWATCHES",
+    theRhythm: "The rhythm",
+    longestDrought: "Longest drought",
+    densestMonth: "Densest month",
+    averageScreening: "Average screening",
+    theLongest: "The longest",
+    theRatings: "The ratings",
+    theAge: "The age of what you watch",
+    onAverage: "ON AVERAGE",
+    overTwenty: "OVER 20 YEARS OLD",
+    theOldest: "The oldest",
+    theGenres: "The genres",
+    theSubjects: "The subjects",
+    motifsFollowed: "The motifs you follow",
+    stamp: "ALMANAC",
+    heading: "The almanac",
+    followed: "FOLLOWED",
+    languages: "LANGUAGES",
+    nobodyReturns: "nobody comes back {{count}} times or more",
+    nothingRecurring: "nothing coming back three times, and no new name",
+    always: "always",
     emptyTitle: "No dated viewing yet.",
     emptyBody:
       "The almanac fills itself as soon as a card carries a date — by noting a viewing on a card, or by reading your log from the import tab.",
@@ -697,6 +769,15 @@ const en = {
   },
 
   reco: {
+    whatMakesTheNiche: "WHAT MAKES THE NICHE",
+    missingTmdbKey: "TMDB KEY MISSING",
+    searchOutside: "search outside",
+    tooThinForAProfile: "collection too thin for a profile — only the filters will play",
+    atYourPlace: "At your place",
+    stamp: "ORDER FORM",
+    originalLanguage: "Original language",
+    votesAtLeast: "Votes ≥",
+    ignoreWatchlist: "ignore my watchlist too",
     heading: "The discoveries desk",
     subheading: "films to see, chosen from what your collection says",
     allLanguages: "all",
@@ -717,6 +798,7 @@ const en = {
   },
 
   shared: {
+    openMine: "OPEN MINE",
     heading: "{{pseudo}}'s video library",
     opening: "Opening…",
     count_one: "{{count}} film — watched, rated, filed by somebody else.",
@@ -1262,6 +1344,8 @@ const en = {
   },
 
   surfaces: {
+    wallpaper: "WALLPAPER",
+    patternInk: "PATTERN INK",
     paints: {
       platre: "Plaster",
       lin: "Linen",
@@ -1330,6 +1414,35 @@ const en = {
   },
 
   shelf: {
+    dropFilmsHere: "drop films here",
+    bedsideStamp: "BEDSIDE FILM",
+    manage: "MANAGE",
+    myObjects: "MY OBJECTS",
+    setAsideStamp: "SET ASIDE",
+    setAsideTitle: "Set aside",
+    rowNameLabel: "ROW NAME",
+    openTheFolder: "OPEN THE FOLDER",
+    noNoteYet: "No note yet. The case is waiting for its slip.",
+    atRandom: "at random",
+    keptNotThrown: "kept, not thrown away",
+    emptyRowHint: "empty row — drop a case here",
+    colourSizeIndent: "Colour, size, indent",
+    objectStamp: "OBJECT",
+    casesPerRow: "CASES PER WOODEN ROW",
+    unnamed: "unnamed",
+    rowAbove: "+ a row above",
+    rowBelow: "+ a row below",
+    emptyRow: "empty the row",
+    deleteRow: "delete the row",
+    atOthers: "AT OTHER PEOPLE’S",
+    mine: "MINE",
+    ofTheHouse: "OF THE HOUSE",
+    backToCabinet: "Back to the cabinet",
+    manageYourObjects: "Import or delete your own objects",
+    orientation: "Orientation",
+    turnTheObject: "Turn the object",
+    setItStraight: "Set it straight",
+    dividerName: "Divider name",
     woods: {
       kraft: "Kraft",
       noyer: "Walnut",
@@ -1408,6 +1521,10 @@ const en = {
     },
   },
   wallStudio: {
+    studioStamp: "WALL STUDIO",
+    stamp: "HANGING",
+    backToOriginal: "Back to the original wall",
+    closeStudio: "Close the studio",
     wallTab: "WALL",
     cardsTab: "CARDS",
     cardSize: "CARD SIZE",
@@ -1426,12 +1543,20 @@ const en = {
   },
 
   decorStudio: {
+    stamp: "DECOR STUDIO",
+    backToTheme: "BACK TO THEME",
+    belongsToThisView: "the decor belongs to this view — another one keeps its own",
     material: "MATERIAL",
     fromTheme: "from the theme",
     reset: "Clear the decor and go back to the theme's wood",
   },
 
   stills: {
+    leftOnOtherDevice: "left on the other device",
+    escToClose: "ESC TO CLOSE",
+    theFilmStrip: "The film strip",
+    insert: "insert",
+    next: "next (→)",
     dragHint: "once placed, move it around inside the text",
     notSynced: "This image stayed on the device that imported it: stills do not synchronise yet.",
     pasteHint:
@@ -1455,8 +1580,14 @@ const en = {
     endingMotif: "ending motif",
     spoilerHint: "This motif gives the ending away — click to read it",
     suggestedByTmdb: "SUGGESTED BY TMDB —",
-    makeThread: "DRAW A THREAD",
-    gatherAll: "Gather every film carrying “{{name}}”",
+    noneLaid: "no motif",
+    star: "Make “{{name}}” a star of the map",
+    unstar: "Put out “{{name}}”’s star",
+    showTheOthers: "See the {{count}} cards carrying it",
+    alsoCarriedBy_one: "CARRIED BY {{count}} CARD",
+    alsoCarriedBy_other: "CARRIED BY {{count}} CARDS",
+    seeInTheSky: "SEE IT ON THE MAP",
+    deleteThisOne: "DELETE THIS MOTIF",
     removeOne: "Remove “{{name}}”",
     deleteOne: "Delete the motif {{name}}",
     hideOne: "Set the motif {{name}} aside",
@@ -1579,6 +1710,32 @@ const en = {
   },
 
   detail: {
+    nothingPinnedYet: "nothing pinned yet…",
+    iSawIt: "I SAW IT",
+    theRedThread: "The red thread",
+    redThreadHint: "the works that answer this film — books, paintings, other films",
+    setAside: "set aside",
+    notOnTheWall: "not on the wall — it will be linked as a plain mention",
+    putBackOnShelf: "put back on the shelf",
+    backToWatchlist: "back to “to watch”",
+    deleteForGood: "delete for good",
+    authorShort: "Author",
+    tabFilm: "THE FILM",
+    tabWords: "MY WORDS",
+    tabLinks: "THE LINKS",
+    folderParts: "The parts of the folder",
+    stamp: "FOLDER",
+    catalogueCard: "Catalogue card",
+    personalReview: "Personal review",
+    freeNotes: "Free notes",
+    motifs: "Motifs",
+    whatWeDoWithIt: "What we do with it",
+    linkKind: "Kind",
+    author: "Author / artist",
+    nameField: "Name",
+    linkNature: "Nature of the link",
+    linkStrength: "Strength of the link",
+    whyThisLink: "Why this link?",
     backToWall: "BACK TO THE WALL",
     untitled: "Untitled",
     reviewPlaceholder: "Write here, freehand…",
@@ -1605,6 +1762,11 @@ const en = {
   },
 
   wakePanel: {
+    atYourPlace: "AT YOUR PLACE",
+    noSummary: "TMDB gives no summary for it.",
+    searchOutside: "search outside for what holds with this film",
+    lookingAtTheCrew: "looking at the crew…",
+    label: "In the wake",
     setAside: "set aside",
     setAsideDone: "set aside",
     votes: "votes",
@@ -1612,6 +1774,14 @@ const en = {
   },
 
   tonightDrawer: {
+    anotherOne: "another one",
+    sayYourTime: "Say how much time you have, and what state you are in.",
+    meanwhileMotifs: "in the meantime, the mood is read off your own motifs.",
+    readingTmdb: "reading what TMDB says of these films…",
+    doesntMatter: "doesn’t matter",
+    itsCard: "its card",
+    whichTonight: "Which one tonight?",
+    imInTheMood: "I’m in the mood for",
     guessMood: "guess the mood of a film you have not written about yet",
     nothingAnswers: "Nothing in “to watch” answers — or the list is empty.",
     allReviewed: "You have been through them all.",
@@ -1797,6 +1967,12 @@ const en = {
   },
 
   constellation: {
+    resetTheSky: "PUT THE SKY BACK",
+    nothingByThatName: "nothing by that name in the collection.",
+    showAll: "show everything",
+    stamp: "SKY MAP",
+    genres: "Genres",
+    searchAll: "search the whole collection…",
     heading: "The constellation",
     aFilm: "film",
     aThread: "thread",
@@ -1809,8 +1985,33 @@ const en = {
     followCrews: "FOLLOW THE CREWS",
     dottedNote:
       "dotted: somebody shared by two or three films. Click a dotted line to pin it — it becomes a real red thread.",
-    fedBy: "fed by “{{motif}}”",
-    handmadeThread: "thread written by hand",
+    plainLink: "thread written by hand",
+    motifs: "Motifs",
+    filmCount_one: "{{count}} film",
+    filmCount_other: "{{count}} films",
+    putOut: "Put out “{{name}}”",
+    lightUp: "Light “{{name}}” back up",
+    settingsOf: "Settings for “{{name}}”",
+    carriedBy_one: "laid on {{count}} card",
+    carriedBy_other: "laid on {{count}} cards",
+    nameOfYourOwn: "CALL IT SOMETHING ELSE",
+    colour: "ITS COLOUR",
+    noteUnder: "WHAT IS WRITTEN UNDER IT",
+    whatItGathers_one: "IT GATHERS {{count}} CARD",
+    whatItGathers_other: "IT GATHERS {{count}} CARDS",
+    gathersNothing: "it gathers nothing yet",
+    setByHand: "BY HAND",
+    setAsideOne: "Set “{{title}}” aside",
+    setAsideCount_one: "{{count}} CARD SET ASIDE",
+    setAsideCount_other: "{{count}} CARDS SET ASIDE",
+    putBackOne: "Put it back into the gathering",
+    addByHand: "PUT A CARD IN BY HAND",
+    searchATitle: "search for a title…",
+    putItOut: "PUT THIS STAR OUT",
+    lightItUp: "LIGHT THIS STAR BACK UP",
+    backToPlain: "BACK TO PLAIN",
+    belowTheCount:
+      "This motif is laid on a single card: what holds it on the map is what you put in by hand. From {{count}} on, it lights up by itself.",
     whereToBegin: "Where to begin",
     whereToBeginNote:
       "choose a film — the map will show only it and its neighbours, and you will move on from one to the next",
@@ -1840,6 +2041,10 @@ const en = {
   },
 
   skins: {
+    siteSkinStamp: "SITE SKIN",
+    itChangesAll: "it changes everything — the ground, the colours, the fonts, the tabs",
+    siteSkin: "Site skin",
+    closeThePicker: "Close the skin picker",
     price: "{{price}} tokens",
     short_one: "{{count}} token needed",
     short_other: "{{count}} tokens needed",
@@ -2002,8 +2207,14 @@ const en = {
         body: "The review and the loose notes. Stills dropped on the card slot into the text, where the cursor is.",
       },
       tags: {
+        noneLaid: "no keyword",
+        addOne: "add a keyword, then Enter",
         title: "Keywords and motifs",
-        body: "The keywords are yours. The motifs are a shared vocabulary — “the hero dies”, “it rains at the end” — that a question can bear on, and that a thread can be drawn from.",
+        body: "The keywords are yours. The motifs are a shared vocabulary — “the hero dies”, “it rains at the end” — that a question can bear on.",
+      },
+      motifStar: {
+        title: "A motif becomes a star",
+        body: "The figure says how many cards carry this motif; click it to see which, without leaving this one. From two cards on, the star lights up by itself on the sky map — putting it out or lighting it again is this one button.",
       },
       lists: {
         title: "Filing this film into a list",
@@ -2050,8 +2261,8 @@ const en = {
         body: "The second layer: dotted, the people shared by several films. Click a dotted line to pin it — it becomes a real red thread.",
       },
       threads: {
-        title: "The threads",
-        body: "A thread peoples the sky instead of narrowing it: it brings its members in, linked or not. That is what you get by drawing a thread from a motif, on a card.",
+        title: "The motifs",
+        body: "A motif peoples the sky instead of narrowing it: it brings in the cards that carry it, linked or not. A chip puts its star out; the button beside it opens its settings — call it something else, colour it, put a card in by hand.",
       },
       keyboard: {
         title: "The map from the keyboard",
@@ -2273,6 +2484,18 @@ const en = {
         body: "This button reopens it whenever you like, in full or only for the page you are on. Happy collecting.",
       },
     },
+  },
+
+  boundary: {
+    title: "This page would not open.",
+    body: "Nothing is lost: the binder keeps what it has. You can try again, or change tab.",
+    detail: "the detail",
+  },
+
+  errors: {
+    notABackup: "This file is not a Ciné Hub backup.",
+    storageFull: "Storage is full — the object was not added.",
+    viewNotSaved: "The arrangement could not be saved — storage is full.",
   },
 } as const;
 

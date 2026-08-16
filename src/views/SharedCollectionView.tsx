@@ -151,7 +151,7 @@ export function SharedCollectionView({ address }: { address: Address }) {
         >
           CINÉ HUB — une vidéothèque qui vit chez soi.{" "}
           <a href={location.pathname} style={{ color: C.burgundy }}>
-            OUVRIR LA MIENNE
+            {t("shared.openMine")}
           </a>
         </div>
       </div>

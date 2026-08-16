@@ -836,7 +836,7 @@ export const DecorItem = React.memo(function DecorItem({
                   }
                 }}
                 onClick={(e) => e.stopPropagation()}
-                aria-label="Nom de l'intercalaire"
+                aria-label={t("shelf.dividerName")}
                 style={{
                   all: "unset",
                   boxSizing: "border-box",
@@ -897,7 +897,7 @@ export const DecorItem = React.memo(function DecorItem({
                 e.stopPropagation();
                 onEdit(item.id);
               }}
-              title="Couleur, taille, retrait"
+              title={t("shelf.colourSizeIndent")}
               aria-label={`Réglages de « ${item.label || "sans nom"} »`}
               style={{
                 all: "unset",
@@ -1325,7 +1325,7 @@ export const CategoryBox = React.memo(function CategoryBox({
                 alignSelf: "flex-end",
               }}
             >
-              glissez-y des films
+              {t("shelf.dropFilmsHere")}
             </div>
           )}
           {boxes}

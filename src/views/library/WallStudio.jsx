@@ -67,7 +67,12 @@ function CardsTab({ look, set }) {
         value={look.mess}
         onPick={(mess) => set({ mess })}
       />
-      <Choice title="ACCROCHE" catalog={HANGS} value={look.hang} onPick={(hang) => set({ hang })} />
+      <Choice
+        title={t("wallStudio.stamp")}
+        catalog={HANGS}
+        value={look.hang}
+        onPick={(hang) => set({ hang })}
+      />
     </>
   );
 }
@@ -96,12 +101,12 @@ export function WallStudio({ look, onChange, onReset, onClose }) {
               color: C.inkFaded,
             }}
           >
-            ATELIER DU MUR
+            {t("wallStudio.studioStamp")}
           </div>
           <div style={{ flex: 1 }} />
           <button
             onClick={onReset}
-            title="Revenir au mur d'origine"
+            title={t("wallStudio.backToOriginal")}
             style={{
               all: "unset",
               ...tap,
@@ -120,7 +125,7 @@ export function WallStudio({ look, onChange, onReset, onClose }) {
               reader announces "button" and nothing else. */}
           <button
             onClick={onClose}
-            aria-label="Fermer l'atelier"
+            aria-label={t("wallStudio.closeStudio")}
             style={{ all: "unset", cursor: "pointer", color: C.inkFaded }}
           >
             <X size={13} />

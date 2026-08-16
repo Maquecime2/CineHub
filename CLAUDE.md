@@ -56,6 +56,64 @@ décoration — un portrait, un nom de réalisateur — il reste le bon choix.
 manuscrite dans la marge, jamais deux à la fois, `aria-live` compris. Ce n'est
 pas une bulle de matériau — ce produit est un carnet.
 
+## LE MOTIF EST LE RASSEMBLEMENT
+
+**IL Y A EU DEUX OBJETS ICI, ET C'ÉTAIT TOUT LE PROBLÈME.** On posait un
+**motif** sur une fiche, puis on le promouvait en **fil** — un second objet, avec
+son nom, sa couleur, son identifiant. Rien à l'écran ne disait à quoi servait la
+promotion, le bouton restait identique une fois le fil créé, et depuis une
+seconde fiche portant le même motif le clic partait en silence vers la carte :
+on croyait avoir fait quelque chose, on n'avait rien fait. Pire, `label` était
+une COPIE du libellé du motif — qu'un motif de catalogue n'a pas — donc le fil
+partait sur le disque avec `label: undefined` et la lecture suivante plantait au
+montage de `App`.
+
+Désormais : **un motif posé sur `STAR_FROM` fiches (deux) est une étoile de la
+carte**, sans que personne le demande. La clé `localStorage` reste `"fils"`, mais
+ce qu'elle tient n'est plus une liste d'objets — ce sont des **écarts** au défaut
+(un nom réécrit, une couleur, une note, une fiche mise à la main, l'étoile
+éteinte). Pas d'écart, pas de ligne stockée : `isPlainDefault` l'efface.
+
+- **L'IDENTITÉ EST LE MOTIF**, jamais un identifiant tiré : deux lignes sur un
+  même motif ne peuvent plus exister, et un doublon venu d'une sauvegarde est
+  fusionné à la porte (`normalizeThreads`).
+- **`label` est un REMPLACEMENT, et rien d'autre.** Vide est le cas normal ;
+  `threadLabel` lit le catalogue. Y recopier le nom du motif fige la langue du
+  jour et contredit le catalogue à la première réétiquette.
+- `effectiveThreads` est **la seule porte** par laquelle le ciel lit les étoiles ;
+  `includeOff` est ce que lit le bandeau de pastilles, parce qu'on ne rallume pas
+  une étoile qu'on ne voit plus.
+- La couleur par défaut est **semée** sur l'identifiant du motif
+  (`colorForMotif`) : `CAT_KEYS[fils.length % …]` la faisait dépendre du nombre
+  de rassemblements existant le jour de la création, et toutes les couleurs
+  glissaient quand on en effaçait un plus ancien.
+- **Le fil « à la main » (`motif: null`) n'existe plus** : c'est un motif perso,
+  que le sélecteur crée déjà, auquel on ajoute des fiches. Une notion en moins.
+- `MotifPanel` (`components/film/MotifPanel.tsx`) est la moitié du modèle qui
+  n'était atteignable de nulle part : renommer, colorer, annoter, mettre et
+  retirer une fiche, éteindre, **revenir au défaut**, supprimer un motif perso.
+
+## Aucune phrase n'est écrite dans une vue
+
+`src/i18n/catalogue.test.ts` garde les deux catalogues l'un contre l'autre, et il
+le fait bien. Ce qu'il ne voit pas est le cas qui s'était accumulé : **une phrase
+qui n'atteint jamais un catalogue**. Il y en avait environ cent quatre-vingts, sur
+une trentaine de fichiers — des panneaux entiers en français dans un écran
+anglais, des libellés à moitié traduits (« Plus longue drought », « Strength du
+lien »), et les quatre onglets de l'almanach affichant `almanac.plate1` dans les
+deux langues parce que le `t()` n'était jamais appelé. Rien n'échouait.
+
+**`src/i18n/literals.test.ts` est cette garde.** Il refuse un littéral parlé dans
+`title=`, `label=`, `placeholder=`, `aria-label=` et le texte JSX direct.
+`EXEMPT` et `KEPT` sont courts **exprès** : quand ils grossissent, ce test ne
+protège plus rien.
+
+Une couche sans crochet — une classe (`Boundary`), un service, `db.js` — lit
+`i18n.t` sur l'instance. Ce qui reste en dur est de la **donnée** et non de
+l'affichage : `UNKNOWN_DIRECTOR`, le nom d'un rangement, le libellé par défaut
+d'une catégorie sont écrits dans le document de la vue, et les traduire figerait
+la langue du jour dans les données de quelqu'un.
+
 ## Le focus se voit
 
 `all: unset` est la convention des boutons du projet, et elle emporte le contour

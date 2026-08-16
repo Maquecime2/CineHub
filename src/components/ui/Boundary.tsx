@@ -32,6 +32,11 @@ import { Component } from "react";
 import type { ErrorInfo, ReactNode } from "react";
 import { C, F, alpha } from "../../theme/tokens";
 import { inked } from "../../theme/styles";
+/* A CLASS HAS NO HOOK. React only exposes `getDerivedStateFromError`
+   here, so the catalogue is read from the instance rather than from
+   `useTranslation` — the screen that says a view fell must not itself
+   depend on a hook it cannot call. */
+import i18n from "../../i18n";
 
 interface Props {
   children: ReactNode;
@@ -89,10 +94,10 @@ export class Boundary extends Component<Props, State> {
         }}
       >
         <div style={{ fontFamily: F.title, fontStyle: "italic", fontSize: 21, color: C.ink }}>
-          {this.props.what ?? "Cette page n'a pas voulu s'ouvrir."}
+          {this.props.what ?? i18n.t("boundary.title")}
         </div>
         <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded, marginTop: 8 }}>
-          Rien n'est perdu : le classeur garde ce qu'il a. On peut réessayer, ou changer d'onglet.
+          {i18n.t("boundary.body")}
         </div>
         {/* LE DÉTAIL EST LÀ, ET IL EST REPLIÉ. Une pile d'appels en
             grand sur un écran de lecture n'aide personne ; absente,
@@ -109,7 +114,7 @@ export class Boundary extends Component<Props, State> {
               color: C.inkFaded,
             }}
           >
-            le détail
+            {i18n.t("boundary.detail")}
           </summary>
           <pre
             style={{
@@ -130,7 +135,7 @@ export class Boundary extends Component<Props, State> {
           onClick={() => this.setState({ fallen: null })}
           style={{ ...inked(C.ink), marginTop: 14 }}
         >
-          réessayer
+          {i18n.t("common.retry")}
         </button>
       </div>
     );

@@ -142,7 +142,7 @@ export function SurfaceTab({ decor, set }) {
         ))}
       </Grid>
 
-      <Title>PAPIER PEINT</Title>
+      <Title>{t("surfaces.wallpaper")}</Title>
       <Grid>
         <NoneSwatch on={!decor?.pattern} onClick={() => set({ pattern: null })} />
         {Object.keys(PATTERNS).map((k) => (
@@ -162,7 +162,7 @@ export function SurfaceTab({ decor, set }) {
       {/* The ink only means something with a pattern to tint. */}
       {decor?.pattern && (
         <>
-          <Title>ENCRE DU MOTIF</Title>
+          <Title>{t("surfaces.patternInk")}</Title>
           <Grid>
             {CAT_FAMILIES.flatMap((f) => f.keys).map((k) => (
               <Swatch

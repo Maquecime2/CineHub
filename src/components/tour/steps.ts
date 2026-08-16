@@ -296,6 +296,16 @@ const detail: Tour = {
       placement: "left",
       optional: true,
     },
+    /* THE STAR, which replaced "make a thread of it". The step is
+       optional because it hangs on a motif being laid: an empty binder
+       must be able to play the tour to the end. */
+    {
+      target: at("motif-star"),
+      tab: "mots",
+      ...says("detail", "motifStar"),
+      placement: "left",
+      optional: true,
+    },
     /* FILING FROM THE CARD. The anchor has existed for a long time and
        no step described it; and what it does has changed — one can now
        make the list from here, where before the whole section vanished
@@ -373,7 +383,7 @@ const constellation: Tour = {
       placement: "bottom",
     },
     {
-      target: at("constellation-fils"),
+      target: at("constellation-motifs"),
       ...says("constellation", "threads"),
       placement: "bottom",
       optional: true,
