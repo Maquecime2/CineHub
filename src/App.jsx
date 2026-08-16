@@ -1,5 +1,6 @@
 import {
   useState,
+  useSyncExternalStore,
   useEffect,
   useMemo,
   useRef,
@@ -12,6 +13,10 @@ import { pruneOrphans } from "./db";
 import { CAT_KEYS } from "./shelf-views";
 import { C, F, FONT_IMPORT } from "./theme/tokens";
 import { applySkin, loadSkinKey, saveSkinKey } from "./theme/applySkin";
+import { skinOf } from "./theme/skins";
+import { paperLayer } from "./theme/surfaces";
+import { wornPaper, watchWorn } from "./theme/owned";
+import { Boundary } from "./components/ui/Boundary";
 import i18n, { loadLanguage, setLanguage } from "./i18n";
 import { uid, migrate, editLinkedWork } from "./domain/film";
 import { normalize } from "./domain/search";
@@ -56,6 +61,8 @@ import { DetailView } from "./views/DetailView";
 
 import { useNotes } from "./hooks/useNotes";
 import { useShelfViews } from "./hooks/useShelfViews";
+import { countPlacedMotifs } from "./shelf-views";
+import { saveSoon } from "./services/saving";
 import { TourOverlay, TourHint, TourMenu } from "./components/tour";
 import { shouldHint } from "./services/onboarding";
 import { demoFilms } from "./services/demo";
@@ -185,6 +192,17 @@ export default function App() {
      `metaKey` as much as `ctrlKey` — on a Mac, Ctrl+K clears to end of
      line in a field, and it is Cmd that commands. */
   const [skin, setSkin] = useState(loadSkinKey);
+  /* LE PAPIER SUIT LA PEAU. Il vit au serveur — c'est un article qu'on
+     porte — mais il se DESSINE, donc il doit être là au premier rendu et
+     hors ligne. La mémoire locale le tient, comme pour la peau.
+
+     ON S'Y ABONNE, ON NE LE SONDE PLUS. La première version le lisait au
+     montage et le relisait au retour de focus de la fenêtre : il fallait
+     donc RECHARGER LA PAGE pour voir le papier qu'on venait de porter,
+     puisqu'on le porte depuis le comptoir sans jamais quitter l'onglet.
+     `storage`, l'événement du stockage local, ne se déclenche que dans
+     les AUTRES onglets et n'aurait rien rattrapé. Voir `watchWorn`. */
+  const paper = useSyncExternalStore(watchWorn, wornPaper, wornPaper);
   const { t } = useTranslation();
   /* Le carnet est un tiroir, plus un onglet : voir `NotebookDrawer`. */
   const [notebookOpen, setNotebook] = useState(false);
@@ -718,12 +736,37 @@ export default function App() {
      `useRef` and not a module variable: two binders mounted side by side
      in a test would share the counter. */
   const writeRank = useRef(0);
-  const commitFilms = (next) => {
-    setFilms(next);
+  const write = (next) => {
     const rank = ++writeRank.current;
-    saveFilms(next).then((dated) => {
+    return saveFilms(next).then((dated) => {
       if (rank === writeRank.current) setFilms(dated);
     });
+  };
+
+  const commitFilms = (next) => {
+    setFilms(next);
+    write(next);
+  };
+
+  /* LA MÊME CHOSE, MAIS PAS TOUT DE SUITE — pour ce qu'on TAPE.
+
+     L'écran est à jour immédiatement, comme avant : c'est `setFilms` qui
+     le fait, et il n'a jamais été en cause. Ce qu'on diffère est
+     l'écriture, qui sérialise la collection ENTIÈRE dans le coffre — la
+     faire trente fois par phrase était du travail pour rien, et c'est
+     l'ill que le commentaire ci-dessus disait « déplacée » sans la
+     traiter.
+
+     LE RANG RESTE INDISPENSABLE, et il est maintenant DANS `write` :
+     l'écriture différée revient toujours après la frappe suivante, et
+     c'est exactement le défaut du « laoume s s ». Le grouper n'a fait
+     que l'espacer.
+
+     `saveSoon` garantit le départ avant fermeture de la page et avant
+     passage en arrière-plan — voir `services/saving`. */
+  const commitFilmsSoon = (next) => {
+    setFilms(next);
+    saveSoon(() => write(next));
   };
 
   const commitThreads = (next) => {
@@ -832,6 +875,11 @@ export default function App() {
     thread: () => setView("constellation"),
   };
   const updateFilm = (film) => commitFilms(films.map((f) => (f.id === film.id ? film : f)));
+  /* CE QU'ON TAPE PASSE PAR ICI. Même geste, écriture groupée : voir
+     `commitFilmsSoon`. La fiche s'en sert pour la critique, les notes
+     libres et la légende d'une capture — jamais pour un clic, qui EST
+     déjà une validation. */
+  const updateFilmSoon = (film) => commitFilmsSoon(films.map((f) => (f.id === film.id ? film : f)));
   /* Filing a case renumbers a whole shelf: one write, not thirty. */
   const updateMany = (patches) =>
     commitFilms(films.map((f) => (patches[f.id] ? { ...f, ...patches[f.id] } : f)));
@@ -1019,7 +1067,15 @@ export default function App() {
       grouped: false,
       sortBy: saved[wall]?.sortBy || WALLS[wall].defaultSort,
       desc: saved[wall]?.desc ?? true,
-      mode: saved[wall]?.mode || "wall",
+      /* L'ÉTAGÈRE EST LA VUE PRINCIPALE DE LA COLLECTION, et le mur
+         est l'autre angle. Le défaut disait l'inverse : on arrivait sur
+         une grille d'affiches, et le rangement — les rayons, les
+         boîtes, les objets posés — demandait un clic pour exister. Ce
+         classeur range ; il montre ensuite.
+
+         `saved[wall]?.mode` passe devant : c'est un défaut, pas une
+         reprise, et personne ne doit retrouver son choix renversé. */
+      mode: saved[wall]?.mode || "shelf",
       /* The shelves' width is no longer a wall setting: it belongs to
          each row, in the view. All that survives here is the view we
          were looking at. */
@@ -1049,6 +1105,10 @@ export default function App() {
     return kept && list.includes(kept) ? kept : list[0] || null;
   };
 
+  /* Recalculé quand une vue change, et pas à chaque rendu : le balayage
+     traverse toutes les vues, toutes leurs rangées et leurs boîtes. */
+  const placedMotifs = useMemo(() => countPlacedMotifs(views.docs), [views.docs]);
+
   /* Everything a wall's shelf needs, gathered in one place: the view it
      shows, the list of those to switch between, and the gestures that
      make them born, renamed or gone. */
@@ -1057,6 +1117,15 @@ export default function App() {
     return {
       shelfView: id ? views.docs[id] : null,
       shelfViews: (views.byWall[wall] || []).map((x) => views.docs[x]).filter(Boolean),
+      /* CE QUI EST DÉJÀ POSÉ, SUR TOUTES LES VUES ET LES DEUX MURS.
+
+         On pose autant d'exemplaires d'un objet gagné qu'on en possède,
+         et c'est ce qui donne un sens aux doubles. Le compte se fait
+         donc ICI, au seul endroit qui voie `views.docs` en entier :
+         une vue est une DISPOSITION de la même collection, pas une
+         étagère de plus, et compter par vue aurait offert un exemplaire
+         gratuit à chaque vue créée. */
+      placed: placedMotifs,
       onShelfView: shelf.commit,
       onPickView: (next) => setUiFor(wall)({ ...wallUi[wall], viewId: next }),
       onCreateView: (name) => setUiFor(wall)({ ...wallUi[wall], viewId: shelf.create(wall, name) }),
@@ -1094,6 +1163,16 @@ export default function App() {
        qu'un bouton absent. */
     return (
       <>
+        {/* LA FEUILLE GLOBALE MANQUAIT AUX DEUX ÉCRANS DE LA PORTE, et
+            elle y manquait depuis toujours. Elle n'était montée que dans
+            l'arbre du classeur et dans l'écran d'attente — c'est-à-dire
+            APRÈS être entré. Or c'est elle qui porte les polices, les
+            deux durées de mouvement, le bloc « moins d'animations », les
+            correctifs du téléphone et le contour de focus : la toute
+            première page qu'on voit du produit n'avait aucun des cinq.
+            Trouvé en regardant la page pour de vrai, pas en la
+            relisant. */}
+        <style>{FONT_IMPORT}</style>
         <PaperGrain />
         <Doorstep films={showcase} onTour={() => setTourId("global")} />
         {accountOpen && (
@@ -1118,7 +1197,12 @@ export default function App() {
     );
   }
   if (session === "unreachable") {
-    return <Unreachable busy={false} onRetry={() => setAttempt((n) => n + 1)} />;
+    return (
+      <>
+        <style>{FONT_IMPORT}</style>
+        <Unreachable busy={false} onRetry={() => setAttempt((n) => n + 1)} />
+      </>
+    );
   }
 
   if (!loaded || session === "asking") {
@@ -1157,6 +1241,33 @@ export default function App() {
     >
       <style>{FONT_IMPORT}</style>
       <PaperGrain />
+      {/* LE PAPIER, SOUS TOUT ET SUR LE FOND DE PEAU.
+
+          C'est une COUCHE et non un fond : le fond de la page est une
+          recette de la peau — plusieurs dégradés superposés — et lui
+          ajouter une image l'aurait remplacée au lieu de s'y ajouter.
+
+          Il prend l'encre de la peau EN COURS, résolue : un `var()`
+          écrit dans un SVG embarqué ne résout rien, il n'a pas la racine
+          du document pour parent. C'est la même contrainte que les
+          motifs de l'étagère, et c'est pour cela que `paperLayer` prend
+          une couleur et jamais un jeton.
+
+          Il vient de la mémoire locale, comme la peau : une page qui
+          attend le réseau pour savoir sur quel papier elle est écrite
+          est une page qui clignote à chaque ouverture. */}
+      {paperLayer(paper, skinOf(skin).c.ink) && (
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 1,
+            pointerEvents: "none",
+            ...paperLayer(paper, skinOf(skin).c.ink),
+          }}
+        />
+      )}
       <FolderTabs
         view={view}
         setView={(v) => {
@@ -1293,116 +1404,132 @@ export default function App() {
             de la colonne ne dit rien, ce qui est exactement ce qu'il y a
             à dire pendant si peu de temps — et surtout elle ne fait pas
             sauter la mise en page en arrivant. */}
-          <Suspense fallback={<div style={{ minHeight: "60vh" }} aria-hidden />}>
-            {view === "library" && !selectedId && (
-              <LibraryView
-                onDeleteFilms={deleteFilms}
-                wall="watched"
-                films={watched}
-                ui={wallUi.watched}
-                setUi={setUiFor("watched")}
-                onUpdateMany={updateMany}
-                {...viewProps("watched")}
-                onOpen={openFilm}
-                onImport={openImport}
-                onAdd={() => setShowModal(true)}
-              />
-            )}
-            {view === "watchlist" && !selectedId && (
-              <LibraryView
-                onDeleteFilms={deleteFilms}
-                wall="watchlist"
-                films={watchlist}
-                allFilms={films}
-                ui={wallUi.watchlist}
-                setUi={setUiFor("watchlist")}
-                onUpdateMany={updateMany}
-                {...viewProps("watchlist")}
-                onOpen={openFilm}
-                onImport={openImport}
-                onAdd={() => setShowModal(true)}
-              />
-            )}
-            {view === "detail" && selectedFilm && (
-              <DetailView
-                film={selectedFilm}
-                films={films}
-                signedIn={!!synchro.person}
-                /* THE TAB IS HELD HERE, as the view already is: the guided
+          {/* LA DIGUE EST DEHORS, LE SUSPENSE DEDANS, et cet ordre est
+              le seul qui marche. `Suspense` connaît l'ATTENTE, jamais
+              l'ÉCHEC : un `import()` refusé — un déploiement pendant
+              qu'un onglet est ouvert, un réseau coupé — le traverse et
+              démonte l'arbre entier. Il n'y avait aucune frontière
+              d'erreur dans tout le projet, donc une page blanche, sans
+              rail ni message.
+
+              `resetKey` porte la vue : une vue tombée doit se relever
+              quand on change d'onglet, sans quoi le rail deviendrait
+              inerte après la première chute. */}
+          <Boundary resetKey={view} what={t("trouble.viewFell")}>
+            <Suspense fallback={<div style={{ minHeight: "60vh" }} aria-hidden />}>
+              {view === "library" && !selectedId && (
+                <LibraryView
+                  onDeleteFilms={deleteFilms}
+                  wall="watched"
+                  films={watched}
+                  ui={wallUi.watched}
+                  setUi={setUiFor("watched")}
+                  onUpdateMany={updateMany}
+                  {...viewProps("watched")}
+                  onOpen={openFilm}
+                  onImport={openImport}
+                  onAdd={() => setShowModal(true)}
+                />
+              )}
+              {view === "watchlist" && !selectedId && (
+                <LibraryView
+                  onDeleteFilms={deleteFilms}
+                  wall="watchlist"
+                  films={watchlist}
+                  allFilms={films}
+                  ui={wallUi.watchlist}
+                  setUi={setUiFor("watchlist")}
+                  onUpdateMany={updateMany}
+                  {...viewProps("watchlist")}
+                  onOpen={openFilm}
+                  onImport={openImport}
+                  onAdd={() => setShowModal(true)}
+                />
+              )}
+              {view === "detail" && selectedFilm && (
+                <DetailView
+                  film={selectedFilm}
+                  films={films}
+                  signedIn={!!synchro.person}
+                  /* THE TAB IS HELD HERE, as the view already is: the guided
                tour must be able to open "Links" before going there to
                find the red thread. See `visiteOuvreOnglet`. */
-                tab={detailTab}
-                onTab={setDetailTab}
-                onBack={() => {
-                  setView(backView);
-                  setSelectedId(null);
-                }}
-                /* `credits.` AND NOT `detail.`: the sentence has always lived
+                  tab={detailTab}
+                  onTab={setDetailTab}
+                  onBack={() => {
+                    setView(backView);
+                    setSelectedId(null);
+                  }}
+                  /* `credits.` AND NOT `detail.`: the sentence has always lived
                  with the credits, and this asked for it under the card's
                  own heading — so the back link read
                  "detail.backToCredits", in full, on screen. */
-                backTo={who ? i18n.t("credits.backToCredits") : undefined}
-                onUpdate={updateFilm}
-                onDelete={deleteFilm}
-                onLinkFilm={linkFilms}
-                onRemoveLink={removeLink}
-                onEditLink={editLink}
-                onMakeThread={makeThreadFromMotif}
-                vocabulary={vocabulary}
-                onCreateMotif={createMotif}
-                onDeleteMotif={deleteMotif}
-                onHideMotif={hideMotif}
-                onOpen={(id) => setSelectedId(id)}
-                onOpenPerson={openPerson}
-                onAddToWatchlist={addFilm}
-              />
-            )}
-            {view === "credits" && (
-              <CreditsView
-                films={films}
-                who={who}
-                onOpenPerson={setPerson}
-                onOpen={openFilm}
-                onAddToWatchlist={addFilm}
-              />
-            )}
-            {view === "reco" && (
-              <RecoView films={films} onAddToWatchlist={addFilm} onOpen={openFilm} />
-            )}
-            {view === "constellation" && (
-              <ConstellationView
-                films={constellationFilms}
-                fils={fils}
-                onLinkFilm={linkFilms}
-                onOpen={openFilm}
-              />
-            )}
-            {/* The almanac reads the screening log: so it looks at the cards
+                  backTo={who ? i18n.t("credits.backToCredits") : undefined}
+                  onUpdate={updateFilm}
+                  onUpdateSoon={updateFilmSoon}
+                  onDelete={deleteFilm}
+                  onLinkFilm={linkFilms}
+                  onRemoveLink={removeLink}
+                  onEditLink={editLink}
+                  onMakeThread={makeThreadFromMotif}
+                  vocabulary={vocabulary}
+                  onCreateMotif={createMotif}
+                  onDeleteMotif={deleteMotif}
+                  onHideMotif={hideMotif}
+                  onOpen={(id) => setSelectedId(id)}
+                  onOpenPerson={openPerson}
+                  onAddToWatchlist={addFilm}
+                />
+              )}
+              {view === "credits" && (
+                <CreditsView
+                  films={films}
+                  who={who}
+                  onOpenPerson={setPerson}
+                  onOpen={openFilm}
+                  onAddToWatchlist={addFilm}
+                />
+              )}
+              {view === "reco" && (
+                <RecoView films={films} onAddToWatchlist={addFilm} onOpen={openFilm} />
+              )}
+              {view === "constellation" && (
+                <ConstellationView
+                  films={constellationFilms}
+                  fils={fils}
+                  onLinkFilm={linkFilms}
+                  onOpen={openFilm}
+                />
+              )}
+              {/* The almanac reads the screening log: so it looks at the cards
             WATCHED, including those set aside in the reserve — having
             archived them does not make them unwatched. */}
-            {view === "almanac" && <AlmanacView films={watched} onOpenPerson={openPerson} />}
-            {view === "thread" && <ThreadView connected={!!synchro.person} />}
-            {view === "lists" && <ListsView connected={!!synchro.person} />}
-            {view === "quiz" && <QuizView connected={!!synchro.person} />}
-            {view === "counter" && <CounterView connected={!!synchro.person} />}
-            {view === "skinlab" && import.meta.env.DEV && <SkinLab />}
-            {view === "import" && (
-              <ImportView
-                onImport={importFilms}
-                films={films}
-                notes={notebook.notes}
-                dividers={dividers}
-                views={views}
-                fils={fils}
-                motifs={vocabulary}
-                onRestore={restoreBackup}
-                onSeeWall={() => {
-                  setSelectedId(null);
-                  setView(HOME);
-                }}
-              />
-            )}
-          </Suspense>
+              {view === "almanac" && <AlmanacView films={watched} onOpenPerson={openPerson} />}
+              {view === "thread" && <ThreadView connected={!!synchro.person} />}
+              {view === "lists" && <ListsView connected={!!synchro.person} />}
+              {view === "quiz" && <QuizView connected={!!synchro.person} />}
+              {view === "counter" && (
+                <CounterView connected={!!synchro.person} onGo={(where) => setView(where)} />
+              )}
+              {view === "skinlab" && import.meta.env.DEV && <SkinLab />}
+              {view === "import" && (
+                <ImportView
+                  onImport={importFilms}
+                  films={films}
+                  notes={notebook.notes}
+                  dividers={dividers}
+                  views={views}
+                  fils={fils}
+                  motifs={vocabulary}
+                  onRestore={restoreBackup}
+                  onSeeWall={() => {
+                    setSelectedId(null);
+                    setView(HOME);
+                  }}
+                />
+              )}
+            </Suspense>
+          </Boundary>
         </div>
       </div>
       {notebookOpen && (

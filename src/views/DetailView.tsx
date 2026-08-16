@@ -23,6 +23,7 @@ import { searchFilms } from "../domain/search";
 import { putImage } from "../db";
 import { noteMedia } from "../services/media";
 import { imageSize, shrinkImage } from "../services/images";
+import { Saved } from "../components/ui/Saved";
 import {
   Cardstock,
   Confirmation,
@@ -143,6 +144,11 @@ interface DetailViewProps {
   /** What the back button announces. Default: "RETOUR AU MUR". */
   backTo?: string;
   onUpdate: (f: Film) => void;
+  /* CE QU'ON TAPE, écrit un peu après la dernière touche plutôt qu'à
+     chacune. Facultatif : sans lui, tout retombe sur `onUpdate` et le
+     comportement est celui d'avant — c'est ce qui permet de monter
+     cette vue dans un test sans monter tout le classeur. */
+  onUpdateSoon?: (f: Film) => void;
   onDelete: (id: string) => void;
   films?: Film[];
   /** Links two cards of the wall: the link is laid on both sides, the
@@ -188,6 +194,7 @@ export function DetailView({
   onBack,
   backTo,
   onUpdate,
+  onUpdateSoon,
   onDelete,
   films = [],
   onLinkFilm,
@@ -207,6 +214,9 @@ export function DetailView({
 }: DetailViewProps) {
   const { t: t2 } = useTranslation();
   const apiKey = useTmdbKey();
+  /* Le repli sur `onUpdate` n'est pas une politesse : c'est ce qui fait
+     que cette vue se monte seule, dans un test, sans le classeur. */
+  const saveText = onUpdateSoon ?? onUpdate;
   /* The local fallback follows the controlled one rather than fight it:
      one or the other answers, never both at once. */
   const [ongletLocal, setOngletLocal] = useState<CardTab>("film");
@@ -438,7 +448,7 @@ export function DetailView({
             from somebody's folder does not send you back to the wall
             from there, and announcing it that way would be one more
             lie. */}
-        <ArrowLeft size={14} /> {backTo || "RETOUR AU MUR"}
+        <ArrowLeft size={14} /> {backTo || t2("detail.backToWall")}
       </button>
 
       {/* ---- THE COVER, WHICH DOES NOT CHANGE TAB ----
@@ -489,7 +499,7 @@ export function DetailView({
               color: C.ink,
             }}
           >
-            {film.title || "Sans titre"}
+            {film.title || t2("detail.untitled")}
           </div>
           <div style={{ fontFamily: F.mono, fontSize: 11.5, color: C.inkFaded, marginTop: 7 }}>
             {[film.year || null, film.director || null].filter(Boolean).join("  ·  ")}
@@ -669,7 +679,7 @@ export function DetailView({
                 label="Critique personnelle"
                 minHeight={120}
                 value={film.review || ""}
-                onChange={(review) => onUpdate({ ...film, review })}
+                onChange={(review) => saveText({ ...film, review })}
                 stills={stills}
                 onOpenStill={setLightbox}
                 onInsertToken={(fn) => {
@@ -677,6 +687,12 @@ export function DetailView({
                 }}
                 placeholder={t2("detail.reviewPlaceholder")}
               />
+              {/* LA MENTION EST SOUS LA CRITIQUE, ET SOUS ELLE SEULE.
+                  C'est le seul texte long du produit — celui qu'on écrit
+                  d'un bloc, et le seul devant lequel on se demande si ça
+                  part quelque part. La répéter sous chaque champ en
+                  ferait un meuble. */}
+              <Saved />
             </Cardstock>
             <Cardstock
               onFocusCapture={() => setFocusField("notes")}
@@ -689,7 +705,7 @@ export function DetailView({
                 label="Notes libres"
                 minHeight={70}
                 value={film.notes || ""}
-                onChange={(notes) => onUpdate({ ...film, notes })}
+                onChange={(notes) => saveText({ ...film, notes })}
                 stills={stills}
                 onOpenStill={setLightbox}
                 onInsertToken={(fn) => {
@@ -709,6 +725,11 @@ export function DetailView({
             <div style={{ marginTop: 18 }}>
               <StillsStrip
                 film={film}
+                /* PAS DE `onUpdateSoon` ICI, ET CE N'EST PAS UN OUBLI :
+                   la légende d'une capture part déjà au FLOU du champ,
+                   ce qui est plus fort qu'un délai — le geste de sortir
+                   du champ est une validation, et il n'y a rien à
+                   grouper puisqu'il n'arrive qu'une fois. */
                 onUpdate={onUpdate}
                 onOpen={setLightbox}
                 onInsert={insertToken}

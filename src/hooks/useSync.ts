@@ -19,10 +19,17 @@
    ============================================================ */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { lastReport, pending, synchronise, type SyncReport } from "../services/sync";
+import { onWritten } from "../services/saving";
 import { serverConfigured, lastKnownPerson, type Person } from "../services/server";
 import type { Film } from "../types";
 
 const RHYTHM_MS = 5 * 60 * 1000;
+
+/* Le délai entre la dernière écriture et la passe qu'elle déclenche.
+   Dix secondes : assez pour que ranger dix fiches ne fasse qu'une
+   passe, assez peu pour que le tiroir du compte, ouvert dans la foulée,
+   n'annonce plus rien en attente. */
+const AFTER_WRITE_MS = 10 * 1000;
 
 export function useSync(
   ready: boolean,
@@ -125,10 +132,32 @@ export function useSync(
     document.addEventListener("visibilitychange", onVisible);
     const timer = setInterval(run, RHYTHM_MS);
 
+    /* ET UNE PASSE PEU APRÈS UNE ÉCRITURE.
+
+       Le rythme de cinq minutes est fait pour un classeur qu'on laisse
+       ouvert ; il est très long pour quelqu'un qui vient de faire
+       quelque chose. On voyait donc « 1 fiche attend le réseau » en
+       ouvrant le tiroir juste après un import, ce qui se lit comme
+       « ça n'a pas été enregistré » alors que tout l'est depuis
+       longtemps sur le disque.
+
+       DIX SECONDES APRÈS LA DERNIÈRE ÉCRITURE, et pas après chaque
+       geste : `saveSoon` a déjà groupé les frappes, et ce délai
+       regroupe encore ce qui suit — ranger dix fiches ne fait pas dix
+       passes. `run` se garde lui-même contre le recouvrement
+       (`running`). */
+    let soon: ReturnType<typeof setTimeout> | null = null;
+    const stopWatching = onWritten(() => {
+      if (soon) clearTimeout(soon);
+      soon = setTimeout(run, AFTER_WRITE_MS);
+    });
+
     return () => {
       window.removeEventListener("online", onOnline);
       document.removeEventListener("visibilitychange", onVisible);
       clearInterval(timer);
+      stopWatching();
+      if (soon) clearTimeout(soon);
     };
   }, [ready, run]);
 

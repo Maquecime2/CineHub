@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Confirmation, type ConfirmRequest } from "../../components/ui/Confirmation";
 import { useTranslation } from "react-i18next";
 import { C, F } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
@@ -50,7 +51,8 @@ export function BackupPanel({
   const { t } = useTranslation();
   const [stats, setStats] = useState<PosterStats | null>(null);
   const [waiting, setWaiting] = useState(0);
-  const [msg, setMsg] = useState("");
+  const [msg, setMsg] = useState<string | null>("");
+  const [request, setRequest] = useState<ConfirmRequest | null>(null);
   /* `unknown` au départ, et pas `fragile` : tant qu'on n'a pas la
      réponse, on n'annonce rien — surtout pas une alarme. */
   const [vault, setVault] = useState<Vault>("unknown");
@@ -92,34 +94,48 @@ export function BackupPanel({
     setMsg(t("backup.downloaded", { count: films.length }));
   };
 
-  const restore = async (file: File) => {
+  /* RESTAURER REMPLACE TOUT, ET NE DEMANDAIT RIEN.
+
+     C'est le geste le plus destructeur du produit — fiches, carnet,
+     fils, motifs, étagères — et il partait sur un clic dans un sélecteur
+     de fichiers, sans un mot. On lit le fichier D'ABORD, pour pouvoir
+     annoncer un CHIFFRE : « remplacer par 612 fiches » se décide, « êtes
+     vous sûr » ne se décide pas. */
+  const askRestore = async (file: File) => {
     setMsg("lecture…");
+    let read;
     try {
-      const {
-        films: f,
-        notes: n,
-        dividers: d,
-        fils: fl,
-        motifs: mo,
-      } = await importBackup(JSON.parse(await file.text()));
-      /* KNOWN BUG, behaviour kept as it is by the refactor: the v4
-         backup contains the shelf views and `importBackup` returns them,
-         but they are not passed on here. On restoring, App therefore
-         falls back on rebuilding from the dividers and the recorded
-         arrangement is lost. */
-      setMsg(
-        `${onRestore({
-          films: f as Film[],
-          notes: n as Note[],
-          dividers: d as Divider[],
-          views: null,
-          fils: (fl || []) as Thread[],
-          motifs: (mo || { custom: [], hidden: [] }) as Vocabulary,
-        })} fiche(s) restaurée(s).`
-      );
+      read = await importBackup(JSON.parse(await file.text()));
     } catch (e) {
-      setMsg((e as Error).message || "Sauvegarde illisible.");
+      return setMsg((e as Error).message || "Sauvegarde illisible.");
     }
+    setMsg(null);
+    const count = (read.films as Film[]).length;
+    setRequest({
+      title: t("backup.confirmTitle"),
+      body: t("backup.confirmBody", { count }),
+      action: t("backup.confirmAction"),
+      severe: true,
+      onConfirm: () => restore(read),
+    });
+  };
+
+  const restore = (read: Awaited<ReturnType<typeof importBackup>>) => {
+    /* KNOWN BUG, behaviour kept as it is by the refactor: the v4
+       backup contains the shelf views and `importBackup` returns them,
+       but they are not passed on here. On restoring, App therefore
+       falls back on rebuilding from the dividers and the recorded
+       arrangement is lost. */
+    setMsg(
+      `${onRestore({
+        films: read.films as Film[],
+        notes: read.notes as Note[],
+        dividers: read.dividers as Divider[],
+        views: null,
+        fils: (read.fils || []) as Thread[],
+        motifs: (read.motifs || { custom: [], hidden: [] }) as Vocabulary,
+      })} fiche(s) restaurée(s).`
+    );
   };
 
   return (
@@ -215,7 +231,7 @@ export function BackupPanel({
         type="file"
         accept=".json"
         style={{ display: "none" }}
-        onChange={(e) => e.target.files?.[0] && restore(e.target.files[0])}
+        onChange={(e) => e.target.files?.[0] && void askRestore(e.target.files[0])}
       />
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         <button
@@ -252,6 +268,7 @@ export function BackupPanel({
       {msg && (
         <div style={{ fontFamily: F.hand, fontSize: 18, color: C.pine, marginTop: 10 }}>{msg}</div>
       )}
+      <Confirmation request={request} onClose={() => setRequest(null)} />
     </div>
   );
 }
