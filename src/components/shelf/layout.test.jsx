@@ -133,9 +133,7 @@ describe("PerRowField — auto, or a number one writes", () => {
    rather than the page. */
 describe("DecorCabinet", () => {
   const open = () =>
-    render(
-      <DecorCabinet kind="main" onDragStart={vi.fn()} onDragEnd={vi.fn()} onClose={vi.fn()} />
-    );
+    render(<DecorCabinet onDragStart={vi.fn()} onDragEnd={vi.fn()} onClose={vi.fn()} />);
 
   it("shows every motif in the cabinet, whatever way it draws itself", () => {
     open();
@@ -150,9 +148,7 @@ describe("DecorCabinet", () => {
 
   it("takes an object out of the cabinet by its motif", async () => {
     const onDragStart = vi.fn();
-    render(
-      <DecorCabinet kind="main" onDragStart={onDragStart} onDragEnd={vi.fn()} onClose={vi.fn()} />
-    );
+    render(<DecorCabinet onDragStart={onDragStart} onDragEnd={vi.fn()} onClose={vi.fn()} />);
     // the native drag cannot be simulated; the event can
     screen.getByTitle("Intercalaire").dispatchEvent(
       Object.assign(new Event("dragstart", { bubbles: true }), {
@@ -162,14 +158,16 @@ describe("DecorCabinet", () => {
     expect(onDragStart).toHaveBeenCalledWith("divider", expect.anything());
   });
 
-  /* IT USED TO ASSERT THE BROKEN SENTENCE. "rayon targeted" is what an
-     automated FR→EN pass left behind, hard-coded in the component; the
-     test pinned it there, and so made the damage look deliberate. The
-     sentence is in the catalogues now, and this reads the shelf's name
-     rather than the wreckage around it. */
-  it("says which shelf is being aimed at", () => {
+  /* IL AFFIRMAIT QUE LE CABINET VISAIT UN RAYON, ce qui était faux : le
+     LÂCHER décide où l'objet se pose, et un objet pris depuis le chevet
+     se dépose très bien sur le rayon principal. Le cabinet s'ouvrait
+     depuis le haut de chaque planche et annonçait la sienne ; il y a
+     maintenant un seul bouton, hors des planches, et la phrase dit ce
+     qui est vrai. */
+  it("dit que le lâcher décide, et ne vise plus un rayon", () => {
     open();
-    expect(screen.getByText(/rayon visé/)).toHaveTextContent("La collection");
+    expect(screen.queryByText(/rayon visé/)).toBeNull();
+    expect(screen.getByText(/là où vous le lâchez/)).toBeInTheDocument();
   });
 });
 

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  countPlacedMotifs,
   SHELF_KINDS,
   CAT_KEYS,
   belongs,
@@ -940,5 +941,63 @@ describe("the view's decor", () => {
     ]) {
       expect(wallDecorOf(pass(v))).toEqual({ paint: "terracotta", texture: "crepi" });
     }
+  });
+});
+
+/* ============================================================
+   LE PLAFOND DE POSE
+
+   On pose autant d'exemplaires qu'on en possède. Le compte se fait sur
+   TOUTES les vues à la fois — une vue est une disposition de la même
+   collection, pas une étagère de plus — et il traverse les boîtes, qui
+   étaient la façon la plus simple de le contourner.
+   ============================================================ */
+describe("countPlacedMotifs", () => {
+  const viewWith = (id, items, wall = []) => {
+    const v = makeView({ id, wall: "watched", name: id, now: 1 });
+    v.shelves.main.rows[0].items.push(...items);
+    v.shelves.main.wall = wall;
+    return v;
+  };
+
+  it("ne compte rien sur un classeur vide", () => {
+    expect(countPlacedMotifs({})).toEqual({});
+    expect(countPlacedMotifs(undefined)).toEqual({});
+  });
+
+  it("compte les objets posés, par motif", () => {
+    const v = viewWith("v1", [
+      makeDecor({ id: "d1", motif: "won:lampe" }),
+      makeDecor({ id: "d2", motif: "won:lampe" }),
+      makeDecor({ id: "d3", motif: "plante" }),
+    ]);
+    expect(countPlacedMotifs({ v1: v })).toEqual({ "won:lampe": 2, plante: 1 });
+  });
+
+  /* LE POINT DU BLOC : deux vues sont deux dispositions, pas deux
+     étagères. Compter par vue aurait donné un exemplaire gratuit par
+     vue créée. */
+  it("additionne à travers les vues", () => {
+    const a = viewWith("v1", [makeDecor({ id: "d1", motif: "won:lampe" })]);
+    const b = viewWith("v2", [makeDecor({ id: "d2", motif: "won:lampe" })]);
+    expect(countPlacedMotifs({ v1: a, v2: b })["won:lampe"]).toBe(2);
+  });
+
+  it("compte aussi ce qui est accroché au fond", () => {
+    const v = viewWith("v1", [], [makeWallDecor({ id: "w1", motif: "won:cadran" })]);
+    expect(countPlacedMotifs({ v1: v })["won:cadran"]).toBe(1);
+  });
+
+  /* RANGER DANS UNE BOÎTE NE FAIT PAS DISPARAÎTRE : sans cette ligne, le
+     plafond se contourne en glissant l'objet dans une catégorie. */
+  it("voit ce qui est rangé dans une boîte", () => {
+    const box = makeCat({ id: "c1", items: [makeDecor({ id: "d1", motif: "won:lampe" })] });
+    const v = viewWith("v1", [box]);
+    expect(countPlacedMotifs({ v1: v })["won:lampe"]).toBe(1);
+  });
+
+  it("ne compte pas les films", () => {
+    const v = viewWith("v1", [filmItem("f1"), makeDecor({ id: "d1", motif: "won:lampe" })]);
+    expect(countPlacedMotifs({ v1: v })).toEqual({ "won:lampe": 1 });
   });
 });

@@ -1118,3 +1118,52 @@ export function duplicateView(view, { name, now = 0 } = {}) {
     shelves,
   };
 }
+
+/* ============================================================
+   COMBIEN D'UN MÊME OBJET EST DÉJÀ POSÉ
+   ============================================================
+
+   ON POSE AUTANT D'EXEMPLAIRES QU'ON EN POSSÈDE, ET PAS UN DE PLUS.
+   C'est la règle qui donne un sens aux doubles : sans elle, tirer deux
+   fois la même lanterne ne changeait rien — un objet obtenu une fois se
+   posait partout, autant de fois qu'on voulait, et le second exemplaire
+   ne valait rien.
+
+   ET LE COMPTE EST SUR TOUTES LES VUES À LA FOIS. C'est le point
+   délicat : une vue est une DISPOSITION de la même collection, pas une
+   étagère de plus. Compter par vue aurait laissé poser la même lanterne
+   dans chacune — autant d'exemplaires que de vues, gratuitement. On
+   balaie donc `docs` en entier, les rangées ET les fonds de rangée.
+
+   PUREMENT ICI, comme tout ce fichier : ni React ni stockage. C'est la
+   couche où une erreur ne se voit pas à l'écran mais fausse un décompte,
+   d'où les épreuves qui vont avec.
+
+   Les objets de la maison ne sont PAS comptés par l'appelant : ils sont
+   inépuisables, et cette fonction ne le sait pas — elle compte des
+   motifs, et c'est au cabinet de décider lesquels ont un plafond. */
+export function countPlacedMotifs(docs) {
+  const seen = {};
+  const bump = (motif) => {
+    if (motif) seen[motif] = (seen[motif] || 0) + 1;
+  };
+
+  for (const doc of Object.values(docs || {})) {
+    for (const kind of SHELF_KINDS) {
+      const shelf = doc?.shelves?.[kind];
+      if (!shelf) continue;
+      for (const row of shelf.rows || []) {
+        for (const it of row.items || []) {
+          if (it.t === "d") bump(it.motif);
+          /* UNE BOÎTE CONTIENT AUSSI DES OBJETS, et les oublier était la
+             façon la plus simple de rendre le plafond contournable :
+             range une lanterne dans une catégorie, et elle cesse d'être
+             comptée. */
+          else if (it.t === "c") for (const s of it.items || []) if (s.t === "d") bump(s.motif);
+        }
+      }
+      for (const w of shelf.wall || []) bump(w.motif);
+    }
+  }
+  return seen;
+}

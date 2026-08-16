@@ -30,6 +30,45 @@ carton ; la nouveauté n'entre qu'en accent. Concrètement :
 - **Le verdict se dit par un MOT, pas par une couleur.** Vert pour juste et rouge
   pour faux disparaissent sous cinq des quatorze peaux. On tamponne.
 
+## Ce qu'une vue montre quand elle n'a rien à montrer
+
+Quatre états, quatre primitives, et aucune n'est à réécrire dans une vue :
+
+- `Waiting` (`components/ui`) — le squelette de lignes réglées, avec
+  `role="status"`. Une phrase muette dit à l'œil qu'on attend et ne le dit à
+  personne d'autre.
+- `Nothing` / `Guideline` — il n'y a rien, et c'est normal.
+- **`Trouble`** — on n'a pas pu demander. Une seule forme, avec `role="alert"` :
+  les échecs s'écrivaient sous cinq noms (`trouble`, `souci`, `msg`, `error`,
+  `keyState`) et cinq styles en ligne, et pas un seul n'était annoncé.
+- **`Boundary`** (`components/ui/Boundary.tsx`) — la vue est tombée. C'est la
+  seule classe du projet : React n'expose `getDerivedStateFromError` que là. Il
+  y en a une autour de la colonne de vue et une autour de la racine, parce que
+  la première ne se protège pas elle-même. `Suspense` connaît l'attente et
+  JAMAIS l'échec : un `import()` refusé le traverse.
+
+**« Il n'y a rien » et « on n'a pas pu demander » ne sont pas le même écran**, et
+les confondre est le défaut qu'on vient de retirer de quatre vues. Un
+`.catch(() => {})` sur un chargement de page en est toujours un ; sur une
+décoration — un portrait, un nom de réalisateur — il reste le bon choix.
+
+**`Feedback` / `useSay`** dit ce qui vient de se passer : une annotation
+manuscrite dans la marge, jamais deux à la fois, `aria-live` compris. Ce n'est
+pas une bulle de matériau — ce produit est un carnet.
+
+## Le focus se voit
+
+`all: unset` est la convention des boutons du projet, et elle emporte le contour
+de focus. Rien ne le remplaçait : **la navigation au clavier était invisible
+partout**. La règle `:focus-visible` est dans `FONT_IMPORT` (`theme/tokens.ts`),
+en deux traits — un à l'encre, une ombre claire dessous — pour qu'il en reste un
+visible sous les dix-sept peaux.
+
+Toute couche qui prend la main passe par **`useDialog`** (`hooks/useDialog.ts`) :
+le focus entre, y tourne en cycle, et **revient au bouton qui l'a ouverte**.
+Sans lui, ouvrir un panneau au clavier laisse le curseur derrière le voile, et le
+refermer renvoie au début du document.
+
 ## La visite guidée suit le produit
 
 `src/components/tour/steps.ts` est la description de ce que l'application sait
@@ -66,6 +105,68 @@ Le volet communautaire compte des points : `merit_event` est un JOURNAL, et
 **Aucune route ne prend un montant en entrée.** Le barème vit dans
 `server/src/points.ts` ; `src/domain/points.ts` en est une copie qui AFFICHE et
 ne crédite rien, et un test compare les deux tables.
+
+**`quiz_doubled` EST LA SEULE LIGNE QUI NE PAIE PAS DE MÉRITE**, et c'est
+délibéré. Elle vient du pouvoir « double mise », acheté avec des jetons : la
+doubler en mérite reviendrait à vendre des places au classement. `awardTokens`
+écrit donc `merit = 0` là où `award` écrit le même chiffre dans les deux
+colonnes. Le plafond quotidien ne s'y applique pas, et n'a pas à s'y appliquer —
+il garde ce qu'on DÉCLARE, et rien de ce qui passe par là n'est déclaré.
+
+**LE CATALOGUE N'EST PLUS ENTIÈREMENT DU CODE.** `server/src/shop.ts` tient les
+familles qui demandent du code pour être rendues — tampons, titres, papiers,
+peaux, pouvoirs. Les POCHETTES et les OBJETS D'ÉTAGÈRE vivent en base
+(`sql/002_collection.sql`, `pack_def` / `decor_def`) et se créent depuis le
+studio du comptoir, parce qu'une image et une rareté ne justifient pas un
+déploiement. `resolveItem` lit le code d'abord, la base ensuite : une ligne de
+`pack_def` ne peut donc pas usurper l'identifiant d'une peau et en changer le
+prix. **On retire, on n'efface jamais** : un identifiant est écrit dans la
+collection de tout le monde, et sur leurs étagères.
+
+**LES BIBELOTS NE SE DÉPOSENT PLUS, ILS SE TIRENT.** Chacun montait les siens ;
+`POST /decor` n'existe plus, et l'atelier du cabinet ne propose plus d'importer.
+Une pochette rend **UN** objet (`DRAWS`), tiré par le serveur dans le bassin de
+CETTE pochette, aux seuils habituels (700/950/1000).
+
+Tout le reste de `/decor` tient, et c'est voulu : on lit les siens, on les
+partage, on en prend copie, on les efface. **Fermer la porte d'entrée n'est pas
+vider la pièce** — personne ne perd ce qu'il avait posé. `createDecor` et
+`addCustomDecor` restent en place pour la synchronisation d'un appareil qui n'a
+pas encore vu ce changement.
+
+**CE QUI SORT D'UNE POCHETTE NE SE PARTAGE PAS**, et c'est la seule règle du lot
+qui protège le produit plutôt que les données : une personne généreuse qui
+ouvrirait sa collection viderait la boutique en un après-midi. D'où `decor_won`,
+séparée de `decor` — ni `is_public`, ni table de copie, ni route pour donner.
+Les ranger ensemble aurait mis le partage à une propriété de distance.
+
+**TROIS ORIGINES DE DÉCOR, ET `decorSpec` LES COUD.**
+`src/components/shelf/constants.tsx` est le seul endroit qui sait les trois : la
+maison (`DECOR_BY_KEY`, en mémoire), les gagnés (`won:<id>`,
+`services/wonDecor`), les déposés (`custom:<id>`, `services/customDecor`). Il est
+appelé au rendu de CHAQUE objet posé, donc tout y est synchrone et hors ligne —
+d'où le cache local de `wonDecor`, rempli par la lecture de `stall`
+(`hooks/useHall`) et jamais par une vue.
+
+`wall` et `tintable` sont les deux seules propriétés de dessin qui descendent en
+base : elles ne se devinent pas d'une image. Une image déposée s'affiche dans un
+`img`, où la couleur ne passe pas.
+
+**QUATRE CHOSES SE PORTENT**, une à la fois chacune : tampon, peau, papier,
+titre. La liste est `WEARABLE` dans `shop.ts`, et elle décide pour `buy`
+(`isUnique`), pour `wear`, pour le CTE de `sell` et pour la route `/shop/worn` —
+elle était recopiée à ces quatre endroits sous la forme « tampon ou peau », et
+deux familles de plus ont suffi à ce que trois d'entre eux se trompent.
+
+Une peau range sa CLÉ (`grants`), les trois autres rangent l'identifiant de
+l'article. `wear` reçoit toujours l'IDENTIFIANT et convertit : l'inverse
+vérifiait la possession sur une clé absente d'`owned`, et porter une peau
+achetée répondait 403, toujours.
+
+**Le papier n'est pas une peau.** Il ne réécrit rien : il dessine le grain du
+fond avec l'encre du thème en cours (`theme/surfaces.ts`, `paperLayer`), donc
+les six se combinent avec les dix-sept peaux. Comme tout SVG embarqué, il prend
+son encre RÉSOLUE en argument.
 
 Ce qu'on déclare soi-même (séances, notes, critiques) est plafonné par jour, et
 la forme de `ref` le plafonne à vie. Le vérifiable — quiz, défis, contributions
@@ -223,8 +324,12 @@ synchro rattrape.
 l'interface ; elle ne protège rien. Chaque route continue de demander son
 compte, et chaque plafond vit dans la requête qui écrit.
 
-- Le schéma est du **SQL qu'on lit** (`server/sql/001_baseline.sql`), pas la
-  sortie d'un ORM. Les requêtes vivent toutes dans `server/src/store.ts`,
+- Le schéma est du **SQL qu'on lit** (`server/sql/`), pas la sortie d'un ORM.
+  Il y a DEUX fichiers maintenant, et la liste est dans `db.ts` (`SCHEMA_FILES`)
+  pour que personne n'ait à la retenir en trois endroits. Toujours pas de table
+  de migrations : chaque fichier est conditionnel de bout en bout, donc
+  rejouable. Le jour où l'un cessera de l'être — une donnée à transformer
+  plutôt qu'une colonne à ajouter — c'est ce jour-là qu'il faudra la table. Les requêtes vivent toutes dans `server/src/store.ts`,
   en paramètres numérotés — une valeur passée en `$1` ne peut jamais
   devenir de la syntaxe.
 - Les tests du serveur parlent à un **vrai Postgres** compilé en
@@ -247,10 +352,20 @@ compte, et chaque plafond vit dans la requête qui écrit.
   se montrent à qui n'a pas de compte. Un décor rangé sous le préfixe
   privé aurait obligé, le jour du partage, à signer sur le préfixe privé
   d'autrui — et la garantie la plus simple du système aurait sauté pour
-  tout le monde, affiches comprises.
+  tout le monde, affiches comprises. `bank/decor/<clé>` est la seconde
+  branche de ce stock commun : les objets d'étagère déposés depuis le
+  studio. **Ne pas confondre avec `decor/<uuid>`** — celui-là est un
+  bibelot que QUELQU'UN a déposé, et son droit de lecture se demande à la
+  base ; les deux se ressemblent et ne se gardent pas pareil.
 - Un SVG venu du container d'autrui repasse par `sanitizeSvg` **à la
   réception**. `CustomDraw` l'injecte en ligne ; l'assainissement au
   dépôt ne compte pour rien dans cette décision.
+  **L'exception est ce qui s'affiche dans une balise `img`** — les objets
+  gagnés (`WonDraw`).
+  Là, le navigateur isole lui-même : ni script, ni accès au document qui
+  l'affiche. Il n'y a rien à assainir parce qu'il n'y a rien à atteindre, et
+  c'est plus sûr que le nettoyage, pas moins. La règle se lit donc : injecté en
+  ligne, on assainit ; affiché en `img`, on n'a pas à le faire.
 
 ## Vérifier
 

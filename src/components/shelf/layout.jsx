@@ -4,7 +4,7 @@
 import { useTranslation } from "react-i18next";
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Layer } from "../ui/Layer";
-import { X, Trash2, Upload, ChevronLeft, Eye, EyeOff, Users, UserX, Download } from "lucide-react";
+import { X, Trash2, ChevronLeft, Eye, EyeOff, Users, UserX, Download } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap, tapSquare, COARSE, TAP } from "../../theme/styles";
 import { wallStyle, materialStyle, PLANK_SHADOW } from "../../theme/surfaces";
@@ -30,11 +30,11 @@ import {
   listHiddenDecor,
   toggleDecorHidden,
   subscribeCustomDecor,
-  addCustomDecor,
   removeCustomDecor,
   showCustomDecor,
   takeCustomDecor,
 } from "../../services/customDecor";
+import { listWonDecor, subscribeWonDecor, wonDecorByKey } from "../../services/wonDecor";
 import { accountOpen, serverConfigured, sharedDecor } from "../../services/server";
 import { CustomDraw } from "./CustomDraw";
 import { FilmBox, DecorItem, WallItem, CategoryBox, dividerSkin, DividerHead } from "./items";
@@ -589,7 +589,6 @@ export function Shelf({
   onEditCat,
   onEditDecor,
   onDecorLabel,
-  onCabinet,
 }) {
   const { t } = useTranslation();
   const cfg = SHELF_KIND[kind];
@@ -675,23 +674,6 @@ export function Shelf({
           }}
         >
           + LIGNE
-        </button>
-        <button
-          onClick={() => onCabinet(kind)}
-          title="Poser un objet sur une planche"
-          style={{
-            all: "unset",
-            ...tap,
-            cursor: "pointer",
-            fontFamily: F.mono,
-            fontSize: 9.5,
-            letterSpacing: 1,
-            color: C.inkFaded,
-            border: `1px dashed ${C.line}`,
-            padding: "3px 8px",
-          }}
-        >
-          + DÉCOR
         </button>
       </div>
       <div
@@ -1258,7 +1240,7 @@ export function CellPreview({ film, onClose, onOpenFile }) {
    other to the back of the shelf, wherever one wants. Mixing them in a
    single grid left the user to discover the difference by botching their
    drop. */
-const DecorFamily = ({ title, hint, types, onDragStart, onDragEnd }) => {
+const DecorFamily = ({ title, hint, types, leftOf, onDragStart, onDragEnd }) => {
   const { t } = useTranslation();
   const heading = title ?? t("shelf.toStandTitle");
   return (
@@ -1280,20 +1262,35 @@ const DecorFamily = ({ title, hint, types, onDragStart, onDragEnd }) => {
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
         {types.map((d) => {
           const Draw = d.draw;
+          /* `undefined` = pas de plafond (la maison, et ce qu'on a
+             déposé). Un nombre = ce qu'il reste à poser. */
+          const left = leftOf?.(d.key);
+          const spent = left === 0;
           return (
             <div
               key={d.key}
-              draggable
+              draggable={!spent}
               onDragStart={(e) => {
+                if (spent) return e.preventDefault();
                 e.dataTransfer.effectAllowed = "copy";
                 onDragStart(d.key, e.currentTarget);
               }}
               onDragEnd={onDragEnd}
-              title={decorLabel(d, t)}
+              title={
+                left === undefined
+                  ? decorLabel(d, t)
+                  : `${decorLabel(d, t)} — ${t("shelf.leftToPlace", { count: left })}`
+              }
               style={{
+                position: "relative",
                 width: 46,
                 height: 46,
-                cursor: "grab",
+                /* ÉPUISÉ NE VEUT PAS DIRE ABSENT. On le laisse en place,
+                   pâli, avec son compte à zéro : le retirer du cabinet
+                   ferait croire qu'on ne le possède plus, alors qu'on
+                   l'a simplement tout posé. */
+                cursor: spent ? "not-allowed" : "grab",
+                opacity: spent ? 0.4 : 1,
                 flexShrink: 0,
                 overflow: "hidden",
                 border: `1px solid ${C.line}`,
@@ -1303,6 +1300,21 @@ const DecorFamily = ({ title, hint, types, onDragStart, onDragEnd }) => {
                 justifyContent: "center",
               }}
             >
+              {left !== undefined && (
+                <span
+                  aria-hidden
+                  style={{
+                    position: "absolute",
+                    right: 1,
+                    bottom: 0,
+                    fontFamily: F.mono,
+                    fontSize: 8.5,
+                    color: spent ? C.burgundy : C.inkFaded,
+                  }}
+                >
+                  {left}
+                </span>
+              )}
               {/* A pattern that STANDS UP has no drawing: it is made of
                 paper and borders, like the box. So the cabinet shows a
                 mock-up of it, instead of looking for a component that does
@@ -1342,6 +1354,11 @@ const useCustomDecor = () =>
 
 const useHiddenDecor = () =>
   useSyncExternalStore(subscribeCustomDecor, listHiddenDecor, listHiddenDecor);
+
+/* Le registre des objets gagnés vit hors de React — il est rempli par la
+   lecture du comptoir — et le cabinet doit se redessiner quand on en
+   gagne un. Même forme que les deux du dessus. */
+const useWonDecor = () => useSyncExternalStore(subscribeWonDecor, listWonDecor, listWonDecor);
 
 const CABINET_BOX = {
   position: "fixed",
@@ -1457,31 +1474,20 @@ function DecorWorkshop({ onBack }) {
   const { t } = useTranslation();
   const custom = useCustomDecor();
   const hiddenKeys = useHiddenDecor();
-  const [wall, setWall] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(null);
-  const fileRef = useRef(null);
 
-  const take = async (files) => {
-    setError(null);
-    setBusy(true);
-    try {
-      /* A refused file does not cancel the others: we import what gets
-         through and report only what failed. */
-      const failed = [];
-      for (const file of Array.from(files)) {
-        try {
-          await addCustomDecor(file, { wall });
-        } catch (e) {
-          failed.push(e?.message || file.name);
-        }
-      }
-      if (failed.length) setError(failed[0]);
-    } finally {
-      setBusy(false);
-      if (fileRef.current) fileRef.current.value = "";
-    }
-  };
+  /* LE DÉPÔT N'EXISTE PLUS, ET CE QUI RESTE EST L'ARMOIRE.
+
+     On importait une image et elle rejoignait le cabinet. Les objets
+     neufs sortent maintenant d'une pochette, au comptoir : c'est le
+     serveur qui tire, et personne ne dépose plus rien.
+
+     CE PANNEAU NE DISPARAÎT PAS POUR AUTANT. Il tient toujours ce qu'on
+     a déposé AVANT — on le range, on le montre, on le retire — et
+     fermer la porte d'entrée n'est pas vider la pièce. Il dit
+     simplement où l'on trouve les neufs.
+
+     `addCustomDecor` reste dans le service : la synchronisation d'un
+     appareil qui n'a pas encore vu ce changement passe par elle. */
 
   return (
     <div style={CABINET_BOX}>
@@ -1497,85 +1503,7 @@ function DecorWorkshop({ onBack }) {
         <CabinetTitle>MES OBJETS</CabinetTitle>
       </div>
 
-      <CabinetNote style={{ marginBottom: 8 }}>
-        une image, et elle rejoint le cabinet — png, jpg ou svg
-      </CabinetNote>
-
-      {/* The family first: it is what decides where the object will be
-          laid, and choosing it afterwards would mean rewriting the file. */}
-      <div style={{ display: "flex", marginBottom: 8 }}>
-        {[
-          [false, "shelf.toStand"],
-          [true, "shelf.toHang"],
-        ].map(([v, label], i) => (
-          <button
-            key={label}
-            onClick={() => setWall(v)}
-            style={{
-              all: "unset",
-              cursor: "pointer",
-              flex: 1,
-              textAlign: "center",
-              padding: "3px 0",
-              fontFamily: F.mono,
-              fontSize: 9.5,
-              background: wall === v ? C.ink : "transparent",
-              color: wall === v ? C.card : C.inkFaded,
-              border: `1px solid ${wall === v ? C.ink : C.line}`,
-              borderLeft: i ? "none" : undefined,
-            }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*,.svg"
-        multiple
-        onChange={(e) => e.target.files?.length && take(e.target.files)}
-        style={{ display: "none" }}
-      />
-      <button
-        onClick={() => fileRef.current?.click()}
-        disabled={busy}
-        style={{
-          all: "unset",
-          boxSizing: "border-box",
-          cursor: busy ? "progress" : "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 6,
-          width: "100%",
-          padding: "7px 0",
-          background: C.burgundy,
-          color: C.card,
-          fontFamily: F.mono,
-          fontSize: 10,
-          letterSpacing: 1,
-          opacity: busy ? 0.6 : 1,
-        }}
-      >
-        <Upload size={12} />
-        {busy ? "IMPORT…" : "IMPORTER UNE IMAGE"}
-      </button>
-
-      {error && (
-        <div
-          role="alert"
-          style={{
-            fontFamily: F.hand,
-            fontSize: 14,
-            color: C.burgundy,
-            marginTop: 6,
-          }}
-        >
-          {error}
-        </div>
-      )}
+      <CabinetNote style={{ marginBottom: 10 }}>{t("shelf.wonAtCounter")}</CabinetNote>
 
       <div style={{ marginTop: 12, maxHeight: 300, overflowY: "auto" }}>
         <WorkshopSection title="LES MIENS" />
@@ -1775,11 +1703,29 @@ const DecorRow = ({ label, note, thumb, action, dim }) => {
   );
 };
 
-export function DecorCabinet({ kind, onDragStart, onDragEnd, onClose }) {
+export function DecorCabinet({ placed, onDragStart, onDragEnd, onClose }) {
   const { t } = useTranslation();
   const [managing, setManaging] = useState(false);
   // the register moves under the cabinet as soon as one imports from the workshop
   useCustomDecor();
+  /* Le cabinet doit se redessiner quand on gagne un objet : le registre
+     est rempli par la lecture du comptoir, hors de React. */
+  useWonDecor();
+
+  /* CE QU'IL RESTE À POSER, PAR MOTIF.
+
+     LES OBJETS DE LA MAISON N'ONT PAS DE PLAFOND, et c'est ce que ce
+     `undefined` veut dire : ils sont dans le code, ils ne s'épuisent
+     pas, et leur en inventer un serait reprendre quelque chose à
+     quelqu'un. Seuls les objets GAGNÉS se comptent — on en pose autant
+     qu'on en possède, ce qui est la seule chose qui donne un sens à un
+     double. Ceux qu'on avait déposés soi-même restent illimités, eux
+     aussi : ils étaient à nous avant cette règle. */
+  const leftOf = (key) => {
+    const won = wonDecorByKey(key);
+    if (!won) return undefined;
+    return Math.max(0, won.copies - (placed?.[key] || 0));
+  };
 
   return (
     <Layer>
@@ -1815,6 +1761,7 @@ export function DecorCabinet({ kind, onDragStart, onDragEnd, onClose }) {
           <DecorFamily
             hint={t("shelf.dragOntoShelf")}
             types={shelfDecorTypes()}
+            leftOf={leftOf}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
           />
@@ -1822,12 +1769,22 @@ export function DecorCabinet({ kind, onDragStart, onDragEnd, onClose }) {
             title={t("shelf.toHangTitle")}
             hint={t("shelf.dragToBack")}
             types={wallDecorTypes()}
+            leftOf={leftOf}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
           />
-          <CabinetNote style={{ marginTop: 10 }}>
-            {t("shelf.shelfAimed", { shelf: t(`shelf.kinds.${kind}.title`) })}
-          </CabinetNote>
+          {/* LE CABINET NE VISE PLUS UNE PLANCHE.
+
+              Il s'ouvrait depuis le haut de CHAQUE rayon, et annonçait
+              « rayon visé : … » — ce qui était faux : c'est le LÂCHER
+              qui décide où l'objet se pose, pas le bouton par lequel on
+              a ouvert le tiroir. Un objet pris depuis le chevet se
+              déposait très bien sur le rayon principal, et l'écran
+              disait le contraire.
+
+              Un seul bouton, hors des planches, et cette phrase-là
+              remplace la précédente : elle dit ce qui est vrai. */}
+          <CabinetNote style={{ marginTop: 10 }}>{t("shelf.dropDecides")}</CabinetNote>
         </div>
       )}
     </Layer>
