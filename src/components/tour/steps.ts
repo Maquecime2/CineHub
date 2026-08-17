@@ -814,6 +814,18 @@ const quiz: Tour = {
       placement: "top",
       optional: true,
     },
+    /* LA PORTE, ET NON LA PARTIE. Une visite ne peut pas ouvrir une
+       modale : depuis qu'on joue en plein écran, les quatre pas
+       suivants ne trouvent leur cible que si une partie est DÉJÀ
+       ouverte, et se sautent sinon — ils sont `optional`, comme tout ce
+       tour. Ce pas-ci est celui qui existe toujours, et c'est lui qui
+       dit qu'il y a un jeu derrière. */
+    {
+      target: at("quiz-open"),
+      ...says("quiz", "open"),
+      placement: "top",
+      optional: true,
+    },
     /* LES POUVOIRS, s'il y en a. Le pas est `optional` comme les
        autres, mais ici cela veut dire quelque chose de précis : presque
        personne n'en a, et la barre ne se dessine pas du tout dans ce

@@ -2085,13 +2085,19 @@ const en = {
     worth: "{{n}} pt",
     points_one: "{{count}} point",
     points_other: "{{count}} points",
-    progress: "{{done}} of {{total}}",
     noTakingBack:
       "An answer once laid down is not taken back — unless a power is spent on it, once.",
     allAnswered: "Every question is answered.",
     finish: "FINISH",
     finishNote: "Finishing uncovers the corrections, and closes the quiz for good.",
     overForYou: "That is done. It is not played again.",
+    leaveGame: "Leave the game",
+    laid: "LAID",
+    laidSaid: "Answer laid down.",
+    abandonTitle: "Leave this game?",
+    abandonBody:
+      "The answers already laid down stay laid down — there is no going back on them, and the server has them. What is unanswered stays unanswered: the game remains open and you will pick it up right here, at the question you had reached.",
+    abandonAction: "Leave",
     yourScore: "{{score}} out of {{weight}}",
     gotIt: "right · {{points}}",
     missedIt: "missed · it was “{{answer}}”",
@@ -2588,9 +2594,13 @@ const en = {
         title: "The ones you were given",
         body: "Open one and it begins. You answer whenever you like, over as many sittings as you like. An answer once laid down is not taken back — unless a power bought at the counter is spent on it, once per question, and the retake stays marked for the other players. Once finished it is not played again.",
       },
+      open: {
+        title: "Open the game",
+        body: "An evening is played full screen, not inside this line: the game takes the window, the bar says where you are, and a stamp confirms each answer laid down. Leaving asks for confirmation and loses nothing — the answers already laid down are with the server, and you will pick up at the question you had reached.",
+      },
       playing: {
         title: "One question at a time",
-        body: "The category and the points are announced before the question. The right answer only comes down once the quiz is finished — it is not hidden on screen, it is not in the server's reply. Finishing uncovers the corrections, and the explanations with them.",
+        body: "The category and the points are announced before the question. The stamp says “laid” and never “right”: the right answer only comes down once the quiz is finished — it is not hidden on screen, it is not in the server's reply. Finishing uncovers the corrections, and the explanations with them.",
       },
       players: {
         title: "Who plays",

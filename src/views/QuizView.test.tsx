@@ -119,7 +119,10 @@ const mount = () =>
     </FeedbackProvider>
   );
 
-/** Déplier la soirée, ce qui EST la mettre en jeu — il n'y a pas de bouton. */
+/** Ouvrir la soirée, ce qui EST la mettre en jeu — il n'y a pas de
+    bouton « commencer ». Depuis A1 la partie est une COUCHE : le clic
+    porte sur un vrai `<button>`, et ce qui suit se lit dans le corps du
+    document, pas dans la colonne de vue. */
 const open = async (user: ReturnType<typeof userEvent.setup>) => {
   mount();
   await user.click(await screen.findByText("Le quizz du samedi"));
@@ -136,6 +139,43 @@ describe("opening a quiz", () => {
     expect(api.startQuiz).toHaveBeenCalledTimes(1);
     expect(api.startQuiz).toHaveBeenCalledWith("q1");
     expect(api.readQuiz).toHaveBeenCalledWith("q1");
+  });
+
+  it("is a dialogue that names itself, opened from a real button", async () => {
+    const user = userEvent.setup();
+    await open(user);
+
+    /* `useDialog` ne pose AUCUN attribut — son en-tête le dit — donc
+       l'ARIA est écrit à la main, et c'est exactement ce qui se serait
+       perdu en silence. La couche se NOMME : sans `aria-labelledby`, un
+       lecteur d'écran annonce « dialogue » et rien d'autre. */
+    const game = await screen.findByRole("dialog");
+    expect(game).toHaveAttribute("aria-modal", "true");
+    expect(game).toHaveAccessibleName("Le quizz du samedi");
+
+    /* L'en-tête était un `<div onClick>` : inatteignable au clavier, et
+       muet sur ce qu'il ouvre. */
+    const door = screen.getByRole("button", { name: /Le quizz du samedi/ });
+    expect(door).toHaveAttribute("aria-haspopup", "dialog");
+    expect(door).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("does not close a game underway — it ASKS, and the answers survive", async () => {
+    const user = userEvent.setup();
+    await open(user);
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Quitter la partie" }));
+    /* La carte de confirmation est à 60, la partie à 50 : on demande
+       PAR-DESSUS. Et le corps dit ce qui survit, parce que « quitter »
+       tout seul se lit comme « perdre ». */
+    expect(await screen.findByText(/Les réponses déjà posées restent posées/)).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Le quizz du samedi" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "QUITTER" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Le quizz du samedi" })).not.toBeInTheDocument()
+    );
   });
 
   it("shows only the FIRST unanswered question, and never the others", async () => {
