@@ -1274,11 +1274,33 @@ export async function removeMemberFromList(
    `watchedAt` is the fallback for cards from before the log — they still
    exist, and ignoring them would say "not seen" to somebody who
    has. */
+/* ------------------------------------------------------------
+   CE QUI COMPTE POUR UN DÉFI
+   ------------------------------------------------------------
+   UNE NATURE CHANGE CE QUI COMPTE, JAMAIS CE QUE ÇA PAIE. C'est la
+   seule chose que cette expression sait faire de plus qu'avant, et
+   c'est pourquoi `points.ts` n'a pas une ligne de plus.
+
+   ELLE A DEUX APPELANTS : `progressOf`, qui affiche, et
+   `settleChallenge`, qui PAIE. C'est ce qui rend l'édition risquée —
+   `merit_event` est unique, donc UN PAIEMENT FAUX NE PEUT PAS ÊTRE
+   REJOUÉ JUSTE — et c'est pourquoi le filet de `points.test.ts` a été
+   tissé AVANT d'y toucher, sur les trois âges de données de fiche.
+
+   « PENDANT LA PÉRIODE » NE PEUT PAS ÊTRE `updated_at` POUR UNE
+   CRITIQUE. Une critique ne porte aucune date, et `card.updated_at`
+   bouge à la moindre retouche : une fiche effleurée en mars aurait payé
+   une critique écrite deux ans plus tôt. On demande donc les deux
+   choses qui, elles, sont datables ou mesurables — UNE SÉANCE DANS LA
+   PÉRIODE, et une critique d'au moins `REVIEW_LENGTH` signes, la même
+   longueur qu'`awardFromCard` exige déjà pour la payer. */
 const SEEN_DURING = `EXISTS (
   SELECT 1 FROM card f
    WHERE f.person_id = ep.person_id
      AND f.tmdb_id = li.tmdb_id
      AND NOT f.deleted
+     AND (e.kind <> 'critique'
+          OR length(btrim(coalesce(f.data->>'review', ''))) >= ${REVIEW_LENGTH})
      AND (
        EXISTS (
          SELECT 1 FROM jsonb_array_elements(
@@ -1302,6 +1324,8 @@ export interface Challenge {
   works: number;
   /** Combien il en faut. NULL : toute la liste. */
   target: number | null;
+  /** Ce qui compte : 'liste', 'critique'. En français, comme `sharing`. */
+  kind: string;
   /** Am I taking part? */
   inside?: boolean;
   /**
@@ -1334,6 +1358,7 @@ export async function myChallenges(db: Db, personId: string): Promise<Challenge[
             p.pseudo AS by,
             (SELECT count(*) FROM list_item i WHERE i.list_id = l.id)::int AS works,
             e.target,
+            e.kind,
             EXISTS (SELECT 1 FROM challenge_participant x
                      WHERE x.challenge_id = e.id AND x.person_id = $1) AS inside,
             (e.created_by = $1) AS mine
@@ -1359,7 +1384,8 @@ export async function challengeById(db: Db, id: string): Promise<Challenge | nul
             to_char(e.ends_on, 'YYYY-MM-DD') AS ends_on,
             p.pseudo AS by,
             (SELECT count(*) FROM list_item i WHERE i.list_id = l.id)::int AS works,
-            e.target
+            e.target,
+            e.kind
        FROM challenge e
        JOIN list l ON l.id = e.list_id
        LEFT JOIN person p ON p.id = e.created_by
@@ -1378,13 +1404,15 @@ export async function createChallenge(
     ends_on: string;
     /** Combien il en faut. NULL : toute la liste, et c'est le défaut. */
     target?: number | null;
+    /** Ce qui compte. Absent : 'liste', et c'est le défaut du schéma. */
+    kind?: string | null;
   }
 ): Promise<string> {
   const id = randomUUID();
   await db.query(
-    `INSERT INTO challenge (id, list_id, created_by, title, starts_on, ends_on, target)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-    [id, e.listId, byWhom, e.title, e.starts_on, e.ends_on, e.target ?? null]
+    `INSERT INTO challenge (id, list_id, created_by, title, starts_on, ends_on, target, kind)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, coalesce($8, 'liste'))`,
+    [id, e.listId, byWhom, e.title, e.starts_on, e.ends_on, e.target ?? null, e.kind ?? null]
   );
   /* Whoever starts a challenge takes part in it: the opposite — an
      organiser watching the others run — is not what these people do. */

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { testDb } from "./helpers.ts";
 import * as store from "../src/store.ts";
-import { DECLARED_CEILING, RATE } from "../src/points.ts";
+import { DECLARED_CEILING, RATE, REVIEW_LENGTH } from "../src/points.ts";
 import type { Db } from "../src/db.ts";
 
 /* ============================================================
@@ -362,6 +362,84 @@ describe("a challenge, once its period is over", () => {
     expect((await store.challengeById(db, g.challenge))?.target).toBeNull();
     await store.settleChallenge(db, g.challenge);
     expect((await store.purseOf(db, g.me)).merit).toBe(RATE.challenge_half);
+  });
+
+  /* ============================================================
+     UN DÉFI PAR CRITIQUE
+
+     « Pendant la période » NE PEUT PAS ÊTRE `updated_at` : une critique
+     ne porte aucune date, et `card.updated_at` bouge à la moindre
+     retouche — une fiche effleurée en mars aurait payé une critique
+     écrite deux ans plus tôt. On demande donc les deux choses qui, elles,
+     sont datables ou mesurables : UNE SÉANCE DANS LA PÉRIODE, et une
+     critique d'au moins `REVIEW_LENGTH` signes — la même longueur
+     qu'`awardFromCard` exige déjà pour la payer.
+
+     ET LE BARÈME NE BOUGE PAS. Pas de `challenge_review` mieux payé :
+     il est plus facile à vérifier, donc mieux le payer aurait été
+     l'arbitrage.
+     ============================================================ */
+  async function reviewChallenge(pseudo: string, cards: Record<string, unknown>[]) {
+    const me = await store.createPerson(db, pseudo);
+    const list = await store.createList(db, me.id, { title: "mars" });
+    for (const [i, data] of cards.entries()) {
+      await store.addToList(db, list, me.id, { tmdbId: String(3000 + i), title: `film ${i}` });
+      await store.storeCard(db, me.id, {
+        id: `r${i}`,
+        tmdbId: String(3000 + i),
+        data,
+        updatedAt: new Date(1),
+      });
+    }
+    const challenge = await store.createChallenge(db, me.id, {
+      listId: list,
+      title: "en écrire",
+      starts_on: "2026-03-01",
+      ends_on: "2026-03-31",
+      kind: "critique",
+    });
+    return { me: me.id, challenge };
+  }
+
+  const seen = { watches: [{ date: "2026-03-04" }] };
+
+  it("wants a screening in the period AND a review long enough", async () => {
+    const g = await reviewChallenge("critique", [
+      /* Les deux : compte. */
+      { ...seen, review: "x".repeat(REVIEW_LENGTH) },
+      /* Vu dans la période, mais rien d'écrit : c'est un défi par
+         critique, pas un défi par liste. */
+      { ...seen },
+      /* Écrit, mais trop court pour être une critique — la même mesure
+         que celle qui décide de la payer. */
+      { ...seen, review: "bien" },
+      /* Une vraie critique, mais la séance est hors période : sans cela
+         on paierait ce qu'on a écrit il y a deux ans en effleurant la
+         fiche, puisqu'une critique ne porte pas de date. */
+      { watches: [{ date: "2025-01-04" }], review: "x".repeat(REVIEW_LENGTH) },
+    ]);
+
+    expect((await store.progressOf(db, g.challenge))[0]!.done).toBe(1);
+  });
+
+  it("counts like an ordinary challenge when the nature is a list", async () => {
+    /* LE DÉFAUT NE CHANGE PAS D'UN IOTA : tout défi écrit avant 004 est
+       en 'liste', et une critique n'y est demandée nulle part. */
+    const g = await finished("liste-ordinaire", 4, 4);
+    expect(await store.settleChallenge(db, g.challenge)).toBe(1);
+    expect((await store.purseOf(db, g.me)).merit).toBe(RATE.challenge);
+  });
+
+  it("pays a review challenge at the ORDINARY rate", async () => {
+    const g = await reviewChallenge("paye-pareil", [
+      { ...seen, review: "x".repeat(REVIEW_LENGTH) },
+      { ...seen, review: "x".repeat(REVIEW_LENGTH) },
+    ]);
+    await db.query("UPDATE challenge SET ends_on = current_date - 1 WHERE id = $1", [g.challenge]);
+    expect(await store.settleChallenge(db, g.challenge)).toBe(1);
+    /* Le même `RATE.challenge` qu'un défi par liste : une nature change
+       CE QUI COMPTE, jamais CE QUE ÇA PAIE. */
+    expect((await store.purseOf(db, g.me)).merit).toBe(RATE.challenge);
   });
 
   it("is settled by the first to look, and by nobody after", async () => {

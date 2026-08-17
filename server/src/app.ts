@@ -1253,12 +1253,13 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
 
   app.post("/challenges", async (req, reply) => {
     const person = await requireAccount(req);
-    const { listId, title, starts_on, ends_on, target } = (req.body ?? {}) as {
+    const { listId, title, starts_on, ends_on, target, kind } = (req.body ?? {}) as {
       listId?: string;
       title?: string;
       starts_on?: string;
       ends_on?: string;
       target?: number | null;
+      kind?: string | null;
     };
     const name = (title || "").trim();
     if (!name || name.length > 120) {
@@ -1276,6 +1277,14 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     if (goal !== null && (!Number.isInteger(goal) || goal < 1)) {
       return reply.code(400).send({ error: "Une cible est un nombre de films, au moins un." });
     }
+    /* La nature est refusée ICI en plus du schéma, pour que la réponse
+       soit une phrase et non une violation de contrainte. `critere`
+       n'est pas encore servi : le déclarer accepté rendrait un défi que
+       rien ne sait compter. */
+    const nature = kind == null ? "liste" : String(kind);
+    if (!["liste", "critique"].includes(nature)) {
+      return reply.code(400).send({ error: "Nature de défi inconnue." });
+    }
     /* A challenge is only built on a list you write in: otherwise
        anybody starts a challenge on a stranger's public list, and they
        would see it appear without having wanted it. */
@@ -1290,6 +1299,7 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
       starts_on: starts_on!,
       ends_on: ends_on!,
       target: goal,
+      kind: nature,
     });
     return { id };
   });

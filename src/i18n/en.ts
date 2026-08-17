@@ -2041,6 +2041,12 @@ const en = {
       "“{{title}}” will go, along with what the participants did in it. Nothing brings it back afterwards.",
     deleteList: "Erase this list",
     challengePlaceholder: "March with Varda",
+    kind: {
+      liste: "WATCH",
+      critique: "WATCH AND WRITE",
+    },
+    kindNote:
+      "A review challenge asks for both: a screening in the period, and a review of at least a hundred and forty characters. A review carries no date — the screening is what places it.",
     targetPlaceholder: "all",
     targetLabel: "How many films it takes — empty: the whole list",
     outOfList: "{{target}} of the list's {{works}}",
@@ -2587,7 +2593,7 @@ const en = {
       },
       challenges: {
         title: "A challenge is a list and a period",
-        body: "A list and a period make a challenge: one asks to take part, and the binder counts by itself what each has seen in time. Nobody ticks “seen”. A TARGET is optional: “eight of these forty” holds in a month where the whole list does not, and the list itself is left alone. A challenge carried through earns points at the counter — half of one earns less, and under half earns nothing.",
+        body: "A list and a period make a challenge: one asks to take part, and the binder counts by itself what each has seen in time. Nobody ticks “seen”. A TARGET is optional: “eight of these forty” holds in a month where the whole list does not, and the list itself is left alone. And a challenge can ask you to WRITE rather than merely watch — a screening in the period and a real review, since a review carries no date. A challenge carried through earns points at the counter — half of one earns less, and under half earns nothing.",
       },
     },
 

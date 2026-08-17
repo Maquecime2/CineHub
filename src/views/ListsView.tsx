@@ -21,7 +21,7 @@ import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 import { ListChecks, Plus, Search, Trash2, UserPlus, X } from "lucide-react";
 import { C, F, alpha } from "../theme/tokens";
-import { bare, chip, inked, tap, underlineInput } from "../theme/styles";
+import { bare, chip, hollow, inked, tap, underlineInput } from "../theme/styles";
 import { Guideline, Label, Meter, Trouble, ViewHeading, Waiting } from "../components/ui";
 import { StampCorner, TapeResidue } from "../components/atmosphere";
 import { Halftone } from "../components/atmosphere/hall";
@@ -240,6 +240,9 @@ function OneList({
        et non un nombre : le champ doit pouvoir être vidé, et `0` n'est
        pas « rien ». */
     target: "",
+    /* La nature de ce qui comptera. « liste » est le défaut, et il le
+       reste : une nature change CE QUI COMPTE, jamais ce que ça paie. */
+    kind: "liste",
   });
 
   const reread = useCallback(async () => {
@@ -275,6 +278,7 @@ function OneList({
       starts_on: challenge.start,
       ends_on: challenge.end,
       target: challenge.target.trim() ? Number(challenge.target) : null,
+      kind: challenge.kind,
     });
     setDraft({ ...challenge, title: "" });
     await onChange();
@@ -450,6 +454,20 @@ function OneList({
                     cassé. La cible en fait une intention tenable sans
                     toucher à la liste, qui appartient à quelqu'un et
                     sert peut-être à autre chose. */}
+                {/* DEUX NATURES, ET LA SECONDE DEMANDE D'ÉCRIRE. « Vu »
+                    ne suffit plus : il faut une séance dans la période ET
+                    une critique. On ne peut pas se fier à la date de la
+                    fiche — une critique n'en porte pas, et `updated_at`
+                    bouge à la moindre retouche. */}
+                {(["liste", "critique"] as const).map((k) => (
+                  <button
+                    key={k}
+                    onClick={() => setDraft({ ...challenge, kind: k })}
+                    style={challenge.kind === k ? inked(C.ink) : { ...inked(C.ink), ...hollow }}
+                  >
+                    {t(`listsView.kind.${k}`)}
+                  </button>
+                ))}
                 <input
                   type="number"
                   min={1}
@@ -463,6 +481,11 @@ function OneList({
                   {t("listsView.launch")}
                 </button>
               </div>
+              {challenge.kind === "critique" && (
+                <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 8 }}>
+                  {t("listsView.kindNote")}
+                </div>
+              )}
             </div>
           )}
         </div>

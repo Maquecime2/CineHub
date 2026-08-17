@@ -2113,6 +2113,12 @@ const fr = {
       "« {{title}} » disparaîtra avec ce que les participants y ont fait. Rien ne permet de le retrouver ensuite.",
     deleteList: "Effacer cette liste",
     challengePlaceholder: "Mars chez Varda",
+    kind: {
+      liste: "VOIR",
+      critique: "VOIR ET ÉCRIRE",
+    },
+    kindNote:
+      "Un défi par critique demande les deux : une séance dans la période, et une critique d'au moins cent quarante signes. Une critique ne porte pas de date — c'est la séance qui la situe.",
     targetPlaceholder: "tous",
     targetLabel: "Combien de films il en faut — vide : toute la liste",
     outOfList: "{{target}} des {{works}} de la liste",
@@ -2663,7 +2669,7 @@ const fr = {
       },
       challenges: {
         title: "Un défi est une liste plus une période",
-        body: "Un défi, c'est une liste plus une période : on demande à y participer, et le classeur compte tout seul ce que chacun a vu dans les temps. Personne ne coche « vu ». Une CIBLE est facultative : « huit de ces quarante » se tient en un mois là où la liste entière ne se tient pas, et la liste n'est pas touchée pour autant. Un défi bouclé rapporte des points au comptoir — la moitié en rapporte moins, et rien du tout en dessous.",
+        body: "Un défi, c'est une liste plus une période : on demande à y participer, et le classeur compte tout seul ce que chacun a vu dans les temps. Personne ne coche « vu ». Une CIBLE est facultative : « huit de ces quarante » se tient en un mois là où la liste entière ne se tient pas, et la liste n'est pas touchée pour autant. Et un défi peut demander d'ÉCRIRE plutôt que seulement de voir — une séance dans la période et une vraie critique, puisqu'une critique ne porte pas de date. Un défi bouclé rapporte des points au comptoir — la moitié en rapporte moins, et rien du tout en dessous.",
       },
     },
 
