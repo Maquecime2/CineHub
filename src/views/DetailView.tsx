@@ -47,6 +47,7 @@ import { PosterPicker } from "../components/film/PosterPicker";
 import { FilmIdentity } from "../components/film/FilmIdentity";
 import { TmdbFacts } from "../components/film/TmdbFacts";
 import { FrameStrip } from "../components/film/FrameStrip";
+import { shotsOfFrames, shotsOfStills } from "../components/stills/shots";
 import { Elsewhere } from "../components/film/Elsewhere";
 import { AddToList } from "../components/film/AddToList";
 import { HideFromSharing } from "../components/film/HideFromSharing";
@@ -634,7 +635,9 @@ export function DetailView({
                   appareil et comptent dans votre quota. Les poser côte à
                   côte laisserait croire qu'on peut légender les
                   premières. */}
-              {!!film.frames?.length && <FrameStrip frames={film.frames} title={film.title} />}
+              {!!film.frames?.length && (
+                <FrameStrip shots={shotsOfFrames(film.frames)} title={film.title} />
+              )}
               {/* What other public film libraries say about the same
                 film. Stays entirely silent with no server, no account,
                 or when nobody has said anything — a card that lives alone
@@ -1304,7 +1307,7 @@ export function DetailView({
       <Confirmation request={request} onClose={() => setRequest(null)} />
       {lightbox != null && (
         <StillLightbox
-          stills={stills}
+          shots={shotsOfStills(stills)}
           index={lightbox}
           onClose={() => setLightbox(null)}
           onIndex={setLightbox}

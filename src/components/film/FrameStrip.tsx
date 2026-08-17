@@ -1,5 +1,5 @@
 /* ============================================================
-   A FEW FRAMES OF THE FILM
+   LA PELLICULE, EN LECTURE SEULE
    ============================================================
 
    A poster is a promise made by a marketing department; a frame is the
@@ -7,34 +7,48 @@
    glance, which is exactly what one is trying to decide when a film is
    proposed and one has not seen it.
 
+   ELLE A L'ALLURE DE CELLE DU DOSSIER, ET CE N'EST PAS DE LA COQUETTERIE.
+   C'était une grille d'images nues, à côté d'une pellicule numérotée sur
+   carton dans le dossier du même film : deux traitements pour le même
+   geste, dans un produit qui n'a qu'une façon de dire « voici des
+   images ». On garde donc le carton, le numéro et l'inclinaison SEMÉE
+   (`tiltOf`, jamais un tirage au sort — un mur qui gigote n'est pas un
+   mur), et l'agrandissement passe par la MÊME visionneuse.
+
+   CE QU'ELLE NE FAIT PAS : ajouter, légender, effacer, insérer dans le
+   texte. `StillsStrip` fait tout cela et reste le seul endroit où on le
+   fait — un plan de TMDB n'a rien à annoter, et une capture ne se
+   modifie que dans son dossier.
+
    THEY COST ONE REQUEST, AND IT IS ALREADY PAID. `getDetails` appends
    `images` to the call it was making anyway — see `tmdb.js`. What is
    stored is a PATH, so the strip asks for w300 and the enlargement for
    w1280 without the card having to be rewritten the day one of the two
-   changes.
+   changes. See `shots`, which now carries that distinction.
 
    THEY ARE NOT `stills`. Those are what YOU captured: they live in this
    device's vault, they are mirrored server-side, they count against
-   `MEDIA_CEILING`, and they carry a caption one writes. Here there is
-   nothing to annotate and nothing to delete — which is why the two are
-   drawn apart and named apart wherever they meet.
-
-   THE ENLARGEMENT IS A LAYER, so it goes through `Layer` and
-   `useDialog`: `[data-enters]` carries a transform during the view's
-   entrance and would anchor a `fixed` panel to the column. The arrows
-   walk the plate and Escape leaves it — a gallery one can only click
-   through is a gallery half the people cannot open. */
-import { useEffect, useState } from "react";
+   `MEDIA_CEILING`, and they carry a caption one writes. On unifie le
+   REGARD, jamais la nature. */
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { bare } from "../../theme/styles";
-import { Layer } from "../ui/Layer";
 import { Label } from "../ui";
-import { useDialog } from "../../hooks/useDialog";
-import { FRAME_FULL, FRAME_THUMB } from "../../tmdb";
+import { tiltOf } from "../../domain/seeded";
+import { StillLightbox } from "../stills/StillLightbox";
+import { ShotImage, type Shot } from "../stills/shots";
 
-export function FrameStrip({ frames, title }: { frames: string[]; title: string }) {
+export function FrameStrip({
+  shots,
+  title,
+  /** Ce que la bande annonce. Absent : « quelques plans ». */
+  label,
+}: {
+  shots: Shot[];
+  title: string;
+  label?: string;
+}) {
   const { t } = useTranslation();
   /** Le rang ouvert en grand, ou `null` tant que la planche est fermée. */
   const [open, setOpen] = useState<number | null>(null);
@@ -43,182 +57,110 @@ export function FrameStrip({ frames, title }: { frames: string[]; title: string 
      sert plus l'image. */
   const [broken, setBroken] = useState<Set<string>>(new Set());
 
-  const shown = frames.filter((f) => !broken.has(f));
+  const shown = shots.filter((s) => !broken.has(s.id));
   if (!shown.length) return null;
+  const heading = label ?? t("frames.title");
 
   return (
     <div style={{ marginTop: 16 }}>
-      <Label>{t("frames.title")}</Label>
+      <Label>{heading}</Label>
       <ul
-        aria-label={t("frames.title")}
+        aria-label={heading}
         style={{
           listStyle: "none",
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(148px, 1fr))",
-          gap: 6,
-          margin: "6px 0 0",
+          gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
+          gap: 12,
+          margin: "8px 0 0",
           padding: 0,
         }}
       >
-        {shown.map((path, i) => (
-          <li key={path}>
+        {shown.map((shot, i) => (
+          <li key={shot.id}>
             <button
               onClick={() => setOpen(i)}
               aria-label={t("frames.enlarge", { title, place: i + 1, total: shown.length })}
-              style={{ ...bare, display: "block", width: "100%", padding: 0 }}
+              style={{
+                ...bare,
+                display: "block",
+                width: "100%",
+                padding: 0,
+                /* SEMÉE SUR L'IMAGE, jamais tirée au sort : la même
+                   vignette penche du même côté à chaque ouverture. */
+                transform: `rotate(${Number(tiltOf(shot.id)) / 7}deg)`,
+              }}
             >
-              <img
-                src={`${FRAME_THUMB}${path}`}
-                alt=""
-                /* Six images valent une LISTE et non un moment : décodage
-                   différé, aucun filtre, aucun mélange de calques. */
-                loading="lazy"
-                decoding="async"
-                onError={() => setBroken((was) => new Set(was).add(path))}
+              {/* LE CARTON DE LA PELLICULE : un blanc autour de l'image,
+                  et l'ombre qui la décolle du papier. */}
+              <div
                 style={{
-                  display: "block",
-                  width: "100%",
-                  aspectRatio: "16 / 9",
-                  objectFit: "cover",
+                  position: "relative",
+                  background: C.card,
+                  padding: 5,
+                  paddingBottom: 16,
                   border: `1px solid ${alpha(C.line, 0.8)}`,
-                  background: alpha(C.ink, 0.06),
+                  boxShadow: "1px 3px 7px rgba(30,20,10,0.16)",
                 }}
-              />
+              >
+                <ShotImage
+                  shot={shot}
+                  onBroken={() => setBroken((was) => new Set(was).add(shot.id))}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    aspectRatio: "16 / 9",
+                    objectFit: "cover",
+                    background: alpha(C.ink, 0.06),
+                  }}
+                />
+                {/* LE NUMÉRO, comme sur la pellicule du dossier : c'est
+                    ce qui fait d'une planche une planche et non six
+                    images posées côte à côte. */}
+                <span
+                  style={{
+                    position: "absolute",
+                    right: 6,
+                    bottom: 3,
+                    fontFamily: F.mono,
+                    fontSize: 9,
+                    color: C.inkFaded,
+                  }}
+                >
+                  {i + 1}
+                </span>
+                {shot.caption && (
+                  <span
+                    style={{
+                      position: "absolute",
+                      left: 6,
+                      bottom: 3,
+                      maxWidth: "72%",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      fontFamily: F.hand,
+                      fontSize: 12,
+                      color: C.inkFaded,
+                    }}
+                  >
+                    {shot.caption}
+                  </span>
+                )}
+              </div>
             </button>
           </li>
         ))}
       </ul>
 
-      {open !== null && shown[open] && (
-        <Enlarged
-          frames={shown}
-          at={open}
+      {open != null && (
+        <StillLightbox
+          shots={shown}
+          index={open}
           title={title}
-          onMove={setOpen}
+          onIndex={setOpen}
           onClose={() => setOpen(null)}
         />
       )}
     </div>
-  );
-}
-
-function Enlarged({
-  frames,
-  at,
-  title,
-  onMove,
-  onClose,
-}: {
-  frames: string[];
-  at: number;
-  title: string;
-  onMove: (i: number) => void;
-  onClose: () => void;
-}) {
-  const { t } = useTranslation();
-  const ref = useDialog(onClose);
-
-  /* LES FLÈCHES MARCHENT DEPUIS N'IMPORTE OÙ DANS LA COUCHE, et pas
-     seulement depuis les deux boutons : le focus est piégé dedans, donc
-     il n'y a personne d'autre pour les entendre. Elles ne bouclent pas —
-     on doit sentir qu'on est au bout d'une planche de six. */
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowLeft" && at > 0) onMove(at - 1);
-      if (e.key === "ArrowRight" && at < frames.length - 1) onMove(at + 1);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [at, frames.length, onMove]);
-
-  const step = (delta: number) => {
-    const next = at + delta;
-    if (next >= 0 && next < frames.length) onMove(next);
-  };
-
-  return (
-    <Layer>
-      <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          /* Au-dessus de la vue rapide, qui est elle-même à 50 : c'est
-             elle qui l'ouvre, et une planche derrière son appelant ne se
-             verrait pas. Sous les peaux et la visite. */
-          zIndex: 55,
-          background: alpha(C.ink, 0.85),
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 16,
-        }}
-        onClick={onClose}
-      >
-        <div
-          ref={ref}
-          role="dialog"
-          aria-modal="true"
-          aria-label={t("frames.plate", { title })}
-          onClick={(e) => e.stopPropagation()}
-          style={{ maxWidth: "min(1100px, 100%)", width: "100%" }}
-        >
-          <img
-            src={`${FRAME_FULL}${frames[at]}`}
-            alt=""
-            style={{
-              display: "block",
-              width: "100%",
-              maxHeight: "80vh",
-              objectFit: "contain",
-              margin: "0 auto",
-            }}
-          />
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              marginTop: 10,
-              justifyContent: "center",
-            }}
-          >
-            <button
-              onClick={() => step(-1)}
-              disabled={at === 0}
-              aria-label={t("frames.previous")}
-              title={t("frames.previous")}
-              style={{ ...bare, color: C.card, opacity: at === 0 ? 0.3 : 1, padding: 4 }}
-            >
-              <ChevronLeft size={20} />
-            </button>
-            <span style={{ fontFamily: F.mono, fontSize: 10, color: C.card }}>
-              {t("frames.count", { place: at + 1, total: frames.length })}
-            </span>
-            <button
-              onClick={() => step(1)}
-              disabled={at === frames.length - 1}
-              aria-label={t("frames.next")}
-              title={t("frames.next")}
-              style={{
-                ...bare,
-                color: C.card,
-                opacity: at === frames.length - 1 ? 0.3 : 1,
-                padding: 4,
-              }}
-            >
-              <ChevronRight size={20} />
-            </button>
-            <button
-              onClick={onClose}
-              aria-label={t("frames.close")}
-              title={t("frames.close")}
-              style={{ ...bare, color: C.card, padding: 4, marginLeft: 10 }}
-            >
-              <X size={18} />
-            </button>
-          </div>
-        </div>
-      </div>
-    </Layer>
   );
 }

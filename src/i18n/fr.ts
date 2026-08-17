@@ -1661,6 +1661,7 @@ const fr = {
     leftOnOtherDevice: "restée sur l'autre appareil",
     escToClose: "ÉCHAP POUR FERMER",
     theFilmStrip: "La pellicule",
+    shotNumber: "capture {{n}}",
     insert: "insérer",
     next: "suivante (→)",
     dragHint: "une fois posée, déplacez-la dans le texte",
@@ -2435,8 +2436,8 @@ const fr = {
         body: "Le mur se peint, et les fiches ont un calibre. Sur l'étagère, le même bouton s'appelle « Atelier déco » et vit dans le menu des vues : le décor appartient à la vue, pas au rayon.",
       },
       open: {
-        title: "Une fiche s'ouvre",
-        body: "Cliquez une affiche pour ouvrir son dossier : c'est là que se tiennent la critique, les motifs et le fil rouge.",
+        title: "Une fiche se regarde avant de s'ouvrir",
+        body: "Cliquez une affiche : la fiche rapide vous dit tout ce qu'on sait du film — de quoi il parle, qui l'a fait, sa durée, ce que vous en avez fait — sans quitter le mur. Vos captures y remplacent les plans de TMDB dès que vous en avez posé. Le dossier, où se tiennent la critique, les motifs et le fil rouge, est à un geste de là.",
       },
       drag: {
         title: "Ranger au doigt",

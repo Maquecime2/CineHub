@@ -56,6 +56,7 @@ import { watchCount } from "../../domain/film";
 import { PosterArt } from "./PosterArt";
 import { EMPTY, Names } from "./Names";
 import { FrameStrip } from "./FrameStrip";
+import { shotsOfFrames, shotsOfStills } from "../stills/shots";
 import type { Film } from "../../types";
 
 /** Les trois métiers qu'une fiche porte. Leurs noms se lisent dans `roles`. */
@@ -145,6 +146,11 @@ export function FilmQuickView({
      rendu suivant — sans cette copie locale, le panneau resterait vide un
      rendu de plus, juste après avoir dit qu'il attendait. */
   const shown: Film = extra ? { ...film, ...extra } : film;
+
+  /* CE QU'ON A PHOTOGRAPHIÉ SOI-MÊME. Hors du classeur il n'y en a
+     jamais : un candidat n'est pas une fiche, et lui prêter des captures
+     serait lui prêter un passé. */
+  const mine = inBinder ? shotsOfStills(shown.stills ?? []) : [];
 
   /* `frames == null` ET NON une liste vide : une fiche pour laquelle
      TMDB n'a aucun photogramme répond `[]`, et c'est une réponse — la
@@ -380,7 +386,16 @@ export function FilmQuickView({
               Sous le résumé, parce qu'on lit d'abord et qu'on regarde
               ensuite ; et ce sont des images de TMDB, jamais les
               captures de quelqu'un. */}
-          {!!shown.frames?.length && <FrameStrip frames={shown.frames} title={shown.title} />}
+          {/* VOS CAPTURES REMPLACENT LES PLANS DE TMDB, quand il y en
+              a et que la fiche est au classeur. Ce qu'on a photographié
+              soi-même dit mieux ce que le film nous a fait que six plans
+              choisis par un catalogue — et pour un film qu'on n'a pas
+              vu, il n'y a rien à remplacer, donc les plans restent. */}
+          {mine.length > 0 ? (
+            <FrameStrip shots={mine} title={shown.title} label={t("stills.theFilmStrip")} />
+          ) : (
+            <FrameStrip shots={shotsOfFrames(shown.frames ?? [])} title={shown.title} />
+          )}
 
           {/* ------------- QUI L'A FAIT ------------- */}
           <Section title={t("quick.people")}>

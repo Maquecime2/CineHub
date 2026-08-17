@@ -31,6 +31,14 @@ vi.mock("../../tmdb", () => ({
   getDetails: (...args: unknown[]) => getDetails(...args),
   POSTER_BASE: "https://image.tmdb.org/t/p/w342",
   POSTER_THUMB: "https://image.tmdb.org/t/p/w185",
+  FRAME_THUMB: "https://image.tmdb.org/t/p/w300",
+  FRAME_FULL: "https://image.tmdb.org/t/p/w1280",
+}));
+
+/* Une capture vit dans le coffre de l'appareil : ici on ne veut que
+   savoir LAQUELLE la bande a choisi de montrer. */
+vi.mock("../stills/IdbImage", () => ({
+  IdbImage: ({ imageKey }: { imageKey: string }) => <img alt="" data-vault={imageKey} />,
 }));
 
 vi.mock("../../services/tmdbKey", () => ({
@@ -183,5 +191,77 @@ describe("it is a layer, and it gives the screen back", () => {
       within(screen.getByRole("dialog")).getByRole("button", { name: "Ajouter au parcours" })
     );
     expect(onAct).toHaveBeenCalled();
+  });
+});
+
+/* ============================================================
+   UNE SEULE FAÇON DE REGARDER DES IMAGES
+
+   Il y en avait deux, et rien ne les distinguait à l'usage : une grille
+   d'images nues pour les plans de TMDB, une pellicule numérotée sur
+   carton pour vos captures — avec, sous chacune, sa propre visionneuse
+   plein écran. Deux à corriger au lieu d'une.
+
+   ET DANS LE CLASSEUR, CE QU'ON A PHOTOGRAPHIÉ PASSE DEVANT. Six plans
+   choisis par un catalogue disent le film ; une capture qu'on a prise
+   dit ce qu'il nous a fait. Hors du classeur il n'y a rien à remplacer,
+   donc les plans restent — un candidat n'a pas de passé.
+   ============================================================ */
+describe("the strip of images", () => {
+  const withImages = makeFilm({
+    ...OZU,
+    frames: ["/plan-a.jpg", "/plan-b.jpg"],
+    stills: [
+      { id: "s1", key: "k1", caption: "le couloir" },
+      { id: "s2", key: "k2", caption: "" },
+    ],
+  });
+
+  it("shows YOUR captures instead of TMDB's frames, in the binder", () => {
+    render(
+      <FilmQuickView
+        film={withImages}
+        onEnrich={() => {}}
+        onOpenPerson={() => {}}
+        onClose={() => {}}
+      />
+    );
+    const strip = screen.getByRole("list", { name: "La pellicule" });
+    /* Les vignettes sont DÉCORATIVES — `alt=""` — parce que c'est le
+       bouton qui les enveloppe qui porte le nom (« Agrandir le plan 1
+       sur 2 »). On les compte donc dans le DOM et non par leur rôle. */
+    const shown = [...strip.querySelectorAll("img")];
+    expect(shown.map((i) => i.getAttribute("data-vault"))).toEqual(["k1", "k2"]);
+    /* Et la légende qu'on a écrite est là — un plan de TMDB n'en a pas. */
+    expect(within(strip).getByText("le couloir")).toBeInTheDocument();
+  });
+
+  it("falls back to the frames when one has captured nothing", () => {
+    const bare = makeFilm({ ...withImages, stills: [] });
+    render(
+      <FilmQuickView film={bare} onEnrich={() => {}} onOpenPerson={() => {}} onClose={() => {}} />
+    );
+    const strip = screen.getByRole("list", { name: "QUELQUES PLANS" });
+    const shown = [...strip.querySelectorAll("img")];
+    expect(shown.map((i) => i.getAttribute("src"))).toEqual([
+      "https://image.tmdb.org/t/p/w300/plan-a.jpg",
+      "https://image.tmdb.org/t/p/w300/plan-b.jpg",
+    ]);
+  });
+
+  it("never lends captures to something one has not got", () => {
+    /* `inBinder` faux : ni note, ni séance, ni statut — et pas de
+       captures non plus, qui seraient un passé prêté. */
+    render(
+      <FilmQuickView
+        film={withImages}
+        inBinder={false}
+        onEnrich={() => {}}
+        onOpenPerson={() => {}}
+        onClose={() => {}}
+      />
+    );
+    expect(screen.queryByRole("list", { name: "La pellicule" })).not.toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "QUELQUES PLANS" })).toBeInTheDocument();
   });
 });

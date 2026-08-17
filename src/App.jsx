@@ -1537,6 +1537,9 @@ export default function App() {
                   onOpen={openFilm}
                   onImport={openImport}
                   onAdd={() => setShowModal(true)}
+                  /* La fiche rapide complète ce qui lui manque — une
+                     fois, par fiche — et l'écrit : voir `FilmQuickView`. */
+                  onUpdateFilm={updateFilm}
                 />
               )}
               {view === "watchlist" && !selectedId && (
@@ -1552,6 +1555,9 @@ export default function App() {
                   onOpen={openFilm}
                   onImport={openImport}
                   onAdd={() => setShowModal(true)}
+                  /* La fiche rapide complète ce qui lui manque — une
+                     fois, par fiche — et l'écrit : voir `FilmQuickView`. */
+                  onUpdateFilm={updateFilm}
                 />
               )}
               {view === "detail" && selectedFilm && (

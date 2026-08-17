@@ -32,6 +32,8 @@ import { wallLookOf, DEFAULT_WALL_LOOK } from "./wallLook";
 import { wallStyle } from "../../theme/surfaces";
 import { catInk } from "../../components/shelf/constants";
 import { WALLS } from "./walls";
+import { FilmQuickView } from "../../components/film/FilmQuickView";
+import { normalize } from "../../domain/search";
 
 function ViewSwitcher({
   views,
@@ -359,8 +361,36 @@ export function LibraryView({
      aucune sans elles, et le carré reste ce qu'il était. */
   onImport,
   onAdd,
+  onUpdateFilm,
 }) {
   const { t } = useTranslation();
+  /* ============================================================
+     LA FICHE RAPIDE VIENT AVANT LE DOSSIER, QUOI QU'IL ARRIVE
+     ============================================================
+
+     Un clic sur une affiche ouvrait le dossier — l'écran d'ÉCRITURE,
+     avec ses champs, ses onglets et ses séances. Or neuf fois sur dix on
+     clique pour SAVOIR : de quoi ça parle, qui l'a fait, combien de
+     temps ça dure, l'ai-je noté. On ouvrait donc un formulaire pour lire
+     une réponse, et il fallait revenir en arrière pour continuer.
+
+     LES QUATRE SURFACES PASSENT PAR ICI — le mur, l'étagère, le mur
+     « à voir » (c'est la même vue, montée deux fois) et le tiroir du
+     soir. C'est le seul endroit qui les voie toutes, et c'est ce qui
+     évite que trois d'entre elles s'accordent et que la quatrième
+     oublie.
+
+     LE DOSSIER RESTE À UN GESTE, depuis la couche. Rien n'est retiré :
+     on ajoute une marche avant l'écriture. */
+  const [quick, setQuick] = useState(null);
+  const lookAt = (id) => {
+    const found =
+      (films || []).find((f) => f.id === id) || (allFilms || []).find((f) => f.id === id);
+    /* Une fiche qu'on ne retrouve pas ouvre le dossier comme avant :
+       mieux vaut la vieille porte qu'aucune. */
+    if (found) setQuick(found);
+    else onOpen(id);
+  };
   const cfg = WALLS[wall];
   /* Search, filter and sort live in App: opening a film unmounts this
      view, and a local state would be lost on the way back to the wall. */
@@ -882,7 +912,7 @@ export function LibraryView({
               doc={shelfView}
               onDoc={onShelfView}
               placed={placed}
-              onOpen={onOpen}
+              onOpen={lookAt}
               onOpenPerson={onOpenPerson}
               onUpdateMany={onUpdateMany}
               dimSet={dimSet}
@@ -928,11 +958,11 @@ export function LibraryView({
                 groups.map(([director, list]) => (
                   <div key={director} style={{ marginBottom: 46 }}>
                     <DirectorRule director={director} count={list.length} />
-                    <FilmWall films={list} onOpen={onOpen} look={look} filing={filing.bundle} />
+                    <FilmWall films={list} onOpen={lookAt} look={look} filing={filing.bundle} />
                   </div>
                 ))
               ) : (
-                <FilmWall films={filtered} onOpen={onOpen} look={look} filing={filing.bundle} />
+                <FilmWall films={filtered} onOpen={lookAt} look={look} filing={filing.bundle} />
               )}
               {filing.panel}
             </div>
@@ -953,7 +983,20 @@ export function LibraryView({
           <TonightDrawer
             films={allFilms.length ? allFilms : films}
             onClose={() => setSoir(false)}
-            onOpen={onOpen}
+            onOpen={lookAt}
+          />
+        )}
+
+        {quick && (
+          <FilmQuickView
+            film={quick}
+            onEnrich={onUpdateFilm}
+            onOpenPerson={(name) => onOpenPerson(normalize(name))}
+            onOpenFilm={() => {
+              setQuick(null);
+              onOpen(quick.id);
+            }}
+            onClose={() => setQuick(null)}
           />
         )}
       </div>

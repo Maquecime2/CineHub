@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { FrameStrip } from "./FrameStrip";
+import { shotsOfFrames } from "../stills/shots";
 
 /* ============================================================
    SIX PLANS, ET CE QU'ILS NE SONT PAS
@@ -29,7 +30,7 @@ vi.mock("../../tmdb", () => ({
 
 const frames = ["/a.jpg", "/b.jpg", "/c.jpg"];
 
-const open = () => render(<FrameStrip frames={frames} title="Voyage à Tokyo" />);
+const open = () => render(<FrameStrip shots={shotsOfFrames(frames)} title="Voyage à Tokyo" />);
 
 describe("the plate", () => {
   it("asks for the SMALL size in the strip", () => {
@@ -55,7 +56,7 @@ describe("the plate", () => {
   });
 
   it("shows nothing at all rather than an empty heading", () => {
-    const { container } = render(<FrameStrip frames={[]} title="x" />);
+    const { container } = render(<FrameStrip shots={[]} title="x" />);
     expect(container).toBeEmptyDOMElement();
   });
 });

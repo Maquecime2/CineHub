@@ -1619,6 +1619,7 @@ const en = {
     leftOnOtherDevice: "left on the other device",
     escToClose: "ESC TO CLOSE",
     theFilmStrip: "The film strip",
+    shotNumber: "capture {{n}}",
     insert: "insert",
     next: "next (→)",
     dragHint: "once placed, move it around inside the text",
@@ -2359,8 +2360,8 @@ const en = {
         body: "The wall can be painted, and the cards have a gauge. On the shelf, the same button is called “Decor workshop” and lives in the views menu: the decor belongs to the view, not to the row.",
       },
       open: {
-        title: "A card opens",
-        body: "Click a poster to open its folder: that is where the review, the motifs and the red thread are kept.",
+        title: "A card is looked at before it opens",
+        body: "Click a poster: the quick view tells you everything known about the film — what it is about, who made it, how long it runs, what you made of it — without leaving the wall. Your own captures take the place of TMDB's frames as soon as you have put any there. The folder, where the review, the motifs and the red thread are kept, is one gesture away.",
       },
       drag: {
         title: "Filing with a finger",
