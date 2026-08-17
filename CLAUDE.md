@@ -505,6 +505,12 @@ la forme de `ref` le plafonne à vie. Le vérifiable — quiz, défis, contribut
     boutons à icône étaient de travers, et uniquement là où presque tout le
     monde les regarde. La mise en boîte appartient au bouton ; `tap` ne
     garde que la cible qu'un doigt peut atteindre.
+    **`justifyContent` N'EST PAS DANS CETTE MISE EN BOÎTE**, et le premier
+    correctif l'y avait mis : un bouton qui s'ajuste à son contenu n'a rien
+    à centrer horizontalement, la propriété ne compte QUE sous une largeur
+    imposée — c'est-à-dire là où elle nuit, une ligne de résultat étirée
+    voyant son affiche et son titre ramenés au milieu. Elle reste dans
+    `tap`, où elle centre une icône seule dans ses quarante-quatre pixels.
 - Le carnet n'est plus une vue : `components/layout/NotebookDrawer.tsx`,
   ouvert depuis la barre du classeur. Les notes, elles, n'ont pas bougé.
 - `src/views/CounterView.tsx` — le comptoir : guichet, présentoir, carnet à
