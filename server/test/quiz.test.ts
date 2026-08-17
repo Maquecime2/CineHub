@@ -455,6 +455,78 @@ describe("the scoreboard", () => {
     expect(mine).toMatchObject({ score: 30, answered: 10, finished: true });
   });
 
+  /* ============================================================
+     LE TEMPS SE DIT, ET IL NE PAIE RIEN
+     ============================================================
+
+     Deux parties au même score ne sont pas la même partie, et le tableau
+     ne le disait pas. Mais la vitesse ne doit RIEN rapporter : si elle
+     payait, la première chose à faire pour monter au classement serait
+     de cliquer au hasard très vite.
+     ============================================================ */
+  it("says how long a finished run took, and counts a running one from now", async () => {
+    const { friend, quiz } = await ready();
+    await start(friend.cookie, quiz);
+
+    const running = (await scores(friend.cookie, quiz)).json().scores[0];
+    expect(running.finished).toBe(false);
+    expect(running.seconds).toBeGreaterThanOrEqual(0);
+
+    /* Une partie ouverte il y a une heure et toujours en cours DOIT le
+       montrer : la durée court, elle ne se fige pas au démarrage. */
+    await db.query(
+      `UPDATE quiz_attempt SET started_at = now() - interval '1 hour'
+        WHERE quiz_id = $1 AND person_id = $2`,
+      [quiz, friend.person.id]
+    );
+    expect((await scores(friend.cookie, quiz)).json().scores[0].seconds).toBeGreaterThanOrEqual(
+      3600
+    );
+  });
+
+  it("pays exactly the same to the quick and to the slow", async () => {
+    const { admin, friend, quiz } = await ready();
+    await invite(friend.cookie, quiz, "maquecime");
+
+    await playAll(friend.cookie, quiz);
+    /* La même partie, les mêmes réponses — mais commencée il y a deux
+       heures. `awardQuiz` ne lit aucun horodatage, et c'est cette ligne
+       qui le tient : le jour où quelqu'un ajoutera un bonus de vitesse,
+       ce test tombera avant que le classement ne se déforme. */
+    await start(admin.cookie, quiz);
+    await db.query(
+      `UPDATE quiz_attempt SET started_at = now() - interval '2 hours'
+        WHERE quiz_id = $1 AND person_id = $2`,
+      [quiz, admin.person.id]
+    );
+    const qs = (await readQuiz(admin.cookie, quiz)).json().questions;
+    for (const q of qs) await reply_(admin.cookie, quiz, q.id, q.choices[0].id);
+    await finish(admin.cookie, quiz);
+
+    const paid = async (id: string) =>
+      (
+        await db.query<{ kind: string; merit: number }>(
+          `SELECT kind, merit FROM merit_event WHERE person_id = $1 AND kind LIKE 'quiz%'
+            ORDER BY kind`,
+          [id]
+        )
+      ).map((r) => `${r.kind}:${r.merit}`);
+
+    const quick = await paid(friend.person.id);
+    const slow = await paid(admin.person.id);
+    /* `quiz_first` sépare légitimement les deux : c'est l'ORDRE, pas la
+       vitesse. On compare donc tout le reste. */
+    expect(slow.filter((k) => !k.startsWith("quiz_first"))).toEqual(
+      quick.filter((k) => !k.startsWith("quiz_first"))
+    );
+
+    const board = (await scores(friend.cookie, quiz)).json().scores;
+    expect(board.map((s: { score: number }) => s.score)).toEqual([board[0].score, board[0].score]);
+    /* Et pourtant le tableau les distingue — c'est bien le but. */
+    const slowRow = board.find((s: { pseudo: string }) => s.pseudo === "maquecime");
+    expect(slowRow.seconds).toBeGreaterThanOrEqual(7200);
+  });
+
   it("shows nobody one has blocked", async () => {
     const { admin, friend, quiz } = await ready();
     await invite(friend.cookie, quiz, "maquecime");

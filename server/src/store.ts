@@ -1672,6 +1672,16 @@ export interface QuizScore {
   score: number;
   answered: number;
   finished: boolean;
+  /**
+   * Combien de temps la partie a duré, en secondes — depuis `started_at`
+   * jusqu'à `finished_at`, ou jusqu'à maintenant pour qui joue encore.
+   *
+   * ELLE NE PAIE RIEN, et c'est délibéré : `awardQuiz` ne lit aucun
+   * horodatage, et un test l'éprouve. Le mérite se gagne sur ce qu'on
+   * répond, jamais sur la vitesse — sans quoi la première chose à faire
+   * pour monter au classement serait de cliquer au hasard très vite.
+   */
+  seconds: number;
 }
 
 /**
@@ -2065,7 +2075,15 @@ export async function scoresOf(db: Db, quizId: string, personId: string): Promis
     `SELECT p.pseudo,
             coalesce(sum(quiz_points(q.difficulty)) FILTER (WHERE c.is_right), 0)::int AS score,
             count(a.question_id)::int AS answered,
-            (t.finished_at IS NOT NULL) AS finished
+            (t.finished_at IS NOT NULL) AS finished,
+            /* GRATUIT : les deux bornes sont deja la. Pour qui joue
+               encore, on compte jusqu'a maintenant, donc le tableau
+               montre une duree qui COURT — ce qui est la verite.
+               (Aucun accent grave dans ce commentaire : il vit DANS un
+               litteral gabarit, et le premier le fermerait au milieu
+               d'une requete. Le piege s'est referme en ecrivant ces
+               lignes ; il est deja documente dans FONT_IMPORT.) */
+            extract(epoch from coalesce(t.finished_at, now()) - t.started_at)::int AS seconds
        FROM quiz_attempt t
        JOIN person p ON p.id = t.person_id
        LEFT JOIN quiz_answer a ON a.quiz_id = t.quiz_id AND a.person_id = t.person_id
@@ -2073,7 +2091,7 @@ export async function scoresOf(db: Db, quizId: string, personId: string): Promis
        LEFT JOIN quiz_question q ON q.id = a.question_id
       WHERE t.quiz_id = $1
         AND ${NOT_BLOCKED("$2", "t.person_id")}
-      GROUP BY p.pseudo, t.finished_at
+      GROUP BY p.pseudo, t.finished_at, t.started_at
       ORDER BY 2 DESC, p.pseudo`,
     [quizId, personId]
   );

@@ -1073,6 +1073,8 @@ export interface QuizScore {
   score: number;
   answered: number;
   finished: boolean;
+  /** La durée de la partie, en secondes. Elle ne paie rien : voir le serveur. */
+  seconds: number;
 }
 
 /* ---- the bank ---- */

@@ -34,6 +34,7 @@ import { FileNumber, InkUnderline } from "../components/atmosphere";
 import { Fold, Halftone, Stamp, Staple, perforated } from "../components/atmosphere/hall";
 import { PowerBar } from "../components/play/PowerBar";
 import { tiltOf } from "../domain/seeded";
+import { elapsed } from "../domain/elapsed";
 import type { Gain } from "../domain/points";
 import { refreshPurse } from "../hooks/usePurse";
 import { quizBank } from "../hooks/useHall";
@@ -901,7 +902,15 @@ function Scoreboard({
           done={s.score}
           total={weight}
           faded={!s.finished}
-          note={s.finished ? undefined : t("quizView.stillPlaying")}
+          /* LE TEMPS SE DIT, ET IL NE PAIE RIEN. C'est la seule chose
+             qu'un tableau des scores disait sans la dire : deux parties
+             au même score ne sont pas la même partie. Pour qui joue
+             encore, la durée COURT — le mot le dit avec elle. */
+          note={
+            s.finished
+              ? elapsed(s.seconds)
+              : `${t("quizView.stillPlaying")} · ${elapsed(s.seconds)}`
+          }
         />
       ))}
     </div>
