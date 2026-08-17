@@ -19,9 +19,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
-import { ListChecks, Plus, Search, Trash2, UserPlus, X } from "lucide-react";
+import { ListChecks, Plus, Trash2, UserPlus, X } from "lucide-react";
 import { C, F, alpha } from "../theme/tokens";
 import { bare, chip, hollow, inked, tap, underlineInput } from "../theme/styles";
+import { FilmPicker } from "../components/film/FilmPicker";
+import { FilmQuickView } from "../components/film/FilmQuickView";
+import { normalize } from "../domain/search";
+import type { Film } from "../types";
 import { CriterionComposer } from "./lists/CriterionComposer";
 import { currentMonth } from "./lists/shared";
 import { Guideline, Label, Meter, Trouble, ViewHeading, Waiting } from "../components/ui";
@@ -60,8 +64,6 @@ import {
 } from "../services/server";
 import { refreshLists, loadLists } from "../hooks/useMyLists";
 import { challenges as challengeBoard } from "../hooks/useHall";
-import { useTmdbKey } from "../services/tmdbKey";
-import { searchMovies } from "../tmdb";
 import { HallWindow } from "../components/layout/HallWindow";
 
 /* CE QUE LE CRITÈRE DEMANDE, EN TOUTES LETTRES. Un défi qui dirait
@@ -78,15 +80,28 @@ function sayCriterion(
   return t("listsView.criterionSays.unknown");
 }
 
-/** One TMDB result, as `searchMovies` hands it back. */
-interface TmdbHit {
-  tmdbId: number;
-  title: string;
-  year: number | null;
-}
-
-export function ListsView({ connected }: { connected: boolean }) {
+export function ListsView({
+  connected,
+  films,
+  onUpdateFilm,
+  onOpen,
+  onOpenPerson,
+}: {
+  connected: boolean;
+  /* LE CLASSEUR, POUR CHERCHER DEDANS. Remplir une liste ne demandait
+     que TMDB, donc ranger un film qu'on possède déjà obligeait à le
+     retaper et à le retrouver parmi des homonymes — alors qu'il est là,
+     avec son affiche et son réalisateur. C'est ce que les filiations
+     font depuis toujours. */
+  films: Film[];
+  onUpdateFilm: (film: Film) => void;
+  onOpen: (id: string) => void;
+  onOpenPerson: (name: string) => void;
+}) {
   const { t } = useTranslation();
+  /* La vue rapide est tenue ICI et non dans le sélecteur : c'est une
+     couche, et elle survit au repli de la liste qui l'a ouverte. */
+  const [quick, setQuick] = useState<Film | null>(null);
   const [lists, setLists] = useState<List[]>([]);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   /* « PAS ENCORE » N'EST PAS « AUCUN ». Cette vue partait de deux
@@ -206,6 +221,8 @@ export function ListsView({ connected }: { connected: boolean }) {
               opened={opened === l.id}
               onToggle={() => setOpened(opened === l.id ? null : l.id)}
               onChange={reread}
+              films={films}
+              onLook={setQuick}
             />
           ))}
         </div>
@@ -228,6 +245,28 @@ export function ListsView({ connected }: { connected: boolean }) {
             à côté des défis et non dans l'une d'elles. */}
         <CriterionComposer onChange={reread} />
       </div>
+
+      {/* LA MÊME COUCHE QU'AILLEURS. Décider qu'un film a sa place dans
+          une liste sur un titre et une année seulement était le défaut
+          que la vue rapide a été écrite pour retirer — aux filiations,
+          au générique, à la reco. Il restait ici. */}
+      {quick && (
+        <FilmQuickView
+          film={quick}
+          inBinder={films.some((f) => f.id === quick.id)}
+          onEnrich={onUpdateFilm}
+          onOpenPerson={(name) => onOpenPerson(normalize(name))}
+          onOpenFilm={
+            films.some((f) => f.id === quick.id)
+              ? () => {
+                  setQuick(null);
+                  onOpen(quick.id);
+                }
+              : undefined
+          }
+          onClose={() => setQuick(null)}
+        />
+      )}
     </Page>
   );
 }
@@ -241,11 +280,15 @@ function OneList({
   opened,
   onToggle,
   onChange,
+  films,
+  onLook,
 }: {
   list: List;
   opened: boolean;
   onToggle: () => void;
   onChange: () => Promise<void>;
+  films: Film[];
+  onLook: (film: Film) => void;
 }) {
   const { t } = useTranslation();
   const [works, setWorks] = useState<ListWork[]>([]);
@@ -369,7 +412,7 @@ function OneList({
             </div>
           ))}
 
-          <FillFromTmdb list={list} onFiled={reread} />
+          <FillFromTmdb list={list} works={works} films={films} onLook={onLook} onFiled={reread} />
 
           {/* Co-building is a right to write, not ownership: only the
               owner invites, renames and publishes. */}
@@ -534,120 +577,90 @@ function OneList({
 
    And the search costs little: the server already relays TMDB, so
    somebody signed in needs no key of their own. */
-function FillFromTmdb({ list, onFiled }: { list: List; onFiled: () => Promise<void> }) {
+function FillFromTmdb({
+  list,
+  works,
+  films,
+  onLook,
+  onFiled,
+}: {
+  list: List;
+  /** Ce que la liste tient déjà — pour ne pas proposer deux fois. */
+  works: ListWork[];
+  films: Film[];
+  onLook: (film: Film) => void;
+  onFiled: () => Promise<void>;
+}) {
   const { t } = useTranslation();
-  const apiKey = useTmdbKey();
-  const [q, setQ] = useState("");
-  const [found, setFound] = useState<TmdbHit[] | null>(null);
-  const [busy, setBusy] = useState(false);
   const [trouble, setTrouble] = useState<string | null>(null);
-  const [filed, setFiled] = useState<ReadonlySet<number>>(new Set());
 
   /* One writes in a list one may write in. A stranger's public list is
      read here, not filled. */
   if (!list.mienne && !list.isMember) return null;
-  if (!apiKey) {
-    return (
-      <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 12 }}>
-        {t("lists.searchNeedsKey")}
-      </div>
-    );
-  }
 
-  const look = async () => {
-    const title = q.trim();
-    if (!title) return;
-    setBusy(true);
+  /* CE QUE LA LISTE TIENT DÉJÀ, DIT SUR LES FICHES DU CLASSEUR. Le
+     sélecteur marque ses lignes avec un jeu d'identifiants de FICHES ;
+     une liste, elle, range des ŒUVRES par leur identité TMDB. La
+     traduction se fait donc ici, et pas dans le sélecteur — qui n'a pas
+     à connaître les listes. */
+  const inList = new Set(
+    films
+      .filter((f) => f.tmdbId && works.some((w) => String(w.tmdb_id) === String(f.tmdbId)))
+      .map((f) => f.id)
+  );
+
+  const fileIt = async (o: {
+    tmdbId: number | string;
+    title: string;
+    year?: string | number | null;
+  }) => {
     setTrouble(null);
     try {
-      setFound(await searchMovies({ title, apiKey, limit: 8 }));
-    } catch (e) {
-      setFound(null);
-      setTrouble((e as Error).message || t("lists.searchNobody"));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const file = async (hit: TmdbHit) => {
-    setBusy(true);
-    try {
       await addToList(list.id, {
-        tmdbId: hit.tmdbId,
-        title: hit.title,
-        year: hit.year ?? undefined,
+        tmdbId: o.tmdbId,
+        title: o.title,
+        year: o.year == null || o.year === "" ? undefined : String(o.year),
       });
-      setFiled((was) => new Set(was).add(hit.tmdbId));
       await onFiled();
     } catch (e) {
       setTrouble((e as Error).message || t("lists.filingFailed"));
-    } finally {
-      setBusy(false);
     }
   };
 
   return (
-    <div data-tour="lists-search" style={{ marginTop: 14 }}>
-      <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && look()}
-          placeholder={t("lists.searchPlaceholder")}
-          style={{ ...underlineInput, fontFamily: F.hand, fontSize: 16 }}
-        />
-        <button onClick={look} disabled={busy} style={inked(C.slate)}>
-          <Search size={12} /> {busy ? t("lists.searching") : t("lists.search")}
-        </button>
-      </div>
-
+    <div style={{ marginTop: 14 }}>
+      <FilmPicker
+        films={films}
+        /* UNE FICHE DU CLASSEUR : elle part telle quelle, à condition
+           d'avoir une identité TMDB. Une liste range des œuvres et non
+           des copies, donc une fiche tapée à la main n'y entre pas — et
+           on le DIT, là où le sélecteur l'aurait rangée en silence. */
+        onPick={(film) => {
+          if (!film.tmdbId) {
+            setTrouble(t("lists.noneFileable", { count: 1 }));
+            return;
+          }
+          void fileIt({ tmdbId: film.tmdbId, title: film.title, year: film.year });
+        }}
+        /* ET CELLE QUE LE CLASSEUR N'A PAS : on la range dans la LISTE,
+           et surtout pas dans la collection. Les filiations l'adoptent
+           parce qu'un parcours est fait de fiches ; une liste tient des
+           œuvres, et écrire une fiche chez quelqu'un qui a seulement dit
+           « viens voir ça en mars » serait remplir son classeur à sa
+           place. `FilmPicker` a déjà demandé `getDetails`, donc l'année
+           qui arrive ici est celle de TMDB et non celle de l'aperçu. */
+        onAdopt={(film) =>
+          void fileIt({ tmdbId: film.tmdbId!, title: film.title, year: film.year })
+        }
+        onLook={onLook}
+        inRun={inList}
+        label={t("lists.search")}
+        tour="lists-search"
+      />
       <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 6 }}>
         {t("lists.searchNote")}
       </div>
-
-      {found?.length === 0 && <Guideline tight>{t("lists.searchNobody")}</Guideline>}
-
-      {found?.map((hit) => (
-        <div
-          key={hit.tmdbId}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "4px 0",
-            borderBottom: `1px dashed ${alpha(C.line, 0.6)}`,
-          }}
-        >
-          <span style={{ flex: 1, minWidth: 0, fontFamily: F.title, fontSize: 15, color: C.ink }}>
-            {hit.title}
-            {hit.year ? (
-              <span style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>
-                {" "}
-                {hit.year}
-              </span>
-            ) : null}
-          </span>
-          <button
-            onClick={() => file(hit)}
-            disabled={busy || filed.has(hit.tmdbId)}
-            style={{
-              ...bare,
-              color: filed.has(hit.tmdbId) ? C.moss : C.ink,
-              fontFamily: F.mono,
-              fontSize: 10,
-              letterSpacing: 1,
-            }}
-          >
-            {filed.has(hit.tmdbId) ? t("lists.added") : t("lists.add")}
-          </button>
-        </div>
-      ))}
-
-      {trouble && (
-        <div style={{ fontFamily: F.hand, fontSize: 15, color: C.burgundy, marginTop: 6 }}>
-          {trouble}
-        </div>
-      )}
+      <Trouble>{trouble}</Trouble>
     </div>
   );
 }

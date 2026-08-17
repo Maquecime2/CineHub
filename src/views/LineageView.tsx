@@ -51,7 +51,7 @@ import type { ConfirmRequest } from "../components/ui";
 import { RunBar, NoRun } from "../components/lineage/RunBar";
 import { OrderStrip } from "../components/lineage/OrderStrip";
 import { StepPanel } from "../components/lineage/StepPanel";
-import { FilmPicker } from "../components/lineage/FilmPicker";
+import { FilmPicker } from "../components/film/FilmPicker";
 import { LineageMap, MapToggle } from "../components/lineage/LineageMap";
 import { BondForm } from "../components/lineage/BondForm";
 import { NodePanel } from "../components/lineage/NodePanel";

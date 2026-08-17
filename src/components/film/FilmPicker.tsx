@@ -36,7 +36,7 @@ import { Check, Clapperboard, Eye, Plus, Search } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { bare, inked, hollow, underlineInput } from "../../theme/styles";
 import { NoKey, Trouble, Waiting } from "../ui";
-import { PosterArt } from "../film/PosterArt";
+import { PosterArt } from "./PosterArt";
 import { searchFilms } from "../../domain/search";
 import { primaryDirector } from "../../domain/lineageMap";
 import { filmKey } from "../../domain/importing";

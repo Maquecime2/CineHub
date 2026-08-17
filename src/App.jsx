@@ -1643,7 +1643,21 @@ export default function App() {
             archived them does not make them unwatched. */}
               {view === "almanac" && <AlmanacView films={watched} onOpenPerson={openPerson} />}
               {view === "thread" && <ThreadView connected={!!synchro.person} />}
-              {view === "lists" && <ListsView connected={!!synchro.person} />}
+              {/* LES MÊMES PIÈCES QUE LES FILIATIONS. Remplir une liste et
+                  bâtir un parcours posent la même question — « quel film ? » —
+                  et n'avaient pas la même réponse : ici on ne cherchait que
+                  des titres sur TMDB, sans le classeur, sans filmographie et
+                  sans affiche. C'est le même `FilmPicker` maintenant, donc les
+                  mêmes fiches lui arrivent. */}
+              {view === "lists" && (
+                <ListsView
+                  connected={!!synchro.person}
+                  films={films}
+                  onUpdateFilm={updateFilm}
+                  onOpen={openFilm}
+                  onOpenPerson={openPerson}
+                />
+              )}
               {view === "quiz" && <QuizView connected={!!synchro.person} />}
               {view === "counter" && (
                 <CounterView connected={!!synchro.person} onGo={(where) => setView(where)} />
