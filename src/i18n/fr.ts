@@ -2174,8 +2174,15 @@ const fr = {
     invite: "INVITER",
     invitePlaceholder: "un pseudonyme",
     removePlayer: "Retirer cette personne",
+    confirmRemoveTitle: "Retirer {{pseudo}} de ce quizz ?",
+    confirmRemoveBody:
+      "Cette personne ne verra plus la soirée et ne pourra plus y répondre. Son score, lui, reste au tableau : une partie jouée ne se réécrit pas parce qu'on a retiré l'invitation.",
+    confirmRemoveAction: "Retirer",
     nobodyToInvite: "Personne à inviter sous « {{pseudo}} ».",
     deleteQuiz: "Effacer ce quizz",
+    confirmDeleteTitle: "Effacer « {{title}} » ?",
+    confirmDeleteBody:
+      "Le tirage, les réponses et les scores de cette soirée disparaissent, pour vous comme pour vos invités, et sans retour. Les questions, elles, restent dans la banque : ce quizz les avait empruntées, il ne les possédait pas.",
     tendBank: "TENIR LA BANQUE",
     bankNote:
       "Les catégories et leurs questions. C'est le stock où tout le monde vient tirer — vous ne composez pas de quizz ici, vous les rendez possibles.",
@@ -2663,7 +2670,7 @@ const fr = {
       },
       players: {
         title: "Qui joue",
-        body: "On invite par pseudonyme, comme pour une liste. Il n'y a pas de classement public : les scores que vous comparez sont ceux des gens que vous avez invités, et un blocage l'emporte des deux côtés.",
+        body: "On invite par pseudonyme, comme pour une liste. Il n'y a pas de classement public : les scores que vous comparez sont ceux des gens que vous avez invités, et un blocage l'emporte des deux côtés. Retirer quelqu'un demande confirmation, et son score reste au tableau : une partie jouée ne s'efface pas.",
       },
       scores: {
         title: "Les scores",

@@ -3,10 +3,17 @@ import { useTranslation } from "react-i18next";
 import { Trash2, UserPlus, X } from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { bare, chip, inked, underlineInput } from "../../theme/styles";
-import { Guideline, Label } from "../../components/ui";
+import { Confirmation, Guideline, Label, Trouble, type ConfirmRequest } from "../../components/ui";
 import { deleteQuiz, invitePlayer, removePlayer, type Quiz } from "../../services/server";
 
-/** Who was invited — the dealer's business, and nobody else's. */
+/** Who was invited — the dealer's business, and nobody else's.
+
+   LES DEUX RETRAITS DEMANDENT, ET CHACUN DIT CE QUI SURVIT. Ni l'un ni
+   l'autre ne demandait quoi que ce soit : la corbeille effaçait la
+   soirée d'un clic, pour ses invités comme pour soi, et la croix
+   décommandait quelqu'un. Ils ne sont pas de la même gravité et ne
+   doivent pas le paraître — effacer est SEVERE, et le mot du bouton
+   n'est pas « supprimer » sur un geste qui ne supprime rien. */
 export function Guests({
   quiz,
   players,
@@ -21,6 +28,9 @@ export function Guests({
   const { t } = useTranslation();
   const [invitee, setInvitee] = useState("");
   const [trouble, setTrouble] = useState<string | null>(null);
+  /* Un seul état pour les deux gestes : la carte est modale, il ne peut
+     pas y en avoir deux à l'écran. */
+  const [request, setRequest] = useState<ConfirmRequest | null>(null);
 
   const invite = async () => {
     const pseudo = invitee.trim().toLowerCase();
@@ -43,7 +53,14 @@ export function Guests({
           <span key={p} style={chip}>
             {p}
             <button
-              onClick={() => removePlayer(quiz.id, p).then(onChange)}
+              onClick={() =>
+                setRequest({
+                  title: t("quizView.confirmRemoveTitle", { pseudo: p }),
+                  body: t("quizView.confirmRemoveBody"),
+                  action: t("quizView.confirmRemoveAction"),
+                  onConfirm: () => void removePlayer(quiz.id, p).then(onChange),
+                })
+              }
               title={t("quizView.removePlayer")}
               style={bare}
             >
@@ -66,18 +83,27 @@ export function Guests({
         </button>
         <span style={{ flex: 1 }} />
         <button
-          onClick={() => deleteQuiz(quiz.id).then(onGone)}
+          onClick={() =>
+            setRequest({
+              title: t("quizView.confirmDeleteTitle", { title: quiz.title }),
+              body: t("quizView.confirmDeleteBody"),
+              action: t("common.delete"),
+              severe: true,
+              onConfirm: () => void deleteQuiz(quiz.id).then(onGone),
+            })
+          }
           title={t("quizView.deleteQuiz")}
           style={{ ...bare, color: C.burgundy }}
         >
           <Trash2 size={13} />
         </button>
       </div>
-      {trouble && (
-        <div style={{ fontFamily: F.hand, fontSize: 16, color: C.burgundy, marginTop: 8 }}>
-          {trouble}
-        </div>
-      )}
+      {/* IL N'ÉTAIT ANNONCÉ À PERSONNE. Un échec écrit à la main dans un
+          `div` n'a pas de rôle : le lecteur d'écran ne dit rien, et le
+          pseudonyme qu'on vient de taper reste dans le champ sans qu'on
+          sache pourquoi. */}
+      <Trouble>{trouble}</Trouble>
+      <Confirmation request={request} onClose={() => setRequest(null)} />
     </div>
   );
 }

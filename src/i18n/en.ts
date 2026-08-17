@@ -2103,8 +2103,15 @@ const en = {
     invite: "INVITE",
     invitePlaceholder: "a pseudonym",
     removePlayer: "Remove this person",
+    confirmRemoveTitle: "Remove {{pseudo}} from this quiz?",
+    confirmRemoveBody:
+      "They will no longer see the evening, nor be able to answer it. Their score stays on the board: a game played is not rewritten because an invitation was withdrawn.",
+    confirmRemoveAction: "Remove",
     nobodyToInvite: "Nobody to invite under “{{pseudo}}”.",
     deleteQuiz: "Erase this quiz",
+    confirmDeleteTitle: "Erase “{{title}}”?",
+    confirmDeleteBody:
+      "The deal, the answers and the scores of this evening go, for you and for the people you invited, with nothing to undo. The questions stay in the bank: this quiz had borrowed them, it never owned them.",
     tendBank: "TEND THE BANK",
     bankNote:
       "The categories and their questions. This is the stock everybody draws from — you do not compose quizzes here, you make them possible.",
@@ -2587,7 +2594,7 @@ const en = {
       },
       players: {
         title: "Who plays",
-        body: "One invites by pseudonym, as for a list. There is no public leaderboard: the scores you compare are those of the people you invited, and a block wins in both directions.",
+        body: "One invites by pseudonym, as for a list. There is no public leaderboard: the scores you compare are those of the people you invited, and a block wins in both directions. Removing somebody asks for confirmation, and their score stays on the board: a game played is not erased.",
       },
       scores: {
         title: "The scores",

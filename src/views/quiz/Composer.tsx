@@ -10,7 +10,7 @@ import { useTranslation } from "react-i18next";
 import { Plus } from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { chip, hollow, inked, tap, underlineInput } from "../../theme/styles";
-import { Guideline, Label } from "../../components/ui";
+import { Guideline, Label, Trouble } from "../../components/ui";
 import { drawQuiz, type Category } from "../../services/server";
 import { LEVELS } from "./shared";
 
@@ -144,11 +144,9 @@ export function Composer({
           </span>
         )}
       </div>
-      {trouble && (
-        <div style={{ fontFamily: F.hand, fontSize: 16, color: C.burgundy, marginTop: 8 }}>
-          {trouble}
-        </div>
-      )}
+      {/* Le tirage a été refusé, et le dire est le minimum : sans rôle,
+          l'écran ne bougeait pas et le bouton semblait mort. */}
+      <Trouble>{trouble}</Trouble>
       <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 8 }}>
         {t("quizView.dealNote")}
       </div>

@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Plus } from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { inked, underlineInput } from "../../theme/styles";
-import { Guideline, Label } from "../../components/ui";
+import { Guideline, Label, Trouble } from "../../components/ui";
 import { createCategory, type Category } from "../../services/server";
 import { OneCategory } from "./OneCategory";
 
@@ -57,11 +57,7 @@ export function Bank({
           <Plus size={12} /> {t("quizView.addCategory")}
         </button>
       </div>
-      {trouble && (
-        <div style={{ fontFamily: F.hand, fontSize: 16, color: C.burgundy, marginTop: 8 }}>
-          {trouble}
-        </div>
-      )}
+      <Trouble>{trouble}</Trouble>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 14 }}>
         {categories.length === 0 && <Guideline tight>{t("quizView.noCategories")}</Guideline>}

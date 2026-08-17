@@ -278,14 +278,21 @@ describe("the guests", () => {
     const field = await screen.findByPlaceholderText("un pseudonyme");
     await user.type(field, "inconnu{Enter}");
     /* ON CARACTÉRISE LE TEXTE, PAS LE RÔLE, et c'est délibéré : cet
-       échec est aujourd'hui un `div` en écriture manuscrite, sans
-       `role="alert"` — il n'est donc annoncé à personne, ce que la
-       doctrine interdit. Le corriger appartient à A5 ; s'accrocher au
-       texte fait que ce filet survivra à la correction au lieu de
-       figer le défaut. */
+       échec s'écrivait dans un `div` en écriture manuscrite, sans
+       `role="alert"` — il n'était donc annoncé à personne. C'est un
+       `Trouble` depuis A5, et s'être accroché au TEXTE est ce qui a
+       fait survivre ce filet à la correction. */
     expect(await screen.findByText(/Personne à inviter/)).toBeInTheDocument();
 
+    /* LE RETRAIT DEMANDE, DÉSORMAIS. Ce clic est ce qui a changé en A5,
+       et il devait changer : la croix décommandait quelqu'un sans un
+       mot. La carte porte le nom du bouton en CAPITALES, et sa réponse
+       est ce qui reste au tableau. */
     await user.click(screen.getByRole("button", { name: "Retirer cette personne" }));
+    expect(await screen.findByText(/Son score, lui, reste au tableau/)).toBeInTheDocument();
+    expect(api.removePlayer).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "RETIRER" }));
     await waitFor(() => expect(api.removePlayer).toHaveBeenCalledWith("q1", "ami"));
   });
 });
