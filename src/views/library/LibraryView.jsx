@@ -913,7 +913,6 @@ export function LibraryView({
               onDoc={onShelfView}
               placed={placed}
               onOpen={lookAt}
-              onOpenPerson={onOpenPerson}
               onUpdateMany={onUpdateMany}
               dimSet={dimSet}
             />

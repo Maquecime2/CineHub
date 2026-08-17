@@ -39,7 +39,7 @@ import {
 } from "./constants";
 import { DropMark, angleOf, rotatedBoxOfWall } from "./items";
 import { QuickFile } from "./QuickFile";
-import { Shelf, ReserveDrawer, CellPreview, DecorCabinet, ItemPalette } from "./layout";
+import { Shelf, ReserveDrawer, DecorCabinet, ItemPalette } from "./layout";
 
 /* A pattern whose tint changes nothing: an imported image that is not
    line work, or an SVG whose ink we could not name. The house patterns
@@ -53,16 +53,7 @@ const noTint = (motif) => {
    handler asks itself before doing anything at all. */
 const hangs = (drag) => drag?.type === "wall";
 
-export function ShelfBoard({
-  films,
-  doc,
-  onDoc,
-  onOpen,
-  onOpenPerson,
-  onUpdateMany,
-  dimSet,
-  placed,
-}) {
+export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet, placed }) {
   const { t } = useTranslation();
   /* A drag changes NO React state. It was the last visible lag:
      `setDragId` at the start of the drag re-rendered the shelf, which
@@ -82,7 +73,6 @@ export function ShelfBoard({
   const litRef = useRef(null); // the target currently lit
   const measureRef = useRef(new WeakMap()); // les rectangles du glissement en cours
   const tailRef = useRef(new WeakMap()); // the last object of each row hovered
-  const [preview, setPreview] = useState(null);
   const [drawer, setDrawer] = useState(false);
   const [cabinet, setCabinet] = useState(false);
   const [editCat, setEditCat] = useState(null);
@@ -759,7 +749,14 @@ export function ShelfBoard({
     wallDecor: wallDecorOf(view),
     plankDecor: plankDecorOf(view),
     dim,
-    onOpen: setPreview,
+    /* UNE MARCHE EN MOINS. Ouvrir une case posait `CellPreview`, un
+       aperçu — titre, note, critique — après lequel il fallait encore
+       cliquer pour la fiche puis pour le dossier : trois écrans pour
+       lire une réponse. Depuis que la fiche rapide vient avant le
+       dossier partout, cet aperçu disait moins qu'elle, plus tôt. Le
+       clic va donc directement à `onOpen`, que `LibraryView` mène à la
+       couche. */
+    onOpen,
     onEditCat: setEditCat,
     onEditDecor: setEditDecor,
     onDecorLabel,
@@ -898,14 +895,6 @@ export function ShelfBoard({
             setEditDecor(null);
           }}
           onClose={() => setEditDecor(null)}
-        />
-      )}
-      {preview && filmsById.get(preview) && (
-        <CellPreview
-          film={filmsById.get(preview)}
-          onClose={() => setPreview(null)}
-          onOpenFile={onOpen}
-          onOpenPerson={onOpenPerson}
         />
       )}
     </div>
