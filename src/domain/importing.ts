@@ -1,6 +1,7 @@
 /* ============================================================
    IMPORT — reading the CSV, matching, merging
    ============================================================ */
+import { canonicalGenres } from "./genres";
 import { makeFilm, mergeWatches, withWatches } from "./film";
 import type { Film, FilmStatus, ImportDiff, ImportRow, ParsedCsv, Year } from "../types";
 
@@ -203,7 +204,11 @@ export function diffImport(
         year: r.year,
         director: r.director || "",
         poster: r.poster || "",
-        genres: r.genres || [],
+        /* UNE SEULE ORTHOGRAPHE PAR GENRE, ici aussi : une sauvegarde
+           porte ce qu'elle portait le jour où elle a été écrite, et
+           TMDB sert les genres dans la langue demandée. Voir
+           `domain/genres`. */
+        genres: canonicalGenres(r.genres),
         cast: r.cast || [],
         crew: r.crew || {},
         runtime: r.runtime ?? null,
@@ -241,7 +246,8 @@ export function diffImport(
     const changes: Partial<Film> = {};
     if (r.rating != null && r.rating !== match.rating) changes.rating = r.rating;
     if (r.director && !match.director) changes.director = r.director;
-    if (r.genres?.length && !(match.genres || []).length) changes.genres = r.genres;
+    if (r.genres?.length && !(match.genres || []).length)
+      changes.genres = canonicalGenres(r.genres);
     /* THE CAST IS FILLED IN, IT IS NOT CORRECTED. Like the genres: we only
        fill the void. A card from before the harvest receives one on the
        first re-import; a card that already has one keeps it, because we do

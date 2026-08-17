@@ -4,6 +4,7 @@
    to be found again from TMDB.
    ============================================================ */
 
+import { canonicalGenres } from "./domain/genres";
 import { ADDRESS } from "./services/server";
 import { writtenKey, VIA_SERVER } from "./services/tmdbKey";
 
@@ -320,7 +321,12 @@ export async function getDetails(tmdbId, apiKey) {
     v: SHAPE,
     tmdbId: data.id,
     director: directors.join(", "),
-    genres: (data.genres || []).map((g) => g.name),
+    /* UNE SEULE ORTHOGRAPHE PAR GENRE. TMDB les sert dans la langue
+       demandée, et un classeur rempli sur deux navigateurs réglés
+       autrement se retrouvait avec « Science Fiction » ET
+       « Science-Fiction » comme deux genres distincts. Voir
+       `domain/genres` : on choisit une graphie, on ne traduit pas. */
+    genres: canonicalGenres((data.genres || []).map((g) => g.name)),
     /* THE SUMMARY IS NOT TRUNCATED HERE, unlike `toCandidate`'s. There
        it is cut to 240 because a discovery sweep holds a few hundred at
        once and the full text would saturate the quota on its own; this

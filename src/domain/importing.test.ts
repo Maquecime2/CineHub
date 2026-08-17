@@ -234,8 +234,12 @@ describe("diffImport", () => {
     // the director and the poster were already set: we do not touch them
     expect(changes.director).toBeUndefined();
     expect(changes.poster).toBeUndefined();
-    // the genres were missing: we accept them
-    expect(changes.genres).toEqual(["Science-fiction"]);
+    /* Les genres manquaient : on les accepte — ET ON LES MET AU PROPRE.
+       Ce fixture portait « Science-fiction », f minuscule : une
+       TROISIÈME graphie, à côté des deux que le tamis montrait l'une à
+       côté de l'autre. Il n'a pas été écrit pour l'occasion, ce qui dit
+       assez que le problème était plus large qu'on ne le voyait. */
+    expect(changes.genres).toEqual(["Science-Fiction"]);
   });
 
   it("matches by tmdbId first, even if the title has changed", () => {
