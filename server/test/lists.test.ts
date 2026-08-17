@@ -184,6 +184,78 @@ describe("co-building", () => {
   });
 });
 
+/* ============================================================
+   CE QU'UNE LISTE PARTAGÉE RAPPORTE
+   ============================================================
+
+   `list_shared` était déclaré dans les deux barèmes depuis toujours et
+   crédité par personne. Ces quatre cas sont ce qui empêche la ligne de
+   redevenir soit morte, soit une ferme à points : la référence composite
+   fait qu'une même personne ne paie qu'une fois, et la route interdit
+   déjà de s'inviter soi-même.
+   ============================================================ */
+describe("what a shared list is worth", () => {
+  const member = (cookie: string, list: string, pseudo: string) =>
+    app.inject({ method: "PUT", url: `/lists/${list}/members/${pseudo}`, headers: { cookie } });
+
+  const paid = async (personId: string) =>
+    (
+      await db.query<{ merit: number }>(
+        `SELECT merit FROM merit_event WHERE person_id = $1 AND kind = 'list_shared'`,
+        [personId]
+      )
+    ).map((r) => r.merit);
+
+  it("pays the owner when the list reaches somebody", async () => {
+    const me = await count("mine");
+    const ami = await count("ami");
+    const id = await createList(me.cookie);
+    await member(me.cookie, id, "ami");
+
+    expect(await paid(me.person.id)).toEqual([5]);
+    /* Celui qu'on invite ne gagne rien : c'est la liste qui a atteint
+       quelqu'un, pas quelqu'un qui a fait quelque chose. */
+    expect(await paid(ami.person.id)).toEqual([]);
+  });
+
+  it("does not pay twice for the same person coming and going", async () => {
+    const me = await count("mine");
+    await count("ami");
+    const id = await createList(me.cookie);
+    await member(me.cookie, id, "ami");
+    await app.inject({
+      method: "DELETE",
+      url: `/lists/${id}/members/ami`,
+      headers: { cookie: me.cookie },
+    });
+    await member(me.cookie, id, "ami");
+
+    /* La référence porte la liste ET la personne : retirer et remettre
+       n'est pas une façon d'enrichir un ami. */
+    expect(await paid(me.person.id)).toEqual([5]);
+  });
+
+  it("pays again for a DIFFERENT person", async () => {
+    const me = await count("mine");
+    await count("ami");
+    await count("autre");
+    const id = await createList(me.cookie);
+    await member(me.cookie, id, "ami");
+    await member(me.cookie, id, "autre");
+
+    expect(await paid(me.person.id)).toEqual([5, 5]);
+  });
+
+  it("never pays somebody for inviting themselves", async () => {
+    const me = await count("mine");
+    const id = await createList(me.cookie);
+    const own = await member(me.cookie, id, "mine");
+
+    expect(own.statusCode).toBe(400);
+    expect(await paid(me.person.id)).toEqual([]);
+  });
+});
+
 describe("a challenge", () => {
   const vu = (date: string) => ({ watches: [{ date }] });
 
@@ -433,5 +505,131 @@ describe("a challenge", () => {
       headers: { cookie: me.cookie },
     });
     expect(r.statusCode).toBe(404);
+  });
+});
+
+/* ============================================================
+   ON DÉFIE QUELQU'UN
+   ============================================================
+
+   Faire entrer une personne précise dans un défi demandait jusqu'ici de
+   lui donner le droit d'ÉCRIRE dans la liste, ou de rendre la liste
+   publique et d'attendre. Ces cas tiennent les quatre choses qui
+   distinguent une invitation d'une porte ouverte : qui a le droit
+   d'inviter, le silence sur un blocage, le droit de partir quoi qu'il
+   arrive, et le fait que l'auteur ne se paie pas en recrutant.
+   ============================================================ */
+describe("challenging somebody directly", () => {
+  const period = { starts_on: "2024-01-01", ends_on: "2024-12-31" };
+
+  const aChallenge = async (cookie: string, list: string) =>
+    (
+      await app.inject({
+        method: "POST",
+        url: "/challenges",
+        headers: { cookie },
+        payload: { listId: list, title: "Le mois Varda", ...period },
+      })
+    ).json().id as string;
+
+  const put = (cookie: string, id: string, pseudo: string) =>
+    app.inject({
+      method: "PUT",
+      url: `/challenges/${id}/participants/${pseudo}`,
+      headers: { cookie },
+    });
+
+  const drop = (cookie: string, id: string, pseudo: string) =>
+    app.inject({
+      method: "DELETE",
+      url: `/challenges/${id}/participants/${pseudo}`,
+      headers: { cookie },
+    });
+
+  const inside = async (id: string) =>
+    (await store.progressOf(db, id)).map((p: { pseudo: string }) => p.pseudo).sort();
+
+  it("puts somebody in without giving them the right to write in the list", async () => {
+    const me = await count("mine");
+    await count("ami");
+    const list = await createList(me.cookie);
+    const id = await aChallenge(me.cookie, list);
+
+    expect((await put(me.cookie, id, "ami")).statusCode).toBe(200);
+    expect(await inside(id)).toEqual(["ami", "mine"]);
+    /* Et c'est tout ce qu'on lui a donné : la liste reste la nôtre. */
+    const rights = await store.rightsOnList(db, list, (await store.findByPseudo(db, "ami"))!.id);
+    expect(rights?.write).toBe(false);
+  });
+
+  it("refuses a co-writer of the list: writing works is not engaging people", async () => {
+    const me = await count("mine");
+    const ami = await count("ami");
+    await count("autre");
+    const list = await createList(me.cookie);
+    await app.inject({
+      method: "PUT",
+      url: `/lists/${list}/members/ami`,
+      headers: { cookie: me.cookie },
+    });
+    const id = await aChallenge(me.cookie, list);
+
+    expect((await put(ami.cookie, id, "autre")).statusCode).toBe(403);
+  });
+
+  it("answers 404 across a block — the same silence as a challenge that does not exist", async () => {
+    const me = await count("mine");
+    const ami = await count("ami");
+    const list = await createList(me.cookie);
+    const id = await aChallenge(me.cookie, list);
+    await store.block(db, ami.person.id, me.person.id);
+
+    expect((await put(me.cookie, id, "ami")).statusCode).toBe(404);
+    expect(await inside(id)).toEqual(["mine"]);
+  });
+
+  it("lets whoever was put in walk away, and the author remove them", async () => {
+    const me = await count("mine");
+    const ami = await count("ami");
+    const list = await createList(me.cookie);
+    const id = await aChallenge(me.cookie, list);
+
+    await put(me.cookie, id, "ami");
+    expect((await drop(ami.cookie, id, "ami")).statusCode).toBe(200);
+    expect(await inside(id)).toEqual(["mine"]);
+
+    await put(me.cookie, id, "ami");
+    expect((await drop(me.cookie, id, "ami")).statusCode).toBe(200);
+    expect(await inside(id)).toEqual(["mine"]);
+  });
+
+  it("refuses to let one participant remove another", async () => {
+    const me = await count("mine");
+    const ami = await count("ami");
+    await count("autre");
+    const list = await createList(me.cookie);
+    const id = await aChallenge(me.cookie, list);
+    await put(me.cookie, id, "ami");
+    await put(me.cookie, id, "autre");
+
+    expect((await drop(ami.cookie, id, "autre")).statusCode).toBe(403);
+  });
+
+  /* LA LIGNE QUI COMPTE : recruter ne se paie pas. */
+  it("pays the author NOTHING for the people they put in themselves", async () => {
+    const me = await count("mine");
+    await count("ami");
+    const list = await createList(me.cookie);
+    const id = await aChallenge(me.cookie, list);
+    await put(me.cookie, id, "ami");
+
+    const paid = await db.query<{ kind: string }>(
+      "SELECT kind FROM merit_event WHERE person_id = $1 AND kind = 'challenge_joined'",
+      [me.person.id]
+    );
+    /* L'auto-inscription paie l'auteur parce que quelqu'un a CHOISI de
+       venir. Payer pour les gens qu'on ajoute soi-même, ce serait se
+       verser quatre points par ami. */
+    expect(paid).toEqual([]);
   });
 });

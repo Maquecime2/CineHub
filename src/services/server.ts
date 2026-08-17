@@ -896,20 +896,39 @@ export interface ListWork {
   tmdb_id: string;
   title: string;
   year: string | null;
-  /** Who put it there — `null` if that person has left. */
-  per: string | null;
+  /**
+   * Qui l'a mis là — `null` si cette personne est partie.
+   *
+   * `by` ET NON `per` : le même reste de vocabulaire français que sur
+   * `Challenge` juste dessous, et le même effet — le champ valait
+   * `undefined`, donc aucun nom n'a jamais été affiché sous une œuvre
+   * d'une liste écrite à plusieurs, ce qui est précisément l'endroit où
+   * il sert.
+   */
+  by: string | null;
 }
 
+/* ÉPELÉ COMME LE SERVEUR L'ÉPELLE, ce qui n'était pas le cas.
+   `liste_id` et `per` étaient des restes du vocabulaire français : le
+   serveur envoie `list_id` et `by`, donc ces deux champs valaient
+   `undefined` à l'exécution, toujours. Personne ne s'en plaignait —
+   un champ absent n'est pas une erreur, c'est un `undefined` — mais
+   « ce que ce défi vaut » cherchait l'auteur par un pseudo indéfini,
+   ne trouvait personne, et annonçait donc ZÉRO film vu sur chaque défi
+   du classeur. Le commentaire vingt lignes plus bas signalait déjà le
+   piège pour les quiz ; ici il n'avait pas été refermé. */
 export interface Challenge {
   id: string;
   title: string;
-  liste_id: string;
+  list_id: string;
   list: string;
   starts_on: string;
   ends_on: string;
-  per: string | null;
+  by: string | null;
   works: number;
   inside?: boolean;
+  /** Le défi est-il le mien ? Le serveur le dit ; on ne le devine plus. */
+  mine?: boolean;
 }
 
 /** One number per participant: the screening log does not go out. */
@@ -994,6 +1013,21 @@ export const leaveChallenge = (id: string) =>
   call<{ inside: boolean }>(`/challenges/${encodeURIComponent(id)}/participation`, {
     method: "DELETE",
   });
+
+/* `participation` EST LA SIENNE, `participants` EST CELLE DES AUTRES, et
+   les deux routes ne se ressemblent que de loin : la première n'a besoin
+   que du droit de LIRE le défi, la seconde du droit de l'administrer. */
+export const inviteToChallenge = (id: string, pseudo: string) =>
+  call<{ pseudo: string; inside: boolean }>(
+    `/challenges/${encodeURIComponent(id)}/participants/${encodeURIComponent(pseudo)}`,
+    { method: "PUT" }
+  );
+
+export const removeFromChallenge = (id: string, pseudo: string) =>
+  call<{ pseudo: string; inside: boolean }>(
+    `/challenges/${encodeURIComponent(id)}/participants/${encodeURIComponent(pseudo)}`,
+    { method: "DELETE" }
+  );
 
 /* ------------------------------------------------------------
    THE BANK, AND THE QUIZZES DRAWN FROM IT

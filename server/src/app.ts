@@ -1190,6 +1190,29 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
       return reply.code(404).send({ error: "Personne." });
     }
     await store.inviteToList(db, rights.list_id, invite.id);
+    /* UNE LISTE QUI A ATTEINT QUELQU'UN, ET C'EST CE QUE LE NOM DIT.
+       `list_shared` était déclaré dans les deux barèmes depuis toujours
+       et crédité par personne : une ligne déclarée et non câblée est un
+       oubli, pas du poids mort.
+
+       La forme est copiée sur `challenge_joined` juste plus bas, et la
+       référence composite achète la même garantie gratuitement : retirer
+       quelqu'un et le remettre ne paie pas deux fois. Le propriétaire ne
+       peut pas se payer lui-même — la route a refusé `invite.id ===
+       person.id` quelques lignes plus haut —, et il ne peut pas
+       davantage se payer par un complice qui partirait et reviendrait. */
+    /* `rights.owner_id` ET NON `person.id`, bien que les deux soient le
+       même aujourd'hui : `administer` vaut « propriétaire » et la route
+       vient de le vérifier. C'est l'INTENTION qu'on écrit — la liste
+       paie la personne à qui elle appartient — et elle survivra au jour
+       où `administer` s'élargira. */
+    await store.award(
+      db,
+      rights.owner_id,
+      "list_shared",
+      `${rights.list_id}:${invite.id}`,
+      RATE.list_shared
+    );
     return { pseudo: invite.pseudo, isMember: true };
   });
 
@@ -1282,6 +1305,66 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     if (!rights?.administer) return reply.code(403).send({ error: "Ce défi n'est pas vôtre." });
     await store.deleteChallenge(db, challenge.id);
     return { erased: true };
+  });
+
+  /* ------------------------------------------------------------
+     ON DÉFIE QUELQU'UN, ON NE PUBLIE PLUS EN ESPÉRANT
+     ------------------------------------------------------------
+
+     Jusqu'ici, faire entrer une personne précise dans un défi demandait
+     de l'ajouter comme MEMBRE de la liste — donc de lui donner le droit
+     d'y écrire — ou de rendre la liste publique et d'attendre qu'un
+     abonné passe. « Défier quelqu'un » n'existait pas.
+
+     `challenge_participant` acceptait déjà n'importe qui : seul le geste
+     manquait, et ces deux routes sont calquées au mot près sur les
+     joueurs d'un quiz. Aucun changement de schéma.
+
+     ET AUCUN `challenge_joined` ICI, ce qui n'est pas un oubli.
+     L'auto-inscription paie l'auteur parce que quelqu'un a CHOISI de
+     venir ; payer pour les gens qu'on ajoute soi-même reviendrait à se
+     verser quatre points par tête, autant de fois qu'on a d'amis. */
+  app.put("/challenges/:id/participants/:pseudo", async (req, reply) => {
+    const person = await requireAccount(req);
+    const { id, pseudo } = req.params as { id: string; pseudo: string };
+    const challenge = UUID.test(id || "") ? await store.challengeById(db, id) : null;
+    if (!challenge) return reply.code(404).send({ error: "Défi inconnu." });
+    /* `administer` et non `write` : c'est le droit que demande déjà la
+       suppression d'un défi. Un co-rédacteur de la liste peut y ajouter
+       des œuvres, pas y engager des gens. */
+    const rights = await store.rightsOnList(db, challenge.list_id, person.id);
+    if (!rights?.administer) return reply.code(403).send({ error: "Ce défi n'est pas vôtre." });
+
+    const invite = await store.findByPseudo(db, (pseudo || "").toLowerCase());
+    if (!invite) return reply.code(404).send({ error: "Personne." });
+    if (invite.id === person.id) return reply.code(400).send({ error: "C'est votre défi." });
+    /* Comme partout : on n'invite ni quelqu'un qu'on a fait taire, ni
+       quelqu'un qui nous a fait taire. Et on répond 404 — le même
+       silence que pour un défi qui n'existe pas. */
+    if (await store.blockedIds(db, person.id, invite.id)) {
+      return reply.code(404).send({ error: "Personne." });
+    }
+    await store.joinChallenge(db, challenge.id, invite.id);
+    return { pseudo: invite.pseudo, inside: true };
+  });
+
+  app.delete("/challenges/:id/participants/:pseudo", async (req, reply) => {
+    const person = await requireAccount(req);
+    const { id, pseudo } = req.params as { id: string; pseudo: string };
+    if (!UUID.test(id || "")) return reply.code(404).send({ error: "Défi inconnu." });
+    const about = await store.findByPseudo(db, (pseudo || "").toLowerCase());
+    if (!about) return reply.code(404).send({ error: "Personne." });
+    /* L'auteur retire qui il veut ; n'importe qui d'autre ne retire que
+       soi-même. Partir ne demande la permission de personne — et cela
+       vaut aussi pour un défi où l'on nous a mis sans nous demander. */
+    if (about.id !== person.id) {
+      const challenge = await store.challengeById(db, id);
+      if (!challenge) return reply.code(404).send({ error: "Défi inconnu." });
+      const rights = await store.rightsOnList(db, challenge.list_id, person.id);
+      if (!rights?.administer) return reply.code(403).send({ error: "Ce défi n'est pas vôtre." });
+    }
+    await store.leaveChallenge(db, id, about.id);
+    return { pseudo: about.pseudo, inside: false };
   });
 
   app.put("/challenges/:id/participation", async (req, reply) => {

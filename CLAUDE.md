@@ -380,6 +380,31 @@ Le volet communautaire compte des points : `merit_event` est un JOURNAL, et
   « écarter deux mauvaises réponses » rend toujours LES MÊMES deux, sinon on
   paie une fois et on épluche la question.
 
+**ON DÉFIE QUELQU'UN, ON NE PUBLIE PLUS EN ESPÉRANT.**
+`PUT/DELETE /challenges/:id/participants/:pseudo` exigent `administer` —
+le droit que demande déjà la suppression — là où `participation` ne
+demande que celui de LIRE. Un co-rédacteur ajoute des œuvres, il n'engage
+pas des gens. **Et cette route ne paie AUCUN `challenge_joined`** :
+l'auto-inscription paie l'auteur parce que quelqu'un a CHOISI de venir ;
+payer pour ceux qu'on ajoute soi-même serait se verser quatre points par
+ami.
+
+**`list_shared` N'ÉTAIT CÂBLÉ NULLE PART.** Déclaré dans les deux barèmes
+depuis toujours, crédité par personne. Il paie désormais le propriétaire
+quand une liste atteint quelqu'un, sur une référence composite
+`listId:memberId` — copie de `challenge_joined`, qui achète gratuitement
+« retirer et remettre ne paie pas deux fois ». Une ligne déclarée et non
+câblée est un oubli, pas du poids mort.
+
+**`liste_id` ET `per` N'EXISTAIENT PAS.** Le serveur envoie `list_id` et
+`by` ; les interfaces client de `Challenge` et de `ListWork` épelaient
+autrement, donc les deux champs valaient `undefined` À L'EXÉCUTION,
+toujours. Rien n'échouait — un champ absent n'est pas une erreur — mais
+« ce que ce défi vaut » cherchait l'auteur par un pseudo indéfini et
+annonçait **zéro film vu sur chaque défi**, et aucun nom ne s'est jamais
+affiché sous une œuvre d'une liste écrite à plusieurs. Le commentaire qui
+signale ce piège pour les quiz était juste à côté.
+
 **Aucune route ne prend un montant en entrée.** Le barème vit dans
 `server/src/points.ts` ; `src/domain/points.ts` en est une copie qui AFFICHE et
 ne crédite rien, et un test compare les deux tables.

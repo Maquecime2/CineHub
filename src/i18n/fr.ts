@@ -2079,6 +2079,8 @@ const fr = {
     noAccount:
       "Il faut un compte — le bouton au pied du rail. Votre vidéothèque, elle, n'en a pas besoin.",
     nobodyToInvite: "Personne à inviter sous « {{pseudo}} ».",
+    challengeSomebody: "un pseudo, pour le défier",
+    summon: "Le défier",
     challenges: "Les défis",
     inviteSomebody: "inviter quelqu'un à écrire",
     startChallenge: "Lancer un défi sur cette liste",

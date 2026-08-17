@@ -2012,6 +2012,8 @@ const en = {
     noAccount:
       "It takes an account — the button at the foot of the rail. Your video library does not need one.",
     nobodyToInvite: "Nobody to invite under “{{pseudo}}”.",
+    challengeSomebody: "a pseudonym, to challenge them",
+    summon: "Challenge them",
     challenges: "The challenges",
     inviteSomebody: "invite somebody to write",
     startChallenge: "Start a challenge on this list",

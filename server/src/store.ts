@@ -1265,6 +1265,13 @@ export interface Challenge {
   works: number;
   /** Am I taking part? */
   inside?: boolean;
+  /**
+   * Le défi est-il le mien ? Écrit par le serveur, qui seul le sait. Le
+   * client devinait — « pas d'auteur, ou j'y participe » — et offrait
+   * donc le retrait à des gens qui n'y avaient pas droit ; la requête
+   * partait et se faisait refuser.
+   */
+  mine?: boolean;
 }
 
 export interface Progress {
@@ -1288,7 +1295,8 @@ export async function myChallenges(db: Db, personId: string): Promise<Challenge[
             p.pseudo AS by,
             (SELECT count(*) FROM list_item i WHERE i.list_id = l.id)::int AS works,
             EXISTS (SELECT 1 FROM challenge_participant x
-                     WHERE x.challenge_id = e.id AND x.person_id = $1) AS inside
+                     WHERE x.challenge_id = e.id AND x.person_id = $1) AS inside,
+            (e.created_by = $1) AS mine
        FROM challenge e
        JOIN list l ON l.id = e.list_id
        LEFT JOIN person p ON p.id = e.created_by

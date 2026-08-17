@@ -38,6 +38,7 @@ import {
   deleteList,
   deleteChallenge,
   inviteToList,
+  inviteToChallenge,
   readList,
   readChallenge,
   leaveChallenge,
@@ -325,8 +326,8 @@ function OneList({
               </span>
               {/* Who put it there: in a list written by six hands, it
                   is the only thing one wants to know about a row. */}
-              {o.per && (
-                <span style={{ fontFamily: F.mono, fontSize: 9, color: C.inkFaded }}>{o.per}</span>
+              {o.by && (
+                <span style={{ fontFamily: F.mono, fontSize: 9, color: C.inkFaded }}>{o.by}</span>
               )}
               <button
                 onClick={() => removeFromList(list.id, o.tmdb_id).then(reread)}
@@ -603,6 +604,11 @@ function OneChallenge({
   const [progress, setAvancement] = useState<Progress[] | null>(null);
   const [ends, setEnds] = useState(challenge.ends_on);
   const [request, setRequest] = useState<ConfirmRequest | null>(null);
+  /* CE QU'IL FALLAIT POUR DÉFIER QUELQU'UN : rien de plus qu'un champ.
+     Jusqu'ici il fallait donner à la personne le droit d'ÉCRIRE dans la
+     liste, ou rendre la liste publique et attendre qu'un abonné passe. */
+  const [invite, setInvitee] = useState("");
+  const [trouble, setTrouble] = useState<string | null>(null);
 
   const reread = useCallback(async () => {
     const r = await readChallenge(challenge.id);
@@ -632,13 +638,13 @@ function OneChallenge({
   const sold = catalogue.find((i) => i.power === "extend");
   const powerHeld = sold?.held ?? 0;
   const canExtend = mayExtend(
-    { starts_on: challenge.starts_on, ends_on: ends, by: challenge.per },
-    challenge.per ?? null
+    { starts_on: challenge.starts_on, ends_on: ends, by: challenge.by },
+    challenge.by ?? null
   );
 
   const state = stateOf({ starts_on: challenge.starts_on, ends_on: ends });
   const left = daysLeft({ ends_on: ends });
-  const done = progress?.find((p) => p.pseudo === challenge.per)?.done ?? 0;
+  const done = progress?.find((p) => p.pseudo === challenge.by)?.done ?? 0;
 
   /* L'AFFICHE DIT SON ÉTAT AVANT DE DIRE SON TITRE. Un défi qui finit
      demain et un défi qui finit dans trois semaines ne se signalent pas
@@ -651,6 +657,21 @@ function OneChallenge({
     finished: { key: "listsView.finished", ink: C.inkFaded },
   };
   const banner = BANNER[state]!;
+
+  const summon = async () => {
+    const name = invite.trim().toLowerCase();
+    if (!name) return;
+    setTrouble(null);
+    try {
+      await inviteToChallenge(challenge.id, name);
+      setInvitee("");
+      await reread();
+    } catch {
+      /* Le serveur répond la même chose pour « n'existe pas » et « vous
+         vous êtes bloqués » : on reprend ce silence, comme les listes. */
+      setTrouble(t("listsView.nobodyToInvite", { pseudo: name }));
+    }
+  };
 
   const push = async () => {
     try {
@@ -725,7 +746,7 @@ function OneChallenge({
         >
           {challenge.inside ? t("listsView.leave") : t("listsView.join")}
         </button>
-        {challenge.per === null || challenge.inside ? (
+        {challenge.mine ? (
           <button
             /* Un défi mesure des gens : le retirer efface aussi ce que
                les autres y ont fait. */
@@ -783,6 +804,34 @@ function OneChallenge({
           />
         ))}
       </div>
+
+      {/* DÉFIER QUELQU'UN — et seulement pour qui a monté le défi. Un
+          participant peut y entrer et en sortir ; il n'y engage personne
+          d'autre. Le serveur le redit, la route exige `administer`. */}
+      {challenge.mine && state !== "finished" && (
+        <div style={{ position: "relative", marginTop: 10 }}>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+            <input
+              value={invite}
+              onChange={(e) => setInvitee(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void summon();
+                }
+              }}
+              placeholder={t("listsView.challengeSomebody")}
+              aria-label={t("listsView.challengeSomebody")}
+              style={{ ...underlineInput, flex: "1 1 160px", width: "auto" }}
+            />
+            <button onClick={() => void summon()} disabled={!invite.trim()} style={inked(C.pine)}>
+              <UserPlus size={12} />
+              {t("listsView.summon")}
+            </button>
+          </div>
+          {trouble && <Trouble>{trouble}</Trouble>}
+        </div>
+      )}
 
       {/* PROLONGER : le bouton n'existe que si les cinq bornes le
           permettent — celles du client rejouent exactement celles de la
