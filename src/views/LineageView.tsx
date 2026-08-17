@@ -55,6 +55,8 @@ import { FilmPicker } from "../components/lineage/FilmPicker";
 import { LineageMap, MapToggle } from "../components/lineage/LineageMap";
 import { BondForm } from "../components/lineage/BondForm";
 import { NodePanel } from "../components/lineage/NodePanel";
+import { FilmQuickView } from "../components/film/FilmQuickView";
+import { normalize } from "../domain/search";
 import {
   courseLabel,
   courseSteps,
@@ -87,6 +89,8 @@ interface LineageViewProps {
   onBonds: (next: Bond[]) => void;
   /** Ranger au classeur une fiche venue de TMDB. */
   onAddFilm: (film: Film) => void;
+  /** Écrire une fiche complétée : la vue rapide comble ses trous. */
+  onUpdateFilm: (film: Film) => void;
   onOpen: (filmId: string) => void;
   onOpenPerson: (key: string) => void;
 }
@@ -99,6 +103,7 @@ export function LineageView({
   onCoursesSoon,
   onBonds,
   onAddFilm,
+  onUpdateFilm,
   onOpen,
   onOpenPerson,
 }: LineageViewProps) {
@@ -117,6 +122,8 @@ export function LineageView({
       regarde un cinéaste, c'est même tout l'intérêt. */
   const [pickedStep, setPickedStep] = useState<string | null>(null);
   const [linking, setLinking] = useState<Linking | null>(null);
+  /** La fiche dont on regarde le tout, par-dessus le plan. */
+  const [quick, setQuick] = useState<string | null>(null);
   const [folded, setFolded] = useState(true);
   /* LES DEUX RETRAITS PASSENT PAR UNE CONFIRMATION, et ce ne sont pas
      les mêmes pertes. Supprimer un parcours perd un ORDRE et des notes
@@ -142,6 +149,7 @@ export function LineageView({
 
   const entries = useMemo(() => (course ? courseSteps(course, films) : []), [course, films]);
   const picked = pickedStep ? entries.find((e) => e.step.id === pickedStep) : undefined;
+  const quickFilm = quick ? films.find((f) => f.id === quick) : undefined;
 
   const replace = (next: Course, settled = true) => {
     const list = courses.some((c) => c.id === next.id)
@@ -352,6 +360,7 @@ export function LineageView({
           onPatch={(patch, settled) => replace(patchStep(course, picked.step.id, patch), settled)}
           onSettle={() => replace(course)}
           onTie={(from, to) => tieBond(from, to, picked.step.id)}
+          onQuick={() => setQuick(picked.film.id)}
           onRemove={() => {
             onCourses(
               courses.map((c) =>
@@ -388,6 +397,19 @@ export function LineageView({
           to={linking.to}
           onSave={saveBond}
           onClose={() => setLinking(null)}
+        />
+      )}
+
+      {quickFilm && (
+        <FilmQuickView
+          film={quickFilm}
+          onEnrich={onUpdateFilm}
+          onOpenPerson={(name) => onOpenPerson(normalize(name))}
+          onOpenFilm={() => {
+            setQuick(null);
+            onOpen(quickFilm.id);
+          }}
+          onClose={() => setQuick(null)}
         />
       )}
 

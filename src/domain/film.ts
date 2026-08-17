@@ -103,6 +103,7 @@ export const makeFilm = (partial: Partial<Film> = {}): Film => ({
   language: "",
   countries: [],
   tmdbRating: null,
+  synopsis: "", // what the film is about, in TMDB's words; see `types`
   themes: [],
   motifs: [], // the shared vocabulary; see `domain/motifs`
   rating: 0,
@@ -296,6 +297,12 @@ export const migrate = (films: StoredFilm[] | null | undefined): Film[] =>
     language: f.language || "",
     countries: f.countries || [],
     tmdbRating: f.tmdbRating ?? null,
+    /* Empty is the honest default here, unlike `keywords` just below:
+       "never asked" and "asked, TMDB has none" do not need telling apart
+       for a summary — a film TMDB knows and has no summary for is rare
+       enough that asking again costs nothing, and the alternative is a
+       third state on a field read by every quick view. */
+    synopsis: f.synopsis || "",
     /* NO FALLBACK TO THE EMPTY LIST, unlike all its neighbours: "never
        asked" and "asked, there are none" must stay distinct, otherwise
        completion goes round in circles. See `types`. */

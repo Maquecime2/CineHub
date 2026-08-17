@@ -409,6 +409,35 @@ const en = {
     tmdbId: "TMDB ID",
   },
 
+  /* THE QUICK VIEW — everything the binder holds of a film, over the top
+     of wherever one is. Three screens offer films one has not seen; all
+     three used to show a poster, a title and a year. */
+  quick: {
+    heading: "{{title}}, in full",
+    close: "Close",
+    openCard: "Open the whole card",
+    asking: "asking TMDB for what is missing…",
+    failed: "TMDB did not answer: {{why}}",
+    synopsis: "WHAT IT IS ABOUT",
+    noSynopsis: "TMDB gives no summary for this one.",
+    noSynopsisOffline: "No summary: this card is tied to no TMDB entry.",
+    people: "WHO MADE IT",
+    words: "THE WORDS ON IT",
+    motifs: "MOTIFS",
+    themes: "THEMES",
+    yourPart: "WHAT YOU MADE OF IT",
+    status: "STATUS",
+    seen: "seen",
+    toSee: "to watch",
+    bedside: "bedside",
+    archived: "set aside",
+    screenings: "SCREENINGS",
+    screeningCount_one: "one screening",
+    screeningCount_other: "{{count}} screenings",
+    review: "YOUR WORDS",
+    notes: "YOUR NOTES",
+    yours: "yours {{rating}} / 5",
+  },
   link: {
     seeOnTmdb: "see on TMDB",
     itsTmdbCard: "Its TMDB card",
@@ -581,6 +610,7 @@ const en = {
     nothingMissing: "Nothing is missing: you hold everything TMDB knows of them.",
     yearUnknown: "year unknown",
     inWatchlist: "in To watch",
+    seeMore: "See it whole",
     addToWatchlist: "+ to watch",
   },
 
@@ -1771,6 +1801,7 @@ const en = {
     howToLook: "DRAG TO MOVE ABOUT — CTRL + WHEEL, OR + AND −, TO LOOK CLOSER",
     remove: "Take out of the run",
     openFilm: "Open the card",
+    quickLook: "See what it is about",
     stranded_one:
       "One step shows nothing: its card has left the binder. It is kept, should it come back.",
     stranded_other:

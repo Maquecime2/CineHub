@@ -33,8 +33,13 @@ const CACHE_KEY = "tmdb-cache";
 /* 4: entries of shape 3 carry `keywords: []` where the joined resource
    had not come back — an emptiness passing itself off as an answer.
    Keeping them would make the repair impossible: we would ask again, and
-   the cache would serve the same lie. */
-const SHAPE = 4;
+   the cache would serve the same lie.
+
+   5: `synopsis`. Entries of shape 4 hold none, and the field arrives
+   empty rather than absent — so a card completed from one of them would
+   look answered and never be asked again. The bump is what makes the
+   whole cache re-earn its keep; nothing else here has to know. */
+const SHAPE = 5;
 
 // the cache avoids burning the quota again on every re-import of the same file
 const readCache = () => {
@@ -289,6 +294,12 @@ export async function getDetails(tmdbId, apiKey) {
     tmdbId: data.id,
     director: directors.join(", "),
     genres: (data.genres || []).map((g) => g.name),
+    /* THE SUMMARY IS NOT TRUNCATED HERE, unlike `toCandidate`'s. There
+       it is cut to 240 because a discovery sweep holds a few hundred at
+       once and the full text would saturate the quota on its own; this
+       one is asked for a single film and is written on its card, where
+       reading it whole is the entire point. */
+    synopsis: data.overview || "",
     year: data.release_date ? Number(data.release_date.slice(0, 4)) : null,
     // we store only a path (~30 bytes): the image stays at TMDB
     poster: data.poster_path ? `${POSTER_BASE}${data.poster_path}` : "",
@@ -529,10 +540,44 @@ export async function directorOf(tmdbId, apiKey) {
   }
 }
 
-export async function searchPerson(name, apiKey) {
-  return cachedList(`p:${name.toLowerCase()}`, async () => {
+/* THE TMDB DEPARTMENT EACH OF OUR ROLES BELONGS TO. Same shape and same
+   reason as `JOBS` below, one level up: `JOBS` names a credit, this
+   names the trade TMDB files a PERSON under. */
+const DEPARTMENTS = {
+  réalisation: "Directing",
+  interprétation: "Acting",
+  image: "Camera",
+  musique: "Sound",
+  scénario: "Writing",
+};
+
+/**
+ * The person behind a name.
+ *
+ * `results[0]` IS TMDB'S POPULARITY RANKING, AND NOTHING ELSE. Ask for a
+ * director who shares a name with a better-known actor and the actor
+ * wins — then their "Director" credits are asked for, and the Credits
+ * view lists films the person one was looking at never signed. It looks
+ * like a filter that leaks; it is the wrong person entirely.
+ *
+ * So when the capacity is known, the first result FILED UNDER THAT TRADE
+ * wins, and popularity only decides among equals. It stays a fallback
+ * and never a filter: TMDB leaves `known_for_department` empty on plenty
+ * of sparse entries, and refusing those would turn a wrong answer into
+ * no answer.
+ *
+ * THE TRADE IS PART OF THE CACHE KEY, for the same reason it is part of
+ * `personFilmography`'s: two questions, two answers, and the old
+ * `p:<name>` entries already written in people's browsers must not serve
+ * one for the other.
+ */
+export async function searchPerson(name, apiKey, { role = "" } = {}) {
+  const department = DEPARTMENTS[role] || "";
+  return cachedList(`p:${name.toLowerCase()}${department ? `:${department}` : ""}`, async () => {
     const data = await get("/search/person", { query: name }, apiKey);
-    const hit = data.results?.[0];
+    const results = data.results || [];
+    const hit =
+      (department && results.find((r) => r.known_for_department === department)) || results[0];
     return hit ? { id: hit.id, name: hit.name } : null;
   });
 }
@@ -589,9 +634,18 @@ const JOBS = {
 export async function personFilmography(personId, apiKey, { role = "réalisation" } = {}) {
   return cachedList(`pc:${personId}:${role}`, async () => {
     const data = await get(`/person/${personId}/movie_credits`, {}, apiKey);
-    if (role === "interprétation") return (data.cast || []).map(toCandidate);
-    const jobs = JOBS[role] || JOBS.réalisation;
-    return (data.crew || []).filter((c) => jobs.includes(c.job)).map(toCandidate);
+    const raw =
+      role === "interprétation"
+        ? data.cast || []
+        : (data.crew || []).filter((c) => (JOBS[role] || JOBS.réalisation).includes(c.job));
+    /* ONE FILM, ONE ENTRY. TMDB lists a crew credit PER JOB, so somebody
+       who directed and also wrote comes back twice on the same film once
+       `scénario` gathers two job titles — and a filmography that says a
+       title twice reads as a mistake in the collection, not in the
+       answer. Keyed on the id, which is the only thing that identifies a
+       film here. */
+    const seen = new Set();
+    return raw.filter((c) => !seen.has(c.id) && seen.add(c.id)).map(toCandidate);
   });
 }
 
@@ -723,6 +777,7 @@ export async function enrichRows(rows, apiKey, { onProgress, concurrency = 5 } =
             language: info.language || "",
             countries: info.countries || [],
             tmdbRating: info.tmdbRating ?? null,
+            synopsis: info.synopsis || "",
             /* No `|| []`: see `getDetails`. Falling back on the empty
                list would turn "we do not know" into "there are none",
                and would freeze the card for good. */

@@ -210,6 +210,7 @@ export function diffImport(
         language: r.language || "",
         countries: r.countries || [],
         tmdbRating: r.tmdbRating ?? null,
+        synopsis: r.synopsis || "",
         keywords: r.keywords,
         tmdbId: r.tmdbId || null,
         rating: r.rating ?? 0,
@@ -255,6 +256,7 @@ export function diffImport(
     if (r.language && !match.language) changes.language = r.language;
     if (r.countries?.length && !(match.countries || []).length) changes.countries = r.countries;
     if (r.tmdbRating != null && match.tmdbRating == null) changes.tmdbRating = r.tmdbRating;
+    if (r.synopsis && !match.synopsis) changes.synopsis = r.synopsis;
     /* KEYWORDS ARE WRITTEN EVEN WHEN EMPTY, and that is indispensable.
 
        The "only fill the void" rule is enough everywhere else. Here it

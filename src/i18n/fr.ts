@@ -426,6 +426,36 @@ const fr = {
     tmdbId: "ID TMDB",
   },
 
+  /* LA VUE RAPIDE — tout ce que le classeur tient d'un film, par-dessus
+     l'écran où l'on se trouve. Trois écrans proposent des films qu'on n'a
+     pas vus ; tous trois n'en montraient qu'une affiche, un titre, une
+     année. */
+  quick: {
+    heading: "{{title}}, en entier",
+    close: "Fermer",
+    openCard: "Ouvrir la fiche entière",
+    asking: "on demande à TMDB ce qui manque…",
+    failed: "TMDB n'a pas répondu : {{why}}",
+    synopsis: "CE DONT IL PARLE",
+    noSynopsis: "TMDB ne donne pas de résumé pour celui-là.",
+    noSynopsisOffline: "Pas de résumé : cette fiche n'est reliée à aucune entrée TMDB.",
+    people: "QUI L'A FAIT",
+    words: "LES MOTS DESSUS",
+    motifs: "MOTIFS",
+    themes: "THÈMES",
+    yourPart: "CE QUE VOUS EN AVEZ FAIT",
+    status: "STATUT",
+    seen: "vu",
+    toSee: "à voir",
+    bedside: "au chevet",
+    archived: "mis de côté",
+    screenings: "SÉANCES",
+    screeningCount_one: "une séance",
+    screeningCount_other: "{{count}} séances",
+    review: "VOS MOTS",
+    notes: "VOS NOTES",
+    yours: "la vôtre {{rating}} / 5",
+  },
   link: {
     seeOnTmdb: "voir sur TMDB",
     itsTmdbCard: "Sa fiche TMDB",
@@ -600,6 +630,7 @@ const fr = {
     nothingMissing: "Rien ne manque : vous avez tout ce que TMDB lui connaît.",
     yearUnknown: "année inconnue",
     inWatchlist: "dans À voir",
+    seeMore: "Le voir en entier",
     addToWatchlist: "+ à voir",
   },
 
@@ -1822,6 +1853,7 @@ const fr = {
     howToLook: "GLISSER POUR SE DÉPLACER — CTRL + MOLETTE, OU + ET −, POUR REGARDER DE PLUS PRÈS",
     remove: "Retirer du parcours",
     openFilm: "Ouvrir la fiche",
+    quickLook: "Voir de quoi il parle",
     stranded_one:
       "Une étape ne montre rien : sa fiche n'est plus au classeur. Elle est gardée, au cas où elle revienne.",
     stranded_other:

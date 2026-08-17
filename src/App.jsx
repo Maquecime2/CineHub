@@ -1601,7 +1601,12 @@ export default function App() {
                 />
               )}
               {view === "reco" && (
-                <RecoView films={films} onAddToWatchlist={addFilm} onOpen={openFilm} />
+                <RecoView
+                  films={films}
+                  onAddToWatchlist={addFilm}
+                  onOpen={openFilm}
+                  onOpenPerson={openPerson}
+                />
               )}
               {view === "constellation" && (
                 <ConstellationView
@@ -1628,6 +1633,7 @@ export default function App() {
                   onCoursesSoon={commitCoursesSoon}
                   onBonds={commitBonds}
                   onAddFilm={addFilm}
+                  onUpdateFilm={updateFilm}
                   onOpen={openFilm}
                   onOpenPerson={openPerson}
                 />

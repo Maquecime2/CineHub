@@ -25,6 +25,7 @@ import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 import { RefreshCw } from "lucide-react";
 import { C, F } from "../../theme/tokens";
+import { EMPTY, Names } from "./Names";
 import { tap } from "../../theme/styles";
 import { getTmdbKey } from "../../services/tmdbKey";
 import { getDetails, searchMovie } from "../../tmdb";
@@ -69,64 +70,9 @@ function Done({ name, children }: { name: string; children: ReactNode }) {
 /* What we say of an absent field. A dash, and not silence: silence gets
    confused with "this field does not exist", whereas here it means "TMDB
    did not give it to us", which calls for the button. */
-const EMPTY = <span style={{ color: C.line }}>—</span>;
 
 /* The trades, by the id a card carries. Their names read from `roles`. */
 const TRADES = ["image", "musique", "scénario"];
-
-/* A LIST OF NAMES THAT LEADS SOMEWHERE.
-
-   These names were text joined by commas: one read "Henri Decaë" without
-   being able to ask what else one had of his, whereas the collection had
-   known since the start. Each of them now opens its folder in the
-   Credits.
-
-   A dotted ink line, and not a link blue: the art direction is a
-   notebook, and a notebook does not underline in blue what can be
-   followed — it writes it in ink. */
-function Names({
-  names,
-  separator = ", ",
-  onOpenPerson,
-}: {
-  names: string[];
-  separator?: string;
-  onOpenPerson?: (name: string) => void;
-}) {
-  if (!names.length) return EMPTY;
-  return (
-    <>
-      {names.map((name, i) => (
-        <span key={`${name}-${i}`}>
-          {i > 0 && separator}
-          {onOpenPerson ? (
-            <button
-              onClick={() => onOpenPerson(name)}
-              title={`Ce que j'ai de ${name}`}
-              style={{
-                all: "unset",
-                ...tap,
-                cursor: "pointer",
-                borderBottom: `1px dotted ${C.inkFaded}`,
-                transition: "color var(--motion-fast) ease",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = C.burgundy;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = "";
-              }}
-            >
-              {name}
-            </button>
-          ) : (
-            name
-          )}
-        </span>
-      ))}
-    </>
-  );
-}
 
 export function TmdbFacts({
   film,
@@ -176,6 +122,7 @@ export function TmdbFacts({
         changes.crew = info.crew;
       if (info.genres?.length && !(film.genres || []).length) changes.genres = info.genres;
       if (info.director && !film.director) changes.director = info.director;
+      if (info.synopsis && !film.synopsis) changes.synopsis = info.synopsis;
       /* The keywords are written even when empty: it is the list itself,
          even of length zero, that says "we asked". See `types` and
          `domain/importing`. */

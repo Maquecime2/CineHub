@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { C, F } from "../theme/tokens";
-import { underlineInput, tap } from "../theme/styles";
+import { C, F, alpha } from "../theme/tokens";
+import { underlineInput, tap, inked, hollow } from "../theme/styles";
+import { FilmQuickView } from "../components/film/FilmQuickView";
+import { normalize } from "../domain/search";
 import { Label, SectionTitle, Guideline, NoKey } from "../components/ui";
 import { StampCorner, InkUnderline, CoffeeRing } from "../components/atmosphere";
 import { useTmdbKey } from "../services/tmdbKey";
@@ -29,6 +31,11 @@ interface Candidate {
   /** TMDB rating, and the niche share computed by `rank`. */
   voteAverage: number;
   niche: number;
+  /* IL TRAVERSAIT DÉJÀ TOUTE LA CHAÎNE et n'était déclaré nulle part :
+     `toCandidate` le ramène, `gatherCandidates` et `rank` l'étalent avec
+     le reste. On proposait donc des films en n'en disant que le titre,
+     l'année et deux chiffres — en tenant le résumé dans la main. */
+  overview?: string;
 }
 
 /** The settings of the order form. See `DEFAULT_QUERY` in reco.js. */
@@ -173,6 +180,7 @@ function RecoCard({
   director,
   onAdd,
   added,
+  onQuick,
 }: {
   c: Candidate;
   /* Brought back afterwards (see `useDirectors`), hence the THREE
@@ -183,6 +191,7 @@ function RecoCard({
   director?: string;
   onAdd: () => void;
   added: boolean;
+  onQuick: () => void;
 }) {
   const { t } = useTranslation();
   const asFilm = useMemo(
@@ -200,12 +209,11 @@ function RecoCard({
   );
   return (
     <div>
-      <FilmPolaroid
-        film={asFilm}
-        onClick={() =>
-          window.open(`https://www.themoviedb.org/movie/${c.tmdbId}`, "_blank", "noopener")
-        }
-      />
+      {/* L'AFFICHE OUVRE LA VUE RAPIDE, ET PLUS TMDB DANS UN AUTRE
+          ONGLET. Quitter le site pour savoir de quoi parle un film qu'on
+          nous propose ici perd la recherche qu'on venait de régler — et
+          tout ce que cette page allait chercher, elle le tenait déjà. */}
+      <FilmPolaroid film={asFilm} onClick={onQuick} />
       <div style={{ marginTop: -22, marginBottom: 30, padding: "0 4px" }}>
         <div
           style={{
@@ -217,6 +225,23 @@ function RecoCard({
         >
           {c.reasons.join(" · ")}
         </div>
+        {c.overview && (
+          <div
+            style={{
+              fontFamily: F.body,
+              fontSize: 11.5,
+              lineHeight: 1.4,
+              color: alpha(C.ink, 0.7),
+              marginTop: 4,
+              display: "-webkit-box",
+              WebkitLineClamp: 3,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+            }}
+          >
+            {c.overview}
+          </div>
+        )}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
           <span style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}>
             TMDB {c.voteAverage.toFixed(1)} · niche {Math.round(c.niche * 100)}%
@@ -397,11 +422,14 @@ export function RecoView({
   films,
   onAddToWatchlist,
   onOpen,
+  onOpenPerson,
 }: {
   films: Film[];
   onAddToWatchlist: (f: Film) => void;
   /** Opens a card of the collection — the "chez vous" proposals. */
   onOpen?: (id: string) => void;
+  /** Ouvre la page de quelqu'un au générique, depuis la vue rapide. */
+  onOpenPerson?: (key: string) => void;
 }) {
   const { t, i18n } = useTranslation();
   const [query, setQuery] = useState<Query>(DEFAULT_QUERY);
@@ -409,6 +437,8 @@ export function RecoView({
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState("");
   const [added, setAdded] = useState<Set<number>>(() => new Set());
+  /** La proposition qu'on regarde en entier, par-dessus la planche. */
+  const [quick, setQuick] = useState<Candidate | null>(null);
   const set = <K extends keyof Query>(k: K, v: Query[K]) => setQuery((q) => ({ ...q, [k]: v }));
 
   const apiKey = useTmdbKey();
@@ -808,12 +838,48 @@ export function RecoView({
                     director={directors[c.tmdbId]}
                     onAdd={() => addOne(c)}
                     added={added.has(c.tmdbId)}
+                    onQuick={() => setQuick(c)}
                   />
                 ))}
               </div>
             </>
           )}
         </>
+      )}
+
+      {/* LA PROPOSITION EN ENTIER. Pas au classeur, donc `inBinder` est
+          faux : ni note, ni séance, ni statut. Le réalisateur y est
+          cliquable, ce que la planche ne savait pas faire — c'est même
+          la question qu'on se pose devant une découverte. */}
+      {quick && (
+        <FilmQuickView
+          film={makeFilm({
+            id: `tmdb-${quick.tmdbId}`,
+            title: quick.title,
+            year: quick.year || "",
+            poster: quick.poster,
+            genres: quick.genres,
+            synopsis: quick.overview || "",
+            director: directors[quick.tmdbId] || "",
+            tmdbRating: quick.voteAverage || null,
+            tmdbId: quick.tmdbId,
+          })}
+          inBinder={false}
+          onOpenPerson={onOpenPerson ? (name) => onOpenPerson(normalize(name)) : undefined}
+          action={
+            <button
+              onClick={() => {
+                addOne(quick);
+                setQuick(null);
+              }}
+              disabled={added.has(quick.tmdbId)}
+              style={{ ...inked(C.pine), ...(added.has(quick.tmdbId) ? hollow : null) }}
+            >
+              {added.has(quick.tmdbId) ? t("wakePanel.setAsideDone") : t("wakePanel.setAside")}
+            </button>
+          }
+          onClose={() => setQuick(null)}
+        />
       )}
     </div>
   );

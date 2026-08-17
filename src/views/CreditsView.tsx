@@ -25,6 +25,7 @@ import { underlineInput, tap } from "../theme/styles";
 import { StampCorner, PushPin } from "../components/atmosphere";
 import { Cardstock, SectionTitle, Guideline, Label, InkStars, Honours } from "../components/ui";
 import { PosterArt } from "../components/film/PosterArt";
+import { FilmQuickView } from "../components/film/FilmQuickView";
 import {
   census,
   searchPeople,
@@ -1046,6 +1047,10 @@ interface Missing {
   year: number | null;
   poster: string;
   voteAverage: number;
+  /* IL ARRIVAIT DÉJÀ DANS LA RÉPONSE, et on le jetait. `toCandidate` le
+     ramène pour chaque proposition, tronqué à 240 : décider si un film
+     nous intéresse sur un titre et une année n'est pas décider. */
+  overview: string;
 }
 
 /* A proposal's poster, in the 2:3 format as everywhere else. A broken
@@ -1105,6 +1110,8 @@ function WhatIsMissing({
   const [msg, setMsg] = useState("");
   const [manquants, setManquants] = useState<Missing[]>([]);
   const [addedIds, setAddedIds] = useState<Set<number>>(new Set());
+  /** La proposition qu'on regarde en entier, par-dessus la grille. */
+  const [quick, setQuick] = useState<Missing | null>(null);
 
   /* Without a key the button does not exist: offering an action that
      cannot succeed is worse than offering nothing. The key is laid from
@@ -1115,17 +1122,22 @@ function WhatIsMissing({
     setState("en-cours");
     setMsg("");
     try {
-      const hit = await searchPerson(p.name, apiKey);
+      /* LE MÉTIER PART AVEC LA QUESTION, et pas seulement avec la
+         seconde : chercher « qui porte ce nom » puis « qu'a-t-il
+         réalisé » revenait à demander la filmographie de réalisateur
+         d'un homonyme acteur, que TMDB classe plus haut. */
+      const role = p.roles[0]!;
+      const hit = await searchPerson(p.name, apiKey, { role });
       if (!hit) {
         setState("fait");
         setMsg(t("credits.tmdbNobody"));
         return;
       }
-      /* We ask about the best furnished title: it is the one for which
-         "what is missing" means something. An actor seen twice as a
-         director is not judged on their thirty acting roles. */
-      const role = p.roles[0]!;
-      const everything = await personFilmography(hit.id, apiKey, { role: role });
+      /* `roles` comes in `PERSON_ROLES` order and not by count, so
+         directing wins whenever somebody has directed anything at all —
+         which is what one is asking about on the page of a film-maker
+         who also acts. */
+      const everything = await personFilmography(hit.id, apiKey, { role });
 
       /* What we already have, by TMDB identifier first — the safest —
          then by the import's title+year key, which already neutralises
@@ -1237,6 +1249,32 @@ function WhatIsMissing({
                 {c.year || t("credits.yearUnknown")}
                 {c.voteAverage ? ` · ${c.voteAverage.toFixed(1)}/10` : ""}
               </div>
+              {/* DE QUOI ÇA PARLE, EN CLAIR SUR LA VIGNETTE. Trois lignes
+                  suffisent à écarter la moitié des propositions ; la vue
+                  rapide, elle, en dit tout. */}
+              {c.overview && (
+                <div
+                  style={{
+                    fontFamily: F.body,
+                    fontSize: 11,
+                    lineHeight: 1.35,
+                    color: alpha(C.ink, 0.7),
+                    margin: "0 0 8px",
+                    display: "-webkit-box",
+                    WebkitLineClamp: 3,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden",
+                  }}
+                >
+                  {c.overview}
+                </div>
+              )}
+              <button
+                onClick={() => setQuick(c)}
+                style={{ ...chipLook(false, C.plum), marginBottom: 5 }}
+              >
+                {t("credits.seeMore")}
+              </button>
               <button
                 onClick={() => add(c)}
                 disabled={inside}
@@ -1248,6 +1286,39 @@ function WhatIsMissing({
           );
         })}
       </div>
+
+      {/* LA PROPOSITION EN ENTIER. Elle n'est PAS au classeur : `inBinder`
+          est faux, donc ni note, ni séance, ni statut — les montrer à zéro
+          affirmerait qu'on n'a pas aimé un film qu'on n'a pas vu. Et rien
+          n'est écrit nulle part, faute de fiche à écrire. */}
+      {quick && (
+        <FilmQuickView
+          film={makeFilm({
+            id: `tmdb:${quick.tmdbId}`,
+            title: quick.title,
+            year: quick.year || "",
+            poster: quick.poster,
+            synopsis: quick.overview,
+            director: p.roles[0] === "réalisation" ? p.name : "",
+            tmdbRating: quick.voteAverage || null,
+            tmdbId: quick.tmdbId,
+          })}
+          inBinder={false}
+          action={
+            <button
+              onClick={() => {
+                add(quick);
+                setQuick(null);
+              }}
+              disabled={addedIds.has(quick.tmdbId)}
+              style={{ ...chipLook(addedIds.has(quick.tmdbId), C.ochre) }}
+            >
+              {addedIds.has(quick.tmdbId) ? t("credits.inWatchlist") : t("credits.addToWatchlist")}
+            </button>
+          }
+          onClose={() => setQuick(null)}
+        />
+      )}
     </div>
   );
 }

@@ -225,6 +225,54 @@ autres.
   connectés n'enverront JAMAIS ces documents — la pire perte, celle qu'on ne
   découvre qu'en changeant d'ordinateur.
 
+## Tout ce qu'on sait d'un film, sans quitter l'écran
+
+Trois écrans posaient la même question et aucun ne savait y répondre : un
+parcours dans les filiations, une proposition au générique, une découverte
+à la reco. Tous trois offrent un film qu'on n'a PAS vu, et tous trois n'en
+montraient qu'une affiche, un titre et une année. La seule sortie était de
+quitter l'écran — donc de perdre le parcours qu'on bâtissait, ou la
+recherche qu'on venait de régler.
+
+**`FilmQuickView` (`components/film/FilmQuickView.tsx`) est une COUCHE, et
+pas trois panneaux dans le flux.** Écrit en ligne, chaque écran aurait dû
+lui trouver de la place, et le plus étroit des trois aurait décidé de ce
+que les trois pouvaient dire. Par-dessus, la place est celle de la
+fenêtre : c'est ce qui rend « exhaustif » tenable. `Layer` + `useDialog`,
+comme tout ce qui prend la main.
+
+- **EXHAUSTIF, DONC SECTIONNÉ.** Un mur de quarante valeurs n'est pas plus
+  lisible que quatre, il l'est moins : ce que le film EST, ce qu'on en a
+  FAIT, les gens, les mots. Une SECTION vide ne se dessine pas ; un CHAMP
+  vide se dessine avec un tiret, parce que dans une section la différence
+  entre « rien » et « jamais demandé » est ce que le bouton du haut sert
+  à corriger.
+- **`Film.synopsis` EST UNE DONNÉE, ET `SHAPE` MONTE À 5.** Aucune fiche
+  au monde n'en portait — le champ n'existait pas — donc une vue rapide
+  qui n'aurait montré que du stocké aurait été vide pour tout le monde le
+  jour de sa sortie. Elle le demande UNE fois, par fiche, et `onEnrich`
+  l'écrit : payé une fois, et hors ligne ensuite.
+- **ELLE COMBLE DES TROUS, ELLE NE CORRIGE RIEN.** Une durée saisie à la
+  main survit à un panneau qu'on a seulement ouvert. C'est cette règle —
+  celle de `TmdbFacts` et de la fusion d'import — qui rend la requête sûre
+  à lancer sans rien demander à personne.
+- **`inBinder` EST FAUX POUR UN CANDIDAT**, et ce n'est pas un détail :
+  une note à zéro et zéro séance AFFIRMERAIENT qu'on n'a pas aimé un film
+  qu'on n'a pas vu. Ni note, ni séance, ni statut hors du classeur.
+- **`Names` (`components/film/Names.tsx`) A ÉTÉ SORTI DE `TmdbFacts`.** Il
+  y était enfermé, donc la vue rapide et l'identité de la fiche ne
+  pouvaient pas l'atteindre et avaient commencé à redessiner le leur —
+  avec l'infobulle écrite en français au milieu d'une vue, alors que
+  `credits.whatIHaveOf` était dans les deux catalogues depuis toujours.
+- **`searchPerson` NE PREND PLUS `results[0]`.** C'est le classement par
+  POPULARITÉ de TMDB : demander un réalisateur qui partage son nom avec un
+  acteur plus connu rendait l'acteur, puis on demandait ce que cet
+  acteur avait RÉALISÉ — et le générique listait des films que la personne
+  regardée n'a jamais signés. Ça se lit comme un filtre qui fuit ; c'est la
+  mauvaise personne. Le métier entre donc dans la question ET dans la clé
+  de cache. Il reste un REPLI et jamais un filtre : TMDB laisse
+  `known_for_department` vide sur quantité de fiches maigres.
+
 ## Aucune phrase n'est écrite dans une vue
 
 `src/i18n/catalogue.test.ts` garde les deux catalogues l'un contre l'autre, et il

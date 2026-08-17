@@ -39,6 +39,7 @@ const build = (courses: Course[] = [], bonds = [] as ReturnType<typeof makeBond>
   const onCoursesSoon = vi.fn();
   const onBonds = vi.fn();
   const onAddFilm = vi.fn();
+  const onUpdateFilm = vi.fn();
   const onOpen = vi.fn();
   render(
     /* Le canal de parole est monté par `App` dans le produit : sans lui
@@ -53,12 +54,13 @@ const build = (courses: Course[] = [], bonds = [] as ReturnType<typeof makeBond>
         onCoursesSoon={onCoursesSoon}
         onBonds={onBonds}
         onAddFilm={onAddFilm}
+        onUpdateFilm={onUpdateFilm}
         onOpen={onOpen}
         onOpenPerson={vi.fn()}
       />
     </FeedbackProvider>
   );
-  return { onCourses, onCoursesSoon, onBonds, onAddFilm, onOpen };
+  return { onCourses, onCoursesSoon, onBonds, onAddFilm, onUpdateFilm, onOpen };
 };
 
 /** La bande d'ordre, et pas le miroir en liste de la carte. */

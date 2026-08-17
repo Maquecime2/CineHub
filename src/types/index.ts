@@ -119,6 +119,19 @@ export interface Film {
   /** TMDB's public rating out of 10 — enough to measure one's own gap. */
   tmdbRating: number | null;
   /**
+   * What the film is about, in TMDB's words. Empty means "we have never
+   * asked", and it is the only honest default: a card typed by hand has
+   * no summary and inventing one is not this application's business.
+   *
+   * IT IS NOT `review` AND NEVER WILL BE. `review` is what YOU wrote
+   * about the film, and it is the point of the whole binder; this is
+   * what the film is, which one needs BEFORE having seen it — a
+   * viewing plan is made of films one cannot yet have an opinion on.
+   * Filing them together would make the second overwrite the first the
+   * first time a card was completed.
+   */
+  synopsis: string;
+  /**
    * TMDB's keywords ("time loop", "neo-noir"), twenty at most. They are
    * the ONLY thematic information that arrives on its own: `themes` and
    * `motifs` are set by hand, and on an imported collection they stay
@@ -249,6 +262,7 @@ export interface ImportRow {
   language?: string;
   countries?: string[];
   tmdbRating?: number | null;
+  synopsis?: string;
   keywords?: string[];
   poster?: string;
   tmdbId?: number | string | null;

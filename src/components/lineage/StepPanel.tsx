@@ -17,7 +17,7 @@
    away: no `Layer`, no `useDialog`, no scrim. Those are for what
    interrupts — the bond form does interrupt, and it has them. */
 import { useTranslation } from "react-i18next";
-import { ExternalLink, X } from "lucide-react";
+import { Eye, ExternalLink, X } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { bare, hollow, inked, ruledTextarea } from "../../theme/styles";
 import { Label } from "../ui";
@@ -50,6 +50,8 @@ interface StepPanelProps {
   onTie: (from: string, to?: string) => void;
   onRemove: () => void;
   onOpen: () => void;
+  /** La vue rapide : tout ce qu'on sait du film, sans quitter le plan. */
+  onQuick: () => void;
   onClose: () => void;
 }
 
@@ -64,6 +66,7 @@ export function StepPanel({
   onTie,
   onRemove,
   onOpen,
+  onQuick,
   onClose,
 }: StepPanelProps) {
   const { t } = useTranslation();
@@ -159,6 +162,14 @@ export function StepPanel({
       )}
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
+        {/* LA VUE RAPIDE AVANT LA FICHE ENTIÈRE, et c'est l'ordre qui
+            compte : décider si un film a sa place dans un parcours
+            demande de savoir de quoi il parle, et ouvrir la fiche perd
+            le parcours qu'on était en train de bâtir. */}
+        <button onClick={onQuick} style={{ ...inked(C.plum) }}>
+          <Eye size={12} />
+          {t("lineage.quickLook")}
+        </button>
         <button onClick={onOpen} style={{ ...inked(C.ink), ...hollow }}>
           <ExternalLink size={12} />
           {t("lineage.openFilm")}
