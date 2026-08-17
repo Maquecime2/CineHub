@@ -25,11 +25,15 @@ import { makeFilm } from "../../domain/film";
 
 const searchMovies = vi.fn();
 const getDetails = vi.fn();
+const searchPerson = vi.fn();
+const personFilmography = vi.fn();
 let key = "a-key";
 
 vi.mock("../../tmdb", () => ({
   searchMovies: (...args: unknown[]) => searchMovies(...args),
   getDetails: (...args: unknown[]) => getDetails(...args),
+  searchPerson: (...args: unknown[]) => searchPerson(...args),
+  personFilmography: (...args: unknown[]) => personFilmography(...args),
   POSTER_BASE: "https://image.tmdb.org/t/p/w342",
   POSTER_THUMB: "https://image.tmdb.org/t/p/w185",
 }));
@@ -71,6 +75,8 @@ beforeEach(() => {
   key = "a-key";
   searchMovies.mockReset();
   getDetails.mockReset();
+  searchPerson.mockReset();
+  personFilmography.mockReset();
 });
 
 describe("with no key and no account", () => {
@@ -211,5 +217,68 @@ describe("looking before laying down", () => {
     expect(preview).toMatchObject({ title: "Le Goût du saké", tmdbId: 100 });
     expect(onAdopt).not.toHaveBeenCalled();
     expect(getDetails).not.toHaveBeenCalled();
+  });
+});
+
+/* ============================================================
+   LES FILMS DE QUELQU'UN
+   ============================================================
+
+   Taper « antonioni » dans une recherche de TITRES rend ce que TMDB
+   trouve de ce mot dans un titre : à peu près rien. Or c'est le geste
+   qu'on fait — on pense à un cinéaste avant de penser à un film.
+
+   Le métier part avec la question, sinon `searchPerson` rend l'homonyme
+   acteur le plus populaire et l'on demande ensuite ce que CET acteur a
+   réalisé. Et ce qu'on tient déjà est écarté, ce qui fait de la liste
+   « ce qui me manque de lui » plutôt qu'un catalogue.
+   ============================================================ */
+describe("asking for a film-maker's work", () => {
+  it("asks as a DIRECTOR, and leaves out what the binder already holds", async () => {
+    const user = userEvent.setup();
+    searchPerson.mockResolvedValue({ id: 5, name: "Yasujirō Ozu" });
+    personFilmography.mockResolvedValue([
+      { tmdbId: 18148, title: "Voyage à Tokyo", year: 1953, poster: "" },
+      { tmdbId: 100, title: "Le Goût du saké", year: 1962, poster: "" },
+    ]);
+    build();
+    await type(user, "ozu");
+    await user.click(screen.getByRole("button", { name: /Ses films sur TMDB/ }));
+
+    /* Le métier voyage AVEC la question, aux deux étages. */
+    expect(searchPerson).toHaveBeenCalledWith("ozu", "a-key", { role: "réalisation" });
+    expect(personFilmography).toHaveBeenCalledWith(5, "a-key", { role: "réalisation" });
+
+    /* L'orthographe de TMDB, et non celle qu'on a tapée. */
+    expect(await screen.findByText("LES FILMS DE Yasujirō Ozu")).toBeInTheDocument();
+    expect(screen.getByText("Le Goût du saké")).toBeInTheDocument();
+    /* Celui du classeur est écarté — et le dire, c'est ce qui distingue
+       une liste filtrée d'une réponse tronquée. */
+    expect(screen.getAllByText("Voyage à Tokyo")).toHaveLength(1);
+    expect(screen.getByText(/déjà au classeur/)).toBeInTheDocument();
+  });
+
+  it("says so when TMDB knows nobody of that name", async () => {
+    const user = userEvent.setup();
+    searchPerson.mockResolvedValue(null);
+    build();
+    await type(user, "zzz");
+    await user.click(screen.getByRole("button", { name: /Ses films sur TMDB/ }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("zzz");
+    expect(personFilmography).not.toHaveBeenCalled();
+  });
+
+  it("says so when the binder already holds the whole filmography", async () => {
+    const user = userEvent.setup();
+    searchPerson.mockResolvedValue({ id: 5, name: "Yasujirō Ozu" });
+    personFilmography.mockResolvedValue([
+      { tmdbId: 18148, title: "Voyage à Tokyo", year: 1953, poster: "" },
+    ]);
+    build();
+    await type(user, "ozu");
+    await user.click(screen.getByRole("button", { name: /Ses films sur TMDB/ }));
+
+    expect(await screen.findByText(/tout ce que TMDB lui attribue/)).toBeInTheDocument();
   });
 });

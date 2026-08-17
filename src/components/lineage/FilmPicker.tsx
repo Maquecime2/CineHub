@@ -32,7 +32,7 @@
    statement. */
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Eye, Plus, Search } from "lucide-react";
+import { Clapperboard, Eye, Plus, Search } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { bare, inked, hollow, underlineInput } from "../../theme/styles";
 import { NoKey, Trouble, Waiting } from "../ui";
@@ -42,7 +42,7 @@ import { primaryDirector } from "../../domain/lineageMap";
 import { filmKey } from "../../domain/importing";
 import { initialsOf, makeFilm } from "../../domain/film";
 import { useTmdbKey } from "../../services/tmdbKey";
-import { getDetails, searchMovies } from "../../tmdb";
+import { getDetails, personFilmography, searchMovies, searchPerson } from "../../tmdb";
 import type { Film } from "../../types";
 
 interface TmdbHit {
@@ -51,6 +51,17 @@ interface TmdbHit {
   year: number | null;
   poster: string;
 }
+
+/**
+ * D'où vient la moitié distante — et le savoir CHANGE ce qu'on en dit.
+ *
+ * Une recherche par titre rend « ce que TMDB connaît de ce nom » ; une
+ * recherche par cinéaste rend SA FILMOGRAPHIE, et la légende doit le
+ * dire, sans quoi voir remonter quarante titres après avoir tapé deux
+ * mots ressemble à une recherche qui a débordé.
+ */
+type Remote =
+  { kind: "title"; hits: TmdbHit[] } | { kind: "director"; name: string; hits: TmdbHit[] };
 
 interface FilmPickerProps {
   films: Film[];
@@ -77,7 +88,7 @@ export function FilmPicker({ films, onPick, onAdopt, onLook, label, tour }: Film
   const { t } = useTranslation();
   const apiKey = useTmdbKey();
   const [q, setQ] = useState("");
-  const [remote, setRemote] = useState<TmdbHit[] | null>(null);
+  const [remote, setRemote] = useState<Remote | null>(null);
   const [busy, setBusy] = useState(false);
   const [trouble, setTrouble] = useState<string | null>(null);
   /** Le `tmdbId` dont la fiche est en cours de constitution. */
@@ -102,10 +113,16 @@ export function FilmPicker({ films, onPick, onAdopt, onLook, label, tour }: Film
     if (!remote) return null;
     const ids = new Set(films.map((f) => f.tmdbId).filter(Boolean));
     const keys = new Set(films.map((f) => filmKey(f)));
-    return remote.filter(
+    return remote.hits.filter(
       (h) => !ids.has(h.tmdbId) && !keys.has(filmKey({ title: h.title, year: h.year || "" }))
     );
   }, [remote, films]);
+
+  /* CE QU'ON A ÉCARTÉ SE COMPTE ET SE DIT. Demander la filmographie d'un
+     cinéaste dont on tient déjà quinze films et n'en voir revenir que
+     trois, sans un mot, ressemble à une réponse tronquée — alors que
+     c'est exactement le service rendu. */
+  const held = remote && fresh ? remote.hits.length - fresh.length : 0;
 
   const look = async () => {
     const title = q.trim();
@@ -113,7 +130,57 @@ export function FilmPicker({ films, onPick, onAdopt, onLook, label, tour }: Film
     setBusy(true);
     setTrouble(null);
     try {
-      setRemote((await searchMovies({ title, apiKey, limit: 8 })) as TmdbHit[]);
+      setRemote({
+        kind: "title",
+        hits: (await searchMovies({ title, apiKey, limit: 8 })) as TmdbHit[],
+      });
+    } catch (e) {
+      setRemote(null);
+      setTrouble(t("lineage.tmdbFailed", { why: (e as Error).message }));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /* ============================================================
+     LES FILMS DE QUELQU'UN, ET NON LES FILMS QUI PORTENT SON NOM
+     ============================================================
+
+     Taper « antonioni » dans une recherche de TITRES rend ce que TMDB
+     trouve de ce mot dans un titre : à peu près rien. Or c'est le geste
+     qu'on fait — on pense à un cinéaste avant de penser à un film, et
+     bâtir un parcours consiste précisément à remonter une filmographie.
+
+     LE MÉTIER PART AVEC LA QUESTION. `searchPerson` sans lui rend le
+     classement par popularité de TMDB, donc l'homonyme acteur ; on
+     demanderait ensuite ce que CET acteur a réalisé. C'est la faute que
+     le générique vient de perdre, et elle est deux fois plus visible ici
+     puisque la réponse s'affiche en entier.
+
+     ET CE QU'ON TIENT DÉJÀ EST ÉCARTÉ, comme pour une recherche par
+     titre : c'est le même `fresh`, et c'est ce qui fait de cette liste
+     « ce qui me manque de lui » plutôt qu'un catalogue. */
+  const lookDirector = async () => {
+    const name = q.trim();
+    if (!name || !apiKey) return;
+    setBusy(true);
+    setTrouble(null);
+    try {
+      const who = await searchPerson(name, apiKey, { role: "réalisation" });
+      if (!who) {
+        setRemote(null);
+        setTrouble(t("lineage.noSuchDirector", { name }));
+        return;
+      }
+      const theirs = (await personFilmography(who.id, apiKey, {
+        role: "réalisation",
+      })) as TmdbHit[];
+      /* Du plus récent au plus ancien : une filmographie se remonte, et
+         un parcours se bâtit presque toujours à rebours. */
+      const hits = [...theirs].filter((h) => h.title).sort((a, b) => (b.year || 0) - (a.year || 0));
+      /* L'ORTHOGRAPHE DE TMDB ET NON CELLE QU'ON A TAPÉE : on a écrit
+         « antonioni », la légende doit dire « Michelangelo Antonioni ». */
+      setRemote({ kind: "director", name: who.name, hits });
     } catch (e) {
       setRemote(null);
       setTrouble(t("lineage.tmdbFailed", { why: (e as Error).message }));
@@ -293,22 +360,39 @@ export function FilmPicker({ films, onPick, onAdopt, onLook, label, tour }: Film
         </div>
       )}
 
-      {/* LA MOITIÉ DISTANTE. Elle ne part jamais toute seule. */}
+      {/* LA MOITIÉ DISTANTE, ET DEUX FAÇONS DE LA DEMANDER. Elles ne
+          partent jamais toutes seules, et surtout elles ne posent pas la
+          même question : « ce titre » et « cette personne » sont deux
+          gestes qu'un seul bouton mélangerait. */}
       <div style={{ marginTop: 10 }}>
         {apiKey ? (
-          <button
-            onClick={() => void look()}
-            disabled={!q.trim() || busy}
-            style={{
-              ...inked(C.ink),
-              ...hollow,
-              fontFamily: F.mono,
-              opacity: q.trim() && !busy ? 1 : 0.45,
-            }}
-          >
-            <Search size={12} />
-            {t(busy ? "lineage.searchingTmdb" : "lineage.searchTmdb")}
-          </button>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button
+              onClick={() => void look()}
+              disabled={!q.trim() || busy}
+              style={{
+                ...inked(C.ink),
+                ...hollow,
+                fontFamily: F.mono,
+                opacity: q.trim() && !busy ? 1 : 0.45,
+              }}
+            >
+              <Search size={12} />
+              {t(busy ? "lineage.searchingTmdb" : "lineage.searchTmdb")}
+            </button>
+            <button
+              onClick={() => void lookDirector()}
+              disabled={!q.trim() || busy}
+              style={{
+                ...inked(C.plum),
+                fontFamily: F.mono,
+                opacity: q.trim() && !busy ? 1 : 0.45,
+              }}
+            >
+              <Clapperboard size={12} />
+              {t("lineage.searchDirector")}
+            </button>
+          </div>
         ) : (
           <NoKey what={t("lineage.tmdbWhat")} />
         )}
@@ -317,12 +401,28 @@ export function FilmPicker({ films, onPick, onAdopt, onLook, label, tour }: Film
       {busy && <Waiting lines={3} label={t("lineage.searchingTmdb")} />}
       {trouble && <Trouble>{trouble}</Trouble>}
 
-      {fresh && !busy && (
+      {remote && fresh && !busy && (
         <>
-          <div style={caption}>{t("lineage.onTmdb")}</div>
+          <div style={caption}>
+            {remote.kind === "director"
+              ? t("lineage.filmsOf", { name: remote.name })
+              : t("lineage.onTmdb")}
+          </div>
+          {held > 0 && (
+            <div
+              style={{
+                fontFamily: F.hand,
+                fontSize: 15,
+                color: C.inkFaded,
+                margin: "0 0 6px",
+              }}
+            >
+              {t("lineage.alreadyHeld", { count: held })}
+            </div>
+          )}
           {fresh.length === 0 ? (
             <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded }}>
-              {t("lineage.tmdbNothing")}
+              {t(remote.kind === "director" ? "lineage.haveThemAll" : "lineage.tmdbNothing")}
             </div>
           ) : (
             <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
