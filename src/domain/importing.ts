@@ -191,13 +191,29 @@ export function diffImport(
 ): ImportDiff {
   const byTmdb = new Map(existing.filter((f) => f.tmdbId).map((f) => [String(f.tmdbId), f]));
   const byKey = new Map(existing.map((f) => [filmKey(f), f]));
+  /* LES TITRES SOUS LESQUELS UNE FICHE A DÉJÀ ÉTÉ CONNUE.
+
+     Une fiche jamais rapprochée de TMDB n'a que son TITRE pour se faire
+     reconnaître, et un titre n'est pas une identité : « Scenes from a
+     Marriage » et « Scènes de la vie conjugale » sont le même film et
+     deux clés. Le fichier qu'on redépose portait l'une, le classeur
+     tenait l'autre — rien ne se rencontrait, une fiche se créait, et
+     cela RECOMMENÇAIT À CHAQUE IMPORT.
+
+     On ne devine pas mieux : on RETIENT. `aka` est ce que la fusion d'un
+     doublon a appris, et il ne contient que ce qu'on a validé soi-même.
+     Il passe APRÈS `filmKey` : un titre qui se reconnaît lui-même n'a
+     besoin de personne. Voir `domain/duplicates`. */
+  const byAka = new Map<string, Film>();
+  for (const f of existing) for (const k of f.aka ?? []) if (!byAka.has(k)) byAka.set(k, f);
 
   const toCreate: ImportDiff["toCreate"] = [];
   const toUpdate: ImportDiff["toUpdate"] = [];
   const unchanged: ImportDiff["unchanged"] = [];
 
   for (const r of rows) {
-    const match = (r.tmdbId && byTmdb.get(String(r.tmdbId))) || byKey.get(filmKey(r));
+    const key = filmKey(r);
+    const match = (r.tmdbId && byTmdb.get(String(r.tmdbId))) || byKey.get(key) || byAka.get(key);
     if (!match) {
       const fresh = makeFilm({
         title: r.title,

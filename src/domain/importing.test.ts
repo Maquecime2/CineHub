@@ -692,3 +692,73 @@ describe("withoutKeywords — what the explicit catch-up targets", () => {
     expect(withoutKeywords(makeFilm({ title: "Un film", keywords: ["neo-noir"] }))).toBe(false);
   });
 });
+
+/* ============================================================
+   CE QU'UNE FUSION A APPRIS NE SE RECRÉE PLUS
+
+   Le défaut : « Scenes from a Marriage » revenait dans la watchlist à
+   CHAQUE import. La fiche du classeur n'avait pas de `tmdbId`, donc le
+   rapprochement retombait sur titre+année ; le fichier disait le titre
+   anglais, la fiche portait le français, rien ne se rencontrait, une
+   fiche de plus se créait. Et cela recommençait.
+
+   `aka` est ce que la fusion d'un doublon a appris. Il ne contient que
+   ce qu'on a validé soi-même — jamais une ressemblance devinée.
+   ============================================================ */
+describe("an alias learnt from a merge", () => {
+  const held = (over = {}) =>
+    makeFilm({
+      id: "keep",
+      title: "Scènes de la vie conjugale",
+      year: 1973,
+      tmdbId: 55,
+      status: "watchlist",
+      ...over,
+    });
+
+  /** Une ligne de fichier, réduite à ce qui nous intéresse ici. */
+  const row = (title: string, year: number): ImportRow => ({
+    title,
+    year,
+    rating: null,
+    watchedAt: null,
+    uri: "",
+  });
+
+  it("recognises the card instead of creating it again", () => {
+    /* La clé se CALCULE et ne se recopie pas : `slugOf` retire tous les
+       non-alphanumériques, et un alias écrit à la main dans un test
+       serait faux sans que rien ne le dise. */
+    const existing = [held({ aka: [filmKey({ title: "Scenes from a Marriage", year: 1973 })] })];
+    const rows = [row("Scenes from a Marriage", 1973)];
+    const diff = diffImport(existing, rows, "watchlist");
+    expect(diff.toCreate).toHaveLength(0);
+  });
+
+  it("creates it, exactly as before, when nothing was ever learnt", () => {
+    /* La preuve que le cas ci-dessus tient bien à `aka` et non à un
+       rapprochement plus tolérant qu'on aurait glissé au passage. */
+    const diff = diffImport([held()], [row("Scenes from a Marriage", 1973)], "watchlist");
+    expect(diff.toCreate).toHaveLength(1);
+  });
+
+  it("lets a card's OWN title win over somebody else's alias", () => {
+    /* Deux fiches, dont l'une a appris le titre de l'autre : le titre
+       qui se reconnaît lui-même n'a besoin de personne, sinon un alias
+       mal appris détournerait un film vers la mauvaise fiche. */
+    const mine = makeFilm({ id: "mine", title: "Solaris", year: 1972, tmdbId: 1 });
+    const greedy = makeFilm({
+      id: "greedy",
+      title: "Autre",
+      year: 1999,
+      aka: [filmKey({ title: "Solaris", year: 1972 })],
+    });
+    const diff = diffImport([greedy, mine], [row("Solaris", 1972)], "watchlist");
+    expect(diff.toCreate).toHaveLength(0);
+    /* `toUpdate` porte la fiche sous `film`, `unchanged` la porte nue :
+       on regarde donc celle des deux qui a répondu. */
+    const changed = diff.toUpdate[0]?.film.id;
+    const same = diff.unchanged[0]?.id;
+    expect(changed ?? same).toBe("mine");
+  });
+});

@@ -213,6 +213,22 @@ export interface Film {
   /** The screening log, from the most recent to the oldest. */
   watches: Watch[];
   tmdbId: number | string | null;
+  /**
+   * Les clés (`filmKey`) sous lesquelles cette œuvre a DÉJÀ été connue.
+   *
+   * CE QUE LA FUSION D'UN DOUBLON APPREND. Une fiche jamais raccrochée à
+   * TMDB n'a que son titre pour se faire reconnaître à l'import, et un
+   * titre n'est pas une identité : « Scenes from a Marriage » et
+   * « Scènes de la vie conjugale » sont le même film et deux clés. Le
+   * fichier qu'on redépose portait l'une, le classeur tenait l'autre, et
+   * une fiche se recréait À CHAQUE IMPORT.
+   *
+   * On ne devine pas mieux : on RETIENT. En fusionnant, on apprend que
+   * ce titre-là désigne cette œuvre-là, et `diffImport` s'y reconnaît
+   * ensuite. Absent : rien à retenir, ce qui est le cas de presque
+   * toutes les fiches.
+   */
+  aka?: string[];
   source: FilmSource;
 }
 
