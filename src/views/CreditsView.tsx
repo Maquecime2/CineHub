@@ -42,6 +42,7 @@ import {
 } from "../domain/people";
 import { initialsOf, makeFilm } from "../domain/film";
 import { filmKey } from "../domain/importing";
+import { byAudience } from "../domain/proposals";
 import { motifById } from "../domain/motifs";
 import { tiltOf } from "../domain/seeded";
 import { useTranslation } from "react-i18next";
@@ -1047,6 +1048,8 @@ interface Missing {
   year: number | null;
   poster: string;
   voteAverage: number;
+  /** Combien de gens l'ont noté — voir `domain/proposals`. */
+  voteCount?: number;
   /* IL ARRIVAIT DÉJÀ DANS LA RÉPONSE, et on le jetait. `toCandidate` le
      ramène pour chaque proposition, tronqué à 240 : décider si un film
      nous intéresse sur un titre et une année n'est pas décider. */
@@ -1150,10 +1153,15 @@ function WhatIsMissing({
       );
       const byTitle = new Set(films.map((f) => filmKey(f)));
 
-      const rest = (everything as Missing[])
-        .filter((c) => c.title && !perTmdb.has(String(c.tmdbId)))
-        .filter((c) => !byTitle.has(filmKey({ title: c.title, year: c.year || "" })))
-        .sort((a, b) => (b.year || 0) - (a.year || 0));
+      /* LE MÊME ORDRE QUE LE SÉLECTEUR DES FILIATIONS : le plus vu
+         d'abord, la date à défaut. Cette liste se rangeait par année et
+         l'autre autrement, pour la même question posée au même endroit
+         de TMDB. */
+      const rest = byAudience(
+        (everything as Missing[])
+          .filter((c) => c.title && !perTmdb.has(String(c.tmdbId)))
+          .filter((c) => !byTitle.has(filmKey({ title: c.title, year: c.year || "" })))
+      );
 
       setManquants(rest);
       setState("fait");

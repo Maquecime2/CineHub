@@ -212,6 +212,12 @@ export async function searchMovies({ title, year = null, apiKey, limit = 12 }) {
     poster: m.poster_path ? `${POSTER_THUMB}${m.poster_path}` : "",
     overview: (m.overview || "").slice(0, 200),
     lang: m.original_language || "",
+    /* COMBIEN DE GENS L'ONT NOTÉ — la seule mesure d'audience que TMDB
+       expose, et celle sur laquelle les propositions se rangent
+       (`domain/proposals`). `toCandidate` la ramenait déjà ; cette route
+       la jetait, si bien que la même liste se rangeait autrement selon
+       la porte par laquelle elle était arrivée. */
+    voteCount: m.vote_count || 0,
   }));
 }
 

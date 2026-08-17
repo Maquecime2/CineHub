@@ -40,6 +40,7 @@ import { PosterArt } from "../film/PosterArt";
 import { searchFilms } from "../../domain/search";
 import { primaryDirector } from "../../domain/lineageMap";
 import { filmKey } from "../../domain/importing";
+import { byAudience } from "../../domain/proposals";
 import { initialsOf, makeFilm } from "../../domain/film";
 import { useTmdbKey } from "../../services/tmdbKey";
 import { getDetails, personFilmography, searchMovies, searchPerson } from "../../tmdb";
@@ -50,6 +51,8 @@ interface TmdbHit {
   title: string;
   year: number | null;
   poster: string;
+  /** Combien de gens l'ont noté — voir `domain/proposals`. */
+  voteCount?: number;
 }
 
 /**
@@ -130,10 +133,8 @@ export function FilmPicker({ films, onPick, onAdopt, onLook, label, tour }: Film
     setBusy(true);
     setTrouble(null);
     try {
-      setRemote({
-        kind: "title",
-        hits: (await searchMovies({ title, apiKey, limit: 8 })) as TmdbHit[],
-      });
+      const hits = (await searchMovies({ title, apiKey, limit: 8 })) as TmdbHit[];
+      setRemote({ kind: "title", hits: byAudience(hits) });
     } catch (e) {
       setRemote(null);
       setTrouble(t("lineage.tmdbFailed", { why: (e as Error).message }));
@@ -175,9 +176,11 @@ export function FilmPicker({ films, onPick, onAdopt, onLook, label, tour }: Film
       const theirs = (await personFilmography(who.id, apiKey, {
         role: "réalisation",
       })) as TmdbHit[];
-      /* Du plus récent au plus ancien : une filmographie se remonte, et
-         un parcours se bâtit presque toujours à rebours. */
-      const hits = [...theirs].filter((h) => h.title).sort((a, b) => (b.year || 0) - (a.year || 0));
+      /* LE MÊME ORDRE QUE PARTOUT AILLEURS : le plus vu d'abord, la date
+         à défaut. Chaque écran rangeait le sien à sa façon, et la même
+         liste changeait d'ordre selon la porte par laquelle elle
+         arrivait. */
+      const hits = byAudience(theirs.filter((h) => h.title));
       /* L'ORTHOGRAPHE DE TMDB ET NON CELLE QU'ON A TAPÉE : on a écrit
          « antonioni », la légende doit dire « Michelangelo Antonioni ». */
       setRemote({ kind: "director", name: who.name, hits });

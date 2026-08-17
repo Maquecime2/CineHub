@@ -282,3 +282,45 @@ describe("asking for a film-maker's work", () => {
     expect(await screen.findByText(/tout ce que TMDB lui attribue/)).toBeInTheDocument();
   });
 });
+
+/* Le rangement lui-même est éprouvé à côté (`domain/proposals`) ; ce qui
+   se voit d'ici est qu'il est bien BRANCHÉ, sur les deux moitiés — elles
+   arrivaient par deux routes et se rangeaient de deux façons. */
+describe("the order the proposals come in", () => {
+  it("puts the most widely seen first, in a title search", async () => {
+    const user = userEvent.setup();
+    searchMovies.mockResolvedValue([
+      { tmdbId: 1, title: "confidentiel", year: 2020, poster: "", voteCount: 12 },
+      { tmdbId: 2, title: "vu par tous", year: 1999, poster: "", voteCount: 90000 },
+    ]);
+    build();
+    await type(user, "x");
+    await user.keyboard("{Enter}");
+
+    await screen.findByText("SUR TMDB");
+    const titles = screen
+      .getAllByRole("listitem")
+      .map((li) => li.textContent || "")
+      .filter((x) => x.includes("confidentiel") || x.includes("vu par tous"));
+    expect(titles[0]).toContain("vu par tous");
+  });
+
+  it("falls back on the date in a filmography nobody has rated", async () => {
+    const user = userEvent.setup();
+    searchPerson.mockResolvedValue({ id: 5, name: "Quelqu'un" });
+    personFilmography.mockResolvedValue([
+      { tmdbId: 1, title: "ancien", year: 1953, poster: "" },
+      { tmdbId: 2, title: "récent", year: 2019, poster: "" },
+    ]);
+    build();
+    await type(user, "q");
+    await user.click(screen.getByRole("button", { name: /Ses films sur TMDB/ }));
+
+    await screen.findByText(/LES FILMS DE/);
+    const titles = screen
+      .getAllByRole("listitem")
+      .map((li) => li.textContent || "")
+      .filter((x) => x.includes("ancien") || x.includes("récent"));
+    expect(titles[0]).toContain("récent");
+  });
+});
