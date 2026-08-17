@@ -12,6 +12,7 @@ import {
   makeWallDecor,
   reconcileView,
   moveItem,
+  forgetByHand,
   pinToWall,
   patchRow,
   addRow,
@@ -588,7 +589,13 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet, pl
       target = { kind, rowId: rows[rows.length - 1].id };
     }
 
-    const next = moveItem(view, drag.create ? { create: drag.create } : { id: drag.id }, target);
+    /* REPOSER UNE FICHE SOI-MÊME PÉRIME L'INSTANTANÉ. À partir
+       d'ici la disposition à l'écran est celle qu'on veut : « revenir
+       au rangement à la main » rendrait une version plus ancienne que
+       le geste qu'on vient de faire. Voir `forgetByHand`. */
+    const next = forgetByHand(
+      moveItem(view, drag.create ? { create: drag.create } : { id: drag.id }, target)
+    );
     if (next !== view) onDoc(next);
     if (drag.type === "film") onUpdateMany({ [drag.id]: { ...SHELF_KIND[kind].patch } });
     reset();
@@ -663,7 +670,7 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet, pl
   const dropInBox = (box) => {
     const drag = dragRef.current;
     if (!drag || drag.type !== "film" || !view) return reset();
-    const next = moveItem(view, { id: drag.id }, box);
+    const next = forgetByHand(moveItem(view, { id: drag.id }, box));
     if (next !== view) onDoc(next);
     onUpdateMany({ [drag.id]: { ...SHELF_KIND[box.kind].patch } });
     reset();

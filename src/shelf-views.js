@@ -930,6 +930,57 @@ export function layoutByDirector(view, films, { cap = null } = {}) {
    somebody put there on purpose. Only the films circulate: those at the
    top level redistribute themselves into the slots they already
    occupied, those in a category sort among themselves. */
+/* ------------------------------------------------------------
+   LE RANGEMENT À LA MAIN, GARDÉ AVANT D'ÊTRE ÉCRASÉ
+   ------------------------------------------------------------
+
+   `sortIntoRows` réécrit la disposition et on l'enregistre aussitôt :
+   un rangement fait à la main sur des semaines disparaissait d'un clic
+   sur « RANGER », sans trace et sans retour. C'est un geste ordinaire —
+   on trie pour VOIR, pas pour décider — et il coûtait tout.
+
+   PAS UNE ANNULATION DE DIX SECONDES. On s'aperçoit du dégât en
+   revenant sur l'étagère, c'est-à-dire plus tard : une fenêtre qui se
+   referme toute seule n'aurait réparé que les regrets immédiats. La vue
+   garde donc une COPIE, et elle la garde jusqu'à ce qu'on n'en veuille
+   plus.
+
+   ET LE PREMIER TRI SEUL LA PREND. Trier deux fois de suite est
+   ordinaire — on essaie par année, puis par note — et le second tri ne
+   doit surtout pas photographier le premier, qui n'est plus le
+   rangement de personne. */
+
+/** La disposition d'avant le premier tri, si on la tient encore. */
+export const heldByHand = (view) => view?.byHand?.shelves ?? null;
+
+/** Garder la disposition actuelle — sans effet s'il y en a déjà une. */
+export function keepByHand(view) {
+  if (view.byHand) return view;
+  return { ...view, byHand: { at: Date.now(), shelves: view.shelves } };
+}
+
+/** La remettre, et oublier la copie : elle redevient le présent. */
+export function restoreByHand(view) {
+  const kept = heldByHand(view);
+  if (!kept) return view;
+  const { byHand, ...rest } = view;
+  void byHand;
+  return { ...rest, shelves: kept };
+}
+
+/* OUBLIER, PARCE QU'ON VIENT DE RANGER À LA MAIN.
+
+   Dès qu'on repose une fiche soi-même, la disposition à l'écran devient
+   celle qu'on veut ; proposer de « revenir au rangement à la main »
+   rendrait alors une version PLUS ANCIENNE que le geste qu'on vient de
+   faire, et l'écraserait. Le bouton doit disparaître à ce moment-là. */
+export function forgetByHand(view) {
+  if (!view?.byHand) return view;
+  const { byHand, ...rest } = view;
+  void byHand;
+  return rest;
+}
+
 export function sortIntoRows(view, kind, compare) {
   const shelf = view.shelves[kind];
   const slots = [];

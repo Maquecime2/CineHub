@@ -680,6 +680,11 @@ const en = {
     sort: "Sort",
     arrange: "File",
     clickToReverse: "click to reverse",
+    confirmArrangeTitle: "Tidy the whole shelf?",
+    confirmArrangeBody:
+      "The films will redistribute themselves into the slots they occupy — your rows, your boxes and the objects laid there do not move. The arrangement you made by hand will be rewritten, but kept: a “back to the hand arrangement” button stays under the verbs until you place a card yourself again.",
+    confirmArrangeAction: "Tidy",
+    backToHand: "← BACK TO THE HAND ARRANGEMENT",
     rewritesArrangement: "Rewrites this view's arrangement",
     presentation: "Presentation",
     wall: "WALL",
@@ -2352,7 +2357,7 @@ const en = {
       },
       sort: {
         title: "Sorting, or filing",
-        body: "On the wall, sorting is a passing state. On the shelf, filing is a gesture: it rewrites the arrangement once, then steps aside. Clicking the same verb again turns the row around.",
+        body: "On the wall, sorting is a passing state. On the shelf, filing is a GESTURE: it rewrites the arrangement once, then steps aside. Clicking the same verb again turns the row around. The first filing asks for confirmation and keeps the arrangement you made by hand: “back to the hand arrangement” stays under the verbs until you place a card yourself again.",
       },
       filters: {
         title: "The sieves",

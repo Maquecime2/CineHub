@@ -22,7 +22,15 @@ import { Label } from "../../components/ui";
 import { ShelfBoard } from "../../components/shelf/ShelfBoard";
 import { THEMES } from "../../components/shelf/constants";
 import { DecorStudio } from "../../components/shelf/DecorStudio";
-import { SHELF_KINDS, sortIntoRows, patchViewDecor, clearViewDecor } from "../../shelf-views";
+import {
+  SHELF_KINDS,
+  sortIntoRows,
+  patchViewDecor,
+  clearViewDecor,
+  keepByHand,
+  heldByHand,
+  restoreByHand,
+} from "../../shelf-views";
 import { FilmWall } from "./FilmWall";
 import { useWallFiling } from "./useWallFiling";
 import { FilingProvider } from "../../components/film/filing";
@@ -33,6 +41,7 @@ import { wallStyle } from "../../theme/surfaces";
 import { catInk } from "../../components/shelf/constants";
 import { WALLS } from "./walls";
 import { Sieve } from "../../components/ui/Sieve";
+import { Confirmation } from "../../components/ui/Confirmation";
 import { FilmQuickView } from "../../components/film/FilmQuickView";
 import { normalize } from "../../domain/search";
 
@@ -384,6 +393,9 @@ export function LibraryView({
      LE DOSSIER RESTE À UN GESTE, depuis la couche. Rien n'est retiré :
      on ajoute une marche avant l'écriture. */
   const [quick, setQuick] = useState(null);
+  /* La seule carte de cette vue : le premier tri d'une étagère rangée à
+     la main réécrit des semaines de gestes. */
+  const [request, setRequest] = useState(null);
   const lookAt = (id) => {
     const found =
       (films || []).find((f) => f.id === id) || (allFilms || []).find((f) => f.id === id);
@@ -508,8 +520,11 @@ export function LibraryView({
   const arrangedBy = ui.arrangedBy ?? null;
   const arrangedDesc = ui.arrangedDesc !== false;
 
-  const arrangeBy = (key) => {
-    if (!shelfView) return;
+  /* LE PREMIER TRI DEMANDE, ET LUI SEUL. Il réécrit un rangement fait à
+     la main sur des semaines ; les suivants ne réécrivent qu'un tri, qui
+     n'est le rangement de personne. Une carte qui reviendrait à chaque
+     fois ne se lirait plus au troisième essai. */
+  const doArrange = (key) => {
     const nextDesc = key === arrangedBy ? !arrangedDesc : true;
     const sign = nextDesc ? 1 : -1;
     const by = new Map(films.map((f) => [f.id, f]));
@@ -529,10 +544,32 @@ export function LibraryView({
               : (b.addedAt || 0) - (a.addedAt || 0);
     };
     const cmp = (x, y) => sign * base(x, y);
-    let next = shelfView;
+    /* LA COPIE SE PREND AVANT, ET UNE SEULE FOIS : `keepByHand` ne fait
+       rien s'il y en a déjà une. */
+    let next = keepByHand(shelfView);
     for (const k of SHELF_KINDS) next = sortIntoRows(next, k, cmp);
     onShelfView(next);
     set({ arrangedBy: key, arrangedDesc: nextDesc });
+  };
+
+  const arrangeBy = (key) => {
+    if (!shelfView) return;
+    if (heldByHand(shelfView)) return doArrange(key);
+    setRequest({
+      title: t("library.confirmArrangeTitle"),
+      body: t("library.confirmArrangeBody"),
+      action: t("library.confirmArrangeAction"),
+      onConfirm: () => doArrange(key),
+    });
+  };
+
+  /* REVENIR, TANT QU'ON N'A PAS REPOSÉ UNE FICHE SOI-MÊME. Le bouton
+     disparaît alors, parce que la disposition à l'écran est redevenue
+     celle qu'on voulait — voir `forgetByHand`. */
+  const restoreHand = () => {
+    if (!shelfView) return;
+    onShelfView(restoreByHand(shelfView));
+    set({ arrangedBy: null });
   };
 
   /* Catalogue keys, like the wall's sorts in `walls.ts`: the left-hand
@@ -740,6 +777,26 @@ export function LibraryView({
                     </span>
                   ))}
             </div>
+            {/* TANT QU'ON N'A PAS REPOSÉ UNE FICHE SOI-MÊME. Il n'y a
+                rien à proposer avant le premier tri, et plus rien à
+                proposer dès qu'on range de nouveau à la main. */}
+            {mode === "shelf" && heldByHand(shelfView) && (
+              <button
+                onClick={restoreHand}
+                style={{
+                  ...bare,
+                  ...tap,
+                  cursor: "pointer",
+                  marginTop: 6,
+                  fontFamily: F.mono,
+                  fontSize: 10,
+                  color: C.burgundy,
+                  borderBottom: `1px dashed ${C.burgundy}`,
+                }}
+              >
+                {t("library.backToHand")}
+              </button>
+            )}
           </div>
           <div data-tour="wall-mode">
             <Label>{t("library.presentation")}</Label>
@@ -966,6 +1023,8 @@ export function LibraryView({
             onOpen={lookAt}
           />
         )}
+
+        <Confirmation request={request} onClose={() => setRequest(null)} />
 
         {quick && (
           <FilmQuickView

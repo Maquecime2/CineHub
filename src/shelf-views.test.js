@@ -16,6 +16,10 @@ import {
   reconcileView,
   moveItem,
   sortIntoRows,
+  keepByHand,
+  heldByHand,
+  restoreByHand,
+  forgetByHand,
   buildViewsFromLegacy,
   duplicateView,
   filmIdsOf,
@@ -751,6 +755,80 @@ describe("sortIntoRows", () => {
     expect(rows[0].items[1].items.map((i) => i.id)).toEqual(["a", "b"]);
     // the destination row is not tidied: this is not a tidying
     expect(idsIn(rows[2])).toEqual(["zz"]);
+  });
+});
+
+/* ============================================================
+   LE RANGEMENT À LA MAIN, GARDÉ AVANT D'ÊTRE ÉCRASÉ
+
+   Le défaut : « RANGER » réécrivait une étagère rangée à la main sur
+   des semaines, et l'enregistrait aussitôt. Rien à récupérer.
+
+   Ce qui est éprouvé ici est le CYCLE DE VIE de la copie, parce que
+   c'est tout ce qui peut se tromper : la prendre au bon moment, ne pas
+   la reprendre au mauvais, et savoir quand elle ne vaut plus rien.
+   ============================================================ */
+describe("keeping the hand arrangement", () => {
+  const shelfOf = (view) => rowsOf(view, "main").map((r) => idsIn(r));
+
+  const arranged = () => {
+    const view = makeView();
+    view.shelves.main.rows = [
+      makeRow({ id: "r1", items: [filmItem("z"), filmItem("a")] }),
+      makeRow({ id: "r2", items: [filmItem("m")] }),
+    ];
+    return view;
+  };
+
+  it("photographs the arrangement, then leaves it alone", () => {
+    const kept = keepByHand(arranged());
+    expect(heldByHand(kept)).not.toBeNull();
+    /* La copie ne touche pas au présent : c'est le tri qui suit qui le
+       réécrit. */
+    expect(shelfOf(kept)).toEqual([["z", "a"], ["m"]]);
+  });
+
+  it("does NOT photograph the second time, which would keep a sort", () => {
+    /* Trier par année puis par note est ordinaire. Si le second tri
+       reprenait une copie, elle photographierait le PREMIER TRI — qui
+       n'est le rangement de personne — et le rangement à la main serait
+       perdu aussi sûrement qu'avant. */
+    const first = keepByHand(arranged());
+    const sorted = sortIntoRows(first, "main", (x, y) => x.id.localeCompare(y.id));
+    const second = keepByHand(sorted);
+    expect(heldByHand(second)).toEqual(heldByHand(first));
+    expect(second.byHand.at).toBe(first.byHand.at);
+  });
+
+  it("gives the arrangement back, and stops offering it", () => {
+    const kept = keepByHand(arranged());
+    const sorted = sortIntoRows(kept, "main", (x, y) => x.id.localeCompare(y.id));
+    expect(shelfOf(sorted)).toEqual([["a", "m"], ["z"]]);
+
+    const back = restoreByHand(sorted);
+    expect(shelfOf(back)).toEqual([["z", "a"], ["m"]]);
+    /* Rendue, la copie n'a plus de raison d'être : elle EST le présent,
+       et un bouton qui reproposerait la même chose ne dirait rien. */
+    expect(heldByHand(back)).toBeNull();
+    expect("byHand" in back).toBe(false);
+  });
+
+  it("forgets it as soon as one places a card by hand again", () => {
+    /* C'est la règle qui rend le bouton honnête. Sans elle, « revenir au
+       rangement à la main » rendrait une version PLUS ANCIENNE que le
+       geste qu'on vient de faire, et l'écraserait. */
+    const kept = keepByHand(arranged());
+    expect(heldByHand(forgetByHand(kept))).toBeNull();
+    /* Et sur une vue qui n'en tient pas, c'est sans effet — pas une
+       copie de plus, pas un rendu de plus. */
+    const plain = arranged();
+    expect(forgetByHand(plain)).toBe(plain);
+  });
+
+  it("says nothing rather than guessing, when there is nothing kept", () => {
+    const plain = arranged();
+    expect(heldByHand(plain)).toBeNull();
+    expect(restoreByHand(plain)).toBe(plain);
   });
 });
 

@@ -700,6 +700,11 @@ const fr = {
     sort: "Trier",
     arrange: "Ranger",
     clickToReverse: "cliquer pour inverser",
+    confirmArrangeTitle: "Ranger toute l'étagère ?",
+    confirmArrangeBody:
+      "Les films vont se redistribuer dans les emplacements qu'ils occupent — vos rayons, vos boîtes et les objets posés ne bougent pas. Le placement que vous avez fait à la main sera réécrit, mais gardé : un bouton « revenir au rangement à la main » restera sous les verbes tant que vous n'aurez pas reposé une fiche vous-même.",
+    confirmArrangeAction: "Ranger",
+    backToHand: "← REVENIR AU RANGEMENT À LA MAIN",
     rewritesArrangement: "Réécrit l'agencement de cette vue",
     presentation: "Présentation",
     wall: "MUR",
@@ -2428,7 +2433,7 @@ const fr = {
       },
       sort: {
         title: "Trier, ou ranger",
-        body: "Sur le mur, trier est un état passager. Sur l'étagère, ranger est un geste : il réécrit l'agencement une fois, puis s'efface. Recliquer le même verbe retourne la rangée.",
+        body: "Sur le mur, trier est un état passager. Sur l'étagère, ranger est un GESTE : il réécrit l'agencement une fois, puis s'efface. Recliquer le même verbe retourne la rangée. Le premier rangement demande confirmation et garde votre placement à la main : « revenir au rangement à la main » reste sous les verbes jusqu'à ce que vous reposiez une fiche vous-même.",
       },
       filters: {
         title: "Les tamis",
