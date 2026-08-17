@@ -634,6 +634,16 @@ export async function unfollow(db: Db, follower: string, followed: string): Prom
 }
 
 /** Who I follow, with what their collection still shows. */
+/**
+ * Qui je suis.
+ *
+ * `NOT_BLOCKED` MANQUAIT ICI, là où tous ses frères l'appliquent.
+ * Suivre est antérieur au blocage : rien n'efface la ligne de `follow`
+ * quand quelqu'un vous bloque ensuite, donc cette liste pouvait NOMMER
+ * une personne qui vous a bloqué — et le pseudonyme est justement ce
+ * qu'un blocage retire de la vue. Le trou ne cassait rien, ce qui est
+ * pourquoi il a duré.
+ */
 export async function subscriptionsOf(db: Db, personId: string): Promise<Profile[]> {
   return db.query<Profile>(
     `SELECT p.pseudo, p.stamp,
@@ -642,6 +652,32 @@ export async function subscriptionsOf(db: Db, personId: string): Promise<Profile
             (p.sharing = 'publique') AS open
        FROM follow a JOIN person p ON p.id = a.followed_id
       WHERE a.follower_id = $1
+        AND ${NOT_BLOCKED("$1", "p.id")}
+      ORDER BY p.pseudo`,
+    [personId]
+  );
+}
+
+/**
+ * Qui me suit — le miroir exact de `subscriptionsOf`, à une colonne
+ * près.
+ *
+ * IL EXISTE POUR LE SÉLECTEUR DE PERSONNES, et c'est la moitié qui
+ * manquait : on invite surtout des gens qui vous suivent, et rien ne
+ * savait les nommer. `NOT_BLOCKED` y est du premier jour, dans le même
+ * commit que celui qui le pose sur son frère — les écrire séparément
+ * aurait laissé la question « lequel des deux le fait ? » à quelqu'un
+ * dans six mois.
+ */
+export async function followersOf(db: Db, personId: string): Promise<Profile[]> {
+  return db.query<Profile>(
+    `SELECT p.pseudo, p.stamp,
+            (SELECT count(*) FROM card f
+              WHERE f.person_id = p.id AND NOT f.hidden AND NOT f.deleted)::int AS films,
+            (p.sharing = 'publique') AS open
+       FROM follow a JOIN person p ON p.id = a.follower_id
+      WHERE a.followed_id = $1
+        AND ${NOT_BLOCKED("$1", "p.id")}
       ORDER BY p.pseudo`,
     [personId]
   );

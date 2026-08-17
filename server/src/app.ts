@@ -844,6 +844,14 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     return { subscriptions: await store.subscriptionsOf(db, person.id) };
   });
 
+  /* QUI ME SUIT. Elle ne dit rien de plus que `/follows` sur les gens
+     qu'elle nomme — même colonnes, même garde de blocage — et elle
+     existe parce qu'on invite surtout des gens qui vous suivent. */
+  app.get("/followers", async (req) => {
+    const person = await requireAccount(req);
+    return { followers: await store.followersOf(db, person.id) };
+  });
+
   app.put("/follows/:pseudo", async (req, reply) => {
     const person = await requireAccount(req);
     const { pseudo } = req.params as { pseudo: string };

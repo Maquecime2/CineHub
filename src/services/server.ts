@@ -795,8 +795,12 @@ export interface Profile {
   stamp?: string | null;
   films: number;
   followed?: boolean;
-  /** For the subscriptions list: is their collection still open? */
-  ouverte?: boolean;
+  /* LE SERVEUR ENVOIE `open`, ET IL FALLAIT L'ÉPELER AINSI. Ce champ
+     s'appelait `ouverte`, donc il valait `undefined` à l'exécution —
+     toujours. Personne ne le lisait encore, ce qui est la seule raison
+     pour laquelle il n'a rien cassé : c'est le troisième de cette
+     famille dans ce dépôt, après `liste_id` et `per`. */
+  open?: boolean;
 }
 
 export interface NewsItem {
@@ -822,6 +826,9 @@ export const unfollow = (pseudo: string) =>
   });
 
 export const mySubscriptions = () => call<{ subscriptions: Profile[] }>("/follows");
+
+/** Qui me suit. Le miroir de `mySubscriptions`, pour le sélecteur. */
+export const myFollowers = () => call<{ followers: Profile[] }>("/followers");
 
 export const readFeed = (before?: number | null) =>
   call<{ upTo: number | null; news: NewsItem[] }>(`/feed${before ? `?before=${before}` : ""}`);

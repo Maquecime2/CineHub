@@ -16,6 +16,13 @@
 const fr = {
   /* The words the whole product reuses. A "Fermer" written in fifteen
      files is fifteen chances of translating fourteen of them. */
+  /* Le sélecteur de personnes, partagé par les listes, les quizz et les
+     défis : il a ses propres phrases parce qu'il a trois appelants, et
+     emprunter celles d'une vue l'aurait attaché à elle. */
+  peoplePicker: {
+    films_one: "{{count}} film",
+    films_other: "{{count}} films",
+  },
   common: {
     retry: "réessayer",
     close: "Fermer",

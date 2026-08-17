@@ -220,8 +220,14 @@ export function ThreadView({ connected }: { connected: boolean }) {
                 )}
                 {/* A collection closed again does not vanish from the
                     list: one stays subscribed, and the feed goes quiet.
-                    Saying so avoids believing in a breakdown. */}
-                {a.ouverte === false && (
+                    Saying so avoids believing in a breakdown.
+
+                    ET ÇA NE S'EST JAMAIS AFFICHÉ. Le serveur envoie
+                    `open` ; cette ligne lisait `ouverte`, donc elle
+                    comparait `undefined` à `false` — faux, toujours.
+                    Quatrième de la famille dans ce dépôt, après
+                    `liste_id`, `per` et le `Profile` qui l'épelait. */}
+                {a.open === false && (
                   <em style={{ opacity: 0.7 }}>{t("threadView.closedAgain")}</em>
                 )}
                 <button

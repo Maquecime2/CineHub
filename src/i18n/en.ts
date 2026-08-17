@@ -12,6 +12,13 @@
    ============================================================ */
 
 const en = {
+  /* The people picker, shared by the lists, the quizzes and the
+     challenges: it has its own sentences because it has three callers,
+     and borrowing a view's would have tied it to that view. */
+  peoplePicker: {
+    films_one: "{{count}} film",
+    films_other: "{{count}} films",
+  },
   common: {
     retry: "try again",
     close: "Close",

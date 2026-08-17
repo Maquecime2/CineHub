@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Trash2, UserPlus, X } from "lucide-react";
-import { C, F } from "../../theme/tokens";
-import { bare, chip, inked, underlineInput } from "../../theme/styles";
+import { C } from "../../theme/tokens";
+import { bare, chip, inked } from "../../theme/styles";
 import { Confirmation, Guideline, Label, Trouble, type ConfirmRequest } from "../../components/ui";
 import { deleteQuiz, invitePlayer, removePlayer, type Quiz } from "../../services/server";
+import { PeoplePicker } from "../../components/hall/PeoplePicker";
 
 /** Who was invited — the dealer's business, and nobody else's.
 
@@ -32,8 +33,11 @@ export function Guests({
      pas y en avoir deux à l'écran. */
   const [request, setRequest] = useState<ConfirmRequest | null>(null);
 
-  const invite = async () => {
-    const pseudo = invitee.trim().toLowerCase();
+  /* UN SEUL CHEMIN POUR LES DEUX GESTES. Choisir un nom dans la
+     suggestion et le taper à la main doivent échouer de la même façon —
+     un sélecteur qui aurait son propre appel aurait eu son propre
+     silence le jour où le serveur refuse. */
+  const inviteThem = async (pseudo: string) => {
     if (!pseudo) return;
     setTrouble(null);
     try {
@@ -44,6 +48,8 @@ export function Guests({
       setTrouble(t("quizView.nobodyToInvite", { pseudo }));
     }
   };
+
+  const invite = () => inviteThem(invitee.trim().toLowerCase());
 
   return (
     <div data-tour="quiz-players" style={{ marginTop: 18 }}>
@@ -71,12 +77,16 @@ export function Guests({
         {players.length === 0 && <Guideline tight>{t("quizView.nobodyYet")}</Guideline>}
       </div>
       <div style={{ display: "flex", gap: 8, alignItems: "flex-end", marginTop: 8 }}>
-        <input
+        {/* LE CHAMP LIBRE RESTE UN CHAMP LIBRE. `PeoplePicker` suggère
+            les gens des deux sens du lien ; il n'empêche pas d'inviter
+            quelqu'un qu'on ne suit pas et qui ne nous suit pas, ce qui
+            est le cas de la première personne qu'on invite. */}
+        <PeoplePicker
           value={invitee}
-          onChange={(e) => setInvitee(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && invite()}
+          onChange={setInvitee}
+          onPick={(pseudo) => void inviteThem(pseudo)}
           placeholder={t("quizView.invitePlaceholder")}
-          style={{ ...underlineInput, fontFamily: F.hand, fontSize: 16, maxWidth: 220 }}
+          already={players}
         />
         <button onClick={invite} style={inked(C.ink)}>
           <UserPlus size={12} /> {t("quizView.invite")}

@@ -34,6 +34,14 @@ const api = vi.hoisted(() => ({
   iAmAdmin: vi.fn(() => false),
   accountOpen: vi.fn(() => true),
   myQuizzes: vi.fn(),
+  /* LE SÉLECTEUR DE PERSONNES LES DEMANDE, et le Proxy plus bas rend
+     `undefined` pour tout nom absent de cette liste : les omettre ne
+     donnait pas une suggestion vide, cela LEVAIT et emportait la partie
+     entière. C'est ce que le `try` de `PeoplePicker` rattrape désormais —
+     ces deux lignes sont là pour éprouver le cas nominal, pas pour
+     cacher le cas dégradé. */
+  mySubscriptions: vi.fn(),
+  myFollowers: vi.fn(),
   quizCategories: vi.fn(),
   readQuiz: vi.fn(),
   startQuiz: vi.fn(),
@@ -106,6 +114,8 @@ beforeEach(() => {
   api.accountOpen.mockReturnValue(true);
   api.myQuizzes.mockResolvedValue({ quizzes: [QUIZ] });
   api.quizCategories.mockResolvedValue({ categories: [] });
+  api.mySubscriptions.mockResolvedValue({ subscriptions: [] });
+  api.myFollowers.mockResolvedValue({ followers: [] });
   api.startQuiz.mockResolvedValue({ started: true });
   api.myHoldings.mockResolvedValue({ powers: {} });
   api.quizScores.mockResolvedValue(board());
@@ -371,6 +381,67 @@ describe("the guests", () => {
 
     await user.click(screen.getByRole("button", { name: "RETIRER" }));
     await waitFor(() => expect(api.removePlayer).toHaveBeenCalledWith("q1", "ami"));
+  });
+
+  it("suggests the people of both directions, and invites the one picked", async () => {
+    const user = userEvent.setup();
+    api.readQuiz.mockResolvedValue({
+      questions: [question("qa")],
+      players: ["ami"],
+      weight: 2,
+      attempt: { started_at: "now", finished_at: null },
+    });
+    /* LES DEUX SENS, FONDUS EN UNE LISTE. « varda » est des deux côtés :
+       elle ne doit paraître qu'une fois. Et « ami » est déjà invité,
+       donc on ne propose pas de l'inviter deux fois. */
+    api.mySubscriptions.mockResolvedValue({
+      subscriptions: [
+        { pseudo: "varda", films: 12 },
+        { pseudo: "ami", films: 3 },
+      ],
+    });
+    api.myFollowers.mockResolvedValue({
+      followers: [
+        { pseudo: "varda", films: 12 },
+        { pseudo: "demy", films: 7 },
+      ],
+    });
+    api.invitePlayer.mockResolvedValue({ invited: true });
+    await quizBank.refresh();
+    await open(user);
+
+    await user.click(await screen.findByPlaceholderText("un pseudonyme"));
+    expect(await screen.findByRole("button", { name: /varda/ })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /varda/ })).toHaveLength(1);
+    expect(screen.getByRole("button", { name: /demy/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^ami/ })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /varda/ }));
+    await waitFor(() => expect(api.invitePlayer).toHaveBeenCalledWith("q1", "varda"));
+  });
+
+  it("keeps the free field working when the suggestion cannot be read", async () => {
+    const user = userEvent.setup();
+    /* LA RÈGLE DE CE COMPOSANT, ÉPROUVÉE : c'est un confort par-dessus un
+       champ qui marche. Un refus dégrade en SILENCE — pas de `Trouble` —
+       et surtout n'emporte pas l'écran qui l'héberge, ce qu'un `.catch()`
+       posé sur la promesse ne suffisait pas à garantir. */
+    api.mySubscriptions.mockRejectedValue(new Error("non"));
+    api.myFollowers.mockRejectedValue(new Error("non"));
+    api.invitePlayer.mockResolvedValue({ invited: true });
+    api.readQuiz.mockResolvedValue({
+      questions: [question("qa")],
+      players: [],
+      weight: 2,
+      attempt: { started_at: "now", finished_at: null },
+    });
+    await quizBank.refresh();
+    await open(user);
+
+    const field = await screen.findByPlaceholderText("un pseudonyme");
+    await user.type(field, "inconnue{Enter}");
+    await waitFor(() => expect(api.invitePlayer).toHaveBeenCalledWith("q1", "inconnue"));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });
 
