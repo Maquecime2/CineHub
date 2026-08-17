@@ -932,7 +932,11 @@ export interface Challenge {
   starts_on: string;
   ends_on: string;
   by: string | null;
+  /** Combien la liste tient. Le BUT est `target ?? works`. */
   works: number;
+  /* Le serveur envoie `target`, et il faut l'épeler ainsi — c'est le
+     piège que ce dépôt a payé quatre fois. NULL : toute la liste. */
+  target: number | null;
   inside?: boolean;
   /** Le défi est-il le mien ? Le serveur le dit ; on ne le devine plus. */
   mine?: boolean;
@@ -1001,6 +1005,8 @@ export const createChallenge = (d: {
   title: string;
   starts_on: string;
   ends_on: string;
+  /** Combien il en faut. Absent ou `null` : toute la liste. */
+  target?: number | null;
 }) => call<{ id: string }>("/challenges", { method: "POST", body: JSON.stringify(d) });
 
 export const readChallenge = (id: string) =>

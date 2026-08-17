@@ -1253,11 +1253,12 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
 
   app.post("/challenges", async (req, reply) => {
     const person = await requireAccount(req);
-    const { listId, title, starts_on, ends_on } = (req.body ?? {}) as {
+    const { listId, title, starts_on, ends_on, target } = (req.body ?? {}) as {
       listId?: string;
       title?: string;
       starts_on?: string;
       ends_on?: string;
+      target?: number | null;
     };
     const name = (title || "").trim();
     if (!name || name.length > 120) {
@@ -1265,6 +1266,15 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     }
     if (!JOUR.test(starts_on || "") || !JOUR.test(ends_on || "") || ends_on! < starts_on!) {
       return reply.code(400).send({ error: "Deux dates, et la ends_on après at début." });
+    }
+    /* ABSENT VEUT DIRE « TOUTE LA LISTE », et zéro est refusé : un défi
+       fini avant d'être commencé aurait été le mérite le moins cher du
+       barème. Une cible PLUS GRANDE que la liste n'est pas refusée ici —
+       la liste peut maigrir ensuite, et le paiement la ramène au nombre
+       de films existants (`least`, dans `settleChallenge`). */
+    const goal = target === undefined || target === null ? null : Number(target);
+    if (goal !== null && (!Number.isInteger(goal) || goal < 1)) {
+      return reply.code(400).send({ error: "Une cible est un nombre de films, au moins un." });
     }
     /* A challenge is only built on a list you write in: otherwise
        anybody starts a challenge on a stranger's public list, and they
@@ -1279,6 +1289,7 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
       title: name,
       starts_on: starts_on!,
       ends_on: ends_on!,
+      target: goal,
     });
     return { id };
   });

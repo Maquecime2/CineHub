@@ -2113,6 +2113,9 @@ const fr = {
       "« {{title}} » disparaîtra avec ce que les participants y ont fait. Rien ne permet de le retrouver ensuite.",
     deleteList: "Effacer cette liste",
     challengePlaceholder: "Mars chez Varda",
+    targetPlaceholder: "tous",
+    targetLabel: "Combien de films il en faut — vide : toute la liste",
+    outOfList: "{{target}} des {{works}} de la liste",
     launch: "LANCER",
     join: "PARTICIPER",
     leave: "SORTIR",
@@ -2660,7 +2663,7 @@ const fr = {
       },
       challenges: {
         title: "Un défi est une liste plus une période",
-        body: "Un défi, c'est une liste plus une période : on demande à y participer, et le classeur compte tout seul ce que chacun a vu dans les temps. Personne ne coche « vu ». Un défi bouclé rapporte des points au comptoir — la moitié en rapporte moins, et rien du tout en dessous.",
+        body: "Un défi, c'est une liste plus une période : on demande à y participer, et le classeur compte tout seul ce que chacun a vu dans les temps. Personne ne coche « vu ». Une CIBLE est facultative : « huit de ces quarante » se tient en un mois là où la liste entière ne se tient pas, et la liste n'est pas touchée pour autant. Un défi bouclé rapporte des points au comptoir — la moitié en rapporte moins, et rien du tout en dessous.",
       },
     },
 

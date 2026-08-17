@@ -1298,7 +1298,10 @@ export interface Challenge {
   starts_on: string;
   ends_on: string;
   by: string | null;
+  /** Combien la liste tient. Le BUT est `target ?? works`. */
   works: number;
+  /** Combien il en faut. NULL : toute la liste. */
+  target: number | null;
   /** Am I taking part? */
   inside?: boolean;
   /**
@@ -1330,6 +1333,7 @@ export async function myChallenges(db: Db, personId: string): Promise<Challenge[
             to_char(e.ends_on, 'YYYY-MM-DD') AS ends_on,
             p.pseudo AS by,
             (SELECT count(*) FROM list_item i WHERE i.list_id = l.id)::int AS works,
+            e.target,
             EXISTS (SELECT 1 FROM challenge_participant x
                      WHERE x.challenge_id = e.id AND x.person_id = $1) AS inside,
             (e.created_by = $1) AS mine
@@ -1354,7 +1358,8 @@ export async function challengeById(db: Db, id: string): Promise<Challenge | nul
             to_char(e.starts_on, 'YYYY-MM-DD') AS starts_on,
             to_char(e.ends_on, 'YYYY-MM-DD') AS ends_on,
             p.pseudo AS by,
-            (SELECT count(*) FROM list_item i WHERE i.list_id = l.id)::int AS works
+            (SELECT count(*) FROM list_item i WHERE i.list_id = l.id)::int AS works,
+            e.target
        FROM challenge e
        JOIN list l ON l.id = e.list_id
        LEFT JOIN person p ON p.id = e.created_by
@@ -1366,12 +1371,20 @@ export async function challengeById(db: Db, id: string): Promise<Challenge | nul
 export async function createChallenge(
   db: Db,
   byWhom: string,
-  e: { listId: string; title: string; starts_on: string; ends_on: string }
+  e: {
+    listId: string;
+    title: string;
+    starts_on: string;
+    ends_on: string;
+    /** Combien il en faut. NULL : toute la liste, et c'est le défaut. */
+    target?: number | null;
+  }
 ): Promise<string> {
   const id = randomUUID();
   await db.query(
-    "INSERT INTO challenge (id, list_id, created_by, title, starts_on, ends_on) VALUES ($1, $2, $3, $4, $5, $6)",
-    [id, e.listId, byWhom, e.title, e.starts_on, e.ends_on]
+    `INSERT INTO challenge (id, list_id, created_by, title, starts_on, ends_on, target)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [id, e.listId, byWhom, e.title, e.starts_on, e.ends_on, e.target ?? null]
   );
   /* Whoever starts a challenge takes part in it: the opposite — an
      organiser watching the others run — is not what these people do. */
@@ -2950,7 +2963,18 @@ export async function settleChallenge(db: Db, challengeId: string): Promise<numb
     `SELECT ep.person_id,
             (SELECT count(*) FROM list_item li
               WHERE li.list_id = e.list_id AND ${SEEN_DURING})::int AS done,
-            (SELECT count(*) FROM list_item li WHERE li.list_id = e.list_id)::int AS works
+            /* LE BUT, ET NON LE NOMBRE DE FILMS DE LA LISTE. Une cible
+               NULL veut dire « toute la liste », ce qui est le cas de
+               tout defi ecrit avant 004 — rien a retro-remplir. Le
+               least refuse l'inatteignable : une cible plus grande que
+               la liste ne peut pas rendre un defi impossible a finir,
+               d'autant que la liste peut MAIGRIR apres coup.
+               (Aucun accent grave ici : ce commentaire vit DANS un
+               litteral gabarit, et le premier fermerait la chaine au
+               milieu de la requete. Le piege s'est referme en ecrivant
+               ces lignes, pour la deuxieme fois de ce chantier.) */
+            least(coalesce(e.target, 2147483647),
+                  (SELECT count(*) FROM list_item li WHERE li.list_id = e.list_id))::int AS works
        FROM challenge_participant ep
        JOIN challenge e ON e.id = ep.challenge_id
       WHERE ep.challenge_id = $1

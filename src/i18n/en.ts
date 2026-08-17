@@ -2041,6 +2041,9 @@ const en = {
       "“{{title}}” will go, along with what the participants did in it. Nothing brings it back afterwards.",
     deleteList: "Erase this list",
     challengePlaceholder: "March with Varda",
+    targetPlaceholder: "all",
+    targetLabel: "How many films it takes — empty: the whole list",
+    outOfList: "{{target}} of the list's {{works}}",
     launch: "START",
     join: "JOIN",
     leave: "LEAVE",
@@ -2584,7 +2587,7 @@ const en = {
       },
       challenges: {
         title: "A challenge is a list and a period",
-        body: "A list and a period make a challenge: one asks to take part, and the binder counts by itself what each has seen in time. Nobody ticks “seen”. A challenge carried through earns points at the counter — half of one earns less, and under half earns nothing.",
+        body: "A list and a period make a challenge: one asks to take part, and the binder counts by itself what each has seen in time. Nobody ticks “seen”. A TARGET is optional: “eight of these forty” holds in a month where the whole list does not, and the list itself is left alone. A challenge carried through earns points at the counter — half of one earns less, and under half earns nothing.",
       },
     },
 

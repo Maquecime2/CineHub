@@ -236,6 +236,10 @@ function OneList({
     title: "",
     start: currentMonth().start,
     end: currentMonth().end,
+    /* VIDE VEUT DIRE « TOUTE LA LISTE », et c'est le défaut. Une chaîne
+       et non un nombre : le champ doit pouvoir être vidé, et `0` n'est
+       pas « rien ». */
+    target: "",
   });
 
   const reread = useCallback(async () => {
@@ -270,6 +274,7 @@ function OneList({
       title: challenge.title.trim(),
       starts_on: challenge.start,
       ends_on: challenge.end,
+      target: challenge.target.trim() ? Number(challenge.target) : null,
     });
     setDraft({ ...challenge, title: "" });
     await onChange();
@@ -440,6 +445,20 @@ function OneList({
                   onChange={(e) => setDraft({ ...challenge, end: e.target.value })}
                   style={{ ...underlineInput, fontFamily: F.mono, fontSize: 11, width: 130 }}
                 />
+                {/* UNE LISTE DE QUARANTE FILMS NE SE FINIT PAS EN UN
+                    MOIS : le défi ne payait personne et se lisait comme
+                    cassé. La cible en fait une intention tenable sans
+                    toucher à la liste, qui appartient à quelqu'un et
+                    sert peut-être à autre chose. */}
+                <input
+                  type="number"
+                  min={1}
+                  value={challenge.target}
+                  onChange={(e) => setDraft({ ...challenge, target: e.target.value })}
+                  placeholder={t("listsView.targetPlaceholder")}
+                  aria-label={t("listsView.targetLabel")}
+                  style={{ ...underlineInput, fontFamily: F.mono, fontSize: 11, width: 78 }}
+                />
                 <button onClick={run} style={inked(C.burgundy)}>
                   {t("listsView.launch")}
                 </button>
@@ -608,6 +627,12 @@ function OneChallenge({
      Jusqu'ici il fallait donner à la personne le droit d'ÉCRIRE dans la
      liste, ou rendre la liste publique et attendre qu'un abonné passe. */
   const [invite, setInvitee] = useState("");
+  /* LE BUT, ET NON LA TAILLE DE LA LISTE. Une cible absente veut dire
+     « toute la liste », ce qui est le cas de tout défi écrit avant
+     qu'elle existe : `works` reste alors le dénominateur, et rien ne
+     change pour eux. Le serveur compte de la même façon — il ne demande
+     jamais plus de films que la liste n'en tient. */
+  const goal = Math.min(challenge.target ?? challenge.works, challenge.works);
   const [trouble, setTrouble] = useState<string | null>(null);
 
   const reread = useCallback(async () => {
@@ -732,8 +757,11 @@ function OneChallenge({
           {challenge.title}
         </span>
         <span style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>
-          {challenge.starts_on} → {ends} · {t("listsView.works", { count: challenge.works })} ·{" "}
-          {t("listsView.fromList", { title: challenge.list })}
+          {challenge.starts_on} → {ends} ·{" "}
+          {challenge.target == null
+            ? t("listsView.works", { count: challenge.works })
+            : t("listsView.outOfList", { target: goal, works: challenge.works })}{" "}
+          · {t("listsView.fromList", { title: challenge.list })}
         </span>
         <span style={{ flex: 1 }} />
         <button
@@ -781,9 +809,9 @@ function OneChallenge({
           }}
         >
           {state === "finished"
-            ? t("listsView.wasWorth", { points: worthOfChallenge(done, challenge.works) })
+            ? t("listsView.wasWorth", { points: worthOfChallenge(done, goal) })
             : t("listsView.worth", {
-                points: worthOfChallenge(done, challenge.works),
+                points: worthOfChallenge(done, goal),
                 count: Math.max(0, left),
               })}
         </div>
@@ -799,7 +827,7 @@ function OneChallenge({
             key={a.pseudo}
             name={a.pseudo}
             done={a.done}
-            total={challenge.works}
+            total={goal}
             ink={state === "finished" ? C.moss : C.burgundy}
           />
         ))}
