@@ -122,6 +122,7 @@ export function QuizTable({
 
   const answered = questions.filter((q) => q.mine != null).length;
   const current = questions.find((q) => q.mine == null);
+  const timed = quiz.seconds_per_question != null;
 
   /* CE QU'ON PERD EN PARTANT, ET RIEN DE PLUS. Une partie close n'a
      plus rien à abandonner : la refermer est un geste ordinaire. */
@@ -130,13 +131,23 @@ export function QuizTable({
       onClose();
       return;
     }
+    /* UN CHRONOMÈTRE CHANGE CE QUE PARTIR COÛTE, DONC IL CHANGE LA
+       PHRASE. Le délai court depuis la dernière réponse posée : fermer
+       l'onglet et revenir demain rend la question suivante en retard,
+       c'est-à-dire à zéro. Le dire est le minimum ; le taire aurait fait
+       payer une règle qu'on ne pouvait pas deviner. */
     setRequest({
       title: t("quizView.abandonTitle"),
-      body: t("quizView.abandonBody"),
+      /* `!= null` ET NON `!== null` : ABSENT VEUT DIRE SANS. Une fiche
+         de quizz venue d'un cache écrit avant 003 ne porte pas ce champ
+         du tout, et le comparer strictement à `null` allumait le
+         chronomètre pour tout le monde — la version stricte de ce test a
+         échoué exactement là. Le doute se tranche du côté du silence. */
+      body: timed ? t("quizView.abandonTimedBody") : t("quizView.abandonBody"),
       action: t("quizView.abandonAction"),
       onConfirm: onClose,
     });
-  }, [finished, answered, questions.length, onClose, t]);
+  }, [finished, answered, questions.length, onClose, timed, t]);
 
   const box = useDialog(leave, { autoFocus: false });
 
@@ -268,6 +279,17 @@ export function QuizTable({
               <div style={{ marginTop: 10, marginBottom: 4 }}>
                 <Meter done={answered} total={questions.length} ink={C.plum} />
               </div>
+              {/* LE SECOND AVEU, ET LE SERVEUR RESTE LE JUGE. Ce compte
+                  n'est qu'un affichage : le retard est estampillé à
+                  l'insert, sur l'horloge du serveur, donc rien ici ne
+                  peut le faire mentir dans un sens ou dans l'autre. Il
+                  dit le délai et ce qu'il coûte, parce que la
+                  conséquence n'est pas devinable. */}
+              {timed && (
+                <div style={{ fontFamily: F.hand, fontSize: 15, color: C.ochre, marginBottom: 6 }}>
+                  {t("quizView.paceHere", { n: quiz.seconds_per_question })}
+                </div>
+              )}
               {current ? (
                 /* LA CLÉ EST LA QUESTION. Sans elle, React réutilise le
                    même nœud et la nouvelle question apparaît dans

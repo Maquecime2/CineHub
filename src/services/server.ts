@@ -1076,6 +1076,13 @@ export interface Quiz {
   size: number;
   /** The bank was too thin for the mix, and the quiz says so. */
   softened: boolean;
+  /* LE SERVEUR ENVOIE `seconds_per_question`, ET C'EST DONC AINSI QUE
+     CELA S'ÉPELLE ICI. Ce dépôt a déjà payé exactement ce piège deux
+     fois — `liste_id` pour `list_id`, `per` pour `by` — et il ne coûte
+     RIEN à l'exécution : un champ absent n'est pas une erreur, il vaut
+     `undefined`, toujours, et l'écran annonce simplement le mauvais
+     chiffre pour toujours. NULL : pas de chronomètre. */
+  seconds_per_question: number | null;
   owner: string;
   topics: string[];
   /** Mine to invite into and to erase. Never a right to see the answers. */
@@ -1175,6 +1182,9 @@ export const drawQuiz = (q: {
   categoryIds: string[];
   level: string;
   size: number;
+  /** `null` : pas de chronomètre, et c'est le défaut. En entrée le nom
+      est en camel — c'est un corps de requête, pas une ligne. */
+  secondsPerQuestion?: number | null;
 }) =>
   call<{ id: string; softened: boolean; drawn: number }>("/quizzes", {
     method: "POST",

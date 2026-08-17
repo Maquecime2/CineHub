@@ -3,6 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QuizView } from "./QuizView";
 import { FeedbackProvider } from "../components/ui/Feedback";
+import { quizBank } from "../hooks/useHall";
 
 /* ============================================================
    LE FILET, TISSÉ AVANT DE DÉCOUPER
@@ -65,6 +66,11 @@ const QUIZ = {
   level: "normal",
   size: 2,
   softened: false,
+  /* LE NOM EST CELUI QUE LE SERVEUR ENVOIE, en serpent, et le fixture
+     doit l'épeler pareil : c'est là que ce dépôt s'est fait prendre deux
+     fois, et un fixture qui l'épelle autrement ferait passer un écran
+     que la production ne rend pas. `null` : pas de chronomètre. */
+  seconds_per_question: null as number | null,
   owner: "copine",
   topics: ["nouvelle vague"],
   mine: true,
@@ -176,6 +182,37 @@ describe("opening a quiz", () => {
     await waitFor(() =>
       expect(screen.queryByRole("dialog", { name: "Le quizz du samedi" })).not.toBeInTheDocument()
     );
+  });
+
+  it("owns up to the timer twice, and stays silent when there is none", async () => {
+    const user = userEvent.setup();
+    await open(user);
+    /* SANS CHRONOMÈTRE, PAS UN MOT. C'est le cas de tout quizz tiré
+       avant 003 — la colonne est NULL par défaut, et rien n'est à
+       rétro-remplir. */
+    expect(screen.queryByText(/Chronométré/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Quitter la partie" }));
+    expect(await screen.findByText(/Les réponses déjà posées restent posées/)).toBeInTheDocument();
+  });
+
+  it("says what a timer costs, in the game AND before leaving it", async () => {
+    const user = userEvent.setup();
+    api.myQuizzes.mockResolvedValue({ quizzes: [{ ...QUIZ, seconds_per_question: 45 }] });
+    /* LE CACHE DE `quizBank` EST UN MODULE, DONC IL TRAVERSE LES CAS.
+       `hooks/useHall` n'est pas moqué exprès — c'est la vraie porte par
+       laquelle la vue lit — mais `load()` sert la mémoire, donc un
+       `myQuizzes` réécrit ici ne serait jamais redemandé et ce cas se
+       jouerait en silence sur les soirées d'un cas précédent.
+       `refresh()` est ce qui remet le compteur à zéro ; `stale()` est un
+       prédicat et ne remet rien. */
+    await quizBank.refresh();
+    await open(user);
+
+    /* Deux aveux plutôt que deux surprises : la conséquence — fermer
+       l'onglet coûte la question en cours — n'est pas devinable. */
+    expect(await screen.findByText(/Chronométré : 45 secondes/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Quitter la partie" }));
+    expect(await screen.findByText(/la question suivante sera en retard/)).toBeInTheDocument();
   });
 
   it("shows only the FIRST unanswered question, and never the others", async () => {

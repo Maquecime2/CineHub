@@ -1653,6 +1653,8 @@ export interface QuizRow {
   level: string;
   size: number;
   softened: boolean;
+  /** NULL : pas de chronomètre. Le cas de tout quizz tiré avant 003. */
+  seconds_per_question: number | null;
   owner: string;
   /** The baskets it was drawn from. */
   topics: string[];
@@ -1761,7 +1763,14 @@ async function pick(
 export async function drawQuiz(
   db: Db,
   ownerId: string,
-  q: { title: string; categoryIds: string[]; level: string; size: number }
+  q: {
+    title: string;
+    categoryIds: string[];
+    level: string;
+    size: number;
+    /** NULL : pas de chronomètre, et c'est le défaut. */
+    secondsPerQuestion?: number | null;
+  }
 ): Promise<{ id: string; softened: boolean; drawn: number }> {
   const stock = await stockOf(db, q.categoryIds);
   const plan = planDraw(stock as Stock[], q.level as Difficulty, q.size, shuffled);
@@ -1777,8 +1786,17 @@ export async function drawQuiz(
 
   const id = randomUUID();
   await db.query(
-    "INSERT INTO quiz (id, owner_id, title, level, size, softened) VALUES ($1, $2, $3, $4, $5, $6)",
-    [id, ownerId, q.title, q.level, q.size, plan.softened || order.length < q.size]
+    `INSERT INTO quiz (id, owner_id, title, level, size, softened, seconds_per_question)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [
+      id,
+      ownerId,
+      q.title,
+      q.level,
+      q.size,
+      plan.softened || order.length < q.size,
+      q.secondsPerQuestion ?? null,
+    ]
   );
   for (const categoryId of q.categoryIds) {
     await db.query(
@@ -1851,7 +1869,7 @@ export async function rightsOnQuiz(
 /** The quizzes I dealt, and those I was invited to. */
 export async function myQuizzes(db: Db, personId: string): Promise<QuizRow[]> {
   return db.query<QuizRow>(
-    `SELECT q.id, q.title, q.level, q.size, q.softened,
+    `SELECT q.id, q.title, q.level, q.size, q.softened, q.seconds_per_question,
             o.pseudo AS owner,
             (q.owner_id = $1) AS mine,
             coalesce((SELECT array_agg(c.label ORDER BY c.label)
@@ -1875,7 +1893,7 @@ export async function myQuizzes(db: Db, personId: string): Promise<QuizRow[]> {
 export async function quizById(db: Db, id: string): Promise<QuizRow | null> {
   return one<QuizRow>(
     db,
-    `SELECT q.id, q.title, q.level, q.size, q.softened, o.pseudo AS owner,
+    `SELECT q.id, q.title, q.level, q.size, q.softened, q.seconds_per_question, o.pseudo AS owner,
             coalesce((SELECT array_agg(c.label ORDER BY c.label)
                         FROM quiz_topic t JOIN quiz_category c ON c.id = t.category_id
                        WHERE t.quiz_id = q.id), '{}') AS topics
@@ -2035,6 +2053,24 @@ export async function startAttempt(db: Db, quizId: string, personId: string): Pr
  * is no changing one's mind once the answer is in. And the proposition
  * must belong to a question THIS QUIZ WAS DEALT, which is the third
  * condition below and the one a route would have forgotten.
+ *
+ * LE RETARD EST ESTAMPILLÉ ICI, DANS LA MÊME REQUÊTE. Le calculer à la
+ * lecture aurait voulu dire deviner, à chaque affichage du tableau, un
+ * délai qui dépend de l'instant où la ligne a été écrite — et rendre un
+ * score qui change tout seul entre deux rafraîchissements. La règle vit
+ * là où la ligne s'écrit ; `scoresOf` et `awardQuiz` n'ont alors qu'un
+ * mot de plus chacun.
+ *
+ * LE DÉLAI COURT DEPUIS LA DERNIÈRE ACTION SUR CE QUIZZ — `max(
+ * answered_at)`, ou `started_at` pour la première réponse — et NON
+ * depuis « la question précédente par rang ». Cette fonction ne vérifie
+ * aucun ordre : c'est le client qui se trouve marcher dans l'ordre du
+ * tirage, et bâtir le chronomètre sur cette coïncidence l'aurait rendu
+ * faux le jour où quelqu'un répond ailleurs.
+ *
+ * ELLE EST ACCEPTÉE ET VAUT ZÉRO, jamais refusée : refuser perdrait la
+ * réponse et contredirait « on ne revient pas dessus », déjà à l'écran.
+ * D'où un `late` sur la ligne plutôt qu'une condition de plus.
  */
 export async function answer(
   db: Db,
@@ -2044,10 +2080,17 @@ export async function answer(
   choiceId: string
 ): Promise<boolean> {
   const r = await db.query(
-    `INSERT INTO quiz_answer (quiz_id, person_id, question_id, choice_id)
-     SELECT $1, $2, $3, $4
-      WHERE EXISTS (SELECT 1 FROM quiz_attempt t
-                     WHERE t.quiz_id = $1 AND t.person_id = $2 AND t.finished_at IS NULL)
+    `INSERT INTO quiz_answer (quiz_id, person_id, question_id, choice_id, late)
+     SELECT $1, $2, $3, $4,
+            q.seconds_per_question IS NOT NULL
+              AND now() > coalesce((SELECT max(p.answered_at) FROM quiz_answer p
+                                     WHERE p.quiz_id = $1 AND p.person_id = $2),
+                                   t.started_at)
+                          + (q.seconds_per_question * interval '1 second')
+       FROM quiz q
+       JOIN quiz_attempt t ON t.quiz_id = q.id AND t.person_id = $2
+      WHERE q.id = $1
+        AND t.finished_at IS NULL
         AND EXISTS (SELECT 1 FROM quiz_choice c
                      JOIN quiz_draw d ON d.question_id = c.question_id
                     WHERE c.id = $4 AND d.question_id = $3 AND d.quiz_id = $1)
@@ -2081,7 +2124,13 @@ export async function finishAttempt(db: Db, quizId: string, personId: string): P
 export async function scoresOf(db: Db, quizId: string, personId: string): Promise<QuizScore[]> {
   return db.query<QuizScore>(
     `SELECT p.pseudo,
-            coalesce(sum(quiz_points(q.difficulty)) FILTER (WHERE c.is_right), 0)::int AS score,
+            /* JUSTE ET DANS LE DÉLAI. Le retard a été estampillé à
+               l'insert par store.answer, donc il ne se recalcule pas
+               ici — et le score ne peut pas changer entre deux
+               lectures. Un quizz sans chronometre n'a que des lignes a
+               late = false, donc ce mot ne change rien pour lui. */
+            coalesce(sum(quiz_points(q.difficulty))
+                       FILTER (WHERE c.is_right AND NOT a.late), 0)::int AS score,
             count(a.question_id)::int AS answered,
             (t.finished_at IS NOT NULL) AS finished,
             /* GRATUIT : les deux bornes sont deja la. Pour qui joue
@@ -2789,7 +2838,14 @@ export async function purseOf(db: Db, personId: string): Promise<Purse> {
 export async function awardQuiz(db: Db, quizId: string, personId: string): Promise<Gain[]> {
   const row = await one<{ score: number; weight: number; first: boolean; players: number }>(
     db,
-    `SELECT coalesce(sum(quiz_points(q.difficulty)) FILTER (WHERE c.is_right), 0)::int AS score,
+    `SELECT coalesce(sum(quiz_points(q.difficulty))
+                       FILTER (WHERE c.is_right AND NOT a.late), 0)::int AS score,
+            /* LE POIDS NE BOUGE PAS D'UN IOTA, et c'est pourquoi
+               quiz_flawless n'a pas une ligne a changer : il exige
+               score = weight, or un retard baisse le score sans
+               toucher au poids. Le sans-faute devient donc « juste
+               partout ET dans le delai », ce qui est exactement ce
+               qu'un sans-faute chronometre doit vouloir dire. */
             (SELECT coalesce(sum(quiz_points(qq.difficulty)), 0)::int
                FROM quiz_draw d JOIN quiz_question qq ON qq.id = d.question_id
               WHERE d.quiz_id = $1) AS weight,

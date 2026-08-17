@@ -2169,6 +2169,15 @@ const fr = {
     abandonBody:
       "Les réponses déjà posées restent posées — on ne revient pas dessus, et le serveur les a. Ce qui n'est pas répondu ne l'est pas : la partie reste ouverte et vous la reprendrez ici même, à la question où vous en êtes.",
     abandonAction: "Quitter",
+    abandonTimedBody:
+      "Cette soirée est chronométrée, et le délai court depuis votre dernière réponse : si vous partez maintenant, la question suivante sera en retard et vaudra zéro, même juste. Les réponses déjà posées, elles, restent acquises.",
+    paceLabel: "Chronomètre",
+    paceNone: "SANS",
+    paceSeconds: "{{n}} s",
+    paceWarning:
+      "Un quizz chronométré se joue d'une traite : le délai court depuis la dernière réponse posée, donc fermer l'onglet coûte la question en cours. Acheter un pouvoir consomme du temps, et un réseau lent aussi.",
+    paceHere:
+      "Chronométré : {{n}} secondes depuis votre dernière réponse. Passé le délai, une réponse est acceptée et vaut zéro — on ne vous la refuse pas.",
     yourScore: "{{score}} sur {{weight}}",
     gotIt: "juste · {{points}}",
     missedIt: "raté · c'était « {{answer}} »",
@@ -2656,7 +2665,7 @@ const fr = {
       },
       compose: {
         title: "Tirer un quizz",
-        body: "On ne les écrit pas, on les tire : cochez des catégories, un niveau, une longueur, et les questions viennent au hasard de la banque. Le dosage est fixe — un quizz difficile garde des respirations, un quizz facile garde une colle — et deux quizz de même niveau et même longueur pèsent le même nombre de points. C'est ce qui rend deux scores comparables.",
+        body: "On ne les écrit pas, on les tire : cochez des catégories, un niveau, une longueur, et les questions viennent au hasard de la banque. Le dosage est fixe — un quizz difficile garde des respirations, un quizz facile garde une colle — et deux quizz de même niveau et même longueur pèsent le même nombre de points. C'est ce qui rend deux scores comparables. Le chronomètre est facultatif et vaut « sans » par défaut : posé, il compte depuis la dernière réponse, et une réponse en retard est acceptée mais vaut zéro.",
       },
       bank: {
         title: "La banque",
@@ -2672,7 +2681,7 @@ const fr = {
       },
       open: {
         title: "Ouvrir la partie",
-        body: "Une soirée se joue en plein écran, pas dans cette ligne : la partie prend la fenêtre, la barre dit où vous en êtes, et un tampon confirme chaque réponse posée. Quitter demande confirmation et ne perd rien — les réponses déjà posées sont au serveur, et vous reprendrez à la question où vous en étiez.",
+        body: "Une soirée se joue en plein écran, pas dans cette ligne : la partie prend la fenêtre, la barre dit où vous en êtes, et un tampon confirme chaque réponse posée. Quitter demande confirmation et ne perd rien — les réponses déjà posées sont au serveur, et vous reprendrez à la question où vous en étiez. Sauf si la soirée est chronométrée : là, le délai court depuis la dernière réponse, et l'écran vous le dit deux fois avant.",
       },
       playing: {
         title: "Une question à la fois",

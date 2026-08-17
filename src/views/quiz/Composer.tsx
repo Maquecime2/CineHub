@@ -20,6 +20,12 @@ const SIZES = [10, 20, 30] as const;
 /** Can this basket give anything at all? An empty one is not offered. */
 const holds = (c: Category) => c.easy + c.normal + c.hard;
 
+/* LES DÉLAIS OFFERTS, ET « SANS » EN PREMIER. `null` est le défaut et le
+   restera : un chronomètre qu'on subit sans l'avoir demandé n'est pas la
+   même soirée. Les bornes du schéma sont 5 et 600 — ces quatre valeurs
+   sont dedans, et le serveur refuse le reste de toute façon. */
+const PACES = [null, 20, 45, 90] as const;
+
 export function Composer({
   categories,
   onDrawn,
@@ -34,6 +40,7 @@ export function Composer({
   const [picked, setPicked] = useState<string[]>([]);
   const [level, setLevel] = useState<string>("normal");
   const [size, setSize] = useState<number>(10);
+  const [pace, setPace] = useState<number | null>(null);
   const [trouble, setTrouble] = useState<string | null>(null);
 
   const usable = categories.filter((c) => holds(c) > 0);
@@ -47,7 +54,13 @@ export function Composer({
     if (!name || picked.length === 0) return;
     setTrouble(null);
     try {
-      const { id } = await drawQuiz({ title: name, categoryIds: picked, level, size });
+      const { id } = await drawQuiz({
+        title: name,
+        categoryIds: picked,
+        level,
+        size,
+        secondsPerQuestion: pace,
+      });
       setTitle("");
       setPicked([]);
       await onDrawn();
@@ -132,7 +145,32 @@ export function Composer({
             ))}
           </div>
         </div>
+        <div>
+          <Label>{t("quizView.paceLabel")}</Label>
+          <div style={{ display: "flex", gap: 5, marginTop: 4 }}>
+            {PACES.map((p) => (
+              <button
+                key={p ?? "none"}
+                onClick={() => setPace(p)}
+                style={pace === p ? inked(C.ink) : { ...inked(C.ink), ...hollow }}
+              >
+                {p === null ? t("quizView.paceNone") : t("quizView.paceSeconds", { n: p })}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
+
+      {/* DEUX AVEUX PLUTÔT QUE DEUX SURPRISES. Un chronomètre se dit ici
+          ET avant de commencer, parce que la conséquence n'est pas
+          devinable : acheter un pouvoir consomme du temps, et un réseau
+          lent coûte. Les cacher aurait fait payer les deux à quelqu'un
+          qui n'avait pas choisi. */}
+      {pace !== null && (
+        <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 10 }}>
+          {t("quizView.paceWarning")}
+        </div>
+      )}
 
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 16 }}>
         <button onClick={deal} style={inked(C.plum)}>

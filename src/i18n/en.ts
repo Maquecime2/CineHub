@@ -2098,6 +2098,15 @@ const en = {
     abandonBody:
       "The answers already laid down stay laid down — there is no going back on them, and the server has them. What is unanswered stays unanswered: the game remains open and you will pick it up right here, at the question you had reached.",
     abandonAction: "Leave",
+    abandonTimedBody:
+      "This evening is timed, and the delay runs from your last answer: if you leave now, the next question will be late and worth zero, right or not. The answers already laid down stay yours.",
+    paceLabel: "Timer",
+    paceNone: "NONE",
+    paceSeconds: "{{n}}s",
+    paceWarning:
+      "A timed quiz is played in one sitting: the delay runs from the last answer laid down, so closing the tab costs the question in hand. Buying a power eats into it, and so does a slow connection.",
+    paceHere:
+      "Timed: {{n}} seconds from your last answer. Past the delay an answer is accepted and worth zero — it is not refused.",
     yourScore: "{{score}} out of {{weight}}",
     gotIt: "right · {{points}}",
     missedIt: "missed · it was “{{answer}}”",
@@ -2580,7 +2589,7 @@ const en = {
       },
       compose: {
         title: "Dealing a quiz",
-        body: "One does not write them, one deals them: tick some categories, a level, a length, and the questions come at random out of the bank. The mix is fixed — a hard quiz keeps a couple of easy ones to breathe, an easy one keeps a sting — and two quizzes of the same level and length weigh the same number of points. That is what makes two scores comparable.",
+        body: "One does not write them, one deals them: tick some categories, a level, a length, and the questions come at random out of the bank. The mix is fixed — a hard quiz keeps a couple of easy ones to breathe, an easy one keeps a sting — and two quizzes of the same level and length weigh the same number of points. That is what makes two scores comparable. The timer is optional and reads “none” by default: set, it counts from the last answer, and a late answer is accepted but worth zero.",
       },
       bank: {
         title: "The bank",
@@ -2596,7 +2605,7 @@ const en = {
       },
       open: {
         title: "Open the game",
-        body: "An evening is played full screen, not inside this line: the game takes the window, the bar says where you are, and a stamp confirms each answer laid down. Leaving asks for confirmation and loses nothing — the answers already laid down are with the server, and you will pick up at the question you had reached.",
+        body: "An evening is played full screen, not inside this line: the game takes the window, the bar says where you are, and a stamp confirms each answer laid down. Leaving asks for confirmation and loses nothing — the answers already laid down are with the server, and you will pick up at the question you had reached. Unless the evening is timed: there the delay runs from the last answer, and the screen tells you so twice beforehand.",
       },
       playing: {
         title: "One question at a time",

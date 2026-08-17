@@ -1615,11 +1615,12 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
 
   app.post("/quizzes", async (req, reply) => {
     const person = await requireAccount(req);
-    const { title, categoryIds, level, size } = (req.body ?? {}) as {
+    const { title, categoryIds, level, size, secondsPerQuestion } = (req.body ?? {}) as {
       title?: string;
       categoryIds?: string[];
       level?: string;
       size?: number;
+      secondsPerQuestion?: number | null;
     };
     const name = (title || "").trim();
     if (!name || name.length > 120) {
@@ -1627,6 +1628,17 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     }
     if (level !== undefined && !DIFFICULTIES.includes(level)) {
       return reply.code(400).send({ error: "Niveau inconnu." });
+    }
+    /* ABSENT ET ZÉRO NE SONT PAS LA MÊME CHOSE. `null` et `undefined`
+       veulent dire « pas de chronomètre » ; un nombre hors des bornes du
+       schéma est refusé ici plutôt que de remonter comme une violation
+       de contrainte, parce qu'une erreur de Postgres ne se lit pas. */
+    const seconds =
+      secondsPerQuestion === undefined || secondsPerQuestion === null
+        ? null
+        : Number(secondsPerQuestion);
+    if (seconds !== null && (!Number.isInteger(seconds) || seconds < 5 || seconds > 600)) {
+      return reply.code(400).send({ error: "Le délai va de 5 à 600 secondes." });
     }
     if (!SIZES.includes(Number(size))) {
       return reply.code(400).send({ error: "Dix, vingt ou trente questions." });
@@ -1646,6 +1658,7 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
       categoryIds: wanted,
       level: level ?? "normal",
       size: Number(size),
+      secondsPerQuestion: seconds,
     });
     /* A DRAW THAT CAME OUT EMPTY IS NOT A QUIZ. The bank held nothing
        dealable in those baskets — no live question with exactly one

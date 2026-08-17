@@ -87,7 +87,11 @@ export async function openPostgres(url: string): Promise<Db> {
    d'eux cessera de l'être — une donnée à transformer plutôt qu'une
    colonne à ajouter — c'est ce jour-là qu'il faudra la table, et pas
    avant. */
-export const SCHEMA_FILES = ["001_baseline.sql", "002_collection.sql"] as const;
+export const SCHEMA_FILES = [
+  "001_baseline.sql",
+  "002_collection.sql",
+  "003_quiz_timer.sql",
+] as const;
 
 export async function applySchema(db: Db, schemaSql: string): Promise<void> {
   await db.exec(schemaSql);
