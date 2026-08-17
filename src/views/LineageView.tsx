@@ -62,6 +62,7 @@ import {
   patchStep,
   withSteps,
   withStep,
+  withoutSteps,
 } from "../domain/course";
 import type { Course } from "../domain/course";
 import { buildLineage } from "../domain/lineageMap";
@@ -207,6 +208,24 @@ export function LineageView({
       },
     });
 
+  /* LE RETRAIT EN BLOC PASSE PAR LA MÊME PORTE QUE LES DEUX AUTRES, et
+     dit ce qui SURVIT : les fiches restent au classeur, seul l'ordre et
+     les notes de ces entrées-là s'en vont. Retirer UNE étape n'a pas de
+     confirmation — un clic se refait ; huit, non. */
+  const askRemoveSteps = (ids: ReadonlySet<string>, count: number) => {
+    if (!course) return;
+    setRequest({
+      title: t("lineage.confirmRemoveSteps", { count }),
+      body: t("lineage.confirmRemoveStepsBody"),
+      action: t("lineage.removeMany"),
+      severe: true,
+      onConfirm: () => {
+        replace(withoutSteps(course, ids));
+        if (pickedStep && ids.has(pickedStep)) setPickedStep(null);
+      },
+    });
+  };
+
   const pickPerson = (key: string) => {
     setFocusBond(null);
     setFocusKey((k) => (k === key ? null : key));
@@ -318,8 +337,8 @@ export function LineageView({
           focusKey={focusKey}
           focusBond={focusBond}
           onPointBond={setPointed}
+          onRemoveMany={askRemoveSteps}
           onCourse={(next) => replace(next)}
-          onCourseSoon={(next) => replace(next, false)}
         />
       )}
 

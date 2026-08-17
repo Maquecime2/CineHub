@@ -54,8 +54,14 @@ import { Guideline } from "../ui";
 import type { Course } from "../../domain/course";
 import type { Film } from "../../types";
 
+/* LE CADRE EST LARGE ET BAS, et les deux comptent. Large parce qu'un
+   graphe serré dans une demi-colonne n'était plus qu'une image de carte ;
+   bas parce qu'il partage maintenant l'écran avec le rail qu'il explique
+   — six cents pixels de haut poussaient celui-ci sous la ligne de
+   flottaison, et une carte qu'on ne peut pas voir EN MÊME TEMPS que son
+   sujet ne l'explique plus. Ce qu'on perd en surface, le zoom le rend. */
 const W = 1000;
-const H = 600;
+const H = 440;
 
 /* Une encre par nature de lien. Ce sont des JETONS : quatorze peaux les
    réécrivent, et une valeur en dur y devient illisible. */
@@ -247,7 +253,7 @@ export function LineageMap({
             style={{
               width: "100%",
               height: "auto",
-              maxHeight: "62vh",
+              maxHeight: "40vh",
               touchAction: "none",
               overflow: "hidden",
               display: "block",

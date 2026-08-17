@@ -6,39 +6,69 @@
    rank of its own and sorts nothing: it draws `course.steps` as they
    are, and every gesture hands a new array back up.
 
-   ONE COMPONENT, TWO DIRECTIONS. A strip of posters on a desk, a column
-   of them on a phone — and NOT two components. A second one would be the
-   same gestures written twice, and the second copy is always the one
-   that loses a keyboard binding.
+   THE RAIL IS TIED IN ONE PIECE, AND NOT STATION BY STATION. Each card
+   drawing its own segment leaves a hairline gap at every join — eight of
+   them, and the line reads as eight dashes rather than one axis. It is
+   therefore a background on the list itself, laid at `RAIL_Y`, which is
+   the one number the cards and this file must agree on. That agreement
+   is why `POSTER_H` is fixed and `PosterArt` is given `plain`: a 2:3
+   poster and a substitute emulsion are not the same height, and the
+   beads would sit at two levels.
 
-   THE COLUMN IS NOT A LESSER STRIP, IT IS THE BETTER ONE ON A PHONE.
-   `usePointerDrag` auto-scrolls VERTICALLY only — it reads `clientY` and
-   tests `overflowY` — so a horizontal strip cannot bring an off-screen
-   slot under a dragging finger. Downwards, the gesture comes free.
+   THE BANDS GROUP WHAT IS CONSECUTIVE, and `groupedSteps` is what says
+   so — it was written for this and had never been called. Gathering
+   every Ozu together would REORDER somebody's plan under cover of
+   presenting it, and the plan is the one thing here that is theirs.
+
+   ONE COMPONENT, TWO DIRECTIONS. A rail of stations on a desk, a column
+   on a phone — and NOT two components. A second one would be the same
+   gestures written twice, and the second copy is always the one that
+   loses a keyboard binding. THE COLUMN IS NOT A LESSER RAIL, IT IS THE
+   BETTER ONE ON A PHONE: `usePointerDrag` auto-scrolls VERTICALLY only —
+   it reads `clientY` and tests `overflowY` — so a horizontal strip
+   cannot bring an off-screen slot under a dragging finger.
+
+   A SELECTION MOVES AS ONE, AND `moveGroup` REFUSES WHAT MAKES NO SENSE.
+   Dropping a selection onto one of its own members has no answer, so the
+   domain hands the same array back and nothing is written or announced —
+   the same contract as `move`. Dragging a station that is NOT in the
+   selection drags that station alone: a gesture must never carry more
+   than it visibly grabbed.
 
    IT SAYS WHAT IT HIDES. Steps whose card has left the collection are
    not drawn — reading must never write, so they stay on disk — but the
-   count is stated at the foot rather than letting the strip quietly
+   count is stated at the foot rather than letting the rail quietly
    shrink by two entries.
 
    ONE SPOKEN CHANNEL AND NOT TWO. Moves are announced through `useSay`,
    the binder's single `aria-live` region. A second one placed here
    would have both talking at once over the same gesture. */
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { X } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
+import { bare, hollow, inked } from "../../theme/styles";
 import { Guideline, Nothing } from "../ui";
 import { useSay } from "../ui/Feedback";
-import { courseSteps, move, moveBy, strandedCount, withSteps } from "../../domain/course";
+import {
+  courseSteps,
+  groupedSteps,
+  move,
+  moveBy,
+  moveGroup,
+  strandedCount,
+  withSteps,
+} from "../../domain/course";
 import { primaryDirector } from "../../domain/lineageMap";
 import type { Course, Step } from "../../domain/course";
 import type { Film } from "../../types";
-import { StepCard } from "./StepCard";
+import { StepCard, RAIL_Y } from "./StepCard";
 
 interface OrderStripProps {
   course: Course;
   films: Film[];
-  /** La colonne du téléphone plutôt que la bande. */
+  /** La colonne du téléphone plutôt que le rail. */
   column: boolean;
   /** L'étape ouverte dans le panneau, par son identifiant. */
   pickedId: string | null;
@@ -49,9 +79,13 @@ interface OrderStripProps {
   focusBond: string | null;
   /** Une entrée est pointée : la carte épaissit le lien qu'elle invoque. */
   onPointBond: (bondId: string | null) => void;
-  /** Pendant le geste : écriture différée. */
-  onCourseSoon: (next: Course) => void;
-  /** Le geste est fini : on écrit. */
+  /** Le retrait d'une sélection passe par la confirmation de la vue. */
+  onRemoveMany: (ids: ReadonlySet<string>, count: number) => void;
+  /**
+   * On écrit, et RÉGLÉ. Un réordonnancement est fini au moment où il
+   * arrive — un lâcher, un chevron, une flèche — là où une frappe ne
+   * l'est pas ; il n'y a donc rien à différer ici.
+   */
   onCourse: (next: Course) => void;
 }
 
@@ -64,16 +98,33 @@ export function OrderStrip({
   focusKey,
   focusBond,
   onPointBond,
+  onRemoveMany,
   onCourse,
-  onCourseSoon,
 }: OrderStripProps) {
   const { t } = useTranslation();
   const say = useSay();
   const [dragging, setDragging] = useState<number | null>(null);
   const [marked, setMarked] = useState<number | null>(null);
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  /** D'où part une plage prise à la touche Maj. */
+  const [anchor, setAnchor] = useState<string | null>(null);
 
   const entries = courseSteps(course, films);
   const stranded = strandedCount(course, films);
+
+  /* UNE SÉLECTION NE SURVIT PAS À CE QU'ELLE DÉSIGNE. Retirer une étape
+     — ici ou depuis le panneau — laisserait sinon un compte qui parle
+     d'entrées que plus rien ne dessine, et le retrait en bloc porterait
+     sur des identifiants morts. */
+  const alive = course.steps.map((s) => s.id).join("|");
+  useEffect(() => {
+    setSelected((was) => {
+      const ids = new Set(course.steps.map((s) => s.id));
+      if ([...was].every((id) => ids.has(id))) return was;
+      return new Set([...was].filter((id) => ids.has(id)));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alive]);
 
   /** Une entrée dessinée renvoie à sa place RÉELLE dans le tableau. */
   const indexOf = (stepId: string) => course.steps.findIndex((s) => s.id === stepId);
@@ -84,15 +135,21 @@ export function OrderStrip({
     if (film) say(t("lineage.moved", { title: film.title, place: at + 1, total: steps.length }));
   };
 
-  const reorder = (from: number, to: number, stepId: string, settled: boolean) => {
+  const reorder = (from: number, to: number, stepId: string) => {
     const steps = move(course.steps, from, to);
     /* `move` hands the very same array back when there was nothing to
        do — a refused move must not be announced as one that worked. */
     if (steps === course.steps) return;
-    const next = withSteps(course, steps);
-    if (settled) onCourse(next);
-    else onCourseSoon(next);
+    onCourse(withSteps(course, steps));
     announce(steps, stepId);
+  };
+
+  const reorderMany = (beforeId: string) => {
+    const steps = moveGroup(course.steps, selected, beforeId);
+    if (steps === course.steps) return;
+    onCourse(withSteps(course, steps));
+    const at = steps.findIndex((s) => selected.has(s.id));
+    say(t("lineage.movedMany", { count: selected.size, place: at + 1 }));
   };
 
   const shift = (stepId: string, delta: number) => {
@@ -103,6 +160,39 @@ export function OrderStrip({
     announce(steps, stepId);
   };
 
+  const toggle = (stepId: string) => {
+    setAnchor(stepId);
+    setSelected((was) => {
+      const next = new Set(was);
+      if (next.has(stepId)) next.delete(stepId);
+      else next.add(stepId);
+      return next;
+    });
+  };
+
+  /* MAJ PREND UNE PLAGE, CTRL AJOUTE UNE UNITÉ, un clic nu ouvre le
+     panneau et lâche la sélection. Les trois sont la convention du
+     bureau ; la case à cocher est la porte de ceux qui ne l'ont pas. */
+  const clicked = (stepId: string, e: ReactMouseEvent) => {
+    if (e.shiftKey && anchor) {
+      e.preventDefault();
+      const a = entries.findIndex((x) => x.step.id === anchor);
+      const b = entries.findIndex((x) => x.step.id === stepId);
+      if (a < 0 || b < 0) return;
+      const [low, high] = a < b ? [a, b] : [b, a];
+      setSelected(new Set(entries.slice(low, high + 1).map((x) => x.step.id)));
+      return;
+    }
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      toggle(stepId);
+      return;
+    }
+    setSelected(new Set());
+    setAnchor(stepId);
+    onPick(pickedId === stepId ? null : stepId);
+  };
+
   /* La première allumée, calculée une fois : c'est elle qu'on amène sous
      les yeux, et elle seule. */
   const litAt = entries.findIndex(({ step, film }) => {
@@ -110,8 +200,59 @@ export function OrderStrip({
     return (!!focusKey && d?.key === focusKey) || (!!focusBond && step.because === focusBond);
   });
 
+  /* LES BANDEAUX. `groupedSteps` ne réunit que du CONSÉCUTIF ; on n'en
+     garde ici que les bornes, parce que le rail reste une seule liste
+     plate — imbriquer une liste par groupe ferait de chaque bandeau une
+     entrée à parcourir au lecteur d'écran, pour une décoration. */
+  const groups = groupedSteps(entries, (film) => primaryDirector(film)?.key ?? "");
+  const bandStart = new Set<string>();
+  const bandEnd = new Set<string>();
+  for (const g of groups) {
+    bandStart.add(g.entries[0]!.step.id);
+    bandEnd.add(g.entries[g.entries.length - 1]!.step.id);
+  }
+
   return (
     <div>
+      {/* CE QUI EST PRIS SE DIT, ET SE LÂCHE. Une sélection invisible
+          qui suit le geste suivant est la façon la plus sûre de déplacer
+          huit entrées quand on en visait une. */}
+      {selected.size > 0 && (
+        <div
+          role="status"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            flexWrap: "wrap",
+            marginBottom: 8,
+            padding: "6px 10px",
+            border: `1px solid ${C.ochre}`,
+            background: alpha(C.ochre, 0.1),
+          }}
+        >
+          <span style={{ fontFamily: F.mono, fontSize: 10, color: C.ink }}>
+            {t("lineage.selected", { count: selected.size })}
+          </span>
+          <span style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, flex: 1 }}>
+            {t("lineage.selectedHow")}
+          </span>
+          <button
+            onClick={() => onRemoveMany(selected, selected.size)}
+            style={{ ...inked(C.ink), ...hollow, color: C.burgundy }}
+          >
+            <X size={12} />
+            {t("lineage.removeMany")}
+          </button>
+          <button
+            onClick={() => setSelected(new Set())}
+            style={{ ...bare, fontFamily: F.mono, fontSize: 9.5 }}
+          >
+            {t("lineage.selectNone")}
+          </button>
+        </div>
+      )}
+
       {entries.length === 0 ? (
         <Nothing what={t("lineage.emptyCourse")} />
       ) : (
@@ -124,8 +265,19 @@ export function OrderStrip({
             padding: column ? 0 : "0 0 6px",
             display: "flex",
             flexDirection: column ? "column" : "row",
-            gap: column ? 0 : 10,
+            gap: 0,
             overflowX: column ? undefined : "auto",
+            /* LE RAIL, D'UNE SEULE PIÈCE — voir l'en-tête. C'est un fond
+               et non une bordure : une bordure suivrait la boîte, et le
+               trait doit couper les stations à mi-hauteur. */
+            ...(column
+              ? null
+              : {
+                  backgroundImage: `linear-gradient(${alpha(C.ink, 0.4)}, ${alpha(C.ink, 0.4)})`,
+                  backgroundSize: `100% 1px`,
+                  backgroundPosition: `0 ${RAIL_Y}px`,
+                  backgroundRepeat: "no-repeat",
+                }),
           }}
         >
           {entries.map(({ step, film }, drawn) => {
@@ -145,18 +297,28 @@ export function OrderStrip({
                 total={entries.length}
                 directorName={director?.name ?? null}
                 column={column}
+                bandStart={bandStart.has(step.id)}
+                bandEnd={bandEnd.has(step.id)}
                 picked={pickedId === step.id}
+                selected={selected.has(step.id)}
                 lit={lit}
                 leading={lit && drawn === litAt}
                 noted={!!step.why.trim()}
-                onPick={() => onPick(pickedId === step.id ? null : step.id)}
+                onPick={(e) => clicked(step.id, e)}
+                onToggle={() => toggle(step.id)}
                 onPoint={(on) => onPointBond(on ? step.because : null)}
                 marked={marked === at}
                 onMark={(on) => setMarked(on ? at : null)}
                 onMoveBy={(delta) => shift(step.id, delta)}
                 onDragStart={() => setDragging(at)}
                 onDropHere={() => {
-                  if (dragging !== null) reorder(dragging, at, course.steps[dragging]!.id, true);
+                  if (dragging === null) return;
+                  const held = course.steps[dragging]!.id;
+                  /* Une station HORS sélection se déplace seule : un
+                     geste ne doit jamais emporter plus que ce qu'il a
+                     visiblement saisi. */
+                  if (selected.size > 1 && selected.has(held)) reorderMany(step.id);
+                  else reorder(dragging, at, held);
                   setDragging(null);
                 }}
               />

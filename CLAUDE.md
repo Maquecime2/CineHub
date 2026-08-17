@@ -161,13 +161,38 @@ autres.
   mais ne touche ni aux fiches ni au parcours.
 - **L'ÉCRAN EST UNE PILE, PAS DEUX COLONNES.** Les deux moitiés se
   répondaient côte à côte et se lisaient comme deux écrans sans rapport.
-  La carte est désormais PLEINE LARGEUR au-dessus de la bande d'affiches
-  qu'elle explique, et l'étape choisie ouvre `StepPanel` en dessous.
+  La carte est désormais PLEINE LARGEUR au-dessus du rail qu'elle
+  explique, et l'étape choisie ouvre `StepPanel` en dessous.
   `OrderColumn` et `StepRow` ont disparu : `OrderStrip` prend une
   `direction` et `StepCard` se reflowe. **La colonne du téléphone n'est
-  pas une bande dégradée, c'est la bonne** — `usePointerDrag` ne défile
+  pas un rail dégradé, c'est le bon** — `usePointerDrag` ne défile
   qu'en VERTICAL (`pace()` lit `clientY`), donc une bande horizontale ne
   peut pas amener un emplacement hors champ sous un doigt qui glisse.
+- **L'ORDRE EST UN RAIL, ET LE RAIL EST TIRÉ D'UNE SEULE PIÈCE.** Des
+  tuiles séparées se lisent comme une étagère — des choses qu'on
+  possède, sans relation ; le trait dit le contraire. Il est donc un
+  FOND de la liste posé à `RAIL_Y`, et non un segment par carte : huit
+  segments laissent huit jointures et le trait redevient huit tirets.
+  D'où `POSTER_H` fixe et `PosterArt` en `plain` — une affiche 2:3 et une
+  émulsion de remplacement n'ont pas la même hauteur, et les perles se
+  poseraient à deux niveaux. Le bord déchiré est le prix payé.
+- **`groupedSteps` EST ENFIN APPELÉ**, et il ne réunit que du CONSÉCUTIF.
+  Le rail n'en garde que les BORNES (`bandStart` / `bandEnd`) et reste
+  une liste PLATE : imbriquer une liste par groupe ferait de chaque
+  bandeau une entrée à parcourir au lecteur d'écran, pour une décoration.
+- **UNE SÉLECTION SE DÉPLACE EN BLOC, ET `moveGroup` REFUSE L'ABSURDE.**
+  Déposer une sélection sur l'un de ses propres membres n'a pas de
+  réponse : le domaine rend le MÊME tableau, donc rien n'est écrit ni
+  annoncé — le contrat de `move`. Ce qui est pris garde son ordre à soi.
+  Glisser une station HORS sélection la déplace SEULE : un geste
+  n'emporte jamais plus que ce qu'il a visiblement saisi. Et la sélection
+  ne survit pas à ce qu'elle désigne, sinon le retrait en bloc porterait
+  sur des identifiants morts.
+- **UNE COMMANDE NE SE NICHE PAS DANS UNE COMMANDE.** La case à cocher
+  posée DANS le bouton de l'affiche était du HTML invalide, et le bouton
+  y prenait pour NOM le libellé de la case : deux boutons portant la même
+  chose, et plus rien pour dire lequel ouvrait la fiche. Elle est à côté,
+  en recouvrement, et le bouton porte son propre `aria-label`.
 - **LE `<select>` DE JUSTIFICATION A DISPARU.** `BondPicker` est un
   `radiogroup` de rubans lus par `bondLabel` DEPUIS ce cinéaste, et
   « nouer X à… » y est PERMANENT et non réservé à une liste vide :

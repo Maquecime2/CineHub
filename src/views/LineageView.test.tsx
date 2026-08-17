@@ -143,6 +143,69 @@ describe("reordering without a mouse", () => {
   });
 });
 
+describe("taking several stations at once", () => {
+  const three = () =>
+    makeCourse({ label: "trois", steps: ["a", "b", "a"].map((f) => makeStep(f)) });
+
+  it("takes a range with Shift, and says how many are held", async () => {
+    const user = userEvent.setup();
+    build([three()]);
+
+    /* Le parcours porte deux fois « a » : on cadre donc sur les
+       stations, et pas sur un titre qui en désigne deux. */
+    const stations = order().getAllByRole("listitem");
+    await user.click(within(stations[0]!).getByRole("button", { name: /^Ouvrir/ }));
+    await user.keyboard("{Shift>}");
+    await user.click(within(stations[1]!).getByRole("button", { name: /^Ouvrir/ }));
+    await user.keyboard("{/Shift}");
+
+    expect(screen.getByText("2 étapes prises")).toBeInTheDocument();
+  });
+
+  it("takes one more with Ctrl, and lets the whole lot go", async () => {
+    const user = userEvent.setup();
+    build([three()]);
+
+    const boxes = order().getAllByRole("checkbox");
+    await user.click(boxes[0]!);
+    await user.click(boxes[2]!);
+    expect(screen.getByText("2 étapes prises")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "tout lâcher" }));
+    expect(screen.queryByText(/étapes prises/)).not.toBeInTheDocument();
+  });
+
+  /* LA CASE À COCHER EST LA PORTE DE CEUX QUI N'ONT NI CTRL NI SOURIS —
+     elle doit donc exister avant tout survol, sans quoi le doigt et le
+     clavier n'ont aucun chemin vers une sélection. */
+  it("offers a tick-box on every station, hovered or not", () => {
+    build([three()]);
+    expect(order().getAllByRole("checkbox")).toHaveLength(3);
+  });
+
+  it("takes a selection out only once confirmed, and says what survives", async () => {
+    const user = userEvent.setup();
+    const { onCourses } = build([three()]);
+
+    const boxes = order().getAllByRole("checkbox");
+    await user.click(boxes[0]!);
+    await user.click(boxes[1]!);
+    await user.click(screen.getByRole("button", { name: /Les retirer du parcours/ }));
+
+    expect(onCourses).not.toHaveBeenCalled();
+    expect(screen.getByText(/Retirer 2 étapes \?/)).toBeInTheDocument();
+    expect(screen.getByText(/Les fiches restent au classeur/)).toBeInTheDocument();
+
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: /^les retirer du parcours$/i })
+    );
+    const [written] = onCourses.mock.calls[0] as [Course[]];
+    /* La troisième étape survit, et c'est bien la TROISIÈME : on retire
+       des étapes, jamais des films — « a » est là deux fois. */
+    expect(written[0]!.steps.map((s) => s.filmId)).toEqual(["a"]);
+  });
+});
+
 describe("the panel of the entry one has picked", () => {
   it("opens on that film, and closes again on a second press", async () => {
     const user = userEvent.setup();

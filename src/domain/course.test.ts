@@ -7,12 +7,14 @@ import {
   makeStep,
   move,
   moveBy,
+  moveGroup,
   normalizeCourses,
   patchStep,
   stepBond,
   strandedCount,
   withStep,
   withoutStep,
+  withoutSteps,
 } from "./course";
 import { makeBond } from "./bonds";
 import { makeFilm } from "./film";
@@ -71,6 +73,42 @@ describe("moving a step", () => {
     expect(moveBy(list, 2, 1)).toBe(list);
     expect(moveBy(list, 0, -1)).toBe(list);
     expect(moveBy(list, 1, 1)).toEqual(["a", "c", "b"]);
+  });
+});
+
+describe("moving several steps at once", () => {
+  const list = ["a", "b", "c", "d", "e"].map((id) => ({ id }));
+  const ids = (...names: string[]) => new Set(names);
+  const read = (l: { id: string }[]) => l.map((i) => i.id);
+
+  it("gathers the selection in front of the entry it was dropped on", () => {
+    expect(read(moveGroup(list, ids("a", "b"), "e"))).toEqual(["c", "d", "a", "b", "e"]);
+  });
+
+  it("keeps what was taken in ITS own order, however scattered", () => {
+    /* Trois entrées prises aux places 1, 3 et 4 restent dans cet
+       ordre-là : on a demandé à les déplacer, pas à les ranger. */
+    expect(read(moveGroup(list, ids("e", "a", "c"), "d"))).toEqual(["b", "a", "c", "e", "d"]);
+  });
+
+  it("gathers them at the end when the target is the last entry", () => {
+    expect(read(moveGroup(list, ids("a"), "e"))).toEqual(["b", "c", "d", "a", "e"]);
+  });
+
+  it("refuses a drop onto the selection itself, rather than inventing an answer", () => {
+    /* La même identité que `move` : c'est elle qui permet à l'appelant
+       de ne pas écrire, et de ne pas ANNONCER un déplacement qui
+       n'a pas eu lieu. */
+    expect(moveGroup(list, ids("a", "b"), "b")).toBe(list);
+    expect(moveGroup(list, ids(), "b")).toBe(list);
+    expect(moveGroup(list, ids("zz"), "b")).toBe(list);
+    expect(moveGroup(list, ids("a"), "inconnu")).toBe(list);
+  });
+
+  it("never touches the list it was given", () => {
+    const before = read(list);
+    moveGroup(list, ids("a", "b"), "e");
+    expect(read(list)).toEqual(before);
   });
 });
 
@@ -168,6 +206,14 @@ describe("adding and removing", () => {
   it("removes by step, not by film", () => {
     const course = run("a", "c", "a");
     const next = withoutStep(course, course.steps[0]!.id);
+    expect(next.steps.map((s) => s.filmId)).toEqual(["c", "a"]);
+  });
+
+  it("removes a whole selection by step, and the twin film stays", () => {
+    const course = run("a", "c", "a", "d");
+    const next = withoutSteps(course, new Set([course.steps[0]!.id, course.steps[3]!.id]));
+    /* Le second « a » survit : c'est l'ÉTAPE qu'on retire, jamais le
+       film — deux séances du même titre sont un plan ordinaire. */
     expect(next.steps.map((s) => s.filmId)).toEqual(["c", "a"]);
   });
 });

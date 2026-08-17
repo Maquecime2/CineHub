@@ -181,6 +181,34 @@ export const moveBy = <T>(list: T[], i: number, delta: number): T[] => {
   return move(list, i, to);
 };
 
+/**
+ * The list with everything named by `ids` gathered in front of `beforeId`.
+ *
+ * WHAT IS TAKEN KEEPS ITS OWN ORDER. Picking entries 2, 5 and 6 and
+ * dropping them further along must not shuffle them among themselves:
+ * the three were already in an order somebody chose, and the gesture
+ * asked to move them, not to rearrange them.
+ *
+ * DROPPING A SELECTION ONTO ITSELF IS REFUSED, and refused the same way
+ * `move` refuses — by handing the very same array back, so the caller
+ * cannot announce a move that did not happen. There is no sensible
+ * answer to "put these three in front of the second of the three", and
+ * inventing one would move somebody's plan without being asked.
+ */
+export const moveGroup = <T extends { id: string }>(
+  list: T[],
+  ids: ReadonlySet<string>,
+  beforeId: string
+): T[] => {
+  if (ids.size === 0 || ids.has(beforeId)) return list;
+  const taken = list.filter((item) => ids.has(item.id));
+  if (taken.length === 0) return list;
+  const rest = list.filter((item) => !ids.has(item.id));
+  const at = rest.findIndex((item) => item.id === beforeId);
+  if (at < 0) return list;
+  return [...rest.slice(0, at), ...taken, ...rest.slice(at)];
+};
+
 const touched = (course: Course, steps: Step[]): Course => ({
   ...course,
   steps,
@@ -197,6 +225,13 @@ export const withoutStep = (course: Course, stepId: string): Course =>
   touched(
     course,
     course.steps.filter((s) => s.id !== stepId)
+  );
+
+/** The same, for a whole selection taken out in one gesture. */
+export const withoutSteps = (course: Course, ids: ReadonlySet<string>): Course =>
+  touched(
+    course,
+    course.steps.filter((s) => !ids.has(s.id))
   );
 
 export const patchStep = (course: Course, stepId: string, patch: Partial<Step>): Course =>
