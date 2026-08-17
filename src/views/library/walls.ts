@@ -13,7 +13,10 @@ export type SortKey = "watched" | "added" | "title" | "year" | "rating" | "direc
  */
 export interface WallUi {
   q: string;
-  genreFilter: string;
+  /** Les genres retenus. Vide : tous. */
+  genreFilter: string[];
+  /** Les décennies retenues, en texte. Vide : toutes. */
+  decadeFilter: string[];
   sortBy: SortKey;
   desc: boolean;
   grouped: boolean;

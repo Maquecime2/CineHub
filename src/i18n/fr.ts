@@ -23,6 +23,13 @@ const fr = {
     films_one: "{{count}} film",
     films_other: "{{count}} films",
   },
+  /* Le tamis : un filtre à plusieurs cases, replié la plupart du temps.
+     Ses phrases sont à lui parce qu'il a plusieurs appelants. */
+  sieve: {
+    any: "tous",
+    several: "{{count}} choisis",
+    clear: "TOUT MONTRER",
+  },
   common: {
     retry: "réessayer",
     close: "Fermer",
@@ -2425,7 +2432,7 @@ const fr = {
       },
       filters: {
         title: "Les tamis",
-        body: "Genres et décennies se cumulent : ce sont deux tamis posés l'un sur l'autre. Recliquer une étiquette allumée la retire.",
+        body: "Genres et décennies se cumulent : ce sont deux tamis posés l'un sur l'autre. Chacun accepte PLUSIEURS cases — dans un même tamis elles s'additionnent (l'un ou l'autre), d'un tamis à l'autre elles se multiplient (les années 70 et l'un de ces genres). « Tout montrer » vide un tamis d'un geste.",
       },
       views: {
         title: "Les vues nommées",

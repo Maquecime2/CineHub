@@ -32,6 +32,7 @@ import { wallLookOf, DEFAULT_WALL_LOOK } from "./wallLook";
 import { wallStyle } from "../../theme/surfaces";
 import { catInk } from "../../components/shelf/constants";
 import { WALLS } from "./walls";
+import { Sieve } from "../../components/ui/Sieve";
 import { FilmQuickView } from "../../components/film/FilmQuickView";
 import { normalize } from "../../domain/search";
 
@@ -394,12 +395,26 @@ export function LibraryView({
   const cfg = WALLS[wall];
   /* Search, filter and sort live in App: opening a film unmounts this
      view, and a local state would be lost on the way back to the wall. */
-  const { q, genreFilter, decadeFilter = null, sortBy, desc, grouped } = ui;
+  const { q, sortBy, desc, grouped } = ui;
+  /* AU PLURIEL, ET ON TOLÈRE LE SINGULIER D'AVANT. Ces deux filtres ne
+     sont pas sur le disque — `keep()` dans `App` ne garde que le mode et
+     le tri — mais un état de vue survit à un rechargement de module en
+     développement, et un `.includes` sur une chaîne répondrait n'importe
+     quoi plutôt que d'échouer. */
+  const asList = (v) => (Array.isArray(v) ? v : v == null || v === "" ? [] : [v]);
+  const genreFilter = asList(ui.genreFilter);
+  const decadeFilter = asList(ui.decadeFilter).map(String);
   const mode = ui.mode === "shelf" ? "shelf" : "wall";
   const set = (patch) => setUi({ ...ui, ...patch });
   const setQ = (v) => set({ q: v });
   const setGenreFilter = (v) => set({ genreFilter: v });
   const setDecadeFilter = (v) => set({ decadeFilter: v });
+  const sieved = genreFilter.length + decadeFilter.length;
+  /* CE QUE LES TAMIS CONTIENNENT, en une chaîne. Les deux tableaux sont
+     refaits à chaque rendu, donc en dépendre directement ne mémorise
+     rien ; c'est leur CONTENU qui décide, et il tient dans une clé. */
+  const genreKey = genreFilter.join("|");
+  const decadeKey = decadeFilter.join("|");
   const setGrouped = (fn) => set({ grouped: typeof fn === "function" ? fn(grouped) : fn });
   // clicking the active sort again simply reverses the direction
   const pickSort = (k) => set(k === sortBy ? { desc: !desc } : { sortBy: k, desc: true });
@@ -447,13 +462,19 @@ export function LibraryView({
     [look.decor]
   );
 
-  /* Genre and decade add up: they are two sieves laid one on the other,
-     and not two buttons fighting over the list. */
+  /* DEUX TAMIS POSÉS L'UN SUR L'AUTRE, et non deux boutons qui se
+     disputent la liste. DANS un tamis les cases s'ADDITIONNENT — police
+     OU noir — et d'un tamis à l'autre elles se MULTIPLIENT : les années
+     70 ET l'un des deux genres. C'est la seule lecture qui rende la
+     multi-sélection utile ; l'intersection dans un même tamis ne rendrait
+     presque jamais rien, un film portant rarement deux genres qu'on a
+     tous les deux cochés. */
   const passesFilters = useCallback(
     (f) =>
-      (!genreFilter || (f.genres || []).includes(genreFilter)) &&
-      (decadeFilter === null || decadeOf(f) === decadeFilter),
-    [genreFilter, decadeFilter]
+      (genreFilter.length === 0 || (f.genres || []).some((g) => genreFilter.includes(g))) &&
+      (decadeFilter.length === 0 || decadeFilter.includes(String(decadeOf(f)))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [genreKey, decadeKey]
   );
 
   /* A film set aside has no business on the wall: that is precisely
@@ -474,9 +495,9 @@ export function LibraryView({
   const matches = useCallback((f) => !q || matchFilm(f, q, t), [q, t]);
 
   const dimSet = useMemo(() => {
-    if (mode !== "shelf" || (!q && !genreFilter && decadeFilter === null)) return null;
+    if (mode !== "shelf" || (!q && sieved === 0)) return null;
     return new Set(scope.filter((f) => matches(f) && passesFilters(f)).map((f) => f.id));
-  }, [mode, q, genreFilter, decadeFilter, scope, matches, passesFilters]);
+  }, [mode, q, sieved, scope, matches, passesFilters]);
 
   /* Tidying the shelf in one gesture. The sort is no longer a state
      that would fight with the categories: it is a verb that rewrites the
@@ -641,74 +662,34 @@ export function LibraryView({
               onChange={(e) => setQ(e.target.value)}
             />
           </div>
-          <div data-tour="wall-filters">
-            <Label>{t("library.genre")}</Label>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              {allGenres.length === 0 && (
-                <span style={{ color: C.inkFaded, fontSize: 13, fontStyle: "italic" }}>—</span>
-              )}
-              {allGenres.map((g) => {
-                // each genre carries its own ink — the labelling was not done on the same day
-                const ink = [C.burgundy, C.cobalt, C.moss, C.vermillion, C.slate][
-                  Math.abs(hash(g)) % 5
-                ];
-                const on = genreFilter === g;
-                return (
-                  <button
-                    key={g}
-                    onClick={() => setGenreFilter(on ? "" : g)}
-                    style={{
-                      all: "unset",
-                      ...tap,
-                      cursor: "pointer",
-                      fontFamily: F.mono,
-                      fontSize: 10.5,
-                      padding: "4px 11px",
-                      borderRadius: 14,
-                      border: `1px solid ${ink}`,
-                      color: on ? C.card : ink,
-                      background: on ? ink : "transparent",
-                      transform: `rotate(${(Math.abs(hash(g)) % 5) - 2}deg)`,
-                      boxShadow: on ? `1px 2px 4px ${ink}55` : "none",
-                      transition: "background .15s ease",
-                    }}
-                  >
-                    {g}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          {allDecades.length > 0 && (
-            <div>
-              <Label>{t("library.decade")}</Label>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {allDecades.map((d) => {
-                  const on = decadeFilter === d;
-                  return (
-                    <button
-                      key={d}
-                      onClick={() => setDecadeFilter(on ? null : d)}
-                      style={{
-                        all: "unset",
-                        ...tap,
-                        cursor: "pointer",
-                        fontFamily: F.mono,
-                        fontSize: 10.5,
-                        padding: "4px 9px",
-                        border: `1px solid ${on ? C.ink : C.line}`,
-                        color: on ? C.card : C.inkFaded,
-                        background: on ? C.ink : "transparent",
-                        transform: `rotate(${(Math.abs(hash(String(d))) % 3) - 1}deg)`,
-                      }}
-                    >
-                      {d}s
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+          {/* DEUX TAMIS REPLIÉS, LÀ OÙ IL Y AVAIT DEUX RANGÉES. Dix-neuf
+              genres et onze décennies toujours dépliés poussaient les
+              affiches sous la ligne de flottaison, pour deux bandeaux
+              qu'on ne lit pas — on les balaie. Un filtre est fermé la
+              plupart du temps : c'est une chose qu'on ouvre pour
+              choisir. Et il en accepte PLUSIEURS, ce qui n'était pas
+              possible : on ne choisit plus entre deux décennies voisines
+              pour une même période. */}
+          <Sieve
+            tour="wall-filters"
+            label={t("library.genre")}
+            options={allGenres.map((g) => ({
+              value: g,
+              label: g,
+              /* Chaque genre porte son encre — l'étiquetage n'a pas été
+                 fait le même jour, et la couleur est ce qui les
+                 distingue au balayage. */
+              ink: [C.burgundy, C.cobalt, C.moss, C.vermillion, C.slate][Math.abs(hash(g)) % 5],
+            }))}
+            chosen={genreFilter}
+            onChange={setGenreFilter}
+          />
+          <Sieve
+            label={t("library.decade")}
+            options={allDecades.map((d) => ({ value: String(d), label: `${d}s` }))}
+            chosen={decadeFilter}
+            onChange={setDecadeFilter}
+          />
           <div data-tour="wall-sort">
             {/* On the wall, sorting is a state. On the shelf, the arrangement
               IS the state: filing becomes a gesture one makes once. */}

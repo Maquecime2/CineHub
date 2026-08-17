@@ -1169,8 +1169,11 @@ export default function App() {
     const saved = store.get("wall-prefs", {});
     const one = (wall) => ({
       q: "",
-      genreFilter: "",
-      decadeFilter: null,
+      /* AU PLURIEL : les tamis en acceptent plusieurs. Ni l'un ni
+         l'autre n'est sur le disque — `keep()` plus bas ne garde que le
+         mode, le tri et la vue — donc rien à migrer. */
+      genreFilter: [],
+      decadeFilter: [],
       grouped: false,
       sortBy: saved[wall]?.sortBy || WALLS[wall].defaultSort,
       desc: saved[wall]?.desc ?? true,

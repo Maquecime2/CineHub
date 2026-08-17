@@ -19,6 +19,13 @@ const en = {
     films_one: "{{count}} film",
     films_other: "{{count}} films",
   },
+  /* The sieve: a filter with several boxes, folded most of the time.
+     Its sentences are its own because it has several callers. */
+  sieve: {
+    any: "all",
+    several: "{{count}} chosen",
+    clear: "SHOW ALL",
+  },
   common: {
     retry: "try again",
     close: "Close",
@@ -2349,7 +2356,7 @@ const en = {
       },
       filters: {
         title: "The sieves",
-        body: "Genres and decades stack up: two sieves laid one on the other. Clicking a lit label again takes it off.",
+        body: "Genres and decades stack up: two sieves laid one on the other. Each takes SEVERAL boxes — within one sieve they add up (either one), from one sieve to the other they multiply (the seventies and one of those genres). “Show all” empties a sieve in one gesture.",
       },
       views: {
         title: "Named views",
