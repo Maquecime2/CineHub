@@ -10,6 +10,12 @@ import { writtenKey, VIA_SERVER } from "./services/tmdbKey";
 const BASE = "https://api.themoviedb.org/3";
 // w342: fine enough for a card, light enough for a wall of 500 posters
 export const POSTER_BASE = "https://image.tmdb.org/t/p/w342";
+/* LES DEUX TAILLES D'UN PHOTOGRAMME. w300 pour la bande — vingt-cinq
+   kilo-octets, six d'entre eux tiennent dans ce qu'une seule affiche
+   coûte —, w1280 une fois ouvert. Ce sont des PRÉFIXES : la fiche ne
+   stocke que le chemin, voir `getDetails`. */
+export const FRAME_THUMB = "https://image.tmdb.org/t/p/w300";
+export const FRAME_FULL = "https://image.tmdb.org/t/p/w1280";
 const CACHE_KEY = "tmdb-cache";
 
 /* THE SHAPE OF WHAT WE MEMORISE, AND WHY IT CARRIES A NUMBER.
@@ -38,8 +44,12 @@ const CACHE_KEY = "tmdb-cache";
    5: `synopsis`. Entries of shape 4 hold none, and the field arrives
    empty rather than absent — so a card completed from one of them would
    look answered and never be asked again. The bump is what makes the
-   whole cache re-earn its keep; nothing else here has to know. */
-const SHAPE = 5;
+   whole cache re-earn its keep; nothing else here has to know.
+
+   6: `frames`. Same reasoning, and the same trap: an entry of shape 5
+   would hand back an empty list, which reads as "TMDB has no still" and
+   is never asked again. */
+const SHAPE = 6;
 
 // the cache avoids burning the quota again on every re-import of the same file
 const readCache = () => {
@@ -250,7 +260,18 @@ export async function getDetails(tmdbId, apiKey) {
      token, not one more millisecond. Harvesting them separately — which
      is what `fetchKeywords` does for the open card — would double the
      number of calls of a full import for the same thing. */
-  const data = await get(`/movie/${tmdbId}`, { append_to_response: "credits,keywords" }, apiKey);
+  /* LES PHOTOGRAMMES VOYAGENT DANS LA MÊME REQUÊTE, et c'est tout leur
+     coût : `append_to_response` en accepte autant qu'on veut, donc pas un
+     appel de plus, pas un jeton de quota de plus. `include_image_language`
+     est un paramètre de PREMIER niveau — il s'applique à la ressource
+     jointe, et `null` y désigne les images SANS TEXTE, qui sont celles
+     qu'on veut : une image portant le titre incrusté en coréen n'est plus
+     un plan du film, c'est une affiche. */
+  const data = await get(
+    `/movie/${tmdbId}`,
+    { append_to_response: "credits,keywords,images", include_image_language: "null,en,fr" },
+    apiKey
+  );
 
   /* THE FALLBACK ON THE DEDICATED ENDPOINT.
 
@@ -309,6 +330,22 @@ export async function getDetails(tmdbId, apiKey) {
     year: data.release_date ? Number(data.release_date.slice(0, 4)) : null,
     // we store only a path (~30 bytes): the image stays at TMDB
     poster: data.poster_path ? `${POSTER_BASE}${data.poster_path}` : "",
+    /* LES CHEMINS NUS, ET NON DES ADRESSES — la seule chose de ce module
+       qui s'écarte de ce que fait `poster` juste au-dessus, et c'est
+       délibéré : un photogramme se montre en deux tailles, petit dans la
+       bande et grand une fois ouvert. Écrire l'adresse figerait la
+       taille au moment de la moisson, et la changer demanderait de
+       réécrire toutes les fiches. `theme` compose, la fiche stocke.
+
+       SIX, TRIÉS PAR LE VOTE. TMDB en tient parfois quatre-vingts ; la
+       planche en montre six, et les quatre-vingts autres ne valent pas
+       les octets d'un cache éternel. */
+    frames: (data.images?.backdrops || [])
+      .slice()
+      .sort((a, b) => (b.vote_average || 0) - (a.vote_average || 0))
+      .slice(0, 6)
+      .map((b) => b.file_path)
+      .filter(Boolean),
     cast: (data.credits?.cast || []).slice(0, ROLES).map((c) => c.name),
     crew,
     /* THE RUNTIME, AND WHY `null` RATHER THAN ZERO. TMDB sometimes
@@ -788,6 +825,7 @@ export async function enrichRows(rows, apiKey, { onProgress, concurrency = 5 } =
                list would turn "we do not know" into "there are none",
                and would freeze the card for good. */
             keywords: info.keywords,
+            frames: info.frames,
             tmdbId: info.tmdbId,
             year: rows[i].year || info.year || "",
           };

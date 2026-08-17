@@ -55,6 +55,7 @@ import { motifLabel, motifsOf } from "../../domain/motifs";
 import { watchCount } from "../../domain/film";
 import { PosterArt } from "./PosterArt";
 import { EMPTY, Names } from "./Names";
+import { FrameStrip } from "./FrameStrip";
 import type { Film } from "../../types";
 
 /** Les trois métiers qu'une fiche porte. Leurs noms se lisent dans `roles`. */
@@ -145,7 +146,12 @@ export function FilmQuickView({
      rendu de plus, juste après avoir dit qu'il attendait. */
   const shown: Film = extra ? { ...film, ...extra } : film;
 
-  const missing = !shown.synopsis || shown.runtime == null || !(shown.cast || []).length;
+  /* `frames == null` ET NON une liste vide : une fiche pour laquelle
+     TMDB n'a aucun photogramme répond `[]`, et c'est une réponse — la
+     redemander à chaque ouverture serait la boucle que `keywords`
+     documente. Voir `types`. */
+  const missing =
+    !shown.synopsis || shown.runtime == null || !(shown.cast || []).length || shown.frames == null;
 
   useEffect(() => {
     /* ON NE DEMANDE QUE CE QUI MANQUE, ET UNE FOIS. Une fiche complète
@@ -183,6 +189,7 @@ export function FilmQuickView({
         if (info.genres?.length && !(film.genres || []).length) changes.genres = info.genres;
         if (info.director && !film.director) changes.director = info.director;
         if (info.keywords && film.keywords == null) changes.keywords = info.keywords;
+        if (info.frames && film.frames == null) changes.frames = info.frames;
         if (!Object.keys(changes).length) return;
         setExtra(changes);
         /* L'écriture n'est PAS sur le chemin du geste : le panneau est
@@ -368,6 +375,12 @@ export function FilmQuickView({
               </div>
             )}
           </Section>
+
+          {/* ------------- CE QU'ON EN VOIT -------------
+              Sous le résumé, parce qu'on lit d'abord et qu'on regarde
+              ensuite ; et ce sont des images de TMDB, jamais les
+              captures de quelqu'un. */}
+          {!!shown.frames?.length && <FrameStrip frames={shown.frames} title={shown.title} />}
 
           {/* ------------- QUI L'A FAIT ------------- */}
           <Section title={t("quick.people")}>

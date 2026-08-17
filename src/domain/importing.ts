@@ -212,6 +212,7 @@ export function diffImport(
         tmdbRating: r.tmdbRating ?? null,
         synopsis: r.synopsis || "",
         keywords: r.keywords,
+        frames: r.frames,
         tmdbId: r.tmdbId || null,
         rating: r.rating ?? 0,
         status,
@@ -257,6 +258,10 @@ export function diffImport(
     if (r.countries?.length && !(match.countries || []).length) changes.countries = r.countries;
     if (r.tmdbRating != null && match.tmdbRating == null) changes.tmdbRating = r.tmdbRating;
     if (r.synopsis && !match.synopsis) changes.synopsis = r.synopsis;
+    /* `== null` et non `!length` : une liste vide est une RÉPONSE — TMDB
+       n'a pas de photogramme de ce film — et la réécrire éternellement
+       est la boucle que `keywords` documente juste en dessous. */
+    if (r.frames && match.frames == null) changes.frames = r.frames;
     /* KEYWORDS ARE WRITTEN EVEN WHEN EMPTY, and that is indispensable.
 
        The "only fill the void" rule is enough everywhere else. Here it

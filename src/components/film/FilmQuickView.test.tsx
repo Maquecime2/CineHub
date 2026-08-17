@@ -95,10 +95,22 @@ describe("filling in what the card is missing", () => {
         ...OZU,
         synopsis: "déjà là",
         cast: ["Chishū Ryū"],
+        /* UNE LISTE VIDE EST UNE RÉPONSE — « TMDB n'a aucun plan de ce
+           film » — et non un trou. La confondre avec l'absence
+           relancerait la requête à chaque ouverture, pour toujours :
+           c'est la boucle que `keywords` documente. */
+        frames: [],
       })
     );
     expect(getDetails).not.toHaveBeenCalled();
     expect(screen.getByText("déjà là")).toBeInTheDocument();
+  });
+
+  it("asks again for a card that has never been asked for frames", () => {
+    open(makeFilm({ ...OZU, synopsis: "déjà là", cast: ["Chishū Ryū"] }));
+    /* `frames` absent : la fiche est d'avant la moisson des plans, et
+       c'est la seule façon de les lui apporter. */
+    expect(getDetails).toHaveBeenCalledTimes(1);
   });
 
   it("says a failed request failed, instead of an empty summary", async () => {

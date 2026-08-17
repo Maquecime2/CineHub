@@ -307,6 +307,8 @@ export const migrate = (films: StoredFilm[] | null | undefined): Film[] =>
        asked" and "asked, there are none" must stay distinct, otherwise
        completion goes round in circles. See `types`. */
     keywords: f.keywords,
+    /* Ni `|| []` non plus, et pour la même raison : voir `types`. */
+    frames: f.frames,
     themes: f.themes || [],
     motifs: migrateMotifIds(f.motifs),
     linkedWorks: (f.linkedWorks || []).map((w) => ({

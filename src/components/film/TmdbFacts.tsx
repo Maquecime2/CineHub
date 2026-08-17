@@ -127,6 +127,7 @@ export function TmdbFacts({
          even of length zero, that says "we asked". See `types` and
          `domain/importing`. */
       if (info.keywords && film.keywords == null) changes.keywords = info.keywords;
+      if (info.frames && film.frames == null) changes.frames = info.frames;
       if (!film.tmdbId) changes.tmdbId = id;
 
       const n = Object.keys(changes).length;

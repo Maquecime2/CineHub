@@ -46,6 +46,7 @@ import { PosterArt } from "../components/film/PosterArt";
 import { PosterPicker } from "../components/film/PosterPicker";
 import { FilmIdentity } from "../components/film/FilmIdentity";
 import { TmdbFacts } from "../components/film/TmdbFacts";
+import { FrameStrip } from "../components/film/FrameStrip";
 import { Elsewhere } from "../components/film/Elsewhere";
 import { AddToList } from "../components/film/AddToList";
 import { HideFromSharing } from "../components/film/HideFromSharing";
@@ -625,6 +626,15 @@ export function DetailView({
                 is there that one sees what is missing, and asks for it
                 again. */}
               <TmdbFacts film={film} onUpdate={onUpdate} onOpenPerson={onOpenPerson} />
+              {/* LES PHOTOGRAMMES DE TMDB, ET LOIN DE VOS CAPTURES. Les
+                  deux sont des images du film et n'ont rien d'autre en
+                  commun : celles-ci sont hébergées par TMDB, ne coûtent
+                  rien, ne s'annotent pas et ne s'effacent pas ; celles du
+                  haut sont les vôtres, elles vivent dans le coffre de cet
+                  appareil et comptent dans votre quota. Les poser côte à
+                  côte laisserait croire qu'on peut légender les
+                  premières. */}
+              {!!film.frames?.length && <FrameStrip frames={film.frames} title={film.title} />}
               {/* What other public film libraries say about the same
                 film. Stays entirely silent with no server, no account,
                 or when nobody has said anything — a card that lives alone

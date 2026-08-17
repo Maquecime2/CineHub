@@ -456,6 +456,17 @@ const fr = {
     notes: "VOS NOTES",
     yours: "la vôtre {{rating}} / 5",
   },
+  /* LES PHOTOGRAMMES — quelques plans du film, tels que TMDB les tient.
+     À ne pas confondre avec `stills`, qui sont VOS captures. */
+  frames: {
+    title: "QUELQUES PLANS",
+    enlarge: "Agrandir le plan {{place}} sur {{total}} de « {{title}} »",
+    plate: "Les plans de « {{title}} »",
+    count: "{{place}} sur {{total}}",
+    previous: "Plan précédent",
+    next: "Plan suivant",
+    close: "Fermer la planche",
+  },
   link: {
     seeOnTmdb: "voir sur TMDB",
     itsTmdbCard: "Sa fiche TMDB",

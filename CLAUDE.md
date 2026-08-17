@@ -273,6 +273,20 @@ comme tout ce qui prend la main.
   de cache. Il reste un REPLI et jamais un filtre : TMDB laisse
   `known_for_department` vide sur quantité de fiches maigres.
 
+- **`Film.frames` N'EST PAS `Film.stills`, ET LES CONFONDRE COÛTERAIT DE
+  L'ARGENT.** `stills` sont VOS captures : elles vivent dans le coffre de
+  l'appareil, sont miroitées côté serveur et comptent dans
+  `MEDIA_CEILING`. `frames` sont quelques plans que TMDB héberge — on n'en
+  garde que le CHEMIN (deux tailles à composer : bande en w300,
+  agrandissement en w1280), rien à annoter, rien à effacer, rien à
+  miroiter. Les deux se dessinent loin l'une de l'autre et se nomment
+  autrement, sinon on croit pouvoir légender les secondes.
+- **ELLES NE COÛTENT AUCUN APPEL** : `append_to_response` les joint à la
+  requête que `getDetails` faisait déjà. Le relais transmet tous les
+  paramètres, donc rien à déployer. Et comme `keywords`, **absent et vide
+  ne disent pas la même chose** — `[]` est une RÉPONSE, sans quoi la vue
+  rapide redemanderait à chaque ouverture, pour toujours.
+
 ## Aucune phrase n'est écrite dans une vue
 
 `src/i18n/catalogue.test.ts` garde les deux catalogues l'un contre l'autre, et il

@@ -438,6 +438,17 @@ const en = {
     notes: "YOUR NOTES",
     yours: "yours {{rating}} / 5",
   },
+  /* LES PHOTOGRAMMES — quelques plans du film, tels que TMDB les tient.
+     À ne pas confondre avec `stills`, qui sont VOS captures. */
+  frames: {
+    title: "A FEW FRAMES",
+    enlarge: "Enlarge frame {{place}} of {{total}} from “{{title}}”",
+    plate: "Frames from “{{title}}”",
+    count: "{{place}} of {{total}}",
+    previous: "Previous frame",
+    next: "Next frame",
+    close: "Close the plate",
+  },
   link: {
     seeOnTmdb: "see on TMDB",
     itsTmdbCard: "Its TMDB card",
