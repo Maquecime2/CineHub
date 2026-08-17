@@ -1253,13 +1253,14 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
 
   app.post("/challenges", async (req, reply) => {
     const person = await requireAccount(req);
-    const { listId, title, starts_on, ends_on, target, kind } = (req.body ?? {}) as {
+    const { listId, title, starts_on, ends_on, target, kind, subject } = (req.body ?? {}) as {
       listId?: string;
       title?: string;
       starts_on?: string;
       ends_on?: string;
       target?: number | null;
       kind?: string | null;
+      subject?: Record<string, unknown> | null;
     };
     const name = (title || "").trim();
     if (!name || name.length > 120) {
@@ -1282,24 +1283,88 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
        n'est pas encore servi : le déclarer accepté rendrait un défi que
        rien ne sait compter. */
     const nature = kind == null ? "liste" : String(kind);
-    if (!["liste", "critique"].includes(nature)) {
+    if (!["liste", "critique", "critere"].includes(nature)) {
       return reply.code(400).send({ error: "Nature de défi inconnue." });
+    }
+
+    /* ------------------------------------------------------------
+       UN DÉFI PAR CRITÈRE
+
+       TROIS FORMES ET PAS UNE DE PLUS : décennie, pays, cinéaste. Ce
+       sont les trois choses qu'une fiche complétée par TMDB porte
+       toujours, donc les trois dont on peut faire une question à la
+       collection. Un quatrième critère se répondrait « ça dépend si la
+       fiche est remplie », et on perdrait un défi pour n'avoir pas fait
+       ses imports.
+
+       LA CIBLE EST OBLIGATOIRE ICI, et le schéma la redemande. « Tous
+       les films des années 60 » n'a pas de fin : sans cible le
+       dénominateur serait inconnu, la barre n'aurait pas de bout, et le
+       défi ne se gagnerait jamais. Une liste, elle, se compte seule.
+       ------------------------------------------------------------ */
+    let matter: Record<string, unknown> | null = null;
+    if (nature === "critere") {
+      const s = (subject ?? {}) as { decade?: unknown; country?: unknown; director?: unknown };
+      const decade = s.decade == null ? null : Number(s.decade);
+      const country = typeof s.country === "string" ? s.country.trim().toUpperCase() : "";
+      const director = typeof s.director === "string" ? s.director.trim() : "";
+
+      if (decade !== null) {
+        /* Une décennie est un multiple de dix, et le cinéma commence
+           dans les années 1890 : hors de là, c'est une faute de frappe
+           et non une intention. */
+        if (!Number.isInteger(decade) || decade % 10 !== 0 || decade < 1890 || decade > 2100) {
+          return reply.code(400).send({ error: "Une décennie s'écrit 1960, 1970, 1980…" });
+        }
+        matter = { decade };
+      } else if (country) {
+        /* Deux lettres, comme les fiches les portent (ISO 3166-1). */
+        if (!/^[A-Z]{2}$/.test(country)) {
+          return reply.code(400).send({ error: "Un pays s'écrit en deux lettres : FR, JP, IT…" });
+        }
+        matter = { country };
+      } else if (director) {
+        if (director.length > 120) {
+          return reply.code(400).send({ error: "Ce nom est trop long." });
+        }
+        matter = { director };
+      } else {
+        return reply
+          .code(400)
+          .send({ error: "Un défi par critère porte sur une décennie, un pays ou un cinéaste." });
+      }
+
+      if (goal === null) {
+        return reply
+          .code(400)
+          .send({ error: "Un défi par critère demande une cible : combien de films." });
+      }
     }
     /* A challenge is only built on a list you write in: otherwise
        anybody starts a challenge on a stranger's public list, and they
-       would see it appear without having wanted it. */
-    const rights = UUID.test(listId || "")
-      ? await store.rightsOnList(db, listId!, person.id)
-      : null;
-    if (!rights?.write) return reply.code(404).send({ error: "Liste inconnue." });
+       would see it appear without having wanted it.
+
+       UN DÉFI PAR CRITÈRE NE DEMANDE LE DROIT DE PERSONNE, et c'est la
+       conséquence de n'appartenir à aucune liste : il porte sur SA
+       PROPRE collection, celle de chaque participant, et n'est jamais
+       découvrable — voir `rightsOnChallenge`. */
+    let listFor: string | null = null;
+    if (nature !== "critere") {
+      const rights = UUID.test(listId || "")
+        ? await store.rightsOnList(db, listId!, person.id)
+        : null;
+      if (!rights?.write) return reply.code(404).send({ error: "Liste inconnue." });
+      listFor = rights.list_id;
+    }
 
     const id = await store.createChallenge(db, person.id, {
-      listId: rights.list_id,
+      listId: listFor,
       title: name,
       starts_on: starts_on!,
       ends_on: ends_on!,
       target: goal,
       kind: nature,
+      subject: matter,
     });
     return { id };
   });
@@ -1316,7 +1381,11 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
 
     return {
       challenge,
-      works: await store.worksOf(db, challenge.list_id),
+      /* Un défi par critère n'a pas d'œuvres à énumérer : la question
+         est le critère, et la réponse est dans la collection de chacun.
+         Demander `worksOf(null)` aurait rendu une liste vide sans dire
+         qu'elle l'était par nature. */
+      works: challenge.list_id ? await store.worksOf(db, challenge.list_id) : [],
       /* PROGRESS LEAVES THE LOG AS A NUMBER AND NOTHING ELSE. The
          screening log never leaves a collection; here it leaves nothing
          either — we count, we do not copy. And we count only people who

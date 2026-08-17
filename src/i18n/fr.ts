@@ -2119,6 +2119,29 @@ const fr = {
     },
     kindNote:
       "Un défi par critique demande les deux : une séance dans la période, et une critique d'au moins cent quarante signes. Une critique ne porte pas de date — c'est la séance qui la situe.",
+    criterionNew: "Un défi sans liste",
+    criterionNote:
+      "Une décennie, un pays ou un cinéaste, et le nombre de films à voir. Il compte dans tout votre classeur, pas dans une liste — et il ne se voit que de vous et de ceux que vous y invitez.",
+    criterion: {
+      decade: "DÉCENNIE",
+      country: "PAYS",
+      director: "CINÉASTE",
+    },
+    criterionHint: {
+      decade: "1960",
+      country: "FR",
+      director: "Agnès Varda",
+    },
+    criterionSays: {
+      decade: "les années {{n}}",
+      country: "le pays {{code}}",
+      director: "{{name}}",
+      unknown: "un critère",
+    },
+    criterionTargetPlaceholder: "combien",
+    criterionTarget_one: "{{count}} film à voir",
+    criterionTarget_other: "{{count}} films à voir",
+    fromCriterion: "sur {{what}}",
     targetPlaceholder: "tous",
     targetLabel: "Combien de films il en faut — vide : toute la liste",
     outOfList: "{{target}} des {{works}} de la liste",
@@ -2666,6 +2689,10 @@ const fr = {
       search: {
         title: "Y verser un film que vous n'avez pas",
         body: "Cherchez chez TMDB depuis la liste ouverte : c'est tout l'intérêt de ranger des œuvres et non des copies. « Venez voir ça en mars » se dit de films qu'on n'a justement pas encore — depuis une fiche, ceux-là ne pouvaient jamais être proposés.",
+      },
+      criterion: {
+        title: "Un défi qui ne sort d'aucune liste",
+        body: "Une décennie, un pays, un cinéaste — et combien de films. Celui-là ne compte pas dans une liste mais dans TOUT votre classeur, et il demande une cible : « tous les films des années 60 » n'aurait pas de fin. Il n'est jamais découvrable : on y est, ou on l'a créé.",
       },
       challenges: {
         title: "Un défi est une liste plus une période",

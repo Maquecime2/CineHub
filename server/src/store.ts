@@ -1379,6 +1379,33 @@ export async function removeMemberFromList(
    choses qui, elles, sont datables ou mesurables — UNE SÉANCE DANS LA
    PÉRIODE, et une critique d'au moins `REVIEW_LENGTH` signes, la même
    longueur qu'`awardFromCard` exige déjà pour la payer. */
+/* UNE SÉANCE DE CETTE FICHE DANS LA PÉRIODE.
+   C'est le seul morceau réellement partagé entre les deux façons de
+   compter, et il est extrait pour cette raison-là et pas pour la beauté
+   du geste : le comptage par LISTE part de `list_item` et demande à la
+   fiche de confirmer, celui par CRITÈRE part des fiches elles-mêmes. Les
+   deux tiennent les trois âges de données, et c'est exactement ce que le
+   filet de `points.test.ts` pinte — il a été tissé AVANT cette
+   extraction, sur les deux appelants.
+
+   `jsonb_typeof` d'abord : `watches` traverse des clients de toutes les
+   époques, et `jsonb_array_elements` sur autre chose qu'un tableau fait
+   tomber la requête ENTIÈRE. Une seule vieille fiche suffirait alors à
+   effacer la progression de tout le monde.
+
+   `watchedAt` est le repli des fiches d'avant le journal. Elles existent
+   toujours, et les ignorer dirait « pas vu » à quelqu'un qui a vu. */
+const WATCHED_DURING = (card: string) => `(
+       EXISTS (
+         SELECT 1 FROM jsonb_array_elements(
+                CASE WHEN jsonb_typeof(${card}.data->'watches') = 'array'
+                     THEN ${card}.data->'watches' ELSE '[]'::jsonb END) w
+          WHERE left(w->>'date', 10) BETWEEN to_char(e.starts_on, 'YYYY-MM-DD')
+                                         AND to_char(e.ends_on, 'YYYY-MM-DD'))
+       OR left(${card}.data->>'watchedAt', 10) BETWEEN to_char(e.starts_on, 'YYYY-MM-DD')
+                                                AND to_char(e.ends_on, 'YYYY-MM-DD')
+     )`;
+
 const SEEN_DURING = `EXISTS (
   SELECT 1 FROM card f
    WHERE f.person_id = ep.person_id
@@ -1386,22 +1413,67 @@ const SEEN_DURING = `EXISTS (
      AND NOT f.deleted
      AND (e.kind <> 'critique'
           OR length(btrim(coalesce(f.data->>'review', ''))) >= ${REVIEW_LENGTH})
-     AND (
-       EXISTS (
-         SELECT 1 FROM jsonb_array_elements(
-                CASE WHEN jsonb_typeof(f.data->'watches') = 'array'
-                     THEN f.data->'watches' ELSE '[]'::jsonb END) w
-          WHERE left(w->>'date', 10) BETWEEN to_char(e.starts_on, 'YYYY-MM-DD')
-                                         AND to_char(e.ends_on, 'YYYY-MM-DD'))
-       OR left(f.data->>'watchedAt', 10) BETWEEN to_char(e.starts_on, 'YYYY-MM-DD')
-                                                AND to_char(e.ends_on, 'YYYY-MM-DD')
-     ))`;
+     AND ${WATCHED_DURING("f")})`;
+
+/* CE QUE LE CRITÈRE DÉSIGNE — trois formes, et pas une de plus.
+   Décennie, pays, cinéaste : ce sont les trois choses qu'une fiche porte
+   TOUJOURS quand elle a été complétée par TMDB, et dont on peut donc
+   faire une question à la collection. Un quatrième critère se répondrait
+   « ça dépend si la fiche est remplie », ce qui ferait un défi qu'on
+   perd pour n'avoir pas fait ses imports.
+
+   `->>` ET NON `?` : l'opérateur d'existence de jsonb se lit mal à
+   côté des paramètres numérotés, et « la clé est absente » et « la clé
+   vaut null » veulent dire la même chose ici — pas de critère de cette
+   forme.
+
+   LA DÉCENNIE PASSE PAR UNE GARDE D'EXPRESSION RÉGULIÈRE. `year` est
+   saisi à la main sur une fiche tapée à la main : « 196? », vide, ou un
+   titre entier s'y sont déjà trouvés, et un `::int` sur l'un d'eux fait
+   tomber la requête qui PAIE. On ne compte que ce qui est quatre
+   chiffres. */
+const MATCHES_SUBJECT = `(
+       (e.subject->>'decade' IS NOT NULL
+        AND (f.data->>'year') ~ '^[0-9]{4}$'
+        AND ((f.data->>'year')::int / 10) * 10 = (e.subject->>'decade')::int)
+    OR (e.subject->>'country' IS NOT NULL
+        AND jsonb_typeof(f.data->'countries') = 'array'
+        AND upper(e.subject->>'country') IN (
+              SELECT upper(c) FROM jsonb_array_elements_text(f.data->'countries') c))
+    OR (e.subject->>'director' IS NOT NULL
+        AND btrim(coalesce(f.data->>'director', '')) <> ''
+        AND lower(btrim(f.data->>'director')) = lower(btrim(e.subject->>'director')))
+     )`;
+
+/* COMBIEN CETTE PERSONNE EN A FAIT — et il y a DEUX façons de compter,
+   pas une avec une condition de plus.
+
+   Un défi par liste part de `list_item` : la liste est la question, et
+   chaque œuvre y répond ou non. Un défi par CRITÈRE n'a pas de liste du
+   tout — il part des fiches et leur demande si elles répondent au
+   critère. Les deux sous-requêtes n'ont donc ni la même table de départ
+   ni le même sens de lecture, et les fondre en une aurait donné une
+   jointure conditionnelle que personne ne relit.
+
+   Ce qu'elles partagent est `WATCHED_DURING`, et c'est tout. */
+const DONE = `CASE WHEN e.list_id IS NULL THEN (
+         SELECT count(*) FROM card f
+          WHERE f.person_id = ep.person_id
+            AND NOT f.deleted
+            AND ${WATCHED_DURING("f")}
+            AND ${MATCHES_SUBJECT})
+       ELSE (
+         SELECT count(*) FROM list_item li
+          WHERE li.list_id = e.list_id AND ${SEEN_DURING})
+       END`;
 
 export interface Challenge {
   id: string;
   title: string;
-  list_id: string;
-  list: string;
+  /** NULL pour un défi par critère : il ne porte pas de liste. */
+  list_id: string | null;
+  /** Le titre de la liste, NULL pour un défi par critère. */
+  list: string | null;
   starts_on: string;
   ends_on: string;
   by: string | null;
@@ -1409,8 +1481,10 @@ export interface Challenge {
   works: number;
   /** Combien il en faut. NULL : toute la liste. */
   target: number | null;
-  /** Ce qui compte : 'liste', 'critique'. En français, comme `sharing`. */
+  /** Ce qui compte : 'liste', 'critique', 'critere'. En français. */
   kind: string;
+  /** Ce sur quoi porte un défi par critère. NULL pour les deux autres. */
+  subject: { decade?: number; country?: string; director?: string } | null;
   /** Am I taking part? */
   inside?: boolean;
   /**
@@ -1444,11 +1518,20 @@ export async function myChallenges(db: Db, personId: string): Promise<Challenge[
             (SELECT count(*) FROM list_item i WHERE i.list_id = l.id)::int AS works,
             e.target,
             e.kind,
+            e.subject,
             EXISTS (SELECT 1 FROM challenge_participant x
                      WHERE x.challenge_id = e.id AND x.person_id = $1) AS inside,
             (e.created_by = $1) AS mine
        FROM challenge e
-       JOIN list l ON l.id = e.list_id
+       /* LEFT : un defi par critere n'a pas de liste, et un JOIN sec le
+          ferait disparaitre de sa propre requete. Le nombre d'oeuvres
+          tombe alors a zero et le titre de liste a NULL, ce qui est la
+          verite — le denominateur d'un defi par critere est sa CIBLE,
+          que le schema rend obligatoire pour cette raison exacte.
+          (Pas un seul accent grave ici : ce commentaire vit DANS un
+          litteral gabarit, et le premier fermerait la chaine au milieu
+          de la requete. Troisieme fois de ce chantier.) */
+       LEFT JOIN list l ON l.id = e.list_id
        LEFT JOIN person p ON p.id = e.created_by
       WHERE e.created_by = $1
          OR EXISTS (SELECT 1 FROM challenge_participant x
@@ -1470,9 +1553,18 @@ export async function challengeById(db: Db, id: string): Promise<Challenge | nul
             p.pseudo AS by,
             (SELECT count(*) FROM list_item i WHERE i.list_id = l.id)::int AS works,
             e.target,
-            e.kind
+            e.kind,
+            e.subject
        FROM challenge e
-       JOIN list l ON l.id = e.list_id
+       /* LEFT : un defi par critere n'a pas de liste, et un JOIN sec le
+          ferait disparaitre de sa propre requete. Le nombre d'oeuvres
+          tombe alors a zero et le titre de liste a NULL, ce qui est la
+          verite — le denominateur d'un defi par critere est sa CIBLE,
+          que le schema rend obligatoire pour cette raison exacte.
+          (Pas un seul accent grave ici : ce commentaire vit DANS un
+          litteral gabarit, et le premier fermerait la chaine au milieu
+          de la requete. Troisieme fois de ce chantier.) */
+       LEFT JOIN list l ON l.id = e.list_id
        LEFT JOIN person p ON p.id = e.created_by
       WHERE e.id = $1`,
     [id]
@@ -1483,7 +1575,8 @@ export async function createChallenge(
   db: Db,
   byWhom: string,
   e: {
-    listId: string;
+    /** NULL pour un défi par critère : il ne porte pas de liste. */
+    listId: string | null;
     title: string;
     starts_on: string;
     ends_on: string;
@@ -1491,13 +1584,25 @@ export async function createChallenge(
     target?: number | null;
     /** Ce qui compte. Absent : 'liste', et c'est le défaut du schéma. */
     kind?: string | null;
+    /** Ce sur quoi porte un critère. Le schéma l'exige alors. */
+    subject?: Record<string, unknown> | null;
   }
 ): Promise<string> {
   const id = randomUUID();
   await db.query(
-    `INSERT INTO challenge (id, list_id, created_by, title, starts_on, ends_on, target, kind)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, coalesce($8, 'liste'))`,
-    [id, e.listId, byWhom, e.title, e.starts_on, e.ends_on, e.target ?? null, e.kind ?? null]
+    `INSERT INTO challenge (id, list_id, created_by, title, starts_on, ends_on, target, kind, subject)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, coalesce($8, 'liste'), $9)`,
+    [
+      id,
+      e.listId,
+      byWhom,
+      e.title,
+      e.starts_on,
+      e.ends_on,
+      e.target ?? null,
+      e.kind ?? null,
+      e.subject == null ? null : JSON.stringify(e.subject),
+    ]
   );
   /* Whoever starts a challenge takes part in it: the opposite — an
      organiser watching the others run — is not what these people do. */
@@ -1527,8 +1632,7 @@ export async function leaveChallenge(db: Db, challengeId: string, personId: stri
 export async function progressOf(db: Db, challengeId: string): Promise<Progress[]> {
   return db.query<Progress>(
     `SELECT pe.pseudo,
-            (SELECT count(*) FROM list_item li
-              WHERE li.list_id = e.list_id AND ${SEEN_DURING})::int AS done
+            (${DONE})::int AS done
        FROM challenge_participant ep
        JOIN challenge e ON e.id = ep.challenge_id
        JOIN person pe ON pe.id = ep.person_id
@@ -3074,8 +3178,7 @@ export async function awardQuiz(db: Db, quizId: string, personId: string): Promi
 export async function settleChallenge(db: Db, challengeId: string): Promise<number> {
   const done = await db.query<{ person_id: string; done: number; works: number }>(
     `SELECT ep.person_id,
-            (SELECT count(*) FROM list_item li
-              WHERE li.list_id = e.list_id AND ${SEEN_DURING})::int AS done,
+            (${DONE})::int AS done,
             /* LE BUT, ET NON LE NOMBRE DE FILMS DE LA LISTE. Une cible
                NULL veut dire « toute la liste », ce qui est le cas de
                tout defi ecrit avant 004 — rien a retro-remplir. Le
@@ -3086,8 +3189,11 @@ export async function settleChallenge(db: Db, challengeId: string): Promise<numb
                litteral gabarit, et le premier fermerait la chaine au
                milieu de la requete. Le piege s'est referme en ecrivant
                ces lignes, pour la deuxieme fois de ce chantier.) */
-            least(coalesce(e.target, 2147483647),
-                  (SELECT count(*) FROM list_item li WHERE li.list_id = e.list_id))::int AS works
+            CASE WHEN e.list_id IS NULL THEN coalesce(e.target, 0)
+                 ELSE least(coalesce(e.target, 2147483647),
+                            (SELECT count(*) FROM list_item li
+                              WHERE li.list_id = e.list_id))
+            END::int AS works
        FROM challenge_participant ep
        JOIN challenge e ON e.id = ep.challenge_id
       WHERE ep.challenge_id = $1

@@ -22,6 +22,8 @@ import type { ReactNode } from "react";
 import { ListChecks, Plus, Search, Trash2, UserPlus, X } from "lucide-react";
 import { C, F, alpha } from "../theme/tokens";
 import { bare, chip, hollow, inked, tap, underlineInput } from "../theme/styles";
+import { CriterionComposer } from "./lists/CriterionComposer";
+import { currentMonth } from "./lists/shared";
 import { Guideline, Label, Meter, Trouble, ViewHeading, Waiting } from "../components/ui";
 import { StampCorner, TapeResidue } from "../components/atmosphere";
 import { Halftone } from "../components/atmosphere/hall";
@@ -61,6 +63,20 @@ import { challenges as challengeBoard } from "../hooks/useHall";
 import { useTmdbKey } from "../services/tmdbKey";
 import { searchMovies } from "../tmdb";
 import { HallWindow } from "../components/layout/HallWindow";
+
+/* CE QUE LE CRITÈRE DEMANDE, EN TOUTES LETTRES. Un défi qui dirait
+   seulement « par critère » obligerait à l'ouvrir pour savoir ce qu'il
+   demande, alors que c'est la seule chose qui le distingue des autres.
+   Le `subject` vient du serveur et ne porte qu'une des trois clés. */
+function sayCriterion(
+  t: (k: string, o?: Record<string, unknown>) => string,
+  subject: Challenge["subject"]
+): string {
+  if (subject?.decade != null) return t("listsView.criterionSays.decade", { n: subject.decade });
+  if (subject?.country) return t("listsView.criterionSays.country", { code: subject.country });
+  if (subject?.director) return t("listsView.criterionSays.director", { name: subject.director });
+  return t("listsView.criterionSays.unknown");
+}
 
 /** One TMDB result, as `searchMovies` hands it back. */
 interface TmdbHit {
@@ -206,6 +222,11 @@ export function ListsView({ connected }: { connected: boolean }) {
             <OneChallenge key={d.id} challenge={d} onChange={reread} />
           ))}
         </div>
+        {/* LES DEUX AUTRES NATURES NAISSENT DANS UNE LISTE — c'est la
+            liste qui pose la question, et leur formulaire vit sous elle.
+            Un défi par critère n'a pas de liste : sa porte est donc ici,
+            à côté des défis et non dans l'une d'elles. */}
+        <CriterionComposer onChange={reread} />
       </div>
     </Page>
   );
@@ -655,7 +676,16 @@ function OneChallenge({
      qu'elle existe : `works` reste alors le dénominateur, et rien ne
      change pour eux. Le serveur compte de la même façon — il ne demande
      jamais plus de films que la liste n'en tient. */
-  const goal = Math.min(challenge.target ?? challenge.works, challenge.works);
+  /* SANS LISTE, LE BUT EST LA CIBLE — et rien d'autre. `works` vaut zéro
+     pour un défi par critère (il n'y a pas de `list_item` à compter),
+     donc le `Math.min` d'origine aurait rendu un dénominateur de zéro :
+     une barre sans bout et un défi impossible. Le serveur compte de la
+     même façon, et c'est pour cette raison exacte que le schéma rend la
+     cible obligatoire dès qu'il n'y a pas de liste. */
+  const goal =
+    challenge.list_id == null
+      ? (challenge.target ?? 0)
+      : Math.min(challenge.target ?? challenge.works, challenge.works);
   const [trouble, setTrouble] = useState<string | null>(null);
 
   const reread = useCallback(async () => {
@@ -781,10 +811,15 @@ function OneChallenge({
         </span>
         <span style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>
           {challenge.starts_on} → {ends} ·{" "}
-          {challenge.target == null
-            ? t("listsView.works", { count: challenge.works })
-            : t("listsView.outOfList", { target: goal, works: challenge.works })}{" "}
-          · {t("listsView.fromList", { title: challenge.list })}
+          {challenge.list_id == null
+            ? t("listsView.criterionTarget", { count: goal })
+            : challenge.target == null
+              ? t("listsView.works", { count: challenge.works })
+              : t("listsView.outOfList", { target: goal, works: challenge.works })}{" "}
+          ·{" "}
+          {challenge.list_id == null
+            ? t("listsView.fromCriterion", { what: sayCriterion(t, challenge.subject) })
+            : t("listsView.fromList", { title: challenge.list })}
         </span>
         <span style={{ flex: 1 }} />
         <button
@@ -1013,17 +1048,6 @@ function SecondWind({
       {trouble && <Trouble>{trouble}</Trouble>}
     </div>
   );
-}
-
-/* The month one is in, from the first to the last day: it is the period
-   one wants nine times out of ten, and it is corrected in one click. */
-function currentMonth() {
-  const d = new Date();
-  const two = (n: number) => String(n).padStart(2, "0");
-  const start = `${d.getFullYear()}-${two(d.getMonth() + 1)}-01`;
-  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-  const end = `${last.getFullYear()}-${two(last.getMonth() + 1)}-${two(last.getDate())}`;
-  return { start, end };
 }
 
 /* The head of the view — see `ViewHeading`, shared with the quiz and the

@@ -2047,6 +2047,29 @@ const en = {
     },
     kindNote:
       "A review challenge asks for both: a screening in the period, and a review of at least a hundred and forty characters. A review carries no date — the screening is what places it.",
+    criterionNew: "A challenge with no list",
+    criterionNote:
+      "A decade, a country or a director, and how many films to watch. It counts across your whole binder, not inside a list — and it is seen only by you and by those you invite to it.",
+    criterion: {
+      decade: "DECADE",
+      country: "COUNTRY",
+      director: "DIRECTOR",
+    },
+    criterionHint: {
+      decade: "1960",
+      country: "FR",
+      director: "Agnès Varda",
+    },
+    criterionSays: {
+      decade: "the {{n}}s",
+      country: "country {{code}}",
+      director: "{{name}}",
+      unknown: "a criterion",
+    },
+    criterionTargetPlaceholder: "how many",
+    criterionTarget_one: "{{count}} film to watch",
+    criterionTarget_other: "{{count}} films to watch",
+    fromCriterion: "on {{what}}",
     targetPlaceholder: "all",
     targetLabel: "How many films it takes — empty: the whole list",
     outOfList: "{{target}} of the list's {{works}}",
@@ -2590,6 +2613,10 @@ const en = {
       search: {
         title: "Pouring in a film you have not got",
         body: "Search TMDB from the open list: that is the whole point of holding works rather than copies. “Come and see this in March” is said about films one has precisely not got yet — from a card alone, those could never be proposed.",
+      },
+      criterion: {
+        title: "A challenge out of no list",
+        body: "A decade, a country, a director — and how many films. This one counts across your WHOLE binder rather than inside a list, and it asks for a target: “all the films of the sixties” would have no end. It is never discoverable: one is in it, or one made it.",
       },
       challenges: {
         title: "A challenge is a list and a period",

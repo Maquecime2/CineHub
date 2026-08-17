@@ -714,3 +714,183 @@ describe("the rights over a challenge", () => {
     });
   });
 });
+
+/* ============================================================
+   UN DÉFI PAR CRITÈRE
+
+   Il ne porte pas de liste : il porte une DÉCENNIE, un PAYS ou un
+   CINÉASTE, et compte dans toute la collection de chaque participant.
+   Trois formes et pas une de plus — ce sont les trois choses qu'une
+   fiche complétée par TMDB porte toujours, donc les trois dont on peut
+   faire une question. Un quatrième critère se répondrait « ça dépend si
+   la fiche est remplie ».
+
+   ET IL N'EST JAMAIS DÉCOUVRABLE : on y est ou on l'a créé. Il n'y a
+   pas de liste publique derrière pour le montrer.
+   ============================================================ */
+describe("a challenge on a criterion", () => {
+  const criterion = (cookie: string, subject: Record<string, unknown>, target: number | null = 2) =>
+    app.inject({
+      method: "POST",
+      url: "/challenges",
+      headers: { cookie },
+      payload: {
+        title: "Les années soixante",
+        kind: "critere",
+        subject,
+        target,
+        starts_on: "2026-03-01",
+        ends_on: "2026-03-31",
+      },
+    });
+
+  const fill = (cookie: string, cards: Record<string, unknown>[]) =>
+    app.inject({
+      method: "PUT",
+      url: "/collection",
+      headers: { cookie },
+      payload: {
+        cards: cards.map((data, i) => ({
+          id: `k${i}`,
+          tmdbId: String(9000 + i),
+          updatedAt: 1,
+          data,
+        })),
+      },
+    });
+
+  const seen = { watches: [{ date: "2026-03-12" }] };
+
+  it("counts a decade across the WHOLE collection, with no list at all", async () => {
+    const me = await count("decennie");
+    await fill(me.cookie, [
+      { title: "Cléo", year: "1962", ...seen },
+      { title: "Bande à part", year: 1964, ...seen },
+      /* La bonne décennie, mais vu hors période. */
+      { title: "Alphaville", year: "1965", watches: [{ date: "2025-01-04" }] },
+      /* Vu dans la période, mais pas la décennie. */
+      { title: "Sans toit ni loi", year: "1985", ...seen },
+      /* UNE ANNÉE QUI N'EN EST PAS UNE. Une fiche tapée à la main porte
+         ce qu'on y a tapé : sans la garde d'expression régulière, le
+         `::int` fait tomber la requête QUI PAIE. */
+      { title: "Inconnu", year: "196?", ...seen },
+      { title: "Vide", year: "", ...seen },
+    ]);
+    const id = (await criterion(me.cookie, { decade: 1960 })).json().id as string;
+
+    const r = await app.inject({
+      method: "GET",
+      url: `/challenges/${id}`,
+      headers: { cookie: me.cookie },
+    });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().progress).toEqual([{ pseudo: "decennie", done: 2 }]);
+    /* Pas de liste, donc pas d'œuvres à énumérer : la question EST le
+       critère, et la réponse est dans la collection de chacun. */
+    expect(r.json().works).toEqual([]);
+    expect(r.json().challenge.list_id).toBeNull();
+  });
+
+  it("counts a country, and does not care about its case", async () => {
+    const me = await count("pays");
+    await fill(me.cookie, [
+      { title: "Cléo", countries: ["FR"], ...seen },
+      { title: "Tokyo", countries: ["JP", "fr"], ...seen },
+      { title: "Ailleurs", countries: ["IT"], ...seen },
+      /* PAS UN TABLEAU : une fiche d'un client d'une autre époque ne
+         doit pas faire tomber le comptage de tout le monde. */
+      { title: "Bancale", countries: "FR", ...seen },
+    ]);
+    const id = (await criterion(me.cookie, { country: "fr" })).json().id as string;
+    expect(
+      (
+        await app.inject({
+          method: "GET",
+          url: `/challenges/${id}`,
+          headers: { cookie: me.cookie },
+        })
+      ).json().progress[0].done
+    ).toBe(2);
+  });
+
+  it("counts a director by name, trimmed and case-blind", async () => {
+    const me = await count("cineaste");
+    await fill(me.cookie, [
+      { title: "Cléo", director: "Agnès Varda", ...seen },
+      { title: "Daguerréotypes", director: "  agnès varda ", ...seen },
+      { title: "Lola", director: "Jacques Demy", ...seen },
+      { title: "Sans nom", director: "", ...seen },
+    ]);
+    const id = (await criterion(me.cookie, { director: "Agnès Varda" })).json().id as string;
+    expect(
+      (
+        await app.inject({
+          method: "GET",
+          url: `/challenges/${id}`,
+          headers: { cookie: me.cookie },
+        })
+      ).json().progress[0].done
+    ).toBe(2);
+  });
+
+  it("is NEVER discoverable — one is in it, or one made it", async () => {
+    const me = await count("autrice");
+    const other = await count("etrangere");
+    await app.inject({ method: "PUT", url: "/follows/autrice", headers: { cookie: other.cookie } });
+    const id = (await criterion(me.cookie, { decade: 1960 })).json().id as string;
+
+    /* Suivre l'autrice ne suffit pas : il n'y a pas de liste publique
+       derrière pour le montrer, et on n'a pas inventé de découverte. */
+    expect(
+      (
+        await app.inject({
+          method: "GET",
+          url: `/challenges/${id}`,
+          headers: { cookie: other.cookie },
+        })
+      ).statusCode
+    ).toBe(404);
+    expect(
+      (await app.inject({ method: "GET", url: "/challenges", headers: { cookie: other.cookie } }))
+        .json()
+        .challenges.map((c: { id: string }) => c.id)
+    ).not.toContain(id);
+    /* L'autrice, elle, le lit — et il est dans sa liste à elle. */
+    expect(
+      (await app.inject({ method: "GET", url: "/challenges", headers: { cookie: me.cookie } }))
+        .json()
+        .challenges.map((c: { id: string }) => c.id)
+    ).toContain(id);
+  });
+
+  it("refuses a criterion it cannot answer, and says which", async () => {
+    const me = await count("refus");
+    /* Pas de cible : « tous les films des années 60 » n'a pas de fin, le
+       dénominateur serait inconnu et le défi ne se gagnerait jamais. */
+    expect((await criterion(me.cookie, { decade: 1960 }, null)).statusCode).toBe(400);
+    /* Une décennie est un multiple de dix, et le cinéma commence dans
+       les années 1890 : hors de là c'est une faute de frappe. */
+    expect((await criterion(me.cookie, { decade: 1963 })).statusCode).toBe(400);
+    expect((await criterion(me.cookie, { decade: 1200 })).statusCode).toBe(400);
+    expect((await criterion(me.cookie, { country: "France" })).statusCode).toBe(400);
+    expect((await criterion(me.cookie, {})).statusCode).toBe(400);
+    expect((await criterion(me.cookie, { decade: 1960 })).statusCode).toBe(200);
+  });
+
+  it("pays at the ORDINARY rate, on the target and nothing else", async () => {
+    const me = await count("payee");
+    await fill(me.cookie, [
+      { title: "Cléo", year: "1962", ...seen },
+      { title: "Bande à part", year: "1964", ...seen },
+      { title: "Pierrot", year: "1965", ...seen },
+    ]);
+    const id = (await criterion(me.cookie, { decade: 1960 }, 2)).json().id as string;
+    await db.query("UPDATE challenge SET ends_on = current_date - 1 WHERE id = $1", [id]);
+
+    /* Trois vus pour une cible de deux : le tout, au tarif ordinaire.
+       Une nature change CE QUI COMPTE, jamais CE QUE ÇA PAIE. */
+    expect(await store.settleChallenge(db, id)).toBe(1);
+    const purse = await store.purseOf(db, me.person.id);
+    expect(purse.merit).toBeGreaterThan(0);
+  });
+});

@@ -760,6 +760,17 @@ const lists: Tour = {
       placement: "top",
       optional: true,
     },
+    /* LA PORTE DU DÉFI SANS LISTE. Les deux autres natures naissent
+       DANS une liste et leur formulaire vit sous elle ; celle-ci n'a pas
+       de liste à habiter, donc elle a son propre bouton — et il est
+       toujours là, à la différence des ancres qui vivent dans un défi
+       déplié. */
+    {
+      target: at("lists-criterion"),
+      ...says("lists", "criterion"),
+      placement: "top",
+      optional: true,
+    },
     /* PROLONGER. `optional` au sens fort : le bouton n'existe que pour
        qui a lancé le défi, dans la semaine de sa fin, deux fois au plus
        et avant que les comptes ne soient clos. Presque personne ne le

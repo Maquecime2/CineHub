@@ -927,8 +927,10 @@ export interface ListWork {
 export interface Challenge {
   id: string;
   title: string;
-  list_id: string;
-  list: string;
+  /** NULL pour un défi par critère : il ne porte pas de liste. */
+  list_id: string | null;
+  /** Le titre de la liste, NULL pour un défi par critère. */
+  list: string | null;
   starts_on: string;
   ends_on: string;
   by: string | null;
@@ -941,6 +943,8 @@ export interface Challenge {
       l'écrit dans la ligne, et le catalogue le dit dans la langue du
       jour. */
   kind: string;
+  /** Ce sur quoi porte un défi par critère. NULL pour les deux autres. */
+  subject: { decade?: number; country?: string; director?: string } | null;
   inside?: boolean;
   /** Le défi est-il le mien ? Le serveur le dit ; on ne le devine plus. */
   mine?: boolean;
@@ -1005,7 +1009,8 @@ export const myChallenges = () => call<{ challenges: Challenge[] }>("/challenges
    side reported a mismatch: an undefined field is not an error, it is an
    absent one. */
 export const createChallenge = (d: {
-  listId: string;
+  /** NULL pour un défi par critère. */
+  listId: string | null;
   title: string;
   starts_on: string;
   ends_on: string;
@@ -1013,6 +1018,9 @@ export const createChallenge = (d: {
   target?: number | null;
   /** Ce qui compte. Absent : « liste ». */
   kind?: string | null;
+  /** Ce sur quoi porte un critère. Le serveur l'exige alors, et la
+      cible avec — « tous les films des années 60 » n'a pas de fin. */
+  subject?: Record<string, unknown> | null;
 }) => call<{ id: string }>("/challenges", { method: "POST", body: JSON.stringify(d) });
 
 export const readChallenge = (id: string) =>

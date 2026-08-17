@@ -439,6 +439,26 @@ elles s'écrivent dans les lignes.
   `settleChallenge`, qui PAIE. `merit_event` étant unique, **un paiement
   faux ne peut pas être rejoué juste** : le filet des trois âges de fiche
   (`points.test.ts`) est sur le second, et il a été tissé AVANT l'édition.
+- **UN DÉFI PAR CRITÈRE PORTE SUR TROIS CHOSES ET PAS UNE DE PLUS** :
+  décennie, pays, cinéaste. Ce sont les trois qu'une fiche complétée par
+  TMDB porte TOUJOURS ; une quatrième se répondrait « ça dépend si la
+  fiche est remplie », et on perdrait un défi pour n'avoir pas fait ses
+  imports. La décennie passe par une garde d'expression régulière —
+  `year` est saisi à la main, et un `::int` sur « 196? » fait tomber la
+  requête QUI PAIE.
+- **SANS LISTE, LA CIBLE EST OBLIGATOIRE**, et c'est le SCHÉMA qui
+  l'exige (`challenge_source_matches_kind`). « Tous les films des années
+  60 » n'a pas de fin : le dénominateur serait inconnu, la barre n'aurait
+  pas de bout, et le défi ne se gagnerait jamais. Une liste, elle, se
+  compte toute seule.
+- **IL Y A DEUX FAÇONS DE COMPTER, PAS UNE AVEC UNE CONDITION DE PLUS.**
+  Un défi par liste part de `list_item` et demande à la fiche de
+  confirmer ; un défi par critère part des FICHES. Ni la même table de
+  départ, ni le même sens de lecture. Ce qu'elles partagent est
+  `WATCHED_DURING`, et c'est tout — d'où l'extraction, faite APRÈS le
+  filet et pas avant.
+- **`LEFT JOIN list`, ET NON `JOIN`** : un `JOIN` sec faisait disparaître
+  un défi par critère de sa propre requête.
 - **`rightsOnChallenge` est la PORTE UNIQUE**, et six routes y passent.
   Tant qu'il y a une liste elle rend exactement ce que rendait
   `rightsOnList` — y compris qu'un membre ayant monté le défi écrit sans
