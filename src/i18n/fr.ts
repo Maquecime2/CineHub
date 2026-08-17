@@ -1839,6 +1839,7 @@ const fr = {
     pickPlaceholder: "un titre, un réalisateur…",
     pickNothing: "Rien de ce nom dans le classeur.",
     notSeenYet: "PAS ENCORE VU",
+    alreadyInRun: "AU PARCOURS",
     why: "pourquoi celui-là, ici ?",
     whyLabel: "Pourquoi celui-là, ici",
     whyPlaceholder: "à voir après le précédent, sinon la citation ne se voit pas…",
@@ -2290,6 +2291,9 @@ const fr = {
   skins: {
     siteSkinStamp: "PEAU DU SITE",
     itChangesAll: "elle change tout — le fond, les couleurs, les polices, les onglets",
+    handwriting: "L'ÉCRITURE",
+    handPlume: "à la main",
+    handPlain: "imprimée",
     siteSkin: "Peau du site",
     closeThePicker: "Fermer le choix des peaux",
     price: "{{price}} jetons",

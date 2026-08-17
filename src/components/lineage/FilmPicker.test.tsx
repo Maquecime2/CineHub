@@ -48,7 +48,7 @@ vi.mock("../../services/tmdbKey", () => ({
 
 const OZU = makeFilm({ id: "a", title: "Voyage à Tokyo", year: 1953, director: "Yasujirō Ozu" });
 
-const build = () => {
+const build = (inRun: string[] = []) => {
   const onPick = vi.fn();
   const onAdopt = vi.fn();
   const onLook = vi.fn();
@@ -58,6 +58,7 @@ const build = () => {
       onPick={onPick}
       onAdopt={onAdopt}
       onLook={onLook}
+      inRun={new Set(inRun)}
       label="Ajouter un film"
     />
   );
@@ -322,5 +323,42 @@ describe("the order the proposals come in", () => {
       .map((li) => li.textContent || "")
       .filter((x) => x.includes("ancien") || x.includes("récent"));
     expect(titles[0]).toContain("récent");
+  });
+});
+
+/* ============================================================
+   ON EN POSE PLUSIEURS À LA SUITE
+   ============================================================
+
+   Le champ se vidait à chaque ajout : on cherchait « ozu », on posait un
+   film, et tout disparaissait — pour en poser un second il fallait
+   retaper. Or enfiler une filmographie est exactement ce qu'on vient
+   faire ici.
+
+   ET C'EST LE PARCOURS QUI DIT CE QUI EST POSÉ, pas ce composant : une
+   marque tenue ici ne saurait rien d'une étape retirée dans la bande
+   juste au-dessus, et dirait « posé » sur un film qui ne l'est plus.
+   ============================================================ */
+describe("laying several films one after another", () => {
+  it("keeps the query and the results after an add", async () => {
+    const user = userEvent.setup();
+    const { onPick } = build();
+    await type(user, "tokyo");
+    await user.click(screen.getByRole("button", { name: /^Voyage à Tokyo/ }));
+
+    expect(onPick).toHaveBeenCalledWith(OZU);
+    expect(screen.getByPlaceholderText("un titre, un réalisateur…")).toHaveValue("tokyo");
+    /* La ligne est toujours là : c'est de là qu'on posera le suivant. */
+    expect(screen.getByRole("button", { name: /^Voyage à Tokyo/ })).toBeInTheDocument();
+  });
+
+  it("marks what the RUN holds, and not what this picker saw go past", async () => {
+    const user = userEvent.setup();
+    build(["a"]);
+    await type(user, "tokyo");
+    expect(screen.getByText("AU PARCOURS")).toBeInTheDocument();
+    /* « pas encore vu » cède la place : deux marques sur une ligne, dont
+       une qui ne répond pas à la question qu'on se pose. */
+    expect(screen.queryByText("PAS ENCORE VU")).not.toBeInTheDocument();
   });
 });

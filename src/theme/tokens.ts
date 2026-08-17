@@ -399,6 +399,29 @@ html[data-dragging="1"] [data-wall-item]:not([data-drag-self]) {
 :focus:not(:focus-visible) { outline: none; }
 
 /* ============================================================
+   LA CURSIVE, UN CRAN PLUS LISIBLE — SANS TOUCHER 203 ENDROITS
+   ============================================================
+
+   Les peaux chargent Caveat en 500, 600 et 700, et pas une ligne de
+   l'application ne demandait de graisse : tout s'affichait donc au 400
+   par defaut, que le fichier ne contient pas. Le navigateur prenait la
+   coupe la plus proche ou la synthetisait — dans les deux cas le trait
+   le plus mince, en encre palie, a quatorze pixels. C'est de la que
+   venait l'illisibilite, plus que de la cursive elle-meme.
+
+   LE SELECTEUR MARCHE PARCE QUE LE PROJET S'HABILLE EN LIGNE. React
+   ecrit style="font-family: var(--f-hand); ..." : l'attribut contient
+   litteralement le nom du jeton, et un selecteur de sous-chaine
+   l'attrape. C'est une clef posee sur une convention du projet, pas sur
+   un hasard — et elle est ecrite ici, ou la convention est deja
+   expliquee deux paragraphes plus haut.
+
+   AUCUNE DECLARATION EN LIGNE N'EST ECRASEE : ces endroits ne posent pas
+   de graisse. Celui qui en poserait une gagnerait, ce qui est bien ce
+   qu'on veut. */
+[style*="--f-hand"] { font-weight: 600; }
+
+/* ============================================================
    THE PHONE
    ============================================================
 

@@ -16,6 +16,7 @@
    has run. */
 
 import { skinOf, DEFAULT_SKIN, type Skin } from "./skins";
+import { readHand, watchHand } from "./handwriting";
 
 export const SKIN_KEY = "site-skin";
 
@@ -66,7 +67,11 @@ export function skinVars(skin: Skin): Record<string, string> {
 
   vars["--f-title"] = skin.fonts.title;
   vars["--f-body"] = skin.fonts.body;
-  vars["--f-hand"] = skin.fonts.hand;
+  /* LE RÉGLAGE DE LA MAIN SE LIT ICI, et nulle part ailleurs. Une peau
+     choisit SA cursive ; le réglage dit si l'on en veut une du tout, et
+     répond par la police de labeur de la même peau — pas par une police
+     venue d'ailleurs, qui jurerait avec les seize autres. */
+  vars["--f-hand"] = readHand() === "plain" ? skin.fonts.body : skin.fonts.hand;
   vars["--f-mono"] = skin.fonts.mono;
 
   vars["--page-bg"] = skin.page;
@@ -86,7 +91,14 @@ export function skinVars(skin: Skin): Record<string, string> {
   return vars;
 }
 
+/* LA DERNIÈRE PEAU POSÉE, pour pouvoir la reposer. Changer d'avis sur
+   la cursive ne change pas de peau : il faut réécrire les mêmes
+   variables avec la nouvelle réponse, et il n'y a qu'ici qu'on sait
+   lesquelles. */
+let lastKey: string | undefined;
+
 export function applySkin(key?: string): Skin {
+  lastKey = key;
   const skin = skinOf(key);
   const root = document.documentElement.style;
 
@@ -116,3 +128,10 @@ export const saveSkinKey = (key: string): void => {
     /* a full store must not stop somebody changing skin */
   }
 };
+
+/* L'ABONNEMENT EST DANS CE SENS-LÀ, et pas dans l'autre : `handwriting`
+   ne connaît pas les peaux — il ne tient qu'un choix — et lui faire
+   appeler `applySkin` aurait fermé un cercle entre les deux modules. */
+watchHand(() => {
+  if (typeof document !== "undefined") applySkin(lastKey);
+});

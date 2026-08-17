@@ -41,18 +41,28 @@ const coarse = (): boolean =>
 /** True under a finger. Read once, on import. */
 export const COARSE = coarse();
 
+/* ============================================================
+   `all: unset` REND UN BOUTON « inline », ET IL FAUT LE REDIRE
+   ============================================================
+
+   Une seule déclaration manquait, et elle manquait PARTOUT SAUF AU
+   DOIGT. `inked` et `bare` prenaient leur `display: inline-flex` de
+   `tap` — qui est VIDE sous une souris. Sur ordinateur, donc : pas de
+   boîte flexible, donc le `gap: 6` de `inked` inerte, et l'icône posée
+   sur la LIGNE DE BASE du texte au lieu d'être centrée avec lui. Tous
+   les boutons à icône de l'application étaient de travers, et
+   uniquement là où presque tout le monde les regarde.
+
+   La mise en boîte appartient donc au bouton, et `tap` ne garde que ce
+   qui le concerne : une cible qu'un doigt peut atteindre. */
+const BOX: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+};
+
 /** To spread on a control too small for a finger. Empty with a mouse. */
-export const tap: CSSProperties = COARSE
-  ? {
-      minHeight: TAP,
-      /* `all: unset` makes the button inline: without this line the
-         minimum height does not apply, and neither does the padding that
-         centres the text. */
-      display: "inline-flex",
-      alignItems: "center",
-      justifyContent: "center",
-    }
-  : {};
+export const tap: CSSProperties = COARSE ? { minHeight: TAP, ...BOX } : {};
 
 /** The same for a square button — an icon alone, with no text. */
 export const tapSquare: CSSProperties = COARSE ? { ...tap, minWidth: TAP } : {};
@@ -98,6 +108,7 @@ export const underlineInput: CSSProperties = {
 /** Le bouton plein : un pavé d'encre, ce qu'on fait par-dessus tout. */
 export const inked = (ink: string): CSSProperties => ({
   all: "unset",
+  ...BOX,
   ...tap,
   cursor: "pointer",
   gap: 6,
@@ -120,6 +131,7 @@ export const hollow: CSSProperties = {
 /** Le bouton nu — une icône seule, sans pavé ni bordure. */
 export const bare: CSSProperties = {
   all: "unset",
+  ...BOX,
   ...tap,
   cursor: "pointer",
   color: C.inkFaded,

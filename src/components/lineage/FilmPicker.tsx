@@ -32,7 +32,7 @@
    statement. */
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Clapperboard, Eye, Plus, Search } from "lucide-react";
+import { Check, Clapperboard, Eye, Plus, Search } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { bare, inked, hollow, underlineInput } from "../../theme/styles";
 import { NoKey, Trouble, Waiting } from "../ui";
@@ -82,12 +82,32 @@ interface FilmPickerProps {
    * — la vue rapide ira chercher le reste elle-même.
    */
   onLook: (film: Film) => void;
+  /**
+   * Les fiches DÉJÀ au programme. Le champ se vidait à chaque ajout : on
+   * cherchait « antonioni », on posait L'Éclipse, et tout disparaissait —
+   * pour poser L'Avventura il fallait retaper, alors qu'enfiler une
+   * filmographie est exactement ce qu'on vient faire ici. La requête
+   * reste donc en place, et chaque ligne déjà posée le DIT.
+   *
+   * C'EST LE PARCOURS QUI LE DIT, ET NON CE COMPOSANT. Une marque tenue
+   * ici ne saurait rien d'une étape retirée dans la bande juste au-dessus
+   * — elle dirait « posé » sur un film qui ne l'est plus.
+   */
+  inRun: ReadonlySet<string>;
   /** Ce que dit le champ, selon qu'on ouvre un parcours ou qu'on l'allonge. */
   label: string;
   tour?: string;
 }
 
-export function FilmPicker({ films, onPick, onAdopt, onLook, label, tour }: FilmPickerProps) {
+export function FilmPicker({
+  films,
+  onPick,
+  onAdopt,
+  onLook,
+  inRun,
+  label,
+  tour,
+}: FilmPickerProps) {
   const { t } = useTranslation();
   const apiKey = useTmdbKey();
   const [q, setQ] = useState("");
@@ -192,12 +212,6 @@ export function FilmPicker({ films, onPick, onAdopt, onLook, label, tour }: Film
     }
   };
 
-  const clear = () => {
-    setQ("");
-    setRemote(null);
-    setTrouble(null);
-  };
-
   /* LA CHAÎNE D'ADOPTION. `getDetails` d'abord, et pas seulement pour
      l'affiche : c'est de là que vient le RÉALISATEUR, sans lequel
      l'étape posée serait un titre que la carte des cinéastes ne peut pas
@@ -227,7 +241,6 @@ export function FilmPicker({ films, onPick, onAdopt, onLook, label, tour }: Film
           source: "tmdb",
         })
       );
-      clear();
     } catch (e) {
       /* Une DEMANDE qui a raté, et non une décoration : elle se dit. Et
          aucune étape n'est posée — on ne prétend pas avoir rangé. */
@@ -309,13 +322,7 @@ export function FilmPicker({ films, onPick, onAdopt, onLook, label, tour }: Film
               const director = primaryDirector(film);
               return (
                 <li key={film.id} style={line}>
-                  <button
-                    onClick={() => {
-                      onPick(film);
-                      clear();
-                    }}
-                    style={row}
-                  >
+                  <button onClick={() => onPick(film)} style={row}>
                     <span style={{ width: 26, flexShrink: 0 }}>
                       <PosterArt
                         film={film}
@@ -332,9 +339,25 @@ export function FilmPicker({ films, onPick, onAdopt, onLook, label, tour }: Film
                         {director.name}
                       </span>
                     )}
-                    {film.status === "watchlist" && (
+                    {film.status === "watchlist" && !inRun.has(film.id) && (
                       <span style={{ fontFamily: F.mono, fontSize: 9, color: C.ochre }}>
                         {t("lineage.notSeenYet")}
+                      </span>
+                    )}
+                    {inRun.has(film.id) && (
+                      <span
+                        style={{
+                          fontFamily: F.mono,
+                          fontSize: 9,
+                          color: C.pine,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 3,
+                          marginLeft: "auto",
+                        }}
+                      >
+                        <Check size={11} />
+                        {t("lineage.alreadyInRun")}
                       </span>
                     )}
                   </button>

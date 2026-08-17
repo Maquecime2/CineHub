@@ -1788,6 +1788,7 @@ const en = {
     pickPlaceholder: "a title, a director…",
     pickNothing: "Nothing by that name in the binder.",
     notSeenYet: "NOT SEEN YET",
+    alreadyInRun: "IN THE RUN",
     why: "why this one, here?",
     whyLabel: "Why this one, here",
     whyPlaceholder: "watch after the one before, or the quotation goes unseen…",
@@ -2216,6 +2217,9 @@ const en = {
   skins: {
     siteSkinStamp: "SITE SKIN",
     itChangesAll: "it changes everything — the ground, the colours, the fonts, the tabs",
+    handwriting: "HANDWRITING",
+    handPlume: "by hand",
+    handPlain: "printed",
     siteSkin: "Site skin",
     closeThePicker: "Close the skin picker",
     price: "{{price}} tokens",

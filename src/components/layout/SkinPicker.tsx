@@ -14,14 +14,15 @@
    a panel one opens twice costs far more than what the preview gains by
    it. The colours, for their part, are right the first time, and they
    are what one looks at. */
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import type { CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { Lock, X } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
-import { tap } from "../../theme/styles";
+import { tap, bare, chip } from "../../theme/styles";
 import { DEFAULT_SKIN, SKINS, type Skin } from "../../theme/skins";
 import { ownedItems } from "../../theme/owned";
+import { HANDS, readHand, setHand, watchHand, type Hand } from "../../theme/handwriting";
 import { accountOpen } from "../../services/server";
 import { usePurse } from "../../hooks/usePurse";
 import { BuyChip } from "../play/Buy";
@@ -261,6 +262,8 @@ export function SkinPicker({
           {t("skins.itChangesAll")}
         </div>
 
+        <HandChoice />
+
         {/* TOUTES SONT DESSINÉES, VERROUILLÉES COMPRISES — voir
             `isLocked` plus haut pour le pourquoi. Ce commentaire disait
             l'inverse, « ce qu'on ne peut pas avoir n'est pas dessiné,
@@ -302,5 +305,68 @@ export function SkinPicker({
         </div>
       </div>
     </>
+  );
+}
+
+/* ============================================================
+   LA MAIN, OU LA MACHINE
+   ============================================================
+
+   Ce n'est pas une peau et cela ne pouvait pas en devenir une : une peau
+   choisit SA cursive parmi les siennes, ce bouton-ci dit si l'on veut
+   une cursive DU TOUT. Le ranger dans la grille aurait obligé à
+   dédoubler les dix-sept.
+
+   Il est ici parce que c'est l'écran de l'apparence, et parce que le
+   comparer demande de basculer plusieurs fois de suite : depuis un menu
+   enfoui, on essaie une fois et on n'y revient pas. */
+function HandChoice() {
+  const { t } = useTranslation();
+  const hand = useSyncExternalStore(watchHand, readHand, () => "plume" as Hand);
+
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div
+        style={{
+          fontFamily: F.mono,
+          fontSize: 9,
+          letterSpacing: 1,
+          color: C.inkFaded,
+          marginBottom: 5,
+        }}
+      >
+        {t("skins.handwriting")}
+      </div>
+      <div
+        role="radiogroup"
+        aria-label={t("skins.handwriting")}
+        style={{ display: "flex", gap: 6 }}
+      >
+        {HANDS.map((h) => {
+          const here = hand === h;
+          return (
+            <button
+              key={h}
+              role="radio"
+              aria-checked={here}
+              onClick={() => setHand(h)}
+              style={{
+                ...bare,
+                ...chip,
+                /* CHAQUE CHOIX EST ÉCRIT DANS LA POLICE QU'IL DÉSIGNE :
+                   on voit ce qu'on prend avant de le prendre. */
+                fontFamily: h === "plume" ? F.hand : F.body,
+                fontSize: h === "plume" ? 15 : 11.5,
+                color: here ? C.card : C.inkFaded,
+                background: here ? C.ink : "transparent",
+                borderColor: here ? C.ink : C.line,
+              }}
+            >
+              {t(h === "plume" ? "skins.handPlume" : "skins.handPlain")}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }

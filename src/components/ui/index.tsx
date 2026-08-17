@@ -124,7 +124,7 @@ export function NoKey({ what, style }: { what: string; style?: CSSProperties }) 
       }}
     >
       <KeyRound size={13} color={C.inkFaded} style={{ transform: "translateY(2px)" }} />
-      <span style={{ fontFamily: F.hand, fontSize: 14, color: C.inkFaded }}>
+      <span style={{ fontFamily: F.hand, fontSize: 17, color: alpha(C.ink, 0.78) }}>
         Il manque une key TMDB pour {what}.
       </span>
       {/* TWO REMEDIES, AND THE SECOND ASKS FOR NONE. Since the server
@@ -199,10 +199,16 @@ export function SectionTitle({
 export function Guideline({ children, tight }: { children: ReactNode; tight?: boolean }) {
   return (
     <div
+      /* PLUS GRANDE ET MOINS PÂLE QU'ELLE NE L'ÉTAIT. Une cursive de
+         dix-sept pixels en encre passée est jolie et se lit mal ; c'est
+         la ligne que chaque section pose sous son titre, donc celle
+         qu'on relit le plus. La graisse, elle, vient d'une seule règle
+         posée dans `FONT_IMPORT` — voir `[style*="--f-hand"]`. */
       style={{
         fontFamily: F.hand,
-        fontSize: 17,
-        color: C.inkFaded,
+        fontSize: 19,
+        lineHeight: 1.35,
+        color: alpha(C.ink, 0.78),
         margin: tight ? "8px 0 0" : "0 0 12px",
       }}
     >
@@ -410,7 +416,11 @@ export function Label({ children }: { children: ReactNode }) {
 }
 /** What is written when a section has nothing to show. */
 export function Nothing({ what }: { what: string }) {
-  return <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded }}>{what}</div>;
+  return (
+    <div style={{ fontFamily: F.hand, fontSize: 18, lineHeight: 1.35, color: alpha(C.ink, 0.75) }}>
+      {what}
+    </div>
+  );
 }
 
 /* ============================================================
@@ -455,7 +465,8 @@ export function Trouble({
         borderLeft: `3px solid ${C.burgundy}`,
         background: alpha(C.burgundy, 0.07),
         fontFamily: F.hand,
-        fontSize: 16,
+        fontSize: 18,
+        lineHeight: 1.35,
         color: C.ink,
       }}
     >

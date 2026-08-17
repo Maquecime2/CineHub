@@ -391,6 +391,7 @@ export function LineageView({
           onPick={(film) => add([film.id])}
           onAdopt={adopt}
           onLook={setQuick}
+          inRun={inCourse}
           tour="lineage-add"
           label={course ? t("lineage.addToRun") : t("lineage.addFirst")}
         />

@@ -308,6 +308,32 @@ l'affichage : `UNKNOWN_DIRECTOR`, le nom d'un rangement, le libellé par défaut
 d'une catégorie sont écrits dans le document de la vue, et les traduire figerait
 la langue du jour dans les données de quelqu'un.
 
+## La main se règle, et elle se lit
+
+La cursive était le trait le plus reconnaissable du carnet et le plus
+coûteux à lire : jolie sur une ligne, LENTE dans un bloc de texte et dans
+un sous-titre de neuf pixels. Trois choses en découlent, et aucune n'est
+un avis sur le goût.
+
+- **`--f-hand` EST LE LEVIER, ET C'EST TOUT.** `theme/handwriting.ts` tient
+  un choix — la cursive de la peau, ou sa police de labeur — que
+  `skinVars` consulte. Deux cent trois emplois basculent sans qu'un
+  fichier de vue soit touché : c'est ce que la couche de jetons
+  promettait. Le réglage vit **à côté** des peaux et non dedans — une
+  peau choisit SA cursive, celui-ci dit si l'on en veut une du tout, et
+  le ranger dans la grille aurait obligé à dédoubler les dix-sept.
+- **L'ABONNEMENT VA D'`applySkin` VERS `handwriting`**, jamais l'inverse :
+  `handwriting` ne connaît pas les peaux, et lui faire appeler `applySkin`
+  fermerait un cercle.
+- **LES PEAUX CHARGEAIENT CAVEAT EN 500/600/700 ET RIEN NE DEMANDAIT DE
+  GRAISSE**, donc tout s'affichait au 400 — que le fichier ne contient
+  pas. Le navigateur prenait le trait le plus mince, en encre pâlie, à
+  quatorze pixels : l'illisibilité venait de là plus que de la cursive.
+  Une règle unique la corrige, `[style*="--f-hand"]`, et **elle marche
+  parce que le projet s'habille EN LIGNE** — React écrit le nom du jeton
+  dans l'attribut `style`. C'est une clé posée sur une convention du
+  projet, et elle est écrite là où cette convention est déjà expliquée.
+
 ## Le focus se voit
 
 `all: unset` est la convention des boutons du projet, et elle emporte le contour
@@ -472,8 +498,15 @@ la forme de `ref` le plafonne à vie. Le vérifiable — quiz, défis, contribut
     L'inverse a coûté cinq pixels de large à la navigation entière, et un
     bouton souple dans une barre qui défile rétrécit au lieu de défiler :
     d'où le `flexShrink: 0` sur chacun.
-  - Le carnet n'est plus une vue : `components/layout/NotebookDrawer.tsx`,
-    ouvert depuis la barre du classeur. Les notes, elles, n'ont pas bougé.
+  - **`all: unset` REND UN BOUTON « inline », ET IL FALLAIT LE REDIRE.**
+    `inked` et `bare` tenaient leur `display: inline-flex` de `tap`, **vide
+    sous une souris** : sur ordinateur, pas de boîte flexible, donc le
+    `gap: 6` inerte et l'icône posée sur la LIGNE DE BASE du texte. Tous les
+    boutons à icône étaient de travers, et uniquement là où presque tout le
+    monde les regarde. La mise en boîte appartient au bouton ; `tap` ne
+    garde que la cible qu'un doigt peut atteindre.
+- Le carnet n'est plus une vue : `components/layout/NotebookDrawer.tsx`,
+  ouvert depuis la barre du classeur. Les notes, elles, n'ont pas bougé.
 - `src/views/CounterView.tsx` — le comptoir : guichet, présentoir, carnet à
   souches. `src/components/play/` en tient les pièces.
 - Budget de `z-index` : grain 1, page et rail 2, la barre du bas du téléphone
