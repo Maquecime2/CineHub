@@ -271,6 +271,11 @@ export function FilmPicker({
   const row = {
     ...bare,
     display: "flex",
+    /* DIT ICI ET PAS SEULEMENT DANS `bare` : sur un écran tactile, `tap`
+       centre ce qu'il contient — ce qui est juste pour une icône seule
+       dans une cible de quarante-quatre pixels, et faux pour une ligne
+       étirée sur toute la largeur. */
+    justifyContent: "flex-start",
     alignItems: "center",
     gap: 9,
     flex: 1,
@@ -332,8 +337,24 @@ export function FilmPicker({
                         lazy
                       />
                     </span>
-                    <Plus size={12} color={C.inkFaded} />
-                    <span style={{ fontFamily: F.body, fontSize: 14 }}>{film.title}</span>
+                    {/* LE SIGNE LUI-MÊME CHANGE, et pas seulement une
+                        mention au bout de la ligne : c'est le « + » qu'on
+                        vient de presser, donc c'est là que l'œil retourne
+                        pour savoir si le geste a porté. */}
+                    {inRun.has(film.id) ? (
+                      <Check size={13} color={C.pine} />
+                    ) : (
+                      <Plus size={12} color={C.inkFaded} />
+                    )}
+                    <span
+                      style={{
+                        fontFamily: F.body,
+                        fontSize: 14,
+                        color: inRun.has(film.id) ? C.inkFaded : C.ink,
+                      }}
+                    >
+                      {film.title}
+                    </span>
                     {director && (
                       <span style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}>
                         {director.name}
@@ -356,7 +377,6 @@ export function FilmPicker({
                           marginLeft: "auto",
                         }}
                       >
-                        <Check size={11} />
                         {t("lineage.alreadyInRun")}
                       </span>
                     )}

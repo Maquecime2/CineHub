@@ -55,14 +55,23 @@ export const COARSE = coarse();
 
    La mise en boîte appartient donc au bouton, et `tap` ne garde que ce
    qui le concerne : une cible qu'un doigt peut atteindre. */
+/* `justifyContent` N'EST PAS DEDANS, ET C'EST LA MOITIÉ DE LA LEÇON. Un
+   bouton qui s'ajuste à son contenu n'a rien à centrer horizontalement —
+   la propriété n'y sert à rien. Elle ne compte QUE lorsqu'une largeur est
+   imposée, c'est-à-dire précisément là où elle nuit : une ligne de
+   résultat étirée sur toute la largeur voyait son affiche et son titre
+   ramenés au milieu. Elle reste donc dans `tap`, où elle a une raison
+   d'être — centrer une icône seule dans une cible de quarante-quatre
+   pixels — et nulle part ailleurs. */
 const BOX: CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
-  justifyContent: "center",
 };
 
 /** To spread on a control too small for a finger. Empty with a mouse. */
-export const tap: CSSProperties = COARSE ? { minHeight: TAP, ...BOX } : {};
+export const tap: CSSProperties = COARSE
+  ? { minHeight: TAP, ...BOX, justifyContent: "center" }
+  : {};
 
 /** The same for a square button — an icon alone, with no text. */
 export const tapSquare: CSSProperties = COARSE ? { ...tap, minWidth: TAP } : {};

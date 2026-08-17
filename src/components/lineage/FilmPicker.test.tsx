@@ -52,7 +52,7 @@ const build = (inRun: string[] = []) => {
   const onPick = vi.fn();
   const onAdopt = vi.fn();
   const onLook = vi.fn();
-  render(
+  const view = render(
     <FilmPicker
       films={[OZU]}
       onPick={onPick}
@@ -62,7 +62,24 @@ const build = (inRun: string[] = []) => {
       label="Ajouter un film"
     />
   );
-  return { onPick, onAdopt, onLook };
+  return {
+    onPick,
+    onAdopt,
+    onLook,
+    /* Le parcours change SOUS le sélecteur — c'est ce qui se passe
+       vraiment : la vue écrit, et la marque descend. */
+    rerender: (next: ReadonlySet<string>) =>
+      view.rerender(
+        <FilmPicker
+          films={[OZU]}
+          onPick={onPick}
+          onAdopt={onAdopt}
+          onLook={onLook}
+          inRun={next}
+          label="Ajouter un film"
+        />
+      ),
+  };
 };
 
 /* ANCRÉ EN DÉBUT DE NOM : chaque ligne porte DEUX commandes, et le
@@ -360,5 +377,21 @@ describe("laying several films one after another", () => {
     /* « pas encore vu » cède la place : deux marques sur une ligne, dont
        une qui ne répond pas à la question qu'on se pose. */
     expect(screen.queryByText("PAS ENCORE VU")).not.toBeInTheDocument();
+  });
+
+  /* LE SIGNE QU'ON VIENT DE PRESSER EST CELUI QU'ON REGARDE. Une mention
+     au bout de la ligne ne se voyait pas : l'œil retourne au « + ». */
+  it("turns the plus itself into a tick", async () => {
+    const user = userEvent.setup();
+    const { rerender } = build();
+    await type(user, "tokyo");
+    const before = screen.getByRole("button", { name: /^Voyage à Tokyo/ });
+    expect(before.querySelector(".lucide-plus")).not.toBeNull();
+    expect(before.querySelector(".lucide-check")).toBeNull();
+
+    rerender(new Set(["a"]));
+    const after = screen.getByRole("button", { name: /^Voyage à Tokyo/ });
+    expect(after.querySelector(".lucide-check")).not.toBeNull();
+    expect(after.querySelector(".lucide-plus")).toBeNull();
   });
 });
