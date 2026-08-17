@@ -5,31 +5,77 @@
    IT SEARCHES THE WHOLE COLLECTION AND NOT ONLY "TO WATCH". Planning a
    rewatch is an ordinary plan — Ozu 1949, then Hou, then Ozu 1953 — and
    a picker that hid what one has seen would have made the commonest
-   lineage of all impossible to write down.
+   lineage of all impossible to write down. What is still true is that
+   the ones one has NOT seen are the likelier answer, so they come first
+   and say so.
 
-   What is still true is that the ones one has NOT seen are the likelier
-   answer, so they come first and say so. Anything else is a second
-   thought, never a refusal. */
+   AND IT SEARCHES BEYOND THE BINDER, WHICH IS THE POINT OF A PLAN. A
+   viewing plan is made of films one has not got yet: a picker that only
+   knew the collection could describe the past and never an intention.
+   Picking something TMDB knows and the binder does not FILES IT under
+   "to watch" — with its poster and, above all, its DIRECTOR, which is
+   what makes it a node on the map of film-makers rather than a title
+   nothing can explain.
+
+   THE REMOTE SEARCH FIRES ON ENTER, NEVER ON A KEYSTROKE. There is no
+   debounce hook in this project and this is not the place to invent one:
+   TMDB is metered, the relay has its own per-minute ceiling, and a
+   request per letter would spend a whole quota writing "tokyo". The
+   local half stays instant — it costs nothing, being a sweep of an array
+   already in memory.
+
+   NO KEY, NO REMOTE HALF — AND THE PICKER IS STILL ALIVE. Without an
+   account and without a key we do not question TMDB at all. `NoKey`
+   takes the place the button would have taken and carries the way out of
+   the lack; the local search goes on working. Returning nothing would
+   have said "there is nothing here", which is a different and false
+   statement. */
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Plus } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
-import { bare, underlineInput } from "../../theme/styles";
+import { bare, inked, hollow, underlineInput } from "../../theme/styles";
+import { NoKey, Trouble, Waiting } from "../ui";
+import { PosterArt } from "../film/PosterArt";
 import { searchFilms } from "../../domain/search";
 import { primaryDirector } from "../../domain/lineageMap";
+import { filmKey } from "../../domain/importing";
+import { initialsOf, makeFilm } from "../../domain/film";
+import { useTmdbKey } from "../../services/tmdbKey";
+import { getDetails, searchMovies } from "../../tmdb";
 import type { Film } from "../../types";
+
+interface TmdbHit {
+  tmdbId: number;
+  title: string;
+  year: number | null;
+  poster: string;
+}
 
 interface FilmPickerProps {
   films: Film[];
+  /** Une fiche du classeur : on la pose telle quelle. */
   onPick: (film: Film) => void;
-  /** Ce que dit le bouton d'ajout, selon qu'on ouvre un parcours ou qu'on l'allonge. */
+  /**
+   * Une fiche que le classeur n'a pas encore : on la range PUIS on la
+   * pose. La vue tient les deux moitiés, parce que ranger est une
+   * écriture de la collection et poser une écriture du parcours.
+   */
+  onAdopt: (film: Film) => void;
+  /** Ce que dit le champ, selon qu'on ouvre un parcours ou qu'on l'allonge. */
   label: string;
   tour?: string;
 }
 
-export function FilmPicker({ films, onPick, label, tour }: FilmPickerProps) {
+export function FilmPicker({ films, onPick, onAdopt, label, tour }: FilmPickerProps) {
   const { t } = useTranslation();
+  const apiKey = useTmdbKey();
   const [q, setQ] = useState("");
+  const [remote, setRemote] = useState<TmdbHit[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [trouble, setTrouble] = useState<string | null>(null);
+  /** Le `tmdbId` dont la fiche est en cours de constitution. */
+  const [adding, setAdding] = useState<number | null>(null);
 
   const found = useMemo(() => {
     if (!q.trim()) return [];
@@ -41,6 +87,99 @@ export function FilmPicker({ films, onPick, label, tour }: FilmPickerProps) {
       .sort((a, b) => Number(b.status === "watchlist") - Number(a.status === "watchlist"))
       .slice(0, 8);
   }, [films, q, t]);
+
+  /* CE QUE LE CLASSEUR TIENT DÉJÀ NE SE PROPOSE PAS DEUX FOIS. On
+     dédoublonne sur le `tmdbId` quand il y en a un, et sinon sur
+     `filmKey` — la clé même de l'import, pour que les deux portes
+     s'accordent sur ce qu'est « la même fiche ». */
+  const fresh = useMemo(() => {
+    if (!remote) return null;
+    const ids = new Set(films.map((f) => f.tmdbId).filter(Boolean));
+    const keys = new Set(films.map((f) => filmKey(f)));
+    return remote.filter(
+      (h) => !ids.has(h.tmdbId) && !keys.has(filmKey({ title: h.title, year: h.year || "" }))
+    );
+  }, [remote, films]);
+
+  const look = async () => {
+    const title = q.trim();
+    if (!title || !apiKey) return;
+    setBusy(true);
+    setTrouble(null);
+    try {
+      setRemote((await searchMovies({ title, apiKey, limit: 8 })) as TmdbHit[]);
+    } catch (e) {
+      setRemote(null);
+      setTrouble(t("lineage.tmdbFailed", { why: (e as Error).message }));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const clear = () => {
+    setQ("");
+    setRemote(null);
+    setTrouble(null);
+  };
+
+  /* LA CHAÎNE D'ADOPTION. `getDetails` d'abord, et pas seulement pour
+     l'affiche : c'est de là que vient le RÉALISATEUR, sans lequel
+     l'étape posée serait un titre que la carte des cinéastes ne peut pas
+     expliquer. */
+  const adopt = async (hit: TmdbHit) => {
+    if (!apiKey) return;
+    setAdding(hit.tmdbId);
+    setTrouble(null);
+    try {
+      const info = await getDetails(hit.tmdbId, apiKey);
+      onAdopt(
+        makeFilm({
+          title: hit.title,
+          year: info.year || hit.year || "",
+          poster: info.poster || hit.poster,
+          director: info.director,
+          genres: info.genres,
+          cast: info.cast,
+          crew: info.crew,
+          runtime: info.runtime,
+          language: info.language,
+          countries: info.countries,
+          tmdbRating: info.tmdbRating,
+          keywords: info.keywords,
+          tmdbId: info.tmdbId,
+          status: "watchlist",
+          source: "tmdb",
+        })
+      );
+      clear();
+    } catch (e) {
+      /* Une DEMANDE qui a raté, et non une décoration : elle se dit. Et
+         aucune étape n'est posée — on ne prétend pas avoir rangé. */
+      setTrouble(t("lineage.tmdbFailed", { why: (e as Error).message }));
+    } finally {
+      setAdding(null);
+    }
+  };
+
+  const caption = {
+    fontFamily: F.mono,
+    fontSize: 9,
+    letterSpacing: 1,
+    color: alpha(C.ink, 0.5),
+    margin: "12px 0 4px",
+  } as const;
+
+  const row = {
+    ...bare,
+    display: "flex",
+    alignItems: "center",
+    gap: 9,
+    width: "100%",
+    padding: "5px 2px",
+    borderBottom: `1px solid ${alpha(C.line, 0.6)}`,
+    color: C.ink,
+    textAlign: "left",
+  } as const;
 
   return (
     <div data-tour={tour}>
@@ -57,57 +196,154 @@ export function FilmPicker({ films, onPick, label, tour }: FilmPickerProps) {
         {label}
         <input
           value={q}
-          onChange={(e) => setQ(e.target.value)}
+          onChange={(e) => {
+            setQ(e.target.value);
+            /* Les résultats distants portent sur la requête d'avant :
+               les garder sous une autre requête serait mentir. */
+            setRemote(null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              void look();
+            }
+          }}
           placeholder={t("lineage.pickPlaceholder")}
           style={{ ...underlineInput, marginTop: 4 }}
         />
       </label>
 
-      {q.trim() && found.length === 0 && (
+      {found.length > 0 && (
+        <>
+          <div style={caption}>{t("lineage.inBinder")}</div>
+          <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+            {found.map((film) => {
+              const director = primaryDirector(film);
+              return (
+                <li key={film.id}>
+                  <button
+                    onClick={() => {
+                      onPick(film);
+                      clear();
+                    }}
+                    style={row}
+                  >
+                    <span style={{ width: 26, flexShrink: 0 }}>
+                      <PosterArt
+                        film={film}
+                        height={39}
+                        width={26}
+                        initials={initialsOf(film.title)}
+                        lazy
+                      />
+                    </span>
+                    <Plus size={12} color={C.inkFaded} />
+                    <span style={{ fontFamily: F.body, fontSize: 14 }}>{film.title}</span>
+                    {director && (
+                      <span style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}>
+                        {director.name}
+                      </span>
+                    )}
+                    {film.status === "watchlist" && (
+                      <span style={{ fontFamily: F.mono, fontSize: 9, color: C.ochre }}>
+                        {t("lineage.notSeenYet")}
+                      </span>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
+
+      {q.trim() && found.length === 0 && !busy && (
         <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded, marginTop: 6 }}>
           {t("lineage.pickNothing")}
         </div>
       )}
 
-      {found.length > 0 && (
-        <ul style={{ listStyle: "none", margin: "6px 0 0", padding: 0 }}>
-          {found.map((film) => {
-            const director = primaryDirector(film);
-            return (
-              <li key={film.id}>
-                <button
-                  onClick={() => {
-                    onPick(film);
-                    setQ("");
-                  }}
-                  style={{
-                    ...bare,
-                    display: "flex",
-                    alignItems: "baseline",
-                    gap: 8,
-                    width: "100%",
-                    padding: "5px 2px",
-                    borderBottom: `1px solid ${alpha(C.line, 0.6)}`,
-                    color: C.ink,
-                  }}
-                >
-                  <Plus size={12} color={C.inkFaded} />
-                  <span style={{ fontFamily: F.body, fontSize: 14 }}>{film.title}</span>
-                  {director && (
-                    <span style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}>
-                      {director.name}
-                    </span>
-                  )}
-                  {film.status === "watchlist" && (
-                    <span style={{ fontFamily: F.mono, fontSize: 9, color: C.ochre }}>
-                      {t("lineage.notSeenYet")}
-                    </span>
-                  )}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+      {/* LA MOITIÉ DISTANTE. Elle ne part jamais toute seule. */}
+      <div style={{ marginTop: 10 }}>
+        {apiKey ? (
+          <button
+            onClick={() => void look()}
+            disabled={!q.trim() || busy}
+            style={{
+              ...inked(C.ink),
+              ...hollow,
+              fontFamily: F.mono,
+              opacity: q.trim() && !busy ? 1 : 0.45,
+            }}
+          >
+            <Search size={12} />
+            {t(busy ? "lineage.searchingTmdb" : "lineage.searchTmdb")}
+          </button>
+        ) : (
+          <NoKey what={t("lineage.tmdbWhat")} />
+        )}
+      </div>
+
+      {busy && <Waiting lines={3} label={t("lineage.searchingTmdb")} />}
+      {trouble && <Trouble>{trouble}</Trouble>}
+
+      {fresh && !busy && (
+        <>
+          <div style={caption}>{t("lineage.onTmdb")}</div>
+          {fresh.length === 0 ? (
+            <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded }}>
+              {t("lineage.tmdbNothing")}
+            </div>
+          ) : (
+            <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+              {fresh.map((hit) => {
+                /* Un aperçu jetable, et son identifiant DÉRIVE du
+                   `tmdbId` : tiré au sort, `tornClip` et `hueOf`
+                   rebattraient les cartes à chaque rendu. */
+                const preview = makeFilm({
+                  id: `tmdb:${hit.tmdbId}`,
+                  title: hit.title,
+                  year: hit.year || "",
+                  poster: hit.poster,
+                });
+                return (
+                  <li key={hit.tmdbId}>
+                    <button
+                      onClick={() => void adopt(hit)}
+                      disabled={adding !== null}
+                      style={{
+                        ...row,
+                        opacity: adding !== null && adding !== hit.tmdbId ? 0.4 : 1,
+                      }}
+                    >
+                      <span style={{ width: 26, flexShrink: 0 }}>
+                        <PosterArt
+                          film={preview}
+                          height={39}
+                          width={26}
+                          initials={initialsOf(hit.title)}
+                          lazy
+                        />
+                      </span>
+                      <Plus size={12} color={C.inkFaded} />
+                      <span style={{ fontFamily: F.body, fontSize: 14 }}>{hit.title}</span>
+                      {hit.year && (
+                        <span style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}>
+                          {hit.year}
+                        </span>
+                      )}
+                      {adding === hit.tmdbId && (
+                        <span style={{ fontFamily: F.mono, fontSize: 9, color: C.ochre }}>
+                          {t("lineage.adopting")}
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </>
       )}
     </div>
   );

@@ -14,18 +14,20 @@ import type { Course } from "../domain/course";
 
    The pure half is tested next door (`domain/course`, `domain/bonds`,
    `domain/lineageMap`). What can only be seen here is the WIRING, and
-   three things in it would each be a silent failure:
+   four things in it would each be a silent failure:
 
-   — the first film laid down MAKES the run. Nothing offers to create
-     one, so if this does not work there is no way into the screen at
-     all;
-   — the keyboard alternative to the drag. A drag cannot be reproduced
-     in a test runner, which is exactly why the chevrons must be, and
-     why the move must be SPOKEN — a reorder nobody is told about is a
-     reorder somebody has to verify with their eyes;
-   — a contradiction refused IN THE OPEN. `normalizeBonds` turns one
-     away on read, so a form that just wrote it would look as though it
-     had worked until the next reload ate it.
+   — the two doors into a run, and that neither of them leaves an empty
+     run behind;
+   — the keyboard alternative to the drag. A drag cannot be reproduced in
+     a test runner, which is exactly why the chevrons and `Alt` + arrows
+     must be, and why the move must be SPOKEN — a reorder nobody is told
+     about is a reorder somebody has to verify with their eyes;
+   — laying a bond that JUSTIFIES the step it was opened from, in one
+     gesture. That is the headline of the workbench rework and nothing
+     else covers it;
+   — a contradiction refused IN THE OPEN. `normalizeBonds` turns one away
+     on read, so a form that just wrote it would look as though it had
+     worked until the next reload ate it.
    ============================================================ */
 
 const OZU = makeFilm({ id: "a", title: "Voyage à Tokyo", director: "Yasujirō Ozu" });
@@ -36,6 +38,7 @@ const build = (courses: Course[] = [], bonds = [] as ReturnType<typeof makeBond>
   const onCourses = vi.fn();
   const onCoursesSoon = vi.fn();
   const onBonds = vi.fn();
+  const onAddFilm = vi.fn();
   const onOpen = vi.fn();
   render(
     /* Le canal de parole est monté par `App` dans le produit : sans lui
@@ -49,24 +52,29 @@ const build = (courses: Course[] = [], bonds = [] as ReturnType<typeof makeBond>
         onCourses={onCourses}
         onCoursesSoon={onCoursesSoon}
         onBonds={onBonds}
+        onAddFilm={onAddFilm}
         onOpen={onOpen}
         onOpenPerson={vi.fn()}
       />
     </FeedbackProvider>
   );
-  return { onCourses, onCoursesSoon, onBonds, onOpen };
+  return { onCourses, onCoursesSoon, onBonds, onAddFilm, onOpen };
 };
 
-/** La colonne d'ordre, et pas le miroir en liste de la carte. */
+/** La bande d'ordre, et pas le miroir en liste de la carte. */
 const order = () => within(screen.getByRole("list", { name: "L'ordre de visionnage" }));
 
 const run = (...ids: string[]) =>
   makeCourse({ label: "D'Ozu à Hou", steps: ids.map((id) => makeStep(id)) });
 
-describe("the way into an empty screen", () => {
-  it("offers no run to create — it offers a film to lay down", () => {
+/** Ouvrir le panneau d'une entrée : c'est là que tout se justifie. */
+const openStep = async (user: ReturnType<typeof userEvent.setup>, title: string) =>
+  user.click(order().getByRole("button", { name: title }));
+
+describe("the two ways into an empty screen", () => {
+  it("offers a run to open AND a film to lay down", () => {
     build();
-    expect(screen.queryByText("Ouvrir un autre parcours")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Un nouveau parcours/ })).toBeInTheDocument();
     expect(screen.getByText("Poser un premier film")).toBeInTheDocument();
   });
 
@@ -81,15 +89,27 @@ describe("the way into an empty screen", () => {
     expect(written).toHaveLength(1);
     expect(written[0]!.steps.map((s) => s.filmId)).toEqual(["a"]);
   });
+
+  it("opens an empty run WITHOUT settling it — nothing empty reaches the disk", async () => {
+    const user = userEvent.setup();
+    const { onCourses, onCoursesSoon } = build();
+    await user.click(screen.getByRole("button", { name: /Un nouveau parcours/ }));
+
+    /* Différé et non écrit : `isEmptyCourse` l'effacerait de toute
+       façon, et une écriture réglée par-dessus serait un aller-retour
+       pour rien. */
+    expect(onCourses).not.toHaveBeenCalled();
+    expect(onCoursesSoon).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("reordering without a mouse", () => {
-  it("moves an entry down and says where it landed", async () => {
+  it("moves an entry later and says where it landed", async () => {
     const user = userEvent.setup();
     const { onCourses } = build([run("a", "b")]);
 
     const entries = order().getAllByRole("listitem");
-    await user.click(within(entries[0]!).getByRole("button", { name: "Descendre d'un rang" }));
+    await user.click(within(entries[0]!).getByRole("button", { name: "Avancer d'un rang" }));
 
     const [written] = onCourses.mock.calls[0] as [Course[]];
     expect(written[0]!.steps.map((s) => s.filmId)).toEqual(["b", "a"]);
@@ -97,41 +117,86 @@ describe("reordering without a mouse", () => {
     expect(await screen.findByText(/Voyage à Tokyo passe en 2 sur 2/)).toBeInTheDocument();
   });
 
-  it("refuses to move the first entry up, rather than pretending it moved", async () => {
+  it("moves with Alt and an arrow, since a drag has no keyboard at all", async () => {
+    const user = userEvent.setup();
+    const { onCourses } = build([run("a", "b")]);
+
+    /* Le focus tombe sur une commande DANS l'entrée — c'est ce qui se
+       passe à la tabulation — et la touche remonte jusqu'à elle. */
+    const first = order().getAllByRole("listitem")[0]!;
+    within(first).getByRole("button", { name: "Avancer d'un rang" }).focus();
+    await user.keyboard("{Alt>}{ArrowRight}{/Alt}");
+
+    const [written] = onCourses.mock.calls[0] as [Course[]];
+    expect(written[0]!.steps.map((s) => s.filmId)).toEqual(["b", "a"]);
+  });
+
+  it("refuses to move the first entry earlier, rather than pretending it moved", async () => {
     const user = userEvent.setup();
     const { onCourses } = build([run("a", "b")]);
 
     const first = order().getAllByRole("listitem")[0]!;
-    await user.click(within(first).getByRole("button", { name: "Monter d'un rang" }));
+    await user.click(within(first).getByRole("button", { name: "Reculer d'un rang" }));
 
     expect(onCourses).not.toHaveBeenCalled();
     expect(screen.queryByText(/passe en/)).not.toBeInTheDocument();
   });
 });
 
-describe("what an entry says about its film-maker", () => {
-  it("reads the bonds out FROM that person, with nothing to fill in", () => {
+describe("the panel of the entry one has picked", () => {
+  it("opens on that film, and closes again on a second press", async () => {
+    const user = userEvent.setup();
+    build([run("a", "b")]);
+    expect(screen.queryByLabelText("Pourquoi celui-là, ici")).not.toBeInTheDocument();
+
+    await openStep(user, "Voyage à Tokyo");
+    expect(screen.getByLabelText("Pourquoi celui-là, ici")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /relier Yasujirō Ozu à…/ })).toBeInTheDocument();
+
+    await openStep(user, "Voyage à Tokyo");
+    expect(screen.queryByLabelText("Pourquoi celui-là, ici")).not.toBeInTheDocument();
+  });
+
+  it("reads the bonds out FROM that person, with nothing to fill in", async () => {
+    const user = userEvent.setup();
     build(
       [run("b")],
       [makeBond({ kind: "master", fromName: "Yasujirō Ozu", toName: "Hou Hsiao-hsien" })]
     );
+    await openStep(user, "Les Fleurs de Shanghai");
+
     /* Standing at Hou, it reads "a pour maître Ozu" and NOT the wording
        it was typed with: nobody has to reverse a bond in their head.
 
-       Twice over, and both are wanted — the row states it outright, and
-       the `because` picker offers it as something to call upon. */
-    expect(order().getAllByText(/a pour maître Yasujirō Ozu/)).toHaveLength(2);
+       THREE TIMES OVER, and all three are wanted: the panel states it
+       outright, the picker offers it as something to call upon, and the
+       map's hidden mirror carries it for whoever cannot read a plane. */
+    expect(screen.getAllByText(/a pour maître Yasujirō Ozu/)).toHaveLength(3);
+    expect(screen.getByRole("radio", { name: /a pour maître Yasujirō Ozu/ })).toBeInTheDocument();
     expect(
-      within(order().getByRole("combobox", { name: /D'après/ })).getByRole("option", {
-        name: /a pour maître Yasujirō Ozu/,
-      })
+      within(screen.getByRole("list", { name: /en liste/ })).getByText(/a pour maître Yasujirō Ozu/)
     ).toBeInTheDocument();
   });
 
-  it("offers to tie a film-maker nobody has tied yet, instead of an empty picker", () => {
+  it("calls a bond upon a step in ONE press, and lets go of it in another", async () => {
+    const user = userEvent.setup();
+    const bond = makeBond({ kind: "master", fromName: "Yasujirō Ozu", toName: "Hou Hsiao-hsien" })!;
+    const { onCourses } = build([run("b")], [bond]);
+    await openStep(user, "Les Fleurs de Shanghai");
+
+    const ribbon = screen.getByRole("radio", { name: /a pour maître Yasujirō Ozu/ });
+    expect(ribbon).toHaveAttribute("aria-checked", "false");
+    await user.click(ribbon);
+
+    const [written] = onCourses.mock.calls.at(-1) as [Course[]];
+    expect(written[0]!.steps[0]!.because).toBe(bond.id);
+  });
+
+  it("offers to tie a film-maker whether or not one is already tied", async () => {
+    const user = userEvent.setup();
     build([run("a")]);
-    expect(screen.getAllByText("relier ce cinéaste").length).toBeGreaterThan(0);
-    expect(screen.queryByText("aucun lien invoqué")).not.toBeInTheDocument();
+    await openStep(user, "Voyage à Tokyo");
+    expect(screen.getByRole("button", { name: /relier Yasujirō Ozu à…/ })).toBeInTheDocument();
   });
 });
 
@@ -153,6 +218,26 @@ describe("laying a bond down", () => {
       from: "yasujiro ozu",
       to: "hou hsiao-hsien",
     });
+  });
+
+  /* LE GESTE CONTINU, et c'est le titre du chantier : on part d'une
+     étape, le nom est déjà là, et poser le lien fait pointer l'étape
+     dessus sans qu'on ait à revenir la chercher. */
+  it("ties from a step: the name is prefilled, and the step ends up calling upon it", async () => {
+    const user = userEvent.setup();
+    const { onBonds, onCourses } = build([run("a")]);
+    await openStep(user, "Voyage à Tokyo");
+
+    await user.click(screen.getByRole("button", { name: /relier Yasujirō Ozu à…/ }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByLabelText("Qui")).toHaveValue("Yasujirō Ozu");
+
+    await user.type(within(dialog).getByLabelText("À qui"), "Hou Hsiao-hsien");
+    await user.click(within(dialog).getByRole("button", { name: "Poser le lien" }));
+
+    const [bondsWritten] = onBonds.mock.calls[0] as [{ id: string }[]];
+    const [coursesWritten] = onCourses.mock.calls.at(-1) as [Course[]];
+    expect(coursesWritten[0]!.steps[0]!.because).toBe(bondsWritten[0]!.id);
   });
 
   it("refuses the opposite of one already laid, and SAYS SO", async () => {
@@ -219,7 +304,7 @@ describe("taking things away", () => {
 });
 
 describe("a step whose card has left the collection", () => {
-  it("is not drawn, and the column says how many it is hiding", () => {
+  it("is not drawn, and the strip says how many it is hiding", () => {
     build([run("a", "disparu")]);
     expect(order().getAllByRole("listitem")).toHaveLength(1);
     expect(screen.getByText(/Une étape ne montre rien/)).toBeInTheDocument();

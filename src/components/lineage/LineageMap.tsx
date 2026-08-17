@@ -8,20 +8,40 @@
    directed bonds, four inks. Sixty lines of drawing cost less than an
    abstraction laid over a view we are not allowed to touch.
 
+   IT IS THE FULL WIDTH OF THE SCREEN, AND THAT IS WHY IT CAN BE READ.
+   Crammed into half a column at 640 × 420, the nodes were six pixels
+   across and their names were set at 9.5: it was a picture of a map. The
+   frame is now 1000 × 600, the names are readable, and `useMapView`
+   gives it a window one can close in on.
+
    THE DIMMING IS OPACITY AND STROKE, NEVER `filter`. A filter is
    recomputed at every hover, over the whole subtree, for an effect two
    opacities give outright — and the project's rule is that expensive
    effects belong to moments, not to something one sweeps a pointer
    across.
 
+   THE NUDGES ARE DIVIDED BY THE MAGNIFICATION. `useNodeDrag` counts in
+   CLIENT pixels and what is drawn here is in VIEW units; at k = 1 the
+   two agree, which is precisely why the confusion went unnoticed for as
+   long as there was no zoom. The division happens at `at()`, the one
+   place the offsets are consumed, so the hook itself — and its
+   four-pixel threshold, on which the whole selection depends — is left
+   untouched.
+
    THE LIST BELOW THE MAP IS NOT A COURTESY. An SVG graph cannot be
    walked by a screen reader however carefully the labels are written,
    because there is no reading ORDER in a plane. The visually hidden list
    is the honest linear path, and it doubles as the fallback on a narrow
-   phone. */
-import { useMemo } from "react";
+   phone — which is why it stays mounted even when the map is folded
+   away. It is `position: absolute`, so THIS component carries its own
+   `position: relative`: it used to borrow one from a wrapper in the view
+   that the workbench layout no longer has. */
+import { useEffect, useMemo } from "react";
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { Maximize2, Minus, Plus } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
+import { bare, inked, hollow } from "../../theme/styles";
 import { relax } from "../../domain/sky";
 import { bondLabel } from "../../domain/bonds";
 import type { Bond, BondKind } from "../../domain/bonds";
@@ -29,12 +49,13 @@ import { buildLineage } from "../../domain/lineageMap";
 import type { LineageNode } from "../../domain/lineageMap";
 import { useNodeDrag } from "../graph/useNodeDrag";
 import { useGraphKeyboard } from "../graph/useGraphKeyboard";
+import { useMapView } from "../graph/useMapView";
 import { Guideline } from "../ui";
 import type { Course } from "../../domain/course";
 import type { Film } from "../../types";
 
-const W = 640;
-const H = 420;
+const W = 1000;
+const H = 600;
 
 /* Une encre par nature de lien. Ce sont des JETONS : quatorze peaux les
    réécrivent, et une valeur en dur y devient illisible. */
@@ -44,6 +65,19 @@ const BOND_INK: Record<BondKind, string> = {
   affinity: C.moss,
   counterpoint: C.vermillion,
 };
+
+/** Le miroir en liste : masqué à l'œil, jamais au lecteur d'écran. */
+const HIDDEN = {
+  position: "absolute",
+  width: 1,
+  height: 1,
+  overflow: "hidden",
+  clip: "rect(0 0 0 0)",
+  whiteSpace: "nowrap",
+  margin: -1,
+  padding: 0,
+  border: 0,
+} as const;
 
 interface LineageMapProps {
   films: Film[];
@@ -55,6 +89,10 @@ interface LineageMapProps {
   focusBond: string | null;
   onPickPerson: (key: string) => void;
   onPickBond: (bondId: string) => void;
+  /** Le bouton de nouage, rendu dans la barre : voir `LineageView`. */
+  action?: ReactNode;
+  /** Sur téléphone, la carte se replie et seul le miroir reste. */
+  folded?: boolean;
 }
 
 export function LineageMap({
@@ -65,6 +103,8 @@ export function LineageMap({
   focusBond,
   onPickPerson,
   onPickBond,
+  action,
+  folded = false,
 }: LineageMapProps) {
   const { t } = useTranslation();
   const { nodes, links } = useMemo(
@@ -72,17 +112,34 @@ export function LineageMap({
     [films, bonds, course]
   );
 
-  /* THE KEY DOES NOT HOLD THE FOCUS. `relax` is O(n²) over 320 passes;
-     recomputing it on every click would make selecting a node the most
-     expensive gesture on the screen, for a layout that has not moved. */
+  /* THE KEY DOES NOT HOLD THE FOCUS, AND NEITHER DOES THE ZOOM. `relax`
+     is O(n²) over 320 passes; recomputing it on a click or a wheel would
+     make the cheapest gesture on the screen the most expensive one, for
+     a layout that has not moved. Nothing from `useMapView` belongs in
+     this dependency list — the window moves, the map does not. */
   const placed = useMemo(() => relax(nodes, links, W, H), [nodes, links]);
 
   const drag = useNodeDrag();
+  const view = useMapView(W, H);
   const keys = useGraphKeyboard(placed, { onPick: (n) => onPickPerson(n.key) });
+
+  /* LE CURSEUR RAMÈNE LA FENÊTRE À LUI, et par un effet et non dans le
+     gestionnaire : `useGraphKeyboard` pose le curseur suivant en état,
+     donc au moment où la touche est traitée `keys.cursor` vaut encore
+     l'ANCIEN nœud. Sans cela, une flèche à k = 3 met le focus sur un
+     nœud hors du cadre — annoncé au lecteur d'écran, et invisible à
+     l'œil. `focusOn` ne bouge rien quand le nœud est déjà en vue. */
+  const cursor = keys.cursor;
+  const { focusOn } = view;
+  useEffect(() => {
+    const node = cursor ? placed.find((p) => p.id === cursor) : null;
+    if (node) focusOn(node.x, node.y);
+  }, [cursor, placed, focusOn]);
 
   const at = (node: LineageNode & { x: number; y: number }) => {
     const nudge = drag.nudges[node.id];
-    return { x: node.x + (nudge?.dx || 0), y: node.y + (nudge?.dy || 0) };
+    /* Client pixels into view units — see the header. */
+    return { x: node.x + (nudge?.dx || 0) / view.k, y: node.y + (nudge?.dy || 0) / view.k };
   };
 
   const byId = new Map(placed.map((p) => [p.id, p]));
@@ -102,153 +159,243 @@ export function LineageMap({
 
   const lit = (key: string) => !near || near.has(key);
 
+  const mirror = (
+    <ul aria-label={t("lineage.mapList")} style={HIDDEN}>
+      {placed.map((node) => (
+        <li key={node.id}>
+          {node.name}
+          <ul>
+            {bonds
+              .filter((b) => b.from === node.key || b.to === node.key)
+              .map((b) => (
+                <li key={b.id}>{bondLabel(b, node.key, t)}</li>
+              ))}
+          </ul>
+        </li>
+      ))}
+    </ul>
+  );
+
   if (placed.length === 0)
     return (
-      <div data-tour="lineage-map">
+      <div data-tour="lineage-map" style={{ position: "relative" }}>
         <Guideline tight>{t("lineage.emptyMap")}</Guideline>
+        {action && <div style={{ marginTop: 10 }}>{action}</div>}
       </div>
     );
 
   return (
-    <div data-tour="lineage-map">
-      <svg
-        viewBox={`0 0 ${W} ${H}`}
-        role="group"
-        aria-label={t("lineage.map")}
-        style={{ width: "100%", height: "auto", touchAction: "none", overflow: "visible" }}
-        onPointerMove={drag.onPointerMove}
-        onPointerUp={() => drag.onPointerUp()}
-      >
-        <defs>
-          {Object.entries(BOND_INK).map(([kind, ink]) => (
-            <marker
-              key={kind}
-              id={`lineage-head-${kind}`}
-              viewBox="0 0 8 8"
-              refX="7"
-              refY="4"
-              markerWidth="7"
-              markerHeight="7"
-              orient="auto-start-reverse"
-            >
-              <path d="M0,0 L8,4 L0,8 z" fill={ink} />
-            </marker>
-          ))}
-        </defs>
-
-        {links.map((link) => {
-          const a = byId.get(link.a);
-          const b = byId.get(link.b);
-          if (!a || !b) return null;
-          const from = at(a);
-          const to = at(b);
-          const ink = BOND_INK[link.bond.kind];
-          const here = focusBond === link.bond.id;
-          const shown = lit(link.bond.from) && lit(link.bond.to);
-          return (
-            <line
-              key={link.bond.id}
-              x1={from.x}
-              y1={from.y}
-              x2={to.x}
-              y2={to.y}
-              stroke={ink}
-              strokeWidth={here ? 3 : 1.2}
-              strokeOpacity={shown ? (here ? 1 : 0.55) : 0.12}
-              markerEnd={
-                link.bond.kind === "master" || link.bond.kind === "influence"
-                  ? `url(#lineage-head-${link.bond.kind})`
-                  : undefined
-              }
-              style={{ cursor: "pointer" }}
-              onClick={() => onPickBond(link.bond.id)}
-            />
-          );
-        })}
-
-        {placed.map((node) => {
-          const { x, y } = at(node);
-          const here = node.key === focusKey;
-          const shown = lit(node.key);
-          /* LE NŒUD CREUX : relié, mais sans un film au programme. Un
-             cercle vide dit « il manque quelque chose ici » sans qu'on
-             ait à l'écrire, et c'est le principal appel de l'écran. */
-          const hollow = node.inCourse === 0;
-          const r = 6 + Math.min(node.inCourse, 5) * 1.6;
-          return (
-            <g
-              key={node.id}
-              data-node={node.id}
-              tabIndex={keys.tabIndexOf(node.id)}
-              role="button"
-              aria-pressed={here}
-              aria-label={t("lineage.node", {
-                name: node.name,
-                films: node.inCourse,
-                bonds: node.degree,
-              })}
-              transform={`translate(${x},${y})`}
-              opacity={shown ? 1 : 0.25}
-              style={{ cursor: "pointer" }}
-              onPointerDown={(e) => drag.onPointerDown(node.id, e)}
-              onPointerUp={() => {
-                /* Only a press that never crossed the four-pixel threshold
-                   selects — see `useNodeDrag`. */
-                if (drag.onPointerUp()) onPickPerson(node.key);
-              }}
-              onKeyDown={(e) => keys.onKeyDown(e, node)}
-            >
-              <circle
-                r={r}
-                fill={hollow ? C.paper : C.ink}
-                stroke={here ? C.plum : C.ink}
-                strokeWidth={here ? 2.5 : 1.2}
-                strokeDasharray={node.orphan ? "3 2" : undefined}
-              />
-              <text
-                y={r + 12}
-                textAnchor="middle"
-                fontFamily={F.mono}
-                fontSize={9.5}
-                fill={here ? C.ink : alpha(C.ink, 0.7)}
-              >
-                {node.name}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-
-      {/* LE MIROIR EN LISTE — voir l'en-tête. Visuellement masqué, jamais
-          `display: none` : ce dernier le retire aussi du lecteur d'écran,
-          ce qui reviendrait à ne rien avoir écrit. */}
-      <ul
-        aria-label={t("lineage.mapList")}
+    <div data-tour="lineage-map" style={{ position: "relative" }}>
+      {/* LA BARRE PORTE LE ZOOM ET LE NOUAGE, et elle est au-dessus du
+          dessin : les boutons sont le contrôle honnête, la molette n'en
+          est que le raccourci. */}
+      <div
         style={{
-          position: "absolute",
-          width: 1,
-          height: 1,
-          overflow: "hidden",
-          clip: "rect(0 0 0 0)",
-          whiteSpace: "nowrap",
-          margin: -1,
-          padding: 0,
-          border: 0,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          flexWrap: "wrap",
+          marginBottom: 8,
         }}
       >
-        {placed.map((node) => (
-          <li key={node.id}>
-            {node.name}
-            <ul>
-              {bonds
-                .filter((b) => b.from === node.key || b.to === node.key)
-                .map((b) => (
-                  <li key={b.id}>{bondLabel(b, node.key, t)}</li>
-                ))}
-            </ul>
-          </li>
-        ))}
-      </ul>
+        {action}
+        {!folded && (
+          <div style={{ display: "flex", gap: 2, marginLeft: "auto" }}>
+            <button
+              onClick={() => view.zoomBy(1 / 1.4)}
+              disabled={!view.canZoomOut}
+              aria-label={t("lineage.zoomOut")}
+              title={t("lineage.zoomOut")}
+              style={{ ...bare, padding: 4, opacity: view.canZoomOut ? 1 : 0.3 }}
+            >
+              <Minus size={14} />
+            </button>
+            <button
+              onClick={() => view.zoomBy(1.4)}
+              disabled={!view.canZoomIn}
+              aria-label={t("lineage.zoomIn")}
+              title={t("lineage.zoomIn")}
+              style={{ ...bare, padding: 4, opacity: view.canZoomIn ? 1 : 0.3 }}
+            >
+              <Plus size={14} />
+            </button>
+            <button
+              onClick={view.reset}
+              disabled={!view.moved}
+              aria-label={t("lineage.zoomReset")}
+              title={t("lineage.zoomReset")}
+              style={{ ...bare, padding: 4, opacity: view.moved ? 1 : 0.3 }}
+            >
+              <Maximize2 size={13} />
+            </button>
+          </div>
+        )}
+      </div>
+
+      {folded ? (
+        mirror
+      ) : (
+        <>
+          <svg
+            viewBox={view.viewBox}
+            /* `application` and not `group`: the arrows, `+`, `-` and `0`
+               are ours once the cursor is inside, and a browse mode that
+               kept them would leave the map unwalkable. */
+            role="application"
+            tabIndex={0}
+            aria-label={t("lineage.map")}
+            style={{
+              width: "100%",
+              height: "auto",
+              maxHeight: "62vh",
+              touchAction: "none",
+              overflow: "hidden",
+              display: "block",
+              border: `1px solid ${alpha(C.line, 0.7)}`,
+              background: alpha(C.card, 0.5),
+              cursor: view.panning ? "grabbing" : view.k > 1 ? "grab" : "default",
+            }}
+            onWheel={view.onWheel}
+            onKeyDown={(e) => {
+              if (e.key === "+" || e.key === "=") return view.zoomBy(1.4);
+              if (e.key === "-") return view.zoomBy(1 / 1.4);
+              if (e.key === "0") return view.reset();
+            }}
+            onPointerDown={view.onPointerDown}
+            onPointerMove={(e) => {
+              drag.onPointerMove(e);
+              view.onPointerMove(e);
+            }}
+            onPointerUp={() => {
+              drag.onPointerUp();
+              view.onPointerUp();
+            }}
+          >
+            <defs>
+              {Object.entries(BOND_INK).map(([kind, ink]) => (
+                <marker
+                  key={kind}
+                  id={`lineage-head-${kind}`}
+                  viewBox="0 0 8 8"
+                  refX="7"
+                  refY="4"
+                  markerWidth="7"
+                  markerHeight="7"
+                  orient="auto-start-reverse"
+                >
+                  <path d="M0,0 L8,4 L0,8 z" fill={ink} />
+                </marker>
+              ))}
+            </defs>
+
+            {links.map((link) => {
+              const a = byId.get(link.a);
+              const b = byId.get(link.b);
+              if (!a || !b) return null;
+              const from = at(a);
+              const to = at(b);
+              const ink = BOND_INK[link.bond.kind];
+              const here = focusBond === link.bond.id;
+              const shown = lit(link.bond.from) && lit(link.bond.to);
+              return (
+                <line
+                  key={link.bond.id}
+                  x1={from.x}
+                  y1={from.y}
+                  x2={to.x}
+                  y2={to.y}
+                  stroke={ink}
+                  strokeWidth={here ? 3.5 : 1.5}
+                  strokeOpacity={shown ? (here ? 1 : 0.55) : 0.12}
+                  markerEnd={
+                    link.bond.kind === "master" || link.bond.kind === "influence"
+                      ? `url(#lineage-head-${link.bond.kind})`
+                      : undefined
+                  }
+                  style={{ cursor: "pointer" }}
+                  onClick={() => onPickBond(link.bond.id)}
+                />
+              );
+            })}
+
+            {placed.map((node) => {
+              const { x, y } = at(node);
+              const here = node.key === focusKey;
+              const shown = lit(node.key);
+              /* LE NŒUD CREUX : relié, mais sans un film au programme. Un
+                 cercle vide dit « il manque quelque chose ici » sans qu'on
+                 ait à l'écrire, et c'est le principal appel de l'écran. */
+              const hollowNode = node.inCourse === 0;
+              const r = 10 + Math.min(node.inCourse, 5) * 2;
+              return (
+                <g
+                  key={node.id}
+                  data-node={node.id}
+                  tabIndex={keys.tabIndexOf(node.id)}
+                  role="button"
+                  aria-pressed={here}
+                  aria-label={t("lineage.node", {
+                    name: node.name,
+                    films: node.inCourse,
+                    bonds: node.degree,
+                  })}
+                  transform={`translate(${x},${y})`}
+                  opacity={shown ? 1 : 0.25}
+                  style={{ cursor: "pointer" }}
+                  onPointerDown={(e) => drag.onPointerDown(node.id, e)}
+                  onPointerUp={() => {
+                    /* Only a press that never crossed the four-pixel threshold
+                       selects — see `useNodeDrag`. */
+                    if (drag.onPointerUp()) onPickPerson(node.key);
+                  }}
+                  onKeyDown={(e) => keys.onKeyDown(e, node)}
+                >
+                  <circle
+                    r={r}
+                    fill={hollowNode ? C.paper : C.ink}
+                    stroke={here ? C.plum : C.ink}
+                    strokeWidth={here ? 3 : 1.4}
+                    strokeDasharray={node.orphan ? "4 3" : undefined}
+                  />
+                  <text
+                    y={r + 15}
+                    textAnchor="middle"
+                    fontFamily={F.mono}
+                    fontSize={12}
+                    fill={here ? C.ink : alpha(C.ink, 0.7)}
+                  >
+                    {node.name}
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+
+          <div
+            style={{
+              fontFamily: F.mono,
+              fontSize: 9,
+              color: alpha(C.ink, 0.45),
+              marginTop: 5,
+              letterSpacing: 0.5,
+            }}
+          >
+            {t("lineage.howToLook")}
+          </div>
+
+          {mirror}
+        </>
+      )}
     </div>
+  );
+}
+
+/** Le bouton de repli, sur téléphone. Rendu par la vue, dessiné ici. */
+export function MapToggle({ folded, onToggle }: { folded: boolean; onToggle: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <button onClick={onToggle} style={{ ...inked(C.ink), ...hollow, fontFamily: F.mono }}>
+      {t(folded ? "lineage.mapShow" : "lineage.mapHide")}
+    </button>
   );
 }

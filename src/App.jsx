@@ -1627,6 +1627,7 @@ export default function App() {
                   onCourses={commitCourses}
                   onCoursesSoon={commitCoursesSoon}
                   onBonds={commitBonds}
+                  onAddFilm={addFilm}
                   onOpen={openFilm}
                   onOpenPerson={openPerson}
                 />

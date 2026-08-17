@@ -397,41 +397,53 @@ const constellation: Tour = {
   ],
 };
 
-/* LES DEUX ÉTAPES QUI NE SONT PAS `optional` SONT CELLES QUI EXISTENT
-   TOUJOURS : le champ d'ajout et le formulaire de lien sont montés même
-   sur un classeur vide. Tout ce qui vise du CONTENU — la file elle-même,
-   une note de marge, la carte — est facultatif, sans quoi un classeur
-   neuf ne pourrait pas jouer la visite jusqu'au bout. */
+/* LES TROIS ÉTAPES QUI NE SONT PAS `optional` SONT CELLES QUI EXISTENT
+   TOUJOURS : la barre des parcours, le champ d'ajout et le bouton de
+   nouage sont montés même sur un classeur vide. Tout ce qui vise du
+   CONTENU — la file elle-même, la carte, le panneau d'une étape — est
+   facultatif, sans quoi un classeur neuf ne pourrait pas jouer la visite
+   jusqu'au bout. `lineage-why` en fait partie DEPUIS le plan de travail :
+   le panneau ne se monte plus que sur une étape désignée, alors qu'il
+   était auparavant posé sur chaque ligne.
+
+   L'ORDRE SUIT LA PILE, de haut en bas : parcours, carte, file, panneau
+   — et les placements avec, `right` / `left` ayant été écrits pour deux
+   colonnes qui n'existent plus. */
 const lineage: Tour = {
   label: label("lineage"),
   steps: [
     {
-      target: at("lineage-order"),
-      ...says("lineage", "order"),
-      placement: "right",
-      optional: true,
-    },
-    {
-      target: at("lineage-add"),
-      ...says("lineage", "add"),
+      target: at("lineage-runs"),
+      ...says("lineage", "runs"),
       placement: "bottom",
-    },
-    {
-      target: at("lineage-why"),
-      ...says("lineage", "why"),
-      placement: "right",
-      optional: true,
     },
     {
       target: at("lineage-map"),
       ...says("lineage", "map"),
-      placement: "left",
+      placement: "bottom",
       optional: true,
     },
     {
       target: at("lineage-bond"),
       ...says("lineage", "bond"),
-      placement: "left",
+      placement: "bottom",
+    },
+    {
+      target: at("lineage-order"),
+      ...says("lineage", "order"),
+      placement: "top",
+      optional: true,
+    },
+    {
+      target: at("lineage-why"),
+      ...says("lineage", "why"),
+      placement: "top",
+      optional: true,
+    },
+    {
+      target: at("lineage-add"),
+      ...says("lineage", "add"),
+      placement: "top",
     },
   ],
 };

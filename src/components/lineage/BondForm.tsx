@@ -38,15 +38,21 @@ interface BondFormProps {
   bonds: Bond[];
   /** Le cinéaste déjà connu, quand on ouvre depuis une entrée de la file. */
   from?: string;
+  /**
+   * L'autre bout, quand on l'a désigné aussi — une étape sous les yeux
+   * et un nœud choisi sur la carte. Il ne reste alors qu'une nature à
+   * demander, et pas un nom à retaper.
+   */
+  to?: string;
   onSave: (bond: Bond) => void;
   onClose: () => void;
 }
 
-export function BondForm({ films, bonds, from = "", onSave, onClose }: BondFormProps) {
+export function BondForm({ films, bonds, from = "", to = "", onSave, onClose }: BondFormProps) {
   const { t } = useTranslation();
   const ref = useDialog(onClose);
   const [a, setA] = useState(from);
-  const [b, setB] = useState("");
+  const [b, setB] = useState(to);
   const [kind, setKind] = useState<BondKind>("master");
   const [note, setNote] = useState("");
   const [trouble, setTrouble] = useState("");
@@ -126,8 +132,11 @@ export function BondForm({ films, bonds, from = "", onSave, onClose }: BondFormP
             <span style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}>
               {t("lineage.bondFrom")}
             </span>
+            {/* LE FOYER VA AU CHAMP QUI RESTE À REMPLIR. Ouvert depuis
+                une étape, le premier nom est déjà là : y poser le
+                curseur ferait retaper ce qu'on venait de désigner. */}
             <input
-              autoFocus
+              autoFocus={!from}
               list="lineage-names"
               value={a}
               onChange={(e) => setA(e.target.value)}
@@ -160,6 +169,7 @@ export function BondForm({ films, bonds, from = "", onSave, onClose }: BondFormP
               {t("lineage.bondTo")}
             </span>
             <input
+              autoFocus={!!from && !to}
               list="lineage-names"
               value={b}
               onChange={(e) => setB(e.target.value)}

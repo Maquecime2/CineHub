@@ -159,6 +159,40 @@ autres.
   supprimer un parcours perd un ordre et des notes que rien d'autre ne tient ;
   retirer un lien perd un savoir et laisse muettes les étapes qui l'invoquaient,
   mais ne touche ni aux fiches ni au parcours.
+- **L'ÉCRAN EST UNE PILE, PAS DEUX COLONNES.** Les deux moitiés se
+  répondaient côte à côte et se lisaient comme deux écrans sans rapport.
+  La carte est désormais PLEINE LARGEUR au-dessus de la bande d'affiches
+  qu'elle explique, et l'étape choisie ouvre `StepPanel` en dessous.
+  `OrderColumn` et `StepRow` ont disparu : `OrderStrip` prend une
+  `direction` et `StepCard` se reflowe. **La colonne du téléphone n'est
+  pas une bande dégradée, c'est la bonne** — `usePointerDrag` ne défile
+  qu'en VERTICAL (`pace()` lit `clientY`), donc une bande horizontale ne
+  peut pas amener un emplacement hors champ sous un doigt qui glisse.
+- **LE `<select>` DE JUSTIFICATION A DISPARU.** `BondPicker` est un
+  `radiogroup` de rubans lus par `bondLabel` DEPUIS ce cinéaste, et
+  « nouer X à… » y est PERMANENT et non réservé à une liste vide :
+  `Linking` porte `forStep`, donc poser le lien fait pointer l'étape
+  dessus dans le même geste. Le patch du ruban s'écrit RÉGLÉ
+  (`onPatch(patch, true)`) — le poser en différé puis « régler » derrière
+  rejouait le parcours d'avant par-dessus.
+- **DEUX PORTES VERS UN PARCOURS**, et l'implicite reste la première.
+  Poser un film en fait toujours un ; le bouton existe parce qu'un écran
+  vide n'offrant qu'un champ de texte laissait chercher un bouton absent.
+  `isEmptyCourse` le rend inoffensif.
+- **LE SÉLECTEUR INTERROGE TMDB, SUR ENTRÉE ET JAMAIS À LA FRAPPE.** Pas
+  de hook de debounce dans ce dépôt et ce n'est pas ici qu'on en invente
+  un : TMDB est compté. Un résultat absent du classeur passe par
+  `getDetails` → `makeFilm({status:"watchlist", source:"tmdb"})` →
+  `onAddFilm`, et c'est le RÉALISATEUR ramené par `getDetails` qui compte
+  le plus — sans lui l'étape serait un titre que la carte ne peut pas
+  expliquer. Sans clé ni compte : `NoKey`, et la moitié locale continue.
+- **`useMapView` DÉPLACE LA FENÊTRE, JAMAIS LA DISPOSITION** : rien de ce
+  hook n'entre dans le mémo de `relax`. Et **les nudges de `useNodeDrag`
+  se divisent par `k`** — ils comptent en pixels CLIENT, la carte se lit
+  en unités de VUE ; à k = 1 les deux coïncident, ce qui est exactement
+  pourquoi la confusion a survécu sans zoom. Le recentrage au clavier
+  passe par un EFFET : `useGraphKeyboard` pose le curseur en état, donc
+  dans le gestionnaire `keys.cursor` vaut encore l'ancien nœud.
 - **Côté serveur : RIEN.** La table `doc` est générique (`person_id` + `key`
   texte libre), donc deux clés de plus ne demandent aucun déploiement. Ce qui se
   paie est côté client : **`SYNCABLE_VERSION` monte** (`services/documents.ts`),
