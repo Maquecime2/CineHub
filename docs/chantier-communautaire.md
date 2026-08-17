@@ -28,12 +28,26 @@ garde-fou contre l'échange entre comptes complices.
 
 ## Fait
 
-| Lot                                     | Commit    |
-| --------------------------------------- | --------- |
-| **A2** — le temps au tableau des scores | `f17c1e4` |
-| **LS** — `list_shared` câblé            | `19b6eec` |
-| **B1** — inviter quelqu'un à un défi    | `19b6eec` |
-| **A4a** — filet de tests sur `QuizView` | `9cc89e6` |
+| Lot                                         | Commit    |
+| ------------------------------------------- | --------- |
+| **A2** — le temps au tableau des scores     | `f17c1e4` |
+| **LS** — `list_shared` câblé                | `19b6eec` |
+| **B1** — inviter quelqu'un à un défi        | `19b6eec` |
+| **A4a** — filet de tests sur `QuizView`     | `9cc89e6` |
+| **A4b** — découpe en `src/views/quiz/*`     | `37db68a` |
+| **A5** — les deux `Confirmation`, `Trouble` | `e9a603a` |
+| **A1** — la partie en plein écran           | `b098def` |
+| **A3** — le chronomètre par question        | `61395a1` |
+| **C** — `GET /followers` + `PeoplePicker`   | `eab9191` |
+| **B3** — la cible chiffrée                  | `34ffcfa` |
+| **B2** — le défi par critique               | `325a8d2` |
+| **B4a** — `rightsOnChallenge`, porte unique | `0ebc7cb` |
+
+**Ce qui est passé dans `CLAUDE.md`** : le quizz est un écran, le retard
+s'estampille à l'insert, une nature change ce qui compte et jamais ce que
+ça paie, et le nom d'un champ venu du serveur s'épelle comme le serveur
+l'écrit. Le reste de ce document est de l'histoire de chantier et part
+avec lui.
 
 ### A2 — le temps
 
@@ -90,149 +104,47 @@ découpe a changé le comportement.
    constante déclarée plus bas échoue, et le message ne parle jamais de
    remontée. D'où `vi.hoisted`.
 
-## Ce qui reste, dans l'ordre
+## Ce qui reste
 
 ```
-A4b + A5  découpe de QuizView en src/views/quiz/*, et les confirmations
-A1        la partie en plein écran (Layer + useDialog)
-A3        le chronomètre par question, appliqué par le serveur (003.sql)
-C         GET /followers + PeoplePicker
-B3        cible chiffrée
-B2        « écrire une critique » — impose l'extraction de SEEN_DURING
-B4        critère au lieu d'une liste — EN DERNIER (list_id NULL)
+B4b   la nature « critere » elle-même
 ```
 
-### A4b + A5 — la découpe et les confirmations
+**TOUT LE RESTE EST LIVRÉ.** Ce document ne se supprime donc pas encore —
+c'est sa propre règle : il part quand le chantier est fini, et une carte
+périmée est pire qu'une carte absente.
 
-`QuizView.tsx` reste l'entrée (l'union `View` de `FolderTabs.tsx` nomme
-`"quiz"`). Nouveau `src/views/quiz/` : `Composer`, `OneQuiz`, `QuizTable`
-(ex-`Playing`), `Asked`, `Correction`, `Scoreboard`, `Guests`, `Bank`
-(~380 lignes à elle seule), `shared.ts`.
+### B4b — ce qui est posé, et ce qui ne l'est pas
 
-**Fichier par fichier**, avec `npm test && npm run typecheck && npx
-prettier --check .` entre chacun. **Ne pas grossir `EXEMPT`/`KEPT`** de
-`literals.test.ts` : c'est exactement le moment où ce test cesse de
-protéger quelque chose.
+**Posé** : `challenge.kind` accepte déjà `'critere'` au SCHÉMA, `subject
+jsonb` attend son contenu, et surtout **`rightsOnChallenge` est écrite,
+câblée sur les six routes, et sa branche « sans liste » est déjà là** —
+on y est ou on l'a créé, jamais découvrable. C'était le vrai coût de ce
+lot, celui que le plan annonçait, et il est payé : 402 tests serveur
+passent sans qu'un seul ait bougé, ce qui prouve que le déplacement des
+droits n'a rien élargi.
 
-**Trois manques de doctrine à combler au passage**, tous les trois « un
-geste qui ne dit rien » :
+**Pas posé, et volontairement pas précipité** : trois choses, qui tiennent
+ensemble.
 
-- `deleteQuiz` — pas de `Confirmation`. **`severe`.** Ce qui survit : les
-  questions de la banque (la cascade emporte
-  `quiz_draw`/`quiz_answer`/`quiz_attempt`, jamais `quiz_question`).
-- `removePlayer` — pas de `Confirmation`. **Pas `severe`** : le serveur dit
-  que le score reste, le corps doit le dire.
-- L'échec d'une invitation est un `div` en écriture manuscrite, **sans
-  `role="alert"`** : il n'est annoncé à personne. Il doit devenir un
-  `Trouble`. Le filet s'accroche au TEXTE et non au rôle, exprès — il
-  survivra à la correction.
+1. **`list_id` n'est pas encore NULL-able.** Le rendre nullable est une
+   ligne ; ce qui suit ne l'est pas.
+2. **`SEEN_DURING` est bâtie AUTOUR de `li.tmdb_id`** — elle part de
+   `list_item` et demande à `card` de confirmer. Un défi par critère n'a
+   pas de `list_item` du tout : il faut partir de `card` et filtrer sur
+   `subject`. Ce n'est pas une condition de plus dans la requête
+   existante, c'est une SECONDE forme de comptage, et c'est le seul
+   endroit du chantier où l'on ne peut pas se contenter d'ajouter un mot.
+3. **Quels critères ?** Une décennie, un pays, un cinéaste — rien dans le
+   plan ne le dit, et la forme de `subject` en dépend entièrement.
 
-L'en-tête de `OneQuiz` est un `<div onClick>` : ni focusable, ni
-`aria-expanded`. Il devient un `<button>` — **à faire dans A1**, où il
-devient « ouvrir la partie » avec `aria-haspopup="dialog"`, plutôt que deux
-fois.
-
-### A1 — le plein écran
-
-`Layer` obligatoire (la colonne de vue est un contexte d'empilement),
-`role="dialog"` + `aria-modal` + `aria-labelledby` écrits à la main —
-`useDialog` ne pose aucun ARIA, son en-tête le dit.
-
-- **`useDialog` ferme en DEMANDANT**, pas en fermant : « abandonner la
-  partie ». Corps différent selon qu'il y a un chronomètre ou non.
-- Progression : le `Meter` existant **sans `name`** — la barre seule, que
-  le composant sait déjà rendre.
-- Transition : conteneur clé sur `current.id`, durées par `--motion-*`
-  uniquement.
-- **Le tampon dit un MOT — « POSÉE » — et jamais un verdict** : les bonnes
-  réponses ne sont réellement pas connues du client avant la fin
-  (`drawnQuestions` n'étale `is_right` que si `withAnswers`). Annonce par
-  `useSay`.
-- La visite : `quiz-playing` / `quiz-powers` / `quiz-scores` /
-  `quiz-players` visent le **bouton d'ouverture** et leurs phrases sont
-  réécrites — une visite ne peut pas ouvrir une modale.
-
-### A3 — le chronomètre
-
-`server/sql/003_quiz_timer.sql`, ajouté à `SCHEMA_FILES` (`server/src/db.ts`),
-conditionnel de bout en bout :
-
-- `quiz.seconds_per_question int` — **NULL par défaut**, donc tout quizz
-  existant est sans chronomètre et rien n'est à rétro-remplir. `CHECK` 5–600.
-- `quiz_answer.late boolean NOT NULL DEFAULT false`.
-
-Le délai court depuis **la dernière action sur ce quizz**
-(`max(answered_at)`, ou `started_at` pour la première) — et non « la
-question précédente par rang » : `store.answer` ne vérifie aucun ordre, et
-c'est le client qui se trouve marcher dans l'ordre du tirage.
-
-**Le retard est estampillé À L'INSERT**, dans la même requête : la règle
-vit là où la ligne s'écrit, et `scoresOf`/`awardQuiz` ne changent alors que
-d'un mot chacun — `FILTER (WHERE c.is_right)` devient
-`FILTER (WHERE c.is_right AND NOT a.late)`.
-
-**Une réponse hors délai est ACCEPTÉE et vaut zéro**, jamais refusée :
-refuser perdrait la réponse et contredirait la promesse « on ne revient pas
-dessus » déjà à l'écran.
-
-`quiz_flawless` n'a pas une ligne à changer : il exige `score === weight`,
-et un retard baisse `score` sans toucher `weight`.
-
-**La conséquence se dit deux fois à l'écran** — au tirage et avant de
-commencer : « un quizz chronométré se joue d'une traite : fermer l'onglet
-coûte la question en cours ». Deux aveux à écrire plutôt qu'à cacher :
-acheter un pouvoir consomme du temps, et un réseau lent coûte.
-
-### C — le sélecteur de personnes
-
-`store.followersOf` en miroir de `subscriptionsOf`, `GET /followers` à côté
-de `/follows`. **Et `NOT_BLOCKED` ajouté aux DEUX requêtes dans le même
-commit** : `subscriptionsOf` ne l'applique pas aujourd'hui, là où tous ses
-frères le font — « qui je suis » peut donc nommer quelqu'un qui m'a bloqué.
-
-`src/components/hall/PeoplePicker.tsx`, un composant, trois appelants
-(listes, invités d'un quizz, participants d'un défi).
-
-- **C'est une suggestion, pas un annuaire, et pas un remplacement de la
-  saisie.** Le champ libre RESTE : quelqu'un qui n'est dans aucune des deux
-  listes doit rester invitable.
-- **Il reste dans la colonne de vue** (`position: absolute` sous son champ) :
-  l'exception assumée de la doctrine pour un menu ancré à son bouton.
-- Un échec dégrade vers le champ libre, **en silence, sans `Trouble`** —
-  le seul `catch` avalé légitime du lot : c'est un confort par-dessus un
-  champ qui marche.
-
-### B — les natures de défi
-
-`server/sql/004_challenge_kinds.sql` : `kind text NOT NULL DEFAULT 'liste'`
-(`CHECK IN ('liste','critique','critere')`), `target int`, `subject jsonb`.
-Les valeurs restent **en français**, comme `person.sharing` : elles
-s'écrivent dans les lignes.
-
-**B2 impose l'extraction de `SEEN_DURING`**, et c'est l'édition la plus
-risquée du chantier :
-
-> Cette requête est celle par laquelle passe le paiement de **tous** les
-> défis existants, elle traite trois âges de données de fiche, et
-> `merit_event` étant unique, **un paiement faux ne peut pas être rejoué
-> juste**. Test de non-régression **avant** l'extraction, sur un jeu qui
-> contient des fiches à `watchedAt` d'avant le journal, des séances dans et
-> hors période, et une fiche dont `watches` n'est pas un tableau.
-
-Pour B2, « pendant la période » **ne peut pas être `updated_at`** : une
-critique ne porte pas de date et `card.updated_at` bouge à la moindre
-retouche. On livre **une séance dans la période ET 140 signes de critique**.
-
-Pour B4, le vrai coût est la **visibilité** : sans liste, `rightsOnList` ne
-peut plus servir de source. Une seule fonction `rightsOnChallenge`, et
-toutes les routes passent par elle. Un défi par critère n'est **jamais
-découvrable** : on y est ou on l'a créé.
-
-**Le barème ne bouge pas.** Aucune `Kind` neuve, aucune ligne dans
-`points.ts`. Une nature change CE QUI COMPTE, jamais CE QUE ÇA PAIE. Deux
-variantes à refuser d'avance : un `challenge_review` mieux payé (il est
-plus facile à vérifier, ce serait l'arbitrage), et un gain proportionnel à
-la cible (le créateur fixerait son propre prix).
+**Pourquoi s'arrêter là plutôt que deviner.** Cette requête PAIE, et
+`merit_event` est unique : un versement faux ne peut pas être rejoué
+juste. Le plan écrit lui-même que c'est le risque du chantier. Choisir
+seul la liste des critères, puis écrire à la hâte un second moteur de
+comptage qui crédite des points définitifs, est exactement le geste
+contre lequel le filet des trois âges a été tissé. La question 3 se
+tranche en une phrase ; 1 et 2 sont alors du travail ordinaire.
 
 ## Contrôles
 

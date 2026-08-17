@@ -364,6 +364,101 @@ correspondant sur la cible.
 Le test `src/components/tour/steps.test.ts` refuse une vue sans visite : il est
 là pour que la règle ne dépende pas de la seule bonne volonté.
 
+## LE QUIZZ EST UN ÉCRAN, PAS UN PARAGRAPHE
+
+Il se jouait dans un accordéon : la partie était rendue DANS une ligne de
+liste, sous le formulaire de tirage et au-dessus de la banque d'admin. On
+répondait à une question de cinéma en regardant par-dessus son épaule le
+bouton « tenir la banque ».
+
+`src/views/quiz/` tient les pièces ; `src/views/QuizView.tsx` reste
+l'entrée, parce que c'est ce que l'union `View` nomme et ce que le filet
+importe. Ce qui est réellement partagé est `shared.ts`, et il est COURT
+exprès — `SIZES` et `holds` n'ont que le compositeur pour appelant,
+`dealable` que la banque. Les remonter aurait inventé un partage.
+
+- **`QuizTable` est une couche**, donc `Layer` : la colonne de vue est un
+  contexte d'empilement et porte une transformation pendant son animation
+  d'entrée. La partie est à 50 du budget, la confirmation d'abandon à 60 —
+  **on demande PAR-DESSUS la partie.**
+- **`useDialog` ferme en DEMANDANT**, et le corps dit ce qui SURVIT. Une
+  partie CLOSE se referme d'un geste : elle n'a plus rien à abandonner.
+- **LE TAMPON DIT UN MOT — « POSÉE » — ET JAMAIS UN VERDICT.** Les bonnes
+  réponses ne sont réellement pas connues du client avant la fin
+  (`drawnQuestions` n'étale `is_right` que si `withAnswers`) : « juste »
+  serait inventé. `useSay` l'annonce, parce qu'un tampon ne se lit pas au
+  clavier.
+- **Effacer la soirée ferme la couche.** Sans cela on reste devant une
+  partie que le serveur ne connaît plus.
+- **Une visite ne peut pas ouvrir une modale.** Les pas du jeu sont
+  `optional` et se sautent quand la partie est fermée ; `quiz-open` décrit
+  la PORTE, qui existe toujours.
+
+## LE RETARD EST ESTAMPILLÉ LÀ OÙ LA LIGNE S'ÉCRIT
+
+`quiz.seconds_per_question` est **NULL par défaut** — tout quizz déjà
+tiré est sans chronomètre, rien à rétro-remplir — et ses bornes 5–600
+vivent dans le SCHÉMA.
+
+- **`store.answer` pose `late` À L'INSERT.** Le calculer à la lecture
+  rendrait un score qui change tout seul entre deux rafraîchissements.
+  `scoresOf` et `awardQuiz` n'ont alors qu'un mot de plus chacun :
+  `FILTER (WHERE c.is_right AND NOT a.late)`.
+- **Le délai court depuis la DERNIÈRE ACTION** (`max(answered_at)`, sinon
+  `started_at`), et non « la question précédente par rang » : `answer` ne
+  vérifie aucun ordre, c'est le client qui se trouve marcher dans l'ordre
+  du tirage.
+- **Une réponse hors délai est ACCEPTÉE et vaut zéro**, jamais refusée :
+  refuser perdrait la réponse et contredirait « on ne revient pas
+  dessus », déjà à l'écran.
+- `quiz_flawless` n'a pas une ligne à changer — il exige `score ===
+weight`, et un retard baisse le score sans toucher le poids.
+- **La conséquence se dit DEUX fois** : au tirage et avant de commencer.
+  Elle n'est pas devinable — acheter un pouvoir consomme du temps, un
+  réseau lent coûte, et fermer l'onglet coûte la question en cours.
+
+## UNE NATURE CHANGE CE QUI COMPTE, JAMAIS CE QUE ÇA PAIE
+
+`challenge.kind` (`'liste'`, `'critique'`, `'critere'`), `target`,
+`subject`. Les valeurs restent **en français**, comme `person.sharing` :
+elles s'écrivent dans les lignes.
+
+- **Aucune `Kind` neuve dans `points.ts`.** Deux variantes refusées
+  d'avance : un `challenge_review` mieux payé (il est plus facile à
+  vérifier, ce serait l'arbitrage) et un gain proportionnel à la cible
+  (le créateur fixerait son propre prix).
+- **`target` NULL veut dire « toute la liste ».** Le `least` de
+  `settleChallenge` refuse l'inatteignable : la liste peut MAIGRIR après
+  coup, et une cible devenue plus grande qu'elle rendrait le défi
+  impossible à finir sans que personne l'ait décidé.
+- **« Pendant la période » NE PEUT PAS ÊTRE `updated_at`** pour une
+  critique : une critique ne porte aucune date et `card.updated_at` bouge
+  à la moindre retouche. On demande une SÉANCE dans la période ET
+  `REVIEW_LENGTH` signes — la mesure qui décide déjà de la payer.
+- **`SEEN_DURING` a DEUX appelants** — `progressOf`, qui affiche, et
+  `settleChallenge`, qui PAIE. `merit_event` étant unique, **un paiement
+  faux ne peut pas être rejoué juste** : le filet des trois âges de fiche
+  (`points.test.ts`) est sur le second, et il a été tissé AVANT l'édition.
+- **`rightsOnChallenge` est la PORTE UNIQUE**, et six routes y passent.
+  Tant qu'il y a une liste elle rend exactement ce que rendait
+  `rightsOnList` — y compris qu'un membre ayant monté le défi écrit sans
+  administrer. **Élargir une permission est une décision, pas un effet de
+  bord de déménagement.** Sans liste : on y est ou on l'a créé, et un
+  défi par critère n'est JAMAIS découvrable.
+
+## Le nom d'un champ venu du serveur s'épelle comme le serveur l'écrit
+
+Quatre fois dans ce dépôt, et **aucune n'a jamais rien fait échouer** —
+c'est là tout le problème. Un champ absent n'est pas une erreur : il vaut
+`undefined`, toujours, et l'écran annonce le mauvais chiffre pour
+toujours.
+
+`liste_id` pour `list_id`, `per` pour `by`, `ouverte` pour `open` — ce
+dernier faisait que « collection refermée » ne s'est **jamais** affiché
+dans le fil, et on croyait à une panne. La lecture d'un champ optionnel
+se fait donc en `!= null` et non `!==` : **absent veut dire absent**, pas
+« la valeur opposée ».
+
 ## Le mérite s'écrit dans un journal
 
 Le volet communautaire compte des points : `merit_event` est un JOURNAL, et
