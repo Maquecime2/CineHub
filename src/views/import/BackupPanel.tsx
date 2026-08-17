@@ -11,6 +11,8 @@ import { doorEvent } from "../../services/measure";
 import type { Divider, Film, Note, ShelfViews } from "../../types";
 import type { Thread } from "../../domain/threads";
 import type { StoredVocabulary as Vocabulary } from "../../domain/motifs";
+import type { Bond } from "../../domain/bonds";
+import type { Course } from "../../domain/course";
 
 /** What `posterStats` brings back from the image database. */
 interface PosterStats {
@@ -29,6 +31,8 @@ interface BackupPanelProps {
   views: ShelfViews | null;
   fils: Thread[];
   motifs: Vocabulary;
+  filiations: Bond[];
+  parcours: Course[];
   onRestore: (data: {
     films: Film[];
     notes: Note[];
@@ -36,6 +40,8 @@ interface BackupPanelProps {
     views: ShelfViews | null;
     fils: Thread[];
     motifs: Vocabulary;
+    filiations: Bond[];
+    parcours: Course[];
   }) => void;
 }
 
@@ -46,6 +52,8 @@ export function BackupPanel({
   views,
   fils,
   motifs,
+  filiations,
+  parcours,
   onRestore,
 }: BackupPanelProps) {
   const { t } = useTranslation();
@@ -84,7 +92,16 @@ export function BackupPanel({
   const download = async () => {
     setMsg(t("backup.preparing"));
     // db.js is still in JavaScript: its parameters have no declared type
-    const data = await exportBackup({ films, notes, dividers, views, fils, motifs } as never);
+    const data = await exportBackup({
+      films,
+      notes,
+      dividers,
+      views,
+      fils,
+      motifs,
+      filiations,
+      parcours,
+    } as never);
     const url = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: "application/json" }));
     const a = document.createElement("a");
     a.href = url;
@@ -134,6 +151,12 @@ export function BackupPanel({
         views: null,
         fils: (read.fils || []) as Thread[],
         motifs: (read.motifs || { custom: [], hidden: [] }) as Vocabulary,
+        /* A backup written before v8 has neither key. The fallback is an
+           empty LIST and never `undefined`: the normalising doors read an
+           array, and handing them nothing would restore a binder whose
+           courses could not be added to. */
+        filiations: (read.filiations || []) as Bond[],
+        parcours: (read.parcours || []) as Course[],
       })} fiche(s) restaurée(s).`
     );
   };

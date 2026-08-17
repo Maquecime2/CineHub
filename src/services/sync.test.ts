@@ -233,6 +233,8 @@ describe("the rest of the binder", () => {
     const { isSyncable } = await import("./documents");
     const { VIEW_INDEX, viewKey } = await import("./shelfViews");
     const { CUSTOM_DECOR_KEY, HIDDEN_DECOR_KEY } = await import("./customDecor");
+    const { THREADS_KEY } = await import("./threads");
+    const { BONDS_KEY, COURSES_KEY } = await import("./lineage");
     const { KEYS } = await import("./storage");
 
     for (const key of [
@@ -240,6 +242,9 @@ describe("the rest of the binder", () => {
       viewKey("abc"),
       CUSTOM_DECOR_KEY,
       HIDDEN_DECOR_KEY,
+      THREADS_KEY,
+      BONDS_KEY,
+      COURSES_KEY,
       KEYS.notes,
       KEYS.dividers,
     ]) {

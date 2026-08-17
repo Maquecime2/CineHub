@@ -30,6 +30,15 @@ import {
 } from "./domain/threads";
 import { motifById, makeCustomMotif, customMotifs } from "./domain/motifs";
 import { loadThreads, saveThreads as saveThreadsToDisk } from "./services/threads";
+import {
+  loadBonds,
+  loadCourses,
+  saveBonds as saveBondsToDisk,
+  saveCourses as saveCoursesToDisk,
+  saveCoursesSoon as saveCoursesToDiskSoon,
+} from "./services/lineage";
+import { normalizeBonds } from "./domain/bonds";
+import { normalizeCourses } from "./domain/course";
 import { loadVocabulary, saveVocabulary, normalizeVocabulary } from "./services/motifs";
 import { store, KEYS, watchQuota, hydrateVault } from "./services/storage";
 import { loadFilms, knownCollection, saveFilms, forgetCache } from "./services/collection";
@@ -108,6 +117,7 @@ const ListsView = lazyView(() => import("./views/ListsView"), "ListsView");
 const QuizView = lazyView(() => import("./views/QuizView"), "QuizView");
 const CounterView = lazyView(() => import("./views/CounterView"), "CounterView");
 const ConstellationView = lazyView(() => import("./views/ConstellationView"), "ConstellationView");
+const LineageView = lazyView(() => import("./views/LineageView"), "LineageView");
 const AlmanacView = lazyView(() => import("./views/AlmanacView"), "AlmanacView");
 const SkinLab = lazyView(() => import("./views/dev/SkinLab"), "SkinLab");
 
@@ -133,6 +143,12 @@ export default function App() {
   /* The constellation's threads: questions put to the collection, which
      must stay put from one session to the next. */
   const [fils, setThreads] = useState([]);
+  /* WHAT TIES ONE FILM-MAKER TO ANOTHER, and the runs one means to watch.
+     Two documents and not one: a course is written at every pixel of a
+     drag, a filiation twice a month, and a course is settled where a
+     filiation is not. See `services/lineage`. */
+  const [bonds, setBonds] = useState([]);
+  const [courses, setCourses] = useState([]);
   /* The star to land on when the map is opened from a card, as
      `t:<motif>`. Cleared by the map itself: it is a gesture, not data. */
   const [skyFocus, setSkyFocus] = useState(null);
@@ -308,6 +324,8 @@ export default function App() {
         const tabs = store.get("shelf-dividers", []);
         setDividers(tabs);
         setThreads(loadThreads());
+        setBonds(loadBonds());
+        setCourses(loadCourses());
         setVocabulary(loadVocabulary());
         /* The migration reads `order` and `status`, which the store has
            just normalized: it must therefore come after, and work on the
@@ -463,12 +481,15 @@ export default function App() {
      qu'elle existe. Ça marchait, et le lint le refusait avec raison. */
   useEffect(() => registerAccountOpener(() => setAccountOpen(true)), []);
   /* RE-READ WHAT HAS JUST ARRIVED. The shelf arrangements, the notebook,
-     the threads and the vocabulary are read on mount: when the
-     synchronisation brings some in, they have to be asked of the disk
-     again, otherwise the screen keeps the old ones without a word. */
+     the threads, the vocabulary, the filiations and the courses are read
+     on mount: when the synchronisation brings some in, they have to be
+     asked of the disk again, otherwise the screen keeps the old ones
+     without a word. */
   const rereadDocuments = useCallback(() => {
     notebook.load();
     setThreads(loadThreads());
+    setBonds(loadBonds());
+    setCourses(loadCourses());
     setVocabulary(loadVocabulary());
     const tabs = store.get("shelf-dividers", []);
     setDividers(tabs);
@@ -796,6 +817,24 @@ export default function App() {
     saveThreadsToDisk(next);
   };
 
+  const commitBonds = (next) => {
+    setBonds(next);
+    saveBondsToDisk(next);
+  };
+
+  const commitCourses = (next) => {
+    setCourses(next);
+    saveCoursesToDisk(next);
+  };
+
+  /* WHILE A DRAG IS RUNNING. Reordering fires on every crossed entry;
+     the coalesced write turns forty of them into one, exactly as the
+     typing of a review does. The gesture ends on `commitCourses`. */
+  const commitCoursesSoon = (next) => {
+    setCourses(next);
+    saveCoursesToDiskSoon(next);
+  };
+
   const commitVocabulary = (next) => {
     setVocabulary(next);
     saveVocabulary(next);
@@ -1047,7 +1086,16 @@ export default function App() {
   /* Restoring means replacing the whole state — the arrangement
      included. A backup from before the views (v ≤ 3) has none: we then
      rebuild them from its dividers, which is what `force` is for. */
-  const restoreBackup = ({ films: f, notes: n, dividers: d, views: v, fils: fl, motifs: mo }) => {
+  const restoreBackup = ({
+    films: f,
+    notes: n,
+    dividers: d,
+    views: v,
+    fils: fl,
+    motifs: mo,
+    filiations: bd,
+    parcours: cs,
+  }) => {
     const migrated = migrate(f);
     /* A RESTORE IS NOT A MODIFICATION. Without this line, the store
        would compare the backup with the collection it replaces, find a
@@ -1058,6 +1106,10 @@ export default function App() {
     forgetCache(migrated);
     commitFilms(migrated);
     commitThreads(normalizeThreads(fl || []));
+    /* A backup written before v8 has neither: an empty list and never
+       `undefined`, so the doors below get the array they read. */
+    commitBonds(normalizeBonds(bd || []));
+    commitCourses(normalizeCourses(cs || []));
     commitVocabulary(normalizeVocabulary(mo || {}));
     if (n?.length) notebook.replaceAll(n);
     const tabs = d || [];
@@ -1562,6 +1614,23 @@ export default function App() {
                   onOpen={openFilm}
                 />
               )}
+              {/* LES FILIATIONS LISENT `films` ET NON `constellationFilms`.
+                  Celui-là vaut « vus, non archivés » — exactement la
+                  mauvaise moitié : on planifie ce qu'on n'a PAS vu, et
+                  revoir un film est un jalon légitime. Le sélecteur met
+                  « à voir » en tête, il n'exclut rien. */}
+              {view === "lineage" && (
+                <LineageView
+                  films={films}
+                  courses={courses}
+                  bonds={bonds}
+                  onCourses={commitCourses}
+                  onCoursesSoon={commitCoursesSoon}
+                  onBonds={commitBonds}
+                  onOpen={openFilm}
+                  onOpenPerson={openPerson}
+                />
+              )}
               {/* The almanac reads the screening log: so it looks at the cards
             WATCHED, including those set aside in the reserve — having
             archived them does not make them unwatched. */}
@@ -1582,6 +1651,8 @@ export default function App() {
                   views={views}
                   fils={fils}
                   motifs={vocabulary}
+                  filiations={bonds}
+                  parcours={courses}
                   onRestore={restoreBackup}
                   onSeeWall={() => {
                     setSelectedId(null);

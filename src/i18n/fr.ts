@@ -1147,6 +1147,7 @@ const fr = {
     credits: "Générique",
     reco: "Découvertes",
     constellation: "Constellation",
+    lineage: "Filiations",
     almanac: "Almanach",
     import: "Import Letterboxd",
     thread: "Le fil",
@@ -1763,6 +1764,83 @@ const fr = {
     strength3: "le même film, deux fois",
   },
 
+  /* Le pendant de `relations`, pour les gens et non pour les œuvres. Un
+     lien orienté a deux formulations — celle qu'on saisit, et celle que
+     lit l'autre bout —, un lien symétrique n'en a qu'une. */
+  bonds: {
+    master: "a pour élève {{name}}",
+    masterInverse: "a pour maître {{name}}",
+    influence: "a marqué {{name}}",
+    influenceInverse: "hérite de {{name}}",
+    affinity: "a partie liée avec {{name}}",
+    counterpoint: "fait contrepoint à {{name}}",
+    free: "ce qui les rapproche",
+  },
+
+  /* LES FILIATIONS. Une file de films dans l'ordre où on veut les voir,
+     et la carte des cinéastes qui dit POURQUOI cet ordre-là. */
+  lineage: {
+    heading: "Les filiations",
+    subheading: "l'ordre dans lequel vous voulez voir, et ce qui le justifie",
+    empty:
+      "Aucun parcours pour l'instant. Cherchez un film ci-dessous : le premier que vous poserez en ouvrira un.",
+    emptyCourse: "Ce parcours est encore vide.",
+    emptyMap: "Reliez deux cinéastes, et la carte se dessinera.",
+    courses: "Vos parcours",
+    courseName: "Nom du parcours",
+    newCourse: "Ouvrir un autre parcours",
+    untitled: "Parcours sans titre",
+    thesis: "Ce que ce parcours cherche à montrer",
+    thesisPlaceholder: "remonter d'Ozu à Hou, puis redescendre par Kore-eda…",
+    addFirst: "Poser un premier film",
+    addToRun: "Ajouter un film à la suite",
+    pickPlaceholder: "un titre, un réalisateur…",
+    pickNothing: "Rien de ce nom dans le classeur.",
+    notSeenYet: "PAS ENCORE VU",
+    why: "pourquoi celui-là, ici ?",
+    whyPlaceholder: "à voir après le précédent, sinon la citation ne se voit pas…",
+    moveUp: "Monter d'un rang",
+    moveDown: "Descendre d'un rang",
+    moved: "{{title}} passe en {{place}} sur {{total}}",
+    howToMove: "GLISSER POUR RÉORDONNER — OU ALT + FLÈCHES",
+    remove: "Retirer du parcours",
+    stranded_one:
+      "Une étape ne montre rien : sa fiche n'est plus au classeur. Elle est gardée, au cas où elle revienne.",
+    stranded_other:
+      "{{count}} étapes ne montrent rien : leurs fiches ne sont plus au classeur. Elles sont gardées, au cas où elles reviennent.",
+    order: "L'ordre de visionnage",
+    map: "La carte des cinéastes",
+    mapList: "Les cinéastes et leurs liens, en liste",
+    node: "{{name}}, {{films}} au programme, {{bonds}} liens",
+    addBond: "Relier deux cinéastes",
+    linkThisDirector: "relier ce cinéaste",
+    bondFrom: "Qui",
+    bondTo: "À qui",
+    bondKind: "Quel lien",
+    bondNote: "Ce qui les rapproche, si vous voulez le dire",
+    bondSave: "Poser le lien",
+    contradiction: "Vous avez déjà posé l'inverse : {{existing}}. Retirez-le d'abord.",
+    selfBond: "Il faut deux personnes différentes.",
+    alreadyBond: "Ce lien est déjà posé.",
+    confirmRemoveBond: "Retirer ce lien ?",
+    confirmRemoveBondBody:
+      "Le lien disparaît de la carte, et les étapes qui l'invoquaient perdent leur justification. Les films, eux, restent au parcours.",
+    removeBond: "Retirer le lien",
+    deleteCourse: "Supprimer ce parcours",
+    confirmDeleteCourse: "Supprimer « {{name}} » ?",
+    confirmDeleteCourseBody:
+      "L'ordre et les notes de ce parcours sont perdus. Les fiches restent au classeur, et les liens entre cinéastes restent sur la carte.",
+    confirmDelete: "Supprimer",
+    because: "D'après",
+    becauseNone: "aucun lien invoqué",
+    notInQueue_one: "{{count}} film au classeur, aucun au programme.",
+    notInQueue_other: "{{count}} films au classeur, aucun au programme.",
+    addTheirFilms: "Tout ajouter à la suite",
+    orphan: "Plus aucune fiche du classeur ne porte ce nom. Le lien, lui, reste.",
+    openPerson: "Ouvrir sa page au générique",
+    close: "Fermer",
+  },
+
   threads: {
     linkedCard: "fiche liée",
     workKind: "Nature de l'œuvre",
@@ -2353,6 +2431,30 @@ const fr = {
       keyboard: {
         title: "La carte au clavier",
         body: "La carte se parcourt sans souris : une tabulation y entre, les flèches vont d'un astre au plus proche dans leur direction, Entrée le prend pour foyer — ou ouvre sa fiche quand il l'est déjà — et Échap lâche le curseur.",
+      },
+    },
+
+    lineage: {
+      label: "Les filiations",
+      order: {
+        title: "L'ordre est le sujet",
+        body: "Une file de films, dans l'ordre où vous voulez les voir. On la réordonne en glissant, ou avec Alt et les flèches — et chaque entrée peut dire, dans sa marge, pourquoi elle est à cette place-là.",
+      },
+      add: {
+        title: "Poser un film",
+        body: "Cherchez dans tout le classeur : ce que vous n'avez pas vu vient en tête, mais revoir un film est un jalon comme un autre. Le premier film posé ouvre le parcours ; inutile d'en créer un d'abord.",
+      },
+      why: {
+        title: "Pourquoi celui-là, ici",
+        body: "La note de marge justifie une place. Au-dessus, la thèse du parcours dit ce que l'ensemble cherche à montrer — c'est elle qu'on relit six mois plus tard.",
+      },
+      map: {
+        title: "La carte des cinéastes",
+        body: "Les réalisateurs de votre file, reliés par ce que vous savez d'eux : maître, héritage, affinité, contrepoint. Cliquez un astre, la file s'allume aux films qui sont de lui.",
+      },
+      bond: {
+        title: "Un lien, et sa raison",
+        body: "Un lien se pose à la main : rien dans une fiche ne dit qui a formé qui. Une entrée de la file peut ensuite l'invoquer — et l'on voit alors, des deux côtés, ce qui tient le parcours debout.",
       },
     },
 

@@ -39,6 +39,8 @@ import type {
 } from "../../types";
 import type { Thread } from "../../domain/threads";
 import type { StoredVocabulary as Vocabulary } from "../../domain/motifs";
+import type { Bond } from "../../domain/bonds";
+import type { Course } from "../../domain/course";
 
 /* LES DEUX LIBELLÉS ÉTAIENT FAUX, CHACUN À SA FAÇON — et sur l'écran
    d'import, c'est-à-dire sur la porte. « des films vus » était du
@@ -61,6 +63,8 @@ interface ImportViewProps {
   views: ShelfViews | null;
   fils: Thread[];
   motifs: Vocabulary;
+  filiations: Bond[];
+  parcours: Course[];
   onRestore: (data: {
     films: Film[];
     notes: Note[];
@@ -68,6 +72,8 @@ interface ImportViewProps {
     views: ShelfViews | null;
     fils: Thread[];
     motifs: Vocabulary;
+    filiations: Bond[];
+    parcours: Course[];
   }) => void;
   /* Retourner au mur depuis le bilan. Facultatif : sans lui le bilan
      reste ce qu'il était, trois nombres et rien d'autre. */
@@ -82,6 +88,8 @@ export function ImportView({
   views,
   fils,
   motifs,
+  filiations,
+  parcours,
   onRestore,
   onSeeWall,
 }: ImportViewProps) {
@@ -1237,6 +1245,8 @@ export function ImportView({
           views={views}
           fils={fils}
           motifs={motifs}
+          filiations={filiations}
+          parcours={parcours}
           onRestore={onRestore}
         />
       </div>

@@ -93,6 +93,79 @@ ce qu'elle tient n'est plus une liste d'objets — ce sont des **écarts** au d�
   n'était atteignable de nulle part : renommer, colorer, annoter, mettre et
   retirer une fiche, éteindre, **revenir au défaut**, supprimer un motif perso.
 
+## UN ORDRE SE JUSTIFIE, ET LA JUSTIFICATION EST UNE DONNÉE
+
+La vue `lineage` (« Filiations », groupe `explore`) tient deux choses que le
+classeur ne savait pas dire : l'**ORDRE** dans lequel on veut voir des films, et
+les **liens entre cinéastes** qui justifient cet ordre. Rien dans une fiche ne
+dit qui a formé qui — `domain/people` l'énonce lui-même, une personne « n'est pas
+une entité qu'on range, c'est une question posée à la collection », et la seule
+relation personne↔personne qui existait, `companions`, est DÉRIVÉE et non
+éditable.
+
+**LA JUSTIFICATION N'EST PAS DE LA PROSE.** `Step.because` pointe vers un
+`Bond.id`, et c'est ce qui distingue cet écran d'une liste annotée : pointer une
+étape épaissit son arête, choisir une arête allume toutes les étapes qui
+l'invoquent. Le raisonnement se parcourt dans les deux sens au lieu de se
+relire. Les trois autres plans — la thèse du parcours, la note de marge, les
+liens lus en clair sous chaque entrée — sont là parce qu'aucun ne remplace les
+autres.
+
+- **DEUX DOCUMENTS, JAMAIS UN.** `"filiations"` tient un savoir sur le cinéma,
+  permanent ; `"parcours"` tient des intentions, qui se soldent. Réordonner écrit
+  toutes les 400 ms (`store.setSoon`), poser un lien arrive deux fois par mois :
+  fusionnés, la carte entière entrerait dans l'arbitrage _last-writer-wins_ à
+  chaque pixel de glissement, et on perdrait une carte pour avoir traîné un film
+  sur un second appareil.
+- **`Step.id` ET NON `filmId` EST L'IDENTITÉ D'UNE ÉTAPE.** Ozu 1949, puis Hou,
+  puis Ozu 1953 est un plan parfaitement ordinaire ; clé sur le film, il devenait
+  interdit sans que personne l'ait décidé. C'est aussi la seule clé React
+  correcte pour une liste qu'on réordonne.
+- **LE TABLEAU EST L'ORDRE**, comme dans `shelf-views`. Rien ne porte de rang,
+  rien n'est trié à la sortie, et `groupedSteps` ne groupe que du CONSÉCUTIF :
+  rassembler tous les Ozu réécrirait le plan sous prétexte de le présenter.
+- **A→B ET B→A SUR UN LIEN ORIENTÉ N'EST PAS UN DOUBLON, C'EST UNE
+  CONTRADICTION.** `bondId` est calculé — clés triées si le lien est symétrique —
+  donc un doublon est impossible et non improbable. La contradiction, elle, est
+  refusée À LA PORTE par `normalizeBonds` (le premier écrit gagne) **et
+  visiblement par le formulaire** : un clic avalé qui n'écrit rien est le défaut
+  exact que les motifs ont mis un chantier à perdre.
+- **`normalizeCourses` NE CONNAÎT PAS LES ARÊTES**, et ne doit jamais les
+  connaître. Les deux documents voyagent séparément : valider l'un contre l'autre
+  effacerait la justification de quelqu'un parce que sa synchro avait deux
+  secondes de retard. Un `because` pendant est MUET au rendu, jamais nettoyé — y
+  compris quand on retire le lien à la main, puisque reposer le même lien rend
+  le même identifiant.
+- **LIRE N'ÉCRIT PAS.** `courseSteps` filtre les fiches disparues à l'affichage
+  et laisse le disque tranquille — copie de `threadMembers`. Et `strandedCount`
+  existe pour que la vue le DISE : une colonne qui rétrécit de deux entrées sans
+  un mot est le même défaut qu'un échec silencieux.
+- **UN LIEN SURVIT À LA FICHE.** `fromName` / `toName` gardent le nom saisi, donc
+  effacer la dernière fiche d'un cinéaste ne désapprend pas qui l'a formé : le
+  nœud devient `orphan`. L'orthographe de la collection l'emporte quand elle
+  existe, sinon la carte serait le seul écran à l'appeler autrement.
+- **`relax` A ÉTÉ DESSERRÉ EN TYPES SEULEMENT** (`domain/sky`), pas une ligne du
+  corps : il ne lit d'un nœud que son `id` et d'une arête que `kind`/`force`. Les
+  quatre natures de lien passent donc toutes en `"peer"` et la sémantique roule
+  sur `force` (maître 3 → 140 px, contrepoint 1 → 220 px). `ConstellationView`
+  n'est PAS touché ; ce qui est partagé est du comportement — `useNodeDrag` et
+  son **seuil de 4 px**, sans lequel chaque clic est un micro-glissement et la
+  sélection croisée ne part jamais — et non du dessin.
+- **LE MIROIR EN LISTE N'EST PAS UNE POLITESSE.** Un graphe SVG ne se parcourt
+  pas au lecteur d'écran, quel que soit le soin mis aux `aria-label` : il n'y a
+  pas d'ordre de lecture dans un plan. La liste masquée est le seul chemin
+  linéaire honnête, et elle sert de repli sur téléphone étroit.
+- **LES DEUX RETRAITS PASSENT PAR `Confirmation`**, et chacun dit ce qui SURVIT :
+  supprimer un parcours perd un ordre et des notes que rien d'autre ne tient ;
+  retirer un lien perd un savoir et laisse muettes les étapes qui l'invoquaient,
+  mais ne touche ni aux fiches ni au parcours.
+- **Côté serveur : RIEN.** La table `doc` est générique (`person_id` + `key`
+  texte libre), donc deux clés de plus ne demandent aucun déploiement. Ce qui se
+  paie est côté client : **`SYNCABLE_VERSION` monte** (`services/documents.ts`),
+  sans quoi `catchUpDocuments` ne rejoue pas le rattrapage et les classeurs déjà
+  connectés n'enverront JAMAIS ces documents — la pire perte, celle qu'on ne
+  découvre qu'en changeant d'ordinateur.
+
 ## Aucune phrase n'est écrite dans une vue
 
 `src/i18n/catalogue.test.ts` garde les deux catalogues l'un contre l'autre, et il

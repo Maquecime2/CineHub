@@ -23,6 +23,7 @@ import {
   KeyRound,
   Languages,
   Coins,
+  Route,
 } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { PurseTally } from "../play/Tally";
@@ -44,6 +45,7 @@ export type View =
   | "credits"
   | "reco"
   | "constellation"
+  | "lineage"
   | "import"
   | "thread"
   | "lists"
@@ -107,6 +109,12 @@ const TABS: Record<string, TabDef> = {
     color: C.cobalt,
     icon: Sparkles,
   },
+  /* `Route` AND NOT `Network` OR `Share2`. Those two draw a graph, and a
+     graph is what the constellation already is on this very bar — the
+     lineages are read for their ORDER first, and the map is what makes
+     that order make sense. Plum comes back here from the Credits, which
+     never sits in the same bar as Explore. */
+  lineage: { key: "lineage", label: "views.lineage", color: C.plum, icon: Route },
   almanac: { key: "almanac", label: "views.almanac", color: C.moss, icon: CalendarDays },
   thread: { key: "thread", label: "views.thread", color: C.cobalt, icon: Users2 },
   lists: { key: "lists", label: "views.lists", color: C.moss, icon: ListChecks },
@@ -181,7 +189,12 @@ export const GROUPS: TabGroup[] = [
     label: "groups.explore",
     color: C.cobalt,
     icon: Compass,
-    members: ["reco", "constellation", "almanac"],
+    /* Les filiations entrent ici et non au classeur, bien qu'elles se
+       nourrissent de la collection : le classeur est ce qu'on POSSÈDE,
+       explorer est ce qu'on n'a pas encore vu, et un programme de
+       visionnage est exactement cela. Elles se rangent d'ailleurs à côté
+       de la constellation, l'autre carte. */
+    members: ["reco", "constellation", "lineage", "almanac"],
   },
   {
     key: "hall",

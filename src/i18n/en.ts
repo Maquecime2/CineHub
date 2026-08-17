@@ -1122,6 +1122,7 @@ const en = {
     credits: "Credits",
     reco: "Discoveries",
     constellation: "Constellation",
+    lineage: "Lineage",
     almanac: "Almanac",
     import: "Letterboxd import",
     thread: "The feed",
@@ -1714,6 +1715,82 @@ const en = {
     strength3: "the same film, twice",
   },
 
+  /* The counterpart to `relations`, for people rather than works. A
+     directed bond has two wordings — the one you type, and the one the
+     other end reads; a symmetric one has only the first. */
+  bonds: {
+    master: "taught {{name}}",
+    masterInverse: "studied under {{name}}",
+    influence: "left a mark on {{name}}",
+    influenceInverse: "inherits from {{name}}",
+    affinity: "has something in common with {{name}}",
+    counterpoint: "stands against {{name}}",
+    free: "what draws them together",
+  },
+
+  /* LINEAGE. A run of films in the order you mean to watch them, and the
+     map of film-makers that says WHY that order. */
+  lineage: {
+    heading: "Lineage",
+    subheading: "the order you mean to watch in, and what justifies it",
+    empty: "No run yet. Search for a film below: the first one you lay down will open one.",
+    emptyCourse: "This run is still empty.",
+    emptyMap: "Tie two film-makers together, and the map will draw itself.",
+    courses: "Your runs",
+    courseName: "Name of the run",
+    newCourse: "Open another run",
+    untitled: "Untitled run",
+    thesis: "What this run means to show",
+    thesisPlaceholder: "back up from Ozu to Hou, then down again through Kore-eda…",
+    addFirst: "Lay down a first film",
+    addToRun: "Add a film at the end",
+    pickPlaceholder: "a title, a director…",
+    pickNothing: "Nothing by that name in the binder.",
+    notSeenYet: "NOT SEEN YET",
+    why: "why this one, here?",
+    whyPlaceholder: "watch after the one before, or the quotation goes unseen…",
+    moveUp: "Move up one place",
+    moveDown: "Move down one place",
+    moved: "{{title}} is now {{place}} of {{total}}",
+    howToMove: "DRAG TO REORDER — OR ALT + ARROWS",
+    remove: "Take out of the run",
+    stranded_one:
+      "One step shows nothing: its card has left the binder. It is kept, should it come back.",
+    stranded_other:
+      "{{count}} steps show nothing: their cards have left the binder. They are kept, should they come back.",
+    order: "The running order",
+    map: "The map of film-makers",
+    mapList: "The film-makers and their bonds, as a list",
+    node: "{{name}}, {{films}} in the run, {{bonds}} bonds",
+    addBond: "Tie two film-makers together",
+    linkThisDirector: "tie this film-maker",
+    bondFrom: "Who",
+    bondTo: "To whom",
+    bondKind: "Which bond",
+    bondNote: "What draws them together, if you care to say",
+    bondSave: "Lay the bond down",
+    contradiction: "You have already laid the opposite: {{existing}}. Take that one out first.",
+    selfBond: "Two different people are needed.",
+    alreadyBond: "That bond is already laid.",
+    confirmRemoveBond: "Take this bond out?",
+    confirmRemoveBondBody:
+      "The bond leaves the map, and the steps calling upon it lose their justification. The films stay in the run.",
+    removeBond: "Take the bond out",
+    deleteCourse: "Delete this run",
+    confirmDeleteCourse: "Delete “{{name}}”?",
+    confirmDeleteCourseBody:
+      "The order and the notes of this run are lost. The cards stay in the binder, and the bonds between film-makers stay on the map.",
+    confirmDelete: "Delete",
+    because: "After",
+    becauseNone: "no bond called upon",
+    notInQueue_one: "{{count}} film in the binder, none in the run.",
+    notInQueue_other: "{{count}} films in the binder, none in the run.",
+    addTheirFilms: "Add them all at the end",
+    orphan: "No card in the binder carries this name any more. The bond stays.",
+    openPerson: "Open their page in the Credits",
+    close: "Close",
+  },
+
   threads: {
     linkedCard: "linked card",
     workKind: "Kind of work",
@@ -2280,6 +2357,30 @@ const en = {
       keyboard: {
         title: "The map from the keyboard",
         body: "The map can be crossed without a mouse: a tab enters it, the arrows go from one star to the nearest one in their direction, Enter takes it as the focus — or opens its card when it already is — and Escape lets the cursor go.",
+      },
+    },
+
+    lineage: {
+      label: "Lineage",
+      order: {
+        title: "The order is the point",
+        body: "A run of films, in the order you mean to watch them. Reorder by dragging, or with Alt and the arrows — and every entry can say in its margin why it sits just there.",
+      },
+      add: {
+        title: "Laying down a film",
+        body: "Search the whole binder: what you have not seen comes first, but a rewatch is a milestone like any other. The first film you lay down opens the run; there is nothing to create beforehand.",
+      },
+      why: {
+        title: "Why this one, here",
+        body: "The marginal note justifies a place. Above it, the run's thesis says what the whole thing means to show — that is the line you reread six months later.",
+      },
+      map: {
+        title: "The map of film-makers",
+        body: "The directors in your run, tied by what you know of them: master, inheritance, affinity, counterpoint. Click a star and the run lights up on the films that are theirs.",
+      },
+      bond: {
+        title: "A bond, and its reason",
+        body: "A bond is laid by hand: nothing on a card says who taught whom. An entry in the run can then call upon it — and you see, from both ends, what holds the plan together.",
       },
     },
 

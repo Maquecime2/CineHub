@@ -230,6 +230,8 @@ export async function exportBackup({
   views = null,
   fils = [],
   motifs = null,
+  filiations = [],
+  parcours = [],
 }) {
   const images = {};
   const customDecor = listCustomDecor();
@@ -256,8 +258,12 @@ export async function exportBackup({
        v7 adds the vocabulary: the motifs you wrote yourself, and those of
        the catalogue you set aside. The catalogue itself is not in it — it
        lives in the code, and copying it here would freeze the version of
-       the day. */
-    version: 7,
+       the day.
+       v8 adds the filiations and the viewing courses. The bonds between
+       film-makers are the clearest case yet of something no sweep of the
+       collection could ever work out again: nothing in a card says who
+       taught whom. */
+    version: 8,
     exportedAt: new Date().toISOString(),
     films,
     notes,
@@ -265,6 +271,8 @@ export async function exportBackup({
     views,
     fils,
     motifs,
+    filiations,
+    parcours,
     images,
   };
 }
@@ -294,5 +302,10 @@ export async function importBackup(data) {
     fils: data.fils || [],
     // likewise for the vocabulary, which arrived in v7
     motifs: data.motifs || null,
+    /* v8: the filiations and the courses. An empty LIST and never
+       `undefined` — the normalising doors read an array, and a binder
+       restored from an older file must still be able to be added to. */
+    filiations: data.filiations || [],
+    parcours: data.parcours || [],
   };
 }

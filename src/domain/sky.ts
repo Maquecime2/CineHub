@@ -15,7 +15,6 @@ import type {
   Kinship,
   KinshipRole,
   LinkedWork,
-  PlacedNode,
   SkyFilters,
   SkyLink,
   SkyNode,
@@ -428,9 +427,26 @@ export function buildSkyWithCrew(
 }
 
 /* force-directed relaxation, deterministic: same collection = same sky */
-export function relax(nodes: SkyNode[], links: SkyLink[], W: number, H: number): PlacedNode[] {
+/* IT ASKS OF A NODE ONLY ITS `id`, AND OF AN EDGE ONLY ITS TWO ENDS.
+   Nothing in the loops below reads a title, a rating or a motif — the id
+   is the seed of the starting position, and `kind` plus `force` set a
+   spring's rest length. So the signature says exactly that, and the
+   lineage map lays out PEOPLE with the very same relaxation rather than
+   a second copy of it that would drift.
+
+   TYPES ONLY: not a line of the body has changed, and `PlacedNode`
+   stays what it was. Run `npm run typecheck` after touching this — a
+   loosened signature is exactly the sort of change that passes the tests
+   AND the build, and breaks `tsc` somewhere else. */
+export function relax<N extends { id: string }>(
+  nodes: N[],
+  links: { a: string; b: string; kind?: SkyLink["kind"]; force?: Strength }[],
+  W: number,
+  H: number
+): (N & { x: number; y: number })[] {
   if (nodes.length === 0) return [];
-  const P: PlacedNode[] = nodes.map((n) => {
+  type Placed = N & { x: number; y: number };
+  const P: Placed[] = nodes.map((n) => {
     const s = Math.abs(hash(n.id));
     return {
       ...n,
@@ -451,8 +467,8 @@ export function relax(nodes: SkyNode[], links: SkyLink[], W: number, H: number):
     // repulsion: two stars never overlap
     for (let i = 0; i < P.length; i++) {
       for (let j = i + 1; j < P.length; j++) {
-        const a = P[i] as PlacedNode;
-        const b = P[j] as PlacedNode;
+        const a = P[i] as Placed;
+        const b = P[j] as Placed;
         const dx = b.x - a.x,
           dy = b.y - a.y;
         const d2 = dx * dx + dy * dy || 0.01;
@@ -468,8 +484,8 @@ export function relax(nodes: SkyNode[], links: SkyLink[], W: number, H: number):
     }
     // springs: the thread pulls the works towards their film
     edges.forEach((e) => {
-      const a = P[e.i] as PlacedNode;
-      const b = P[e.j] as PlacedNode;
+      const a = P[e.i] as Placed;
+      const b = P[e.j] as Placed;
       /* A strong link pulls closer: it is the only thing the map knows
          how to do with a strength, and it is already the right one — two
          films we hold to be the same film twice over must touch. A thread
@@ -560,16 +576,19 @@ const VECTORS: Record<Direction, { x: number; y: number }> = {
  * `from` unknown: we return the first star, so that the first arrow
  * pressed brings you into the map rather than doing nothing.
  */
-export function neighbourInDirection(
-  placed: PlacedNode[],
+/* Generic for the same reason as `relax`: it reads an id and two
+   coordinates, so the lineage map walks its people with the very
+   navigation the sky is tested on rather than a second copy. */
+export function neighbourInDirection<P extends { id: string; x: number; y: number }>(
+  placed: P[],
   from: string | null,
   direction: Direction
-): PlacedNode | null {
+): P | null {
   const origin = placed.find((p) => p.id === from);
   if (!origin) return placed[0] ?? null;
 
   const v = VECTORS[direction];
-  let best: PlacedNode | null = null;
+  let best: P | null = null;
   let bestDistance = Infinity;
 
   for (const p of placed) {

@@ -397,6 +397,45 @@ const constellation: Tour = {
   ],
 };
 
+/* LES DEUX ÉTAPES QUI NE SONT PAS `optional` SONT CELLES QUI EXISTENT
+   TOUJOURS : le champ d'ajout et le formulaire de lien sont montés même
+   sur un classeur vide. Tout ce qui vise du CONTENU — la file elle-même,
+   une note de marge, la carte — est facultatif, sans quoi un classeur
+   neuf ne pourrait pas jouer la visite jusqu'au bout. */
+const lineage: Tour = {
+  label: label("lineage"),
+  steps: [
+    {
+      target: at("lineage-order"),
+      ...says("lineage", "order"),
+      placement: "right",
+      optional: true,
+    },
+    {
+      target: at("lineage-add"),
+      ...says("lineage", "add"),
+      placement: "bottom",
+    },
+    {
+      target: at("lineage-why"),
+      ...says("lineage", "why"),
+      placement: "right",
+      optional: true,
+    },
+    {
+      target: at("lineage-map"),
+      ...says("lineage", "map"),
+      placement: "left",
+      optional: true,
+    },
+    {
+      target: at("lineage-bond"),
+      ...says("lineage", "bond"),
+      placement: "left",
+    },
+  ],
+};
+
 const almanac: Tour = {
   label: label("almanac"),
   steps: [
@@ -507,6 +546,10 @@ const global: Tour = {
        tour, where one arrives with what one has. */
     ...from("reco", reco, "reco-maison"),
     ...from("constellation", constellation, "constellation-start", "constellation-teams"),
+    /* `lineage-add` ET `lineage-bond`, les deux ancres toujours montées.
+       La file et la carte sont du contenu : sur le classeur neuf que la
+       visite globale accompagne, elles n'existent pas encore. */
+    ...from("lineage", lineage, "lineage-add", "lineage-bond"),
     ...from("almanac", almanac, "almanac-year"),
     /* Le carnet se prend dans la visite du classeur, puisqu'il s'y
        ouvre : il n'a plus d'onglet, donc plus de visite à lui. */
@@ -862,6 +905,7 @@ export const TOURS: Record<string, Tour> = Object.fromEntries(
     detail,
     reco,
     constellation,
+    lineage,
     almanac,
     import: importTour,
     thread,
