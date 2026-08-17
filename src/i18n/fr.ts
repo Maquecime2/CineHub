@@ -1854,6 +1854,7 @@ const fr = {
     remove: "Retirer du parcours",
     openFilm: "Ouvrir la fiche",
     quickLook: "Voir de quoi il parle",
+    quickOf: "Voir de quoi parle « {{title}} »",
     stranded_one:
       "Une étape ne montre rien : sa fiche n'est plus au classeur. Elle est gardée, au cas où elle revienne.",
     stranded_other:

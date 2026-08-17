@@ -122,8 +122,12 @@ export function LineageView({
       regarde un cinéaste, c'est même tout l'intérêt. */
   const [pickedStep, setPickedStep] = useState<string | null>(null);
   const [linking, setLinking] = useState<Linking | null>(null);
-  /** La fiche dont on regarde le tout, par-dessus le plan. */
-  const [quick, setQuick] = useState<string | null>(null);
+  /**
+   * Ce qu'on regarde en entier, par-dessus le plan. La FICHE et non son
+   * identifiant : un aperçu venu de TMDB n'est pas au classeur, donc
+   * rien ne l'y retrouverait.
+   */
+  const [quick, setQuick] = useState<Film | null>(null);
   const [folded, setFolded] = useState(true);
   /* LES DEUX RETRAITS PASSENT PAR UNE CONFIRMATION, et ce ne sont pas
      les mêmes pertes. Supprimer un parcours perd un ORDRE et des notes
@@ -149,7 +153,9 @@ export function LineageView({
 
   const entries = useMemo(() => (course ? courseSteps(course, films) : []), [course, films]);
   const picked = pickedStep ? entries.find((e) => e.step.id === pickedStep) : undefined;
-  const quickFilm = quick ? films.find((f) => f.id === quick) : undefined;
+  /* Au classeur ou simple aperçu : c'est ce qui décide si la vue rapide
+     montre une note et des séances, et si elle a une fiche à compléter. */
+  const quickHeld = !!quick && films.some((f) => f.id === quick.id);
 
   const replace = (next: Course, settled = true) => {
     const list = courses.some((c) => c.id === next.id)
@@ -360,7 +366,7 @@ export function LineageView({
           onPatch={(patch, settled) => replace(patchStep(course, picked.step.id, patch), settled)}
           onSettle={() => replace(course)}
           onTie={(from, to) => tieBond(from, to, picked.step.id)}
-          onQuick={() => setQuick(picked.film.id)}
+          onQuick={() => setQuick(picked.film)}
           onRemove={() => {
             onCourses(
               courses.map((c) =>
@@ -384,6 +390,7 @@ export function LineageView({
           films={films}
           onPick={(film) => add([film.id])}
           onAdopt={adopt}
+          onLook={setQuick}
           tour="lineage-add"
           label={course ? t("lineage.addToRun") : t("lineage.addFirst")}
         />
@@ -400,15 +407,37 @@ export function LineageView({
         />
       )}
 
-      {quickFilm && (
+      {quick && (
         <FilmQuickView
-          film={quickFilm}
+          film={quick}
+          inBinder={quickHeld}
           onEnrich={onUpdateFilm}
           onOpenPerson={(name) => onOpenPerson(normalize(name))}
-          onOpenFilm={() => {
-            setQuick(null);
-            onOpen(quickFilm.id);
-          }}
+          onOpenFilm={
+            quickHeld
+              ? () => {
+                  setQuick(null);
+                  onOpen(quick.id);
+                }
+              : undefined
+          }
+          /* CE QU'ON PEUT FAIRE DEPUIS LÀ, et c'est le geste même pour
+             lequel on a ouvert : décider, puis poser. Une fiche du
+             classeur s'ajoute telle quelle ; un aperçu TMDB passe par
+             l'adoption, qui va chercher la fiche entière. */
+          action={
+            quickHeld ? (
+              <button
+                onClick={() => {
+                  add([quick.id]);
+                  setQuick(null);
+                }}
+                style={inked(C.plum)}
+              >
+                {t("lineage.addToRun")}
+              </button>
+            ) : undefined
+          }
           onClose={() => setQuick(null)}
         />
       )}

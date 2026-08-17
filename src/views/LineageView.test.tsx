@@ -84,7 +84,9 @@ describe("the two ways into an empty screen", () => {
     const user = userEvent.setup();
     const { onCourses } = build();
     await user.type(screen.getByPlaceholderText("un titre, un réalisateur…"), "tokyo");
-    await user.click(await screen.findByRole("button", { name: /Voyage à Tokyo/ }));
+    /* Chaque ligne du sélecteur porte deux commandes, et l'œil
+       nomme le titre lui aussi : on ancre. */
+    await user.click(await screen.findByRole("button", { name: /^Voyage à Tokyo/ }));
 
     expect(onCourses).toHaveBeenCalledTimes(1);
     const [written] = onCourses.mock.calls[0] as [Course[]];

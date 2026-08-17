@@ -1802,6 +1802,7 @@ const en = {
     remove: "Take out of the run",
     openFilm: "Open the card",
     quickLook: "See what it is about",
+    quickOf: "See what “{{title}}” is about",
     stranded_one:
       "One step shows nothing: its card has left the binder. It is kept, should it come back.",
     stranded_other:

@@ -47,10 +47,23 @@ const OZU = makeFilm({ id: "a", title: "Voyage à Tokyo", year: 1953, director: 
 const build = () => {
   const onPick = vi.fn();
   const onAdopt = vi.fn();
-  render(<FilmPicker films={[OZU]} onPick={onPick} onAdopt={onAdopt} label="Ajouter un film" />);
-  return { onPick, onAdopt };
+  const onLook = vi.fn();
+  render(
+    <FilmPicker
+      films={[OZU]}
+      onPick={onPick}
+      onAdopt={onAdopt}
+      onLook={onLook}
+      label="Ajouter un film"
+    />
+  );
+  return { onPick, onAdopt, onLook };
 };
 
+/* ANCRÉ EN DÉBUT DE NOM : chaque ligne porte DEUX commandes, et le
+   libellé de l'œil contient le titre lui aussi. Sans l'ancre, le
+   sélecteur en désigne deux et le test dit « ambigu » là où le produit
+   va très bien. */
 const type = async (user: ReturnType<typeof userEvent.setup>, what: string) =>
   user.type(screen.getByPlaceholderText("un titre, un réalisateur…"), what);
 
@@ -71,7 +84,7 @@ describe("with no key and no account", () => {
     expect(screen.getByText(/Il manque une key TMDB/)).toBeInTheDocument();
 
     /* La moitié locale n'est pas morte pour autant. */
-    await user.click(screen.getByRole("button", { name: /Voyage à Tokyo/ }));
+    await user.click(screen.getByRole("button", { name: /^Voyage à Tokyo/ }));
     expect(onPick).toHaveBeenCalledWith(OZU);
     expect(searchMovies).not.toHaveBeenCalled();
   });
@@ -120,7 +133,7 @@ describe("with a key", () => {
     const { onAdopt } = build();
     await type(user, "sake");
     await user.keyboard("{Enter}");
-    await user.click(await screen.findByRole("button", { name: /Le Goût du saké/ }));
+    await user.click(await screen.findByRole("button", { name: /^Le Goût du saké/ }));
 
     expect(getDetails).toHaveBeenCalledWith(100, "a-key");
     const [filed] = onAdopt.mock.calls[0] as [{ status: string; source: string; director: string }];
@@ -142,7 +155,7 @@ describe("with a key", () => {
     const { onAdopt } = build();
     await type(user, "sake");
     await user.keyboard("{Enter}");
-    await user.click(await screen.findByRole("button", { name: /Le Goût du saké/ }));
+    await user.click(await screen.findByRole("button", { name: /^Le Goût du saké/ }));
 
     /* `Trouble` porte `role="alert"` : l'échec est annoncé, pas
        seulement dessiné. */
@@ -159,5 +172,44 @@ describe("with a key", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("TMDB 429");
     expect(screen.queryByText("SUR TMDB")).not.toBeInTheDocument();
+  });
+});
+
+/* ============================================================
+   REGARDER AVANT DE POSER
+   ============================================================
+
+   C'est ICI qu'on décide si un film a sa place dans un plan, et jusqu'à
+   présent on ne décidait que sur un titre et un nom. L'œil ouvre la vue
+   rapide sur les DEUX moitiés — ce qu'on a, et ce qu'on n'a pas encore —
+   et pour la seconde il faut que l'aperçu porte son `tmdbId`, sans quoi
+   la vue rapide n'aurait que cette même ligne à redessiner.
+   ============================================================ */
+describe("looking before laying down", () => {
+  it("opens the quick view on a card of the binder", async () => {
+    const user = userEvent.setup();
+    const { onLook, onPick } = build();
+    await type(user, "tokyo");
+    await user.click(screen.getByRole("button", { name: /Voir de quoi parle/ }));
+
+    expect(onLook).toHaveBeenCalledWith(OZU);
+    /* Regarder n'est pas poser : la file ne bouge pas. */
+    expect(onPick).not.toHaveBeenCalled();
+  });
+
+  it("opens it on a TMDB result too, WITH the identifier that fills it", async () => {
+    const user = userEvent.setup();
+    searchMovies.mockResolvedValue([
+      { tmdbId: 100, title: "Le Goût du saké", year: 1962, poster: "" },
+    ]);
+    const { onLook, onAdopt } = build();
+    await type(user, "sake");
+    await user.keyboard("{Enter}");
+    await user.click(await screen.findByRole("button", { name: /Voir de quoi parle/ }));
+
+    const [preview] = onLook.mock.calls[0] as [{ tmdbId: number; title: string }];
+    expect(preview).toMatchObject({ title: "Le Goût du saké", tmdbId: 100 });
+    expect(onAdopt).not.toHaveBeenCalled();
+    expect(getDetails).not.toHaveBeenCalled();
   });
 });

@@ -32,7 +32,7 @@
    statement. */
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Plus, Search } from "lucide-react";
+import { Eye, Plus, Search } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { bare, inked, hollow, underlineInput } from "../../theme/styles";
 import { NoKey, Trouble, Waiting } from "../ui";
@@ -62,12 +62,18 @@ interface FilmPickerProps {
    * écriture de la collection et poser une écriture du parcours.
    */
   onAdopt: (film: Film) => void;
+  /**
+   * Regarder un film sans le poser. Deux natures passent par là : une
+   * fiche du classeur, et un aperçu TMDB qui ne porte qu'un identifiant
+   * — la vue rapide ira chercher le reste elle-même.
+   */
+  onLook: (film: Film) => void;
   /** Ce que dit le champ, selon qu'on ouvre un parcours ou qu'on l'allonge. */
   label: string;
   tour?: string;
 }
 
-export function FilmPicker({ films, onPick, onAdopt, label, tour }: FilmPickerProps) {
+export function FilmPicker({ films, onPick, onAdopt, onLook, label, tour }: FilmPickerProps) {
   const { t } = useTranslation();
   const apiKey = useTmdbKey();
   const [q, setQ] = useState("");
@@ -169,17 +175,29 @@ export function FilmPicker({ films, onPick, onAdopt, label, tour }: FilmPickerPr
     margin: "12px 0 4px",
   } as const;
 
+  /* LA LIGNE PORTE DEUX COMMANDES, ET LA BORDURE EST SUR LE `li`.
+     Poser l'œil DANS le bouton d'ajout aurait niché une commande dans une
+     commande — HTML invalide, et le bouton d'ajout y aurait pris pour NOM
+     le libellé de l'œil. */
+  const line = {
+    display: "flex",
+    alignItems: "center",
+    borderBottom: `1px solid ${alpha(C.line, 0.6)}`,
+  } as const;
+
   const row = {
     ...bare,
     display: "flex",
     alignItems: "center",
     gap: 9,
-    width: "100%",
+    flex: 1,
+    minWidth: 0,
     padding: "5px 2px",
-    borderBottom: `1px solid ${alpha(C.line, 0.6)}`,
     color: C.ink,
     textAlign: "left",
   } as const;
+
+  const eye = { ...bare, flexShrink: 0, padding: "5px 7px" } as const;
 
   return (
     <div data-tour={tour}>
@@ -220,7 +238,7 @@ export function FilmPicker({ films, onPick, onAdopt, label, tour }: FilmPickerPr
             {found.map((film) => {
               const director = primaryDirector(film);
               return (
-                <li key={film.id}>
+                <li key={film.id} style={line}>
                   <button
                     onClick={() => {
                       onPick(film);
@@ -249,6 +267,18 @@ export function FilmPicker({ films, onPick, onAdopt, label, tour }: FilmPickerPr
                         {t("lineage.notSeenYet")}
                       </span>
                     )}
+                  </button>
+                  {/* L'ŒIL À CÔTÉ DU `+`, ET C'EST ICI QU'IL MANQUAIT LE
+                      PLUS : c'est le moment où l'on décide si un film a sa
+                      place dans le plan, et on ne pouvait décider que sur
+                      un titre et un nom. */}
+                  <button
+                    onClick={() => onLook(film)}
+                    aria-label={t("lineage.quickOf", { title: film.title })}
+                    title={t("lineage.quickOf", { title: film.title })}
+                    style={eye}
+                  >
+                    <Eye size={13} />
                   </button>
                 </li>
               );
@@ -305,9 +335,13 @@ export function FilmPicker({ films, onPick, onAdopt, label, tour }: FilmPickerPr
                   title: hit.title,
                   year: hit.year || "",
                   poster: hit.poster,
+                  /* L'identifiant est ce qui permet à la vue rapide
+                     d'aller chercher le reste : sans lui elle n'aurait
+                     que le titre à montrer, c'est-à-dire cette ligne. */
+                  tmdbId: hit.tmdbId,
                 });
                 return (
-                  <li key={hit.tmdbId}>
+                  <li key={hit.tmdbId} style={line}>
                     <button
                       onClick={() => void adopt(hit)}
                       disabled={adding !== null}
@@ -337,6 +371,14 @@ export function FilmPicker({ films, onPick, onAdopt, label, tour }: FilmPickerPr
                           {t("lineage.adopting")}
                         </span>
                       )}
+                    </button>
+                    <button
+                      onClick={() => onLook(preview)}
+                      aria-label={t("lineage.quickOf", { title: hit.title })}
+                      title={t("lineage.quickOf", { title: hit.title })}
+                      style={eye}
+                    >
+                      <Eye size={13} />
                     </button>
                   </li>
                 );

@@ -110,7 +110,10 @@ interface FilmQuickViewProps {
    * qu'on ne l'a pas aimé plutôt qu'on ne l'a pas vu.
    */
   inBinder?: boolean;
-  /** La complétion écrit ici. Absent : on n'interroge rien. */
+  /**
+   * La complétion écrit ici. Absent — une proposition qui n'a pas de
+   * fiche —, on interroge quand même : on ne range simplement rien.
+   */
   onEnrich?: (film: Film) => void;
   onOpenPerson?: (name: string) => void;
   /** Ouvrir la fiche entière. Absent pour ce qui n'est pas au classeur. */
@@ -147,8 +150,16 @@ export function FilmQuickView({
   useEffect(() => {
     /* ON NE DEMANDE QUE CE QUI MANQUE, ET UNE FOIS. Une fiche complète
        n'appelle rien du tout, ce qui est le cas courant dès la seconde
-       ouverture. */
-    if (!missing || !apiKey || !film.tmdbId || !onEnrich) return;
+       ouverture.
+
+       DEMANDER ET ÉCRIRE SONT DEUX CHOSES, et les confondre vidait ce
+       panneau là où il servait le plus : une proposition du générique ou
+       une découverte de la reco n'a PAS de fiche à écrire, donc pas
+       d'`onEnrich` — et la requête ne partait pas. On voyait un titre,
+       une année, et l'écran restait exactement aussi muet qu'avant. La
+       requête ne dépend donc que de la clé et de l'identifiant ;
+       l'écriture, elle, demande une fiche au classeur. */
+    if (!missing || !apiKey || !film.tmdbId) return;
     let alive = true;
     setBusy(true);
     setTrouble(null);
@@ -175,8 +186,9 @@ export function FilmQuickView({
         if (!Object.keys(changes).length) return;
         setExtra(changes);
         /* L'écriture n'est PAS sur le chemin du geste : le panneau est
-           déjà rempli par `extra` quand celle-ci part. */
-        if (inBinder) onEnrich({ ...film, ...changes });
+           déjà rempli par `extra` quand celle-ci part. Et elle n'a lieu
+           que s'il y a une fiche à écrire. */
+        if (inBinder && onEnrich) onEnrich({ ...film, ...changes });
       })
       .catch((e: Error) => {
         /* Une DEMANDE, et non une décoration : elle se dit. */
