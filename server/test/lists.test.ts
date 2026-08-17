@@ -633,3 +633,84 @@ describe("challenging somebody directly", () => {
     expect(paid).toEqual([]);
   });
 });
+
+/* ============================================================
+   LA PORTE UNIQUE DES DROITS SUR UN DÉFI
+
+   Sept routes demandaient `rightsOnList(challenge.list_id, …)`, et
+   c'était le vrai coût des natures de défi : tant qu'un défi est une
+   liste plus une période, la confidentialité de la liste EST celle du
+   défi. Un défi sans liste fait disparaître la source, et six endroits
+   auraient inventé le même repli pendant que le septième en inventait
+   un autre.
+
+   CE QUI EST ÉPROUVÉ ICI EST QUE RIEN N'A BOUGÉ. `rightsOnChallenge`
+   rend exactement ce que rendait `rightsOnList` tant qu'il y a une
+   liste — la première version ajoutait l'auteur du défi à
+   `administer`, ce qui aurait ÉLARGI un droit sur tous les défis
+   existants. Élargir une permission est une décision, pas un effet de
+   bord de déménagement.
+   ============================================================ */
+describe("the rights over a challenge", () => {
+  it("answers exactly what the list answered, and widens nothing", async () => {
+    const owner = await count("proprio");
+    const member = await count("membre");
+    const stranger = await count("passante");
+    const list = await createList(owner.cookie);
+    await app.inject({
+      method: "PUT",
+      url: `/lists/${list}/members/membre`,
+      headers: { cookie: owner.cookie },
+    });
+    /* LE DÉFI EST MONTÉ PAR LE MEMBRE, et c'est le cas qui sépare les
+       deux règles : il l'a créé, mais la liste n'est pas la sienne. */
+    const id = (
+      await app.inject({
+        method: "POST",
+        url: "/challenges",
+        headers: { cookie: member.cookie },
+        payload: { listId: list, title: "Mars", starts_on: "2026-03-01", ends_on: "2026-03-31" },
+      })
+    ).json().id as string;
+
+    const asOwner = await store.rightsOnChallenge(db, id, owner.person.id);
+    expect(asOwner).toMatchObject({ read: true, write: true, administer: true });
+
+    const asMember = await store.rightsOnChallenge(db, id, member.person.id);
+    /* Il écrit dans la liste, donc il écrit ici — mais il n'ADMINISTRE
+       pas, bien qu'il ait monté ce défi. C'est la règle d'avant, et la
+       déplacer ne devait pas la changer. */
+    expect(asMember).toMatchObject({ read: true, write: true, administer: false });
+
+    const asStranger = await store.rightsOnChallenge(db, id, stranger.person.id);
+    expect(asStranger).toMatchObject({ read: false, write: false, administer: false });
+
+    expect(await store.rightsOnChallenge(db, id, null)).toMatchObject({ read: false });
+  });
+
+  it("says nothing at all about a challenge that does not exist", async () => {
+    const me = await count("quelquun");
+    expect(
+      await store.rightsOnChallenge(db, "00000000-0000-0000-0000-000000000000", me.person.id)
+    ).toBeNull();
+  });
+
+  it("opens a public list's challenge to anybody who can read the list", async () => {
+    const owner = await count("ouverte");
+    const passer = await count("lectrice");
+    const list = await createList(owner.cookie, { is_public: true });
+    const id = (
+      await app.inject({
+        method: "POST",
+        url: "/challenges",
+        headers: { cookie: owner.cookie },
+        payload: { listId: list, title: "Mars", starts_on: "2026-03-01", ends_on: "2026-03-31" },
+      })
+    ).json().id as string;
+    expect(await store.rightsOnChallenge(db, id, passer.person.id)).toMatchObject({
+      read: true,
+      write: false,
+      administer: false,
+    });
+  });
+});

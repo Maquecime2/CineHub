@@ -1134,6 +1134,91 @@ export async function rightsOnList(
   };
 }
 
+/**
+ * Somebody's rights over a CHALLENGE — la porte unique.
+ *
+ * SEPT ROUTES DEMANDAIENT `rightsOnList(challenge.list_id, …)`, ET
+ * C'ÉTAIT LE VRAI COÛT DES NATURES DE DÉFI. Tant qu'un défi est une
+ * liste plus une période, la confidentialité de la liste est la
+ * confidentialité du défi et il n'y a pas deux règles à tenir
+ * d'accord. Un défi par critère n'a PAS de liste : la source disparaît,
+ * et sept endroits auraient dû inventer chacun leur repli — c'est-à-dire
+ * que six l'auraient inventé pareil et le septième non.
+ *
+ * UNE SEULE FONCTION, DONC, ET TOUTES LES ROUTES PASSENT PAR ELLE. Le
+ * jour où la règle change, elle change ici.
+ *
+ * ET UN DÉFI PAR CRITÈRE N'EST JAMAIS DÉCOUVRABLE : on y est, ou on l'a
+ * créé. Il n'y a pas de liste publique derrière pour le montrer, et
+ * inventer une découverte lui aurait donné une portée que personne n'a
+ * demandée — voir `myChallenges`, qui ne le propose pas davantage.
+ */
+export async function rightsOnChallenge(
+  db: Db,
+  challengeId: string,
+  personId: string | null
+): Promise<Rights | null> {
+  const e = await one<{
+    id: string;
+    list_id: string | null;
+    created_by: string | null;
+    inside: boolean;
+    list_owner: string | null;
+    list_public: boolean | null;
+    list_member: boolean;
+  }>(
+    db,
+    `SELECT e.id, e.list_id, e.created_by,
+            EXISTS (SELECT 1 FROM challenge_participant x
+                     WHERE x.challenge_id = e.id AND x.person_id = $2) AS inside,
+            l.owner_id AS list_owner,
+            l.is_public AS list_public,
+            EXISTS (SELECT 1 FROM list_member m
+                     WHERE m.list_id = e.list_id AND m.person_id = $2) AS list_member
+       FROM challenge e
+       LEFT JOIN list l ON l.id = e.list_id
+      WHERE e.id = $1`,
+    [challengeId, personId]
+  );
+  if (!e) return null;
+
+  const isAuthor = personId !== null && e.created_by !== null && e.created_by === personId;
+  const isListOwner = personId !== null && e.list_owner !== null && e.list_owner === personId;
+
+  /* TANT QU'IL Y A UNE LISTE, LA RÉPONSE EST EXACTEMENT CELLE D'AVANT.
+     C'est ce qui fait de ce déplacement un refactor et non une décision :
+     la première version de cette fonction ajoutait l'auteur du défi à
+     `administer`, ce qui aurait ÉLARGI un droit sur tous les défis
+     existants — un membre d'une liste aurait pu effacer un défi que le
+     propriétaire de la liste avait monté. Élargir une permission est une
+     décision, et elle ne se prend pas en passant. */
+  if (e.list_id !== null) {
+    return {
+      list_id: e.list_id,
+      owner_id: e.list_owner ?? "",
+      read: e.list_public === true || isListOwner || e.list_member,
+      write: isListOwner || e.list_member,
+      administer: isListOwner,
+    };
+  }
+
+  /* SANS LISTE, ON Y EST OU ON L'A CRÉÉ — et rien d'autre. Il n'y a pas
+     de liste publique derrière pour le montrer, donc UN DÉFI PAR CRITÈRE
+     N'EST JAMAIS DÉCOUVRABLE. Inventer une découverte lui aurait donné
+     une portée que personne n'a demandée.
+
+     `created_by` est `SET NULL` à l'effacement du compte : un défi dont
+     l'auteur est parti n'a plus personne pour l'administrer, ce qui est
+     juste — ses participants continuent de le lire. */
+  return {
+    list_id: e.id,
+    owner_id: e.created_by ?? "",
+    read: isAuthor || e.inside,
+    write: isAuthor,
+    administer: isAuthor,
+  };
+}
+
 /** My lists, and those I have been allowed to write in. */
 export async function myLists(db: Db, personId: string): Promise<ListRow[]> {
   return db.query<ListRow>(

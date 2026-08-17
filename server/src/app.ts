@@ -1311,7 +1311,7 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     if (!challenge) return reply.code(404).send({ error: "Défi inconnu." });
     /* The right to see a challenge is the right to see its list: there
        are not two confidentialities to keep in agreement. */
-    const rights = await store.rightsOnList(db, challenge.list_id, person.id);
+    const rights = await store.rightsOnChallenge(db, challenge.id, person.id);
     if (!rights?.read) return reply.code(404).send({ error: "Défi inconnu." });
 
     return {
@@ -1330,7 +1330,7 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     const { id } = req.params as { id: string };
     const challenge = UUID.test(id || "") ? await store.challengeById(db, id) : null;
     if (!challenge) return reply.code(404).send({ error: "Défi inconnu." });
-    const rights = await store.rightsOnList(db, challenge.list_id, person.id);
+    const rights = await store.rightsOnChallenge(db, challenge.id, person.id);
     if (!rights?.administer) return reply.code(403).send({ error: "Ce défi n'est pas vôtre." });
     await store.deleteChallenge(db, challenge.id);
     return { erased: true };
@@ -1361,7 +1361,7 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     /* `administer` et non `write` : c'est le droit que demande déjà la
        suppression d'un défi. Un co-rédacteur de la liste peut y ajouter
        des œuvres, pas y engager des gens. */
-    const rights = await store.rightsOnList(db, challenge.list_id, person.id);
+    const rights = await store.rightsOnChallenge(db, challenge.id, person.id);
     if (!rights?.administer) return reply.code(403).send({ error: "Ce défi n'est pas vôtre." });
 
     const invite = await store.findByPseudo(db, (pseudo || "").toLowerCase());
@@ -1389,7 +1389,7 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     if (about.id !== person.id) {
       const challenge = await store.challengeById(db, id);
       if (!challenge) return reply.code(404).send({ error: "Défi inconnu." });
-      const rights = await store.rightsOnList(db, challenge.list_id, person.id);
+      const rights = await store.rightsOnChallenge(db, challenge.id, person.id);
       if (!rights?.administer) return reply.code(403).send({ error: "Ce défi n'est pas vôtre." });
     }
     await store.leaveChallenge(db, id, about.id);
@@ -1401,7 +1401,7 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     const { id } = req.params as { id: string };
     const challenge = UUID.test(id || "") ? await store.challengeById(db, id) : null;
     if (!challenge) return reply.code(404).send({ error: "Défi inconnu." });
-    const rights = await store.rightsOnList(db, challenge.list_id, person.id);
+    const rights = await store.rightsOnChallenge(db, challenge.id, person.id);
     if (!rights?.read) return reply.code(404).send({ error: "Défi inconnu." });
     await store.joinChallenge(db, challenge.id, person.id);
     /* Somebody joining pays the person who started it — but only that
@@ -2194,7 +2194,7 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     const { id } = req.params as { id: string };
     const challenge = UUID.test(id || "") ? await store.challengeById(db, id) : null;
     if (!challenge) return reply.code(404).send({ error: "Défi inconnu." });
-    const rights = await store.rightsOnList(db, challenge.list_id, person.id);
+    const rights = await store.rightsOnChallenge(db, challenge.id, person.id);
     if (!rights?.read) return reply.code(404).send({ error: "Défi inconnu." });
     return { awarded: await store.settleChallenge(db, challenge.id) };
   });
