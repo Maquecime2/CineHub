@@ -111,3 +111,86 @@ describe("l'insertion d'une capture", () => {
     expect(insert()("[img:2]")).toBe("avant[img:1][img:2]apres");
   });
 });
+
+/* ============================================================
+   CE QU'ON TAPE NE SE FAIT PAS REPRENDRE
+
+   LE DÉFAUT : « de légers retours en arrière en tapant sa critique ».
+   Le champ ne se réécrivait que si `value` différait de ce qu'il venait
+   d'émettre — ce qui a l'air d'une garde, et n'en est pas une : elle est
+   vraie AUSSI quand la valeur qui revient est plus VIEILLE que ce qu'on
+   a tapé depuis. Le champ reprenait alors le texte d'avant, et les
+   caractères frappés entre-temps disparaissaient.
+
+   Un parent en retard d'une frappe suffit à le montrer, et c'est le cas
+   ordinaire : la fiche remonte par un chemin — l'écho d'une écriture,
+   une synchro, un rendu groupé — qui ne connaît pas la dernière lettre.
+
+   TANT QU'ON A LA MAIN DANS LE CHAMP, C'EST LE CHAMP QUI FAIT FOI.
+   ============================================================ */
+describe("typing, while the card answers late", () => {
+  it("does not take back what was typed after the value it echoes", () => {
+    const onChange = vi.fn();
+    const { rerender, container } = render(
+      <RichField
+        label="Critique"
+        value=""
+        onChange={onChange}
+        stills={stills}
+        onOpenStill={() => {}}
+      />
+    );
+    const field = container.querySelector("[contenteditable]") as HTMLDivElement;
+    field.focus();
+
+    /* On tape « Cléo », puis « de 5 à 7 » — sans que le parent ait eu le
+       temps de rendre la première moitié. */
+    field.textContent = "Cléo";
+    fireEvent.input(field);
+    expect(onChange).toHaveBeenLastCalledWith("Cléo");
+
+    field.textContent = "Cléo de 5 à 7";
+    fireEvent.input(field);
+    expect(onChange).toHaveBeenLastCalledWith("Cléo de 5 à 7");
+
+    /* LA FICHE REVIENT AVEC « Cléo », en retard de neuf caractères. */
+    rerender(
+      <RichField
+        label="Critique"
+        value="Cléo"
+        onChange={onChange}
+        stills={stills}
+        onOpenStill={() => {}}
+      />
+    );
+
+    expect(field.textContent).toBe("Cléo de 5 à 7");
+  });
+
+  it("still accepts a value that comes from elsewhere when one is not typing", () => {
+    /* La garde ne vaut que TANT QU'ON A LA MAIN. Sans le focus, une
+       valeur venue d'ailleurs — un import, une synchro, une capture
+       retirée — doit continuer de s'afficher, sinon le champ ne se
+       remplirait jamais à l'ouverture d'une fiche. */
+    const { rerender, container } = render(
+      <RichField
+        label="Critique"
+        value=""
+        onChange={() => {}}
+        stills={stills}
+        onOpenStill={() => {}}
+      />
+    );
+    const field = container.querySelector("[contenteditable]") as HTMLDivElement;
+    rerender(
+      <RichField
+        label="Critique"
+        value="Venu d'ailleurs"
+        onChange={() => {}}
+        stills={stills}
+        onOpenStill={() => {}}
+      />
+    );
+    expect(field.textContent).toBe("Venu d'ailleurs");
+  });
+});

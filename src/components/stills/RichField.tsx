@@ -170,9 +170,47 @@ export function RichField({
     const urlsChanged = sig !== lastSig.current;
     if (!textChanged && !urlsChanged && el.dataset.ready === "1") return;
 
+    /* ============================================================
+       UNE VALEUR QUI REVIENT EN RETARD N'EST PAS UNE VALEUR NEUVE
+
+       « Différente de ce que je viens d'émettre » a l'air d'une garde et
+       n'en est pas une : c'est vrai AUSSI quand la fiche répond avec un
+       texte plus VIEUX que ce qu'on a tapé depuis. Le champ reprenait
+       alors la version d'avant, et les caractères frappés entre-temps
+       disparaissaient — de légers retours en arrière, en pleine phrase.
+
+       La fiche remonte par plusieurs chemins qui ne connaissent pas
+       forcément la dernière lettre : l'écho d'une écriture, un rendu
+       groupé, une synchro. Aucun n'est fautif en soi ; ce qui l'était,
+       c'est de les croire tous plus récents que le champ.
+
+       TANT QU'ON A LA MAIN DANS LE CHAMP, C'EST LE CHAMP QUI FAIT FOI.
+       On ne compare donc pas `value` à ce qu'on a émis, mais à ce que le
+       champ MONTRE : s'il montre déjà notre dernière émission et que
+       `value` en diffère, c'est `value` qui est en retard, et on la
+       laisse passer son tour. Elle reviendra à jour, et l'égalité
+       refermera la question d'elle-même.
+
+       DEUX EXCEPTIONS, ET ELLES SONT DE NATURE DIFFÉRENTE :
+       — une insertion de jeton pose `pendingCaret`, donc elle vient de
+         NOUS et doit s'écrire malgré le focus ;
+       — les vignettes qui arrivent (`urlsChanged`) doivent se dessiner
+         quoi qu'il arrive, mais alors on redessine à partir de ce que le
+         champ montre — jamais à partir du texte en retard.
+       ============================================================ */
+    const focused = document.activeElement === el;
+    const shown = el.dataset.ready === "1" ? htmlToText(el) : null;
+    const late =
+      focused &&
+      pendingCaret.current == null &&
+      shown != null &&
+      shown !== value &&
+      shown === lastEmitted.current;
+    if (late && !urlsChanged) return;
+    const source = late ? shown : value;
+
     // a re-render moves the cursor: we note where it was to put it back
     const sel = window.getSelection();
-    const focused = document.activeElement === el;
     const keep =
       pendingCaret.current != null
         ? pendingCaret.current
@@ -180,9 +218,9 @@ export function RichField({
           ? htmlToText(el, { node: sel.anchorNode, offset: sel.anchorOffset }).length
           : null;
 
-    el.innerHTML = textToHtml(value, stills, urls);
+    el.innerHTML = textToHtml(source, stills, urls);
     el.dataset.ready = "1";
-    lastEmitted.current = value;
+    lastEmitted.current = source;
     lastSig.current = sig;
 
     if (keep != null && (focused || pendingCaret.current != null)) {
