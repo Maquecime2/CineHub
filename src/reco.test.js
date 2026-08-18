@@ -1,5 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { affinity, nicheFactors, nicheScore, rank, reasonsFor, DEFAULT_QUERY } from "./reco";
+import {
+  affinity,
+  discoverPlans,
+  nicheFactors,
+  nicheScore,
+  rank,
+  reasonsFor,
+  DEFAULT_QUERY,
+  FEATURE_MIN,
+} from "./reco";
 import { buildTaste } from "./taste";
 
 /* These tests never touch the network: `gatherCandidates` is the only
@@ -315,5 +324,41 @@ describe("reasonsFor", () => {
   it("stays silent rather than invent, when nothing stands out", () => {
     const c = candidate({ voteCount: 45000, lang: "en", year: 2015, genres: [] });
     expect(reasons(c)).toEqual([]);
+  });
+});
+
+/* ============================================================
+   LES COURTS MÉTRAGES
+
+   Ils sont légion sous le plancher de votes — c'est là qu'ils vivent —
+   et on ne cherche pas un film pour ce soir en ouvrant une planche de
+   bobines de huit minutes. On les écarte À LA REQUÊTE et non au tri :
+   les jeter après coup gâcherait des pages entières de résultats, donc
+   du quota, pour rien.
+   ============================================================ */
+describe("le plancher de durée", () => {
+  const taste = buildTaste([]);
+  const genreMap = { byName: new Map(), byId: new Map() };
+  const plans = (over) => discoverPlans({ ...DEFAULT_QUERY, ...over }, taste, genreMap);
+
+  it("demande à TMDB de ne pas les envoyer", () => {
+    for (const p of plans({ noShorts: true })) {
+      expect(p["with_runtime.gte"]).toBe(String(FEATURE_MIN));
+    }
+  });
+
+  it("ne dit rien du tout quand on les accepte", () => {
+    for (const p of plans({ noShorts: false })) {
+      expect(p["with_runtime.gte"]).toBeUndefined();
+    }
+  });
+
+  /* Le plancher vaut sur TOUTES les requêtes, y compris celles que le
+     curseur de niche ajoute — ce sont justement celles qui descendent
+     chercher le confidentiel, donc celles qui en ramènent le plus. */
+  it("vaut aussi sur les requêtes du curseur de niche", () => {
+    const wide = plans({ noShorts: true, nichePref: 1 });
+    expect(wide.length).toBeGreaterThan(3);
+    expect(wide.every((p) => p["with_runtime.gte"] === String(FEATURE_MIN))).toBe(true);
   });
 });

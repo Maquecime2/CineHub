@@ -875,6 +875,18 @@ const fr = {
   },
 
   reco: {
+    mainstream: "grand public",
+    offTheBeatenTrack: "hors des sentiers",
+    from: "De",
+    nicheObscurity: "peu vu",
+    nicheForeign: "non anglophone",
+    nicheAge: "ancien",
+    voteFloorNote:
+      "le plancher de votes évite de confondre « confidentiel » et « oublié pour de bonnes raisons »",
+    search: "CHERCHER",
+    consulting: "CONSULTATION… {{done}}/{{total}}",
+    noShorts: "longs métrages seulement",
+    noShortsHint: "écarte tout ce qui dure moins de {{count}} minutes",
     whatMakesTheNiche: "CE QUI FAIT LA NICHE",
     missingTmdbKey: "CLÉ TMDB MANQUANTE",
     searchOutside: "chercher au-dehors",
@@ -2601,7 +2613,7 @@ const fr = {
       },
       order: {
         title: "Le bulletin de commande",
-        body: "Années, langue, note et votes minimum, genres cherchés ou écartés. Les propositions viennent de TMDB, lues à travers ce que votre collection dit déjà de vous.",
+        body: "Années, langue, note et votes minimum. Les genres cherchés et ceux qu'on écarte tiennent dans deux tamis, qui acceptent plusieurs cases chacun. « Longs métrages seulement » range les bobines de huit minutes, nombreuses sous le plancher de votes. Les propositions viennent de TMDB, lues à travers ce que votre collection dit déjà de vous.",
       },
     },
 

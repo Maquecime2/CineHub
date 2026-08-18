@@ -855,6 +855,17 @@ const en = {
   },
 
   reco: {
+    mainstream: "mainstream",
+    offTheBeatenTrack: "off the beaten track",
+    from: "From",
+    nicheObscurity: "little seen",
+    nicheForeign: "non-English",
+    nicheAge: "old",
+    voteFloorNote: "the vote floor keeps “confidential” apart from “forgotten for good reasons”",
+    search: "SEARCH",
+    consulting: "CONSULTING… {{done}}/{{total}}",
+    noShorts: "feature films only",
+    noShortsHint: "sets aside anything under {{count}} minutes",
     whatMakesTheNiche: "WHAT MAKES THE NICHE",
     missingTmdbKey: "TMDB KEY MISSING",
     searchOutside: "search outside",
@@ -2525,7 +2536,7 @@ const en = {
       },
       order: {
         title: "The order form",
-        body: "Years, language, minimum score and vote count, genres sought or set aside. The proposals come from TMDB, read through what your collection already says about you.",
+        body: "Years, language, minimum score and vote count. The genres you want and those you set aside sit in two sieves, each taking several boxes. “Feature films only” puts away the eight-minute reels, which are legion below the vote floor. The proposals come from TMDB, read through what your collection already says about you.",
       },
     },
 
