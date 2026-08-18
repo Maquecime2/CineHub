@@ -45,6 +45,8 @@ import { StampCorner, Tape } from "../components/atmosphere";
 import { PosterArt } from "../components/film/PosterArt";
 import { PosterPicker } from "../components/film/PosterPicker";
 import { FilmIdentity } from "../components/film/FilmIdentity";
+import { InRun } from "../components/program/NextUp";
+import type { Placing } from "../domain/course";
 import { TmdbFacts } from "../components/film/TmdbFacts";
 import { FrameStrip } from "../components/film/FrameStrip";
 import { shotsOfFrames, shotsOfStills } from "../components/stills/shots";
@@ -175,6 +177,10 @@ interface DetailViewProps {
   onOpenPerson?: (name: string) => void;
   /** Files a proposal from the wake into the "à voir" list. */
   onAddToWatchlist?: (f: Film) => void;
+  /** Where this card stands in a run, if it stands in one — `stepOf`. */
+  placing?: Placing | null;
+  /** The way back to the run this card is a step of. */
+  onOpenRun?: () => void;
   /** What was changed about the motifs' gatherings — the stars come from the cards. */
   fils?: Thread[];
   /** Lights a motif's star on the map, or puts it out. */
@@ -217,6 +223,8 @@ export function DetailView({
   onOpen,
   onOpenPerson,
   onAddToWatchlist,
+  placing,
+  onOpenRun,
   vocabulary = { custom: [], hidden: [] },
   onCreateMotif,
   onDeleteMotif,
@@ -539,6 +547,12 @@ export function DetailView({
                 fixable in one click — it is the only way to correct a
                 card the import identified wrongly. */}
               <FilmIdentity film={film} onUpdate={onUpdate} onOpenPerson={onOpenPerson} />
+              {/* CE QUE CE FILM EST DANS UN PLAN. Une fiche ne disait
+                  rien du programme où on l'avait posée : on retrouvait
+                  un film sans savoir qu'il était la troisième étape de
+                  quelque chose, ni pourquoi il y était. Muet quand il
+                  n'est nulle part. */}
+              <InRun placing={placing ?? null} onOpenRun={onOpenRun ?? (() => {})} />
               {film.status === "watchlist" ? (
                 <button
                   /* It used to lay `watchedAt` on its own. Since a log

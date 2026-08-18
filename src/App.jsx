@@ -39,7 +39,7 @@ import {
   saveCoursesSoon as saveCoursesToDiskSoon,
 } from "./services/lineage";
 import { normalizeBonds } from "./domain/bonds";
-import { normalizeCourses } from "./domain/course";
+import { normalizeCourses, stepOf } from "./domain/course";
 import { loadVocabulary, saveVocabulary, normalizeVocabulary } from "./services/motifs";
 import { store, KEYS, watchQuota, hydrateVault } from "./services/storage";
 import { loadFilms, knownCollection, saveFilms, forgetCache } from "./services/collection";
@@ -118,7 +118,7 @@ const ListsView = lazyView(() => import("./views/ListsView"), "ListsView");
 const QuizView = lazyView(() => import("./views/QuizView"), "QuizView");
 const CounterView = lazyView(() => import("./views/CounterView"), "CounterView");
 const ConstellationView = lazyView(() => import("./views/ConstellationView"), "ConstellationView");
-const LineageView = lazyView(() => import("./views/LineageView"), "LineageView");
+const ProgramView = lazyView(() => import("./views/ProgramView"), "ProgramView");
 const AlmanacView = lazyView(() => import("./views/AlmanacView"), "AlmanacView");
 const SkinLab = lazyView(() => import("./views/dev/SkinLab"), "SkinLab");
 
@@ -1618,6 +1618,8 @@ export default function App() {
                   /* La fiche rapide complète ce qui lui manque — une
                      fois, par fiche — et l'écrit : voir `FilmQuickView`. */
                   onUpdateFilm={updateFilm}
+                  courses={courses}
+                  onOpenRun={() => setView("program")}
                 />
               )}
               {view === "watchlist" && !selectedId && (
@@ -1636,6 +1638,8 @@ export default function App() {
                   /* La fiche rapide complète ce qui lui manque — une
                      fois, par fiche — et l'écrit : voir `FilmQuickView`. */
                   onUpdateFilm={updateFilm}
+                  courses={courses}
+                  onOpenRun={() => setView("program")}
                 />
               )}
               {view === "detail" && selectedFilm && (
@@ -1673,6 +1677,13 @@ export default function App() {
                   onOpen={(id) => setSelectedId(id)}
                   onOpenPerson={openPerson}
                   onAddToWatchlist={addFilm}
+                  /* LE PROGRAMME SUIT LA FICHE. On lit, on ne touche à
+                     rien : `stepOf` prend l'épinglé d'abord. */
+                  placing={stepOf(courses, selectedFilm.id)}
+                  onOpenRun={() => {
+                    setSelectedId(null);
+                    setView("program");
+                  }}
                 />
               )}
               {view === "credits" && (
@@ -1708,8 +1719,8 @@ export default function App() {
                   mauvaise moitié : on planifie ce qu'on n'a PAS vu, et
                   revoir un film est un jalon légitime. Le sélecteur met
                   « à voir » en tête, il n'exclut rien. */}
-              {view === "lineage" && (
-                <LineageView
+              {view === "program" && (
+                <ProgramView
                   films={films}
                   courses={courses}
                   bonds={bonds}

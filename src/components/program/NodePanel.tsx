@@ -70,25 +70,25 @@ export function NodePanel({
       <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
         <div style={{ fontFamily: F.title, fontSize: 19, color: C.ink, flex: 1 }}>{node.name}</div>
         <button onClick={onClose} style={{ ...bare, fontFamily: F.mono, fontSize: 9.5 }}>
-          {t("lineage.close")}
+          {t("program.close")}
         </button>
       </div>
 
       {node.orphan ? (
         <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded, marginTop: 6 }}>
-          {t("lineage.orphan")}
+          {t("program.orphan")}
         </div>
       ) : (
         node.inCourse === 0 && (
           <div style={{ fontFamily: F.hand, fontSize: 17, color: C.inkFaded, marginTop: 6 }}>
-            {t("lineage.notInQueue", { count: node.owned })}
+            {t("program.notInQueue", { count: node.owned })}
           </div>
         )
       )}
 
       {mine.length > 0 && (
         <div style={{ marginTop: 10 }}>
-          <Label>{t("lineage.map")}</Label>
+          <Label>{t("program.map")}</Label>
           <ul style={{ listStyle: "none", margin: "4px 0 0", padding: 0 }}>
             {mine.map((b) => (
               <li key={b.id}>
@@ -145,18 +145,18 @@ export function NodePanel({
             })}
           </ul>
           <button onClick={() => onAddAll(theirs)} style={{ ...inked(C.plum), marginTop: 8 }}>
-            {t("lineage.addTheirFilms")}
+            {t("program.addTheirFilms")}
           </button>
         </div>
       )}
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
         <button onClick={() => onAddBond(node.name)} style={{ ...inked(C.ink), ...hollow }}>
-          {t("lineage.linkThisDirector")}
+          {t("program.linkThisDirector")}
         </button>
         {!node.orphan && (
           <button onClick={() => onOpenPerson(node.key)} style={{ ...inked(C.ink), ...hollow }}>
-            {t("lineage.openPerson")}
+            {t("program.openPerson")}
           </button>
         )}
       </div>

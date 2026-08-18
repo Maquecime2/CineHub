@@ -54,6 +54,7 @@ import { C, F, alpha } from "../../theme/tokens";
 import { bare } from "../../theme/styles";
 import { PosterArt } from "../film/PosterArt";
 import { initialsOf } from "../../domain/film";
+import { tiltOf } from "../../domain/seeded";
 import type { Step } from "../../domain/course";
 import type { Film } from "../../types";
 
@@ -87,6 +88,8 @@ interface StepCardProps {
   leading: boolean;
   /** Une note de marge est écrite dessus : la station le montre. */
   noted: boolean;
+  /** L'étape est soldée : une séance postérieure à sa pose. */
+  done: boolean;
   /** Le clic porte ses modificateurs : la bande en fait une sélection. */
   onPick: (e: ReactMouseEvent) => void;
   onToggle: () => void;
@@ -114,6 +117,7 @@ export function StepCard({
   lit,
   leading,
   noted,
+  done,
   onPick,
   onToggle,
   onPoint,
@@ -148,7 +152,7 @@ export function StepCard({
       checked={selected}
       onChange={onToggle}
       onClick={(e) => e.stopPropagation()}
-      aria-label={t("lineage.select", { title: film.title })}
+      aria-label={t("program.select", { title: film.title })}
       style={{
         cursor: "pointer",
         accentColor: C.plum,
@@ -163,13 +167,43 @@ export function StepCard({
     />
   );
 
+  /* LE TAMPON DIT UN MOT, ET JAMAIS UNE COULEUR — la même règle que le
+     verdict du quizz : un vert de « fait » disparaît sous cinq des
+     dix-sept peaux. Il est écrit ici et non pris à `StampCorner`, qui
+     porte un `mixBlendMode` : la station est une LIGNE d'une bande qui
+     défile, et les effets chers appartiennent aux moments. Incliné par
+     `tiltOf`, donc SEMÉ sur l'étape : un rail qui gigote n'est pas un
+     rail. */
+  const stamp = done ? (
+    <span
+      aria-hidden
+      style={{
+        position: "absolute",
+        bottom: 6,
+        left: 6,
+        transform: `rotate(${tiltOf(step.id)}deg)`,
+        border: `2px solid ${C.burgundy}`,
+        color: C.burgundy,
+        background: alpha(C.card, 0.82),
+        fontFamily: F.mono,
+        fontSize: 8.5,
+        letterSpacing: 1.5,
+        textTransform: "uppercase",
+        padding: "2px 5px",
+        pointerEvents: "none",
+      }}
+    >
+      {t("program.stampDone")}
+    </span>
+  ) : null;
+
   const chevrons = (
     <div style={{ display: "flex" }}>
       <button
         onClick={() => onMoveBy(-1)}
         disabled={place === 1}
-        aria-label={t("lineage.moveEarlier")}
-        title={t("lineage.moveEarlier")}
+        aria-label={t("program.moveEarlier")}
+        title={t("program.moveEarlier")}
         style={{ ...bare, opacity: place === 1 ? 0.3 : 1, padding: 2 }}
       >
         {column ? <ChevronUp size={14} /> : <ChevronLeft size={14} />}
@@ -177,8 +211,8 @@ export function StepCard({
       <button
         onClick={() => onMoveBy(1)}
         disabled={place === total}
-        aria-label={t("lineage.moveLater")}
-        title={t("lineage.moveLater")}
+        aria-label={t("program.moveLater")}
+        title={t("program.moveLater")}
         style={{ ...bare, opacity: place === total ? 0.3 : 1, padding: 2 }}
       >
         {column ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -249,7 +283,9 @@ export function StepCard({
         <button
           onClick={onPick}
           aria-pressed={picked}
-          aria-label={t("lineage.openStep", { title: film.title })}
+          aria-label={t(done ? "program.openStepDone" : "program.openStep", {
+            title: film.title,
+          })}
           style={{
             ...bare,
             display: "block",
@@ -260,9 +296,13 @@ export function StepCard({
             height: 81,
             outline: picked ? `2px solid ${C.plum}` : undefined,
             outlineOffset: 2,
+            /* L'ENCRE PÂLIT, LA STATION RESTE. L'ordre est le document :
+               une étape faite ne bouge pas d'un cran. */
+            opacity: done ? 0.55 : 1,
           }}
         >
           <PosterArt film={film} initials={initialsOf(film.title)} width={54} plain lazy />
+          {stamp}
         </button>
 
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -359,7 +399,9 @@ export function StepCard({
         <button
           onClick={onPick}
           aria-pressed={picked}
-          aria-label={t("lineage.openStep", { title: film.title })}
+          aria-label={t(done ? "program.openStepDone" : "program.openStep", {
+            title: film.title,
+          })}
           style={{
             ...bare,
             display: "block",
@@ -385,6 +427,19 @@ export function StepCard({
               }}
             />
           )}
+          {/* L'ENCRE PÂLIT SOUS LE TAMPON, et la station garde sa place. */}
+          {done && (
+            <span
+              aria-hidden
+              style={{
+                position: "absolute",
+                inset: 0,
+                background: alpha(C.paper, 0.45),
+                pointerEvents: "none",
+              }}
+            />
+          )}
+          {stamp}
         </button>
         <span
           style={{
@@ -413,9 +468,9 @@ export function StepCard({
             height: 16,
             textAlign: "center",
             borderRadius: 8,
-            border: `1px solid ${selected ? C.ochre : alpha(C.ink, 0.45)}`,
-            background: selected ? C.ochre : C.paper,
-            color: selected ? C.card : C.inkFaded,
+            border: `1px solid ${selected ? C.ochre : done ? C.burgundy : alpha(C.ink, 0.45)}`,
+            background: selected ? C.ochre : done ? C.burgundy : C.paper,
+            color: selected || done ? C.card : C.inkFaded,
           }}
         >
           {place}

@@ -157,7 +157,7 @@ export function FilmPicker({
       setRemote({ kind: "title", hits: byAudience(hits) });
     } catch (e) {
       setRemote(null);
-      setTrouble(t("lineage.tmdbFailed", { why: (e as Error).message }));
+      setTrouble(t("program.tmdbFailed", { why: (e as Error).message }));
     } finally {
       setBusy(false);
     }
@@ -190,7 +190,7 @@ export function FilmPicker({
       const who = await searchPerson(name, apiKey, { role: "réalisation" });
       if (!who) {
         setRemote(null);
-        setTrouble(t("lineage.noSuchDirector", { name }));
+        setTrouble(t("program.noSuchDirector", { name }));
         return;
       }
       const theirs = (await personFilmography(who.id, apiKey, {
@@ -206,7 +206,7 @@ export function FilmPicker({
       setRemote({ kind: "director", name: who.name, hits });
     } catch (e) {
       setRemote(null);
-      setTrouble(t("lineage.tmdbFailed", { why: (e as Error).message }));
+      setTrouble(t("program.tmdbFailed", { why: (e as Error).message }));
     } finally {
       setBusy(false);
     }
@@ -244,7 +244,7 @@ export function FilmPicker({
     } catch (e) {
       /* Une DEMANDE qui a raté, et non une décoration : elle se dit. Et
          aucune étape n'est posée — on ne prétend pas avoir rangé. */
-      setTrouble(t("lineage.tmdbFailed", { why: (e as Error).message }));
+      setTrouble(t("program.tmdbFailed", { why: (e as Error).message }));
     } finally {
       setAdding(null);
     }
@@ -314,14 +314,14 @@ export function FilmPicker({
               void look();
             }
           }}
-          placeholder={t("lineage.pickPlaceholder")}
+          placeholder={t("program.pickPlaceholder")}
           style={{ ...underlineInput, marginTop: 4 }}
         />
       </label>
 
       {found.length > 0 && (
         <>
-          <div style={caption}>{t("lineage.inBinder")}</div>
+          <div style={caption}>{t("program.inBinder")}</div>
           <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
             {found.map((film) => {
               const director = primaryDirector(film);
@@ -362,7 +362,7 @@ export function FilmPicker({
                     )}
                     {film.status === "watchlist" && !inRun.has(film.id) && (
                       <span style={{ fontFamily: F.mono, fontSize: 9, color: C.ochre }}>
-                        {t("lineage.notSeenYet")}
+                        {t("program.notSeenYet")}
                       </span>
                     )}
                     {inRun.has(film.id) && (
@@ -377,7 +377,7 @@ export function FilmPicker({
                           marginLeft: "auto",
                         }}
                       >
-                        {t("lineage.alreadyInRun")}
+                        {t("program.alreadyInRun")}
                       </span>
                     )}
                   </button>
@@ -387,8 +387,8 @@ export function FilmPicker({
                       un titre et un nom. */}
                   <button
                     onClick={() => onLook(film)}
-                    aria-label={t("lineage.quickOf", { title: film.title })}
-                    title={t("lineage.quickOf", { title: film.title })}
+                    aria-label={t("program.quickOf", { title: film.title })}
+                    title={t("program.quickOf", { title: film.title })}
                     style={eye}
                   >
                     <Eye size={13} />
@@ -402,7 +402,7 @@ export function FilmPicker({
 
       {q.trim() && found.length === 0 && !busy && (
         <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded, marginTop: 6 }}>
-          {t("lineage.pickNothing")}
+          {t("program.pickNothing")}
         </div>
       )}
 
@@ -424,7 +424,7 @@ export function FilmPicker({
               }}
             >
               <Search size={12} />
-              {t(busy ? "lineage.searchingTmdb" : "lineage.searchTmdb")}
+              {t(busy ? "program.searchingTmdb" : "program.searchTmdb")}
             </button>
             <button
               onClick={() => void lookDirector()}
@@ -436,23 +436,23 @@ export function FilmPicker({
               }}
             >
               <Clapperboard size={12} />
-              {t("lineage.searchDirector")}
+              {t("program.searchDirector")}
             </button>
           </div>
         ) : (
-          <NoKey what={t("lineage.tmdbWhat")} />
+          <NoKey what={t("program.tmdbWhat")} />
         )}
       </div>
 
-      {busy && <Waiting lines={3} label={t("lineage.searchingTmdb")} />}
+      {busy && <Waiting lines={3} label={t("program.searchingTmdb")} />}
       {trouble && <Trouble>{trouble}</Trouble>}
 
       {remote && fresh && !busy && (
         <>
           <div style={caption}>
             {remote.kind === "director"
-              ? t("lineage.filmsOf", { name: remote.name })
-              : t("lineage.onTmdb")}
+              ? t("program.filmsOf", { name: remote.name })
+              : t("program.onTmdb")}
           </div>
           {held > 0 && (
             <div
@@ -463,12 +463,12 @@ export function FilmPicker({
                 margin: "0 0 6px",
               }}
             >
-              {t("lineage.alreadyHeld", { count: held })}
+              {t("program.alreadyHeld", { count: held })}
             </div>
           )}
           {fresh.length === 0 ? (
             <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded }}>
-              {t(remote.kind === "director" ? "lineage.haveThemAll" : "lineage.tmdbNothing")}
+              {t(remote.kind === "director" ? "program.haveThemAll" : "program.tmdbNothing")}
             </div>
           ) : (
             <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
@@ -514,14 +514,14 @@ export function FilmPicker({
                       )}
                       {adding === hit.tmdbId && (
                         <span style={{ fontFamily: F.mono, fontSize: 9, color: C.ochre }}>
-                          {t("lineage.adopting")}
+                          {t("program.adopting")}
                         </span>
                       )}
                     </button>
                     <button
                       onClick={() => onLook(preview)}
-                      aria-label={t("lineage.quickOf", { title: hit.title })}
-                      title={t("lineage.quickOf", { title: hit.title })}
+                      aria-label={t("program.quickOf", { title: hit.title })}
+                      title={t("program.quickOf", { title: hit.title })}
                       style={eye}
                     >
                       <Eye size={13} />

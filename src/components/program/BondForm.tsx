@@ -69,12 +69,12 @@ export function BondForm({ films, bonds, from = "", to = "", onSave, onClose }: 
 
   const submit = () => {
     const bond = makeBond({ kind, fromName: a, toName: b, note });
-    if (!bond) return setTrouble(t("lineage.selfBond"));
-    if (hasBond(bonds, bond)) return setTrouble(t("lineage.alreadyBond"));
+    if (!bond) return setTrouble(t("program.selfBond"));
+    if (hasBond(bonds, bond)) return setTrouble(t("program.alreadyBond"));
     const against = contradicts(bonds, bond);
     if (against)
       return setTrouble(
-        t("lineage.contradiction", { existing: bondLabel(against, against.from, t) })
+        t("program.contradiction", { existing: bondLabel(against, against.from, t) })
       );
     onSave(bond);
     onClose();
@@ -99,7 +99,7 @@ export function BondForm({ films, bonds, from = "", to = "", onSave, onClose }: 
           ref={ref}
           role="dialog"
           aria-modal="true"
-          aria-label={t("lineage.addBond")}
+          aria-label={t("program.addBond")}
           onClick={(e) => e.stopPropagation()}
           style={{
             background: C.card,
@@ -119,10 +119,10 @@ export function BondForm({ films, bonds, from = "", to = "", onSave, onClose }: 
               marginBottom: 14,
             }}
           >
-            {t("lineage.addBond")}
+            {t("program.addBond")}
           </div>
 
-          <datalist id="lineage-names">
+          <datalist id="program-names">
             {names.map((n) => (
               <option key={n} value={n} />
             ))}
@@ -130,14 +130,14 @@ export function BondForm({ films, bonds, from = "", to = "", onSave, onClose }: 
 
           <label style={{ display: "block", marginBottom: 12 }}>
             <span style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}>
-              {t("lineage.bondFrom")}
+              {t("program.bondFrom")}
             </span>
             {/* LE FOYER VA AU CHAMP QUI RESTE À REMPLIR. Ouvert depuis
                 une étape, le premier nom est déjà là : y poser le
                 curseur ferait retaper ce qu'on venait de désigner. */}
             <input
               autoFocus={!from}
-              list="lineage-names"
+              list="program-names"
               value={a}
               onChange={(e) => setA(e.target.value)}
               style={underlineInput}
@@ -146,7 +146,7 @@ export function BondForm({ films, bonds, from = "", to = "", onSave, onClose }: 
 
           <fieldset style={{ border: "none", padding: 0, margin: "0 0 12px" }}>
             <legend style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded, padding: 0 }}>
-              {t("lineage.bondKind")}
+              {t("program.bondKind")}
             </legend>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
               {BONDS.map((def) => (
@@ -166,11 +166,11 @@ export function BondForm({ films, bonds, from = "", to = "", onSave, onClose }: 
 
           <label style={{ display: "block", marginBottom: 12 }}>
             <span style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}>
-              {t("lineage.bondTo")}
+              {t("program.bondTo")}
             </span>
             <input
               autoFocus={!!from && !to}
-              list="lineage-names"
+              list="program-names"
               value={b}
               onChange={(e) => setB(e.target.value)}
               style={underlineInput}
@@ -179,7 +179,7 @@ export function BondForm({ films, bonds, from = "", to = "", onSave, onClose }: 
 
           <label style={{ display: "block", marginBottom: 14 }}>
             <span style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}>
-              {t("lineage.bondNote")}
+              {t("program.bondNote")}
             </span>
             <input value={note} onChange={(e) => setNote(e.target.value)} style={underlineInput} />
           </label>
@@ -188,10 +188,10 @@ export function BondForm({ films, bonds, from = "", to = "", onSave, onClose }: 
 
           <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
             <button onClick={submit} style={inked(C.plum)}>
-              {t("lineage.bondSave")}
+              {t("program.bondSave")}
             </button>
             <button onClick={onClose} style={{ ...bare, ...inked(C.ink), ...hollow }}>
-              {t("lineage.close")}
+              {t("program.close")}
             </button>
           </div>
         </div>

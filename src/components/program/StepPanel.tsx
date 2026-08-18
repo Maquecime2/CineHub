@@ -23,7 +23,7 @@ import { bare, hollow, inked, ruledTextarea } from "../../theme/styles";
 import { Label } from "../ui";
 import { bondLabel, bondsTouching } from "../../domain/bonds";
 import type { Bond } from "../../domain/bonds";
-import { stepBond } from "../../domain/course";
+import { laidOn, stepBond, stepDone } from "../../domain/course";
 import { primaryDirector } from "../../domain/lineageMap";
 import type { Step } from "../../domain/course";
 import type { Film } from "../../types";
@@ -71,12 +71,19 @@ export function StepPanel({
 }: StepPanelProps) {
   const { t } = useTranslation();
   const director = primaryDirector(film);
+  /* LA SÉANCE QUI A SOLDÉ, ET NON LA DERNIÈRE : c'est la première
+     postérieure à la pose qui a fait avancer le compte. `watches` est
+     tenu du plus récent au plus ancien, donc on prend la dernière qui
+     qualifie. */
+  const settled = stepDone(step, film)
+    ? [...film.watches].reverse().find((w) => w.date >= laidOn(step.at))?.date || null
+    : null;
   const theirs = director ? bondsTouching(bonds, director.key) : [];
   const because = stepBond(step, bonds);
 
   return (
     <div
-      data-tour="lineage-why"
+      data-tour="program-why"
       style={{
         marginTop: 16,
         border: `1px solid ${C.line}`,
@@ -91,8 +98,8 @@ export function StepPanel({
         </div>
         <button
           onClick={onClose}
-          aria-label={t("lineage.close")}
-          title={t("lineage.close")}
+          aria-label={t("program.close")}
+          title={t("program.close")}
           style={{ ...bare, padding: 2 }}
         >
           <X size={14} />
@@ -102,6 +109,17 @@ export function StepPanel({
       {director && (
         <div style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded, marginTop: 2 }}>
           {director.name}
+        </div>
+      )}
+
+      {/* CE QUI A SOLDÉ L'ÉTAPE, ET SA DATE. Le tampon de la station dit
+          QU'elle est faite ; il ne peut pas dire QUAND, et « quand » est
+          ce qu'on vient vérifier quand on doute que le compte soit juste
+          — c'est la seule façon de comprendre pourquoi une séance
+          antérieure à la pose n'a rien soldé. */}
+      {settled && (
+        <div style={{ fontFamily: F.mono, fontSize: 9.5, color: C.burgundy, marginTop: 6 }}>
+          {t("program.doneOn", { date: settled })}
         </div>
       )}
 
@@ -126,14 +144,14 @@ export function StepPanel({
           s'ouvre que sur une entrée qu'on a désignée, donc écrire est
           précisément ce qu'on vient y faire. */}
       <div style={{ marginTop: 12 }}>
-        <Label>{t("lineage.whyLabel")}</Label>
+        <Label>{t("program.whyLabel")}</Label>
         <textarea
           value={step.why}
           onChange={(e) => onPatch({ why: e.target.value }, false)}
           onBlur={onSettle}
           rows={2}
-          placeholder={t("lineage.whyPlaceholder")}
-          aria-label={t("lineage.whyLabel")}
+          placeholder={t("program.whyPlaceholder")}
+          aria-label={t("program.whyLabel")}
           style={{ ...ruledTextarea, fontSize: 18, lineHeight: "28px", marginTop: 4 }}
         />
       </div>
@@ -157,7 +175,7 @@ export function StepPanel({
           onClick={() => onTie(director.name, otherName)}
           style={{ ...inked(C.plum), marginTop: 10, fontFamily: F.mono }}
         >
-          {t("lineage.tieBoth", { from: director.name, to: otherName })}
+          {t("program.tieBoth", { from: director.name, to: otherName })}
         </button>
       )}
 
@@ -168,15 +186,15 @@ export function StepPanel({
             le parcours qu'on était en train de bâtir. */}
         <button onClick={onQuick} style={{ ...inked(C.plum) }}>
           <Eye size={12} />
-          {t("lineage.quickLook")}
+          {t("program.quickLook")}
         </button>
         <button onClick={onOpen} style={{ ...inked(C.ink), ...hollow }}>
           <ExternalLink size={12} />
-          {t("lineage.openFilm")}
+          {t("program.openFilm")}
         </button>
         <button onClick={onRemove} style={{ ...inked(C.ink), ...hollow, color: C.burgundy }}>
           <X size={12} />
-          {t("lineage.remove")}
+          {t("program.remove")}
         </button>
       </div>
     </div>

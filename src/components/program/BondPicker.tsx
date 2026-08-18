@@ -58,12 +58,12 @@ export function BondPicker({
           marginBottom: 6,
         }}
       >
-        {t("lineage.because")}
+        {t("program.because")}
       </div>
 
       <div
         role="radiogroup"
-        aria-label={t("lineage.because")}
+        aria-label={t("program.because")}
         style={{ display: "flex", flexWrap: "wrap", gap: 6 }}
       >
         {directorKey &&
@@ -106,13 +106,13 @@ export function BondPicker({
           }}
         >
           <Link2 size={11} />
-          {t("lineage.tieTo", { name: directorName || "" })}
+          {t("program.tieTo", { name: directorName || "" })}
         </button>
       </div>
 
       {!value && bonds.length > 0 && (
         <div style={{ fontFamily: F.hand, fontSize: 15, color: alpha(C.ink, 0.5), marginTop: 6 }}>
-          {t("lineage.becauseNone")}
+          {t("program.becauseNone")}
         </div>
       )}
     </div>

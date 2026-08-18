@@ -71,7 +71,7 @@ const SLUGS: Record<Exclude<View, "detail">, string> = {
   credits: "generique",
   reco: "reco",
   constellation: "constellation",
-  lineage: "filiations",
+  program: "programme",
   almanac: "almanach",
   thread: "fil",
   lists: "listes",

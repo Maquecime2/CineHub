@@ -166,7 +166,7 @@ export function LineageMap({
   const lit = (key: string) => !near || near.has(key);
 
   const mirror = (
-    <ul aria-label={t("lineage.mapList")} style={HIDDEN}>
+    <ul aria-label={t("program.mapList")} style={HIDDEN}>
       {placed.map((node) => (
         <li key={node.id}>
           {node.name}
@@ -184,14 +184,14 @@ export function LineageMap({
 
   if (placed.length === 0)
     return (
-      <div data-tour="lineage-map" style={{ position: "relative" }}>
-        <Guideline tight>{t("lineage.emptyMap")}</Guideline>
+      <div data-tour="program-map" style={{ position: "relative" }}>
+        <Guideline tight>{t("program.emptyMap")}</Guideline>
         {action && <div style={{ marginTop: 10 }}>{action}</div>}
       </div>
     );
 
   return (
-    <div data-tour="lineage-map" style={{ position: "relative" }}>
+    <div data-tour="program-map" style={{ position: "relative" }}>
       {/* LA BARRE PORTE LE ZOOM ET LE NOUAGE, et elle est au-dessus du
           dessin : les boutons sont le contrôle honnête, la molette n'en
           est que le raccourci. */}
@@ -210,8 +210,8 @@ export function LineageMap({
             <button
               onClick={() => view.zoomBy(1 / 1.4)}
               disabled={!view.canZoomOut}
-              aria-label={t("lineage.zoomOut")}
-              title={t("lineage.zoomOut")}
+              aria-label={t("program.zoomOut")}
+              title={t("program.zoomOut")}
               style={{ ...bare, padding: 4, opacity: view.canZoomOut ? 1 : 0.3 }}
             >
               <Minus size={14} />
@@ -219,8 +219,8 @@ export function LineageMap({
             <button
               onClick={() => view.zoomBy(1.4)}
               disabled={!view.canZoomIn}
-              aria-label={t("lineage.zoomIn")}
-              title={t("lineage.zoomIn")}
+              aria-label={t("program.zoomIn")}
+              title={t("program.zoomIn")}
               style={{ ...bare, padding: 4, opacity: view.canZoomIn ? 1 : 0.3 }}
             >
               <Plus size={14} />
@@ -228,8 +228,8 @@ export function LineageMap({
             <button
               onClick={view.reset}
               disabled={!view.moved}
-              aria-label={t("lineage.zoomReset")}
-              title={t("lineage.zoomReset")}
+              aria-label={t("program.zoomReset")}
+              title={t("program.zoomReset")}
               style={{ ...bare, padding: 4, opacity: view.moved ? 1 : 0.3 }}
             >
               <Maximize2 size={13} />
@@ -249,7 +249,7 @@ export function LineageMap({
                kept them would leave the map unwalkable. */
             role="application"
             tabIndex={0}
-            aria-label={t("lineage.map")}
+            aria-label={t("program.map")}
             style={{
               width: "100%",
               height: "auto",
@@ -281,7 +281,7 @@ export function LineageMap({
               {Object.entries(BOND_INK).map(([kind, ink]) => (
                 <marker
                   key={kind}
-                  id={`lineage-head-${kind}`}
+                  id={`program-head-${kind}`}
                   viewBox="0 0 8 8"
                   refX="7"
                   refY="4"
@@ -315,7 +315,7 @@ export function LineageMap({
                   strokeOpacity={shown ? (here ? 1 : 0.55) : 0.12}
                   markerEnd={
                     link.bond.kind === "master" || link.bond.kind === "influence"
-                      ? `url(#lineage-head-${link.bond.kind})`
+                      ? `url(#program-head-${link.bond.kind})`
                       : undefined
                   }
                   style={{ cursor: "pointer" }}
@@ -340,7 +340,7 @@ export function LineageMap({
                   tabIndex={keys.tabIndexOf(node.id)}
                   role="button"
                   aria-pressed={here}
-                  aria-label={t("lineage.node", {
+                  aria-label={t("program.node", {
                     name: node.name,
                     films: node.inCourse,
                     bonds: node.degree,
@@ -386,7 +386,7 @@ export function LineageMap({
               letterSpacing: 0.5,
             }}
           >
-            {t("lineage.howToLook")}
+            {t("program.howToLook")}
           </div>
 
           {mirror}
@@ -401,7 +401,7 @@ export function MapToggle({ folded, onToggle }: { folded: boolean; onToggle: () 
   const { t } = useTranslation();
   return (
     <button onClick={onToggle} style={{ ...inked(C.ink), ...hollow, fontFamily: F.mono }}>
-      {t(folded ? "lineage.mapShow" : "lineage.mapHide")}
+      {t(folded ? "program.mapShow" : "program.mapHide")}
     </button>
   );
 }

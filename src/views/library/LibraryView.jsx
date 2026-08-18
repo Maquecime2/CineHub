@@ -14,7 +14,7 @@ import {
   FolderInput,
 } from "lucide-react";
 import { C, F } from "../../theme/tokens";
-import { underlineInput, tap, tapSquare } from "../../theme/styles";
+import { bare, underlineInput, tap, tapSquare } from "../../theme/styles";
 import { hash, tiltOf } from "../../domain/seeded";
 import { matchFilm } from "../../domain/search";
 import { CoffeeRing, TapeResidue, StampCorner, InkUnderline } from "../../components/atmosphere";
@@ -32,6 +32,7 @@ import {
   restoreByHand,
 } from "../../shelf-views";
 import { FilmWall } from "./FilmWall";
+import { NextUp } from "../../components/program/NextUp";
 import { useWallFiling } from "./useWallFiling";
 import { FilingProvider } from "../../components/film/filing";
 import { TonightDrawer } from "./TonightDrawer";
@@ -372,6 +373,12 @@ export function LibraryView({
   onImport,
   onAdd,
   onUpdateFilm,
+  /* LE PROGRAMME ÉPINGLÉ, LU ET JAMAIS ÉCRIT. C'est ici qu'on choisit
+     quoi regarder — jamais sur l'écran du programme, où l'on va pour
+     COMPOSER — donc c'est ici que la suite doit se dire. Facultatif :
+     un mur monté seul (un test, la vue partagée) n'en a pas. */
+  courses = [],
+  onOpenRun,
 }) {
   const { t } = useTranslation();
   /* ============================================================
@@ -659,6 +666,15 @@ export function LibraryView({
           }}
         >
           {t(cfg.subtitle)}
+        </div>
+
+        <div style={{ position: "relative", zIndex: 2, marginTop: 18 }}>
+          <NextUp
+            courses={courses}
+            films={allFilms.length ? allFilms : films}
+            onOpenFilm={onOpen}
+            onOpenRun={onOpenRun ?? (() => {})}
+          />
         </div>
 
         {/* No `z-index` on this bar, and that is deliberate.

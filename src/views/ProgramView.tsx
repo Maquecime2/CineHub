@@ -1,18 +1,27 @@
 /* ============================================================
-   FILIATIONS — a viewing plan, and why it is that plan
+   PROGRAMMING — a viewing plan, its state, and why it is that plan
    ============================================================
 
-   TWO THINGS THAT ANSWER ONE ANOTHER, STACKED AND NOT SIDE BY SIDE. The
-   MAP of the film-makers is drawn full width; the RUNNING ORDER — films,
-   in the order one means to watch them — runs as a strip of posters
-   directly beneath it, and the entry one picks opens a panel below that.
-   They used to sit in two columns, and read as two unrelated screens
-   joined by nothing but a highlight. The map explains the strip, so it
-   stands over it and is the same width.
+   THE SUBJECT IS THE PLAN, AND THE MAP IS EVIDENCE FOR IT. This screen
+   was built to programme films around a red thread, of which film-maker
+   filiations were one example — and the example took the screen. A
+   six-hundred-pixel graph stood above everything, the running order
+   read as its footnote, and NOTHING ANYWHERE SAID HOW FAR ALONG ONE
+   WAS. Three things follow, and they are the whole of this file:
 
-   The point is not to keep a list. It is to see the plan AND to
-   understand why it is that plan, which is why the reasons are written
-   in four places and none of them is an afterthought:
+     — the screen opens on `ProgressBand`: how many walked, how many
+       left, and the next station in full;
+     — the thread is a CHOICE (`Course.thread`) — a filiation, a motif,
+       a decade, a genre, or a sentence one writes — and each draws its
+       own evidence, folded, UNDER the heading rather than over it;
+     — the state is DERIVED (`stepDone`): a screening later than the
+       step was laid settles it, so watching a film from its own card
+       advances the plan without anybody coming back to say so.
+
+   The point is not to keep a list. It is to see the plan, to see where
+   one stands in it, AND to understand why it is that plan — which is
+   why the reasons are written in four places and none of them is an
+   afterthought:
 
      — `Course.note`, the thesis of the whole run;
      — `Step.why`, the marginal note on one entry;
@@ -48,19 +57,23 @@ import { C, F } from "../theme/tokens";
 import { hollow, inked } from "../theme/styles";
 import { Confirmation, ViewHeading } from "../components/ui";
 import type { ConfirmRequest } from "../components/ui";
-import { RunBar, NoRun } from "../components/lineage/RunBar";
-import { OrderStrip } from "../components/lineage/OrderStrip";
-import { StepPanel } from "../components/lineage/StepPanel";
+import { RunBar, NoRun } from "../components/program/RunBar";
+import { ProgressBand } from "../components/program/ProgressBand";
+import { ThreadEvidence } from "../components/program/ThreadEvidence";
+import { OrderStrip } from "../components/program/OrderStrip";
+import { StepPanel } from "../components/program/StepPanel";
 import { FilmPicker } from "../components/film/FilmPicker";
-import { LineageMap, MapToggle } from "../components/lineage/LineageMap";
-import { BondForm } from "../components/lineage/BondForm";
-import { NodePanel } from "../components/lineage/NodePanel";
+import { LineageMap, MapToggle } from "../components/program/LineageMap";
+import { BondForm } from "../components/program/BondForm";
+import { NodePanel } from "../components/program/NodePanel";
 import { FilmQuickView } from "../components/film/FilmQuickView";
 import { normalize } from "../domain/search";
 import {
   courseLabel,
+  courseProgress,
   courseSteps,
   makeCourse,
+  pinnedCourse,
   patchStep,
   withSteps,
   withStep,
@@ -80,7 +93,7 @@ interface Linking {
   forStep?: string;
 }
 
-interface LineageViewProps {
+interface ProgramViewProps {
   films: Film[];
   courses: Course[];
   bonds: Bond[];
@@ -95,7 +108,7 @@ interface LineageViewProps {
   onOpenPerson: (key: string) => void;
 }
 
-export function LineageView({
+export function ProgramView({
   films,
   courses,
   bonds,
@@ -106,7 +119,7 @@ export function LineageView({
   onUpdateFilm,
   onOpen,
   onOpenPerson,
-}: LineageViewProps) {
+}: ProgramViewProps) {
   const { t } = useTranslation();
   const { phone } = useViewport();
   const [openId, setOpenId] = useState<string | null>(null);
@@ -137,8 +150,11 @@ export function LineageView({
      la question qu'on se pose la main sur le bouton. */
   const [request, setRequest] = useState<ConfirmRequest | null>(null);
 
+  /* L'ÉPINGLÉ D'ABORD, et non le premier de la liste : c'est celui dont
+     le reste de l'application parle, et arriver ici sur un autre ferait
+     deux réponses à la même question sur deux écrans. */
   const course = useMemo(
-    () => courses.find((c) => c.id === openId) || courses[0] || null,
+    () => courses.find((c) => c.id === openId) || pinnedCourse(courses),
     [courses, openId]
   );
 
@@ -152,6 +168,10 @@ export function LineageView({
   );
 
   const entries = useMemo(() => (course ? courseSteps(course, films) : []), [course, films]);
+  const progress = useMemo(
+    () => (course ? courseProgress(course, films) : { done: 0, total: 0, next: null }),
+    [course, films]
+  );
   const picked = pickedStep ? entries.find((e) => e.step.id === pickedStep) : undefined;
   /* Au classeur ou simple aperçu : c'est ce qui décide si la vue rapide
      montre une note et des séances, et si elle a une fiche à compléter. */
@@ -191,11 +211,11 @@ export function LineageView({
 
   const askDeleteCourse = (doomed: Course) =>
     setRequest({
-      title: t("lineage.confirmDeleteCourse", {
-        name: courseLabel(doomed, t("lineage.untitled")),
+      title: t("program.confirmDeleteCourse", {
+        name: courseLabel(doomed, t("program.untitled")),
       }),
-      body: t("lineage.confirmDeleteCourseBody"),
-      action: t("lineage.confirmDelete"),
+      body: t("program.confirmDeleteCourseBody"),
+      action: t("program.confirmDelete"),
       severe: true,
       onConfirm: () => {
         onCourses(courses.filter((c) => c.id !== doomed.id));
@@ -208,9 +228,9 @@ export function LineageView({
 
   const askRemoveBond = (doomed: Bond) =>
     setRequest({
-      title: t("lineage.confirmRemoveBond"),
-      body: t("lineage.confirmRemoveBondBody"),
-      action: t("lineage.removeBond"),
+      title: t("program.confirmRemoveBond"),
+      body: t("program.confirmRemoveBondBody"),
+      action: t("program.removeBond"),
       severe: true,
       onConfirm: () => {
         onBonds(bonds.filter((b) => b.id !== doomed.id));
@@ -229,9 +249,9 @@ export function LineageView({
   const askRemoveSteps = (ids: ReadonlySet<string>, count: number) => {
     if (!course) return;
     setRequest({
-      title: t("lineage.confirmRemoveSteps", { count }),
-      body: t("lineage.confirmRemoveStepsBody"),
-      action: t("lineage.removeMany"),
+      title: t("program.confirmRemoveSteps", { count }),
+      body: t("program.confirmRemoveStepsBody"),
+      action: t("program.removeMany"),
       severe: true,
       onConfirm: () => {
         replace(withoutSteps(course, ids));
@@ -264,25 +284,26 @@ export function LineageView({
 
   const bondButton = (
     <button
-      data-tour="lineage-bond"
+      data-tour="program-bond"
       onClick={() => tieBond("")}
       style={{ ...inked(C.plum), fontFamily: F.mono }}
     >
-      {t("lineage.addBond")}
+      {t("program.addBond")}
     </button>
   );
 
   return (
     <ViewHeading
       icon={<Route size={22} color={C.plum} />}
-      title={t("lineage.heading")}
-      blurb={t("lineage.subheading")}
+      title={t("program.heading")}
+      blurb={t("program.subheading")}
       wide
     >
       {course ? (
         <RunBar
           courses={courses}
           course={course}
+          films={films}
           onOpen={(id) => {
             setOpenId(id);
             setPickedStep(null);
@@ -296,50 +317,81 @@ export function LineageView({
         <NoRun onNew={newCourse} />
       )}
 
-      {/* LA CARTE EST AU-DESSUS DE CE QU'ELLE EXPLIQUE, et de la même
-          largeur. Sur téléphone elle se replie : six cents pixels de
-          graphe au-dessus du sujet le pousseraient sous la ligne de
-          flottaison — et son miroir en liste, lui, reste monté. */}
-      <div style={{ marginBottom: 20 }}>
-        <LineageMap
-          films={films}
-          bonds={bonds}
-          course={course}
-          focusKey={focusKey}
-          focusBond={focusBond || pointed}
-          onPickPerson={pickPerson}
-          onPickBond={pickBond}
-          folded={phone && folded}
-          action={
-            <>
-              {bondButton}
-              {phone && <MapToggle folded={folded} onToggle={() => setFolded((f) => !f)} />}
-            </>
-          }
+      {/* LE BANDEAU EST LA PREMIÈRE CHOSE LUE. Il répond à « où j'en
+          suis », qui est la question qu'on se pose en arrivant, et il ne
+          se déplace pas : ce qui se compose est plus bas. */}
+      {course && (
+        <ProgressBand
+          progress={progress}
+          onOpenStep={setPickedStep}
+          onQuick={() => progress.next && setQuick(progress.next.film)}
         />
+      )}
 
-        {node && (
-          <NodePanel
-            node={node}
+      {/* LA PREUVE DU FIL ROUGE, ET UNE SEULE À LA FOIS. Sous une
+          filiation, c'est la carte des cinéastes — repliée par défaut,
+          parce qu'elle explique l'ordre et ne le remplace pas. Sous un
+          motif, une décennie ou un genre, ce sont les fiches qu'on
+          possède et qui le portent. Sous une thèse écrite à la main, il
+          n'y a rien à dessiner : la phrase est déjà au-dessus. */}
+      {course && course.thread.kind !== "filiation" && (
+        <ThreadEvidence
+          thread={course.thread}
+          films={films}
+          inCourse={inCourse}
+          onAdd={(filmId) => add([filmId])}
+          onLook={setQuick}
+        />
+      )}
+
+      {(!course || course.thread.kind === "filiation") && (
+        <div style={{ marginBottom: 20 }}>
+          <LineageMap
             films={films}
             bonds={bonds}
-            inCourse={inCourse}
-            onAdd={(filmId) => add([filmId])}
-            onAddAll={add}
-            onOpenPerson={onOpenPerson}
+            course={course}
+            focusKey={focusKey}
+            focusBond={focusBond || pointed}
+            onPickPerson={pickPerson}
             onPickBond={pickBond}
-            onAddBond={(name) => tieBond(name)}
-            onClose={() => setFocusKey(null)}
+            /* REPLIÉE PAR DÉFAUT, ET SUR TOUS LES ÉCRANS. La carte est une
+             PREUVE : elle explique l'ordre, elle ne le remplace pas, et
+             tant qu'elle s'ouvrait d'elle-même en pleine largeur c'est
+             elle qu'on venait voir. Le repli était réservé au téléphone,
+             où le graphe poussait le sujet sous la ligne de flottaison —
+             la raison vaut partout, à un pli près. */
+            folded={folded}
+            action={
+              <>
+                {bondButton}
+                <MapToggle folded={folded} onToggle={() => setFolded((f) => !f)} />
+              </>
+            }
           />
-        )}
 
-        {/* L'ARÊTE SÉLECTIONNÉE SE RETIRE D'ICI, et pas depuis la ligne
+          {node && (
+            <NodePanel
+              node={node}
+              films={films}
+              bonds={bonds}
+              inCourse={inCourse}
+              onAdd={(filmId) => add([filmId])}
+              onAddAll={add}
+              onOpenPerson={onOpenPerson}
+              onPickBond={pickBond}
+              onAddBond={(name) => tieBond(name)}
+              onClose={() => setFocusKey(null)}
+            />
+          )}
+
+          {/* L'ARÊTE SÉLECTIONNÉE SE RETIRE D'ICI, et pas depuis la ligne
             du SVG : une croix de six pixels sur un trait qu'on peut
             déplacer est une cible qu'on rate. */}
-        {focusBond && (
-          <BondRemoval bond={bonds.find((b) => b.id === focusBond)} onRemove={askRemoveBond} />
-        )}
-      </div>
+          {focusBond && (
+            <BondRemoval bond={bonds.find((b) => b.id === focusBond)} onRemove={askRemoveBond} />
+          )}
+        </div>
+      )}
 
       {course && (
         <OrderStrip
@@ -392,8 +444,8 @@ export function LineageView({
           onAdopt={adopt}
           onLook={setQuick}
           inRun={inCourse}
-          tour="lineage-add"
-          label={course ? t("lineage.addToRun") : t("lineage.addFirst")}
+          tour="program-add"
+          label={course ? t("program.addToRun") : t("program.addFirst")}
         />
       </div>
 
@@ -435,7 +487,7 @@ export function LineageView({
                 }}
                 style={inked(C.plum)}
               >
-                {t("lineage.addToRun")}
+                {t("program.addToRun")}
               </button>
             ) : undefined
           }
@@ -463,7 +515,7 @@ function BondRemoval({ bond, onRemove }: { bond?: Bond; onRemove: (bond: Bond) =
         onClick={() => onRemove(bond)}
         style={{ ...inked(C.ink), ...hollow, color: C.burgundy }}
       >
-        {t("lineage.removeBond")}
+        {t("program.removeBond")}
       </button>
     </div>
   );

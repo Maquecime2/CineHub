@@ -1221,7 +1221,7 @@ const en = {
     credits: "Credits",
     reco: "Discoveries",
     constellation: "Constellation",
-    lineage: "Lineage",
+    program: "Programming",
     almanac: "Almanac",
     import: "Letterboxd import",
     thread: "The feed",
@@ -1236,7 +1236,6 @@ const en = {
   groups: {
     news: "something new",
     binder: "The binder",
-    explore: "Explore",
     hall: "The hall",
   },
 
@@ -1830,9 +1829,9 @@ const en = {
 
   /* LINEAGE. A run of films in the order you mean to watch them, and the
      map of film-makers that says WHY that order. */
-  lineage: {
-    heading: "Lineage",
-    subheading: "the order you mean to watch in, and what justifies it",
+  program: {
+    heading: "Programming",
+    subheading: "the order you mean to watch in, where you stand in it, and what justifies it",
     empty: "No run yet. Search for a film below: the first one you lay down will open one.",
     emptyCourse: "This run is still empty.",
     emptyMap: "Tie two film-makers together, and the map will draw itself.",
@@ -1930,6 +1929,36 @@ const en = {
     orphan: "No card in the binder carries this name any more. The bond stays.",
     openPerson: "Open their page in the Credits",
     close: "Close",
+    whereAmI: "Where you stand",
+    progressCount: "{{done}} of {{total}} watched",
+    upNext: "Up next",
+    runWalked: "You have walked this run all the way through.",
+    stampDone: "watched",
+    openStepDone: "{{title}} — watched, open this step",
+    doneOn: "settled by the screening of {{date}}",
+    hideDone_one: "hide the one that is done",
+    hideDone_other: "hide the {{count}} that are done",
+    showDone_one: "show the one that is done",
+    showDone_other: "show the {{count}} that are done",
+    allDone: "Everything in this run is watched.",
+    threadLabel: "The red thread",
+    thread_free: "Something of your own",
+    thread_filiation: "A filiation",
+    thread_motif: "A motif",
+    thread_decade: "A decade",
+    thread_genre: "A genre",
+    threadValue: "What the thread is",
+    threadNothingHeld: "Nothing in the binder carries one yet.",
+    threadEvidence: "What the thread holds",
+    threadHolds_one: "{{thread}} — one card you hold is not in the run",
+    threadHolds_other: "{{thread}} — {{count}} cards you hold are not in the run",
+    threadAllIn: "Everything you hold on it is already in the run.",
+    threadCount: "{{held}} of the {{total}} you hold are in this run",
+    pin: "Pin this run",
+    unpin: "Unpin this run",
+    inRun: "Step {{place}} of {{name}}",
+    nextInRun: "Next in {{name}}",
+    openRun: "Open the run",
   },
 
   threads: {
@@ -2560,8 +2589,8 @@ const en = {
       },
     },
 
-    lineage: {
-      label: "Lineage",
+    program: {
+      label: "Programming",
       runs: {
         title: "One run, or several",
         body: "A run is a viewing order and the thesis that holds it together. Open as many as you like — the chips switch between them. An empty one is never kept, so there is nothing to tidy away afterwards.",
@@ -2585,6 +2614,14 @@ const en = {
       bond: {
         title: "A bond, and its reason",
         body: "A bond is laid by hand: nothing on a card says who taught whom. An entry in the run can then call upon it — and you see, from both ends, what holds the plan together.",
+      },
+      progress: {
+        title: "Where you stand",
+        body: "How many of the run you have watched, and the next one in full. Nothing is ticked here: log a screening on a film card and this moves — a screening LATER than you laid the step down settles it, so a film you saw ten years ago is still ahead of you.",
+      },
+      thread: {
+        title: "What holds the run together",
+        body: "A filiation between film-makers, a motif, a decade, a genre — or a sentence of your own in the thesis above. The thread never refuses a film: it draws the evidence under the run, and offers what you already hold and have not laid down.",
       },
     },
 

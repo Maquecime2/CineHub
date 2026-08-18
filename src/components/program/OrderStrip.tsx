@@ -46,7 +46,7 @@
 import { useEffect, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { X } from "lucide-react";
+import { Eye, EyeOff, X } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { bare, hollow, inked } from "../../theme/styles";
 import { Guideline, Nothing } from "../ui";
@@ -57,6 +57,7 @@ import {
   move,
   moveBy,
   moveGroup,
+  stepDone,
   strandedCount,
   withSteps,
 } from "../../domain/course";
@@ -108,8 +109,16 @@ export function OrderStrip({
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   /** D'où part une plage prise à la touche Maj. */
   const [anchor, setAnchor] = useState<string | null>(null);
+  /* CE REPLI EST UN ÉTAT DE VUE, JAMAIS UN ÉTAT DE DOCUMENT. Masquer ce
+     qui est fait est une façon de REGARDER le plan, pas de le réécrire :
+     rien ne quitte `course.steps`, et la place annoncée reste celle qui
+     est écrite — sans quoi « déplacer vers la 3ᵉ » viserait une position
+     qui n'existe que sur cet écran-là, à cet instant-là. */
+  const [hideDone, setHideDone] = useState(false);
 
-  const entries = courseSteps(course, films);
+  const all = courseSteps(course, films);
+  const walked = all.filter((e) => stepDone(e.step, e.film)).length;
+  const entries = hideDone ? all.filter((e) => !stepDone(e.step, e.film)) : all;
   const stranded = strandedCount(course, films);
 
   /* UNE SÉLECTION NE SURVIT PAS À CE QU'ELLE DÉSIGNE. Retirer une étape
@@ -132,7 +141,7 @@ export function OrderStrip({
   const announce = (steps: Step[], stepId: string) => {
     const at = steps.findIndex((s) => s.id === stepId);
     const film = films.find((f) => f.id === steps[at]?.filmId);
-    if (film) say(t("lineage.moved", { title: film.title, place: at + 1, total: steps.length }));
+    if (film) say(t("program.moved", { title: film.title, place: at + 1, total: steps.length }));
   };
 
   const reorder = (from: number, to: number, stepId: string) => {
@@ -149,7 +158,7 @@ export function OrderStrip({
     if (steps === course.steps) return;
     onCourse(withSteps(course, steps));
     const at = steps.findIndex((s) => selected.has(s.id));
-    say(t("lineage.movedMany", { count: selected.size, place: at + 1 }));
+    say(t("program.movedMany", { count: selected.size, place: at + 1 }));
   };
 
   const shift = (stepId: string, delta: number) => {
@@ -205,6 +214,8 @@ export function OrderStrip({
      plate — imbriquer une liste par groupe ferait de chaque bandeau une
      entrée à parcourir au lecteur d'écran, pour une décoration. */
   const groups = groupedSteps(entries, (film) => primaryDirector(film)?.key ?? "");
+  /** La place ÉCRITE, celle du document — et non le rang à l'écran. */
+  const placeOf = (stepId: string): number => all.findIndex((e) => e.step.id === stepId) + 1;
   const bandStart = new Set<string>();
   const bandEnd = new Set<string>();
   for (const g of groups) {
@@ -232,33 +243,51 @@ export function OrderStrip({
           }}
         >
           <span style={{ fontFamily: F.mono, fontSize: 10, color: C.ink }}>
-            {t("lineage.selected", { count: selected.size })}
+            {t("program.selected", { count: selected.size })}
           </span>
           <span style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, flex: 1 }}>
-            {t("lineage.selectedHow")}
+            {t("program.selectedHow")}
           </span>
           <button
             onClick={() => onRemoveMany(selected, selected.size)}
             style={{ ...inked(C.ink), ...hollow, color: C.burgundy }}
           >
             <X size={12} />
-            {t("lineage.removeMany")}
+            {t("program.removeMany")}
           </button>
           <button
             onClick={() => setSelected(new Set())}
             style={{ ...bare, fontFamily: F.mono, fontSize: 9.5 }}
           >
-            {t("lineage.selectNone")}
+            {t("program.selectNone")}
           </button>
         </div>
       )}
 
-      {entries.length === 0 ? (
-        <Nothing what={t("lineage.emptyCourse")} />
+      {/* CE QUI EST FAIT SE REPLIE, ET SEULEMENT À L'ŒIL. Le bouton ne
+          paraît qu'une fois qu'il y a quelque chose à replier : une
+          commande qui ne changerait rien est une commande qu'on essaie. */}
+      {walked > 0 && (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 6 }}>
+          <button
+            onClick={() => setHideDone((h) => !h)}
+            aria-pressed={hideDone}
+            style={{ ...bare, fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}
+          >
+            {hideDone ? <Eye size={12} /> : <EyeOff size={12} />}
+            {t(hideDone ? "program.showDone" : "program.hideDone", { count: walked })}
+          </button>
+        </div>
+      )}
+
+      {all.length === 0 ? (
+        <Nothing what={t("program.emptyCourse")} />
+      ) : entries.length === 0 ? (
+        <Nothing what={t("program.allDone")} />
       ) : (
         <ul
-          data-tour="lineage-order"
-          aria-label={t("lineage.order")}
+          data-tour="program-order"
+          aria-label={t("program.order")}
           style={{
             listStyle: "none",
             margin: 0,
@@ -293,8 +322,8 @@ export function OrderStrip({
                 key={step.id}
                 step={step}
                 film={film}
-                place={drawn + 1}
-                total={entries.length}
+                place={placeOf(step.id)}
+                total={all.length}
                 directorName={director?.name ?? null}
                 column={column}
                 bandStart={bandStart.has(step.id)}
@@ -304,6 +333,7 @@ export function OrderStrip({
                 lit={lit}
                 leading={lit && drawn === litAt}
                 noted={!!step.why.trim()}
+                done={stepDone(step, film)}
                 onPick={(e) => clicked(step.id, e)}
                 onToggle={() => toggle(step.id)}
                 onPoint={(on) => onPointBond(on ? step.because : null)}
@@ -331,11 +361,11 @@ export function OrderStrip({
           le même défaut qu'un échec silencieux. */}
       {stranded > 0 && (
         <div style={{ marginTop: 10 }}>
-          <Guideline tight>{t("lineage.stranded", { count: stranded })}</Guideline>
+          <Guideline tight>{t("program.stranded", { count: stranded })}</Guideline>
         </div>
       )}
 
-      {entries.length > 1 && (
+      {all.length > 1 && (
         <div
           style={{
             fontFamily: F.mono,
@@ -345,7 +375,7 @@ export function OrderStrip({
             letterSpacing: 0.5,
           }}
         >
-          {t(column ? "lineage.howToMove" : "lineage.howToMoveRow")}
+          {t(column ? "program.howToMove" : "program.howToMoveRow")}
         </div>
       )}
     </div>

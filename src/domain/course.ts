@@ -46,8 +46,52 @@ export interface Step {
   why: string;
   /** The `Bond.id` this step follows from, if any. */
   because: string | null;
-  done?: boolean;
+  /**
+   * WHEN THE STEP WAS LAID, and the whole of the progress model.
+   *
+   * A step is settled by a screening LATER than this — see `stepDone`.
+   * There is no `done` flag any more: a hand-ticked box is a second
+   * truth about the same fact, and the two drift apart the first time
+   * one logs a screening from the film card, which is where one
+   * actually logs it.
+   */
+  at: number;
 }
+
+/**
+ * THE RED THREAD, AND NOT A FILTER.
+ *
+ * A run has always been ABOUT something — the film-maker filiations were
+ * only the first way of saying it, and they had quietly become the
+ * whole screen. The kind decides what EVIDENCE is drawn under the
+ * heading; it never decides what one is allowed to lay down. A run on
+ * the sixties takes a film from 1971 gladly, because the exception is
+ * very often the reason for the run.
+ */
+export type ThreadKind = "filiation" | "motif" | "decade" | "genre" | "free";
+
+export interface CourseThread {
+  kind: ThreadKind;
+  /** A motif id, a decade ("1960"), a genre. Empty under `free`. */
+  value: string;
+}
+
+/**
+ * WHAT A RUN IS ABOUT UNTIL SOMEBODY SAYS OTHERWISE, and it is the
+ * filiation rather than `free`.
+ *
+ * Every run ever written was one — the map was the only instrument this
+ * screen had — so reading `free` off a document that predates the field
+ * would silently take the map away from people who had been using it,
+ * and taking a feature away by omission is worse than any default. It
+ * is also the only kind that offers cards to lay down without a value
+ * being picked first, so a brand-new run is not a dead end.
+ */
+export const DEFAULT_THREAD: CourseThread = { kind: "filiation", value: "" };
+
+/** A thread nobody has touched: it says nothing the absence of one does not. */
+export const isPlainThread = (t: CourseThread): boolean =>
+  t.kind === DEFAULT_THREAD.kind && !t.value;
 
 export interface Course {
   id: string;
@@ -55,6 +99,13 @@ export interface Course {
   label: string;
   /** The thesis: what the whole run means to show. */
   note: string;
+  thread: CourseThread;
+  /**
+   * The one run the rest of the app speaks about — see `pinnedCourse`.
+   * At most one, and that is settled AT THE DOOR by `normalizeCourses`
+   * rather than by the form: two devices can each pin their own.
+   */
+  pinned?: boolean;
   steps: Step[];
   createdAt: number;
   updatedAt: number;
@@ -71,6 +122,10 @@ export const makeStep = (filmId: string, rest: Partial<Step> = {}): Step => ({
   why: "",
   because: null,
   ...rest,
+  /* AFTER the spread, like `id`: a caller handing `at: undefined` — which
+     is exactly what reading an old document does — would otherwise blank
+     the default it had just been given. */
+  at: rest.at ?? Date.now(),
   id: rest.id || freshId("s"),
   filmId,
 });
@@ -80,6 +135,7 @@ export const makeCourse = (rest: Partial<Course> = {}): Course => {
   return {
     label: "",
     note: "",
+    thread: DEFAULT_THREAD,
     steps: [],
     createdAt: now,
     ...rest,
@@ -99,7 +155,7 @@ export const makeCourse = (rest: Partial<Course> = {}): Course => {
  * gathering.
  */
 export const isEmptyCourse = (c: Course): boolean =>
-  c.steps.length === 0 && !c.label.trim() && !c.note.trim();
+  c.steps.length === 0 && !c.label.trim() && !c.note.trim() && isPlainThread(c.thread);
 
 /**
  * The steps that still point at something, in order.
@@ -129,6 +185,142 @@ export const courseSteps = (course: Course, films: Film[]): { step: Step; film: 
  */
 export const strandedCount = (course: Course, films: Film[]): number =>
   course.steps.length - courseSteps(course, films).length;
+
+/* ------------------------------------------------------------
+   WHERE ONE IS UP TO
+   ------------------------------------------------------------
+   A watchlist says what is left; a run says what is left IN ORDER, and
+   until now it said neither — the screen drew a plan and never once
+   drew the plan's state. */
+
+/**
+ * The day a step was laid, spelled as `Watch.date` spells it.
+ *
+ * Exported because the step panel says which screening settled the step,
+ * and it has to apply the very same cut-off to find it — a second
+ * spelling of "the same day" is how the panel and the count come to
+ * disagree about one entry.
+ */
+export const laidOn = (at: number): string => new Date(at).toISOString().slice(0, 10);
+
+/**
+ * Has this step been walked?
+ *
+ * A SCREENING LATER THAN THE STEP WAS LAID, and nothing else. Having
+ * seen the film ten years ago does not settle it: a run would then be
+ * born half finished, and the one number this screen exists to show
+ * would be wrong on the day it is made. Watching it again does settle
+ * it, which is the whole reason a run may hold a film one has seen.
+ *
+ * Compared as `YYYY-MM-DD` strings on both sides: `Watch.date` is a DAY
+ * and carries no clock, so a step laid this afternoon is settled by a
+ * screening logged this morning — which is what one means when one lays
+ * down the film one has just watched.
+ */
+export const stepDone = (step: Step, film: Film): boolean => {
+  const laid = laidOn(step.at);
+  return film.watches.some((w) => w.date >= laid);
+};
+
+export interface Progress {
+  done: number;
+  total: number;
+  /** The first step not yet walked, in the order of the array. */
+  next: { step: Step; film: Film } | null;
+}
+
+/**
+ * How far along a run is, and what comes next.
+ *
+ * `next` IS THE FIRST UNWALKED ENTRY IN THE ORDER THAT IS WRITTEN, not
+ * the nearest or the shortest. The array is the order — the doctrine of
+ * this whole file — so picking anything else would answer a question
+ * nobody asked with a plan nobody wrote.
+ *
+ * Steps whose card has left the collection count in neither number:
+ * `courseSteps` has already dropped them and `strandedCount` says how
+ * many, out loud.
+ */
+export const courseProgress = (course: Course, films: Film[]): Progress => {
+  const entries = courseSteps(course, films);
+  let done = 0;
+  let next: Progress["next"] = null;
+  for (const entry of entries) {
+    if (stepDone(entry.step, entry.film)) done += 1;
+    else if (!next) next = entry;
+  }
+  return { done, total: entries.length, next };
+};
+
+/* ------------------------------------------------------------
+   THE RED THREAD
+   ------------------------------------------------------------ */
+
+/* `year` IS TYPED BY HAND, so "196?" and "" both reach here. A guard
+   rather than a cast: the same reasoning as the decade challenge, where
+   an `::int` on a typo brought down the query that PAYS. */
+const YEAR = /^\d{4}$/;
+
+/** The decade a card falls in ("1963" → "1960"), or nothing. */
+export const decadeOf = (film: Pick<Film, "year">): string => {
+  const y = String(film.year ?? "");
+  return YEAR.test(y) ? `${y.slice(0, 3)}0` : "";
+};
+
+/**
+ * Does this card carry the run's thread?
+ *
+ * FALSE UNDER `filiation` AND `free`, and that is not a gap. A
+ * filiation lives between PEOPLE — the map is what reads it, and it
+ * reads it from the bonds, not from a card. A free thread is a
+ * sentence somebody wrote; no card can be measured against prose.
+ * Both are asked elsewhere, and neither has suggestions to offer.
+ */
+export const matchesThread = (thread: CourseThread, film: Film): boolean => {
+  if (!thread.value) return false;
+  if (thread.kind === "motif") return film.motifs.includes(thread.value);
+  if (thread.kind === "decade") return decadeOf(film) === thread.value;
+  if (thread.kind === "genre") return film.genres.includes(thread.value);
+  return false;
+};
+
+/* ------------------------------------------------------------
+   WHAT THE REST OF THE APP READS
+   ------------------------------------------------------------
+   Three screens ask the same thing — the film card, the watchlist, the
+   library door — and none of them writes. */
+
+/** The pinned run, or the most recently touched one, or nothing. */
+export const pinnedCourse = (courses: Course[]): Course | null =>
+  courses.find((c) => c.pinned) ||
+  [...courses].sort((a, b) => b.updatedAt - a.updatedAt)[0] ||
+  null;
+
+export interface Placing {
+  course: Course;
+  step: Step;
+  /** Its place, counted from one — what a person would say out loud. */
+  place: number;
+}
+
+/**
+ * Where this film stands in a run, if it stands in one.
+ *
+ * THE PINNED RUN FIRST, then the others in the order they are held: a
+ * film can honestly belong to three plans, and naming all three on a
+ * card would say nothing. The FIRST occurrence within a run wins — the
+ * same film twice in one run is a plan, and its first place is the one
+ * that is still to come.
+ */
+export const stepOf = (courses: Course[], filmId: string): Placing | null => {
+  const pinned = pinnedCourse(courses);
+  const order = pinned ? [pinned, ...courses.filter((c) => c !== pinned)] : courses;
+  for (const course of order) {
+    const at = course.steps.findIndex((s) => s.filmId === filmId);
+    if (at >= 0) return { course, step: course.steps[at]!, place: at + 1 };
+  }
+  return null;
+};
 
 /**
  * Consecutive runs by the same director.
@@ -255,8 +447,29 @@ export const courseLabel = (course: Course, untitled: string): string =>
  * drops only what cannot be drawn at all: a step with no film, a course
  * that is a duplicate of another by id, a run that says nothing.
  */
+const KINDS: ThreadKind[] = ["filiation", "motif", "decade", "genre", "free"];
+
+/* AN UNKNOWN KIND FALLS BACK TO THE DEFAULT, IT IS NOT DROPPED. A run made
+   on a newer version of the app carries a thread this one cannot draw;
+   losing the run over it would be the worst possible answer, and the
+   thesis and the order — the things nothing else holds — survive
+   untouched. `value` is never checked against a catalogue: motifs live
+   in another document, and validating one against the other is the
+   coupling `because` was written to avoid. */
+const readThread = (raw: unknown): CourseThread => {
+  const t = (raw ?? {}) as Partial<CourseThread>;
+  const kind = KINDS.includes(t.kind as ThreadKind) ? (t.kind as ThreadKind) : DEFAULT_THREAD.kind;
+  if (kind === "free" || kind === "filiation") return { kind, value: "" };
+  return { kind, value: typeof t.value === "string" ? t.value : "" };
+};
+
 export const normalizeCourses = (raw: unknown): Course[] => {
   const byId = new Map<string, Course>();
+  /* AT MOST ONE PIN, SETTLED HERE AND NOT BY THE FORM. Two devices each
+     pin their own run, last-writer-wins hands back a document with two,
+     and the app would then have to pick — silently — which one the rest
+     of it talks about. First one held wins, like `normalizeBonds`. */
+  let pinned = false;
 
   for (const entry of Array.isArray(raw) ? raw : []) {
     if (!entry || typeof entry !== "object") continue;
@@ -277,22 +490,35 @@ export const normalizeCourses = (raw: unknown): Course[] => {
         id,
         why: typeof step.why === "string" ? step.why : "",
         because: typeof step.because === "string" && step.because ? step.because : null,
-        ...(step.done ? { done: true } : {}),
+        /* A step laid before `at` existed falls back on the run's own
+           birth — the earliest moment we can honestly claim. Reading
+           `Date.now()` here instead would settle nothing that is
+           already watched, and the run would look untouched forever. */
+        at:
+          typeof step.at === "number"
+            ? step.at
+            : typeof c.createdAt === "number"
+              ? c.createdAt
+              : undefined,
       });
       seen.add(made.id);
       steps.push(made);
     }
 
+    const keepPin = !pinned && c.pinned === true;
     const course = makeCourse({
       id: typeof c.id === "string" && c.id ? c.id : undefined,
       label: typeof c.label === "string" ? c.label : "",
       note: typeof c.note === "string" ? c.note : "",
+      thread: readThread(c.thread),
+      ...(keepPin ? { pinned: true } : {}),
       steps,
       createdAt: typeof c.createdAt === "number" ? c.createdAt : undefined,
       updatedAt: typeof c.updatedAt === "number" ? c.updatedAt : undefined,
     });
     if (isEmptyCourse(course)) continue;
     if (byId.has(course.id)) continue;
+    if (keepPin) pinned = true;
     byId.set(course.id, course);
   }
 

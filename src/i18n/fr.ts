@@ -1248,7 +1248,7 @@ const fr = {
     credits: "Générique",
     reco: "Découvertes",
     constellation: "Constellation",
-    lineage: "Filiations",
+    program: "Programmation",
     almanac: "Almanach",
     import: "Import Letterboxd",
     thread: "Le fil",
@@ -1264,7 +1264,6 @@ const fr = {
   groups: {
     news: "du neuf",
     binder: "Le classeur",
-    explore: "Explorer",
     hall: "Le hall",
   },
 
@@ -1881,9 +1880,9 @@ const fr = {
 
   /* LES FILIATIONS. Une file de films dans l'ordre où on veut les voir,
      et la carte des cinéastes qui dit POURQUOI cet ordre-là. */
-  lineage: {
-    heading: "Les filiations",
-    subheading: "l'ordre dans lequel vous voulez voir, et ce qui le justifie",
+  program: {
+    heading: "La programmation",
+    subheading: "l'ordre dans lequel vous voulez voir, où vous en êtes, et ce qui le justifie",
     empty:
       "Aucun parcours pour l'instant. Cherchez un film ci-dessous : le premier que vous poserez en ouvrira un.",
     emptyCourse: "Ce parcours est encore vide.",
@@ -1983,6 +1982,36 @@ const fr = {
     orphan: "Plus aucune fiche du classeur ne porte ce nom. Le lien, lui, reste.",
     openPerson: "Ouvrir sa page au générique",
     close: "Fermer",
+    whereAmI: "Où vous en êtes",
+    progressCount: "{{done}} vus sur {{total}}",
+    upNext: "La suite",
+    runWalked: "Vous avez parcouru ce programme jusqu'au bout.",
+    stampDone: "vu",
+    openStepDone: "{{title}} — vu, ouvrir cette étape",
+    doneOn: "soldée par la séance du {{date}}",
+    hideDone_one: "masquer celui qui est fait",
+    hideDone_other: "masquer les {{count}} qui sont faits",
+    showDone_one: "montrer celui qui est fait",
+    showDone_other: "montrer les {{count}} qui sont faits",
+    allDone: "Tout ce programme est vu.",
+    threadLabel: "Le fil rouge",
+    thread_free: "Le vôtre, écrit",
+    thread_filiation: "Une filiation",
+    thread_motif: "Un motif",
+    thread_decade: "Une décennie",
+    thread_genre: "Un genre",
+    threadValue: "Ce qu'est le fil rouge",
+    threadNothingHeld: "Aucune fiche du classeur n'en porte encore.",
+    threadEvidence: "Ce que le fil rouge tient",
+    threadHolds_one: "{{thread}} — une fiche que vous possédez n'est pas au programme",
+    threadHolds_other: "{{thread}} — {{count}} fiches que vous possédez ne sont pas au programme",
+    threadAllIn: "Tout ce que vous en possédez est déjà au programme.",
+    threadCount: "{{held}} des {{total}} que vous possédez sont à ce programme",
+    pin: "Épingler ce programme",
+    unpin: "Détacher ce programme",
+    inRun: "Étape {{place}} de {{name}}",
+    nextInRun: "La suite de {{name}}",
+    openRun: "Ouvrir le programme",
   },
 
   threads: {
@@ -2637,8 +2666,8 @@ const fr = {
       },
     },
 
-    lineage: {
-      label: "Les filiations",
+    program: {
+      label: "La programmation",
       runs: {
         title: "Un parcours, ou plusieurs",
         body: "Un parcours, c'est un ordre de visionnage et la thèse qui le tient. Ouvrez-en autant que vous voulez — les pastilles passent de l'un à l'autre. Un parcours vide n'est jamais gardé : rien à ranger derrière soi.",
@@ -2662,6 +2691,14 @@ const fr = {
       bond: {
         title: "Un lien, et sa raison",
         body: "Un lien se pose à la main : rien dans une fiche ne dit qui a formé qui. Une entrée de la file peut ensuite l'invoquer — et l'on voit alors, des deux côtés, ce qui tient le parcours debout.",
+      },
+      progress: {
+        title: "Où vous en êtes",
+        body: "Combien de ce programme vous avez vu, et la suite en grand. Rien ne se coche ici : notez une séance sur une fiche et ceci avance — c'est une séance POSTÉRIEURE à la pose de l'étape qui la solde, donc un film vu il y a dix ans vous reste à voir.",
+      },
+      thread: {
+        title: "Ce qui tient le programme",
+        body: "Une filiation entre cinéastes, un motif, une décennie, un genre — ou une phrase à vous dans la thèse ci-dessus. Le fil rouge ne refuse jamais un film : il dessine sa preuve sous le programme, et propose ce que vous possédez déjà sans l'avoir posé.",
       },
     },
 

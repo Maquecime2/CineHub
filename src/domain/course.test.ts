@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
+  courseProgress,
   courseSteps,
+  decadeOf,
   groupedSteps,
   isEmptyCourse,
   makeCourse,
@@ -8,9 +10,13 @@ import {
   move,
   moveBy,
   moveGroup,
+  matchesThread,
   normalizeCourses,
   patchStep,
+  pinnedCourse,
   stepBond,
+  stepDone,
+  stepOf,
   strandedCount,
   withStep,
   withoutStep,
@@ -272,5 +278,169 @@ describe("what reading turns away", () => {
   it("drops what is not a course at all", () => {
     expect(normalizeCourses([null, 4, "x"])).toEqual([]);
     expect(normalizeCourses(undefined)).toEqual([]);
+  });
+});
+
+/* ============================================================
+   WHERE ONE IS UP TO
+   ============================================================
+
+   The screen drew a plan and never drew its state. Everything below
+   defends the one rule that makes the state derivable at all: a step is
+   settled by a screening LATER THAN IT WAS LAID. Get that wrong in
+   either direction and the number is a lie — either every run is born
+   half finished, or a run one has actually walked never advances. */
+describe("progress", () => {
+  const laid = Date.parse("2026-03-10T12:00:00Z");
+  const seen = (date: string) => makeFilm({ id: "a", watches: [{ date, rating: null }] });
+
+  it("does not settle a step with a screening from before it was laid", () => {
+    expect(stepDone(makeStep("a", { at: laid }), seen("2016-01-01"))).toBe(false);
+  });
+
+  it("settles a step watched after it was laid — a rewatch counts", () => {
+    expect(stepDone(makeStep("a", { at: laid }), seen("2026-03-11"))).toBe(true);
+  });
+
+  it("settles a step laid the same day it was watched", () => {
+    /* `Watch.date` carries no clock: laying down the film one has just
+       watched must count, or the gesture looks broken. */
+    expect(stepDone(makeStep("a", { at: laid }), seen("2026-03-10"))).toBe(true);
+  });
+
+  it("leaves a never-watched step to do", () => {
+    expect(stepDone(makeStep("a", { at: laid }), makeFilm({ id: "a" }))).toBe(false);
+  });
+
+  it("counts what is done and points at the first thing that is not", () => {
+    const films = [
+      makeFilm({ id: "a", watches: [{ date: "2026-03-11", rating: null }] }),
+      makeFilm({ id: "b" }),
+      makeFilm({ id: "c" }),
+    ];
+    const course = makeCourse({
+      steps: [
+        makeStep("a", { id: "s1", at: laid }),
+        makeStep("b", { id: "s2", at: laid }),
+        makeStep("c", { id: "s3", at: laid }),
+      ],
+    });
+    const { done, total, next } = courseProgress(course, films);
+    expect([done, total]).toEqual([1, 3]);
+    expect(next?.step.id).toBe("s2");
+  });
+
+  it("has nothing next once the run is walked", () => {
+    const films = [makeFilm({ id: "a", watches: [{ date: "2026-03-11", rating: null }] })];
+    const course = makeCourse({ steps: [makeStep("a", { at: laid })] });
+    expect(courseProgress(course, films).next).toBeNull();
+  });
+
+  it("takes the FIRST unwalked entry, not the nearest one", () => {
+    /* The array is the order. A run may legitimately hold a film one
+       has already seen further down; that does not promote it. */
+    const films = [
+      makeFilm({ id: "a" }),
+      makeFilm({ id: "b", watches: [{ date: "2026-03-11", rating: null }] }),
+      makeFilm({ id: "c" }),
+    ];
+    const course = makeCourse({
+      steps: [
+        makeStep("a", { id: "s1", at: laid }),
+        makeStep("b", { id: "s2", at: laid }),
+        makeStep("c", { id: "s3", at: laid }),
+      ],
+    });
+    expect(courseProgress(course, films).next?.step.id).toBe("s1");
+  });
+
+  it("ignores steps whose card has left the collection", () => {
+    const course = makeCourse({ steps: [makeStep("gone", { at: laid })] });
+    expect(courseProgress(course, [])).toEqual({ done: 0, total: 0, next: null });
+  });
+});
+
+describe("the red thread", () => {
+  it("reads a decade off a four-figure year and refuses anything else", () => {
+    expect(decadeOf({ year: 1963 })).toBe("1960");
+    expect(decadeOf({ year: 1970 })).toBe("1970");
+    expect(decadeOf({ year: "" })).toBe("");
+  });
+
+  it("matches a card on a motif, a decade or a genre", () => {
+    const film = makeFilm({ year: 1963, motifs: ["boucle"], genres: ["Drame"] });
+    expect(matchesThread({ kind: "motif", value: "boucle" }, film)).toBe(true);
+    expect(matchesThread({ kind: "motif", value: "autre" }, film)).toBe(false);
+    expect(matchesThread({ kind: "decade", value: "1960" }, film)).toBe(true);
+    expect(matchesThread({ kind: "genre", value: "Drame" }, film)).toBe(true);
+  });
+
+  it("matches nothing under a filiation or a free thread", () => {
+    /* A filiation lives between PEOPLE and a free thread is prose:
+       neither can be asked of a card, and both are read elsewhere. */
+    const film = makeFilm({ year: 1963, motifs: ["boucle"] });
+    expect(matchesThread({ kind: "filiation", value: "" }, film)).toBe(false);
+    expect(matchesThread({ kind: "free", value: "" }, film)).toBe(false);
+  });
+
+  it("keeps a run whose thread it cannot draw, as the default one", () => {
+    const raw = [{ ...makeCourse({ id: "c", note: "a thesis" }), thread: { kind: "aura" } }];
+    expect(normalizeCourses(raw)[0]).toMatchObject({
+      id: "c",
+      note: "a thesis",
+      thread: { kind: "filiation", value: "" },
+    });
+  });
+
+  it("reads a run written before threads existed as a filiation", () => {
+    /* Taking the map away from somebody by omission is worse than any
+       default: every run that predates the field was one. */
+    const raw = [{ id: "c", label: "old", steps: [{ id: "s", filmId: "f" }] }];
+    expect(normalizeCourses(raw)[0]?.thread).toEqual({ kind: "filiation", value: "" });
+  });
+
+  it("a thread on its own is enough to keep a run on disk", () => {
+    expect(isEmptyCourse(makeCourse({ thread: { kind: "decade", value: "1960" } }))).toBe(false);
+    expect(isEmptyCourse(makeCourse())).toBe(true);
+  });
+});
+
+describe("the pin", () => {
+  it("keeps one pin at most, the first held", () => {
+    const raw = [
+      makeCourse({ id: "one", label: "a", createdAt: 10, pinned: true }),
+      makeCourse({ id: "two", label: "b", createdAt: 20, pinned: true }),
+    ];
+    const out = normalizeCourses(raw);
+    expect(out.map((c) => !!c.pinned)).toEqual([true, false]);
+  });
+
+  it("falls back on the most recently touched run when nothing is pinned", () => {
+    const old = makeCourse({ id: "one", label: "a", updatedAt: 10 });
+    const fresh = makeCourse({ id: "two", label: "b", updatedAt: 20 });
+    expect(pinnedCourse([old, fresh])?.id).toBe("two");
+    expect(pinnedCourse([])).toBeNull();
+  });
+
+  it("finds where a film stands, the pinned run first", () => {
+    const other = makeCourse({ id: "other", label: "o", steps: [makeStep("x"), makeStep("f")] });
+    const pin = makeCourse({ id: "pin", label: "p", pinned: true, steps: [makeStep("f")] });
+    expect(stepOf([other, pin], "f")).toMatchObject({ place: 1, course: { id: "pin" } });
+    expect(stepOf([other], "f")).toMatchObject({ place: 2, course: { id: "other" } });
+    expect(stepOf([other], "nowhere")).toBeNull();
+  });
+});
+
+describe("laying a step in time", () => {
+  it("stamps a step with the moment it was laid", () => {
+    const before = Date.now();
+    expect(makeStep("a").at).toBeGreaterThanOrEqual(before);
+  });
+
+  it("falls back on the run's birth for a step laid before `at` existed", () => {
+    const raw = [
+      { id: "c", label: "a", createdAt: 4242, steps: [{ id: "s", filmId: "f", why: "" }] },
+    ];
+    expect(normalizeCourses(raw)[0]?.steps[0]?.at).toBe(4242);
   });
 });

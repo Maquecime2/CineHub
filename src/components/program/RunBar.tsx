@@ -20,15 +20,19 @@
    instead of scrolling, which is the mistake the folder rail already
    documents. */
 import { useTranslation } from "react-i18next";
-import { Plus, Trash2 } from "lucide-react";
+import { Pin, PinOff, Plus, Trash2 } from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { bare, chip, hollow, inked, ruledTextarea, underlineInput } from "../../theme/styles";
 import { courseLabel } from "../../domain/course";
 import type { Course } from "../../domain/course";
+import { ThreadBar } from "./ThreadBar";
+import type { Film } from "../../types";
 
 interface RunBarProps {
   courses: Course[];
   course: Course | null;
+  /** Ce qu'on possède : le fil rouge n'offre que cela. */
+  films: Film[];
   onOpen: (id: string) => void;
   onNew: () => void;
   onDelete: (course: Course) => void;
@@ -41,6 +45,7 @@ interface RunBarProps {
 export function RunBar({
   courses,
   course,
+  films,
   onOpen,
   onNew,
   onDelete,
@@ -52,8 +57,8 @@ export function RunBar({
   return (
     <div style={{ marginBottom: 18 }}>
       <div
-        data-tour="lineage-runs"
-        aria-label={t("lineage.courses")}
+        data-tour="program-runs"
+        aria-label={t("program.courses")}
         style={{
           display: "flex",
           gap: 6,
@@ -79,22 +84,47 @@ export function RunBar({
                 borderColor: here ? C.plum : C.line,
               }}
             >
-              {courseLabel(c, t("lineage.untitled"))}
+              {c.pinned && <Pin size={9} />}
+              {courseLabel(c, t("program.untitled"))}
             </button>
           );
         })}
 
         <button onClick={onNew} style={{ ...bare, ...chip, flexShrink: 0, borderStyle: "dashed" }}>
           <Plus size={11} />
-          {t("lineage.newCourse")}
+          {t("program.newCourse")}
         </button>
+
+        {/* L'ÉPINGLE EST CE QUE LE RESTE DE L'APPLICATION LIT. Une fiche,
+            la liste à voir et la porte du classeur parlent d'UN parcours,
+            et sans épingle c'est « le dernier touché » qui décide — ce
+            qui change de sujet dès qu'on renomme un autre parcours. Une
+            seule à la fois, et `normalizeCourses` le garantit à la porte
+            plutôt qu'ici : deux appareils épinglent chacun le leur. */}
+        {course && (
+          <button
+            onClick={() => onCourse({ ...course, pinned: !course.pinned })}
+            aria-pressed={!!course.pinned}
+            aria-label={t(course.pinned ? "program.unpin" : "program.pin")}
+            title={t(course.pinned ? "program.unpin" : "program.pin")}
+            style={{
+              ...bare,
+              flexShrink: 0,
+              padding: 4,
+              marginLeft: "auto",
+              color: course.pinned ? C.plum : C.inkFaded,
+            }}
+          >
+            {course.pinned ? <Pin size={13} /> : <PinOff size={13} />}
+          </button>
+        )}
 
         {course && (
           <button
             onClick={() => onDelete(course)}
-            aria-label={t("lineage.deleteCourse")}
-            title={t("lineage.deleteCourse")}
-            style={{ ...bare, flexShrink: 0, padding: 4, marginLeft: "auto", color: C.burgundy }}
+            aria-label={t("program.deleteCourse")}
+            title={t("program.deleteCourse")}
+            style={{ ...bare, flexShrink: 0, padding: 4, color: C.burgundy }}
           >
             <Trash2 size={13} />
           </button>
@@ -110,8 +140,8 @@ export function RunBar({
             value={course.label}
             onChange={(e) => onCourseSoon({ ...course, label: e.target.value })}
             onBlur={() => onCourse(course)}
-            placeholder={t("lineage.untitled")}
-            aria-label={t("lineage.courseName")}
+            placeholder={t("program.untitled")}
+            aria-label={t("program.courseName")}
             style={{ ...underlineInput, fontFamily: F.title, fontSize: 24 }}
           />
           <textarea
@@ -119,9 +149,14 @@ export function RunBar({
             onChange={(e) => onCourseSoon({ ...course, note: e.target.value })}
             onBlur={() => onCourse(course)}
             rows={2}
-            placeholder={t("lineage.thesisPlaceholder")}
-            aria-label={t("lineage.thesis")}
+            placeholder={t("program.thesisPlaceholder")}
+            aria-label={t("program.thesis")}
             style={{ ...ruledTextarea, marginTop: 10 }}
+          />
+          <ThreadBar
+            thread={course.thread}
+            films={films}
+            onThread={(thread) => onCourse({ ...course, thread })}
           />
         </>
       )}
@@ -135,15 +170,15 @@ export function NoRun({ onNew }: { onNew: () => void }) {
   return (
     <div style={{ marginBottom: 18 }}>
       <div style={{ fontFamily: F.hand, fontSize: 17, color: C.inkFaded, marginBottom: 10 }}>
-        {t("lineage.empty")}
+        {t("program.empty")}
       </div>
       <button
-        data-tour="lineage-runs"
+        data-tour="program-runs"
         onClick={onNew}
         style={{ ...inked(C.ink), ...hollow, fontFamily: F.mono }}
       >
         <Plus size={12} />
-        {t("lineage.newCourse")}
+        {t("program.newCourse")}
       </button>
     </div>
   );

@@ -402,47 +402,63 @@ const constellation: Tour = {
    nouage sont montés même sur un classeur vide. Tout ce qui vise du
    CONTENU — la file elle-même, la carte, le panneau d'une étape — est
    facultatif, sans quoi un classeur neuf ne pourrait pas jouer la visite
-   jusqu'au bout. `lineage-why` en fait partie DEPUIS le plan de travail :
+   jusqu'au bout. `program-why` en fait partie DEPUIS le plan de travail :
    le panneau ne se monte plus que sur une étape désignée, alors qu'il
    était auparavant posé sur chaque ligne.
 
    L'ORDRE SUIT LA PILE, de haut en bas : parcours, carte, file, panneau
    — et les placements avec, `right` / `left` ayant été écrits pour deux
    colonnes qui n'existent plus. */
-const lineage: Tour = {
-  label: label("lineage"),
+const program: Tour = {
+  label: label("program"),
   steps: [
     {
-      target: at("lineage-runs"),
-      ...says("lineage", "runs"),
+      target: at("program-runs"),
+      ...says("program", "runs"),
       placement: "bottom",
     },
+    /* LE BANDEAU ET LE FIL ROUGE NE SONT PAS `optional` : le premier est
+       monté dès qu'un parcours existe et le second avec lui, comme la
+       barre des parcours. Ce qui vise du CONTENU — la carte, la file, le
+       panneau — le reste. */
     {
-      target: at("lineage-map"),
-      ...says("lineage", "map"),
+      target: at("program-progress"),
+      ...says("program", "progress"),
       placement: "bottom",
       optional: true,
     },
     {
-      target: at("lineage-bond"),
-      ...says("lineage", "bond"),
+      target: at("program-thread"),
+      ...says("program", "thread"),
+      placement: "bottom",
+      optional: true,
+    },
+    {
+      target: at("program-map"),
+      ...says("program", "map"),
+      placement: "bottom",
+      optional: true,
+    },
+    {
+      target: at("program-bond"),
+      ...says("program", "bond"),
       placement: "bottom",
     },
     {
-      target: at("lineage-order"),
-      ...says("lineage", "order"),
+      target: at("program-order"),
+      ...says("program", "order"),
       placement: "top",
       optional: true,
     },
     {
-      target: at("lineage-why"),
-      ...says("lineage", "why"),
+      target: at("program-why"),
+      ...says("program", "why"),
       placement: "top",
       optional: true,
     },
     {
-      target: at("lineage-add"),
-      ...says("lineage", "add"),
+      target: at("program-add"),
+      ...says("program", "add"),
       placement: "top",
     },
   ],
@@ -567,10 +583,10 @@ const global: Tour = {
        tour, where one arrives with what one has. */
     ...from("reco", reco, "reco-maison"),
     ...from("constellation", constellation, "constellation-start", "constellation-teams"),
-    /* `lineage-add` ET `lineage-bond`, les deux ancres toujours montées.
+    /* `program-add` ET `program-bond`, les deux ancres toujours montées.
        La file et la carte sont du contenu : sur le classeur neuf que la
        visite globale accompagne, elles n'existent pas encore. */
-    ...from("lineage", lineage, "lineage-add", "lineage-bond"),
+    ...from("program", program, "program-add", "program-bond"),
     ...from("almanac", almanac, "almanac-year"),
     /* Le carnet se prend dans la visite du classeur, puisqu'il s'y
        ouvre : il n'a plus d'onglet, donc plus de visite à lui. */
@@ -949,7 +965,7 @@ export const TOURS: Record<string, Tour> = Object.fromEntries(
     detail,
     reco,
     constellation,
-    lineage,
+    program,
     almanac,
     import: importTour,
     thread,

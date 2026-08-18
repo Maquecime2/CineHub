@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { LineageView } from "./LineageView";
+import { ProgramView } from "./ProgramView";
 import { FeedbackProvider } from "../components/ui/Feedback";
 import { makeFilm } from "../domain/film";
 import { makeBond } from "../domain/bonds";
@@ -46,7 +46,7 @@ const build = (courses: Course[] = [], bonds = [] as ReturnType<typeof makeBond>
        `useSay` est muet, et l'annonce d'un déplacement — qui est la
        moitié de l'alternative clavier — ne serait pas testable. */
     <FeedbackProvider>
-      <LineageView
+      <ProgramView
         films={films}
         courses={courses}
         bonds={bonds.filter((b) => !!b)}
@@ -350,6 +350,11 @@ describe("taking things away", () => {
       [run("a", "b")],
       [makeBond({ kind: "master", fromName: "Yasujirō Ozu", toName: "Hou Hsiao-hsien" })]
     );
+
+    /* LA CARTE EST REPLIÉE PAR DÉFAUT : elle est la PREUVE du fil rouge
+       et non le sujet de l'écran, qui est l'ordre. Son miroir en liste
+       reste monté, mais les nœuds ne sont cliquables que dépliés. */
+    await user.click(screen.getByRole("button", { name: /Voir la carte/ }));
 
     /* On passe par la CARTE, puis par le panneau du nœud : le trait d'une
        arête est une cible qu'on rate, et c'est bien pourquoi le retrait
