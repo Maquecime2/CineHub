@@ -27,6 +27,7 @@ const en = {
     clear: "SHOW ALL",
   },
   common: {
+    back: "Go back",
     retry: "try again",
     close: "Close",
     cancel: "Cancel",
@@ -1873,10 +1874,6 @@ const en = {
     openFilm: "Open the card",
     quickLook: "See what it is about",
     quickOf: "See what “{{title}}” is about",
-    stranded_one:
-      "One step shows nothing: its card has left the binder. It is kept, should it come back.",
-    stranded_other:
-      "{{count}} steps show nothing: their cards have left the binder. They are kept, should they come back.",
     order: "The running order",
     map: "The map of film-makers",
     mapList: "The film-makers and their bonds, as a list",
@@ -2074,6 +2071,40 @@ const en = {
   },
 
   listsView: {
+    race: "As a race: the first to watch a film claims it.",
+    raceNote:
+      "A film somebody else has already watched no longer counts for you. First means watched earliest — the date of the screening, not of the filing.",
+    racing: "RACE",
+    ticked: "DONE",
+    alsoSeenBy: "also seen by {{who}}",
+    nothingToTick: "Nothing to tick yet — the list is empty, or nobody has watched anything.",
+    whereEverybodyStands: "Where everybody stands",
+    openChallenge: "Open the scoreboard of “{{title}}”",
+    you: "you",
+    challengeGone: "Challenge deleted.",
+    verdict: {
+      held: "HELD",
+      half: "HALFWAY",
+      missed: "LET SLIP",
+    },
+    newChallenge: "Start a challenge",
+    stepWhat: "On what?",
+    stepHowMuch: "How many, and by when?",
+    noWritableList: "No list you may write in. Open one, or challenge yourself on a criterion.",
+    challengeTitleLabel: "The name of the challenge",
+    alsoReview: "A review will have to be written too.",
+    criterionTargetNote: "A challenge with no list needs a target: without one it has no end.",
+    warmup: {
+      fiveThisMonth: "5 FILMS, THIS MONTH",
+      threeInTwoWeeks: "3 FILMS, IN A FORTNIGHT",
+      wholeListThisYear: "THE WHOLE LIST, BEFORE THE YEAR IS OUT",
+    },
+    worksCount_one: "{{count}} film",
+    worksCount_other: "{{count}} films",
+    removeWorkOf: "Remove “{{title}}” from the list",
+    keeping: "KEEPING THIS LIST",
+    startsOn: "From",
+    endsOn: "To",
     lastDays: "last days",
     settled: "Settled",
     secondWind: "SECOND WIND — seven more days, for you",
@@ -2285,6 +2316,7 @@ const en = {
   },
 
   constellation: {
+    keywords: "KEYWORDS",
     resetTheSky: "PUT THE SKY BACK",
     nothingByThatName: "nothing by that name in the collection.",
     showAll: "show everything",
@@ -2701,7 +2733,7 @@ const en = {
       },
       mine: {
         title: "Yours, and the shared ones",
-        body: "Each list opens in a click. You can invite somebody to write in it: they add and remove films, they do not rename the list and do not erase it. Closed by default — making it visible is a tick box.",
+        body: "Each card shows the posters last filed, and opens in a click on the whole list. Everything about it lives in there: pouring a film into it, starting a challenge, and under “keeping this list” inviting somebody to write — they add and remove films, they do not rename the list and do not erase it. Closed by default.",
       },
       search: {
         title: "Pouring in a film you have not got",
@@ -2713,7 +2745,7 @@ const en = {
       },
       challenges: {
         title: "A challenge is a list and a period",
-        body: "A list and a period make a challenge: one asks to take part, and the binder counts by itself what each has seen in time. Nobody ticks “seen”. A TARGET is optional: “eight of these forty” holds in a month where the whole list does not, and the list itself is left alone. And a challenge can ask you to WRITE rather than merely watch — a screening in the period and a real review, since a review carries no date. A challenge carried through earns points at the counter — half of one earns less, and under half earns nothing.",
+        body: "A list and a period make a challenge: one asks to take part, and the binder counts by itself what each has seen in time. Nobody ticks “seen”. A TARGET is optional: “eight of these forty” holds in a month where the whole list does not, and the list itself is left alone. And a challenge can ask you to WRITE rather than merely watch — a screening in the period and a real review, since a review carries no date. A challenge carried through earns points at the counter — half of one earns less, and under half earns nothing. Open one: the SCOREBOARD shows the posters in play, stamped as they get watched, and says where everybody stands. A challenge can also be run as a race: the first to watch a film claims it, and it no longer counts for the others.",
       },
     },
 

@@ -17,7 +17,6 @@ import {
   stepBond,
   stepDone,
   stepOf,
-  strandedCount,
   withStep,
   withoutStep,
   withoutSteps,
@@ -154,11 +153,6 @@ describe("a step whose card is gone", () => {
   it("is not erased, because reading must not write", () => {
     courseSteps(course, films);
     expect(course.steps).toHaveLength(3);
-  });
-
-  it("is counted, so the view can say so instead of quietly shrinking", () => {
-    expect(strandedCount(course, films)).toBe(1);
-    expect(strandedCount(run("a"), films)).toBe(0);
   });
 });
 

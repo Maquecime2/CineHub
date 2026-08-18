@@ -1747,6 +1747,11 @@ export default function App() {
               {view === "lists" && (
                 <ListsView
                   connected={!!synchro.person}
+                  /* QUI JE SUIS, pour que le tableau de marque sache
+                     quel tampon est le mien. Le serveur rend des
+                     pseudonymes, pas un « c'est vous » : il compte pour
+                     tous les participants de la même façon. */
+                  me={synchro.person?.pseudo ?? null}
                   films={films}
                   onUpdateFilm={updateFilm}
                   onOpen={openFilm}

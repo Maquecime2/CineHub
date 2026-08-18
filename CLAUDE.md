@@ -137,9 +137,12 @@ autres.
   compris quand on retire le lien à la main, puisque reposer le même lien rend
   le même identifiant.
 - **LIRE N'ÉCRIT PAS.** `courseSteps` filtre les fiches disparues à l'affichage
-  et laisse le disque tranquille — copie de `threadMembers`. Et `strandedCount`
-  existe pour que la vue le DISE : une colonne qui rétrécit de deux entrées sans
-  un mot est le même défaut qu'un échec silencieux.
+  et laisse le disque tranquille — copie de `threadMembers`. **`strandedCount` a
+  été RETIRÉ** : la vue annonçait « une étape ne montre rien, sa fiche a quitté
+  le classeur » en toutes lettres, sous le rail, et cette phrase coûtait un
+  paragraphe pour un cas rare. Le silence est ici assumé et non subi — l'étape
+  reste écrite et revient si la fiche revient, donc rien n'est perdu. C'est le
+  seul endroit du projet où l'on accepte qu'une file rétrécisse sans un mot.
 - **UN LIEN SURVIT À LA FICHE.** `fromName` / `toName` gardent le nom saisi, donc
   effacer la dernière fiche d'un cinéaste ne désapprend pas qui l'a formé : le
   nœud devient `orphan`. L'orthographe de la collection l'emporte quand elle
@@ -615,6 +618,100 @@ son encre RÉSOLUE en argument.
 Ce qu'on déclare soi-même (séances, notes, critiques) est plafonné par jour, et
 la forme de `ref` le plafonne à vie. Le vérifiable — quiz, défis, contributions
 — porte le reste.
+
+## UNE LISTE MONTRE CE QU'ELLE CONTIENT
+
+Le domaine des listes et des défis se lisait **sans une seule image**, dans une
+vidéothèque. La cause n'était pas dans les vues : `list_item` ne portait que
+`tmdb_id`, `title`, `year`, `added_by`. Une œuvre n'avait **aucune affiche à
+montrer**, et aucune refonte visuelle n'y pouvait rien.
+
+- **`poster_path` EST UN CHEMIN, JAMAIS UNE URL** (`006_list_poster.sql`). C'est
+  la discipline de `Film.frames` : la taille se compose au rendu, et
+  `posterPathOf` / `posterUrl` (`src/tmdb.js`) sont la seule charnière. Une URL
+  figée en base fixerait la taille le jour de l'écriture, pour tous les lecteurs
+  à venir. Le serveur n'accepte qu'**un seul segment** — `//ailleurs/x.jpg`
+  commence bien par une barre et ressortirait en adresse absolue vers un autre
+  hôte.
+- **ON COMBLE LES TROUS, ON NE CORRIGE RIEN.** `addToList` fait
+  `DO UPDATE SET poster_path = coalesce(ancien, nouveau)` : les listes remplies
+  avant la colonne se comblent d'elles-mêmes, sans tâche de fond ni requête TMDB
+  en masse. Le `RETURNING (xmax = 0)` garde `fresh` FIDÈLE À SON NOM — un
+  `DO UPDATE` rend une ligne à chaque fois, et l'appelant croirait avoir ajouté
+  une œuvre déjà présente.
+- **`ListRow.posters` EST DANS LA REQUÊTE QUI COMPTAIT DÉJÀ** (`LEFT JOIN
+LATERAL`, quatre au plus, les dernières rangées) : une carte de liste montre un
+  éventail sans qu'on ait à interroger liste par liste. `[]` est une RÉPONSE.
+- **PAS DE BACKTICK NI D'ACCENT DANS UN COMMENTAIRE SQL** de `store.ts` : ces
+  requêtes vivent dans des gabarits JavaScript, et une backtick ferme la chaîne
+  et fait tomber le module entier.
+
+## LES DEUX MOITIÉS NE SONT PLUS UN SEUL ÉCRAN
+
+`ListsView.tsx` faisait mille lignes et tenait DEUX objets qui n'ont ni le même
+rythme ni le même public : une **liste** est un savoir, permanent, écrit à
+plusieurs ; un **défi** est une intention, qui se solde. Il reste l'ENTRÉE — c'est
+ce que l'union `View` nomme et ce que le filet importe, comme `QuizView` devant
+`src/views/quiz/` — et `src/views/lists/` tient les pièces.
+
+- **L'ACCORDÉON A DISPARU.** Tout ce qu'une liste sait faire tenait SOUS un
+  en-tête, dans la largeur de la colonne : la place manquait pour une seule
+  affiche. Une liste ouverte est une COUCHE (`ListLayer`), pour la raison exacte
+  de `FilmQuickView` — **par-dessus, la place est celle de la fenêtre**.
+- **CE QU'ON FAIT UNE FOIS N'EST PAS DANS LE FLUX** : inviter, publier, supprimer
+  vivent sous un pli au pied de la couche. Le retrait d'une œuvre paraît sur la
+  vignette visée et **s'arme au FOCUS autant qu'au survol**, sinon il sort du
+  clavier.
+- **IL Y AVAIT DEUX PORTES POUR UN SEUL OBJET.** Un défi par liste naissait d'un
+  formulaire enfoui sous l'accordéon ; un défi par critère d'un SECOND formulaire
+  posé sous le tableau. `NewChallenge` les remplace toutes deux : deux pas — ce
+  qu'on défie, puis combien et jusqu'à quand — et l'ordre n'est pas décoratif,
+  puisque **sans liste la cible est obligatoire** et que le schéma le tient. Le
+  titre est devenu FACULTATIF et se propose depuis le sujet : c'était le champ
+  qui barrait la route. **Rien n'a changé au serveur** — l'assistant rend une
+  règle impossible à oublier au lieu de la faire découvrir par un refus.
+
+## UN DÉFI EST UN TABLEAU DE MARQUE, PAS UNE BARRE
+
+On lisait « 3 sur 8 » sans jamais savoir LESQUELS trois. Le progrès n'était
+jamais une IMAGE, dans un produit qui ne parle que de films.
+
+- **`Progress.ticked` TIENT LES IDENTIFIANTS DE CE QUE `done` COMPTE**, par la
+  MÊME expression SQL. Les faire diverger montrerait quatre tampons sous une
+  barre qui en annonce cinq — **et c'est la barre qui PAIE**. Le journal de
+  séances ne sort toujours pas : ni date, ni note, ni critique.
+- **LE TAMPON DIT UN MOT.** Vert pour fait et gris pour pas fait disparaît sous
+  cinq des dix-sept peaux ; c'est la règle du verdict du quizz. Le mot de fin
+  (`verdict.held` / `half` / `missed`) vient du BARÈME et non d'un avis.
+- **UN DÉFI PAR CRITÈRE N'A PAS DE GRILLE DE DÉPART** : `works` est vide, donc sa
+  grille EST ce qui a été coché, plus des emplacements vides jusqu'à la cible. Il
+  se REMPLIT au lieu de se cocher.
+- **LE SOLDE RESTE SUR LA CARTE, PAS DANS LA COUCHE.** Le serveur n'a pas de
+  tâche de fond : déplacé dans la couche, il faudrait OUVRIR chaque défi fini
+  pour que quiconque soit payé.
+
+## LA COURSE — UN FILM NE COMPTE QUE POUR LE PREMIER
+
+`challenge.mode` (`'ensemble'` | `'course'`, `007_challenge_race.sql`). **Aucune
+`Kind` neuve dans `points.ts`** : même barème, même règlement, même `merit_event`.
+C'est une règle de COMPTAGE, et elle vit dans `UNCLAIMED` (`store.ts`).
+
+- **UNE COLONNE ET NON UNE QUATRIÈME VALEUR DE `kind`** : les deux se croisent —
+  une course peut demander de VOIR ou de VOIR ET ÉCRIRE, sur une liste comme sur
+  un critère. Les fondre aurait fait six valeurs dont personne ne retient l'ordre.
+- **« LE PREMIER » EST LA DATE DE LA SÉANCE**, jamais celle du rangement :
+  `card.updated_at` ferait gagner celui qui synchronise le plus vite. L'égalité
+  se tranche sur l'identifiant de personne — ce n'est pas juste, c'est
+  **DÉTERMINISTE**, et il le faut puisque cette expression PAIE : un départage
+  aléatoire ferait changer le tableau entre deux rafraîchissements.
+- **HORS COURSE, LE PRÉDICAT S'EFFACE** (`e.mode <> 'course' OR …`) : le comptage
+  d'avant est intact au caractère près, et `'ensemble'` est le défaut du schéma.
+- **PAS DE QUATRIÈME CRITÈRE, ET LE GENRE EN EST LA PREUVE.** Il paraissait tenir
+  la règle des trois autres — TMDB le remplit toujours — mais `domain/genres`
+  énonce qu'un genre est servi **dans la langue demandée** et que
+  `canonicalGenres` unifie les graphies **sans traduire**. Un défi « Drama »
+  compterait donc zéro chez qui a importé en français, en silence. C'est la forme
+  la plus coûteuse du « ça dépend si la fiche est remplie ».
 
 ## Repères
 

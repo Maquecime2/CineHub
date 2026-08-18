@@ -31,6 +31,7 @@ const fr = {
     clear: "TOUT MONTRER",
   },
   common: {
+    back: "Revenir en arrière",
     retry: "réessayer",
     close: "Fermer",
     cancel: "Annuler",
@@ -1926,10 +1927,6 @@ const fr = {
     openFilm: "Ouvrir la fiche",
     quickLook: "Voir de quoi il parle",
     quickOf: "Voir de quoi parle « {{title}} »",
-    stranded_one:
-      "Une étape ne montre rien : sa fiche n'est plus au classeur. Elle est gardée, au cas où elle revienne.",
-    stranded_other:
-      "{{count}} étapes ne montrent rien : leurs fiches ne sont plus au classeur. Elles sont gardées, au cas où elles reviennent.",
     order: "L'ordre de visionnage",
     map: "La carte des cinéastes",
     mapList: "Les cinéastes et leurs liens, en liste",
@@ -2136,6 +2133,62 @@ const fr = {
   },
 
   listsView: {
+    /* LA COURSE. Une nature change ce qui COMPTE, jamais ce que ça paie. */
+    race: "En course : le premier qui voit un film le prend.",
+    raceNote:
+      "Un film déjà vu par quelqu'un d'autre ne compte plus pour vous. Le premier est celui qui l'a vu le plus tôt — la date de la séance, pas celle du rangement.",
+    racing: "COURSE",
+    /* LE TABLEAU DE MARQUE. Un défi était une barre : « 3 sur 8 » sans
+       jamais dire lesquels trois. */
+    ticked: "POSÉ",
+    alsoSeenBy: "aussi vu par {{who}}",
+    nothingToTick:
+      "Rien à cocher pour l'instant — la liste est vide, ou personne n'a encore rien vu.",
+    whereEverybodyStands: "Où en est chacun",
+    openChallenge: "Ouvrir le tableau de « {{title}} »",
+    you: "vous",
+    challengeGone: "Défi supprimé.",
+    /* LE MOT DE LA FIN. Il vient du BARÈME et non d'un avis : c'est ce
+       qui a été payé. Un MOT, jamais une couleur — cinq des dix-sept
+       peaux mangent le vert et le rouge. */
+    verdict: {
+      held: "TENU",
+      half: "À MOITIÉ",
+      missed: "LAISSÉ FILER",
+    },
+    /* L'ASSISTANT — une porte pour un objet, là où il y en avait deux.
+       `stepWhat` et `stepHowMuch` sont les DEUX pas, et l'ordre compte :
+       sans liste la cible est obligatoire, donc la seconde question
+       dépend de la première. */
+    newChallenge: "Lancer un défi",
+    stepWhat: "Sur quoi ?",
+    stepHowMuch: "Combien, et jusqu'à quand ?",
+    noWritableList:
+      "Aucune liste où vous puissiez écrire. Ouvrez-en une, ou défiez-vous sur un critère.",
+    challengeTitleLabel: "Le nom du défi",
+    /* La nature, dite par une phrase plutôt que par deux boutons dont
+       aucun n'annonçait ce qu'il changeait. */
+    alsoReview: "Il faudra aussi en écrire une critique.",
+    criterionTargetNote: "Un défi sans liste a besoin d'une cible : sinon il n'a pas de fin.",
+    warmup: {
+      fiveThisMonth: "5 FILMS, CE MOIS-CI",
+      threeInTwoWeeks: "3 FILMS, EN DEUX SEMAINES",
+      wholeListThisYear: "TOUTE LA LISTE, D'ICI LA FIN DE L'ANNÉE",
+    },
+    /* CE QUE LA CARTE D'UNE LISTE ANNONCE. Le pluriel se disait en
+       ligne dans la vue (`{works} film{s > 1 ? "s" : ""}`), ce qui est
+       une règle de français écrite dans du JSX — l'anglais n'en voulait
+       pas et aucune autre langue ne s'y plierait. */
+    worksCount_one: "{{count}} film",
+    worksCount_other: "{{count}} films",
+    /* LE RETRAIT PARAÎT SUR LA VIGNETTE VISÉE, donc son nom doit dire
+       LAQUELLE : trente boutons « retirer » identiques ne se
+       distinguent pas au lecteur d'écran. */
+    removeWorkOf: "Retirer « {{title}} » de la liste",
+    /* Le pli du propriétaire : inviter, publier, supprimer. */
+    keeping: "TENIR CETTE LISTE",
+    startsOn: "Du",
+    endsOn: "Au",
     lastDays: "derniers jours",
     settled: "Soldé",
     secondWind: "SECOND SOUFFLE — sept jours de plus, pour vous",
@@ -2358,6 +2411,7 @@ const fr = {
   },
 
   constellation: {
+    keywords: "MOTS-CLÉS",
     resetTheSky: "REMETTRE LE CIEL EN PLACE",
     nothingByThatName: "rien de ce nom dans la collection.",
     showAll: "tout afficher",
@@ -2778,7 +2832,7 @@ const fr = {
       },
       mine: {
         title: "Les vôtres, et celles à plusieurs",
-        body: "Chaque liste s'ouvre d'un clic. Vous pouvez y inviter quelqu'un à écrire : il ajoute et retire des films, il ne renomme pas la liste et ne l'efface pas. Fermée par défaut — la rendre visible est une case à cocher.",
+        body: "Chaque carte montre les dernières affiches rangées, et s'ouvre d'un clic sur la liste entière. Tout ce qui la concerne est là-dedans : y verser un film, lancer un défi, et sous « tenir cette liste » inviter quelqu'un à écrire — il ajoute et retire des films, il ne renomme pas la liste et ne l'efface pas. Fermée par défaut.",
       },
       search: {
         title: "Y verser un film que vous n'avez pas",
@@ -2790,7 +2844,7 @@ const fr = {
       },
       challenges: {
         title: "Un défi est une liste plus une période",
-        body: "Un défi, c'est une liste plus une période : on demande à y participer, et le classeur compte tout seul ce que chacun a vu dans les temps. Personne ne coche « vu ». Une CIBLE est facultative : « huit de ces quarante » se tient en un mois là où la liste entière ne se tient pas, et la liste n'est pas touchée pour autant. Et un défi peut demander d'ÉCRIRE plutôt que seulement de voir — une séance dans la période et une vraie critique, puisqu'une critique ne porte pas de date. Un défi bouclé rapporte des points au comptoir — la moitié en rapporte moins, et rien du tout en dessous.",
+        body: "Un défi, c'est une liste plus une période : on demande à y participer, et le classeur compte tout seul ce que chacun a vu dans les temps. Personne ne coche « vu ». Une CIBLE est facultative : « huit de ces quarante » se tient en un mois là où la liste entière ne se tient pas, et la liste n'est pas touchée pour autant. Et un défi peut demander d'ÉCRIRE plutôt que seulement de voir — une séance dans la période et une vraie critique, puisqu'une critique ne porte pas de date. Un défi bouclé rapporte des points au comptoir — la moitié en rapporte moins, et rien du tout en dessous. Ouvrez-en un : le TABLEAU DE MARQUE montre les affiches en jeu, tamponnées à mesure qu'on les voit, et dit où en est chacun. Un défi peut aussi se courir : le premier qui voit un film le prend, et il ne compte plus pour les autres.",
       },
     },
 

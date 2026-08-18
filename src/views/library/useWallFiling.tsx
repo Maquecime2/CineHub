@@ -34,6 +34,7 @@ import type { Filing as FilingHere } from "../../components/film/filing";
 import { useMyLists } from "../../hooks/useMyLists";
 import { allMotifs, motifLabel } from "../../domain/motifs";
 import type { Film } from "../../types";
+import { posterPathOf } from "../../tmdb";
 import type { Filing } from "./FilmWall";
 
 /* A list holds WORKS, not copies: a card typed in by hand has no
@@ -43,7 +44,12 @@ import type { Filing } from "./FilmWall";
 const fileable = (films: Film[]) => films.filter((f) => f.tmdbId);
 
 const worksOf = (films: Film[]): Fileable[] =>
-  fileable(films).map((f) => ({ tmdbId: f.tmdbId!, title: f.title, year: f.year }));
+  fileable(films).map((f) => ({
+    tmdbId: f.tmdbId!,
+    title: f.title,
+    year: f.year,
+    posterPath: posterPathOf(f.poster),
+  }));
 
 export function useWallFiling(
   films: Film[],

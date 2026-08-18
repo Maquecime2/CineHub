@@ -176,16 +176,6 @@ export const courseSteps = (course: Course, films: Film[]): { step: Step; film: 
   return out;
 };
 
-/**
- * How many steps point at nothing.
- *
- * THIS EXISTS SO THE VIEW CAN SAY IT. A column that quietly shrinks by
- * two entries is the same bug as a silent failure: something happened,
- * and the only person who could make sense of it was not told.
- */
-export const strandedCount = (course: Course, films: Film[]): number =>
-  course.steps.length - courseSteps(course, films).length;
-
 /* ------------------------------------------------------------
    WHERE ONE IS UP TO
    ------------------------------------------------------------
@@ -238,8 +228,9 @@ export interface Progress {
  * nobody asked with a plan nobody wrote.
  *
  * Steps whose card has left the collection count in neither number:
- * `courseSteps` has already dropped them and `strandedCount` says how
- * many, out loud.
+ * `courseSteps` has already dropped them at the reading, and NOTHING
+ * says how many — le rail rétrécit sans un mot, et c'est un choix
+ * assumé. L'étape reste écrite : elle revient si la fiche revient.
  */
 export const courseProgress = (course: Course, films: Film[]): Progress => {
   const entries = courseSteps(course, films);

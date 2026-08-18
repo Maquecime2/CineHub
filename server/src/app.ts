@@ -1153,18 +1153,34 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     if (!rights) return reply;
     if (!rights.write) return reply.code(403).send({ error: "On ne vous a rien demandé ici." });
 
-    const { tmdbId, title, year } = (req.body ?? {}) as {
+    const { tmdbId, title, year, posterPath } = (req.body ?? {}) as {
       tmdbId?: string | number;
       title?: string;
       year?: string;
+      posterPath?: string;
     };
     if (!/^[0-9]{1,12}$/.test(String(tmdbId ?? ""))) {
       return reply.code(400).send({ error: "Une œuvre se désigne by son identifiant TMDB." });
     }
+    /* UN CHEMIN, ET RIEN QUI PUISSE DEVENIR UNE ADRESSE. La forme
+       `/xxxx.jpg` est ce que TMDB rend et tout ce dont le rendu a
+       besoin ; accepter une URL laisserait n'importe qui écrire dans
+       la liste d'autrui l'adresse d'un serveur à lui, et le
+       navigateur des autres irait la chercher. Ce qui ne tient pas
+       cette forme n'est pas refusé — on n'écrit pas d'affiche, et la
+       ligne se range quand même.
+
+       UN SEUL SEGMENT, ET LA BARRE N'EST PAS DANS LA CLASSE. Un chemin
+       TMDB n'en a jamais deux, et `//ailleurs.example/x.jpg` en aurait
+       tenu un qui commence bien par une barre : concaténé à la base, il
+       ressort en adresse absolue vers un autre hôte. */
+    const poster =
+      typeof posterPath === "string" && /^\/[\w.-]{1,180}$/.test(posterPath) ? posterPath : null;
     const fresh = await store.addToList(db, rights.list_id, person.id, {
       tmdbId: String(tmdbId),
       title: (title || "").slice(0, 200),
       year: year ? String(year).slice(0, 8) : null,
+      posterPath: poster,
     });
     return { added: true, fresh };
   });
@@ -1253,7 +1269,7 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
 
   app.post("/challenges", async (req, reply) => {
     const person = await requireAccount(req);
-    const { listId, title, starts_on, ends_on, target, kind, subject } = (req.body ?? {}) as {
+    const { listId, title, starts_on, ends_on, target, kind, subject, mode } = (req.body ?? {}) as {
       listId?: string;
       title?: string;
       starts_on?: string;
@@ -1261,6 +1277,7 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
       target?: number | null;
       kind?: string | null;
       subject?: Record<string, unknown> | null;
+      mode?: string | null;
     };
     const name = (title || "").trim();
     if (!name || name.length > 120) {
@@ -1283,6 +1300,14 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
        n'est pas encore servi : le déclarer accepté rendrait un défi que
        rien ne sait compter. */
     const nature = kind == null ? "liste" : String(kind);
+    /* LA COURSE — un film ne compte que pour le PREMIER qui le valide.
+       Refusée ici en plus du schéma, pour que la réponse soit une phrase
+       et non une violation de contrainte. Une nature change ce qui
+       COMPTE, jamais ce que ça paie : rien de plus dans `points.ts`. */
+    const race = mode == null ? "ensemble" : String(mode);
+    if (race !== "ensemble" && race !== "course") {
+      return reply.code(400).send({ error: "Un défi se court ensemble ou en course." });
+    }
     if (!["liste", "critique", "critere"].includes(nature)) {
       return reply.code(400).send({ error: "Nature de défi inconnue." });
     }
@@ -1365,6 +1390,7 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
       target: goal,
       kind: nature,
       subject: matter,
+      mode: race,
     });
     return { id };
   });

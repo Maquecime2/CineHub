@@ -1081,6 +1081,16 @@ export interface ListRow {
   owner: string;
   /** How many works. */
   works: number;
+  /* QUELQUES AFFICHES, POUR QUE LA CARTE EN SOIT UNE. Un mur de listes
+     qui n'annonce qu'un titre et un compte se lit comme un tableur —
+     c'est le défaut que ce champ retire. Quatre CHEMINS au plus, les
+     derniers rangés, pris dans la requête qui compte déjà : pas de
+     seconde question, et rien à demander liste par liste.
+
+     Une liste dont aucune œuvre ne porte d'affiche rend `[]`, ce qui est
+     une RÉPONSE et non un silence — la même discipline que `keywords`
+     et `frames`. */
+  posters: string[];
   /** Am I the owner, and may I write in it? */
   mienne?: boolean;
   isMember?: boolean;
@@ -1091,6 +1101,10 @@ export interface WorkRow {
   title: string;
   year: string | null;
   by: string | null;
+  /* LE CHEMIN, ET JAMAIS L'URL — la taille se compose au rendu, comme
+     pour `Film.frames`. NULL veut dire « on n'en a pas », ce qui n'est
+     pas la même chose qu'une chaîne vide. */
+  poster_path: string | null;
 }
 
 /** What somebody is allowed to do with a list. */
@@ -1225,10 +1239,24 @@ export async function myLists(db: Db, personId: string): Promise<ListRow[]> {
     `SELECT l.id, l.title, l.intent, l.is_public,
             p.pseudo AS owner,
             (SELECT count(*) FROM list_item i WHERE i.list_id = l.id)::int AS works,
+            -- Les DERNIERES rangees et non les premieres : une liste
+            -- vivante montre ce qu'on vient d'y mettre. Un LEFT JOIN
+            -- LATERAL et non une sous-requete correlee dans le SELECT,
+            -- qui n'aurait pas su rendre un tableau limite.
+            -- (Pas d'accent ni de backtick ici : ce commentaire vit
+            --  DANS un gabarit JavaScript, ou une backtick ferme la
+            --  chaine et fait tomber tout le module.)
+            coalesce(f.posters, '{}') AS posters,
             (l.owner_id = $1) AS mienne,
             EXISTS (SELECT 1 FROM list_member m
                      WHERE m.list_id = l.id AND m.person_id = $1) AS is_member
        FROM list l JOIN person p ON p.id = l.owner_id
+       LEFT JOIN LATERAL (
+              SELECT array_agg(i.poster_path ORDER BY i.added_at DESC) AS posters
+                FROM (SELECT poster_path, added_at FROM list_item
+                       WHERE list_id = l.id AND poster_path IS NOT NULL
+                       ORDER BY added_at DESC LIMIT 3) i
+            ) f ON true
       WHERE l.owner_id = $1
          OR EXISTS (SELECT 1 FROM list_member m
                      WHERE m.list_id = l.id AND m.person_id = $1)
@@ -1242,8 +1270,22 @@ export async function publicListsOf(db: Db, ownerId: string): Promise<ListRow[]>
   return db.query<ListRow>(
     `SELECT l.id, l.title, l.intent, l.is_public,
             p.pseudo AS owner,
-            (SELECT count(*) FROM list_item i WHERE i.list_id = l.id)::int AS works
+            (SELECT count(*) FROM list_item i WHERE i.list_id = l.id)::int AS works,
+            -- Les DERNIERES rangees et non les premieres : une liste
+            -- vivante montre ce qu'on vient d'y mettre. Un LEFT JOIN
+            -- LATERAL et non une sous-requete correlee dans le SELECT,
+            -- qui n'aurait pas su rendre un tableau limite.
+            -- (Pas d'accent ni de backtick ici : ce commentaire vit
+            --  DANS un gabarit JavaScript, ou une backtick ferme la
+            --  chaine et fait tomber tout le module.)
+            coalesce(f.posters, '{}') AS posters
        FROM list l JOIN person p ON p.id = l.owner_id
+       LEFT JOIN LATERAL (
+              SELECT array_agg(i.poster_path ORDER BY i.added_at DESC) AS posters
+                FROM (SELECT poster_path, added_at FROM list_item
+                       WHERE list_id = l.id AND poster_path IS NOT NULL
+                       ORDER BY added_at DESC LIMIT 3) i
+            ) f ON true
       WHERE l.owner_id = $1 AND l.is_public
       ORDER BY l.updated_at DESC`,
     [ownerId]
@@ -1285,7 +1327,7 @@ export async function deleteList(db: Db, listId: string): Promise<void> {
 
 export async function worksOf(db: Db, listId: string): Promise<WorkRow[]> {
   return db.query<WorkRow>(
-    `SELECT i.tmdb_id, i.title, i.year, p.pseudo AS by
+    `SELECT i.tmdb_id, i.title, i.year, i.poster_path, p.pseudo AS by
        FROM list_item i LEFT JOIN person p ON p.id = i.added_by
       WHERE i.list_id = $1
       ORDER BY i.added_at`,
@@ -1298,17 +1340,29 @@ export async function addToList(
   db: Db,
   listId: string,
   byWhom: string,
-  o: { tmdbId: string; title?: string; year?: string | null }
+  o: { tmdbId: string; title?: string; year?: string | null; posterPath?: string | null }
 ): Promise<boolean> {
-  const r = await db.query(
-    `INSERT INTO list_item (list_id, tmdb_id, title, year, added_by)
-     VALUES ($1, $2, $3, $4, $5)
-     ON CONFLICT (list_id, tmdb_id) DO NOTHING
-     RETURNING tmdb_id`,
-    [listId, o.tmdbId, o.title ?? "", o.year ?? null, byWhom]
+  /* ON COMBLE LES TROUS, ON NE CORRIGE RIEN. Le conflit ne fait plus
+     « rien » tout à fait : si la ligne est là SANS affiche et qu'on en
+     apporte une, on l'écrit. C'est ce qui rattrape les listes remplies
+     avant que la colonne existe, sans tâche de fond ni requête TMDB en
+     masse — et le `coalesce` garantit qu'une affiche présente survit à
+     un ajout qui n'en porterait pas.
+
+     `fresh` reste FIDÈLE À SON NOM : le `RETURNING` d'un `DO UPDATE`
+     rendrait une ligne à chaque fois, et l'appelant croirait avoir
+     ajouté une œuvre qui était déjà là. D'où le `xmax = 0`, que
+     Postgres met à zéro sur une insertion et pas sur une mise à jour. */
+  const r = await db.query<{ fresh: boolean }>(
+    `INSERT INTO list_item (list_id, tmdb_id, title, year, poster_path, added_by)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     ON CONFLICT (list_id, tmdb_id)
+       DO UPDATE SET poster_path = coalesce(list_item.poster_path, excluded.poster_path)
+     RETURNING (xmax = 0) AS fresh`,
+    [listId, o.tmdbId, o.title ?? "", o.year ?? null, o.posterPath ?? null, byWhom]
   );
   await db.query("UPDATE list SET updated_at = now() WHERE id = $1", [listId]);
-  return r.length > 0;
+  return r[0]?.fresh === true;
 }
 
 export async function removeFromList(db: Db, listId: string, tmdbId: string): Promise<void> {
@@ -1406,6 +1460,71 @@ const WATCHED_DURING = (card: string) => `(
                                                 AND to_char(e.ends_on, 'YYYY-MM-DD')
      )`;
 
+/* ------------------------------------------------------------
+   LA COURSE — UN FILM NE COMPTE QUE POUR LE PREMIER
+   ------------------------------------------------------------
+
+   `mode = 'course'`. UNE NATURE CHANGE CE QUI COMPTE, JAMAIS CE QUE ÇA
+   PAIE : même barème, même règlement, même `merit_event`, et pas une
+   ligne de plus dans `points.ts`. Ce qui change est ici, et seulement
+   ici — d'où l'ajout par un PRÉDICAT posé en plus, plutôt que par une
+   troisième façon de compter.
+
+   « LE PREMIER » EST UNE DATE, ET LA DATE EST CELLE DE LA SÉANCE — pas
+   celle où la fiche a été synchronisée. Deux personnes qui regardent le
+   même film le même mois doivent être départagées par le soir où elles
+   l'ont vu, et c'est la seule donnée qui le dise. `card.updated_at`
+   aurait fait gagner celle qui a retouché sa fiche en dernier.
+
+   ÉGALITÉ : LE MÊME JOUR ARRIVE, et souvent — une séance ne porte
+   qu'une date, sans heure. On tranche alors sur l'identifiant de
+   personne, qui est stable : un départage aléatoire ferait changer le
+   tableau entre deux rafraîchissements, et un défi qui se relit
+   autrement à chaque coup d'œil n'est plus un défi. Ce n'est pas juste,
+   c'est DÉTERMINISTE — et c'est ce qu'il faut, puisque cette expression
+   PAIE.
+
+   `min(...)` SUR LA CHAÎNE `AAAA-MM-JJ` : elle se compare comme une
+   date sans jamais repasser par un fuseau, ce que fait déjà tout le
+   reste du comptage. */
+const EARLIEST = (card: string) => `(
+       SELECT min(left(w->>'date', 10))
+         FROM jsonb_array_elements(
+                CASE WHEN jsonb_typeof(${card}.data->'watches') = 'array'
+                     THEN ${card}.data->'watches' ELSE '[]'::jsonb END) w
+        WHERE left(w->>'date', 10) BETWEEN to_char(e.starts_on, 'YYYY-MM-DD')
+                                       AND to_char(e.ends_on, 'YYYY-MM-DD')
+     )`;
+
+/* CE QUI SE COMPARE : la première séance dans la période, avec le repli
+   `watchedAt` des fiches d'avant le journal — les ignorer ferait perdre
+   la course à quelqu'un qui a bel et bien vu le film en premier.
+   `coalesce` et non `least` : `watchedAt` n'est un candidat que lorsque
+   le journal ne dit rien, et il ne doit pas primer sur une séance
+   datée. */
+const CLAIM_AT = (card: string) => `coalesce(${EARLIEST(card)},
+       CASE WHEN left(${card}.data->>'watchedAt', 10)
+                 BETWEEN to_char(e.starts_on, 'YYYY-MM-DD')
+                     AND to_char(e.ends_on, 'YYYY-MM-DD')
+            THEN left(${card}.data->>'watchedAt', 10) END)`;
+
+/* VRAI QUAND PERSONNE N'A PRIS CE FILM AVANT. Hors course, toujours
+   vrai : le prédicat s'efface, et le comptage est celui d'avant au
+   caractère près. */
+const UNCLAIMED = (card: string, tmdb: string) => `(e.mode <> 'course' OR NOT EXISTS (
+       SELECT 1
+         FROM challenge_participant ep2
+         JOIN card f2 ON f2.person_id = ep2.person_id
+                     AND f2.tmdb_id = ${tmdb}
+                     AND NOT f2.deleted
+        WHERE ep2.challenge_id = e.id
+          AND ep2.person_id <> ep.person_id
+          AND (e.kind <> 'critique'
+               OR length(btrim(coalesce(f2.data->>'review', ''))) >= ${REVIEW_LENGTH})
+          AND ${WATCHED_DURING("f2")}
+          AND (${CLAIM_AT("f2")}, ep2.person_id::text)
+            < (${CLAIM_AT(card)}, ep.person_id::text)))`;
+
 const SEEN_DURING = `EXISTS (
   SELECT 1 FROM card f
    WHERE f.person_id = ep.person_id
@@ -1413,7 +1532,8 @@ const SEEN_DURING = `EXISTS (
      AND NOT f.deleted
      AND (e.kind <> 'critique'
           OR length(btrim(coalesce(f.data->>'review', ''))) >= ${REVIEW_LENGTH})
-     AND ${WATCHED_DURING("f")})`;
+     AND ${WATCHED_DURING("f")}
+     AND ${UNCLAIMED("f", "li.tmdb_id")})`;
 
 /* CE QUE LE CRITÈRE DÉSIGNE — trois formes, et pas une de plus.
    Décennie, pays, cinéaste : ce sont les trois choses qu'une fiche porte
@@ -1461,9 +1581,39 @@ const DONE = `CASE WHEN e.list_id IS NULL THEN (
           WHERE f.person_id = ep.person_id
             AND NOT f.deleted
             AND ${WATCHED_DURING("f")}
-            AND ${MATCHES_SUBJECT})
+            AND ${MATCHES_SUBJECT}
+            AND ${UNCLAIMED("f", "f.tmdb_id")})
        ELSE (
          SELECT count(*) FROM list_item li
+          WHERE li.list_id = e.list_id AND ${SEEN_DURING})
+       END`;
+
+/* CE QU'ELLE A COCHÉ, ET NON SEULEMENT COMBIEN.
+
+   UN DÉFI ÉTAIT UNE BARRE, et c'est ce que ce tableau retire. On lisait
+   « 3 sur 8 » sans jamais savoir LESQUELS trois : le progrès n'était
+   jamais une image, alors que le domaine entier parle de films. La
+   grille tamponnée en a besoin, et de rien d'autre.
+
+   MÊME EXPRESSION, MÊME `CASE`, MÊME SENS DE LECTURE que `DONE` : ce
+   sont les identifiants de ce que `DONE` compte, et pas un ensemble
+   voisin. Les faire diverger ferait un tableau qui montre quatre
+   tampons sous une barre qui en annonce cinq — et c'est la barre qui
+   PAIE.
+
+   LE JOURNAL DE SÉANCES NE SORT TOUJOURS PAS. Ni date, ni note, ni
+   critique : seulement « ce film-là compte pour cette personne ». C'est
+   la même retenue que `DONE`, qui ne laissait sortir qu'un nombre. */
+const TICKED = `CASE WHEN e.list_id IS NULL THEN (
+         SELECT coalesce(array_agg(f.tmdb_id), '{}') FROM card f
+          WHERE f.person_id = ep.person_id
+            AND NOT f.deleted
+            AND f.tmdb_id IS NOT NULL
+            AND ${WATCHED_DURING("f")}
+            AND ${MATCHES_SUBJECT}
+            AND ${UNCLAIMED("f", "f.tmdb_id")})
+       ELSE (
+         SELECT coalesce(array_agg(li.tmdb_id), '{}') FROM list_item li
           WHERE li.list_id = e.list_id AND ${SEEN_DURING})
        END`;
 
@@ -1485,6 +1635,15 @@ export interface Challenge {
   kind: string;
   /** Ce sur quoi porte un défi par critère. NULL pour les deux autres. */
   subject: { decade?: number; country?: string; director?: string } | null;
+  /**
+   * `'ensemble'` ou `'course'`. En course, un film ne compte QUE POUR
+   * LE PREMIER qui le valide — même barème, même règlement.
+   *
+   * Une COLONNE et non une quatrième valeur de `kind` : les deux se
+   * croisent, une course pouvant demander de voir ou de voir et écrire,
+   * sur une liste comme sur un critère.
+   */
+  mode: string;
   /** Am I taking part? */
   inside?: boolean;
   /**
@@ -1499,6 +1658,12 @@ export interface Challenge {
 export interface Progress {
   pseudo: string;
   done: number;
+  /* LES IDENTIFIANTS DE CE QUE `done` COMPTE — jamais un ensemble
+     voisin. C'est ce qui fait du progrès une IMAGE : la grille tamponne
+     ce qui est là-dedans, et la barre annonce la même chose.
+
+     Rien du journal de séances : ni date, ni note, ni critique. */
+  ticked: string[];
 }
 
 /**
@@ -1518,6 +1683,7 @@ export async function myChallenges(db: Db, personId: string): Promise<Challenge[
             (SELECT count(*) FROM list_item i WHERE i.list_id = l.id)::int AS works,
             e.target,
             e.kind,
+            e.mode,
             e.subject,
             EXISTS (SELECT 1 FROM challenge_participant x
                      WHERE x.challenge_id = e.id AND x.person_id = $1) AS inside,
@@ -1554,6 +1720,7 @@ export async function challengeById(db: Db, id: string): Promise<Challenge | nul
             (SELECT count(*) FROM list_item i WHERE i.list_id = l.id)::int AS works,
             e.target,
             e.kind,
+            e.mode,
             e.subject
        FROM challenge e
        /* LEFT : un defi par critere n'a pas de liste, et un JOIN sec le
@@ -1586,12 +1753,14 @@ export async function createChallenge(
     kind?: string | null;
     /** Ce sur quoi porte un critère. Le schéma l'exige alors. */
     subject?: Record<string, unknown> | null;
+    /** 'ensemble' ou 'course'. Absent : 'ensemble', le défaut du schéma. */
+    mode?: string | null;
   }
 ): Promise<string> {
   const id = randomUUID();
   await db.query(
-    `INSERT INTO challenge (id, list_id, created_by, title, starts_on, ends_on, target, kind, subject)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, coalesce($8, 'liste'), $9)`,
+    `INSERT INTO challenge (id, list_id, created_by, title, starts_on, ends_on, target, kind, subject, mode)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, coalesce($8, 'liste'), $9, coalesce($10, 'ensemble'))`,
     [
       id,
       e.listId,
@@ -1602,6 +1771,7 @@ export async function createChallenge(
       e.target ?? null,
       e.kind ?? null,
       e.subject == null ? null : JSON.stringify(e.subject),
+      e.mode ?? null,
     ]
   );
   /* Whoever starts a challenge takes part in it: the opposite — an
@@ -1632,7 +1802,8 @@ export async function leaveChallenge(db: Db, challengeId: string, personId: stri
 export async function progressOf(db: Db, challengeId: string): Promise<Progress[]> {
   return db.query<Progress>(
     `SELECT pe.pseudo,
-            (${DONE})::int AS done
+            (${DONE})::int AS done,
+            (${TICKED}) AS ticked
        FROM challenge_participant ep
        JOIN challenge e ON e.id = ep.challenge_id
        JOIN person pe ON pe.id = ep.person_id

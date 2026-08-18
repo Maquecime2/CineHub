@@ -49,7 +49,7 @@ import { useTranslation } from "react-i18next";
 import { Eye, EyeOff, X } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { bare, hollow, inked } from "../../theme/styles";
-import { Guideline, Nothing } from "../ui";
+import { Nothing } from "../ui";
 import { useSay } from "../ui/Feedback";
 import {
   courseSteps,
@@ -58,7 +58,6 @@ import {
   moveBy,
   moveGroup,
   stepDone,
-  strandedCount,
   withSteps,
 } from "../../domain/course";
 import { primaryDirector } from "../../domain/lineageMap";
@@ -119,7 +118,6 @@ export function OrderStrip({
   const all = courseSteps(course, films);
   const walked = all.filter((e) => stepDone(e.step, e.film)).length;
   const entries = hideDone ? all.filter((e) => !stepDone(e.step, e.film)) : all;
-  const stranded = strandedCount(course, films);
 
   /* UNE SÉLECTION NE SURVIT PAS À CE QU'ELLE DÉSIGNE. Retirer une étape
      — ici ou depuis le panneau — laisserait sinon un compte qui parle
@@ -288,6 +286,12 @@ export function OrderStrip({
         <ul
           data-tour="program-order"
           aria-label={t("program.order")}
+          /* LE MODE D'EMPLOI PASSE AU SURVOL. Il tenait une ligne SOUS
+             le rail, en permanence, dès qu'il y avait deux étapes : on
+             lit une consigne une fois et on la voit mille. La visite
+             guidée enseigne déjà le glissement ; ce qui reste ici est le
+             raccourci clavier, qu'elle ne dit pas. */
+          title={t(column ? "program.howToMove" : "program.howToMoveRow")}
           style={{
             listStyle: "none",
             margin: 0,
@@ -355,28 +359,6 @@ export function OrderStrip({
             );
           })}
         </ul>
-      )}
-
-      {/* CE QUI A DISPARU SE DIT. Une file qui rétrécit sans un mot est
-          le même défaut qu'un échec silencieux. */}
-      {stranded > 0 && (
-        <div style={{ marginTop: 10 }}>
-          <Guideline tight>{t("program.stranded", { count: stranded })}</Guideline>
-        </div>
-      )}
-
-      {all.length > 1 && (
-        <div
-          style={{
-            fontFamily: F.mono,
-            fontSize: 9.5,
-            color: alpha(C.ink, 0.45),
-            marginTop: 8,
-            letterSpacing: 0.5,
-          }}
-        >
-          {t(column ? "program.howToMove" : "program.howToMoveRow")}
-        </div>
       )}
     </div>
   );

@@ -785,13 +785,14 @@ const lists: Tour = {
       placement: "top",
       optional: true,
     },
-    /* LA PORTE DU DÉFI SANS LISTE. Les deux autres natures naissent
-       DANS une liste et leur formulaire vit sous elle ; celle-ci n'a pas
-       de liste à habiter, donc elle a son propre bouton — et il est
-       toujours là, à la différence des ancres qui vivent dans un défi
-       déplié. */
+    /* LA PORTE DU DÉFI, ET IL N'Y EN A PLUS QU'UNE. Un défi par liste
+       naissait d'un formulaire enfoui sous l'accordéon d'une liste, un
+       défi par critère d'un second formulaire posé sous le tableau :
+       deux écrans pour un objet, jamais montrés ensemble. L'ancre suit
+       la porte, et elle est TOUJOURS là — à la différence de ce qui
+       vivait dans une liste dépliée. */
     {
-      target: at("lists-criterion"),
+      target: at("lists-challenge-new"),
       ...says("lists", "criterion"),
       placement: "top",
       optional: true,

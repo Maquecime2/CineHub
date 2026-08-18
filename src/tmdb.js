@@ -426,6 +426,36 @@ export async function getDetails(tmdbId, apiKey) {
 
 export const POSTER_THUMB = "https://image.tmdb.org/t/p/w185";
 
+/* ============================================================
+   LE CHEMIN D'UN CÔTÉ, L'URL DE L'AUTRE
+   ============================================================
+
+   `Film.poster` est une URL COMPLÈTE, taille comprise, parce qu'une
+   fiche est à soi et que l'affiche qu'on y a mise ne bouge plus. Une
+   œuvre de LISTE ne peut pas se le permettre : elle est lue par tout le
+   monde, dans une grille ici et une vignette là, et une taille figée le
+   jour de l'écriture serait figée pour tous les lecteurs à venir. Elle
+   range donc le CHEMIN — la même discipline que `Film.frames`, qui
+   compose `w300` pour la bande et `w1280` pour l'agrandissement.
+
+   Ces deux fonctions sont la charnière, et il n'y en a pas d'autre :
+   `posterPathOf` pour écrire, `posterUrl` pour lire. */
+
+/** L'URL d'une affiche de TMDB ramenée à son chemin — `""` si ce n'en
+    est pas une. On ne devine rien d'une adresse qui n'est pas de TMDB :
+    elle ne se recomposerait à aucune taille. */
+export function posterPathOf(url) {
+  if (!url) return "";
+  const m = String(url).match(/^https:\/\/image\.tmdb\.org\/t\/p\/[^/]+(\/[\w.-]+)$/);
+  return m ? m[1] : "";
+}
+
+/** Le chemin rendu affichable. `base` est ce qu'on veut EN FACE : la
+    vignette pour une grille, la grande pour une couche. */
+export function posterUrl(path, base = POSTER_THUMB) {
+  return path ? `${base}${path}` : "";
+}
+
 /* Every poster known for a film — several countries, several designs.
    We favour the original language and French, then the posters with no
    text (`iso_639_1: null`), and rank by popularity. */

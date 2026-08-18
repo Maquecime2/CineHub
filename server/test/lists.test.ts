@@ -46,6 +46,9 @@ const addWork = (cookie: string, list: string, tmdbId: string, title = "Cléo") 
     payload: { tmdbId, title },
   });
 
+const inviteToTheList = (cookie: string, list: string, pseudo: string) =>
+  app.inject({ method: "PUT", url: `/lists/${list}/members/${pseudo}`, headers: { cookie } });
+
 const readTheList = (cookie: string, list: string) =>
   app.inject({ method: "GET", url: `/lists/${list}`, headers: { cookie } });
 
@@ -86,6 +89,263 @@ describe("a list", () => {
     const r = await readTheList(me.cookie, id);
     expect(r.json().works).toHaveLength(1);
     expect(r.json().works[0]).toMatchObject({ tmdb_id: "550", by: "mine" });
+  });
+
+  /* ------------------------------------------------------------
+     L'AFFICHE D'UNE ŒUVRE
+     ------------------------------------------------------------ */
+
+  it("keeps the poster PATH and never an address to somewhere else", async () => {
+    const me = await count("mine");
+    const id = await createList(me.cookie);
+    const put = (posterPath: unknown) =>
+      app.inject({
+        method: "POST",
+        url: `/lists/${id}/works`,
+        headers: { cookie: me.cookie },
+        payload: { tmdbId: "550", title: "Cléo", posterPath },
+      });
+
+    await put("/aBc-1.jpg");
+    expect((await readTheList(me.cookie, id)).json().works[0].poster_path).toBe("/aBc-1.jpg");
+
+    /* CE QUI N'EST PAS UN CHEMIN NE FAIT PAS ÉCHOUER LE RANGEMENT: on
+       n'écrit pas d'affiche, et l'œuvre se range quand même. Refuser
+       aurait perdu une œuvre pour une décoration. */
+    for (const bad of [
+      "https://ailleurs.example/x.jpg",
+      // Une seconde barre, concaténée à la base, ressort en adresse absolue.
+      "//ailleurs.example/x.jpg",
+      "/../../etc/passwd",
+      42,
+    ]) {
+      const other = await createList(me.cookie, { title: String(bad) });
+      const r = await app.inject({
+        method: "POST",
+        url: `/lists/${other}/works`,
+        headers: { cookie: me.cookie },
+        payload: { tmdbId: "551", title: "Cléo", posterPath: bad },
+      });
+      expect(r.statusCode).toBe(200);
+      expect((await readTheList(me.cookie, other)).json().works[0].poster_path).toBeNull();
+    }
+  });
+
+  it("fills a poster that was missing, and never overwrites one that is there", async () => {
+    /* ON COMBLE DES TROUS, ON NE CORRIGE RIEN — la règle de la vue
+       rapide. C'est ce qui rattrape les listes remplies avant que la
+       colonne existe, sans tâche de fond ni requête TMDB en masse. */
+    const me = await count("mine");
+    const id = await createList(me.cookie);
+    const put = (posterPath?: string) =>
+      app.inject({
+        method: "POST",
+        url: `/lists/${id}/works`,
+        headers: { cookie: me.cookie },
+        payload: { tmdbId: "550", title: "Cléo", posterPath },
+      });
+
+    // Rangée sans affiche, comme avant ce champ.
+    expect((await put()).json().fresh).toBe(true);
+    expect((await readTheList(me.cookie, id)).json().works[0].poster_path).toBeNull();
+
+    // Le trou se comble à la lecture suivante...
+    const again = await put("/premiere.jpg");
+    expect((await readTheList(me.cookie, id)).json().works[0].poster_path).toBe("/premiere.jpg");
+    /* ...ET `fresh` RESTE FIDÈLE À SON NOM. L'œuvre était déjà là : dire
+       le contraire ferait annoncer un ajout qui n'a pas eu lieu. */
+    expect(again.json().fresh).toBe(false);
+
+    // Une affiche posée ne se fait pas écraser par un rangement muet.
+    await put();
+    expect((await readTheList(me.cookie, id)).json().works[0].poster_path).toBe("/premiere.jpg");
+  });
+
+  it("hands the newest posters back with the list, so a card is a card", async () => {
+    /* UN MUR DE LISTES QUI N'ANNONCE QU'UN TITRE ET UN COMPTE SE LIT
+       COMME UN TABLEUR. Quatre au plus, les dernières rangées, dans la
+       requête qui comptait déjà — pas de question par liste. */
+    const me = await count("mine");
+    const id = await createList(me.cookie);
+    for (const n of [1, 2, 3, 4, 5]) {
+      await app.inject({
+        method: "POST",
+        url: `/lists/${id}/works`,
+        headers: { cookie: me.cookie },
+        payload: { tmdbId: String(n), title: `n${n}`, posterPath: `/p${n}.jpg` },
+      });
+    }
+    // Une œuvre sans affiche ne prend pas la place d'une qui en a.
+    await addWork(me.cookie, id, "6");
+
+    const mine = await app.inject({ method: "GET", url: "/lists", headers: { cookie: me.cookie } });
+    const row = mine.json().lists.find((l: { id: string }) => l.id === id);
+    expect(row.works).toBe(6);
+    /* TROIS ET PAS QUATRE : c'est ce que l'éventail montre, et ce qui
+       n'est pas montré n'a pas à voyager. */
+    expect(row.posters).toEqual(["/p5.jpg", "/p4.jpg", "/p3.jpg"]);
+  });
+
+  it("says [] rather than nothing when a list has no poster at all", async () => {
+    /* Absent et vide ne disent pas la même chose : `[]` est une RÉPONSE,
+       et c'est elle qui évite de redemander. */
+    const me = await count("mine");
+    const id = await createList(me.cookie);
+    await addWork(me.cookie, id, "550");
+    const mine = await app.inject({ method: "GET", url: "/lists", headers: { cookie: me.cookie } });
+    expect(mine.json().lists.find((l: { id: string }) => l.id === id).posters).toEqual([]);
+  });
+
+  /* ------------------------------------------------------------
+     LA COURSE
+     ------------------------------------------------------------ */
+
+  it("gives a film to the FIRST who watched it, and to nobody else", async () => {
+    /* UNE NATURE CHANGE CE QUI COMPTE, JAMAIS CE QUE ÇA PAIE : même
+       barème, même règlement. Ce test porte donc sur le COMPTAGE, qui
+       est aussi ce qui paie — d'où le soin. */
+    const me = await count("premier");
+    const other = await count("second");
+    const list = await createList(me.cookie);
+    await addWork(me.cookie, list, "550");
+    await inviteToTheList(me.cookie, list, "second");
+
+    const id = (
+      await app.inject({
+        method: "POST",
+        url: "/challenges",
+        headers: { cookie: me.cookie },
+        payload: {
+          listId: list,
+          title: "La course",
+          starts_on: "2026-03-01",
+          ends_on: "2026-03-31",
+          mode: "course",
+        },
+      })
+    ).json().id as string;
+    await app.inject({
+      method: "PUT",
+      url: `/challenges/${id}/participation`,
+      headers: { cookie: other.cookie },
+    });
+
+    const watched = (cookie: string, cardId: string, date: string) =>
+      app.inject({
+        method: "PUT",
+        url: "/collection",
+        headers: { cookie },
+        payload: {
+          cards: [
+            {
+              id: cardId,
+              tmdbId: "550",
+              updatedAt: 1,
+              data: { title: "Cléo", watches: [{ date }] },
+            },
+          ],
+        },
+      });
+
+    /* Le SECOND l'a vu le 3, le PREMIER le 12 : c'est la date de la
+       SÉANCE qui départage, et non l'ordre des rangements — sans quoi
+       gagnerait celui qui synchronise le plus vite. */
+    await watched(me.cookie, "a", "2026-03-12");
+    await watched(other.cookie, "b", "2026-03-03");
+
+    const r = await app.inject({
+      method: "GET",
+      url: `/challenges/${id}`,
+      headers: { cookie: me.cookie },
+    });
+    const by = Object.fromEntries(
+      r.json().progress.map((p: { pseudo: string; done: number }) => [p.pseudo, p.done])
+    );
+    expect(by).toEqual({ second: 1, premier: 0 });
+
+    /* ET LA GRILLE DIT LA MÊME CHOSE QUE LA BARRE. Un tampon posé chez
+       quelqu'un que la barre compte à zéro serait un mensonge sur ce
+       qui PAIE. */
+    const ticked = Object.fromEntries(
+      r.json().progress.map((p: { pseudo: string; ticked: string[] }) => [p.pseudo, p.ticked])
+    );
+    expect(ticked).toEqual({ second: ["550"], premier: [] });
+  });
+
+  it("leaves a plain challenge alone: both count the same film", async () => {
+    /* LE DÉFAUT NE BOUGE PAS D'UN CARACTÈRE. Tout défi déjà lancé est
+       `ensemble`, et la colonne est arrivée avec ce défaut exactement
+       pour cela. */
+    const me = await count("ensemblea");
+    const other = await count("ensembleb");
+    const list = await createList(me.cookie);
+    await addWork(me.cookie, list, "550");
+    await inviteToTheList(me.cookie, list, "ensembleb");
+
+    const id = (
+      await app.inject({
+        method: "POST",
+        url: "/challenges",
+        headers: { cookie: me.cookie },
+        payload: {
+          listId: list,
+          title: "Ensemble",
+          starts_on: "2026-03-01",
+          ends_on: "2026-03-31",
+        },
+      })
+    ).json().id as string;
+    await app.inject({
+      method: "PUT",
+      url: `/challenges/${id}/participation`,
+      headers: { cookie: other.cookie },
+    });
+
+    for (const [cookie, cardId, date] of [
+      [me.cookie, "a", "2026-03-12"],
+      [other.cookie, "b", "2026-03-03"],
+    ] as const) {
+      await app.inject({
+        method: "PUT",
+        url: "/collection",
+        headers: { cookie },
+        payload: {
+          cards: [
+            {
+              id: cardId,
+              tmdbId: "550",
+              updatedAt: 1,
+              data: { title: "Cléo", watches: [{ date }] },
+            },
+          ],
+        },
+      });
+    }
+
+    const r = await app.inject({
+      method: "GET",
+      url: `/challenges/${id}`,
+      headers: { cookie: me.cookie },
+    });
+    expect(r.json().progress.every((p: { done: number }) => p.done === 1)).toBe(true);
+  });
+
+  it("refuses a mode it does not know, with a sentence", async () => {
+    const me = await count("modeur");
+    const list = await createList(me.cookie);
+    const r = await app.inject({
+      method: "POST",
+      url: "/challenges",
+      headers: { cookie: me.cookie },
+      payload: {
+        listId: list,
+        title: "Bancal",
+        starts_on: "2026-03-01",
+        ends_on: "2026-03-31",
+        mode: "sprint",
+      },
+    });
+    expect(r.statusCode).toBe(400);
   });
 
   it("refuses what is not a work identifier", async () => {
@@ -296,7 +556,12 @@ describe("a challenge", () => {
       url: `/challenges/${id}`,
       headers: { cookie: me.cookie },
     });
-    expect(r.json().progress).toEqual([{ pseudo: "mine", done: 1 }]);
+    /* ET `ticked` DIT LESQUELS. Un défi n'était qu'une barre : « 1 sur
+       2 » sans jamais dire lequel des deux. Ce sont les identifiants de
+       ce que `done` compte, et pas un ensemble voisin — les faire
+       diverger montrerait des tampons sous une barre qui annonce autre
+       chose, et c'est la barre qui PAIE. */
+    expect(r.json().progress).toEqual([{ pseudo: "mine", done: 1, ticked: ["550"] }]);
     expect(r.json().challenge.works).toBe(2);
   });
 
@@ -388,7 +653,7 @@ describe("a challenge", () => {
       url: `/challenges/${id}`,
       headers: { cookie: other.cookie },
     });
-    expect(r.json().progress).toContainEqual({ pseudo: "other", done: 1 });
+    expect(r.json().progress).toContainEqual({ pseudo: "other", done: 1, ticked: ["550"] });
   });
 
   it("never returns the log itself, only a number", async () => {
@@ -784,7 +1049,10 @@ describe("a challenge on a criterion", () => {
       headers: { cookie: me.cookie },
     });
     expect(r.statusCode).toBe(200);
-    expect(r.json().progress).toEqual([{ pseudo: "decennie", done: 2 }]);
+    /* Sans liste, ce qui est coché est pris dans la COLLECTION : ce
+       sont les fiches qui répondent au critère, pas des `list_item`. */
+    expect(r.json().progress[0]).toMatchObject({ pseudo: "decennie", done: 2 });
+    expect([...r.json().progress[0].ticked].sort()).toEqual(["9000", "9001"]);
     /* Pas de liste, donc pas d'œuvres à énumérer : la question EST le
        critère, et la réponse est dans la collection de chacun. */
     expect(r.json().works).toEqual([]);

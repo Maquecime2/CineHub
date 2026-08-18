@@ -93,6 +93,8 @@ export const SCHEMA_FILES = [
   "003_quiz_timer.sql",
   "004_challenge_kinds.sql",
   "005_challenge_criterion.sql",
+  "006_list_poster.sql",
+  "007_challenge_race.sql",
 ] as const;
 
 export async function applySchema(db: Db, schemaSql: string): Promise<void> {

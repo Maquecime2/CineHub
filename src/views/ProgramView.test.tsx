@@ -376,9 +376,17 @@ describe("taking things away", () => {
 });
 
 describe("a step whose card has left the collection", () => {
-  it("is not drawn, and the strip says how many it is hiding", () => {
-    build([run("a", "disparu")]);
+  /* ELLE N'EST PAS DESSINÉE, ET LE RAIL NE LE DIT PLUS. La phrase
+     existait — « une étape ne montre rien, sa fiche a quitté le
+     classeur » — et elle a été retirée : un paragraphe sous le rail pour
+     un cas rare. Le silence est ASSUMÉ ici, et il ne perd rien : l'étape
+     reste écrite et reparaît si la fiche revient. C'est ce que la
+     seconde assertion garde. */
+  it("is not drawn, and is not erased either", () => {
+    const course = run("a", "disparu");
+    build([course]);
     expect(order().getAllByRole("listitem")).toHaveLength(1);
-    expect(screen.getByText(/Une étape ne montre rien/)).toBeInTheDocument();
+    expect(screen.queryByText(/Une étape ne montre rien/)).not.toBeInTheDocument();
+    expect(course.steps).toHaveLength(2);
   });
 });

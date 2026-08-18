@@ -38,6 +38,12 @@ export interface Fileable {
   tmdbId: string | number;
   title: string;
   year?: string | number;
+  /* L'AFFICHE, SI ON L'A DÉJÀ SOUS LA MAIN. Une liste ne montrait que
+     des lignes de titres, faute d'avoir jamais gardé la moindre image
+     d'une œuvre — alors que celui qui range en tient une à l'écran au
+     moment même où il range. Un CHEMIN et non une URL : c'est la liste
+     qui décide de la taille au rendu, pas celui qui écrit. */
+  posterPath?: string;
 }
 
 export function ListFiler({

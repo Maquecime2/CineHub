@@ -2,8 +2,6 @@ import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   CSSProperties,
-  Dispatch,
-  SetStateAction,
   PointerEvent as ReactPointerEvent,
   KeyboardEvent as ReactKeyboardEvent,
 } from "react";
@@ -21,11 +19,13 @@ import type { Direction } from "../domain/sky";
 import { CoffeeRing, StampCorner, InkUnderline } from "../components/atmosphere";
 import type { Film, KinshipRole, LinkType, PlacedNode, SkyLink, SkyNode } from "../types";
 import { Label } from "../components/ui";
-import { TagChip } from "../components/ui/TagEditor";
 import { catInk } from "../theme/palette";
 import { relationDef, strengthOf } from "../domain/relations";
 import { linkTypeOf } from "../components/film/linkTypes";
 import { motifById } from "../domain/motifs";
+import { canonicalGenres } from "../domain/genres";
+import { Sieve } from "../components/ui/Sieve";
+import { tagInk } from "../components/ui/TagEditor";
 import { searchFilms } from "../domain/search";
 import { effectiveThreads, makeThread, threadLabel } from "../domain/threads";
 import type { Thread } from "../domain/threads";
@@ -109,13 +109,20 @@ export function ConstellationView({
     () => Array.from(new Set(films.flatMap((f) => f.themes || []))).sort(),
     [films]
   );
+  /* DEUX ORTHOGRAPHES POUR UN GENRE, ET LE TAMIS LES MONTRAIT TOUTES
+     DEUX. « Science Fiction » et « Science-Fiction » se tenaient côte à
+     côte dans la rangée, comme deux genres différents : aucune fiche ne
+     porte les deux, donc cocher l'une cachait la moitié des films
+     cherchés, sans un mot. TMDB sert les genres DANS LA LANGUE
+     DEMANDÉE, et un classeur se remplit sur des années.
+
+     `canonicalGenres` fait déjà ce choix — `RecoView` l'appelle ici pour
+     cette raison exacte, et cet écran était le dernier à ne pas
+     l'appeler. */
   const allGenres = useMemo(
-    () => Array.from(new Set(films.flatMap((f) => f.genres || []))).sort(),
+    () => canonicalGenres(films.flatMap((f) => f.genres || [])).sort(),
     [films]
   );
-  const toggle = (setter: Dispatch<SetStateAction<string[]>>) => (v: string) =>
-    setter((cur) => (cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v]));
-
   /* FOLLOWING THE CREWS — off by default, and that is not timidity: the
      hand-drawn chart is this screen's promise, and a second layer lit by
      default would pass off as yours what comes from the machine. One
@@ -519,7 +526,20 @@ export function ConstellationView({
         />
       )}
 
-      {/* filters: keywords and genres. They shrink the sky, they do not populate it. */}
+      {/* ------------------------------------------------------------
+          LES FILTRES — ILS RÉTRÉCISSENT LE CIEL, ILS NE LE PEUPLENT PAS
+          ------------------------------------------------------------
+
+          DIX-SEPT GENRES ET AUTANT DE MOTS-CLÉS, EN PASTILLES, TOUJOURS
+          DÉPLIÉS. C'est le défaut exact que `Sieve` a été écrit pour
+          retirer — son en-tête le raconte — et cet écran était le seul à
+          ne pas l'avoir reçu : deux rangées qu'on ne lit pas, qu'on
+          balaie, et qui poussaient la carte sous la ligne de flottaison.
+
+          UN TAMIS N'EST PAS UNE RANGÉE REPLIÉE : il ajoute ce que les
+          pastilles ne savaient pas dire — combien sont cochés une fois
+          fermé, et un « vider » qui ne coûte pas autant de clics qu'on
+          en a faits. */}
       {(allTags.length > 0 || allGenres.length > 0) && (
         <div
           style={{
@@ -528,56 +548,28 @@ export function ConstellationView({
             zIndex: 3,
             borderBottom: `1px dashed ${C.line}`,
             paddingBottom: 14,
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            gap: 8,
           }}
         >
-          {allTags.length > 0 && (
-            <div style={{ marginBottom: 10 }}>
-              <Label>
-                Mots-keys {tags.length > 0 && <span style={{ color: C.pine }}>· cumulatifs</span>}
-              </Label>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
-                {allTags.map((t) => (
-                  <TagChip
-                    key={t}
-                    tag={t}
-                    active={tags.includes(t)}
-                    onClick={() => toggle(setTags)(t)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-          {allGenres.length > 0 && (
-            <div>
-              <Label>{t("constellation.genres")}</Label>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
-                {allGenres.map((g) => {
-                  const on = genres.includes(g);
-                  return (
-                    <button
-                      key={g}
-                      onClick={() => toggle(setGenres)(g)}
-                      style={{
-                        all: "unset",
-                        ...tap,
-                        cursor: "pointer",
-                        fontFamily: F.mono,
-                        fontSize: 10,
-                        padding: "3px 10px",
-                        borderRadius: 12,
-                        border: `1px solid ${C.burgundy}`,
-                        color: on ? C.card : C.burgundy,
-                        background: on ? C.burgundy : "transparent",
-                      }}
-                    >
-                      {g}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-          {(tags.length > 0 || genres.length > 0) && (
+          <Sieve
+            label={t("constellation.keywords")}
+            options={allTags.map((k) => ({ value: k, label: k, ink: tagInk(k) }))}
+            chosen={tags}
+            onChange={setTags}
+          />
+          <Sieve
+            label={t("constellation.genres")}
+            options={allGenres.map((g) => ({ value: g, label: g, ink: C.burgundy }))}
+            chosen={genres}
+            onChange={setGenres}
+          />
+          {/* CE QUE DEUX TAMIS NE PEUVENT PAS DIRE : chacun a son
+              « vider », aucun ne vide l'autre. Cette phrase-là ne
+              paraît donc que lorsqu'il y a bien DEUX choses à défaire. */}
+          {tags.length > 0 && genres.length > 0 && (
             <button
               onClick={() => {
                 setTags([]);
@@ -587,7 +579,6 @@ export function ConstellationView({
                 all: "unset",
                 ...tap,
                 cursor: "pointer",
-                marginTop: 10,
                 color: C.inkFaded,
                 fontFamily: F.mono,
                 fontSize: 10,

@@ -895,6 +895,17 @@ export interface List {
   is_public: boolean;
   owner: string;
   works: number;
+  /**
+   * Quatre CHEMINS d'affiche au plus — les dernières œuvres rangées.
+   *
+   * C'est ce qui fait d'une carte de liste une carte et non une ligne de
+   * tableur. Un tableau VIDE est une réponse : cette liste n'a aucune
+   * affiche à montrer. `posterUrl` (`src/tmdb.js`) compose la taille.
+   *
+   * Facultatif parce qu'un vieux serveur ne l'envoie pas, et
+   * qu'**absent veut dire absent** — jamais « la valeur opposée ».
+   */
+  posters?: string[];
   mienne?: boolean;
   isMember?: boolean;
 }
@@ -913,6 +924,17 @@ export interface ListWork {
    * il sert.
    */
   by: string | null;
+  /**
+   * Le CHEMIN de l'affiche chez TMDB (`/xxxx.jpg`), jamais une URL : la
+   * taille se compose au rendu, comme pour `Film.frames`. `posterUrl`
+   * (`src/tmdb.js`) est la seule porte.
+   *
+   * `null` est le cas NORMAL et non un défaut : TMDB n'en a pas pour
+   * tout le monde, et une œuvre rangée avant que la colonne existe n'en
+   * porte pas non plus. `PosterArt` sait déjà quoi faire d'un film sans
+   * affiche — une émulsion teintée — donc rien à traiter ici.
+   */
+  poster_path: string | null;
 }
 
 /* ÉPELÉ COMME LE SERVEUR L'ÉPELLE, ce qui n'était pas le cas.
@@ -945,6 +967,16 @@ export interface Challenge {
   kind: string;
   /** Ce sur quoi porte un défi par critère. NULL pour les deux autres. */
   subject: { decade?: number; country?: string; director?: string } | null;
+  /**
+   * `"ensemble"` ou `"course"`. En COURSE, un film ne compte que pour
+   * le PREMIER qui le valide — même barème, même règlement.
+   *
+   * Épelé comme le serveur l'épelle. Facultatif parce qu'un vieux
+   * serveur ne l'envoie pas, et **absent veut dire absent** : on lit
+   * donc `=== "course"` et jamais `!== "ensemble"`, qui ferait courir
+   * tout défi venu d'un serveur muet.
+   */
+  mode?: string;
   inside?: boolean;
   /** Le défi est-il le mien ? Le serveur le dit ; on ne le devine plus. */
   mine?: boolean;
@@ -954,6 +986,19 @@ export interface Challenge {
 export interface Progress {
   pseudo: string;
   done: number;
+  /**
+   * Les identifiants TMDB de ce que `done` compte.
+   *
+   * UN DÉFI ÉTAIT UNE BARRE : on lisait « 3 sur 8 » sans jamais savoir
+   * LESQUELS trois. C'est ce que la grille tamponnée montre, et ce sont
+   * les MÊMES que `done` — un tableau qui afficherait quatre tampons
+   * sous une barre qui en annonce cinq mentirait sur celle qui PAIE.
+   *
+   * Facultatif parce qu'un vieux serveur ne l'envoie pas, et
+   * **absent veut dire absent** : la grille se dessine alors sans
+   * tampon, elle ne prétend pas que rien n'a été vu.
+   */
+  ticked?: string[];
 }
 
 export const myLists = () => call<{ lists: List[] }>("/lists");
@@ -975,7 +1020,17 @@ export const deleteList = (id: string) =>
 
 export const addToList = (
   id: string,
-  o: { tmdbId: string | number; title?: string; year?: string | number }
+  o: {
+    tmdbId: string | number;
+    title?: string;
+    year?: string | number;
+    /* CE QU'ON A SOUS LA MAIN AU MOMENT DU GESTE, et c'est pourquoi il
+       est facultatif : on range une œuvre depuis un résultat TMDB, une
+       fiche du classeur ou un mur, et tous ne portent pas d'affiche.
+       Un chemin — `posterPathOf` s'en charge — que le serveur refuse
+       silencieusement s'il n'en est pas un. */
+    posterPath?: string | null;
+  }
 ) =>
   call<{ added: boolean; fresh: boolean }>(`/lists/${encodeURIComponent(id)}/works`, {
     method: "POST",
@@ -1021,6 +1076,8 @@ export const createChallenge = (d: {
   /** Ce sur quoi porte un critère. Le serveur l'exige alors, et la
       cible avec — « tous les films des années 60 » n'a pas de fin. */
   subject?: Record<string, unknown> | null;
+  /** « ensemble » ou « course ». Absent : ensemble. */
+  mode?: string | null;
 }) => call<{ id: string }>("/challenges", { method: "POST", body: JSON.stringify(d) });
 
 export const readChallenge = (id: string) =>
