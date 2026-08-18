@@ -156,3 +156,44 @@ describe("la fenêtre du premier tirage", () => {
     expect(dateOf("shelf-views")).toBeGreaterThanOrEqual(known);
   });
 });
+
+/* ============================================================
+   L'ÉCHO, ET LA BOUCLE À DEUX SESSIONS
+
+   Le magasin date ce qu'on écrit — c'est tout son intérêt. Mais la
+   datation passe par un import dynamique, donc elle atterrit APRÈS :
+   `fileIncomingDocument` avait beau poser la date reçue puis retirer la
+   clé de la file, la note arrivait ensuite et défaisait les deux.
+
+   Chaque document reçu repartait donc au serveur, redaté de maintenant.
+   Entre deux sessions ouvertes cela ne s'arrête jamais : l'une reçoit,
+   redate, renvoie ; l'autre fait de même. Deux navigateurs sur la même
+   adresse épuisaient les cent requêtes par minute du serveur en se
+   renvoyant les mêmes documents.
+   ============================================================ */
+describe("l'écho d'un document reçu", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("ne repart pas au serveur, et garde la date reçue", async () => {
+    noteFirstPull();
+    fileIncomingDocument({ key: "fils", updatedAt: 5000, content: [{ a: 1 }] });
+    expect(dateOf("fils")).toBe(5000);
+    expect(documentsToSend()).toEqual([]);
+
+    /* La note différée atterrit ici. C'est elle qui défaisait tout. */
+    await new Promise((r) => setTimeout(r, 20));
+    expect(dateOf("fils")).toBe(5000);
+    expect(documentsToSend()).toEqual([]);
+  });
+
+  it("laisse repartir un vrai geste posé après coup", async () => {
+    noteFirstPull();
+    fileIncomingDocument({ key: "fils", updatedAt: 5000, content: [{ a: 1 }] });
+    await new Promise((r) => setTimeout(r, 20));
+
+    /* La marque a été consommée par l'écho : ce qui suit est de nous. */
+    noteDocument("fils");
+    expect(dateOf("fils")).toBeGreaterThan(5000);
+    expect(documentsToSend().map((d) => d.key)).toEqual(["fils"]);
+  });
+});

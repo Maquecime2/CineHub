@@ -109,6 +109,12 @@ export const isSyncable = (key: string): boolean =>
 type Register = Record<string, number>;
 
 const register = (): Register => store.get<Register>(REGISTER_KEY, {});
+
+/* Ce qu'on vient de classer, et la date sous laquelle on l'a classé. En
+   mémoire et non sur le disque : cela ne sert qu'à reconnaître la note
+   différée d'une écriture faite il y a trois lignes. Voir
+   `noteDocument`. */
+const filed = new Map<string, number>();
 const pending = (): string[] => store.get<string[]>(PENDING_KEY, []);
 
 /**
@@ -166,6 +172,32 @@ export const noteFirstPull = (): void => {
  */
 export function noteDocument(key: string, now = Date.now()): void {
   if (!isSyncable(key)) return;
+  /* L'ÉCHO DE NOTRE PROPRE CLASSEMENT N'EST PAS UN GESTE.
+
+     `fileIncomingDocument` écrit par le magasin, et le magasin date ce
+     qu'on écrit — c'est tout son intérêt, six services écrivent des
+     documents et aucun ne pense à les dater. Mais la datation passe par
+     un import dynamique, donc elle ATTERRIT APRÈS : le classement avait
+     beau poser la date reçue puis retirer la clé de la file, la note
+     arrivait ensuite et défaisait les deux. Chaque document reçu
+     repartait donc au serveur, redaté de maintenant — c'est-à-dire plus
+     récent que ce qu'on venait d'en recevoir.
+
+     ENTRE DEUX SESSIONS OUVERTES, CELA NE S'ARRÊTE JAMAIS. L'une reçoit,
+     redate, renvoie ; l'autre reçoit à son tour, redate, renvoie. Deux
+     navigateurs sur la même adresse épuisaient les cent requêtes par
+     minute du serveur en se renvoyant les mêmes documents, et la
+     synchronisation répondait « too many requests » sans que personne
+     ait touché à quoi que ce soit.
+
+     On reconnaît l'écho à ceci : la clé vient d'être classée, et sa date
+     au registre est encore EXACTEMENT celle qu'on a classée. Un vrai
+     geste, lui, arrive après que la marque a été consommée. */
+  const echo = filed.get(key);
+  if (echo != null && echo === register()[key]) {
+    filed.delete(key);
+    return;
+  }
   /* TANT QUE LE PREMIER TIRAGE N'A PAS EU LIEU, ON DATE À L'AUBE.
 
      Un navigateur neuf n'attend pas la synchro pour vivre : il charge,
@@ -268,6 +300,8 @@ export function fileIncomingDocument(d: {
      to go back there. */
   store.set(REGISTER_KEY, { ...register(), [d.key]: d.updatedAt });
   forgetSentDocuments([d.key]);
+  /* APRÈS le registre, jamais avant : c'est sa valeur qu'on marque. */
+  filed.set(d.key, d.updatedAt);
   return true;
 }
 
