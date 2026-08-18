@@ -497,6 +497,15 @@ const importTour: Tour = {
       placement: "top",
       optional: true,
     },
+    /* LES DOUBLONS. `optional` au sens fort, comme la réparation : le
+       panneau ne se dessine pas du tout quand aucune fiche n'est
+       dépourvue d'identité TMDB, ce qui est le cas d'un classeur sain. */
+    {
+      target: at("import-dupes"),
+      ...says("import", "dupes"),
+      placement: "top",
+      optional: true,
+    },
     {
       target: at("import-backup"),
       ...says("import", "backup"),

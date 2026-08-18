@@ -19,6 +19,7 @@ import { wornPaper, watchWorn } from "./theme/owned";
 import { Boundary } from "./components/ui/Boundary";
 import i18n, { loadLanguage, setLanguage } from "./i18n";
 import { uid, migrate, editLinkedWork } from "./domain/film";
+import { mergeDuplicate } from "./domain/duplicates";
 import { normalize } from "./domain/search";
 import { inverseOf, strengthOf } from "./domain/relations";
 import {
@@ -978,6 +979,42 @@ export default function App() {
     });
   };
 
+  /* FONDRE DES DOUBLONS : UNE SEULE ÉCRITURE, ET ELLE S'ANNULE.
+
+     Une fusion écrit ET efface — la fiche survivante reçoit ce que
+     l'autre portait, l'autre disparaît. Passer par `updateFilm` puis
+     `deleteFilms` aurait fait deux écritures, donc deux départs en
+     synchro, et surtout deux annulations dont l'une aurait pu être
+     jouée sans l'autre.
+
+     `offerUndo` porte la collection D'AVANT en entier : c'est la même
+     porte que la suppression, et c'est ce qui rend le geste réparable
+     alors qu'il touche à ce qu'on a écrit à la main. */
+  const mergeFilms = (pairs) => {
+    if (!pairs?.length) return;
+    const before = films;
+    /* UNE MÊME SURVIVANTE PEUT RECEVOIR PLUSIEURS DOUBLONS. On accumule
+       donc sur le résultat précédent, sinon la seconde fusion repartirait
+       de la fiche d'origine et la première serait perdue. */
+    const merged = new Map();
+    const gone = new Set();
+    for (const { keep, drop } of pairs) {
+      merged.set(keep.id, mergeDuplicate(merged.get(keep.id) ?? keep, drop));
+      gone.add(drop.id);
+    }
+    const next = films.filter((f) => !gone.has(f.id)).map((f) => merged.get(f.id) ?? f);
+    commitFilms(next);
+    offerUndo({
+      label: "undo.merged",
+      count: pairs.length,
+      films: before,
+      /* Les captures de la disparue ont été REPRISES par la survivante :
+         `pruneOrphans` lit ce qui reste référencé, donc il ne touchera
+         pas aux images qu'on vient de sauver. */
+      prune: () => pruneOrphans(next).catch(console.error),
+    });
+  };
+
   /* Linking two cards means writing on both sides: opening one or the
      other must show the same thread. The two halves share a pairId,
      which is what lets them be undone together. */
@@ -1684,6 +1721,7 @@ export default function App() {
                   filiations={bonds}
                   parcours={courses}
                   onRestore={restoreBackup}
+                  onMerge={mergeFilms}
                   onSeeWall={() => {
                     setSelectedId(null);
                     setView(HOME);

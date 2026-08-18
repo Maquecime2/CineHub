@@ -340,6 +340,27 @@ const fr = {
       "La watchlist a répondu {{status}}. Le pseudo est-il le bon, et le profil public ?",
   },
 
+  /* Les doublons : la meme oeuvre deux fois, faute d'avoir ete
+     rapprochee de TMDB. Voir `domain/duplicates`. */
+  dupes: {
+    title: "LES MÊMES FILMS, EN DOUBLE",
+    stray: "fiches sans identité TMDB",
+    intro:
+      "Une fiche qui n'a pas été rapprochée de TMDB n'a que son titre pour se faire reconnaître — et un titre n'est pas une identité. C'est ce qui fait revenir les mêmes films à chaque import, à côté de ceux que vous avez déjà. On demande à TMDB qui est qui, et on vous montre les paires.",
+    look: "CHERCHER LES DOUBLONS",
+    looking: "on demande… {{done}}/{{total}}",
+    needsKey: "Il faut une clé TMDB : c'est elle qui dit quelle œuvre est quelle œuvre.",
+    none: "Aucun doublon. Vos fiches sans identité désignent chacune une œuvre que vous n'avez qu'une fois.",
+    mergeN_one: "FONDRE {{count}} DOUBLON",
+    mergeN_other: "FONDRE {{count}} DOUBLONS",
+    confirmTitle_one: "Fondre {{count}} doublon ?",
+    confirmTitle_other: "Fondre {{count}} doublons ?",
+    confirmBody:
+      "La fiche barrée disparaît, et tout ce que vous y aviez écrit passe dans celle du dessus : la note, la critique, les notes libres, les séances et les captures. Si les deux portent une critique, les deux sont gardées, l'une sous l'autre. Le classeur retient au passage le titre de la disparue, pour que le prochain import ne la recrée pas.",
+    confirmAction: "Fondre",
+    done_one: "{{count}} doublon fondu.",
+    done_other: "{{count}} doublons fondus.",
+  },
   complete: {
     cardsInCollection: "fiches dans la collection",
     title: "COMPLÉTER LES FICHES DEPUIS TMDB",
@@ -1118,6 +1139,8 @@ const fr = {
     demo: "L'exemple a été retiré",
     body: "Vous pouvez revenir en arrière pendant quelques secondes.",
     action: "ANNULER",
+    merged_one: "{{count}} doublon fondu",
+    merged_other: "{{count}} doublons fondus",
     dismiss: "Garder la suppression",
   },
 
@@ -2654,6 +2677,10 @@ const fr = {
       complete: {
         title: "Compléter les fiches",
         body: "Letterboxd n'exporte ni réalisateur ni affiche : TMDB retrouve les deux. La clé est gratuite, et reste dans ce navigateur.",
+      },
+      dupes: {
+        title: "Les mêmes films, en double",
+        body: "Un film qui revient à chaque import n'est pas un import qui insiste : c'est une fiche que rien ne raccroche à TMDB, et qui n'a donc que son titre pour se faire reconnaître. On demande à TMDB qui est qui, on vous montre les paires, et vous cochez. La fiche gardée récupère tout ce que vous aviez écrit sur l'autre — et le classeur retient le titre disparu, pour que le prochain import ne le recrée pas.",
       },
       repair: {
         title: "Rattraper une bascule",

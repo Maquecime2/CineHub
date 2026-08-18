@@ -323,6 +323,27 @@ const en = {
       "The watchlist answered {{status}}. Is the handle the right one, and the profile public?",
   },
 
+  /* Duplicates: the same work twice, for want of ever having been
+     matched against TMDB. See `domain/duplicates`. */
+  dupes: {
+    title: "THE SAME FILMS, TWICE",
+    stray: "cards with no TMDB identity",
+    intro:
+      "A card never matched against TMDB has only its title to be recognised by — and a title is not an identity. That is what makes the same films come back at every import, next to the ones you already hold. We ask TMDB who is who, and show you the pairs.",
+    look: "LOOK FOR DUPLICATES",
+    looking: "asking… {{done}}/{{total}}",
+    needsKey: "A TMDB key is needed: it is what says which work is which.",
+    none: "No duplicates. Each of your cards with no identity stands for a work you hold only once.",
+    mergeN_one: "MELT {{count}} DUPLICATE",
+    mergeN_other: "MELT {{count}} DUPLICATES",
+    confirmTitle_one: "Melt {{count}} duplicate?",
+    confirmTitle_other: "Melt {{count}} duplicates?",
+    confirmBody:
+      "The struck-through card goes, and everything you had written on it moves to the one above: the rating, the review, the free notes, the screenings and the captures. If both carry a review, both are kept, one under the other. The binder remembers the vanished title along the way, so that the next import does not recreate it.",
+    confirmAction: "Melt",
+    done_one: "{{count}} duplicate melted in.",
+    done_other: "{{count}} duplicates melted in.",
+  },
   complete: {
     cardsInCollection: "cards in the collection",
     title: "COMPLETE THE CARDS FROM TMDB",
@@ -1094,6 +1115,8 @@ const en = {
     demo: "The example has been taken away",
     body: "You can go back on this for a few seconds.",
     action: "UNDO",
+    merged_one: "{{count}} duplicate melted in",
+    merged_other: "{{count}} duplicates melted in",
     dismiss: "Keep the deletion",
   },
 
@@ -2578,6 +2601,10 @@ const en = {
       complete: {
         title: "Completing the cards",
         body: "Letterboxd exports neither director nor poster: TMDB finds both. The key is free, and stays in this browser.",
+      },
+      dupes: {
+        title: "The same films, twice",
+        body: "A film that comes back at every import is not an import insisting: it is a card nothing ties to TMDB, and which therefore has only its title to be recognised by. We ask TMDB who is who, show you the pairs, and you tick. The card that stays takes everything you had written on the other — and the binder remembers the vanished title, so the next import does not recreate it.",
       },
       repair: {
         title: "Undoing a wrong move",

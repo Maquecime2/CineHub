@@ -26,6 +26,7 @@ import { enrichRows, checkApiKey } from "../../tmdb";
 import { BackupPanel } from "./BackupPanel";
 import { CompletePanel } from "./CompletePanel";
 import { RepairPanel } from "./RepairPanel";
+import { DuplicatePanel, type Pair } from "./DuplicatePanel";
 import { OrphanViews } from "./OrphanViews";
 import type {
   Divider,
@@ -78,6 +79,9 @@ interface ImportViewProps {
   /* Retourner au mur depuis le bilan. Facultatif : sans lui le bilan
      reste ce qu'il était, trois nombres et rien d'autre. */
   onSeeWall?: () => void;
+  /* Fondre des doublons ÉCRIT et EFFACE : ça ne passe pas par le
+     tuyau d'import, qui ne sait que créer et mettre à jour. */
+  onMerge?: (pairs: Pair[]) => void;
 }
 
 export function ImportView({
@@ -92,6 +96,7 @@ export function ImportView({
   parcours,
   onRestore,
   onSeeWall,
+  onMerge,
 }: ImportViewProps) {
   const { t } = useTranslation();
 
@@ -1232,6 +1237,11 @@ export function ImportView({
           measurable target, and the tour stopped on an invisible strip
           instead of skipping the step. */}
       <RepairPanel films={films} onImport={onImport} />
+      {/* APRÈS LA RÉPARATION ET AVANT LA SAUVEGARDE, comme le panneau
+          au-dessus : on répare ce qui se répare, puis on fond ce qui
+          reste en double, et on sauvegarde une fois le classeur propre.
+          L'ordre des sections EST la marche à suivre. */}
+      {onMerge && <DuplicatePanel films={films} apiKey={wherewithal} onMerge={onMerge} />}
       {/* Les vues d'étagère que l'index ne nomme plus. Le rechargement
           est le plus court chemin pour que le mur les reprenne : l'index
           est lu au montage, et rien n'écoute son changement. */}
