@@ -32,14 +32,13 @@
    ============================================================ */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Trash2, UserPlus, X } from "lucide-react";
+import { Trash2, UserPlus } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
-import { bare, inked, tap, underlineInput } from "../../theme/styles";
+import { bare, inked, underlineInput } from "../../theme/styles";
 import { Guideline, Label, Meter, Trouble, Waiting } from "../../components/ui";
-import { Layer } from "../../components/ui/Layer";
+import { Sheet } from "../../components/ui/Sheet";
 import { Confirmation, type ConfirmRequest } from "../../components/ui/Confirmation";
 import { Stamp } from "../../components/atmosphere/hall";
-import { useDialog } from "../../hooks/useDialog";
 import { useSay } from "../../components/ui/Feedback";
 import { daysLeft, mayExtend, stateOf } from "../../domain/challenges";
 import { worthOfChallenge } from "../../domain/points";
@@ -193,7 +192,6 @@ export function ChallengeLayer({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
-  const box = useDialog(onClose, { autoFocus: false });
   const say = useSay();
   const [works, setWorks] = useState<ListWork[]>([]);
   const [progress, setProgress] = useState<Progress[] | null>(null);
@@ -315,260 +313,198 @@ export function ChallengeLayer({
   const secondSold = catalogue.find((i) => i.power === "second-wind");
 
   return (
-    <Layer>
-      <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 50,
-          background: alpha(C.ink, 0.4),
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 16,
-        }}
-        onClick={onClose}
-      >
-        <div
-          ref={box}
-          role="dialog"
-          aria-modal="true"
-          aria-label={challenge.title}
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            background: C.card,
-            border: `1px solid ${C.line}`,
-            boxShadow: "0 10px 40px rgba(20,14,8,0.4)",
-            width: "min(920px, 100%)",
-            maxHeight: "92vh",
-            overflowY: "auto",
-            padding: "22px 24px 30px",
-            animation: "drawerIn var(--motion-slow) var(--motion-ease) backwards",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
-            <span
-              style={{
-                fontFamily: F.title,
-                fontStyle: "italic",
-                fontWeight: 700,
-                fontSize: 25,
-                color: C.ink,
-              }}
-            >
-              {challenge.title}
-            </span>
-            <span style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>
-              {challenge.starts_on} → {ends}
-            </span>
-            <button
-              onClick={onClose}
-              aria-label={t("common.close")}
-              style={{
-                all: "unset",
-                ...tap,
-                cursor: "pointer",
-                marginLeft: "auto",
-                display: "flex",
-              }}
-            >
-              <X size={16} color={C.inkFaded} />
-            </button>
-          </div>
-
-          {/* LE MOT DE LA FIN, TAMPONNÉ. Il vient du BARÈME et non d'un
+    <Sheet
+      title={challenge.title}
+      aside={
+        <span style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>
+          {challenge.starts_on} → {ends}
+        </span>
+      }
+      width={920}
+      onClose={onClose}
+    >
+      {/* LE MOT DE LA FIN, TAMPONNÉ. Il vient du BARÈME et non d'un
               avis : `worthOfChallenge` sait déjà ce que la part vaut, et
               c'est ce qui a été payé. Un mot, jamais une couleur. */}
-          {state === "finished" && goal > 0 && (
-            <div style={{ marginTop: 12 }}>
-              <Stamp
-                text={t(
-                  done >= goal
-                    ? "listsView.verdict.held"
-                    : done * 2 >= goal
-                      ? "listsView.verdict.half"
-                      : "listsView.verdict.missed"
-                )}
-                ink={done * 2 >= goal ? C.moss : C.burgundy}
-              />
-            </div>
-          )}
+      {state === "finished" && goal > 0 && (
+        <div style={{ marginTop: 12 }}>
+          <Stamp
+            text={t(
+              done >= goal
+                ? "listsView.verdict.held"
+                : done * 2 >= goal
+                  ? "listsView.verdict.half"
+                  : "listsView.verdict.missed"
+            )}
+            ink={done * 2 >= goal ? C.moss : C.burgundy}
+          />
+        </div>
+      )}
 
-          {/* CE QUE ÇA VAUT, DIT PENDANT QUE ÇA COURT. Un chiffre qui
+      {/* CE QUE ÇA VAUT, DIT PENDANT QUE ÇA COURT. Un chiffre qui
               tombe à la fin sans avoir prévenu ne récompense rien. */}
-          {state !== "upcoming" && challenge.inside && (
-            <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded, marginTop: 8 }}>
-              {state === "finished"
-                ? t("listsView.wasWorth", { points: worthOfChallenge(done, goal) })
-                : t("listsView.worth", {
-                    points: worthOfChallenge(done, goal),
-                    count: Math.max(0, left),
-                  })}
-            </div>
-          )}
+      {state !== "upcoming" && challenge.inside && (
+        <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded, marginTop: 8 }}>
+          {state === "finished"
+            ? t("listsView.wasWorth", { points: worthOfChallenge(done, goal) })
+            : t("listsView.worth", {
+                points: worthOfChallenge(done, goal),
+                count: Math.max(0, left),
+              })}
+        </div>
+      )}
 
-          {/* ------------------------------------------------------
+      {/* ------------------------------------------------------
               LE TABLEAU
               ------------------------------------------------------ */}
-          {progress === null ? (
-            <Waiting lines={2} label={t("listsView.loading")} />
-          ) : cells.length === 0 ? (
-            <Guideline tight>{t("listsView.nothingToTick")}</Guideline>
-          ) : (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))",
-                gap: 14,
-                alignItems: "start",
-                marginTop: 16,
-              }}
-            >
-              {cells.map((c, i) => (
-                <Slot key={c ? c.tmdbId : `empty-${i}`} cell={c} me={me} />
-              ))}
-            </div>
-          )}
+      {progress === null ? (
+        <Waiting lines={2} label={t("listsView.loading")} />
+      ) : cells.length === 0 ? (
+        <Guideline tight>{t("listsView.nothingToTick")}</Guideline>
+      ) : (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))",
+            gap: 14,
+            alignItems: "start",
+            marginTop: 16,
+          }}
+        >
+          {cells.map((c, i) => (
+            <Slot key={c ? c.tmdbId : `empty-${i}`} cell={c} me={me} />
+          ))}
+        </div>
+      )}
 
-          {/* ------------------------------------------------------
+      {/* ------------------------------------------------------
               LE RÉSUMÉ — où en sont les autres
               ------------------------------------------------------
               La barre n'a pas disparu, elle est passée SOUS la grille :
               c'est elle qui compte les points, et elle seule sait dire
               où en est quelqu'un dont on ne voit pas le classeur. */}
-          <div style={{ marginTop: 22 }}>
-            <Label>{t("listsView.whereEverybodyStands")}</Label>
-            {progress?.length === 0 && <Guideline tight>{t("listsView.noParticipants")}</Guideline>}
-            {(progress ?? []).map((a) => (
-              <Meter
-                key={a.pseudo}
-                name={a.pseudo}
-                done={a.done}
-                total={goal}
-                ink={state === "finished" ? C.moss : C.burgundy}
-              />
-            ))}
-          </div>
+      <div style={{ marginTop: 22 }}>
+        <Label>{t("listsView.whereEverybodyStands")}</Label>
+        {progress?.length === 0 && <Guideline tight>{t("listsView.noParticipants")}</Guideline>}
+        {(progress ?? []).map((a) => (
+          <Meter
+            key={a.pseudo}
+            name={a.pseudo}
+            done={a.done}
+            total={goal}
+            ink={state === "finished" ? C.moss : C.burgundy}
+          />
+        ))}
+      </div>
 
-          {/* DÉFIER QUELQU'UN — et seulement pour qui a monté le défi. Un
+      {/* DÉFIER QUELQU'UN — et seulement pour qui a monté le défi. Un
               participant peut y entrer et en sortir ; il n'y engage
               personne d'autre. La route exige `administer`. */}
-          {challenge.mine && state !== "finished" && (
-            <div style={{ marginTop: 16 }}>
-              <div style={{ display: "flex", gap: 6, alignItems: "flex-end", flexWrap: "wrap" }}>
-                <input
-                  value={invite}
-                  onChange={(e) => setInvitee(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      void summon();
-                    }
-                  }}
-                  placeholder={t("listsView.challengeSomebody")}
-                  aria-label={t("listsView.challengeSomebody")}
-                  style={{ ...underlineInput, flex: "1 1 160px", width: "auto" }}
-                />
-                <button
-                  onClick={() => void summon()}
-                  disabled={!invite.trim()}
-                  style={inked(C.pine)}
-                >
-                  <UserPlus size={12} />
-                  {t("listsView.summon")}
-                </button>
-              </div>
-            </div>
-          )}
+      {challenge.mine && state !== "finished" && (
+        <div style={{ marginTop: 16 }}>
+          <div style={{ display: "flex", gap: 6, alignItems: "flex-end", flexWrap: "wrap" }}>
+            <input
+              value={invite}
+              onChange={(e) => setInvitee(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void summon();
+                }
+              }}
+              placeholder={t("listsView.challengeSomebody")}
+              aria-label={t("listsView.challengeSomebody")}
+              style={{ ...underlineInput, flex: "1 1 160px", width: "auto" }}
+            />
+            <button onClick={() => void summon()} disabled={!invite.trim()} style={inked(C.pine)}>
+              <UserPlus size={12} />
+              {t("listsView.summon")}
+            </button>
+          </div>
+        </div>
+      )}
 
-          {/* PROLONGER — le pouvoir s'achète ICI s'il manque. C'est le
+      {/* PROLONGER — le pouvoir s'achète ICI s'il manque. C'est le
               seul moment où on le veut : devant un défi qui finit demain
               et qu'on n'a pas bouclé. */}
-          {canExtend && powerHeld === 0 && sold && (
-            <div style={{ marginTop: 14, display: "flex", alignItems: "baseline", gap: 8 }}>
-              <span style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}>
-                {t("listsView.extend")}
-              </span>
-              <BuyChip item={sold.id} price={sold.price} onBought={reread} compact />
-            </div>
-          )}
-          {canExtend && powerHeld > 0 && (
-            <button
-              onClick={() => void push()}
-              data-tour="lists-extend"
-              style={{
-                ...bare,
-                fontFamily: F.mono,
-                fontSize: 10,
-                letterSpacing: 1,
-                color: C.ochre,
-                marginTop: 14,
-              }}
-            >
-              {t("listsView.extend")}
-            </button>
-          )}
+      {canExtend && powerHeld === 0 && sold && (
+        <div style={{ marginTop: 14, display: "flex", alignItems: "baseline", gap: 8 }}>
+          <span style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}>
+            {t("listsView.extend")}
+          </span>
+          <BuyChip item={sold.id} price={sold.price} onBought={reread} compact />
+        </div>
+      )}
+      {canExtend && powerHeld > 0 && (
+        <button
+          onClick={() => void push()}
+          data-tour="lists-extend"
+          style={{
+            ...bare,
+            fontFamily: F.mono,
+            fontSize: 10,
+            letterSpacing: 1,
+            color: C.ochre,
+            marginTop: 14,
+          }}
+        >
+          {t("listsView.extend")}
+        </button>
+      )}
 
-          {/* LE SECOND SOUFFLE — ce qui rattrape un défi manqué. La
+      {/* LE SECOND SOUFFLE — ce qui rattrape un défi manqué. La
               prolongation ne couvre pas ce cas : elle est réservée à qui
               a CRÉÉ le défi, capée à deux, et s'arrête une semaine après
               la fin. */}
-          {state === "finished" && secondSold && (
-            <div style={{ marginTop: 14, display: "flex", alignItems: "baseline", gap: 8 }}>
-              {(secondSold.held ?? 0) > 0 ? (
-                <button
-                  onClick={() => void blow()}
-                  data-tour="lists-second-wind"
-                  style={{ ...bare, fontFamily: F.mono, fontSize: 10, color: C.pine }}
-                >
-                  {t("listsView.secondWind")}
-                </button>
-              ) : (
-                <>
-                  <span style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}>
-                    {t("listsView.secondWind")}
-                  </span>
-                  <BuyChip
-                    item={secondSold.id}
-                    price={secondSold.price}
-                    onBought={reread}
-                    compact
-                  />
-                </>
-              )}
-            </div>
+      {state === "finished" && secondSold && (
+        <div style={{ marginTop: 14, display: "flex", alignItems: "baseline", gap: 8 }}>
+          {(secondSold.held ?? 0) > 0 ? (
+            <button
+              onClick={() => void blow()}
+              data-tour="lists-second-wind"
+              style={{ ...bare, fontFamily: F.mono, fontSize: 10, color: C.pine }}
+            >
+              {t("listsView.secondWind")}
+            </button>
+          ) : (
+            <>
+              <span style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}>
+                {t("listsView.secondWind")}
+              </span>
+              <BuyChip item={secondSold.id} price={secondSold.price} onBought={reread} compact />
+            </>
           )}
-
-          {challenge.mine && (
-            <div style={{ marginTop: 20, paddingTop: 12, borderTop: `1px dashed ${C.line}` }}>
-              <button
-                onClick={() =>
-                  setRequest({
-                    title: t("listsView.confirmChallengeTitle"),
-                    body: t("listsView.confirmChallengeBody", { title: challenge.title }),
-                    action: t("common.delete"),
-                    severe: true,
-                    onConfirm: () =>
-                      void deleteChallenge(challenge.id)
-                        .then(onChange)
-                        .then(() => {
-                          say(t("listsView.challengeGone"));
-                          onClose();
-                        }),
-                  })
-                }
-                title={t("listsView.deleteChallenge")}
-                style={{ ...bare, color: C.burgundy }}
-              >
-                <Trash2 size={12} /> {t("listsView.deleteChallenge")}
-              </button>
-            </div>
-          )}
-
-          <Trouble>{trouble}</Trouble>
         </div>
-      </div>
+      )}
+
+      {challenge.mine && (
+        <div style={{ marginTop: 20, paddingTop: 12, borderTop: `1px dashed ${C.line}` }}>
+          <button
+            onClick={() =>
+              setRequest({
+                title: t("listsView.confirmChallengeTitle"),
+                body: t("listsView.confirmChallengeBody", { title: challenge.title }),
+                action: t("common.delete"),
+                severe: true,
+                onConfirm: () =>
+                  void deleteChallenge(challenge.id)
+                    .then(onChange)
+                    .then(() => {
+                      say(t("listsView.challengeGone"));
+                      onClose();
+                    }),
+              })
+            }
+            title={t("listsView.deleteChallenge")}
+            style={{ ...bare, color: C.burgundy }}
+          >
+            <Trash2 size={12} /> {t("listsView.deleteChallenge")}
+          </button>
+        </div>
+      )}
+
+      <Trouble>{trouble}</Trouble>
       <Confirmation request={request} onClose={() => setRequest(null)} />
-    </Layer>
+    </Sheet>
   );
 }

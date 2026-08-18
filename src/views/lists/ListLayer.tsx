@@ -34,11 +34,10 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, Trash2, UserPlus, X } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
-import { bare, chip, inked, tap, underlineInput } from "../../theme/styles";
+import { bare, chip, inked, underlineInput } from "../../theme/styles";
 import { Guideline, Trouble } from "../../components/ui";
-import { Layer } from "../../components/ui/Layer";
+import { Sheet } from "../../components/ui/Sheet";
 import { Confirmation, type ConfirmRequest } from "../../components/ui/Confirmation";
-import { useDialog } from "../../hooks/useDialog";
 import { posterUrl } from "../../tmdb";
 import { tiltOf } from "../../domain/seeded";
 import { FillFromTmdb } from "./FillFromTmdb";
@@ -174,7 +173,6 @@ export function ListLayer({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
-  const box = useDialog(onClose, { autoFocus: false });
   const [works, setWorks] = useState<ListWork[]>([]);
   const [members, setMembers] = useState<string[]>([]);
   const [invite, setInvitee] = useState("");
@@ -209,205 +207,152 @@ export function ListLayer({
   };
 
   return (
-    <Layer>
-      <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 50,
-          background: alpha(C.ink, 0.4),
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 16,
-        }}
-        onClick={onClose}
-      >
+    <Sheet
+      title={list.title}
+      aside={
+        <span style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>
+          {t("listsView.worksCount", { count: list.works })}
+          {list.is_public ? ` · ${t("listsView.public")}` : ""}
+          {list.mienne ? "" : ` · ${t("listsView.at", { pseudo: list.owner })}`}
+        </span>
+      }
+      width={920}
+      onClose={onClose}
+    >
+      {works.length === 0 ? (
+        <Guideline tight>{t("lists.searchNote")}</Guideline>
+      ) : (
         <div
-          ref={box}
-          role="dialog"
-          aria-modal="true"
-          aria-label={list.title}
-          onClick={(e) => e.stopPropagation()}
           style={{
-            background: C.card,
-            border: `1px solid ${C.line}`,
-            boxShadow: "0 10px 40px rgba(20,14,8,0.4)",
-            width: "min(920px, 100%)",
-            maxHeight: "92vh",
-            overflowY: "auto",
-            padding: "22px 24px 30px",
-            animation: "drawerIn var(--motion-slow) var(--motion-ease) backwards",
+            display: "grid",
+            gridTemplateColumns: `repeat(auto-fill, minmax(${STEP}px, 1fr))`,
+            gap: 14,
+            alignItems: "start",
+            marginTop: 14,
           }}
         >
-          <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-            <span
-              style={{
-                fontFamily: F.title,
-                fontStyle: "italic",
-                fontWeight: 700,
-                fontSize: 25,
-                color: C.ink,
-              }}
-            >
-              {list.title}
-            </span>
-            <span style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>
-              {t("listsView.worksCount", { count: list.works })}
-              {list.is_public ? ` · ${t("listsView.public")}` : ""}
-              {list.mienne ? "" : ` · ${t("listsView.at", { pseudo: list.owner })}`}
-            </span>
-            <button
-              onClick={onClose}
-              aria-label={t("common.close")}
-              style={{
-                all: "unset",
-                ...tap,
-                cursor: "pointer",
-                marginLeft: "auto",
-                display: "flex",
-              }}
-            >
-              <X size={16} color={C.inkFaded} />
-            </button>
-          </div>
+          {works.map((o) => (
+            <Work
+              key={o.tmdb_id}
+              work={o}
+              onRemove={() => void removeFromList(list.id, o.tmdb_id).then(reread)}
+            />
+          ))}
+        </div>
+      )}
 
-          {works.length === 0 ? (
-            <Guideline tight>{t("lists.searchNote")}</Guideline>
-          ) : (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: `repeat(auto-fill, minmax(${STEP}px, 1fr))`,
-                gap: 14,
-                alignItems: "start",
-                marginTop: 14,
-              }}
-            >
-              {works.map((o) => (
-                <Work
-                  key={o.tmdb_id}
-                  work={o}
-                  onRemove={() => void removeFromList(list.id, o.tmdb_id).then(reread)}
-                />
-              ))}
-            </div>
-          )}
+      <FillFromTmdb list={list} works={works} films={films} onLook={onLook} onFiled={reread} />
 
-          <FillFromTmdb list={list} works={works} films={films} onLook={onLook} onFiled={reread} />
-
-          {/* ------------------------------------------------------
+      {/* ------------------------------------------------------
               LE PLI DU PROPRIÉTAIRE
               ------------------------------------------------------
               Co-écrire est un droit d'écrire, pas une propriété : seul
               le propriétaire invite, publie et supprime. */}
-          {list.mienne && (
-            <div style={{ marginTop: 22, paddingTop: 12, borderTop: `1px dashed ${C.line}` }}>
-              <button
-                onClick={() => setKeeping(!keeping)}
-                aria-expanded={keeping}
-                style={{
-                  ...bare,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  fontFamily: F.mono,
-                  fontSize: 10,
-                  letterSpacing: 1,
-                  color: C.inkFaded,
-                }}
-              >
-                <ChevronDown
-                  size={12}
-                  aria-hidden
-                  style={{
-                    transform: keeping ? "rotate(0deg)" : "rotate(-90deg)",
-                    transition: "transform var(--motion-fast) var(--motion-ease)",
-                  }}
+      {list.mienne && (
+        <div style={{ marginTop: 22, paddingTop: 12, borderTop: `1px dashed ${C.line}` }}>
+          <button
+            onClick={() => setKeeping(!keeping)}
+            aria-expanded={keeping}
+            style={{
+              ...bare,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              fontFamily: F.mono,
+              fontSize: 10,
+              letterSpacing: 1,
+              color: C.inkFaded,
+            }}
+          >
+            <ChevronDown
+              size={12}
+              aria-hidden
+              style={{
+                transform: keeping ? "rotate(0deg)" : "rotate(-90deg)",
+                transition: "transform var(--motion-fast) var(--motion-ease)",
+              }}
+            />
+            {t("listsView.keeping")}
+          </button>
+
+          {keeping && (
+            <div style={{ marginTop: 10 }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+                <input
+                  value={invite}
+                  onChange={(e) => setInvitee(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && sendInvite()}
+                  placeholder={t("listsView.inviteSomebody")}
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  style={{ ...underlineInput, fontFamily: F.mono, fontSize: 12 }}
                 />
-                {t("listsView.keeping")}
-              </button>
+                <button onClick={sendInvite} style={inked(C.pine)}>
+                  <UserPlus size={12} /> {t("listsView.invite")}
+                </button>
+              </div>
 
-              {keeping && (
-                <div style={{ marginTop: 10 }}>
-                  <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-                    <input
-                      value={invite}
-                      onChange={(e) => setInvitee(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && sendInvite()}
-                      placeholder={t("listsView.inviteSomebody")}
-                      autoCapitalize="none"
-                      spellCheck={false}
-                      style={{ ...underlineInput, fontFamily: F.mono, fontSize: 12 }}
-                    />
-                    <button onClick={sendInvite} style={inked(C.pine)}>
-                      <UserPlus size={12} /> {t("listsView.invite")}
-                    </button>
-                  </div>
+              {members.length > 0 && (
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+                  {members.map((m) => (
+                    <span key={m} style={chip}>
+                      {m}
+                      <button
+                        onClick={() => void removeFromListMembers(list.id, m).then(reread)}
+                        title={t("listsView.removeMember", { pseudo: m })}
+                        style={{ ...bare, color: C.burgundy }}
+                      >
+                        <X size={10} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
 
-                  {members.length > 0 && (
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
-                      {members.map((m) => (
-                        <span key={m} style={chip}>
-                          {m}
-                          <button
-                            onClick={() => void removeFromListMembers(list.id, m).then(reread)}
-                            title={t("listsView.removeMember", { pseudo: m })}
-                            style={{ ...bare, color: C.burgundy }}
-                          >
-                            <X size={10} />
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 14 }}>
-                    <label style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>
-                      <input
-                        type="checkbox"
-                        checked={list.is_public}
-                        onChange={(e) =>
-                          void editList(list.id, { is_public: e.target.checked }).then(onChange)
-                        }
-                      />{" "}
-                      {t("listsView.publicNote")}
-                    </label>
-                    <span style={{ flex: 1 }} />
-                    <button
-                      /* UNE LISTE EST PARTAGÉE : la supprimer ne retire
+              <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 14 }}>
+                <label style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>
+                  <input
+                    type="checkbox"
+                    checked={list.is_public}
+                    onChange={(e) =>
+                      void editList(list.id, { is_public: e.target.checked }).then(onChange)
+                    }
+                  />{" "}
+                  {t("listsView.publicNote")}
+                </label>
+                <span style={{ flex: 1 }} />
+                <button
+                  /* UNE LISTE EST PARTAGÉE : la supprimer ne retire
                          pas seulement la sienne, elle la retire à ceux
                          qu'on y a invités. Et il n'y a rien à annuler
                          derrière. */
-                      onClick={() =>
-                        setRequest({
-                          title: t("listsView.confirmListTitle"),
-                          body: t("listsView.confirmListBody", { title: list.title }),
-                          action: t("common.delete"),
-                          severe: true,
-                          onConfirm: () =>
-                            void deleteList(list.id)
-                              .then(onChange)
-                              .then(() => onClose()),
-                        })
-                      }
-                      title={t("listsView.deleteList")}
-                      style={{ ...bare, color: C.burgundy }}
-                    >
-                      <Trash2 size={12} />
-                    </button>
-                  </div>
-                </div>
-              )}
+                  onClick={() =>
+                    setRequest({
+                      title: t("listsView.confirmListTitle"),
+                      body: t("listsView.confirmListBody", { title: list.title }),
+                      action: t("common.delete"),
+                      severe: true,
+                      onConfirm: () =>
+                        void deleteList(list.id)
+                          .then(onChange)
+                          .then(() => onClose()),
+                    })
+                  }
+                  title={t("listsView.deleteList")}
+                  style={{ ...bare, color: C.burgundy }}
+                >
+                  <Trash2 size={12} />
+                </button>
+              </div>
             </div>
           )}
-
-          <Trouble>{trouble}</Trouble>
         </div>
-      </div>
-      {/* La confirmation se demande PAR-DESSUS la couche, comme
+      )}
+
+      <Trouble>{trouble}</Trouble>
+      {/* La confirmation se demande PAR-DESSUS la feuille, comme
           l'abandon d'une partie de quizz par-dessus la partie. */}
       <Confirmation request={request} onClose={() => setRequest(null)} />
-    </Layer>
+    </Sheet>
   );
 }

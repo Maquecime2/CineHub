@@ -1,6 +1,17 @@
 /* ------------------------------------------------------------
    COMPOSING ONE — three clicks, and the deal is made
    ------------------------------------------------------------
+   C'ÉTAIT UN FORMULAIRE OUVERT EN HAUT DE LA VUE. Un titre, une rangée
+   de paniers, trois rangées d'options et deux paragraphes d'explication
+   — la moitié de l'écran, en permanence, devant quelqu'un qui venait
+   voir si on l'avait invité à un quizz. Le premier regard tombait sur
+   des réglages qu'on n'avait pas demandés.
+
+   C'EST UNE FEUILLE MAINTENANT, et la porte est un bouton. Les deux
+   paragraphes restent : ils disent ce que le chronomètre coûte et ce que
+   « figé » veut dire, et ce sont exactement les choses qu'on veut lire
+   au moment de tirer — pas avant, pas ailleurs.
+
    AN EMPTY BASKET IS NOT OFFERED. Ticking something that can give
    nothing is a dead end one only discovers at the end, so it is not
    drawn at all — the same reasoning that keeps this whole tab away from
@@ -11,6 +22,7 @@ import { Plus } from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { chip, hollow, inked, tap, underlineInput } from "../../theme/styles";
 import { Guideline, Label, Trouble } from "../../components/ui";
+import { Sheet } from "../../components/ui/Sheet";
 import { drawQuiz, type Category } from "../../services/server";
 import { LEVELS } from "./shared";
 
@@ -30,10 +42,12 @@ export function Composer({
   categories,
   onDrawn,
   onOpen,
+  onClose,
 }: {
   categories: Category[];
   onDrawn: () => Promise<void>;
   onOpen: (id: string) => void;
+  onClose: () => void;
 }) {
   const { t } = useTranslation();
   const [title, setTitle] = useState("");
@@ -64,6 +78,10 @@ export function Composer({
       setTitle("");
       setPicked([]);
       await onDrawn();
+      /* LA FEUILLE SE REFERME SUR CE QU'ELLE A FAIT. Rester devant le
+         formulaire après un tirage laisse croire qu'il n'a pas eu lieu,
+         alors que la partie vient de s'ouvrir derrière. */
+      onClose();
       onOpen(id);
     } catch (e) {
       setTrouble((e as Error).message);
@@ -72,16 +90,14 @@ export function Composer({
 
   if (usable.length === 0) {
     return (
-      <div data-tour="quiz-new">
-        <Label>{t("quizView.newQuiz")}</Label>
+      <Sheet title={t("quizView.newQuiz")} width={620} onClose={onClose}>
         <Guideline tight>{t("quizView.bankEmpty")}</Guideline>
-      </div>
+      </Sheet>
     );
   }
 
   return (
-    <div data-tour="quiz-new">
-      <Label>{t("quizView.newQuiz")}</Label>
+    <Sheet title={t("quizView.newQuiz")} width={620} onClose={onClose}>
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}
@@ -188,6 +204,6 @@ export function Composer({
       <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 8 }}>
         {t("quizView.dealNote")}
       </div>
-    </div>
+    </Sheet>
   );
 }

@@ -29,12 +29,11 @@
    ============================================================ */
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, Plus, X } from "lucide-react";
-import { C, F, alpha } from "../../theme/tokens";
+import { ChevronLeft, Plus } from "lucide-react";
+import { C, F } from "../../theme/tokens";
 import { bare, hollow, inked, tap, underlineInput } from "../../theme/styles";
 import { Guideline, Label, Trouble } from "../../components/ui";
-import { Layer } from "../../components/ui/Layer";
-import { useDialog } from "../../hooks/useDialog";
+import { Sheet } from "../../components/ui/Sheet";
 import { Fan } from "./Fan";
 import { createChallenge, type List } from "../../services/server";
 import { WARMUPS, currentMonth } from "./shared";
@@ -62,8 +61,6 @@ export function NewChallenge({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
-  const box = useDialog(onClose, { autoFocus: false });
-
   const [source, setSource] = useState<Source | null>(null);
   const [form, setForm] = useState<Form>("decade");
   const [value, setValue] = useState("");
@@ -159,349 +156,293 @@ export function NewChallenge({
   };
 
   return (
-    <Layer>
-      <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 50,
-          background: alpha(C.ink, 0.4),
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 16,
-        }}
-        onClick={onClose}
-      >
-        <div
-          ref={box}
-          role="dialog"
-          aria-modal="true"
-          aria-label={t("listsView.newChallenge")}
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            background: C.card,
-            border: `1px solid ${C.line}`,
-            boxShadow: "0 10px 40px rgba(20,14,8,0.4)",
-            width: "min(760px, 100%)",
-            maxHeight: "92vh",
-            overflowY: "auto",
-            padding: "22px 24px 28px",
-            animation: "drawerIn var(--motion-slow) var(--motion-ease) backwards",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-            {/* REVENIR AU PREMIER PAS, plutôt que fermer et recommencer :
-                c'est le seul geste que deux pas rendent nécessaire. */}
-            {source && (
-              <button
-                onClick={() => setSource(null)}
-                aria-label={t("common.back")}
-                style={{ ...bare, color: C.inkFaded }}
-              >
-                <ChevronLeft size={16} />
-              </button>
-            )}
-            <span
-              style={{
-                fontFamily: F.title,
-                fontStyle: "italic",
-                fontWeight: 700,
-                fontSize: 24,
-                color: C.ink,
-              }}
-            >
-              {t("listsView.newChallenge")}
-            </span>
-            <button
-              onClick={onClose}
-              aria-label={t("common.close")}
-              style={{
-                all: "unset",
-                ...tap,
-                cursor: "pointer",
-                marginLeft: "auto",
-                display: "flex",
-              }}
-            >
-              <X size={16} color={C.inkFaded} />
-            </button>
-          </div>
-
-          {/* ==================================================
+    <Sheet
+      title={t("listsView.newChallenge")}
+      /* REVENIR AU PREMIER PAS, plutôt que fermer et recommencer :
+         c'est le seul geste que deux pas rendent nécessaire. */
+      lead={
+        source ? (
+          <button
+            onClick={() => setSource(null)}
+            aria-label={t("common.back")}
+            style={{ ...bare, color: C.inkFaded }}
+          >
+            <ChevronLeft size={16} />
+          </button>
+        ) : undefined
+      }
+      onClose={onClose}
+    >
+      {/* ==================================================
               PREMIER PAS — CE QU'ON DÉFIE
               ================================================== */}
-          {!source && (
-            <div style={{ marginTop: 14 }}>
-              <Label>{t("listsView.stepWhat")}</Label>
+      {!source && (
+        <div style={{ marginTop: 14 }}>
+          <Label>{t("listsView.stepWhat")}</Label>
 
-              {mine.length === 0 ? (
-                <Guideline tight>{t("listsView.noWritableList")}</Guideline>
-              ) : (
-                <div
+          {mine.length === 0 ? (
+            <Guideline tight>{t("listsView.noWritableList")}</Guideline>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+                gap: 10,
+                marginTop: 8,
+              }}
+            >
+              {mine.map((l) => (
+                <button
+                  key={l.id}
+                  onClick={() => setSource({ kind: "list", list: l })}
                   style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-                    gap: 10,
-                    marginTop: 8,
+                    all: "unset",
+                    ...tap,
+                    cursor: "pointer",
+                    boxSizing: "border-box",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 9,
+                    padding: 9,
+                    border: `1px solid ${C.line}`,
+                    background: C.paper,
                   }}
                 >
-                  {mine.map((l) => (
-                    <button
-                      key={l.id}
-                      onClick={() => setSource({ kind: "list", list: l })}
-                      style={{
-                        all: "unset",
-                        ...tap,
-                        cursor: "pointer",
-                        boxSizing: "border-box",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 9,
-                        padding: 9,
-                        border: `1px solid ${C.line}`,
-                        background: C.paper,
-                      }}
-                    >
-                      {/* LE MÊME ÉVENTAIL QUE SUR LE MUR, et non une
+                  {/* LE MÊME ÉVENTAIL QUE SUR LE MUR, et non une
                           vignette à part : on choisit ici la liste qu'on
                           vient de reconnaître là-bas, et deux
                           représentations d'un même objet obligent à le
                           reconnaître deux fois. */}
-                      <Fan posters={l.posters ?? []} seed={l.id} height={58} />
-                      <span style={{ minWidth: 0 }}>
-                        <span
-                          style={{
-                            display: "block",
-                            fontFamily: F.title,
-                            fontStyle: "italic",
-                            fontSize: 16,
-                            color: C.ink,
-                          }}
-                        >
-                          {l.title}
-                        </span>
-                        <span style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}>
-                          {t("listsView.worksCount", { count: l.works })}
-                        </span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px dashed ${C.line}` }}>
-                <button
-                  onClick={() => setSource({ kind: "criterion" })}
-                  style={{ ...inked(C.plum), ...hollow }}
-                >
-                  <Plus size={12} /> {t("listsView.criterionNew")}
+                  <Fan posters={l.posters ?? []} seed={l.id} height={58} />
+                  <span style={{ minWidth: 0 }}>
+                    <span
+                      style={{
+                        display: "block",
+                        fontFamily: F.title,
+                        fontStyle: "italic",
+                        fontSize: 16,
+                        color: C.ink,
+                      }}
+                    >
+                      {l.title}
+                    </span>
+                    <span style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}>
+                      {t("listsView.worksCount", { count: l.works })}
+                    </span>
+                  </span>
                 </button>
-                <Guideline tight>{t("listsView.criterionNote")}</Guideline>
-              </div>
+              ))}
             </div>
           )}
 
-          {/* ==================================================
+          <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px dashed ${C.line}` }}>
+            <button
+              onClick={() => setSource({ kind: "criterion" })}
+              style={{ ...inked(C.plum), ...hollow }}
+            >
+              <Plus size={12} /> {t("listsView.criterionNew")}
+            </button>
+            <Guideline tight>{t("listsView.criterionNote")}</Guideline>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================
               SECOND PAS — COMBIEN, JUSQU'À QUAND
               ================================================== */}
-          {source && (
-            <div style={{ marginTop: 14 }}>
-              {source.kind === "criterion" && (
-                <div style={{ marginBottom: 16 }}>
-                  <Label>{t("listsView.criterionNew")}</Label>
-                  <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                    {FORMS.map((f) => (
-                      <button
-                        key={f}
-                        onClick={() => {
-                          setForm(f);
-                          setValue("");
-                        }}
-                        aria-pressed={form === f}
-                        style={form === f ? inked(C.ink) : { ...inked(C.ink), ...hollow }}
-                      >
-                        {t(`listsView.criterion.${f}`)}
-                      </button>
-                    ))}
-                  </div>
-                  <input
-                    value={value}
-                    onChange={(e) => setValue(e.target.value)}
-                    placeholder={t(`listsView.criterionHint.${form}`)}
-                    aria-label={t(`listsView.criterion.${form}`)}
-                    style={{
-                      ...underlineInput,
-                      fontFamily: F.hand,
-                      fontSize: 17,
-                      marginTop: 8,
-                      maxWidth: 300,
-                    }}
-                  />
-                </div>
-              )}
-
-              <Label>{t("listsView.stepHowMuch")}</Label>
-              {/* LES MISES EN TRAIN RÉPONDENT AUX TROIS QUESTIONS D'UN
-                  COUP. Elles n'enferment rien : les champs dessous
-                  restent ce qu'ils étaient, et se corrigent. */}
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {WARMUPS.filter((w) => !w.needsList || source.kind === "list").map((w) => (
+      {source && (
+        <div style={{ marginTop: 14 }}>
+          {source.kind === "criterion" && (
+            <div style={{ marginBottom: 16 }}>
+              <Label>{t("listsView.criterionNew")}</Label>
+              <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                {FORMS.map((f) => (
                   <button
-                    key={w.key}
+                    key={f}
                     onClick={() => {
-                      const p = w.period();
-                      setTarget(w.target == null ? "" : String(w.target));
-                      setStart(p.start);
-                      setEnd(p.end);
+                      setForm(f);
+                      setValue("");
                     }}
-                    style={{ ...inked(C.pine), ...hollow }}
+                    aria-pressed={form === f}
+                    style={form === f ? inked(C.ink) : { ...inked(C.ink), ...hollow }}
                   >
-                    {t(`listsView.warmup.${w.key}`)}
+                    {t(`listsView.criterion.${f}`)}
                   </button>
                 ))}
               </div>
-
-              <div
+              <input
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                placeholder={t(`listsView.criterionHint.${form}`)}
+                aria-label={t(`listsView.criterion.${form}`)}
                 style={{
-                  display: "flex",
-                  gap: 8,
-                  flexWrap: "wrap",
-                  alignItems: "flex-end",
-                  marginTop: 14,
+                  ...underlineInput,
+                  fontFamily: F.hand,
+                  fontSize: 17,
+                  marginTop: 8,
+                  maxWidth: 300,
                 }}
-              >
-                <input
-                  type="number"
-                  min={1}
-                  value={target}
-                  onChange={(e) => setTarget(e.target.value)}
-                  placeholder={
-                    source.kind === "list"
-                      ? t("listsView.targetPlaceholder")
-                      : t("listsView.criterionTargetPlaceholder")
-                  }
-                  aria-label={t("listsView.targetLabel")}
-                  style={{ ...underlineInput, fontFamily: F.mono, fontSize: 12, width: 90 }}
-                />
-                <input
-                  type="date"
-                  value={start}
-                  onChange={(e) => setStart(e.target.value)}
-                  aria-label={t("listsView.startsOn")}
-                  style={{ ...underlineInput, fontFamily: F.mono, fontSize: 11, width: 132 }}
-                />
-                <input
-                  type="date"
-                  value={end}
-                  onChange={(e) => setEnd(e.target.value)}
-                  aria-label={t("listsView.endsOn")}
-                  style={{ ...underlineInput, fontFamily: F.mono, fontSize: 11, width: 132 }}
-                />
-              </div>
+              />
+            </div>
+          )}
 
-              {/* LA NATURE N'EST PLUS DEUX BOUTONS ANONYMES. « VOIR » et
+          <Label>{t("listsView.stepHowMuch")}</Label>
+          {/* LES MISES EN TRAIN RÉPONDENT AUX TROIS QUESTIONS D'UN
+                  COUP. Elles n'enferment rien : les champs dessous
+                  restent ce qu'ils étaient, et se corrigent. */}
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {WARMUPS.filter((w) => !w.needsList || source.kind === "list").map((w) => (
+              <button
+                key={w.key}
+                onClick={() => {
+                  const p = w.period();
+                  setTarget(w.target == null ? "" : String(w.target));
+                  setStart(p.start);
+                  setEnd(p.end);
+                }}
+                style={{ ...inked(C.pine), ...hollow }}
+              >
+                {t(`listsView.warmup.${w.key}`)}
+              </button>
+            ))}
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+              alignItems: "flex-end",
+              marginTop: 14,
+            }}
+          >
+            <input
+              type="number"
+              min={1}
+              value={target}
+              onChange={(e) => setTarget(e.target.value)}
+              placeholder={
+                source.kind === "list"
+                  ? t("listsView.targetPlaceholder")
+                  : t("listsView.criterionTargetPlaceholder")
+              }
+              aria-label={t("listsView.targetLabel")}
+              style={{ ...underlineInput, fontFamily: F.mono, fontSize: 12, width: 90 }}
+            />
+            <input
+              type="date"
+              value={start}
+              onChange={(e) => setStart(e.target.value)}
+              aria-label={t("listsView.startsOn")}
+              style={{ ...underlineInput, fontFamily: F.mono, fontSize: 11, width: 132 }}
+            />
+            <input
+              type="date"
+              value={end}
+              onChange={(e) => setEnd(e.target.value)}
+              aria-label={t("listsView.endsOn")}
+              style={{ ...underlineInput, fontFamily: F.mono, fontSize: 11, width: 132 }}
+            />
+          </div>
+
+          {/* LA NATURE N'EST PLUS DEUX BOUTONS ANONYMES. « VOIR » et
                   « VOIR ET ÉCRIRE » ne disaient pas ce qu'ils
                   changeaient ; la phrase, elle, le dit. Elle ne paraît
                   pas sans liste : le serveur n'a qu'une façon de compter
                   un défi par critère. */}
-              {source.kind === "list" && (
-                <label
-                  style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: 7,
-                    marginTop: 14,
-                    fontFamily: F.hand,
-                    fontSize: 16,
-                    color: C.ink,
-                    cursor: "pointer",
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={review}
-                    onChange={(e) => setReview(e.target.checked)}
-                  />
-                  <span>
-                    {t("listsView.alsoReview")}
-                    {review && (
-                      <span
-                        style={{
-                          display: "block",
-                          fontSize: 15,
-                          color: C.inkFaded,
-                          marginTop: 3,
-                        }}
-                      >
-                        {t("listsView.kindNote")}
-                      </span>
-                    )}
+          {source.kind === "list" && (
+            <label
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 7,
+                marginTop: 14,
+                fontFamily: F.hand,
+                fontSize: 16,
+                color: C.ink,
+                cursor: "pointer",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={review}
+                onChange={(e) => setReview(e.target.checked)}
+              />
+              <span>
+                {t("listsView.alsoReview")}
+                {review && (
+                  <span
+                    style={{
+                      display: "block",
+                      fontSize: 15,
+                      color: C.inkFaded,
+                      marginTop: 3,
+                    }}
+                  >
+                    {t("listsView.kindNote")}
                   </span>
-                </label>
-              )}
+                )}
+              </span>
+            </label>
+          )}
 
-              {/* LA COURSE — offerte aux DEUX sources, contrairement à
+          {/* LA COURSE — offerte aux DEUX sources, contrairement à
                   la critique : le serveur n'a qu'une façon de compter un
                   défi par critère, mais il sait très bien qui a vu un
                   film le premier. */}
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: 7,
-                  marginTop: 10,
-                  fontFamily: F.hand,
-                  fontSize: 16,
-                  color: C.ink,
-                  cursor: "pointer",
-                }}
-              >
-                <input type="checkbox" checked={race} onChange={(e) => setRace(e.target.checked)} />
-                <span>
-                  {t("listsView.race")}
-                  {race && (
-                    <span
-                      style={{ display: "block", fontSize: 15, color: C.inkFaded, marginTop: 3 }}
-                    >
-                      {t("listsView.raceNote")}
-                    </span>
-                  )}
+          <label
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 7,
+              marginTop: 10,
+              fontFamily: F.hand,
+              fontSize: 16,
+              color: C.ink,
+              cursor: "pointer",
+            }}
+          >
+            <input type="checkbox" checked={race} onChange={(e) => setRace(e.target.checked)} />
+            <span>
+              {t("listsView.race")}
+              {race && (
+                <span style={{ display: "block", fontSize: 15, color: C.inkFaded, marginTop: 3 }}>
+                  {t("listsView.raceNote")}
                 </span>
-              </label>
+              )}
+            </span>
+          </label>
 
-              <div style={{ marginTop: 16 }}>
-                <input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder={suggestion || t("listsView.challengePlaceholder")}
-                  aria-label={t("listsView.challengeTitleLabel")}
-                  style={{
-                    ...underlineInput,
-                    fontFamily: F.hand,
-                    fontSize: 18,
-                    width: "100%",
-                    maxWidth: 420,
-                  }}
-                />
-              </div>
+          <div style={{ marginTop: 16 }}>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder={suggestion || t("listsView.challengePlaceholder")}
+              aria-label={t("listsView.challengeTitleLabel")}
+              style={{
+                ...underlineInput,
+                fontFamily: F.hand,
+                fontSize: 18,
+                width: "100%",
+                maxWidth: 420,
+              }}
+            />
+          </div>
 
-              <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 18 }}>
-                <button onClick={run} disabled={busy} style={inked(C.burgundy)}>
-                  {t("listsView.launch")}
-                </button>
-                {source.kind === "criterion" && (
-                  <span style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded }}>
-                    {t("listsView.criterionTargetNote")}
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-
-          <Trouble>{trouble}</Trouble>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 18 }}>
+            <button onClick={run} disabled={busy} style={inked(C.burgundy)}>
+              {t("listsView.launch")}
+            </button>
+            {source.kind === "criterion" && (
+              <span style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded }}>
+                {t("listsView.criterionTargetNote")}
+              </span>
+            )}
+          </div>
         </div>
-      </div>
-    </Layer>
+      )}
+
+      <Trouble>{trouble}</Trouble>
+    </Sheet>
   );
 }

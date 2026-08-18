@@ -26,7 +26,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
-import { Library, Puzzle } from "lucide-react";
+import { Library, Plus, Puzzle } from "lucide-react";
 import { C } from "../theme/tokens";
 import { hollow, inked } from "../theme/styles";
 import { Guideline, Label, Trouble, ViewHeading, Waiting } from "../components/ui";
@@ -43,6 +43,7 @@ export function QuizView({ connected }: { connected: boolean }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [opened, setOpened] = useState<string | null>(null);
   const [tendingBank, setTendingBank] = useState(false);
+  const [composing, setComposing] = useState(false);
   /* NULL VEUT DIRE « ON N'A PAS ENCORE DEMANDÉ », et c'est ce qui
      distingue une soirée vide d'une soirée qu'on n'a pas pu lire. Les
      deux montraient le même écran, c'est-à-dire aucun. */
@@ -115,7 +116,20 @@ export function QuizView({ connected }: { connected: boolean }) {
         </div>
       )}
 
-      <Composer categories={categories} onDrawn={reread} onOpen={setOpened} />
+      {/* LA PORTE, ET NON LE FORMULAIRE. Voir `Composer` pour ce que
+          l'ouverture permanente coûtait au premier regard. */}
+      <button onClick={() => setComposing(true)} style={inked(C.plum)} data-tour="quiz-new">
+        <Plus size={12} /> {t("quizView.newQuiz")}
+      </button>
+
+      {composing && (
+        <Composer
+          categories={categories}
+          onDrawn={reread}
+          onOpen={setOpened}
+          onClose={() => setComposing(false)}
+        />
+      )}
 
       {souci && <Trouble>{souci}</Trouble>}
 

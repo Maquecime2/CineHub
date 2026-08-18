@@ -19,13 +19,15 @@
    LE DÉSORDRE EST SEMÉ, jamais tiré au sort (`domain/seeded`) : un mur
    qui gigote à chaque rendu n'est pas un mur.
    ============================================================ */
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ListPlus, Plus, Users } from "lucide-react";
 import { C, F } from "../../theme/tokens";
-import { inked, tap, underlineInput } from "../../theme/styles";
+import { inked, tap } from "../../theme/styles";
 import { Guideline, Label, Trouble, Waiting } from "../../components/ui";
 import { tiltOf } from "../../domain/seeded";
 import { Fan } from "./Fan";
+import { NewList } from "./NewList";
 import type { List } from "../../services/server";
 
 /* ------------------------------------------------------------
@@ -100,38 +102,28 @@ export function Shelf({
   lists,
   settled,
   trouble,
-  title,
-  onTitle,
   onOpenOne,
   onCreate,
 }: {
   lists: List[];
   settled: boolean;
   trouble: string | null;
-  title: string;
-  onTitle: (v: string) => void;
   onOpenOne: (id: string) => void;
-  onCreate: () => void;
+  onCreate: (l: { title: string; intent: string; is_public: boolean }) => Promise<void>;
 }) {
   const { t } = useTranslation();
+  const [opening, setOpening] = useState(false);
 
   return (
     <div style={{ marginBottom: 34 }}>
-      <div data-tour="lists-new" style={{ maxWidth: 460, marginBottom: 20 }}>
-        <Label>{t("listsView.newList")}</Label>
-        <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-          <input
-            value={title}
-            onChange={(e) => onTitle(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && onCreate()}
-            placeholder={t("listsView.newListPlaceholder")}
-            style={{ ...underlineInput, fontFamily: F.hand, fontSize: 17 }}
-          />
-          <button onClick={onCreate} style={inked(C.ink)}>
-            <Plus size={12} /> {t("listsView.open")}
-          </button>
-        </div>
-      </div>
+      {/* UN BOUTON, PAS UN FORMULAIRE OUVERT. Le champ tenait le premier
+          tiers de l'écran en permanence, pour un geste qu'on fait trois
+          fois — voir `NewList`. */}
+      <button onClick={() => setOpening(true)} style={inked(C.ink)} data-tour="lists-new">
+        <Plus size={12} /> {t("listsView.newList")}
+      </button>
+
+      <div style={{ height: 18 }} />
 
       <div data-tour="lists-mine">
         <Label>{t("listsView.yours")}</Label>
@@ -173,6 +165,8 @@ export function Shelf({
           </div>
         )}
       </div>
+
+      {opening && <NewList onCreate={onCreate} onClose={() => setOpening(false)} />}
     </div>
   );
 }

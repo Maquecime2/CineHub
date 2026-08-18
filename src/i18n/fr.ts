@@ -2133,6 +2133,12 @@ const fr = {
   },
 
   listsView: {
+    newListLabel: "Le nom de la liste",
+    /* `List.intent` existait dans le modèle depuis toujours et aucun
+       écran ne l'offrait : on ouvrait des listes qui ne pouvaient pas
+       dire à quoi elles servaient. */
+    intentLabel: "À quoi elle sert",
+    intentPlaceholder: "Ce qu'on se promet d'y ranger, et pourquoi…",
     /* LA COURSE. Une nature change ce qui COMPTE, jamais ce que ça paie. */
     race: "En course : le premier qui voit un film le prend.",
     raceNote:
@@ -2828,7 +2834,7 @@ const fr = {
       },
       new: {
         title: "Ouvrir une liste",
-        body: "Une liste contient des œuvres et non vos fiches : elle veut donc dire la même chose chez quelqu'un d'autre, et ne se vide pas le jour où vous effacez un film. On y range depuis la fiche, depuis la pastille d'une affiche, ou d'ici même.",
+        body: "Un bouton, une fiche à remplir, et c'est ouvert. Une liste contient des œuvres et non vos fiches : elle veut donc dire la même chose chez quelqu'un d'autre, et ne se vide pas le jour où vous effacez un film. On y range depuis la fiche, depuis la pastille d'une affiche, ou d'ici même.",
       },
       mine: {
         title: "Les vôtres, et celles à plusieurs",
@@ -2856,7 +2862,7 @@ const fr = {
       },
       compose: {
         title: "Tirer un quizz",
-        body: "On ne les écrit pas, on les tire : cochez des catégories, un niveau, une longueur, et les questions viennent au hasard de la banque. Le dosage est fixe — un quizz difficile garde des respirations, un quizz facile garde une colle — et deux quizz de même niveau et même longueur pèsent le même nombre de points. C'est ce qui rend deux scores comparables. Le chronomètre est facultatif et vaut « sans » par défaut : posé, il compte depuis la dernière réponse, et une réponse en retard est acceptée mais vaut zéro.",
+        body: "On ne les écrit pas, on les tire. Ce bouton ouvre le tirage : cochez des catégories, un niveau, une longueur, et les questions viennent au hasard de la banque. Le dosage est fixe — un quizz difficile garde des respirations, un quizz facile garde une colle — et deux quizz de même niveau et même longueur pèsent le même nombre de points. C'est ce qui rend deux scores comparables. Le chronomètre est facultatif et vaut « sans » par défaut : posé, il compte depuis la dernière réponse, et une réponse en retard est acceptée mais vaut zéro.",
       },
       bank: {
         title: "La banque",

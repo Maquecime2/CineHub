@@ -86,7 +86,6 @@ export function ListsView({
      publier une liste, ou lui ajouter une œuvre, n'y changerait rien
      tant qu'on ne la referme pas. */
   const [opened, setOpened] = useState<string | null>(null);
-  const [title, setTitle] = useState("");
   /* CE QUI A RATÉ EN OUVRANT LA PAGE. Distinct de `settled` : « on a
      fini de demander » et « on a obtenu quelque chose » sont deux
      phrases différentes, et les confondre annonçait « aucune liste » à
@@ -147,11 +146,11 @@ export function ListsView({
     );
   }
 
-  const openOne = async () => {
-    const name = title.trim();
-    if (!name) return;
-    const { id } = await createList({ title: name });
-    setTitle("");
+  /* ON OUVRE LA LISTE QU'ON VIENT DE CRÉER. C'est le seul geste qui
+     suit, et le faire chercher dans un mur qu'on vient d'agrandir
+     serait une demi-création. */
+  const openOne = async (l: { title: string; intent: string; is_public: boolean }) => {
+    const { id } = await createList(l);
     await reread();
     setOpened(id);
   };
@@ -170,8 +169,6 @@ export function ListsView({
         lists={lists}
         settled={settled}
         trouble={trouble}
-        title={title}
-        onTitle={setTitle}
         onOpenOne={setOpened}
         onCreate={openOne}
       />

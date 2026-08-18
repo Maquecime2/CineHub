@@ -713,6 +713,37 @@ C'est une règle de COMPTAGE, et elle vit dans `UNCLAIMED` (`store.ts`).
   compterait donc zéro chez qui a importé en français, en silence. C'est la forme
   la plus coûteuse du « ça dépend si la fiche est remplie ».
 
+## ON ARRIVE SUR UN ÉCRAN, PAS SUR UN FORMULAIRE
+
+Deux vues accueillaient par un formulaire OUVERT, en permanence : le quizz avec
+son titre, ses paniers, trois rangées d'options et deux paragraphes
+d'explication, et les listes avec leur champ de création. La moitié de l'écran
+posait une question à quelqu'un qui venait seulement REGARDER — voir s'il avait
+été invité à un quizz, retrouver une liste. Un formulaire ouvert demande quelque
+chose ; personne ne demandait rien.
+
+**UN BOUTON, UNE FEUILLE, ON ENREGISTRE.** `NewList` et `Composer` s'ouvrent
+désormais par-dessus, comme `NewChallenge`. Trois créations voisines qui ne se
+ressemblent pas obligent à réapprendre chacune.
+
+- **`Sheet` (`components/ui/Sheet.tsx`) EST LA COQUILLE, ET ELLE ÉTAIT ÉCRITE
+  CINQ FOIS.** Voile, boîte centrée, titre, croix, `Layer`, `useDialog` —
+  recopiés dans la vue rapide, le panneau d'un motif, la liste ouverte, le
+  tableau d'un défi et l'assistant. Elles avaient DÉJÀ divergé : deux largeurs,
+  deux opacités, et **une seule des cinq arrêtait le clic sur la boîte** avant
+  qu'il ne referme tout — le voile est le PARENT de la boîte, pas son frère, donc
+  tout clic remonte jusqu'à lui.
+- **ELLE NE SAIT RIEN DU CONTENU**, et n'impose aucun pied de boutons : un
+  formulaire de création et un tableau de marque n'ont pas le même bas de page,
+  et l'inventer là obligerait chacun à le contourner.
+- **LA VISITE VISE LA PORTE, JAMAIS LA FEUILLE.** `lists-new` et `quiz-new` sont
+  sur les BOUTONS : une visite ne peut pas ouvrir une modale, et deux éléments
+  portant la même ancre en font viser un au hasard.
+- **`List.intent` EXISTAIT ET N'ÉTAIT OFFERT NULLE PART.** Il est dans le modèle
+  depuis toujours, `createList` le prend, et aucun écran ne le demandait : on
+  ouvrait des listes qui ne pouvaient pas dire à quoi elles servaient. La place
+  manquait sur une ligne ; par-dessus, elle ne manque plus.
+
 ## Repères
 
 - `src/App.jsx` — l'orchestre : état des films, navigation par `view`, montage

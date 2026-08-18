@@ -2071,6 +2071,9 @@ const en = {
   },
 
   listsView: {
+    newListLabel: "The name of the list",
+    intentLabel: "What it is for",
+    intentPlaceholder: "What one means to file in it, and why…",
     race: "As a race: the first to watch a film claims it.",
     raceNote:
       "A film somebody else has already watched no longer counts for you. First means watched earliest — the date of the screening, not of the filing.",
@@ -2729,7 +2732,7 @@ const en = {
       },
       new: {
         title: "Opening a list",
-        body: "A list holds works and not your cards: it therefore means the same thing in somebody else's house, and does not empty the day you erase a film. You file into it from the card, from a poster's badge, or from here.",
+        body: "One button, one short form, and it is open. A list holds works and not your cards: it therefore means the same thing in somebody else's house, and does not empty the day you erase a film. You file into it from the card, from a poster's badge, or from here.",
       },
       mine: {
         title: "Yours, and the shared ones",
@@ -2757,7 +2760,7 @@ const en = {
       },
       compose: {
         title: "Dealing a quiz",
-        body: "One does not write them, one deals them: tick some categories, a level, a length, and the questions come at random out of the bank. The mix is fixed — a hard quiz keeps a couple of easy ones to breathe, an easy one keeps a sting — and two quizzes of the same level and length weigh the same number of points. That is what makes two scores comparable. The timer is optional and reads “none” by default: set, it counts from the last answer, and a late answer is accepted but worth zero.",
+        body: "One does not write them, one deals them. This button opens the deal: tick some categories, a level, a length, and the questions come at random out of the bank. The mix is fixed — a hard quiz keeps a couple of easy ones to breathe, an easy one keeps a sting — and two quizzes of the same level and length weigh the same number of points. That is what makes two scores comparable. The timer is optional and reads “none” by default: set, it counts from the last answer, and a late answer is accepted but worth zero.",
       },
       bank: {
         title: "The bank",
