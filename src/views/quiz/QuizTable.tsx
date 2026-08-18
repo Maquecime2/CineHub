@@ -24,6 +24,7 @@ import {
 } from "../../services/server";
 import { Asked } from "./Asked";
 import { Correction } from "./Correction";
+import { Curtain } from "./Curtain";
 import { Guests } from "./Guests";
 import { Scoreboard } from "./Scoreboard";
 
@@ -122,6 +123,15 @@ export function QuizTable({
 
   const answered = questions.filter((q) => q.mine != null).length;
   const current = questions.find((q) => q.mine == null);
+  /* LE SCORE EST CALCULE ICI PARCE QUE DEUX ECRANS LE VEULENT, et il ne
+     vaut quelque chose qu'une fois la partie close : avant, `is_right`
+     n'est simplement pas descendu, donc la somme est zero et ne ment a
+     personne. Le serveur reste le juge — c'est lui qui a paye — mais il
+     ne renvoie pas le chiffre, il renvoie les reponses. */
+  const score = questions.reduce(
+    (n, q) => n + (q.choices.find((c) => c.is_right)?.id === q.mine ? q.points : 0),
+    0
+  );
   const timed = quiz.seconds_per_question != null;
 
   /* CE QU'ON PERD EN PARTANT, ET RIEN DE PLUS. Une partie close n'a
@@ -184,6 +194,11 @@ export function QuizTable({
     /* Ce que le serveur a RÉELLEMENT crédité, et pas ce que le barème
        laissait espérer : une partie close deux fois ne paie qu'une. */
     setGains(r.gains ?? []);
+    /* UN TAMPON NE SE LIT PAS AU CLAVIER. C'est deja la raison pour
+       laquelle « POSEE » passe par `useSay` a chaque reponse ; le mot de
+       la fin n'a aucune raison de faire exception, et c'est le seul
+       moment ou l'ecran felicite. */
+    say(t("quizView.bravo"));
     again();
     await refreshPurse();
     await onChange();
@@ -267,8 +282,15 @@ export function QuizTable({
 
           {finished ? (
             <>
-              <Guideline tight>{t("quizView.overForYou")}</Guideline>
-              <Correction questions={questions} weight={weight} gains={gains} />
+              {/* DEUX TEMPS, ET LE PREMIER FELICITE. La phrase grise qui
+                  ouvrait cet ecran — « C'est fait. On ne le rejoue
+                  pas. » — disait une regle la ou il fallait un
+                  applaudissement, et la liste des questions ratees
+                  suivait immediatement. `Curtain` prend le mot, le
+                  chiffre et les gains ; `Correction` garde le detail, et
+                  vient DESSOUS. */}
+              <Curtain score={score} weight={weight} gains={gains} seed={quiz.id} />
+              <Correction questions={questions} />
             </>
           ) : (
             <>

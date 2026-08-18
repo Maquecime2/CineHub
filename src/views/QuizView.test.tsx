@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QuizView } from "./QuizView";
 import { FeedbackProvider } from "../components/ui/Feedback";
-import { quizBank } from "../hooks/useHall";
+import { quizBank, weekly } from "../hooks/useHall";
 
 /* ============================================================
    LE FILET, TISSÉ AVANT DE DÉCOUPER
@@ -49,6 +49,14 @@ const api = vi.hoisted(() => ({
   finishQuiz: vi.fn(),
   quizScores: vi.fn(),
   myHoldings: vi.fn(),
+  /* LE RIDEAU DE FIN DEMANDE L'IMAGE DE SON PALIER. Absente de cette
+     liste, elle valait `undefined`, et l'appeler emportait tout l'écran
+     de fin — corps du document vide, trois cas rouges d'un coup. Le
+     composant s'en protège maintenant tout seul ; cette ligne est là
+     pour éprouver le cas NOMINAL, pas pour cacher le cas dégradé. */
+  mediaTicket: vi.fn(),
+  /* LE RENDEZ-VOUS DE LA SEMAINE, lu en tete de la vue. */
+  weeklyQuiz: vi.fn(),
   invitePlayer: vi.fn(),
   removePlayer: vi.fn(),
   deleteQuiz: vi.fn(),
@@ -118,6 +126,13 @@ beforeEach(() => {
   api.myFollowers.mockResolvedValue({ followers: [] });
   api.startQuiz.mockResolvedValue({ started: true });
   api.myHoldings.mockResolvedValue({ powers: {} });
+  /* `null` EST LA RÉPONSE ORDINAIRE : rien n'est déposé tant qu'un
+     admin n'a rien déposé, et c'est l'état de tout le monde. */
+  api.mediaTicket.mockResolvedValue(null);
+  /* PAS DE QUIZZ CETTE SEMAINE PAR DEFAUT : la banque commune peut
+     n'avoir rien de jouable, et c'est l'etat qui ne doit rien casser
+     dans aucun des autres cas de ce fichier. */
+  api.weeklyQuiz.mockResolvedValue({ quiz: null });
   api.quizScores.mockResolvedValue(board());
   api.answerQuiz.mockResolvedValue({ answered: true });
   api.readQuiz.mockResolvedValue({
@@ -144,6 +159,66 @@ const open = async (user: ReturnType<typeof userEvent.setup>) => {
   await user.click(await screen.findByText("Le quizz du samedi"));
   await screen.findByText("La question qa");
 };
+
+describe("le quizz de la semaine", () => {
+  /* Le cache de `weekly` est un module comme celui de `quizBank` : il
+     traverse les cas, et un `weeklyQuiz` reecrit ici ne serait jamais
+     redemande sans ce `refresh`. */
+  const withWeekly = async (over: Record<string, unknown> = {}) => {
+    api.weeklyQuiz.mockResolvedValue({
+      quiz: { ...QUIZ, id: "w1", title: "Le quizz de la semaine", mine: false, week: "2026-08-17" },
+      questions: [question("qa"), question("qb")],
+      weight: 4,
+      attempt: null,
+      players: [],
+      board: [
+        { pseudo: "copine", score: 4, answered: 2, finished: true, seconds: 90 },
+        { pseudo: "anna", score: 2, answered: 2, finished: true, seconds: 40 },
+      ],
+      ...over,
+    });
+    await weekly.refresh();
+  };
+
+  it("ne dessine rien du tout quand la semaine n'a pas de quizz", async () => {
+    /* UNE BANQUE VIDE N'EST PAS UNE PANNE. Le serveur laisse la semaine
+       ouverte, la carte ne se dessine pas, et le reste de l'onglet
+       marche — c'est ce que `Trouble` aurait rendu faux. */
+    await weekly.refresh();
+    mount();
+
+    expect(await screen.findByText("Le quizz du samedi")).toBeInTheDocument();
+    expect(screen.queryByText(/classement de la semaine/i)).not.toBeInTheDocument();
+  });
+
+  it("montre le classement PUBLIC, dans l'ordre que le serveur a decide", async () => {
+    /* LE RANG NE SE RECALCULE PAS ICI. Le serveur departage — score,
+       puis qui a fini le premier, puis l'identifiant — et retrier de ce
+       cote ferait deux classements qui finiraient par diverger. Copine
+       passe donc devant malgre ses quatre-vingt-dix secondes : la
+       VITESSE ne departage rien, exprès. */
+    await withWeekly();
+    mount();
+
+    const first = await screen.findByText(/^1\. copine$/);
+    expect(first).toBeInTheDocument();
+    expect(screen.getByText(/^2\. anna$/)).toBeInTheDocument();
+  });
+
+  it("dit ou l'on en est de SON essai, et non de celui des autres", async () => {
+    /* L'ETAT VIENT DE MON ESSAI, que le serveur envoie. Le chercher
+       dans le classement se serait trompe des qu'un blocage cache une
+       ligne — et un essai OUVERT sans une seule reponse n'y figure pas
+       encore, donc « reprendre » ne se serait jamais affiche. */
+    await withWeekly({ attempt: { started_at: "now", finished_at: null } });
+    mount();
+    expect(await screen.findByRole("button", { name: "REPRENDRE" })).toBeInTheDocument();
+
+    await withWeekly({ attempt: { started_at: "now", finished_at: "later" } });
+    mount();
+    expect(await screen.findByRole("button", { name: "REVOIR" })).toBeInTheDocument();
+  });
+});
 
 describe("opening a quiz", () => {
   it("starts the attempt ONCE, then reads — there is no start button", async () => {
@@ -285,6 +360,69 @@ describe("closing the attempt", () => {
     await user.click(screen.getByRole("button", { name: /terminer/i }));
 
     expect(await screen.findByText(/\+2/)).toBeInTheDocument();
+  });
+
+  it("FELICITE d'abord, et dit le palier en toutes lettres", async () => {
+    /* LE REPROCHE QUI A OUVERT CE CHANTIER. L'ecran de fin ouvrait sur
+       une phrase grise — « C'est fait. On ne le rejoue pas. » — puis
+       enchainait sur la liste des questions ratees : on ne comprenait
+       pas qu'on avait fini, on comprenait qu'on avait perdu. Le mot
+       vient du BAREME (`tierOf`) et se lit, parce qu'une couleur
+       disparait sous cinq des dix-sept peaux. */
+    const user = userEvent.setup();
+    /* `is_right` N'EXISTE QUE DANS CETTE REPONSE-LA, et c'est le sujet
+       du test d'a cote : le serveur ne l'etale qu'une fois l'essai
+       clos. Le palier se calcule donc sur ce que la fin ramene, jamais
+       sur ce qu'on avait sous les yeux en jouant. */
+    const corrected = (id: string, mine: string) => {
+      const q = question(id, mine);
+      return { ...q, choices: [{ ...q.choices[0]!, is_right: true }, q.choices[1]!] };
+    };
+    api.finishQuiz.mockResolvedValue({
+      questions: [corrected("qa", "qa-bonne"), corrected("qb", "qb-bonne")],
+      gains: [{ kind: "quiz", amount: 4 }],
+    });
+    await open(user);
+    await user.click(screen.getByRole("button", { name: /terminer/i }));
+
+    expect(await screen.findByText("SANS FAUTE")).toBeInTheDocument();
+    /* Et la phrase de constat ne revient pas par une autre porte. */
+    expect(screen.queryByText(/on ne le rejoue pas/i)).not.toBeInTheDocument();
+  });
+
+  it("garde le score quand l'image de felicitations tombe", async () => {
+    /* CE CAS A REELLEMENT CASSE L'ECRAN, et pas seulement le test : le
+       service leve AVANT de rendre une promesse, donc un `.catch()`
+       accroche derriere ne voyait rien passer et l'erreur remontait au
+       rendu — corps du document vide, plus de score, plus de
+       corrections. Une decoration n'a pas le droit de faire ca. */
+    const user = userEvent.setup();
+    api.mediaTicket.mockImplementation(() => {
+      throw new Error("pas de container");
+    });
+    api.finishQuiz.mockResolvedValue({
+      questions: [question("qa", "qa-bonne"), question("qb", "qb-autre")],
+      gains: [{ kind: "quiz", amount: 2 }],
+    });
+    await open(user);
+    await user.click(screen.getByRole("button", { name: /terminer/i }));
+
+    expect(await screen.findByText(/\+2/)).toBeInTheDocument();
+  });
+
+  it("dit le bravo A VOIX HAUTE, parce qu'un tampon ne se lit pas au clavier", async () => {
+    /* Meme raison que « POSEE » a chaque reponse : `useSay` est le seul
+       chemin par lequel un lecteur d'ecran apprend qu'il vient de se
+       passer quelque chose. */
+    const user = userEvent.setup();
+    api.finishQuiz.mockResolvedValue({
+      questions: [question("qa", "qa-bonne"), question("qb", "qb-autre")],
+      gains: [],
+    });
+    await open(user);
+    await user.click(screen.getByRole("button", { name: /terminer/i }));
+
+    expect(await screen.findByText(/la partie est finie/i)).toBeInTheDocument();
   });
 
   it("re-reads the board when there is something new to say", async () => {

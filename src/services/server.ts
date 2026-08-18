@@ -1167,7 +1167,16 @@ export interface Quiz {
      `undefined`, toujours, et l'écran annonce simplement le mauvais
      chiffre pour toujours. NULL : pas de chronomètre. */
   seconds_per_question: number | null;
-  owner: string;
+  /** NULL pour le quizz de la semaine : il n'appartient à personne. */
+  owner: string | null;
+  /**
+   * Le lundi de la semaine que ce quizz occupe, ou NULL.
+   *
+   * `week` ET NON `semaine` : le serveur l'écrit ainsi, et c'est tout
+   * l'argument. Le piège est écrit trois lignes plus haut, il a déjà
+   * été payé trois fois dans ce dépôt, et il ne lève jamais.
+   */
+  week?: string | null;
   topics: string[];
   /** Mine to invite into and to erase. Never a right to see the answers. */
   mine?: boolean;
@@ -1284,6 +1293,34 @@ export const readQuiz = (id: string) =>
     attempt: QuizAttempt | null;
     players: string[];
   }>(`/quizzes/${encodeURIComponent(id)}`);
+
+/* ------------------------------------------------------------
+   LE QUIZZ DE LA SEMAINE
+   ------------------------------------------------------------
+
+   LA LECTURE EST CE QUI LE TIRE. Ce serveur n'a aucune tâche de fond :
+   le premier qui demande la semaine la tire, et l'index unique du
+   schéma fait que deux demandes simultanées n'en produisent qu'un. Il
+   n'y a donc rien à « créer » ici, et c'est délibéré — un bouton
+   « lancer le quizz de la semaine » aurait demandé à quelqu'un de
+   décider quand, alors que le calendrier a déjà décidé.
+
+   `quiz: null` N'EST PAS UNE ERREUR. La banque n'a rien de jouable ;
+   la semaine reste ouverte et se tirera dès qu'un admin l'aura
+   remplie. C'est un état que l'écran sait dire. */
+
+export const weeklyQuiz = () =>
+  call<{
+    quiz: Quiz | null;
+    questions?: QuizQuestion[];
+    weight?: number;
+    attempt?: QuizAttempt | null;
+    players?: string[];
+    /** Le classement PUBLIC : tout le monde, et non les seuls invités. */
+    board?: QuizScore[];
+  }>("/quizzes/weekly");
+
+export const weeklyBoard = () => call<{ scores: QuizScore[] }>("/quizzes/weekly/board");
 
 export const renameQuiz = (id: string, title: string) =>
   call<{ done: boolean }>(`/quizzes/${encodeURIComponent(id)}`, {

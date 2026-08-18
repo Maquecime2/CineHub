@@ -90,5 +90,32 @@ export function priceGap(price: number, tokens: number): number {
   return Math.max(0, price - tokens);
 }
 
+/** Les quatre paliers de fin de partie, du meilleur au pire. */
+export type Tier = "perfect" | "held" | "half" | "missed";
+
+/**
+ * Ce que la fin d'une partie de quizz mérite comme MOT.
+ *
+ * IL VIENT DU BARÈME ET NON D'UN AVIS, et les deux seuils existaient
+ * déjà : `quiz_flawless` ne se paie qu'à `score === weight`, et
+ * `CHALLENGE_HALF` est la part en dessous de laquelle un défi ne paie
+ * rien. Choisir 70 % et 40 % « parce que ça sonne bien » aurait inventé
+ * une échelle de plus, que rien dans le produit ne confirme — et le
+ * jour où l'un des deux seuils bougerait, l'écran de fin aurait
+ * continué de féliciter sur l'ancien.
+ *
+ * `weight === 0` — un quizz sans une seule question tirée — rend
+ * `half` : il n'y a rien à diviser, et féliciter comme punir seraient
+ * tous deux faux.
+ */
+export function tierOf(score: number, weight: number): Tier {
+  if (weight <= 0) return "half";
+  if (score >= weight) return "perfect";
+  const share = score / weight;
+  if (share >= CHALLENGE_HALF) return "held";
+  if (share > 0) return "half";
+  return "missed";
+}
+
 /** Le total d'une liste de gains — ce que le fronton fait défiler. */
 export const totalOf = (gains: readonly Gain[]): number => gains.reduce((n, g) => n + g.amount, 0);

@@ -79,6 +79,16 @@ describe("reading a path", () => {
       categoryId: who,
       key: "question-1",
     });
+    /* LA BRANCHE DES IMAGES DE FIN DE PARTIE. Quatre cles fixes, une
+       par palier, et le mot est ECRIT DANS LA REGEX comme `decor` et
+       `sticker` : `bank/<n'importe quoi>` rendrait la branche
+       extensible par le client, ce qui est precisement ce que la regle
+       « tout ce qui ne tombe dans aucune branche est refuse » evite. */
+    expect(readPath("bank/cheer/perfect")).toEqual({
+      kind: "bank",
+      categoryId: "cheer",
+      key: "perfect",
+    });
 
     for (const wrong of [
       "",
@@ -89,6 +99,10 @@ describe("reading a path", () => {
       "decor/not-a-uuid",
       `decor/${who}/more`,
       "bank/not-a-uuid/x",
+      /* Un mot voisin n'ouvre rien : la liste est close. */
+      "bank/cheers/perfect",
+      "bank/cheer",
+      "bank/cheer/",
       `bank/${who}`,
       `bank/${who}/`,
       `bank/${who}/../../secret`,
@@ -251,6 +265,22 @@ describe("the bank's tickets", () => {
     expect((await ticket(bruno.cookie, path)).statusCode).toBe(200);
     expect((await ticket(anna.cookie, path)).statusCode).toBe(200);
 
+    expect(await allowed(db, anna.person.id, path, "write")).toBe(true);
+    expect(await allowed(db, bruno.person.id, path, "write")).toBe(false);
+  });
+
+  it("garde les images de fin de partie du meme cote que le reste du stock", async () => {
+    /* MEME BRANCHE, MEMES REGLES, ET C'EST TOUT L'INTERET DE N'AVOIR
+       AJOUTE QU'UN MOT : tout compte les lit — l'ecran de fin d'une
+       partie ne demande rien a personne — et seul le role les depose.
+       Une cinquieme branche aurait demande a `allowed` une decision de
+       plus, pour la meme reponse. */
+    const anna = await account("anna");
+    const bruno = await account("bruno");
+    await store.markAdmins(db, ["anna"]);
+    const path = "bank/cheer/perfect";
+
+    expect((await ticket(bruno.cookie, path)).statusCode).toBe(200);
     expect(await allowed(db, anna.person.id, path, "write")).toBe(true);
     expect(await allowed(db, bruno.person.id, path, "write")).toBe(false);
   });

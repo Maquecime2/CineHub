@@ -2092,7 +2092,16 @@ export interface QuizRow {
   softened: boolean;
   /** NULL : pas de chronomètre. Le cas de tout quizz tiré avant 003. */
   seconds_per_question: number | null;
-  owner: string;
+  /** NULL pour le quizz de la semaine : il n'appartient a personne. */
+  owner: string | null;
+  /**
+   * Le lundi de la semaine que ce quizz occupe, ou NULL.
+   *
+   * C'est la seule chose qui distingue un rendez-vous hebdomadaire d'un
+   * quizz tire, et elle descend jusqu'au client parce que l'ecran doit
+   * savoir qu'il n'y a ni proprietaire a nommer ni invites a gerer.
+   */
+  week?: string | null;
   /** The baskets it was drawn from. */
   topics: string[];
   /** Mine to invite into. */
@@ -2199,7 +2208,15 @@ async function pick(
  */
 export async function drawQuiz(
   db: Db,
-  ownerId: string,
+  /**
+   * NULL POUR LE QUIZZ DE LA SEMAINE, ET SEULEMENT POUR LUI.
+   *
+   * Un quizz système n'appartient à personne. Lui désigner un admin
+   * pour propriétaire lui aurait accordé `write` — donc le droit de
+   * renommer et de SUPPRIMER le quizz de tout le monde — et le lui
+   * aurait affiché dans `myQuizzes` comme un quizz à lui.
+   */
+  ownerId: string | null,
   q: {
     title: string;
     categoryIds: string[];
@@ -2207,6 +2224,16 @@ export async function drawQuiz(
     size: number;
     /** NULL : pas de chronomètre, et c'est le défaut. */
     secondsPerQuestion?: number | null;
+    /**
+     * Le lundi de la semaine que ce tirage occupe, ou rien.
+     *
+     * POSÉ DANS L'INSERT ET JAMAIS APRÈS : c'est l'index unique partiel
+     * qui arbitre la course entre deux personnes qui ouvrent l'écran en
+     * même temps, et il ne peut arbitrer que ce qui lui est présenté au
+     * moment de l'écriture. Un `UPDATE … SET week` posé derrière aurait
+     * laissé les deux tirages exister le temps d'un aller-retour.
+     */
+    week?: string | null;
   }
 ): Promise<{ id: string; softened: boolean; drawn: number }> {
   const stock = await stockOf(db, q.categoryIds);
@@ -2223,8 +2250,8 @@ export async function drawQuiz(
 
   const id = randomUUID();
   await db.query(
-    `INSERT INTO quiz (id, owner_id, title, level, size, softened, seconds_per_question)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    `INSERT INTO quiz (id, owner_id, title, level, size, softened, seconds_per_question, week)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
     [
       id,
       ownerId,
@@ -2233,6 +2260,7 @@ export async function drawQuiz(
       q.size,
       plan.softened || order.length < q.size,
       q.secondsPerQuestion ?? null,
+      q.week ?? null,
     ]
   );
   for (const categoryId of q.categoryIds) {
@@ -2266,7 +2294,8 @@ export interface QuizRights {
   read: boolean;
   /** Invite, rename, erase. The dealer alone — nobody edits a deal. */
   write: boolean;
-  owner_id: string;
+  /** NULL pour le quizz de la semaine, qui n'appartient à personne. */
+  owner_id: string | null;
   quiz_id: string;
 }
 
@@ -2284,22 +2313,38 @@ export async function rightsOnQuiz(
   quizId: string,
   personId: string | null
 ): Promise<QuizRights | null> {
-  const q = await one<{ id: string; owner_id: string; invited: boolean; blocked: boolean }>(
+  const q = await one<{
+    id: string;
+    owner_id: string | null;
+    invited: boolean;
+    blocked: boolean;
+    weekly: boolean;
+  }>(
     db,
     `SELECT q.id, q.owner_id,
             EXISTS (SELECT 1 FROM quiz_player x
                      WHERE x.quiz_id = q.id AND x.person_id = $2) AS invited,
-            NOT ${NOT_BLOCKED("$2", "q.owner_id")} AS blocked
+            NOT ${NOT_BLOCKED("$2", "q.owner_id")} AS blocked,
+            (q.week IS NOT NULL) AS weekly
        FROM quiz q WHERE q.id = $1`,
     [quizId, personId]
   );
   if (!q) return null;
-  const isOwner = personId !== null && q.owner_id === personId;
+  const isOwner = personId !== null && q.owner_id !== null && q.owner_id === personId;
+  /* LE TROISIÈME CAS, ET IL N'OUVRE QUE LA LECTURE. Le quizz de la
+     semaine se joue par quiconque a un compte : c'est tout son propos,
+     et c'est pourquoi il n'a pas une seule ligne de `quiz_player`.
+     `write` lui reste inaccessible À TOUT LE MONDE — personne ne le
+     renomme, personne ne le supprime, et `Guests` ne se monte pas
+     puisque rien n'est « à moi ». Un admin n'y fait pas exception : le
+     rôle passe au-dessus des routes, pas au-dessus d'un objet qui
+     n'appartient à personne. */
+  const weekly = q.weekly && personId !== null;
   return {
     quiz_id: q.id,
     owner_id: q.owner_id,
     write: isOwner,
-    read: isOwner || (q.invited && !q.blocked),
+    read: isOwner || weekly || (q.invited && !q.blocked),
   };
 }
 
@@ -2330,11 +2375,18 @@ export async function myQuizzes(db: Db, personId: string): Promise<QuizRow[]> {
 export async function quizById(db: Db, id: string): Promise<QuizRow | null> {
   return one<QuizRow>(
     db,
-    `SELECT q.id, q.title, q.level, q.size, q.softened, q.seconds_per_question, o.pseudo AS owner,
+    /* LEFT JOIN, ET NON JOIN. Le quizz de la semaine n'a pas de
+       proprietaire : une jointure interne le faisait disparaitre de sa
+       PROPRE requete, donc l'ecran s'ouvrait sans titre, sans niveau et
+       sans sujets, sans qu'une seule erreur soit levee. C'est mot pour
+       mot le piege deja paye sur les defis par critere, et il s'est
+       referme au meme endroit — le JOIN qui allait de soi. */
+    `SELECT q.id, q.title, q.level, q.size, q.softened, q.seconds_per_question, q.week,
+            o.pseudo AS owner,
             coalesce((SELECT array_agg(c.label ORDER BY c.label)
                         FROM quiz_topic t JOIN quiz_category c ON c.id = t.category_id
                        WHERE t.quiz_id = q.id), '{}') AS topics
-       FROM quiz q JOIN person o ON o.id = q.owner_id
+       FROM quiz q LEFT JOIN person o ON o.id = q.owner_id
       WHERE q.id = $1`,
     [id]
   );
@@ -2342,6 +2394,100 @@ export async function quizById(db: Db, id: string): Promise<QuizRow | null> {
 
 export async function renameQuiz(db: Db, quizId: string, title: string): Promise<void> {
   await db.query("UPDATE quiz SET title = $2 WHERE id = $1", [quizId, title]);
+}
+
+/* ============================================================
+   LE QUIZZ DE LA SEMAINE
+   ============================================================
+
+   IL SE TIRE TOUT SEUL, PARCE QUE PERSONNE NE PEUT LE TIRER. Ce serveur
+   n'a aucune tache de fond — c'est deja pourquoi un defi se solde « au
+   premier qui regarde » plutot qu'avec un balayage nocturne — donc il
+   n'y a personne pour se lever le lundi. Le premier qui ouvre l'ecran
+   de la semaine le tire, et l'index unique partiel de 008 fait que deux
+   personnes qui ouvrent dans la meme seconde n'en obtiennent qu'un.
+
+   LA SEMAINE SE CALCULE EN SQL, JAMAIS EN JAVASCRIPT. L'horloge du
+   serveur est la seule que tout le monde partage : calculee chez le
+   client, deux fuseaux verraient deux semaines differentes, et celui
+   qui est en avance tirerait le quizz des autres. `date_trunc('week')`
+   rend le lundi, ce qui est la semaine ISO.
+   ============================================================ */
+
+/** Le lundi de la semaine en cours, tel que le serveur le voit. */
+const THIS_WEEK = "(date_trunc('week', now() at time zone 'utc'))::date";
+
+/**
+ * Combien de questions un quizz de la semaine demande, et de quel
+ * niveau.
+ *
+ * `normal` ET NON `easy` : c'est le meme quizz pour tout le monde, donc
+ * le seul niveau qui ne trie ni les debutants ni les autres. La taille
+ * est celle du milieu des trois que le compositeur propose (`SIZES`).
+ * Aucun chronometre : un rendez-vous hebdomadaire se joue quand on
+ * passe, pas en apnee.
+ */
+const WEEKLY = { level: "normal", size: 20, title: "Le quizz de la semaine" };
+
+/**
+ * Le quizz de la semaine en cours, tire s'il ne l'est pas encore.
+ *
+ * Rend `null` quand la banque n'a rien de jouable : la semaine reste
+ * alors OUVERTE, et le premier qui passera apres qu'un admin l'ait
+ * remplie la tirera. Ecrire un quizz vide aurait ferme la semaine pour
+ * de bon sur une banque qui n'etait pas prete.
+ */
+export async function weeklyQuiz(db: Db): Promise<{ id: string; week: string } | null> {
+  const week = await one<{ week: string }>(db, `SELECT ${THIS_WEEK} AS week`);
+  if (!week) return null;
+
+  const seen = async () =>
+    one<{ id: string; week: string }>(db, `SELECT id, week FROM quiz WHERE week = ${THIS_WEEK}`);
+
+  /* LE CAS NORMAL EST UNE LECTURE, et c'est la seule qui coute quelque
+     chose : le tirage n'arrive qu'une fois par semaine, sur tout le
+     monde. */
+  const already = await seen();
+  if (already) return already;
+
+  /* TOUTES LES CATEGORIES QUI ONT DU STOCK, et non un choix. Personne
+     ne compose ce quizz-la : le proposer sur trois categories
+     designees d'avance aurait demande a quelqu'un de les designer, et
+     ce quelqu'un n'existe pas. `planDraw` sait deja se debrouiller avec
+     ce qu'on lui donne, et `softened` dit le reste. */
+  const all = await db.query<{ id: string }>("SELECT id FROM quiz_category");
+  const categoryIds = all.map((c) => c.id);
+  if (categoryIds.length === 0) return null;
+
+  const drawn = await drawQuiz(db, null, {
+    title: WEEKLY.title,
+    categoryIds,
+    level: WEEKLY.level,
+    size: WEEKLY.size,
+    secondsPerQuestion: null,
+    week: week.week,
+  }).catch(async (e: unknown) => {
+    /* LA COURSE PERDUE N'EST PAS UNE ERREUR, c'est la reponse. Deux
+       personnes ont ouvert l'ecran en meme temps ; l'index a tranche,
+       et ce cote-ci lit simplement ce que l'autre vient d'ecrire. On
+       relit AVANT de relancer l'erreur : si la lecture rend quelque
+       chose, il n'y a rien a signaler a personne. */
+    if (await seen()) return null;
+    throw e;
+  });
+
+  if (!drawn) return seen();
+
+  /* RIEN N'A ETE TIRE : la banque existe mais aucune question n'est
+     jouable (retirees, ou sans bonne reponse unique). La ligne de quizz
+     a pourtant ete ecrite, avec sa semaine — donc elle OCCUPE la
+     semaine, et la laisser fermerait le rendez-vous sur un quizz vide
+     jusqu'a lundi prochain. On la reprend. */
+  if (drawn.drawn === 0) {
+    await deleteQuiz(db, drawn.id);
+    return null;
+  }
+  return { id: drawn.id, week: week.week };
 }
 
 export async function deleteQuiz(db: Db, quizId: string): Promise<void> {
@@ -2585,8 +2731,31 @@ export async function scoresOf(db: Db, quizId: string, personId: string): Promis
        LEFT JOIN quiz_question q ON q.id = a.question_id
       WHERE t.quiz_id = $1
         AND ${NOT_BLOCKED("$2", "t.person_id")}
-      GROUP BY p.pseudo, t.finished_at, t.started_at
-      ORDER BY 2 DESC, p.pseudo`,
+      GROUP BY p.pseudo, t.person_id, t.finished_at, t.started_at
+      /* LE DEPARTAGE NE SE FAIT PAS A LA VITESSE, ET C'EST DELIBERE.
+         La colonne seconds, juste au-dessus, porte deja son
+         interdiction : le merite se gagne sur ce qu'on repond, jamais
+         sur la rapidite, sans quoi la premiere chose a faire pour
+         monter serait de cliquer au hasard tres vite. Trier dessus
+         aurait recompense exactement le geste que le bareme refuse de
+         payer, et le quizz de la semaine rend ce tableau PUBLIC.
+
+         On departage donc sur QUI A FINI EN PREMIER — la notion que
+         quiz_first paie deja, et celle de la course aux defis — puis
+         sur l'identifiant. Ce dernier n'est pas juste, il est
+         DETERMINISTE, et il le faut : un tableau qui se regarde ne peut
+         pas changer entre deux rafraichissements. Le pseudonyme faisait
+         ce travail, mais il classait par ordre alphabetique, ce qui est
+         arbitraire sans etre neutre.
+
+         NULLS LAST : a score egal, qui n'a pas fini passe derriere qui
+         a fini. Une partie en cours ne devance pas une partie finie.
+
+         (Aucun accent grave dans ce commentaire : il vit DANS un
+         litteral gabarit, et le premier fermerait la chaine au milieu
+         de la requete. Le piege est deja signale vingt lignes plus
+         haut, et il s'est referme quand meme en ecrivant ceci.) */
+      ORDER BY 2 DESC, t.finished_at ASC NULLS LAST, t.person_id ASC`,
     [quizId, personId]
   );
 }

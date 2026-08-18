@@ -48,6 +48,7 @@ import { SKINS, skinOf } from "../theme/skins";
 import { loadSkinKey } from "../theme/applySkin";
 import { paperLayer } from "../theme/surfaces";
 import { PackStudio } from "./counter/PackStudio";
+import { CheerStudio } from "./counter/CheerStudio";
 import { usePurse, refreshPurse } from "../hooks/usePurse";
 import { stall } from "../hooks/useHall";
 import { Moderation } from "../components/play/Moderation";
@@ -105,6 +106,7 @@ export function CounterView({
   const [busy, setBusy] = useState<string | null>(null);
   const [bought, setBought] = useState<string | null>(null);
   const [studio, setStudio] = useState(false);
+  const [cheer, setCheer] = useState(false);
 
   /* Servi de mémoire à l'entrée, redemandé après un geste : voir
      `hooks/useHall`. Un achat passe par `reread`, donc par `refresh`. */
@@ -291,9 +293,22 @@ export function CounterView({
       {iAmAdmin() && (
         <>
           <Moderation />
-          <div style={{ marginTop: 18 }} data-tour="counter-studio">
+          <div
+            style={{ marginTop: 18, display: "flex", gap: 8, flexWrap: "wrap" }}
+            data-tour="counter-studio"
+          >
             <button onClick={() => setStudio(true)} style={{ ...inked(C.slate), fontSize: 10 }}>
               {t("counter.studio.open")}
+            </button>
+            {/* LES QUATRE IMAGES DE FIN DE PARTIE, À CÔTÉ ET NON DEDANS.
+                Le studio des pochettes fabrique des objets d'étagère —
+                un libellé, une rareté, une ligne de catalogue ; ces
+                quatre-là ne sont que des fichiers à une adresse fixe.
+                Les fondre aurait donné un écran qui fait deux choses
+                sans rapport, et le titre de l'un aurait menti sur
+                l'autre. */}
+            <button onClick={() => setCheer(true)} style={{ ...inked(C.slate), fontSize: 10 }}>
+              {t("counter.cheer.open")}
             </button>
           </div>
           {studio && (
@@ -304,6 +319,7 @@ export function CounterView({
               }}
             />
           )}
+          {cheer && <CheerStudio onClose={() => setCheer(false)} />}
         </>
       )}
 

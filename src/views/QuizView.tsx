@@ -36,6 +36,7 @@ import { iAmAdmin, serverConfigured, type Category, type Quiz } from "../service
 import { Bank } from "./quiz/Bank";
 import { Composer } from "./quiz/Composer";
 import { OneQuiz } from "./quiz/OneQuiz";
+import { Weekly } from "./quiz/Weekly";
 
 export function QuizView({ connected }: { connected: boolean }) {
   const { t } = useTranslation();
@@ -115,6 +116,13 @@ export function QuizView({ connected }: { connected: boolean }) {
           {tendingBank && <Bank categories={categories} onChange={reread} />}
         </div>
       )}
+
+      {/* LE RENDEZ-VOUS PASSE DEVANT CE QU'ON TIRE SOI-MÊME. C'est ce
+          qu'on vient voir : un quizz que tout le monde joue cette
+          semaine, et un tableau où l'on se situe. Il se dessine tout
+          seul ou pas du tout — la banque peut n'avoir rien de jouable,
+          et ce n'est pas une panne. */}
+      <Weekly />
 
       {/* LA PORTE, ET NON LE FORMULAIRE. Voir `Composer` pour ce que
           l'ouverture permanente coûtait au premier regard. */}

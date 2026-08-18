@@ -1353,6 +1353,19 @@ const fr = {
         challenge: "un défi mené au bout en donne {{worth}}",
       },
     },
+    cheer: {
+      open: "Les images de fin de partie",
+      title: "Les images de fin de partie",
+      close: "fermer",
+      blurb:
+        "Quatre images, une par palier, montrées quand un quizz se termine. Aucune n'est obligatoire : sans elles, la fin garde son tampon, son score et ses confettis. Redéposer remplace. GIF, WebP ou PNG, deux mégaoctets au plus — elle se charge à chaque fin de partie, chez chaque joueur.",
+      pick: "DÉPOSER",
+      sending: "envoi…",
+      done: "déposée",
+      badKind: "Il faut un GIF, un WebP ou un PNG.",
+      tooBig: "Deux mégaoctets au plus.",
+      noTicket: "Le serveur n'a pas signé le dépôt.",
+    },
     studio: {
       edit: "retoucher",
       save: "ENREGISTRER",
@@ -1471,6 +1484,7 @@ const fr = {
     challenge_half: "défi à mi-chemin",
     challenge_joined: "quelqu'un vous a rejoint",
     quiz: "quiz",
+    quiz_doubled: "double mise",
     quiz_flawless: "sans faute",
     quiz_first: "premier fini",
     watch: "une séance",
@@ -2341,7 +2355,22 @@ const fr = {
     allAnswered: "Toutes les questions sont répondues.",
     finish: "TERMINER",
     finishNote: "Terminer découvre les corrections, et ferme le quizz pour de bon.",
-    overForYou: "C'est fait. On ne le rejoue pas.",
+    weekly: {
+      stub: "questions",
+      blurb: "Le même pour tout le monde, jusqu'à lundi. Le tableau est public.",
+      play: "JOUER",
+      resume: "REPRENDRE",
+      seeAgain: "REVOIR",
+      board: "Le classement de la semaine",
+      nobody: "Personne n'y a encore répondu. À vous l'honneur.",
+    },
+    bravo: "Bravo — la partie est finie.",
+    tier: {
+      perfect: "SANS FAUTE",
+      held: "BIEN JOUÉ",
+      half: "PEUT MIEUX FAIRE",
+      missed: "UNE AUTRE FOIS",
+    },
     leaveGame: "Quitter la partie",
     laid: "POSÉE",
     laidSaid: "Réponse posée.",
@@ -2856,6 +2885,10 @@ const fr = {
 
     quiz: {
       label: "Les quizz",
+      weekly: {
+        title: "Le quizz de la semaine",
+        body: "Le même pour tout le monde, renouvelé chaque lundi. Personne ne le tire : il apparaît au premier qui vient le chercher. Vous n'avez pas besoin d'être invité, et le classement est PUBLIC — il compare tous ceux qui l'ont joué, et pas seulement vos connaissances. Un blocage l'emporte quand même, des deux côtés. Comme partout, une réponse posée ne se reprend pas, et les corrections n'arrivent qu'à la fin.",
+      },
       powers: {
         title: "Les pouvoirs",
         body: "Achetés au comptoir, dépensés ici. Écarter deux mauvaises réponses rend toujours LES MÊMES deux si vous redemandez — sinon on paierait une fois pour éplucher la question. Reprendre efface votre réponse à cette question-là, une seule fois, et la reprise reste marquée pour les autres joueurs. Sans pouvoir, cette barre n'existe pas.",
@@ -2886,7 +2919,7 @@ const fr = {
       },
       players: {
         title: "Qui joue",
-        body: "On invite par pseudonyme, comme pour une liste. Il n'y a pas de classement public : les scores que vous comparez sont ceux des gens que vous avez invités, et un blocage l'emporte des deux côtés. Retirer quelqu'un demande confirmation, et son score reste au tableau : une partie jouée ne s'efface pas.",
+        body: "On invite par pseudonyme, comme pour une liste. Une soirée reste privée : les scores que vous comparez ici sont ceux des gens que vous avez invités, et eux seuls — le seul classement public est celui du quizz de la semaine, et un blocage l'emporte des deux côtés. Retirer quelqu'un demande confirmation, et son score reste au tableau : une partie jouée ne s'efface pas.",
       },
       scores: {
         title: "Les scores",

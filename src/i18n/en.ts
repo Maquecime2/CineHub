@@ -1321,6 +1321,19 @@ const en = {
         challenge: "a challenge seen through gives {{worth}}",
       },
     },
+    cheer: {
+      open: "End-of-game pictures",
+      title: "End-of-game pictures",
+      close: "close",
+      blurb:
+        "Four pictures, one per tier, shown when a quiz ends. None of them is required: without them the ending keeps its stamp, its score and its confetti. Uploading again replaces. GIF, WebP or PNG, two megabytes at most — it loads at every game's end, for every player.",
+      pick: "UPLOAD",
+      sending: "sending…",
+      done: "uploaded",
+      badKind: "It has to be a GIF, a WebP or a PNG.",
+      tooBig: "Two megabytes at most.",
+      noTicket: "The server did not sign the upload.",
+    },
     studio: {
       edit: "touch up",
       save: "SAVE",
@@ -1437,6 +1450,7 @@ const en = {
     challenge_half: "challenge half way",
     challenge_joined: "somebody joined you",
     quiz: "quiz",
+    quiz_doubled: "doubled stake",
     quiz_flawless: "flawless",
     quiz_first: "first to finish",
     watch: "a screening",
@@ -2244,7 +2258,22 @@ const en = {
     allAnswered: "Every question is answered.",
     finish: "FINISH",
     finishNote: "Finishing uncovers the corrections, and closes the quiz for good.",
-    overForYou: "That is done. It is not played again.",
+    weekly: {
+      stub: "questions",
+      blurb: "The same one for everybody, until Monday. The board is public.",
+      play: "PLAY",
+      resume: "RESUME",
+      seeAgain: "LOOK AGAIN",
+      board: "This week's board",
+      nobody: "Nobody has answered it yet. The honour is yours.",
+    },
+    bravo: "Well done — the game is over.",
+    tier: {
+      perfect: "FLAWLESS",
+      held: "WELL PLAYED",
+      half: "ROOM TO GROW",
+      missed: "ANOTHER TIME",
+    },
     leaveGame: "Leave the game",
     laid: "LAID",
     laidSaid: "Answer laid down.",
@@ -2754,6 +2783,10 @@ const en = {
 
     quiz: {
       label: "The quizzes",
+      weekly: {
+        title: "The quiz of the week",
+        body: "The same one for everybody, renewed every Monday. Nobody deals it: it appears for whoever comes looking first. You need no invitation, and the board is PUBLIC — it compares everybody who played it, not just the people you know. A block still wins, both ways. As everywhere, an answer laid down is not taken back, and the corrections only come at the end.",
+      },
       powers: {
         title: "The powers",
         body: "Bought at the counter, spent here. Setting two wrong answers aside always gives back THE SAME two if you ask again — otherwise one would pay once and peel the question bare. Taking back clears your answer to that question, once only, and the retake stays marked for the other players. With no power, this bar does not exist.",
@@ -2784,7 +2817,7 @@ const en = {
       },
       players: {
         title: "Who plays",
-        body: "One invites by pseudonym, as for a list. There is no public leaderboard: the scores you compare are those of the people you invited, and a block wins in both directions. Removing somebody asks for confirmation, and their score stays on the board: a game played is not erased.",
+        body: "One invites by pseudonym, as for a list. An evening stays private: the scores you compare are those of the people you invited, and a block wins in both directions. Removing somebody asks for confirmation, and their score stays on the board: a game played is not erased.",
       },
       scores: {
         title: "The scores",

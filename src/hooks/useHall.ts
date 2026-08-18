@@ -24,12 +24,15 @@ import {
   myChallenges,
   myQuizzes,
   quizCategories,
+  weeklyQuiz,
   shop as readShop,
   myHoldings,
   type Profile,
   type NewsItem,
   type Challenge,
   type Quiz,
+  type QuizScore,
+  type QuizAttempt,
   type Category,
   type ShopItem,
   type DecorDef,
@@ -64,6 +67,55 @@ export const quizBank = cachedResource<{ quizzes: Quiz[]; categories: Category[]
     return { quizzes: q.quizzes, categories: c.categories };
   },
   onQuiet: { quizzes: [], categories: [] },
+  ready,
+});
+
+/**
+ * Le quizz de la semaine, et son classement public.
+ *
+ * IL EST À PART DE `quizBank`, ET C'EST LE POINT. Les deux parlent de
+ * quizz, mais pas du même objet : `quizBank` tient CE QU'ON A TIRÉ et
+ * ce qu'on nous a donné — une liste qui bouge à chaque invitation —,
+ * celui-ci tient un rendez-vous qui ne change qu'une fois par semaine.
+ * Les fondre aurait fait relire le rendez-vous à chaque fois qu'une
+ * soirée est créée, et l'inverse : un classement qui bouge à chaque
+ * partie aurait périmé la liste des siennes.
+ *
+ * ET LA LECTURE EST CE QUI LE TIRE, ce qui rend le cache d'autant plus
+ * utile : sans lui, chaque montage de la vue redemanderait au serveur
+ * de vérifier la semaine.
+ */
+export const weekly = cachedResource<{
+  quiz: Quiz | null;
+  questions: number;
+  /** Ce que le quizz entier vaut — le dénominateur des barres. */
+  weight: number;
+  /**
+   * MON essai, ou `null` si je n'ai pas encore ouvert.
+   *
+   * IL VIENT DU SERVEUR ET NE SE DEVINE PAS DU TABLEAU. Chercher son
+   * propre pseudonyme dans le classement aurait marché tant qu'on n'est
+   * pas bloqué par quelqu'un, puis se serait trompé — et surtout, un
+   * essai OUVERT sans une seule réponse ne pose encore aucune ligne
+   * dedans, donc « reprendre » ne se serait jamais affiché.
+   */
+  attempt: QuizAttempt | null;
+  board: QuizScore[];
+}>({
+  read: async () => {
+    const r = await weeklyQuiz();
+    return {
+      quiz: r.quiz,
+      questions: r.questions?.length ?? 0,
+      weight: r.weight ?? 0,
+      attempt: r.attempt ?? null,
+      board: r.board ?? [],
+    };
+  },
+  /* SILENCE VEUT DIRE « PAS DE RENDEZ-VOUS », et non « erreur ». La
+     carte ne se dessine simplement pas — c'est le même choix que les
+     quatre autres ressources de ce fichier. */
+  onQuiet: { quiz: null, questions: 0, weight: 0, attempt: null, board: [] },
   ready,
 });
 

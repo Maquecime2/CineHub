@@ -420,6 +420,102 @@ weight`, et un retard baisse le score sans toucher le poids.
   Elle n'est pas devinable — acheter un pouvoir consomme du temps, un
   réseau lent coûte, et fermer l'onglet coûte la question en cours.
 
+## LE RENDEZ-VOUS DE LA SEMAINE, ET SON CLASSEMENT PUBLIC
+
+**UNE RÈGLE ÉCRITE A ÉTÉ RENVERSÉE, ET C'EST DÉLIBÉRÉ.** `quiz_player`
+portait le commentaire « A quiz has no public leaderboard by design », et
+il reste vrai de tous les quizz TIRÉS : une soirée se joue entre invités.
+Le **quizz de la semaine** est l'exception, et elle est BORNÉE par une
+colonne (`quiz.week`, `008_weekly_quiz.sql`) plutôt que par une
+convention — aucune requête n'a à deviner de quel genre de quizz elle
+parle.
+
+- **IL SE TIRE PARESSEUSEMENT, PARCE QUE CE SERVEUR N'A AUCUNE TÂCHE DE
+  FOND.** Personne ne se lève le lundi : `GET /quizzes/weekly` EST le
+  déclencheur. Ce qui garantit qu'il n'y en a qu'un est l'**index unique
+  partiel** (`where week is not null`), pas le code appelant — copie de
+  `merit_event`, où l'unicité rend une requête rejouée sans effet. Le
+  perdant de la course lit le quizz du gagnant plutôt que de lever.
+- **`week` EST POSÉ DANS L'INSERT, JAMAIS PAR UN `UPDATE` DERRIÈRE.**
+  L'index ne peut arbitrer que ce qu'on lui présente au moment de
+  l'écriture ; posé après coup, les deux tirages existent le temps d'un
+  aller-retour.
+- **`owner_id` EST NULLABLE, ET UN ADMIN N'EN EST PAS LE PROPRIÉTAIRE.**
+  Lui en désigner un lui aurait donné `write` — donc le droit de
+  renommer et de SUPPRIMER le quizz de tout le monde au milieu de la
+  semaine, emportant les essais des autres. Le NULL est aussi ce qui le
+  tient hors de `myQuizzes` **sans une ligne de code** : cette requête
+  joint `person` sur `owner_id`, et une jointure interne écarte la ligne
+  d'elle-même.
+- **`quizById` DEVAIT DONC PASSER EN `LEFT JOIN`**, et c'est mot pour
+  mot le piège déjà payé sur les défis par critère : un `JOIN` sec
+  faisait disparaître le quizz de sa PROPRE requête, et l'écran
+  s'ouvrait sans titre ni niveau ni sujets, sans qu'une erreur soit
+  levée.
+- **AUCUNE `Kind` NEUVE DANS `points.ts`.** `merit_event` est unique sur
+  `(personne, genre, référence)` et le quizz hebdo a un identifiant comme
+  les autres : `quiz`, `quiz_flawless` et `quiz_first` tombent sans une
+  ligne à écrire. Un `quiz_weekly` mieux payé aurait fait du rendez-vous
+  un arbitrage. (`quiz_first` compte les `quiz_player`, vides ici : il ne
+  paie donc pas sur la semaine, et on l'assume plutôt que de toucher une
+  requête QUI PAIE.)
+- **`weeklyBoard` A ÉTÉ ÉCRIT PUIS RETIRÉ.** `scoresOf` ne filtrait
+  jamais sur les invités — c'est `rightsOnQuiz`, en amont, qui le
+  faisait. Les deux requêtes ne différaient que par leur `ORDER BY`, donc
+  la seconde était un doublon de quinze lignes de SQL.
+- **LE DÉPARTAGE NE SE FAIT PAS À LA VITESSE.** `QuizScore.seconds`
+  porte déjà son interdiction — « le mérite se gagne sur ce qu'on répond,
+  jamais sur la vitesse » — et trier un classement PUBLIC dessus aurait
+  récompensé exactement le geste que le barème refuse de payer. On
+  départage sur **qui a fini le premier** (la notion que `quiz_first`
+  paie déjà, et celle de la course aux défis), puis sur l'identifiant :
+  ce n'est pas juste, c'est **DÉTERMINISTE**, et il le faut puisque ce
+  tableau se regarde.
+- **CE QUI RESTE FERMÉ EST FERMÉ.** Un quizz public élargit qui peut
+  JOUER, et rien d'autre : les corrections ne descendent toujours qu'une
+  fois l'essai clos, et un blocage l'emporte des deux côtés sur la
+  vitrine.
+- **C'EST UNE CARTE EN TÊTE DE `QuizView`, ET NON UNE VUE NEUVE**
+  (`views/quiz/Weekly.tsx`). Une vue aurait demandé une entrée dans
+  `View`, une place dans `GROUPS` et un tour dans `TOURS`, pour montrer
+  un quizz dans l'onglet dont c'est déjà le sujet. La visite gagne un pas
+  `quiz-weekly`, `optional` — une banque sans question jouable ne donne
+  pas de rendez-vous, et la visite doit se jouer en entier.
+
+## UNE FIN DE PARTIE FÉLICITE AVANT DE CORRIGER
+
+L'écran de fin ouvrait sur une phrase grise — « C'est fait. On ne le
+rejoue pas. » — puis sur un chiffre de quarante-deux pixels, puis sur la
+liste des questions ratées. Trois informations exactes, et aucune ne
+félicitait : on ne comprenait pas qu'on avait fini, on comprenait qu'on
+avait perdu.
+
+- **DEUX TEMPS.** `Curtain` (`views/quiz/Curtain.tsx`) prend le mot, le
+  chiffre et les gains ; `Correction` garde le détail question par
+  question et vient DESSOUS. Les fondre remet la fête au milieu des
+  réponses manquées.
+- **LE PALIER VIENT DU BARÈME, PAS D'UN AVIS.** `tierOf`
+  (`domain/points.ts`) lit les deux seuils qui existaient déjà —
+  `quiz_flawless` à score plein, `CHALLENGE_HALF` à la moitié. Choisir
+  70 % et 40 % « parce que ça sonne bien » aurait inventé une échelle que
+  rien ne confirme. **Un mot, jamais une couleur**, comme tout verdict.
+- **`Confetti` (`components/atmosphere/`) EST SEMÉ SUR L'IDENTIFIANT DE
+  LA PARTIE.** `Math.random` ferait retomber les morceaux ailleurs à
+  chaque rendu — et il y en a plusieurs, la fin relisant le serveur. Les
+  durées passent par `--motion-slow`, donc `prefers-reduced-motion`
+  éteint la fête sans qu'un test de média soit écrit. La keyframe
+  `flutter` est dans `tokens.ts` ; **son commentaire n'a pas un seul
+  accent grave**, parce que ce bloc vit dans un gabarit JavaScript.
+- **L'IMAGE DE PALIER EST UNE DÉCORATION, ET SON ABSENCE EST LE CAS
+  NORMAL.** `bank/cheer/<palier>` — quatre clés fixes, **pas
+  d'extension**, donc la clé EST le palier et l'écran la compose sans
+  table ni route. Un `cheer` de plus dans `BANK_PATH` a suffi ; le studio
+  (`views/counter/CheerStudio.tsx`) dépose par ticket signé, comme les
+  vignettes. **Le `try` englobe l'appel et pas seulement sa promesse** :
+  un service qui lève AVANT de rendre une promesse a emporté tout
+  l'écran de fin, corps du document vide compris — même défaut que celui
+  réglé dans `PeoplePicker`.
+
 ## UNE NATURE CHANGE CE QUI COMPTE, JAMAIS CE QUE ÇA PAIE
 
 `challenge.kind` (`'liste'`, `'critique'`, `'critere'`), `target`,

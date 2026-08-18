@@ -1797,6 +1797,57 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     return { id: drawn.id, softened: drawn.softened, drawn: drawn.drawn };
   });
 
+  /* ------------------------------------------------------------
+     LE QUIZZ DE LA SEMAINE
+     ------------------------------------------------------------
+
+     DECLAREE AVANT `/quizzes/:id`, ET CE N'EST PAS COSMETIQUE : sans
+     cela `weekly` entre dans la route parametree, `quizOr404` le teste
+     contre la forme d'un UUID et repond 404. L'ordre de declaration est
+     ce qui tranche, et il se lit mal — d'ou ce commentaire.
+
+     ELLE TIRE LE QUIZZ SI PERSONNE NE L'A ENCORE FAIT. Ce serveur n'a
+     pas de tache de fond : la lecture EST le declencheur, et l'index
+     unique de 008 fait que deux lectures simultanees n'en tirent qu'un.
+
+     `null` N'EST PAS UNE ERREUR. La banque n'a rien de jouable ; la
+     semaine reste ouverte et se tirera quand elle sera remplie.
+     L'ecran, lui, sait dire qu'il n'y a rien — c'est ce qu'il fait
+     partout ailleurs. */
+
+  app.get("/quizzes/weekly", async (req) => {
+    const person = await requireAccount(req);
+    const weekly = await store.weeklyQuiz(db);
+    if (!weekly) return { quiz: null };
+
+    const attempt = await store.myAttempt(db, weekly.id, person.id);
+    /* LA MEME LIGNE QUE PARTOUT : personne ne voit les corrections avant
+       que son propre essai soit clos. Un quizz public ne desserre rien
+       de ce cote — il elargit qui peut jouer, pas ce qu'on voit. */
+    const withAnswers = attempt?.finished_at != null;
+    return {
+      quiz: { ...(await store.quizById(db, weekly.id)), mine: false },
+      questions: await store.drawnQuestions(db, weekly.id, {
+        withAnswers,
+        forPerson: person.id,
+      }),
+      weight: await store.quizWeight(db, weekly.id),
+      attempt,
+      /* PERSONNE N'EST INVITE, DONC IL N'Y A PERSONNE A NOMMER. Le
+         tableau public tient lieu de liste de joueurs, et il vient de
+         la route d'a cote. */
+      players: [],
+      board: await store.scoresOf(db, weekly.id, person.id),
+    };
+  });
+
+  app.get("/quizzes/weekly/board", async (req) => {
+    const person = await requireAccount(req);
+    const weekly = await store.weeklyQuiz(db);
+    if (!weekly) return { scores: [] };
+    return { scores: await store.scoresOf(db, weekly.id, person.id) };
+  });
+
   app.get("/quizzes/:id", async (req, reply) => {
     const person = await requireAccount(req);
     const rights = await quizOr404(req, reply, person.id);

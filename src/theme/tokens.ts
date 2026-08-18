@@ -239,6 +239,30 @@ body { background: ${C.paper}; }
 @keyframes stampDown { from { opacity: 0; transform: rotate(var(--stamp-tilt, -7deg)) scale(1.6); } 60% { opacity: 1; } to { opacity: var(--stamp-rest, 0.62); transform: rotate(var(--stamp-tilt, -7deg)) scale(1); } }
 @keyframes riseAway { from { opacity: 0; transform: translateY(6px); } 30% { opacity: 1; } to { opacity: 0; transform: translateY(-22px); } }
 
+/* LA CHUTE D'UN CONFETTI. Un seul jeu d'images pour vingt-quatre
+   morceaux : ce qui les distingue est leur position de depart, leur
+   angle et leur retard, tous SEMES sur l'identifiant de la partie
+   (domain/seeded). Les quatre variables sont ecrites EN LIGNE par le
+   composant, parce qu'elles changent d'un morceau a l'autre ; la forme
+   de la chute, elle, est ici.
+
+   PAS UN SEUL ACCENT GRAVE DANS CE COMMENTAIRE, ET C'EST LA REGLE DU
+   FICHIER : tout ce bloc vit dans un gabarit JavaScript, ou un accent
+   grave ferme la chaine et fait tomber le module entier. La premiere
+   ecriture de ce commentaire en portait quatre.
+
+   ELLE NE BOUCLE PAS. Une fete qui ne s'arrete jamais est un defaut,
+   pas une fete : le mode de remplissage la laisse a son dernier etat,
+   c'est-a-dire invisible. Sous prefers-reduced-motion les deux jetons
+   de duree tombent a zero, donc cet etat est atteint immediatement et
+   rien ne tombe du tout. */
+@keyframes flutter {
+  from { opacity: 0; transform: translate3d(0, -14px, 0) rotate(var(--spin-from, 0deg)); }
+  12% { opacity: 1; }
+  70% { opacity: 1; }
+  to { opacity: 0; transform: translate3d(var(--drift, 0px), var(--fall, 240px), 0) rotate(var(--spin-to, 540deg)); }
+}
+
 /* During a drag, the drawer tab announces itself as a target. In CSS
    and not in React state: a setState here would re-render the whole row
    at the precise moment the mouse starts to move. */

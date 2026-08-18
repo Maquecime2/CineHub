@@ -827,6 +827,16 @@ const lists: Tour = {
 const quiz: Tour = {
   label: label("quiz"),
   steps: [
+    /* LE RENDEZ-VOUS D'ABORD, comme à l'écran. `optional` parce qu'une
+       banque sans question jouable ne donne pas de quizz de la semaine :
+       le serveur laisse alors la semaine ouverte, la carte ne se dessine
+       pas, et la visite doit pouvoir se jouer en entier quand même. */
+    {
+      target: at("quiz-weekly"),
+      ...says("quiz", "weekly"),
+      placement: "bottom",
+      optional: true,
+    },
     {
       target: at("quiz-new"),
       ...says("quiz", "compose"),

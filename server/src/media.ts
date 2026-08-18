@@ -150,7 +150,24 @@ const DECOR_PATH = new RegExp(`^decor/(${UUID})$`);
    en icône cassée. On n'écrit plus jamais dessous ; on continue de le
    lire, ce qui est exactement la règle « on retire, on n'efface pas »
    appliquée à un chemin. */
-const BANK_PATH = new RegExp(`^bank/(${UUID}|decor|sticker)/([A-Za-z0-9:_.-]{1,120})$`);
+/* `cheer` EST LA QUATRIEME BRANCHE, ET ELLE TIENT QUATRE FICHIERS.
+   Les images que la fin d'une partie de quizz affiche selon le palier
+   obtenu — `bank/cheer/perfect`, `held`, `half`, `missed`, et rien
+   d'autre. C'est exactement le meme cas que l'image d'une question :
+   ecrit par le role, regarde par tout le monde, sans secret par image.
+
+   PAS D'EXTENSION DANS LA CLE, ET C'EST CE QUI EVITE UNE TABLE. La cle
+   EST le palier, donc l'ecran de fin la compose sans rien demander a
+   personne ; une extension aurait oblige a ranger quelque part laquelle
+   a ete deposee. Le type est porte par l'en-tete du blob, ou il a
+   toujours ete.
+
+   RIEN N'EST DEPOSE LE JOUR DE LA LIVRAISON, et c'est le cas normal :
+   une image absente rend un ticket parfaitement valide vers un blob qui
+   n'existe pas, la balise `img` echoue, et le rideau garde son tampon,
+   son chiffre et ses confettis. Le repli n'est pas une erreur, c'est
+   l'etat par defaut. */
+const BANK_PATH = new RegExp(`^bank/(${UUID}|decor|sticker|cheer)/([A-Za-z0-9:_.-]{1,120})$`);
 
 export type Mode = "read" | "write";
 

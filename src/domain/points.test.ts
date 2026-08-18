@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { RATE, priceGap, totalOf, worthOfChallenge } from "./points";
+import { CHALLENGE_HALF, RATE, priceGap, tierOf, totalOf, worthOfChallenge } from "./points";
 
 /* ============================================================
    LE BARÈME, CÔTÉ CLASSEUR
@@ -51,6 +51,41 @@ describe("le total des gains", () => {
       ])
     ).toBe(33);
     expect(totalOf([])).toBe(0);
+  });
+});
+
+describe("le mot de la fin d'une partie", () => {
+  it("ne félicite pour un sans-faute qu'au score plein", () => {
+    /* C'EST LA CONDITION EXACTE DE `quiz_flawless`, et pas une de plus.
+       Le serveur exige `score === weight` pour payer les quinze points ;
+       un écran qui tamponnerait « sans faute » à dix-neuf sur vingt
+       promettrait un gain qui n'est jamais tombé. */
+    expect(tierOf(20, 20)).toBe("perfect");
+    expect(tierOf(19, 20)).toBe("held");
+  });
+
+  it("passe à la moitié sur le seuil qui existait déjà", () => {
+    /* `CHALLENGE_HALF` est la part en dessous de laquelle un défi ne
+       paie rien. Reprendre ce seuil plutôt que d'en inventer un évite
+       qu'un écran continue de féliciter sur l'ancien le jour où il
+       bouge — c'est pour cela que le test le lit au lieu de l'écrire. */
+    expect(tierOf(10, 20)).toBe("held");
+    expect(tierOf(CHALLENGE_HALF * 20 - 1, 20)).toBe("half");
+  });
+
+  it("ne dit « une autre fois » qu'à zéro", () => {
+    /* Un seul point trouvé sur vingt reste quelque chose qu'on a fait.
+       Le palier le plus dur est réservé à la copie blanche. */
+    expect(tierOf(1, 20)).toBe("half");
+    expect(tierOf(0, 20)).toBe("missed");
+  });
+
+  it("ne divise pas par un quizz sans question", () => {
+    /* Un tirage qui n'a rien ramené — banque vide, catégories sans
+       stock — donne un poids nul. Ni félicitation ni punition : les deux
+       seraient fausses, et une division par zéro rendrait `NaN`, donc
+       aucun palier du tout. */
+    expect(tierOf(0, 0)).toBe("half");
   });
 });
 
