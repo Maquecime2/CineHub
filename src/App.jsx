@@ -486,7 +486,13 @@ export default function App() {
      on mount: when the synchronisation brings some in, they have to be
      asked of the disk again, otherwise the screen keeps the old ones
      without a word. */
+  /* Ce qui compte les tirages de documents. `wall-prefs` se relit plus
+     bas, là où l'état du mur est déclaré : le relire ici demanderait de
+     lire `setWallUi` avant qu'elle existe — le défaut que le lint venait
+     de refuser à `registerAccountOpener` juste au-dessus. */
+  const [docsAt, setDocsAt] = useState(0);
   const rereadDocuments = useCallback(() => {
+    setDocsAt((n) => n + 1);
     notebook.load();
     setThreads(loadThreads());
     setBonds(loadBonds());
@@ -1242,6 +1248,38 @@ export default function App() {
       store.set("wall-prefs", { watched: keep(merged.watched), watchlist: keep(merged.watchlist) });
       return merged;
     });
+
+  /* LES PRÉFÉRENCES DE MUR ARRIVENT AUSSI PAR LA SYNCHRO, et elles
+     n'étaient relues nulle part : `wallUi` se remplit UNE FOIS, au
+     montage, avant que le tirage ait atterri. Le mode, le tri, la vue
+     regardée et le DÉCOR DE FOND descendaient donc du serveur pour
+     rester invisibles jusqu'au prochain rechargement — ce qui se lit
+     comme « la synchro n'a rien ramené ».
+
+     Seule la part RANGÉE est reprise. La recherche, les tamis et le
+     groupement sont l'humeur du moment : les remplacer sous les doigts
+     de quelqu'un parce qu'un autre appareil s'est réveillé serait pire
+     que de ne rien reprendre. */
+  useEffect(() => {
+    if (!docsAt) return;
+    const saved = store.get("wall-prefs", null);
+    if (!saved) return;
+    setWallUi((s) => {
+      const one = (wall) => {
+        const kept = saved[wall];
+        if (!kept) return s[wall];
+        return {
+          ...s[wall],
+          mode: kept.mode || s[wall].mode,
+          sortBy: kept.sortBy || s[wall].sortBy,
+          desc: kept.desc ?? s[wall].desc,
+          viewId: kept.viewId ?? s[wall].viewId,
+          look: kept.look ?? s[wall].look,
+        };
+      };
+      return { watched: one("watched"), watchlist: one("watchlist") };
+    });
+  }, [docsAt]);
 
   /* A wall's active view: the one we were looking at, or the first — the
      identifier kept on the disk may point at a view since deleted, or

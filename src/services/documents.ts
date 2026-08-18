@@ -38,6 +38,8 @@ const REGISTER_KEY = "documents-maj";
 const PENDING_KEY = "documents-a-envoyer";
 /* Quelle version de la liste ci-dessous ce navigateur a déjà rattrapée. */
 const SYNCABLE_VERSION_KEY = "documents-liste-version";
+/* Le premier tirage de ce compte a-t-il eu lieu sur CE navigateur ? */
+const SETTLED_KEY = "documents-premier-tirage";
 
 /* WHAT SYNCHRONISES, AND WHAT MUST ABSOLUTELY NOT.
 
@@ -110,6 +112,52 @@ const register = (): Register => store.get<Register>(REGISTER_KEY, {});
 const pending = (): string[] => store.get<string[]>(PENDING_KEY, []);
 
 /**
+ * L'AUBE DES TEMPS — la date de ce qu'on n'a pas vraiment daté.
+ *
+ * Le serveur refuse `updatedAt: 0`, donc il fallait bien écrire QUELQUE
+ * CHOSE ; `Date.now()` semblait sans conséquence et ne l'est pas, c'est
+ * la date la plus récente qui soit. Voir `sendAllDocuments` et
+ * `noteDocument`.
+ */
+const DAWN = 1;
+
+/* FAUX PAR DÉFAUT, ET C'EST TOUT LE CORRECTIF.
+
+   La première version de cette garde était vraie par défaut et comptait
+   sur `expectFirstPull` pour l'ouvrir. Elle ne s'ouvrait JAMAIS à temps :
+   la synchro ne démarre qu'une fois le classeur chargé (`useSync(loaded,
+   …)`), et c'est l'effet de chargement lui-même qui fabrique et écrit
+   l'agencement par défaut. La garde arrivait après le geste qu'elle
+   devait garder — donc après la perte.
+
+   Elle ne dépend plus de rien d'autre qu'elle-même. Ce qui la rend sans
+   danger pour les navigateurs déjà branchés est la seconde condition,
+   dans `noteDocument` : on ne rabat à l'aube que ce qui n'a AUCUNE date
+   ici, c'est-à-dire ce que ce navigateur vient d'inventer. Un document
+   qu'il connaît déjà garde sa date pleine. */
+const settled = (): boolean => store.get<boolean>(SETTLED_KEY, false);
+
+/**
+ * Ce navigateur a-t-il déjà vu descendre les documents de ce compte ?
+ *
+ * Lu par `ensureViews` : tant que la réponse est non, un agencement
+ * fabriqué faute d'en trouver un est un PIS-ALLER d'affichage, et
+ * l'écrire reviendrait à inventer des vues que le serveur n'a pas et
+ * qu'il faudrait ensuite retrouver dans les orphelines.
+ */
+export const documentsSettled = (): boolean => settled();
+
+/** Un compte neuf sur ce navigateur : rien n'est encore descendu. */
+export const expectFirstPull = (): void => {
+  store.set(SETTLED_KEY, false);
+};
+
+/** Le tirage a atterri : ce qu'on écrit désormais est un vrai geste. */
+export const noteFirstPull = (): void => {
+  if (!settled()) store.set(SETTLED_KEY, true);
+};
+
+/**
  * This document has just changed HERE.
  *
  * Called by the store itself (`services/storage`), not by the services
@@ -118,6 +166,35 @@ const pending = (): string[] => store.get<string[]>(PENDING_KEY, []);
  */
 export function noteDocument(key: string, now = Date.now()): void {
   if (!isSyncable(key)) return;
+  /* TANT QUE LE PREMIER TIRAGE N'A PAS EU LIEU, ON DATE À L'AUBE.
+
+     Un navigateur neuf n'attend pas la synchro pour vivre : il charge,
+     ne trouve aucun agencement, en FABRIQUE un par défaut
+     (`ensureViews`) et l'écrit — daté de MAINTENANT, c'est-à-dire de la
+     date la plus récente qui soit. Le tirage arrive une seconde plus
+     tard avec le vrai agencement, daté d'hier : `fileIncomingDocument`
+     le refuse, puisqu'il est plus vieux. La poussée qui suit écrase
+     alors le serveur avec l'étagère vide, et l'agencement est perdu POUR
+     TOUS LES APPAREILS.
+
+     C'est exactement le défaut que `DAWN` répare pour les documents
+     DÉJÀ là au premier branchement. Rien ne protégeait ceux que
+     l'application se fabrique elle-même avant que le tirage ait
+     atterri, et ce sont les plus nombreux : l'agencement des étagères,
+     les préférences de mur, le vocabulaire.
+
+     On ne perd rien à dater à l'aube : le document part quand même — un
+     compte vide n'a rien à lui opposer — et il perd contre tout ce que
+     le serveur tient déjà. C'est la seule lecture de « je viens
+     d'inventer ça faute de mieux » qui ne détruise le travail de
+     personne.
+
+     ET SEULEMENT CE QUI N'A PAS DE DATE ICI. Un document que ce
+     navigateur connaît déjà a une vraie date, et la lui rabattre à
+     l'aube laisserait une copie plus VIEILLE du serveur le remplacer au
+     tour suivant. La garde ne vise que ce qui vient d'être inventé de
+     rien. */
+  if (!settled() && !register()[key]) now = DAWN;
   store.set(REGISTER_KEY, { ...register(), [key]: now });
   const list = pending();
   if (!list.includes(key)) store.set(PENDING_KEY, [...list, key]);
@@ -218,8 +295,6 @@ export function fileIncomingDocument(d: {
  * holds, which is the only reading of "I have never dated this" that does
  * not destroy somebody's work.
  */
-const DAWN = 1;
-
 export function sendAllDocuments(): void {
   const reg = register();
   /* `store.keys()` et non un parcours de `localStorage` par index : un

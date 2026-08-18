@@ -40,6 +40,8 @@ import {
   fileIncomingDocument,
   sendAllDocuments,
   catchUpDocuments,
+  expectFirstPull,
+  noteFirstPull,
   forgetDatesUnder,
 } from "./documents";
 import {
@@ -166,6 +168,12 @@ export async function synchronise(onFilms: (films: Film[]) => void): Promise<Syn
     store.set(DOCS_CURSOR_KEY, 0);
     sendEverything();
     sendAllDocuments();
+    /* ET RIEN DE CE QUE CE NAVIGATEUR VA INVENTER D'ICI LÀ NE DOIT
+       GAGNER. L'application ne s'arrête pas pendant la synchro : elle
+       fabrique un agencement par défaut faute d'en trouver un, et daté
+       de maintenant il battrait celui du serveur puis l'écraserait.
+       Voir `noteDocument`. */
+    expectFirstPull();
     store.set(ACCOUNT_KEY, person.id);
   } else {
     /* MÊME COMPTE, ET POURTANT UN RATTRAPAGE À FAIRE.
@@ -271,6 +279,10 @@ export async function synchronise(onFilms: (films: Film[]) => void): Promise<Syn
       docRounds += 1;
     }
     store.set(DOCS_CURSOR_KEY, docsRank);
+    /* LE TIRAGE A ATTERRI, ET SEULEMENT MAINTENANT. Ce qu'on écrira
+       ensuite est un geste de quelqu'un, daté de maintenant, et il a le
+       droit de gagner. */
+    noteFirstPull();
 
     const docBatch = documentsToSend();
     for (let i = 0; i < docBatch.length; i += DOCS_PER_SEND) {

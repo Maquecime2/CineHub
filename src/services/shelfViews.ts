@@ -7,6 +7,7 @@
    that is the difference between a write of a few dozen kilobytes and a
    write that brushes the quota. */
 import { store } from "./storage";
+import { documentsSettled } from "./documents";
 import i18n from "../i18n";
 import { VIEW_VERSION, upgradeView, buildViewsFromLegacy } from "../shelf-views";
 import type { Divider, Film, FilmStatus, ShelfViews } from "../types";
@@ -81,6 +82,20 @@ export function ensureViews({
       if (Object.keys(docs).length) return { byWall: idx.byWall, docs };
     }
   }
+  /* ON FABRIQUE POUR MONTRER, ON N'ÉCRIT QUE SI L'ON SAIT.
+
+     Un navigateur neuf ne trouve aucun index — le tirage n'a pas encore
+     eu lieu — et fabriquait ici un « rangement d'origine » qu'il
+     ÉCRIVAIT aussitôt. Les vraies vues descendaient une seconde plus
+     tard et reprenaient l'index, mais les fabriquées restaient sur le
+     disque, partaient au serveur et venaient grossir les orphelines de
+     l'autre session : des vues que personne n'a rangées, que rien ne
+     nomme, et qui donnent l'impression d'avoir perdu les siennes.
+
+     Tant que les documents ne sont pas descendus, ce qu'on bâtit est
+     donc un PIS-ALLER D'AFFICHAGE et rien de plus. Un `force` reste une
+     demande explicite et s'écrit, lui. */
+  const persist = force || documentsSettled();
   // shelf-views.js is still in JavaScript: its parameters have no declared type
   const built: ViewDoc[] = buildViewsFromLegacy({
     films,
@@ -93,9 +108,9 @@ export function ensureViews({
   for (const v of built) {
     byWall[v.wall].push(v.id);
     docs[v.id] = v;
-    store.set(viewKey(v.id), v);
+    if (persist) store.set(viewKey(v.id), v);
   }
-  saveViewIndex(byWall);
+  if (persist) saveViewIndex(byWall);
   return { byWall, docs };
 }
 
@@ -124,9 +139,13 @@ export function orphanViews(): ViewDoc[] {
   const idx = loadViewIndex();
   const named = new Set(idx ? Object.values(idx.byWall).flat() : []);
   const found: ViewDoc[] = [];
-  for (let i = 0; i < localStorage.length; i += 1) {
-    const key = localStorage.key(i);
-    if (!key || !key.startsWith("shelf-view:")) continue;
+  /* `store.keys()` ET NON UN PARCOURS DE `localStorage` : les vues sont
+     COFFRÉES (`storage`, `VAULTED_PREFIXES`). Ce parcours ne voyait donc
+     plus une seule d'entre elles, et le panneau de réparation — celui
+     dont tout l'objet est de retrouver des vues perdues — annonçait
+     « rien à récupérer » quoi qu'il arrive. */
+  for (const key of store.keys()) {
+    if (!key.startsWith("shelf-view:")) continue;
     const id = key.slice("shelf-view:".length);
     if (named.has(id)) continue;
     const doc = loadView(id);
@@ -174,7 +193,9 @@ export function adoptViews(ids: string[]): number {
 export function discardViews(ids: string[]): number {
   let gone = 0;
   for (const id of ids) {
-    if (!localStorage.getItem(viewKey(id))) continue;
+    /* Même raison qu'`orphanViews` : la vitrine ne tient plus ces
+       clés, donc rien n'était jamais jeté. */
+    if (!store.has(viewKey(id))) continue;
     deleteViewKey(id);
     gone += 1;
   }
