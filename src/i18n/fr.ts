@@ -449,6 +449,9 @@ const fr = {
     refresh: "rafraîchir",
     refreshHint: "redemander cette fiche à TMDB",
     unknownTitle: "TMDB ne connaît pas ce titre.",
+    reharvest: "réinterroger",
+    reharvestHint:
+      "remplacer tout ce relevé par ce que TMDB dit aujourd'hui de cet identifiant — à faire quand on a corrigé l'identifiant d'une fiche déjà remplie. Vos notes, critiques, séances et captures ne bougent pas.",
     filledIn_one: "{{count}} champ complété.",
     filledIn_other: "{{count}} champs complétés.",
     nothingMore: "TMDB ne donne rien de plus que ce qui est déjà là.",
@@ -494,6 +497,8 @@ const fr = {
   /* LES PHOTOGRAMMES — quelques plans du film, tels que TMDB les tient.
      À ne pas confondre avec `stills`, qui sont VOS captures. */
   frames: {
+    more_one: "voir le dernier plan",
+    more_other: "voir les {{count}} autres plans",
     title: "QUELQUES PLANS",
     enlarge: "Agrandir le plan {{place}} sur {{total}} de « {{title}} »",
     plate: "Les plans de « {{title}} »",

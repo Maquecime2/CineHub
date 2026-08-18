@@ -39,6 +39,9 @@ import { tiltOf } from "../../domain/seeded";
 import { StillLightbox } from "../stills/StillLightbox";
 import { ShotImage, type Shot } from "../stills/shots";
 
+/* Ce que la planche POSE. La visionneuse, elle, les a tous. */
+const PLATE = 6;
+
 export function FrameStrip({
   shots,
   title,
@@ -57,8 +60,23 @@ export function FrameStrip({
      sert plus l'image. */
   const [broken, setBroken] = useState<Set<string>>(new Set());
 
+  /* TOUT EST DANS LA VISIONNEUSE, SIX SONT SUR LA PLANCHE.
+
+     TMDB en tient parfois quatre-vingts, et la fiche les prend tous
+     désormais — ils ne pèsent qu'un chemin chacun. Mais une planche de
+     quatre-vingts vignettes n'est plus une planche : elle repousse hors
+     de l'écran tout ce qui vient après elle, dans un dossier dont les
+     photogrammes ne sont pas le sujet. Six disent la lumière, les
+     visages et l'époque d'un coup d'œil — c'est ce que cette bande est
+     là pour faire, et rien de plus.
+
+     Le reste n'est pas perdu pour autant : la visionneuse reçoit la
+     série ENTIÈRE, et le bouton ci-dessous l'ouvre au septième. On
+     réduit ce qu'on POSE, jamais ce qu'on peut atteindre. */
   const shown = shots.filter((s) => !broken.has(s.id));
   if (!shown.length) return null;
+  const plate = shown.slice(0, PLATE);
+  const rest = shown.length - plate.length;
   const heading = label ?? t("frames.title");
 
   return (
@@ -75,7 +93,7 @@ export function FrameStrip({
           padding: 0,
         }}
       >
-        {shown.map((shot, i) => (
+        {plate.map((shot, i) => (
           <li key={shot.id}>
             <button
               onClick={() => setOpen(i)}
@@ -151,6 +169,25 @@ export function FrameStrip({
           </li>
         ))}
       </ul>
+
+      {rest > 0 && (
+        <button
+          onClick={() => setOpen(plate.length)}
+          style={{
+            ...bare,
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            marginTop: 8,
+            fontFamily: F.mono,
+            fontSize: 10,
+            color: C.pine,
+            textDecoration: "underline",
+          }}
+        >
+          {t("frames.more", { count: rest })}
+        </button>
+      )}
 
       {open != null && (
         <StillLightbox

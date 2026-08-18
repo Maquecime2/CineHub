@@ -98,3 +98,35 @@ describe("enlarging one", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });
+
+/* ============================================================
+   SIX SUR LA PLANCHE, TOUS DANS LA VISIONNEUSE
+
+   La fiche prend désormais tous les photogrammes que TMDB tient — ils ne
+   pèsent qu'un chemin chacun. Mais une planche de quatre-vingts vignettes
+   repousse hors de l'écran tout ce qui vient après elle.
+   ============================================================ */
+describe("la planche et la visionneuse", () => {
+  const many = Array.from({ length: 12 }, (_, i) => `/plan-${i}.jpg`);
+  const wide = () => render(<FrameStrip shots={shotsOfFrames(many)} title="Voyage à Tokyo" />);
+
+  it("ne pose que six vignettes", () => {
+    const { container } = wide();
+    expect(container.querySelectorAll("li").length).toBe(6);
+  });
+
+  it("dit combien restent, et les ouvre au septième", async () => {
+    const user = userEvent.setup();
+    wide();
+    await user.click(screen.getByRole("button", { name: /autres plans/i }));
+    /* La visionneuse a la série ENTIÈRE : on réduit ce qu'on POSE,
+       jamais ce qu'on peut atteindre. Elle s'ouvre au septième, et sait
+       qu'il y en a douze. */
+    expect(await screen.findByText("7 sur 12")).toBeTruthy();
+  });
+
+  it("ne propose rien de plus quand tout tient sur la planche", () => {
+    render(<FrameStrip shots={shotsOfFrames(many.slice(0, 4))} title="Voyage à Tokyo" />);
+    expect(screen.queryByRole("button", { name: /autres|other/i })).toBeNull();
+  });
+});

@@ -432,6 +432,9 @@ const en = {
     refresh: "refresh",
     refreshHint: "ask TMDB for this card again",
     unknownTitle: "TMDB does not know this title.",
+    reharvest: "ask again",
+    reharvestHint:
+      "replace this whole record with what TMDB says of this identifier today — for when you have corrected the identifier of an already filled card. Your notes, reviews, screenings and captures do not move.",
     filledIn_one: "{{count}} field filled in.",
     filledIn_other: "{{count}} fields filled in.",
     nothingMore: "TMDB gives nothing more than what is already here.",
@@ -476,6 +479,8 @@ const en = {
   /* LES PHOTOGRAMMES — quelques plans du film, tels que TMDB les tient.
      À ne pas confondre avec `stills`, qui sont VOS captures. */
   frames: {
+    more_one: "see the last frame",
+    more_other: "see the {{count}} other frames",
     title: "A FEW FRAMES",
     enlarge: "Enlarge frame {{place}} of {{total}} from “{{title}}”",
     plate: "Frames from “{{title}}”",

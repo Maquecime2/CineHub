@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   hasChanged,
   editLinkedWork,
+  forgetTmdbFacts,
   stamp,
   makeFilm,
   mergeWatches,
@@ -520,5 +521,23 @@ describe("editLinkedWork", () => {
     const films = [makeFilm({ id: "a", linkedWorks: [work()] })];
     expect(editLinkedWork(films, "a", "inconnu", { note: "n" })).toBe(films);
     expect(editLinkedWork(films, "inconnu", "w1", { note: "n" })).toBe(films);
+  });
+});
+
+describe("forgetTmdbFacts", () => {
+  it("rend leur valeur « jamais demandé » aux champs venus de TMDB", () => {
+    const gone = forgetTmdbFacts();
+    /* `undefined` et non `[]` : une liste vide est une RÉPONSE, et la
+       vue rapide ne redemanderait jamais les plans du bon film. */
+    expect(gone.frames).toBeUndefined();
+    expect(gone.keywords).toBeUndefined();
+    expect(gone.synopsis).toBe("");
+    expect(gone.runtime).toBeNull();
+    expect(gone.cast).toEqual([]);
+  });
+
+  it("ne touche à rien de ce qu'on a écrit soi-même", () => {
+    const mine = ["rating", "review", "notes", "watches", "stills", "status", "motifs", "themes"];
+    for (const k of mine) expect(k in forgetTmdbFacts()).toBe(false);
   });
 });

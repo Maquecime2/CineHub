@@ -49,8 +49,14 @@ const CACHE_KEY = "tmdb-cache";
 
    6: `frames`. Same reasoning, and the same trap: an entry of shape 5
    would hand back an empty list, which reads as "TMDB has no still" and
-   is never asked again. */
-const SHAPE = 6;
+   is never asked again.
+
+   7 : les photogrammes, tous et non plus six. Une entrée de forme 6 en
+   tient six, et six n'est pas une réponse fausse — c'est ce qui rend
+   celui-ci différent des précédents. Mais le cache est ÉTERNEL : sans ce
+   numéro, un classeur rempli avant ce jour n'en verrait jamais plus de
+   six, sans que rien ne le dise et sans qu'aucun geste puisse y mener. */
+const SHAPE = 7;
 
 // the cache avoids burning the quota again on every re-import of the same file
 const readCache = () => {
@@ -252,6 +258,10 @@ const CREW_JOBS = {
    noise, and weight. */
 const ROLES = 8;
 
+/* Le plafond des photogrammes. Voir `getDetails` : il borne l'absurde,
+   pas le confort. */
+const FRAMES = 80;
+
 /* Detail + crew: that is where the director is. */
 export async function getDetails(tmdbId, apiKey) {
   /* THE KEYWORDS COME IN THE SAME REQUEST, AND THAT IS THE WHOLE POINT.
@@ -343,13 +353,24 @@ export async function getDetails(tmdbId, apiKey) {
        taille au moment de la moisson, et la changer demanderait de
        réécrire toutes les fiches. `theme` compose, la fiche stocke.
 
-       SIX, TRIÉS PAR LE VOTE. TMDB en tient parfois quatre-vingts ; la
-       planche en montre six, et les quatre-vingts autres ne valent pas
-       les octets d'un cache éternel. */
+       TOUS, TRIÉS PAR LE VOTE — et il n'y avait que six.
+
+       « Ça risque quoi ? » est la bonne question, et la réponse est
+       presque rien. Un photogramme est un CHEMIN d'une trentaine
+       d'octets : les soixante-dix-sept d'un film pèsent moins de trois
+       kilo-octets sur une fiche qui en fait déjà plusieurs. Et la
+       planche les charge en `loading="lazy"` (`stills/shots`), donc ce
+       qu'on ne fait pas défiler n'est jamais demandé — le coût
+       d'ouverture d'une fiche ne bouge pas.
+
+       Le plafond reste, et il ne borne plus le confort mais l'ABSURDE :
+       quelques fiches très courues en tiennent plusieurs centaines, et
+       une fiche n'a pas à peser cela pour rien. Le tri par vote garde le
+       meilleur en tête, donc ce qui tombe est toujours la queue. */
     frames: (data.images?.backdrops || [])
       .slice()
       .sort((a, b) => (b.vote_average || 0) - (a.vote_average || 0))
-      .slice(0, 6)
+      .slice(0, FRAMES)
       .map((b) => b.file_path)
       .filter(Boolean),
     cast: (data.credits?.cast || []).slice(0, ROLES).map((c) => c.name),

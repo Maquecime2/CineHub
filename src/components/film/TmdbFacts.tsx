@@ -23,13 +23,14 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, RotateCcw } from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { EMPTY, Names } from "./Names";
 import { tap } from "../../theme/styles";
 import { getTmdbKey } from "../../services/tmdbKey";
 import { getDetails, searchMovie } from "../../tmdb";
 import { languageName, countryName } from "../../names";
+import { forgetTmdbFacts } from "../../domain/film";
 import type { Film } from "../../types";
 
 /** A "label → value" line, or nothing at all if we do not know. */
@@ -88,7 +89,21 @@ export function TmdbFacts({
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const refresh = async () => {
+  /* COMPLÉTER ET RÉINTERROGER NE SONT PAS LE MÊME GESTE.
+
+     Compléter comble des trous et ne corrige rien — c'est ce qui le rend
+     sûr à lancer sans rien demander à personne, et cela ne change pas.
+     Mais une fiche dont on a corrigé l'identifiant APRÈS avoir été
+     remplie n'a plus un seul trou : elle porte le résumé, la
+     distribution et les PHOTOGRAMMES d'un autre film, et rien qui comble
+     ne peut plus les atteindre. `FilmIdentity` répare au moment où l'on
+     corrige ; il ne peut rien pour ce qui a été corrigé avant lui.
+
+     Réinterroger est donc la récupération, et comme toute récupération
+     dans ce classeur c'est UN GESTE ET PAS UNE RÈGLE : on le demande, on
+     dit ce qu'il remplace, et il ne touche à rien de ce qu'on a écrit
+     soi-même — ni note, ni critique, ni séance, ni capture. */
+  const refresh = async (replace = false) => {
     const apiKey = getTmdbKey();
     if (!apiKey) {
       setMsg(t("tmdbKey.missing"));
@@ -111,26 +126,61 @@ export function TmdbFacts({
       }
       const info = await getDetails(id, apiKey);
 
-      const changes: Partial<Film> = {};
-      if (info.runtime != null && film.runtime == null) changes.runtime = info.runtime;
-      if (info.language && !film.language) changes.language = info.language;
-      if (info.countries?.length && !(film.countries || []).length)
+      /* On oublie d'abord : ce que la nouvelle réponse ne ramène pas ne
+         doit pas rester celui de l'ancienne fiche. Les conditions
+         ci-dessous voient alors des trous partout, et remplissent. */
+      const base = replace ? forgetTmdbFacts() : {};
+      /* `seen` et non `film` : la fiche telle qu'elle sera une fois
+         oubliée. Les conditions ci-dessous la lisent, jamais la fiche
+         d'origine — sans quoi « réinterroger » ne verrait aucun trou et
+         ne ferait rien du tout. */
+      const seen: Film = { ...film, ...base };
+      const changes: Partial<Film> = { ...base };
+      if (info.runtime != null && seen.runtime == null) changes.runtime = info.runtime;
+      if (info.language && !seen.language) changes.language = info.language;
+      if (info.countries?.length && !(seen.countries || []).length)
         changes.countries = info.countries;
-      if (info.tmdbRating != null && film.tmdbRating == null) changes.tmdbRating = info.tmdbRating;
-      if (info.cast?.length && !(film.cast || []).length) changes.cast = info.cast;
-      if (info.crew && Object.keys(info.crew).length && !Object.keys(film.crew || {}).length)
+      if (info.tmdbRating != null && seen.tmdbRating == null) changes.tmdbRating = info.tmdbRating;
+      if (info.cast?.length && !(seen.cast || []).length) changes.cast = info.cast;
+      if (info.crew && Object.keys(info.crew).length && !Object.keys(seen.crew || {}).length)
         changes.crew = info.crew;
-      if (info.genres?.length && !(film.genres || []).length) changes.genres = info.genres;
-      if (info.director && !film.director) changes.director = info.director;
-      if (info.synopsis && !film.synopsis) changes.synopsis = info.synopsis;
+      if (info.genres?.length && !(seen.genres || []).length) changes.genres = info.genres;
+      if (info.director && !seen.director) changes.director = info.director;
+      if (info.synopsis && !seen.synopsis) changes.synopsis = info.synopsis;
       /* The keywords are written even when empty: it is the list itself,
          even of length zero, that says "we asked". See `types` and
          `domain/importing`. */
-      if (info.keywords && film.keywords == null) changes.keywords = info.keywords;
-      if (info.frames && film.frames == null) changes.frames = info.frames;
+      if (info.keywords && seen.keywords == null) changes.keywords = info.keywords;
+      /* LES PHOTOGRAMMES SE REPRENNENT TOUJOURS, et c'est la seule
+         exception au remplissage par les trous.
+
+         Cette règle protège CE QU'ON A ÉCRIT SOI-MÊME : une durée saisie
+         à la main doit survivre à un panneau qu'on a seulement ouvert.
+         Or un photogramme n'est de personne — il n'y a pas d'écran pour
+         en poser un, ils sont à TMDB de bout en bout et ne sont que des
+         chemins. Il n'y a donc rien à protéger, et beaucoup à réparer :
+         une fiche dont on a corrigé l'identifiant garde sinon, POUR
+         TOUJOURS, les plans du mauvais film — aucun trou, donc aucun
+         remplissage possible.
+
+         Vos captures à vous (`stills`) ne sont pas ici et ne bougent
+         pas : elles vivent dans le coffre, et la vue rapide les montre
+         DE PRÉFÉRENCE aux photogrammes dès qu'il y en a une.
+
+         C'est un GESTE — on a cliqué sur « rafraîchir » — et non le
+         chargement d'un panneau : la vue rapide, elle, comble toujours
+         des trous et n'écrit rien qu'on ne lui ait demandé. */
+      if (info.frames && JSON.stringify(info.frames) !== JSON.stringify(seen.frames))
+        changes.frames = info.frames;
       if (!film.tmdbId) changes.tmdbId = id;
 
-      const n = Object.keys(changes).length;
+      /* CE QUI A VRAIMENT BOUGÉ, et non le nombre de clés touchées :
+         `changes` part de l'oubli, donc il porte déjà neuf champs avant
+         qu'une seule réponse soit lue. Annoncer neuf champs complétés
+         là où deux ont changé serait un compte faux. */
+      const n = Object.entries(changes).filter(
+        ([k, v]) => JSON.stringify(v) !== JSON.stringify(film[k as keyof Film])
+      ).length;
       if (n) onUpdate({ ...film, ...changes });
       /* Telling "nothing changed" from "TMDB has nothing": the first
          means the card was already up to date, the second that there is
@@ -163,7 +213,7 @@ export function TmdbFacts({
       >
         {t("facts.title")}
         <button
-          onClick={refresh}
+          onClick={() => refresh()}
           disabled={busy}
           title={t("facts.refreshHint")}
           style={{
@@ -183,6 +233,33 @@ export function TmdbFacts({
           <RefreshCw size={11} /> {t("facts.refresh")}
         </button>
       </div>
+      {/* LE SECOND GESTE, ET IL DIT CE QU'IL REMPLACE. Il n'est offert
+          que si la fiche porte un identifiant : sans lui il n'y a rien à
+          réinterroger, et une recherche par titre pourrait remplacer ce
+          relevé par celui d'un homonyme — exactement le mal qu'il est là
+          pour réparer. */}
+      {!!film.tmdbId && (
+        <button
+          onClick={() => refresh(true)}
+          disabled={busy}
+          title={t("facts.reharvestHint")}
+          style={{
+            all: "unset",
+            ...tap,
+            cursor: busy ? "default" : "pointer",
+            opacity: busy ? 0.45 : 1,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+            marginBottom: 6,
+            fontFamily: F.mono,
+            fontSize: 10,
+            color: C.burgundy,
+          }}
+        >
+          <RotateCcw size={11} /> {t("facts.reharvest")}
+        </button>
+      )}
 
       <Done name={t("facts.runtime")}>{film.runtime != null ? `${film.runtime} min` : EMPTY}</Done>
       <Done name={t("facts.country")}>{countries || EMPTY}</Done>
