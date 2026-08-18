@@ -10,10 +10,11 @@
 
    PAR-DESSUS, LA PLACE EST CELLE DE LA FENÊTRE. C'est ce qui rend une
    grille d'affiches tenable, et c'est le raisonnement de `FilmQuickView`
-   mot pour mot. `Layer` + `useDialog`, comme tout ce qui prend la main :
-   la colonne de vue est un contexte d'empilement et porte une
-   transformation pendant son animation d'entrée, donc un `position:
-   fixed` rendu dedans s'ancrerait sur elle.
+   mot pour mot. La coquille est `Sheet`, qui tient `Layer` et
+   `useDialog` pour tout le monde : la colonne de vue est un contexte
+   d'empilement et porte une transformation pendant son animation
+   d'entrée, donc un `position: fixed` rendu dedans s'ancrerait sur
+   elle.
 
    ET LE FORMULAIRE DE DÉFI N'EST PLUS ICI. Il y était ENFOUI — il
    fallait déplier une liste pour le trouver — et il n'était que la

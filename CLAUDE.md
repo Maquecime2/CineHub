@@ -727,12 +727,28 @@ désormais par-dessus, comme `NewChallenge`. Trois créations voisines qui ne se
 ressemblent pas obligent à réapprendre chacune.
 
 - **`Sheet` (`components/ui/Sheet.tsx`) EST LA COQUILLE, ET ELLE ÉTAIT ÉCRITE
-  CINQ FOIS.** Voile, boîte centrée, titre, croix, `Layer`, `useDialog` —
-  recopiés dans la vue rapide, le panneau d'un motif, la liste ouverte, le
-  tableau d'un défi et l'assistant. Elles avaient DÉJÀ divergé : deux largeurs,
-  deux opacités, et **une seule des cinq arrêtait le clic sur la boîte** avant
-  qu'il ne referme tout — le voile est le PARENT de la boîte, pas son frère, donc
-  tout clic remonte jusqu'à lui.
+  SEPT FOIS.** Voile, boîte, titre, croix, `Layer`, `useDialog` — recopiés dans
+  la vue rapide, le panneau d'un motif, la liste ouverte, le tableau d'un défi,
+  l'assistant, la création d'une liste et le tirage d'un quizz. Elles avaient
+  DÉJÀ divergé : deux largeurs, deux opacités, et **une seule d'entre elles
+  arrêtait le clic sur la boîte** avant qu'il ne referme tout — le voile est le
+  PARENT de la boîte, pas son frère, donc tout clic remonte jusqu'à lui.
+- **DEUX FORMES, ET LE BUDGET DE `z-index` LES SUIT.** Une feuille CENTRÉE est
+  une modale et vit à 50 ; un TIROIR est ancré à un bord, tient toute la hauteur,
+  et vit à 59/60. Ce sont les deux étages que ce fichier réserve, et les
+  confondre ferait passer un tiroir sous une modale ouverte par-dessus lui. La
+  forme n'est donc pas un goût : elle décide de l'étage.
+- **L'EN-TÊTE SE REFUSE** (`heading={false}`) : la vue rapide met une affiche et
+  un titre en `h2` dans son propre corps, et lui coiffer un second titre ferait
+  lire deux fois le nom du film.
+- **`autoFocus` EST FAUX POUR TOUT LE MONDE** : on LIT une feuille avant d'agir
+  dessus. La vue rapide posait le curseur sur sa première commande, ce qui fait
+  sauter la lecture au lecteur d'écran comme à l'œil ; elle s'aligne.
+- **CE N'EST PAS ENCORE PARTOUT.** Une quinzaine d'autres écrans montent leur
+  propre `role="dialog"` — les tiroirs du rail, la lanterne des captures, le
+  studio du comptoir, la table du quizz. Ils marchent ; ils n'ont simplement pas
+  encore été rapatriés, et un popover ancré à son bouton n'a de toute façon rien
+  à faire ici (voir l'exception du budget de `z-index`).
 - **ELLE NE SAIT RIEN DU CONTENU**, et n'impose aucun pied de boutons : un
   formulaire de création et un tableau de marque n'ont pas le même bas de page,
   et l'inventer là obligerait chacun à le contourner.

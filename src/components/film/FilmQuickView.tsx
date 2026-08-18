@@ -41,11 +41,10 @@ import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Star, X } from "lucide-react";
-import { C, F, alpha } from "../../theme/tokens";
+import { C, F } from "../../theme/tokens";
 import { bare, hollow, inked } from "../../theme/styles";
-import { Layer } from "../ui/Layer";
+import { Sheet } from "../ui/Sheet";
 import { Label, Trouble, Waiting } from "../ui";
-import { useDialog } from "../../hooks/useDialog";
 import { useTmdbKey } from "../../services/tmdbKey";
 import { getDetails } from "../../tmdb";
 import { languageName, countryName } from "../../names";
@@ -135,7 +134,6 @@ export function FilmQuickView({
   onClose,
 }: FilmQuickViewProps) {
   const { t, i18n } = useTranslation();
-  const ref = useDialog(onClose);
   const apiKey = useTmdbKey();
   const [busy, setBusy] = useState(false);
   const [trouble, setTrouble] = useState<string | null>(null);
@@ -227,246 +225,224 @@ export function FilmQuickView({
   const motifs = motifsOf(shown).map((m) => motifLabel(m, t));
 
   return (
-    <Layer>
-      <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 50,
-          background: alpha(C.ink, 0.4),
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 16,
-        }}
-        onClick={onClose}
-      >
-        <div
-          ref={ref}
-          role="dialog"
-          aria-modal="true"
-          aria-label={t("quick.heading", { title: shown.title })}
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            background: C.card,
-            border: `1px solid ${C.line}`,
-            padding: "18px 20px 22px",
-            width: "min(660px, 100%)",
-            maxHeight: "90vh",
-            overflowY: "auto",
-          }}
-        >
-          <div style={{ display: "flex", gap: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
-            <div style={{ width: 118, flexShrink: 0, position: "relative", height: 177 }}>
-              <PosterArt film={shown} initials={initialsOf(shown.title)} width={118} plain />
-            </div>
+    <Sheet
+      title={t("quick.heading", { title: shown.title })}
+      /* PAS D'EN-TÊTE : l'affiche et le `h2` ci-dessous portent déjà le
+         nom du film, et un second titre le ferait lire deux fois. Le
+         titre passé ici ne sert qu'à nommer la boîte de dialogue. */
+      heading={false}
+      width={660}
+      onClose={onClose}
+    >
+      <div style={{ display: "flex", gap: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
+        <div style={{ width: 118, flexShrink: 0, position: "relative", height: 177 }}>
+          <PosterArt film={shown} initials={initialsOf(shown.title)} width={118} plain />
+        </div>
 
-            <div style={{ flex: "1 1 240px", minWidth: 0 }}>
-              <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                <h2
+        <div style={{ flex: "1 1 240px", minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+            <h2
+              style={{
+                fontFamily: F.title,
+                fontSize: 23,
+                lineHeight: 1.15,
+                color: C.ink,
+                margin: 0,
+                flex: 1,
+              }}
+            >
+              {shown.title}
+            </h2>
+            <button
+              onClick={onClose}
+              aria-label={t("quick.close")}
+              title={t("quick.close")}
+              style={{ ...bare, padding: 2 }}
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          <div
+            style={{
+              fontFamily: F.mono,
+              fontSize: 10,
+              color: C.inkFaded,
+              marginTop: 4,
+              letterSpacing: 0.5,
+            }}
+          >
+            {[
+              shown.year || null,
+              shown.runtime != null ? t("tonight.runtime", { minutes: shown.runtime }) : null,
+              countries || null,
+              shown.language ? languageName(shown.language, i18n.language) : null,
+            ]
+              .filter(Boolean)
+              .join("  ·  ")}
+          </div>
+
+          {directors.length > 0 && (
+            <div style={{ fontFamily: F.body, fontSize: 14, color: C.ink, marginTop: 6 }}>
+              <Names names={directors.map((d) => d.name)} onOpenPerson={onOpenPerson} />
+            </div>
+          )}
+
+          {(shown.genres || []).length > 0 && (
+            <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 8 }}>
+              {shown.genres.map((g) => (
+                <span
+                  key={g}
                   style={{
-                    fontFamily: F.title,
-                    fontSize: 23,
-                    lineHeight: 1.15,
-                    color: C.ink,
-                    margin: 0,
-                    flex: 1,
+                    fontFamily: F.mono,
+                    fontSize: 9,
+                    letterSpacing: 0.5,
+                    color: C.inkFaded,
+                    border: `1px solid ${C.line}`,
+                    padding: "2px 6px",
                   }}
                 >
-                  {shown.title}
-                </h2>
-                <button
-                  onClick={onClose}
-                  aria-label={t("quick.close")}
-                  title={t("quick.close")}
-                  style={{ ...bare, padding: 2 }}
-                >
-                  <X size={16} />
-                </button>
-              </div>
+                  {g}
+                </span>
+              ))}
+            </div>
+          )}
 
-              <div
+          {/* LA NOTE PUBLIQUE ET LA VÔTRE, CÔTE À CÔTE. C'est l'écart
+                  qui dit quelque chose, et il ne se lit pas sur deux
+                  écrans différents. */}
+          <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 10 }}>
+            {shown.tmdbRating != null && (
+              <span style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>
+                {t("facts.tmdbRating")} {shown.tmdbRating.toFixed(1)} / 10
+              </span>
+            )}
+            {inBinder && shown.rating > 0 && (
+              <span
                 style={{
                   fontFamily: F.mono,
                   fontSize: 10,
-                  color: C.inkFaded,
-                  marginTop: 4,
-                  letterSpacing: 0.5,
+                  color: C.ochre,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 3,
                 }}
               >
-                {[
-                  shown.year || null,
-                  shown.runtime != null ? t("tonight.runtime", { minutes: shown.runtime }) : null,
-                  countries || null,
-                  shown.language ? languageName(shown.language, i18n.language) : null,
-                ]
-                  .filter(Boolean)
-                  .join("  ·  ")}
-              </div>
-
-              {directors.length > 0 && (
-                <div style={{ fontFamily: F.body, fontSize: 14, color: C.ink, marginTop: 6 }}>
-                  <Names names={directors.map((d) => d.name)} onOpenPerson={onOpenPerson} />
-                </div>
-              )}
-
-              {(shown.genres || []).length > 0 && (
-                <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 8 }}>
-                  {shown.genres.map((g) => (
-                    <span
-                      key={g}
-                      style={{
-                        fontFamily: F.mono,
-                        fontSize: 9,
-                        letterSpacing: 0.5,
-                        color: C.inkFaded,
-                        border: `1px solid ${C.line}`,
-                        padding: "2px 6px",
-                      }}
-                    >
-                      {g}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {/* LA NOTE PUBLIQUE ET LA VÔTRE, CÔTE À CÔTE. C'est l'écart
-                  qui dit quelque chose, et il ne se lit pas sur deux
-                  écrans différents. */}
-              <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 10 }}>
-                {shown.tmdbRating != null && (
-                  <span style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>
-                    {t("facts.tmdbRating")} {shown.tmdbRating.toFixed(1)} / 10
-                  </span>
-                )}
-                {inBinder && shown.rating > 0 && (
-                  <span
-                    style={{
-                      fontFamily: F.mono,
-                      fontSize: 10,
-                      color: C.ochre,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 3,
-                    }}
-                  >
-                    <Star size={10} />
-                    {t("quick.yours", { rating: shown.rating })}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {busy && <Waiting lines={3} label={t("quick.asking")} />}
-          {trouble && <Trouble>{trouble}</Trouble>}
-
-          {/* ------------- CE QUE LE FILM EST ------------- */}
-          <Section title={t("quick.synopsis")}>
-            {shown.synopsis ? (
-              <p
-                style={{
-                  fontFamily: F.body,
-                  fontSize: 14,
-                  lineHeight: 1.55,
-                  color: C.ink,
-                  margin: 0,
-                }}
-              >
-                {shown.synopsis}
-              </p>
-            ) : (
-              <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded }}>
-                {t(apiKey && film.tmdbId ? "quick.noSynopsis" : "quick.noSynopsisOffline")}
-              </div>
+                <Star size={10} />
+                {t("quick.yours", { rating: shown.rating })}
+              </span>
             )}
-          </Section>
+          </div>
+        </div>
+      </div>
 
-          {/* ------------- CE QU'ON EN VOIT -------------
+      {busy && <Waiting lines={3} label={t("quick.asking")} />}
+      {trouble && <Trouble>{trouble}</Trouble>}
+
+      {/* ------------- CE QUE LE FILM EST ------------- */}
+      <Section title={t("quick.synopsis")}>
+        {shown.synopsis ? (
+          <p
+            style={{
+              fontFamily: F.body,
+              fontSize: 14,
+              lineHeight: 1.55,
+              color: C.ink,
+              margin: 0,
+            }}
+          >
+            {shown.synopsis}
+          </p>
+        ) : (
+          <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded }}>
+            {t(apiKey && film.tmdbId ? "quick.noSynopsis" : "quick.noSynopsisOffline")}
+          </div>
+        )}
+      </Section>
+
+      {/* ------------- CE QU'ON EN VOIT -------------
               Sous le résumé, parce qu'on lit d'abord et qu'on regarde
               ensuite ; et ce sont des images de TMDB, jamais les
               captures de quelqu'un. */}
-          {/* VOS CAPTURES REMPLACENT LES PLANS DE TMDB, quand il y en
+      {/* VOS CAPTURES REMPLACENT LES PLANS DE TMDB, quand il y en
               a et que la fiche est au classeur. Ce qu'on a photographié
               soi-même dit mieux ce que le film nous a fait que six plans
               choisis par un catalogue — et pour un film qu'on n'a pas
               vu, il n'y a rien à remplacer, donc les plans restent. */}
-          {mine.length > 0 ? (
-            <FrameStrip shots={mine} title={shown.title} label={t("stills.theFilmStrip")} />
-          ) : (
-            <FrameStrip shots={shotsOfFrames(shown.frames ?? [])} title={shown.title} />
-          )}
+      {mine.length > 0 ? (
+        <FrameStrip shots={mine} title={shown.title} label={t("stills.theFilmStrip")} />
+      ) : (
+        <FrameStrip shots={shotsOfFrames(shown.frames ?? [])} title={shown.title} />
+      )}
 
-          {/* ------------- QUI L'A FAIT ------------- */}
-          <Section title={t("quick.people")}>
-            {TRADES.map((key) => (
-              <Fact key={key} name={t(`roles.${key}`).toUpperCase()}>
-                <Names names={crew[key] || []} onOpenPerson={onOpenPerson} />
-              </Fact>
-            ))}
-            <Fact name={t("facts.cast")}>
-              <Names names={shown.cast || []} separator=" · " onOpenPerson={onOpenPerson} />
-            </Fact>
-          </Section>
+      {/* ------------- QUI L'A FAIT ------------- */}
+      <Section title={t("quick.people")}>
+        {TRADES.map((key) => (
+          <Fact key={key} name={t(`roles.${key}`).toUpperCase()}>
+            <Names names={crew[key] || []} onOpenPerson={onOpenPerson} />
+          </Fact>
+        ))}
+        <Fact name={t("facts.cast")}>
+          <Names names={shown.cast || []} separator=" · " onOpenPerson={onOpenPerson} />
+        </Fact>
+      </Section>
 
-          {/* ------------- LES MOTS ------------- */}
-          <Section title={t("quick.words")}>
-            <Fact name={t("facts.keywords")}>
-              {shown.keywords?.length ? shown.keywords.join(" · ") : EMPTY}
-            </Fact>
-            <Fact name={t("quick.motifs")}>{motifs.length ? motifs.join(" · ") : EMPTY}</Fact>
-            <Fact name={t("quick.themes")}>
-              {(shown.themes || []).length ? shown.themes.join(" · ") : EMPTY}
-            </Fact>
-          </Section>
+      {/* ------------- LES MOTS ------------- */}
+      <Section title={t("quick.words")}>
+        <Fact name={t("facts.keywords")}>
+          {shown.keywords?.length ? shown.keywords.join(" · ") : EMPTY}
+        </Fact>
+        <Fact name={t("quick.motifs")}>{motifs.length ? motifs.join(" · ") : EMPTY}</Fact>
+        <Fact name={t("quick.themes")}>
+          {(shown.themes || []).length ? shown.themes.join(" · ") : EMPTY}
+        </Fact>
+      </Section>
 
-          {/* ------------- CE QUE VOUS EN AVEZ FAIT -------------
+      {/* ------------- CE QUE VOUS EN AVEZ FAIT -------------
               Muet hors du classeur : une note à zéro et zéro séance
               AFFIRMERAIENT qu'on n'a pas aimé un film qu'on n'a pas vu. */}
-          {inBinder && (
-            <Section title={t("quick.yourPart")}>
-              <Fact name={t("quick.status")}>
-                {/* Les deux clés en toutes lettres et non `status.${x}` :
+      {inBinder && (
+        <Section title={t("quick.yourPart")}>
+          <Fact name={t("quick.status")}>
+            {/* Les deux clés en toutes lettres et non `status.${x}` :
                     une clé calculée échappe au test des catalogues, qui
                     ne peut plus dire qu'il en manque une. */}
-                {t(shown.status === "watched" ? "quick.seen" : "quick.toSee")}
-                {shown.bedside && ` · ${t("quick.bedside")}`}
-                {shown.archived && ` · ${t("quick.archived")}`}
-              </Fact>
-              <Fact name={t("quick.screenings")}>
-                {watched > 0 ? t("quick.screeningCount", { count: watched }) : EMPTY}
-                {shown.watchedAt ? ` · ${shown.watchedAt}` : ""}
-              </Fact>
-              <Fact name={t("quick.review")}>
-                {shown.review ? (
-                  <span style={{ fontFamily: F.hand, fontSize: 16 }}>{shown.review}</span>
-                ) : (
-                  EMPTY
-                )}
-              </Fact>
-              <Fact name={t("quick.notes")}>
-                {shown.notes ? (
-                  <span style={{ fontFamily: F.hand, fontSize: 16 }}>{shown.notes}</span>
-                ) : (
-                  EMPTY
-                )}
-              </Fact>
-            </Section>
-          )}
-
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 20 }}>
-            {action}
-            {onOpenFilm && (
-              <button onClick={onOpenFilm} style={{ ...inked(C.ink), ...hollow }}>
-                {t("quick.openCard")}
-              </button>
+            {t(shown.status === "watched" ? "quick.seen" : "quick.toSee")}
+            {shown.bedside && ` · ${t("quick.bedside")}`}
+            {shown.archived && ` · ${t("quick.archived")}`}
+          </Fact>
+          <Fact name={t("quick.screenings")}>
+            {watched > 0 ? t("quick.screeningCount", { count: watched }) : EMPTY}
+            {shown.watchedAt ? ` · ${shown.watchedAt}` : ""}
+          </Fact>
+          <Fact name={t("quick.review")}>
+            {shown.review ? (
+              <span style={{ fontFamily: F.hand, fontSize: 16 }}>{shown.review}</span>
+            ) : (
+              EMPTY
             )}
-            <button onClick={onClose} style={{ ...inked(C.ink), ...hollow }}>
-              {t("quick.close")}
-            </button>
-          </div>
-        </div>
+          </Fact>
+          <Fact name={t("quick.notes")}>
+            {shown.notes ? (
+              <span style={{ fontFamily: F.hand, fontSize: 16 }}>{shown.notes}</span>
+            ) : (
+              EMPTY
+            )}
+          </Fact>
+        </Section>
+      )}
+
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 20 }}>
+        {action}
+        {onOpenFilm && (
+          <button onClick={onOpenFilm} style={{ ...inked(C.ink), ...hollow }}>
+            {t("quick.openCard")}
+          </button>
+        )}
+        <button onClick={onClose} style={{ ...inked(C.ink), ...hollow }}>
+          {t("quick.close")}
+        </button>
       </div>
-    </Layer>
+    </Sheet>
   );
 }
