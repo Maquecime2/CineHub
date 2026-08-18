@@ -235,6 +235,7 @@ describe("the rest of the binder", () => {
     const { CUSTOM_DECOR_KEY, HIDDEN_DECOR_KEY } = await import("./customDecor");
     const { THREADS_KEY } = await import("./threads");
     const { BONDS_KEY, COURSES_KEY } = await import("./lineage");
+    const { WATCH_KEY } = await import("./letterboxdWatch");
     const { KEYS } = await import("./storage");
 
     for (const key of [
@@ -245,6 +246,7 @@ describe("the rest of the binder", () => {
       THREADS_KEY,
       BONDS_KEY,
       COURSES_KEY,
+      WATCH_KEY,
       KEYS.notes,
       KEYS.dividers,
     ]) {

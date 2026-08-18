@@ -22,6 +22,8 @@ import {
   RELAY_KEY,
   LetterboxdError,
 } from "../../services/letterboxd";
+import { loadWatch, onWatchChanged, patchWatch } from "../../services/letterboxdWatch";
+import { serverConfigured } from "../../services/server";
 import { enrichRows, checkApiKey } from "../../tmdb";
 import { BackupPanel } from "./BackupPanel";
 import { CompletePanel } from "./CompletePanel";
@@ -149,6 +151,16 @@ export function ImportView({
      relay stays folded away: nobody should have to look at it as long as
      it works. */
   const [lbUser, setLbUser] = useState(() => store.get(USER_KEY, ""));
+  /* L'INTERRUPTEUR DE LA VEILLE. Il lit le document syncable et non une
+     clé locale : le réglage suit le compte d'un appareil à l'autre. */
+  const [watching, setWatching] = useState(() => loadWatch().on);
+  /* La date de la dernière lecture RÉUSSIE, relue à chaque montage : la
+     veille tourne ailleurs, cet écran ne fait que la regarder. */
+  const [lastRead, setLastRead] = useState(() => loadWatch().feedAt);
+  useEffect(() => {
+    const stop = onWatchChanged(() => setLastRead(loadWatch().feedAt));
+    return stop;
+  }, []);
   const [relay, setRelay] = useState(() => store.get(RELAY_KEY, DEFAULT_RELAY));
   const [showRelay, setShowRelay] = useState(false);
   const [feeding, setFeeding] = useState(false);
@@ -216,6 +228,10 @@ export function ImportView({
     try {
       const { rows: parsed, stats: s, kind } = await fetchLetterboxdFeed(lbUser, relay);
       store.set(USER_KEY, lbUser.trim().replace(/^@/, ""));
+      /* LE PSEUDO SUIT, SI LA VEILLE EST ALLUMÉE. Sans cette ligne, on
+         change de compte ici et la veille continue de relever l'ancien —
+         en silence, puisqu'elle ne dit jamais rien. */
+      if (watching) patchWatch({ handle: lbUser.trim().replace(/^@/, "") });
       store.set(RELAY_KEY, relay.trim() || DEFAULT_RELAY);
       setRows(parsed);
       setStats(s);
@@ -259,6 +275,7 @@ export function ImportView({
         onProgress: (done, total) => setPages({ done, total }),
       });
       store.set(USER_KEY, pseudo);
+      if (watching) patchWatch({ handle: pseudo });
       store.set(RELAY_KEY, relay.trim() || DEFAULT_RELAY);
       setRows(parsed);
       setStats(s);
@@ -552,6 +569,69 @@ export function ImportView({
             </button>
           ))}
         </div>
+
+        {/* LA VEILLE, LÀ OÙ LE PSEUDO SE TAPE DÉJÀ.
+
+            Pas d'écran de réglages neuf : c'est ici la maison de
+            Letterboxd dans ce produit, et un réglage rangé ailleurs que
+            devant la chose qu'il commande est un réglage qu'on ne
+            retrouve pas.
+
+            IL FAUT UN SERVEUR, et l'interrupteur ne se montre pas sans
+            lui : c'est par le relais maison que la veille lit, et c'est
+            le document synchronisé qui retient ce qu'on a écarté. Sans
+            compte, les deux boutons ci-dessus continuent de marcher —
+            l'import à la main n'a jamais rien demandé. */}
+        {serverConfigured() && (
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              marginTop: 12,
+              fontFamily: F.body,
+              fontSize: 13,
+              color: C.inkFaded,
+              cursor: lbUser.trim() ? "pointer" : "not-allowed",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={watching}
+              disabled={!lbUser.trim()}
+              onChange={(e) => {
+                const on = e.target.checked;
+                setWatching(on);
+                patchWatch({ on, handle: lbUser.trim().replace(/^@/, "") });
+              }}
+            />
+            {t("letterboxdWatch.setting")}
+          </label>
+        )}
+
+        {/* CE QU'ELLE A FAIT, EN TOUTES LETTRES.
+
+            L'échec de la veille est MUET par construction — c'est une
+            décoration, pas un chargement de page — et sans cette ligne,
+            « elle n'a rien trouvé » et « elle n'a jamais réussi à lire »
+            étaient rigoureusement le même écran : rien. On ne pouvait
+            pas savoir si elle tournait. Une date répond à la question
+            sans réveiller personne. */}
+        {serverConfigured() && watching && (
+          <div
+            style={{
+              fontFamily: F.mono,
+              fontSize: 10.5,
+              color: C.inkFaded,
+              marginTop: 6,
+              paddingLeft: 22,
+            }}
+          >
+            {lastRead
+              ? t("letterboxdWatch.lastRead", { when: new Date(lastRead).toLocaleString() })
+              : t("letterboxdWatch.neverRead")}
+          </div>
+        )}
 
         {/* The relay, folded away. Letterboxd does not allow its feed
             to be read from another site: an intermediary is needed, and

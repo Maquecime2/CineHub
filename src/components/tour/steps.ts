@@ -444,6 +444,21 @@ const program: Tour = {
       ...says("program", "bond"),
       placement: "bottom",
     },
+    /* `program-harvest` EST LE VOISIN DE `program-bond`, monté au même
+       endroit et donc pas plus facultatif que lui. `program-hints`, en
+       revanche, vit dans le panneau d'un nœud CLIQUÉ : il faut un
+       cinéaste sur la carte, donc du contenu. */
+    {
+      target: at("program-harvest"),
+      ...says("program", "harvest"),
+      placement: "bottom",
+    },
+    {
+      target: at("program-hints"),
+      ...says("program", "hints"),
+      placement: "top",
+      optional: true,
+    },
     {
       target: at("program-order"),
       ...says("program", "order"),
@@ -583,10 +598,11 @@ const global: Tour = {
        tour, where one arrives with what one has. */
     ...from("reco", reco, "reco-maison"),
     ...from("constellation", constellation, "constellation-start", "constellation-teams"),
-    /* `program-add` ET `program-bond`, les deux ancres toujours montées.
+    /* `program-add`, `program-bond` ET `program-harvest`, les ancres
+       toujours montées.
        La file et la carte sont du contenu : sur le classeur neuf que la
        visite globale accompagne, elles n'existent pas encore. */
-    ...from("program", program, "program-add", "program-bond"),
+    ...from("program", program, "program-add", "program-bond", "program-harvest"),
     ...from("almanac", almanac, "almanac-year"),
     /* Le carnet se prend dans la visite du classeur, puisqu'il s'y
        ouvre : il n'a plus d'onglet, donc plus de visite à lui. */
@@ -615,6 +631,21 @@ const global: Tour = {
       ...says("global", "language"),
       placement: "right",
       view: "library",
+    },
+    /* LA VEILLE LETTERBOXD — `optional`, et pour la raison la plus
+       forte de toutes : cette action n'est montée QUE s'il y a quelque
+       chose à proposer. Sur un classeur neuf, sans compte Letterboxd
+       réglé, elle n'existe pas — et la visite doit se jouer en entier.
+
+       ELLE VISE LA PORTE ET NON LA FEUILLE : une visite ne peut pas
+       ouvrir une modale, et deux éléments portant la même ancre en
+       feraient viser un au hasard. */
+    {
+      target: at("letterboxd-watch"),
+      ...says("global", "letterboxd"),
+      placement: "right",
+      view: "library",
+      optional: true,
     },
     /* THE BINDER INSTALLS ITSELF — and the card that offers it does not
        always appear: the browser decides on its own that a site is

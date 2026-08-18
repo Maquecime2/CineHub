@@ -65,6 +65,8 @@ import { TmdbKeyPanel } from "./components/layout/TmdbKeyPanel";
 import { registerTmdbOpener } from "./services/tmdbKey";
 import { registerAccountOpener } from "./services/accountDoor";
 import { useSync } from "./hooks/useSync";
+import { useLetterboxd } from "./hooks/useLetterboxd";
+import { LetterboxdWatchSheet } from "./components/layout/LetterboxdWatchSheet";
 import { useInstallation } from "./hooks/useInstallation";
 /* The module only exists at build time: it is the plugin that makes it,
    with the address of the service worker it has just written. */
@@ -515,6 +517,13 @@ export default function App() {
     synchronise: rerunSync,
     noteAccount,
   } = useSync(loaded, setFilms, rereadDocuments);
+
+  /* LA VEILLE LETTERBOXD. Elle relit le compte toute seule — à
+     l'ouverture, au retour du réseau, quand l'onglet redevient visible,
+     et tous les quarts d'heure — et ne fait que PROPOSER : rien ne
+     s'écrit sans qu'on ait coché. Voir `hooks/useLetterboxd`. */
+  const vigil = useLetterboxd(loaded, films);
+  const [letterboxdOpen, setLetterboxdOpen] = useState(false);
 
   const installation = useInstallation();
   const {
@@ -1473,7 +1482,33 @@ export default function App() {
         onAccount={() => setAccountOpen(true)}
         sync={synchro.state}
         hallNews={hallNews}
+        letterboxdCount={vigil.count}
+        letterboxdTrouble={vigil.failed}
+        onLetterboxd={() => setLetterboxdOpen(true)}
       />
+      {letterboxdOpen && (
+        <LetterboxdWatchSheet
+          proposal={vigil.proposal}
+          busy={vigil.busy}
+          filling={vigil.filling}
+          failed={vigil.failed}
+          onRefresh={vigil.refresh}
+          onSettle={async (chosen) => {
+            /* LE MÊME CHEMIN D'ÉCRITURE QUE L'IMPORT MANUEL, et pas un
+               second : `settle` rend un `ImportDiff`, donc la même
+               fusion, la même écriture et la même passe de synchro
+               derrière. Ce qui n'a pas été coché est écarté par le hook,
+               et ne reviendra plus sur aucun appareil. */
+            /* ON ATTEND, parce que `settle` demande maintenant à TMDB
+               de compléter ce qui a été coché avant de rendre les
+               fiches : refermer sans attendre écrirait les lignes nues
+               et perdrait la passe qu'on vient de payer. */
+            importFilms(await vigil.settle(chosen));
+            setLetterboxdOpen(false);
+          }}
+          onClose={() => setLetterboxdOpen(false)}
+        />
+      )}
       {accountOpen && (
         <AccountDrawer
           report={synchro}

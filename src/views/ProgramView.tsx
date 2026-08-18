@@ -49,7 +49,15 @@
    to state one thing, which is why nobody stated it.
 
    AND IT NEVER ERASES a step whose card has left the collection: it says
-   how many it is not drawing, and leaves them alone. */
+   how many it is not drawing, and leaves them alone.
+
+   THE BONDS ARE NOW OFFERED AS WELL, AND NEVER WRITTEN. Nobody knows by
+   heart who taught whom, so an empty form asking for two names meant a
+   fresh binder drew a map with not one edge on it — and therefore a run
+   no step could justify. `HintHarvest` sweeps the binder's film-makers,
+   `NodePanel` asks about the one clicked, and BOTH end in this form:
+   `tieHint` fills it in, `submit()` has not one line for a suggestion,
+   and `makeBond` -> `hasBond` -> `contradicts` stay the one door. */
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Route } from "lucide-react";
@@ -66,6 +74,7 @@ import { FilmPicker } from "../components/film/FilmPicker";
 import { LineageMap, MapToggle } from "../components/program/LineageMap";
 import { BondForm } from "../components/program/BondForm";
 import { NodePanel } from "../components/program/NodePanel";
+import { HintHarvest } from "../components/program/HintHarvest";
 import { FilmQuickView } from "../components/film/FilmQuickView";
 import { normalize } from "../domain/search";
 import {
@@ -81,7 +90,10 @@ import {
 } from "../domain/course";
 import type { Course } from "../domain/course";
 import { buildLineage } from "../domain/lineageMap";
-import type { Bond } from "../domain/bonds";
+import { bondLabel } from "../domain/bonds";
+import type { Bond, BondKind } from "../domain/bonds";
+import { HINT_MARK, hintedBonds, isHinted, readCreditNote } from "../domain/hints";
+import type { Hint } from "../domain/hints";
 import { useViewport } from "../hooks/useViewport";
 import type { Film } from "../types";
 
@@ -91,6 +103,10 @@ interface Linking {
   to?: string;
   /** L'étape à faire pointer sur le lien une fois posé, s'il y en a une. */
   forStep?: string;
+  /** La nature proposée, quand le lien vient d'une piste. */
+  kind?: BondKind;
+  /** La note proposée — un renvoi à la source, jamais une phrase. */
+  note?: string;
 }
 
 interface ProgramViewProps {
@@ -135,6 +151,7 @@ export function ProgramView({
       regarde un cinéaste, c'est même tout l'intérêt. */
   const [pickedStep, setPickedStep] = useState<string | null>(null);
   const [linking, setLinking] = useState<Linking | null>(null);
+  const [harvesting, setHarvesting] = useState(false);
   /**
    * Ce qu'on regarde en entier, par-dessus le plan. La FICHE et non son
    * identifiant : un aperçu venu de TMDB n'est pas au classeur, donc
@@ -242,6 +259,26 @@ export function ProgramView({
       },
     });
 
+  /* REPRENDRE CE QU'UNE MOISSON A SEMÉ. Balayer tout un classeur peut
+     couvrir la carte de liens qu'on ne voulait pas, et les retirer un
+     par un serait le prix d'un seul clic mal placé. La confirmation dit
+     ce qui SURVIT : ce qu'on a écrit soi-même ne bouge pas — c'est la
+     note qui fait la différence, donc récrire celle d'un lien proposé le
+     met à l'abri. */
+  const hinted = useMemo(() => hintedBonds(bonds), [bonds]);
+
+  const askForgetHinted = () =>
+    setRequest({
+      title: t("program.confirmForgetHinted", { count: hinted.length }),
+      body: t("program.confirmForgetHintedBody"),
+      action: t("program.forgetHinted", { count: hinted.length }),
+      severe: true,
+      onConfirm: () => {
+        onBonds(bonds.filter((b) => !isHinted(b)));
+        setFocusBond(null);
+      },
+    });
+
   /* LE RETRAIT EN BLOC PASSE PAR LA MÊME PORTE QUE LES DEUX AUTRES, et
      dit ce qui SURVIT : les fiches restent au classeur, seul l'ordre et
      les notes de ces entrées-là s'en vont. Retirer UNE étape n'a pas de
@@ -282,14 +319,49 @@ export function ProgramView({
   const tieBond = (from: string, to?: string, forStep?: string) =>
     setLinking({ from, ...(to ? { to } : {}), ...(forStep ? { forStep } : {}) });
 
+  /* UNE PISTE REMPLIT LE FORMULAIRE, ELLE NE L'OUTREPASSE PAS. Les deux
+     noms, la nature et la note arrivent posés ; `submit()` n'a pas une
+     ligne pour elle, et c'est tout l'intérêt — une suggestion passe la
+     même porte qu'un nom tapé de mémoire. */
+  const tieHint = (hint: Hint, forStep?: string) =>
+    setLinking({
+      from: hint.fromName,
+      to: hint.toName,
+      kind: hint.kind,
+      note: hint.note,
+      ...(forStep ? { forStep } : {}),
+    });
+
   const bondButton = (
-    <button
-      data-tour="program-bond"
-      onClick={() => tieBond("")}
-      style={{ ...inked(C.plum), fontFamily: F.mono }}
-    >
-      {t("program.addBond")}
-    </button>
+    <>
+      <button
+        data-tour="program-bond"
+        onClick={() => tieBond("")}
+        style={{ ...inked(C.plum), fontFamily: F.mono }}
+      >
+        {t("program.addBond")}
+      </button>
+      {/* LA VISITE VISE LA PORTE, JAMAIS LA FEUILLE : une visite ne peut
+          pas ouvrir une modale. */}
+      <button
+        data-tour="program-harvest"
+        onClick={() => setHarvesting(true)}
+        style={{ ...inked(C.ink), ...hollow, fontFamily: F.mono }}
+      >
+        {t("program.harvest")}
+      </button>
+      {/* N'APPARAÎT QUE S'IL Y A DE QUOI REPRENDRE : un bouton de
+          retrait sur une carte qu'on a écrite à la main ne désigne
+          rien. */}
+      {hinted.length > 0 && (
+        <button
+          onClick={askForgetHinted}
+          style={{ ...inked(C.ink), ...hollow, color: C.burgundy, fontFamily: F.mono }}
+        >
+          {t("program.forgetHinted", { count: hinted.length })}
+        </button>
+      )}
+    </>
   );
 
   return (
@@ -379,7 +451,7 @@ export function ProgramView({
               onAddAll={add}
               onOpenPerson={onOpenPerson}
               onPickBond={pickBond}
-              onAddBond={(name) => tieBond(name)}
+              onAddBond={(name, hint) => (hint ? tieHint(hint) : tieBond(name))}
               onClose={() => setFocusKey(null)}
             />
           )}
@@ -388,7 +460,7 @@ export function ProgramView({
             du SVG : une croix de six pixels sur un trait qu'on peut
             déplacer est une cible qu'on rate. */}
           {focusBond && (
-            <BondRemoval bond={bonds.find((b) => b.id === focusBond)} onRemove={askRemoveBond} />
+            <BondDetail bond={bonds.find((b) => b.id === focusBond)} onRemove={askRemoveBond} />
           )}
         </div>
       )}
@@ -449,12 +521,23 @@ export function ProgramView({
         />
       </div>
 
+      {harvesting && (
+        <HintHarvest
+          films={films}
+          bonds={bonds}
+          onLay={(laid) => onBonds([...bonds, ...laid])}
+          onClose={() => setHarvesting(false)}
+        />
+      )}
+
       {linking !== null && (
         <BondForm
           films={films}
           bonds={bonds}
           from={linking.from}
           to={linking.to}
+          kind={linking.kind}
+          note={linking.note}
           onSave={saveBond}
           onClose={() => setLinking(null)}
         />
@@ -501,19 +584,62 @@ export function ProgramView({
 }
 
 /** Le retrait d'un lien, une fois qu'on l'a choisi sur la carte. */
-function BondRemoval({ bond, onRemove }: { bond?: Bond; onRemove: (bond: Bond) => void }) {
+/* ============================================================
+   CE QU'UNE ARÊTE DIT QUAND ON LA CHOISIT
+   ============================================================
+
+   ELLE NE DISAIT QUE SA NOTE, ET UNE NOTE N'EST PAS UN LIEN. On lisait
+   « Wikidata P1066 » — une référence, écrite pour la machine — au-dessus
+   d'un bouton de retrait, sans les deux noms, sans la nature, sans le
+   sens. Le seul endroit du produit où l'on regarde un lien EN
+   PARTICULIER était le seul à ne pas l'énoncer.
+
+   ET LA PROVENANCE SE DIT EN TOUTES LETTRES. `Bond.note` reste une
+   référence sur le disque — y écrire du français figerait la langue du
+   jour dans les données — mais l'ÉCRAN la traduit. C'est la règle de
+   `threadLabel` : la donnée est une clé, l'affichage lit le catalogue. */
+function BondDetail({ bond, onRemove }: { bond?: Bond; onRemove: (bond: Bond) => void }) {
   const { t } = useTranslation();
   if (!bond) return null;
+  const hinted = isHinted(bond);
+  const credit = readCreditNote(bond.note);
   return (
-    <div style={{ marginTop: 12 }}>
+    /* UN NOM, PARCE QUE ÇA PARAÎT SANS PRÉVENIR. Ce bloc s'ouvre quand
+       on choisit une arête, loin du geste au lecteur d'écran, et le
+       miroir en liste de la carte énonce déjà les mêmes phrases : sans
+       nom, rien ne distingue les deux. */
+    <div
+      role="group"
+      aria-label={t("program.bondDetail")}
+      style={{ marginTop: 12, borderTop: `1px solid ${C.line}`, paddingTop: 10 }}
+    >
+      <div style={{ fontFamily: F.body, fontSize: 15, color: C.ink }}>
+        <strong style={{ fontWeight: 600 }}>{bond.fromName}</strong> {bondLabel(bond, bond.from, t)}
+      </div>
+
+      {/* LU DE L'AUTRE BOUT, et ce n'est pas une redite : « a pour
+          élève » et « a pour maître » sont la même ligne, et c'est
+          précisément le sens qu'on vient vérifier sur une arête. */}
+      <div style={{ fontFamily: F.body, fontSize: 13, color: C.inkFaded, marginTop: 2 }}>
+        <strong style={{ fontWeight: 600 }}>{bond.toName}</strong> {bondLabel(bond, bond.to, t)}
+      </div>
+
       {bond.note && (
-        <div style={{ fontFamily: F.hand, fontSize: 17, color: C.inkFaded, marginBottom: 6 }}>
-          {bond.note}
+        <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded, marginTop: 6 }}>
+          {credit
+            ? t("program.bondFromCredits", {
+                role: t(`roles.${credit.role}`),
+                count: credit.n,
+              })
+            : hinted
+              ? t("program.bondFromHint", { prop: bond.note.slice(HINT_MARK.length) })
+              : bond.note}
         </div>
       )}
+
       <button
         onClick={() => onRemove(bond)}
-        style={{ ...inked(C.ink), ...hollow, color: C.burgundy }}
+        style={{ ...inked(C.ink), ...hollow, color: C.burgundy, marginTop: 8 }}
       >
         {t("program.removeBond")}
       </button>

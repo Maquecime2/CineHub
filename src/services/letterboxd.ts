@@ -30,17 +30,30 @@
    WHY A RELAY. Letterboxd returns no `Access-Control-Allow-Origin`
    header on its feed: the browser refuses to read the response, whatever
    is done on the application's side. An intermediary is needed, one that
-   does allow the reading. There are two here, and the rest of the
+   does allow the reading. There are three here, and the rest of the
    application has no business knowing which one serves:
 
      - IN DEVELOPMENT, the Vite server relays by itself (see
        `server.proxy` in `vite.config.ts`). No third party, nothing to
        set up.
-     - ONLINE, the site is a STATIC GitHub Pages: there is no server of
-       ours to relay. So we go through a public relay, and the address is
-       a setting — whoever deploys their own (see
-       `docs/relais-letterboxd.md`) pastes it in and depends on nobody
-       any more. */
+     - WITH A SERVER OF OURS, we relay ourselves: `registerRelays` has
+       had a Letterboxd door since the day the community half existed.
+     - WITHOUT ONE, a public relay, whose address is a setting — whoever
+       deploys their own (see `docs/relais-letterboxd.md`) pastes it in
+       and depends on nobody any more.
+
+   THAT SECOND BRANCH WAS MISSING FOR A LONG TIME, AND THE COMMENT HERE
+   ARGUED FOR ITS ABSENCE: it said the site was a STATIC GitHub Pages
+   with "no server of ours to relay". That stopped being true, and
+   nothing brought it back into line — so every reading went on going
+   through a third party that had no need to see anything.
+
+   It only became a real problem the day the binder started reading that
+   account BY ITSELF, on a timer (`hooks/useLetterboxd`). A public relay
+   seeing one username go past when somebody clicks "import" is one
+   thing; seeing everybody's, every quarter of an hour, for ever, is
+   another. */
+import { ADDRESS, serverConfigured } from "./server";
 import { store } from "./storage";
 import { filmKey, parseRating } from "../domain/importing";
 import { mergeWatches } from "../domain/film";
@@ -56,23 +69,34 @@ export const DEFAULT_RELAY = "https://corsproxy.io/?url={url}";
 
 const cleanUser = (user: string) => user.trim().replace(/^@/, "");
 
-/* The path, once and for all: the two addresses below differ only by
-   it, and it is the only thing that changes between the dev server,
-   which relays by itself, and the public relay. */
-const lbUrl = (path: string, relay?: string): string => {
+/* The path at Letterboxd, once and for all: the addresses below differ
+   only by it, and it is the only thing that changes between the dev
+   server, which relays by itself, and the public relay.
+
+   `ours` is the SAME thing on our own server — not derived from `path`,
+   because our routes are not a mirror of Letterboxd's tree and pretending
+   otherwise would make one of the two impossible to change. */
+const lbUrl = (path: string, ours: string, relay?: string): string => {
   if (import.meta.env.DEV) return `/lb-rss/${path}`;
+  if (serverConfigured()) return `${ADDRESS}${ours}`;
   const tpl = (relay ?? store.get(RELAY_KEY, DEFAULT_RELAY)).trim() || DEFAULT_RELAY;
   return tpl.replace("{url}", encodeURIComponent(`https://letterboxd.com/${path}`));
 };
 
 /** The address to call to read `user`'s feed, relay included. */
 export function feedUrl(user: string, relay?: string): string {
-  return lbUrl(`${encodeURIComponent(cleanUser(user))}/rss/`, relay);
+  const pseudo = encodeURIComponent(cleanUser(user));
+  return lbUrl(`${pseudo}/rss/`, `/letterboxd/${pseudo}`, relay);
 }
 
 /** The address of one watchlist page. Letterboxd numbers them from 1. */
 export function watchlistUrl(user: string, page = 1, relay?: string): string {
-  return lbUrl(`${encodeURIComponent(cleanUser(user))}/watchlist/page/${page}/`, relay);
+  const pseudo = encodeURIComponent(cleanUser(user));
+  return lbUrl(
+    `${pseudo}/watchlist/page/${page}/`,
+    `/letterboxd/${pseudo}/watchlist/${page}`,
+    relay
+  );
 }
 
 /* A namespaced field is read by its FULL name, prefix included:

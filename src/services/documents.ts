@@ -77,6 +77,7 @@ const SYNCABLE_KEYS = [
   "shelf-decor-hidden",
   "filiations",
   "parcours",
+  "letterboxd",
 ];
 
 /**
@@ -101,7 +102,7 @@ const SYNCABLE_KEYS = [
  * c'est-à-dire en perdant contre tout ce que le serveur tient déjà :
  * rattraper ne doit écraser personne.
  */
-export const SYNCABLE_VERSION = 3;
+export const SYNCABLE_VERSION = 4;
 
 export const isSyncable = (key: string): boolean =>
   SYNCABLE_KEYS.includes(key) || SYNCABLE_PREFIXES.some((p) => key.startsWith(p));

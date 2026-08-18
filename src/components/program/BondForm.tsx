@@ -16,6 +16,14 @@
    guessing that two names are one person is how a map quietly merges
    two film-makers nobody asked it to merge.
 
+   IT FILLS IN, AND IT IS STILL THE DOOR. A filiation hint arrives here
+   with both names, a kind and a note already chosen, and `submit()` has
+   not one line for it: `makeBond` -> `hasBond` -> `contradicts` run on a
+   suggestion exactly as they run on a name typed from memory. A hint
+   that wrote itself straight into `filiations` would become
+   indistinguishable from what somebody knows — and it would
+   synchronise.
+
    IT IS A LAYER, SO IT GOES THROUGH `Layer` — `[data-enters]` carries a
    transform during the view's entrance and would anchor a `fixed` panel
    to the column instead of the window. `useDialog` traps the focus and
@@ -44,17 +52,36 @@ interface BondFormProps {
    * demander, et pas un nom à retaper.
    */
   to?: string;
+  /**
+   * La nature déjà décidée — une piste de filiation en propose une.
+   *
+   * C'EST UN DÉPART ET NON UN VERROU : les quatre boutons restent là, et
+   * une suggestion qu'on ne pourrait pas corriger serait une suggestion
+   * qu'il faut croire.
+   */
+  kind?: BondKind;
+  /** La note de départ. Vide est le cas normal. */
+  note?: string;
   onSave: (bond: Bond) => void;
   onClose: () => void;
 }
 
-export function BondForm({ films, bonds, from = "", to = "", onSave, onClose }: BondFormProps) {
+export function BondForm({
+  films,
+  bonds,
+  from = "",
+  to = "",
+  kind: startKind = "master",
+  note: startNote = "",
+  onSave,
+  onClose,
+}: BondFormProps) {
   const { t } = useTranslation();
   const ref = useDialog(onClose);
   const [a, setA] = useState(from);
   const [b, setB] = useState(to);
-  const [kind, setKind] = useState<BondKind>("master");
-  const [note, setNote] = useState("");
+  const [kind, setKind] = useState<BondKind>(startKind);
+  const [note, setNote] = useState(startNote);
   const [trouble, setTrouble] = useState("");
 
   /* Les orthographes que la collection tient vraiment. Une seule liste

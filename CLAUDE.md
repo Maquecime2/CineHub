@@ -228,6 +228,184 @@ autres.
   connectés n'enverront JAMAIS ces documents — la pire perte, celle qu'on ne
   découvre qu'en changeant d'ordinateur.
 
+## ON PROPOSE UNE FILIATION, ON NE L'ÉCRIT JAMAIS
+
+La vue `lineage` tient l'ORDRE et les LIENS qui le justifient, et un lien ne
+naissait que d'un formulaire vide où l'on tape deux noms de mémoire. Personne ne
+sait par cœur qui a formé qui : un classeur neuf dessinait donc une carte sans
+une seule arête, donc un parcours qu'aucune étape ne pouvait justifier.
+
+**TMDB NE CONNAÎT AUCUNE FILIATION**, et c'est le fait qui décide de tout le
+reste. Il sait qui a travaillé sur quel film ; il n'a pas de « a formé ». La
+donnée existe dans **Wikidata**, en trois propriétés, avec un identifiant TMDB
+(P4985) qui fait la charnière avec un classeur qui ne connaît que des NOMS.
+
+- **LE SENS EST LE PIÈGE, ET IL EST INVERSÉ UNE FOIS SUR DEUX.** Wikidata énonce
+  depuis le SUJET : `P1066` « élève de » se lit « a est l'élève de b », alors que
+  `master` se lit « from a formé to ». Donc P1066 et P737 échangent les deux
+  bouts, P802 ne les échange pas. Se tromper **ne fait rien échouer** : ça
+  dessine une carte où les élèves ont formé leurs maîtres, et aucun écran ne le
+  dit. D'où un test par ligne du tableau, dans `domain/hints.test.ts`.
+- **UNE PISTE REMPLIT LE FORMULAIRE, ELLE NE L'OUTREPASSE PAS.** `Hint` n'a ni
+  `id` ni `at` et n'atteint jamais le disque seule : `tieHint` pose les deux noms,
+  la nature et la note, et `submit()` n'a **pas une ligne** pour elle —
+  `makeBond` → `hasBond` → `contradicts` restent la porte. Un savoir sur le
+  cinéma écrit par une machine dans `filiations` deviendrait indistinguable du
+  vôtre, et il se synchroniserait.
+- **LE FILTRE EST CELUI DU FORMULAIRE, JOUÉ EN AVANCE.** `usefulHints` refuse
+  d'avance ce que `submit()` refuserait : offrir un clic auquel on répond par une
+  plainte est le défaut exact que les motifs ont mis un chantier à perdre. Et il
+  **dédoublonne par `bondId`**, parce que P1066 et P802 énoncent la même
+  filiation des deux bouts et que le relais lit la graine des deux côtés.
+- **UN CINÉASTE INCONNU DU CLASSEUR EST GARDÉ.** `buildLineage` dessine déjà le
+  nœud `orphan`, et le maître de quelqu'un est très souvent quelqu'un dont on ne
+  possède aucun film — c'est précisément ce qu'on vient apprendre.
+- **`force` N'EST PAS DANS `Hint`** : il est DÉRIVÉ de la nature par `SPRING`
+  (`domain/lineageMap`). Le porter serait une seconde source pour une valeur, et
+  les deux dériveraient.
+- **LA NOTE EST UN RENVOI, JAMAIS UNE PHRASE** (`"Wikidata P1066"`).
+  `Bond.note` part sur le disque et se synchronise : y écrire du français
+  figerait la langue du jour dans les données de quelqu'un, exactement ce que
+  `threadLabel` évite en lisant le catalogue.
+
+### Le relais, et pourquoi ce n'est pas le navigateur
+
+`server/src/wikidata.ts` compose la requête, `relay.ts` tient la route
+`GET /lineage/hints?tmdb=…`. Deux raisons, et chacune suffirait :
+`query.wikidata.org` demande un **User-Agent descriptif** qu'aucune page ne peut
+poser, et relayer du SPARQL tel quel serait exactement l'open relay que la tête
+de `relay.ts` refuse. **Le serveur écrit la requête ; le client n'envoie que des
+chiffres** — bornés par `/^\d{1,9}(,\d{1,9})*$/` et cinquante au plus, la borne
+du relais Letterboxd et pour la même raison.
+
+- **LA GRAINE EST DES DEUX CÔTÉS** (`UNION`) : une seule direction manquait la
+  moitié du savoir — quelqu'un du classeur est aussi souvent nommé comme le
+  MAÎTRE d'un inconnu que comme son élève.
+- **UN PLAFOND À LUI, ET C'EST PARCE QUE C'EST GRATUIT.** Rien n'est facturé,
+  donc rien ne se plaindrait : ce qu'un client en boucle dépense est le crédit de
+  **notre adresse** auprès d'un point d'accès public et partagé, et il serait
+  écarté pour tout le monde. `DEFAULT_HINTS_CEILING = 60`.
+- **UN LIBELLÉ ABSENT REND LE Q-ITEM LUI-MÊME.** « Q131237 » n'est pas un nom de
+  cinéaste : il entrerait dans le classeur comme clé et resterait sur la carte
+  comme nœud. `readSparql` les jette.
+- **RIEN À DÉPLOYER, ET `SYNCABLE_VERSION` NE BOUGE PAS.** Les pistes sont un
+  CACHE (`"lineage-hints"`, une semaine, purge paresseuse au-delà de trois
+  cents), pas un document : aucune clé n'entre dans `SYNCABLE_KEYS`.
+- **ABSENT ET VIDE NE DISENT PAS LA MÊME CHOSE.** Wikidata ne sait rien de la
+  plupart des cinéastes ; classer « rien » comme « jamais demandé » renverrait la
+  moisson sur les mêmes cinquante noms à chaque fois, pour toujours. C'est la
+  règle déjà écrite pour `keywords` et `frames`.
+- **L'ÉCHEC REMONTE.** `Trouble` et `Nothing` ne sont pas le même écran, et la
+  vue ne peut les distinguer que si la levée traverse : pas de `.catch(() => {})`
+  sur un chargement. Et dans `useLineageHints`, **le `try` englobe l'APPEL et pas
+  seulement sa promesse** — un service qui lève avant de rendre une promesse
+  traverse un `.catch` et emporte tout le panneau, le défaut déjà réglé dans
+  `PeoplePicker` et dans l'écran de fin du quizz.
+
+### WIKIDATA COUVRE UN CENTIÈME, ET LE CLASSEUR SAIT LE RESTE
+
+**LE CHIFFRE DÉCIDE DE TOUT.** Sur les 61 668 réalisateurs que Wikidata relie à
+un identifiant TMDB, **404** portent P1066, **164** P802, **253** P737 — environ
+**1 %**. Mario Bava n'en porte aucune, dans aucun sens. Une fonction qui répond
+une fois sur cent n'aide pas à bâtir un programme, et ce qui sort de ce centième
+est surtout du P737 « influencé par » — le plus déclaratif des trois.
+
+**OR UNE FICHE GARDE `image`, `scénario` ET `musique`.** Un cinéaste au générique
+d'un film réalisé par un AUTRE cinéaste du classeur est un fait déjà rangé chez
+vous : Bava a éclairé les films de Freda, il suffit d'avoir un Freda. C'est
+`binderHints` — pur, hors ligne, sans quota, et c'est la moitié qui répond le
+plus souvent. Le réseau ne fait plus que COMPLÉTER.
+
+- **C'EST UNE AFFINITÉ, JAMAIS UN MAGISTÈRE.** « A éclairé trois films de » n'est
+  pas « a été formé par » : le premier est un fait, le second une lecture, et
+  c'est la vôtre. La piste propose `affinity` et dit sur quoi elle se fonde ;
+  promouvoir en `master` reste un geste dans le formulaire.
+- **L'INTERPRÉTATION EST ÉCARTÉE**, et `CREDIT_ROLES` ne tient que trois rôles :
+  un caméo chez un confrère est une anecdote, et les rôles d'acteur sont si
+  nombreux qu'ils rempliraient la carte de liens que personne n'a voulus.
+- **ON NE RETIENT QUE CEUX QUI RÉALISENT AUSSI**, quelque part dans le classeur.
+  Sans ce filtre, chaque chef opérateur de la collection deviendrait un nœud
+  d'une carte qui dessine des CINÉASTES.
+- **LES DEUX SOURCES SE REJOIGNENT DANS LE HOOK, PAS DANS LA VUE**, et
+  `usefulHints` les dédoublonne par `bondId` : Wikidata passe en premier, parce
+  qu'elle DIT ce que l'autre ne fait que suggérer.
+- **DEUX MARQUES DE PROVENANCE**, `HINT_MARK` et `CREDIT_MARK` — donc le retrait
+  en bloc les emporte toutes les deux. La note reste une DONNÉE
+  (`credits image 3`, un rôle de `PERSON_ROLES` et un compte) et l'écran la met
+  en mots par `roles.<rôle>` : y écrire du français figerait la langue du jour.
+- **LA SECTION NE DÉPEND PLUS DE LA CLÉ.** Seuls l'attente et l'échec du réseau
+  le sont ; les pistes du classeur s'affichent hors ligne et sans compte.
+
+### UN SEUL CINÉASTE EST LE DÉFAUT, ET CE QUI EST SEMÉ SE REPREND
+
+Le premier jet n'offrait que le BALAYAGE : un clic, et la carte se couvrait de
+dizaines de liens qu'on n'avait pas demandés, à retirer un par un. Une filiation
+se cherche en pensant à QUELQU'UN — « qui a formé Scorsese » — pas en
+interrogeant deux cents noms pour voir.
+
+- **LE CHAMP D'ABORD, LE BALAYAGE À CÔTÉ.** `HintHarvest` demande un nom
+  (`census`, la datalist de `BondForm`) et le bouton par défaut ne vise que lui.
+  Le balayage reste offert, **avec son compte écrit dessus** — c'est la seule
+  chose qui dise ce qu'on s'apprête à dépenser ET ce que la carte va recevoir.
+- **LA NOTE EST LA PROVENANCE, ET C'EST CE QUI REND LE RETRAIT POSSIBLE.**
+  `HINT_MARK` (`"Wikidata "`) est un CONTRAT : `hintFromLink` l'écrit, `isHinted`
+  le lit, rien d'autre ne l'écrit. Un champ `source` sur `Bond` aurait voyagé sur
+  le disque et se serait synchronisé, pour une information que la note portait
+  déjà. **Récrire la note met le lien à l'abri** : c'est le reprendre à son
+  compte, et le retrait en bloc doit le laisser tranquille.
+- **LA CONFIRMATION DIT CE QUI SURVIT** : ce qu'on a écrit soi-même ne bouge pas,
+  et les `Step.because` pendants ne sont PAS nettoyés — reposer le même lien rend
+  le même identifiant, donc rien n'est perdu. Le bouton n'existe que s'il y a de
+  quoi reprendre.
+
+### UNE ARÊTE CHOISIE S'ÉNONCE, ELLE NE SE RÉFÉRENCE PAS
+
+`BondDetail` ne montrait que `Bond.note` — « Wikidata P1066 », une référence
+écrite pour la machine — au-dessus d'un bouton de retrait. Sans les deux noms,
+sans la nature, sans le sens : le seul endroit du produit où l'on regarde un lien
+EN PARTICULIER était le seul à ne pas le dire.
+
+- **LES DEUX SENS, ET CE N'EST PAS UNE REDITE.** « a pour élève » et « a pour
+  maître » sont la même ligne lue des deux bouts, et le sens est précisément ce
+  qu'on vient vérifier sur une arête proposée par une machine.
+- **LA DONNÉE RESTE UNE CLÉ, L'ÉCRAN LA TRADUIT** (`program.bondFromHint`).
+  C'est la règle de `threadLabel` : écrire du français dans `Bond.note` figerait
+  la langue du jour dans les données de quelqu'un.
+- **IL PORTE UN NOM** (`role="group"`), parce qu'il paraît sans prévenir et que
+  le miroir en liste de la carte énonce déjà les mêmes phrases : sans nom, rien
+  ne distingue les deux au lecteur d'écran.
+
+### Deux emplacements, et la moisson est une FEUILLE
+
+- `NodePanel` — cliquer un cinéaste, c'est déjà demander « qu'est-ce qu'on sait de
+  lui » : c'est donc là que « on sait que quelqu'un l'a formé » a sa place. Trois
+  états (`Waiting`, `Nothing`, `Trouble`) et `hintsTouching`, parce que Wikidata
+  rend aussi les liens des voisins et qu'on mettrait sous Ozu une filiation entre
+  deux tiers.
+- `HintHarvest` — une `Sheet` et **pas une vue** : une vue coûterait une entrée
+  dans `View`, une place dans `GROUPS` et un tour dans `TOURS`, pour un geste
+  qu'on fait deux fois par an et qui ne parle que du Programme. Elle **ne
+  moissonne que sur demande** : balayer deux cents cinéastes est une requête TMDB
+  par nom, et l'ouvrir pour voir ce qu'elle contient ne doit pas la dépenser.
+- **LA PORTE SE REFERME ENTRE DEUX PISTES.** Le tableau des liens posés grandit à
+  mesure (`[...bonds, ...laid]`), donc deux pistes cochées qui se contredisent ne
+  peuvent pas entrer ensemble ; comparées au seul état de départ, elles passaient
+  toutes les deux et `normalizeBonds` en jetait une à la relecture — un lien qui
+  disparaît tout seul. Et le compte des REFUSÉES se dit : un bouton qui annonce
+  huit liens et en pose six sans un mot est le clic avalé déjà payé une fois.
+- **LA VISITE VISE LA PORTE.** `program-harvest` est sur le BOUTON, monté au même
+  endroit que `program-bond` et donc pas plus facultatif que lui ;
+  `program-hints` vit dans le panneau d'un nœud cliqué, donc `optional`.
+
+### Le second plan TMDB n'est pas fait
+
+`personFilmography` existe et `/person/\d+/movie_credits` est déjà dans
+l'allowlist : un `Hint` de source `"tmdb"` ne demanderait aucun déploiement. Ce
+serait une PISTE et jamais un savoir — la nature proposée serait `affinity` et
+non `master`, car **« a croisé » n'est pas « a formé »**. `HintSource` porte déjà
+les deux valeurs pour que le jour où on l'écrit, l'écran puisse les dire
+autrement.
+
 ## Tout ce qu'on sait d'un film, sans quitter l'écran
 
 Trois écrans posaient la même question et aucun ne savait y répondre : un

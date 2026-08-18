@@ -324,6 +324,29 @@ const en = {
       "The watchlist answered {{status}}. Is the handle the right one, and the profile public?",
   },
 
+  /* THE VIGIL: the binder reads the account by itself and PROPOSES.
+     See `hooks/useLetterboxd`. */
+  letterboxdWatch: {
+    pill: "Letterboxd — {{count}} to look at",
+    pillTrouble: "Letterboxd — we could not read it",
+    lastRead: "last successful read: {{when}}",
+    neverRead: "never read yet",
+    title: "WHAT LETTERBOXD HAS THAT YOU DO NOT",
+    count: "{{count}} film(s)",
+    reading: "reading your account…",
+    trouble: "We could not read your Letterboxd account.",
+    retry: "READ AGAIN NOW",
+    nothing: "Nothing new since last time.",
+    explain:
+      "What you tick joins the binder. What you untick is set aside for good, here and on your other devices: it will not be offered again.",
+    watched: "Watched on Letterboxd",
+    wishes: "Added to your watchlist",
+    completes: "completes a card you hold",
+    keep: "ADD — {{count}}",
+    filling: "completing… {{done}}/{{total}}",
+    setting: "Read this account automatically",
+  },
+
   /* Duplicates: the same work twice, for want of ever having been
      matched against TMDB. See `domain/duplicates`. */
   dupes: {
@@ -1938,7 +1961,49 @@ const en = {
     notInQueue_other: "{{count}} films in the binder, none in the run.",
     addTheirFilms: "Add them all at the end",
     orphan: "No card in the binder carries this name any more. The bond stays.",
+    bondDetail: "The chosen bond",
+    bondFromHint: "Suggested from Wikidata ({{prop}}).",
+    bondFromCredits_one: "From your own cards: {{role}} on one of their films.",
+    bondFromCredits_other: "From your own cards: {{role}} on {{count}} of their films.",
+    forgetHinted_one: "Take back the suggested bond",
+    forgetHinted_other: "Take back the {{count}} suggested bonds",
+    confirmForgetHinted_one: "Take back one suggested bond?",
+    confirmForgetHinted_other: "Take back {{count}} suggested bonds?",
+    confirmForgetHintedBody:
+      "The bonds that came from Wikidata leave the map. What you wrote yourself does not move, and the steps that invoked those bonds stay where they are — they will read as justified again if you lay the same ones down.",
     openPerson: "Open their page in the Credits",
+    /* ------------------------------------------------------------
+       THE FILIATION HINTS
+       ------------------------------------------------------------ */
+    hints: "What is known elsewhere",
+    hintsWaiting: "Asking…",
+    hintsNone: "Nothing known about this film-maker over there.",
+    hintsTrouble: "We could not go and ask.",
+    hintsAgain: "Ask again",
+    hintFromWikidata: "· from Wikidata",
+    hintFromCredits_one: "· {{role}}, on one of their films",
+    hintFromCredits_other: "· {{role}}, on {{count}} of their films",
+    harvest: "Look for filiations",
+    harvestBlurb_one:
+      "We ask Wikidata what is known of your binder's film-maker's masters and influences. Nothing is written without you.",
+    harvestBlurb_other:
+      "We ask Wikidata what is known of your {{count}} film-makers' masters and influences. Nothing is written without you.",
+    harvestRun: "Start looking",
+    harvestWho: "Which film-maker",
+    harvestOne: "Look for them",
+    harvestAll_one: "Sweep the binder (1 film-maker)",
+    harvestAll_other: "Sweep the whole binder ({{count}} film-makers)",
+    harvestProgress: "{{done}} of {{total}}…",
+    harvestNone: "Nothing new to offer: what we find is already on the map.",
+    harvestNoKey: "look for filiations",
+    harvestFound_one: "One filiation found",
+    harvestFound_other: "{{count}} filiations found",
+    harvestLay_one: "Lay this bond down",
+    harvestLay_other: "Lay these {{count}} bonds down",
+    harvestLaid_one: "One bond laid down.",
+    harvestLaid_other: "{{count}} bonds laid down.",
+    harvestLaidSome_one: "One bond laid down, {{refused}} the map turned away.",
+    harvestLaidSome_other: "{{count}} bonds laid down, {{refused}} the map turned away.",
     close: "Close",
     whereAmI: "Where you stand",
     progressCount: "{{done}} of {{total}} watched",
@@ -2679,6 +2744,14 @@ const en = {
         title: "A bond, and its reason",
         body: "A bond is laid by hand: nothing on a card says who taught whom. An entry in the run can then call upon it — and you see, from both ends, what holds the plan together.",
       },
+      harvest: {
+        title: "Look for filiations",
+        body: "Nobody knows by heart who taught whom. This button asks Wikidata what is known of your film-makers, and you tick what goes on the map — nothing writes itself.",
+      },
+      hints: {
+        title: "What is known elsewhere",
+        body: "Under the bonds already laid down, what Wikidata says of this person. One click fills the tying form in: the map stays yours.",
+      },
       progress: {
         title: "Where you stand",
         body: "How many of the run you have watched, and the next one in full. Nothing is ticked here: log a screening on a film card and this moves — a screening LATER than you laid the step down settles it, so a film you saw ten years ago is still ahead of you.",
@@ -2877,6 +2950,10 @@ const en = {
       language: {
         title: "French or English",
         body: "The binder reads in both languages, and the choice stays on this device: read in French on the telephone, in English at the desk, without one imposing on the other. What you have written — your notes, your reviews, your motifs — does not move: it is yours, not the product's.",
+      },
+      letterboxd: {
+        title: "What Letterboxd has that you do not",
+        body: "If you keep a Letterboxd account, the binder reads it by itself and offers you the films you watched there and the ones you set aside. It never files anything without you: you tick what you keep. This button only appears when there is something to look at — it is set in the Import tab.",
       },
       install: {
         title: "Laying it on the home screen",

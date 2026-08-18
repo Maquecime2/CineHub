@@ -68,6 +68,13 @@ export interface Settings {
    */
   tmdbCeiling?: number;
   /**
+   * Wikidata requests per minute per address, for the filiation hints.
+   *
+   * Nothing is billed there, which is exactly why it needs its own
+   * figure: see `DEFAULT_HINTS_CEILING` in `relay.ts`.
+   */
+  hintsCeiling?: number;
+  /**
    * Opens `POST /dev/session`, which creates an account and a session
    * with no passkey. Never true in production — see `index.ts`.
    */
@@ -2778,6 +2785,7 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     tmdbKey: settings.tmdbKey,
     requireAccount,
     tmdbCeiling: settings.tmdbCeiling,
+    hintsCeiling: settings.hintsCeiling,
   });
 
   /* ------------------------------------------------------------

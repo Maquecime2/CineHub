@@ -24,6 +24,7 @@ import {
   Languages,
   Coins,
   Route,
+  Rss,
 } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { PurseTally } from "../play/Tally";
@@ -80,6 +81,25 @@ interface FolderTabsProps {
   sync: "up-to-date" | "running" | "waiting" | "error" | "no-account" | "absent";
   /** Du neuf au hall, qu'on n'a pas encore regardé. */
   hallNews?: boolean;
+  /**
+   * Ce que la veille Letterboxd a trouvé et qu'on n'a pas encore
+   * regardé. À zéro, l'action n'est PAS MONTÉE — voir son commentaire au
+   * pied du rail.
+   */
+  letterboxdCount?: number;
+  /**
+   * La dernière passe de la veille n'a pas abouti.
+   *
+   * PIERRE TOMBALE : l'action n'était montée QUE sur un compte non nul,
+   * et la feuille est le seul endroit qui sache dire « on n'a pas pu
+   * demander ». Une veille qui échoue toujours rendait donc son propre
+   * message d'erreur INATTEIGNABLE — l'écran était rigoureusement
+   * identique à « il n'y a rien de neuf », qui est le cas normal. C'est
+   * exactement la confusion que ce projet a retirée de quatre vues.
+   */
+  letterboxdTrouble?: boolean;
+  /** Ouvre la feuille de la veille. */
+  onLetterboxd?: () => void;
 }
 
 /* THE ICON IS NOT AN ORNAMENT: it is what is left of the tab when the
@@ -590,6 +610,9 @@ export function FolderTabs({
   setView,
   onAdd,
   onImport,
+  letterboxdCount = 0,
+  letterboxdTrouble = false,
+  onLetterboxd,
   onSearch,
   onSkin,
   onLanguage,
@@ -898,6 +921,33 @@ export function FolderTabs({
           {/* LE COMPTE, JUSTE AVANT LA PEAU. Le sélecteur affiche des
               prix : ce qu'on a et ce qu'il permet sont côte à côte. */}
           <PurseTally onOpen={() => setView("counter")} phone={phone} />
+
+          {/* LA VEILLE LETTERBOXD, ET ELLE N'EST LÀ QUE S'IL Y A QUELQUE
+              CHOSE.
+
+              C'est la seule action du rail qui apparaisse et disparaisse,
+              et c'est ce qui la rend acceptable : une pastille permanente
+              annonçant « rien de neuf » quatre-vingt-dix-neuf jours sur
+              cent est un objet qu'on apprend à ne plus voir. Rien à
+              regarder tant qu'il n'y a rien.
+
+              ELLE NE DÉTOURNE PAS LE BOUTON D'IMPORT, qui est juste en
+              dessous et qui a déjà un travail : un bouton qui fait deux
+              choses selon l'état ne dit plus laquelle il va faire. */}
+          {letterboxdCount || letterboxdTrouble ? (
+            <RoundAction
+              onClick={() => onLetterboxd?.()}
+              tour="letterboxd-watch"
+              label={
+                letterboxdCount
+                  ? t("letterboxdWatch.pill", { count: letterboxdCount })
+                  : t("letterboxdWatch.pillTrouble")
+              }
+              icon={Rss}
+              finger={phone}
+              badge={letterboxdCount ? C.pine : C.burgundy}
+            />
+          ) : null}
 
           {/* L'IMPORT ET LA SAUVEGARDE, au pied du rail.
 

@@ -128,6 +128,11 @@ const app = await buildApp({
      six hundred a minute, enough to fill a whole collection without
      chopping it up. */
   tmdbCeiling: Number(env("TMDB_PER_MINUTE", "TMDB_PAR_MINUTE")) || undefined,
+  /* Wikidata bills nothing, so nobody would ever complain: what a
+     runaway client spends here is the good standing of THIS server's
+     address at a shared public endpoint. Empty, we take `relay.ts`'s
+     sixty a minute. */
+  hintsCeiling: Number(env("WIKIDATA_PER_MINUTE", "WIKIDATA_PAR_MINUTE")) || undefined,
   /* TWO LOCKS, AND THE FIRST ONE DOES NOT OPEN FROM OUTSIDE. The service
      door only exists outside production AND on explicit request: setting
      `DEV_DOOR=1` on a production server is not enough. */

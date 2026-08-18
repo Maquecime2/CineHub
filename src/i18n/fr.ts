@@ -341,6 +341,29 @@ const fr = {
       "La watchlist a répondu {{status}}. Le pseudo est-il le bon, et le profil public ?",
   },
 
+  /* LA VEILLE : l'application relit le compte toute seule et PROPOSE.
+     Voir `hooks/useLetterboxd`. */
+  letterboxdWatch: {
+    pill: "Letterboxd — {{count}} à regarder",
+    pillTrouble: "Letterboxd — on n'a pas pu lire",
+    lastRead: "dernière lecture réussie : {{when}}",
+    neverRead: "jamais lu pour l'instant",
+    title: "CE QUE LETTERBOXD A DE PLUS",
+    count: "{{count}} film(s)",
+    reading: "on relit votre compte…",
+    trouble: "On n'a pas pu lire votre compte Letterboxd.",
+    retry: "RELIRE MAINTENANT",
+    nothing: "Rien de neuf depuis la dernière fois.",
+    explain:
+      "Ce que vous cochez rejoint le classeur. Ce que vous décochez est écarté pour de bon, ici et sur vos autres appareils : on ne vous le reproposera plus.",
+    watched: "Vues sur Letterboxd",
+    wishes: "Ajoutées à votre watchlist",
+    completes: "complète une fiche que vous avez",
+    keep: "AJOUTER — {{count}}",
+    filling: "on complète… {{done}}/{{total}}",
+    setting: "Relever ce compte automatiquement",
+  },
+
   /* Les doublons : la meme oeuvre deux fois, faute d'avoir ete
      rapprochee de TMDB. Voir `domain/duplicates`. */
   dupes: {
@@ -1991,7 +2014,49 @@ const fr = {
     notInQueue_other: "{{count}} films au classeur, aucun au programme.",
     addTheirFilms: "Tout ajouter à la suite",
     orphan: "Plus aucune fiche du classeur ne porte ce nom. Le lien, lui, reste.",
+    bondDetail: "Le lien choisi",
+    bondFromHint: "Proposé d'après Wikidata ({{prop}}).",
+    bondFromCredits_one: "D'après vos fiches : {{role}} sur un de ses films.",
+    bondFromCredits_other: "D'après vos fiches : {{role}} sur {{count}} de ses films.",
+    forgetHinted_one: "Reprendre le lien proposé",
+    forgetHinted_other: "Reprendre les {{count}} liens proposés",
+    confirmForgetHinted_one: "Reprendre un lien proposé ?",
+    confirmForgetHinted_other: "Reprendre {{count}} liens proposés ?",
+    confirmForgetHintedBody:
+      "On retire de la carte les liens venus de Wikidata. Ce que vous avez écrit vous-même ne bouge pas, et les étapes qui invoquaient ces liens restent en place — elles redeviendront justifiées si vous reposez les mêmes.",
     openPerson: "Ouvrir sa page au générique",
+    /* ------------------------------------------------------------
+       LES PISTES DE FILIATION
+       ------------------------------------------------------------ */
+    hints: "Ce qu'on en sait ailleurs",
+    hintsWaiting: "On demande…",
+    hintsNone: "Rien de connu sur ce cinéaste de ce côté-là.",
+    hintsTrouble: "On n'a pas pu aller demander.",
+    hintsAgain: "Redemander",
+    hintFromWikidata: "· d'après Wikidata",
+    hintFromCredits_one: "· {{role}}, sur un de ses films",
+    hintFromCredits_other: "· {{role}}, sur {{count}} de ses films",
+    harvest: "Chercher des filiations",
+    harvestBlurb_one:
+      "On demande à Wikidata ce qu'on sait des maîtres et des influences du cinéaste du classeur. Rien ne s'écrit sans vous.",
+    harvestBlurb_other:
+      "On demande à Wikidata ce qu'on sait des maîtres et des influences de vos {{count}} cinéastes. Rien ne s'écrit sans vous.",
+    harvestRun: "Lancer la recherche",
+    harvestWho: "Quel cinéaste",
+    harvestOne: "Chercher pour lui",
+    harvestAll_one: "Balayer le classeur (1 cinéaste)",
+    harvestAll_other: "Balayer tout le classeur ({{count}} cinéastes)",
+    harvestProgress: "{{done}} sur {{total}}…",
+    harvestNone: "Rien de neuf à proposer : ce qu'on trouve est déjà sur la carte.",
+    harvestNoKey: "chercher des filiations",
+    harvestFound_one: "Une filiation trouvée",
+    harvestFound_other: "{{count}} filiations trouvées",
+    harvestLay_one: "Poser ce lien",
+    harvestLay_other: "Poser ces {{count}} liens",
+    harvestLaid_one: "Un lien posé.",
+    harvestLaid_other: "{{count}} liens posés.",
+    harvestLaidSome_one: "Un lien posé, {{refused}} refusés par la carte.",
+    harvestLaidSome_other: "{{count}} liens posés, {{refused}} refusés par la carte.",
     close: "Fermer",
     whereAmI: "Où vous en êtes",
     progressCount: "{{done}} vus sur {{total}}",
@@ -2781,6 +2846,14 @@ const fr = {
         title: "Un lien, et sa raison",
         body: "Un lien se pose à la main : rien dans une fiche ne dit qui a formé qui. Une entrée de la file peut ensuite l'invoquer — et l'on voit alors, des deux côtés, ce qui tient le parcours debout.",
       },
+      harvest: {
+        title: "Chercher des filiations",
+        body: "On ne connaît pas par cœur qui a formé qui. Ce bouton demande à Wikidata ce qu'on en sait de vos cinéastes, et vous cochez ce qui entre sur la carte — rien ne s'écrit tout seul.",
+      },
+      hints: {
+        title: "Ce qu'on en sait ailleurs",
+        body: "Sous les liens déjà posés, ce que Wikidata dit de cette personne. Un clic remplit le formulaire de nouage : la carte reste la vôtre.",
+      },
       progress: {
         title: "Où vous en êtes",
         body: "Combien de ce programme vous avez vu, et la suite en grand. Rien ne se coche ici : notez une séance sur une fiche et ceci avance — c'est une séance POSTÉRIEURE à la pose de l'étape qui la solde, donc un film vu il y a dix ans vous reste à voir.",
@@ -2979,6 +3052,10 @@ const fr = {
       language: {
         title: "Français ou anglais",
         body: "Le classeur se lit dans les deux langues, et le choix reste sur cet appareil : lu en français sur le téléphone, en anglais au bureau, sans que l'un impose à l'autre. Ce que vous avez écrit — vos notes, vos critiques, vos motifs — ne bouge pas : c'est à vous, pas au produit.",
+      },
+      letterboxd: {
+        title: "Ce que Letterboxd a de plus",
+        body: "Si vous tenez un compte Letterboxd, le classeur le relit tout seul et vous propose les films que vous y avez vus et ce que vous avez mis de côté. Il ne range jamais rien sans vous : vous cochez ce que vous gardez. Ce bouton n'apparaît que lorsqu'il y a quelque chose à regarder — cela se règle dans l'import.",
       },
       install: {
         title: "Le poser sur l'écran d'accueil",
