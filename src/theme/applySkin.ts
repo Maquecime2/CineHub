@@ -17,6 +17,7 @@
 
 import { skinOf, DEFAULT_SKIN, type Skin } from "./skins";
 import { readHand, watchHand } from "./handwriting";
+import { store } from "../services/storage";
 
 export const SKIN_KEY = "site-skin";
 
@@ -113,20 +114,66 @@ export function applySkin(key?: string): Skin {
   return skin;
 }
 
+/* ============================================================
+   LA PEAU VOYAGE, ET C'ÉTAIT ÉCRIT L'INVERSE
+   ============================================================
+
+   `documents.ts` a longtemps rangé la peau parmi ce qui décrit CET
+   APPAREIL, avec cet argument : « on n'impose pas l'humeur du moment à
+   notre autre écran ». La règle est renversée, volontairement. Ce qu'on
+   choisit ici n'est pas une humeur d'un soir, c'est l'aspect de son
+   classeur ; le retrouver autre en changeant d'ordinateur se lit comme
+   un réglage perdu, pas comme une attention.
+
+   ELLE PASSE DONC PAR `store`, ET NON PLUS PAR `localStorage` EN DIRECT.
+   C'est le seul point de passage qui date un document et le met en file
+   (`noteIfSyncable`) ; y écrire à côté, c'était écrire sans que personne
+   le sache. Rien ne descend au coffre pour autant — la peau est lue
+   AVANT que la base soit ouverte, et `store` sert la vitrine de façon
+   synchrone pour les clés qui n'y sont pas.
+
+   CE QUI ÉTAIT DÉJÀ ÉCRIT L'ÉTAIT EN CLAIR, et c'est le piège. On
+   rangeait `herbier`, quand `store` range `"herbier"` — du JSON. Une
+   lecture par `store.get` sur l'ancienne forme lève et rend le défaut :
+   tout le monde serait revenu au kraft le jour de la mise à jour. Et
+   `documentsToSend` aurait envoyé `null`, donc effacé la peau de l'autre
+   appareil par-dessus le marché.
+
+   LA CONVERSION NE DATE RIEN, exprès. Elle réécrit la valeur sous sa
+   forme neuve sans la marquer à envoyer : `catchUpDocuments` la
+   ramassera à l'AUBE, c'est-à-dire en perdant contre tout ce que le
+   serveur tient déjà. Rattraper ne doit écraser personne — la règle est
+   celle de `sendAllDocuments`, et elle vaut ici mot pour mot. */
 export const loadSkinKey = (): string => {
   try {
-    return localStorage.getItem(SKIN_KEY) || DEFAULT_SKIN;
+    const raw = localStorage.getItem(SKIN_KEY);
+    if (!raw) return DEFAULT_SKIN;
+    try {
+      const kept = JSON.parse(raw) as unknown;
+      return typeof kept === "string" && kept ? kept : DEFAULT_SKIN;
+    } catch {
+      /* L'ANCIENNE FORME, en clair. On la convertit sur place. */
+      localStorage.setItem(SKIN_KEY, JSON.stringify(raw));
+      return raw;
+    }
   } catch {
     return DEFAULT_SKIN;
   }
 };
 
+/**
+ * Écrire la peau choisie, et la faire voyager.
+ *
+ * ELLE NE RÉÉCRIT PAS CE QUI EST DÉJÀ ÉCRIT, et ce n'est pas une
+ * économie : `App` applique la peau à CHAQUE montage, donc une écriture
+ * inconditionnelle redaterait le document à chaque ouverture de
+ * l'application. Le dernier appareil ALLUMÉ imposerait alors sa peau au
+ * dernier appareil TOUCHÉ, ce qui est exactement l'inverse de ce qu'on
+ * veut : on suit le dernier CHOIX.
+ */
 export const saveSkinKey = (key: string): void => {
-  try {
-    localStorage.setItem(SKIN_KEY, key);
-  } catch {
-    /* a full store must not stop somebody changing skin */
-  }
+  if (key === loadSkinKey()) return;
+  store.set(SKIN_KEY, key);
 };
 
 /* L'ABONNEMENT EST DANS CE SENS-LÀ, et pas dans l'autre : `handwriting`

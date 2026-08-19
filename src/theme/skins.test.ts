@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import fr from "../i18n/fr";
 import en from "../i18n/en";
 import { SKINS, DEFAULT_SKIN, skinOf } from "./skins";
@@ -154,8 +154,37 @@ describe("laying a skin down", () => {
   it("keeps the choice from one time to the next", () => {
     expect(loadSkinKey()).toBe(DEFAULT_SKIN);
     saveSkinKey("herbier");
-    expect(localStorage.getItem(SKIN_KEY)).toBe("herbier");
+    /* DU JSON, PARCE QUE LA PEAU VOYAGE DEPUIS. Elle passe par `store`,
+       qui range ce que la synchro sait relire et renvoyer. */
+    expect(localStorage.getItem(SKIN_KEY)).toBe('"herbier"');
     expect(loadSkinKey()).toBe("herbier");
+  });
+
+  /* ============================================================
+     L'ANCIENNE FORME NE DOIT PAS COÛTER SA PEAU À QUELQU'UN
+     ============================================================
+     Elle était écrite EN CLAIR — `herbier` et non `"herbier"`. Lue par
+     `store.get`, elle lève et rend le défaut : tout le monde serait
+     revenu au kraft le jour de la mise à jour. Pire, `documentsToSend`
+     aurait envoyé `null`, donc effacé la peau de l'AUTRE appareil. */
+  it("reads a skin written before it travelled, and converts it in place", () => {
+    localStorage.setItem(SKIN_KEY, "herbier");
+    expect(loadSkinKey()).toBe("herbier");
+    /* Convertie sur place, donc la fois d'après ne devine plus rien. */
+    expect(localStorage.getItem(SKIN_KEY)).toBe('"herbier"');
+  });
+
+  /* `App` applique la peau à CHAQUE montage : une écriture
+     inconditionnelle redaterait le document à chaque ouverture, et le
+     dernier appareil ALLUMÉ imposerait sa peau au dernier appareil
+     TOUCHÉ. */
+  it("does not rewrite the skin it is already wearing", async () => {
+    const { store } = await import("../services/storage");
+    saveSkinKey("herbier");
+    const written = vi.spyOn(store, "set");
+    saveSkinKey("herbier");
+    expect(written).not.toHaveBeenCalled();
+    written.mockRestore();
   });
 });
 

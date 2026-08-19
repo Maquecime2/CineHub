@@ -44,10 +44,25 @@ const SETTLED_KEY = "documents-premier-tirage";
 /* WHAT SYNCHRONISES, AND WHAT MUST ABSOLUTELY NOT.
 
    Everything that describes the COLLECTION travels. Everything that
-   describes THIS device stays: the chosen skin (we do not impose the
-   mood of the moment on our other screen), the guided tour's state, the
-   invitation to install, and the synchronisation markers themselves —
-   sending those would amount to synchronising on our own cursor. */
+   describes THIS device stays: the guided tour's state, the invitation
+   to install, the TMDB key, and the synchronisation markers themselves —
+   sending those would amount to synchronising on our own cursor.
+
+   LA PEAU ET LA MAIN ONT CHANGÉ DE CAMP, ET C'EST DÉLIBÉRÉ. Ce
+   paragraphe a longtemps donné la peau en exemple de ce qui reste ici,
+   avec cet argument : « on n'impose pas l'humeur du moment à notre autre
+   écran ». La règle est renversée. Ce qu'on choisit dans ce panneau
+   n'est pas une humeur d'un soir, c'est l'aspect de son classeur — le
+   retrouver autre en changeant d'ordinateur se lit comme un réglage
+   perdu, pas comme une attention. Les deux partent ENSEMBLE parce
+   qu'elles vivent dans le même panneau : en faire voyager une et pas
+   l'autre se lirait comme une panne.
+
+   Rien n'est à déployer pour autant : la table `doc` est générique
+   (`person_id` + `key` en texte libre), donc deux clés de plus ne
+   demandent pas une ligne de SQL. Ce qui se paie est ici — voir
+   `SYNCABLE_VERSION`, sans quoi les classeurs déjà connectés ne les
+   enverraient JAMAIS. */
 /* THREE OF THESE NAMED NOTHING, AND NOTHING SAID SO.
 
    A key that is not on this list simply does not travel — silently, and
@@ -78,6 +93,10 @@ const SYNCABLE_KEYS = [
   "filiations",
   "parcours",
   "letterboxd",
+  /* L'aspect du classeur : voir le paragraphe ci-dessus, et
+     `theme/applySkin` pour la conversion de l'ancienne forme. */
+  "site-skin",
+  "site-hand",
 ];
 
 /**
@@ -102,7 +121,7 @@ const SYNCABLE_KEYS = [
  * c'est-à-dire en perdant contre tout ce que le serveur tient déjà :
  * rattraper ne doit écraser personne.
  */
-export const SYNCABLE_VERSION = 4;
+export const SYNCABLE_VERSION = 5;
 
 export const isSyncable = (key: string): boolean =>
   SYNCABLE_KEYS.includes(key) || SYNCABLE_PREFIXES.some((p) => key.startsWith(p));

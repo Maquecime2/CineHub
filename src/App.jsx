@@ -13,6 +13,7 @@ import { pruneOrphans } from "./db";
 import { CAT_KEYS } from "./shelf-views";
 import { C, F, FONT_IMPORT } from "./theme/tokens";
 import { applySkin, loadSkinKey, saveSkinKey } from "./theme/applySkin";
+import { refreshHand } from "./theme/handwriting";
 import { skinOf } from "./theme/skins";
 import { paperLayer } from "./theme/surfaces";
 import { wornPaper, watchWorn } from "./theme/owned";
@@ -495,6 +496,13 @@ export default function App() {
   const [docsAt, setDocsAt] = useState(0);
   const rereadDocuments = useCallback(() => {
     setDocsAt((n) => n + 1);
+    /* L'ASPECT DU CLASSEUR EN FAIT PARTIE DEPUIS QU'IL VOYAGE. La peau
+       et la main sont lues au montage comme le reste ; sans ces deux
+       lignes, une peau choisie sur l'autre ordinateur n'arriverait qu'au
+       prochain rechargement de la page — et on croirait la synchro
+       incomplète alors qu'elle a tout rapporté. */
+    setSkin(loadSkinKey());
+    refreshHand();
     notebook.load();
     setThreads(loadThreads());
     setBonds(loadBonds());

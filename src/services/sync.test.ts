@@ -237,6 +237,11 @@ describe("the rest of the binder", () => {
     const { BONDS_KEY, COURSES_KEY } = await import("./lineage");
     const { WATCH_KEY } = await import("./letterboxdWatch");
     const { KEYS } = await import("./storage");
+    /* L'ASPECT DU CLASSEUR VOYAGE DEPUIS, et ces deux-là s'épellent dans
+       `theme/`, pas dans `services/` : c'est justement le genre de nom
+       qu'on recopie de mémoire. */
+    const { SKIN_KEY } = await import("../theme/applySkin");
+    const { HAND_KEY } = await import("../theme/handwriting");
 
     for (const key of [
       VIEW_INDEX,
@@ -249,6 +254,8 @@ describe("the rest of the binder", () => {
       WATCH_KEY,
       KEYS.notes,
       KEYS.dividers,
+      SKIN_KEY,
+      HAND_KEY,
     ]) {
       expect(isSyncable(key), key).toBe(true);
     }

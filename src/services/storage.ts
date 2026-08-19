@@ -33,9 +33,15 @@ export const KEYS = {
    projet pour ce qui n'est jamais sur le chemin d'un geste.
 
    CE QUI RESTE EN VITRINE Y RESTE. `onboarding`, la clé TMDB, la peau,
-   les marqueurs de synchro : petits, propres à l'appareil, et lus avant
-   même que le coffre soit ouvert. Un réglage local dans un magasin
-   synchrone est le bon choix, pas une dette.
+   la main, les marqueurs de synchro : petits, et lus avant même que le
+   coffre soit ouvert. Un réglage local dans un magasin synchrone est le
+   bon choix, pas une dette.
+
+   VITRINE NE VEUT PAS DIRE « NE VOYAGE PAS », et ce paragraphe l'a
+   laissé croire. La peau et la main sont en vitrine parce qu'elles se
+   lisent AVANT la base — c'est une question de moment, pas de portée —
+   et elles se synchronisent depuis (`documents.ts`). Ce sont deux
+   questions différentes : où c'est écrit, et jusqu'où ça va.
 
    LE REPLI EST CONSERVÉ. Un autre onglet qui tient un verrou de version
    empêche d'ouvrir la base ; `hydrateVault` échoue alors sans bruit et
