@@ -121,7 +121,22 @@ export const CORS_METHODS = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "O
 
 export async function buildApp(settings: Settings): Promise<FastifyInstance> {
   const { db, domain, origin } = settings;
-  const app = Fastify({ logger: false });
+  /* LE PLAFOND DE CORPS EST CELUI DES CARTES, PAS CELUI DE FASTIFY.
+
+     Fastify refuse par defaut tout corps de plus d'UN MEBIOCTET. Or
+     `/collection` accepte cinq cents fiches par envoi, et une fiche
+     porte desormais un synopsis, un generique et des mots-cles : un
+     classeur bien rempli depasse le mebioctet des la premiere tranche.
+     Et le refus ne se lit pas : Fastify repond 413 puis ferme la
+     chaussette AVANT la fin de l'envoi, donc le navigateur n'annonce
+     pas le refus mais un `ERR_CONNECTION_RESET` — une panne de reseau,
+     alors que le serveur a parle. Huit cent vingt-quatre fiches en
+     attente ne partaient jamais, sans qu'une seule ligne de journal le
+     dise.
+
+     Le vrai plafond reste le compte de fiches (cinq cents), qui lui
+     repond proprement ; celui-ci n'est qu'un garde-fou. */
+  const app = Fastify({ logger: false, bodyLimit: 16 * 1024 * 1024 });
 
   /* AN EMPTY BODY IS NOT AN UNREADABLE BODY.
 

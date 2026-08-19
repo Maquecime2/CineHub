@@ -46,8 +46,10 @@ import {
 } from "./documents";
 import {
   DOCS_PER_SEND,
+  DOCS_PER_SEND_BYTES,
   ServerError,
   PER_SEND,
+  PER_SEND_BYTES,
   push,
   whoAmI,
   serverConfigured,
@@ -125,6 +127,53 @@ const REPORT_KEY = "synchro-bilan";
 export const lastReport = (): { at: number | null } => {
   const stored = store.get<{ at?: number | null; le?: number | null }>(REPORT_KEY, { at: null });
   return { at: stored?.at ?? stored?.le ?? null };
+};
+
+/* ============================================================
+   ON DÉCOUPE SUR DEUX PLAFONDS, ET LE SECOND EST MUET
+   ============================================================
+
+   Le serveur borne un envoi de DEUX façons : le nombre d'entrées, et le
+   poids du corps. Découpé sur le seul nombre, cinq cents fiches bien
+   remplies — synopsis, générique, mots-clés — dépassent le poids, et ce
+   refus-là ne se lit pas : le serveur coupe la connexion en cours
+   d'envoi, le navigateur annonce une panne de réseau, et la file entière
+   reste à quai pour toujours. Le premier plafond répond ; le second
+   raccroche.
+
+   UNE ENTRÉE À ELLE SEULE PLUS LOURDE QUE LA BORNE PART QUAND MÊME,
+   SEULE. La retenir la retiendrait à chaque passage, sans un mot : c'est
+   exactement la panne qu'on vient de retirer. Partie seule, elle est
+   sous la borne du serveur, donc refusée PROPREMENT s'il le faut.
+
+   Le poids se compte en OCTETS et non en signes : un titre japonais pèse
+   trois fois sa longueur, et c'est précisément le classeur qu'on ferait
+   échouer en comptant faux. */
+export function cutUp<T>(items: T[], perSend: number, ceiling: number): T[][] {
+  const slices: T[][] = [];
+  let slice: T[] = [];
+  let weight = 0;
+  for (const item of items) {
+    const size = weigh(item);
+    if (slice.length && (slice.length >= perSend || weight + size > ceiling)) {
+      slices.push(slice);
+      slice = [];
+      weight = 0;
+    }
+    slice.push(item);
+    weight += size;
+  }
+  if (slice.length) slices.push(slice);
+  return slices;
+}
+
+/* `TextEncoder` est partout depuis longtemps, mais la mesure n'est pas
+   ce qui doit tomber : sans lui on compte les signes, ce qui SOUS-estime
+   les accents — d'où la marge de moitié laissée sous la borne du
+   serveur. */
+const weigh = (item: unknown): number => {
+  const text = JSON.stringify(item) ?? "";
+  return typeof TextEncoder === "function" ? new TextEncoder().encode(text).length : text.length;
 };
 
 /**
@@ -241,8 +290,7 @@ export async function synchronise(onFilms: (films: Film[]) => void): Promise<Syn
       data: e.data,
     }));
 
-    for (let i = 0; i < batch.length; i += PER_SEND) {
-      const slice = batch.slice(i, i + PER_SEND);
+    for (const slice of cutUp(batch, PER_SEND, PER_SEND_BYTES)) {
       await push(slice);
       /* WE FORGET SLICE BY SLICE, and only what REALLY went out in that
          slice. Emptying the whole list at the end would lose everything
@@ -285,8 +333,7 @@ export async function synchronise(onFilms: (films: Film[]) => void): Promise<Syn
     noteFirstPull();
 
     const docBatch = documentsToSend();
-    for (let i = 0; i < docBatch.length; i += DOCS_PER_SEND) {
-      const slice = docBatch.slice(i, i + DOCS_PER_SEND);
+    for (const slice of cutUp(docBatch, DOCS_PER_SEND, DOCS_PER_SEND_BYTES)) {
       await pushDocs(slice);
       forgetSentDocuments(slice.map((d) => d.key));
     }

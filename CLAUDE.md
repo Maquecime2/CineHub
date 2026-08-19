@@ -1195,6 +1195,25 @@ reste : le dépôt d'un média, la montée d'un décor et l'envoi d'une fiche ne
 sont JAMAIS sur le chemin d'un geste. On écrit en local, on rend la main, la
 synchro rattrape.
 
+**UN ENVOI A DEUX PLAFONDS, ET LE SECOND RACCROCHE AU LIEU DE RÉPONDRE.**
+`/collection` accepte cinq cents fiches par envoi et le dit proprement (413) ;
+mais Fastify borne aussi le POIDS du corps, et ce refus-là ferme la chaussette
+AVANT la fin de l'envoi. Le navigateur annonce alors `ERR_CONNECTION_RESET` —
+une panne de réseau — là où le serveur a parlé, et une file de huit cents
+fiches ne part jamais sans qu'une ligne de journal le dise. Une fiche porte
+désormais un synopsis, un générique et des mots-clés : le mébioctet par défaut
+était dépassé dès la première tranche.
+
+Les deux bouts tiennent la règle, et il faut les deux. Le serveur monte
+`bodyLimit` à 16 Mio (`buildApp`), pour que le VRAI plafond reste le compte de
+fiches, celui qui répond. Le client découpe sur les DEUX (`cutUp`,
+`services/sync.ts`) avec une borne à la MOITIÉ de celle du serveur : le compte
+se mesure sur les entrées, le corps réel porte en plus son enveloppe JSON. Le
+poids se compte en OCTETS et non en signes — un titre japonais pèse trois fois
+sa longueur, et c'est ce classeur-là qu'on ferait échouer en comptant faux. Une
+entrée trop lourde à elle seule part QUAND MÊME, seule : la retenir la
+retiendrait à chaque passage, en silence, ce qui est la panne d'origine.
+
 **UNE GARDE D'ÉCRAN N'EST PAS UNE GARDE.** La porte de session cache
 l'interface ; elle ne protège rien. Chaque route continue de demander son
 compte, et chaque plafond vit dans la requête qui écrit.

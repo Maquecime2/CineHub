@@ -700,6 +700,20 @@ export const push = (cards: CardToPush[]) =>
 /** The server's cap, repeated here to cut the sends up. */
 export const PER_SEND = 500;
 
+/* LE SECOND PLAFOND, ET C'EST CELUI QUI A CASSÉ.
+
+   Le serveur en a deux : cinq cents fiches, et le poids du corps. Le
+   premier répond proprement ; le second, dépassé, coupe la connexion en
+   cours d'envoi — le navigateur annonce alors une panne de réseau
+   (`ERR_CONNECTION_RESET`) là où le serveur a refusé, et une file de
+   huit cents fiches ne part JAMAIS sans qu'un mot soit dit.
+
+   On découpe donc sur les DEUX, et cette borne-ci est délibérément la
+   MOITIÉ de celle du serveur (`bodyLimit`, 16 Mio) : le compte se
+   mesure sur les entrées, le corps réel porte en plus son enveloppe
+   JSON, et une marge qui se discute est une marge qu'on n'a pas. */
+export const PER_SEND_BYTES = 8 * 1024 * 1024;
+
 /* ------------------------------------------------------------
    LE RESTE DU CLASSEUR
    ------------------------------------------------------------ */
@@ -731,6 +745,9 @@ export const pushDocs = (documents: DocToPush[]) =>
 
 /** The server's cap for documents. */
 export const DOCS_PER_SEND = 200;
+
+/** Le poids, pour les documents : même raison, même marge. */
+export const DOCS_PER_SEND_BYTES = 8 * 1024 * 1024;
 
 /* ------------------------------------------------------------
    PARTAGER SA COLLECTION

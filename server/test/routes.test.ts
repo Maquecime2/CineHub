@@ -252,6 +252,32 @@ describe("the chain, end to end", () => {
     expect(r.statusCode).toBe(413);
   });
 
+  /* LE COMPTE DE FICHES EST LE PLAFOND, PAS LE POIDS DU CORPS.
+
+     Fastify en refuse un de plus d'un mebioctet par defaut, et une
+     tranche pleine de fiches completees (synopsis, generique,
+     mots-cles) le depasse largement. Pire, ce refus-la ferme la
+     chaussette en cours d'envoi : le navigateur annonce une panne de
+     reseau la ou le serveur a repondu, et une file de huit cents fiches
+     ne part jamais. */
+  it("accepts a full batch of well-filled cards", async () => {
+    const { cookie } = await signedIn();
+    const cards = Array.from({ length: 500 }, (_, i) => ({
+      id: `f${i}`,
+      tmdbId: String(i),
+      updatedAt: 1,
+      data: { title: "x".repeat(4000) },
+    }));
+    const r = await app.inject({
+      method: "PUT",
+      url: "/collection",
+      headers: { cookie },
+      payload: { cards },
+    });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().filed).toBe(500);
+  });
+
   it("a card with no date and no identifier is ignored, not fatal", async () => {
     const { cookie } = await signedIn();
     const r = await app.inject({
