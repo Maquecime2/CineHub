@@ -87,8 +87,17 @@ export function StillLightbox({
 
   return (
     <Layer>
-      /* Closing only fires on the backdrop itself (`e.target` = the veil), never on what it
-      contains: aiming beside the image no longer closes the viewer by accident. */
+      {/* CE COMMENTAIRE S'AFFICHAIT. Écrit sans accolades, il n'était pas
+          un commentaire mais du TEXTE JSX : la visionneuse posait ses
+          trente mots de code anglais au-dessus de l'image, à côté de la
+          légende, sur chaque agrandissement. Rien ne pouvait le dire —
+          ni le typage, ni le lint, ni un test qui ne lit pas ce que la
+          couche écrit.
+
+          Ce qu'il dit reste vrai : la fermeture ne part que du VOILE
+          lui-même (`e.target` === `e.currentTarget`) et jamais de ce
+          qu'il contient, pour qu'un clic à côté de l'image ne referme
+          pas la visionneuse par accident. */}
       <div
         ref={box}
         role="dialog"

@@ -230,10 +230,23 @@ export function RichField({
     pendingCaret.current = null;
   }, [value, urls, stills]);
 
+  /* ON N'ÉCRIT PAS CE QUI EST DÉJÀ ÉCRIT.
+
+     `emit` part à chaque `blur`, et perdre le focus n'est pas une
+     modification : ouvrir une visionneuse, cliquer ailleurs, changer
+     d'onglet enregistraient la fiche à l'identique — un objet neuf, un
+     `updatedAt` touché, un document mis en file pour la synchro, et un
+     rendu de toute la vue. Pour rien.
+
+     C'est aussi la seconde ligne de défense contre la boucle réglée dans
+     `useDialog` : là-bas on a retiré la cause, ici on retire de quoi la
+     nourrir — une écriture qui ne change rien ne peut plus déclencher le
+     rendu qui déclenchait l'écriture suivante. */
   const emit = () => {
     if (!ref.current) return;
     const text = htmlToText(ref.current);
     lastEmitted.current = text;
+    if (text === value) return;
     onChange(text);
   };
 
