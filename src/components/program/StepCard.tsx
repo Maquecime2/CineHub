@@ -93,6 +93,15 @@ interface StepCardProps {
   /** Le clic porte ses modificateurs : la bande en fait une sélection. */
   onPick: (e: ReactMouseEvent) => void;
   onToggle: () => void;
+  /**
+   * Prendre TOUT le bloc de ce cinéaste, depuis son bandeau.
+   *
+   * IL N'EST DONNÉ QU'À LA PREMIÈRE STATION D'UNE SUITE, celle qui porte
+   * le nom : c'est le seul endroit où le bloc est visible en tant que
+   * bloc, et le poser sur les stations muettes du milieu ferait trois
+   * boutons pour un même geste.
+   */
+  onPickBand?: () => void;
   /** Survol ou focus : la carte épaissit le lien invoqué. */
   onPoint: (on: boolean) => void;
   onMoveBy: (delta: number) => void;
@@ -120,6 +129,7 @@ export function StepCard({
   done,
   onPick,
   onToggle,
+  onPickBand,
   onPoint,
   onMoveBy,
   onDragStart,
@@ -375,20 +385,44 @@ export function StepCard({
           overflow: "hidden",
         }}
       >
-        {bandStart && directorName && (
-          <span
-            style={{
-              fontFamily: F.mono,
-              fontSize: 8.5,
-              letterSpacing: 1,
-              color: alpha(C.ink, 0.65),
-              textTransform: "uppercase",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {directorName}
-          </span>
-        )}
+        {bandStart &&
+          directorName &&
+          (() => {
+            const name = (
+              <span
+                style={{
+                  fontFamily: F.mono,
+                  fontSize: 8.5,
+                  letterSpacing: 1,
+                  color: alpha(C.ink, 0.65),
+                  textTransform: "uppercase",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {directorName}
+              </span>
+            );
+            /* LE NOM EST LA PORTE DU BLOC. Prendre huit stations d'un
+               même cinéaste à la case à cocher est huit clics ; le
+               bandeau les désigne déjà toutes, et il ne coûte pas une
+               ligne de plus à l'écran. Il reste du TEXTE quand personne
+               ne l'écoute — un bouton qui ne fait rien est pire. */
+            return onPickBand ? (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onPickBand();
+                }}
+                aria-label={t("program.selectBand", { name: directorName })}
+                title={t("program.selectBand", { name: directorName })}
+                style={{ ...bare, padding: 0 }}
+              >
+                {name}
+              </button>
+            ) : (
+              name
+            );
+          })()}
       </div>
 
       {/* LA CASE EST À CÔTÉ DU BOUTON, PAS DEDANS. Une commande dans une

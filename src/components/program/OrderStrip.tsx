@@ -46,17 +46,19 @@
 import { useEffect, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { Eye, EyeOff, X } from "lucide-react";
+import { ArrowDownWideNarrow, ArrowUpNarrowWide, Eye, EyeOff, X } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { bare, hollow, inked } from "../../theme/styles";
 import { Nothing } from "../ui";
 import { useSay } from "../ui/Feedback";
 import {
   courseSteps,
+  filmYear,
   groupedSteps,
   move,
   moveBy,
   moveGroup,
+  sortGroup,
   stepDone,
   withSteps,
 } from "../../domain/course";
@@ -159,6 +161,22 @@ export function OrderStrip({
     say(t("program.movedMany", { count: selected.size, place: at + 1 }));
   };
 
+  /* TRIER EST UNE ÉCRITURE, ET C'EST BIEN LA DIFFÉRENCE AVEC `groupedSteps`.
+     Ce qui est GROUPÉ à l'affichage ne réunit que du consécutif, exprès :
+     présenter un plan ne doit pas le réécrire. Trier, lui, est un geste
+     DEMANDÉ sur une sélection qu'on a montrée du doigt — donc il écrit, et
+     il n'écrit que là. Les emplacements ne bougent pas : voir `sortGroup`. */
+  const sortSelection = (dir: "asc" | "desc") => {
+    const yearOf = (step: Step) => {
+      const film = films.find((f) => f.id === step.filmId);
+      return film ? filmYear(film) : Number.POSITIVE_INFINITY;
+    };
+    const steps = sortGroup(course.steps, selected, yearOf, dir);
+    if (steps === course.steps) return;
+    onCourse(withSteps(course, steps));
+    say(t("program.sorted", { count: selected.size }));
+  };
+
   const shift = (stepId: string, delta: number) => {
     const at = indexOf(stepId);
     const steps = moveBy(course.steps, at, delta);
@@ -216,10 +234,24 @@ export function OrderStrip({
   const placeOf = (stepId: string): number => all.findIndex((e) => e.step.id === stepId) + 1;
   const bandStart = new Set<string>();
   const bandEnd = new Set<string>();
+  /** Le bloc entier, retrouvé depuis la station qui porte le nom. */
+  const bandOf = new Map<string, string[]>();
   for (const g of groups) {
     bandStart.add(g.entries[0]!.step.id);
     bandEnd.add(g.entries[g.entries.length - 1]!.step.id);
+    bandOf.set(
+      g.entries[0]!.step.id,
+      g.entries.map((e) => e.step.id)
+    );
   }
+
+  /* PRENDRE UN BLOC, C'EST LE PRENDRE ENTIER ET RIEN D'AUTRE. On remplace
+     la sélection au lieu de l'agrandir : un clic nu la lâche déjà partout
+     ailleurs sur ce rail, et l'ajout cumulatif a sa touche (Ctrl). */
+  const pickBand = (ids: string[]) => {
+    setSelected(new Set(ids));
+    setAnchor(ids[0] ?? null);
+  };
 
   return (
     <div>
@@ -246,6 +278,31 @@ export function OrderStrip({
           <span style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, flex: 1 }}>
             {t("program.selectedHow")}
           </span>
+          {/* LE TRI EST OFFERT DÈS DEUX, ET JAMAIS À UNE SEULE : une
+              commande qui ne peut rien changer est une commande qu'on
+              essaie. La date est la SEULE clé — c'est la chronologie
+              qu'un programme raconte, et un tri par titre n'ordonne
+              rien qu'on vienne voir ici. */}
+          {selected.size > 1 && (
+            <>
+              <button
+                onClick={() => sortSelection("asc")}
+                title={t("program.sortAsc")}
+                style={{ ...inked(C.ink), ...hollow }}
+              >
+                <ArrowUpNarrowWide size={12} />
+                {t("program.sortAsc")}
+              </button>
+              <button
+                onClick={() => sortSelection("desc")}
+                title={t("program.sortDesc")}
+                style={{ ...inked(C.ink), ...hollow }}
+              >
+                <ArrowDownWideNarrow size={12} />
+                {t("program.sortDesc")}
+              </button>
+            </>
+          )}
           <button
             onClick={() => onRemoveMany(selected, selected.size)}
             style={{ ...inked(C.ink), ...hollow, color: C.burgundy }}
@@ -340,6 +397,13 @@ export function OrderStrip({
                 done={stepDone(step, film)}
                 onPick={(e) => clicked(step.id, e)}
                 onToggle={() => toggle(step.id)}
+                /* Un bloc d'UNE station n'a rien à prendre en bloc : la
+                   case à cocher est déjà là, à deux pixels. */
+                onPickBand={
+                  (bandOf.get(step.id)?.length ?? 0) > 1
+                    ? () => pickBand(bandOf.get(step.id)!)
+                    : undefined
+                }
                 onPoint={(on) => onPointBond(on ? step.because : null)}
                 marked={marked === at}
                 onMark={(on) => setMarked(on ? at : null)}

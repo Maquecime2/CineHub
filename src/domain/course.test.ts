@@ -10,6 +10,8 @@ import {
   move,
   moveBy,
   moveGroup,
+  sortGroup,
+  filmYear,
   matchesThread,
   normalizeCourses,
   patchStep,
@@ -114,6 +116,90 @@ describe("moving several steps at once", () => {
     const before = read(list);
     moveGroup(list, ids("a", "b"), "e");
     expect(read(list)).toEqual(before);
+  });
+});
+
+/* ============================================================
+   TRIER UNE SÉLECTION, ET RIEN QU'ELLE
+   ============================================================
+
+   Le tri est la seule écriture de cet écran qui réordonne SANS qu'on ait
+   glissé quoi que ce soit, donc c'est celle qui doit le moins déborder :
+   les emplacements pris ne bougent pas, ce qui n'est pas pris ne bouge
+   pas non plus, et un tri sans effet rend le MÊME tableau. */
+describe("sorting a selection by date", () => {
+  const list = [
+    { id: "a", year: 1953 },
+    { id: "b", year: 1949 },
+    { id: "c", year: 1961 },
+    { id: "d", year: 1930 },
+  ];
+  const ids = (...names: string[]) => new Set(names);
+  const read = (l: { id: string }[]) => l.map((i) => i.id);
+  const rank = (i: { year: number }) => i.year;
+
+  it("rewrites the selection IN ITS OWN PLACES, leaving the rest alone", () => {
+    /* « c » et « d » occupent les places 3 et 4 : elles restent les
+       places 3 et 4, et « a » comme « b » n'ont pas bougé d'une ligne. */
+    expect(read(sortGroup(list, ids("c", "d"), rank, "asc"))).toEqual(["a", "b", "d", "c"]);
+    /* Les deux premières places, avec deux entrées non contiguës. */
+    expect(read(sortGroup(list, ids("a", "d"), rank, "asc"))).toEqual(["d", "b", "c", "a"]);
+  });
+
+  it("reads the other way round", () => {
+    expect(read(sortGroup(list, ids("a", "b", "c", "d"), rank, "desc"))).toEqual([
+      "c",
+      "a",
+      "b",
+      "d",
+    ]);
+  });
+
+  it("hands the very same array back when there is nothing to do", () => {
+    /* La même identité que `move` : c'est elle qui permet à l'appelant
+       de ne pas écrire au disque et de ne rien annoncer. */
+    expect(sortGroup(list, ids("a", "c"), rank, "asc")).toBe(list);
+    expect(sortGroup(list, ids("a"), rank, "asc")).toBe(list);
+    expect(sortGroup(list, ids(), rank, "asc")).toBe(list);
+    expect(sortGroup(list, ids("a", "zz"), rank, "desc")).toBe(list);
+  });
+
+  it("sends what has no date to the END, in BOTH directions", () => {
+    /* « On ne sait pas quand » n'est ni le plus ancien ni le plus
+       récent : inverser l'ordre ne doit pas le hisser en tête d'un plan. */
+    const mixed = [
+      { id: "x", year: Number.POSITIVE_INFINITY },
+      { id: "y", year: 1970 },
+      { id: "z", year: 1960 },
+    ];
+    const all = ids("x", "y", "z");
+    expect(read(sortGroup(mixed, all, rank, "asc"))).toEqual(["z", "y", "x"]);
+    expect(read(sortGroup(mixed, all, rank, "desc"))).toEqual(["y", "z", "x"]);
+  });
+
+  it("keeps the written order between two films of the same year", () => {
+    const twins = [
+      { id: "a", year: 1960 },
+      { id: "b", year: 1960 },
+      { id: "c", year: 1950 },
+    ];
+    expect(read(sortGroup(twins, ids("a", "b", "c"), rank, "asc"))).toEqual(["c", "a", "b"]);
+  });
+
+  it("never touches the list it was given", () => {
+    const before = read(list);
+    sortGroup(list, ids("a", "d"), rank, "asc");
+    expect(read(list)).toEqual(before);
+  });
+
+  it("reads a year, and refuses to guess when there is none", () => {
+    /* `Year` vaut « » quand personne ne l'a saisie, et une fiche venue
+       d'une sauvegarde peut porter n'importe quoi : c'est déjà pourquoi
+       `decadeOf` passe par une expression régulière plutôt que par un
+       `Number()`. */
+    expect(filmYear({ year: 1960 })).toBe(1960);
+    expect(filmYear({ year: "" })).toBe(Number.POSITIVE_INFINITY);
+    expect(filmYear({ year: "196?" as never })).toBe(Number.POSITIVE_INFINITY);
   });
 });
 

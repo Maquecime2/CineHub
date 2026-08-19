@@ -392,6 +392,68 @@ export const moveGroup = <T extends { id: string }>(
   return [...rest.slice(0, at), ...taken, ...rest.slice(at)];
 };
 
+/**
+ * L'année d'une fiche, en nombre, pour un tri.
+ *
+ * `Film.year` EST SAISI À LA MAIN, donc « 196? » et « » existent : c'est
+ * déjà pourquoi `decadeOf` passe par une expression régulière et pourquoi
+ * un défi par décennie se garde d'un `::int`. Ce qui ne s'énonce pas en
+ * quatre chiffres n'est pas rangé au hasard — il part À LA FIN, dans les
+ * DEUX sens, parce qu'« on ne sait pas quand » n'est ni le plus ancien ni
+ * le plus récent, et qu'inverser l'ordre ne doit pas le faire remonter en
+ * tête d'un plan.
+ */
+export const filmYear = (film: Pick<Film, "year">): number => {
+  const m = /^\d{4}/.exec(String(film.year ?? ""));
+  return m ? Number(m[0]) : Number.POSITIVE_INFINITY;
+};
+
+/**
+ * The list with everything named by `ids` sorted among ITS OWN PLACES.
+ *
+ * LE TRI NE DÉPLACE PAS LA SÉLECTION, IL LA RÉÉCRIT SUR PLACE. Les
+ * emplacements occupés ne bougent pas d'une ligne : ce qui n'est pas pris
+ * garde son rang exact, donc trier trois Ozu dispersés dans un plan ne
+ * pousse pas les autres devant ni derrière. Rassembler serait un SECOND
+ * geste — `moveGroup` l'a déjà — et les fondre ferait qu'un clic sur
+ * « trier » réordonnerait des étapes qu'on n'avait pas cochées.
+ *
+ * REFUSÉ COMME `move` REFUSE : quand l'ordre demandé est celui qui est
+ * écrit, c'est le MÊME tableau qui revient, donc l'appelant ne peut pas
+ * annoncer — ni écrire au disque — un tri qui n'a rien fait.
+ *
+ * À RANG ÉGAL, L'ORDRE ÉCRIT L'EMPORTE : `sort` est stable, et deux films
+ * de la même année ont été mis dans cet ordre-là par quelqu'un.
+ */
+export const sortGroup = <T extends { id: string }>(
+  list: T[],
+  ids: ReadonlySet<string>,
+  rank: (item: T) => number,
+  dir: "asc" | "desc"
+): T[] => {
+  if (ids.size < 2) return list;
+  const slots: number[] = [];
+  list.forEach((item, i) => {
+    if (ids.has(item.id)) slots.push(i);
+  });
+  if (slots.length < 2) return list;
+  const taken = slots.map((i) => list[i]!);
+  const sorted = [...taken].sort((a, b) => {
+    const ra = rank(a);
+    const rb = rank(b);
+    if (ra === rb) return 0;
+    if (!Number.isFinite(ra)) return 1;
+    if (!Number.isFinite(rb)) return -1;
+    return dir === "asc" ? ra - rb : rb - ra;
+  });
+  if (sorted.every((item, i) => item === taken[i])) return list;
+  const next = [...list];
+  slots.forEach((at, i) => {
+    next[at] = sorted[i]!;
+  });
+  return next;
+};
+
 const touched = (course: Course, steps: Step[]): Course => ({
   ...course,
   steps,

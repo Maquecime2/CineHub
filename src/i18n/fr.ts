@@ -1951,6 +1951,11 @@ const fr = {
     selected_other: "{{count}} étapes prises",
     selectedHow: "glissez-en une, tout le bloc suit",
     selectNone: "tout lâcher",
+    selectBand: "Prendre tout le bloc de {{name}}",
+    sortAsc: "Du plus ancien",
+    sortDesc: "Du plus récent",
+    sorted_one: "Une étape remise en ordre de date",
+    sorted_other: "{{count}} étapes remises en ordre de date",
     removeMany: "Les retirer du parcours",
     confirmRemoveSteps_one: "Retirer une étape ?",
     confirmRemoveSteps_other: "Retirer {{count}} étapes ?",
@@ -2828,7 +2833,7 @@ const fr = {
       },
       order: {
         title: "L'ordre est le sujet",
-        body: "Vos films en affiches, dans l'ordre où vous voulez les voir. Glissez-en une le long de la bande pour la déplacer, ou servez-vous d'Alt et des flèches. Choisissez-en une, elle s'ouvre en dessous.",
+        body: "Vos films en affiches, dans l'ordre où vous voulez les voir. Glissez-en une le long de la bande pour la déplacer, ou servez-vous d'Alt et des flèches. Le nom d'un cinéaste au-dessus des affiches prend tout son bloc d'un coup ; une fois plusieurs entrées prises, on les remet en ordre de date, du plus ancien ou du plus récent, sans toucher au reste du parcours. Choisissez-en une, elle s'ouvre en dessous.",
       },
       add: {
         title: "Poser un film",

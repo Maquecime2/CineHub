@@ -1899,6 +1899,11 @@ const en = {
     selected_other: "{{count}} steps taken",
     selectedHow: "drag any of them and the whole lot follows",
     selectNone: "let them go",
+    selectBand: "Take every {{name}} step in this block",
+    sortAsc: "Oldest first",
+    sortDesc: "Newest first",
+    sorted_one: "One step reordered by year",
+    sorted_other: "{{count}} steps reordered by year",
     removeMany: "Take them out of the run",
     confirmRemoveSteps_one: "Take one step out?",
     confirmRemoveSteps_other: "Take {{count}} steps out?",
@@ -2726,7 +2731,7 @@ const en = {
       },
       order: {
         title: "The order is the point",
-        body: "Your films as posters, in the order you mean to watch them. Drag one along the strip to reorder it, or use Alt and the arrows. Pick one and it opens below.",
+        body: "Your films as posters, in the order you mean to watch them. Drag one along the strip to reorder it, or use Alt and the arrows. A film-maker's name above the posters takes their whole block in one go; once several entries are taken, you can put them back in date order, oldest or newest first, without disturbing the rest of the run. Pick one and it opens below.",
       },
       add: {
         title: "Laying down a film",
