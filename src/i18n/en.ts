@@ -1914,6 +1914,15 @@ const en = {
     howToLook: "DRAG TO MOVE ABOUT — CTRL + WHEEL, OR + AND −, TO LOOK CLOSER",
     remove: "Take out of the run",
     openFilm: "Open the card",
+    runSettings: "Set this run up",
+    openMap_one: "The map of film-makers — one bond",
+    openMap_other: "The map of film-makers — {{count}} bonds",
+    mapTitle: "The map of film-makers",
+    bondCount_one: "one bond laid",
+    bondCount_other: "{{count}} bonds laid",
+    seeSteps: "Show the steps that call upon it",
+    seeOnMap: "See this bond on the map",
+    emptyRun: "This run has no film yet. Lay one down below and it will lead the way.",
     quickLook: "See what it is about",
     quickOf: "See what “{{title}}” is about",
     order: "The running order",
@@ -2743,27 +2752,15 @@ const en = {
       },
       map: {
         title: "The map of film-makers",
-        body: "The directors in your run, tied by what you know of them: master, inheritance, affinity, counterpoint. Click one and the strip lights up on the films that are theirs; look closer with + and −, and drag the map about.",
-      },
-      bond: {
-        title: "A bond, and its reason",
-        body: "A bond is laid by hand: nothing on a card says who taught whom. An entry in the run can then call upon it — and you see, from both ends, what holds the plan together.",
-      },
-      harvest: {
-        title: "Look for filiations",
-        body: "Nobody knows by heart who taught whom. This button asks Wikidata what is known of your film-makers, and you tick what goes on the map — nothing writes itself.",
-      },
-      hints: {
-        title: "What is known elsewhere",
-        body: "Under the bonds already laid down, what Wikidata says of this person. One click fills the tying form in: the map stays yours.",
+        body: "It opens over the screen, because a graph folded into a column is no more than a picture of a map. Inside: the directors of your run, linked by what you know of them — master, legacy, affinity, counterpoint; the button that ties a bond, since nothing on a card says who taught whom; and the harvest, which asks Wikidata what it knows of your film-makers and never writes a thing on your behalf. Click a node and the running order lights up on the films that are theirs.",
       },
       progress: {
         title: "Where you stand",
         body: "How many of the run you have watched, and the next one in full. Nothing is ticked here: log a screening on a film card and this moves — a screening LATER than you laid the step down settles it, so a film you saw ten years ago is still ahead of you.",
       },
       thread: {
-        title: "What holds the run together",
-        body: "A filiation between film-makers, a motif, a decade, a genre — or a sentence of your own in the thesis above. The thread never refuses a film: it draws the evidence under the run, and offers what you already hold and have not laid down.",
+        title: "Setting this run up",
+        body: "The name, the thesis and the red thread are set here, on a sheet: a filiation between film-makers, a motif, a decade, a genre — or a sentence of your own. The thread never refuses a film — it draws the evidence under the run and offers what you already hold. This is also where a run gets pinned, or deleted.",
       },
     },
 

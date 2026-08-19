@@ -6,6 +6,7 @@ import { NextUp } from "./NextUp";
 import { ThreadEvidence } from "./ThreadEvidence";
 import { makeFilm } from "../../domain/film";
 import { makeCourse, makeStep } from "../../domain/course";
+import { makeBond } from "../../domain/bonds";
 
 /* ============================================================
    AN AFFICHE IN `plain` NEEDS A BOX, AND IT IS NOT A DETAIL
@@ -51,7 +52,9 @@ describe("the band that says where one stands", () => {
     /* Les deux ensemble, jamais l'une sans l'autre : sans `relative`
        l'affiche s'ancre ailleurs, sans hauteur elle n'en a aucune. */
     expect(button.style.position).toBe("relative");
-    expect(button.style.height).toBe("108px");
+    /* La hauteur du RAIL (`POSTER_H`) : la vedette et les stations
+       parlent de la même chose, elles la montrent à la même taille. */
+    expect(button.style.height).toBe("168px");
   });
 
   it("counts what is walked and names what comes next", () => {
@@ -79,15 +82,79 @@ describe("the band that says where one stands", () => {
     expect(screen.getByText(/parcouru ce programme jusqu'au bout/)).toBeInTheDocument();
   });
 
-  it("draws nothing at all on a run with no step", () => {
-    const { container } = render(
+  /* UN PARCOURS VIDE N'EST PAS UN TROU. Rendre `null` allait quand la
+     bande etait un accessoire ; en vedette, un parcours neuf ouvrirait
+     sur rien entre les puces et le rail vide. */
+  it("says a fresh run is empty rather than drawing nothing", () => {
+    render(
       <ProgressBand
         progress={{ done: 0, total: 0, next: null }}
         onOpenStep={vi.fn()}
         onQuick={vi.fn()}
       />
     );
-    expect(container).toBeEmptyDOMElement();
+    expect(screen.getByText(/n'a pas encore de film/)).toBeInTheDocument();
+  });
+
+  /* ============================================================
+     « POURQUOI CELUI-LA » A DEUX MOITIES
+     ============================================================
+     La note de marge est de vous ; la FILIATION est le savoir, et elle
+     etait enfermee dans le panneau d'une etape. La donnee reste une cle
+     — `Bond.note` est une reference ecrite pour la machine — et c'est
+     l'ecran qui la met en mots. */
+  it("reads the bond out FROM the film-maker, and never its note", () => {
+    const { entries } = progressOf([OZU, HOU]);
+    /* Les deux bouts sont des NOMS : `makeBond` en tire les clés, et
+       c'est la clé du cinéaste de la fiche qui décide du sens lu. */
+    const bond = makeBond({
+      fromName: "Yasujirō Ozu",
+      toName: "Hou Hsiao-hsien",
+      kind: "master",
+      note: "Wikidata P1066",
+    })!;
+    const { container } = render(
+      <ProgressBand
+        progress={{ done: 0, total: 2, next: entries[0]! }}
+        because={bond}
+        onOpenStep={vi.fn()}
+        onQuick={vi.fn()}
+      />
+    );
+    /* Le nom du cinéaste est dans un `strong`, la tournure à côté : on
+       lit le bloc entier plutôt qu'un fragment. */
+    expect(container.textContent).toMatch(/a pour élève Hou Hsiao-hsien/);
+    expect(container.textContent).not.toMatch(/Wikidata/);
+  });
+
+  it("draws no filiation when the step calls upon none", () => {
+    const { entries } = progressOf([OZU, HOU]);
+    const { container } = render(
+      <ProgressBand
+        progress={{ done: 0, total: 2, next: entries[0]! }}
+        onOpenStep={vi.fn()}
+        onQuick={vi.fn()}
+      />
+    );
+    expect(container.textContent).not.toMatch(/a pour /);
+  });
+
+  /* IL NE COCHE RIEN : `stepDone` reste DERIVE d'une seance. Ce bouton
+     mene la ou l'on note une seance, et c'est tout ce qu'il fait. */
+  it("offers the card itself, which is where a screening gets logged", async () => {
+    const user = userEvent.setup();
+    const onOpenFilm = vi.fn();
+    const { entries } = progressOf([OZU, HOU]);
+    render(
+      <ProgressBand
+        progress={{ done: 0, total: 2, next: entries[0]! }}
+        onOpenStep={vi.fn()}
+        onQuick={vi.fn()}
+        onOpenFilm={onOpenFilm}
+      />
+    );
+    await user.click(screen.getByRole("button", { name: "Ouvrir la fiche" }));
+    expect(onOpenFilm).toHaveBeenCalled();
   });
 });
 

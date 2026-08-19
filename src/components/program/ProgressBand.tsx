@@ -16,28 +16,72 @@
 
    NOTHING IN IT IS DRAGGABLE. The band is for READING where one stands;
    the rail below is for composing. Mixing the two put the one gesture
-   that reorders a plan on the one element one goes to just to look. */
+   that reorders a plan on the one element one goes to just to look.
+
+   C'EST LA VEDETTE, ET NON PLUS UN BANDEAU. L'écran répond d'abord à
+   « qu'est-ce que je regarde ce soir » — c'est le seul écran du produit
+   qui le PEUT — et il y répondait en soixante-douze pixels d'affiche
+   coincés entre deux formulaires. D'où trois ajouts, et pas un de plus :
+
+   — L'AFFICHE EST CELLE DU RAIL (`POSTER_H`), pour que la vedette et les
+     stations parlent de la même chose à la même taille.
+   — LE LIEN EST LU EN CLAIR. « Pourquoi celui-là » a deux moitiés : la
+     note de marge, qui est de vous, et la FILIATION, qui est le savoir.
+     La seconde était enfermée dans le panneau d'une étape. Elle se dit
+     par `bondLabel` et JAMAIS par `bond.note` — une note est une
+     référence écrite pour la machine, et la règle est celle de
+     `BondDetail`.
+   — « OUVRIR LA FICHE » EST LE TROISIÈME GESTE, et il ne coche rien :
+     `stepDone` reste DÉRIVÉ. Il mène là où l'on note une séance, ce qui
+     fait avancer le plan sans que personne revienne le dire. C'est la
+     doctrine du haut de ce fichier, et elle survit au bouton neuf.
+
+   UN PARCOURS VIDE N'EST PAS UN TROU. Rendre `null` allait quand la
+   bande était un accessoire ; en vedette, un parcours neuf ouvrirait sur
+   rien entre les puces et le rail vide. `Guideline` le dit — une
+   primitive, jamais une phrase écrite dans une vue. */
 import { useTranslation } from "react-i18next";
-import { CheckCheck } from "lucide-react";
+import { CheckCheck, ExternalLink } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
-import { bare, inked } from "../../theme/styles";
+import { bare, hollow, inked } from "../../theme/styles";
+import { Guideline } from "../ui";
 import { PosterArt } from "../film/PosterArt";
 import { initialsOf } from "../../domain/film";
 import { primaryDirector } from "../../domain/lineageMap";
+import { bondLabel } from "../../domain/bonds";
+import type { Bond } from "../../domain/bonds";
 import type { Progress } from "../../domain/course";
+import { POSTER_H } from "./StepCard";
+
+/** La largeur de l'affiche en vedette, au 2:3 de `POSTER_H`. */
+const POSTER_W = Math.round((POSTER_H * 2) / 3);
 
 interface ProgressBandProps {
   progress: Progress;
+  /**
+   * Le lien que l'étape suivante invoque, s'il en désigne un qu'on tient.
+   * Absent est le cas NORMAL : une justification pendante est muette au
+   * rendu, jamais nettoyée.
+   */
+  because?: Bond | null;
   /** Ouvrir l'étape suivante dans le panneau du bas. */
   onOpenStep: (stepId: string) => void;
   /** La vue rapide, sans quitter le plan. */
   onQuick: () => void;
+  /** La fiche entière — c'est là qu'on note une séance. */
+  onOpenFilm?: () => void;
 }
 
-export function ProgressBand({ progress, onOpenStep, onQuick }: ProgressBandProps) {
+export function ProgressBand({
+  progress,
+  because,
+  onOpenStep,
+  onQuick,
+  onOpenFilm,
+}: ProgressBandProps) {
   const { t } = useTranslation();
   const { done, total, next } = progress;
-  if (total === 0) return null;
+  if (total === 0) return <Guideline>{t("program.emptyRun")}</Guideline>;
 
   const share = Math.round((done / total) * 100);
   const director = next ? primaryDirector(next.film) : null;
@@ -102,13 +146,18 @@ export function ProgressBand({ progress, onOpenStep, onQuick }: ProgressBandProp
               ...bare,
               display: "block",
               position: "relative",
-              width: 72,
-              height: 108,
+              width: POSTER_W,
+              height: POSTER_H,
               flexShrink: 0,
               padding: 0,
             }}
           >
-            <PosterArt film={next.film} initials={initialsOf(next.film.title)} width={72} plain />
+            <PosterArt
+              film={next.film}
+              initials={initialsOf(next.film.title)}
+              width={POSTER_W}
+              plain
+            />
           </button>
 
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -136,10 +185,45 @@ export function ProgressBand({ progress, onOpenStep, onQuick }: ProgressBandProp
                 {next.step.why}
               </div>
             )}
+            {/* LA FILIATION QUI JUSTIFIE CETTE PLACE, lue DEPUIS le
+                cinéaste de la fiche : « a pour maître X » et « a pour
+                élève X » sont la même ligne des deux bouts, et c'est le
+                bon bout qu'on veut ici. La donnée reste une clé, l'écran
+                la traduit. */}
+            {because && director && (
+              <div
+                style={{
+                  fontFamily: F.body,
+                  fontSize: 13,
+                  color: C.inkFaded,
+                  marginTop: 6,
+                  display: "flex",
+                  alignItems: "baseline",
+                  gap: 6,
+                }}
+              >
+                <span aria-hidden style={{ fontFamily: F.mono, fontSize: 11, color: C.plum }}>
+                  &#8627;
+                </span>
+                <span>
+                  <strong style={{ fontWeight: 600, color: C.ink }}>{director.name}</strong>{" "}
+                  {bondLabel(because, director.key, t)}
+                </span>
+              </div>
+            )}
+
             <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
               <button onClick={onQuick} style={inked(C.plum)}>
                 {t("program.quickLook")}
               </button>
+              {/* IL NE COCHE RIEN : il mène là où l'on note une séance,
+                  et c'est la séance qui solde l'étape. */}
+              {onOpenFilm && (
+                <button onClick={onOpenFilm} style={{ ...inked(C.ink), ...hollow }}>
+                  <ExternalLink size={12} />
+                  {t("program.openFilm")}
+                </button>
+              )}
               <button
                 onClick={() => onOpenStep(next.step.id)}
                 style={{ ...bare, fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}

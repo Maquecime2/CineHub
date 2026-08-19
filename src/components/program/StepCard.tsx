@@ -31,6 +31,17 @@
    and downwards on a phone, and the fingers that learnt one should not
    have to learn the other.
 
+   DEUX CIBLES PAR STATION, ET IL Y EN AVAIT QUATRE. Le titre appelait le
+   MÊME `onPick` que l'affiche, sans nom à lui, et les deux chevrons
+   étaient dessinés en permanence : huit stations posaient trente-deux
+   choses à cliquer pour seize gestes, et c'est là que se trouvait plus
+   de la moitié de l'encombrement de tout l'écran. Le titre est donc du
+   TEXTE, et les chevrons s'effacent au repos comme la case à cocher —
+   par `opacity` et jamais par un rendu conditionnel, sans quoi passer
+   d'un chevron à l'autre démonte celui qu'on quitte et le focus tombe
+   sur le corps du document. Rien n'est retiré : ce qui est effacé garde
+   sa place, son clic et son annonce.
+
    THE TICK-BOX IS THE THIRD DOOR TO A SELECTION. Ctrl-click and
    Shift-click are the desk conventions and they cost nothing to anybody
    who knows them; they are also unreachable with a finger and awkward
@@ -102,8 +113,6 @@ interface StepCardProps {
    * boutons pour un même geste.
    */
   onPickBand?: () => void;
-  /** Survol ou focus : la carte épaissit le lien invoqué. */
-  onPoint: (on: boolean) => void;
   onMoveBy: (delta: number) => void;
   onDragStart: () => void;
   onDropHere: () => void;
@@ -130,7 +139,6 @@ export function StepCard({
   onPick,
   onToggle,
   onPickBand,
-  onPoint,
   onMoveBy,
   onDragStart,
   onDropHere,
@@ -172,8 +180,6 @@ export function StepCard({
         opacity: showBox ? 1 : 0,
         margin: 0,
       }}
-      onFocus={() => setNear(true)}
-      onBlur={() => setNear(false)}
     />
   );
 
@@ -207,8 +213,25 @@ export function StepCard({
     </span>
   ) : null;
 
+  /* LES CHEVRONS S'EFFACENT AU REPOS, ET C'EST `opacity` ET NON UN RENDU
+     CONDITIONNEL. Les démonter au `blur` ferait tomber le focus sur le
+     corps du document en passant d'un chevron à l'autre : `showBox` est
+     calculé depuis `near`, qui s'éteint le temps d'un rendu. La case à
+     cocher a déjà tranché la question deux lignes plus haut, pour la
+     même raison, et on suit son précédent.
+
+     CE QU'ON RETIRE EST DU BRUIT, PAS UNE COMMANDE. À `opacity: 0` le
+     bouton garde sa place, reste cliquable et reste annoncé : le grief
+     était le nombre de choses VISIBLES — huit stations dessinaient seize
+     chevrons en permanence — et c'est à celui-là qu'on répond. */
   const chevrons = (
-    <div style={{ display: "flex" }}>
+    <div
+      style={{
+        display: "flex",
+        opacity: showBox ? 1 : 0,
+        transition: "opacity var(--motion-fast) var(--motion-ease)",
+      }}
+    >
       <button
         onClick={() => onMoveBy(-1)}
         disabled={place === 1}
@@ -245,16 +268,15 @@ export function StepCard({
       onDropHere();
     },
     "aria-current": (lit ? "true" : undefined) as "true" | undefined,
-    onMouseEnter: () => {
-      setNear(true);
-      onPoint(true);
-    },
-    onMouseLeave: () => {
-      setNear(false);
-      onPoint(false);
-    },
-    onFocusCapture: () => onPoint(true),
-    onBlurCapture: () => onPoint(false),
+    onMouseEnter: () => setNear(true),
+    onMouseLeave: () => setNear(false),
+    /* UN SEUL FOYER POUR `near`, ET IL EST SUR LA CARTE ENTIÈRE. Il
+       était porté par la case à cocher seule : au clavier, la case
+       s'allumait et les chevrons restaient effacés, alors que ce sont
+       eux qu'on vient chercher. `Capture` parce que `focus` ne remonte
+       pas. */
+    onFocusCapture: () => setNear(true),
+    onBlurCapture: () => setNear(false),
     onKeyDown: (e: ReactKeyboardEvent) => {
       /* `Alt` because the bare arrows belong to the page: a strip one
          cannot scroll through with the keyboard would trade one loss for
@@ -318,22 +340,25 @@ export function StepCard({
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 5 }}>
             <span style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>{place}</span>
-            <button
-              onClick={onPick}
+            {/* LE TITRE N'EST PAS UNE COMMANDE, ET IL NE L'ÉTAIT QUE PAR
+                DOUBLON. Il appelait le MÊME `onPick` que l'affiche, sans
+                nom à lui : huit stations offraient donc seize boutons
+                pour huit gestes, et le lecteur d'écran entendait deux
+                fois le même film sans savoir ce qui les distinguait.
+                L'affiche porte déjà `program.openStep`. */}
+            <span
               style={{
-                ...bare,
                 flex: 1,
                 minWidth: 0,
                 color: C.ink,
                 fontFamily: F.body,
                 fontSize: 14.5,
                 lineHeight: 1.25,
-                textAlign: "left",
                 display: "block",
               }}
             >
               {film.title}
-            </button>
+            </span>
           </div>
           {directorName && (
             <div style={{ fontFamily: F.mono, fontSize: 9, color: C.inkFaded, marginTop: 1 }}>
@@ -512,21 +537,20 @@ export function StepCard({
       </div>
 
       <div style={{ minWidth: 0 }}>
-        <button
-          onClick={onPick}
+        {/* Du texte, et non un second bouton pour le geste de l'affiche
+            — voir la colonne du téléphone, plus haut. */}
+        <span
           style={{
-            ...bare,
             width: "100%",
             color: C.ink,
             fontFamily: F.body,
             fontSize: 12.5,
             lineHeight: 1.25,
-            textAlign: "left",
             display: "block",
           }}
         >
           {film.title}
-        </button>
+        </span>
         {film.year && (
           <div style={{ fontFamily: F.mono, fontSize: 9, color: C.inkFaded, marginTop: 1 }}>
             {film.year}

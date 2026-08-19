@@ -60,20 +60,21 @@
    and `makeBond` -> `hasBond` -> `contradicts` stay the one door. */
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Route } from "lucide-react";
+import { Route, Waypoints } from "lucide-react";
 import { C, F } from "../theme/tokens";
 import { hollow, inked } from "../theme/styles";
 import { Confirmation, ViewHeading } from "../components/ui";
 import type { ConfirmRequest } from "../components/ui";
 import { RunBar, NoRun } from "../components/program/RunBar";
+import { RunSettings } from "../components/program/RunSettings";
 import { ProgressBand } from "../components/program/ProgressBand";
 import { ThreadEvidence } from "../components/program/ThreadEvidence";
 import { OrderStrip } from "../components/program/OrderStrip";
 import { StepPanel } from "../components/program/StepPanel";
 import { FilmPicker } from "../components/film/FilmPicker";
-import { LineageMap, MapToggle } from "../components/program/LineageMap";
+import { MAP_H, MAP_W } from "../components/program/LineageMap";
+import { LineageSheet } from "../components/program/LineageSheet";
 import { BondForm } from "../components/program/BondForm";
-import { NodePanel } from "../components/program/NodePanel";
 import { HintHarvest } from "../components/program/HintHarvest";
 import { FilmQuickView } from "../components/film/FilmQuickView";
 import { normalize } from "../domain/search";
@@ -84,15 +85,16 @@ import {
   makeCourse,
   pinnedCourse,
   patchStep,
+  stepBond,
   withSteps,
   withStep,
   withoutSteps,
 } from "../domain/course";
 import type { Course } from "../domain/course";
 import { buildLineage } from "../domain/lineageMap";
-import { bondLabel } from "../domain/bonds";
+import { relax } from "../domain/sky";
 import type { Bond, BondKind } from "../domain/bonds";
-import { HINT_MARK, hintedBonds, isHinted, readCreditNote } from "../domain/hints";
+import { hintedBonds, isHinted } from "../domain/hints";
 import type { Hint } from "../domain/hints";
 import { useViewport } from "../hooks/useViewport";
 import type { Film } from "../types";
@@ -143,22 +145,22 @@ export function ProgramView({
      jamais les deux : rien n'est allumé pour deux raisons à la fois. */
   const [focusKey, setFocusKey] = useState<string | null>(null);
   const [focusBond, setFocusBond] = useState<string | null>(null);
-  /* Le lien seulement SURVOLÉ depuis la file : il épaissit l'arête sans
-     déplacer le foyer, sinon promener la souris changerait la sélection. */
-  const [pointed, setPointed] = useState<string | null>(null);
   /** L'étape ouverte dans le panneau. C'est un troisième foyer, et il
       est indépendant des deux autres : on lit une étape PENDANT qu'on
       regarde un cinéaste, c'est même tout l'intérêt. */
   const [pickedStep, setPickedStep] = useState<string | null>(null);
   const [linking, setLinking] = useState<Linking | null>(null);
   const [harvesting, setHarvesting] = useState(false);
+  /** La feuille des réglages : titre, thèse, fil rouge, épingle, retrait. */
+  const [settling, setSettling] = useState(false);
   /**
    * Ce qu'on regarde en entier, par-dessus le plan. La FICHE et non son
    * identifiant : un aperçu venu de TMDB n'est pas au classeur, donc
    * rien ne l'y retrouverait.
    */
   const [quick, setQuick] = useState<Film | null>(null);
-  const [folded, setFolded] = useState(true);
+  /** La carte des cinéastes, ouverte par-dessus. */
+  const [mapOpen, setMapOpen] = useState(false);
   /* LES DEUX RETRAITS PASSENT PAR UNE CONFIRMATION, et ce ne sont pas
      les mêmes pertes. Supprimer un parcours perd un ORDRE et des notes
      — rien d'autre au monde ne les tient. Retirer un lien perd un
@@ -175,7 +177,15 @@ export function ProgramView({
     [courses, openId]
   );
 
-  const { nodes } = useMemo(() => buildLineage(films, bonds, course), [films, bonds, course]);
+  const { nodes, links } = useMemo(
+    () => buildLineage(films, bonds, course),
+    [films, bonds, course]
+  );
+  /* LA DISPOSITION EST CALCULÉE ICI, ET NON DANS LA CARTE. `relax` est
+     en O(n²) sur trois cent vingt passes : la carte se démontant à
+     chaque fermeture de sa feuille, il se rejouerait à chaque ouverture.
+     Rien de la fenêtre n'y entre — c'est la règle déjà écrite. */
+  const placed = useMemo(() => relax(nodes, links, MAP_W, MAP_H), [nodes, links]);
   const node = focusKey ? nodes.find((n) => n.key === focusKey) : undefined;
 
   /** Les fiches déjà au programme : le panneau n'offre pas de doublon. */
@@ -332,38 +342,6 @@ export function ProgramView({
       ...(forStep ? { forStep } : {}),
     });
 
-  const bondButton = (
-    <>
-      <button
-        data-tour="program-bond"
-        onClick={() => tieBond("")}
-        style={{ ...inked(C.plum), fontFamily: F.mono }}
-      >
-        {t("program.addBond")}
-      </button>
-      {/* LA VISITE VISE LA PORTE, JAMAIS LA FEUILLE : une visite ne peut
-          pas ouvrir une modale. */}
-      <button
-        data-tour="program-harvest"
-        onClick={() => setHarvesting(true)}
-        style={{ ...inked(C.ink), ...hollow, fontFamily: F.mono }}
-      >
-        {t("program.harvest")}
-      </button>
-      {/* N'APPARAÎT QUE S'IL Y A DE QUOI REPRENDRE : un bouton de
-          retrait sur une carte qu'on a écrite à la main ne désigne
-          rien. */}
-      {hinted.length > 0 && (
-        <button
-          onClick={askForgetHinted}
-          style={{ ...inked(C.ink), ...hollow, color: C.burgundy, fontFamily: F.mono }}
-        >
-          {t("program.forgetHinted", { count: hinted.length })}
-        </button>
-      )}
-    </>
-  );
-
   return (
     <ViewHeading
       icon={<Route size={22} color={C.plum} />}
@@ -375,15 +353,12 @@ export function ProgramView({
         <RunBar
           courses={courses}
           course={course}
-          films={films}
           onOpen={(id) => {
             setOpenId(id);
             setPickedStep(null);
           }}
           onNew={newCourse}
-          onDelete={askDeleteCourse}
-          onCourse={(next) => replace(next)}
-          onCourseSoon={(next) => replace(next, false)}
+          onSettings={() => setSettling(true)}
         />
       ) : (
         <NoRun onNew={newCourse} />
@@ -395,8 +370,13 @@ export function ProgramView({
       {course && (
         <ProgressBand
           progress={progress}
+          /* LE LIEN QUI JUSTIFIE LA PROCHAINE SÉANCE. Absent est le cas
+             normal, et une justification pendante en fait partie :
+             `stepBond` ne rend que ce qu'on tient. */
+          because={progress.next ? stepBond(progress.next.step, bonds) : undefined}
           onOpenStep={setPickedStep}
           onQuick={() => progress.next && setQuick(progress.next.film)}
+          onOpenFilm={progress.next ? () => onOpen(progress.next!.film.id) : undefined}
         />
       )}
 
@@ -418,50 +398,17 @@ export function ProgramView({
 
       {(!course || course.thread.kind === "filiation") && (
         <div style={{ marginBottom: 20 }}>
-          <LineageMap
-            films={films}
-            bonds={bonds}
-            course={course}
-            focusKey={focusKey}
-            focusBond={focusBond || pointed}
-            onPickPerson={pickPerson}
-            onPickBond={pickBond}
-            /* REPLIÉE PAR DÉFAUT, ET SUR TOUS LES ÉCRANS. La carte est une
-             PREUVE : elle explique l'ordre, elle ne le remplace pas, et
-             tant qu'elle s'ouvrait d'elle-même en pleine largeur c'est
-             elle qu'on venait voir. Le repli était réservé au téléphone,
-             où le graphe poussait le sujet sous la ligne de flottaison —
-             la raison vaut partout, à un pli près. */
-            folded={folded}
-            action={
-              <>
-                {bondButton}
-                <MapToggle folded={folded} onToggle={() => setFolded((f) => !f)} />
-              </>
-            }
-          />
-
-          {node && (
-            <NodePanel
-              node={node}
-              films={films}
-              bonds={bonds}
-              inCourse={inCourse}
-              onAdd={(filmId) => add([filmId])}
-              onAddAll={add}
-              onOpenPerson={onOpenPerson}
-              onPickBond={pickBond}
-              onAddBond={(name, hint) => (hint ? tieHint(hint) : tieBond(name))}
-              onClose={() => setFocusKey(null)}
-            />
-          )}
-
-          {/* L'ARÊTE SÉLECTIONNÉE SE RETIRE D'ICI, et pas depuis la ligne
-            du SVG : une croix de six pixels sur un trait qu'on peut
-            déplacer est une cible qu'on rate. */}
-          {focusBond && (
-            <BondDetail bond={bonds.find((b) => b.id === focusBond)} onRemove={askRemoveBond} />
-          )}
+          {/* LA PORTE, ET SON COMPTE ÉCRIT DESSUS. C'est la seule chose
+              qui dise ce qu'il y a derrière — la règle du bouton de
+              moisson, qui annonce ce qu'il va dépenser. */}
+          <button
+            data-tour="program-map"
+            onClick={() => setMapOpen(true)}
+            style={{ ...inked(C.ink), ...hollow, fontFamily: F.mono }}
+          >
+            <Waypoints size={12} />
+            {t("program.openMap", { count: bonds.length })}
+          </button>
         </div>
       )}
 
@@ -474,7 +421,6 @@ export function ProgramView({
           onPick={setPickedStep}
           focusKey={focusKey}
           focusBond={focusBond}
-          onPointBond={setPointed}
           onRemoveMany={askRemoveSteps}
           onCourse={(next) => replace(next)}
         />
@@ -490,6 +436,14 @@ export function ProgramView({
           onPatch={(patch, settled) => replace(patchStep(course, picked.step.id, patch), settled)}
           onSettle={() => replace(course)}
           onTie={(from, to) => tieBond(from, to, picked.step.id)}
+          /* On allume l'arête AVANT d'ouvrir : la carte s'ouvre déjà
+             pointée sur ce qu'on est venu vérifier. */
+          onSeeOnMap={() => {
+            if (!picked.step.because) return;
+            setFocusKey(null);
+            setFocusBond(picked.step.because);
+            setMapOpen(true);
+          }}
           onQuick={() => setQuick(picked.film)}
           onRemove={() => {
             onCourses(
@@ -520,6 +474,48 @@ export function ProgramView({
           label={course ? t("program.addToRun") : t("program.addFirst")}
         />
       </div>
+
+      {mapOpen && (
+        <LineageSheet
+          placed={placed}
+          links={links}
+          films={films}
+          bonds={bonds}
+          node={node}
+          focusKey={focusKey}
+          focusBond={focusBond}
+          hinted={hinted}
+          inCourse={inCourse}
+          onPickPerson={pickPerson}
+          onPickBond={pickBond}
+          onAdd={(filmId) => add([filmId])}
+          onAddAll={add}
+          onOpenPerson={onOpenPerson}
+          onAddBond={(name, hint) => (hint ? tieHint(hint) : tieBond(name))}
+          onHarvest={() => setHarvesting(true)}
+          onForgetHinted={askForgetHinted}
+          onRemoveBond={askRemoveBond}
+          /* ALLUMER LE RAIL, PUIS SE RETIRER : les étapes qu'on vient
+             demander sont derrière le voile. */
+          onSeeSteps={(bondId) => {
+            setFocusKey(null);
+            setFocusBond(bondId);
+            setMapOpen(false);
+          }}
+          onClose={() => setMapOpen(false)}
+        />
+      )}
+
+      {settling && course && (
+        <RunSettings
+          course={course}
+          films={films}
+          onCourse={(next) => replace(next)}
+          onCourseSoon={(next) => replace(next, false)}
+          onDelete={askDeleteCourse}
+          onClose={() => setSettling(false)}
+        />
+      )}
 
       {harvesting && (
         <HintHarvest
@@ -580,69 +576,5 @@ export function ProgramView({
 
       <Confirmation request={request} onClose={() => setRequest(null)} />
     </ViewHeading>
-  );
-}
-
-/** Le retrait d'un lien, une fois qu'on l'a choisi sur la carte. */
-/* ============================================================
-   CE QU'UNE ARÊTE DIT QUAND ON LA CHOISIT
-   ============================================================
-
-   ELLE NE DISAIT QUE SA NOTE, ET UNE NOTE N'EST PAS UN LIEN. On lisait
-   « Wikidata P1066 » — une référence, écrite pour la machine — au-dessus
-   d'un bouton de retrait, sans les deux noms, sans la nature, sans le
-   sens. Le seul endroit du produit où l'on regarde un lien EN
-   PARTICULIER était le seul à ne pas l'énoncer.
-
-   ET LA PROVENANCE SE DIT EN TOUTES LETTRES. `Bond.note` reste une
-   référence sur le disque — y écrire du français figerait la langue du
-   jour dans les données — mais l'ÉCRAN la traduit. C'est la règle de
-   `threadLabel` : la donnée est une clé, l'affichage lit le catalogue. */
-function BondDetail({ bond, onRemove }: { bond?: Bond; onRemove: (bond: Bond) => void }) {
-  const { t } = useTranslation();
-  if (!bond) return null;
-  const hinted = isHinted(bond);
-  const credit = readCreditNote(bond.note);
-  return (
-    /* UN NOM, PARCE QUE ÇA PARAÎT SANS PRÉVENIR. Ce bloc s'ouvre quand
-       on choisit une arête, loin du geste au lecteur d'écran, et le
-       miroir en liste de la carte énonce déjà les mêmes phrases : sans
-       nom, rien ne distingue les deux. */
-    <div
-      role="group"
-      aria-label={t("program.bondDetail")}
-      style={{ marginTop: 12, borderTop: `1px solid ${C.line}`, paddingTop: 10 }}
-    >
-      <div style={{ fontFamily: F.body, fontSize: 15, color: C.ink }}>
-        <strong style={{ fontWeight: 600 }}>{bond.fromName}</strong> {bondLabel(bond, bond.from, t)}
-      </div>
-
-      {/* LU DE L'AUTRE BOUT, et ce n'est pas une redite : « a pour
-          élève » et « a pour maître » sont la même ligne, et c'est
-          précisément le sens qu'on vient vérifier sur une arête. */}
-      <div style={{ fontFamily: F.body, fontSize: 13, color: C.inkFaded, marginTop: 2 }}>
-        <strong style={{ fontWeight: 600 }}>{bond.toName}</strong> {bondLabel(bond, bond.to, t)}
-      </div>
-
-      {bond.note && (
-        <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded, marginTop: 6 }}>
-          {credit
-            ? t("program.bondFromCredits", {
-                role: t(`roles.${credit.role}`),
-                count: credit.n,
-              })
-            : hinted
-              ? t("program.bondFromHint", { prop: bond.note.slice(HINT_MARK.length) })
-              : bond.note}
-        </div>
-      )}
-
-      <button
-        onClick={() => onRemove(bond)}
-        style={{ ...inked(C.ink), ...hollow, color: C.burgundy, marginTop: 8 }}
-      >
-        {t("program.removeBond")}
-      </button>
-    </div>
   );
 }

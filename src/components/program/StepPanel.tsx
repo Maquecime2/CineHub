@@ -17,7 +17,7 @@
    away: no `Layer`, no `useDialog`, no scrim. Those are for what
    interrupts — the bond form does interrupt, and it has them. */
 import { useTranslation } from "react-i18next";
-import { Eye, ExternalLink, X } from "lucide-react";
+import { Eye, ExternalLink, Waypoints, X } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { bare, hollow, inked, ruledTextarea } from "../../theme/styles";
 import { Label } from "../ui";
@@ -48,6 +48,15 @@ interface StepPanelProps {
   onSettle: () => void;
   /** Le cinéaste de cette entrée, et l'autre bout quand on le tient. */
   onTie: (from: string, to?: string) => void;
+  /**
+   * Ouvrir la carte SUR le lien que cette étape invoque.
+   *
+   * C'est la moitié « étape → arête » de la sélection croisée. Elle
+   * passait par le SURVOL d'une station, ce qui ne veut rien dire au
+   * doigt et ne pilote plus rien depuis que la carte est sous une
+   * feuille. Un geste explicite la remplace, dans les deux sens.
+   */
+  onSeeOnMap?: () => void;
   onRemove: () => void;
   onOpen: () => void;
   /** La vue rapide : tout ce qu'on sait du film, sans quitter le plan. */
@@ -64,6 +73,7 @@ export function StepPanel({
   onPatch,
   onSettle,
   onTie,
+  onSeeOnMap,
   onRemove,
   onOpen,
   onQuick,
@@ -192,6 +202,19 @@ export function StepPanel({
           <ExternalLink size={12} />
           {t("program.openFilm")}
         </button>
+        {/* ÉTAPE → ARÊTE, EN UN GESTE EXPLICITE. Le survol du rail
+            épaississait le lien sur une carte posée juste au-dessus ;
+            elle est derrière une porte, donc le survol ne pilotait plus
+            rien — et un état qui ne fait rien est le défaut que
+            `strandedCount` a déjà coûté. Offert seulement si l'étape
+            invoque un lien QU'ON TIENT : une justification pendante est
+            muette au rendu, jamais nettoyée. */}
+        {because && onSeeOnMap && (
+          <button onClick={onSeeOnMap} style={{ ...inked(C.ink), ...hollow }}>
+            <Waypoints size={12} />
+            {t("program.seeOnMap")}
+          </button>
+        )}
         <button onClick={onRemove} style={{ ...inked(C.ink), ...hollow, color: C.burgundy }}>
           <X size={12} />
           {t("program.remove")}

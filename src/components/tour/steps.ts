@@ -433,30 +433,19 @@ const program: Tour = {
       placement: "bottom",
       optional: true,
     },
+    /* TROIS PAS SONT DEVENUS UN, ET C'EST PLUS HONNÊTE QUE TROIS.
+       `program-bond`, `program-harvest` et `program-hints` visaient des
+       boutons qui vivent désormais DANS la feuille de la carte — or une
+       visite ne peut pas ouvrir une modale, et une ancre sous un voile
+       est une ancre morte que `steps.test.ts` ne verrait pas mourir
+       (il vérifie qu'elle existe quelque part, pas qu'on l'atteint). Le
+       pas de la PORTE dit donc les trois choses qui sont derrière.
+       `optional`, parce que la porte n'est montée que sous un fil rouge
+       de filiation. */
     {
       target: at("program-map"),
       ...says("program", "map"),
       placement: "bottom",
-      optional: true,
-    },
-    {
-      target: at("program-bond"),
-      ...says("program", "bond"),
-      placement: "bottom",
-    },
-    /* `program-harvest` EST LE VOISIN DE `program-bond`, monté au même
-       endroit et donc pas plus facultatif que lui. `program-hints`, en
-       revanche, vit dans le panneau d'un nœud CLIQUÉ : il faut un
-       cinéaste sur la carte, donc du contenu. */
-    {
-      target: at("program-harvest"),
-      ...says("program", "harvest"),
-      placement: "bottom",
-    },
-    {
-      target: at("program-hints"),
-      ...says("program", "hints"),
-      placement: "top",
       optional: true,
     },
     {
@@ -602,7 +591,7 @@ const global: Tour = {
        toujours montées.
        La file et la carte sont du contenu : sur le classeur neuf que la
        visite globale accompagne, elles n'existent pas encore. */
-    ...from("program", program, "program-add", "program-bond", "program-harvest"),
+    ...from("program", program, "program-add", "program-map"),
     ...from("almanac", almanac, "almanac-year"),
     /* Le carnet se prend dans la visite du classeur, puisqu'il s'y
        ouvre : il n'a plus d'onglet, donc plus de visite à lui. */

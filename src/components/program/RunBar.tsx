@@ -15,43 +15,35 @@
    from two upwards, which meant the one control that says "there can be
    several of these" was invisible to anybody who only ever had one.
 
+   ELLE NE RÈGLE PLUS RIEN, ELLE NAVIGUE. Le champ de titre, la thèse et
+   les cinq rubans du fil rouge s'ouvraient ici en permanence, et c'est
+   la moitié de l'encombrement du haut de l'écran : ils sont passés dans
+   `RunSettings`, une feuille, derrière un bouton. Ce qui reste est ce
+   qu'on LIT — quel parcours, comment il s'appelle, et s'il est épinglé.
+   Le titre est donc un TITRE et non un champ : on doit savoir ce qu'on
+   regarde sans ouvrir quoi que ce soit.
+
    ON A PHONE IT IS THE CHIPS THAT SCROLL, and each carries
    `flexShrink: 0` — a soft button inside a scrolling bar shrinks
    instead of scrolling, which is the mistake the folder rail already
    documents. */
 import { useTranslation } from "react-i18next";
-import { Pin, PinOff, Plus, Trash2 } from "lucide-react";
-import { C, F } from "../../theme/tokens";
-import { bare, chip, hollow, inked, ruledTextarea, underlineInput } from "../../theme/styles";
+import { Pin, Plus, SlidersHorizontal } from "lucide-react";
+import { C, F, alpha } from "../../theme/tokens";
+import { bare, chip, hollow, inked } from "../../theme/styles";
 import { courseLabel } from "../../domain/course";
 import type { Course } from "../../domain/course";
-import { ThreadBar } from "./ThreadBar";
-import type { Film } from "../../types";
 
 interface RunBarProps {
   courses: Course[];
   course: Course | null;
-  /** Ce qu'on possède : le fil rouge n'offre que cela. */
-  films: Film[];
   onOpen: (id: string) => void;
   onNew: () => void;
-  onDelete: (course: Course) => void;
-  /** Pendant la frappe : écriture différée. */
-  onCourseSoon: (next: Course) => void;
-  /** Le champ est quitté : on écrit. */
-  onCourse: (next: Course) => void;
+  /** La porte des réglages : titre, thèse, fil rouge, épingle, retrait. */
+  onSettings: () => void;
 }
 
-export function RunBar({
-  courses,
-  course,
-  films,
-  onOpen,
-  onNew,
-  onDelete,
-  onCourse,
-  onCourseSoon,
-}: RunBarProps) {
+export function RunBar({ courses, course, onOpen, onNew, onSettings }: RunBarProps) {
   const { t } = useTranslation();
 
   return (
@@ -94,71 +86,51 @@ export function RunBar({
           <Plus size={11} />
           {t("program.newCourse")}
         </button>
-
-        {/* L'ÉPINGLE EST CE QUE LE RESTE DE L'APPLICATION LIT. Une fiche,
-            la liste à voir et la porte du classeur parlent d'UN parcours,
-            et sans épingle c'est « le dernier touché » qui décide — ce
-            qui change de sujet dès qu'on renomme un autre parcours. Une
-            seule à la fois, et `normalizeCourses` le garantit à la porte
-            plutôt qu'ici : deux appareils épinglent chacun le leur. */}
-        {course && (
-          <button
-            onClick={() => onCourse({ ...course, pinned: !course.pinned })}
-            aria-pressed={!!course.pinned}
-            aria-label={t(course.pinned ? "program.unpin" : "program.pin")}
-            title={t(course.pinned ? "program.unpin" : "program.pin")}
-            style={{
-              ...bare,
-              flexShrink: 0,
-              padding: 4,
-              marginLeft: "auto",
-              color: course.pinned ? C.plum : C.inkFaded,
-            }}
-          >
-            {course.pinned ? <Pin size={13} /> : <PinOff size={13} />}
-          </button>
-        )}
-
-        {course && (
-          <button
-            onClick={() => onDelete(course)}
-            aria-label={t("program.deleteCourse")}
-            title={t("program.deleteCourse")}
-            style={{ ...bare, flexShrink: 0, padding: 4, color: C.burgundy }}
-          >
-            <Trash2 size={13} />
-          </button>
-        )}
       </div>
 
-      {/* LE TITRE ET LA THÈSE. Aucun des deux n'est obligatoire : un
-          parcours sans nom se lit par ce qu'il contient, et le catalogue
-          le nomme. */}
+      {/* LE TITRE SE LIT, IL NE SE TAPE PLUS ICI. Et la thèse est SOUS
+          lui, en manuscrit : c'est la phrase qui dit pourquoi ce plan
+          est ce plan-là, et elle se relit plus souvent qu'elle ne
+          s'écrit. */}
       {course && (
-        <>
-          <input
-            value={course.label}
-            onChange={(e) => onCourseSoon({ ...course, label: e.target.value })}
-            onBlur={() => onCourse(course)}
-            placeholder={t("program.untitled")}
-            aria-label={t("program.courseName")}
-            style={{ ...underlineInput, fontFamily: F.title, fontSize: 24 }}
-          />
-          <textarea
-            value={course.note}
-            onChange={(e) => onCourseSoon({ ...course, note: e.target.value })}
-            onBlur={() => onCourse(course)}
-            rows={2}
-            placeholder={t("program.thesisPlaceholder")}
-            aria-label={t("program.thesis")}
-            style={{ ...ruledTextarea, marginTop: 10 }}
-          />
-          <ThreadBar
-            thread={course.thread}
-            films={films}
-            onThread={(thread) => onCourse({ ...course, thread })}
-          />
-        </>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h2
+              style={{
+                margin: 0,
+                fontFamily: F.title,
+                fontSize: 24,
+                fontWeight: 400,
+                color: course.label.trim() ? C.ink : C.inkFaded,
+              }}
+            >
+              {courseLabel(course, t("program.untitled"))}
+            </h2>
+            {course.note.trim() && (
+              <div
+                style={{
+                  fontFamily: "var(--f-hand)",
+                  fontSize: 17,
+                  color: alpha(C.ink, 0.7),
+                  marginTop: 4,
+                }}
+              >
+                {course.note}
+              </div>
+            )}
+          </div>
+
+          {/* LA VISITE VISE LA PORTE, JAMAIS LA FEUILLE : une visite ne
+              peut pas ouvrir une modale. */}
+          <button
+            data-tour="program-thread"
+            onClick={onSettings}
+            style={{ ...inked(C.ink), ...hollow, flexShrink: 0, fontFamily: F.mono }}
+          >
+            <SlidersHorizontal size={12} />
+            {t("program.runSettings")}
+          </button>
+        </div>
       )}
     </div>
   );

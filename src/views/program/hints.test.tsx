@@ -81,9 +81,19 @@ beforeEach(() => {
   hintsFor.mockResolvedValue([]);
 });
 
+/* LA CARTE EST DERRIÈRE UNE PORTE, et tout ce qui la concerne aussi :
+   poser un lien, moissonner, reprendre ce qui a été proposé. Les deux
+   feuilles s'empilent alors, d'où le cadrage par NOM — un
+   `getByRole("dialog")` nu désignerait deux choses. */
+const openMap = async (user: ReturnType<typeof userEvent.setup>) => {
+  await user.click(screen.getByRole("button", { name: /La carte des cinéastes/ }));
+  return within(screen.getByRole("dialog", { name: "La carte des cinéastes" }));
+};
+
 describe("la moisson", () => {
   const open = async (user: ReturnType<typeof userEvent.setup>) => {
-    await user.click(screen.getByRole("button", { name: "Chercher des filiations" }));
+    const map = await openMap(user);
+    await user.click(map.getByRole("button", { name: "Chercher des filiations" }));
     return within(screen.getByRole("dialog", { name: "Chercher des filiations" }));
   };
 
@@ -235,7 +245,7 @@ describe("les pistes dans le panneau d'un cinéaste", () => {
   /* LA CARTE EST REPLIÉE PAR DÉFAUT — elle explique l'ordre, elle ne le
      remplace pas — donc il faut l'ouvrir avant qu'un nœud existe. */
   const pickOzu = async (user: ReturnType<typeof userEvent.setup>) => {
-    await user.click(screen.getByRole("button", { name: "Voir la carte" }));
+    await openMap(user);
     await user.click(screen.getByRole("button", { name: /^Yasujirō Ozu, / }));
   };
 
@@ -353,11 +363,13 @@ describe("la reprise en bloc", () => {
     ...makeBond({ kind: "master", fromName: from, toName: to, note: "de mémoire" })!,
   });
 
-  it("ne s'offre pas quand il n'y a rien à reprendre", () => {
+  it("ne s'offre pas quand il n'y a rien à reprendre", async () => {
     /* Un bouton de retrait sur une carte écrite à la main ne désigne
        rien. */
+    const user = userEvent.setup();
     build([mine("Ozu", "Hou")]);
-    expect(screen.queryByRole("button", { name: /reprendre/i })).toBeNull();
+    const map = await openMap(user);
+    expect(map.queryByRole("button", { name: /reprendre/i })).toBeNull();
   });
 
   it("retire les liens proposés et laisse les vôtres", async () => {
@@ -367,9 +379,10 @@ describe("la reprise en bloc", () => {
       hinted("Hasumi", "Kurosawa"),
       hinted("Renoir", "Ray"),
     ]);
-    await user.click(screen.getByRole("button", { name: /reprendre les 2 liens proposés/i }));
+    const map = await openMap(user);
+    await user.click(map.getByRole("button", { name: /reprendre les 2 liens proposés/i }));
     /* La confirmation dit ce qui SURVIT. */
-    const box = screen.getByRole("dialog");
+    const box = screen.getByRole("dialog", { name: /Reprendre|reprendre/ });
     expect(within(box).getByText(/Ce que vous avez écrit vous-même ne bouge pas/)).toBeVisible();
     await user.click(within(box).getByRole("button", { name: /reprendre/i }));
 
@@ -383,9 +396,12 @@ describe("la reprise en bloc", () => {
     const user = userEvent.setup();
     const adopted: Bond = { ...hinted("Hasumi", "Kurosawa"), note: "d'après Wikidata, vérifié" };
     const { onBonds } = build([adopted, hinted("Renoir", "Ray")]);
-    await user.click(screen.getByRole("button", { name: /reprendre le lien proposé/i }));
+    const map = await openMap(user);
+    await user.click(map.getByRole("button", { name: /reprendre le lien proposé/i }));
     await user.click(
-      within(screen.getByRole("dialog")).getByRole("button", { name: /reprendre/i })
+      within(screen.getByRole("dialog", { name: /Reprendre|reprendre/ })).getByRole("button", {
+        name: /reprendre/i,
+      })
     );
     const left = onBonds.mock.calls[0]![0] as Bond[];
     expect(left).toEqual([adopted]);
@@ -404,7 +420,7 @@ describe("le détail d'un lien", () => {
      panneau : c'est le chemin qu'a un doigt, un trait de six pixels
      n'étant pas une cible. */
   const pick = async (user: ReturnType<typeof userEvent.setup>) => {
-    await user.click(screen.getByRole("button", { name: "Voir la carte" }));
+    await openMap(user);
     await user.click(screen.getByRole("button", { name: /^Hasumi, / }));
     await user.click(screen.getByRole("button", { name: /^a pour élève Kurosawa/ }));
   };

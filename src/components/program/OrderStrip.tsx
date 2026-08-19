@@ -79,8 +79,6 @@ interface OrderStripProps {
   focusKey: string | null;
   /** L'arête mise en avant : les entrées qui l'invoquent s'allument. */
   focusBond: string | null;
-  /** Une entrée est pointée : la carte épaissit le lien qu'elle invoque. */
-  onPointBond: (bondId: string | null) => void;
   /** Le retrait d'une sélection passe par la confirmation de la vue. */
   onRemoveMany: (ids: ReadonlySet<string>, count: number) => void;
   /**
@@ -99,7 +97,6 @@ export function OrderStrip({
   onPick,
   focusKey,
   focusBond,
-  onPointBond,
   onRemoveMany,
   onCourse,
 }: OrderStripProps) {
@@ -404,7 +401,6 @@ export function OrderStrip({
                     ? () => pickBand(bandOf.get(step.id)!)
                     : undefined
                 }
-                onPoint={(on) => onPointBond(on ? step.because : null)}
                 marked={marked === at}
                 onMark={(on) => setMarked(on ? at : null)}
                 onMoveBy={(delta) => shift(step.id, delta)}

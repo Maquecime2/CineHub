@@ -1967,6 +1967,15 @@ const fr = {
     howToLook: "GLISSER POUR SE DÉPLACER — CTRL + MOLETTE, OU + ET −, POUR REGARDER DE PLUS PRÈS",
     remove: "Retirer du parcours",
     openFilm: "Ouvrir la fiche",
+    runSettings: "Régler ce parcours",
+    openMap_one: "La carte des cinéastes — un lien",
+    openMap_other: "La carte des cinéastes — {{count}} liens",
+    mapTitle: "La carte des cinéastes",
+    bondCount_one: "un lien posé",
+    bondCount_other: "{{count}} liens posés",
+    seeSteps: "Voir les étapes qui l'invoquent",
+    seeOnMap: "Voir ce lien sur la carte",
+    emptyRun: "Ce parcours n'a pas encore de film. Posez-en un plus bas, et il ouvrira la marche.",
     quickLook: "Voir de quoi il parle",
     quickOf: "Voir de quoi parle « {{title}} »",
     order: "L'ordre de visionnage",
@@ -2845,27 +2854,15 @@ const fr = {
       },
       map: {
         title: "La carte des cinéastes",
-        body: "Les réalisateurs de votre file, reliés par ce que vous savez d'eux : maître, héritage, affinité, contrepoint. Cliquez un astre, la bande s'allume aux films qui sont de lui ; regardez de plus près avec + et −, et déplacez la carte.",
-      },
-      bond: {
-        title: "Un lien, et sa raison",
-        body: "Un lien se pose à la main : rien dans une fiche ne dit qui a formé qui. Une entrée de la file peut ensuite l'invoquer — et l'on voit alors, des deux côtés, ce qui tient le parcours debout.",
-      },
-      harvest: {
-        title: "Chercher des filiations",
-        body: "On ne connaît pas par cœur qui a formé qui. Ce bouton demande à Wikidata ce qu'on en sait de vos cinéastes, et vous cochez ce qui entre sur la carte — rien ne s'écrit tout seul.",
-      },
-      hints: {
-        title: "Ce qu'on en sait ailleurs",
-        body: "Sous les liens déjà posés, ce que Wikidata dit de cette personne. Un clic remplit le formulaire de nouage : la carte reste la vôtre.",
+        body: "Elle s'ouvre par-dessus, parce qu'un graphe replié dans une colonne n'est plus que l'image d'une carte. On y trouve les réalisateurs de votre file, reliés par ce que vous savez d'eux — maître, héritage, affinité, contrepoint ; le bouton de nouage, car rien dans une fiche ne dit qui a formé qui ; et la moisson, qui demande à Wikidata ce qu'on en sait de vos cinéastes sans jamais rien écrire à votre place. Cliquez un astre, la bande du programme s'allume aux films qui sont de lui.",
       },
       progress: {
         title: "Où vous en êtes",
         body: "Combien de ce programme vous avez vu, et la suite en grand. Rien ne se coche ici : notez une séance sur une fiche et ceci avance — c'est une séance POSTÉRIEURE à la pose de l'étape qui la solde, donc un film vu il y a dix ans vous reste à voir.",
       },
       thread: {
-        title: "Ce qui tient le programme",
-        body: "Une filiation entre cinéastes, un motif, une décennie, un genre — ou une phrase à vous dans la thèse ci-dessus. Le fil rouge ne refuse jamais un film : il dessine sa preuve sous le programme, et propose ce que vous possédez déjà sans l'avoir posé.",
+        title: "Régler ce parcours",
+        body: "Le nom, la thèse et le fil rouge se règlent ici, sur une feuille : une filiation entre cinéastes, un motif, une décennie, un genre — ou une phrase à vous. Le fil ne refuse jamais un film, il dessine sa preuve sous le programme et propose ce que vous possédez déjà. C'est aussi d'ici qu'on épingle un parcours, ou qu'on le supprime.",
       },
     },
 
