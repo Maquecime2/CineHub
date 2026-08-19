@@ -8,7 +8,7 @@
    its place.
    ============================================================ */
 import type { ComponentType, CSSProperties } from "react";
-import { C, alpha } from "../../theme/tokens";
+import { C } from "../../theme/tokens";
 import {
   Plant,
   Cactus,
@@ -45,20 +45,17 @@ interface ShelfKindConfig {
      keep a sentence. */
   /** What a card dropped in this shelf becomes. */
   patch: Partial<Film>;
-  tint?: string;
   border?: string;
 }
 
 export const SHELF_KIND: Record<ShelfKind, ShelfKindConfig> = {
   bedside: {
     patch: { bedside: true, archived: false },
-    tint: `${alpha(C.burgundy, 0.051)}`,
     border: C.burgundy,
   },
   main: { patch: { bedside: false, archived: false } },
   reserve: {
     patch: { bedside: false, archived: true },
-    tint: "transparent",
     border: C.line,
   },
 };
@@ -89,21 +86,22 @@ export const GAP_X = 9,
    We hand them back under the name this file already served them by. */
 export { CAT_COLORS, CAT_FAMILIES, catInk } from "../../theme/palette";
 
-/* A view can change its wood. Only three things are themed: the board,
-   the tint of the shelf's paper, and the accent ink — enough to change
-   the mood, too little to undo the notebook. `kraft` reproduces exactly
-   the shelf from before the themes: a migrated view must be identical to
-   the pixel. */
+/* A view can change its wood. Only TWO things are themed: the board and
+   the accent ink — enough to change the mood, too little to undo the
+   notebook.
+
+   THERE WAS A THIRD, AND IT WAS A VEIL. Three of the five woods also
+   carried a tint spread over the whole shelf in `multiply`: choosing
+   `nuit` painted the paper bluish-grey behind the cases, with no
+   wallpaper laid and nothing on screen to say so. A shelf with no paint
+   must show the page's paper, exactly — the wood is the wood, not a
+   filter over what stands on it. */
 export const THEMES = {
-  kraft: { wood: ["#7A5B3A", "#5E442A"], tint: null, accent: C.burgundy },
-  noyer: { wood: ["#5A3E28", "#3B2818"], tint: "#2B262008", accent: C.ochre },
-  ceruse: { wood: ["#C9B99C", "#A8967A"], tint: null, accent: C.pine },
-  nuit: { wood: ["#3A4250", "#252B36"], tint: "#5C6B7814", accent: C.cobalt },
-  atelier: {
-    wood: ["#8A6A3E", "#6B4F2A"],
-    tint: "#B9862E10",
-    accent: C.vermillion,
-  },
+  kraft: { wood: ["#7A5B3A", "#5E442A"], accent: C.burgundy },
+  noyer: { wood: ["#5A3E28", "#3B2818"], accent: C.ochre },
+  ceruse: { wood: ["#C9B99C", "#A8967A"], accent: C.pine },
+  nuit: { wood: ["#3A4250", "#252B36"], accent: C.cobalt },
+  atelier: { wood: ["#8A6A3E", "#6B4F2A"], accent: C.vermillion },
 };
 export const themeOf = (key: string) => THEMES[key as keyof typeof THEMES] || THEMES.kraft;
 

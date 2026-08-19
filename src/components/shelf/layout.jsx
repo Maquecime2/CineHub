@@ -595,21 +595,19 @@ export function Shelf({
   const cfg = SHELF_KIND[kind];
   const rows = shelf?.rows || [];
 
-  /* The shelf's background, shelf tint included: three things that fought
-     over the same property are now composed in one place. Recomputed only
-     when the decor changes — it is a style that lives on the node the drag
-     hovers a hundred times per gesture. */
+  /* The shelf's background: what one has LAID and nothing else. It used
+     to also carry a tint per kind of shelf — the bedside shelf came out
+     of the box washed in burgundy — which nothing on screen announced
+     and no panel could remove: one chose no wallpaper and got a colour
+     anyway. The border already says which shelf one is on. Recomputed
+     only when the decor changes — it is a style that lives on the node
+     the drag hovers a hundred times per gesture. */
   const skin = useMemo(
     /* With no ink chosen, we do not invent one: `catInk` would return
        burgundy for an absent key, where a wallpaper with no instruction
-       wants the module's discreet tint. */
-    () =>
-      wallStyle(
-        wallDecor,
-        wallDecor?.patternInk ? catInk(wallDecor.patternInk) : undefined,
-        cfg.tint
-      ),
-    [wallDecor, cfg.tint]
+       wants the default ink of `surfaces`. */
+    () => wallStyle(wallDecor, wallDecor?.patternInk ? catInk(wallDecor.patternInk) : undefined),
+    [wallDecor]
   );
 
   return (
@@ -700,24 +698,11 @@ export function Shelf({
           transition: "background .15s ease",
         }}
       >
-        {/* the theme's tint, inside the shelf ONLY: repainting the page
-            background would fight with the paper's vignetting */}
-        {theme.tint && (
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              background: theme.tint,
-              mixBlendMode: "multiply",
-              pointerEvents: "none",
-              zIndex: 0,
-            }}
-          />
-        )}
-        {/* THE WALL'S TEXTURE — the only one of the three layers that is
-            an overlay, because it blends and a background does not blend.
-            The same way of being as the tint just above: at the back, in
-            multiply, and transparent to the cursor. */}
+        {/* THE WALL'S TEXTURE — the only layer that is an overlay,
+            because it blends and a background does not blend: at the
+            back, in multiply, and transparent to the cursor. It is now
+            the ONLY one: the theme's tint used to sit here too, and it
+            veiled a shelf on which nothing had been laid. */}
         {skin.texture && (
           <div
             aria-hidden

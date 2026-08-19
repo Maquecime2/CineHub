@@ -96,12 +96,12 @@ export const PATTERNS: Record<string, Pattern> = {
   rayuresFines: {
     size: 12,
     draw: (ink) =>
-      svg(12, 12, `<rect x='0' y='0' width='1.5' height='12' fill='${ink}' opacity='0.16'/>`),
+      svg(12, 12, `<rect x='0' y='0' width='1.5' height='12' fill='${ink}' opacity='0.26'/>`),
   },
   rayuresLarges: {
     size: 48,
     draw: (ink) =>
-      svg(48, 48, `<rect x='0' y='0' width='16' height='48' fill='${ink}' opacity='0.10'/>`),
+      svg(48, 48, `<rect x='0' y='0' width='16' height='48' fill='${ink}' opacity='0.17'/>`),
   },
   quadrillage: {
     size: 22,
@@ -109,7 +109,7 @@ export const PATTERNS: Record<string, Pattern> = {
       svg(
         22,
         22,
-        `<g fill='none' stroke='${ink}' stroke-width='1' opacity='0.14'>` +
+        `<g fill='none' stroke='${ink}' stroke-width='1' opacity='0.23'>` +
           `<path d='M0 0.5 H22 M0.5 0 V22'/></g>`
       ),
   },
@@ -119,7 +119,7 @@ export const PATTERNS: Record<string, Pattern> = {
       svg(
         32,
         32,
-        `<g fill='${ink}' opacity='0.10'><rect x='0' y='0' width='16' height='16'/>` +
+        `<g fill='${ink}' opacity='0.17'><rect x='0' y='0' width='16' height='16'/>` +
           `<rect x='16' y='16' width='16' height='16'/></g>`
       ),
   },
@@ -129,7 +129,7 @@ export const PATTERNS: Record<string, Pattern> = {
       svg(
         28,
         28,
-        `<g fill='${ink}' opacity='0.16'><circle cx='7' cy='7' r='2.2'/>` +
+        `<g fill='${ink}' opacity='0.26'><circle cx='7' cy='7' r='2.2'/>` +
           `<circle cx='21' cy='21' r='2.2'/></g>`
       ),
   },
@@ -139,7 +139,7 @@ export const PATTERNS: Record<string, Pattern> = {
       svg(
         24,
         24,
-        `<path d='M0 18 L12 6 L24 18' fill='none' stroke='${ink}' stroke-width='2' opacity='0.13'/>`
+        `<path d='M0 18 L12 6 L24 18' fill='none' stroke='${ink}' stroke-width='2' opacity='0.21'/>`
       ),
   },
   ecailles: {
@@ -148,7 +148,7 @@ export const PATTERNS: Record<string, Pattern> = {
       svg(
         30,
         30,
-        `<g fill='none' stroke='${ink}' stroke-width='1.4' opacity='0.14'>` +
+        `<g fill='none' stroke='${ink}' stroke-width='1.4' opacity='0.23'>` +
           `<path d='M0 30 A15 15 0 0 1 30 30'/><path d='M-15 15 A15 15 0 0 1 15 15'/>` +
           `<path d='M15 15 A15 15 0 0 1 45 15'/></g>`
       ),
@@ -159,7 +159,7 @@ export const PATTERNS: Record<string, Pattern> = {
       svg(
         40,
         40,
-        `<g fill='${ink}' opacity='0.15'>` +
+        `<g fill='${ink}' opacity='0.24'>` +
           `<g transform='translate(10 10)'><circle cx='0' cy='-4' r='2.4'/><circle cx='4' cy='0' r='2.4'/>` +
           `<circle cx='0' cy='4' r='2.4'/><circle cx='-4' cy='0' r='2.4'/></g>` +
           `<g transform='translate(30 30)'><circle cx='0' cy='-4' r='2.4'/><circle cx='4' cy='0' r='2.4'/>` +
@@ -172,7 +172,7 @@ export const PATTERNS: Record<string, Pattern> = {
       svg(
         20,
         20,
-        `<g stroke='${ink}' stroke-width='1.6' stroke-linecap='round' opacity='0.15'>` +
+        `<g stroke='${ink}' stroke-width='1.6' stroke-linecap='round' opacity='0.24'>` +
           `<path d='M3 5 h6'/><path d='M13 14 h5'/></g>`
       ),
   },
