@@ -2109,7 +2109,7 @@ const fr = {
     confirmForgetHinted_one: "Reprendre un lien proposé ?",
     confirmForgetHinted_other: "Reprendre {{count}} liens proposés ?",
     confirmForgetHintedBody:
-      "On retire de la carte les liens venus de Wikidata. Ce que vous avez écrit vous-même ne bouge pas, et les étapes qui invoquaient ces liens restent en place — elles redeviendront justifiées si vous reposez les mêmes.",
+      "On retire de la carte tous les liens proposés — Wikidata, vos fiches, les génériques de TMDB. Ce que vous avez écrit vous-même ne bouge pas, et les étapes qui invoquaient ces liens restent en place — elles redeviendront justifiées si vous reposez les mêmes.",
     openPerson: "Ouvrir sa page au générique",
     /* ------------------------------------------------------------
        LES PISTES DE FILIATION
@@ -2122,11 +2122,18 @@ const fr = {
     hintFromWikidata: "· d'après Wikidata",
     hintFromCredits_one: "· {{role}}, sur un de ses films",
     hintFromCredits_other: "· {{role}}, sur {{count}} de ses films",
+    /* LE CROISEMENT DIT LA MÊME CHOSE QUE LE CLASSEUR, ET PAS DEPUIS LE
+       MÊME ENDROIT — d'où deux phrases et non une. « Sur un de ses
+       films » se lit dans vos fiches ; ici on l'a appris chez TMDB, sur
+       des films que vous ne possédez pas, et le dire est ce qui permet
+       de juger la piste. */
+    hintFromCrossed_one: "· {{role}}, sur un de ses films (générique TMDB)",
+    hintFromCrossed_other: "· {{role}}, sur {{count}} de ses films (générique TMDB)",
     harvest: "Chercher des filiations",
     harvestBlurb_one:
-      "On demande à Wikidata ce qu'on sait des maîtres et des influences du cinéaste du classeur. Rien ne s'écrit sans vous.",
+      "On demande à Wikidata ce qu'on sait des maîtres et des influences du cinéaste du classeur, et à TMDB qui a travaillé sur les films de qui. Rien ne s'écrit sans vous.",
     harvestBlurb_other:
-      "On demande à Wikidata ce qu'on sait des maîtres et des influences de vos {{count}} cinéastes. Rien ne s'écrit sans vous.",
+      "On demande à Wikidata ce qu'on sait des maîtres et des influences de vos {{count}} cinéastes, et à TMDB qui a travaillé sur les films de qui. Rien ne s'écrit sans vous.",
     harvestRun: "Lancer la recherche",
     harvestWho: "Quel cinéaste",
     harvestOne: "Chercher pour lui",
@@ -2958,7 +2965,7 @@ const fr = {
       },
       map: {
         title: "La carte des cinéastes",
-        body: "Elle s'ouvre par-dessus, parce qu'un graphe replié dans une colonne n'est plus que l'image d'une carte. On y trouve les réalisateurs de votre file, reliés par ce que vous savez d'eux — maître, héritage, affinité, contrepoint ; le bouton de nouage, car rien dans une fiche ne dit qui a formé qui ; et la moisson, qui demande à Wikidata ce qu'on en sait de vos cinéastes sans jamais rien écrire à votre place. Cliquez un astre, la bande du programme s'allume aux films qui sont de lui.",
+        body: "Elle s'ouvre par-dessus, parce qu'un graphe replié dans une colonne n'est plus que l'image d'une carte. On y trouve les réalisateurs de votre file, reliés par ce que vous savez d'eux — maître, héritage, affinité, contrepoint ; le bouton de nouage, car rien dans une fiche ne dit qui a formé qui ; et la moisson, qui demande à Wikidata qui a formé qui et à TMDB qui a travaillé sur les films de qui, sans jamais rien écrire à votre place. Cliquez un astre, la bande du programme s'allume aux films qui sont de lui.",
       },
       progress: {
         title: "Où vous en êtes",

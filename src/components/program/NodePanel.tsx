@@ -35,7 +35,8 @@ import { bare, inked, hollow } from "../../theme/styles";
 import { Label, Nothing, Trouble, Waiting } from "../ui";
 import { bondLabel, makeBond } from "../../domain/bonds";
 import type { Bond } from "../../domain/bonds";
-import { hintsTouching, readCreditNote, usefulHints } from "../../domain/hints";
+import { hintsTouching, usefulHints } from "../../domain/hints";
+import { hintSays } from "./hintSays";
 import type { Hint } from "../../domain/hints";
 import { useLineageHints } from "../../hooks/useLineageHints";
 import { useTmdbKey } from "../../services/tmdbKey";
@@ -91,16 +92,6 @@ export function NodePanel({
   /* Sur quoi la piste se fonde. Deux formes seulement, et chacune est
      une DONNÉE mise en mots ici : la note part sur le disque et se
      synchronise. */
-  const hintSays = (hint: Hint, say: typeof t): string => {
-    const credit = readCreditNote(hint.note);
-    if (credit)
-      return say("program.hintFromCredits", {
-        role: say(`roles.${credit.role}`),
-        count: credit.n,
-      });
-    return say("program.hintFromWikidata");
-  };
-
   /* Le libellé se lit DEPUIS cette personne, comme un lien posé : le
      `Bond` que la piste deviendrait est justement ce que `bondLabel`
      sait mettre en mots, donc rien n'est réécrit ici. */

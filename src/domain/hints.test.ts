@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   binderHints,
+  crossedHints,
+  readCrossNote,
   hintFromLink,
   hintId,
   hintedBonds,
@@ -9,7 +11,8 @@ import {
   readCreditNote,
   usefulHints,
 } from "./hints";
-import type { Hint } from "./hints";
+import type { CrossPerson, Hint } from "./hints";
+import type { KinshipRole } from "../types";
 import { makeBond } from "./bonds";
 import { makeFilm } from "./film";
 import type { Bond } from "./bonds";
@@ -299,5 +302,140 @@ describe("les pistes tirées du classeur", () => {
     expect(usefulHints(both, [])).toHaveLength(1);
     /* Et c'est la source qui DIT qui l'emporte sur celle qui suggère. */
     expect(usefulHints(both, [])[0]!.source).toBe("wikidata");
+  });
+});
+
+/* ============================================================
+   LE CROISEMENT DE DEUX GÉNÉRIQUES
+
+   Il comble le trou que les deux autres laissent : `binderHints` ne voit
+   que les films qu'on POSSÈDE, Wikidata ne connaît qu'un centième des
+   cinéastes. Le croisement lit les filmographies entières et parle donc
+   là où les deux se taisent — mais seulement de gens que le classeur
+   nommait déjà, et c'est sa limite qu'il faut épingler autant que son
+   apport.
+   ============================================================ */
+describe("le croisement de deux génériques", () => {
+  const who = (name: string, ...credits: [number, KinshipRole][]): CrossPerson => ({
+    name,
+    credits: credits.map(([film, role]) => ({ film, role })),
+  });
+
+  /* LE CAS QUI JUSTIFIE TOUT LE CHANTIER. Le film 1 n'a aucune raison
+     d'être dans le classeur : c'est précisément ce qu'on vient
+     apprendre, et `binderHints` en est incapable par construction. */
+  it("voit qui a éclairé pour qui, sur un film qu'on ne possède pas", () => {
+    const hints = crossedHints([
+      who("Riccardo Freda", [1, "réalisation"]),
+      who("Mario Bava", [1, "image"], [2, "réalisation"]),
+    ]);
+    expect(hints).toHaveLength(1);
+    expect(hints[0]).toMatchObject({
+      kind: "affinity",
+      fromName: "Mario Bava",
+      toName: "Riccardo Freda",
+      source: "tmdb",
+    });
+  });
+
+  /* C'EST UNE AFFINITÉ, JAMAIS UN MAGISTÈRE. « A éclairé trois films
+     de » est un fait ; « a été formé par » est une lecture, et c'est
+     celle de la personne — dans le formulaire. */
+  it("ne propose jamais un magistère", () => {
+    const hints = crossedHints([who("A", [1, "réalisation"]), who("B", [1, "scénario"])]);
+    expect(hints[0]!.kind).toBe("affinity");
+  });
+
+  it("compte les films plutôt que de répéter la piste", () => {
+    const hints = crossedHints([
+      who("Freda", [1, "réalisation"], [2, "réalisation"], [3, "réalisation"]),
+      who("Bava", [1, "image"], [2, "image"], [3, "image"]),
+    ]);
+    expect(hints).toHaveLength(1);
+    expect(readCrossNote(hints[0]!.note)).toEqual({ role: "image", n: 3 });
+  });
+
+  /* Se croiser soi-même n'est pas un lien : un cinéaste qui éclaire son
+     propre film reste un seul homme. */
+  it("ne relie personne à soi-même", () => {
+    const hints = crossedHints([who("Bava", [1, "réalisation"], [1, "image"])]);
+    expect(hints).toHaveLength(0);
+  });
+
+  /* Le même nom écrit autrement est la même personne — `normalize` est
+     la seule identité du domaine des gens. */
+  it("reconnaît la même personne sous une autre orthographe", () => {
+    const hints = crossedHints([
+      who("Riccardo FREDA", [1, "réalisation"]),
+      who("riccardo freda", [1, "image"]),
+    ]);
+    expect(hints).toHaveLength(0);
+  });
+
+  /* SA LIMITE, ÉPINGLÉE. Sans le générique de l'autre bout, il n'y a pas
+     de croisement : présenter un inconnu est le travail de Wikidata. */
+  it("ne présente jamais quelqu'un dont on n'a pas demandé le générique", () => {
+    const hints = crossedHints([who("Bava", [1, "image"], [2, "réalisation"])]);
+    expect(hints).toHaveLength(0);
+  });
+
+  /* L'INTERPRÉTATION EST ÉCARTÉE, et un réalisateur qui réalise n'est au
+     générique de personne d'autre. */
+  it("ne retient que l'image, le scénario et la musique", () => {
+    const hints = crossedHints([who("A", [1, "réalisation"]), who("B", [1, "réalisation"])]);
+    expect(hints).toHaveLength(0);
+  });
+
+  /* LA MARQUE ENTRE DANS `MARKS`, sans quoi le retrait en bloc laisse
+     des orphelins que plus rien ne sait reprendre. */
+  it("pose une marque que le retrait en bloc emporte", () => {
+    const hints = crossedHints([who("A", [1, "réalisation"]), who("B", [1, "musique"])]);
+    expect(isHinted(makeBond({ ...hints[0]! })!)).toBe(true);
+  });
+
+  /* LA NOTE EST UNE DONNÉE, jamais une phrase : un rôle et un compte,
+     que l'écran met en mots. Y écrire du français figerait la langue du
+     jour dans les données de quelqu'un. */
+  it("écrit une référence et jamais une phrase", () => {
+    const hints = crossedHints([who("A", [1, "réalisation"]), who("B", [1, "image"])]);
+    expect(hints[0]!.note).toBe("crossed image 1");
+    expect(readCreditNote(hints[0]!.note)).toBeNull();
+  });
+
+  /* LE CLASSEUR PASSE DEVANT SUR LA MÊME AFFINITÉ. Les deux disent la
+     même chose ; celui qui la tient de VOS fiches la tient de plus près,
+     et il est gratuit. `usefulHints` dédoublonne par `bondId`, premier
+     arrivé gagne, et l'ordre du mélange est donc une décision — écrite
+     dans `useLineageHints` et dans `HintHarvest`, aux deux endroits. */
+  it("laisse la priorité au classeur sur la même affinité", () => {
+    const cross = crossedHints([
+      who("Riccardo Freda", [1, "réalisation"]),
+      who("Mario Bava", [1, "image"]),
+    ]);
+    const mine = binderHints([
+      makeFilm({
+        id: "a",
+        title: "a",
+        director: "Riccardo Freda",
+        crew: { image: ["Mario Bava"] },
+      }),
+      makeFilm({ id: "b", title: "b", director: "Mario Bava" }),
+    ]);
+    const both = usefulHints([...mine, ...cross], []);
+    expect(both).toHaveLength(1);
+    expect(both[0]!.source).toBe("binder");
+  });
+
+  /* UN MAGISTÈRE ET UNE AFFINITÉ NE SONT PAS UN DOUBLON, et c'est le
+     modèle qui le dit : `bondId` trie les clés d'un lien SYMÉTRIQUE et
+     pas celles d'un lien ORIENTÉ, donc les deux identifiants diffèrent.
+     Wikidata énonce « a formé » ; le croisement constate « a éclairé
+     pour ». Les fondre perdrait la moitié de ce qu'on vient d'apprendre. */
+  it("coexiste avec un magistère venu de Wikidata", () => {
+    const wiki = hintFromLink(link("B", "P1066", "A"))!;
+    const cross = crossedHints([who("A", [1, "réalisation"]), who("B", [1, "image"])]);
+    const both = usefulHints([wiki, ...cross], []);
+    expect(both).toHaveLength(2);
+    expect(both.map((h) => h.source)).toEqual(["wikidata", "tmdb"]);
   });
 });

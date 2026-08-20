@@ -2047,7 +2047,7 @@ const en = {
     confirmForgetHinted_one: "Take back one suggested bond?",
     confirmForgetHinted_other: "Take back {{count}} suggested bonds?",
     confirmForgetHintedBody:
-      "The bonds that came from Wikidata leave the map. What you wrote yourself does not move, and the steps that invoked those bonds stay where they are — they will read as justified again if you lay the same ones down.",
+      "Every suggested bond leaves the map — Wikidata, your own cards, TMDB credits. What you wrote yourself does not move, and the steps that invoked those bonds stay where they are — they will read as justified again if you lay the same ones down.",
     openPerson: "Open their page in the Credits",
     /* ------------------------------------------------------------
        THE FILIATION HINTS
@@ -2060,11 +2060,13 @@ const en = {
     hintFromWikidata: "· from Wikidata",
     hintFromCredits_one: "· {{role}}, on one of their films",
     hintFromCredits_other: "· {{role}}, on {{count}} of their films",
+    hintFromCrossed_one: "· {{role}}, on one of their films (TMDB credits)",
+    hintFromCrossed_other: "· {{role}}, on {{count}} of their films (TMDB credits)",
     harvest: "Look for filiations",
     harvestBlurb_one:
-      "We ask Wikidata what is known of your binder's film-maker's masters and influences. Nothing is written without you.",
+      "We ask Wikidata what is known of your binder's film-maker's masters and influences, and TMDB who worked on whose films. Nothing is written without you.",
     harvestBlurb_other:
-      "We ask Wikidata what is known of your {{count}} film-makers' masters and influences. Nothing is written without you.",
+      "We ask Wikidata what is known of your {{count}} film-makers' masters and influences, and TMDB who worked on whose films. Nothing is written without you.",
     harvestRun: "Start looking",
     harvestWho: "Which film-maker",
     harvestOne: "Look for them",
@@ -2847,7 +2849,7 @@ const en = {
       },
       map: {
         title: "The map of film-makers",
-        body: "It opens over the screen, because a graph folded into a column is no more than a picture of a map. Inside: the directors of your run, linked by what you know of them — master, legacy, affinity, counterpoint; the button that ties a bond, since nothing on a card says who taught whom; and the harvest, which asks Wikidata what it knows of your film-makers and never writes a thing on your behalf. Click a node and the running order lights up on the films that are theirs.",
+        body: "It opens over the screen, because a graph folded into a column is no more than a picture of a map. Inside: the directors of your run, linked by what you know of them — master, legacy, affinity, counterpoint; the button that ties a bond, since nothing on a card says who taught whom; and the harvest, which asks Wikidata who taught whom and TMDB who worked on whose films, and never writes a thing on your behalf. Click a node and the running order lights up on the films that are theirs.",
       },
       progress: {
         title: "Where you stand",

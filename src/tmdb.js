@@ -749,6 +749,52 @@ export async function personFilmography(personId, apiKey, { role = "réalisation
   });
 }
 
+/* ============================================================
+   TOUT CE QUE CETTE PERSONNE A FAIT, ET DANS QUELLE CAPACITÉ
+
+   `personFilmography` répond « quels films », pour UN rôle, et jette le
+   reste : ni le `job`, ni le réalisateur du film. C'est ce qu'il faut à
+   une filmographie, et c'est trop peu pour une piste — « P a éclairé
+   trois films de D » demande les DEUX bouts, et demander le réalisateur
+   de chaque film serait un appel PAR FILM.
+
+   ICI ON GARDE LE RÔLE, ET C'EST TOUT CE QUI MANQUAIT. Le croisement
+   (`crossedHints`, `domain/hints`) apparie ensuite deux génériques : si
+   un film porte `réalisation` chez l'un et `image` chez l'autre, on sait
+   qui a éclairé pour qui — sans avoir rien demandé sur le film. UN APPEL
+   PAR NOM, jamais par film, ce que le plafond du relais impose.
+
+   UNE CLÉ DE CACHE À ELLE, et le même magasin. `pc:<id>:<rôle>` tient
+   des candidats sans rôle : y ranger ceci servirait l'un pour l'autre —
+   le piège que `personFilmography` explique déjà pour les rôles. `cw:`
+   partage en revanche le TTL d'une semaine et la purge au-delà de trois
+   cents, ce que tout cache de ce fichier fait.
+
+   PAS DE DÉDOUBLONNAGE PAR FILM, contrairement au voisin. Quelqu'un qui
+   réalise ET écrit le même film tient deux rôles dessus, et c'est
+   exactement ce qu'on vient lire : les fondre perdrait la moitié des
+   croisements possibles.
+   ============================================================ */
+export async function personCrew(personId, apiKey) {
+  return cachedList(`cw:${personId}`, async () => {
+    const data = await get(`/person/${personId}/movie_credits`, {}, apiKey);
+    const out = [];
+    const seen = new Set();
+    for (const c of data.crew || []) {
+      for (const [role, jobs] of Object.entries(JOBS)) {
+        if (!jobs.includes(c.job)) continue;
+        /* Un même rôle deux fois sur un film — « Screenplay » ET
+           « Writer » — reste un seul rôle. */
+        const id = `${c.id}|${role}`;
+        if (seen.has(id)) continue;
+        seen.add(id);
+        out.push({ film: c.id, role });
+      }
+    }
+    return out;
+  });
+}
+
 /* By far the most frequent case, and the one `reco` calls. */
 export async function directorFilmography(personId, apiKey) {
   return personFilmography(personId, apiKey, { role: "réalisation" });
