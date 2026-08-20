@@ -531,15 +531,15 @@ export function ThreadBoard({ film, onRemove, onEdit, films = [], onOpen }: Thre
                     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                       <button
                         onClick={() => setEditing(w.id)}
-                        title={w.filmId ? tr("threads.rewriteNote") : "Retoucher ce fil"}
-                        aria-label={`Retoucher « ${w.title} »`}
+                        title={w.filmId ? tr("threads.rewriteNote") : tr("threads.rewriteThis")}
+                        aria-label={tr("threads.rewriteNamed", { title: w.title })}
                         style={{ all: "unset", cursor: "pointer", color: C.inkFaded }}
                       >
                         <Pencil size={11} />
                       </button>
                       <button
                         onClick={() => onRemove(w.id)}
-                        aria-label={`Détacher « ${w.title} »`}
+                        aria-label={tr("threads.detachNamed", { title: w.title })}
                         style={{ all: "unset", cursor: "pointer", color: C.inkFaded }}
                       >
                         <X size={12} />

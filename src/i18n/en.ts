@@ -28,6 +28,10 @@ const en = {
   },
   common: {
     back: "Go back",
+    ratingOutOf: "{{rating}} out of 5",
+    seenTimes_one: "seen once",
+    seenTimes_other: "seen {{count}} times",
+    unnamed: "unnamed",
     retry: "try again",
     close: "Close",
     cancel: "Cancel",
@@ -535,6 +539,7 @@ const en = {
 
   poster: {
     tmdbPosters: "TMDB posters",
+    inLanguage: "language: {{lang}}",
     orAnImageUrl: "Or an image address",
     noneFound: "No poster found for this film.",
     couldNotSave: "This image could not be saved.",
@@ -1624,6 +1629,12 @@ const en = {
     },
     unfiledFilms: "The films not filed yet",
     rowSettings: "Settings for this row",
+    itemSettings: "Settings for “{{name}}”",
+    fixCount: "Set a number",
+    fillWidth: "Let it fill the width",
+    deleteNamed: "Delete “{{name}}”",
+    hideNamed: "Hide “{{name}}”",
+    showNamed: "Put “{{name}}” back",
     addCategoryHere: "+ a category here",
     addRow: "Add a row at the end of the shelf",
     closeDrawer: "Close the drawer",
@@ -2061,6 +2072,9 @@ const en = {
     cancelHint: "Give up (Escape)",
     cardDeleted: "card deleted",
     rewriteNote: "Rewrite the note — the title belongs to the linked card",
+    rewriteThis: "Rework this thread",
+    rewriteNamed: "Rework “{{title}}”",
+    detachNamed: "Detach “{{title}}”",
   },
 
   detail: {
@@ -2441,6 +2455,8 @@ const en = {
     stamp: "SKY MAP",
     genres: "Genres",
     searchAll: "search the whole collection…",
+    takeAsFocus: "Take as focus",
+    pinAndStart: "Pin it to the sky and start from it",
     heading: "The constellation",
     aFilm: "film",
     aThread: "thread",

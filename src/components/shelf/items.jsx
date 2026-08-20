@@ -119,6 +119,7 @@ export const FilmBox = React.memo(function FilmBox({
   onDragOverBox,
   dim,
 }) {
+  const { t } = useTranslation();
   const [hover, setHover] = useState(false);
   /* Read here rather than threaded down `Row` → `Line` → here: those are
      memoised and rebuilt dozens of times a second under a drag, and one
@@ -419,7 +420,7 @@ export const FilmBox = React.memo(function FilmBox({
               }}
             >
               <span
-                aria-label={`${film.rating || 0} sur 5`}
+                aria-label={t("common.ratingOutOf", { rating: film.rating || 0 })}
                 style={{
                   position: "relative",
                   display: "inline-block",
@@ -452,7 +453,7 @@ export const FilmBox = React.memo(function FilmBox({
                   one rewatches. */}
               {seenFilms > 1 && (
                 <span
-                  aria-label={`vu ${seenFilms} fois`}
+                  aria-label={t("common.seenTimes", { count: seenFilms })}
                   style={{ fontSize: 9, letterSpacing: 0, opacity: 0.85, flexShrink: 0 }}
                 >
                   ×{seenFilms}
@@ -898,7 +899,7 @@ export const DecorItem = React.memo(function DecorItem({
                 onEdit(item.id);
               }}
               title={t("shelf.colourSizeIndent")}
-              aria-label={`Réglages de « ${item.label || "sans nom"} »`}
+              aria-label={t("shelf.itemSettings", { name: item.label || t("common.unnamed") })}
               style={{
                 all: "unset",
                 cursor: "pointer",

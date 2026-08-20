@@ -137,7 +137,10 @@ function OneOpinion({
           <Stamp text={t(stampLabel(opinion.stamp))} ink={STAMP_INK[opinion.stamp] ?? C.burgundy} />
         )}
         {opinion.rating !== null && (
-          <span style={{ display: "flex", gap: 1 }} aria-label={`${opinion.rating} sur 5`}>
+          <span
+            style={{ display: "flex", gap: 1 }}
+            aria-label={t("common.ratingOutOf", { rating: opinion.rating })}
+          >
             {[1, 2, 3, 4, 5].map((n) => (
               <Star
                 key={n}

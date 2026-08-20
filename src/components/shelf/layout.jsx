@@ -75,6 +75,7 @@ const GutterAct = ({ label, onClick, ink = C.inkFaded }) => (
    keystroke would pass through 1 before 12, and the shelf would fold up
    under one's fingers at every digit typed. */
 export const PerRowField = React.memo(function PerRowField({ value, onChange, title, max }) {
+  const { t } = useTranslation();
   const [draft, setDraft] = useState(value == null ? "" : String(value));
   useEffect(() => {
     setDraft(value == null ? "" : String(value));
@@ -113,7 +114,7 @@ export const PerRowField = React.memo(function PerRowField({ value, onChange, ti
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <button
           onClick={() => onChange(auto ? Math.min(Number(draft) || 6, max || Infinity) : null)}
-          title={auto ? "Fixer un nombre" : "Laisser remplir la largeur"}
+          title={auto ? t("shelf.fixCount") : t("shelf.fillWidth")}
           style={{
             all: "unset",
             ...tap,
@@ -1305,7 +1306,7 @@ function DecorWorkshop({ onBack }) {
                   )}
                   <RowButton
                     onClick={() => removeCustomDecor(d.key)}
-                    label={`Supprimer « ${decorLabel(d, t)} »`}
+                    label={t("shelf.deleteNamed", { name: decorLabel(d, t) })}
                   >
                     <Trash2 size={12} />
                   </RowButton>
@@ -1351,7 +1352,9 @@ function DecorWorkshop({ onBack }) {
                 <RowButton
                   onClick={() => toggleDecorHidden(d.key)}
                   label={
-                    hidden ? `Remettre « ${decorLabel(d, t)} »` : `Masquer « ${decorLabel(d, t)} »`
+                    hidden
+                      ? t("shelf.showNamed", { name: decorLabel(d, t) })
+                      : t("shelf.hideNamed", { name: decorLabel(d, t) })
                   }
                 >
                   {hidden ? <EyeOff size={12} /> : <Eye size={12} />}

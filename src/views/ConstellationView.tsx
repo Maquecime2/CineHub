@@ -1372,7 +1372,7 @@ function Results({
           <button
             key={f.id}
             onClick={() => (placedItem ? onFoyer(`f:${f.id}`) : onÉpingler(f.id))}
-            title={placedItem ? "Prendre pour foyer" : "L'épingler au ciel et partir de lui"}
+            title={placedItem ? t("constellation.takeAsFocus") : t("constellation.pinAndStart")}
             style={{
               ...departStyle,
               borderStyle: placedItem ? "solid" : "dashed",

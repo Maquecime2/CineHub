@@ -188,7 +188,7 @@ export function FilmIdentity({
                       {onOpenPerson ? (
                         <button
                           onClick={() => onOpenPerson(clean)}
-                          title={`Ce que j'ai de ${clean}`}
+                          title={t("credits.whatIHaveOf", { name: clean })}
                           style={{
                             all: "unset",
                             ...tap,

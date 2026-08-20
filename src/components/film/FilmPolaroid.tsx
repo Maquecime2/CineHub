@@ -254,7 +254,7 @@ export const FilmPolaroid = memo(function FilmPolaroid({
                 covered it. */}
             {seenFilms > 1 && (
               <span
-                aria-label={`vu ${seenFilms} fois`}
+                aria-label={t("common.seenTimes", { count: seenFilms })}
                 /* It used to take the size of the "TO WATCH" — ten
                    pixels, that of a service mention. But a wall card is
                    read from afar, and the count is INFORMATION there, not

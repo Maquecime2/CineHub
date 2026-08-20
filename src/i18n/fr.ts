@@ -32,6 +32,10 @@ const fr = {
   },
   common: {
     back: "Revenir en arrière",
+    ratingOutOf: "{{rating}} sur 5",
+    seenTimes_one: "vu une fois",
+    seenTimes_other: "vu {{count}} fois",
+    unnamed: "sans nom",
     retry: "réessayer",
     close: "Fermer",
     cancel: "Annuler",
@@ -553,6 +557,7 @@ const fr = {
 
   poster: {
     tmdbPosters: "Affiches TMDB",
+    inLanguage: "langue : {{lang}}",
     orAnImageUrl: "Ou une adresse d'image",
     noneFound: "Aucune affiche trouvée pour ce film.",
     couldNotSave: "Cette image n'a pas pu être enregistrée.",
@@ -1658,6 +1663,12 @@ const fr = {
     },
     unfiledFilms: "Les films pas encore rangés",
     rowSettings: "Réglages de cette ligne",
+    itemSettings: "Réglages de « {{name}} »",
+    fixCount: "Fixer un nombre",
+    fillWidth: "Laisser remplir la largeur",
+    deleteNamed: "Supprimer « {{name}} »",
+    hideNamed: "Masquer « {{name}} »",
+    showNamed: "Remettre « {{name}} »",
     addCategoryHere: "+ une catégorie ici",
     addRow: "Ajouter une ligne à la fin du rayon",
     closeDrawer: "Fermer le tiroir",
@@ -2114,6 +2125,9 @@ const fr = {
     cancelHint: "Renoncer (Échap)",
     cardDeleted: "fiche supprimée",
     rewriteNote: "Réécrire la note — le titre appartient à la fiche liée",
+    rewriteThis: "Retoucher ce fil",
+    rewriteNamed: "Retoucher « {{title}} »",
+    detachNamed: "Détacher « {{title}} »",
   },
 
   detail: {
@@ -2539,6 +2553,8 @@ const fr = {
     stamp: "CARTE DU CIEL",
     genres: "Genres",
     searchAll: "chercher dans toute la collection…",
+    takeAsFocus: "Prendre pour foyer",
+    pinAndStart: "L'épingler au ciel et partir de lui",
     /* Le titre de la vue etait en dur, donc invisible aux deux
        catalogues et au test de parite. */
     heading: "La constellation",

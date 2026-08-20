@@ -167,7 +167,7 @@ export function PosterPicker({ film, onUpdate }: { film: Film; onUpdate: (f: Fil
             <button
               key={p.full}
               onClick={() => choose(p.full)}
-              title={`langue : ${p.lang}`}
+              title={t("poster.inLanguage", { lang: p.lang })}
               style={{
                 all: "unset",
                 ...tap,

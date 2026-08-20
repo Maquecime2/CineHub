@@ -59,6 +59,26 @@ const SPOKEN = /(?:title|label|legende|placeholder|aria-label|alt|what|empty)=\{
 /** Text written straight between two tags. */
 const BETWEEN = />\s*([A-Za-zÀ-ÿ][^<>{}\n]{2,})\s*</g;
 
+/* LE MEME ATTRIBUT, MAIS ECRIT EN CODE. `title={x ? "…" : "…"}` et un
+   gabarit ne portent pas de guillemet juste apres le `=`, donc `SPOKEN`
+   les manque entierement : c'est par la que passaient les ternaires. On
+   capture le corps accolade, une accolade imbriquee comprise, et on y
+   cherche les chaines ensuite. */
+const BRACED =
+  /(?:title|label|legende|placeholder|aria-label|alt|what|empty)=\{((?:[^{}]|\{[^{}]*\})*)\}/g;
+/** Les chaines d'un corps accolade : guillemets, apostrophes, gabarit. */
+const STRINGS = /"([^"\n]*)"|`([^`]*)`/g;
+
+/* UNE CLE DE TRADUCTION N'EST PAS UNE PHRASE, et `t("…")` en met une
+   dans le corps accolade. On retire l'appel plutot que d'esperer que
+   `isSpoken` s'y trompe : « credits.whatIHaveOf » n'a pas d'accent
+   aujourd'hui, une cle voisine en aura un demain. */
+const withoutKeys = (body: string): string => body.replace(/\bt\w*\(\s*"[^"]*"/g, "t(");
+
+/* Un trou de gabarit est du code : `${n} films` ne se lit pas comme deux
+   mots ecrits pour quelqu'un. */
+const withoutHoles = (value: string): string => value.replace(/\$\{[^{}]*\}/g, " ");
+
 /* A value that only LOOKS like a word. A colour key, a unit, a bare
    identifier: none of them is a sentence, and none of them changes with
    the reader's language. */
