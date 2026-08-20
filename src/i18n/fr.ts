@@ -1605,6 +1605,40 @@ const fr = {
   },
 
   shelf: {
+    /* CE QU'UN RAYON CONTIENT, ET CE QUE LA RECHERCHE Y TROUVE.
+       `reading.*` met en mots ce que `domain/shelfReading` rend en clés
+       et en nombres : la donnée reste une clé, l'écran la traduit. */
+    reading: {
+      cases_one: "{{count}} boîtier",
+      cases_other: "{{count}} boîtiers",
+      found_one: "{{count}} trouvé ici",
+      found_other: "{{count}} trouvés ici",
+      years: "{{from}}-{{to}}",
+      rating: "moyenne {{rating}} sur 5",
+    },
+    /* L'USURE D'UN BOÎTIER. Elle se VOIT sur l'objet ; ces mots sont ce
+       que le miroir en liste et l'infobulle en disent, parce qu'un
+       dégradé ne se lit pas au lecteur d'écran. */
+    wear: {
+      sealed: "jamais vu",
+      dormant: "pas revu depuis {{count}} jours",
+      undated: "vu, sans date",
+    },
+    legend: {
+      title: "SUR CE RAYON",
+      goTo: "Aller à {{name}}",
+    },
+    find: {
+      none: "rien de trouvé sur l'étagère",
+      count_one: "{{count}} boîtier trouvé",
+      count_other: "{{count}} boîtiers trouvés",
+      next: "aller au suivant",
+    },
+    mirror: {
+      title: "L'étagère, ligne à ligne",
+      row: "Ligne {{n}}",
+      unfiled: "Pas encore rangés",
+    },
     anonymous: "anonyme",
     noDate: "s.d.",
     dropFilmsHere: "glissez-y des films",
@@ -2685,6 +2719,22 @@ const fr = {
 
     library: {
       label: "La vidéothèque",
+      shelfFind: {
+        title: "Chercher ne trie pas",
+        body: "Sur l'étagère, une recherche ne retire rien : elle ternit ce qui ne répond pas, pour que le rangement reste debout. Le compte dit combien on a trouvé, et « aller au suivant » vous y mène.",
+      },
+      shelfLegend: {
+        title: "Ce qu'il y a sur ce rayon",
+        body: "Chaque boîte de catégorie s'annonce ici avec sa couleur, son nom et son compte. Cliquez une pastille pour aller droit à la boîte.",
+      },
+      shelfRow: {
+        title: "Une ligne se lit sans se parcourir",
+        body: "Au-dessus de chaque ligne : combien de boîtiers, quelles années, quel genre domine, quelle moyenne. L'onglet à gauche ouvre ses réglages — son nom, et le nombre de boîtiers par planche.",
+      },
+      shelfCabinet: {
+        title: "Le cabinet de curiosités",
+        body: "Une plante, un chat, un intercalaire, un cadre au mur : tirez un objet du cabinet et posez-le entre deux boîtiers. Une étagère n'est pas qu'une grille de films.",
+      },
       search: {
         title: "Chercher",
         body: "Un titre, un·e cinéaste, un mot de votre critique. Sur le mur, la recherche filtre ; sur l'étagère, elle éteint ce qu'elle ne trouve pas et laisse l'agencement en place. Pour chercher au-delà des films — les gens, les motifs, les fils, le carnet — la loupe, au pied du rail ou au bout de la barre du bas, interroge tout d'un coup.",

@@ -41,6 +41,11 @@ import {
 import { DropMark, angleOf, rotatedBoxOfWall } from "./items";
 import { QuickFile } from "./QuickFile";
 import { Shelf, ReserveDrawer, DecorCabinet, ItemPalette } from "./layout";
+import { WearProvider } from "./wear";
+import { ShelfLegend } from "./ShelfLegend";
+import { ShelfMirror } from "./mirror";
+import { readBoxes } from "../../domain/shelfReading";
+import { neglectDaysFor } from "../../domain/athome";
 
 /* A pattern whose tint changes nothing: an imported image that is not
    line work, or an SVG whose ink we could not name. The house patterns
@@ -739,7 +744,36 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet, pl
      That is the defect `ShelfBoard.test.jsx` guards. */
   const onDecorLabel = useCallback((id, label) => acts.setDecor(id, { label }), [acts]);
 
+  /* AU BOUT DE COMBIEN DE JOURS « IL Y A LONGTEMPS » COMMENCE, ICI.
+
+     Un nombre pour tout le classeur, et non un par fiche : il descend
+     donc par CONTEXTE et non par la chaîne des props (voir `wear.tsx`).
+     Il se recalcule quand la collection change — pas quand on glisse,
+     puisqu'un glissement ne touche à aucun état React. */
+  const neglectDays = useMemo(() => neglectDaysFor(films), [films]);
+
   const countOf = (kind) => films.filter(belongs[kind]).length;
+
+  /* LES RAYONS, À PLAT — la légende et le miroir les lisent tous les
+     trois, dans l'ordre où on les regarde. */
+  const shelvesInOrder = useMemo(() => {
+    if (!doc) return [];
+    const kinds = doc.wall === "watchlist" ? ["main", "reserve"] : SHELF_KINDS;
+    return kinds
+      .filter((kind) => doc.shelves?.[kind])
+      .map((kind) => ({ kind, rows: doc.shelves[kind].rows || [] }));
+  }, [doc]);
+
+  /* LA LÉGENDE PORTE LES BOÎTES DE TOUS LES RAYONS, et non d'un seul :
+     une catégorie n'appartient pas à une planche, c'est un rangement
+     qu'on retrouve où qu'il soit posé. */
+  const legend = useMemo(
+    () =>
+      shelvesInOrder.flatMap(({ rows }) =>
+        rows.flatMap((row) => readBoxes(row.items, dimSet || null))
+      ),
+    [shelvesInOrder, dimSet]
+  );
 
   if (!view) return null;
 
@@ -756,6 +790,14 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet, pl
     wallDecor: wallDecorOf(view),
     plankDecor: plankDecorOf(view),
     dim,
+    /* CE QUE LA RECHERCHE TROUVE, pour que chaque rayon puisse dire
+       COMBIEN il en tient. `dim` répond fiche par fiche et ne sait pas
+       compter une fiche disparue ; l'ensemble, lui, le sait.
+
+       Son nom dit son CONTENU et non son usage : `dimSet` tient les
+       fiches qui RÉPONDENT, celles qu'on ne ternit pas. Le lire à
+       l'envers comptait exactement le complément. */
+    matching: dimSet || null,
     /* UNE MARCHE EN MOINS. Ouvrir une case posait `CellPreview`, un
        aperçu — titre, note, critique — après lequel il fallait encore
        cliquer pour la fiche puis pour le dossier : trois écrans pour
@@ -773,11 +815,12 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet, pl
     /* `--mark-ink`: the marker's ink comes from the view's theme, through
        a CSS variable. A change of theme thus has nothing to ask of React
        in the middle of a drag. */
-    <div
-      onDragEnd={reset}
-      style={{
-        "--mark-ink": theme.accent,
-        /* NO CLIPPING HERE.
+    <WearProvider neglectDays={neglectDays}>
+      <div
+        onDragEnd={reset}
+        style={{
+          "--mark-ink": theme.accent,
+          /* NO CLIPPING HERE.
 
            This block contains a case's drawer and card, which are
            `position: fixed`. An `overflow` other than `visible` would make
@@ -787,38 +830,49 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet, pl
            card that does not appear at all. The decors' overflow is
            clipped one notch lower, on each shelf (`Shelf`), and the window
            takes care of the rest (`index.css`). */
-      }}
-    >
-      {/* the drop marker: a single one, moved by hand during the drag */}
-      <DropMark ref={markRef} />
-      {/* "Bedside films" are the ones one rewatches: the shelf has no
+        }}
+      >
+        {/* the drop marker: a single one, moved by hand during the drag */}
+        <DropMark ref={markRef} />
+        {/* LE MIROIR EN LISTE — masqué à l'œil, jamais au lecteur
+            d'écran. Il vient EN TÊTE : c'est le premier chemin qu'on
+            rencontre, et l'annoncer après quatre cents boîtiers qu'on ne
+            peut pas parcourir n'aurait servi à personne. */}
+        <ShelfMirror
+          shelves={shelvesInOrder}
+          films={filmsById}
+          neglectDays={neglectDays}
+          onOpen={onOpen}
+        />
+        <ShelfLegend boxes={legend} />
+        {/* "Bedside films" are the ones one rewatches: the shelf has no
           reason to be on the wall of films to watch, where it only opened
           to stay empty. `belongs` already files the flagged cards over
           there, so they are not lost. */}
-      {view.wall !== "watchlist" && (
+        {view.wall !== "watchlist" && (
+          <Shelf
+            kind="bedside"
+            shelf={view.shelves.bedside}
+            wall={view.shelves.bedside.wall}
+            count={countOf("bedside")}
+            {...shared}
+          />
+        )}
         <Shelf
-          kind="bedside"
-          shelf={view.shelves.bedside}
-          wall={view.shelves.bedside.wall}
-          count={countOf("bedside")}
+          kind="main"
+          shelf={view.shelves.main}
+          wall={view.shelves.main.wall}
+          count={countOf("main")}
           {...shared}
         />
-      )}
-      <Shelf
-        kind="main"
-        shelf={view.shelves.main}
-        wall={view.shelves.main.wall}
-        count={countOf("main")}
-        {...shared}
-      />
-      <ReserveDrawer
-        shelf={view.shelves.reserve}
-        count={countOf("reserve")}
-        open={drawer}
-        setOpen={setDrawer}
-        {...shared}
-      />
-      {/* LE CABINET S'OUVRE D'ICI, ET D'UN SEUL ENDROIT.
+        <ReserveDrawer
+          shelf={view.shelves.reserve}
+          count={countOf("reserve")}
+          open={drawer}
+          setOpen={setDrawer}
+          {...shared}
+        />
+        {/* LE CABINET S'OUVRE D'ICI, ET D'UN SEUL ENDROIT.
 
           Il y avait un bouton « + DÉCOR » au haut de CHAQUE rayon, et
           chacun annonçait viser le sien — alors que c'est le lâcher qui
@@ -828,83 +882,85 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet, pl
           Le bouton est en `position: fixed`, comme le tiroir qu'il
           ouvre : il ne bouge pas avec les planches, ne défile pas avec
           elles, et reste à portée quel que soit le rayon qu'on regarde. */}
-      <button
-        onClick={() => setCabinet((open) => !open)}
-        aria-expanded={!!cabinet}
-        title={t("shelf.cabinet")}
-        style={{
-          all: "unset",
-          ...tap,
-          cursor: "pointer",
-          position: "fixed",
-          right: 40,
-          top: 84,
-          zIndex: 44,
-          fontFamily: F.mono,
-          fontSize: 9.5,
-          letterSpacing: 1,
-          padding: "5px 10px",
-          color: cabinet ? C.card : C.inkFaded,
-          background: cabinet ? C.ink : C.card,
-          border: `1px dashed ${C.line}`,
-          boxShadow: "1px 2px 6px rgba(30,20,10,0.2)",
-        }}
-      >
-        + DÉCOR
-      </button>
-      <QuickFile ref={quickRef} boxes={quickBoxes} onDrop={dropInBox} />
-      {cabinet && (
-        <DecorCabinet
-          placed={placed}
-          onClose={() => setCabinet(null)}
-          onDragStart={onDecorDragStart}
-          onDragEnd={reset}
-        />
-      )}
-      {cat && (
-        <ItemPalette
-          title={t("shelf.category")}
-          color={cat.color}
-          removeLabel={t("shelf.undoCategory")}
-          onColor={(k) => acts.setCat(cat.id, { color: k })}
-          onRemove={() => {
-            acts.removeCat(cat.id);
-            setEditCat(null);
+        <button
+          data-tour="shelf-cabinet"
+          onClick={() => setCabinet((open) => !open)}
+          aria-expanded={!!cabinet}
+          title={t("shelf.cabinet")}
+          style={{
+            all: "unset",
+            ...tap,
+            cursor: "pointer",
+            position: "fixed",
+            right: 40,
+            top: 84,
+            zIndex: 44,
+            fontFamily: F.mono,
+            fontSize: 9.5,
+            letterSpacing: 1,
+            padding: "5px 10px",
+            color: cabinet ? C.card : C.inkFaded,
+            background: cabinet ? C.ink : C.card,
+            border: `1px dashed ${C.line}`,
+            boxShadow: "1px 2px 6px rgba(30,20,10,0.2)",
           }}
-          onClose={() => setEditCat(null)}
-        />
-      )}
-      {decor && (
-        <ItemPalette
-          title={t("shelf.objectStamp")}
-          color={decor.color}
-          size={decor.size}
-          /* The field only appears for the patterns that write: passing
+        >
+          + DÉCOR
+        </button>
+        <QuickFile ref={quickRef} boxes={quickBoxes} onDrop={dropInBox} />
+        {cabinet && (
+          <DecorCabinet
+            placed={placed}
+            onClose={() => setCabinet(null)}
+            onDragStart={onDecorDragStart}
+            onDragEnd={reset}
+          />
+        )}
+        {cat && (
+          <ItemPalette
+            title={t("shelf.category")}
+            color={cat.color}
+            removeLabel={t("shelf.undoCategory")}
+            onColor={(k) => acts.setCat(cat.id, { color: k })}
+            onRemove={() => {
+              acts.removeCat(cat.id);
+              setEditCat(null);
+            }}
+            onClose={() => setEditCat(null)}
+          />
+        )}
+        {decor && (
+          <ItemPalette
+            title={t("shelf.objectStamp")}
+            color={decor.color}
+            size={decor.size}
+            /* The field only appears for the patterns that write: passing
              `onLabel` to a pin would give it a name nothing would ever
              show. */
-          {...(decorSpec(decor.motif)?.writes
-            ? { label: decor.label, onLabel: (v) => acts.setDecor(decor.id, { label: v }) }
-            : null)}
-          removeLabel="retirer l'objet"
-          /* The orientation. `seededRot` gives the angle the object
+            {...(decorSpec(decor.motif)?.writes
+              ? { label: decor.label, onLabel: (v) => acts.setDecor(decor.id, { label: v }) }
+              : null)}
+            removeLabel="retirer l'objet"
+            /* The orientation. `seededRot` gives the angle the object
              carries as long as nobody has set it: without it, the panel
              would announce zero under an object visibly askew. */
-          rot={decor.rot}
-          seededRot={angleOf({ id: decor.id }, decorSpec(decor.motif)?.tall)}
-          onRot={(deg) => acts.setDecor(decor.id, { rot: deg })}
-          /* An imported pattern we cannot tint — a PNG, an SVG with no
+            rot={decor.rot}
+            seededRot={angleOf({ id: decor.id }, decorSpec(decor.motif)?.tall)}
+            onRot={(deg) => acts.setDecor(decor.id, { rot: deg })}
+            /* An imported pattern we cannot tint — a PNG, an SVG with no
              named line — has no colour to choose: offering it one anyway
              would be offering a row of dead buttons. */
-          onColor={noTint(decor.motif) ? undefined : (k) => acts.setDecor(decor.id, { color: k })}
-          onSize={(v) => acts.setDecor(decor.id, { size: v })}
-          onRemove={() => {
-            acts.removeDecor(decor.id);
-            setEditDecor(null);
-          }}
-          onClose={() => setEditDecor(null)}
-        />
-      )}
-    </div>
+            onColor={noTint(decor.motif) ? undefined : (k) => acts.setDecor(decor.id, { color: k })}
+            onSize={(v) => acts.setDecor(decor.id, { size: v })}
+            onRemove={() => {
+              acts.removeDecor(decor.id);
+              setEditDecor(null);
+            }}
+            onClose={() => setEditDecor(null)}
+          />
+        )}
+      </div>
+    </WearProvider>
   );
 }
 

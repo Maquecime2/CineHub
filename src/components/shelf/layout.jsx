@@ -11,7 +11,7 @@ import { wallStyle, materialStyle, PLANK_SHADOW } from "../../theme/surfaces";
 import { hash, fileNoOf } from "../../domain/seeded";
 import { initialsOf } from "../../domain/film";
 import { PosterArt } from "../film/PosterArt";
-import { InkStars } from "../ui";
+import { InkStars, Guideline } from "../ui";
 import { isUnplaced, CAT_KEYS, addRow, removeRow, clearRow, addCat } from "../../shelf-views";
 import {
   SHELF_KIND,
@@ -39,6 +39,7 @@ import { accountOpen, serverConfigured, sharedDecor } from "../../services/serve
 import { CustomDraw } from "./CustomDraw";
 import { FilmBox, DecorItem, WallItem, CategoryBox, dividerSkin, DividerHead } from "./items";
 import { splitRow, useRowCap } from "./lines";
+import { readRow } from "../../domain/shelfReading";
 
 const GutterAct = ({ label, onClick, ink = C.inkFaded }) => (
   <button
@@ -164,6 +165,57 @@ export const PerRowField = React.memo(function PerRowField({ value, onChange, ti
   );
 });
 
+/* CE QU'ON ÉCRIT D'UN RAYON, DANS L'ORDRE OÙ ON LE LIT.
+
+   Un tableau et non une phrase : les morceaux absents se retirent, et ce
+   qui reste se joint sans qu'une conjonction traîne dans le vide. Chacun
+   passe par le catalogue ou n'est qu'un NOMBRE — le genre, lui, est une
+   clé canonique déjà écrite dans le classeur, et le traduire figerait la
+   langue du jour dans une donnée qui n'est pas la nôtre. */
+const rowSummary = (reading, t, withGenre) => {
+  const out = [t("shelf.reading.cases", { count: reading.cases })];
+  if (reading.years)
+    out.push(
+      reading.years[0] === reading.years[1]
+        ? String(reading.years[0])
+        : t("shelf.reading.years", { from: reading.years[0], to: reading.years[1] })
+    );
+  if (withGenre && reading.genre) out.push(reading.genre);
+  if (reading.rating != null) out.push(`★ ${reading.rating}`);
+  return out;
+};
+
+/* L'ÉTIQUETTE DE RAYON — le carton glissé dans le porte-étiquette.
+
+   Les quatre valeurs étaient écrites en mono NEUF pixels, en `inkFaded`,
+   sous un `opacity: 0.75` : de l'encre passée sur de l'encre passée, à la
+   taille qu'on réserve aux tampons. C'est mot pour mot ce que la note du
+   `Guideline` reproche à l'ancienne cursive — « jolie et se lit mal » —
+   et on venait de le refaire.
+
+   ÉCRIRE PLUS FONCÉ N'AURAIT RÉGLÉ QUE LA MOITIÉ CLAIRE DU PROBLÈME :
+   quatorze peaux, dont des sombres, et une encre choisie pour ressortir
+   sur du kraft s'éteint sur du bleu nuit. Le contraste vient donc du
+   CARTON — un fond de fiche et un filet — et non de la graisse du trait.
+   C'est la même réponse que le tampon du verdict : on ne compte pas sur
+   une nuance pour être lu. */
+const LABEL_CARD = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 9,
+  maxWidth: "100%",
+  padding: "2px 8px",
+  background: C.card,
+  border: `1px solid ${C.line}`,
+  boxShadow: `1px 1px 0 ${alpha(C.ink, 0.14)}`,
+  fontFamily: F.mono,
+  fontSize: 11,
+  letterSpacing: 0.3,
+  color: alpha(C.ink, 0.82),
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+};
+
 /* THE GUTTER — a row's setting, to its left.
 
    The number of films per line was a WALL setting, the same for the whole
@@ -224,28 +276,17 @@ const RowGutter = React.memo(function RowGutter({ row, shown, acts, capMax }) {
         {isUnplaced(row) ? "?" : row.perRow || "~"}
       </button>
 
-      {row.label && !open && (
-        <div
-          title={row.label}
-          style={{
-            position: "absolute",
-            top: -18,
-            left: 0,
-            width: 130,
-            textAlign: "left",
-            fontFamily: F.hand,
-            fontSize: 14,
-            color: C.inkFaded,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            pointerEvents: "none",
-          }}
-        >
-          {row.label}
-        </div>
-      )}
+      {/* LE BANDEAU D'UNE LIGNE — son nom, puis ce qu'elle contient.
 
+          Le nom seul y était, et une ligne sans nom n'annonçait donc
+          rien du tout : c'est le cas ordinaire, et c'était le silence
+          complet. On lit maintenant ce que le rayon rassemble sans avoir
+          à le parcourir — combien de boîtiers, quelles années, quel
+          genre domine, quelle moyenne.
+
+          UN CHAMP ABSENT NE SE DESSINE PAS, il ne rend pas un tiret : ce
+          n'est pas une fiche à compléter, c'est une phrase à lire, et un
+          tiret y serait un mot de plus qui ne dit rien. */}
       {open && (
         <>
           {/* clicking elsewhere closes it again: a setting does not stay open */}
@@ -413,10 +454,117 @@ const Plank = React.memo(function Plank({ theme, plank }) {
    content into lines (`splitRow`), and each line is a band of its own,
    with its board. A box that is too big no longer wraps inside itself: it
    overflows onto the line below, wood included. */
+/* L'ÉTIQUETTE D'UN RAYON — DANS LE FLUX, ET NON PAR-DESSUS.
+
+   Elle était en `position: absolute` dans la gouttière. Or la gouttière
+   et le contenu de la ligne sont deux FRÈRES, et le contenu vient après :
+   il peint donc par-dessus, et la première boîte de catégorie venue
+   recouvrait l'étiquette. On a d'abord cru à un manque de place et
+   agrandi la ligne — ça n'a rien changé, parce que le défaut n'était pas
+   la place mais l'ORDRE D'EMPILEMENT.
+
+   Une étiquette qu'il faut hisser au-dessus de ses voisins avec un
+   `z-index` est une étiquette mal posée : elle appartient au-dessus de la
+   rangée, pas devant. Elle prend donc sa propre place, en flux, et rien
+   ne peut plus passer par-dessus — c'est le même raisonnement que le rail
+   des parcours, qui est un FOND de la liste et non un segment par carte.
+
+   Elle s'aligne sur les BOÎTIERS et non sur le bord : le retrait est
+   celui de la gouttière, la colonne des réglages restant à sa gauche.
+
+   `pointerEvents: "none"` : au-dessus de la rangée, elle est sur le
+   chemin d'un doigt qui vient déposer un boîtier. Elle se laisse
+   traverser plutôt que d'avaler le survol. */
+const RowLabel = React.memo(function RowLabel({ row, reading, first }) {
+  const { t } = useTranslation();
+  return (
+    <div
+      style={{
+        marginLeft: COARSE ? TAP : 26,
+        paddingBottom: 5,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "flex-start",
+        gap: 3,
+        maxWidth: 360,
+        pointerEvents: "none",
+      }}
+    >
+      {/* LA VISITE VISE UNE SEULE LIGNE, ET C'EST LA PREMIÈRE. Deux
+              éléments portant la même ancre en font viser un au hasard —
+              la règle déjà écrite pour `lists-new` et `quiz-new`.
+
+              UN REPÈRE, ET NON UN ATTRIBUT CALCULÉ SUR LE BANDEAU. Écrire
+              `data-tour={first ? …}` marchait à l'écran et était INVISIBLE
+              au test qui vérifie que chaque pas vise une ancre posée : il
+              lit les sources et n'y cherche qu'un littéral. Une ancre
+              qu'un contrôle ne peut pas voir est une ancre qu'on
+              supprimera un jour sans que rien ne le dise. */}
+      {first && <span data-tour="shelf-row" aria-hidden />}
+
+      {/* LE NOM, DEHORS ET EN CURSIVE — c'est un titre, pas une
+              valeur, et le mêler aux quatre autres le faisait lire comme
+              une cinquième.
+
+              UNE LIGNE SANS NOM SE FAIT NOMMER PAR CE QU'ELLE TIENT :
+              faute de titre, le genre dominant en tient lieu, et il quitte
+              alors l'étiquette — l'y laisser l'écrirait deux fois. */}
+      {(row.label || reading?.genre) && (
+        <span
+          title={row.label || undefined}
+          style={{
+            maxWidth: "100%",
+            fontFamily: F.hand,
+            fontSize: 15,
+            lineHeight: 1.1,
+            color: C.ink,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {row.label || reading.genre}
+        </span>
+      )}
+
+      {reading?.cases > 0 && (
+        <span style={LABEL_CARD}>
+          {/* CE QUE LA RECHERCHE TROUVE ICI, et c'est ce qui dit OÙ.
+
+                  Le ternissement dit « pas celui-là » quatre cents fois
+                  et ne dit jamais « c'est par là ». Ce compte est le seul
+                  repère qui désigne un rayon plutôt qu'un boîtier — d'où
+                  l'encre inversée, la seule chose de l'étiquette qu'on
+                  doit voir sans la chercher. */}
+          {reading.found > 0 && (
+            <span
+              style={{
+                flexShrink: 0,
+                margin: "-2px 0 -2px -8px",
+                padding: "3px 7px",
+                color: C.card,
+                background: C.ink,
+              }}
+            >
+              {t("shelf.reading.found", { count: reading.found })}
+            </span>
+          )}
+          {rowSummary(reading, t, !!row.label).map((part) => (
+            <span key={part} style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+              {part}
+            </span>
+          ))}
+        </span>
+      )}
+    </div>
+  );
+});
+
 const ShelfRow = React.memo(function ShelfRow({
   row,
   kind,
   films,
+  matching,
   theme,
   plank,
   dim,
@@ -428,6 +576,7 @@ const ShelfRow = React.memo(function ShelfRow({
   onDecorLabel,
   capMax,
   isLast,
+  first,
   bare,
 }) {
   const { t } = useTranslation();
@@ -441,6 +590,13 @@ const ShelfRow = React.memo(function ShelfRow({
   const padX = bare ? 4 : 20;
   const cap = useRowCap(measure, row.perRow, padX);
   const lines = useMemo(() => splitRow(row.items, cap), [row.items, cap]);
+
+  /* CE QUE CETTE LIGNE RASSEMBLE, lu une fois et non à chaque boîtier.
+
+     HORS DU CHEMIN CHAUD : une ligne n'est PAS reconstruite pendant un
+     glissement — c'est tout le principe de `ShelfBoard` — donc ce mémo
+     ne se rejoue jamais sous le doigt. */
+  const reading = useMemo(() => readRow(row.items, films, matching), [row.items, films, matching]);
 
   const draw = (seg) => {
     if (seg.t === "c") {
@@ -501,9 +657,14 @@ const ShelfRow = React.memo(function ShelfRow({
   const empty = drawn.every((line) => line.length === 0);
   // the empty arrivals line does not show itself: it has nothing to say
   const hidden = empty && isUnplaced(row);
+  /* L'ÉTIQUETTE NE SE DESSINE QUE S'IL Y A QUELQUE CHOSE À DIRE, et
+     jamais dans le tiroir (`bare`), qui a deux cent cinquante pixels de
+     large et pas de quoi la porter. */
+  const labelled = !bare && !hidden && (!!row.label || reading.cases > 0);
 
   return (
     <>
+      {labelled && <RowLabel row={row} reading={reading} first={first} />}
       <div
         style={{ display: "flex", alignItems: "stretch" }}
         onMouseEnter={() => setShown(true)}
@@ -534,16 +695,13 @@ const ShelfRow = React.memo(function ShelfRow({
                 padding: hidden ? 0 : bare ? "14px 2px 0" : "14px 10px 0",
               }}
             >
+              {/* IL N'Y A RIEN, ET C'EST NORMAL — donc `Guideline`, et
+                  non une phrase en italique écrite ici. L'étagère
+                  n'employait aucune des quatre primitives et se dessinait
+                  ses propres vides, à deux endroits et de deux façons. */}
               {i === 0 && empty && !isUnplaced(row) && (
-                <div
-                  style={{
-                    color: C.inkFaded,
-                    fontStyle: "italic",
-                    fontSize: 13,
-                    padding: "44px 4px",
-                  }}
-                >
-                  {t("shelf.emptyRowHint")}
+                <div style={{ padding: "38px 4px 0" }}>
+                  <Guideline tight>{t("shelf.emptyRowHint")}</Guideline>
                 </div>
               )}
               {nodes}
@@ -732,6 +890,7 @@ export function Shelf({
             onEditDecor={onEditDecor}
             onDecorLabel={onDecorLabel}
             isLast={i === rows.length - 1}
+            first={i === 0}
           />
         ))}
 
@@ -972,6 +1131,8 @@ export function ReserveDrawer({
                 onEditDecor={onEditDecor}
                 onDecorLabel={onDecorLabel}
                 isLast={i === rows.length - 1}
+                first={i === 0}
+                first={i === 0}
                 /* In a drawer of 250 px, the per-line setting has nothing
                  to set: the width decides. So the row goes in bare, which
                  gives the gutter's 26 px back to the cases. */

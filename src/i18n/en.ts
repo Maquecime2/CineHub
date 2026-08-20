@@ -1571,6 +1571,34 @@ const en = {
   },
 
   shelf: {
+    reading: {
+      cases_one: "{{count}} case",
+      cases_other: "{{count}} cases",
+      found_one: "{{count}} found here",
+      found_other: "{{count}} found here",
+      years: "{{from}}-{{to}}",
+      rating: "average {{rating}} out of 5",
+    },
+    wear: {
+      sealed: "never watched",
+      dormant: "not seen again for {{count}} days",
+      undated: "watched, undated",
+    },
+    legend: {
+      title: "ON THIS SHELF",
+      goTo: "Go to {{name}}",
+    },
+    find: {
+      none: "nothing found on the shelf",
+      count_one: "{{count}} case found",
+      count_other: "{{count}} cases found",
+      next: "go to the next one",
+    },
+    mirror: {
+      title: "The shelf, row by row",
+      row: "Row {{n}}",
+      unfiled: "Not filed yet",
+    },
     anonymous: "anonymous",
     noDate: "n.d.",
     dropFilmsHere: "drop films here",
@@ -2583,6 +2611,22 @@ const en = {
 
     library: {
       label: "The library",
+      shelfFind: {
+        title: "Searching does not sort",
+        body: "On the shelf a search removes nothing: it dims what does not answer, so the arrangement stays standing. The count says how many were found, and “go to the next one” takes you there.",
+      },
+      shelfLegend: {
+        title: "What is on this shelf",
+        body: "Every category box announces itself here with its colour, its name and its count. Click a swatch to go straight to the box.",
+      },
+      shelfRow: {
+        title: "A row reads without being walked",
+        body: "Above each row: how many cases, which years, which genre dominates, what the average is. The tab on the left opens its settings — its name, and how many cases fit on a board.",
+      },
+      shelfCabinet: {
+        title: "The cabinet of curiosities",
+        body: "A plant, a cat, a divider, a frame on the wall: pull an object out of the cabinet and set it between two cases. A shelf is not just a grid of films.",
+      },
       search: {
         title: "Searching",
         body: "A title, a filmmaker, a word from your own review. On the wall, the search filters; on the shelf, it dims what it cannot find and leaves the arrangement standing. To search beyond the films — people, motifs, threads, the notebook — the magnifier, at the foot of the rail or at the end of the bottom bar, asks everything at once.",

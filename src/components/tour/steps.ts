@@ -179,6 +179,39 @@ const library: Tour = {
       ...says("library", "notebook"),
       placement: "bottom",
     },
+    /* L'ÉTAGÈRE, ET LES QUATRE PAS SONT `optional` — Y COMPRIS LE
+       CABINET.
+
+       On a d'abord voulu le rendre obligatoire, en se disant que le
+       bouton du cabinet existe toujours. Il existe toujours SUR
+       L'ÉTAGÈRE : la vue arrive en mode MUR, où rien de tout ceci n'est
+       monté. Un pas non facultatif visant une ancre absente arrête la
+       visite sur un classeur neuf, et la règle du projet est qu'elle doit
+       se jouer en entier. */
+    {
+      target: at("shelf-find"),
+      ...says("library", "shelfFind"),
+      placement: "bottom",
+      optional: true,
+    },
+    {
+      target: at("shelf-legend"),
+      ...says("library", "shelfLegend"),
+      placement: "bottom",
+      optional: true,
+    },
+    {
+      target: at("shelf-row"),
+      ...says("library", "shelfRow"),
+      placement: "right",
+      optional: true,
+    },
+    {
+      target: at("shelf-cabinet"),
+      ...says("library", "shelfCabinet"),
+      placement: "left",
+      optional: true,
+    },
   ],
 };
 

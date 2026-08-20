@@ -173,3 +173,27 @@ export const ruledTextarea: CSSProperties = {
   boxSizing: "border-box",
   backgroundImage: `repeating-linear-gradient(transparent, transparent 29px, ${alpha(C.line, 0.333)} 30px)`,
 };
+
+/* LE MIROIR EN LISTE — masqué à l'œil, jamais au lecteur d'écran.
+
+   Il était écrit dans `LineageMap`, qui explique pourquoi il existe : un
+   graphe SVG ne se parcourt pas au lecteur d'écran, quel que soit le soin
+   mis aux `aria-label`, parce qu'il n'y a pas d'ordre de lecture dans un
+   plan. L'étagère pose exactement la même question — quatre cents
+   boîtiers rangés dans un espace n'ont pas davantage d'ordre de lecture —
+   et une seconde copie de ces neuf lignes aurait dérivé de la première.
+
+   `display: none` NE CONVIENT PAS : il retire l'élément de l'arbre
+   d'accessibilité en même temps que de l'écran, ce qui est précisément
+   l'inverse du but.  */
+export const HIDDEN: CSSProperties = {
+  position: "absolute",
+  width: 1,
+  height: 1,
+  overflow: "hidden",
+  clip: "rect(0 0 0 0)",
+  whiteSpace: "nowrap",
+  margin: -1,
+  padding: 0,
+  border: 0,
+};

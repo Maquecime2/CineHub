@@ -20,6 +20,7 @@ import { matchFilm } from "../../domain/search";
 import { CoffeeRing, TapeResidue, StampCorner, InkUnderline } from "../../components/atmosphere";
 import { Label } from "../../components/ui";
 import { ShelfBoard } from "../../components/shelf/ShelfBoard";
+import { ShelfFind } from "../../components/shelf/ShelfFind";
 import { THEMES } from "../../components/shelf/constants";
 import { DecorStudio } from "../../components/shelf/DecorStudio";
 import {
@@ -714,6 +715,11 @@ export function LibraryView({
               value={q}
               onChange={(e) => setQ(e.target.value)}
             />
+            {/* SUR L'ÉTAGÈRE SEULEMENT, et c'est le mode qui le veut :
+                le mur, lui, FILTRE — ce qui reste à l'écran EST le
+                résultat, et le compter serait compter ce qu'on voit.
+                L'étagère ternit, donc elle doit dire. */}
+            {mode === "shelf" && <ShelfFind matching={dimSet} />}
           </div>
           {/* DEUX TAMIS REPLIÉS, LÀ OÙ IL Y AVAIT DEUX RANGÉES. Dix-neuf
               genres et onze décennies toujours dépliés poussaient les

@@ -8,7 +8,10 @@ import { hueOf } from "../../theme/ink";
 import { tiltOf } from "../../domain/seeded";
 import { watchCount, initialsOf } from "../../domain/film";
 import { PosterArt } from "../film/PosterArt";
+import { Guideline } from "../ui";
 import { useFiling } from "../film/filing";
+import { wearOf } from "../../domain/patina";
+import { useNeglectDays, spineBackground, dormantVeil, sealedSheen } from "./wear";
 import { PushPin } from "../atmosphere";
 import { Palette, ListPlus } from "lucide-react";
 import { tap } from "../../theme/styles";
@@ -167,6 +170,16 @@ export const FilmBox = React.memo(function FilmBox({
      second, and a prop recomputed at every render would cancel the
      memoisation for the whole row. */
   const seenFilms = watchCount(film);
+  /* CE QUE LE TEMPS A FAIT DE CE FILM. Le seuil vient du CONTEXTE — un
+     nombre par classeur, pas par fiche — et l'usure elle-même est
+     DÉRIVÉE ici, pour la raison qui vaut déjà pour le compte de séances
+     juste au-dessus : une prop recalculée à chaque rendu annulerait la
+     mémoïsation pour toute la ligne.
+
+     `null` quand personne n'a posé de seuil : aucun boîtier ne prend de
+     marque, et c'est le cas qui doit rester sans effort. */
+  const neglectDays = useNeglectDays();
+  const wear = neglectDays == null ? null : wearOf(film, neglectDays);
 
   return (
     <div
@@ -350,6 +363,18 @@ export const FilmBox = React.memo(function FilmBox({
           }}
         >
           <PosterArt film={film} height={BOX_H} initials={initials} plain />
+          {/* CE QUI N'EST PAS ORDINAIRE, ET RIEN D'AUTRE.
+
+              `fresh` et `undated` ne rendent AUCUN de ces deux nœuds :
+              l'arbre d'un boîtier ordinaire est exactement celui d'hier.
+              C'est la règle qui fait tenir le reste — si chaque boîtier
+              porte une marque, aucun n'est marqué.
+
+              Et `undated` n'est pas `dormant` : une fiche vue sans date
+              n'est pas négligée, c'est le classeur qui ne sait pas. Le
+              miroir en liste le dit ; le dessin n'a rien à inventer. */}
+          {wear?.state === "dormant" && <span aria-hidden style={dormantVeil(wear)} />}
+          {wear?.state === "sealed" && <span aria-hidden style={sealedSheen(wear)} />}
           {/* The spine: it is what makes one read "case" and not
               "thumbnail". It NO LONGER carries the title.
 
@@ -368,7 +393,7 @@ export const FilmBox = React.memo(function FilmBox({
               top: 0,
               bottom: 0,
               width: 11,
-              background: hue,
+              background: spineBackground(hue, wear),
               boxShadow: `inset -2px 0 4px ${alpha(C.ink, 0.4)}`,
               zIndex: 2,
             }}
@@ -1316,17 +1341,11 @@ export const CategoryBox = React.memo(function CategoryBox({
             minHeight: BOX_H + 8,
           }}
         >
+          {/* Une boîte vide n'est pas une panne : c'est une boîte qu'on
+              vient d'ouvrir. `Guideline`, comme la ligne vide. */}
           {boxes.length === 0 && (
-            <div
-              style={{
-                color: C.inkFaded,
-                fontFamily: F.hand,
-                fontSize: 15,
-                padding: "0 6px 12px",
-                alignSelf: "flex-end",
-              }}
-            >
-              {t("shelf.dropFilmsHere")}
+            <div style={{ padding: "0 6px 4px", alignSelf: "flex-end" }}>
+              <Guideline tight>{t("shelf.dropFilmsHere")}</Guideline>
             </div>
           )}
           {boxes}

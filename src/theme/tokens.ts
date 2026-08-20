@@ -263,6 +263,26 @@ body { background: ${C.paper}; }
   to { opacity: 0; transform: translate3d(var(--drift, 0px), var(--fall, 240px), 0) rotate(var(--spin-to, 540deg)); }
 }
 
+/* LE BOITIER QU'ON VIENT DE REJOINDRE.
+
+   Chercher sur l'etagere ne FILTRE pas, ca ternit : quatre cents
+   boitiers restent en place et l'oeil doit retrouver celui qui repond.
+   Defiler jusqu'a lui ne suffit donc pas — il faut encore le designer
+   parmi ses voisins, sinon on arrive quelque part sans savoir ou
+   regarder.
+
+   Un contour d'encre qui se retire, deux fois. C'est une depense chere
+   sur UN element et pour un MOMENT, ce qui est exactement la ou elle est
+   permise — jamais sur les quatre cents.
+
+   La duree passe par le jeton, donc le bloc prefers-reduced-motion la
+   met a zero tout seul et le contour ne clignote pas. */
+@keyframes foundFlash {
+  from { outline-color: var(--c-ink); outline-offset: 7px; }
+  to { outline-color: transparent; outline-offset: 0px; }
+}
+[data-found-flash] { outline: 2px solid transparent; animation: foundFlash var(--motion-slow) var(--motion-ease) 2; }
+
 /* During a drag, the drawer tab announces itself as a target. In CSS
    and not in React state: a setState here would re-render the whole row
    at the precise moment the mouse starts to move. */
