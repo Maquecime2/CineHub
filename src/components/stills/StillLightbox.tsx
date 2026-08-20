@@ -7,6 +7,29 @@ import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { ShotImage, type Shot } from "./shots";
 
+/* ============================================================
+   QUAND LA SURFACE EST FIXE, L'ENCRE DOIT L'ÊTRE AUSSI
+
+   Le voile de cette visionneuse est peint EN DUR — `rgba(20,15,10,0.88)`,
+   plus bas — et tout ce qui se posait dessus prenait `C.paper`, un jeton
+   que les peaux réécrivent. Or `paper` est SOMBRE sur huit des dix-sept
+   peaux (`#0E2A47`, `#171310`, `#14161A`, `#211E1B`…). Sous celles-là,
+   disparaissaient d'un coup la légende, le compteur, la ligne du bas,
+   les deux flèches ET la croix de fermeture : la lanterne devenait une
+   image sans commandes visibles, et rien ne pouvait le dire.
+
+   C'est le symétrique exact de la leçon de `dormantVeil` — « un aplat
+   clair sur une affiche devenait une TACHE ». Un jeton n'a de sens que
+   sur un fond qui bascule AVEC lui.
+
+   CES DEUX CONSTANTES NE SONT DONC PAS DES JETONS, ET N'ONT PAS À EN
+   DEVENIR. Elles sont la contrepartie d'une surface écrite en dur trois
+   lignes plus bas, et elles ne quittent pas ce fichier. Les « corriger »
+   en `C.paper` ramènerait le défaut entier.
+   ============================================================ */
+const LANTERN_INK = "#F4EFE6";
+const LANTERN_DEEP = "rgba(20,15,10,0.88)";
+
 const ARROW_COL = {
   all: "unset",
   ...tap,
@@ -16,7 +39,7 @@ const ARROW_COL = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  color: `${alpha(C.paper, 0.6)}`,
+  color: `${alpha(LANTERN_INK, 0.75)}`,
   fontSize: 44,
   fontFamily: F.title,
 } as const;
@@ -109,7 +132,7 @@ export function StillLightbox({
         style={{
           position: "fixed",
           inset: 0,
-          background: "rgba(20,15,10,0.88)",
+          background: LANTERN_DEEP,
           zIndex: 80,
           display: "flex",
           alignItems: "stretch",
@@ -118,6 +141,17 @@ export function StillLightbox({
       >
         {/* `all: unset` puts the button back to inline: without `flex`, the vertical
           padding does not count and the target stays a thin strip */}
+        {/* ELLE NE SE POSE PAS SUR LE VOILE, MAIS SUR L'IMAGE.
+
+            Une croix claire sans fond disparaît sur un plan clair — et un
+            agrandissement montre justement une image, pas le voile. Elle
+            porte donc son propre disque, de la même encre profonde que le
+            voile : elle se lit sur n'importe quel plan sans avoir à
+            deviner ce qu'il y a dessous.
+
+            `tap` RESTE. La cible tactile de quarante-quatre pixels ne se
+            négocie pas ; le disque est plus petit qu'elle, et c'est le
+            `padding` qui tient la cible. */}
         <button
           onClick={onClose}
           title={t("stills.close")}
@@ -128,15 +162,17 @@ export function StillLightbox({
             top: 10,
             right: 14,
             cursor: "pointer",
-            color: C.paper,
-            padding: 16,
+            color: LANTERN_INK,
+            padding: 11,
+            borderRadius: "50%",
+            background: LANTERN_DEEP,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             zIndex: 2,
           }}
         >
-          <X size={22} />
+          <X size={24} />
         </button>
 
         {/* full-height navigation columns: a wide target, not a chevron */}
@@ -147,11 +183,11 @@ export function StillLightbox({
             style={ARROW_COL}
             onMouseEnter={(e) => {
               e.currentTarget.style.background = "rgba(255,255,255,0.06)";
-              e.currentTarget.style.color = C.paper;
+              e.currentTarget.style.color = LANTERN_INK;
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.background = "transparent";
-              e.currentTarget.style.color = `${alpha(C.paper, 0.6)}`;
+              e.currentTarget.style.color = `${alpha(LANTERN_INK, 0.75)}`;
             }}
           >
             ‹
@@ -190,10 +226,18 @@ export function StillLightbox({
             />
           </div>
           <div
+            /* LA CURSIVE QUITTE LA LÉGENDE, et ce n'est pas un avis sur
+               le goût. Ce fichier a déjà écrit la règle ailleurs : elle
+               est « jolie sur une ligne, LENTE dans un bloc ». Une
+               légende de capture est de la LECTURE, pas une signature —
+               et à vingt et un pixels sur un fond sombre, la cursive
+               coûtait le double de ce qu'elle apportait. Qui la veut
+               partout a `theme/handwriting.ts` ; ici c'est le fond qui
+               tranche. */
             style={{
-              fontFamily: F.hand,
-              fontSize: 21,
-              color: C.paper,
+              fontFamily: F.body,
+              fontSize: 19,
+              color: LANTERN_INK,
               marginTop: 12,
               textAlign: "center",
             }}
@@ -203,7 +247,11 @@ export function StillLightbox({
               style={{
                 fontFamily: F.mono,
                 fontSize: 11,
-                opacity: 0.7,
+                /* SECONDAIRE, PAS ABSENT. Sept dixièmes d'une encre qui
+                   était sombre ne faisaient rien ; sept dixièmes d'une
+                   encre claire suffisent, mais sur un voile à 88 % on
+                   remonte encore un peu. */
+                opacity: 0.82,
                 marginLeft: 10,
               }}
             >
@@ -213,8 +261,11 @@ export function StillLightbox({
           <div
             style={{
               fontFamily: F.mono,
-              fontSize: 9.5,
-              color: `${alpha(C.paper, 0.4)}`,
+              fontSize: 10.5,
+              /* QUATRE DIXIÈMES NE SE LISENT PAS, même en clair, sur un
+                 voile à 88 % et à neuf pixels et demi. C'est une
+                 indication et non un secret. */
+              color: `${alpha(LANTERN_INK, 0.62)}`,
               marginTop: 10,
               letterSpacing: 1,
             }}
@@ -230,11 +281,11 @@ export function StillLightbox({
             style={ARROW_COL}
             onMouseEnter={(e) => {
               e.currentTarget.style.background = "rgba(255,255,255,0.06)";
-              e.currentTarget.style.color = C.paper;
+              e.currentTarget.style.color = LANTERN_INK;
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.background = "transparent";
-              e.currentTarget.style.color = `${alpha(C.paper, 0.6)}`;
+              e.currentTarget.style.color = `${alpha(LANTERN_INK, 0.75)}`;
             }}
           >
             ›
