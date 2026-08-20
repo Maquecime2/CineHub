@@ -26,6 +26,14 @@ jobs:
 
       - run: npm ci
 
+      # Trois tests du client entrent dans `server/src` — le bareme, les
+      # affiches de demonstration, le prix des peaux — et de la, `demo.ts`
+      # importe le type `Db`, donc `postgres`. Le programme que `tsc` compile
+      # ici contient donc le serveur : sans ses dependances, le typage tombe
+      # sur un module introuvable, et lui seul.
+      - name: Dependances du serveur
+        run: npm ci --prefix server
+
       - name: Lint
         run: npm run lint
 
