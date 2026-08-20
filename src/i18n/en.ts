@@ -159,6 +159,7 @@ const en = {
 
   tmdbKey: {
     setItHere: "Set it here",
+    orOpenAccount: "— or open an account, which spares you it.",
     title: "TMDB key",
     kicker: "TMDB KEY",
     note: "it opens the Discoveries, the posters, the crew cards and the wake — it stays on your machine, it goes nowhere",
@@ -1593,11 +1594,31 @@ const en = {
       count_one: "{{count}} case found",
       count_other: "{{count}} cases found",
       next: "go to the next one",
+      previous: "back to the previous one",
+      at: "{{at}} of {{count}}",
     },
     mirror: {
       title: "The shelf, row by row",
       row: "Row {{n}}",
       unfiled: "Not filed yet",
+    },
+    addDecor: "+ DECOR",
+    newViewStamp: "+ NEW VIEW",
+    removeObject: "remove the object",
+    addLineStamp: "+ ROW",
+    nothingSetAside:
+      "Nothing set aside. Drop here a film you no longer want on the wall — it stays whole, with its rating and its stills.",
+    /* A VIEW NAME AND A CATEGORY NAME ARE DATA, and these three keys do
+       not translate them: they PROPOSE them at creation time, once, like
+       a name somebody would have typed. */
+    newCategory: "Category",
+    views: {
+      new: "New view",
+      byDirector: "By film-maker",
+    },
+    stepBack: {
+      title: "Step back",
+      notch: "See the shelf at {{percent}}%",
     },
     anonymous: "anonymous",
     noDate: "n.d.",
@@ -1745,6 +1766,7 @@ const en = {
   },
 
   stills: {
+    lossless: " · lossless",
     leftOnOtherDevice: "left on the other device",
     escToClose: "ESC TO CLOSE",
     theFilmStrip: "The film strip",
@@ -2613,7 +2635,11 @@ const en = {
       label: "The library",
       shelfFind: {
         title: "Searching does not sort",
-        body: "On the shelf a search removes nothing: it dims what does not answer, so the arrangement stays standing. The count says how many were found, and “go to the next one” takes you there.",
+        body: "On the shelf a search removes nothing: it dims what does not answer, so the arrangement stays standing. The count says how many were found; the two steps take you from one to the next and back again, opening the set-aside drawer on the way if that is where the film was sleeping.",
+      },
+      shelfZoom: {
+        title: "Standing back",
+        body: "A full shelf does not fit on a screen, and the arrangement — which board is loaded, where the objects sit — was the one thing you could never see whole. These four notches move the shelf away without doing anything to it: the number of cases per row does not change, nor does the order. You step back, you do not summarise.",
       },
       shelfLegend: {
         title: "What is on this shelf",

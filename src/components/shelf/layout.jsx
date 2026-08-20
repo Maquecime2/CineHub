@@ -39,6 +39,8 @@ import { accountOpen, serverConfigured, sharedDecor } from "../../services/serve
 import { CustomDraw } from "./CustomDraw";
 import { FilmBox, DecorItem, WallItem, CategoryBox, dividerSkin, DividerHead } from "./items";
 import { splitRow, useRowCap } from "./lines";
+import { plankSag, plankLight } from "./wear";
+import { lightOf } from "../../domain/daylight";
 import { readRow } from "../../domain/shelfReading";
 
 const GutterAct = ({ label, onClick, ink = C.inkFaded }) => (
@@ -420,13 +422,32 @@ const RowGutter = React.memo(function RowGutter({ row, shown, acts, capMax }) {
    hexadecimal, with no grain or sheen. The material is not a restatement
    of what exists, it is a door beside it — and that is what allows one to
    claim that yesterday's view is identical to the pixel. */
-const Plank = React.memo(function Plank({ theme, plank }) {
+/* LE BOIS DIT DEUX CHOSES DE PLUS, ET NI L'UNE NI L'AUTRE N'EST UN AVIS.
+
+   `load` est la CHARGE de cette ligne — un nombre que `ShelfRow` a déjà
+   sous la main, `line.length / cap` — et la planche ploie dessous. `light`
+   est l'heure qu'il est, et le bois ne renvoie pas la même lumière à neuf
+   heures et à vingt-deux.
+
+   C'EST ICI QUE ÇA SE PASSE, ET NULLE PART AILLEURS. Ce composant est le
+   seul de l'étagère qui ne soit ni mesuré, ni ciblé par un dépôt, ni un
+   `[data-shelf-item]` : un `borderRadius` y est sans conséquence, alors
+   qu'il serait interdit à trois nœuds de distance.
+
+   LE MATÉRIAU RESTE INTACT. La planche prend la forme de sa charge et la
+   lumière de l'heure, mais son GRAIN est un choix de la personne : le
+   patiner réécrirait ce qu'elle a choisi, sans qu'aucun panneau puisse
+   l'enlever. La lumière se pose donc PAR-DESSUS, dans un nœud à elle,
+   plutôt que de se mêler au dégradé du bois. */
+const Plank = React.memo(function Plank({ theme, plank, load = 0, cap = 0, light }) {
   const skin = plank?.material
     ? materialStyle(plank.material, plank.finish)
     : {
         background: `linear-gradient(${theme.wood[0]}, ${theme.wood[1]})`,
         boxShadow: PLANK_SHADOW,
       };
+  const sag = plankSag(load, cap);
+  const lit = light ? plankLight(light) : null;
   return (
     <div
       aria-hidden
@@ -437,8 +458,17 @@ const Plank = React.memo(function Plank({ theme, plank }) {
         bottom: 0,
         height: 12,
         ...skin,
+        ...sag,
+        /* Le ploiement ajoute son ombre SOUS celle du bois, il ne la
+           remplace pas : un matériau qui perdrait son relief en se
+           chargeant se lirait comme un changement de bois. */
+        ...(sag.boxShadow && skin.boxShadow
+          ? { boxShadow: `${skin.boxShadow}, ${sag.boxShadow}` }
+          : null),
       }}
-    />
+    >
+      {lit && <span aria-hidden style={{ ...lit, borderRadius: "inherit" }} />}
+    </div>
   );
 });
 
@@ -598,6 +628,13 @@ const ShelfRow = React.memo(function ShelfRow({
      ne se rejoue jamais sous le doigt. */
   const reading = useMemo(() => readRow(row.items, films, matching), [row.items, films, matching]);
 
+  /* L'HEURE, LUE UNE FOIS ET SANS MINUTERIE. Une étagère ouverte six
+     heures n'a pas à se repeindre toute seule : un fond qui change sous
+     les yeux sans qu'on ait rien fait, c'est un mur qui gigote. Le mémo
+     sans dépendance est exactement ce contrat — la valeur est celle du
+     montage, et rien ne la redemande. */
+  const light = useMemo(() => lightOf(), []);
+
   const draw = (seg) => {
     if (seg.t === "c") {
       return (
@@ -706,7 +743,15 @@ const ShelfRow = React.memo(function ShelfRow({
               )}
               {nodes}
               {/* THIS line's board */}
-              {!hidden && <Plank theme={theme} plank={plank} />}
+              {!hidden && (
+                <Plank
+                  theme={theme}
+                  plank={plank}
+                  load={lines[i]?.length ?? 0}
+                  cap={cap}
+                  light={light}
+                />
+              )}
             </div>
           ))}
         </div>
@@ -831,7 +876,7 @@ export function Shelf({
             padding: "3px 8px",
           }}
         >
-          + LIGNE
+          {t("shelf.addLineStamp")}
         </button>
       </div>
       <div
@@ -1019,6 +1064,15 @@ export function ReserveDrawer({
       </button>
 
       <div
+        /* CE QUI EST DEDANS SE RECONNAIT DE DEHORS.
+
+           `ShelfFind` doit savoir si le boitier qu'il vient de trouver
+           dort ici, parce que le contenu du tiroir ferme est RENDU —
+           simplement invisible — et qu'un `scrollIntoView` dessus ne fait
+           rien. Sans cette marque, la recherche ouvrait le tiroir a
+           CHAQUE saut, y compris pour un film pose sur une planche : un
+           panneau qui surgit sans raison a chaque clic. */
+        data-set-aside
         onDragOver={(e) => {
           e.preventDefault();
           dnd.onShelfOver("reserve");
@@ -1094,7 +1148,7 @@ export function ReserveDrawer({
               padding: "3px 8px",
             }}
           >
-            + LIGNE
+            {t("shelf.addLineStamp")}
           </button>
         </div>
 
@@ -1111,8 +1165,7 @@ export function ReserveDrawer({
                 padding: "0 8px",
               }}
             >
-              Rien de côté. Glissez ici un film que vous ne voulez plus voir sur le mur — il reste
-              entier, avec sa note et ses captures.
+              {t("shelf.nothingSetAside")}
             </div>
           ) : (
             rows.map((row, i) => (
@@ -1131,7 +1184,6 @@ export function ReserveDrawer({
                 onEditDecor={onEditDecor}
                 onDecorLabel={onDecorLabel}
                 isLast={i === rows.length - 1}
-                first={i === 0}
                 first={i === 0}
                 /* In a drawer of 250 px, the per-line setting has nothing
                  to set: the width decides. So the row goes in bare, which

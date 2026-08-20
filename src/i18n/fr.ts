@@ -167,6 +167,7 @@ const fr = {
 
   tmdbKey: {
     setItHere: "La régler ici",
+    orOpenAccount: "— ou ouvrez un compte, qui vous en dispense.",
     title: "Clé TMDB",
     kicker: "CLÉ TMDB",
     note: "elle ouvre les Découvertes, les affiches, les fiches d'équipe et le sillage — elle reste sur votre machine, elle ne part nulle part",
@@ -1633,11 +1634,34 @@ const fr = {
       count_one: "{{count}} boîtier trouvé",
       count_other: "{{count}} boîtiers trouvés",
       next: "aller au suivant",
+      previous: "revenir au précédent",
+      at: "{{at}} sur {{count}}",
     },
     mirror: {
       title: "L'étagère, ligne à ligne",
       row: "Ligne {{n}}",
       unfiled: "Pas encore rangés",
+    },
+    addDecor: "+ DÉCOR",
+    newViewStamp: "+ NOUVELLE VUE",
+    removeObject: "retirer l'objet",
+    addLineStamp: "+ LIGNE",
+    nothingSetAside:
+      "Rien de côté. Glissez ici un film que vous ne voulez plus voir sur le mur — il reste entier, avec sa note et ses captures.",
+    /* LE NOM D'UNE VUE ET CELUI D'UNE CATÉGORIE SONT DES DONNÉES, et ces
+       trois clés ne les traduisent pas : elles les PROPOSENT au moment de
+       la création, une fois, comme un nom qu'on aurait tapé. Ensuite le
+       document porte ce nom-là et personne ne le réécrit. */
+    newCategory: "Catégorie",
+    views: {
+      new: "Nouvelle vue",
+      byDirector: "Par réalisateur",
+    },
+    /* LE RECUL. On ne dit pas « zoom » : on ne grossit rien, on s'éloigne
+       pour voir le rangement en entier. */
+    stepBack: {
+      title: "Le recul",
+      notch: "Voir l'étagère à {{percent}} %",
     },
     anonymous: "anonyme",
     noDate: "s.d.",
@@ -1794,6 +1818,7 @@ const fr = {
   },
 
   stills: {
+    lossless: " · sans perte",
     leftOnOtherDevice: "restée sur l'autre appareil",
     escToClose: "ÉCHAP POUR FERMER",
     theFilmStrip: "La pellicule",
@@ -2721,7 +2746,11 @@ const fr = {
       label: "La vidéothèque",
       shelfFind: {
         title: "Chercher ne trie pas",
-        body: "Sur l'étagère, une recherche ne retire rien : elle ternit ce qui ne répond pas, pour que le rangement reste debout. Le compte dit combien on a trouvé, et « aller au suivant » vous y mène.",
+        body: "Sur l'étagère, une recherche ne retire rien : elle ternit ce qui ne répond pas, pour que le rangement reste debout. Le compte dit combien on a trouvé ; les deux pas vous mènent d'un trouvé au suivant, et au précédent, en ouvrant au passage le tiroir des mis de côté si c'est là que le film dormait.",
+      },
+      shelfZoom: {
+        title: "Prendre du recul",
+        body: "Une étagère pleine ne tient pas dans un écran, et c'est le rangement — quel rayon est chargé, où sont les objets posés — qu'on ne voyait jamais en entier. Ces quatre crans éloignent l'étagère sans rien lui faire : le nombre de boîtiers par ligne ne bouge pas, l'ordre non plus. On recule, on ne résume pas.",
       },
       shelfLegend: {
         title: "Ce qu'il y a sur ce rayon",

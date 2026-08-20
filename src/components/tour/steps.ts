@@ -200,6 +200,17 @@ const library: Tour = {
       placement: "bottom",
       optional: true,
     },
+    /* LE RECUL VIENT JUSTE APRÈS CE QU'UN RAYON CONTIENT, et l'ordre
+       n'est pas décoratif : on vient de dire ce qu'une ligne rassemble,
+       la question suivante est « et l'étagère entière ? ». `optional`
+       comme ses quatre voisins — la vue arrive parfois en mode MUR, où
+       rien de tout ceci n'est monté. */
+    {
+      target: at("shelf-zoom"),
+      ...says("library", "shelfZoom"),
+      placement: "bottom",
+      optional: true,
+    },
     {
       target: at("shelf-row"),
       ...says("library", "shelfRow"),

@@ -156,7 +156,27 @@ export function useRowCap(ref, perRow, pad = 20) {
       for (const e of entries) read(e.contentRect.width);
     });
     ro.observe(el);
-    read(el.getBoundingClientRect().width);
+    /* `offsetWidth` ET NON `getBoundingClientRect`, ET LE RECUL EN DÉCIDE.
+
+       Les deux rendaient la même chose tant que rien n'était mis à
+       l'échelle. Depuis le recul (`useStepBack`), la planche est dans un
+       sous-arbre transformé : le rectangle client rend la taille VUE — 40 %
+       de la vraie — quand `offsetWidth` rend celle de la MISE EN PAGE, que
+       la transformation ne touche pas. C'est aussi ce que rend
+       `ResizeObserver` deux lignes plus haut, donc les deux lectures
+       disent enfin la même chose.
+
+       `offsetWidth` et non `clientWidth` : c'est lui qui compte la
+       bordure, donc lui l'exact équivalent de mise en page de ce qu'on
+       lisait avant. Changer de règle de mesure en même temps que
+       d'espace aurait décalé le compte d'une case sur les largeurs
+       limites, et on aurait cherché la faute du mauvais côté.
+
+       Lue faussement, cette valeur recomposait la ligne au montage —
+       l'observateur la rétablissait ensuite, mais LA DISPOSITION EST LA
+       DONNÉE : reculer ne doit pas changer d'un boîtier ce qu'une ligne
+       porte. */
+    read(el.offsetWidth);
     return () => ro.disconnect();
   }, [ref, perRow, pad]);
 
