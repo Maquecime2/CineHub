@@ -924,7 +924,15 @@ export interface List {
    */
   posters?: string[];
   mienne?: boolean;
-  isMember?: boolean;
+  /**
+   * Suis-je membre de cette liste ?
+   *
+   * `is_member` ET NON `isMember` : le serveur l'écrit ainsi (`AS
+   * is_member`), et c'est la cinquième fois que ce dépôt paie une
+   * orthographe inventée ici plutôt que lue là-bas. Le champ valait
+   * `undefined` à l'exécution, toujours, et rien n'échouait.
+   */
+  is_member?: boolean;
 }
 
 export interface ListWork {

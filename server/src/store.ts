@@ -1093,7 +1093,23 @@ export interface ListRow {
   posters: string[];
   /** Am I the owner, and may I write in it? */
   mienne?: boolean;
-  isMember?: boolean;
+  /**
+   * Suis-je membre de cette liste ?
+   *
+   * `is_member` ET NON `isMember`, et c'est la cinquieme fois que ce
+   * defaut se paie ici (`liste_id`, `per`, `ouverte`, `list_id`). Le SQL
+   * ecrit `AS is_member` quelques lignes plus bas ; le champ s'appelait
+   * `isMember` des deux cotes, donc il valait `undefined` a l'execution,
+   * TOUJOURS, et trois ecrans mentaient en silence : le remplissage TMDB
+   * ne paraissait jamais a un co-redacteur, les listes dont on est
+   * membre n'etaient pas offertes comme sujet d'un defi, et l'indicateur
+   * « partagee » se trompait sur ses propres listes.
+   *
+   * On epelle comme le SQL, pas l'inverse : `mienne` fait deja ainsi sur
+   * la ligne d'a cote, et un alias entre guillemets serait le premier du
+   * depot — dans les requetes qui n'ont meme pas droit a un accent.
+   */
+  is_member?: boolean;
 }
 
 export interface WorkRow {

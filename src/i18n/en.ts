@@ -435,6 +435,8 @@ const en = {
 
   film: {
     newCard: "New card",
+    statusWatched: "Watched",
+    statusWatchlist: "To watch",
     titleField: "Title",
     titlePlaceholder: "The film’s title",
     nameField: "Name",
@@ -2284,6 +2286,7 @@ const en = {
     launch: "START",
     join: "JOIN",
     leave: "LEAVE",
+    enrolFailed: "We could not change whether you take part.",
     noParticipants: "Nobody has joined yet.",
     works_one: "{{count}} film",
     works_other: "{{count}} films",
@@ -2398,6 +2401,10 @@ const en = {
     noCategories: "No category. That is where it starts.",
     deleteCategory: "Erase this category",
     noQuestions: "No question in this category.",
+    questionsFailed: "We could not ask for this category's questions.",
+    askAgain: "Ask again",
+    tableFailed: "We could not open this game.",
+    saveFailed: "We could not save this question.",
     addQuestion: "Add a question",
     editQuestion: "Edit this question",
     removeQuestion: "Withdraw this question",
@@ -2507,6 +2514,8 @@ const en = {
     handwriting: "HANDWRITING",
     handPlume: "by hand",
     handPlain: "printed",
+    notTouched:
+      "your cards and the decoration of your shelves keep their colours: those are your choices, not the site's dress",
     siteSkin: "Site skin",
     closeThePicker: "Close the skin picker",
     price: "{{price}} tokens",
@@ -2912,7 +2921,7 @@ const en = {
       },
       shop: {
         title: "The display case",
-        body: "Six rows: stamps and titles to wear beside your pseudonym, papers that change the page's ground without touching the skin, the skins themselves, packets of stickers, and powers to spend during a game. Something too dear stays on the shelf, tells you what is missing and where to earn it. One skin is given; the other sixteen are taken here, in tokens — and tokens are earned.",
+        body: "Six rows: stamps and titles to wear beside your pseudonym, papers that change the page's ground without touching the skin, the skins themselves, packets of stickers, and powers to spend during a game. Something too dear stays on the shelf, tells you what is missing and where to earn it. One skin is given; the other sixteen are taken here, in tokens — and tokens are earned. Wearing a skin or a paper puts it on AT ONCE: the page changes before your eyes.",
       },
       window: {
         title: "What is within reach",

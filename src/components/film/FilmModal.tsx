@@ -12,9 +12,19 @@ import type { Film, FilmStatus } from "../../types";
 import { useViewport } from "../../hooks/useViewport";
 import { useEscape } from "../../hooks/useEscape";
 
+/* DEUX LIBELLÉS, ET LES DEUX ÉTAIENT FAUX. Le premier était du français
+   écrit en dur ; le second était une CLÉ de traduction rendue telle
+   quelle — le bouton affichait « views.watchlist » en toutes lettres,
+   mot pour mot le défaut des onglets de l'almanach. Une phrase rangée
+   dans un tableau de constantes n'est ni un attribut ni du texte JSX :
+   `literals.test.ts` ne peut pas la voir, et il le dit désormais.
+
+   DES CLÉS DE `film.*`, ET SURTOUT PAS `views.watchlist` : celle-là
+   nomme un ONGLET du classeur. Ces deux boutons nomment l'ÉTAT d'une
+   fiche, et les deux doivent se lire dans le même registre. */
 const STATUSES: { k: FilmStatus; l: string }[] = [
-  { k: "watched", l: "Film vu" },
-  { k: "watchlist", l: "views.watchlist" },
+  { k: "watched", l: "film.statusWatched" },
+  { k: "watchlist", l: "film.statusWatchlist" },
 ];
 
 export function FilmModal({ onClose, onSave }: { onClose: () => void; onSave: (f: Film) => void }) {
@@ -157,7 +167,7 @@ export function FilmModal({ onClose, onSave }: { onClose: () => void; onSave: (f
                   border: `1px solid ${f.status === o.k ? C.pine : C.line}`,
                 }}
               >
-                {o.l}
+                {t(o.l)}
               </button>
             ))}
           </div>

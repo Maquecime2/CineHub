@@ -22,6 +22,15 @@
      length, an identifier — caught by `TECHNICAL`;
    — punctuation and figures, which read the same in both languages.
 
+   CE QU'IL NE VOIT PAS, ET C'EST ÉCRIT PLUTÔT QUE DEVINÉ. Une phrase
+   rangée dans un TABLEAU DE CONSTANTES lui échappe — elle n'est ni un
+   attribut, ni du texte entre deux balises. `FilmModal` en portait deux,
+   dont une qui affichait la CLÉ de traduction en toutes lettres sur un
+   bouton. L'expression régulière qui attraperait ce cas ramènerait des
+   dizaines de faux positifs et ferait gonfler `EXEMPT`, ce que ce
+   fichier interdit juste en dessous. La limite est donc assumée ici, et
+   non contournée.
+
    ADDING A FILE TO `EXEMPT` IS A DECISION, not a fix. The list is short
    on purpose: when it grows, this test has stopped protecting anything.
    ============================================================ */
@@ -61,7 +70,13 @@ const files = (dir: string): string[] =>
     const path = join(dir, entry).replace(/\\/g, "/");
     if (EXEMPT.some((e) => path === e || path.startsWith(`${e}/`))) return [];
     if (statSync(path).isDirectory()) return files(path);
-    if (!/\.(tsx|jsx)$/.test(path) || /\.test\./.test(path)) return [];
+    /* LES `.ts` AUSSI, ET ILS NE COÛTENT RIEN. Le filet ne lisait que le
+       JSX, donc un module d'écran qui compose du HTML ou tient un
+       tableau de libellés lui était invisible — c'est par là que
+       `stills/tokens.ts` a gardé sa phrase française. Mesuré au moment
+       de l'ouvrir : pas un fichier ne tombe. C'est une porte fermée
+       d'avance, pas une dette découverte. */
+    if (!/\.(tsx|jsx|ts)$/.test(path) || /\.test\./.test(path)) return [];
     return [path];
   });
 
@@ -94,6 +109,18 @@ describe("what the screens say", () => {
         let m: RegExpExecArray | null;
         while ((m = re.exec(source))) {
           const value = m[1] as string;
+          if (isSpoken(value)) found.push(`${path} — ${value.trim()}`);
+        }
+      }
+      /* Les attributs parlés écrits en code : ternaire, gabarit. */
+      BRACED.lastIndex = 0;
+      let braced: RegExpExecArray | null;
+      while ((braced = BRACED.exec(source))) {
+        const body = withoutKeys(braced[1] as string);
+        STRINGS.lastIndex = 0;
+        let str: RegExpExecArray | null;
+        while ((str = STRINGS.exec(body))) {
+          const value = withoutHoles((str[1] ?? str[2]) as string);
           if (isSpoken(value)) found.push(`${path} — ${value.trim()}`);
         }
       }

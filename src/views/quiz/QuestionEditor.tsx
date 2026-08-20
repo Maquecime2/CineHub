@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Check, X } from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { bare, hollow, inked, underlineInput } from "../../theme/styles";
-import { Label } from "../../components/ui";
+import { Label, Trouble } from "../../components/ui";
 import type { BankQuestion, QuestionDraft } from "../../services/server";
 import { LEVELS, POINTS } from "./shared";
 
@@ -38,14 +38,27 @@ export function QuestionEditor({
      independently would have made that easy to do by accident. */
   const tick = (i: number) => setChoices(choices.map((c, j) => ({ ...c, is_right: i === j })));
 
-  const save = () =>
-    onSave({
-      ask: ask.trim(),
-      hint: hint.trim(),
-      image: image.trim() || null,
-      difficulty,
-      choices: choices.filter((c) => c.label.trim() !== ""),
-    }).catch(() => {});
+  /* LE CLIC AVALÉ. Le refus du serveur partait au néant : l'éditeur se
+     comportait comme si l'enregistrement était passé. Il ne se ferme
+     pas pour autant — l'appelant ne ferme que DANS la promesse, donc la
+     saisie est intacte à l'écran — il lui manquait seulement de dire
+     pourquoi. `Trouble` et non une annonce fugace : on a du texte tapé
+     sous les yeux, et on est en train de le relire. */
+  const [trouble, setTrouble] = useState(false);
+  const save = async () => {
+    setTrouble(false);
+    try {
+      await onSave({
+        ask: ask.trim(),
+        hint: hint.trim(),
+        image: image.trim() || null,
+        difficulty,
+        choices: choices.filter((c) => c.label.trim() !== ""),
+      });
+    } catch {
+      setTrouble(true);
+    }
+  };
 
   return (
     <div style={{ border: `1px solid ${C.ink}`, padding: 10, marginTop: 8 }}>
@@ -141,6 +154,10 @@ export function QuestionEditor({
           {t("quizView.cancel")}
         </button>
       </div>
+
+      {/* SOUS LES BOUTONS, ET AVEC `role="alert"` : la saisie est
+          intacte au-dessus, et c'est elle qu'on relit. */}
+      {trouble && <Trouble>{t("quizView.saveFailed")}</Trouble>}
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { bare, inked } from "../../theme/styles";
-import { Confirmation, Guideline, Meter, type ConfirmRequest } from "../../components/ui";
+import { Confirmation, Guideline, Meter, Trouble, type ConfirmRequest } from "../../components/ui";
 import { Layer } from "../../components/ui/Layer";
 import { useSay } from "../../components/ui/Feedback";
 import { Stamp } from "../../components/atmosphere/hall";
@@ -98,6 +98,11 @@ export function QuizTable({
      cet identifiant. Aucun minuteur, donc rien à annuler au démontage. */
   const [laid, setLaid] = useState<string | null>(null);
   const [request, setRequest] = useState<ConfirmRequest | null>(null);
+  /* LE PIRE DES ÉCHECS AVALÉS DU PRODUIT, ET C'EST LA COUCHE QUI LE
+     RENDAIT INVISIBLE. L'ouverture de l'essai échouait, `reread`
+     n'était donc JAMAIS appelé, et la table s'affichait entièrement vide
+     — par-dessus l'écran, sans un mot, sans rien autour pour deviner. */
+  const [trouble, setTrouble] = useState(false);
 
   const reread = useCallback(async () => {
     const r = await readQuiz(quiz.id);
@@ -112,14 +117,25 @@ export function QuizTable({
       .catch(() => setPowers({}));
   }, [quiz.id]);
 
-  useEffect(() => {
-    /* Opening the attempt is what the first look does: there is no
-       "start" button to press, and pressing it twice would have been
-       one more thing to explain. It is idempotent server-side. */
-    startQuiz(quiz.id)
-      .then(reread)
-      .catch(() => {});
+  /* Opening the attempt is what the first look does: there is no
+     "start" button to press, and pressing it twice would have been one
+     more thing to explain. It is idempotent server-side.
+
+     LE `try` ENGLOBE L'APPEL, et pas seulement sa promesse : un service
+     qui lève avant de rendre une promesse traverse un `.catch`. */
+  const open = useCallback(async () => {
+    setTrouble(false);
+    try {
+      await startQuiz(quiz.id);
+      await reread();
+    } catch {
+      setTrouble(true);
+    }
   }, [quiz.id, reread]);
+
+  useEffect(() => {
+    void open();
+  }, [open]);
 
   const answered = questions.filter((q) => q.mine != null).length;
   const current = questions.find((q) => q.mine == null);
@@ -280,7 +296,15 @@ export function QuizTable({
 
           {quiz.softened && <Guideline tight>{t("quizView.softened")}</Guideline>}
 
-          {finished ? (
+          {/* ON N'A PAS PU OUVRIR, ET ON LE DIT PLUTÔT QUE DE DESSINER
+              UNE TABLE VIDE. Le reste de la couche ne se monte pas :
+              une partie sans question, sous un voile, ne se distingue
+              pas d'une partie qui n'existe plus. */}
+          {trouble ? (
+            <Trouble onRetry={() => void open()} retryLabel={t("quizView.askAgain")}>
+              {t("quizView.tableFailed")}
+            </Trouble>
+          ) : finished ? (
             <>
               {/* DEUX TEMPS, ET LE PREMIER FELICITE. La phrase grise qui
                   ouvrait cet ecran — « C'est fait. On ne le rejoue

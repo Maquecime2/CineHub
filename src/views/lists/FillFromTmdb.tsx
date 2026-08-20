@@ -44,7 +44,7 @@ export function FillFromTmdb({
 
   /* One writes in a list one may write in. A stranger's public list is
      read here, not filled. */
-  if (!list.mienne && !list.isMember) return null;
+  if (!list.mienne && !list.is_member) return null;
 
   /* CE QUE LA LISTE TIENT DÉJÀ, DIT SUR LES FICHES DU CLASSEUR. Le
      sélecteur marque ses lignes avec un jeu d'identifiants de FICHES ;

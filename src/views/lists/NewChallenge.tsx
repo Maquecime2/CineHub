@@ -84,7 +84,7 @@ export function NewChallenge({
      liste d'un autre la lui ferait voir paraître sans l'avoir voulu —
      c'est le droit que le serveur demande, et l'écran ne propose donc
      pas ce qu'il refuserait. */
-  const mine = useMemo(() => lists.filter((l) => l.mienne || l.isMember), [lists]);
+  const mine = useMemo(() => lists.filter((l) => l.mienne || l.is_member), [lists]);
 
   /* LE TITRE PROPOSÉ, JAMAIS IMPOSÉ. Il se recalcule tant qu'on n'a rien
      tapé : choisir une autre liste après avoir vu le titre d'une

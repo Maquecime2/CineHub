@@ -36,7 +36,7 @@ import type { List } from "../../services/server";
 
 function ListCard({ list, onOpen }: { list: List; onOpen: () => void }) {
   const { t } = useTranslation();
-  const shared = !list.mienne || list.isMember;
+  const shared = !list.mienne || list.is_member;
 
   return (
     <button

@@ -11,7 +11,7 @@
    here, it is the normal working of a binder that lives at home. So we
    say what is waiting, not what is missing.
    ============================================================ */
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import {
   CloudOff,
@@ -34,6 +34,7 @@ import {
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { Layer } from "../ui/Layer";
+import { watchWorn, wornTitle } from "../../theme/owned";
 import { Label, Tally } from "../ui";
 import { Confirmation, type ConfirmRequest } from "../ui/Confirmation";
 import { LegalPanel } from "./LegalPanel";
@@ -179,6 +180,8 @@ export function AccountDrawer({
   const mediaSays = mediaTrouble();
 
   const signedIn = !!report.person;
+  /* La mention portée, relue dès qu'on change de tenue au comptoir. */
+  const title = useSyncExternalStore(watchWorn, wornTitle, () => null);
 
   return (
     <Layer>
@@ -220,6 +223,48 @@ export function AccountDrawer({
               {signedIn ? report.person!.pseudo : t("account.title")}
             </span>
           </div>
+
+          {/* ============================================================
+              LA MENTION QU'ON PORTE, ENFIN DESSINÉE
+              ============================================================
+
+              `wornTitle` n'avait AUCUN lecteur : on achetait un titre au
+              comptoir, on le portait, et il n'apparaissait nulle part.
+              Sur quatre choses qui se portent, deux ne se voyaient
+              jamais — la peau se règle à côté, celle-ci était muette.
+
+              ICI ET NULLE PART AILLEURS, ET CE N'EST PAS UN CHOIX DE
+              MISE EN PAGE. Le titre des AUTRES n'existe pas côté client :
+              `person.title` n'est lu que par une seule requête de tout le
+              serveur (`myHoldings`, soi-même), et aucune des requêtes qui
+              rendent un pseudonyme — œuvres d'une liste, propriétaire,
+              participants, classements — ne le joint. Le descendre est un
+              chantier serveur à lui seul, avec un arbitrage qui n'est pas
+              tranché : le titre suit-il quelqu'un au palmarès public ?
+              C'est pourquoi il n'y a pas de composant partagé : il ne
+              peut pas y avoir un second appelant.
+
+              À CÔTÉ DU `span[data-pseudo]`, JAMAIS DEDANS :
+              `pseudoOfThePage` lit cet attribut pour le partage de lien.
+
+              PAR ABONNEMENT ET NON PAR APPEL DIRECT, sinon porter un
+              titre ne se verrait qu'au rechargement — le défaut exact que
+              `watchWorn` a été écrit pour fermer. */}
+          {signedIn && title && (
+            <span
+              style={{
+                fontFamily: F.mono,
+                fontSize: 10,
+                letterSpacing: 1.2,
+                textTransform: "uppercase",
+                color: C.inkFaded,
+                border: `1px solid ${C.line}`,
+                padding: "2px 6px",
+              }}
+            >
+              {t(`counter.items.${title}`)}
+            </span>
+          )}
           <button
             onClick={onClose}
             aria-label={t("common.close")}

@@ -12,11 +12,11 @@ import {
 import { pruneOrphans } from "./db";
 import { CAT_KEYS } from "./shelf-views";
 import { C, F, FONT_IMPORT } from "./theme/tokens";
-import { applySkin, loadSkinKey, saveSkinKey } from "./theme/applySkin";
+import { applySkin, loadSkinKey, saveSkinKey, skinChosen } from "./theme/applySkin";
 import { refreshHand } from "./theme/handwriting";
 import { skinOf } from "./theme/skins";
 import { paperLayer } from "./theme/surfaces";
-import { wornPaper, watchWorn } from "./theme/owned";
+import { wornPaper, wornSkin, watchWorn } from "./theme/owned";
 import { Boundary } from "./components/ui/Boundary";
 import i18n, { loadLanguage, setLanguage } from "./i18n";
 import { uid, migrate, editLinkedWork } from "./domain/film";
@@ -250,6 +250,28 @@ export default function App() {
     applySkin(skin);
     saveSkinKey(skin);
   }, [skin]);
+
+  /* ============================================================
+     LA PEAU DU SERVEUR EST UN DERNIER RECOURS, ET RIEN D'AUTRE
+     ============================================================
+
+     `wornSkin` porte cette promesse dans son commentaire depuis
+     toujours — « retrouver son décor sur une machine neuve » — et
+     n'avait AUCUN lecteur : une doctrine que le code contredisait.
+
+     ELLE NE PASSE JAMAIS DEVANT UN CHOIX LOCAL. `skinChosen` est ce qui
+     fait la différence entre « personne n'a rien choisi ici » et « on a
+     choisi le kraft » — `loadSkinKey` rend le même mot dans les deux
+     cas. Sans cette distinction, revenir du réseau redéguiserait le
+     classeur de quelqu'un qui avait décidé du contraire.
+
+     `paper` est déjà abonné à `watchWorn` juste au-dessus : la bourse
+     arrive après le premier rendu, et c'est cet abonnement qui prévient. */
+  const worn = useSyncExternalStore(watchWorn, wornSkin, wornSkin);
+  useEffect(() => {
+    if (!worn || skinChosen()) return;
+    setSkin(worn);
+  }, [worn]);
 
   /* ============================================================
      LA PORTE EST UNE SESSION
@@ -1803,7 +1825,15 @@ export default function App() {
               )}
               {view === "quiz" && <QuizView connected={!!synchro.person} />}
               {view === "counter" && (
-                <CounterView connected={!!synchro.person} onGo={(where) => setView(where)} />
+                <CounterView
+                  connected={!!synchro.person}
+                  onGo={(where) => setView(where)}
+                  /* PORTER UNE PEAU, C'EST LA METTRE. Le comptoir le
+                     disait au serveur et pas à l'écran : on payait des
+                     jetons et rien ne bougeait. Il passe par l'état
+                     d'ici, seul écrivain de la peau. */
+                  onSkinWorn={setSkin}
+                />
               )}
               {view === "skinlab" && import.meta.env.DEV && <SkinLab />}
               {view === "import" && (

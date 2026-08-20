@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Pencil, Plus, Trash2, Undo2 } from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { bare, chip, inked, tap } from "../../theme/styles";
-import { Guideline } from "../../components/ui";
+import { Guideline, Trouble } from "../../components/ui";
 import {
   addBankQuestion,
   bankQuestions,
@@ -32,6 +32,11 @@ export function OneCategory({
   const [writing, setWriting] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  /* « IL N'Y A RIEN » ET « ON N'A PAS PU DEMANDER » NE SONT PAS LE MÊME
+     ÉCRAN. L'échec était avalé : l'accordéon s'ouvrait vide et se lisait
+     « cette catégorie n'a aucune question », alors qu'on n'avait pas pu
+     poser la question. C'est le défaut déjà retiré de quatre vues. */
+  const [trouble, setTrouble] = useState(false);
 
   const reread = useCallback(async () => {
     if (!opened) return;
@@ -39,9 +44,21 @@ export function OneCategory({
     setQuestions(r.questions);
   }, [category.id, opened]);
 
-  useEffect(() => {
-    reread().catch(() => {});
+  /* LE `try` ENGLOBE L'APPEL ET PAS SEULEMENT SA PROMESSE : un service
+     qui lève AVANT de rendre une promesse traverse un `.catch` et
+     emporte tout le panneau. */
+  const ask = useCallback(async () => {
+    setTrouble(false);
+    try {
+      await reread();
+    } catch {
+      setTrouble(true);
+    }
   }, [reread]);
+
+  useEffect(() => {
+    void ask();
+  }, [ask]);
 
   return (
     <div style={{ border: `1px solid ${C.line}` }}>
@@ -70,8 +87,17 @@ export function OneCategory({
               {note}
             </div>
           )}
+          {trouble && (
+            <Trouble onRetry={() => void ask()} retryLabel={t("quizView.askAgain")}>
+              {t("quizView.questionsFailed")}
+            </Trouble>
+          )}
           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-            {questions.length === 0 && <Guideline tight>{t("quizView.noQuestions")}</Guideline>}
+            {/* LE VIDE NE SE DIT PAS QUAND ON N'A PAS PU DEMANDER : les
+                deux écrans à la fois est pire qu'un seul faux. */}
+            {questions.length === 0 && !trouble && (
+              <Guideline tight>{t("quizView.noQuestions")}</Guideline>
+            )}
             {questions.map((q) =>
               editing === q.id ? (
                 <QuestionEditor

@@ -1162,3 +1162,51 @@ describe("a challenge on a criterion", () => {
     expect(purse.merit).toBeGreaterThan(0);
   });
 });
+
+/* ============================================================
+   LES DEUX ROUTES PARLENT LA MEME LANGUE
+   ============================================================
+
+   `myLists` rend `is_member` (c'est le SQL qui l'ecrit), et `/lists/:id`
+   posait `isMember` a la main. Les interfaces des deux cotes epelaient
+   `isMember`, donc le champ valait `undefined` pour toute liste venue de
+   `GET /lists` — TOUJOURS, sans qu'une erreur soit levee. Trois ecrans
+   mentaient : pas de remplissage TMDB pour un co-redacteur, pas de liste
+   de membre offerte comme sujet d'un defi, et un indicateur « partagee »
+   faux sur ses propres listes.
+
+   CE CAS EST LE SEUL QUI L'AURAIT ATTRAPE, et c'est parce qu'il compare
+   les DEUX routes plutot que de verifier une valeur : corriger un seul
+   cote aurait transforme un defaut silencieux en defaut intermittent. */
+describe("a list one is a member of, read from both doors", () => {
+  it("names the membership field the same way on both routes", async () => {
+    const owner = await count("proprietaire");
+    const guest = await count("invitee");
+    const list = await createList(owner.cookie);
+    await inviteToTheList(owner.cookie, list, "invitee");
+
+    const shelf = (
+      await app.inject({ method: "GET", url: "/lists", headers: { cookie: guest.cookie } })
+    ).json().lists as Record<string, unknown>[];
+    const mine = shelf.find((l) => l.id === list);
+    const opened = (await readTheList(guest.cookie, list)).json().list as Record<string, unknown>;
+
+    /* Le meme nom, et la meme reponse : membre sans etre proprietaire. */
+    expect(mine?.is_member).toBe(true);
+    expect(opened.is_member).toBe(true);
+    expect(mine?.mienne).toBe(false);
+    /* Et surtout : plus une seule orthographe inventee ici. */
+    expect(mine).not.toHaveProperty("isMember");
+    expect(opened).not.toHaveProperty("isMember");
+  });
+
+  it("says false for a stranger, rather than saying nothing", async () => {
+    const owner = await count("proprietaire2");
+    const passing = await count("passante");
+    const list = await createList(owner.cookie, { is_public: true });
+
+    const opened = (await readTheList(passing.cookie, list)).json().list as Record<string, unknown>;
+    /* Absent voudrait dire absent ; ici on sait, et on repond. */
+    expect(opened.is_member).toBe(false);
+  });
+});

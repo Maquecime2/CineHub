@@ -24,6 +24,7 @@ import { Plus } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { hollow, inked, tap } from "../../theme/styles";
 import { Guideline, Label, Meter, Waiting } from "../../components/ui";
+import { useSay } from "../../components/ui/Feedback";
 import { StampCorner, TapeResidue } from "../../components/atmosphere";
 import { Halftone } from "../../components/atmosphere/hall";
 import { needsSettling, stateOf } from "../../domain/challenges";
@@ -89,8 +90,21 @@ function OneChallenge({
   onOpen: () => void;
 }) {
   const { t } = useTranslation();
+  const say = useSay();
   const state = stateOf({ starts_on: challenge.starts_on, ends_on: challenge.ends_on });
   const banner = BANNER[state]!;
+
+  /* LE `try` ENGLOBE L'APPEL et pas seulement sa promesse, et le message
+     vient du CATALOGUE et non du `message` de l'erreur — celui-là vient
+     du serveur, souvent en anglais et toujours technique. */
+  const enrol = async () => {
+    try {
+      await (challenge.inside ? leaveChallenge(challenge.id) : joinChallenge(challenge.id));
+      await onChange();
+    } catch {
+      say(t("listsView.enrolFailed"));
+    }
+  };
 
   /* SANS LISTE, LE BUT EST LA CIBLE — et rien d'autre. `works` vaut zéro
      pour un défi par critère, donc un `Math.min` rendrait un
@@ -269,14 +283,12 @@ function OneChallenge({
           alignItems: "center",
         }}
       >
-        <button
-          onClick={() =>
-            void (challenge.inside ? leaveChallenge(challenge.id) : joinChallenge(challenge.id))
-              .then(onChange)
-              .catch(() => {})
-          }
-          style={inked(challenge.inside ? C.slate : C.pine)}
-        >
+        {/* UNE ANNONCE ET NON UN PANNEAU : c'est une LIGNE d'un tableau
+            de défis, et y insérer un `Trouble` déplacerait toutes les
+            suivantes à chaque échec réseau. Le geste est réversible et
+            il n'y a pas de saisie à perdre — c'est exactement « dire ce
+            qui vient de se passer ». */}
+        <button onClick={() => void enrol()} style={inked(challenge.inside ? C.slate : C.pine)}>
           {challenge.inside ? t("listsView.leave") : t("listsView.join")}
         </button>
       </div>

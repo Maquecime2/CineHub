@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { loadSkinKey, saveSkinKey, SKIN_KEY } from "./applySkin";
+import { loadSkinKey, saveSkinKey, skinChosen, SKIN_KEY } from "./applySkin";
 import { HAND_KEY, readHand, refreshHand, setHand } from "./handwriting";
 import { store } from "../services/storage";
 import {
@@ -122,5 +122,47 @@ describe("what arrives from the other computer", () => {
     await settle();
     fileIncomingDocument({ key: SKIN_KEY, updatedAt: 1, content: "nitrate" });
     expect(loadSkinKey()).toBe("herbier");
+  });
+});
+
+/* ============================================================
+   « PERSONNE N'A CHOISI ICI » N'EST PAS « ON A CHOISI LE KRAFT »
+   ============================================================
+
+   `loadSkinKey` rend le même mot dans les deux cas, et cette différence
+   décide du repli sur la peau PORTÉE au comptoir : sans elle, revenir du
+   réseau redéguiserait le classeur de quelqu'un qui avait décidé du
+   contraire. `wornSkin` promettait ce rôle dans son commentaire depuis
+   toujours, sans un seul lecteur. */
+describe("has anybody chosen a skin on this machine", () => {
+  it("says no on a fresh machine, even though the kraft is served", () => {
+    expect(loadSkinKey()).toBe("carnet");
+    expect(skinChosen()).toBe(false);
+  });
+
+  it("says yes as soon as one is chosen — the kraft included", () => {
+    saveSkinKey("carnet");
+    expect(skinChosen()).toBe(true);
+  });
+
+  /* LE REPLI LUI-MÊME. `App` ne pose la peau du serveur que si personne
+     n'a rien choisi ici — c'est cette condition-là qu'on éprouve, sans
+     monter l'application. */
+  it("lets the server's skin in on a fresh machine, and never over a choice", () => {
+    const fromTheCounter = "nitrate";
+    /* Machine neuve : le repli a le droit. */
+    expect(skinChosen()).toBe(false);
+
+    /* Puis quelqu'un choisit — le kraft, exprès. Le repli se ferme. */
+    saveSkinKey("carnet");
+    expect(skinChosen()).toBe(true);
+    expect(loadSkinKey()).toBe("carnet");
+    expect(loadSkinKey()).not.toBe(fromTheCounter);
+  });
+
+  it("says yes for a skin written before it travelled", () => {
+    /* L'ancienne forme, en clair : elle est un choix, elle aussi. */
+    localStorage.setItem(SKIN_KEY, "herbier");
+    expect(skinChosen()).toBe(true);
   });
 });

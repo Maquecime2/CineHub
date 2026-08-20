@@ -232,6 +232,26 @@ describe("opening a quiz", () => {
     expect(api.readQuiz).toHaveBeenCalledWith("q1");
   });
 
+  /* ON N'A PAS PU OUVRIR, ET C'ÉTAIT L'ÉCHEC LE PLUS INVISIBLE DU
+     PRODUIT. `startQuiz` échouait, `reread` n'était donc jamais appelé,
+     et la table s'affichait ENTIÈREMENT VIDE par-dessus l'écran — sans
+     un mot, et sans rien autour pour deviner, puisque c'est une couche.
+     Une partie sans question ne se distingue pas d'une partie qui
+     n'existe plus. */
+  it("says it could not open the game, instead of drawing an empty table", async () => {
+    const user = userEvent.setup();
+    api.startQuiz.mockRejectedValueOnce(new Error("503"));
+    /* On n'attend PAS la question : c'est justement ce qui n'arrive
+       jamais, et `open()` l'exige. */
+    mount();
+    await user.click(await screen.findByText("Le quizz du samedi"));
+
+    const box = await screen.findByRole("alert");
+    expect(box).toHaveTextContent(/pas pu ouvrir cette partie/);
+    /* Et rien de la table. */
+    expect(screen.queryByText("La question qa")).not.toBeInTheDocument();
+  });
+
   it("is a dialogue that names itself, opened from a real button", async () => {
     const user = userEvent.setup();
     await open(user);

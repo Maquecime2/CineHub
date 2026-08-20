@@ -1126,7 +1126,11 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
 
     const list = await store.listById(db, rights.list_id);
     return {
-      list: { ...list, mienne: rights.administer, isMember: rights.write },
+      /* `is_member` COMME LE SQL DE `myLists`, et c'est indivisible :
+         corriger un seul des deux cotes ferait marcher le champ sur une
+         route et pas sur l'autre — un defaut intermittent, pire a
+         retrouver que le silence qu'il remplace. */
+      list: { ...list, mienne: rights.administer, is_member: rights.write },
       works: await store.worksOf(db, rights.list_id),
       /* The co-builders only show themselves to those who write in it: a
          visitor to a public list reads films, not the list of the people
@@ -1259,6 +1263,10 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
       `${rights.list_id}:${invite.id}`,
       RATE.list_shared
     );
+    /* CE N'EST PAS LE `is_member` D'UNE LISTE, et la ressemblance est un
+       piege. Celui-la est ecrit en TypeScript des deux cotes — jamais
+       rendu par du SQL — et son lecteur l'epelle pareil : il fonctionne.
+       Le renommer par sympathie casserait deux appels qui marchent. */
     return { pseudo: invite.pseudo, isMember: true };
   });
 

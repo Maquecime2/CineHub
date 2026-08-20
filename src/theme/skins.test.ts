@@ -238,6 +238,25 @@ describe("les peaux du comptoir", () => {
     }
   });
 
+  /* ============================================================
+     ET LA RÉSOLUTION INVERSE EST TOTALE
+     ============================================================
+     Le comptoir ne connaît que l'IDENTIFIANT d'article — c'est ce que
+     `wear` envoie — et doit en retrouver la CLÉ pour appliquer la peau.
+     Sans ce sens-là, porter une peau achetée disait au serveur qu'on la
+     portait et ne changeait rien à l'écran. Un article dont la clé ne se
+     retrouve pas ferait retomber sur le kraft en silence. */
+  it("retrouve la peau depuis l'identifiant d'article, et pas seulement l'inverse", () => {
+    for (const skin of SKINS.filter((s) => s.locked)) {
+      const found = SKINS.find((s) => s.locked === skin.locked);
+      expect(found?.key, skin.locked).toBe(skin.key);
+    }
+    /* Un identifiant par peau, jamais deux peaux pour un article : sinon
+       le comptoir en appliquerait une au hasard. */
+    const ids = SKINS.filter((s) => s.locked).map((s) => s.locked);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
   it("dit le même prix que le serveur", async () => {
     /* LE SEUL GARDE-FOU DU DOUBLON. Le catalogue du serveur est
        l'original — c'est lui qui débite. Celui-ci n'existe que pour

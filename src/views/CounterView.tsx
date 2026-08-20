@@ -44,7 +44,7 @@ import { WonDraw } from "../components/shelf/WonDraw";
 import { WON_PREFIX } from "../services/wonDecor";
 import { priceGap, RATE } from "../domain/points";
 import { hash, pickFrom, tiltOf } from "../domain/seeded";
-import { SKINS, skinOf } from "../theme/skins";
+import { DEFAULT_SKIN, SKINS, skinOf } from "../theme/skins";
 import { loadSkinKey } from "../theme/applySkin";
 import { paperLayer } from "../theme/surfaces";
 import { PackStudio } from "./counter/PackStudio";
@@ -82,10 +82,29 @@ const isWearable = (k: string): boolean => (WEARABLE as readonly string[]).inclu
 export function CounterView({
   connected,
   onGo,
+  onSkinWorn,
 }: {
   connected: boolean;
   /** Pour aller gagner ce qui manque : le comptoir ne navigue pas seul. */
   onGo?: (view: "quiz" | "lists") => void;
+  /**
+   * Porter une peau, c'est la METTRE.
+   *
+   * Le comptoir disait au serveur qu'on la portait, l'annonçait par
+   * `useSay`, et n'appelait NI `applySkin` NI `saveSkinKey` : on payait
+   * des jetons, l'écran confirmait, et rien ne changeait jusqu'à ce
+   * qu'on retourne la choisir dans le sélecteur. Le commentaire d'à
+   * côté promettait pourtant que « la peau et le papier se portent
+   * SUR-LE-CHAMP » — c'était vrai du papier seul, qui est le seul des
+   * deux à être abonné dans `App`.
+   *
+   * ON REMONTE PLUTÔT QUE D'APPLIQUER ICI. Écrire la peau depuis cette
+   * vue ne ferait aucun cycle d'import, mais ferait un SECOND écrivain :
+   * l'état d'`App` resterait en arrière, le sélecteur cocherait la
+   * mauvaise vignette, et le rendu suivant reviendrait dessus. Le seul
+   * écrivain reste le `useLayoutEffect` d'`App`.
+   */
+  onSkinWorn?: (key: string) => void;
 }) {
   const { t } = useTranslation();
   const say = useSay();
@@ -228,6 +247,13 @@ export function CounterView({
     setTrouble(null);
     try {
       await wear({ [what]: id });
+      /* LA CLÉ SE LIT SUR L'ARTICLE, ET HORS LIGNE. `Skin.locked` EST
+         l'identifiant d'article — `skins.test.ts` le tient — donc rien
+         à demander au serveur ni à la bourse. Un article de peau que ce
+         client ne connaît pas retombe sur la peau donnée plutôt que de
+         faire échouer un port qui, lui, a réussi. */
+      if (what === "skin")
+        onSkinWorn?.(id ? (SKINS.find((s) => s.locked === id)?.key ?? DEFAULT_SKIN) : DEFAULT_SKIN);
       await reread();
       /* PORTER UNE PEAU OU UN PAPIER NE SE VOIT PAS TOUJOURS TOUT DE
          SUITE : le fond de page change dans le dos de la personne, qui

@@ -452,6 +452,8 @@ const fr = {
 
   film: {
     newCard: "Nouvelle fiche",
+    statusWatched: "Film vu",
+    statusWatchlist: "À voir",
     titleField: "Titre",
     titlePlaceholder: "Le titre du film",
     nameField: "Nom",
@@ -2382,6 +2384,7 @@ const fr = {
     launch: "LANCER",
     join: "PARTICIPER",
     leave: "SORTIR",
+    enrolFailed: "On n'a pas pu changer votre participation.",
     noParticipants: "Personne n'y participe encore.",
     works_one: "{{count}} film",
     works_other: "{{count}} films",
@@ -2495,6 +2498,10 @@ const fr = {
     noCategories: "Aucune catégorie. C'est par là que ça commence.",
     deleteCategory: "Effacer cette catégorie",
     noQuestions: "Aucune question dans cette catégorie.",
+    questionsFailed: "On n'a pas pu demander les questions de cette catégorie.",
+    askAgain: "Redemander",
+    tableFailed: "On n'a pas pu ouvrir cette partie.",
+    saveFailed: "On n'a pas pu enregistrer cette question.",
     addQuestion: "Ajouter une question",
     editQuestion: "Modifier cette question",
     removeQuestion: "Retirer cette question",
@@ -2607,6 +2614,8 @@ const fr = {
     handwriting: "L'ÉCRITURE",
     handPlume: "à la main",
     handPlain: "imprimée",
+    notTouched:
+      "vos cartons et le décor de vos étagères gardent leurs couleurs : ce sont vos choix, pas l'habillage du site",
     siteSkin: "Peau du site",
     closeThePicker: "Fermer le choix des peaux",
     price: "{{price}} jetons",
@@ -3014,7 +3023,7 @@ const fr = {
       },
       shop: {
         title: "Le présentoir",
-        body: "Six rangées : des tampons et des titres à porter à côté de votre pseudonyme, des papiers qui changent le fond de la page sans toucher à la peau, les peaux elles-mêmes, des pochettes de vignettes, et des pouvoirs à dépenser pendant une partie. Un article trop cher reste sur l'étal, vous dit ce qui manque et par où le gagner. Une seule peau est donnée ; les seize autres se prennent ici, en jetons — et les jetons se gagnent.",
+        body: "Six rangées : des tampons et des titres à porter à côté de votre pseudonyme, des papiers qui changent le fond de la page sans toucher à la peau, les peaux elles-mêmes, des pochettes de vignettes, et des pouvoirs à dépenser pendant une partie. Un article trop cher reste sur l'étal, vous dit ce qui manque et par où le gagner. Une seule peau est donnée ; les seize autres se prennent ici, en jetons — et les jetons se gagnent. Porter une peau ou un papier le met AUSSITÔT : la page change sous vos yeux.",
       },
       window: {
         title: "Ce qui est à votre portée",

@@ -23,7 +23,7 @@ import { tap, bare, chip } from "../../theme/styles";
 import { DEFAULT_SKIN, SKINS, type Skin } from "../../theme/skins";
 import { ownedItems } from "../../theme/owned";
 import { HANDS, readHand, setHand, watchHand, type Hand } from "../../theme/handwriting";
-import { accountOpen } from "../../services/server";
+import { accountOpen, wear } from "../../services/server";
 import { usePurse } from "../../hooks/usePurse";
 import { BuyChip } from "../play/Buy";
 import { refreshOwned } from "../../theme/owned";
@@ -205,6 +205,26 @@ export function SkinPicker({
   const [, again] = useState(0);
   const mine = accountOpen() ? ownedItems() : [];
 
+  /* ON LE DIT AU COMPTOIR, EN MEILLEUR EFFORT.
+     Choisir une peau ici n'en informait personne : la table `worn` du
+     serveur restait sur l'ancienne, donc le comptoir cochait « porté »
+     sur une peau qu'on ne voyait pas, et `GET /shop/worn` mentait. Deux
+     vérités pour une seule chose.
+
+     `Skin.locked` EST l'identifiant d'article — `skins.test.ts` le tient
+     — donc la correspondance se lit ici, hors ligne et sans la bourse.
+     La peau DONNÉE n'est pas un article : `null` est sa traduction
+     exacte, « je ne porte aucun article », et c'est déjà ce que le
+     comptoir envoie quand on retire.
+
+     LE REFUS EST AVALÉ, ET C'EST ASSUMÉ : choisir une peau hors ligne
+     ou sans compte doit rester silencieux — le classeur s'habille tout
+     seul, il n'a rien à demander à personne. */
+  const tellTheCounter = (s: Skin) => {
+    if (!accountOpen()) return;
+    void wear({ skin: s.locked ?? null }).catch(() => {});
+  };
+
   /* Une peau achetée doit apparaître déverrouillée SANS RECHARGER : ce
      qu'on possède vit en mémoire locale, rafraîchie depuis le serveur,
      et ce compteur force la grille à se redessiner ensuite. */
@@ -283,7 +303,10 @@ export function SkinPicker({
             on={s.key === skin}
             locked={isLocked(s)}
             onBought={reread}
-            onPick={() => onPick(s.key)}
+            onPick={() => {
+              onPick(s.key);
+              tellTheCounter(s);
+            }}
           />
         ))}
 
@@ -300,8 +323,7 @@ export function SkinPicker({
             paddingTop: 8,
           }}
         >
-          vos cartons et le décor de vos étagères gardent leurs couleurs : ce sont vos choix, pas
-          l&apos;habillage du site
+          {t("skins.notTouched")}
         </div>
       </div>
     </>

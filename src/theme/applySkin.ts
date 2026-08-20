@@ -162,6 +162,23 @@ export const loadSkinKey = (): string => {
 };
 
 /**
+ * A-t-on DÉJÀ choisi une peau sur cet appareil ?
+ *
+ * `loadSkinKey` ne peut pas répondre : elle rend le kraft quand la clé
+ * est absente, ce qui est indistinguable d'un kraft choisi exprès. Or la
+ * différence décide de tout pour le repli sur le serveur — retomber sur
+ * la peau portée par-dessus un choix local serait un classeur qui se
+ * déguise tout seul, ce que ce fichier interdit depuis toujours.
+ */
+export const skinChosen = (): boolean => {
+  try {
+    return localStorage.getItem(SKIN_KEY) !== null;
+  } catch {
+    return false;
+  }
+};
+
+/**
  * Écrire la peau choisie, et la faire voyager.
  *
  * ELLE NE RÉÉCRIT PAS CE QUI EST DÉJÀ ÉCRIT, et ce n'est pas une
@@ -170,9 +187,15 @@ export const loadSkinKey = (): string => {
  * l'application. Le dernier appareil ALLUMÉ imposerait alors sa peau au
  * dernier appareil TOUCHÉ, ce qui est exactement l'inverse de ce qu'on
  * veut : on suit le dernier CHOIX.
+ *
+ * « DÉJÀ ÉCRIT » SE LIT SUR LE DISQUE, ET NON SUR `loadSkinKey`. Celle-ci
+ * rend le kraft quand rien n'est rangé : comparer à elle faisait qu'un
+ * choix EXPLICITE du kraft, sur une machine neuve, n'écrivait rien du
+ * tout — donc `skinChosen` répondait non, et la peau portée au comptoir
+ * serait venue par-dessus une décision qu'on avait bel et bien prise.
  */
 export const saveSkinKey = (key: string): void => {
-  if (key === loadSkinKey()) return;
+  if (skinChosen() && key === loadSkinKey()) return;
   store.set(SKIN_KEY, key);
 };
 
