@@ -48,3 +48,47 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  # ------------------------------------------------------------
+  # LE SERVEUR EST UN SECOND PAQUET, ET IL A SES PROPRES CONTROLES
+  # ------------------------------------------------------------
+  # Aucun des trois ne tournait ici. `boot` est celui qu'on ne peut pas
+  # remplacer : ce serveur ne se compile pas, il tourne en TypeScript
+  # direct sous `--experimental-strip-types`, qui EFFACE les types sans
+  # rien transformer. Une propriete de parametre, un `enum`, un
+  # `namespace` l'arretent net au demarrage — or `tsc` les accepte,
+  # puisqu'ils sont valides, et vitest transforme avant d'executer. La
+  # suite de tests ne DEMARRE donc jamais le serveur.
+  #
+  # Un job a part, et non trois pas de plus dans l'autre : ce paquet a son
+  # propre verrou de dependances, et il lui faut Node 22 — `--experimental
+  # -strip-types` n'existe pas en 20, la version que le client compile.
+  serveur:
+    name: Serveur
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - run: npm ci
+        working-directory: server
+
+      - name: Typage
+        run: npm run typecheck
+        working-directory: server
+
+      # Les tests parlent a un vrai Postgres compile en WebAssembly
+      # (PGlite) : rien a lancer, pas de service a declarer.
+      - name: Tests
+        run: npm test
+        working-directory: server
+
+      - name: Demarrage
+        run: npm run boot
+        working-directory: server
