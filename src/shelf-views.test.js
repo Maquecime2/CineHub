@@ -7,6 +7,7 @@ import {
   kindOf,
   makeView,
   makeRow,
+  makeShelf,
   makeCat,
   makeDecor,
   makeWallDecor,
@@ -37,6 +38,7 @@ import {
   layoutByDirector,
   UNKNOWN_DIRECTOR,
   upgradeView,
+  fromRoom,
   DEFAULT_CAP,
   reflowView,
   wallDecorOf,
@@ -1077,5 +1079,113 @@ describe("countPlacedMotifs", () => {
   it("ne compte pas les films", () => {
     const v = viewWith("v1", [filmItem("f1"), makeDecor({ id: "d1", motif: "won:lampe" })]);
     expect(countPlacedMotifs({ v1: v })).toEqual({ "won:lampe": 1 });
+  });
+});
+
+/* ============================================================
+   REPRENDRE UNE VUE VENUE DE « LA PIÈCE »
+   ============================================================
+
+   Une version de ce classeur a fondu les deux murs en quatre rayons et
+   REÉCRIT ces documents SUR PLACE. Revenu ici, on ne les reconnaît plus :
+   sans mur, `ensureViews` fabrique des vues neuves et les vraies dorment
+   au coffre. Ce qui se garde ici est qu'on les reprenne SANS PERDRE ce
+   qui était rangé sur la pile — ce classeur ne connaît pas ce rayon, et
+   l'adopter tel quel l'effacerait au premier `reconcileView`.
+   ============================================================ */
+describe("fromRoom — reprendre une vue de la pièce", () => {
+  const room = ({ pile = [], main = [], bedside = [] } = {}) => ({
+    id: "v1",
+    version: 3,
+    name: "Ma pièce",
+    theme: "kraft",
+    shelves: {
+      pile: { rows: [...pile, makeRow({ kind: "unplaced" })], wall: [] },
+      bedside: { rows: [...bedside, makeRow({ kind: "unplaced" })], wall: [] },
+      main: { rows: [...main, makeRow({ kind: "unplaced" })], wall: [] },
+      reserve: makeShelf(),
+    },
+  });
+  const rowOf = (...ids) => makeRow({ items: ids.map(filmItem) });
+
+  it("laisse une vue d'ici tranquille", () => {
+    const mine = makeView({ id: "v", wall: "watched" });
+    expect(fromRoom(mine)).toEqual([mine]);
+  });
+
+  it("rend son mur à une vue dont la pile est vide", () => {
+    const [out, ...rest] = fromRoom(room({ main: [rowOf("a", "b")] }));
+    expect(rest).toEqual([]);
+    expect(out.wall).toBe("watched");
+    expect(out.id).toBe("v1");
+    // et le rayon que ce classeur ne connaît pas ne traîne plus
+    expect(Object.keys(out.shelves).sort()).toEqual([...SHELF_KINDS].sort());
+  });
+
+  it("REPOSE LA PILE SUR LA PLANCHE d'une vue « à voir », ordre compris", () => {
+    /* Le rayon « à voir » d'ici EST `main` : ses fiches y tombaient déjà
+       avant que la pile existe. */
+    const [out, ...rest] = fromRoom(room({ pile: [rowOf("x", "y"), rowOf("z")] }));
+    expect(rest).toEqual([]);
+    expect(out.wall).toBe("watchlist");
+    expect(out.id).toBe("v1");
+    expect(
+      rowsOf(out, "main")
+        .filter((r) => !isUnplaced(r))
+        .map(idsIn)
+    ).toEqual([["x", "y"], ["z"]]);
+  });
+
+  it("REND DEUX VUES quand les deux côtés sont garnis, plutôt que de choisir", () => {
+    const out = fromRoom(room({ main: [rowOf("a")], pile: [rowOf("x")] }));
+    expect(out.map((v) => v.wall)).toEqual(["watched", "watchlist"]);
+    // la première garde l'identité, la seconde en dérive une
+    expect(out[0].id).toBe("v1");
+    expect(out[1].id).toBe("v1-a-voir");
+    expect(rowsOf(out[0], "main").flatMap(idsIn)).toEqual(["a"]);
+    expect(rowsOf(out[1], "main").flatMap(idsIn)).toEqual(["x"]);
+  });
+
+  it("NE PERD AUCUNE FICHE, quel que soit le cas", () => {
+    /* `filmIdsOf` NE SAIT PAS COMPTER LA PILE — ce classeur ne connaît
+       pas ce rayon, et c'est précisément pourquoi `fromRoom` existe. On
+       mesure donc l'AVANT en parcourant tous les rayons du document, à
+       la main : se servir de `filmIdsOf` reviendrait à demander à la
+       victime de constater le vol. */
+    const inTheRoom = (v) =>
+      Object.values(v.shelves)
+        .flatMap((sh) => sh.rows)
+        .flatMap((r) => r.items)
+        .flatMap((it) => (it.t === "c" ? it.items.map((x) => x.id) : [it.id]))
+        .sort();
+
+    for (const seed of [
+      { main: [rowOf("a", "b")] },
+      { pile: [rowOf("x", "y")] },
+      { main: [rowOf("a")], bedside: [rowOf("b")], pile: [rowOf("x")] },
+    ]) {
+      const before = inTheRoom(room(seed));
+      const after = fromRoom(room(seed)).flatMap(filmIdsOf).sort();
+      expect(after).toEqual(before);
+    }
+  });
+
+  it("NE RABAISSE PAS `version` : ce qu'on ne lit pas, on ne l'efface pas", () => {
+    /* Une rangée qui pose une question traverse ce classeur sans être
+       lue, et retrouve son sens ailleurs. */
+    const doc = room({ pile: [{ ...rowOf("x"), query: { by: "director", value: "Ozu" } }] });
+    const [out] = fromRoom(doc);
+    expect(out.version).toBe(3);
+    expect(rowsOf(out, "main")[0].query).toEqual({ by: "director", value: "Ozu" });
+  });
+
+  it("survit à `upgradeView` sans rien réécrire", () => {
+    const [out] = fromRoom(room({ main: [rowOf("a")] }));
+    expect(upgradeView(out)).toBe(out);
+  });
+
+  it("ne rend rien d'un document illisible", () => {
+    expect(fromRoom(null)).toEqual([]);
+    expect(fromRoom({ id: "x" })).toEqual([]);
   });
 });
